@@ -1,0 +1,355 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "SYS-001",
+      "title": "System state starts only after the explicit current migration and never performs startup DDL",
+      "scenario": "godj.system_state.explicit_migration_gate",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-002",
+      "title": "One admin bootstrap is restart-idempotent while mismatched corrupt or duplicate state fails closed",
+      "scenario": "godj.system_state.admin_bootstrap_gate",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-003",
+      "title": "Stored credentials and permissions authenticate through a fresh process",
+      "scenario": "django.system_state.credential_permission_restart",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/auth/default.txt#authentication-in-web-requests", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::authenticate", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-004",
+      "title": "A rotated database session restores the same authenticated principal and permission after restart",
+      "scenario": "django.system_state.rotated_session_restart",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#using-sessions-in-views", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::login", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-005",
+      "title": "Session touch is monotonic and idle or absolute expiry deletes the expired row",
+      "scenario": "godj.system_state.session_expiry_and_touch",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-006",
+      "title": "Capacity and bounded reap are enforced while a failed atomic rotation preserves the old session only",
+      "scenario": "godj.system_state.capacity_reap_and_rotate_rollback",
+      "phase": "rollback",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-007",
+      "title": "Only a domain-separated bearer digest and current bounded codec payload are observable or durable",
+      "scenario": "godj.system_state.digest_only_current_codec",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-008",
+      "title": "Logout deletion denies a copied old cookie in the next process without resurrection",
+      "scenario": "django.system_state.logout_restart_denial",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::logout", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#clearing-the-session-store", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-009",
+      "title": "A restart preserves Django CSRF acceptance while GoDj proposes stale-token rejection and fresh remasking",
+      "scenario": "django.system_state.csrf_restart",
+      "phase": "commit",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false},
+        {"kind": "decision", "reference": "DEV-0008", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/howto/csrf.txt#using-csrf-protection", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/middleware/csrf.py::CsrfViewMiddleware", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-010",
+      "title": "An Admin audit failure rolls back the preceding Article mutation in the same transaction",
+      "scenario": "django.system_state.admin_audit_fault_rollback",
+      "phase": "rollback",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/options.py::ModelAdmin.changeform_view", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/options.py::ModelAdmin.log_addition", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-011",
+      "title": "Admin history survives restart and returns the newest bounded events in monotonic non-contiguous order",
+      "scenario": "django.system_state.audit_history_restart",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/contrib/admin/index.txt#modeladmin-methods", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/models.py::LogEntry", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-012",
+      "title": "An unknown commit outcome is returned without retry synthetic success or verified audit publication",
+      "scenario": "godj.system_state.commit_outcome_unknown",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0047", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0017", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-013",
+      "title": "A backend coordination fence is acquired before a callback that runs once without framework retry",
+      "scenario": "godj.system_state.coordinated_atomic_fence",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-014",
+      "title": "Concurrent admin bootstrap publishes exactly one durable credential or fails a mismatch closed",
+      "scenario": "godj.system_state.concurrent_admin_bootstrap",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-015",
+      "title": "Concurrent session creation preserves digest uniqueness and the global capacity bound",
+      "scenario": "godj.system_state.concurrent_session_capacity",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-016",
+      "title": "Out-of-order concurrent touch never moves accessed or idle expiry state backwards",
+      "scenario": "godj.system_state.concurrent_touch_monotonicity",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-017",
+      "title": "Concurrent rotate touch and logout publish one linearized session outcome without bearer resurrection",
+      "scenario": "godj.system_state.concurrent_session_rotation",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-018",
+      "title": "Concurrent Article mutation and audit append or prune share one commit and rollback boundary",
+      "scenario": "godj.system_state.concurrent_article_audit",
+      "phase": "rollback",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-019",
+      "title": "A shared bounded CSRF key ring supports cross-runtime handoff and staged active-key rotation",
+      "scenario": "godj.system_state.shared_csrf_key_ring",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-020",
+      "title": "Two processes preserve coordinated system state across SQLite and PostgreSQL restart",
+      "scenario": "godj.system_state.two_process_backend_restart",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-021",
+      "title": "Current-only system state separates explicit operator provision from raw-secret-free open-existing",
+      "scenario": "godj.system_state.explicit_operator_provisioning",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-022",
+      "title": "Createsuperuser accepts exactly two argv forms and rejects secret-bearing or noncanonical input before I/O",
+      "scenario": "godj.system_state.createsuperuser_argv_and_pre_io",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-023",
+      "title": "TTY-only bounded no-echo input confirms and restores before one-shot binary secret transport",
+      "scenario": "godj.system_state.tty_secret_transport",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-024",
+      "title": "Validated requests use project-owned one-open one-provision one-close behind exact migration readiness",
+      "scenario": "godj.system_state.project_provision_ownership",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-025",
+      "title": "Empty state provisions one operator while concurrent already-one cardinality and corruption paths fail without mutation",
+      "scenario": "godj.system_state.operator_provision_cardinality",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-026",
+      "title": "Rollback and unknown commit outcomes are not retried while known-created cleanup or output failure preserves creation",
+      "scenario": "godj.system_state.provision_outcome_ownership",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-027",
+      "title": "Open-existing validates stored encoded credential profile and policy before raw-secret-free authenticator startup",
+      "scenario": "godj.system_state.open_existing_authenticator",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-028",
+      "title": "Only migrated clean credential-absent state selects public-only mode and no schema corruption or policy failure downgrades",
+      "scenario": "godj.system_state.credential_absent_public_only",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-029",
+      "title": "Distinct-process SQLite and PostgreSQL provision login and restart preserve Admin and API authentication without raw secrets",
+      "scenario": "godj.system_state.operator_backend_login_restart",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/auth/default.txt#authentication-in-web-requests", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::authenticate", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#using-sessions-in-views", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::login", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-030",
+      "title": "Sensitive child cancellation bounds and redacts responses while cleaning its process group and reaping the direct child",
+      "scenario": "godj.system_state.sensitive_child_cleanup",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

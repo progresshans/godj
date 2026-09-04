@@ -34,6 +34,15 @@ func ParseDynamic[M any](descriptor ModelDescriptor[M], policy LookupPolicy, inp
 				Detail:   "field is not present in model metadata",
 			}
 		}
+		if field.Kind == ir.FieldForeignKey || field.Relation != nil {
+			return nil, &query.Error{
+				Category: query.CategoryField,
+				Code:     query.CodeUnsupportedLookup,
+				Field:    field.Name,
+				Lookup:   lookupName,
+				Detail:   "relation fields require the project-bound dynamic relation API",
+			}
+		}
 		lookup, ok := supportedLookup(field, lookupName)
 		if !ok {
 			return nil, &query.Error{
@@ -57,7 +66,11 @@ func ParseDynamic[M any](descriptor ModelDescriptor[M], policy LookupPolicy, inp
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, Predicate[M]{condition: query.NewCondition(fieldReference(field), lookup, value)})
+		predicate := predicateFromCondition[M](query.NewCondition(fieldReference(field), lookup, value), nil)
+		if predicate.err != nil {
+			return nil, predicate.err
+		}
+		result = append(result, predicate)
 	}
 	return result, nil
 }
@@ -84,6 +97,8 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	switch lookup {
 	case query.LookupExact:
 		return lookup, true
+	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldChar
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:

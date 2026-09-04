@@ -1,8 +1,8 @@
 # ADR-0018: Revision-fenced lifecycle은 Executor와 backend-owned session으로 조립한다
 
-- 상태: Proposed
-- 날짜: 2026-08-08
-- 관련 work/contract: GDJ-0018, MIG-047..MIG-056, Q-012
+- 상태: Accepted
+- 날짜: 2026-08-09
+- 관련 work/contract: GDJ-0018, MIG-047..MIG-056, Q-012, DEV-0002
 - 대체하는 ADR: 없음
 
 ## 맥락
@@ -97,9 +97,8 @@ MIG-052의 ordered plan/step payload만 별도 reviewed deviation으로 분리�
 
 ## 결정
 
-이 ADR은 구현과 compile/fault 검증 전 **Proposed product shape**입니다. GDJ-0018에서 다음
-후보를 구현 spike하고 모든 completion gate를 통과한 뒤 Accepted 여부와 exact shape를
-결정합니다.
+GDJ-0018의 compile/fault/concurrency/differential 검증을 근거로 다음 product shape를
+**Accepted**로 채택합니다.
 
 ### Lifecycle request와 Executor method
 
@@ -151,7 +150,7 @@ copy/validate loaded definitions + request
 
 ### Optional backend/session port
 
-기존 port를 widen하지 않고 `migrations/backend`에 다음 후보를 둡니다.
+기존 port를 widen하지 않고 `migrations/backend`에 다음 port를 둡니다.
 
 ```go
 type HistoryTransitionKind uint8
@@ -204,9 +203,15 @@ closed reuse를 structured error로 거부합니다. Caller/core는 token 값을
 
 `BeginFencedMigration`은 current expected token을 transaction의 first-write gate로 사용합니다.
 `CommitCommitted`만 session records/token을 committed successor로 advance하고,
-`CommitRolledBack`은 이전 snapshot을 유지하며, `CommitUnknown`은 session을 poison합니다.
+`CommitRolledBack`은 이전 snapshot/token을 유지하며, `CommitUnknown`은 session을 poison합니다.
 `CommitDurability` zero는 invalid backend result입니다. Legacy `Transaction.Commit`은 durability를
 표현할 수 없으므로 fenced path에 사용하지 않습니다.
+
+Core contract에서 `CommitRolledBack`이 token을 advance하지 않는 것과 transaction 실패 뒤 같은
+session을 재사용할 수 있다는 것은 다른 의미입니다. SQLite product backend는 operation,
+recorder, commit 또는 rollback을 포함한 어느 failed step 뒤에도 session을 poison합니다.
+따라서 token은 pre-step 값으로 남지만 같은 lifecycle attempt에서 retry하거나 tail transaction을
+다시 열 수 없으며 fresh reopen/reconciliation이 필요합니다.
 
 Fenced transaction은 recorder call이 declared transition의 identity/direction과 정확히 한 번
 일치하는지 commit 전에 검증합니다. 누락, 중복, 다른 identity와 반대 direction은 integrity
@@ -218,8 +223,8 @@ Coordinator는 open 직후 deferred cleanup closure를 등록하고, 실제 clea
 cancellation과 분리된 bounded context를 만들어 `session.Close(cleanupCtx)`를 호출합니다.
 `Close`는 abandoned active transaction을 bounded rollback/discard하고 poisoned/
 closed session 재사용을 막습니다. Cleanup 실패는 primary lifecycle error를 대체하지 않습니다.
-이 connection-free session + mandatory close shape도 Proposed이며 implementation evidence가
-반박하면 Accepted 전에 조정합니다.
+이 connection-free session + mandatory close shape를 source-compatibility, cancellation,
+concurrent Close waiter와 leak/discard gate로 검증했습니다.
 
 Coordinator는 existing operation preflight/state transition/recorder 순서를 private execution
 kernel로 추출하고 begin/commit strategy를 내부 주입합니다. Public `Apply`/`Unapply`/
@@ -230,13 +235,15 @@ fallback하지 않습니다.
 
 ### SQLite metadata v1과 adoption
 
-SQLite는 recorder와 별도인 singleton metadata v1을 사용합니다. Exact table/column identifier는
-구현 spike에서 고정하지만 의미 필드는 다음과 같습니다.
+SQLite는 recorder와 별도인 exact `godj_migration_revision` singleton metadata v1을 사용합니다.
+물리 column은 다음과 같습니다.
 
-- integer `format_version = 1`
-- CSPRNG로 최초 한 번 생성하는 128-bit epoch
-- non-negative signed int64 monotonic revision
-- sorted full recorder identities의 canonical length-prefixed encoding에 대한 SHA-256 fingerprint
+- `singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton = 1)`
+- `format_version INTEGER NOT NULL`, 값은 1
+- `epoch BLOB NOT NULL`, 길이는 16 bytes이고 CSPRNG로 최초 한 번 생성
+- `revision INTEGER NOT NULL`, non-negative signed int64 monotonic revision
+- `history_fingerprint BLOB NOT NULL`, 길이는 32 bytes이며 sorted full recorder identities의
+  canonical length-prefixed encoding에 대한 SHA-256
 
 Fingerprint에는 unknown legacy identity도 포함합니다. Plain concatenation/delimiter encoding은
 사용하지 않습니다. Encoding v1은 sorted identity count와 각 app/name UTF-8 byte length를
@@ -274,8 +281,7 @@ pre-cutover non-cooperating ABA는 이 ADR에서 해결하지 않습니다.
 
 ### Error taxonomy
 
-Public core는 backend-specific cause를 다음 structured category/code로 정규화하는 후보를
-검증합니다.
+Public core는 backend-specific cause를 다음 structured category/code로 정규화합니다.
 
 | Category | Code | 의미 |
 |---|---|---|
@@ -303,8 +309,13 @@ Primary operation/recorder/commit-durability error가 rollback/session-close/dis
 우선합니다. Cleanup은 `session_close_failed` 등 secondary structured error로 감싸
 `errors.Join(primary, secondary)`에 primary를 먼저 보존하며, primary category를 덮거나 unknown을
 rolled back으로 낮추지 않습니다. Primary가 없을 때의 close error는 resulting/confirmed state와
-`session_close_failed`로 반환합니다. Backend raw failure carrier의 exact public type은
-source-compatibility compile spike 뒤 Accepted 전에 기록합니다.
+`session_close_failed`로 반환합니다. Backend-neutral raw carrier는
+`migrations/backend.RevisionFenceError`이고 kind는
+`RevisionFenceFailureAdoptionRequired`, `RevisionFenceFailureStale`,
+`RevisionFenceFailureContended`, `RevisionFenceFailureIntegrity`입니다. Core는 malformed typed nil,
+zero 또는 unknown kind를 `history_revision_integrity`로 fail-closed합니다. Generic recorder-stage
+`CapabilityError`는 기존 recorder taxonomy의 `record_failed`를 유지하고 raw fence carrier만
+lifecycle category/code로 정규화합니다.
 
 Zero/corrupt lifecycle request와 contained invalid target은 existing plan taxonomy의
 `invalid_target`, mixed-direction plan은 existing `mixed_directions`로 transaction 전에
@@ -325,7 +336,7 @@ insert default를 구현하지 않습니다.
 
 Accepted ADR-0013의 canonical ascending planner order를 유지합니다. MIG-052에서 GoDj는
 A3←A2←B1←A1, Django oracle은 B1←A3←A2←A1을 사용하지만 B1과 A3은 incomparable sibling이고
-두 실행의 final logical state, managed schema와 recorder history는 같습니다.
+두 실행의 final logical state, managed DB schema, recorder history와 phase는 같습니다.
 
 Lifecycle manifest는 MIG-052만 `deviation`으로 바꾸고 기존 Django provenance에 exact-one
 `kind=decision`, `reference=DEV-0002`, `derived=false`를 추가합니다. 나머지 9개 status만
@@ -355,7 +366,7 @@ dispatch하고 unknown/mismatched decision은 actual 생성 전에 fail-closed�
 - Loaded definition API는 source format을 고정하지 않아 후속 GDJ-0019 loader contract를
   독립적으로 설계할 수 있습니다.
 - ADR-0013 ordering을 보존하는 비용으로 MIG-052의 ordered plan/step만 DEV-0002가 되며,
-  완료 목표 분류는 `92 passing + 5 deviation`입니다.
+  현재 검증 분류는 `92 passing + 5 deviation`입니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -392,6 +403,16 @@ dispatch하고 unknown/mismatched decision은 actual 생성 전에 fail-closed�
   oracle/static/SHA256SUMS/spike byte pin
 - Nine product set `92 passing + 5 deviation`, 97 IDs/scenarios와 72 ordered cross-binding
 - Full/race/CGO=0/vet, portable/exact Python, repeated/two-process and independent P0–P3 audit
+
+Acceptance evidence는
+[EVID-20260809-017](../status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)에
+기록하고, hosted 검증은
+[EVID-20260809-018](../status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
+기록합니다. Product commit은 `d076bd20f5964074b7b76b44147ca59f7b3e6eb8`, machine/conformance
+commit은 `fd49d5147beefead640f43ae6fd5c83860a17a06`, final local code checkout은
+`9f51ad0da443d259940d44acbb8c3d095a9a257b`입니다. `make check`, full CGO-disabled Go,
+focused repeated/race gate와 two-process 10/0-diff가 통과했습니다. PR #1의 GitHub Actions
+run 31295886061에서 Ubuntu 24.04 full portable job과 `macos-15` exact job도 통과했습니다.
 
 상세 allowed path와 completion gate는
 [GDJ-0018](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)에 기록합니다.

@@ -1,0 +1,70 @@
+package consumer
+
+import (
+	"bytes"
+	"context"
+
+	"github.com/progresshans/godj/db/postgres"
+	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/project"
+	"github.com/progresshans/godj/systemstate"
+)
+
+type migrationBackend struct{}
+
+type migrationSQLRenderer struct{}
+
+func (migrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([]string, error) {
+	return []string{"SELECT 1"}, nil
+}
+
+func (*migrationBackend) MigrationCapabilities() backend.MigrationCapabilities {
+	return backend.MigrationCapabilities{}
+}
+func (*migrationBackend) OpenRevisionFencedSession(context.Context) (backend.RevisionFencedSession, error) {
+	return nil, nil
+}
+func (*migrationBackend) Close() error { return nil }
+
+var _ project.MigrationBackend = (*migrationBackend)(nil)
+var _ project.SystemStateBackend = (*sqlite.Backend)(nil)
+var _ project.SystemStateBackend = (*postgres.Backend)(nil)
+var _ backend.MigrationSQLRenderer = migrationSQLRenderer{}
+var _ func() backend.MigrationSQLRenderer = sqlite.NewMigrationSQLRenderer
+var _ func(postgres.MigrationSQLConfig) backend.MigrationSQLRenderer = postgres.NewMigrationSQLRenderer
+
+func sqliteProjectConfig() project.Config {
+	return project.Config{MigrationSQLRenderer: sqlite.NewMigrationSQLRenderer()}
+}
+
+func postgresProjectConfig() project.Config {
+	return project.Config{
+		MigrationSQLRenderer: postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "product_schema"}),
+	}
+}
+
+func checkProjectRuntime() error {
+	return project.Run(
+		context.Background(),
+		project.Config{
+			MigrationDefinitionRoots: []string{"migrations"},
+			MigrationDefinitionSources: []definition.Source{{
+				SourceID: "framework/system-state.godj.json",
+				Document: []byte(`{"format_version":1}`),
+			}},
+			OpenMigrationBackend: func(context.Context) (project.MigrationBackend, error) {
+				return new(migrationBackend), nil
+			},
+			MigrationSQLRenderer: migrationSQLRenderer{},
+			OpenSystemStateBackend: func(context.Context) (project.SystemStateBackend, error) {
+				return (*sqlite.Backend)(nil), nil
+			},
+			SystemOperatorPolicy: systemstate.CredentialPolicy{},
+		},
+		[]string{"__godj_project_runner_v1"},
+		bytes.NewBufferString(`{"protocol_version":1,"command":"migrations.check"}`),
+		new(bytes.Buffer),
+	)
+}

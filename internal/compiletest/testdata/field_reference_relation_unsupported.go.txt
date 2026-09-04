@@ -1,0 +1,9 @@
+package consumer
+
+import "github.com/progresshans/godj/orm"
+
+type Article struct{}
+
+var related orm.RelatedStringField[Article]
+
+var _ = orm.F(related)

@@ -4,23 +4,172 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/schema"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestGeneratorVersionTracksCloneModelABI(t *testing.T) {
 	t.Parallel()
 
-	const want = "godj-codegen-m2-v3"
+	const want = "godj-codegen-current-v1"
 	if codegen.GeneratorVersion != want {
 		t.Fatalf("GeneratorVersion = %q, want %q", codegen.GeneratorVersion, want)
+	}
+}
+
+func TestCurrentGeneratorPublishesCompleteRelationModelSurface(t *testing.T) {
+	t.Parallel()
+
+	_, blog := relationGenerationSchemas()
+	first, err := codegen.Generate("models", blog)
+	if err != nil {
+		t.Fatalf("Generate() relation error = %v", err)
+	}
+	second, err := codegen.Generate("models", blog)
+	if err != nil {
+		t.Fatalf("Generate() relation second error = %v", err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("relation main generation is not byte deterministic")
+	}
+
+	for _, fragment := range [][]byte{
+		[]byte(`const GoDjGeneratorVersion = "godj-codegen-current-v1"`),
+		[]byte("const GoDjSchemaSHA256 ="),
+		[]byte("type Post struct"),
+		[]byte("ID                    int64"),
+		[]byte("AuthorID              int64"),
+		[]byte("ReviewerID            *int64"),
+		[]byte("godjPrimaryKeyPresent bool"),
+		[]byte("var _ orm.ModelDescriptor[Post]"),
+		[]byte("var _ orm.WriteDescriptor[Post]"),
+		[]byte("func (PostDescriptor) Scan(row db.Row) (Post, error)"),
+		[]byte("var scanReviewerID sql.NullInt64"),
+		[]byte("func (PostDescriptor) CloneModel(value Post) Post"),
+		[]byte("func (PostDescriptor) WriteFieldValue(value Post, field ir.Field)"),
+		[]byte("Relation: &ir.ForeignKeyRelation{"),
+		[]byte("var PostObjects = orm.NewManager[Post](PostDescriptor{})"),
+	} {
+		if !bytes.Contains(first, fragment) {
+			t.Fatalf("relation main source does not contain %q:\n%s", fragment, first)
+		}
+	}
+	for _, forbidden := range [][]byte{
+		[]byte("GoDjRelationQueryGeneratorVersion"),
+		[]byte("GoDjRelationQuerySchemaSHA256"),
+	} {
+		if bytes.Contains(first, forbidden) {
+			t.Fatalf("relation main source contains forbidden fragment %q:\n%s", forbidden, first)
+		}
+	}
+
+	parsed, err := parser.ParseFile(token.NewFileSet(), "generated.go", first, 0)
+	if err != nil {
+		t.Fatalf("parse relation main: %v", err)
+	}
+	exported := make([]string, 0)
+	for _, declaration := range parsed.Decls {
+		switch declaration := declaration.(type) {
+		case *ast.GenDecl:
+			for _, specification := range declaration.Specs {
+				switch specification := specification.(type) {
+				case *ast.ValueSpec:
+					for _, name := range specification.Names {
+						if name.IsExported() {
+							exported = append(exported, name.Name)
+						}
+					}
+				case *ast.TypeSpec:
+					if specification.Name.IsExported() {
+						exported = append(exported, specification.Name.Name)
+					}
+				}
+			}
+		case *ast.FuncDecl:
+			if declaration.Name.IsExported() {
+				exported = append(exported, declaration.Name.Name)
+			}
+		}
+	}
+	slices.Sort(exported)
+	wantExported := []string{
+		"BuildCreate",
+		"BuildPatch",
+		"ClearPrimaryKey",
+		"CloneModel",
+		"CloneWriteModel",
+		"GoDjGeneratorVersion",
+		"GoDjSchemaSHA256",
+		"Metadata",
+		"NewPostCreate",
+		"NewPostWithID",
+		"Post",
+		"PostCreate",
+		"PostDescriptor",
+		"PostFields",
+		"PostFieldSet",
+		"PostForceInsert",
+		"PostForceUpdate",
+		"PostObjects",
+		"PostPatch",
+		"PostUpdateFieldNames",
+		"PostUpdateFields",
+		"PrimaryKey",
+		"Scan",
+		"SetPrimaryKey",
+		"WithAuthorID",
+		"WithAuthorID",
+		"WithReviewerID",
+		"WithReviewerID",
+		"WithReviewerIDNull",
+		"WithReviewerIDNull",
+		"WriteFieldValue",
+	}
+	slices.Sort(wantExported)
+	if !slices.Equal(exported, wantExported) {
+		t.Fatalf("relation main exported declarations = %v, want %v", exported, wantExported)
+	}
+}
+
+func TestGenerateRelationMainSnapshotsInputAndRejectsFixedNameCollision(t *testing.T) {
+	t.Parallel()
+
+	_, blog := relationGenerationSchemas()
+	before, err := codegen.Generate("models", blog)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	blog.Models[0].Fields[1].Relation.Target.AppLabel = "mutated"
+	after, err := codegen.Generate("models", func() ir.Schema {
+		_, fresh := relationGenerationSchemas()
+		return fresh
+	}())
+	if err != nil {
+		t.Fatalf("Generate() fresh error = %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("post-generation caller mutation changed prior candidate bytes")
+	}
+
+	collision := ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "collision",
+		Models:        []ir.Model{{Name: "record", GoName: "GoDjSchemaSHA256"}},
+	}
+	if _, err := codegen.Generate("models", collision); err == nil {
+		t.Fatal("Generate() accepted relation model colliding with provenance symbol")
 	}
 }
 
@@ -45,7 +194,7 @@ func TestGenerateIsDeterministicAndContainsProvenance(t *testing.T) {
 	for _, fragment := range [][]byte{
 		[]byte("Code generated by GoDj"),
 		[]byte(codegen.GeneratorVersion),
-		[]byte(`const GoDjSchemaSHA256 = "b10fcd2ffbc2369355c165abef4725178c04bb9a6055f77f31214188aad37621"`),
+		[]byte(`const GoDjSchemaSHA256 = "3e6ec104d26c21665690e9d4a20f547ae2f7212b2eb35f5e741d38a85274647d"`),
 		[]byte("type Article struct"),
 		[]byte("var _ orm.ModelDescriptor[Article]"),
 		[]byte("var _ orm.WriteDescriptor[Article]"),
@@ -127,13 +276,23 @@ func TestCommittedDescriptorCloneModelIsolatesNullablePointers(t *testing.T) {
 func TestGeneratedArticleMatchesCommittedGolden(t *testing.T) {
 	t.Parallel()
 
-	irSchema, err := modeldef.Schema()
+	spec, err := modeldef.ProjectSpec(context.Background())
 	if err != nil {
-		t.Fatalf("Schema() error = %v", err)
+		t.Fatalf("ProjectSpec() error = %v", err)
 	}
-	want, err := codegen.Generate("models", irSchema)
+	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
+		t.Fatalf("GenerateProject() error = %v", err)
+	}
+	var want []byte
+	for _, file := range bundle.Files() {
+		if file.Path == "models/zz_godj_generated.go" {
+			want = file.Source()
+			break
+		}
+	}
+	if len(want) == 0 {
+		t.Fatal("GenerateProject() omitted models/zz_godj_generated.go")
 	}
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
@@ -146,7 +305,7 @@ func TestGeneratedArticleMatchesCommittedGolden(t *testing.T) {
 		t.Fatalf("read committed generated source: %v", err)
 	}
 	if !bytes.Equal(got, want) {
-		t.Fatal("committed generated Article differs from codegen output; run go run ./internal/cmd/m1generate")
+		t.Fatal("committed generated Article differs from codegen output; run go run ./cmd/godj generate --project examples/article/godj.toml")
 	}
 }
 
@@ -285,6 +444,25 @@ func TestGenerateRejectsInvalidSchemaBeforeWrite(t *testing.T) {
 	}
 }
 
+func TestGenerateRejectsBlankPackageIdentifier(t *testing.T) {
+	t.Parallel()
+
+	irSchema, err := schema.Build(schema.Definition{
+		AppLabel: "valid",
+		Models: []schema.Model{{
+			Name:   "record",
+			GoName: "Record",
+			Fields: []schema.Field{schema.CharField("title", "Title", 20)},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if _, err := codegen.Generate("_", irSchema); err == nil {
+		t.Fatal("Generate() accepted blank package identifier")
+	}
+}
+
 func TestGenerateRejectsDerivedWriteNameCollisions(t *testing.T) {
 	t.Parallel()
 
@@ -372,4 +550,54 @@ func TestGenerateRejectsSaveBindingSymbolCollisions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func relationGenerationSchemas() (ir.Schema, ir.Schema) {
+	authors := ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "authors",
+		Models: []ir.Model{{
+			Name:   "author",
+			GoName: "Author",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+				{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 100},
+			},
+		}},
+	}
+	blog := ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "blog",
+		Models: []ir.Model{{
+			Name:   "post",
+			GoName: "Post",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+				{
+					Name:   "author",
+					GoName: "AuthorID",
+					Kind:   ir.FieldForeignKey,
+					Relation: &ir.ForeignKeyRelation{
+						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+						Cardinality: ir.RelationManyToOne,
+						Reverse:     ir.ReverseRelation{Name: "posts"},
+						OnDelete:    ir.DeleteProtect,
+					},
+				},
+				{
+					Name:     "reviewer",
+					GoName:   "ReviewerID",
+					Kind:     ir.FieldForeignKey,
+					Nullable: true,
+					Relation: &ir.ForeignKeyRelation{
+						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+						Cardinality: ir.RelationManyToOne,
+						Reverse:     ir.ReverseRelation{Name: "reviewed_posts"},
+						OnDelete:    ir.DeleteSetNull,
+					},
+				},
+			},
+		}},
+	}
+	return authors, blog
 }

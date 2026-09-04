@@ -1,0 +1,11 @@
+package invalid
+
+import (
+	"github.com/progresshans/godj/conformance/relationselectproduct/blog"
+	"github.com/progresshans/godj/conformance/relationselectproduct/project"
+	"github.com/progresshans/godj/db"
+)
+
+func invalidMultiple(objects project.Objects, backend db.Queryer) {
+	_ = objects.BlogPost.SelectRelated(blog.PostObjects.Using(backend)).Author().Reviewer()
+}

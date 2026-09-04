@@ -1,6 +1,9 @@
 package migrations
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // MigrationKey is the stable identity of a migration. Both App and Name must
 // be non-empty when a key enters a Planner, AppliedState, or named Target.
@@ -43,10 +46,12 @@ type targetKind uint8
 const (
 	targetNamed targetKind = iota + 1
 	targetZero
+	targetKnownAppZero
 )
 
 // Target is an immutable tagged migration planning target. Construct targets
-// with NamedTarget or ZeroTarget; the zero value is deliberately invalid.
+// with NamedTarget, ZeroTarget, or KnownAppZeroTarget; the zero value is
+// deliberately invalid.
 type Target struct {
 	kind targetKind
 	key  MigrationKey
@@ -66,11 +71,35 @@ func ZeroTarget(app string) Target {
 	return Target{kind: targetZero, app: app}
 }
 
+// KnownAppZeroTarget removes the same applied closure as ZeroTarget, but
+// requires app to have at least one node in the Planner graph. It provides a
+// strict command-facing spelling without changing ZeroTarget's accepted
+// unknown-app empty-plan contract.
+func KnownAppZeroTarget(app string) Target {
+	return Target{kind: targetKnownAppZero, app: app}
+}
+
 // PlanStep describes one migration identity and the direction in which it
 // should be executed.
 type PlanStep struct {
 	Key       MigrationKey
 	Direction Direction
+}
+
+// MigrationStatus is the closed status vocabulary returned by Planner.Statuses.
+type MigrationStatus string
+
+const (
+	MigrationStatusApplied           MigrationStatus = "applied"
+	MigrationStatusUnapplied         MigrationStatus = "unapplied"
+	MigrationStatusDefinitionMissing MigrationStatus = "definition-missing"
+)
+
+// MigrationStatusEntry describes one known migration definition or one
+// applied recorder identity whose definition is absent from this Planner.
+type MigrationStatusEntry struct {
+	Key    MigrationKey
+	Status MigrationStatus
 }
 
 // PlanningError classifies graph, history, and target failures independently
@@ -146,6 +175,71 @@ func (p Planner) CheckHistory(applied AppliedState) error {
 	return graph.validateAppliedHistory(cloneAppliedKeys(applied.keys))
 }
 
+// Statuses returns a fresh read-only view of every known migration and every
+// applied recorder identity whose definition is absent. It validates known
+// applied history before constructing any result, performs no I/O, and does
+// not mutate Planner or AppliedState.
+//
+// Apps are grouped lexicographically. Known migrations retain the Planner's
+// dependency-valid full-forward order within each app. Definition-missing
+// identities follow the known rows in their app and are ordered by name.
+func (p Planner) Statuses(applied AppliedState) ([]MigrationStatusEntry, error) {
+	if err := p.CheckHistory(applied); err != nil {
+		return nil, err
+	}
+
+	graph := p.graph
+	if graph == nil {
+		graph = emptyPlannerGraph()
+	}
+	steps, err := historicalFullForwardProjection(p)
+	if err != nil {
+		return nil, err
+	}
+
+	knownByApp := make(map[string][]MigrationKey)
+	missingByApp := make(map[string][]MigrationKey)
+	apps := make(map[string]struct{})
+	for _, step := range steps {
+		knownByApp[step.Key.App] = append(knownByApp[step.Key.App], step.Key)
+		apps[step.Key.App] = struct{}{}
+	}
+	for key := range applied.keys {
+		if graph.contains(key) {
+			continue
+		}
+		missingByApp[key.App] = append(missingByApp[key.App], key)
+		apps[key.App] = struct{}{}
+	}
+
+	appNames := make([]string, 0, len(apps))
+	for app := range apps {
+		appNames = append(appNames, app)
+	}
+	sort.Strings(appNames)
+
+	statuses := make([]MigrationStatusEntry, 0, len(graph.nodes)+len(applied.keys))
+	for _, app := range appNames {
+		for _, key := range knownByApp[app] {
+			status := MigrationStatusUnapplied
+			if _, exists := applied.keys[key]; exists {
+				status = MigrationStatusApplied
+			}
+			statuses = append(statuses, MigrationStatusEntry{Key: key, Status: status})
+		}
+
+		missing := missingByApp[app]
+		sortMigrationKeys(missing)
+		for _, key := range missing {
+			statuses = append(statuses, MigrationStatusEntry{
+				Key:    key,
+				Status: MigrationStatusDefinitionMissing,
+			})
+		}
+	}
+	return statuses, nil
+}
+
 // Plan validates the complete target representation, checks known applied
 // history, then processes targets in caller order against a local applied set.
 // It performs no I/O and does not mutate Planner, AppliedState, or its inputs.
@@ -190,7 +284,16 @@ func (p Planner) Plan(applied AppliedState, targets ...Target) ([]PlanStep, erro
 				}
 				plan = append(plan, steps...)
 			}
-		case targetZero:
+		case targetZero, targetKnownAppZero:
+			if target.kind == targetKnownAppZero && !graph.containsApp(target.app) {
+				return nil, newPlanningError(
+					CategoryPlan,
+					CodeTargetNotFound,
+					MigrationKey{App: target.app},
+					MigrationKey{},
+					nil,
+				)
+			}
 			for _, root := range graph.appRoots(target.app) {
 				steps, err := graph.planBackward(root, working)
 				if err != nil {
@@ -210,7 +313,7 @@ func validateTarget(target Target) error {
 			return nil
 		}
 		return newPlanningError(CategoryPlan, CodeInvalidTarget, target.key, MigrationKey{}, nil)
-	case targetZero:
+	case targetZero, targetKnownAppZero:
 		if target.app != "" && target.key == (MigrationKey{}) {
 			return nil
 		}

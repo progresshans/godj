@@ -18,7 +18,7 @@ type preparedPlanStep struct {
 // migration transaction at a time. It validates the complete definition,
 // plan, and historical state transition sequence before the first backend
 // transaction starts.
-func (e Executor) ExecutePlan(
+func (e DirectExecutor) ExecutePlan(
 	ctx context.Context,
 	before ProjectState,
 	definitions []Migration,
@@ -30,8 +30,16 @@ func (e Executor) ExecutePlan(
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), executionContextError(PlanStep{}, err)
 	}
-	if len(plan) == 0 {
-		return before.Clone(), nil
+	if projectStateRequiresRelationLifecycle(before) || definitionsContainRelation(definitions) {
+		direction := Direction("")
+		if len(plan) != 0 {
+			direction = plan[0].Direction
+		}
+		unsupported := relationMigrationUnsupported(definitions, direction, errors.New("direct ExecutePlan relation execution is not loader-authorized"))
+		if err := ctx.Err(); err != nil {
+			return before.Clone(), executionContextError(PlanStep{}, err)
+		}
+		return before.Clone(), unsupported
 	}
 
 	// Snapshot caller-owned slices and the built-in operation values before
@@ -39,6 +47,12 @@ func (e Executor) ExecutePlan(
 	// the known built-ins are deep-copied below.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
 	planSnapshot := append([]PlanStep(nil), plan...)
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(PlanStep{}, err)
+	}
+	if len(planSnapshot) == 0 {
+		return before.Clone(), nil
+	}
 	prepared, err := preflightPlan(ctx, before, definitionSnapshot, planSnapshot)
 	if err != nil {
 		return before.Clone(), err
@@ -220,10 +234,5 @@ func cloneMigrationOperation(operation Operation) Operation {
 }
 
 func cloneMigrationField(field ir.Field) ir.Field {
-	cloned := field
-	if field.Default != nil {
-		defaultValue := *field.Default
-		cloned.Default = &defaultValue
-	}
-	return cloned
+	return field.Clone()
 }

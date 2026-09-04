@@ -1,0 +1,21 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/conformance/relationprefetchproduct/authors"
+	"github.com/progresshans/godj/conformance/relationprefetchproduct/project"
+	"github.com/progresshans/godj/db"
+)
+
+func consume(
+	ctx context.Context,
+	backend db.Queryer,
+	owners []authors.Author,
+) ([]*project.AuthorsAuthorReverseObject, error) {
+	prefetches, err := project.BindReversePrefetches()
+	if err != nil {
+		return nil, err
+	}
+	return prefetches.AuthorsAuthor.Posts(ctx, backend, owners)
+}

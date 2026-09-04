@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>GoDj administration</title></head>
+<body data-admin-view="index">
+<header><h1>GoDj administration</h1><p>Signed in as {{ principal_id }}</p>{% include "logout.html" %}</header>
+<main><ul>{% for model in models %}<li><a href="{{ model.path }}">{{ model.name }}</a></li>{% empty %}<li>No permitted models.</li>{% endfor %}</ul></main>
+</body></html>

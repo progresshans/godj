@@ -185,7 +185,10 @@ class MigrationLifecycleScenarioTests(unittest.TestCase):
         )
         for contract in manifest["contracts"]:
             with self.subTest(contract=contract["id"]):
-                self.assertEqual(contract["status"], "oracle_locked")
+                self.assertEqual(
+                    contract["status"],
+                    "deviation" if contract["id"] == "MIG-052" else "passing",
+                )
                 self.assertEqual(
                     contract["comparison"],
                     (
@@ -195,7 +198,28 @@ class MigrationLifecycleScenarioTests(unittest.TestCase):
                     ),
                 )
                 self.assertTrue(contract["provenance"])
+                decision_provenance = [
+                    provenance
+                    for provenance in contract["provenance"]
+                    if provenance["kind"] == "decision"
+                ]
+                self.assertEqual(
+                    decision_provenance,
+                    (
+                        [
+                            {
+                                "kind": "decision",
+                                "reference": "DEV-0002",
+                                "derived": False,
+                            }
+                        ]
+                        if contract["id"] == "MIG-052"
+                        else []
+                    ),
+                )
                 for provenance in contract["provenance"]:
+                    if provenance["kind"] == "decision":
+                        continue
                     self.assertIn(
                         "django@fe0a859f537d4238cf49fca39073513206f83122:",
                         provenance["reference"],

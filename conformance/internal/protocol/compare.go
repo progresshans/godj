@@ -43,39 +43,45 @@ func Compare(profile Profile, manifest Manifest, expected, actual ObservationSui
 			))
 			continue
 		}
-		if got.Status != want.Status {
-			differences = append(differences, difference(
-				contract.ID,
-				"status",
-				string(want.Status),
-				string(got.Status),
-				"observation status differs",
-			))
-		}
-		if got.Phase != want.Phase {
-			differences = append(differences, difference(
-				contract.ID,
-				"phase",
-				string(want.Phase),
-				string(got.Phase),
-				"observation phase differs",
-			))
-		}
-
-		for _, dimension := range contract.Comparison {
-			switch dimension {
-			case CompareResult:
-				differences = append(differences, compareValues(contract.ID, "result", want.Result, got.Result)...)
-			case CompareError:
-				differences = append(differences, compareErrors(contract.ID, want.Error, got.Error)...)
-			case CompareDBState:
-				differences = append(differences, compareValues(contract.ID, "db_state", want.DBState, got.DBState)...)
-			case CompareMetrics:
-				differences = append(differences, compareValues(contract.ID, "metrics", want.Metrics, got.Metrics)...)
-			}
-		}
+		differences = append(differences, compareObservedContract(contract, want, got)...)
 	}
 	return differences, nil
+}
+
+func compareObservedContract(contract Contract, expected, actual Observation) []Difference {
+	differences := make([]Difference, 0)
+	if actual.Status != expected.Status {
+		differences = append(differences, difference(
+			contract.ID,
+			"status",
+			string(expected.Status),
+			string(actual.Status),
+			"observation status differs",
+		))
+	}
+	if actual.Phase != expected.Phase {
+		differences = append(differences, difference(
+			contract.ID,
+			"phase",
+			string(expected.Phase),
+			string(actual.Phase),
+			"observation phase differs",
+		))
+	}
+
+	for _, dimension := range contract.Comparison {
+		switch dimension {
+		case CompareResult:
+			differences = append(differences, compareValues(contract.ID, "result", expected.Result, actual.Result)...)
+		case CompareError:
+			differences = append(differences, compareErrors(contract.ID, expected.Error, actual.Error)...)
+		case CompareDBState:
+			differences = append(differences, compareValues(contract.ID, "db_state", expected.DBState, actual.DBState)...)
+		case CompareMetrics:
+			differences = append(differences, compareValues(contract.ID, "metrics", expected.Metrics, actual.Metrics)...)
+		}
+	}
+	return differences
 }
 
 func compareErrors(contractID string, expected, actual *ObservedError) []Difference {

@@ -15,10 +15,10 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GeneratorVersion = "godj-codegen-m2-v3"
+const GeneratorVersion = "godj-codegen-current-v1"
 
 func Generate(packageName string, input ir.Schema) ([]byte, error) {
-	if !token.IsIdentifier(packageName) || token.Lookup(packageName).IsKeyword() {
+	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
 	}
 	schema, err := ir.Normalize(input)
@@ -38,7 +38,7 @@ func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
-	if hasNullableChar(schema) {
+	if hasNullableQueryStorage(schema) {
 		fmt.Fprintln(&output, "\t\"database/sql\"")
 	}
 	fmt.Fprintln(&output, "\t\"github.com/progresshans/godj/db\"")
@@ -59,6 +59,21 @@ func Generate(packageName string, input ir.Schema) ([]byte, error) {
 		return nil, fmt.Errorf("format generated source: %w", err)
 	}
 	return formatted, nil
+}
+
+func hasNullableQueryStorage(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func validGeneratedPackageName(name string) bool {
+	return name != "_" && token.IsIdentifier(name) && !token.Lookup(name).IsKeyword()
 }
 
 func renderModel(output *bytes.Buffer, model ir.Model) {
@@ -85,8 +100,11 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "func (%s) Scan(row db.Row) (%s, error) {\n", descriptorName, model.GoName)
 	fmt.Fprintf(output, "\tvar value %s\n", model.GoName)
 	for _, field := range model.Fields {
-		if field.Kind == ir.FieldChar && field.Nullable {
+		switch {
+		case field.Nullable && field.Kind == ir.FieldChar:
 			fmt.Fprintf(output, "\tvar scan%s sql.NullString\n", field.GoName)
+		case field.Nullable && field.Kind == ir.FieldForeignKey:
+			fmt.Fprintf(output, "\tvar scan%s sql.NullInt64\n", field.GoName)
 		}
 	}
 	fmt.Fprint(output, "\tif err := row.Scan(")
@@ -94,7 +112,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Kind == ir.FieldChar && field.Nullable {
+		if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -102,9 +120,15 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	}
 	fmt.Fprintf(output, "); err != nil {\n\t\treturn %s{}, err\n\t}\n", model.GoName)
 	for _, field := range model.Fields {
-		if field.Kind == ir.FieldChar && field.Nullable {
+		switch {
+		case field.Nullable && field.Kind == ir.FieldChar:
 			fmt.Fprintf(output, "\tif scan%s.Valid {\n", field.GoName)
 			fmt.Fprintf(output, "\t\tscanned := scan%s.String\n", field.GoName)
+			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
+			fmt.Fprintln(output, "\t}")
+		case field.Nullable && field.Kind == ir.FieldForeignKey:
+			fmt.Fprintf(output, "\tif scan%s.Valid {\n", field.GoName)
+			fmt.Fprintf(output, "\t\tscanned := scan%s.Int64\n", field.GoName)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
 		}
@@ -136,7 +160,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "func (%s) CloneModel(value %s) %s {\n", descriptorName, model.GoName, model.GoName)
 	fmt.Fprintln(output, "\tclone := value")
 	for _, field := range model.Fields {
-		if field.Kind == ir.FieldChar && field.Nullable {
+		if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
 			fmt.Fprintf(output, "\tif value.%s != nil {\n", field.GoName)
 			fmt.Fprintf(output, "\t\tcloned%s := *value.%s\n", field.GoName, field.GoName)
 			fmt.Fprintf(output, "\t\tclone.%s = &cloned%s\n", field.GoName, field.GoName)
@@ -156,11 +180,11 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintln(output, "\tswitch field.Name {")
 	for _, field := range model.Fields {
 		fmt.Fprintf(output, "\tcase %s:\n", strconv.Quote(field.Name))
-		if field.Kind == ir.FieldChar && field.Nullable {
+		if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
 			fmt.Fprintf(output, "\t\tif value.%s == nil {\n", field.GoName)
 			fmt.Fprintln(output, "\t\t\treturn query.Null(), true")
 			fmt.Fprintln(output, "\t\t}")
-			fmt.Fprintf(output, "\t\treturn query.String(*value.%s), true\n", field.GoName)
+			fmt.Fprintf(output, "\t\treturn %s, true\n", queryValueExpression(field, "*value."+field.GoName))
 			continue
 		}
 		fmt.Fprintf(output, "\t\treturn %s, true\n", queryValueExpression(field, "value."+field.GoName))
@@ -173,6 +197,9 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 
 	fmt.Fprintf(output, "type %s struct {\n", fieldSetName)
 	for _, field := range model.Fields {
+		if field.Kind == ir.FieldForeignKey {
+			continue
+		}
 		fmt.Fprintf(output, "\t%s %s\n", field.GoName, ormFieldType(model.GoName, field))
 	}
 	fmt.Fprintln(output, "}")
@@ -181,6 +208,9 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "\tmetadata := %s()\n", metadataFunction)
 	fmt.Fprintf(output, "\treturn %s{\n", fieldSetName)
 	for index, field := range model.Fields {
+		if field.Kind == ir.FieldForeignKey {
+			continue
+		}
 		fmt.Fprintf(output, "\t\t%s: %s(metadata.Fields[%d]),\n", field.GoName, ormFieldConstructor(model.GoName, field), index)
 	}
 	fmt.Fprintln(output, "\t}")
@@ -213,6 +243,9 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		}
 		if field.Default != nil {
 			fmt.Fprintf(output, "\t\t\t\tDefault: %s,\n", defaultLiteral(*field.Default))
+		}
+		if field.Relation != nil {
+			renderRelationLiteral(output, *field.Relation, "\t\t\t\t")
 		}
 		fmt.Fprintln(output, "\t\t\t},")
 	}
@@ -483,7 +516,7 @@ func privateName(goName string) string {
 
 func queryValueExpression(field ir.Field, value string) string {
 	switch field.Kind {
-	case ir.FieldAuto:
+	case ir.FieldAuto, ir.FieldForeignKey:
 		return "query.Integer(" + value + ")"
 	case ir.FieldChar:
 		return "query.String(" + value + ")"
@@ -520,17 +553,6 @@ func defaultLiteral(value ir.ScalarDefault) string {
 	}
 }
 
-func hasNullableChar(schema ir.Schema) bool {
-	for _, model := range schema.Models {
-		for _, field := range model.Fields {
-			if field.Kind == ir.FieldChar && field.Nullable {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func goType(field ir.Field) string {
 	switch field.Kind {
 	case ir.FieldAuto:
@@ -542,6 +564,11 @@ func goType(field ir.Field) string {
 		return "string"
 	case ir.FieldBoolean:
 		return "bool"
+	case ir.FieldForeignKey:
+		if field.Nullable {
+			return "*int64"
+		}
+		return "int64"
 	default:
 		return "struct{}"
 	}
@@ -589,6 +616,8 @@ func irKind(kind ir.FieldKind) string {
 		return "ir.FieldChar"
 	case ir.FieldBoolean:
 		return "ir.FieldBoolean"
+	case ir.FieldForeignKey:
+		return "ir.FieldForeignKey"
 	default:
 		return strconv.Quote(string(kind))
 	}

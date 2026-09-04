@@ -15,6 +15,18 @@ import (
 // scenarios provision an independent SQLite database so one observation
 // cannot inherit state from another.
 func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.Manifest) (protocol.ObservationSuite, error) {
+	return GenerateWithInputs(ctx, profile, manifest, Inputs{})
+}
+
+// GenerateWithInputs executes every manifest scenario with pre-verified
+// external product facts. The runner itself remains unable to open oracle,
+// fixture, contract, or checked-attestation paths.
+func GenerateWithInputs(
+	ctx context.Context,
+	profile protocol.Profile,
+	manifest protocol.Manifest,
+	inputs Inputs,
+) (protocol.ObservationSuite, error) {
 	if ctx == nil {
 		return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observations: context is nil")
 	}
@@ -31,6 +43,10 @@ func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.M
 			profile.ID,
 		)
 	}
+	if _, err := RequiredObservedContractIDs(manifest); err != nil {
+		return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observations: handler registry: %w", err)
+	}
+	inputs = inputs.snapshot()
 
 	suite := protocol.ObservationSuite{
 		FormatVersion: protocol.FormatVersion,
@@ -41,7 +57,7 @@ func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.M
 		if err := ctx.Err(); err != nil {
 			return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observations before %s: %w", contract.ID, err)
 		}
-		observation, err := runScenario(ctx, contract)
+		observation, err := runScenarioWithInputs(ctx, contract, inputs)
 		if err != nil {
 			return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observation %s: %w", contract.ID, err)
 		}
@@ -53,111 +69,323 @@ func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.M
 	return suite, nil
 }
 
+// RequiredObservedContractIDs returns the manifest-ordered contracts backed by
+// the actual GoDj handler registry. A registered handler must have a passing or
+// deviation status, while an unregistered contract must remain oracle_locked.
+// This keeps product coverage independent from expected oracle payloads.
+func RequiredObservedContractIDs(manifest protocol.Manifest) ([]string, error) {
+	if err := manifest.Validate(); err != nil {
+		return nil, fmt.Errorf("manifest: %w", err)
+	}
+	required := make([]string, 0, len(manifest.Contracts))
+	for _, contract := range manifest.Contracts {
+		_, registered := lookupScenarioHandler(contract.Scenario)
+		if registered {
+			switch contract.Status {
+			case protocol.ContractPassing, protocol.ContractDeviation:
+				required = append(required, contract.ID)
+			default:
+				return nil, fmt.Errorf("registered scenario %q contract %s has status %q; want passing or deviation", contract.Scenario, contract.ID, contract.Status)
+			}
+			continue
+		}
+		if contract.Status != protocol.ContractOracleLocked {
+			return nil, fmt.Errorf("unregistered scenario %q contract %s has status %q; want oracle_locked", contract.Scenario, contract.ID, contract.Status)
+		}
+	}
+	return required, nil
+}
+
+type scenarioHandler func(context.Context, protocol.Contract) (protocol.Observation, error)
+
 func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	if _, ok := migrationStateReconstructionFixtures[contract.Scenario]; ok {
-		return migrationStateReconstructionScenario(ctx, contract)
+	return runScenarioWithInputs(ctx, contract, Inputs{})
+}
+
+func runScenarioWithInputs(ctx context.Context, contract protocol.Contract, inputs Inputs) (protocol.Observation, error) {
+	handler, ok := lookupScenarioHandlerWithInputs(contract.Scenario, inputs)
+	if !ok {
+		return protocol.Observation{
+			ID:     contract.ID,
+			Status: protocol.StatusNotImplemented,
+			Phase:  contract.Phase,
+		}, nil
 	}
-	if _, ok := migrationRestartFixtures[contract.Scenario]; ok {
-		return migrationRestartScenario(ctx, contract)
+	return handler(ctx, contract)
+}
+
+func lookupScenarioHandlerWithInputs(scenario string, inputs Inputs) (scenarioHandler, bool) {
+	if scenario == systemStateTwoProcessScenario {
+		return systemStateTwoProcessScenarioHandler(inputs), true
 	}
-	if _, ok := migrationExecutionFixtures[contract.Scenario]; ok {
-		return migrationExecutionScenario(ctx, contract)
+	if handler, ok := gdj0055SystemStateScenarioHandler(scenario, GDJ0055Inputs{
+		PostgreSQLOperatorBackend: inputs.ProjectOperatorPostgreSQL,
+		SQLiteOperatorBackend:     inputs.ProjectOperatorSQLite,
+	}); ok {
+		return handler, true
 	}
-	if _, ok := migrationPlanningFixtures[contract.Scenario]; ok {
-		return migrationPlanningScenario(ctx, contract)
+	return lookupScenarioHandler(scenario)
+}
+
+func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
+	if scenario == systemStateTwoProcessScenario {
+		// Registration is independent from the externally verified backend
+		// facts. Calling this zero-input handler still fails closed.
+		return systemStateTwoProcessScenarioHandler(Inputs{}), true
 	}
-	switch contract.Scenario {
+	if handler, ok := gdj0055SystemStateScenarioHandler(scenario, GDJ0055Inputs{}); ok {
+		// Registration is independent from the two checked backend facts.
+		// Calling this zero-input SYS-029 handler still fails closed.
+		return handler, true
+	}
+	if handler, ok := templateFormScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := authSessionScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := articleAdminScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := systemStateScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := parameterRoutingScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := articleAPIScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := gdj0047APIScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := queryExpressionScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := queryBreadthScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := relationScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := migrationCommandScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := migrationWriterScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := migrationStatusScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := migrationTargetPlanScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := migrationSQLRenderingScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if _, ok := migrationProjectCheckFixtures[scenario]; ok {
+		return migrationProjectCheckScenario, true
+	}
+	if _, ok := migrationDefinitionSourceFixtures[scenario]; ok {
+		return migrationDefinitionSourceScenario, true
+	}
+	if _, ok := migrationLifecycleFixtures[scenario]; ok {
+		return migrationLifecycleScenario, true
+	}
+	if _, ok := migrationStateReconstructionFixtures[scenario]; ok {
+		return migrationStateReconstructionScenario, true
+	}
+	if _, ok := migrationRestartFixtures[scenario]; ok {
+		return migrationRestartScenario, true
+	}
+	if _, ok := migrationExecutionFixtures[scenario]; ok {
+		return migrationExecutionScenario, true
+	}
+	if _, ok := migrationPlanningFixtures[scenario]; ok {
+		return migrationPlanningScenario, true
+	}
+	switch scenario {
 	case "django.query.exact":
-		return queryExact(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryExact(ctx, contract.ID)
+		}, true
 	case "django.query.ascii_icontains":
-		return queryASCIIInsensitiveContains(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryASCIIInsensitiveContains(ctx, contract.ID)
+		}, true
 	case "django.query.chained_and":
-		return queryChainedAnd(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryChainedAnd(ctx, contract.ID)
+		}, true
 	case "django.query.chain_preserves_source":
-		return queryChainPreservesSource(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryChainPreservesSource(ctx, contract.ID)
+		}, true
 	case "django.query.order_and_limit":
-		return queryOrderAndLimit(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryOrderAndLimit(ctx, contract.ID)
+		}, true
 	case "django.query.empty_result":
-		return queryEmptyResult(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryEmptyResult(ctx, contract.ID)
+		}, true
 	case "django.query.isnull":
-		return queryIsNull(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryIsNull(ctx, contract.ID)
+		}, true
 	case "django.query.unknown_field":
-		return queryUnknownField(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryUnknownField(ctx, contract.ID)
+		}, true
 	case "django.query.construction_has_no_io":
-		return queryConstructionHasNoIO(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryConstructionHasNoIO(ctx, contract.ID)
+		}, true
 	case "django.query.unsupported_lookup":
-		return queryUnsupportedLookup(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryUnsupportedLookup(ctx, contract.ID)
+		}, true
 	case "django.schema.model_metadata":
-		return schemaModelMetadata(contract.ID)
+		return func(_ context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return schemaModelMetadata(contract.ID)
+		}, true
 	case "django.model.create_auto_pk":
-		return modelCreateAutoPrimaryKey(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelCreateAutoPrimaryKey(ctx, contract.ID)
+		}, true
 	case "django.model.create_nullable_variants":
-		return modelCreateNullableVariants(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelCreateNullableVariants(ctx, contract.ID)
+		}, true
 	case "django.model.partial_update_omits_changed_field":
-		return modelPartialUpdateOmitted(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelPartialUpdateOmitted(ctx, contract.ID)
+		}, true
 	case "django.model.partial_update_explicit_null":
-		return modelPartialUpdateExplicitNull(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelPartialUpdateExplicitNull(ctx, contract.ID)
+		}, true
 	case "django.model.instance_delete":
-		return modelInstanceDelete(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelInstanceDelete(ctx, contract.ID)
+		}, true
 	case "django.transaction.atomic_commit":
-		return transactionAtomicCommit(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return transactionAtomicCommit(ctx, contract.ID)
+		}, true
 	case "django.transaction.atomic_rollback":
-		return transactionAtomicRollback(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return transactionAtomicRollback(ctx, contract.ID)
+		}, true
 	case "django.migration.create_model":
-		return migrationCreateModel(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return migrationCreateModel(ctx, contract.ID)
+		}, true
 	case "django.migration.add_nullable_field":
-		return migrationAddNullableField(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return migrationAddNullableField(ctx, contract.ID)
+		}, true
 	case "django.migration.reverse_nullable_field":
-		return migrationReverseNullableField(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return migrationReverseNullableField(ctx, contract.ID)
+		}, true
 	case "django.migration.atomic_failure":
-		return migrationAtomicFailure(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return migrationAtomicFailure(ctx, contract.ID)
+		}, true
 	case "django.model.save.new_auto_pk":
-		return modelSaveNewAutoPrimaryKey(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveNewAutoPrimaryKey(ctx, contract.ID)
+		}, true
 	case "django.model.save.loaded_all_fields":
-		return modelSaveLoadedAllFields(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveLoadedAllFields(ctx, contract.ID)
+		}, true
 	case "django.model.save.update_fields_named":
-		return modelSaveUpdateFieldsNamed(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveUpdateFieldsNamed(ctx, contract.ID)
+		}, true
 	case "django.model.save.update_fields_empty":
-		return modelSaveUpdateFieldsEmpty(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveUpdateFieldsEmpty(ctx, contract.ID)
+		}, true
 	case "django.model.save.update_fields_primary_key":
-		return modelSaveUpdateFieldsPrimaryKey(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveUpdateFieldsPrimaryKey(ctx, contract.ID)
+		}, true
 	case "django.model.save.force_insert_conflict":
-		return modelSaveForceInsertConflict(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveForceInsertConflict(ctx, contract.ID)
+		}, true
 	case "django.model.save.force_update_without_pk":
-		return modelSaveForceUpdateWithoutPrimaryKey(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveForceUpdateWithoutPrimaryKey(ctx, contract.ID)
+		}, true
 	case "django.model.save.force_update_missing_row":
-		return modelSaveForceUpdateMissingRow(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveForceUpdateMissingRow(ctx, contract.ID)
+		}, true
 	case "django.model.save.mutually_exclusive_force_flags":
-		return modelSaveMutuallyExclusiveForceFlags(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveMutuallyExclusiveForceFlags(ctx, contract.ID)
+		}, true
 	case "django.model.save.explicit_pk_existing":
-		return modelSaveExplicitPrimaryKeyExisting(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveExplicitPrimaryKeyExisting(ctx, contract.ID)
+		}, true
 	case "django.model.save.explicit_pk_missing":
-		return modelSaveExplicitPrimaryKeyMissing(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveExplicitPrimaryKeyMissing(ctx, contract.ID)
+		}, true
 	case "django.model.save.atomic_rollback_instance_state":
-		return modelSaveAtomicRollbackInstanceState(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return modelSaveAtomicRollbackInstanceState(ctx, contract.ID)
+		}, true
 	case "django.query.cache.repeated_full_evaluation":
-		return queryCacheRepeatedFullEvaluation(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheRepeatedFullEvaluation(ctx, contract.ID)
+		}, true
 	case "django.query.cache.empty_full_evaluation":
-		return queryCacheEmptyFullEvaluation(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheEmptyFullEvaluation(ctx, contract.ID)
+		}, true
 	case "django.query.cache.stale_snapshot_and_fresh_queryset":
-		return queryCacheStaleSnapshotAndFreshQuerySet(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheStaleSnapshotAndFreshQuerySet(ctx, contract.ID)
+		}, true
 	case "django.query.cache.chained_queryset_independence":
-		return queryCacheChainedQuerySetIndependence(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheChainedQuerySetIndependence(ctx, contract.ID)
+		}, true
 	case "django.query.cache.count_cold_and_warm":
-		return queryCacheCountColdAndWarm(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheCountColdAndWarm(ctx, contract.ID)
+		}, true
 	case "django.query.cache.exists_cold_and_warm":
-		return queryCacheExistsColdAndWarm(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheExistsColdAndWarm(ctx, contract.ID)
+		}, true
 	case "django.query.cache.iterator_bypass":
-		return queryCacheIteratorBypass(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheIteratorBypass(ctx, contract.ID)
+		}, true
 	case "django.query.cache.index_partial_evaluation":
-		return queryCacheIndexPartialEvaluation(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheIndexPartialEvaluation(ctx, contract.ID)
+		}, true
 	case "django.query.cache.failed_evaluation_retry":
-		return queryCacheFailedEvaluationRetry(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheFailedEvaluationRetry(ctx, contract.ID)
+		}, true
 	case "django.query.cache.all_fresh_clone":
-		return queryCacheFreshClone(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheFreshClone(ctx, contract.ID)
+		}, true
 	case "django.query.cache.first_cold_and_warm":
-		return queryCacheFirstColdAndWarm(ctx, contract.ID)
+		return func(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+			return queryCacheFirstColdAndWarm(ctx, contract.ID)
+		}, true
 	default:
-		return protocol.Observation{}, fmt.Errorf("unsupported scenario %q", contract.Scenario)
+		return nil, false
 	}
 }

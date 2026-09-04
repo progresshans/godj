@@ -4,7 +4,11 @@
 // other.
 package ir
 
-const FormatVersion = 2
+// CurrentFormatVersion is the only Schema IR format accepted before GoDj's
+// first external release. Scalar and relation-bearing schemas use the same
+// normalized representation; relation presence is a field property, not a
+// format generation.
+const CurrentFormatVersion = 1
 
 type Schema struct {
 	FormatVersion int     `json:"format_version"`
@@ -22,10 +26,42 @@ type Model struct {
 type FieldKind string
 
 const (
-	FieldAuto    FieldKind = "auto"
-	FieldChar    FieldKind = "char"
-	FieldBoolean FieldKind = "boolean"
+	FieldAuto       FieldKind = "auto"
+	FieldChar       FieldKind = "char"
+	FieldBoolean    FieldKind = "boolean"
+	FieldForeignKey FieldKind = "foreign_key"
 )
+
+type ModelIdentity struct {
+	AppLabel  string `json:"app_label"`
+	ModelName string `json:"model_name"`
+}
+
+type RelationCardinality string
+
+const (
+	RelationManyToOne RelationCardinality = "many_to_one"
+	RelationOneToMany RelationCardinality = "one_to_many"
+)
+
+type DeletePolicy string
+
+const (
+	DeleteProtect DeletePolicy = "protect"
+	DeleteSetNull DeletePolicy = "set_null"
+)
+
+type ReverseRelation struct {
+	Name     string `json:"name,omitempty"`
+	Disabled bool   `json:"disabled,omitempty"`
+}
+
+type ForeignKeyRelation struct {
+	Target      ModelIdentity       `json:"target"`
+	Cardinality RelationCardinality `json:"cardinality"`
+	Reverse     ReverseRelation     `json:"reverse"`
+	OnDelete    DeletePolicy        `json:"on_delete"`
+}
 
 // ScalarKind identifies the concrete GoDj scalar carried by a field default.
 // The enclosing *ScalarDefault pointer preserves whether a default exists;
@@ -46,14 +82,15 @@ type ScalarDefault struct {
 }
 
 type Field struct {
-	Name       string         `json:"name"`
-	GoName     string         `json:"go_name"`
-	Column     string         `json:"column"`
-	Kind       FieldKind      `json:"kind"`
-	PrimaryKey bool           `json:"primary_key"`
-	Nullable   bool           `json:"nullable"`
-	MaxLength  int            `json:"max_length,omitempty"`
-	Default    *ScalarDefault `json:"default,omitempty"`
+	Name       string              `json:"name"`
+	GoName     string              `json:"go_name"`
+	Column     string              `json:"column"`
+	Kind       FieldKind           `json:"kind"`
+	PrimaryKey bool                `json:"primary_key"`
+	Nullable   bool                `json:"nullable"`
+	MaxLength  int                 `json:"max_length,omitempty"`
+	Default    *ScalarDefault      `json:"default,omitempty"`
+	Relation   *ForeignKeyRelation `json:"relation,omitempty"`
 }
 
 func (s Schema) Clone() Schema {
@@ -68,11 +105,21 @@ func (s Schema) Clone() Schema {
 func (m Model) Clone() Model {
 	clone := m
 	clone.Fields = append([]Field(nil), m.Fields...)
-	for index := range clone.Fields {
-		if m.Fields[index].Default != nil {
-			value := *m.Fields[index].Default
-			clone.Fields[index].Default = &value
-		}
+	for index := range m.Fields {
+		clone.Fields[index] = m.Fields[index].Clone()
+	}
+	return clone
+}
+
+func (f Field) Clone() Field {
+	clone := f
+	if f.Default != nil {
+		value := *f.Default
+		clone.Default = &value
+	}
+	if f.Relation != nil {
+		value := *f.Relation
+		clone.Relation = &value
 	}
 	return clone
 }

@@ -218,7 +218,7 @@ func buildSaveExecutionPlan[M any](
 		}
 		return saveExecutionPlan{
 			hasInsert:          true,
-			insert:             query.NewInsertPlan(metadata.DBTable, writableAssignments),
+			insert:             query.NewInsertPlanReturningKey(metadata.DBTable, writableAssignments, fieldReference(primaryKey)),
 			assignGeneratedKey: true,
 		}, nil
 	}
@@ -239,7 +239,7 @@ func buildSaveExecutionPlan[M any](
 	if state.forceInsert {
 		return saveExecutionPlan{
 			hasInsert: true,
-			insert:    query.NewInsertPlan(metadata.DBTable, insertAssignments),
+			insert:    query.NewInsertPlanReturningKey(metadata.DBTable, insertAssignments, fieldReference(primaryKey)),
 		}, nil
 	}
 
@@ -263,7 +263,7 @@ func buildSaveExecutionPlan[M any](
 			keyValue,
 		),
 		hasInsert:      hasInsert,
-		insert:         query.NewInsertPlan(metadata.DBTable, insertAssignments),
+		insert:         query.NewInsertPlanReturningKey(metadata.DBTable, insertAssignments, fieldReference(primaryKey)),
 		zeroRows:       zeroRows,
 		missingRowCode: missingRowCode,
 	}, nil

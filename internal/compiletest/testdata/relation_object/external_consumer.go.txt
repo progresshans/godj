@@ -1,0 +1,43 @@
+package externalconsumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/conformance/relationobjectproduct/blog"
+	"github.com/progresshans/godj/conformance/relationobjectproduct/project"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
+)
+
+func UseRelationObjects(backend db.Queryer, post blog.Post) error {
+	objects, err := project.BindObjects()
+	if err != nil {
+		return err
+	}
+	dynamic, err := objects.BlogPost.ParseDynamic(nil, []orm.LookupInput{
+		{Key: "author__name", Value: "Ada"},
+		{Key: "reviewer__isnull", Value: true},
+	})
+	if err != nil {
+		return err
+	}
+	_ = blog.PostObjects.Using(backend).Filter(
+		objects.BlogPost.Reviewer.IsNull(true),
+		dynamic[0],
+	)
+	object, err := objects.BlogPost.From(backend, post)
+	if err != nil {
+		return err
+	}
+	if _, err := object.Model(); err != nil {
+		return err
+	}
+	if _, err := object.Author(context.Background()); err != nil {
+		return err
+	}
+	if _, _, err := object.Reviewer(context.Background()); err != nil {
+		return err
+	}
+	_, err = object.Fresh()
+	return err
+}

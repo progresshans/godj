@@ -10,8 +10,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-m2-v3"
-const GoDjSchemaSHA256 = "b10fcd2ffbc2369355c165abef4725178c04bb9a6055f77f31214188aad37621"
+const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjSchemaSHA256 = "3e6ec104d26c21665690e9d4a20f547ae2f7212b2eb35f5e741d38a85274647d"
 
 type Article struct {
 	ID                    int64
@@ -302,3 +302,5 @@ func articleMetadata() ir.Model {
 		},
 	}
 }
+
+type GoDjProjectSnapshot_f0043e499ab316558cd0306ce82c428a5f266b0c178d656416380c3ba1722ac7 struct{}

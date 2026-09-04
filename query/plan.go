@@ -2,7 +2,11 @@
 // copy-on-write operations so a derived QuerySet cannot mutate its source.
 package query
 
-import "slices"
+import (
+	"math"
+	"slices"
+	"strings"
+)
 
 type FieldKind string
 
@@ -32,26 +36,178 @@ func (f FieldRef) Equal(other FieldRef) bool { return f == other }
 type Lookup string
 
 const (
-	LookupExact     Lookup = "exact"
-	LookupIContains Lookup = "icontains"
-	LookupIsNull    Lookup = "isnull"
+	LookupExact              Lookup = "exact"
+	LookupGreaterThan        Lookup = "gt"
+	LookupGreaterThanOrEqual Lookup = "gte"
+	LookupLessThan           Lookup = "lt"
+	LookupLessThanOrEqual    Lookup = "lte"
+	LookupIContains          Lookup = "icontains"
+	LookupIsNull             Lookup = "isnull"
+	LookupIn                 Lookup = "in"
 )
 
-type Condition struct {
-	field  FieldRef
-	lookup Lookup
+type conditionRHSKind uint8
+
+const (
+	conditionRHSLiteral conditionRHSKind = iota + 1
+	conditionRHSList
+	conditionRHSField
+)
+
+type conditionRHS struct {
+	kind   conditionRHSKind
 	value  Value
+	values []Value
+	field  FieldRef
+}
+
+type Condition struct {
+	field        FieldRef
+	lookup       Lookup
+	rhs          *conditionRHS
+	relationPath *RelationPath
 }
 
 func NewCondition(field FieldRef, lookup Lookup, value Value) Condition {
-	return Condition{field: field, lookup: lookup, value: value}
+	return Condition{
+		field:  field,
+		lookup: lookup,
+		rhs:    &conditionRHS{kind: conditionRHSLiteral, value: value},
+	}
+}
+
+// NewInCondition constructs one immutable scalar-list membership condition.
+// The values are copied so later caller mutation cannot alter the condition or
+// a query plan that contains it.
+func NewInCondition(field FieldRef, values []Value) (Condition, error) {
+	if !validInValues(field, values) {
+		return Condition{}, &Error{
+			Category: CategoryQuery,
+			Code:     CodeInvalidPlan,
+			Detail:   "IN requires a supported field and a non-empty same-kind non-NULL value list",
+		}
+	}
+	return Condition{
+		field:  field,
+		lookup: LookupIn,
+		rhs:    &conditionRHS{kind: conditionRHSList, values: append([]Value(nil), values...)},
+	}, nil
+}
+
+// NewFieldCondition constructs one scalar comparison whose right-hand side is
+// another field in the same eventual plan source. Source membership is
+// intentionally deferred to Plan.WithWhere and repeated by each backend;
+// this constructor validates the lookup, kinds, and scalar-only shape.
+func NewFieldCondition(field FieldRef, lookup Lookup, right FieldRef) (Condition, error) {
+	condition := Condition{
+		field:  field,
+		lookup: lookup,
+		rhs:    &conditionRHS{kind: conditionRHSField, field: right},
+	}
+	if err := validateExpressionCondition(condition); err != nil {
+		return Condition{}, err
+	}
+	return condition, nil
+}
+
+// NewRelatedCondition constructs a condition over the terminal field of a
+// relation path. The path is copied so callers cannot retain aliases into a
+// query plan.
+func NewRelatedCondition(path RelationPath, lookup Lookup, value Value) Condition {
+	cloned := path.clone()
+	return Condition{
+		field:        cloned.Terminal(),
+		lookup:       lookup,
+		rhs:          &conditionRHS{kind: conditionRHSLiteral, value: value},
+		relationPath: &cloned,
+	}
 }
 
 func (c Condition) Field() FieldRef { return c.field }
 func (c Condition) Lookup() Lookup  { return c.lookup }
-func (c Condition) Value() Value    { return c.value }
+func (c Condition) Value() Value {
+	if c.lookup == LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSLiteral {
+		return Value{}
+	}
+	return c.rhs.value
+}
+func (c Condition) Values() ([]Value, bool) {
+	if c.lookup != LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSList ||
+		c.relationPath != nil || !validInValues(c.field, c.rhs.values) {
+		return nil, false
+	}
+	return append([]Value(nil), c.rhs.values...), true
+}
+
+// RHSField returns the right-hand-side source field for a field-to-field
+// comparison. The returned value is detached and immutable.
+func (c Condition) RHSField() (FieldRef, bool) {
+	if c.rhs == nil || c.rhs.kind != conditionRHSField || c.relationPath != nil {
+		return FieldRef{}, false
+	}
+	return c.rhs.field, true
+}
+func (c Condition) RelationPath() (RelationPath, bool) {
+	if c.relationPath == nil {
+		return RelationPath{}, false
+	}
+	return c.relationPath.clone(), true
+}
 func (c Condition) Equal(other Condition) bool {
-	return c.field == other.field && c.lookup == other.lookup && c.value == other.value
+	if c.field != other.field || c.lookup != other.lookup || (c.rhs == nil) != (other.rhs == nil) {
+		return false
+	}
+	if c.rhs != nil {
+		if c.rhs.kind != other.rhs.kind || c.rhs.value != other.rhs.value || c.rhs.field != other.rhs.field ||
+			!slices.EqualFunc(c.rhs.values, other.rhs.values, func(left, right Value) bool {
+				return left.Equal(right)
+			}) {
+			return false
+		}
+	}
+	leftPath, leftOK := c.RelationPath()
+	rightPath, rightOK := other.RelationPath()
+	return leftOK == rightOK && (!leftOK || leftPath.Equal(rightPath))
+}
+
+func (c Condition) clone() Condition {
+	clone := c
+	if c.rhs != nil {
+		rhs := *c.rhs
+		rhs.values = append([]Value(nil), c.rhs.values...)
+		clone.rhs = &rhs
+	}
+	if c.relationPath != nil {
+		path := c.relationPath.clone()
+		clone.relationPath = &path
+	}
+	return clone
+}
+
+func validInValues(field FieldRef, values []Value) bool {
+	if field.name == "" || field.column == "" ||
+		strings.ContainsRune(field.name, '\x00') || strings.ContainsRune(field.column, '\x00') ||
+		len(values) == 0 {
+		return false
+	}
+
+	var expected ValueKind
+	switch field.kind {
+	case FieldInteger:
+		expected = ValueInteger
+	case FieldString:
+		expected = ValueString
+	case FieldBoolean:
+		expected = ValueBoolean
+	default:
+		return false
+	}
+	for _, value := range values {
+		if value.IsNull() || value.Kind() != expected {
+			return false
+		}
+	}
+	return true
 }
 
 type Direction string
@@ -77,27 +233,49 @@ func (o Ordering) Equal(other Ordering) bool {
 }
 
 type Plan struct {
-	table      string
-	columns    []FieldRef
-	conditions []Condition
-	orderings  []Ordering
-	limit      *int
+	table              string
+	sourceFields       []FieldRef
+	where              Expression
+	orderings          []Ordering
+	limit              *int
+	offset             *int
+	distinct           bool
+	result             ResultShape
+	relationProjection *RelationProjection
 }
 
-func NewPlan(table string, columns []FieldRef) Plan {
-	return Plan{table: table, columns: append([]FieldRef(nil), columns...)}
+func NewPlan(table string, sourceFields []FieldRef) Plan {
+	return Plan{
+		table:        table,
+		sourceFields: append([]FieldRef(nil), sourceFields...),
+		result:       modelResult(),
+	}
 }
 
 func (p Plan) Table() string {
 	return p.table
 }
 
-func (p Plan) Columns() []FieldRef {
-	return append([]FieldRef(nil), p.columns...)
+func (p Plan) SourceFields() []FieldRef {
+	return append([]FieldRef(nil), p.sourceFields...)
 }
 
+// Where returns the one authoritative immutable Boolean expression tree.
+// False means that the plan has no predicate; there is no empty Boolean
+// constant in the query AST.
+func (p Plan) Where() (Expression, bool) {
+	if p.where.node == nil {
+		return Expression{}, false
+	}
+	return p.where, true
+}
+
+// Conditions returns a detached ordered DFS leaf inventory for diagnostics
+// and compatibility tests. It is computed from Where on every call and is not
+// an authoritative query representation; connector and negation semantics
+// are intentionally absent from this view.
 func (p Plan) Conditions() []Condition {
-	return append([]Condition(nil), p.conditions...)
+	return expressionConditions(p.where)
 }
 
 func (p Plan) Orderings() []Ordering {
@@ -111,10 +289,154 @@ func (p Plan) Limit() (int, bool) {
 	return *p.limit, true
 }
 
+func (p Plan) Offset() (int, bool) {
+	if p.offset == nil {
+		return 0, false
+	}
+	return *p.offset, true
+}
+
+func (p Plan) Distinct() bool { return p.distinct }
+
+func (p Plan) ResultShape() ResultShape { return p.result.clone() }
+
+// RelationProjection returns a detached copy of the singular eager relation
+// projection carried by this plan. Plans without eager selection retain the
+// exact pre-projection behavior and report false.
+func (p Plan) RelationProjection() (RelationProjection, bool) {
+	if p.relationProjection == nil {
+		return RelationProjection{}, false
+	}
+	return p.relationProjection.clone(), true
+}
+
+// WithRelationProjection derives a plan with exactly one immutable forward
+// relation projection. A projection is singular by contract: callers cannot
+// overwrite or extend one that is already present.
+func (p Plan) WithRelationProjection(projection RelationProjection) (Plan, error) {
+	if p.relationProjection != nil {
+		return Plan{}, invalidPlanError("query plan already contains a relation projection")
+	}
+	if err := projection.validate(); err != nil {
+		return Plan{}, err
+	}
+	if p.result.Kind() != ResultModel {
+		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
+	}
+	clone := p.clone()
+	value := projection.clone()
+	clone.relationProjection = &value
+	return clone, nil
+}
+
 func (p Plan) WithConditions(conditions ...Condition) Plan {
 	clone := p.clone()
-	clone.conditions = append(clone.conditions, conditions...)
+	expressions := make([]Expression, 0, len(conditions)+1)
+	if clone.where.node != nil {
+		expressions = append(expressions, clone.where)
+	}
+	for _, condition := range conditions {
+		expressions = append(expressions, newUncheckedExpression(condition))
+	}
+	clone.where = uncheckedAndExpressions(expressions...)
 	return clone
+}
+
+// WithWhere derives a plan by implicitly AND-ing one validated expression
+// with the existing authoritative where tree. It is the error-returning path
+// used by ORM construction; low-level callers that need the historical
+// non-error signature continue to use WithConditions.
+func (p Plan) WithWhere(expression Expression) (Plan, error) {
+	if err := expression.validate(); err != nil {
+		return Plan{}, err
+	}
+	where := expression
+	if p.where.node != nil {
+		var err error
+		where, err = AndExpressions(p.where, expression)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
+	if err := p.validateWhereSource(where); err != nil {
+		return Plan{}, err
+	}
+	clone := p.clone()
+	clone.where = where
+	return clone, nil
+}
+
+func (p Plan) validateWhereSource(expression Expression) error {
+	return p.validateWhereNode(expression.node, true)
+}
+
+func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction bool) error {
+	if node.kind == ExpressionLeaf {
+		condition := node.condition
+		path := condition.relationPath
+		if path == nil {
+			if !slices.Contains(p.sourceFields, condition.field) {
+				return invalidPlanError("query expression scalar field is not part of the plan source metadata")
+			}
+			if right, ok := condition.RHSField(); ok && !slices.Contains(p.sourceFields, right) {
+				return invalidPlanError("query expression right-hand-side field is not part of the plan source metadata")
+			}
+			return nil
+		}
+		if !relationAtRootConjunction {
+			return &Error{
+				Category: CategoryQuery,
+				Code:     CodeUnsupported,
+				Field:    condition.field.name,
+				Lookup:   string(condition.lookup),
+				Detail:   "relation predicates under OR or NOT are not supported",
+			}
+		}
+		if len(path.hops) != 1 {
+			return invalidPlanError("query expression relation path must contain exactly one hop")
+		}
+		hop := path.hops[0]
+		switch path.scope {
+		case RelationTerminalSourceKey:
+			if !slices.Contains(p.sourceFields, condition.field) {
+				return invalidPlanError("query expression relation source key is not part of the plan source metadata")
+			}
+		case RelationTerminalRelatedField:
+			switch hop.direction {
+			case RelationForward:
+				sourceKey := NewFieldRef(hop.field, hop.sourceColumn, FieldInteger, hop.nullable)
+				if hop.sourceTable != p.table || !slices.Contains(p.sourceFields, sourceKey) {
+					return invalidPlanError("query expression forward relation source key is not part of the plan source metadata")
+				}
+			case RelationReverse:
+				if hop.targetTable != p.table || !containsPlanIntegerColumn(p.sourceFields, hop.targetPrimaryKeyColumn) {
+					return invalidPlanError("query expression reverse relation root key is not part of the plan source metadata")
+				}
+			default:
+				return invalidPlanError("query expression relation direction is invalid")
+			}
+		default:
+			return invalidPlanError("query expression relation terminal scope is invalid")
+		}
+		return nil
+	}
+
+	childRelationAtRoot := relationAtRootConjunction && node.kind == ExpressionAnd
+	for _, child := range node.children {
+		if err := p.validateWhereNode(child.node, childRelationAtRoot); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func containsPlanIntegerColumn(fields []FieldRef, column string) bool {
+	for _, field := range fields {
+		if field.column == column && field.kind == FieldInteger && !field.nullable {
+			return true
+		}
+	}
+	return false
 }
 
 func (p Plan) WithOrderings(orderings ...Ordering) Plan {
@@ -132,11 +454,44 @@ func (p Plan) WithLimit(limit int) (Plan, error) {
 	return clone, nil
 }
 
+func (p Plan) WithOffset(offset int) (Plan, error) {
+	if offset < 0 || int64(offset) > math.MaxInt32 {
+		return Plan{}, &Error{Category: CategoryQuery, Code: CodeInvalidOffset, Detail: "offset must be between zero and 2147483647"}
+	}
+	clone := p.clone()
+	clone.offset = &offset
+	return clone, nil
+}
+
+func (p Plan) WithDistinct() Plan {
+	clone := p.clone()
+	clone.distinct = true
+	return clone
+}
+
+func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
+	if err := result.validate(); err != nil {
+		return Plan{}, err
+	}
+	if p.relationProjection != nil && result.Kind() != ResultModel {
+		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
+	}
+	for _, expression := range result.Expressions() {
+		if field, ok := expression.Field(); ok && !slices.Contains(p.sourceFields, field) {
+			return Plan{}, invalidPlanError("result field is not part of the plan source metadata")
+		}
+	}
+	clone := p.clone()
+	clone.result = result.clone()
+	return clone, nil
+}
+
 func (p Plan) Equal(other Plan) bool {
-	if p.table != other.table || !slices.Equal(p.columns, other.columns) {
+	if p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
+		p.distinct != other.distinct || !p.result.Equal(other.result) {
 		return false
 	}
-	if !slices.EqualFunc(p.conditions, other.conditions, func(left, right Condition) bool { return left.Equal(right) }) {
+	if !p.where.Equal(other.where) {
 		return false
 	}
 	if !slices.EqualFunc(p.orderings, other.orderings, func(left, right Ordering) bool { return left.Equal(right) }) {
@@ -144,17 +499,35 @@ func (p Plan) Equal(other Plan) bool {
 	}
 	leftLimit, leftOK := p.Limit()
 	rightLimit, rightOK := other.Limit()
-	return leftOK == rightOK && (!leftOK || leftLimit == rightLimit)
+	if leftOK != rightOK || (leftOK && leftLimit != rightLimit) {
+		return false
+	}
+	leftOffset, leftOK := p.Offset()
+	rightOffset, rightOK := other.Offset()
+	if leftOK != rightOK || (leftOK && leftOffset != rightOffset) {
+		return false
+	}
+	leftProjection, leftOK := p.RelationProjection()
+	rightProjection, rightOK := other.RelationProjection()
+	return leftOK == rightOK && (!leftOK || leftProjection.Equal(rightProjection))
 }
 
 func (p Plan) clone() Plan {
 	clone := p
-	clone.columns = append([]FieldRef(nil), p.columns...)
-	clone.conditions = append([]Condition(nil), p.conditions...)
+	clone.sourceFields = append([]FieldRef(nil), p.sourceFields...)
 	clone.orderings = append([]Ordering(nil), p.orderings...)
 	if p.limit != nil {
 		limit := *p.limit
 		clone.limit = &limit
+	}
+	if p.offset != nil {
+		offset := *p.offset
+		clone.offset = &offset
+	}
+	clone.result = p.result.clone()
+	if p.relationProjection != nil {
+		projection := p.relationProjection.clone()
+		clone.relationProjection = &projection
 	}
 	return clone
 }

@@ -27,11 +27,12 @@ func (e *ValidationError) Error() string {
 
 func Normalize(input Schema) (Schema, error) {
 	schema := input.Clone()
-	if schema.FormatVersion == 0 {
-		schema.FormatVersion = FormatVersion
-	}
-	if schema.FormatVersion != FormatVersion {
-		return Schema{}, validation("format_version", "unsupported_version", fmt.Sprintf("got %d, want %d", schema.FormatVersion, FormatVersion))
+	if schema.FormatVersion != CurrentFormatVersion {
+		return Schema{}, validation(
+			"format_version",
+			"unsupported_version",
+			fmt.Sprintf("got %d, want %d", schema.FormatVersion, CurrentFormatVersion),
+		)
 	}
 	if !databaseIdentifier.MatchString(schema.AppLabel) {
 		return Schema{}, validation("app_label", "invalid_identifier", schema.AppLabel)
@@ -103,7 +104,11 @@ func normalizeModel(model *Model, path string) error {
 		fieldPath := fmt.Sprintf("%s.fields[%d]", path, index)
 		field := &model.Fields[index]
 		if field.Column == "" {
-			field.Column = field.Name
+			if field.Kind == FieldForeignKey {
+				field.Column = field.Name + "_id"
+			} else {
+				field.Column = field.Name
+			}
 		}
 		if !databaseIdentifier.MatchString(field.Name) {
 			return validation(fieldPath+".name", "invalid_identifier", field.Name)
@@ -137,6 +142,9 @@ func normalizeModel(model *Model, path string) error {
 }
 
 func validateField(field Field, path string) error {
+	if field.Kind != FieldForeignKey && field.Relation != nil {
+		return validation(path+".relation", "unsupported", "relation arm requires ForeignKey field kind")
+	}
 	if field.Default != nil {
 		if err := validateScalarDefault(*field.Default, path+".default"); err != nil {
 			return err
@@ -184,8 +192,52 @@ func validateField(field Field, path string) error {
 		if field.Default != nil && field.Default.Kind != ScalarBoolean {
 			return validation(path+".default", "type_mismatch", "BooleanField default must be a boolean")
 		}
+	case FieldForeignKey:
+		if field.PrimaryKey {
+			return validation(path+".primary_key", "unsupported", "ForeignKey cannot be the primary key")
+		}
+		if field.MaxLength != 0 {
+			return validation(path+".max_length", "unsupported", "ForeignKey has no max length")
+		}
+		if field.Default != nil {
+			return validation(path+".default", "unsupported", "ForeignKey defaults are not supported")
+		}
+		if field.Relation == nil {
+			return validation(path+".relation", "required", "ForeignKey requires relation metadata")
+		}
+		if err := validateForeignKeyRelation(*field.Relation, field.Nullable, path+".relation"); err != nil {
+			return err
+		}
 	default:
 		return validation(path+".kind", "unsupported_field_kind", string(field.Kind))
+	}
+	return nil
+}
+
+func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path string) error {
+	if !databaseIdentifier.MatchString(relation.Target.AppLabel) {
+		return validation(path+".target.app_label", "invalid_identifier", relation.Target.AppLabel)
+	}
+	if !databaseIdentifier.MatchString(relation.Target.ModelName) {
+		return validation(path+".target.model_name", "invalid_identifier", relation.Target.ModelName)
+	}
+	if relation.Cardinality != RelationManyToOne {
+		return validation(path+".cardinality", "unsupported", string(relation.Cardinality))
+	}
+	if relation.Reverse.Disabled == (relation.Reverse.Name != "") {
+		return validation(path+".reverse", "invalid", "exactly one of name or disabled must be set")
+	}
+	if relation.Reverse.Name != "" && !databaseIdentifier.MatchString(relation.Reverse.Name) {
+		return validation(path+".reverse.name", "invalid_identifier", relation.Reverse.Name)
+	}
+	switch relation.OnDelete {
+	case DeleteProtect:
+	case DeleteSetNull:
+		if !nullable {
+			return validation(path+".on_delete", "invalid_nullability", "set_null requires a nullable ForeignKey")
+		}
+	default:
+		return validation(path+".on_delete", "unsupported", string(relation.OnDelete))
 	}
 	return nil
 }

@@ -198,7 +198,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 		entries[fields[1]] = fields[0]
 	}
-	wantedPaths := []string{"migration-execution-oracle.json", "migration-lifecycle-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json"}
+	wantedPaths := []string{"migration-execution-oracle.json", "migration-lifecycle-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "query-breadth-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json", "migration-definition-source-oracle.json", "migration-project-check-oracle.json", "migration-command-oracle.json", "migration-writer-oracle.json", "migration-status-oracle.json", "migration-target-plan-oracle.json", "migration-sql-rendering-oracle.json", "relation-oracle.json", "migration-relation-oracle.json", "query-expression-oracle.json", "template-form-oracle.json", "auth-session-oracle.json", "article-admin-oracle.json", "system-state.json"}
 	if len(entries) != len(wantedPaths) {
 		t.Fatalf("SHA256SUMS has %d entries, want %d: %#v", len(entries), len(wantedPaths), entries)
 	}
@@ -213,14 +213,23 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 	}
 	for name, want := range map[string]string{
-		"migration-planning-oracle.json": "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
-		"oracle.json":                    "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
-		"query-cache-oracle.json":        "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
-		"save-lifecycle-oracle.json":     "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
-		"write-migration-oracle.json":    "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
+		"migration-planning-oracle.json":      "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
+		"oracle.json":                         "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
+		"query-cache-oracle.json":             "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
+		"query-breadth-oracle.json":           "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94",
+		"query-expression-oracle.json":        "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f",
+		"template-form-oracle.json":           "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa",
+		"auth-session-oracle.json":            "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc",
+		"article-admin-oracle.json":           "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378",
+		"system-state.json":                   "2251157e801295b084a51a7879e496fab528d7360fcb8c55bdd7b0b368862913",
+		"save-lifecycle-oracle.json":          "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
+		"write-migration-oracle.json":         "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
+		"migration-status-oracle.json":        "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f",
+		"migration-target-plan-oracle.json":   "dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f",
+		"migration-sql-rendering-oracle.json": "0d51318daf8c26aa58d8f10b49234f032fcc90c147743a41ca6e0d053c2921df",
 	} {
 		if entries[name] != want {
-			t.Fatalf("existing %s checksum changed to %q, want immutable baseline %q", name, entries[name], want)
+			t.Fatalf("locked %s checksum changed to %q, want %q", name, entries[name], want)
 		}
 	}
 }
@@ -319,7 +328,7 @@ func TestHistorical34ArtifactsAndFirstFiveSet57PassingStatusesRemainPinned(t *te
 	}
 }
 
-func TestEightSetProductStatusesAre83PassingAnd4ReviewedDeviations(t *testing.T) {
+func TestTwelveSetProductStatusesAre122Passing5ReviewedDeviationsAnd0OracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -332,9 +341,14 @@ func TestEightSetProductStatusesAre83PassingAnd4ReviewedDeviations(t *testing.T)
 		"migration-execution-manifest.json",
 		"migration-restart-manifest.json",
 		"migration-state-reconstruction-manifest.json",
+		"migration-lifecycle-manifest.json",
+		"migration-definition-source-manifest.json",
+		"migration-project-check-manifest.json",
+		"relation-manifest.json",
 	}
 	passing := 0
 	deviations := 0
+	oracleLocked := 0
 	for _, name := range manifestNames {
 		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
 		if err != nil {
@@ -346,13 +360,15 @@ func TestEightSetProductStatusesAre83PassingAnd4ReviewedDeviations(t *testing.T)
 				passing++
 			case ContractDeviation:
 				deviations++
+			case ContractOracleLocked:
+				oracleLocked++
 			default:
 				t.Fatalf("manifest %s contract %s has non-product status %q", name, contract.ID, contract.Status)
 			}
 		}
 	}
-	if passing != 83 || deviations != 4 {
-		t.Fatalf("eight-set product statuses = %d passing + %d deviation, want 83 + 4", passing, deviations)
+	if passing != 122 || deviations != 5 || oracleLocked != 0 {
+		t.Fatalf("twelve-set product statuses = %d passing + %d deviation + %d oracle_locked, want 122 + 5 + 0", passing, deviations, oracleLocked)
 	}
 }
 

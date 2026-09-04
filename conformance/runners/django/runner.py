@@ -38,6 +38,12 @@ from .save_lifecycle_scenarios import (  # noqa: E402
 from .query_cache_scenarios import (  # noqa: E402
     SCENARIOS as QUERY_CACHE_SCENARIOS,
 )
+from .query_breadth_scenarios import (  # noqa: E402
+    SCENARIOS as QUERY_BREADTH_SCENARIOS,
+)
+from .query_expression_scenarios import (  # noqa: E402
+    SCENARIOS as QUERY_EXPRESSION_SCENARIOS,
+)
 from .migration_planning_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_PLANNING_SCENARIOS,
 )
@@ -53,6 +59,180 @@ from .migration_state_reconstruction_scenarios import (  # noqa: E402
 from .migration_lifecycle_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_LIFECYCLE_SCENARIOS,
 )
+from .migration_definition_source_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_DEFINITION_SOURCE_SCENARIOS,
+)
+from .migration_project_check_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_PROJECT_CHECK_SCENARIOS,
+)
+from .migration_command_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_COMMAND_DECISION_SCENARIOS,
+)
+from .migration_writer_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_WRITER_DECISION_SCENARIOS,
+)
+from .migration_writer_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_WRITER_DJANGO_SCENARIOS,
+)
+from .migration_status_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_STATUS_DECISION_SCENARIOS,
+)
+from .migration_status_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_STATUS_DJANGO_SCENARIOS,
+)
+from .migration_target_plan_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_TARGET_PLAN_DECISION_SCENARIOS,
+)
+from .migration_target_plan_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_TARGET_PLAN_DJANGO_SCENARIOS,
+)
+from .migration_sql_rendering_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_SQL_RENDERING_DECISION_SCENARIOS,
+)
+from .migration_sql_rendering_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_SQL_RENDERING_DJANGO_SCENARIOS,
+)
+from .relation_scenarios import SCENARIOS as RELATION_SCENARIOS  # noqa: E402
+from .migration_relation_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_RELATION_SCENARIOS,
+)
+from .template_form_scenarios import (  # noqa: E402
+    SCENARIOS as TEMPLATE_FORM_SCENARIOS,
+)
+from .auth_admin_proxy import SCENARIOS as AUTH_ADMIN_SCENARIOS  # noqa: E402
+from .article_api_proxy import SCENARIOS as ARTICLE_API_SCENARIOS  # noqa: E402
+from .api_authentication_decisions import (  # noqa: E402
+    SCENARIOS as API_AUTHENTICATION_DECISION_SCENARIOS,
+)
+from .system_state_decisions import (  # noqa: E402
+    SCENARIOS as SYSTEM_STATE_DECISION_SCENARIOS,
+)
+from .system_state_scenarios import (  # noqa: E402
+    SCENARIOS as SYSTEM_STATE_DJANGO_SCENARIOS,
+)
+
+
+SYSTEM_STATE_SCENARIOS = {
+    **SYSTEM_STATE_DECISION_SCENARIOS,
+    **SYSTEM_STATE_DJANGO_SCENARIOS,
+}
+API_AUTHENTICATION_SCENARIOS = {
+    **API_AUTHENTICATION_DECISION_SCENARIOS,
+    **{
+        name: ARTICLE_API_SCENARIOS[name]
+        for name in (
+            "drf.api_authentication.missing_and_unsupported",
+            "drf.api_authentication.invalid_and_valid_token",
+            "drf.api_authentication.permission_denial",
+            "drf.api_authentication.unsafe_without_csrf",
+            "drf.api_authentication.profile_isolation",
+        )
+    },
+}
+EXTENDED_SYSTEM_STATE_SCENARIOS = (
+    "godj.system_state.explicit_migration_gate",
+    "godj.system_state.admin_bootstrap_gate",
+    "django.system_state.credential_permission_restart",
+    "django.system_state.rotated_session_restart",
+    "godj.system_state.session_expiry_and_touch",
+    "godj.system_state.capacity_reap_and_rotate_rollback",
+    "godj.system_state.digest_only_current_codec",
+    "django.system_state.logout_restart_denial",
+    "django.system_state.csrf_restart",
+    "django.system_state.admin_audit_fault_rollback",
+    "django.system_state.audit_history_restart",
+    "godj.system_state.commit_outcome_unknown",
+    "godj.system_state.coordinated_atomic_fence",
+    "godj.system_state.concurrent_admin_bootstrap",
+    "godj.system_state.concurrent_session_capacity",
+    "godj.system_state.concurrent_touch_monotonicity",
+    "godj.system_state.concurrent_session_rotation",
+    "godj.system_state.concurrent_article_audit",
+    "godj.system_state.shared_csrf_key_ring",
+    "godj.system_state.two_process_backend_restart",
+    "godj.system_state.explicit_operator_provisioning",
+    "godj.system_state.createsuperuser_argv_and_pre_io",
+    "godj.system_state.tty_secret_transport",
+    "godj.system_state.project_provision_ownership",
+    "godj.system_state.operator_provision_cardinality",
+    "godj.system_state.provision_outcome_ownership",
+    "godj.system_state.open_existing_authenticator",
+    "godj.system_state.credential_absent_public_only",
+    "godj.system_state.operator_backend_login_restart",
+    "godj.system_state.sensitive_child_cleanup",
+)
+MIGRATION_WRITER_SCENARIOS = {
+    name: (
+        MIGRATION_WRITER_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_WRITER_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "django.migration.writer.no_changes_clean",
+        "django.migration.writer.fresh_initial",
+        "django.migration.writer.repeat_after_initial_noop",
+        "godj.migration.writer.deterministic_candidate",
+        "django.migration.writer.relation_dependency_topology",
+        "django.migration.writer.additive_model_and_field_tail",
+        "django.migration.writer.dry_run_no_mutation",
+        "django.migration.writer.check_clean_and_drift",
+        "godj.migration.writer.unsupported_delta_fail_closed",
+        "godj.migration.writer.snapshot_and_protocol_boundary",
+        "godj.migration.writer.atomic_concurrent_publication",
+        "godj.migration.writer.interruption_recovery_and_roundtrip",
+    )
+}
+MIGRATION_STATUS_SCENARIOS = {
+    name: (
+        MIGRATION_STATUS_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_STATUS_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "godj.migration.status.empty_catalog",
+        "django.migration.status.fresh_unapplied",
+        "django.migration.status.applied_prefix",
+        "django.migration.status.fully_applied_restart",
+        "django.migration.status.cross_app_branch_order",
+        "godj.migration.status.unknown_record_visible",
+        "godj.migration.status.inconsistent_known_history",
+        "godj.migration.status.project_boundary",
+    )
+}
+MIGRATION_TARGET_PLAN_SCENARIOS = {
+    name: (
+        MIGRATION_TARGET_PLAN_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_TARGET_PLAN_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "godj.migration.target_plan.target_argv_and_pre_io_rejection",
+        "django.migration.target_plan.named_forward_closure",
+        "django.migration.target_plan.named_reverse_descendants",
+        "django.migration.target_plan.app_zero_cross_app_dependents",
+        "godj.migration.target_plan.target_noop_and_legacy_zero",
+        "godj.migration.target_plan.plan_exact_and_no_mutation",
+        "godj.migration.target_plan.preview_drift_fresh_execute",
+        "godj.migration.target_plan.reverse_middle_failure_resume",
+        "godj.migration.target_plan.reverse_commit_outcomes",
+        "godj.migration.target_plan.project_protocol_and_ownership",
+    )
+}
+MIGRATION_SQL_RENDERING_SCENARIOS = {
+    name: (
+        MIGRATION_SQL_RENDERING_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_SQL_RENDERING_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "godj.migration.sql_rendering.argv_and_pre_io_rejection",
+        "godj.migration.sql_rendering.complete_load_exact_lookup_and_request",
+        "django.migration.sql_rendering.forward_before_state_order",
+        "django.migration.sql_rendering.sqlite_create_add_semantics",
+        "godj.migration.sql_rendering.postgres_current_projection",
+        "godj.migration.sql_rendering.canonical_deterministic_output",
+        "godj.migration.sql_rendering.database_and_history_zero_calls",
+        "godj.migration.sql_rendering.renderer_and_operation_fail_closed",
+        "godj.migration.sql_rendering.resource_cleanup_redaction_and_write",
+        "godj.migration.sql_rendering.external_project_configuration",
+    )
+}
 
 
 SCENARIO_REGISTRIES = (
@@ -60,11 +240,27 @@ SCENARIO_REGISTRIES = (
     WRITE_MIGRATION_SCENARIOS,
     SAVE_LIFECYCLE_SCENARIOS,
     QUERY_CACHE_SCENARIOS,
+    QUERY_BREADTH_SCENARIOS,
+    QUERY_EXPRESSION_SCENARIOS,
     MIGRATION_PLANNING_SCENARIOS,
     MIGRATION_EXECUTION_SCENARIOS,
     MIGRATION_RESTART_SCENARIOS,
     MIGRATION_STATE_RECONSTRUCTION_SCENARIOS,
     MIGRATION_LIFECYCLE_SCENARIOS,
+    MIGRATION_DEFINITION_SOURCE_SCENARIOS,
+    MIGRATION_PROJECT_CHECK_SCENARIOS,
+    MIGRATION_COMMAND_DECISION_SCENARIOS,
+    MIGRATION_WRITER_SCENARIOS,
+    MIGRATION_STATUS_SCENARIOS,
+    MIGRATION_TARGET_PLAN_SCENARIOS,
+    MIGRATION_SQL_RENDERING_SCENARIOS,
+    RELATION_SCENARIOS,
+    MIGRATION_RELATION_SCENARIOS,
+    TEMPLATE_FORM_SCENARIOS,
+    AUTH_ADMIN_SCENARIOS,
+    ARTICLE_API_SCENARIOS,
+    API_AUTHENTICATION_DECISION_SCENARIOS,
+    SYSTEM_STATE_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
 if len(scenario_names) != len(set(scenario_names)):
@@ -80,6 +276,11 @@ DJANGO_61_COMMIT = "fe0a859f537d4238cf49fca39073513206f83122"
 DJANGO_61_WHEEL_SHA256 = (
     "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe"
 )
+DRF_318_COMMIT = "11875a38f483cea69d8ef2fd9ede6b96fb602ec4"
+DRF_318_WHEEL_SHA256 = (
+    "381fc44d3249c9565c5f723850855b734e99030eb30957a49f506d3fe11d7dcb"
+)
+DRF_PROFILE_ID = "drf-3.18.0-django-6.1-sqlite-darwin-arm64"
 FORMAT_VERSION = 2
 ORACLE_READY_STATUSES = frozenset({"oracle_locked", "red", "passing", "deviation"})
 ALLOWED_PHASES = frozenset(
@@ -89,6 +290,10 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_PROFILE = (
     REPOSITORY_ROOT
     / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json"
+)
+DEFAULT_DRF_PROFILE = (
+    REPOSITORY_ROOT
+    / "conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json"
 )
 DEFAULT_MANIFEST = REPOSITORY_ROOT / "conformance/contracts/manifest.json"
 DEFAULT_ORACLE = (
@@ -115,6 +320,20 @@ DEFAULT_QUERY_CACHE_MANIFEST = (
 DEFAULT_QUERY_CACHE_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json"
+)
+DEFAULT_QUERY_BREADTH_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/query-breadth-manifest.json"
+)
+DEFAULT_QUERY_BREADTH_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json"
+)
+DEFAULT_QUERY_EXPRESSION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/query-expression-manifest.json"
+)
+DEFAULT_QUERY_EXPRESSION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json"
 )
 DEFAULT_MIGRATION_PLANNING_MANIFEST = (
     REPOSITORY_ROOT / "conformance/contracts/migration-planning-manifest.json"
@@ -152,11 +371,127 @@ DEFAULT_MIGRATION_LIFECYCLE_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json"
 )
+DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST = (
+    REPOSITORY_ROOT
+    / "conformance/contracts/migration-definition-source-manifest.json"
+)
+DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json"
+)
+DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST = (
+    REPOSITORY_ROOT
+    / "conformance/contracts/migration-project-check-manifest.json"
+)
+DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json"
+)
+DEFAULT_MIGRATION_COMMAND_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-command-manifest.json"
+)
+DEFAULT_MIGRATION_COMMAND_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json"
+)
+DEFAULT_MIGRATION_WRITER_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-writer-manifest.json"
+)
+DEFAULT_MIGRATION_WRITER_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json"
+)
+DEFAULT_MIGRATION_STATUS_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-status-manifest.json"
+)
+DEFAULT_MIGRATION_STATUS_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json"
+)
+DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-target-plan-manifest.json"
+)
+DEFAULT_MIGRATION_TARGET_PLAN_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json"
+)
+DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-sql-rendering-manifest.json"
+)
+DEFAULT_MIGRATION_SQL_RENDERING_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-sql-rendering-oracle.json"
+)
+DEFAULT_RELATION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/relation-manifest.json"
+)
+DEFAULT_RELATION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json"
+)
+DEFAULT_MIGRATION_RELATION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-relation-manifest.json"
+)
+DEFAULT_MIGRATION_RELATION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json"
+)
+DEFAULT_TEMPLATE_FORM_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/template-form-manifest.json"
+)
+DEFAULT_TEMPLATE_FORM_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json"
+)
+DEFAULT_AUTH_SESSION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/auth-session-manifest.json"
+)
+DEFAULT_AUTH_SESSION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json"
+)
+DEFAULT_ARTICLE_ADMIN_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/article-admin-manifest.json"
+)
+DEFAULT_ARTICLE_ADMIN_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json"
+)
+DEFAULT_PARAMETER_ROUTING_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/parameter-routing-manifest.json"
+)
+DEFAULT_PARAMETER_ROUTING_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json"
+)
+DEFAULT_ARTICLE_API_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/article-api-manifest.json"
+)
+DEFAULT_ARTICLE_API_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json"
+)
+DEFAULT_API_AUTHENTICATION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/api-authentication-manifest.json"
+)
+DEFAULT_API_AUTHENTICATION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json"
+)
+DEFAULT_SYSTEM_STATE_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/system-state-manifest.json"
+)
+DEFAULT_SYSTEM_STATE_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
     DEFAULT_SAVE_LIFECYCLE_MANIFEST.resolve(): DEFAULT_SAVE_LIFECYCLE_ORACLE,
     DEFAULT_QUERY_CACHE_MANIFEST.resolve(): DEFAULT_QUERY_CACHE_ORACLE,
+    DEFAULT_QUERY_BREADTH_MANIFEST.resolve(): DEFAULT_QUERY_BREADTH_ORACLE,
+    DEFAULT_QUERY_EXPRESSION_MANIFEST.resolve(): DEFAULT_QUERY_EXPRESSION_ORACLE,
     DEFAULT_MIGRATION_PLANNING_MANIFEST.resolve(): DEFAULT_MIGRATION_PLANNING_ORACLE,
     DEFAULT_MIGRATION_EXECUTION_MANIFEST.resolve(): DEFAULT_MIGRATION_EXECUTION_ORACLE,
     DEFAULT_MIGRATION_RESTART_MANIFEST.resolve(): DEFAULT_MIGRATION_RESTART_ORACLE,
@@ -164,6 +499,30 @@ KNOWN_MANIFEST_ORACLES = {
         DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE
     ),
     DEFAULT_MIGRATION_LIFECYCLE_MANIFEST.resolve(): DEFAULT_MIGRATION_LIFECYCLE_ORACLE,
+    DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST.resolve(): (
+        DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE
+    ),
+    DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST.resolve(): (
+        DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE
+    ),
+    DEFAULT_MIGRATION_COMMAND_MANIFEST.resolve(): DEFAULT_MIGRATION_COMMAND_ORACLE,
+    DEFAULT_MIGRATION_WRITER_MANIFEST.resolve(): DEFAULT_MIGRATION_WRITER_ORACLE,
+    DEFAULT_MIGRATION_STATUS_MANIFEST.resolve(): DEFAULT_MIGRATION_STATUS_ORACLE,
+    DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST.resolve(): (
+        DEFAULT_MIGRATION_TARGET_PLAN_ORACLE
+    ),
+    DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST.resolve(): (
+        DEFAULT_MIGRATION_SQL_RENDERING_ORACLE
+    ),
+    DEFAULT_RELATION_MANIFEST.resolve(): DEFAULT_RELATION_ORACLE,
+    DEFAULT_MIGRATION_RELATION_MANIFEST.resolve(): DEFAULT_MIGRATION_RELATION_ORACLE,
+    DEFAULT_TEMPLATE_FORM_MANIFEST.resolve(): DEFAULT_TEMPLATE_FORM_ORACLE,
+    DEFAULT_AUTH_SESSION_MANIFEST.resolve(): DEFAULT_AUTH_SESSION_ORACLE,
+    DEFAULT_ARTICLE_ADMIN_MANIFEST.resolve(): DEFAULT_ARTICLE_ADMIN_ORACLE,
+    DEFAULT_PARAMETER_ROUTING_MANIFEST.resolve(): DEFAULT_PARAMETER_ROUTING_ORACLE,
+    DEFAULT_ARTICLE_API_MANIFEST.resolve(): DEFAULT_ARTICLE_API_ORACLE,
+    DEFAULT_API_AUTHENTICATION_MANIFEST.resolve(): DEFAULT_API_AUTHENTICATION_ORACLE,
+    DEFAULT_SYSTEM_STATE_MANIFEST.resolve(): DEFAULT_SYSTEM_STATE_ORACLE,
 }
 
 
@@ -267,6 +626,20 @@ def verify_profile(profile: dict[str, Any], root: Path = REPOSITORY_ROOT) -> Non
     wheel_marker = f"sha256:{DJANGO_61_WHEEL_SHA256}"
     if wheel_marker not in lock_text:
         raise ProfileMismatch("uv.lock does not contain the locked Django 6.1 wheel hash")
+    if profile.get("id") == DRF_PROFILE_ID:
+        try:
+            from rest_framework import VERSION as drf_version
+        except ImportError as error:
+            raise ProfileMismatch("the DRF profile requires djangorestframework") from error
+        if drf_version != "3.18.0":
+            raise ProfileMismatch(
+                f"DRF version mismatch: expected '3.18.0', got {drf_version!r}"
+            )
+        drf_wheel_marker = f"sha256:{DRF_318_WHEEL_SHA256}"
+        if drf_wheel_marker not in lock_text:
+            raise ProfileMismatch(
+                "uv.lock does not contain the locked DRF 3.18.0 wheel hash"
+            )
 
 
 def _validate_manifest_basics(
@@ -277,8 +650,27 @@ def _validate_manifest_basics(
     if manifest.get("profile_id") != profile.get("id"):
         raise RuntimeError("manifest profile_id does not match the selected profile")
     contracts = manifest.get("contracts")
-    if not isinstance(contracts, list) or not 8 <= len(contracts) <= 12:
-        raise RuntimeError("manifest must contain between 8 and 12 contracts")
+    if not isinstance(contracts, list):
+        raise RuntimeError("manifest contracts must be a list")
+    scenario_order = [
+        contract.get("scenario") if isinstance(contract, dict) else None
+        for contract in contracts
+    ]
+    extended_query_expression_set = scenario_order == list(
+        QUERY_EXPRESSION_SCENARIOS
+    )
+    extended_system_state_set = scenario_order == list(
+        EXTENDED_SYSTEM_STATE_SCENARIOS
+    )
+    if (
+        not 8 <= len(contracts) <= 12
+        and not extended_query_expression_set
+        and not extended_system_state_set
+    ):
+        raise RuntimeError(
+            "manifest must contain between 8 and 12 contracts or the exact "
+            "query-expression registry or exact 30-entry system-state registry"
+        )
 
     seen: set[str] = set()
     for contract in contracts:

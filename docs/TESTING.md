@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-08
+- 마지막 검토: 2026-08-29
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -83,6 +83,10 @@ conformance/
   contracts/migration-restart-manifest.json
   contracts/migration-state-reconstruction-manifest.json
   contracts/migration-lifecycle-manifest.json
+  contracts/migration-definition-source-manifest.json
+  contracts/migration-project-check-manifest.json
+  contracts/relation-manifest.json
+  contracts/migration-relation-manifest.json  # current-only locked diagnostic reference
   profiles/
   runners/django/
   runners/godj/
@@ -94,13 +98,21 @@ conformance/
   fixtures/godj-write-migration-not-implemented.json
   fixtures/godj-save-lifecycle-not-implemented.json
   fixtures/godj-migration-lifecycle-not-implemented.json
+  fixtures/godj-migration-lifecycle-deviation-expected.json
   fixtures/godj-query-cache-not-implemented.json
   fixtures/godj-migration-planning-not-implemented.json
   fixtures/godj-migration-execution-not-implemented.json
   fixtures/godj-migration-restart-not-implemented.json
   fixtures/godj-migration-state-reconstruction-not-implemented.json
+  fixtures/godj-migration-definition-source-not-implemented.json
+  fixtures/godj-migration-project-check-not-implemented.json
+  fixtures/godj-relation-not-implemented.json
+  fixtures/godj-migration-relation-not-implemented.json  # current locked/unregistered baseline
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
+  definitionload/
+  projectcheck/
+  relation*product/
 ```
 
 ## Reference 환경 잠금
@@ -220,8 +232,8 @@ exit 2와 actual 미생성으로 fail-closed했고, 당시 `make godj-conformanc
 기록합니다.
 
 GDJ-0010은 public immutable Planner와 다섯 번째 GoDj adapter를 연결해 MIG-005..016을
-`passing`으로 전환했습니다. 현재 `make godj-conformance`는 11 + 11 + 12 + 11 + 12,
-총 57개를 실행합니다. Adapter의 plan/error는 실제 public API에서 얻고, logical
+`passing`으로 전환했습니다. GDJ-0010 완료 당시 `make godj-conformance`는
+11 + 11 + 12 + 11 + 12, 총 57개를 실행했습니다. Adapter의 plan/error는 실제 public API에서 얻고, logical
 before/after applied state와 zero-I/O metrics는 backend를 호출하지 않는 공통 structural
 capture에서 산출합니다. 실제 DB probe를 실행했다고 주장하지 않습니다.
 
@@ -359,6 +371,155 @@ legacy capability fail-closed를 검증합니다. 이 gate의 성공을 public l
 [EVID-20260808-016](status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)에
 기록합니다.
 
+GDJ-0018은 public `Executor.Migrate`와 revision-fenced SQLite backend를 직접 실행하는 ninth
+adapter를 추가했습니다. Lifecycle 9개는 `passing`, MIG-052만
+`result.plan[0..2]`/`metrics.steps[0..2]` 여섯 ordered path의 DEV-0002 `deviation`입니다.
+기존 DEV-0001 네 계약은 변경하지 않았고, GDJ-0018 완료 당시
+`make godj-conformance` 분류는 `92 passing + 5 deviation`이었습니다. 97 unique contract와
+모든 72 ordered cross-binding,
+live target/definition/seed/legacy/fault propagation과 adapter source hardcode 금지를 함께
+검증합니다.
+
+현재 lifecycle manifest는 13,735 bytes/SHA-256
+`5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`, locked oracle은
+98,436 bytes/`7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`, static fixture는
+1,681 bytes/`b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`, DEV-0002
+expectation은 6,769 bytes/`58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b`입니다. 두
+independent Go actual은 각각 98,304 bytes/SHA-256
+`a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical하며
+reviewed expectation과 10-contract match입니다.
+
+제품 safety gate는 session snapshot이 exact-one인지, snapshot 뒤 connection을 pin하지 않는지,
+각 SQLite step이 `BEGIN IMMEDIATE` 안에서 epoch/revision/fingerprint를 첫 mutation 전에
+검사하는지 확인합니다. Unsupported backend fallback과 existing recorder 자동 adoption은
+허용하지 않습니다. `CommitRolledBack`은 confirmed state/token을 advance하지 않고 SQLite
+session을 poison하며 semantic retry를 하지 않습니다. Default-bearing `AddField`는 empty table의
+logical default와 physical no-default를 함께 확인하고 nonempty table은 거부합니다.
+
+### Current MIG-057..074 reset gate
+
+GDJ-0036은 contract ID를 바꾸지 않고 definition-source/project-check reference와 product adapter를
+current-only format으로 재기준화했습니다.
+
+- MIG-057..064 document는 top-level `format_version=1` 하나만 가지며 canonical digest도 current domain
+  하나입니다. Observation은 `format`, `execution`, `lifecycle`, `session_open_calls`를 사용하고 MIG-064는
+  opaque `LoadedDefinitionSet`을 `Executor.Migrate`에 정확히 한 번 전달하는 경계입니다.
+- MIG-065..074는 같은 current definition-set digest를 사용합니다. Definition-related contract에는
+  ADR-0035 provenance를 더하되 ordered ID와 `passing` 상태를 유지합니다.
+- Current artifact lock은 definition manifest 5,151 bytes/`b5bc2612...`, oracle 29,654 bytes/
+  `61401746...`; project-check manifest 5,085 bytes/`e689b370...`, oracle 19,971 bytes/`8bbf10c0...`입니다.
+  두 status-only NI fixture는 각각 1,574/1,729 bytes로 바뀌지 않았습니다.
+- Exact uv 0.10.12 oracle regeneration `--check`, Python unittest 38개(1 exact-profile skip), GoDj oracle
+  comparison 8/8·10/10, oracle/NI `contractcheck`, ordered 8·10 false-green mismatch와
+  `go test -count=1 ./conformance/...`를 current bytes에서 통과했습니다.
+
+이 local 검증은 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
+기록됐고 corrected exact head의 terminal hosted matrix는
+[EVID-103](status/TEST_EVIDENCE.md#evid-20260820-103--gdj-0036-corrected-exact-head-hosted-completion)에 기록됐습니다.
+
+아래 GDJ-0019~0022 단락은 기존 tuple/API/artifact의 당시 evidence를 보존합니다.
+
+GDJ-0019는 MIG-057..064를 열 번째 contract-only reference set으로 추가했습니다. Explicit
+caller bytes의 strict JSON v1 framing, exact tuple `(1,1,1,2)`, closed
+`CreateModel`/non-PK `char`·`boolean` `AddField` codec, canonical normalized definitions/digest,
+loader-owned deep-copy snapshot과 all-or-nothing publish를 검증합니다. Failure gate는 source/document,
+compatibility, semantic payload/normalized IR, existing graph, digest/publish, lifecycle 순서와 각
+stage의 canonical candidate selection을 고정합니다. MIG-064는 public Django graph/executor의
+reference-only success outcome입니다.
+
+GDJ-0019 completion manifest는 5,195 bytes/SHA-256
+`8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, locked oracle은
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
+not-implemented fixture는 1,574 bytes/
+`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`, `SHA256SUMS`는
+959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다. Exact
+Python suite는 164 passed, portable suite는 149 passed/15 skipped이고 두 explicit hashseed
+process와 checked-in oracle bytes가 일치합니다. 10 reference set의 105 unique contract와 90
+ordered cross-binding도 검증합니다.
+
+`conformance/definitionload/**`는 GDJ-0019에서 `*_test.go`만으로 actual
+`migrations.NewPlanner`와 public `Executor.Migrate` handoff feasibility를 검증했습니다. 당시에는
+importable product loader와 열 번째 GoDj adapter가 없었으므로 새 8개는 `oracle_locked`, 제품
+분류는 9 adapter의 `92 passing + 5 deviation`이었습니다.
+
+GDJ-0020은 public `migrations/definition` loader를 별도 leaf package로 구현하고
+`conformance/definitionload/product_equivalence_test.go`에서 test-only candidate와 독립적인
+black-box parity를 검증합니다. Loader의 exact 10 cap은 다음과 같습니다.
+
+| Resource | Maximum |
+|---|---:|
+| sources | 2,048 |
+| SourceID | 1,024 bytes |
+| document | 1 MiB |
+| batch | 16 MiB |
+| JSON depth | 64 |
+| document JSON values | 65,536 |
+| batch JSON values | 262,144 |
+| dependencies per migration | 2,047 |
+| operations per migration | 2,048 |
+| `CreateModel` fields | 2,048 |
+
+각 cap의 maximum-1/equal/+1, checked aggregate와 combined-fault precedence를 고정합니다. Strict
+scanner gate는 invalid UTF-8/BOM/trailing value, any-depth duplicate member, surrogate pair,
+decimal/exponent/leading-zero와 signed-int64 boundary, bounded depth/value counting, canonical
+escaping과 RFC 6901 failure order를 검증합니다. 긴 ancestor와 다수 candidate에서도 최종 winner
+외 pointer를 문자열화하지 않는 lazy comparator를 adversarial fan-out으로 확인합니다.
+
+Ownership gate는 caller source mutation, nested Default/operation/IR accessor mutation,
+repeated/concurrent read와 race detector가 immutable `Set`/report/digest를 바꾸지 않는지 확인합니다.
+Source-owned failure는 정확히 9개 code, resource breach는 stable limit/maximum/actual context만
+사용합니다. Graph failure의 raw `*migrations.PlanningError`와 `Set.Migrate` lifecycle error는
+identity와 `errors.As` 의미를 보존하고 wrap/reclassify/retry하지 않습니다. Private injected
+planner count, non-test AST의 direct `migrations.NewPlanner`/`executor.Migrate` callsite와 actual
+handoff counter로 exactly-once를 각각 독립 검증합니다.
+
+Actual adapter false-green gate는 valid source identity/header/operation/graph를 각각 mutate해
+non-empty protocol diff 또는 success/error shape rejection을 요구합니다. MIG-057..064는 Django
+parity가 아닌 decision-reference 8 `passing`이고 제품 성공 출력은 `locked reference oracle`로
+구분합니다. GDJ-0020 완료 당시 `make godj-conformance` 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`; 90 ordered cross-binding이었습니다.
+
+Status-only manifest는 5,147 bytes/SHA-256
+`688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`입니다. Locked oracle
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture
+1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`와
+`SHA256SUMS` 959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는
+불변입니다. Static comparison은 MIG-057..064 ordered mismatch 8개를 계속 냅니다. Product
+commit은 `6172d843a4bb234592cafc176a8d1191933b141c`입니다. File discovery/CLI, writer/upgrade,
+custom/executable/data/raw-SQL operation과 non-SQLite backend는 이 green 결과의 지원 범위가
+아닙니다.
+
+완료된 GDJ-0021은 MIG-065..074의 열한 번째 independent decision-reference set을 추가했습니다. Exact
+`godj.toml` selection/descriptor, project-linked build와 closed runner protocol, flat no-follow source
+discovery, `definition.Load` exactly once, zero DB/lifecycle call과 public exit `0/1/2/3/130`을
+`conformance/projectcheck/**` test-only proof로 검증했습니다. Manifest의 새 10 contract는 모두
+`oracle_locked`이고 product adapter나 production CLI는 추가하지 않습니다.
+
+Artifact gate는 manifest 4,580 bytes/
+`0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, oracle 19,971 bytes/
+`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static fixture 1,729 bytes/
+`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`을 pin합니다. 기존 checksum
+10-line prefix 뒤 11번째 line만 append한 `SHA256SUMS`는 1,061 bytes/
+`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. Protocol gate는
+11 set/115 unique contract/110 ordered cross-binding을 요구합니다. Static comparison은 exit 1/
+ordered mismatch 10을 유지합니다. GDJ-0021 완료 당시 제품 `godjcheck`는 exit 2/no actual output으로
+fail-closed했고 `make godj-conformance`는 10 adapter/105 contract의
+`100 passing + 5 deviation`이었습니다.
+
+Completed GDJ-0022는 test-only proof와 독립인 global/linked/protocol product kernel,
+public `project.Config`/`project.Run`, actual process E2E와 열한 번째 adapter를 추가했습니다. Product
+adapter는 actual report만 사용하고 oracle/static/candidate를 읽지 않으며 mutation gate에서 observation/
+diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`이고 GDJ-0022 완료 당시 제품은 11 adapter/115
+contract의 `110 passing + 5 deviation`이었습니다. Completed GDJ-0025의 REL-001 metadata와 REL-004
+required predicate actual까지 포함한 GDJ-0025 완료 시점 제품은 12 adapter/127 contract의
+`112 passing + 5 deviation + 10 oracle_locked`입니다.
+Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
+`make ci`, exact oracle와 independent audits는 EVID-027, initial exact 18/18 hosted acceptance는 EVID-028,
+completion-documentation failure와 final process stabilization exact 18/18은 EVID-029에 기록했습니다.
+Status-only manifest는 4,520 bytes/
+`0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048`이고 oracle/static/SHA256SUMS는
+위 GDJ-0021 pins에서 byte-identical입니다.
+
 ## 기능별 기본 테스트 요구
 
 모든 테스트 종류를 모든 작은 변경에 억지로 추가하지는 않습니다. 위험에 맞게 선택하되, 다음 변경은 기본 gate를 가집니다.
@@ -366,12 +527,12 @@ legacy capability fail-closed를 검증합니다. 이 gate의 성공을 public l
 | 변경 | 최소 검증 |
 |---|---|
 | Schema/IR | validation, normalization, round-trip, deterministic hash, fuzz |
-| Codegen | golden, idempotency, compile, stale output, multi-file failure atomicity |
+| Codegen | ProjectSpec/bundle determinism과 deep snapshot, canonical manifest/ABI/`4n+8` roster, snapshot seal compile, whole-candidate positive/negative compile, read-only drift, target-zero candidate failure, bounded non-test Go source AST namespace audit, first-mutation 직전 source-fingerprint revalidation, sealed-root/CAS/no-replace conflict, publication rollback/crash/recovery와 outer cleanup outcome |
 | Typed query API | compile-positive/negative, AST invariant, differential result |
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
 | QuerySet cache/terminal | state ownership, singleflight, cancellation isolation, clone alias, cold/warm I/O, differential |
-| Migration | state diff, graph construction, applied pruning, forward/backward, recorder absent/fresh read, raw history validation, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock; historical reconstruction은 별도 contract와 제품 replay/round-trip/determinism gate 뒤에만 지원으로 분류 |
+| Migration | state diff, graph construction, applied pruning, forward/backward, recorder absent/fresh read, raw history validation, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock; definition loader는 strict scanner, exact resource caps, snapshot/deep-copy와 raw graph/lifecycle error ownership을 별도 gate로 검증; historical reconstruction은 별도 contract와 제품 replay/round-trip/determinism gate 뒤에만 지원으로 분류 |
 | Concurrency | `go test -race`, cancellation, goroutine/connection leak |
 | Backend | capability matrix, conformance, explicit unsupported errors |
 | Security boundary | regression test, adversarial input, no silent fallback |
@@ -393,6 +554,17 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 
 구현이 생기면 빠른 gate부터 실행합니다.
 
+CI job/step 개수는 제품 계약이 아닙니다. 수치를 일정하게 유지하는 것보다 named contract,
+backend/platform coordinate, normal/race/CGO-disabled, required no-skip과 failure semantics를 빈틈없이 검증하는
+coverage가 제품 acceptance를 소유합니다. Job 분할·병합·timeout 교정은 이 coverage와 exact-head evidence를
+약화하지 않는 범위에서 할 수 있습니다.
+
+Hosted failure/cancellation이 발견됐다고 모든 개발을 멈추고 CI 자체를 완벽하게 만드는 별도 프로젝트로 확장하지
+않습니다. 먼저 product assertion, test synchronization, selector, runner capacity와 timeout을 구분합니다. 현재 work의
+terminal acceptance가 명시적으로 요구하는 lane은 통과 전까지 green으로 주장하지 않지만, infrastructure/test-harness
+문제와 중단된 범위는 exact evidence와 후속 조건을 남긴 뒤 관련 없는 제품 설계를 재작성하거나 matrix를 무한히
+세분화하지 않습니다.
+
 1. format/static checks와 manifest validation
 2. unit/compile/golden tests
 3. SQLite integration과 differential subset
@@ -400,4 +572,1342 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 5. backend matrix와 긴 conformance suite
 6. release 전 security/performance/migration matrix
 
-실제 command는 toolchain과 파일이 생긴 작업에서 확정합니다. 존재하지 않는 명령을 현재 표준처럼 문서화하지 않습니다.
+현재 GitHub Actions는 11개 job definition이 coverage를 병렬로 소유합니다. 현재 matrix expansion은 41
+executions이지만 이 수치는 lock이 아닙니다.
+
+- `conformance-validation`: format/generated drift, Python baseline, contract/product comparison, checked artifact,
+  project-check와 Linux/386 compile을 검증합니다. 직렬 full `make ci`는 Hosted에서 실행하지 않습니다.
+- `portable-go-matrix`: Ubuntu x64에서 normal+vet, race, CGO-disabled를 세 execution으로 분리합니다.
+- `exact-darwin-validation`: macOS arm64 exact Django/SQLite profile을 보존합니다.
+- `project-check-matrix`, `relation-binding-matrix`, `product-project-check-matrix`, `sqlite-matrix`: Linux/macOS의
+  x64/arm64 네 좌표를 각각 검증합니다.
+- `relation-product-matrix`: 같은 네 좌표에서 normal/race/CGO-disabled를 분리한 4×3 execution입니다. 각 `go test`는
+  15분, job은 20분으로 제한하고 normal만 exact inventory, vet와 artifact no-rewrite를 추가 수행합니다.
+- `postgresql-product`: digest-pinned PostgreSQL 17.10에서 migration-writer sentinel을 포함한 exact required 21 tests를
+  normal/race/CGO-disabled 세 execution으로 분리하고 run/pass 집합 일치와 skip 0을 요구합니다. Normal은 checked attestation 비교,
+  실제 service restart와 vet도 소유합니다.
+- `python-compatibility-matrix`: exact CPython 3.12.13/3.13.15/3.14.3/3.14.7을 검증합니다.
+- `required-ci`: 위 모든 top-level job을 `needs`로 모아 failure/skip/cancel 어느 것도 stable required check를
+  통과하지 못하게 합니다. Protocol test는 발견한 job 집합과 aggregate dependency/runtime expected 집합의 동등성을
+  검증하되 전역 job 수는 고정하지 않습니다.
+
+Routine Ubuntu/compatibility는 uv 0.12.3, embedded profile을 재현하는 exact darwin job만 uv 0.10.12입니다.
+Historical GDJ-0022 topology 18은 full/exact 2 + project-check proof 4 + SQLite 4 + product 4 + Python 4였습니다.
+GDJ-0023은 이 exact 18을 유지하면서 test-only
+`conformance/relationbinding` package를 같은 Linux/macOS x64/arm64 네 좌표에서 normal/race/
+CGO-disabled/vet/clean으로 독립 실행하는 `relation-binding-matrix`를 추가해 exact 22 required
+executions로 확장했습니다. 이 proof는 relation 제품 adapter가 아니며 PostgreSQL/Windows 지원 claim도
+아닙니다. Local routine Python은 CPython 3.14.3 + uv 0.12.3 하나만 실행하고, 3.12.13/3.13.15/
+3.14.3/3.14.7 exact compatibility와 갱신된 139-scenario digest는 hosted matrix가 담당합니다.
+Completed GDJ-0024는 existing exact 22를 대체하지 않고 같은 four-coordinate의 actual
+`relation-product-matrix` 4 legs를 별도로 추가한 exact 26을 implementation acceptance로 운영합니다.
+각 새 leg는 mixed v2 target/v3 source companion/bridge compile, app-to-app import edge 0, atomic binder,
+REL-001 observed + REL-002..012 ordered payload-free not-implemented, exact required-observed allowlist,
+normal/race/CGO-disabled/vet, candidate validation committed-output no-write, artifact no-rewrite와 clean tree를 검증해야 합니다.
+Checked-in relationproduct authors/blog main+companion/bridge fixture는 declaration regenerate bytes와 같고 actual observer가
+bridge `Bind()` metadata를 adapter에 전달해야 합니다. Django runner/oracle은 그대로 두고 Python의 manifest
+status assertion만 `passing` 1 + `oracle_locked` 11로 동기화하며 test count/digest는 불변입니다.
+Ubuntu는 metadata-only package의 Linux/386 범위도 검증합니다. Implementation head run `31348285559`에서
+exact 26/26 jobs와 326/326 recorded steps가 성공했고 각 relation-product leg는 exact
+394 run/394 pass/0 skip, 40,630-byte inventory SHA-256 `2eb1fe8c...20ce`, normal/race/CGO-disabled/vet,
+no-rewrite와 clean tree를 통과했습니다. 상세 증거는 EVID-036에 기록합니다. Completion-documentation head
+`e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`도 별도 run `31349791188`의 exact 26/26 jobs와
+326/326 recorded steps, 각 relation-product leg의 같은 394/394/0·40,630-byte inventory SHA-256을
+통과했고 EVID-037에 기록합니다. Final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`도
+run `31351169780`의 exact 26/26·326/326을 통과해 EVID-038에 기록했습니다. GDJ-0025 activation head
+`cf8cb589...`도 run `31354040515`의 exact 26/26·326/326을 통과했습니다. Completed GDJ-0025
+implementation head `98db55a30ff71a2f2f70722cb569a046208a5403`의
+[run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)은 same exact 26/26 jobs와
+326/326 recorded steps를 성공했습니다. Four relation-product legs는 query/ORM/codegen/SQLite와 actual
+relation-query fixture를 포함해 각각 exact 492 run/492 pass/0 skip, 49,902-byte inventory SHA-256
+`05064a7f...82eb`, normal/race/CGO-disabled/vet/no-rewrite/clean을 재현했습니다. Full Ubuntu는 actual
+Linux/386 relation-query path와 exact relation stdout `2 required contracts; 10 remain not implemented`를,
+four Python legs는 uv 0.12.3과 portable 193/17을 통과했습니다. 상세 증거는 EVID-040에 기록합니다.
+Completion-documentation head `7b5cebda7410ae8c096a8c30bd60daad1295bbf2`도 별도
+[run 31358640776](https://github.com/progresshans/godj/actions/runs/31358640776)의 exact 26/26 jobs와
+326/326 recorded steps를 성공했고, four relation-product legs의 같은 492/492/0·49,902-byte inventory
+SHA-256, actual Ubuntu Linux/386, exact darwin 193/193과 four Python exact legs를 유지했습니다.
+상세 증거는 EVID-041에 기록합니다. Final evidence/status head
+`bffc52844de87a2791959ea1e8f99c60dd13d1aa`도 별도
+[run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26 jobs와
+326/326 recorded steps, four relation-product 492/492/0 inventory, actual Ubuntu Linux/386와 four exact Python
+legs를 성공해 EVID-042에 기록했습니다. 이 clean tested head가 GDJ-0026 baseline이며 activation diff 자체는
+별도 activation run `31364944816`의 exact 26/26·326/326을 통과했습니다.
+GDJ-0026 gate는 exact-26 topology를 늘리지 않고 relation-product four-coordinate package inventory만
+확장했습니다. Sealed descriptor/storage snapshot, pointer self-sentinel, target-PK Limit(2) cache의 0/1/2-row
+warm 분류, clone/singleflight/cancellation/failure retry/session lifetime, typed/dynamic source-key Plan.Equal,
+SQLite reviewer `IS NULL` result `[11]`/SELECT 1/JOIN 0과 old generated/query SQL byte locks를 필수로 합니다.
+Implementation head `5be46141...`의 run `31370313755`은 exact 26/26 jobs·326/326 recorded steps를
+성공했습니다. Four relation-product coordinates는 각각 exact 533 run/533 pass/0 skip, 54,076-byte
+inventory와 SHA-256 `6d2958b6...7aee`, normal/race/CGO-disabled/vet/no-rewrite/clean gates를 통과했습니다.
+Full Ubuntu는 actual `GOARCH=386 CGO_ENABLED=0` exact relation package set을 실행했고 four Python legs는
+uv 0.12.3에서 portable 193/17, exact Darwin은 historical uv 0.10.12에서 193/193 skip 0을 통과했습니다.
+Completion-documentation head `7f92fcf0...`의 별도 run `31372360481`도 같은 exact
+26/26·326/326, four-coordinate 533/533/0 inventory, actual Linux/386 exact package set과 Python gates를
+통과했습니다. Final-status head `9ba1d0ee...`도 별도 run `31374150640`의 exact 26/26·326/326과 같은
+533/533/0 inventory를 성공해 EVID-046에 기록했습니다.
+
+GDJ-0027은 exact-26 topology를 유지하고 REL-005 reverse runtime/codegen/SQLite/actual packages를 기존
+relation-product four-coordinate inventory에 추가했습니다. Local sub-lane은 focused normal test, root는 한 번의
+full normal/format/generate/conformance integration을 소유했고 heavy race/CGO0/vet와 Linux/macOS x64/arm64,
+bounded Linux/386, exact Darwin/Python은 implementation-head Actions가 소유했습니다. 이는 gate 삭제가 아니라
+실행 위치 분리입니다. Typed/dynamic reverse Plan.Equal, query/object capability split, owner wrapper/RelatedSet
+cache/cancel/retry, project-only generator exact bytes/import-edge-0, reverse INNER JOIN과 accessor
+`[10,11]`/lookup `[1]` actual, manifest REL-005-only transition 및 `115 + 5 + 7` 전환을 모두 검증했습니다.
+Implementation head `7db68415...`의 run `31419940399`는 exact 26/26 jobs·326/326 recorded steps를 성공했고
+four relation-product coordinates는 각각 569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`을 재현했습니다.
+Exact 15-file completion-documentation head `7998a835...`의 별도
+[run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)도 exact 26/26·326/326,
+four-coordinate 569/569/0 inventory, actual Linux/386 exact package set, exact Darwin과 four Python gates를
+통과해 EVID-049에 기록했습니다. EVID-049를 포함한 terminal 7-file evidence/status 기록은
+documentation-only이며 implementation/completion run을 그 later patch의 proof로 재사용하지 않고, 기록
+자체를 증명하기 위한 재귀 evidence를 만들지 않습니다.
+Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
+않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
+C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
+recorder/revision-lifecycle 및 durable restart/persistence contract를 모두 실행해야 합니다. Expected
+contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도
+필수입니다.
+
+GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 위 exact
+`2 + 4 + 4 = 10` hosted execution을 모두 통과했습니다. 이 결과는 reference-only/test-only
+project-check와 actual SQLite 범위의 증거이며 PostgreSQL/MySQL 지원 증거가 아닙니다. Ubuntu full
+job은 portable Python 174 tests/16 exact-only skips, 실제 Linux/386 loader runtime, 11개 checksum과
+no-rewrite를 통과했고, macOS 15 arm64 exact job은 Python 174/174, 11 oracle과 no-rewrite를
+통과했습니다. Project-check와 SQLite 각 네 좌표는 모두 normal/race/CGO-disabled/vet/clean
+worktree를 통과했으며 PR checkout synthetic merge tree도 exact implementation head tree와
+일치했습니다. 상세 job/step 증거는
+[EVID-20260810-025](status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)에
+기록합니다.
+
+GDJ-0021 exact 16-file completion-documentation head
+`34ae58fc2490deb8f884a0b5591520b11bae8669`도 같은 Draft PR #1의
+[run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)에서 별도로 exact
+10-job 재검증을 통과했습니다. Ubuntu 24.04.4 full job
+[93266624027](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624027)은
+portable Python 174/16 expected skips, focused project-check, 실제 Linux/386 loader, 11 checksum과
+no-rewrite를, macOS 15.7.7 arm64 exact job
+[93266624013](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624013)은 exact Python
+174/174, 11 oracle와 no-rewrite를 통과했습니다. Project-check/SQLite 각 네 좌표도 모두
+normal/race/CGO-disabled/vet/clean을 다시 통과했습니다. 상세 증거는
+[EVID-20260810-026](status/TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
+기록합니다. EVID-026 append/status commit `f7fbbd50465a610ed9492227909eece524455f15`은 별도
+run `31322959993`의 같은 exact 10 job을 통과했고, GDJ-0022 activation commit
+`e4de64645bd93cf5e55c746bb6a109c53916cca8`도 run `31324469403`에서 exact 10 job을 통과했습니다.
+
+GDJ-0022 local implementation은
+[EVID-20260810-027](status/TEST_EVIDENCE.md#evid-20260810-027--gdj-0022-project-linked-migration-check-product-slice)의
+`make ci`, focused normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only, historical exact oracle와
+independent audits를 통과했습니다. Initial implementation head
+`06858dd6aafeb20449bc4fbfa9aeac78c7a794ce`의 run `31329231255`는 네 Python leg가 테스트 전 brittle
+uv exact-string assertion에서 실패해 취소했습니다. Metadata suffix를 허용한 fix head
+`3dfeff2a881a3313883729943519896798d92afc`의
+[run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)는 exact 18/18 성공했고,
+job/step/checkout과 four-version 174/16-skip·115-scenario digest는
+[EVID-20260810-028](status/TEST_EVIDENCE.md#evid-20260810-028--gdj-0022-github-hosted-exact-18-job-completion-ci)에
+기록했습니다. EVID-028/status commit `68b408add3b050d0938ccebc6c83200499f57b2a`의
+[run 31330601427](https://github.com/progresshans/godj/actions/runs/31330601427)은 exact 18 중
+16 success/2 macOS product normal failure였습니다. `macos-26`은 non-atomic helper readiness에서 empty
+payload를 읽었고, `macos-15-intel` actual SIGINT E2E는 cold private build가 fixed 20-second readiness를
+넘었습니다. Atomic publication, cold-build-aware bounded harness와 race audit가 찾은 production
+reaped-before-Wait-publication reconciliation을 포함한 final fix
+`385382efffd1872ae7fb427192bab27b95dc57e2`는 focused repetition/`make ci`/P0-P3=0 audit와
+[run 31332208055](https://github.com/progresshans/godj/actions/runs/31332208055)의 exact 18/18을
+통과했습니다. 상세 명령/job/log/checkout은
+[EVID-20260810-029](status/TEST_EVIDENCE.md#evid-20260810-029--gdj-0022-final-github-hosted-process-stabilization-ci)에
+기록합니다. EVID-029/status commit `1f161f311daa775e6a386ec0df568ff85d681f15`의 별도
+[run 31333420261](https://github.com/progresshans/godj/actions/runs/31333420261) exact 18/18은
+[EVID-20260810-030](status/TEST_EVIDENCE.md#evid-20260810-030--gdj-0022-final-evidence-documentation-exact-head-ci-and-gdj-0023-activation-baseline)에
+기록했습니다. GDJ-0023 implementation head `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`의
+[run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743)은 exact 22/22와
+273/273 successful steps를 통과했습니다. Four Python legs는 193/17과 127-scenario digest를, four
+relation-binding legs는 normal/race/CGO-disabled/vet/no-rewrite/clean을 검증했고 상세 결과는
+[EVID-20260810-032](status/TEST_EVIDENCE.md#evid-20260810-032--gdj-0023-github-hosted-exact-22-job-implementation-head-ci)에
+기록했습니다. Completion-documentation head `31784ae1e8261ad0698921b93803aa35e9b63f93`도 별도
+[run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
+273/273 successful steps를 통과했고 상세 결과는
+[EVID-20260810-033](status/TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)에
+기록했습니다. Final evidence/status head `50578ddc4756452b2a9a0d2afd75711a35b76d8a`도
+[run 31340170361](https://github.com/progresshans/godj/actions/runs/31340170361)의 exact 22/22와
+273/273 successful steps를 통과해
+[EVID-20260810-034](status/TEST_EVIDENCE.md#evid-20260810-034--gdj-0023-final-evidence-documentation-exact-head-ci-and-gdj-0024-activation-baseline)에
+기록했습니다. GDJ-0024 activation commit `758cd093...`의 run `31344980929`는 exact 22/22·273/273을,
+implementation commit `05e6e218db16e17ce13f7b504a01c603041e4a2a`의
+[run 31348285559](https://github.com/progresshans/godj/actions/runs/31348285559)은 exact 26/26·326/326을
+성공했고 후자는
+[EVID-20260810-036](status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
+기록했습니다. EVID-036을 포함한 completion-documentation commit
+`e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`도 별도
+[run 31349791188](https://github.com/progresshans/godj/actions/runs/31349791188)의 exact 26/26·326/326을
+성공해
+[EVID-20260810-037](status/TEST_EVIDENCE.md#evid-20260810-037--gdj-0024-github-hosted-completion-documentation-head-exact-26-job-ci)에
+기록했습니다. 이어 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`의
+[run 31351169780](https://github.com/progresshans/godj/actions/runs/31351169780)도 exact 26/26·326/326을
+성공해 EVID-038에 기록했습니다. GDJ-0025 activation commit `cf8cb589...`은 별도 run `31354040515`의
+exact 26/26을 통과했고, implementation commit `98db55a30ff71a2f2f70722cb569a046208a5403`은
+[run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)의 exact 26/26·326/326을
+성공해 EVID-040에 기록했습니다. Completion-documentation commit
+`7b5cebda7410ae8c096a8c30bd60daad1295bbf2`도 별도
+[run 31358640776](https://github.com/progresshans/godj/actions/runs/31358640776)의 exact 26/26·326/326을
+성공해
+[EVID-20260810-041](status/TEST_EVIDENCE.md#evid-20260810-041--gdj-0025-github-hosted-completion-documentation-head-exact-26-job-ci)에
+기록했습니다. 이 EVID-041/final-status exact 6-file patch의 자체 exact-head CI는 run `31358640776`으로
+재귀 증명하지 않습니다. 그 final-status commit `bffc52844de87a2791959ea1e8f99c60dd13d1aa`은 별도
+[run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26·326/326을
+성공해 EVID-042로 recursive pending을 닫았고, 이후 GDJ-0026 activation diff에는 재사용하지 않습니다.
+GDJ-0026 activation commit `aad4f7ff0d77a1abe16ebddd01782e78c335395f`은 별도 run `31364944816`의
+exact 26/26·326/326을 통과했고, implementation commit
+`5be46141d943800a3c621975e3e5070f6d01eaf9`도 별도
+[run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)의 exact 26/26·326/326을
+성공해 EVID-044에 기록했습니다. Completion-documentation commit
+`7f92fcf036d03a5004953d9857a10291f4603efb`도 별도
+[run 31372360481](https://github.com/progresshans/godj/actions/runs/31372360481)의 exact 26/26·326/326을
+성공해 EVID-045에 기록했습니다. Final-status commit `9ba1d0ee4cb96c265269000700beb5889fef2206`도 별도
+[run 31374150640](https://github.com/progresshans/godj/actions/runs/31374150640)의 exact 26/26·326/326을
+성공해 EVID-046에 기록했습니다. 이 run은 GDJ-0027 clean baseline일 뿐 later activation/implementation
+proof로 재사용하지 않습니다. GDJ-0027 activation commit `9dbc2fd2...`은 별도 run `31414060387`의 exact
+26/26·326/326을 성공했고, implementation commit `7db684159ecfebbcbe1dc0673928e899ab8b0835`도 별도
+[run 31419940399](https://github.com/progresshans/godj/actions/runs/31419940399)의 exact 26/26·326/326을
+성공해 EVID-048에 기록했습니다. Four relation-product coordinates는 각각 569/569/0 inventory를 재현했고
+actual Ubuntu Linux/386, exact Darwin과 four Python compatibility legs도 통과했습니다.
+Completion-documentation commit `7998a8351c7668d53b9263bc9a381a815c6c9eb6`도 별도
+[run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)의 exact 26/26·326/326을
+성공해 EVID-049에 기록했습니다. 이 terminal evidence/status append는 completion run의 범위를 later
+documentation-only patch로 넓히지 않았고, completion run `31422614250`을 재사용해 EVID-050을 만들지
+않았습니다.
+
+그 terminal documentation head `e9dc361f983f1c02af1f63737a1f282998d5a533`은 이후 별도
+[run 31424055711](https://github.com/progresshans/godj/actions/runs/31424055711)의 exact 26/26 jobs·326/326
+recorded steps를 성공해
+[EVID-20260811-050](status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)에
+기록했습니다. Four relation-product coordinates는 각각 existing 569/569/0 inventory·57,738 bytes·SHA-256
+`739bb6fc...c2d7`, actual Ubuntu Linux/386 exact package set, exact Darwin과 four Python legs를 재현했습니다.
+이 run은 GDJ-0028 clean baseline일 뿐 later activation/API 또는 REL-012 implementation evidence로 재사용하지
+않습니다. GDJ-0028 activation `3ae4a2ce...`은 별도 run `31429245980`의 exact 26/26·326/326을 통과했지만
+implementation proof로 재사용하지 않았습니다. Local EVID-051의 focused lanes, root `make ci`, exact
+594/594/0·60,237-byte inventory와 independent audits 뒤 implementation head
+`4858ab88b82647793cd463e9f348e43d3f5e4bb7`의
+[run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)이 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. Four hosted coordinates, race/CGO0/vet, actual Ubuntu Linux/386 bounded set,
+exact Darwin/Python, clean-worktree/no-rewrite와 hosted audit P0/P1/P2/P3=0은 EVID-052에 기록합니다.
+Result/DB state/primary-vs-batch metrics, IN args/order, atomic warm-cache failure gates, deterministic exact
+ten-file union과 REL-012-only manifest transition을 모두 검증했습니다. Exact 15-file completion-documentation
+head `9dc4eb1312791ae74b384afbbfdbfef89aaf55bb`의 별도
+[run 31435136950](https://github.com/progresshans/godj/actions/runs/31435136950)도 exact 26/26·326/326,
+four-coordinate 594/594/0 inventory, actual Linux/386 exact package set, exact Darwin과 four Python gates를
+통과해 EVID-053에 기록했습니다. EVID-053을 포함한 terminal 7-file evidence/status 기록은 documentation-only이며
+implementation/completion run을 그 later patch의 proof로 재사용하지 않고 자기 자신을 재귀 증명하지 않습니다.
+
+그 terminal evidence/status head `5c0efef12560203d720e4c2dd7bda50c0324a228`은 별도 Draft PR
+[run 31436881856](https://github.com/progresshans/godj/actions/runs/31436881856)의 exact 26/26 jobs·326/326
+recorded steps를 통과해 EVID-054에 기록했습니다. Four relation-product coordinates는 각각 current
+594/594/0 inventory·60,237 bytes·SHA-256 `98a0a37b...8c47e`를 재현했고 exact Darwin, four pinned Python,
+bounded Ubuntu Linux/386와 independent hosted audit P0/P1/P2/P3=0도 통과했습니다. 이는 GDJ-0028 terminal
+head와 GDJ-0029 clean baseline만 증명합니다. GDJ-0029 activation docs, Proposed projection API,
+REL-009/010/011 implementation 또는 target `119 + 5 + 3`의 증거로 재사용하지 않습니다. Activation exact-head,
+local implementation과 implementation exact-head hosted gates는 각각 별도 evidence가 필요합니다.
+
+GDJ-0029 activation `0a1da373a443527e48a154ca6ccc7284e5e80dc0`은 별도
+[run 31465198903](https://github.com/progresshans/godj/actions/runs/31465198903)의 exact
+26/26·326/326을 통과했지만 activation-only evidence입니다. EVID-055의 pre-commit implementation은 root
+`make ci`, exact 630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`,
+REL-009/010/011 oracle-blind actual과 runtime/codegen/integration audits를 통과했습니다. Independent review가
+발견한 same-edge source-key/projection provenance P1은 source/target identity, target table과 target PK mutation으로
+재현한 뒤 pre-I/O full-hop equality를 강제하는 최소 수정으로 닫았고 remediation audits는 P0/P1/P2/P3=0입니다.
+
+Exact implementation head `c02aab672db5175d7a0886688efb5cc684c67744`의
+[run 31470292759](https://github.com/progresshans/godj/actions/runs/31470292759)은 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. Four relation-product coordinates는 각각 630/630/0·63,928 bytes·SHA-256
+`4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를 재현했고 full Ubuntu의
+`make ci`/9 required·3 NI/actual bounded Linux-386, exact Darwin 193/193, four Python 193/17과 127-scenario
+digest, no-rewrite/clean-worktree 및 hosted audit P0/P1/P2/P3=0을 통과해 EVID-056에 기록했습니다. 이 run으로
+bounded REL-009/010/011 product는 `119 + 5 + 3`, relation 9/12가 됐습니다. Canonical facade, multiple/nested/
+reverse eager와 broader backend는 검증 범위가 아닙니다. Exact 15-file completion-documentation head
+`fb9985e20c92f71eaca7bac81bc61466369e0ebd`의 별도
+[run 31482242288](https://github.com/progresshans/godj/actions/runs/31482242288)도 exact 26/26·326/326,
+four-coordinate 630/630/0 inventory, actual Linux/386 exact package set, exact Darwin과 four Python gates를
+통과해 EVID-057에 기록했습니다. EVID-057을 포함한 terminal exact seven-file 기록 자체의 hosted CI는
+그 시점에는 `not run/pending`이었고 implementation/completion run을 그 later patch의 proof로 재사용하지
+않았습니다.
+
+GDJ-0029 terminal evidence/status head `d0396c76d016c0f0335b484fbad56c70b80cf6d4`은 별도 Draft PR
+[run 31484369693](https://github.com/progresshans/godj/actions/runs/31484369693)의 exact 26/26 jobs·326/326
+recorded steps를 통과해 EVID-058에 기록했습니다. Four relation-product coordinates는 각각
+630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를
+재현했고 exact Darwin, four Python, bounded Ubuntu Linux/386, no-rewrite/clean-worktree와 source diff 0을
+확인했습니다. 이는 GDJ-0029 terminal과 GDJ-0030 clean activation baseline만 증명하며 이 activation diff나
+REL-007/008 implementation proof로 재사용하지 않습니다.
+
+GDJ-0030 activation head `83e6ea05e5c224a39f1d1d43aa17a3e58cf81c98`의 첫 hosted run은
+relation-product `go test -json | tee`가 macOS Intel Actions log backpressure를 받아 모든 ORM test가 PASS한 뒤
+Go 1.26.5의 one-minute output `WaitDelay`를 소진하는 false-negative를 드러냈습니다. Relation-product normal gate는
+verbose JSON을 `$RUNNER_TEMP` regular file에 직접 기록하고, test process가 끝난 뒤 canonical 630 top-level run
+inventory와 count/bytes/SHA summary만 stdout에 게시합니다. Nonzero exit에서는 failed test/package output과 fail
+events를 합쳐 최대 64 KiB만 사후 게시하고 formatter 실패와 무관하게 원래 status를 반환합니다. Protocol test는 live `tee` 부재, direct-file capture, failure
+propagation과 compact evidence publication을 고정합니다. 이 instrumentation 변경은 contract count/status나 product
+API를 바꾸지 않습니다.
+
+Corrected stabilization head `48472a1cba1ec706939f362ebdb1c4bea7f825eb`은 별도 Draft PR
+[run 31503631942](https://github.com/progresshans/godj/actions/runs/31503631942)에서 26/26 jobs·326/326 steps를
+통과했습니다. Four relation-product coordinates는 각 631-line compact output에서 630/630/0·63,928 bytes·
+SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를 게시했습니다. Compact run records로
+630 unique sorted runs와 payload bytes/SHA를 독립 재구성했고, passes=630/skips=0은 raw JSON parser가 검증해
+summary로 게시했습니다.
+`WaitDelay`/`Test I/O incomplete`는 0건이었습니다. EVID-060은 이 activation gate만 증명하며 이후 local
+REL-007/008 implementation bytes의 증거로 재사용하지 않습니다.
+
+GDJ-0030 implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의 EVID-061/
+[run 31510689383](https://github.com/progresshans/godj/actions/runs/31510689383)은 exact 26/26 jobs와
+326/326 recorded steps를 통과했습니다. Full Ubuntu `make ci`, `godjcheck` exact 11 required/1 not implemented,
+actual Linux/386 bounded package gate, exact Darwin, four Python compatibility legs와 four relation-product
+coordinates 각각 687/687/0·69,597 bytes·SHA-256
+`363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`가 성공했습니다. Current manifest는
+10,776 bytes/SHA-256 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, exact thirteen-file generated
+union은 SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`이며 product는 exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12입니다. Local normal/race/CGO0/vet/386 compile,
+Django relation 11/11, inventory twice와 independent audits P0/P1/P2/P3=0도 통과했습니다. 이 exact 15-file
+completion-documentation head `635e9c38a4464b98987d56c1b7d796aa42734661`은 별도 EVID-062/
+[run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)의 exact 26/26 jobs·326/326
+recorded steps, unchanged four-coordinate 687/687/0 inventory, full Ubuntu `make ci`, exact Darwin/four Python,
+actual Linux/386와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. EVID-062와 상태를 추가한 exact
+seven-file terminal head `ceff9e5...`도 별도 EVID-063/run `31516174741`의 exact 26/26·326/326과
+independent audit P0/P1/P2/P3=0을 통과했습니다. EVID-063은 later GDJ-0031 activation/implementation
+tree의 proof로 재사용하지 않습니다.
+
+Completed GDJ-0030 testing은 이전 9 required/3 NI baseline에서 REL-007/008 두 contract만 actual로
+전환했습니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,
+`ProtectedSourceRows`, mutation 0과 unchanged DB/caller를 검증합니다. 같은 row/two-edge는 global count 1,
+different source model/same numeric PK는 count 2이고 Linux/386 compile도 required입니다. SET_NULL은 fixture
+`NO ACTION`/`RESTRICT`, framework UPDATE→DELETE, affected 2→1, transaction 1을 검증하되 Delete 성공 `(1,nil)`은
+target rows만 뜻하고 adapter만 두 oracle delete count에 매핑합니다. 각 PROTECT edge의 nil/typed-nil rows+nil은
+method-call 0과 `backend_error/invalid_plan`, nil/typed-nil rows+error는 primary 보존/method-call 0, genuinely non-nil
+rows+error는 close-once와 primary+close error 보존을 검증합니다. `Next`/`Scan`/`Rows.Err`/`Close`/context failure는
+mutation 전 abort와 acquired genuine rows exactly-once close를 증명해야 하며 exact selected/scanned source PK+FK,
+non-NULL FK target equality와 all-row drain을 고정합니다.
+Terminal rows error를 protected-zero로 오판하는 false green을 금지합니다. SET_NULL count 0은 valid, negative는
+backend contract violation/rollback이고 fixture는 exact 2입니다.
+
+SQLite relation session은 relation connection과 모든 owned/competing writer의 FK-on을 각각 확인합니다. Real
+file/two-connection gate는 no-wait BUSY/no retry와 wait-through-COMMIT FK rejection/no orphan을 분리하고, 모든
+declared incoming edge의 metadata-matching physical `NO ACTION`/`RESTRICT` FK를 fixture `PRAGMA foreign_key_list`로
+증명합니다. Missing/mismatched constraints와 FK-off writer는 unsupported입니다. Raw BEGIN error/BUSY는 callback/
+retry 0, forced discard와 primary+discard error를 검증합니다. Confirmed discard는 clean reborrow를, unconfirmed
+discard는 poisoned physical handle의 비재사용/비상속과 다른 connection이 Backend close 전 BUSY일 수 있음을
+검증합니다. Pre-COMMIT
+fault/cancellation/count failure는 callback context와 독립된 bounded cleanup context의 raw ROLLBACK 또는 forced
+physical connection discard로 pool reuse를 막고, primary+cleanup error 보존, confirmed cleanup일 때 unchanged DB,
+confirmed cleanup의 clean reborrow를 검증합니다. Relation cleanup은 explicit termination-confirmed bool을 쓰고
+`driver.ErrBadConn`/`sql.ErrConnDone`만 discard/done confirmation으로 인정합니다. Raw nil fake는 unconfirmed,
+Close 0/retained/no-reuse이고 mutation-possible이면 transaction marker, raw-BEGIN/callback-0이면 unknown marker 0임을
+증명합니다. Relation session은 매 `Insert`/`Update`/`Delete`/`RelationSetNull` 호출
+직전에 mutation-possible을 표시하며, 이 bounded deleter의 첫 mutation entry는 SET_NULL 또는 target DELETE입니다.
+그 뒤 rollback/discard confirmation이 모두 실패한 경우만 outermost
+`backend_error/transaction_outcome_unknown`, unchanged pointer/DB outcome unknown과 reconciliation-required이고
+joined Cause에서 primary+rollback+discard cause가 모두 reachable이어야 합니다. Primary 자체가 `*query.Error`인
+fixture에서도 `errors.As`가 outer marker를 먼저 반환해야 합니다. Raw BEGIN/callback-0, pre-mutation read/PROTECT/
+resource failure, confirmed rollback/discard와 literal COMMIT error는 이 code를 쓰지 않습니다. Literal COMMIT-call error만 outermost
+`backend_error/commit_outcome_unknown`이 errors.Is/errors.As로 도달하고, joined COMMIT/cleanup causes를 보존하며 cleanup 결과와 무관하게 durability unknown
+`(0,error)`, unchanged pointer, 한 `Delete` invocation의 backend attempt exact 1과 internal automatic retry 0을
+검증합니다. 두 marker 모두 caller는 reconciliation 전 명시적으로 재호출해서는 안 되지만 이 packet은 poison token/fence/registry를
+제공하지 않으므로 두 번째 caller invocation이 runtime에서 거부된다고 assert하지 않습니다. Canceled-context
+rollback, forced-discard, successful COMMIT 뒤 context/close error가 `(1,nil)`/key clear를 downgrade하지
+않는 gate가 필수입니다. Panic path는 detached cleanup 뒤 confirmed discard 또는 poisoned-handle retention으로
+transaction inheritance를 막고 exact original panic value identity를 보존하며
+cleanup error/marker 반환을 약속하지 않습니다. Recover한 caller는 cleanup 결과를 구분할 수 없으므로 retry 전
+external reconciliation이 필요하다는 계약만 검증합니다. Caller key preflight→clone→clone key exact equality도 I/O 전에 검증하며,
+second clone clear probe는 `query.Integer(0)`/present=false와 canonical non-PK `WriteFieldValue` before/after equality를
+검증합니다. Clone key drift, Clear no-op/key residue/non-PK mutation descriptor는 `query_error/invalid_plan`,
+`(0,error)`/I/O 0입니다. Descriptor method determinism/purity는 extension precondition입니다. FK-off/out-of-band
+writer는 unsupported입니다.
+
+SQLite Backend retention gate는 `Open`이 private per-Backend state를 초기화하고 unconfirmed poisoned handle을
+operation 중 강하게 보유하는지 검증합니다. `Backend.Close`는 `sql.DB.Close`를 먼저 호출한 뒤, 그 호출이 error를
+반환해도 retained set을 seal/take/drain하고 DB-close와 `database/sql`이 실제 반환한 handle-close error를
+보존해야 합니다. Ordering fake는 pool seal 전
+retained `Conn.Close` 호출 0, seal 뒤 terminal `Conn.Close` attempt exact 1/no pool return을 증명합니다. Custom
+driver는 close invocation/order를 기록하되 `database/sql`이 숨기는 underlying driver-close error까지 public
+결과로 관찰된다고 주장하지 않습니다. Pre-seal retain, post-seal
+retain, retain-vs-close race와 idempotent second close를 각각 실행하며 retained set residue 0을 확인합니다. 다른
+connection은 explicit Backend close 전 retained lock 때문에 BUSY/block될 수 있으므로 lock-free reborrow를
+acceptance로 사용하지 않습니다. External compile gate는 private state가 pointer field여서 기존 `Backend` value의
+comparability와 public method set이 유지됨을 고정합니다. Second-close idempotence는 순차 gate이며 concurrent losing
+Close가 winner 완료를 기다린다는 새 계약은 만들지 않습니다.
+
+`AtomicRelation` callback은 precondition/begin failure 0회, 그 밖에는 synchronous exact 1회입니다. ORM은
+`AtomicRelation` 반환 직후 active/single guard를 원자적으로 seal하고 completed callback snapshot으로 outer result와
+key clear를 결정합니다. Fake backend의 nil-without-callback과 seal 전에 등록된 double/concurrent callback은
+`backend_error/invalid_plan`, `(0,error)`, unchanged caller와 rejected-entry mutation 0을 증명합니다. 별도 late gate는
+seal 이후에 동기화한 invocation 자체가 `backend_error/invalid_plan`으로 거부되고 mutation 0임만 증명하며, 이미
+결정된 `Delete` 결과나 caller key가 소급 변경된다고 assert하지 않습니다. Backend-return과 seal 사이를 경합해
+first callback이 seal 전에 완료되는 악성 port violation은 synchronous callback과 구분할 수 없으므로 detection이나
+outer result를 assert하지 않고 race-safety만 검증합니다. Callback error를 swallow/commit하는 backend는 explicit
+port violation이며 DB outcome을 보장하지 않습니다.
+
+Direct binder와 generator는 target에 supported incoming many-to-one edge가 최소 하나 있어야 합니다. Generator는
+canonical `Bind()`와 같은 authoritative declared universe input, reordered identical bytes/digest,
+v3-target pre-byte rejection, static WriteDescriptor assertion, exact `zz_godj_relation_delete.go`의 zero/nonzero
+`RelationDeleters`/`BindRelationDeleters`, namespace/external compile, separate exact thirteen-file
+`relationdeleteproduct` union과 prior twelve-file byte lock/last-good를 검증합니다. Generated field는
+`<ExportedPackageAlias><ModelGoName>`이고 alias≠app-label adversarial determinism/namespace/compile이 필수입니다.
+Aggregate binder는 full `Bind()`의 canonical unique incoming-target identity set과 generated emitted-target set을
+I/O 전에 exact 비교하고, added/removed target field 또는 per-target fingerprint drift를 cold `invalid_plan`으로
+거부해야 합니다. Binding/delete companions가 함께 undeclared source보다 stale한 경우를 runtime에서 탐지한다고
+assert하지 않고 authoritative generation/check precondition으로 둡니다.
+Manifest target 10,776 bytes/SHA-256
+`3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`는 REL-007/008 status-only exact
+transition/revert가 입증된 뒤에만 current가 됩니다. Activation, implementation, completion and terminal heads는
+각각 별도 local/hosted evidence를 사용합니다.
+
+### GDJ-0031 relation facade compile-usability 결과
+
+GDJ-0031 activation baseline `ceff9e534e541edb0bd19cd6a1a61682b5435454`은 EVID-063/
+[run 31516174741](https://github.com/progresshans/godj/actions/runs/31516174741)의 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. Activation documentation head `624347e...`는 EVID-064/
+[run 31520396606](https://github.com/progresshans/godj/actions/runs/31520396606), compile implementation head
+`0653902...`는 EVID-065/[run 31528039746](https://github.com/progresshans/godj/actions/runs/31528039746)의 서로
+다른 exact 26/26 jobs·326/326 recorded steps를 통과했습니다. Product는 unchanged exact `121 + 5 + 1`, relation
+11/12이며 REL-002만 locked입니다. 앞선 run을 later head의 proof로 재사용하지 않습니다.
+
+Compile fixture의 authoritative physical baseline은 `conformance/relationdeleteproduct/**` exact 16 files입니다.
+Generated 13 + `fixture/schema.go` + `observer.go` + `product_test.go`의 fixture-relative sorted
+`path + NUL + decimal size + NUL + content`는 62,538 bytes/SHA-256
+`992589f0500a7f31808dac2bb2a669daecadab7b978f93f5227bee3ee1ca6cbb`입니다. Generated subset 13은
+26,140 bytes/SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`입니다.
+One-file overlay를 더한 logical exact 17은 65,970 bytes/SHA-256
+`29d37c4cc1446ce320bcd5476afafb77989cd980a1dd3f96cb0732803835737f`로 고정됐습니다.
+
+`internal/compiletest`는 이 physical bytes를 수정하지 않고 nonexistent project `.go` target 하나만 Go overlay로
+주입해 logical exact 17 compile view를 만들었습니다. Overlay가 있을 때 외부 consumer는 exact
+`post, found, err := models.BlogPosts.OrderBy(blog.PostFields.ID.Asc()).First(ctx)`, explicit `Model()` unwrap,
+lazy/eager 동일 source pointer와 `Author(ctx)` 후보를 컴파일했습니다. 같은 consumer는 overlay 없이는 exact 두
+`undefined: project.Using` 진단으로 실패합니다. Root relation-delete product도 overlay view로 compile-only 검증했고
+physical virtual target은 실행 전후 모두 absent입니다. `db.RelationSession`은 callback 안에서 query-only
+`db.Queryer` candidate에 전달되는 structural assignability만 확인하며 runtime pinning/lifetime을 주장하지 않습니다.
+
+새 top-level `Test*`와 `t.Run`을 추가하지 않고 existing external-consumer/typed-misuse tests에 결합해 exact 4/1을
+유지했습니다. AST/source
+whitelist는 allowed public project/authors/blog/core imports와 forward read-only symbols만 허용하고 other relation
+fixtures, oracle/static/not-implemented/runner/protocol source read, reflection/unsafe/process/file/network I/O와
+reverse/REL-002/write/delete/cache/JSON/custom-method symbols를 거부합니다. Exact 16에 reverse aggregate가 없으므로
+`author.Posts`나 다른 fixture를 합친 chaining은 false green입니다. Wrong-model predicate/ordering/selector,
+declaration/signature/receiver drift, generated delete/reviewer/version symbol, import/binder shadow, goroutine/defer/
+nested callback escape, extra physical entry와 symlink/path escape mutation은 모두 negative gate에서 거부됩니다.
+
+Local에서는 focused/full normal, race, CGO-disabled와 `go vet ./internal/compiletest`, unchanged product inventory
+687/687/0·69,597 bytes·SHA-256 `363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`,
+diff/scope와 independent P0/P1/P2/P3=`0/0/0/0`을 확인했습니다. Hosted full Ubuntu `make ci`, exact Darwin,
+four Python과 four relation-product coordinates도 통과했습니다. Compile success는 candidate feasibility일 뿐
+production generator, public API acceptance, runtime/cache/query-count parity가 아닙니다. 모든 candidate 이름은
+noncanonical이고 Q-017은 P1/open입니다. Exact 11-path completion-documentation head
+`e9b2c0e4812e7619d0b5ffd3862731714b00273d`은 별도 EVID-066/
+[run 31531470440](https://github.com/progresshans/godj/actions/runs/31531470440)의 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. EVID-066과 상태를 추가한 exact seven-file terminal documentation head
+`3d661251...`도 별도 EVID-067/
+[run 31533890720](https://github.com/progresshans/godj/actions/runs/31533890720)의 exact 26/26 jobs·326/326
+recorded steps와 independent audit P0/P1/P2/P3=0을 통과했습니다. Completion run을 terminal proof로 재사용하지
+않았고, EVID-067은 later GDJ-0032 activation tree의 proof로 재사용하지 않습니다.
+
+### GDJ-0032 production forward facade implementation gate
+
+GDJ-0032는 기존 test-only overlay를 제품 증거로 승격하지 않고 production companion을 별도로 생성·게시했습니다.
+Terminal baseline EVID-067, activation documentation EVID-068/run `31537726792`, implementation head
+`ba2fa0fa30f32abf3d70598c7a3a4e4334a43020`의 EVID-069는 서로 다른 exact head를 증명합니다. Product
+classification은 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12, REL-002 locked입니다.
+Exact eleven-file completion-documentation head `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`은 별도
+EVID-070/[run 31544273477](https://github.com/progresshans/godj/actions/runs/31544273477)의 exact
+26/26 jobs·326/326 recorded steps를 통과했습니다. EVID-070을 추가한 exact seven-file terminal head
+`8748bb495e682d53e0d07c5e8f8fd0236ed5c9ed`도 별도 EVID-071/
+[run 31563615648](https://github.com/progresshans/godj/actions/runs/31563615648)의 exact 26/26·326/326을
+통과했고 completion run을 재사용하지 않았습니다. EVID-071은 later GDJ-0033 activation proof로 재사용하지 않습니다.
+
+Implementation test는 다음 경계를 동시에 잠갔습니다.
+
+- Existing generated exact 13, 26,140 bytes/SHA-256
+  `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`의 before/after byte identity
+- 새 project companion 한 파일의 deterministic generation, golden, missing-target first publish와 replacement
+  last-good preservation; generated exact 14는 39,243 bytes/SHA-256
+  `2a141f1962887a9c610dd2d0005f401ecd8759e4d0bf0ce5cde1c3f210d1ba5f`, physical exact 17은 94,439
+  bytes/SHA-256 `3fc7aba625cf231bc3521f3ad19270a05405e9bfea3d4799b36ca3dd907752fd`
+- Every declared model의 project-owned pointer wrapper/query root와 low-level `Object` namespace disjointness
+- Target query root와 required Author/nullable Reviewer accessor의 같은 target wrapper static type; raw app model이나
+  low-level Object 반환은 negative
+- Required `(*TargetWrapper, error)`와 nullable `(*TargetWrapper, bool, error)` shape, NULL=`nil,false,nil`
+- Queryer+Mutator-only minimal fake/`db.Session` positive가 RelationAtomic/RelationMutator 없이 성립하고,
+  statically typed `db.Queryer`는 negative
+- Binder failure가 nil/typed-nil backend보다 original cause 그대로 우선; valid binding의 nil-like backend는
+  `backend_error/invalid_plan`; 모두 I/O 0
+- Author/Reviewer common selector와 selected concrete eager query/evaluation state 보존; Gate 0 selector
+  representation/name은 이 bounded facade에서 canonical
+- Author/Reviewer `SelectRelated`를 Filter/OrderBy/Limit 전후에 적용한 required present, nullable present/NULL
+- Lazy 첫/둘째 접근 query count와 eager 추가-query 0; copied/repeated eager는 한 evaluation state를 공유하고 derived
+  chain은 독립 evaluation
+- Source relation cache는 source wrapper-scoped이고 separately materialized source/target wrapper와 target pointer/
+  downstream cache identity는 비계약
+- Nil/typed-nil/zero/cross-model selector, zero Models/root/eager와 nil/zero/dereference-copy wrapper는
+  `query_error/invalid_plan`, I/O 0; category/code는 stable, detail message는 noncontractual
+- Explicit raw-model unwrap/clone; AST/source gate가 Save/Delete/reverse와 low-level Object re-exposure를 거부
+- Session-origin callback 내부 사용만 positive; callback 이후 항상 성공/실패한다는 assertion은 금지
+- Reverse manager, stable target wrapper pointer identity와 downstream target cache symbol/claim 부재
+- Test-only overlay 제거 뒤 production no-overlay external consumer, typed misuse와 exact product package compile
+- Generator fixture는 current two-model 외 unrelated model, multi-app/multi-model permutation,
+  target-also-source와 self-edge construction을 포함하되 multi-hop runtime support를 주장하지 않음
+
+`WriteFile(Check:true)`는 byte comparison만 증명하며 Verify 실행을 대신하지 않습니다. Actual write는 same-directory
+temp/sync, whole candidate package Verify, single rename 순서를 검증합니다. 여러 generated file의 coordinated upgrade,
+directory fsync, rename/deprecation/repair나 CLI를 이 gate에서 주장하지 않습니다.
+
+Binder/backend precedence와 invalid category/code는 위와 같이 고정했습니다. Gate 0의 `Backend`, `Using`, `Models`,
+singular roots/wrappers, `BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`은 이 bounded facade의 canonical
+surface입니다. Implicit English pluralization을 사용하지 않고 existing/new project declaration namespace 전체의
+deterministic collision과 exact candidate-union compile을 검증했습니다. 이는 reverse/write/general generated
+upgrade 이름이나 동작을 확정하지 않습니다. EVID-069는 implementation head만 증명하며 later completion-documentation
+tree proof로 재사용하지 않습니다.
+
+GDJ-0048 current-v3 gate는 이 historical surface를 유지하면서 private raw alias field/method promotion, framework-reserved
+source namespace collision, direct PK/FK reconciliation, wrapper JSON rejection, v2→v3 stale/hybrid rejection과 recovery를
+추가합니다. Source wrapper의 accessor/With*/Clear*/Unwrap/Save가 current edge scalar snapshot을 reconcile하며, raw-source-only
+`Unwrap`은 unrelated cached target object의 내부 mutation을 transitive하게 검증하는 API가 아닙니다. Exact Article/relation
+bundle drift, SQLite direct mutation/reload, PostgreSQL separate-process/source-bound/required lanes와 final full/386/external
+archive를 분리해 검증했습니다. EVID-142/CI #159의 exact 27/27 jobs·360/360 steps 뒤에만 ADR-0050을 Accepted,
+GDJ-0048을 completed로 terminal 승격했습니다.
+
+### GDJ-0049 project-linked migrate corrected hosted completion gate
+
+Phase A는 MIG-087..098 exact 12를 reference-only `oracle_locked`로 게시하고 old project-check protocol byte identity,
+public Config compile, strict migrate protocol과 retired MIG-075..086 exact 11-file no-diff를 고정했습니다. Phase B는
+definition load-before-open, one-open/one-migrate/one-close, rollback/cleanup/commit-unknown precedence, secret redaction과
+15초 child-exit-aware interrupt cleanup, migrate private signal-to-context ownership을 단위/fault test로 통과했습니다. 이 grace는
+core의 순차 rollback/session-close 10초 상한과 outer backend close/response 5초 margin을 포함합니다. Completed child의
+response는 Wait/두 stream EOF/process-group absence를 확인한 뒤 late cancellation보다 우선하고, live descendant가 stream/group을
+소유하면 cancellation이 계속 우선합니다.
+
+EVID-144 local-final은 clean SQLite latest, pre-applied prefix/tail, fresh no-op, middle failure durable prefix/fresh
+resume, actual child-vs-child winner/fence/reconciliation, pre-migrate 500/no mutation, authenticated Admin/API CRUD와
+distinct-process restart를 통과했습니다. Digest-pinned PostgreSQL 17.10 empty schema에서도 exact required
+20/20·skip 0을 normal/race/CGO-disabled로 검증했고 credential scanner, service restart, vet, full local `make ci`,
+Linux/386과 repository-external archive를 닫았습니다. MIG-087..098 exact 12는 local-final product `passing`이며
+`runserver`의 implicit migrate는 계속 0입니다.
+
+First local-final submitted head `8841319...`의 hosted run `33124180742`는 27 executions 중 23 success,
+broad PostgreSQL package 15분 timeout 1 failure, relation-product 20분 ceiling 두 건과 conformance-validation
+45분 ceiling 한 건의 cancellation으로 종료됐습니다. 수집된 log의 assertion/panic 실패 표식은 0이지만 중단 lane은
+미검증입니다. PostgreSQL normal/race/CGO0 exact required 20-test selector와 no-skip inventory,
+relation/conformance mode/workload 분리 및 coverage-based aggregate를 구현했고 workflow-bound PostgreSQL attestation,
+checksum, source binding과 lock tests도 새 source에서 두 번 동일하게 재캡처했습니다. EVID-145는 local root-gate에서
+발견한 test-harness synchronization flake와 focused correction을 기록하며 full local pass를 주장하지 않습니다.
+macOS Intel race job의 outer budget만 20분에서 30분으로 늘리고 internal 15분 test timeout과 다른 eleven relation
+lane은 유지했습니다. 새 workflow source의 PostgreSQL attestation을 두 번 독립 재캡처한 뒤 submitted head
+`a909692...`, tree `b82bb5b...`의 EVID-146/CI #164 run `33247166995`가 41/41 jobs·464/464 steps와 failure/cancel/
+recorded-step skip/annotation 0으로 통과했습니다. PostgreSQL normal/race/CGO-disabled는 각각 같은 required
+20/20·skip 0을 통과했습니다. 이 결과로 ADR-0051은 Accepted, GDJ-0049는 completed입니다. EVID-145의 failed local
+root attempt는 classified non-green으로 남고 current head의 full local `make ci` 재실행은 주장하지 않습니다.
+
+### GDJ-0033 REL-002 assignment/save/cache implementation gate
+
+GDJ-0033 activation head `a4a627a...`는 EVID-072/run `31566524953`, decision-documentation head `9d728610...`은
+EVID-074/run `31574653183`의 서로 다른 exact 26/26 jobs·326/326 steps를 통과했습니다. Exact 23-path bounded
+product는 EVID-075의 local final gates에서 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12,
+REL-002 passing으로 전환됐습니다. Exact implementation head `be6f3d4e...`는 별도 EVID-076/run `31586910749`의
+26/26 jobs·326/326 steps, four-coordinate 715/715/0 inventory와 audit P0..P3=0을 통과했습니다. ADR-0033은
+Accepted, code는 Implemented, 이 명시된 hosted 환경에서는 Verified입니다. 앞선 activation/decision run을
+implementation proof로 재사용하지 않았습니다.
+
+#### Phase A — Django observable semantics
+
+- Exact Django object `fe0a859f...`를 `git show <commit>:<path>`로 읽고 moving checkout을 evidence로 쓰지 않습니다.
+- Assignment/cache, same/different scalar, PK-zero presence, no-PK/manual-PK, pending-only reconcile, key-present-later-
+  change invalidation, nullable clear와 rollback memory non-rewind를 separate rows로 고정했습니다.
+- Locked REL-002 payload/phase/category/code/metrics/DB state와 reference artifacts는 byte-frozen입니다.
+- Typed generated select-related cause loss는 독립 P2로 기록했고 GDJ-0033 fixed claim을 금지합니다.
+
+#### Phase B — no-product feasibility
+
+- Frozen patch `8329bb0a...`의 public API, private descriptor와 project package compile을 증명했습니다.
+- Scalar presence/cache/pending을 분리해 raw-zero unset, explicit-zero present, loaded-zero present와 target-object PK zero를
+  모두 구분했습니다.
+- Corrected preflight Phase 1은 모든 relation-cache tuple을 canonical normalized source-model identity + relation field
+  `Name` 순서로 검증·snapshot하고, Phase 2는 모든 assigned target origin을 검증하면서 target PK를 edge별 정확히 한 번
+  snapshot하며, Phase 3은 같은 순서의 첫 no-PK target을 반환합니다. 그 뒤에만 required-unset을 검사합니다.
+- Save가 전체 relation state를 read-only validate하고 candidate raw/write/object/cache를 만든 뒤에만 publish합니다.
+- Reversed declaration + both invalid, 앞선 Author no-PK와 뒤 Reviewer corrupt cache/self/origin의 양방향 masking,
+  candidate rebuild failure와 corrupt cache tuple은 I/O 0/no partial publication입니다.
+- Pending+source-empty-only reconciliation, caller-changed-scalar precedence, key-present-later-change invalidation,
+  full `(presence,value)` tuple의 same/different scalar와 nullable clear를 검증했습니다.
+- Per-edge COW는 changed edge만 교체하고 unrelated ready/absent를 independent cell로 보존하며 cold/flight를 공유하지
+  않습니다. Actual eager Reviewer hydration 뒤 Author derivation도 Reviewer query 0입니다.
+- Manual PK missing row는 exact backend mutation +1, non-REL002, cause-preserved/DB unchanged입니다.
+- Nil/zero/copy/cross-origin/context/session boundaries와 caller-synchronized race path를 검증했습니다.
+- Normal/race/CGO0/vet/full codegen+orm+query/Linux386가 PASS했습니다. Full `./...` sole failure는 unpublished product
+  companion deterministic drift이고 그 외 package는 PASS했습니다.
+
+Product external compile consumer는 두 exact flows를 모두 가져야 합니다.
+
+1. new source + new no-PK target → assignment → source Save의 REL-002 failure shape
+2. new source + new target → assignment → target Save → same derived source Save의 later-key reconciliation shape
+
+추가로 required unset, ID zero, nullable clear, same/different scalar와 invalid wrapper signature를 compile합니다.
+
+#### Phase C — freeze와 bounded implementation
+
+ADR-0033은 exact query-root `New`, wrapper `Save`, `WithAuthor`/`WithReviewer`, ID helpers와 `ClearReviewer`, fresh source
+derivation, project-private descriptor, pending-only reconciliation, corrected canonical three-phase preflight와 per-edge
+COW를 Accepted했고 work frontmatter의 exact 23 source/product path에 local 구현했습니다.
+REL-002 manifest transition은 Go protocol/godjcheck
+hard locks와 `conformance/runners/django/tests/test_relation_scenarios.py`의 product-manifest status assertion만 measured
+update하고, `conformance/README.md`, relation/migration-project/write-migration artifact locks와 workflow measured
+inventory를 함께 갱신해야 합니다. Django scenario execution/oracle/checksum/static fixture는 byte-frozen으로 유지합니다.
+
+Local gate는 focused normal/race/CGO-disabled/vet, product/external compile, generator golden/determinism/last-good,
+unchanged app-generated exact 13, bounded Linux/386, full `go test ./...`, measured 715-test workflow roster와 independent
+P0-P3 audit까지 EVID-075에서 통과했습니다. EVID-076은 exact Darwin 193/193, four Python exact-profile suites와
+four relation-product coordinate each 715/715/0을 포함한 exact implementation head를 검증했습니다. EVID-076을 포함하는
+exact 15-document completion head `81f4aacb...`는 EVID-077/run `31590911735`의 별도 exact 26/26 jobs·326/326
+steps와 audit P0..P3=0을 통과했습니다. EVID-077을 포함하는 exact seven-document terminal head `db5c11f6...`도
+EVID-078/run `31593500615`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다. Completion run을 terminal
+proof로 재사용하지 않았습니다. Q-013은 `Partial`, Q-017은 P1/open이고 relation-capable migration,
+reverse/general facade와 non-SQLite backend는 이 gate의 claim이 아닙니다.
+
+#### GDJ-0034 — typed generated `select_related` cause preservation
+
+GDJ-0034는 새 Django contract나 SQL/result 의미를 추가하지 않습니다. Stale/mismatched generated 조합에서 typed
+builder가 `ResolveForwardSelectPath` 또는 required/nullable bind의 structured error를 잃는 진단 P2만 다음
+Go-native safety gate로 고칩니다.
+
+- Required resolve failure, required bind failure와 nullable bind failure를 각각 구성하고 terminal `All(ctx)`의
+  category/code/detail 및 unwrap/cause chain 보존과 backend query/mutation 0을 검증합니다.
+- Stored configuration failure와 nil context, typed-nil context, cancelled context를 각각 조합해 ADR-0029의
+  context precedence가 먼저이고 original configuration cause는 backend validation/I/O보다 먼저임을 검증합니다.
+- `ParseDynamic`의 기존 exact-cause control과 실제 zero/corrupt query의 generic invalid-plan control을 함께 둡니다.
+- 정상 required/nullable eager result, query count와 warm cache publication이 바뀌지 않음을 재검증합니다.
+- Generator v2 golden/determinism/last-good, 두 checked-in companion no-rewrite, physical no-overlay external compile와
+  final measured digest/inventory lock을 검증합니다.
+- Focused normal/race/CGO-disabled/vet, bounded Linux/386, full `go test ./...`, exact hosted matrix와 independent
+  P0..P3 audit 순서를 유지합니다.
+
+EVID-078은 GDJ-0033 terminal baseline만 증명합니다. Exact activation head `e2e0a4e...`는 EVID-079/run
+`31599273044`의 고유 exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Exact 12-path source freeze는
+EVID-080의 focused/full normal/race/CGO-disabled/vet, four Linux/386 compile, 715/715/0 final inventory와 independent
+P0..P3=0을 통과했습니다. Exact implementation head `3099bd62...`는 별도 EVID-081/run `31605477297`의 unique
+26/26 jobs·326/326 steps, four-coordinate 715/715/0·72,623-byte inventory와 independent P0..P3=0을 통과했습니다.
+EVID-078/079/080을 implementation proof로 재사용하지 않았습니다. GDJ-0034는 completed이고 code는 Implemented,
+EVID-081의 명시된 hosted 환경에서 Verified입니다. EVID-081을 포함하는 exact 13-document completion head
+`45cfccd...`도 별도 EVID-082/run `31609500811`의 unique 26/26 jobs·326/326 steps, unchanged four-coordinate
+715/715/0·72,623-byte inventory와 independent P0..P3=0을 통과했습니다. EVID-082 append를 포함한 exact six-document
+terminal head `0bb8c969...`는 별도 EVID-083/run `31613170021`의 unique 26/26 jobs·326/326 steps,
+unchanged four-coordinate inventory와 independent P0..P3=0을 통과했습니다. Completion run을 terminal proof로
+재사용하지 않았습니다.
+REL-009/010/011 및 aggregate product classification은 그대로이고 locked Django relation oracle/manifest/checksum을
+바꾸지 않습니다.
+
+이전 두 job은 PR #1의
+[run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
+통과했으며 상세 환경과 결과는
+[EVID-20260809-018](status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
+기록합니다.
+
+GDJ-0019 completion head `4d9a64a0c42406bda931820f7eb38a0f737d117c`에서도 같은 두 job을
+[run 31302983804](https://github.com/progresshans/godj/actions/runs/31302983804)로 다시 실행했습니다.
+Ubuntu portable 164 tests/15 skips, macOS exact 164/164, migration-definition-source를 포함한
+10개 oracle checksum/`--check`와 no-rewrite가 통과했으며 상세 결과는
+[EVID-20260809-020](status/TEST_EVIDENCE.md#evid-20260809-020--gdj-0019-github-hosted-ubuntu와-darwinarm64-ci)에
+기록합니다.
+
+GDJ-0020 product head `6172d843a4bb234592cafc176a8d1191933b141c`은 같은 Draft PR #1의
+[run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 두 job이 모두
+통과했습니다. Ubuntu 24.04 portable job은 `CGO_ENABLED=0 GOARCH=386 go test -count=1
+./migrations/definition`을 실제 Linux/386 runtime으로 실행했고, macOS 15 arm64 exact job은
+locked profile/oracle/no-rewrite gate를 유지했습니다. 세부 local/product-head 증거는
+[EVID-20260809-021](status/TEST_EVIDENCE.md#evid-20260809-021--gdj-0020-bounded-migration-definition-loader-product-slice)과
+[EVID-20260809-022](status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)에
+기록합니다.
+
+GDJ-0020 completion-documentation head
+`a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 같은 Draft PR #1의
+[run 31310002784](https://github.com/progresshans/godj/actions/runs/31310002784)에서 별도로
+재검증했습니다. Ubuntu 24.04.4 job
+[93236227654](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227654)는
+Go 1.26.5/uv 0.10.12/Python 3.14.3/Django 6.1/SQLite 3.50.4 profile에서 `make ci`, portable
+Python 164 tests/15 skips, actual `CGO_ENABLED=0 GOARCH=386` definition runtime,
+checksum/no-rewrite를 통과했습니다. macOS 15.7.7 arm64 job
+[93236227698](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227698)는 같은 pinned
+tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-rewrite를
+통과했습니다. 상세 증거는
+[EVID-20260809-023](status/TEST_EVIDENCE.md#evid-20260809-023--gdj-0020-github-hosted-completion-documentation-head-ci)에
+기록합니다. EVID-023 append/status 교정 commit
+`53729103651bfc34acc5fe07fb4376d5dd78c204` 자체도 별도 Draft PR #1
+[run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
+job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.
+
+## Accelerated vertical-batch verification cadence
+
+큰 수직 배치는 검증을 생략하지 않고 비용이 발생하는 시점을 계층화합니다.
+
+- 매 변경: `gofmt`, compile, affected package test, related generated drift
+- Phase checkpoint: 해당 slice의 normal/race/CGO-disabled와 필요한 backend/filesystem canary
+- Final frozen milestone: full `make ci`, Linux/386 compile, repository-external source-clean copy와 hosted matrix 한 번
+- Documentation-only evidence/status append: Markdown link/frontmatter/table/status consistency와 `git diff --check`
+
+Subtask마다 full matrix, artifact hash audit와 hosted run을 반복하지 않습니다. Source, workflow lock 또는 frozen
+generated bytes가 바뀌면 새 exact head가 final gate가 되며 과거 run을 재사용하지 않습니다. Evidence-only append는
+그 직전 exact implementation/head run이 무엇을 증명하는지 비재귀적으로 기록합니다.
+
+## GDJ-0036 current-only integration test boundary
+
+Current reset의 required regression은 다음을 함께 통과해야 합니다.
+
+1. Schema IR/Definition/ProjectState current version 1 strict decode, canonical digest와 unknown-version rejection
+2. `definition.Load`→opaque `LoadedDefinitionSet`→`Executor.Migrate` exact lifecycle 및
+   `DirectExecutor` raw scalar/relation fail-closed 분리
+3. Mandatory `MigrationCapabilities`와 single `BeginMigration(HistoryTransition, MigrationIntent)`를 통한
+   scalar/relation/no-op whole-plan validation
+4. Public `StateReconstructor`의 current scalar/relation replay와 lifecycle state/rematerialization seal 일치
+5. D4d nullable Add, D4e empty-source required Add, D4f bounded Remove/remake의 rollback/reopen/row/sequence 회귀
+6. Current main codegen descriptor/write ABI, app relation-query 및 facade-private write model 부재,
+   project-owned cross-app binding/query/facade compile
+7. GDJ-0036 baseline generated roster `8 / 9 / 11 / 12 / 13`, deterministic regeneration, external consumer
+   compile와 per-file last-good preservation
+8. GDJ-0037 adoption의 Article exact 12/relationdelete exact 16 source와 canonical manifest, declaration bootstrap,
+   whole-candidate compile, read-only check와 recoverable coordinated publication
+
+GDJ-0035 Phase-B/C candidate bytes와 EVID는 역사적 characterization으로만 보존합니다. 현재 checked-in
+MIG-075..086 manifest/oracle은 ADR-0035 current-only 진단 reference로 재기준화됐고 reference aggregate에는
+포함되지만, 계속 `oracle_locked`/unregistered라 product publication/status gate에는 쓰지 않습니다. Go
+characterization은 oracle semantic comparison이 아니라 typed current-product 진단이므로 둘을 동일시하지
+않습니다. 최종 지원 주장은 frozen tree의 full normal/race/CGO0/386/generate-check와 hosted matrix가 끝난
+뒤에만 올립니다.
+
+## GDJ-0037 project bundle and publication test boundary
+
+Affected checkpoint는 다음을 함께 검증합니다.
+
+1. `ProjectSpec` resource bounds, canonical app ordering, caller mutation 격리와 exact 13-role generator ABI
+2. App `4n` + project 8 roster, manifest/source hash·owner·0644 mode, snapshot digest와 mixed-generation compile seal
+3. Article exact 12와 relationdelete exact 16 checked-in regeneration, missing/broken generated declaration bootstrap
+4. New/replacement/stale-delete overlay의 external consumer compile-only 검증; user `init`/`TestMain` non-execution
+5. `generate --check`의 exact drift/interrupted diagnosis와 selected project tree/Git 무변경
+6. Selected root device/inode seal, symlink/FIFO/nonregular/path rebound, user-edit/CAS mismatch에서 target write 0
+7. Writer lock, same-filesystem stage, bounded canonical journal, atomic no-replace move, manifest-last directory fsync
+8. Precommit exact-prior rollback, postcommit exact-next cleanup, partial transaction/restart, stale exact-owner deletion,
+   concurrent first/serialized publisher와 SIGKILL recovery
+9. Generation private protocol의 exact argv/response cap/closed failure와 migration runner 64KiB 경계 불변
+10. Publisher postcommit cancellation success와, target이 이미 committed됐을 수 있는 outer workspace/root cleanup의
+    `project_generation_process_error/project_cleanup_failed` exit 3 구분
+
+Current implementation checkpoint는 affected normal/race/CGO-disabled/vet, offline `make generate-check`, full
+`make ci`, Linux/386와 repository-external source-clean-copy 뒤 exact correction head `d4643068...`의
+[EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+26/26 jobs·326/326 steps를 통과했습니다. 따라서 GDJ-0037의 project bundle/publication 하위 경계는
+completed/hosted-verified입니다. Q-010 `Partial`, Q-017 P1/open과 PostgreSQL/Web `Not started` 상태는 바뀌지
+않습니다.
+
+## Historical GDJ-0035 activation and Phase A/B/C test-only hosted verification
+
+이 절부터 GDJ-0035 D4f까지는 reset 이전 checkout의 exact evidence입니다. Dual tuple/digest/state,
+`definitionhandoff`, `Set.Migrate`, optional relation begin과 Phase D4g-next 서술은 current API/계획이 아닙니다.
+
+GDJ-0034 terminal baseline `0bb8c969...`는
+[EVID-083](status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
+[run 31613170021](https://github.com/progresshans/godj/actions/runs/31613170021)의 exact 26/26 jobs·326/326 steps과
+audit P0..P3=0을 통과했습니다. 이 run은 GDJ-0035 activation test가 아닙니다. Source/workflow/artifact diff 0인
+exact 16-document activation head `52f9bcb7...`는 별도
+[EVID-084](status/TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci) /
+[run 31618469072](https://github.com/progresshans/godj/actions/runs/31618469072)의 exact 26/26 jobs·326/326 steps와
+audit P0..P3=0을 통과했습니다. EVID-084는 activation proof입니다.
+
+Phase A reference-only artifacts는
+[EVID-085](status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
+로컬 고정했습니다. 새 set은 product adapter/handler에 들어가지 않고 다음 순서를 강제합니다.
+
+1. MIG-075 legacy tuple/digest/state/canonical byte lock을 먼저 검증합니다.
+2. MIG-076..079 profile/hybrid/mixed digest/state/promotion/target+ancestry preflight는 DB I/O 0을 어떤
+   implementation보다 먼저 잠그니다.
+3. MIG-080..084 SQLite CreateModel/AddField/remake/FK-on/NO ACTION/restart를 disposable file-backed DB에서
+   검증합니다. Populated required AddField는 explicit rejection이어야 합니다.
+4. MIG-085..086은 DDL/recorder/revision precommit fault와 commit success/definite failure/unknown outcome/no retry를
+   각각 fault-injection합니다.
+5. Local normal/race/CGO-disabled/vet, external compile, no-rewrite, artifact checksum, four hosted coordinates,
+   file restart와 exact inventory를 final bytes에서 측정합니다.
+
+실측 결과는 manifest 7,792 bytes/`dfe021c2…569b`, oracle 125,248/`c742f91a…de27`, ordered NI
+1,846/`f9bd9c47…9e24`, 13-line checksum 1,245/`5022a230…9cf4`입니다. Reference aggregate는 exact
+13 sets/139 unique contracts+scenarios=`122 passing + 5 deviation + 12 oracle_locked`, 156 ordered cross-bindings이고
+product는 exact 12/127=`122+5+0`으로 불변입니다.
+
+Local gates는 focused reference 20/20, integrated exact 69/69, normal 69/15 skips, full Python exact 216/216,
+normal 216/19 skips, exact 139-scenario semantic payload 623,543 bytes/`f4f48c4c…18da`, Go exact roster
+725/725/0·73,806 bytes/`2ad28eb2…a5d4`를 통과했습니다. `PYTHONHASHSEED=17`/`982451653`
+두 oracle generation은 byte-identical이었고 protocol/`godjcheck` false-green gate도 통과했습니다. Homebrew
+uv 0.12.3은 exact-profile 사용 전 fail-closed되었고 pinned uv 0.10.12로 재실행해 통과했습니다.
+
+[EVID-086](status/TEST_EVIDENCE.md#evid-20260813-086--gdj-0035-phase-a-github-hosted-reference-only-exact-head-ci) /
+[run 31625898551](https://github.com/progresshans/godj/actions/runs/31625898551)은 exact Phase A committed head
+`84e16bf...`의 고유 `pull_request` attempt 1에서 26/26 jobs·326/326 steps, annotations 0과 hosted audit
+P0..P3=0을 통과했습니다. Four relation-product coordinates는 각각 725/725/0·73,806 bytes·`2ad28eb2…a5d4`,
+four portable Python legs는 각각 216 tests/19 skips와 139 scenarios·623,543 bytes·`f4f48c4c…18da`, exact
+darwin profile은 216/216 skip 0, checksum은 13/13을 재현했습니다. Hosted Ubuntu Linux/386 compile과 actual
+relation runtime도 통과했습니다. Product는 계속 exact 12/127=`122+5+0`; MIG-075..086에는 handler가 없고
+12-row NI/reference-only 경계가 유지됩니다.
+
+Phase B는 product를 바꾸지 않는 exact 14개 `_test.go`의 isolated candidate로 locally implemented/verified됐습니다.
+Profile/raw decode와 mixed digest, relation state promote/demote, actual Planner 기반 whole-plan structural preflight,
+optional backend/session cleanup, pinned SQLite FK-on/`BEGIN IMMEDIATE`/bounded remake, recorder/revision/commit-three-outcome,
+file restart와 no-retry fault matrix를 검증했습니다. Exact 14-file aggregate는 693,557 bytes, sorted raw-content
+SHA-256 `ca579837cc3d8ddee42b77db8bd67bcb7a3b3555f28b2fe582b5dc10f62509e5`; top-level test inventory는
+75/75/0, 9,736 bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`입니다.
+
+Final-byte focused normal/race/CGO-disabled/vet/shuffle-20/protocol/diff-check/gofmt gates와 root `make ci`가 모두
+통과했습니다. Pinned exact profile은 Python 3.14.3/Django 6.1/SQLite 3.50.4/uv 0.10.12에서 216/216, skip 0,
+13 oracle `--check`와 13 checksum entries를 통과했고 oracle before/after manifest는 byte-identical이었습니다.
+두 independent final audit는 모두 P0/P1/P2/P3=`0/0/0/0`을 보고했습니다. 상세 log/hash는
+[EVID-087](status/TEST_EVIDENCE.md#evid-20260813-087--gdj-0035-phase-b-no-product-feasibility-local-validation)에
+고정합니다.
+
+Django recorder-fault 관찰에서 schema-editor DDL은 commit되고 record만 없는 경계가 나타났으므로 GoDj
+same-transaction atomic proposal과 동일하다고 가정하지 않습니다. Phase B는 product source, checked-in reference
+artifacts, manifest/oracle/NI/Makefile 또는 ADR을 바꾸지 않았습니다. 이 Phase B boundary에서 actual SQLite
+product optional relation port와 actual `StateReconstructor` relation state는 Phase C design blocker였고,
+candidate-local restart는 product epoch/DAG/reconstructor 증거가 아니었습니다. Phase C proof는 그 design을
+동결했지만 두 product blocker를 구현하지 않았습니다.
+Activation, Phase-A/decision, implementation, completion-documentation, terminal은 서로 다른 exact-head CI를
+사용하고 앞 run을 later proof로 재사용하지 않습니다. Current product 12/127=`122+5+0`, relation
+12/12는 변경 없고 그 Phase B head에서 ADR-0034는 Proposed였습니다. Exact Phase B implementation head
+`c2ecb292dca2daa8d48e9a11fbf49a3f5c4b8a6a`, tree `c114812fb89bffdf8e97be1779fd603209700205`는
+[EVID-088](status/TEST_EVIDENCE.md#evid-20260813-088--gdj-0035-phase-b-github-hosted-no-product-feasibility-exact-head-ci) /
+[run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691)의 고유 `pull_request` attempt 1에서
+26/26 jobs·342/342 steps, annotations 0과 hosted audit P0..P3=0을 통과했습니다. Four SQLite coordinates는
+각각 exact 75/75/0·9,736 bytes·`48e7beb1...92ec`, four relation-product coordinates는 각각
+725/725/0·73,806 bytes·`2ad28eb2...a5d4`를 재현했고 exact Darwin 216/216 skip 0, checksum 13/13,
+Linux/386 compile/runtime, artifact and clean-worktree/no-rewrite gates를 통과했습니다. 따라서 Phase B는
+no-product feasibility 범위에서 completed and hosted-verified입니다. 다음 정확한 단계는 Phase C decision
+freeze proof였습니다. EVID-088 append/status tree 자체는 이 run의 재귀적 proof가 아닙니다.
+
+Phase C는 product를 계속 바꾸지 않은 채 Phase B의 profile/state/preflight/lifecycle test candidate 중 exact 8개
+`_test.go`만 수정해 acceptance-critical decision boundary를 동결했습니다. Exact head
+`7d36502f104daa62b39744b5705478acc19a7ead`, tree
+`d9e8a6b7bec59828ba0bd2b1864cbba3d9f9396d`는 다음을 검증합니다.
+
+- Existing legacy constants/constructors와 `(1,1,1,2)`/digest v1/state v1 bytes를 보존하면서 relation numeric
+  tuple/state behavior `(loader ABI, operation codec, Schema IR, state)=(2,2,3,2)`를 분리합니다. Test-only proof는
+  candidate-private values를 사용했고 public names를 export하지 않았습니다. Later Accepted decision이 additive
+  `RelationLoaderABIVersion=2`, `RelationOperationCodecVersion=2`, `RelationSchemaIRVersion=3`,
+  `RelationStateFormatVersion=2` names를 선택합니다.
+- Existing public `definition.Load` 하나가 document별 exact profile을 dispatch하고 combined set을 actual
+  `migrations.Planner` 하나로 검증합니다. Relation-only/mixed set은 digest v2 domain, legacy-only는 v1을 씁니다.
+- Later Accepted decision은 test-only proof 이후 발견된 loader→Executor metadata-loss 경계를
+  `migrations/internal/definitionhandoff.Handoff`로 닫습니다. Successful Load가 per-definition profile/source/
+  producer/canonical seal, set digest/full-graph seal을 raw bytes/alias 없이 만들고 relation/mixed `Set.Migrate`가
+  fresh context clone으로 existing Executor에 전달합니다. Proof head는 이 later internal bridge를 구현·검증하지
+  않았고 public signature/entrypoint도 추가하지 않습니다.
+- Relation wire는 symbolic target app/model, cardinality/reverse/on_delete만 소유하고 `target_field`는 없습니다.
+  Exact historical AutoField PK를 operation snapshot에서 파생하며 promotion/demotion은 whole-step 경계입니다.
+- Static zero-I/O, existing history/actual plan, SQLite physical의 three-stage preflight와 exact parent-first apply/
+  child-first unapply plan을 검증합니다.
+- Test-only proof는 candidate-local existing-fence equivalents와 four capability behavior를 검증했습니다. 이
+  Accepted decision이 `migrations/backend` additive `RelationRevisionFencedBackend`/
+  `RelationRevisionFencedSession`과 intent/operation/target/kind public names/shape를 선택하며, existing
+  `RevisionFencedTransaction` 하나를 재사용합니다. Proof head는 product package에 그 names를 publish하지 않았습니다.
+- SQLite는 exact connection의 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim →
+  DDL/remake → FK check → recorder/revision → `CommitFenced` once 순서를 지킵니다. Populated nullable와 empty
+  required AddField는 지원 shape이고 populated required, closed-remake hazards는 pre-mutation 거부합니다.
+- Error category/code/feature/context/cause ownership과 commit three-outcome/no-retry를 고정하며 human messages,
+  Detail, private helper/catalog/seal/hash/golden은 noncanonical입니다.
+
+[EVID-089](status/TEST_EVIDENCE.md#evid-20260819-089--gdj-0035-phase-c-test-only-decision-proof-local-validation)은
+final-byte focused normal/race/CGO-disabled/vet/shuffle-20/protocol, root `make ci`, exact Python 216/216 + 13
+oracle/checksum, full repo normal/race/CGO0/vet와 independent audits P0..P3=0을 기록합니다. Exact 8-file aggregate는
+629,150 bytes/SHA-256 `a5b857400047bc3a1329065a0c54a3288b594ead456aa60aa7f977c2f51c3316`이고 inventory는 unchanged
+75/75/0·9,736 bytes·`48e7beb1...92ec`입니다.
+
+[EVID-090](status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
+[run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)는 exact proof head의 unique
+`pull_request` attempt 1에서 26/26 jobs·342/342 steps, annotations 0, four SQLite 75/75/0 inventories,
+four relation-product 725/725/0 inventories와 hosted audit P0..P3=0을 통과했습니다.
+
+이 proof는 product source/manifest/oracle/NI/workflow/artifact를 바꾸지 않았고 MIG-075..086은 계속
+`oracle_locked`입니다. 그 Phase C proof boundary에서 actual SQLite optional relation port, actual
+`StateReconstructor` relation state/restart와 `definitionhandoff` carrier는 blocker이자 미구현이었습니다.
+Phase D는 Accepted additive public surface의
+exact expected inventory 일치, 그 named addition을 제외한 legacy public
+signature/entrypoint inventory의 byte-for-byte unchanged, legacy/empty zero-carrier와 raw legacy lifecycle/reconstructor
+preservation, relation/mixed fresh clone/no-alias/no-retain, nil/cancel/deadline/value precedence, seal mismatch와
+carrier-less raw relation의 pre-I/O/pre-Begin failure, concurrent Set reuse/race를 검증해야 합니다. Proposed
+decision-freeze documentation head `5bdf013...`는
+[EVID-091](status/TEST_EVIDENCE.md#evid-20260819-091--gdj-0035-proposed-decision-freeze-documentation-head-local-validation-and-exact-head-hosted-ci) /
+[run 32183309328](https://github.com/progresshans/godj/actions/runs/32183309328)의 unique exact 26/26 jobs·342/342
+steps와 audit P0..P3=0을 통과했고, 이 별도 docs head에서 ADR-0034 bounded design을 Accepted로 전환했습니다.
+[EVID-092](status/TEST_EVIDENCE.md#evid-20260819-092--gdj-0035-adr-0034-acceptance-documentation-head-exact-head-hosted-ci) /
+[run 32187094845](https://github.com/progresshans/godj/actions/runs/32187094845)는 별도 acceptance docs head
+`7cdc6d6...`의 unique exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 기록합니다. EVID-090/091/092를 later
+product proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.
+
+## GDJ-0035 Phase D1/D2/D3a bounded product verification
+
+[EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)은
+Phase C/acceptance 증거를 재사용하지 않고 다음 three bounded product slices를 서로 다른
+product head, inventory-correction head, local gates와 hosted run으로 분리합니다.
+
+- **D1 definition/handoff:** product `42aa9a90db01c548923b443a82ffb8682d4ce9c0`, tree
+  `e576ac6658ef728e31ca4f8c78e3a55e618d1e79`; exact 18 C/path-sorted paths total 289,236 source
+  bytes, and their plain `shasum`-row `<sha256>  <path>\n` manifest has SHA-256
+  `b38594fa1dd7e2bdab35146623585919dad4705ee3c78cfbfab6d1c1e468202d`. Inventory correction
+  `f22a4983a200570902daaa921a8e96d144c95d07` is the exact head proven by run `32195313382`.
+  Hosted four relation coordinates each reproduced 734/734/0·74,741 bytes·
+  `27bcdd16f8962d01c1a1645bf211535ad1e665fd507c6bc508ca2d9adee7f16f`; SQLite stayed
+  75/75/0·9,736 bytes·`48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- **D2 private state/readiness:** product `ec8877e08b0b196787ef161eb65f6987493e0ba0`, tree
+  `a8d4d5d3f1e277e6acb80da7dc914d1665d23a35`; exact 18 C/path-sorted paths total 431,891 source
+  bytes, and their plain `shasum`-row `<sha256>  <path>\n` manifest has SHA-256
+  `1738785b43832258491ae8970d09e09b252f9a98520643087f0cd88a807ab549`. Inventory correction
+  `80776b5b82effd7cf9892839400b6c6624aef845` is the exact head proven by run `32205324145`.
+  Hosted four relation coordinates each reproduced 766/766/0·78,202 bytes·
+  `c055cbaf611665988885731b2f038b204fd51915e57a89d843a2ed98b4e145d1`; SQLite stayed unchanged.
+- **D3a direct optional SQLite port:** product `2eafde10656a7f819fe5685c8ddf7d63a09f839a`, tree
+  `34a52c57368f6de98f55059ec2fc3cc0d9c1189e`; exact eight C/path-sorted paths total 359,895
+  source bytes. Their exact 901-byte size-annotated `<sha256>  <bytes>  <path>\n` manifest, including final LF,
+  has SHA-256 `5ebcaf672d0660e4ffadad166498472d7b8ca31a16776226f298c92677e6dcd9`; the corresponding
+  plain `shasum`-row `<sha256>  <path>\n` manifest has SHA-256
+  `50734641fa50ff6a6b925c414e9a394c314644b16f83b776f922c7900980cdb9`. Inventory correction
+  `ce58c5e1975e9e21d9c3ee6ed901302d5ce31bc7` is the exact head proven by run `32218003207`.
+  Hosted four relation coordinates each reproduced 798/798/0·81,414 bytes·
+  `5fd31fcbaf62bc243c8e98805e87fb196f4b9e99ffe24854063f3a090b38928f`; SQLite stayed unchanged.
+
+Each hosted run was attempt 1 and exact 26/26 jobs·342/342 recorded steps·26/26 successful checks with
+annotations 0 and audit P0/P1/P2/P3=`0/0/0/0`. D3a also passed exact Python 216/216, 13 oracle checks,
+13 checksums, 386, clean-worktree and no-rewrite gates. Raw combined-log byte/hash was not collected for D2/D3a,
+so no such value is claimed.
+
+The first independent D3a `go test -race ./... -count=1` failed only the unchanged D2
+`TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes` at about 2.01 seconds against its fixed
+2-second timeout under full-suite parallel load. Isolated race count 10 passed at about 0.6 seconds per run, the
+standard full-race retry passed at about 45.4 seconds, and full `-race -p=1` passed. DB/SQLite/D3a tests passed and
+the manifest did not change. This is recorded as an existing parallel-load timing flake, not a data race or D3a failure.
+
+The initial exact local Python command under Homebrew uv 0.12.3 failed closed with 19 `ProfileMismatch` results.
+The same exact gate rerun with PATH-pinned cached uv 0.10.12, SHA-256 prefix/suffix `905d1df4...b900`, passed
+216/216 plus 13 oracle checks. No code byte changed between those environment outcomes.
+
+D1/D2/D3a are Implemented/Verified only within those bounded slices. Current D3a capabilities are CreateModel FK
+true and Add/Remove/remake false. EVID-093 does not prove D3b, file restart or a contract-status transition.
+
+## GDJ-0035 Phase D3b loaded relation core verification
+
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)
+records the separate D3b product/correction boundary. Product commit
+`74c2b7241aca3448f999d84e625fc9233434d977`, parent
+`2be01f078a93b9570db7f2683478606756a20036`, tree
+`b957f41829f0ea9d159b78791f3de4262a68e52c` changed exact five C/path-sorted product/test paths totaling
+327,907 source bytes. The exact 518-byte size-annotated `<sha256>  <bytes>  <path>\n` payload has SHA-256
+`b271d0fa4115d0b5908c5f1eebecfa6eb3b27ffb9f31c5c96ebe063cf9ca51d9`; its corresponding exact 483-byte
+plain `shasum`-row payload has SHA-256
+`c0156f373e31a744c4fe3d0780366178f287aac5dc7e52a1105606b9895bd5ad`.
+
+Correction commit `167ef0335fcdbcafadecaacf301e6a33671d2ee3`, tree
+`8d5193b7eda06b5fd6fa5eacbc0f796cc20ac0a1`, changed only `.github/workflows/ci.yml` and
+`conformance/internal/protocol/migration_project_check_artifacts_test.go` to lock the new exact
+806/806/0·82,321-byte·`a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`
+relation-product inventory. The initially measured 518-byte non-C explicit-order manifest digest was valid but
+mislabeled as sorted; the canonical C/path-sorted size/plain digests above were independently regenerated without
+changing product bytes. This was an evidence-protocol correction, not a product failure.
+
+Local final-byte gates passed full normal/race/CGO-disabled/vet, migrations shuffle-20, focused
+state/resource and real SQLite loaded Create/Delete/reapply, Add/Remove capability rejection, scalar profile and
+alias coverage. `gofmt -d` was empty, `git diff --check` passed, and independent lifecycle and state/resource
+audits each reported P0/P1/P2/P3=`0/0/0/0`. No D3b local offline `make ci`, exact Python/oracle/checksum,
+Linux/386, clean/no-rewrite result is claimed; those gates belong only to the hosted run.
+
+Correction head `167ef03...` was verified by unique CI #84 attempt 1
+[run 32231149900](https://github.com/progresshans/godj/actions/runs/32231149900), 2026-08-19T08:08:26Z through
+08:20:01Z. It completed exact 26/26 jobs, 342/342 recorded steps, 26/26 checks and annotations 0. All four
+relation-product coordinates reproduced 806/806/0·82,321 bytes·
+`a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`; SQLite feasibility remained
+75/75/0·9,736 bytes·`48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`. Hosted exact Python
+216/216, all 13 oracle/checksum checks, Linux/386,
+clean-worktree and no-rewrite gates passed. The raw ZIP was 337,187 bytes/SHA-256
+`989cf1d8dea569f9d50aab0be013d343de620fb08c0dae6104579284b4128dda`, with 52
+members totaling 1,885,492 uncompressed bytes/15,924 LF lines and sorted-concatenation SHA-256
+`a75c4e58671fbdfe11e03e740d4842bdda0a61d08294f7a8137d9da1b9ac0e99`; the `gh run view --log` stream was
+2,592,526 bytes/15,736 lines/SHA-256
+`7d8d2fdc41003a677f66a880885a919031989ab0f782a08c0112d13c37006ed7`. Failure/warning/nonzero/fatal/panic/
+data-race/top-level FAIL/WaitDelay/incomplete markers were 0,
+and the independent hosted audit was P0/P1/P2/P3=`0/0/0/0`.
+
+D3b connects static loaded authority/readiness to exact-one fenced history, a fresh actual Planner, whole-plan dry
+validation and conditional capability selection before every begin/mutation. Normal loaded relation-bearing
+CreateModel now applies, child-first DeleteModel unapplies, and the same set reapplies through SQLite. Scalar-only
+and no-op plans make zero relation capability/begin calls, and any unsupported relation step rejects the whole
+actual plan before a scalar prefix begins. Step-global begin/PRAGMA/catalog/physical-preflight/claim failures use
+`NoOperation`; operation execution/final-FK failures keep exact operation ownership. No public API was added.
+
+At that D3b boundary, this was not MIG-075..086 product adapter/status proof. Add/Remove/remake capabilities
+remained false, file-backed close/reopen recorder epoch/revision/full-history/DAG restart remained D4 work, and
+MIG-075..086 remained `oracle_locked`; Q-010/Q-012/Q-013 remained `Partial`.
+
+## GDJ-0035 Phase D4 loaded relation file-backed restart verification
+
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)
+records exact test-only head `424ec4d80684c07e8d961d858909e394ac8de9a9`, parent `05e959a...`, tree
+`6f43ae7b902ceaa82d32ea719431c9dd8fabf96a`. It changes only
+`migrations/definition/relation_test.go`; the final file is 56,437 bytes/SHA-256
+`267fcdb1242ca3367bb39c7cc14c845182ab384a395f6d655f543b8c1366a744`, and its 32,296-byte parent diff has
+SHA-256 `bf3fa8f5432bdb11e78addb88a20cf745cf4fd185932bb5705a553efbf3eaf67`. Product source, public API,
+workflow and inventory locks are unchanged.
+
+The extended existing top-level test uses a three-node mixed DAG: legacy `authors.0001_author`, relation
+`blog.0001_article`, and legacy scalar tail `blog.0002_article_title`. Each process scope closes the file and
+discards its Backend/Set, then opens a fresh Backend and loads newly created sources in a different order. A
+read-only structured snapshot captures the 16-byte epoch, revision, 32-byte independently recomputed full-history
+fingerprint, sorted recorder history, canonical `sqlite_schema` rows, selected user rows and physical FK rows.
+It does not compare raw database-file bytes or inspect `sqlite_sequence`.
+
+The initial Latest reaches revision 3/full fingerprint `e2dfbdf7...3507`. First reopen Latest is an exact captured
+snapshot no-op; a target request then child-first unapplies the scalar tail and relation table to revision 5/branch
+fingerprint `7f42d0b7...e9b9c`. A second reopen/reload Latest reapplies to revision 7 with the same nonzero epoch and
+full fingerprint but a strictly newer revision, and the captured schema/rows/FK snapshot matches the initial
+full state. This is the bounded ABA observation. A recorder-only seed reaches revision 8/fingerprint
+`e9b4004c...049e`; unsupported forward Add and seeded reverse Remove both return the structured capability error
+and preserve the exact captured snapshot. Add/Remove/remake capabilities remain false.
+
+Local final-byte gates passed the focused test normal/race, full normal/race/CGO-disabled, `go vet ./...`, and the
+canonical `go test -shuffle=on -count=20 ./migrations/...`. Relation inventory remained exact
+806/806/0·82,321 bytes·`a326e00c...bd0`, SQLite feasibility remained 75/75/0·9,736 bytes·`48e7beb1...92ec`,
+`gofmt -d` was empty and `git diff --check` passed. The separate noncanonical overbroad
+`go test -shuffle=on -count=20 ./...` did not complete within ten minutes while an unrelated `./codegen`
+external-subprocess test remained; the D4 `migrations/definition` repetitions had passed, and the scoped
+`./migrations/...` shuffle-20 gate passed separately. The timeout is recorded, not converted into a full-repo pass
+or a D4 failure.
+
+Unique CI #86 attempt 1 [run 32248885053](https://github.com/progresshans/godj/actions/runs/32248885053),
+2026-08-19T11:42:09Z through 11:52:00Z, completed exact 26/26 jobs, 342/342 steps, 26/26 checks and annotations 0.
+All four relation coordinates reproduced 806/806/0·82,321 bytes·`a326e00c...bd0`; all four SQLite coordinates
+reproduced 75/75/0·9,736 bytes·`48e7beb1...92ec`. Exact/portable Python 216, oracle 13, checksum 13, Linux/386,
+clean 24 and no-rewrite 10 gates passed. Synthetic merge `6b543f91...0b85` had parents `[f8a5e20c...,424ec4d...]`
+and tree `6f43ae7b...61e7`, equal to the head tree. Hosted audit reported P0/P1/P2/P3=`0/0/0/0`.
+
+This verifies only the existing product path's bounded captured durable-snapshot restart scenario. It is not
+raw-file equality, `sqlite_sequence` preservation, general restart support, Add/Remove/remake implementation,
+MIG-075..086 actual adapter/status proof, Q closure, completion/terminal proof or a public API change.
+
+## GDJ-0035 Phase D4b documentation and D4c loaded relation error taxonomy verification
+
+[EVID-096](status/TEST_EVIDENCE.md#evid-20260819-096--gdj-0035-d4b-documentation-and-d4c-loaded-relation-error-taxonomy-verification)
+separates the D4b documentation proof from the later D4c test-only proof. Exact 18-document D4b head
+`84588f9e8354ae43526a6eab32b530ea302d74b6`, parent `424ec4d...`, tree `cac62023...c6ec`, passed unique
+CI #87 attempt 1 [run 32252834752](https://github.com/progresshans/godj/actions/runs/32252834752),
+2026-08-19T12:28:27Z through 12:39:12Z: exact 26/26 jobs, 342/342 steps, 26 checks, annotations 0 and hosted
+audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the D4b docs head.
+
+Exact one-test-file D4c head `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`, parent `84588f9...`, tree
+`76d5a585c5a3e8933b434b9af6dc21221fa2765a`, adds 665 lines only to
+`db/sqlite/migration_relation_test.go`. Its real `definition.Load`→`Set.Migrate`→SQLite path injects six
+`DirectionForward` `blog.0001_article` faults. Synthetic Begin, PRAGMA-set and catalog failures are
+`CategoryTransaction`/`CodeBeginFailed`/`NoOperation`; claim-busy is
+`CategoryTransaction`/`CodeHistoryRevisionContended`/`NoOperation` with a direct contended
+`RevisionFenceError` cause and exact coded sentinel; final foreign-key check is
+`CategoryExecution`/`CodeOperationFailed` owned by operation 1 `AddField`; recorder is
+`CategoryRecorder`/`CodeRecordFailed`/`NoOperation`. Synthetic Begin is wrapper-injected before the physical
+SQLite Begin/`BEGIN IMMEDIATE` sequence; it is not a failed SQL Begin observation. Every case preserves the exact
+cause, has `RollbackCause=nil`, consumes the one fault, returns state equal to the authors-only seed and leaves
+the reopened structured token/history/schema/author-row/foreign-key snapshot unchanged.
+
+The fixture is one legacy ABI-1 author CreateModel plus one ABI-2 relation-bearing blog CreateModel at operation
+0 and a zero-target scalar nullable Char `summary` AddField at operation 1 (`max_length=64`, default null). The
+second operation is not an AddNullable ForeignKey capability proof. Exact checkpoints and public/SQL rollback
+counts are `0/0/0`, `0/0/0`, `3/0/1`, `5/0/1`, `6/1/1`, `6/1/1` for Begin, PRAGMA-set, catalog,
+claim-busy, final-FK and recorder respectively. Capability/open/read/begin/close calls are one in every case;
+the connection hook is zero only for synthetic Begin and one for the other five.
+
+On final D4c bytes, focused normal/race, `./db/sqlite ./migrations/...` normal/race/CGO-disabled and focused
+`go vet` passed. Relation inventory remained exact 806/806/0·82,321 bytes·`a326e00c...bd0`. Unique CI #88
+attempt 1 [run 32256113658](https://github.com/progresshans/godj/actions/runs/32256113658),
+2026-08-19T13:05:07Z through 13:13:29Z, passed exact 26/26 jobs, 342/342 steps, 26 checks, annotations/other 0.
+Four relation and SQLite coordinates reproduced their exact locked inventories; Python 216, oracle/checksum 13,
+Linux/386, clean 24 and no-rewrite 10 gates passed. Synthetic merge `f798b83d...019c` had parents
+`[f8a5e20c...,e4fbc7b...]` and the exact head tree. Hosted audit reported P0/P1/P2/P3=`0/0/0/0`.
+
+D4c changes no product source, public API, workflow, capability, status or inventory. Capabilities remain
+`{true,false,false,false}`, MIG-075..086 remain `oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`, and GDJ-0035
+remains active/Partially Implemented. It does not prove raw database-file equality, `sqlite_sequence`, general
+restart, PRAGMA-read faults, live contention, backward or commit outcomes, global retry, actual adapter, Q closure
+or completion/terminal status. Runs #87/#88 do not recursively prove the EVID-096 exact-six documentation head.
+After that head receives its own unique hosted proof, the next separate product/evidence head is bounded
+`AddNullableForeignKey`, limited to pre-existing target snapshots sealed and resolvable in the exact loaded graph;
+arbitrary target universes are not claimed. Required-empty Add, Remove/remake, actual adapter and
+completion/terminal remain later ordered heads.
+
+## GDJ-0035 Phase D4d bounded nullable ForeignKey Add verification
+
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification)
+first closes the prior EVID-096 documentation head `62df9b2ca3bb397ec826d07b2840408544231845` with unique
+CI #89 [run 32260744096](https://github.com/progresshans/godj/actions/runs/32260744096): exact 26/26 jobs,
+342/342 steps and audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the docs head.
+
+D4d product `3950d98f10544ed18821c1af7960eb1696384eb4` changes exact six migration/SQLite source and test paths.
+It keeps public AddField `Targets` at the exact changed field only, then core and SQLite independently admit only a
+nullable, no-default, non-PK ForeignKey append where every pre-existing source relation has the same symbolic target,
+the sealed target model is relation-free and at most one nullable relation is added per source model per step. SQLite
+privately expands the ordered full target list without catalog/current-registry inference, checks aggregate node/byte
+bounds before allocation and emits native
+`ALTER TABLE "main"."source" ADD COLUMN "editor_id" INTEGER NULL REFERENCES "target" ("id") ON DELETE NO ACTION`.
+The exact capability tuple is `{true,true,false,false}`.
+
+Product tests cover empty/populated source tables, same-target existing ForeignKeys, exact mixed inline/table-level
+canonical SQL, existing-row NULL and sequence preservation, valid/orphan writes, caller-alias isolation, fresh reopen
+Latest no-op and reverse Remove rejection. Loaded core authority/resource closure is pre-capability/pre-Begin; a
+missing capability fails during selection pre-Begin. SQLite's independent static seal rejects remaining invalid/direct
+shapes before acquiring a new pinned relation connection or executing SQL `BEGIN`. Physical target-outgoing cycle/
+pre-existing drift is checked after `BEGIN IMMEDIATE` during physical preflight, but before revision claim/mutation
+and with rollback. Direct ALTER,
+post-ALTER canonical drift, final `foreign_key_check` and recorder faults retain their raw causes, execute no automatic
+retry, roll back the same transaction and preserve the reopened structured durable snapshot. Loaded ALTER/final-FK
+failures are `CategoryExecution`/`CodeOperationFailed` at the exact AddField; recorder is
+`CategoryRecorder`/`CodeRecordFailed`/`NoOperation`.
+
+Final product bytes passed `go test ./... -count=1`, focused normal/race/CGO-disabled/vet, full race and CGO-disabled
+gates, `go test -shuffle=on -count=20 ./migrations/...`, exact inventory twice and two independent focused audits with
+P0..P3=0. Inventory lock `28b141e023d5e851e25e6560fc21a463982bf1be` records exact
+821/821/0·84,006 bytes·SHA-256 `b5906bf73717353aed25c8a1b7c71deb34bbe7b2eeece0d4c4237085f80db9c2`.
+
+The first hosted inventory head, CI #90
+[run 32267789056](https://github.com/progresshans/godj/actions/runs/32267789056), completed 25 success/1 failure.
+`Relation product (macos-15-intel)` failed only
+`TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes` because its 2-second wall-clock assertion
+observed 2.01 seconds under race; hosted audit classified this P1. Fix
+`dd8336296afec1c05f739817c7ab77bdb63a2535` replaces timing with exact visited definition/operation/field counts and
+passes the focused three-test normal/race gates 50 times each plus the normal/race/CGO-disabled/vet workflow package
+set. Distinct CI #91 [run 32271361724](https://github.com/progresshans/godj/actions/runs/32271361724) passed exact
+26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0`.
+
+D4d did not change public signatures, workflow topology, reference artifacts, MIG-075..086 status or Q status.
+At that D4d head required Add/Remove-remake remained false; MIG-075..086 remained `oracle_locked`,
+Q-010/Q-012/Q-013 remained `Partial`, and D4e was the next distinct product/evidence head.
+
+## GDJ-0035 Phase D4e bounded required ForeignKey Add verification
+
+[EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification)
+first closes the EVID-097 documentation head `c59669c6fd436b243e96eaf72256535454b705ed` with unique CI #92
+[run 32278555810](https://github.com/progresshans/godj/actions/runs/32278555810): exact 26/26 jobs, 342/342 steps
+and audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the documentation head.
+
+D4e product `7c07805918dd680bfd5f85440d71aa14825972b6` changes exact six migration/SQLite source and test paths.
+It extends the same closed public changed-target-only/private same-target authority to an exact appended, no-default,
+non-PK, non-null `PROTECT` ForeignKey. Nullable and required Adds share one source-model/step limit. Existing source
+emptiness is queried on the exact pinned connection after `PRAGMA foreign_keys=1` and `BEGIN IMMEDIATE`, before
+revision claim; a source created earlier in the same intent is statically empty and performs no query. SQLite emits
+`ALTER TABLE "main"."news_article" ADD COLUMN "reviewer_id" INTEGER NOT NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION`.
+The exact capability tuple is `{true,true,true,false}`.
+
+Tests cover direct and normal loaded empty-source success, populated-source pre-claim rejection, same-intent created
+source, `pragma_table_xinfo.notnull=1`, exact FK metadata, valid inserts and NULL/orphan rejection, target row/sequence
+preservation, fresh reopen/Latest no-op and reverse Remove rejection. Core dry/rematerialization authority failures
+remain pre-capability/pre-Begin. SQLite independent direct static seal failures remain
+pre-new-pinned-connection/pre-SQL-BEGIN. Raw empty-source query faults are
+`CategoryTransaction/CodeBeginFailed` with `NoOperation`; native ALTER/final-FK faults are
+`CategoryExecution/CodeOperationFailed` on exact `AddField`; recorder faults are
+`CategoryRecorder/CodeRecordFailed` with `NoOperation`. Clean rollback retains `RollbackCause=nil`, structured
+snapshot equality and sticky no-retry.
+
+Frozen product bytes passed `git diff --check`, gofmt, normal/race/CGO-disabled tests for
+`./migrations ./db/sqlite ./migrations/definition`, vet, `go test -count=1 ./...` and Linux/386 builds for those three
+packages. Focused required+nullable normal count-10 and race count-3 gates also passed; independent core normal/race
+and SQLite exact-12 normal/race auditors reported P0/P1/P2/P3=`0/0/0/0`. Inventory correction
+`1d86f6e921ec57403980423b83efc17a248a3864` locks exact 827/827/0, 84,674 bytes and SHA-256
+`0ed230272d623ec6de97b05469814e2acee7ee9cab28b1164658e45ba9dc7b2c` while Phase B remains 75/75/0,
+9,736 bytes and `48e7beb1...92ec`.
+
+Unique CI #93 [run 32282269755](https://github.com/progresshans/godj/actions/runs/32282269755) passed exact
+26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0` on exact final head
+`1d86f6e...`. D4e changes no public API, reference artifact, product adapter or contract/Q status. MIG-075..086
+remain `oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`, Remove/remake remains false, and general restart,
+actual adapter, completion and terminal status remain later work. Next is D4f `RemoveForeignKeyByTableRemake` on a
+distinct product/evidence head.
+
+## GDJ-0035 Phase D4f bounded ForeignKey Remove by table remake verification
+
+[EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification)
+first closes the EVID-098 documentation head `85f92704ded6b9d6bd7da32b3fcff12fe747f74b` with unique CI #94
+[run 32288383027](https://github.com/progresshans/godj/actions/runs/32288383027): exact 26/26 jobs, 342/342 steps
+and audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the documentation head.
+
+D4f product `4982e27437b575cf202b55e7ce8c01fd56a94c9c` changes exact eight migration/SQLite source and test paths
+with `+1608/-119`; inventory lock `9d5b894643f3394974c91a1127534b219840e0a1` changes exact two CI/protocol
+expectation paths with `+6/-6`. The normal loaded core accepts only the backward/unapply inverse of an exact appended,
+no-default, non-PK ForeignKey: nullable `PROTECT` or `SET_NULL`, and required `PROTECT`. The frozen D4f direct E2E
+fixtures cover nullable `PROTECT` and required `PROTECT`; no dedicated nullable `SET_NULL` D4f E2E proof is claimed.
+Public `Targets` remains the exact changed target one. Dry validation and execution rematerialization require
+same-symbolic-target source closure, a relation-free
+target with exact one non-null AutoField PK, and at most one relation mutation per source model/step. A false
+`RemoveForeignKeyByTableRemake` capability fails before every Begin and publishes no state. The exact capability tuple
+is `{true,true,true,true}`; no public API/signature/entrypoint was added.
+
+SQLite selects one exact field-order/prefix authority candidate. On the exact pinned connection it executes
+`BEGIN IMMEDIATE`, then rejects before revision claim an inbound FK to the remake source, a non-PK index on that
+source, a trigger/view owning or referencing a touched/control table, generated/hidden columns or unsupported options
+on relevant tables, an invalid/case-variant/noninteger/negative `sqlite_sequence` row, or a namespace/temp/control
+collision. Unrelated harmless objects are permitted. The temp name is `__godj_relation_` plus 32 lowercase hexadecimal characters
+from the first 16 bytes of SHA-256 over a versioned, unsigned-64 big-endian length-framed transition tuple. After claim,
+one existing fenced transaction performs count → temp CREATE → explicit retained-column PK-order copy →
+`RowsAffected` plus stored-count equality → source DROP → temp RENAME → sequence clear/restore/verify → final canonical
+schema/FKs/`foreign_key_check` → recorder/successor revision → one commit.
+
+Tests preserve user rows, PK/column values, the remaining same-target ForeignKey and exact source/target high-water
+sequence. Nullable Add can reopen, reverse-remake, reopen and reapply. A populated required source can reverse-remove,
+but the later forward required reapply correctly fails the existing nonempty-source rule without snapshot drift.
+Closed-shape hazards fail pre-claim. CREATE/copy/DROP/RENAME/sequence-clear/sequence-restore/final-FK faults preserve
+the original cause through `errors.Is`, roll back exactly once, do not retry and leak no temp table. Even a coded
+`SQLITE_BUSY` in those post-claim stages remains `CategoryExecution/CodeOperationFailed` owned by the original
+backward `AddField`; recorder failure is `CategoryRecorder/CodeRecordFailed` with `NoOperation`.
+
+Frozen product bytes passed scoped normal/race tests for `./migrations ./db/sqlite ./migrations/definition`, focused
+authority/remake/sequence/temp/inbound/fault/restart/reapply normal count-10 and race count-3 gates, vet, gofmt,
+`git diff --check`, exported-API/static scans and independent core/SQLite audits at P0/P1/P2/P3=`0/0/0/0`.
+The exact eight product files are 730,772 bytes; product manifest/raw/framed hashes and the config-neutral full-index
+diff are recorded in EVID-099. The final inventory is exact 837/837/0, 85,756 bytes and SHA-256
+`c30c14ac691bb942d9f694d293b1917152231e0ba534b5d89010ce10707eb910`; Phase B remains exact 75/75/0,
+9,736 bytes and `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+
+Unique CI #95 [run 32294983953](https://github.com/progresshans/godj/actions/runs/32294983953) passed exact
+26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0` on exact final head
+`9d5b894...`. At that checkout D4f changed no reference artifact, product adapter or contract/Q status;
+MIG-075..086 remained `oracle_locked`, Q-010/Q-012/Q-013 remained `Partial`, and GDJ-0035 remained
+active/Partially Implemented. Arbitrary/
+general remake, preserving unrecognized indexes/triggers/views/generated columns/options, inbound/self/cyclic/
+different/nested/non-AutoField/`to_field`/M2M/non-SQLite relations, populated required Add/reapply, raw-file equality,
+general restart, writer/autodetector, actual adapter, completion and terminal status remain later or excluded work.
+
+The planned next D4g action was oracle-blind observer-only characterization with all 12 MIG statuses locked.
+GDJ-0036 retired that publication sequence before execution; it did not authorize a deviation or convert the
+historical MIG-075..086 artifact into current product status.
+
+## GDJ-0040 Phase A query-expression reference verification
+
+Phase A는 QRY-034..043의 independent Django scenario, runner binding, manifest/oracle/static fixture와 protocol
+registration만 검증합니다. Scenario는 manifest/oracle/static expected bytes를 읽지 않으며 public `Q`와
+`QuerySet` 결과, DB state와 normalized metrics를 관찰합니다. Exact profile 밖에서는 locked-oracle regeneration
+test를 expected skip하고 portable registry/artifact validation을 실행합니다.
+
+Focused scenario module은 exact profile에서 7/7을 통과했습니다. Scenario/registry/runner-safety focused 묶음은
+exact profile에서 60/60, portable environment에서 60 tests/16 expected skips를 통과했습니다. 전체 portable
+Python은 236 tests/21 expected skips이고 semantic registry는 exact 161 scenarios/702,415 bytes/SHA-256
+`aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니다. Reference drift check와
+oracle/static fixture에 대한 두 `contractcheck`도 통과했습니다.
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC \
+  uv run --frozen python -m unittest \
+  conformance.runners.django.tests.test_query_expression_scenarios \
+  conformance.runners.django.tests.test_scenarios \
+  conformance.runners.django.tests.test_runner_safety -v
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.queryexpression.reference
+```
+
+Artifact exact bytes/SHA-256은 manifest
+8,135/`8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`, oracle
+41,264/`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`, ordered NI fixture
+1,715/`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. Reference inventory는
+15/161/210의 `134 passing + 5 deviation + 22 oracle_locked`, product inventory는 13 adapters/139 contracts의
+`134 passing + 5 deviation + 0 oracle_locked`로 서로 분리합니다. Phase A에서 Go unit/backend/Article actual,
+race/CGO0/vet/full/386/hosted product matrix를 실행했다고 주장하지 않으며 QRY-034..043 status도 전환하지 않습니다.
+
+## GDJ-0040 Phase B/C Boolean product verification
+
+Phase B/C source `86d6b169...`와 actual `0ec6f385...`는 independent reference scenario나 checked-in expected
+artifact를 읽지 않는 GoDj registry를 정확히 10개 등록합니다. 실제 Article ORM/SQLite를 실행하고 compiled
+where shape, deterministic DFS parameter order, result, DB state와 metrics를 protocol observation으로 만듭니다.
+두 독립 actual은 41,134 bytes/SHA-256
+`20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical하고 locked
+oracle과 10/10 zero-diff입니다.
+
+Manifest는 status 10개만 `passing`으로 바뀐 8,075 bytes/SHA-256
+`e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`입니다. Oracle/static/checksum bytes는
+Phase A와 동일합니다. Reference aggregate는 15/161/210=`144 passing + 5 deviation + 12 oracle_locked`,
+product는 14 adapters/149 contracts=`144 passing + 5 deviation`입니다.
+
+Affected gate는 query/orm/SQLite/PostgreSQL/Article/compiletest/conformance normal·race·CGO-disabled·vet,
+generated drift, `make conformance-check`, `make godj-conformance`, local PostgreSQL 17.5 required normal/race actual,
+format/diff와 두 독립 audit입니다. 자세한 명령과 non-claim은
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)에
+기록합니다. 이 checkpoint 자체는 final gate를 주장하지 않습니다. 이어진
+[EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은 full `make ci`,
+Linux/386와 repository-external source-clean-copy를 한 번 통과했고 exact-head hosted만 남깁니다.
+
+첫 submitted head의 hosted run `32641160967`은 underlying Go tests가 아니라 relation-product exact inventory의
+stale 916-test assertion에서만 네 좌표가 실패했습니다. Current list를 모든 raw log와 로컬에서 재계산한 exact lock은
+950/950/0, 97,469 bytes, SHA-256 `7c1546c3...`입니다. Workflow와 protocol mirror만 바꾼 `73b912d...`에서
+full/386/repository-external source-clean-copy를 모두 다시 실행했습니다. 실패 topology와 corrected local refreeze는
+[EVID-114](status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)에
+기록합니다. Corrected submitted head `136e825...`의
+[EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
+run `32642341459`은 exact 27/27 jobs·341/341 steps, 네 relation-product 좌표 950/950/0과
+PostgreSQL 17.10/QRY-034..043 actual을 통과해 terminal success를 고정했습니다.
+
+## GDJ-0041 typed comparison/F reference local and hosted verification
+
+Phase A에서 QRY-044..053 신규 10개를 `oracle_locked`로 고정한 manifest는 16,652 bytes/
+`90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3`였습니다. Oracle/ordered NI fixture는
+87,852/2,465 bytes와
+`4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`/
+`7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`입니다. 당시 reference는
+15/171/210=`144 passing + 5 deviation + 22 oracle_locked`, product는
+14/159=`144 passing + 5 deviation + 10 oracle_locked`였고 제품 actual을 주장하지 않았습니다.
+
+Current manifest는 신규 status 10개를 `passing`으로 전환한 16,592 bytes/
+`a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`입니다. Oracle-blind GoDj/SQLite
+adapter 두 번의 actual은 각각 87,592 bytes/
+`c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical하고
+QRY-034..053 20/20, 신규 QRY-044..053 10/10 result/DB-state/metrics zero-diff입니다. Reference aggregate는
+15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
+14/159=`154 passing + 5 deviation + 0 oracle_locked`입니다.
+
+Frozen source HEAD `7f2bb2232afa7d71bea56d8910a52a045ec11faa`/tree
+`221467b95b712dfed199b12f5a14ed17d987a7ac`에서 affected normal/race/CGO-disabled/vet/generated drift,
+full `make ci`, 386, repository-external source-clean-copy와 independent frozen-byte audit가 통과했습니다.
+이 local-final은 typed literal/reference AST, SQLite/PostgreSQL identifier RHS와 nullable odd/even `NOT`, Article
+advanced invalid zero-I/O/success exactly-two-query 경계를 포함합니다. Submitted head `e97a4e3...`의
+[EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) / run `32647746430`은
+exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0, Python 4좌표와 PostgreSQL 17.10 required 12/12·restart를
+통과했습니다. 따라서 QRY-044..053은 hosted `Verified`, GDJ-0041은 completed입니다.
+
+## GDJ-0042 project-linked runserver test boundary
+
+Current source checkpoint `810149fd90ecf0b3a9cb7b4b98344476082ce769`/tree
+`682b037e71040e7373d8da303cc618207abd4643`는 global `godj runserver`의 WEB-011..020 제품 경로와
+`conformance/runserverproduct`를 연결합니다. 이 checkpoint는 다음 층을 의도적으로 분리합니다.
+
+- `internal/projectcheck` unit/orchestration test는 strict optional `runserver_package`, closed four-form argv,
+  exact loopback address, invalid-before-selection, one retained selection/declaration build-run, runtime build 앞뒤
+  `CheckRoot`, private cache/temp/home build env와 exact ambient runtime env, exact child argv와 closed failure/exit taxonomy를 소유합니다.
+  Private keys 교체와 safe local module proxy의 `GOPROXY` prepend를 제외한 non-private ambient 변수가 build/runner에 남는
+  documented credential-isolation limit도 이 경계에 포함합니다.
+  Stale/missing/mixed/interrupted bundle과 runtime build failure는 publish/migrate/runtime start/project-tree write 0으로
+  닫습니다.
+- Unix process test는 shell 없는 process-group start, stdout/stderr streaming, SIGINT, bounded grace, conditional
+  SIGKILL, direct `Wait` exactly once, held pipe/descendant와 output writer failure의 bounded force/reap를 검증합니다.
+  In-flight drain count와 injected failure ownership은 이 층의 증거이며 black-box HTTP test에 귀속하지 않습니다.
+- Actual SQLite sentinel은 global CLI가 pre-migrated Article project를 같은 concrete loopback port에서 반복 start/stop하고
+  advanced Article HTTP response, durable exact nine rows/history, exact declaration/runtime Go build 대상, project-tree
+  no-write, process-group/temp residue 0을 관찰합니다. Missing/modified/interrupted generated state는 actual global
+  command에서 runtime/DB 생성 전에 exit 1로 닫습니다.
+- Actual PostgreSQL sentinel `TestGlobalRunserverArticlePostgresDevelopmentLoop`는 isolated schema와 pre-migrated
+  exact nine rows를 준비하고 같은 global CLI/Article HTTP 흐름, clean SIGINT/reap, durable DB state, build audit,
+  secret-free output와 project-tree/temp no-write를 관찰합니다. PostgreSQL job은
+  `GODJ_TEST_POSTGRES_URL`과 `GODJ_REQUIRE_POSTGRES=1`로 이 sentinel을 required/skip-0으로 실행하며, runtime에는
+  example-owned `GODJ_ARTICLE_POSTGRES_URL`/`GODJ_ARTICLE_POSTGRES_SCHEMA` pair만 전달합니다.
+
+Actual child HTTP는 response와 durable state를 보는 black-box proof입니다. 기존 Article in-process test의
+exactly-two-query instrumentation을 실행하지 않으므로 query count나 Django differential parity를 이 sentinel에서
+새로 주장하지 않습니다. `go test -race`는 Go test harness와 해당 process/orchestration code를 instrument하지만 그
+test가 일반 `go build`로 만든 global/runtime child binary를 race-instrumented product라고 뜻하지도 않습니다.
+
+이 gate는 auto-generate/migrate/reload가 없는 Darwin/Linux loopback development lifecycle에 한정합니다. Windows,
+non-loopback/TLS, production serving, parent fatal-exit scavenging과 independently daemonized descendant 보장은 범위
+밖입니다. Initial documentation checkpoint `47b0eb8...`는 EVID-120 local final을 통과했지만 first submitted
+`46a57aa...` run은 macOS Intel product job의 20-minute cap에서 취소됐습니다. Correction `2b49938...`/tree
+`fd22754e...`는 product matrix만 30분으로 잠그고 EVID-121의 full, Linux/386 all-package compile-only,
+803-file repository-external source-clean-copy와 두 independent audit를 다시 통과했습니다. Corrected submitted
+`2bfdbd5...`/tree `292b82a...`의
+[EVID-122](status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
+run `32659704239`는 four-coordinate portable required sentinel 12 pass·skip 0, PostgreSQL 17.10의 기존
+12+runserver required sentinel 13 pass·skip 0과 exact 27/27 jobs·358/358 steps를 통과했습니다. 같은 PostgreSQL
+job의 별도 restart step 재통과는 기존 restart gate의 증거이고 새 black-box runserver test의 query-count/restart
+주장으로 귀속하지 않습니다.

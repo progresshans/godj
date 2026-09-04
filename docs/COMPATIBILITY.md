@@ -3,9 +3,91 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-08
+- 마지막 scoped/local/terminal compatibility-changing product checkpoint: GDJ-0055 exact source
+  `0b5b6fc6ec60e1704e5cebfaebd771b682d001ee`, tree `dac6baa72f5aaaa54f4959a5ee16e988cc16df61`가
+  PostgreSQL source-bound A/B, Linux/386 compile-only, 1,321-file `.git`-free archive와 Hosted run `33899930122`의
+  79/79 jobs·797/797 steps를 통과했습니다. Current system-state attestation은 1,134 bytes/SHA-256
+  `5f2ae5c4...f69dd`, source binding은 281 files/3,714,953 bytes/SHA-256 `d4b0579c...51c34`이고 external operator
+  attestation은 1,811 bytes/SHA-256 `43ea9878...29069`, source binding은 336 files/3,593,191 bytes/SHA-256
+  `4f63ff58...3a3e24`입니다.
+- 직전 ABI/contract-neutral product/Hosted regression checkpoint: GDJ-0053 exact head `21a8d678...`, tree
+  `dc8425f7...`의 [EVID-171](status/TEST_EVIDENCE.md#evid-20260831-171--gdj-0053-exact-head-hosted-completion) / CI #191이
+  53/53 jobs·572/572 steps를 통과했습니다. 이 proof는 aggregate를 바꾸지 않습니다.
+- GDJ-0054 historical reference-only checkpoint: Phase A source
+  `c3de0d35b3dce4fd0a5c0dde4cc16b85923a14a0`, tree `1af05572ed3a5f50219fe48b810262a37ca7f46f`가
+  MIG-129..138을 당시 `oracle_locked`로 고정했습니다. 이 source가 만든 stale-attestation 진단은 당시 정확한 fail-closed
+  증거로 보존되며 이후 Phase D publication으로 supersede됐습니다. 이는 product/Hosted checkpoint나 command 구현을
+  대체하지 않으며 근거는
+  [EVID-173](status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)입니다.
+- GDJ-0054 implementation checkpoints: Phase B source
+  `f51ab7339753508ed070a8ba6da1c917cb3ce392`, tree `ab71e8a09cbddb01c4d0054d955ad722af9db6d9`가 pure
+  materializer, public renderer port, SQLite/PostgreSQL compiler-backed renderer와 direct project config를 구현했습니다.
+  [EVID-174](status/TEST_EVIDENCE.md#evid-20260831-174--gdj-0054-phase-b-pure-sql-projection-core-and-built-in-renderer-checkpoint)은
+  affected local gates를 소유합니다. Phase C source `a304a73d80b0512b6594d512938874e2456d1292`, tree
+  `f8df2d405152eade4f5748c2f36398ca2e87b75a`는 strict private/global command, canonical one-write owner, Article
+  one-frozen-selection과 repository-external SQLite public-only no-DB flow를 구현했습니다.
+  [EVID-175](status/TEST_EVIDENCE.md#evid-20260831-175--gdj-0054-phase-c-project-linked-sqlmigrate-and-external-sqlite-checkpoint)은
+  affected/external local gates를 소유합니다. Phase D source `a85ade1ee6a183fee504a21505798914abf6fa43`, tree
+  `211e1ad86067be8d1d1fc119b592e3e87407c064`와 attestation publication `9603cc6568f9f41046e3a32909b3e4e7316a2914`,
+  tree `d6fa714a04f11e02fc6e5ff5a5405d37f972227b`는 PostgreSQL schema-only current-profile, actual child
+  cancellation/reap, oracle-blind actual/policy와 source-bound A/B를 EVID-176에서 local-verify했습니다. Corrected exact source의
+  full/386/relation/archive/Hosted terminal acceptance는 EVID-177이 소유합니다.
+- 현재 design: GDJ-0049..0055 completed, ADR-0051..0056 Accepted입니다. GDJ-0054는 exact forward-only DB-free
+  `sqlmigrate` 경계를, GDJ-0055는 exact TTY operator provision-once와 raw-password-free `OpenExisting` 경계를 구현했습니다.
+  Reference 27/311/702=`274 passing + 25 deviation + 12 oracle_locked`, product
+  26/299=`274 passing + 25 deviation`; SYS-021..030과 MIG-119..121/123..138은 product `passing`, MIG-122는 Verified
+  DEV-0002 `deviation`, reference-only locked range는 MIG-075..086입니다. MIG-129..138은 exact ten `passing` actual을 가지며
+  active/ready work 상태는 [CURRENT](status/CURRENT.md)를 단일 정본으로 사용합니다.
+  GDJ-0052 Phase A/Phase C/Phase D 근거는
+  [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
+  [EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),
+  [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening),
+  predecessor full-local과 corrected-source refreeze는 각각
+  [EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)와
+  [EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze),
+  terminal product proof는 [EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion),
+  GDJ-0054 Phase A reference-only proof는
+  [EVID-173](status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock), current Phase D product/
+  attestation proof는 [EVID-176](status/TEST_EVIDENCE.md#evid-20260831-176--gdj-0054-phase-d-postgresql-product-publication-and-source-bound-attestation),
+  GDJ-0054 terminal proof는 [EVID-177](status/TEST_EVIDENCE.md#evid-20260831-177--gdj-0054-corrected-phase-e-local-archive-and-exact-head-hosted-completion),
+  GDJ-0055 terminal proof는
+  [EVID-179](status/TEST_EVIDENCE.md#evid-20260905-179--gdj-0055-explicit-operator-provisioning-terminal-acceptance)입니다.
+- 현재 형식 mirror 검토: 2026-09-05
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
+
+## Pre-release current-format policy
+
+Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)의 historical
+“첫 외부 alpha”는 버전 이름이 아니라 첫 externally supported public release를 뜻하는 compatibility trigger입니다.
+그 시점 이전의 GoDj 내부
+format/generated ABI는 하위호환 대상이 아닙니다. 이는 Django observable contract를
+버린다는 뜻이 아니라, 개발 중 GoDj v2/v3를 배포된 두 세대처럼 동시에 읽지 않는다는 뜻입니다.
+
+- Schema IR, Definition wire/digest와 historical `ProjectState`는 각각 current version 1 하나만 지원합니다.
+  Unknown version은 계속 fail-closed합니다.
+- `definition.Load`는 opaque `migrations.LoadedDefinitionSet`을 만들고 public lifecycle은
+  `Executor.Migrate(ctx, loaded, request)` 하나입니다. Raw scalar `Apply`/`Unapply`/`ExecutePlan`은 별도
+  `DirectExecutor` 책임이고 relation-bearing raw input은 capability error입니다.
+- Backend는 mandatory `MigrationCapabilities`와 `BeginMigration(HistoryTransition, MigrationIntent)` 하나를
+  사용합니다. Historical scalar/relation state도 하나의 current `StateReconstructor` 계약으로 수렴합니다.
+- MIG-057..064는 single `format_version`, current digest, `execution`/`lifecycle`/`session_open_calls` vocabulary와
+  opaque loaded executor 의미로 재기준화됐습니다. MIG-065..074의 definition-set digest/provenance도 같은 current
+  format으로 재기준화됐으며 contract ID와 `passing` 상태는 유지합니다.
+- GDJ-0035 Phase-B의 legacy tuple/profile/promotion artifact와 product publication sequence는 retire됐습니다.
+  그 정확한 옛 bytes/EVID는 역사 기록입니다. 현재 checked-in MIG-075..086 manifest/oracle은 ADR-0035
+  current-only 진단 reference로 다시 생성됐고 reference aggregate에는 포함되지만, 계속
+  `oracle_locked`/unregistered라 제품 지원 또는 status 전환 주장은 아닙니다.
+
+Current-only reset은 EVID-103의 hosted gate까지 완료됐습니다. GDJ-0037의 format-1 manifest read-old/write-current는
+첫 externally supported release 전 내부 generated upgrade/recovery 계약이며 공개 하위호환 보장은 아닙니다. GDJ-0037은 final
+full/386/repository-external source-clean-copy local gates와 exact correction head `d4643068...`의
+[EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+26/26 jobs·326/326 steps를 통과해 project publication 하위 경계에서 completed/hosted-verified됐습니다. Q-010은
+`Partial`입니다. Completed [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과
+Accepted [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 current facade v3의 raw scalar/app method
+promotion, namespace/reconciliation/copy/JSON 경계를 EVID-142/CI #159에서 hosted-verified했습니다. Q-017은
+reverse/general facade와 첫 외부 지원 릴리스 이후 일반 upgrader/semver 호환 때문에 P1/open입니다.
 
 ## 프로필 범위
 
@@ -32,7 +114,115 @@ CPython 3.14.3은 Django 6.1이 지원하는 minor이지만 현재 최신 micro�
 따라서 이 조합을 “Django가 최신 micro에서 공식 지원하는 profile”이 아니라 GoDj가
 재현한 exact reference profile로 표현합니다.
 
-DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함되지만, 참조 프로젝트와 정확한 버전은 아직 정하지 않았습니다. Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
+이 표의 uv 0.10.12는 historical exact darwin artifact payload의 일부입니다. 일상 local/Ubuntu
+portable 및 별도 Python compatibility matrix는 uv 0.12.3을 사용합니다. Compatibility matrix는 exact
+CPython 3.12.13/3.13.15/3.14.3/3.14.7과 같은 Django/asgiref/sqlparse dependency를 검증하도록
+구성됐고 GDJ-0022 fix head run `31329294154`에서 네 leg 모두 통과했습니다. Historical exact darwin은
+계속 uv 0.10.12를 사용합니다.
+
+DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함됩니다. Completed GDJ-0044는
+API half에 한해 별도 exact profile `drf-3.18.0-django-6.1-sqlite-darwin-arm64`을 선택하고 bounded first
+product slice까지 검증했습니다.
+
+- DRF 3.18.0 tag commit `11875a38f483cea69d8ef2fd9ede6b96fb602ec4`
+- Wheel `djangorestframework-3.18.0-py3-none-any.whl` SHA-256
+  `381fc44d3249c9565c5f723850855b734e99030eb30957a49f506d3fe11d7dcb`
+- Django 6.1 / CPython 3.14.3 / SQLite 3.50.4와 기존 UTC/C/en-us/Darwin arm64 fingerprint
+- 기존 root `uv.lock` 대신 isolated `conformance/reference/drf/uv.lock`; 기존 18개 Django-only oracle/profile bytes는
+  rewrite하지 않음
+- First compatibility surface: JSON parser/renderer, full/partial Article serializer,
+  SessionAuthentication-style anonymous 403와 authenticated unsafe-method CSRF, per-method permission,
+  fixed PageNumber pagination, SimpleRouter trailing slash와 list/create/retrieve/PUT/PATCH/delete
+
+Accepted ADR-0045/0046 아래 WEB-028..035/API-001..010은 exact `13 passing + 5 deviation`입니다. WEB-028/029는
+Verified DEV-0006, API-001/003/010은 Verified DEV-0007이고 나머지 13개는 passing입니다. Exact source
+`d9c1971...`의 당시 global reference는 20 sets/219 contracts/380 ordered bindings=`192 passing + 15 deviation + 12
+oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이었고 local/hosted 결과는
+[EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
+[EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
+
+Current checkout은 GDJ-0045의 one-runtime restart와 GDJ-0046 cooperative multi-runtime actual을 보존하면서 GDJ-0047
+Bearer authentication profile actual, GDJ-0049 migration-command actual, GDJ-0050 migration-writer, GDJ-0051
+migration-status, GDJ-0052 hosted-verified target-plan, GDJ-0054 SQL-projection과 GDJ-0055 explicit operator를 함께 게시합니다.
+Reference는 27 sets/311 contracts/702 ordered bindings=`274 passing + 25 deviation + 12 oracle_locked`, product는
+26 adapters/299 contracts=`274 passing + 25 deviation`입니다. SYS-001..008/010..030은 `passing`, SYS-009는 Verified DEV-0008
+`deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Verified DEV-0009
+`deviation`이고 MIG-087..102/108..118은 product `passing`, MIG-103..107은 Verified DEV-0010 `deviation`입니다.
+MIG-119..121/123..138은 product `passing`, MIG-122는 lifecycle MIG-052와 분리된 세 `result.plan[0..2]`
+selector의 Verified DEV-0002 `deviation`이며 현재 reference-only locked range는 MIG-075..086입니다. GDJ-0052 Phase C는
+external public-only module의 SQLite named/zero/plan/reverse failure-resume를 local-verify했고, Phase D source
+`a92efb5...`, tree `06f90a9...`는 PostgreSQL 17.10 normal/race/CGO0, MIG-127/full MIG-128과 25번째
+oracle-blind adapter를 완료했습니다. Phase E의 predecessor full-local/current-source refreeze와 exact-head Hosted도
+완료됐습니다. GDJ-0054 Phase D source `a85ade1...`와 attestation publication `9603cc6...`은 PostgreSQL
+schema-only current-profile, actual child cancellation/reap, MIG-129..138 actual/policy와 source-bound A/B를 EVID-176에서
+local-verify했습니다. Corrected exact source `cc42c4f...`의 EVID-177은 current A/B와 full/386/relation/archive/Hosted Phase E를
+완료해 ADR-0055/GDJ-0054를 Accepted/completed로 닫았습니다.
+GDJ-0055 exact source `0b5b6fc6...`의 EVID-179는 explicit provision/OpenExisting actual, current source-bound A/B,
+Linux/386/archive와 79-job Hosted를 완료해 ADR-0056/GDJ-0055를 Accepted/completed로 닫았습니다.
+[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)이
+Phase D local checkpoint를,
+[EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)가
+predecessor full-local을,
+[EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)이
+corrected-source refreeze를,
+[EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)이 terminal Hosted를
+고정합니다.
+MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
+MIG-107의 stable GoDj error taxonomy는 exact 열아홉 sparse result replacement로 제한됩니다. MIG-107의 reference는 Django
+관찰이 아니라 Phase-A GoDj decision oracle taxonomy이며 DEV-0010이 이를 명시적으로 supersede합니다. GDJ-0050은
+PostgreSQL 17.10 normal/race/CGO-disabled actual, repository-external public module과 당시 Phase E local final을 통과했습니다. Exact submitted
+tree `48994a0...`는 EVID-153/CI #171 run `33280434425`의 same-head failed-job rerun 뒤 effective
+41/41 jobs·464/464 steps로 corrected exact-head Hosted terminal gate도 통과했습니다.
+GDJ-0046 Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
+`92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`와 legacy SYS-001..012 Go actual
+12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`는 historical lock으로 보존됩니다.
+GDJ-0050 Phase A historical manifest/NI/oracle 8,864/1,876/25,980 bytes와 SHA-256
+`75b3f485...5d1e`/`b27563a8...5502`/`9068d0e6...fd41`도 소급 rewrite하지 않습니다. Phase D current manifest는
+9,227 bytes/SHA-256 `90bce609...f1c72`, DEV-0010 sparse expectation은 7,242 bytes/SHA-256
+`74617f20...4718e`입니다.
+
+Accepted [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)과 completed
+[GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)은 ordinary `db.Atomic`을
+바꾸지 않는 additive coordinated transaction, fenced `systemstate.Runtime`/Article writer, opaque active/validation CSRF key ring과
+실제 two-process SQLite/PostgreSQL restart를 SYS-013..020에서 검증했습니다. Corrected frozen source
+`29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree `4f061289b240b4739ec43155b08b5909e95eddc0`의 GDJ-0046 terminal
+system-state manifest/oracle은 11,143/21,242 bytes와 SHA-256
+`b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09`/
+`d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`입니다.
+
+GDJ-0046 terminal의 checked PostgreSQL 17.10 attestation은 당시 behavioral source 250 files/2,855,113 payload bytes/SHA-256
+`b0356da11869a1bfaf8573ea0734913f56529d9acfe25dd68b4aeaadcb72abb8`에 묶인 1,134 bytes/SHA-256
+`52fc003389b9131cf11a1da0deb013be18c0571503a012eb11b6cd31e04cc1ca`입니다. Local full/386/1,055-file external
+archive와 exact hosted proof는 [EVID-133](status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final) /
+[EVID-134](status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)에 분리해 기록합니다.
+SYS-001..012 bytes/classification과 zero-config DEV-0008은 바뀌지 않았습니다. General Unique/Integer/CAS IR,
+non-cooperative writer, family-wide revocation, JWT/OAuth와 production readiness는 이 작업으로 지원되지 않습니다.
+
+Completed [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Accepted
+[ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 first-party durable session+CSRF를 기본 profile로 보존하고,
+BFF/independent client용 strict Bearer adapter를 같은 Principal/Permission core에 연결하는 bounded slice입니다. Exact 열 계약의
+oracle-blind actual은 DEV-0009 sparse expectation과 10/10을 통과했습니다. SQLite E2E와 corrected current source
+`14e47c9ba18a698cae52f7167c53148cd552f175` / tree `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`의
+digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0 및 two-process
+attestation도 통과했습니다. GDJ-0048 correction `a2c067c...`에서 갱신한 current attestation은 source binding
+257 files/2,942,402 bytes/`e6798d648d1023c00375f61009428106e4a4274d502a51cbf46613a3d185ba71`, checked
+bytes 1,134/`ef0e2e69ec4b79e44d85d455544164deec85b924a3ad1f872534ff1bd919d108`입니다. EVID-141에서
+current relation inventory 1,073/1,073/0, `make godj-conformance`, affected normal/race/CGO0/vet/generate, required
+PostgreSQL 18/18·skip 0와 full `make ci`/Linux 386/external archive/audit가 다시 통과했습니다. EVID-142/CI #159는
+exact 27/27 jobs·360/360 steps로 같은 corrected bytes를 hosted-verify했습니다. EVID-139/140은 각 이전 exact source의
+역사 증거로 보존합니다.
+Initial exact submitted-head run `33044776835`는 26 successful jobs와
+macOS Intel product job 한 건의 30분 timeout/cancellation으로 끝났고 완료된 steps와 수집 로그의 제품 assertion failure
+표식은 0이었습니다. EVID-137의
+Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze도 통과했습니다.
+Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
+[EVID-138](status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
+`33049861740`이 exact 27/27 jobs·360/360 steps success로 통과해 ADR-0049는 Accepted, DEV-0009는 Verified입니다.
+Bearer transport/resource-server support가 JWT/opaque issuance를 뜻하지 않으며
+refresh/OAuth/OIDC/key lifecycle과 production BFF는 계속 open입니다.
+
+OpenAPI, browsable API, broader token lifecycle과 Channels/Realtime exact version은 여전히 open이므로 Q-016/Q-021은 `Partial`입니다.
+Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 
 ## 호환성 차원
 
@@ -86,7 +276,7 @@ DB-xxx   Backend 공통 계약
 
 - contract ID와 설명
 - 정확한 reference profile
-- Django 문서 또는 테스트 경로
+- Reference provenance: Django source/문서/test 경로 또는 Accepted ADR decision
 - 입력, fixture, 연산
 - 결과, 순서 보장, 부작용
 - 안정적인 오류 범주
@@ -235,7 +425,8 @@ Accepted [ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 load
 deep-copy하는 immutable `StateReconstructor`, explicit empty/latest/before/after/applied
 request와 여덟 번째 live adapter를 구현했습니다. Applied scenario는 real SQLite recorder를
 read-only로 읽어 `LoadAppliedState`를 거치며, core는 DB/backend I/O가 없습니다.
-MIG-037..046은 10 `passing`이고 현재 제품 분류는 `83 passing + 4 deviation`입니다.
+MIG-037..046은 10 `passing`이고 GDJ-0016 완료 당시 제품 분류는
+`83 passing + 4 deviation`입니다.
 Recorder identity만으로 definition을 만들거나 read/reconstruct/plan/execute atomicity를
 보장하지 않습니다.
 
@@ -250,7 +441,9 @@ draft → oracle_locked → red → passing
 ```
 
 - `draft`: 계약 내용이나 환경이 아직 바뀔 수 있음
-- `oracle_locked`: Django 결과와 provenance가 재현 가능하게 고정됨
+- `oracle_locked`: provenance가 명시된 reference 결과가 재현 가능하게 고정됨. Pinned Django
+  exact observation 또는 Accepted ADR의 GoDj decision oracle일 수 있으며 manifest가 source/
+  decision 종류, version과 `derived` 여부를 구분함
 - `red`: GoDj가 실행되지만 계약을 통과하지 못함
 - `passing`: 명시된 profile/backend에서 통과 증거가 있음
 - `deviation`: 차이를 의도적으로 수용했고 deviation/ADR이 연결됨
@@ -411,8 +604,8 @@ GDJ-0016은 eighth manifest status 10개만 `passing`으로 전환해 9,197 byte
 Locked Django oracle/static/SHA256SUMS는 변경하지 않았습니다. 두 독립 Go actual은 각각
 89,867 bytes, SHA-256
 `a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
-byte-identical하고 oracle과 protocol 의미상 10개 0-diff입니다. 현재 8 product set은
-`83 passing + 4 deviation`, 87 unique contract와 56 ordered cross-binding을 검증합니다.
+byte-identical하고 oracle과 protocol 의미상 10개 0-diff입니다. GDJ-0016 완료 당시 8 product
+set은 `83 passing + 4 deviation`, 87 unique contract와 56 ordered cross-binding을 검증했습니다.
 Static fixture는 ordered 10 mismatch를 유지합니다. 상세 증거는
 [EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
 기록합니다.
@@ -432,9 +625,389 @@ static fixture는 1,681 bytes/SHA-256
 `b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`입니다. 새 10개는
 `oracle_locked`, Django oracle은 `observed`, static fixture는 `not_implemented`입니다.
 아홉 set의 97 ID/scenario는 유일하고 72 ordered cross-binding이 거부됩니다. 제품 adapter가
-없으므로 현재 분류는 `83 passing + 4 deviation + 10 oracle_locked`이며 97개 전체가 제품
-지원이라는 뜻이 아닙니다. Revision-fence spike는 Accepted ADR-0017의 feasibility evidence일
-뿐 제품 compatibility claim이 아닙니다.
+없으므로 GDJ-0017 완료 당시 분류는 `83 passing + 4 deviation + 10 oracle_locked`이며 97개
+전체가 제품 지원이라는 뜻이 아닙니다. Revision-fence spike는 Accepted ADR-0017의
+feasibility evidence일 뿐 제품 compatibility claim이 아닙니다.
+
+완료된 [GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md)은 ninth
+manifest를 public `Executor.Migrate`와 revision-fenced SQLite live adapter에 연결했습니다.
+Fresh/prefix/no-op, named forward/reverse, unknown legacy, history preflight, middle rollback과
+file reopen resume의 9개는 `passing`입니다. MIG-052만 Accepted ADR-0013의 canonical sibling
+order를 보존하는 DEV-0002 `deviation`이며, sparse expectation은 ordered
+`result.plan[0..2]`와 `metrics.steps[0..2]` 여섯 path만 바꿉니다. 기존 DEV-0001 네 계약과
+locked Django observation은 변경하지 않았습니다.
+
+현재 manifest는 13,735 bytes/SHA-256
+`5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`, DEV-0002
+expectation은 6,769 bytes/SHA-256
+`58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b`입니다. Locked oracle과
+static fixture는 각각 98,436 bytes/
+`7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`, 1,681 bytes/
+`b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`로 유지됩니다. 두
+independent Go actual은 각각 98,304 bytes/SHA-256
+`a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`이고 10-contract
+product expectation과 일치합니다. GDJ-0018 완료 당시 제품 분류는 9 adapter의
+`92 passing + 5 deviation`; 97 unique contract와 72 ordered cross-binding이었습니다.
+
+Accepted [ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md)의 호환 경계는
+exact-one opaque session snapshot, SQLite `BEGIN IMMEDIATE` epoch/revision/fingerprint fence와
+no-fallback/no-automatic-adoption입니다. `CommitRolledBack`은 confirmed state와 token을 advance하지
+않고 SQLite session을 poison해 같은 call에서 재시도하지 않습니다. Empty-table default-bearing
+`AddField`는 logical default를 보존하되 physical persistent default를 만들지 않으며 nonempty
+table은 계속 unsupported입니다.
+
+### Historical GDJ-0019..0022 definition/project-check snapshot
+
+다음 단락의 tuple, `Set.Migrate`, artifact hash와 집계는 각 완료 checkout의 증거입니다. 현재 계약은
+문서 상단의 pre-release current-format policy와 MIG-057..074 재기준화를 따릅니다.
+
+완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)은
+[`migration-definition-source-manifest.json`](../conformance/contracts/migration-definition-source-manifest.json)을
+열 번째 ordered reference set으로 추가했습니다. MIG-057..064는 explicit document bytes,
+strict JSON v1과 exact tuple `(1,1,1,2)`, fully normalized Schema IR v2, closed
+`CreateModel`/non-PK `char`·`boolean` `AddField`, loader-owned atomic snapshot, canonical digest와
+stage-major failure precedence를 고정합니다. MIG-064는 public Django graph/executor handoff의
+reference-only success observation이며 Go product 지원 계약이 아닙니다.
+
+여덟 contract 모두 Accepted [ADR-0019](adr/0019-versioned-migration-definition-source.md)을
+`kind=decision`, `derived=false`로 기록합니다. MIG-057과 MIG-064만 pinned Django 6.1
+source/test provenance를 추가해 identity/dependency/ordered operation과 public executor의 실제
+공통 동작을 구분합니다. 따라서 strict JSON, tuple, codec, digest와 precedence를 Django 형식이나
+Django observation으로 과장하지 않습니다.
+
+GDJ-0019 completion manifest는 5,195 bytes/SHA-256
+`8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, locked oracle은
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
+not-implemented fixture는 1,574 bytes/
+`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. 갱신된
+`SHA256SUMS`는 959 bytes/
+`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다. GDJ-0019 완료
+당시 reference는 10 set/105 unique contract/90 ordered cross-binding이고 새 8개는
+`oracle_locked`였습니다. 제품 loader와 열 번째 GoDj adapter가 없었으므로 당시 제품 분류는
+9 adapter의 `92 passing + 5 deviation`으로 유지됐습니다.
+
+완료된 [GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)과 Accepted
+[ADR-0020](adr/0020-migration-definition-loader-product-shape.md)은 public leaf package
+`migrations/definition`에 caller-provided `Source`를 소비하는 bounded loader를 구현했습니다.
+`Load(...Source)`는 raw document를 보존하지 않는 loader-owned immutable `Set`과 value-only
+`LoadReport`를 atomic publish하며 zero `Set`은 canonical empty set입니다. Accessor, nested
+operation/IR와 failure graph mapping은 fresh deep copy이고, `Set.Migrate`는 fresh definitions와
+immutable request value를 existing `Executor.Migrate`에 정확히 한 번 전달합니다.
+
+Public resource contract는 source 2,048, SourceID 1,024 bytes, document 1 MiB, batch 16 MiB,
+JSON depth 64, document values 65,536, batch values 262,144, migration별 dependencies 2,047,
+operations 2,048, `CreateModel` fields 2,048의 exact 10 cap입니다. Strict scanner는 any-depth
+duplicate, invalid UTF-8/surrogate/numeric lexeme와 RFC 6901 failure ordering을 bounded하게
+검증합니다. Source-owned failure는 정확히 9개 source error code만 사용하고 resource breach는
+stable limit context로 표현합니다. Existing graph `*migrations.PlanningError`와 lifecycle error는
+wrap/reclassify/retry하지 않아 원래 identity와 `errors.As` 의미를 보존합니다.
+
+GDJ-0020 manifest는 status-only 5,147 bytes/SHA-256
+`688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`입니다. Locked oracle
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture
+1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`와
+`SHA256SUMS` 959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는
+변경하지 않았습니다. MIG-057..064는 Django 결과 parity가 아닌 Accepted ADR decision-reference
+8 `passing`이며, 성공 검증 문구도 `locked reference oracle`로 Django-derived set의
+`locked Django oracle`과 구분합니다. GDJ-0020 완료 당시 제품 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`; 90 ordered cross-binding이었습니다.
+
+완료된 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Accepted
+[ADR-0021](adr/0021-project-linked-migration-check.md)은
+[`migration-project-check-manifest.json`](../conformance/contracts/migration-project-check-manifest.json)을
+열한 번째 ordered reference set으로 추가합니다. MIG-065..074는 exact `godj.toml` selection,
+canonical descriptor v1, build/project-runner protocol, flat no-follow source discovery,
+`definition.Load` exactly-once와 DB/lifecycle call 0, public exit `0/1/2/3/130`을 고정합니다. 이는
+Django의 DB-aware `migrate --check`, model-drift `makemigrations --check` 또는 Python module
+discovery에서 파생한 parity가 아닙니다. 열 contract 모두 exact
+`kind=decision`, `reference=ADR-0021`, `derived=false`이며 GDJ-0021 완료 당시 status는
+`oracle_locked`였습니다.
+
+GDJ-0022의 status-only 전환 뒤 project-check manifest는 4,520 bytes/SHA-256
+`0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048`, locked reference oracle은
+19,971 bytes/`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static
+not-implemented fixture는 1,729 bytes/
+`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. 기존 checksum 10줄은
+byte-for-byte prefix로 보존하고 11번째 oracle line만 append한 `SHA256SUMS`는 1,061 bytes/
+`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다.
+
+Protocol 분류는 11 reference set/115 unique contract/110 ordered cross-binding입니다. Static
+oracle/not-implemented comparison은 exit 1과 MIG-065..074 ordered status mismatch 10개를 계속 냅니다.
+Completed [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Accepted
+[ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 independent global/linked/protocol
+kernel, exact public project facade와 actual product adapter를 추가했습니다. MIG-065..074는 10
+`passing`이고 GDJ-0022 완료 당시 제품은 11 adapter/115 contract의 `110 passing + 5 deviation`이었습니다.
+`conformance/projectcheck/**` test-only proof는 byte-preserved 독립 gate이며 product가 import/read하지
+않습니다.
+
+Completed [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)은
+twelfth ordered reference set `relation-manifest.json`의 REL-001..012를 고정했습니다. 이 set은 pinned
+Django 6.1/SQLite의 cross-app ForeignKey metadata, unsaved-target failure, lazy cache,
+forward/reverse path, nullable/isnull, PROTECT/SET_NULL, `select_related`와 reverse `prefetch_related`
+외부 동작을 result/DB state/query·JOIN·mutation metrics로 고정합니다. 새 12개는 `oracle_locked`이며
+product support가 아닙니다. Aggregate는 12 reference
+sets/127 contracts/132 ordered cross-bindings이고 GDJ-0023 완료 당시 product는 11 adapters/115 contracts의
+`110 passing + 5 deviation`을 유지했습니다. Test-only relation-binding proof와 Accepted ADR-0023의
+Go-specific compile/AST/field-union direction evidence를 Django oracle payload에 섞거나 REL `passing`으로
+세지 않습니다. Implementation head의 exact 22/22 hosted acceptance는 EVID-032에 기록했으며
+PostgreSQL/MySQL/Windows 또는 relation product 지원 증거가 아닙니다.
+
+Completed [GDJ-0024](../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)와
+Accepted [ADR-0024](adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)는 이 reference를
+변경하지 않고 REL-001 metadata 하나만 제품화한 exact boundary입니다. Scalar v2 bytes를 보존하고 explicit
+IR v3 ForeignKey source, v2 target/v3 source의 additive `GoDjRelationSchema` companion, atomic
+`orm.BindProject`와 full 12-output partial product comparison을 사용합니다. REL-001만 observed/passing,
+REL-002..012는 ordered payload-free not-implemented/oracle-locked이므로 GDJ-0024 completion 집계는
+product `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12로 제한합니다.
+Query/load/cache/write/delete/DDL/migration
+codec와 PostgreSQL/MySQL/Windows 호환은 이 metadata-only packet의 목표가 아닙니다. Final GDJ-0023
+baseline EVID-034는 exact 22/22를 통과했지만 GDJ-0024 activation/implementation 증거로 재사용하지 않습니다.
+GDJ-0024 implementation head `05e6e218db16e17ce13f7b504a01c603041e4a2a`의 exact 26/26 hosted
+acceptance는 [EVID-20260810-036](status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
+별도로 기록합니다.
+
+Completed [GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)와 Accepted
+[ADR-0025](adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)는 reference bytes를 바꾸지 않고
+REL-004만 두 번째 actual relation contract로 구현했습니다. Required `author__name`/`author__id` exact
+predicate의 결과, construction/evaluation query count, one reusable INNER JOIN과 DB 불변만 비교합니다.
+Implementation head `98db55a30ff71a2f2f70722cb569a046208a5403`의 exact 26/26 hosted acceptance는
+[EVID-20260810-040](status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
+기록하며 product aggregate는 `112 passing + 5 deviation + 10 oracle_locked`, relation REL-001/004
+2/12입니다. Loader/cache, nullable/reverse/eager, write/delete/DDL/migration, PostgreSQL/MySQL/Windows는
+호환 claim이 아닙니다.
+
+Completed [GDJ-0026](../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)과 Accepted
+[ADR-0026](adr/0026-forward-foreign-key-object-cache-and-nullability.md)은 REL-003 required lazy cache와 REL-006
+nullable access/`isnull`만 하나의 bounded product comparison으로 동결합니다. REL-003은 actual SQLite에서
+freshly loaded Post 10의 Author cold/warm query count `[1,0]`, REL-006은 Post 11 Reviewer null access 0과
+typed/dynamic isnull result `[11]`/SELECT 1/JOIN 0을 비교합니다. Completion target은
+`114 passing + 5 deviation + 8 oracle_locked`, relation REL-001/003/004/006 4/12로 충족됐습니다. Exact
+implementation head `5be46141...`의 [run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)은
+26/26 jobs·326/326 recorded steps를 성공했습니다. Existing oracle/static/SHA와 prior generated product
+bytes는 immutable입니다. Reverse/eager/write/delete/DDL/migration, broader target와 non-SQLite 호환은
+claim하지 않습니다.
+
+Completed [GDJ-0027](../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)과 Accepted
+[ADR-0027](adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 reference bytes를 바꾸지 않고 REL-005만
+actual로 전환했습니다. Freshly loaded Author 1 accessor는 ordered Post IDs `[10,11]`, SELECT 1/JOIN 0이고,
+typed/dynamic `posts__title=Alpha`는 같은 reverse Plan으로 Author IDs `[1]`, SELECT 1/INNER JOIN 1입니다.
+Exact implementation head `7db68415...`의 run `31419940399`가 26/26 hosted gate를 통과해 GDJ-0027 완료 시점
+classification은 `115 passing + 5 deviation + 7 oracle_locked`, relation 5/12입니다. REL-012 prefetch와
+eager/write/delete/DDL/migration/non-SQLite 호환은 포함하지 않습니다.
+
+Completed [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Accepted
+[ADR-0028](adr/0028-reverse-foreign-key-prefetch.md)은 locked REL-012 하나만 actual로 전환했습니다.
+Stable cross-runtime comparison은 ordered `[(1,[10,11]),(2,[]),(3,[12])]`, statement kinds two SELECT,
+primary/batch SELECT 각 1, batch predicate column `author_id`, JOIN 0, related-access extra query 0, batch key count 3과
+unchanged DB state입니다. Exact sorted args `[1,2,3]` and mutation-free trace는 protocol field가 아니라 successful
+actual publication 전 Go compiler/product internal gate이며 oracle/static/protocol shape는 불변입니다. Primary query와
+batch query는 분리하고 generated project companion이 returned owner wrapper의 exact `.Posts().All()` cache만
+warm합니다. Existing oracle/static/SHA와 prior generated/relation-product bytes는 불변입니다. Activation
+baseline [EVID-050](status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)과
+activation run `31429245980`은 이 implementation proof로 재사용하지 않았습니다. Exact implementation head
+`4858ab88...`의 [run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)가 26/26 hosted
+gate를 통과해 GDJ-0028 completion classification은 `116 passing + 5 deviation + 6 oracle_locked`, relation
+6/12입니다.
+Custom `Prefetch`, related filter/order 재소비, eager REL-009..011, write/delete/DDL/migration과 non-SQLite
+호환은 이 packet 밖입니다.
+
+Completed [GDJ-0029](../work/0029-one-hop-forward-select-related-product-slice.md)과 Accepted
+[ADR-0029](adr/0029-one-hop-forward-select-related.md)는 REL-009/010/011을 함께 여는 bounded engine 경계입니다.
+REL-009는 plain/eager 동일 result와 SELECT 4→1, INNER JOIN 1, access-extra 3→0을, REL-010은 middle NULL을
+포함한 result와 SELECT 1/LEFT OUTER JOIN 1/access-extra 0을, REL-011은 reverse multi-valued path의
+`field_error/invalid_related_path`/I/O 0을 요구합니다. Typed와 dynamic positive path 및 reverse rejection은
+하나의 project resolver와 immutable `RelationProjection`으로 수렴해야 하며, joined source/target은 additive
+projection scanners로 한 번에 decode됩니다. Oracle/static/SHA/protocol bytes, Django scenario behavior와 existing
+generated files는 frozen입니다. EVID-054/run `31436881856`은 exact clean baseline only이며 target
+`119 passing + 5 deviation + 3 oracle_locked`, relation 9/12의 호환 증거로 재사용하지 않았습니다. Exact
+implementation head `c02aab67...`의 EVID-056/run `31470292759`가 26/26·326/326 hosted gate와
+four-coordinate 630/630/0 inventory를 통과해 그 implementation head의 aggregate가 product가 됐습니다. Multiple/nested/reverse eager,
+write/delete/DDL/migration/non-SQLite 호환은 claim하지 않습니다.
+
+장기 relation UX는 Django 6.1의 의미를 reference로 삼습니다: raw FK와 relation accessor 분리, 같은 model
+instance/accessor의 lazy cache와 eager/prefetch warming, reverse manager, origin DB affinity입니다. GoDj는 이를
+Python descriptor나 runtime registry가 아니라 explicit `context.Context`/`error`, project codegen과 exact
+backend/session binding으로 번역합니다. Unified `project.Using(backend)` bounded forward facade는 GDJ-0032에서
+implemented됐지만 FK assignment/save/cache invalidation, reverse chaining과 broader write names는 Q-013/Q-017의
+후속이며 아직 passing contract가 아닙니다.
+
+Completed [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Accepted
+[ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 locked REL-007/008을 하나의 SQLite low-level
+delete packet으로 구현·검증했습니다. REL-007은 모든 protected source row를 distinct identity+PK로 보고
+`integrity_error/protected_foreign_key`, `ProtectedSourceRows()==2`, UPDATE/DELETE 0과 unchanged DB를 요구합니다.
+같은 source row가 두 PROTECT edge에서 보이면 global count 1, 서로 다른 source model의 같은 numeric PK는 count
+2입니다. REL-008은 source
+두 행 SET_NULL UPDATE 뒤 target exact-one DELETE, transaction 1과 committed DB state를 요구합니다. Fixture
+constraint는 `NO ACTION`/`RESTRICT`이고 DB-level SET NULL은 false green입니다. GoDj의 pinned
+`PRAGMA foreign_keys=1` + `BEGIN IMMEDIATE`는 모든 owned writer connection이 FK-on이라는 precondition 아래의
+intentional Go/SQLite safety mechanism이며 Django SQL 문자열 호환 주장이 아닙니다. 모든 declared incoming
+edge에는 metadata-matching physical `NO ACTION`/`RESTRICT` SQLite FK가 필요하고 fixture `PRAGMA foreign_key_list`가
+이를 증명합니다. Missing/mismatched constraint와 FK-off/out-of-band writer는 unsupported이고 `Open` 또는 relation
+DDL이 이를 자동 보장한다고 주장하지 않습니다. Successful deleter return
+1만 adapter가 oracle `deleted_total`/`target_deleted` 양쪽에 매핑합니다. `Delete`가 반환하는 모든 error는 0이고 COMMIT error는
+stable `backend_error/commit_outcome_unknown`, durability unknown/unchanged pointer/internal automatic retry 0입니다.
+`transaction_outcome_unknown` 또는 `commit_outcome_unknown`인 경우 caller는 external reconciliation 전 명시적으로
+재호출해서는 안 되지만, 이 packet은 그 의무를 runtime에서 탐지하거나 거부하는 poison token/fence/registry를 제공하지 않습니다.
+Pre-COMMIT error는 canceled callback context와 독립된 rollback 또는 forced connection discard로 raw transaction
+pool reuse를 막습니다. Confirmed rollback/discard는 unknown code를 쓰지 않고, relation session이 모든 mutator 호출
+직전에 표시한 mutation-possible 뒤 두 confirmation이 모두 실패한 경우만 stable
+`backend_error/transaction_outcome_unknown`으로 external reconciliation 필요성을
+표시합니다. Raw BEGIN error는 callback/retry 없이 force-discard하며 이 code를 쓰지 않습니다. SET_NULL
+affected count는 0 이상만 허용하고 fixture는 exact 2입니다. Implementation head `c3803acb...`의
+EVID-061/run `31510689383`이 exact 26/26·326/326 hosted gate와 four-coordinate 687/687/0 inventory를 통과했습니다.
+GDJ-0030 completion manifest는 REL-007/008 status-only transition 뒤 10,776 bytes/SHA-256
+`3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, exact thirteen-file generated union은
+SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`였습니다. 그 bounded delete product는 exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002와 broader delete/facade/backend
+호환은 locked/open입니다.
+
+Completed [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과 Accepted
+[ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 remaining REL-002 하나의
+assignment/save/cache ownership을 Django-first로 고정하고 bounded SQLite/AutoField product로 구현·검증했습니다.
+다음은 Python 구현을 복제하는 선택지가 아니라 observable compatibility gate입니다.
+
+- Relation object assignment는 source raw FK를 target key와 맞추고 같은 accessor cache를 exact assigned object로
+  warm합니다.
+- Raw FK의 전체 `(presence,value)` tuple이 달라지면 이전 relation cache를 지우고, 같은 tuple을 다시 설정하면
+  cache를 보존합니다.
+- Assigned target에 primary key가 없으면 nullable 여부와 무관하게 source save가 database mutation 전에
+  `model_state_error/unsaved_related_object`로 실패해야 합니다.
+- Primary key가 수동으로 있지만 target row가 없는 경우 preflight를 통과하고 physical SQLite FK constraint가
+  결과를 결정해야 합니다.
+- Assignment 당시 no-PK였던 same target object가 저장돼 key를 얻고 source scalar가 계속 empty이면 source save
+  직전에 key를 다시 읽어 FK를 reconcile합니다. Caller가 scalar를 바꾸면 그 선택이 이깁니다. Assignment 당시
+  key-present였던 target key가 뒤에 달라지면 old source scalar를 유지하고 stale target cache를 지웁니다.
+- Nullable clear는 raw FK NULL과 cached absent를 함께 설정합니다. Required relation의 nil-like value는 memory에서
+  표현되더라도 database constraint 성공을 뜻하지 않습니다.
+- Transaction rollback은 target/source Go wrapper memory를 자동 rewind하지 않습니다.
+
+Go translation은 original source를 유지하는 fresh derived wrapper, exact assigned target pointer의 local ownership,
+target wrapper in-place Save, pending-only one-time key reconciliation, corrected canonical three-phase preflight와 relation별 COW cache로
+Accepted했습니다. Public surface는 query-root `New`, wrapper `Save`, `WithAuthor`/`WithReviewer`, scalar helpers와
+`ClearReviewer`입니다. Scalar presence/cache/pending을 분리합니다. Required raw zero는 `New`에서 unset,
+`WithAuthorID(0)`와 loaded zero는 present이고 numeric ID로 savedness를 추론하지 않습니다. Pending target 오류는
+required-unset보다 먼저 canonical normalized source-model identity + relation field name order로 반환하며 candidate
+state가 모두 준비되기 전에는 publish하지
+않습니다. 이는
+별도 materialization 사이 target pointer identity/global identity map을 주장하지 않습니다.
+
+Activation EVID-072/run `31566524953`, no-product EVID-073와 decision EVID-074/run `31574653183`은 각각
+activation/feasibility/decision만 증명합니다. Exact implementation head `be6f3d4e0838929fe96ec156ec0647845d905ea6`은
+EVID-076/run `31586910749`의 별도 exact 26/26 jobs·326/326 steps를 통과했습니다. Current bounded product는 exact
+`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이고 REL-002는 `passing`입니다. Q-013은 broader
+relation/backend 범위 때문에 `Partial`, Q-017은 raw-model UX/capability/namespace/reverse/general upgrade 때문에
+P1/open입니다. Typed generated `select_related` cause-loss P2, relation-capable migration, reverse/general facade와
+non-SQLite backend는 이 verified 범위에 포함하지 않습니다.
+
+Completed GDJ-0034는 위 GDJ-0033 verified 범위를 소급 확대하지 않고 typed generated `select_related`의 좁은
+진단 P2를 별도 exact head에서 수정·검증했습니다. Resolve 및 required/nullable bind failure는 기존 context
+precedence 뒤 동일한 structured error identity와 category/code/detail/unwrap chain으로 pre-I/O 반환됩니다. Dynamic
+path와 실제 zero/corrupt query의 기존 오류 의미, 정상 eager SQL/result/cache/query-count는 그대로입니다. Exact
+implementation head `3099bd62...`의 EVID-081/run `31605477297`은 unique 26/26 jobs·326/326 steps를 통과했지만,
+Django oracle, relation manifest/status, static fixture와 checksum은 바꾸지 않았으므로 REL-009/010/011과 aggregate
+product 분류도 그대로입니다.
+
+GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
+project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는
+MIG-065..074 reference-only/test-only proof와 현재 SQLite 제품 범위의 검증이며, PostgreSQL/MySQL
+지원 증거가 아닙니다. 해당 backend를 추가할 때는 service-only green을 금지하고 digest-pinned
+service image, health check, UTC timezone과 C locale 또는 명시적으로 승인된 collation, actual
+query/write/transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/persistence
+contract를 모두 실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`,
+`continue-on-error` 없음, final clean worktree를 required gate로 둡니다.
+
+GDJ-0022 workflow는 기존 10 hosted execution에 actual product Linux/macOS x64/arm64 4개와 Ubuntu
+Python compatibility 4개를 더해 exact 18 required execution으로 확장됐습니다. Local EVID-027의
+`make ci`/historical exact oracle와 별도로, fix head
+`3dfeff2a881a3313883729943519896798d92afc`의 EVID-028은 exact 18/18 hosted success를 기록합니다.
+Initial implementation run은 네 Python pre-test uv assertion 실패 뒤 취소됐으며 Python/Django 자체의
+실패로 분류하지 않습니다.
+
+제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1의
+[run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 Ubuntu 24.04와
+macOS 15 arm64 job이 모두 통과했고, Ubuntu는 focused test를 실제 Linux/386 runtime에서
+실행했습니다. 이 증거는 explicit-source SQLite product slice에 한정됩니다. File/directory/
+module/remote discovery, CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation,
+existing database adoption/repair, crash reconciliation과 non-SQLite backend는 계속 미지원입니다.
+
+## GDJ-0040 Phase A composable Boolean predicate reference boundary
+
+QRY-034..043은 pinned Django 6.1/SQLite exact profile에서 scalar exact/`icontains` OR, grouped OR+AND,
+non-null/nullable NOT, canonical implicit AND, nested connector/source reuse, distinct/stable slicing, projection 밖
+predicate field와 filtered Count/Max를 관찰합니다. Manifest의 10개 contract는 모두 `oracle_locked`, oracle은
+`observed`, ordered static fixture는 10개 `not_implemented`입니다. 이 reference-only 상태는 GoDj query tree,
+SQLite/PostgreSQL compiler나 Article search의 구현/지원 증거가 아닙니다.
+
+Artifact lock은 manifest 8,135 bytes/
+`8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`, oracle 41,264 bytes/
+`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`, ordered NI fixture 1,715 bytes/
+`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. Exact reference aggregate는
+15 sets/161 unique contracts+scenarios/210 ordered cross-bindings의
+`134 passing + 5 deviation + 22 oracle_locked`입니다. Product aggregate는 query-expression adapter를 추가하지
+않아 13 adapters/139 contracts의 `134 passing + 5 deviation + 0 oracle_locked`로 유지됩니다.
+
+Focused scenario 7/7, exact focused runner 60/60, portable focused runner 60 tests/16 expected skips, 전체 portable
+Python 236 tests/21 expected skips가 통과했습니다. Exact semantic registry는 161 scenarios/702,415 bytes/
+SHA-256 `aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니다. Reference drift와
+oracle/static `contractcheck`도 통과했지만 QRY-034..043을 `passing`으로 올리려면 Phase B/C의 independent GoDj
+actual과 comparator evidence가 별도로 필요합니다.
+
+## GDJ-0040 Phase B/C Boolean predicate product checkpoint
+
+Product source `86d6b169...`와 actual conformance `0ec6f385...`는 Phase A oracle/static bytes를 입력으로 읽지
+않는 GoDj handler를 연결하고 QRY-034..043을 10/10 `passing`으로 전환했습니다. Manifest는 status 10개만
+바뀐 8,075 bytes/SHA-256 `e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`입니다.
+Oracle 41,264 bytes/`8b087a39...`와 ordered not-implemented fixture 1,715 bytes/`0df90735...`, shared
+15-line checksum catalog는 불변입니다.
+
+두 독립 actual은 각각 41,134 bytes/SHA-256
+`20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical하고 locked
+Django result/error/DB-state/metrics와 protocol difference 0입니다. Raw JSON field order와 byte equality는
+비교 계약이 아닙니다. 그 checkpoint의 reference aggregate는 15/161/210=
+`144 passing + 5 deviation + 12 oracle_locked`, product는 14 adapters/149 contracts=
+`144 passing + 5 deviation`입니다.
+
+Go-native 경계는 별도로 다음을 강제합니다: model-safe typed connector compile, one authoritative immutable where
+tree, depth 64/node 1,024, deterministic DFS arguments/placeholders, nullable odd-NOT guard, root-conjunctive relation
+leaf만 허용, malformed/cross-source/over-limit pre-I/O failure, SQLite/PostgreSQL Article exactly-two-query flow입니다.
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)는
+affected/local PostgreSQL/audit checkpoint이고
+[EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은
+full/386/775-file source-clean-copy를 통과했습니다. Corrected submitted head `136e825...`의
+[EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
+run `32642341459`은 exact 27/27 jobs·341/341 steps와 QRY-034..043 actual 10/10을 통과해 이 bounded
+product boundary를 hosted-verified로 닫았습니다.
+
+## GDJ-0041 typed comparison and field-reference boundary
+
+GDJ-0041 Phase A는 QRY-044..053의 Integer ordering boundary, range composition/reuse, same-row `F` comparison,
+nullable negation, projection과 Count/Max observable을 같은 query-expression set에 추가했습니다. 그 Phase A
+manifest는 16,652 bytes/SHA-256
+`90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3`이고 신규 10개는
+`oracle_locked`였습니다. Oracle과 ordered NI fixture는 각각 87,852/2,465 bytes와
+`4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`/
+`7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`입니다. 당시 reference는
+15/171/210=`144 passing + 5 deviation + 22 oracle_locked`, product는 actual 등록 전
+14/159=`144 passing + 5 deviation + 10 oracle_locked`였습니다. 이 수치는 Phase A 역사 경계입니다.
+
+GDJ-0041 completion checkpoint source는 Accepted [ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)에 따라
+Integer/String literal range와 sealed same-model/same-kind `orm.F`를 private literal/list/field RHS union에
+구현합니다. Source inventory/kind/malformed union은 pre-I/O 검증하고, SQLite/PostgreSQL field RHS는 quote된
+identifier라 parameter를 소비하지 않습니다. Nullable LHS/RHS complement guard는 odd `NOT`에만 적용되며 같은
+field guard는 중복하지 않습니다. Bounded Article `min_id`/`max_id`/`title_matches_summary` flow는 invalid 입력
+DB I/O 0과 성공 projection+aggregate 두 query를 유지합니다.
+
+GDJ-0041 completion checkpoint manifest는 16,592 bytes/
+`a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`이고 oracle/NI fixture는 Phase A bytes를
+유지합니다. 두 독립 oracle-blind actual은 87,592 bytes/
+`c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical하며
+QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff입니다. GDJ-0041 completion checkpoint reference는
+15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
+14/159=`154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates와
+submitted head `e97a4e3...`의 [EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
+run `32647746430` exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual이 통과했습니다.
+QRY-044..053은 hosted `Verified`, GDJ-0041은 completed입니다.
 
 ## 데이터 호환성
 
@@ -475,3 +1048,117 @@ Django 문서와 테스트에서 파생한 시나리오는 upstream version, 파
 
 공식 기준 링크와 로컬 검증 정보는 [SOURCES.md](SOURCES.md), 구체적인 파생물 정책은
 [LICENSING.md](LICENSING.md)에 있습니다.
+
+## Historical MIG-075..086 decision compatibility boundary
+
+이 절은 GDJ-0036 이전 GDJ-0035 Phase A~D의 artifact와 evidence를 보존합니다. 아래 dual profile/digest/state,
+context handoff와 optional relation backend 설명은 [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에
+의해 현재 제품 계약에서 대체됐으며 MIG-075..086 publication은 retire됐습니다.
+
+[GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 MIG-075..086 exact
+12 reference-only contract ID를 고정했습니다. Exact 16-document activation head `52f9bcb7...`는
+[EVID-084](status/TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci)에서
+hosted-verified됐습니다. Phase A는
+[EVID-085](status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
+12-contract reference-only set을 로컬 고정했습니다. Reference는 exact 13 sets/139 unique contracts+scenarios/
+156 ordered cross-bindings=`122 passing + 5 deviation + 12 oracle_locked`입니다. Product는 exact
+12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 불변입니다. Phase A exact-head
+hosted proof는 EVID-086/run `31625898551`에서 통과했습니다. Phase B test-only feasibility는 EVID-087/088,
+Phase C exact 8-test-only decision proof head `7d36502...`는
+[EVID-089](status/TEST_EVIDENCE.md#evid-20260819-089--gdj-0035-phase-c-test-only-decision-proof-local-validation)와
+[EVID-090](status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
+[run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)에서 local/hosted 검증됐습니다.
+Proposed decision-freeze docs head `5bdf013...`도 EVID-091/run `32183309328`의 별도 local/hosted proof를
+통과했고 그 성공을 근거로 ADR-0034 bounded design이 Accepted됐습니다. Product status는 그
+acceptance boundary에서 바뀌지 않았습니다. Later Phase D1/D2/D3a bounded product slices는
+[EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
+각각 Implemented/Verified됐고 D3b loaded relation core integration은
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
+별도 Implemented/Verified됐습니다. D4 test-only head `424ec4d...`는
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
+기존 product path의 bounded file-backed restart observation만 Verified했습니다. 이 bounded 증거들은
+MIG-075..086을 `passing`으로 전환하지 않습니다. EVID-096 exact-six documentation head `62df9b2...`는
+run `32260744096`에서 고유하게 닫혔고, D4d final head `dd83362...`는
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+run `32271361724`에서 bounded nullable ForeignKey Add를 Implemented/Verified했습니다. Reference artifact와
+MIG status는 바뀌지 않았습니다. EVID-097 docs head `c59669c...`는 run `32278555810`에서 닫혔고 D4e final head
+`1d86f6e...`는 [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
+run `32282269755`에서 bounded required-empty Add를 Implemented/Verified했습니다. Reference artifact와 MIG
+status는 계속 불변입니다. EVID-098 docs head `85f9270...`는 CI #94/run `32288383027`에서 닫혔고 D4f final
+head `9d5b894...`는 [EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
+CI #95/run `32294983953`에서 bounded ForeignKey reverse/remove table remake를 Implemented/Verified했습니다.
+Reference artifact와 MIG status는 계속 불변입니다.
+
+Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
+다음과 같이 분리합니다.
+
+| ID | 당시 Accepted decision/reference observation | 당시 분류 |
+|---|---|---|
+| MIG-075 | Legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 lifecycle ABI 보존 | `oracle_locked` / Accepted-decision reference |
+| MIG-076 | Additive public relation constants `(loader ABI, codec, IR)=(2,2,3)`, one `Load`, per-document dispatch와 hybrid rejection | `oracle_locked` / Accepted-decision reference |
+| MIG-077 | Per-document profile을 포함한 relation-only/mixed digest domain v2; legacy-only v1 byte preservation | `oracle_locked` / Accepted-decision reference |
+| MIG-078 | `RelationStateFormatVersion=2`, whole-step scalar v1↔relation v2 promote/demote; helpers unexported | `oracle_locked` / Accepted-decision reference |
+| MIG-079 | Wire `target_field` 없이 historical exact AutoField derivation과 static/history-plan/physical three-stage preflight | `oracle_locked` / Accepted-decision reference |
+| MIG-080 | Relation CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
+| MIG-081 | Populated nullable AddField, empty required support와 populated required rejection | `oracle_locked` / observed + Accepted-decision separation |
+| MIG-082 | FK remove/remake row/sequence preservation | `oracle_locked` / Django observed |
+| MIG-083 | Exact pinned connection FK-on, physical `NO ACTION`와 existing revision-fence reuse | `oracle_locked` / observed + Accepted-decision separation |
+| MIG-084 | File-backed restart observation; bounded epoch/fingerprint/DAG/`StateReconstructor` product-path scenario Verified, actual MIG adapter/general restart blocked | `oracle_locked` / Django observed |
+| MIG-085 | Three-stage preflight, one existing fenced transaction, rollback/cause policy | `oracle_locked` / observed + Accepted-decision separation |
+| MIG-086 | Commit three outcomes, no retry | `oracle_locked` / Accepted-decision reference |
+
+Pinned Django 6.1/SQLite external observation과 GoDj-owned decision/reference provenance는 계속 구분합니다.
+Physical `NO ACTION`, mixed digest/state format처럼 Django가 정의하지 않는 GoDj-owned payload는 later
+acceptance 뒤에도 historical artifact의 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`를
+소급 변경하지 않고 Django exact parity로 표현하지 않습니다. Django BSD source/test provenance는 실제 관찰한
+부분에만 붙이며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Q-010/Q-012/Q-013은
+`Partial`, Q-017/Q-019는 P1/open을 유지합니다.
+
+Artifact lock은 manifest 7,792 bytes/`dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`,
+oracle 125,248/`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`, ordered NI
+1,846/`f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24`, 13-line checksum
+1,245/`5022a23094702463861f32270f373ba1287b609e5b3f8cb5723b74db8d69cf4f`입니다. MIG-085의
+Django 관찰은 recorder fault 전 schema-editor DDL이 이미 commit되어 schema는 남고 record는 없는 경계입니다.
+Pre-DDL fault만 완전 rollback됐습니다. 이 관찰을 GoDj same-transaction atomic proposal의 parity로 표현하지
+않습니다. Accepted product design은 `migrations/backend`의 additive `RelationRevisionFencedBackend`/
+`RelationRevisionFencedSession`, exact four capabilities와 existing `RevisionFencedTransaction` 하나입니다.
+Relation support는 implemented D3b에서도 `definition.Load`/`Set.Migrate`/`Executor.Migrate` normal path만 소유하며 direct
+legacy Apply/Unapply/ExecutePlan은 relation-bearing input을 capability error로 거부합니다. Loader profile/
+provenance/digest authority는 implemented `migrations/internal/definitionhandoff.Handoff`에 raw bytes/alias 없이 담고,
+relation/mixed `Set.Migrate`만 fresh context carrier로 existing Executor에 넘깁니다. Executor는 context precedence
+뒤, backend/session/I/O 전에 visible definition clone과 exact per-definition/full-graph seals를 검증합니다.
+Existing public signature/entrypoint modification은 0개이고 legacy/empty set과 raw legacy `Executor.Migrate`, public
+`NewStateReconstructor` scalar behavior는 보존합니다. Carrier 없는 raw relation Migrate/Definitions copy/direct
+legacy execution은 pre-Begin `CategoryCapability`/`CodeUnsupported` feature `relation_migration`, public
+reconstructor raw relation은 existing `CategoryState`/`CodeInvalidState`입니다. Internal exported identifiers는
+consumer API가 아닙니다. D1 internal handoff, D2 private relation state/reconstructor/readiness와 D3a direct
+optional SQLite Create/Delete port는 EVID-093의 각 product/correction head에서 구현·검증됐습니다. D3b는
+static authority/readiness 뒤 exact-one fenced history로 actual Planner를 실행하고 whole actual plan을
+dry-validate한 뒤에만 relation capability를 every begin/mutation 전에 검증하도록 구현했습니다. Scalar/no-op
+plan은 relation call 0이고 unsupported mixed plan은 scalar prefix를 commit하지 않습니다. Normal loaded
+relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply합니다. D4d/D4e는 no-default, non-PK
+ForeignKey append를 지원하고 D4f는 그 exact appended relation의 bounded backward/unapply를 지원하되 public
+changed-target 하나가 source의 모든 기존
+ForeignKey와 exact same symbolic target을 나타내고 sealed target model이 relation-free인 경우로 닫았습니다.
+Source model당 migration step의 nullable/required relation mutation을 합쳐 하나입니다. Nullable Add는 empty/populated
+source를 허용하고 required Add는 `PROTECT`와 empty source만 허용합니다. Existing source emptiness는 exact pinned
+connection의 `BEGIN IMMEDIATE` 뒤 physical preflight에서 revision claim 전에 확인하며 same-intent created source는
+statically empty입니다. Loaded core authority/resource closure는
+pre-capability/pre-Begin이고 missing capability는 selection 중 pre-Begin 실패합니다. SQLite independent static
+seal은 remaining invalid/direct shapes를 새 pinned relation connection과 SQL `BEGIN` 전에 거부합니다. Physical
+target-outgoing cycle/pre-existing drift는 `BEGIN IMMEDIATE` 뒤 physical preflight에서 검사하지만 revision
+claim/mutation 전 rollback합니다. D4f Remove는 exact unique field-order/prefix candidate, deterministic temporary
+name, retained-column PK-order copy, affected/stored row counts, exact `sqlite_sequence`, final canonical/FK와
+`foreign_key_check`를 같은 fenced transaction에서 검증합니다. Remake source를 참조하는 inbound FK,
+remake source 위 non-PK user index, touched/control table을 소유하거나 참조하는 trigger/view, relevant
+declared table의 generated/hidden column 또는 unsupported option, relevant sequence의 invalid/case-variant/
+noninteger/negative form, namespace/deterministic-temp/control collision은 claim 전에 fail-closed합니다. 이
+범위 밖 unrelated harmless object는 허용합니다. Capability tuple은 `{true,true,true,true}`입니다. D4 `424ec4d...`는 file
+close/reopen마다 backend와 loaded set을 새로 만들고 full/branch/full history 및
+revision-fingerprint ABA, canonical schema/rows와 physical FK snapshot을 비교했습니다. Raw SQLite file bytes,
+general restart와 actual adapter는 검증하지 않았습니다. Populated required Add/reapply와 arbitrary/general
+remake는 unsupported입니다.
+EVID-091/092는 각 docs head만,
+EVID-093은 D1/D2/D3a bounded slices만, EVID-094는 D3b product/correction head만, EVID-095는 D4 exact
+test-only verification head만 증명합니다. EVID-097/EVID-098/EVID-099는 각각 final D4d/D4e/D4f head까지의
+bounded product evidence이며 MIG-081/MIG-082 status 전환이나 actual adapter 증거가 아닙니다.

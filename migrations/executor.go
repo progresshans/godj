@@ -27,30 +27,39 @@ const (
 	CategoryPlan        ErrorCategory = "migration_plan_error"
 	CategoryHistory     ErrorCategory = "migration_history_error"
 	CategoryGraph       ErrorCategory = "migration_graph_error"
+	CategoryConflict    ErrorCategory = "migration_conflict_error"
 )
 
 type ErrorCode string
 
 const (
-	CodeInvalidState               ErrorCode = "invalid_state"
-	CodeUnsupported                ErrorCode = "unsupported_operation"
-	CodeOperationFailed            ErrorCode = "operation_failed"
-	CodeRecordFailed               ErrorCode = "record_failed"
-	CodeBeginFailed                ErrorCode = "begin_failed"
-	CodeCommitFailed               ErrorCode = "commit_failed"
-	CodeInvalidNode                ErrorCode = "invalid_node"
-	CodeDuplicateNode              ErrorCode = "duplicate_node"
-	CodeInvalidDependency          ErrorCode = "invalid_dependency"
-	CodeDuplicateDependency        ErrorCode = "duplicate_dependency"
-	CodeDependencyNotFound         ErrorCode = "dependency_not_found"
-	CodeDependencyCycle            ErrorCode = "dependency_cycle"
-	CodeInvalidAppliedState        ErrorCode = "invalid_applied_state"
-	CodeDuplicateApplied           ErrorCode = "duplicate_applied"
-	CodeInconsistentAppliedHistory ErrorCode = "inconsistent_applied_history"
-	CodeInvalidTarget              ErrorCode = "invalid_target"
-	CodeTargetNotFound             ErrorCode = "target_not_found"
-	CodeInvalidExecutionPlan       ErrorCode = "invalid_execution_plan"
-	CodeMixedDirections            ErrorCode = "mixed_directions"
+	CodeInvalidState                  ErrorCode = "invalid_state"
+	CodeUnsupported                   ErrorCode = "unsupported_operation"
+	CodeOperationFailed               ErrorCode = "operation_failed"
+	CodeRecordFailed                  ErrorCode = "record_failed"
+	CodeBeginFailed                   ErrorCode = "begin_failed"
+	CodeCommitFailed                  ErrorCode = "commit_failed"
+	CodeInvalidNode                   ErrorCode = "invalid_node"
+	CodeDuplicateNode                 ErrorCode = "duplicate_node"
+	CodeInvalidDependency             ErrorCode = "invalid_dependency"
+	CodeDuplicateDependency           ErrorCode = "duplicate_dependency"
+	CodeDependencyNotFound            ErrorCode = "dependency_not_found"
+	CodeDependencyCycle               ErrorCode = "dependency_cycle"
+	CodeInvalidAppliedState           ErrorCode = "invalid_applied_state"
+	CodeDuplicateApplied              ErrorCode = "duplicate_applied"
+	CodeInconsistentAppliedHistory    ErrorCode = "inconsistent_applied_history"
+	CodeInvalidTarget                 ErrorCode = "invalid_target"
+	CodeTargetNotFound                ErrorCode = "target_not_found"
+	CodeInvalidExecutionPlan          ErrorCode = "invalid_execution_plan"
+	CodeMixedDirections               ErrorCode = "mixed_directions"
+	CodeRevisionFenceUnsupported      ErrorCode = "revision_fence_unsupported"
+	CodeRevisionFenceAdoptionRequired ErrorCode = "revision_fence_adoption_required"
+	CodeStaleHistoryRevision          ErrorCode = "stale_history_revision"
+	CodeHistoryRevisionContended      ErrorCode = "history_revision_contended"
+	CodeCommitOutcomeUnknown          ErrorCode = "commit_outcome_unknown"
+	CodeCommitCleanupFailed           ErrorCode = "commit_cleanup_failed"
+	CodeSessionCloseFailed            ErrorCode = "session_close_failed"
+	CodeHistoryRevisionIntegrity      ErrorCode = "history_revision_integrity"
 )
 
 const NoOperation = -1
@@ -107,14 +116,21 @@ func (m Migration) Key() MigrationKey {
 }
 
 type Executor struct {
+	Backend backend.RevisionFencedBackend
+}
+
+// DirectExecutor owns the deliberately narrow raw migration path. It remains
+// separate from Executor so a loaded lifecycle backend is not required to
+// implement the non-fenced direct transaction port.
+type DirectExecutor struct {
 	Backend backend.AtomicBackend
 }
 
-func (e Executor) Apply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
+func (e DirectExecutor) Apply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
 	return e.execute(ctx, before, migration, DirectionForward)
 }
 
-func (e Executor) Unapply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
+func (e DirectExecutor) Unapply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
 	return e.execute(ctx, before, migration, DirectionBackward)
 }
 
@@ -125,34 +141,72 @@ type preparedOperation struct {
 	to    ProjectState
 }
 
-func (e Executor) execute(ctx context.Context, before ProjectState, migration Migration, direction Direction) (ProjectState, error) {
+func (e DirectExecutor) execute(ctx context.Context, before ProjectState, migration Migration, direction Direction) (ProjectState, error) {
 	if ctx == nil {
 		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", errors.New("context is nil"))
 	}
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
 	}
-	prepared, after, err := preflight(before, migration, direction)
+	if projectStateRequiresRelationLifecycle(before) || migrationContainsRelation(migration) {
+		unsupported := relationMigrationUnsupported([]Migration{migration}, direction, errors.New("direct Apply/Unapply relation execution is not loader-authorized"))
+		if err := ctx.Err(); err != nil {
+			return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
+		}
+		return before.Clone(), unsupported
+	}
+	migrationSnapshot := cloneMigrationDefinitions([]Migration{migration})[0]
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migrationSnapshot, NoOperation, "", err)
+	}
+	prepared, after, err := preflight(before, migrationSnapshot, direction)
 	if err != nil {
 		return before.Clone(), err
 	}
 	// State preflight is intentionally pure, but it can be non-trivial. Honor
 	// cancellation that arrives while it runs before touching the backend.
 	if err := ctx.Err(); err != nil {
-		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
+		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migrationSnapshot, NoOperation, "", err)
 	}
 	if isNilInterface(e.Backend) {
-		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migration, NoOperation, "", errors.New("backend is nil"))
+		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migrationSnapshot, NoOperation, "", errors.New("backend is nil"))
 	}
 	transaction, err := e.Backend.BeginMigration(ctx)
 	if err != nil {
-		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migration, NoOperation, "", err)
+		category, code := beginErrorClass(err)
+		return before.Clone(), migrationError(category, code, direction, migrationSnapshot, NoOperation, "", err)
 	}
 	if isNilInterface(transaction) {
-		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migration, NoOperation, "", errors.New("backend returned a nil transaction"))
+		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migrationSnapshot, NoOperation, "", errors.New("backend returned a nil transaction"))
 	}
 
+	if primary := executeMigrationBody(ctx, migrationSnapshot, direction, prepared, transaction); primary != nil {
+		return before.Clone(), rollback(ctx, transaction, primary)
+	}
+	if err := transaction.Commit(ctx); err != nil {
+		primary := migrationError(CategoryTransaction, CodeCommitFailed, direction, migrationSnapshot, NoOperation, "", err)
+		return before.Clone(), rollback(ctx, transaction, primary)
+	}
+	return after.Clone(), nil
+}
+
+// migrationBodyTransaction is the common operation/recorder boundary shared
+// by direct atomic and revision-fenced transactions. Begin, commit, rollback, and
+// durability classification deliberately stay outside this kernel.
+type migrationBodyTransaction interface {
+	backend.SchemaEditor
+	backend.Recorder
+}
+
+func executeMigrationBody(
+	ctx context.Context,
+	migration Migration,
+	direction Direction,
+	prepared []preparedOperation,
+	transaction migrationBodyTransaction,
+) *Error {
 	for _, preparedOperation := range prepared {
+		var err error
 		if direction == DirectionForward {
 			err = preparedOperation.op.databaseForward(ctx, transaction, preparedOperation.from, preparedOperation.to)
 		} else {
@@ -160,25 +214,21 @@ func (e Executor) execute(ctx context.Context, before ProjectState, migration Mi
 		}
 		if err != nil {
 			category, code := operationErrorClass(err)
-			primary := migrationError(category, code, direction, migration, preparedOperation.index, preparedOperation.op.Kind(), err)
-			return before.Clone(), rollback(ctx, transaction, primary)
+			return migrationError(category, code, direction, migration, preparedOperation.index, preparedOperation.op.Kind(), err)
 		}
 	}
 
+	var err error
 	if direction == DirectionForward {
 		err = transaction.RecordApplied(ctx, migration.App, migration.Name)
 	} else {
 		err = transaction.RecordUnapplied(ctx, migration.App, migration.Name)
 	}
 	if err != nil {
-		primary := migrationError(CategoryRecorder, CodeRecordFailed, direction, migration, NoOperation, "", err)
-		return before.Clone(), rollback(ctx, transaction, primary)
+		category, code := recorderErrorClass(err)
+		return migrationError(category, code, direction, migration, NoOperation, "", err)
 	}
-	if err := transaction.Commit(ctx); err != nil {
-		primary := migrationError(CategoryTransaction, CodeCommitFailed, direction, migration, NoOperation, "", err)
-		return before.Clone(), rollback(ctx, transaction, primary)
-	}
-	return after.Clone(), nil
+	return nil
 }
 
 func preflight(before ProjectState, migration Migration, direction Direction) ([]preparedOperation, ProjectState, error) {
@@ -251,10 +301,38 @@ func operationIndices(length int, direction Direction) []int {
 }
 
 func operationErrorClass(err error) (ErrorCategory, ErrorCode) {
-	if backend.IsCapabilityError(err) {
-		return CategoryCapability, CodeUnsupported
+	if category, code, ok := backendErrorClass(err); ok {
+		return category, code
 	}
 	return CategoryExecution, CodeOperationFailed
+}
+
+func recorderErrorClass(err error) (ErrorCategory, ErrorCode) {
+	// Recorder failures have an established public category/code contract.
+	// Only the dedicated raw revision-fence carrier may override it: a generic
+	// backend CapabilityError at this stage is still a failed recorder write,
+	// not an unsupported schema operation.
+	if category, code, ok := revisionFenceErrorClass(err); ok {
+		return category, code
+	}
+	return CategoryRecorder, CodeRecordFailed
+}
+
+func beginErrorClass(err error) (ErrorCategory, ErrorCode) {
+	if category, code, ok := backendErrorClass(err); ok {
+		return category, code
+	}
+	return CategoryTransaction, CodeBeginFailed
+}
+
+func backendErrorClass(err error) (ErrorCategory, ErrorCode, bool) {
+	if category, code, ok := revisionFenceErrorClass(err); ok {
+		return category, code, true
+	}
+	if backend.IsCapabilityError(err) {
+		return CategoryCapability, CodeUnsupported, true
+	}
+	return "", "", false
 }
 
 func migrationError(category ErrorCategory, code ErrorCode, direction Direction, migration Migration, operationIndex int, operation string, cause error) *Error {

@@ -31,10 +31,10 @@ func TestCurrentLifecycleAcceptsStaleSnapshotBeforeFirstWrite(t *testing.T) {
 	leftBefore, leftPlan := currentSnapshotPlan(t, ctx, left, definitions, leftMigration.Key())
 	rightBefore, rightPlan := currentSnapshotPlan(t, ctx, right, definitions, rightMigration.Key())
 
-	if _, err := (migrations.Executor{Backend: right}).ExecutePlan(ctx, rightBefore, definitions, rightPlan); err != nil {
+	if _, err := (migrations.DirectExecutor{Backend: right}).ExecutePlan(ctx, rightBefore, definitions, rightPlan); err != nil {
 		t.Fatalf("competing right commit: %v", err)
 	}
-	if _, err := (migrations.Executor{Backend: left}).ExecutePlan(ctx, leftBefore, definitions, leftPlan); err != nil {
+	if _, err := (migrations.DirectExecutor{Backend: left}).ExecutePlan(ctx, leftBefore, definitions, leftPlan); err != nil {
 		t.Fatalf("current lifecycle unexpectedly rejected stale left plan: %v", err)
 	}
 
@@ -74,7 +74,7 @@ func TestCurrentLifecycleAcceptsCompetitorBetweenSteps(t *testing.T) {
 	}
 	resultCh := make(chan result, 1)
 	go func() {
-		state, err := (migrations.Executor{Backend: gate}).ExecutePlan(ctx, before, definitions, plan)
+		state, err := (migrations.DirectExecutor{Backend: gate}).ExecutePlan(ctx, before, definitions, plan)
 		resultCh <- result{state: state, err: err}
 	}()
 
@@ -87,7 +87,7 @@ func TestCurrentLifecycleAcceptsCompetitorBetweenSteps(t *testing.T) {
 	}
 
 	competitorBefore, competitorPlan := currentSnapshotPlan(t, ctx, competitorBackend, definitions, competitor.Key())
-	if _, err := (migrations.Executor{Backend: competitorBackend}).ExecutePlan(
+	if _, err := (migrations.DirectExecutor{Backend: competitorBackend}).ExecutePlan(
 		ctx,
 		competitorBefore,
 		definitions,

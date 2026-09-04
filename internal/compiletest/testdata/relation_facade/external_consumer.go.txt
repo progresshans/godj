@@ -1,0 +1,237 @@
+package facadeconsumer
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/authors"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
+)
+
+type minimalBackend struct{}
+
+func (*minimalBackend) Query(context.Context, query.Plan) (db.Rows, error) {
+	return nil, nil
+}
+
+func (*minimalBackend) Insert(context.Context, query.InsertPlan) (int64, error) {
+	return 0, nil
+}
+
+func (*minimalBackend) Update(context.Context, query.UpdatePlan) (int64, error) {
+	return 0, nil
+}
+
+func (*minimalBackend) Delete(context.Context, query.DeletePlan) (int64, error) {
+	return 0, nil
+}
+
+var (
+	_ project.Backend                        = (*minimalBackend)(nil)
+	_ project.Backend                        = (db.Session)(nil)
+	_ project.Backend                        = (db.RelationSession)(nil)
+	_ json.Marshaler                         = project.BlogPost{}
+	_ json.Marshaler                         = (*project.BlogPost)(nil)
+	_ json.Unmarshaler                       = (*project.BlogPost)(nil)
+	_ func(project.BlogPost) ([]byte, error) = project.BlogPost.MarshalJSON
+	_ func(*project.BlogPost, []byte) error  = (*project.BlogPost).UnmarshalJSON
+)
+
+func compileRelationFacade(ctx context.Context, backend project.Backend) error {
+	models, err := project.Using(backend)
+	if err != nil {
+		return err
+	}
+	newAuthor, err := models.AuthorsAuthor.New(authors.Author{Name: "new author"})
+	if err != nil {
+		return err
+	}
+	if err := newAuthor.Save(ctx); err != nil {
+		return err
+	}
+	newPost, err := models.BlogPost.New(blog.Post{Title: "new post"})
+	if err != nil {
+		return err
+	}
+	newPost.Title = "direct title"
+	var directTitle string = newPost.Title
+	_ = directTitle
+	newPost, err = newPost.WithAuthor(newAuthor)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.WithReviewer(newAuthor)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.WithAuthorID(1)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.WithReviewerID(2)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.ClearReviewer()
+	if err != nil {
+		return err
+	}
+	if err := newPost.Save(ctx); err != nil {
+		return err
+	}
+	authorQuery := models.AuthorsAuthor.
+		Filter(authors.AuthorFields.Name.IContains("all authors")).
+		OrderBy(authors.AuthorFields.ID.Asc())
+	limitedAuthors, err := authorQuery.Limit(1)
+	if err != nil {
+		return err
+	}
+	authorsResult, err := limitedAuthors.All(ctx)
+	if err != nil {
+		return err
+	}
+	var authorWrappers []*project.AuthorsAuthor = authorsResult
+	_ = authorWrappers
+
+	author, found, err := models.AuthorsAuthor.
+		Filter(authors.AuthorFields.Name.IContains("author")).
+		OrderBy(authors.AuthorFields.ID.Asc()).
+		First(ctx)
+	if err != nil {
+		return err
+	}
+	if found {
+		var authorWrapper *project.AuthorsAuthor = author
+		authorModel, err := authorWrapper.Unwrap()
+		if err != nil {
+			return err
+		}
+		var rawAuthor authors.Author = authorModel
+		_ = rawAuthor.ID
+		_ = rawAuthor.Name
+	}
+
+	filtered := models.BlogPost.Filter(blog.PostFields.Title.IContains("lazy"))
+	ordered := filtered.OrderBy(blog.PostFields.ID.Asc())
+	limited, err := ordered.Limit(1)
+	if err != nil {
+		return err
+	}
+	lazyPosts, err := limited.All(ctx)
+	if err != nil {
+		return err
+	}
+	var lazyWrappers []*project.BlogPost = lazyPosts
+	_ = lazyWrappers
+
+	post, found, err := models.BlogPost.
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil
+	}
+	var source *project.BlogPost = post
+	_ = source
+
+	required, err := post.Author(ctx)
+	if err != nil {
+		return err
+	}
+	var requiredTarget *project.AuthorsAuthor = required
+	_, err = requiredTarget.Unwrap()
+	if err != nil {
+		return err
+	}
+	nullable, present, err := post.Reviewer(ctx)
+	if err != nil {
+		return err
+	}
+	if present {
+		var nullableTarget *project.AuthorsAuthor = nullable
+		_, err = nullableTarget.Unwrap()
+		if err != nil {
+			return err
+		}
+	}
+	rawPost, err := post.Unwrap()
+	if err != nil {
+		return err
+	}
+	var model blog.Post = rawPost
+	_ = model.ID
+	_ = model.Title
+	_ = model.AuthorID
+
+	var selector project.BlogPostRelationSelector = models.BlogPost.Related.Author
+	_ = selector
+	selector = models.BlogPost.Related.Reviewer
+	_ = selector
+
+	authorEager := models.BlogPost.
+		SelectRelated(models.BlogPost.Related.Author).
+		Filter(blog.PostFields.Title.IContains("author eager")).
+		OrderBy(blog.PostFields.ID.Asc())
+	limitedAuthorEager, err := authorEager.Limit(1)
+	if err != nil {
+		return err
+	}
+	posts, err := limitedAuthorEager.All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(posts) != 0 {
+		var eagerSource *project.BlogPost = posts[0]
+		_, err = eagerSource.Author(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	reviewerEager := models.BlogPost.
+		Filter(blog.PostFields.Title.IContains("reviewer eager")).
+		SelectRelated(models.BlogPost.Related.Reviewer).
+		OrderBy(blog.PostFields.ID.Asc())
+	limitedReviewerEager, err := reviewerEager.Limit(1)
+	if err != nil {
+		return err
+	}
+	posts, err = limitedReviewerEager.All(ctx)
+	if err != nil || len(posts) == 0 {
+		return err
+	}
+	_, _, err = posts[0].Reviewer(ctx)
+	return err
+}
+
+func compileMinimalBackend(ctx context.Context, backend *minimalBackend) error {
+	models, err := project.Using(backend)
+	if err != nil {
+		return err
+	}
+	_, _, err = models.BlogPost.OrderBy(blog.PostFields.ID.Asc()).First(ctx)
+	return err
+}
+
+func compileSession(ctx context.Context, session db.Session) error {
+	models, err := project.Using(session)
+	if err != nil {
+		return err
+	}
+	_, _, err = models.AuthorsAuthor.OrderBy(authors.AuthorFields.ID.Asc()).First(ctx)
+	return err
+}
+
+func compileRelationSession(ctx context.Context, session db.RelationSession) error {
+	models, err := project.Using(session)
+	if err != nil {
+		return err
+	}
+	_, _, err = models.BlogPost.OrderBy(blog.PostFields.ID.Asc()).First(ctx)
+	return err
+}

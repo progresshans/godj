@@ -1,0 +1,11 @@
+package invalid
+
+import (
+	"github.com/progresshans/godj/conformance/relationobjectproduct/authors"
+	"github.com/progresshans/godj/conformance/relationobjectproduct/project"
+	"github.com/progresshans/godj/db"
+)
+
+func invalidFactorySource(objects project.Objects, backend db.Queryer, author authors.Author) {
+	_, _ = objects.BlogPost.From(backend, author)
+}

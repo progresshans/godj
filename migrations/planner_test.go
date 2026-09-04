@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"errors"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"math/rand"
@@ -267,6 +268,88 @@ func TestPlannerTargetAndHistoryPrecedence(t *testing.T) {
 	assertPlanningError(t, err, CategoryPlan, CodeTargetNotFound, missing, MigrationKey{})
 }
 
+func TestPlannerKnownAppZeroPreservesLegacyZeroContract(t *testing.T) {
+	t.Parallel()
+
+	alphaRoot := MigrationKey{App: "alpha", Name: "0001_root"}
+	betaOnly := MigrationKey{App: "beta", Name: "0001_cross_app_dependent"}
+	planner := mustPlanner(t,
+		migration(alphaRoot),
+		migration(betaOnly, alphaRoot),
+	)
+	fullyApplied := mustApplied(t, alphaRoot, betaOnly)
+
+	legacyPlan, err := planner.Plan(fullyApplied, ZeroTarget("beta"))
+	if err != nil {
+		t.Fatalf("Plan(legacy known zero) error = %v", err)
+	}
+	strictPlan, err := planner.Plan(fullyApplied, KnownAppZeroTarget("beta"))
+	if err != nil {
+		t.Fatalf("Plan(strict known zero) error = %v", err)
+	}
+	if !reflect.DeepEqual(strictPlan, legacyPlan) {
+		t.Fatalf("strict known zero plan = %v, legacy plan = %v", strictPlan, legacyPlan)
+	}
+	assertPlan(t, strictPlan, backward(betaOnly))
+
+	legacyPlan, err = planner.Plan(fullyApplied, ZeroTarget("alpha"))
+	if err != nil {
+		t.Fatalf("Plan(legacy cross-app zero) error = %v", err)
+	}
+	strictPlan, err = planner.Plan(fullyApplied, KnownAppZeroTarget("alpha"))
+	if err != nil {
+		t.Fatalf("Plan(strict cross-app zero) error = %v", err)
+	}
+	if !reflect.DeepEqual(strictPlan, legacyPlan) {
+		t.Fatalf("strict cross-app zero plan = %v, legacy plan = %v", strictPlan, legacyPlan)
+	}
+	assertPlan(t, strictPlan, backward(betaOnly), backward(alphaRoot))
+
+	assertPlan(t, plan(t, planner, mustApplied(t), KnownAppZeroTarget("beta")))
+	assertPlan(t, plan(t, planner, mustApplied(t), ZeroTarget("unknown")))
+	_, err = planner.Plan(mustApplied(t), KnownAppZeroTarget("unknown"))
+	assertPlanningError(
+		t,
+		err,
+		CategoryPlan,
+		CodeTargetNotFound,
+		MigrationKey{App: "unknown"},
+		MigrationKey{},
+	)
+
+	legacyOnly := MigrationKey{App: "legacy", Name: "0099_removed"}
+	assertPlan(t, plan(t, planner, mustApplied(t, legacyOnly), ZeroTarget("legacy")))
+	_, err = planner.Plan(mustApplied(t, legacyOnly), KnownAppZeroTarget("legacy"))
+	assertPlanningError(
+		t,
+		err,
+		CategoryPlan,
+		CodeTargetNotFound,
+		MigrationKey{App: "legacy"},
+		MigrationKey{},
+	)
+}
+
+func TestPlannerKnownAppZeroHistoryPrecedence(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t, migration(alpha1), migration(alpha2, alpha1))
+	inconsistent := mustApplied(t, alpha2)
+
+	_, err := planner.Plan(inconsistent, KnownAppZeroTarget("unknown"))
+	assertPlanningError(t, err, CategoryHistory, CodeInconsistentAppliedHistory, alpha2, alpha1)
+
+	_, err = planner.Plan(mustApplied(t), KnownAppZeroTarget("unknown"))
+	assertPlanningError(
+		t,
+		err,
+		CategoryPlan,
+		CodeTargetNotFound,
+		MigrationKey{App: "unknown"},
+		MigrationKey{},
+	)
+}
+
 func TestPlannerCheckHistoryIsExplicitAndPreservesPlanValidation(t *testing.T) {
 	t.Parallel()
 
@@ -337,6 +420,172 @@ func TestPlannerCheckHistoryRepeatedAndConcurrentCallsAreImmutable(t *testing.T)
 	}
 }
 
+func TestPlannerStatusesAreAppGroupedDependencyOrderedAndShowMissingDefinitions(t *testing.T) {
+	t.Parallel()
+
+	zetaRoot := MigrationKey{App: "zeta", Name: "0001_root"}
+	alphaParent := MigrationKey{App: "alpha", Name: "0099_parent"}
+	alphaChild := MigrationKey{App: "alpha", Name: "0001_child"}
+	alphaBranch := MigrationKey{App: "alpha", Name: "0002_branch"}
+	alphaTail := MigrationKey{App: "alpha", Name: "0000_tail"}
+	betaRoot := MigrationKey{App: "beta", Name: "0001_root"}
+	alphaMissingFirst := MigrationKey{App: "alpha", Name: "0000_missing"}
+	alphaMissingLast := MigrationKey{App: "alpha", Name: "9999_missing"}
+	aardvarkMissing := MigrationKey{App: "aardvark", Name: "0007_removed"}
+	zetaMissing := MigrationKey{App: "zeta", Name: "0000_removed"}
+
+	definitions := []Migration{
+		migration(alphaTail, alphaBranch, alphaChild),
+		migration(betaRoot, alphaBranch),
+		migration(alphaChild, alphaParent),
+		migration(zetaRoot),
+		migration(alphaParent, zetaRoot),
+		migration(alphaBranch, alphaParent),
+	}
+	applied := mustApplied(t,
+		zetaRoot,
+		alphaParent,
+		alphaChild,
+		alphaMissingLast,
+		alphaMissingFirst,
+		aardvarkMissing,
+		zetaMissing,
+	)
+	want := []MigrationStatusEntry{
+		{Key: aardvarkMissing, Status: MigrationStatusDefinitionMissing},
+		{Key: alphaParent, Status: MigrationStatusApplied},
+		{Key: alphaChild, Status: MigrationStatusApplied},
+		{Key: alphaBranch, Status: MigrationStatusUnapplied},
+		{Key: alphaTail, Status: MigrationStatusUnapplied},
+		{Key: alphaMissingFirst, Status: MigrationStatusDefinitionMissing},
+		{Key: alphaMissingLast, Status: MigrationStatusDefinitionMissing},
+		{Key: betaRoot, Status: MigrationStatusUnapplied},
+		{Key: zetaRoot, Status: MigrationStatusApplied},
+		{Key: zetaMissing, Status: MigrationStatusDefinitionMissing},
+	}
+
+	random := rand.New(rand.NewSource(20260830))
+	for iteration := 0; iteration < 100; iteration++ {
+		input := cloneMigrations(definitions)
+		random.Shuffle(len(input), func(left, right int) {
+			input[left], input[right] = input[right], input[left]
+		})
+		for index := range input {
+			random.Shuffle(len(input[index].Dependencies), func(left, right int) {
+				input[index].Dependencies[left], input[index].Dependencies[right] =
+					input[index].Dependencies[right], input[index].Dependencies[left]
+			})
+		}
+
+		planner := mustPlanner(t, input...)
+		got, err := planner.Statuses(applied)
+		if err != nil {
+			t.Fatalf("iteration %d Statuses() error = %v", iteration, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("iteration %d Statuses() = %v, want %v", iteration, got, want)
+		}
+	}
+}
+
+func TestPlannerStatusesChecksHistoryBeforeReturningRows(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t, migration(alpha1), migration(alpha2, alpha1), migration(beta1))
+	missing := MigrationKey{App: "legacy", Name: "0009_removed"}
+	got, err := planner.Statuses(mustApplied(t, alpha2, missing))
+	if got != nil {
+		t.Fatalf("Statuses(inconsistent) = %v, want nil", got)
+	}
+	assertPlanningError(t, err, CategoryHistory, CodeInconsistentAppliedHistory, alpha2, alpha1)
+}
+
+func TestPlannerStatusesSupportsZeroValuesAndMissingOnlyHistory(t *testing.T) {
+	t.Parallel()
+
+	var planner Planner
+	var applied AppliedState
+	got, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("zero Planner.Statuses() error = %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("zero Planner.Statuses() = %v, want empty", got)
+	}
+
+	missingZ := MigrationKey{App: "legacy", Name: "0009_removed"}
+	missingA := MigrationKey{App: "legacy", Name: "0001_removed"}
+	got, err = planner.Statuses(mustApplied(t, missingZ, missingA))
+	if err != nil {
+		t.Fatalf("zero Planner.Statuses(missing) error = %v", err)
+	}
+	want := []MigrationStatusEntry{
+		{Key: missingA, Status: MigrationStatusDefinitionMissing},
+		{Key: missingZ, Status: MigrationStatusDefinitionMissing},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("zero Planner.Statuses(missing) = %v, want %v", got, want)
+	}
+}
+
+func TestPlannerStatusesReturnsFreshValuesAndIsConcurrentSafe(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t,
+		migration(shared),
+		migration(alpha1, shared),
+		migration(beta1, shared),
+		migration(alpha2, alpha1, beta1),
+	)
+	missing := MigrationKey{App: "alpha", Name: "0000_removed"}
+	applied := mustApplied(t, shared, alpha1, missing)
+	want, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() error = %v", err)
+	}
+	mutated, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() mutation probe error = %v", err)
+	}
+	mutated[0] = MigrationStatusEntry{
+		Key:    MigrationKey{App: "mutated", Name: "mutated"},
+		Status: MigrationStatusUnapplied,
+	}
+	got, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() after mutation error = %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Statuses() after caller mutation = %v, want %v", got, want)
+	}
+
+	const workers = 64
+	var wait sync.WaitGroup
+	errorsChannel := make(chan error, workers)
+	for worker := 0; worker < workers; worker++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for iteration := 0; iteration < 100; iteration++ {
+				got, err := planner.Statuses(applied)
+				if err != nil {
+					errorsChannel <- err
+					return
+				}
+				if !reflect.DeepEqual(got, want) {
+					errorsChannel <- errors.New("concurrent statuses differed")
+					return
+				}
+			}
+		}()
+	}
+	wait.Wait()
+	close(errorsChannel)
+	for err := range errorsChannel {
+		t.Fatal(err)
+	}
+}
+
 func TestPlannerHistoryDiagnosticsChooseLexicographicChildParentAcrossPermutations(t *testing.T) {
 	t.Parallel()
 
@@ -373,8 +622,10 @@ func TestPlannerRejectsInvalidTargetRepresentationsInCallerOrder(t *testing.T) {
 		{name: "empty named app", target: NamedTarget(MigrationKey{Name: "0001"}), node: MigrationKey{Name: "0001"}},
 		{name: "empty named name", target: NamedTarget(MigrationKey{App: "alpha"}), node: MigrationKey{App: "alpha"}},
 		{name: "empty zero app", target: ZeroTarget("")},
+		{name: "empty known-app zero app", target: KnownAppZeroTarget("")},
 		{name: "corrupt named tag", target: Target{kind: targetNamed, key: alpha1, app: "alpha"}, node: alpha1},
 		{name: "corrupt zero tag", target: Target{kind: targetZero, key: alpha1, app: "alpha"}},
+		{name: "corrupt known-app zero tag", target: Target{kind: targetKnownAppZero, key: alpha1, app: "alpha"}},
 	}
 	for _, test := range tests {
 		test := test
@@ -739,6 +990,339 @@ func TestPlannerGraphAppLeavesIncludeNodeWithOnlyCrossAppChildren(t *testing.T) 
 	if got := graph.appLeaves(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("cross-app-only appLeaves() = %v, want %v", got, want)
 	}
+}
+
+func TestPlannerHeapSelectionMatchesCanonicalScanExhaustively(t *testing.T) {
+	keys := []MigrationKey{
+		{App: "alpha", Name: "0001"},
+		{App: "alpha", Name: "0002"},
+		{App: "beta", Name: "0001"},
+		{App: "beta", Name: "0002"},
+	}
+	edges := make([]dependencyEdge, 0, 6)
+	for child := 1; child < len(keys); child++ {
+		for parent := 0; parent < child; parent++ {
+			edges = append(edges, dependencyEdge{child: keys[child], parent: keys[parent]})
+		}
+	}
+	targetChoices := []Target{
+		NamedTarget(keys[0]),
+		NamedTarget(keys[1]),
+		NamedTarget(keys[2]),
+		NamedTarget(keys[3]),
+		ZeroTarget("alpha"),
+		ZeroTarget("beta"),
+		KnownAppZeroTarget("alpha"),
+		KnownAppZeroTarget("beta"),
+	}
+	targetSequences := make([][]Target, 0, len(targetChoices)+len(targetChoices)*len(targetChoices))
+	for _, first := range targetChoices {
+		targetSequences = append(targetSequences, []Target{first})
+		for _, second := range targetChoices {
+			targetSequences = append(targetSequences, []Target{first, second})
+		}
+	}
+
+	for graphMask := 0; graphMask < 1<<len(edges); graphMask++ {
+		definitions := make([]Migration, len(keys))
+		for index, key := range keys {
+			definitions[index] = migration(key)
+		}
+		for edgeIndex, edge := range edges {
+			if graphMask&(1<<edgeIndex) != 0 {
+				for index := range definitions {
+					if definitions[index].Key() == edge.child {
+						definitions[index].Dependencies = append(definitions[index].Dependencies, edge.parent)
+						break
+					}
+				}
+			}
+		}
+		planner := mustPlanner(t, definitions...)
+		for appliedMask := 0; appliedMask < 1<<len(keys); appliedMask++ {
+			appliedKeys := make([]MigrationKey, 0, len(keys))
+			for index, key := range keys {
+				if appliedMask&(1<<index) != 0 {
+					appliedKeys = append(appliedKeys, key)
+				}
+			}
+			applied := mustApplied(t, appliedKeys...)
+			for sequenceIndex, targets := range targetSequences {
+				got, gotErr := planner.Plan(applied, targets...)
+				want, wantErr := referencePlannerPlan(planner.graph, applied, targets...)
+				if !reflect.DeepEqual(got, want) || !samePlanningError(gotErr, wantErr) {
+					t.Fatalf(
+						"graph mask %06b applied mask %04b target sequence %d: Plan() = (%v, %v), canonical scan = (%v, %v)",
+						graphMask, appliedMask, sequenceIndex, got, gotErr, want, wantErr,
+					)
+				}
+			}
+		}
+	}
+}
+
+func TestPlannerHeapSelectionHandlesDenseResourceValidGraphs(t *testing.T) {
+	const (
+		denseNodes = 1851
+		extraNodes = 2048 - denseNodes
+		earlyCount = 150
+		chainCount = 1700
+	)
+
+	t.Run("forward", func(t *testing.T) {
+		definitions := make([]Migration, 0, denseNodes+extraNodes)
+		chain := make([]MigrationKey, chainCount)
+		for index := range chain {
+			chain[index] = MigrationKey{App: "zchain", Name: fmt.Sprintf("%04d", index)}
+			dependencies := []MigrationKey(nil)
+			if index != 0 {
+				dependencies = []MigrationKey{chain[index-1]}
+			}
+			definitions = append(definitions, migration(chain[index], dependencies...))
+		}
+		early := make([]MigrationKey, earlyCount)
+		for index := range early {
+			early[index] = MigrationKey{App: "alpha", Name: fmt.Sprintf("%04d", index)}
+			definitions = append(definitions, migration(early[index], chain...))
+		}
+		leaf := MigrationKey{App: "zzleaf", Name: "0001"}
+		definitions = append(definitions, migration(leaf, early...))
+		extraTargets := make([]Target, 0, extraNodes)
+		for index := 0; index < extraNodes; index++ {
+			key := MigrationKey{App: "extra", Name: fmt.Sprintf("%04d", index)}
+			definitions = append(definitions, migration(key))
+			extraTargets = append(extraTargets, NamedTarget(key))
+		}
+
+		planner := mustPlanner(t, definitions...)
+		targets := append([]Target{NamedTarget(leaf)}, extraTargets...)
+		steps := plan(t, planner, mustApplied(t), targets...)
+		if got, want := len(steps), len(definitions); got != want {
+			t.Fatalf("dense forward plan length = %d, want %d", got, want)
+		}
+		for index, step := range steps {
+			if step.Direction != DirectionForward {
+				t.Fatalf("dense forward step %d direction = %v", index, step.Direction)
+			}
+		}
+	})
+
+	t.Run("backward", func(t *testing.T) {
+		root := MigrationKey{App: "root", Name: "0001"}
+		definitions := make([]Migration, 0, denseNodes+extraNodes)
+		definitions = append(definitions, migration(root))
+		early := make([]MigrationKey, earlyCount)
+		for index := range early {
+			early[index] = MigrationKey{App: "alpha", Name: fmt.Sprintf("%04d", index)}
+			definitions = append(definitions, migration(early[index], root))
+		}
+		chain := make([]MigrationKey, chainCount)
+		for index := range chain {
+			chain[index] = MigrationKey{App: "zchain", Name: fmt.Sprintf("%04d", index)}
+			dependencies := append([]MigrationKey(nil), early...)
+			if index+1 < len(chain) {
+				dependencies = append(dependencies, MigrationKey{App: "zchain", Name: fmt.Sprintf("%04d", index+1)})
+			}
+			definitions = append(definitions, migration(chain[index], dependencies...))
+		}
+		extraKeys := make([]MigrationKey, 0, extraNodes)
+		for index := 0; index < extraNodes; index++ {
+			key := MigrationKey{App: "extra", Name: fmt.Sprintf("%04d", index)}
+			definitions = append(definitions, migration(key))
+			extraKeys = append(extraKeys, key)
+		}
+
+		planner := mustPlanner(t, definitions...)
+		appliedKeys := append([]MigrationKey{root}, early...)
+		appliedKeys = append(appliedKeys, chain...)
+		appliedKeys = append(appliedKeys, extraKeys...)
+		applied := mustApplied(t, appliedKeys...)
+		steps := plan(t, planner, applied, ZeroTarget(root.App))
+		if got, want := len(steps), denseNodes; got != want {
+			t.Fatalf("dense backward plan length = %d, want %d", got, want)
+		}
+		for index, step := range steps {
+			if step.Direction != DirectionBackward {
+				t.Fatalf("dense backward step %d direction = %v", index, step.Direction)
+			}
+		}
+
+		strictSteps := plan(t, planner, applied, KnownAppZeroTarget(root.App))
+		if !reflect.DeepEqual(strictSteps, steps) {
+			t.Fatalf("dense strict-zero plan differs from legacy zero")
+		}
+	})
+}
+
+func referencePlannerPlan(graph *plannerGraph, applied AppliedState, targets ...Target) ([]PlanStep, error) {
+	for _, target := range targets {
+		if err := validateTarget(target); err != nil {
+			return nil, err
+		}
+	}
+	working := cloneAppliedKeys(applied.keys)
+	if err := graph.validateAppliedHistory(working); err != nil {
+		return nil, err
+	}
+
+	var result []PlanStep
+	for _, target := range targets {
+		switch target.kind {
+		case targetNamed:
+			if !graph.contains(target.key) {
+				return nil, newPlanningError(CategoryPlan, CodeTargetNotFound, target.key, MigrationKey{}, nil)
+			}
+			if _, exists := working[target.key]; !exists {
+				steps, err := referencePlanForward(graph, target.key, working)
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, steps...)
+				continue
+			}
+			for _, child := range graph.children[target.key] {
+				if child.App != target.key.App {
+					continue
+				}
+				steps, err := referencePlanBackward(graph, child, working)
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, steps...)
+			}
+		case targetZero, targetKnownAppZero:
+			if target.kind == targetKnownAppZero && !graph.containsApp(target.app) {
+				return nil, newPlanningError(
+					CategoryPlan,
+					CodeTargetNotFound,
+					MigrationKey{App: target.app},
+					MigrationKey{},
+					nil,
+				)
+			}
+			for _, root := range graph.appRoots(target.app) {
+				steps, err := referencePlanBackward(graph, root, working)
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, steps...)
+			}
+		}
+	}
+	return result, nil
+}
+
+func referencePlanForward(graph *plannerGraph, target MigrationKey, applied map[MigrationKey]struct{}) ([]PlanStep, error) {
+	candidates := make(map[MigrationKey]struct{})
+	stack := []MigrationKey{target}
+	for len(stack) != 0 {
+		key := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if _, exists := applied[key]; exists {
+			continue
+		}
+		if _, exists := candidates[key]; exists {
+			continue
+		}
+		candidates[key] = struct{}{}
+		stack = append(stack, graph.parents[key]...)
+	}
+
+	steps := make([]PlanStep, 0, len(candidates))
+	for len(candidates) != 0 {
+		next, exists := referenceFirstForwardReady(graph, candidates, applied)
+		if !exists {
+			return nil, internalCyclePlanningError(candidates)
+		}
+		steps = append(steps, PlanStep{Key: next, Direction: DirectionForward})
+		applied[next] = struct{}{}
+		delete(candidates, next)
+	}
+	return steps, nil
+}
+
+func referenceFirstForwardReady(graph *plannerGraph, candidates, applied map[MigrationKey]struct{}) (MigrationKey, bool) {
+	for _, key := range graph.nodes {
+		if _, exists := candidates[key]; !exists {
+			continue
+		}
+		ready := true
+		for _, parent := range graph.parents[key] {
+			if _, exists := applied[parent]; !exists {
+				ready = false
+				break
+			}
+		}
+		if ready {
+			return key, true
+		}
+	}
+	return MigrationKey{}, false
+}
+
+func referencePlanBackward(graph *plannerGraph, seed MigrationKey, applied map[MigrationKey]struct{}) ([]PlanStep, error) {
+	candidates := make(map[MigrationKey]struct{})
+	stack := []MigrationKey{seed}
+	visited := make(map[MigrationKey]struct{})
+	for len(stack) != 0 {
+		key := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if _, exists := visited[key]; exists {
+			continue
+		}
+		visited[key] = struct{}{}
+		if _, exists := applied[key]; exists {
+			candidates[key] = struct{}{}
+		}
+		stack = append(stack, graph.children[key]...)
+	}
+
+	steps := make([]PlanStep, 0, len(candidates))
+	for len(candidates) != 0 {
+		next, exists := referenceFirstBackwardReady(graph, candidates)
+		if !exists {
+			return nil, internalCyclePlanningError(candidates)
+		}
+		steps = append(steps, PlanStep{Key: next, Direction: DirectionBackward})
+		delete(applied, next)
+		delete(candidates, next)
+	}
+	return steps, nil
+}
+
+func referenceFirstBackwardReady(graph *plannerGraph, candidates map[MigrationKey]struct{}) (MigrationKey, bool) {
+	for _, key := range graph.nodes {
+		if _, exists := candidates[key]; !exists {
+			continue
+		}
+		ready := true
+		for _, child := range graph.children[key] {
+			if _, exists := candidates[child]; exists {
+				ready = false
+				break
+			}
+		}
+		if ready {
+			return key, true
+		}
+	}
+	return MigrationKey{}, false
+}
+
+func samePlanningError(left, right error) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	leftPlanning, leftOK := left.(*PlanningError)
+	rightPlanning, rightOK := right.(*PlanningError)
+	if !leftOK || !rightOK {
+		return left.Error() == right.Error()
+	}
+	return leftPlanning.Category == rightPlanning.Category &&
+		leftPlanning.Code == rightPlanning.Code &&
+		leftPlanning.Node == rightPlanning.Node &&
+		leftPlanning.Related == rightPlanning.Related &&
+		reflect.DeepEqual(leftPlanning.Members(), rightPlanning.Members())
 }
 
 func TestPlannerSourceHasNoDatabaseOrBackendImports(t *testing.T) {

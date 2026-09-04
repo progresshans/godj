@@ -11,7 +11,30 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from django.db import IntegrityError, connection
+
+from conformance.runners.django.relation_fixture import relation_database
 from conformance.runners.django.runner import (
+    DEFAULT_ARTICLE_ADMIN_MANIFEST,
+    DEFAULT_ARTICLE_ADMIN_ORACLE,
+    DEFAULT_AUTH_SESSION_MANIFEST,
+    DEFAULT_AUTH_SESSION_ORACLE,
+    DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
+    DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE,
+    DEFAULT_MIGRATION_COMMAND_MANIFEST,
+    DEFAULT_MIGRATION_COMMAND_ORACLE,
+    DEFAULT_MIGRATION_WRITER_MANIFEST,
+    DEFAULT_MIGRATION_WRITER_ORACLE,
+    DEFAULT_MIGRATION_STATUS_MANIFEST,
+    DEFAULT_MIGRATION_STATUS_ORACLE,
+    DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST,
+    DEFAULT_MIGRATION_TARGET_PLAN_ORACLE,
+    DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST,
+    DEFAULT_MIGRATION_SQL_RENDERING_ORACLE,
+    DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST,
+    DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE,
+    DEFAULT_MIGRATION_RELATION_MANIFEST,
+    DEFAULT_MIGRATION_RELATION_ORACLE,
     DEFAULT_MIGRATION_LIFECYCLE_MANIFEST,
     DEFAULT_MIGRATION_LIFECYCLE_ORACLE,
     DEFAULT_MIGRATION_EXECUTION_MANIFEST,
@@ -22,10 +45,20 @@ from conformance.runners.django.runner import (
     DEFAULT_MIGRATION_RESTART_ORACLE,
     DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST,
     DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE,
+    DEFAULT_QUERY_BREADTH_MANIFEST,
+    DEFAULT_QUERY_BREADTH_ORACLE,
+    DEFAULT_QUERY_EXPRESSION_MANIFEST,
+    DEFAULT_QUERY_EXPRESSION_ORACLE,
     DEFAULT_QUERY_CACHE_MANIFEST,
     DEFAULT_QUERY_CACHE_ORACLE,
+    DEFAULT_RELATION_MANIFEST,
+    DEFAULT_RELATION_ORACLE,
     DEFAULT_SAVE_LIFECYCLE_MANIFEST,
     DEFAULT_SAVE_LIFECYCLE_ORACLE,
+    DEFAULT_TEMPLATE_FORM_MANIFEST,
+    DEFAULT_TEMPLATE_FORM_ORACLE,
+    DEFAULT_SYSTEM_STATE_MANIFEST,
+    DEFAULT_SYSTEM_STATE_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     REPOSITORY_ROOT,
@@ -173,6 +206,73 @@ class RunnerSafetyTests(unittest.TestCase):
         self.assertEqual(status, 0)
         generate_suite.assert_called_once()
 
+    def test_query_breadth_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_QUERY_BREADTH_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_QUERY_BREADTH_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_query_expression_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_QUERY_EXPRESSION_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_QUERY_EXPRESSION_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_gdj0043_manifests_without_output_use_only_their_oracles(self) -> None:
+        for manifest, oracle in (
+            (DEFAULT_TEMPLATE_FORM_MANIFEST, DEFAULT_TEMPLATE_FORM_ORACLE),
+            (DEFAULT_AUTH_SESSION_MANIFEST, DEFAULT_AUTH_SESSION_ORACLE),
+            (DEFAULT_ARTICLE_ADMIN_MANIFEST, DEFAULT_ARTICLE_ADMIN_ORACLE),
+        ):
+            with self.subTest(manifest=manifest.name):
+                expected = oracle.read_bytes()
+                with (
+                    patch(
+                        "conformance.runners.django.runner.generate_suite",
+                        return_value={},
+                    ) as generate_suite,
+                    patch(
+                        "conformance.runners.django.runner.canonical_json",
+                        return_value=expected,
+                    ),
+                ):
+                    status = main(["--manifest", str(manifest), "--check"])
+
+                self.assertEqual(status, 0)
+                generate_suite.assert_called_once()
+
     def test_migration_planning_manifest_without_output_uses_its_oracle(self) -> None:
         expected = DEFAULT_MIGRATION_PLANNING_ORACLE.read_bytes()
         with (
@@ -280,6 +380,222 @@ class RunnerSafetyTests(unittest.TestCase):
                     str(DEFAULT_MIGRATION_LIFECYCLE_MANIFEST),
                     "--check",
                 ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_definition_source_manifest_without_output_uses_its_oracle(
+        self,
+    ) -> None:
+        expected = DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_project_check_manifest_without_output_uses_its_oracle(
+        self,
+    ) -> None:
+        expected = DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_command_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_MIGRATION_COMMAND_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_COMMAND_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_writer_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_MIGRATION_WRITER_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_WRITER_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_status_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_MIGRATION_STATUS_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_STATUS_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_target_plan_manifest_without_output_uses_its_oracle(
+        self,
+    ) -> None:
+        expected = DEFAULT_MIGRATION_TARGET_PLAN_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_sql_rendering_manifest_without_output_uses_its_oracle(
+        self,
+    ) -> None:
+        expected = DEFAULT_MIGRATION_SQL_RENDERING_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_relation_manifest_without_output_uses_relation_oracle(self) -> None:
+        expected = DEFAULT_RELATION_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                ["--manifest", str(DEFAULT_RELATION_MANIFEST), "--check"]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_migration_relation_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_MIGRATION_RELATION_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                ["--manifest", str(DEFAULT_MIGRATION_RELATION_MANIFEST), "--check"]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_system_state_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_SYSTEM_STATE_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                ["--manifest", str(DEFAULT_SYSTEM_STATE_MANIFEST), "--check"]
             )
 
         self.assertEqual(status, 0)
@@ -419,6 +735,233 @@ class RunnerSafetyTests(unittest.TestCase):
             DEFAULT_MIGRATION_LIFECYCLE_ORACLE,
             generated,
         )
+
+    def test_migration_definition_source_regeneration_targets_only_its_oracle(
+        self,
+    ) -> None:
+        generated = b'{"migration_definition_source":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST),
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(
+            DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE,
+            generated,
+        )
+
+    def test_migration_project_check_regeneration_targets_only_its_oracle(
+        self,
+    ) -> None:
+        generated = b'{"migration_project_check":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST),
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(
+            DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE,
+            generated,
+        )
+
+    def test_migration_command_regeneration_targets_only_its_oracle(self) -> None:
+        generated = b'{"migration_command":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(["--manifest", str(DEFAULT_MIGRATION_COMMAND_MANIFEST)])
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(DEFAULT_MIGRATION_COMMAND_ORACLE, generated)
+
+    def test_migration_writer_regeneration_targets_only_its_oracle(self) -> None:
+        generated = b'{"migration_writer":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(["--manifest", str(DEFAULT_MIGRATION_WRITER_MANIFEST)])
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(DEFAULT_MIGRATION_WRITER_ORACLE, generated)
+
+    def test_migration_status_regeneration_targets_only_its_oracle(self) -> None:
+        generated = b'{"migration_status":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(["--manifest", str(DEFAULT_MIGRATION_STATUS_MANIFEST)])
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(DEFAULT_MIGRATION_STATUS_ORACLE, generated)
+
+    def test_migration_target_plan_regeneration_targets_only_its_oracle(
+        self,
+    ) -> None:
+        generated = b'{"migration_target_plan":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(
+                ["--manifest", str(DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST)]
+            )
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(
+            DEFAULT_MIGRATION_TARGET_PLAN_ORACLE,
+            generated,
+        )
+
+    def test_migration_sql_rendering_regeneration_targets_only_its_oracle(
+        self,
+    ) -> None:
+        generated = b'{"migration_sql_rendering":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(
+                ["--manifest", str(DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST)]
+            )
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(
+            DEFAULT_MIGRATION_SQL_RENDERING_ORACLE,
+            generated,
+        )
+
+    def test_relation_regeneration_targets_only_relation_oracle(self) -> None:
+        generated = b'{"relation":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(["--manifest", str(DEFAULT_RELATION_MANIFEST)])
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(DEFAULT_RELATION_ORACLE, generated)
+
+    def test_migration_relation_regeneration_targets_only_its_oracle(self) -> None:
+        generated = b'{"migration_relation":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(["--manifest", str(DEFAULT_MIGRATION_RELATION_MANIFEST)])
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(
+            DEFAULT_MIGRATION_RELATION_ORACLE,
+            generated,
+        )
+
+    def test_system_state_regeneration_targets_only_its_oracle(self) -> None:
+        generated = b'{"system_state":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(["--manifest", str(DEFAULT_SYSTEM_STATE_MANIFEST)])
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(DEFAULT_SYSTEM_STATE_ORACLE, generated)
+
+    def test_relation_fixture_uses_sqlite_foreign_keys_and_rejects_orphans(
+        self,
+    ) -> None:
+        with relation_database() as fixture:
+            with connection.cursor() as cursor:
+                enabled = cursor.execute("PRAGMA foreign_keys").fetchone()[0]
+            self.assertEqual(enabled, 1)
+            before = fixture.Post.objects.count()
+            with self.assertRaises(IntegrityError):
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO godj_relation_post
+                            (id, title, author_id, reviewer_id)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (999, "Orphan", 999, None),
+                    )
+            self.assertEqual(fixture.Post.objects.count(), before)
 
     def test_unknown_manifest_requires_explicit_output(self) -> None:
         with TemporaryDirectory() as temporary:

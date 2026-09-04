@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ model_name }} history</title></head>
+<body data-admin-view="history" data-object-id="{{ object_id }}"><header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
+<main><h1>{{ model_name }} history</h1><ol>{% for entry in entries %}<li data-sequence="{{ entry.sequence }}" data-action="{{ entry.action }}" data-actor="{{ entry.actor }}">{{ entry.action }} by {{ entry.actor }}: {{ entry.label }} [{% for field in entry.changed %}{{ field }} {% endfor %}]</li>{% empty %}<li>No history.</li>{% endfor %}</ol><a href="{{ list_path }}">Back to list</a></main>
+</body></html>

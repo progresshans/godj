@@ -42,7 +42,7 @@ func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
 	}
 	schema, exists := state.Schema(op.AppLabel)
 	if !exists {
-		schema = ir.Schema{FormatVersion: ir.FormatVersion, AppLabel: op.AppLabel}
+		schema = ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: op.AppLabel}
 	}
 	schema.Models = append(schema.Models, model)
 	normalized, err := ir.Normalize(schema)

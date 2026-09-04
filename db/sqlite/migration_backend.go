@@ -19,6 +19,11 @@ const createMigrationRecorderTableSQL = `CREATE TABLE IF NOT EXISTS "godj_migrat
 	`"name" VARCHAR(255) NOT NULL, ` +
 	`PRIMARY KEY ("app", "name"))`
 
+const migrationRecorderTableDefinitionSQL = `CREATE TABLE "godj_migrations" (` +
+	`"app" VARCHAR(255) NOT NULL, ` +
+	`"name" VARCHAR(255) NOT NULL, ` +
+	`PRIMARY KEY ("app", "name"))`
+
 var _ migrationbackend.AtomicBackend = (*Backend)(nil)
 var _ migrationbackend.Transaction = (*migrationTransaction)(nil)
 
@@ -27,8 +32,9 @@ var _ migrationbackend.Transaction = (*migrationTransaction)(nil)
 // from becoming visible independently.
 type migrationTransaction struct {
 	mu          sync.Mutex
-	connection  *sql.Conn
-	transaction *sql.Tx
+	connection  migrationPinnedConnection
+	transaction migrationSQLExecutor
+	manual      bool
 	done        bool
 }
 
@@ -47,12 +53,14 @@ func (b *Backend) BeginMigration(ctx context.Context) (migrationbackend.Transact
 	if err != nil {
 		return nil, fmt.Errorf("acquire SQLite migration connection: %w", err)
 	}
-	transaction, err := connection.BeginTx(ctx, nil)
-	if err != nil {
-		closeErr := connection.Close()
-		return nil, errors.Join(fmt.Errorf("begin SQLite migration transaction: %w", err), wrapCloseMigrationConnection(closeErr))
+	if _, err := connection.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		discardErr := discardMigrationConnection(connection)
+		return nil, errors.Join(classifyRevisionIO("begin direct atomic migration transaction", err), discardErr)
 	}
-	return &migrationTransaction{connection: connection, transaction: transaction}, nil
+	if err := rejectDirectAtomicMigrationWhenRevisionMetadataPresent(ctx, connection); err != nil {
+		return nil, errors.Join(err, rollbackAndReleasePinnedMigration(ctx, connection))
+	}
+	return &migrationTransaction{connection: connection, transaction: connection, manual: true}, nil
 }
 
 func (transaction *migrationTransaction) CreateModel(ctx context.Context, model ir.Model) error {
@@ -60,7 +68,7 @@ func (transaction *migrationTransaction) CreateModel(ctx context.Context, model 
 	if err != nil {
 		return err
 	}
-	return transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
+	return transaction.execute(ctx, func(sqlTransaction migrationSQLExecutor) error {
 		if _, err := sqlTransaction.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("create SQLite model %q: %w", model.DBTable, err)
 		}
@@ -73,7 +81,7 @@ func (transaction *migrationTransaction) DeleteModel(ctx context.Context, model 
 	if err != nil {
 		return err
 	}
-	return transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
+	return transaction.execute(ctx, func(sqlTransaction migrationSQLExecutor) error {
 		if _, err := sqlTransaction.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("delete SQLite model %q: %w", model.DBTable, err)
 		}
@@ -90,7 +98,7 @@ func (transaction *migrationTransaction) TableExists(ctx context.Context, table 
 		return false, errors.New("inspect SQLite migration table: name is empty")
 	}
 	var count int
-	err := transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
+	err := transaction.execute(ctx, func(sqlTransaction migrationSQLExecutor) error {
 		if err := sqlTransaction.QueryRowContext(
 			ctx,
 			`SELECT COUNT(*) FROM "sqlite_schema" WHERE "type" = 'table' AND "name" = ?`,
@@ -111,22 +119,22 @@ func (transaction *migrationTransaction) AddField(ctx context.Context, model ir.
 			nil,
 		)
 	}
-	if field.Default != nil {
-		return migrationbackend.NewCapabilityError(
-			"sqlite_add_field",
-			fmt.Sprintf("field %s.%s has a default; one-time backfill without a persistent database default requires table rebuild", model.DBTable, field.Column),
-			nil,
-		)
-	}
 	statement, err := compileMigrationAddField(model, field)
 	if err != nil {
 		return err
 	}
-	return transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
-		if !field.Nullable {
+	return transaction.execute(ctx, func(sqlTransaction migrationSQLExecutor) error {
+		if field.Default != nil || !field.Nullable {
 			empty, err := sqliteTableEmpty(ctx, sqlTransaction, model.DBTable)
 			if err != nil {
 				return err
+			}
+			if !empty && field.Default != nil {
+				return migrationbackend.NewCapabilityError(
+					"sqlite_add_field",
+					fmt.Sprintf("table %s contains rows; adding field %s with a migration default requires one-time backfill or table rebuild", model.DBTable, field.Column),
+					nil,
+				)
 			}
 			if !empty {
 				return migrationbackend.NewCapabilityError(
@@ -155,7 +163,7 @@ func (transaction *migrationTransaction) RemoveField(ctx context.Context, model 
 	if err != nil {
 		return err
 	}
-	return transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
+	return transaction.execute(ctx, func(sqlTransaction migrationSQLExecutor) error {
 		if err := preflightSQLiteDropColumn(ctx, sqlTransaction, model, field); err != nil {
 			return err
 		}
@@ -177,7 +185,7 @@ func (transaction *migrationTransaction) RecordApplied(ctx context.Context, app,
 	if app == "" || name == "" {
 		return errors.New("record applied SQLite migration: app and name are required")
 	}
-	return transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
+	return transaction.execute(ctx, func(sqlTransaction migrationSQLExecutor) error {
 		if err := ensureMigrationRecorder(ctx, sqlTransaction); err != nil {
 			return err
 		}
@@ -197,7 +205,7 @@ func (transaction *migrationTransaction) RecordUnapplied(ctx context.Context, ap
 	if app == "" || name == "" {
 		return errors.New("record unapplied SQLite migration: app and name are required")
 	}
-	return transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
+	return transaction.execute(ctx, func(sqlTransaction migrationSQLExecutor) error {
 		if err := ensureMigrationRecorder(ctx, sqlTransaction); err != nil {
 			return err
 		}
@@ -236,10 +244,20 @@ func (transaction *migrationTransaction) Commit(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("commit SQLite migration: %w", err)
 	}
+	if !transaction.manual {
+		return errors.New("commit SQLite migration: unsupported transaction implementation")
+	}
+	_, commitErr := transaction.connection.ExecContext(ctx, "COMMIT")
+	if commitErr != nil {
+		// A failed literal COMMIT can leave the manual transaction active. Keep
+		// ownership so Executor's mandatory best-effort Rollback can resolve it.
+		return wrapCommitMigration(commitErr)
+	}
 	transaction.done = true
-	commitErr := transaction.transaction.Commit()
-	closeErr := transaction.connection.Close()
-	return errors.Join(wrapCommitMigration(commitErr), wrapCloseMigrationConnection(closeErr))
+	closeErr := closeOrDiscardMigrationConnection(transaction.connection)
+	transaction.connection = nil
+	transaction.transaction = nil
+	return closeErr
 }
 
 func (transaction *migrationTransaction) Rollback(ctx context.Context) error {
@@ -251,23 +269,23 @@ func (transaction *migrationTransaction) Rollback(ctx context.Context) error {
 	}
 	transaction.mu.Lock()
 	defer transaction.mu.Unlock()
-	// Executor makes a best-effort Rollback after a failed Commit. At that
-	// point database/sql has already resolved the transaction, so the repeated
-	// terminal call is intentionally harmless.
+	// Executor makes a best-effort Rollback after a failed literal COMMIT. A
+	// successful terminal call is still intentionally idempotent.
 	if transaction.done {
 		return nil
 	}
 	transaction.done = true
-	rollbackErr := transaction.transaction.Rollback()
-	if errors.Is(rollbackErr, sql.ErrTxDone) {
-		rollbackErr = nil
+	if !transaction.manual {
+		return errors.New("rollback SQLite migration: unsupported transaction implementation")
 	}
-	closeErr := transaction.connection.Close()
-	return errors.Join(wrapRollbackMigration(rollbackErr), wrapCloseMigrationConnection(closeErr))
+	err := rollbackAndReleasePinnedMigration(ctx, transaction.connection)
+	transaction.connection = nil
+	transaction.transaction = nil
+	return err
 }
 
-func (transaction *migrationTransaction) execute(ctx context.Context, operation func(*sql.Tx) error) error {
-	if transaction == nil || transaction.transaction == nil {
+func (transaction *migrationTransaction) execute(ctx context.Context, operation func(migrationSQLExecutor) error) error {
+	if transaction == nil {
 		return errors.New("execute SQLite migration: transaction is nil")
 	}
 	if ctx == nil {
@@ -278,20 +296,20 @@ func (transaction *migrationTransaction) execute(ctx context.Context, operation 
 	}
 	transaction.mu.Lock()
 	defer transaction.mu.Unlock()
-	if transaction.done {
+	if transaction.done || transaction.transaction == nil {
 		return errors.New("execute SQLite migration: transaction is already complete")
 	}
 	return operation(transaction.transaction)
 }
 
-func ensureMigrationRecorder(ctx context.Context, transaction *sql.Tx) error {
+func ensureMigrationRecorder(ctx context.Context, transaction migrationSQLExecutor) error {
 	if _, err := transaction.ExecContext(ctx, createMigrationRecorderTableSQL); err != nil {
 		return fmt.Errorf("ensure SQLite migration recorder: %w", err)
 	}
 	return nil
 }
 
-func sqliteTableEmpty(ctx context.Context, transaction *sql.Tx, table string) (bool, error) {
+func sqliteTableEmpty(ctx context.Context, transaction migrationSQLExecutor, table string) (bool, error) {
 	quotedTable, err := quoteIdentifier(table)
 	if err != nil {
 		return false, fmt.Errorf("inspect SQLite table %q: %w", table, err)
@@ -306,7 +324,7 @@ func sqliteTableEmpty(ctx context.Context, transaction *sql.Tx, table string) (b
 	return hasRows == 0, nil
 }
 
-func preflightSQLiteDropColumn(ctx context.Context, transaction *sql.Tx, model ir.Model, field ir.Field) error {
+func preflightSQLiteDropColumn(ctx context.Context, transaction migrationSQLExecutor, model ir.Model, field ir.Field) error {
 	table, err := quoteIdentifier(model.DBTable)
 	if err != nil {
 		return fmt.Errorf("inspect SQLite table %q: %w", model.DBTable, err)
@@ -337,7 +355,7 @@ func preflightSQLiteDropColumn(ctx context.Context, transaction *sql.Tx, model i
 	return rejectSQLiteForeignKeyDependency(ctx, transaction, model.DBTable, field.Column)
 }
 
-func sqliteColumnShape(ctx context.Context, transaction *sql.Tx, quotedTable, wanted string) (_ string, exists, nullable, primaryKey bool, resultErr error) {
+func sqliteColumnShape(ctx context.Context, transaction migrationSQLExecutor, quotedTable, wanted string) (_ string, exists, nullable, primaryKey bool, resultErr error) {
 	rows, err := transaction.QueryContext(ctx, "PRAGMA table_info("+quotedTable+")")
 	if err != nil {
 		return "", false, false, false, fmt.Errorf("inspect SQLite table columns: %w", err)
@@ -367,7 +385,7 @@ func sqliteColumnShape(ctx context.Context, transaction *sql.Tx, quotedTable, wa
 	return "", false, false, false, nil
 }
 
-func rejectSQLiteIndexDependency(ctx context.Context, transaction *sql.Tx, table, column string) (resultErr error) {
+func rejectSQLiteIndexDependency(ctx context.Context, transaction migrationSQLExecutor, table, column string) (resultErr error) {
 	quotedTable, err := quoteIdentifier(table)
 	if err != nil {
 		return err
@@ -446,7 +464,7 @@ func rejectSQLiteIndexDependency(ctx context.Context, transaction *sql.Tx, table
 	return nil
 }
 
-func rejectSQLiteTriggerDependency(ctx context.Context, transaction *sql.Tx, table, column string) (resultErr error) {
+func rejectSQLiteTriggerDependency(ctx context.Context, transaction migrationSQLExecutor, table, column string) (resultErr error) {
 	rows, err := transaction.QueryContext(ctx, `SELECT "name", "tbl_name", "sql" FROM "sqlite_schema" WHERE "type" = 'trigger' AND "sql" IS NOT NULL ORDER BY "name"`)
 	if err != nil {
 		return fmt.Errorf("inspect SQLite triggers: %w", err)
@@ -475,7 +493,7 @@ func rejectSQLiteTriggerDependency(ctx context.Context, transaction *sql.Tx, tab
 	return nil
 }
 
-func rejectSQLiteViewDependency(ctx context.Context, transaction *sql.Tx, table, column string) (resultErr error) {
+func rejectSQLiteViewDependency(ctx context.Context, transaction migrationSQLExecutor, table, column string) (resultErr error) {
 	rows, err := transaction.QueryContext(ctx, `SELECT "name", "sql" FROM "sqlite_schema" WHERE "type" = 'view' AND "sql" IS NOT NULL ORDER BY "name"`)
 	if err != nil {
 		return fmt.Errorf("inspect SQLite views: %w", err)
@@ -505,7 +523,7 @@ func rejectSQLiteViewDependency(ctx context.Context, transaction *sql.Tx, table,
 	return nil
 }
 
-func rejectSQLiteForeignKeyDependency(ctx context.Context, transaction *sql.Tx, table, column string) (resultErr error) {
+func rejectSQLiteForeignKeyDependency(ctx context.Context, transaction migrationSQLExecutor, table, column string) (resultErr error) {
 	rows, err := transaction.QueryContext(ctx, `SELECT "name" FROM "sqlite_schema" WHERE "type" = 'table' AND "name" NOT LIKE 'sqlite_%' ORDER BY "name"`)
 	if err != nil {
 		return fmt.Errorf("list SQLite tables for foreign-key inspection: %w", err)

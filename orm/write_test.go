@@ -5,9 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestGeneratedCreatePreservesDefaultNullEmptyAndBuilderImmutability(t *testing.T) {
@@ -28,6 +30,7 @@ func TestGeneratedCreatePreservesDefaultNullEmptyAndBuilderImmutability(t *testi
 	}
 	assertAssignmentValue(t, firstBackend.insertPlan.Assignments(), "published", query.ValueBoolean, false)
 	assertAssignmentValue(t, firstBackend.insertPlan.Assignments(), "summary", query.ValueString, "")
+	assertInsertReturningKey(t, firstBackend.insertPlan, query.NewFieldRef("id", "id", query.FieldInteger, false))
 
 	secondBackend := &writeSpy{lastInsertID: 42, updateRows: 1, deleteRows: 1}
 	fromBase, err := models.ArticleObjects.Create(context.Background(), secondBackend, base)
@@ -282,8 +285,174 @@ func TestWriteRejectsTypedNilBackend(t *testing.T) {
 	}
 }
 
+func TestManagerCreateAcceptsForeignKeyIntegerValues(t *testing.T) {
+	t.Parallel()
+
+	manager := orm.NewManager[relationWriteModel](relationWriteDescriptor{})
+	metadata := (relationWriteDescriptor{}).Metadata()
+	reviewerID := int64(0)
+	for _, test := range []struct {
+		name          string
+		reviewerID    *int64
+		reviewerValue query.Value
+	}{
+		{name: "nullable null", reviewerValue: query.Null()},
+		{name: "nullable explicit zero", reviewerID: &reviewerID, reviewerValue: query.Integer(0)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			backend := &writeSpy{lastInsertID: 41}
+			value := relationWriteModel{AuthorID: 0, ReviewerID: test.reviewerID}
+			created, err := manager.Create(context.Background(), backend, injectedRelationWriteCreate{
+				mutation: orm.NewCreateMutation(
+					value,
+					metadata.DBTable,
+					[]query.Assignment{
+						orm.NewAssignment(metadata.Fields[1], query.Integer(0)),
+						orm.NewAssignment(metadata.Fields[2], test.reviewerValue),
+					},
+				),
+			})
+			if err != nil {
+				t.Fatalf("Create() error = %v", err)
+			}
+			if backend.calls != 1 || created.ID != 41 || !created.primaryKeyPresent {
+				t.Fatalf("Create() = (%#v, calls=%d), want generated key and one insert", created, backend.calls)
+			}
+			assertAssignmentValue(t, backend.insertPlan.Assignments(), "author", query.ValueInteger, int64(0))
+			assertInsertReturningKey(t, backend.insertPlan, query.NewFieldRef("id", "id", query.FieldInteger, false))
+			if test.reviewerID == nil {
+				assertAssignmentValue(t, backend.insertPlan.Assignments(), "reviewer", query.ValueNull, nil)
+			} else {
+				assertAssignmentValue(t, backend.insertPlan.Assignments(), "reviewer", query.ValueInteger, int64(0))
+			}
+		})
+	}
+}
+
+func TestManagerCreateRejectsInvalidForeignKeyValuesBeforeBackendIO(t *testing.T) {
+	t.Parallel()
+
+	manager := orm.NewManager[relationWriteModel](relationWriteDescriptor{})
+	metadata := (relationWriteDescriptor{}).Metadata()
+	for _, test := range []struct {
+		name       string
+		fieldIndex int
+		value      query.Value
+		field      string
+	}{
+		{name: "required foreign key null", fieldIndex: 1, value: query.Null(), field: "author"},
+		{name: "required foreign key string", fieldIndex: 1, value: query.String("1"), field: "author"},
+		{name: "nullable foreign key boolean", fieldIndex: 2, value: query.Boolean(true), field: "reviewer"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assignments := []query.Assignment{
+				orm.NewAssignment(metadata.Fields[1], query.Integer(1)),
+				orm.NewAssignment(metadata.Fields[2], query.Null()),
+			}
+			assignments[test.fieldIndex-1] = orm.NewAssignment(metadata.Fields[test.fieldIndex], test.value)
+			backend := &writeSpy{lastInsertID: 41}
+			_, err := manager.Create(context.Background(), backend, injectedRelationWriteCreate{
+				mutation: orm.NewCreateMutation(relationWriteModel{AuthorID: 1}, metadata.DBTable, assignments),
+			})
+			if !errors.Is(err, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: test.field}) {
+				t.Fatalf("Create() error = %v, want invalid_value field=%q", err, test.field)
+			}
+			if backend.calls != 0 {
+				t.Fatalf("invalid foreign key invoked backend %d time(s)", backend.calls)
+			}
+		})
+	}
+}
+
 type injectedArticleCreate struct {
 	mutation orm.Mutation[models.Article]
+}
+
+type relationWriteModel struct {
+	ID                int64
+	AuthorID          int64
+	ReviewerID        *int64
+	primaryKeyPresent bool
+}
+
+type relationWriteDescriptor struct{}
+
+func (relationWriteDescriptor) Metadata() ir.Model {
+	return ir.Model{
+		Name:    "post",
+		GoName:  "Post",
+		DBTable: "blog_post",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey},
+			{Name: "reviewer", GoName: "ReviewerID", Column: "reviewer_id", Kind: ir.FieldForeignKey, Nullable: true},
+		},
+	}
+}
+
+func (relationWriteDescriptor) Scan(db.Row) (relationWriteModel, error) {
+	return relationWriteModel{}, nil
+}
+
+func (relationWriteDescriptor) CloneModel(value relationWriteModel) relationWriteModel {
+	return relationWriteDescriptor{}.CloneWriteModel(value)
+}
+
+func (relationWriteDescriptor) PrimaryKey(value relationWriteModel) (query.Value, bool) {
+	return query.Integer(value.ID), value.primaryKeyPresent
+}
+
+func (relationWriteDescriptor) SetPrimaryKey(value *relationWriteModel, key int64) {
+	value.ID = key
+	value.primaryKeyPresent = true
+}
+
+func (relationWriteDescriptor) ClearPrimaryKey(value *relationWriteModel) {
+	value.ID = 0
+	value.primaryKeyPresent = false
+}
+
+func (relationWriteDescriptor) CloneWriteModel(value relationWriteModel) relationWriteModel {
+	if value.ReviewerID != nil {
+		reviewerID := *value.ReviewerID
+		value.ReviewerID = &reviewerID
+	}
+	return value
+}
+
+func (relationWriteDescriptor) WriteFieldValue(value relationWriteModel, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "author":
+		return query.Integer(value.AuthorID), true
+	case "reviewer":
+		if value.ReviewerID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.ReviewerID), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type relationWriteInvalidForeignKeyDescriptor struct {
+	relationWriteDescriptor
+}
+
+func (relationWriteInvalidForeignKeyDescriptor) WriteFieldValue(value relationWriteModel, field ir.Field) (query.Value, bool) {
+	if field.Name == "author" {
+		return query.String("invalid"), true
+	}
+	return relationWriteDescriptor{}.WriteFieldValue(value, field)
+}
+
+type injectedRelationWriteCreate struct {
+	mutation orm.Mutation[relationWriteModel]
+}
+
+func (input injectedRelationWriteCreate) BuildCreate() orm.Mutation[relationWriteModel] {
+	return input.mutation
 }
 
 type injectedArticlePatch struct {
@@ -358,4 +527,12 @@ func assertAssignmentValue(t *testing.T, assignments []query.Assignment, field s
 		return
 	}
 	t.Fatalf("assignment for field %s not found", field)
+}
+
+func assertInsertReturningKey(t *testing.T, plan query.InsertPlan, want query.FieldRef) {
+	t.Helper()
+	got, present := plan.ReturningKey()
+	if !present || !got.Equal(want) {
+		t.Fatalf("insert returning key = (%#v, %v), want (%#v, true)", got, present, want)
+	}
 }

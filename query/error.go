@@ -14,10 +14,13 @@ const (
 
 const (
 	CodeUnknownField                 = "unknown_field"
+	CodeUnknownRelation              = "unknown_relation"
+	CodeUnknownRelatedField          = "unknown_related_field"
 	CodeUnsupportedLookup            = "unsupported_lookup"
 	CodeDisallowedLookup             = "disallowed_lookup"
 	CodeInvalidValue                 = "invalid_value"
 	CodeInvalidLimit                 = "invalid_limit"
+	CodeInvalidOffset                = "invalid_offset"
 	CodeInvalidIndex                 = "invalid_index"
 	CodeUnorderedQuery               = "unordered_query"
 	CodeInvalidPlan                  = "invalid_plan"
@@ -33,6 +36,15 @@ const (
 	CodeUpdateFieldsMissingRow       = "update_fields_missing_row"
 	CodeMutuallyExclusiveForceFlags  = "mutually_exclusive_force_flags"
 	CodeUniquePrimaryKey             = "unique_primary_key"
+	CodeRelatedObjectMissing         = "related_object_missing"
+	CodeRelatedObjectCardinality     = "related_object_cardinality"
+	CodeRelatedSetMembership         = "related_set_membership"
+	CodeInvalidRelatedPath           = "invalid_related_path"
+	CodeRelatedObjectProjection      = "related_object_projection"
+	CodeUnsavedRelatedObject         = "unsaved_related_object"
+	CodeProtectedForeignKey          = "protected_foreign_key"
+	CodeCommitOutcomeUnknown         = "commit_outcome_unknown"
+	CodeTransactionOutcomeUnknown    = "transaction_outcome_unknown"
 )
 
 // Error is the stable error taxonomy shared by dynamic lookup validation and

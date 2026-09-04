@@ -1,0 +1,11 @@
+package invalid
+
+import (
+	"github.com/progresshans/godj/conformance/relationselectproduct/authors"
+	"github.com/progresshans/godj/conformance/relationselectproduct/project"
+	"github.com/progresshans/godj/db"
+)
+
+func invalidSource(objects project.Objects, backend db.Queryer) {
+	_ = objects.BlogPost.SelectRelated(authors.AuthorObjects.Using(backend))
+}

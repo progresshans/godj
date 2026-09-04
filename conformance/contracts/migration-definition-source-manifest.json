@@ -1,0 +1,162 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-057",
+      "title": "Explicit documents publish one loader-owned canonical definition snapshot",
+      "scenario": "godj.migration.definition_source.canonical_batch",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/migration.py::Migration.__init__",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.build_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-058",
+      "title": "An empty explicit source publishes the canonical empty definition set",
+      "scenario": "godj.migration.definition_source.empty_source",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        }
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-059",
+      "title": "Equivalent syntax and source permutations retain one digest while operation order remains semantic",
+      "scenario": "godj.migration.definition_source.canonical_syntax_and_order",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        }
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-060",
+      "title": "An unsupported current definition format is rejected before semantic decode",
+      "scenario": "godj.migration.definition_source.unsupported_format",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        }
+      ],
+      "comparison": ["error", "metrics"]
+    },
+    {
+      "id": "MIG-061",
+      "title": "A malformed document fails the whole batch with canonical source precedence",
+      "scenario": "godj.migration.definition_source.malformed_atomic_batch",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        }
+      ],
+      "comparison": ["error", "metrics"]
+    },
+    {
+      "id": "MIG-062",
+      "title": "Duplicate migration identity is rejected without last-wins publication",
+      "scenario": "godj.migration.definition_source.duplicate_identity",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        }
+      ],
+      "comparison": ["error", "metrics"]
+    },
+    {
+      "id": "MIG-063",
+      "title": "The closed operation codec rejects executable and implicit payloads",
+      "scenario": "godj.migration.definition_source.closed_codec",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        }
+      ],
+      "comparison": ["error", "metrics"]
+    },
+    {
+      "id": "MIG-064",
+      "title": "An opaque loaded snapshot reaches the public migration executor exactly once",
+      "scenario": "django.migration.definition_source.public_loaded_executor",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {
+          "kind": "decision",
+          "reference": "ADR-0035",
+          "derived": false
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.build_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

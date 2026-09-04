@@ -1,0 +1,313 @@
+"""Generate or verify the mixed-authority SYS-001..030 reference suite."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+from conformance.runners.django.normalizer import canonical_json
+from conformance.runners.django.runner import verify_profile
+from conformance.runners.django.system_state_decisions import (
+    SCENARIOS as DECISION_SCENARIOS,
+)
+from conformance.runners.django.system_state_scenarios import (
+    SCENARIOS as DJANGO_SCENARIOS,
+)
+
+
+ROOT = Path(__file__).resolve().parents[2]
+PROFILE = ROOT / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json"
+MANIFEST = ROOT / "conformance/contracts/system-state-manifest.json"
+ORACLE = (
+    ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json"
+)
+LEGACY_IDS = tuple(f"SYS-{number:03d}" for number in range(1, 13))
+PRE_GDJ_0055_IDS = tuple(f"SYS-{number:03d}" for number in range(1, 21))
+EXPECTED_IDS = tuple(f"SYS-{number:03d}" for number in range(1, 31))
+DJANGO_IDS = frozenset(
+    {"SYS-003", "SYS-004", "SYS-008", "SYS-009", "SYS-010", "SYS-011"}
+)
+DJANGO_LOGIN_SEMANTICS_IDS = frozenset({"SYS-029"})
+ADR_0048_IDS = frozenset(PRE_GDJ_0055_IDS[len(LEGACY_IDS) :])
+ADR_0056_IDS = frozenset(EXPECTED_IDS[len(PRE_GDJ_0055_IDS) :])
+DECISION_IDS = frozenset(EXPECTED_IDS) - DJANGO_IDS
+EXPECTED_SCENARIOS = (
+    "godj.system_state.explicit_migration_gate",
+    "godj.system_state.admin_bootstrap_gate",
+    "django.system_state.credential_permission_restart",
+    "django.system_state.rotated_session_restart",
+    "godj.system_state.session_expiry_and_touch",
+    "godj.system_state.capacity_reap_and_rotate_rollback",
+    "godj.system_state.digest_only_current_codec",
+    "django.system_state.logout_restart_denial",
+    "django.system_state.csrf_restart",
+    "django.system_state.admin_audit_fault_rollback",
+    "django.system_state.audit_history_restart",
+    "godj.system_state.commit_outcome_unknown",
+    "godj.system_state.coordinated_atomic_fence",
+    "godj.system_state.concurrent_admin_bootstrap",
+    "godj.system_state.concurrent_session_capacity",
+    "godj.system_state.concurrent_touch_monotonicity",
+    "godj.system_state.concurrent_session_rotation",
+    "godj.system_state.concurrent_article_audit",
+    "godj.system_state.shared_csrf_key_ring",
+    "godj.system_state.two_process_backend_restart",
+    "godj.system_state.explicit_operator_provisioning",
+    "godj.system_state.createsuperuser_argv_and_pre_io",
+    "godj.system_state.tty_secret_transport",
+    "godj.system_state.project_provision_ownership",
+    "godj.system_state.operator_provision_cardinality",
+    "godj.system_state.provision_outcome_ownership",
+    "godj.system_state.open_existing_authenticator",
+    "godj.system_state.credential_absent_public_only",
+    "godj.system_state.operator_backend_login_restart",
+    "godj.system_state.sensitive_child_cleanup",
+)
+SCENARIOS = {**DECISION_SCENARIOS, **DJANGO_SCENARIOS}
+ORACLE_READY_STATUSES = frozenset({"passing", "deviation"})
+
+
+def _load(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"cannot load JSON from {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise RuntimeError(f"expected one JSON object in {path}")
+    return value
+
+
+def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
+    for contract in contracts:
+        contract_id = contract.get("id")
+        scenario = contract.get("scenario")
+        provenance = contract.get("provenance")
+        if not isinstance(provenance, list) or not provenance:
+            raise RuntimeError(f"{contract_id}: provenance is required")
+        if contract_id in LEGACY_IDS:
+            adr = [
+                item
+                for item in provenance
+                if isinstance(item, dict)
+                and item.get("kind") == "documentation"
+                and item.get("reference") == "ADR-0047"
+                and item.get("derived") is False
+            ]
+            if len(adr) != 1:
+                raise RuntimeError(
+                    f"{contract_id}: exact current ADR-0047 documentation authority is required"
+                )
+            if any(
+                isinstance(item, dict) and item.get("reference") == "ADR-0048"
+                for item in provenance
+            ):
+                raise RuntimeError(f"{contract_id}: ADR-0048 escaped the legacy range")
+        elif contract_id in ADR_0048_IDS:
+            if provenance != [
+                {"kind": "documentation", "reference": "ADR-0048", "derived": False}
+            ]:
+                raise RuntimeError(
+                    f"{contract_id}: exact current ADR-0048 documentation authority is required"
+                )
+        elif contract_id in ADR_0056_IDS:
+            expected_provenance = [
+                {"kind": "documentation", "reference": "ADR-0056", "derived": False}
+            ]
+            if contract_id in DJANGO_LOGIN_SEMANTICS_IDS:
+                expected_provenance.extend(
+                    [
+                        {
+                            "kind": "documentation",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/auth/default.txt#authentication-in-web-requests",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                        {
+                            "kind": "source",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::authenticate",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                        {
+                            "kind": "documentation",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#using-sessions-in-views",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                        {
+                            "kind": "source",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::login",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                    ]
+                )
+            if provenance != expected_provenance:
+                raise RuntimeError(
+                    f"{contract_id}: exact current ADR-0056 documentation authority is required"
+                )
+        else:
+            raise RuntimeError(f"unexpected system-state contract {contract_id!r}")
+        django = [
+            item
+            for item in provenance
+            if isinstance(item, dict)
+            and item.get("kind") in {"documentation", "source", "test"}
+            and str(item.get("reference", "")).startswith(
+                "django@fe0a859f537d4238cf49fca39073513206f83122:"
+            )
+        ]
+        if contract_id in DJANGO_IDS:
+            if not isinstance(scenario, str) or not scenario.startswith(
+                "django.system_state."
+            ):
+                raise RuntimeError(f"{contract_id}: Django authority scenario mismatch")
+            if not django:
+                raise RuntimeError(f"{contract_id}: exact Django authority is required")
+        elif contract_id in DECISION_IDS:
+            if not isinstance(scenario, str) or not scenario.startswith(
+                "godj.system_state."
+            ):
+                raise RuntimeError(f"{contract_id}: GoDj authority scenario mismatch")
+            if django and contract_id not in DJANGO_LOGIN_SEMANTICS_IDS:
+                raise RuntimeError(f"{contract_id}: decision authority carries Django provenance")
+        for item in django:
+            if item.get("derived") is not False or item.get("license") != "BSD-3-Clause":
+                raise RuntimeError(f"{contract_id}: invalid Django provenance")
+            if "createsuperuser" in str(item.get("reference", "")):
+                raise RuntimeError(
+                    f"{contract_id}: Django createsuperuser internals are not authority"
+                )
+        api_boundary = [
+            item
+            for item in provenance
+            if isinstance(item, dict) and item.get("reference") == "ADR-0046"
+        ]
+        if contract_id == "SYS-008":
+            if api_boundary != [
+                {"kind": "documentation", "reference": "ADR-0046", "derived": False}
+            ]:
+                raise RuntimeError("SYS-008 must carry the Accepted API denial authority")
+        elif api_boundary:
+            raise RuntimeError(f"{contract_id}: ADR-0046 scope escaped SYS-008")
+        dev = [
+            item
+            for item in provenance
+            if isinstance(item, dict) and item.get("reference") == "DEV-0008"
+        ]
+        if contract_id == "SYS-009":
+            if dev != [
+                {"kind": "decision", "reference": "DEV-0008", "derived": False}
+            ]:
+                raise RuntimeError("SYS-009 must carry exactly one DEV-0008 decision")
+        elif dev:
+            raise RuntimeError(f"{contract_id}: DEV-0008 scope escaped SYS-009")
+
+
+def generate_suite(
+    profile_path: Path = PROFILE,
+    manifest_path: Path = MANIFEST,
+) -> dict[str, Any]:
+    profile = _load(profile_path)
+    manifest = _load(manifest_path)
+    if profile.get("format_version") != 2 or manifest.get("format_version") != 2:
+        raise RuntimeError("system-state profile and manifest must use format_version 2")
+    if manifest.get("profile_id") != profile.get("id"):
+        raise RuntimeError("system-state manifest profile_id mismatch")
+    contracts = manifest.get("contracts")
+    if not isinstance(contracts, list) or len(contracts) != len(EXPECTED_IDS):
+        raise RuntimeError("system-state manifest must contain exactly 30 contracts")
+    if tuple(contract.get("id") for contract in contracts) != EXPECTED_IDS:
+        raise RuntimeError("system-state manifest contract order mismatch")
+    if tuple(contract.get("scenario") for contract in contracts) != EXPECTED_SCENARIOS:
+        raise RuntimeError("system-state manifest scenario order mismatch")
+    if any(
+        contract.get("status") not in ORACLE_READY_STATUSES for contract in contracts
+    ):
+        raise RuntimeError("system-state oracle requires passing or deviation status")
+    expected_statuses = tuple(
+        "deviation"
+        if contract_id == "SYS-009"
+        else "passing"
+        for contract_id in EXPECTED_IDS
+    )
+    if tuple(contract.get("status") for contract in contracts) != expected_statuses:
+        raise RuntimeError("system-state manifest classification order mismatch")
+    _validate_contract_authority(contracts)
+
+    observations = []
+    for contract in contracts:
+        observation = SCENARIOS[contract["scenario"]](contract["id"])
+        if observation.get("phase") != contract.get("phase"):
+            raise RuntimeError(
+                f"{contract['id']}: scenario phase {observation.get('phase')!r} "
+                f"does not match {contract.get('phase')!r}"
+            )
+        observations.append(observation)
+    return {
+        "format_version": 2,
+        "profile": {
+            "id": profile["id"],
+            "fingerprint": profile["fingerprint"],
+            "lock": profile["lock"],
+        },
+        "contracts": observations,
+    }
+
+
+def _write_atomic(path: Path, contents: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            output.write(contents)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profile", type=Path, default=PROFILE)
+    parser.add_argument("--manifest", type=Path, default=MANIFEST)
+    parser.add_argument("--output", type=Path, default=ORACLE)
+    parser.add_argument("--write", action="store_true")
+    arguments = parser.parse_args(argv)
+    try:
+        if arguments.write:
+            verify_profile(_load(arguments.profile))
+        generated = canonical_json(
+            generate_suite(arguments.profile, arguments.manifest)
+        )
+        if arguments.write:
+            _write_atomic(arguments.output, generated)
+            return 0
+        existing = arguments.output.read_bytes()
+        if existing != generated:
+            print(
+                "system-state oracle differs: "
+                f"expected sha256={hashlib.sha256(existing).hexdigest()} "
+                f"generated sha256={hashlib.sha256(generated).hexdigest()}",
+                file=sys.stderr,
+            )
+            return 1
+    except (OSError, RuntimeError) as error:
+        print(f"system-state reference failed: {error}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

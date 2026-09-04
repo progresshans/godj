@@ -81,13 +81,56 @@ func TestProjectStateRejectsDuplicateApps(t *testing.T) {
 	}
 }
 
+func TestProjectStateAndOperationWrappersUseOneCurrentRelationFormat(t *testing.T) {
+	t.Parallel()
+
+	relationSchema := relationMigrationSchema()
+	state, err := NewProjectState(relationSchema)
+	if err != nil || state.FormatVersion() != StateFormatVersion {
+		t.Fatalf("NewProjectState(current relation) = state:%#v err:%v", state, err)
+	}
+	if model, exists := state.Model("blog", "post"); !exists || len(model.Fields) != 2 || model.Fields[1].Relation == nil {
+		t.Fatalf("current relation state = %#v/%t", model, exists)
+	}
+
+	create := CreateModel{AppLabel: "blog", Model: relationSchema.Models[0]}
+	afterCreate, err := create.stateForward(EmptyProjectState())
+	if err != nil || !afterCreate.Equal(state) {
+		t.Fatalf("CreateModel current relation = state:%#v err:%v", afterCreate, err)
+	}
+
+	before, err := NewProjectState(articleSchema())
+	if err != nil {
+		t.Fatalf("NewProjectState(current scalar) error = %v", err)
+	}
+	add := AddField{AppLabel: "news", ModelName: "article", Field: relationMigrationField()}
+	afterAdd, err := add.stateForward(before)
+	model, exists := afterAdd.Model("news", "article")
+	if err != nil || !exists || len(model.Fields) != 4 || model.Fields[3].Relation == nil {
+		t.Fatalf("AddField current relation = model:%#v exists:%t err:%v", model, exists, err)
+	}
+}
+
+func TestDirectExecutorRelationStateUsesCapabilityBoundaryBeforeIO(t *testing.T) {
+	t.Parallel()
+
+	state := EmptyProjectState()
+	state.apps["blog"] = relationMigrationSchema()
+	fake := &fakeBackend{transaction: newFakeTransaction()}
+	_, err := (DirectExecutor{Backend: fake}).Apply(context.Background(), state, articleMigration())
+	assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+	if fake.beginCount != 0 {
+		t.Fatalf("Apply(current relation state) = err:%v begin:%d", err, fake.beginCount)
+	}
+}
+
 func TestExecutorRejectsUnsupportedProjectStateVersionBeforeIO(t *testing.T) {
 	t.Parallel()
 
 	state := EmptyProjectState()
 	state.formatVersion = StateFormatVersion + 1
 	fake := &fakeBackend{transaction: newFakeTransaction()}
-	_, err := (Executor{Backend: fake}).Apply(context.Background(), state, articleMigration())
+	_, err := (DirectExecutor{Backend: fake}).Apply(context.Background(), state, articleMigration())
 	assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
 	if fake.beginCount != 0 {
 		t.Fatalf("BeginMigration() calls = %d, want 0", fake.beginCount)
@@ -96,7 +139,7 @@ func TestExecutorRejectsUnsupportedProjectStateVersionBeforeIO(t *testing.T) {
 
 func articleSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:    "article",
@@ -119,5 +162,33 @@ func summaryField() ir.Field {
 		Kind:      ir.FieldChar,
 		Nullable:  true,
 		MaxLength: 200,
+	}
+}
+
+func relationMigrationSchema() ir.Schema {
+	return ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "blog",
+		Models: []ir.Model{{
+			Name:    "post",
+			GoName:  "Post",
+			DBTable: "blog_post",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+				relationMigrationField(),
+			},
+		}},
+	}
+}
+
+func relationMigrationField() ir.Field {
+	return ir.Field{
+		Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "posts"},
+			OnDelete:    ir.DeleteProtect,
+		},
 	}
 }

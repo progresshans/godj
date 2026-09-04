@@ -104,6 +104,33 @@ func TestQuerySetDirectCopySharesStateWhileEverySuccessfulChainGetsFreshState(t 
 	}
 }
 
+func TestCompositeFilterDerivesFreshCacheWithoutMutatingWarmSource(t *testing.T) {
+	backend := &cacheTestBackend{query: func(call int, _ context.Context, _ query.Plan) (db.Rows, error) {
+		return rowsForIDs(int64(call + 1)), nil
+	}}
+	base := newCacheTestManager().Using(backend)
+	assertCacheTestID(t, base, 1)
+
+	metadata := cacheTestDescriptor{}.Metadata()
+	id := NewIntegerField[cacheTestModel](metadata.Fields[0])
+	search := Or(id.Exact(1), id.Exact(2))
+	derived := base.Filter(search, Not(id.Exact(3)))
+	assertCacheTestID(t, derived, 2)
+	assertCacheTestID(t, derived, 2)
+	assertCacheTestID(t, base, 1)
+	if got := backend.callCount(); got != 2 {
+		t.Fatalf("backend calls = %d, want 2 independent caches", got)
+	}
+
+	where, ok := derived.Plan().Where()
+	if !ok || where.Kind() != query.ExpressionAnd || len(where.Children()) != 2 {
+		t.Fatalf("derived composite tree = (%#v, %v)", where, ok)
+	}
+	if _, ok := base.Plan().Where(); ok {
+		t.Fatal("composite Filter mutated the warm source plan")
+	}
+}
+
 func TestQuerySetAllDirectCopyConcurrentSingleflightAndCallerIsolation(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -260,6 +287,70 @@ func TestQuerySetAllFailureAndCancellationStateTransitions(t *testing.T) {
 		}
 	})
 
+	t.Run("owner cancellation joined with close lets a live waiter retry", func(t *testing.T) {
+		closeFailure := errors.New("canceled owner close failure")
+		ownerReachedEnd := make(chan struct{})
+		releaseOwner := make(chan struct{})
+		ownerCtx, cancelOwner := context.WithCancel(context.Background())
+		defer cancelOwner()
+		ownerRows := &resultTestRows{
+			values:   [][]any{{int64(11), nil}},
+			closeErr: closeFailure,
+			onNext: func(call int) {
+				if call == 2 {
+					close(ownerReachedEnd)
+					<-releaseOwner
+					cancelOwner()
+				}
+			},
+		}
+		backend := &cacheTestBackend{query: func(call int, _ context.Context, _ query.Plan) (db.Rows, error) {
+			if call == 0 {
+				return ownerRows, nil
+			}
+			return rowsForIDs(12), nil
+		}}
+		querySet := newCacheTestManager().Using(backend)
+		ownerResult := make(chan error, 1)
+		go func() {
+			_, err := querySet.All(ownerCtx)
+			ownerResult <- err
+		}()
+		awaitSignal(t, ownerReachedEnd, "canceled owner final Next")
+
+		waiterResult := make(chan struct {
+			values []cacheTestModel
+			err    error
+		}, 1)
+		waiterCtx, waiterEntered := newEnteredContext(context.Background())
+		go func() {
+			values, err := querySet.All(waiterCtx)
+			waiterResult <- struct {
+				values []cacheTestModel
+				err    error
+			}{values: values, err: err}
+		}()
+		awaitEntered(t, waiterEntered)
+		close(releaseOwner)
+
+		ownerErr := awaitValue(t, ownerResult, "canceled owner close result")
+		for _, want := range []error{context.Canceled, closeFailure} {
+			if !errors.Is(ownerErr, want) {
+				t.Errorf("owner error %v does not preserve %v", ownerErr, want)
+			}
+		}
+		if ownerRows.closeCalls != 1 {
+			t.Fatalf("canceled owner Close() calls = %d, want 1", ownerRows.closeCalls)
+		}
+		waiter := awaitValue(t, waiterResult, "retrying waiter after close failure")
+		if waiter.err != nil || len(waiter.values) != 1 || waiter.values[0].ID != 12 {
+			t.Fatalf("live waiter = (%#v, %v), want retried success", waiter.values, waiter.err)
+		}
+		if got := backend.callCount(); got != 2 {
+			t.Fatalf("backend calls = %d, want canceled owner + retry", got)
+		}
+	})
+
 	t.Run("waiter cancellation does not cancel owner", func(t *testing.T) {
 		started := make(chan struct{})
 		release := make(chan struct{})
@@ -339,10 +430,18 @@ func TestQuerySetColdAndWarmTerminalSemantics(t *testing.T) {
 	values := []cacheTestModel{{ID: 1, Note: &noteOne}, {ID: 2, Note: &noteTwo}, {ID: 3, Note: &noteThree}}
 	var rowsMu sync.Mutex
 	var issuedRows []*cacheTestRows
+	var aggregateRows *resultTestRows
 	backend := &cacheTestBackend{query: func(_ int, _ context.Context, plan query.Plan) (db.Rows, error) {
 		limitedValues := values
 		if limit, ok := plan.Limit(); ok && limit < len(limitedValues) {
 			limitedValues = limitedValues[:limit]
+		}
+		if plan.ResultShape().Kind() == query.ResultAggregate {
+			rows := &resultTestRows{values: [][]any{{int64(len(limitedValues))}}}
+			rowsMu.Lock()
+			aggregateRows = rows
+			rowsMu.Unlock()
+			return rows, nil
 		}
 		rows := &cacheTestRows{values: append([]cacheTestModel(nil), limitedValues...)}
 		rowsMu.Lock()
@@ -358,8 +457,11 @@ func TestQuerySetColdAndWarmTerminalSemantics(t *testing.T) {
 	if err != nil || count != 3 {
 		t.Fatalf("cold Count() = (%d, %v), want (3, nil)", count, err)
 	}
-	if scans := issuedRows[0].scanCalls.Load(); scans != 0 {
-		t.Fatalf("cold Count() decoded %d row(s), want 0", scans)
+	rowsMu.Lock()
+	countRows := aggregateRows
+	rowsMu.Unlock()
+	if countRows == nil || countRows.scanCalls != 1 || countRows.closeCalls != 1 {
+		t.Fatalf("cold Count() aggregate lifecycle = %#v, want one scalar scan and close", countRows)
 	}
 	exists, err := ordered.Exists(ctx)
 	if err != nil || !exists {
@@ -385,6 +487,12 @@ func TestQuerySetColdAndWarmTerminalSemantics(t *testing.T) {
 	}
 	if got := backend.callCount(); got != 5 {
 		t.Fatalf("cold terminal backend calls = %d, want 5", got)
+	}
+	countShape := backend.plan(0).ResultShape()
+	countExpressions := countShape.Expressions()
+	if countShape.Kind() != query.ResultAggregate || len(countExpressions) != 1 ||
+		!countExpressions[0].Equal(query.CountAllResult()) {
+		t.Fatalf("cold Count() result shape = %#v, want COUNT(*) aggregate", countShape)
 	}
 	assertPlanLimit(t, backend.plan(0), 0, false)
 	assertPlanLimit(t, backend.plan(1), 1, true)
@@ -607,17 +715,34 @@ func TestQuerySetTerminalValidationAndRowsErrorsDoNotProduceFalseCache(t *testin
 			t.Run(test.name, func(t *testing.T) {
 				rowsErr := errors.New(test.name + " rows failure")
 				closeErr := errors.New(test.name + " close failure")
-				rows := rowsForIDs(1)
-				rows.rowsErr = rowsErr
-				rows.closeErr = closeErr
-				backend := &cacheTestBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) { return rows, nil }}
+				modelRows := rowsForIDs(1)
+				modelRows.rowsErr = rowsErr
+				modelRows.closeErr = closeErr
+				aggregateRows := &resultTestRows{
+					values:       [][]any{{int64(1)}},
+					iterationErr: rowsErr,
+					closeErr:     closeErr,
+				}
+				backend := &cacheTestBackend{query: func(_ int, _ context.Context, plan query.Plan) (db.Rows, error) {
+					if plan.ResultShape().Kind() == query.ResultAggregate {
+						return aggregateRows, nil
+					}
+					return modelRows, nil
+				}}
 				querySet := newCacheTestManager().Using(backend).OrderBy(ordering)
 				err := test.run(querySet)
 				if !errors.Is(err, rowsErr) || !errors.Is(err, closeErr) {
 					t.Fatalf("terminal error = %v, want joined rows and close errors", err)
 				}
-				if rows.closeCalls.Load() != 1 {
-					t.Fatalf("Close() calls = %d, want 1", rows.closeCalls.Load())
+				if test.name == "count" {
+					if aggregateRows.scanCalls != 1 || aggregateRows.closeCalls != 1 {
+						t.Fatalf("Count aggregate rows lifecycle = scan %d close %d, want 1/1", aggregateRows.scanCalls, aggregateRows.closeCalls)
+					}
+					if modelRows.scanCalls.Load() != 0 || modelRows.closeCalls.Load() != 0 {
+						t.Fatalf("Count used model rows: scan %d close %d, want 0/0", modelRows.scanCalls.Load(), modelRows.closeCalls.Load())
+					}
+				} else if modelRows.closeCalls.Load() != 1 {
+					t.Fatalf("Close() calls = %d, want 1", modelRows.closeCalls.Load())
 				}
 			})
 		}

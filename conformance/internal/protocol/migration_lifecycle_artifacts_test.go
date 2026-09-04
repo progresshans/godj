@@ -15,7 +15,8 @@ func TestMigrationLifecycleArtifactHashesAreLocked(t *testing.T) {
 
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]string{
-		"conformance/contracts/migration-lifecycle-manifest.json":                            "23a9e919edff932ae781f0768aeaf7f184fe392ec53598fa18524cf50d979a8e",
+		"conformance/contracts/migration-lifecycle-manifest.json":                            "5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0",
+		"conformance/fixtures/godj-migration-lifecycle-deviation-expected.json":              "58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b",
 		"conformance/fixtures/godj-migration-lifecycle-not-implemented.json":                 "b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722",
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json": "7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc",
 	}
@@ -74,7 +75,7 @@ func TestPreviousEightContractArtifactSetsRemainBytePinnedForMigrationLifecycle(
 	}
 }
 
-func TestMigrationLifecycleIsReferenceOnlyAndProductClassificationRemains83PassingAnd4Deviation(t *testing.T) {
+func TestMigrationLifecycleEntersProductTargetAt92PassingAnd5ReviewedDeviations(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -89,14 +90,14 @@ func TestMigrationLifecycleIsReferenceOnlyAndProductClassificationRemains83Passi
 		t.Fatal("cannot isolate godj-conformance target")
 	}
 	productTarget := text[start:end]
-	if strings.Contains(productTarget, "MIGRATION_LIFECYCLE") {
-		t.Fatal("migration-lifecycle reference set entered the product conformance target")
+	if !strings.Contains(productTarget, "MIGRATION_LIFECYCLE_DEVIATION_EXPECTED") {
+		t.Fatal("migration-lifecycle product adapter is missing its reviewed deviation expectation")
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 8 {
-		t.Fatalf("godj-conformance product adapter count = %d, want 8", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
+		t.Fatalf("godj-conformance product adapter count = %d, want 26", got)
 	}
 
-	productManifests := []string{
+	previousProductManifests := []string{
 		"manifest.json",
 		"write-migration-manifest.json",
 		"save-lifecycle-manifest.json",
@@ -106,30 +107,53 @@ func TestMigrationLifecycleIsReferenceOnlyAndProductClassificationRemains83Passi
 		"migration-restart-manifest.json",
 		"migration-state-reconstruction-manifest.json",
 	}
-	passing := 0
-	deviations := 0
-	for _, name := range productManifests {
-		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, contract := range manifest.Contracts {
-			switch contract.Status {
-			case ContractPassing:
-				passing++
-			case ContractDeviation:
-				deviations++
-			default:
-				t.Fatalf("product manifest %s contract %s status = %q", name, contract.ID, contract.Status)
+	countStatuses := func(names []string) (int, int) {
+		t.Helper()
+		passing := 0
+		deviations := 0
+		for _, name := range names {
+			manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, contract := range manifest.Contracts {
+				switch contract.Status {
+				case ContractPassing:
+					passing++
+				case ContractDeviation:
+					deviations++
+				default:
+					t.Fatalf("product manifest %s contract %s status = %q", name, contract.ID, contract.Status)
+				}
 			}
 		}
+		return passing, deviations
 	}
+	passing, deviations := countStatuses(previousProductManifests)
 	if passing != 83 || deviations != 4 {
-		t.Fatalf("product classification = %d passing + %d deviation, want 83 + 4", passing, deviations)
+		t.Fatalf("previous eight-set product classification = %d passing + %d deviation, want 83 + 4", passing, deviations)
+	}
+	productManifests := append(append([]string(nil), previousProductManifests...), "migration-lifecycle-manifest.json")
+	passing, deviations = countStatuses(productManifests)
+	if passing != 92 || deviations != 5 {
+		t.Fatalf("nine-set product classification = %d passing + %d deviation, want 92 + 5", passing, deviations)
+	}
+	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-lifecycle-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, contract := range manifest.Contracts {
+		want := ContractPassing
+		if contract.ID == "MIG-052" {
+			want = ContractDeviation
+		}
+		if contract.Status != want {
+			t.Fatalf("migration-lifecycle contract %s status = %q, want %q", contract.ID, contract.Status, want)
+		}
 	}
 }
 
-func TestMigrationLifecycleOracleLockedManifestKeepsExplicitNotImplementedBaseline(t *testing.T) {
+func TestMigrationLifecycleProductManifestKeepsExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
 	profile, manifest, oracle, baseline := loadMigrationLifecycleArtifacts(t)
@@ -165,8 +189,12 @@ func TestMigrationLifecycleOracleLockedManifestKeepsExplicitNotImplementedBaseli
 		if contract.Phase != wantPhases[index] {
 			t.Fatalf("manifest contract %s phase = %q, want %q", contract.ID, contract.Phase, wantPhases[index])
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		wantStatus := ContractPassing
+		if contract.ID == "MIG-052" {
+			wantStatus = ContractDeviation
+		}
+		if contract.Status != wantStatus {
+			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, wantStatus)
 		}
 		wantDimensions := successDimensions
 		if contract.ID == "MIG-054" || contract.ID == "MIG-055" {
@@ -179,7 +207,18 @@ func TestMigrationLifecycleOracleLockedManifestKeepsExplicitNotImplementedBaseli
 			t.Fatalf("manifest contract %s has no provenance", contract.ID)
 		}
 		seenReferences := make(map[string]bool)
+		decisionCount := 0
 		for provenanceIndex, provenance := range contract.Provenance {
+			if provenance.Kind == "decision" {
+				decisionCount++
+				if contract.ID != "MIG-052" || provenance.Reference != "DEV-0002" || provenance.License != "" {
+					t.Fatalf("manifest contract %s decision provenance = %#v", contract.ID, provenance)
+				}
+				if provenance.Derived == nil || *provenance.Derived {
+					t.Fatalf("manifest contract %s decision provenance derived = %#v, want false", contract.ID, provenance.Derived)
+				}
+				continue
+			}
 			if provenance.Kind != "documentation" && provenance.Kind != "source" && provenance.Kind != "test" {
 				t.Fatalf("manifest contract %s provenance %d kind = %q", contract.ID, provenanceIndex, provenance.Kind)
 			}
@@ -196,6 +235,13 @@ func TestMigrationLifecycleOracleLockedManifestKeepsExplicitNotImplementedBaseli
 			if provenance.License != "BSD-3-Clause" {
 				t.Fatalf("manifest contract %s provenance %d license = %q, want BSD-3-Clause", contract.ID, provenanceIndex, provenance.License)
 			}
+		}
+		wantDecisionCount := 0
+		if contract.ID == "MIG-052" {
+			wantDecisionCount = 1
+		}
+		if decisionCount != wantDecisionCount {
+			t.Fatalf("manifest contract %s decision provenance count = %d, want %d", contract.ID, decisionCount, wantDecisionCount)
 		}
 		if oracle.Contracts[index].Status != StatusObserved {
 			t.Fatalf("oracle contract %s status = %q, want %q", contract.ID, oracle.Contracts[index].Status, StatusObserved)
@@ -656,8 +702,12 @@ func validateMigrationLifecycleProvenance(manifest Manifest) error {
 			if provenance.Derived == nil || *provenance.Derived {
 				return fmt.Errorf("migration-lifecycle contract %s provenance %d derived = %#v, want false", contract.ID, index, provenance.Derived)
 			}
-			if provenance.License != "BSD-3-Clause" {
-				return fmt.Errorf("migration-lifecycle contract %s provenance %d license = %q, want BSD-3-Clause", contract.ID, index, provenance.License)
+			wantLicense := "BSD-3-Clause"
+			if provenance.Kind == "decision" {
+				wantLicense = ""
+			}
+			if provenance.License != wantLicense {
+				return fmt.Errorf("migration-lifecycle contract %s provenance %d license = %q, want %q", contract.ID, index, provenance.License, wantLicense)
 			}
 		}
 	}
@@ -702,6 +752,7 @@ func migrationLifecycleProvenance() map[string][]string {
 			"source|" + revision + "django/db/migrations/executor.py::MigrationExecutor.migration_plan",
 			"source|" + revision + "django/db/migrations/executor.py::MigrationExecutor._migrate_all_backwards",
 			"test|" + revision + "tests/migrations/test_executor.py::ExecutorTests.test_run",
+			"decision|DEV-0002",
 		},
 		"MIG-053": {
 			"source|" + revision + "django/db/migrations/loader.py::MigrationLoader.build_graph",

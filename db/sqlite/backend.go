@@ -21,9 +21,10 @@ import (
 const DriverModule = "modernc.org/sqlite"
 
 type Backend struct {
-	database   *sql.DB
-	queryCount atomic.Uint64
-	closed     atomic.Bool
+	database          *sql.DB
+	relationRetention *relationRetentionState
+	queryCount        atomic.Uint64
+	closed            atomic.Bool
 }
 
 var _ db.Queryer = (*Backend)(nil)
@@ -40,7 +41,10 @@ func Open(ctx context.Context, dataSourceName string) (*Backend, error) {
 		_ = database.Close()
 		return nil, fmt.Errorf("ping SQLite database: %w", err)
 	}
-	return &Backend{database: database}, nil
+	return &Backend{
+		database:          database,
+		relationRetention: newRelationRetentionState(),
+	}, nil
 }
 
 func OpenMemory(ctx context.Context, name string) (*Backend, error) {
@@ -139,15 +143,21 @@ func (b *Backend) SQLiteVersion(ctx context.Context) (string, error) {
 }
 
 func (b *Backend) Close() error {
-	if b == nil || b.database == nil {
+	if b == nil {
 		return nil
 	}
 	if !b.closed.CompareAndSwap(false, true) {
 		return nil
 	}
-	err := b.database.Close()
-	if err != nil {
-		return fmt.Errorf("close SQLite database: %w", err)
+	var databaseErr error
+	if b.database != nil {
+		if err := b.database.Close(); err != nil {
+			databaseErr = fmt.Errorf("close SQLite database: %w", err)
+		}
 	}
-	return nil
+	var retainedErr error
+	if b.relationRetention != nil {
+		retainedErr = b.relationRetention.sealAndDrain()
+	}
+	return errors.Join(databaseErr, retainedErr)
 }

@@ -1,0 +1,12 @@
+package invalid
+
+import (
+	"github.com/progresshans/godj/conformance/relationobjectproduct/authors"
+	"github.com/progresshans/godj/conformance/relationobjectproduct/project"
+	"github.com/progresshans/godj/orm"
+)
+
+func invalidPredicateSource(objects project.Objects) {
+	var predicate orm.Predicate[authors.Author] = objects.BlogPost.Reviewer.IsNull(true)
+	_ = predicate
+}

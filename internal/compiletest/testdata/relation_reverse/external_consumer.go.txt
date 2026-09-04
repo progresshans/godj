@@ -1,0 +1,44 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/conformance/relationreverseproduct/authors"
+	"github.com/progresshans/godj/conformance/relationreverseproduct/blog"
+	"github.com/progresshans/godj/conformance/relationreverseproduct/project"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
+)
+
+func consume(
+	ctx context.Context,
+	backend db.Queryer,
+	author authors.Author,
+) ([]blog.Post, []orm.Predicate[authors.Author], error) {
+	relations, err := project.BindReverseRelations()
+	if err != nil {
+		return nil, nil, err
+	}
+	predicates, err := relations.AuthorsAuthor.ParseDynamic(nil, []orm.LookupInput{
+		{Key: "posts__title", Value: "Alpha"},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	predicates = append(predicates, relations.AuthorsAuthor.Posts.Title.Exact("Alpha"))
+
+	objects, err := project.BindReverseObjects()
+	if err != nil {
+		return nil, nil, err
+	}
+	object, err := objects.AuthorsAuthor.From(backend, author)
+	if err != nil {
+		return nil, nil, err
+	}
+	posts, err := object.Posts()
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := posts.All(ctx)
+	return rows, predicates, err
+}

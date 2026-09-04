@@ -1,7 +1,7 @@
 # 라이선스와 upstream provenance 정책
 
 - 상태: Accepted for conformance artifacts
-- 마지막 검토: 2026-08-08
+- 마지막 검토: 2026-08-27
 
 ## 현재 저장소 라이선스
 
@@ -17,6 +17,13 @@ M1/M2 SQLite backend가 사용하는 `modernc.org/sqlite v1.56.0`과 locked depe
 `LICENSE.modernc-sqlite`, `LICENSE.modernc-libc`에 보존합니다. 이 두 고지는 향후
 binary에 들어가는 모든 transitive dependency의 배포 검토를 대신하지 않습니다.
 
+GDJ-0038 PostgreSQL backend가 직접 사용하는 `github.com/jackc/pgx/v5 v5.10.0`의
+MIT 전문은 `LICENSE.pgx`에 보존합니다. 현재 pgx graph의 `pgpassfile`,
+`pgservicefile`, `puddle`은 MIT, `golang.org/x/sync`와 `golang.org/x/text`는
+BSD 3-Clause입니다. 이 기록은 구현 checkpoint의 dependency provenance이며 전체
+binary graph의 고지 수집이나 GoDj 자체 배포 라이선스 결정을 완료했다는 뜻이
+아닙니다. 두 항목은 공개 binary/release 전 gate로 남습니다.
+
 ## Conformance artifact 분류
 
 각 contract provenance는 다음 두 경우를 구분합니다.
@@ -26,7 +33,9 @@ binary에 들어가는 모든 transitive dependency의 배포 검토를 대신�
 - 공개 문서나 실행 결과로 동작을 파악합니다.
 - GoDj 고유 모델명, fixture, 설명, 코드 구조로 새로 작성합니다.
 - manifest의 `derived`를 `false`로 기록합니다.
-- Django version/commit과 참조 문서 또는 테스트 경로를 기록합니다.
+- Django 동작을 관찰한 경우 version/commit과 참조 source/doc/test를 기록합니다.
+- GoDj 고유 wire나 safety 결정을 oracle로 고정한 경우 Accepted ADR을 `decision`
+  provenance로 기록하고 Django 형식이라고 표현하지 않습니다.
 - 경로를 참조했다는 이유만으로 upstream 코드를 복사했다고 표현하지 않습니다.
 
 ### 복사·번역·변형한 upstream material
@@ -57,6 +66,90 @@ GDJ-0017의 MIG-047..056 lifecycle scenario도 GoDj 고유 app/table/operation/f
 assertion으로 독립 작성했고 provenance entry는 모두 `derived=false`입니다. Test-only
 revision-fence harness는 GoDj concurrency design evidence이며 upstream Django 구현을 복사하거나
 번역하지 않았습니다.
+
+GDJ-0019의 MIG-057..064 migration definition source scenario도 GoDj 고유 document,
+identity, operation, value, diagnostic과 assertion으로 독립 작성했습니다. Pre-release reset 뒤 현재 여덟
+contract는 Accepted ADR-0035를 `kind=decision`, `derived=false`로 기록해 single current format, closed codec,
+canonical digest와 opaque loaded-set publication이 GoDj 결정임을 명시합니다. Superseded ADR-0019 tuple과
+그 artifact는 Git/EVID의 역사이며 현재 지원 형식이 아닙니다. MIG-057과 MIG-064에만 별도의 pinned Django 6.1 source/test
+provenance와 `BSD-3-Clause`를 기록합니다. 이 두 entry는 migration identity/dependency/
+ordered operation과 public graph/executor 동작의 관찰 근거이며 Django가 GoDj JSON 또는
+loader ABI를 제공한다는 뜻이 아닙니다. 모든 entry는 `derived=false`이고 Django source,
+fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다. MIG-057..064는 현재도 `passing`이며
+registered GoDj product adapter가 이 독립 작성 계약을 실행합니다.
+
+GDJ-0021의 MIG-065..074 migration project-check scenario는 GoDj 고유 project marker,
+descriptor, flat source catalog, private runner protocol, category/code, counter와
+publication observation으로 독립 작성했습니다. 현재 열 contract 모두 Accepted ADR-0021을
+`kind=decision`, `derived=false`로 기록하고, definition을 직접 다루는 MIG-065..068과 MIG-073은 Accepted
+ADR-0035도 함께 기록합니다. Django source/test provenance는 없습니다. Django-named exact profile, runner namespace와 oracle directory는 protocol-v2
+reference corpus와 checksum gate를 함께 유지하기 위해 재사용할 뿐입니다. Django가
+GoDj descriptor, JSON source discovery, runner wire 또는 exit 의미를 제공한다는 뜻이
+아니며, Django source, fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다.
+MIG-065..074는 현재도 `passing`이며 registered GoDj project-check product adapter가 이 독립 작성 계약을
+실행합니다. 이는 Django가 GoDj CLI/runner 의미를 제공한다는 뜻이 아닙니다.
+
+GDJ-0023의 REL-001..012 relation scenario는 GoDj 고유 `authors.Author`/
+`blog.Post` 모델명, row 값, capture window, SQL shape normalizer와 mutation assertion으로
+독립 작성했습니다. Manifest의 Django 6.1 documentation/source/test reference는 cross-app
+lazy relation, forward/reverse lookup, nullable FK, `PROTECT`/`SET_NULL`,
+`select_related`와 reverse `prefetch_related` 동작의 추적 근거입니다. 모든 provenance
+entry는 `derived=false`, `license=BSD-3-Clause`이고 Django source, fixture, comment 또는
+assertion 구조를 복사·번역하지 않았습니다. Exact oracle은 Django/SQLite reference
+observation이며 static fixture의 12 `not_implemented`와 함께 유지됩니다. `oracle_locked`는
+GoDj relation 제품 adapter나 PostgreSQL/MySQL 지원을 뜻하지 않습니다.
+
+GDJ-0035 Phase A의 relation-capable migration reference는 당시 Proposed ADR-0034 후보를 검증하는
+12-contract reference-only set으로 로컬에서 고정했습니다.
+당시 Accepted되지 않은 GoDj-owned tuple/digest/state/preflight/SQLite DDL payload에는 provenance
+`kind=proposal`, decision ID `GDJ-0035`, `derived=false`를 사용합니다. 이는 `kind=decision`이나 Django parity로
+승격하지 않습니다. Django BSD-3-Clause source/test
+provenance는 pinned commit에서 실제 관찰한 path/symbol에만 붙입니다. GoDj scenario, fixture, payload와
+assertion은 독립적으로 작성하고 Django source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다.
+향후 실제 표현을 복사·번역·변형하면 이 독립 작성 분류를 재사용하지 않고 `derived=true` 및 file-level
+copyright/license/modification notice를 적용합니다. EVID-085는 manifest 7,792 bytes/
+SHA-256 `dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`, oracle 125,248 bytes/
+`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`의 로컬 고정을 기록하지만,
+ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Phase A exact head는 EVID-086/run
+`31625898551`, Phase B no-product head는 EVID-088/run `31653237691`, Phase C test-only decision proof head
+`7d36502...`는 EVID-090/run `32174259324`에서 각각 hosted-verified됐습니다. Proposed decision-freeze docs
+head `5bdf013...`도 EVID-091/run `32183309328`에서 별도 local/hosted 검증됐고 ADR-0034 bounded design은
+그 뒤 Accepted됐습니다. Later acceptance는 Phase A checkout/Git history의 historical `kind=proposal`, decision ID
+`GDJ-0035`, `derived=false`를 소급 변경하지 않습니다. 현재 checked-in same-ID diagnostic corpus는 별도
+ADR-0035 current-only reset으로 재생성되어 `kind=decision`, `derived=false`를 기록하지만 12개 모두
+`oracle_locked`이고 normal product registry에 미등록입니다. 따라서 이 current provenance는 Phase A 역사
+재작성도, Django parity도, product support도 뜻하지 않습니다. Acceptance docs head
+`7cdc6d6...`는 EVID-092/run `32187094845`에서 별도 hosted-verified됐습니다. Later D1/D2/D3a
+bounded product slices는 EVID-093에서 각 구현·검증됐지만 이 사건도 historical Phase A
+artifact의 provenance/license 분류를 소급 변경하지 않습니다. MIG-075..086은 `oracle_locked`이고
+D3b loaded relation core integration `74c2b72...`/`167ef03...`도 EVID-094/run `32231149900`에서
+구현·검증됐지만 historical Phase A artifact의 provenance/license 분류나 MIG status를 바꾸지 않습니다.
+D4 test-only verification `424ec4d...`/EVID-095/run `32248885053`도 existing product path의 bounded
+file-backed restart observation만 추가하며 source provenance/license 분류나 MIG status를 바꾸지 않습니다.
+EVID-096 docs head `62df9b2...`의 run `32260744096`과 D4d product/fix final head `dd83362...`의
+EVID-097/run `32271361724`도 historical Phase A reference를 rewrite하지 않습니다. D4d nullable ForeignKey
+Add source와 tests는 GoDj-owned independent implementation이며 upstream source, fixture, comment 또는 assertion
+구조를 복사·번역하지 않았습니다. EVID-097 docs head `c59669c...`/run `32278555810`과 D4e
+product/inventory final head `1d86f6e...`의 EVID-098/run `32282269755`도 reference를 rewrite하지 않습니다.
+D4e required-empty Add source와 tests 역시 GoDj-owned independent implementation입니다. EVID-098 docs head
+`85f9270...`/CI #94 run `32288383027`과 D4f product/inventory final head `9d5b894...`의
+EVID-099/CI #95 run `32294983953`도 reference를 rewrite하지 않습니다. D4f bounded Remove/remake source와
+tests 역시 GoDj-owned independent implementation이며 upstream source, fixture, comment 또는 assertion 구조를
+복사·번역하지 않았습니다. General/arbitrary remake와 actual adapter는 여전히 미지원입니다.
+
+GDJ-0047의 AUT-009..016/API-011..012도 GoDj 고유 request, principal, token label, Article value와 assertion으로
+독립 작성했습니다. AUT-009/010/016과 API-011/012의 GoDj boundary는 Phase A 당시 GDJ-0047을
+`kind=proposal`, `reference=GDJ-0047`, `derived=false`로, ADR-0049를 별도 documentation provenance로 기록했습니다.
+EVID-138의 later acceptance는 이 historical
+manifest provenance를 소급 변경하지 않으며 license 분류도 바꾸지 않습니다.
+AUT-011..015의 pinned DRF 3.18 documentation/source provenance와 `BSD-3-Clause` 표시는 challenge/status/permission
+동작의 관찰 근거입니다. Scenario, fixture, payload와 assertion 구조를 upstream에서 복사·번역하지 않았으므로 모든 entry는
+`derived=false`입니다. AUT-012/013/015의 `decision=DEV-0009` provenance는 RFC-priority GoDj product difference를
+추적하며 DRF-derived implementation이나 ADR-0049 acceptance를 뜻하지 않습니다. Raw Bearer credential, token table/DB row와
+verifier cause는 reference/product artifact에 포함하지 않습니다. JWT/opaque issuance, refresh/OAuth/OIDC와 production BFF
+구현도 이 provenance 분류의 범위가 아닙니다. EVID-135의 exact source `5469f41b...`에서 실행한
+digest-pinned PostgreSQL 17.10 Article Bearer E2E와 source-bound attestation, EVID-138의 corrected exact hosted
+completion은 독립 구현의 backend/실행 증거이며 이 provenance/license 분류를 바꾸지 않습니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

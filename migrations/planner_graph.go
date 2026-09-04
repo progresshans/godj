@@ -1,6 +1,9 @@
 package migrations
 
-import "sort"
+import (
+	"container/heap"
+	"sort"
+)
 
 type plannerGraph struct {
 	nodes    []MigrationKey
@@ -125,6 +128,15 @@ func (g *plannerGraph) contains(key MigrationKey) bool {
 	return exists
 }
 
+func (g *plannerGraph) containsApp(app string) bool {
+	for _, key := range g.nodes {
+		if key.App == app {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *plannerGraph) validateAppliedHistory(applied map[MigrationKey]struct{}) error {
 	for _, child := range g.nodes {
 		if _, exists := applied[child]; !exists {
@@ -155,36 +167,40 @@ func (g *plannerGraph) planForward(target MigrationKey, applied map[MigrationKey
 		stack = append(stack, g.parents[key]...)
 	}
 
+	unresolvedParents := make(map[MigrationKey]int, len(candidates))
+	ready := make(migrationKeyHeap, 0, len(candidates))
+	for key := range candidates {
+		for _, parent := range g.parents[key] {
+			if _, exists := applied[parent]; !exists {
+				unresolvedParents[key]++
+			}
+		}
+		if unresolvedParents[key] == 0 {
+			ready = append(ready, key)
+		}
+	}
+	heap.Init(&ready)
+
 	steps := make([]PlanStep, 0, len(candidates))
 	for len(candidates) != 0 {
-		next, exists := g.firstForwardReady(candidates, applied)
-		if !exists {
+		if ready.Len() == 0 {
 			return nil, internalCyclePlanningError(candidates)
 		}
+		next := heap.Pop(&ready).(MigrationKey)
 		steps = append(steps, PlanStep{Key: next, Direction: DirectionForward})
 		applied[next] = struct{}{}
 		delete(candidates, next)
-	}
-	return steps, nil
-}
-
-func (g *plannerGraph) firstForwardReady(candidates, applied map[MigrationKey]struct{}) (MigrationKey, bool) {
-	for _, key := range g.nodes {
-		if _, exists := candidates[key]; !exists {
-			continue
-		}
-		ready := true
-		for _, parent := range g.parents[key] {
-			if _, exists := applied[parent]; !exists {
-				ready = false
-				break
+		for _, child := range g.children[next] {
+			if _, exists := candidates[child]; !exists {
+				continue
+			}
+			unresolvedParents[child]--
+			if unresolvedParents[child] == 0 {
+				heap.Push(&ready, child)
 			}
 		}
-		if ready {
-			return key, true
-		}
 	}
-	return MigrationKey{}, false
+	return steps, nil
 }
 
 func (g *plannerGraph) planBackward(seed MigrationKey, applied map[MigrationKey]struct{}) ([]PlanStep, error) {
@@ -204,36 +220,65 @@ func (g *plannerGraph) planBackward(seed MigrationKey, applied map[MigrationKey]
 		stack = append(stack, g.children[key]...)
 	}
 
+	unresolvedChildren := make(map[MigrationKey]int, len(candidates))
+	ready := make(migrationKeyHeap, 0, len(candidates))
+	for key := range candidates {
+		for _, child := range g.children[key] {
+			if _, exists := candidates[child]; exists {
+				unresolvedChildren[key]++
+			}
+		}
+		if unresolvedChildren[key] == 0 {
+			ready = append(ready, key)
+		}
+	}
+	heap.Init(&ready)
+
 	steps := make([]PlanStep, 0, len(candidates))
 	for len(candidates) != 0 {
-		next, exists := g.firstBackwardReady(candidates)
-		if !exists {
+		if ready.Len() == 0 {
 			return nil, internalCyclePlanningError(candidates)
 		}
+		next := heap.Pop(&ready).(MigrationKey)
 		steps = append(steps, PlanStep{Key: next, Direction: DirectionBackward})
 		delete(applied, next)
 		delete(candidates, next)
+		for _, parent := range g.parents[next] {
+			if _, exists := candidates[parent]; !exists {
+				continue
+			}
+			unresolvedChildren[parent]--
+			if unresolvedChildren[parent] == 0 {
+				heap.Push(&ready, parent)
+			}
+		}
 	}
 	return steps, nil
 }
 
-func (g *plannerGraph) firstBackwardReady(candidates map[MigrationKey]struct{}) (MigrationKey, bool) {
-	for _, key := range g.nodes {
-		if _, exists := candidates[key]; !exists {
-			continue
-		}
-		ready := true
-		for _, child := range g.children[key] {
-			if _, exists := candidates[child]; exists {
-				ready = false
-				break
-			}
-		}
-		if ready {
-			return key, true
-		}
-	}
-	return MigrationKey{}, false
+type migrationKeyHeap []MigrationKey
+
+func (h migrationKeyHeap) Len() int { return len(h) }
+
+func (h migrationKeyHeap) Less(left, right int) bool {
+	return migrationKeyLess(h[left], h[right])
+}
+
+func (h migrationKeyHeap) Swap(left, right int) {
+	h[left], h[right] = h[right], h[left]
+}
+
+func (h *migrationKeyHeap) Push(value any) {
+	*h = append(*h, value.(MigrationKey))
+}
+
+func (h *migrationKeyHeap) Pop() any {
+	old := *h
+	last := len(old) - 1
+	value := old[last]
+	old[last] = MigrationKey{}
+	*h = old[:last]
+	return value
 }
 
 func (g *plannerGraph) appRoots(app string) []MigrationKey {

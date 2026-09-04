@@ -31,6 +31,14 @@ func NewProjectState(schemas ...ir.Schema) (ProjectState, error) {
 		if err != nil {
 			return ProjectState{}, fmt.Errorf("normalize project schema %d: %w", index, err)
 		}
+		if normalized.FormatVersion != ir.CurrentFormatVersion {
+			return ProjectState{}, fmt.Errorf(
+				"project schema %d uses Schema IR version %d; migration state requires version %d",
+				index,
+				normalized.FormatVersion,
+				ir.CurrentFormatVersion,
+			)
+		}
 		if _, exists := state.apps[normalized.AppLabel]; exists {
 			return ProjectState{}, fmt.Errorf("duplicate project app %q", normalized.AppLabel)
 		}
@@ -93,9 +101,18 @@ func (s ProjectState) validate() error {
 	if s.FormatVersion() != StateFormatVersion {
 		return fmt.Errorf("unsupported project state version %d", s.FormatVersion())
 	}
+	expectedIRVersion := ir.CurrentFormatVersion
 	for app, schema := range s.apps {
 		if schema.AppLabel != app {
 			return fmt.Errorf("project app key %q does not match schema app label %q", app, schema.AppLabel)
+		}
+		if schema.FormatVersion != expectedIRVersion {
+			return fmt.Errorf(
+				"project app %s uses Schema IR version %d; migration state requires version %d",
+				app,
+				schema.FormatVersion,
+				expectedIRVersion,
+			)
 		}
 		normalized, err := ir.Normalize(schema)
 		if err != nil {
@@ -122,7 +139,7 @@ func (s ProjectState) withoutApp(app string) ProjectState {
 
 func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
 	schema, err := ir.Normalize(ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      app,
 		Models:        []ir.Model{model.Clone()},
 	})
@@ -130,6 +147,30 @@ func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
 		return ir.Model{}, err
 	}
 	return schema.Models[0].Clone(), nil
+}
+
+func firstProjectStateRelation(value ProjectState) (app, model, field string, exists bool) {
+	apps := value.Apps()
+	for _, app = range apps {
+		schema := value.apps[app]
+		models := append([]ir.Model(nil), schema.Models...)
+		sort.Slice(models, func(left, right int) bool { return models[left].Name < models[right].Name })
+		for _, candidate := range models {
+			fields := append([]ir.Field(nil), candidate.Fields...)
+			sort.Slice(fields, func(left, right int) bool { return fields[left].Name < fields[right].Name })
+			for _, candidateField := range fields {
+				if fieldContainsRelation(candidateField) {
+					return app, candidate.Name, candidateField.Name, true
+				}
+			}
+		}
+	}
+	return "", "", "", false
+}
+
+func projectStateRequiresRelationLifecycle(value ProjectState) bool {
+	_, _, _, exists := firstProjectStateRelation(value)
+	return exists
 }
 
 func modelEqual(left, right ir.Model) bool {

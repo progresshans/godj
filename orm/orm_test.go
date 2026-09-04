@@ -38,6 +38,136 @@ func TestTypedAndDynamicPredicatesConvergeToSamePlan(t *testing.T) {
 	}
 }
 
+func TestTypedBooleanCompositionConvergesWithDynamicLeavesAndFilterChains(t *testing.T) {
+	t.Parallel()
+
+	backend := &spyBackend{}
+	base := models.ArticleObjects.Using(backend)
+	search := orm.Or(
+		models.ArticleFields.Title.IContains("go"),
+		models.ArticleFields.Summary.IContains("go"),
+	)
+	published := models.ArticleFields.Published.Exact(true)
+	excluded := orm.Not(models.ArticleFields.Title.IContains("draft"))
+	typed := base.Filter(search, published, excluded)
+	repeated := base.Filter(search).Filter(published).Filter(excluded)
+	if !typed.Plan().Equal(repeated.Plan()) {
+		t.Fatal("variadic and repeated Filter produced different Boolean trees")
+	}
+
+	dynamicLeaves, err := orm.ParseDynamic(
+		models.ArticleDescriptor{},
+		nil,
+		[]orm.LookupInput{
+			{Key: "title__icontains", Value: "go"},
+			{Key: "summary__icontains", Value: "go"},
+			{Key: "published", Value: true},
+			{Key: "title__icontains", Value: "draft"},
+		},
+	)
+	if err != nil {
+		t.Fatalf("ParseDynamic() error = %v", err)
+	}
+	dynamic := base.Filter(
+		orm.Or(dynamicLeaves[0], dynamicLeaves[1]),
+		dynamicLeaves[2],
+		orm.Not(dynamicLeaves[3]),
+	)
+	if !typed.Plan().Equal(dynamic.Plan()) {
+		t.Fatalf("typed and dynamic composite plans differ:\ntyped=%#v\ndynamic=%#v", typed.Plan(), dynamic.Plan())
+	}
+
+	where, ok := typed.Plan().Where()
+	if !ok || where.Kind() != query.ExpressionAnd {
+		t.Fatalf("typed Where() = (%#v, %v), want AND", where, ok)
+	}
+	children := where.Children()
+	if len(children) != 3 || children[0].Kind() != query.ExpressionOr ||
+		children[1].Kind() != query.ExpressionLeaf || children[2].Kind() != query.ExpressionNot {
+		t.Fatalf("typed precedence tree children = %#v", children)
+	}
+	if leaves := typed.Plan().Conditions(); len(leaves) != 4 ||
+		leaves[0].Field().Name() != "title" || leaves[1].Field().Name() != "summary" ||
+		leaves[2].Field().Name() != "published" || leaves[3].Field().Name() != "title" {
+		t.Fatalf("typed diagnostic DFS leaves = %#v", leaves)
+	}
+
+	reusedA := base.Filter(search)
+	reusedB := base.Filter(search)
+	if !reusedA.Plan().Equal(reusedB.Plan()) {
+		t.Fatal("reusing an immutable predicate changed its plan")
+	}
+	searchWhere, ok := reusedA.Plan().Where()
+	if !ok || searchWhere.Kind() != query.ExpressionOr || len(searchWhere.Children()) != 2 {
+		t.Fatalf("reused search tree = (%#v, %v)", searchWhere, ok)
+	}
+	if _, ok := base.Plan().Where(); ok {
+		t.Fatal("composite Filter mutated the source plan")
+	}
+	if backend.calls.Load() != 0 {
+		t.Fatalf("Boolean query construction performed %d backend calls", backend.calls.Load())
+	}
+}
+
+func TestTypedBooleanCompositionPropagatesZeroAndCapErrorsBeforeIO(t *testing.T) {
+	t.Parallel()
+
+	valid := models.ArticleFields.Title.Exact("GoDj")
+	var zero orm.Predicate[models.Article]
+	metadata := models.ArticleDescriptor{}.Metadata()
+	invalidField := orm.NewStringField[models.Article](metadata.Fields[2]).Exact("true")
+	tests := map[string]orm.Predicate[models.Article]{
+		"direct zero":        zero,
+		"AND zero":           orm.And(zero, valid),
+		"OR zero":            orm.Or(valid, zero),
+		"NOT zero":           orm.Not(zero),
+		"nested field error": orm.Or(valid, invalidField),
+	}
+	for name, predicate := range tests {
+		predicate := predicate
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			backend := &spyBackend{}
+			_, err := models.ArticleObjects.Using(backend).Filter(predicate).All(context.Background())
+			if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+				t.Fatalf("All() error = %v, want invalid_plan", err)
+			}
+			if backend.calls.Load() != 0 {
+				t.Fatalf("invalid predicate performed %d backend calls", backend.calls.Load())
+			}
+		})
+	}
+
+	maximumDepth := valid
+	for depth := 2; depth <= 64; depth++ {
+		maximumDepth = orm.Not(maximumDepth)
+	}
+	tooDeep := orm.Not(maximumDepth)
+	backend := &spyBackend{}
+	_, err := models.ArticleObjects.Using(backend).Filter(tooDeep).All(context.Background())
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("depth-65 All() error = %v, want invalid_plan", err)
+	}
+	if backend.calls.Load() != 0 {
+		t.Fatalf("depth cap error performed %d backend calls", backend.calls.Load())
+	}
+
+	rest := make([]orm.Predicate[models.Article], 1021)
+	for index := range rest {
+		rest[index] = valid
+	}
+	maximumNodes := orm.And(valid, valid, rest...)
+	tooWide := orm.And(maximumNodes, valid)
+	backend = &spyBackend{}
+	_, err = models.ArticleObjects.Using(backend).Filter(tooWide).All(context.Background())
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("node-1025 All() error = %v, want invalid_plan", err)
+	}
+	if backend.calls.Load() != 0 {
+		t.Fatalf("node cap error performed %d backend calls", backend.calls.Load())
+	}
+}
+
 func TestQuerySetChainPreservesSource(t *testing.T) {
 	t.Parallel()
 
@@ -79,6 +209,96 @@ func TestParseDynamicReturnsConstructionErrorsWithoutIO(t *testing.T) {
 				t.Fatalf("construction error performed %d backend calls", backend.calls.Load())
 			}
 		})
+	}
+}
+
+func TestParseDynamicRejectsRelationFieldsBeforeScalarLowering(t *testing.T) {
+	t.Parallel()
+
+	fixture := newRelationQueryFixture(t)
+	foreignKeyOnlyMetadata := fixture.postDescriptor.Metadata()
+	foreignKeyOnlyMetadata.Fields[1].Relation = nil
+	foreignKeyOnlyDescriptor := &relationQueryDescriptor[relationQueryPost]{metadata: foreignKeyOnlyMetadata}
+	relationOnlyMetadata := fixture.postDescriptor.Metadata()
+	relationOnlyMetadata.Fields[1].Kind = ir.FieldAuto
+	relationOnlyDescriptor := &relationQueryDescriptor[relationQueryPost]{metadata: relationOnlyMetadata}
+
+	tests := []struct {
+		name       string
+		descriptor orm.ModelDescriptor[relationQueryPost]
+		input      orm.LookupInput
+		field      string
+		lookup     string
+	}{
+		{
+			name:       "required relation isnull",
+			descriptor: fixture.postDescriptor,
+			input:      orm.LookupInput{Key: "author__isnull", Value: true},
+			field:      "author",
+			lookup:     string(query.LookupIsNull),
+		},
+		{
+			name:       "nullable relation isnull",
+			descriptor: fixture.postDescriptor,
+			input:      orm.LookupInput{Key: "reviewer__isnull", Value: true},
+			field:      "reviewer",
+			lookup:     string(query.LookupIsNull),
+		},
+		{
+			name:       "foreign key kind without relation arm",
+			descriptor: foreignKeyOnlyDescriptor,
+			input:      orm.LookupInput{Key: "author", Value: int64(1)},
+			field:      "author",
+			lookup:     string(query.LookupExact),
+		},
+		{
+			name:       "relation arm without foreign key kind",
+			descriptor: relationOnlyDescriptor,
+			input:      orm.LookupInput{Key: "author", Value: int64(1)},
+			field:      "author",
+			lookup:     string(query.LookupExact),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			policyCalled := false
+			predicates, err := orm.ParseDynamic(test.descriptor, func(ir.Field, query.Lookup) bool {
+				policyCalled = true
+				return true
+			}, []orm.LookupInput{test.input})
+			if predicates != nil {
+				t.Fatalf("predicates = %#v, want nil", predicates)
+			}
+			var queryError *query.Error
+			if !errors.As(err, &queryError) {
+				t.Fatalf("error = %T %v, want *query.Error", err, err)
+			}
+			if queryError.Category != query.CategoryField || queryError.Code != query.CodeUnsupportedLookup ||
+				queryError.Field != test.field || queryError.Lookup != test.lookup {
+				t.Fatalf("error = %#v, want field_error/unsupported_lookup field=%q lookup=%q", queryError, test.field, test.lookup)
+			}
+			if policyCalled {
+				t.Fatal("relation field reached scalar lookup policy")
+			}
+		})
+	}
+
+	predicates, err := orm.ParseDynamic(fixture.postDescriptor, nil, []orm.LookupInput{
+		{Key: "id", Value: int64(10)},
+		{Key: "author", Value: int64(1)},
+	})
+	if predicates != nil {
+		t.Fatalf("partial predicates = %#v, want nil", predicates)
+	}
+	if !errors.Is(err, &query.Error{
+		Category: query.CategoryField,
+		Code:     query.CodeUnsupportedLookup,
+		Field:    "author",
+		Lookup:   string(query.LookupExact),
+	}) {
+		t.Fatalf("partial-input error = %v, want relation unsupported_lookup", err)
 	}
 }
 

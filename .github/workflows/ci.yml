@@ -2,7 +2,13 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -11,6 +17,193 @@ jobs:
   conformance-validation:
     name: Validate checked-in conformance artifacts
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      LC_ALL: C
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.3"
+          python-version: "3.14.3"
+          enable-cache: false
+
+      - name: Install locked Python dependencies
+        run: uv sync --frozen
+
+      - name: Print non-authoritative CI fingerprint
+        run: |
+          uv run --frozen python -c 'import django, platform, sqlite3, sys; print(sys.version); print(django.get_version()); print(sqlite3.sqlite_version); print(platform.platform())'
+          go version
+
+      - name: Verify checked PostgreSQL live attestation checksum
+        working-directory: conformance/systemstate/attestations
+        run: sha256sum --check SHA256SUMS
+
+      - name: Verify checked project operator live attestation checksum
+        working-directory: conformance/projectoperatorproduct/attestations
+        run: sha256sum --check SHA256SUMS
+
+      - name: Run portable artifact and contract validation
+        run: make format-check generate-check python-test conformance-check godj-conformance
+
+      - name: Validate project-linked migration check contracts
+        run: go test -count=1 ./conformance/projectcheck
+
+      - name: Compile migration definition and project-check products on 32-bit Linux
+        env:
+          CGO_ENABLED: "0"
+          GOARCH: "386"
+        run: >
+          go test -run '^$' -count=1
+          ./migrations/definition
+          ./cmd/godj
+          ./project
+          ./internal/projectcheck/...
+          ./conformance/runners/godj
+          ./conformance/projectmigratetargetproduct
+          ./conformance/projectshowmigrationsproduct
+          ./conformance/projectsqlmigrateproduct
+          ./conformance/projectoperatorproduct
+
+      - name: Compile runserver product on 32-bit Linux
+        env:
+          CGO_ENABLED: "0"
+          GOARCH: "386"
+        run: go test -run '^$' -count=1 -exec=/usr/bin/true ./conformance/runserverproduct
+
+      - name: Run relation products on 32-bit Linux
+        env:
+          CGO_ENABLED: "0"
+          GOARCH: "386"
+        run: >
+          go test -count=1
+          ./query
+          ./orm
+          ./conformance/relationproduct/...
+          ./conformance/relationqueryproduct/...
+          ./conformance/relationobjectproduct/...
+          ./conformance/relationreverseproduct/...
+          ./conformance/relationprefetchproduct/...
+          ./conformance/relationselectproduct/...
+          ./conformance/relationdeleteproduct/...
+          ./conformance/migrationrelationproduct
+          ./conformance/runners/godj
+
+      - name: Verify stored oracle checksum
+        working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
+        run: sha256sum --check SHA256SUMS
+
+      - name: Verify stored DRF oracle checksum
+        working-directory: conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64
+        run: sha256sum --check SHA256SUMS
+
+      - name: Ensure reference artifacts were not rewritten
+        run: >
+          git diff --exit-code --
+          conformance/contracts
+          conformance/fixtures/godj-query-breadth-not-implemented.json
+          conformance/fixtures/godj-query-expression-not-implemented.json
+          conformance/fixtures/godj-migration-command-not-implemented.json
+          conformance/fixtures/godj-migration-writer-not-implemented.json
+          conformance/fixtures/godj-migration-status-not-implemented.json
+          conformance/fixtures/godj-migration-target-plan-not-implemented.json
+          conformance/fixtures/godj-migration-sql-rendering-not-implemented.json
+          conformance/fixtures/godj-migration-target-plan-deviation-expected.json
+          conformance/fixtures/godj-migration-writer-deviation-expected.json
+          conformance/fixtures/godj-parameter-routing-not-implemented.json
+          conformance/fixtures/godj-article-api-not-implemented.json
+          conformance/fixtures/godj-api-authentication-not-implemented.json
+          conformance/fixtures/godj-api-authentication-deviation-expected.json
+          conformance/fixtures/godj-system-state-not-implemented.json
+          conformance/fixtures/godj-system-state-deviation-expected.json
+          conformance/systemstate/attestations
+          conformance/projectoperatorproduct/attestations
+          conformance/profiles
+          conformance/oracles
+          conformance/reference/drf
+
+  portable-go-matrix:
+    name: Portable Go (${{ matrix.mode }}, ${{ matrix.shard }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: normal
+            shard: core-vet
+            make_targets: "go-test-core go-vet"
+            timeout_minutes: 40
+          - mode: normal
+            shard: products
+            make_targets: "go-test-products"
+            timeout_minutes: 55
+          - mode: race
+            shard: core
+            make_targets: "go-race-core"
+            timeout_minutes: 40
+          - mode: race
+            shard: products
+            make_targets: "go-race-products"
+            timeout_minutes: 55
+          - mode: cgo0
+            shard: core
+            make_targets: "cgo-zero-build-core"
+            timeout_minutes: 30
+          - mode: cgo0
+            shard: products
+            make_targets: "cgo-zero-build-products"
+            timeout_minutes: 50
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          test "$(go env GOOS)" = "linux"
+          test "$(go env GOARCH)" = "amd64"
+
+      - name: Run portable Go mode
+        run: make ${{ matrix.make_targets }}
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  exact-darwin-validation:
+    name: Validate exact darwin/arm64 profile and SQLite lifecycle
+    runs-on: macos-15
     timeout-minutes: 15
     env:
       LC_ALL: C
@@ -38,19 +231,1544 @@ jobs:
           enable-cache: false
 
       - name: Install locked Python dependencies
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          uv sync --project conformance/reference/drf --frozen
 
-      - name: Print non-authoritative CI fingerprint
+      - name: Print exact runner fingerprint
         run: |
           uv run --frozen python -c 'import django, platform, sqlite3, sys; print(sys.version); print(django.get_version()); print(sqlite3.sqlite_version); print(platform.platform())'
           go version
+          go env GOOS GOARCH
 
-      - name: Run portable conformance validation
-        run: make ci
+      - name: Run focused pure-Go lifecycle validation
+        env:
+          CGO_ENABLED: "0"
+        run: >
+          go test -count=1
+          ./migrations
+          ./db/sqlite
+          ./conformance/runners/godj
+          ./internal/compiletest
 
-      - name: Verify stored oracle checksum
-        working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
-        run: sha256sum --check SHA256SUMS
+      - name: Validate project-linked migration check contracts
+        run: go test -count=1 ./conformance/projectcheck
+
+      - name: Verify exact Python profile and locked oracles
+        run: make python-test-exact oracle-check
 
       - name: Ensure reference artifacts were not rewritten
-        run: git diff --exit-code -- conformance/contracts conformance/profiles conformance/oracles
+        run: >
+          git diff --exit-code --
+          conformance/contracts
+          conformance/fixtures/godj-query-breadth-not-implemented.json
+          conformance/fixtures/godj-query-expression-not-implemented.json
+          conformance/fixtures/godj-migration-command-not-implemented.json
+          conformance/fixtures/godj-migration-writer-not-implemented.json
+          conformance/fixtures/godj-migration-status-not-implemented.json
+          conformance/fixtures/godj-migration-target-plan-not-implemented.json
+          conformance/fixtures/godj-migration-sql-rendering-not-implemented.json
+          conformance/fixtures/godj-migration-target-plan-deviation-expected.json
+          conformance/fixtures/godj-migration-writer-deviation-expected.json
+          conformance/fixtures/godj-parameter-routing-not-implemented.json
+          conformance/fixtures/godj-article-api-not-implemented.json
+          conformance/fixtures/godj-api-authentication-not-implemented.json
+          conformance/fixtures/godj-api-authentication-deviation-expected.json
+          conformance/fixtures/godj-system-state-not-implemented.json
+          conformance/fixtures/godj-system-state-deviation-expected.json
+          conformance/systemstate/attestations
+          conformance/projectoperatorproduct/attestations
+          conformance/profiles
+          conformance/oracles
+          conformance/reference/drf
+
+  project-check-matrix:
+    name: Project check (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run normal project-check tests
+        run: go test -count=1 ./conformance/projectcheck
+
+      - name: Run project-check race tests
+        run: go test -race -count=1 ./conformance/projectcheck
+
+      - name: Run project-check without CGO
+        run: CGO_ENABLED=0 go test -count=1 ./conformance/projectcheck
+
+      - name: Vet project-check
+        run: go vet ./conformance/projectcheck
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  relation-binding-matrix:
+    name: Relation binding (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run normal relation-binding and external compile proofs
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/relation-binding-tests.json"
+          go test -json -count=1 ./conformance/relationbinding | tee "$log"
+          python3 - "$log" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          top_level_runs = {
+              event["Test"]
+              for event in events
+              if event.get("Action") == "run"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          top_level_passes = {
+              event["Test"]
+              for event in events
+              if event.get("Action") == "pass"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          skipped = [
+              event["Test"]
+              for event in events
+              if event.get("Action") == "skip" and "Test" in event
+          ]
+          assert len(top_level_runs) == 18, sorted(top_level_runs)
+          assert top_level_passes == top_level_runs, (
+              sorted(top_level_runs),
+              sorted(top_level_passes),
+          )
+          assert skipped == [], skipped
+          PY
+
+      - name: Run relation-binding race tests
+        run: go test -race -count=1 ./conformance/relationbinding
+
+      - name: Run relation-binding tests without CGO
+        run: CGO_ENABLED=0 go test -count=1 ./conformance/relationbinding
+
+      - name: Vet relation-binding proof
+        run: go vet ./conformance/relationbinding
+
+      - name: Ensure relation artifacts were not rewritten
+        run: >
+          git diff --quiet --
+          conformance/contracts/relation-manifest.json
+          conformance/fixtures/godj-relation-not-implemented.json
+          conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  relation-product-matrix:
+    name: Relation product (${{ matrix.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: normal
+            timeout_minutes: 20
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: race
+            timeout_minutes: 20
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: cgo0
+            timeout_minutes: 20
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: normal
+            timeout_minutes: 20
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: race
+            timeout_minutes: 20
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: cgo0
+            timeout_minutes: 20
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: normal
+            timeout_minutes: 20
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: race
+            timeout_minutes: 30
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: cgo0
+            timeout_minutes: 20
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: normal
+            timeout_minutes: 20
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: race
+            timeout_minutes: 20
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: cgo0
+            timeout_minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run relation product mode
+        run: |
+          set -euo pipefail
+          mode="${{ matrix.mode }}"
+          relation_godj_runner='^(TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle|TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation|TestRelationAdapterDoesNotImportDBOrReferenceArtifacts|TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle|TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift|TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity|TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut)$'
+          relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
+          if [ "$mode" = "race" ]; then
+            go test -timeout=15m -race -count=1 \
+              ./schema/... \
+              ./query \
+              ./codegen \
+              ./orm \
+              ./db/sqlite \
+              ./migrations \
+              ./migrations/definition \
+              ./conformance/relationproduct/... \
+              ./conformance/relationqueryproduct/... \
+              ./conformance/relationobjectproduct/... \
+              ./conformance/relationreverseproduct/... \
+              ./conformance/relationprefetchproduct/... \
+              ./conformance/relationselectproduct/... \
+              ./conformance/relationdeleteproduct/... \
+              ./conformance/migrationrelationproduct \
+              ./conformance/internal/protocol \
+              ./internal/compiletest
+            go test -timeout=20m -p=1 -race -count=1 -run "$relation_godj_runner" \
+              ./conformance/runners/godj
+            go test -timeout=20m -p=1 -race -count=1 -run "$relation_godjcheck" \
+              ./conformance/cmd/godjcheck
+            exit 0
+          fi
+          if [ "$mode" = "cgo0" ]; then
+            CGO_ENABLED=0 go test -timeout=15m -count=1 \
+              ./schema/... \
+              ./query \
+              ./codegen \
+              ./orm \
+              ./db/sqlite \
+              ./migrations \
+              ./migrations/definition \
+              ./conformance/relationproduct/... \
+              ./conformance/relationqueryproduct/... \
+              ./conformance/relationobjectproduct/... \
+              ./conformance/relationreverseproduct/... \
+              ./conformance/relationprefetchproduct/... \
+              ./conformance/relationselectproduct/... \
+              ./conformance/relationdeleteproduct/... \
+              ./conformance/migrationrelationproduct \
+              ./conformance/internal/protocol \
+              ./internal/compiletest
+            CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 -run "$relation_godj_runner" \
+              ./conformance/runners/godj
+            CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 -run "$relation_godjcheck" \
+              ./conformance/cmd/godjcheck
+            exit 0
+          fi
+          test "$mode" = "normal"
+          log="$RUNNER_TEMP/relation-product-tests.json"
+          status=0
+          go test -timeout=15m -json -count=1 \
+            ./schema/... \
+            ./query \
+            ./codegen \
+            ./orm \
+            ./db/sqlite \
+            ./migrations \
+            ./migrations/definition \
+            ./conformance/relationproduct/... \
+            ./conformance/relationqueryproduct/... \
+            ./conformance/relationobjectproduct/... \
+            ./conformance/relationreverseproduct/... \
+            ./conformance/relationprefetchproduct/... \
+            ./conformance/relationselectproduct/... \
+            ./conformance/relationdeleteproduct/... \
+            ./conformance/migrationrelationproduct \
+            ./conformance/internal/protocol \
+            ./internal/compiletest > "$log" || status=$?
+          go test -timeout=20m -p=1 -json -count=1 -run "$relation_godj_runner" \
+            ./conformance/runners/godj >> "$log" || status=$?
+          go test -timeout=20m -p=1 -json -count=1 -run "$relation_godjcheck" \
+            ./conformance/cmd/godjcheck >> "$log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            formatter_status=0
+            diagnostic_log="$RUNNER_TEMP/relation-product-failure.txt"
+            python3 - "$log" > "$diagnostic_log" 2>&1 <<'PY' || formatter_status=$?
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          max_failure_diagnostic_bytes = 60000
+          failed_events = [event for event in events if event.get("Action") == "fail"]
+          failed_tests = {(event.get("Package"), event["Test"]) for event in failed_events if "Test" in event}
+          failed_packages = {event.get("Package") for event in failed_events if "Test" not in event}
+          failed_test_packages = {package for package, _ in failed_tests}
+          package_only_failures = failed_packages - failed_test_packages
+          failed_event_diagnostic = "".join(json.dumps(event, sort_keys=True) + "\n" for event in failed_events)
+          selected_output = "".join(
+              event.get("Output", "")
+              for event in events
+              if event.get("Action") == "output"
+              and (
+                  (event.get("Package"), event.get("Test")) in failed_tests
+                  or (event.get("Package") in failed_packages and event.get("Test") is None)
+                  or event.get("Package") in package_only_failures
+              )
+          )
+          diagnostic = bytearray(failed_event_diagnostic.encode("utf-8", "replace"))
+          truncated = len(diagnostic) > max_failure_diagnostic_bytes
+          if truncated:
+              diagnostic = diagnostic[:max_failure_diagnostic_bytes]
+          else:
+              encoded_output = selected_output.encode("utf-8", "replace")
+              remaining = max_failure_diagnostic_bytes - len(diagnostic)
+              if len(encoded_output) > remaining:
+                  truncated = True
+                  if remaining > 0:
+                      diagnostic.extend(encoded_output[-remaining:])
+              else:
+                  diagnostic.extend(encoded_output)
+          sys.stdout.write(diagnostic.decode("utf-8", "replace"))
+          if diagnostic and not diagnostic.endswith(b"\n"):
+              print()
+          if truncated:
+              print(f"relation-product failure diagnostics truncated at {max_failure_diagnostic_bytes} bytes")
+          PY
+            if [ "$formatter_status" -ne 0 ]; then
+              fallback_log="$RUNNER_TEMP/relation-product-failure-fallback.txt"
+              tail -c 60000 "$log" > "$fallback_log"
+              echo "relation-product failure formatter exited $formatter_status; preserving go test status $status" >> "$fallback_log"
+              diagnostic_log="$fallback_log"
+            fi
+            tail -c 65536 "$diagnostic_log"
+            exit "$status"
+          fi
+          python3 - "$log" <<'PY'
+          import hashlib
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          runs = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "run"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          passes = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "pass"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          skipped = [
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "skip" and "Test" in event
+          ]
+          payload = b"".join(
+              package.encode("utf-8")
+              + b"\0"
+              + test.encode("utf-8")
+              + b"\n"
+              for package, test in sorted(runs)
+          )
+          assert len(runs) == 978, sorted(runs)
+          assert len(payload) == 99969, len(payload)
+          payload_sha256 = hashlib.sha256(payload).hexdigest()
+          assert payload_sha256 == "bc1975eb21fbec424c72538c28772b08878b7e472340f232e8505f166dbdb856"
+          assert passes == runs, (sorted(runs), sorted(passes))
+          assert skipped == [], skipped
+          for package, test in sorted(list(runs)):
+              print(json.dumps({"relation_product_run": [package, test]}, separators=(",", ":")))
+          print(json.dumps({
+              "relation_product_inventory": {
+                  "runs": len(runs),
+                  "passes": len(passes),
+                  "skips": len(skipped),
+                  "payload_bytes": len(payload),
+                  "payload_sha256": payload_sha256,
+              }
+          }, sort_keys=True))
+          PY
+          go vet \
+            ./schema/... \
+            ./query \
+            ./codegen \
+            ./orm \
+            ./db/sqlite \
+            ./migrations \
+            ./migrations/definition \
+            ./conformance/relationproduct/... \
+            ./conformance/relationqueryproduct/... \
+            ./conformance/relationobjectproduct/... \
+            ./conformance/relationreverseproduct/... \
+            ./conformance/relationprefetchproduct/... \
+            ./conformance/relationselectproduct/... \
+            ./conformance/relationdeleteproduct/... \
+            ./conformance/migrationrelationproduct \
+            ./conformance/internal/protocol \
+            ./conformance/runners/godj \
+            ./conformance/cmd/godjcheck \
+            ./internal/compiletest
+          git diff --quiet -- \
+            conformance/contracts/relation-manifest.json \
+            conformance/fixtures/godj-relation-not-implemented.json \
+            conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json \
+            conformance/relationproduct \
+            conformance/relationqueryproduct \
+            conformance/relationobjectproduct \
+            conformance/relationreverseproduct \
+            conformance/relationprefetchproduct \
+            conformance/relationselectproduct \
+            conformance/relationdeleteproduct \
+            conformance/migrationrelationproduct
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  product-project-check-matrix:
+    name: Product project check (${{ matrix.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: normal
+            cmd_test_timeout: 20m
+            timeout_minutes: 45
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: race
+            cmd_test_timeout: 20m
+            timeout_minutes: 55
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: cgo0
+            cmd_test_timeout: 20m
+            timeout_minutes: 45
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: normal
+            cmd_test_timeout: 20m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: race
+            cmd_test_timeout: 20m
+            timeout_minutes: 50
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: cgo0
+            cmd_test_timeout: 20m
+            timeout_minutes: 40
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: normal
+            cmd_test_timeout: 30m
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: race
+            cmd_test_timeout: 30m
+            timeout_minutes: 65
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: cgo0
+            cmd_test_timeout: 30m
+            timeout_minutes: 55
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: normal
+            cmd_test_timeout: 20m
+            timeout_minutes: 45
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: race
+            cmd_test_timeout: 20m
+            timeout_minutes: 55
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: cgo0
+            cmd_test_timeout: 20m
+            timeout_minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run and inventory product project-check mode
+        run: |
+          set -euo pipefail
+          mode="${{ matrix.mode }}"
+          cmd_test_flags=(-timeout="${{ matrix.cmd_test_timeout }}" -count=1)
+          test_flags=(-timeout=20m -count=1)
+          json_flags=(-timeout=15m -json -count=1)
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              cmd_test_flags+=(-race)
+              test_flags+=(-race)
+              json_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported product project-check mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+
+          # These package groups are intentionally separate. cmd/godj owns many
+          # sequential process tests and therefore gets a coordinate-specific
+          # cumulative package budget; project/internal and the conformance
+          # runner retain their independent 20-minute package budgets. The
+          # operator product has its own OS/mode matrix below.
+          go test "${cmd_test_flags[@]}" ./cmd/godj
+          go test "${test_flags[@]}" ./project ./internal/projectcheck/...
+          go test "${test_flags[@]}" ./conformance/runners/godj
+
+          runserver_log="$RUNNER_TEMP/runserver-product-${mode}.json"
+          status=0
+          go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 "$runserver_log"
+            exit "$status"
+          fi
+          runserver_package="github.com/progresshans/godj/conformance/runserverproduct"
+          runserver_required=(
+            "TestGlobalRunserverArticleSQLiteDevelopmentLoop"
+            "TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI"
+            "TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime"
+            "TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup"
+          )
+          for test_name in "${runserver_required[@]}"; do
+            pass_fragment="\"Action\":\"pass\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""
+            skip_fragment="\"Action\":\"skip\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""
+            if ! grep -Fq "$pass_fragment" "$runserver_log"; then
+              echo "required runserver product test did not pass in $mode: $test_name" >&2
+              exit 1
+            fi
+            if grep -Fq "$skip_fragment" "$runserver_log"; then
+              echo "required runserver product test was skipped in $mode: $test_name" >&2
+              exit 1
+            fi
+          done
+
+          if [ "$mode" = "normal" ]; then
+            go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+            go vet ./conformance/runserverproduct
+          fi
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  project-operator-product-matrix:
+    name: Project operator product (${{ matrix.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: normal
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: race
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: cgo0
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: normal
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: race
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: cgo0
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: normal
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: race
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: cgo0
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: normal
+            test_timeout: 35m
+            timeout_minutes: 45
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: race
+            test_timeout: 35m
+            timeout_minutes: 45
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: cgo0
+            test_timeout: 35m
+            timeout_minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Prewarm project command dependencies
+        run: go mod download all
+
+      - name: Run and inventory project operator product mode
+        run: |
+          set -euo pipefail
+          mode="${{ matrix.mode }}"
+          test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1)
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported project operator product mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+
+          operator_package="github.com/progresshans/godj/conformance/projectoperatorproduct"
+          required_tests=(
+            "TestOperatorSanitizeEnvironmentDropsHostOnlyControls"
+            "TestGlobalCreatesuperuserExternalSQLiteProduct"
+            "TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity"
+            "TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation"
+            "TestOperatorCountRawSecretOccurrencesDetectsAuditMarker"
+          )
+          required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
+          required="$RUNNER_TEMP/project-operator-sqlite-required-tests.txt"
+          printf '%s\n' "${required_tests[@]}" > "$required"
+          operator_log="$RUNNER_TEMP/project-operator-sqlite-${mode}.json"
+          status=0
+          go test "${test_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 "$operator_log"
+            exit "$status"
+          fi
+          python3 - "$required" "$operator_log" "$operator_package" "$mode" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              expected = {(sys.argv[3], line.rstrip("\n")) for line in stream if line.strip()}
+          with open(sys.argv[2], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          runs = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "run" and "Test" in event and "/" not in event["Test"]
+          }
+          passes = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "pass" and "Test" in event and "/" not in event["Test"]
+          }
+          skips = [
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "skip" and "Test" in event
+          ]
+          assert len(expected) == 5, sorted(expected)
+          assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))
+          assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))
+          assert skips == [], (sys.argv[4], skips)
+          PY
+          if [ "$mode" = "normal" ]; then
+            go vet ./conformance/projectoperatorproduct
+          fi
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  targeted-migrate-product-matrix:
+    name: Targeted migrate product (${{ matrix.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: normal
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: race
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: cgo0
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: normal
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: race
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: cgo0
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: normal
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: race
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: cgo0
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: normal
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: race
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: cgo0
+            test_timeout: 30m
+            timeout_minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run and inventory targeted migrate product mode
+        run: |
+          set -euo pipefail
+          mode="${{ matrix.mode }}"
+          test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported targeted migrate product mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+          go mod download all
+          log="$RUNNER_TEMP/project-migrate-target-product-${mode}.json"
+          status=0
+          go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct > "$log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 "$log"
+            exit "$status"
+          fi
+          package="github.com/progresshans/godj/conformance/projectmigratetargetproduct"
+          required_passes=(
+            "TestProjectLinkedTargetedMigrateSQLite"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-119_exact_argv_and_exact_name_miss"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-120_named_forward_closure"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-121_named_reverse_descendants"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-122_app_zero_DEV-0002_order"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-123_noop_and_known_zero_unknown"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-124_plan_is_exact_and_read_only"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-125_preview_drift_fresh_execute"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-126_reverse_middle_failure_fresh_resume"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-128_phase_C_public_ownership_subset"
+            "TestProjectLinkedTargetedMigrateSQLite/exact_public_family_coverage"
+          )
+          for test_name in "${required_passes[@]}"; do
+            pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""
+            if ! grep -Fq "$pass_fragment" "$log"; then
+              echo "required targeted migrate product test did not pass in $mode: $test_name" >&2
+              exit 1
+            fi
+          done
+          package_skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\""
+          if grep -Fq "$package_skip_fragment" "$log"; then
+            echo "targeted migrate product $mode inventory contains a skipped test" >&2
+            exit 1
+          fi
+          if [ "$mode" = "normal" ]; then
+            go vet ./conformance/projectmigratetargetproduct
+          fi
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  python-compatibility-matrix:
+    name: Python compatibility (${{ matrix.python_version }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+      UV_PYTHON_DOWNLOADS: never
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version:
+          - "3.12.13"
+          - "3.13.15"
+          - "3.14.3"
+          - "3.14.7"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up exact Python
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python_version }}
+          check-latest: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.3"
+          enable-cache: false
+
+      - name: Assert isolated compatibility runtime
+        env:
+          COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_PYTHON: ${{ matrix.python_version }}
+        run: |
+          uv --version | grep -Eq '^uv 0[.]12[.]3([[:space:]]|$)'
+          uv run --no-project --isolated --python "$COMPAT_PYTHON" \
+            --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            python - <<'PY'
+          import platform
+          import asgiref
+          import django
+          import rest_framework
+          import sqlparse
+
+          expected = __import__("os").environ["EXPECTED_PYTHON"]
+          assert platform.python_version() == expected, (platform.python_version(), expected)
+          assert django.get_version() == "6.1", django.get_version()
+          assert rest_framework.VERSION == "3.18.0", rest_framework.VERSION
+          assert asgiref.__version__ == "3.12.1", asgiref.__version__
+          assert sqlparse.__version__ == "0.5.5", sqlparse.__version__
+          PY
+
+      - name: Run exact portable Python suite
+        env:
+          COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_PYTHON: ${{ matrix.python_version }}
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/python-compatibility-tests.txt"
+          uv run --no-project --isolated --python "$COMPAT_PYTHON" \
+            --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
+          test "$(grep -c '^test_' "$log")" -eq 325
+          test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 21
+          grep -Fq 'Ran 325 tests' "$log"
+          grep -Fq 'OK (skipped=21)' "$log"
+
+      - name: Verify all-scenario semantic digest
+        env:
+          COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_PYTHON: ${{ matrix.python_version }}
+        run: |
+          uv run --no-project --isolated --python "$COMPAT_PYTHON" \
+            --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            python - <<'PY'
+          import hashlib
+
+          from conformance.runners.django.normalizer import canonical_json
+          from conformance.runners.django.runner import SCENARIOS
+
+          payload = b"".join(
+              name.encode("utf-8")
+              + b"\0"
+              + canonical_json(SCENARIOS[name](f"PYCOMPAT-{name}"))
+              + b"\0"
+              for name in sorted(SCENARIOS)
+          )
+          assert len(SCENARIOS) == 311, len(SCENARIOS)
+          assert len(payload) == 1081058, len(payload)
+          digest = hashlib.sha256(payload).hexdigest()
+          assert digest == "b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5", digest
+          PY
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  postgresql-product:
+    name: PostgreSQL 17.10 actual product (${{ matrix.mode }}, ${{ matrix.shard }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    services:
+      postgres:
+        image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+        env:
+          POSTGRES_PASSWORD: godj-ci-pg-canary-8H2k7M4q9V6x3R
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --locale-provider=libc"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+        ports:
+          - 5432
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: normal
+            shard: core
+            timeout_minutes: 45
+          - mode: normal
+            shard: operator-target
+            timeout_minutes: 35
+          - mode: race
+            shard: core
+            timeout_minutes: 40
+          - mode: race
+            shard: operator-target
+            timeout_minutes: 35
+          - mode: cgo0
+            shard: core
+            timeout_minutes: 40
+          - mode: cgo0
+            shard: operator-target
+            timeout_minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert exact PostgreSQL service profile
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          fingerprint="$(
+            docker exec -e PGCLIENTENCODING=UTF8 -e PGTZ=UTC "$POSTGRES_CONTAINER_ID" \
+              psql -X -U postgres -d postgres -At -F '|' -c \
+              "SELECT current_setting('server_version_num'), current_setting('server_encoding'), current_setting('client_encoding'), \"d\".\"datlocprovider\", COALESCE(\"d\".\"datlocale\", '<null>'), \"d\".\"datcollate\", \"d\".\"datctype\", current_setting('TimeZone'), current_setting('standard_conforming_strings'), current_setting('synchronous_commit'), current_setting('default_transaction_isolation'), current_setting('default_transaction_read_only'), current_setting('default_transaction_deferrable'), current_setting('fsync'), current_setting('full_page_writes'), current_setting('session_replication_role') FROM \"pg_catalog\".\"pg_database\" AS \"d\" WHERE \"d\".\"datname\" = current_database()"
+          )"
+          test "$fingerprint" = "170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin"
+
+      - name: Run and inventory PostgreSQL actual product tests
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_REQUIRE_POSTGRES: "1"
+          GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
+          GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-sqlite-external-operator-v1.json
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          mode="${{ matrix.mode }}"
+          shard="${{ matrix.shard }}"
+          core_required_passes=(
+            "github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration"
+            "github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP"
+            "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
+            "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
+            "github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow"
+            "github.com/progresshans/godj/cmd/godj|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart"
+            "github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E"
+            "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
+            "github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop"
+            "github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct"
+            "github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability"
+            "github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart"
+            "github.com/progresshans/godj/conformance/projectsqlmigrateproduct|TestGlobalSQLMigrateExternalPhaseDProduct"
+            "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel"
+            "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
+          )
+          operator_target_required_passes=(
+            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
+            "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
+            "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
+          )
+          go mod download all
+          case "$shard" in
+            core)
+              required_passes=("${core_required_passes[@]}")
+              packages=(
+                ./cmd/godj
+                ./db/postgres
+                ./examples/article
+                ./conformance/postgresproduct/...
+                ./conformance/projectmigrateproduct
+                ./conformance/projectshowmigrationsproduct
+                ./conformance/projectsqlmigrateproduct
+                ./conformance/systemstate/restart
+                ./conformance/runserverproduct
+              )
+              expected_count=23
+              ;;
+            operator-target)
+              required_passes=("${operator_target_required_passes[@]}")
+              packages=(
+                ./conformance/projectmigratetargetproduct
+                ./conformance/projectoperatorproduct
+              )
+              expected_count=3
+              ;;
+            *)
+              echo "unsupported PostgreSQL product shard: $shard" >&2
+              exit 1
+              ;;
+          esac
+          required_tests=()
+          for sentinel in "${required_passes[@]}"; do
+            required_tests+=("${sentinel#*|}")
+          done
+          required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
+          test_flags=(-p=1 -timeout=18m -json -count=1 -run "$required_regex")
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported PostgreSQL product mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+          log="$RUNNER_TEMP/postgresql-product-${mode}-${shard}.json"
+          report_postgres_failure() {
+            tail -c 60000 "$log"
+          }
+          status=0
+          go test "${test_flags[@]}" "${packages[@]}" > "$log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            report_postgres_failure
+            exit "$status"
+          fi
+          required="$RUNNER_TEMP/postgresql-${shard}-required-tests.txt"
+          printf '%s\n' "${required_passes[@]}" > "$required"
+          python3 - "$required" "$log" "$mode" "$expected_count" "$shard" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              expected = {tuple(line.rstrip("\n").split("|", 1)) for line in stream if line.strip()}
+          with open(sys.argv[2], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          runs = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "run" and "Test" in event and "/" not in event["Test"]
+          }
+          passes = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "pass" and "Test" in event and "/" not in event["Test"]
+          }
+          skips = [
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "skip" and "Test" in event
+          ]
+          assert len(expected) == int(sys.argv[4]), sorted(expected)
+          assert runs == expected, (sorted(runs), sorted(expected))
+          assert passes == expected, (sorted(passes), sorted(expected))
+          assert skips == [], skips
+          print(json.dumps({
+              "postgresql_product_inventory": {
+                  "mode": sys.argv[3],
+                  "shard": sys.argv[5],
+                  "runs": len(runs),
+                  "passes": len(passes),
+                  "skips": len(skips),
+              }
+          }, sort_keys=True))
+          PY
+          if [ "$mode" != "normal" ]; then
+            exit 0
+          fi
+          if [ "$shard" = "core" ]; then
+            test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
+            cmp "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE" \
+              conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+            (
+              cd conformance/systemstate/attestations
+              sha256sum --check SHA256SUMS
+            )
+            export GODJ_TEST_POSTGRES_SCHEMA="godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}"
+            project_runner="$RUNNER_TEMP/postgres-projectrunner"
+            go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner
+            "$project_runner" prepare
+            docker restart "$POSTGRES_CONTAINER_ID" >/dev/null
+            # GitHub services publish an ephemeral host port that Docker may
+            # reallocate when the container stops and starts.
+            postgres_host_port="$(
+              docker inspect --format '{{with (index .NetworkSettings.Ports "5432/tcp")}}{{(index . 0).HostPort}}{{end}}' \
+                "$POSTGRES_CONTAINER_ID"
+            )"
+            case "$postgres_host_port" in
+              ""|*[!0-9]*)
+                echo "restarted PostgreSQL service has no numeric published port" >&2
+                exit 1
+                ;;
+            esac
+            if [ "$postgres_host_port" -lt 1 ] || [ "$postgres_host_port" -gt 65535 ]; then
+              echo "restarted PostgreSQL service published port is outside the valid range" >&2
+              exit 1
+            fi
+            export GODJ_TEST_POSTGRES_URL="postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"
+            ready=0
+            for attempt in $(seq 1 30); do
+              if timeout 3s "$project_runner" probe >/dev/null 2>&1; then
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            test "$ready" -eq 1
+            "$project_runner" resume
+            "$project_runner" verify
+            "$project_runner" cleanup
+            go vet "${packages[@]}"
+            exit 0
+          fi
+          test "$shard" = "operator-target"
+          test -f "$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE"
+          cmp "$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE" \
+            conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json
+          (
+            cd conformance/projectoperatorproduct/attestations
+            sha256sum --check SHA256SUMS
+          )
+          go vet "${packages[@]}"
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  sqlite-matrix:
+    name: SQLite (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run normal SQLite tests
+        run: go test -count=1 ./migrations ./db/sqlite
+
+      - name: Run SQLite race tests
+        run: go test -race -count=1 ./migrations ./db/sqlite
+
+      - name: Run SQLite tests without CGO
+        run: CGO_ENABLED=0 go test -count=1 ./migrations ./db/sqlite
+
+      - name: Vet SQLite packages
+        run: go vet ./migrations ./db/sqlite
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  required-ci:
+    name: Required CI
+    if: ${{ always() }}
+    needs:
+      - conformance-validation
+      - portable-go-matrix
+      - exact-darwin-validation
+      - project-check-matrix
+      - relation-binding-matrix
+      - relation-product-matrix
+      - product-project-check-matrix
+      - project-operator-product-matrix
+      - targeted-migrate-product-matrix
+      - python-compatibility-matrix
+      - postgresql-product
+      - sqlite-matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Require every CI lane
+        env:
+          REQUIRED_RESULTS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          expected = {
+              "conformance-validation",
+              "portable-go-matrix",
+              "exact-darwin-validation",
+              "project-check-matrix",
+              "relation-binding-matrix",
+              "relation-product-matrix",
+              "product-project-check-matrix",
+              "project-operator-product-matrix",
+              "targeted-migrate-product-matrix",
+              "python-compatibility-matrix",
+              "postgresql-product",
+              "sqlite-matrix",
+          }
+          results = json.loads(os.environ["REQUIRED_RESULTS_JSON"])
+          assert set(results) == expected, (sorted(results), sorted(expected))
+          failures = {name: result.get("result") for name, result in results.items() if result.get("result") != "success"}
+          if failures:
+              raise SystemExit("required CI lanes did not succeed: " + json.dumps(failures, sort_keys=True))
+          print(json.dumps({"required_ci": {name: results[name]["result"] for name in sorted(results)}}, sort_keys=True))
+          PY

@@ -1,0 +1,63 @@
+package relationdeleteconsumer
+
+import (
+	"context"
+	"fmt"
+	"reflect"
+
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/authors"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
+)
+
+var generatedRelationDeletePrerequisites = [...]string{
+	authors.GoDjGeneratorVersion,
+	authors.GoDjRelationMetadataGeneratorVersion,
+	authors.GoDjRelationObjectGeneratorVersion,
+	authors.GoDjRelationProjectionGeneratorVersion,
+	blog.GoDjGeneratorVersion,
+	blog.GoDjRelationMetadataGeneratorVersion,
+	blog.GoDjRelationObjectGeneratorVersion,
+	blog.GoDjRelationProjectionGeneratorVersion,
+	project.GoDjProjectBindingGeneratorVersion,
+	project.GoDjProjectRelationObjectGeneratorVersion,
+	project.GoDjProjectRelationSelectRelatedGeneratorVersion,
+	project.GoDjProjectRelationDeleteGeneratorVersion,
+}
+
+var (
+	_ orm.WriteDescriptor[authors.Author]                                                                           = authors.AuthorDescriptor{}
+	_ orm.RelationDeleter[authors.Author]                                                                           = project.RelationDeleters{}.AuthorsAuthor
+	_ func() (project.RelationDeleters, error)                                                                      = project.BindRelationDeleters
+	_ func(orm.RelationDeleter[authors.Author], context.Context, db.RelationAtomic, *authors.Author) (int64, error) = orm.RelationDeleter[authors.Author].Delete
+)
+
+var boundRelationDeleters project.RelationDeleters
+
+func init() {
+	if len(generatedRelationDeletePrerequisites) != 12 {
+		panic("generated relation-delete prerequisite inventory is not exact 12")
+	}
+	aggregateType := reflect.TypeOf((*project.RelationDeleters)(nil)).Elem()
+	deleterType := reflect.TypeOf((*orm.RelationDeleter[authors.Author])(nil)).Elem()
+	if aggregateType.NumField() != 1 ||
+		aggregateType.Field(0).Name != "AuthorsAuthor" ||
+		aggregateType.Field(0).Type != deleterType {
+		panic(fmt.Sprintf("generated RelationDeleters surface = %v, want one AuthorsAuthor %v field", aggregateType, deleterType))
+	}
+	var err error
+	boundRelationDeleters, err = project.BindRelationDeleters()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func deleteAuthor(
+	ctx context.Context,
+	backend db.RelationAtomic,
+	author *authors.Author,
+) (int64, error) {
+	return boundRelationDeleters.AuthorsAuthor.Delete(ctx, backend, author)
+}

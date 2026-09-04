@@ -1,0 +1,8 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+var _ = models.ArticleFields.Title.ExactField(orm.F(models.ArticleFields.ID))

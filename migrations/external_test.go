@@ -8,8 +8,36 @@ import (
 
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
+
+type externalHiddenCreateModel struct {
+	migrations.CreateModel
+}
+
+type externalNestedCreateModel struct {
+	externalHiddenCreateModel
+}
+
+type externalNestedAddField struct {
+	migrations.AddField
+}
+
+type externalShadowedOperation struct {
+	migrations.CreateModel
+	externalNestedAddField
+}
+
+func TestExternalConsumerSeesOneCurrentMigrationStateVersion(t *testing.T) {
+	t.Parallel()
+
+	type consumerVersion int
+	const version consumerVersion = migrations.StateFormatVersion
+	if migrations.StateFormatVersion != 1 || version != 1 {
+		t.Fatalf("migration state version = %d/%d", migrations.StateFormatVersion, version)
+	}
+}
 
 func TestExternalConsumerCanConstructAndRunMigrationPlanner(t *testing.T) {
 	t.Parallel()
@@ -122,6 +150,143 @@ func TestExternalConsumerCanReconstructHistoricalProjectState(t *testing.T) {
 	}
 }
 
+func TestExternalConsumerUsesCurrentRelationStateButRawExecutionFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	field := ir.Field{
+		Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "posts"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+	model := ir.Model{
+		Name: "post", GoName: "Post", DBTable: "blog_post",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}, field},
+	}
+	state, err := migrations.NewProjectState(ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "blog",
+		Models:        []ir.Model{model},
+	})
+	if err != nil || state.FormatVersion() != migrations.StateFormatVersion {
+		t.Fatalf("NewProjectState(current relation) = state:%#v err:%v", state, err)
+	}
+
+	relationMigration := migrations.Migration{
+		App: "blog", Name: "0001_post",
+		Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "blog", Model: model}},
+	}
+	targetMigration := migrations.Migration{
+		App: "authors", Name: "0001_author",
+		Operations: []migrations.Operation{migrations.CreateModel{
+			AppLabel: "authors",
+			Model: ir.Model{
+				Name: "author", GoName: "Author", DBTable: "authors_author",
+				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+			},
+		}},
+	}
+	relationMigration.Dependencies = []migrations.MigrationKey{targetMigration.Key()}
+	reconstructor, err := migrations.NewStateReconstructor(targetMigration, relationMigration)
+	if err != nil {
+		t.Fatalf("NewStateReconstructor(relation): %v", err)
+	}
+	reconstructed, err := reconstructor.Reconstruct(migrations.LatestStateRequest())
+	if err != nil {
+		t.Fatalf("Reconstruct(relation): %v", err)
+	}
+	reconstructedModel, exists := reconstructed.Model("blog", "post")
+	if !exists || len(reconstructedModel.Fields) != 2 || reconstructedModel.Fields[1].Relation == nil {
+		t.Fatalf("reconstructed current relation = %#v/%t", reconstructedModel, exists)
+	}
+
+	_, err = (migrations.DirectExecutor{}).Apply(
+		context.Background(), migrations.EmptyProjectState(), relationMigration,
+	)
+	var migrationError *migrations.Error
+	var capabilityError *backend.CapabilityError
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || migrationError.OperationIndex != migrations.NoOperation ||
+		!errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" {
+		t.Fatalf("DirectExecutor.Apply(raw relation) error = %#v capability=%#v", err, capabilityError)
+	}
+}
+
+func TestExternalNestedHiddenOperationCannotBypassRawRelationBoundary(t *testing.T) {
+	t.Parallel()
+
+	relationModel := ir.Model{
+		Name: "post", GoName: "Post", DBTable: "blog_post",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{
+				Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target: ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, Cardinality: ir.RelationManyToOne,
+					Reverse: ir.ReverseRelation{Name: "posts"}, OnDelete: ir.DeleteProtect,
+				},
+			},
+		},
+	}
+	wrappedRelation := externalNestedCreateModel{externalHiddenCreateModel{migrations.CreateModel{AppLabel: "blog", Model: relationModel}}}
+	_, err := (migrations.DirectExecutor{}).Apply(context.Background(), migrations.EmptyProjectState(), migrations.Migration{
+		App: "blog", Name: "0001_relation", Operations: []migrations.Operation{wrappedRelation},
+	})
+	var migrationError *migrations.Error
+	var capability *backend.CapabilityError
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capability) || capability.Feature != "relation_migration" {
+		t.Fatalf("nested hidden relation wrapper error = %#v capability=%#v", err, capability)
+	}
+
+	scalarModel := relationModel.Clone()
+	scalarModel.Fields = scalarModel.Fields[:1]
+	wrappedScalar := externalNestedCreateModel{externalHiddenCreateModel{migrations.CreateModel{AppLabel: "blog", Model: scalarModel}}}
+	_, err = (migrations.DirectExecutor{}).Apply(context.Background(), migrations.EmptyProjectState(), migrations.Migration{
+		App: "blog", Name: "0001_scalar", Operations: []migrations.Operation{wrappedScalar},
+	})
+	migrationError = nil
+	capability = nil
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
+		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capability) {
+		t.Fatalf("nested hidden scalar wrapper error = %#v capability=%#v", err, capability)
+	}
+}
+
+func TestExternalShadowedRelationUsesEffectiveScalarOperation(t *testing.T) {
+	t.Parallel()
+
+	scalar := ir.Model{
+		Name: "post", GoName: "Post", DBTable: "blog_post",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+	relation := ir.Field{
+		Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target: ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, Cardinality: ir.RelationManyToOne,
+			Reverse: ir.ReverseRelation{Name: "posts"}, OnDelete: ir.DeleteProtect,
+		},
+	}
+	operation := externalShadowedOperation{
+		CreateModel: migrations.CreateModel{AppLabel: "blog", Model: scalar},
+		externalNestedAddField: externalNestedAddField{AddField: migrations.AddField{
+			AppLabel: "blog", ModelName: "post", Field: relation,
+		}},
+	}
+	_, err := (migrations.DirectExecutor{}).Apply(context.Background(), migrations.EmptyProjectState(), migrations.Migration{
+		App: "blog", Name: "0001_shadowed", Operations: []migrations.Operation{operation},
+	})
+	var migrationError *migrations.Error
+	var capability *backend.CapabilityError
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
+		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capability) {
+		t.Fatalf("shadowed external relation error = %#v capability=%#v", err, capability)
+	}
+}
+
 func TestExternalConsumerCanInspectInvalidStateRequest(t *testing.T) {
 	t.Parallel()
 
@@ -174,6 +339,115 @@ func TestExternalConsumerZeroPlannerAndAppliedStateAreValid(t *testing.T) {
 	}
 	if len(plan) != 0 {
 		t.Fatalf("zero Planner.Plan() = %v, want empty", plan)
+	}
+
+	_, err = planner.Plan(applied, migrations.KnownAppZeroTarget("unknown"))
+	var planningError *migrations.PlanningError
+	if !errors.As(err, &planningError) ||
+		planningError.Category != migrations.CategoryPlan ||
+		planningError.Code != migrations.CodeTargetNotFound ||
+		planningError.Node != (migrations.MigrationKey{App: "unknown"}) {
+		t.Fatalf("strict zero Planner.Plan() error = %#v", err)
+	}
+
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	knownPlanner, err := migrations.NewPlanner(migrations.Migration{App: initial.App, Name: initial.Name})
+	if err != nil {
+		t.Fatalf("NewPlanner(known app) error = %v", err)
+	}
+	knownApplied, err := migrations.NewAppliedState(initial)
+	if err != nil {
+		t.Fatalf("NewAppliedState(known app) error = %v", err)
+	}
+	legacyPlan, err := knownPlanner.Plan(knownApplied, migrations.ZeroTarget(initial.App))
+	if err != nil {
+		t.Fatalf("legacy known zero error = %v", err)
+	}
+	strictPlan, err := knownPlanner.Plan(knownApplied, migrations.KnownAppZeroTarget(initial.App))
+	if err != nil {
+		t.Fatalf("strict known zero error = %v", err)
+	}
+	if !reflect.DeepEqual(strictPlan, legacyPlan) {
+		t.Fatalf("strict known zero plan = %v, legacy plan = %v", strictPlan, legacyPlan)
+	}
+}
+
+func TestExternalConsumerCanInspectMigrationStatusesWithoutMutableAliases(t *testing.T) {
+	t.Parallel()
+
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	second := migrations.MigrationKey{App: "news", Name: "0002_second"}
+	missing := migrations.MigrationKey{App: "news", Name: "0000_removed"}
+	planner, err := migrations.NewPlanner(
+		migrations.Migration{App: second.App, Name: second.Name, Dependencies: []migrations.MigrationKey{initial}},
+		migrations.Migration{App: initial.App, Name: initial.Name},
+	)
+	if err != nil {
+		t.Fatalf("NewPlanner() error = %v", err)
+	}
+	applied, err := migrations.NewAppliedState(initial, missing)
+	if err != nil {
+		t.Fatalf("NewAppliedState() error = %v", err)
+	}
+	want := []migrations.MigrationStatusEntry{
+		{Key: initial, Status: migrations.MigrationStatusApplied},
+		{Key: second, Status: migrations.MigrationStatusUnapplied},
+		{Key: missing, Status: migrations.MigrationStatusDefinitionMissing},
+	}
+	got, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() error = %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Statuses() = %v, want %v", got, want)
+	}
+	if string(migrations.MigrationStatusApplied) != "applied" ||
+		string(migrations.MigrationStatusUnapplied) != "unapplied" ||
+		string(migrations.MigrationStatusDefinitionMissing) != "definition-missing" {
+		t.Fatalf("migration status vocabulary changed")
+	}
+
+	got[0] = migrations.MigrationStatusEntry{
+		Key:    migrations.MigrationKey{App: "mutated", Name: "mutated"},
+		Status: migrations.MigrationStatusUnapplied,
+	}
+	again, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() after mutation error = %v", err)
+	}
+	if !reflect.DeepEqual(again, want) {
+		t.Fatalf("Statuses() after caller mutation = %v, want %v", again, want)
+	}
+}
+
+func TestExternalConsumerDistinguishesZeroAndLoadedEmptyDefinitionStatusAuthority(t *testing.T) {
+	t.Parallel()
+
+	var zero migrations.LoadedDefinitionSet
+	statuses, err := zero.Statuses(migrations.AppliedState{})
+	if statuses != nil {
+		t.Fatalf("zero LoadedDefinitionSet.Statuses() = %v, want nil", statuses)
+	}
+	var migrationError *migrations.Error
+	if !errors.As(err, &migrationError) ||
+		migrationError.Category != migrations.CategoryState ||
+		migrationError.Code != migrations.CodeInvalidState {
+		t.Fatalf("zero LoadedDefinitionSet.Statuses() error = %#v, want state/invalid_state", err)
+	}
+
+	loaded, report, err := definition.Load()
+	if err != nil {
+		t.Fatalf("definition.Load(empty) error = %v", err)
+	}
+	if report.DefinitionSetsPublished != 1 {
+		t.Fatalf("definition.Load(empty) report = %+v, want one published set", report)
+	}
+	statuses, err = loaded.Statuses(migrations.AppliedState{})
+	if err != nil {
+		t.Fatalf("loaded empty Statuses() error = %v", err)
+	}
+	if len(statuses) != 0 {
+		t.Fatalf("loaded empty Statuses() = %v, want empty", statuses)
 	}
 }
 
@@ -259,16 +533,16 @@ func TestExternalConsumerCanConstructBuiltInMigration(t *testing.T) {
 		t.Fatalf("operations = %d, want 2", len(migration.Operations))
 	}
 	external := &externalBackend{transaction: &externalTransaction{}}
-	state, err := (migrations.Executor{Backend: external}).Apply(
+	state, err := (migrations.DirectExecutor{Backend: external}).Apply(
 		context.Background(),
 		migrations.EmptyProjectState(),
 		migration,
 	)
 	if err != nil {
-		t.Fatalf("external Executor.Apply() error = %v", err)
+		t.Fatalf("external DirectExecutor.Apply() error = %v", err)
 	}
 	if _, exists := state.Model("news", "article"); !exists {
-		t.Fatal("external Executor.Apply() did not return the applied model state")
+		t.Fatal("external DirectExecutor.Apply() did not return the applied model state")
 	}
 }
 
@@ -290,21 +564,21 @@ func TestExternalConsumerCanExecuteAndInspectMigrationPlan(t *testing.T) {
 		Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "news", Model: model}},
 	}
 	external := &externalBackend{transaction: &externalTransaction{}}
-	state, err := (migrations.Executor{Backend: external}).ExecutePlan(
+	state, err := (migrations.DirectExecutor{Backend: external}).ExecutePlan(
 		context.Background(),
 		migrations.EmptyProjectState(),
 		[]migrations.Migration{initial},
 		[]migrations.PlanStep{{Key: initial.Key(), Direction: migrations.DirectionForward}},
 	)
 	if err != nil {
-		t.Fatalf("external Executor.ExecutePlan() error = %v", err)
+		t.Fatalf("external DirectExecutor.ExecutePlan() error = %v", err)
 	}
 	if _, exists := state.Model("news", "article"); !exists {
-		t.Fatal("external Executor.ExecutePlan() did not return the applied model state")
+		t.Fatal("external DirectExecutor.ExecutePlan() did not return the applied model state")
 	}
 
 	second := migrations.Migration{App: "news", Name: "0002_second"}
-	_, err = (migrations.Executor{Backend: external}).ExecutePlan(
+	_, err = (migrations.DirectExecutor{Backend: external}).ExecutePlan(
 		context.Background(),
 		migrations.EmptyProjectState(),
 		[]migrations.Migration{initial, second},
