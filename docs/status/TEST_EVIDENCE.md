@@ -16592,3 +16592,72 @@ Linux-386 gates above, while the full split Hosted matrix verified the exact sou
 relabelled as `0b5b6fc6...` evidence. This terminal documentation descendant changes no product source, workflow, lock or
 source-bound artifact and therefore uses documentation-only parse/link/status/format gates rather than recursively rerunning the
 product matrix.
+
+## EVID-20260905-180 — GDJ-0056 SQLite Terminal Quarantine Implementation Checkpoint
+
+- Date: 2026-09-05 KST
+- Work/contract IDs: GDJ-0056 active; ADR-0057 Proposed; Q-019 P1/open
+- Exact implementation source: `9f17528f1751db9cf1c0dda3435fc1bfbd7a6f19`
+- Exact implementation tree: `271cf8d6df0f7a1a48eda9fe9fb46d1da456b1f2`
+- Baseline: `003afee4524a0294ada8f02c140781f3e1751a5c`, tree
+  `77d19c56d3e86d99e123c5ac3ea5436d949cb9a5`
+
+### Implemented boundary
+
+The SQLite Backend-private retention state now gives `AtomicRelation` and `CoordinatedAtomic` one shared context-aware admission.
+Only the admitted owner can retain an unconfirmed raw connection; the first actual retain stores exact one connection, publishes
+terminal quarantine and wakes waiters. New Backend Query/Exec/version, CRUD/Atomic/raw transaction, migration/history and
+pre-created revision-session I/O then fail before driver connection, callback or SQL with stable
+`backend_error/backend_recovery_required`. Healthy cancellation and quarantine preserve reusable Open/Ready revision-session state,
+while existing static validation and invalid-state precedence remain unchanged.
+
+Explicit `Backend.Close` marks closing and wakes waiters, closes the pool, then drains a pre-seal retained handle exact once. An
+already-admitted operation that reaches retention after pool seal closes its own handle. One CAS winner owns pool close/drain;
+concurrent losers do not form a completion barrier. Existing commit/transaction outcome markers, joined causes, confirmed cleanup,
+generic `Atomic` commit-unknown behavior, no-retry and exact panic rethrow are preserved. The additive public change is only
+`query.CodeBackendRecoveryRequired = "backend_recovery_required"`; Backend/DB interfaces and health methods are unchanged.
+
+### Exact checkpoint verification
+
+The following gates passed before the clean checkpoint commit:
+
+```bash
+go test ./query ./db/sqlite -count=1
+go test -race ./query ./db/sqlite -count=1
+CGO_ENABLED=0 go test ./query ./db/sqlite -count=1
+go vet ./query ./db/sqlite
+make generate-check
+go test -count=1 \
+  ./conformance/relationdeleteproduct \
+  ./conformance/migrationrelationproduct \
+  ./conformance/systemstate/product
+go test -count=1 ./conformance/projectoperatorproduct
+go test ./db/sqlite \
+  -run 'TestBackendCloseWakesAdmissionWaiterBeforePoolDrain|TestRelationRetentionRaceWithSealClosesAdmittedConnectionOnce' \
+  -count=20
+go test -race ./db/sqlite \
+  -run 'TestBackendCloseWakesAdmissionWaiterBeforePoolDrain|TestRelationRetentionRaceWithSealClosesAdmittedConnectionOnce' \
+  -count=5
+git diff --check
+```
+
+The exact-current normal/race/CGO-disabled/vet gates passed. Generated Article and relation-delete bundles remained clean at
+12 files/SHA-256 `f0043e499ab316558cd0306ce82c428a5f266b0c178d656416380c3ba1722ac7` and 16 files/SHA-256
+`81534d39046a39c9d515fe4106dfcb01dd2d1ade6b0c41f25dff92ac4c004533`. The three SQLite product packages passed, and the
+repository-external project-operator product passed in 245.002 seconds. The focused Close/seal tests passed 20 normal and five race
+iterations without timeout.
+
+An independent read-only checkpoint audit found P0/P1/P2=`0/0/0`. Earlier audit findings covering migration-session cancellation
+poisoning, static validation precedence, generic Atomic non-quarantine, confirmed-cleanup health assertions and unbounded test-result
+receives were corrected before this source. A separate surface harness verifies all fourteen public/root migration entries with a
+lazy unopened driver: recovery error and nil/zero results, driver Connect/SQL/callback/retained-I/O/query-count all zero, retained
+exact one.
+
+### Remaining gates and non-claims
+
+This source changes non-test `db/**` and `query/**`, so both checked PostgreSQL source bindings are intentionally stale until
+independent A/B recapture and exact publication. No system-state/project-operator attestation, full `make ci`, Linux/386,
+relation inventory, `.git`-free external archive or exact-head Hosted matrix has run for GDJ-0056 yet. Therefore ADR-0057 remains
+Proposed, Q-019 remains P1/open and GDJ-0056 remains active. This checkpoint does not claim generic transaction quarantine,
+automatic reopen/retry, public health/metrics, same-file cross-Backend/process propagation, nested raw transaction/savepoint support
+or arbitrary in-flight cancellation.

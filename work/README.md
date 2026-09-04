@@ -86,7 +86,9 @@ proposed → ready → active → completed
 [GDJ-0056](0056-sqlite-retained-connection-terminal-quarantine.md)은 Q-019의 SQLite unknown-cleanup retained connection을
 hard maximum 1로 제한하고 첫 retain 뒤 새 Backend I/O를 stable recovery-required로 거부하는 terminal quarantine을
 구현합니다. Retention-producing `AtomicRelation`/`CoordinatedAtomic`은 shared context-aware admission을 사용하고 explicit
-`Backend.Close`가 pool-first drain을 계속 소유합니다. 최근 completed
+`Backend.Close`가 pool-first drain을 계속 소유합니다. Phase A~C checkpoint source `9f17528f...`, tree `271cf8d6...`는
+affected normal/race/CGO0/vet, generated drift와 SQLite product gates를 통과했고 source-bound A/B와 final frozen gate는
+아직 남아 있습니다. 최근 completed
 [GDJ-0055](0055-project-linked-explicit-operator-provisioning.md)는 migrated clean system state에 durable operator를 exactly once
 생성하는 exact `godj createsuperuser [--project PATH]`와 raw-password-free `OpenExisting` restart를 구현했습니다. Accepted
 [ADR-0056](../docs/adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit startup bootstrap을 current-only로 제거하고

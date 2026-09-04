@@ -198,7 +198,10 @@ unconfirmed physical connection은 최대 1개입니다.
 
 ## 테스트 증거
 
-- Evidence ID: checkpoint evidence는 clean implementation source freeze 뒤 EVID-180에 exact SHA/tree와 함께 기록합니다.
+- Evidence ID:
+  [EVID-180](../docs/status/TEST_EVIDENCE.md#evid-20260905-180--gdj-0056-sqlite-terminal-quarantine-implementation-checkpoint)
+- Exact implementation source: `9f17528f1751db9cf1c0dda3435fc1bfbd7a6f19`, tree
+  `271cf8d6df0f7a1a48eda9fe9fb46d1da456b1f2`
 - Passed:
   - `go test ./query ./db/sqlite -count=1`
   - `go test -race ./db/sqlite -count=1`
@@ -228,9 +231,8 @@ unconfirmed physical connection은 최대 1개입니다.
 
 ## 다음 정확한 작업
 
-Exact-current external project-operator product gate를 닫고 clean implementation source를 freeze합니다. 그 source에서
-system-state와 project-operator PostgreSQL checked attestation을 각각 independent A/B로 재캡처하고 exact publication descendant를
-검증합니다.
+Clean implementation source `9f17528f...`를 기준으로 system-state와 project-operator PostgreSQL checked attestation을 각각
+independent A/B로 재캡처하고 exact publication descendant를 검증합니다.
 
 ## 결과와 인수인계
 

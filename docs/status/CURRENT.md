@@ -12,8 +12,11 @@
   `Backend.Close`의 pool-first drain ownership을 선택합니다. Baseline은 clean `003afee4524a...`, tree
   `77d19c56d3e...`입니다. Phase A~C implementation checkpoint는 exact-one retention, common pre-I/O recovery gate,
   migration-session state preservation와 pool-first Close를 구현했고 affected normal/race/CGO-disabled/vet,
-  generated drift 및 SQLite relation/migration/system-state product gate를 통과했습니다. Source-bound A/B와 final frozen
-  matrix 전이므로 ADR은 Proposed, Q-019는 open/P1, work는 active를 유지합니다. 최근 completed
+  generated drift 및 SQLite relation/migration/system-state/project-operator product gate를 통과했습니다. Exact checkpoint
+  source `9f17528f1751db9cf1c0dda3435fc1bfbd7a6f19`, tree `271cf8d6df0f7a1a48eda9fe9fb46d1da456b1f2`의
+  상세 증거와 non-claim은
+  [EVID-180](TEST_EVIDENCE.md#evid-20260905-180--gdj-0056-sqlite-terminal-quarantine-implementation-checkpoint)이 소유합니다.
+  Source-bound A/B와 final frozen matrix 전이므로 ADR은 Proposed, Q-019는 open/P1, work는 active를 유지합니다. 최근 completed
   [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md)는 exact
   `godj createsuperuser`와 `godj createsuperuser --project PATH`로 migrated clean system state에 durable operator를
   exactly once 생성하고 raw-password-free `OpenExisting` authenticated restart를 구현했습니다. Accepted
