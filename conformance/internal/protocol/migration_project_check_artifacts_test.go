@@ -519,6 +519,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 			t.Fatalf("product-project-check coordinate %q count = %d, want one per mode", coordinate, got)
 		}
 		for _, mode := range []string{"normal", "race", "cgo0"} {
+			cmdTestTimeout := "20m"
 			timeoutMinutes := 45
 			switch {
 			case strings.Contains(coordinate, "runs_on: ubuntu-24.04-arm"):
@@ -527,6 +528,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 					timeoutMinutes = 50
 				}
 			case strings.Contains(coordinate, "runs_on: macos-15-intel"):
+				cmdTestTimeout = "30m"
 				timeoutMinutes = 55
 				if mode == "race" {
 					timeoutMinutes = 65
@@ -536,7 +538,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 					timeoutMinutes = 55
 				}
 			}
-			entry := coordinate + "\n            mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
+			entry := coordinate + "\n            mode: " + mode +
+				"\n            cmd_test_timeout: " + cmdTestTimeout +
+				fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
 			if got := strings.Count(product, entry); got != 1 {
 				t.Fatalf("product-project-check coordinate/mode entry %q count = %d, want 1", entry, got)
 			}
@@ -544,6 +548,12 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	}
 	if got := strings.Count(product, "timeout_minutes:"); got != 12 {
 		t.Fatalf("product-project-check timeout count = %d, want 12", got)
+	}
+	if got := strings.Count(product, "cmd_test_timeout: 20m"); got != 9 {
+		t.Fatalf("product-project-check 20-minute cmd timeout count = %d, want 9", got)
+	}
+	if got := strings.Count(product, "cmd_test_timeout: 30m"); got != 3 {
+		t.Fatalf("product-project-check Intel cmd timeout count = %d, want 3", got)
 	}
 	for timeout, want := range map[string]int{"timeout_minutes: 40": 2, "timeout_minutes: 45": 4, "timeout_minutes: 50": 1, "timeout_minutes: 55": 4, "timeout_minutes: 65": 1} {
 		if got := strings.Count(product, timeout); got != want {
@@ -986,12 +996,15 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	for _, fragment := range []string{
 		"name: Run and inventory product project-check mode",
 		`mode="${{ matrix.mode }}"`,
+		`cmd_test_flags=(-timeout="${{ matrix.cmd_test_timeout }}" -count=1)`,
 		`test_flags=(-timeout=20m -count=1)`,
 		`json_flags=(-timeout=15m -json -count=1)`,
-		`test_flags+=(-race)`,
-		`json_flags+=(-race)`,
+		"              cmd_test_flags+=(-race)\n",
+		"              test_flags+=(-race)\n",
+		"              json_flags+=(-race)\n",
 		`export CGO_ENABLED=0`,
-		`go test "${test_flags[@]}" ./cmd/godj ./project ./internal/projectcheck/...`,
+		`go test "${cmd_test_flags[@]}" ./cmd/godj`,
+		`go test "${test_flags[@]}" ./project ./internal/projectcheck/...`,
 		`go test "${test_flags[@]}" ./conformance/runners/godj`,
 		`go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" || status=$?`,
 		`runserver_required=(`,
@@ -1010,6 +1023,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		if got := strings.Count(product, "            "+mode+")"); got != 1 {
 			t.Fatalf("product project-check mode %q switch count = %d, want 1", mode, got)
 		}
+	}
+	if strings.Contains(product, `go test "${test_flags[@]}" ./cmd/godj`) {
+		t.Fatal("cmd/godj must retain its independent cumulative package timeout")
 	}
 	for _, sentinel := range []string{
 		"TestGlobalRunserverArticleSQLiteDevelopmentLoop",

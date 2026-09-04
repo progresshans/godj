@@ -316,14 +316,23 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"timeout-minutes: ${{ matrix.timeout_minutes }}",
 		"fail-fast: false",
 		`mode="${{ matrix.mode }}"`,
+		`cmd_test_flags=(-timeout="${{ matrix.cmd_test_timeout }}" -count=1)`,
 		`test_flags=(-timeout=20m -count=1)`,
 		`json_flags=(-timeout=15m -json -count=1)`,
-		`go test "${test_flags[@]}" ./cmd/godj ./project ./internal/projectcheck/...`,
+		`cmd_test_flags+=(-race)`,
+		`go test "${cmd_test_flags[@]}" ./cmd/godj`,
+		`go test "${test_flags[@]}" ./project ./internal/projectcheck/...`,
 		`go test "${test_flags[@]}" ./conformance/runners/godj`,
 	} {
 		runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, fragment, 1)
 	}
+	if strings.Contains(portable, `go test "${test_flags[@]}" ./cmd/godj`) {
+		t.Fatal("cmd/godj must retain its independent cumulative package timeout")
+	}
 	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "          - runs_on: ", 12)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "cmd_test_timeout:", 12)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "cmd_test_timeout: 20m", 9)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "cmd_test_timeout: 30m", 3)
 	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout_minutes:", 12)
 	productCoordinates := []string{
 		"- runs_on: ubuntu-22.04\n            expected_goos: linux\n            expected_goarch: amd64",
@@ -333,6 +342,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	}
 	for _, coordinate := range productCoordinates {
 		for _, mode := range []string{"normal", "race", "cgo0"} {
+			cmdTestTimeout := "20m"
 			timeoutMinutes := 45
 			switch {
 			case strings.Contains(coordinate, "ubuntu-24.04-arm"):
@@ -341,6 +351,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 					timeoutMinutes = 50
 				}
 			case strings.Contains(coordinate, "macos-15-intel"):
+				cmdTestTimeout = "30m"
 				timeoutMinutes = 55
 				if mode == "race" {
 					timeoutMinutes = 65
@@ -350,7 +361,9 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 					timeoutMinutes = 55
 				}
 			}
-			entry := coordinate + "\n            mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
+			entry := coordinate + "\n            mode: " + mode +
+				"\n            cmd_test_timeout: " + cmdTestTimeout +
+				fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
 			runserverWorkflowRequireCount(t, "product-project-check coordinate/mode", portable, entry, 1)
 		}
 	}

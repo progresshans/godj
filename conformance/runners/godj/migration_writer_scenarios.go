@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/progresshans/godj/codegen"
@@ -168,9 +167,8 @@ func newMigrationWriterProject() (migrationWriterProject, error) {
 func (project migrationWriterProject) close() error { return os.RemoveAll(project.universe) }
 
 type migrationWriterBackend struct {
-	project      *migrationWriterProject
-	spec         codegen.ProjectSpec
-	beforeRunner func(int)
+	project *migrationWriterProject
+	spec    codegen.ProjectSpec
 
 	mu            sync.Mutex
 	runnerCalls   int
@@ -198,11 +196,7 @@ func (backend *migrationWriterBackend) Execute(
 		}
 		backend.mu.Lock()
 		backend.runnerCalls++
-		call := backend.runnerCalls
 		backend.mu.Unlock()
-		if backend.beforeRunner != nil {
-			backend.beforeRunner(call)
-		}
 		var stdout bytes.Buffer
 		report, err := linked.RunMakemigrations(ctx, linked.MakemigrationsConfig{
 			ProjectRoot: backend.project.root, MigrationDefinitionRoots: []string{"migrations"},
@@ -263,6 +257,20 @@ func runMigrationWriter(
 		Stdout: &stdout, Stderr: &stderr, Backend: backend,
 	})
 	return migrationWriterExecution{report: report, stdout: append([]byte(nil), stdout.Bytes()...), stderr: append([]byte(nil), stderr.Bytes()...)}
+}
+
+func runMigrationWriterFinalCatalogBarrier(
+	ctx context.Context,
+	project *migrationWriterProject,
+	backend *migrationWriterBackend,
+	barrier *productcheck.MakemigrationsConformanceFinalCatalogBarrier,
+) (migrationWriterExecution, error) {
+	var stdout, stderr bytes.Buffer
+	report, err := productcheck.RunMakemigrationsConformanceFinalCatalog(productcheck.MakemigrationsInvocation{
+		Context: ctx, CWD: project.root, Args: []string{"makemigrations"}, Environment: append([]string(nil), project.environment...),
+		Stdout: &stdout, Stderr: &stderr, Backend: backend,
+	}, barrier)
+	return migrationWriterExecution{report: report, stdout: append([]byte(nil), stdout.Bytes()...), stderr: append([]byte(nil), stderr.Bytes()...)}, err
 }
 
 func runMigrationWriterFault(
@@ -1248,37 +1256,22 @@ func migrationWriterConcurrentPublication(ctx context.Context, contract protocol
 		return protocol.Observation{}, err
 	}
 	defer project.close()
-	var arrivals atomic.Int32
-	var barrierTimedOut atomic.Bool
-	var releaseOnce sync.Once
-	release := make(chan struct{})
-	barrier := func(call int) {
-		if call != 1 {
-			return
-		}
-		if arrivals.Add(1) == 2 {
-			releaseOnce.Do(func() { close(release) })
-		}
-		select {
-		case <-release:
-		case <-ctx.Done():
-		case <-time.After(30 * time.Second):
-			barrierTimedOut.Store(true)
-		}
-	}
+	barrier := productcheck.NewMakemigrationsConformanceFinalCatalogBarrier()
 	backends := []*migrationWriterBackend{
-		{project: &project, spec: migrationWriterBaseSpec(), beforeRunner: barrier},
-		{project: &project, spec: migrationWriterBaseSpec(), beforeRunner: barrier},
+		{project: &project, spec: migrationWriterBaseSpec()},
+		{project: &project, spec: migrationWriterBaseSpec()},
 	}
 	type outcome struct {
 		execution migrationWriterExecution
 		backend   *migrationWriterBackend
+		err       error
 	}
 	outcomes := make(chan outcome, len(backends))
 	for _, backend := range backends {
 		backend := backend
 		go func() {
-			outcomes <- outcome{execution: runMigrationWriter(ctx, &project, backend, []string{"makemigrations"}), backend: backend}
+			execution, runErr := runMigrationWriterFinalCatalogBarrier(ctx, &project, backend, barrier)
+			outcomes <- outcome{execution: execution, backend: backend, err: runErr}
 		}()
 	}
 	collected := make([]outcome, 0, len(backends))
@@ -1290,12 +1283,12 @@ func migrationWriterConcurrentPublication(ctx context.Context, contract protocol
 			return protocol.Observation{}, ctx.Err()
 		}
 	}
-	if barrierTimedOut.Load() {
-		return protocol.Observation{}, errors.New("migration-writer concurrent initial-plan barrier timed out")
-	}
 	var winner, replanner *migrationWriterExecution
 	locks, replans, published := 0, 0, 0
 	for index := range collected {
+		if collected[index].err != nil {
+			return protocol.Observation{}, collected[index].err
+		}
 		runnerCalls, _, _, backendErr := collected[index].backend.snapshot()
 		if backendErr != nil {
 			return protocol.Observation{}, backendErr

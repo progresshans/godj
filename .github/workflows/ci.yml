@@ -777,61 +777,73 @@ jobs:
             expected_goos: linux
             expected_goarch: amd64
             mode: normal
+            cmd_test_timeout: 20m
             timeout_minutes: 45
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
             mode: race
+            cmd_test_timeout: 20m
             timeout_minutes: 55
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
             mode: cgo0
+            cmd_test_timeout: 20m
             timeout_minutes: 45
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: normal
+            cmd_test_timeout: 20m
             timeout_minutes: 40
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: race
+            cmd_test_timeout: 20m
             timeout_minutes: 50
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: cgo0
+            cmd_test_timeout: 20m
             timeout_minutes: 40
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: normal
+            cmd_test_timeout: 30m
             timeout_minutes: 55
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: race
+            cmd_test_timeout: 30m
             timeout_minutes: 65
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: cgo0
+            cmd_test_timeout: 30m
             timeout_minutes: 55
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: normal
+            cmd_test_timeout: 20m
             timeout_minutes: 45
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: race
+            cmd_test_timeout: 20m
             timeout_minutes: 55
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: cgo0
+            cmd_test_timeout: 20m
             timeout_minutes: 45
 
     steps:
@@ -858,12 +870,14 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
+          cmd_test_flags=(-timeout="${{ matrix.cmd_test_timeout }}" -count=1)
           test_flags=(-timeout=20m -count=1)
           json_flags=(-timeout=15m -json -count=1)
           case "$mode" in
             normal)
               ;;
             race)
+              cmd_test_flags+=(-race)
               test_flags+=(-race)
               json_flags+=(-race)
               ;;
@@ -876,12 +890,13 @@ jobs:
               ;;
           esac
 
-          # These package groups are intentionally separate: cmd/project tests
-          # build external runners, while the conformance runner owns its own
-          # process-heavy fixtures. Running them in one go command made them
-          # contend for the same hosted runner without adding coverage. The
+          # These package groups are intentionally separate. cmd/godj owns many
+          # sequential process tests and therefore gets a coordinate-specific
+          # cumulative package budget; project/internal and the conformance
+          # runner retain their independent 20-minute package budgets. The
           # operator product has its own OS/mode matrix below.
-          go test "${test_flags[@]}" ./cmd/godj ./project ./internal/projectcheck/...
+          go test "${cmd_test_flags[@]}" ./cmd/godj
+          go test "${test_flags[@]}" ./project ./internal/projectcheck/...
           go test "${test_flags[@]}" ./conformance/runners/godj
 
           runserver_log="$RUNNER_TEMP/runserver-product-${mode}.json"

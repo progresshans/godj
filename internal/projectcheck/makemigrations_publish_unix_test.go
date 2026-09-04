@@ -12,11 +12,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectmigration"
@@ -28,10 +29,9 @@ import (
 )
 
 type liveMakemigrationsBackend struct {
-	inventory    []byte
-	root         string
-	spec         codegen.ProjectSpec
-	beforeRunner func(int)
+	inventory []byte
+	root      string
+	spec      codegen.ProjectSpec
 
 	mu          sync.Mutex
 	runnerCalls int
@@ -56,11 +56,7 @@ func (backend *liveMakemigrationsBackend) Execute(
 	case MakemigrationsRunnerStage:
 		backend.mu.Lock()
 		backend.runnerCalls++
-		call := backend.runnerCalls
 		backend.mu.Unlock()
-		if backend.beforeRunner != nil {
-			backend.beforeRunner(call)
-		}
 		snapshot, err := liveMakemigrationsSnapshot(backend.root, backend.spec)
 		if err == nil {
 			var document []byte
@@ -389,33 +385,24 @@ func TestMakemigrationsPhysicalCatalogReplacementConflictsBeforeRenameAndFreshRu
 func TestRunMakemigrationsConcurrentWritersUseLockedSecondSnapshot(t *testing.T) {
 	fixture := newMakemigrationsRunFixture(t, false)
 	spec := makemigrationsRunSpec()
-	var initialRunners atomic.Int32
-	release := make(chan struct{})
-	barrier := func(call int) {
-		if call != 1 {
-			return
-		}
-		if initialRunners.Add(1) == 2 {
-			close(release)
-		}
-		<-release
-	}
+	barrier := NewMakemigrationsConformanceFinalCatalogBarrier()
 	backends := []*liveMakemigrationsBackend{
-		{inventory: fixture.inventory, root: fixture.root, spec: spec, beforeRunner: barrier},
-		{inventory: fixture.inventory, root: fixture.root, spec: spec, beforeRunner: barrier},
+		{inventory: fixture.inventory, root: fixture.root, spec: spec},
+		{inventory: fixture.inventory, root: fixture.root, spec: spec},
 	}
 	type outcome struct {
 		report MakemigrationsReport
 		stderr string
+		err    error
 	}
 	outcomes := make(chan outcome, 2)
 	for _, backend := range backends {
 		backend := backend
 		go func() {
-			report, _, stderr := runLiveMakemigrations(
-				fixture, backend, context.Background(), nil, makemigrationsPublicationHooks{},
+			report, _, stderr, runErr := runLiveMakemigrationsFinalCatalogBarrier(
+				fixture, backend, context.Background(), nil, makemigrationsPublicationHooks{}, barrier,
 			)
-			outcomes <- outcome{report: report, stderr: stderr}
+			outcomes <- outcome{report: report, stderr: stderr, err: runErr}
 		}()
 	}
 	generated := 0
@@ -423,9 +410,9 @@ func TestRunMakemigrationsConcurrentWritersUseLockedSecondSnapshot(t *testing.T)
 	published := 0
 	for range backends {
 		outcome := <-outcomes
-		if outcome.report.ExitCode != 0 || !outcome.report.HasMakemigrationsResult || outcome.stderr != "" ||
+		if outcome.err != nil || outcome.report.ExitCode != 0 || !outcome.report.HasMakemigrationsResult || outcome.stderr != "" ||
 			outcome.report.RunnerCalls != 2 || outcome.report.WriterLockAcquisitions != 1 {
-			t.Fatalf("outcome=%+v stderr=%q", outcome.report, outcome.stderr)
+			t.Fatalf("outcome=%+v stderr=%q err=%v", outcome.report, outcome.stderr, outcome.err)
 		}
 		switch outcome.report.MakemigrationsResult.Status {
 		case "generated":
@@ -436,6 +423,9 @@ func TestRunMakemigrationsConcurrentWritersUseLockedSecondSnapshot(t *testing.T)
 			t.Fatalf("status=%q", outcome.report.MakemigrationsResult.Status)
 		}
 		published += outcome.report.PublishedCandidates
+	}
+	if barrier.arrivalCount() != 2 {
+		t.Fatalf("final catalog snapshots=%d, want 2", barrier.arrivalCount())
 	}
 	for _, backend := range backends {
 		if backend.Error() != nil {
@@ -448,6 +438,68 @@ func TestRunMakemigrationsConcurrentWritersUseLockedSecondSnapshot(t *testing.T)
 	assertNoMakemigrationsReservedTemps(t, fixture.root)
 	if _, err := strictLiveMakemigrationsState(fixture.root); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRunMakemigrationsFinalCatalogBarrierAbortsPeerBeforePublication(t *testing.T) {
+	fixture := newMakemigrationsRunFixture(t, false)
+	spec := makemigrationsRunSpec()
+	barrier := NewMakemigrationsConformanceFinalCatalogBarrier()
+	type outcome struct {
+		report MakemigrationsReport
+		err    error
+	}
+	first := make(chan outcome, 1)
+	go func() {
+		report, _, _, err := runLiveMakemigrationsFinalCatalogBarrier(
+			fixture,
+			&liveMakemigrationsBackend{inventory: fixture.inventory, root: fixture.root, spec: spec},
+			context.Background(),
+			nil,
+			makemigrationsPublicationHooks{},
+			barrier,
+		)
+		first <- outcome{report: report, err: err}
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for barrier.arrivalCount() != 1 {
+		select {
+		case early := <-first:
+			t.Fatalf("first writer exited before the final catalog barrier: report=%+v err=%v", early.report, early.err)
+		default:
+		}
+		if time.Now().After(deadline) {
+			barrier.abort()
+			t.Fatal("first writer did not reach the final catalog barrier")
+		}
+		runtime.Gosched()
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	secondReport, _, _, secondErr := runLiveMakemigrationsFinalCatalogBarrier(
+		fixture,
+		&liveMakemigrationsBackend{inventory: fixture.inventory, root: fixture.root, spec: spec},
+		canceled,
+		nil,
+		makemigrationsPublicationHooks{},
+		barrier,
+	)
+	firstOutcome := <-first
+	for name, current := range map[string]outcome{
+		"first":  firstOutcome,
+		"second": {report: secondReport, err: secondErr},
+	} {
+		if current.err == nil || current.report.WriterLockAcquisitions != 0 ||
+			current.report.PublicationRenames != 0 || current.report.PublishedCandidates != 0 {
+			t.Fatalf("%s writer report=%+v err=%v", name, current.report, current.err)
+		}
+	}
+	assertNoMakemigrationsReservedTemps(t, fixture.root)
+	if sources, err := visibleMakemigrationsSources(fixture.root); err != nil {
+		t.Fatal(err)
+	} else if len(sources) != 0 {
+		clearDefinitionSources(sources)
+		t.Fatalf("aborted pair published %d migration sources", len(sources))
 	}
 }
 
@@ -593,6 +645,23 @@ func runLiveMakemigrations(
 		Backend: backend, publication: publication,
 	})
 	return report, stdout.String(), stderr.String()
+}
+
+func runLiveMakemigrationsFinalCatalogBarrier(
+	fixture makemigrationsRunFixture,
+	backend Backend,
+	ctx context.Context,
+	interrupt <-chan struct{},
+	publication makemigrationsPublicationHooks,
+	barrier *MakemigrationsConformanceFinalCatalogBarrier,
+) (MakemigrationsReport, string, string, error) {
+	var stdout, stderr bytes.Buffer
+	report, err := RunMakemigrationsConformanceFinalCatalog(MakemigrationsInvocation{
+		Context: ctx, Interrupt: interrupt, CWD: fixture.root, Args: []string{"makemigrations"},
+		Environment: fixture.environment, Stdout: &stdout, Stderr: &stderr,
+		Backend: backend, publication: publication,
+	}, barrier)
+	return report, stdout.String(), stderr.String(), err
 }
 
 func strictLiveMakemigrationsState(root string) (migrations.ProjectState, error) {
