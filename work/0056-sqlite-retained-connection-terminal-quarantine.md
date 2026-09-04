@@ -7,6 +7,7 @@ baseline_commit: "003afee4524a0294ada8f02c140781f3e1751a5c"
 depends_on: ["GDJ-0030", "GDJ-0046", "GDJ-0055"]
 contracts: ["Q-019"]
 allowed_paths:
+  - ".github/workflows/ci.yml"
   - "query/error.go"
   - "query/error_test.go"
   - "db/relation.go"
@@ -14,6 +15,7 @@ allowed_paths:
   - "conformance/systemstate/**"
   - "conformance/projectoperatorproduct/attestations/**"
   - "conformance/internal/protocol/system_state_artifacts_test.go"
+  - "conformance/internal/protocol/migration_project_check_artifacts_test.go"
   - "conformance/README.md"
   - "docs/adr/0057-sqlite-retained-connection-terminal-quarantine.md"
   - "docs/adr/README.md"
@@ -146,6 +148,8 @@ unconfirmed physical connection은 최대 1개입니다.
 
 1. Publication documentation descendant를 source-freeze하고 full local/386/relation/`.git`-free external archive gate를 한 번
    실행합니다.
+   Phase E preflight에서 exact relation test inventory가 바뀌었다면 workflow와 protocol mirror를 실제 JSONL 값으로 먼저
+   교정하고, workflow source binding이 달라지므로 PostgreSQL A/B와 attestation publication을 새 source에서 다시 고정합니다.
 2. 같은 exact submitted head를 non-force push하고 Hosted matrix의 required coordinate, inventory, skip/annotation과 source
    identity를 검증합니다.
 3. 성공 뒤 independent P0..P3 terminal audit, ADR-0030 historical/ADR-0057 current 문서 구분, Q-019 Resolved,
@@ -207,6 +211,12 @@ unconfirmed physical connection은 최대 1개입니다.
   double-close하지 않고 반환하고, 완료 뒤 sequential call만 idempotent입니다.
 - 2026-09-05: Root migration entry와 pre-created revision session은 common lifecycle gate를 I/O 전에 확인합니다. Quarantine과
   healthy context cancellation은 Open/Ready session을 poison하지 않고, static input/state validation의 기존 우선순위도 보존합니다.
+- 2026-09-05: Phase E preflight에서 relation-product workflow가 여전히 GDJ-0055의 978-test inventory를 고정하지만 GDJ-0056이
+  inventory 대상 `query`/`db/sqlite` top-level test를 순증가시킨 것을 확인했습니다. Workflow-equivalent actual은
+  990 run/990 pass/0 skip, 101,128 payload bytes/SHA-256
+  `909161b2b664c85c82673d1309a68e3a448f27cb8d8361773bc8c056be3771fc`입니다. Workflow/protocol lock을 교정한 뒤
+  두 PostgreSQL source-bound attestation을 새 freeze에서 다시 A/B 게시하며, obsolete source의 incomplete `make ci`는
+  acceptance로 사용하지 않습니다.
 
 ## 미결정/Blocker
 
@@ -255,8 +265,9 @@ unconfirmed physical connection은 최대 1개입니다.
 
 ## 다음 정확한 작업
 
-Exact attestation publication `70b6922...`의 문서 descendant를 고정한 뒤 source를 다시 바꾸지 않고 full local/386/relation/
-external-archive와 exact-head Hosted final frozen gate를 한 번 실행합니다.
+Measured relation inventory `990/101128/909161b2...71fc`로 workflow/protocol mirror를 교정하고 focused gate를 통과한 clean
+source에서 system-state/project-operator PostgreSQL checked attestation을 다시 independent A/B 게시합니다. 그 새 publication
+descendant에서만 full local/386/relation/external-archive와 exact-head Hosted final frozen gate를 한 번 실행합니다.
 
 ## 결과와 인수인계
 
