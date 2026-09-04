@@ -77,10 +77,10 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 		"conformance/fixtures/godj-system-state-deviation-expected.json":                                    {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":                              {37866, "2251157e801295b084a51a7879e496fab528d7360fcb8c55bdd7b0b368862913"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                     {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
-		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json":                         {1134, "5f2ae5c4ee8f47bbaa9e56e19627755d6ee5b0bb1f2d7bb80505ce67fa0f69dd"},
-		"conformance/systemstate/attestations/SHA256SUMS":                                                   {103, "6e3b681eaf565207426b3151a02293fd1c7ed7f655725f74ee6032ea92aa66cc"},
-		"conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json": {1811, "43ea98788d7afaef049aeaca713dbe32ffcf7bb2596bdf19a61e40dfb8c29069"},
-		"conformance/projectoperatorproduct/attestations/SHA256SUMS":                                        {116, "a52b1ed4b3c56530d81b7ed748e12a387e5d2c1e990163693c88cccc1289c37c"},
+		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json":                         {1134, "54b18592d78657a76123a6c1f4ae5228754de53dbfccdce65ae051869fdc4bb9"},
+		"conformance/systemstate/attestations/SHA256SUMS":                                                   {103, "7e0c42a54a5c582bbd2cc4371bd46404414b8b50aaa57463fc55e00828b9bdcf"},
+		"conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json": {1811, "274e2d94f8cd8c028dda8cd492c7066ad447802517482db28feed6fac3a6c159"},
+		"conformance/projectoperatorproduct/attestations/SHA256SUMS":                                        {116, "1d10b4454c49a1fc1997bd930bca1f48f67448c7c5aad80a01dc96e305afd571"},
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
