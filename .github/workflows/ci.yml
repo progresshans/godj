@@ -1350,6 +1350,7 @@ jobs:
               expected_count=23
               ;;
             operator-target)
+              go list -deps -mod=readonly ./cmd/godj > /dev/null
               required_passes=("${operator_target_required_passes[@]}")
               packages=(
                 ./conformance/projectmigratetargetproduct
