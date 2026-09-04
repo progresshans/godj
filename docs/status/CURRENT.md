@@ -1,17 +1,20 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-31
+- 마지막 갱신: 2026-09-05
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
-- 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 1/0입니다. Active
-  [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md)는 migrated clean system state에 durable operator를
-  exactly once 생성하는 `godj createsuperuser [--project PATH]`와 raw-password-free authenticated restart를 구현합니다.
-  Proposed [ADR-0056](../adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit `systemstate.Open` bootstrap을
-  `ProvisionOperator`/`OpenExisting`으로 current-only 분리하고, project-owned immutable credential policy, actual TTY no-echo
-  input, bounded one-shot binary secret pipe와 cooperative database fence를 선택합니다. SYS-021..030은 planned/not run이며
-  source/API/workflow/contract aggregate와 checked PostgreSQL attestation은 clean baseline
-  `72e5445616e68ff60ba542345684644d0730c5b3`, tree `c9cb738cad1a616d2646b83f93e9cf9da19df449`에서 아직 바뀌지
-  않았습니다. Q-019 terminal backend quarantine는 별도 후속이고 GDJ-0055의 선행 blocker가 아닙니다. 최근 completed
+- 브랜치: `codex/revision-fenced-migration-lifecycle`
+- 현재 active/ready work는 0/0입니다. 최근 completed
+  [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md)는 exact
+  `godj createsuperuser`와 `godj createsuperuser --project PATH`로 migrated clean system state에 durable operator를
+  exactly once 생성하고 raw-password-free `OpenExisting` authenticated restart를 구현했습니다. Accepted
+  [ADR-0056](../adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit bootstrap을
+  `ProvisionOperator`/`OpenExisting`으로 current-only 분리하고 project-owned immutable credential policy, actual TTY no-echo
+  input, bounded one-shot binary secret pipe와 cooperative database fence를 고정합니다. SYS-021..030은 모두 product
+  `passing`이고 Q-022는 `Partial`입니다. Exact product source `0b5b6fc6ec60e1704e5cebfaebd771b682d001ee`, tree
+  `dac6baa72f5aaaa54f4959a5ee16e988cc16df61`의 local source-bound A/B/archive gate와 Hosted run `33899930122`
+  79/79 jobs·797/797 steps가 통과했으며 상세 증거는
+  [EVID-179](TEST_EVIDENCE.md#evid-20260905-179--gdj-0055-explicit-operator-provisioning-terminal-acceptance)이 소유합니다.
+  Q-019 terminal backend quarantine와 broader identity/credential lifecycle은 별도 후속입니다. 그 이전 completed
   [GDJ-0054](../../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
   `godj sqlmigrate APP EXACT_NAME`과 optional trailing `--project PATH`를 대상으로 합니다. Complete catalog와 exact
   target-before historical state에서 exactly-one forward intent를 materialize하고 identity-bearing SQLite/PostgreSQL
@@ -47,7 +50,7 @@
   `211e1ad86067be8d1d1fc119b592e3e87407c064`와 attestation publication `9603cc6568f9f41046e3a32909b3e4e7316a2914`,
   tree `d6fa714a04f11e02fc6e5ff5a5405d37f972227b`는 PostgreSQL schema-only current-profile projection, actual child
   cancellation/reap, oracle-blind actual/policy와 source-bound A/B를 게시했습니다. MIG-129..138은 모두 registered `passing`이고
-  current reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`, product는 26/289=
+  GDJ-0054 terminal reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`, product는 26/289=
   `264 passing + 25 deviation`이며 MIG-075..086만 locked입니다. 그 Phase D checked attestation은 1,134 bytes/SHA-256
   `ac17dbf2...6cb7`, binding은 274 files/3,557,167 bytes/SHA-256 `5cb50f0c...9dc8`이고 상세 증거와 당시 Phase E non-claim은
   [EVID-176](TEST_EVIDENCE.md#evid-20260831-176--gdj-0054-phase-d-postgresql-product-publication-and-source-bound-attestation)이
@@ -298,7 +301,7 @@
   required 17/17·skip 0 live-attestation lane을 통과했습니다. Reference는
   21 sets/239 contracts/420 ordered bindings=`211 passing + 16 deviation + 12 oracle_locked`, product는
   20/227=`211 passing + 16 deviation`입니다. SYS-013..020은 모두 product `passing`이었고 그 completion 당시 locked range는
-  MIG-075..086뿐이었습니다. Current locked range는 이 문서 상단의 GDJ-0054 aggregate가 소유합니다.
+  MIG-075..086뿐이었습니다. Current locked range는 이 문서 상단의 GDJ-0055 aggregate가 소유합니다.
   ADR-0048은 Accepted, GDJ-0046은 completed, DEV-0008은 zero-config SYS-009에 대해 Verified이고 Q-020은 non-cooperative/
   distributed/production 범위 때문에 `Partial`입니다.
 - GDJ-0047 activation baseline은 terminal documentation commit `2ffcc88961b41e7ca81f52a981322e3f5f9d01df`, tree
@@ -896,11 +899,11 @@
   0/12 contracts·0/30 dimensions는 12개 semantic product failure가 아니었습니다. GDJ-0036은 그 뒤
   MIG-075..079를 current ABI/format/digest/state/staged-preflight 진단 계약으로 재기준화하고 dependency 및
   public `*migrations.PlanningError` typed classification false-green을 닫았습니다. 그 GDJ-0036 시점 aggregate는
-  13/139/156이었고, same-ID 12개는 현재 전체 27/301/702 reference에도 포함되지만 reference-only
+  13/139/156이었고, same-ID 12개는 현재 전체 27/311/702 reference에도 포함되지만 reference-only
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
-  [GDJ-0054 Project-linked Deterministic sqlmigrate](../../work/0054-project-linked-deterministic-sqlmigrate.md)
-- 활성 작업: [GDJ-0055 Project-linked Explicit Operator Provisioning](../../work/0055-project-linked-explicit-operator-provisioning.md)
+  [GDJ-0055 Project-linked Explicit Operator Provisioning](../../work/0055-project-linked-explicit-operator-provisioning.md)
+- 활성 작업: 없음
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1546,10 +1549,10 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2 reference에는 현재 27 ordered set, 301 unique contract/scenario와 702 ordered
+- Protocol v2 reference에는 현재 27 ordered set, 311 unique contract/scenario와 702 ordered
   cross-binding이 있습니다. Current product는 26개 set에 actual GoDj adapter를 가지며
-  289 contract 분류는 `264 passing + 25 deviation + 0 oracle_locked`입니다. Reference 분류는
-  `264 passing + 25 deviation + 12 oracle_locked`이고 MIG-075..086만 reference-only `oracle_locked`입니다.
+  299 contract 분류는 `274 passing + 25 deviation + 0 oracle_locked`입니다. Reference 분류는
+  `274 passing + 25 deviation + 12 oracle_locked`이고 MIG-075..086만 reference-only `oracle_locked`입니다.
   MIG-129..138은 registered actual `passing`이며 deviation fixture가 없습니다. Migration-command manifest/NI/oracle은 각각
   6,166 bytes/`d2846327e4d8cbf82a25568e41b198c67878bb7853958729969eb7077ca4c0e1`,
   1,838 bytes/`8680d5e8ce7cf11604af69da1e96a64f580f64074277a2a015af8ad250bb0016`,
@@ -1629,7 +1632,7 @@
   12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했습니다. GDJ-0036의
   MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, GDJ-0039 완료 시점은 QRY-022..033까지 포함한
   14/151/182였습니다. GDJ-0040 completion checkpoint는 QRY-034..043 set을 더한 15/161/210이고 product는
-  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 27/301/702 및 26/289입니다. Local relation
+  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 27/311/702 및 26/299입니다. Local relation
   transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
   각각 증명합니다.
 - MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
@@ -1652,10 +1655,10 @@
   `passing`/registered입니다. Oracle-blind actual 두 개는 각각 41,134 bytes/SHA-256 `20b5cf0a...`로
   byte-identical하고 locked oracle과 protocol difference 0입니다. GDJ-0040-era shared 15-line `SHA256SUMS` snapshot은
   1,432 bytes/SHA-256 `24949f4eb6099d4c9a8b501cefe257b134a23bc3717799c32276c3f8a083a13c`로 불변입니다.
-- Current system-state manifest/oracle/root checksum은 11,143/21,242/1,791 bytes와 SHA-256
-  `b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09`/
-  `d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`/
-  `e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`입니다. EVID-146 predecessor의 checked PostgreSQL 17.10
+- Current system-state manifest/oracle/root checksum은 16,420/37,866/2,279 bytes와 SHA-256
+  `ddae48e95770eacf2e3b761c7c4931b53dbcb65020cc375f624413ac71e0996c`/
+  `2251157e801295b084a51a7879e496fab528d7360fcb8c55bdd7b0b368862913`/
+  `ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87`입니다. EVID-146 predecessor의 checked PostgreSQL 17.10
   attestation/checksum file은 1,134/103 bytes와 SHA-256
   `58df6dd46e1e50de8b29509c0082c050c12ea3a82c96b62f47be88c7252e606e`/
   `e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3`이고, 그 predecessor source binding은
@@ -1669,11 +1672,20 @@
   `da6a080d446fbcc979768eead8707332895e065b05497daa0a9a5d44a7c0827b`, source binding은
   274 files/3,557,167 payload bytes/SHA-256 `5cb50f0c3b833d09a6a42edb0180fc6b6bc8800a8d6eec2596702ba38afc9dc8`이며
   independent A/B와 publication 검증은 EVID-176이 소유합니다.
-  GDJ-0054 terminal current attestation/checksum은 1,134/103 bytes와 SHA-256
+  GDJ-0054 terminal attestation/checksum은 1,134/103 bytes와 SHA-256
   `f682d655e7e953aec4c3f0ce3ff74121dc59027913c85c315f276e86948aa777`/
   `65ccc7b722234a2e193afa6c38276fdea088c18923bc65ec76041dfe04d55750`, source binding은
   274 files/3,557,580 payload bytes/SHA-256 `daa0077619947d1c4c0726b0578a0b1c42cb3dc646f9671df2f22da6a817435d`이며
   corrected A/B, full/archive와 exact Hosted 검증은 EVID-177이 소유합니다.
+- GDJ-0055 terminal current system-state attestation/checksum은 1,134/103 bytes와 SHA-256
+  `5f2ae5c4ee8f47bbaa9e56e19627755d6ee5b0bb1f2d7bb80505ce67fa0f69dd`/
+  `6e3b681eaf565207426b3151a02293fd1c7ed7f655725f74ee6032ea92aa66cc`, source binding은
+  281 files/3,714,953 payload bytes/SHA-256 `d4b0579c4d8b91c89060990d0ac379a2f11acfc81a5fb55859385b844dc51c34`입니다.
+  External operator attestation/checksum은 1,811/116 bytes와 SHA-256
+  `43ea98788d7afaef049aeaca713dbe32ffcf7bb2596bdf19a61e40dfb8c29069`/
+  `a52b1ed4b3c56530d81b7ed748e12a387e5d2c1e990163693c88cccc1289c37c`, source binding은
+  336 files/3,593,191 payload bytes/SHA-256 `4f63ff589400e66b8029fd71c1af917312f2418767621ea13d62e3dfef3a3e24`입니다.
+  독립 A/B, publication, archive와 exact Hosted 검증은 EVID-179가 소유합니다.
 - EVID-146 predecessor relation-product inventory는 1,091 run/1,091 pass/0 skip, 113,222 bytes/SHA-256
   `90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`였고 four-coordinate normal과
   전체 twelve coordinate/mode Hosted jobs가 통과했습니다. EVID-151 relation ownership selector/list lock은
@@ -2079,7 +2091,8 @@ EVID-076 명시 환경에서는 Verified입니다. Reverse manager, cross-materi
 general generated upgrade는 계속 open입니다.
 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
-- Direct project command, writer/upgrade/cache와 broader public CLI/library/generator handshake
+- Installed runner/library/generator SemVer handshake, general migration-definition upgrader/repair/cache와 위 bounded
+  hosted-verified 명령을 넘어서는 broader project-command surface
 - Codec v2+, executable/custom/data operation과 module/remote/recursive discovery adapter
 - Broader relation behavior. REL-002 bounded assignment/save/cache ownership은 Implemented/hosted-verified이고 REL-007/008 bounded
   low-level delete와 REL-009/010/011 bounded one-hop forward select-related는
@@ -2093,11 +2106,10 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-GDJ-0054 exact product source `cc42c4f2...`, tree `0bfd830b...`는 current source-bound A/B, full `make ci`,
-Linux/386 compile-only, relation inventory, `.git`-free external archive와 exact submitted-head Hosted를 EVID-177에서
-통과했습니다. ADR-0055/GDJ-0054는 Accepted/completed입니다. 그 clean terminal baseline에서 GDJ-0055를 활성화했고 current
-active/ready packet은 1/0입니다. 다음 정확한 작업은 Proposed ADR-0056/SYS-021..030 Phase A artifact lock과 regression-first
-systemstate provision/open split이며 아직 product/source/API 구현을 주장하지 않습니다.
+GDJ-0055 exact product source `0b5b6fc6...`, tree `dac6baa7...`는 independent source-bound A/B, Linux/386
+compile-only, `.git`-free external archive와 exact submitted-head Hosted run `33899930122`를 EVID-179에서 통과했습니다.
+ADR-0056/GDJ-0055는 Accepted/completed이고 current active/ready packet은 0/0입니다. 별도 next work는 아직 활성화하지
+않았습니다. Q-019 terminal quarantine, broader identity/credential lifecycle와 generalization은 현재 완료 주장에 포함되지 않습니다.
 
 GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
 `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,
@@ -2141,14 +2153,14 @@ full/Linux-386/relation/archive local-final ownership을 정확히 닫았습니�
 `e0dac4e...`의 EVID-159/CI #177 run `33295130785` attempt 1은 41/41 jobs·464/464 steps,
 failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. ADR-0053/GDJ-0051은 Accepted/completed입니다.
 GDJ-0054 exact forward deterministic `sqlmigrate`는 Accepted ADR-0055와 함께 completed됐습니다. 그 terminal 시점의
-active/ready는 0/0이었고 이후 GDJ-0055가 활성화되어 current active/ready는 1/0입니다. Phase A source
+active/ready는 0/0이었고 이후 GDJ-0055가 활성화됐습니다. Phase A source
 `c3de0d35...`, tree `1af05572...`는 MIG-129..138을 reference-only
 `oracle_locked`로 게시했고 pinned/isolated Python, semantic/protocol/conformance/checksum과 independent audit를 통과했습니다.
 Phase B source `f51ab733...`, tree `ab71e8a...`는 pure `RenderMigrationSQL`, renderer port, SQLite/PostgreSQL
 compiler-backed renderer와 direct project config를 구현했습니다. Phase C source `a304a73...`, tree `f8df2d4...`는 strict
 private/global command, canonical one-write owner와 repository-external SQLite no-DB flow를 구현했습니다. Phase D source
 `a85ade1...`, tree `211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는 MIG-129..138 actual/policy,
-PostgreSQL current-profile projection, actual child cancellation/reap와 source-bound A/B를 게시했습니다. Current reference/product는
+PostgreSQL current-profile projection, actual child cancellation/reap와 source-bound A/B를 게시했습니다. GDJ-0054 completion reference/product는
 27/301/702=`264+25+12 locked`, 26/289=`264+25`이고 MIG-075..086만 locked입니다. Exact terminal source
 `cc42c4f2...`의 current A/B/full/386/relation/archive/Hosted 증거는 EVID-177이 소유합니다.
 GDJ-0053 sparse-model generated compile
@@ -2249,7 +2261,7 @@ gate의 단일 `make ci`는 유지하되 Hosted는 normal+vet/race/CGO0/artifact
 CI job/execution 개수 자체는 제품 계약이 아니며, 필수 platform/mode/test coverage와 skip 0이 검증 계약입니다. Subtask마다
 full hosted/evidence cycle을 만들지는 않습니다.
 
-Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-019/Q-022는 P1/open입니다.
+Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021/Q-022는 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-019는 P1/open입니다.
 MIG-075..086만 current reference-only locked range입니다. MIG-087..102, MIG-108..121과 MIG-123..138은 registered
 actual `passing`; MIG-103..107은 exact 19-selector DEV-0010, MIG-122는 exact three-selector DEV-0002 `deviation`입니다.
 Draft PR #1은 계속 OPEN/DRAFT/unmerged이고 merge/release/deployment는 이 작업의 권한·범위가 아닙니다.

@@ -9,6 +9,8 @@
   [ADR-0044](0044-session-auth-csrf-and-bounded-article-admin.md),
   [ADR-0046](0046-json-serializer-and-session-authenticated-article-api.md)
 - 대체하는 ADR: 없음
+- 후속 수정: [ADR-0056](0056-explicit-operator-provisioning-and-open-existing.md)이 implicit credential bootstrap과
+  restart raw-password verification을 explicit `ProvisionOperator`/`OpenExisting`으로 current-only 대체
 
 ## 맥락
 

@@ -16484,3 +16484,111 @@ No Go/Python/backend/conformance/generated/race/CGO-disabled/PostgreSQL/full/386
 successful local source/contract and hosted product proof remains EVID-177/run `33355685927` for exact GDJ-0054 source
 `cc42c4f...`; it is not evidence for
 SYS-021..030. Draft PR #1 remains open/draft/unmerged and no PR comment, merge, release or deployment was performed.
+
+## EVID-20260905-179 — GDJ-0055 Explicit Operator Provisioning Terminal Acceptance
+
+- Date: 2026-09-05 KST
+- Work/contract IDs: GDJ-0055 completed; ADR-0056 Accepted; SYS-021..030 `passing`; Q-022 `Partial`
+- Exact submitted product source: `0b5b6fc6ec60e1704e5cebfaebd771b682d001ee`
+- Exact product tree: `dac6baa72f5aaaa54f4959a5ee16e988cc16df61`
+- Draft PR #1 exact Hosted run:
+  [33899930122](https://github.com/progresshans/godj/actions/runs/33899930122), run number 211, attempt 1
+- Current aggregate: reference 27 sets/311 contracts/702 ordered cross-bindings=
+  `274 passing + 25 deviation + 12 oracle_locked`; product 26 adapters/299 contracts=
+  `274 passing + 25 deviation`; MIG-075..086 is the only reference-only locked range
+
+### Failure, diagnosis and bounded correction
+
+The first complete diagnostic run
+[33852093937](https://github.com/progresshans/godj/actions/runs/33852093937) at source `0647010a...` completed with
+53 jobs=`41 success + 11 failure + 1 cancelled`. Ten primary failures covered the three portable modes, the three PostgreSQL modes
+and four project-check platform coordinates; `Required CI` was the eleventh, derivative failure, and artifact validation was the
+cancelled job. Logs separated three harness/CI root classes: prompt waits were charged against cold pre-prompt builds while the PTY
+reader could remain blocked; repeated fresh external-module downloads/builds and broad serial packages exhausted outer bounds,
+including transient dependency download failure; and MIG-134 used an unconditional 90-second actual-process bound. The correction
+kept the assertions, database/transaction semantics, supported modes and required coordinates intact while hardening PTY draining,
+prewarming/sharding the heavy lanes, bounding package lifetimes and cleaning candidate workspaces.
+
+Diagnostic runs `33860767919`, `33864719951`, `33875572556`, `33880546575` and `33885988547` exercised successive corrections.
+They contained primary failures and/or cancellations and are retained only as diagnostic history; none is reused as acceptance
+evidence. The latest predecessor run
+[33893065124](https://github.com/progresshans/godj/actions/runs/33893065124) at `080365fe...` ended with
+79 jobs=`68 success + 2 failure + 9 cancelled`: `Product project check (macos-15-intel, normal)` was the sole primary failure after a
+cold fresh `sqlmigrate` build reached that 90-second bound, `Required CI` was the derivative failure, and nine still-running jobs were
+cancelled when final corrected source `0b5b6fc6...` superseded the run. Its completed product assertions, database/transaction paths
+and macOS Intel race/CGO-disabled siblings did not report a semantic failure. The remaining defect was classified as a real
+test-harness latency-bound defect, not ignored as a flake and not converted into a product deviation.
+
+Source `46f8c1fce594062e081bf8c3a471c0b37e76e6b7` replaced that per-invocation constant with the named bounded
+`migrationSQLRenderingActualProcessTimeout = 3 * time.Minute` and raised only the enclosing product-state guard from six to ten
+minutes. Contract assertions, supported modes, process cleanup and CI topology were unchanged. The three affected MIG-134-focused
+tests passed normal/race/CGO-disabled in 40.146/45.639/39.428 seconds; full `./conformance/runners/godj` passed in 168.418 seconds,
+and vet/diff checks passed. Independent review found P0/P1/P2=0.
+
+### Independent source-bound PostgreSQL evidence
+
+An audited A/B helper, SHA-256
+`b14e71324d03fa1051b232f950dac07548f78fbb04bca52f0874dba9d8787a77`, captured pinned Go 1.26.5 and
+PostgreSQL 17.10 evidence from clean behavioral source `46f8c1f...`. Both independent captures were byte-identical:
+
+- Current system-state document: 1,134 bytes/SHA-256
+  `5f2ae5c4ee8f47bbaa9e56e19627755d6ee5b0bb1f2d7bb80505ce67fa0f69dd`
+- Current system-state checksum file: 103 bytes/SHA-256
+  `6e3b681eaf565207426b3151a02293fd1c7ed7f655725f74ee6032ea92aa66cc`
+- System-state source binding: 281 files/3,714,953 payload bytes/SHA-256
+  `d4b0579c4d8b91c89060990d0ac379a2f11acfc81a5fb55859385b844dc51c34`
+- External operator document: 1,811 bytes/SHA-256
+  `43ea98788d7afaef049aeaca713dbe32ffcf7bb2596bdf19a61e40dfb8c29069`
+- External operator checksum file: 116 bytes/SHA-256
+  `a52b1ed4b3c56530d81b7ed748e12a387e5d2c1e990163693c88cccc1289c37c`
+- External operator source binding: 336 files/3,593,191 payload bytes/SHA-256
+  `4f63ff589400e66b8029fd71c1af917312f2418767621ea13d62e3dfef3a3e24`
+
+Publication source `0b5b6fc6...` changed exactly the system-state attestation JSON/checksum and its protocol byte lock; the
+operator artifact remained byte-identical. Both checksum sets, attestation/protocol normal/race/CGO-disabled/vet and the complete
+`./conformance/systemstate/...` normal/race/CGO-disabled packages passed. Independent capture/publication audits found
+P0/P1/P2=0 and no Docker network/volume residue.
+
+### Frozen external archive gate
+
+The audited exact-source helper SHA-256 was
+`f6780be8d87cf3322055224bdda9a502cb8a5bc33765a3e491e62c622936d728`. It created three independent
+`git archive` tarballs from `0b5b6fc6...`; all were byte-identical at 20,910,080 bytes/SHA-256
+`60dbcc5f8725166fbe4b9af6218e98cda0cc930ec15cc0e2e4b0f759948ba524`. The archive contained 1,321 entries,
+no `.git`, and exact Git mode/blob equivalence. Article and relation-delete generated drift, all 126-package Linux/386 compile-only
+and a repository-external SQLite operator flow passed. The external flow emitted 48 test events with one top-level run/pass, one
+package pass and zero skip; its JSONL was 15,227 bytes/SHA-256
+`933884dc96ac5b6c67e77a446c8fe92261b0f5a84e27502d2b9566fa8773e01c`. Source/archive/helper identity remained
+unchanged and no child process, open handle or temporary project residue remained. Independent archive audit found P0/P1/P2=0.
+
+### Exact submitted-head Hosted acceptance
+
+GitHub API and Git refs independently confirmed that local HEAD, remote branch, PR #1 head, run head and commit tree were exact
+`0b5b6fc6...`/`dac6baa7...`. The synthetic PR merge tree was byte-identical. Run `33899930122` completed successfully:
+
+- 79/79 jobs and 797/797 recorded steps successful
+- job/step failure, cancellation and skip all 0
+- 79/79 exact-run check-runs successful, annotation count 0, duplicate job names 0
+- Product project check, Project operator product, Targeted migrate product and Relation product each exact 12/12 coordinates:
+  Ubuntu amd64/arm64 and macOS Intel/arm64 × normal/race/CGO-disabled
+- PostgreSQL exact 6/6 jobs: normal/race/CGO-disabled × core/operator-target
+- PostgreSQL core inventory per mode 23 runs/23 passes/0 skips; operator-target per mode 3/3/0
+- Artifact validation 20/20 steps success, including both live attestation checks, portable contract validation,
+  project-linked contracts, Linux/386 compile coordinates and oracle no-rewrite gates
+- `Required CI` 3/3 steps success after all twelve required dependency lanes succeeded
+- The previously failing macOS Intel normal coordinate completed successfully
+
+No PR comment, merge, release or deployment was performed.
+
+### Status transition and non-claims
+
+SYS-021..030 are exact ten registered `passing` contracts with no new deviation. System state is now 29 passing plus the existing
+SYS-009 Verified DEV-0008 deviation. Explicit provisioning does not claim multiple users, noninteractive secret providers, password
+change/reset/delete, session-family revocation, Q-019 unknown-outcome quarantine, non-cooperative writers, production deployment or
+generalized second-model support.
+
+The exact product source did not run a new monolithic local `make ci`; it ran the focused source-bound and exact external archive/
+Linux-386 gates above, while the full split Hosted matrix verified the exact source. Earlier predecessor local/full results are not
+relabelled as `0b5b6fc6...` evidence. This terminal documentation descendant changes no product source, workflow, lock or
+source-bound artifact and therefore uses documentation-only parse/link/status/format gates rather than recursively rerunning the
+product matrix.

@@ -1,7 +1,7 @@
 # 의도적 호환 차이 원장
 
 - 상태: Active ledger
-- 마지막 갱신: 2026-08-31
+- 마지막 갱신: 2026-09-05
 - 현재 검증된 deviation: DEV-0001..DEV-0010 열 건 / contract 스물다섯 개
 - 현재 구현됐으나 terminal 검증 전인 deviation: 없음
 - Proposed이며 아직 aggregate에 포함하지 않는 후보: 없음
@@ -237,9 +237,11 @@ GDJ-0052 Phase D source `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree
 PostgreSQL 17.10 normal/race/CGO0와 SQLite external product flow가 통과했고 그 GDJ-0052 completion aggregate는 reference
 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product 25/279=`254 passing + 25 deviation`이며 당시
 MIG-075..086만 reference-only locked였습니다.
-GDJ-0054 Phase D는 MIG-129..138을 새 deviation 없이 exact ten `passing`으로 게시했습니다. Current aggregate는 reference
-27/301/702=`264 passing + 25 deviation + 12 oracle_locked`, product 26/289=`264 passing + 25 deviation`이며
-MIG-075..086만 reference-only locked입니다. EVID-176이 local product/source-bound proof를 소유합니다.
+GDJ-0054 Phase D는 MIG-129..138을 새 deviation 없이 exact ten `passing`으로 게시했습니다. GDJ-0055는 SYS-021..030을 모두
+`passing`으로 게시했고 새 deviation을 추가하지 않았습니다. Current aggregate는 reference
+27/311/702=`274 passing + 25 deviation + 12 oracle_locked`, product 26/299=`274 passing + 25 deviation`이며
+MIG-075..086만 reference-only locked입니다. EVID-176은 GDJ-0054 local product/source-bound proof를, EVID-179는 current
+aggregate와 GDJ-0055 terminal proof를 소유합니다.
 Phase E predecessor full-local, corrected-source refreeze와 exact-head Hosted는 위 EVID-165/166/167이 각각 소유하며
 ADR-0054/GDJ-0052는 Accepted/completed입니다.
 

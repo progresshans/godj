@@ -3,10 +3,11 @@
 - 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded
   explicit migrate, GDJ-0050 additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는
   hosted-Verified; GDJ-0054 exact forward `sqlmigrate`도 corrected source-bound A/B, full/386/relation/archive와 exact-head
-  Hosted Phase E까지 Verified
-- 마지막 검토: 2026-08-31
+  Hosted Phase E까지 Verified; GDJ-0055 exact TTY `createsuperuser`와 raw-password-free restart도 source-bound
+  A/B/archive와 exact-head Hosted까지 Verified
+- 마지막 검토: 2026-09-05
 
-아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0054 경계를 제외한 코드는
+아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0055 경계를 제외한 코드는
 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
 
@@ -486,6 +487,8 @@ godj makemigrations --check
 godj makemigrations --project ./godj.toml
 godj makemigrations --dry-run --project ./godj.toml
 godj makemigrations --check --project ./godj.toml
+godj createsuperuser
+godj createsuperuser --project ./godj.toml
 ```
 
 Completed GDJ-0049의 `godj migrate`와 `godj migrate --project ./godj.toml`은 exact current argv로
@@ -504,8 +507,8 @@ fresh plan/CAS와 recoverable no-replace publication을 사용하며 dry-run/che
 Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public
 module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
 `PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Verified DEV-0010
-`deviation`입니다. Current product aggregate는 GDJ-0054 Phase D publication까지 포함해 26 adapters/289 contracts=
-`264 passing + 25 deviation`이고, current reference-only locked range는 MIG-075..086입니다.
+`deviation`입니다. GDJ-0054 completion product aggregate는 26 adapters/289 contracts=
+`264 passing + 25 deviation`이었고, reference-only locked range는 MIG-075..086입니다.
 Predecessor full `make ci`, Linux/386/relation/archive는 EVID-151에서 통과했고 workflow
 test-harness correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted
 tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 failed-job rerun 뒤 effective
@@ -580,9 +583,28 @@ direct project config를 구현해 EVID-174의 affected gate를 통과했습니�
 owner와 external SQLite no-DB flow를 구현해 EVID-175의 affected gate를 통과했습니다. Phase D source `a85ade1...`, tree
 `211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는 PostgreSQL schema-only current-profile,
 actual child cancellation/reap, MIG-129..138 exact ten actual/policy와 source-bound A/B를 EVID-176에서 local-verify했습니다.
-Current reference/product는 27/301/702=`264+25+12 locked`, 26/289=`264+25`이고 MIG-075..086만 locked입니다. Exact source
+GDJ-0054 completion reference/product는 27/301/702=`264+25+12 locked`, 26/289=`264+25`이고 MIG-075..086만 locked입니다. Exact source
 `cc42c4f...`의 corrected A/B, full/386/relation/archive와 Hosted run `33355685927` 53/53 jobs·572/572 steps는
 EVID-177에서 통과해 ADR-0055/GDJ-0054를 Accepted/completed로 닫았습니다.
+
+Completed GDJ-0055의 hosted-verified operator surface는 다음 exact 두 형태입니다.
+
+```bash
+godj createsuperuser
+godj createsuperuser --project ./godj.toml
+```
+
+프로젝트 선택과 build가 성공한 뒤 actual TTY에서 username, password, confirmation을 한 번씩 읽고 password echo를 끕니다.
+Non-TTY, username/password flag, positional identity, environment/file/line fallback은 지원하지 않습니다. Project-owned backend와
+immutable credential policy가 migrated clean system state에 exactly one row를 생성하며 existing/corrupt/policy/commit-unknown
+state를 overwrite하거나 자동 retry하지 않습니다. 이후 `OpenExisting`은 stored encoded credential만 검증하므로
+`runserver` restart에 raw username/password environment가 필요하지 않습니다.
+
+SYS-021..030은 모두 product `passing`이며 current reference/product는
+27/311/702=`274 passing + 25 deviation + 12 oracle_locked`, 26/299=`274 passing + 25 deviation`입니다. Exact source
+`0b5b6fc6...`의 local source-bound A/B/archive와 Hosted run `33899930122` 79/79 jobs·797/797 steps는 EVID-179에서
+통과했습니다. Multiple users, noninteractive provider, password change/reset/delete, session-family revocation, Q-019 quarantine와
+production security topology는 이 bounded surface의 지원 범위가 아닙니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

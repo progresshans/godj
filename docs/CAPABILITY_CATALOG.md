@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-31
+- 마지막 검토: 2026-09-05
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다. “지원”은 model, relation depth, backend, process/deployment policy 중 해당 기능에 관련되는 차원을 포함한 기록된 bounded profile을 뜻하며, 하나의 Article flow를 자동으로 범용 능력으로 확대해석하지 않습니다.
 
@@ -190,7 +190,7 @@ strict private/global command, one-write publication, Article frozen selection�
 EVID-175의 normal/race/CGO0/vet/compile/repeat/audit gate를 통과했습니다. Phase D source `a85ade1...`, tree
 `211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는 PostgreSQL schema-only current-profile,
 actual child cancellation/reap와 oracle-blind actual/policy를 게시했습니다. MIG-129..138은 exact 10 `passing`/registered이고
-current reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`, product는 26/289=
+GDJ-0054 completion reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`, product는 26/289=
 `264 passing + 25 deviation`이며 MIG-075..086만 locked입니다. EVID-176이 Phase D source-bound A/B와 product publication을,
 EVID-177이 exact `cc42c4f...`의 corrected A/B, full/386/relation/archive/Hosted terminal acceptance를 소유합니다. Built-in
 profile은 current `CreateModel`/`AddField` compiler projection만 대상으로 하고
@@ -303,6 +303,20 @@ matrix가 EVID-133/134에서 검증됐습니다. Zero config는 process-local ke
 이것은 cooperative framework writer와 identical normalized deployment policy의 범위입니다. User/group/password lifecycle,
 general Unique/Integer/CAS IR, non-cooperative writer, distributed session/coordination, session-family revocation, automatic key
 distribution/provider, JWT/OAuth와 production deployment는 별도 후속입니다.
+
+Completed [GDJ-0055](../work/0055-project-linked-explicit-operator-provisioning.md)와 Accepted
+[ADR-0056](adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit bootstrap을 current-only
+`ProvisionOperator`와 raw-password-free `OpenExisting`으로 분리합니다. Exact
+`godj createsuperuser`와 `godj createsuperuser --project PATH`는 valid project build 뒤 actual TTY에서 bounded
+username/password/confirmation을 읽고 password echo를 끄며, one-shot binary child pipe와 project-owned immutable credential
+policy를 사용합니다. Existing/corrupt/policy/commit-unknown state는 overwrite나 자동 retry 없이 fail-closed하고,
+SQLite/PostgreSQL distinct-process provision과 Article Admin/API restart를 검증했습니다.
+
+SYS-021..030은 exact ten product `passing`이고 새 deviation은 없습니다. Current reference는
+27/311/702=`274 passing + 25 deviation + 12 oracle_locked`, product는 26/299=`274 passing + 25 deviation`이며 exact
+source `0b5b6fc6...`의 local source-bound A/B/archive와 Hosted run `33899930122`은 EVID-179에서 통과했습니다. Multiple users,
+noninteractive secret provider, password lifecycle, session-family revocation, Q-019 quarantine와 production deployment는
+지원 범위가 아닙니다.
 
 ## API
 
@@ -419,6 +433,15 @@ godj test
 godj inspectdb
 custom management commands
 ```
+
+현재 hosted-verified operator 생성 명령은 exact 두 형태만 지원합니다.
+
+```text
+godj createsuperuser
+godj createsuperuser --project ./godj.toml
+```
+
+Username/password flag, positional identity, environment/file/pipe fallback과 non-TTY automation은 지원하지 않습니다.
 
 - global CLI와 project-aware binary
 - deterministic project/app templates
@@ -706,7 +729,7 @@ GDJ-0051 Phase D product publication 당시 reference는 25/281/600=
 `245 passing + 24 deviation + 12 oracle_locked`, product는 24/269=`245 passing + 24 deviation`입니다.
 MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은 exact 열아홉 result replacement의
 Verified DEV-0010 `deviation`이며 당시 남은 locked range는 MIG-075..086이었습니다. Current aggregate와 locked range는
-위 completed GDJ-0052 section을 따릅니다.
+위 completed GDJ-0055 system-state section을 따릅니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.

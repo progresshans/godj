@@ -6,6 +6,8 @@
   SYS-013..020, Q-020
 - 확장하는 ADR: [ADR-0047](0047-explicit-single-runtime-system-state.md)
 - 대체하는 ADR: 없음
+- 후속 수정: [ADR-0056](0056-explicit-operator-provisioning-and-open-existing.md)이 concurrent implicit bootstrap observation을
+  explicit cooperative provision-once로 current-only 대체
 
 ## 맥락
 

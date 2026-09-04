@@ -1,10 +1,12 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 active/ready batch는 1/0입니다. Active
-  [GDJ-0055](../work/0055-project-linked-explicit-operator-provisioning.md)는 migrated clean singleton operator의 explicit
-  `createsuperuser` provision-once와 raw-password-free authenticated restart를 Proposed ADR-0056/SYS-021..030으로 검증합니다.
-- 최근 completed batch: [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
+- 현재 active/ready batch는 0/0입니다.
+- 최근 completed batch: [GDJ-0055](../work/0055-project-linked-explicit-operator-provisioning.md)는 migrated clean singleton
+  operator의 exact TTY `createsuperuser` provision-once와 raw-password-free authenticated restart를 Accepted
+  ADR-0056/SYS-021..030으로 검증했습니다. Exact source `0b5b6fc6...`, tree `dac6baa7...`의 local source-bound
+  A/B/archive와 Hosted run `33899930122` 79/79 jobs·797/797 steps가 EVID-179에서 terminal acceptance를 닫았습니다.
+- 그 이전 completed batch: [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
   `godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete catalog와 target-before historical
   state에서 결정적으로 materialize하는 bounded packet입니다. Accepted
   [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md) 아래 Phase A source `c3de0d35...`, tree
@@ -13,7 +15,7 @@
   `a304a73...`, tree `f8df2d4...`는 strict wire/global CLI, one-write owner와 external SQLite no-DB flow를 구현했습니다.
   Phase D source `a85ade1...`, tree `211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는
   PostgreSQL schema-only current-profile, actual child cancellation/reap, oracle-blind MIG-129..138 actual/policy와 source-bound
-  A/B를 local-verify했습니다. Current product는 26/289=`264 passing + 25 deviation`이고 current reference-only locked
+  A/B를 local-verify했습니다. GDJ-0054 completion product는 26/289=`264 passing + 25 deviation`이고 reference-only locked
   range는 MIG-075..086입니다.
   Exact source `cc42c4f...`, tree `0bfd830...`의 corrected A/B, full/386/relation/archive와 Hosted run `33355685927`
   53/53 jobs·572/572 steps가 Phase E를 닫았습니다. Built-in renderer는 DB/session/history/transaction/editor와
@@ -178,7 +180,7 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 checkout 제품 기준: 26 adapters/289 contracts의 `264 passing + 25 deviation + 0 oracle_locked`; relation
+- 현재 checkout 제품 기준: 26 adapters/299 contracts의 `274 passing + 25 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
@@ -193,10 +195,12 @@
   GDJ-0052 Phase D는 MIG-119..121/123..128 `passing`, MIG-122 Verified DEV-0002 `deviation`을 게시했고
   EVID-167/CI #189 exact-head Hosted까지 통과해 Phase E와 ADR-0054/GDJ-0052 acceptance를 닫았습니다. GDJ-0054
   Phase D는 MIG-129..138 exact 10 `passing`, PostgreSQL schema-only current-profile actual과 source-bound A/B를 EVID-176에서
-  local-verify했습니다. Current reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`이고
+  local-verify했습니다. GDJ-0054 completion reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`이고
   reference-only locked range는 MIG-075..086입니다. EVID-177의 exact source Phase E가 통과해 ADR-0055/GDJ-0054는
-  Accepted/completed입니다.
-- 마지막 검토: 2026-08-31
+  Accepted/completed입니다. GDJ-0055는 SYS-021..030 exact ten `passing`을 같은 system-state adapter에 추가해 current
+  reference를 27/311/702=`274 passing + 25 deviation + 12 oracle_locked`, product를 26/299=`274 passing + 25 deviation`으로
+  확장했고 EVID-179 exact-head terminal acceptance를 통과했습니다.
+- 마지막 검토: 2026-09-05
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -854,8 +858,8 @@ ADR/work/deviation을 terminal Accepted/completed/Verified로 닫았습니다.
 - static/messages와 접근성·보안 gate
 - explicit single-runtime durable credential/session/audit와 restart-preserving Article flow — GDJ-0045 completed/hosted-verified
 - cooperative multi-runtime system-state coordination과 shared CSRF key ring — GDJ-0046 completed/hosted-verified
-- explicit `createsuperuser` provision-once와 raw-password-free authenticated restart — GDJ-0055 active, Proposed ADR-0056,
-  SYS-021..030 planned/not run
+- explicit `createsuperuser` provision-once와 raw-password-free authenticated restart — GDJ-0055 completed/hosted-verified,
+  Accepted ADR-0056, SYS-021..030 passing
 - multiple users, noninteractive secret provider, password change/reset/delete와 session-family revocation — Q-022 후속
 
 ## M7 — API

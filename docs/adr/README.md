@@ -70,6 +70,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0053](0053-project-linked-read-only-migration-status.md) | Accepted | Project-linked read-only applied-history snapshot과 deterministic `showmigrations` list 경계 |
 | [0054](0054-project-linked-targeted-migration-plan-and-reverse-safety.md) | Accepted | Exact target, non-authoritative plan과 bounded reverse migration safety 경계 |
 | [0055](0055-project-linked-deterministic-migration-sql-projection.md) | Accepted | Exact forward migration의 deterministic DB-free SQL projection 경계 |
-| [0056](0056-explicit-operator-provisioning-and-open-existing.md) | Proposed | Explicit operator provision-once와 raw-password-free system-state open 경계 |
+| [0056](0056-explicit-operator-provisioning-and-open-existing.md) | Accepted | Explicit operator provision-once와 raw-password-free system-state open 경계 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

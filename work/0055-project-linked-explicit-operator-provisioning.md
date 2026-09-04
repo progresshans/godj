@@ -1,7 +1,7 @@
 ---
 id: GDJ-0055
-status: active
-updated: 2026-09-02
+status: completed
+updated: 2026-09-05
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "72e5445616e68ff60ba542345684644d0730c5b3"
 depends_on: ["GDJ-0042", "GDJ-0045", "GDJ-0046", "GDJ-0049", "GDJ-0054"]
@@ -42,6 +42,7 @@ allowed_paths:
   - "docs/COMPATIBILITY.md"
   - "docs/CONCURRENCY.md"
   - "docs/DEVELOPER_EXPERIENCE.md"
+  - "docs/DEVIATIONS.md"
   - "docs/OPEN_QUESTIONS.md"
   - "docs/ROADMAP.md"
   - "docs/TESTING.md"
@@ -243,8 +244,9 @@ oracle-blind actual이 존재한 뒤에만 수행하며 aggregate arithmetic과 
 - [x] Phase A — exact decision/reference manifest, not-implemented artifact와 protocol/false-green lock
 - [x] Phase B — systemstate provision/open-existing split, atomic/error tests와 current-only callsite refreeze
 - [x] Phase C — TTY/private/global command, Article SQLite runtime, external project와 secret/process product flow
-- [ ] Phase D — PostgreSQL required actual, SYS-021..030 product publication와 source-bound evidence
-- [ ] Phase E — affected/full milestone, Linux/386, external archive, exact submitted-head Hosted와 terminal docs
+- [x] Phase D — PostgreSQL required actual, SYS-021..030 product publication와 source-bound evidence
+- [x] Phase E — affected/full split milestone, Linux/386, external archive, exact submitted-head Hosted와 terminal docs —
+  [EVID-179](../docs/status/TEST_EVIDENCE.md#evid-20260905-179--gdj-0055-explicit-operator-provisioning-terminal-acceptance)
 
 `web/sessionauth/runtime_logout_test.go`는 retired `systemstate.Open`/`BootstrapConfig`를 사용하던 저장소 내 public consumer
 회귀 테스트이므로 Phase B current-only callsite refreeze 범위에 exact-file로 추가했습니다. Session-auth 제품 계약이나 구현은
@@ -263,22 +265,25 @@ Activation에서는 product source/API/contract registry를 구현·게시하지
 
 ## 구현 체크포인트
 
-Phase A-C와 Phase D의 PostgreSQL product path까지 구현했습니다. Affected package normal/race/CGO-disabled, exact
-`projectoperatorproduct` normal/race/CGO-disabled, `go vet`, actual PTY/VINTR count-10, portable Python과 pinned historical exact
-Python/oracle no-rewrite가 통과했습니다. Source-bound SYS-020/SYS-029 PostgreSQL attestation은 behavioral source를 clean commit으로
-동결한 뒤 독립 A/B capture에서 생성해야 하므로 아직 게시하지 않습니다. 현재 checked SYS-020 evidence가 새 source를 거부하고
-SYS-029 evidence가 없는 것은 Phase D publication 전의 의도된 fail-closed barrier입니다. 최종 명령·checkout 식별자·결과는 frozen
-milestone이 닫힐 때 `TEST_EVIDENCE.md`에 한 번 기록합니다.
+Phase A-E를 완료했습니다. Current system-state API, TTY/private/global command, SQLite/PostgreSQL product actual과 SYS-021..030
+publication이 모두 구현됐습니다. Behavioral source에서 독립 A/B로 캡처한 SYS-020/SYS-029 PostgreSQL attestation은 publication
+descendant에 byte-exact하게 게시됐고, affected normal/race/CGO-disabled, PTY/VINTR, process cleanup, external public project,
+Linux/386 compile-only와 `.git`-free archive gate가 통과했습니다. 최종 명령·checkout 식별자·hash와 non-claim은
+[EVID-179](../docs/status/TEST_EVIDENCE.md#evid-20260905-179--gdj-0055-explicit-operator-provisioning-terminal-acceptance)이 소유합니다.
 
 Combined consumer gate에서 발견한 두 stale harness도 current 계약에 맞게 교정했습니다. Unmigrated Article은 listener/HTTP 게시
 전 `schema_unavailable`로 닫히며, copied runserver fixture는 합성 module 안의 `internal/**` import만 그 module path로 재기준화해
 declaration runner build 뒤의 generated-drift preflight를 계속 실제로 검증합니다. 두 경로는 단독 및 combined
 normal/race/CGO-disabled에서 다시 통과했습니다.
 
-## 다음 인수인계
+## 완료 인수인계
 
-Behavioral source를 clean commit으로 동결하고 SYS-020/SYS-029 PostgreSQL attestation을 독립 A/B 환경에서 byte-identical하게
-캡처합니다. 정확히 두 evidence JSON, 두 `SHA256SUMS`와 protocol byte lock만 publication descendant에 반영한 뒤 affected/full,
-PostgreSQL required inventory, Linux/386, `.git`-free archive와 exact submitted-head Hosted를 실행합니다. 이 gate가 모두 성공하기
-전에는 Phase D/E, ADR-0056 또는 global status를 terminal로 승격하지 않습니다. Q-019 terminal quarantine과 two-app
-generalization probe는 서로 다른 후속/병렬 evidence lane이며 이 work의 public API나 global status를 동시에 수정하지 않습니다.
+Exact product source `0b5b6fc6ec60e1704e5cebfaebd771b682d001ee`, tree
+`dac6baa72f5aaaa54f4959a5ee16e988cc16df61`는 local source-bound A/B와 `.git`-free archive gate를 통과했습니다. Draft PR #1의
+Hosted run `33899930122`도 같은 source/tree에서 79/79 jobs와 797/797 steps를 모두 성공했고 failure/cancel/skip/annotation은
+0입니다. PostgreSQL normal/race/CGO-disabled는 core 23/23/0과 operator-target 3/3/0 inventory를 각각 충족했습니다.
+
+SYS-021..030은 모두 product `passing`, ADR-0056은 Accepted, Q-022는 이 bounded answer에 대해 `Partial`입니다. Multiple user,
+noninteractive secret provider, password lifecycle, session-family revocation, Q-019 terminal quarantine와 two-app generalization은
+별도 후속 범위이며 이 work는 이를 구현했다고 주장하지 않습니다. 이 terminal documentation descendant는 제품 source,
+workflow, lock 또는 source-bound artifact를 바꾸지 않으며 Hosted가 검증한 exact source와 구분합니다.

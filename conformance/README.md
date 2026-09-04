@@ -152,7 +152,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/parameter-routing-manifest.json` | DRF-profile WEB-028..035 closed parameter route/reverse contract; 6 passing + 2 DEV-0006 |
 | `contracts/article-api-manifest.json` | DRF-profile API-001..010 Article JSON API contract; 7 passing + 3 DEV-0007 |
 | `contracts/api-authentication-manifest.json` | DRF/RFC/GoDj AUT-009..016/API-011..012 authentication profile contract; 7 passing + 3 Verified DEV-0009 |
-| `contracts/system-state-manifest.json` | SYS-001..020 system-state contract; 19 passing + SYS-009 DEV-0008 deviation under Accepted ADR-0048 |
+| `contracts/system-state-manifest.json` | SYS-001..030 system-state contract; 29 passing + SYS-009 DEV-0008 deviation under Accepted ADR-0047/0048/0056 |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -315,9 +315,10 @@ corrected head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `3304986
 later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
 signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
-Current reference는 27 sets/301 contracts/702 ordered bindings=
-`264 passing + 25 deviation + 12 oracle_locked`, product는 26 adapters/289 eligible contracts=
-`264 passing + 25 deviation`입니다. Reference-only locked/unregistered range는 MIG-075..086입니다. Accepted ADR-0051과
+Current reference는 27 sets/311 contracts/702 ordered bindings=
+`274 passing + 25 deviation + 12 oracle_locked`, product는 26 adapters/299 eligible contracts=
+`274 passing + 25 deviation`입니다. Reference-only locked/unregistered range는 MIG-075..086입니다. SYS-021..030은
+Accepted ADR-0056 아래 product `passing`입니다. Accepted ADR-0051과
 completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
 PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
 GDJ-0049 Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
@@ -456,6 +457,8 @@ go run ./conformance/cmd/godjcheck \
   -deviation-expected conformance/fixtures/godj-system-state-deviation-expected.json \
   -system-state-postgres-attestation \
     conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json \
+  -project-operator-postgres-attestation \
+    conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json \
   -actual-output "$tmpdir/system-state-actual.json"
 ```
 
@@ -465,6 +468,14 @@ anonymous-pipe barrier를 쓰는 실제 두 process SQLite actual과 checked liv
 그 GDJ-0046 required PostgreSQL 17.10 lane은 `GODJ_TEST_POSTGRES_URL`, `GODJ_REQUIRE_POSTGRES=1`과 explicit capture path를 사용해
 17/17 named pass·skip 0, checked bytes `cmp`, normal/race/CGO0/service-restart/vet/clean을 통과했습니다. Portable actual은
 PostgreSQL을 live 실행했다고 주장하지 않고 strict attestation 검증 결과만 합성 입력으로 사용합니다.
+
+GDJ-0055는 같은 manifest에 SYS-021..030을 추가하고 implicit bootstrap을 explicit `ProvisionOperator`와 raw-password-free
+`OpenExisting`으로 분리했습니다. Exact TTY `godj createsuperuser [--project PATH]`, one-shot secret transport,
+cooperative exactly-one insert와 distinct-process SQLite/PostgreSQL Admin/API restart actual이 모두 `passing`입니다. Exact
+source `0b5b6fc6...`의 current system-state binding은 281 files/3,714,953 bytes/SHA-256 `d4b0579c...51c34`, external
+operator binding은 336 files/3,593,191 bytes/SHA-256 `4f63ff58...3a3e24`이고 EVID-179/Hosted run `33899930122`에서
+79/79 jobs·797/797 steps와 PostgreSQL per-mode core 23/23/0, operator-target 3/3/0이 통과했습니다. 두 checked
+attestation flag는 current SYS-001..030 portable actual의 fail-closed 입력이므로 위 command에서 함께 제공해야 합니다.
 
 ## Exact profile
 

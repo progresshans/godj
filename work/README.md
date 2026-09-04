@@ -78,16 +78,18 @@ proposed → ready → active → completed
 | [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md) | completed | Project-linked exact target, non-authoritative plan과 bounded reverse migration |
 | [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md) | completed | Project relation-query sparse-model compile availability |
 | [GDJ-0054](0054-project-linked-deterministic-sqlmigrate.md) | completed | Project-linked deterministic DB-free `sqlmigrate` |
-| [GDJ-0055](0055-project-linked-explicit-operator-provisioning.md) | active | Project-linked explicit operator provisioning과 raw-password-free restart |
+| [GDJ-0055](0055-project-linked-explicit-operator-provisioning.md) | completed | Project-linked explicit operator provisioning과 raw-password-free restart |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0입니다. Active
+현재 active/ready packet은 0/0입니다. 최근 completed
 [GDJ-0055](0055-project-linked-explicit-operator-provisioning.md)는 migrated clean system state에 durable operator를 exactly once
-생성하는 `godj createsuperuser [--project PATH]`와 raw-password-free `OpenExisting` restart를 구현합니다. Proposed
+생성하는 exact `godj createsuperuser [--project PATH]`와 raw-password-free `OpenExisting` restart를 구현했습니다. Accepted
 [ADR-0056](../docs/adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit startup bootstrap을 current-only로 제거하고
 project-owned credential policy, TTY-only no-echo input, one-shot binary secret pipe, cooperative database fence와 fail-closed
-credential state를 고정합니다. SYS-021..030은 아직 planned/not run이고 product/source/workflow/aggregate는 baseline
-`72e5445616e68ff60ba542345684644d0730c5b3`에서 바뀌지 않았습니다. Recent completed
+credential state를 고정합니다. SYS-021..030은 모두 product `passing`이며 exact source `0b5b6fc6...`의 local A/B/archive와
+Hosted run `33899930122` 79/79 jobs·797/797 steps는
+[EVID-179](../docs/status/TEST_EVIDENCE.md#evid-20260905-179--gdj-0055-explicit-operator-provisioning-terminal-acceptance)에
+기록합니다. 그 이전 completed
 [GDJ-0054](0054-project-linked-deterministic-sqlmigrate.md)는 exact
 `godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete loaded catalog와 target-before
 historical state에서 결정적으로 materialize하는 bounded packet입니다. Built-in SQLite/PostgreSQL renderer는 execution
@@ -102,7 +104,7 @@ vet, compile, repeat, generated drift와 independent audit를 통과했습니다
 [EVID-175](../docs/status/TEST_EVIDENCE.md#evid-20260831-175--gdj-0054-phase-c-project-linked-sqlmigrate-and-external-sqlite-checkpoint)이
 이를 소유합니다. Phase D source `a85ade1...`, tree `211e1ad...`와 attestation publication `9603cc6...`, tree
 `d6fa714...`는 PostgreSQL schema-only current-profile projection, actual child cancellation/reap, oracle-blind actual/policy와
-source-bound A/B를 게시했습니다. MIG-129..138은 모두 registered `passing`이고 current reference는 27/301/702=
+source-bound A/B를 게시했습니다. MIG-129..138은 모두 registered `passing`이고 GDJ-0054 terminal reference는 27/301/702=
 `264 passing + 25 deviation + 12 oracle_locked`, product는 26/289=`264 passing + 25 deviation`이며 MIG-075..086만
 locked입니다. [EVID-176](../docs/status/TEST_EVIDENCE.md#evid-20260831-176--gdj-0054-phase-d-postgresql-product-publication-and-source-bound-attestation)이
 Phase D local proof와 당시 Phase E non-claim을 소유합니다. Exact product source `cc42c4f...`, tree `0bfd830...`은
@@ -259,7 +261,7 @@ Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
 GDJ-0053 terminal completion 뒤 GDJ-0054가 활성화됐고, GDJ-0054 terminal 시점의 active/ready는 0/0이었습니다. 이후
-GDJ-0055가 active가 되어 current active/ready는 1/0입니다. Draft PR #1은
+GDJ-0055가 뒤이어 완료되어 current active/ready는 0/0입니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

@@ -1,6 +1,6 @@
 # ADR-0056: Explicit Operator Provisioning and Open-existing System State
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-31
 - 관련 work/contract: [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md), SYS-021..030, Q-022
 - 수정하는 ADR: [ADR-0047](0047-explicit-single-runtime-system-state.md)의 implicit bootstrap/restart-password 결정,
@@ -129,4 +129,11 @@ no-echo input을 받고, 전용 bounded binary pipe로 project child에 한 번 
 - Sensitive child pipe/output cap/cancellation/process-group/reap/held-descendant tests
 - Raw marker scan over argv, environment, project/temp files, response/error/report and Article restart process
 - SQLite/PostgreSQL distinct-process provision, authenticated Admin/API login and raw-password-free restart
-- Repository-external public project compile/runtime, affected normal/race/CGO0/vet, final full/386/archive/Hosted gates
+- Repository-external public project compile/runtime, affected normal/race/CGO0/vet, frozen archive/Linux-386와 exact-head Hosted gates
+
+Terminal acceptance는 exact product source `0b5b6fc6ec60e1704e5cebfaebd771b682d001ee`, tree
+`dac6baa72f5aaaa54f4959a5ee16e988cc16df61`에서 완료했습니다. 독립 A/B source-bound PostgreSQL attestation, affected
+normal/race/CGO-disabled, Linux/386 compile-only, `.git`-free external archive와 exact-head Hosted run `33899930122`의
+79/79 jobs·797/797 steps가 통과했고 failure/cancel/skip/annotation은 0입니다. SYS-021..030은 모두 product `passing`이며
+상세 명령·hash·inventory와 non-claim은
+[EVID-179](../status/TEST_EVIDENCE.md#evid-20260905-179--gdj-0055-explicit-operator-provisioning-terminal-acceptance)이 소유합니다.
