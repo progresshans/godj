@@ -559,7 +559,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,
 		`test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"`,
 		"name: Prewarm project command dependencies",
-		"run: go list -deps -mod=readonly ./cmd/godj >/dev/null",
+		"run: go mod download all",
 		"name: Run and inventory project operator product mode",
 		`mode="${{ matrix.mode }}"`,
 		`test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1)`,
@@ -1065,6 +1065,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"name: Run and inventory PostgreSQL actual product tests",
 		`mode="${{ matrix.mode }}"`,
 		`shard="${{ matrix.shard }}"`,
+		"go mod download all",
 		`test_flags=(-p=1 -timeout=18m -json -count=1 -run "$required_regex")`,
 		`test_flags+=(-race)`,
 		`export CGO_ENABLED=0`,
@@ -1186,7 +1187,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		return actual
 	}
 	actualCore := parseRequiredBlock("core_required_passes", "operator_target_required_passes")
-	actualOperatorTarget := parseRequiredBlock("operator_target_required_passes", `case "$shard" in`)
+	actualOperatorTarget := parseRequiredBlock("operator_target_required_passes", "go mod download all")
 	if !reflect.DeepEqual(actualCore, postgresCoreRequiredSentinels) {
 		t.Fatalf("PostgreSQL core sentinels = %q, want exact ordered %q", actualCore, postgresCoreRequiredSentinels)
 	}

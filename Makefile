@@ -153,7 +153,7 @@ generate-check:
 	go run ./cmd/godj generate --check --project ./conformance/relationdeleteproduct/godj.toml
 
 project-command-dependencies:
-	go list -deps -mod=readonly ./cmd/godj >/dev/null
+	go mod download all
 
 core-package-selection-check:
 	@set -eu; \

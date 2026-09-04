@@ -63,7 +63,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		runserverWorkflowRequireCount(t, "Makefile target header", makefile, "\n"+header+"\n", 1)
 	}
 	projectCommandDependencies := runserverWorkflowMakeTarget(t, makefile, "project-command-dependencies", "core-package-selection-check")
-	runserverWorkflowRequireRecipeLine(t, "Makefile project command dependency prewarm", projectCommandDependencies, "go list -deps -mod=readonly ./cmd/godj >/dev/null", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile project command dependency prewarm", projectCommandDependencies, "go mod download all", 1)
 	for _, target := range []string{
 		"go-test-products",
 		"go-test-operator",
@@ -403,7 +403,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"go-version: \"1.26.5\"",
 		`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,
 		`test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"`,
-		"run: go list -deps -mod=readonly ./cmd/godj >/dev/null",
+		"run: go mod download all",
 		"git diff --exit-code",
 		`test -z "$(git status --porcelain=v1)"`,
 	} {
@@ -593,7 +593,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",
-		"go list -deps -mod=readonly ./cmd/godj > /dev/null",
+		"go mod download all",
 		`log="$RUNNER_TEMP/project-migrate-target-product-${mode}.json"`,
 		"status=0",
 		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct > "$log" || status=$?`,
@@ -734,8 +734,9 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, `GODJ_REQUIRE_POSTGRES: "1"`, 1)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/runserverproduct", 1)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "go list -deps -mod=readonly ./cmd/godj > /dev/null", 1)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./cmd/godj", 2)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "go mod download all", 1)
+	runserverWorkflowRequireSerialOrder(t, "postgresql-product common module prewarm", postgres, "go mod download all", `case "$shard" in`)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./cmd/godj", 1)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 1)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigratetargetproduct", 1)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectshowmigrationsproduct", 1)

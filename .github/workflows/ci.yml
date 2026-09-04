@@ -1026,7 +1026,7 @@ jobs:
           test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
 
       - name: Prewarm project command dependencies
-        run: go list -deps -mod=readonly ./cmd/godj >/dev/null
+        run: go mod download all
 
       - name: Run and inventory project operator product mode
         run: |
@@ -1226,7 +1226,7 @@ jobs:
               exit 1
               ;;
           esac
-          go list -deps -mod=readonly ./cmd/godj > /dev/null
+          go mod download all
           log="$RUNNER_TEMP/project-migrate-target-product-${mode}.json"
           status=0
           go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct > "$log" || status=$?
@@ -1485,6 +1485,7 @@ jobs:
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
           )
+          go mod download all
           case "$shard" in
             core)
               required_passes=("${core_required_passes[@]}")
@@ -1502,7 +1503,6 @@ jobs:
               expected_count=23
               ;;
             operator-target)
-              go list -deps -mod=readonly ./cmd/godj > /dev/null
               required_passes=("${operator_target_required_passes[@]}")
               packages=(
                 ./conformance/projectmigratetargetproduct
