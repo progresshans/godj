@@ -108,7 +108,7 @@ MULTIRUNTIME_WORKER_IMPORT := github.com/progresshans/godj/conformance/systemsta
 PORTABLE_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/systemstate/multiruntimeworker
 PORTABLE_CGO0_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck
 
-.PHONY: cgo-zero-build check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact targeted-migrate-product
+.PHONY: cgo-zero-build cgo-zero-build-core cgo-zero-build-operator cgo-zero-build-products check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-race-core go-race-operator go-race-products go-test go-test-core go-test-operator go-test-products go-vet oracle-check oracle-regenerate project-operator-product python-test python-test-exact targeted-migrate-product
 
 define select_core_go_packages
 all_packages="$$(go list ./...)"; \
@@ -157,34 +157,46 @@ core-package-selection-check:
 	$(select_core_go_packages); \
 	printf '%s\n' "$$core_packages"
 
-go-test:
+go-test-core:
 	@set -eu; \
 	$(select_core_go_packages); \
 	go test $$core_packages
 	go test -timeout=20m -p=1 -count=1 $(PORTABLE_HEAVY_PACKAGES)
+
+go-test-products:
 	go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
 	go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
 	go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
 	go test -timeout=15m -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
-	go test -timeout=15m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
+
+go-test-operator:
+	go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
+
+go-test: go-test-core go-test-products go-test-operator
 
 go-vet:
 	go vet ./...
 
-go-race:
+go-race-core:
 	@set -eu; \
 	$(select_core_go_packages); \
 	go test -race $$core_packages
 	go test -timeout=20m -p=1 -race -count=1 $(PORTABLE_HEAVY_PACKAGES)
+
+go-race-products:
 	go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct
 	go test -timeout=15m -race -count=1 ./conformance/projectshowmigrationsproduct
 	go test -timeout=15m -race -count=1 ./conformance/projectsqlmigrateproduct
 	go test -timeout=15m -race -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct
-	go test -timeout=15m -race -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
 
-cgo-zero-build:
+go-race-operator:
+	go test -timeout=25m -race -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
+
+go-race: go-race-core go-race-products go-race-operator
+
+cgo-zero-build-core:
 	CGO_ENABLED=0 go test \
 		./db/sqlite \
 		./db/postgres \
@@ -205,12 +217,20 @@ cgo-zero-build:
 		./conformance/systemstate/restart \
 		-count=1
 	CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 $(PORTABLE_CGO0_HEAVY_PACKAGES)
+
+cgo-zero-build-products:
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
-	CGO_ENABLED=0 go test -timeout=15m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
+
+cgo-zero-build-operator:
+	CGO_ENABLED=0 go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
+
+cgo-zero-build: cgo-zero-build-core cgo-zero-build-products cgo-zero-build-operator
+
+project-operator-product: go-test-operator go-race-operator cgo-zero-build-operator
 
 targeted-migrate-product:
 	go test -timeout=30m -count=1 ./conformance/projectmigratetargetproduct

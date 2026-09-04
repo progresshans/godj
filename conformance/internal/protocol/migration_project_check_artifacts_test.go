@@ -270,7 +270,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	jobsText := text[jobsStart+len("jobs:\n"):]
 	jobPattern := regexp.MustCompile(`(?m)^  ([a-z0-9-]+):$`)
 	matches := jobPattern.FindAllStringSubmatch(jobsText, -1)
-	wantJobs := []string{"conformance-validation", "portable-go-matrix", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "targeted-migrate-product-matrix", "python-compatibility-matrix", "postgresql-product", "sqlite-matrix", "required-ci"}
+	wantJobs := []string{"conformance-validation", "portable-go-matrix", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "project-operator-product-matrix", "targeted-migrate-product-matrix", "python-compatibility-matrix", "postgresql-product", "sqlite-matrix", "required-ci"}
 	if len(matches) != len(wantJobs) {
 		t.Fatalf("workflow job definition count = %d, want exact %d", len(matches), len(wantJobs))
 	}
@@ -291,6 +291,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	relationBinding := migrationProjectCheckWorkflowJob(t, jobsText, "relation-binding-matrix")
 	relationProduct := migrationProjectCheckWorkflowJob(t, jobsText, "relation-product-matrix")
 	product := migrationProjectCheckWorkflowJob(t, jobsText, "product-project-check-matrix")
+	projectOperator := migrationProjectCheckWorkflowJob(t, jobsText, "project-operator-product-matrix")
 	targetedMigrate := migrationProjectCheckWorkflowJob(t, jobsText, "targeted-migrate-product-matrix")
 	python := migrationProjectCheckWorkflowJob(t, jobsText, "python-compatibility-matrix")
 	postgres := migrationProjectCheckWorkflowJob(t, jobsText, "postgresql-product")
@@ -355,12 +356,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		t.Fatal("existing Ubuntu full/Linux-386 gates were not preserved")
 	}
 	for _, required := range []string{
-		"name: Portable Go (${{ matrix.mode }})",
+		"name: Portable Go (${{ matrix.mode }}, ${{ matrix.shard }})",
 		"timeout-minutes: ${{ matrix.timeout_minutes }}",
 		"fail-fast: false",
-		"- mode: normal-vet\n            make_targets: \"go-test go-vet\"\n            timeout_minutes: 40",
-		"- mode: race\n            make_targets: \"go-race\"\n            timeout_minutes: 55",
-		"- mode: cgo0\n            make_targets: \"cgo-zero-build\"\n            timeout_minutes: 50",
 		"run: make ${{ matrix.make_targets }}",
 		`test "$(go env GOOS)" = "linux"`,
 		`test "$(go env GOARCH)" = "amd64"`,
@@ -370,6 +368,31 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		if strings.Count(portableGo, required) != 1 {
 			t.Fatalf("portable Go matrix fragment %q count = %d, want 1", required, strings.Count(portableGo, required))
 		}
+	}
+	portableLegs := []struct {
+		mode, shard, makeTargets string
+		timeout                  int
+	}{
+		{mode: "normal", shard: "core-vet", makeTargets: "go-test-core go-vet", timeout: 30},
+		{mode: "normal", shard: "products", makeTargets: "go-test-products", timeout: 55},
+		{mode: "race", shard: "core", makeTargets: "go-race-core", timeout: 30},
+		{mode: "race", shard: "products", makeTargets: "go-race-products", timeout: 55},
+		{mode: "cgo0", shard: "core", makeTargets: "cgo-zero-build-core", timeout: 30},
+		{mode: "cgo0", shard: "products", makeTargets: "cgo-zero-build-products", timeout: 50},
+	}
+	if got := strings.Count(portableGo, "          - mode: "); got != len(portableLegs) {
+		t.Fatalf("portable Go matrix leg count = %d, want exact %d", got, len(portableLegs))
+	}
+	for _, leg := range portableLegs {
+		entry := "- mode: " + leg.mode + "\n            shard: " + leg.shard +
+			"\n            make_targets: \"" + leg.makeTargets + "\"" +
+			fmt.Sprintf("\n            timeout_minutes: %d", leg.timeout)
+		if got := strings.Count(portableGo, entry); got != 1 {
+			t.Fatalf("portable Go mode/shard entry %q count = %d, want 1", entry, got)
+		}
+	}
+	if got := strings.Count(portableGo, "timeout_minutes:"); got != len(portableLegs) {
+		t.Fatalf("portable Go matrix timeout count = %d, want %d", got, len(portableLegs))
 	}
 	if !strings.Contains(darwin, "make python-test-exact oracle-check") || !strings.Contains(darwin, "./migrations") || !strings.Contains(darwin, "./db/sqlite") {
 		t.Fatal("existing macOS exact/lifecycle gates were not preserved")
@@ -526,6 +549,109 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		if got := strings.Count(product, timeout); got != want {
 			t.Fatalf("product-project-check %s count = %d, want %d", timeout, got, want)
 		}
+	}
+	for _, required := range []string{
+		"name: Project operator product (${{ matrix.runs_on }}, ${{ matrix.mode }})",
+		"runs-on: ${{ matrix.runs_on }}",
+		"timeout-minutes: ${{ matrix.timeout_minutes }}",
+		"fail-fast: false",
+		"go-version: \"1.26.5\"",
+		`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,
+		`test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"`,
+		"name: Prewarm project command dependencies",
+		"run: go list -deps -mod=readonly ./cmd/godj >/dev/null",
+		"name: Run and inventory project operator product mode",
+		`mode="${{ matrix.mode }}"`,
+		`test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1)`,
+		`case "$mode" in`,
+		"test_flags+=(-race)",
+		"export CGO_ENABLED=0",
+		`operator_package="github.com/progresshans/godj/conformance/projectoperatorproduct"`,
+		`required_tests=(`,
+		`required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"`,
+		`required="$RUNNER_TEMP/project-operator-sqlite-required-tests.txt"`,
+		`printf '%s\n' "${required_tests[@]}" > "$required"`,
+		`operator_log="$RUNNER_TEMP/project-operator-sqlite-${mode}.json"`,
+		`go test "${test_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" || status=$?`,
+		`python3 - "$required" "$operator_log" "$operator_package" "$mode" <<'PY'`,
+		`assert len(expected) == 5, sorted(expected)`,
+		`assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))`,
+		`assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))`,
+		`assert skips == [], (sys.argv[4], skips)`,
+		`if [ "$mode" = "normal" ]; then`,
+		"go vet ./conformance/projectoperatorproduct",
+		"git diff --exit-code",
+		`test -z "$(git status --porcelain=v1)"`,
+	} {
+		if strings.Count(projectOperator, required) != 1 {
+			t.Fatalf("project-operator product matrix fragment %q count = %d, want 1", required, strings.Count(projectOperator, required))
+		}
+	}
+	operatorRequiredSentinels := []string{
+		"TestOperatorSanitizeEnvironmentDropsHostOnlyControls",
+		"TestGlobalCreatesuperuserExternalSQLiteProduct",
+		"TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity",
+		"TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation",
+		"TestOperatorCountRawSecretOccurrencesDetectsAuditMarker",
+	}
+	operatorRequiredBlockPattern := regexp.MustCompile(`(?ms)required_tests=\(\n(.*?)\n\s*\)\n\s*required_regex`)
+	operatorRequiredBlock := operatorRequiredBlockPattern.FindStringSubmatch(projectOperator)
+	if len(operatorRequiredBlock) != 2 {
+		t.Fatal("project-operator required inventory block is missing or malformed")
+	}
+	operatorRequiredLinePattern := regexp.MustCompile(`(?m)^\s*"([^"]+)"\s*$`)
+	operatorRequiredLines := operatorRequiredLinePattern.FindAllStringSubmatch(operatorRequiredBlock[1], -1)
+	actualOperatorRequiredSentinels := make([]string, len(operatorRequiredLines))
+	for index, line := range operatorRequiredLines {
+		actualOperatorRequiredSentinels[index] = line[1]
+	}
+	if !reflect.DeepEqual(actualOperatorRequiredSentinels, operatorRequiredSentinels) {
+		t.Fatalf("project-operator required inventory sentinels = %q, want exact ordered %q", actualOperatorRequiredSentinels, operatorRequiredSentinels)
+	}
+	for _, coordinate := range wantCoordinates {
+		if got := strings.Count(projectOperator, coordinate); got != 3 {
+			t.Fatalf("project-operator coordinate %q count = %d, want one per mode", coordinate, got)
+		}
+		for _, mode := range []string{"normal", "race", "cgo0"} {
+			testTimeout := "30m"
+			timeoutMinutes := 40
+			switch {
+			case strings.Contains(coordinate, "runs_on: macos-15-intel"):
+				testTimeout = "45m"
+				timeoutMinutes = 55
+			case strings.Contains(coordinate, "runs_on: macos-26"):
+				testTimeout = "35m"
+				timeoutMinutes = 45
+			}
+			entry := coordinate + "\n            mode: " + mode +
+				"\n            test_timeout: " + testTimeout +
+				fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
+			if got := strings.Count(projectOperator, entry); got != 1 {
+				t.Fatalf("project-operator coordinate/mode entry %q count = %d, want 1", entry, got)
+			}
+		}
+	}
+	if got := strings.Count(projectOperator, "          - runs_on: "); got != 12 {
+		t.Fatalf("project-operator matrix leg count = %d, want 4 coordinates x 3 modes", got)
+	}
+	if got := strings.Count(projectOperator, "test_timeout:"); got != 12 {
+		t.Fatalf("project-operator package timeout count = %d, want 12", got)
+	}
+	for fragment, want := range map[string]int{
+		"test_timeout: 30m":   6,
+		"test_timeout: 35m":   3,
+		"test_timeout: 45m":   3,
+		"timeout_minutes: 40": 6,
+		"timeout_minutes: 45": 3,
+		"timeout_minutes: 55": 3,
+	} {
+		if got := strings.Count(projectOperator, fragment); got != want {
+			t.Fatalf("project-operator %s count = %d, want %d", fragment, got, want)
+		}
+	}
+	if strings.Contains(projectOperator, `for mode in normal race cgo0`) ||
+		strings.Contains(projectOperator, "continue-on-error:") || strings.Contains(projectOperator, "|| true") {
+		t.Fatal("project-operator matrix modes must remain independent and required")
 	}
 	for _, required := range []string{
 		"name: Targeted migrate product (${{ matrix.runs_on }}, ${{ matrix.mode }})",
@@ -868,14 +994,13 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`go test "${test_flags[@]}" ./cmd/godj ./project ./internal/projectcheck/...`,
 		`go test "${test_flags[@]}" ./conformance/runners/godj`,
 		`go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" || status=$?`,
-		`go test "${json_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" || status=$?`,
-		`assert len(expected) == 5, sorted(expected)`,
-		`assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))`,
-		`assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))`,
-		`assert skips == [], (sys.argv[4], skips)`,
+		`runserver_required=(`,
+		`for test_name in "${runserver_required[@]}"; do`,
+		`pass_fragment="\"Action\":\"pass\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""`,
+		`skip_fragment="\"Action\":\"skip\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""`,
 		`if [ "$mode" = "normal" ]; then`,
 		`go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj`,
-		`go vet ./conformance/runserverproduct ./conformance/projectoperatorproduct`,
+		`go vet ./conformance/runserverproduct`,
 	} {
 		if strings.Count(product, fragment) != 1 {
 			t.Fatalf("product project-check matrix fragment %q count = %d, want 1", fragment, strings.Count(product, fragment))
@@ -891,11 +1016,6 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI",
 		"TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime",
 		"TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup",
-		"TestOperatorSanitizeEnvironmentDropsHostOnlyControls",
-		"TestGlobalCreatesuperuserExternalSQLiteProduct",
-		"TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity",
-		"TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation",
-		"TestOperatorCountRawSecretOccurrencesDetectsAuditMarker",
 	} {
 		if got := strings.Count(product, sentinel); got != 1 {
 			t.Fatalf("product project-check required sentinel %q count = %d, want 1", sentinel, got)
@@ -903,6 +1023,11 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	}
 	if strings.Contains(product, `for mode in normal race cgo0`) {
 		t.Fatal("product project-check matrix mode job must not rerun all three modes internally")
+	}
+	for _, forbidden := range []string{"./conformance/projectoperatorproduct", "operator_log", "required_regex"} {
+		if strings.Contains(product, forbidden) {
+			t.Fatalf("product project-check matrix must leave operator inventory to its dedicated matrix: found %q", forbidden)
+		}
 	}
 	for _, command := range []string{
 		"run: go test -count=1 ./migrations ./db/sqlite",
@@ -1181,8 +1306,8 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 			t.Fatalf("workflow contains forbidden unsupported backend fragment %q", forbidden)
 		}
 	}
-	migrationProjectCheckAssertActionPin(t, text, "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1", 10)
-	migrationProjectCheckAssertActionPin(t, text, "actions/setup-go", "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", 9)
+	migrationProjectCheckAssertActionPin(t, text, "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1", 12)
+	migrationProjectCheckAssertActionPin(t, text, "actions/setup-go", "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", 11)
 	migrationProjectCheckAssertActionPin(t, text, "actions/setup-python", "5fda3b95a4ea91299a34e894583c3862153e4b97", 1)
 	migrationProjectCheckAssertActionPin(t, text, "astral-sh/setup-uv", "c771a70e6277c0a99b617c7a806ffedaca235ff9", 3)
 	migrationProjectCheckAssertRelationProductFailureFormatter(t, text)

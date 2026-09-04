@@ -139,7 +139,7 @@ jobs:
           conformance/reference/drf
 
   portable-go-matrix:
-    name: Portable Go (${{ matrix.mode }})
+    name: Portable Go (${{ matrix.mode }}, ${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout_minutes }}
     env:
@@ -149,14 +149,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - mode: normal-vet
-            make_targets: "go-test go-vet"
-            timeout_minutes: 40
+          - mode: normal
+            shard: core-vet
+            make_targets: "go-test-core go-vet"
+            timeout_minutes: 30
+          - mode: normal
+            shard: products
+            make_targets: "go-test-products"
+            timeout_minutes: 55
           - mode: race
-            make_targets: "go-race"
+            shard: core
+            make_targets: "go-race-core"
+            timeout_minutes: 30
+          - mode: race
+            shard: products
+            make_targets: "go-race-products"
             timeout_minutes: 55
           - mode: cgo0
-            make_targets: "cgo-zero-build"
+            shard: core
+            make_targets: "cgo-zero-build-core"
+            timeout_minutes: 30
+          - mode: cgo0
+            shard: products
+            make_targets: "cgo-zero-build-products"
             timeout_minutes: 50
 
     steps:
@@ -864,7 +879,8 @@ jobs:
           # These package groups are intentionally separate: cmd/project tests
           # build external runners, while the conformance runner owns its own
           # process-heavy fixtures. Running them in one go command made them
-          # contend for the same hosted runner without adding coverage.
+          # contend for the same hosted runner without adding coverage. The
+          # operator product has its own OS/mode matrix below.
           go test "${test_flags[@]}" ./cmd/godj ./project ./internal/projectcheck/...
           go test "${test_flags[@]}" ./conformance/runners/godj
 
@@ -895,20 +911,157 @@ jobs:
             fi
           done
 
+          if [ "$mode" = "normal" ]; then
+            go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+            go vet ./conformance/runserverproduct
+          fi
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  project-operator-product-matrix:
+    name: Project operator product (${{ matrix.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: normal
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: race
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: cgo0
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: normal
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: race
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: cgo0
+            test_timeout: 30m
+            timeout_minutes: 40
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: normal
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: race
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: cgo0
+            test_timeout: 45m
+            timeout_minutes: 55
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: normal
+            test_timeout: 35m
+            timeout_minutes: 45
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: race
+            test_timeout: 35m
+            timeout_minutes: 45
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: cgo0
+            test_timeout: 35m
+            timeout_minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Prewarm project command dependencies
+        run: go list -deps -mod=readonly ./cmd/godj >/dev/null
+
+      - name: Run and inventory project operator product mode
+        run: |
+          set -euo pipefail
+          mode="${{ matrix.mode }}"
+          test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1)
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported project operator product mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+
           operator_package="github.com/progresshans/godj/conformance/projectoperatorproduct"
-          operator_required=(
+          required_tests=(
             "TestOperatorSanitizeEnvironmentDropsHostOnlyControls"
             "TestGlobalCreatesuperuserExternalSQLiteProduct"
             "TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity"
             "TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation"
             "TestOperatorCountRawSecretOccurrencesDetectsAuditMarker"
           )
-          required_regex="^($(IFS='|'; printf '%s' "${operator_required[*]}"))$"
+          required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
           required="$RUNNER_TEMP/project-operator-sqlite-required-tests.txt"
-          printf '%s\n' "${operator_required[@]}" > "$required"
+          printf '%s\n' "${required_tests[@]}" > "$required"
           operator_log="$RUNNER_TEMP/project-operator-sqlite-${mode}.json"
           status=0
-          go test "${json_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" || status=$?
+          go test "${test_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" || status=$?
           if [ "$status" -ne 0 ]; then
             tail -c 60000 "$operator_log"
             exit "$status"
@@ -942,8 +1095,7 @@ jobs:
           assert skips == [], (sys.argv[4], skips)
           PY
           if [ "$mode" = "normal" ]; then
-            go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
-            go vet ./conformance/runserverproduct ./conformance/projectoperatorproduct
+            go vet ./conformance/projectoperatorproduct
           fi
 
       - name: Require a clean worktree
@@ -1567,6 +1719,7 @@ jobs:
       - relation-binding-matrix
       - relation-product-matrix
       - product-project-check-matrix
+      - project-operator-product-matrix
       - targeted-migrate-product-matrix
       - python-compatibility-matrix
       - postgresql-product
@@ -1591,6 +1744,7 @@ jobs:
               "relation-binding-matrix",
               "relation-product-matrix",
               "product-project-check-matrix",
+              "project-operator-product-matrix",
               "targeted-migrate-product-matrix",
               "python-compatibility-matrix",
               "postgresql-product",
