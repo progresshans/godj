@@ -79,9 +79,14 @@ proposed → ready → active → completed
 | [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md) | completed | Project relation-query sparse-model compile availability |
 | [GDJ-0054](0054-project-linked-deterministic-sqlmigrate.md) | completed | Project-linked deterministic DB-free `sqlmigrate` |
 | [GDJ-0055](0055-project-linked-explicit-operator-provisioning.md) | completed | Project-linked explicit operator provisioning과 raw-password-free restart |
+| [GDJ-0056](0056-sqlite-retained-connection-terminal-quarantine.md) | active | SQLite retained-connection hard bound와 terminal backend quarantine |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 0/0입니다. 최근 completed
+현재 active/ready packet은 1/0입니다. Active
+[GDJ-0056](0056-sqlite-retained-connection-terminal-quarantine.md)은 Q-019의 SQLite unknown-cleanup retained connection을
+hard maximum 1로 제한하고 첫 retain 뒤 새 Backend I/O를 stable recovery-required로 거부하는 terminal quarantine을
+구현합니다. Retention-producing `AtomicRelation`/`CoordinatedAtomic`은 shared context-aware admission을 사용하고 explicit
+`Backend.Close`가 pool-first drain을 계속 소유합니다. 최근 completed
 [GDJ-0055](0055-project-linked-explicit-operator-provisioning.md)는 migrated clean system state에 durable operator를 exactly once
 생성하는 exact `godj createsuperuser [--project PATH]`와 raw-password-free `OpenExisting` restart를 구현했습니다. Accepted
 [ADR-0056](../docs/adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit startup bootstrap을 current-only로 제거하고

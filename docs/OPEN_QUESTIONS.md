@@ -18,7 +18,7 @@
 | Q-016 | Partial | GDJ-0044 completed / M8 전 | API는 DRF 3.18.0 + Django 6.1 + CPython 3.14.3 exact profile과 JSON/SessionAuthentication/PageNumber/closed Router bounded 18-contract slice를 Accepted/hosted-verified; Channels/Realtime profile과 broader API는 open |
 | Q-017 | P1 | GDJ-0048 completed / reverse-general-upgrade follow-up | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON도 EVID-142에서 hosted-verified. Reverse/general upgrade와 첫 외부 지원 릴리스 이후 upgrader는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
-| Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
+| Q-019 | P1 | GDJ-0056 active / ADR-0057 Proposed | Unknown-cleanup retained connection을 shared raw admission으로 1개에 제한하고 terminal Backend recovery-required를 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
 | Q-021 | Partial | GDJ-0047 completed / token lifecycle·OAuth 후속 | Accepted ADR-0049/GDJ-0047의 first-party session과 strict injected Bearer resource-server profile은 SQLite/PostgreSQL required, corrected final local full/386/archive와 EVID-138 exact hosted까지 통과; JWT/opaque 발급, refresh family, key rotation/revocation, OAuth/OIDC·production BFF는 open |
 | Q-022 | Partial | GDJ-0055 completed / broader identity·credential lifecycle 후속 | Migrated clean singleton operator의 explicit TTY provision-once와 raw-password-free open은 Accepted ADR-0056으로 답함; multi-user, noninteractive provider, password lifecycle와 session-family revocation은 후속 |
@@ -779,11 +779,19 @@ unknown-outcome physical connection을 pool에 돌려주지 않고 backend-priva
 `Backend.Close`에서 seal/drain합니다. 이는 raw transaction reuse를 막는 안전한 current behavior지만, backend가 오래
 살고 unknown-outcome fault가 반복되면 retained connection/lock/resource가 Close 전까지 계속 증가할 수 있습니다.
 
-Q-019는 다음 선택을 별도 P1 work에서 결정합니다.
+Active [GDJ-0056](../work/0056-sqlite-retained-connection-terminal-quarantine.md)과 Proposed
+[ADR-0057](adr/0057-sqlite-retained-connection-terminal-quarantine.md)은 다음 bounded 선택을 검증합니다.
+
+- Retention-producing `AtomicRelation`과 `CoordinatedAtomic`을 context-aware single admission으로 제한
+- 첫 actual retain에서 Backend를 terminal recovery-required로 전환하고 새 I/O를 pre-I/O 거부
+- Retained connection hard maximum 1과 explicit `Backend.Close`의 pool-first drain ownership 유지
+- Already-admitted operation은 강제 취소하지 않고 새 admission만 차단
+
+다음 선택지는 검토 후 이번 bounded packet에서 채택하지 않았습니다.
 
 - Current unbounded retention을 명시적 operational contract로 유지할지
-- Backend-level cap/quarantine/health degradation을 추가할지
-- External reconciliation token 또는 forced backend shutdown을 요구할지
+- Context 없는 implicit pool shutdown 또는 unsafe cap-overflow `Conn.Close`
+- External reconciliation token, public health/metric API 또는 automatic reopen
 - Retained resource/lock을 어떤 metric과 error surface로 노출할지
 
 GDJ-0033은 `db/**`를 수정하지 않고 이 질문에 답하지 않습니다. Behavior를 바꾸려면 ADR-0030을 조용히 다시 쓰지

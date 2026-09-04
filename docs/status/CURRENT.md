@@ -3,7 +3,14 @@
 - 마지막 갱신: 2026-09-05
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `codex/revision-fenced-migration-lifecycle`
-- 현재 active/ready work는 0/0입니다. 최근 completed
+- 현재 active/ready work는 1/0입니다. Active
+  [GDJ-0056](../../work/0056-sqlite-retained-connection-terminal-quarantine.md)은 Q-019의 SQLite unconfirmed-cleanup
+  retained connection을 hard maximum 1로 제한하고 첫 retain 뒤 Backend의 새 I/O를 stable recovery-required로 닫는
+  terminal quarantine을 구현합니다. Proposed
+  [ADR-0057](../adr/0057-sqlite-retained-connection-terminal-quarantine.md)은 retention-producing
+  `AtomicRelation`/`CoordinatedAtomic`의 shared context-aware admission, already-admitted 경계와 explicit
+  `Backend.Close`의 pool-first drain ownership을 선택합니다. Baseline은 clean `003afee4524a...`, tree
+  `77d19c56d3e...`이며 activation 단계에서 제품 구현·테스트·상태 승격은 아직 없습니다. 최근 completed
   [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md)는 exact
   `godj createsuperuser`와 `godj createsuperuser --project PATH`로 migrated clean system state에 durable operator를
   exactly once 생성하고 raw-password-free `OpenExisting` authenticated restart를 구현했습니다. Accepted

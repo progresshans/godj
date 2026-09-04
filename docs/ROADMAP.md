@@ -1,7 +1,10 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 active/ready batch는 0/0입니다.
+- 현재 active/ready batch는 1/0입니다. Active
+  [GDJ-0056](../work/0056-sqlite-retained-connection-terminal-quarantine.md)은 Q-019의 SQLite retained-resource lifetime을
+  다룹니다. Proposed ADR-0057 아래 retention-producing raw transaction을 context-aware single admission으로 제한하고 첫
+  unconfirmed cleanup 뒤 새 Backend I/O를 terminal recovery-required로 거부하되 pool seal/drain은 explicit Close가 소유합니다.
 - 최근 completed batch: [GDJ-0055](../work/0055-project-linked-explicit-operator-provisioning.md)는 migrated clean singleton
   operator의 exact TTY `createsuperuser` provision-once와 raw-password-free authenticated restart를 Accepted
   ADR-0056/SYS-021..030으로 검증했습니다. Exact source `0b5b6fc6...`, tree `dac6baa7...`의 local source-bound
