@@ -87,11 +87,12 @@ proposed → ready → active → completed
 hard maximum 1로 제한하고 첫 retain 뒤 새 Backend I/O를 stable recovery-required로 거부하는 terminal quarantine을
 구현합니다. Retention-producing `AtomicRelation`/`CoordinatedAtomic`은 shared context-aware admission을 사용하고 explicit
 `Backend.Close`가 pool-first drain을 계속 소유합니다. Phase A~C checkpoint source `9f17528f...`, tree `271cf8d6...`는
-affected normal/race/CGO0/vet, generated drift와 SQLite product gates를 통과했습니다. Clean source `af6a8a0...`, tree
-`fa1526bb...`의 system-state/project-operator PostgreSQL A/B와 exact five-file publication `70b6922...`, tree `9668452...`도
-통과했습니다. 상세 증거는
-[EVID-181](../docs/status/TEST_EVIDENCE.md#evid-20260905-181--gdj-0056-source-bound-attestation-publication-checkpoint)이
-소유하며 full local/386/relation/external-archive와 exact-head Hosted final frozen gate는 아직 남아 있습니다. 최근 completed
+affected normal/race/CGO0/vet, generated drift와 SQLite product gates를 통과했습니다. Phase E preflight actual
+990/990/0·101,128 bytes·`909161b2...71fc`로 relation lock을 교정한 source `d0f48f2...`, tree `aec6f5e2...`의
+system-state/project-operator PostgreSQL A/B와 exact five-file publication `b8bba262...`, tree `4057b8be...`도 통과했습니다.
+상세 증거는
+[EVID-182](../docs/status/TEST_EVIDENCE.md#evid-20260905-182--gdj-0056-relation-inventory-refreeze-and-corrected-source-bound-attestation-publication-checkpoint)가
+소유하며 full local/386/final relation/external-archive와 exact-head Hosted final frozen gate는 아직 남아 있습니다. 최근 completed
 [GDJ-0055](0055-project-linked-explicit-operator-provisioning.md)는 migrated clean system state에 durable operator를 exactly once
 생성하는 exact `godj createsuperuser [--project PATH]`와 raw-password-free `OpenExisting` restart를 구현했습니다. Accepted
 [ADR-0056](../docs/adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit startup bootstrap을 current-only로 제거하고

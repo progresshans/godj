@@ -192,6 +192,8 @@ unconfirmed physical connection은 최대 1개입니다.
   trigger/waiter/Close/cause/state/surface/race regression
 - `conformance/{systemstate,projectoperatorproduct}/attestations/**`,
   `conformance/internal/protocol/system_state_artifacts_test.go`: current source-bound PostgreSQL A/B와 exact byte locks
+- `.github/workflows/ci.yml`, `conformance/internal/protocol/migration_project_check_artifacts_test.go`: current exact relation
+  inventory mirror
 - `conformance/README.md`, `docs/status/{CURRENT,TEST_EVIDENCE}.md`, `work/README.md`: publication checkpoint와 non-claim
 
 ## 결정된 사항
@@ -217,6 +219,10 @@ unconfirmed physical connection은 최대 1개입니다.
   `909161b2b664c85c82673d1309a68e3a448f27cb8d8361773bc8c056be3771fc`입니다. Workflow/protocol lock을 교정한 뒤
   두 PostgreSQL source-bound attestation을 새 freeze에서 다시 A/B 게시하며, obsolete source의 incomplete `make ci`는
   acceptance로 사용하지 않습니다.
+- 2026-09-05: Relation lock correction source `d0f48f2...`, tree `aec6f5e2...`에서 두 checked PostgreSQL attestation을
+  independent A/B로 다시 캡처했습니다. Exact five-file publication `b8bba262...`, tree `4057b8be...`와
+  checksum/normal/race/CGO0/vet/full portable conformance가 통과했습니다. 이 checkpoint는 final full/386/relation/archive/
+  Hosted acceptance가 아니므로 GDJ-0056 active, ADR-0057 Proposed, Q-019 P1/open을 유지합니다.
 
 ## 미결정/Blocker
 
@@ -225,9 +231,10 @@ unconfirmed physical connection은 최대 1개입니다.
 ## 테스트 증거
 
 - Evidence ID:
-  [EVID-180](../docs/status/TEST_EVIDENCE.md#evid-20260905-180--gdj-0056-sqlite-terminal-quarantine-implementation-checkpoint)
+  [EVID-180](../docs/status/TEST_EVIDENCE.md#evid-20260905-180--gdj-0056-sqlite-terminal-quarantine-implementation-checkpoint),
+  [EVID-181](../docs/status/TEST_EVIDENCE.md#evid-20260905-181--gdj-0056-source-bound-attestation-publication-checkpoint),
   and
-  [EVID-181](../docs/status/TEST_EVIDENCE.md#evid-20260905-181--gdj-0056-source-bound-attestation-publication-checkpoint)
+  [EVID-182](../docs/status/TEST_EVIDENCE.md#evid-20260905-182--gdj-0056-relation-inventory-refreeze-and-corrected-source-bound-attestation-publication-checkpoint)
 - Exact implementation source: `9f17528f1751db9cf1c0dda3435fc1bfbd7a6f19`, tree
   `271cf8d6df0f7a1a48eda9fe9fb46d1da456b1f2`
 - Passed:
@@ -242,14 +249,15 @@ unconfirmed physical connection은 최대 1개입니다.
   - `git diff --check`
 - Independent review: state/admission/Close, migration-session/cause/surface coverage에서 P0/P1/P2=0; 발견된 P2/P3는 현재
   implementation/test tree에 반영했습니다.
-- Exact clean capture source `af6a8a072d97b144e9bdbeb180ec7a2abc96ecf5`, tree
-  `fa1526bb6879e882e0edca7e875ffbb6499cf9c1`에서 system-state/project-operator independent PostgreSQL A/B가
-  byte-identical하게 통과했습니다. Exact five-file publication은 `70b6922152442e9b1276ad1cc840a8ec13ec8852`, tree
-  `96684524027ed6e4cf63ca76397d8d7e27f253a2`입니다.
-- Publication candidate에서 checksum, attestation/protocol normal/race/CGO-disabled/vet와 `make godj-conformance`가
-  통과했습니다. 처음 세 heavy mode를 동시에 실행한 진단 시도는 task-local temporary disk를 고갈시켜 실패했으며
-  acceptance로 사용하지 않았습니다. 각 mode를 별도 empty temp root에서 직렬 재실행해 모두 통과했습니다.
-- Not completed at this checkpoint: full `make ci`, Linux/386, relation inventory, `.git`-free external archive, exact-head Hosted
+- Phase E relation preflight actual은 990/990/0, 101,128 payload bytes/SHA-256 `909161b2...71fc`였고 workflow/protocol
+  mirror를 교정했습니다. Exact corrected clean capture source `d0f48f2cac6b7e6f726443b721a38fc34d7a8121`, tree
+  `aec6f5e2f798713b83a6cf5c5ea4f2f40cd0b195`에서 system-state/project-operator independent PostgreSQL A/B가
+  byte-identical하게 통과했습니다. Exact five-file publication은 `b8bba2629bae595094c2ebb1b3206fa5097b4799`, tree
+  `4057b8be3b0ac08291457425cb08b05bfed5db26`입니다.
+- Corrected publication candidate에서 checksum, attestation/protocol normal/race/CGO-disabled/vet와
+  `make godj-conformance`가 통과했습니다. 이전 first publication과 그 검증은 EVID-181의 역사적 checkpoint로 보존합니다.
+- Not completed at this checkpoint: full `make ci`, Linux/386, final frozen relation inventory, `.git`-free external archive,
+  exact-head Hosted
 
 ## 위험과 rollback
 
@@ -265,9 +273,8 @@ unconfirmed physical connection은 최대 1개입니다.
 
 ## 다음 정확한 작업
 
-Measured relation inventory `990/101128/909161b2...71fc`로 workflow/protocol mirror를 교정하고 focused gate를 통과한 clean
-source에서 system-state/project-operator PostgreSQL checked attestation을 다시 independent A/B 게시합니다. 그 새 publication
-descendant에서만 full local/386/relation/external-archive와 exact-head Hosted final frozen gate를 한 번 실행합니다.
+Corrected publication `b8bba262...`의 최소 documentation descendant를 freeze한 뒤 full local/386/final relation/
+external-archive와 exact-head Hosted final frozen gate를 한 번 실행합니다.
 
 ## 결과와 인수인계
 

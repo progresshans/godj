@@ -16733,3 +16733,103 @@ GDJ-0055 results are not relabelled as GDJ-0056 proof.
 This five-document checkpoint descendant changes no product source, workflow, lock or checked attestation bytes. All 146 tracked
 Markdown files passed `markdown-it-py 4.0.0` parsing and local-target/trailing-whitespace validation; work/frontmatter/index,
 active/ready, ADR/Q-019 and evidence ordering/uniqueness were consistent, and `make format-check` plus `git diff --check` exited zero.
+
+## EVID-20260905-182 — GDJ-0056 Relation Inventory Refreeze and Corrected Source-bound Attestation Publication Checkpoint
+
+- Date: 2026-09-05 KST
+- Work/contract IDs: GDJ-0056 active; ADR-0057 Proposed; Q-019 P1/open
+- Obsolete preflight source: `19ea8dee61a037108be50e2ac1ef6fe284aca7ed`
+- Relation-lock correction source: `d0f48f2cac6b7e6f726443b721a38fc34d7a8121`
+- Relation-lock correction tree: `aec6f5e2f798713b83a6cf5c5ea4f2f40cd0b195`
+- Corrected exact five-file attestation publication: `b8bba2629bae595094c2ebb1b3206fa5097b4799`
+- Corrected publication tree: `4057b8be3b0ac08291457425cb08b05bfed5db26`
+
+### Relation inventory preflight and lock correction
+
+The Phase E preflight started `LC_ALL=C TZ=UTC make ci` on the otherwise clean `19ea8dee...` checkpoint. It was intentionally
+interrupted after a read-only audit established that the relation workflow still locked GDJ-0055's 978-test inventory even though
+GDJ-0056 had added a net twelve top-level tests to the included `query` and `db/sqlite` packages. No result from that incomplete
+full run is accepted as a local-final pass or failure.
+
+The workflow-equivalent normal relation command was then run once without the obsolete literal assertion. Its private JSONL was
+4,715,069 bytes/SHA-256 `21bf27e61a327d33d9b9a4142e37b89acc6b4a6ca067b57a87440200eab680a8`. Strict parsing reported
+990 top-level runs, 990 top-level passes, zero skips and zero test/package failures. The canonical sorted
+`package + NUL + test + LF` payload was 101,128 bytes/SHA-256
+`909161b2b664c85c82673d1309a68e3a448f27cb8d8361773bc8c056be3771fc`. The selector and package lists were unchanged.
+
+Commit `d0f48f2...` changed exactly `.github/workflows/ci.yml` and
+`conformance/internal/protocol/migration_project_check_artifacts_test.go`, updating both mirrors from
+978/99,969/`bc1975...` to 990/101,128/`909161...71fc`. Compatible YAML parsing, the protocol package test, `gofmt -d` and
+`git diff --check` passed. Independent review found P0/P2/P3=`0`; the expected intermediate P1 was that changing the workflow made
+both checked PostgreSQL source bindings stale. The measured JSONL is lock material only, not the still-pending final frozen relation
+inventory gate.
+
+### Corrected independent source-bound PostgreSQL A/B
+
+The independently audited 43,888-byte helper `/private/tmp/godj-gdj0056-attestation-recapture-d0f48f2.sh`, SHA-256
+`fbb7607ef27a665ecacedfa64d6746d1ada7fdd05c903daf5eb9d7e863a8cd94`, froze clean source `d0f48f2...`, tree
+`aec6f5e2...` and parent `c5256bd9705748146ee6de26d8532c68b8535cb6`. Its three pre/source/post archives were byte-identical at
+21,022,720 bytes/SHA-256 `eee5ef98d8c6187c01eb5040bcccc42cd9efd811e184294bb897451595211c04`.
+
+Capture A and B used separate extracted source trees, Docker networks, volumes, PostgreSQL 17.10 instances, database passwords and
+fresh Go 1.26.5 producer caches. The required system-state and external-operator top-level tests and packages passed once in each
+capture with zero fail/skip. Source pre/post snapshots were identical, the two canonical documents were byte-identical, captured
+secret occurrences were zero and all task-owned containers, networks and volumes were absent after cleanup.
+
+- System-state source binding: 281 files/3,720,966 payload bytes/SHA-256
+  `4bf506c505e09954285298f50489d58c46af8a25d7a11f8350b1163e18551225`
+- System-state document: 1,134 bytes/SHA-256
+  `f0e72776697f0ae7be94a3a4f678469962800d5a7abfb6874b27ec7e98dbb0ab`
+- System-state checksum file: 103 bytes/SHA-256
+  `7bdab2cbc211f5b20a48a4b98dfbd75cb59bd3e0bbf19d3fbf5cf804057994b4`
+- External-operator source binding: 336 files/3,599,204 payload bytes/SHA-256
+  `8d1840de7e248b9af95634d2d9adb99996947aa614d2310ef6e24072a8367ec2`
+- External-operator document: 1,811 bytes/SHA-256
+  `07576a61d9b49f9a2ea5ca103fd9913bd1c70c793a3805284115730fed0819d7`
+- External-operator checksum file: 116 bytes/SHA-256
+  `55446dc359eebb0d539ff9288afc8874443ce545b2c2f0201c56b7956f6ed7f0`
+
+The helper remained candidate-only. Publication `b8bba262...` changed exactly the two canonical JSON files, their two checksum files
+and the four size/hash literals in `conformance/internal/protocol/system_state_artifacts_test.go`. All four published artifacts are
+byte-identical to both approved candidates and an independent diff audit found P0/P1/P2/P3=`0`. The attestation directories and
+protocol `_test.go` lock remain excluded from both source-binding domains, so the publication does not create self-reference or new
+staleness.
+
+### Corrected publication verification
+
+The following gates ran serially against the exact publication candidate bytes now committed by `b8bba262...`:
+
+```bash
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+(cd conformance/projectoperatorproduct/attestations && shasum -a 256 -c SHA256SUMS)
+go test -count=1 ./conformance/internal/protocol
+go test -timeout=30m -count=1 \
+  ./conformance/systemstate/attestation ./conformance/projectoperatorproduct/attestation \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go test -race -timeout=35m -count=1 \
+  ./conformance/systemstate/attestation ./conformance/projectoperatorproduct/attestation \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+CGO_ENABLED=0 go test -timeout=30m -count=1 \
+  ./conformance/systemstate/attestation ./conformance/projectoperatorproduct/attestation \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go vet ./conformance/systemstate/attestation ./conformance/projectoperatorproduct/attestation \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+make godj-conformance
+```
+
+Both checksum sets, protocol and vet passed. Per-package mode timings were:
+
+- normal: system-state attestation 0.778s; operator attestation 0.730s; `godjcheck` 182.893s; protocol 2.556s
+- race: system-state attestation 1.454s; operator attestation 2.208s; `godjcheck` 203.702s; protocol 18.060s
+- CGO-disabled: system-state attestation 0.422s; operator attestation 1.011s; `godjcheck` 181.735s; protocol 2.161s
+
+`make godj-conformance` passed all configured Query, Migration, Relation, Template/Form, Auth/Admin, system-state, parameter-routing,
+Article API and API-authentication contract groups with the corrected checked artifacts. `gofmt -d`, `git diff --check`, exact
+five-file scope and clean post-commit tree checks passed.
+
+### Remaining gates and non-claims
+
+No full `make ci`, Linux/386 compile-only, final frozen relation inventory, `.git`-free external archive or exact-head Hosted matrix
+has completed on the corrected publication descendant. ADR-0057 therefore remains Proposed, Q-019 remains P1/open and GDJ-0056
+remains active. The next checkpoint freezes the minimal documentation descendant and runs those final gates once; neither the
+incomplete `19ea8dee...` full invocation nor predecessor GDJ-0055 evidence is relabelled as current acceptance proof.
