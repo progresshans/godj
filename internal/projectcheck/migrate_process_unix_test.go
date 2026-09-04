@@ -198,8 +198,9 @@ func TestMigrateOwnedProcessBoundsDescendantHeldPipesAfterDirectExit(t *testing.
 	ready := filepath.Join(t.TempDir(), "descendant")
 	holderReady := filepath.Join(t.TempDir(), "holder-ready")
 	command := helperCommand("spawn-holder", map[string]string{
-		"GODJ_HELPER_READY":        ready,
-		"GODJ_HELPER_HOLDER_READY": holderReady,
+		"GODJ_HELPER_READY":              ready,
+		"GODJ_HELPER_HOLDER_READY":       holderReady,
+		"GODJ_HELPER_HOLDER_READY_DELAY": "150ms",
 	})
 	done := make(chan ProcessResult, 1)
 	grace := 75 * time.Millisecond
@@ -207,13 +208,13 @@ func TestMigrateOwnedProcessBoundsDescendantHeldPipesAfterDirectExit(t *testing.
 		done <- executeOwnedMigrateProcess(context.Background(), nil, command, maxResponseBytes, maxDiagnosticBytes, grace)
 	}()
 	groupPID, descendantPID := migrateHelperProcessPair(t, ready)
-	waitForFile(t, holderReady)
 	t.Cleanup(func() {
 		if runserverProcessGroupExists(groupPID) {
 			_ = unix.Kill(-groupPID, unix.SIGKILL)
 		}
 		_ = unix.Kill(descendantPID, unix.SIGKILL)
 	})
+	waitForFile(t, holderReady)
 
 	select {
 	case result := <-done:

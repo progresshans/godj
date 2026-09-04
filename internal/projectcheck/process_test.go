@@ -70,7 +70,8 @@ func TestOwnedProcessHelper(t *testing.T) {
 	case "spawn-holder":
 		environment := environmentValues(os.Environ())
 		environment["GODJ_OWNED_PROCESS_HELPER"] = "hold"
-		if holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY"); holderReady != "" {
+		holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY")
+		if holderReady != "" {
 			environment["GODJ_HELPER_READY"] = holderReady
 			environment["GODJ_HELPER_HOLDER_HANDSHAKE"] = "1"
 		}
@@ -81,6 +82,7 @@ func TestOwnedProcessHelper(t *testing.T) {
 		if err := child.Start(); err != nil {
 			os.Exit(97)
 		}
+		awaitHelperDescendantReady(child, holderReady)
 		if ready := os.Getenv("GODJ_HELPER_READY"); ready != "" {
 			payload := strconv.Itoa(os.Getpid()) + "," + strconv.Itoa(child.Process.Pid)
 			if err := publishHelperReady(payload); err != nil {
@@ -91,7 +93,8 @@ func TestOwnedProcessHelper(t *testing.T) {
 	case "spawn-quiet-holder":
 		environment := environmentValues(os.Environ())
 		environment["GODJ_OWNED_PROCESS_HELPER"] = "hold"
-		if holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY"); holderReady != "" {
+		holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY")
+		if holderReady != "" {
 			environment["GODJ_HELPER_READY"] = holderReady
 			environment["GODJ_HELPER_HOLDER_HANDSHAKE"] = "1"
 		}
@@ -100,6 +103,7 @@ func TestOwnedProcessHelper(t *testing.T) {
 		if err := child.Start(); err != nil {
 			os.Exit(97)
 		}
+		awaitHelperDescendantReady(child, holderReady)
 		if ready := os.Getenv("GODJ_HELPER_READY"); ready != "" {
 			payload := strconv.Itoa(os.Getpid()) + "," + strconv.Itoa(child.Process.Pid)
 			if err := publishHelperReady(payload); err != nil {
@@ -110,6 +114,7 @@ func TestOwnedProcessHelper(t *testing.T) {
 	case "hold":
 		signal.Ignore(os.Interrupt)
 		if os.Getenv("GODJ_HELPER_HOLDER_HANDSHAKE") == "1" {
+			delayHelperDescendantReady()
 			if err := publishHelperReady(strconv.Itoa(os.Getpid())); err != nil {
 				os.Exit(96)
 			}
@@ -336,4 +341,34 @@ func waitForFile(t *testing.T, path string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", path)
+}
+
+func awaitHelperDescendantReady(child *exec.Cmd, path string) {
+	if path == "" {
+		return
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); err == nil {
+			return
+		} else if !errors.Is(err, os.ErrNotExist) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	_ = child.Process.Kill()
+	_, _ = child.Process.Wait()
+	os.Exit(95)
+}
+
+func delayHelperDescendantReady() {
+	raw := os.Getenv("GODJ_HELPER_HOLDER_READY_DELAY")
+	if raw == "" {
+		return
+	}
+	delay, err := time.ParseDuration(raw)
+	if err != nil || delay < 0 {
+		os.Exit(95)
+	}
+	time.Sleep(delay)
 }

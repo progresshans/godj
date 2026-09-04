@@ -125,8 +125,10 @@ func TestCreatesuperuserProcessHelper(t *testing.T) {
 		_, _ = io.WriteString(os.Stdout, os.Getenv("GODJ_CREATESUPERUSER_HELPER_WIRE"))
 		environment := environmentValues(os.Environ())
 		environment[createsuperuserProcessHelperEnvironment] = "hold"
-		if holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY"); holderReady != "" {
+		holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY")
+		if holderReady != "" {
 			environment["GODJ_HELPER_READY"] = holderReady
+			environment["GODJ_HELPER_HOLDER_HANDSHAKE"] = "1"
 		}
 		child := exec.Command(os.Args[0], "-test.run=^TestCreatesuperuserProcessHelper$")
 		child.Env = sortedEnvironment(environment)
@@ -135,6 +137,7 @@ func TestCreatesuperuserProcessHelper(t *testing.T) {
 		if err := child.Start(); err != nil {
 			os.Exit(97)
 		}
+		awaitHelperDescendantReady(child, holderReady)
 		if ready := os.Getenv("GODJ_HELPER_READY"); ready != "" {
 			payload := strconv.Itoa(os.Getpid()) + "," + strconv.Itoa(child.Process.Pid)
 			if err := publishHelperReady(payload); err != nil {
@@ -144,6 +147,9 @@ func TestCreatesuperuserProcessHelper(t *testing.T) {
 		os.Exit(0)
 	case "hold":
 		signal.Ignore(os.Interrupt)
+		if os.Getenv("GODJ_HELPER_HOLDER_HANDSHAKE") == "1" {
+			delayHelperDescendantReady()
+		}
 		if err := publishHelperReady(strconv.Itoa(os.Getpid())); err != nil {
 			os.Exit(96)
 		}
@@ -623,6 +629,7 @@ func TestCreatesuperuserProcessKillsQuietDescendantHoldingResponsePipesAfterDire
 		"GODJ_CREATESUPERUSER_HELPER_WIRE":           string(wire),
 		"GODJ_HELPER_READY":                          ready,
 		"GODJ_HELPER_HOLDER_READY":                   holderReady,
+		"GODJ_HELPER_HOLDER_READY_DELAY":             "150ms",
 	})
 	done := make(chan createsuperuserProcessResult, 1)
 	grace := 75 * time.Millisecond
@@ -630,13 +637,13 @@ func TestCreatesuperuserProcessKillsQuietDescendantHoldingResponsePipesAfterDire
 		done <- executeOwnedCreatesuperuserProcessWithHooks(context.Background(), nil, command, frame, grace, createsuperuserProcessHooks{})
 	}()
 	groupPID, descendantPID := createsuperuserProcessPair(t, ready)
-	waitForFile(t, holderReady)
 	t.Cleanup(func() {
 		if runserverProcessGroupExists(groupPID) {
 			_ = unix.Kill(-groupPID, unix.SIGKILL)
 		}
 		_ = unix.Kill(descendantPID, unix.SIGKILL)
 	})
+	waitForFile(t, holderReady)
 
 	select {
 	case result := <-done:
