@@ -16661,3 +16661,75 @@ relation inventory, `.git`-free external archive or exact-head Hosted matrix has
 Proposed, Q-019 remains P1/open and GDJ-0056 remains active. This checkpoint does not claim generic transaction quarantine,
 automatic reopen/retry, public health/metrics, same-file cross-Backend/process propagation, nested raw transaction/savepoint support
 or arbitrary in-flight cancellation.
+
+## EVID-20260905-181 — GDJ-0056 Source-bound Attestation Publication Checkpoint
+
+- Date: 2026-09-05 KST
+- Work/contract IDs: GDJ-0056 active; ADR-0057 Proposed; Q-019 P1/open
+- Exact clean capture source: `af6a8a072d97b144e9bdbeb180ec7a2abc96ecf5`
+- Exact capture tree: `fa1526bb6879e882e0edca7e875ffbb6499cf9c1`
+- Behavioral implementation parent: `9f17528f1751db9cf1c0dda3435fc1bfbd7a6f19`
+- Exact five-file publication: `70b6922152442e9b1276ad1cc840a8ec13ec8852`
+- Exact publication tree: `96684524027ed6e4cf63ca76397d8d7e27f253a2`
+
+### Independent source-bound PostgreSQL A/B
+
+The audited 44,453-byte capture helper `/private/tmp/godj-gdj0056-attestation-recapture-af6a8a0.sh`, SHA-256
+`acfb33c57903016cda5e7a0d33a914ba3c5f55037fe370abbd88e7101f566552`, froze the exact clean source and tree above.
+Its source archive was 21,012,480 bytes/SHA-256
+`7fddc39b7c8c126d63f6ee7157a3073052fd7e2e3c8b7c80ff254aec88661a9f`. Capture A and B used separate source extraction,
+Docker network, volume, PostgreSQL 17.10 instance, Go 1.26.5 producer, database password and fresh Go cache. Both required
+top-level tests and packages passed once with zero fail/skip, the canonical documents were byte-identical, secret occurrences were
+zero and task-owned containers, networks and volumes were absent after cleanup.
+
+- System-state source binding: 281 files/3,720,965 payload bytes/SHA-256
+  `7356db76299a1ccfd60d47f5fc92bcaae469cefb8337247f31a38ee7aaceea3f`
+- System-state document: 1,134 bytes/SHA-256
+  `54b18592d78657a76123a6c1f4ae5228754de53dbfccdce65ae051869fdc4bb9`
+- System-state checksum file: 103 bytes/SHA-256
+  `7e0c42a54a5c582bbd2cc4371bd46404414b8b50aaa57463fc55e00828b9bdcf`
+- External operator source binding: 336 files/3,599,203 payload bytes/SHA-256
+  `ac896a6252dc8643a4fd425fd34c37c84428ed42ce1b78f36d7d0bacf9a33017`
+- External operator document: 1,811 bytes/SHA-256
+  `274e2d94f8cd8c028dda8cd492c7066ad447802517482db28feed6fac3a6c159`
+- External operator checksum file: 116 bytes/SHA-256
+  `1d10b4454c49a1fc1997bd930bca1f48f67448c7c5aad80a01dc96e305afd571`
+
+The helper only produced candidates. The publication commit changed exactly the two canonical JSON documents, their two checksum
+files and the four byte/hash locks in `conformance/internal/protocol/system_state_artifacts_test.go`; the candidates and published
+files were byte-identical. Attestation directories and the protocol `_test.go` lock are excluded from both source-binding domains,
+so this publication descendant does not make either checked binding stale.
+
+### Publication verification and resource-bound rerun
+
+Both checksum sets and `go vet` for the two attestation packages, `conformance/cmd/godjcheck` and protocol package passed. The same
+four packages passed normal, race and CGO-disabled modes. An initial diagnostic invocation mistakenly started all three heavy modes
+concurrently; repository-external fixture builds exhausted the available local temporary storage and emitted `no space left on device` plus
+derived redacted project-build failures. Those incomplete runs are classified as local resource contention, are not acceptance
+evidence and do not establish a product failure or pass.
+
+Each mode was then rerun serially from a separate empty task-specific temp root and passed:
+
+- normal: system-state attestation 0.813s; operator attestation 2.008s; `godjcheck` 218.449s; protocol 2.686s
+- race: system-state attestation 1.837s; operator attestation 1.854s; `godjcheck` 238.420s; protocol 18.701s
+- CGO-disabled: system-state attestation 0.410s; operator attestation 1.037s; `godjcheck` 220.771s; protocol 2.810s
+
+`make godj-conformance` subsequently passed once, including its configured portable migration, relation, template/form, auth/admin,
+system-state, parameter-routing, Article API and API-authentication contract groups with the newly published checked artifacts. `gofmt` and
+`git diff --check` passed, and all four serial temp roots were empty before their exact task-owned paths were removed.
+
+During the later read-only documentation audit, an incorrectly quoted search pattern expanded a command substitution and started
+`make ci` unintentionally. It and its children were terminated after about 20 seconds; no test result from that incomplete invocation
+is accepted, no additional repository path changed and a process check found no remaining test/build child. This operational mistake
+does not count as the Phase E full local gate.
+
+### Remaining gates and non-claims
+
+No full `make ci`, Linux/386 compile-only, relation inventory, `.git`-free external archive or exact-head Hosted matrix has completed
+for this publication source yet. ADR-0057 therefore remains Proposed, Q-019 remains P1/open and GDJ-0056 remains active. The next gate
+freezes this publication documentation descendant and runs the final local/platform/archive and Hosted acceptance once; predecessor
+GDJ-0055 results are not relabelled as GDJ-0056 proof.
+
+This five-document checkpoint descendant changes no product source, workflow, lock or checked attestation bytes. All 146 tracked
+Markdown files passed `markdown-it-py 4.0.0` parsing and local-target/trailing-whitespace validation; work/frontmatter/index,
+active/ready, ADR/Q-019 and evidence ordering/uniqueness were consistent, and `make format-check` plus `git diff --check` exited zero.

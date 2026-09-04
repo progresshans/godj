@@ -471,10 +471,12 @@ PostgreSQL을 live 실행했다고 주장하지 않고 strict attestation 검증
 
 GDJ-0055는 같은 manifest에 SYS-021..030을 추가하고 implicit bootstrap을 explicit `ProvisionOperator`와 raw-password-free
 `OpenExisting`으로 분리했습니다. Exact TTY `godj createsuperuser [--project PATH]`, one-shot secret transport,
-cooperative exactly-one insert와 distinct-process SQLite/PostgreSQL Admin/API restart actual이 모두 `passing`입니다. Exact
-source `0b5b6fc6...`의 current system-state binding은 281 files/3,714,953 bytes/SHA-256 `d4b0579c...51c34`, external
-operator binding은 336 files/3,593,191 bytes/SHA-256 `4f63ff58...3a3e24`이고 EVID-179/Hosted run `33899930122`에서
-79/79 jobs·797/797 steps와 PostgreSQL per-mode core 23/23/0, operator-target 3/3/0이 통과했습니다. 두 checked
+cooperative exactly-one insert와 distinct-process SQLite/PostgreSQL Admin/API restart actual이 모두 `passing`입니다.
+GDJ-0056 clean capture source `af6a8a0...`의 current system-state binding은 281 files/3,720,965 bytes/SHA-256
+`7356db76...ea3f`, external operator binding은 336 files/3,599,203 bytes/SHA-256 `ac896a62...3017`입니다. Independent A/B와
+exact five-file publication `70b6922...`는 EVID-181에서 통과했고 exact-head Hosted final gate는 아직 남아 있습니다.
+GDJ-0055 source `0b5b6fc6...`의 이전 terminal Hosted run `33899930122`는 EVID-179에서 79/79 jobs·797/797 steps와
+PostgreSQL per-mode core 23/23/0, operator-target 3/3/0을 통과했습니다. 두 checked
 attestation flag는 current SYS-001..030 portable actual의 fail-closed 입력이므로 위 command에서 함께 제공해야 합니다.
 
 ## Exact profile

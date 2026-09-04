@@ -133,13 +133,23 @@ unconfirmed physical connection은 최대 1개입니다.
    검증합니다. Concurrent Close loser는 winner의 drain 완료를 기다리는 completion barrier가 아닙니다.
 3. Existing SQLite relation/system-state flow와 normal/race/CGO-disabled/vet/generated-drift를 실행합니다.
 
-### Phase D — Frozen integration and publication
+### Phase D — Frozen source-bound attestation publication
 
-1. Integrated docs에서 ADR-0030 historical behavior와 ADR-0057 current behavior를 구분하고 Q-019를 Resolved로 올립니다.
-2. 이번 `db/**`·`query/**` 변경으로 stale해지는 system-state와 project-operator source-bound PostgreSQL checked attestation을
-   각각 independent A/B와 byte comparison으로 재캡처하고 두 `SHA256SUMS`, artifact lock과 `conformance/README.md`를
-   exact publication에 동기화합니다.
-3. Frozen source에서 full local/386/relation/archive와 exact-head Hosted matrix를 한 번 실행합니다.
+1. Clean implementation checkpoint를 고정하고 이번 `db/**`·`query/**` 변경으로 stale해진 system-state와 project-operator
+   source-bound PostgreSQL checked attestation을 각각 independent A/B와 byte comparison으로 재캡처합니다.
+2. 두 canonical JSON과 `SHA256SUMS`, artifact byte locks만 exact five-file publication으로 게시하고 focused
+   normal/race/CGO-disabled/vet와 full portable conformance를 검증합니다.
+3. Publication source, helper/capture identity, 초기 resource-contention 진단과 직렬 성공 gate의 non-claim을 integrated
+   checkpoint docs에 기록합니다. 이 단계에서는 Q-019/ADR/work를 terminal로 승격하지 않습니다.
+
+### Phase E — Final frozen acceptance and status transition
+
+1. Publication documentation descendant를 source-freeze하고 full local/386/relation/`.git`-free external archive gate를 한 번
+   실행합니다.
+2. 같은 exact submitted head를 non-force push하고 Hosted matrix의 required coordinate, inventory, skip/annotation과 source
+   identity를 검증합니다.
+3. 성공 뒤 independent P0..P3 terminal audit, ADR-0030 historical/ADR-0057 current 문서 구분, Q-019 Resolved,
+   ADR Accepted, work completed와 global status/evidence를 docs-only descendant에서 동기화합니다.
 
 ## 완료 조건
 
@@ -150,7 +160,8 @@ unconfirmed physical connection은 최대 1개입니다.
 - [x] existing commit/transaction outcome marker, joined cause, no-retry, panic exact-value와 confirmed cleanup 의미 보존
 - [x] explicit `Backend.Close`의 pool-first exact-once drain, one CAS owner와 sequential post-completion idempotence
 - [x] affected normal/race/CGO-disabled/vet 및 required SQLite system-state/relation product gate
-- [ ] system-state/project-operator 각각의 final source-bound A/B, full/386/relation/archive와 exact-head Hosted gate
+- [x] system-state/project-operator 각각의 Phase D source-bound A/B와 exact five-file attestation publication
+- [ ] full/386/relation/archive와 exact-head Hosted gate
 - [ ] ADR/integrated docs/Q-019/status/evidence 동기화와 독립 P0..P3 audit
 
 ## 진행 기록
@@ -161,7 +172,9 @@ unconfirmed physical connection은 최대 1개입니다.
   Close ownership
 - [x] 테스트: latest implementation tree의 affected normal/race/CGO-disabled/vet, generated drift, required SQLite product와
   독립 P0..P3 checkpoint review
-- [ ] 문서와 인수인계
+- [x] 증거 게시: clean source의 independent PostgreSQL A/B, byte comparison, exact five-file attestation publication과
+  normal/race/CGO-disabled/vet/full portable conformance 검증
+- [ ] terminal 문서와 인수인계
 
 ## 수정 파일
 
@@ -173,6 +186,9 @@ unconfirmed physical connection은 최대 1개입니다.
   shared admission, common availability gate, Close ownership과 migration-session state preservation
 - `db/sqlite/{relation_transaction,coordinated_transaction,migration_history,transaction_internal,quarantine_surface}_test.go`:
   trigger/waiter/Close/cause/state/surface/race regression
+- `conformance/{systemstate,projectoperatorproduct}/attestations/**`,
+  `conformance/internal/protocol/system_state_artifacts_test.go`: current source-bound PostgreSQL A/B와 exact byte locks
+- `conformance/README.md`, `docs/status/{CURRENT,TEST_EVIDENCE}.md`, `work/README.md`: publication checkpoint와 non-claim
 
 ## 결정된 사항
 
@@ -200,6 +216,8 @@ unconfirmed physical connection은 최대 1개입니다.
 
 - Evidence ID:
   [EVID-180](../docs/status/TEST_EVIDENCE.md#evid-20260905-180--gdj-0056-sqlite-terminal-quarantine-implementation-checkpoint)
+  and
+  [EVID-181](../docs/status/TEST_EVIDENCE.md#evid-20260905-181--gdj-0056-source-bound-attestation-publication-checkpoint)
 - Exact implementation source: `9f17528f1751db9cf1c0dda3435fc1bfbd7a6f19`, tree
   `271cf8d6df0f7a1a48eda9fe9fb46d1da456b1f2`
 - Passed:
@@ -214,8 +232,14 @@ unconfirmed physical connection은 최대 1개입니다.
   - `git diff --check`
 - Independent review: state/admission/Close, migration-session/cause/surface coverage에서 P0/P1/P2=0; 발견된 P2/P3는 현재
   implementation/test tree에 반영했습니다.
-- Not run at this checkpoint: independent PostgreSQL A/B, attestation publication, full `make ci`, Linux/386,
-  relation inventory/archive, exact-head Hosted
+- Exact clean capture source `af6a8a072d97b144e9bdbeb180ec7a2abc96ecf5`, tree
+  `fa1526bb6879e882e0edca7e875ffbb6499cf9c1`에서 system-state/project-operator independent PostgreSQL A/B가
+  byte-identical하게 통과했습니다. Exact five-file publication은 `70b6922152442e9b1276ad1cc840a8ec13ec8852`, tree
+  `96684524027ed6e4cf63ca76397d8d7e27f253a2`입니다.
+- Publication candidate에서 checksum, attestation/protocol normal/race/CGO-disabled/vet와 `make godj-conformance`가
+  통과했습니다. 처음 세 heavy mode를 동시에 실행한 진단 시도는 task-local temporary disk를 고갈시켜 실패했으며
+  acceptance로 사용하지 않았습니다. 각 mode를 별도 empty temp root에서 직렬 재실행해 모두 통과했습니다.
+- Not completed at this checkpoint: full `make ci`, Linux/386, relation inventory, `.git`-free external archive, exact-head Hosted
 
 ## 위험과 rollback
 
@@ -231,8 +255,8 @@ unconfirmed physical connection은 최대 1개입니다.
 
 ## 다음 정확한 작업
 
-Clean implementation source `9f17528f...`를 기준으로 system-state와 project-operator PostgreSQL checked attestation을 각각
-independent A/B로 재캡처하고 exact publication descendant를 검증합니다.
+Exact attestation publication `70b6922...`의 문서 descendant를 고정한 뒤 source를 다시 바꾸지 않고 full local/386/relation/
+external-archive와 exact-head Hosted final frozen gate를 한 번 실행합니다.
 
 ## 결과와 인수인계
 

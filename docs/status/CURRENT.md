@@ -14,9 +14,15 @@
   migration-session state preservation와 pool-first Close를 구현했고 affected normal/race/CGO-disabled/vet,
   generated drift 및 SQLite relation/migration/system-state/project-operator product gate를 통과했습니다. Exact checkpoint
   source `9f17528f1751db9cf1c0dda3435fc1bfbd7a6f19`, tree `271cf8d6df0f7a1a48eda9fe9fb46d1da456b1f2`의
-  상세 증거와 non-claim은
+  상세 구현 증거와 non-claim은
   [EVID-180](TEST_EVIDENCE.md#evid-20260905-180--gdj-0056-sqlite-terminal-quarantine-implementation-checkpoint)이 소유합니다.
-  Source-bound A/B와 final frozen matrix 전이므로 ADR은 Proposed, Q-019는 open/P1, work는 active를 유지합니다. 최근 completed
+  Clean capture source `af6a8a072d97b144e9bdbeb180ec7a2abc96ecf5`, tree
+  `fa1526bb6879e882e0edca7e875ffbb6499cf9c1`의 system-state/project-operator PostgreSQL A/B는 byte-identical하게 통과했고,
+  exact five-file publication `70b6922152442e9b1276ad1cc840a8ec13ec8852`, tree
+  `96684524027ed6e4cf63ca76397d8d7e27f253a2`와 portable normal/race/CGO-disabled/vet/conformance 검증은
+  [EVID-181](TEST_EVIDENCE.md#evid-20260905-181--gdj-0056-source-bound-attestation-publication-checkpoint)이 소유합니다.
+  Full local/386/relation/external-archive와 exact-head Hosted final frozen matrix 전이므로 ADR은 Proposed, Q-019는 open/P1,
+  work는 active를 유지합니다. 최근 completed
   [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md)는 exact
   `godj createsuperuser`와 `godj createsuperuser --project PATH`로 migrated clean system state에 durable operator를
   exactly once 생성하고 raw-password-free `OpenExisting` authenticated restart를 구현했습니다. Accepted
@@ -2122,8 +2128,11 @@ general generated upgrade는 계속 open입니다.
 GDJ-0055 exact product source `0b5b6fc6...`, tree `dac6baa7...`는 independent source-bound A/B, Linux/386
 compile-only, `.git`-free external archive와 exact submitted-head Hosted run `33899930122`를 EVID-179에서 통과했습니다.
 ADR-0056/GDJ-0055는 Accepted/completed이고 그 terminal publication 당시 active/ready packet은 0/0이었습니다. 이후
-GDJ-0056이 활성화되어 current active/ready는 1/0입니다. Q-019 terminal quarantine은 현재 active 범위이며 broader
-identity/credential lifecycle와 generalization은 여전히 비범위입니다.
+GDJ-0056이 활성화되어 current active/ready는 1/0입니다. Q-019 terminal quarantine implementation과 source-bound A/B/exact
+five-file publication은 EVID-180/181에서 통과했습니다. 다음 정확한 작업은 publication documentation descendant를 고정하고
+Phase E full local/386/relation/`.git`-free external archive와 exact-head Hosted matrix를 한 번 실행하는 것입니다. 그 전까지
+ADR-0057은 Proposed, Q-019는 P1/open, GDJ-0056은 active이며 broader identity/credential lifecycle와 generalization은
+여전히 비범위입니다.
 
 GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
 `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,
