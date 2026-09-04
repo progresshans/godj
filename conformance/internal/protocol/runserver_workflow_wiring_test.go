@@ -253,117 +253,104 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	}
 
 	portable := runserverWorkflowJob(t, jobs, "product-project-check-matrix")
-	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout-minutes: ${{ matrix.timeout_minutes }}", 1)
-	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout_minutes:", 4)
-	for _, coordinate := range []string{
-		"- runs_on: ubuntu-22.04\n            expected_goos: linux\n            expected_goarch: amd64\n            timeout_minutes: 45",
-		"- runs_on: ubuntu-24.04-arm\n            expected_goos: linux\n            expected_goarch: arm64\n            timeout_minutes: 30",
-		"- runs_on: macos-15-intel\n            expected_goos: darwin\n            expected_goarch: amd64\n            timeout_minutes: 45",
-		"- runs_on: macos-26\n            expected_goos: darwin\n            expected_goarch: arm64\n            timeout_minutes: 30",
+	for _, fragment := range []string{
+		"name: Product project check (${{ matrix.runs_on }}, ${{ matrix.mode }})",
+		"timeout-minutes: ${{ matrix.timeout_minutes }}",
+		"fail-fast: false",
+		`mode="${{ matrix.mode }}"`,
+		`test_flags=(-timeout=20m -count=1)`,
+		`json_flags=(-timeout=15m -json -count=1)`,
+		`go test "${test_flags[@]}" ./cmd/godj ./project ./internal/projectcheck/...`,
+		`go test "${test_flags[@]}" ./conformance/runners/godj`,
 	} {
-		runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, coordinate, 1)
+		runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, fragment, 1)
 	}
-	portableNormal := runserverWorkflowStep(
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "          - runs_on: ", 12)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout_minutes:", 12)
+	productCoordinates := []string{
+		"- runs_on: ubuntu-22.04\n            expected_goos: linux\n            expected_goarch: amd64",
+		"- runs_on: ubuntu-24.04-arm\n            expected_goos: linux\n            expected_goarch: arm64",
+		"- runs_on: macos-15-intel\n            expected_goos: darwin\n            expected_goarch: amd64",
+		"- runs_on: macos-26\n            expected_goos: darwin\n            expected_goarch: arm64",
+	}
+	for _, coordinate := range productCoordinates {
+		for _, mode := range []string{"normal", "race", "cgo0"} {
+			timeoutMinutes := 45
+			switch {
+			case strings.Contains(coordinate, "ubuntu-24.04-arm"):
+				timeoutMinutes = 40
+				if mode == "race" {
+					timeoutMinutes = 50
+				}
+			case strings.Contains(coordinate, "macos-15-intel"):
+				timeoutMinutes = 55
+				if mode == "race" {
+					timeoutMinutes = 65
+				}
+			default:
+				if mode == "race" {
+					timeoutMinutes = 55
+				}
+			}
+			entry := coordinate + "\n            mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
+			runserverWorkflowRequireCount(t, "product-project-check coordinate/mode", portable, entry, 1)
+		}
+	}
+	portableMode := runserverWorkflowStep(
 		t,
 		portable,
-		"Run and inventory runserver product tests",
-		"Run product project-check race tests",
+		"Run and inventory product project-check mode",
+		"Require a clean worktree",
 	)
 	for _, fragment := range []string{
 		"set -euo pipefail",
-		`log="$RUNNER_TEMP/runserver-product-tests.json"`,
-		"status=0",
-		`go test -timeout=15m -json -count=1 ./conformance/runserverproduct > "$log" || status=$?`,
-		`if [ "$status" -ne 0 ]; then`,
-		`exit "$status"`,
-		`package="github.com/progresshans/godj/conformance/runserverproduct"`,
-		"required_passes=(",
-		`for test_name in "${required_passes[@]}"; do`,
-		`pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
-		`skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
-		`if ! grep -Fq "$pass_fragment" "$log"; then`,
-		`if grep -Fq "$skip_fragment" "$log"; then`,
+		`runserver_log="$RUNNER_TEMP/runserver-product-${mode}.json"`,
+		`go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" || status=$?`,
+		`runserver_package="github.com/progresshans/godj/conformance/runserverproduct"`,
+		"runserver_required=(",
+		`for test_name in "${runserver_required[@]}"; do`,
+		`pass_fragment="\"Action\":\"pass\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""`,
+		`skip_fragment="\"Action\":\"skip\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""`,
+		`if ! grep -Fq "$pass_fragment" "$runserver_log"; then`,
+		`if grep -Fq "$skip_fragment" "$runserver_log"; then`,
 	} {
-		runserverWorkflowRequireCount(t, "portable runserver inventory step", portableNormal, fragment, 1)
+		runserverWorkflowRequireCount(t, "portable runserver inventory", portableMode, fragment, 1)
 	}
+	runserverWorkflowRequireCount(t, "portable mode status ownership", portableMode, "status=0", 2)
+	runserverWorkflowRequireCount(t, "portable mode failure guard", portableMode, `if [ "$status" -ne 0 ]; then`, 2)
+	runserverWorkflowRequireCount(t, "portable mode failure exit", portableMode, `exit "$status"`, 2)
 	for _, sentinel := range []string{
 		"TestGlobalRunserverArticleSQLiteDevelopmentLoop",
 		"TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI",
 		"TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime",
 		"TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup",
 	} {
-		runserverWorkflowRequireCount(t, "portable runserver inventory step", portableNormal, sentinel, 1)
+		runserverWorkflowRequireCount(t, "portable runserver inventory", portableMode, sentinel, 1)
 	}
-
-	portableRace := runserverWorkflowStep(
-		t,
-		portable,
-		"Run runserver product race tests",
-		"Run product project-check tests without CGO",
-	)
-	runserverWorkflowRequireCount(
-		t,
-		"portable runserver race step",
-		portableRace,
-		"run: go test -timeout=15m -race -count=1 ./conformance/runserverproduct",
-		1,
-	)
-	portableCGOZero := runserverWorkflowStep(
-		t,
-		portable,
-		"Run runserver product tests without CGO",
-		"Run and inventory external SQLite operator product modes",
-	)
-	runserverWorkflowRequireCount(
-		t,
-		"portable runserver CGO-disabled step",
-		portableCGOZero,
-		"run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct",
-		1,
-	)
-	portableOperator := runserverWorkflowStep(
-		t,
-		portable,
-		"Run and inventory external SQLite operator product modes",
-		"Vet product project-check packages",
-	)
 	for _, fragment := range []string{
-		`for mode in normal race cgo0; do`,
-		`required_tests=(`,
+		`operator_required=(`,
 		`"TestOperatorSanitizeEnvironmentDropsHostOnlyControls"`,
 		`"TestGlobalCreatesuperuserExternalSQLiteProduct"`,
 		`"TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity"`,
 		`"TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation"`,
 		`"TestOperatorCountRawSecretOccurrencesDetectsAuditMarker"`,
-		`required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"`,
+		`required_regex="^($(IFS='|'; printf '%s' "${operator_required[*]}"))$"`,
 		`required="$RUNNER_TEMP/project-operator-sqlite-required-tests.txt"`,
-		`printf '%s\n' "${required_tests[@]}" > "$required"`,
-		`go test -race "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?`,
-		`CGO_ENABLED=0 go test "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?`,
-		`python3 - "$required" "$log" "$package" "$mode" <<'PY'`,
+		`printf '%s\n' "${operator_required[@]}" > "$required"`,
+		`go test "${json_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" || status=$?`,
+		`python3 - "$required" "$operator_log" "$operator_package" "$mode" <<'PY'`,
 		`assert len(expected) == 5, sorted(expected)`,
 		`assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))`,
 		`assert skips == [], (sys.argv[4], skips)`,
 	} {
-		runserverWorkflowRequireCount(t, "portable operator product inventory step", portableOperator, fragment, 1)
+		runserverWorkflowRequireCount(t, "portable operator product inventory", portableMode, fragment, 1)
 	}
-	runserverWorkflowRequireCount(t, "portable operator product inventory step", portableOperator, `go test "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?`, 2)
-	portableVet := runserverWorkflowStep(
-		t,
-		portable,
-		"Vet runserver product package",
-		"Require a clean worktree",
-	)
-	runserverWorkflowRequireCount(
-		t,
-		"portable runserver vet step",
-		portableVet,
-		"run: go vet ./conformance/runserverproduct ./conformance/projectoperatorproduct",
-		1,
-	)
-	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "./conformance/runserverproduct", 4)
-	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "./conformance/projectoperatorproduct", 4)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "./conformance/runserverproduct", 2)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "./conformance/projectoperatorproduct", 2)
+	if strings.Contains(portable, "for mode in normal race cgo0") {
+		t.Fatal("product project-check mode job must not rerun all three modes internally")
+	}
 	if strings.Contains(portable, "continue-on-error:") || strings.Contains(portable, "|| true") {
 		t.Fatal("portable runserver product gates must remain required")
 	}
@@ -492,31 +479,35 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 
 	postgres := runserverWorkflowJob(t, jobs, "postgresql-product")
 	for _, fragment := range []string{
-		"name: PostgreSQL 17.10 actual product (${{ matrix.mode }})",
+		"name: PostgreSQL 17.10 actual product (${{ matrix.mode }}, ${{ matrix.shard }})",
 		"timeout-minutes: ${{ matrix.timeout_minutes }}",
 		"fail-fast: false",
-		"- mode: normal\n            timeout_minutes: 50",
-		"- mode: race\n            timeout_minutes: 45",
-		"- mode: cgo0\n            timeout_minutes: 45",
+		"- mode: normal\n            shard: core\n            timeout_minutes: 45",
+		"- mode: normal\n            shard: operator-target\n            timeout_minutes: 35",
+		"- mode: race\n            shard: core\n            timeout_minutes: 40",
+		"- mode: race\n            shard: operator-target\n            timeout_minutes: 35",
+		"- mode: cgo0\n            shard: core\n            timeout_minutes: 40",
+		"- mode: cgo0\n            shard: operator-target\n            timeout_minutes: 35",
 		`GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable`,
 		`GODJ_REQUIRE_POSTGRES: "1"`,
 		`GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-sqlite-external-operator-v1.json`,
 		`mode="${{ matrix.mode }}"`,
-		`test_flags=(-timeout=18m -json -count=1 -run "$required_regex")`,
+		`shard="${{ matrix.shard }}"`,
+		`test_flags=(-p=1 -timeout=18m -json -count=1 -run "$required_regex")`,
 		`test_flags+=(-race)`,
 		`export CGO_ENABLED=0`,
-		`go test "${test_flags[@]}" \`,
-		`./conformance/projectoperatorproduct > "$log" || status=$?`,
-		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct >> "$log" || target_exit=$?`,
-		`assert len(expected) == 26, sorted(expected)`,
+		`go test "${test_flags[@]}" "${packages[@]}" > "$log" || status=$?`,
+		`assert len(expected) == int(sys.argv[4]), sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,
 		`assert skips == [], skips`,
 		`if [ "$mode" != "normal" ]; then`,
-		"go vet \\",
+		`if [ "$shard" = "core" ]; then`,
+		`test "$shard" = "operator-target"`,
 	} {
 		runserverWorkflowRequireCount(t, "PostgreSQL runserver matrix job", postgres, fragment, 1)
 	}
+	runserverWorkflowRequireCount(t, "PostgreSQL shard-owned vet", postgres, `go vet "${packages[@]}"`, 2)
 	runserverWorkflowRequireCount(
 		t,
 		"postgresql-product job",
@@ -581,17 +572,17 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		1,
 	)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, `GODJ_REQUIRE_POSTGRES: "1"`, 1)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/runserverproduct", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./cmd/godj", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigratetargetproduct", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectshowmigrationsproduct", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectsqlmigrateproduct", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/systemstate/restart", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectoperatorproduct", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestGlobalRunserverArticlePostgresDevelopmentLoop", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation", 2)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct", 2)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/runserverproduct", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./cmd/godj", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigratetargetproduct", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectshowmigrationsproduct", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectsqlmigrateproduct", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/systemstate/restart", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectoperatorproduct", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestGlobalRunserverArticlePostgresDevelopmentLoop", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation", 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct", 1)
 	if strings.Contains(postgres, "continue-on-error:") || strings.Contains(postgres, "|| true") {
 		t.Fatal("PostgreSQL runserver product gates must remain required")
 	}

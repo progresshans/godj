@@ -21,10 +21,18 @@ import (
 	"golang.org/x/term"
 )
 
-// The actual command must restore the PTY, discard queued secret input and
-// remove its private build workspace before exit. This finite harness budget
-// is not a product latency contract.
-const createsuperuserActualInterruptExitTimeout = 30 * time.Second
+const (
+	// The actual command must restore the PTY, discard queued secret input and
+	// remove its private build workspace before exit. This finite harness budget
+	// is not a product latency contract.
+	createsuperuserActualInterruptExitTimeout = 30 * time.Second
+
+	// The first product prompt follows a cold project-runner build. Hosted race
+	// runners can take longer than an interactive prompt once the build is done.
+	createsuperuserActualColdStartPromptTimeout = 3 * time.Minute
+	createsuperuserActualPromptTimeout          = 30 * time.Second
+	createsuperuserVINTRHarnessPromptTimeout    = 5 * time.Second
+)
 
 func TestPTYVINTRHarnessSignalsForegroundProcess(t *testing.T) {
 	command := exec.Command(
@@ -54,7 +62,7 @@ func TestPTYVINTRHarnessSignalsForegroundProcess(t *testing.T) {
 	}()
 
 	var transcript bytes.Buffer
-	readCreatesuperuserPTYUntil(t, master, &transcript, "ready")
+	readCreatesuperuserPTYUntil(t, master, &transcript, "ready", createsuperuserVINTRHarnessPromptTimeout)
 	const queued = "queued-vintr-harness-input"
 	if written, err := master.Write([]byte(queued)); err != nil || written != len(queued) {
 		t.Fatalf("write harness queued input = %d, %v", written, err)
@@ -175,11 +183,11 @@ func TestActualGodjCreatesuperuserInterruptRestoresPTYAndDiscardsQueuedSecret(t 
 			}()
 
 			var transcript bytes.Buffer
-			readCreatesuperuserPTYUntil(t, master, &transcript, "Username: ")
+			readCreatesuperuserPTYUntil(t, master, &transcript, "Username: ", createsuperuserActualColdStartPromptTimeout)
 			if written, err := master.Write([]byte("operator\n")); err != nil || written != len("operator\n") {
 				t.Fatalf("write username = %d, %v", written, err)
 			}
-			readCreatesuperuserPTYUntil(t, master, &transcript, "Password: ")
+			readCreatesuperuserPTYUntil(t, master, &transcript, "Password: ", createsuperuserActualPromptTimeout)
 
 			secret := []byte("queued-interrupt-secret-marker")
 			if written, err := master.Write(secret); err != nil || written != len(secret) {
@@ -248,9 +256,9 @@ func TestActualGodjCreatesuperuserInterruptRestoresPTYAndDiscardsQueuedSecret(t 
 	}
 }
 
-func readCreatesuperuserPTYUntil(t *testing.T, terminal *os.File, transcript *bytes.Buffer, marker string) {
+func readCreatesuperuserPTYUntil(t *testing.T, terminal *os.File, transcript *bytes.Buffer, marker string, timeout time.Duration) {
 	t.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := time.Now().Add(timeout)
 	buffer := make([]byte, 256)
 	for !strings.Contains(transcript.String(), marker) {
 		read, err := readCreatesuperuserPTYChunk(terminal, buffer, time.Until(deadline))

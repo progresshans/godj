@@ -748,7 +748,7 @@ jobs:
           test -z "$(git status --porcelain=v1)"
 
   product-project-check-matrix:
-    name: Product project check (${{ matrix.runs_on }})
+    name: Product project check (${{ matrix.runs_on }}, ${{ matrix.mode }})
     runs-on: ${{ matrix.runs_on }}
     timeout-minutes: ${{ matrix.timeout_minutes }}
     env:
@@ -761,19 +761,63 @@ jobs:
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
+            mode: normal
+            timeout_minutes: 45
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: race
+            timeout_minutes: 55
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: cgo0
             timeout_minutes: 45
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
-            timeout_minutes: 30
+            mode: normal
+            timeout_minutes: 40
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: race
+            timeout_minutes: 50
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: cgo0
+            timeout_minutes: 40
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
+            mode: normal
+            timeout_minutes: 55
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: race
+            timeout_minutes: 65
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: cgo0
+            timeout_minutes: 55
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: normal
             timeout_minutes: 45
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
-            timeout_minutes: 30
+            mode: race
+            timeout_minutes: 55
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: cgo0
+            timeout_minutes: 45
 
     steps:
       - name: Checkout
@@ -795,88 +839,81 @@ jobs:
           test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
           test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
 
-      - name: Run normal product project-check tests
-        run: go test -timeout=15m -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
-
-      - name: Run and inventory runserver product tests
+      - name: Run and inventory product project-check mode
         run: |
           set -euo pipefail
-          log="$RUNNER_TEMP/runserver-product-tests.json"
+          mode="${{ matrix.mode }}"
+          test_flags=(-timeout=20m -count=1)
+          json_flags=(-timeout=15m -json -count=1)
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              json_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported product project-check mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+
+          # These package groups are intentionally separate: cmd/project tests
+          # build external runners, while the conformance runner owns its own
+          # process-heavy fixtures. Running them in one go command made them
+          # contend for the same hosted runner without adding coverage.
+          go test "${test_flags[@]}" ./cmd/godj ./project ./internal/projectcheck/...
+          go test "${test_flags[@]}" ./conformance/runners/godj
+
+          runserver_log="$RUNNER_TEMP/runserver-product-${mode}.json"
           status=0
-          go test -timeout=15m -json -count=1 ./conformance/runserverproduct > "$log" || status=$?
+          go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" || status=$?
           if [ "$status" -ne 0 ]; then
-            tail -c 60000 "$log"
+            tail -c 60000 "$runserver_log"
             exit "$status"
           fi
-          package="github.com/progresshans/godj/conformance/runserverproduct"
-          required_passes=(
+          runserver_package="github.com/progresshans/godj/conformance/runserverproduct"
+          runserver_required=(
             "TestGlobalRunserverArticleSQLiteDevelopmentLoop"
             "TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI"
             "TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime"
             "TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup"
           )
-          for test_name in "${required_passes[@]}"; do
-            pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""
-            skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\",\"Test\":\"$test_name\""
-            if ! grep -Fq "$pass_fragment" "$log"; then
-              echo "required runserver product test did not pass: $test_name" >&2
+          for test_name in "${runserver_required[@]}"; do
+            pass_fragment="\"Action\":\"pass\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""
+            skip_fragment="\"Action\":\"skip\",\"Package\":\"$runserver_package\",\"Test\":\"$test_name\""
+            if ! grep -Fq "$pass_fragment" "$runserver_log"; then
+              echo "required runserver product test did not pass in $mode: $test_name" >&2
               exit 1
             fi
-            if grep -Fq "$skip_fragment" "$log"; then
-              echo "required runserver product test was skipped: $test_name" >&2
+            if grep -Fq "$skip_fragment" "$runserver_log"; then
+              echo "required runserver product test was skipped in $mode: $test_name" >&2
               exit 1
             fi
           done
 
-      - name: Run product project-check race tests
-        run: go test -timeout=15m -race -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
-
-      - name: Run runserver product race tests
-        run: go test -timeout=15m -race -count=1 ./conformance/runserverproduct
-
-      - name: Run product project-check tests without CGO
-        run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
-
-      - name: Run runserver product tests without CGO
-        run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
-
-      - name: Run and inventory external SQLite operator product modes
-        run: |
-          set -euo pipefail
-          package="github.com/progresshans/godj/conformance/projectoperatorproduct"
-          required_tests=(
+          operator_package="github.com/progresshans/godj/conformance/projectoperatorproduct"
+          operator_required=(
             "TestOperatorSanitizeEnvironmentDropsHostOnlyControls"
             "TestGlobalCreatesuperuserExternalSQLiteProduct"
             "TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity"
             "TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation"
             "TestOperatorCountRawSecretOccurrencesDetectsAuditMarker"
           )
-          required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
+          required_regex="^($(IFS='|'; printf '%s' "${operator_required[*]}"))$"
           required="$RUNNER_TEMP/project-operator-sqlite-required-tests.txt"
-          printf '%s\n' "${required_tests[@]}" > "$required"
-          for mode in normal race cgo0; do
-            log="$RUNNER_TEMP/project-operator-sqlite-${mode}.json"
-            flags=(-timeout=15m -json -count=1 -run "$required_regex")
-            status=0
-            case "$mode" in
-              normal)
-                go test "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?
-                ;;
-              race)
-                go test -race "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?
-                ;;
-              cgo0)
-                CGO_ENABLED=0 go test "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?
-                ;;
-              *)
-                exit 1
-                ;;
-            esac
-            if [ "$status" -ne 0 ]; then
-              tail -c 60000 "$log"
-              exit "$status"
-            fi
-            python3 - "$required" "$log" "$package" "$mode" <<'PY'
+          printf '%s\n' "${operator_required[@]}" > "$required"
+          operator_log="$RUNNER_TEMP/project-operator-sqlite-${mode}.json"
+          status=0
+          go test "${json_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 "$operator_log"
+            exit "$status"
+          fi
+          python3 - "$required" "$operator_log" "$operator_package" "$mode" <<'PY'
             import json
             import sys
 
@@ -903,14 +940,11 @@ jobs:
             assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))
             assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))
             assert skips == [], (sys.argv[4], skips)
-            PY
-          done
-
-      - name: Vet product project-check packages
-        run: go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
-
-      - name: Vet runserver product package
-        run: go vet ./conformance/runserverproduct ./conformance/projectoperatorproduct
+          PY
+          if [ "$mode" = "normal" ]; then
+            go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+            go vet ./conformance/runserverproduct ./conformance/projectoperatorproduct
+          fi
 
       - name: Require a clean worktree
         run: |
@@ -1190,7 +1224,7 @@ jobs:
           test -z "$(git status --porcelain=v1)"
 
   postgresql-product:
-    name: PostgreSQL 17.10 actual product (${{ matrix.mode }})
+    name: PostgreSQL 17.10 actual product (${{ matrix.mode }}, ${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout_minutes }}
     env:
@@ -1215,11 +1249,23 @@ jobs:
       matrix:
         include:
           - mode: normal
-            timeout_minutes: 50
+            shard: core
+            timeout_minutes: 45
+          - mode: normal
+            shard: operator-target
+            timeout_minutes: 35
           - mode: race
-            timeout_minutes: 45
+            shard: core
+            timeout_minutes: 40
+          - mode: race
+            shard: operator-target
+            timeout_minutes: 35
           - mode: cgo0
-            timeout_minutes: 45
+            shard: core
+            timeout_minutes: 40
+          - mode: cgo0
+            shard: operator-target
+            timeout_minutes: 35
 
     steps:
       - name: Checkout
@@ -1256,49 +1302,8 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestGlobalSQLMigrateExternalPhaseDProduct|TestGlobalTargetedMigratePostgresLifecycle|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct)$'
-          test_flags=(-timeout=18m -json -count=1 -run "$required_regex")
-          case "$mode" in
-            normal)
-              ;;
-            race)
-              test_flags+=(-race)
-              ;;
-            cgo0)
-              export CGO_ENABLED=0
-              ;;
-            *)
-              echo "unsupported PostgreSQL product mode: $mode" >&2
-              exit 1
-              ;;
-          esac
-          log="$RUNNER_TEMP/postgresql-product-tests.json"
-          report_postgres_failure() {
-            tail -c 60000 "$log"
-          }
-          status=0
-          go test "${test_flags[@]}" \
-            ./cmd/godj \
-            ./db/postgres \
-            ./examples/article \
-            ./conformance/postgresproduct/... \
-            ./conformance/projectmigrateproduct \
-            ./conformance/projectshowmigrationsproduct \
-            ./conformance/projectsqlmigrateproduct \
-            ./conformance/systemstate/restart \
-            ./conformance/runserverproduct \
-            ./conformance/projectoperatorproduct > "$log" || status=$?
-          if [ "$status" -ne 0 ]; then
-            report_postgres_failure
-            exit "$status"
-          fi
-          target_exit=0
-          go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct >> "$log" || target_exit=$?
-          if [ "$target_exit" -ne 0 ]; then
-            report_postgres_failure
-            exit "$target_exit"
-          fi
-          required_passes=(
+          shard="${{ matrix.shard }}"
+          core_required_passes=(
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration"
             "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration"
             "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration"
@@ -1320,15 +1325,76 @@ jobs:
             "github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability"
             "github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart"
             "github.com/progresshans/godj/conformance/projectsqlmigrateproduct|TestGlobalSQLMigrateExternalPhaseDProduct"
-            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
+          )
+          operator_target_required_passes=(
+            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
             "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
           )
-          required="$RUNNER_TEMP/postgresql-required-tests.txt"
+          case "$shard" in
+            core)
+              required_passes=("${core_required_passes[@]}")
+              packages=(
+                ./cmd/godj
+                ./db/postgres
+                ./examples/article
+                ./conformance/postgresproduct/...
+                ./conformance/projectmigrateproduct
+                ./conformance/projectshowmigrationsproduct
+                ./conformance/projectsqlmigrateproduct
+                ./conformance/systemstate/restart
+                ./conformance/runserverproduct
+              )
+              expected_count=23
+              ;;
+            operator-target)
+              required_passes=("${operator_target_required_passes[@]}")
+              packages=(
+                ./conformance/projectmigratetargetproduct
+                ./conformance/projectoperatorproduct
+              )
+              expected_count=3
+              ;;
+            *)
+              echo "unsupported PostgreSQL product shard: $shard" >&2
+              exit 1
+              ;;
+          esac
+          required_tests=()
+          for sentinel in "${required_passes[@]}"; do
+            required_tests+=("${sentinel#*|}")
+          done
+          required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
+          test_flags=(-p=1 -timeout=18m -json -count=1 -run "$required_regex")
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported PostgreSQL product mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+          log="$RUNNER_TEMP/postgresql-product-${mode}-${shard}.json"
+          report_postgres_failure() {
+            tail -c 60000 "$log"
+          }
+          status=0
+          go test "${test_flags[@]}" "${packages[@]}" > "$log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            report_postgres_failure
+            exit "$status"
+          fi
+          required="$RUNNER_TEMP/postgresql-${shard}-required-tests.txt"
           printf '%s\n' "${required_passes[@]}" > "$required"
-          python3 - "$required" "$log" "$mode" <<'PY'
+          python3 - "$required" "$log" "$mode" "$expected_count" "$shard" <<'PY'
           import json
           import sys
 
@@ -1351,13 +1417,14 @@ jobs:
               for event in events
               if event.get("Action") == "skip" and "Test" in event
           ]
-          assert len(expected) == 26, sorted(expected)
+          assert len(expected) == int(sys.argv[4]), sorted(expected)
           assert runs == expected, (sorted(runs), sorted(expected))
           assert passes == expected, (sorted(passes), sorted(expected))
           assert skips == [], skips
           print(json.dumps({
               "postgresql_product_inventory": {
                   "mode": sys.argv[3],
+                  "shard": sys.argv[5],
                   "runs": len(runs),
                   "passes": len(passes),
                   "skips": len(skips),
@@ -1367,13 +1434,52 @@ jobs:
           if [ "$mode" != "normal" ]; then
             exit 0
           fi
-          test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
-          cmp "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE" \
-            conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
-          (
-            cd conformance/systemstate/attestations
-            sha256sum --check SHA256SUMS
-          )
+          if [ "$shard" = "core" ]; then
+            test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
+            cmp "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE" \
+              conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+            (
+              cd conformance/systemstate/attestations
+              sha256sum --check SHA256SUMS
+            )
+            export GODJ_TEST_POSTGRES_SCHEMA="godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}"
+            project_runner="$RUNNER_TEMP/postgres-projectrunner"
+            go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner
+            "$project_runner" prepare
+            docker restart "$POSTGRES_CONTAINER_ID" >/dev/null
+            # GitHub services publish an ephemeral host port that Docker may
+            # reallocate when the container stops and starts.
+            postgres_host_port="$(
+              docker inspect --format '{{with (index .NetworkSettings.Ports "5432/tcp")}}{{(index . 0).HostPort}}{{end}}' \
+                "$POSTGRES_CONTAINER_ID"
+            )"
+            case "$postgres_host_port" in
+              ""|*[!0-9]*)
+                echo "restarted PostgreSQL service has no numeric published port" >&2
+                exit 1
+                ;;
+            esac
+            if [ "$postgres_host_port" -lt 1 ] || [ "$postgres_host_port" -gt 65535 ]; then
+              echo "restarted PostgreSQL service published port is outside the valid range" >&2
+              exit 1
+            fi
+            export GODJ_TEST_POSTGRES_URL="postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"
+            ready=0
+            for attempt in $(seq 1 30); do
+              if timeout 3s "$project_runner" probe >/dev/null 2>&1; then
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            test "$ready" -eq 1
+            "$project_runner" resume
+            "$project_runner" verify
+            "$project_runner" cleanup
+            go vet "${packages[@]}"
+            exit 0
+          fi
+          test "$shard" = "operator-target"
           test -f "$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE"
           cmp "$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE" \
             conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json
@@ -1381,52 +1487,7 @@ jobs:
             cd conformance/projectoperatorproduct/attestations
             sha256sum --check SHA256SUMS
           )
-          export GODJ_TEST_POSTGRES_SCHEMA="godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}"
-          project_runner="$RUNNER_TEMP/postgres-projectrunner"
-          go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner
-          "$project_runner" prepare
-          docker restart "$POSTGRES_CONTAINER_ID" >/dev/null
-          # GitHub services publish an ephemeral host port that Docker may
-          # reallocate when the container stops and starts.
-          postgres_host_port="$(
-            docker inspect --format '{{with (index .NetworkSettings.Ports "5432/tcp")}}{{(index . 0).HostPort}}{{end}}' \
-              "$POSTGRES_CONTAINER_ID"
-          )"
-          case "$postgres_host_port" in
-            ""|*[!0-9]*)
-              echo "restarted PostgreSQL service has no numeric published port" >&2
-              exit 1
-              ;;
-          esac
-          if [ "$postgres_host_port" -lt 1 ] || [ "$postgres_host_port" -gt 65535 ]; then
-            echo "restarted PostgreSQL service published port is outside the valid range" >&2
-            exit 1
-          fi
-          export GODJ_TEST_POSTGRES_URL="postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"
-          ready=0
-          for attempt in $(seq 1 30); do
-            if timeout 3s "$project_runner" probe >/dev/null 2>&1; then
-              ready=1
-              break
-            fi
-            sleep 1
-          done
-          test "$ready" -eq 1
-          "$project_runner" resume
-          "$project_runner" verify
-          "$project_runner" cleanup
-          go vet \
-            ./cmd/godj \
-            ./db/postgres \
-            ./examples/article \
-            ./conformance/postgresproduct/... \
-            ./conformance/projectmigrateproduct \
-            ./conformance/projectmigratetargetproduct \
-            ./conformance/projectshowmigrationsproduct \
-            ./conformance/projectsqlmigrateproduct \
-            ./conformance/systemstate/restart \
-            ./conformance/runserverproduct \
-            ./conformance/projectoperatorproduct
+          go vet "${packages[@]}"
 
       - name: Require a clean worktree
         run: |

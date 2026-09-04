@@ -623,13 +623,22 @@ func requireRestoredPTYInput(t *testing.T, slave, master *os.File, sentinel stri
 
 func readAvailablePTY(t *testing.T, reader *os.File) []byte {
 	t.Helper()
-	if err := unix.SetNonblock(int(reader.Fd()), true); err != nil {
+	fd := int(reader.Fd())
+	// File.Fd restores descriptors registered with Go's poller to blocking
+	// mode on Linux. Cache it before enabling non-blocking reads so a later
+	// Fd call cannot undo the setting and hang an empty PTY drain.
+	if err := unix.SetNonblock(fd, true); err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := unix.SetNonblock(fd, false); err != nil {
+			t.Errorf("restore blocking PTY output: %v", err)
+		}
+	}()
 	buffer := make([]byte, 4<<10)
 	retained := make([]byte, 0, 4<<10)
 	for {
-		read, err := unix.Read(int(reader.Fd()), buffer)
+		read, err := unix.Read(fd, buffer)
 		if read > 0 {
 			retained = append(retained, buffer[:read]...)
 		}

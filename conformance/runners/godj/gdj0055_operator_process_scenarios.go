@@ -489,7 +489,9 @@ func gdj0055ReadAvailablePTY(master *os.File) (result []byte, resultErr error) {
 	result = make([]byte, 0, 256)
 	buffer := make([]byte, 256)
 	for {
-		read, err := master.Read(buffer)
+		// os.File.Read waits in Go's poller after EAGAIN on Linux. Read the
+		// cached descriptor directly so an empty non-blocking PTY drain returns.
+		read, err := syscall.Read(fd, buffer)
 		if read > 0 {
 			result = append(result, buffer[:read]...)
 		}

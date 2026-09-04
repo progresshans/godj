@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/creack/pty"
 	"github.com/progresshans/godj/conformance/internal/protocol"
 )
 
@@ -268,6 +269,34 @@ func TestGDJ0055PTYDrainFailsClosedWhenObservationCannotStart(t *testing.T) {
 	}
 	if document, err := gdj0055ReadAvailablePTY(closed); err == nil || document != nil {
 		t.Fatalf("closed PTY drain = (%q, %v), want nil/error", document, err)
+	}
+}
+
+func TestGDJ0055PTYDrainReturnsImmediatelyWhenNoBytesAreAvailable(t *testing.T) {
+	master, slave, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer master.Close()
+	defer slave.Close()
+
+	type result struct {
+		document []byte
+		err      error
+	}
+	ready := make(chan result, 1)
+	go func() {
+		document, err := gdj0055ReadAvailablePTY(master)
+		ready <- result{document: document, err: err}
+	}()
+
+	select {
+	case got := <-ready:
+		if got.err != nil || len(got.document) != 0 {
+			t.Fatalf("empty PTY drain = (%q, %v), want empty/nil", got.document, got.err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("empty PTY drain blocked")
 	}
 }
 
