@@ -346,6 +346,13 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	} {
 		runserverWorkflowRequireCount(t, "portable operator product inventory", portableMode, fragment, 1)
 	}
+	for _, line := range []string{
+		`          python3 - "$required" "$operator_log" "$operator_package" "$mode" <<'PY'`,
+		`          import json`,
+		`          PY`,
+	} {
+		runserverWorkflowRequireExactLine(t, "portable operator product inventory heredoc indentation", portableMode, line, 1)
+	}
 	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "./conformance/runserverproduct", 2)
 	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "./conformance/projectoperatorproduct", 2)
 	if strings.Contains(portable, "for mode in normal race cgo0") {

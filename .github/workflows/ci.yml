@@ -914,32 +914,32 @@ jobs:
             exit "$status"
           fi
           python3 - "$required" "$operator_log" "$operator_package" "$mode" <<'PY'
-            import json
-            import sys
+          import json
+          import sys
 
-            with open(sys.argv[1], encoding="utf-8") as stream:
-                expected = {(sys.argv[3], line.rstrip("\n")) for line in stream if line.strip()}
-            with open(sys.argv[2], encoding="utf-8") as stream:
-                events = [json.loads(line) for line in stream if line.strip()]
-            runs = {
-                (event.get("Package"), event["Test"])
-                for event in events
-                if event.get("Action") == "run" and "Test" in event and "/" not in event["Test"]
-            }
-            passes = {
-                (event.get("Package"), event["Test"])
-                for event in events
-                if event.get("Action") == "pass" and "Test" in event and "/" not in event["Test"]
-            }
-            skips = [
-                (event.get("Package"), event["Test"])
-                for event in events
-                if event.get("Action") == "skip" and "Test" in event
-            ]
-            assert len(expected) == 5, sorted(expected)
-            assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))
-            assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))
-            assert skips == [], (sys.argv[4], skips)
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              expected = {(sys.argv[3], line.rstrip("\n")) for line in stream if line.strip()}
+          with open(sys.argv[2], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          runs = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "run" and "Test" in event and "/" not in event["Test"]
+          }
+          passes = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "pass" and "Test" in event and "/" not in event["Test"]
+          }
+          skips = [
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "skip" and "Test" in event
+          ]
+          assert len(expected) == 5, sorted(expected)
+          assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))
+          assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))
+          assert skips == [], (sys.argv[4], skips)
           PY
           if [ "$mode" = "normal" ]; then
             go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj

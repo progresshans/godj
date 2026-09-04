@@ -126,7 +126,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"syscall"
 	"time"
 
 	"example.com/godj-operator-product/modeldef"
@@ -135,6 +134,7 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/systemstate"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -259,7 +259,7 @@ func prepareBrokenStandardOutput() error {
 		_ = writer.Close()
 		return err
 	}
-	if err := syscall.Dup2(int(writer.Fd()), int(os.Stdout.Fd())); err != nil {
+	if err := unix.Dup2(int(writer.Fd()), int(os.Stdout.Fd())); err != nil {
 		_ = writer.Close()
 		return err
 	}
