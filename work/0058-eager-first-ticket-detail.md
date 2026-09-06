@@ -1,7 +1,7 @@
 ---
 id: GDJ-0058
-status: active
-updated: 2026-09-06
+status: complete
+updated: 2026-09-07
 baseline_commit: "0b9955ec0ef3b013e59fd185038d38e57582d008"
 ---
 
@@ -32,8 +32,8 @@ generated source/manifest, `examples/helpdesk/`, `Makefile`의 generated drift g
 - [x] Helpdesk 실제 상세 조회와 권한·Category 범위·출력 연결
 - [x] cold/warm/empty/ordering/slicing/nullability/error/resource 부정 회귀
 - [x] generated drift와 실제 외부 consumer compile 검증
-- [ ] 관련 normal/race/CGO-disabled와 PostgreSQL/Hosted 검증
-- [ ] 상태·검증 증거·기존 Draft PR 정리
+- [x] 관련 normal/race/CGO-disabled와 PostgreSQL/Hosted 검증
+- [x] 상태·검증 증거·기존 Draft PR 정리
 
 ## 검증 실행
 
@@ -60,3 +60,13 @@ generated source/manifest, `examples/helpdesk/`, `Makefile`의 generated drift g
 Django 참조는 profile과 같은 `6.1` tag commit `fe0a859f537d4238cf49fca39073513206f83122`의
 `django/db/models/query.py:1182`를 읽어 확인했다. 한 row slicing 의미를 참고하며 GoDj의 기존 명시적 정렬 계약을 유지한다.
 이번 First에 대한 Django differential oracle 실행·새 conformance contract 추가를 주장하지 않는다.
+
+## 완료와 다음 작업
+
+보정 source `aca9115`의 관련 ORM scope CI와 빠른 검사를 통과했다. 명령·환경·실패 보정과 실제 실행 범위는
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0058--관계-조회-정리와-eager-first)에 기록했다.
+기존 Draft PR을 유지하고 원래 작업 디렉터리에서 마쳤다. 후속 작업은 아직 선택하지 않았다.
+
+이번 정리는 중복된 조회 경로와 변경 지점을 줄이는 범위다. 새 First·상세 API·회귀 테스트를 합친 Go 코드 순증은 417줄이며,
+전체 코드베이스의 라인 수 감축 완료를 뜻하지 않는다. eager Count, 여러 관계·임의 깊이 탐색, 전체 프로젝트 platform/reference
+재검증과 배포는 이번 완료 범위에 포함하지 않는다. CI 라벨의 push 후 실행 순서는 TESTING에 명시했다.

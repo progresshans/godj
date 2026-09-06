@@ -11,7 +11,7 @@
 | Q-013 | OneToOne/ManyToMany, arbitrary target/depth/cycle와 relation 일반화 | AutoField-target FK와 현행 query/cache/delete 단면은 구현됨 |
 | Q-016 | API schema/OpenAPI, viewset 일반화와 wider routing | bounded serializer/JSON CRUD/auth profile은 구현됨 |
 | Q-017 | 현재 generated model의 사용성·namespace와 broader relation facade | whole-project publication과 current facade는 구현됨; consumer로 다음 제약을 찾음 |
-| Q-019 | SQLite quarantine의 통합 검증과 운영 recovery 안내 | single retained handle·새 I/O 거부 구현은 기준 source에 포함 |
+| Q-019 | SQLite quarantine의 운영 recovery 안내 | single retained handle·새 I/O 거부는 GDJ-0057에서 통합 검증 완료; 자동 복구 미지원 |
 | Q-020 | 비협력 writer, 넓은 deployment topology·key distribution | 같은 normalized policy의 cooperative runtime만 지원 |
 | Q-021 | token issuance/refresh, OAuth/OIDC/JWT, production BFF | injected Bearer resource-server와 Session 경계는 구현됨 |
 | Q-022 | 더 넓은 multi-user/credential lifecycle | provision/open과 explicit permission CAS·session 폐기 구현; 나머지는 후속 |
@@ -29,7 +29,8 @@ Schema 선언은 generated model과 분리하고 project가 cross-app relation�
 `backend_recovery_required`로 닫는 구현이 존재한다. 이미 admitted된 작업과 explicit Close의 경계는
 [CONCURRENCY](CONCURRENCY.md#sqlite-raw-transaction과-quarantine), 선택 이유는
 [ADR-0057](adr/0057-sqlite-retained-connection-terminal-quarantine.md)에 있다.
-기준 source의 local checkpoint와 아직 끝나지 않은 platform proof를 [Evidence](status/TEST_EVIDENCE.md)에서 구분한다.
+GDJ-0057 source `0b8235c`의 전체 platform 검증을 마쳤으며 [Evidence](status/TEST_EVIDENCE.md)에 기록했다.
+후속 변경의 검증 범위는 해당 작업의 기록을 따른다. 운영자가 새 backend를 열기 전 DB outcome을 확인하는 안내가 남아 있다.
 보관 handle을 무조건 pool에 반환하거나 자동 retry/reopen하는 정책으로 바꾸지 않는다.
 
 ## 이미 선택한 기초

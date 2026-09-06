@@ -1,7 +1,7 @@
 # 현재 구현 범위
 
 코드가 존재하는 범위와 검증 환경을 구분한다. 아래 기능은 모두 bounded subset이며 Django 전체 구현률을 뜻하지 않는다.
-현재 개발 정리 작업의 변경은 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
+현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
 ## 기능
 
@@ -22,7 +22,7 @@
 | JSON API | model-derived allowlist serializer, bounded parser, PUT/PATCH, pagination/filter, authentication profile | OpenAPI/browsable API/일반 viewset 자동화 미지원 | [api](../../api/), [serializers](../../serializers/) |
 | Auth/session | password hashing, Session/CSRF, injected strict Bearer verifier, rotation/logout | token issuer/JWT/OAuth/OIDC/password reset·multi-user lifecycle 별도 | [auth](../../auth/), [sessions](../../sessions/) |
 | Durable system state | explicit provision/open, permission CAS와 session 폐기, cooperative application transaction | 비협력 writer·자동 policy/key 전파 미지원 | [systemstate](../../systemstate/) |
-| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 티켓 상세 조회 | 기존 흐름은 GDJ-0057에서 SQLite/PostgreSQL 검증; GDJ-0058 상세 조회는 로컬 검증 후 관련 CI 진행 중 | [examples](../../examples/) |
+| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 티켓 상세 조회 | GDJ-0058 상세 조회는 SQLite/PostgreSQL normal/race/CGO-disabled 검증; 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님 | [examples](../../examples/) |
 
 ## 계약과 증거
 
@@ -30,8 +30,8 @@ Machine contract/provenance/status는 [conformance/contracts](../../conformance/
 Reference-only MIG-075..086은 미등록 진단 reference이며 제품 passing으로 세지 않는다.
 Django와 다른 결과는 [DEVIATIONS](../DEVIATIONS.md)에 제한된 차이로 기록한다.
 
-현재 전체 통합 검증 source는 GDJ-0057의 `0b8235c`다. 과거 결과와 합쳐 PASS로 표시하지 않으며,
-Quick feedback, 관련 backend 검증과 전체 platform 검증은 각각 자신의 범위만 증명한다.
+GDJ-0057의 `0b8235c`는 전체 통합, GDJ-0058의 `aca9115`는 관련 ORM scope를 검증했다.
+과거 결과와 합쳐 PASS로 표시하지 않으며 Quick feedback, 관련 backend 검증과 전체 platform 검증은 각각 자신의 범위만 증명한다.
 
 Realtime, MySQL/MariaDB/Oracle, GIS/i18n/contrib와 넓은 ORM/Form/Admin/API는 [장기 범위](../CAPABILITY_CATALOG.md)이며
 현재 지원 항목이 아니다.
