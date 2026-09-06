@@ -1,9 +1,13 @@
 # ADR-0029: One-hop Forward `select_related`
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0029-one-hop-forward-select-related.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-11
 - 관련 work/contract:
-  [GDJ-0029](../../work/0029-one-hop-forward-select-related-product-slice.md), REL-009, REL-010, REL-011, Q-013, Q-017
+  [GDJ-0029](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0029-one-hop-forward-select-related-product-slice.md), REL-009, REL-010, REL-011, Q-013, Q-017
 - 선행 결정: [ADR-0002](0002-codegen-generics-runtime-metadata.md),
   [ADR-0003](0003-typed-and-dynamic-query-apis.md),
   [ADR-0008](0008-m1-sqlite-driver-and-execution-boundary.md),
@@ -19,14 +23,14 @@
 `5c0efef12560203d720e4c2dd7bda50c0324a228`의 run `31436881856`과 activation
 `0a1da373a443527e48a154ca6ccc7284e5e80dc0`의 run `31465198903`은 각각 baseline/activation만 증명하며
 implementation evidence로 재사용하지 않았습니다. Local implementation과 independent audits는
-[EVID-20260811-055](../status/TEST_EVIDENCE.md#evid-20260811-055--gdj-0029-activation-hosted-ci-and-rel-009010011-pre-hosted-local-validation)에,
+[EVID-20260811-055](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-055--gdj-0029-activation-hosted-ci-and-rel-009010011-pre-hosted-local-validation)에,
 exact implementation-head hosted acceptance는
-[EVID-20260811-056](../status/TEST_EVIDENCE.md#evid-20260811-056--gdj-0029-github-hosted-exact-26-job-implementation-head-ci)에
+[EVID-20260811-056](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-056--gdj-0029-github-hosted-exact-26-job-implementation-head-ci)에
 기록합니다. Commit `c02aab672db5175d7a0886688efb5cc684c67744`의 run `31470292759`는 exact
 26/26 jobs·326/326 recorded steps, four-coordinate 630/630/0 inventory와 independent hosted audit
 P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Exact 15-file completion-documentation head
 `fb9985e20c92f71eaca7bac81bc61466369e0ebd`도
-[EVID-20260811-057](../status/TEST_EVIDENCE.md#evid-20260811-057--gdj-0029-github-hosted-completion-documentation-head-exact-26-job-ci)의
+[EVID-20260811-057](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-057--gdj-0029-github-hosted-completion-documentation-head-exact-26-job-ci)의
 run `31482242288`에서 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-057을
 포함한 exact seven-file terminal 기록 자체의 hosted CI는 `not run/pending`이며 implementation/completion
 run을 그 later patch의 recursive proof로 재사용하지 않습니다.

@@ -1,8 +1,12 @@
 # ADR-0044: Server-side Session/Auth/CSRF and Bounded Article Admin
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0044-session-auth-csrf-and-bounded-article-admin.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-24
-- 관련 work/contract: [GDJ-0043](../../work/0043-safe-template-validation-session-auth-and-article-admin.md), AUT-001..008, ADM-001..010, Q-015, M6
+- 관련 work/contract: [GDJ-0043](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0043-safe-template-validation-session-auth-and-article-admin.md), AUT-001..008, ADM-001..010, Q-015, M6
 - 선행 결정: [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md),
   [ADR-0042](0042-project-linked-runserver-and-article-development-loop.md),
   [ADR-0043](0043-safe-template-and-model-form-validation.md)
@@ -108,26 +112,3 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
 - Full DOM/CSS/JS/widget parity와 arbitrary custom Admin view/template override
 - Production proxy/TLS/cookie deployment, non-loopback bind와 multi-process coordination
 - Dynamic route parameters, raw SQL system tables와 runserver auto-migrate
-
-## 검증
-
-- [x] AUT-001..008 and ADM-001..010 pinned Django semantics, secret-free oracles and payload-free baselines
-- [x] CSPRNG failure, expiry/rotation/fixation/flush, concurrent memory Store and cookie policy tests
-- [x] Password constant-time shape, inactive/unpermissioned user and safe-next/open-redirect negative tests
-- [x] CSRF safe/unsafe, cookie/masked/header, anonymous session-write 0, replay/rotation/body caps and mutation-0 tests
-- [x] Admin registration/config clone/duplicate/unknown capability tests
-- [x] Article add/change/delete/history/selected publish normal/failure/rollback/commit-unknown with stable event and no-retry ownership
-- [x] Actual Site SQLite/pinned PostgreSQL user flow and local normal/race/CGO0/vet
-- [x] Final frozen full/386/external-copy and independent local audit
-- [x] Exact submitted-head hosted matrix
-
-## 현재 구현 상태
-
-Accepted 상태입니다. Frozen source `8bcfa213...`와 local EVID-123에서 actual `admin.Site`, typed Article와
-SQLite/PostgreSQL integration을 고정했고, submitted head `5eda0a4...`의 EVID-124/CI #134가 exact
-27/27 jobs·358/358 steps와 PostgreSQL 17.10 required 14/14·skip 0을 통과했습니다. AUT-001..008의 6개 exact
-`passing`과 Verified DEV-0004의 AUT-004/005, ADM-001..010의 9개 exact `passing`과 Verified DEV-0005의 ADM-002가
-bounded hosted-verified됐습니다. `AUT-004` logout redirect는 surrogate가 아니라 Site login/logout/cookie 경계에서
-관찰했고, CSRF missing/wrong/form/header와 pre-login replay도 actual mutation 0으로 검증했습니다. Session/user/audit는
-여전히 process-lifetime이고 등록 모델은 Article 하나뿐이며 durable auth/session, production/TLS/multi-process 또는 M6
-completion은 주장하지 않습니다.

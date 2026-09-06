@@ -3,9 +3,7 @@
 package projectcheck
 
 import (
-	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
@@ -18,17 +16,7 @@ import (
 func RunMigrate(input MigrateInvocation) MigrateReport {
 	input.Args = append([]string(nil), input.Args...)
 	arguments, primary := parseMigrateArguments(input.Args)
-	if input.Environment == nil {
-		input.Environment = append([]string(nil), os.Environ()...)
-	} else {
-		input.Environment = append([]string(nil), input.Environment...)
-	}
-	if input.Context == nil {
-		input.Context = context.Background()
-	}
-	if input.Backend == nil {
-		input.Backend = processBackend{}
-	}
+	input.Context, input.Environment, input.Backend = normalizeCommandInput(input.Context, input.Environment, input.Backend)
 
 	report := MigrateReport{}
 	if terminal := migrateBarrier(input, primary); terminal != nil {
@@ -71,12 +59,7 @@ func RunMigrate(input MigrateInvocation) MigrateReport {
 	}
 
 	cleanup := func() {
-		report.TempCleanupAttempts++
-		cleanupFailed := selected.close() != nil
-		if err := workspace.cleanup(); err != nil {
-			cleanupFailed = true
-			report.ResidualTemp = 1
-		}
+		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
 		if !cleanupFailed {
 			return
 		}
@@ -102,20 +85,8 @@ func RunMigrate(input MigrateInvocation) MigrateReport {
 		return finish()
 	}
 
-	buildCommand := Command{
-		Dir: selected.rootPath,
-		Argv: []string{
-			"go", "build", "-buildvcs=false", "-mod=readonly", "-o",
-			filepath.Join(workspace.root, "godj-project-runner"),
-			selected.descriptor.packagePath,
-		},
-		Env: workspace.environment,
-	}
-	report.BuildCalls++
-	build := input.Backend.Execute(input.Context, input.Interrupt, BuildStage, cloneCommand(buildCommand))
-	recordProcess(&report.Report, BuildStage, build)
-	clear(build.Stdout)
-	build.Stdout = nil
+	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
+		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
 	primary = migrateProcessFailure(BuildStage, build)
 	primary = migrateBarrier(input, primary)
 	primary = combineMigrateCleanup(primary, build.CleanupFailed)
@@ -319,7 +290,7 @@ func publishMigrate(input MigrateInvocation, report *MigrateReport) {
 		report.ExitCode = exit
 		report.UserStderrWrites++
 		if input.Stderr != nil {
-			_, _ = writeOnce(input.Stderr, []byte(report.MigrateFailure.Category+"/"+report.MigrateFailure.Code+"\n"))
+			_, _ = writeOnce(input.Stderr, publicFailureDocument(&report.Report, report.MigrateFailure.Category, report.MigrateFailure.Code))
 		}
 		return
 	}

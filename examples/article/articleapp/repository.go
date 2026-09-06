@@ -576,11 +576,11 @@ func mutationResult(operation MutationOperation, article Article, changedFields 
 // ValidateInput applies the scalar validation used immediately before Article
 // writes. It performs no I/O.
 func ValidateInput(input Input) error {
-	if err := validateText("title", input.Title, false, 200); err != nil {
+	if err := validateModelText("title", input.Title, false); err != nil {
 		return err
 	}
 	if input.Summary != nil {
-		if err := validateText("summary", *input.Summary, true, 200); err != nil {
+		if err := validateModelText("summary", *input.Summary, true); err != nil {
 			return err
 		}
 	}
@@ -635,16 +635,25 @@ func validateListOptions(options ListOptions) error {
 
 func validatePatch(patch Patch) error {
 	if patch.title.supplied {
-		if err := validateText("title", patch.title.value, false, 200); err != nil {
+		if err := validateModelText("title", patch.title.value, false); err != nil {
 			return err
 		}
 	}
 	if patch.summary.supplied && !patch.summary.null {
-		if err := validateText("summary", patch.summary.value, true, 200); err != nil {
+		if err := validateModelText("summary", patch.summary.value, true); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func validateModelText(name, value string, allowEmpty bool) error {
+	for _, field := range (articlemodels.ArticleDescriptor{}).Metadata().Fields {
+		if field.Name == name {
+			return validateText(name, value, allowEmpty, field.MaxLength)
+		}
+	}
+	return invalid(name, "model metadata does not contain the field")
 }
 
 func validateText(field, value string, allowEmpty bool, maximumRunes int) error {
@@ -761,6 +770,15 @@ func cloneArticle(article Article) Article {
 		article.Summary = &summary
 	}
 	return article
+}
+
+// ModelSnapshot reconstructs a detached generated value for metadata-driven
+// presentation readers. It does not copy query caches or retain nullable input.
+func ModelSnapshot(article Article) articlemodels.Article {
+	article = cloneArticle(article)
+	model := articlemodels.NewArticleWithID(article.ID)
+	model.Title, model.Published, model.Summary = article.Title, article.Published, article.Summary
+	return model
 }
 
 func invalid(field, detail string) error {

@@ -23,6 +23,11 @@ func GenerateProjectRelationSelectRelated(
 	if err != nil {
 		return nil, err
 	}
+	return generateProjectRelationSelectRelated(packageName, newRelationProjectPlan(canonical))
+}
+
+func generateProjectRelationSelectRelated(packageName string, plan *relationProjectPlan) ([]byte, error) {
+	canonical := plan.apps
 	if err := validateProjectRelationSelectRelatedImports(canonical); err != nil {
 		return nil, err
 	}
@@ -31,14 +36,14 @@ func GenerateProjectRelationSelectRelated(
 			return nil, fmt.Errorf("validate relation projection prerequisite %q: %w", app.alias, err)
 		}
 	}
-	models, sources, err := buildProjectRelationObjectSurface(canonical)
+	models, sources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err
 	}
 	if err := validateProjectRelationObjectNamespaces(canonical, sources); err != nil {
 		return nil, fmt.Errorf("validate project relation select-related prerequisites: %w", err)
 	}
-	if err := validateProjectRelationSelectRelatedNamespaces(canonical, sources); err != nil {
+	if err := validateProjectRelationSelectRelatedNamespaces(plan, sources); err != nil {
 		return nil, fmt.Errorf("validate project relation select-related names: %w", err)
 	}
 	usedModels := projectRelationSelectRelatedUsedModels(models, sources)
@@ -89,7 +94,7 @@ func GenerateProjectRelationSelectRelated(
 	return formatted, nil
 }
 
-func validateProjectRelationSelectRelatedImports(apps []normalizedRelationObjectPackage) error {
+func validateProjectRelationSelectRelatedImports(apps []normalizedRelationPackage) error {
 	for _, app := range apps {
 		switch app.alias {
 		case "context", "sql", "db", "orm", "query", "ir", "len", "make", "string", "uint8":
@@ -104,9 +109,10 @@ func validateProjectRelationSelectRelatedImports(apps []normalizedRelationObject
 }
 
 func validateProjectRelationSelectRelatedNamespaces(
-	apps []normalizedRelationObjectPackage,
+	plan *relationProjectPlan,
 	sources []projectRelationObjectSource,
 ) error {
+	apps := plan.apps
 	packageNames := map[string]string{}
 	add := func(name, owner string) error {
 		if previous, duplicate := packageNames[name]; duplicate {
@@ -147,27 +153,11 @@ func validateProjectRelationSelectRelatedNamespaces(
 			return err
 		}
 	}
-	queryApps := make([]normalizedRelationQueryPackage, len(apps))
-	reverseApps := make([]normalizedRelationReversePackage, len(apps))
-	for index, app := range apps {
-		queryApps[index] = normalizedRelationQueryPackage{
-			alias:      app.alias,
-			prefix:     app.prefix,
-			importPath: app.importPath,
-			schema:     app.schema.Clone(),
-		}
-		reverseApps[index] = normalizedRelationReversePackage{
-			alias:      app.alias,
-			prefix:     app.prefix,
-			importPath: app.importPath,
-			schema:     app.schema.Clone(),
-		}
-	}
-	_, querySources, err := buildProjectRelationQuerySurface(queryApps)
+	_, querySources, err := plan.querySurface()
 	if err != nil {
 		return fmt.Errorf("build immutable project relation query namespace: %w", err)
 	}
-	if err := validateProjectRelationQueryNamespaces(queryApps, querySources); err != nil {
+	if err := validateProjectRelationQueryNamespaces(apps, querySources); err != nil {
 		return fmt.Errorf("validate immutable project relation query namespace: %w", err)
 	}
 	for _, source := range querySources {
@@ -181,18 +171,18 @@ func validateProjectRelationSelectRelatedNamespaces(
 			}
 		}
 	}
-	_, reverseOwners, err := buildProjectRelationReverseSurface(reverseApps)
+	_, reverseOwners, err := plan.reverseSurface()
 	if err != nil {
 		return fmt.Errorf("build immutable project reverse namespace: %w", err)
 	}
-	if err := validateProjectRelationReverseNamespaces(reverseApps, reverseOwners); err != nil {
+	if err := validateProjectRelationReverseNamespaces(plan, reverseOwners); err != nil {
 		return fmt.Errorf("validate immutable project reverse namespace: %w", err)
 	}
 	reverseObjectOwners := projectRelationReverseObjectOwners(reverseOwners)
-	if err := validateProjectRelationPrefetchNamespaces(reverseApps, reverseOwners, reverseObjectOwners); err != nil {
+	if err := validateProjectRelationPrefetchNamespaces(plan, reverseOwners, reverseObjectOwners); err != nil {
 		return fmt.Errorf("validate immutable project prefetch namespace: %w", err)
 	}
-	reverseObjectSet := make(map[*projectRelationReverseModel]struct{}, len(reverseObjectOwners))
+	reverseObjectSet := make(map[*projectRelationModel]struct{}, len(reverseObjectOwners))
 	for index := range reverseObjectOwners {
 		reverseObjectSet[reverseObjectOwners[index].model] = struct{}{}
 	}
@@ -285,17 +275,17 @@ func validateProjectRelationSelectRelatedNamespaces(
 }
 
 func projectRelationSelectRelatedUsedModels(
-	models []*projectRelationObjectModel,
+	models []*projectRelationModel,
 	sources []projectRelationObjectSource,
-) []*projectRelationObjectModel {
-	used := make(map[*projectRelationObjectModel]struct{})
+) []*projectRelationModel {
+	used := make(map[*projectRelationModel]struct{})
 	for index := range sources {
 		used[sources[index].model] = struct{}{}
 		for relationIndex := range sources[index].relations {
 			used[sources[index].relations[relationIndex].target] = struct{}{}
 		}
 	}
-	result := make([]*projectRelationObjectModel, 0, len(used))
+	result := make([]*projectRelationModel, 0, len(used))
 	for _, model := range models {
 		if _, ok := used[model]; ok {
 			result = append(result, model)
@@ -305,14 +295,14 @@ func projectRelationSelectRelatedUsedModels(
 }
 
 func projectRelationSelectRelatedUsedApps(
-	apps []normalizedRelationObjectPackage,
-	models []*projectRelationObjectModel,
-) []normalizedRelationObjectPackage {
+	apps []normalizedRelationPackage,
+	models []*projectRelationModel,
+) []normalizedRelationPackage {
 	used := make(map[string]struct{})
 	for _, model := range models {
 		used[model.app.schema.AppLabel] = struct{}{}
 	}
-	result := make([]normalizedRelationObjectPackage, 0, len(used))
+	result := make([]normalizedRelationPackage, 0, len(used))
 	for _, app := range apps {
 		if _, ok := used[app.schema.AppLabel]; ok {
 			result = append(result, app)

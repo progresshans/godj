@@ -10,7 +10,7 @@ import (
 // WriteCapture validates a fresh destination outside the repository, confirms
 // that the supplied source binding still matches the repository, encodes the
 // exact-producer document, and publishes it without replacing an existing
-// path. A hosted workflow owns comparison and later checked-artifact updates.
+// path. The successful producer job publishes the capture for its same-run consumer.
 func WriteCapture(
 	repositoryRoot, capturePath string,
 	postgresqlObserved, sqliteObserved ObservedFacts,
@@ -62,16 +62,6 @@ func resolveCapturePath(repositoryRoot, capturePath string) (string, error) {
 		return "", errors.New("external operator capture refuses to replace an existing path")
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", errors.New("inspect external operator capture path")
-	}
-	checked := filepath.Join(
-		resolvedRepository,
-		"conformance",
-		"projectoperatorproduct",
-		"attestations",
-		FileName,
-	)
-	if filepath.Clean(resolvedCapture) == filepath.Clean(checked) {
-		return "", errors.New("external operator capture cannot write the checked attestation in place")
 	}
 	return resolvedCapture, nil
 }

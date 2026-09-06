@@ -1,5 +1,9 @@
 # ADR-0039: Typed projection, scalar aggregate와 stable pagination을 하나의 read shape로 확장한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-23
 - 관련 work/contract: GDJ-0039, QRY-022..033, Q-011, M4
@@ -96,10 +100,3 @@ published filter → distinct → stable ID order → offset/limit
 - annotation/grouping/having, dynamic values, subquery, window function
 - related-column projection/aggregate 또는 existing select-related projection과 DTO projection 조합
 - Web Core pagination abstraction, MySQL과 추가 backend
-
-## 검증
-
-GDJ-0039는 QRY-022..033 Django reference/result 계약, core unit/compile/race tests, SQLite/PostgreSQL compiler와
-actual integration, generated bundle drift/whole-candidate compile, Article loopback HTTP parity를 거칩니다. 작은
-subtask마다 full matrix를 반복하지 않고 core, backend/generated, final frozen milestone의 세 green checkpoint를
-사용합니다.

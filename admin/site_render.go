@@ -98,15 +98,15 @@ func (site *Site) listContext(
 	query url.Values,
 	invalidPage bool,
 ) (map[string]templates.Value, error) {
-	canAdd, err := site.auth.Authorized(ctx, principal, model.permissions.Add)
+	canAdd, err := site.modelWriteAllowed(ctx, model, principal, model.permissions.Add)
 	if err != nil {
 		return nil, err
 	}
-	canChange, err := site.auth.Authorized(ctx, principal, model.permissions.Change)
+	canChange, err := site.modelWriteAllowed(ctx, model, principal, model.permissions.Change)
 	if err != nil {
 		return nil, err
 	}
-	canDelete, err := site.auth.Authorized(ctx, principal, model.permissions.Delete)
+	canDelete, err := site.modelWriteAllowed(ctx, model, principal, model.permissions.Delete)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +133,7 @@ func (site *Site) listContext(
 			"history_url": templates.String(site.modelPath(model) + "history/?id=" + strconv.FormatInt(object.id, 10)),
 			"can_change":  templates.Bool(canChange),
 			"can_delete":  templates.Bool(canDelete),
+			"has_history": templates.Bool(model.hasHistory),
 		})
 		if err != nil {
 			return nil, err
@@ -194,6 +195,13 @@ func (site *Site) listContext(
 		"affected":     templates.Integer(affected),
 		"invalid_page": templates.Bool(invalidPage),
 	}, nil
+}
+
+func (site *Site) modelWriteAllowed(ctx context.Context, model registeredModel, principal auth.Principal, permission auth.Permission) (bool, error) {
+	if model.readOnly {
+		return false, nil
+	}
+	return site.auth.Authorized(ctx, principal, permission)
 }
 
 func listPageCount(total int64, limit int) int64 {

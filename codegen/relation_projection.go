@@ -190,27 +190,9 @@ func relationProjectionScanField(field ir.Field) string {
 }
 
 func relationProjectionSQLHolder(field ir.Field) string {
-	switch field.Kind {
-	case ir.FieldAuto, ir.FieldForeignKey:
-		return "sql.NullInt64"
-	case ir.FieldChar:
-		return "sql.NullString"
-	case ir.FieldBoolean:
-		return "sql.NullBool"
-	default:
-		return "struct{}"
-	}
+	return fieldRenderKind(field.Kind).sqlHolder
 }
 
 func relationProjectionSQLHolderValue(field ir.Field) string {
-	switch field.Kind {
-	case ir.FieldAuto, ir.FieldForeignKey:
-		return "Int64"
-	case ir.FieldChar:
-		return "String"
-	case ir.FieldBoolean:
-		return "Bool"
-	default:
-		return ""
-	}
+	return fieldRenderKind(field.Kind).sqlValue
 }

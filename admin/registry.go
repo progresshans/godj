@@ -157,19 +157,27 @@ type ModelConfig[M any] struct {
 	Slug          string
 	Model         ir.Model
 	FormOverrides []formmodel.Override
-	ListFields    []string
-	SearchFields  []string
-	Permissions   Permissions
+	// FormFields selects editable fields in model declaration order. nil means
+	// all supported editable fields. Omitted fields never enter cleaned input.
+	FormFields []string
+	// ReadOnly publishes list/history views without mutation routes or callbacks.
+	ReadOnly     bool
+	ListFields   []string
+	SearchFields []string
+	Permissions  Permissions
 
-	List     func(context.Context, ListRequest) (Page[M], error)
-	Get      func(context.Context, int64) (M, bool, error)
+	List func(context.Context, ListRequest) (Page[M], error)
+	Get  func(context.Context, int64) (M, bool, error)
+	// Snapshot must include ListFields and the selected editable fields. Other
+	// declared model values are optional and validated when explicitly supplied.
 	Snapshot func(M) (Object, error)
 	Initial  func(M) (map[string]forms.Value, error)
 	Create   func(context.Context, auth.Principal, forms.Values) (M, error)
 	Update   func(context.Context, auth.Principal, int64, forms.Values) (M, []string, error)
 	Delete   func(context.Context, auth.Principal, int64) (M, error)
-	History  func(context.Context, int64, HistoryRequest) ([]AuditEntry, error)
-	Actions  []ActionConfig
+	// History is optional. Its absence removes history routes and links.
+	History func(context.Context, int64, HistoryRequest) ([]AuditEntry, error)
+	Actions []ActionConfig
 }
 
 // Builder is mutable only during single-threaded startup. Build seals it and
@@ -255,6 +263,7 @@ func (builder *Builder) Build() (Registry, error) {
 // ModelDescriptor is a detached public registration description. It contains
 // no persistence or authorization callback.
 type ModelDescriptor struct {
+	ReadOnly     bool
 	AppLabel     string
 	Slug         string
 	Model        ir.Model
@@ -288,6 +297,8 @@ func (registry Registry) Lookup(appLabel, modelName string) (ModelDescriptor, bo
 }
 
 type registeredModel struct {
+	readOnly     bool
+	hasHistory   bool
 	appLabel     string
 	slug         string
 	model        ir.Model
@@ -340,9 +351,14 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, &ConfigError{Path: "model.ir", Code: "invalid", Cause: err}
 	}
 	model := normalized.Models[0]
-	form, err := formmodel.NewSpec(model, config.FormOverrides...)
-	if err != nil {
-		return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
+	var form forms.Spec
+	if !config.ReadOnly {
+		form, err = formmodel.NewSpecForFields(model, config.FormFields, config.FormOverrides...)
+		if err != nil {
+			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
+		}
+	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.Actions) != 0 || config.Create != nil || config.Update != nil || config.Delete != nil {
+		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
 	for _, field := range model.Fields {
@@ -356,12 +372,17 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	if err != nil {
 		return registeredModel{}, err
 	}
-	if err := validatePermissions(config.Permissions); err != nil {
+	permissionErr := validatePermission("model.permissions.view", config.Permissions.View)
+	if !config.ReadOnly {
+		permissionErr = validatePermissions(config.Permissions)
+	}
+	if err := permissionErr; err != nil {
 		return registeredModel{}, err
 	}
 	permissions := config.Permissions
-	if config.List == nil || config.Get == nil || config.Snapshot == nil || config.Initial == nil ||
-		config.Create == nil || config.Update == nil || config.Delete == nil || config.History == nil {
+	if config.List == nil || config.Snapshot == nil ||
+		(!config.ReadOnly && (config.Get == nil || config.Initial == nil || config.Create == nil || config.Update == nil || config.Delete == nil)) ||
+		(config.History != nil && config.Get == nil) {
 		return registeredModel{}, &ConfigError{Path: "model.callbacks", Code: "missing"}
 	}
 	actions, err := prepareActions(config.Actions)
@@ -382,9 +403,34 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		editable[field.Name()] = struct{}{}
 	}
-	snapshotFields := append([]ir.Field(nil), model.Fields...)
+	// Only fields consumed by this registration are required. A storage-only
+	// field must not force an otherwise unchanged Admin adapter to expose it.
+	requiredSnapshotFields := make(map[string]struct{}, len(listFields)+len(formFields))
+	for _, name := range listFields {
+		requiredSnapshotFields[name] = struct{}{}
+	}
+	for _, field := range formFields {
+		requiredSnapshotFields[field.Name()] = struct{}{}
+	}
+	requiredSnapshotOrder := make([]string, 0, len(requiredSnapshotFields))
+	for _, field := range model.Fields {
+		if _, required := requiredSnapshotFields[field.Name]; required {
+			requiredSnapshotOrder = append(requiredSnapshotOrder, field.Name)
+		}
+	}
+	validateSnapshot := func(object Object) error {
+		return validateRegisteredSnapshot(object, fieldByName, requiredSnapshotOrder)
+	}
+	auditable := make(map[string]struct{}, len(model.Fields))
+	for _, field := range model.Fields {
+		if !field.PrimaryKey {
+			auditable[field.Name] = struct{}{}
+		}
+	}
 
 	registered := registeredModel{
+		readOnly:     config.ReadOnly,
+		hasHistory:   config.History != nil,
 		appLabel:     config.AppLabel,
 		slug:         config.Slug,
 		model:        model.Clone(),
@@ -416,7 +462,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			if err != nil {
 				return registeredPage{}, fmt.Errorf("admin: snapshot list item %d: %w", index, err)
 			}
-			if err := validateObject(object, snapshotFields); err != nil {
+			if err := validateSnapshot(object); err != nil {
 				return registeredPage{}, err
 			}
 			if index > 0 && object.id <= previousID {
@@ -435,6 +481,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	// Change-form loading snapshots safe display values and typed form initial
 	// values together. Nothing mutable is stored back into the registry.
 	registered.get = func(ctx context.Context, principal auth.Principal, id int64) (registeredRecord, bool, error) {
+		if config.Get == nil {
+			return registeredRecord{}, false, &ConfigError{Path: "get", Code: "unavailable"}
+		}
 		if err := validatePrincipalPermission(ctx, principal, permissions.View); err != nil {
 			return registeredRecord{}, false, err
 		}
@@ -452,8 +501,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if object.id != id {
 			return registeredRecord{}, false, &ConfigError{Path: "get.result.id", Code: "mismatch"}
 		}
-		if err := validateObject(object, snapshotFields); err != nil {
+		if err := validateSnapshot(object); err != nil {
 			return registeredRecord{}, false, err
+		}
+		if config.ReadOnly {
+			return registeredRecord{object: object}, true, nil
 		}
 		initial, err := config.Initial(item)
 		if err != nil {
@@ -473,6 +525,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredRecord{object: object, initial: valuesMap(resolved)}, true, nil
 	}
 	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form) (Object, error) {
+		if config.ReadOnly {
+			return Object{}, &ConfigError{Path: "create", Code: "read_only"}
+		}
 		if err := validatePrincipalPermission(ctx, principal, permissions.Add); err != nil {
 			return Object{}, err
 		}
@@ -488,12 +543,15 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, reconciliationError("create", err)
 		}
-		if err := validateObject(object, snapshotFields); err != nil {
+		if err := validateSnapshot(object); err != nil {
 			return Object{}, reconciliationError("create", err)
 		}
 		return object, nil
 	}
 	registered.update = func(ctx context.Context, principal auth.Principal, id int64, submitted forms.Form) (Object, []string, error) {
+		if config.ReadOnly {
+			return Object{}, nil, &ConfigError{Path: "update", Code: "read_only"}
+		}
 		if err := validatePrincipalPermission(ctx, principal, permissions.Change); err != nil {
 			return Object{}, nil, err
 		}
@@ -515,7 +573,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if object.id != id {
 			return Object{}, nil, reconciliationError("update", &ConfigError{Path: "update.result.id", Code: "mismatch"})
 		}
-		if err := validateObject(object, snapshotFields); err != nil {
+		if err := validateSnapshot(object); err != nil {
 			return Object{}, nil, reconciliationError("update", err)
 		}
 		changed, err = validateChangedFields(changed, editable)
@@ -525,6 +583,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return object, changed, nil
 	}
 	registered.delete = func(ctx context.Context, principal auth.Principal, id int64) (Object, error) {
+		if config.ReadOnly {
+			return Object{}, &ConfigError{Path: "delete", Code: "read_only"}
+		}
 		if err := validatePrincipalPermission(ctx, principal, permissions.Delete); err != nil {
 			return Object{}, err
 		}
@@ -539,7 +600,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, reconciliationError("delete", err)
 		}
-		if err := validateObject(object, snapshotFields); err != nil {
+		if err := validateSnapshot(object); err != nil {
 			return Object{}, reconciliationError("delete", err)
 		}
 		if object.id != id {
@@ -548,6 +609,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return object, nil
 	}
 	registered.history = func(ctx context.Context, principal auth.Principal, id int64) ([]AuditEntry, error) {
+		if config.History == nil {
+			return nil, &ConfigError{Path: "history", Code: "unavailable"}
+		}
 		if err := validatePrincipalPermission(ctx, principal, permissions.View); err != nil {
 			return nil, err
 		}
@@ -571,7 +635,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			if _, err := PrepareEvent(entry.ActorID, entry.Model, entry.ObjectID, entry.Action, entry.ChangedFields, entry.DisplayLabel); err != nil {
 				return nil, &ConfigError{Path: fmt.Sprintf("history.result[%d]", index), Code: "invalid", Cause: err}
 			}
-			if _, err := validateChangedFields(entry.ChangedFields, editable); err != nil {
+			if _, err := validateChangedFields(entry.ChangedFields, auditable); err != nil {
 				return nil, &ConfigError{Path: fmt.Sprintf("history.result[%d].changed_fields", index), Code: "invalid", Cause: err}
 			}
 			previous = entry.Sequence
@@ -646,6 +710,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permission: action.permission}
 	}
 	return ModelDescriptor{
+		ReadOnly:     model.readOnly,
 		AppLabel:     model.appLabel,
 		Slug:         model.slug,
 		Model:        model.model.Clone(),
@@ -873,6 +938,27 @@ func validFormValue(value forms.Value, field forms.Field) bool {
 	default:
 		return false
 	}
+}
+
+func validateRegisteredSnapshot(object Object, modelFields map[string]ir.Field, required []string) error {
+	for _, name := range required {
+		if _, found := object.Value(name); !found {
+			return &ConfigError{Path: "snapshot." + name, Code: "missing_field"}
+		}
+	}
+	members, ok := object.values.Members()
+	if !ok {
+		return &ConfigError{Path: "snapshot.values", Code: "invalid"}
+	}
+	fields := make([]ir.Field, 0, len(members))
+	for _, member := range members {
+		field, found := modelFields[member.Name()]
+		if !found {
+			return &ConfigError{Path: "snapshot." + member.Name(), Code: "unknown_field"}
+		}
+		fields = append(fields, field)
+	}
+	return validateObject(object, fields)
 }
 
 func validateObject(object Object, fields []ir.Field) error {

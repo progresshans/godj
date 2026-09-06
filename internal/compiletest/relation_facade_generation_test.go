@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -30,7 +31,7 @@ const (
 	checkedInRelationFacadeV2SHA256 = "131dcfce03fc2a03df1e8191e2fbaa6b4f65bff0f84795056cbb7f76ce1199dc"
 )
 
-func TestCheckedInRelationFacadeV2CannotHybridizeCurrentV3Bundle(t *testing.T) {
+func TestCheckedInRelationFacadeV2CannotHybridizeCurrentBundle(t *testing.T) {
 	repository := repositoryRoot(t)
 	v2Path := filepath.Join(repository, filepath.FromSlash(checkedInRelationFacadeV2Path))
 	v2Source, err := os.ReadFile(v2Path)
@@ -48,7 +49,7 @@ func TestCheckedInRelationFacadeV2CannotHybridizeCurrentV3Bundle(t *testing.T) {
 		)
 	}
 	if !bytes.Contains(v2Source, []byte(`GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"`)) ||
-		bytes.Contains(v2Source, []byte("godj-codegen-rel-facade-project-current-v3")) {
+		bytes.Contains(v2Source, []byte(codegen.ProjectRelationFacadeGeneratorVersion)) {
 		t.Fatal("checked-in relation facade v2 fixture has the wrong generation identity")
 	}
 
@@ -60,24 +61,22 @@ func TestCheckedInRelationFacadeV2CannotHybridizeCurrentV3Bundle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate current relation facade bundle: %v", err)
 	}
-	if codegen.ProjectRelationFacadeGeneratorVersion != "godj-codegen-rel-facade-project-current-v3" {
-		t.Fatalf("current relation facade generator version = %q, want v3", codegen.ProjectRelationFacadeGeneratorVersion)
-	}
 	currentFacade := requireRelationFacadeGeneratedFile(t, bundle, relationFacadeGeneratedPath)
-	if !bytes.Contains(currentFacade.Source(), []byte(`GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v3"`)) ||
+	versionDeclaration := "GoDjProjectRelationFacadeGeneratorVersion = " + strconv.Quote(codegen.ProjectRelationFacadeGeneratorVersion)
+	if !bytes.Contains(currentFacade.Source(), []byte(versionDeclaration)) ||
 		bytes.Equal(currentFacade.Source(), v2Source) {
-		t.Fatal("current generated relation facade is not an independent v3 member")
+		t.Fatal("current generated relation facade is not an independent current member")
 	}
 
 	currentRoot := t.TempDir()
 	copyCurrentRelationFacadeProduct(t, currentRoot)
 	currentReport, err := projectgenerate.Check(context.Background(), currentRoot, bundle)
 	if err != nil || !currentReport.Clean() {
-		t.Fatalf("check current v3 relation facade bundle: report=%#v error=%v", currentReport, err)
+		t.Fatalf("check current relation facade bundle: report=%#v error=%v", currentReport, err)
 	}
-	currentCompile := compileRelationFacadeProduct(t, repository, filepath.Join(t.TempDir(), "current-v3.test"))
+	currentCompile := compileRelationFacadeProduct(t, repository, filepath.Join(t.TempDir(), "current.test"))
 	if currentCompile.err != nil {
-		t.Fatalf("compile current v3 relation facade bundle: %v\n%s", currentCompile.err, currentCompile.output)
+		t.Fatalf("compile current relation facade bundle: %v\n%s", currentCompile.err, currentCompile.output)
 	}
 
 	staleFacadePath := filepath.Join(currentRoot, filepath.FromSlash(relationFacadeGeneratedPath))
@@ -86,27 +85,27 @@ func TestCheckedInRelationFacadeV2CannotHybridizeCurrentV3Bundle(t *testing.T) {
 	}
 	staleReport, err := projectgenerate.Check(context.Background(), currentRoot, bundle)
 	if !errors.Is(err, projectgenerate.ErrGeneratedDrift) || staleReport.Clean() || staleReport.Interrupted {
-		t.Fatalf("check v2/v3 mixed relation facade bundle: report=%#v error=%v", staleReport, err)
+		t.Fatalf("check stale/current mixed relation facade bundle: report=%#v error=%v", staleReport, err)
 	}
 	if len(staleReport.Drifts) != 1 {
-		t.Fatalf("v2/v3 mixed relation facade drifts = %#v, want one modified facade", staleReport.Drifts)
+		t.Fatalf("stale/current mixed relation facade drifts = %#v, want one modified facade", staleReport.Drifts)
 	}
 	drift := staleReport.Drifts[0]
 	if drift.Path != relationFacadeGeneratedPath || drift.Kind != projectgenerate.DriftModified ||
 		drift.ExpectedSHA256 != currentFacade.SHA256 || drift.ActualSHA256 != checkedInRelationFacadeV2SHA256 {
-		t.Fatalf("v2/v3 mixed relation facade drift = %#v, want exact current/stale binding", drift)
+		t.Fatalf("stale/current mixed relation facade drift = %#v, want exact current/stale binding", drift)
 	}
 
 	mixedCompile := compileRelationFacadeProductOverlay(t, repository, v2Path)
 	if mixedCompile.err == nil {
-		t.Fatal("v2 relation facade unexpectedly compiled with the current v3 product generation")
+		t.Fatal("v2 relation facade unexpectedly compiled with the current product generation")
 	}
 	for _, fragment := range []string{
 		"checked_in_project_facade_v2.go.txt",
 		"undefined: goDjProjectSnapshot_2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b",
 	} {
 		if !strings.Contains(mixedCompile.output, fragment) {
-			t.Fatalf("v2/v3 mixed compile diagnostics lack %q:\n%s", fragment, mixedCompile.output)
+			t.Fatalf("stale/current mixed compile diagnostics lack %q:\n%s", fragment, mixedCompile.output)
 		}
 	}
 }
@@ -147,11 +146,11 @@ func compileRelationFacadeProductOverlay(t *testing.T, repository, facadeBacking
 		filepath.Join(repository, "conformance", "relationdeleteproduct", filepath.FromSlash(relationFacadeGeneratedPath)): facadeBacking,
 	}})
 	if err != nil {
-		t.Fatalf("encode v2/v3 relation facade compile overlay: %v", err)
+		t.Fatalf("encode stale/current relation facade compile overlay: %v", err)
 	}
 	overlayPath := filepath.Join(workspace, "overlay.json")
 	if err := os.WriteFile(overlayPath, overlay, 0o600); err != nil {
-		t.Fatalf("write v2/v3 relation facade compile overlay: %v", err)
+		t.Fatalf("write stale/current relation facade compile overlay: %v", err)
 	}
 	command := exec.CommandContext(
 		t.Context(),
@@ -163,7 +162,7 @@ func compileRelationFacadeProductOverlay(t *testing.T, repository, facadeBacking
 		"-mod=readonly",
 		"-overlay="+overlayPath,
 		"-o",
-		filepath.Join(workspace, "mixed-v2-v3.test"),
+		filepath.Join(workspace, "mixed-stale-current.test"),
 		modulePath+"/conformance/relationdeleteproduct",
 	)
 	command.Dir = repository

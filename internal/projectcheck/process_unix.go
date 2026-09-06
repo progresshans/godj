@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
@@ -86,7 +87,9 @@ func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, st
 		stdoutMaximum = projectmigrationprotocol.MaxResponseBytes
 		retainStdout = true
 	}
-	return executeOwnedProcess(ctx, interrupt, cloneCommand(command), stdoutMaximum, maxDiagnosticBytes, retainStdout)
+	return executeOwnedProcess(ctx, interrupt, cloneCommand(command), stdoutMaximum, maxDiagnosticBytes, ownedProcessOptions{
+		retainStdout: retainStdout, buildDiagnostics: stage == BuildStage,
+	})
 }
 
 type cappedDrain struct {
@@ -131,7 +134,13 @@ func (capture *cappedDrain) discard() {
 	capture.prefix = nil
 }
 
-func executeOwnedProcess(ctx context.Context, interrupt <-chan struct{}, command Command, stdoutMaximum, stderrMaximum int, retainStdout bool) ProcessResult {
+type ownedProcessOptions struct {
+	retainStdout     bool
+	buildDiagnostics bool
+	afterWait        func()
+}
+
+func executeOwnedProcess(ctx context.Context, interrupt <-chan struct{}, command Command, stdoutMaximum, stderrMaximum int, options ownedProcessOptions) ProcessResult {
 	result := ProcessResult{ExitCode: -1}
 	if ctx == nil || len(command.Argv) == 0 || command.Argv[0] == "" || stdoutMaximum < 0 || stderrMaximum < 0 {
 		return result
@@ -171,6 +180,9 @@ func executeOwnedProcess(ctx context.Context, interrupt <-chan struct{}, command
 		_ = stdoutWriter.Close()
 		_ = stderrReader.Close()
 		_ = stderrWriter.Close()
+		if options.buildDiagnostics {
+			result.BuildDiagnostic = gobuild.Summary(nil, []byte(err.Error()), command.Env)
+		}
 		return result
 	}
 	result.Started = true
@@ -211,6 +223,9 @@ func executeOwnedProcess(ctx context.Context, interrupt <-chan struct{}, command
 		select {
 		case waitErr = <-waited:
 			waitComplete = true
+			if options.afterWait != nil {
+				options.afterWait()
+			}
 			primary = pendingProcessCancellation(ctx, interrupt)
 		case <-drained:
 			drainComplete = true
@@ -282,7 +297,10 @@ func executeOwnedProcess(ctx context.Context, interrupt <-chan struct{}, command
 	result.DirectReaps = 1
 	result.StdoutScalar = stdoutCapture.scalar()
 	result.StderrScalar = stderrCapture.scalar()
-	if retainStdout && primary == nil && !result.CleanupFailed {
+	if options.buildDiagnostics && primary == nil && waitErr != nil {
+		result.BuildDiagnostic = gobuild.Summary(stdoutCapture.prefix, stderrCapture.prefix, command.Env)
+	}
+	if options.retainStdout && primary == nil && !result.CleanupFailed {
 		result.Stdout = stdoutCapture.take()
 	} else {
 		stdoutCapture.discard()

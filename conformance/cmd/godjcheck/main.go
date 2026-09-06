@@ -34,12 +34,12 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	systemStatePostgreSQLAttestationPath := flags.String(
 		"system-state-postgres-attestation",
 		"",
-		"path to the checked source-bound PostgreSQL 17.10 SYS-020 evidence",
+		"path to the captured source-bound PostgreSQL 17.10 SYS-020 evidence",
 	)
 	projectOperatorPostgreSQLAttestationPath := flags.String(
 		"project-operator-postgres-attestation",
 		"",
-		"path to the checked source-bound PostgreSQL 17.10 and SQLite SYS-029 evidence",
+		"path to the captured source-bound PostgreSQL 17.10 and SQLite SYS-029 evidence",
 	)
 	flags.Usage = func() {
 		fmt.Fprintln(stderr, "usage: godjcheck -profile PROFILE.json -manifest MANIFEST.json -expected ORACLE.json [-deviation-expected PRODUCT.json] [-system-state-postgres-attestation EVIDENCE.json] [-project-operator-postgres-attestation EVIDENCE.json] [-actual-output ACTUAL.json]")
@@ -477,32 +477,27 @@ func attestationRepositoryRoot(manifestPath string) (string, error) {
 	return repositoryRoot, nil
 }
 
-func requireSystemStateAttestationPath(repositoryRoot, attestationPath string) error {
-	expectedAttestation := filepath.Join(
-		repositoryRoot,
-		"conformance",
-		"systemstate",
-		"attestations",
-		systemstateattestation.FileName,
-	)
-	if err := requireExactResolvedPath(attestationPath, expectedAttestation); err != nil {
-		return fmt.Errorf("PostgreSQL live attestation must use the checked current repository path: %w", err)
-	}
-	return nil
+// Evidence may live in a same-run CI artifact directory or a local capture.
+// Load still verifies the profile, canonical bytes, checksum and current source
+// binding. Artifact provenance is owned by the CI producer/consumer dependency,
+// not by a mutable filename inside the checkout.
+func requireSystemStateAttestationPath(_ string, attestationPath string) error {
+	return requireCapturePath(attestationPath, systemstateattestation.FileName)
 }
 
-func requireProjectOperatorAttestationPath(repositoryRoot, attestationPath string) error {
-	expectedAttestation := filepath.Join(
-		repositoryRoot,
-		"conformance",
-		"projectoperatorproduct",
-		"attestations",
-		operatorattestation.FileName,
-	)
-	if err := requireExactResolvedPath(attestationPath, expectedAttestation); err != nil {
-		return fmt.Errorf("external project operator attestation must use the checked current repository path: %w", err)
+func requireProjectOperatorAttestationPath(_ string, attestationPath string) error {
+	return requireCapturePath(attestationPath, operatorattestation.FileName)
+}
+
+func requireCapturePath(given, filename string) error {
+	if filepath.Base(given) != filename {
+		return fmt.Errorf("attestation evidence filename must be %q", filename)
 	}
-	return nil
+	absolute, err := filepath.Abs(given)
+	if err != nil {
+		return errors.New("resolve attestation capture path")
+	}
+	return requireExactResolvedPath(absolute, absolute)
 }
 
 func currentGoDjRepositoryRoot() (string, error) {

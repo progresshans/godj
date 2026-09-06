@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -264,17 +263,10 @@ type ForwardSelectQuery[S, T any] struct {
 	backend          db.Queryer
 	plan             query.Plan
 	selection        forwardSelectState[S, T]
-	evaluation       *forwardSelectEvaluation[S, T]
+	evaluation       *evaluationState[forwardSelectedValue[S, T]]
 	configurationErr error
 	sourceMarker     [0]func(S)
 	targetMarker     [0]func(T)
-}
-
-type forwardSelectEvaluation[S, T any] struct {
-	mu     sync.Mutex
-	ready  bool
-	values []forwardSelectedValue[S, T]
-	flight *evaluationFlight
 }
 
 type forwardSelectedValue[S, T any] struct {
@@ -294,7 +286,7 @@ func (s ForwardSelect[S, T]) Select(source QuerySet[S]) ForwardSelectQuery[S, T]
 		backend:    source.backend,
 		plan:       source.plan,
 		selection:  s.state,
-		evaluation: &forwardSelectEvaluation[S, T]{},
+		evaluation: newEvaluationState[forwardSelectedValue[S, T]](),
 	}
 	if source.configurationErr != nil {
 		result.configurationErr = source.configurationErr
@@ -394,62 +386,21 @@ func (q ForwardSelectQuery[S, T]) All(ctx context.Context) ([]*ForwardSelected[S
 	if err := q.validateTerminal(ctx); err != nil {
 		return nil, err
 	}
-
-	for {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		state := q.evaluation
-		state.mu.Lock()
-		if state.ready {
-			values := state.values
-			state.mu.Unlock()
-			result := q.cloneSelected(values)
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			return result, nil
-		}
-		if flight := state.flight; flight != nil {
-			state.mu.Unlock()
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-flight.done:
-			}
-			if flight.err == nil || errors.Is(flight.err, context.Canceled) || errors.Is(flight.err, context.DeadlineExceeded) {
-				continue
-			}
-			return nil, flight.err
-		}
-
-		flight := &evaluationFlight{done: make(chan struct{})}
-		state.flight = flight
-		state.mu.Unlock()
-
+	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]forwardSelectedValue[S, T], error) {
 		values, err := q.scanAll(ctx)
 		if err == nil {
 			err = ctx.Err()
 		}
-		state.mu.Lock()
-		if err == nil {
-			state.values = values
-			state.ready = true
-		}
-		flight.err = err
-		state.flight = nil
-		close(flight.done)
-		state.mu.Unlock()
-
-		if err != nil {
-			return nil, err
-		}
-		result := q.cloneSelected(values)
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		return result, nil
+		return values, err
+	})
+	if err != nil {
+		return nil, err
 	}
+	result := q.cloneSelected(values)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (q ForwardSelectQuery[S, T]) validateTerminal(ctx context.Context) error {

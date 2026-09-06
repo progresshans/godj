@@ -21,10 +21,6 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	}
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
-		"conformance/relationdeleteproduct/.godj/generated-manifest.json": {
-			size:   4815,
-			sha256: "43b73b459329f7ae8b1046658964e8e7857112b7febea2705d66ff9f676f6b8e",
-		},
 		"conformance/contracts/relation-manifest.json": {
 			size:   10770,
 			sha256: "791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b",
@@ -53,92 +49,9 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	}
 }
 
-func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	common := []string{
-		"authors/zz_godj_generated.go",
-		"authors/zz_godj_relation.go",
-		"authors/zz_godj_relation_object.go",
-		"blog/zz_godj_generated.go",
-		"blog/zz_godj_relation.go",
-		"blog/zz_godj_relation_object.go",
-		"project/zz_godj_bindings.go",
-	}
-	tests := []struct {
-		name   string
-		path   string
-		files  []string
-		digest string
-	}{
-		{
-			name:   "current exact eight-file reverse product",
-			path:   "relationreverseproduct",
-			files:  append(append([]string(nil), common...), "project/zz_godj_relation_reverse.go"),
-			digest: "1675b71156b8c857da31b6cbf85c9360a9090cf0589f020760b59fa435746f55",
-		},
-		{
-			name: "current exact nine-file prefetch product",
-			path: "relationprefetchproduct",
-			files: append(append([]string(nil), common...),
-				"project/zz_godj_relation_prefetch.go",
-				"project/zz_godj_relation_reverse.go",
-			),
-			digest: "efd54d977d420dcb373d0b02eccff25920ceefb62b0876bfa035e9402a0f7686",
-		},
-		{
-			name: "current exact eleven-file select-related product",
-			path: "relationselectproduct",
-			files: append(append([]string(nil), common...),
-				"project/zz_godj_relation_object.go",
-				"authors/zz_godj_relation_projection.go",
-				"blog/zz_godj_relation_projection.go",
-				"project/zz_godj_relation_select_related.go",
-			),
-			digest: "7972bf08da7ee2f2200a65154bfce0d46615c02cf32e762f997083daa165aa04",
-		},
-		{
-			name: "current exact sixteen-file relation-delete project bundle",
-			path: "relationdeleteproduct",
-			files: []string{
-				"authors/zz_godj_generated.go",
-				"authors/zz_godj_relation.go",
-				"authors/zz_godj_relation_object.go",
-				"authors/zz_godj_relation_projection.go",
-				"blog/zz_godj_generated.go",
-				"blog/zz_godj_relation.go",
-				"blog/zz_godj_relation_object.go",
-				"blog/zz_godj_relation_projection.go",
-				"project/zz_godj_bindings.go",
-				"project/zz_godj_relation_delete.go",
-				"project/zz_godj_relation_facade.go",
-				"project/zz_godj_relation_object.go",
-				"project/zz_godj_relation_prefetch.go",
-				"project/zz_godj_relation_query.go",
-				"project/zz_godj_relation_reverse.go",
-				"project/zz_godj_relation_select_related.go",
-			},
-			digest: "b54d0934ff2517029aa75a5c42e504f9cf1200b7176b5c527a520ef8a390f14f",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			hash := sha256.New()
-			for _, name := range test.files {
-				contents, err := os.ReadFile(filepath.Join(root, "conformance", test.path, filepath.FromSlash(name)))
-				if err != nil {
-					t.Fatal(err)
-				}
-				_, _ = fmt.Fprintf(hash, "%s\x00%d\x00", name, len(contents))
-				_, _ = hash.Write(contents)
-			}
-			if got := fmt.Sprintf("%x", hash.Sum(nil)); got != test.digest {
-				t.Fatalf("generated %s digest = %q, want %q", test.path, got, test.digest)
-			}
-		})
-	}
-}
+// Current generated product drift is checked against the generator in each
+// relation product package and by godj generate --check. Reference byte locks
+// above remain independent of those mutable generated implementations.
 
 func TestRelationManifestHistoryIsExactlyREL002ThenREL007REL008StatusTransitions(t *testing.T) {
 	t.Parallel()

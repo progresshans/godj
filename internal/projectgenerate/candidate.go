@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 const (
@@ -227,7 +228,9 @@ func (verifier *goCandidateVerifier) compileOverlay(ctx context.Context, replace
 		}
 		output, runErr := runCandidateCommand(ctx, verifier.projectRoot, workspace.environment, maxCandidateDiagnosticBytes, "go", arguments...)
 		if runErr != nil {
-			return fmt.Errorf("%w: compile package %q: %v\n%s", ErrCandidateVerification, importPath, runErr, output)
+			return fmt.Errorf("%w: compile package %q: %w", ErrCandidateVerification, importPath, &gobuild.Error{
+				Cause: runErr, Diagnostic: gobuild.Summary(nil, []byte(output), workspace.environment),
+			})
 		}
 	}
 	return nil
@@ -295,7 +298,8 @@ func createCandidateWorkspace(projectRoot string) (candidateWorkspace, error) {
 			return fail(fmt.Errorf("create candidate workspace directory: %w", err))
 		}
 	}
-	environment := candidateCommandEnvironment(projectRoot, root, os.Environ())
+	ambient := os.Environ()
+	environment := gobuild.Environment(candidateCommandEnvironment(projectRoot, root, ambient), ambient, projectRoot)
 	return candidateWorkspace{root: root, output: filepath.Join(root, "output"), environment: environment}, nil
 }
 
@@ -413,7 +417,9 @@ func listCandidatePackages(ctx context.Context, projectRoot, overlayPath string,
 	output, diagnostics, err := runCandidateStructuredCommand(ctx, projectRoot, environment, maxCandidateListBytes,
 		"go", "list", "-json", "-buildvcs=false", "-mod=readonly", "-overlay="+overlayPath, "./...")
 	if err != nil {
-		return nil, fmt.Errorf("%w: list overlay packages: %v\n%s", ErrCandidateVerification, err, diagnostics)
+		return nil, fmt.Errorf("%w: list overlay packages: %w", ErrCandidateVerification, &gobuild.Error{
+			Cause: err, Diagnostic: gobuild.Summary(nil, []byte(diagnostics), environment),
+		})
 	}
 	decoder := json.NewDecoder(strings.NewReader(output))
 	packages := make([]string, 0)
@@ -450,7 +456,9 @@ func inspectCandidateModule(ctx context.Context, projectRoot string, environment
 	output, diagnostics, err := runCandidateStructuredCommand(ctx, projectRoot, environment, maxCandidateDiagnosticBytes,
 		"go", "list", "-m", "-json", "-buildvcs=false", "-mod=readonly")
 	if err != nil {
-		return candidateModule{}, fmt.Errorf("%w: inspect project module: %v\n%s", ErrCandidateVerification, err, diagnostics)
+		return candidateModule{}, fmt.Errorf("%w: inspect project module: %w", ErrCandidateVerification, &gobuild.Error{
+			Cause: err, Diagnostic: gobuild.Summary(nil, []byte(diagnostics), environment),
+		})
 	}
 	var module candidateModule
 	// The go command's module object has many fields. Decode the bounded subset

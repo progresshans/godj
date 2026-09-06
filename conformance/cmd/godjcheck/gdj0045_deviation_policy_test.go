@@ -67,7 +67,7 @@ func TestGDJ0045DeviationFixtureMatchesClosedPolicySelectors(t *testing.T) {
 func TestRunGDJ0045PublishedProductExpectationWritesActualOutput(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	actualPath := filepath.Join(t.TempDir(), "system-state-actual.json")
-	arguments := gdj0045RunArguments(
+	arguments := gdj0045RunArguments(t,
 		root,
 		filepath.Join(root, "conformance", "fixtures", "godj-system-state-deviation-expected.json"),
 		actualPath,
@@ -113,7 +113,7 @@ func TestRunGDJ0045RequiresDeviationExpectationBeforeActualHandlers(t *testing.T
 	root := filepath.Join("..", "..", "..")
 	directory := t.TempDir()
 	actualPath := filepath.Join(directory, "must-not-exist.json")
-	arguments := gdj0045RunArguments(root, "", actualPath)
+	arguments := gdj0045RunArguments(t, root, "", actualPath)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -185,7 +185,7 @@ func TestRunGDJ0045DeviationSelectorEscapesFailClosedBeforeActualHandlers(t *tes
 			assertGDJ0045PreHandlerFailure(
 				t,
 				ctx,
-				gdj0045RunArguments(root, expectationPath, actualPath),
+				gdj0045RunArguments(t, root, expectationPath, actualPath),
 				actualPath,
 				test.wantError,
 			)
@@ -193,13 +193,14 @@ func TestRunGDJ0045DeviationSelectorEscapesFailClosedBeforeActualHandlers(t *tes
 	}
 }
 
-func gdj0045RunArguments(root, deviation, actual string) []string {
+func gdj0045RunArguments(t *testing.T, root, deviation, actual string) []string {
+	systemCapture, operatorCapture := testCaptureInputs(t, root)
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", filepath.Join(root, "conformance", "contracts", "system-state-manifest.json"),
 		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "system-state.json"),
-		"-system-state-postgres-attestation", filepath.Join(root, "conformance", "systemstate", "attestations", "postgresql-17.10-two-process-v1.json"),
-		"-project-operator-postgres-attestation", filepath.Join(root, "conformance", "projectoperatorproduct", "attestations", "postgresql-17.10-sqlite-external-operator-v1.json"),
+		"-system-state-postgres-attestation", systemCapture,
+		"-project-operator-postgres-attestation", operatorCapture,
 	}
 	if deviation != "" {
 		arguments = append(arguments, "-deviation-expected", deviation)

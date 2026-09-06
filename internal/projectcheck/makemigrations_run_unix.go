@@ -4,11 +4,9 @@ package projectcheck
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"os"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -27,17 +25,7 @@ import (
 func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 	input.Args = append([]string(nil), input.Args...)
 	arguments, validArguments := parseMakemigrationsArguments(input.Args)
-	if input.Environment == nil {
-		input.Environment = append([]string(nil), os.Environ()...)
-	} else {
-		input.Environment = append([]string(nil), input.Environment...)
-	}
-	if input.Context == nil {
-		input.Context = context.Background()
-	}
-	if input.Backend == nil {
-		input.Backend = processBackend{}
-	}
+	input.Context, input.Environment, input.Backend = normalizeCommandInput(input.Context, input.Environment, input.Backend)
 
 	report := MakemigrationsReport{}
 	var primary *MakemigrationsFailure
@@ -89,12 +77,7 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 	}
 
 	cleanup := func() {
-		report.TempCleanupAttempts++
-		cleanupFailed := selected.close() != nil
-		if err := workspace.cleanup(); err != nil {
-			cleanupFailed = true
-			report.ResidualTemp = 1
-		}
+		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
 		if !cleanupFailed {
 			return
 		}
@@ -128,20 +111,8 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 		return finish()
 	}
 
-	buildCommand := Command{
-		Dir: selected.rootPath,
-		Argv: []string{
-			"go", "build", "-buildvcs=false", "-mod=readonly", "-o",
-			filepath.Join(workspace.root, "godj-project-runner"),
-			selected.descriptor.packagePath,
-		},
-		Env: workspace.environment,
-	}
-	report.BuildCalls++
-	build := input.Backend.Execute(input.Context, input.Interrupt, BuildStage, cloneCommand(buildCommand))
-	recordMakemigrationsProcess(&report, BuildStage, build)
-	clear(build.Stdout)
-	build.Stdout = nil
+	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
+		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
 	primary = makemigrationsProcessFailure(BuildStage, build)
 	primary = makemigrationsBarrier(input, primary)
 	primary = combineMakemigrationsCleanup(primary, build.CleanupFailed)
@@ -728,7 +699,7 @@ func publishMakemigrations(input MakemigrationsInvocation, report *Makemigration
 		report.ExitCode = exit
 		report.UserStderrWrites++
 		if input.Stderr != nil {
-			_, _ = writeOnce(input.Stderr, []byte(report.MakemigrationsFailure.Category+"/"+report.MakemigrationsFailure.Code+"\n"))
+			_, _ = writeOnce(input.Stderr, publicFailureDocument(&report.Report, report.MakemigrationsFailure.Category, report.MakemigrationsFailure.Code))
 		}
 		return
 	}

@@ -1,5 +1,9 @@
 # ADR-0055: Project-linked Deterministic Migration SQL Projection
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0055-project-linked-deterministic-migration-sql-projection.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-31
 - 관련 work/contract: GDJ-0054, MIG-129..MIG-138, Q-010, Q-012

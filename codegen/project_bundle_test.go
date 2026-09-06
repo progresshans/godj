@@ -138,6 +138,26 @@ func TestGenerateProjectSupportsEmptyAppUniverse(t *testing.T) {
 	}
 }
 
+func TestGenerateProjectRejectsReservedAppIdentitiesBeforeBundle(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(*AppSpec)
+	}{
+		{"runtime import", func(app *AppSpec) { app.Package.ImportPath = "github.com/progresshans/godj/orm" }},
+		{"standard library import", func(app *AppSpec) { app.Package.ImportPath = "context" }},
+		{"generated facade alias", func(app *AppSpec) { app.Alias = "reflect" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			spec := projectBundleTestSpec()
+			test.mutate(&spec.Apps[0])
+			bundle, err := GenerateProject(spec)
+			if err == nil || len(bundle.Files()) != 0 || len(bundle.Manifest()) != 0 {
+				t.Fatalf("reserved app identity produced bundle: files=%d manifest=%d error=%v", len(bundle.Files()), len(bundle.Manifest()), err)
+			}
+		})
+	}
+}
+
 func TestGenerateProjectFullUnionCompilesAndMixedSnapshotFails(t *testing.T) {
 	baseline, err := GenerateProject(sparseProjectBundleTestSpec())
 	if err != nil {

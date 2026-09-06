@@ -1,8 +1,12 @@
 # ADR-0046: JSON Serializer and Session-authenticated Article API
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0046-json-serializer-and-session-authenticated-article-api.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-24
-- 관련 work/contract: [GDJ-0044](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md), API-001..010, Q-016, M7
+- 관련 work/contract: [GDJ-0044](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0044-session-authenticated-article-json-api-and-parameterized-routing.md), API-001..010, Q-016, M7
 - 선행 결정: [ADR-0043](0043-safe-template-and-model-form-validation.md),
   [ADR-0044](0044-session-auth-csrf-and-bounded-article-admin.md),
   [ADR-0045](0045-closed-parameterized-routing-and-reverse.md)
@@ -73,17 +77,3 @@ adapter입니다. Stable error code에는 `request_too_large`, `csrf_rejected`, 
 - Token/Basic/OAuth/JWT, throttling, versioning, metadata와 object permission
 - Durable/distributed auth/session, API-wide implicit transaction/retry와 async/streaming
 - M7 전체 완료, Realtime/Channels와 production readiness
-
-## 검증 계획
-
-- [x] DRF 3.18.0 + Django 6.1 exact API-001..010 reference artifact
-- [x] JSON parser/serializer full/partial/error determinism and resource caps
-- [x] Anonymous/permission/CSRF denial JSON 403 and terminal Article DB mutation 0
-- [x] SQLite/PostgreSQL Article list/create/detail/PUT/PATCH/delete actual flow
-- [x] Oracle-blind GoDj adapter, sparse deviation policy and global inventory lock
-- [x] normal/race/CGO0/vet, full/386/external-copy and exact hosted matrix
-
-API-001/003/010은 [DEV-0007](../DEVIATIONS.md#dev-0007--article-json-api-error-taxonomy)의 exact sparse
-selectors를 제외하고 reviewed product expectation과 일치합니다. API-002/004..009는 passing입니다. Final
-local/hosted evidence는 [EVID-125](../status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
-[EVID-126](../status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)입니다.

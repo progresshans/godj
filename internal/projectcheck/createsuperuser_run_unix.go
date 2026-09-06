@@ -54,17 +54,7 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 		hooks.afterArgumentValidation()
 	}
 
-	if input.Environment == nil {
-		input.Environment = append([]string(nil), os.Environ()...)
-	} else {
-		input.Environment = append([]string(nil), input.Environment...)
-	}
-	if input.Context == nil {
-		input.Context = context.Background()
-	}
-	if input.Backend == nil {
-		input.Backend = processBackend{}
-	}
+	input.Context, input.Environment, input.Backend = normalizeCommandInput(input.Context, input.Environment, input.Backend)
 
 	selectProjectCall := hooks.selectProject
 	if selectProjectCall == nil {
@@ -158,12 +148,9 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 	}
 
 	cleanup := func() {
-		report.TempCleanupAttempts++
-		cleanupFailed := closeProjectCall(&selected) != nil
-		if err := cleanupWorkspaceCall(&workspace); err != nil {
-			cleanupFailed = true
-			report.ResidualTemp = 1
-		}
+		cleanupFailed := closeCommandWorkspace(&report.Report,
+			func() error { return closeProjectCall(&selected) },
+			func() error { return cleanupWorkspaceCall(&workspace) })
 		if !cleanupFailed {
 			return
 		}
@@ -199,20 +186,8 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 		return finish()
 	}
 
-	buildCommand := Command{
-		Dir: selected.rootPath,
-		Argv: []string{
-			"go", "build", "-buildvcs=false", "-mod=readonly", "-o",
-			filepath.Join(workspace.root, "godj-project-runner"),
-			selected.descriptor.packagePath,
-		},
-		Env: workspace.environment,
-	}
-	report.BuildCalls++
-	build := input.Backend.Execute(input.Context, input.Interrupt, BuildStage, cloneCommand(buildCommand))
-	recordProcess(&report.Report, BuildStage, build)
-	clear(build.Stdout)
-	build.Stdout = nil
+	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
+		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
 	primary = createsuperuserBuildProcessFailure(build)
 	primary = createsuperuserBarrier(input, primary)
 	primary = combineCreatesuperuserCleanup(primary, build.CleanupFailed)
@@ -644,9 +619,7 @@ func publishCreatesuperuser(
 		report.ExitCode = exit
 		report.UserStderrWrites++
 		if input.Stderr != nil {
-			_, _ = writeOnce(input.Stderr, []byte(
-				report.CreatesuperuserFailure.Category+"/"+report.CreatesuperuserFailure.Code+"\n",
-			))
+			_, _ = writeOnce(input.Stderr, publicFailureDocument(&report.Report, report.CreatesuperuserFailure.Category, report.CreatesuperuserFailure.Code))
 		}
 		return
 	}
@@ -670,8 +643,6 @@ func publishCreatesuperuser(
 	report.ExitCode = 3
 	report.UserStderrWrites++
 	if input.Stderr != nil {
-		_, _ = writeOnce(input.Stderr, []byte(
-			report.CreatesuperuserFailure.Category+"/"+report.CreatesuperuserFailure.Code+"\n",
-		))
+		_, _ = writeOnce(input.Stderr, publicFailureDocument(&report.Report, report.CreatesuperuserFailure.Category, report.CreatesuperuserFailure.Code))
 	}
 }

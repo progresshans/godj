@@ -24,18 +24,23 @@ func GenerateProjectRelationPrefetch(
 	if err != nil {
 		return nil, err
 	}
+	return generateProjectRelationPrefetch(packageName, newRelationProjectPlan(canonical))
+}
+
+func generateProjectRelationPrefetch(packageName string, plan *relationProjectPlan) ([]byte, error) {
+	canonical := plan.apps
 	if err := validateProjectRelationPrefetchImports(canonical); err != nil {
 		return nil, err
 	}
-	models, owners, err := buildProjectRelationReverseSurface(canonical)
+	models, owners, err := plan.reverseSurface()
 	if err != nil {
 		return nil, err
 	}
-	if err := validateProjectRelationReverseNamespaces(canonical, owners); err != nil {
+	if err := validateProjectRelationReverseNamespaces(plan, owners); err != nil {
 		return nil, fmt.Errorf("validate project relation reverse prerequisites: %w", err)
 	}
 	objectOwners := projectRelationReverseObjectOwners(owners)
-	if err := validateProjectRelationPrefetchNamespaces(canonical, owners, objectOwners); err != nil {
+	if err := validateProjectRelationPrefetchNamespaces(plan, owners, objectOwners); err != nil {
 		return nil, fmt.Errorf("validate project relation prefetch names: %w", err)
 	}
 	objectModels := projectRelationReverseUsedModels(models, objectOwners)
@@ -80,7 +85,7 @@ func GenerateProjectRelationPrefetch(
 	return formatted, nil
 }
 
-func validateProjectRelationPrefetchImports(apps []normalizedRelationReversePackage) error {
+func validateProjectRelationPrefetchImports(apps []normalizedRelationPackage) error {
 	for _, app := range apps {
 		switch app.alias {
 		case "context", "make", "len":
@@ -94,7 +99,7 @@ func validateProjectRelationPrefetchImports(apps []normalizedRelationReversePack
 }
 
 func validateProjectRelationPrefetchNamespaces(
-	apps []normalizedRelationReversePackage,
+	plan *relationProjectPlan,
 	owners []projectRelationReverseOwner,
 	objectOwners []projectRelationReverseOwner,
 ) error {
@@ -123,10 +128,10 @@ func validateProjectRelationPrefetchNamespaces(
 			return err
 		}
 	}
-	if err := seedProjectRelationReversePrerequisiteNames(apps, addPackageName); err != nil {
+	if err := seedProjectRelationReversePrerequisiteNames(plan, addPackageName); err != nil {
 		return err
 	}
-	objectOwnerSet := make(map[*projectRelationReverseModel]struct{}, len(objectOwners))
+	objectOwnerSet := make(map[*projectRelationModel]struct{}, len(objectOwners))
 	for index := range objectOwners {
 		objectOwnerSet[objectOwners[index].model] = struct{}{}
 	}

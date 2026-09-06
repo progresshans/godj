@@ -30,7 +30,7 @@ func (a *Application) list(request *web.Request, _ auth.Principal) (web.Response
 	}
 	results := make([]serializers.Value, len(page.Articles))
 	for index := range page.Articles {
-		value, err := articleValue(page.Articles[index])
+		value, err := a.articleValue(page.Articles[index])
 		if err != nil {
 			return web.Response{}, err
 		}
@@ -71,7 +71,7 @@ func (a *Application) create(request *web.Request, _ auth.Principal) (web.Respon
 	if err != nil {
 		return a.writeError(err)
 	}
-	value, err := articleValue(created)
+	value, err := a.articleValue(created)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -100,7 +100,7 @@ func (a *Application) retrieve(request *web.Request, _ auth.Principal) (web.Resp
 	if !found {
 		return notFoundResponse()
 	}
-	value, err := articleValue(article)
+	value, err := a.articleValue(article)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -129,7 +129,7 @@ func (a *Application) update(request *web.Request, _ auth.Principal) (web.Respon
 	if err != nil {
 		return a.writeError(err)
 	}
-	value, err := articleValue(updated)
+	value, err := a.articleValue(updated)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -153,7 +153,7 @@ func (a *Application) patch(request *web.Request, _ auth.Principal) (web.Respons
 	if err != nil {
 		return a.writeError(err)
 	}
-	value, err := articleValue(updated)
+	value, err := a.articleValue(updated)
 	if err != nil {
 		return web.Response{}, err
 	}

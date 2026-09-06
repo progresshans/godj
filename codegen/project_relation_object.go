@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"go/token"
 	"sort"
 	"strconv"
 
@@ -19,30 +18,16 @@ type RelationObjectPackage struct {
 	Schema     ir.Schema
 }
 
-type normalizedRelationObjectPackage struct {
-	alias      string
-	prefix     string
-	importPath string
-	schema     ir.Schema
-}
-
-type projectRelationObjectModel struct {
-	app      normalizedRelationObjectPackage
-	identity ir.ModelIdentity
-	model    ir.Model
-	bind     int
-}
-
 type projectRelationObjectEdge struct {
 	field    ir.Field
 	selector string
 	typeName string
-	target   *projectRelationObjectModel
+	target   *projectRelationModel
 	bind     int
 }
 
 type projectRelationObjectSource struct {
-	model       *projectRelationObjectModel
+	model       *projectRelationModel
 	surface     string
 	factoryType string
 	objectType  string
@@ -60,7 +45,12 @@ func GenerateProjectRelationObject(packageName string, packages []RelationObject
 	if err != nil {
 		return nil, err
 	}
-	models, sources, err := buildProjectRelationObjectSurface(canonical)
+	return generateProjectRelationObject(packageName, newRelationProjectPlan(canonical))
+}
+
+func generateProjectRelationObject(packageName string, plan *relationProjectPlan) ([]byte, error) {
+	canonical := plan.apps
+	models, sources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err
 	}
@@ -115,123 +105,26 @@ func GenerateProjectRelationObject(packageName string, packages []RelationObject
 	return formatted, nil
 }
 
-func canonicalRelationObjectPackages(packages []RelationObjectPackage) ([]normalizedRelationObjectPackage, error) {
-	canonical := make([]normalizedRelationObjectPackage, len(packages))
-	for index := range packages {
-		candidate := packages[index]
-		schema, err := ir.Normalize(candidate.Schema.Clone())
-		if err != nil {
-			return nil, fmt.Errorf("normalize relation object package %q: %w", candidate.Alias, err)
-		}
-		if err := validateGeneratedNames(schema); err != nil {
-			return nil, fmt.Errorf("validate object package %q: %w", candidate.Alias, err)
-		}
-		if err := validateRelationMetadataNames(schema); err != nil {
-			return nil, fmt.Errorf("validate object metadata package %q: %w", candidate.Alias, err)
-		}
-		if err := validateRelationObjectNames(schema); err != nil {
-			return nil, fmt.Errorf("validate relation object companion package %q: %w", candidate.Alias, err)
-		}
-		if !validRelationObjectAlias(candidate.Alias) {
-			return nil, fmt.Errorf("invalid relation object package alias %q", candidate.Alias)
-		}
-		if !validImportPath(candidate.ImportPath) {
-			return nil, fmt.Errorf("invalid relation object import path %q", candidate.ImportPath)
-		}
-		canonical[index] = normalizedRelationObjectPackage{
-			alias:      candidate.Alias,
-			prefix:     exportedRelationQueryPrefix(candidate.Alias),
-			importPath: candidate.ImportPath,
-			schema:     schema,
-		}
+func canonicalRelationObjectPackages(packages []RelationObjectPackage) ([]normalizedRelationPackage, error) {
+	inputs := make([]relationPackageInput, len(packages))
+	for index, candidate := range packages {
+		inputs[index] = relationPackageInput{alias: candidate.Alias, importPath: candidate.ImportPath, schema: candidate.Schema}
 	}
-
-	sort.Slice(canonical, func(left, right int) bool {
-		if canonical[left].schema.AppLabel != canonical[right].schema.AppLabel {
-			return canonical[left].schema.AppLabel < canonical[right].schema.AppLabel
-		}
-		if canonical[left].alias != canonical[right].alias {
-			return canonical[left].alias < canonical[right].alias
-		}
-		return canonical[left].importPath < canonical[right].importPath
+	return canonicalRelationPackages(inputs, relationPackagePolicy{
+		name: "object", validAlias: validRelationObjectAlias, objectNames: true,
+		reservedPaths: []string{"context", "github.com/progresshans/godj/db", "github.com/progresshans/godj/orm", "github.com/progresshans/godj/query", "github.com/progresshans/godj/schema/ir"},
 	})
-
-	aliases := map[string]struct{}{
-		"context": {},
-		"db":      {},
-		"orm":     {},
-		"ir":      {},
-		"query":   {},
-	}
-	paths := map[string]struct{}{
-		"context":                                {},
-		"github.com/progresshans/godj/db":        {},
-		"github.com/progresshans/godj/orm":       {},
-		"github.com/progresshans/godj/query":     {},
-		"github.com/progresshans/godj/schema/ir": {},
-	}
-	prefixes := make(map[string]struct{}, len(canonical))
-	apps := make(map[string]struct{}, len(canonical))
-	for _, app := range canonical {
-		if _, duplicate := aliases[app.alias]; duplicate {
-			return nil, fmt.Errorf("duplicate relation object package alias %q", app.alias)
-		}
-		aliases[app.alias] = struct{}{}
-		if _, duplicate := paths[app.importPath]; duplicate {
-			return nil, fmt.Errorf("duplicate relation object import path %q", app.importPath)
-		}
-		paths[app.importPath] = struct{}{}
-		if _, duplicate := prefixes[app.prefix]; duplicate {
-			return nil, fmt.Errorf("duplicate relation object exported prefix %q", app.prefix)
-		}
-		prefixes[app.prefix] = struct{}{}
-		if _, duplicate := apps[app.schema.AppLabel]; duplicate {
-			return nil, fmt.Errorf("duplicate relation object app label %q", app.schema.AppLabel)
-		}
-		apps[app.schema.AppLabel] = struct{}{}
-	}
-	return canonical, nil
 }
 
 func validRelationObjectAlias(alias string) bool {
-	if alias == "" || alias == "init" || alias == "context" || alias == "db" || alias == "orm" || alias == "ir" ||
-		alias == "query" || alias == "bool" || alias == "error" || alias == "false" || alias == "nil" ||
-		token.Lookup(alias).IsKeyword() || alias[0] < 'a' || alias[0] > 'z' {
-		return false
-	}
-	for index := 1; index < len(alias); index++ {
-		current := alias[index]
-		if !('a' <= current && current <= 'z') &&
-			!('A' <= current && current <= 'Z') &&
-			!('0' <= current && current <= '9') {
-			return false
-		}
-	}
-	return true
+	return validRelationAlias(alias, "context", "db", "orm", "ir", "query", "bool", "error", "false", "nil", "true")
 }
 
 func buildProjectRelationObjectSurface(
-	apps []normalizedRelationObjectPackage,
-) ([]*projectRelationObjectModel, []projectRelationObjectSource, error) {
-	models := make([]*projectRelationObjectModel, 0)
-	byIdentity := make(map[ir.ModelIdentity]*projectRelationObjectModel)
-	for _, app := range apps {
-		for _, model := range app.schema.Models {
-			identity := ir.ModelIdentity{AppLabel: app.schema.AppLabel, ModelName: model.Name}
-			candidate := &projectRelationObjectModel{app: app, identity: identity, model: model.Clone()}
-			models = append(models, candidate)
-			byIdentity[identity] = candidate
-		}
-	}
-	sort.Slice(models, func(left, right int) bool {
-		if models[left].identity.AppLabel != models[right].identity.AppLabel {
-			return models[left].identity.AppLabel < models[right].identity.AppLabel
-		}
-		return models[left].identity.ModelName < models[right].identity.ModelName
-	})
-	for index := range models {
-		models[index].bind = index
-	}
+	plan *relationProjectPlan,
+) ([]*projectRelationModel, []projectRelationObjectSource, error) {
+	models := plan.models
+	byIdentity := plan.byIdentity
 
 	sources := make([]projectRelationObjectSource, 0)
 	nextRelationBind := 0
@@ -321,7 +214,7 @@ func projectRelationObjectAutoPrimaryKey(model ir.Model) (ir.Field, bool) {
 }
 
 func validateProjectRelationObjectNamespaces(
-	apps []normalizedRelationObjectPackage,
+	apps []normalizedRelationPackage,
 	sources []projectRelationObjectSource,
 ) error {
 	packageNames := map[string]string{
@@ -556,7 +449,7 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 
 func renderBindObjects(
 	output *bytes.Buffer,
-	models []*projectRelationObjectModel,
+	models []*projectRelationModel,
 	sources []projectRelationObjectSource,
 ) {
 	fmt.Fprintln(output, "func BindObjects() (Objects, error) {")

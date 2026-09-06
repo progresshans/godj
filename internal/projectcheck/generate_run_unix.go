@@ -3,13 +3,12 @@
 package projectcheck
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"path/filepath"
 	"sort"
 
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	"github.com/progresshans/godj/internal/projectgenerate"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
@@ -21,17 +20,7 @@ import (
 func RunGenerate(input GenerationInvocation) GenerationReport {
 	input.Args = append([]string(nil), input.Args...)
 	arguments, primary := parseGenerationArguments(input.Args)
-	if input.Environment == nil {
-		input.Environment = append([]string(nil), os.Environ()...)
-	} else {
-		input.Environment = append([]string(nil), input.Environment...)
-	}
-	if input.Context == nil {
-		input.Context = context.Background()
-	}
-	if input.Backend == nil {
-		input.Backend = processBackend{}
-	}
+	input.Context, input.Environment, input.Backend = normalizeCommandInput(input.Context, input.Environment, input.Backend)
 	input.generation = completeGenerationHooks(input.generation)
 
 	report := GenerationReport{}
@@ -85,12 +74,7 @@ func RunGenerate(input GenerationInvocation) GenerationReport {
 	}
 
 	cleanup := func() {
-		report.TempCleanupAttempts++
-		cleanupFailed := selected.close() != nil
-		if err := workspace.cleanup(); err != nil {
-			cleanupFailed = true
-			report.ResidualTemp = 1
-		}
+		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
 		if !cleanupFailed {
 			return
 		}
@@ -117,20 +101,8 @@ func RunGenerate(input GenerationInvocation) GenerationReport {
 		return finish()
 	}
 
-	buildCommand := Command{
-		Dir: selected.rootPath,
-		Argv: []string{
-			"go", "build", "-buildvcs=false", "-mod=readonly", "-o",
-			filepath.Join(workspace.root, "godj-project-runner"),
-			selected.descriptor.packagePath,
-		},
-		Env: workspace.environment,
-	}
-	report.BuildCalls++
-	build := input.Backend.Execute(input.Context, input.Interrupt, BuildStage, cloneCommand(buildCommand))
-	recordProcess(&report.Report, BuildStage, build)
-	clear(build.Stdout)
-	build.Stdout = nil
+	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
+		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
 	primary = generationProcessFailure(BuildStage, build)
 	primary = generationBarrier(input, primary)
 	primary = combineGenerationCleanup(primary, build.CleanupFailed)
@@ -240,6 +212,7 @@ func RunGenerate(input GenerationInvocation) GenerationReport {
 
 	verifier, err := input.generation.newVerifier(root, bundle)
 	if err != nil {
+		report.BuildDiagnostic = gobuild.Diagnostic(err)
 		if terminal := generationBarrier(input, nil); terminal != nil {
 			chooseGenerationFailure(&report, *terminal)
 		} else {
@@ -252,6 +225,7 @@ func RunGenerate(input GenerationInvocation) GenerationReport {
 		return finish()
 	}
 	if err := input.generation.publish(input.Context, root, bundle, verifier); err != nil {
+		report.BuildDiagnostic = gobuild.Diagnostic(err)
 		if terminal := generationBarrier(input, nil); terminal != nil && !errors.Is(err, projectgenerate.ErrPublicationRecoveryRequired) {
 			chooseGenerationFailure(&report, *terminal)
 		} else {
@@ -485,7 +459,7 @@ func publishGeneration(input GenerationInvocation, report *GenerationReport) {
 		report.ExitCode = exit
 		report.UserStderrWrites++
 		if input.Stderr != nil {
-			_, _ = writeOnce(input.Stderr, []byte(report.GenerationFailure.Category+"/"+report.GenerationFailure.Code+"\n"))
+			_, _ = writeOnce(input.Stderr, publicFailureDocument(&report.Report, report.GenerationFailure.Category, report.GenerationFailure.Code))
 		}
 		return
 	}

@@ -1,8 +1,12 @@
 # ADR-0045: Closed Parameterized Routing and Reverse
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0045-closed-parameterized-routing-and-reverse.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-24
-- 관련 work/contract: [GDJ-0044](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md), WEB-028..035, Q-016, M7
+- 관련 work/contract: [GDJ-0044](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0044-session-authenticated-article-json-api-and-parameterized-routing.md), WEB-028..035, Q-016, M7
 - 선행 결정: [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md),
   [ADR-0042](0042-project-linked-runserver-and-article-development-loop.md)
 - 대체하는 ADR: 없음
@@ -49,16 +53,3 @@ converter kind는 닫혀 있어 application이 임의 converter를 구성할 수
 - String/slug/UUID/date/path converter와 user-defined callback converter
 - Nested router/mount, middleware-per-route와 automatic REST route generation
 - Query parameter binding, request body decoding 또는 API representation
-
-## 검증 계획
-
-- [x] WEB-028..035 exact reference/decision artifact와 negative ambiguity corpus
-- [x] Static precedence, typed accessor lifetime와 reverse canonicalization
-- [x] 404/405/Allow/trailing slash/encoded separator 의미
-- [x] Fuzz/resource caps, normal/race/CGO0/vet와 external compile gate
-- [x] Existing static Web/Admin/runserver regression and exact hosted matrix
-
-WEB-028/029는 [DEV-0006](../DEVIATIONS.md#dev-0006--closed-int64-route-type-and-stricter-numeric-grammar)의
-exact sparse selectors를 제외하고 reviewed product expectation과 일치합니다. WEB-030..035는 passing입니다.
-Final local/hosted evidence는 [EVID-125](../status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
-[EVID-126](../status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)입니다.

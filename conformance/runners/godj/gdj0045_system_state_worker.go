@@ -19,6 +19,7 @@ import (
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	systemstateworker "github.com/progresshans/godj/conformance/systemstate/worker"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 const (
@@ -96,8 +97,7 @@ func newSystemStateWorkerHarness(ctx context.Context) (*systemStateWorkerHarness
 		"./conformance/systemstate/worker/cmd",
 	)
 	command.Dir = harness.repositoryRoot
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+	var stdout, stderr gobuild.Capture
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 	buildErr := command.Run()
@@ -110,10 +110,9 @@ func newSystemStateWorkerHarness(ctx context.Context) (*systemStateWorkerHarness
 	}
 	if buildErr != nil {
 		harness.cleanup()
-		return nil, fmt.Errorf(
-			"build system-state worker failed: stdout=%d stderr=%d",
-			stdout.Len(), stderr.Len(),
-		)
+		return nil, fmt.Errorf("build system-state worker: %w", &gobuild.Error{
+			Cause: buildErr, Diagnostic: gobuild.Summary(stdout.Bytes(), stderr.Bytes(), os.Environ()),
+		})
 	}
 	if stdout.Len() != 0 || stderr.Len() != 0 {
 		harness.cleanup()

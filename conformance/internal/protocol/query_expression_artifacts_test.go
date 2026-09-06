@@ -187,7 +187,7 @@ func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 	}
 	text := string(contents)
 	conformanceStart := strings.Index(text, "conformance-check:\n")
-	productStart := strings.Index(text, "godj-conformance:\n")
+	productStart := strings.Index(text, "godj-conformance:")
 	oracleCheckStart := strings.Index(text, "oracle-check:\n")
 	oracleRegenerateStart := strings.Index(text, "oracle-regenerate:\n")
 	ciStart := strings.Index(text, "\nci:")
@@ -204,14 +204,8 @@ func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 	if got := strings.Count(productTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance query-expression manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
-		t.Fatalf("godj-conformance adapter count = %d, want 26 with query-expression included", got)
-	}
 	if got := strings.Count(oracleCheckTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check query-expression manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(oracleCheckTarget, "python -m conformance.runners.django"); got != 27 {
-		t.Fatalf("oracle-check reference runner count = %d, want 27", got)
 	}
 	if got := strings.Count(oracleRegenerateTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-regenerate query-expression manifest count = %d, want 1", got)

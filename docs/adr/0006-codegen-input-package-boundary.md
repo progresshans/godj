@@ -1,9 +1,14 @@
 # ADR-0006: Codegen 입력은 generated target package와 분리한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0006-codegen-input-package-boundary.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-07
 - 관련 질문: Q-001
-- 검증: `conformance/codegenbootstrap`
+- 최초 실험: [과거 codegenbootstrap](https://github.com/progresshans/godj/tree/da1bfc524c4f205075fc7fac7f00b437473a5e1f/conformance/codegenbootstrap)
+- 현재 검증: `cmd/godj.TestActualGodjGenerateProcess`, `internal/projectgenerate` candidate/publication 회귀와 실제 생성기
 
 ## 맥락
 
@@ -56,17 +61,3 @@ Rename으로 target package가 깨져도 generator build graph는 정상이고 �
 만들 수 있습니다. Field 삭제 뒤 사용자 메서드가 stale field에 의존하면 candidate
 compile이 실패하므로 기존 output이 보존됩니다. 사용자는 선언 package와 생성 모델
 package를 구분해야 합니다.
-
-## 검증
-
-`conformance/codegenbootstrap/bootstrap_test.go`는 다음을 실행합니다.
-
-- broken target에서 model/field rename 복구
-- field delete 후 stale 사용자 메서드 오류와 last-good output hash 보존
-- 사용자 메서드 수정 후 성공과 byte-identical 재생성
-- malformed schema/output 실패 시 기존 파일 보존
-- `go list -deps`에 generated target package가 없음을 확인
-
-Fixture DSL과 generator는 production API가 아닙니다. 최초 생성, 다중 파일
-transaction, Windows 교체 의미, build tags, cross-app relation은 후속 수직 단면에서
-별도로 검증합니다.

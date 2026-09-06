@@ -61,6 +61,9 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
+	if e == nil {
+		return "query error"
+	}
 	location := ""
 	if e.Field != "" {
 		location = fmt.Sprintf(" field=%q", e.Field)
@@ -76,7 +79,7 @@ func (e *Error) Error() string {
 
 func (e *Error) Is(target error) bool {
 	other, ok := target.(*Error)
-	if !ok {
+	if !ok || e == nil || other == nil {
 		return false
 	}
 	return (other.Category == "" || e.Category == other.Category) &&
@@ -89,5 +92,8 @@ func (e *Error) Is(target error) bool {
 // category and code to callers. Consumers should branch on the stable fields;
 // errors.Is/As can still inspect the original driver error when necessary.
 func (e *Error) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.Cause
 }

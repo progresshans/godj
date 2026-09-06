@@ -1,5 +1,9 @@
 # ADR-0041: typed scalar comparison과 same-model field reference를 하나의 condition RHS로 표현한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0041-typed-scalar-comparisons-and-field-references.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-23
 - 관련 work/contract: GDJ-0041, QRY-044..053, Q-011, M4
@@ -79,20 +83,3 @@ Generated field를 `orm.F`로 감싸 model/value type을 보존하고, condition
 - Dynamic F parser와 arbitrary string field path
 - Non-Integer/String ordering semantics, Unicode/collation 일반화
 - Mutation expression, subquery/window와 locking
-
-## 검증
-
-- External module에서 same-model/same-kind 호출은 compile되고 cross-model/kind 호출은 compile-fail합니다.
-- QRY-044..053 independent Django oracle과 oracle-blind GoDj/SQLite actual이 result/DB-state/metrics에서 일치합니다.
-- SQLite/PostgreSQL unit/integration은 literal/reference mixed DFS, placeholder count, nullable odd/even NOT과 malformed
-  union/source/relation rejection을 검증합니다.
-- Article advanced filter는 invalid input DB I/O 0, success request projection+aggregate 정확히 2 query를 검증합니다.
-- Phase A proof는 exact Django 전체 239/239, QRY-034..043 observation-prefix 동일성, same-model/same-kind external
-  compile과 cross-model/kind/Boolean/relation compile-fail을 통과했습니다.
-- Current product/actual은 QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff이며 manifest 16,592 bytes/
-  `a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`, actual 87,592 bytes/
-  `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 고정됐습니다.
-- Frozen source `7f2bb223...`의 local-final gates와 submitted `e97a4e3...`의
-  [EVID-118](../status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) exact 27-job matrix,
-  PostgreSQL 17.10 actual/restart가 통과했습니다. Decision은 Accepted이고 bounded GDJ-0041 product는
-  hosted `Verified`/completed입니다.

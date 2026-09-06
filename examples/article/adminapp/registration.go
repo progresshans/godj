@@ -10,7 +10,6 @@ import (
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
-	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -34,10 +33,17 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		Change: ArticleChangePermission,
 		Delete: ArticleDeletePermission,
 	}
+	descriptor := articlemodels.ArticleDescriptor{}
+	metadata := descriptor.Metadata()
+	initialSpec, err := formmodel.NewSpecForFields(metadata, articleWritableFields)
+	if err != nil {
+		return err
+	}
 	return admin.RegisterModel(builder, admin.ModelConfig[Article]{
-		AppLabel: "godj_conformance",
-		Slug:     "articles",
-		Model:    (articlemodels.ArticleDescriptor{}).Metadata(),
+		AppLabel:   "godj_conformance",
+		Slug:       "articles",
+		Model:      (articlemodels.ArticleDescriptor{}).Metadata(),
+		FormFields: append([]string(nil), articleWritableFields...),
 		FormOverrides: []formmodel.Override{
 			formmodel.OverrideField("title", formmodel.WithValidators(articleDisplayTextValidator("title"))),
 			formmodel.OverrideField("summary", formmodel.WithValidators(articleDisplayTextValidator("summary"))),
@@ -66,7 +72,7 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			return articleObject(article)
 		},
 		Initial: func(article Article) (map[string]forms.Value, error) {
-			return articleInitial(article), nil
+			return formmodel.InitialValues(metadata, initialSpec, articleapp.ModelSnapshot(article), descriptor.WriteFieldValue)
 		},
 		Create: func(ctx context.Context, principal auth.Principal, values forms.Values) (Article, error) {
 			input, err := articleInput(values)
@@ -125,28 +131,8 @@ func articleDisplayTextValidator(field validation.Field) forms.FieldValidator {
 }
 
 func articleObject(article Article) (admin.Object, error) {
-	summary := templates.Null()
-	if article.Summary != nil {
-		summary = templates.String(*article.Summary)
-	}
-	return admin.NewObject(article.ID, article.Title, map[string]templates.Value{
-		"id":        templates.Integer(article.ID),
-		"title":     templates.String(article.Title),
-		"published": templates.Bool(article.Published),
-		"summary":   summary,
-	})
-}
-
-func articleInitial(article Article) map[string]forms.Value {
-	summary := forms.Null()
-	if article.Summary != nil {
-		summary = forms.String(*article.Summary)
-	}
-	return map[string]forms.Value{
-		"title":     forms.String(article.Title),
-		"published": forms.Boolean(article.Published),
-		"summary":   summary,
-	}
+	descriptor := articlemodels.ArticleDescriptor{}
+	return admin.ModelObject(descriptor.Metadata(), articleapp.ModelSnapshot(article), descriptor.WriteFieldValue, article.ID, article.Title, "id", "title", "published", "summary")
 }
 
 func articleInput(values forms.Values) (Input, error) {

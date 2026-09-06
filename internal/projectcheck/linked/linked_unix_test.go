@@ -126,6 +126,22 @@ func TestCanonicalRootsAndSourceOrdering(t *testing.T) {
 	}
 }
 
+func TestFlatDiscoveryUsesExactRawCandidateSuffix(t *testing.T) {
+	t.Parallel()
+	root := newProjectRoot(t, "migrations/nested")
+	writeFile(t, filepath.Join(root, "migrations", ".godj.json"), migrationDocument("alpha", "0001", nil))
+	for _, ignored := range []string{"nested/hidden.godj.json", "ignored.GODJ.JSON", "godj.json", "near.godj.json.tmp"} {
+		writeFile(t, filepath.Join(root, "migrations", ignored), []byte("invalid definition if opened"))
+	}
+	if err := os.Symlink("missing", filepath.Join(root, "migrations", "ignored.link")); err != nil {
+		t.Fatal(err)
+	}
+	response, report, err := invoke(t, root, []string{"migrations"}, protocol.RequestDocument(), nil)
+	if err != nil || !response.OK || response.Result.SourceCount != 1 || report.SourceReads != 1 || report.LoadCalls != 1 {
+		t.Fatalf("flat raw suffix discovery = %+v, %+v, %v", response, report, err)
+	}
+}
+
 func TestRootAndCandidateNoFollowSafety(t *testing.T) {
 	t.Parallel()
 	root := newProjectRoot(t, "real")
@@ -203,6 +219,116 @@ func TestRetainedRootAndPostReadReplacementFailClosed(t *testing.T) {
 	})
 	if err != nil || response.Failure.Code != protocol.CodeUnsafeSourceEntry || report.SourceReads != 0 || report.LoadCalls != 0 {
 		t.Fatalf("post-read replacement = %+v, %+v, %v", response, report, err)
+	}
+}
+
+func TestDiscoveryRootPreflightRejectsReplacementBeforeEnumeration(t *testing.T) {
+	t.Parallel()
+	for _, replacement := range []bool{false, true} {
+		name := "all-roots-before-enumeration"
+		if replacement {
+			name = "project-root-replaced-before-open"
+		}
+		t.Run(name, func(t *testing.T) {
+			root := newProjectRoot(t, "a-valid")
+			if err := os.Symlink("a-valid", filepath.Join(root, "z-unsafe")); err != nil {
+				t.Fatal(err)
+			}
+			enumerations := 0
+			dependencies := systemDependencies{
+				enumerateRoot: func(_ string, _ *os.File, _ func([]directoryEntry, error) bool) error {
+					enumerations++
+					return nil
+				},
+			}
+			want := protocol.CodeInvalidSourceRoot
+			if replacement {
+				want = protocol.CodeSourceDiscoveryFailed
+				original := root + "-original"
+				t.Cleanup(func() { _ = os.RemoveAll(original) })
+				dependencies.beforeProjectRootOpen = func(path string) {
+					if err := os.Rename(path, original); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.MkdirAll(filepath.Join(path, "a-valid"), 0o700); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			response, report, err := invoke(t, root, []string{"z-unsafe", "a-valid"}, protocol.RequestDocument(), dependencies)
+			if err != nil || response.Failure.Code != want || enumerations != 0 || report.RootsOpened != 0 || report.SourceReads != 0 || report.LoadCalls != 0 {
+				t.Fatalf("root preflight = %+v, %+v, %v; enumerations=%d", response, report, err, enumerations)
+			}
+		})
+	}
+}
+
+func TestCandidateFailureUsesRawSourceIDOrderAndByteLimit(t *testing.T) {
+	t.Parallel()
+	root := newProjectRoot(t, "a", "z")
+	if err := os.Symlink("missing", filepath.Join(root, "z", "unsafe.godj.json")); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{name: "raw-path-order", filename: string([]byte{0xff}) + ".godj.json", want: protocol.CodeInvalidSourceEntry},
+		{name: "byte-limit-before-utf8", filename: string([]byte{0xff}) + strings.Repeat("x", definition.MaxSourceIDBytes) + ".godj.json", want: protocol.CodeSourceCatalogLimitExceeded},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response, report, err := invoke(t, root, []string{"z", "a"}, protocol.RequestDocument(), systemDependencies{
+				enumerateRoot: func(logical string, _ *os.File, yield func([]directoryEntry, error) bool) error {
+					name := "unsafe.godj.json"
+					if logical == "a" {
+						name = test.filename
+					}
+					yield([]directoryEntry{{name: name}}, io.EOF)
+					return nil
+				},
+			})
+			if err != nil || response.Failure.Code != test.want || report.DirectoryEntriesSeen != 2 || report.SourceReads != 0 || report.LoadCalls != 0 {
+				t.Fatalf("candidate failure order = %+v, %+v, %v", response, report, err)
+			}
+		})
+	}
+}
+
+func TestCandidateReadFailurePrecedesSizeAndFollowsIdentitySafety(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name string
+		swap bool
+		want string
+	}{
+		{name: "stable-read-error-before-size", want: protocol.CodeSourceReadFailed},
+		{name: "identity-before-read-error-and-size", swap: true, want: protocol.CodeUnsafeSourceEntry},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := newProjectRoot(t, "migrations")
+			path := filepath.Join(root, "migrations", "source.godj.json")
+			writeFile(t, path, migrationDocument("alpha", "0001", nil))
+			dependencies := systemDependencies{
+				readCandidate: func(_ string, _ *os.File, maximum uint64) ([]byte, error) {
+					return bytes.Repeat([]byte{'x'}, int(maximum)+1), io.ErrUnexpectedEOF
+				},
+			}
+			if test.swap {
+				dependencies.afterCandidateRead = func(int, string) {
+					if err := os.Rename(path, path+".old"); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.Symlink("source.godj.json.old", path); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			response, report, err := invoke(t, root, []string{"migrations"}, protocol.RequestDocument(), dependencies)
+			if err != nil || response.Failure.Code != test.want || report.SourceReads != 0 || report.LoadCalls != 0 {
+				t.Fatalf("post-read failure order = %+v, %+v, %v", response, report, err)
+			}
+		})
 	}
 }
 

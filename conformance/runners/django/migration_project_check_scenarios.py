@@ -1,14 +1,14 @@
 """Independent reference observations for GoDj migration project checks.
 
-MIG-065..074 are GoDj decisions from Proposed ADR-0021. They do not observe
+MIG-065..074 are GoDj decisions from ADR-0021. They do not observe
 or reproduce Django's database-aware pending-migration command, model-drift
 command, Python migration-module discovery, or Python project layout. The
 existing Django-named runner/profile namespace is reused only so all locked
 reference sets share one deterministic protocol-v2 corpus and checksum gate.
 
 This module intentionally models only the canonical base observations. The
-filesystem, process, protocol, resource-limit, and mutation feasibility proof
-lives in the Go ``conformance/projectcheck`` test harness.
+filesystem, process, protocol, resource-limit, and mutation checks
+run against the actual Go ``internal/projectcheck`` and public CLI paths.
 """
 
 from __future__ import annotations

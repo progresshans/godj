@@ -424,7 +424,7 @@ func TestTwelveReferenceSetsHave127UniqueContractsAndReject132OrderedCrossBindin
 	}
 }
 
-func TestRelationProductEntersTwelveAdapterTargetWithoutChangingReferenceTargets(t *testing.T) {
+func TestRelationProductUsesIndependentReferenceTargets(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -434,7 +434,7 @@ func TestRelationProductEntersTwelveAdapterTargetWithoutChangingReferenceTargets
 	}
 	text := string(contents)
 	conformanceStart := strings.Index(text, "conformance-check:\n")
-	productStart := strings.Index(text, "godj-conformance:\n")
+	productStart := strings.Index(text, "godj-conformance:")
 	oracleCheckStart := strings.Index(text, "oracle-check:\n")
 	oracleRegenerateStart := strings.Index(text, "oracle-regenerate:\n")
 	ciStart := strings.Index(text, "ci:")
@@ -450,9 +450,6 @@ func TestRelationProductEntersTwelveAdapterTargetWithoutChangingReferenceTargets
 	}
 	if got := strings.Count(productTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance migration-definition-source manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
-		t.Fatalf("godj-conformance adapter count = %d, want 26", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check migration-definition-source manifest count = %d, want 1", got)

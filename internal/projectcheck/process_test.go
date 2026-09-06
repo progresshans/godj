@@ -3,6 +3,7 @@
 package projectcheck
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	"golang.org/x/sys/unix"
 )
@@ -25,6 +27,9 @@ func TestOwnedProcessHelper(t *testing.T) {
 		return
 	}
 	switch mode {
+	case "build-diagnostic":
+		_, _ = io.WriteString(os.Stderr, os.Getenv("GODJ_HELPER_DIAGNOSTIC"))
+		os.Exit(7)
 	case "emit":
 		stdoutBytes, _ := strconv.Atoi(os.Getenv("GODJ_HELPER_STDOUT_BYTES"))
 		stderrBytes, _ := strconv.Atoi(os.Getenv("GODJ_HELPER_STDERR_BYTES"))
@@ -127,6 +132,22 @@ func TestOwnedProcessHelper(t *testing.T) {
 	}
 }
 
+func TestBuildDiagnosticsPreserveCauseWithoutExposingRuntimeOutput(t *testing.T) {
+	t.Parallel()
+	command := helperCommand("build-diagnostic", map[string]string{
+		"GODJ_HELPER_DIAGNOSTIC": "/private/project/main.go:3:4: undefined: MissingSymbol\ngo: password=private-password\n",
+		"API_TOKEN":              "private-password",
+	})
+	build := processBackend{}.Execute(context.Background(), nil, BuildStage, command)
+	if build.ExitCode != 7 || build.DirectReaps != 1 || len(build.Stdout) != 0 || !strings.Contains(build.BuildDiagnostic, "undefined: MissingSymbol") || strings.Contains(build.BuildDiagnostic, "/private") || strings.Contains(build.BuildDiagnostic, "private-password") || len(build.BuildDiagnostic) > gobuild.MaxDiagnosticBytes {
+		t.Fatalf("build diagnostic boundary = %+v", build)
+	}
+	runner := processBackend{}.Execute(context.Background(), nil, RunnerStage, command)
+	if runner.ExitCode != 7 || runner.DirectReaps != 1 || runner.BuildDiagnostic != "" {
+		t.Fatalf("runtime diagnostic became public = %+v", runner)
+	}
+}
+
 func TestOwnedProcessDrainsBeyondCapsBeforeNonzeroTransport(t *testing.T) {
 	t.Parallel()
 	command := helperCommand("emit", map[string]string{
@@ -167,6 +188,20 @@ func TestOwnedProcessAlreadyCanceledDoesNotStart(t *testing.T) {
 			},
 			wantCode: protocol.CodeProjectInterrupted,
 		},
+		{
+			name: "ready interrupt precedes ready cancellation",
+			context: func() context.Context {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx
+			},
+			interrupt: func() <-chan struct{} {
+				ready := make(chan struct{})
+				close(ready)
+				return ready
+			},
+			wantCode: protocol.CodeProjectInterrupted,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ready := filepath.Join(t.TempDir(), "must-not-start")
@@ -179,6 +214,83 @@ func TestOwnedProcessAlreadyCanceledDoesNotStart(t *testing.T) {
 				t.Fatalf("pre-canceled helper started: %v", err)
 			}
 		})
+	}
+}
+
+func TestProcessLaunchFailureUsesStageCategoryAndDoesNotClaimReap(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name  string
+		stage ProcessStage
+		want  Failure
+	}{
+		{"build", BuildStage, failure(protocol.CategoryBuild, protocol.CodeProjectBuildFailed)},
+		{"runner", RunnerStage, failure(protocol.CategoryProtocol, protocol.CodeProjectRunnerFailed)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newGlobalFixture(t, 0)
+			var launched ProcessResult
+			backend := backendFunc(func(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+				if stage != test.stage {
+					return ProcessResult{Started: true, ExitCode: 0}
+				}
+				command.Argv = []string{filepath.Join(fixture.project, "missing-executable")}
+				launched = processBackend{}.Execute(ctx, interrupt, stage, command)
+				return launched
+			})
+			var stdout, stderr bytes.Buffer
+			report := Run(Invocation{CWD: fixture.project, Args: []string{"migrations", "check"}, Environment: fixture.environment, Backend: backend, Stdout: &stdout, Stderr: &stderr})
+			if launched.Started || launched.DirectReaps != 0 || launched.SIGINTAttempts != 0 || launched.SIGKILLAttempts != 0 || launched.ExitCode != -1 {
+				t.Fatalf("launch failure claimed a child lifecycle: %+v", launched)
+			}
+			if report.ExitCode != 3 || !report.HasFailure || report.Failure != test.want || report.HasResult || report.DirectChildReaps != 0 || report.CleanupFailed != 0 || report.ResidualTemp != 0 || stdout.Len() != 0 || !strings.HasPrefix(stderr.String(), test.want.Category+"/"+test.want.Code+"\n") {
+				t.Fatalf("stage failure = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
+			}
+		})
+	}
+}
+
+func TestOwnedProcessReadyInterruptWinsConcurrentCancellation(t *testing.T) {
+	t.Parallel()
+	ready := filepath.Join(t.TempDir(), "ready")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	interrupt := make(chan struct{})
+	done := make(chan ProcessResult, 1)
+	go func() {
+		done <- processBackend{}.Execute(ctx, interrupt, RunnerStage, helperCommand("ignore", map[string]string{"GODJ_HELPER_READY": ready}))
+	}()
+	waitForFile(t, ready)
+	close(interrupt)
+	cancel()
+	select {
+	case result := <-done:
+		if result.Failure == nil || result.Failure.Code != protocol.CodeProjectInterrupted || result.CleanupFailed || !result.Started || result.DirectReaps != 1 || result.SIGINTAttempts != 1 || result.SIGKILLAttempts != 1 {
+			t.Fatalf("interrupt/cancel precedence = %+v", result)
+		}
+		if exit, valid := protocol.ExitCode(*result.Failure); !valid || exit != 130 {
+			t.Fatalf("interrupt exit=%d valid=%v", exit, valid)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("interrupt/cancel process did not finish")
+	}
+}
+
+func TestOwnedProcessWaitBarrierResamplesInterruptBeforeResult(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	interrupt := make(chan struct{})
+	command := helperCommand("emit", map[string]string{"GODJ_HELPER_STDOUT_BYTES": "4"})
+	result := executeOwnedProcess(ctx, interrupt, command, 16, 16, ownedProcessOptions{
+		retainStdout: true,
+		afterWait: func() {
+			cancel()
+			close(interrupt)
+		},
+	})
+	if result.Failure == nil || result.Failure.Code != protocol.CodeProjectInterrupted || result.CleanupFailed || result.DirectReaps != 1 || result.SIGINTAttempts != 0 || result.SIGKILLAttempts != 0 || len(result.Stdout) != 0 {
+		t.Fatalf("post-wait cancellation barrier = %+v", result)
 	}
 }
 

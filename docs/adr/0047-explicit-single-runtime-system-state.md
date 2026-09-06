@@ -1,8 +1,12 @@
 # ADR-0047: Explicit Single-Runtime System State
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0047-explicit-single-runtime-system-state.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-25
-- 관련 work/contract: [GDJ-0045](../../work/0045-durable-single-runtime-system-state-and-article-restart.md),
+- 관련 work/contract: [GDJ-0045](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0045-durable-single-runtime-system-state-and-article-restart.md),
   SYS-001..012, Q-020, M6
 - 선행 결정: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md),
   [ADR-0037](0037-postgresql-current-contract-backend.md),
@@ -87,7 +91,7 @@ multi-process/direct writer는 명시적 비목표로 남깁니다.
 Current checkout은 exported `systemstate` constructor/config/store와 Article transaction hook을 구현하고
 SYS-001..012 global adapter까지 게시했습니다. Local actual A/B는 12,944 bytes/SHA-256
 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical합니다. Exact submitted
-head `e673b3a...`의 [EVID-129](../status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) /
+head `e673b3a...`의 [EVID-129](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) /
 CI #146은 필수 GitHub Actions 27/27 jobs·359/359 steps와 PostgreSQL 17.10 distinct-process required
 16/16·skip 0을 통과했으므로 이 bounded 구현 shape를 Accepted합니다.
 
@@ -110,15 +114,3 @@ CI #146은 필수 GitHub Actions 27/27 jobs·359/359 steps와 PostgreSQL 17.10 d
 Multi-runtime을 채택하는 후속 결정은 credential singleton, session digest uniqueness, row-lock/conditional monotonic touch,
 shared capacity/reap/audit-prune, Article read-modify-write coordination과 목적별 versioned CSRF/Admin notice key ring을 함께 다룹니다.
 General `IntegerField`, revision/CAS 또는 HMAC session digest는 미리 전제하지 않습니다.
-
-## 검증
-
-- [x] SYS-001..012 exact reference/decision contracts, 11 passing + SYS-009 deviation publication과
-      Verified DEV-0008 exact four-selector expectation
-- [x] Explicit SQLite/PostgreSQL system migrate/reopen/no-op code와 missing-schema DDL/bootstrap/listener 0 tests
-- [x] Bootstrap idempotency/mismatch/duplicate/corrupt, commit-unknown reconciliation과 secret-free failure tests
-- [x] Digest-only Store, expiry/touch/capacity/reap/rotate/logout normal/race/fault tests
-- [x] Article/audit same-transaction commit/rollback/unknown tests
-- [x] Distinct-process restart E2E: SQLite와 raw secret/log/temp leak 0 local 통과; required PostgreSQL hosted 16/16·skip 0
-- [x] Corrected source `6243682...`의 affected/full/386/external/audit와 actual A/B 통과
-- [x] Corrected exact submitted-head hosted matrix: EVID-129/CI #146 27/27 jobs·359/359 steps, failure/cancel/step-skip 0

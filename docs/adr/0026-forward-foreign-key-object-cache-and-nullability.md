@@ -1,9 +1,13 @@
 # ADR-0026: Forward ForeignKey Object Cache and Nullability
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0026-forward-foreign-key-object-cache-and-nullability.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-10
 - 관련 work/contract:
-  [GDJ-0026](../../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md),
+  [GDJ-0026](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md),
   REL-003, REL-006, Q-013
 - 선행 결정: [ADR-0002](0002-codegen-generics-runtime-metadata.md),
   [ADR-0003](0003-typed-and-dynamic-query-apis.md),
@@ -11,7 +15,7 @@
   [ADR-0008](0008-m1-sqlite-driver-and-execution-boundary.md),
   [ADR-0012](0012-queryset-evaluation-cache-ownership.md),
   [ADR-0023](0023-symbolic-relation-binding-and-shared-relation-ast.md),
-  [ADR-0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
+  [ADR-0024](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
   [ADR-0025](0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)
 - 후속 재기준화: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 대체하는 ADR: 없음
@@ -20,13 +24,13 @@
 
 이 ADR은 **Accepted**입니다. Exact API와 ownership은 independent architecture/API/scope review를 반영해
 implementation 전에 동결했고, local implementation/audit는
-[EVID-20260810-043](../status/TEST_EVIDENCE.md#evid-20260810-043--gdj-0026-rel-003006-object-cache-and-nullability-pre-hosted-local-validation),
+[EVID-20260810-043](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260810-043--gdj-0026-rel-003006-object-cache-and-nullability-pre-hosted-local-validation),
 exact implementation-head hosted acceptance는
-[EVID-20260810-044](../status/TEST_EVIDENCE.md#evid-20260810-044--gdj-0026-github-hosted-exact-26-job-implementation-head-ci)에
+[EVID-20260810-044](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260810-044--gdj-0026-github-hosted-exact-26-job-implementation-head-ci)에
 기록했습니다. Commit `5be46141d943800a3c621975e3e5070f6d01eaf9`의 run `31370313755`은 exact
 26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. Exact 15-file
 completion-documentation head `7f92fcf036d03a5004953d9857a10291f4603efb`도
-[EVID-20260810-045](../status/TEST_EVIDENCE.md#evid-20260810-045--gdj-0026-github-hosted-completion-documentation-head-exact-26-job-ci)의
+[EVID-20260810-045](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260810-045--gdj-0026-github-hosted-completion-documentation-head-exact-26-job-ci)의
 run `31372360481`에서 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. 이 EVID-045를
 포함한 exact 8-file final evidence/status patch 자체 exact-head CI는 `not run/pending`이며 completion run을
 그 recursive proof로 재사용하지 않습니다.

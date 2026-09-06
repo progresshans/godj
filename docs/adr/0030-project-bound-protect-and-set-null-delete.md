@@ -1,13 +1,17 @@
 # ADR-0030: Project-bound `PROTECT` and `SET_NULL` Delete
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0030-project-bound-protect-and-set-null-delete.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-11
 - 관련 work/contract:
-  [GDJ-0030](../../work/0030-project-bound-protect-and-set-null-delete.md), REL-007, REL-008, Q-013, Q-017
+  [GDJ-0030](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0030-project-bound-protect-and-set-null-delete.md), REL-007, REL-008, Q-013, Q-017
 - 선행 결정: [ADR-0008](0008-m1-sqlite-driver-and-execution-boundary.md),
   [ADR-0009](0009-m2-explicit-write-change-state.md),
   [ADR-0023](0023-symbolic-relation-binding-and-shared-relation-ast.md),
-  [ADR-0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
+  [ADR-0024](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
   [ADR-0026](0026-forward-foreign-key-object-cache-and-nullability.md)
 - 후속 재기준화: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 대체하는 ADR: 없음
@@ -16,14 +20,14 @@
 
 이 ADR은 bounded SQLite REL-007/008 low-level delete engine에 한해 **Accepted**입니다. Exact clean activation baseline은
 `d0396c76d016c0f0335b484fbad56c70b80cf6d4`와
-[EVID-20260811-058](../status/TEST_EVIDENCE.md#evid-20260811-058--gdj-0029-terminal-exact-head-ci-and-gdj-0030-activation-baseline)입니다.
+[EVID-20260811-058](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-058--gdj-0029-terminal-exact-head-ci-and-gdj-0030-activation-baseline)입니다.
 Implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의
-[EVID-20260812-061](../status/TEST_EVIDENCE.md#evid-20260812-061--gdj-0030-github-hosted-exact-26-job-implementation-head-ci) /
+[EVID-20260812-061](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260812-061--gdj-0030-github-hosted-exact-26-job-implementation-head-ci) /
 [run 31510689383](https://github.com/progresshans/godj/actions/runs/31510689383)은 exact 26/26 jobs·326/326
 recorded steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 그 implementation head의 제품은 exact
 `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이며 REL-002만 locked입니다. 이 exact 15-file
 completion-documentation head `635e9c38a4464b98987d56c1b7d796aa42734661`도
-[EVID-20260812-062](../status/TEST_EVIDENCE.md#evid-20260812-062--gdj-0030-github-hosted-completion-documentation-head-exact-26-job-ci) /
+[EVID-20260812-062](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260812-062--gdj-0030-github-hosted-completion-documentation-head-exact-26-job-ci) /
 [run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)의 별도 exact 26/26·326/326과
 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-062를 추가하는 later exact seven-file terminal
 documentation patch 자체 CI는 `not run/pending`이고 completion run은 그 later tree의 proof가 아닙니다.

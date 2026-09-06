@@ -12,6 +12,41 @@ import (
 	"testing"
 )
 
+func TestPrivateWorkspaceCleanupRejectsReplacedParentWhileRetainedRootRemains(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	var report Report
+	selected, primary := selectProject(fixture.project, commandArguments{}, &report)
+	if primary != nil {
+		t.Fatalf("select project: %+v", primary)
+	}
+	defer selected.close()
+	workspace, primary := createPrivateWorkspaceWithHooks(selected, fixture.environment, &report, workspaceHooks{})
+	if primary != nil {
+		t.Fatalf("create workspace: %+v", primary)
+	}
+	t.Cleanup(func() {
+		if !workspace.cleaned {
+			_ = workspace.cleanup()
+		}
+	})
+	base := filepath.Dir(workspace.root)
+	moved := base + "-retained"
+	if err := os.Rename(base, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(base, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := workspace.cleanup(); err == nil {
+		t.Fatal("cleanup claimed success while the workspace remained in its retained parent")
+	}
+	retainedRoot := filepath.Join(moved, workspace.name)
+	if info, err := os.Stat(retainedRoot); err != nil || !info.IsDir() {
+		t.Fatalf("retained workspace evidence: info=%v err=%v", info, err)
+	}
+}
+
 func TestPrivateWorkspaceRealModuleDownloadRemainsCleanupWritable(t *testing.T) {
 	fixture := newGlobalFixture(t, 0)
 	ambientBytes, err := exec.Command("go", "env", "GOMODCACHE").Output()

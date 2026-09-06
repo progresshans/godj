@@ -83,7 +83,7 @@ func TestActualGodjMigrationCheckProcess(t *testing.T) {
 		fixture.writeMain(t, "package main\nfunc main( {\n")
 		defer fixture.writeMain(t, e2eProjectMain)
 		result := fixture.run(t, fixture.project, nil, "migrations", "check")
-		if result.exit != 3 || result.stdout != "" || result.stderr != protocol.CategoryBuild+"/"+protocol.CodeProjectBuildFailed+"\n" {
+		if result.exit != 3 || result.stdout != "" || !strings.HasPrefix(result.stderr, protocol.CategoryBuild+"/"+protocol.CodeProjectBuildFailed+"\n") || !strings.Contains(result.stderr, "syntax error") || strings.Contains(result.stderr, fixture.project) {
 			t.Fatalf("build failure = %+v", result)
 		}
 		after := snapshotProject(t, fixture.project)
@@ -357,6 +357,13 @@ func newProcessFixture(t *testing.T) processFixture {
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build godj: %v\n%s", err, output)
 	}
+	buildCacheBytes, err := exec.Command("go", "env", "GOCACHE").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep the host's build cache discoverable after HOME is isolated below.
+	// GODJ_COLD_BUILD=1 still requests fresh product compilation caches.
+	fixture.baseEnv["GOCACHE"] = strings.TrimSpace(string(buildCacheBytes))
 	fixture.baseEnv["HOME"] = filepath.Join(universe, "home")
 	fixture.baseEnv["XDG_CONFIG_HOME"] = filepath.Join(universe, "xdg-config")
 	fixture.baseEnv["XDG_CACHE_HOME"] = filepath.Join(universe, "xdg-cache")
@@ -483,9 +490,8 @@ func snapshotProject(t *testing.T, root string) map[string]string {
 }
 
 func waitForE2EFile(command *exec.Cmd, waited <-chan error, path string) error {
-	// Readiness includes an intentionally cold project build because each
-	// invocation receives a fresh private GOCACHE and GOMODCACHE. Keep a finite
-	// deadline so a stuck build or runner still fails the process test.
+	// Allow the explicit cold-build lane while keeping a finite deadline for a
+	// stuck compiler or runner in the ordinary cache-reusing lane.
 	timer := time.NewTimer(2 * time.Minute)
 	defer timer.Stop()
 	ticker := time.NewTicker(20 * time.Millisecond)

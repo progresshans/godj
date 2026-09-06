@@ -1,8 +1,12 @@
 # ADR-0043: Safe Template Runtime and Shared Model Form Validation
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0043-safe-template-and-model-form-validation.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-24
-- 관련 work/contract: [GDJ-0043](../../work/0043-safe-template-validation-session-auth-and-article-admin.md), WEB-021..027, FRM-001..005, Q-014, M5/M6
+- 관련 work/contract: [GDJ-0043](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0043-safe-template-validation-session-auth-and-article-admin.md), WEB-021..027, FRM-001..005, Q-014, M5/M6
 - 선행 결정: [ADR-0001](0001-schema-ir-as-canonical-source.md), [ADR-0002](0002-codegen-generics-runtime-metadata.md),
   [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md)
 - 대체하는 ADR: 없음
@@ -96,23 +100,3 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
 - Multipart/file upload, widgets, FormSet, localization와 generic ModelForm autosave
 - Generated Form types, Serializer public API와 API validation error format
 - Full Django error messages, DOM/HTML whitespace와 widget class parity
-
-## 검증
-
-- [x] WEB-021..027 and FRM-001..005 pinned Django reference, payload-free baseline and oracle no-rewrite locks
-- [x] Parser/resolver fuzz, unknown/private/callable negative tests, all resource caps and context cancellation
-- [x] Autoescape/SafeHTML, include/inheritance cycle and partial-output atomicity tests
-- [x] IR projection clone/order/default/null/max-length and unsupported-field startup tests
-- [x] Bound/unbound/cleaned/changed/error determinism and invalid mutation I/O 0
-- [x] Local normal/race/CGO0/vet and SQLite/pinned PostgreSQL Article form/Admin actual
-- [x] Final frozen full/386/external-copy and independent local audit
-- [x] Exact submitted-head hosted matrix
-
-## 현재 구현 상태
-
-Accepted 상태입니다. Frozen source `8bcfa213...`와 local EVID-123에서 product/local integration을 고정했고,
-submitted head `5eda0a4...`의 EVID-124/CI #134가 exact 27/27 jobs·358/358 steps, 네 좌표 993/993/skip-0과
-PostgreSQL 17.10 required 14/14·skip 0을 통과했습니다. WEB-021, WEB-023..026과 FRM-001..005는 hosted
-`passing`, WEB-022/027은 Verified `DEV-0003` deviation입니다. WEB-022 actual은 `Object`/`List`와 공개
-`Value.Member`/`Items` 결과만 관찰하며 competing Go attribute fallback이나 application dictionary callback은
-없음을 sparse deviation으로 명시합니다. Arbitrary callable/reflection과 M5 전체 완료는 계속 이 결정 밖입니다.

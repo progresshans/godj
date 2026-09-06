@@ -80,7 +80,7 @@ type Backend interface {
 type Runtime struct {
 	mu            sync.Mutex
 	backend       Backend
-	authenticator *auth.MemoryAuthenticator
+	authenticator auth.CredentialAuthenticator
 	sessionStore  *durableSessionStore
 	auditCapacity int
 }
@@ -290,7 +290,7 @@ func OpenExisting(ctx context.Context, backend Backend, config RuntimeConfig) (r
 			Cause:  err,
 		}
 	}
-	runtime.authenticator = authenticator
+	runtime.authenticator = &policyAuthenticator{runtime: runtime, policy: policy, cached: authenticator}
 	runtime.sessionStore = sessionStore
 	runtime.auditCapacity = auditCapacity
 	return runtime, nil

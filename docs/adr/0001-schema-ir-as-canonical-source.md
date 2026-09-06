@@ -1,5 +1,9 @@
 # ADR-0001: Schema IR을 모델 의미의 정규화된 단일 원본으로 사용
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0001-schema-ir-as-canonical-source.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-07
 - 관련 문서: [Architecture](../ARCHITECTURE.md)
@@ -25,10 +29,6 @@ ORM, migration, Form, Admin, API, OpenAPI, GIS, content types가 모델 정의�
 ## 의도적으로 결정하지 않은 것
 
 DSL의 정확한 문법, codegen bootstrap 입력 방식, IR 파일 encoding, custom field ABI는 정하지 않았습니다.
-
-## 검증
-
-M1 전까지 normalization round-trip, deterministic hash, 선언 순서 보존, unknown-version rejection, codegen/runtime metadata equivalence를 테스트합니다.
 
 ## 이후 확정된 진화
 

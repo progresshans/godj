@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v3"
-const GoDjProjectRelationFacadeInputSHA256 = "a578dfa5c0117994baf5947697e8a8e7d18f846f4ee8326ba71a8d42d33950d5"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v4"
+const GoDjProjectRelationFacadeInputSHA256 = "6abd31313313e0ddfa7bde7692a9caf6ecf2cff6b8c79980722626cffb7a123d"
 
 type Backend interface {
 	db.Queryer
@@ -100,6 +100,11 @@ func (_query ModelsArticleQuery) OrderBy(_orderings ...orm.Ordering[models.Artic
 
 func (_query ModelsArticleQuery) Distinct() ModelsArticleQuery {
 	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query ModelsArticleQuery) Fresh() ModelsArticleQuery {
+	_query.query = _query.query.Fresh()
 	return _query
 }
 
@@ -312,4 +317,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_f0043e499ab316558cd0306ce82c428a5f266b0c178d656416380c3ba1722ac7
+var _ goDjProjectSnapshot_5fc6ed960616f1b7166478aa2ede39cad36089af6e4469d543436f620c0b57c2

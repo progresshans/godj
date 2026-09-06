@@ -1,752 +1,102 @@
-# 목표 개발 경험
+# 개발 흐름
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded
-  explicit migrate, GDJ-0050 additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는
-  hosted-Verified; GDJ-0054 exact forward `sqlmigrate`도 corrected source-bound A/B, full/386/relation/archive와 exact-head
-  Hosted Phase E까지 Verified; GDJ-0055 exact TTY `createsuperuser`와 raw-password-free restart도 source-bound
-  A/B/archive와 exact-head Hosted까지 Verified
-- 마지막 검토: 2026-09-05
+실행 가능한 시작점은 [README의 Article 예제](../README.md#article-실행)다.
+아래는 현재 명령과 코드 경계를 설명한다. 제품 지원 폭은 [구현 현황](status/IMPLEMENTATION_MATRIX.md)을 따른다.
 
-아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0055 경계를 제외한 코드는
-**illustrative sketch**입니다. M1 API도
-pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
+## 모델에서 query까지
 
-## M1 verified 단면
-
-현재 checkout에서 다음 흐름이 compile/runtime/differential test를 통과합니다.
+[modeldef/schema.go](../examples/article/modeldef/schema.go)는 선언만 소유하고 generated model을 import하지 않는다.
 
 ```go
 var Definition = schema.Definition{
     AppLabel: "godj_conformance",
     Models: []schema.Model{{
-        Name:   "article",
+        Name: "article",
         GoName: "Article",
         Fields: []schema.Field{
             schema.CharField("title", "Title", 200),
-            schema.BooleanField("published", "Published"),
+            schema.BooleanField("published", "Published", schema.Default(false)),
             schema.CharField("summary", "Summary", 200, schema.Nullable()),
         },
     }},
 }
 ```
 
+`schema.Build`가 normalized IR을 만들고 declaration-owned `ProjectSpec`이 app/project package 위치를 연결한다.
+생성된 FieldSet과 Manager를 사용한 query는 다음 형태다. `sqliteBackend`는 application이 연 backend다.
+
 ```go
 articles, err := models.ArticleObjects.Using(sqliteBackend).
     Filter(models.ArticleFields.Title.IContains("django")).
     OrderBy(models.ArticleFields.ID.Asc()).
     All(ctx)
-// articles has type []models.Article
 ```
 
-Current GDJ-0040 bounded slice also compiles and runs reusable model-safe Boolean predicates:
+`err`를 처리하고 backend를 명시적으로 닫는다. Field/model을 잘못 조합하는 typed query는 compile 단계에서 거부하고,
+동적 이름으로 만든 query도 실행 전에 metadata로 검증한다. QuerySet 복사와 결과 cache의 의미는 [CONCURRENCY](CONCURRENCY.md)를 따른다.
 
-```go
-search := orm.Or(
-    models.ArticleFields.Title.IContains("go"),
-    models.ArticleFields.Summary.IContains("go"),
-)
-articles, err := models.ArticleObjects.Using(sqliteBackend).
-    Filter(
-        search,
-        models.ArticleFields.Published.Exact(true),
-        orm.Not(models.ArticleFields.Title.IContains("draft")),
-    ).
-    Distinct().
-    OrderBy(models.ArticleFields.ID.Asc()).
-    All(ctx)
+## 프로젝트 명령
+
+README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사용한다.
+
+```sh
+"$godj_demo_dir/godj" generate --check --project examples/article/godj.toml
+"$godj_demo_dir/godj" showmigrations --project examples/article/godj.toml
+"$godj_demo_dir/godj" migrate --plan --project examples/article/godj.toml
+"$godj_demo_dir/godj" sqlmigrate godj_conformance 0001_initial --project examples/article/godj.toml
 ```
 
-`And`/`Or` require at least two `Predicate[M]` values and cannot mix model types. GDJ-0041은 같은 tree에 bounded
-Integer/String 비교와 sealed field reference를 추가합니다.
+- `generate --check`는 선언과 생성물의 drift를 확인한다. 선언 변경 뒤에는 `generate`로 현재 후보 전체를 검증·게시한다.
+- `makemigrations`는 지원하는 schema difference에서 migration을 작성한다. Destructive/general custom operation을 임의로 추론하지 않는다.
+- `showmigrations`는 현재 DB history의 한 snapshot이다.
+- `migrate --plan`은 preview이며 그 출력으로 나중 실행을 승인하지 않는다. 실제 `migrate`는 fresh history에서 다시 계획한다.
+- `sqlmigrate`는 명명된 migration의 forward SQL을 DB 없이 render한다. 데이터 실행 결과나 runtime history를 보여 주는 명령이 아니다.
+- `createsuperuser`는 migrated clean system state에 operator를 한 번 만든다. 재시작은 raw password 없이 OpenExisting 경로를 사용한다.
 
-```go
-bounded := orm.And(
-    models.ArticleFields.ID.GreaterThanOrEqual(10),
-    models.ArticleFields.ID.LessThanOrEqual(100),
-)
-sameRow := models.ArticleFields.Title.ExactField(
-    orm.F(models.ArticleFields.Summary),
-)
-articles, err := models.ArticleObjects.Using(sqliteBackend).
-    Filter(bounded, sameRow).
-    OrderBy(models.ArticleFields.ID.Asc()).
-    All(ctx)
+`godj.toml`은 [예제 파일](../examples/article/godj.toml)처럼 project runner와 runserver package를 지정한다.
+명령은 그 프로젝트의 schema/catalog/backend/policy를 사용한다. 임의 Python settings나 generated model package를 schema 입력으로 읽지 않는다.
+
+## Form, Admin과 API
+
+[Admin 등록](../examples/article/adminapp/registration.go)은 model metadata, 허용 field, 권한과 persistence callback을 연결한다.
+[API 구성](../examples/article/apiapp/)은 serialization·validation·authentication과 HTTP CRUD를 연결한다.
+HTML과 JSON의 표현 차이는 유지하고 model 의미를 반복 선언하는 곳은 공통 metadata 경계로 모은다.
+
+모든 field를 자동 공개하는 것이 기본 정책은 아니다. Read-only PK, 허용한 입력 field와 relationship input을 명시한다.
+권한이 부족한 요청은 DB mutation 전에 거부하고, 인증/CSRF/error response에 credential이나 internal cause를 넣지 않는다.
+`forms/model.NewSpecForFields`는 editable field allowlist에서 Form을 만든다. 선언 순서를 유지하고 unknown/duplicate/PK/지원하지 않는
+FK 입력은 거부한다. Relation field를 입력에서 제외하고 scalar만 편집할 수 있다.
+`admin.ModelConfig.FormFields`는 같은 선택을 사용한다. `ReadOnly` 등록은 List/Snapshot을 요구하며 mutation callback·action을
+받지 않고 mutation route를 게시하지 않는다. Get/History는 필요한 read flow에 연결한다.
+Snapshot은 list/form에서 실제 사용하는 필드만 필수다. `forms/model.InitialValues`, `admin.ModelObject`,
+`serializers.ModelValue`는 generated descriptor의 typed reader와 명시적 필드 선택으로 변환을 공유한다.
+
+`serializers.FromModel`은 명시적인 `ModelField` 목록에서 kind/null/default/length를 IR로부터 가져온다.
+`ReadOnly`, `Optional`, `AllowEmpty` 같은 API 표현 선택은 여전히 명시한다. Auto PK는 read-only다.
+Field 의미의 반복 정의를 없애면서도 model의 모든 field가 자동으로 API 입력이 되는 일을 막는다.
+
+Operator 권한을 바꿀 때는 `systemstate.UpdateOperatorPermissions(ctx, backend, expectedPolicy, permissions)`를 명시적으로 호출한다.
+이 API는 같은 cooperative transaction에서 기존 정책을 비교하고 권한을 갱신하며 session을 폐기한다.
+Username/password hash/ID/active는 바꾸지 않는다. 기존 runtime은 정책 불일치로 인증을 거부하므로 새 정책으로 다시 연다.
+Startup이 새 권한을 자동 승인하거나 이미 admitted된 작업을 소급 취소하지 않는다.
+
+[Helpdesk 소비자](../examples/helpdesk/app_test.go)는 Category–Ticket 관계, 선택형 Admin, API와 기존 DB의 operator 권한 변경을 같은 공개 API로 검증한다.
+
+두 번째 모델이나 cross-app flow를 추가할 때는 새 모델이 실제로 같은 공개 경계를 사용하도록 구성하고 core 수정 없이 안 되는 지점을 확인한다.
+
+## PostgreSQL
+
+예제의 backend 설정은 [databaseconfig](../examples/article/databaseconfig/config.go)가 소유한다.
+SQLite 환경변수를 해제하고 caller-owned URL/schema를 사용한다. URL에 있는 credential은 출력하거나 문서에 복사하지 않는다.
+
+```sh
+unset GODJ_ARTICLE_SQLITE_DATABASE
+export GODJ_ARTICLE_POSTGRES_URL="$MY_POSTGRES_URL"
+export GODJ_ARTICLE_POSTGRES_SCHEMA="godj_article_demo"
+"$godj_demo_dir/godj" migrate --project examples/article/godj.toml
+"$godj_demo_dir/godj" createsuperuser --project examples/article/godj.toml
+"$godj_demo_dir/godj" runserver --project examples/article/godj.toml
 ```
 
-`orm.F`는 same-model/same-kind `FieldReference[M,V]`만 만들고 arithmetic/function API를 열지 않습니다. Field RHS는
-SQL parameter가 아니라 검증·quote된 identifier이며 nullable RHS를 부정하면 odd `NOT` complement guard가 붙습니다.
-Dynamic API의 `gt`/`gte`/`lt`/`lte`는 literal만 받고 dynamic F parser는 없습니다. Article HTTP의
-`min_id`/`max_id`/`title_matches_summary`는 invalid input에서 DB I/O 0, 성공 시 projection+aggregate 정확히 두
-query를 사용합니다. 이 GDJ-0041 단면은 frozen source `7f2bb223...`의 local-final과
-[hosted EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion)을 통과했습니다.
-Relation predicates under OR/NOT, relation/cross-model F, annotation/grouping, bulk mutation and
-locking remain outside the bounded slice.
-
-```go
-predicates, err := orm.ParseDynamic(
-    models.ArticleDescriptor{},
-    policy,
-    []orm.LookupInput{{Key: "title__icontains", Value: "django"}},
-)
-if err != nil {
-    return err
-}
-articles, err := models.ArticleObjects.Using(sqliteBackend).
-    Filter(predicates...).
-    All(ctx)
-```
-
-현재 생성과 drift 확인은 global CLI가 소유합니다. `godj.toml`이 가리키는 declaration runner는 `ProjectSpec`만
-반환하며 generated target을 import하지 않습니다.
-
-```bash
-godj generate
-godj generate --check
-godj generate --project ./godj.toml
-godj generate --check --project ./godj.toml
-```
-
-## 1. 프로젝트 시작
-
-```bash
-godj startproject mysite
-cd mysite
-godj startapp blog
-```
-
-사용자는 Django처럼 project와 app 경계를 이해할 수 있지만, Python `manage.py` 대신 global `godj`와 project binary를 사용합니다.
-
-## 2. 모델 의미 선언
-
-```go
-// illustrative only
-var PostSchema = schema.Define(
-    "Post",
-    schema.AutoField("ID").PrimaryKey(),
-    schema.CharField("Title").MaxLength(200),
-    schema.TextField("Body"),
-    schema.BooleanField("Published").Default(false),
-).
-    AppLabel("blog").
-    TableName("blog_post").
-    Ordering("-ID")
-```
-
-이 값은 게시글 객체가 아니라 모델 의미의 선언입니다. validation/normalization 후 Schema IR이 되고, 실제 `Post` type은 생성됩니다.
-
-위 예시는 장기 DSL 후보입니다. 현재 compile된 최소 DSL은 이 문서의 M1 verified 단면과
-`examples/article/modeldef`이며 codegen package 경계는 ADR-0006에서 확정했습니다.
-
-## 3. 코드 생성
-
-```bash
-godj generate
-godj generate --check
-```
-
-개념적으로 다음 산출물을 얻습니다.
-
-```go
-// Code generated by GoDj. DO NOT EDIT.
-// Generator: ...
-// Schema hash: ...
-
-type Post struct {
-    ID        int64
-    Title     string
-    Body      string
-    Published bool
-    // internal model state
-}
-
-var PostFields /* generated typed field set */
-var PostObjects /* Manager[Post] */
-var PostDescriptor /* generated descriptor */
-```
-
-생성 결과는 `gofmt`되고 동일 입력에서 byte-identical해야 합니다. 생성 파일은 Git에 커밋하며 사용자가 직접 수정하지 않습니다. Manifest durable commit 전 ordinary generation failure는 prior committed bundle을 exact 보존합니다.
-
-`--check`는 선택한 project tree와 Git 상태를 변경하지 않습니다. Candidate compile용 임시 build/cache workspace는
-project tree 밖에 만들고 정리합니다. Manifest가 durable commit되기 전 취소·오류는 prior bundle을 exact 보존하고,
-commit 뒤 publisher 내부 cleanup은 caller cancellation을 무시하며 새 snapshot을 유지합니다. 다만 publisher 성공 뒤
-바깥 private workspace 또는 retained root FD cleanup이 실패하면 target에는 새 generation이 이미 commit된 상태로 CLI가
-성공 stdout 없이 `project_generation_process_error/project_cleanup_failed`와 exit 3을 반환할 수 있습니다. 이때는
-재시도 전에 `godj generate --check`로 committed 상태를 확인합니다.
-
-## 4. 사용자 모델 메서드
-
-생성 타입과 같은 package의 별도 non-generated 파일에 메서드를 추가하는 경험을 목표로 합니다.
-
-```go
-// illustrative only
-func (p Post) IsPublished() bool {
-    return p.Published
-}
-```
-
-이 경험은 stale generated code가 compile되지 않는 bootstrap 문제와 함께 검증해야 합니다.
-
-## 5. Typed QuerySet
-
-일반 application code는 model과 value type이 보존되는 API를 사용합니다.
-
-```go
-// M1 verified shape; backend binding is explicit until project settings exist.
-posts, err := PostObjects.Using(backend).
-    Filter(PostFields.Title.IContains("go")).
-    OrderBy(PostFields.ID.Desc()).
-    All(ctx)
-```
-
-목표 compile-time 계약:
-
-- 결과는 `[]Post` 계열 타입입니다.
-- time field에 string lookup을 잘못 적용할 수 없습니다.
-- User predicate를 Post QuerySet에 넣을 수 없습니다.
-- chain은 원본 QuerySet plan을 변경하지 않습니다.
-
-`All`, `Get`, `First`, `Count`, `Exists`, `Update`, `Delete`의 정확한 반환 타입과 cache 관계는 contract로 정합니다.
-
-### 관계를 포함한 project facade — current-v3 local-final implementation
-
-관계가 있는 일반 application code는 backend/session을 project에 한 번 연결한 뒤 같은 model manager와
-relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
-[ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)의 physical-byte-preserving
-test-only overlay, [GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)와
-[ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)의 additive first-publication은
-historical feasibility/product evidence입니다. 두 ADR의 byte-preservation/publication topology는 현재
-[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에 의해 Superseded됐습니다.
-Current app main generator는 scalar/FK model, descriptor와 write metadata를 함께 만들고 project generator는 cross-app
-binding/query/facade를 소유합니다. Facade-private write model과 app-local relation-query output은 없습니다. 이 current
-ABI의 publication 하부는 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
-기반합니다. GDJ-0048의 [EVID-139](status/TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)은
-source checkpoint이고, [EVID-140](status/TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)은
-첫 local final의 역사 증거입니다. CI #158 inventory-only failure 뒤 corrected source의 current
-[EVID-141](status/TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)에서
-facade v3의 source-bound PostgreSQL, relation inventory와 final local gate를 다시 통과했습니다.
-[EVID-142](status/TEST_EVIDENCE.md#evid-20260828-142--gdj-0048-corrected-exact-head-hosted-completion) / CI #159는
-exact 27/27 jobs·360/360 steps로 이 bounded current-v3 surface를 hosted-verified했습니다. 아래 이름은 current facade에서
-유지되지만 reverse/general generated upgrade나 전체 ORM
-surface의 영구 naming policy까지 결정하지 않습니다.
-
-공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
-제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는
-`blog`, `authors`처럼 domain name을 유지해 여러 app의 generic `models` package 충돌을 피합니다.
-
-```go
-models, err := project.Using(backend)
-if err != nil {
-    return err
-}
-
-post, found, err := models.BlogPost.
-    OrderBy(blog.PostFields.ID.Asc()).
-    First(ctx)
-if err != nil {
-    return err
-}
-if !found {
-    // handle not found
-}
-
-post.Title = "current title"
-post.NormalizeTitle() // app-owned ordinary method
-
-author, err := post.Author(ctx)
-if err != nil {
-    return err
-}
-post, err = post.WithReviewerID(7)
-if err != nil {
-    return err
-}
-if err := post.Save(ctx); err != nil {
-    return err
-}
-
-raw, err := post.Unwrap()
-if err != nil {
-    return err
-}
-dto := struct{ Title string }{Title: raw.Title}
-_ = author
-_ = dto
-```
-
-`select_related`는 다른 eager-only model type이나 accessor를 만들지 않고 같은 relation-aware result의 cache를
-미리 채우는 방향입니다.
-
-```go
-posts, err := models.BlogPost.
-    SelectRelated(models.BlogPost.Related.Author).
-    OrderBy(blog.PostFields.ID.Asc()).
-    All(ctx)
-if err != nil {
-    return err
-}
-
-author, err = posts[0].Author(ctx) // 같은 accessor, 추가 SQL 0회
-```
-
-목표 의미는 다음과 같습니다.
-
-- Go field initialism은 `AuthorID`/`ReviewerID`처럼 `ID`를 유지하고 DB/schema 이름은 `author_id`/
-  `reviewer_id`를 유지합니다.
-- 모든 declared model은 raw app model과 low-level `Object`에 겹치지 않는 project-owned pointer wrapper/query root를
-  가집니다. Plain/lazy/eager source는 같은 project wrapper와 `Author(ctx)`/`Reviewer(ctx)` accessor를 사용합니다.
-- Required Author와 nullable Reviewer accessor는 target의 all-model query root와 같은 target project wrapper type을
-  반환합니다. Nullable SQL `NULL`은 target `nil`, present `false`, error `nil` 의미입니다.
-- Reverse manager/chaining, 별도 materialization 사이 target wrapper pointer identity와 downstream target-wrapper
-  cache/identity 의미는 GDJ-0032의 비목표입니다. Target wrapper 자체는 필수 경계입니다.
-- root query와 관계 접근은 exact origin backend/session을 유지합니다. Transaction 안에서는 그 session으로 새
-  project facade를 만드는 방향입니다. GDJ-0032의 project-local capability는 `db.Queryer + db.Mutator`이고
-  `db.RelationAtomic`/`db.RelationMutator`를 요구하지 않습니다. Queryer+Mutator-only backend/session은 사용할 수
-  있지만 정적 `db.Queryer` 값은 사용할 수 없습니다. Session-origin facade는 callback 안에서만 지원하며 warm
-  cache 때문에 callback 이후 항상 실패한다고 보장하지 않습니다.
-- Project binding 오류는 nil/typed-nil backend보다 먼저 반환하고, valid binding의 nil-like backend와 zero/corrupt
-  wrapper/query/selector는 stable structured category/code로 I/O 전에 실패합니다. Detail message는 public contract가
-  아닙니다.
-- Reverse one-to-many는 `[]Post` field가 아니라 filter/order 가능한 manager/query를 목표로 합니다. Prefetch는
-  같은 accessor의 정확히 지원된 cache만 미리 채웁니다.
-- 단순 promoted field read/write와 app-owned ordinary method는 DB I/O를 일으키지 않습니다. Wrapper direct JSON
-  marshal/unmarshal은 hidden relation state를 우회하지 못하도록 fail-closed하고 app-owned DTO만 supported Web representation입니다.
-  Lazy I/O는 `context.Context`와 `error`가 드러나는 method에서만 실행합니다.
-
-현재 `BindObjects`/factory `From`, reverse/prefetch binders와 GDJ-0029의 bounded eager query는 facade가 위임하는
-low-level kernel입니다. 일반 사용자가 관계마다 이들을 직접 조립하는 표면을 최종 API로 동결하지 않습니다.
-Historical Gate 0가 고정한 `Backend`, `Using`, `Models`, singular `AuthorsAuthor`/`BlogPost` roots와 wrappers,
-`BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`은 current v3에서도 유지됩니다. Current wrapper는 private raw alias를
-anonymous embed해 scalar와 app-owned method를 promotion하며 `Save`/`With*`/`Clear*`/relation accessor가 outer state를 소유합니다.
-Common Author/Reviewer selector와 선택된 eager evaluation state는 Filter/OrderBy/Limit 전후에도 유지되고,
-복사·반복한 같은 eager query는 한 evaluation을 공유하지만 derived chain은 독립입니다. Source relation cache는
-source wrapper-scoped입니다. Bounded forward FK mutation/cache invalidation은 아래 GDJ-0033 경계에 구현됐고,
-GDJ-0048은 direct FK/PK reconciliation, app method promotion, wrapper JSON rejection과 source namespace audit를 current v3에
-통합했습니다. Reverse manager, stable target pointer identity/downstream cache와 general generated upgrade는 계속 후속입니다.
-
-Django가 주는 장기 목표는 scalar field, user-defined model method와 relation accessor가 한 logical model처럼 보이는
-경험입니다. Go에서는 lazy I/O의 `context.Context`/`error`를 숨기지 않되, Gate 0의 canonical `Unwrap`을 전체 model
-surface의 유일한 영구 답으로 확대하지 않습니다. Q-017 compile comparison은 embedding/promotion, explicit unwrap,
-project sidecar를 비교했고 private alias embedding + outer project-owned relation state를 current v3로 채택했습니다. Bounded
-source AST namespace audit, source-fingerprint revalidation, direct JSON rejection과 operational-boundary reconciliation이
-promotion의 collision/copy/representation 위험을 닫습니다. Reverse/general facade와 첫 외부 지원 릴리스 이후
-upgrader는 계속 open입니다.
-
-### Forward relation assignment와 Save — GDJ-0033 completed
-
-[GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과
-[ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 completed Gate 0 facade 위에서
-REL-002 assignment/save/cache ownership 하나를 bounded SQLite/AutoField product로 구현·검증했습니다. Phase A/B/C 뒤
-Accepted한 다음 exact surface는 implementation head `be6f3d4e0838929fe96ec156ec0647845d905ea6`의
-EVID-076/run `31586910749`에서 exact 26/26 jobs·326/326 steps를 통과했습니다.
-
-```go
-models, err := project.Using(backend)
-post, err := models.BlogPost.New(blog.Post{Title: "draft"})
-author, err := models.AuthorsAuthor.New(authors.Author{Name: "unsaved"})
-
-post, err = post.WithAuthor(author) // fresh source; original은 불변
-err = post.Save(ctx)                // no-PK target: REL-002, I/O 0
-
-err = author.Save(ctx) // same target wrapper에 PK 게시
-err = post.Save(ctx)   // pending assignment만 key reconcile
-```
-
-Nullable relation은 `WithReviewer`, `WithReviewerID`와 `ClearReviewer`를 사용합니다. Required relation은
-`WithAuthor`/`WithAuthorID`만 제공하고 nil/clear를 허용하지 않습니다. `New`는 query root에 있지만 query plan과
-무관한 wrapper construction입니다.
-
-이 product의 소유권 규칙은 다음과 같습니다.
-
-- Relation assignment는 fresh source wrapper를 반환하고 original source wrapper의 raw FK/cache/state를 바꾸지 않습니다.
-- Derived source만 assigned target pointer, scalar presence, cache state와 pending-at-assignment bit를 소유합니다.
-- Required FK의 pending no-PK 상태에서는 tri-state와 exact-target accessor가 authoritative입니다. Gate 0
-  `Unwrap() blog.Post`는 Django raw `None`을 표현할 수 없으므로 pending 동안
-  `model_state_error/unsaved_related_object`로 실패하고 raw zero/old scalar를 authoritative하게 노출하지 않습니다.
-- Target wrapper Save는 same wrapper를 in-place 갱신할 수 있지만 같은 wrapper의 concurrent Save/access는 caller가
-  synchronize해야 합니다.
-- 별도 query/materialization 사이 target pointer identity, global identity map과 downstream target cache는 계약하지
-  않습니다.
-- Raw FK의 전체 `(presence,value)` tuple이 같으면 warm cache를 유지하고 tuple이 달라질 때만 selected cache를
-  cold로 만듭니다.
-- Assignment 당시 no-PK였고 source scalar가 계속 empty인 target만 later Save 뒤 key를 reconcile합니다. Caller가
-  scalar를 바꾸면 그 선택이 이깁니다. Key-present target의 key가 나중에 달라지면 old source scalar를 유지하고
-  selected cache를 invalidate합니다.
-- Unrelated ready/absent relation cache는 fresh source의 독립 COW cell에 보존하고 mutex/evaluation/flight를 공유하지
-  않습니다.
-- Nullable clear는 raw FK NULL과 cached absent를 함께 만듭니다.
-- Transaction rollback은 target key와 derived source memory를 자동 rewind하지 않습니다.
-- Session-origin wrapper는 callback 내부만 지원하고 callback 이후 behavior는 warm cache를 포함해 noncontractual입니다.
-
-Manually key-present but unpersisted target은 key `0`을 포함해 preflight를 통과하고 database FK constraint가 존재
-여부를 판단합니다. Current ABI는 app main generator의 write descriptor/PK-presence를 generic Manager Save와 직접
-재사용하며 facade-private write model을 중복 생성하지 않습니다. Numeric ID로 savedness를 추론하지 않고 required
-scalar presence, cache와 pending을 각각 추적합니다. Current bounded product는 exact
-`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Q-013은 broader relation/backend 때문에
-`Partial`, Q-017은 raw-model UX/capability/namespace/reverse/general upgrade 때문에 P1/open입니다. Bounded
-relation-capable SQLite migration lifecycle은 GDJ-0036 current local implementation에 통합됐지만 non-SQLite와 general
-migration surface는 계속 별도 후속입니다.
-
-Completed GDJ-0034 뒤 typed generated `SelectRelated(...).All(ctx)`는 stale/mismatched generated 조합의 path
-resolve 또는 required/nullable bind failure를 generic invalid-plan으로 축약하지 않습니다. Nil/typed-nil 또는 이미
-취소된 context의 기존 우선순위를 지킨 뒤 원래 structured error와 cause chain을 backend I/O 전에 반환하며 production
-facade도 같은 low-level error를 통과시킵니다. 정상 eager 결과·query 수·cache와 public method 이름은 바뀌지 않았고,
-EVID-081/run `31605477297`이 exact implementation head `3099bd62...`를 hosted-verified했습니다.
-
-## 6. Dynamic lookup
-
-Admin과 HTTP query처럼 compile 후 들어오는 field path는 metadata로 검증합니다.
-
-```go
-// M1 verified shape
-predicates, err := orm.ParseDynamic(
-    PostDescriptor{},
-    policy,
-    []orm.LookupInput{{Key: "title__icontains", Value: "go"}},
-)
-if err != nil {
-    return err
-}
-posts, err := PostObjects.Using(backend).Filter(predicates...).All(ctx)
-```
-
-- path, lookup, value coercion을 실행 전에 검증합니다.
-- HTTP input에는 field/path allowlist를 적용합니다.
-- typed API와 같은 Query AST를 생성합니다.
-- 문자열을 SQL에 직접 이어 붙이지 않습니다.
-
-초안의 error 반환 query에 바로 `.Update()`를 chain하는 모양은 Go에서 컴파일되지 않으므로 채택하지 않았습니다.
-
-## 7. Projection
-
-실행 시 column 목록이 결정되면 명시적 dynamic row를 사용할 수 있습니다. compile time에 결과가 정해지면 typed projection을 목표로 합니다.
-
-```go
-// illustrative only
-rows, err := orm.SelectInto[Post, PostSummary](
-    ctx,
-    PostObjects.All(),
-    PostSummaryProjection,
-)
-```
-
-Go generic method는 새 result type parameter를 선언할 수 없으므로 `QuerySet.SelectInto[R]`가 아니라 top-level generic function 또는 별도 generic builder를 사용합니다.
-
-## 8. Migration
-
-장기 사용자 명령 목표는 다음과 같습니다. `migrate`는 completed GDJ-0049에서 public product command가 됐고,
-`makemigrations`는 completed GDJ-0050에서 bounded additive-only public product command로 구현·검증됐습니다.
-
-```bash
-godj makemigrations
-godj migrate
-```
-
-사용자는 schema 변경에서 migration plan을 만들고 forward/backward를 실행합니다. data migration은 현재 generated `Post`가 아니라 해당 migration 시점의 historical model/state API를 사용해야 합니다.
-
-현재 persisted Migration Definition은 strict data-only `format_version=1` 하나를 사용합니다. Scalar와 ForeignKey가
-같은 current Schema IR/ProjectState를 사용하며 unknown format, unsupported/custom/data operation은 fail-closed합니다.
-Executable Go callback ABI와 destructive/rename/custom writer는 아직 정하지 않았습니다. Accepted ADR-0052는 current
-CreateModel/AddField만 생성하는 deterministic writer/autodetector와 unsupported delta fail-closed 경계를 고정합니다.
-
-Library lifecycle의 current shape는 다음과 같습니다.
-
-```go
-loaded, _, err := definition.Load(sources...)
-if err != nil {
-    return err
-}
-
-state, err := (migrations.Executor{Backend: backend}).Migrate(
-    ctx,
-    loaded,
-    migrations.LatestLifecycleRequest(),
-)
-```
-
-`LoadedDefinitionSet`은 loader-owned opaque snapshot이고 complete lifecycle authority입니다. `Executor.Migrate`는
-mandatory backend capabilities와 하나의 sealed `BeginMigration` entry를 사용합니다. Raw scalar atomic primitive는
-별도 `DirectExecutor`가 소유하며 raw relation execution은 I/O 전에 거부합니다. 이 경계와 bounded SQLite
-ForeignKey Create/Add/Remove/restart 회귀는 EVID-100의 exact local implementation에서 통과했지만 MIG-075..086은
-계속 `oracle_locked`/unregistered입니다. Current-only reset의 hosted gate는 EVID-103에서 완료됐습니다.
-
-Global CLI의 현재 제품 범위에는 completed GDJ-0022의 exact project-linked migration check와 GDJ-0037의
-project generation/check 단면이 함께 포함됩니다. 지원하는 exact argv는 다음과 같습니다.
-
-```bash
-godj migrations check
-godj migrations check --project ./godj.toml
-godj generate
-godj generate --check
-godj generate --project ./godj.toml
-godj generate --check --project ./godj.toml
-godj migrate
-godj migrate --project ./godj.toml
-godj makemigrations
-godj makemigrations --dry-run
-godj makemigrations --check
-godj makemigrations --project ./godj.toml
-godj makemigrations --dry-run --project ./godj.toml
-godj makemigrations --check --project ./godj.toml
-godj createsuperuser
-godj createsuperuser --project ./godj.toml
-```
-
-Completed GDJ-0049의 `godj migrate`와 `godj migrate --project ./godj.toml`은 exact current argv로
-구현됐습니다. Existing declaration package가 DB config/backend를 소유하고 global CLI core는 전달되는 ambient
-environment의 DSN/secret 값을 파싱하거나 출력하지 않습니다. `migrations check`는 계속 DB-free이고 `runserver`는 implicit
-migrate를 하지 않습니다. Clean SQLite/PostgreSQL 17.10, durable-prefix resume, actual child fence,
-authenticated Admin/API distinct-process restart를 포함한 MIG-087..098 exact 12는 hosted-verified product `passing`입니다.
-Submitted head `8841319...`의 first local-final hosted run `33124180742`는 23/27 success 후 broad PostgreSQL과
-relation/conformance outer timeout으로 닫히지 않았습니다. 사용자 표면은 바꾸지 않고 selector/workload와 macOS Intel
-race outer budget만 교정했으며, submitted tree `b82bb5b...`는 EVID-146/CI #164 run `33247166995`의
-41/41 jobs·464/464 steps와 PostgreSQL mode별 required 20/20·skip 0을 통과했습니다. ADR-0051은 Accepted입니다.
-
-Completed GDJ-0050의 `makemigrations`는 DB를 열지 않고 한 request의 schema/catalog snapshot에서 current
-CreateModel/AddField candidate를 계산합니다. Supported local filesystem의 exact one writer root에서는 directory-inode lock,
-fresh plan/CAS와 recoverable no-replace publication을 사용하며 dry-run/check는 같은 plan을 파일 mutation 없이 보고합니다.
-Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public
-module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
-`PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Verified DEV-0010
-`deviation`입니다. GDJ-0054 completion product aggregate는 26 adapters/289 contracts=
-`264 passing + 25 deviation`이었고, reference-only locked range는 MIG-075..086입니다.
-Predecessor full `make ci`, Linux/386/relation/archive는 EVID-151에서 통과했고 workflow
-test-harness correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted
-tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 failed-job rerun 뒤 effective
-41/41 jobs·464/464 steps와 PostgreSQL 각 21/21/0을 통과했습니다. ADR-0052/GDJ-0050/DEV-0010은
-Accepted/completed/Verified입니다.
-
-Completed GDJ-0051의 다음 bounded user surface는 read-only migration status입니다.
-
-```bash
-godj showmigrations
-godj showmigrations --project ./godj.toml
-```
-
-Implementation checkpoint `294e7e2...`에서 exact argv, strict private wire, definition load-before-open, exact-one
-revision-fenced history snapshot과 known `[X]`/`[ ]`, unknown recorded identity `[?]`의 deterministic renderer가 로컬
-Phase B gate를 통과했습니다. Control/format identity는 reversible escape하고 leading Unicode whitespace app heading은
-status row처럼 보이지 않게 강제 hex escape합니다. Phase C `22e5c01...`은 repository-external SQLite status/restart와
-database no-mutation을 검증했고, Phase D `dc7a455...`는 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product actual과
-MIG-118 exact 16-case cleanup/private-response/publication ordering을 게시했습니다. EVID-157의 final audit는 P0..P3=`0`이며
-GDJ-0051 Phase D 당시 product는 24/269=`245 passing + 24 deviation`이었습니다. EVID-158 local final과 EVID-159/CI #177 exact-head
-Hosted도 통과해 ADR-0053/GDJ-0051은 Accepted/completed입니다. App filter, `--plan`, target/reverse와 `sqlmigrate`는
-비범위입니다.
-근거는 [EVID-154](status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint),
-[EVID-156](status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint),
-[EVID-157](status/TEST_EVIDENCE.md#evid-20260830-157--gdj-0051-phase-d-postgresql-and-product-publication-checkpoint)입니다.
-
-Completed GDJ-0052는 다음 exact forms를 bounded product surface로 추가했습니다.
-
-```bash
-godj migrate --plan
-godj migrate blog 0001_article
-godj migrate blog 0001_article --plan --project ./godj.toml
-godj migrate blog zero
-```
-
-전체 public grammar는 latest/named/app-zero 각각 execute/plan과 optional trailing `--project PATH` 조합의 여덟
-형태뿐입니다. Plan은 current history에서 dry/capability preflight한 semantic steps를 JSON으로 표시하지만 실행 token이
-아니며, execute는 항상 fresh revision-fenced snapshot에서 다시 계획합니다. Prefix/app-only/option permutation,
-`sqlmigrate`, fake/repair와 destructive writer 확대는 비범위입니다. Phase B core source `cd499462...`는 이 grammar의
-target/plan/reverse 경계를 구현했고 Phase A source `db8fc418...`, tree `639a712...`는 MIG-119..128을 reference-only
-`oracle_locked`로 고정했습니다. Manifest/NI/oracle은 6,781/1,707/43,516 bytes
-(`d76a42f2...`/`dfefb6fd...`/`dc688e27...`), checksum은 23 lines/2,177 bytes/`00bd4d0d...`, semantic aggregate는
-291 scenarios/1,015,687 bytes/`b3918c...`입니다. Phase A 당시 reference는 26/291/650=
-`245 passing + 24 deviation + 22 oracle_locked`, product는 24/269=`245 passing + 24 deviation`이었습니다.
-Phase C source `5b8d48f...`, tree `7df990a...`는 저장소 밖 public-only project에서 실제 global/linked child와 SQLite로
-exact target/plan/reverse failure-resume를 local-verify했습니다. Phase D source `a92efb5...`, tree `06f90a9...`는
-MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product registration을 완료했습니다.
-MIG-119..121/123..128은 `passing`, MIG-122만 lifecycle MIG-052와 분리된 DEV-0002 세 plan selector의
-`deviation`입니다. GDJ-0052 completion reference는 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product는
-25/279=`254 passing + 25 deviation`이며 당시 locked range는 MIG-075..086이었습니다. ADR-0054/GDJ-0052는
-Accepted/completed입니다. 근거는
-[EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
-[EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),
-[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)와
-[EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)입니다.
-
-Completed GDJ-0054의 hosted-verified user surface는 다음 exact 두 형태입니다.
-
-```bash
-godj sqlmigrate blog 0001_article
-godj sqlmigrate blog 0001_article --project ./godj.toml
-```
-
-`zero`도 literal exact name이고 reverse/latest/prefix/app-only/option permutation은 지원하지 않습니다. Accepted ADR-0055는
-complete loaded catalog와 target-before historical state에서 exactly-one forward request를 만들고 SQLite/PostgreSQL built-in
-renderer가 current `CreateModel`/`AddField` compiler projection을 database/history/transaction 없이 반환하는 경계를
-정의합니다. 이 명령은 live database 상태·실제 실행 가능성·atomicity를 확인하거나 fully offline/custom-renderer no-I/O를
-보장하지 않습니다. Phase A source `c3de0d35...`, tree `1af05572...`는 MIG-129..138을 reference-only
-`oracle_locked`로 고정했습니다. Phase B source `f51ab733...`, tree `ab71e8a...`는 pure materializer, built-in renderers와
-direct project config를 구현해 EVID-174의 affected gate를 통과했습니다. Phase B 증거는 product adapter와 command가
-구현됐다고 표현하지 않습니다. Phase C source `a304a73...`, tree `f8df2d4...`는 exact command, strict private wire, canonical one-write
-owner와 external SQLite no-DB flow를 구현해 EVID-175의 affected gate를 통과했습니다. Phase D source `a85ade1...`, tree
-`211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는 PostgreSQL schema-only current-profile,
-actual child cancellation/reap, MIG-129..138 exact ten actual/policy와 source-bound A/B를 EVID-176에서 local-verify했습니다.
-GDJ-0054 completion reference/product는 27/301/702=`264+25+12 locked`, 26/289=`264+25`이고 MIG-075..086만 locked입니다. Exact source
-`cc42c4f...`의 corrected A/B, full/386/relation/archive와 Hosted run `33355685927` 53/53 jobs·572/572 steps는
-EVID-177에서 통과해 ADR-0055/GDJ-0054를 Accepted/completed로 닫았습니다.
-
-Completed GDJ-0055의 hosted-verified operator surface는 다음 exact 두 형태입니다.
-
-```bash
-godj createsuperuser
-godj createsuperuser --project ./godj.toml
-```
-
-프로젝트 선택과 build가 성공한 뒤 actual TTY에서 username, password, confirmation을 한 번씩 읽고 password echo를 끕니다.
-Non-TTY, username/password flag, positional identity, environment/file/line fallback은 지원하지 않습니다. Project-owned backend와
-immutable credential policy가 migrated clean system state에 exactly one row를 생성하며 existing/corrupt/policy/commit-unknown
-state를 overwrite하거나 자동 retry하지 않습니다. 이후 `OpenExisting`은 stored encoded credential만 검증하므로
-`runserver` restart에 raw username/password environment가 필요하지 않습니다.
-
-SYS-021..030은 모두 product `passing`이며 current reference/product는
-27/311/702=`274 passing + 25 deviation + 12 oracle_locked`, 26/299=`274 passing + 25 deviation`입니다. Exact source
-`0b5b6fc6...`의 local source-bound A/B/archive와 Hosted run `33899930122` 79/79 jobs·797/797 steps는 EVID-179에서
-통과했습니다. Multiple users, noninteractive provider, password change/reset/delete, session-family revocation, Q-019 quarantine와
-production security topology는 이 bounded surface의 지원 범위가 아닙니다.
-
-`--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
-Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
-보고합니다. `project.Config`의 copied migration sources, `LoadProjectSpec(context.Context)`와 lazy
-`OpenMigrationBackend(context.Context)`는 각 private command에서만 호출됩니다. Global mutable registration이나 public
-wire/report는 없습니다. Generation은 current app 4/project 8
-roster, canonical manifest, whole-candidate compile, sealed project root, journaled recovery와 read-only drift check를
-사용합니다. 기존 migration product도 유지되어 MIG-065..074는 10 `passing`입니다.
-
-선행 test-only implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
-[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
-Linux/macOS x64/arm64 project-check 4개와 actual SQLite 4개, 총 10개 hosted job을 모두
-통과했습니다. GDJ-0022 local implementation은 EVID-027, exact Python/product expanded 18/18 hosted
-acceptance는 fix head run `31329294154`의 EVID-028에서 검증했습니다. 어느 증거도 PostgreSQL/MySQL
-지원으로 확장되지 않습니다.
-
-## 9. Form, Admin, API
-
-모델 metadata에서 validation과 field 의미를 공유하되 public lifecycle은 구분합니다.
-
-```text
-Schema IR / Runtime Metadata
-  ├─ Model validation
-  ├─ Form + HTML widget/binding
-  ├─ Admin configuration
-  ├─ Serializer representation/input
-  └─ OpenAPI schema
-```
-
-Generic base type을 사용할 수 있지만 `ModelForm[M]`, `ModelAdmin[M]`, `ModelSerializer[M]`의 정확한 embedding/config API는 해당 milestone의 compile usability test 후 정합니다.
-
-## 10. 프로젝트 실행과 배포
-
-Darwin/Linux 개발 단면에서는 global CLI가 project를 찾아 current generated-aware runtime을 build/run합니다.
-Descriptor는 declaration package와 별도인 optional runtime package를 exact 순서로 선언합니다.
-
-```toml
-format_version = 1
-[project]
-package = "./cmd/projectrunner"
-runserver_package = "./cmd/site"
-```
-
-`runserver_package`가 없는 project도 migration check와 generate에는 유효하지만 `godj runserver`는
-`runserver_not_configured`로 실패합니다. 현재 허용형은 다음 네 개뿐이고 기본 주소는
-`127.0.0.1:8000`입니다. Address는 exact `127.0.0.1:<canonical-port>`만 허용합니다.
-
-```bash
-godj runserver
-godj runserver --addr 127.0.0.1:8080
-godj runserver --project ./godj.toml
-godj runserver --project ./godj.toml --addr 127.0.0.1:8080
-```
-
-한 번 선택한 project에서 declaration runner를 한 번 build/run하고 current bundle을 계산합니다. Committed
-generated bundle을 read-only로 확인한 뒤 runtime package를 isolated external workspace에서
-`go build -buildvcs=false -mod=readonly`로 build하고 같은 bundle을 다시 확인합니다. 두 check 사이에
-missing/stale/mixed/interrupted generated state가 보이면 server를 시작하지 않습니다. 성공하면 runtime에는 exact
-`<private-binary> serve --listen <address>` argv와 project root cwd, 호출 시점의 ambient environment가 전달됩니다.
-Build/runner는 private cache/temp/home을 사용하고 safe local module proxy가 있으면 기존 `GOPROXY` 앞에 추가하지만, 그 밖의
-non-private ambient environment는 유지합니다. 따라서 Article DB 변수나 explicit credential/tool helper도 build/runner에
-보일 수 있으며, 이 단면은 untrusted project/toolchain의 secret sandbox가 아닙니다. Runtime은 원래 ambient snapshot 전체를
-받습니다.
-
-Article example은 database 설정을 project-owned environment로 선택합니다.
-
-```bash
-GODJ_ARTICLE_SQLITE_DATABASE=./article.sqlite3 \
-  godj runserver --project ./examples/article/godj.toml --addr 127.0.0.1:8000
-
-GODJ_ARTICLE_POSTGRES_URL='postgresql://…' \
-GODJ_ARTICLE_POSTGRES_SCHEMA='article_dev' \
-  godj runserver --project ./examples/article/godj.toml --addr 127.0.0.1:8000
-```
-
-SQLite 변수와 PostgreSQL 변수는 함께 사용할 수 없고 PostgreSQL URL/schema는 반드시 pair로 설정합니다. Direct
-`./site serve --database ...` compatibility entry는 남아 있지만 global `runserver`는 database 값을 argv로 옮기거나
-로그에 복제하지 않습니다. Framework-wide database settings 형식을 확정한 것도 아닙니다.
-
-Runtime stdout/stderr는 실행 중 그대로 전달됩니다. Ctrl-C는 runtime process group에 SIGINT를 전달하고 bounded
-grace 안의 Web drain, listener/backend close와 direct child reap를 기다립니다. Grace를 넘긴 child 또는 held output
-pipe는 필요한 경우 group force-kill 뒤 bounded cleanup으로 닫습니다. 이 lifecycle은 shell을 사용하지 않습니다.
-
-이 명령은 generated source를 생성·수정·repair하지 않고 migration, retry, watch/reload 또는 background task를
-암묵적으로 실행하지 않습니다. General custom-command dispatcher, persistent build cache, Windows, non-loopback/TLS와
-production server tuning은 아직 구현 범위가 아닙니다.
-
-이 bounded 개발 흐름은 submitted `2bfdbd5...`의
-[EVID-122](status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
-run `32659704239`에서 네 Darwin/Linux 좌표와 PostgreSQL 17.10 required gate를 포함한 exact
-27/27 jobs·358/358 steps로 hosted-verified됐습니다. 아래 production command 예시는 여전히 방향이며 그 구현 증거가
-아닙니다.
-
-Production에서는 한 project binary로 명령을 실행하는 방향입니다.
-
-```bash
-go build -o mysite ./cmd/mysite
-./mysite serve
-./mysite migrate
-./mysite createsuperuser
-```
-
-## 목표 프로젝트 배치
-
-아래는 방향이며 generator template으로 아직 확정되지 않았습니다.
-
-```text
-mysite/
-├─ go.mod
-├─ godj.toml
-├─ cmd/mysite/main.go
-├─ config/
-│  ├─ project.go
-│  ├─ settings.go
-│  ├─ apps.go
-│  ├─ urls.go
-│  └─ middleware.go
-├─ apps/
-│  └─ blog/
-│     ├─ app.go
-│     ├─ models.go
-│     ├─ zz_godj_generated.go
-│     ├─ model_methods.go
-│     ├─ forms.go
-│     ├─ admin.go
-│     ├─ serializers.go
-│     ├─ views.go
-│     ├─ urls.go
-│     ├─ consumers.go
-│     ├─ migrations/
-│     └─ management/commands/
-├─ templates/
-├─ static/
-├─ media/
-└─ locale/
-```
-
-Schema declaration과 generated model package는 ADR-0006에 따라 분리합니다. 전체 startproject/app template은 계속
-Proposed이며, declaration/generated package와 generation CLI 경계만 현재 구현됐습니다.
-
-## 오류와 미지원 기능
-
-GoDj는 지원하지 않는 backend 기능이나 잘못된 dynamic lookup을 무시하지 않습니다. 사용자는 `errors.Is/As`로 분류 가능한 구조화된 error를 받아야 합니다. 정확한 taxonomy는 contract에서 확정합니다.
-
-이 흐름의 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md), 다음 검증 단면은 [Roadmap](ROADMAP.md)을 확인합니다.
+DB/schema의 생성 권한과 isolation은 caller가 준비한다. Tests의 pinned PostgreSQL 환경과 임의 production 배포는 같은 검증이 아니다.
+현재 backend 제한은 [BACKEND_MATRIX](BACKEND_MATRIX.md)에 있다.

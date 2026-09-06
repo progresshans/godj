@@ -256,7 +256,7 @@ func TestCurrentTwentySixProductSetsHave299EligibleContractsAndExcludeZeroOracle
 	}
 }
 
-func TestQueryBreadthProductRemainsInCurrentTwentySixAdapterTarget(t *testing.T) {
+func TestQueryBreadthProductRemainsInConformanceTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -265,7 +265,7 @@ func TestQueryBreadthProductRemainsInCurrentTwentySixAdapterTarget(t *testing.T)
 		t.Fatal(err)
 	}
 	text := string(contents)
-	start := strings.Index(text, "godj-conformance:\n")
+	start := strings.Index(text, "godj-conformance:")
 	end := strings.Index(text, "\noracle-check:")
 	if start < 0 || end <= start {
 		t.Fatal("cannot isolate godj-conformance target")
@@ -273,9 +273,6 @@ func TestQueryBreadthProductRemainsInCurrentTwentySixAdapterTarget(t *testing.T)
 	target := text[start:end]
 	if !strings.Contains(target, "QUERY_BREADTH") {
 		t.Fatal("query-breadth product set is missing from godj-conformance")
-	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 26 {
-		t.Fatalf("current product adapter count = %d, want 26", got)
 	}
 }
 

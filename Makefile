@@ -1,3 +1,7 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -euo pipefail -c
+# Pipeline recipes also set their flags explicitly for macOS GNU Make 3.81.
+
 PROFILE := conformance/profiles/django-6.1-sqlite-darwin-arm64.json
 MANIFEST := conformance/contracts/manifest.json
 ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json
@@ -79,8 +83,9 @@ SYSTEM_STATE_MANIFEST := conformance/contracts/system-state-manifest.json
 SYSTEM_STATE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json
 SYSTEM_STATE_NOT_IMPLEMENTED := conformance/fixtures/godj-system-state-not-implemented.json
 SYSTEM_STATE_DEVIATION_EXPECTED := conformance/fixtures/godj-system-state-deviation-expected.json
-SYSTEM_STATE_POSTGRES_ATTESTATION := conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
-PROJECT_OPERATOR_POSTGRES_ATTESTATION := conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json
+ATTESTATION_DIR ?=
+SYSTEM_STATE_POSTGRES_ATTESTATION ?= $(ATTESTATION_DIR)/systemstate/postgresql-17.10-two-process-v1.json
+PROJECT_OPERATOR_POSTGRES_ATTESTATION ?= $(ATTESTATION_DIR)/operator/postgresql-17.10-sqlite-external-operator-v1.json
 DRF_PROFILE := conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json
 PARAMETER_ROUTING_MANIFEST := conformance/contracts/parameter-routing-manifest.json
 PARAMETER_ROUTING_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json
@@ -105,43 +110,17 @@ MIGRATION_WRITER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/migr
 GODJ_RUNNER_IMPORT := github.com/progresshans/godj/conformance/runners/godj
 GODJCHECK_IMPORT := github.com/progresshans/godj/conformance/cmd/godjcheck
 MULTIRUNTIME_WORKER_IMPORT := github.com/progresshans/godj/conformance/systemstate/multiruntimeworker
-PORTABLE_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/systemstate/multiruntimeworker
-PORTABLE_CGO0_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck
 
 .PHONY: cgo-zero-build cgo-zero-build-core cgo-zero-build-operator cgo-zero-build-products check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-race-core go-race-operator go-race-products go-test go-test-core go-test-operator go-test-products go-vet oracle-check oracle-regenerate project-command-dependencies project-operator-product python-test python-test-exact targeted-migrate-product
 
 define select_core_go_packages
-all_packages="$$(go list ./...)"; \
-project_migrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
-project_migrate_target_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
-project_showmigrations_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
-project_sqlmigrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_SQLMIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
-project_operator_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_OPERATOR_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
-runserver_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(RUNSERVER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
-migration_writer_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MIGRATION_WRITER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
-godj_runner_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(GODJ_RUNNER_IMPORT)" { count++ } END { print count + 0 }')"; \
-godjcheck_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(GODJCHECK_IMPORT)" { count++ } END { print count + 0 }')"; \
-multiruntime_worker_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MULTIRUNTIME_WORKER_IMPORT)" { count++ } END { print count + 0 }')"; \
-test "$$project_migrate_count" -eq 1; \
-test "$$project_migrate_target_count" -eq 1; \
-test "$$project_showmigrations_count" -eq 1; \
-test "$$project_sqlmigrate_count" -eq 1; \
-test "$$project_operator_count" -eq 1; \
-test "$$runserver_count" -eq 1; \
-test "$$migration_writer_count" -eq 1; \
-test "$$godj_runner_count" -eq 1; \
-test "$$godjcheck_count" -eq 1; \
-test "$$multiruntime_worker_count" -eq 1; \
-core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SQLMIGRATE_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_OPERATOR_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)" && $$0 != "$(GODJ_RUNNER_IMPORT)" && $$0 != "$(GODJCHECK_IMPORT)" && $$0 != "$(MULTIRUNTIME_WORKER_IMPORT)"')"; \
-test -n "$$core_packages"; \
-all_count="$$(printf '%s\n' "$$all_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
-core_count="$$(printf '%s\n' "$$core_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
-test "$$all_count" -eq "$$((core_count + 10))"
+core_packages="$$(go list ./... | python3 scripts/ci/packages.py core)"
 endef
 
 format-check:
-	@unformatted="$$(git ls-files -z --cached --others --exclude-standard -- '*.go' | \
-		xargs -0 sh -c 'for file do test ! -f "$$file" || gofmt -l "$$file"; done' sh)"; \
+	@set -euo pipefail; \
+	unformatted="$$(git ls-files -z --cached --others --exclude-standard -- '*.go' | \
+		xargs -0 sh -ec 'for file do test ! -f "$$file" || gofmt -l "$$file"; done' sh)"; \
 	if [ -n "$$unformatted" ]; then \
 		echo "unformatted Go files:"; \
 		echo "$$unformatted"; \
@@ -149,6 +128,7 @@ format-check:
 	fi
 
 generate-check:
+	go run ./cmd/godj generate --check --project ./examples/helpdesk/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/article/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/relationdeleteproduct/godj.toml
 
@@ -156,15 +136,14 @@ project-command-dependencies:
 	go mod download all
 
 core-package-selection-check:
-	@set -eu; \
+	@set -euo pipefail; \
 	$(select_core_go_packages); \
 	printf '%s\n' "$$core_packages"
 
 go-test-core:
-	@set -eu; \
+	@set -euo pipefail; \
 	$(select_core_go_packages); \
 	go test -timeout=20m $$core_packages
-	go test -timeout=20m -p=1 -count=1 $(PORTABLE_HEAVY_PACKAGES)
 
 go-test-products: project-command-dependencies
 	go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
@@ -176,16 +155,15 @@ go-test-products: project-command-dependencies
 go-test-operator: project-command-dependencies
 	go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
 
-go-test: go-test-core go-test-products go-test-operator
+go-test: go-test-platform go-test-core go-test-integration go-test-conformance go-test-products go-test-operator targeted-migrate-product
 
 go-vet:
 	go vet ./...
 
 go-race-core:
-	@set -eu; \
+	@set -euo pipefail; \
 	$(select_core_go_packages); \
 	go test -timeout=20m -race $$core_packages
-	go test -timeout=20m -p=1 -race -count=1 $(PORTABLE_HEAVY_PACKAGES)
 
 go-race-products: project-command-dependencies
 	go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct
@@ -197,29 +175,22 @@ go-race-products: project-command-dependencies
 go-race-operator: project-command-dependencies
 	go test -timeout=25m -race -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
 
-go-race: go-race-core go-race-products go-race-operator
+go-race: go-race-platform go-race-core go-race-integration go-race-conformance go-race-products go-race-operator
 
 cgo-zero-build-core:
-	CGO_ENABLED=0 go test -timeout=20m \
-		./db/sqlite \
-		./db/postgres \
-		./cmd/godj \
-		./examples/article \
-		./project \
-		./query \
-		./internal/projectcheck/... \
-		./conformance/postgresproduct/... \
-		./conformance/relationproduct/... \
-		./conformance/relationqueryproduct/... \
-		./conformance/relationobjectproduct/... \
-		./conformance/relationreverseproduct/... \
-		./conformance/relationprefetchproduct/... \
-		./conformance/relationselectproduct/... \
-		./conformance/relationdeleteproduct/... \
-		./conformance/migrationrelationproduct \
-		./conformance/systemstate/restart \
-		-count=1
-	CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 $(PORTABLE_CGO0_HEAVY_PACKAGES)
+	@set -euo pipefail; \
+	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py core)"; \
+	CGO_ENABLED=0 go test -count=1 -timeout=20m $$packages
+
+cgo-zero-build-integration:
+	@set -euo pipefail; \
+	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py integration)"; \
+	CGO_ENABLED=0 go test -count=1 -timeout=25m $$packages
+
+cgo-zero-build-conformance:
+	@set -euo pipefail; \
+	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py conformance)"; \
+	CGO_ENABLED=0 go test -count=1 -p=1 -timeout=25m $$packages
 
 cgo-zero-build-products: project-command-dependencies
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
@@ -231,7 +202,7 @@ cgo-zero-build-products: project-command-dependencies
 cgo-zero-build-operator: project-command-dependencies
 	CGO_ENABLED=0 go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
 
-cgo-zero-build: cgo-zero-build-core cgo-zero-build-products cgo-zero-build-operator
+cgo-zero-build: cgo-zero-build-platform cgo-zero-build-core cgo-zero-build-integration cgo-zero-build-conformance cgo-zero-build-products cgo-zero-build-operator
 
 project-operator-product: go-test-operator go-race-operator cgo-zero-build-operator
 
@@ -358,7 +329,7 @@ conformance-check:
 	go run ./conformance/cmd/contractcheck \
 		-profile $(DRF_PROFILE) -manifest $(API_AUTHENTICATION_MANIFEST) -suite $(API_AUTHENTICATION_NOT_IMPLEMENTED)
 
-godj-conformance:
+godj-conformance: require-live-evidence
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MANIFEST) -expected $(ORACLE)
 	go run ./conformance/cmd/godjcheck \
@@ -435,8 +406,8 @@ godj-conformance:
 		-profile $(PROFILE) -manifest $(SYSTEM_STATE_MANIFEST) \
 		-expected $(SYSTEM_STATE_ORACLE) \
 		-deviation-expected $(SYSTEM_STATE_DEVIATION_EXPECTED) \
-		-system-state-postgres-attestation $(SYSTEM_STATE_POSTGRES_ATTESTATION) \
-		-project-operator-postgres-attestation $(PROJECT_OPERATOR_POSTGRES_ATTESTATION)
+		-system-state-postgres-attestation "$(SYSTEM_STATE_POSTGRES_ATTESTATION)" \
+		-project-operator-postgres-attestation "$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)"
 	go run ./conformance/cmd/godjcheck \
 		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) \
 		-expected $(PARAMETER_ROUTING_ORACLE) \
@@ -614,6 +585,57 @@ oracle-regenerate:
 		--profile $(DRF_PROFILE) --manifest $(API_AUTHENTICATION_MANIFEST) \
 		--output $(API_AUTHENTICATION_ORACLE)
 
-ci: format-check generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance
+ci: require-live-evidence docs-check format-check generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance
 
-check: ci python-test-exact oracle-check
+check: quick
+
+# The quick loop excludes real command/process and conformance adapters.
+.PHONY: quick ci-tools-test go-test-integration go-test-conformance go-race-integration go-race-conformance
+ci-tools-test:
+	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+
+quick: docs-check format-check ci-tools-test go-test-core
+
+go-test-integration:
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py integration)"; \
+	go test -count=1 -timeout=25m $$packages
+
+go-test-conformance:
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py conformance)"; \
+	go test -count=1 -p=1 -timeout=25m $$packages
+
+go-race-integration:
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py integration)"; \
+	go test -race -count=1 -timeout=25m $$packages
+
+go-race-conformance:
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py conformance)"; \
+	go test -race -count=1 -p=1 -timeout=25m $$packages
+
+.PHONY: require-live-evidence
+require-live-evidence:
+	@test -f "$(SYSTEM_STATE_POSTGRES_ATTESTATION)" && test -f "$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)" || { echo "Live conformance requires current CI captures: set ATTESTATION_DIR (systemstate/ and operator/)." >&2; exit 1; }
+
+.PHONY: go-test-platform go-race-platform cgo-zero-build-platform
+go-test-platform:
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py platform)"; \
+	go test -count=1 -p=1 -timeout=30m $$packages
+
+go-race-platform:
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py platform)"; \
+	go test -race -count=1 -p=1 -timeout=30m $$packages
+
+cgo-zero-build-platform:
+	@set -euo pipefail; \
+	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py platform)"; \
+	CGO_ENABLED=0 go test -count=1 -p=1 -timeout=30m $$packages
+
+.PHONY: docs-check
+docs-check:
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_docs.py

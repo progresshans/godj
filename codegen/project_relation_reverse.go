@@ -20,20 +20,6 @@ type RelationReversePackage struct {
 	Schema     ir.Schema
 }
 
-type normalizedRelationReversePackage struct {
-	alias      string
-	prefix     string
-	importPath string
-	schema     ir.Schema
-}
-
-type projectRelationReverseModel struct {
-	app      normalizedRelationReversePackage
-	identity ir.ModelIdentity
-	model    ir.Model
-	bind     int
-}
-
 type projectRelationReverseTerminal struct {
 	field ir.Field
 	bind  int
@@ -43,13 +29,13 @@ type projectRelationReverseEdge struct {
 	name      string
 	selector  string
 	typeName  string
-	source    *projectRelationReverseModel
+	source    *projectRelationModel
 	terminals []projectRelationReverseTerminal
 	bind      int
 }
 
 type projectRelationReverseOwner struct {
-	model         *projectRelationReverseModel
+	model         *projectRelationModel
 	surface       string
 	relationsType string
 	factoryType   string
@@ -69,7 +55,12 @@ func GenerateProjectRelationReverse(packageName string, packages []RelationRever
 	if err != nil {
 		return nil, err
 	}
-	models, owners, err := buildProjectRelationReverseSurface(canonical)
+	return generateProjectRelationReverse(packageName, newRelationProjectPlan(canonical))
+}
+
+func generateProjectRelationReverse(packageName string, plan *relationProjectPlan) ([]byte, error) {
+	canonical := plan.apps
+	models, owners, err := plan.reverseSurface()
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +68,7 @@ func GenerateProjectRelationReverse(packageName string, packages []RelationRever
 	queryModels := projectRelationReverseUsedModels(models, owners)
 	objectModels := projectRelationReverseUsedModels(models, objectOwners)
 	usedApps := projectRelationReverseUsedApps(canonical, queryModels)
-	if err := validateProjectRelationReverseNamespaces(canonical, owners); err != nil {
+	if err := validateProjectRelationReverseNamespaces(plan, owners); err != nil {
 		return nil, fmt.Errorf("validate project relation reverse names: %w", err)
 	}
 
@@ -136,115 +127,26 @@ func GenerateProjectRelationReverse(packageName string, packages []RelationRever
 	return formatted, nil
 }
 
-func canonicalRelationReversePackages(packages []RelationReversePackage) ([]normalizedRelationReversePackage, error) {
-	canonical := make([]normalizedRelationReversePackage, len(packages))
-	for index := range packages {
-		candidate := packages[index]
-		schema, err := ir.Normalize(candidate.Schema.Clone())
-		if err != nil {
-			return nil, fmt.Errorf("normalize relation reverse package %q: %w", candidate.Alias, err)
-		}
-		if err := validateGeneratedNames(schema); err != nil {
-			return nil, fmt.Errorf("validate reverse package %q: %w", candidate.Alias, err)
-		}
-		if err := validateRelationMetadataNames(schema); err != nil {
-			return nil, fmt.Errorf("validate reverse metadata package %q: %w", candidate.Alias, err)
-		}
-		if err := validateRelationObjectNames(schema); err != nil {
-			return nil, fmt.Errorf("validate relation reverse object prerequisite %q: %w", candidate.Alias, err)
-		}
-		if !validRelationReverseAlias(candidate.Alias) {
-			return nil, fmt.Errorf("invalid relation reverse package alias %q", candidate.Alias)
-		}
-		if !validImportPath(candidate.ImportPath) {
-			return nil, fmt.Errorf("invalid relation reverse import path %q", candidate.ImportPath)
-		}
-		canonical[index] = normalizedRelationReversePackage{
-			alias:      candidate.Alias,
-			prefix:     exportedRelationQueryPrefix(candidate.Alias),
-			importPath: candidate.ImportPath,
-			schema:     schema,
-		}
+func canonicalRelationReversePackages(packages []RelationReversePackage) ([]normalizedRelationPackage, error) {
+	inputs := make([]relationPackageInput, len(packages))
+	for index, candidate := range packages {
+		inputs[index] = relationPackageInput{alias: candidate.Alias, importPath: candidate.ImportPath, schema: candidate.Schema}
 	}
-	sort.Slice(canonical, func(left, right int) bool {
-		if canonical[left].schema.AppLabel != canonical[right].schema.AppLabel {
-			return canonical[left].schema.AppLabel < canonical[right].schema.AppLabel
-		}
-		if canonical[left].alias != canonical[right].alias {
-			return canonical[left].alias < canonical[right].alias
-		}
-		return canonical[left].importPath < canonical[right].importPath
+	return canonicalRelationPackages(inputs, relationPackagePolicy{
+		name: "reverse", validAlias: validRelationReverseAlias, objectNames: true,
+		reservedPaths: []string{"github.com/progresshans/godj/db", "github.com/progresshans/godj/orm", "github.com/progresshans/godj/query", "github.com/progresshans/godj/schema/ir"},
 	})
-
-	aliases := map[string]struct{}{"db": {}, "orm": {}, "query": {}, "ir": {}}
-	paths := map[string]struct{}{
-		"github.com/progresshans/godj/db":        {},
-		"github.com/progresshans/godj/orm":       {},
-		"github.com/progresshans/godj/query":     {},
-		"github.com/progresshans/godj/schema/ir": {},
-	}
-	prefixes := make(map[string]struct{}, len(canonical))
-	apps := make(map[string]struct{}, len(canonical))
-	for _, app := range canonical {
-		if _, duplicate := aliases[app.alias]; duplicate {
-			return nil, fmt.Errorf("duplicate relation reverse package alias %q", app.alias)
-		}
-		aliases[app.alias] = struct{}{}
-		if _, duplicate := paths[app.importPath]; duplicate {
-			return nil, fmt.Errorf("duplicate relation reverse import path %q", app.importPath)
-		}
-		paths[app.importPath] = struct{}{}
-		if _, duplicate := prefixes[app.prefix]; duplicate {
-			return nil, fmt.Errorf("duplicate relation reverse exported prefix %q", app.prefix)
-		}
-		prefixes[app.prefix] = struct{}{}
-		if _, duplicate := apps[app.schema.AppLabel]; duplicate {
-			return nil, fmt.Errorf("duplicate relation reverse app label %q", app.schema.AppLabel)
-		}
-		apps[app.schema.AppLabel] = struct{}{}
-	}
-	return canonical, nil
 }
 
 func validRelationReverseAlias(alias string) bool {
-	if alias == "" || alias == "init" || alias == "db" || alias == "orm" || alias == "query" || alias == "ir" ||
-		alias == "bool" || alias == "error" || alias == "false" || alias == "nil" || alias == "true" ||
-		token.Lookup(alias).IsKeyword() || alias[0] < 'a' || alias[0] > 'z' {
-		return false
-	}
-	for index := 1; index < len(alias); index++ {
-		current := alias[index]
-		if !('a' <= current && current <= 'z') &&
-			!('A' <= current && current <= 'Z') &&
-			!('0' <= current && current <= '9') {
-			return false
-		}
-	}
-	return true
+	return validRelationAlias(alias, "db", "orm", "query", "ir", "bool", "error", "false", "nil", "true")
 }
 
 func buildProjectRelationReverseSurface(
-	apps []normalizedRelationReversePackage,
-) ([]*projectRelationReverseModel, []projectRelationReverseOwner, error) {
-	models := make([]*projectRelationReverseModel, 0)
-	byIdentity := make(map[ir.ModelIdentity]*projectRelationReverseModel)
-	for _, app := range apps {
-		for _, model := range app.schema.Models {
-			identity := ir.ModelIdentity{AppLabel: app.schema.AppLabel, ModelName: model.Name}
-			candidate := &projectRelationReverseModel{app: app, identity: identity, model: model.Clone()}
-			models = append(models, candidate)
-			byIdentity[identity] = candidate
-		}
-	}
-	sort.Slice(models, func(left, right int) bool {
-		if models[left].identity.AppLabel != models[right].identity.AppLabel {
-			return models[left].identity.AppLabel < models[right].identity.AppLabel
-		}
-		return models[left].identity.ModelName < models[right].identity.ModelName
-	})
-	for index := range models {
-		models[index].bind = index
-	}
+	plan *relationProjectPlan,
+) ([]*projectRelationModel, []projectRelationReverseOwner, error) {
+	models := plan.models
+	byIdentity := plan.byIdentity
 
 	edgesByOwner := make(map[ir.ModelIdentity][]projectRelationReverseEdge)
 	for _, source := range models {
@@ -337,9 +239,9 @@ func projectRelationReverseObjectOwners(owners []projectRelationReverseOwner) []
 }
 
 func projectRelationReverseUsedModels(
-	models []*projectRelationReverseModel,
+	models []*projectRelationModel,
 	owners []projectRelationReverseOwner,
-) []*projectRelationReverseModel {
+) []*projectRelationModel {
 	required := make(map[ir.ModelIdentity]struct{})
 	for _, owner := range owners {
 		required[owner.model.identity] = struct{}{}
@@ -347,7 +249,7 @@ func projectRelationReverseUsedModels(
 			required[relation.source.identity] = struct{}{}
 		}
 	}
-	result := make([]*projectRelationReverseModel, 0, len(required))
+	result := make([]*projectRelationModel, 0, len(required))
 	for _, model := range models {
 		if _, ok := required[model.identity]; ok {
 			result = append(result, model)
@@ -357,14 +259,14 @@ func projectRelationReverseUsedModels(
 }
 
 func projectRelationReverseUsedApps(
-	apps []normalizedRelationReversePackage,
-	models []*projectRelationReverseModel,
-) []normalizedRelationReversePackage {
+	apps []normalizedRelationPackage,
+	models []*projectRelationModel,
+) []normalizedRelationPackage {
 	required := make(map[string]struct{})
 	for _, model := range models {
 		required[model.app.schema.AppLabel] = struct{}{}
 	}
-	result := make([]normalizedRelationReversePackage, 0, len(required))
+	result := make([]normalizedRelationPackage, 0, len(required))
 	for _, app := range apps {
 		if _, ok := required[app.schema.AppLabel]; ok {
 			result = append(result, app)
@@ -403,9 +305,10 @@ func relationReverseSelector(name string) (string, error) {
 }
 
 func validateProjectRelationReverseNamespaces(
-	apps []normalizedRelationReversePackage,
+	plan *relationProjectPlan,
 	owners []projectRelationReverseOwner,
 ) error {
+	apps := plan.apps
 	packageNames := map[string]string{
 		"GoDjProjectBindingGeneratorVersion": "project binding provenance constant",
 		"Bind":                               "project binding function",
@@ -427,7 +330,7 @@ func validateProjectRelationReverseNamespaces(
 			return fmt.Errorf("import alias %s conflicts with %s", app.alias, previous)
 		}
 	}
-	if err := seedProjectRelationReversePrerequisiteNames(apps, addPackageName); err != nil {
+	if err := seedProjectRelationReversePrerequisiteNames(plan, addPackageName); err != nil {
 		return err
 	}
 
@@ -480,25 +383,10 @@ func validateProjectRelationReverseNamespaces(
 }
 
 func seedProjectRelationReversePrerequisiteNames(
-	apps []normalizedRelationReversePackage,
+	plan *relationProjectPlan,
 	add func(string, string) error,
 ) error {
-	queryApps := make([]normalizedRelationQueryPackage, len(apps))
-	objectApps := make([]normalizedRelationObjectPackage, len(apps))
-	for index, app := range apps {
-		queryApps[index] = normalizedRelationQueryPackage{
-			alias:      app.alias,
-			prefix:     app.prefix,
-			importPath: app.importPath,
-			schema:     app.schema.Clone(),
-		}
-		objectApps[index] = normalizedRelationObjectPackage{
-			alias:      app.alias,
-			prefix:     app.prefix,
-			importPath: app.importPath,
-			schema:     app.schema.Clone(),
-		}
-	}
+	apps := plan.apps
 
 	if err := add("GoDjProjectRelationQueryGeneratorVersion", "project relation query provenance constant"); err != nil {
 		return err
@@ -509,11 +397,11 @@ func seedProjectRelationReversePrerequisiteNames(
 	if err := add("BindRelations", "project relation query binding function"); err != nil {
 		return err
 	}
-	_, querySources, err := buildProjectRelationQuerySurface(queryApps)
+	_, querySources, err := plan.querySurface()
 	if err != nil {
 		return fmt.Errorf("build immutable project relation query namespace: %w", err)
 	}
-	if err := validateProjectRelationQueryNamespaces(queryApps, querySources); err != nil {
+	if err := validateProjectRelationQueryNamespaces(apps, querySources); err != nil {
 		return fmt.Errorf("validate immutable project relation query namespace: %w", err)
 	}
 	for _, source := range querySources {
@@ -537,11 +425,11 @@ func seedProjectRelationReversePrerequisiteNames(
 	if err := add("BindObjects", "project relation object binding function"); err != nil {
 		return err
 	}
-	_, objectSources, err := buildProjectRelationObjectSurface(objectApps)
+	_, objectSources, err := plan.objectSurface()
 	if err != nil {
 		return fmt.Errorf("build immutable project relation object namespace: %w", err)
 	}
-	if err := validateProjectRelationObjectNamespaces(objectApps, objectSources); err != nil {
+	if err := validateProjectRelationObjectNamespaces(apps, objectSources); err != nil {
 		return fmt.Errorf("validate immutable project relation object namespace: %w", err)
 	}
 	for _, source := range objectSources {
@@ -596,7 +484,7 @@ func renderProjectRelationReverseTypes(output *bytes.Buffer, owner projectRelati
 
 func renderProjectRelationReversePrerequisiteAssertions(
 	output *bytes.Buffer,
-	models []*projectRelationReverseModel,
+	models []*projectRelationModel,
 	objectOwners []projectRelationReverseOwner,
 ) {
 	if len(models) == 0 {
@@ -619,7 +507,7 @@ func renderProjectRelationReversePrerequisiteAssertions(
 
 func renderBindReverseRelations(
 	output *bytes.Buffer,
-	models []*projectRelationReverseModel,
+	models []*projectRelationModel,
 	owners []projectRelationReverseOwner,
 ) {
 	fmt.Fprintln(output, "func BindReverseRelations() (ReverseRelations, error) {")
@@ -685,7 +573,7 @@ func renderBindReverseRelations(
 
 func renderProjectRelationReverseModelBindings(
 	output *bytes.Buffer,
-	models []*projectRelationReverseModel,
+	models []*projectRelationModel,
 	resultType string,
 ) {
 	fmt.Fprintln(output, "\t_binding, _err := Bind()")
@@ -800,7 +688,7 @@ func renderProjectRelationReverseObjectTypes(output *bytes.Buffer, owner project
 
 func renderBindReverseObjects(
 	output *bytes.Buffer,
-	models []*projectRelationReverseModel,
+	models []*projectRelationModel,
 	owners []projectRelationReverseOwner,
 ) {
 	fmt.Fprintln(output, "func BindReverseObjects() (ReverseObjects, error) {")

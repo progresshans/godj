@@ -101,10 +101,10 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceOraclesAndFixtures(t *te
 	mutations := map[string][]byte{
 		"docs/status/TEST_EVIDENCE.md": []byte("changed evidence\n"),
 		"work/0046.md":                 []byte("changed work\n"),
-		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json": []byte("changed checked evidence\n"),
-		"conformance/oracles/profile/system-state.json":                             []byte("changed oracle\n"),
-		"conformance/fixtures/godj-system-state-not-implemented.json":               []byte("changed fixture\n"),
-		"systemstate/runtime_test.go":                                               []byte("package systemstate\n"),
+		"conformance/systemstate/attestation/testdata/postgresql-17.10-two-process-v1.json": []byte("changed capture codec fixture\n"),
+		"conformance/oracles/profile/system-state.json":                                     []byte("changed oracle\n"),
+		"conformance/fixtures/godj-system-state-not-implemented.json":                       []byte("changed fixture\n"),
+		"systemstate/runtime_test.go":                                                       []byte("package systemstate\n"),
 	}
 	for relative, contents := range mutations {
 		writeTestFile(t, filepath.Join(repositoryRoot, filepath.FromSlash(relative)), contents, 0o644)
@@ -120,19 +120,19 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceOraclesAndFixtures(t *te
 
 func TestSourceScopeIncludesLiveRestartTestsButExcludesOrdinaryTests(t *testing.T) {
 	tests := map[string]bool{
-		"conformance/systemstate/restart/restart_unix_test.go": true,
-		"conformance/systemstate/product/product_test.go":      false,
-		"systemstate/runtime_test.go":                          false,
-		"conformance/systemstate/worker/worker.go":             true,
-		"conformance/systemstate/attestation/codec.go":         true,
-		"migrations/executor.go":                               true,
-		"query/plan.go":                                        true,
-		"schema/ir/types.go":                                   true,
-		"systemstate/testdata/0001_initial.godj.json":          true,
-		"admin/site_templates/extra.html":                      true,
-		"conformance/systemstate/attestations/evidence.go":     false,
-		"conformance/oracles/profile/oracle.go":                false,
-		"conformance/fixtures/fixture.go":                      false,
+		"conformance/systemstate/restart/restart_unix_test.go":     true,
+		"conformance/systemstate/product/product_test.go":          false,
+		"systemstate/runtime_test.go":                              false,
+		"conformance/systemstate/worker/worker.go":                 true,
+		"conformance/systemstate/attestation/codec.go":             true,
+		"migrations/executor.go":                                   true,
+		"query/plan.go":                                            true,
+		"schema/ir/types.go":                                       true,
+		"systemstate/testdata/0001_initial.godj.json":              true,
+		"admin/site_templates/extra.html":                          true,
+		"conformance/systemstate/attestation/testdata/evidence.go": false,
+		"conformance/oracles/profile/oracle.go":                    false,
+		"conformance/fixtures/fixture.go":                          false,
 	}
 	for path, want := range tests {
 		if got := sourcePathOwned(path); got != want {
@@ -205,7 +205,7 @@ func seedSourceRepository(t *testing.T) string {
 	writeTestFile(t, filepath.Join(repositoryRoot, "systemstate", "testdata", "0001_initial.godj.json"), []byte("{}\n"), 0o644)
 	writeTestFile(t, filepath.Join(repositoryRoot, "conformance", "systemstate", "restart", "restart_unix_test.go"), []byte("package restart\n"), 0o644)
 	writeTestFile(t, filepath.Join(repositoryRoot, "docs", "status", "TEST_EVIDENCE.md"), []byte("evidence\n"), 0o644)
-	writeTestFile(t, filepath.Join(repositoryRoot, "conformance", "systemstate", "attestations", FileName), []byte("checked evidence\n"), 0o644)
+	writeTestFile(t, filepath.Join(repositoryRoot, "conformance", "systemstate", "attestation", "testdata", FileName), []byte("capture codec fixture\n"), 0o644)
 	writeTestFile(t, filepath.Join(repositoryRoot, "conformance", "oracles", "profile", "system-state.json"), []byte("oracle\n"), 0o644)
 	writeTestFile(t, filepath.Join(repositoryRoot, "conformance", "fixtures", "fixture.json"), []byte("fixture\n"), 0o644)
 	return repositoryRoot

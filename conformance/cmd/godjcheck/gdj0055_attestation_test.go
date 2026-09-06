@@ -19,7 +19,7 @@ import (
 func TestLoadRunnerInputsKeepsSYS020AndSYS029Independent(t *testing.T) {
 	t.Parallel()
 
-	manifestPath, systemStatePath, operatorPath := gdj0055CheckedAttestationPaths()
+	manifestPath, systemStatePath, operatorPath := gdj0055CapturePaths(t)
 	systemObserved := gdj0055SystemStateObservedFacts()
 	postgresObserved := gdj0055OperatorObservedFacts(operatorattestation.BackendPostgreSQL)
 	sqliteObserved := gdj0055OperatorObservedFacts(operatorattestation.BackendSQLite)
@@ -109,7 +109,7 @@ func TestLoadRunnerInputsKeepsSYS020AndSYS029Independent(t *testing.T) {
 func TestLoadRunnerInputsRejectsSYS029ManifestAndEvidenceEscapes(t *testing.T) {
 	t.Parallel()
 
-	manifestPath, systemStatePath, operatorPath := gdj0055CheckedAttestationPaths()
+	manifestPath, systemStatePath, operatorPath := gdj0055CapturePaths(t)
 	passing := gdj0055AttestationManifest(protocol.ContractOracleLocked, protocol.ContractPassing)
 	locked := gdj0055AttestationManifest(protocol.ContractOracleLocked, protocol.ContractOracleLocked)
 	loader := runnerInputEvidenceLoader{
@@ -124,7 +124,7 @@ func TestLoadRunnerInputsRejectsSYS029ManifestAndEvidenceEscapes(t *testing.T) {
 	if _, err := loadRunnerInputsWithEvidenceLoader(locked, manifestPath, "", operatorPath, loader); err == nil || !strings.Contains(err.Error(), "not used") {
 		t.Fatalf("unused SYS-029 evidence error=%v", err)
 	}
-	if _, err := loadRunnerInputsWithEvidenceLoader(passing, manifestPath, "", systemStatePath, loader); err == nil || !strings.Contains(err.Error(), "checked current repository path") {
+	if _, err := loadRunnerInputsWithEvidenceLoader(passing, manifestPath, "", systemStatePath, loader); err == nil || !strings.Contains(err.Error(), "evidence filename") {
 		t.Fatalf("cross-artifact SYS-029 evidence error=%v", err)
 	}
 
@@ -219,10 +219,10 @@ func TestProjectOperatorRunnerFactsPreservesEveryFactAndFailsClosed(t *testing.T
 	}
 }
 
-func TestProjectOperatorAttestationRequiresExactCheckedPath(t *testing.T) {
+func TestProjectOperatorAttestationAcceptsCaptureDirectory(t *testing.T) {
 	t.Parallel()
 
-	manifestPath, systemStatePath, operatorPath := gdj0055CheckedAttestationPaths()
+	manifestPath, systemStatePath, operatorPath := gdj0055CapturePaths(t)
 	root, err := attestationRepositoryRoot(manifestPath)
 	if err != nil {
 		t.Fatal(err)
@@ -230,37 +230,41 @@ func TestProjectOperatorAttestationRequiresExactCheckedPath(t *testing.T) {
 	if err := requireProjectOperatorAttestationPath(root, operatorPath); err != nil {
 		t.Fatal(err)
 	}
-	if err := requireProjectOperatorAttestationPath(root, systemStatePath); err == nil || !strings.Contains(err.Error(), "checked current repository path") {
+	if err := requireProjectOperatorAttestationPath(root, systemStatePath); err == nil || !strings.Contains(err.Error(), "evidence filename") {
 		t.Fatalf("cross-artifact exact-path error=%v", err)
 	}
-	wrong := filepath.Join(root, "conformance", "projectoperatorproduct", operatorattestation.FileName)
-	if err := requireProjectOperatorAttestationPath(root, wrong); err == nil || !strings.Contains(err.Error(), "checked current repository path") {
-		t.Fatalf("wrong SYS-029 exact-path error=%v", err)
+	directory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrong := filepath.Join(directory, operatorattestation.FileName)
+	if err := requireProjectOperatorAttestationPath(root, wrong); err != nil {
+		t.Fatalf("external capture path was rejected: %v", err)
 	}
 }
 
 func TestRunRejectsCrossArtifactSYS029EvidenceWithExitTwo(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
-	arguments := gdj0045RunArguments(
+	arguments := gdj0045RunArguments(t,
 		root,
 		filepath.Join(root, "conformance", "fixtures", "godj-system-state-deviation-expected.json"),
 		filepath.Join(t.TempDir(), "must-not-exist.json"),
 	)
-	_, systemStatePath, _ := gdj0055CheckedAttestationPaths()
+	_, systemStatePath, _ := gdj0055CapturePaths(t)
 	arguments = append(arguments, "-project-operator-postgres-attestation", systemStatePath)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code=%d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "external project operator attestation must use the checked current repository path") {
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "attestation evidence filename") {
 		t.Fatalf("stdout=%q stderr=%q, want exact SYS-029 path failure", stdout.String(), stderr.String())
 	}
 }
 
 func TestRunRequiresPublishedSYS029EvidenceWithExitTwo(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
-	arguments := gdj0045RunArguments(
+	arguments := gdj0045RunArguments(t,
 		root,
 		filepath.Join(root, "conformance", "fixtures", "godj-system-state-deviation-expected.json"),
 		filepath.Join(t.TempDir(), "must-not-exist.json"),
@@ -288,11 +292,16 @@ func removeFlagPair(arguments []string, name string) []string {
 	return filtered
 }
 
-func gdj0055CheckedAttestationPaths() (manifest, systemState, operator string) {
+func gdj0055CapturePaths(t *testing.T) (manifest, systemState, operator string) {
+	t.Helper()
+	directory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	root := filepath.Join("..", "..", "..")
 	return filepath.Join(root, "conformance", "contracts", "system-state-manifest.json"),
-		filepath.Join(root, "conformance", "systemstate", "attestations", systemstateattestation.FileName),
-		filepath.Join(root, "conformance", "projectoperatorproduct", "attestations", operatorattestation.FileName)
+		filepath.Join(directory, "systemstate", systemstateattestation.FileName),
+		filepath.Join(directory, "operator", operatorattestation.FileName)
 }
 
 func gdj0055AttestationManifest(systemStatus, operatorStatus protocol.ContractStatus) protocol.Manifest {

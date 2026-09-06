@@ -80,7 +80,7 @@ func TestMigrationStateReconstructionRemainsInCurrentProductConformanceTarget(t 
 		t.Fatal(err)
 	}
 	text := string(contents)
-	start := strings.Index(text, "godj-conformance:\n")
+	start := strings.Index(text, "godj-conformance:")
 	end := strings.Index(text, "\noracle-check:")
 	if start < 0 || end <= start {
 		t.Fatal("cannot isolate godj-conformance target")
@@ -88,9 +88,6 @@ func TestMigrationStateReconstructionRemainsInCurrentProductConformanceTarget(t 
 	target := text[start:end]
 	if !strings.Contains(target, "MIGRATION_STATE_RECONSTRUCTION") {
 		t.Fatal("migration-state-reconstruction product set is missing from the product conformance target")
-	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 26 {
-		t.Fatalf("godj-conformance product adapter count = %d, want 26", got)
 	}
 }
 

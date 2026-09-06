@@ -1,12 +1,16 @@
 # ADR-0021: Project-Linked Migration Check Contract
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0021-project-linked-migration-check.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-10
-- 관련 work/contract: [GDJ-0021](../../work/0021-migration-project-check-compatibility-contracts.md),
+- 관련 work/contract: [GDJ-0021](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0021-migration-project-check-compatibility-contracts.md),
   MIG-065..MIG-074, Q-010, Q-012
 - 선행 결정: [ADR-0004](0004-cli-and-project-binary.md),
-  [ADR-0019](0019-versioned-migration-definition-source.md),
-  [ADR-0020](0020-migration-definition-loader-product-shape.md)
+  [ADR-0019](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0019-versioned-migration-definition-source.md),
+  [ADR-0020](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0020-migration-definition-loader-product-shape.md)
 - 대체하는 ADR: 없음
 
 ## 맥락
@@ -146,26 +150,17 @@ concurrent temp-base rebind/rename이 없는 fixture에 한정합니다. Validat
 path-resolution race를 retained handle로 fence하지 않으므로 그 race의 write redirection 방지는 product
 hardening으로 남깁니다.
 
-Child environment에서는 ambient `TMPDIR`, `GOWORK`, `GOTOOLCHAIN`, `GOFLAGS`, `GOENV`, `GOCACHE`,
-`GOCACHEPROG`, `GOMODCACHE`, `GOTMPDIR`, `HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `TEST_TELEMETRY_DIR`를
-제거합니다. Exact `GOWORK=off`, `GOTOOLCHAIN=local`, `GOENV=off`, empty `GOFLAGS`와
-empty `GOCACHEPROG`, `TMPDIR=<private>/tmp`, `GOTMPDIR=<private>/gotmp`, `GOCACHE=<private>/gocache`,
-`GOMODCACHE=<private>/gomodcache`, `HOME=<private>/home`,
-`XDG_CONFIG_HOME=<private>/xdg-config`, `XDG_CACHE_HOME=<private>/xdg-cache`,
-`TEST_TELEMETRY_DIR=<private>/telemetry`를 설정합니다. 각 directory는 `0700`이고 만들 수 없으면
-build 전에 실패합니다. `GOTELEMETRY=off` 환경변수를 유효한 policy switch라고 주장하거나 의존하지
-않습니다. Go tool-controlled cache/temp/telemetry write는 protected project/caller HOME/XDG tree 밖의
-private temp에 두며 아래의 single-attempt cleanup semantics를 적용합니다. Arbitrary user code side
-effect까지 차단한다는 뜻은 아닙니다. Private HOME/XDG 때문에 caller `.netrc`와 HOME/XDG-local Git/SSH
-config를 사용할 수 없다는 절대 주장은 하지 않습니다. Default Go HOME/UserConfigDir/netrc lookup만
-private로 redirect합니다. Explicit `NETRC`, Git config-count/global/system, Git SSH command, askpass/helper,
-`SSH_AUTH_SOCK`, `GOAUTH` command, `CC`/`CXX`/cgo tool과 external ssh의 OS-account home read는
-scrub/isolate하지 않으며 network/auth success와 credential confidentiality를 보장하지 않습니다.
-`-mod=readonly`는 project metadata rewrite를 막습니다.
-Normal return/caller cancellation/handled SIGINT에서 private temp removal을 정확히
-한 번 best-effort attempt하고, `RemoveAll` 성공+retained-parent post-check absence인 cleanup success에서만
-residue 0을 보장합니다. Persistent runner/module/build cache, cleanup retry와 crash/escaped-descendant 뒤
-stale-temp scavenging은 후속입니다.
+GDJ-0057의 환경 경계는 build와 runtime을 나눕니다. Runtime HOME/XDG/TMP/GOMODCACHE/GOCACHE와 telemetry 경로는
+invocation-private 디렉터리를 유지하고 ambient Go workspace/toolchain/flags 제어를 정규화합니다.
+Build만 프로젝트 밖에 이미 존재하는 안전한 Go compilation cache를 재사용할 수 있습니다. `-trimpath`로 private module-cache
+경로 차이를 제거하며 테스트 실행이나 compiler invocation의 성공을 캐시해서 생략하지 않습니다.
+`GODJ_COLD_BUILD=1`은 private build cache를 요구하고 child runtime에는 전달하지 않습니다.
+
+Private HOME/XDG는 기본 설정 탐색을 redirect하는 경계이며 arbitrary user code를 sandbox하지는 않습니다.
+명시적 NETRC/GOAUTH/Git/SSH/CC 설정과 caller-owned network 인증의 범위는 여전히 caller가 정합니다.
+`-mod=readonly`는 project metadata rewrite를 막고 `-modcacherw`는 private module-cache cleanup을 가능하게 합니다.
+Normal return/caller cancellation/handled SIGINT에서 private temp removal을 한 번 시도하고,
+retained parent의 post-check까지 확인한 경우에만 cleanup success를 보고합니다. Crash 뒤 자동 scavenging은 지원하지 않습니다.
 
 Build된 binary는 project root에서 exact private argv
 `__godj_project_runner_v1` 하나로 실행합니다. 이는 production project-binary command surface가
@@ -236,7 +231,10 @@ end-to-end wire가 detail을 strip하면서 category/code pair만 보존하는 �
 Build stdout/build stderr/runner stderr raw retained prefix도 wire/oracle/user stream에 없고 test-only
 `retained_bytes`/`truncated`만 관찰합니다. Cancel은 capture stop/parent pipe close/drainer join, normal
 completion은 EOF drainer join 뒤 scalar를 확정하고 raw bytes를 public publication 전에 discard합니다.
-Public stderr는 category/code one-line뿐입니다. User-visible raw diagnostic exposure는 후속입니다.
+GDJ-0057부터 build 실패의 public stderr는 category/code 첫 줄 뒤에 bounded/sanitized compiler 원인을 붙일 수 있습니다.
+Raw child/runtime stderr는 계속 공개하지 않으며 protocol, exit code와 단일 write publication 의미는 유지합니다.
+Build만 안전한 외부 Go cache를 재사용하고 runtime HOME/TMP/module/cache는 private workspace를 유지합니다.
+명시적 cold-build 검증은 `GODJ_COLD_BUILD=1`로 공유 build cache를 끕니다.
 
 Failure vocabulary와 public exit도 closed입니다.
 
@@ -413,43 +411,18 @@ SIGPIPE/EBADF, short write, disk-full/caller-closed sink에는 delivery/rollback
 보장하지 않으며 detectable failure가 exit 3이어도 실패한 stderr로 structured error를 전달한다고
 주장하지 않습니다.
 
-### Hosted CI topology
+### 현재 검증 소유권
 
-Public-repository implementation evidence는 existing `ubuntu-24.04` x64 full job과 `macos-15` arm64
-exact job을 보존하고, 각각 focused project-check normal test를 추가합니다. 별도 required matrix 두 개는
-각각 `strategy.fail-fast: false`, leg timeout 20분, Go 1.26.5와 exact labels
-`ubuntu-22.04` x64, `ubuntu-24.04-arm` arm64, `macos-15-intel` x64, `macos-26` arm64를 사용합니다.
-2026-08-09 현재 이 label/architecture는 official GitHub-hosted public runner table에서 확인했습니다.
-각 entry는 expected coordinate `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`를 같은 순서로
-가지며 `go env GOOS`/`GOARCH`가 expected와 exact 같은지 assertion해 misrouting을 실패시킵니다.
+초기 `conformance/projectcheck` 자체 모형은 GDJ-0057에서 제거했습니다.
+Descriptor 선택·root identity·flat discovery·source/오류 우선순위·cleanup·취소/interrupt·launch failure를
+실제 `internal/projectcheck`와 `linked` 테스트가 검증합니다. 실제 global CLI는 별도 외부 module의 child process로 검증합니다.
 
-Project-check matrix의 각 leg는 normal/race/CGO-disabled/vet를
-`./conformance/projectcheck`에 실행합니다. SQLite matrix는 같은 네 gate를 current actual packages
-`./migrations ./db/sqlite`에 실행합니다. 각 leg는 pinned checkout/setup-go, `go version`과
-`go env GOOS GOARCH` fingerprint를 요구하고 `continue-on-error`를 허용하지 않습니다. 따라서 target은
-existing 2 + project-check 4 + SQLite 4의 exact **10 hosted job executions**입니다. Existing artifact/
-Python/oracle gate는 제거하지 않습니다.
-Static topology test는 YAML top-level 4 job definitions를 세는 대신 두 matrix를 expand해 2+4+4=10을
-계산하고 exact label/coordinate, fail-fast false, timeout, no-continue-on-error와 command set을 pin합니다.
-각 new leg의 마지막 `git diff --exit-code`와 empty `git status --porcelain=v1`도 pin해 tracked rewrite와
-untracked/staged/unstaged repository residue를 모두 실패시킵니다.
+같은 대체 작업에서 parent identity 교체와 malformed descriptor가 겹쳤을 때 race가 우선하지 않던 실제 경로를 수정했습니다.
+Raw compiler output 전부 폐기와 stderr 한 줄 고정은 현재 보안 정책이 아닙니다. 안전하게 제한한 원인은 build 실패에만 노출합니다.
+MIG-065..074 비교는 실제 product adapter와 immutable oracle로 유지합니다.
 
-Windows native process/path contract가 없으므로 Windows runner를 green skip하지 않고 지원 주장을
-유보합니다. PostgreSQL/MySQL adapter/product contract가 없는 상태에서 service만 띄우는 job도 false
-green이므로 금지합니다. Future backend의 첫 required job은 digest-pinned service image,
-health check, UTC timezone과 C locale 또는 명시적으로 승인된 collation, actual query/write/
-transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/persistence contract를 모두
-실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음,
-final clean worktree도 필수입니다. Adjacent versions는 이후 non-required scheduled matrix로만
-분리합니다. Exact
-implementation head의
-existing 2 + project-check 4 + SQLite 4, 총 10-job topology는 Draft PR #1
-[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 모두 통과했습니다.
-이후 status 7 + general 9의 exact 16-file completion-documentation commit
-`34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도
-[run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)의 같은 exact 10 job을
-모두 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI는
-`not run/pending`입니다.
+과거 experimental topology와 실행 기록은 위 고정 원문에 있습니다. 현재 플랫폼·scope는 Makefile/CI workflow가 소유하며
+정확한 job 수나 YAML 문구를 이 ADR의 호환 계약으로 유지하지 않습니다.
 
 ### Compatibility classification
 
@@ -512,27 +485,3 @@ conformance-tool exit 2/no actual로 거부합니다.
 - Same-user concurrent temp-base rebind/rename와 path-resolution race fencing
 - Writer/codec v2/custom/data operation, DB/applied history/migration execution
 - Multi-DB/non-SQLite, adoption/repair/crash reconciliation
-
-## 검증
-
-- MIG-065..074 independent manifest/oracle/static fixture와 exact outcome/metrics
-- Descriptor/marker/package parser table, invalid-nearest/no-fallback와 explicit descriptor test
-- Strict request/response protocol mutation, transport/version/schema precedence와 output cap test
-- Temp filesystem no-follow/root/source order/hardlink와 post-read safety-over-cap TOCTOU fault tests
-- Build argv/env/project-tree/private-output and cancel/process-group/reap tests
-- 11 cap 각각 maximum-1/equal/+1, overflow와 combined precedence
-- Loader exactly once/LoadReport, orchestration-direct planner 0, DB/revision lifecycle 0와 partial result 0 sentinel
-- 11 set/115 contracts/110 cross-binding, static/product fail-closed and checksum append-only gate
-- Exact 10-job hosted topology의 Linux/macOS x64/arm64 project-check/SQLite normal/race/CGO-disabled/vet와 independent review
-
-위 검증은
-[EVID-20260810-024](../status/TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts)와
-[EVID-20260810-025](../status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci),
-completion-documentation exact-head 재검증은
-[EVID-20260810-026](../status/TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
-기록했습니다. Local normal/race/CGO-disabled/vet/count-20, `make ci`, exact Python 174/174,
-checksum/no-rewrite, 두 independent P0–P3 clean audit와 implementation-head exact 10 hosted jobs가
-통과해 이 ADR을 Accepted합니다. Q-010/Q-012는 public CLI/semver/DB-aware lifecycle 전체를 해결하지
-않으므로 `Partial`을 유지합니다. Exact 16-file completion-documentation head도 10 hosted jobs를
-통과했고, 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI만
-`not run/pending`입니다.

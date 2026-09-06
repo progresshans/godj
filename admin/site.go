@@ -177,13 +177,20 @@ func (site *Site) buildRoutes() error {
 		modelName := func(suffix string) string { return name(model.slug + "-" + suffix) }
 		routes = append(routes,
 			web.Route{Name: modelName("list"), Method: http.MethodGet, Path: prefix + "/", Handler: site.adminRequire(model.permissions.View, site.modelList(model))},
+		)
+		if model.hasHistory {
+			routes = append(routes, web.Route{Name: modelName("history"), Method: http.MethodGet, Path: prefix + "/history/", Handler: site.adminRequire(model.permissions.View, site.modelHistory(model))})
+		}
+		if model.readOnly {
+			continue
+		}
+		routes = append(routes,
 			web.Route{Name: modelName("add-get"), Method: http.MethodGet, Path: prefix + "/add/", Handler: site.adminRequire(model.permissions.Add, site.modelAddGet(model))},
 			web.Route{Name: modelName("add-post"), Method: http.MethodPost, Path: prefix + "/add/", Handler: site.modelAddPost(model)},
 			web.Route{Name: modelName("change-get"), Method: http.MethodGet, Path: prefix + "/change/", Handler: site.adminRequire(model.permissions.Change, site.modelChangeGet(model))},
 			web.Route{Name: modelName("change-post"), Method: http.MethodPost, Path: prefix + "/change/", Handler: site.modelChangePost(model)},
 			web.Route{Name: modelName("delete-get"), Method: http.MethodGet, Path: prefix + "/delete/", Handler: site.adminRequire(model.permissions.Delete, site.modelDeleteGet(model))},
 			web.Route{Name: modelName("delete-post"), Method: http.MethodPost, Path: prefix + "/delete/", Handler: site.modelDeletePost(model)},
-			web.Route{Name: modelName("history"), Method: http.MethodGet, Path: prefix + "/history/", Handler: site.adminRequire(model.permissions.View, site.modelHistory(model))},
 		)
 		for actionIndex := range model.actions {
 			action := model.actions[actionIndex]
@@ -228,7 +235,13 @@ func SiteAllowedNextPaths(registry Registry, basePath string) ([]string, error) 
 	paths := []string{basePath + "/"}
 	for _, model := range registry.models {
 		prefix := basePath + "/" + model.slug
-		paths = append(paths, prefix+"/", prefix+"/add/", prefix+"/change/", prefix+"/delete/", prefix+"/history/")
+		paths = append(paths, prefix+"/")
+		if !model.readOnly {
+			paths = append(paths, prefix+"/add/", prefix+"/change/", prefix+"/delete/")
+		}
+		if model.hasHistory {
+			paths = append(paths, prefix+"/history/")
+		}
 	}
 	return paths, nil
 }

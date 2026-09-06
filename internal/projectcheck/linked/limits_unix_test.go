@@ -121,8 +121,19 @@ func TestActualSourceCountBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-
+	unsafePath := filepath.Join(root, "migrations", "z-unsafe.godj.json")
+	if err := os.Mkdir(unsafePath, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	response, report, err := invoke(t, root, []string{"migrations"}, protocol.RequestDocument(), nil)
+	if err != nil || response.Failure.Code != protocol.CodeUnsafeSourceEntry || report.SourceReads != 0 || report.LoadCalls != 0 {
+		t.Fatalf("unsafe candidate precedes source count = %+v, %+v, %v", response, report, err)
+	}
+	if err := os.Remove(unsafePath); err != nil {
+		t.Fatal(err)
+	}
+
+	response, report, err = invoke(t, root, []string{"migrations"}, protocol.RequestDocument(), nil)
 	if err != nil || response.Failure.Code != protocol.CodeSourceCatalogLimitExceeded || report.DirectoryEntriesSeen != definition.MaxSources+1 || report.SourceReads != 0 || report.LoadCalls != 0 {
 		t.Fatalf("source maximum+1 = %+v, %+v, %v", response, report, err)
 	}

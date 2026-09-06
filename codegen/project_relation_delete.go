@@ -17,20 +17,14 @@ const ProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v
 
 const projectRelationDeletePolicyVersion = "godj-relation-delete-policy-v1"
 
-type projectRelationDeleteModel struct {
-	app      normalizedRelationObjectPackage
-	identity ir.ModelIdentity
-	model    ir.Model
-}
-
 type projectRelationDeleteEdge struct {
-	source     *projectRelationDeleteModel
+	source     *projectRelationModel
 	primaryKey ir.Field
 	foreignKey ir.Field
 }
 
 type projectRelationDeleteTarget struct {
-	model       *projectRelationDeleteModel
+	model       *projectRelationModel
 	primaryKey  ir.Field
 	edges       []projectRelationDeleteEdge
 	surface     string
@@ -51,6 +45,11 @@ func GenerateProjectRelationDelete(
 	if err != nil {
 		return nil, err
 	}
+	return generateProjectRelationDelete(packageName, newRelationProjectPlan(canonical))
+}
+
+func generateProjectRelationDelete(packageName string, plan *relationProjectPlan) ([]byte, error) {
+	canonical := plan.apps
 	if err := validateProjectRelationSelectRelatedImports(canonical); err != nil {
 		return nil, err
 	}
@@ -59,21 +58,21 @@ func GenerateProjectRelationDelete(
 			return nil, fmt.Errorf("validate relation delete projection prerequisite %q: %w", app.alias, err)
 		}
 	}
-	_, objectSources, err := buildProjectRelationObjectSurface(canonical)
+	_, objectSources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err
 	}
 	if err := validateProjectRelationObjectNamespaces(canonical, objectSources); err != nil {
 		return nil, fmt.Errorf("validate project relation delete object prerequisites: %w", err)
 	}
-	if err := validateProjectRelationSelectRelatedNamespaces(canonical, objectSources); err != nil {
+	if err := validateProjectRelationSelectRelatedNamespaces(plan, objectSources); err != nil {
 		return nil, fmt.Errorf("validate project relation delete immutable prerequisites: %w", err)
 	}
-	targets, err := buildProjectRelationDeleteSurface(canonical)
+	targets, err := plan.deleteSurface()
 	if err != nil {
 		return nil, err
 	}
-	if err := validateProjectRelationDeleteNamespaces(canonical, objectSources, targets); err != nil {
+	if err := validateProjectRelationDeleteNamespaces(plan, objectSources, targets); err != nil {
 		return nil, fmt.Errorf("validate project relation delete names: %w", err)
 	}
 	usedApps := projectRelationDeleteUsedApps(canonical, targets)
@@ -133,27 +132,12 @@ func GenerateProjectRelationDelete(
 }
 
 func buildProjectRelationDeleteSurface(
-	apps []normalizedRelationObjectPackage,
+	plan *relationProjectPlan,
 ) ([]projectRelationDeleteTarget, error) {
-	models := make([]*projectRelationDeleteModel, 0)
-	byIdentity := make(map[ir.ModelIdentity]*projectRelationDeleteModel)
-	for _, app := range apps {
-		for _, model := range app.schema.Models {
-			identity := ir.ModelIdentity{AppLabel: app.schema.AppLabel, ModelName: model.Name}
-			candidate := &projectRelationDeleteModel{
-				app:      app,
-				identity: identity,
-				model:    model.Clone(),
-			}
-			models = append(models, candidate)
-			byIdentity[identity] = candidate
-		}
-	}
-	sort.Slice(models, func(left, right int) bool {
-		return compareProjectRelationDeleteIdentity(models[left].identity, models[right].identity) < 0
-	})
+	models := plan.models
+	byIdentity := plan.byIdentity
 
-	incoming := make(map[*projectRelationDeleteModel][]projectRelationDeleteEdge)
+	incoming := make(map[*projectRelationModel][]projectRelationDeleteEdge)
 	for _, source := range models {
 		for _, field := range source.model.Fields {
 			if field.Relation == nil {
@@ -309,14 +293,14 @@ func projectRelationDeleteFingerprint(target projectRelationDeleteTarget) string
 }
 
 func projectRelationDeleteUsedApps(
-	apps []normalizedRelationObjectPackage,
+	apps []normalizedRelationPackage,
 	targets []projectRelationDeleteTarget,
-) []normalizedRelationObjectPackage {
+) []normalizedRelationPackage {
 	used := make(map[string]struct{}, len(targets))
 	for _, target := range targets {
 		used[target.model.app.schema.AppLabel] = struct{}{}
 	}
-	result := make([]normalizedRelationObjectPackage, 0, len(used))
+	result := make([]normalizedRelationPackage, 0, len(used))
 	for _, app := range apps {
 		if _, ok := used[app.schema.AppLabel]; ok {
 			result = append(result, app)
@@ -326,11 +310,11 @@ func projectRelationDeleteUsedApps(
 }
 
 func validateProjectRelationDeleteNamespaces(
-	apps []normalizedRelationObjectPackage,
+	plan *relationProjectPlan,
 	objectSources []projectRelationObjectSource,
 	targets []projectRelationDeleteTarget,
 ) error {
-	packageNames, err := projectRelationDeletePrerequisiteNames(apps, objectSources)
+	packageNames, err := projectRelationDeletePrerequisiteNames(plan, objectSources)
 	if err != nil {
 		return err
 	}
@@ -365,9 +349,10 @@ func validateProjectRelationDeleteNamespaces(
 }
 
 func projectRelationDeletePrerequisiteNames(
-	apps []normalizedRelationObjectPackage,
+	plan *relationProjectPlan,
 	objectSources []projectRelationObjectSource,
 ) (map[string]string, error) {
+	apps := plan.apps
 	names := make(map[string]string)
 	add := func(name, owner string) error {
 		if previous, duplicate := names[name]; duplicate {
@@ -408,17 +393,7 @@ func projectRelationDeletePrerequisiteNames(
 		}
 	}
 
-	queryApps := make([]normalizedRelationQueryPackage, len(apps))
-	reverseApps := make([]normalizedRelationReversePackage, len(apps))
-	for index, app := range apps {
-		queryApps[index] = normalizedRelationQueryPackage{
-			alias: app.alias, prefix: app.prefix, importPath: app.importPath, schema: app.schema.Clone(),
-		}
-		reverseApps[index] = normalizedRelationReversePackage{
-			alias: app.alias, prefix: app.prefix, importPath: app.importPath, schema: app.schema.Clone(),
-		}
-	}
-	_, querySources, err := buildProjectRelationQuerySurface(queryApps)
+	_, querySources, err := plan.querySurface()
 	if err != nil {
 		return nil, fmt.Errorf("build immutable project relation query namespace: %w", err)
 	}
@@ -433,12 +408,12 @@ func projectRelationDeletePrerequisiteNames(
 			}
 		}
 	}
-	_, reverseOwners, err := buildProjectRelationReverseSurface(reverseApps)
+	_, reverseOwners, err := plan.reverseSurface()
 	if err != nil {
 		return nil, fmt.Errorf("build immutable project reverse namespace: %w", err)
 	}
 	reverseObjectOwners := projectRelationReverseObjectOwners(reverseOwners)
-	reverseObjectSet := make(map[*projectRelationReverseModel]struct{}, len(reverseObjectOwners))
+	reverseObjectSet := make(map[*projectRelationModel]struct{}, len(reverseObjectOwners))
 	for index := range reverseObjectOwners {
 		reverseObjectSet[reverseObjectOwners[index].model] = struct{}{}
 	}

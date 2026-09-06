@@ -1,8 +1,12 @@
 # ADR-0036: Project Schema Generated Bundle and Recoverable Publication
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-20
-- 관련 work/contract: [GDJ-0037](../../work/0037-project-schema-generated-bundle-and-recoverable-publication.md), Q-010, Q-017
+- 관련 work/contract: [GDJ-0037](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0037-project-schema-generated-bundle-and-recoverable-publication.md), Q-010, Q-017
 - 선행 결정: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 
 ## 맥락
@@ -137,7 +141,7 @@ Generated 파일과 사용자 source가 같은 package directory에 있으므로
 - 현재 relation runtime 의미와 contract status는 바뀌지 않습니다.
 - 이 ADR은 current 방향에 대해 계속 `Accepted`입니다. 구현은 GDJ-0037의 final
   full/386/repository-external source-clean-copy local gate와 exact correction head `d4643068...`의
-  [EVID-105](../status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+  [EVID-105](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
   26/26 jobs·326/326 steps를 통과해 packet 범위에서 completed/hosted-verified됐습니다. 이는 ADR 상태를 별도
   `Verified` 상태로 바꾸거나 Q-010/Q-017 전체를 닫는다는 뜻이 아닙니다.
 
@@ -152,15 +156,3 @@ Generated 파일과 사용자 source가 같은 package directory에 있으므로
 - 새 Field/Relation, PostgreSQL, Web, Form/Admin/API 구현
 - migration writer/autodetector와 first-alpha 이후 upgrader/semver 정책
 - 검증하지 않은 Windows publisher 지원
-
-## 검증
-
-- ProjectSpec/Bundle/manifest determinism, deep snapshot과 permutation
-- full current renderer union과 external consumer compile
-- missing/extra/modified/stale/interrupted read-only check
-- verifier/cancellation/CAS 실패에서 target write 0
-- filesystem step fault injection과 child-process crash recovery
-- exact old 또는 exact new만 accepted, hybrid compile-success 0
-- concurrent publisher serialization, symlink/path traversal/user edit rejection
-- actual project `generate`/`generate --check`, deterministic regeneration과 clean Git state
-- final frozen tree의 full local/386/repository-external source-clean-copy gate와 exact-head hosted matrix 한 번

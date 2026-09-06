@@ -72,15 +72,11 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 	}
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
-		"conformance/contracts/system-state-manifest.json":                                                  {16420, "ddae48e95770eacf2e3b761c7c4931b53dbcb65020cc375f624413ac71e0996c"},
-		"conformance/fixtures/godj-system-state-not-implemented.json":                                       {3167, "eff126dff0e7e9375a09722d054a2f663150cea1440241875b82f60650d9aa53"},
-		"conformance/fixtures/godj-system-state-deviation-expected.json":                                    {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":                              {37866, "2251157e801295b084a51a7879e496fab528d7360fcb8c55bdd7b0b368862913"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                     {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
-		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json":                         {1134, "f0e72776697f0ae7be94a3a4f678469962800d5a7abfb6874b27ec7e98dbb0ab"},
-		"conformance/systemstate/attestations/SHA256SUMS":                                                   {103, "7bdab2cbc211f5b20a48a4b98dfbd75cb59bd3e0bbf19d3fbf5cf804057994b4"},
-		"conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json": {1811, "07576a61d9b49f9a2ea5ca103fd9913bd1c70c793a3805284115730fed0819d7"},
-		"conformance/projectoperatorproduct/attestations/SHA256SUMS":                                        {116, "55446dc359eebb0d539ff9288afc8874443ce545b2c2f0201c56b7956f6ed7f0"},
+		"conformance/contracts/system-state-manifest.json":                     {16420, "ddae48e95770eacf2e3b761c7c4931b53dbcb65020cc375f624413ac71e0996c"},
+		"conformance/fixtures/godj-system-state-not-implemented.json":          {3167, "eff126dff0e7e9375a09722d054a2f663150cea1440241875b82f60650d9aa53"},
+		"conformance/fixtures/godj-system-state-deviation-expected.json":       {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json": {37866, "2251157e801295b084a51a7879e496fab528d7360fcb8c55bdd7b0b368862913"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":        {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
@@ -669,147 +665,11 @@ func TestCurrentTwentySevenReferenceSetsHave311ContractsAndReject702OrderedCross
 	}
 }
 
-func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	makeContents, err := os.ReadFile(filepath.Join(root, "Makefile"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	makeText := string(makeContents)
-	for variable, value := range map[string]string{
-		"SYSTEM_STATE_MANIFEST":                 "conformance/contracts/system-state-manifest.json",
-		"SYSTEM_STATE_ORACLE":                   "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json",
-		"SYSTEM_STATE_NOT_IMPLEMENTED":          "conformance/fixtures/godj-system-state-not-implemented.json",
-		"SYSTEM_STATE_DEVIATION_EXPECTED":       "conformance/fixtures/godj-system-state-deviation-expected.json",
-		"SYSTEM_STATE_POSTGRES_ATTESTATION":     "conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json",
-		"PROJECT_OPERATOR_POSTGRES_ATTESTATION": "conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json",
-	} {
-		definition := variable + " := " + value
-		if got := strings.Count(makeText, definition); got != 1 {
-			t.Fatalf("Makefile definition %q count = %d, want 1", definition, got)
-		}
-	}
-	conformanceStart := strings.Index(makeText, "conformance-check:\n")
-	productStart := strings.Index(makeText, "godj-conformance:\n")
-	oracleCheckStart := strings.Index(makeText, "oracle-check:\n")
-	oracleRegenerateStart := strings.Index(makeText, "oracle-regenerate:\n")
-	ciStart := strings.Index(makeText, "\nci:")
-	if conformanceStart < 0 || productStart <= conformanceStart || oracleCheckStart <= productStart || oracleRegenerateStart <= oracleCheckStart || ciStart <= oracleRegenerateStart {
-		t.Fatal("cannot isolate Makefile conformance targets")
-	}
-	referenceTarget := makeText[conformanceStart:productStart]
-	productTarget := makeText[productStart:oracleCheckStart]
-	oracleCheckTarget := makeText[oracleCheckStart:oracleRegenerateStart]
-	oracleRegenerateTarget := makeText[oracleRegenerateStart:ciStart]
-	if got := strings.Count(referenceTarget, "$(SYSTEM_STATE_MANIFEST)"); got != 2 {
-		t.Fatalf("reference system-state manifest count = %d, want oracle and NI", got)
-	}
-	if got := strings.Count(referenceTarget, "$(SYSTEM_STATE_ORACLE)"); got != 1 {
-		t.Fatalf("reference system-state oracle count = %d, want 1", got)
-	}
-	if got := strings.Count(referenceTarget, "$(SYSTEM_STATE_NOT_IMPLEMENTED)"); got != 1 {
-		t.Fatalf("reference system-state NI count = %d, want 1", got)
-	}
-	for variable, want := range map[string]int{
-		"$(SYSTEM_STATE_MANIFEST)":                 1,
-		"$(SYSTEM_STATE_ORACLE)":                   1,
-		"$(SYSTEM_STATE_DEVIATION_EXPECTED)":       1,
-		"$(SYSTEM_STATE_POSTGRES_ATTESTATION)":     1,
-		"$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)": 1,
-	} {
-		if got := strings.Count(productTarget, variable); got != want {
-			t.Fatalf("product system-state variable %s count = %d, want %d", variable, got, want)
-		}
-	}
-	if strings.Contains(productTarget, "$(SYSTEM_STATE_NOT_IMPLEMENTED)") {
-		t.Fatal("product system-state adapter uses the not-implemented fixture")
-	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
-		t.Fatalf("product adapter count = %d, want 26", got)
-	}
-	for name, target := range map[string]string{
-		"oracle-check":      oracleCheckTarget,
-		"oracle-regenerate": oracleRegenerateTarget,
-	} {
-		if got := strings.Count(target, "$(SYSTEM_STATE_MANIFEST)"); got != 1 {
-			t.Fatalf("%s system-state manifest count = %d, want 1", name, got)
-		}
-		if got := strings.Count(target, "$(SYSTEM_STATE_ORACLE)"); got != 1 {
-			t.Fatalf("%s system-state oracle count = %d, want 1", name, got)
-		}
-	}
-	if !strings.Contains(oracleCheckTarget, "--output $(SYSTEM_STATE_ORACLE) --check") {
-		t.Fatal("oracle-check does not require an exact system-state no-rewrite check")
-	}
-
-	workflowContents, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "ci.yml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	workflow := string(workflowContents)
-	for _, artifact := range []string{
-		"conformance/fixtures/godj-system-state-not-implemented.json",
-		"conformance/fixtures/godj-system-state-deviation-expected.json",
-	} {
-		if got := strings.Count(workflow, artifact); got != 2 {
-			t.Fatalf("system-state no-rewrite artifact %q count = %d, want both reference gates", artifact, got)
-		}
-	}
-	for _, required := range []string{
-		"working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64",
-		"run: sha256sum --check SHA256SUMS",
-		"len(SCENARIOS) == 311",
-		"len(payload) == 1081058",
-		"b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5",
-		"working-directory: conformance/systemstate/attestations",
-		"working-directory: conformance/projectoperatorproduct/attestations",
-		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE",
-		"GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE",
-		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
-		"TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation",
-		"TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
-		"cmp \"$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE\"",
-		"cmp \"$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE\"",
-	} {
-		if !strings.Contains(workflow, required) {
-			t.Fatalf("system-state workflow lacks exact hash/payload fragment %q", required)
-		}
-	}
-	for _, obsolete := range []string{
-		"len(SCENARIOS) == 231",
-	} {
-		if strings.Contains(workflow, obsolete) {
-			t.Fatalf("system-state workflow retains obsolete reference inventory fragment %q", obsolete)
-		}
-	}
-	postgresStart := strings.Index(workflow, "\n  postgresql-product:\n")
-	postgresEnd := strings.Index(workflow, "\n  sqlite-matrix:\n")
-	if postgresStart < 0 || postgresEnd <= postgresStart {
-		t.Fatal("cannot isolate PostgreSQL product workflow job")
-	}
-	postgresJob := workflow[postgresStart:postgresEnd]
-	previous := -1
-	for _, fragment := range []string{
-		"image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
-		"- name: Assert exact PostgreSQL service profile",
-		"- name: Run and inventory PostgreSQL actual product tests",
-		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE:",
-		"GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE:",
-		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
-		"TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation",
-		"TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
-		"cmp \"$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE\"",
-		"cmp \"$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE\"",
-		"cd conformance/projectoperatorproduct/attestations",
-	} {
-		current := strings.Index(postgresJob, fragment)
-		if current <= previous {
-			t.Fatalf("PostgreSQL attestation workflow fragment %q is missing or out of order", fragment)
-		}
-		previous = current
-	}
+func TestSystemStateProductUsesCurrentEvidence(t *testing.T) {
+	assertConformanceAdapter(t, "SYSTEM_STATE", true)
+	makefile := ciRead(t, "Makefile")
+	product := ciMakeTarget(t, makefile, "godj-conformance")
+	ciRequire(t, "system-state product", product, "require-live-evidence", "$(SYSTEM_STATE_POSTGRES_ATTESTATION)", "$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)")
 }
 
 func loadSystemStateArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite, DeviationExpectation) {

@@ -25,3 +25,20 @@ func TestBackendRecoveryRequiredErrorCodeIsStableAndClassifiable(t *testing.T) {
 		t.Fatalf("error = %v, want backend_error/backend_recovery_required", err)
 	}
 }
+
+func TestTypedNilQueryErrorDoesNotPanicDuringInspection(t *testing.T) {
+	var absent *query.Error
+	actual := &query.Error{Category: query.CategoryBackend, Code: query.CodeBackendRecoveryRequired}
+	if errors.Is(actual, absent) || errors.Is(absent, actual) {
+		t.Fatal("a typed-nil error matched a populated query error")
+	}
+	if cause := errors.Unwrap(absent); cause != nil {
+		t.Fatalf("typed-nil cause = %v, want nil", cause)
+	}
+	if message := absent.Error(); message == "" {
+		t.Fatal("typed-nil error has no diagnostic text")
+	}
+	if !errors.Is(errors.Join(absent, actual), &query.Error{Code: query.CodeBackendRecoveryRequired}) {
+		t.Fatal("typed-nil sibling hid the populated error in a joined chain")
+	}
+}

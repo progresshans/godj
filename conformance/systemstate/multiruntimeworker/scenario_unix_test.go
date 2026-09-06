@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 func TestSQLiteDistinctProcessCoordinationAndCleanReopen(t *testing.T) {
@@ -19,8 +21,11 @@ func TestSQLiteDistinctProcessCoordinationAndCleanReopen(t *testing.T) {
 	build := exec.CommandContext(ctx, "go", "build", "-o", executable, "./conformance/systemstate/multiruntimeworker/cmd")
 	build.Dir = repository
 	build.Env = os.Environ()
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build multi-runtime worker: %v; output length=%d", err, len(output))
+	var stdout, stderr gobuild.Capture
+	build.Stdout = &stdout
+	build.Stderr = &stderr
+	if err := build.Run(); err != nil {
+		t.Fatalf("build multi-runtime worker: %v\n%s", err, gobuild.Summary(stdout.Bytes(), stderr.Bytes(), build.Env))
 	}
 
 	database, err := NewSQLiteDatabase(filepath.Join(t.TempDir(), "private-database-marker.sqlite3"))

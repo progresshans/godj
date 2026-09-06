@@ -3,6 +3,7 @@
 package projectcheck
 
 import (
+	"bytes"
 	"io"
 	"io/fs"
 	"os"
@@ -220,6 +221,78 @@ func TestSelectedDescriptorReplacementIsNeverParsed(t *testing.T) {
 			_ = project.close()
 			if primary == nil || primary.Code != "project_selection_failed" || report.DescriptorReads != 0 {
 				t.Fatalf("descriptor replacement = %+v report=%+v", primary, report)
+			}
+		})
+	}
+}
+
+func TestScannedDescriptorDisappearanceDoesNotFallBack(t *testing.T) {
+	t.Parallel()
+	outer, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner := filepath.Join(outer, "inner")
+	if err := os.Mkdir(inner, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, directory := range []string{outer, inner} {
+		if err := os.WriteFile(filepath.Join(directory, descriptorName), canonicalDescriptor(), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report := Report{}
+	project, primary := selectProjectWithHooks(inner, commandArguments{}, &report, selectionHooks{
+		afterDirectoryScan: func(current string) {
+			if err := os.Remove(filepath.Join(current, descriptorName)); err != nil {
+				t.Fatal(err)
+			}
+		},
+	})
+	_ = project.close()
+	if primary == nil || primary.Code != "project_selection_failed" || report.AncestorDirectoriesInspected != 1 || report.DescriptorReads != 0 {
+		t.Fatalf("scanned descriptor disappeared = %+v report=%+v", primary, report)
+	}
+}
+
+func TestDescriptorParentReplacementPrecedesContentValidation(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name       string
+		document   []byte
+		beforeRead bool
+	}{
+		{name: "malformed-before-read", document: []byte("format_version = 2\nunknown = true\n"), beforeRead: true},
+		{name: "malformed-after-read", document: []byte("format_version = 2\nunknown = true\n")},
+		{name: "oversized-after-read", document: bytes.Repeat([]byte{'x'}, maxDescriptorBytes+1)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, descriptorName), test.document, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			original := root + "-original"
+			t.Cleanup(func() { _ = os.RemoveAll(original) })
+			replace := func(int, string) {
+				if err := os.Rename(root, original); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Mkdir(root, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			hooks := selectionHooks{afterDescriptorRead: replace}
+			if test.beforeRead {
+				hooks = selectionHooks{afterDescriptorStat: replace}
+			}
+			report := Report{}
+			project, primary := selectProjectWithHooks(root, commandArguments{}, &report, hooks)
+			_ = project.close()
+			if primary == nil || primary.Code != "project_selection_failed" || report.DescriptorReads != 1 {
+				t.Fatalf("parent replacement with invalid bytes = %+v report=%+v", primary, report)
 			}
 		})
 	}

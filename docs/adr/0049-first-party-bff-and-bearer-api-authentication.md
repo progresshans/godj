@@ -1,8 +1,12 @@
 # ADR-0049: First-Party, BFF and Bearer API Authentication Profiles
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-26
-- 관련 work/contract: [GDJ-0047](../../work/0047-api-authentication-profiles-and-bearer-article-api.md),
+- 관련 work/contract: [GDJ-0047](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0047-api-authentication-profiles-and-bearer-article-api.md),
   AUT-009..016, API-011..012, Q-021
 - 확장하는 ADR: [ADR-0044](0044-session-auth-csrf-and-bounded-article-admin.md),
   [ADR-0046](0046-json-serializer-and-session-authenticated-article-api.md)
@@ -141,16 +145,6 @@ digest-pinned PostgreSQL required, final local full/386/archive와 exact hosted 
 - Authentication chain, optional anonymous API, Basic/API-key와 CORS/trusted-origin policy
 - Browser JavaScript token storage, production BFF implementation, OpenAPI/browsable API와 Realtime
 
-## 검증
-
-- Exact 10-contract reference-only Phase A에서 RFC/DRF/GoDj authority dimension과 status/challenge 차이를 고정합니다.
-- Common interface compile tests는 session/Bearer conformity, typed nil, nil handler와 partial route publication 0을 검증합니다.
-- Bearer unit tests는 header grammar/cap/duplicate, verifier call 0/1, invalid/infrastructure distinction, permission deny-overlay,
-  CSRF 호출 0, cookie/query/body no-fallback과 fixed challenge를 검증합니다.
-- Secret tests는 all fmt verbs used by product, JSON/error wrapping, HTTP body/header와 conformance observation에서 marker occurrence 0을 요구합니다.
-- Article SQLite/PostgreSQL E2E는 valid Bearer CRUD 결과, permission별 403, invalid denial mutation 0과 existing session regression을 검증합니다.
-- Affected normal/race/CGO0/vet, final full/386/external archive와 exact hosted matrix를 work packet 주기에 따라 실행합니다.
-
 ## 최종 product-publication 결과
 
 2026-08-27 local checkpoint에서 common `api.Authentication`, refactored Session profile, strict injected
@@ -177,7 +171,7 @@ oracle/expected/deviation fixture를 읽지 않고 10/10을 통과했습니다.
   1,077-file external archive: pass in EVID-137
 - Corrected exact submitted documentation descendant `5f97fa8...`, tree `2b53c031...`: CI #155/run `33049861740`
   exact 27/27 jobs, 360/360 steps, failure/cancel/skip/annotation 0 in
-  [EVID-138](../status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion)
+  [EVID-138](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion)
 
 따라서 이 bounded first-party/BFF/Bearer resource-server 경계는 Accepted입니다. DEV-0009는 Verified이고 GDJ-0047은
 completed입니다. Q-021은 concrete JWT/opaque issuance, refresh/revocation, key lifecycle, OAuth/OIDC와 production BFF가

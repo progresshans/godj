@@ -21,10 +21,14 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
-	".github/workflows/ci.yml": {},
-	"Makefile":                 {},
-	"conformance/contracts/system-state-manifest.json":                         {},
-	"conformance/runners/godj/gdj0045_system_state_scenarios.go":               {},
+	"scripts/ci/capture_artifact.py":                             {},
+	"scripts/ci/go_test_events.py":                               {},
+	"scripts/ci/packages.py":                                     {},
+	"scripts/ci/scopes.py":                                       {},
+	".github/workflows/ci.yml":                                   {},
+	"Makefile":                                                   {},
+	"conformance/contracts/system-state-manifest.json":           {},
+	"conformance/runners/godj/gdj0045_system_state_scenarios.go": {},
 	"conformance/runners/godj/gdj0046_system_state_multi_runtime_scenarios.go": {},
 	"conformance/runners/godj/gdj0046_system_state_two_process_execution.go":   {},
 	"conformance/runners/godj/inputs.go":                                       {},
@@ -35,6 +39,7 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"internal/gobuild/",
 	"admin/",
 	"api/",
 	"apps/",
@@ -83,14 +88,14 @@ var migrationDataPrefixes = []string{
 }
 
 const harnessSourcePrefix = "conformance/projectoperatorproduct/"
-const checkedAttestationPrefix = "conformance/projectoperatorproduct/attestations/"
+const captureFixturePrefix = "conformance/projectoperatorproduct/attestation/testdata/"
 
 // ComputeSourceBinding hashes the fixed repository-relative source inventory
 // that can affect the SYS-029 external product observation. This includes the
 // actual product test harness (including its _test.go files), global godj and
 // projectcheck behavior, project/systemstate and Article behavior, their public
 // runtime dependencies, the GDJ-0055 consumer/loader/protocol/manifest path,
-// dependency locks, Makefile, and hosted workflow. The checked evidence
+// dependency locks, Makefile, and hosted workflow. The capture codec fixture
 // directory is excluded to avoid a digest self-reference.
 func ComputeSourceBinding(repositoryRoot string) (SourceBinding, error) {
 	root, err := filepath.Abs(repositoryRoot)
@@ -195,7 +200,7 @@ func sourcePathOwned(path string) bool {
 	if _, exact := exactSourcePaths[path]; exact {
 		return true
 	}
-	if strings.HasPrefix(path, checkedAttestationPrefix) {
+	if strings.HasPrefix(path, captureFixturePrefix) {
 		return false
 	}
 	for _, prefix := range embeddedAssetPrefixes {
@@ -214,8 +219,8 @@ func sourcePathOwned(path string) bool {
 	if strings.HasPrefix(path, harnessSourcePrefix) {
 		// Unlike ordinary product tests, this package is the executable
 		// product sentinel itself. Its root tests and production attestation
-		// codec are behavioral source. Attestation unit tests are excluded so
-		// a post-capture checked-size lock cannot create a digest self-cycle.
+		// codec are behavioral source. Codec unit tests and synthetic input
+		// fixtures are not the live observation that this binding attests.
 		if strings.HasPrefix(path, harnessSourcePrefix+"attestation/") && strings.HasSuffix(path, "_test.go") {
 			return false
 		}
@@ -293,14 +298,14 @@ func sourceDirectoryExcluded(path string) bool {
 	}
 	return path == "conformance/oracles" ||
 		path == "conformance/fixtures" ||
-		path == strings.TrimSuffix(checkedAttestationPrefix, "/")
+		path == strings.TrimSuffix(captureFixturePrefix, "/")
 }
 
 func pathComponentExcluded(path string) bool {
 	return strings.Contains(path, "/testdata/") ||
 		strings.HasPrefix(path, "conformance/oracles/") ||
 		strings.HasPrefix(path, "conformance/fixtures/") ||
-		strings.HasPrefix(path, checkedAttestationPrefix)
+		strings.HasPrefix(path, captureFixturePrefix)
 }
 
 func normalizedGitMode(mode fs.FileMode) string {

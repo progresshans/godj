@@ -93,9 +93,7 @@ func GenerateProject(input ProjectSpec) (GeneratedBundle, error) {
 func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, error) {
 	result := make([]projectRenderedFile, 0, len(input.apps)*4+8)
 	bridgePackages := make([]BridgePackage, len(input.apps))
-	queryPackages := make([]RelationQueryPackage, len(input.apps))
-	objectPackages := make([]RelationObjectPackage, len(input.apps))
-	reversePackages := make([]RelationReversePackage, len(input.apps))
+	relationPackages := make([]normalizedRelationPackage, len(input.apps))
 
 	for index, app := range input.apps {
 		owner := "app:" + app.Schema.AppLabel
@@ -129,17 +127,13 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 		}
 
 		bridgePackages[index] = BridgePackage{Alias: app.Alias, ImportPath: app.Package.ImportPath}
-		queryPackages[index] = RelationQueryPackage{
-			Alias: app.Alias, ImportPath: app.Package.ImportPath, Schema: app.Schema.Clone(),
-		}
-		objectPackages[index] = RelationObjectPackage{
-			Alias: app.Alias, ImportPath: app.Package.ImportPath, Schema: app.Schema.Clone(),
-		}
-		reversePackages[index] = RelationReversePackage{
-			Alias: app.Alias, ImportPath: app.Package.ImportPath, Schema: app.Schema.Clone(),
+		relationPackages[index] = normalizedRelationPackage{
+			alias: app.Alias, prefix: exportedRelationQueryPrefix(app.Alias),
+			importPath: app.Package.ImportPath, schema: app.Schema,
 		}
 	}
 
+	plan := newRelationProjectPlan(relationPackages)
 	projectRenderers := []struct {
 		filename string
 		render   func() ([]byte, error)
@@ -148,25 +142,25 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 			return GenerateProjectBridge(input.project.PackageName, bridgePackages)
 		}},
 		{filename: "zz_godj_relation_query.go", render: func() ([]byte, error) {
-			return GenerateProjectRelationQuery(input.project.PackageName, queryPackages)
+			return generateProjectRelationQuery(input.project.PackageName, plan)
 		}},
 		{filename: "zz_godj_relation_object.go", render: func() ([]byte, error) {
-			return GenerateProjectRelationObject(input.project.PackageName, objectPackages)
+			return generateProjectRelationObject(input.project.PackageName, plan)
 		}},
 		{filename: "zz_godj_relation_reverse.go", render: func() ([]byte, error) {
-			return GenerateProjectRelationReverse(input.project.PackageName, reversePackages)
+			return generateProjectRelationReverse(input.project.PackageName, plan)
 		}},
 		{filename: "zz_godj_relation_prefetch.go", render: func() ([]byte, error) {
-			return GenerateProjectRelationPrefetch(input.project.PackageName, reversePackages)
+			return generateProjectRelationPrefetch(input.project.PackageName, plan)
 		}},
 		{filename: "zz_godj_relation_select_related.go", render: func() ([]byte, error) {
-			return GenerateProjectRelationSelectRelated(input.project.PackageName, objectPackages)
+			return generateProjectRelationSelectRelated(input.project.PackageName, plan)
 		}},
 		{filename: "zz_godj_relation_delete.go", render: func() ([]byte, error) {
-			return GenerateProjectRelationDelete(input.project.PackageName, objectPackages)
+			return generateProjectRelationDelete(input.project.PackageName, plan)
 		}},
 		{filename: "zz_godj_relation_facade.go", render: func() ([]byte, error) {
-			return GenerateProjectRelationFacade(input.project.PackageName, objectPackages)
+			return generateProjectRelationFacade(input.project.PackageName, plan)
 		}},
 	}
 	for _, renderer := range projectRenderers {

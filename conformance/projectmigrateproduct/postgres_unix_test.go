@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 )
 
@@ -299,9 +300,11 @@ func projectMigratePostgresBuildGlobalGodj(t *testing.T, repository string) stri
 		delete(values, key)
 	}
 	command.Env = sortedEnvironment(values)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build global godj for PostgreSQL product: failed with %d output bytes", len(output))
+	var stdout, stderr gobuild.Capture
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	if err := command.Run(); err != nil {
+		t.Fatalf("build global godj for PostgreSQL product: %v\n%s", err, gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env))
 	}
 	return binary
 }

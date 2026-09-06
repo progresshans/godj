@@ -1,0 +1,64 @@
+name: PR feedback
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: feedback-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  feedback:
+    name: Fast feedback (not full platform validation)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify this update
+        id: change
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base="$BEFORE"
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$BASE"
+          fi
+          git diff --name-only "$base" "$HEAD" > "$RUNNER_TEMP/feedback-changes.txt"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          changed = Path(os.environ['RUNNER_TEMP'], 'feedback-changes.txt').read_text().splitlines()
+          docs = bool(changed) and all(name.endswith('.md') for name in changed)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print('docs_only=' + str(docs).lower(), file=output)
+          print('Scope: documentation only' if docs else 'Scope: fast core; full platform validation is separate')
+          PY
+      - name: Whitespace and CI tool regression checks
+        run: |
+          git diff --check ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+          python3 scripts/check_docs.py
+          python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.change.outputs.docs_only != 'true'
+        with:
+          go-version: "1.26.5"
+          cache: true
+      - name: Fast Go feedback
+        if: steps.change.outputs.docs_only != 'true'
+        run: make quick
+      - name: Report scope
+        run: |
+          printf '%s\n' 'This check verifies fast feedback only.' 'Use the CI workflow or a ci:full PR label for the integration milestone.' >> "$GITHUB_STEP_SUMMARY"

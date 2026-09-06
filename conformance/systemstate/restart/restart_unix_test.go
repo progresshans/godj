@@ -31,6 +31,7 @@ import (
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
@@ -831,15 +832,20 @@ func buildRestartArticleSite(t *testing.T, ctx context.Context, repository, temp
 		"GOTOOLCHAIN": "local",
 		"GOWORK":      "off",
 	})
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build Article site binary: %v; output bytes=%d", err, len(output))
+	var stdout, stderr gobuild.Capture
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	if err := command.Run(); err != nil {
+		t.Fatalf("build Article site binary: %v\n%s", err, gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env))
+	}
+	if stdout.Len() != len(stdout.Bytes()) || stderr.Len() != len(stderr.Bytes()) {
+		t.Fatal("Article site build output exceeded the capture limit")
 	}
 	info, err := os.Stat(binaryPath)
 	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
 		t.Fatalf("Article site build artifact = (%v,%v)", info, err)
 	}
-	return binaryPath, output
+	return binaryPath, append(stdout.Bytes(), stderr.Bytes()...)
 }
 
 func explicitlyMigrateRestartDatabase(t *testing.T, ctx context.Context, repository string, openBackend restartBackendFactory) {

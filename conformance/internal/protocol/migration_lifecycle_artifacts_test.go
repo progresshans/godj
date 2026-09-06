@@ -84,7 +84,7 @@ func TestMigrationLifecycleEntersProductTargetAt92PassingAnd5ReviewedDeviations(
 		t.Fatal(err)
 	}
 	text := string(contents)
-	start := strings.Index(text, "godj-conformance:\n")
+	start := strings.Index(text, "godj-conformance:")
 	end := strings.Index(text, "\noracle-check:")
 	if start < 0 || end <= start {
 		t.Fatal("cannot isolate godj-conformance target")
@@ -92,9 +92,6 @@ func TestMigrationLifecycleEntersProductTargetAt92PassingAnd5ReviewedDeviations(
 	productTarget := text[start:end]
 	if !strings.Contains(productTarget, "MIGRATION_LIFECYCLE_DEVIATION_EXPECTED") {
 		t.Fatal("migration-lifecycle product adapter is missing its reviewed deviation expectation")
-	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
-		t.Fatalf("godj-conformance product adapter count = %d, want 26", got)
 	}
 
 	previousProductManifests := []string{

@@ -1,8 +1,12 @@
 # ADR-0051: Project-linked Explicit Migrate
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0051-project-linked-explicit-migrate.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-28
-- 관련 work/contract: [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md), MIG-087..098, Q-010, Q-012, Q-019
+- 관련 work/contract: [GDJ-0049](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md), MIG-087..098, Q-010, Q-012, Q-019
 - 선행 결정: [ADR-0021](0021-project-linked-migration-check.md), [ADR-0022](0022-project-runtime-and-global-migration-check.md), [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md), [ADR-0037](0037-postgresql-current-contract-backend.md), [ADR-0042](0042-project-linked-runserver-and-article-development-loop.md), [ADR-0048](0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)
 - 대체하는 ADR: 없음
 

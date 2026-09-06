@@ -12,12 +12,12 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v3"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v4"
 
-const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v3"
+const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
 type projectRelationFacadeModel struct {
-	model     *projectRelationObjectModel
+	model     *projectRelationModel
 	source    *projectRelationObjectSource
 	surface   string
 	rawAlias  string
@@ -37,6 +37,11 @@ func GenerateProjectRelationFacade(
 	if err != nil {
 		return nil, err
 	}
+	return generateProjectRelationFacade(packageName, newRelationProjectPlan(canonical))
+}
+
+func generateProjectRelationFacade(packageName string, plan *relationProjectPlan) ([]byte, error) {
+	canonical := plan.apps
 	if err := validateProjectRelationFacadeImports(canonical); err != nil {
 		return nil, err
 	}
@@ -45,18 +50,18 @@ func GenerateProjectRelationFacade(
 			return nil, fmt.Errorf("validate relation facade projection prerequisite %q: %w", app.alias, err)
 		}
 	}
-	models, sources, err := buildProjectRelationObjectSurface(canonical)
+	models, sources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err
 	}
 	if err := validateProjectRelationObjectNamespaces(canonical, sources); err != nil {
 		return nil, fmt.Errorf("validate project relation facade object prerequisites: %w", err)
 	}
-	if err := validateProjectRelationSelectRelatedNamespaces(canonical, sources); err != nil {
+	if err := validateProjectRelationSelectRelatedNamespaces(plan, sources); err != nil {
 		return nil, fmt.Errorf("validate project relation facade select-related prerequisites: %w", err)
 	}
 	facadeModels := buildProjectRelationFacadeSurface(models, sources)
-	if err := validateProjectRelationFacadeNamespaces(canonical, sources, facadeModels); err != nil {
+	if err := validateProjectRelationFacadeNamespaces(plan, sources, facadeModels); err != nil {
 		return nil, fmt.Errorf("validate project relation facade names: %w", err)
 	}
 	inputHash, err := projectRelationFacadeInputSHA256(packageName, canonical)
@@ -73,9 +78,6 @@ func GenerateProjectRelationFacade(
 		fmt.Fprintln(&output, "\tcontext \"context\"")
 	}
 	fmt.Fprintln(&output, "\treflect \"reflect\"")
-	if projectRelationFacadeHasRelationSources(facadeModels) {
-		fmt.Fprintln(&output, "\tsync \"sync\"")
-	}
 	for _, app := range canonical {
 		fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
 	}
@@ -106,7 +108,7 @@ func GenerateProjectRelationFacade(
 	return formatted, nil
 }
 
-func validateProjectRelationFacadeImports(apps []normalizedRelationObjectPackage) error {
+func validateProjectRelationFacadeImports(apps []normalizedRelationPackage) error {
 	if err := validateProjectRelationSelectRelatedImports(apps); err != nil {
 		return err
 	}
@@ -124,7 +126,7 @@ func validateProjectRelationFacadeImports(apps []normalizedRelationObjectPackage
 }
 
 func buildProjectRelationFacadeSurface(
-	models []*projectRelationObjectModel,
+	models []*projectRelationModel,
 	sources []projectRelationObjectSource,
 ) []projectRelationFacadeModel {
 	sourceByIdentity := make(map[ir.ModelIdentity]*projectRelationObjectSource, len(sources))
@@ -146,11 +148,11 @@ func buildProjectRelationFacadeSurface(
 }
 
 func validateProjectRelationFacadeNamespaces(
-	apps []normalizedRelationObjectPackage,
+	plan *relationProjectPlan,
 	sources []projectRelationObjectSource,
 	models []projectRelationFacadeModel,
 ) error {
-	packageNames, err := projectRelationDeletePrerequisiteNames(apps, sources)
+	packageNames, err := projectRelationDeletePrerequisiteNames(plan, sources)
 	if err != nil {
 		return err
 	}
@@ -178,12 +180,6 @@ func validateProjectRelationFacadeNamespaces(
 		{name: "relationFacadeQueryInvalid", owner: "project relation facade query error constructor"},
 		{name: "relationFacadeBackendInvalid", owner: "project relation facade backend error constructor"},
 		{name: "relationFacadePrimaryKeyUpdate", owner: "project relation facade primary-key mutation error constructor"},
-		{name: "relationFacadeRelationCache", owner: "project relation facade relation cache"},
-		{name: "newRelationFacadeRelationCache", owner: "project relation facade relation cache constructor"},
-		{name: "relationFacadeRelationCacheValid", owner: "project relation facade relation cache invariant"},
-		{name: "relationFacadeRelationUnassigned", owner: "project relation facade cache state"},
-		{name: "relationFacadeRelationAssignedPresent", owner: "project relation facade cache state"},
-		{name: "relationFacadeRelationAssignedAbsent", owner: "project relation facade cache state"},
 		{name: "relationFacadeContext", owner: "project relation facade context validator"},
 		{name: "relationFacadeUnsavedRelated", owner: "project relation facade unsaved relation error constructor"},
 		{name: "relationFacadeRequiredRelated", owner: "project relation facade required relation error constructor"},
@@ -283,7 +279,7 @@ func validateProjectRelationFacadeNamespaces(
 
 func projectRelationFacadeInputSHA256(
 	packageName string,
-	apps []normalizedRelationObjectPackage,
+	apps []normalizedRelationPackage,
 ) (string, error) {
 	values := []string{
 		projectRelationFacadeInputDomain,
@@ -319,70 +315,6 @@ func projectRelationFacadeHasRelationSources(models []projectRelationFacadeModel
 }
 
 func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasRelationSources bool) {
-	if hasRelationSources {
-		fmt.Fprintln(output, "const (")
-		fmt.Fprintln(output, "\trelationFacadeRelationUnassigned uint8 = iota")
-		fmt.Fprintln(output, "\trelationFacadeRelationAssignedPresent")
-		fmt.Fprintln(output, "\trelationFacadeRelationAssignedAbsent")
-		fmt.Fprintln(output, ")")
-		fmt.Fprintln(output)
-		fmt.Fprintln(output, "type relationFacadeRelationCache[T any] struct {")
-		fmt.Fprintln(output, "\tmutex sync.Mutex")
-		fmt.Fprintln(output, "\tstate uint8")
-		fmt.Fprintln(output, "\ttarget *T")
-		fmt.Fprintln(output, "\tpending bool")
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
-		fmt.Fprintln(output, "func newRelationFacadeRelationCache[T any]() *relationFacadeRelationCache[T] {")
-		fmt.Fprintln(output, "\treturn &relationFacadeRelationCache[T]{}")
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
-		fmt.Fprintln(output, "func relationFacadeRelationCacheValid[T any](_state uint8, _target *T, _pending bool) bool {")
-		fmt.Fprintln(output, "\tswitch _state {")
-		fmt.Fprintln(output, "\tcase relationFacadeRelationUnassigned, relationFacadeRelationAssignedAbsent:")
-		fmt.Fprintln(output, "\t\treturn _target == nil && !_pending")
-		fmt.Fprintln(output, "\tcase relationFacadeRelationAssignedPresent:")
-		fmt.Fprintln(output, "\t\treturn _target != nil")
-		fmt.Fprintln(output, "\tdefault:")
-		fmt.Fprintln(output, "\t\treturn false")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
-		fmt.Fprintln(output, "func (_cache *relationFacadeRelationCache[T]) snapshot() (uint8, *T, bool, error) {")
-		fmt.Fprintln(output, "\tif _cache == nil {")
-		fmt.Fprintln(output, "\t\treturn 0, nil, false, relationFacadeQueryInvalid(\"relation cache is nil\")")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "\t_cache.mutex.Lock()")
-		fmt.Fprintln(output, "\tdefer _cache.mutex.Unlock()")
-		fmt.Fprintln(output, "\tif !relationFacadeRelationCacheValid(_cache.state, _cache.target, _cache.pending) {")
-		fmt.Fprintln(output, "\t\treturn 0, nil, false, relationFacadeQueryInvalid(\"relation cache state tuple is corrupt\")")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "\treturn _cache.state, _cache.target, _cache.pending, nil")
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
-		fmt.Fprintln(output, "func (_cache *relationFacadeRelationCache[T]) store(_state uint8, _target *T, _pending bool) error {")
-		fmt.Fprintln(output, "\tif _cache == nil || !relationFacadeRelationCacheValid(_state, _target, _pending) {")
-		fmt.Fprintln(output, "\t\treturn relationFacadeQueryInvalid(\"relation cache is nil or corrupt\")")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "\t_cache.mutex.Lock()")
-		fmt.Fprintln(output, "\tdefer _cache.mutex.Unlock()")
-		fmt.Fprintln(output, "\t_cache.state = _state")
-		fmt.Fprintln(output, "\t_cache.target = _target")
-		fmt.Fprintln(output, "\t_cache.pending = _pending")
-		fmt.Fprintln(output, "\treturn nil")
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
-		fmt.Fprintln(output, "func (_cache *relationFacadeRelationCache[T]) clone() (*relationFacadeRelationCache[T], error) {")
-		fmt.Fprintln(output, "\t_state, _target, _pending, _err := _cache.snapshot()")
-		fmt.Fprintln(output, "\tif _err != nil {")
-		fmt.Fprintln(output, "\t\treturn nil, _err")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "\t_result := newRelationFacadeRelationCache[T]()")
-		fmt.Fprintln(output, "\t_ = _result.store(_state, _target, _pending)")
-		fmt.Fprintln(output, "\treturn _result, nil")
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
-	}
 	fmt.Fprintln(output, "type Backend interface {")
 	fmt.Fprintln(output, "\tdb.Queryer")
 	fmt.Fprintln(output, "\tdb.Mutator")
@@ -516,11 +448,13 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\treturn _query")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) Distinct() %s {\n", model.queryType, model.queryType)
-	fmt.Fprintln(output, "\t_query.query = _query.query.Distinct()")
-	fmt.Fprintln(output, "\treturn _query")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
+	for _, method := range []string{"Distinct", "Fresh"} {
+		fmt.Fprintf(output, "func (_query %s) %s() %s {\n", model.queryType, method, model.queryType)
+		fmt.Fprintf(output, "\t_query.query = _query.query.%s()\n", method)
+		fmt.Fprintln(output, "\treturn _query")
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+	}
 	fmt.Fprintf(output, "func (_query %s) Limit(_limit int) (%s, error) {\n", model.queryType, model.queryType)
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", model.queryType)
@@ -617,7 +551,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		for _, relation := range model.source.relations {
 			name := lowerFirst(relation.selector)
 			targetSurface := relation.target.app.prefix + relation.target.model.GoName
-			fmt.Fprintf(output, "\t%sCache *relationFacadeRelationCache[%s]\n", name, targetSurface)
+			fmt.Fprintf(output, "\t%sCache *orm.RelationCache[%s]\n", name, targetSurface)
 			fmt.Fprintf(output, "\t%sScalarSnapshot int64\n", name)
 			fmt.Fprintf(output, "\t%sScalarPresent bool\n", name)
 		}
@@ -777,7 +711,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		// required-field state, independent of declaration permutation.
 		for _, relation := range model.source.relations {
 			name := lowerFirst(relation.selector)
-			fmt.Fprintf(output, "\t_, _, _%sPending, _%sErr := _model.%sCache.snapshot()\n", name, name, name)
+			fmt.Fprintf(output, "\t_, _, _%sPending, _%sErr := _model.%sCache.Snapshot()\n", name, name, name)
 			fmt.Fprintf(output, "\tif _%sErr != nil {\n", name)
 			fmt.Fprintf(output, "\t\treturn %s{}, _%sErr\n", rawType, name)
 			fmt.Fprintln(output, "\t}")
@@ -845,12 +779,12 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintln(output, "\tif _err := _model.relationFacadeReconcile(); _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t}")
-			fmt.Fprintf(output, "\t_state, _target, _, _err := _model.%sCache.snapshot()\n", name)
+			fmt.Fprintf(output, "\t_state, _target, _, _err := _model.%sCache.Snapshot()\n", name)
 			fmt.Fprintln(output, "\tif _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t}")
 			fmt.Fprintln(output, "\tswitch _state {")
-			fmt.Fprintln(output, "\tcase relationFacadeRelationAssignedPresent:")
+			fmt.Fprintln(output, "\tcase orm.RelationAssignedPresent:")
 			fmt.Fprintln(output, "\t\tif _target == nil || _target.state != _model.state {")
 			fmt.Fprintln(output, "\t\t\treturn nil, false, relationFacadeQueryInvalid(\"assigned relation target is nil or belongs to another facade origin\")")
 			fmt.Fprintln(output, "\t\t}")
@@ -858,13 +792,13 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintln(output, "\t\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t\t}")
 			fmt.Fprintln(output, "\t\treturn _target, true, nil")
-			fmt.Fprintln(output, "\tcase relationFacadeRelationAssignedAbsent:")
+			fmt.Fprintln(output, "\tcase orm.RelationAssignedAbsent:")
 			fmt.Fprintln(output, "\t\treturn nil, false, nil")
 			fmt.Fprintln(output, "\t}")
 			fmt.Fprintf(output, "\t_value, _present, _err := _model.object.%s(_ctx)\n", relation.selector)
 			fmt.Fprintln(output, "\tif _err != nil || !_present {")
 			fmt.Fprintln(output, "\t\tif _err == nil {")
-			fmt.Fprintf(output, "\t\t\t_err = _model.%sCache.store(relationFacadeRelationAssignedAbsent, nil, false)\n", name)
+			fmt.Fprintf(output, "\t\t\t_err = _model.%sCache.Store(orm.RelationAssignedAbsent, nil, false)\n", name)
 			fmt.Fprintln(output, "\t\t}")
 			fmt.Fprintln(output, "\t\treturn nil, _present, _err")
 			fmt.Fprintln(output, "\t}")
@@ -872,7 +806,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintln(output, "\tif _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t}")
-			fmt.Fprintf(output, "\tif _err := _model.%sCache.store(relationFacadeRelationAssignedPresent, _wrapped, false); _err != nil {\n", name)
+			fmt.Fprintf(output, "\tif _err := _model.%sCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {\n", name)
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t}")
 			fmt.Fprintln(output, "\treturn _wrapped, true, nil")
@@ -890,11 +824,11 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\tif _err := _model.relationFacadeReconcile(); _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_state, _target, _, _err := _model.%sCache.snapshot()\n", name)
+		fmt.Fprintf(output, "\t_state, _target, _, _err := _model.%sCache.Snapshot()\n", name)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "\tif _state == relationFacadeRelationAssignedPresent {")
+		fmt.Fprintln(output, "\tif _state == orm.RelationAssignedPresent {")
 		fmt.Fprintln(output, "\t\tif _target == nil || _target.state != _model.state {")
 		fmt.Fprintln(output, "\t\t\treturn nil, relationFacadeQueryInvalid(\"assigned relation target is nil or belongs to another facade origin\")")
 		fmt.Fprintln(output, "\t\t}")
@@ -914,7 +848,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\tif _err := _model.%sCache.store(relationFacadeRelationAssignedPresent, _wrapped, false); _err != nil {\n", name)
+		fmt.Fprintf(output, "\tif _err := _model.%sCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {\n", name)
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintln(output, "\treturn _wrapped, nil")
@@ -927,11 +861,11 @@ func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projec
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
 		targetSurface := relation.target.app.prefix + relation.target.model.GoName
-		fmt.Fprintf(output, "\t_result.%sCache = newRelationFacadeRelationCache[%s]()\n", name, targetSurface)
+		fmt.Fprintf(output, "\t_result.%sCache = orm.NewRelationCache[%s]()\n", name, targetSurface)
 		if relation.field.Nullable {
 			fmt.Fprintf(output, "\t_result.%sScalarPresent = %s.%s != nil\n", name, raw, relation.field.GoName)
 			fmt.Fprintf(output, "\tif %s.%s == nil {\n", raw, relation.field.GoName)
-			fmt.Fprintf(output, "\t\t_ = _result.%sCache.store(relationFacadeRelationAssignedAbsent, nil, false)\n", name)
+			fmt.Fprintf(output, "\t\t_ = _result.%sCache.Store(orm.RelationAssignedAbsent, nil, false)\n", name)
 			fmt.Fprintln(output, "\t}")
 			continue
 		}
@@ -963,7 +897,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		name := lowerFirst(relation.selector)
 		fmt.Fprintf(output, "\t_result.%sScalarSnapshot = _model.%sScalarSnapshot\n", name, name)
 		fmt.Fprintf(output, "\t_result.%sScalarPresent = _model.%sScalarPresent\n", name, name)
-		fmt.Fprintf(output, "\t_result.%sCache, _err = _model.%sCache.clone()\n", name, name)
+		fmt.Fprintf(output, "\t_result.%sCache, _err = _model.%sCache.Clone()\n", name, name)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
@@ -984,7 +918,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	// unrelated edge must not allow a partial snapshot/cache publication.
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
-		fmt.Fprintf(output, "\tif _, _, _, _err := _model.%sCache.snapshot(); _err != nil {\n", name)
+		fmt.Fprintf(output, "\tif _, _, _, _err := _model.%sCache.Snapshot(); _err != nil {\n", name)
 		fmt.Fprintln(output, "\t\treturn _err")
 		fmt.Fprintln(output, "\t}")
 	}
@@ -1024,10 +958,10 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		targetSurface := relation.target.app.prefix + relation.target.model.GoName
 		fmt.Fprintf(output, "\t_next%sCache := _model.%sCache\n", relation.selector, name)
 		fmt.Fprintf(output, "\tif _%sChanged {\n", name)
-		fmt.Fprintf(output, "\t\t_next%sCache = newRelationFacadeRelationCache[%s]()\n", relation.selector, targetSurface)
+		fmt.Fprintf(output, "\t\t_next%sCache = orm.NewRelationCache[%s]()\n", relation.selector, targetSurface)
 		if relation.field.Nullable {
 			fmt.Fprintf(output, "\t\tif !_%sCurrentPresent {\n", name)
-			fmt.Fprintf(output, "\t\t\tif _err := _next%sCache.store(relationFacadeRelationAssignedAbsent, nil, false); _err != nil { return _err }\n", relation.selector)
+			fmt.Fprintf(output, "\t\t\tif _err := _next%sCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil { return _err }\n", relation.selector)
 			fmt.Fprintln(output, "\t\t}")
 		}
 		fmt.Fprintln(output, "\t}")
@@ -1057,7 +991,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	// mask structural corruption in a later edge.
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
-		fmt.Fprintf(output, "\t_%sState, _%sTarget, _%sPending, _err := _model.%sCache.snapshot()\n", name, name, name, name)
+		fmt.Fprintf(output, "\t_%sState, _%sTarget, _%sPending, _err := _model.%sCache.Snapshot()\n", name, name, name, name)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn _err")
 		fmt.Fprintln(output, "\t}")
@@ -1069,7 +1003,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		name := lowerFirst(relation.selector)
 		fmt.Fprintf(output, "\tvar _%sKey int64\n", name)
 		fmt.Fprintf(output, "\tvar _%sPresent bool\n", name)
-		fmt.Fprintf(output, "\tif _%sState == relationFacadeRelationAssignedPresent {\n", name)
+		fmt.Fprintf(output, "\tif _%sState == orm.RelationAssignedPresent {\n", name)
 		fmt.Fprintf(output, "\t\tif _%sTarget == nil || _%sTarget.state != _model.state {\n", name, name)
 		fmt.Fprintln(output, "\t\t\treturn relationFacadeQueryInvalid(\"assigned relation target is nil or belongs to another facade origin\")")
 		fmt.Fprintln(output, "\t\t}")
@@ -1083,7 +1017,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	// after every assigned target passed structural validation and was sampled.
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
-		fmt.Fprintf(output, "\tif _%sState == relationFacadeRelationAssignedPresent && !_%sPresent {\n", name, name)
+		fmt.Fprintf(output, "\tif _%sState == orm.RelationAssignedPresent && !_%sPresent {\n", name, name)
 		fmt.Fprintf(output, "\t\treturn relationFacadeUnsavedRelated(%s)\n", strconv.Quote(relation.field.Name))
 		fmt.Fprintln(output, "\t}")
 	}
@@ -1092,16 +1026,16 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 			continue
 		}
 		name := lowerFirst(relation.selector)
-		fmt.Fprintf(output, "\tif _%sState == relationFacadeRelationAssignedAbsent || (_%sState == relationFacadeRelationUnassigned && !_model.%sScalarPresent) {\n", name, name, name)
+		fmt.Fprintf(output, "\tif _%sState == orm.RelationAssignedAbsent || (_%sState == orm.RelationUnassigned && !_model.%sScalarPresent) {\n", name, name, name)
 		fmt.Fprintf(output, "\t\treturn relationFacadeRequiredRelated(%s)\n", strconv.Quote(relation.field.Name))
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\tif _%sState == relationFacadeRelationAssignedPresent && !_%sPending && !_model.%sScalarPresent {\n", name, name, name)
+		fmt.Fprintf(output, "\tif _%sState == orm.RelationAssignedPresent && !_%sPending && !_model.%sScalarPresent {\n", name, name, name)
 		fmt.Fprintln(output, "\t\treturn relationFacadeQueryInvalid(\"assigned relation has no source scalar presence\")")
 		fmt.Fprintln(output, "\t}")
 	}
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
-		fmt.Fprintf(output, "\t_%sReconcile := _%sState == relationFacadeRelationAssignedPresent && _%sPending\n", name, name, name)
+		fmt.Fprintf(output, "\t_%sReconcile := _%sState == orm.RelationAssignedPresent && _%sPending\n", name, name, name)
 	}
 	fmt.Fprintf(output, "\t_nextModel := (%s{}).CloneWriteModel(_model.%s)\n", descriptor, model.rawAlias)
 	fmt.Fprintln(output, "\t_rebuild := false")
@@ -1121,9 +1055,9 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		name := lowerFirst(relation.selector)
 		fmt.Fprintf(output, "\t\t_next%sCache := _model.%sCache\n", relation.selector, name)
 		fmt.Fprintf(output, "\t\tif _%sReconcile {\n", name)
-		fmt.Fprintf(output, "\t\t\t_next%sCache, _err = _model.%sCache.clone()\n", relation.selector, name)
+		fmt.Fprintf(output, "\t\t\t_next%sCache, _err = _model.%sCache.Clone()\n", relation.selector, name)
 		fmt.Fprintln(output, "\t\t\tif _err != nil { return _err }")
-		fmt.Fprintf(output, "\t\t\tif _err := _next%sCache.store(relationFacadeRelationAssignedPresent, _%sTarget, false); _err != nil { return _err }\n", relation.selector, name)
+		fmt.Fprintf(output, "\t\t\tif _err := _next%sCache.Store(orm.RelationAssignedPresent, _%sTarget, false); _err != nil { return _err }\n", relation.selector, name)
 		fmt.Fprintln(output, "\t\t}")
 	}
 	fmt.Fprintf(output, "\t\t_model.%s = _nextModel\n", model.rawAlias)
@@ -1173,7 +1107,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintf(output, "\t_result.%sScalarSnapshot = _key\n", name)
 		fmt.Fprintf(output, "\t_result.%sScalarPresent = _present\n", name)
-		fmt.Fprintf(output, "\tif _err := _result.%sCache.store(relationFacadeRelationAssignedPresent, _target, !_present); _err != nil {\n", name)
+		fmt.Fprintf(output, "\tif _err := _result.%sCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {\n", name)
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintln(output, "\treturn _result, nil")
@@ -1190,7 +1124,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintf(output, "\t_value := (%s{}).CloneWriteModel(_model.%s)\n", descriptor, model.rawAlias)
-		fmt.Fprintf(output, "\t_, _, _pending, _err := _model.%sCache.snapshot()\n", name)
+		fmt.Fprintf(output, "\t_, _, _pending, _err := _model.%sCache.Snapshot()\n", name)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
@@ -1207,7 +1141,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintf(output, "\t_result.%sScalarSnapshot = int64(_key)\n", name)
 		fmt.Fprintf(output, "\t_result.%sScalarPresent = true\n", name)
 		fmt.Fprintln(output, "\tif !_same {")
-		fmt.Fprintf(output, "\t\tif _err := _result.%sCache.store(relationFacadeRelationUnassigned, nil, false); _err != nil {\n", name)
+		fmt.Fprintf(output, "\t\tif _err := _result.%sCache.Store(orm.RelationUnassigned, nil, false); _err != nil {\n", name)
 		fmt.Fprintln(output, "\t\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t\t}")
 		fmt.Fprintln(output, "\t}")
@@ -1231,7 +1165,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 			fmt.Fprintln(output, "\t}")
 			fmt.Fprintf(output, "\t_result.%sScalarSnapshot = 0\n", name)
 			fmt.Fprintf(output, "\t_result.%sScalarPresent = false\n", name)
-			fmt.Fprintf(output, "\tif _err := _result.%sCache.store(relationFacadeRelationAssignedAbsent, nil, false); _err != nil {\n", name)
+			fmt.Fprintf(output, "\tif _err := _result.%sCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {\n", name)
 			fmt.Fprintln(output, "\t\treturn nil, _err")
 			fmt.Fprintln(output, "\t}")
 			fmt.Fprintln(output, "\treturn _result, nil")
@@ -1376,17 +1310,30 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\treturn _query.state.new"+model.surface+"EagerQuery(_query.source.OrderBy(_orderings...), _query.kind)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) Limit(_limit int) (%s, error) {\n", eagerType, eagerType)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", eagerType)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_limited, _err := _query.source.Limit(_limit)")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", eagerType)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_limited, _query.kind), nil\n", model.surface)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
+	for _, method := range []string{"Distinct", "Fresh"} {
+		fmt.Fprintf(output, "func (_query %s) %s() %s {\n", eagerType, method, eagerType)
+		fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
+		fmt.Fprintln(output, "\t\t_query.configurationErr = _err")
+		fmt.Fprintln(output, "\t\treturn _query")
+		fmt.Fprintln(output, "\t}")
+		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_query.source.%s(), _query.kind)\n", model.surface, method)
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+	}
+	for _, method := range []string{"Limit", "Offset"} {
+		argument := "_" + lowerFirst(method)
+		fmt.Fprintf(output, "func (_query %s) %s(%s int) (%s, error) {\n", eagerType, method, argument, eagerType)
+		fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
+		fmt.Fprintf(output, "\t\treturn %s{}, _err\n", eagerType)
+		fmt.Fprintln(output, "\t}")
+		fmt.Fprintf(output, "\t_derived, _err := _query.source.%s(%s)\n", method, argument)
+		fmt.Fprintln(output, "\tif _err != nil {")
+		fmt.Fprintf(output, "\t\treturn %s{}, _err\n", eagerType)
+		fmt.Fprintln(output, "\t}")
+		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_derived, _query.kind), nil\n", model.surface)
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+	}
 	fmt.Fprintf(output, "func (_query %s) All(_ctx context.Context) ([]*%s, error) {\n", eagerType, model.surface)
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")

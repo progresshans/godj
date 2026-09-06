@@ -3,7 +3,7 @@ package godj
 import (
 	"context"
 	"errors"
-	"io"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	"github.com/progresshans/godj/conformance/systemstate/multiruntimeworker"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 const maximumSystemStateWorkerBuildOutput = 64 << 10
@@ -91,11 +92,16 @@ func buildSystemStateMultiRuntimeWorker(ctx context.Context, executable string) 
 	}
 	command.Dir = repositoryRoot
 	command.Env = systemStateWorkerBuildEnvironment(os.Environ())
-	output := &systemStateBoundedWriter{remaining: maximumSystemStateWorkerBuildOutput}
-	command.Stdout = output
-	command.Stderr = output
-	if err := command.Run(); err != nil || output.exceeded {
-		return errors.New("build two-process system-state worker")
+	var stdout, stderr gobuild.Capture
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("build two-process system-state worker: %w", &gobuild.Error{
+			Cause: err, Diagnostic: gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env),
+		})
+	}
+	if stdout.Len()+stderr.Len() > maximumSystemStateWorkerBuildOutput {
+		return errors.New("two-process system-state worker build exceeded diagnostic limit")
 	}
 	info, err := os.Stat(executable)
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
@@ -165,20 +171,4 @@ func boolCount(value bool) int {
 		return 1
 	}
 	return 0
-}
-
-type systemStateBoundedWriter struct {
-	remaining int
-	exceeded  bool
-}
-
-func (writer *systemStateBoundedWriter) Write(payload []byte) (int, error) {
-	if writer == nil || writer.exceeded || len(payload) > writer.remaining {
-		if writer != nil {
-			writer.exceeded = true
-		}
-		return 0, io.ErrShortWrite
-	}
-	writer.remaining -= len(payload)
-	return len(payload), nil
 }

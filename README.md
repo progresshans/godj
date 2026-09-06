@@ -1,43 +1,42 @@
 # GoDj
 
-GoDj는 Django의 모델 중심 풀스택 개발 경험을 Go의 정적 타입, 제네릭, 코드 생성, 고루틴, 멀티코어 활용, 단일 바이너리 배포 방식에 맞게 재설계하는 웹 프레임워크입니다.
+GoDj는 Django의 모델 중심 개발 경험을 Go의 정적 타입·코드 생성·명시적 I/O에 맞게 구현하는 풀스택 웹 프레임워크다.
+Schema에서 ORM·Migration·Form·Admin·API를 연결한다. 현재는 개발 중이며 내부 API와 생성 형식은 변경될 수 있다.
+구현 범위와 제한은 [구현 현황](docs/status/IMPLEMENTATION_MATRIX.md)에 있다.
 
-현재 지원 범위, 통과 contract, 활성 작업과 다음 단계는
-[현재 상태와 다음 작업](docs/status/CURRENT.md)에서만 갱신합니다. 장기 범위가 문서에
-있다는 사실은 구현을 뜻하지 않으며 pre-1.0 API와 성능 수치도 제품 약속이 아닙니다.
+## Article 실행
 
-## 현재 기준
+Go 버전은 [go.mod](go.mod)를 따른다. 현재 CLI는 Linux/macOS용이다. 저장소 root에서 다음을 실행한다.
+임시 디렉터리에 실행 파일과 새 SQLite DB를 만들기 때문에 기존 프로젝트 DB를 수정하지 않는다.
 
-| 항목 | 기준 |
-|---|---|
-| 제품명 / CLI | `GoDj` / `godj` |
-| Go module | `github.com/progresshans/godj` |
-| Go 언어 / toolchain | Go 1.26 / 1.26.5 |
-| Django 참조 프로필 | Django 6.1, CPython 3.14.3, SQLite 3.50.4, darwin/arm64 |
-| 현재 Go backend | `modernc.org/sqlite v1.56.0`, SQLite 3.53.3 |
-| Python 소스 호환 | 목표가 아님 |
-| 핵심 방향 | Schema DSL → Schema IR → Codegen → Generic Core → Runtime Metadata → Query AST → Backend Compiler |
+```sh
+godj_demo_dir="$(mktemp -d)"
+go build -o "$godj_demo_dir/godj" ./cmd/godj
+export GODJ_ARTICLE_SQLITE_DATABASE="$godj_demo_dir/article.sqlite3"
+"$godj_demo_dir/godj" migrate --project examples/article/godj.toml
+"$godj_demo_dir/godj" createsuperuser --project examples/article/godj.toml
+"$godj_demo_dir/godj" runserver --project examples/article/godj.toml
+```
 
-## 처음 읽을 문서
+`createsuperuser`는 실제 터미널에서 username/password를 입력받는다. 비밀번호를 명령 인자에 넣지 않는다.
+[Article](http://127.0.0.1:8000/)과 [Admin](http://127.0.0.1:8000/admin/)을 열고, 종료는 Ctrl-C를 사용한다.
+같은 DB로 다시 실행할 때는 `runserver`만 실행한다. Provisioning은 한 번만 수행하며 startup은 저장된 credential을 연다.
 
-1. [문서 안내](docs/README.md)
-2. [현재 상태와 다음 작업](docs/status/CURRENT.md)
-3. [프로젝트 헌장](docs/CHARTER.md)
-4. [아키텍처](docs/ARCHITECTURE.md)
-5. [호환성 정책](docs/COMPATIBILITY.md)
-6. [테스트 전략](docs/TESTING.md)
+SQLite 선택과 PostgreSQL 환경변수를 동시에 설정하지 않는다. PostgreSQL 사용법과 명령별 흐름은
+[개발 흐름](docs/DEVELOPER_EXPERIENCE.md)에 있다. 예제는 loopback 개발 서버이며 배포 설정을 대신하지 않는다.
 
-[작업 목록](work/README.md)에서 완료·활성 항목을 확인할 수 있습니다. 새 대화나 새
-에이전트에서 작업을 이어갈 때는
-[계속 작업 프롬프트](prompts/CONTINUE_WORK.md)를 사용할 수 있습니다.
+## 코드 탐색
 
-## 중요한 구분
+- [Schema 선언](examples/article/modeldef/schema.go)과 [프로젝트 설정](examples/article/cmd/projectrunner/main.go)
+- [생성 model](examples/article/models/), [관계 binding](examples/article/project/)
+- [Helpdesk 소비자](examples/helpdesk/app_test.go): 구조가 다른 관계 모델과 선택형 Admin·API·권한 변경
+- [Article Web](examples/article/webapp/), [Admin](examples/article/adminapp/), [API](examples/article/apiapp/)
+- [아키텍처](docs/ARCHITECTURE.md), [동시성과 실패](docs/CONCURRENCY.md), [테스트 실행](docs/TESTING.md)
 
-- 문서에 장기 기능이 적혀 있다는 사실은 구현 또는 지원을 의미하지 않습니다.
-- API 예시는 설계 의도를 설명할 뿐, ADR이나 검증된 명세에서 확정되기 전에는 공개 계약이 아닙니다.
-- 기능은 `제안됨 → 채택됨 → 구현됨 → 검증됨`을 구분해 기록합니다.
-- Django와의 동일성은 인상이나 SQL 문자열이 아니라 버전이 고정된 동작 계약과 실행 증거로 판단합니다.
+Django는 고정된 버전의 외부 동작을 비교하는 기준이다. Python source나 서드파티 Python app의 실행 호환은 목표가 아니다.
+[호환성](docs/COMPATIBILITY.md)과 [라이선스·출처](docs/LICENSING.md)를 참고한다.
 
-## 프로젝트 상태
+## 개발 재개
 
-정확한 브랜치, 커밋, 활성 작업, 검증 결과, 차단 요인은 [docs/status/CURRENT.md](docs/status/CURRENT.md)만 갱신합니다. README에는 진행률을 복제하지 않습니다.
+[AGENTS.md](AGENTS.md)와 [CURRENT](docs/status/CURRENT.md)가 활성 작업과 다음 행동을 안내한다.
+과거 작업 전체를 먼저 읽을 필요는 없다. 현재 작업의 검증 결과는 [TEST_EVIDENCE](docs/status/TEST_EVIDENCE.md)에만 기록한다.

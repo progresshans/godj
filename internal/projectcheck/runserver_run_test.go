@@ -157,7 +157,7 @@ func TestRunServerUsesOneSelectionTwoPreflightsAndAmbientRuntimeEnvironment(t *t
 	report := RunServer(RunServerInvocation{
 		Context: context.Background(), CWD: fixture.cwd,
 		Args:        []string{"runserver", "--project", filepath.Join(fixture.project, descriptorName), "--addr", "127.0.0.1:0"},
-		Environment: fixture.environment, Stdout: &stdout, Stderr: &stderr, Backend: backend,
+		Environment: append(append([]string(nil), fixture.environment...), "GODJ_COLD_BUILD=1"), Stdout: &stdout, Stderr: &stderr, Backend: backend,
 		generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {
 			checks++
 			return projectgenerate.CheckReport{}, nil

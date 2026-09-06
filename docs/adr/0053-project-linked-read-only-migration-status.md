@@ -1,5 +1,9 @@
 # ADR-0053: Project-linked Read-only Migration Status
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0053-project-linked-read-only-migration-status.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-30
 - 관련 work/contract: GDJ-0051, MIG-111..MIG-118, Q-010, Q-012
@@ -75,9 +79,9 @@ GDJ-0051에서는 exact `godj showmigrations [--project <godj.toml>]` list-only 
 Phase B local implementation checkpoint `294e7e2...`에서 exact core API와 response byte ceiling을 검증했습니다. Phase A는
 pinned MIG-111..118 reference artifact를 `oracle_locked`로 고정했고 Phase C/D는 SQLite/PostgreSQL no-mutation product
 evidence와 actual publication을 로컬에서 고정했습니다. Phase E는 current source-bound attestation과 local milestone을
-[EVID-158](../status/TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)로,
+[EVID-158](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)로,
 exact submitted-head Hosted를
-[EVID-159](../status/TEST_EVIDENCE.md#evid-20260830-159--gdj-0051-exact-head-hosted-completion)로 닫았으므로 이 결정을
+[EVID-159](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-159--gdj-0051-exact-head-hosted-completion)로 닫았으므로 이 결정을
 Accepted로 전환합니다.
 
 ## 결과
@@ -98,13 +102,3 @@ Accepted로 전환합니다.
 - `sqlmigrate`와 backend dry-run compiler
 - multi-DB alias/router와 distributed snapshot
 - destructive/rename/alter/custom/data migration writer
-
-## 검증
-
-- Pinned Django 6.1 `show_list`의 app/list/applied semantic observation
-- Core permutation/property test, immutable clone, history error와 race test
-- Strict protocol malformed/truncated/oversize/order/resource tests
-- Global/linked load-before-open, one open/read/close, pre-acquisition/closed-snapshot cancellation, bounded descendant cleanup,
-  identity escaping, cleanup/redaction tests
-- SQLite file과 PostgreSQL 17.10 fresh/prefix/full/restart/no-mutation actual
-- Repository-external public project compile/process test

@@ -1,8 +1,12 @@
 # ADR-0056: Explicit Operator Provisioning and Open-existing System State
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0056-explicit-operator-provisioning-and-open-existing.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-31
-- 관련 work/contract: [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md), SYS-021..030, Q-022
+- 관련 work/contract: [GDJ-0055](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0055-project-linked-explicit-operator-provisioning.md), SYS-021..030, Q-022
 - 수정하는 ADR: [ADR-0047](0047-explicit-single-runtime-system-state.md)의 implicit bootstrap/restart-password 결정,
   [ADR-0048](0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)의 concurrent bootstrap observation
 - 대체하는 ADR: 없음
@@ -118,22 +122,3 @@ no-echo input을 받고, 전용 bounded binary pipe로 project child에 한 번 
 - Automatic migrate/repair/retry/reopen, non-cooperative writer와 distributed deployment
 - Q-019 SQLite terminal quarantine와 general backend health/telemetry
 - Windows, production server/security topology와 universal project template
-
-## 검증
-
-- Exact argv/pre-I/O, TTY/no-echo/confirmation/restore/SIGINT와 non-TTY failure actual
-- Binary protocol exact-limit/one-over/truncation/trailing/version/fuzz와 malformed-before-open
-- Empty/already/concurrent/cardinality/corrupt/policy/commit-unknown systemstate unit/race/fault tests
-- Known-created backend/workspace/output failure, fd 1 SIGPIPE→reserved normal exit, complete-request outcome-unknown no retry와
-  fresh-backend reconciliation
-- Sensitive child pipe/output cap/cancellation/process-group/reap/held-descendant tests
-- Raw marker scan over argv, environment, project/temp files, response/error/report and Article restart process
-- SQLite/PostgreSQL distinct-process provision, authenticated Admin/API login and raw-password-free restart
-- Repository-external public project compile/runtime, affected normal/race/CGO0/vet, frozen archive/Linux-386와 exact-head Hosted gates
-
-Terminal acceptance는 exact product source `0b5b6fc6ec60e1704e5cebfaebd771b682d001ee`, tree
-`dac6baa72f5aaaa54f4959a5ee16e988cc16df61`에서 완료했습니다. 독립 A/B source-bound PostgreSQL attestation, affected
-normal/race/CGO-disabled, Linux/386 compile-only, `.git`-free external archive와 exact-head Hosted run `33899930122`의
-79/79 jobs·797/797 steps가 통과했고 failure/cancel/skip/annotation은 0입니다. SYS-021..030은 모두 product `passing`이며
-상세 명령·hash·inventory와 non-claim은
-[EVID-179](../status/TEST_EVIDENCE.md#evid-20260905-179--gdj-0055-explicit-operator-provisioning-terminal-acceptance)이 소유합니다.

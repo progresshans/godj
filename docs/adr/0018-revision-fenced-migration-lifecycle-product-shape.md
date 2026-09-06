@@ -1,5 +1,9 @@
 # ADR-0018: Revision-fenced lifecycle은 Executor와 backend-owned session으로 조립한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0018-revision-fenced-migration-lifecycle-product-shape.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-09
 - 관련 work/contract: GDJ-0018, MIG-047..MIG-056, Q-012, DEV-0002
@@ -379,40 +383,3 @@ dispatch하고 unknown/mismatched decision은 actual 생성 전에 fail-closed�
 - Long-lived lock/lease, fairness, distributed coordination와 automatic retry
 - Replacement/squash/merge/fake/fake-initial, optimizer와 conflict resolution
 - PostgreSQL/MySQL/MariaDB/Oracle, multi-DB router와 relation rendering
-
-## 검증
-
-- External consumer compile: request constructors, `Executor.Migrate`, optional port와 existing fake
-- Zero/nil/canceled request/backend/session/transaction과 input/result mutation
-- Exact one atomic snapshot per lifecycle attempt, explicit history check before plan/write
-- Snapshot call 전용 conversion, mandatory session Close와 ready/active/poisoned/closed misuse 거부
-- Fresh/latest/prefix/no-op, named forward/reverse, app zero와 unknown legacy
-- Same token two connection/process single winner와 snapshot-before-first-step stale conflict
-- Competing commit between steps에서 prior own step만 durable, current/tail mutation 0
-- Apply/unapply ABA, direct non-ABA history mutation와 metadata corrupt/version/overflow faults
-- `BUSY`/`LOCKED` contention 분류, semantic retry 0와 exact one step attempt
-- CAS/post-DDL/post-recorder/commit/cancellation rollback과 resource release 뒤 fresh success
-- RolledBack/Committed/Unknown/zero commit outcome, state progression과 cleanup error priority
-- Abandoned active transaction의 detached bounded cleanup과 `driver.ErrBadConn` discard
-- Declared transition과 recorder identity/direction/count mismatch의 pre-commit integrity 거부
-- Metadata absent/present/empty-recorder adoption matrix와 legacy writer fail-closed
-- Empty-table default AddField logical default + physical no-default, nonempty capability error
-- MIG-047..056 public product adapter, two-process actual byte identity와 9 exact + DEV-0002 expectation
-- MIG-052 six-path sparse scope, exact-one decision provenance와 unknown policy decision fail-closed
-- Static ordered 10 mismatch, manifest 9 passing + 1 deviation/provenance와
-  oracle/static/SHA256SUMS/spike byte pin
-- Nine product set `92 passing + 5 deviation`, 97 IDs/scenarios와 72 ordered cross-binding
-- Full/race/CGO=0/vet, portable/exact Python, repeated/two-process and independent P0–P3 audit
-
-Acceptance evidence는
-[EVID-20260809-017](../status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)에
-기록하고, hosted 검증은
-[EVID-20260809-018](../status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
-기록합니다. Product commit은 `d076bd20f5964074b7b76b44147ca59f7b3e6eb8`, machine/conformance
-commit은 `fd49d5147beefead640f43ae6fd5c83860a17a06`, final local code checkout은
-`9f51ad0da443d259940d44acbb8c3d095a9a257b`입니다. `make check`, full CGO-disabled Go,
-focused repeated/race gate와 two-process 10/0-diff가 통과했습니다. PR #1의 GitHub Actions
-run 31295886061에서 Ubuntu 24.04 full portable job과 `macos-15` exact job도 통과했습니다.
-
-상세 allowed path와 completion gate는
-[GDJ-0018](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)에 기록합니다.

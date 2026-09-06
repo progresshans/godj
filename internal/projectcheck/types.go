@@ -53,6 +53,7 @@ type Report struct {
 	RunnerStderrRetainedBytes    int
 	RunnerStderrTruncated        bool
 	RawDiagnosticsDiscarded      bool
+	BuildDiagnostic              string
 }
 
 // Invocation is the invocation-local input to the global product kernel.
@@ -104,6 +105,7 @@ type StreamScalar struct {
 // reaped its direct child and joined its output drainers.
 type ProcessResult struct {
 	Stdout          []byte
+	BuildDiagnostic string
 	ExitCode        int
 	Started         bool
 	DirectReaps     int

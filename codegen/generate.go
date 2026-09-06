@@ -64,7 +64,7 @@ func Generate(packageName string, input ir.Schema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
+			if field.Nullable {
 				return true
 			}
 		}
@@ -100,11 +100,8 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "func (%s) Scan(row db.Row) (%s, error) {\n", descriptorName, model.GoName)
 	fmt.Fprintf(output, "\tvar value %s\n", model.GoName)
 	for _, field := range model.Fields {
-		switch {
-		case field.Nullable && field.Kind == ir.FieldChar:
-			fmt.Fprintf(output, "\tvar scan%s sql.NullString\n", field.GoName)
-		case field.Nullable && field.Kind == ir.FieldForeignKey:
-			fmt.Fprintf(output, "\tvar scan%s sql.NullInt64\n", field.GoName)
+		if field.Nullable {
+			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
 		}
 	}
 	fmt.Fprint(output, "\tif err := row.Scan(")
@@ -112,7 +109,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
+		if field.Nullable {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -120,15 +117,9 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	}
 	fmt.Fprintf(output, "); err != nil {\n\t\treturn %s{}, err\n\t}\n", model.GoName)
 	for _, field := range model.Fields {
-		switch {
-		case field.Nullable && field.Kind == ir.FieldChar:
+		if field.Nullable {
 			fmt.Fprintf(output, "\tif scan%s.Valid {\n", field.GoName)
-			fmt.Fprintf(output, "\t\tscanned := scan%s.String\n", field.GoName)
-			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
-			fmt.Fprintln(output, "\t}")
-		case field.Nullable && field.Kind == ir.FieldForeignKey:
-			fmt.Fprintf(output, "\tif scan%s.Valid {\n", field.GoName)
-			fmt.Fprintf(output, "\t\tscanned := scan%s.Int64\n", field.GoName)
+			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
 		}
@@ -160,7 +151,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "func (%s) CloneModel(value %s) %s {\n", descriptorName, model.GoName, model.GoName)
 	fmt.Fprintln(output, "\tclone := value")
 	for _, field := range model.Fields {
-		if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
+		if field.Nullable {
 			fmt.Fprintf(output, "\tif value.%s != nil {\n", field.GoName)
 			fmt.Fprintf(output, "\t\tcloned%s := *value.%s\n", field.GoName, field.GoName)
 			fmt.Fprintf(output, "\t\tclone.%s = &cloned%s\n", field.GoName, field.GoName)
@@ -180,7 +171,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintln(output, "\tswitch field.Name {")
 	for _, field := range model.Fields {
 		fmt.Fprintf(output, "\tcase %s:\n", strconv.Quote(field.Name))
-		if field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey) {
+		if field.Nullable {
 			fmt.Fprintf(output, "\t\tif value.%s == nil {\n", field.GoName)
 			fmt.Fprintln(output, "\t\t\treturn query.Null(), true")
 			fmt.Fprintln(output, "\t\t}")
@@ -515,16 +506,11 @@ func privateName(goName string) string {
 }
 
 func queryValueExpression(field ir.Field, value string) string {
-	switch field.Kind {
-	case ir.FieldAuto, ir.FieldForeignKey:
-		return "query.Integer(" + value + ")"
-	case ir.FieldChar:
-		return "query.String(" + value + ")"
-	case ir.FieldBoolean:
-		return "query.Boolean(" + value + ")"
-	default:
+	kind := fieldRenderKind(field.Kind).queryValue
+	if kind == "" {
 		return "query.Value{}"
 	}
+	return "query." + kind + "(" + value + ")"
 }
 
 func defaultValueExpression(value ir.ScalarDefault) string {
@@ -554,73 +540,25 @@ func defaultLiteral(value ir.ScalarDefault) string {
 }
 
 func goType(field ir.Field) string {
-	switch field.Kind {
-	case ir.FieldAuto:
-		return "int64"
-	case ir.FieldChar:
-		if field.Nullable {
-			return "*string"
-		}
-		return "string"
-	case ir.FieldBoolean:
-		return "bool"
-	case ir.FieldForeignKey:
-		if field.Nullable {
-			return "*int64"
-		}
-		return "int64"
-	default:
-		return "struct{}"
+	name := fieldRenderKind(field.Kind).goType
+	if field.Nullable {
+		return "*" + name
 	}
+	return name
 }
 
 func ormFieldType(model string, field ir.Field) string {
-	name := ""
-	switch field.Kind {
-	case ir.FieldAuto:
-		name = "IntegerField"
-	case ir.FieldChar:
-		if field.Nullable {
-			name = "NullableStringField"
-		} else {
-			name = "StringField"
-		}
-	case ir.FieldBoolean:
-		name = "BooleanField"
-	}
+	name := fieldRenderKind(field.Kind).fieldType(field.Nullable)
 	return fmt.Sprintf("orm.%s[%s]", name, model)
 }
 
 func ormFieldConstructor(model string, field ir.Field) string {
-	name := ""
-	switch field.Kind {
-	case ir.FieldAuto:
-		name = "NewIntegerField"
-	case ir.FieldChar:
-		if field.Nullable {
-			name = "NewNullableStringField"
-		} else {
-			name = "NewStringField"
-		}
-	case ir.FieldBoolean:
-		name = "NewBooleanField"
-	}
-	return fmt.Sprintf("orm.%s[%s]", name, model)
+	name := fieldRenderKind(field.Kind).fieldType(field.Nullable)
+	return fmt.Sprintf("orm.New%s[%s]", name, model)
 }
 
 func irKind(kind ir.FieldKind) string {
-	switch kind {
-	case ir.FieldAuto:
-		return "ir.FieldAuto"
-	case ir.FieldChar:
-		return "ir.FieldChar"
-	case ir.FieldBoolean:
-		return "ir.FieldBoolean"
-	case ir.FieldForeignKey:
-		return "ir.FieldForeignKey"
-	default:
-		return strconv.Quote(string(kind))
-	}
+	return fieldRenderKind(kind).irKind
 }
 
 func lowerFirst(value string) string {

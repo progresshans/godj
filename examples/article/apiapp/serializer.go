@@ -5,52 +5,24 @@ import (
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
 
 func articleSpec() (serializers.Spec, error) {
-	id, err := serializers.IntegerField("id", serializers.WithReadOnly())
-	if err != nil {
-		return serializers.Spec{}, err
-	}
-	title, err := serializers.StringField("title", serializers.WithMaxLength(200))
-	if err != nil {
-		return serializers.Spec{}, err
-	}
-	published, err := serializers.BooleanField("published", serializers.WithDefault(serializers.Boolean(false)))
-	if err != nil {
-		return serializers.Spec{}, err
-	}
-	summary, err := serializers.StringField(
-		"summary",
-		serializers.WithRequired(false),
-		serializers.WithNullable(),
-		serializers.WithAllowEmpty(),
-		serializers.WithMaxLength(200),
+	return serializers.FromModel((articlemodels.ArticleDescriptor{}).Metadata(),
+		serializers.ModelField{Name: "id"},
+		serializers.ModelField{Name: "title"},
+		serializers.ModelField{Name: "published"},
+		serializers.ModelField{Name: "summary", Optional: true, AllowEmpty: true},
 	)
-	if err != nil {
-		return serializers.Spec{}, err
-	}
-	return serializers.NewSpec([]serializers.Field{id, title, published, summary})
 }
 
-func articleValue(article articleapp.Article) (serializers.Value, error) {
-	summary := serializers.Null()
-	if article.Summary != nil {
-		summary = serializers.String(*article.Summary)
-	}
-	object, err := serializers.NewObject(
-		serializers.MemberOf("id", serializers.Integer(article.ID)),
-		serializers.MemberOf("title", serializers.String(article.Title)),
-		serializers.MemberOf("published", serializers.Boolean(article.Published)),
-		serializers.MemberOf("summary", summary),
-	)
-	if err != nil {
-		return serializers.Value{}, err
-	}
-	return object.Value(), nil
+func (a *Application) articleValue(article articleapp.Article) (serializers.Value, error) {
+	descriptor := articlemodels.ArticleDescriptor{}
+	return serializers.ModelValue(a.spec, descriptor.Metadata(), articleapp.ModelSnapshot(article), descriptor.WriteFieldValue)
 }
 
 func (a *Application) bind(request *web.Request, mode serializers.Mode) (serializers.Values, web.Response, bool, error) {

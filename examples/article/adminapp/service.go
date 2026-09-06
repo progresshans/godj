@@ -120,7 +120,7 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input Inp
 	if !s.validState() {
 		return Article{}, nil, invalid("service", "service is zero or invalid")
 	}
-	templates, err := prepareArticleChangeTemplates(actorID, input.Title)
+	_, err := admin.PrepareEventTemplate(actorID, articleModelIdentity, admin.ActionChange, nil, input.Title)
 	if err != nil {
 		return Article{}, nil, err
 	}
@@ -129,17 +129,12 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input Inp
 		if err != nil {
 			return nil, err
 		}
-		mask, ok := articleChangedMask(item.ChangedFields)
-		if !ok || mask == 0 {
+		if !validArticleChangedFields(item.ChangedFields) {
 			return nil, reconciliation("confirmed update returned an unknown changed-field set")
 		}
-		template, ok := templates[mask]
-		if !ok {
-			return nil, reconciliation("confirmed update returned an unsupported changed-field set")
-		}
-		event, ok := template.ForObject(item.Article.ID)
-		if !ok {
-			return nil, reconciliation("confirmed update returned an invalid object id")
+		event, err := admin.PrepareEvent(actorID, articleModelIdentity, item.Article.ID, admin.ActionChange, item.ChangedFields, input.Title)
+		if err != nil {
+			return nil, fmt.Errorf("article admin prepare change audit: %w", err)
 		}
 		return []admin.PreparedEvent{event}, nil
 	})
@@ -326,51 +321,17 @@ func reconciliation(detail string) error {
 	return fmt.Errorf("article admin: %s: %w", detail, admin.ErrReconciliationRequired)
 }
 
-func prepareArticleChangeTemplates(actorID, displayLabel string) (map[int]admin.PreparedEventTemplate, error) {
-	result := make(map[int]admin.PreparedEventTemplate, 7)
-	for mask := 1; mask < 1<<len(articleWritableFields); mask++ {
-		fields := make([]string, 0, len(articleWritableFields))
-		for index, field := range articleWritableFields {
-			if mask&(1<<index) != 0 {
-				fields = append(fields, field)
-			}
-		}
-		template, err := admin.PrepareEventTemplate(
-			actorID,
-			articleModelIdentity,
-			admin.ActionChange,
-			fields,
-			displayLabel,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("article admin prepare change audit: %w", err)
-		}
-		result[mask] = template
+func validArticleChangedFields(fields []string) bool {
+	if len(fields) == 0 {
+		return false
 	}
-	return result, nil
-}
-
-func articleChangedMask(fields []string) (int, bool) {
-	mask := 0
-	for _, changed := range fields {
-		matched := false
-		for index, field := range articleWritableFields {
-			if changed != field {
-				continue
-			}
-			bit := 1 << index
-			if mask&bit != 0 {
-				return 0, false
-			}
-			mask |= bit
-			matched = true
-			break
-		}
-		if !matched {
-			return 0, false
+	next := 0
+	for _, field := range articleWritableFields {
+		if next < len(fields) && fields[next] == field {
+			next++
 		}
 	}
-	return mask, true
+	return next == len(fields)
 }
 
 func interfaceNil(value any) bool {

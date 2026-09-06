@@ -1,5 +1,9 @@
 # ADR-0040: 하나의 typed Boolean predicate tree로 Article 검색을 확장한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-23
 - 관련 work/contract: GDJ-0040, QRY-034..043, Q-011, M4/M5
@@ -104,10 +108,3 @@ PostgreSQL이 같은 rendered meaning을 내지만 두 query 사이 transaction 
 - bulk update/delete, row locking, transaction-bound QuerySet와 request transaction
 - Form/validation, CSRF/session/Auth/Admin/API, runserver와 dynamic routing
 - MySQL과 추가 backend
-
-## 검증
-
-GDJ-0040은 QRY-034..043의 pinned Django result/side-effect/error 계약, oracle-blind SQLite product adapter,
-SQLite/PostgreSQL compiler와 actual Article HTTP E2E, typed/dynamic convergence, cross-model compile rejection,
-tree cap/immutability/race/cancellation/no-post-filter gate를 거칩니다. Phase A contract, Phase B core, 병렬 Phase C
-backend/Article, final frozen milestone의 큰 checkpoint만 사용합니다.

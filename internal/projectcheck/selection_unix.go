@@ -206,6 +206,12 @@ func readSelectedDescriptor(parent *os.File, rootPath string, rootStat unix.Stat
 		return retainedProject{}, &primary
 	}
 	report.DescriptorReads++
+	if !verifyRetainedDirectory(rootPath, parent, rootStat) {
+		clear(document)
+		_ = parent.Close()
+		primary := failure("migration_project_selection_error", "project_selection_failed")
+		return retainedProject{}, &primary
+	}
 	descriptor, primary := parseProjectDescriptor(document)
 	clear(document)
 	if primary != nil {

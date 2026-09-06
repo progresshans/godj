@@ -46,7 +46,7 @@ func TestLoadRunnerInputsRejectsInconsistentSYS020Binding(t *testing.T) {
 	}
 }
 
-func TestAttestationRepositoryRootRequiresExactCheckedPath(t *testing.T) {
+func TestAttestationRepositoryRootAndCapturePaths(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
@@ -54,7 +54,8 @@ func TestAttestationRepositoryRootRequiresExactCheckedPath(t *testing.T) {
 		root,
 		"conformance",
 		"systemstate",
-		"attestations",
+		"attestation",
+		"testdata",
 		systemstateattestation.FileName,
 	)
 	manifest := filepath.Join(root, "conformance", "contracts", "system-state-manifest.json")
@@ -73,8 +74,8 @@ func TestAttestationRepositoryRootRequiresExactCheckedPath(t *testing.T) {
 		t.Fatalf("attestation root = %q, want %q", got, want)
 	}
 
-	wrong := filepath.Join(root, "conformance", "systemstate", systemstateattestation.FileName)
-	if err := requireSystemStateAttestationPath(got, wrong); err == nil || !strings.Contains(err.Error(), "checked current repository path") {
+	wrong := filepath.Join(root, "conformance", "systemstate", "wrong.json")
+	if err := requireSystemStateAttestationPath(got, wrong); err == nil || !strings.Contains(err.Error(), "evidence filename") {
 		t.Fatalf("wrong checked path error = %v", err)
 	}
 

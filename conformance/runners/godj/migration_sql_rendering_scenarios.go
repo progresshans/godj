@@ -43,9 +43,8 @@ const (
 	migrationSQLRenderingProcessSourcePrefix = "GODJ_SQL_RENDERING_ACTUAL_SOURCE_"
 	migrationSQLRenderingProcessNormal       = "normal"
 	migrationSQLRenderingProcessCancellation = "cancellation"
-	// Each actual invocation builds in a new private cache. Keep the phase
-	// bounded, but allow cold hosted macOS/amd64 compilers to complete before
-	// judging the process result or exercising the cancellation path.
+	// Keep the phase bounded while allowing an explicit cold-build run to finish
+	// compilation before judging the result or exercising cancellation.
 	migrationSQLRenderingActualProcessTimeout = 3 * time.Minute
 	migrationSQLRenderingPoisonBarrier        = "godj-migration-sql-poison-barrier-v1"
 )
@@ -1228,7 +1227,7 @@ func migrationSQLRenderingRunProcess(
 func migrationSQLRenderingProcessEnvironment(entries []string) map[string]string {
 	ambient := migrationCommandActualEnvironment(entries)
 	values := make(map[string]string, 8)
-	for _, key := range []string{"PATH", "HOME", "GOMODCACHE", "GOPATH"} {
+	for _, key := range []string{"PATH", "HOME", "GOCACHE", "GOMODCACHE", "GOPATH", "XDG_CACHE_HOME", "GODJ_COLD_BUILD"} {
 		if value := ambient[key]; value != "" {
 			values[key] = value
 		}

@@ -22,6 +22,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/internal/gobuild"
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"golang.org/x/term"
@@ -211,6 +212,12 @@ func newGDJ0055ProcessHarness(ctx context.Context, mode string) (*gdj0055Process
 }
 
 func newGDJ0055ProcessHarnessWithSource(ctx context.Context, mode, helperSource string) (*gdj0055ProcessHarness, error) {
+	return newGDJ0055ProcessHarnessWithHelper(ctx, mode, helperSource, "")
+}
+
+// A scenario can reuse its already-built helper while each terminal case owns
+// fresh runtime directories and processes. The owner outlives all borrowers.
+func newGDJ0055ProcessHarnessWithHelper(ctx context.Context, mode, helperSource, builtHelper string) (*gdj0055ProcessHarness, error) {
 	directory, err := os.MkdirTemp("", "godj-gdj0055-process-")
 	if err != nil {
 		return nil, err
@@ -235,37 +242,49 @@ func newGDJ0055ProcessHarnessWithSource(ctx context.Context, mode, helperSource 
 		harness.cleanup()
 		return nil, err
 	}
-	source := filepath.Join(directory, "main.go")
-	if err := os.WriteFile(source, []byte(helperSource), 0o600); err != nil {
-		harness.cleanup()
-		return nil, err
-	}
-	buildContext, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
-	moduleCacheCommand := exec.CommandContext(buildContext, "go", "env", "GOMODCACHE")
-	moduleCacheCommand.Env = append([]string(nil), os.Environ()...)
-	moduleCacheOutput, err := moduleCacheCommand.Output()
-	if err != nil {
-		harness.cleanup()
-		return nil, fmt.Errorf("resolve GDJ-0055 Go module cache: %w", err)
-	}
-	moduleCache := strings.TrimSpace(string(moduleCacheOutput))
-	if !filepath.IsAbs(moduleCache) {
-		harness.cleanup()
-		return nil, errors.New("resolve GDJ-0055 Go module cache: path is not absolute")
-	}
-	command := exec.CommandContext(buildContext, "go", "build", "-buildvcs=false", "-trimpath", "-o", harness.helper, source)
-	command.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + filepath.Join(directory, "home"), "GOCACHE=" + filepath.Join(directory, "cache"), "GOMODCACHE=" + moduleCache, "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0"}
-	var stdout, stderr bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &stderr
-	if err := command.Run(); err != nil {
-		harness.cleanup()
-		return nil, fmt.Errorf("build GDJ-0055 process helper: %w (stdout=%d stderr=%d)", err, stdout.Len(), stderr.Len())
-	}
-	if stdout.Len() != 0 || stderr.Len() != 0 {
-		harness.cleanup()
-		return nil, fmt.Errorf("GDJ-0055 process helper build emitted output stdout=%d stderr=%d", stdout.Len(), stderr.Len())
+	if builtHelper == "" {
+		source := filepath.Join(directory, "main.go")
+		if err := os.WriteFile(source, []byte(helperSource), 0o600); err != nil {
+			harness.cleanup()
+			return nil, err
+		}
+		buildContext, cancel := context.WithTimeout(ctx, 90*time.Second)
+		defer cancel()
+		moduleCacheCommand := exec.CommandContext(buildContext, "go", "env", "GOMODCACHE")
+		moduleCacheCommand.Env = append([]string(nil), os.Environ()...)
+		moduleCacheOutput, err := moduleCacheCommand.Output()
+		if err != nil {
+			harness.cleanup()
+			return nil, fmt.Errorf("resolve GDJ-0055 Go module cache: %w", err)
+		}
+		moduleCache := strings.TrimSpace(string(moduleCacheOutput))
+		if !filepath.IsAbs(moduleCache) {
+			harness.cleanup()
+			return nil, errors.New("resolve GDJ-0055 Go module cache: path is not absolute")
+		}
+		command := exec.CommandContext(buildContext, "go", "build", "-buildvcs=false", "-trimpath", "-o", harness.helper, source)
+		command.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + filepath.Join(directory, "home"), "GOCACHE=" + filepath.Join(directory, "cache"), "GOMODCACHE=" + moduleCache, "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0"}
+		command.Env = gobuild.Environment(command.Env, os.Environ(), directory)
+		var stdout, stderr gobuild.Capture
+		command.Stdout = &stdout
+		command.Stderr = &stderr
+		if err := command.Run(); err != nil {
+			harness.cleanup()
+			return nil, fmt.Errorf("build GDJ-0055 process helper: %w", &gobuild.Error{
+				Cause: err, Diagnostic: gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env),
+			})
+		}
+		if stdout.Len() != 0 || stderr.Len() != 0 {
+			harness.cleanup()
+			return nil, fmt.Errorf("GDJ-0055 process helper build emitted output stdout=%d stderr=%d", stdout.Len(), stderr.Len())
+		}
+	} else {
+		info, err := os.Stat(builtHelper)
+		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
+			harness.cleanup()
+			return nil, errors.New("GDJ-0055 shared process helper is unavailable")
+		}
+		harness.helper = builtHelper
 	}
 	harness.environment = []string{
 		"PATH=" + os.Getenv("PATH"),
@@ -578,7 +597,7 @@ func gdj0055TTYSecretTransport(
 		return protocol.Observation{}, errors.New("successful public terminal output exposed the password")
 	}
 
-	errorHarness, err := newGDJ0055ProcessHarness(ctx, "success")
+	errorHarness, err := newGDJ0055ProcessHarnessWithHelper(ctx, "success", "", successHarness.helper)
 	if err != nil {
 		return protocol.Observation{}, err
 	}
@@ -592,7 +611,7 @@ func gdj0055TTYSecretTransport(
 		return protocol.Observation{}, fmt.Errorf("terminal mismatch observation drifted: report=%+v restored=%v", errorRun.report, errorRun.stateRestored)
 	}
 
-	interruptHarness, err := newGDJ0055ProcessHarness(ctx, "success")
+	interruptHarness, err := newGDJ0055ProcessHarnessWithHelper(ctx, "success", "", successHarness.helper)
 	if err != nil {
 		return protocol.Observation{}, err
 	}

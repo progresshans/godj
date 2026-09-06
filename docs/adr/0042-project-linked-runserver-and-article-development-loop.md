@@ -1,8 +1,12 @@
 # ADR-0042: Project-linked Runserver and Generated-aware Development Loop
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0042-project-linked-runserver-and-article-development-loop.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-24
-- 관련 work/contract: [GDJ-0042](../../work/0042-project-linked-runserver-and-article-development-loop.md), WEB-011..020, Q-010, Q-017, M5
+- 관련 work/contract: [GDJ-0042](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0042-project-linked-runserver-and-article-development-loop.md), WEB-011..020, Q-010, Q-017, M5
 - 선행 결정: [ADR-0004](0004-cli-and-project-binary.md), [ADR-0022](0022-project-runtime-and-global-migration-check.md),
   [ADR-0036](0036-project-schema-generated-bundle-and-recoverable-publication.md),
   [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md)
@@ -109,47 +113,3 @@ DB/settings를 project-owned environment에서 열고 global CLI는 build/proces
 - Framework-wide database settings/env schema
 - Dynamic route/request transaction/background/streaming/DTL/Form/Auth/Admin/API
 - Parent crash/fatal-signal stale-temp scavenging, hostile same-user path mutation와 daemonized descendant ownership
-
-## 검증 계획
-
-- [x] Descriptor optional capability, closed argv/address와 invalid-before-selection tests
-- [x] Strong preflight의 declaration runner exactly once, stable drift에서 runtime build/start/GoDj-owned Article runtime DB I/O 0와 project-tree no-write
-- [x] Build argv/env/no-shell/private workspace and post-build bundle recheck
-- [x] Long-lived streaming child의 clean SIGINT/SIGKILL 0, hung child conditional kill, direct reap/output failure/cleanup tests
-- [x] Actual global CLI + pre-migrated SQLite Article child HTTP and repeated port reuse
-- [x] Digest-pinned local PostgreSQL 17.10 Article child sentinel normal/race/CGO-disabled, pass 1/skip 0
-- [x] Four-coordinate portable와 hosted PostgreSQL 17.10 exact-head required gates
-- [x] Final full/Linux-386/repository-external clean-copy and independent final audit
-
-## 현재 구현 상태
-
-Product source `23b1936f46c20e46e4aa689dc6387a78a9847877`은 위 1~8 결정을 구현합니다. PostgreSQL/CI checkpoint
-`60da43b64cbc763f0700841ed821401e9a7253e0`은 portable SQLite/stale/forced-cleanup pass/no-skip과 PostgreSQL
-required pass/no-skip을 서로 다른 lane에 잠갔습니다. Clean-cache correction
-`6101140ef58578ad899c6699fa208b90bc527f81`은 copied fixture에서 `go mod tidy`를 제거하고 current root
-dependency/checksum snapshot으로 readonly build만 수행합니다. Clean-checkout fixture correction
-`2a61376cdc15cc7a2481210dbf6d3f105517c7a2`는 Git이 빈 디렉터리를 보존하지 않는 checkout에서도 interrupted
-publication case가 필요한 transaction directory를 명시적으로 만듭니다.
-Backend-close ownership correction `810149fd90ecf0b3a9cb7b4b98344476082ce769`은 Article runtime의 injected
-backend/listener close를 각각 정확히 한 번 계수합니다.
-
-SQLite와 digest-pinned PostgreSQL 17.10 local actual 및 current `810149f...` affected normal/race/CGO-disabled/vet가
-통과했습니다. Initial documentation checkpoint `47b0eb8...`의 EVID-120 local final 뒤 first submitted
-`46a57aa...` run `32657774073`은 26 jobs success와 macOS Intel product job의 exact 20분 timeout으로 끝났으므로
-hosted success가 아닙니다. Correction `2b49938...`은 그 matrix만 30분으로 늘리고 central/runserver lock으로
-exact 값을 고정했습니다. EVID-121에서 corrected full, all-package Linux/386 compile-only, 803-file
-repository-external archive와 두 독립 audit가 다시 통과했습니다.
-PostgreSQL actual은 global CLI → generated runtime → advanced HTTP → clean SIGINT → backend
-reopen 뒤 migration history 1건/9행 exact durability를 증명합니다. DB service restart, query count, 전체 failure taxonomy와 spawned
-child binary 자체의 race 계측은 각각 기존 PostgreSQL restart, Article handler, unit/process evidence 소유이며 이 black-box 하나의
-주장이 아닙니다.
-
-Corrected submitted head `2bfdbd50ade74c76713a3e1f08ce64ae7abe3dd9`, tree
-`292b82a042afe4af205c5caa5d4b541309d53ee7`는
-[EVID-122](../status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
-[CI run 32659704239](https://github.com/progresshans/godj/actions/runs/32659704239)에서 exact
-27/27 jobs·358/358 steps와 failure/cancel/skip/annotation 0을 통과했습니다. Four-coordinate product matrix는
-SQLite/stale/forced-cleanup required sentinel 12 pass·skip 0, PostgreSQL 17.10 job은 기존 12개와 새 runserver를
-합친 13개 required sentinel pass·skip 0, normal/race/CGO-disabled/vet/clean과 restart를 모두 완료했습니다.
-따라서 이 ADR과 bounded WEB-011..020 단면은 Accepted/hosted `Verified`입니다. Production readiness,
-Windows/non-loopback 또는 위 비목표의 지원은 주장하지 않습니다.

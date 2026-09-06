@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -52,22 +51,6 @@ type QuerySet[M any] struct {
 	plan             query.Plan
 	evaluation       *evaluationState[M]
 	configurationErr error
-}
-
-type evaluationState[M any] struct {
-	mu     sync.Mutex
-	ready  bool
-	values []M
-	flight *evaluationFlight
-}
-
-type evaluationFlight struct {
-	done chan struct{}
-	err  error
-}
-
-func newEvaluationState[M any]() *evaluationState[M] {
-	return &evaluationState[M]{}
 }
 
 func (qs QuerySet[M]) Filter(predicates ...Predicate[M]) QuerySet[M] {
@@ -174,62 +157,11 @@ func (qs QuerySet[M]) All(ctx context.Context) ([]M, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return nil, err
 	}
-
-	for {
-		// A waiter may wake from a canceled owner flight at the same instant
-		// its own context is canceled. Recheck before it can claim the next
-		// flight so a canceled waiter never starts backend I/O.
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		state := qs.evaluation
-		state.mu.Lock()
-		if state.ready {
-			values := state.values
-			state.mu.Unlock()
-			return qs.cloneModels(values), nil
-		}
-		if flight := state.flight; flight != nil {
-			state.mu.Unlock()
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-flight.done:
-			}
-			if flight.err == nil {
-				continue
-			}
-			if errors.Is(flight.err, context.Canceled) || errors.Is(flight.err, context.DeadlineExceeded) {
-				// A live waiter retries with its own context after the owner of
-				// the completed flight was canceled.
-				continue
-			}
-			// All callers that were waiting on a non-context owner failure
-			// observe that same error. A later independent call may retry.
-			return nil, flight.err
-		}
-
-		flight := &evaluationFlight{done: make(chan struct{})}
-		state.flight = flight
-		state.mu.Unlock()
-
-		values, err := qs.scanAll(ctx)
-
-		state.mu.Lock()
-		if err == nil {
-			state.values = values
-			state.ready = true
-		}
-		flight.err = err
-		state.flight = nil
-		close(flight.done)
-		state.mu.Unlock()
-
-		if err != nil {
-			return nil, err
-		}
-		return qs.cloneModels(values), nil
+	values, err := qs.evaluation.evaluate(ctx, qs.scanAll)
+	if err != nil {
+		return nil, err
 	}
+	return qs.cloneModels(values), nil
 }
 
 // Count returns the number of rows represented by the plan. A warm full

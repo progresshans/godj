@@ -1,10 +1,7 @@
 # 의도적 호환 차이 원장
 
-- 상태: Active ledger
-- 마지막 갱신: 2026-09-05
-- 현재 검증된 deviation: DEV-0001..DEV-0010 열 건 / contract 스물다섯 개
-- 현재 구현됐으나 terminal 검증 전인 deviation: 없음
-- Proposed이며 아직 aggregate에 포함하지 않는 후보: 없음
+계약과 허용한 차이의 의미를 보존한다. 아래 Verified 기록은 각 항목이 인용하는 source·환경의 증거이며 현재 개발 변경의
+전체 PASS를 뜻하지 않는다. 현재 실행 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다.
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
 
@@ -55,10 +52,10 @@
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3
 - Related ADR/work/evidence:
   [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md),
-  [GDJ-0011](../work/0011-migration-plan-execution-compatibility-contracts.md),
-  [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md),
-  [EVID-20260808-010](status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts),
-  [EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)
+  [GDJ-0011](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0011-migration-plan-execution-compatibility-contracts.md),
+  [GDJ-0012](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0012-migration-plan-execution-orchestrator.md),
+  [EVID-20260808-010](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts),
+  [EVID-20260808-011](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)
 
 ### Django의 관찰 가능 동작
 
@@ -119,9 +116,9 @@ DDL transaction capability는 아직 검증하지 않았으므로 이 결정이 
 `63 passing + 4 deviation`이었으며 67 exact passing으로 표현하지 않았습니다. 이후
 recorder-restart, historical-state reconstruction과 lifecycle 제품 set이 추가된 현재 분류는
 `92 passing + 5 deviation`이고, DEV-0001 네 계약은 그대로 유지됩니다. 검증 명령과 artifact hash는
-[EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
+[EVID-20260808-011](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
 기록하며 현재 aggregate는
-[EVID-20260809-017](status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)에
+[EVID-20260809-017](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)에
 기록합니다.
 
 ### 복귀 또는 supersede 조건
@@ -141,15 +138,15 @@ Django와의 exact backward transaction 호환이 schema/history 원자성보다
 - Related ADR/work/evidence:
   [ADR-0013](adr/0013-immutable-migration-planner.md),
   [ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md),
-  [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md),
-  [GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md),
-  [EVID-20260809-017](status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice),
+  [GDJ-0017](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md),
+  [GDJ-0018](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0018-revision-fenced-migration-lifecycle-product-slice.md),
+  [EVID-20260809-017](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice),
   [ADR-0054](adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md),
-  [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md),
-  [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening),
-  [EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
-  [EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze),
-  [EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)
+  [GDJ-0052](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md),
+  [EVID-164](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening),
+  [EVID-165](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
+  [EVID-166](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze),
+  [EVID-167](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -217,8 +214,8 @@ non-cooperative writer를 승인하지 않습니다.
   SQLite/PostgreSQL 17.10을 검증
 - Target/definition/history/fault propagation, source guard와 semantic mutation gate 통과
 - 두 독립 actual이 byte-identical하고 reviewed expectation과 10 contract/0-diff
-- Locked lifecycle oracle, not-implemented static fixture, `SHA256SUMS`와
-  `conformance/lifecyclefence/**` byte 불변
+- Locked lifecycle oracle, not-implemented static fixture와 `SHA256SUMS` 보존.
+  초기 lifecyclefence 모형의 byte 보존 제약은 GDJ-0057에서 실제 제품 회귀로 대체했다.
 
 Machine/conformance commit `fd49d5147beefead640f43ae6fd5c83860a17a06`에서 검증했습니다.
 Lifecycle manifest는 13,735 bytes, SHA-256
@@ -260,9 +257,9 @@ ADR과 deviation으로 이 결정을 Superseded합니다. 단순히 comparator�
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj closed template value runtime
 - Related ADR/work/evidence:
   [ADR-0043](adr/0043-safe-template-and-model-form-validation.md),
-  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md),
-  [Local EVID-123](status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint),
-  [Hosted EVID-124](status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion)
+  [GDJ-0043](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0043-safe-template-validation-session-auth-and-article-admin.md),
+  [Local EVID-123](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint),
+  [Hosted EVID-124](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -322,9 +319,9 @@ Context/error/cancellation과 I/O 권한을 명시적으로 표현하는 안전�
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj process-memory session store
 - Related ADR/work/evidence:
   [ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md),
-  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md),
-  [Local EVID-123](status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint),
-  [Hosted EVID-124](status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion)
+  [GDJ-0043](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0043-safe-template-validation-session-auth-and-article-admin.md),
+  [Local EVID-123](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint),
+  [Hosted EVID-124](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -385,9 +382,9 @@ Browser-session cookie 또는 logout confirmation view가 제품 요구가 되�
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3 Article Admin
 - Related ADR/work/evidence:
   [ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md),
-  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md),
-  [Local EVID-123](status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint),
-  [Hosted EVID-124](status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion)
+  [GDJ-0043](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0043-safe-template-validation-session-auth-and-article-admin.md),
+  [Local EVID-123](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint),
+  [Hosted EVID-124](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -438,9 +435,9 @@ DEV-0005를 좁히거나 supersede합니다. DOM이나 action 이름 comparator�
   GoDj closed signed-64-bit route runtime
 - Related ADR/work/evidence:
   [ADR-0045](adr/0045-closed-parameterized-routing-and-reverse.md),
-  [GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md),
-  [Local EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint),
-  [Hosted EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)
+  [GDJ-0044](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0044-session-authenticated-article-json-api-and-parameterized-routing.md),
+  [Local EVID-125](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint),
+  [Hosted EVID-126](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)
 
 ### Django/DRF의 관찰 가능 동작
 
@@ -499,9 +496,9 @@ oversized integer가 application handler에 도달하는 경로를 닫습니다.
   GoDj JSON-only API on SQLite and PostgreSQL 17.10
 - Related ADR/work/evidence:
   [ADR-0046](adr/0046-json-serializer-and-session-authenticated-article-api.md),
-  [GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md),
-  [Local EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint),
-  [Hosted EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)
+  [GDJ-0044](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0044-session-authenticated-article-json-api-and-parameterized-routing.md),
+  [Local EVID-125](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint),
+  [Hosted EVID-126](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)
 
 ### Django/DRF의 관찰 가능 동작
 
@@ -561,14 +558,14 @@ API-wide standardized problem details 또는 trusted proxy body-limit ownership�
   GoDj SQLite and PostgreSQL 17.10 actual
 - Related ADR/work/evidence:
   [ADR-0047](adr/0047-explicit-single-runtime-system-state.md),
-  [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md),
-  [Local EVID-127](status/TEST_EVIDENCE.md#evid-20260825-127--gdj-0045-durable-system-state-frozen-local-checkpoint),
-  [Corrected refreeze EVID-128](status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze),
-  [Hosted EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion),
+  [GDJ-0045](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0045-durable-single-runtime-system-state-and-article-restart.md),
+  [Local EVID-127](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260825-127--gdj-0045-durable-system-state-frozen-local-checkpoint),
+  [Corrected refreeze EVID-128](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze),
+  [Hosted EVID-129](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion),
   [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md),
-  [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md),
-  [Phase E EVID-133](status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final),
-  [Hosted EVID-134](status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)
+  [GDJ-0046](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md),
+  [Phase E EVID-133](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final),
+  [Hosted EVID-134](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -637,8 +634,8 @@ SYS-009를 supersede하지 않습니다. Comparator를 완화하거나 stale-tok
   GoDj SQLite and digest-pinned PostgreSQL 17.10 actual
 - Related ADR/work/evidence:
   [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md),
-  [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md),
-  [EVID-138](status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion)
+  [GDJ-0047](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0047-api-authentication-profiles-and-bearer-article-api.md),
+  [EVID-138](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -726,11 +723,11 @@ challenge/detail을 무시해 복귀하지 않습니다.
   GDJ-0050 Phase-A GoDj decision oracle의 MIG-107; GoDj SQLite와 PostgreSQL 17.10 actual
 - Related ADR/work/evidence:
   [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md),
-  [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md),
-  [EVID-150](status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint),
-  [EVID-151](status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final),
-  [EVID-152](status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze),
-  [EVID-153](status/TEST_EVIDENCE.md#evid-20260830-153--gdj-0050-corrected-exact-head-hosted-completion)
+  [GDJ-0050](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0050-project-linked-deterministic-makemigrations.md),
+  [EVID-150](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint),
+  [EVID-151](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final),
+  [EVID-152](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze),
+  [EVID-153](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260830-153--gdj-0050-corrected-exact-head-hosted-completion)
 
 ### Django 또는 Phase-A decision oracle의 관찰 가능 동작
 

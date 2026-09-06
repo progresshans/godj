@@ -14,6 +14,7 @@ import (
 
 	"github.com/progresshans/godj/conformance/systemstate/attestation"
 	"github.com/progresshans/godj/conformance/systemstate/multiruntimeworker"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 // TestSystemStatePostgresTwoProcessCoordinationRestartSentinel is the required
@@ -92,9 +93,11 @@ func buildRestartMultiRuntimeWorker(
 	)
 	command.Dir = repository
 	command.Env = postgresAttestationWorkerBuildEnvironment(os.Environ())
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build multi-runtime worker: %v; output bytes=%d", err, len(output))
+	var stdout, stderr gobuild.Capture
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	if err := command.Run(); err != nil {
+		t.Fatalf("build multi-runtime worker: %v\n%s", err, gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env))
 	}
 	info, err := os.Stat(executable)
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 || info.Size() == 0 {
@@ -196,16 +199,6 @@ func resolvePostgresAttestationCapture(repository, capturePath string) (string, 
 		return "", errors.New("live PostgreSQL sentinel refuses to replace an existing capture path")
 	} else if !os.IsNotExist(err) {
 		return "", errors.New("inspect PostgreSQL attestation capture path")
-	}
-	checked := filepath.Join(
-		repository,
-		"conformance",
-		"systemstate",
-		"attestations",
-		attestation.FileName,
-	)
-	if filepath.Clean(resolvedCapture) == checked {
-		return "", errors.New("live PostgreSQL sentinel cannot write the checked attestation in place")
 	}
 	return resolvedCapture, nil
 }

@@ -1,5 +1,9 @@
 # ADR-0010: M2 migration은 state, operation, executor, recorder 경계를 먼저 검증한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0010-m2-migration-state-and-executor-boundary.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0003, GDJ-0004, MIG-001..MIG-004, Q-012
@@ -93,21 +97,3 @@ reverse, operation/recorder failure rollback, connection recovery, race와 `CGO_
 
 이 항목들은 Q-012에 남으며 public `godj makemigrations/migrate` 전에 별도 Accepted ADR이
 필요합니다.
-
-## 검증
-
-- state preflight가 실패할 때 transaction I/O가 0인지 확인
-- DDL과 recorder가 동일 transaction object만 사용하는지 확인
-- operation/recorder/reverse-recorder failure에서 schema와 record가 함께 복원되는지 확인
-- state/operation forward-backward unit/property test
-- recorder와 DDL failure fault-injection Go-native test
-- SQLite integration에서 MIG-001..MIG-004 differential comparison
-- failure 뒤 connection query/새 transaction과 relevant race test
-- migration package가 generated model package를 import하지 않는 dependency gate
-
-GDJ-0004에서 이 경계를 `migrations`, `migrations/backend`, `db/sqlite` 제품 package로
-구현했고
-[EVID-20260808-003](../status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)의
-MIG-001..004 differential, failure injection, race와 `CGO_ENABLED=0` gate로
-검증했습니다. Default backfill이나 CHECK/generated-column dependency처럼 table rebuild가
-필요한 SQLite 연산은 첫 단면에서 구조화된 capability error로 거부합니다.

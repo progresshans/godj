@@ -1,5 +1,9 @@
 # ADR-0004: 전역 `godj` CLI와 프로젝트 바이너리의 역할을 분리
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0004-cli-and-project-binary.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-07
 - 관련 질문: Q-001, Q-010
@@ -23,7 +27,3 @@ Django의 project-aware command 경험을 Go build/deployment 모델에 맞게 �
 ## 의도적으로 결정하지 않은 것
 
 project entrypoint API, `godj.toml` schema, temporary runner 구현, binary command protocol은 정하지 않았습니다.
-
-## 검증
-
-M0/M1에서 empty project discovery, version mismatch, stale generated code, failed build가 기존 정상 파일을 손상시키지 않는지 검증합니다.

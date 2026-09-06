@@ -112,14 +112,14 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceFixturesAndOrdinaryTests
 	mutations := map[string][]byte{
 		"docs/status/TEST_EVIDENCE.md": []byte("changed evidence\n"),
 		"work/0055.md":                 []byte("changed work\n"),
-		"conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json": []byte("checked evidence\n"),
-		"conformance/projectoperatorproduct/attestation/checked_size_test.go":                               []byte("package attestation\n"),
-		"conformance/oracles/profile/system-state.json":                                                     []byte("oracle\n"),
-		"conformance/fixtures/godj-system-state-not-implemented.json":                                       []byte("fixture\n"),
-		"systemstate/runtime_test.go":                                                                       []byte("package systemstate\n"),
-		"cmd/godj/main_test.go":                                                                             []byte("package main\n"),
-		"examples/article/http_e2e_test.go":                                                                 []byte("package article_test\n"),
-		"conformance/runners/godj/unrelated_test.go":                                                        []byte("package godj\n"),
+		"conformance/projectoperatorproduct/attestation/testdata/postgresql-17.10-sqlite-external-operator-v1.json": []byte("capture codec fixture\n"),
+		"conformance/projectoperatorproduct/attestation/checked_size_test.go":                                       []byte("package attestation\n"),
+		"conformance/oracles/profile/system-state.json":                                                             []byte("oracle\n"),
+		"conformance/fixtures/godj-system-state-not-implemented.json":                                               []byte("fixture\n"),
+		"systemstate/runtime_test.go":                                                                               []byte("package systemstate\n"),
+		"cmd/godj/main_test.go":                                                                                     []byte("package main\n"),
+		"examples/article/http_e2e_test.go":                                                                         []byte("package article_test\n"),
+		"conformance/runners/godj/unrelated_test.go":                                                                []byte("package godj\n"),
 	}
 	for relative, contents := range mutations {
 		writeTestFile(t, filepath.Join(repository, filepath.FromSlash(relative)), contents, 0o644)
@@ -156,7 +156,7 @@ func TestSourceScopeOwnsSYS029ProducerConsumerAndPolicyPaths(t *testing.T) {
 		"conformance/projectoperatorproduct/schema_snapshot_unix_test.go":          true,
 		"conformance/projectoperatorproduct/secret_scan_unix_test.go":              true,
 		"conformance/projectoperatorproduct/attestation/source_test.go":            false,
-		"conformance/projectoperatorproduct/attestations/evidence.go":              false,
+		"conformance/projectoperatorproduct/attestation/testdata/evidence.go":      false,
 		"conformance/runners/godj/gdj0055_operator_scenarios.go":                   true,
 		"conformance/runners/godj/gdj0055_operator_scenarios_test.go":              true,
 		"conformance/runners/godj/gdj0045_system_state_scenarios.go":               true,

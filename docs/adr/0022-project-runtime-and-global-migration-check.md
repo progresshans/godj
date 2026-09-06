@@ -1,11 +1,15 @@
 # ADR-0022: Public Project Runtime and Global Migration Check
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0022-project-runtime-and-global-migration-check.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-10
-- 관련 work/contract: [GDJ-0022](../../work/0022-migration-project-check-product-slice.md),
+- 관련 work/contract: [GDJ-0022](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0022-migration-project-check-product-slice.md),
   MIG-065..MIG-074, Q-010, Q-012
 - 선행 결정: [ADR-0004](0004-cli-and-project-binary.md),
-  [ADR-0020](0020-migration-definition-loader-product-shape.md),
+  [ADR-0020](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0020-migration-definition-loader-product-shape.md),
   [ADR-0021](0021-project-linked-migration-check.md)
 - 대체하는 ADR: 없음
 
@@ -191,22 +195,6 @@ driver/locale, expected==executed, skipped=0을 먼저 요구합니다.
 - Same-user hostile TMPDIR/temp-base rebind, explicit NETRC/Git/SSH/GOAUTH/compiler/PATH/network helper
   isolation과 arbitrary blocking caller Reader/Writer의 강제 cancellation
 - DB-aware migration check, PostgreSQL/MySQL와 multi-DB
-
-## 검증
-
-- External consumer compile/export allowlist and input-mutation ownership tests
-- Public facade와 actual adapter의 same linked entrypoint exactly-once, public/internal response/error
-  equivalence와 roots/argv snapshot mutation tests
-- Strict descriptor/protocol/discovery/taxonomy/cap precedence product tests independent from test-only proof
-- Actual linked `definition.Load` once/report and direct Planner/DB/lifecycle 0 AST+runtime gates
-- External public project process의 success/malformed request/MIG-073 failure/cancel/stdout-error와 actual
-  `cmd/godj`의 success/descriptor/build/definition/SIGINT public output/tree no-rewrite/private cleanup E2E
-- Nil dependencies, arbitrary bytes panic-free, short-write/error and owned cancellation tests; caller-controlled
-  permanently blocking Reader/Writer and explicit external tool/credential environment remain documented limits
-- MIG-065..074 actual adapter 0-diff and expected-constant/oracle-read mutation gates
-- Normal/race/CGO-disabled/vet/count-20, Linux/386 compile, full/exact/no-rewrite gates
-- Four Linux/macOS x64/arm64 product jobs plus preserved proof/SQLite/full/exact jobs
-- Independent contract and filesystem/process security audit before Accepted
 
 ## 채택 근거와 남은 검증
 

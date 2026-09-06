@@ -21,6 +21,10 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"scripts/ci/capture_artifact.py":                            {},
+	"scripts/ci/go_test_events.py":                              {},
+	"scripts/ci/packages.py":                                    {},
+	"scripts/ci/scopes.py":                                      {},
 	".github/workflows/ci.yml":                                  {},
 	"Makefile":                                                  {},
 	"admin/site_templates/delete.html":                          {},
@@ -39,6 +43,7 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"internal/gobuild/",
 	"admin/",
 	"api/",
 	"apps/",
@@ -73,7 +78,7 @@ var conformanceSourcePrefixes = []string{
 
 // ComputeSourceBinding hashes a fixed repository-relative behavioral source
 // inventory. The inventory excludes documentation, reference oracles, fixtures,
-// and checked attestations, so those files cannot create a self-reference.
+// and capture codec fixtures, so those files cannot create a self-reference.
 func ComputeSourceBinding(repositoryRoot string) (SourceBinding, error) {
 	root, err := filepath.Abs(repositoryRoot)
 	if err != nil {
@@ -251,14 +256,14 @@ func sourceDirectoryExcluded(path string) bool {
 	}
 	return path == "conformance/oracles" ||
 		path == "conformance/fixtures" ||
-		path == "conformance/systemstate/attestations"
+		path == "conformance/systemstate/attestation/testdata"
 }
 
 func pathComponentExcluded(path string) bool {
 	return strings.Contains(path, "/testdata/") ||
 		strings.HasPrefix(path, "conformance/oracles/") ||
 		strings.HasPrefix(path, "conformance/fixtures/") ||
-		strings.HasPrefix(path, "conformance/systemstate/attestations/")
+		strings.HasPrefix(path, "conformance/systemstate/attestation/testdata/")
 }
 
 func normalizedGitMode(mode fs.FileMode) string {

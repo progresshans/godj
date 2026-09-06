@@ -824,9 +824,9 @@ func migrationSQLRenderingProductState(t *testing.T) *migrationSQLRenderingProdu
 			state.err = fmt.Errorf("load migration SQL rendering oracle: %w", state.err)
 			return
 		}
-		// One complete observation performs three intentionally cold external
-		// builds. The process-level bounds remain authoritative; this outer
-		// budget only prevents their sequential composition from expiring first.
+		// One complete observation performs three external builds. The outer
+		// budget also permits an explicitly requested cold-build run; individual
+		// process bounds remain authoritative.
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		state.first, state.err = Generate(ctx, state.profile, state.manifest)

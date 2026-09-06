@@ -369,7 +369,7 @@ func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *test
 	}
 }
 
-func TestRegisteredSnapshotMustMatchCompleteIRShape(t *testing.T) {
+func TestRegisteredSnapshotMustMatchIRValueConstraints(t *testing.T) {
 	config := validRegistryConfig(t)
 	config.Snapshot = func(article registryArticle) (Object, error) {
 		return NewObject(article.id, article.title, map[string]templates.Value{

@@ -1,14 +1,18 @@
 # ADR-0033: Forward ForeignKey Assignment, Save, and Cache Ownership
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-12
 - 관련 work/contract:
-  [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md), REL-002, Q-013, Q-017
+  [GDJ-0033](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md), REL-002, Q-013, Q-017
 - 선행 결정: [ADR-0011](0011-m2-save-lifecycle-orchestration.md),
   [ADR-0012](0012-queryset-evaluation-cache-ownership.md),
-  [ADR-0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
+  [ADR-0024](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
   [ADR-0026](0026-forward-foreign-key-object-cache-and-nullability.md),
-  [ADR-0032](0032-production-forward-project-facade-and-additive-first-publication.md)
+  [ADR-0032](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0032-production-forward-project-facade-and-additive-first-publication.md)
 - 후속 재기준화: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 대체하는 ADR: 없음
 

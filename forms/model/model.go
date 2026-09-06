@@ -84,6 +84,45 @@ func OverrideField(name string, options ...OverrideOption) Override {
 // order. An Auto primary key is non-editable; every other unsupported kind is
 // rejected rather than silently omitted.
 func NewSpec(model ir.Model, overrides ...Override) (forms.Spec, error) {
+	return NewSpecForFields(model, nil, overrides...)
+}
+
+// NewSpecForFields projects only the explicitly selected editable fields.
+// nil preserves all editable fields; an empty selection is rejected. Selection
+// never grants permission to assign an omitted field, including a relation.
+// Declaration order remains authoritative regardless of selection order.
+func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (forms.Spec, error) {
+	if names != nil {
+		known := make(map[string]struct{}, len(model.Fields))
+		for _, field := range model.Fields {
+			if _, duplicate := known[field.Name]; duplicate {
+				return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "duplicate"}
+			}
+			known[field.Name] = struct{}{}
+		}
+		selected := make(map[string]bool, len(names))
+		for _, name := range names {
+			if name == "" || selected[name] {
+				return forms.Spec{}, &Error{Path: "fields." + name, Code: "invalid_selection"}
+			}
+			if _, exists := known[name]; !exists {
+				return forms.Spec{}, &Error{Path: "fields." + name, Code: "unknown_field"}
+			}
+			selected[name] = true
+		}
+		projection := model.Clone()
+		projection.Fields = nil
+		for _, field := range model.Fields {
+			if selected[field.Name] {
+				if field.PrimaryKey {
+					return forms.Spec{}, &Error{Path: "fields." + field.Name, Code: "non_editable"}
+				}
+				projection.Fields = append(projection.Fields, field.Clone())
+				delete(selected, field.Name)
+			}
+		}
+		model = projection
+	}
 	overrideByName := make(map[string]overrideConfig, len(overrides))
 	for index, override := range overrides {
 		if override.err != nil {

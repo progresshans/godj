@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 )
 
@@ -20,6 +21,60 @@ type scriptedBackend struct {
 	commands []Command
 	build    ProcessResult
 	runner   ProcessResult
+}
+
+func TestRunBuildCacheControlNeverLeaksToRuntime(t *testing.T) {
+	for _, cold := range []bool{false, true} {
+		t.Run(map[bool]string{false: "shared", true: "cold"}[cold], func(t *testing.T) {
+			fixture := newGlobalFixture(t, 0)
+			cache, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			environment := append(append([]string(nil), fixture.environment...), "GOCACHE="+cache)
+			if cold {
+				environment = append(environment, gobuild.ColdBuildEnvironment+"=1")
+			}
+			wire, _ := protocol.EncodeResponse(protocol.Response{OK: true, Result: protocol.Result{DefinitionSetDigest: protocol.EmptySetDigest}})
+			backend := &scriptedBackend{
+				build:  ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1},
+				runner: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: wire},
+			}
+			report := Run(Invocation{CWD: fixture.project, Args: []string{"migrations", "check"}, Environment: environment, Backend: backend, Stdout: io.Discard, Stderr: io.Discard})
+			if report.ExitCode != 0 || len(backend.commands) != 2 {
+				t.Fatalf("run = %+v", report)
+			}
+			build := environmentValues(backend.commands[0].Env)
+			runner := environmentValues(backend.commands[1].Env)
+			if (build["GOCACHE"] == cache) == cold || runner["GOCACHE"] == cache || !sameOrDescendant(runner["GOCACHE"], filepath.Dir(backend.commands[1].Argv[0])) {
+				t.Fatalf("cache ownership cold=%v build=%v runner=%v", cold, build, runner)
+			}
+			if _, present := build[gobuild.ColdBuildEnvironment]; present {
+				t.Fatal("cold host control reached compiler")
+			}
+			if _, present := runner[gobuild.ColdBuildEnvironment]; present {
+				t.Fatal("cold host control reached runtime")
+			}
+			if _, err := os.Stat(cache); err != nil {
+				t.Fatalf("workspace cleanup removed shared cache: %v", err)
+			}
+		})
+	}
+}
+
+func TestRunPublishesSanitizedBuildCauseInOneWrite(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	backend := &scriptedBackend{build: ProcessResult{
+		Started: true, ExitCode: 1, DirectReaps: 1,
+		BuildDiagnostic: "main.go:1:1: undefined: MissingSymbol",
+	}}
+	var stdout, stderr bytes.Buffer
+	report := Run(Invocation{CWD: fixture.project, Args: []string{"migrations", "check"}, Environment: fixture.environment, Backend: backend, Stdout: &stdout, Stderr: &stderr})
+	want := protocol.CategoryBuild + "/" + protocol.CodeProjectBuildFailed + "\nmain.go:1:1: undefined: MissingSymbol\n"
+	if report.ExitCode != 3 || report.UserStderrWrites != 1 || report.RunnerCalls != 0 || stdout.Len() != 0 || stderr.String() != want {
+		t.Fatalf("build failure publication = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
+	}
 }
 
 func (backend *scriptedBackend) Execute(_ context.Context, _ <-chan struct{}, stage ProcessStage, command Command) ProcessResult {

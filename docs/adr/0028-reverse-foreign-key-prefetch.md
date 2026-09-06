@@ -1,15 +1,19 @@
 # ADR-0028: Reverse ForeignKey Prefetch
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0028-reverse-foreign-key-prefetch.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-11
 - 관련 work/contract:
-  [GDJ-0028](../../work/0028-reverse-foreign-key-prefetch-product-slice.md), REL-012, Q-013
+  [GDJ-0028](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0028-reverse-foreign-key-prefetch-product-slice.md), REL-012, Q-013
 - 선행 결정: [ADR-0002](0002-codegen-generics-runtime-metadata.md),
   [ADR-0003](0003-typed-and-dynamic-query-apis.md),
   [ADR-0008](0008-m1-sqlite-driver-and-execution-boundary.md),
   [ADR-0012](0012-queryset-evaluation-cache-ownership.md),
   [ADR-0023](0023-symbolic-relation-binding-and-shared-relation-ast.md),
-  [ADR-0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
+  [ADR-0024](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
   [ADR-0026](0026-forward-foreign-key-object-cache-and-nullability.md),
   [ADR-0027](0027-reverse-foreign-key-accessor-and-lookup.md)
 - 후속 재기준화: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
@@ -21,14 +25,14 @@
 `e9dc361f983f1c02af1f63737a1f282998d5a533`의 run `31424055711`과 activation
 `3ae4a2cecacd31a8cc72fd46ea288568e0071421`의 run `31429245980`은 각각 baseline/activation만 증명하며
 implementation evidence로 재사용하지 않았습니다. Local implementation과 independent audits는
-[EVID-20260811-051](../status/TEST_EVIDENCE.md#evid-20260811-051--gdj-0028-activation-hosted-ci-and-rel-012-pre-hosted-local-validation)에,
+[EVID-20260811-051](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-051--gdj-0028-activation-hosted-ci-and-rel-012-pre-hosted-local-validation)에,
 exact implementation-head hosted acceptance는
-[EVID-20260811-052](../status/TEST_EVIDENCE.md#evid-20260811-052--gdj-0028-github-hosted-exact-26-job-implementation-head-ci)에
+[EVID-20260811-052](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-052--gdj-0028-github-hosted-exact-26-job-implementation-head-ci)에
 기록합니다. Commit `4858ab88b82647793cd463e9f348e43d3f5e4bb7`의 run `31432551159`는 exact
 26/26 jobs·326/326 recorded steps, four-coordinate 594/594/0 inventory와 independent hosted audit
 P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Exact 15-file completion-documentation head
 `9dc4eb1312791ae74b384afbbfdbfef89aaf55bb`도
-[EVID-20260811-053](../status/TEST_EVIDENCE.md#evid-20260811-053--gdj-0028-github-hosted-completion-documentation-head-exact-26-job-ci)의
+[EVID-20260811-053](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-053--gdj-0028-github-hosted-completion-documentation-head-exact-26-job-ci)의
 run `31435136950`에서 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-053을
 포함한 terminal evidence/status 기록은 documentation-only이며 implementation/completion run을 그 later
 patch의 recursive proof로 재사용하지 않습니다.

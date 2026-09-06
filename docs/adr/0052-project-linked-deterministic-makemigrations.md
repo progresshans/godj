@@ -1,9 +1,13 @@
 # ADR-0052: Project-linked Deterministic Makemigrations
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0052-project-linked-deterministic-makemigrations.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-30
-- 관련 work/contract: [GDJ-0050](../../work/0050-project-linked-deterministic-makemigrations.md), MIG-099..110, Q-010, Q-012
-- 선행 결정: [ADR-0016](0016-historical-project-state-reconstruction.md), [ADR-0019](0019-versioned-migration-definition-source.md), [ADR-0021](0021-project-linked-migration-check.md), [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md), [ADR-0036](0036-project-schema-generated-bundle-and-recoverable-publication.md), [ADR-0051](0051-project-linked-explicit-migrate.md)
+- 관련 work/contract: [GDJ-0050](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0050-project-linked-deterministic-makemigrations.md), MIG-099..110, Q-010, Q-012
+- 선행 결정: [ADR-0016](0016-historical-project-state-reconstruction.md), [ADR-0019](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0019-versioned-migration-definition-source.md), [ADR-0021](0021-project-linked-migration-check.md), [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md), [ADR-0036](0036-project-schema-generated-bundle-and-recoverable-publication.md), [ADR-0051](0051-project-linked-explicit-migrate.md)
 - 대체하는 ADR: 없음
 
 ## 맥락
@@ -219,39 +223,3 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 - multiple writable roots 또는 app-to-root mapping
 - distributed filesystem/non-cooperative writer 일반 지원
 - installed CLI/project library/generator semver와 general definition upgrader
-
-## 검증
-
-- Django 6.1 exact tag `fe0a859...`: no-change, initial, next leaf, CreateModel/AddField, same/cross-app dependency,
-  dry-run/check observable contract
-- Pure normal/race/property tests: managed-app/dependency input permutation, repeat detection, deep-copy, prefix rejection,
-  nullable/no-default AddField, topology/cycle, versioned name digest와 limit boundary. Model/field declaration order는 semantic order이므로
-  permutation 대상이 아닙니다.
-- Encoder golden + strict `definition.Load` round-trip + latest reconstructed managed state exact equality
-- Private protocol duplicate/unknown/trailing/non-UTF8/oversize/short-write와 existing protocol byte no-diff
-- Publication fault injection, concurrent writer serialized replan, source CAS mutation, cancellation/crash와 valid-prefix/residue scan
-- External project: generated definitions -> SQLite/PostgreSQL `godj migrate` -> second no-op -> restart read
-- Affected normal/race/CGO-disabled/vet/generated drift와 final frozen milestone의 hosted matrix 한 번
-
-Phase D implementation `21d88c99b2d9733736fa68b34a7c0827a781ee70`, tree
-`976671ce53d9a5f6ae39d3fa2aea3546db5e4bc9`은 PostgreSQL 17.10 normal/race/CGO-disabled actual, external module
-normal/race/CGO-disabled, MIG-099..110 strict product comparison과 affected normal/vet/generated drift를 통과했습니다. Current manifest는
-9,227 bytes/SHA-256 `90bce609ffb4f771007379495629a31efbf00594dca16f9efe875005e97f1c72`, DEV-0010 fixture는
-7,242 bytes/SHA-256 `74617f20f72ecd5b26284ae8cffb7a1c408cdef03e0933d457beeb82f9f4718e`입니다. 여러 독립 감사에서
-P0/P1은 없었습니다. Bounded process-group reap, PostgreSQL second-noop revision/schema fingerprint, oracle-blind forbidden fixture,
-failure output redaction과 MIG-110 durable-prefix seal을 보강하고 재검증했습니다.
-
-Phase E behavioral source `ed2e049e2a53eadd6f2e77ffcec002c5da2d21eb`와 attestation publication
-`af3aad4f133d13bdf65ba8afa43e518d17bf34cc`는 당시 source-bound PostgreSQL attestation, full `make ci`,
-Linux/386 compile-only, relation inventory와 repository-external archive를
-[EVID-151](../status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final)에서
-통과했습니다. 이후 workflow test-harness correction은 source binding을 바꿨으므로 current attestation을 다시 캡처했고,
-correction/current-attestation focused refreeze는
-[EVID-152](../status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)에
-기록합니다. EVID-151의 heavyweight gates는 predecessor proof이며 current descendant에서 재실행했다고 주장하지 않습니다.
-[EVID-153](../status/TEST_EVIDENCE.md#evid-20260830-153--gdj-0050-corrected-exact-head-hosted-completion)의 exact submitted
-head `a6a79c0...`, tree `48994a0...`는 CI #171/run `33280434425` attempt 2의 effective aggregate에서 41/41 jobs와
-464/464 steps를 failure/cancellation/skip/annotation 0으로 통과했습니다. Attempt 1의 macOS Intel normal relation
-dependency-setup 실패와 required-CI 파생 실패는 별도로 보존하며, source 변경 없는 two-job failed-job rerun에서 같은 tree가
-통과했습니다. 따라서 이 bounded
-additive writer/publication 결정을 `Accepted`로 전환하고 GDJ-0050 completion을 허용합니다.

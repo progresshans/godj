@@ -1,8 +1,12 @@
 # ADR-0050: Canonical Embedded Application Model Facade
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0050-canonical-embedded-application-model-facade.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-27
-- 관련 work/contract: [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md), GEN-M1-001, REL-002, Q-013, Q-017
+- 관련 work/contract: [GDJ-0048](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0048-canonical-application-model-facade-and-current-generated-abi.md), GEN-M1-001, REL-002, Q-013, Q-017
 - 선행 결정: [ADR-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md), [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md), [ADR-0036](0036-project-schema-generated-bundle-and-recoverable-publication.md), [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md)
 - 대체하는 ADR: 없음
 
@@ -113,16 +117,3 @@ API를 새로 만들며 state lifetime을 GC와 분리합니다. 채택하지 �
 - New Field/Relation/Schema IR, migrations, backend capability와 database router
 - Renderer rename/deprecation, installed generator negotiation와 first-alpha 이후 upgrader/semver policy
 - Final source-fingerprint 확인 뒤 non-generated app source를 동시에 바꾸는 비협조적 editor/writer; caller가 serialize해야 함
-
-## 검증
-
-- External compile: direct scalar read/write, value/pointer app method, existing Save/With*/Author/Unwrap 조합
-- Namespace negative: field/relation/handwritten Save/Unwrap/Author/With* 충돌, build-tag source와 resource/symlink/source-change
-  failure의 pre-publication target write 0
-- Runtime: direct scalar Save와 reload, warm required/nullable cache 뒤 direct FK change, pending-target override, explicit zero,
-  promoted PK mutation rejection과 manual-PK-before-New
-- Copy/JSON: nil/zero/shallow-copy stateful failure, non-nil value/pointer marshal 및 pointer unmarshal rejection, failed unmarshal
-  no-mutation, nil-pointer `null` special case, Unwrap raw/DTO no-I/O representation
-- Bundle: facade v3 deterministic exact 12/16 fixtures, current manifest, mixed generation compile-success 0, failure/recovery old-or-new exact
-- SQLite/PostgreSQL Article/strong-relation vertical flow와 affected normal/race/CGO0/vet
-- Frozen milestone에서 full local/386/repository-external and exact-head hosted matrix 한 번

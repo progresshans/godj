@@ -23,6 +23,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 const (
@@ -428,6 +430,13 @@ func operatorRunSetup(t *testing.T, directory string, environment []string, bina
 	command.Stdout = output
 	command.Stderr = output
 	if err := command.Run(); err != nil {
+		document := output.String()
+		buildFailure := filepath.Base(binary) == "go" ||
+			strings.HasPrefix(document, "project_generation_build_error/project_build_failed\n") ||
+			strings.HasPrefix(document, "project_generation_error/project_generate_candidate_verification_failed\n")
+		if buildFailure {
+			t.Fatalf("fixture setup %s failed: %v; output-bytes=%d truncated=%t\n%s", filepath.Base(binary), err, len(document), output.Truncated(), gobuild.Summary(nil, []byte(document), command.Env))
+		}
 		t.Fatalf("fixture setup %s failed: %v; output-bytes=%d truncated=%t", filepath.Base(binary), err, len(output.String()), output.Truncated())
 	}
 	if ctx.Err() != nil || output.Truncated() {

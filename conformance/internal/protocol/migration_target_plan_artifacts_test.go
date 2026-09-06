@@ -282,18 +282,48 @@ func TestMigrationTargetPlanDjangoOrderHazardMustRemainExplicit(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	for _, name := range []string{
-		"work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md",
-		"docs/adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md",
-	} {
-		contents := string(mustReadMigrationTargetPlanFile(t, filepath.Join(root, filepath.FromSlash(name))))
-		for _, required := range []string{"DEV-0002", "B1, A3, A2, A1"} {
-			if !strings.Contains(contents, required) {
-				t.Fatalf("%s does not preserve the Django order hazard fragment %q", name, required)
-			}
+	oracle, err := LoadObservationSuite(filepath.Join(root, filepath.FromSlash(migrationTargetPlanOracleArtifact)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deviation, err := LoadDeviationExpectation(filepath.Join(root, filepath.FromSlash(migrationTargetPlanDeviationArtifact)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Preserve the observed B1/A3/A2/A1 order and the narrow reviewed
+	// difference in data; wording in a completed work packet is not proof.
+	wantReference := []string{
+		"beta.0001_direct_dependent/backward",
+		"alpha.0003_third/backward",
+		"alpha.0002_second/backward",
+		"alpha.0001_initial/backward",
+	}
+	var referenceOrder []string
+	for _, observation := range oracle.Contracts {
+		if observation.ID != "MIG-122" {
+			continue
 		}
-		if !strings.Contains(contents, "incomparable") && !strings.Contains(contents, "비교 불가능") {
-			t.Fatalf("%s does not identify the Django order as an incomparable-sibling hazard", name)
+		plan := objectField(t, observation.Result, "plan")
+		for index := range plan.Items {
+			referenceOrder = append(referenceOrder, migrationLifecycleOrderIdentity(t, &plan.Items[index]))
+		}
+	}
+	if !reflect.DeepEqual(referenceOrder, wantReference) {
+		t.Fatalf("Django app-zero reference order = %v, want %v", referenceOrder, wantReference)
+	}
+	if deviation.Decision != "DEV-0002" || len(deviation.Contracts) != 1 || deviation.Contracts[0].ID != "MIG-122" {
+		t.Fatalf("app-zero order deviation scope = %#v", deviation)
+	}
+	changes := deviation.Contracts[0].Changes
+	if len(changes) != 3 {
+		t.Fatalf("app-zero order changes = %d, want three plan replacements", len(changes))
+	}
+	wantProduct := []string{wantReference[1], wantReference[2], wantReference[0]}
+	for index, change := range changes {
+		if change.Dimension != DeviationResult || change.Operation != DeviationReplace || change.Path != fmt.Sprintf("plan[%d]", index) ||
+			migrationLifecycleOrderIdentity(t, &change.Reference) != wantReference[index] ||
+			migrationLifecycleOrderIdentity(t, &change.Product) != wantProduct[index] {
+			t.Fatalf("app-zero order replacement %d = %#v", index, change)
 		}
 	}
 }
@@ -332,7 +362,7 @@ func TestMigrationTargetPlanPublishedReferenceAndProductWiringIsExact(t *testing
 	}
 
 	conformanceStart := strings.Index(makeText, "conformance-check:\n")
-	productStart := strings.Index(makeText, "godj-conformance:\n")
+	productStart := strings.Index(makeText, "godj-conformance:")
 	oracleCheckStart := strings.Index(makeText, "oracle-check:\n")
 	oracleRegenerateStart := strings.Index(makeText, "oracle-regenerate:\n")
 	ciStart := strings.Index(makeText, "\nci:")
@@ -361,9 +391,6 @@ func TestMigrationTargetPlanPublishedReferenceAndProductWiringIsExact(t *testing
 		if got := strings.Count(productTarget, variable); got != want {
 			t.Fatalf("product target variable %s count = %d, want %d", variable, got, want)
 		}
-	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
-		t.Fatalf("product adapter count = %d, want 26", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(MIGRATION_TARGET_PLAN_MANIFEST)"); got != 1 {

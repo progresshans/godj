@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/progresshans/godj/internal/gobuild"
 	"golang.org/x/sys/unix"
 )
 
@@ -19,14 +20,16 @@ var privateEnvironmentKeys = map[string]struct{}{
 	"TMPDIR": {}, "GOWORK": {}, "GOTOOLCHAIN": {}, "GOFLAGS": {}, "GOENV": {},
 	"GOCACHE": {}, "GOCACHEPROG": {}, "GOMODCACHE": {}, "GOTMPDIR": {}, "HOME": {},
 	"XDG_CONFIG_HOME": {}, "XDG_CACHE_HOME": {}, "TEST_TELEMETRY_DIR": {},
+	gobuild.ColdBuildEnvironment: {},
 }
 
 type privateWorkspace struct {
-	root        string
-	environment []string
-	base        *os.File
-	name        string
-	cleaned     bool
+	root             string
+	environment      []string
+	buildEnvironment []string
+	base             *os.File
+	name             string
+	cleaned          bool
 }
 
 type workspaceHooks struct {
@@ -163,11 +166,13 @@ func createPrivateWorkspaceWithHooks(project retainedProject, ambient []string, 
 	for key, relative := range privatePaths {
 		child[key] = filepath.Join(physicalRoot, relative)
 	}
+	runtimeEnvironment := sortedEnvironment(child)
 	return privateWorkspace{
-		root:        physicalRoot,
-		environment: sortedEnvironment(child),
-		base:        base,
-		name:        filepath.Base(physicalRoot),
+		root:             physicalRoot,
+		environment:      runtimeEnvironment,
+		buildEnvironment: gobuild.Environment(runtimeEnvironment, ambient, project.rootPath),
+		base:             base,
+		name:             filepath.Base(physicalRoot),
 	}, nil
 }
 

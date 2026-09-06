@@ -1,16 +1,20 @@
 # ADR-0025: Forward ForeignKey Predicate and SQLite INNER JOIN
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-10
 - 관련 work/contract:
-  [GDJ-0025](../../work/0025-forward-foreign-key-predicate-product-slice.md), REL-004, Q-013
+  [GDJ-0025](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0025-forward-foreign-key-predicate-product-slice.md), REL-004, Q-013
 - 선행 결정: [ADR-0001](0001-schema-ir-as-canonical-source.md),
   [ADR-0002](0002-codegen-generics-runtime-metadata.md),
   [ADR-0003](0003-typed-and-dynamic-query-apis.md),
   [ADR-0006](0006-codegen-input-package-boundary.md),
   [ADR-0008](0008-m1-sqlite-driver-and-execution-boundary.md),
   [ADR-0023](0023-symbolic-relation-binding-and-shared-relation-ast.md),
-  [ADR-0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)
+  [ADR-0024](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)
 - 후속 재기준화: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 대체하는 ADR: 없음
 
@@ -380,7 +384,7 @@ repetition, generated-byte/no-rewrite, Linux/386 compile과 four independent aud
 [run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)은 exact 26/26 jobs,
 326/326 recorded steps, four exact Python legs와 actual Ubuntu Linux/386을 성공했고 independent hosted audit도
 P0/P1/P2/P3=0이었습니다. 상세는
-[EVID-20260810-040](../status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
+[EVID-20260810-040](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
 기록합니다.
 
 ## Consequences
