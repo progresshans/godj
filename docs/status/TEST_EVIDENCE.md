@@ -23,7 +23,7 @@ git show da1bfc524c4f205075fc7fac7f00b437473a5e1f:docs/status/TEST_EVIDENCE.md
 
 - 시작 기준: `da1bfc524c4f205075fc7fac7f00b437473a5e1f`
 - 작업: [GDJ-0057](../../work/0057-development-simplification.md)
-- 상태: 구현 완료 후 통합 검증 중. 아래에 실제 실행한 명령과 결과만 추가한다.
+- 상태: 구현·통합 검증 완료. 아래에 실제 실행한 명령과 결과만 기록한다.
 
 ### 실행 기록
 
@@ -80,4 +80,27 @@ git show da1bfc524c4f205075fc7fac7f00b437473a5e1f:docs/status/TEST_EVIDENCE.md
 - 후속 변경을 동결한 작업 사본: `go test ./internal/compiletest -count=1 -timeout=5m` normal/race/CGO-disabled 모두 PASS
   (각 10.916/11.709/10.629초), `make go-test-integration` PASS (52.64초), `make format-check docs-check`와 `git diff --check` PASS.
 
-이 수정의 새 commit에서 전체 CI를 다시 실행하며, 첫 실행의 부분 성공을 새 source의 전체 증거로 재사용하지 않는다.
+첫 실행은 수정 소스의 전체 CI가 시작된 뒤 남은 작업을 취소했다. 실패를 해결한 이전 실행의 부분 성공을 새 source의 전체 증거로 재사용하지 않는다.
+
+### 최종 통합 소스
+
+- 제품·검증 도구 source: `0b8235ce010f971470d344281bc51fee84fb73fa`.
+- [전체 CI](https://github.com/progresshans/godj/actions/runs/34028776113), attempt 1: PASS, 78개 작업 모두 success.
+  PR checkout `42dc5ea032fc687bbd6ad4ec5488f4088a5efe30`의 tree가 제출 source와 같음을 Git 객체로 확인했다.
+- 최종 `CI result (ci:full)`은 `scope: full`, `full_platform_verified: true`로 10개 실행 그룹 모두의 성공을 확인했다.
+  4 OS/arch × normal/race/CGO-disabled, cold CLI 경로, 고정 darwin/arm64 기준 비교와 Python 4개 버전 검증을 포함한다.
+- [PR feedback](https://github.com/progresshans/godj/actions/runs/34028766526) PASS.
+- 실제 PostgreSQL producer 6개(normal/race/CGO-disabled × 두 shard), 같은 attempt의 capture 소비·conformance·32비트 후속 검사 PASS.
+  두 archive를 별도로 읽어 GitHub archive digest, repository/run/attempt/checkout, payload SHA256과 `SHA256SUMS` 일치를 확인했다.
+
+| 같은 실행에서 생성·소비한 artifact | 불변 artifact ID |
+|---|---|
+| `systemstate-postgres-1` | `9987975595` |
+| `operator-postgres-1` | `9987957182` |
+
+위 artifact의 실제 사용법과 보관 기한은 [TESTING](../TESTING.md#실제-source의-증거)에 있다.
+로컬 전체 `make ci`는 Hosted 전체와 중복 실행하지 않았다. 새로운 Helpdesk의 외부 test package 검증은 별도 Go module 설치 증거가 아니며,
+Hosted의 기존 외부 archive·생성물 consumer 검증과 구분한다.
+
+완료 상태를 기록한 후속 변경은 Markdown만 포함한다. 제품·workflow·lock을 바꾸지 않는 이 기록 때문에 전체 matrix를 반복하지 않는다.
+2026-09-06 완료 문서 6개에 `make docs-check`, `git diff --check`와 검증 source 이후 Markdown-only diff 검사를 실행해 PASS를 확인했다.

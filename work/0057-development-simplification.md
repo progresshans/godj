@@ -1,6 +1,6 @@
 ---
 id: GDJ-0057
-status: active
+status: complete
 updated: 2026-09-06
 baseline_commit: "da1bfc524c4f205075fc7fac7f00b437473a5e1f"
 integration_owner: "primary agent"
@@ -26,8 +26,8 @@ integration_owner: "primary agent"
 - [x] 앱 성장: operator 권한 변경의 명시적 경로와 audit 조합 폭증 제거
 - [x] 소비자: 구조가 다른 모델과 공개 API의 실제 조합으로 추가 수정 필요 여부 확인
 - [x] 전체 감사: 나머지 package 경계·오류·지원 제한·옛 구현 잔재 확인, 필요 수정 또는 구체적 비대상 근거 기록
-- [ ] 통합 검증: 관련 회귀, generated drift, 전체 compile/vet, 필요한 race/CGO0/backend/platform 실행
-- [ ] 최종 정리: 기존 Draft PR 사용, 성공/실패/미실행 범위 명시, 작업 브랜치와 임시 산출물 정리
+- [x] 통합 검증: 관련 회귀, generated drift, 전체 compile/vet, 필요한 race/CGO0/backend/platform 실행
+- [x] 최종 정리: 기존 Draft PR 사용, 성공/실패/미실행 범위 명시, 작업 브랜치와 임시 산출물 정리
 
 ## 작업 소유권
 
@@ -40,11 +40,19 @@ integration_owner: "primary agent"
 각 변경은 affected 검증부터 실행한다. 무거운 외부 build/DB suite는 통합 담당이 조정한다.
 전체 검증은 통합 소스에서 수행하며 문서 정리 때문에 제품 전체 검증을 반복하지 않는다.
 
+주요 변경 경로:
+
+- 문서: `AGENTS.md`, `docs/`, `work/`; 폐기한 prompt/work/ADR은 기준 Git 이력으로 연결했다.
+- 검증 실행: `Makefile`, `.github/workflows/`, `scripts/ci/`, `scripts/check_docs.py`, conformance의 protocol·attestation·실제 제품 회귀.
+- 생성·조회: `codegen/`, `orm/`, `query/`, Article/relationdeleteproduct/Helpdesk 생성물과 `internal/compiletest/`.
+- CLI: `internal/gobuild/`, `internal/projectcheck/`, `internal/projectgenerate/`, `cmd/godj/`와 실제 command/process harness.
+- 제품 연결: `forms/model/`, `admin/`, `serializers/`, `systemstate/`, `examples/article/`, `examples/helpdesk/`.
+
 ## 기준 상태와 증거
 
 - Baseline은 clean da1bfc5이다. Q-019 quarantine 구현은 포함하지만 기존 GDJ-0056의 최종 Hosted 완료는 주장하지 않는다.
 - 이전 작업의 상세 증거는 baseline Git 이력에 보존한다. 이번 작업의 명령·결과는 TEST_EVIDENCE의 새 단일 기록에 모은다.
-- 구현 checkpoint와 실제 명령은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다. 최종 통합/Hosted 검증을 진행 중이다.
+- 구현 checkpoint와 최종 통합/Hosted 명령·결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다.
 
 ## 현재 결정과 검증 소유권
 
@@ -89,9 +97,10 @@ Projectcheck의 별도 CLI 모형도 제거했다. 실제 MIG-065..074 adapter/o
 관찰한 identity race가 우선하지 않던 결함을 재현하고 `selection_unix.go`의 parse 전 identity 재검증으로 수정했다.
 관련 normal/race를 통과한 뒤 prototype와 전용 CI matrix를 삭제했다.
 
-## 통합 대기
+## 통합 결과와 다음 작업
 
-첫 통합에서 로컬 빠른/compile/vet/generated/adapter 검증을 마쳤다. Hosted에서 발견한 compiletest의 잔여 전체 목록·byte/hash 잠금을
-실제 외부 compile과 경계 검사로 대체했다. 수정한 commit에서 관련 로컬 gate와 기존 Draft PR의 `ci:full`을 다시 실행한다.
-CI artifact의 실제 생성·소비 성공은 Hosted 결과가 나와야 검증 완료로 기록한다.
+최종 source `0b8235c`의 전체 CI와 `full_platform_verified: true` 집계가 성공했다.
+실제 PostgreSQL capture의 생성·전달·소비, 기존 Q-019과 수정한 compiletest를 포함한 platform 검증을 완료했다.
+기존 `codex/revision-fenced-migration-lifecycle` 브랜치와 원래 작업 디렉터리에 통합하고 임시 worktree·브랜치를 제거했다.
+PR #1은 Draft로 유지한다. 필수 미완료 항목은 없으며 다음 기능은 실제 소비자 요구에 맞춰 별도로 선택한다.
 일반 CI·로컬 quick의 module/build cache는 재사용하며 실제 CLI cold 경로는 전체 milestone의 Linux amd64 normal 한 subtest가 소유한다.

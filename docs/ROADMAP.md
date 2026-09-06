@@ -3,13 +3,17 @@
 [현재 작업](status/CURRENT.md)을 끝까지 연결하면서 모델 중심 사용 경험을 넓힌다.
 문서·테스트 개수나 compatibility contract 총합을 제품 진행률로 삼지 않는다.
 
-## 지금의 우선순위
+## 다음 작업의 선택
 
-1. 개발 피드백 비용을 줄인다. 중복 실행·전역 inventory 잠금·실행 이력 복사를 제거하고 중요한 위험의 검증 위치를 분명히 한다.
-2. 이미 구현한 SQLite quarantine의 미완료 검증 범위를 통합 작업에서 다룬다. 같은 위험을 처음부터 다시 설계하지 않는다.
-3. 다른 구조의 모델과 cross-app consumer로 Schema→Migration→ORM→Form/Admin/API를 실제 사용한다.
-4. 반복되는 모델 설정·변환·권한 연결을 공통 metadata와 application boundary에서 줄인다.
-5. 그 consumer가 드러낸 구체적인 부족함부터 기능으로 확장한다.
+Article와 Category–Ticket Helpdesk에서 사용한 공개 API를 출발점으로, 실제 앱의 다음 요구를 한 가지 고른다.
+Schema→Migration→ORM→Form/Admin/API 중 어디까지 연결해야 하는지와 실패 의미를 정한 뒤 필요한 기능만 확장한다.
+
+- ORM/관계: eager First/Count와 다중 관계 탐색은 joined row·cardinality·cache 의미를 먼저 정한다.
+- 앱 성장: 새로운 모델·필드·관계가 요구하는 migration과 기존 데이터의 처리를 함께 검증한다.
+- 모델 연결: 현재 allowlist·typed reader로 표현할 수 없는 실제 Form/Admin/API 흐름이 있는지 확인한다.
+- Identity: 명시적 operator 권한 갱신 다음의 다중 사용자·credential/session 요구를 구체화한다.
+
+이 목록은 다음 기능의 후보이며 동시에 진행할 작업 목록이 아니다. 활성 작업과 환경별 검증 상태는 CURRENT 한 곳에서 선택한다.
 
 ## 수직 단면의 선택
 
