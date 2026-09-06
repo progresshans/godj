@@ -27,8 +27,11 @@ go test ./orm -count=1
 | 전체 platform | OS/arch/mode, cold build, external archive와 전체 기능 간 조합 | 명시한 통합 milestone |
 | 장기 검증 | 반복 stress/fuzz, 큰 입력, RSS·성능 | 관련 위험 또는 주기적 실행 |
 
-`make ci`는 명시적으로 요청하는 전체 로컬 gate다. PR의 빠른 feedback 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
+`make quick`, `make generate-check`, 관련 `go-test-*`는 PostgreSQL capture 없이 실행할 수 있다.
+`make ci`는 현재 소스에 맞는 실제 PostgreSQL capture를 추가로 요구하는 전체 로컬 gate다.
+Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래를 따른다. PR의 빠른 feedback 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
 Full/scoped Hosted 검증은 CI workflow의 수동 실행 또는 `ci:full`, `ci:orm`, `ci:cli`, `ci:web`, `ci:reference` 라벨로 선택한다.
+라벨은 추가될 때 실행을 요청한다. 같은 라벨로 다시 실행하려면 기존 라벨을 제거한 뒤 다시 추가한다.
 Draft PR을 테스트 서버로 쓸 수 있으며 매 docs push가 전체 platform 검증을 다시 요청하지 않게 한다.
 Job 선택과 aggregate가 필요한 검증의 누락을 확인한다. 선택하지 않은 그룹은 not-selected이며 PASS로 가장하지 않는다.
 
@@ -63,6 +66,30 @@ Test 파일의 문장이나 work 일지에 같은 prose가 남아 있는지는 r
 PostgreSQL actual은 검증할 source·observer·환경에서 생성하고, source/profile/scenario identity와 digest를 확인한 consumer가 사용한다.
 Oracle·expected로 actual을 만들지 않고, 다른 source의 actual이나 stale attestation을 current proof로 인정하지 않는다.
 같은 신뢰된 CI 실행의 artifact를 생성 job에서 소비 job으로 전달한다. 장기 기록은 source·환경·명령·결과와 불변 artifact 위치를 남긴다.
+
+로컬에서 전체 gate를 재현하려면 검증할 소스의 성공한 CI run과 attempt를 선택하고 두 artifact를 내려받는다.
+아래 `RUN_ID`, `ATTEMPT`, 절대 경로를 실제 값으로 바꾼다. Artifact는 90일간 보관하므로 만료됐다면 같은 소스에서 새 CI 실행이 필요하다.
+
+```sh
+ci_run=RUN_ID
+ci_attempt=ATTEMPT
+capture_root=/absolute/path/to/godj-evidence
+gh run download "$ci_run" --name "systemstate-postgres-$ci_attempt" --dir "$capture_root/systemstate"
+gh run download "$ci_run" --name "operator-postgres-$ci_attempt" --dir "$capture_root/operator"
+```
+
+두 `provenance.json`의 `checkout`과 같은 commit을 별도 작업 사본에서 사용한다. PR 실행의 checkout은 PR head와 다른 merge commit일 수 있다.
+그 작업 사본에서 아래를 실행한다. 다른 저장소·run·attempt·payload·checkout은 envelope 검증이 거부하고,
+Go consumer는 checksum과 실제 source/profile/scenario binding도 확인한다. `testdata`의 고정 codec fixture는 이 입력으로 사용할 수 없다.
+
+```sh
+export GITHUB_REPOSITORY=progresshans/godj GITHUB_RUN_ID="$ci_run" GITHUB_RUN_ATTEMPT="$ci_attempt"
+python3 scripts/ci/capture_artifact.py verify "$capture_root/systemstate" postgresql-17.10-two-process-v1.json
+python3 scripts/ci/capture_artifact.py verify "$capture_root/operator" postgresql-17.10-sqlite-external-operator-v1.json
+ATTESTATION_DIR="$capture_root" make ci
+```
+
+이 로컬 gate는 현재 OS에서의 재현이다. 다른 OS/arch와 PostgreSQL service 실행 결과까지 새로 만든 것으로 기록하지 않는다.
 
 실행 로그는 build-output/build-fail과 dependency ImportPath/FailedBuild, test failure, timeout, malformed/truncated JSON과
 stderr-only failure를 구분해야 한다. 원래 test exit code와 유용한 원인을 보존하고 bounded/redacted diagnostics를 출력한다.

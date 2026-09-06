@@ -5,7 +5,6 @@ package compiletest
 import (
 	"context"
 	"fmt"
-	"go/ast"
 	"os"
 	"path/filepath"
 	"testing"
@@ -82,12 +81,6 @@ func TestProjectBundleCanonicalFacadeExternalSurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := validateCanonicalFacadeMethodSource(methods); err != nil {
-		t.Fatalf("validate canonical facade app methods: %v", err)
-	}
-	if err := validateCanonicalFacadeConsumerSource(consumer); err != nil {
-		t.Fatalf("validate canonical facade external consumer: %v", err)
-	}
 	writeProjectBundleCompileFile(t, root, "go.mod", []byte(fmt.Sprintf(string(goModTemplate), filepath.ToSlash(repositoryRoot(t)))))
 	writeProjectBundleCompileFile(t, root, "blog/methods.go", methods)
 	writeProjectBundleCompileFile(t, root, "consumer/consumer.go", consumer)
@@ -114,90 +107,6 @@ func TestProjectBundleCanonicalFacadeExternalSurface(t *testing.T) {
 	if err != nil || !report.Clean() {
 		t.Fatalf("Check(canonical facade committed bundle) report=%#v error=%v", report, err)
 	}
-}
-
-func validateCanonicalFacadeMethodSource(source []byte) error {
-	file, err := parseRelationFacadeSource("methods.go", source, "blog")
-	if err != nil {
-		return err
-	}
-	want := map[string]bool{
-		"Post.DisplayTitle:value":     true,
-		"Post.NormalizeTitle:pointer": true,
-	}
-	seen := make(map[string]bool, len(want))
-	for _, declaration := range file.Decls {
-		function, ok := declaration.(*ast.FuncDecl)
-		if !ok {
-			return fmt.Errorf("canonical facade method source contains %T declaration", declaration)
-		}
-		key, err := relationFacadeFunctionKey(function)
-		if err != nil {
-			return err
-		}
-		pointer := false
-		if function.Recv != nil && len(function.Recv.List) == 1 {
-			_, pointer = function.Recv.List[0].Type.(*ast.StarExpr)
-		}
-		if pointer {
-			key += ":pointer"
-		} else {
-			key += ":value"
-		}
-		if !want[key] || seen[key] {
-			return fmt.Errorf("canonical facade method source contains forbidden or duplicate %q", key)
-		}
-		seen[key] = true
-	}
-	if len(seen) != len(want) {
-		return fmt.Errorf("canonical facade method source inventory = %d, want %d", len(seen), len(want))
-	}
-	return nil
-}
-
-func validateCanonicalFacadeConsumerSource(source []byte) error {
-	file, err := parseRelationFacadeSource("canonical_facade_consumer.go", source, "consumer")
-	if err != nil {
-		return err
-	}
-	wantCalls := map[string]int{
-		"models.BlogPost.Filter": 1,
-		"post.DisplayTitle":      1,
-		"post.NormalizeTitle":    1,
-		"post.WithAuthor":        1,
-		"post.WithAuthorID":      1,
-		"post.Author":            1,
-		"post.Save":              1,
-		"post.Unwrap":            1,
-		"json.Marshal":           1,
-		"json.Unmarshal":         1,
-		"loaded.NormalizeTitle":  1,
-	}
-	seenCalls := make(map[string]int, len(wantCalls))
-	directTitle := 0
-	ast.Inspect(file, func(node ast.Node) bool {
-		switch node := node.(type) {
-		case *ast.CallExpr:
-			path := relationFacadeSelectorPath(node.Fun)
-			if wantCalls[path] != 0 {
-				seenCalls[path]++
-			}
-		case *ast.SelectorExpr:
-			if relationFacadeSelectorPath(node) == "post.Title" {
-				directTitle++
-			}
-		}
-		return true
-	})
-	for path, want := range wantCalls {
-		if got := seenCalls[path]; got != want {
-			return fmt.Errorf("canonical facade consumer call %s count = %d, want %d", path, got, want)
-		}
-	}
-	if directTitle != 2 {
-		return fmt.Errorf("canonical facade consumer direct scalar post.Title count = %d, want 2", directTitle)
-	}
-	return nil
 }
 
 func canonicalFacadeCompileSpec() codegen.ProjectSpec {

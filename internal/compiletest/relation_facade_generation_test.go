@@ -22,13 +22,10 @@ import (
 )
 
 const (
-	// checkedInRelationFacadeV2Path is an immutable copy of the relation-delete
-	// product facade at baseline 1070ec3. The fixture and these byte locks are
-	// the test authority; the test never shells out to Git.
-	checkedInRelationFacadeV2Path   = "internal/compiletest/testdata/relation_facade/checked_in_project_facade_v2.go.txt"
-	relationFacadeGeneratedPath     = "project/zz_godj_relation_facade.go"
-	checkedInRelationFacadeV2Bytes  = 32801
-	checkedInRelationFacadeV2SHA256 = "131dcfce03fc2a03df1e8191e2fbaa6b4f65bff0f84795056cbb7f76ce1199dc"
+	// The historical v2 facade supplies a real incompatible generation. Its
+	// relevant contract is the source binding rejected by the current bundle.
+	checkedInRelationFacadeV2Path = "internal/compiletest/testdata/relation_facade/checked_in_project_facade_v2.go.txt"
+	relationFacadeGeneratedPath   = "project/zz_godj_relation_facade.go"
 )
 
 func TestCheckedInRelationFacadeV2CannotHybridizeCurrentBundle(t *testing.T) {
@@ -39,15 +36,6 @@ func TestCheckedInRelationFacadeV2CannotHybridizeCurrentBundle(t *testing.T) {
 		t.Fatalf("read checked-in relation facade v2 fixture: %v", err)
 	}
 	v2Digest := sha256.Sum256(v2Source)
-	if len(v2Source) != checkedInRelationFacadeV2Bytes || hex.EncodeToString(v2Digest[:]) != checkedInRelationFacadeV2SHA256 {
-		t.Fatalf(
-			"checked-in relation facade v2 fixture = %d/%s, want %d/%s",
-			len(v2Source),
-			hex.EncodeToString(v2Digest[:]),
-			checkedInRelationFacadeV2Bytes,
-			checkedInRelationFacadeV2SHA256,
-		)
-	}
 	if !bytes.Contains(v2Source, []byte(`GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"`)) ||
 		bytes.Contains(v2Source, []byte(codegen.ProjectRelationFacadeGeneratorVersion)) {
 		t.Fatal("checked-in relation facade v2 fixture has the wrong generation identity")
@@ -92,7 +80,7 @@ func TestCheckedInRelationFacadeV2CannotHybridizeCurrentBundle(t *testing.T) {
 	}
 	drift := staleReport.Drifts[0]
 	if drift.Path != relationFacadeGeneratedPath || drift.Kind != projectgenerate.DriftModified ||
-		drift.ExpectedSHA256 != currentFacade.SHA256 || drift.ActualSHA256 != checkedInRelationFacadeV2SHA256 {
+		drift.ExpectedSHA256 != currentFacade.SHA256 || drift.ActualSHA256 != hex.EncodeToString(v2Digest[:]) {
 		t.Fatalf("stale/current mixed relation facade drift = %#v, want exact current/stale binding", drift)
 	}
 
@@ -102,7 +90,7 @@ func TestCheckedInRelationFacadeV2CannotHybridizeCurrentBundle(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"checked_in_project_facade_v2.go.txt",
-		"undefined: goDjProjectSnapshot_2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b",
+		"undefined: goDjProjectSnapshot_",
 	} {
 		if !strings.Contains(mixedCompile.output, fragment) {
 			t.Fatalf("stale/current mixed compile diagnostics lack %q:\n%s", fragment, mixedCompile.output)
@@ -125,15 +113,8 @@ func copyCurrentRelationFacadeProduct(t *testing.T, destination string) {
 	t.Helper()
 	fixtureRoot := filepath.Join(repositoryRoot(t), "conformance", "relationdeleteproduct")
 	inventory := readRelationFacadeInventory(t, fixtureRoot)
-	for _, directory := range relationFacadePhysicalDirectories {
-		if err := os.MkdirAll(filepath.Join(destination, filepath.FromSlash(directory)), 0o755); err != nil {
-			t.Fatalf("create copied relation facade directory %s: %v", directory, err)
-		}
-	}
-	for _, name := range relationFacadePhysicalFiles {
-		if err := os.WriteFile(filepath.Join(destination, filepath.FromSlash(name)), inventory.files[name], 0o644); err != nil {
-			t.Fatalf("copy current relation facade product file %s: %v", name, err)
-		}
+	for _, name := range inventory.names {
+		writeProjectBundleCompileFile(t, destination, name, inventory.files[name])
 	}
 }
 

@@ -590,7 +590,7 @@ ci: require-live-evidence docs-check format-check generate-check go-test go-vet 
 check: quick
 
 # The quick loop excludes real command/process and conformance adapters.
-.PHONY: quick ci-tools-test go-test-integration go-test-conformance go-race-integration go-race-conformance
+.PHONY: quick ci-tools-test go-test-integration go-test-conformance go-race-integration go-race-conformance cgo-zero-build-integration cgo-zero-build-conformance
 ci-tools-test:
 	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/ci -p 'test_*.py'
 

@@ -8,6 +8,7 @@ import (
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 )
 
@@ -30,14 +31,18 @@ func (*minimalBackend) Delete(context.Context, query.DeletePlan) (int64, error) 
 }
 
 var (
-	_ project.Backend                        = (*minimalBackend)(nil)
-	_ project.Backend                        = (db.Session)(nil)
-	_ project.Backend                        = (db.RelationSession)(nil)
-	_ json.Marshaler                         = project.BlogPost{}
-	_ json.Marshaler                         = (*project.BlogPost)(nil)
-	_ json.Unmarshaler                       = (*project.BlogPost)(nil)
-	_ func(project.BlogPost) ([]byte, error) = project.BlogPost.MarshalJSON
-	_ func(*project.BlogPost, []byte) error  = (*project.BlogPost).UnmarshalJSON
+	_ project.Backend                                                                                             = (*minimalBackend)(nil)
+	_ project.Backend                                                                                             = (db.Session)(nil)
+	_ project.Backend                                                                                             = (db.RelationSession)(nil)
+	_ json.Marshaler                                                                                              = project.BlogPost{}
+	_ json.Marshaler                                                                                              = (*project.BlogPost)(nil)
+	_ json.Unmarshaler                                                                                            = (*project.BlogPost)(nil)
+	_ func(project.BlogPost) ([]byte, error)                                                                      = project.BlogPost.MarshalJSON
+	_ func(*project.BlogPost, []byte) error                                                                       = (*project.BlogPost).UnmarshalJSON
+	_ func(context.Context, project.AuthorsAuthorQuery, orm.Projection[authors.Author, string]) ([]string, error) = project.SelectAuthorsAuthorInto[string]
+	_ func(context.Context, project.BlogPostQuery, orm.Projection[blog.Post, string]) ([]string, error)           = project.SelectBlogPostInto[string]
+	_ func(context.Context, project.AuthorsAuthorQuery, orm.Aggregate[authors.Author, int64]) (int64, error)      = project.AggregateAuthorsAuthorInto[int64]
+	_ func(context.Context, project.BlogPostQuery, orm.Aggregate[blog.Post, int64]) (int64, error)                = project.AggregateBlogPostInto[int64]
 )
 
 func compileRelationFacade(ctx context.Context, backend project.Backend) error {
@@ -84,7 +89,17 @@ func compileRelationFacade(ctx context.Context, backend project.Backend) error {
 	}
 	authorQuery := models.AuthorsAuthor.
 		Filter(authors.AuthorFields.Name.IContains("all authors")).
-		OrderBy(authors.AuthorFields.ID.Asc())
+		OrderBy(authors.AuthorFields.ID.Asc()).Distinct().Fresh()
+	authorQuery, err = authorQuery.Offset(0)
+	if err != nil {
+		return err
+	}
+	var authorCount int64
+	authorCount, err = authorQuery.Count(ctx)
+	if err != nil {
+		return err
+	}
+	_ = authorCount
 	limitedAuthors, err := authorQuery.Limit(1)
 	if err != nil {
 		return err
@@ -176,7 +191,11 @@ func compileRelationFacade(ctx context.Context, backend project.Backend) error {
 	authorEager := models.BlogPost.
 		SelectRelated(models.BlogPost.Related.Author).
 		Filter(blog.PostFields.Title.IContains("author eager")).
-		OrderBy(blog.PostFields.ID.Asc())
+		OrderBy(blog.PostFields.ID.Asc()).Distinct().Fresh()
+	authorEager, err = authorEager.Offset(0)
+	if err != nil {
+		return err
+	}
 	limitedAuthorEager, err := authorEager.Limit(1)
 	if err != nil {
 		return err

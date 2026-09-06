@@ -44,7 +44,7 @@ integration_owner: "primary agent"
 
 - Baseline은 clean da1bfc5이다. Q-019 quarantine 구현은 포함하지만 기존 GDJ-0056의 최종 Hosted 완료는 주장하지 않는다.
 - 이전 작업의 상세 증거는 baseline Git 이력에 보존한다. 이번 작업의 명령·결과는 TEST_EVIDENCE의 새 단일 기록에 모은다.
-- 구현 checkpoint와 실제 명령은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다. 최종 통합/Hosted는 아직 실행 전이다.
+- 구현 checkpoint와 실제 명령은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다. 최종 통합/Hosted 검증을 진행 중이다.
 
 ## 현재 결정과 검증 소유권
 
@@ -91,6 +91,7 @@ Projectcheck의 별도 CLI 모형도 제거했다. 실제 MIG-065..074 adapter/o
 
 ## 통합 대기
 
-제품·테스트·도구 source 편집을 마쳤다. 최종 제출 commit에서 로컬 빠른/compile/vet/generated/adapter 검증 후 기존 Draft PR의 `ci:full`로
-PostgreSQL과 모든 플랫폼을 한 번 실행한다. CI artifact의 실제 생성·소비 성공은 Hosted 결과가 나와야 검증 완료로 기록한다.
+첫 통합에서 로컬 빠른/compile/vet/generated/adapter 검증을 마쳤다. Hosted에서 발견한 compiletest의 잔여 전체 목록·byte/hash 잠금을
+실제 외부 compile과 경계 검사로 대체했다. 수정한 commit에서 관련 로컬 gate와 기존 Draft PR의 `ci:full`을 다시 실행한다.
+CI artifact의 실제 생성·소비 성공은 Hosted 결과가 나와야 검증 완료로 기록한다.
 일반 CI·로컬 quick의 module/build cache는 재사용하며 실제 CLI cold 경로는 전체 milestone의 Linux amd64 normal 한 subtest가 소유한다.

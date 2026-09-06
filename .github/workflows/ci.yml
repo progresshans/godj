@@ -18,7 +18,8 @@ on:
 
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Unrelated PR labels must not cancel a running or pending validation.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'pull_request' && !contains(fromJSON('["ci:full", "ci:orm", "ci:cli", "ci:web", "ci:reference"]'), github.event.label.name) && github.run_id || 'validation' }}
   cancel-in-progress: true
 
 permissions:

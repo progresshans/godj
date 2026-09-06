@@ -19,7 +19,8 @@ Q-019 SQLite terminal quarantine 코드는 기준 소스에 포함돼 있지만 
 ## 다음 행동
 
 제품·문서·검증 도구 통합과 과거 실험 정리를 마쳤다.
-통합 source의 로컬 gate를 마친 뒤 기존 Draft PR에서 전체 플랫폼·실제 PostgreSQL·artifact 소비를 확인한다.
+첫 통합 CI에서 드러난 잔여 compiletest 모양 잠금을 정리했다.
+수정한 소스에서 관련 로컬 gate와 기존 Draft PR의 전체 플랫폼·실제 PostgreSQL·artifact 소비를 확인한다.
 
 ## 검증과 제한
 
