@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v4"
-const GoDjProjectRelationFacadeInputSHA256 = "428ff2d6e9b2983647d42672615174cc1ace5efd5ae082fe8c58fff37d99339b"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"
+const GoDjProjectRelationFacadeInputSHA256 = "00a61b94953cce6d9d157d5a1f7732cd5b249840e07bb6d0456e35f1a0e84d24"
 
 type Backend interface {
 	db.Queryer
@@ -849,7 +849,7 @@ type ModelsTicketEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[models.Ticket]
 	kind             uint8
-	category         ModelsTicketCategorySelectRelatedQuery
+	projection       relationSelectQuery[ModelsTicketObject]
 	configurationErr error
 }
 
@@ -861,7 +861,7 @@ func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySe
 	}
 	switch _kind {
 	case 1:
-		_result.category = _state.objects.ModelsTicket.SelectRelated(_source).Category()
+		_result.projection = _state.objects.ModelsTicket.SelectRelated(_source).Category()
 	default:
 		_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
 	}
@@ -875,7 +875,7 @@ func (_query ModelsTicketEagerQuery) validate() error {
 	if _err := _query.state.validate(); _err != nil {
 		return _err
 	}
-	if _query.kind == 0 || _query.kind > 1 {
+	if _query.kind == 0 || _query.kind > 1 || _query.projection == nil {
 		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
 	}
 	return nil
@@ -939,33 +939,45 @@ func (_query ModelsTicketEagerQuery) All(_ctx context.Context) ([]*ModelsTicket,
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	var _objects []*ModelsTicketObject
-	var _err error
-	switch _query.kind {
-	case 1:
-		_objects, _err = _query.category.All(_ctx)
-	default:
-		return nil, relationFacadeQueryInvalid("generated eager query is zero or corrupt")
-	}
+	_objects, _err := _query.projection.All(_ctx)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsTicket, len(_objects))
 	for _index := range _objects {
-		_wrapped, _err := _query.state.wrapModelsTicketObject(_objects[_index])
+		_results[_index], _err = _query.wrap(_ctx, _objects[_index])
 		if _err != nil {
 			return nil, _err
 		}
-		switch _query.kind {
-		case 1:
-			_, _err = _wrapped.Category(_ctx)
-		}
-		if _err != nil {
-			return nil, _err
-		}
-		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+func (_query ModelsTicketEagerQuery) First(_ctx context.Context) (*ModelsTicket, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.wrap(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+
+func (_query ModelsTicketEagerQuery) wrap(_ctx context.Context, _object *ModelsTicketObject) (*ModelsTicket, error) {
+	_wrapped, _err := _query.state.wrapModelsTicketObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	switch _query.kind {
+	case 1:
+		_, _err = _wrapped.Category(_ctx)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
 }
 
 type Models struct {
@@ -989,4 +1001,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a0be1c34f6cdfd5ec2ca11402c7e3ef7724e90d5b2ab8f6f2f5c125faa0ab2b9
+var _ goDjProjectSnapshot_6605a389197ac878b362a2710621656d081934d17a8eee4d5f2bd62bbde2529e

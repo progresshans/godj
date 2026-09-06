@@ -12,7 +12,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v4"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -114,7 +114,7 @@ func validateProjectRelationFacadeImports(apps []normalizedRelationPackage) erro
 	}
 	for _, app := range apps {
 		switch app.alias {
-		case "any", "int", "int64", "iota", "reflect", "sync", "true":
+		case "int", "int64", "iota", "reflect", "sync", "true":
 			return fmt.Errorf("invalid relation facade package alias %q", app.alias)
 		}
 		if app.importPath == "context" || app.importPath == "reflect" || app.importPath == "sync" ||
@@ -1246,9 +1246,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tstate            *relationFacadeState")
 	fmt.Fprintf(output, "\tsource           orm.QuerySet[%s]\n", rawType)
 	fmt.Fprintln(output, "\tkind             uint8")
-	for _, relation := range model.source.relations {
-		fmt.Fprintf(output, "\t%s %s%sSelectRelatedQuery\n", lowerFirst(relation.selector), model.surface, relation.selector)
-	}
+	fmt.Fprintf(output, "\tprojection       relationSelectQuery[%s]\n", model.source.objectType)
 	fmt.Fprintln(output, "\tconfigurationErr error")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -1269,8 +1267,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 		fmt.Fprintf(output, "\tcase %d:\n", index+1)
 		fmt.Fprintf(
 			output,
-			"\t\t_result.%s = _state.objects.%s.SelectRelated(_source).%s()\n",
-			lowerFirst(relation.selector),
+			"\t\t_result.projection = _state.objects.%s.SelectRelated(_source).%s()\n",
 			model.source.surface,
 			relation.selector,
 		)
@@ -1288,7 +1285,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err := _query.state.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\tif _query.kind == 0 || _query.kind > %d {\n", len(model.source.relations))
+	fmt.Fprintf(output, "\tif _query.kind == 0 || _query.kind > %d || _query.projection == nil {\n", len(model.source.relations))
 	fmt.Fprintln(output, "\t\treturn relationFacadeQueryInvalid(\"generated eager query is zero or corrupt\")")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\treturn nil")
@@ -1338,41 +1335,51 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\tvar _objects []*%s\n", model.source.objectType)
-	fmt.Fprintln(output, "\tvar _err error")
-	fmt.Fprintln(output, "\tswitch _query.kind {")
-	for index, relation := range model.source.relations {
-		fmt.Fprintf(output, "\tcase %d:\n", index+1)
-		fmt.Fprintf(output, "\t\t_objects, _err = _query.%s.All(_ctx)\n", lowerFirst(relation.selector))
-	}
-	fmt.Fprintln(output, "\tdefault:")
-	fmt.Fprintln(output, "\t\treturn nil, relationFacadeQueryInvalid(\"generated eager query is zero or corrupt\")")
-	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_objects, _err := _query.projection.All(_ctx)")
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintf(output, "\t_results := make([]*%s, len(_objects))\n", model.surface)
 	fmt.Fprintln(output, "\tfor _index := range _objects {")
-	fmt.Fprintf(output, "\t\t_wrapped, _err := _query.state.wrap%sObject(_objects[_index])\n", model.surface)
+	fmt.Fprintln(output, "\t\t_results[_index], _err = _query.wrap(_ctx, _objects[_index])")
 	fmt.Fprintln(output, "\t\tif _err != nil {")
 	fmt.Fprintln(output, "\t\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintln(output, "\t\tswitch _query.kind {")
-	for index, relation := range model.source.relations {
-		fmt.Fprintf(output, "\t\tcase %d:\n", index+1)
-		if relation.field.Nullable {
-			fmt.Fprintf(output, "\t\t\t_, _, _err = _wrapped.%s(_ctx)\n", relation.selector)
-		} else {
-			fmt.Fprintf(output, "\t\t\t_, _err = _wrapped.%s(_ctx)\n", relation.selector)
-		}
-	}
-	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintln(output, "\t\tif _err != nil {")
-	fmt.Fprintln(output, "\t\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintln(output, "\t\t_results[_index] = _wrapped")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\treturn _results, nil")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) First(_ctx context.Context) (*%s, bool, error) {\n", eagerType, model.surface)
+	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
+	fmt.Fprintln(output, "\t\treturn nil, false, _err")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_object, _found, _err := _query.projection.First(_ctx)")
+	fmt.Fprintln(output, "\tif _err != nil || !_found {")
+	fmt.Fprintln(output, "\t\treturn nil, false, _err")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_wrapped, _err := _query.wrap(_ctx, _object)")
+	fmt.Fprintln(output, "\treturn _wrapped, _err == nil, _err")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) wrap(_ctx context.Context, _object *%s) (*%s, error) {\n", eagerType, model.source.objectType, model.surface)
+	fmt.Fprintf(output, "\t_wrapped, _err := _query.state.wrap%sObject(_object)\n", model.surface)
+	fmt.Fprintln(output, "\tif _err != nil {")
+	fmt.Fprintln(output, "\t\treturn nil, _err")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\tswitch _query.kind {")
+	for index, relation := range model.source.relations {
+		fmt.Fprintf(output, "\tcase %d:\n", index+1)
+		if relation.field.Nullable {
+			fmt.Fprintf(output, "\t\t_, _, _err = _wrapped.%s(_ctx)\n", relation.selector)
+		} else {
+			fmt.Fprintf(output, "\t\t_, _err = _wrapped.%s(_ctx)\n", relation.selector)
+		}
+	}
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\tif _err != nil {")
+	fmt.Fprintln(output, "\t\treturn nil, _err")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\treturn _wrapped, nil")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 }

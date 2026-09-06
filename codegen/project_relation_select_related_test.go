@@ -38,7 +38,7 @@ func TestGenerateProjectRelationSelectRelatedIsCanonicalAndByteLocked(t *testing
 		t.Fatalf("project relation select-related bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v1"`),
+		[]byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v2"`),
 		[]byte("var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
 		[]byte("var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}"),
 		[]byte("type BlogPostSelectRelated struct"),
@@ -52,10 +52,7 @@ func TestGenerateProjectRelationSelectRelatedIsCanonicalAndByteLocked(t *testing
 		[]byte("configurationErr error"),
 		[]byte("return BlogPostAuthorSelectRelatedQuery{configurationErr: _err}"),
 		[]byte("return BlogPostReviewerSelectRelatedQuery{configurationErr: _err}"),
-		[]byte("_, _contextErr := (orm.ForwardSelectQuery[blog.Post, authors.Author]{}).All(_ctx)"),
-		[]byte("_terminalErr, _ok := _contextErr.(*query.Error)"),
-		[]byte("_terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan"),
-		[]byte("_selected, _err := _query.query.All(_ctx)"),
+		[]byte("_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)"),
 		[]byte("_object.author = _related"),
 		[]byte("_object.reviewer = _related"),
 		[]byte("type BlogPostDynamicSelectRelatedQuery struct"),
@@ -109,12 +106,11 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 	requiredSelectRelatedCollision.Models[0].Fields[2].GoName = "SelectRelatedID"
 	parseDynamicCollision := blog.Clone()
 	parseDynamicCollision.Models[0].Fields[2].GoName = "ParseDynamicID"
-	dynamicKindCollision := blog.Clone()
-	dynamicKindCollision.Models[0].Fields[2].GoName = "KindID"
 	projectionCollision := authors.Clone()
 	projectionCollision.Models[0].GoName = "GoDjRelationProjectionGeneratorVersion"
 	sqlAlias := relationSelectRelatedPackages("example.com/godj-relation-select-related", "sql", "blog", authors, blog)
 	lenAlias := relationSelectRelatedPackages("example.com/godj-relation-select-related", "authors", "len", authors, blog)
+	anyAlias := relationSelectRelatedPackages("example.com/godj-relation-select-related", "authors", "any", authors, blog)
 	databaseSQLPath := relationSelectRelatedPackages("example.com/godj-relation-select-related", "authors", "blog", authors, blog)
 	databaseSQLPath[0].ImportPath = "database/sql"
 	for _, test := range []struct {
@@ -127,6 +123,7 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 		{name: "missing target package", pkg: "project", packages: valid[1:]},
 		{name: "reserved sql alias", pkg: "project", packages: sqlAlias, contains: "sql"},
 		{name: "used predeclared len alias", pkg: "project", packages: lenAlias, contains: "len"},
+		{name: "generic any constraint alias", pkg: "project", packages: anyAlias, contains: "any"},
 		{name: "reserved database sql path", pkg: "project", packages: databaseSQLPath, contains: "database/sql"},
 		{
 			name: "projection prerequisite collision",
@@ -177,16 +174,16 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 			contains: "ParseDynamic",
 		},
 		{
-			name: "dynamic discriminator collision",
+			name: "shared terminal interface collision",
 			pkg:  "project",
 			packages: relationSelectRelatedPackages(
 				"example.com/godj-relation-select-related-collision",
-				"authors",
+				"relationSelectQuery",
 				"blog",
 				authors,
-				dynamicKindCollision,
+				blog,
 			),
-			contains: "kind",
+			contains: "relationSelectQuery",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -543,6 +540,15 @@ func TestGeneratedSelectRelatedSurfaceAndDynamicValidation(t *testing.T) {
 	if backend.queries != 3 {
 		t.Fatalf("dynamic Author queries = %%d, want 3", backend.queries)
 	}
+	for _, first := range []func(context.Context) (*project.BlogPostObject, bool, error){
+		selected.Author().First, selected.Reviewer().First, dynamic.First,
+	} {
+		before := backend.queries
+		value, found, err := first(context.Background())
+		if value != nil || found || err == nil || backend.queries != before+1 {
+			t.Fatalf("public First did not reach the bound backend: %%v, %%v, %%v", value, found, err)
+		}
+	}
 
 	for _, path := range []string{"", " ", "posts", "reviewed_posts", "unknown", "author__name"} {
 		before := backend.queries
@@ -732,7 +738,9 @@ func TestGeneratedSelectRelatedZeroAndCorruptQueriesKeepGenericErrors(t *testing
 	if _, err := zeroDynamic.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("zero dynamic terminal error = %%v, want query invalid-plan", err)
 	}
-	corruptDynamic := BlogPostDynamicSelectRelatedQuery{kind: 255}
+	corruptDynamic := BlogPostDynamicSelectRelatedQuery{query: BlogPostAuthorSelectRelatedQuery{
+		configurationErr: &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan},
+	}}
 	if _, err := corruptDynamic.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("corrupt dynamic terminal error = %%v, want query invalid-plan", err)
 	}
@@ -799,21 +807,21 @@ func TestProjectFacadePassesThroughTypedSelectRelatedConfigurationCauses(t *test
 			name:  "resolve",
 			cause: resolve.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, author: resolve,
+				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, projection: resolve,
 			},
 		},
 		{
 			name:  "required bind",
 			cause: required.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, author: required,
+				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, projection: required,
 			},
 		},
 		{
 			name:  "nullable bind",
 			cause: nullable.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kind: 2, reviewer: nullable,
+				state: models.BlogPost.state, source: models.BlogPost.query, kind: 2, projection: nullable,
 			},
 		},
 	}

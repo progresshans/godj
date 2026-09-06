@@ -19,6 +19,18 @@
 
 ## 상태와 범위
 
+2026-09-06 GDJ-0058에서 다음 확장을 Accepted로 추가한다. 아래 본문의 All-only 제한은 이 범위에서 대체된다.
+
+- typed/dynamic/facade는 공통 typed query를 실행한다. 생성 adapter의 binding 오류는
+  `WithConfigurationError`로 runtime에 전달하여 context 검사 뒤 원래 오류를 반환한다.
+- eager `First(ctx)`는 기존 GoDj `QuerySet.First`와 같이 명시적 정렬을 요구한다. Django의 기본 PK 정렬은 추가하지 않는다.
+- cold First는 기존 Offset/Distinct/Limit과 JOIN을 유지하며 최대 한 row만 scan하고 All cache를 채우지 않는다.
+  성공한 All cache가 있으면 첫 결과를 독립 복제한다. empty는 `(nil, false, nil)`이다.
+- All과 First는 같은 projection scan·integrity 검증·Rows.Close 오류 순서를 사용한다.
+  생성 객체와 facade의 관계 cache 준비도 동일한 변환 경로를 거친다.
+- First 이외의 추가 terminal과 다중/중첩 관계 탐색은 포함하지 않는다. 구현·검증 상태는
+  [GDJ-0058](../../work/0058-eager-first-ticket-detail.md)과 [구현 현황](../status/IMPLEMENTATION_MATRIX.md)을 따른다.
+
 이 ADR은 bounded SQLite REL-009/010/011 engine slice에 한해 **Accepted**입니다. Clean baseline
 `5c0efef12560203d720e4c2dd7bda50c0324a228`의 run `31436881856`과 activation
 `0a1da373a443527e48a154ca6ccc7284e5e80dc0`의 run `31465198903`은 각각 baseline/activation만 증명하며

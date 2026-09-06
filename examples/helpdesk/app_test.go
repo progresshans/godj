@@ -25,6 +25,7 @@ import (
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/systemstate"
@@ -44,6 +45,28 @@ type helpdeskBackend interface {
 	db.Atomic
 	migrationbackend.RevisionFencedBackend
 	Close() error
+}
+
+// Count application data reads separately from session/permission-store reads.
+type helpdeskReadCounter struct {
+	helpdesk.Backend
+	queries int
+	last    query.Plan
+}
+
+func (backend *helpdeskReadCounter) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	backend.queries++
+	backend.last = plan
+	return backend.Backend.Query(ctx, plan)
+}
+
+type helpdeskDeniedPermission struct{ permission auth.Permission }
+
+func (deny helpdeskDeniedPermission) Allowed(ctx context.Context, principal auth.Principal, permission auth.Permission) (bool, error) {
+	if permission == deny.permission {
+		return false, nil
+	}
+	return (auth.PrincipalAuthorizer{}).Allowed(ctx, principal, permission)
 }
 
 func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(context.Context) (helpdeskBackend, error)) {
@@ -111,7 +134,8 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if value, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(seed.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx); err != nil || !found || value.Subject != "Existing ticket" {
 		t.Fatalf("existing model data lost during permission update/reopen: %v", err)
 	}
-	application, err := helpdesk.New(runtime, category.ID)
+	reads := &helpdeskReadCounter{Backend: runtime}
+	application, err := helpdesk.New(reads, category.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,9 +152,14 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 			t.Fatal("relation/key became writable")
 		}
 	}
-	client := helpdeskHTTP(t, application, runtime)
+	client := helpdeskHTTP(t, application, runtime, auth.PrincipalAuthorizer{})
 	if response := client.request("GET", "/api/tickets/", "", false); response.Code != http.StatusForbidden {
 		t.Fatalf("anonymous API: %d", response.Code)
+	}
+	detailPath := fmt.Sprintf("/api/tickets/%d/", seed.ID)
+	beforeDetail := reads.queries
+	if response := client.request("GET", detailPath, "", false); response.Code != http.StatusForbidden || reads.queries != beforeDetail {
+		t.Fatalf("anonymous detail performed a data query or bypassed permission: %d", response.Code)
 	}
 	if response := client.request("GET", "/admin/login/", "", false); response.Code != http.StatusOK || client.csrf == "" {
 		t.Fatalf("login form: %d", response.Code)
@@ -138,6 +167,44 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	login := url.Values{"username": {"operator"}, "password": {"helpdesk-example-password"}, "next": {"/admin/"}, "csrfmiddlewaretoken": {client.csrf}}
 	if response := client.request("POST", "/admin/login/", login.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("login: %d %s", response.Code, response.Body)
+	}
+	beforeDetail = reads.queries
+	detailResponse := client.request("GET", detailPath, "", false)
+	var detail map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
+		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
+	}
+	if len(detail) != 2 || len(detail["ticket"]) != 5 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
+	}
+	var categoryName string
+	if err := json.Unmarshal(detail["category"]["name"], &categoryName); err != nil || categoryName != category.Name {
+		t.Fatalf("category label = %q, %v", categoryName, err)
+	}
+	if limit, _ := reads.last.Limit(); limit != 1 {
+		t.Fatalf("detail limit = %d", limit)
+	}
+	if projection, ok := reads.last.RelationProjection(); !ok || projection.Hop().Field() != "category" {
+		t.Fatal("detail did not use the category projection")
+	}
+	for _, id := range []int64{outside.ID, 0, outside.ID + 1000} {
+		response := client.request("GET", fmt.Sprintf("/api/tickets/%d/", id), "", false)
+		if response.Code != http.StatusNotFound || strings.Contains(response.Body.String(), other.Name) || strings.Contains(response.Body.String(), outside.Subject) {
+			t.Fatalf("missing/scoped detail: %d %s", response.Code, response.Body)
+		}
+	}
+	for _, denied := range []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewCategory} {
+		limitedClient := helpdeskHTTP(t, application, runtime, helpdeskDeniedPermission{denied})
+		limitedClient.cookies = client.cookies
+		before := reads.queries
+		response := limitedClient.request("GET", detailPath, "", false)
+		wantStatus, wantReads := http.StatusForbidden, 0
+		if denied == helpdesk.ViewCategory {
+			wantStatus, wantReads = http.StatusOK, 1
+		}
+		if response.Code != wantStatus || reads.queries-before != wantReads {
+			t.Fatalf("detail permission %s: status=%d data queries=%d", denied, response.Code, reads.queries-before)
+		}
 	}
 	if response := client.request("GET", "/admin/categories/", "", false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Hardware &amp; repairs") || strings.Contains(response.Body.String(), "Add Category") {
 		t.Fatalf("read-only categories: %d %s", response.Code, response.Body)
@@ -260,7 +327,7 @@ type helpdeskClient struct {
 
 var csrfPattern = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`)
 
-func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *systemstate.Runtime) *helpdeskClient {
+func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *systemstate.Runtime, authorizer auth.Authorizer) *helpdeskClient {
 	t.Helper()
 	configured, err := settings.New(settings.Definition{ProjectName: "helpdesk", InstalledApps: helpdesk.InstalledApps()})
 	if err != nil {
@@ -274,7 +341,7 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	webAuth, err := websessionauth.New(websessionauth.Config{Sessions: manager, Authenticator: runtime.Authenticator(), Authorizer: auth.PrincipalAuthorizer{}, SessionCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowed})
+	webAuth, err := websessionauth.New(websessionauth.Config{Sessions: manager, Authenticator: runtime.Authenticator(), Authorizer: authorizer, SessionCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowed})
 	if err != nil {
 		t.Fatal(err)
 	}

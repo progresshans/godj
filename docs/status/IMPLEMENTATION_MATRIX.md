@@ -11,7 +11,7 @@
 | 생성 | ProjectSpec, typed model/FieldSet/descriptor와 project relation binding, 후보 compile/publication/recovery | Linux/macOS local filesystem 중심 | [codegen](../../codegen/) |
 | Query | typed/dynamic 공통 AST, Boolean composition, scalar comparison, same-model F, projection·Count/Max | annotation/grouping/subquery/window/bulk/locking은 별도 | [orm](../../orm/), [query](../../query/) |
 | 평가 | lazy query, full-result cache, cloning, iterator와 cancellation | 임의 model/callback의 goroutine 안전성을 포함하지 않음 | [ORM cache](../CONCURRENCY.md#queryset-평가) |
-| 관계 | AutoField-target FK, 자기·상호 참조 선언/생성, lazy/forward/reverse, prefetch/eager, assignment/cache, PROTECT/SET_NULL | eager First/Count·임의 깊이/다중 관계 탐색·일반 순환 관계 동작·ManyToMany/OneToOne 미지원 | [관계 소유권](../CONCURRENCY.md#관계-객체) |
+| 관계 | AutoField-target FK, 자기·상호 참조 선언/생성, lazy/forward/reverse, prefetch/eager All·First, assignment/cache, PROTECT/SET_NULL | eager First는 명시적 정렬 필요; eager Count·임의 깊이/다중 관계 탐색·일반 순환 관계 동작·ManyToMany/OneToOne 미지원 | [관계 소유권](../CONCURRENCY.md#관계-객체) |
 | Migration | strict current definition, historical replay, immutable planner, revision fence, durable prefix, bounded reverse | arbitrary custom/data operation·general schema repair·fake/squash 미지원 | [migrations](../../migrations/) |
 | Migration CLI | project check, migrate/plan/target, showmigrations, bounded makemigrations, forward sqlmigrate | writer는 지원하는 difference만 작성 | [project](../../project/), [CLI](../../cmd/godj/) |
 | SQLite/PostgreSQL | current AST/CRUD/migration/system-state paths | 각 backend capability와 물리 schema precondition 적용 | [Backend Matrix](../BACKEND_MATRIX.md) |
@@ -22,7 +22,7 @@
 | JSON API | model-derived allowlist serializer, bounded parser, PUT/PATCH, pagination/filter, authentication profile | OpenAPI/browsable API/일반 viewset 자동화 미지원 | [api](../../api/), [serializers](../../serializers/) |
 | Auth/session | password hashing, Session/CSRF, injected strict Bearer verifier, rotation/logout | token issuer/JWT/OAuth/OIDC/password reset·multi-user lifecycle 별도 | [auth](../../auth/), [sessions](../../sessions/) |
 | Durable system state | explicit provision/open, permission CAS와 session 폐기, cooperative application transaction | 비협력 writer·자동 policy/key 전파 미지원 | [systemstate](../../systemstate/) |
-| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신 | SQLite와 PostgreSQL normal/race/CGO-disabled 검증 완료; 별도 Helpdesk Go module 설치 검증은 아님 | [examples](../../examples/) |
+| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 티켓 상세 조회 | 기존 흐름은 GDJ-0057에서 SQLite/PostgreSQL 검증; GDJ-0058 상세 조회는 로컬 검증 후 관련 CI 진행 중 | [examples](../../examples/) |
 
 ## 계약과 증거
 

@@ -2,7 +2,6 @@ package orm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -257,7 +256,7 @@ func modelFieldReferences(model ir.Model) []query.FieldRef {
 	return result
 }
 
-// ForwardSelectQuery is the independent All-only evaluation surface for one
+// ForwardSelectQuery is the independent evaluation surface for one
 // eager projection. It does not evaluate or populate the source QuerySet.
 type ForwardSelectQuery[S, T any] struct {
 	backend          db.Queryer
@@ -344,6 +343,16 @@ func validateForwardSelectState[S, T any](state forwardSelectState[S, T]) error 
 func (q ForwardSelectQuery[S, T]) Plan() query.Plan    { return q.plan }
 func (q ForwardSelectQuery[S, T]) Backend() db.Queryer { return q.backend }
 
+// WithConfigurationError lets a generated adapter retain a binding failure in
+// the query itself. Terminals still check the caller's context before returning
+// that failure. A nil error leaves the existing query unchanged.
+func (q ForwardSelectQuery[S, T]) WithConfigurationError(err error) ForwardSelectQuery[S, T] {
+	if err != nil {
+		q.configurationErr = err
+	}
+	return q
+}
+
 // ForwardSelected owns one source clone and a ready related-object cache.
 // Pointer identity prevents accidental value-copy ownership splits.
 type ForwardSelected[S, T any] struct {
@@ -387,7 +396,7 @@ func (q ForwardSelectQuery[S, T]) All(ctx context.Context) ([]*ForwardSelected[S
 		return nil, err
 	}
 	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]forwardSelectedValue[S, T], error) {
-		values, err := q.scanAll(ctx)
+		values, err := q.scan(ctx, q.plan, 0)
 		if err == nil {
 			err = ctx.Err()
 		}
@@ -401,6 +410,37 @@ func (q ForwardSelectQuery[S, T]) All(ctx context.Context) ([]*ForwardSelected[S
 		return nil, err
 	}
 	return result, nil
+}
+
+// First returns the first joined result for an explicitly ordered plan. A
+// cold query scans at most one row without populating the full All cache.
+func (q ForwardSelectQuery[S, T]) First(ctx context.Context) (*ForwardSelected[S, T], bool, error) {
+	if err := q.validateTerminal(ctx); err != nil {
+		return nil, false, err
+	}
+	if len(q.plan.Orderings()) == 0 {
+		return nil, false, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeUnorderedQuery,
+			Detail:   "First requires an explicit ordering",
+		}
+	}
+	values, ready := q.evaluation.cachedValues()
+	if !ready {
+		var err error
+		values, err = q.scan(ctx, planWithMaximumRows(q.plan, 1), 1)
+		if err != nil {
+			return nil, false, err
+		}
+	}
+	if len(values) == 0 {
+		return nil, false, ctx.Err()
+	}
+	result := q.cloneSelection(values[0])
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
+	return result, true, nil
 }
 
 func (q ForwardSelectQuery[S, T]) validateTerminal(ctx context.Context) error {
@@ -440,13 +480,13 @@ type projectedRow[S, T any] struct {
 	targetPresence ProjectionPresence
 }
 
-func (q ForwardSelectQuery[S, T]) scanAll(ctx context.Context) ([]forwardSelectedValue[S, T], error) {
-	rows, err := q.openRows(ctx)
+func (q ForwardSelectQuery[S, T]) scan(ctx context.Context, plan query.Plan, maximum int) ([]forwardSelectedValue[S, T], error) {
+	rows, err := openQueryRows(ctx, q.backend, plan)
 	if err != nil {
 		return nil, err
 	}
 	projected := make([]projectedRow[S, T], 0)
-	for rows.Next() {
+	for (maximum == 0 || len(projected) < maximum) && rows.Next() {
 		if contextErr := ctx.Err(); contextErr != nil {
 			err = contextErr
 			break
@@ -459,7 +499,7 @@ func (q ForwardSelectQuery[S, T]) scanAll(ctx context.Context) ([]forwardSelecte
 		}
 		sourceDestinations := sourceScan.Destinations()
 		targetDestinations := targetScan.Destinations()
-		if !validProjectionDestinations(sourceDestinations, len(q.plan.SourceFields())) ||
+		if !validProjectionDestinations(sourceDestinations, len(plan.SourceFields())) ||
 			!validProjectionDestinations(targetDestinations, len(q.selection.path.projection.TargetColumns())) {
 			err = relationInvalidPlan("projection scan destinations do not match the selected columns")
 			break
@@ -502,22 +542,6 @@ func (q ForwardSelectQuery[S, T]) scanAll(ctx context.Context) ([]forwardSelecte
 		return nil, err
 	}
 	return values, nil
-}
-
-func (q ForwardSelectQuery[S, T]) openRows(ctx context.Context) (db.Rows, error) {
-	rows, err := q.backend.Query(ctx, q.plan)
-	if err != nil {
-		if !interfaceIsNil(rows) {
-			if closeErr := rows.Close(); closeErr != nil {
-				err = errors.Join(err, fmt.Errorf("close rows returned with backend error: %w", closeErr))
-			}
-		}
-		return nil, joinContextErr(err, ctx)
-	}
-	if interfaceIsNil(rows) {
-		return nil, joinContextErr(relationBackendInvalidPlan("backend returned nil rows without an error"), ctx)
-	}
-	return rows, nil
 }
 
 func validProjectionDestinations(destinations []any, expected int) bool {
@@ -586,15 +610,19 @@ func (q ForwardSelectQuery[S, T]) validateProjectedRow(row projectedRow[S, T]) (
 func (q ForwardSelectQuery[S, T]) cloneSelected(values []forwardSelectedValue[S, T]) []*ForwardSelected[S, T] {
 	result := make([]*ForwardSelected[S, T], len(values))
 	for index, value := range values {
-		selected := &ForwardSelected[S, T]{
-			source:           q.selection.sourceDescriptor.CloneModel(value.source),
-			sourceDescriptor: q.selection.sourceDescriptor,
-			related:          q.readyRelated(value),
-		}
-		selected._self = selected
-		result[index] = selected
+		result[index] = q.cloneSelection(value)
 	}
 	return result
+}
+
+func (q ForwardSelectQuery[S, T]) cloneSelection(value forwardSelectedValue[S, T]) *ForwardSelected[S, T] {
+	selected := &ForwardSelected[S, T]{
+		source:           q.selection.sourceDescriptor.CloneModel(value.source),
+		sourceDescriptor: q.selection.sourceDescriptor,
+		related:          q.readyRelated(value),
+	}
+	selected._self = selected
+	return selected
 }
 
 func (q ForwardSelectQuery[S, T]) readyRelated(value forwardSelectedValue[S, T]) *RelatedObject[T] {

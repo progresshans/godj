@@ -21,7 +21,9 @@ session·사용자 callback·반환된 mutable model의 임의 공유 안전성�
 
 - 같은 relation owner의 cache와 새 materialization/Fresh의 cache를 구분한다. 전역 identity map을 가정하지 않는다.
 - Lazy required 관계의 missing/cardinality와 nullable absent는 서로 다른 결과다.
-- Prefetch/eager는 전체 scan·row close·cancel·cardinality 검증이 끝난 뒤 한 번에 결과를 게시한다. 실패 시 partial cache를 남기지 않는다.
+- Prefetch/eager All은 전체 scan·row close·cancel·cardinality 검증이 끝난 뒤 한 번에 결과를 게시한다. 실패 시 partial cache를 남기지 않는다.
+- Eager First는 cold query에서 최대 한 row를 읽고 All cache를 채우지 않는다. Warm All cache의 첫 결과도 독립 복제하며,
+  관계 검증과 row close가 끝나기 전에는 결과를 반환하지 않는다. 기존 QuerySet.First처럼 명시적 정렬을 요구한다.
 - Relation assignment는 FK 값과 cache를 함께 reconcile한다. Application memory를 DB rollback으로 자동 되돌리지 않는다.
 - 다른 query materialization에서 얻은 동일 PK의 객체가 같은 pointer일 필요는 없다.
 - Transaction에서 만든 query의 사용 가능 범위는 transaction/session 계약을 따른다. Warm cache가 session 이후에도 값을 제공할 수 있다는 사실을

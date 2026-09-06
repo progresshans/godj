@@ -8,7 +8,7 @@
 Article와 Category–Ticket Helpdesk에서 사용한 공개 API를 출발점으로, 실제 앱의 다음 요구를 한 가지 고른다.
 Schema→Migration→ORM→Form/Admin/API 중 어디까지 연결해야 하는지와 실패 의미를 정한 뒤 필요한 기능만 확장한다.
 
-- ORM/관계: eager First/Count와 다중 관계 탐색은 joined row·cardinality·cache 의미를 먼저 정한다.
+- ORM/관계: eager Count와 다중 관계 탐색은 joined row·cardinality·cache 의미를 먼저 정한다.
 - 앱 성장: 새로운 모델·필드·관계가 요구하는 migration과 기존 데이터의 처리를 함께 검증한다.
 - 모델 연결: 현재 allowlist·typed reader로 표현할 수 없는 실제 Form/Admin/API 흐름이 있는지 확인한다.
 - Identity: 명시적 operator 권한 갱신 다음의 다중 사용자·credential/session 요구를 구체화한다.

@@ -9,10 +9,15 @@ import (
 	query "github.com/progresshans/godj/query"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v1"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v2"
 
 var _ orm.ProjectionDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
+
+type relationSelectQuery[O any] interface {
+	All(context.Context) ([]*O, error)
+	First(context.Context) (*O, bool, error)
+}
 
 type ModelsTicketSelectRelated struct {
 	factory ModelsTicketObjectFactory
@@ -45,63 +50,62 @@ func (_selection ModelsTicketSelectRelated) Category() ModelsTicketCategorySelec
 }
 
 func (_query ModelsTicketCategorySelectRelatedQuery) All(_ctx context.Context) ([]*ModelsTicketObject, error) {
-	if _query.configurationErr != nil {
-		_, _contextErr := (orm.ForwardSelectQuery[models.Ticket, models.Category]{}).All(_ctx)
-		if _contextErr == nil {
-			return nil, _query.configurationErr
-		}
-		_terminalErr, _ok := _contextErr.(*query.Error)
-		if _ok && _terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan {
-			return nil, _query.configurationErr
-		}
-		return nil, _contextErr
-	}
-	_selected, _err := _query.query.All(_ctx)
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*ModelsTicketObject, len(_selected))
 	for _index := range _selected {
-		_source, _err := _selected[_index].Source()
+		_results[_index], _err = _query.wrap(_selected[_index])
 		if _err != nil {
 			return nil, _err
 		}
-		_related, _err := _selected[_index].Related()
-		if _err != nil {
-			return nil, _err
-		}
-		_object, _err := _query.factory.From(_query.query.Backend(), _source)
-		if _err != nil {
-			return nil, _err
-		}
-		_object.category = _related
-		_results[_index] = _object
 	}
 	return _results, nil
 }
 
+func (_query ModelsTicketCategorySelectRelatedQuery) First(_ctx context.Context) (*ModelsTicketObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+
+func (_query ModelsTicketCategorySelectRelatedQuery) wrap(_selected *orm.ForwardSelected[models.Ticket, models.Category]) (*ModelsTicketObject, error) {
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_related, _err := _selected.Related()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.factory.From(_query.query.Backend(), _source)
+	if _err != nil {
+		return nil, _err
+	}
+	_object.category = _related
+	return _object, nil
+}
+
 type ModelsTicketDynamicSelectRelatedQuery struct {
-	kind     uint8
-	category ModelsTicketCategorySelectRelatedQuery
+	query relationSelectQuery[ModelsTicketObject]
 }
 
 func (_selection ModelsTicketSelectRelated) ParseDynamic(_path string) (ModelsTicketDynamicSelectRelatedQuery, error) {
-	_resolved, _err := orm.ResolveForwardSelectPath(_selection.factory.model, _path)
-	if _err != nil {
-		return ModelsTicketDynamicSelectRelatedQuery{}, _err
-	}
 	switch _path {
 	case "category":
-		_relation, _err := orm.BindRequiredForwardSelect(_resolved, _selection.factory.category)
-		if _err != nil {
+		_query := _selection.Category()
+		if _query.configurationErr != nil {
+			return ModelsTicketDynamicSelectRelatedQuery{}, _query.configurationErr
+		}
+		return ModelsTicketDynamicSelectRelatedQuery{query: _query}, nil
+	default:
+		if _, _err := orm.ResolveForwardSelectPath(_selection.factory.model, _path); _err != nil {
 			return ModelsTicketDynamicSelectRelatedQuery{}, _err
 		}
-		_query := ModelsTicketCategorySelectRelatedQuery{
-			factory: _selection.factory,
-			query:   _relation.Select(_selection.source),
-		}
-		return ModelsTicketDynamicSelectRelatedQuery{kind: 1, category: _query}, nil
-	default:
 		return ModelsTicketDynamicSelectRelatedQuery{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -110,17 +114,29 @@ func (_selection ModelsTicketSelectRelated) ParseDynamic(_path string) (ModelsTi
 	}
 }
 
-func (_query ModelsTicketDynamicSelectRelatedQuery) All(_ctx context.Context) ([]*ModelsTicketObject, error) {
-	switch _query.kind {
-	case 1:
-		return _query.category.All(_ctx)
-	default:
-		return nil, &query.Error{
+func (_query ModelsTicketDynamicSelectRelatedQuery) validate() error {
+	if _query.query == nil {
+		return &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
 			Detail:   "generated dynamic select-related query is zero or corrupt",
 		}
 	}
+	return nil
 }
 
-var _ goDjProjectSnapshot_a0be1c34f6cdfd5ec2ca11402c7e3ef7724e90d5b2ab8f6f2f5c125faa0ab2b9
+func (_query ModelsTicketDynamicSelectRelatedQuery) All(_ctx context.Context) ([]*ModelsTicketObject, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.query.All(_ctx)
+}
+
+func (_query ModelsTicketDynamicSelectRelatedQuery) First(_ctx context.Context) (*ModelsTicketObject, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _query.query.First(_ctx)
+}
+
+var _ goDjProjectSnapshot_6605a389197ac878b362a2710621656d081934d17a8eee4d5f2bd62bbde2529e

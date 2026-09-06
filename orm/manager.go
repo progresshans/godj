@@ -171,7 +171,7 @@ func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return 0, err
 	}
-	if values, ok := qs.cachedValues(); ok {
+	if values, ok := qs.evaluation.cachedValues(); ok {
 		return int64(len(values)), nil
 	}
 	// Scalar aggregate terminals intentionally reject relation traversal.
@@ -189,7 +189,7 @@ func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 }
 
 func (qs QuerySet[M]) countRowsByIteration(ctx context.Context) (int64, error) {
-	rows, err := qs.openRows(ctx, qs.plan)
+	rows, err := openQueryRows(ctx, qs.backend, qs.plan)
 	if err != nil {
 		return 0, err
 	}
@@ -218,11 +218,11 @@ func (qs QuerySet[M]) Exists(ctx context.Context) (bool, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return false, err
 	}
-	if values, ok := qs.cachedValues(); ok {
+	if values, ok := qs.evaluation.cachedValues(); ok {
 		return len(values) != 0, nil
 	}
 	plan := planWithMaximumRows(qs.plan, 1)
-	rows, err := qs.openRows(ctx, plan)
+	rows, err := openQueryRows(ctx, qs.backend, plan)
 	if err != nil {
 		return false, err
 	}
@@ -256,7 +256,7 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 			Detail:   "At requires an explicit ordering",
 		}
 	}
-	if values, ok := qs.cachedValues(); ok {
+	if values, ok := qs.evaluation.cachedValues(); ok {
 		if index >= len(values) {
 			return zero, false, nil
 		}
@@ -264,7 +264,7 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	}
 
 	plan := planWithMaximumRows(qs.plan, index+1)
-	rows, err := qs.openRows(ctx, plan)
+	rows, err := openQueryRows(ctx, qs.backend, plan)
 	if err != nil {
 		return zero, false, err
 	}
@@ -310,7 +310,7 @@ func (qs QuerySet[M]) Iterate(ctx context.Context, callback func(M) error) error
 		}
 	}
 
-	rows, err := qs.openRows(ctx, qs.plan)
+	rows, err := openQueryRows(ctx, qs.backend, qs.plan)
 	if err != nil {
 		return err
 	}
@@ -350,18 +350,8 @@ func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
 	return nil
 }
 
-func (qs QuerySet[M]) cachedValues() ([]M, bool) {
-	state := qs.evaluation
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.ready {
-		return nil, false
-	}
-	return state.values, true
-}
-
 func (qs QuerySet[M]) scanAll(ctx context.Context) ([]M, error) {
-	rows, err := qs.openRows(ctx, qs.plan)
+	rows, err := openQueryRows(ctx, qs.backend, qs.plan)
 	if err != nil {
 		return nil, err
 	}
@@ -391,8 +381,8 @@ func (qs QuerySet[M]) cloneModels(values []M) []M {
 	return clones
 }
 
-func (qs QuerySet[M]) openRows(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	rows, err := qs.backend.Query(ctx, plan)
+func openQueryRows(ctx context.Context, backend db.Queryer, plan query.Plan) (db.Rows, error) {
+	rows, err := backend.Query(ctx, plan)
 	if err != nil {
 		if !interfaceIsNil(rows) {
 			if closeErr := rows.Close(); closeErr != nil {

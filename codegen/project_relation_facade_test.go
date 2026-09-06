@@ -65,7 +65,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v4"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type authorsAuthorModel = authors.Author"),
@@ -99,8 +99,8 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		[]byte("func (_query BlogPostQuery) SelectRelated(_selector BlogPostRelationSelector) BlogPostEagerQuery"),
 		[]byte("func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error)"),
 		[]byte("_objects, _err := BindObjects()"),
-		[]byte("_result.author = _state.objects.BlogPost.SelectRelated(_source).Author()"),
-		[]byte("_result.reviewer = _state.objects.BlogPost.SelectRelated(_source).Reviewer()"),
+		[]byte("_result.projection = _state.objects.BlogPost.SelectRelated(_source).Author()"),
+		[]byte("_result.projection = _state.objects.BlogPost.SelectRelated(_source).Reviewer()"),
 	} {
 		if !bytes.Contains(first, fragment) {
 			t.Fatalf("generated facade source does not contain %q:\n%s", fragment, first)
@@ -1383,18 +1383,20 @@ import (
 	"testing"
 
 	authors %q
+	blog %q
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 )
 
-type eagerRows struct { index int }
+type eagerRows struct { index int; empty, absent bool }
 
-func (rows *eagerRows) Next() bool { return rows.index == 0 }
+func (rows *eagerRows) Next() bool { return !rows.empty && rows.index == 0 }
 func (rows *eagerRows) Scan(destinations ...any) error {
 	rows.index++
 	values := []any{int64(10), "Alpha", int64(1), int64(2), int64(2), "Bob"}
 	for index, destination := range destinations {
+		if rows.absent && index >= 3 { continue }
 		switch typed := destination.(type) {
 		case *int64: *typed = values[index].(int64)
 		case *string: *typed = values[index].(string)
@@ -1408,8 +1410,8 @@ func (rows *eagerRows) Scan(destinations ...any) error {
 func (*eagerRows) Err() error { return nil }
 func (*eagerRows) Close() error { return nil }
 
-type eagerBackend struct { queries int; plan query.Plan }
-func (backend *eagerBackend) Query(_ context.Context, plan query.Plan) (db.Rows, error) { backend.queries++; backend.plan = plan; return &eagerRows{}, nil }
+type eagerBackend struct { queries int; plan query.Plan; empty, absent bool }
+func (backend *eagerBackend) Query(_ context.Context, plan query.Plan) (db.Rows, error) { backend.queries++; backend.plan = plan; return &eagerRows{empty: backend.empty, absent: backend.absent}, nil }
 func (*eagerBackend) Insert(context.Context, query.InsertPlan) (int64, error) { return 0, nil }
 func (*eagerBackend) Update(context.Context, query.UpdatePlan) (int64, error) { return 0, nil }
 func (*eagerBackend) Delete(context.Context, query.DeletePlan) (int64, error) { return 0, nil }
@@ -1457,7 +1459,35 @@ func TestProjectRelationFacadeEagerDerivationPreservesSourceAndCache(t *testing.
 	if _, err := source.Offset(-1); err == nil || backend.queries != 3 { t.Fatalf("invalid offset did not fail before I/O: %%v", err) }
 }
 
-`, modulePath+"/authors"))
+func TestProjectRelationFacadeAndDynamicFirst(t *testing.T) {
+	ctx := context.Background()
+	for _, absent := range []bool{false, true} {
+		backend := &eagerBackend{absent: absent}
+		models, err := Using(backend)
+		if err != nil { t.Fatal(err) }
+		ordered := models.BlogPost.OrderBy(blog.PostFields.ID.Asc())
+		eager := ordered.SelectRelated(models.BlogPost.Related.Reviewer)
+		first, found, err := eager.First(ctx)
+		if err != nil || !found || first.ID != 10 { t.Fatalf("First = %%v, %%v, %%v", first, found, err) }
+		if limit, _ := backend.plan.Limit(); limit != 1 { t.Fatalf("First limit = %%d", limit) }
+		_, present, err := first.Reviewer(ctx)
+		if err != nil || present == absent || backend.queries != 1 { t.Fatalf("ready nullable relation = %%v, %%v, queries=%%d", present, err, backend.queries) }
+		all, err := eager.All(ctx)
+		if err != nil || len(all) != 1 || backend.queries != 2 { t.Fatalf("First populated All cache: %%v", err) }
+		all[0].Title = "mutated"
+		warm, found, err := eager.First(ctx)
+		if err != nil || !found || warm.Title != "Alpha" || warm == all[0] || warm.reviewerCache == all[0].reviewerCache || backend.queries != 2 { t.Fatalf("warm First ownership/cache: %%v", err) }
+		dynamic, err := models.BlogPost.state.objects.BlogPost.SelectRelated(ordered.query).ParseDynamic("reviewer")
+		if err != nil { t.Fatal(err) }
+		object, found, err := dynamic.First(ctx)
+		if err != nil || !found || object == nil || backend.queries != 3 { t.Fatalf("dynamic First = %%v, %%v", found, err) }
+		if _, _, err := models.BlogPost.SelectRelated(models.BlogPost.Related.Reviewer).First(ctx); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnorderedQuery}) || backend.queries != 3 { t.Fatalf("unordered First = %%v", err) }
+		backend.empty = true
+		if value, found, err := eager.Fresh().First(ctx); value != nil || found || err != nil { t.Fatalf("empty First = %%v, %%v, %%v", value, found, err) }
+	}
+}
+
+`, modulePath+"/authors", modulePath+"/blog"))
 }
 
 func generatedRelationFacadeInvalidStateTest(modulePath string) []byte {

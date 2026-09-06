@@ -328,7 +328,7 @@ func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Pr
 	if err != nil {
 		return nil, err
 	}
-	rows, err := source.openRows(ctx, plan)
+	rows, err := openQueryRows(ctx, source.backend, plan)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +370,7 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	if err != nil {
 		return zero, err
 	}
-	rows, err := source.openRows(ctx, plan)
+	rows, err := openQueryRows(ctx, source.backend, plan)
 	if err != nil {
 		return zero, err
 	}

@@ -25,6 +25,17 @@ func newEvaluationState[M any]() *evaluationState[M] {
 	return &evaluationState[M]{}
 }
 
+// cachedValues returns canonical values only after a successful full
+// evaluation. Callers must clone them before returning them to application code.
+func (state *evaluationState[M]) cachedValues() ([]M, bool) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.ready {
+		return nil, false
+	}
+	return state.values, true
+}
+
 func (state *evaluationState[M]) evaluate(ctx context.Context, load func(context.Context) ([]M, error)) ([]M, error) {
 	for {
 		// A live waiter may retry a canceled owner. Check its own context again

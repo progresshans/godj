@@ -44,6 +44,7 @@ type Application struct {
 	output     serializers.Spec
 	parser     api.Parser
 	relations  project.Relations
+	objects    project.Models
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
@@ -53,7 +54,8 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
 		return nil, errors.New("helpdesk: category id must be positive")
 	}
-	if _, err := project.Using(backend); err != nil {
+	objects, err := project.Using(backend)
+	if err != nil {
 		return nil, err
 	}
 	installed, err := apps.New(InstalledApps())
@@ -61,7 +63,7 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 		return nil, err
 	}
 	builder := admin.NewBuilder(installed)
-	a := &Application{backend: backend, categoryID: categoryID}
+	a := &Application{backend: backend, categoryID: categoryID, objects: objects}
 	a.relations, err = project.BindRelations()
 	if err != nil {
 		return nil, err
@@ -300,6 +302,10 @@ func (a *Application) APIRoutes(authentication api.Authentication) ([]web.Route,
 	if a == nil || authentication == nil {
 		return nil, errors.New("helpdesk: missing application or authentication")
 	}
+	detail, err := authentication.Require(ViewTicket, a.detail)
+	if err != nil {
+		return nil, err
+	}
 	list, err := authentication.Require(ViewTicket, func(request *web.Request, _ auth.Principal) (web.Response, error) {
 		page, err := a.list(request.Context(), admin.ListRequest{Limit: 20})
 		if err != nil {
@@ -366,5 +372,53 @@ func (a *Application) APIRoutes(authentication api.Authentication) ([]web.Route,
 	if err != nil {
 		return nil, err
 	}
-	return []web.Route{{Name: "helpdesk:ticket-list", Method: http.MethodGet, Path: "/api/tickets/", Handler: list}, {Name: "helpdesk:ticket-create", Method: http.MethodPost, Path: "/api/tickets/", Handler: create}}, nil
+	return []web.Route{
+		{Name: "helpdesk:ticket-list", Method: http.MethodGet, Path: "/api/tickets/", Handler: list},
+		{Name: "helpdesk:ticket-create", Method: http.MethodPost, Path: "/api/tickets/", Handler: create},
+		{Name: "helpdesk:ticket-detail", Method: http.MethodGet, Path: "/api/tickets/<int64:id>/", Handler: detail},
+	}, nil
+}
+
+// Viewing a ticket includes its assigned category's identity and label. The
+// standalone Category Admin remains protected by ViewCategory.
+func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Response, error) {
+	id, valid := request.Int64Parameter("id")
+	if !valid || id <= 0 {
+		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
+	}
+	selected, found, err := a.objects.ModelsTicket.
+		Filter(models.TicketFields.ID.Exact(id), a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).
+		OrderBy(models.TicketFields.ID.Asc()).
+		SelectRelated(a.objects.ModelsTicket.Related.Category).First(request.Context())
+	if err != nil {
+		return web.Response{}, err
+	}
+	if !found {
+		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
+	}
+	category, err := selected.Category(request.Context())
+	if err != nil {
+		return web.Response{}, err
+	}
+	raw, err := selected.Unwrap()
+	if err != nil {
+		return web.Response{}, err
+	}
+	descriptor := models.TicketDescriptor{}
+	ticketValue, err := serializers.ModelValue(a.output, descriptor.Metadata(), raw, descriptor.WriteFieldValue)
+	if err != nil {
+		return web.Response{}, err
+	}
+	categoryValue, err := serializers.NewObject(
+		serializers.MemberOf("id", serializers.Integer(category.ID)),
+		serializers.MemberOf("name", serializers.String(category.Name)),
+	)
+	if err != nil {
+		return web.Response{}, err
+	}
+	value, err := serializers.NewObject(serializers.MemberOf("ticket", ticketValue), serializers.MemberOf("category", categoryValue.Value()))
+	if err != nil {
+		return web.Response{}, err
+	}
+	return api.JSON(http.StatusOK, value.Value())
 }

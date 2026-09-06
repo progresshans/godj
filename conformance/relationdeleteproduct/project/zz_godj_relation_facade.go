@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v4"
-const GoDjProjectRelationFacadeInputSHA256 = "ce0de5a785843274e7cc6a8eaef30c2fa4f4c7faf6a401865680199a2de10562"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"
+const GoDjProjectRelationFacadeInputSHA256 = "c8a30c877d806eb20096553891171e3957bb0bc89f4f610864bdeeef727ab7ad"
 
 type Backend interface {
 	db.Queryer
@@ -1079,8 +1079,7 @@ type BlogPostEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[blog.Post]
 	kind             uint8
-	author           BlogPostAuthorSelectRelatedQuery
-	reviewer         BlogPostReviewerSelectRelatedQuery
+	projection       relationSelectQuery[BlogPostObject]
 	configurationErr error
 }
 
@@ -1092,9 +1091,9 @@ func (_state *relationFacadeState) newBlogPostEagerQuery(_source orm.QuerySet[bl
 	}
 	switch _kind {
 	case 1:
-		_result.author = _state.objects.BlogPost.SelectRelated(_source).Author()
+		_result.projection = _state.objects.BlogPost.SelectRelated(_source).Author()
 	case 2:
-		_result.reviewer = _state.objects.BlogPost.SelectRelated(_source).Reviewer()
+		_result.projection = _state.objects.BlogPost.SelectRelated(_source).Reviewer()
 	default:
 		_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
 	}
@@ -1108,7 +1107,7 @@ func (_query BlogPostEagerQuery) validate() error {
 	if _err := _query.state.validate(); _err != nil {
 		return _err
 	}
-	if _query.kind == 0 || _query.kind > 2 {
+	if _query.kind == 0 || _query.kind > 2 || _query.projection == nil {
 		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
 	}
 	return nil
@@ -1172,37 +1171,47 @@ func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error) 
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	var _objects []*BlogPostObject
-	var _err error
-	switch _query.kind {
-	case 1:
-		_objects, _err = _query.author.All(_ctx)
-	case 2:
-		_objects, _err = _query.reviewer.All(_ctx)
-	default:
-		return nil, relationFacadeQueryInvalid("generated eager query is zero or corrupt")
-	}
+	_objects, _err := _query.projection.All(_ctx)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*BlogPost, len(_objects))
 	for _index := range _objects {
-		_wrapped, _err := _query.state.wrapBlogPostObject(_objects[_index])
+		_results[_index], _err = _query.wrap(_ctx, _objects[_index])
 		if _err != nil {
 			return nil, _err
 		}
-		switch _query.kind {
-		case 1:
-			_, _err = _wrapped.Author(_ctx)
-		case 2:
-			_, _, _err = _wrapped.Reviewer(_ctx)
-		}
-		if _err != nil {
-			return nil, _err
-		}
-		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+func (_query BlogPostEagerQuery) First(_ctx context.Context) (*BlogPost, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.wrap(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+
+func (_query BlogPostEagerQuery) wrap(_ctx context.Context, _object *BlogPostObject) (*BlogPost, error) {
+	_wrapped, _err := _query.state.wrapBlogPostObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	switch _query.kind {
+	case 1:
+		_, _err = _wrapped.Author(_ctx)
+	case 2:
+		_, _, _err = _wrapped.Reviewer(_ctx)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
 }
 
 type Models struct {
@@ -1226,4 +1235,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_0092d697eeec2e3d5c16e13202e212ca5debbaeea931ba688f24c40a956156a5
+var _ goDjProjectSnapshot_e4ed448cadd8821c47e990ea5e60db42fca436098dc61ba5716569677e8c273d
