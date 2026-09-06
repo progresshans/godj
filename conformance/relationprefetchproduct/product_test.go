@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,17 +17,18 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/conformance/relationprefetchproduct/fixture"
+	"github.com/progresshans/godj/conformance/internal/generationtest"
+	"github.com/progresshans/godj/conformance/internal/relationschema"
 )
 
 func TestCheckedInGeneratedReversePrefetchProjectMatchesNineDeterministicCandidates(t *testing.T) {
 	t.Parallel()
 
-	authorsSchema, err := fixture.AuthorsSchema()
+	authorsSchema, err := relationschema.AuthorsSchema()
 	if err != nil {
 		t.Fatal(err)
 	}
-	blogSchema, err := fixture.BlogSchema()
+	blogSchema, err := relationschema.BlogSchema()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,65 +37,28 @@ func TestCheckedInGeneratedReversePrefetchProjectMatchesNineDeterministicCandida
 		{Alias: "authors", ImportPath: rootImport + "authors", Schema: authorsSchema},
 		{Alias: "blog", ImportPath: rootImport + "blog", Schema: blogSchema},
 	}
-	candidates := []struct {
-		path string
-		data []byte
-	}{
-		{path: "authors/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
-		{path: "authors/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
-		{path: "authors/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationObject("authors", authorsSchema) })},
-		{path: "blog/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationObject("blog", blogSchema) })},
-		{path: "project/zz_godj_bindings.go", data: generated(t, func() ([]byte, error) {
+	candidates := []generationtest.Candidate{
+		{Path: "authors/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
+		{Path: "authors/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
+		{Path: "authors/zz_godj_relation_object.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationObject("authors", authorsSchema) })},
+		{Path: "blog/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
+		{Path: "blog/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
+		{Path: "blog/zz_godj_relation_object.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationObject("blog", blogSchema) })},
+		{Path: "project/zz_godj_bindings.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
 			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 				{Alias: "authors", ImportPath: rootImport + "authors"},
 				{Alias: "blog", ImportPath: rootImport + "blog"},
 			})
 		})},
-		{path: "project/zz_godj_relation_reverse.go", data: generated(t, func() ([]byte, error) {
+		{Path: "project/zz_godj_relation_reverse.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
 			return codegen.GenerateProjectRelationReverse("project", reversePackages)
 		})},
-		{path: "project/zz_godj_relation_prefetch.go", data: generated(t, func() ([]byte, error) {
+		{Path: "project/zz_godj_relation_prefetch.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
 			return codegen.GenerateProjectRelationPrefetch("project", reversePackages)
 		})},
 	}
 
-	root := relationPrefetchProductDirectory(t)
-	for _, candidate := range candidates {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(candidate.path)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(contents, candidate.data) {
-			t.Fatalf("checked-in generated file %s differs from deterministic candidate", candidate.path)
-		}
-	}
-
-	generatedFiles := []string{}
-	for _, directory := range []string{"authors", "blog", "project"} {
-		err := filepath.WalkDir(filepath.Join(root, directory), func(path string, entry fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if !entry.IsDir() && strings.HasPrefix(entry.Name(), "zz_godj_") && strings.HasSuffix(entry.Name(), ".go") {
-				generatedFiles = append(generatedFiles, filepath.ToSlash(strings.TrimPrefix(path, root+string(filepath.Separator))))
-			}
-			return nil
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	slices.Sort(generatedFiles)
-	wantFiles := make([]string, len(candidates))
-	for index := range candidates {
-		wantFiles[index] = candidates[index].path
-	}
-	slices.Sort(wantFiles)
-	if !reflect.DeepEqual(generatedFiles, wantFiles) {
-		t.Fatalf("generated file inventory = %#v, want exact nine %#v", generatedFiles, wantFiles)
-	}
+	generationtest.Check(t, relationPrefetchProductDirectory(t), candidates)
 }
 
 func TestObserveExecutesExactREL012PrefetchAndDatabaseState(t *testing.T) {
@@ -273,15 +236,6 @@ func parsedImports(t *testing.T, path string) []string {
 		imports[index] = strings.Trim(imported.Path.Value, `"`)
 	}
 	return imports
-}
-
-func generated(t *testing.T, generate func() ([]byte, error)) []byte {
-	t.Helper()
-	contents, err := generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
 }
 
 func relationPrefetchProductDirectory(t *testing.T) string {

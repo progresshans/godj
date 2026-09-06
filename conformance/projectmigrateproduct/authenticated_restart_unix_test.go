@@ -27,6 +27,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -209,8 +210,8 @@ func authenticatedRestartProvisionOperator(
 		if finished {
 			return
 		}
-		groups, _ := ownedProcessGroups(command.Process.Pid)
-		_ = killProcessGroups(groups, command.Process.Pid)
+		groups, _ := testprocess.OwnedGroups(command.Process.Pid)
+		_ = testprocess.KillGroups(groups, command.Process.Pid)
 		select {
 		case <-waited:
 		case <-time.After(5 * time.Second):
@@ -267,7 +268,7 @@ func authenticatedRestartProvisionOperator(
 	if strings.Contains(transcript, password) {
 		t.Fatal("explicit operator provision PTY exposed raw password")
 	}
-	if err := waitForProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
+	if err := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
 		t.Fatalf("explicit operator provision process group remained: %v", err)
 	}
 	return authenticatedRestartPhaseResult{PID: command.Process.Pid}
@@ -1126,7 +1127,7 @@ func authenticatedRestartRunServer(
 		if address != expectedAddress || authenticatedRestartValidateAddress(address) != nil {
 			t.Fatal("authenticated runserver published an invalid readiness address")
 		}
-		groups, err := ownedProcessGroups(command.Process.Pid)
+		groups, err := testprocess.OwnedGroups(command.Process.Pid)
 		if err != nil || len(groups) < 2 {
 			t.Fatalf("capture authenticated runserver process ownership: groups=%d error=%t", len(groups), err != nil)
 		}

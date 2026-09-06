@@ -284,14 +284,14 @@ func TestQueryBreadthPayloadMutationsCannotFalseGreen(t *testing.T) {
 		index, contract := index, contract
 		t.Run(contract.ID+" result", func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			if !mutateFirstQueryBreadthScalar(actual.Contracts[index].Result) {
+			if !mutateFirstScalar(actual.Contracts[index].Result) {
 				t.Fatalf("%s result has no mutable scalar", contract.ID)
 			}
 			assertQueryBreadthMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
 		})
 		t.Run(contract.ID+" metrics", func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			if !mutateFirstQueryBreadthScalar(actual.Contracts[index].Metrics) {
+			if !mutateFirstScalar(actual.Contracts[index].Metrics) {
 				t.Fatalf("%s metrics have no mutable scalar", contract.ID)
 			}
 			assertQueryBreadthMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
@@ -300,7 +300,7 @@ func TestQueryBreadthPayloadMutationsCannotFalseGreen(t *testing.T) {
 
 	t.Run("database state", func(t *testing.T) {
 		actual := cloneSuite(t, oracle)
-		if !mutateFirstQueryBreadthScalar(actual.Contracts[0].DBState) {
+		if !mutateFirstScalar(actual.Contracts[0].DBState) {
 			t.Fatal("QRY-022 database state has no mutable scalar")
 		}
 		assertQueryBreadthMutationDiffers(t, profile, manifest, oracle, actual, "QRY-022")
@@ -346,22 +346,10 @@ func TestQueryBreadthArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) 
 func loadQueryBreadthArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "query-breadth-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-breadth-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", "godj-query-breadth-not-implemented.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "query-breadth-manifest.json"), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-breadth-oracle.json"), LoadObservationSuite)
+	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-query-breadth-not-implemented.json"), LoadObservationSuite)
 	return profile, manifest, oracle, baseline
 }
 
@@ -407,53 +395,4 @@ func assertQueryBreadthMutationDiffers(t *testing.T, profile Profile, manifest M
 			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
 		}
 	}
-}
-
-func mutateFirstQueryBreadthScalar(value *Value) bool {
-	if value == nil {
-		return false
-	}
-	switch value.Type {
-	case ValueNull:
-		*value = String("mutated")
-		return true
-	case ValueBool:
-		changed := !*value.Bool
-		value.Bool = &changed
-		return true
-	case ValueInt:
-		changed := "999999"
-		if *value.Text == changed {
-			changed = "999998"
-		}
-		value.Text = &changed
-		return true
-	case ValueString, ValueDecimal, ValueDatetime, ValueUUID, ValueBytes:
-		if value.Type != ValueString {
-			*value = String("mutated")
-			return true
-		}
-		changed := *value.Text + " changed"
-		value.Text = &changed
-		return true
-	case ValuePK:
-		return mutateFirstQueryBreadthScalar(value.Nested)
-	case ValueList:
-		if len(value.Items) == 0 {
-			value.Items = append(value.Items, String("mutated"))
-			return true
-		}
-		for index := range value.Items {
-			if mutateFirstQueryBreadthScalar(&value.Items[index]) {
-				return true
-			}
-		}
-	case ValueObject:
-		for index := range value.Fields {
-			if mutateFirstQueryBreadthScalar(&value.Fields[index].Value) {
-				return true
-			}
-		}
-	}
-	return false
 }

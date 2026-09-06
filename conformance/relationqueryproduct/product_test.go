@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -17,8 +16,9 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/conformance/internal/generationtest"
+	"github.com/progresshans/godj/conformance/internal/relationschema"
 	"github.com/progresshans/godj/conformance/relationqueryproduct/blog"
-	"github.com/progresshans/godj/conformance/relationqueryproduct/fixture"
 	"github.com/progresshans/godj/conformance/relationqueryproduct/project"
 	"github.com/progresshans/godj/orm"
 )
@@ -26,46 +26,34 @@ import (
 func TestCheckedInGeneratedRelationQueryProjectMatchesDeterministicCandidates(t *testing.T) {
 	t.Parallel()
 
-	authorsSchema, err := fixture.AuthorsSchema()
+	authorsSchema, err := relationschema.AuthorsSchema()
 	if err != nil {
 		t.Fatal(err)
 	}
-	blogSchema, err := fixture.BlogSchema()
+	blogSchema, err := relationschema.BlogSchema()
 	if err != nil {
 		t.Fatal(err)
 	}
 	const rootImport = "github.com/progresshans/godj/conformance/relationqueryproduct/"
-	candidates := []struct {
-		path string
-		data []byte
-	}{
-		{path: "authors/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
-		{path: "authors/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
-		{path: "blog/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{path: "project/zz_godj_bindings.go", data: generated(t, func() ([]byte, error) {
+	candidates := []generationtest.Candidate{
+		{Path: "authors/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
+		{Path: "authors/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
+		{Path: "blog/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
+		{Path: "blog/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
+		{Path: "project/zz_godj_bindings.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
 			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 				{Alias: "authors", ImportPath: rootImport + "authors"},
 				{Alias: "blog", ImportPath: rootImport + "blog"},
 			})
 		})},
-		{path: "project/zz_godj_relation_query.go", data: generated(t, func() ([]byte, error) {
+		{Path: "project/zz_godj_relation_query.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
 			return codegen.GenerateProjectRelationQuery("project", []codegen.RelationQueryPackage{
 				{Alias: "authors", ImportPath: rootImport + "authors", Schema: authorsSchema},
 				{Alias: "blog", ImportPath: rootImport + "blog", Schema: blogSchema},
 			})
 		})},
 	}
-	root := relationQueryProductDirectory(t)
-	for _, candidate := range candidates {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(candidate.path)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(contents, candidate.data) {
-			t.Fatalf("checked-in generated file %s differs from deterministic candidate", candidate.path)
-		}
-	}
+	generationtest.Check(t, relationQueryProductDirectory(t), candidates)
 }
 
 func TestObserveExecutesExactREL004CasesAndDatabaseState(t *testing.T) {
@@ -274,15 +262,6 @@ func parsedImports(t *testing.T, path string) []string {
 		imports[index] = strings.Trim(imported.Path.Value, `"`)
 	}
 	return imports
-}
-
-func generated(t *testing.T, generate func() ([]byte, error)) []byte {
-	t.Helper()
-	contents, err := generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
 }
 
 func relationQueryProductDirectory(t *testing.T) string {

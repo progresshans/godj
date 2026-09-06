@@ -2,9 +2,7 @@ package protocol
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -146,7 +144,7 @@ func TestMigrationTargetPlanOracleIsLockedValidatedAndCannotFalseGreen(t *testin
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	oracleContents := mustReadMigrationTargetPlanFile(t, filepath.Join(root, filepath.FromSlash(migrationTargetPlanOracleArtifact)))
+	oracleContents := readArtifact(t, filepath.Join(root, filepath.FromSlash(migrationTargetPlanOracleArtifact)))
 	wantLock, locked := migrationTargetPlanArtifactLocks[migrationTargetPlanOracleArtifact]
 	if !locked {
 		t.Fatalf("generated migration-target-plan oracle has no exact size/SHA-256 lock in migrationTargetPlanArtifactLocks")
@@ -194,16 +192,16 @@ func TestMigrationTargetPlanOracleIsLockedValidatedAndCannotFalseGreen(t *testin
 
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
-			actual := cloneMigrationTargetPlanSuite(t, oracle)
+			actual := cloneJSONSuite(t, oracle)
 			observation := &actual.Contracts[index]
 			var changed bool
 			switch dimension {
 			case CompareResult:
-				changed = mutateMigrationTargetPlanValue(observation.Result)
+				changed = mutateFirstValue(observation.Result)
 			case CompareDBState:
-				changed = mutateMigrationTargetPlanValue(observation.DBState)
+				changed = mutateFirstValue(observation.DBState)
 			case CompareMetrics:
-				changed = mutateMigrationTargetPlanValue(observation.Metrics)
+				changed = mutateFirstValue(observation.Metrics)
 			default:
 				t.Fatalf("contract %s has unexpected comparison dimension %q", contract.ID, dimension)
 			}
@@ -225,7 +223,7 @@ func TestMigrationTargetPlanOracleIsLockedValidatedAndCannotFalseGreen(t *testin
 		}
 	}
 
-	reordered := cloneMigrationTargetPlanSuite(t, oracle)
+	reordered := cloneJSONSuite(t, oracle)
 	reordered.Contracts[0], reordered.Contracts[1] = reordered.Contracts[1], reordered.Contracts[0]
 	if err := ValidateSuiteAgainst(profile, manifest, reordered); err == nil {
 		t.Fatal("migration-target-plan oracle contract reorder produced a false green")
@@ -237,7 +235,7 @@ func TestMigrationTargetPlanAuthoritySourcesAreIndependentAndArtifactBlind(t *te
 
 	root := conformanceRepositoryRoot(t)
 	decisionPath := filepath.Join(root, "conformance", "runners", "django", "migration_target_plan_decisions.py")
-	decision := string(mustReadMigrationTargetPlanFile(t, decisionPath))
+	decision := string(readArtifact(t, decisionPath))
 	for _, forbidden := range []string{
 		"from django", "import django", "sqlite3", "conformance/contracts", "conformance/oracles",
 		"conformance/fixtures", "not_implemented", "not-implemented",
@@ -248,7 +246,7 @@ func TestMigrationTargetPlanAuthoritySourcesAreIndependentAndArtifactBlind(t *te
 	}
 
 	djangoPath := filepath.Join(root, "conformance", "runners", "django", "migration_target_plan_scenarios.py")
-	djangoSource := string(mustReadMigrationTargetPlanFile(t, djangoPath))
+	djangoSource := string(readArtifact(t, djangoPath))
 	for _, forbidden := range []string{
 		"conformance/contracts", "conformance/oracles", "conformance/fixtures", "not_implemented", "not-implemented",
 	} {
@@ -269,7 +267,7 @@ func TestMigrationTargetPlanAuthoritySourcesAreIndependentAndArtifactBlind(t *te
 		}
 	}
 	for _, name := range []string{decisionPath, djangoPath} {
-		contents := string(mustReadMigrationTargetPlanFile(t, name))
+		contents := string(readArtifact(t, name))
 		for _, forbidden := range []string{"postgres://", "password=", root} {
 			if strings.Contains(contents, forbidden) {
 				t.Fatalf("migration-target-plan source %s leaks forbidden value %q", name, forbidden)
@@ -332,7 +330,7 @@ func TestMigrationTargetPlanPublishedReferenceAndProductWiringIsExact(t *testing
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	runner := string(mustReadMigrationTargetPlanFile(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
+	runner := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
 	for fragment, want := range map[string]int{
 		"SCENARIOS as MIGRATION_TARGET_PLAN_DECISION_SCENARIOS": 1,
 		"SCENARIOS as MIGRATION_TARGET_PLAN_DJANGO_SCENARIOS":   1,
@@ -348,7 +346,7 @@ func TestMigrationTargetPlanPublishedReferenceAndProductWiringIsExact(t *testing
 		}
 	}
 
-	makeText := string(mustReadMigrationTargetPlanFile(t, filepath.Join(root, "Makefile")))
+	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
 		"MIGRATION_TARGET_PLAN_MANIFEST":           migrationTargetPlanManifestArtifact,
 		"MIGRATION_TARGET_PLAN_ORACLE":             migrationTargetPlanOracleArtifact,
@@ -401,7 +399,7 @@ func TestMigrationTargetPlanPublishedReferenceAndProductWiringIsExact(t *testing
 		}
 	}
 
-	workflow := string(mustReadMigrationTargetPlanFile(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
+	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
 	if got := strings.Count(workflow, migrationTargetPlanBaselineArtifact); got != 2 {
 		t.Fatalf("workflow migration-target-plan NI lock count = %d, want 2", got)
 	}
@@ -479,7 +477,7 @@ func assertMigrationTargetPlanDeclaredPayloads(t *testing.T, contract Contract, 
 
 func assertMigrationTargetPlanArtifactLock(t *testing.T, root, name string, want migrationTargetPlanArtifactLock) {
 	t.Helper()
-	contents := mustReadMigrationTargetPlanFile(t, filepath.Join(root, filepath.FromSlash(name)))
+	contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
 	assertMigrationTargetPlanArtifactContents(t, name, contents, want)
 }
 
@@ -496,75 +494,8 @@ func assertMigrationTargetPlanArtifactContents(t *testing.T, name string, conten
 func loadMigrationTargetPlanStaticArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, filepath.FromSlash(migrationTargetPlanManifestArtifact)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, filepath.FromSlash(migrationTargetPlanBaselineArtifact)))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, filepath.FromSlash(migrationTargetPlanManifestArtifact)), LoadManifest)
+	baseline := requireArtifact(t, filepath.Join(root, filepath.FromSlash(migrationTargetPlanBaselineArtifact)), LoadObservationSuite)
 	return profile, manifest, baseline
-}
-
-func mustReadMigrationTargetPlanFile(t *testing.T, name string) []byte {
-	t.Helper()
-	contents, err := os.ReadFile(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
-}
-
-func cloneMigrationTargetPlanSuite(t *testing.T, suite ObservationSuite) ObservationSuite {
-	t.Helper()
-	document, err := json.Marshal(suite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cloned ObservationSuite
-	if err := json.Unmarshal(document, &cloned); err != nil {
-		t.Fatal(err)
-	}
-	return cloned
-}
-
-func mutateMigrationTargetPlanValue(value *Value) bool {
-	if value == nil {
-		return false
-	}
-	switch value.Type {
-	case ValueBool:
-		*value.Bool = !*value.Bool
-		return true
-	case ValueInt:
-		if *value.Text == "0" {
-			*value.Text = "1"
-		} else {
-			*value.Text = "0"
-		}
-		return true
-	case ValueString, ValueDecimal, ValueDatetime, ValueUUID, ValueBytes:
-		*value.Text += "_changed"
-		return true
-	case ValuePK:
-		return mutateMigrationTargetPlanValue(value.Nested)
-	case ValueList:
-		for index := range value.Items {
-			if mutateMigrationTargetPlanValue(&value.Items[index]) {
-				return true
-			}
-		}
-	case ValueObject:
-		for index := range value.Fields {
-			if mutateMigrationTargetPlanValue(&value.Fields[index].Value) {
-				return true
-			}
-		}
-	}
-	return false
 }

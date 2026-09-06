@@ -1,7 +1,6 @@
-// Package fixture owns the REL-012 declaration schemas used to verify the
-// checked-in generated reverse-prefetch product. Runtime observation imports
-// only the generated app and project packages.
-package fixture
+// Package relationschema owns fresh declaration inputs shared by relation products.
+// It has no dependency on generated products or reference observations.
+package relationschema
 
 import (
 	"fmt"
@@ -26,7 +25,7 @@ func AuthorsSchema() (ir.Schema, error) {
 		},
 	})
 	if err != nil {
-		return ir.Schema{}, fmt.Errorf("build authors reverse-prefetch schema: %w", err)
+		return ir.Schema{}, fmt.Errorf("build authors relation schema: %w", err)
 	}
 	return result, nil
 }
@@ -62,7 +61,7 @@ func BlogSchema() (ir.Schema, error) {
 		},
 	})
 	if err != nil {
-		return ir.Schema{}, fmt.Errorf("build blog reverse-prefetch schema: %w", err)
+		return ir.Schema{}, fmt.Errorf("build blog relation schema: %w", err)
 	}
 	return result, nil
 }

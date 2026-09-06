@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 )
@@ -1097,7 +1098,7 @@ func projectMigratePostgresRunServerOnce(
 		if address != expectedAddress {
 			t.Fatal("PostgreSQL Article readiness address did not match the reserved loopback address")
 		}
-		groups, err := ownedProcessGroups(command.Process.Pid)
+		groups, err := testprocess.OwnedGroups(command.Process.Pid)
 		if err != nil || len(groups) < 2 {
 			t.Fatal("capture global/PostgreSQL runtime process ownership failed")
 		}

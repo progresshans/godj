@@ -3,7 +3,6 @@ package protocol
 import (
 	"crypto/sha256"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -97,7 +96,7 @@ func TestGDJ0047PublishedArtifactsAreExactAndPayloadSafe(t *testing.T) {
 			sha256: "85a9a8b2261e7265b00a33c2cf5b63b9e5b5cd963b2ac7e894dd77988206fc4b",
 		},
 	} {
-		contents := mustReadGDJ0047File(t, filepath.Join(root, filepath.FromSlash(name)))
+		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
 		if len(contents) != want.size {
 			t.Fatalf("GDJ-0047 artifact %s size = %d, want %d", name, len(contents), want.size)
 		}
@@ -106,7 +105,7 @@ func TestGDJ0047PublishedArtifactsAreExactAndPayloadSafe(t *testing.T) {
 		}
 	}
 	oraclePath := filepath.Join(root, "conformance", "oracles", "drf-3.18.0-django-6.1-sqlite-darwin-arm64", "api-authentication-oracle.json")
-	oracleBytes := mustReadGDJ0047File(t, oraclePath)
+	oracleBytes := readArtifact(t, oraclePath)
 	for _, forbidden := range []string{
 		"gdj-phase-a-raw-bearer-canary",
 		"gdj-phase-a-unknown-bearer",
@@ -116,7 +115,7 @@ func TestGDJ0047PublishedArtifactsAreExactAndPayloadSafe(t *testing.T) {
 			t.Fatalf("API authentication oracle leaks forbidden source value %q", forbidden)
 		}
 	}
-	decisionSource := string(mustReadGDJ0047File(t, filepath.Join(root, "conformance", "runners", "django", "api_authentication_decisions.py")))
+	decisionSource := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "api_authentication_decisions.py")))
 	for _, forbidden := range []string{
 		"conformance/contracts",
 		"conformance/oracles",
@@ -231,11 +230,11 @@ func TestGDJ0047PublishedArtifactsAreExactAndPayloadSafe(t *testing.T) {
 			var changed bool
 			switch dimension {
 			case CompareResult:
-				changed = mutateFirstGDJ0047Scalar(observation.Result)
+				changed = mutateFirstScalar(observation.Result)
 			case CompareDBState:
-				changed = mutateFirstGDJ0047Scalar(observation.DBState)
+				changed = mutateFirstScalar(observation.DBState)
 			case CompareMetrics:
-				changed = mutateFirstGDJ0047Scalar(observation.Metrics)
+				changed = mutateFirstScalar(observation.Metrics)
 			}
 			if !changed {
 				t.Fatalf("contract %s declared %s without a mutable payload", contract.ID, dimension)
@@ -260,7 +259,7 @@ func TestGDJ0047PublishedMakeAndWorkflowWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	makeText := string(mustReadGDJ0047File(t, filepath.Join(root, "Makefile")))
+	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
 		"API_AUTHENTICATION_MANIFEST":           "conformance/contracts/api-authentication-manifest.json",
 		"API_AUTHENTICATION_ORACLE":             "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json",
@@ -309,7 +308,7 @@ func TestGDJ0047PublishedMakeAndWorkflowWiringIsExact(t *testing.T) {
 		t.Fatal("oracle-check does not require an exact API authentication no-rewrite check")
 	}
 
-	workflow := string(mustReadGDJ0047File(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
+	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
 	if got := strings.Count(workflow, "conformance/fixtures/godj-api-authentication-not-implemented.json"); got != 2 {
 		t.Fatalf("workflow API authentication baseline count = %d, want both reference gates", got)
 	}
@@ -389,62 +388,4 @@ func gdj0047MakeTarget(t *testing.T, text, startMarker, endMarker string) string
 		t.Fatalf("Makefile target end marker %q is missing", endMarker)
 	}
 	return text[start : start+len(startMarker)+end]
-}
-
-func mustReadGDJ0047File(t *testing.T, path string) []byte {
-	t.Helper()
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
-}
-
-func mutateFirstGDJ0047Scalar(value *Value) bool {
-	if value == nil {
-		return false
-	}
-	switch value.Type {
-	case ValueNull:
-		*value = String("mutated")
-		return true
-	case ValueBool:
-		changed := !*value.Bool
-		value.Bool = &changed
-		return true
-	case ValueInt:
-		changed := "999999"
-		if *value.Text == changed {
-			changed = "999998"
-		}
-		value.Text = &changed
-		return true
-	case ValueString, ValueDecimal, ValueDatetime, ValueUUID, ValueBytes:
-		if value.Type != ValueString {
-			*value = String("mutated")
-			return true
-		}
-		changed := *value.Text + " changed"
-		value.Text = &changed
-		return true
-	case ValuePK:
-		return mutateFirstGDJ0047Scalar(value.Nested)
-	case ValueList:
-		if len(value.Items) == 0 {
-			value.Items = append(value.Items, String("mutated"))
-			return true
-		}
-		for index := range value.Items {
-			if mutateFirstGDJ0047Scalar(&value.Items[index]) {
-				return true
-			}
-		}
-	case ValueObject:
-		for index := range value.Fields {
-			if mutateFirstGDJ0047Scalar(&value.Fields[index].Value) {
-				return true
-			}
-		}
-	}
-	return false
 }

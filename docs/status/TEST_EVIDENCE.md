@@ -3,6 +3,48 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0059 — 테스트와 검증 코드 공통화
+
+- 작업: [GDJ-0059](../../work/0059-test-validation-compaction.md)
+- 기준: `257e593309721bb0da888a3cbdef9b93c2b52083`, 원래 작업 디렉터리와 `codex/revision-fenced-migration-lifecycle` 브랜치.
+- 로컬: 2026-09-07 KST, Go 1.26.5 darwin/arm64. 아래는 기준에 이번 구현을 적용한 checkout에서 실행했다.
+- 상태: 로컬 checkpoint 완료. 고정 source의 Hosted full scope는 아직 실행하지 않았다.
+
+관련 19개 package는 다음과 같다. 제품 runtime·공개 API·생성 ABI·고정 oracle/profile에는 변경이 없다.
+
+```sh
+gdj_compact_packages=(
+  ./conformance/internal/generationtest ./conformance/internal/relationschema
+  ./conformance/internal/testprocess ./conformance/internal/protocol
+  ./conformance/relationproduct ./conformance/relationobjectproduct ./conformance/relationqueryproduct
+  ./conformance/relationreverseproduct ./conformance/relationprefetchproduct
+  ./conformance/relationselectproduct ./conformance/relationdeleteproduct
+  ./conformance/projectmigrateproduct ./conformance/projectmigratetargetproduct
+  ./conformance/projectshowmigrationsproduct ./conformance/projectsqlmigrateproduct
+  ./conformance/runners/godj ./internal/compiletest ./internal/projectgenerate ./codegen
+)
+```
+
+| 실제 명령·범위 | 결과 |
+|---|---|
+| 위 package의 `go test -count=1`을 process/fixture/protocol/runner/consumer 묶음으로 실행 (`-timeout=5m/10m/12m`) | PASS, 실제 SQLite·외부 process·consumer compile·생성/출판·oracle 비교·부정 회귀 |
+| `go test -json -race -count=1 -p=2 -timeout=20m "${gdj_compact_packages[@]}"` | PASS, 19개 package. test/subtest run 2,353, pass 2,348, skip 5, fail 0; stderr 0 bytes |
+| `CGO_ENABLED=0 go test -json -count=1 -p=2 -timeout=20m "${gdj_compact_packages[@]}"` | PASS, 19개 package. test/subtest run 2,353, pass 2,348, skip 5, fail 0; stderr 0 bytes |
+| `make generate-check` | PASS, Helpdesk·Article·relationdelete 및 별도 관계 fixture 6개의 byte drift 없음 |
+| `go vet` — 위 목록의 conformance package 16개 | PASS |
+| `python3 scripts/check_docs.py`, `git diff --check` | PASS |
+
+race/CGO-disabled의 skip은 PostgreSQL 접속 설정이 없는 전용 제품 테스트 네 개와, 부모 테스트가 자식 프로세스로만
+실행하는 `TestPublicationCrashHelper`의 직접 진입 한 개다. 부모 publication crash 회귀는 통과했다.
+로컬 PostgreSQL 실행을 주장하지 않으며 실제 DB 검증은 최종 Hosted scope가 소유한다.
+JSONL의 test/subtest 건수는 실행 기록이며 제품 계약이나 고정 roster로 추가하지 않는다.
+
+이관 중 남은 미사용 import로 compile-only 및 일부 normal package가 실패했다. import를 제거한 후 해당 package를
+다시 실행하고 위 전체 관련 race/CGO-disabled를 통과했다. 최초 compile 실패를 성공 기록으로 재사용하지 않았다.
+
+정적 변경 비교에서 기존 test 함수 삭제는 없다. 동일 helper 통합과 공통 입력의 상태 격리·generated inventory·process
+안전성·출력 상한 회귀를 포함해 전체 Go 라인은 323,137에서 321,932로 1,205줄 감소했다. 실행시간 개선을 측정한 결과는 아니다.
+
 ## GDJ-0058 — 관계 조회 정리와 eager First
 
 - 작업: [GDJ-0058](../../work/0058-eager-first-ticket-detail.md)

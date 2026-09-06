@@ -2,9 +2,7 @@ package protocol
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -66,7 +64,7 @@ func TestMigrationStatusReferenceArtifactsAreLockedValidatedAndPayloadSafe(t *te
 			sha256: "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f",
 		},
 	} {
-		contents := mustReadMigrationStatusFile(t, filepath.Join(root, filepath.FromSlash(name)))
+		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
 		if len(contents) != want.size {
 			t.Fatalf("migration-status artifact %s size = %d, want %d", name, len(contents), want.size)
 		}
@@ -155,21 +153,21 @@ func TestMigrationStatusDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 	profile, manifest, oracle, _ := loadMigrationStatusArtifacts(t)
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
-			actual := cloneMigrationStatusSuite(t, oracle)
+			actual := cloneJSONSuite(t, oracle)
 			observation := &actual.Contracts[index]
 			var changed bool
 			switch dimension {
 			case CompareResult:
-				changed = mutateMigrationStatusValue(observation.Result)
+				changed = mutateFirstValue(observation.Result)
 			case CompareError:
 				if observation.Error != nil {
 					observation.Error.Code += "_changed"
 					changed = true
 				}
 			case CompareDBState:
-				changed = mutateMigrationStatusValue(observation.DBState)
+				changed = mutateFirstValue(observation.DBState)
 			case CompareMetrics:
-				changed = mutateMigrationStatusValue(observation.Metrics)
+				changed = mutateFirstValue(observation.Metrics)
 			}
 			if !changed {
 				t.Fatalf("contract %s declared %s without mutable payload", contract.ID, dimension)
@@ -211,7 +209,7 @@ func TestMigrationStatusAuthoritySourcesAreIndependentAndArtifactBlind(t *testin
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	decision := string(mustReadMigrationStatusFile(t, filepath.Join(root, "conformance", "runners", "django", "migration_status_decisions.py")))
+	decision := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "migration_status_decisions.py")))
 	for _, forbidden := range []string{
 		"from django", "import django", "sqlite3", "conformance/contracts", "conformance/oracles",
 		"conformance/fixtures", "not_implemented", "not-implemented",
@@ -220,7 +218,7 @@ func TestMigrationStatusAuthoritySourcesAreIndependentAndArtifactBlind(t *testin
 			t.Fatalf("migration-status decision source crosses forbidden boundary %q", forbidden)
 		}
 	}
-	djangoSource := string(mustReadMigrationStatusFile(t, filepath.Join(root, "conformance", "runners", "django", "migration_status_scenarios.py")))
+	djangoSource := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "migration_status_scenarios.py")))
 	for _, forbidden := range []string{
 		"conformance/contracts", "conformance/oracles", "conformance/fixtures", "not_implemented", "not-implemented",
 	} {
@@ -236,7 +234,7 @@ func TestMigrationStatusAuthoritySourcesAreIndependentAndArtifactBlind(t *testin
 		"conformance/runners/django/migration_status_decisions.py",
 		"conformance/runners/django/migration_status_scenarios.py",
 	} {
-		contents := string(mustReadMigrationStatusFile(t, filepath.Join(root, filepath.FromSlash(name))))
+		contents := string(readArtifact(t, filepath.Join(root, filepath.FromSlash(name))))
 		for _, forbidden := range []string{"postgres://", "password=", root} {
 			if strings.Contains(contents, forbidden) {
 				t.Fatalf("migration-status source %s leaks forbidden value %q", name, forbidden)
@@ -249,7 +247,7 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	runner := string(mustReadMigrationStatusFile(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
+	runner := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
 	for fragment, want := range map[string]int{
 		"SCENARIOS as MIGRATION_STATUS_DECISION_SCENARIOS":                             1,
 		"SCENARIOS as MIGRATION_STATUS_DJANGO_SCENARIOS":                               1,
@@ -264,7 +262,7 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 		}
 	}
 
-	makeText := string(mustReadMigrationStatusFile(t, filepath.Join(root, "Makefile")))
+	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
 		"MIGRATION_STATUS_MANIFEST":        "conformance/contracts/migration-status-manifest.json",
 		"MIGRATION_STATUS_ORACLE":          "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json",
@@ -314,7 +312,7 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 		}
 	}
 
-	workflow := string(mustReadMigrationStatusFile(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
+	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
 	if got := strings.Count(workflow, "conformance/fixtures/godj-migration-status-not-implemented.json"); got != 2 {
 		t.Fatalf("workflow migration-status NI lock count = %d, want 2", got)
 	}
@@ -323,79 +321,9 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 func loadMigrationStatusArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-status-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-status-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", "godj-migration-status-not-implemented.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-status-manifest.json"), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-status-oracle.json"), LoadObservationSuite)
+	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-status-not-implemented.json"), LoadObservationSuite)
 	return profile, manifest, oracle, baseline
-}
-
-func mustReadMigrationStatusFile(t *testing.T, name string) []byte {
-	t.Helper()
-	contents, err := os.ReadFile(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
-}
-
-func cloneMigrationStatusSuite(t *testing.T, suite ObservationSuite) ObservationSuite {
-	t.Helper()
-	document, err := json.Marshal(suite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cloned ObservationSuite
-	if err := json.Unmarshal(document, &cloned); err != nil {
-		t.Fatal(err)
-	}
-	return cloned
-}
-
-func mutateMigrationStatusValue(value *Value) bool {
-	if value == nil {
-		return false
-	}
-	switch value.Type {
-	case ValueBool:
-		*value.Bool = !*value.Bool
-		return true
-	case ValueInt:
-		if *value.Text == "0" {
-			*value.Text = "1"
-		} else {
-			*value.Text = "0"
-		}
-		return true
-	case ValueString, ValueDecimal, ValueDatetime, ValueUUID, ValueBytes:
-		*value.Text += "_changed"
-		return true
-	case ValuePK:
-		return mutateMigrationStatusValue(value.Nested)
-	case ValueList:
-		for index := range value.Items {
-			if mutateMigrationStatusValue(&value.Items[index]) {
-				return true
-			}
-		}
-	case ValueObject:
-		for index := range value.Fields {
-			if mutateMigrationStatusValue(&value.Fields[index].Value) {
-				return true
-			}
-		}
-	}
-	return false
 }

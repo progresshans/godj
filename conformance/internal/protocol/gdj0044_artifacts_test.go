@@ -521,18 +521,9 @@ func TestGDJ0044CheckpointTwentyReferenceSetsHave219ContractsAndReject380Ordered
 
 func loadGDJ0044Set(t *testing.T, root string, set gdj0044ContractSet) (Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", set.manifest))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "drf-3.18.0-django-6.1-sqlite-darwin-arm64", set.oracle))
-	if err != nil {
-		t.Fatal(err)
-	}
-	fixture, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", set.fixture))
-	if err != nil {
-		t.Fatal(err)
-	}
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", set.manifest), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "drf-3.18.0-django-6.1-sqlite-darwin-arm64", set.oracle), LoadObservationSuite)
+	fixture := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", set.fixture), LoadObservationSuite)
 	return manifest, oracle, fixture
 }
 

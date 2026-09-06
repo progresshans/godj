@@ -80,7 +80,7 @@ func TestMigrationSQLRenderingPublishedArtifactsAreLockedAndProductEligible(t *t
 
 	root := conformanceRepositoryRoot(t)
 	for name, want := range migrationSQLRenderingArtifactLocks {
-		contents := mustReadMigrationSQLRenderingFile(t, filepath.Join(root, filepath.FromSlash(name)))
+		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
 		if len(contents) != want.size {
 			t.Fatalf("migration-sql-rendering artifact %s size = %d, want %d", name, len(contents), want.size)
 		}
@@ -171,11 +171,11 @@ func TestMigrationSQLRenderingDeclaredDimensionsAndBindingsCannotFalseGreen(t *t
 			var changed bool
 			switch dimension {
 			case CompareResult:
-				changed = mutateMigrationSQLRenderingValue(observation.Result)
+				changed = mutateFirstValue(observation.Result)
 			case CompareDBState:
-				changed = mutateMigrationSQLRenderingValue(observation.DBState)
+				changed = mutateFirstValue(observation.DBState)
 			case CompareMetrics:
-				changed = mutateMigrationSQLRenderingValue(observation.Metrics)
+				changed = mutateFirstValue(observation.Metrics)
 			default:
 				t.Fatalf("contract %s unexpected comparison dimension %q", contract.ID, dimension)
 			}
@@ -208,7 +208,7 @@ func TestMigrationSQLRenderingAuthoritySourcesAreIndependentAndArtifactBlind(t *
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	decision := string(mustReadMigrationSQLRenderingFile(t, filepath.Join(root, "conformance", "runners", "django", "migration_sql_rendering_decisions.py")))
+	decision := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "migration_sql_rendering_decisions.py")))
 	for _, forbidden := range []string{
 		"from django", "import django", "sqlite3", "conformance/contracts", "conformance/oracles",
 		"conformance/fixtures", "not_implemented", "not-implemented",
@@ -218,7 +218,7 @@ func TestMigrationSQLRenderingAuthoritySourcesAreIndependentAndArtifactBlind(t *
 		}
 	}
 
-	djangoSource := string(mustReadMigrationSQLRenderingFile(t, filepath.Join(root, "conformance", "runners", "django", "migration_sql_rendering_scenarios.py")))
+	djangoSource := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "migration_sql_rendering_scenarios.py")))
 	for _, forbidden := range []string{
 		"conformance/contracts", "conformance/oracles", "conformance/fixtures", "not_implemented", "not-implemented",
 	} {
@@ -242,7 +242,7 @@ func TestMigrationSQLRenderingAuthoritySourcesAreIndependentAndArtifactBlind(t *
 		"conformance/runners/django/migration_sql_rendering_decisions.py",
 		"conformance/runners/django/migration_sql_rendering_scenarios.py",
 	} {
-		contents := string(mustReadMigrationSQLRenderingFile(t, filepath.Join(root, filepath.FromSlash(name))))
+		contents := string(readArtifact(t, filepath.Join(root, filepath.FromSlash(name))))
 		for _, forbidden := range []string{"postgres://", "password=", root} {
 			if strings.Contains(contents, forbidden) {
 				t.Fatalf("migration-sql-rendering source %s leaks forbidden value %q", name, forbidden)
@@ -255,7 +255,7 @@ func TestMigrationSQLRenderingPublishedReferenceAndProductWiringIsExact(t *testi
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	runner := string(mustReadMigrationSQLRenderingFile(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
+	runner := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
 	for fragment, want := range map[string]int{
 		"SCENARIOS as MIGRATION_SQL_RENDERING_DECISION_SCENARIOS": 1,
 		"SCENARIOS as MIGRATION_SQL_RENDERING_DJANGO_SCENARIOS":   1,
@@ -271,7 +271,7 @@ func TestMigrationSQLRenderingPublishedReferenceAndProductWiringIsExact(t *testi
 		}
 	}
 
-	makeText := string(mustReadMigrationSQLRenderingFile(t, filepath.Join(root, "Makefile")))
+	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
 		"MIGRATION_SQL_RENDERING_MANIFEST":        migrationSQLRenderingManifestArtifact,
 		"MIGRATION_SQL_RENDERING_ORACLE":          migrationSQLRenderingOracleArtifact,
@@ -324,7 +324,7 @@ func TestMigrationSQLRenderingPublishedReferenceAndProductWiringIsExact(t *testi
 		}
 	}
 
-	workflow := string(mustReadMigrationSQLRenderingFile(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
+	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
 	if got := strings.Count(workflow, migrationSQLRenderingBaselineArtifact); got != 2 {
 		t.Fatalf("workflow migration-sql-rendering NI lock count = %d, want 2", got)
 	}
@@ -406,66 +406,9 @@ type migrationSQLRenderingProvenance struct {
 func loadMigrationSQLRenderingArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, filepath.FromSlash(migrationSQLRenderingManifestArtifact)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, filepath.FromSlash(migrationSQLRenderingOracleArtifact)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, filepath.FromSlash(migrationSQLRenderingBaselineArtifact)))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, filepath.FromSlash(migrationSQLRenderingManifestArtifact)), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, filepath.FromSlash(migrationSQLRenderingOracleArtifact)), LoadObservationSuite)
+	baseline := requireArtifact(t, filepath.Join(root, filepath.FromSlash(migrationSQLRenderingBaselineArtifact)), LoadObservationSuite)
 	return profile, manifest, oracle, baseline
-}
-
-func mustReadMigrationSQLRenderingFile(t *testing.T, path string) []byte {
-	t.Helper()
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
-}
-
-func mutateMigrationSQLRenderingValue(value *Value) bool {
-	if value == nil {
-		return false
-	}
-	switch value.Type {
-	case ValueBool:
-		*value.Bool = !*value.Bool
-		return true
-	case ValueInt:
-		if *value.Text == "0" {
-			*value.Text = "1"
-		} else {
-			*value.Text = "0"
-		}
-		return true
-	case ValueString, ValueDecimal, ValueDatetime, ValueUUID, ValueBytes:
-		*value.Text += "_changed"
-		return true
-	case ValuePK:
-		return mutateMigrationSQLRenderingValue(value.Nested)
-	case ValueList:
-		for index := range value.Items {
-			if mutateMigrationSQLRenderingValue(&value.Items[index]) {
-				return true
-			}
-		}
-	case ValueObject:
-		for index := range value.Fields {
-			if mutateMigrationSQLRenderingValue(&value.Fields[index].Value) {
-				return true
-			}
-		}
-	}
-	return false
 }

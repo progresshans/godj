@@ -20,11 +20,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 )
 
 const (
@@ -457,8 +458,8 @@ func (project *sqlProductProject) runInterrupted(
 	name string,
 ) sqlProductResult {
 	t.Helper()
-	stdout := &sqlProductBoundedBuffer{maximum: sqlProductMaximumOutput}
-	stderr := &sqlProductBoundedBuffer{maximum: sqlProductMaximumOutput}
+	stdout := testprocess.NewBuffer(sqlProductMaximumOutput)
+	stderr := testprocess.NewBuffer(sqlProductMaximumOutput)
 	command := exec.Command(
 		project.globalBinary,
 		"sqlmigrate", app, name, "--project", project.descriptor,
@@ -489,7 +490,7 @@ func (project *sqlProductProject) runInterrupted(
 		project.abortInterruptedCommand(t, command.Process.Pid, waited)
 		t.Fatalf("wait for built runner cancellation point: %v", err)
 	}
-	groups, err := sqlProductOwnedProcessGroups(command.Process.Pid)
+	groups, err := testprocess.OwnedGroups(command.Process.Pid)
 	if err != nil {
 		project.abortInterruptedCommand(t, command.Process.Pid, waited)
 		t.Fatalf("capture interrupted process groups: %v", err)
@@ -514,20 +515,20 @@ func (project *sqlProductProject) runInterrupted(
 			}
 		}
 	case <-timer.C:
-		killErr := sqlProductKillProcessGroups(groups, command.Process.Pid)
+		killErr := testprocess.KillGroups(groups, command.Process.Pid)
 		boundedWaitErr := sqlProductBoundedWaitChannel(waited, 5*time.Second)
-		absenceErr := sqlProductWaitProcessGroupsAbsent(groups, 2*time.Second)
+		absenceErr := testprocess.WaitAbsent(groups, 2*time.Second)
 		if boundedWaitErr != nil {
 			t.Fatalf("interrupted sqlmigrate did not terminate: %v", errors.Join(killErr, boundedWaitErr, absenceErr))
 		}
 		t.Fatalf("interrupted sqlmigrate exceeded its graceful deadline: %v", errors.Join(killErr, waitErr, absenceErr))
 	}
-	if err := sqlProductWaitProcessGroupsAbsent(groups, 5*time.Second); err != nil {
-		killErr := sqlProductKillProcessGroups(groups, command.Process.Pid)
-		cleanupErr := sqlProductWaitProcessGroupsAbsent(groups, 2*time.Second)
+	if err := testprocess.WaitAbsent(groups, 5*time.Second); err != nil {
+		killErr := testprocess.KillGroups(groups, command.Process.Pid)
+		cleanupErr := testprocess.WaitAbsent(groups, 2*time.Second)
 		t.Fatalf("interrupted sqlmigrate process groups were not reaped: %v", errors.Join(err, killErr, cleanupErr))
 	}
-	if stdout.truncated || stderr.truncated {
+	if stdout.Truncated() || stderr.Truncated() {
 		t.Fatal("interrupted sqlmigrate exceeded output limit")
 	}
 	exitCode := 0
@@ -545,10 +546,10 @@ func (project *sqlProductProject) runInterrupted(
 
 func (project *sqlProductProject) abortInterruptedCommand(t *testing.T, rootPID int, waited <-chan struct{}) {
 	t.Helper()
-	groups, discoveryErr := sqlProductOwnedProcessGroups(rootPID)
-	killErr := sqlProductKillProcessGroups(groups, rootPID)
+	groups, discoveryErr := testprocess.OwnedGroups(rootPID)
+	killErr := testprocess.KillGroups(groups, rootPID)
 	waitErr := sqlProductBoundedWaitChannel(waited, 5*time.Second)
-	absenceErr := sqlProductWaitProcessGroupsAbsent(groups, 2*time.Second)
+	absenceErr := testprocess.WaitAbsent(groups, 2*time.Second)
 	if err := errors.Join(discoveryErr, killErr, waitErr, absenceErr); err != nil {
 		t.Errorf("cleanup failed interrupted sqlmigrate: %v", err)
 	}
@@ -773,7 +774,7 @@ func sqlProductAssertMarker(t *testing.T, path, want string) int {
 	if !ok || parseErr != nil || pid <= 1 || event != want {
 		t.Fatalf("marker %s = %q, want one %q event", filepath.Base(path), lines[0], want)
 	}
-	if err := sqlProductWaitProcessGroupsAbsent([]int{pid}, 2*time.Second); err != nil {
+	if err := testprocess.WaitAbsent([]int{pid}, 2*time.Second); err != nil {
 		t.Fatalf("project runner process group was not reaped: %v", err)
 	}
 	return pid
@@ -1695,8 +1696,8 @@ func sqlProductRunSuccess(t *testing.T, directory string, environment []string, 
 }
 
 func sqlProductRun(directory string, environment []string, name string, arguments ...string) (sqlProductResult, error) {
-	stdout := &sqlProductBoundedBuffer{maximum: sqlProductMaximumOutput}
-	stderr := &sqlProductBoundedBuffer{maximum: sqlProductMaximumOutput}
+	stdout := testprocess.NewBuffer(sqlProductMaximumOutput)
+	stderr := testprocess.NewBuffer(sqlProductMaximumOutput)
 	command := exec.Command(name, arguments...)
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
@@ -1714,13 +1715,13 @@ func sqlProductRun(directory string, environment []string, name string, argument
 	select {
 	case waitErr = <-waited:
 	case <-timer.C:
-		groups, discoveryErr := sqlProductOwnedProcessGroups(command.Process.Pid)
-		killErr := sqlProductKillProcessGroups(groups, command.Process.Pid)
-		waitErr = sqlProductBoundedWait(waited, 5*time.Second)
-		absenceErr := sqlProductWaitProcessGroupsAbsent(groups, 2*time.Second)
+		groups, discoveryErr := testprocess.OwnedGroups(command.Process.Pid)
+		killErr := testprocess.KillGroups(groups, command.Process.Pid)
+		waitErr = testprocess.Wait(waited, 5*time.Second)
+		absenceErr := testprocess.WaitAbsent(groups, 2*time.Second)
 		return sqlProductResult{}, fmt.Errorf("%s %s timed out: %w", name, strings.Join(arguments, " "), errors.Join(discoveryErr, killErr, waitErr, absenceErr))
 	}
-	if stdout.truncated || stderr.truncated {
+	if stdout.Truncated() || stderr.Truncated() {
 		return sqlProductResult{}, fmt.Errorf("%s %s exceeded output limit", name, strings.Join(arguments, " "))
 	}
 	exitCode := 0
@@ -1731,21 +1732,10 @@ func sqlProductRun(directory string, environment []string, name string, argument
 		}
 		exitCode = exitError.ExitCode()
 	}
-	if err := sqlProductWaitProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
+	if err := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
 		return sqlProductResult{}, fmt.Errorf("wait for external root process group: %w", err)
 	}
 	return sqlProductResult{exitCode: exitCode, stdout: stdout.String(), stderr: stderr.String()}, nil
-}
-
-func sqlProductBoundedWait(waited <-chan error, timeout time.Duration) error {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case err := <-waited:
-		return err
-	case <-timer.C:
-		return errors.New("process Wait remained blocked after forced cleanup")
-	}
 }
 
 func sqlProductBoundedWaitChannel(waited <-chan struct{}, timeout time.Duration) error {
@@ -1756,102 +1746,6 @@ func sqlProductBoundedWaitChannel(waited <-chan struct{}, timeout time.Duration)
 		return nil
 	case <-timer.C:
 		return errors.New("process Wait remained blocked after forced cleanup")
-	}
-}
-
-func sqlProductOwnedProcessGroups(rootPID int) ([]int, error) {
-	output, err := exec.Command("ps", "-Ao", "pid=,ppid=,pgid=").Output()
-	if err != nil {
-		return []int{rootPID}, fmt.Errorf("inspect process tree: %w", err)
-	}
-	type process struct{ pid, ppid, pgid int }
-	var processes []process
-	for _, line := range strings.Split(string(output), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if len(fields) != 3 {
-			return []int{rootPID}, errors.New("inspect process tree: invalid ps row")
-		}
-		pid, pidErr := strconv.Atoi(fields[0])
-		ppid, ppidErr := strconv.Atoi(fields[1])
-		pgid, pgidErr := strconv.Atoi(fields[2])
-		if errors.Join(pidErr, ppidErr, pgidErr) != nil {
-			return []int{rootPID}, errors.New("inspect process tree: invalid identifier")
-		}
-		processes = append(processes, process{pid: pid, ppid: ppid, pgid: pgid})
-	}
-	descendants := map[int]struct{}{rootPID: {}}
-	for changed := true; changed; {
-		changed = false
-		for _, candidate := range processes {
-			if _, owned := descendants[candidate.ppid]; !owned {
-				continue
-			}
-			if _, exists := descendants[candidate.pid]; exists {
-				continue
-			}
-			descendants[candidate.pid] = struct{}{}
-			changed = true
-		}
-	}
-	groups := map[int]struct{}{rootPID: {}}
-	for _, candidate := range processes {
-		if _, owned := descendants[candidate.pid]; owned {
-			groups[candidate.pgid] = struct{}{}
-		}
-	}
-	result := make([]int, 0, len(groups))
-	for group := range groups {
-		if group <= 1 || group == syscall.Getpgrp() {
-			return []int{rootPID}, errors.New("inspect process tree: unsafe process group")
-		}
-		result = append(result, group)
-	}
-	sort.Ints(result)
-	return result, nil
-}
-
-func sqlProductKillProcessGroups(groups []int, root int) error {
-	var result error
-	for index := len(groups) - 1; index >= 0; index-- {
-		if groups[index] == root {
-			continue
-		}
-		result = errors.Join(result, sqlProductSignalProcessGroup(groups[index], syscall.SIGKILL))
-	}
-	return errors.Join(result, sqlProductSignalProcessGroup(root, syscall.SIGKILL))
-}
-
-func sqlProductSignalProcessGroup(group int, signal syscall.Signal) error {
-	if group <= 1 || group == syscall.Getpgrp() {
-		return errors.New("refuse to signal unsafe process group")
-	}
-	err := syscall.Kill(-group, signal)
-	if errors.Is(err, syscall.ESRCH) {
-		return nil
-	}
-	return err
-}
-
-func sqlProductWaitProcessGroupsAbsent(groups []int, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		var remaining []int
-		for _, group := range groups {
-			err := syscall.Kill(-group, 0)
-			if err == nil || errors.Is(err, syscall.EPERM) {
-				remaining = append(remaining, group)
-			}
-		}
-		if len(remaining) == 0 {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("process groups remain: %v", remaining)
-		}
-		time.Sleep(5 * time.Millisecond)
 	}
 }
 
@@ -1931,34 +1825,4 @@ func sqlProductContainsInt(values []int, want int) bool {
 		}
 	}
 	return false
-}
-
-type sqlProductBoundedBuffer struct {
-	mu        sync.Mutex
-	buffer    bytes.Buffer
-	maximum   int
-	truncated bool
-}
-
-func (buffer *sqlProductBoundedBuffer) Write(document []byte) (int, error) {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	original := len(document)
-	remaining := buffer.maximum - buffer.buffer.Len()
-	if remaining <= 0 {
-		buffer.truncated = true
-		return original, nil
-	}
-	if len(document) > remaining {
-		buffer.truncated = true
-		document = document[:remaining]
-	}
-	_, _ = buffer.buffer.Write(document)
-	return original, nil
-}
-
-func (buffer *sqlProductBoundedBuffer) String() string {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buffer.String()
 }

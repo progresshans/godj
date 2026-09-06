@@ -1,7 +1,7 @@
 # 현재 상태
 
 - 갱신: 2026-09-07
-- 활성 작업: 없음
+- 활성 작업: [GDJ-0059 테스트와 검증 코드 공통화](../../work/0059-test-validation-compaction.md)
 - 최근 완료: [GDJ-0058 관계를 포함한 단일 객체 조회](../../work/0058-eager-first-ticket-detail.md)
 - 최근 검증 소스(ORM scope): `aca9115223b3d4703c36553e580c3ee60f7d2c42`
 - 작업 브랜치: `codex/revision-fenced-migration-lifecycle`
@@ -20,7 +20,8 @@ GDJ-0058에서 관계 조회의 중복 dispatch·오류 처리·객체 변환을
 
 ## 다음 행동
 
-확정된 후속 작업이나 blocker는 없다. 다음 소비자 기능을 정하면 관련 경로의 중복을 먼저 정리하고 구현한다.
+GDJ-0059에서 검증 항목·상태 격리를 유지하며 동일한 프로세스 helper와 관계 fixture·검증 준비를 공통화한다.
+관련 회귀 후 고정 source의 통합 검증을 수행한다. 현재 blocker는 없다.
 eager Count·다중 관계 탐색은 별도 의미와 작업 범위를 정한 뒤 시작한다. 기존 PR #1은 Draft로 유지한다.
 
 ## 검증과 제한

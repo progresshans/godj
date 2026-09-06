@@ -780,36 +780,18 @@ func migrationLifecycleProvenance() map[string][]string {
 
 func loadMigrationLifecycleContractSet(t *testing.T, root, name, manifestName, oracleName string) migrationLifecycleContractSet {
 	t.Helper()
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", manifestName))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", oracleName))
-	if err != nil {
-		t.Fatal(err)
-	}
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", manifestName), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", oracleName), LoadObservationSuite)
 	return migrationLifecycleContractSet{name: name, manifest: manifest, oracle: oracle}
 }
 
 func loadMigrationLifecycleArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-lifecycle-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-lifecycle-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-not-implemented.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-lifecycle-manifest.json"), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-lifecycle-oracle.json"), LoadObservationSuite)
+	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-not-implemented.json"), LoadObservationSuite)
 	return profile, manifest, oracle, baseline
 }
 

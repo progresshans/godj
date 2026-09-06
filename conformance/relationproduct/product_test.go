@@ -1,10 +1,8 @@
 package relationproduct_test
 
 import (
-	"bytes"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -12,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/conformance/internal/generationtest"
 	"github.com/progresshans/godj/conformance/relationproduct"
 	"github.com/progresshans/godj/conformance/relationproduct/blog"
 	"github.com/progresshans/godj/conformance/relationproduct/fixture"
@@ -29,31 +28,19 @@ func TestCheckedInGeneratedRelationProjectMatchesDeterministicCandidates(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidates := []struct {
-		path string
-		data []byte
-	}{
-		{path: "authors/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("authors", authors) })},
-		{path: "authors/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authors) })},
-		{path: "blog/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{path: "project/zz_godj_bindings.go", data: generated(t, func() ([]byte, error) {
+	candidates := []generationtest.Candidate{
+		{Path: "authors/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("authors", authors) })},
+		{Path: "authors/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authors) })},
+		{Path: "blog/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
+		{Path: "blog/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
+		{Path: "project/zz_godj_bindings.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
 			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 				{Alias: "blog", ImportPath: "github.com/progresshans/godj/conformance/relationproduct/blog"},
 				{Alias: "authors", ImportPath: "github.com/progresshans/godj/conformance/relationproduct/authors"},
 			})
 		})},
 	}
-	root := relationProductDirectory(t)
-	for _, candidate := range candidates {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(candidate.path)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(contents, candidate.data) {
-			t.Fatalf("checked-in generated file %s differs from deterministic candidate", candidate.path)
-		}
-	}
+	generationtest.Check(t, relationProductDirectory(t), candidates)
 }
 
 func TestGeneratedRelationProjectBindsActualForwardAndReverseMetadata(t *testing.T) {
@@ -159,15 +146,6 @@ func TestObserverImportsOnlyGeneratedBridgeAndRuntimeMetadata(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("observer imports = %#v, want %#v", got, want)
 	}
-}
-
-func generated(t *testing.T, generate func() ([]byte, error)) []byte {
-	t.Helper()
-	contents, err := generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
 }
 
 func relationProductDirectory(t *testing.T) string {

@@ -65,7 +65,7 @@ func TestMigrationWriterArtifactsAreLockedAndPhaseAReferenceRemainsPayloadFree(t
 			sha256: "9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41",
 		},
 	} {
-		contents := mustReadMigrationCommandFile(t, filepath.Join(root, filepath.FromSlash(name)))
+		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
 		if len(contents) != want.size {
 			t.Fatalf("migration-writer artifact %s size = %d, want %d", name, len(contents), want.size)
 		}
@@ -168,14 +168,14 @@ func TestMigrationWriterDeclaredDimensionsAndBindingsCannotFalseGreen(t *testing
 	profile, manifest, oracle, _ := loadMigrationWriterArtifacts(t)
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
-			actual := cloneMigrationCommandSuite(t, oracle)
+			actual := cloneJSONSuite(t, oracle)
 			observation := &actual.Contracts[index]
 			var changed bool
 			switch dimension {
 			case CompareResult:
-				changed = mutateMigrationCommandValue(observation.Result)
+				changed = mutateFirstValue(observation.Result)
 			case CompareMetrics:
-				changed = mutateMigrationCommandValue(observation.Metrics)
+				changed = mutateFirstValue(observation.Metrics)
 			default:
 				t.Fatalf("contract %s unexpected comparison dimension %q", contract.ID, dimension)
 			}
@@ -192,7 +192,7 @@ func TestMigrationWriterDeclaredDimensionsAndBindingsCannotFalseGreen(t *testing
 		}
 	}
 
-	reordered := cloneMigrationCommandSuite(t, oracle)
+	reordered := cloneJSONSuite(t, oracle)
 	reordered.Contracts[0], reordered.Contracts[1] = reordered.Contracts[1], reordered.Contracts[0]
 	if err := ValidateSuiteAgainst(profile, manifest, reordered); err == nil {
 		t.Fatal("migration-writer contract reorder produced a false green")
@@ -203,7 +203,7 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	decisionSource := string(mustReadMigrationCommandFile(t, filepath.Join(root, "conformance", "runners", "django", "migration_writer_decisions.py")))
+	decisionSource := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "migration_writer_decisions.py")))
 	for _, forbidden := range []string{
 		"from django", "import django", "conformance/contracts", "conformance/oracles",
 		"conformance/fixtures", "not_implemented", "not-implemented", "sqlite3",
@@ -212,14 +212,14 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 			t.Fatalf("migration-writer decision source crosses forbidden boundary %q", forbidden)
 		}
 	}
-	scenarioSource := string(mustReadMigrationCommandFile(t, filepath.Join(root, "conformance", "runners", "django", "migration_writer_scenarios.py")))
+	scenarioSource := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "migration_writer_scenarios.py")))
 	for _, forbidden := range []string{"conformance/contracts", "conformance/oracles", "conformance/fixtures", "not_implemented", "not-implemented"} {
 		if strings.Contains(scenarioSource, forbidden) {
 			t.Fatalf("migration-writer Django source reads expected artifact boundary %q", forbidden)
 		}
 	}
 
-	runner := string(mustReadMigrationCommandFile(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
+	runner := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
 	for fragment, want := range map[string]int{
 		"SCENARIOS as MIGRATION_WRITER_DECISION_SCENARIOS":                             1,
 		"SCENARIOS as MIGRATION_WRITER_DJANGO_SCENARIOS":                               1,
@@ -233,7 +233,7 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 		}
 	}
 
-	makeText := string(mustReadMigrationCommandFile(t, filepath.Join(root, "Makefile")))
+	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
 		"MIGRATION_WRITER_MANIFEST":           "conformance/contracts/migration-writer-manifest.json",
 		"MIGRATION_WRITER_ORACLE":             "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json",
@@ -274,7 +274,7 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 		}
 	}
 
-	workflow := string(mustReadMigrationCommandFile(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
+	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
 	if got := strings.Count(workflow, "conformance/fixtures/godj-migration-writer-not-implemented.json"); got != 2 {
 		t.Fatalf("workflow migration-writer NI lock count = %d, want 2", got)
 	}
@@ -327,21 +327,9 @@ func assertMigrationWriterProvenance(t *testing.T, contract Contract, djangoAuth
 func loadMigrationWriterArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-writer-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-writer-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", "godj-migration-writer-not-implemented.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-writer-manifest.json"), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-writer-oracle.json"), LoadObservationSuite)
+	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-writer-not-implemented.json"), LoadObservationSuite)
 	return profile, manifest, oracle, baseline
 }

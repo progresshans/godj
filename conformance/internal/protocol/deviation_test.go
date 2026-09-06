@@ -445,10 +445,7 @@ func TestMigrationExecutionDeviationExpectationFailsClosed(t *testing.T) {
 func loadMigrationExecutionDeviationExpectation(t *testing.T) DeviationExpectation {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	expectation, err := LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", "godj-migration-execution-deviation-expected.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	expectation := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-execution-deviation-expected.json"), LoadDeviationExpectation)
 	return expectation
 }
 
@@ -733,10 +730,7 @@ func TestMigrationLifecycleDeviationExpectationFailsClosed(t *testing.T) {
 func loadMigrationLifecycleDeviationExpectation(t *testing.T) DeviationExpectation {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	expectation, err := LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-deviation-expected.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	expectation := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-deviation-expected.json"), LoadDeviationExpectation)
 	return expectation
 }
 

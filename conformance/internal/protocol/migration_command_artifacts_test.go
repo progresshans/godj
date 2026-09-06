@@ -2,9 +2,7 @@ package protocol
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -78,7 +76,7 @@ func TestMigrationCommandArtifactsAreLockedValidatedAndPayloadSafe(t *testing.T)
 			sha256: "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee",
 		},
 	} {
-		contents := mustReadMigrationCommandFile(t, filepath.Join(root, filepath.FromSlash(name)))
+		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
 		if len(contents) != want.size {
 			t.Fatalf("migration-command artifact %s size = %d, want %d", name, len(contents), want.size)
 		}
@@ -133,14 +131,14 @@ func TestMigrationCommandArtifactsAreLockedValidatedAndPayloadSafe(t *testing.T)
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json",
 		"conformance/runners/django/migration_command_decisions.py",
 	} {
-		contents := string(mustReadMigrationCommandFile(t, filepath.Join(root, filepath.FromSlash(name))))
+		contents := string(readArtifact(t, filepath.Join(root, filepath.FromSlash(name))))
 		for _, forbidden := range []string{"postgres://", "password=", root} {
 			if strings.Contains(contents, forbidden) {
 				t.Fatalf("migration-command source %s leaks forbidden value %q", name, forbidden)
 			}
 		}
 	}
-	decisionSource := string(mustReadMigrationCommandFile(t, filepath.Join(root, "conformance", "runners", "django", "migration_command_decisions.py")))
+	decisionSource := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "migration_command_decisions.py")))
 	for _, forbidden := range []string{
 		"from django", "import django", "conformance/contracts", "conformance/oracles",
 		"conformance/fixtures", "not_implemented", "not-implemented",
@@ -170,21 +168,21 @@ func TestMigrationCommandDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 	profile, manifest, oracle, _ := loadMigrationCommandArtifacts(t)
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
-			actual := cloneMigrationCommandSuite(t, oracle)
+			actual := cloneJSONSuite(t, oracle)
 			observation := &actual.Contracts[index]
 			var changed bool
 			switch dimension {
 			case CompareResult:
-				changed = mutateMigrationCommandValue(observation.Result)
+				changed = mutateFirstValue(observation.Result)
 			case CompareError:
 				if observation.Error != nil {
 					observation.Error.Code += "_changed"
 					changed = true
 				}
 			case CompareDBState:
-				changed = mutateMigrationCommandValue(observation.DBState)
+				changed = mutateFirstValue(observation.DBState)
 			case CompareMetrics:
-				changed = mutateMigrationCommandValue(observation.Metrics)
+				changed = mutateFirstValue(observation.Metrics)
 			}
 			if !changed {
 				t.Fatalf("contract %s declared %s without mutable payload", contract.ID, dimension)
@@ -209,7 +207,7 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	runner := string(mustReadMigrationCommandFile(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
+	runner := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
 	for fragment, want := range map[string]int{
 		"SCENARIOS as MIGRATION_COMMAND_DECISION_SCENARIOS":                              1,
 		"    MIGRATION_COMMAND_DECISION_SCENARIOS,":                                      1,
@@ -222,7 +220,7 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 		}
 	}
 
-	makeText := string(mustReadMigrationCommandFile(t, filepath.Join(root, "Makefile")))
+	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
 		"MIGRATION_COMMAND_MANIFEST":        "conformance/contracts/migration-command-manifest.json",
 		"MIGRATION_COMMAND_ORACLE":          "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json",
@@ -302,7 +300,7 @@ func TestMigrationCommandDoesNotReviveRetiredMigrationRelationBytes(t *testing.T
 		t.Fatalf("retired migration-relation lock count = %d, want 11", len(locks))
 	}
 	for name, want := range locks {
-		contents := mustReadMigrationCommandFile(t, filepath.Join(root, filepath.FromSlash(name)))
+		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
 		if len(contents) != want.size || fmt.Sprintf("%x", sha256.Sum256(contents)) != want.sha256 {
 			t.Fatalf("retired migration-relation bytes changed: %s", name)
 		}
@@ -312,79 +310,9 @@ func TestMigrationCommandDoesNotReviveRetiredMigrationRelationBytes(t *testing.T
 func loadMigrationCommandArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-command-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-command-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", "godj-migration-command-not-implemented.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-command-manifest.json"), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-command-oracle.json"), LoadObservationSuite)
+	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-command-not-implemented.json"), LoadObservationSuite)
 	return profile, manifest, oracle, baseline
-}
-
-func mustReadMigrationCommandFile(t *testing.T, name string) []byte {
-	t.Helper()
-	contents, err := os.ReadFile(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return contents
-}
-
-func cloneMigrationCommandSuite(t *testing.T, suite ObservationSuite) ObservationSuite {
-	t.Helper()
-	document, err := json.Marshal(suite)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cloned ObservationSuite
-	if err := json.Unmarshal(document, &cloned); err != nil {
-		t.Fatal(err)
-	}
-	return cloned
-}
-
-func mutateMigrationCommandValue(value *Value) bool {
-	if value == nil {
-		return false
-	}
-	switch value.Type {
-	case ValueBool:
-		*value.Bool = !*value.Bool
-		return true
-	case ValueInt:
-		if *value.Text == "0" {
-			*value.Text = "1"
-		} else {
-			*value.Text = "0"
-		}
-		return true
-	case ValueString, ValueDecimal, ValueDatetime, ValueUUID, ValueBytes:
-		*value.Text += "_changed"
-		return true
-	case ValuePK:
-		return mutateMigrationCommandValue(value.Nested)
-	case ValueList:
-		for index := range value.Items {
-			if mutateMigrationCommandValue(&value.Items[index]) {
-				return true
-			}
-		}
-	case ValueObject:
-		for index := range value.Fields {
-			if mutateMigrationCommandValue(&value.Fields[index].Value) {
-				return true
-			}
-		}
-	}
-	return false
 }

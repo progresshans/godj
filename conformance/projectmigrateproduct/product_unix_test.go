@@ -20,13 +20,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
@@ -420,10 +420,10 @@ func executeBounded(binary, directory string, environment []string, arguments ..
 	select {
 	case waitErr = <-waited:
 	case <-timer.C:
-		groups, discoveryErr := ownedProcessGroups(command.Process.Pid)
-		killErr := killProcessGroups(groups, command.Process.Pid)
-		waitErr = boundedWait(waited, 5*time.Second)
-		absenceErr := waitForProcessGroupsAbsent(groups, 2*time.Second)
+		groups, discoveryErr := testprocess.OwnedGroups(command.Process.Pid)
+		killErr := testprocess.KillGroups(groups, command.Process.Pid)
+		waitErr = testprocess.Wait(waited, 5*time.Second)
+		absenceErr := testprocess.WaitAbsent(groups, 2*time.Second)
 		return commandResult{}, errors.Join(errors.New("command timed out"), discoveryErr, killErr, waitErr, absenceErr)
 	}
 	result := commandResult{
@@ -439,7 +439,7 @@ func executeBounded(binary, directory string, environment []string, arguments ..
 		}
 		result.ExitCode = exitError.ExitCode()
 	}
-	if absenceErr := waitForProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); absenceErr != nil {
+	if absenceErr := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); absenceErr != nil {
 		return commandResult{}, absenceErr
 	}
 	return result, nil
@@ -980,7 +980,7 @@ func runGlobalArticleServerOnce(
 		if address != expectedAddress {
 			t.Fatalf("Article readiness address = %q, want %q", address, expectedAddress)
 		}
-		groups, err := ownedProcessGroups(command.Process.Pid)
+		groups, err := testprocess.OwnedGroups(command.Process.Pid)
 		if err != nil || len(groups) < 2 {
 			t.Fatalf("capture global/runtime process groups = %v, error=%v", groups, err)
 		}
@@ -1070,92 +1070,27 @@ func (result cleanupResult) failed() bool {
 
 func interruptAndWait(command *exec.Cmd, waited <-chan error, timeout time.Duration, knownGroups ...int) cleanupResult {
 	result := cleanupResult{}
-	groups, discoveryErr := ownedProcessGroups(command.Process.Pid)
+	groups, discoveryErr := testprocess.OwnedGroups(command.Process.Pid)
 	result.ProcessGroups = mergeProcessGroups(knownGroups, groups)
 	result.DiscoveryError = discoveryErr
-	result.SignalError = signalProcessGroup(command.Process.Pid, syscall.SIGINT)
+	result.SignalError = testprocess.SignalGroup(command.Process.Pid, syscall.SIGINT)
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
 	case result.WaitError = <-waited:
 	case <-timer.C:
 		result.Forced = true
-		refreshed, refreshErr := ownedProcessGroups(command.Process.Pid)
+		refreshed, refreshErr := testprocess.OwnedGroups(command.Process.Pid)
 		result.ProcessGroups = mergeProcessGroups(result.ProcessGroups, refreshed)
 		result.DiscoveryError = errors.Join(result.DiscoveryError, refreshErr)
-		result.WaitError = errors.Join(killProcessGroups(result.ProcessGroups, command.Process.Pid), boundedWait(waited, 5*time.Second))
+		result.WaitError = errors.Join(testprocess.KillGroups(result.ProcessGroups, command.Process.Pid), testprocess.Wait(waited, 5*time.Second))
 	}
-	result.AbsenceError = waitForProcessGroupsAbsent(result.ProcessGroups, 2*time.Second)
+	result.AbsenceError = testprocess.WaitAbsent(result.ProcessGroups, 2*time.Second)
 	if result.AbsenceError != nil && !result.Forced {
 		result.Forced = true
-		result.AbsenceError = errors.Join(result.AbsenceError, killProcessGroups(result.ProcessGroups, command.Process.Pid), waitForProcessGroupsAbsent(result.ProcessGroups, 2*time.Second))
+		result.AbsenceError = errors.Join(result.AbsenceError, testprocess.KillGroups(result.ProcessGroups, command.Process.Pid), testprocess.WaitAbsent(result.ProcessGroups, 2*time.Second))
 	}
 	return result
-}
-
-func boundedWait(waited <-chan error, timeout time.Duration) error {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case err := <-waited:
-		return err
-	case <-timer.C:
-		return errors.New("process Wait remained blocked after forced cleanup")
-	}
-}
-
-func ownedProcessGroups(rootPID int) ([]int, error) {
-	output, err := exec.Command("ps", "-Ao", "pid=,ppid=,pgid=").Output()
-	if err != nil {
-		return []int{rootPID}, fmt.Errorf("inspect process tree: %w", err)
-	}
-	type process struct{ pid, ppid, pgid int }
-	var processes []process
-	for _, line := range strings.Split(string(output), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if len(fields) != 3 {
-			return []int{rootPID}, errors.New("inspect process tree: invalid ps row")
-		}
-		pid, pidErr := strconv.Atoi(fields[0])
-		ppid, ppidErr := strconv.Atoi(fields[1])
-		pgid, pgidErr := strconv.Atoi(fields[2])
-		if errors.Join(pidErr, ppidErr, pgidErr) != nil {
-			return []int{rootPID}, errors.New("inspect process tree: invalid identifier")
-		}
-		processes = append(processes, process{pid: pid, ppid: ppid, pgid: pgid})
-	}
-	descendants := map[int]struct{}{rootPID: {}}
-	for changed := true; changed; {
-		changed = false
-		for _, candidate := range processes {
-			if _, owned := descendants[candidate.ppid]; !owned {
-				continue
-			}
-			if _, exists := descendants[candidate.pid]; exists {
-				continue
-			}
-			descendants[candidate.pid] = struct{}{}
-			changed = true
-		}
-	}
-	groups := map[int]struct{}{rootPID: {}}
-	for _, candidate := range processes {
-		if _, owned := descendants[candidate.pid]; owned {
-			groups[candidate.pgid] = struct{}{}
-		}
-	}
-	result := make([]int, 0, len(groups))
-	for group := range groups {
-		if group <= 1 || group == syscall.Getpgrp() {
-			return []int{rootPID}, errors.New("inspect process tree: unsafe process group")
-		}
-		result = append(result, group)
-	}
-	sort.Ints(result)
-	return result, nil
 }
 
 func mergeProcessGroups(left, right []int) []int {
@@ -1169,48 +1104,6 @@ func mergeProcessGroups(left, right []int) []int {
 	}
 	sort.Ints(result)
 	return result
-}
-
-func signalProcessGroup(group int, signal syscall.Signal) error {
-	if group <= 1 || group == syscall.Getpgrp() {
-		return errors.New("refuse to signal unsafe process group")
-	}
-	err := syscall.Kill(-group, signal)
-	if errors.Is(err, syscall.ESRCH) {
-		return nil
-	}
-	return err
-}
-
-func killProcessGroups(groups []int, root int) error {
-	var result error
-	for index := len(groups) - 1; index >= 0; index-- {
-		if groups[index] == root {
-			continue
-		}
-		result = errors.Join(result, signalProcessGroup(groups[index], syscall.SIGKILL))
-	}
-	return errors.Join(result, signalProcessGroup(root, syscall.SIGKILL))
-}
-
-func waitForProcessGroupsAbsent(groups []int, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		var remaining []int
-		for _, group := range groups {
-			err := syscall.Kill(-group, 0)
-			if err == nil || errors.Is(err, syscall.EPERM) {
-				remaining = append(remaining, group)
-			}
-		}
-		if len(remaining) == 0 {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("process groups remain: %v", remaining)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
 }
 
 type boundedOutput struct {

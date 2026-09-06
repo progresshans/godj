@@ -1,7 +1,6 @@
 # 작업 안내
 
-[CURRENT](../docs/status/CURRENT.md)가 활성 작업을 가리킨다. 최근 완료한 통합 작업은
-[GDJ-0057 개발 구조 정리](0057-development-simplification.md)이며 다음 기능 작업은 아직 지정하지 않았다.
+[CURRENT](../docs/status/CURRENT.md)가 활성 작업과 최근 완료 결과를 가리킨다.
 
 work는 지금 수행할 결과, 변경 범위, 필요한 검증과 다음 행동을 기록한다. 작은 수정마다 새 문서를 만들지 않는다.
 독립 작업은 코드·공개 의미·DB/port/temp 자원 소유자를 구분하고 전역 상태는 통합 담당 한 명이 갱신한다.

@@ -226,11 +226,11 @@ func TestQueryExpressionDeclaredPayloadMutationsCannotFalseGreen(t *testing.T) {
 				var changed bool
 				switch dimension {
 				case CompareResult:
-					changed = mutateFirstQueryExpressionScalar(observation.Result)
+					changed = mutateFirstScalar(observation.Result)
 				case CompareDBState:
-					changed = mutateFirstQueryExpressionScalar(observation.DBState)
+					changed = mutateFirstScalar(observation.DBState)
 				case CompareMetrics:
-					changed = mutateFirstQueryExpressionScalar(observation.Metrics)
+					changed = mutateFirstScalar(observation.Metrics)
 				}
 				if !changed {
 					t.Fatalf("contract %s declared %s without a mutable payload", contract.ID, dimension)
@@ -280,22 +280,10 @@ func TestQueryExpressionArtifactsRejectOrderPhaseAndProfileMutations(t *testing.
 func loadQueryExpressionArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
 	t.Helper()
 	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "query-expression-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-expression-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", "godj-query-expression-not-implemented.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "query-expression-manifest.json"), LoadManifest)
+	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-expression-oracle.json"), LoadObservationSuite)
+	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-query-expression-not-implemented.json"), LoadObservationSuite)
 	return profile, manifest, oracle, baseline
 }
 
@@ -437,53 +425,4 @@ func assertQueryExpressionMutationDiffers(t *testing.T, profile Profile, manifes
 			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
 		}
 	}
-}
-
-func mutateFirstQueryExpressionScalar(value *Value) bool {
-	if value == nil {
-		return false
-	}
-	switch value.Type {
-	case ValueNull:
-		*value = String("mutated")
-		return true
-	case ValueBool:
-		changed := !*value.Bool
-		value.Bool = &changed
-		return true
-	case ValueInt:
-		changed := "999999"
-		if *value.Text == changed {
-			changed = "999998"
-		}
-		value.Text = &changed
-		return true
-	case ValueString, ValueDecimal, ValueDatetime, ValueUUID, ValueBytes:
-		if value.Type != ValueString {
-			*value = String("mutated")
-			return true
-		}
-		changed := *value.Text + " changed"
-		value.Text = &changed
-		return true
-	case ValuePK:
-		return mutateFirstQueryExpressionScalar(value.Nested)
-	case ValueList:
-		if len(value.Items) == 0 {
-			value.Items = append(value.Items, String("mutated"))
-			return true
-		}
-		for index := range value.Items {
-			if mutateFirstQueryExpressionScalar(&value.Items[index]) {
-				return true
-			}
-		}
-	case ValueObject:
-		for index := range value.Fields {
-			if mutateFirstQueryExpressionScalar(&value.Fields[index].Value) {
-				return true
-			}
-		}
-	}
-	return false
 }

@@ -16,10 +16,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 )
 
 const (
@@ -353,8 +354,8 @@ func externalStatusRunSuccess(t *testing.T, directory string, environment []stri
 
 func externalStatusRun(t *testing.T, directory string, environment []string, name string, arguments ...string) externalStatusResult {
 	t.Helper()
-	stdout := &externalStatusBoundedBuffer{maximum: externalStatusMaximumOutput}
-	stderr := &externalStatusBoundedBuffer{maximum: externalStatusMaximumOutput}
+	stdout := testprocess.NewBuffer(externalStatusMaximumOutput)
+	stderr := testprocess.NewBuffer(externalStatusMaximumOutput)
 	command := exec.Command(name, arguments...)
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
@@ -372,13 +373,13 @@ func externalStatusRun(t *testing.T, directory string, environment []string, nam
 	select {
 	case waitErr = <-waited:
 	case <-timer.C:
-		groups, discoveryErr := externalStatusOwnedProcessGroups(command.Process.Pid)
-		killErr := externalStatusKillProcessGroups(groups, command.Process.Pid)
-		waitErr = externalStatusBoundedWait(waited, 5*time.Second)
-		absenceErr := externalStatusWaitProcessGroupsAbsent(groups, 2*time.Second)
+		groups, discoveryErr := testprocess.OwnedGroups(command.Process.Pid)
+		killErr := testprocess.KillGroups(groups, command.Process.Pid)
+		waitErr = testprocess.Wait(waited, 5*time.Second)
+		absenceErr := testprocess.WaitAbsent(groups, 2*time.Second)
 		t.Fatalf("%s %s timed out: %v", name, strings.Join(arguments, " "), errors.Join(discoveryErr, killErr, waitErr, absenceErr))
 	}
-	if stdout.truncated || stderr.truncated {
+	if stdout.Truncated() || stderr.Truncated() {
 		t.Fatalf("%s %s exceeded output limit", name, strings.Join(arguments, " "))
 	}
 	exitCode := 0
@@ -389,117 +390,10 @@ func externalStatusRun(t *testing.T, directory string, environment []string, nam
 		}
 		exitCode = exitError.ExitCode()
 	}
-	if err := externalStatusWaitProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
+	if err := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
 		t.Fatalf("wait for external root process group: %v", err)
 	}
 	return externalStatusResult{exitCode: exitCode, stdout: stdout.String(), stderr: stderr.String()}
-}
-
-func externalStatusBoundedWait(waited <-chan error, timeout time.Duration) error {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case err := <-waited:
-		return err
-	case <-timer.C:
-		return errors.New("process Wait remained blocked after forced cleanup")
-	}
-}
-
-func externalStatusOwnedProcessGroups(rootPID int) ([]int, error) {
-	output, err := exec.Command("ps", "-Ao", "pid=,ppid=,pgid=").Output()
-	if err != nil {
-		return []int{rootPID}, fmt.Errorf("inspect process tree: %w", err)
-	}
-	type process struct{ pid, ppid, pgid int }
-	var processes []process
-	for _, line := range strings.Split(string(output), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if len(fields) != 3 {
-			return []int{rootPID}, errors.New("inspect process tree: invalid ps row")
-		}
-		pid, pidErr := strconv.Atoi(fields[0])
-		ppid, ppidErr := strconv.Atoi(fields[1])
-		pgid, pgidErr := strconv.Atoi(fields[2])
-		if errors.Join(pidErr, ppidErr, pgidErr) != nil {
-			return []int{rootPID}, errors.New("inspect process tree: invalid identifier")
-		}
-		processes = append(processes, process{pid: pid, ppid: ppid, pgid: pgid})
-	}
-	descendants := map[int]struct{}{rootPID: {}}
-	for changed := true; changed; {
-		changed = false
-		for _, candidate := range processes {
-			if _, owned := descendants[candidate.ppid]; !owned {
-				continue
-			}
-			if _, exists := descendants[candidate.pid]; exists {
-				continue
-			}
-			descendants[candidate.pid] = struct{}{}
-			changed = true
-		}
-	}
-	groups := map[int]struct{}{rootPID: {}}
-	for _, candidate := range processes {
-		if _, owned := descendants[candidate.pid]; owned {
-			groups[candidate.pgid] = struct{}{}
-		}
-	}
-	result := make([]int, 0, len(groups))
-	for group := range groups {
-		if group <= 1 || group == syscall.Getpgrp() {
-			return []int{rootPID}, errors.New("inspect process tree: unsafe process group")
-		}
-		result = append(result, group)
-	}
-	sort.Ints(result)
-	return result, nil
-}
-
-func externalStatusKillProcessGroups(groups []int, root int) error {
-	var result error
-	for index := len(groups) - 1; index >= 0; index-- {
-		if groups[index] == root {
-			continue
-		}
-		result = errors.Join(result, externalStatusSignalProcessGroup(groups[index], syscall.SIGKILL))
-	}
-	return errors.Join(result, externalStatusSignalProcessGroup(root, syscall.SIGKILL))
-}
-
-func externalStatusSignalProcessGroup(group int, signal syscall.Signal) error {
-	if group <= 1 || group == syscall.Getpgrp() {
-		return errors.New("refuse to signal unsafe process group")
-	}
-	err := syscall.Kill(-group, signal)
-	if errors.Is(err, syscall.ESRCH) {
-		return nil
-	}
-	return err
-}
-
-func externalStatusWaitProcessGroupsAbsent(groups []int, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		var remaining []int
-		for _, group := range groups {
-			err := syscall.Kill(-group, 0)
-			if err == nil || errors.Is(err, syscall.EPERM) {
-				remaining = append(remaining, group)
-			}
-		}
-		if len(remaining) == 0 {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("process groups remain: %v", remaining)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
 }
 
 func externalStatusAssertSuccess(t *testing.T, result externalStatusResult, want string, sensitive ...string) {
@@ -571,7 +465,7 @@ func externalStatusAssertReadLifecycle(t *testing.T, path string) int {
 			t.Fatalf("backend marker[%d] = %+v, want event=%q pid=%d", index, markers[index], want[index], pid)
 		}
 	}
-	if err := externalStatusWaitProcessGroupsAbsent([]int{pid}, 2*time.Second); err != nil {
+	if err := testprocess.WaitAbsent([]int{pid}, 2*time.Second); err != nil {
 		t.Fatalf("linked project-runner process group was not reaped: %v", err)
 	}
 	return pid
@@ -669,36 +563,6 @@ func externalStatusEntryNames(entries []os.DirEntry) []string {
 	}
 	sort.Strings(result)
 	return result
-}
-
-type externalStatusBoundedBuffer struct {
-	mu        sync.Mutex
-	buffer    bytes.Buffer
-	maximum   int
-	truncated bool
-}
-
-func (buffer *externalStatusBoundedBuffer) Write(document []byte) (int, error) {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	original := len(document)
-	remaining := buffer.maximum - buffer.buffer.Len()
-	if remaining <= 0 {
-		buffer.truncated = true
-		return original, nil
-	}
-	if len(document) > remaining {
-		buffer.truncated = true
-		document = document[:remaining]
-	}
-	_, _ = buffer.buffer.Write(document)
-	return original, nil
-}
-
-func (buffer *externalStatusBoundedBuffer) String() string {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buffer.String()
 }
 
 const externalStatusProjectRunnerSource = `package main

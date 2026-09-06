@@ -189,18 +189,9 @@ func TestQueryBreadthCanceledContextFailsBeforeBackendIO(t *testing.T) {
 func loadQueryBreadthProductInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
 	t.Helper()
 	root := filepath.Join("..", "..", "..")
-	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "query-breadth-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-breadth-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
+	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "query-breadth-manifest.json"), protocol.LoadManifest)
+	oracle := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-breadth-oracle.json"), protocol.LoadObservationSuite)
 	return profile, manifest, oracle
 }
 
