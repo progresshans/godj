@@ -22,7 +22,7 @@ Helpdesk의 티켓 상세 조회에서 티켓과 배정된 Category를 한 번�
 - eager Count, 다중 관계·임의 깊이 탐색과 새로운 migration operation은 별도 기능이다.
 
 수정 허용 경로는 `orm/`, 관계 생성기와 해당 `codegen/` 테스트·golden, 영향받은 프로젝트의
-generated source/manifest, `examples/helpdesk/`, 이 작업 및 관련 현행 상태·ADR 문서다.
+generated source/manifest, `examples/helpdesk/`, `Makefile`의 generated drift gate, 이 작업 및 관련 현행 상태·ADR 문서다.
 
 ## 확인 목록
 
@@ -50,6 +50,8 @@ generated source/manifest, `examples/helpdesk/`, 이 작업 및 관련 현행 �
   하나의 private typed terminal interface로 바꾸고, All/First의 객체 변환을 공유한다. binding 오류는 runtime으로 전달한다.
 - 두 생성기 버전을 올리고 Helpdesk·Article·relationdeleteproduct의 source/manifest를 다시 생성했다.
   나머지 generated 파일의 변경은 같은 bundle의 provenance hash 갱신이다.
+- 첫 Hosted 실행에서 별도 관계 fixture의 미갱신 산출물을 발견했다. `relationselectproduct` companion을 재생성하고
+  `make generate-check`에 manifest가 없는 관계 fixture 여섯 개의 기존 drift 검사를 포함했다.
 - `examples/helpdesk/app.go`: 기존 project binding을 보관해 재사용하고 `GET /api/tickets/<int64:id>/`를 추가한다.
   ViewTicket에는 배정 Category의 id/name 조회가 포함되며 별도 Category Admin의 ViewCategory 정책은 유지한다.
 - ORM 직접 테스트, 생성된 외부 Go module과 nullable facade 테스트, Helpdesk SQLite/PostgreSQL 공통 HTTP consumer가 검증을 소유한다.

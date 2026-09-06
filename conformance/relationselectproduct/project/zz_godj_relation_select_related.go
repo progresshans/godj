@@ -10,10 +10,15 @@ import (
 	query "github.com/progresshans/godj/query"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v1"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v2"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
+
+type relationSelectQuery[O any] interface {
+	All(context.Context) ([]*O, error)
+	First(context.Context) (*O, bool, error)
+}
 
 type BlogPostSelectRelated struct {
 	factory BlogPostObjectFactory
@@ -46,39 +51,44 @@ func (_selection BlogPostSelectRelated) Author() BlogPostAuthorSelectRelatedQuer
 }
 
 func (_query BlogPostAuthorSelectRelatedQuery) All(_ctx context.Context) ([]*BlogPostObject, error) {
-	if _query.configurationErr != nil {
-		_, _contextErr := (orm.ForwardSelectQuery[blog.Post, authors.Author]{}).All(_ctx)
-		if _contextErr == nil {
-			return nil, _query.configurationErr
-		}
-		_terminalErr, _ok := _contextErr.(*query.Error)
-		if _ok && _terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan {
-			return nil, _query.configurationErr
-		}
-		return nil, _contextErr
-	}
-	_selected, _err := _query.query.All(_ctx)
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*BlogPostObject, len(_selected))
 	for _index := range _selected {
-		_source, _err := _selected[_index].Source()
+		_results[_index], _err = _query.wrap(_selected[_index])
 		if _err != nil {
 			return nil, _err
 		}
-		_related, _err := _selected[_index].Related()
-		if _err != nil {
-			return nil, _err
-		}
-		_object, _err := _query.factory.From(_query.query.Backend(), _source)
-		if _err != nil {
-			return nil, _err
-		}
-		_object.author = _related
-		_results[_index] = _object
 	}
 	return _results, nil
+}
+
+func (_query BlogPostAuthorSelectRelatedQuery) First(_ctx context.Context) (*BlogPostObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+
+func (_query BlogPostAuthorSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[blog.Post, authors.Author]) (*BlogPostObject, error) {
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_related, _err := _selected.Related()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.factory.From(_query.query.Backend(), _source)
+	if _err != nil {
+		return nil, _err
+	}
+	_object.author = _related
+	return _object, nil
 }
 
 type BlogPostReviewerSelectRelatedQuery struct {
@@ -103,74 +113,68 @@ func (_selection BlogPostSelectRelated) Reviewer() BlogPostReviewerSelectRelated
 }
 
 func (_query BlogPostReviewerSelectRelatedQuery) All(_ctx context.Context) ([]*BlogPostObject, error) {
-	if _query.configurationErr != nil {
-		_, _contextErr := (orm.ForwardSelectQuery[blog.Post, authors.Author]{}).All(_ctx)
-		if _contextErr == nil {
-			return nil, _query.configurationErr
-		}
-		_terminalErr, _ok := _contextErr.(*query.Error)
-		if _ok && _terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan {
-			return nil, _query.configurationErr
-		}
-		return nil, _contextErr
-	}
-	_selected, _err := _query.query.All(_ctx)
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
 	if _err != nil {
 		return nil, _err
 	}
 	_results := make([]*BlogPostObject, len(_selected))
 	for _index := range _selected {
-		_source, _err := _selected[_index].Source()
+		_results[_index], _err = _query.wrap(_selected[_index])
 		if _err != nil {
 			return nil, _err
 		}
-		_related, _err := _selected[_index].Related()
-		if _err != nil {
-			return nil, _err
-		}
-		_object, _err := _query.factory.From(_query.query.Backend(), _source)
-		if _err != nil {
-			return nil, _err
-		}
-		_object.reviewer = _related
-		_results[_index] = _object
 	}
 	return _results, nil
 }
 
+func (_query BlogPostReviewerSelectRelatedQuery) First(_ctx context.Context) (*BlogPostObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+
+func (_query BlogPostReviewerSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[blog.Post, authors.Author]) (*BlogPostObject, error) {
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_related, _err := _selected.Related()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.factory.From(_query.query.Backend(), _source)
+	if _err != nil {
+		return nil, _err
+	}
+	_object.reviewer = _related
+	return _object, nil
+}
+
 type BlogPostDynamicSelectRelatedQuery struct {
-	kind     uint8
-	author   BlogPostAuthorSelectRelatedQuery
-	reviewer BlogPostReviewerSelectRelatedQuery
+	query relationSelectQuery[BlogPostObject]
 }
 
 func (_selection BlogPostSelectRelated) ParseDynamic(_path string) (BlogPostDynamicSelectRelatedQuery, error) {
-	_resolved, _err := orm.ResolveForwardSelectPath(_selection.factory.model, _path)
-	if _err != nil {
-		return BlogPostDynamicSelectRelatedQuery{}, _err
-	}
 	switch _path {
 	case "author":
-		_relation, _err := orm.BindRequiredForwardSelect(_resolved, _selection.factory.author)
-		if _err != nil {
-			return BlogPostDynamicSelectRelatedQuery{}, _err
+		_query := _selection.Author()
+		if _query.configurationErr != nil {
+			return BlogPostDynamicSelectRelatedQuery{}, _query.configurationErr
 		}
-		_query := BlogPostAuthorSelectRelatedQuery{
-			factory: _selection.factory,
-			query:   _relation.Select(_selection.source),
-		}
-		return BlogPostDynamicSelectRelatedQuery{kind: 1, author: _query}, nil
+		return BlogPostDynamicSelectRelatedQuery{query: _query}, nil
 	case "reviewer":
-		_relation, _err := orm.BindNullableForwardSelect(_resolved, _selection.factory.reviewer)
-		if _err != nil {
+		_query := _selection.Reviewer()
+		if _query.configurationErr != nil {
+			return BlogPostDynamicSelectRelatedQuery{}, _query.configurationErr
+		}
+		return BlogPostDynamicSelectRelatedQuery{query: _query}, nil
+	default:
+		if _, _err := orm.ResolveForwardSelectPath(_selection.factory.model, _path); _err != nil {
 			return BlogPostDynamicSelectRelatedQuery{}, _err
 		}
-		_query := BlogPostReviewerSelectRelatedQuery{
-			factory: _selection.factory,
-			query:   _relation.Select(_selection.source),
-		}
-		return BlogPostDynamicSelectRelatedQuery{kind: 2, reviewer: _query}, nil
-	default:
 		return BlogPostDynamicSelectRelatedQuery{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -179,17 +183,27 @@ func (_selection BlogPostSelectRelated) ParseDynamic(_path string) (BlogPostDyna
 	}
 }
 
-func (_query BlogPostDynamicSelectRelatedQuery) All(_ctx context.Context) ([]*BlogPostObject, error) {
-	switch _query.kind {
-	case 1:
-		return _query.author.All(_ctx)
-	case 2:
-		return _query.reviewer.All(_ctx)
-	default:
-		return nil, &query.Error{
+func (_query BlogPostDynamicSelectRelatedQuery) validate() error {
+	if _query.query == nil {
+		return &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
 			Detail:   "generated dynamic select-related query is zero or corrupt",
 		}
 	}
+	return nil
+}
+
+func (_query BlogPostDynamicSelectRelatedQuery) All(_ctx context.Context) ([]*BlogPostObject, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.query.All(_ctx)
+}
+
+func (_query BlogPostDynamicSelectRelatedQuery) First(_ctx context.Context) (*BlogPostObject, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _query.query.First(_ctx)
 }
