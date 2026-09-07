@@ -1,9 +1,9 @@
 # 현재 상태
 
-- 갱신: 2026-09-07
-- 활성 작업: [GDJ-0062 테스트·검증 지원 코드의 중복 점검](../../work/0062-validation-duplication-audit.md)
-- 최근 완료: [GDJ-0061 검증 fixture와 CI 실행 소유권 정리](../../work/0061-validation-fixtures-and-ci-ownership.md)
-- 최근 검증 소스(full scope): `21ceeb56021e65c7c718eef93a898150812b6c32`
+- 갱신: 2026-09-08
+- 활성 작업: 없음
+- 최근 완료: [GDJ-0062 테스트·검증 지원 코드의 중복 점검](../../work/0062-validation-duplication-audit.md)
+- 최근 검증 소스(full scope): `c5b91c812af87c1450f5fdb881cb751491eb76be`
 - 작업 브랜치: `codex/revision-fenced-migration-lifecycle`
 
 ## 현재 구현
@@ -14,14 +14,14 @@ Helpdesk는 티켓과 배정 Category를 한 번에 읽는 상세 API를 제공�
 
 ## 완료 결과
 
-GDJ-0061에서 관계 product의 생성 fixture와 중복 테스트를 통합하고, 같은 환경에서 반복되던 CI 실행을 정리했다.
-실제 DB·cache·취소·rollback과 생성 조합 오류 검증은 유지하면서 검증 코드의 절대량을 줄였다.
-관련 로컬 normal/race/CGO-disabled와 고정 source의 전체 Hosted 검증을 통과했다.
+GDJ-0062에서 반복 artifact 대조·입력 로딩·관계 DB·외부 프로젝트 준비 코드를 통합했다.
+Python 완료 검사는 고정 test-count 대신 현재 discovery의 전체 실행과 허용한 skip의 소유권을 확인한다.
+실제 DB·cache·취소·rollback과 actual/oracle 독립성을 유지하고 관련 로컬 검증과 고정 소스의 전체 Hosted 검증을 통과했다.
 실제 실행 범위·시간 관측·환경별 skip의 검증 소유자는 [테스트 증거](TEST_EVIDENCE.md)에 기록했다.
 
 ## 다음 행동
 
-GDJ-0062의 중복 검사·준비 코드 통합과 관련 로컬 검증을 마쳤다. 고정 소스의 전체 Hosted 검증을 진행한다. 현재 blocker는 없다.
+중복 점검과 완료 기록을 마쳤으며 현재 blocker는 없다.
 eager Count·다중 관계 탐색은 별도 의미와 작업 범위를 정한 뒤 시작한다. 기존 PR #1은 Draft로 유지한다.
 
 ## 검증과 제한

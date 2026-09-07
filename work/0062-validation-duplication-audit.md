@@ -1,7 +1,7 @@
 ---
 id: GDJ-0062
-status: active
-updated: 2026-09-07
+status: complete
+updated: 2026-09-08
 baseline_commit: "6ecf0b628465014ee1b1260454a08ce67713bd1a"
 ---
 
@@ -23,7 +23,7 @@ baseline_commit: "6ecf0b628465014ee1b1260454a08ce67713bd1a"
 - [x] 전체 후보 검색과 의미·위험 검토
 - [x] 명확한 중복 검사·준비 코드 통합
 - [x] 관련 normal/race/CGO-disabled·reference·부정 회귀
-- [ ] 최종 소스 통합 검증과 완료 기록
+- [x] 최종 소스 통합 검증과 완료 기록
 
 코드 변경을 먼저 묶고 편집 중에는 필요한 compile만 확인한다. 관련 검증은 완성한 묶음에서 실행한다.
 전체 플랫폼 검증은 이번 점검을 통합하는 마지막 Hosted 실행이 소유하며 로컬 전체 gate를 중복하지 않는다.
@@ -31,4 +31,5 @@ baseline_commit: "6ecf0b628465014ee1b1260454a08ce67713bd1a"
 
 ## 다음 행동
 
-고정 소스의 전체 Hosted 검증을 실행하고 source-bound PostgreSQL evidence를 확인한다. 현재 blocker는 없다.
+고정 소스의 전체 Hosted 검증과 같은 실행의 source-bound PostgreSQL evidence 확인을 완료했다.
+추가 활성 작업과 blocker는 없다. 구현·환경별 실행·보존한 위험과 감소량은 TEST_EVIDENCE를 따른다.
