@@ -1,6 +1,6 @@
 ---
 id: GDJ-0060
-status: active
+status: complete
 updated: 2026-09-07
 baseline_commit: "0ffce7029b80988d6bc28391dca2f5d8967d65c7"
 ---
@@ -23,14 +23,15 @@ baseline_commit: "0ffce7029b80988d6bc28391dca2f5d8967d65c7"
 - [x] 생성기 단위 검사와 외부 consumer 실행 분리, 공통 준비 정리
 - [x] Make/Hosted의 integration·platform·필수 sentinel에 새 위치 연결
 - [x] 관련 normal/race/CGO-disabled·generated drift와 CI 도구 회귀 확인
-- [ ] 고정 소스의 통합 검증, 실제 실행 비용·미실행 범위·완료 상태 기록
+- [x] 고정 소스의 통합 검증, 실제 실행 비용·미실행 범위·완료 상태 기록
 
 관련 범위는 로컬에서 한 번 확인하고 전체 platform/cold/external 검증은 최종 Hosted 통합 시점이 소유한다.
 문서 완료 기록에 전체 제품 검증을 반복하지 않는다. 검증 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
 
 ## 다음 행동
 
-로컬 검증을 통과했다. 소스를 고정하고 기존 Draft PR의 전체 Hosted 통합 검증을 확인한다.
+관련 로컬 검증과 고정 소스의 전체 Hosted 통합 검증을 통과했다. 이 작업의 남은 구현과 blocker는 없다.
+다음 기능·정리 범위는 별도로 정하며 기존 PR은 Draft로 유지한다.
 
 ## 구현 결과
 
