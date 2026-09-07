@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/schema/ir"
+
 	"github.com/progresshans/godj/migrations/backend"
 )
 
@@ -14,7 +16,7 @@ func TestRenderMigrationSQLMaterializesExactlyOneDetachedForwardTarget(t *testin
 	t.Parallel()
 
 	target := lifecycleAlpha2
-	loaded := testLoadedDefinitionSet(lifecycleTestDefinitions())
+	loaded := testLoadedDefinitionSet(t, lifecycleTestDefinitions())
 	renderer := &migrationSQLRendererSpy{statements: []string{`ALTER TABLE "alpha_article" ADD COLUMN "published" BOOLEAN NOT NULL`}}
 
 	statements, err := RenderMigrationSQL(context.Background(), loaded, target, renderer)
@@ -69,7 +71,7 @@ func TestRenderMigrationSQLMaterializesCompoundCrossAppTargetInDefinitionOrder(t
 	}}
 	statements, err := RenderMigrationSQL(
 		context.Background(),
-		testLoadedDefinitionSet(lifecycleLoadedCompleteIntentDefinitions()),
+		testLoadedDefinitionSet(t, lifecycleLoadedCompleteIntentDefinitions()),
 		target,
 		renderer,
 	)
@@ -97,12 +99,13 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 	validTarget := lifecycleAlpha2
 	invalidUnrelated := lifecycleTestDefinitions()
 	invalidUnrelated = append(invalidUnrelated, Migration{
-		App:          "broken",
-		Name:         "0001_invalid",
-		Dependencies: []MigrationKey{{App: "missing", Name: "0001_absent"}},
+		App: "broken", Name: "0001_invalid",
+		Operations: []Operation{AddField{AppLabel: "broken", ModelName: "missing", Field: ir.Field{
+			Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 64,
+		}}},
 	})
 	spy := &migrationSQLRendererSpy{statements: []string{"SHOULD NOT RUN"}}
-	if _, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(invalidUnrelated), validTarget, spy); err == nil {
+	if _, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, invalidUnrelated), validTarget, spy); err == nil {
 		t.Fatal("invalid unrelated definition unexpectedly rendered")
 	}
 	if spy.calls != 0 {
@@ -111,7 +114,7 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 
 	spy = &migrationSQLRendererSpy{statements: []string{"SHOULD NOT RUN"}}
 	missing := MigrationKey{App: validTarget.App, Name: "0002"}
-	_, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(lifecycleTestDefinitions()), missing, spy)
+	_, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, lifecycleTestDefinitions()), missing, spy)
 	var planning *PlanningError
 	if !errors.As(err, &planning) || planning.Category != CategoryPlan || planning.Code != CodeTargetNotFound {
 		t.Fatalf("exact miss error = %#v, want plan/target_not_found", err)
@@ -120,7 +123,7 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 		t.Fatalf("exact miss called renderer %d time(s)", spy.calls)
 	}
 
-	loaded := testLoadedDefinitionSet(lifecycleTestDefinitions())
+	loaded := testLoadedDefinitionSet(t, lifecycleTestDefinitions())
 	_, err = RenderMigrationSQL(context.Background(), loaded, validTarget, nil)
 	assertMigrationSQLError(t, err, CategorySQLRender, CodeRendererUnavailable, validTarget)
 	var typedNil *migrationSQLRendererSpy
@@ -165,7 +168,7 @@ func TestRenderMigrationSQLRedactsRendererFailuresAndPartialSQL(t *testing.T) {
 	}
 	statements, err := RenderMigrationSQL(
 		context.Background(),
-		testLoadedDefinitionSet(lifecycleTestDefinitions()),
+		testLoadedDefinitionSet(t, lifecycleTestDefinitions()),
 		target,
 		renderer,
 	)
@@ -185,7 +188,7 @@ func TestRenderMigrationSQLRedactsRendererFailuresAndPartialSQL(t *testing.T) {
 	}
 	_, err = RenderMigrationSQL(
 		context.Background(),
-		testLoadedDefinitionSet(lifecycleTestDefinitions()),
+		testLoadedDefinitionSet(t, lifecycleTestDefinitions()),
 		target,
 		capability,
 	)
@@ -203,7 +206,7 @@ func TestRenderMigrationSQLObservesCancellationAfterRendererReturn(t *testing.T)
 	renderer := &migrationSQLCancelingRenderer{cancel: cancel}
 	statements, err := RenderMigrationSQL(
 		ctx,
-		testLoadedDefinitionSet(lifecycleTestDefinitions()),
+		testLoadedDefinitionSet(t, lifecycleTestDefinitions()),
 		target,
 		renderer,
 	)
@@ -312,7 +315,7 @@ func TestRenderMigrationSQLEmptyIntentReturnsNonNilEmptyResult(t *testing.T) {
 	renderer := &migrationSQLRendererSpy{statements: []string{}}
 	statements, err := RenderMigrationSQL(
 		context.Background(),
-		testLoadedDefinitionSet([]Migration{{App: target.App, Name: target.Name}}),
+		testLoadedDefinitionSet(t, []Migration{{App: target.App, Name: target.Name}}),
 		target,
 		renderer,
 	)

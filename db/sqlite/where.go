@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 )
 
@@ -137,7 +138,7 @@ func bindScalarWhere(analysis *sqliteWhereAnalysis, sourceFields []query.FieldRe
 		if _, related := condition.RelationPath(); related {
 			return invalidPlan("scalar query contains relation predicate metadata")
 		}
-		if !containsField(sourceFields, condition.Field()) {
+		if !queryplan.ContainsField(sourceFields, condition.Field()) {
 			return invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
 		}
 		field, err := quoteIdentifier(condition.Field().Column())
@@ -146,7 +147,7 @@ func bindScalarWhere(analysis *sqliteWhereAnalysis, sourceFields []query.FieldRe
 		}
 		leaf.fieldSQL = field
 		if right, ok := condition.RHSField(); ok {
-			if !containsField(sourceFields, right) {
+			if !queryplan.ContainsField(sourceFields, right) {
 				return invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
 			}
 			rhsField, err := quoteIdentifier(right.Column())

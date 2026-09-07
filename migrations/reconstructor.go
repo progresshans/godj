@@ -210,21 +210,9 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 }
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
-	switch operation := operation.(type) {
-	case CreateModel:
-		operation.Model = operation.Model.Clone()
+	switch operation := cloneMigrationOperation(operation).(type) {
+	case CreateModel, AddField:
 		return operation, operation.Kind(), true
-	case *CreateModel:
-		cloned := *operation
-		cloned.Model = operation.Model.Clone()
-		return &cloned, operation.Kind(), true
-	case AddField:
-		operation.Field = cloneMigrationField(operation.Field)
-		return operation, operation.Kind(), true
-	case *AddField:
-		cloned := *operation
-		cloned.Field = cloneMigrationField(operation.Field)
-		return &cloned, operation.Kind(), true
 	default:
 		return nil, "", false
 	}
@@ -530,6 +518,13 @@ func newLoadedStateReconstructorContext(
 	if err != nil {
 		return loadedStateReconstructor{}, err
 	}
+	return buildLoadedStateReconstructor(ctx, definitions, planner)
+}
+
+// buildLoadedStateReconstructor consumes resource-checked definitions and their
+// immutable graph. Loaded lifecycles borrow both from the loader publication;
+// the raw constructor above prepares them at its own input boundary.
+func buildLoadedStateReconstructor(ctx context.Context, definitions []Migration, planner Planner) (loadedStateReconstructor, error) {
 	if err := ctx.Err(); err != nil {
 		return loadedStateReconstructor{}, executionContextError(PlanStep{}, err)
 	}
@@ -606,23 +601,8 @@ func collectLoadedStateGraph(
 						declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: identity, field: field.Clone()})
 					}
 				}
-			case *CreateModel:
-				if value == nil {
-					continue
-				}
-				identity := loadedModelIdentity{app: value.AppLabel, model: value.Model.Name}
-				creators[identity] = append(creators[identity], loadedModelCreator{key: key, operationIndex: index, model: value.Model.Clone()})
-				for _, field := range value.Model.Fields {
-					if fieldContainsRelation(field) {
-						declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: identity, field: field.Clone()})
-					}
-				}
 			case AddField:
 				if fieldContainsRelation(value.Field) {
-					declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: loadedModelIdentity{app: value.AppLabel, model: value.ModelName}, field: value.Field.Clone()})
-				}
-			case *AddField:
-				if value != nil && fieldContainsRelation(value.Field) {
 					declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: loadedModelIdentity{app: value.AppLabel, model: value.ModelName}, field: value.Field.Clone()})
 				}
 			}
@@ -952,27 +932,11 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 		} else {
 			err = builder.deleteModel(value)
 		}
-	case *CreateModel:
-		if value == nil {
-			err = errors.New("operation is nil")
-		} else if direction == DirectionForward {
-			err = builder.createModel(*value)
-		} else {
-			err = builder.deleteModel(*value)
-		}
 	case AddField:
 		if direction == DirectionForward {
 			err = builder.addField(value)
 		} else {
 			err = builder.removeField(value)
-		}
-	case *AddField:
-		if value == nil {
-			err = errors.New("operation is nil")
-		} else if direction == DirectionForward {
-			err = builder.addField(*value)
-		} else {
-			err = builder.removeField(*value)
 		}
 	default:
 		err = fmt.Errorf("operation type %T is not supported by state reconstruction", operation)
@@ -1676,11 +1640,6 @@ func validateLoadedRelationMutationAuthorities(
 		switch value := view.operation.(type) {
 		case AddField:
 			field = value.Field
-		case *AddField:
-			if value == nil {
-				continue
-			}
-			field = value.Field
 		default:
 			continue
 		}
@@ -1957,12 +1916,12 @@ func (budget *loadedDerivedIntentBudget) consumeString(path, value string) error
 
 func loadedBackendOperationKind(operation Operation, direction Direction) (loadedRelationOperationKind, error) {
 	switch operation.(type) {
-	case CreateModel, *CreateModel:
+	case CreateModel:
 		if direction == DirectionForward {
 			return loadedRelationCreateModel, nil
 		}
 		return loadedRelationDeleteModel, nil
-	case AddField, *AddField:
+	case AddField:
 		if direction == DirectionForward {
 			return loadedRelationAddField, nil
 		}
@@ -2050,11 +2009,7 @@ func operationSourceModel(operation Operation) (string, string) {
 	switch value := operation.(type) {
 	case CreateModel:
 		return value.AppLabel, value.Model.Name
-	case *CreateModel:
-		return value.AppLabel, value.Model.Name
 	case AddField:
-		return value.AppLabel, value.ModelName
-	case *AddField:
 		return value.AppLabel, value.ModelName
 	default:
 		return operation.App(), ""
@@ -2073,16 +2028,8 @@ func operationRelationFieldViews(operation Operation) []ir.Field {
 	switch value := operation.(type) {
 	case CreateModel:
 		appendRelations(value.Model.Fields)
-	case *CreateModel:
-		if value != nil {
-			appendRelations(value.Model.Fields)
-		}
 	case AddField:
 		if fieldContainsRelation(value.Field) {
-			fields = append(fields, value.Field)
-		}
-	case *AddField:
-		if value != nil && fieldContainsRelation(value.Field) {
 			fields = append(fields, value.Field)
 		}
 	}
@@ -2229,13 +2176,9 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	wireKind := loadedOperationWireKind(operation)
 	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].kind", index), wireKind, false)
 	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].app_label", index), operation.App(), false)
-	switch value := operation.(type) {
+	switch value := operationValue(operation).(type) {
 	case CreateModel:
 		loadedScanModelResource(budget, migration, index, kind, value.Model)
-	case *CreateModel:
-		if value != nil {
-			loadedScanModelResource(budget, migration, index, kind, value.Model)
-		}
 	case AddField:
 		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
 		loadedConsumeNodes(budget, 1)
@@ -2243,15 +2186,6 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 			return
 		}
 		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].field", index), value.Field)
-	case *AddField:
-		if value != nil {
-			loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
-			loadedConsumeNodes(budget, 1)
-			if budget.nodeOverflow {
-				return
-			}
-			loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].field", index), value.Field)
-		}
 	}
 }
 

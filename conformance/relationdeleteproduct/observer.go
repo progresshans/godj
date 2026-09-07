@@ -81,11 +81,6 @@ type DeleteObservation struct {
 	Schema       PhysicalSchema
 }
 
-type Observation struct {
-	Protect DeleteObservation
-	SetNull DeleteObservation
-}
-
 // WriteMetrics records only ORM operations attempted inside one explicitly
 // bounded product operation. Fixture provisioning and before/after inspection
 // deliberately use the unwrapped backend and are therefore excluded.
@@ -147,20 +142,14 @@ var _ db.RelationAtomic = (*recordingRelationAtomic)(nil)
 var _ db.RelationSession = (*recordingRelationSession)(nil)
 var _ project.Backend = (*recordingBackend)(nil)
 
-// Observe runs REL-007 and REL-008 against separate fresh databases.
-func Observe(ctx context.Context) (Observation, error) {
-	if ctx == nil {
-		return Observation{}, fmt.Errorf("observe REL-007/008: context is nil")
-	}
-	protect, err := observeDelete(ctx, 1, defaultFixtureConfig())
-	if err != nil {
-		return Observation{}, fmt.Errorf("observe REL-007: %w", err)
-	}
-	setNull, err := observeDelete(ctx, 2, defaultFixtureConfig())
-	if err != nil {
-		return Observation{}, fmt.Errorf("observe REL-008: %w", err)
-	}
-	return Observation{Protect: protect, SetNull: setNull}, nil
+// ObserveProtect executes only REL-007 against a fresh database.
+func ObserveProtect(ctx context.Context) (DeleteObservation, error) {
+	return observeDelete(ctx, 1, defaultFixtureConfig())
+}
+
+// ObserveSetNull executes only REL-008 against a fresh database.
+func ObserveSetNull(ctx context.Context) (DeleteObservation, error) {
+	return observeDelete(ctx, 2, defaultFixtureConfig())
 }
 
 // ObserveUnsavedRelatedTarget executes REL-002 through the checked-in project
@@ -272,6 +261,9 @@ func (recorder *recordingBackend) snapshot() WriteMetrics {
 }
 
 func observeDelete(ctx context.Context, targetID int64, config fixtureConfig) (DeleteObservation, error) {
+	if ctx == nil {
+		return DeleteObservation{}, fmt.Errorf("observe relation delete: context is nil")
+	}
 	fixture, err := openFixture(ctx)
 	if err != nil {
 		return DeleteObservation{}, err

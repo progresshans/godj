@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/authors"
@@ -55,13 +54,6 @@ type InvalidObservation struct {
 	Metrics QueryMetrics
 }
 
-type Observation struct {
-	Required RequiredObservation
-	Nullable NullableObservation
-	Invalid  InvalidObservation
-	DBState  relationstate.DatabaseState
-}
-
 type fixtureConfig struct {
 	authors               []relationstate.AuthorRow
 	posts                 []relationstate.PostRow
@@ -85,56 +77,48 @@ type recordingQueryer struct {
 	records []recordedQuery
 }
 
-var databaseSequence atomic.Uint64
-
-func Observe(ctx context.Context) (Observation, error) {
-	return observe(ctx, defaultFixtureConfig())
+// ObserveRequired executes only its contract against a fresh database.
+func ObserveRequired(ctx context.Context) (relationstate.Observation[RequiredObservation], error) {
+	return observe(ctx, defaultFixtureConfig(), observeRequired)
 }
 
-func observe(ctx context.Context, config fixtureConfig) (Observation, error) {
-	if ctx == nil {
-		return Observation{}, fmt.Errorf("observe REL-009/010/011: context is nil")
-	}
-	backend, err := sqlite.OpenMemory(ctx, fmt.Sprintf("godj-rel009-011-%d", databaseSequence.Add(1)))
-	if err != nil {
-		return Observation{}, fmt.Errorf("open REL-009/010/011 SQLite fixture: %w", err)
-	}
-	observation, observeErr := observeWithBackend(ctx, backend, config)
-	closeErr := backend.Close()
-	if observeErr != nil {
-		return Observation{}, errors.Join(observeErr, closeErr)
-	}
-	if closeErr != nil {
-		return Observation{}, closeErr
-	}
-	return observation, nil
+// ObserveNullable executes only its contract against a fresh database.
+func ObserveNullable(ctx context.Context) (relationstate.Observation[NullableObservation], error) {
+	return observe(ctx, defaultFixtureConfig(), observeNullable)
 }
 
-func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fixtureConfig) (Observation, error) {
-	if err := relationstate.Provision(ctx, backend, "select-related", config.authors, config.posts); err != nil {
-		return Observation{}, err
-	}
-	objects, err := project.BindObjects()
-	if err != nil {
-		return Observation{}, fmt.Errorf("bind generated select-related objects: %w", err)
-	}
-	recorder := &recordingQueryer{backend: backend}
+// ObserveInvalid executes only its contract against a fresh database.
+func ObserveInvalid(ctx context.Context) (relationstate.Observation[InvalidObservation], error) {
+	return observe(ctx, defaultFixtureConfig(), observeInvalid)
+}
 
+func observe[T any](ctx context.Context, config fixtureConfig, run func(context.Context, *recordingQueryer, project.Objects, fixtureConfig) (T, error)) (relationstate.Observation[T], error) {
+	return relationstate.Observe(ctx, "select-related", relationstate.DatabaseState{Authors: config.authors, Posts: config.posts}, func(backend *sqlite.Backend) (T, error) {
+		objects, err := project.BindObjects()
+		if err != nil {
+			var zero T
+			return zero, fmt.Errorf("bind generated select-related objects: %w", err)
+		}
+		return run(ctx, &recordingQueryer{backend: backend}, objects, config)
+	})
+}
+
+func observeRequired(ctx context.Context, recorder *recordingQueryer, objects project.Objects, config fixtureConfig) (RequiredObservation, error) {
 	plainStart := recorder.mark()
 	plainModels, err := orderedPosts(recorder, config.postsDescending).All(ctx)
 	if err != nil {
-		return Observation{}, fmt.Errorf("load REL-009 plain posts: %w", err)
+		return RequiredObservation{}, fmt.Errorf("load REL-009 plain posts: %w", err)
 	}
 	plainAccessStart := recorder.mark()
 	plain := make([]PostRelatedRow, len(plainModels))
 	for index, model := range plainModels {
 		object, err := objects.BlogPost.From(recorder, model)
 		if err != nil {
-			return Observation{}, fmt.Errorf("wrap REL-009 plain post %d: %w", index, err)
+			return RequiredObservation{}, fmt.Errorf("wrap REL-009 plain post %d: %w", index, err)
 		}
 		author, err := object.Author(ctx)
 		if err != nil {
-			return Observation{}, fmt.Errorf("read REL-009 plain author %d: %w", index, err)
+			return RequiredObservation{}, fmt.Errorf("read REL-009 plain author %d: %w", index, err)
 		}
 		name := author.Name
 		plain[index] = PostRelatedRow{PostID: model.ID, Name: &name}
@@ -143,7 +127,7 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	plainAccessRecords := recorder.recordsSince(plainAccessStart)
 	plainMetrics := metricsFor(plainRecords, plainAccessRecords)
 	if err := validatePlainTrace(plainRecords, plainAccessRecords); err != nil {
-		return Observation{}, err
+		return RequiredObservation{}, err
 	}
 
 	requiredStart := recorder.mark()
@@ -151,12 +135,12 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	required := objects.BlogPost.SelectRelated(requiredQuery).Author()
 	requiredObjects, err := required.All(ctx)
 	if err != nil {
-		return Observation{}, fmt.Errorf("load REL-009 eager posts: %w", err)
+		return RequiredObservation{}, fmt.Errorf("load REL-009 eager posts: %w", err)
 	}
 	if config.repeatRequiredEager {
 		freshRequired := objects.BlogPost.SelectRelated(requiredQuery.Fresh()).Author()
 		if _, err := freshRequired.All(ctx); err != nil {
-			return Observation{}, fmt.Errorf("repeat REL-009 eager posts: %w", err)
+			return RequiredObservation{}, fmt.Errorf("repeat REL-009 eager posts: %w", err)
 		}
 	}
 	requiredAccessStart := recorder.mark()
@@ -164,17 +148,17 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	for index, object := range requiredObjects {
 		model, err := object.Model()
 		if err != nil {
-			return Observation{}, fmt.Errorf("read REL-009 eager source %d: %w", index, err)
+			return RequiredObservation{}, fmt.Errorf("read REL-009 eager source %d: %w", index, err)
 		}
 		if config.forceRequiredCold && index == 0 {
 			object, err = object.Fresh()
 			if err != nil {
-				return Observation{}, fmt.Errorf("fresh REL-009 eager object: %w", err)
+				return RequiredObservation{}, fmt.Errorf("fresh REL-009 eager object: %w", err)
 			}
 		}
 		author, err := object.Author(ctx)
 		if err != nil {
-			return Observation{}, fmt.Errorf("read REL-009 eager author %d: %w", index, err)
+			return RequiredObservation{}, fmt.Errorf("read REL-009 eager author %d: %w", index, err)
 		}
 		name := author.Name
 		eager[index] = PostRelatedRow{PostID: model.ID, Name: &name}
@@ -183,31 +167,35 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	requiredAccessRecords := recorder.recordsSince(requiredAccessStart)
 	requiredMetrics := metricsFor(append(append([]recordedQuery(nil), requiredRecords...), requiredAccessRecords...), requiredAccessRecords)
 	if err := validateEagerTrace(requiredRecords, requiredAccessRecords, "author", false); err != nil {
-		return Observation{}, err
+		return RequiredObservation{}, err
 	}
 
+	return RequiredObservation{Plain: plain, Eager: eager, PlainMetrics: plainMetrics, EagerMetrics: requiredMetrics}, nil
+}
+
+func observeNullable(ctx context.Context, recorder *recordingQueryer, objects project.Objects, config fixtureConfig) (NullableObservation, error) {
 	nullableStart := recorder.mark()
 	nullableQuery := orderedPosts(recorder, config.postsDescending)
 	nullableObjects, err := objects.BlogPost.SelectRelated(nullableQuery).Reviewer().All(ctx)
 	if err != nil {
-		return Observation{}, fmt.Errorf("load REL-010 eager posts: %w", err)
+		return NullableObservation{}, fmt.Errorf("load REL-010 eager posts: %w", err)
 	}
 	nullableAccessStart := recorder.mark()
 	nullable := make([]PostRelatedRow, len(nullableObjects))
 	for index, object := range nullableObjects {
 		model, err := object.Model()
 		if err != nil {
-			return Observation{}, fmt.Errorf("read REL-010 eager source %d: %w", index, err)
+			return NullableObservation{}, fmt.Errorf("read REL-010 eager source %d: %w", index, err)
 		}
 		if config.forceNullableCold && index == 0 {
 			object, err = object.Fresh()
 			if err != nil {
-				return Observation{}, fmt.Errorf("fresh REL-010 eager object: %w", err)
+				return NullableObservation{}, fmt.Errorf("fresh REL-010 eager object: %w", err)
 			}
 		}
 		reviewer, ok, err := object.Reviewer(ctx)
 		if err != nil {
-			return Observation{}, fmt.Errorf("read REL-010 eager reviewer %d: %w", index, err)
+			return NullableObservation{}, fmt.Errorf("read REL-010 eager reviewer %d: %w", index, err)
 		}
 		var name *string
 		if ok {
@@ -220,40 +208,27 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	nullableAccessRecords := recorder.recordsSince(nullableAccessStart)
 	nullableMetrics := metricsFor(append(append([]recordedQuery(nil), nullableRecords...), nullableAccessRecords...), nullableAccessRecords)
 	if err := validateEagerTrace(nullableRecords, nullableAccessRecords, "reviewer", true); err != nil {
-		return Observation{}, err
+		return NullableObservation{}, err
 	}
 
+	return NullableObservation{Rows: nullable, Metrics: nullableMetrics}, nil
+}
+
+func observeInvalid(ctx context.Context, recorder *recordingQueryer, objects project.Objects, config fixtureConfig) (InvalidObservation, error) {
 	invalidStart := recorder.mark()
 	invalidErr := observeInvalidReverse(config.invalidPath)
 	invalidRecords := recorder.recordsSince(invalidStart)
 	if config.allowInvalidPathQuery {
 		if _, err := orderedPosts(recorder, false).Fresh().All(ctx); err != nil {
-			return Observation{}, fmt.Errorf("forced REL-011 query: %w", err)
+			return InvalidObservation{}, fmt.Errorf("forced REL-011 query: %w", err)
 		}
 		invalidRecords = recorder.recordsSince(invalidStart)
 	}
 	if err := validateInvalidTrace(invalidErr, config.invalidPath, invalidRecords); err != nil {
-		return Observation{}, err
+		return InvalidObservation{}, err
 	}
 
-	state, err := relationstate.Read(ctx, backend, "select-related")
-	if err != nil {
-		return Observation{}, err
-	}
-	return Observation{
-		Required: RequiredObservation{
-			Plain:        plain,
-			Eager:        eager,
-			PlainMetrics: plainMetrics,
-			EagerMetrics: requiredMetrics,
-		},
-		Nullable: NullableObservation{Rows: nullable, Metrics: nullableMetrics},
-		Invalid: InvalidObservation{
-			Err:     invalidErr,
-			Metrics: metricsFor(invalidRecords, nil),
-		},
-		DBState: state,
-	}, nil
+	return InvalidObservation{Err: invalidErr, Metrics: metricsFor(invalidRecords, nil)}, nil
 }
 
 func observeInvalidReverse(path string) error {

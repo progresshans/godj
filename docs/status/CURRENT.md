@@ -1,7 +1,7 @@
 # 현재 상태
 
 - 갱신: 2026-09-08
-- 활성 작업: 없음
+- 활성 작업: [GDJ-0063 제품·검증 코드의 책임 정리와 결함 수정](../../work/0063-runtime-and-validation-ownership.md)
 - 최근 완료: [GDJ-0062 테스트·검증 지원 코드의 중복 점검](../../work/0062-validation-duplication-audit.md)
 - 최근 검증 소스(full scope): `c5b91c812af87c1450f5fdb881cb751491eb76be`
 - 작업 브랜치: `codex/revision-fenced-migration-lifecycle`
@@ -12,17 +12,16 @@ Schema/Codegen/ORM/Migration, SQLite·PostgreSQL과 Article 기반 Web/Form/Admi
 범용 기능 전체를 지원한다는 뜻은 아니다. 현재 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
 Helpdesk는 티켓과 배정 Category를 한 번에 읽는 상세 API를 제공한다.
 
-## 완료 결과
+## 현재 작업
 
-GDJ-0062에서 반복 artifact 대조·입력 로딩·관계 DB·외부 프로젝트 준비 코드를 통합했다.
-Python 완료 검사는 고정 test-count 대신 현재 discovery의 전체 실행과 허용한 skip의 소유권을 확인한다.
-실제 DB·cache·취소·rollback과 actual/oracle 독립성을 유지하고 관련 로컬 검증과 고정 소스의 전체 Hosted 검증을 통과했다.
-실제 실행 범위·시간 관측·환경별 skip의 검증 소유자는 [테스트 증거](TEST_EVIDENCE.md)에 기록했다.
+세션 만료 경쟁과 showmigrations Unicode identity 검증을 수정하고 protocol·CLI·migration·DB AST·검증 실행의 책임을 정리한다.
+설계 채택·구현·환경별 검증을 구분한다. 위의 최근 full scope 결과는 GDJ-0062 소스이며 진행 중인 변경의 PASS가 아니다.
 
 ## 다음 행동
 
-중복 점검과 완료 기록을 마쳤으며 현재 blocker는 없다.
-eager Count·다중 관계 탐색은 별도 의미와 작업 범위를 정한 뒤 시작한다. 기존 PR #1은 Draft로 유지한다.
+[활성 work](../../work/0063-runtime-and-validation-ownership.md)의 구현과 집중 검증을 마쳤다. 통합 checkpoint를 닫고
+고정 구현 소스의 Hosted full scope를 실행한다. 현재 blocker는 없다.
+eager Count·다중 관계 탐색은 별도 범위다. 기존 PR #1은 Draft로 유지한다.
 
 ## 검증과 제한
 

@@ -4,7 +4,6 @@ package projectcheck
 
 import (
 	"encoding/json"
-	"path/filepath"
 
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 )
@@ -25,118 +24,39 @@ func RunMigrate(input MigrateInvocation) MigrateReport {
 		return report
 	}
 
-	selected, selectionFailure := selectProject(input.CWD, commandArguments{explicitDescriptor: arguments.explicitDescriptor}, &report.Report)
-	if selectionFailure != nil {
-		candidate := mapMigrateOuterFailure(*selectionFailure)
-		primary = &candidate
-	}
-	if primary == nil && !verifyRetainedProject(selected) {
-		candidate := migrateFailure(migrateprotocol.CategorySelection, migrateprotocol.CodeProjectSelectionFailed)
-		primary = &candidate
-	}
-	if terminal := migrateBarrier(input, primary); terminal != nil {
-		if selected.root != nil && selected.close() != nil {
-			report.CleanupFailed = 1
-			terminal = combineMigrateCleanup(terminal, true)
-		}
-		chooseMigrateFailure(&report, *terminal)
-		publishMigrate(input, &report)
-		return report
-	}
-
-	workspace, workspaceFailure := createPrivateWorkspaceWithHooks(selected, input.Environment, &report.Report, input.workspace)
-	if workspaceFailure != nil {
-		candidate := mapMigrateOuterFailure(*workspaceFailure)
-		primary = &candidate
-		terminal := migrateBarrier(input, primary)
-		if selected.close() != nil {
-			report.CleanupFailed = 1
-		}
-		terminal = combineMigrateCleanup(terminal, report.CleanupFailed != 0)
-		chooseMigrateFailure(&report, *terminal)
-		publishMigrate(input, &report)
-		return report
-	}
-
-	cleanup := func() {
-		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
-		if !cleanupFailed {
-			return
-		}
-		report.CleanupFailed = 1
-		if !report.HasMigrateFailure || migrateCanceledOrInterrupted(report.MigrateFailure) {
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[MigrateFailure]{
+			selection: mapMigrateOuterFailure, workspace: mapMigrateOuterFailure,
+			process: migrateProcessFailure, cleanup: combineMigrateCleanup,
+			barrier: func(primary *MigrateFailure) *MigrateFailure { return migrateBarrier(input, primary) },
+		}, commandHooks{})
+	finish := func() MigrateReport {
+		if command.close() && (!report.HasMigrateFailure || migrateCanceledOrInterrupted(report.MigrateFailure)) {
 			clearMigrateSuccess(&report)
 			report.HasMigrateFailure = true
 			report.MigrateFailure = migrateCleanupFailure()
 		}
-	}
-	finish := func() MigrateReport {
-		cleanup()
 		publishMigrate(input, &report)
 		return report
 	}
-
-	if terminal := migrateBarrier(input, nil); terminal != nil {
-		chooseMigrateFailure(&report, *terminal)
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
+		chooseMigrateFailure(&report, *primary)
 		return finish()
 	}
-	if !verifyRetainedProject(selected) {
-		chooseMigrateFailure(&report, migrateFailure(migrateprotocol.CategorySelection, migrateprotocol.CodeProjectSelectionFailed))
-		return finish()
-	}
-
-	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
-	primary = migrateProcessFailure(BuildStage, build)
-	primary = migrateBarrier(input, primary)
-	primary = combineMigrateCleanup(primary, build.CleanupFailed)
-	if primary != nil {
+	if primary = command.buildRunner(); primary != nil {
 		chooseMigrateFailure(&report, *primary)
 		return finish()
 	}
 
-	if !verifyRetainedProject(selected) {
-		chooseMigrateFailure(&report, migrateFailure(migrateprotocol.CategorySelection, migrateprotocol.CodeProjectSelectionFailed))
-		return finish()
-	}
-	if terminal := migrateBarrier(input, nil); terminal != nil {
-		chooseMigrateFailure(&report, *terminal)
-		return finish()
-	}
-	runnerCommand := Command{
-		Dir:   selected.rootPath,
-		Argv:  []string{filepath.Join(workspace.root, "godj-project-runner"), migrateprotocol.PrivateArgument},
-		Env:   workspace.environment,
-		Stdin: append([]byte(nil), arguments.requestDocument...),
-	}
-	report.RunnerCalls++
-	runner := input.Backend.Execute(input.Context, input.Interrupt, MigrateRunnerStage, cloneCommand(runnerCommand))
-	recordProcess(&report.Report, MigrateRunnerStage, runner)
+	runner := command.run(MigrateRunnerStage, migrateprotocol.PrivateArgument, arguments.requestDocument)
 	report.RunnerStdoutRetainedBytes = runner.StdoutScalar.RetainedBytes
 	report.RunnerStdoutTruncated = runner.StdoutScalar.Truncated
-	primary = migrateProcessFailure(MigrateRunnerStage, runner)
-	primary = combineMigrateCleanup(primary, runner.CleanupFailed)
-	var response migrateprotocol.Response
-	if primary == nil {
-		if runner.StdoutScalar.Truncated {
-			candidate := migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeInvalidResponse)
-			primary = &candidate
-		} else {
-			parsed, parseFailure, failed := migrateprotocol.ParseResponse(runner.Stdout, runner.Started && runner.ExitCode == 0)
-			if failed {
-				candidate := migrateFailure(parseFailure.Category, parseFailure.Code)
-				primary = &candidate
-			} else {
-				response = parsed
-				if response.OK && response.Result.Mode != arguments.request.Mode {
-					candidate := migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeInvalidResponse)
-					primary = &candidate
-				}
-			}
-		}
+	response, primary := parseCommandResponse(&runner, command.completed(MigrateRunnerStage, runner),
+		migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeInvalidResponse), migrateprotocol.ParseResponse)
+	if primary == nil && response.OK && response.Result.Mode != arguments.request.Mode {
+		candidate := migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeInvalidResponse)
+		primary = &candidate
 	}
-	clear(runner.Stdout)
-	runner.Stdout = nil
 	if primary != nil {
 		chooseMigrateFailure(&report, *primary)
 		return finish()

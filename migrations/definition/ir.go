@@ -11,34 +11,33 @@ func cloneField(field ir.Field) ir.Field {
 	return field.Clone()
 }
 
-func cloneOperation(operation migrations.Operation) migrations.Operation {
+// operationValue borrows the current built-in representation. Resource checks
+// reject nil and unsupported inputs before any deep copy; loaded and encoded
+// snapshots contain only the two value forms.
+func operationValue(operation migrations.Operation) migrations.Operation {
 	switch value := operation.(type) {
-	case migrations.CreateModel:
-		return migrations.CreateModel{AppLabel: value.AppLabel, Model: value.Model.Clone()}
 	case *migrations.CreateModel:
-		if value == nil {
-			return (*migrations.CreateModel)(nil)
-		}
-		clone := migrations.CreateModel{AppLabel: value.AppLabel, Model: value.Model.Clone()}
-		return &clone
-	case migrations.AddField:
-		return migrations.AddField{
-			AppLabel:  value.AppLabel,
-			ModelName: value.ModelName,
-			Field:     cloneField(value.Field),
+		if value != nil {
+			return *value
 		}
 	case *migrations.AddField:
-		if value == nil {
-			return (*migrations.AddField)(nil)
+		if value != nil {
+			return *value
 		}
-		clone := migrations.AddField{
-			AppLabel:  value.AppLabel,
-			ModelName: value.ModelName,
-			Field:     cloneField(value.Field),
-		}
-		return &clone
+	}
+	return operation
+}
+
+func cloneOperation(operation migrations.Operation) migrations.Operation {
+	switch value := operationValue(operation).(type) {
+	case migrations.CreateModel:
+		value.Model = value.Model.Clone()
+		return value
+	case migrations.AddField:
+		value.Field = value.Field.Clone()
+		return value
 	default:
-		return operation
+		return value
 	}
 }
 

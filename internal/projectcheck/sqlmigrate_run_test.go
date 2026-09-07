@@ -151,7 +151,7 @@ func TestRunSQLMigrateEmptyResultPerformsNoPublicWrite(t *testing.T) {
 	}
 }
 
-func TestRunSQLMigrateInvalidArgumentsPrecedeEveryAcquisition(t *testing.T) {
+func TestParseSQLMigrateArgumentsRejectsInvalidForms(t *testing.T) {
 	t.Parallel()
 	invalid := [][]string{
 		{},
@@ -159,6 +159,8 @@ func TestRunSQLMigrateInvalidArgumentsPrecedeEveryAcquisition(t *testing.T) {
 		{"sqlmigrate", "blog"},
 		{"sqlmigrate", "blog", "latest"},
 		{"sqlmigrate", "blog", "0001", "--backwards"},
+		{"sqlmigrate", "blog", "0001", "--plan"},
+		{"sqlmigrate", "blog", "0001", "--reverse"},
 		{"sqlmigrate", "--project", "godj.toml", "blog", "0001"},
 		{"sqlmigrate", "blog", "0001", "--project"},
 		{"sqlmigrate", "blog", "0001", "--project", "-descriptor"},
@@ -169,6 +171,25 @@ func TestRunSQLMigrateInvalidArgumentsPrecedeEveryAcquisition(t *testing.T) {
 		{"sqlmigrate", "blog", "0001", "--project", "godj.toml", "extra"},
 		{"sqlmigrate", string([]byte{0xff}), "0001"},
 		{"sqlmigrate", "blog", strings.Repeat("x", sqlmigrateprotocol.MaxIdentityBytes+1)},
+	}
+	for _, argv := range invalid {
+		arguments, failure := parseSQLMigrateArguments(argv)
+		want := SQLMigrateFailure{Category: sqlmigrateprotocol.CategoryCommand, Code: sqlmigrateprotocol.CodeInvalidArguments}
+		if failure == nil || *failure != want || arguments.explicitDescriptor != "" ||
+			arguments.request != (sqlmigrateprotocol.Request{}) || arguments.requestDocument != nil {
+			t.Fatalf("invalid argv %q = %+v, %+v", argv, arguments, failure)
+		}
+	}
+}
+
+func TestRunSQLMigrateInvalidArgumentsPrecedeEveryAcquisition(t *testing.T) {
+	t.Parallel()
+	// Grammar combinations belong to the parser test. These representatives
+	// cross the command boundary with an absent cwd and a forbidden process.
+	invalid := [][]string{
+		{"sqlmigrate", "blog"},
+		{"sqlmigrate", "blog", "latest", "--project", "missing.toml"},
+		{"sqlmigrate", "blog", "0001", "--project", "missing.toml", "--plan"},
 	}
 	for index, arguments := range invalid {
 		arguments := append([]string(nil), arguments...)

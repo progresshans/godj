@@ -15,6 +15,7 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectspec"
+	"github.com/progresshans/godj/internal/projectwire"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -163,11 +164,11 @@ func normalizeProjectSpec(input codegen.ProjectSpec) (codegen.ProjectSpec, error
 		}
 		return normalized.Apps[left].Package.PackageName < normalized.Apps[right].Package.PackageName
 	})
-	return cloneProjectSpec(normalized), nil
+	return projectwire.Clone(normalized), nil
 }
 
 func digestNormalizedProjectSpec(normalized codegen.ProjectSpec) (string, error) {
-	wire := toWireProjectSpec(normalized)
+	wire := projectwire.Snapshot(normalized)
 	if _, err := measureProjectSpec(wire, MaxResponseBytes); err != nil {
 		return "", err
 	}
@@ -412,7 +413,7 @@ func checkedAdd(left, right, maximum int) (int, bool) {
 
 func cloneResult(input Result) Result {
 	clone := input
-	clone.ProjectSpec = cloneProjectSpec(input.ProjectSpec)
+	clone.ProjectSpec = projectwire.Clone(input.ProjectSpec)
 	clone.ProgrammaticCatalog.Sources = make([]Source, len(input.ProgrammaticCatalog.Sources))
 	for index := range input.ProgrammaticCatalog.Sources {
 		clone.ProgrammaticCatalog.Sources[index] = Source{
@@ -427,16 +428,6 @@ func cloneResult(input Result) Result {
 			Name:     input.Candidates[index].Name,
 			Document: append([]byte(nil), input.Candidates[index].Document...),
 		}
-	}
-	return clone
-}
-
-func cloneProjectSpec(input codegen.ProjectSpec) codegen.ProjectSpec {
-	clone := input
-	clone.Apps = make([]codegen.AppSpec, len(input.Apps))
-	for index := range input.Apps {
-		clone.Apps[index] = input.Apps[index]
-		clone.Apps[index].Schema = input.Apps[index].Schema.Clone()
 	}
 	return clone
 }
@@ -464,7 +455,7 @@ func toWireResult(input Result) wireResult {
 	}
 	return wireResult{
 		WriterRoot:            input.WriterRoot,
-		ProjectSpec:           toWireProjectSpec(input.ProjectSpec),
+		ProjectSpec:           projectwire.Snapshot(input.ProjectSpec),
 		ProjectSpecDigest:     input.ProjectSpecDigest,
 		ProjectSnapshotSHA256: input.ProjectSnapshotSHA256,
 		FilesystemCatalog:     toWireCatalogSummary(input.FilesystemCatalog),
@@ -497,7 +488,7 @@ func fromWireResult(input wireResult) Result {
 	}
 	return Result{
 		WriterRoot:            input.WriterRoot,
-		ProjectSpec:           fromWireProjectSpec(input.ProjectSpec),
+		ProjectSpec:           projectwire.Declaration(input.ProjectSpec),
 		ProjectSpecDigest:     input.ProjectSpecDigest,
 		ProjectSnapshotSHA256: input.ProjectSnapshotSHA256,
 		FilesystemCatalog:     fromWireCatalogSummary(input.FilesystemCatalog),
@@ -505,44 +496,6 @@ func fromWireResult(input wireResult) Result {
 		DefinitionSetDigest:   input.DefinitionSetDigest,
 		Candidates:            candidates,
 	}
-}
-
-func toWireProjectSpec(input codegen.ProjectSpec) wireProjectSpec {
-	result := wireProjectSpec{
-		Project: toWirePackage(input.Project),
-		Apps:    make([]wireApp, len(input.Apps)),
-	}
-	for index := range input.Apps {
-		result.Apps[index] = wireApp{
-			Alias:   input.Apps[index].Alias,
-			Package: toWirePackage(input.Apps[index].Package),
-			Schema:  input.Apps[index].Schema.Clone(),
-		}
-	}
-	return result
-}
-
-func fromWireProjectSpec(input wireProjectSpec) codegen.ProjectSpec {
-	result := codegen.ProjectSpec{
-		Project: fromWirePackage(input.Project),
-		Apps:    make([]codegen.AppSpec, len(input.Apps)),
-	}
-	for index := range input.Apps {
-		result.Apps[index] = codegen.AppSpec{
-			Alias:   input.Apps[index].Alias,
-			Package: fromWirePackage(input.Apps[index].Package),
-			Schema:  input.Apps[index].Schema.Clone(),
-		}
-	}
-	return result
-}
-
-func toWirePackage(input codegen.PackageSpec) wirePackage {
-	return wirePackage{PackageName: input.PackageName, ImportPath: input.ImportPath, Directory: input.Directory}
-}
-
-func fromWirePackage(input wirePackage) codegen.PackageSpec {
-	return codegen.PackageSpec{PackageName: input.PackageName, ImportPath: input.ImportPath, Directory: input.Directory}
 }
 
 func toWireCatalogSummary(input CatalogSummary) wireCatalogSummary {

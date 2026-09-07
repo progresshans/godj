@@ -17,8 +17,6 @@ func TestExecuteDispatchesSQLMigrateBeforeProjectSelection(t *testing.T) {
 	for _, arguments := range [][]string{
 		{"sqlmigrate", "blog"},
 		{"sqlmigrate", "blog", "latest"},
-		{"sqlmigrate", "blog", "0001", "--project"},
-		{"sqlmigrate", "blog", "0001", "--backwards"},
 	} {
 		var stdout, stderr bytes.Buffer
 		exit := execute(

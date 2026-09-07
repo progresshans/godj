@@ -156,21 +156,21 @@ func TestLoadInvokesInjectedPlannerExactlyOnceAndNeverBeforeGraphStage(t *testin
 
 	valid := []Source{{SourceID: "valid", Document: oneCreateModelDocument("alpha", "0001_initial")}}
 	calls := 0
-	set, report, err := loadWithPlanner(valid, func(definitions []migrations.Migration) error {
+	set, report, err := loadWithPlanner(valid, func(definitions []migrations.Migration) (migrations.Planner, error) {
 		calls++
 		if len(definitions) != 1 || definitions[0].Key() != (migrations.MigrationKey{App: "alpha", Name: "0001_initial"}) {
 			t.Fatalf("injected planner definitions = %#v", definitions)
 		}
-		return nil
+		return migrations.NewPlanner(definitions...)
 	})
 	if err != nil || calls != 1 || report.PlannerConstruction != 1 || report.DefinitionSetsPublished != 1 || len(set.Definitions()) != 1 {
 		t.Fatalf("successful injected planner = calls:%d set:%#v report:%+v error:%v", calls, set.Definitions(), report, err)
 	}
 
 	calls = 0
-	_, report, err = loadWithPlanner([]Source{{SourceID: "", Document: valid[0].Document}}, func([]migrations.Migration) error {
+	_, report, err = loadWithPlanner([]Source{{SourceID: "", Document: valid[0].Document}}, func([]migrations.Migration) (migrations.Planner, error) {
 		calls++
-		return nil
+		return migrations.Planner{}, nil
 	})
 	if err == nil || calls != 0 || report.PlannerConstruction != 0 {
 		t.Fatalf("pre-graph failure invoked planner: calls=%d report=%+v error=%v", calls, report, err)
@@ -178,9 +178,9 @@ func TestLoadInvokesInjectedPlannerExactlyOnceAndNeverBeforeGraphStage(t *testin
 
 	wantFailure := errors.New("injected graph failure")
 	calls = 0
-	failed, report, err := loadWithPlanner(valid, func([]migrations.Migration) error {
+	failed, report, err := loadWithPlanner(valid, func([]migrations.Migration) (migrations.Planner, error) {
 		calls++
-		return wantFailure
+		return migrations.Planner{}, wantFailure
 	})
 	if err != wantFailure || calls != 1 || report.PlannerConstruction != 1 || report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 {
 		t.Fatalf("injected graph failure = calls:%d report:%+v error:%v", calls, report, err)

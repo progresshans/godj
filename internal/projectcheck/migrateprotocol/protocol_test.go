@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/progresshans/godj/internal/wirejson"
 )
 
 const nonemptyDigest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -219,12 +221,12 @@ func TestRequestIdentityAndResourceBounds(t *testing.T) {
 		t.Fatalf("valid request worst case %d exceeds cap %d", maximum, MaxRequestBytes)
 	}
 
-	document, err := readAtMost(strings.NewReader("12345"), 5)
+	document, err := wirejson.Read(strings.NewReader("12345"), 5, wirejson.DrainToEOF)
 	if err != nil || string(document) != "12345" {
 		t.Fatalf("at-limit read = %q, %v", document, err)
 	}
 	oversized := &trackingReader{chunks: [][]byte{[]byte("12345"), []byte("67"), []byte("tail")}}
-	document, err = readAtMost(oversized, 5)
+	document, err = wirejson.Read(oversized, 5, wirejson.DrainToEOF)
 	if err != nil || string(document) != "123456" || oversized.consumed != 11 || len(oversized.chunks) != 0 {
 		t.Fatalf("oversized read = %q, %v, consumed %d", document, err, oversized.consumed)
 	}
@@ -241,7 +243,7 @@ func TestReadRequestTransportFailures(t *testing.T) {
 	}
 	tailErr := errors.New("tail failed")
 	failingTail := &trackingReader{chunks: [][]byte{[]byte("123456")}, finalErr: tailErr}
-	if _, err := readAtMost(failingTail, 5); !errors.Is(err, tailErr) {
+	if _, err := wirejson.Read(failingTail, 5, wirejson.DrainToEOF); !errors.Is(err, tailErr) {
 		t.Fatalf("post-cap transport error = %v", err)
 	}
 }

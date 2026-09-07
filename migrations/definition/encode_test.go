@@ -256,6 +256,10 @@ func TestEncodeSnapshotsAndNeverMutatesInput(t *testing.T) {
 		Operations:   []migrations.Operation{operation},
 	}
 	wantInput := cloneMigration(migration)
+	// Preserve the caller's pointer form when checking that Encode leaves the
+	// original input untouched; the internal clone is deliberately a value.
+	wantOperation := wantInput.Operations[0].(migrations.CreateModel)
+	wantInput.Operations[0] = &wantOperation
 
 	document, err := Encode(Producer{Name: "snapshot", Version: "1"}, migration)
 	if err != nil {

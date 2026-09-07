@@ -34,11 +34,13 @@ func newSet(
 	definitions []migrations.Migration,
 	digest string,
 	sources []SourceInfo,
+	planner migrations.Planner,
 ) migrations.LoadedDefinitionSet {
 	published := loadeddefinition.New(
 		definitions,
 		digest,
 		sources,
+		planner,
 		cloneMigrations,
 		func(values []SourceInfo) []SourceInfo { return append([]SourceInfo(nil), values...) },
 	)

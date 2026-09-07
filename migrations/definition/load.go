@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/migrations"
 )
 
-type plannerValidator func([]migrations.Migration) error
+type plannerBuilder func([]migrations.Migration) (migrations.Planner, error)
 
 // Load synchronously snapshots and validates all explicitly supplied source
 // documents, then atomically publishes one opaque migrations snapshot.
@@ -18,12 +18,11 @@ func Load(sources ...Source) (migrations.LoadedDefinitionSet, LoadReport, error)
 	return loadWithPlanner(sources, validateDefinitionGraph)
 }
 
-func validateDefinitionGraph(definitions []migrations.Migration) error {
-	_, err := migrations.NewPlanner(definitions...)
-	return err
+func validateDefinitionGraph(definitions []migrations.Migration) (migrations.Planner, error) {
+	return migrations.NewPlanner(definitions...)
 }
 
-func loadWithPlanner(sources []Source, validate plannerValidator) (migrations.LoadedDefinitionSet, LoadReport, error) {
+func loadWithPlanner(sources []Source, build plannerBuilder) (migrations.LoadedDefinitionSet, LoadReport, error) {
 	report := LoadReport{DocumentsReceived: len(sources)}
 	snapshots, failure, failed := preflightAndSnapshot(sources)
 	if failed {
@@ -121,7 +120,8 @@ func loadWithPlanner(sources []Source, validate plannerValidator) (migrations.Lo
 	}
 
 	report.PlannerConstruction++
-	if err := validate(definitions); err != nil {
+	planner, err := build(definitions)
+	if err != nil {
 		failure := graphFailureCandidate(err, decoded)
 		return migrations.LoadedDefinitionSet{}, withFailure(report, failure.context), err
 	}
@@ -143,7 +143,7 @@ func loadWithPlanner(sources []Source, validate plannerValidator) (migrations.Lo
 	})
 	report.DefinitionsPublished = len(definitions)
 	report.DefinitionSetsPublished = 1
-	return newSet(definitions, digest, inventory), report, nil
+	return newSet(definitions, digest, inventory, planner), report, nil
 }
 
 func preflightAndSnapshot(sources []Source) ([]sourceSnapshot, failureCandidate, bool) {

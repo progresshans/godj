@@ -15,8 +15,9 @@ import (
 	"io"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/projectwire"
+	"github.com/progresshans/godj/internal/wirejson"
 	"github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/schema/ir"
 )
 
 const (
@@ -24,7 +25,7 @@ const (
 	PrivateArgument         = "__godj_project_makemigrations_runner_v1"
 	MaxRequestBytes         = 64 << 10
 	MaxResponseBytes        = 96 << 20
-	MaxProjectApps          = 8_192
+	MaxProjectApps          = projectwire.MaxApps
 	MaxJSONDepth            = 64
 	// MaxCandidates bounds one writer invocation independently of the larger
 	// historical catalog bound. Publication performs a full source/catalog CAS
@@ -130,23 +131,6 @@ type Response struct {
 	Failure Failure
 }
 
-type wirePackage struct {
-	PackageName string `json:"package_name"`
-	ImportPath  string `json:"import_path"`
-	Directory   string `json:"directory"`
-}
-
-type wireApp struct {
-	Alias   string      `json:"alias"`
-	Package wirePackage `json:"package"`
-	Schema  ir.Schema   `json:"schema"`
-}
-
-type wireProjectSpec struct {
-	Project wirePackage `json:"project"`
-	Apps    []wireApp   `json:"apps"`
-}
-
 type wireCatalogSummary struct {
 	SourceCount   int    `json:"source_count"`
 	DocumentBytes int    `json:"document_bytes"`
@@ -173,7 +157,7 @@ type wireCandidate struct {
 
 type wireResult struct {
 	WriterRoot            string                  `json:"writer_root"`
-	ProjectSpec           wireProjectSpec         `json:"project_spec"`
+	ProjectSpec           projectwire.Spec        `json:"project_spec"`
 	ProjectSpecDigest     string                  `json:"project_spec_digest"`
 	ProjectSnapshotSHA256 string                  `json:"project_snapshot_sha256"`
 	FilesystemCatalog     wireCatalogSummary      `json:"filesystem_catalog"`
@@ -217,7 +201,7 @@ func ReadRequest(reader io.Reader) (Failure, bool, error) {
 	if reader == nil {
 		return Failure{}, false, errors.New("project makemigrations protocol: nil request reader")
 	}
-	document, err := readAtMost(reader, MaxRequestBytes)
+	document, err := wirejson.Read(reader, MaxRequestBytes, wirejson.DrainToEOF)
 	if err != nil {
 		return Failure{}, false, fmt.Errorf("project makemigrations protocol: read request: %w", err)
 	}
@@ -238,7 +222,7 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 	switch status {
 	case "ok":
 		var decoded successDocument
-		if err := decodeCanonical(document, &decoded); err != nil {
+		if err := wirejson.DecodeCanonical(document, &decoded); err != nil {
 			return invalidResponse()
 		}
 		if version != Version {
@@ -252,7 +236,7 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 		return Response{OK: true, Result: canonical}, Failure{}, false
 	case "error":
 		var decoded failureDocument
-		if err := decodeCanonical(document, &decoded); err != nil {
+		if err := wirejson.DecodeCanonical(document, &decoded); err != nil {
 			return invalidResponse()
 		}
 		if version != Version {
@@ -418,39 +402,6 @@ func parseRequest(document []byte) (Failure, bool, error) {
 
 func invalidResponse() (Response, Failure, bool) {
 	return Response{}, Failure{Category: CategoryProtocol, Code: CodeInvalidResponse}, true
-}
-
-func readAtMost(reader io.Reader, maximum int) ([]byte, error) {
-	retained := make([]byte, 0, maximum+1)
-	buffer := make([]byte, 32<<10)
-	emptyReads := 0
-	for {
-		count, err := reader.Read(buffer)
-		if count < 0 || count > len(buffer) {
-			return nil, errors.New("invalid request reader count")
-		}
-		if count > 0 {
-			emptyReads = 0
-			remaining := maximum + 1 - len(retained)
-			if remaining > 0 {
-				if count < remaining {
-					remaining = count
-				}
-				retained = append(retained, buffer[:remaining]...)
-			}
-		} else if err == nil {
-			emptyReads++
-			if emptyReads >= 100 {
-				return nil, io.ErrNoProgress
-			}
-		}
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return retained, nil
-			}
-			return nil, err
-		}
-	}
 }
 
 func validateDocumentSize(size, maximum int) error {

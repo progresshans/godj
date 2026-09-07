@@ -23,6 +23,7 @@ type DefinitionSourceInfo struct {
 type loadedDefinitionPublication = loadeddefinition.Set[
 	Migration,
 	DefinitionSourceInfo,
+	Planner,
 ]
 
 // LoadedDefinitionSet is the only public definition input to a complete
@@ -33,31 +34,19 @@ type LoadedDefinitionSet loadedDefinitionPublication
 
 // Digest returns the canonical semantic definition-set fingerprint.
 func (s LoadedDefinitionSet) Digest() string {
-	snapshot, ok := s.snapshot()
-	if !ok {
-		return ""
-	}
-	return snapshot.Digest
+	return loadeddefinition.Digest(loadedDefinitionPublication(s))
 }
 
 // Definitions returns a fresh deep copy for diagnostics and inspection. The
 // returned slice is not accepted as loaded Migrate or Plan lifecycle
 // authority.
 func (s LoadedDefinitionSet) Definitions() []Migration {
-	snapshot, ok := s.snapshot()
-	if !ok {
-		return nil
-	}
-	return snapshot.Values
+	return loadeddefinition.Values(loadedDefinitionPublication(s))
 }
 
 // Sources returns a fresh copy of the canonical source inventory.
 func (s LoadedDefinitionSet) Sources() []DefinitionSourceInfo {
-	snapshot, ok := s.snapshot()
-	if !ok {
-		return nil
-	}
-	return snapshot.Sources
+	return loadeddefinition.Sources(loadedDefinitionPublication(s))
 }
 
 // Statuses validates and lists one applied-history snapshot against this
@@ -65,17 +54,14 @@ func (s LoadedDefinitionSet) Sources() []DefinitionSourceInfo {
 // counterpart to Executor.Migrate and Executor.Plan: callers cannot substitute
 // a partial raw definition slice for the loader publication authority.
 func (s LoadedDefinitionSet) Statuses(applied AppliedState) ([]MigrationStatusEntry, error) {
-	snapshot, ok := s.snapshot()
+	view, ok := s.view()
 	if !ok {
 		return nil, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition set is invalid"))
 	}
-	planner, err := NewPlanner(snapshot.Values...)
-	if err != nil {
-		return nil, err
-	}
-	return planner.Statuses(applied)
+	return view.Prepared.Statuses(applied)
 }
 
-func (s LoadedDefinitionSet) snapshot() (loadeddefinition.Snapshot[Migration, DefinitionSourceInfo], bool) {
-	return loadeddefinition.View(loadedDefinitionPublication(s))
+func (s LoadedDefinitionSet) view() (loadeddefinition.View[Migration, DefinitionSourceInfo, Planner], bool) {
+	view, ok := loadeddefinition.Borrow(loadedDefinitionPublication(s))
+	return view, ok && view.Prepared.graph != nil
 }

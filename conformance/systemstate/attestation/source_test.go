@@ -76,8 +76,13 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 	paths := []string{
 		"scripts/ci/python_tests.py",
 		"migrations/executor.go",
+		"migrations/internal/loadeddefinition/set.go",
+		"db/internal/queryplan/read.go",
+		"internal/wirejson/decode.go",
+		"internal/projectwire/spec.go",
 		"conformance/internal/attestationio/io.go",
 		"conformance/internal/testfixture/external.go",
+		"conformance/internal/relationstate/observe.go",
 		"query/plan.go",
 		"schema/ir/types.go",
 		"systemstate/testdata/0001_initial.godj.json",

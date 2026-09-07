@@ -11,6 +11,7 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectspec"
+	"github.com/progresshans/godj/internal/projectwire"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -183,19 +184,6 @@ func TestAppsAndSchemaWireBudgetBoundaries(t *testing.T) {
 		t.Fatal("maximum+1 apps accepted")
 	}
 
-	budget := wireBudget{fields: projectspec.MaxAggregateFields - 1, nodes: projectspec.MaxAggregateNodes - 1}
-	if err := budget.consumeFields(1); err != nil {
-		t.Fatalf("maximum fields rejected: %v", err)
-	}
-	if err := budget.consumeNodes(1); err != nil {
-		t.Fatalf("maximum nodes rejected: %v", err)
-	}
-	if err := budget.consumeFields(1); err == nil {
-		t.Fatal("maximum+1 fields accepted")
-	}
-	if err := budget.consumeNodes(1); err == nil {
-		t.Fatal("maximum+1 nodes accepted")
-	}
 }
 
 func TestJSONDepthAndResponseSizeExactBoundaries(t *testing.T) {
@@ -213,13 +201,7 @@ func TestJSONDepthAndResponseSizeExactBoundaries(t *testing.T) {
 	if err := validateDocumentSize(MaxResponseBytes+1, MaxResponseBytes); err == nil {
 		t.Fatal("maximum+1 response size accepted")
 	}
-	sizer := &wireSizer{size: MaxResponseBytes - 1}
-	if !sizer.add(1) || sizer.size != MaxResponseBytes {
-		t.Fatalf("producer maximum rejected: %+v", sizer)
-	}
-	if sizer.add(1) || sizer.size != MaxResponseBytes+1 {
-		t.Fatalf("producer maximum+1 accepted: %+v", sizer)
-	}
+
 }
 
 func TestSuccessSizePreflightMatchesCanonicalMarshalForAllOptionalShapes(t *testing.T) {
@@ -236,8 +218,8 @@ func TestSuccessSizePreflightMatchesCanonicalMarshalForAllOptionalShapes(t *test
 			},
 		}},
 	}}
-	wireSpec := toWireProjectSpec(spec)
-	measured, err := measureSuccessDocument(shallowWireProjectSpec(spec))
+	wireSpec := projectwire.Snapshot(spec)
+	measured, err := measureSuccessDocument(projectwire.View(spec))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +271,7 @@ func responseWithAlias(alias string) []byte {
 }
 
 func jsonMarshalSuccessForTest(spec codegen.ProjectSpec) ([]byte, error) {
-	return json.Marshal(successDocument{ProtocolVersion: Version, Status: "ok", ProjectSpec: toWireProjectSpec(spec)})
+	return json.Marshal(successDocument{ProtocolVersion: Version, Status: "ok", ProjectSpec: projectwire.Snapshot(spec)})
 }
 
 type errorReader struct{ err error }

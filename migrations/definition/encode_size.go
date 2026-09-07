@@ -90,29 +90,19 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 				return err
 			}
 		}
-		switch value := operation.(type) {
+		switch value := operationValue(operation).(type) {
 		case migrations.CreateModel:
 			if err := scanner.scanCreateModel(path, index, value); err != nil {
 				return err
 			}
 		case *migrations.CreateModel:
-			if value == nil {
-				return encodeFailure(path, "nil *migrations.CreateModel")
-			}
-			if err := scanner.scanCreateModel(path, index, *value); err != nil {
-				return err
-			}
+			return encodeFailure(path, "nil *migrations.CreateModel")
 		case migrations.AddField:
 			if err := scanner.scanAddField(path, value); err != nil {
 				return err
 			}
 		case *migrations.AddField:
-			if value == nil {
-				return encodeFailure(path, "nil *migrations.AddField")
-			}
-			if err := scanner.scanAddField(path, *value); err != nil {
-				return err
-			}
+			return encodeFailure(path, "nil *migrations.AddField")
 		case nil:
 			return encodeFailure(path, "nil operation")
 		default:

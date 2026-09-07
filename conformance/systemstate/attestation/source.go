@@ -47,6 +47,8 @@ var exactSourcePaths = map[string]struct{}{
 
 var productSourcePrefixes = []string{
 	"internal/gobuild/",
+	"internal/projectwire/",
+	"internal/wirejson/",
 	"admin/",
 	"api/",
 	"apps/",
@@ -77,6 +79,7 @@ var conformanceSourcePrefixes = []string{
 	"conformance/internal/protocol/",
 	"conformance/internal/attestationio/",
 	"conformance/internal/testfixture/",
+	"conformance/internal/relationstate/",
 	"conformance/runners/godj/",
 	"conformance/systemstate/",
 }

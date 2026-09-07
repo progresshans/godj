@@ -19,7 +19,7 @@ func TestExecutorMigrateValidatesOuterInputsBeforeIO(t *testing.T) {
 
 	t.Run("nil context wins", func(t *testing.T) {
 		fake := newLifecycleTestBackend(nil)
-		_, err := (Executor{Backend: fake}).Migrate(nil, testLoadedDefinitionSet([]Migration{{}}), LifecycleRequest{})
+		_, err := (Executor{Backend: fake}).Migrate(nil, LoadedDefinitionSet{}, LifecycleRequest{})
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		if fake.openCount != 0 || fake.atomicBeginCount != 0 {
 			t.Fatalf("backend calls = open:%d atomic:%d, want 0", fake.openCount, fake.atomicBeginCount)
@@ -30,7 +30,7 @@ func TestExecutorMigrateValidatesOuterInputsBeforeIO(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		fake := newLifecycleTestBackend(nil)
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet([]Migration{{}}), LifecycleRequest{})
+		_, err := (Executor{Backend: fake}).Migrate(ctx, LoadedDefinitionSet{}, LifecycleRequest{})
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		if !errors.Is(err, context.Canceled) || fake.openCount != 0 {
 			t.Fatalf("Migrate() error = %v, open calls = %d", err, fake.openCount)
@@ -39,32 +39,17 @@ func TestExecutorMigrateValidatesOuterInputsBeforeIO(t *testing.T) {
 
 	t.Run("zero request wins over definitions and capability", func(t *testing.T) {
 		fake := newLifecycleTestBackend(nil)
-		_, err := (Executor{Backend: fake}).Migrate(context.Background(), testLoadedDefinitionSet([]Migration{{}}), LifecycleRequest{})
+		_, err := (Executor{Backend: fake}).Migrate(context.Background(), LoadedDefinitionSet{}, LifecycleRequest{})
 		assertPlanningError(t, err, CategoryPlan, CodeInvalidTarget, MigrationKey{}, MigrationKey{})
 		if fake.openCount != 0 || fake.atomicBeginCount != 0 {
 			t.Fatalf("backend calls = open:%d atomic:%d, want 0", fake.openCount, fake.atomicBeginCount)
 		}
 	})
 
-	t.Run("invalid definitions win before backend I/O", func(t *testing.T) {
-		fake := newLifecycleTestBackend(nil)
-		_, err := (Executor{Backend: fake}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
-
-				[]Migration{{App: "", Name: "0001"}}),
-
-			LatestLifecycleRequest())
-
-		assertPlanningError(t, err, CategoryGraph, CodeInvalidNode, MigrationKey{Name: "0001"}, MigrationKey{})
-		if fake.openCount != 0 {
-			t.Fatalf("OpenRevisionFencedSession() calls = %d, want 0", fake.openCount)
-		}
-	})
-
 	t.Run("typed nil backend is unsupported", func(t *testing.T) {
 		var fake *lifecycleTestBackend
 		_, err := (Executor{Backend: fake}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 
 				lifecycleTestDefinitions()),
 
@@ -77,7 +62,7 @@ func TestExecutorMigrateValidatesOuterInputsBeforeIO(t *testing.T) {
 		var session *lifecycleTestSession
 		fake := newLifecycleTestBackend(session)
 		_, err := (Executor{Backend: fake}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 
 				lifecycleTestDefinitions()),
 
@@ -93,7 +78,7 @@ func TestExecutorMigrateValidatesOuterInputsBeforeIO(t *testing.T) {
 		var transaction *lifecycleTestTransaction
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:1]),
 			LatestLifecycleRequest())
 
@@ -106,7 +91,7 @@ func TestExecutorMigrateValidatesOuterInputsBeforeIO(t *testing.T) {
 	t.Run("corrupt tagged request is rejected", func(t *testing.T) {
 		fake := newLifecycleTestBackend(nil)
 		request := LifecycleRequest{kind: lifecycleRequestLatest, targets: []Target{}}
-		_, err := (Executor{Backend: fake}).Migrate(context.Background(), testLoadedDefinitionSet(lifecycleTestDefinitions()), request)
+		_, err := (Executor{Backend: fake}).Migrate(context.Background(), testLoadedDefinitionSet(t, lifecycleTestDefinitions()), request)
 		assertPlanningError(t, err, CategoryPlan, CodeInvalidTarget, MigrationKey{}, MigrationKey{})
 		if fake.openCount != 0 {
 			t.Fatalf("OpenRevisionFencedSession() calls = %d, want 0", fake.openCount)
@@ -141,7 +126,7 @@ func TestExecutorPlanUsesSharedPreparationWithoutBeginningMigration(t *testing.T
 
 	plan, err := (Executor{Backend: fake}).Plan(
 		context.Background(),
-		testLoadedDefinitionSet(definitions),
+		testLoadedDefinitionSet(t, definitions),
 		LatestLifecycleRequest(),
 	)
 	if err != nil {
@@ -182,7 +167,7 @@ func TestExecutorPlanNoopStillReadsAndCloses(t *testing.T) {
 	fake := newLifecycleTestBackend(session)
 	plan, err := (Executor{Backend: fake}).Plan(
 		context.Background(),
-		testLoadedDefinitionSet(definitions),
+		testLoadedDefinitionSet(t, definitions),
 		LatestLifecycleRequest(),
 	)
 	if err != nil || plan == nil || len(plan) != 0 {
@@ -210,7 +195,7 @@ func TestExecutorPlanReturnsDetachedIndependentSnapshots(t *testing.T) {
 	executor := Executor{Backend: fake}
 	request := TargetedLifecycleRequest(NamedTarget(lifecycleAlpha2), NamedTarget(lifecycleBeta1))
 
-	first, err := executor.Plan(context.Background(), testLoadedDefinitionSet(definitions), request)
+	first, err := executor.Plan(context.Background(), testLoadedDefinitionSet(t, definitions), request)
 	if err != nil {
 		t.Fatalf("first Plan() error = %v", err)
 	}
@@ -224,7 +209,7 @@ func TestExecutorPlanReturnsDetachedIndependentSnapshots(t *testing.T) {
 	}
 	first[0] = PlanStep{Key: MigrationKey{App: "mutated", Name: "caller"}, Direction: DirectionBackward}
 
-	second, err := executor.Plan(context.Background(), testLoadedDefinitionSet(definitions), request)
+	second, err := executor.Plan(context.Background(), testLoadedDefinitionSet(t, definitions), request)
 	if err != nil {
 		t.Fatalf("second Plan() error = %v", err)
 	}
@@ -233,7 +218,7 @@ func TestExecutorPlanReturnsDetachedIndependentSnapshots(t *testing.T) {
 	}
 
 	session.records = lifecycleRecords(lifecycleAlpha1, lifecycleAlpha2, lifecycleBeta1)
-	third, err := executor.Plan(context.Background(), testLoadedDefinitionSet(definitions), request)
+	third, err := executor.Plan(context.Background(), testLoadedDefinitionSet(t, definitions), request)
 	if err != nil || third == nil || len(third) != 0 {
 		t.Fatalf("third Plan(current history) = (%#v, %v), want fresh empty snapshot", third, err)
 	}
@@ -257,7 +242,7 @@ func TestExecutorPlanCloseFailureDiscardsCalculatedPlan(t *testing.T) {
 	session.closeErr = closeCause
 	plan, err := (Executor{Backend: newLifecycleTestBackend(session)}).Plan(
 		context.Background(),
-		testLoadedDefinitionSet(definitions),
+		testLoadedDefinitionSet(t, definitions),
 		LatestLifecycleRequest(),
 	)
 	assertMigrationError(t, err, CategoryTransaction, CodeSessionCloseFailed, NoOperation, "")
@@ -284,7 +269,7 @@ func TestExecutorPlanPreparationFailurePrecedesAndJoinsSessionClose(t *testing.T
 	session.closeErr = closeCause
 	plan, err := (Executor{Backend: newLifecycleTestBackend(session)}).Plan(
 		context.Background(),
-		testLoadedDefinitionSet(lifecycleTestDefinitions()[:1]),
+		testLoadedDefinitionSet(t, lifecycleTestDefinitions()[:1]),
 		LatestLifecycleRequest(),
 	)
 	var recorder *RecorderError
@@ -311,7 +296,7 @@ func TestExecutorPlanKnownAppZeroUsesStrictTargetThroughLoadedLifecycle(t *testi
 	session := newLifecycleTestSession(fullyApplied, nil)
 	plan, err := (Executor{Backend: newLifecycleTestBackend(session)}).Plan(
 		context.Background(),
-		testLoadedDefinitionSet(definitions),
+		testLoadedDefinitionSet(t, definitions),
 		TargetedLifecycleRequest(KnownAppZeroTarget("alpha")),
 	)
 	if err != nil {
@@ -330,7 +315,7 @@ func TestExecutorPlanKnownAppZeroUsesStrictTargetThroughLoadedLifecycle(t *testi
 	unknownSession := newLifecycleTestSession(fullyApplied, nil)
 	unknown, err := (Executor{Backend: newLifecycleTestBackend(unknownSession)}).Plan(
 		context.Background(),
-		testLoadedDefinitionSet(definitions),
+		testLoadedDefinitionSet(t, definitions),
 		TargetedLifecycleRequest(KnownAppZeroTarget("unknown")),
 	)
 	assertPlanningError(t, err, CategoryPlan, CodeTargetNotFound, MigrationKey{App: "unknown"}, MigrationKey{})
@@ -394,7 +379,7 @@ func TestExecutorMigrateLoadedRelationRoutesByActualHistory(t *testing.T) {
 			fake := newLifecycleTestBackend(session)
 			fake.capabilities = allCapabilities
 			state, err := (Executor{Backend: fake}).Migrate(
-				lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+				lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 					definitions),
 
@@ -438,7 +423,7 @@ func TestExecutorMigrateLoadedRelationDryValidatesCapabilitiesBeforeEveryBegin(t
 	session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(len(definitions)))
 	fake := newLifecycleTestBackend(session)
 	state, err := (Executor{Backend: fake}).Migrate(
-		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 			definitions),
 
@@ -476,7 +461,7 @@ func TestExecutorMigrateLoadedRelationReverseRequiresRemoveForeignKeyCapabilityB
 	fake.capabilities.RemoveForeignKey = false
 
 	state, err := (Executor{Backend: fake}).Migrate(
-		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 			definitions),
 
@@ -534,7 +519,7 @@ func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = allCapabilities
 		_, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -573,7 +558,7 @@ func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = allCapabilities
 		state, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 				definitions),
 
@@ -616,7 +601,7 @@ func TestExecutorMigrateLoadedNullableRelationAddSealsRetainedAndChangedTargets(
 		AddNullableForeignKey:  true,
 	}
 	state, err := (Executor{Backend: fake}).Migrate(
-		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 			definitions),
 
@@ -660,7 +645,7 @@ func TestExecutorMigrateLoadedRelationRemakeFailureOwnsOriginalAddField(t *testi
 	fake.capabilities = lifecycleAllRelationCapabilities()
 
 	state, err := (Executor{Backend: fake}).Migrate(
-		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 			definitions),
 
@@ -700,7 +685,7 @@ func TestExecutorMigrateLoadedRelationRemakeRecorderFailureIsNoOperation(t *test
 	fake.capabilities = lifecycleAllRelationCapabilities()
 
 	state, err := (Executor{Backend: fake}).Migrate(
-		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 			definitions),
 
@@ -744,7 +729,7 @@ func TestExecutorMigrateLoadedNullableRelationAuthorityRejectsWholePlanBeforeCap
 				AddNullableForeignKey:  true,
 			}
 			state, err := (Executor{Backend: fake}).Migrate(
-				lifecycleLoadedContext(t, test.defs), testLoadedDefinitionSet(
+				lifecycleLoadedContext(t, test.defs), testLoadedDefinitionSet(t,
 
 					test.defs),
 
@@ -777,7 +762,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		session := newLifecycleTestSession(nil, nil)
 		fake := newLifecycleTestBackend(session)
 		fake.openHook = cancel
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		if !errors.Is(err, context.Canceled) || session.readCount != 0 || session.closeCount != 1 ||
 			fake.capabilityCount != 0 || session.beginCount != 0 {
@@ -790,7 +775,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		ctx := lifecycleLoadedContextFrom(t, base, definitions)
 		fake := newLifecycleTestBackend(nil)
 		fake.openHook = cancel
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		if !errors.Is(err, context.Canceled) || fake.openCount != 1 || fake.capabilityCount != 0 {
 			t.Fatalf("Open nil-session cancellation = err:%v open:%d capability:%d", err, fake.openCount, fake.capabilityCount)
@@ -803,7 +788,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		session := newLifecycleTestSession([]backend.AppliedMigration{{Name: "malformed"}}, nil)
 		session.readHook = cancel
 		fake := newLifecycleTestBackend(session)
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		var planning *PlanningError
 		if !errors.Is(err, context.Canceled) || errors.As(err, &planning) || session.readCount != 1 ||
@@ -818,7 +803,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		session := newLifecycleTestSession(nil, nil)
 		fake := newLifecycleTestBackend(session)
 		fake.capabilityHook = cancel
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		var capability *backend.CapabilityError
 		if !errors.Is(err, context.Canceled) || errors.As(err, &capability) || session.readCount != 1 ||
@@ -831,7 +816,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		session := newLifecycleTestSession(nil, nil)
 		fake := newLifecycleTestBackend(session)
 		_, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -847,7 +832,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
 		_, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -870,7 +855,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
 		state, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -896,7 +881,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		session.beginHook = cancel
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		if !errors.Is(err, context.Canceled) || !reflect.DeepEqual(transaction.calls, []string{"rollback"}) {
 			t.Fatalf("post-Begin cancellation = err:%v calls:%v", err, transaction.calls)
@@ -914,7 +899,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		)
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, 0, "CreateModel")
 		if !errors.Is(err, context.Canceled) || !reflect.DeepEqual(transaction.calls, []string{"create_model", "rollback"}) {
 			t.Fatalf("post-operation cancellation = err:%v calls:%v", err, transaction.calls)
@@ -932,7 +917,7 @@ func TestExecutorMigrateLoadedRelationCancellationAndUnifiedPortBoundaries(t *te
 		)
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
-		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		_, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		want := []string{"create_model", "record_applied:blog.0001_post", "rollback"}
 		if !errors.Is(err, context.Canceled) || !reflect.DeepEqual(transaction.calls, want) {
@@ -950,7 +935,7 @@ func TestExecutorMigrateLoadedRelationResourceValidationPrecedesCapabilitiesAndB
 		}
 		session := newLifecycleTestSession(nil, nil)
 		fake := newLifecycleTestBackend(session)
-		_, err := (Executor{Backend: fake}).Migrate(lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(definitions), request)
+		_, err := (Executor{Backend: fake}).Migrate(lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t, definitions), request)
 		assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
 		if fake.openCount != 0 || session.readCount != 0 || session.beginCount != 0 {
 			t.Fatalf("loader-authorized scalar oversized targets touched IO: open:%d read:%d begin:%d", fake.openCount, session.readCount, session.beginCount)
@@ -966,7 +951,7 @@ func TestExecutorMigrateLoadedRelationResourceValidationPrecedesCapabilitiesAndB
 		session := newLifecycleTestSession(records, nil)
 		fake := newLifecycleTestBackend(session)
 		_, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -984,7 +969,7 @@ func TestExecutorMigrateLoadedRelationResourceValidationPrecedesCapabilitiesAndB
 		}
 		session := newLifecycleTestSession(nil, nil)
 		fake := newLifecycleTestBackend(session)
-		_, err := (Executor{Backend: fake}).Migrate(lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(definitions), request)
+		_, err := (Executor{Backend: fake}).Migrate(lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t, definitions), request)
 		assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
 		if fake.openCount != 0 || session.readCount != 0 || fake.capabilityCount != 0 ||
 			session.beginCount != 0 {
@@ -1001,7 +986,7 @@ func TestExecutorMigrateLoadedRelationResourceValidationPrecedesCapabilitiesAndB
 		session := newLifecycleTestSession(records, nil)
 		fake := newLifecycleTestBackend(session)
 		_, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -1019,7 +1004,7 @@ func TestExecutorMigrateLoadedRelationResourceValidationPrecedesCapabilitiesAndB
 		session := newLifecycleTestSession(nil, nil)
 		fake := newLifecycleTestBackend(session)
 		_, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 
 				definitions),
 
@@ -1038,7 +1023,7 @@ func TestExecutorMigrateLoadedRelationResourceValidationPrecedesCapabilitiesAndB
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
 		state, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -1068,7 +1053,7 @@ func TestExecutorMigrateLoadedRelationCommitOutcomesPublishOnlyDurableState(t *t
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
 		state, err := (Executor{Backend: fake}).Migrate(
-			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+			lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -1103,7 +1088,7 @@ func TestExecutorMigrateLoadedRelationCommitOutcomesPublishOnlyDurableState(t *t
 			fake := newLifecycleTestBackend(session)
 			fake.capabilities = lifecycleAllRelationCapabilities()
 			state, err := (Executor{Backend: fake}).Migrate(
-				lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
+				lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(t,
 					definitions),
 				LatestLifecycleRequest())
 
@@ -1128,7 +1113,7 @@ func TestExecutorMigrateLoadedRelationCommitOutcomesPublishOnlyDurableState(t *t
 		session := newLifecycleTestSession(records, []backend.RevisionFencedTransaction{transaction})
 		fake := newLifecycleTestBackend(session)
 		fake.capabilities = lifecycleAllRelationCapabilities()
-		state, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(definitions), LatestLifecycleRequest())
+		state, err := (Executor{Backend: fake}).Migrate(ctx, testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
 		if err != nil {
 			t.Fatalf("final committed relation cancellation error = %v", err)
 		}
@@ -1148,7 +1133,7 @@ func TestExecutorMigrateLoadedResourceScanPrecedesRelationInspectionAndCloning(t
 	}}}
 	session := newLifecycleTestSession(nil, nil)
 	fake := newLifecycleTestBackend(session)
-	_, err := (Executor{Backend: fake}).Migrate(context.Background(), testLoadedDefinitionSet([]Migration{definition}), LatestLifecycleRequest())
+	_, err := (Executor{Backend: fake}).Migrate(context.Background(), testLoadedDefinitionSet(t, []Migration{definition}), LatestLifecycleRequest())
 	assertMigrationError(t, err, CategoryState, CodeInvalidState, 0, "CreateModel")
 	var migrationError *Error
 	if !errors.As(err, &migrationError) {
@@ -1169,7 +1154,7 @@ func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {
 		session := newLifecycleTestSession(lifecycleRecords(lifecycleAlpha2), nil)
 		fake := newLifecycleTestBackend(session)
 		state, err := (Executor{Backend: fake}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 
 				lifecycleTestDefinitions()),
 
@@ -1184,7 +1169,7 @@ func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {
 	t.Run("valid history exposes contained invalid target", func(t *testing.T) {
 		session := newLifecycleTestSession(lifecycleRecords(lifecycleAlpha1), nil)
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 
 				lifecycleTestDefinitions()),
 
@@ -1202,7 +1187,7 @@ func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {
 	t.Run("invalid snapshot record is semantic history error", func(t *testing.T) {
 		session := newLifecycleTestSession([]backend.AppliedMigration{{Name: "0001"}}, nil)
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()),
 			LatestLifecycleRequest())
 
@@ -1217,7 +1202,7 @@ func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {
 		session := newLifecycleTestSession(nil, nil)
 		session.readErr = cause
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()),
 			LatestLifecycleRequest())
 
@@ -1232,7 +1217,7 @@ func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {
 		session := newLifecycleTestSession(nil, nil)
 		session.readErr = &backend.RevisionFenceError{Cause: cause}
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()),
 			LatestLifecycleRequest())
 
@@ -1245,7 +1230,7 @@ func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {
 	t.Run("fully applied latest is read-only no-op", func(t *testing.T) {
 		session := newLifecycleTestSession(lifecycleRecords(lifecycleAlpha1, lifecycleAlpha2, lifecycleAlpha3, lifecycleBeta1), nil)
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()),
 			LatestLifecycleRequest())
 
@@ -1267,7 +1252,7 @@ func TestExecutorMigrateLatestAndAppZeroUseCanonicalPlans(t *testing.T) {
 	t.Run("fresh latest", func(t *testing.T) {
 		session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(4))
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()),
 			LatestLifecycleRequest())
 
@@ -1294,7 +1279,7 @@ func TestExecutorMigrateLatestAndAppZeroUseCanonicalPlans(t *testing.T) {
 			lifecycleCommittedTransactions(4),
 		)
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 
 				lifecycleTestDefinitions()),
 
@@ -1353,7 +1338,7 @@ func TestExecutorMigrateSnapshotsDefinitionsAndTargetsBeforeIO(t *testing.T) {
 		definitions[1].Operations[0] = AddField{AppLabel: "mutated"}
 	}
 	state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-		context.Background(), testLoadedDefinitionSet(
+		context.Background(), testLoadedDefinitionSet(t,
 			definitions),
 		request)
 
@@ -1390,7 +1375,7 @@ func TestExecutorMigratePreflightsCompletePlanBeforeFirstTransaction(t *testing.
 		}}
 		session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(4))
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				definitions),
 			LatestLifecycleRequest())
 
@@ -1408,7 +1393,7 @@ func TestExecutorMigratePreflightsCompletePlanBeforeFirstTransaction(t *testing.
 		)
 		session := newLifecycleTestSession(lifecycleRecords(lifecycleAlpha1, lifecycleAlpha2), lifecycleCommittedTransactions(3))
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 
 				definitions),
 
@@ -1482,7 +1467,7 @@ func TestExecutorMigrateMapsRevisionFenceErrorsAtEveryStage(t *testing.T) {
 				}
 
 				_, err := (Executor{Backend: fake}).Migrate(
-					context.Background(), testLoadedDefinitionSet(
+					context.Background(), testLoadedDefinitionSet(t,
 						definitions),
 					LatestLifecycleRequest())
 
@@ -1503,7 +1488,7 @@ func TestExecutorMigrateMapsRevisionFenceErrorsAtEveryStage(t *testing.T) {
 		transaction.failures["record_applied"] = cause
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				[]Migration{{App: "alpha", Name: "0001_empty"}}),
 			LatestLifecycleRequest())
 
@@ -1519,7 +1504,7 @@ func TestExecutorMigrateMapsRevisionFenceErrorsAtEveryStage(t *testing.T) {
 		transaction.failures["record_applied"] = raw
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				[]Migration{{App: "alpha", Name: "0001_empty"}}),
 			LatestLifecycleRequest())
 
@@ -1557,7 +1542,7 @@ func TestExecutorMigrateCommitOutcomeStateMatrix(t *testing.T) {
 			transaction.commitErr = test.commitErr
 			session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 			state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-				context.Background(), testLoadedDefinitionSet(
+				context.Background(), testLoadedDefinitionSet(t,
 					lifecycleTestDefinitions()[:1]),
 				LatestLifecycleRequest())
 
@@ -1593,7 +1578,7 @@ func TestExecutorMigrateCommitOutcomeStateMatrix(t *testing.T) {
 		transaction.commitErr = &backend.RevisionFenceError{Kind: backend.RevisionFenceFailureStale, Cause: cause}
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:1]),
 			LatestLifecycleRequest())
 
@@ -1627,7 +1612,7 @@ func TestExecutorMigrateCommitOutcomeStateMatrix(t *testing.T) {
 				session.closeErr = closeCause
 
 				state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-					context.Background(), testLoadedDefinitionSet(
+					context.Background(), testLoadedDefinitionSet(t,
 						lifecycleTestDefinitions()[:3]),
 					LatestLifecycleRequest())
 
@@ -1661,7 +1646,7 @@ func TestExecutorMigrateCommitOutcomeStateMatrix(t *testing.T) {
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{first, second})
 		session.closeErr = closeCause
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:2]),
 			LatestLifecycleRequest())
 
@@ -1691,7 +1676,7 @@ func TestExecutorMigratePreservesLastDurableStateAndStopsTail(t *testing.T) {
 	third := newLifecycleTestTransaction()
 	session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{first, second, third})
 	state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-		context.Background(), testLoadedDefinitionSet(
+		context.Background(), testLoadedDefinitionSet(t,
 			lifecycleTestDefinitions()),
 		LatestLifecycleRequest())
 
@@ -1725,7 +1710,7 @@ func TestExecutorMigrateSessionCloseAndRollbackErrorPriority(t *testing.T) {
 		session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(1))
 		session.closeErr = closeCause
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:1]),
 			LatestLifecycleRequest())
 
@@ -1749,7 +1734,7 @@ func TestExecutorMigrateSessionCloseAndRollbackErrorPriority(t *testing.T) {
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 		session.closeErr = closeCause
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:1]),
 			LatestLifecycleRequest())
 
@@ -1776,7 +1761,7 @@ func TestExecutorMigrateSessionCloseAndRollbackErrorPriority(t *testing.T) {
 		fake := newLifecycleTestBackend(session)
 		fake.openErr = openCause
 		_, err := (Executor{Backend: fake}).Migrate(
-			context.Background(), testLoadedDefinitionSet(
+			context.Background(), testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()),
 			LatestLifecycleRequest())
 
@@ -1796,7 +1781,7 @@ func TestExecutorMigrateCancellationUsesDurableBoundariesAndDetachedCleanup(t *t
 		transaction.commitHook = cancel
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			ctx, testLoadedDefinitionSet(
+			ctx, testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:1]),
 			LatestLifecycleRequest())
 
@@ -1816,7 +1801,7 @@ func TestExecutorMigrateCancellationUsesDurableBoundariesAndDetachedCleanup(t *t
 		second := newLifecycleTestTransaction()
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{first, second})
 		state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			ctx, testLoadedDefinitionSet(
+			ctx, testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:2]),
 			LatestLifecycleRequest())
 
@@ -1843,7 +1828,7 @@ func TestExecutorMigrateCancellationUsesDurableBoundariesAndDetachedCleanup(t *t
 		transaction.failures["create_model"] = operationCause
 		session := newLifecycleTestSession(nil, []backend.RevisionFencedTransaction{transaction})
 		_, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-			ctx, testLoadedDefinitionSet(
+			ctx, testLoadedDefinitionSet(t,
 				lifecycleTestDefinitions()[:1]),
 			LatestLifecycleRequest())
 
@@ -1877,7 +1862,7 @@ func TestExecutorMigrateRepeatedConcurrentCallsAreDeterministicAndImmutable(t *t
 			defer wait.Done()
 			session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(4))
 			state, err := (Executor{Backend: newLifecycleTestBackend(session)}).Migrate(
-				context.Background(), testLoadedDefinitionSet(
+				context.Background(), testLoadedDefinitionSet(t,
 					definitions),
 				request)
 

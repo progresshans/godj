@@ -132,17 +132,18 @@ func (store *durableSessionStore) Touch(
 	id sessions.ID,
 	accessedAt time.Time,
 	idleExpiresAt time.Time,
-) (sessions.Record, bool, error) {
+) (sessions.Record, sessions.TouchStatus, error) {
 	if err := store.validCall(ctx, id); err != nil {
-		return sessions.Record{}, false, err
+		return sessions.Record{}, sessions.TouchMissing, err
 	}
 	digest, err := sessionDigest(id)
 	if err != nil {
-		return sessions.Record{}, false, err
+		return sessions.Record{}, sessions.TouchMissing, err
 	}
 	var result sessions.Record
-	var found bool
+	status := sessions.TouchMissing
 	err = store.gate.withAtomic(ctx, func(session db.Session) error {
+		result, status = sessions.Record{}, sessions.TouchMissing
 		row, present, err := loadSessionRow(ctx, session, digest)
 		if err != nil || !present {
 			return err
@@ -151,27 +152,20 @@ func (store *durableSessionStore) Touch(
 		if err != nil {
 			return err
 		}
-		accessedAt = accessedAt.Round(0).UTC()
-		idleExpiresAt = idleExpiresAt.Round(0).UTC()
-		if accessedAt.Before(current.AccessedAt()) {
-			accessedAt = current.AccessedAt()
-		}
-		if idleExpiresAt.Before(current.IdleExpiresAt()) {
-			idleExpiresAt = current.IdleExpiresAt()
-		}
-		if idleExpiresAt.After(current.AbsoluteExpiresAt()) {
-			idleExpiresAt = current.AbsoluteExpiresAt()
-		}
-		touched, err := sessions.RestoreRecord(sessions.RecordSnapshot{
-			ID:                id,
-			Values:            current.Values(),
-			CreatedAt:         current.CreatedAt(),
-			AccessedAt:        accessedAt,
-			AbsoluteExpiresAt: current.AbsoluteExpiresAt(),
-			IdleExpiresAt:     idleExpiresAt,
-		}, store.limits)
+		touched, outcome, err := current.Touch(accessedAt, idleExpiresAt)
 		if err != nil {
-			return &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "expiry", Detail: "session touch timestamps are invalid", Cause: err}
+			return err
+		}
+		if outcome == sessions.TouchExpired {
+			affected, err := session.Delete(ctx, query.NewDeletePlan(sessionTableName, systemRowIDField, query.Integer(row.id)))
+			if err != nil {
+				return persistenceFailure("delete expired session", err)
+			}
+			if affected != 1 {
+				return cardinalityFailure("session", fmt.Sprintf("expired touch delete affected %d rows, want 1", affected))
+			}
+			status = outcome
+			return nil
 		}
 		payload, err := encodeSessionPayload(touched, store.limits)
 		if err != nil {
@@ -181,7 +175,7 @@ func (store *durableSessionStore) Touch(
 			// A monotonic clamp can reduce an out-of-order or equal touch to the
 			// exact stored state. Preserve found=true without manufacturing a
 			// database write or a new publication event.
-			result, found = current, true
+			result, status = current, sessions.TouchActive
 			return nil
 		}
 		affected, err := session.Update(ctx, query.NewUpdatePlan(
@@ -196,13 +190,13 @@ func (store *durableSessionStore) Touch(
 		if affected != 1 {
 			return cardinalityFailure("session", fmt.Sprintf("touch affected %d rows, want 1", affected))
 		}
-		result, found = touched, true
+		result, status = touched, sessions.TouchActive
 		return nil
 	})
 	if err != nil {
-		return sessions.Record{}, false, err
+		return sessions.Record{}, sessions.TouchMissing, err
 	}
-	return result, found, nil
+	return result, status, nil
 }
 
 func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {

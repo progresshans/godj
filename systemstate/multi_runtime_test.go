@@ -226,13 +226,13 @@ func TestTwoRuntimeSQLiteOutOfOrderTouchPreservesNewestState(t *testing.T) {
 	holderResult := make(chan touchResult, 1)
 	contenderResult := make(chan touchResult, 1)
 	go func() {
-		touched, found, err := holderStore.Touch(ctx, record.ID(), newestAccess, newestIdle)
-		holderResult <- touchResult{record: touched, found: found, err: err}
+		touched, status, err := holderStore.Touch(ctx, record.ID(), newestAccess, newestIdle)
+		holderResult <- touchResult{record: touched, found: status == sessions.TouchActive, err: err}
 	}()
 	barrier.waitHolderEntered(t)
 	go func() {
-		touched, found, err := contenderStore.Touch(ctx, record.ID(), staleAccess, staleIdle)
-		contenderResult <- touchResult{record: touched, found: found, err: err}
+		touched, status, err := contenderStore.Touch(ctx, record.ID(), staleAccess, staleIdle)
+		contenderResult <- touchResult{record: touched, found: status == sessions.TouchActive, err: err}
 	}()
 	barrier.assertContenderCallbackBlocked(t)
 	barrier.release()
@@ -402,8 +402,8 @@ func TestTwoRuntimeSQLiteRotateTouchAndLogoutLanesAreLinearized(t *testing.T) {
 		holderResult := make(chan touchResult, 1)
 		contenderResult := make(chan rotateResult, 1)
 		go func() {
-			_, found, err := holderStore.Touch(ctx, old.ID(), newestAccess, newestIdle)
-			holderResult <- touchResult{found: found, err: err}
+			_, status, err := holderStore.Touch(ctx, old.ID(), newestAccess, newestIdle)
+			holderResult <- touchResult{found: status == sessions.TouchActive, err: err}
 		}()
 		barrier.waitHolderEntered(t)
 		go func() {
@@ -455,8 +455,8 @@ func TestTwoRuntimeSQLiteRotateTouchAndLogoutLanesAreLinearized(t *testing.T) {
 		}()
 		barrier.waitHolderEntered(t)
 		go func() {
-			touched, found, err := contenderStore.Touch(ctx, old.ID(), base.Add(time.Minute), base.Add(61*time.Minute))
-			contenderResult <- touchResult{record: touched, found: found, err: err}
+			touched, status, err := contenderStore.Touch(ctx, old.ID(), base.Add(time.Minute), base.Add(61*time.Minute))
+			contenderResult <- touchResult{record: touched, found: status == sessions.TouchActive, err: err}
 		}()
 		barrier.assertContenderCallbackBlocked(t)
 		barrier.release()

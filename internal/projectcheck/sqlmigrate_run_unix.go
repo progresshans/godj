@@ -4,7 +4,6 @@ package projectcheck
 
 import (
 	"errors"
-	"path/filepath"
 
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 )
@@ -25,136 +24,35 @@ func RunSQLMigrate(input SQLMigrateInvocation) SQLMigrateReport {
 		return report
 	}
 
-	selected, selectionFailure := selectProject(
-		input.CWD,
-		commandArguments{explicitDescriptor: arguments.explicitDescriptor},
-		&report.Report,
-	)
-	if selectionFailure != nil {
-		candidate := mapSQLMigrateOuterFailure(*selectionFailure)
-		primary = &candidate
-	}
-	if primary == nil && !verifyRetainedProject(selected) {
-		candidate := sqlMigrateFailure(sqlmigrateprotocol.CategorySelection, sqlmigrateprotocol.CodeProjectSelectionFailed)
-		primary = &candidate
-	}
-	if terminal := sqlMigrateBarrier(input, primary); terminal != nil {
-		if selected.root != nil && selected.close() != nil {
-			report.CleanupFailed = 1
-			terminal = combineSQLMigrateCleanup(terminal, true)
-		}
-		chooseSQLMigrateFailure(&report, *terminal)
-		publishSQLMigrate(input, &report)
-		return report
-	}
-
-	workspace, workspaceFailure := createPrivateWorkspaceWithHooks(
-		selected,
-		input.Environment,
-		&report.Report,
-		input.workspace,
-	)
-	if workspaceFailure != nil {
-		candidate := mapSQLMigrateOuterFailure(*workspaceFailure)
-		primary = &candidate
-		terminal := sqlMigrateBarrier(input, primary)
-		if selected.close() != nil {
-			report.CleanupFailed = 1
-		}
-		terminal = combineSQLMigrateCleanup(terminal, report.CleanupFailed != 0)
-		chooseSQLMigrateFailure(&report, *terminal)
-		publishSQLMigrate(input, &report)
-		return report
-	}
-
-	cleanup := func() {
-		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
-		if !cleanupFailed {
-			return
-		}
-		report.CleanupFailed = 1
-		if !report.HasSQLMigrateFailure || sqlMigrateCanceledOrInterrupted(report.SQLMigrateFailure) {
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[SQLMigrateFailure]{
+			selection: mapSQLMigrateOuterFailure, workspace: mapSQLMigrateOuterFailure,
+			process: sqlMigrateProcessFailure, cleanup: combineSQLMigrateCleanup,
+			barrier: func(primary *SQLMigrateFailure) *SQLMigrateFailure { return sqlMigrateBarrier(input, primary) },
+		}, commandHooks{})
+	finish := func() SQLMigrateReport {
+		if command.close() && (!report.HasSQLMigrateFailure || sqlMigrateCanceledOrInterrupted(report.SQLMigrateFailure)) {
 			clearSQLMigrateResult(&report)
 			report.HasSQLMigrateFailure = true
 			report.SQLMigrateFailure = sqlMigrateCleanupFailure()
 		}
-	}
-	finish := func() SQLMigrateReport {
-		cleanup()
 		publishSQLMigrate(input, &report)
 		return report
 	}
-
-	if terminal := sqlMigrateBarrier(input, nil); terminal != nil {
-		chooseSQLMigrateFailure(&report, *terminal)
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
+		chooseSQLMigrateFailure(&report, *primary)
 		return finish()
 	}
-	if !verifyRetainedProject(selected) {
-		chooseSQLMigrateFailure(&report, sqlMigrateFailure(
-			sqlmigrateprotocol.CategorySelection,
-			sqlmigrateprotocol.CodeProjectSelectionFailed,
-		))
-		return finish()
-	}
-
-	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
-	primary = sqlMigrateProcessFailure(BuildStage, build)
-	primary = sqlMigrateBarrier(input, primary)
-	primary = combineSQLMigrateCleanup(primary, build.CleanupFailed)
-	if primary != nil {
+	if primary = command.buildRunner(); primary != nil {
 		chooseSQLMigrateFailure(&report, *primary)
 		return finish()
 	}
 
-	if !verifyRetainedProject(selected) {
-		chooseSQLMigrateFailure(&report, sqlMigrateFailure(
-			sqlmigrateprotocol.CategorySelection,
-			sqlmigrateprotocol.CodeProjectSelectionFailed,
-		))
-		return finish()
-	}
-	if terminal := sqlMigrateBarrier(input, nil); terminal != nil {
-		chooseSQLMigrateFailure(&report, *terminal)
-		return finish()
-	}
-
-	runnerCommand := Command{
-		Dir:   selected.rootPath,
-		Argv:  []string{filepath.Join(workspace.root, "godj-project-runner"), sqlmigrateprotocol.PrivateArgument},
-		Env:   workspace.environment,
-		Stdin: append([]byte(nil), arguments.requestDocument...),
-	}
-	report.RunnerCalls++
-	runner := input.Backend.Execute(input.Context, input.Interrupt, SQLMigrateRunnerStage, cloneCommand(runnerCommand))
-	recordProcess(&report.Report, SQLMigrateRunnerStage, runner)
+	runner := command.run(SQLMigrateRunnerStage, sqlmigrateprotocol.PrivateArgument, arguments.requestDocument)
 	report.RunnerStdoutRetainedBytes = runner.StdoutScalar.RetainedBytes
 	report.RunnerStdoutTruncated = runner.StdoutScalar.Truncated
-	primary = sqlMigrateProcessFailure(SQLMigrateRunnerStage, runner)
-	primary = combineSQLMigrateCleanup(primary, runner.CleanupFailed)
-	var response sqlmigrateprotocol.Response
-	if primary == nil {
-		if runner.StdoutScalar.Truncated {
-			candidate := sqlMigrateFailure(
-				sqlmigrateprotocol.CategorySQLResource,
-				sqlmigrateprotocol.CodeRenderedSQLResourceLimit,
-			)
-			primary = &candidate
-		} else {
-			parsed, parseFailure, failed := sqlmigrateprotocol.ParseResponse(
-				runner.Stdout,
-				runner.Started && runner.ExitCode == 0,
-			)
-			if failed {
-				candidate := sqlMigrateFailure(parseFailure.Category, parseFailure.Code)
-				primary = &candidate
-			} else {
-				response = parsed
-			}
-		}
-	}
-	clear(runner.Stdout)
-	runner.Stdout = nil
+	response, primary := parseCommandResponse(&runner, command.completed(SQLMigrateRunnerStage, runner),
+		sqlMigrateFailure(sqlmigrateprotocol.CategorySQLResource, sqlmigrateprotocol.CodeRenderedSQLResourceLimit), sqlmigrateprotocol.ParseResponse)
 	if primary != nil {
 		chooseSQLMigrateFailure(&report, *primary)
 		return finish()

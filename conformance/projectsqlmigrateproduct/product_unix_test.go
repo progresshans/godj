@@ -101,15 +101,12 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 	})
 
 	t.Run("invalid argv precedes project build and init", func(t *testing.T) {
+		// Arity, semantic identity and trailing-option failures exercise actual
+		// dispatch before a poison descriptor/build. All grammar combinations
+		// are checked directly by TestParseSQLMigrateArgumentsRejectsInvalidForms.
 		invalid := [][]string{
 			{"sqlmigrate", "blog"},
-			{"sqlmigrate", "blog", "0002_enrich", "--plan"},
-			{"sqlmigrate", "blog", "0002_enrich", "--project"},
-			{"sqlmigrate", "blog", "0002_enrich", "--project", "-descriptor"},
 			{"sqlmigrate", "blog", "latest", "--project", project.poisonDescriptor},
-			{"sqlmigrate", "-blog", "0002_enrich", "--project", project.poisonDescriptor},
-			{"sqlmigrate", "blog", "-0002_enrich", "--project", project.poisonDescriptor},
-			{"sqlmigrate", "blog", "0002_enrich", "--reverse", "--project", project.poisonDescriptor},
 			{"sqlmigrate", "blog", "0002_enrich", "--project", project.poisonDescriptor, "--plan"},
 		}
 		for index, arguments := range invalid {

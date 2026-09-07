@@ -8,11 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"unicode/utf8"
 
 	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/internal/projectspec"
-	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/internal/projectwire"
+	"github.com/progresshans/godj/internal/wirejson"
 )
 
 const (
@@ -20,7 +19,7 @@ const (
 	PrivateArgument         = "__godj_project_generate_runner_v1"
 	MaxRequestBytes         = 64 << 10
 	MaxResponseBytes        = 64 << 20
-	MaxApps                 = 8_192
+	MaxApps                 = projectwire.MaxApps
 	MaxJSONDepth            = 32
 )
 
@@ -49,27 +48,10 @@ type Response struct {
 	Failure     Failure
 }
 
-type wirePackage struct {
-	PackageName string `json:"package_name"`
-	ImportPath  string `json:"import_path"`
-	Directory   string `json:"directory"`
-}
-
-type wireApp struct {
-	Alias   string      `json:"alias"`
-	Package wirePackage `json:"package"`
-	Schema  ir.Schema   `json:"schema"`
-}
-
-type wireProjectSpec struct {
-	Project wirePackage `json:"project"`
-	Apps    []wireApp   `json:"apps"`
-}
-
 type successDocument struct {
-	ProtocolVersion uint64          `json:"protocol_version"`
-	Status          string          `json:"status"`
-	ProjectSpec     wireProjectSpec `json:"project_spec"`
+	ProtocolVersion uint64           `json:"protocol_version"`
+	Status          string           `json:"status"`
+	ProjectSpec     projectwire.Spec `json:"project_spec"`
 }
 
 type failureDocument struct {
@@ -94,7 +76,7 @@ func ReadRequest(reader io.Reader) (Failure, bool, error) {
 	if reader == nil {
 		return Failure{}, false, errors.New("project generation protocol: nil request reader")
 	}
-	document, err := readAtMost(reader, MaxRequestBytes)
+	document, err := wirejson.Read(reader, MaxRequestBytes, wirejson.DrainToEOF)
 	if err != nil {
 		return Failure{}, false, fmt.Errorf("project generation protocol: read request: %w", err)
 	}
@@ -114,20 +96,20 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 	switch status {
 	case "ok":
 		var decoded successDocument
-		if err := decodeCanonical(document, &decoded); err != nil {
+		if err := wirejson.DecodeCanonical(document, &decoded); err != nil {
 			return invalidResponse()
 		}
 		if version != Version {
 			return Response{}, Failure{Category: CategoryProtocol, Code: CodeProtocolIncompatible}, true
 		}
-		spec := fromWireProjectSpec(decoded.ProjectSpec)
-		if err := validateProjectSpec(spec); err != nil {
+		spec := projectwire.Declaration(decoded.ProjectSpec)
+		if err := projectwire.Validate(spec); err != nil {
 			return invalidResponse()
 		}
-		return Response{OK: true, ProjectSpec: cloneProjectSpec(spec)}, Failure{}, false
+		return Response{OK: true, ProjectSpec: projectwire.Clone(spec)}, Failure{}, false
 	case "error":
 		var decoded failureDocument
-		if err := decodeCanonical(document, &decoded); err != nil {
+		if err := wirejson.DecodeCanonical(document, &decoded); err != nil {
 			return invalidResponse()
 		}
 		if version != Version {
@@ -151,14 +133,14 @@ func EncodeResponse(response Response) ([]byte, error) {
 		if response.Failure != (Failure{}) {
 			return nil, errors.New("project generation protocol: invalid success response")
 		}
-		if err := validateProjectSpec(response.ProjectSpec); err != nil {
+		if err := projectwire.Validate(response.ProjectSpec); err != nil {
 			return nil, fmt.Errorf("project generation protocol: invalid success response: %w", err)
 		}
-		measured, err := measureSuccessDocument(shallowWireProjectSpec(response.ProjectSpec))
+		measured, err := measureSuccessDocument(projectwire.View(response.ProjectSpec))
 		if err != nil {
 			return nil, err
 		}
-		wireSpec := toWireProjectSpec(response.ProjectSpec)
+		wireSpec := projectwire.Snapshot(response.ProjectSpec)
 		document, err = json.Marshal(successDocument{
 			ProtocolVersion: Version,
 			Status:          "ok",
@@ -213,12 +195,6 @@ func IsLinkedFailure(failure Failure) bool {
 	return failure.Category == CategoryDeclaration && failure.Code == CodeProjectSpecLoadFailed
 }
 
-// ValidateProjectSpec applies the exact success-wire semantic and resource
-// bounds without encoding or retaining the caller's declaration snapshot.
-func ValidateProjectSpec(spec codegen.ProjectSpec) error {
-	return validateProjectSpec(spec)
-}
-
 func parseRequest(document []byte) (Failure, bool, error) {
 	if err := scanJSONDocument(document, MaxRequestBytes); err != nil {
 		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true, nil
@@ -231,7 +207,7 @@ func parseRequest(document []byte) (Failure, bool, error) {
 		ProtocolVersion uint64 `json:"protocol_version"`
 		Command         string `json:"command"`
 	}
-	if err := decodeCanonical(document, &request); err != nil {
+	if err := wirejson.DecodeCanonical(document, &request); err != nil {
 		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true, nil
 	}
 	if request.ProtocolVersion != preflightVersion || request.Command != preflightCommand {
@@ -250,174 +226,8 @@ func invalidResponse() (Response, Failure, bool) {
 	return Response{}, Failure{Category: CategoryProtocol, Code: CodeInvalidResponse}, true
 }
 
-func decodeCanonical(document []byte, target any) error {
-	decoder := json.NewDecoder(bytes.NewReader(document))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(target); err != nil {
-		return err
-	}
-	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return errors.New("trailing JSON value")
-		}
-		return err
-	}
-	canonical, err := json.Marshal(target)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(canonical, document) {
-		return errors.New("non-canonical JSON document")
-	}
-	return nil
-}
-
-func validateProjectSpec(spec codegen.ProjectSpec) error {
-	if len(spec.Apps) > MaxApps {
-		return fmt.Errorf("apps exceed maximum %d", MaxApps)
-	}
-	for _, candidate := range []struct {
-		path  string
-		value string
-	}{
-		{path: "project.package_name", value: spec.Project.PackageName},
-		{path: "project.import_path", value: spec.Project.ImportPath},
-		{path: "project.directory", value: spec.Project.Directory},
-	} {
-		if err := validateWireString(candidate.path, candidate.value); err != nil {
-			return err
-		}
-	}
-	schemas := make([]ir.Schema, len(spec.Apps))
-	for index := range spec.Apps {
-		app := spec.Apps[index]
-		for _, candidate := range []struct {
-			path  string
-			value string
-		}{
-			{path: fmt.Sprintf("apps[%d].alias", index), value: app.Alias},
-			{path: fmt.Sprintf("apps[%d].package.package_name", index), value: app.Package.PackageName},
-			{path: fmt.Sprintf("apps[%d].package.import_path", index), value: app.Package.ImportPath},
-			{path: fmt.Sprintf("apps[%d].package.directory", index), value: app.Package.Directory},
-		} {
-			if err := validateWireString(candidate.path, candidate.value); err != nil {
-				return err
-			}
-		}
-		if app.Schema.FormatVersion != ir.CurrentFormatVersion {
-			return fmt.Errorf("apps[%d].schema format version %d is incompatible", index, app.Schema.FormatVersion)
-		}
-		schemas[index] = app.Schema
-	}
-	return projectspec.ValidateSchemas(schemas)
-}
-
-func validateWireString(path, value string) error {
-	if !utf8.ValidString(value) {
-		return fmt.Errorf("%s is not UTF-8", path)
-	}
-	if len(value) > projectspec.MaxSchemaStringBytes {
-		return fmt.Errorf("%s exceeds %d bytes", path, projectspec.MaxSchemaStringBytes)
-	}
-	return nil
-}
-
-func cloneProjectSpec(input codegen.ProjectSpec) codegen.ProjectSpec {
-	clone := input
-	clone.Apps = make([]codegen.AppSpec, len(input.Apps))
-	for index := range input.Apps {
-		clone.Apps[index] = input.Apps[index]
-		clone.Apps[index].Schema = input.Apps[index].Schema.Clone()
-	}
-	return clone
-}
-
-func toWireProjectSpec(input codegen.ProjectSpec) wireProjectSpec {
-	result := wireProjectSpec{Project: toWirePackage(input.Project), Apps: make([]wireApp, len(input.Apps))}
-	for index := range input.Apps {
-		result.Apps[index] = wireApp{
-			Alias: input.Apps[index].Alias, Package: toWirePackage(input.Apps[index].Package), Schema: canonicalWireSchema(input.Apps[index].Schema),
-		}
-	}
-	return result
-}
-
-func shallowWireProjectSpec(input codegen.ProjectSpec) wireProjectSpec {
-	result := wireProjectSpec{Project: toWirePackage(input.Project), Apps: make([]wireApp, len(input.Apps))}
-	for index := range input.Apps {
-		result.Apps[index] = wireApp{
-			Alias: input.Apps[index].Alias, Package: toWirePackage(input.Apps[index].Package), Schema: input.Apps[index].Schema,
-		}
-	}
-	return result
-}
-
-func fromWireProjectSpec(input wireProjectSpec) codegen.ProjectSpec {
-	result := codegen.ProjectSpec{Project: fromWirePackage(input.Project), Apps: make([]codegen.AppSpec, len(input.Apps))}
-	for index := range input.Apps {
-		result.Apps[index] = codegen.AppSpec{
-			Alias: input.Apps[index].Alias, Package: fromWirePackage(input.Apps[index].Package), Schema: input.Apps[index].Schema,
-		}
-	}
-	return result
-}
-
-func toWirePackage(input codegen.PackageSpec) wirePackage {
-	return wirePackage{PackageName: input.PackageName, ImportPath: input.ImportPath, Directory: input.Directory}
-}
-
-func fromWirePackage(input wirePackage) codegen.PackageSpec {
-	return codegen.PackageSpec{PackageName: input.PackageName, ImportPath: input.ImportPath, Directory: input.Directory}
-}
-
-func canonicalWireSchema(input ir.Schema) ir.Schema {
-	clone := input.Clone()
-	if clone.Models == nil {
-		clone.Models = []ir.Model{}
-	}
-	for index := range clone.Models {
-		if clone.Models[index].Fields == nil {
-			clone.Models[index].Fields = []ir.Field{}
-		}
-	}
-	return clone
-}
-
 func isZeroSpec(spec codegen.ProjectSpec) bool {
 	return spec.Project == (codegen.PackageSpec{}) && len(spec.Apps) == 0
-}
-
-func readAtMost(reader io.Reader, maximum int) ([]byte, error) {
-	retained := make([]byte, 0, maximum+1)
-	buffer := make([]byte, 32<<10)
-	emptyReads := 0
-	for {
-		count, err := reader.Read(buffer)
-		if count < 0 || count > len(buffer) {
-			return nil, errors.New("invalid request reader count")
-		}
-		if count > 0 {
-			emptyReads = 0
-			remaining := maximum + 1 - len(retained)
-			if remaining > 0 {
-				if count < remaining {
-					remaining = count
-				}
-				retained = append(retained, buffer[:remaining]...)
-			}
-		} else if err == nil {
-			emptyReads++
-			if emptyReads >= 100 {
-				return nil, io.ErrNoProgress
-			}
-		}
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return retained, nil
-			}
-			return nil, err
-		}
-	}
 }
 
 func validateDocumentSize(size, maximum int) error {

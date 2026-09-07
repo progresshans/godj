@@ -22,7 +22,7 @@ import (
 func TestObserveExecutesExactREL003AndREL006CasesAndDatabaseState(t *testing.T) {
 	t.Parallel()
 
-	got, err := Observe(context.Background())
+	got, err := observeCases(context.Background(), defaultFixtureConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,24 +60,38 @@ func TestObserveExecutesExactREL003AndREL006CasesAndDatabaseState(t *testing.T) 
 	}
 }
 
+func TestObjectObserversDoNotLoadSiblingSources(t *testing.T) {
+	t.Parallel()
+	config := defaultFixtureConfig()
+	config.nullablePost = -1
+	if _, err := observe(context.Background(), config, observeForward); err != nil {
+		t.Fatalf("forward observer loaded the missing nullable source: %v", err)
+	}
+	config = defaultFixtureConfig()
+	config.loadPostID = -1
+	if _, err := observe(context.Background(), config, observeNullable); err != nil {
+		t.Fatalf("nullable observer loaded the missing forward source: %v", err)
+	}
+}
+
 func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 	t.Parallel()
 
-	base, err := Observe(context.Background())
+	base, err := observeCases(context.Background(), defaultFixtureConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {
 		name   string
 		mutate func(*fixtureConfig)
-		check  func(*testing.T, Observation)
+		check  func(*testing.T, objectCases)
 	}{
 		{
 			name: "target name",
 			mutate: func(config *fixtureConfig) {
 				config.authors[0].Name = "Adele"
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got objectCases) {
 				if got.Forward.Cold.Name != "Adele" || got.Forward.Warm.Name != "Adele" {
 					t.Fatalf("mutated author names = %#v", got.Forward)
 				}
@@ -88,7 +102,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 			mutate: func(config *fixtureConfig) {
 				config.posts[0].AuthorID = 3
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got objectCases) {
 				if got.Forward.Cold.ID != 3 || got.Forward.Warm.ID != 3 {
 					t.Fatalf("mutated author rows = %#v", got.Forward)
 				}
@@ -100,7 +114,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 				reviewer := int64(2)
 				config.posts[1].ReviewerID = &reviewer
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got objectCases) {
 				if got.Nullable.Reviewer == nil || got.Nullable.Reviewer.ID != 2 || len(got.Nullable.IsNullPostIDs) != 0 {
 					t.Fatalf("mutated nullable observation = %#v", got.Nullable)
 				}
@@ -111,7 +125,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 			mutate: func(config *fixtureConfig) {
 				config.isNullValue = false
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got objectCases) {
 				if !reflect.DeepEqual(got.Nullable.IsNullPostIDs, []int64{10, 12}) {
 					t.Fatalf("mutated isnull IDs = %v", got.Nullable.IsNullPostIDs)
 				}
@@ -123,7 +137,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 				config.posts[2].ReviewerID = nil
 				config.descending = true
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got objectCases) {
 				if !reflect.DeepEqual(got.Nullable.IsNullPostIDs, []int64{12, 11}) {
 					t.Fatalf("mutated ordered IDs = %v", got.Nullable.IsNullPostIDs)
 				}
@@ -134,7 +148,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := defaultFixtureConfig()
 			test.mutate(&config)
-			got, err := observe(context.Background(), config)
+			got, err := observeCases(context.Background(), config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -728,4 +742,27 @@ func awaitProductValue[T any](t *testing.T, values <-chan T, label string) T {
 func hasQueryCode(err error, code string) bool {
 	var queryError *query.Error
 	return errors.As(err, &queryError) && queryError.Code == code
+}
+
+// observeCases is the explicit unit-test suite. Each case calls its own
+// production operation with a fresh database and a separately read state.
+type objectCases struct {
+	Forward  ForwardCacheObservation
+	Nullable NullableObservation
+	DBState  relationstate.DatabaseState
+}
+
+func observeCases(ctx context.Context, config fixtureConfig) (objectCases, error) {
+	forward, err := observe(ctx, config, observeForward)
+	if err != nil {
+		return objectCases{}, err
+	}
+	nullable, err := observe(ctx, config, observeNullable)
+	if err != nil {
+		return objectCases{}, err
+	}
+	if !reflect.DeepEqual(forward.DBState, nullable.DBState) {
+		return objectCases{}, errors.New("independent observer fixtures have different actual final states")
+	}
+	return objectCases{Forward: forward.Result, Nullable: nullable.Result, DBState: forward.DBState}, nil
 }

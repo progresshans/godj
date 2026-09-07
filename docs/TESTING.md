@@ -53,6 +53,24 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
 DB schema/port/temp 디렉터리는 lane별로 분리하고 무거운 DB/process suite의 동시 실행 수를 제한한다.
 
+`internal/projectcheck`의 다섯 protocol과 projectgenerate/projectmigration protocol은 Portable core가 문법·resource 검사를
+소유한다. 공용 `wirejson`과 `projectwire`도 core에 속한다. CLI platform owner는 이들을 사용하는 실제 outer command와
+linked runner를 실행하며 protocol 패키지 전체를 다시 선택하지 않는다. 32-bit compile은 정수 범위와 architecture 경계를 위해 유지한다.
+
+| 변경 위험 | 주 검증 위치 | 추가 실행 경계와 보존할 관측 |
+|---|---|---|
+| Strict JSON·Schema IR wire | 공용 primitive와 명령별 protocol unit | duplicate/trailing/Unicode·정확한 budget·transport precedence, 실제 linked wire의 정상/실패 연결 |
+| SQLMigrate argv 전체 조합 | `TestParseSQLMigrateArgumentsRejectsInvalidForms` | outer Run과 global dispatch의 대표 arity/identity/option 실패, absent cwd·poison descriptor·build/init 0 |
+| CLI 공용 수명 | `internal/projectcheck` fault/process 회귀 | retained root·workspace 정리·완료 뒤 취소, 외부 migrate/writer/operator/server의 durable/TTY/signal 경계 |
+| SQL projection의 실제 위임 | `TestSQLProductRunnerPipelineExecutionControls` | compiled bypass·private rename·IR 변경 대조. 별도 Phase D는 Hosted PostgreSQL 환경 격리·DB 접속 0·중단/reap |
+| 세션 동시 접근 | real MemoryStore·durable SQLite의 `AtomicAccess` | 같은 ID의 갱신/만료/rotation/취소 interleaving, multi-runtime PostgreSQL·restart는 DB owner |
+| Loaded definition·operation | migration/definition unit·lifecycle | 입력/결과 mutation·동시 replay·typed nil, fresh history·revision fence·durable prefix는 실제 DB owner |
+| 공통 Query AST 의미 | backend compiler unit | SQLite와 PostgreSQL 실제 SQL·identifier/NULL·rollback은 각각 DB owner |
+| 관계 actual 생성 | contract별 fresh observer | 관계별 query/cache/rollback 회귀, 고정 oracle 대조와 sibling case 미실행 대조 |
+
+Portable의 ubuntu-24.04와 관계/CLI의 ubuntu-22.04는 다른 OS 이미지다. Linux/architecture/CGO/race의 동일 이름만으로
+그 실행을 제거하지 않는다. 실제 SQLite·생성 소비자·process 경계의 matrix는 유지하고 pure protocol 반복만 owner를 옮긴다.
+
 관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
 이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.
 기능별 product는 실제 query/object/reverse/prefetch/select/delete 결과와 cache·취소·rollback 검증을 소유한다.
@@ -84,6 +102,8 @@ Python compatibility는 현재 발견한 testcase의 시작·종료와 허용된
 부정 대조는 해당 계약 테스트가 맡는다. 구현 파일 자체의 과거 SHA를 보존하기 위해 현재 테스트의 구조를 고정하지 않는다.
 공통 fixture는 호출마다 새 mutable 입력을 만들며 actual 관찰과 expected 로딩은 별도로 유지한다.
 공통화한 환경 준비에서도 각 실행의 timeout·출력 제한·cleanup·필수 DB 조건을 유지한다.
+Select/object/delete 관계 handler는 자신이 맡은 case만 관측한다. 같은 DB에서 sibling case 전체를 실행한 결과의 전역 cache는
+사용하지 않는다. 검증 편의를 위한 test-only 결합은 각 case의 fresh DB 결과와 DB state 일치도 따로 확인한다.
 
 ## 실제 source의 증거
 
@@ -126,3 +146,9 @@ stderr-only failure를 구분해야 한다. 원래 test exit code와 유용한 �
 문서-only 변경은 local link·상태 일관성과 `git diff --check`를 검증한다. 제품 입력을 바꾸지 않은 실행 기록 추가 때문에
 전체 product matrix를 반복하지 않는다. 현재 source에서 실행한 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 한 번 기록한다.
 명령, source, 환경, 결과, 실패/skip, 미실행 범위를 남기면 된다. 작은 수정마다 여러 activation/checkpoint/terminal EVID를 만들지 않는다.
+
+코드 규모는 `go run ./scripts/sourceinventory`로 집계한다. 현재 작업 사본의 Git 추적 파일과 무시되지 않은 새 Go/Python 파일을
+포함하고 삭제된 파일은 제외한다. `-revision COMMIT`은 고정 commit의 바이트를 읽는다. Go는 `ast.IsGenerated`로 판정하고
+test → generated → conformance 지원 → examples → framework/CLI/generator/support 순서로 중복 없이 분류한다.
+생성 머리말을 문자열로 출력하는 수작업 생성기는 generated가 아니다. 빈 줄·주석도 줄 수에 포함하며 source digest와 파일별
+SHA-256을 함께 출력한다. 이 집계는 품질이나 성능을 대신하는 목표값이 아니다.

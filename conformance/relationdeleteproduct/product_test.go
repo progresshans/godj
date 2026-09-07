@@ -1173,30 +1173,34 @@ func TestProjectFacadeCallbackLocalWritesRollbackDatabaseWithoutRewindingPublish
 func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {
 	t.Parallel()
 
-	got, err := Observe(context.Background())
+	protect, err := ObserveProtect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	setNull, err := ObserveSetNull(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	initial := initialDatabaseState()
-	if !reflect.DeepEqual(got.Protect.Before, initial) || !reflect.DeepEqual(got.SetNull.Before, initial) {
-		t.Fatalf("fresh fixture states = protect %#v set-null %#v, want %#v", got.Protect.Before, got.SetNull.Before, initial)
+	if !reflect.DeepEqual(protect.Before, initial) || !reflect.DeepEqual(setNull.Before, initial) {
+		t.Fatalf("fresh fixture states = protect %#v set-null %#v, want %#v", protect.Before, setNull.Before, initial)
 	}
-	if got.Protect.Returned != 0 {
-		t.Fatalf("REL-007 returned rows = %d, want 0", got.Protect.Returned)
+	if protect.Returned != 0 {
+		t.Fatalf("REL-007 returned rows = %d, want 0", protect.Returned)
 	}
 	var protected *query.ProtectedForeignKeyError
-	if !errors.As(got.Protect.Err, &protected) || protected.ProtectedSourceRows() != 2 {
-		t.Fatalf("REL-007 error = %v, want typed protected count 2", got.Protect.Err)
+	if !errors.As(protect.Err, &protected) || protected.ProtectedSourceRows() != 2 {
+		t.Fatalf("REL-007 error = %v, want typed protected count 2", protect.Err)
 	}
-	if !errors.Is(got.Protect.Err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeProtectedForeignKey}) {
-		t.Fatalf("REL-007 error = %v, want integrity_error/protected_foreign_key", got.Protect.Err)
+	if !errors.Is(protect.Err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeProtectedForeignKey}) {
+		t.Fatalf("REL-007 error = %v, want integrity_error/protected_foreign_key", protect.Err)
 	}
-	if !reflect.DeepEqual(got.Protect.CallerBefore, CallerState{ID: 1, Name: "Ada", KeyPresent: true}) ||
-		!reflect.DeepEqual(got.Protect.CallerAfter, got.Protect.CallerBefore) {
-		t.Fatalf("REL-007 caller before/after = %#v/%#v", got.Protect.CallerBefore, got.Protect.CallerAfter)
+	if !reflect.DeepEqual(protect.CallerBefore, CallerState{ID: 1, Name: "Ada", KeyPresent: true}) ||
+		!reflect.DeepEqual(protect.CallerAfter, protect.CallerBefore) {
+		t.Fatalf("REL-007 caller before/after = %#v/%#v", protect.CallerBefore, protect.CallerAfter)
 	}
-	if !reflect.DeepEqual(got.Protect.After, got.Protect.Before) {
-		t.Fatalf("REL-007 database changed from %#v to %#v", got.Protect.Before, got.Protect.After)
+	if !reflect.DeepEqual(protect.After, protect.Before) {
+		t.Fatalf("REL-007 database changed from %#v to %#v", protect.Before, protect.After)
 	}
 	wantProtectMetrics := DeleteMetrics{
 		TransactionCount:    1,
@@ -1207,19 +1211,19 @@ func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {
 		RelationSetNullRows: []int64{},
 		DeleteRows:          []int64{},
 	}
-	if !reflect.DeepEqual(got.Protect.Metrics, wantProtectMetrics) {
-		t.Fatalf("REL-007 metrics = %#v, want %#v", got.Protect.Metrics, wantProtectMetrics)
+	if !reflect.DeepEqual(protect.Metrics, wantProtectMetrics) {
+		t.Fatalf("REL-007 metrics = %#v, want %#v", protect.Metrics, wantProtectMetrics)
 	}
 
-	if got.SetNull.Returned != 1 || got.SetNull.Err != nil {
-		t.Fatalf("REL-008 Delete() = (%d, %v), want (1, nil)", got.SetNull.Returned, got.SetNull.Err)
+	if setNull.Returned != 1 || setNull.Err != nil {
+		t.Fatalf("REL-008 Delete() = (%d, %v), want (1, nil)", setNull.Returned, setNull.Err)
 	}
-	if !reflect.DeepEqual(got.SetNull.CallerBefore, CallerState{ID: 2, Name: "Bob", KeyPresent: true}) ||
-		!reflect.DeepEqual(got.SetNull.CallerAfter, CallerState{Name: "Bob"}) {
-		t.Fatalf("REL-008 caller before/after = %#v/%#v", got.SetNull.CallerBefore, got.SetNull.CallerAfter)
+	if !reflect.DeepEqual(setNull.CallerBefore, CallerState{ID: 2, Name: "Bob", KeyPresent: true}) ||
+		!reflect.DeepEqual(setNull.CallerAfter, CallerState{Name: "Bob"}) {
+		t.Fatalf("REL-008 caller before/after = %#v/%#v", setNull.CallerBefore, setNull.CallerAfter)
 	}
-	if !reflect.DeepEqual(got.SetNull.After, setNullDatabaseState()) {
-		t.Fatalf("REL-008 final database state = %#v, want %#v", got.SetNull.After, setNullDatabaseState())
+	if !reflect.DeepEqual(setNull.After, setNullDatabaseState()) {
+		t.Fatalf("REL-008 final database state = %#v, want %#v", setNull.After, setNullDatabaseState())
 	}
 	wantSetNullMetrics := DeleteMetrics{
 		TransactionCount:     1,
@@ -1235,8 +1239,8 @@ func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {
 		RelationSetNullRows: []int64{2},
 		DeleteRows:          []int64{1},
 	}
-	if !reflect.DeepEqual(got.SetNull.Metrics, wantSetNullMetrics) {
-		t.Fatalf("REL-008 metrics = %#v, want %#v", got.SetNull.Metrics, wantSetNullMetrics)
+	if !reflect.DeepEqual(setNull.Metrics, wantSetNullMetrics) {
+		t.Fatalf("REL-008 metrics = %#v, want %#v", setNull.Metrics, wantSetNullMetrics)
 	}
 
 	wantPhysical := PhysicalSchema{
@@ -1247,8 +1251,8 @@ func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {
 		},
 		ReviewerNullable: true,
 	}
-	if !reflect.DeepEqual(got.Protect.Schema, wantPhysical) || !reflect.DeepEqual(got.SetNull.Schema, wantPhysical) {
-		t.Fatalf("physical schemas = protect %#v set-null %#v, want %#v", got.Protect.Schema, got.SetNull.Schema, wantPhysical)
+	if !reflect.DeepEqual(protect.Schema, wantPhysical) || !reflect.DeepEqual(setNull.Schema, wantPhysical) {
+		t.Fatalf("physical schemas = protect %#v set-null %#v, want %#v", protect.Schema, setNull.Schema, wantPhysical)
 	}
 }
 

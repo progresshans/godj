@@ -6,8 +6,11 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
 const (
@@ -98,8 +101,96 @@ func TestGlobalSQLMigrateExternalPhaseDProduct(t *testing.T) {
 		sqlProductAssertMarker(t, state.rendererMarker, "render_wait")
 	})
 
-	t.Run("runner pipeline audit rejects hardcoded stubs", func(t *testing.T) {
-		sqlProductAssertRunnerPipelineAuditRejectsHardcodedStubs(t, project)
+	sqlProductAuditApplicationSources(t, project.repository, project.root)
+	project.assertApplicationUnchanged(t)
+	project.assertWorkspaceEmpty(t)
+}
+
+// These controls own delegation and oracle independence in Portable Go. The
+// PostgreSQL job selects Phase D separately to verify its inherited environment
+// and process boundary, without rebuilding every source mutation again.
+func TestSQLProductRunnerPipelineExecutionControls(t *testing.T) {
+	project := newSQLProductProject(t)
+
+	t.Run("built runner rejects pipeline bypasses", func(t *testing.T) {
+		sqlProductAssertRunnerRejectsPipelineBypasses(t, project)
+	})
+
+	t.Run("private refactoring preserves the public pipeline", func(t *testing.T) {
+		source := strings.NewReplacer(
+			"sourcesForCatalog", "catalogSources",
+			"rendererForMode", "selectRenderer",
+			"postgresEnvironmentIsPoisoned", "hasPoisonEnvironment",
+			"observedRenderer", "tracedRenderer",
+			"sources", "documents",
+			`"github.com/progresshans/godj/project"`, `projectapi "github.com/progresshans/godj/project"`,
+			"project.", "projectapi.",
+		).Replace(sqlProductRunnerSource)
+		if err := sqlProductAuditRunnerPipeline([]byte(source)); err != nil {
+			t.Fatalf("source boundary rejects harmless private refactoring: %v", err)
+		}
+		project.withRunnerSource(t, source, func(variant *sqlProductProject) {
+			state := variant.state(t, "private-refactoring")
+			result := variant.runExplicit(t, state, variant.postgresEnvironment(state), "authors", "0001_author")
+			sqlProductAssertSuccess(t, result, sqlProductPostgresAuthorOutput, variant.sensitive(state)...)
+			sqlProductAssertMarker(t, state.initMarker, "init")
+			sqlProductAssertMarker(t, state.rendererMarker, "render")
+		})
+	})
+
+	t.Run("IR input mutation changes actual SQL in both renderers", func(t *testing.T) {
+		source := sqlProductMutateRunner(t, "MaxLength: 100", "MaxLength: 137", "")
+		if err := sqlProductAuditRunnerPipeline([]byte(source)); err != nil {
+			t.Fatal(err)
+		}
+		project.withRunnerSource(t, source, func(variant *sqlProductProject) {
+			for _, mode := range []string{sqlProductRendererSQLite, sqlProductRendererPostgres} {
+				t.Run(mode, func(t *testing.T) {
+					state := variant.state(t, "mutated-IR-"+mode)
+					environment := variant.environment(state, sqlProductCatalogFull, mode)
+					want := sqlProductAuthorOutput
+					if mode == sqlProductRendererPostgres {
+						environment = variant.postgresEnvironment(state)
+						want = sqlProductPostgresAuthorOutput
+					}
+					result := variant.runExplicit(t, state, environment, "authors", "0001_author")
+					sqlProductAssertSuccess(t, result, strings.ReplaceAll(want, "VARCHAR(100)", "VARCHAR(137)"), variant.sensitive(state)...)
+					sqlProductAssertMarker(t, state.initMarker, "init")
+					sqlProductAssertMarker(t, state.rendererMarker, "render")
+				})
+			}
+		})
+	})
+
+	t.Run("fixed baseline SQL fails the changed input control", func(t *testing.T) {
+		// This stub intentionally matches the unmodified input and retains all
+		// public calls. Its split literal passes the narrow source audit; the
+		// changed-input execution must detect the discarded renderer result.
+		body := strings.TrimPrefix(strings.TrimSuffix(sqlProductAuthorOutput, ";\n"), "CREATE ")
+		stub := sqlProductMutateRunner(t, "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
+			"_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)\n\treturn []string{\"CREATE \" + "+strconv.Quote(body)+"}, nil", "")
+		if err := sqlProductAuditRunnerPipeline([]byte(stub)); err != nil {
+			t.Fatalf("control must reach execution after the source audit: %v", err)
+		}
+		project.withRunnerSource(t, stub, func(variant *sqlProductProject) {
+			state := variant.state(t, "fixed-baseline")
+			result := variant.runExplicit(t, state, variant.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite), "authors", "0001_author")
+			sqlProductAssertSuccess(t, result, sqlProductAuthorOutput, variant.sensitive(state)...)
+			sqlProductAssertMarker(t, state.initMarker, "init")
+			sqlProductAssertMarker(t, state.rendererMarker, "render")
+		})
+		project.withRunnerSource(t, strings.Replace(stub, "MaxLength: 100", "MaxLength: 137", 1), func(variant *sqlProductProject) {
+			state := variant.state(t, "changed-fixed-baseline")
+			result := variant.runExplicit(t, state, variant.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite), "authors", "0001_author")
+			sqlProductAssertMarker(t, state.initMarker, "init")
+			sqlProductAssertMarker(t, state.rendererMarker, "render")
+			// Confirm this is the intended valid-but-stale output, not an
+			// unrelated compile, protocol, renderer or process failure.
+			sqlProductAssertSuccess(t, result, sqlProductAuthorOutput, variant.sensitive(state)...)
+			if result.matchesSuccess(strings.ReplaceAll(sqlProductAuthorOutput, "VARCHAR(100)", "VARCHAR(137)")) {
+				t.Fatal("changed-input comparison accepted fixed baseline SQL")
+			}
+		})
 	})
 
 	sqlProductAuditApplicationSources(t, project.repository, project.root)
@@ -107,27 +198,26 @@ func TestGlobalSQLMigrateExternalPhaseDProduct(t *testing.T) {
 	project.assertWorkspaceEmpty(t)
 }
 
-func sqlProductAssertRunnerPipelineAuditRejectsHardcodedStubs(t *testing.T, project *sqlProductProject) {
+// Every bypass is compiled and executed through the global CLI. The init marker
+// proves a build failure cannot count as detecting a bypass. Public output is
+// compared to independent parent expectations, with the normal zero-DB,
+// redaction, cleanup and application-preservation assertions still active.
+func sqlProductAssertRunnerRejectsPipelineBypasses(t *testing.T, project *sqlProductProject) {
 	t.Helper()
-	if err := sqlProductAuditRunnerPipeline([]byte(sqlProductRunnerSource)); err != nil {
-		t.Fatalf("audit actual external project runner: %v", err)
-	}
 	tests := []struct {
-		name         string
-		old          string
-		new          string
-		suffix       string
-		compileValid bool
+		name, old, new, suffix string
+		postgres               bool
 	}{
 		{
-			name: "project Run bypass",
-			old:  "err = project.Run(context.Background(), project.Config{",
-			new:  "err = hardcodedRun(context.Background(), project.Config{",
+			name:   "project Run bypass",
+			old:    "err = project.Run(context.Background(), project.Config{",
+			new:    "err = hardcodedRun(context.Background(), project.Config{",
+			suffix: "\nfunc hardcodedRun(context.Context, project.Config, []string, *os.File, *os.File) error { return nil }\n",
 		},
 		{
 			name: "definition sources bypass",
 			old:  "MigrationDefinitionSources: sources,",
-			new:  "MigrationDefinitionSources: nil,",
+			new:  "MigrationDefinitionSources: sources[:0],",
 		},
 		{
 			name: "renderer bypass",
@@ -136,75 +226,128 @@ func sqlProductAssertRunnerPipelineAuditRejectsHardcodedStubs(t *testing.T, proj
 		},
 		{
 			name: "source encoding bypass",
-			old:  "document, err := definition.Encode(definition.Producer{Name: \"sqlmigrate-product\", Version: \"1\"}, migration)",
+			old:  `document, err := definition.Encode(definition.Producer{Name: "sqlmigrate-product", Version: "1"}, migration)`,
 			new:  "document, err := hardcodedEncode(migration)",
+			suffix: `
+func hardcodedEncode(migrations.Migration) ([]byte, error) { return []byte("{}"), nil }
+`,
 		},
 		{
 			name: "hardcoded renderer output",
 			old:  "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
-			new:  "return []string{\"CREATE TABLE hardcoded_stub\"}, nil",
+			new:  `return []string{"CREATE TABLE hardcoded_stub"}, nil`,
 		},
 		{
-			name:         "source selection result decoupled",
-			old:          "sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))",
-			new:          "sources := []definition.Source(nil)\n\t_, err := sourcesForCatalog(os.Getenv(catalogEnvironment))",
-			compileValid: true,
+			name: "source selection result decoupled",
+			old:  "sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))",
+			new:  "sources := []definition.Source(nil)\n\t_, err := sourcesForCatalog(os.Getenv(catalogEnvironment))",
 		},
 		{
-			name:         "source selection result reassigned",
-			old:          "sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))",
-			new:          "sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))\n\tsources = []definition.Source(nil)",
-			compileValid: true,
+			name: "source selection result reassigned",
+			old:  "sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))",
+			new:  "sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))\n\tsources = []definition.Source(nil)",
 		},
 		{
-			name:         "encoded document result decoupled",
-			old:          "document, err := definition.Encode(definition.Producer{Name: \"sqlmigrate-product\", Version: \"1\"}, migration)",
-			new:          "encoded, err := definition.Encode(definition.Producer{Name: \"sqlmigrate-product\", Version: \"1\"}, migration)\n\t\tdocument := []byte(\"{}\")\n\t\t_ = encoded",
-			compileValid: true,
+			name: "encoded document result decoupled",
+			old:  `document, err := definition.Encode(definition.Producer{Name: "sqlmigrate-product", Version: "1"}, migration)`,
+			new: `encoded, err := definition.Encode(definition.Producer{Name: "sqlmigrate-product", Version: "1"}, migration)
+		document := []byte("{}")
+		_ = encoded`,
 		},
 		{
-			name:         "delegate result discarded for concatenated hardcoded SQL",
-			old:          "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
-			new:          "_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)\n\treturn []string{\"CREATE \" + \"TABLE hardcoded_stub\"}, nil",
-			compileValid: true,
+			name: "delegate result discarded for concatenated hardcoded SQL",
+			old:  "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
+			new: `_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)
+	return []string{"CREATE " + "TABLE hardcoded_stub"}, nil`,
 		},
 		{
-			name:         "SQLite branch return decoupled",
-			old:          "return observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}",
-			new:          "_ = observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}\n\t\treturn failingRenderer{}",
-			compileValid: true,
+			name: "SQLite branch return decoupled",
+			old:  "return observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}",
+			new:  "_ = observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}\n\t\treturn failingRenderer{}",
 		},
 		{
-			name:         "PostgreSQL branch return decoupled",
-			old:          "return observedRenderer{delegate: delegate}",
-			new:          "_ = observedRenderer{delegate: delegate}\n\t\treturn failingRenderer{}",
-			compileValid: true,
+			name:     "PostgreSQL branch return decoupled",
+			old:      "return observedRenderer{delegate: delegate}",
+			new:      "_ = observedRenderer{delegate: delegate}\n\t\treturn failingRenderer{}",
+			postgres: true,
 		},
 		{
-			name:         "unexpected hardcoded renderer type",
-			old:          "return observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}",
-			new:          "_ = observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}\n\t\treturn hardcodedRenderer{}",
-			suffix:       "\n\ntype hardcodedRenderer struct{}\n\nfunc (hardcodedRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([]string, error) {\n\treturn []string{\"CREATE \" + \"TABLE hardcoded_stub\"}, nil\n}\n",
-			compileValid: true,
+			name: "unexpected hardcoded renderer type",
+			old:  "return observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}",
+			new:  "_ = observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}\n\t\treturn hardcodedRenderer{}",
+			suffix: `
+type hardcodedRenderer struct{}
+func (hardcodedRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([]string, error) {
+	return []string{"CREATE " + "TABLE hardcoded_stub"}, nil
+}
+`,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if strings.Count(sqlProductRunnerSource, test.old) != 1 {
-				t.Fatalf("mutation anchor count for %q is not one", test.old)
-			}
-			mutated := strings.Replace(sqlProductRunnerSource, test.old, test.new, 1) + test.suffix
-			if test.compileValid {
-				runner := filepath.Join(project.root, "cmd", "projectrunner", "main.go")
-				sqlProductWriteFile(t, runner, []byte(mutated), 0o600)
-				defer sqlProductWriteFile(t, runner, []byte(sqlProductRunnerSource), 0o600)
-				sqlProductRunSuccess(t, project.root, project.baseEnv, "go", "test", "-run=^$", "./cmd/projectrunner")
-			}
-			if err := sqlProductAuditRunnerPipeline([]byte(mutated)); err == nil {
-				t.Fatal("external project runner audit accepted a pipeline bypass")
+			project.withRunnerSource(t, sqlProductMutateRunner(t, test.old, test.new, test.suffix), func(variant *sqlProductProject) {
+				state := variant.state(t, "pipeline-bypass-"+strings.ReplaceAll(test.name, " ", "-"))
+				environment := variant.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite)
+				want := sqlProductAuthorOutput
+				if test.postgres {
+					environment = variant.postgresEnvironment(state)
+					want = sqlProductPostgresAuthorOutput
+				}
+				result := variant.runExplicit(t, state, environment, "authors", "0001_author")
+				sqlProductAssertMarker(t, state.initMarker, "init")
+				if result.matchesSuccess(want) {
+					t.Fatal("actual pipeline contract accepted a runner bypass")
+				}
+			})
+		})
+	}
+}
+
+func TestSQLProductRunnerSourceBoundaries(t *testing.T) {
+	if err := sqlProductAuditRunnerPipeline([]byte(sqlProductRunnerSource)); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct{ name, old, new, suffix string }{
+		{"oracle import", `"context"`, `"context"; "github.com/progresshans/godj/conformance/relationselectproduct"`, ""},
+		{"network import", `"context"`, `"context"; "net"`, ""},
+		{"file read", "os.WriteFile", "os.ReadFile", ""},
+		{"aliased file read", `"os"`, `system "os"`, "\nvar readOracle = system.ReadFile\n"},
+		{"readable marker descriptor", "os.O_WRONLY", "os.O_RDWR", ""},
+		{"masked marker flags", "os.O_WRONLY", "(os.O_WRONLY & 0)", ""},
+		{"indirect descriptor opener", "os.OpenFile(path,", "openFile(path,", "\nvar openFile = os.OpenFile\n"},
+		{"direct output", "fmt.Fprintln(os.Stderr,", "fmt.Fprintln(os.Stdout,", ""},
+		{"implicit output", "fmt.Fprintln(os.Stderr,", "fmt.Println(", ""},
+		{"database opener", "sqlite.NewMigrationSQLRenderer()", "sqlite.Open()", ""},
+		{"hardcoded SQL", "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)", `return []string{"CREATE TABLE fixture"}, nil`, ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := sqlProductAuditRunnerPipeline([]byte(sqlProductMutateRunner(t, test.old, test.new, test.suffix))); err == nil {
+				t.Fatal("source audit accepted a forbidden import or I/O boundary")
 			}
 		})
 	}
+}
+
+func sqlProductMutateRunner(t *testing.T, old, replacement, suffix string) string {
+	t.Helper()
+	if strings.Count(sqlProductRunnerSource, old) != 1 {
+		t.Fatalf("mutation anchor count for %q is not one", old)
+	}
+	return strings.Replace(sqlProductRunnerSource, old, replacement, 1) + suffix
+}
+
+func (project *sqlProductProject) withRunnerSource(t *testing.T, source string, run func(*sqlProductProject)) {
+	t.Helper()
+	runner := filepath.Join(project.root, "cmd", "projectrunner", "main.go")
+	original, err := os.ReadFile(runner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlProductWriteFile(t, runner, []byte(source), 0o600)
+	defer sqlProductWriteFile(t, runner, original, 0o600)
+	variant := *project
+	variant.applicationHash = testfixture.ApplicationHashes(t, project.root)
+	run(&variant)
 }
 
 func (project *sqlProductProject) assertPostgresRunnerDBFree(t *testing.T) {

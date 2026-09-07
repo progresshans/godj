@@ -17,10 +17,13 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 	if err := preflightEncodingResources(producer, migration); err != nil {
 		return nil, err
 	}
-	snapshot, err := snapshotMigrationForEncoding(migration)
-	if err != nil {
-		return nil, err
-	}
+	snapshot := cloneMigration(migration)
+	sort.Slice(snapshot.Dependencies, func(left, right int) bool {
+		if snapshot.Dependencies[left].App != snapshot.Dependencies[right].App {
+			return snapshot.Dependencies[left].App < snapshot.Dependencies[right].App
+		}
+		return snapshot.Dependencies[left].Name < snapshot.Dependencies[right].Name
+	})
 	if err := validateEncodingInput(producer, snapshot); err != nil {
 		return nil, err
 	}
@@ -82,95 +85,6 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 		)
 	}
 	return append(encoded, '\n'), nil
-}
-
-func snapshotMigrationForEncoding(migration migrations.Migration) (migrations.Migration, error) {
-	if len(migration.Dependencies) > MaxDependenciesPerMigration {
-		return migrations.Migration{}, encodeFailure(
-			"migration.dependencies",
-			"dependencies_per_migration resource limit exceeded: got %d, maximum %d",
-			len(migration.Dependencies),
-			MaxDependenciesPerMigration,
-		)
-	}
-	if len(migration.Operations) > MaxOperationsPerMigration {
-		return migrations.Migration{}, encodeFailure(
-			"migration.operations",
-			"operations_per_migration resource limit exceeded: got %d, maximum %d",
-			len(migration.Operations),
-			MaxOperationsPerMigration,
-		)
-	}
-
-	snapshot := migrations.Migration{
-		App:          migration.App,
-		Name:         migration.Name,
-		Dependencies: append([]migrations.MigrationKey(nil), migration.Dependencies...),
-		Operations:   make([]migrations.Operation, len(migration.Operations)),
-	}
-	for index, operation := range migration.Operations {
-		switch value := operation.(type) {
-		case migrations.CreateModel:
-			if len(value.Model.Fields) > MaxFieldsPerCreateModel {
-				return migrations.Migration{}, createModelFieldsLimitFailure(index, len(value.Model.Fields))
-			}
-			snapshot.Operations[index] = migrations.CreateModel{
-				AppLabel: value.AppLabel,
-				Model:    value.Model.Clone(),
-			}
-		case *migrations.CreateModel:
-			if value == nil {
-				return migrations.Migration{}, encodeFailure(
-					fmt.Sprintf("migration.operations[%d]", index),
-					"nil *migrations.CreateModel",
-				)
-			}
-			if len(value.Model.Fields) > MaxFieldsPerCreateModel {
-				return migrations.Migration{}, createModelFieldsLimitFailure(index, len(value.Model.Fields))
-			}
-			snapshot.Operations[index] = migrations.CreateModel{
-				AppLabel: value.AppLabel,
-				Model:    value.Model.Clone(),
-			}
-		case migrations.AddField:
-			snapshot.Operations[index] = migrations.AddField{
-				AppLabel:  value.AppLabel,
-				ModelName: value.ModelName,
-				Field:     value.Field.Clone(),
-			}
-		case *migrations.AddField:
-			if value == nil {
-				return migrations.Migration{}, encodeFailure(
-					fmt.Sprintf("migration.operations[%d]", index),
-					"nil *migrations.AddField",
-				)
-			}
-			snapshot.Operations[index] = migrations.AddField{
-				AppLabel:  value.AppLabel,
-				ModelName: value.ModelName,
-				Field:     value.Field.Clone(),
-			}
-		case nil:
-			return migrations.Migration{}, encodeFailure(
-				fmt.Sprintf("migration.operations[%d]", index),
-				"nil operation",
-			)
-		default:
-			return migrations.Migration{}, encodeFailure(
-				fmt.Sprintf("migration.operations[%d]", index),
-				"unsupported operation type %T",
-				operation,
-			)
-		}
-	}
-
-	sort.Slice(snapshot.Dependencies, func(left, right int) bool {
-		if snapshot.Dependencies[left].App != snapshot.Dependencies[right].App {
-			return snapshot.Dependencies[left].App < snapshot.Dependencies[right].App
-		}
-		return snapshot.Dependencies[left].Name < snapshot.Dependencies[right].Name
-	})
-	return snapshot, nil
 }
 
 func createModelFieldsLimitFailure(operationIndex, actual int) error {

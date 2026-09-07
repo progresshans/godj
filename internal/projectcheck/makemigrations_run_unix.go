@@ -39,71 +39,34 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 		return report
 	}
 
-	selected, selectionFailure := selectProject(
-		input.CWD,
-		commandArguments{explicitDescriptor: arguments.explicitDescriptor},
-		&report.Report,
-	)
-	if selectionFailure != nil {
-		candidate := mapMakemigrationsSelectionFailure(*selectionFailure)
-		primary = &candidate
-	}
-	if primary == nil && !verifyRetainedProject(selected) {
-		candidate := MakemigrationsFailure{Category: MakemigrationsCategorySelection, Code: MakemigrationsCodeProjectSelectionFailed}
-		primary = &candidate
-	}
-	if terminal := makemigrationsBarrier(input, primary); terminal != nil {
-		if selected.root != nil && selected.close() != nil {
-			report.CleanupFailed = 1
-			terminal = combineMakemigrationsCleanup(terminal, true)
-		}
-		chooseMakemigrationsFailure(&report, *terminal)
-		publishMakemigrations(input, &report)
-		return report
-	}
-
-	workspace, workspaceFailure := createPrivateWorkspaceWithHooks(selected, input.Environment, &report.Report, input.workspace)
-	if workspaceFailure != nil {
-		candidate := mapMakemigrationsWorkspaceFailure(*workspaceFailure)
-		primary = &candidate
-		terminal := makemigrationsBarrier(input, primary)
-		if selected.close() != nil {
-			report.CleanupFailed = 1
-		}
-		terminal = combineMakemigrationsCleanup(terminal, report.CleanupFailed != 0)
-		chooseMakemigrationsFailure(&report, *terminal)
-		publishMakemigrations(input, &report)
-		return report
-	}
-
-	cleanup := func() {
-		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
-		if !cleanupFailed {
-			return
-		}
-		report.CleanupFailed = 1
-		if !report.HasMakemigrationsFailure || makemigrationsCanceledOrInterrupted(report.MakemigrationsFailure) {
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[MakemigrationsFailure]{
+			selection: mapMakemigrationsSelectionFailure, workspace: mapMakemigrationsWorkspaceFailure,
+			process: makemigrationsProcessFailure, cleanup: combineMakemigrationsCleanup,
+			barrier: func(primary *MakemigrationsFailure) *MakemigrationsFailure {
+				return makemigrationsBarrier(input, primary)
+			},
+		}, commandHooks{})
+	finish := func() MakemigrationsReport {
+		if command.close() && (!report.HasMakemigrationsFailure || makemigrationsCanceledOrInterrupted(report.MakemigrationsFailure)) {
 			report.HasMakemigrationsResult = false
 			report.MakemigrationsResult = MakemigrationsResult{}
 			report.HasMakemigrationsFailure = true
 			report.MakemigrationsFailure = makemigrationsCleanupFailure()
 		}
-	}
-	finish := func() MakemigrationsReport {
-		cleanup()
 		applyMakemigrationsFinalBarrier(input, &report)
 		publishMakemigrations(input, &report)
 		return report
 	}
-
-	if terminal := makemigrationsBarrier(input, nil); terminal != nil {
-		chooseMakemigrationsFailure(&report, *terminal)
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
 		return finish()
 	}
-	if !verifyRetainedProject(selected) {
-		chooseMakemigrationsFailure(&report, MakemigrationsFailure{Category: MakemigrationsCategorySelection, Code: MakemigrationsCodeProjectSelectionFailed})
+	if primary = command.ready(); primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
 		return finish()
 	}
+	selected, workspace := command.selected, command.workspace
 
 	baseline, primary := captureMakemigrationsBuildInput(input, selected, workspace.environment, &report)
 	if primary = makemigrationsBarrier(input, primary); primary != nil {
@@ -111,11 +74,7 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 		return finish()
 	}
 
-	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
-	primary = makemigrationsProcessFailure(BuildStage, build)
-	primary = makemigrationsBarrier(input, primary)
-	primary = combineMakemigrationsCleanup(primary, build.CleanupFailed)
+	primary = command.build(selected.descriptor.packagePath, "godj-project-runner")
 	if primary != nil {
 		chooseMakemigrationsFailure(&report, *primary)
 		return finish()
@@ -210,23 +169,12 @@ func executeMakemigrationsRunner(
 	recordMakemigrationsProcess(report, MakemigrationsRunnerStage, runner)
 	primary := makemigrationsProcessFailure(MakemigrationsRunnerStage, runner)
 	primary = combineMakemigrationsCleanup(primary, runner.CleanupFailed)
-	var response writerprotocol.Response
-	if primary == nil {
-		if runner.StdoutScalar.Truncated {
-			candidate := MakemigrationsFailure{Category: writerprotocol.CategoryProtocol, Code: writerprotocol.CodeInvalidResponse}
-			primary = &candidate
-		} else {
-			parsed, parseFailure, failed := writerprotocol.ParseResponse(runner.Stdout, runner.Started && runner.ExitCode == 0)
-			if failed {
-				candidate := MakemigrationsFailure{Category: parseFailure.Category, Code: parseFailure.Code}
-				primary = &candidate
-			} else {
-				response = parsed
-			}
-		}
-	}
-	clear(runner.Stdout)
-	runner.Stdout = nil
+	response, primary := parseCommandResponse(&runner, primary,
+		MakemigrationsFailure{Category: writerprotocol.CategoryProtocol, Code: writerprotocol.CodeInvalidResponse},
+		func(document []byte, transportOK bool) (writerprotocol.Response, MakemigrationsFailure, bool) {
+			response, failed, hasFailure := writerprotocol.ParseResponse(document, transportOK)
+			return response, MakemigrationsFailure{Category: failed.Category, Code: failed.Code}, hasFailure
+		})
 	primary = makemigrationsBarrier(input, primary)
 	if primary != nil {
 		clearMakemigrationsProtocolResult(&response.Result)

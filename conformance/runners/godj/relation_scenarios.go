@@ -93,23 +93,23 @@ func relationUnsavedRelatedTarget(ctx context.Context, contract protocol.Contrac
 }
 
 func relationProtectDelete(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	observed, err := relationdeleteproduct.Observe(ctx)
+	observed, err := relationdeleteproduct.ObserveProtect(ctx)
 	if err != nil {
-		return protocol.Observation{}, fmt.Errorf("observe generated REL-007/008 delete product: %w", err)
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-007 delete product: %w", err)
 	}
 	var protected *query.ProtectedForeignKeyError
-	if !errors.As(observed.Protect.Err, &protected) {
-		return protocol.Observation{}, fmt.Errorf("REL-007 error = %v, want *query.ProtectedForeignKeyError", observed.Protect.Err)
+	if !errors.As(observed.Err, &protected) {
+		return protocol.Observation{}, fmt.Errorf("REL-007 error = %v, want *query.ProtectedForeignKeyError", observed.Err)
 	}
 	var queryError *query.Error
-	if !errors.As(observed.Protect.Err, &queryError) {
-		return protocol.Observation{}, fmt.Errorf("REL-007 error = %v, want wrapped *query.Error", observed.Protect.Err)
+	if !errors.As(observed.Err, &queryError) {
+		return protocol.Observation{}, fmt.Errorf("REL-007 error = %v, want wrapped *query.Error", observed.Err)
 	}
 	messageIsContract := false
-	databaseState := relationDatabaseStateValue(observed.Protect.After)
+	databaseState := relationDatabaseStateValue(observed.After)
 	metrics := protocol.Object(map[string]protocol.Value{
-		"update_statement_count": protocol.Integer(strconv.FormatInt(observed.Protect.Metrics.RelationSetNullCount, 10)),
-		"delete_statement_count": protocol.Integer(strconv.FormatInt(observed.Protect.Metrics.DeleteCount, 10)),
+		"update_statement_count": protocol.Integer(strconv.FormatInt(observed.Metrics.RelationSetNullCount, 10)),
+		"delete_statement_count": protocol.Integer(strconv.FormatInt(observed.Metrics.DeleteCount, 10)),
 		"protected_source_rows":  protocol.Integer(strconv.FormatInt(protected.ProtectedSourceRows(), 10)),
 	})
 	return protocol.Observation{
@@ -119,7 +119,7 @@ func relationProtectDelete(ctx context.Context, contract protocol.Contract) (pro
 		Error: &protocol.ObservedError{
 			Category:          queryError.Category,
 			Code:              queryError.Code,
-			Message:           observed.Protect.Err.Error(),
+			Message:           observed.Err.Error(),
 			MessageIsContract: &messageIsContract,
 		},
 		DBState: &databaseState,
@@ -128,40 +128,40 @@ func relationProtectDelete(ctx context.Context, contract protocol.Contract) (pro
 }
 
 func relationSetNullDelete(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	observed, err := relationdeleteproduct.Observe(ctx)
+	observed, err := relationdeleteproduct.ObserveSetNull(ctx)
 	if err != nil {
-		return protocol.Observation{}, fmt.Errorf("observe generated REL-007/008 delete product: %w", err)
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-008 delete product: %w", err)
 	}
-	if observed.SetNull.Err != nil {
-		return protocol.Observation{}, fmt.Errorf("REL-008 delete failed: %w", observed.SetNull.Err)
+	if observed.Err != nil {
+		return protocol.Observation{}, fmt.Errorf("REL-008 delete failed: %w", observed.Err)
 	}
-	mutationOrder := make([]protocol.Value, len(observed.SetNull.Metrics.MutationOrder))
-	for index, kind := range observed.SetNull.Metrics.MutationOrder {
+	mutationOrder := make([]protocol.Value, len(observed.Metrics.MutationOrder))
+	for index, kind := range observed.Metrics.MutationOrder {
 		mutationOrder[index] = protocol.String(kind)
 	}
-	mutationRows := make([]protocol.Value, len(observed.SetNull.Metrics.MutationRows))
-	for index, row := range observed.SetNull.Metrics.MutationRows {
+	mutationRows := make([]protocol.Value, len(observed.Metrics.MutationRows))
+	for index, row := range observed.Metrics.MutationRows {
 		mutationRows[index] = protocol.Object(map[string]protocol.Value{
 			"kind":          protocol.String(row.Kind),
 			"affected_rows": protocol.Integer(strconv.FormatInt(row.AffectedRows, 10)),
 		})
 	}
-	affectedSourceRows := sumRelationDeleteRows(observed.SetNull.Metrics.RelationSetNullRows)
-	deletedTargetRows := sumRelationDeleteRows(observed.SetNull.Metrics.DeleteRows)
+	affectedSourceRows := sumRelationDeleteRows(observed.Metrics.RelationSetNullRows)
+	deletedTargetRows := sumRelationDeleteRows(observed.Metrics.DeleteRows)
 	result := protocol.Object(map[string]protocol.Value{
-		"deleted_total":  protocol.Integer(strconv.FormatInt(observed.SetNull.Returned, 10)),
-		"target_deleted": protocol.Integer(strconv.FormatInt(observed.SetNull.Returned, 10)),
+		"deleted_total":  protocol.Integer(strconv.FormatInt(observed.Returned, 10)),
+		"target_deleted": protocol.Integer(strconv.FormatInt(observed.Returned, 10)),
 	})
 	metrics := protocol.Object(map[string]protocol.Value{
-		"transaction_count":      protocol.Integer(strconv.FormatInt(observed.SetNull.Metrics.TransactionCount, 10)),
+		"transaction_count":      protocol.Integer(strconv.FormatInt(observed.Metrics.TransactionCount, 10)),
 		"mutation_order":         protocol.List(mutationOrder...),
 		"mutation_rows":          protocol.List(mutationRows...),
-		"update_statement_count": protocol.Integer(strconv.FormatInt(observed.SetNull.Metrics.RelationSetNullCount, 10)),
-		"delete_statement_count": protocol.Integer(strconv.FormatInt(observed.SetNull.Metrics.DeleteCount, 10)),
+		"update_statement_count": protocol.Integer(strconv.FormatInt(observed.Metrics.RelationSetNullCount, 10)),
+		"delete_statement_count": protocol.Integer(strconv.FormatInt(observed.Metrics.DeleteCount, 10)),
 		"affected_source_rows":   protocol.Integer(strconv.FormatInt(affectedSourceRows, 10)),
 		"deleted_target_rows":    protocol.Integer(strconv.FormatInt(deletedTargetRows, 10)),
 	})
-	databaseState := relationDatabaseStateValue(observed.SetNull.After)
+	databaseState := relationDatabaseStateValue(observed.After)
 	return protocol.Observation{
 		ID:      contract.ID,
 		Status:  protocol.StatusObserved,
@@ -181,17 +181,17 @@ func sumRelationDeleteRows(rows []int64) int64 {
 }
 
 func relationRequiredSelectRelated(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	observed, err := relationselectproduct.Observe(ctx)
+	observed, err := relationselectproduct.ObserveRequired(ctx)
 	if err != nil {
-		return protocol.Observation{}, fmt.Errorf("observe generated REL-009/010/011 product: %w", err)
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-009 product: %w", err)
 	}
 	result := protocol.Object(map[string]protocol.Value{
-		"plain": relationSelectedRowsValue(observed.Required.Plain),
-		"eager": relationSelectedRowsValue(observed.Required.Eager),
+		"plain": relationSelectedRowsValue(observed.Result.Plain),
+		"eager": relationSelectedRowsValue(observed.Result.Eager),
 	})
 	metrics := protocol.Object(map[string]protocol.Value{
-		"plain": relationSelectQueryMetricsValue(observed.Required.PlainMetrics),
-		"eager": relationSelectQueryMetricsValue(observed.Required.EagerMetrics),
+		"plain": relationSelectQueryMetricsValue(observed.Result.PlainMetrics),
+		"eager": relationSelectQueryMetricsValue(observed.Result.EagerMetrics),
 	})
 	databaseState := relationDatabaseStateValue(observed.DBState)
 	return protocol.Observation{
@@ -205,14 +205,14 @@ func relationRequiredSelectRelated(ctx context.Context, contract protocol.Contra
 }
 
 func relationNullableSelectRelated(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	observed, err := relationselectproduct.Observe(ctx)
+	observed, err := relationselectproduct.ObserveNullable(ctx)
 	if err != nil {
-		return protocol.Observation{}, fmt.Errorf("observe generated REL-009/010/011 product: %w", err)
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-010 product: %w", err)
 	}
 	result := protocol.Object(map[string]protocol.Value{
-		"rows": relationSelectedRowsValue(observed.Nullable.Rows),
+		"rows": relationSelectedRowsValue(observed.Result.Rows),
 	})
-	metrics := relationSelectQueryMetricsValue(observed.Nullable.Metrics)
+	metrics := relationSelectQueryMetricsValue(observed.Result.Metrics)
 	databaseState := relationDatabaseStateValue(observed.DBState)
 	return protocol.Observation{
 		ID:      contract.ID,
@@ -225,16 +225,16 @@ func relationNullableSelectRelated(ctx context.Context, contract protocol.Contra
 }
 
 func relationInvalidReverseSelectRelated(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	observed, err := relationselectproduct.Observe(ctx)
+	observed, err := relationselectproduct.ObserveInvalid(ctx)
 	if err != nil {
-		return protocol.Observation{}, fmt.Errorf("observe generated REL-009/010/011 product: %w", err)
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-011 product: %w", err)
 	}
 	var queryError *query.Error
-	if !errors.As(observed.Invalid.Err, &queryError) {
-		return protocol.Observation{}, fmt.Errorf("REL-011 error = %v, want *query.Error", observed.Invalid.Err)
+	if !errors.As(observed.Result.Err, &queryError) {
+		return protocol.Observation{}, fmt.Errorf("REL-011 error = %v, want *query.Error", observed.Result.Err)
 	}
 	messageIsContract := false
-	metrics := relationSelectInvalidMetricsValue(observed.Invalid.Metrics)
+	metrics := relationSelectInvalidMetricsValue(observed.Result.Metrics)
 	databaseState := relationDatabaseStateValue(observed.DBState)
 	return protocol.Observation{
 		ID:     contract.ID,
@@ -252,14 +252,14 @@ func relationInvalidReverseSelectRelated(ctx context.Context, contract protocol.
 }
 
 func relationForwardLazyCache(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	observed, err := relationobjectproduct.Observe(ctx)
+	observed, err := relationobjectproduct.ObserveForward(ctx)
 	if err != nil {
 		return protocol.Observation{}, fmt.Errorf("observe generated REL-003 product: %w", err)
 	}
-	cold := relationObjectAuthorValue(observed.Forward.Cold)
-	warm := relationObjectAuthorValue(observed.Forward.Warm)
-	steps := make([]protocol.Value, len(observed.Forward.Steps))
-	for index, step := range observed.Forward.Steps {
+	cold := relationObjectAuthorValue(observed.Result.Cold)
+	warm := relationObjectAuthorValue(observed.Result.Warm)
+	steps := make([]protocol.Value, len(observed.Result.Steps))
+	for index, step := range observed.Result.Steps {
 		value := relationQueryMetricsValue(step.Metrics)
 		fields := map[string]protocol.Value{
 			"name": protocol.String(step.Name),
@@ -288,16 +288,16 @@ func relationForwardLazyCache(ctx context.Context, contract protocol.Contract) (
 }
 
 func relationNullableAccessAndIsNull(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	observed, err := relationobjectproduct.Observe(ctx)
+	observed, err := relationobjectproduct.ObserveNullable(ctx)
 	if err != nil {
 		return protocol.Observation{}, fmt.Errorf("observe generated REL-006 product: %w", err)
 	}
 	reviewer := protocol.Null()
-	if observed.Nullable.Reviewer != nil {
-		reviewer = relationObjectAuthorValue(*observed.Nullable.Reviewer)
+	if observed.Result.Reviewer != nil {
+		reviewer = relationObjectAuthorValue(*observed.Result.Reviewer)
 	}
-	identifiers := make([]protocol.Value, len(observed.Nullable.IsNullPostIDs))
-	for index, identifier := range observed.Nullable.IsNullPostIDs {
+	identifiers := make([]protocol.Value, len(observed.Result.IsNullPostIDs))
+	for index, identifier := range observed.Result.IsNullPostIDs {
 		identifiers[index] = relationPrimaryKey(identifier)
 	}
 	result := protocol.Object(map[string]protocol.Value{
@@ -306,9 +306,9 @@ func relationNullableAccessAndIsNull(ctx context.Context, contract protocol.Cont
 	})
 	databaseState := relationDatabaseStateValue(observed.DBState)
 	metrics := protocol.Object(map[string]protocol.Value{
-		"null_access":         relationQueryMetricsValue(observed.Nullable.NullAccess),
-		"isnull_construction": relationQueryMetricsValue(observed.Nullable.IsNullConstruction),
-		"isnull_evaluation":   relationQueryMetricsValue(observed.Nullable.IsNullEvaluation),
+		"null_access":         relationQueryMetricsValue(observed.Result.NullAccess),
+		"isnull_construction": relationQueryMetricsValue(observed.Result.IsNullConstruction),
+		"isnull_evaluation":   relationQueryMetricsValue(observed.Result.IsNullEvaluation),
 	})
 	return protocol.Observation{
 		ID:      contract.ID,

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 	modernsqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -85,7 +86,7 @@ func CompileUpdate(plan query.UpdatePlan) (string, []any, error) {
 	for index, column := range columns {
 		setClauses[index] = column + " = ?"
 	}
-	keyColumn, keyArgument, err := compileKey(plan.KeyField(), plan.KeyValue())
+	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier)
 	if err != nil {
 		return "", nil, err
 	}
@@ -99,7 +100,7 @@ func CompileDelete(plan query.DeletePlan) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	keyColumn, keyArgument, err := compileKey(plan.KeyField(), plan.KeyValue())
+	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier)
 	if err != nil {
 		return "", nil, err
 	}
@@ -193,7 +194,7 @@ func compileAssignments(assignments []query.Assignment) ([]string, []any, error)
 			return nil, nil, invalidPlan(fmt.Sprintf("field column %q is assigned more than once", field.Column()))
 		}
 		seen[identifierKey] = struct{}{}
-		if err := validateWriteValue(field, assignment.Value()); err != nil {
+		if err := queryplan.WriteValue(field, assignment.Value()); err != nil {
 			return nil, nil, err
 		}
 		argument, err := assignment.Value().DatabaseValue()
@@ -217,37 +218,6 @@ func sqliteIdentifierKey(identifier string) string {
 		}
 	}
 	return string(key)
-}
-
-func compileKey(field query.FieldRef, value query.Value) (string, any, error) {
-	if field.Nullable() || value.IsNull() {
-		return "", nil, invalidPlan("mutation key cannot be nullable or NULL")
-	}
-	if err := validateWriteValue(field, value); err != nil {
-		return "", nil, err
-	}
-	column, err := quoteIdentifier(field.Column())
-	if err != nil {
-		return "", nil, err
-	}
-	argument, err := value.DatabaseValue()
-	if err != nil {
-		return "", nil, err
-	}
-	return column, argument, nil
-}
-
-func validateWriteValue(field query.FieldRef, value query.Value) error {
-	if value.IsNull() {
-		if !field.Nullable() {
-			return invalidPlan(fmt.Sprintf("non-null field %q cannot be assigned NULL", field.Name()))
-		}
-		return nil
-	}
-	if !valueMatchesField(value.Kind(), field.Kind()) {
-		return invalidPlan(fmt.Sprintf("value kind %q does not match field %q", value.Kind(), field.Name()))
-	}
-	return nil
 }
 
 func (b *Backend) validateWriteContext(ctx context.Context) error {

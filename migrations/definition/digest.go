@@ -102,18 +102,8 @@ func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]
 	switch value := operation.(type) {
 	case migrations.CreateModel:
 		return appendCanonicalCreateModel(output, value)
-	case *migrations.CreateModel:
-		if value == nil {
-			return nil, errors.New("canonical operation is a nil *migrations.CreateModel")
-		}
-		return appendCanonicalCreateModel(output, *value)
 	case migrations.AddField:
 		return appendCanonicalAddField(output, value)
-	case *migrations.AddField:
-		if value == nil {
-			return nil, errors.New("canonical operation is a nil *migrations.AddField")
-		}
-		return appendCanonicalAddField(output, *value)
 	default:
 		return nil, fmt.Errorf("unsupported canonical operation %T", operation)
 	}

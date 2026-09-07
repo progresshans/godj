@@ -103,24 +103,24 @@ func (m *Manager) Load(ctx context.Context, id ID) (Record, bool, error) {
 	if now.IsZero() {
 		return Record{}, false, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
 	}
-	if record.expired(now) {
-		if err := m.store.Delete(ctx, id); err != nil {
-			return Record{}, false, storeFailure("delete expired", err)
-		}
-		return Record{}, false, nil
-	}
 	// A clock moving backwards must not reduce AccessedAt or extend lifetime
 	// from an earlier instant.
 	if now.Before(record.accessedAt) {
 		now = record.accessedAt
 	}
 	idleExpiresAt := minimumTime(now.Add(m.idleTimeout), record.absoluteExpiresAt)
-	touched, present, err := m.store.Touch(ctx, id, now, idleExpiresAt)
+	// Idle expiry may have advanced since Load. Touch makes the expiry and
+	// deletion decision against the current record in the Store's atomic scope.
+	touched, status, err := m.store.Touch(ctx, id, now, idleExpiresAt)
 	if err != nil {
 		return Record{}, false, storeFailure("touch", err)
 	}
-	if !present {
+	switch status {
+	case TouchMissing, TouchExpired:
 		return Record{}, false, nil
+	case TouchActive:
+	default:
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid touch outcome"}
 	}
 	if !touched.valid(m.limits) || touched.id != id {
 		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid touched record"}

@@ -13,12 +13,25 @@ PRODUCTS = {
     'conformance/runserverproduct',
     'conformance/migrationwriterproduct',
 }
+PURE_PROTOCOLS = {
+    'internal/projectcheck/protocol',
+    'internal/projectcheck/migrateprotocol',
+    'internal/projectcheck/showmigrationsprotocol',
+    'internal/projectcheck/sqlmigrateprotocol',
+    'internal/projectcheck/createsuperuserprotocol',
+    'internal/projectgenerate/protocol',
+    'internal/projectmigration/protocol',
+}
 
 
 def group(package):
     if not package.startswith(MODULE):
         raise ValueError('package outside GoDj module: ' + package)
     relative = package[len(MODULE):]
+    # Wire grammar and resource limits have no OS/process dependency. The
+    # linked runner and outer command still exercise them on every platform.
+    if relative in PURE_PROTOCOLS:
+        return 'core'
     if (relative == 'project' or relative == 'conformance/runners/godj'
             or relative.startswith(('cmd/', 'internal/projectcheck'))):
         return 'platform'

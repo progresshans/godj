@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"unicode"
 	"unicode/utf8"
@@ -29,142 +28,36 @@ func RunShowMigrations(input ShowMigrationsInvocation) ShowMigrationsReport {
 		return report
 	}
 
-	selected, selectionFailure := selectProject(
-		input.CWD,
-		commandArguments{explicitDescriptor: arguments.explicitDescriptor},
-		&report.Report,
-	)
-	if selectionFailure != nil {
-		candidate := mapShowMigrationsOuterFailure(*selectionFailure)
-		primary = &candidate
-	}
-	if primary == nil && !verifyRetainedProject(selected) {
-		candidate := showMigrationsFailure(
-			showmigrationsprotocol.CategorySelection,
-			showmigrationsprotocol.CodeProjectSelectionFailed,
-		)
-		primary = &candidate
-	}
-	if terminal := showMigrationsBarrier(input, primary); terminal != nil {
-		if selected.root != nil && selected.close() != nil {
-			report.CleanupFailed = 1
-			terminal = combineShowMigrationsCleanup(terminal, true)
-		}
-		chooseShowMigrationsFailure(&report, *terminal)
-		publishShowMigrations(input, &report)
-		return report
-	}
-
-	workspace, workspaceFailure := createPrivateWorkspaceWithHooks(
-		selected,
-		input.Environment,
-		&report.Report,
-		input.workspace,
-	)
-	if workspaceFailure != nil {
-		candidate := mapShowMigrationsOuterFailure(*workspaceFailure)
-		primary = &candidate
-		terminal := showMigrationsBarrier(input, primary)
-		if selected.close() != nil {
-			report.CleanupFailed = 1
-		}
-		terminal = combineShowMigrationsCleanup(terminal, report.CleanupFailed != 0)
-		chooseShowMigrationsFailure(&report, *terminal)
-		publishShowMigrations(input, &report)
-		return report
-	}
-
-	cleanup := func() {
-		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
-		if !cleanupFailed {
-			return
-		}
-		report.CleanupFailed = 1
-		if !report.HasShowMigrationsFailure || showMigrationsCanceledOrInterrupted(report.ShowMigrationsFailure) {
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[ShowMigrationsFailure]{
+			selection: mapShowMigrationsOuterFailure, workspace: mapShowMigrationsOuterFailure,
+			process: showMigrationsProcessFailure, cleanup: combineShowMigrationsCleanup,
+			barrier: func(primary *ShowMigrationsFailure) *ShowMigrationsFailure {
+				return showMigrationsBarrier(input, primary)
+			},
+		}, commandHooks{})
+	finish := func() ShowMigrationsReport {
+		if command.close() && (!report.HasShowMigrationsFailure || showMigrationsCanceledOrInterrupted(report.ShowMigrationsFailure)) {
 			report.HasShowMigrationsResult = false
 			report.ShowMigrationsResult = ShowMigrationsResult{}
 			report.HasShowMigrationsFailure = true
 			report.ShowMigrationsFailure = showMigrationsCleanupFailure()
 		}
-	}
-	finish := func() ShowMigrationsReport {
-		cleanup()
 		publishShowMigrations(input, &report)
 		return report
 	}
-
-	if terminal := showMigrationsBarrier(input, nil); terminal != nil {
-		chooseShowMigrationsFailure(&report, *terminal)
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
+		chooseShowMigrationsFailure(&report, *primary)
 		return finish()
 	}
-	if !verifyRetainedProject(selected) {
-		chooseShowMigrationsFailure(&report, showMigrationsFailure(
-			showmigrationsprotocol.CategorySelection,
-			showmigrationsprotocol.CodeProjectSelectionFailed,
-		))
-		return finish()
-	}
-
-	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
-	primary = showMigrationsProcessFailure(BuildStage, build)
-	primary = showMigrationsBarrier(input, primary)
-	primary = combineShowMigrationsCleanup(primary, build.CleanupFailed)
-	if primary != nil {
+	if primary = command.buildRunner(); primary != nil {
 		chooseShowMigrationsFailure(&report, *primary)
 		return finish()
 	}
 
-	if !verifyRetainedProject(selected) {
-		chooseShowMigrationsFailure(&report, showMigrationsFailure(
-			showmigrationsprotocol.CategorySelection,
-			showmigrationsprotocol.CodeProjectSelectionFailed,
-		))
-		return finish()
-	}
-	if terminal := showMigrationsBarrier(input, nil); terminal != nil {
-		chooseShowMigrationsFailure(&report, *terminal)
-		return finish()
-	}
-	runnerCommand := Command{
-		Dir:   selected.rootPath,
-		Argv:  []string{filepath.Join(workspace.root, "godj-project-runner"), showmigrationsprotocol.PrivateArgument},
-		Env:   workspace.environment,
-		Stdin: showmigrationsprotocol.RequestDocument(),
-	}
-	report.RunnerCalls++
-	runner := input.Backend.Execute(
-		input.Context,
-		input.Interrupt,
-		ShowMigrationsRunnerStage,
-		cloneCommand(runnerCommand),
-	)
-	recordProcess(&report.Report, ShowMigrationsRunnerStage, runner)
-	primary = showMigrationsProcessFailure(ShowMigrationsRunnerStage, runner)
-	primary = combineShowMigrationsCleanup(primary, runner.CleanupFailed)
-	var response showmigrationsprotocol.Response
-	if primary == nil {
-		if runner.StdoutScalar.Truncated {
-			candidate := showMigrationsFailure(
-				showmigrationsprotocol.CategoryProtocol,
-				showmigrationsprotocol.CodeInvalidResponse,
-			)
-			primary = &candidate
-		} else {
-			parsed, parseFailure, failed := showmigrationsprotocol.ParseResponse(
-				runner.Stdout,
-				runner.Started && runner.ExitCode == 0,
-			)
-			if failed {
-				candidate := showMigrationsFailure(parseFailure.Category, parseFailure.Code)
-				primary = &candidate
-			} else {
-				response = parsed
-			}
-		}
-	}
-	clear(runner.Stdout)
-	runner.Stdout = nil
+	runner := command.run(ShowMigrationsRunnerStage, showmigrationsprotocol.PrivateArgument, showmigrationsprotocol.RequestDocument())
+	response, primary := parseCommandResponse(&runner, command.completed(ShowMigrationsRunnerStage, runner),
+		showMigrationsFailure(showmigrationsprotocol.CategoryProtocol, showmigrationsprotocol.CodeInvalidResponse), showmigrationsprotocol.ParseResponse)
 	if primary != nil {
 		chooseShowMigrationsFailure(&report, *primary)
 		return finish()

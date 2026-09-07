@@ -5,11 +5,9 @@ package relationobjectproduct
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/blog"
@@ -39,12 +37,6 @@ type NullableObservation struct {
 	IsNullEvaluation   relationstate.QueryMetrics
 }
 
-type Observation struct {
-	Forward  ForwardCacheObservation
-	Nullable NullableObservation
-	DBState  relationstate.DatabaseState
-}
-
 type fixtureConfig struct {
 	authors      []relationstate.AuthorRow
 	posts        []relationstate.PostRow
@@ -60,48 +52,35 @@ type recordingQueryer struct {
 	statements []string
 }
 
-var databaseSequence atomic.Uint64
-
-func Observe(ctx context.Context) (Observation, error) {
-	return observe(ctx, defaultFixtureConfig())
+// ObserveForward executes only its contract against a fresh database.
+func ObserveForward(ctx context.Context) (relationstate.Observation[ForwardCacheObservation], error) {
+	return observe(ctx, defaultFixtureConfig(), observeForward)
 }
 
-func observe(ctx context.Context, config fixtureConfig) (Observation, error) {
-	if ctx == nil {
-		return Observation{}, fmt.Errorf("observe REL-003/006: context is nil")
-	}
-	backend, err := sqlite.OpenMemory(ctx, fmt.Sprintf("godj-rel003-006-%d", databaseSequence.Add(1)))
-	if err != nil {
-		return Observation{}, fmt.Errorf("open REL-003/006 SQLite fixture: %w", err)
-	}
-	observation, observeErr := observeWithBackend(ctx, backend, config)
-	closeErr := backend.Close()
-	if observeErr != nil {
-		return Observation{}, errors.Join(observeErr, closeErr)
-	}
-	if closeErr != nil {
-		return Observation{}, closeErr
-	}
-	return observation, nil
+// ObserveNullable executes only its contract against a fresh database.
+func ObserveNullable(ctx context.Context) (relationstate.Observation[NullableObservation], error) {
+	return observe(ctx, defaultFixtureConfig(), observeNullable)
 }
 
-func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fixtureConfig) (Observation, error) {
-	if err := relationstate.Provision(ctx, backend, "REL-003/006", config.authors, config.posts); err != nil {
-		return Observation{}, err
-	}
-	objects, err := project.BindObjects()
-	if err != nil {
-		return Observation{}, fmt.Errorf("bind generated REL-003/006 objects: %w", err)
-	}
-	recorder := &recordingQueryer{backend: backend}
+func observe[T any](ctx context.Context, config fixtureConfig, run func(context.Context, *recordingQueryer, project.Objects, fixtureConfig) (T, error)) (relationstate.Observation[T], error) {
+	return relationstate.Observe(ctx, "relation-object", relationstate.DatabaseState{Authors: config.authors, Posts: config.posts}, func(backend *sqlite.Backend) (T, error) {
+		objects, err := project.BindObjects()
+		if err != nil {
+			var zero T
+			return zero, fmt.Errorf("bind generated relation objects: %w", err)
+		}
+		return run(ctx, &recordingQueryer{backend: backend}, objects, config)
+	})
+}
 
+func observeForward(ctx context.Context, recorder *recordingQueryer, objects project.Objects, config fixtureConfig) (ForwardCacheObservation, error) {
 	post, err := loadPost(ctx, recorder, config.loadPostID)
 	if err != nil {
-		return Observation{}, fmt.Errorf("load REL-003 source post: %w", err)
+		return ForwardCacheObservation{}, fmt.Errorf("load REL-003 source post: %w", err)
 	}
 	object, err := objects.BlogPost.From(recorder, post)
 	if err != nil {
-		return Observation{}, fmt.Errorf("wrap REL-003 source post: %w", err)
+		return ForwardCacheObservation{}, fmt.Errorf("wrap REL-003 source post: %w", err)
 	}
 	// Mutating the caller's source after From must not redirect either the
 	// generated object snapshot or its related-object loaders.
@@ -113,7 +92,7 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	coldStart := recorder.mark()
 	cold, err := object.Author(ctx)
 	if err != nil {
-		return Observation{}, fmt.Errorf("cold REL-003 author access: %w", err)
+		return ForwardCacheObservation{}, fmt.Errorf("cold REL-003 author access: %w", err)
 	}
 	coldMetrics := recorder.metricsSince(coldStart)
 	coldRow := relationstate.AuthorRow{ID: cold.ID, Name: cold.Name}
@@ -124,7 +103,7 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	warmStart := recorder.mark()
 	warm, err := object.Author(ctx)
 	if err != nil {
-		return Observation{}, fmt.Errorf("warm REL-003 author access: %w", err)
+		return ForwardCacheObservation{}, fmt.Errorf("warm REL-003 author access: %w", err)
 	}
 	warmMetrics := recorder.metricsSince(warmStart)
 	forward := ForwardCacheObservation{
@@ -136,18 +115,22 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 		},
 	}
 
+	return forward, nil
+}
+
+func observeNullable(ctx context.Context, recorder *recordingQueryer, objects project.Objects, config fixtureConfig) (NullableObservation, error) {
 	nullablePost, err := loadPost(ctx, recorder, config.nullablePost)
 	if err != nil {
-		return Observation{}, fmt.Errorf("load REL-006 source post: %w", err)
+		return NullableObservation{}, fmt.Errorf("load REL-006 source post: %w", err)
 	}
 	nullableObject, err := objects.BlogPost.From(recorder, nullablePost)
 	if err != nil {
-		return Observation{}, fmt.Errorf("wrap REL-006 source post: %w", err)
+		return NullableObservation{}, fmt.Errorf("wrap REL-006 source post: %w", err)
 	}
 	nullStart := recorder.mark()
 	reviewer, reviewerOK, err := nullableObject.Reviewer(ctx)
 	if err != nil {
-		return Observation{}, fmt.Errorf("REL-006 nullable reviewer access: %w", err)
+		return NullableObservation{}, fmt.Errorf("REL-006 nullable reviewer access: %w", err)
 	}
 	var reviewerRow *relationstate.AuthorRow
 	if reviewerOK {
@@ -162,7 +145,7 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 		{Key: "reviewer__isnull", Value: config.isNullValue},
 	})
 	if err != nil {
-		return Observation{}, fmt.Errorf("build dynamic REL-006 isnull: %w", err)
+		return NullableObservation{}, fmt.Errorf("build dynamic REL-006 isnull: %w", err)
 	}
 	typedQuery := blog.PostObjects.Using(recorder).Filter(typedPredicate)
 	dynamicQuery := blog.PostObjects.Using(recorder).Filter(dynamicPredicates...)
@@ -174,22 +157,22 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 		dynamicQuery = dynamicQuery.OrderBy(blog.PostFields.ID.Asc())
 	}
 	if !typedQuery.Plan().Equal(dynamicQuery.Plan()) {
-		return Observation{}, fmt.Errorf("typed and dynamic REL-006 plans differ")
+		return NullableObservation{}, fmt.Errorf("typed and dynamic REL-006 plans differ")
 	}
 	conditions := typedQuery.Plan().Conditions()
 	if len(conditions) != 1 {
-		return Observation{}, fmt.Errorf("REL-006 plan has %d conditions, want one", len(conditions))
+		return NullableObservation{}, fmt.Errorf("REL-006 plan has %d conditions, want one", len(conditions))
 	}
 	path, related := conditions[0].RelationPath()
 	if !related || path.TerminalScope() != query.RelationTerminalSourceKey || len(path.Hops()) != 1 || !path.Hops()[0].Nullable() {
-		return Observation{}, fmt.Errorf("REL-006 plan lost nullable source-key relation provenance")
+		return NullableObservation{}, fmt.Errorf("REL-006 plan lost nullable source-key relation provenance")
 	}
 	constructionMetrics := recorder.metricsSince(constructionStart)
 
 	evaluationStart := recorder.mark()
 	posts, err := typedQuery.All(ctx)
 	if err != nil {
-		return Observation{}, fmt.Errorf("evaluate REL-006 isnull: %w", err)
+		return NullableObservation{}, fmt.Errorf("evaluate REL-006 isnull: %w", err)
 	}
 	evaluationMetrics := recorder.metricsSince(evaluationStart)
 	identifiers := make([]int64, len(posts))
@@ -202,31 +185,20 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	// object loader, not through a manually constructed Author literal.
 	positivePost, err := loadPost(ctx, recorder, 10)
 	if err != nil {
-		return Observation{}, fmt.Errorf("load positive nullable source: %w", err)
+		return NullableObservation{}, fmt.Errorf("load positive nullable source: %w", err)
 	}
 	positiveObject, err := objects.BlogPost.From(recorder, positivePost)
 	if err != nil {
-		return Observation{}, fmt.Errorf("wrap positive nullable source: %w", err)
+		return NullableObservation{}, fmt.Errorf("wrap positive nullable source: %w", err)
 	}
 	positiveReviewer, ok, err := positiveObject.Reviewer(ctx)
 	if err != nil || !ok || positiveReviewer.ID != 2 {
-		return Observation{}, fmt.Errorf("positive nullable reviewer = (%#v, %t, %v), want author 2", positiveReviewer, ok, err)
+		return NullableObservation{}, fmt.Errorf("positive nullable reviewer = (%#v, %t, %v), want author 2", positiveReviewer, ok, err)
 	}
 
-	state, err := relationstate.Read(ctx, backend, "REL-003/006")
-	if err != nil {
-		return Observation{}, err
-	}
-	return Observation{
-		Forward: forward,
-		Nullable: NullableObservation{
-			Reviewer:           reviewerRow,
-			IsNullPostIDs:      identifiers,
-			NullAccess:         nullMetrics,
-			IsNullConstruction: constructionMetrics,
-			IsNullEvaluation:   evaluationMetrics,
-		},
-		DBState: state,
+	return NullableObservation{
+		Reviewer: reviewerRow, IsNullPostIDs: identifiers,
+		NullAccess: nullMetrics, IsNullConstruction: constructionMetrics, IsNullEvaluation: evaluationMetrics,
 	}, nil
 }
 

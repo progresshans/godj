@@ -58,9 +58,11 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
 
 ## 결정
 
-1. `sessions`는 opaque CSPRNG session ID, immutable Record, absolute/idle expiry와 `Load/Create/Rotate/Delete` Store boundary를
-   소유합니다. Manager는 ID entropy, expiry, fixation-safe rotation과 flush를 검증합니다. First product store는 concurrent
-   memory-only이며 process restart/다중 process 공유를 지원하지 않습니다.
+1. `sessions`는 opaque CSPRNG session ID, immutable Record, absolute/idle expiry와 `Load/Create/Touch/Rotate/Delete` Store boundary를
+   소유합니다. `Touch`는 저장된 현재 record의 만료 판정·갱신·만료 삭제를 한 원자 연산으로 수행하고 active/expired/missing을
+   구분합니다. Detached Load 뒤 다른 요청이 연장한 세션을 오래된 deadline으로 삭제해서는 안 됩니다. MemoryStore는 lock,
+   durable store는 coordination transaction 안에서 이 의미를 구현합니다. Manager는 ID entropy, expiry, fixation-safe rotation과
+   flush를 검증합니다. MemoryStore의 상태는 process restart/다중 process 사이에 공유되지 않습니다.
 2. Session cookie는 bounded name/path/domain configuration, HttpOnly, SameSite, Secure policy와 exact expiry/delete semantics를
    사용합니다. Loopback HTTP example은 Secure=false라는 개발 경계를 명시하고 production cookie policy를 주장하지 않습니다.
 3. `auth`는 Principal, exact string Permission, CredentialAuthenticator, Authorizer와 injectable PasswordHasher를 소유합니다.

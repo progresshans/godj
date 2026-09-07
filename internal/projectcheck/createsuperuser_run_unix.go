@@ -56,18 +56,6 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 
 	input.Context, input.Environment, input.Backend = normalizeCommandInput(input.Context, input.Environment, input.Backend)
 
-	selectProjectCall := hooks.selectProject
-	if selectProjectCall == nil {
-		selectProjectCall = selectProject
-	}
-	verifyProjectCall := hooks.verifyRetainedProject
-	if verifyProjectCall == nil {
-		verifyProjectCall = verifyRetainedProject
-	}
-	createWorkspaceCall := hooks.createPrivateWorkspace
-	if createWorkspaceCall == nil {
-		createWorkspaceCall = createPrivateWorkspaceWithHooks
-	}
 	readTerminalCall := hooks.readTerminal
 	if readTerminalCall == nil {
 		readTerminalCall = readCreatesuperuserTerminal
@@ -80,14 +68,6 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 	if executeSensitiveCall == nil {
 		executeSensitiveCall = executeOwnedCreatesuperuserProcess
 	}
-	closeProjectCall := hooks.closeProject
-	if closeProjectCall == nil {
-		closeProjectCall = func(project *retainedProject) error { return project.close() }
-	}
-	cleanupWorkspaceCall := hooks.cleanupWorkspace
-	if cleanupWorkspaceCall == nil {
-		cleanupWorkspaceCall = func(workspace *privateWorkspace) error { return workspace.cleanup() }
-	}
 
 	var primary *CreatesuperuserFailure
 	if terminal := createsuperuserBarrier(input, nil); terminal != nil {
@@ -96,102 +76,53 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 		return report
 	}
 
-	selected, selectionFailure := selectProjectCall(
-		input.CWD,
-		commandArguments{explicitDescriptor: arguments.explicitDescriptor},
-		&report.Report,
-	)
-	if selectionFailure != nil {
-		candidate := mapCreatesuperuserOuterFailure(*selectionFailure)
-		primary = &candidate
-	}
-	if primary == nil && !verifyProjectCall(selected) {
-		candidate := createsuperuserFailure(
-			createsuperuserprotocol.CategorySelection,
-			createsuperuserprotocol.CodeProjectSelectionFailed,
-		)
-		primary = &candidate
-	}
-	if primary == nil && hooks.afterProjectSelection != nil {
-		hooks.afterProjectSelection()
-	}
-	primary = createsuperuserBarrier(input, primary)
-	if primary != nil {
-		cleanupFailed := selected.root != nil && closeProjectCall(&selected) != nil
-		if cleanupFailed {
-			report.CleanupFailed = 1
-		}
-		primary = combineCreatesuperuserCleanup(primary, cleanupFailed)
-		chooseCreatesuperuserFailure(&report, *primary)
-		publishCreatesuperuser(input, &report, hooks.beforePublicPublication)
-		return report
-	}
-
-	workspace, workspaceFailure := createWorkspaceCall(
-		selected,
-		input.Environment,
-		&report.Report,
-		input.workspace,
-	)
-	if workspaceFailure != nil {
-		candidate := mapCreatesuperuserOuterFailure(*workspaceFailure)
-		primary = &candidate
-		primary = createsuperuserBarrier(input, primary)
-		cleanupFailed := closeProjectCall(&selected) != nil
-		if cleanupFailed {
-			report.CleanupFailed = 1
-		}
-		primary = combineCreatesuperuserCleanup(primary, cleanupFailed || report.CleanupFailed != 0)
-		chooseCreatesuperuserFailure(&report, *primary)
-		publishCreatesuperuser(input, &report, hooks.beforePublicPublication)
-		return report
-	}
-
-	cleanup := func() {
-		cleanupFailed := closeCommandWorkspace(&report.Report,
-			func() error { return closeProjectCall(&selected) },
-			func() error { return cleanupWorkspaceCall(&workspace) })
-		if !cleanupFailed {
-			return
-		}
-		report.CleanupFailed = 1
-		if report.KnownCreated {
-			replaceCreatesuperuserOutcomeWithFailure(&report, createsuperuserFailure(
-				createsuperuserprotocol.CategoryProcess,
-				createsuperuserprotocol.CodeOperatorCreatedWorkspaceCleanupFailed,
-			))
-			return
-		}
-		if !report.HasCreatesuperuserFailure || createsuperuserCanceledOrInterrupted(report.CreatesuperuserFailure) {
-			replaceCreatesuperuserOutcomeWithFailure(&report, createsuperuserCleanupFailure())
-		}
-	}
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[CreatesuperuserFailure]{
+			selection: mapCreatesuperuserOuterFailure, workspace: mapCreatesuperuserOuterFailure,
+			barrier: func(primary *CreatesuperuserFailure) *CreatesuperuserFailure {
+				return createsuperuserBarrier(input, primary)
+			},
+			cleanup: combineCreatesuperuserCleanup,
+			process: func(_ ProcessStage, process ProcessResult) *CreatesuperuserFailure {
+				return createsuperuserBuildProcessFailure(process)
+			},
+			afterSelection: func(retainedProject) *CreatesuperuserFailure {
+				if hooks.afterProjectSelection != nil {
+					hooks.afterProjectSelection()
+				}
+				return nil
+			},
+		}, commandHooks{
+			selectProject: hooks.selectProject, verifyProject: hooks.verifyRetainedProject,
+			makeWorkspace: hooks.createPrivateWorkspace, closeProject: hooks.closeProject,
+			closeWorkspace: hooks.cleanupWorkspace,
+		})
 	finish := func() CreatesuperuserReport {
-		// Public output is terminal: every retained descriptor/workspace resource is
-		// closed first, including for logical and known-created outcomes.
-		cleanup()
+		if command.close() {
+			if report.KnownCreated {
+				replaceCreatesuperuserOutcomeWithFailure(&report, createsuperuserFailure(
+					createsuperuserprotocol.CategoryProcess,
+					createsuperuserprotocol.CodeOperatorCreatedWorkspaceCleanupFailed,
+				))
+			} else if !report.HasCreatesuperuserFailure || createsuperuserCanceledOrInterrupted(report.CreatesuperuserFailure) {
+				replaceCreatesuperuserOutcomeWithFailure(&report, createsuperuserCleanupFailure())
+			}
+		}
+		// Retained project and workspace cleanup precede this sole public write,
+		// including logical failure, known-created and uncertain outcomes.
 		publishCreatesuperuser(input, &report, hooks.beforePublicPublication)
 		return report
 	}
-
-	if terminal := createsuperuserBarrier(input, nil); terminal != nil {
-		chooseCreatesuperuserFailure(&report, *terminal)
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
+		chooseCreatesuperuserFailure(&report, *primary)
 		return finish()
 	}
-	if !verifyProjectCall(selected) {
-		chooseCreatesuperuserFailure(&report, createsuperuserFailure(
-			createsuperuserprotocol.CategorySelection,
-			createsuperuserprotocol.CodeProjectSelectionFailed,
-		))
+	if primary = command.ready(); primary != nil {
+		chooseCreatesuperuserFailure(&report, *primary)
 		return finish()
 	}
-
-	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
-	primary = createsuperuserBuildProcessFailure(build)
-	primary = createsuperuserBarrier(input, primary)
-	primary = combineCreatesuperuserCleanup(primary, build.CleanupFailed)
-	if primary != nil {
+	selected, workspace := command.selected, command.workspace
+	if primary = command.build(selected.descriptor.packagePath, "godj-project-runner"); primary != nil {
 		chooseCreatesuperuserFailure(&report, *primary)
 		return finish()
 	}
@@ -199,7 +130,7 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 	// The actual terminal is not consulted until one retained project has built
 	// successfully. Verify the retained descriptor immediately before and after
 	// the complete no-echo interaction.
-	if !verifyProjectCall(selected) {
+	if !command.hooks.verifyProject(selected) {
 		chooseCreatesuperuserFailure(&report, createsuperuserFailure(
 			createsuperuserprotocol.CategorySelection,
 			createsuperuserprotocol.CodeProjectSelectionFailed,
@@ -217,7 +148,7 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 		input.Stderr,
 		&report,
 	)
-	retainedAfterTerminal := verifyProjectCall(selected)
+	retainedAfterTerminal := command.hooks.verifyProject(selected)
 	if inputFailure != nil {
 		primary = inputFailure
 	} else if !retainedAfterTerminal {

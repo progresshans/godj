@@ -13,10 +13,25 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/internal/sessiontest"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
 )
+
+func TestDurableSessionStoreAtomicAccess(t *testing.T) {
+	sessiontest.AtomicAccess(t, func(t *testing.T) sessions.Store {
+		ctx := context.Background()
+		backend := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "access.sqlite3"))+"?mode=rwc")
+		t.Cleanup(func() {
+			if err := backend.Close(); err != nil {
+				t.Error(err)
+			}
+		})
+		explicitlyMigrateSystemState(t, ctx, backend)
+		return mustDurableSessionStore(t, &sessionStoreTestGate{backend: backend}, 4)
+	})
+}
 
 func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing.T) {
 	ctx := context.Background()
@@ -71,20 +86,20 @@ func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing
 		_ = secondBackend.Close()
 		t.Fatalf("loaded principal = %q", principal)
 	}
-	touched, found, err := secondStore.Touch(ctx, oldID, createdAt.Add(5*time.Minute), createdAt.Add(35*time.Minute))
-	if err != nil || !found || !touched.AccessedAt().Equal(createdAt.Add(5*time.Minute)) ||
+	touched, status, err := secondStore.Touch(ctx, oldID, createdAt.Add(5*time.Minute), createdAt.Add(35*time.Minute))
+	if err != nil || status != sessions.TouchActive || !touched.AccessedAt().Equal(createdAt.Add(5*time.Minute)) ||
 		!touched.IdleExpiresAt().Equal(createdAt.Add(35*time.Minute)) {
 		_ = secondBackend.Close()
-		t.Fatalf("Touch() = (%v,%v,%v), want monotonic persisted touch", touched, found, err)
+		t.Fatalf("Touch() = (%v,%v,%v), want monotonic persisted touch", touched, status, err)
 	}
 	if got := secondGate.updates.Load(); got != 1 {
 		t.Fatalf("advancing Touch updates = %d, want 1", got)
 	}
 	// An out-of-order touch cannot move either timestamp backwards.
-	regression, found, err := secondStore.Touch(ctx, oldID, createdAt.Add(time.Minute), createdAt.Add(31*time.Minute))
-	if err != nil || !found || regression.AccessedAt() != touched.AccessedAt() || regression.IdleExpiresAt() != touched.IdleExpiresAt() {
+	regression, status, err := secondStore.Touch(ctx, oldID, createdAt.Add(time.Minute), createdAt.Add(31*time.Minute))
+	if err != nil || status != sessions.TouchActive || regression.AccessedAt() != touched.AccessedAt() || regression.IdleExpiresAt() != touched.IdleExpiresAt() {
 		_ = secondBackend.Close()
-		t.Fatalf("Touch(regression) = (%v,%v,%v), want unchanged timestamps", regression, found, err)
+		t.Fatalf("Touch(regression) = (%v,%v,%v), want unchanged timestamps", regression, status, err)
 	}
 	if got := secondGate.updates.Load(); got != 1 {
 		t.Fatalf("nonadvancing Touch total updates = %d, want unchanged 1", got)
@@ -102,10 +117,10 @@ func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing
 	)
 	// The replacement was detached before a later confirmed access. Rotate must
 	// merge that stored touch atomically instead of publishing stale timestamps.
-	latest, found, err := secondStore.Touch(ctx, oldID, createdAt.Add(10*time.Minute), createdAt.Add(40*time.Minute))
-	if err != nil || !found {
+	latest, status, err := secondStore.Touch(ctx, oldID, createdAt.Add(10*time.Minute), createdAt.Add(40*time.Minute))
+	if err != nil || status != sessions.TouchActive {
 		_ = secondBackend.Close()
-		t.Fatalf("Touch(after detached replacement) = (%v,%v,%v)", latest, found, err)
+		t.Fatalf("Touch(after detached replacement) = (%v,%v,%v)", latest, status, err)
 	}
 	published, rotated, err := secondStore.Rotate(ctx, oldID, replacement)
 	if err != nil || !rotated {

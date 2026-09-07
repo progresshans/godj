@@ -9,6 +9,7 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectgenerate/protocol"
+	"github.com/progresshans/godj/internal/projectwire"
 )
 
 // Loader returns the complete declaration-owned project specification.
@@ -78,7 +79,7 @@ func Run(
 			Code:     protocol.CodeProjectSpecLoadFailed,
 		}})
 	}
-	if err := protocol.ValidateProjectSpec(spec); err != nil {
+	if err := projectwire.Validate(spec); err != nil {
 		return completeResponse(ctx, stdout, report, protocol.Response{Failure: protocol.Failure{
 			Category: protocol.CategoryDeclaration,
 			Code:     protocol.CodeProjectSpecLoadFailed,

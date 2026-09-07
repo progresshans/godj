@@ -72,6 +72,8 @@ var commandAndInternalSourcePrefixes = []string{
 	"internal/projectgenerate/",
 	"internal/projectmigration/",
 	"internal/projectspec/",
+	"internal/projectwire/",
+	"internal/wirejson/",
 }
 
 var conformanceConsumerSourcePrefixes = []string{

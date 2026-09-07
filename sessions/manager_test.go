@@ -11,8 +11,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/internal/sessiontest"
 	"github.com/progresshans/godj/sessions"
 )
+
+func TestMemoryStoreAtomicAccess(t *testing.T) {
+	sessiontest.AtomicAccess(t, func(t *testing.T) sessions.Store {
+		store, err := sessions.NewMemoryStore(4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return store
+	})
+}
 
 func TestManagerCreateLoadRotateAndFlush(t *testing.T) {
 	t.Parallel()
@@ -247,14 +258,14 @@ func TestMemoryStoreTouchDoesNotRegressUnderOutOfOrderCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	laterAccess := now.Add(10 * time.Minute)
-	laterExpiry := now.Add(20 * time.Minute)
-	if _, found, err := store.Touch(context.Background(), record.ID(), laterAccess, laterExpiry); err != nil || !found {
-		t.Fatalf("later touch: found=%v err=%v", found, err)
+	laterAccess := now.Add(9 * time.Minute)
+	laterExpiry := now.Add(19 * time.Minute)
+	if _, status, err := store.Touch(context.Background(), record.ID(), laterAccess, laterExpiry); err != nil || status != sessions.TouchActive {
+		t.Fatalf("later touch: status=%v err=%v", status, err)
 	}
-	touched, found, err := store.Touch(context.Background(), record.ID(), now.Add(5*time.Minute), now.Add(15*time.Minute))
-	if err != nil || !found {
-		t.Fatalf("older touch: found=%v err=%v", found, err)
+	touched, status, err := store.Touch(context.Background(), record.ID(), now.Add(5*time.Minute), now.Add(15*time.Minute))
+	if err != nil || status != sessions.TouchActive {
+		t.Fatalf("older touch: status=%v err=%v", status, err)
 	}
 	if !touched.AccessedAt().Equal(laterAccess) || !touched.IdleExpiresAt().Equal(laterExpiry) {
 		t.Fatalf("touch regressed: accessed=%v idle=%v", touched.AccessedAt(), touched.IdleExpiresAt())

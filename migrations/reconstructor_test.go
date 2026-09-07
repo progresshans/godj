@@ -359,10 +359,10 @@ func TestCloneReconstructorOperationDeepCopiesNestedRelation(t *testing.T) {
 	if !supported || kind != "AddField" {
 		t.Fatalf("cloneReconstructorOperation() = %T, %q, %t", clonedOperation, kind, supported)
 	}
-	cloned := clonedOperation.(*AddField)
+	cloned := clonedOperation.(AddField)
 	operation.Field.Relation.Target.AppLabel = "mutated"
 	operation.Field.Relation.Reverse.Name = "mutated"
-	if cloned == operation || cloned.Field.Relation == operation.Field.Relation ||
+	if cloned.Field.Relation == operation.Field.Relation ||
 		cloned.Field.Relation.Target.AppLabel != "authors" || cloned.Field.Relation.Reverse.Name != "posts" {
 		t.Fatalf("cloned AddField retained relation alias: %#v", cloned)
 	}
@@ -1358,7 +1358,7 @@ func TestLoadedRelationBackwardRemoveAuthorityRejectsUnsealedUniversesBeforeCapa
 			fake := newLifecycleTestBackend(session)
 			fake.capabilities = lifecycleAllRelationCapabilities()
 			state, err := (Executor{Backend: fake}).Migrate(
-				lifecycleLoadedContext(t, test.defs), testLoadedDefinitionSet(
+				lifecycleLoadedContext(t, test.defs), testLoadedDefinitionSet(t,
 
 					test.defs),
 

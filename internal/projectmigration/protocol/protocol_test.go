@@ -12,6 +12,8 @@ import (
 	"testing/iotest"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/projectwire"
+	"github.com/progresshans/godj/internal/wirejson"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -117,7 +119,7 @@ func TestRequestTransportNoProgressAndDrainPrecedence(t *testing.T) {
 func TestProjectSpecNormalizationDigestAndCallerOwnership(t *testing.T) {
 	t.Parallel()
 	input := permutedSpec()
-	original := cloneProjectSpec(input)
+	original := projectwire.Clone(input)
 	normalized, err := NormalizeProjectSpec(input)
 	if err != nil {
 		t.Fatal(err)
@@ -485,25 +487,19 @@ func TestMeasureMatchesCanonicalEncodingAndRejectsOverflow(t *testing.T) {
 	t.Parallel()
 	result := validResult(t)
 	wire := toWireResult(result)
-	sizer := &wireSizer{maximum: MaxResponseBytes}
-	if !sizer.literal(`{"protocol_version":1,"status":"ok","result":`) ||
-		!measureResult(sizer, wire) || !sizer.literal(`}`) {
+	sizer := wirejson.NewSizer(MaxResponseBytes)
+	if !sizer.Literal(`{"protocol_version":1,"status":"ok","result":`) ||
+		!measureResult(sizer, wire) || !sizer.Literal(`}`) {
 		t.Fatal("valid response did not measure")
 	}
 	encoded, err := json.Marshal(successDocument{ProtocolVersion: Version, Status: "ok", Result: wire})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sizer.size != len(encoded) {
-		t.Fatalf("measured=%d encoded=%d", sizer.size, len(encoded))
+	if sizer.Size() != len(encoded) {
+		t.Fatalf("measured=%d encoded=%d", sizer.Size(), len(encoded))
 	}
-	boundary := &wireSizer{size: MaxResponseBytes - 1, maximum: MaxResponseBytes}
-	if !boundary.add(1) || boundary.size != MaxResponseBytes {
-		t.Fatalf("maximum rejected: %+v", boundary)
-	}
-	if boundary.add(1) || boundary.size != MaxResponseBytes+1 {
-		t.Fatalf("maximum+1 accepted: %+v", boundary)
-	}
+
 }
 
 func TestWriteResponseOneAttemptShortWriteAndErrors(t *testing.T) {

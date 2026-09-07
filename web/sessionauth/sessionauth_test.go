@@ -599,12 +599,12 @@ func (s *countingStore) Create(ctx context.Context, record sessions.Record) (boo
 	return created, err
 }
 
-func (s *countingStore) Touch(ctx context.Context, id sessions.ID, accessedAt, idleExpiresAt time.Time) (sessions.Record, bool, error) {
-	record, found, err := s.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
-	if err == nil && found {
+func (s *countingStore) Touch(ctx context.Context, id sessions.ID, accessedAt, idleExpiresAt time.Time) (sessions.Record, sessions.TouchStatus, error) {
+	record, status, err := s.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
+	if err == nil && status != sessions.TouchMissing {
 		s.writes.Add(1)
 	}
-	return record, found, err
+	return record, status, err
 }
 
 func (s *countingStore) Rotate(ctx context.Context, old sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"path/filepath"
 
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 )
@@ -26,125 +25,36 @@ func Run(input Invocation) Report {
 		return report
 	}
 
-	selected, primary := selectProject(input.CWD, arguments, &report)
-	if primary == nil && !verifyRetainedProject(selected) {
-		candidate := failure(protocol.CategorySelection, protocol.CodeProjectSelectionFailed)
-		primary = &candidate
-	}
-	if terminal := barrierFailure(input, primary); terminal != nil {
-		if selected.root != nil {
-			if err := selected.close(); err != nil {
-				report.CleanupFailed = 1
-				if terminal.Category == protocol.CategoryProcess && (terminal.Code == protocol.CodeProjectCanceled || terminal.Code == protocol.CodeProjectInterrupted) {
-					cleanupFailure := failure(protocol.CategoryProcess, protocol.CodeProjectCleanupFailed)
-					terminal = &cleanupFailure
-				}
-			}
-		}
-		chooseFailure(&report, *terminal)
-		publish(input, &report)
-		return report
-	}
-
-	workspace, primary := createPrivateWorkspaceWithHooks(selected, input.Environment, &report, input.workspace)
-	if primary != nil {
-		terminal := barrierFailure(input, primary)
-		if err := selected.close(); err != nil {
-			report.CleanupFailed = 1
-			if terminal.Category == protocol.CategoryProcess && (terminal.Code == protocol.CodeProjectCanceled || terminal.Code == protocol.CodeProjectInterrupted) {
-				cleanupFailure := failure(protocol.CategoryProcess, protocol.CodeProjectCleanupFailed)
-				terminal = &cleanupFailure
-			}
-		}
-		terminal = combineProcessCleanup(terminal, report.CleanupFailed != 0)
-		chooseFailure(&report, *terminal)
-		publish(input, &report)
-		return report
-	}
-
-	cleanup := func() {
-		cleanupFailed := closeCommandWorkspace(&report, selected.close, workspace.cleanup)
-		if !cleanupFailed {
-			return
-		}
-		report.CleanupFailed = 1
-		if !report.HasFailure || report.Failure.Code == protocol.CodeProjectCanceled || report.Failure.Code == protocol.CodeProjectInterrupted {
+	mapOuter := func(input Failure) Failure { return input }
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report,
+		commandPolicy[Failure]{
+			selection: mapOuter, workspace: mapOuter, process: processFailure,
+			cleanup: combineProcessCleanup,
+			barrier: func(primary *Failure) *Failure { return barrierFailure(input, primary) },
+		}, commandHooks{})
+	finish := func() Report {
+		if command.close() && (!report.HasFailure ||
+			report.Failure.Code == protocol.CodeProjectCanceled || report.Failure.Code == protocol.CodeProjectInterrupted) {
 			report.HasResult = false
 			report.Result = Result{}
 			report.HasFailure = true
 			report.Failure = failure(protocol.CategoryProcess, protocol.CodeProjectCleanupFailed)
 		}
-	}
-	if terminal := barrierFailure(input, nil); terminal != nil {
-		chooseFailure(&report, *terminal)
-		cleanup()
 		publish(input, &report)
 		return report
 	}
-
-	if !verifyRetainedProject(selected) {
-		chooseFailure(&report, failure(protocol.CategorySelection, protocol.CodeProjectSelectionFailed))
-		cleanup()
-		publish(input, &report)
-		return report
-	}
-	if terminal := barrierFailure(input, nil); terminal != nil {
-		chooseFailure(&report, *terminal)
-		cleanup()
-		publish(input, &report)
-		return report
-	}
-	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.packagePath, "godj-project-runner", &report)
-	primary = processFailure(BuildStage, build)
-	primary = barrierFailure(input, primary)
-	primary = combineProcessCleanup(primary, build.CleanupFailed)
-	if primary != nil {
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
 		chooseFailure(&report, *primary)
-		cleanup()
-		publish(input, &report)
-		return report
+		return finish()
+	}
+	if primary = command.buildRunner(); primary != nil {
+		chooseFailure(&report, *primary)
+		return finish()
 	}
 
-	if !verifyRetainedProject(selected) {
-		chooseFailure(&report, failure(protocol.CategorySelection, protocol.CodeProjectSelectionFailed))
-		cleanup()
-		publish(input, &report)
-		return report
-	}
-	if terminal := barrierFailure(input, nil); terminal != nil {
-		chooseFailure(&report, *terminal)
-		cleanup()
-		publish(input, &report)
-		return report
-	}
-	runnerCommand := Command{
-		Dir:   selected.rootPath,
-		Argv:  []string{filepath.Join(workspace.root, "godj-project-runner"), protocol.PrivateArgument},
-		Env:   workspace.environment,
-		Stdin: protocol.RequestDocument(),
-	}
-	report.RunnerCalls++
-	runner := input.Backend.Execute(input.Context, input.Interrupt, RunnerStage, cloneCommand(runnerCommand))
-	recordProcess(&report, RunnerStage, runner)
-	primary = processFailure(RunnerStage, runner)
-	primary = combineProcessCleanup(primary, runner.CleanupFailed)
-	var response protocol.Response
-	if primary == nil {
-		if runner.StdoutScalar.Truncated {
-			candidate := failure(protocol.CategoryProtocol, protocol.CodeInvalidProjectRunnerResponse)
-			primary = &candidate
-		} else {
-			parsed, parseFailure, failed := protocol.ParseResponse(runner.Stdout, runner.Started && runner.ExitCode == 0)
-			if failed {
-				candidate := failure(parseFailure.Category, parseFailure.Code)
-				primary = &candidate
-			} else {
-				response = parsed
-			}
-		}
-	}
-	clear(runner.Stdout)
+	runner := command.run(RunnerStage, protocol.PrivateArgument, protocol.RequestDocument())
+	response, primary := parseCommandResponse(&runner, command.completed(RunnerStage, runner),
+		failure(protocol.CategoryProtocol, protocol.CodeInvalidProjectRunnerResponse), protocol.ParseResponse)
 	primary = barrierFailure(input, primary)
 	if primary != nil {
 		chooseFailure(&report, *primary)
@@ -153,9 +63,7 @@ func Run(input Invocation) Report {
 	} else {
 		chooseFailure(&report, failure(response.Failure.Category, response.Failure.Code))
 	}
-	cleanup()
-	publish(input, &report)
-	return report
+	return finish()
 }
 
 func processFailure(stage ProcessStage, process ProcessResult) *Failure {

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -56,9 +57,13 @@ func compileScalar(
 	sourceFields []query.FieldRef,
 	where whereAnalysis,
 ) (string, []any, error) {
-	selectedFields, err := scalarSelectedFields(plan, sourceFields)
-	if err != nil {
-		return "", nil, err
+	selectedFields := sourceFields
+	if plan.ResultShape().Kind() == query.ResultProjection {
+		var err error
+		selectedFields, err = queryplan.ProjectionFields(plan.ResultShape(), sourceFields)
+		if err != nil {
+			return "", nil, err
+		}
 	}
 	return compileScalarSelect(schema, plan, sourceFields, selectedFields, where)
 }
@@ -105,11 +110,11 @@ func compileScalarSelect(
 		if index > 0 {
 			statement.WriteString(", ")
 		}
-		if !containsField(sourceFields, ordering.Field()) {
+		if !queryplan.ContainsField(sourceFields, ordering.Field()) {
 			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
 		}
 		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection &&
-			!containsField(selectedFields, ordering.Field()) {
+			!queryplan.ContainsField(selectedFields, ordering.Field()) {
 			return "", nil, unsupportedDistinctOrdering(ordering.Field())
 		}
 		field, err := quoteIdentifier(ordering.Field().Column())
@@ -201,7 +206,7 @@ func compileDirectAggregate(
 	if err != nil {
 		return "", nil, err
 	}
-	if err := validateOmittedAggregateOrderings(plan.Orderings(), sourceFields); err != nil {
+	if err := queryplan.OmittedOrderings(plan.Orderings(), sourceFields, quoteIdentifier); err != nil {
 		return "", nil, err
 	}
 	return statement.String(), arguments, nil
@@ -323,10 +328,10 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 	}
 	path, related := condition.RelationPath()
 	if !related {
-		if !containsField(a.sourceFields, condition.Field()) {
+		if !queryplan.ContainsField(a.sourceFields, condition.Field()) {
 			return whereLeaf{}, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
 		}
-		if right, ok := condition.RHSField(); ok && !containsField(a.sourceFields, right) {
+		if right, ok := condition.RHSField(); ok && !queryplan.ContainsField(a.sourceFields, right) {
 			return whereLeaf{}, invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
 		}
 		return whereLeaf{}, nil
@@ -361,7 +366,7 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 				return whereLeaf{}, unsupportedRelatedCondition(condition, "PostgreSQL relation compiler supports required forward many-to-one related-field paths only")
 			}
 		case query.RelationReverse:
-			if err := validateReverseRelatedCondition(condition, hop); err != nil {
+			if err := queryplan.ReverseCondition(condition, hop, "PostgreSQL"); err != nil {
 				return whereLeaf{}, err
 			}
 		default:
@@ -372,7 +377,7 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		}
 		leaf.usesJoin = true
 	case query.RelationTerminalSourceKey:
-		if err := validateNullableSourceKeyCondition(a.sourceFields, condition, hop); err != nil {
+		if err := queryplan.NullableSourceKey(a.sourceFields, condition, hop, "PostgreSQL"); err != nil {
 			return whereLeaf{}, err
 		}
 	default:
@@ -415,11 +420,11 @@ func validateWhereCondition(condition query.Condition) error {
 
 	switch condition.Lookup() {
 	case query.LookupExact:
-		if !valueMatchesField(condition.Value().Kind(), field.Kind()) {
+		if !queryplan.ValueMatchesField(condition.Value().Kind(), field.Kind()) {
 			return invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", condition.Value().Kind(), field.Name()))
 		}
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
-		if !orderedValueMatchesField(condition.Value().Kind(), field.Kind()) {
+		if !queryplan.OrderedValueMatchesField(condition.Value().Kind(), field.Kind()) {
 			return unsupportedLookup(field, condition.Lookup())
 		}
 	case query.LookupIContains:
@@ -554,83 +559,13 @@ func nullableNegationGuard(lookup query.Lookup) bool {
 	}
 }
 
-func validateOmittedAggregateOrderings(orderings []query.Ordering, sourceFields []query.FieldRef) error {
-	for _, ordering := range orderings {
-		if !containsField(sourceFields, ordering.Field()) {
-			return invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
+func appendAggregateExpressions(statement *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string) error {
+	return queryplan.AppendAggregates(statement, expressions, sourceFields, func(field query.FieldRef) (string, error) {
+		if sourceAlias != "" {
+			return quoteQualified(sourceAlias, field.Column())
 		}
-		if _, err := quoteIdentifier(ordering.Field().Column()); err != nil {
-			return err
-		}
-		switch ordering.Direction() {
-		case query.Ascending, query.Descending:
-		default:
-			return invalidPlan("unknown ordering direction")
-		}
-	}
-	return nil
-}
-
-func appendAggregateExpressions(
-	statement *strings.Builder,
-	expressions []query.ResultExpression,
-	sourceFields []query.FieldRef,
-	sourceAlias string,
-) error {
-	for index, expression := range expressions {
-		if index > 0 {
-			statement.WriteString(", ")
-		}
-		switch expression.Kind() {
-		case query.ResultCountAll:
-			if _, hasField := expression.Field(); hasField {
-				return invalidPlan("COUNT(*) result contains a field")
-			}
-			statement.WriteString("COUNT(*)")
-		case query.ResultMax:
-			field, ok := expression.Field()
-			if !ok || !containsField(sourceFields, field) ||
-				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
-				return invalidPlan("MAX result field is not supported source metadata")
-			}
-			quoted, err := quoteIdentifier(field.Column())
-			if sourceAlias != "" {
-				quoted, err = quoteQualified(sourceAlias, field.Column())
-			}
-			if err != nil {
-				return err
-			}
-			statement.WriteString("MAX(")
-			statement.WriteString(quoted)
-			statement.WriteByte(')')
-		default:
-			return invalidPlan("aggregate result contains an unsupported expression")
-		}
-	}
-	return nil
-}
-
-func scalarSelectedFields(plan query.Plan, sourceFields []query.FieldRef) ([]query.FieldRef, error) {
-	switch plan.ResultShape().Kind() {
-	case query.ResultModel:
-		return sourceFields, nil
-	case query.ResultProjection:
-		expressions := plan.ResultShape().Expressions()
-		if len(expressions) == 0 {
-			return nil, invalidPlan("projection result is empty")
-		}
-		selected := make([]query.FieldRef, len(expressions))
-		for index, expression := range expressions {
-			field, ok := expression.Field()
-			if expression.Kind() != query.ResultField || !ok || !containsField(sourceFields, field) {
-				return nil, invalidPlan("projection result field is not supported source metadata")
-			}
-			selected[index] = field
-		}
-		return selected, nil
-	default:
-		return nil, invalidPlan("scalar compiler requires a model or projection result")
-	}
+		return quoteIdentifier(field.Column())
+	})
 }
 
 func validateReadSourceFields(fields []query.FieldRef) ([]query.FieldRef, error) {
@@ -676,15 +611,6 @@ func appendPagination(statement *strings.Builder, arguments *[]any, plan query.P
 	}
 }
 
-type relationJoinKey struct {
-	sourceApp   string
-	sourceModel string
-	field       string
-	targetApp   string
-	targetModel string
-	direction   query.RelationDirection
-}
-
 type relationJoin struct {
 	hop       query.RelationHop
 	alias     string
@@ -697,7 +623,7 @@ func compileRelation(
 	columns []query.FieldRef,
 	where whereAnalysis,
 ) (string, []any, error) {
-	joinsByKey := make(map[relationJoinKey]query.RelationHop)
+	joinsByKey := make(map[queryplan.RelationKey]query.RelationHop)
 	sourceKeyHops := make([]query.RelationHop, 0, len(where.leaves))
 	for _, leaf := range where.leaves {
 		if !leaf.related {
@@ -707,24 +633,24 @@ func compileRelation(
 			sourceKeyHops = append(sourceKeyHops, leaf.hop)
 			continue
 		}
-		key := relationKey(leaf.hop)
+		key := queryplan.KeyForRelation(leaf.hop)
 		if previous, exists := joinsByKey[key]; exists && !previous.Equal(leaf.hop) {
-			return "", nil, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent metadata", key.sourceApp, key.sourceModel, key.field))
+			return "", nil, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent metadata", key.SourceApp, key.SourceModel, key.Field))
 		}
 		joinsByKey[key] = leaf.hop
 	}
 
 	projection, selected := plan.RelationProjection()
-	var projectionKey relationJoinKey
+	var projectionKey queryplan.RelationKey
 	if selected {
 		var err error
-		projectionKey, err = validateRelationProjection(plan, projection)
+		projectionKey, err = queryplan.RelationProjection(plan, projection, "PostgreSQL")
 		if err != nil {
 			return "", nil, err
 		}
 		hop := projection.Hop()
 		for _, sourceKeyHop := range sourceKeyHops {
-			if sameRelationSourceEdge(sourceKeyHop, hop) && !sourceKeyHop.Equal(hop) {
+			if queryplan.SameSourceEdge(sourceKeyHop, hop) && !sourceKeyHop.Equal(hop) {
 				return "", nil, invalidPlan("relation projection source-key provenance does not match the selected edge")
 			}
 		}
@@ -739,14 +665,14 @@ func compileRelation(
 		}
 	}
 
-	keys := make([]relationJoinKey, 0, len(joinsByKey))
+	keys := make([]queryplan.RelationKey, 0, len(joinsByKey))
 	for key := range joinsByKey {
 		keys = append(keys, key)
 	}
 	sort.Slice(keys, func(left, right int) bool {
-		return compareRelationJoinKey(keys[left], keys[right]) < 0
+		return queryplan.CompareRelationKey(keys[left], keys[right]) < 0
 	})
-	joins := make(map[relationJoinKey]relationJoin, len(keys))
+	joins := make(map[queryplan.RelationKey]relationJoin, len(keys))
 	for index, key := range keys {
 		hop := joinsByKey[key]
 		joins[key] = relationJoin{
@@ -833,7 +759,7 @@ func compileRelation(
 		alias := rootAlias
 		if path, related := condition.RelationPath(); related && path.TerminalScope() == query.RelationTerminalRelatedField {
 			hops := path.Hops()
-			join, ok := joins[relationKey(hops[0])]
+			join, ok := joins[queryplan.KeyForRelation(hops[0])]
 			if !ok {
 				return "", invalidPlan("relation predicate join metadata is missing")
 			}
@@ -857,7 +783,7 @@ func compileRelation(
 		if index > 0 {
 			statement.WriteString(", ")
 		}
-		if !containsField(columns, ordering.Field()) {
+		if !queryplan.ContainsField(columns, ordering.Field()) {
 			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
 		}
 		field, err := quoteQualified(rootAlias, ordering.Field().Column())
@@ -878,135 +804,6 @@ func compileRelation(
 	return statement.String(), arguments, nil
 }
 
-func relationKey(hop query.RelationHop) relationJoinKey {
-	return relationJoinKey{
-		sourceApp:   hop.Source().AppLabel,
-		sourceModel: hop.Source().ModelName,
-		field:       hop.Field(),
-		targetApp:   hop.Target().AppLabel,
-		targetModel: hop.Target().ModelName,
-		direction:   hop.Direction(),
-	}
-}
-
-func validateRelationProjection(plan query.Plan, projection query.RelationProjection) (relationJoinKey, error) {
-	hop := projection.Hop()
-	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || hop.ReverseName() != "" {
-		return relationJoinKey{}, invalidPlan("PostgreSQL relation projection requires one direct forward many-to-one hop")
-	}
-	if hop.SourceTable() != plan.Table() {
-		return relationJoinKey{}, invalidPlan(fmt.Sprintf(
-			"relation projection source table %q does not match plan root table %q",
-			hop.SourceTable(), plan.Table(),
-		))
-	}
-	if !canonicalRelationIdentity(hop.Source()) || !canonicalRelationIdentity(hop.Target()) ||
-		!canonicalIdentifier(hop.SourceTable()) || !canonicalIdentifier(hop.Field()) ||
-		!canonicalIdentifier(hop.SourceColumn()) || !canonicalIdentifier(hop.TargetTable()) ||
-		!canonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
-		return relationJoinKey{}, invalidPlan("relation projection contains non-canonical metadata")
-	}
-	sourceKey := query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())
-	if !containsField(plan.SourceFields(), sourceKey) {
-		return relationJoinKey{}, invalidPlan(fmt.Sprintf("relation projection source key %q is not selected model metadata", hop.Field()))
-	}
-	targetColumns := projection.TargetColumns()
-	if len(targetColumns) == 0 {
-		return relationJoinKey{}, invalidPlan("relation projection target columns are empty")
-	}
-	primaryKeyCount := 0
-	names := make(map[string]struct{}, len(targetColumns))
-	columns := make(map[string]struct{}, len(targetColumns))
-	for _, field := range targetColumns {
-		if !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) ||
-			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldBoolean) {
-			return relationJoinKey{}, invalidPlan("relation projection contains an unsupported target field")
-		}
-		if _, exists := names[field.Name()]; exists {
-			return relationJoinKey{}, invalidPlan("relation projection contains a duplicate target field")
-		}
-		if _, exists := columns[field.Column()]; exists {
-			return relationJoinKey{}, invalidPlan("relation projection contains a duplicate target column")
-		}
-		names[field.Name()] = struct{}{}
-		columns[field.Column()] = struct{}{}
-		if field.Column() == hop.TargetPrimaryKeyColumn() {
-			if field.Kind() != query.FieldInteger || field.Nullable() {
-				return relationJoinKey{}, invalidPlan("relation projection target primary key must be a non-null integer")
-			}
-			primaryKeyCount++
-		}
-	}
-	if primaryKeyCount != 1 {
-		return relationJoinKey{}, invalidPlan("relation projection must contain its target primary key exactly once")
-	}
-	return relationKey(hop), nil
-}
-
-func validateNullableSourceKeyCondition(columns []query.FieldRef, condition query.Condition, hop query.RelationHop) error {
-	field := condition.Field()
-	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || !hop.Nullable() {
-		return unsupportedRelatedCondition(condition, "PostgreSQL source-key isnull requires a nullable forward many-to-one path")
-	}
-	if !canonicalRelationIdentity(hop.Source()) || !canonicalRelationIdentity(hop.Target()) ||
-		!canonicalIdentifier(hop.SourceTable()) || !canonicalIdentifier(hop.Field()) ||
-		!canonicalIdentifier(hop.SourceColumn()) || !canonicalIdentifier(hop.TargetTable()) ||
-		!canonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
-		return invalidPlan("nullable source-key relation path contains non-canonical metadata")
-	}
-	if field.Kind() != query.FieldInteger || !field.Nullable() ||
-		field.Name() != hop.Field() || field.Column() != hop.SourceColumn() {
-		return invalidPlan("nullable source-key relation terminal does not match the hop source key")
-	}
-	if !containsField(columns, field) {
-		return invalidPlan(fmt.Sprintf("relation source key %q is not selected model metadata", field.Name()))
-	}
-	if condition.Lookup() != query.LookupIsNull {
-		return unsupportedRelatedCondition(condition, "PostgreSQL source-key relation paths support isnull only")
-	}
-	if _, ok := condition.Value().Boolean(); !ok {
-		return invalidPlan("PostgreSQL source-key isnull requires a Boolean value")
-	}
-	return nil
-}
-
-func validateReverseRelatedCondition(condition query.Condition, hop query.RelationHop) error {
-	if hop.Cardinality() != ir.RelationOneToMany {
-		return unsupportedRelatedCondition(condition, "PostgreSQL reverse related-field paths require one-to-many traversal")
-	}
-	if !canonicalRelationIdentity(hop.Source()) || !canonicalRelationIdentity(hop.Target()) ||
-		!canonicalIdentifier(hop.SourceTable()) || !canonicalIdentifier(hop.Field()) ||
-		!canonicalIdentifier(hop.SourceColumn()) || !canonicalIdentifier(hop.TargetTable()) ||
-		!canonicalIdentifier(hop.TargetPrimaryKeyColumn()) || !canonicalIdentifier(hop.ReverseName()) {
-		return invalidPlan("reverse relation path contains non-canonical metadata")
-	}
-	field := condition.Field()
-	if !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() ||
-		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
-		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
-	}
-	return nil
-}
-
-func sameRelationSourceEdge(left, right query.RelationHop) bool {
-	return left.Field() == right.Field() && left.SourceColumn() == right.SourceColumn()
-}
-
-func canonicalRelationIdentity(identity ir.ModelIdentity) bool {
-	return canonicalIdentifier(identity.AppLabel) && canonicalIdentifier(identity.ModelName)
-}
-
-func compareRelationJoinKey(left, right relationJoinKey) int {
-	leftParts := [...]string{left.sourceApp, left.sourceModel, left.field, left.targetApp, left.targetModel, string(left.direction)}
-	rightParts := [...]string{right.sourceApp, right.sourceModel, right.field, right.targetApp, right.targetModel, string(right.direction)}
-	for index := range leftParts {
-		if comparison := strings.Compare(leftParts[index], rightParts[index]); comparison != 0 {
-			return comparison
-		}
-	}
-	return 0
-}
-
 func compileCondition(statement *strings.Builder, condition query.Condition, rightField string, firstArgument int) ([]any, error) {
 	field := condition.Field()
 	value := condition.Value()
@@ -1022,9 +819,9 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 			statement.WriteString(rightField)
 			return nil, nil
 		}
-		matches := valueMatchesField(value.Kind(), field.Kind())
+		matches := queryplan.ValueMatchesField(value.Kind(), field.Kind())
 		if condition.Lookup() != query.LookupExact {
-			matches = orderedValueMatchesField(value.Kind(), field.Kind())
+			matches = queryplan.OrderedValueMatchesField(value.Kind(), field.Kind())
 		}
 		if !matches {
 			return nil, invalidPlan(fmt.Sprintf("comparison value kind %q does not match field %q", value.Kind(), field.Name()))
@@ -1090,11 +887,6 @@ func orderedComparisonLookup(lookup query.Lookup) bool {
 	}
 }
 
-func orderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return value == query.ValueInteger && field == query.FieldInteger ||
-		value == query.ValueString && field == query.FieldString
-}
-
 func comparisonOperator(lookup query.Lookup) string {
 	switch lookup {
 	case query.LookupExact:
@@ -1123,26 +915,13 @@ func validateSchemaIdentifier(identifier string) error {
 }
 
 func validateIdentifier(identifier string) error {
-	if !canonicalIdentifier(identifier) {
+	if !queryplan.CanonicalIdentifier(identifier) {
 		return errors.New("identifier must match [a-z_][a-z0-9_]*")
 	}
 	if len(identifier) > postgresIdentifierMaxBytes {
 		return fmt.Errorf("identifier exceeds PostgreSQL's %d-byte limit", postgresIdentifierMaxBytes)
 	}
 	return nil
-}
-
-func canonicalIdentifier(identifier string) bool {
-	if identifier == "" {
-		return false
-	}
-	for index, character := range identifier {
-		if character == '_' || character >= 'a' && character <= 'z' || index > 0 && character >= '0' && character <= '9' {
-			continue
-		}
-		return false
-	}
-	return true
 }
 
 func quoteIdentifier(identifier string) (string, error) {
@@ -1184,21 +963,6 @@ func escapeLike(value string) string {
 	value = strings.ReplaceAll(value, `\`, `\\`)
 	value = strings.ReplaceAll(value, `%`, `\%`)
 	return strings.ReplaceAll(value, `_`, `\_`)
-}
-
-func containsField(columns []query.FieldRef, candidate query.FieldRef) bool {
-	for _, column := range columns {
-		if column.Equal(candidate) {
-			return true
-		}
-	}
-	return false
-}
-
-func valueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return (value == query.ValueInteger && field == query.FieldInteger) ||
-		(value == query.ValueString && field == query.FieldString) ||
-		(value == query.ValueBoolean && field == query.FieldBoolean)
 }
 
 func invalidPlan(detail string) error {

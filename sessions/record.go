@@ -146,6 +146,33 @@ func (r Record) Value(key string) (string, bool) { value, ok := r.values[key]; r
 // Values returns a detached copy.
 func (r Record) Values() map[string]string { return cloneValues(r.values) }
 
+// Touch derives the next immutable state from the authoritative stored record.
+// Store implementations must call it while holding their atomic boundary and
+// delete the stored record when it returns TouchExpired. It never revives an
+// expired record, reduces a confirmed timestamp, or extends absolute lifetime.
+func (r Record) Touch(accessedAt, idleExpiresAt time.Time) (Record, TouchStatus, error) {
+	if !r.id.Valid() || accessedAt.IsZero() || idleExpiresAt.IsZero() {
+		return Record{}, TouchMissing, &Error{Code: CodeInvalidRecord, Field: "touch", Detail: "session touch input is invalid"}
+	}
+	accessedAt = canonicalTime(accessedAt)
+	idleExpiresAt = canonicalTime(idleExpiresAt)
+	if r.expired(accessedAt) {
+		return Record{}, TouchExpired, nil
+	}
+	if accessedAt.Before(r.accessedAt) {
+		accessedAt = r.accessedAt
+	}
+	if idleExpiresAt.Before(r.idleExpiresAt) {
+		idleExpiresAt = r.idleExpiresAt
+	}
+	idleExpiresAt = minimumTime(idleExpiresAt, r.absoluteExpiresAt)
+	if !idleExpiresAt.After(accessedAt) {
+		return Record{}, TouchMissing, &Error{Code: CodeInvalidRecord, Field: "expiry", Detail: "session touch timestamps are invalid"}
+	}
+	r.accessedAt, r.idleExpiresAt = accessedAt, idleExpiresAt
+	return r.clone(), TouchActive, nil
+}
+
 // Snapshot returns a detached current persistence snapshot. A zero or corrupt
 // Record produces a correspondingly invalid snapshot; RestoreRecord performs
 // the authoritative validation before a Store can publish it again.

@@ -12,8 +12,9 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"unicode/utf8"
+
+	"github.com/progresshans/godj/internal/wirejson"
 )
 
 const (
@@ -212,7 +213,7 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 	if !exists {
 		return invalidResponse()
 	}
-	version, valid := canonicalUint(versionValue, 65_535)
+	version, valid := wirejson.Uint(versionValue, 65_535)
 	if !valid {
 		return invalidResponse()
 	}
@@ -226,24 +227,24 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 	}
 	switch status {
 	case "ok":
-		if !hasExactKeys(object, "protocol_version", "status", "result") {
+		if !wirejson.HasKeys(object, "protocol_version", "status", "result") {
 			return invalidResponse()
 		}
-		result, ok := object["result"].(map[string]wireValue)
-		if !ok || !hasExactKeys(result, "created") || result["created"] != true {
+		result, ok := object["result"].(map[string]any)
+		if !ok || !wirejson.HasKeys(result, "created") || result["created"] != true {
 			return invalidResponse()
 		}
 		return Response{OK: true, Created: true}, Failure{}, false
 	case "error":
-		if !hasExactKeys(object, "protocol_version", "status", "error") {
+		if !wirejson.HasKeys(object, "protocol_version", "status", "error") {
 			return invalidResponse()
 		}
-		errorObject, ok := object["error"].(map[string]wireValue)
+		errorObject, ok := object["error"].(map[string]any)
 		if !ok {
 			return invalidResponse()
 		}
-		if !hasExactKeys(errorObject, "category", "code") &&
-			!hasExactKeys(errorObject, "category", "code", "known_created") {
+		if !wirejson.HasKeys(errorObject, "category", "code") &&
+			!wirejson.HasKeys(errorObject, "category", "code", "known_created") {
 			return invalidResponse()
 		}
 		category, categoryOK := errorObject["category"].(string)
@@ -461,24 +462,6 @@ func safeRequestErrorIs(err, target error) (matched bool) {
 	return errors.Is(err, target)
 }
 
-func canonicalUint(value wireValue, maximum uint64) (uint64, bool) {
-	number, ok := value.(json.Number)
-	if !ok {
-		return 0, false
-	}
-	text := number.String()
-	if text == "" || (len(text) > 1 && text[0] == '0') {
-		return 0, false
-	}
-	for _, character := range text {
-		if character < '0' || character > '9' {
-			return 0, false
-		}
-	}
-	parsed, err := strconv.ParseUint(text, 10, 64)
-	return parsed, err == nil && parsed <= maximum
-}
-
 func invalidRequest() (Request, Failure, bool) {
 	return Request{}, Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
 }
@@ -487,143 +470,6 @@ func invalidResponse() (Response, Failure, bool) {
 	return Response{}, Failure{Category: CategoryProtocol, Code: CodeInvalidResponse}, true
 }
 
-type wireValue any
-
-func decodeObject(document []byte) (map[string]wireValue, error) {
-	if len(document) > MaxResponseBytes || !utf8.Valid(document) || !validJSONSurrogateEscapes(document) {
-		return nil, errors.New("invalid response framing")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(document))
-	decoder.UseNumber()
-	budget := maxJSONValues
-	value, err := decodeValue(decoder, 0, &budget)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := decoder.Token(); err != io.EOF {
-		if err == nil {
-			return nil, errors.New("trailing response value")
-		}
-		return nil, err
-	}
-	object, ok := value.(map[string]wireValue)
-	if !ok {
-		return nil, errors.New("response root is not an object")
-	}
-	return object, nil
-}
-
-func decodeValue(decoder *json.Decoder, depth int, budget *int) (wireValue, error) {
-	if depth > maxJSONDepth || *budget <= 0 {
-		return nil, errors.New("response structure limit exceeded")
-	}
-	*budget--
-	token, err := decoder.Token()
-	if err != nil {
-		return nil, err
-	}
-	delimiter, composite := token.(json.Delim)
-	if !composite {
-		return token, nil
-	}
-	if delimiter != '{' {
-		return nil, errors.New("response arrays are not supported")
-	}
-	object := make(map[string]wireValue)
-	for decoder.More() {
-		member, err := decoder.Token()
-		if err != nil {
-			return nil, err
-		}
-		key, ok := member.(string)
-		if !ok {
-			return nil, errors.New("response object key is not a string")
-		}
-		if _, exists := object[key]; exists {
-			return nil, errors.New("duplicate response object key")
-		}
-		child, err := decodeValue(decoder, depth+1, budget)
-		if err != nil {
-			return nil, err
-		}
-		object[key] = child
-	}
-	closing, err := decoder.Token()
-	if err != nil || closing != json.Delim('}') {
-		return nil, errors.New("invalid response object close")
-	}
-	return object, nil
-}
-
-func hasExactKeys(object map[string]wireValue, keys ...string) bool {
-	if len(object) != len(keys) {
-		return false
-	}
-	for _, key := range keys {
-		if _, exists := object[key]; !exists {
-			return false
-		}
-	}
-	return true
-}
-
-// validJSONSurrogateEscapes rejects unpaired UTF-16 surrogate escapes that
-// encoding/json would otherwise replace with U+FFFD.
-func validJSONSurrogateEscapes(document []byte) bool {
-	inString := false
-	for index := 0; index < len(document); index++ {
-		switch document[index] {
-		case '"':
-			inString = !inString
-		case '\\':
-			if !inString || index+1 >= len(document) {
-				continue
-			}
-			if document[index+1] != 'u' {
-				index++
-				continue
-			}
-			unit, ok := jsonHexCodeUnit(document, index+2)
-			if !ok {
-				return true
-			}
-			switch {
-			case unit >= 0xd800 && unit <= 0xdbff:
-				if index+7 >= len(document) || document[index+6] != '\\' || document[index+7] != 'u' {
-					return false
-				}
-				low, paired := jsonHexCodeUnit(document, index+8)
-				if !paired || low < 0xdc00 || low > 0xdfff {
-					return false
-				}
-				index += 11
-			case unit >= 0xdc00 && unit <= 0xdfff:
-				return false
-			default:
-				index += 5
-			}
-		}
-	}
-	return true
-}
-
-func jsonHexCodeUnit(document []byte, offset int) (uint16, bool) {
-	if offset < 0 || offset+4 > len(document) {
-		return 0, false
-	}
-	var value uint16
-	for _, character := range document[offset : offset+4] {
-		value <<= 4
-		switch {
-		case character >= '0' && character <= '9':
-			value |= uint16(character - '0')
-		case character >= 'a' && character <= 'f':
-			value |= uint16(character-'a') + 10
-		case character >= 'A' && character <= 'F':
-			value |= uint16(character-'A') + 10
-		default:
-			return 0, false
-		}
-	}
-	return value, true
+func decodeObject(document []byte) (map[string]any, error) {
+	return wirejson.DecodeObject(document, wirejson.Limits{Bytes: MaxResponseBytes, ValueDepth: maxJSONDepth, Values: maxJSONValues, RejectArrays: true})
 }

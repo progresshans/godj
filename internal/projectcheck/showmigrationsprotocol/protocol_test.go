@@ -210,6 +210,51 @@ func TestResponseRejectsMalformedShapeRowsOrderAndStatuses(t *testing.T) {
 	}
 }
 
+func TestResponsePreservesUnicodeIdentityAndRejectsLossyEscapes(t *testing.T) {
+	t.Parallel()
+	document, err := EncodeResponse(Response{OK: true, Result: Result{Rows: []Row{{App: "alpha", Name: "entry", Status: StatusApplied}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		wire string
+		want string
+	}{
+		{`\ud800`, ""}, {`\udfff`, ""}, {`\ud800\u0041`, ""}, {`\ude00\ud83d`, ""},
+		{`\ufffd`, "�"}, {`\ud83d\ude00`, "😀"}, {`\\ud800`, `\ud800`},
+	} {
+		for _, field := range []string{"app", "name"} {
+			t.Run(field+"/"+test.wire, func(t *testing.T) {
+				before := `"app":"alpha"`
+				if field == "name" {
+					before = `"name":"entry"`
+				}
+				wire := bytes.Replace(document, []byte(before), []byte(`"`+field+`":"`+test.wire+`"`), 1)
+				response, failure, failed := ParseResponse(wire, true)
+				if test.want == "" {
+					if !failed || failure.Code != CodeInvalidResponse {
+						t.Fatalf("lossy identity accepted: failed=%v failure=%+v", failed, failure)
+					}
+				} else {
+					if failed || !response.OK || len(response.Result.Rows) != 1 {
+						t.Fatalf("valid identity rejected: failed=%v failure=%+v", failed, failure)
+					}
+					value := response.Result.Rows[0].App
+					if field == "name" {
+						value = response.Result.Rows[0].Name
+					}
+					if value != test.want {
+						t.Fatalf("identity=%q, want %q", value, test.want)
+					}
+				}
+				if _, failure, failed := ParseResponse(wire, false); !failed || failure.Code != CodeRunnerFailed {
+					t.Fatal("Unicode validation changed transport failure precedence")
+				}
+			})
+		}
+	}
+}
+
 func TestEncodeResponseRejectsInvalidAndAmbiguousValues(t *testing.T) {
 	t.Parallel()
 	invalidUTF8 := string([]byte{0xff})

@@ -539,7 +539,10 @@ jobs:
           # runner retain their independent 20-minute package budgets. The
           # operator product has its own OS/mode matrix below.
           go test "${cmd_test_flags[@]}" ./cmd/godj
-          go test "${test_flags[@]}" ./project ./internal/projectcheck/...
+          # Pure wire packages run in Portable Go; this owner exercises the
+          # real selection, linked runner and OS/process boundaries.
+          platform_packages="$(go list ./project ./internal/projectcheck/... | python3 scripts/ci/packages.py platform)"
+          go test "${test_flags[@]}" $platform_packages
           # This complete runner execution also owns relation sentinels when
           # both matrices are selected. Missing/skipped execution must fail.
           runner_log="$RUNNER_TEMP/conformance-runner-${mode}.json"
@@ -576,7 +579,7 @@ jobs:
           python3 scripts/ci/go_test_events.py "$runserver_log" --required "$required"
 
           if [ "$mode" = "normal" ]; then
-            go vet ./cmd/godj ./project ./internal/projectcheck/...
+            go vet ./cmd/godj $platform_packages
             go vet ./conformance/runserverproduct
           fi
 

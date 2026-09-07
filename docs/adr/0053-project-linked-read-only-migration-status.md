@@ -60,6 +60,8 @@ GDJ-0051에서는 exact `godj showmigrations [--project <godj.toml>]` list-only 
    public output 전에 fail-closed합니다.
 8. Raw driver cause, DSN, SQL과 definition bytes는 private response와 public output에 포함하지 않습니다.
 9. Private wire는 raw valid UTF-8 identity를 유지하지만 public text는 모든 app/name을 injective Go graphic body로 escape합니다.
+   JSON decode가 identity를 바꾸기 전에 짝 없는 UTF-16 surrogate escape를 거부합니다. 실제 U+FFFD와 올바른 surrogate pair는
+   유효하며 공용 lexical 검사가 이 구분을 보존합니다.
    특히 app heading의 첫 Unicode whitespace rune는 hex escape해 row marker로 보이는 heading을 만들 수 없게 합니다.
 10. Read-only runner도 strict response pipe를 소유하므로 direct child 종료 뒤 descendant-held pipe/process group을 2초 grace로
     bounded cleanup합니다. Backend 획득 전 취소는 open 0이며, backend/session close까지 끝난 snapshot은 직후 취소로 지우지

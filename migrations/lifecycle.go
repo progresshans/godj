@@ -116,15 +116,15 @@ func (e Executor) prepareLoadedLifecycle(
 	if err != nil {
 		return prepared, resultState, err
 	}
-	snapshot, ok := loaded.snapshot()
+	view, ok := loaded.view()
 	if !ok {
 		return prepared, resultState, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition set is not initialized"))
 	}
-	definitions := snapshot.Values
+	definitions := view.Values
 
-	// Revalidate the loader-owned snapshot before retaining values or opening a
-	// backend. The private publication replaces the former hidden context
-	// authority while preserving a second trust-boundary resource scan.
+	// Check request-entry resource policy once before copying operation data or
+	// opening the backend. The loader's immutable identity graph is reusable;
+	// applied history and target plans remain fresh per invocation.
 	if err := validateLoadedDefinitionResources(definitions); err != nil {
 		return prepared, resultState, err
 	}
@@ -136,14 +136,9 @@ func (e Executor) prepareLoadedLifecycle(
 	}
 	requestTargets := append([]Target(nil), requestTargetView...)
 
-	// Snapshot caller-owned definitions before any backend I/O. The
-	// reconstructor then validates the graph and deep-copies every supported
-	// operation so neither planning nor execution retains caller aliases.
-	definitionSnapshot := cloneMigrationDefinitions(definitions)
-	if err := ctx.Err(); err != nil {
-		return prepared, resultState, executionContextError(PlanStep{}, err)
-	}
-	reconstructor, err := newLoadedStateReconstructorContext(ctx, definitionSnapshot)
+	// Clone operations once into the invocation-owned reconstructor. Neither
+	// backend callbacks nor public inspection views can mutate the publication.
+	reconstructor, err := buildLoadedStateReconstructor(ctx, definitions, view.Prepared)
 	if err != nil {
 		return prepared, resultState, err
 	}
@@ -190,7 +185,7 @@ func (e Executor) prepareLoadedLifecycle(
 	if requestKind == lifecycleRequestLatest {
 		historyTargetCount = len(reconstructor.planner.graph.appLeaves())
 	}
-	if err := validateLoadedHistoryPlanResources(definitionSnapshot, historyTargetCount, records); err != nil {
+	if err := validateLoadedHistoryPlanResources(definitions, historyTargetCount, records); err != nil {
 		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
@@ -208,14 +203,9 @@ func (e Executor) prepareLoadedLifecycle(
 		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 
-	// The planner used for the actual request is deliberately rebuilt only
-	// after the exact fenced history snapshot exists. Static readiness proves
-	// that this immutable graph is safe to rebuild; it does not guess which
-	// migrations the snapshot will make current.
-	planner, err := NewPlanner(definitionSnapshot...)
-	if err != nil {
-		return prepared, resultState, err
-	}
+	// Reuse only the immutable graph. History validation and actual target
+	// planning happen after this invocation's exact fenced history read.
+	planner := view.Prepared
 	if err := planner.CheckHistory(applied); err != nil {
 		return prepared, resultState, err
 	}
@@ -654,21 +644,13 @@ func definitionsContainRelation(definitions []Migration) bool {
 
 func migrationContainsRelation(migration Migration) bool {
 	for _, operation := range migration.Operations {
-		switch value := operation.(type) {
+		switch value := operationValue(operation).(type) {
 		case CreateModel:
 			if modelContainsRelation(value.Model) {
 				return true
 			}
-		case *CreateModel:
-			if value != nil && modelContainsRelation(value.Model) {
-				return true
-			}
 		case AddField:
 			if fieldContainsRelation(value.Field) {
-				return true
-			}
-		case *AddField:
-			if value != nil && fieldContainsRelation(value.Field) {
 				return true
 			}
 		default:

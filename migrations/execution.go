@@ -207,30 +207,34 @@ func cloneMigrationDefinitions(definitions []Migration) []Migration {
 }
 
 func cloneMigrationOperation(operation Operation) Operation {
-	switch operation := operation.(type) {
+	switch operation := operationValue(operation).(type) {
 	case CreateModel:
 		operation.Model = operation.Model.Clone()
 		return operation
-	case *CreateModel:
-		if operation == nil {
-			return operation
-		}
-		cloned := *operation
-		cloned.Model = operation.Model.Clone()
-		return cloned
 	case AddField:
 		operation.Field = cloneMigrationField(operation.Field)
 		return operation
-	case *AddField:
-		if operation == nil {
-			return operation
-		}
-		cloned := *operation
-		cloned.Field = cloneMigrationField(operation.Field)
-		return cloned
 	default:
 		return operation
 	}
+}
+
+// operationValue borrows built-in inputs without copying nested IR. Input
+// resource scans use this before allocation; snapshots clone the returned
+// value once. Nil pointers and unrecognized implementations remain visible to
+// each caller's error policy rather than invoking methods on a nil receiver.
+func operationValue(operation Operation) Operation {
+	switch value := operation.(type) {
+	case *CreateModel:
+		if value != nil {
+			return *value
+		}
+	case *AddField:
+		if value != nil {
+			return *value
+		}
+	}
+	return operation
 }
 
 func cloneMigrationField(field ir.Field) ir.Field {

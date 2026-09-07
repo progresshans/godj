@@ -674,9 +674,13 @@ func sqlProductAssertStateArtifactsRedacted(t *testing.T, root string, sensitive
 func sqlProductAssertSuccess(t *testing.T, result sqlProductResult, want string, sensitive ...string) {
 	t.Helper()
 	sqlProductAssertRedacted(t, result, sensitive...)
-	if result.exitCode != 0 || result.stdout != want || result.stderr != "" {
+	if !result.matchesSuccess(want) {
 		t.Fatalf("command success = exit:%d stdout:%q stderr:%q, want 0/%q/empty", result.exitCode, result.stdout, result.stderr, want)
 	}
+}
+
+func (result sqlProductResult) matchesSuccess(want string) bool {
+	return result.exitCode == 0 && result.stdout == want && result.stderr == ""
 }
 
 func sqlProductAssertFailure(t *testing.T, result sqlProductResult, exit int, stderr string, sensitive ...string) {
@@ -813,774 +817,142 @@ func sqlProductAuditApplicationSources(t *testing.T, repository, root string) {
 	}
 }
 
+// This audit owns source and I/O boundaries only. Actual source selection,
+// encoding, renderer delegation and result publication are exercised by the
+// built-runner counterexamples; private names and statement shapes are free.
 func sqlProductAuditRunnerPipeline(document []byte) error {
 	file, err := parser.ParseFile(token.NewFileSet(), "external-project-runner.go", document, 0)
 	if err != nil {
 		return err
 	}
-	if err := sqlProductAuditRunnerImports(file); err != nil {
-		return err
-	}
-	if err := sqlProductAuditRunnerRendererSurface(file); err != nil {
-		return err
-	}
-	mainFunction, err := sqlProductASTFunction(file, "main", "")
-	if err != nil {
-		return err
-	}
-	sourcesFunction, err := sqlProductASTFunction(file, "sourcesForCatalog", "")
-	if err != nil {
-		return err
-	}
-	rendererFunction, err := sqlProductASTFunction(file, "rendererForMode", "")
-	if err != nil {
-		return err
-	}
-	postgresEnvironment, err := sqlProductASTFunction(file, "postgresEnvironmentIsPoisoned", "")
-	if err != nil {
-		return err
-	}
-	observedRender, err := sqlProductASTFunction(file, "RenderForwardMigrationSQL", "observedRenderer")
-	if err != nil {
-		return err
-	}
-	if err := sqlProductAuditRunnerMain(mainFunction); err != nil {
-		return err
-	}
-	if err := sqlProductAuditRunnerSources(sourcesFunction); err != nil {
-		return err
-	}
-	if err := sqlProductAuditRunnerRenderer(rendererFunction, postgresEnvironment, observedRender); err != nil {
-		return err
-	}
-	stdoutReferences := 0
-	var directOutputCalls, hardcodedSQL int
-	ast.Inspect(file, func(node ast.Node) bool {
-		switch value := node.(type) {
-		case *ast.SelectorExpr:
-			if sqlProductASTSelector(value, "os", "Stdout") {
-				stdoutReferences++
-			}
-		case *ast.CallExpr:
-			if selector, ok := value.Fun.(*ast.SelectorExpr); ok && sqlProductASTSelectorPackage(selector, "fmt") {
-				switch selector.Sel.Name {
-				case "Print", "Printf", "Println":
-					directOutputCalls++
-				}
-			}
-			if identifier, ok := value.Fun.(*ast.Ident); ok && (identifier.Name == "print" || identifier.Name == "println") {
-				directOutputCalls++
-			}
-		case *ast.BasicLit:
-			if value.Kind != token.STRING {
-				break
-			}
-			literal, unquoteErr := strconv.Unquote(value.Value)
-			if unquoteErr != nil {
-				break
-			}
-			upper := strings.ToUpper(literal)
-			for _, prefix := range []string{"CREATE TABLE", "ALTER TABLE", "DROP TABLE", "SELECT ", "INSERT ", "UPDATE ", "DELETE "} {
-				if strings.Contains(upper, prefix) {
-					hardcodedSQL++
-					break
-				}
-			}
-		}
-		return true
-	})
-	if stdoutReferences != 1 || directOutputCalls != 0 || hardcodedSQL != 0 {
-		return fmt.Errorf(
-			"external runner output boundary = stdout:%d direct:%d hardcoded_sql:%d",
-			stdoutReferences,
-			directOutputCalls,
-			hardcodedSQL,
-		)
-	}
-	return nil
-}
-
-func sqlProductAuditRunnerImports(file *ast.File) error {
-	expected := map[string]struct{}{
-		"context": {}, "errors": {}, "fmt": {}, "os": {},
-		"github.com/progresshans/godj/db/postgres":           {},
-		"github.com/progresshans/godj/db/sqlite":             {},
-		"github.com/progresshans/godj/migrations":            {},
-		"github.com/progresshans/godj/migrations/backend":    {},
-		"github.com/progresshans/godj/migrations/definition": {},
-		"github.com/progresshans/godj/project":               {},
-		"github.com/progresshans/godj/schema/ir":             {},
-	}
+	imports := make(map[string]string)
 	for _, specification := range file.Imports {
-		if specification.Name != nil {
-			return errors.New("external runner import aliases are forbidden")
-		}
 		path, err := strconv.Unquote(specification.Path.Value)
 		if err != nil {
 			return err
 		}
-		if _, ok := expected[path]; !ok {
+		if _, ok := sqlProductAllowedGoDjImports[path]; !ok &&
+			path != "context" && path != "errors" && path != "fmt" && path != "os" {
 			return fmt.Errorf("external runner has unexpected import %q", path)
 		}
-		delete(expected, path)
-	}
-	if len(expected) != 0 {
-		return errors.New("external runner import boundary is incomplete")
-	}
-	return nil
-}
-
-func sqlProductAuditRunnerRendererSurface(file *ast.File) error {
-	wantTypes := map[string]int{
-		"observedRenderer":         1,
-		"failingRenderer":          1,
-		"waitCancellationRenderer": 1,
-	}
-	wantMethods := map[string]int{
-		"observedRenderer":         1,
-		"failingRenderer":          1,
-		"waitCancellationRenderer": 1,
-	}
-	observedTypes := make(map[string]int, len(wantTypes))
-	observedMethods := make(map[string]int, len(wantMethods))
-	for _, declaration := range file.Decls {
-		switch value := declaration.(type) {
-		case *ast.GenDecl:
-			if value.Tok != token.TYPE {
-				continue
-			}
-			for _, specification := range value.Specs {
-				typeSpecification, ok := specification.(*ast.TypeSpec)
-				if !ok {
-					return errors.New("external runner type declaration is invalid")
-				}
-				observedTypes[typeSpecification.Name.Name]++
-			}
-		case *ast.FuncDecl:
-			if value.Name.Name == "RenderForwardMigrationSQL" {
-				observedMethods[sqlProductASTReceiver(value)]++
-			}
+		name := filepath.Base(path)
+		if specification.Name != nil {
+			name = specification.Name.Name
 		}
-	}
-	if len(observedTypes) != len(wantTypes) || len(observedMethods) != len(wantMethods) {
-		return errors.New("external runner renderer type or method surface is not exact")
-	}
-	for name, count := range wantTypes {
-		if observedTypes[name] != count || observedMethods[name] != wantMethods[name] {
-			return fmt.Errorf(
-				"external runner renderer surface %s = types:%d methods:%d, want types:%d methods:%d",
-				name,
-				observedTypes[name],
-				observedMethods[name],
-				count,
-				wantMethods[name],
-			)
+		if name == "." || name == "_" || imports[name] != "" {
+			return errors.New("external runner import has no distinct package binding")
 		}
+		imports[name] = path
 	}
-	return nil
-}
-
-func sqlProductAuditRunnerMain(function *ast.FuncDecl) error {
-	var sourceCalls, runCalls []*ast.CallExpr
-	var sourceAssignments, runAssignments []*ast.AssignStmt
-	sourceWrites := 0
-	ast.Inspect(function.Body, func(node ast.Node) bool {
-		switch value := node.(type) {
-		case *ast.AssignStmt:
-			for _, target := range value.Lhs {
-				if sqlProductASTIdentifier(target, "sources") {
-					sourceWrites++
-				}
-			}
-			if len(value.Rhs) != 1 {
-				break
-			}
-			call, ok := value.Rhs[0].(*ast.CallExpr)
-			if !ok {
-				break
-			}
-			if sqlProductASTIdentifier(call.Fun, "sourcesForCatalog") {
-				sourceAssignments = append(sourceAssignments, value)
-			}
-			if selector, ok := call.Fun.(*ast.SelectorExpr); ok && sqlProductASTSelector(selector, "project", "Run") {
-				runAssignments = append(runAssignments, value)
-			}
-		case *ast.CallExpr:
-			if sqlProductASTIdentifier(value.Fun, "sourcesForCatalog") {
-				sourceCalls = append(sourceCalls, value)
-			}
-			if selector, ok := value.Fun.(*ast.SelectorExpr); ok && sqlProductASTSelector(selector, "project", "Run") {
-				runCalls = append(runCalls, value)
-			}
-		}
-		return true
-	})
-	if len(sourceCalls) != 1 || len(runCalls) != 1 || len(sourceAssignments) != 1 || len(runAssignments) != 1 || sourceWrites != 1 ||
-		sourceCalls[0].Pos() >= runCalls[0].Pos() {
-		return errors.New("external runner main does not own one source load before one project.Run call")
-	}
-	sourceAssignment := sourceAssignments[0]
-	if sourceAssignment.Tok != token.DEFINE || len(sourceAssignment.Lhs) != 2 ||
-		!sqlProductASTIdentifier(sourceAssignment.Lhs[0], "sources") ||
-		!sqlProductASTIdentifier(sourceAssignment.Lhs[1], "err") || sourceAssignment.Rhs[0] != sourceCalls[0] {
-		return errors.New("external runner source selection result is not bound to sources and err")
-	}
-	if len(sourceCalls[0].Args) != 1 || !sqlProductASTGetenv(sourceCalls[0].Args[0], "catalogEnvironment") {
-		return errors.New("external runner source selection is not environment-derived")
-	}
-	runAssignment := runAssignments[0]
-	if runAssignment.Tok != token.ASSIGN || len(runAssignment.Lhs) != 1 ||
-		!sqlProductASTIdentifier(runAssignment.Lhs[0], "err") || runAssignment.Rhs[0] != runCalls[0] {
-		return errors.New("external runner project.Run result is not bound to err")
-	}
-	run := runCalls[0]
-	if len(run.Args) != 5 || !sqlProductASTCall(run.Args[0], "context", "Background", 0) ||
-		!sqlProductASTArgsSlice(run.Args[2]) || !sqlProductASTSelectorExpression(run.Args[3], "os", "Stdin") ||
-		!sqlProductASTSelectorExpression(run.Args[4], "os", "Stdout") {
-		return errors.New("external runner project.Run boundary is not exact")
-	}
-	config, ok := run.Args[1].(*ast.CompositeLit)
-	if !ok || !sqlProductASTSelectorExpression(config.Type, "project", "Config") || len(config.Elts) != 3 {
-		return errors.New("external runner project.Config boundary is not exact")
-	}
-	fields := make(map[string]ast.Expr, len(config.Elts))
-	for _, element := range config.Elts {
-		pair, ok := element.(*ast.KeyValueExpr)
+	binding := func(expression ast.Expr) string {
+		selector, ok := expression.(*ast.SelectorExpr)
 		if !ok {
-			return errors.New("external runner project.Config contains an unkeyed field")
+			return ""
 		}
-		key, ok := pair.Key.(*ast.Ident)
-		if !ok || key.Name == "" {
-			return errors.New("external runner project.Config key is invalid")
+		owner, ok := selector.X.(*ast.Ident)
+		if !ok || owner.Obj != nil || imports[owner.Name] == "" {
+			return ""
 		}
-		fields[key.Name] = pair.Value
+		return imports[owner.Name] + "." + selector.Sel.Name
 	}
-	if len(fields) != 3 || !sqlProductASTIdentifier(fields["MigrationDefinitionSources"], "sources") ||
-		!sqlProductASTIdentifier(fields["OpenMigrationBackend"], "poisonOpenMigrationBackend") {
-		return errors.New("external runner project.Config source/opener bindings are not exact")
+	required := map[string]bool{
+		"github.com/progresshans/godj/project.Run":                         false,
+		"github.com/progresshans/godj/migrations/definition.Encode":        false,
+		"github.com/progresshans/godj/db/sqlite.NewMigrationSQLRenderer":   false,
+		"github.com/progresshans/godj/db/postgres.NewMigrationSQLRenderer": false,
 	}
-	renderer, ok := fields["MigrationSQLRenderer"].(*ast.CallExpr)
-	if !ok || len(renderer.Args) != 1 || !sqlProductASTIdentifier(renderer.Fun, "rendererForMode") ||
-		!sqlProductASTGetenv(renderer.Args[0], "rendererEnvironment") {
-		return errors.New("external runner project.Config renderer binding is not exact")
-	}
-	return nil
-}
-
-func sqlProductAuditRunnerSources(function *ast.FuncDecl) error {
-	var fullCatalogCalls, encodeCalls []*ast.CallExpr
-	var sourceDocuments []*ast.CompositeLit
-	var assignments []*ast.AssignStmt
-	var ranges []*ast.RangeStmt
-	var returns []*ast.ReturnStmt
-	definitionsWrites := 0
-	sourcesWrites := 0
-	sourceIndexWrites := 0
-	documentWrites := 0
-	ast.Inspect(function.Body, func(node ast.Node) bool {
+	streams := make(map[ast.Expr]bool)
+	writeOpens := make(map[ast.Expr]bool)
+	var boundaryErr error
+	ast.Inspect(file, func(node ast.Node) bool {
+		if boundaryErr != nil {
+			return false
+		}
 		switch value := node.(type) {
 		case *ast.CallExpr:
-			if sqlProductASTIdentifier(value.Fun, "fullCatalog") && len(value.Args) == 0 {
-				fullCatalogCalls = append(fullCatalogCalls, value)
+			call := binding(value.Fun)
+			if _, ok := required[call]; ok {
+				required[call] = true
 			}
-			if selector, ok := value.Fun.(*ast.SelectorExpr); ok && sqlProductASTSelector(selector, "definition", "Encode") {
-				encodeCalls = append(encodeCalls, value)
+			if call == "github.com/progresshans/godj/project.Run" && len(value.Args) == 5 {
+				streams[value.Args[3]] = binding(value.Args[3]) == "os.Stdin"
+				streams[value.Args[4]] = binding(value.Args[4]) == "os.Stdout"
 			}
-		case *ast.AssignStmt:
-			assignments = append(assignments, value)
-			for _, target := range value.Lhs {
-				switch {
-				case sqlProductASTIdentifier(target, "definitions"):
-					definitionsWrites++
-				case sqlProductASTIdentifier(target, "sources"):
-					sourcesWrites++
-				case sqlProductASTIdentifier(target, "document"):
-					documentWrites++
+			if call == "os.OpenFile" {
+				// Marker descriptors are write-only; they cannot read oracle files.
+				writable := false
+				var writeFlags func(ast.Expr) bool
+				writeFlags = func(expression ast.Expr) bool {
+					if binary, ok := expression.(*ast.BinaryExpr); ok {
+						return binary.Op == token.OR && writeFlags(binary.X) && writeFlags(binary.Y)
+					}
+					switch binding(expression) {
+					case "os.O_WRONLY":
+						writable = true
+						return true
+					case "os.O_CREATE", "os.O_APPEND":
+						return true
+					}
+					return false
+				}
+				if len(value.Args) != 3 || !writeFlags(value.Args[1]) || !writable {
+					boundaryErr = errors.New("external runner file descriptor is not write-only")
+				}
+				writeOpens[value.Fun] = true
+			}
+			if identifier, ok := value.Fun.(*ast.Ident); ok && (identifier.Name == "print" || identifier.Name == "println") {
+				boundaryErr = errors.New("external runner writes directly to process output")
+			}
+		case *ast.SelectorExpr:
+			symbol := binding(value)
+			switch {
+			case symbol == "os.Stdin" || symbol == "os.Stdout":
+				if !streams[value] {
+					boundaryErr = errors.New("external runner stream bypasses project.Run")
+				}
+			case symbol == "os.OpenFile":
+				if !writeOpens[value] {
+					boundaryErr = errors.New("external runner file opener bypasses flag validation")
+				}
+			case strings.HasPrefix(symbol, "os."):
+				switch symbol {
+				case "os.Args", "os.Stderr", "os.Getenv", "os.Setenv", "os.Getpid", "os.Exit",
+					"os.WriteFile", "os.O_CREATE", "os.O_APPEND", "os.O_WRONLY":
 				default:
-					index, ok := target.(*ast.IndexExpr)
-					if ok && sqlProductASTIdentifier(index.X, "sources") {
-						sourceIndexWrites++
+					boundaryErr = fmt.Errorf("external runner uses forbidden I/O symbol %s", symbol)
+				}
+			case strings.HasPrefix(symbol, "fmt."):
+				switch symbol {
+				case "fmt.Errorf", "fmt.Sprintf", "fmt.Fprintf", "fmt.Fprintln":
+				default:
+					boundaryErr = fmt.Errorf("external runner uses direct or input formatting %s", symbol)
+				}
+			case strings.HasPrefix(symbol, "github.com/progresshans/godj/db/"):
+				if _, ok := required[symbol]; !ok && symbol != "github.com/progresshans/godj/db/postgres.MigrationSQLConfig" {
+					boundaryErr = fmt.Errorf("external runner uses database-bearing symbol %s", symbol)
+				}
+			}
+		case *ast.BasicLit:
+			if value.Kind == token.STRING {
+				literal, _ := strconv.Unquote(value.Value)
+				for _, prefix := range []string{"CREATE TABLE", "ALTER TABLE", "DROP TABLE", "SELECT ", "INSERT ", "UPDATE ", "DELETE "} {
+					if strings.Contains(strings.ToUpper(literal), prefix) {
+						boundaryErr = errors.New("external runner embeds SQL output")
 					}
 				}
 			}
-		case *ast.CompositeLit:
-			if !sqlProductASTSelectorExpression(value.Type, "definition", "Source") {
-				break
-			}
-			for _, element := range value.Elts {
-				pair, ok := element.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-				key, ok := pair.Key.(*ast.Ident)
-				if ok && key.Name == "Document" && sqlProductASTIdentifier(pair.Value, "document") {
-					sourceDocuments = append(sourceDocuments, value)
-				}
-			}
-		case *ast.RangeStmt:
-			ranges = append(ranges, value)
-		case *ast.ReturnStmt:
-			returns = append(returns, value)
 		}
 		return true
 	})
-	if len(fullCatalogCalls) != 1 || len(encodeCalls) != 1 || len(sourceDocuments) != 1 || len(ranges) != 1 ||
-		definitionsWrites != 1 || sourcesWrites != 1 || sourceIndexWrites != 1 || documentWrites != 1 {
-		return fmt.Errorf(
-			"external runner source encoding boundary = catalog:%d encode:%d documents:%d ranges:%d definitions_writes:%d sources_writes:%d source_index_writes:%d document_writes:%d",
-			len(fullCatalogCalls),
-			len(encodeCalls),
-			len(sourceDocuments),
-			len(ranges),
-			definitionsWrites,
-			sourcesWrites,
-			sourceIndexWrites,
-			documentWrites,
-		)
+	if boundaryErr != nil {
+		return boundaryErr
 	}
-	if !sqlProductASTAssignmentBindsCall(assignments, fullCatalogCalls[0], token.DEFINE, "definitions") {
-		return errors.New("external runner full catalog result is not bound to definitions")
-	}
-	rangeStatement := ranges[0]
-	if rangeStatement.Tok != token.DEFINE || !sqlProductASTIdentifier(rangeStatement.Key, "index") ||
-		!sqlProductASTIdentifier(rangeStatement.Value, "migration") ||
-		!sqlProductASTIdentifier(rangeStatement.X, "definitions") {
-		return errors.New("external runner definition traversal is not bound to index migration and definitions")
-	}
-	encode := encodeCalls[0]
-	if len(encode.Args) != 2 || !sqlProductASTIdentifier(encode.Args[1], "migration") ||
-		!sqlProductASTDefinitionProducer(encode.Args[0]) ||
-		!sqlProductASTAssignmentBindsCall(assignments, encode, token.DEFINE, "document", "err") {
-		return errors.New("external runner definition.Encode result is not bound to document and err")
-	}
-	if !sqlProductASTSourceAssignment(assignments, sourceDocuments[0]) {
-		return errors.New("external runner encoded document is not assigned to sources[index]")
-	}
-	if !sqlProductASTSourceReturns(returns) {
-		return errors.New("external runner source return paths are not coupled to the encoded sources slice")
-	}
-	return nil
-}
-
-func sqlProductAuditRunnerRenderer(rendererFunction, postgresEnvironment, observedRender *ast.FuncDecl) error {
-	if err := sqlProductAuditRunnerSupportedRendererBranches(rendererFunction); err != nil {
-		return err
-	}
-	constructors := 0
-	configurations := 0
-	observedDelegates := 0
-	environmentChecks := 0
-	ast.Inspect(rendererFunction.Body, func(node ast.Node) bool {
-		switch value := node.(type) {
-		case *ast.CallExpr:
-			if sqlProductASTIdentifier(value.Fun, "postgresEnvironmentIsPoisoned") && len(value.Args) == 0 {
-				environmentChecks++
-			}
-			selector, ok := value.Fun.(*ast.SelectorExpr)
-			if !ok || !sqlProductASTSelector(selector, "postgres", "NewMigrationSQLRenderer") || len(value.Args) != 1 {
-				break
-			}
-			constructors++
-			configuration, ok := value.Args[0].(*ast.CompositeLit)
-			if !ok || !sqlProductASTSelectorExpression(configuration.Type, "postgres", "MigrationSQLConfig") {
-				break
-			}
-			for _, element := range configuration.Elts {
-				pair, ok := element.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-				key, ok := pair.Key.(*ast.Ident)
-				if ok && key.Name == "Schema" && sqlProductASTGetenv(pair.Value, "postgresSchemaEnvironment") {
-					configurations++
-				}
-			}
-		case *ast.CompositeLit:
-			if !sqlProductASTIdentifier(value.Type, "observedRenderer") {
-				break
-			}
-			for _, element := range value.Elts {
-				pair, ok := element.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-				key, ok := pair.Key.(*ast.Ident)
-				if ok && key.Name == "delegate" && sqlProductASTIdentifier(pair.Value, "delegate") {
-					observedDelegates++
-				}
-			}
-		}
-		return true
-	})
-	if err := sqlProductAuditRunnerPostgresEnvironment(postgresEnvironment); err != nil {
-		return err
-	}
-	var delegateCalls []*ast.CallExpr
-	var observedReturns []*ast.ReturnStmt
-	ast.Inspect(observedRender.Body, func(node ast.Node) bool {
-		if result, ok := node.(*ast.ReturnStmt); ok {
-			observedReturns = append(observedReturns, result)
-		}
-		call, ok := node.(*ast.CallExpr)
-		if !ok || len(call.Args) != 2 || !sqlProductASTIdentifier(call.Args[0], "ctx") ||
-			!sqlProductASTIdentifier(call.Args[1], "request") {
-			return true
-		}
-		method, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || method.Sel.Name != "RenderForwardMigrationSQL" {
-			return true
-		}
-		delegate, ok := method.X.(*ast.SelectorExpr)
-		if ok && sqlProductASTSelector(delegate, "renderer", "delegate") {
-			delegateCalls = append(delegateCalls, call)
-		}
-		return true
-	})
-	delegateReturnCoupled := false
-	if len(observedRender.Body.List) != 2 || len(observedReturns) != 2 || len(delegateCalls) != 1 {
-		delegateReturnCoupled = false
-	} else if result, ok := observedRender.Body.List[len(observedRender.Body.List)-1].(*ast.ReturnStmt); ok &&
-		len(result.Results) == 1 && result.Results[0] == delegateCalls[0] {
-		delegateReturnCoupled = true
-	}
-	if constructors != 1 || configurations != 1 || observedDelegates != 1 || environmentChecks != 1 ||
-		len(delegateCalls) != 1 || !delegateReturnCoupled {
-		return fmt.Errorf(
-			"external runner renderer boundary = constructors:%d configs:%d wrappers:%d environment:%d delegates:%d return_coupled:%t",
-			constructors,
-			configurations,
-			observedDelegates,
-			environmentChecks,
-			len(delegateCalls),
-			delegateReturnCoupled,
-		)
-	}
-	return nil
-}
-
-func sqlProductAuditRunnerSupportedRendererBranches(function *ast.FuncDecl) error {
-	var modeSwitches []*ast.SwitchStmt
-	delegateWrites := 0
-	ast.Inspect(function.Body, func(node ast.Node) bool {
-		switch value := node.(type) {
-		case *ast.SwitchStmt:
-			if sqlProductASTIdentifier(value.Tag, "mode") {
-				modeSwitches = append(modeSwitches, value)
-			}
-		case *ast.AssignStmt:
-			for _, target := range value.Lhs {
-				if sqlProductASTIdentifier(target, "delegate") {
-					delegateWrites++
-				}
-			}
-		}
-		return true
-	})
-	if len(modeSwitches) != 1 || delegateWrites != 1 {
-		return fmt.Errorf("external runner renderer mode switches/delegate writes = %d/%d, want 1/1", len(modeSwitches), delegateWrites)
-	}
-	branches := make(map[string]*ast.CaseClause)
-	defaultBranches := 0
-	for _, statement := range modeSwitches[0].Body.List {
-		clause, ok := statement.(*ast.CaseClause)
-		if !ok || len(clause.List) > 1 {
-			return errors.New("external runner renderer mode case is invalid")
-		}
-		if len(clause.List) == 0 {
-			defaultBranches++
-			continue
-		}
-		literal, ok := clause.List[0].(*ast.BasicLit)
-		if !ok || literal.Kind != token.STRING {
-			return errors.New("external runner renderer mode case is not a string literal")
-		}
-		label, err := strconv.Unquote(literal.Value)
-		if err != nil || branches[label] != nil {
-			return errors.New("external runner renderer mode case is duplicated or invalid")
-		}
-		branches[label] = clause
-	}
-	wantLabels := map[string]bool{"sqlite": true, "postgres": true, "fail": true, "nil": true, "wait_cancel": true}
-	if defaultBranches != 1 || len(branches) != len(wantLabels) {
-		return errors.New("external runner renderer mode set is not exact")
-	}
-	for label := range branches {
-		if !wantLabels[label] {
-			return fmt.Errorf("external runner renderer mode %q is unexpected", label)
-		}
-	}
-	sqliteBranch := branches["sqlite"]
-	postgresBranch := branches["postgres"]
-	if sqliteBranch == nil || postgresBranch == nil || len(sqliteBranch.Body) != 1 || len(postgresBranch.Body) != 4 {
-		return errors.New("external runner supported renderer branches are not exact")
-	}
-	sqliteDelegate, ok := sqlProductASTObservedRendererReturn(sqliteBranch.Body[0])
-	if !ok || !sqlProductASTCall(sqliteDelegate, "sqlite", "NewMigrationSQLRenderer", 0) {
-		return errors.New("external runner SQLite branch does not return its configured observed renderer")
-	}
-	poisonCheck, ok := postgresBranch.Body[0].(*ast.IfStmt)
-	if !ok {
-		return errors.New("external runner PostgreSQL branch does not begin with the poison-environment guard")
-	}
-	negation, ok := poisonCheck.Cond.(*ast.UnaryExpr)
-	if !ok || negation.Op != token.NOT {
-		return errors.New("external runner PostgreSQL poison-environment guard is not exact")
-	}
-	check, ok := negation.X.(*ast.CallExpr)
-	if !ok || len(check.Args) != 0 || !sqlProductASTIdentifier(check.Fun, "postgresEnvironmentIsPoisoned") {
-		return errors.New("external runner PostgreSQL poison-environment check is not exact")
-	}
-	delegateAssignment, ok := postgresBranch.Body[1].(*ast.AssignStmt)
-	if !ok || delegateAssignment.Tok != token.DEFINE || len(delegateAssignment.Lhs) != 1 ||
-		!sqlProductASTIdentifier(delegateAssignment.Lhs[0], "delegate") || len(delegateAssignment.Rhs) != 1 ||
-		!sqlProductASTCall(delegateAssignment.Rhs[0], "postgres", "NewMigrationSQLRenderer", 1) {
-		return errors.New("external runner PostgreSQL branch does not bind its configured delegate")
-	}
-	postgresDelegate, ok := sqlProductASTObservedRendererReturn(postgresBranch.Body[3])
-	if !ok || !sqlProductASTIdentifier(postgresDelegate, "delegate") {
-		return errors.New("external runner PostgreSQL branch does not return its derived observed renderer")
-	}
-	return nil
-}
-
-func sqlProductASTObservedRendererReturn(statement ast.Stmt) (ast.Expr, bool) {
-	result, ok := statement.(*ast.ReturnStmt)
-	if !ok || len(result.Results) != 1 {
-		return nil, false
-	}
-	wrapper, ok := result.Results[0].(*ast.CompositeLit)
-	if !ok || !sqlProductASTIdentifier(wrapper.Type, "observedRenderer") || len(wrapper.Elts) != 1 {
-		return nil, false
-	}
-	pair, ok := wrapper.Elts[0].(*ast.KeyValueExpr)
-	if !ok || !sqlProductASTIdentifier(pair.Key, "delegate") {
-		return nil, false
-	}
-	return pair.Value, true
-}
-
-func sqlProductAuditRunnerPostgresEnvironment(function *ast.FuncDecl) error {
-	want := map[string]int{
-		"DATABASE_URL": 1, "GODJ_TEST_POSTGRES_URL": 1, "POSTGRESQL_URL": 1, "POSTGRES_URL": 1,
-		"PGHOST": 1, "PGPORT": 1, "PGDATABASE": 1, "PGUSER": 1, "PGPASSWORD": 1, "PGSSLMODE": 1,
-		"$secretEnvironment": 1,
-	}
-	observed := make(map[string]int, len(want))
-	invalid := 0
-	ast.Inspect(function.Body, func(node ast.Node) bool {
-		call, ok := node.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		if len(call.Args) != 1 || !sqlProductASTSelectorExpression(call.Fun, "os", "Getenv") {
-			invalid++
-			return true
-		}
-		switch key := call.Args[0].(type) {
-		case *ast.BasicLit:
-			value, err := strconv.Unquote(key.Value)
-			if err != nil {
-				invalid++
-			} else {
-				observed[value]++
-			}
-		case *ast.Ident:
-			observed["$"+key.Name]++
-		default:
-			invalid++
-		}
-		return true
-	})
-	if invalid != 0 || len(observed) != len(want) {
-		return errors.New("external runner PostgreSQL poison environment boundary is invalid")
-	}
-	for key, count := range want {
-		if observed[key] != count {
-			return fmt.Errorf("external runner PostgreSQL poison environment key %s count = %d, want %d", key, observed[key], count)
+	for call, seen := range required {
+		if !seen {
+			return fmt.Errorf("external runner omits public boundary %s", call)
 		}
 	}
 	return nil
-}
-
-func sqlProductASTFunction(file *ast.File, name, receiver string) (*ast.FuncDecl, error) {
-	var result *ast.FuncDecl
-	for _, declaration := range file.Decls {
-		function, ok := declaration.(*ast.FuncDecl)
-		if !ok || function.Name.Name != name || sqlProductASTReceiver(function) != receiver {
-			continue
-		}
-		if result != nil {
-			return nil, fmt.Errorf("external runner function %s is duplicated", name)
-		}
-		result = function
-	}
-	if result == nil {
-		return nil, fmt.Errorf("external runner function %s is absent", name)
-	}
-	return result, nil
-}
-
-func sqlProductASTReceiver(function *ast.FuncDecl) string {
-	if function.Recv == nil || len(function.Recv.List) != 1 {
-		return ""
-	}
-	switch receiver := function.Recv.List[0].Type.(type) {
-	case *ast.Ident:
-		return receiver.Name
-	case *ast.StarExpr:
-		if identifier, ok := receiver.X.(*ast.Ident); ok {
-			return identifier.Name
-		}
-	}
-	return ""
-}
-
-func sqlProductASTIdentifier(expression ast.Expr, name string) bool {
-	identifier, ok := expression.(*ast.Ident)
-	return ok && identifier.Name == name
-}
-
-func sqlProductASTSelector(expression *ast.SelectorExpr, owner, name string) bool {
-	return expression != nil && expression.Sel.Name == name && sqlProductASTIdentifier(expression.X, owner)
-}
-
-func sqlProductASTSelectorPackage(expression *ast.SelectorExpr, owner string) bool {
-	return expression != nil && sqlProductASTIdentifier(expression.X, owner)
-}
-
-func sqlProductASTSelectorExpression(expression ast.Expr, owner, name string) bool {
-	selector, ok := expression.(*ast.SelectorExpr)
-	return ok && sqlProductASTSelector(selector, owner, name)
-}
-
-func sqlProductASTCall(expression ast.Expr, owner, name string, arguments int) bool {
-	call, ok := expression.(*ast.CallExpr)
-	if !ok || len(call.Args) != arguments {
-		return false
-	}
-	selector, ok := call.Fun.(*ast.SelectorExpr)
-	return ok && sqlProductASTSelector(selector, owner, name)
-}
-
-func sqlProductASTGetenv(expression ast.Expr, key string) bool {
-	call, ok := expression.(*ast.CallExpr)
-	return ok && len(call.Args) == 1 && sqlProductASTSelectorExpression(call.Fun, "os", "Getenv") &&
-		sqlProductASTIdentifier(call.Args[0], key)
-}
-
-func sqlProductASTArgsSlice(expression ast.Expr) bool {
-	slice, ok := expression.(*ast.SliceExpr)
-	if !ok || !sqlProductASTSelectorExpression(slice.X, "os", "Args") || slice.High != nil || slice.Max != nil {
-		return false
-	}
-	low, ok := slice.Low.(*ast.BasicLit)
-	return ok && low.Kind == token.INT && low.Value == "1"
-}
-
-func sqlProductASTAssignmentBindsCall(
-	assignments []*ast.AssignStmt,
-	call *ast.CallExpr,
-	tokenKind token.Token,
-	names ...string,
-) bool {
-	matches := 0
-	for _, assignment := range assignments {
-		if assignment.Tok != tokenKind || len(assignment.Lhs) != len(names) ||
-			len(assignment.Rhs) != 1 || assignment.Rhs[0] != call {
-			continue
-		}
-		exact := true
-		for index, name := range names {
-			if !sqlProductASTIdentifier(assignment.Lhs[index], name) {
-				exact = false
-				break
-			}
-		}
-		if exact {
-			matches++
-		}
-	}
-	return matches == 1
-}
-
-func sqlProductASTDefinitionProducer(expression ast.Expr) bool {
-	producer, ok := expression.(*ast.CompositeLit)
-	if !ok || !sqlProductASTSelectorExpression(producer.Type, "definition", "Producer") || len(producer.Elts) != 2 {
-		return false
-	}
-	want := map[string]string{"Name": "sqlmigrate-product", "Version": "1"}
-	for _, element := range producer.Elts {
-		pair, ok := element.(*ast.KeyValueExpr)
-		if !ok {
-			return false
-		}
-		key, ok := pair.Key.(*ast.Ident)
-		literal, literalOK := pair.Value.(*ast.BasicLit)
-		if !ok || !literalOK || literal.Kind != token.STRING {
-			return false
-		}
-		value, err := strconv.Unquote(literal.Value)
-		if err != nil || want[key.Name] != value {
-			return false
-		}
-		delete(want, key.Name)
-	}
-	return len(want) == 0
-}
-
-func sqlProductASTSourceAssignment(assignments []*ast.AssignStmt, source *ast.CompositeLit) bool {
-	matches := 0
-	for _, assignment := range assignments {
-		if assignment.Tok != token.ASSIGN || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 ||
-			assignment.Rhs[0] != source {
-			continue
-		}
-		index, ok := assignment.Lhs[0].(*ast.IndexExpr)
-		if ok && sqlProductASTIdentifier(index.X, "sources") && sqlProductASTIdentifier(index.Index, "index") {
-			matches++
-		}
-	}
-	return matches == 1
-}
-
-func sqlProductASTSourceReturns(returns []*ast.ReturnStmt) bool {
-	if len(returns) != 4 {
-		return false
-	}
-	directSources := 0
-	appendedSources := 0
-	encodedErrors := 0
-	unknownCatalogErrors := 0
-	for _, result := range returns {
-		if len(result.Results) != 2 || !sqlProductASTIdentifier(result.Results[1], "nil") {
-			if len(result.Results) == 2 && sqlProductASTIdentifier(result.Results[0], "nil") &&
-				sqlProductASTIdentifier(result.Results[1], "err") {
-				encodedErrors++
-				continue
-			}
-			if len(result.Results) == 2 && sqlProductASTIdentifier(result.Results[0], "nil") &&
-				sqlProductASTCall(result.Results[1], "errors", "New", 1) {
-				unknownCatalogErrors++
-				continue
-			}
-			return false
-		}
-		if sqlProductASTIdentifier(result.Results[0], "sources") {
-			directSources++
-			continue
-		}
-		appendCall, ok := result.Results[0].(*ast.CallExpr)
-		if !ok || !sqlProductASTIdentifier(appendCall.Fun, "append") || len(appendCall.Args) != 2 ||
-			!sqlProductASTIdentifier(appendCall.Args[0], "sources") {
-			return false
-		}
-		invalidSource, ok := appendCall.Args[1].(*ast.CompositeLit)
-		if !ok || !sqlProductASTSelectorExpression(invalidSource.Type, "definition", "Source") {
-			return false
-		}
-		appendedSources++
-	}
-	return directSources == 1 && appendedSources == 1 && encodedErrors == 1 && unknownCatalogErrors == 1
 }
 
 func sqlProductWriteFile(t *testing.T, path string, document []byte, mode fs.FileMode) {

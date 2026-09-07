@@ -15,8 +15,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"unicode/utf8"
+
+	"github.com/progresshans/godj/internal/wirejson"
 )
 
 const (
@@ -122,7 +123,7 @@ func ReadRequest(reader io.Reader) (Failure, bool, error) {
 	if reader == nil {
 		return Failure{}, false, errors.New("project showmigrations protocol: nil request reader")
 	}
-	document, err := readAtMost(reader, MaxRequestBytes)
+	document, err := wirejson.Read(reader, MaxRequestBytes, wirejson.DrainToEOF)
 	if err != nil {
 		return Failure{}, false, fmt.Errorf("project showmigrations protocol: read request: %w", err)
 	}
@@ -147,7 +148,7 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 	if !exists {
 		return invalidResponse()
 	}
-	version, valid := canonicalUint(versionValue, 65_535)
+	version, valid := wirejson.Uint(versionValue, 65_535)
 	if !valid {
 		return invalidResponse()
 	}
@@ -160,21 +161,21 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 	}
 	switch status {
 	case "ok":
-		if !hasExactKeys(object, "protocol_version", "status", "result") {
+		if !wirejson.HasKeys(object, "protocol_version", "status", "result") {
 			return invalidResponse()
 		}
-		resultObject, ok := object["result"].(map[string]wireValue)
-		if !ok || !hasExactKeys(resultObject, "rows") {
+		resultObject, ok := object["result"].(map[string]any)
+		if !ok || !wirejson.HasKeys(resultObject, "rows") {
 			return invalidResponse()
 		}
-		wireRows, ok := resultObject["rows"].([]wireValue)
+		wireRows, ok := resultObject["rows"].([]any)
 		if !ok || len(wireRows) > MaxRows {
 			return invalidResponse()
 		}
 		rows := make([]Row, len(wireRows))
 		for index, value := range wireRows {
-			rowObject, ok := value.(map[string]wireValue)
-			if !ok || !hasExactKeys(rowObject, "app", "name", "status") {
+			rowObject, ok := value.(map[string]any)
+			if !ok || !wirejson.HasKeys(rowObject, "app", "name", "status") {
 				return invalidResponse()
 			}
 			app, appOK := rowObject["app"].(string)
@@ -190,11 +191,11 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 		}
 		return Response{OK: true, Result: Result{Rows: rows}}, Failure{}, false
 	case "error":
-		if !hasExactKeys(object, "protocol_version", "status", "error") {
+		if !wirejson.HasKeys(object, "protocol_version", "status", "error") {
 			return invalidResponse()
 		}
-		errorObject, ok := object["error"].(map[string]wireValue)
-		if !ok || !hasExactKeys(errorObject, "category", "code", "cleanup_failed") {
+		errorObject, ok := object["error"].(map[string]any)
+		if !ok || !wirejson.HasKeys(errorObject, "category", "code", "cleanup_failed") {
 			return invalidResponse()
 		}
 		category, categoryOK := errorObject["category"].(string)
@@ -401,50 +402,17 @@ func parseRequest(document []byte) (Failure, bool) {
 	if !exists {
 		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
 	}
-	version, valid := canonicalUint(versionValue, 65_535)
+	version, valid := wirejson.Uint(versionValue, 65_535)
 	if !valid {
 		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
 	}
 	if version != Version {
 		return Failure{Category: CategoryProtocol, Code: CodeProtocolIncompatible}, true
 	}
-	if !hasExactKeys(object, "protocol_version", "command") || object["command"] != "migrations.show" {
+	if !wirejson.HasKeys(object, "protocol_version", "command") || object["command"] != "migrations.show" {
 		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
 	}
 	return Failure{}, false
-}
-
-func readAtMost(reader io.Reader, maximum int) ([]byte, error) {
-	retained := make([]byte, 0, maximum+1)
-	buffer := make([]byte, 32<<10)
-	emptyReads := 0
-	for {
-		read, err := reader.Read(buffer)
-		if read < 0 || read > len(buffer) {
-			return nil, errors.New("invalid request reader count")
-		}
-		if read != 0 {
-			emptyReads = 0
-			remaining := maximum + 1 - len(retained)
-			if remaining > 0 {
-				if read < remaining {
-					remaining = read
-				}
-				retained = append(retained, buffer[:remaining]...)
-			}
-		} else if err == nil {
-			emptyReads++
-			if emptyReads >= 100 {
-				return nil, io.ErrNoProgress
-			}
-		}
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				return retained, nil
-			}
-			return nil, err
-		}
-	}
 }
 
 func validRows(rows []Row) bool {
@@ -501,24 +469,6 @@ func validStatus(status string) bool {
 	}
 }
 
-func canonicalUint(value wireValue, maximum uint64) (uint64, bool) {
-	number, ok := value.(json.Number)
-	if !ok {
-		return 0, false
-	}
-	text := number.String()
-	if text == "" || (len(text) > 1 && text[0] == '0') {
-		return 0, false
-	}
-	for _, character := range text {
-		if character < '0' || character > '9' {
-			return 0, false
-		}
-	}
-	parsed, err := strconv.ParseUint(text, 10, 64)
-	return parsed, err == nil && parsed <= maximum
-}
-
 func exactCode(code string, exit int, allowed ...string) (int, bool) {
 	for _, candidate := range allowed {
 		if code == candidate {
@@ -532,102 +482,6 @@ func invalidResponse() (Response, Failure, bool) {
 	return Response{}, Failure{Category: CategoryProtocol, Code: CodeInvalidResponse}, true
 }
 
-type wireValue any
-
-func decodeObject(document []byte, maximum int) (map[string]wireValue, error) {
-	if len(document) > maximum || !utf8.Valid(document) {
-		return nil, errors.New("invalid wire framing")
-	}
-	decoder := json.NewDecoder(bytes.NewReader(document))
-	decoder.UseNumber()
-	value, err := decodeValue(decoder, 0)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return nil, errors.New("trailing wire value")
-		}
-		return nil, err
-	}
-	object, ok := value.(map[string]wireValue)
-	if !ok {
-		return nil, errors.New("wire root is not an object")
-	}
-	return object, nil
-}
-
-func decodeValue(decoder *json.Decoder, depth int) (wireValue, error) {
-	if depth > maxJSONDepth {
-		return nil, errors.New("wire nesting limit exceeded")
-	}
-	token, err := decoder.Token()
-	if err != nil {
-		return nil, err
-	}
-	delimiter, composite := token.(json.Delim)
-	if !composite {
-		return token, nil
-	}
-	switch delimiter {
-	case '{':
-		object := make(map[string]wireValue)
-		for decoder.More() {
-			if len(object) >= MaxRows {
-				return nil, errors.New("wire object member limit exceeded")
-			}
-			member, err := decoder.Token()
-			if err != nil {
-				return nil, err
-			}
-			key, ok := member.(string)
-			if !ok {
-				return nil, errors.New("wire object key is not a string")
-			}
-			if _, exists := object[key]; exists {
-				return nil, errors.New("duplicate wire object key")
-			}
-			child, err := decodeValue(decoder, depth+1)
-			if err != nil {
-				return nil, err
-			}
-			object[key] = child
-		}
-		closing, err := decoder.Token()
-		if err != nil || closing != json.Delim('}') {
-			return nil, errors.New("invalid wire object close")
-		}
-		return object, nil
-	case '[':
-		array := make([]wireValue, 0)
-		for decoder.More() {
-			if len(array) >= MaxRows {
-				return nil, errors.New("wire array member limit exceeded")
-			}
-			child, err := decodeValue(decoder, depth+1)
-			if err != nil {
-				return nil, err
-			}
-			array = append(array, child)
-		}
-		closing, err := decoder.Token()
-		if err != nil || closing != json.Delim(']') {
-			return nil, errors.New("invalid wire array close")
-		}
-		return array, nil
-	default:
-		return nil, errors.New("invalid wire delimiter")
-	}
-}
-
-func hasExactKeys(object map[string]wireValue, keys ...string) bool {
-	if len(object) != len(keys) {
-		return false
-	}
-	for _, key := range keys {
-		if _, exists := object[key]; !exists {
-			return false
-		}
-	}
-	return true
+func decodeObject(document []byte, maximum int) (map[string]any, error) {
+	return wirejson.DecodeObject(document, wirejson.Limits{Bytes: maximum, ValueDepth: maxJSONDepth, ObjectKeys: MaxRows, ArrayValues: MaxRows})
 }

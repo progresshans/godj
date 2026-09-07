@@ -1238,12 +1238,17 @@ func (store *authSessionCountingStore) Touch(
 	ctx context.Context,
 	id sessions.ID,
 	accessedAt, idleExpiresAt time.Time,
-) (sessions.Record, bool, error) {
-	record, found, err := store.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
-	if err == nil && found {
+) (sessions.Record, sessions.TouchStatus, error) {
+	record, status, err := store.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
+	if err == nil && status != sessions.TouchMissing {
+		if status == sessions.TouchExpired {
+			store.mu.Lock()
+			delete(store.rows, id)
+			store.mu.Unlock()
+		}
 		store.writes.Add(1)
 	}
-	return record, found, err
+	return record, status, err
 }
 
 func (store *authSessionCountingStore) Rotate(

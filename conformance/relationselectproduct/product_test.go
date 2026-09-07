@@ -16,7 +16,7 @@ import (
 func TestObserveExecutesExactREL009REL010AndREL011Cases(t *testing.T) {
 	t.Parallel()
 
-	got, err := Observe(context.Background())
+	got, err := observeCases(context.Background(), defaultFixtureConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,21 +73,21 @@ func TestObserveExecutesExactREL009REL010AndREL011Cases(t *testing.T) {
 func TestREL009REL010REL011FalseGreenMutations(t *testing.T) {
 	t.Parallel()
 
-	base, err := Observe(context.Background())
+	base, err := observeCases(context.Background(), defaultFixtureConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, test := range []struct {
 		name   string
 		mutate func(*fixtureConfig)
-		check  func(*testing.T, Observation)
+		check  func(*testing.T, selectCases)
 	}{
 		{
 			name: "required target membership",
 			mutate: func(config *fixtureConfig) {
 				config.posts[0].AuthorID = 3
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got selectCases) {
 				if got.Required.Eager[0].Name == nil || *got.Required.Eager[0].Name != "Cleo" {
 					t.Fatalf("required membership mutation = %#v", got.Required.Eager)
 				}
@@ -99,7 +99,7 @@ func TestREL009REL010REL011FalseGreenMutations(t *testing.T) {
 				reviewer := int64(2)
 				config.posts[1].ReviewerID = &reviewer
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got selectCases) {
 				if got.Nullable.Rows[1].Name == nil || *got.Nullable.Rows[1].Name != "Bob" {
 					t.Fatalf("nullable mutation = %#v", got.Nullable.Rows)
 				}
@@ -110,7 +110,7 @@ func TestREL009REL010REL011FalseGreenMutations(t *testing.T) {
 			mutate: func(config *fixtureConfig) {
 				config.postsDescending = true
 			},
-			check: func(t *testing.T, got Observation) {
+			check: func(t *testing.T, got selectCases) {
 				if got.Required.Eager[0].PostID != 12 || got.Nullable.Rows[2].PostID != 10 {
 					t.Fatalf("descending mutation = required %#v nullable %#v", got.Required.Eager, got.Nullable.Rows)
 				}
@@ -120,7 +120,7 @@ func TestREL009REL010REL011FalseGreenMutations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := defaultFixtureConfig()
 			test.mutate(&config)
-			got, err := observe(context.Background(), config)
+			got, err := observeCases(context.Background(), config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -142,10 +142,33 @@ func TestREL009REL010REL011FalseGreenMutations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := defaultFixtureConfig()
 			test.mutate(&config)
-			if _, err := observe(context.Background(), config); err == nil {
+			if _, err := observeCases(context.Background(), config); err == nil {
 				t.Fatal("trace mutation published a successful select-related observation")
 			}
 		})
+	}
+}
+
+func TestSelectObserversDoNotExecuteSiblingCases(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	config := defaultFixtureConfig()
+	config.forceNullableCold = true
+	config.allowInvalidPathQuery = true
+	if _, err := observe(ctx, config, observeRequired); err != nil {
+		t.Fatalf("required observer executed a poisoned sibling: %v", err)
+	}
+	config = defaultFixtureConfig()
+	config.repeatRequiredEager = true
+	config.forceRequiredCold = true
+	config.allowInvalidPathQuery = true
+	if _, err := observe(ctx, config, observeNullable); err != nil {
+		t.Fatalf("nullable observer executed a poisoned sibling: %v", err)
+	}
+	config.forceNullableCold = true
+	config.allowInvalidPathQuery = false
+	if got, err := observe(ctx, config, observeInvalid); err != nil || got.Result.Metrics.QueryCount != 0 {
+		t.Fatalf("invalid observer executed a sibling query: metrics=%+v error=%v", got.Result.Metrics, err)
 	}
 }
 
@@ -202,4 +225,35 @@ func TestTypedAndDynamicSelectRelatedConvergeOnTheSamePlan(t *testing.T) {
 
 func stringPointer(value string) *string {
 	return &value
+}
+
+// observeCases is the explicit unit-test suite. Each case calls its own
+// production operation with a fresh database and a separately read state.
+type selectCases struct {
+	Required RequiredObservation
+	Nullable NullableObservation
+	Invalid  InvalidObservation
+	DBState  relationstate.DatabaseState
+}
+
+func observeCases(ctx context.Context, config fixtureConfig) (selectCases, error) {
+	required, err := observe(ctx, config, observeRequired)
+	if err != nil {
+		return selectCases{}, err
+	}
+	nullable, err := observe(ctx, config, observeNullable)
+	if err != nil {
+		return selectCases{}, err
+	}
+	invalid, err := observe(ctx, config, observeInvalid)
+	if err != nil {
+		return selectCases{}, err
+	}
+	if !reflect.DeepEqual(required.DBState, nullable.DBState) {
+		return selectCases{}, errors.New("independent observer fixtures have different actual final states")
+	}
+	if !reflect.DeepEqual(required.DBState, invalid.DBState) {
+		return selectCases{}, errors.New("independent observer fixtures have different actual final states")
+	}
+	return selectCases{Required: required.Result, Nullable: nullable.Result, Invalid: invalid.Result, DBState: required.DBState}, nil
 }

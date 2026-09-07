@@ -96,6 +96,15 @@ support와 shared compiler를 통해 statement body만 반환합니다. Global o
     failed/invalid rendered SQL `3`, capability/resource limit `1`이며 Phase C private/global publication 전에 exact test로
     확정합니다.
 
+## 현재 검증 소유권
+
+외부 runner의 source audit는 허용 import·공개 진입점, write-only marker 파일과 process stream 경계를 확인합니다.
+Private 함수명·대입문·renderer type 개수는 고정하지 않습니다. Source 선택·Encode 결과·backend 선택·delegate 반환의 결합은
+빌드한 runner의 우회 대조로 확인합니다. Init marker가 없는 build 실패는 우회 탐지의 성공으로 인정하지 않습니다.
+Private 이름과 import alias 변경 뒤 동일 결과, IR 입력 변경 뒤 SQLite/PostgreSQL SQL 변경을 독립 기대값과 비교합니다.
+Poison opener·loopback listener, redaction, workspace 정리와 application hash 검사는 각 실행에서 유지합니다.
+이 실행 대조의 주 owner는 Portable Go이며 PostgreSQL 환경 job은 Phase D의 환경 격리·schema 고정·실제 중단 경계를 실행합니다.
+
 ## Phase B 구현 checkpoint
 
 Source `f51ab7339753508ed070a8ba6da1c917cb3ce392`, tree `ab71e8a09cbddb01c4d0054d955ad722af9db6d9`는 위 선택지 C의

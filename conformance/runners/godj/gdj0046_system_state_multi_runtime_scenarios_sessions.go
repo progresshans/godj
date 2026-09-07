@@ -388,16 +388,16 @@ func systemStateConcurrentTouchMonotonicity(
 	holderResult := make(chan gdj0046TouchResult, 1)
 	contenderResult := make(chan gdj0046TouchResult, 1)
 	go func() {
-		touched, found, err := pair.holder.SessionStore().Touch(ctx, record.ID(), newestAccess, newestIdle)
-		holderResult <- gdj0046TouchResult{record: touched, found: found, err: err}
+		touched, status, err := pair.holder.SessionStore().Touch(ctx, record.ID(), newestAccess, newestIdle)
+		holderResult <- gdj0046TouchResult{record: touched, found: status == sessions.TouchActive, err: err}
 	}()
 	if err := gdj0046WaitSignal(ctx, barrier.holderEntered, "touch holder callback"); err != nil {
 		barrier.release()
 		return protocol.Observation{}, err
 	}
 	go func() {
-		touched, found, err := pair.contender.SessionStore().Touch(ctx, record.ID(), staleAccess, staleIdle)
-		contenderResult <- gdj0046TouchResult{record: touched, found: found, err: err}
+		touched, status, err := pair.contender.SessionStore().Touch(ctx, record.ID(), staleAccess, staleIdle)
+		contenderResult <- gdj0046TouchResult{record: touched, found: status == sessions.TouchActive, err: err}
 	}()
 	if err := gdj0046AssertBlocked(ctx, pair.backends, barrier); err != nil {
 		barrier.release()
@@ -691,8 +691,8 @@ func systemStateConcurrentSessionRotation(
 	touchResult := make(chan gdj0046TouchResult, 1)
 	touchRotateResult := make(chan gdj0046RotateResult, 1)
 	go func() {
-		record, found, err := holderStore.Touch(ctx, touchOld.ID(), newestAccess, newestIdle)
-		touchResult <- gdj0046TouchResult{record: record, found: found, err: err}
+		record, status, err := holderStore.Touch(ctx, touchOld.ID(), newestAccess, newestIdle)
+		touchResult <- gdj0046TouchResult{record: record, found: status == sessions.TouchActive, err: err}
 	}()
 	if err := gdj0046WaitSignal(ctx, touchBarrier.holderEntered, "touch-first holder callback"); err != nil {
 		touchBarrier.release()
@@ -762,13 +762,13 @@ func systemStateConcurrentSessionRotation(
 		return protocol.Observation{}, err
 	}
 	go func() {
-		record, found, err := contenderStore.Touch(
+		record, status, err := contenderStore.Touch(
 			ctx,
 			staleOld.ID(),
 			base.Add(time.Minute),
 			base.Add(61*time.Minute),
 		)
-		staleTouchResult <- gdj0046TouchResult{record: record, found: found, err: err}
+		staleTouchResult <- gdj0046TouchResult{record: record, found: status == sessions.TouchActive, err: err}
 	}()
 	if err := gdj0046AssertBlocked(ctx, pair.backends, staleBarrier); err != nil {
 		staleBarrier.release()

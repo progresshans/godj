@@ -61,11 +61,11 @@ func RenderMigrationSQL(
 		return nil, executionContextError(step, err)
 	}
 
-	snapshot, ok := loaded.snapshot()
+	view, ok := loaded.view()
 	if !ok {
 		return nil, invalidLoadedState(Migration{}, NoOperation, "", fmt.Errorf("loaded definition set is not initialized"))
 	}
-	definitions := snapshot.Values
+	definitions := view.Values
 	if err := validateLoadedDefinitionResources(definitions); err != nil {
 		return nil, err
 	}
@@ -73,10 +73,10 @@ func RenderMigrationSQL(
 		return nil, executionContextError(step, err)
 	}
 
-	// Reconstructor construction validates the complete graph, chronology, and
-	// full forward/reverse historical readiness before exact target lookup.
-	definitionSnapshot := cloneMigrationDefinitions(definitions)
-	reconstructor, err := newLoadedStateReconstructorContext(ctx, definitionSnapshot)
+	// The loader owns the immutable graph. Invocation preparation checks the
+	// complete chronology/readiness before exact target lookup and clones
+	// operation data once so renderer callbacks cannot mutate the publication.
+	reconstructor, err := buildLoadedStateReconstructor(ctx, definitions, view.Prepared)
 	if err != nil {
 		return nil, err
 	}

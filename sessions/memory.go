@@ -75,39 +75,29 @@ func (s *MemoryStore) Create(ctx context.Context, record Record) (bool, error) {
 	return true, nil
 }
 
-func (s *MemoryStore) Touch(ctx context.Context, id ID, accessedAt, idleExpiresAt time.Time) (Record, bool, error) {
+func (s *MemoryStore) Touch(ctx context.Context, id ID, accessedAt, idleExpiresAt time.Time) (Record, TouchStatus, error) {
 	if err := validStoreCall(ctx, s, id); err != nil {
-		return Record{}, false, err
+		return Record{}, TouchMissing, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := ctx.Err(); err != nil {
-		return Record{}, false, err
+		return Record{}, TouchMissing, err
 	}
 	record, exists := s.records[id]
 	if !exists {
-		return Record{}, false, nil
+		return Record{}, TouchMissing, nil
 	}
-	accessedAt = canonicalTime(accessedAt)
-	idleExpiresAt = canonicalTime(idleExpiresAt)
-	// Concurrent loads can arrive out of order after their initial snapshot.
-	// Never let an older touch shorten or move the record backwards.
-	if accessedAt.Before(record.accessedAt) {
-		accessedAt = record.accessedAt
+	touched, status, err := record.Touch(accessedAt, idleExpiresAt)
+	if err != nil {
+		return Record{}, TouchMissing, err
 	}
-	if idleExpiresAt.Before(record.idleExpiresAt) {
-		idleExpiresAt = record.idleExpiresAt
+	if status == TouchExpired {
+		delete(s.records, id)
+	} else {
+		s.records[id] = touched
 	}
-	if idleExpiresAt.After(record.absoluteExpiresAt) {
-		idleExpiresAt = record.absoluteExpiresAt
-	}
-	if !record.absoluteExpiresAt.After(accessedAt) || !idleExpiresAt.After(accessedAt) {
-		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "expiry", Detail: "session touch timestamps are invalid"}
-	}
-	record.accessedAt = accessedAt
-	record.idleExpiresAt = idleExpiresAt
-	s.records[id] = record.clone()
-	return record.clone(), true, nil
+	return touched.clone(), status, nil
 }
 
 func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) (Record, bool, error) {

@@ -4,7 +4,7 @@ import os
 import subprocess
 import shutil
 import tempfile
-from packages import MODULE, group
+from packages import MODULE, PURE_PROTOCOLS, group
 
 
 class PackagePartitionTests(unittest.TestCase):
@@ -26,6 +26,13 @@ class PackagePartitionTests(unittest.TestCase):
         self.assertEqual('core', group(MODULE + 'newfeature'))
         with self.assertRaises(ValueError):
             group('unrelated/module')
+
+    def test_pure_wire_packages_have_a_portable_owner_and_processes_stay_platform_owned(self):
+        for relative in PURE_PROTOCOLS | {'internal/wirejson', 'internal/projectwire'}:
+            self.assertEqual('core', group(MODULE + relative), relative)
+        for relative in ('internal/projectcheck', 'internal/projectcheck/linked'):
+            self.assertEqual('platform', group(MODULE + relative), relative)
+        self.assertEqual('integration', group(MODULE + 'internal/projectgenerate'))
 
     def test_make_never_tests_partial_discovery_after_go_list_failure(self):
         root = Path(__file__).resolve().parents[2]

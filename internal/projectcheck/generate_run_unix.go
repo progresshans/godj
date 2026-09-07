@@ -5,7 +5,6 @@ package projectcheck
 import (
 	"encoding/json"
 	"errors"
-	"path/filepath"
 	"sort"
 
 	"github.com/progresshans/godj/internal/gobuild"
@@ -30,123 +29,38 @@ func RunGenerate(input GenerationInvocation) GenerationReport {
 		return report
 	}
 
-	selected, selectionFailure := selectProject(input.CWD, commandArguments{explicitDescriptor: arguments.explicitDescriptor}, &report.Report)
-	if selectionFailure != nil {
-		candidate := mapGenerationSelectionFailure(*selectionFailure)
-		primary = &candidate
-	}
-	if primary == nil && !verifyRetainedProject(selected) {
-		candidate := GenerationFailure{Category: GenerationCategorySelection, Code: GenerationCodeProjectSelectionFailed}
-		primary = &candidate
-	}
-	if terminal := generationBarrier(input, primary); terminal != nil {
-		if selected.root != nil && selected.close() != nil {
-			report.CleanupFailed = 1
-			if generationCanceledOrInterrupted(*terminal) {
-				cleanup := generationCleanupFailure()
-				terminal = &cleanup
-			}
-		}
-		chooseGenerationFailure(&report, *terminal)
-		publishGeneration(input, &report)
-		return report
-	}
-
-	workspace, workspaceFailure := createPrivateWorkspaceWithHooks(selected, input.Environment, &report.Report, input.workspace)
-	if workspaceFailure != nil {
-		candidate := mapGenerationWorkspaceFailure(*workspaceFailure)
-		primary = &candidate
-		terminal := generationBarrier(input, primary)
-		if selected.close() != nil {
-			report.CleanupFailed = 1
-			if generationCanceledOrInterrupted(*terminal) {
-				cleanup := generationCleanupFailure()
-				terminal = &cleanup
-			}
-		}
-		if report.CleanupFailed != 0 && generationCanceledOrInterrupted(*terminal) {
-			cleanup := generationCleanupFailure()
-			terminal = &cleanup
-		}
-		chooseGenerationFailure(&report, *terminal)
-		publishGeneration(input, &report)
-		return report
-	}
-
-	cleanup := func() {
-		cleanupFailed := closeCommandWorkspace(&report.Report, selected.close, workspace.cleanup)
-		if !cleanupFailed {
-			return
-		}
-		report.CleanupFailed = 1
-		if !report.HasGenerationFailure || generationCanceledOrInterrupted(report.GenerationFailure) {
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[GenerationFailure]{
+			selection: mapGenerationSelectionFailure, workspace: mapGenerationWorkspaceFailure,
+			process: generationProcessFailure, cleanup: combineGenerationCleanup,
+			barrier: func(primary *GenerationFailure) *GenerationFailure { return generationBarrier(input, primary) },
+		}, commandHooks{})
+	finish := func() GenerationReport {
+		if command.close() && (!report.HasGenerationFailure || generationCanceledOrInterrupted(report.GenerationFailure)) {
 			report.HasGenerationResult = false
 			report.GenerationResult = GenerationResult{}
 			report.HasGenerationFailure = true
 			report.GenerationFailure = generationCleanupFailure()
 		}
-	}
-	finish := func() GenerationReport {
-		cleanup()
 		publishGeneration(input, &report)
 		return report
 	}
-
-	if terminal := generationBarrier(input, nil); terminal != nil {
-		chooseGenerationFailure(&report, *terminal)
-		return finish()
-	}
-	if !verifyRetainedProject(selected) {
-		chooseGenerationFailure(&report, GenerationFailure{Category: GenerationCategorySelection, Code: GenerationCodeProjectSelectionFailed})
-		return finish()
-	}
-
-	build := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.packagePath, "godj-project-runner", &report.Report)
-	primary = generationProcessFailure(BuildStage, build)
-	primary = generationBarrier(input, primary)
-	primary = combineGenerationCleanup(primary, build.CleanupFailed)
-	if primary != nil {
+	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
 		chooseGenerationFailure(&report, *primary)
 		return finish()
 	}
-
-	if !verifyRetainedProject(selected) {
-		chooseGenerationFailure(&report, GenerationFailure{Category: GenerationCategorySelection, Code: GenerationCodeProjectSelectionFailed})
+	if primary = command.buildRunner(); primary != nil {
+		chooseGenerationFailure(&report, *primary)
 		return finish()
 	}
-	if terminal := generationBarrier(input, nil); terminal != nil {
-		chooseGenerationFailure(&report, *terminal)
-		return finish()
-	}
-	runnerCommand := Command{
-		Dir:   selected.rootPath,
-		Argv:  []string{filepath.Join(workspace.root, "godj-project-runner"), projectgenerateprotocol.PrivateArgument},
-		Env:   workspace.environment,
-		Stdin: projectgenerateprotocol.RequestDocument(),
-	}
-	report.RunnerCalls++
-	runner := input.Backend.Execute(input.Context, input.Interrupt, GenerationRunnerStage, cloneCommand(runnerCommand))
-	recordProcess(&report.Report, GenerationRunnerStage, runner)
-	primary = generationProcessFailure(GenerationRunnerStage, runner)
-	primary = combineGenerationCleanup(primary, runner.CleanupFailed)
-	var response projectgenerateprotocol.Response
-	if primary == nil {
-		if runner.StdoutScalar.Truncated {
-			candidate := GenerationFailure{Category: GenerationCategoryProtocol, Code: projectgenerateprotocol.CodeInvalidResponse}
-			primary = &candidate
-		} else {
-			parsed, parseFailure, failed := projectgenerateprotocol.ParseResponse(runner.Stdout, runner.Started && runner.ExitCode == 0)
-			if failed {
-				candidate := GenerationFailure{Category: parseFailure.Category, Code: parseFailure.Code}
-				primary = &candidate
-			} else {
-				response = parsed
-			}
-		}
-	}
-	clear(runner.Stdout)
-	runner.Stdout = nil
+	selected := command.selected
+	runner := command.run(GenerationRunnerStage, projectgenerateprotocol.PrivateArgument, projectgenerateprotocol.RequestDocument())
+	response, primary := parseCommandResponse(&runner, command.completed(GenerationRunnerStage, runner),
+		GenerationFailure{Category: GenerationCategoryProtocol, Code: projectgenerateprotocol.CodeInvalidResponse},
+		func(document []byte, transportOK bool) (projectgenerateprotocol.Response, GenerationFailure, bool) {
+			response, failed, hasFailure := projectgenerateprotocol.ParseResponse(document, transportOK)
+			return response, GenerationFailure{Category: failed.Category, Code: failed.Code}, hasFailure
+		})
 	primary = generationBarrier(input, primary)
 	if primary != nil {
 		chooseGenerationFailure(&report, *primary)

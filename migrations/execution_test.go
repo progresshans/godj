@@ -548,17 +548,9 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 	if !reflect.DeepEqual(snapshot[0].Dependencies, []MigrationKey{dependency}) {
 		t.Fatalf("snapshotted dependencies = %v, want %v", snapshot[0].Dependencies, []MigrationKey{dependency})
 	}
-	var clonedCreate CreateModel
-	switch operation := snapshot[0].Operations[0].(type) {
-	case CreateModel:
-		clonedCreate = operation
-	case *CreateModel:
-		if operation == create {
-			t.Fatal("snapshotted CreateModel retained the caller's operation pointer")
-		}
-		clonedCreate = *operation
-	default:
-		t.Fatalf("snapshotted pointer CreateModel has type %T", operation)
+	clonedCreate, ok := snapshot[0].Operations[0].(CreateModel)
+	if !ok {
+		t.Fatalf("snapshot has noncanonical operation %T", snapshot[0].Operations[0])
 	}
 	if clonedCreate.Model.Name != "article" || len(clonedCreate.Model.Fields) != 2 ||
 		clonedCreate.Model.Fields[1].Name != "title" || clonedCreate.Model.Fields[1].Default == nil ||
@@ -567,17 +559,9 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 		clonedCreate.Model.Fields[1].Relation.Reverse.Name != "articles" {
 		t.Fatalf("snapshotted pointer CreateModel = %#v", snapshot[0].Operations[0])
 	}
-	var clonedAdd AddField
-	switch operation := snapshot[0].Operations[1].(type) {
-	case AddField:
-		clonedAdd = operation
-	case *AddField:
-		if operation == add {
-			t.Fatal("snapshotted AddField retained the caller's operation pointer")
-		}
-		clonedAdd = *operation
-	default:
-		t.Fatalf("snapshotted pointer AddField has type %T", operation)
+	clonedAdd, ok := snapshot[0].Operations[1].(AddField)
+	if !ok {
+		t.Fatalf("snapshot has noncanonical operation %T", snapshot[0].Operations[1])
 	}
 	if clonedAdd.ModelName != "article" || clonedAdd.Field.Name != "published" ||
 		clonedAdd.Field.Default == nil || clonedAdd.Field.Default.Boolean || clonedAdd.Field.Relation == nil ||
