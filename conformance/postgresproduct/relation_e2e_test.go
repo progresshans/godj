@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/progresshans/godj/conformance/relationdeleteproduct/authors"
-	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
-	relationproject "github.com/progresshans/godj/conformance/relationdeleteproduct/project"
+	"github.com/progresshans/godj/conformance/relationfixture/authors"
+	"github.com/progresshans/godj/conformance/relationfixture/blog"
+	relationproject "github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"

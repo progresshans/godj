@@ -1,61 +1,10 @@
 package relationreverseproduct
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"go/parser"
-	"go/token"
-	"io"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"reflect"
-	"runtime"
-	"slices"
-	"strings"
 	"testing"
-
-	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/conformance/internal/generationtest"
-	"github.com/progresshans/godj/conformance/internal/relationschema"
 )
-
-func TestCheckedInGeneratedReverseRelationProjectMatchesEightDeterministicCandidates(t *testing.T) {
-	t.Parallel()
-
-	authorsSchema, err := relationschema.AuthorsSchema()
-	if err != nil {
-		t.Fatal(err)
-	}
-	blogSchema, err := relationschema.BlogSchema()
-	if err != nil {
-		t.Fatal(err)
-	}
-	const rootImport = "github.com/progresshans/godj/conformance/relationreverseproduct/"
-	candidates := []generationtest.Candidate{
-		{Path: "authors/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
-		{Path: "authors/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
-		{Path: "authors/zz_godj_relation_object.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationObject("authors", authorsSchema) })},
-		{Path: "blog/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
-		{Path: "blog/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{Path: "blog/zz_godj_relation_object.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationObject("blog", blogSchema) })},
-		{Path: "project/zz_godj_bindings.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
-			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
-				{Alias: "authors", ImportPath: rootImport + "authors"},
-				{Alias: "blog", ImportPath: rootImport + "blog"},
-			})
-		})},
-		{Path: "project/zz_godj_relation_reverse.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
-			return codegen.GenerateProjectRelationReverse("project", []codegen.RelationReversePackage{
-				{Alias: "authors", ImportPath: rootImport + "authors", Schema: authorsSchema},
-				{Alias: "blog", ImportPath: rootImport + "blog", Schema: blogSchema},
-			})
-		})},
-	}
-
-	generationtest.Check(t, relationReverseProductDirectory(t), candidates)
-}
 
 func TestObserveExecutesExactREL005AccessorLookupAndDatabaseState(t *testing.T) {
 	t.Parallel()
@@ -183,93 +132,4 @@ func TestObservationChangesForEveryOwnedREL005ResultStateAndMetricMutation(t *te
 			}
 		})
 	}
-}
-
-func TestGeneratedAppsHaveNoAppToAppEdgesAndObserverIsOracleBlind(t *testing.T) {
-	t.Parallel()
-
-	root := relationReverseProductDirectory(t)
-	for _, directory := range []string{"authors", "blog"} {
-		entries, err := os.ReadDir(filepath.Join(root, directory))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasPrefix(entry.Name(), "zz_godj_") || !strings.HasSuffix(entry.Name(), ".go") {
-				continue
-			}
-			for _, imported := range parsedImports(t, filepath.Join(root, directory, entry.Name())) {
-				if strings.Contains(imported, "/relationreverseproduct/authors") || strings.Contains(imported, "/relationreverseproduct/blog") {
-					t.Fatalf("generated app file %s/%s has app-to-app import %q", directory, entry.Name(), imported)
-				}
-			}
-		}
-	}
-	for _, imported := range parsedImports(t, filepath.Join(root, "observer.go")) {
-		for _, forbidden := range []string{"/oracles/", "/fixtures/", "relation-oracle", "not-implemented"} {
-			if strings.Contains(imported, forbidden) {
-				t.Fatalf("REL-005 observer imports expected artifact %q", imported)
-			}
-		}
-	}
-
-	const rootImport = "github.com/progresshans/godj/conformance/relationreverseproduct/"
-	command := exec.Command("go", "list", "-json", rootImport+"authors", rootImport+"blog", rootImport+"project")
-	command.Dir = root
-	output, err := command.Output()
-	if err != nil {
-		t.Fatalf("go list reverse-relation project: %v", err)
-	}
-	type listedPackage struct {
-		ImportPath string
-		Imports    []string
-		Deps       []string
-	}
-	listed := make(map[string]listedPackage, 3)
-	decoder := json.NewDecoder(bytes.NewReader(output))
-	for {
-		var candidate listedPackage
-		if err := decoder.Decode(&candidate); err == io.EOF {
-			break
-		} else if err != nil {
-			t.Fatal(err)
-		}
-		listed[candidate.ImportPath] = candidate
-	}
-	authorsPackage := listed[rootImport+"authors"]
-	blogPackage := listed[rootImport+"blog"]
-	projectPackage := listed[rootImport+"project"]
-	if slices.Contains(authorsPackage.Imports, rootImport+"blog") || slices.Contains(authorsPackage.Deps, rootImport+"blog") {
-		t.Fatalf("authors app reaches blog: imports=%#v deps=%#v", authorsPackage.Imports, authorsPackage.Deps)
-	}
-	if slices.Contains(blogPackage.Imports, rootImport+"authors") || slices.Contains(blogPackage.Deps, rootImport+"authors") {
-		t.Fatalf("blog app reaches authors: imports=%#v deps=%#v", blogPackage.Imports, blogPackage.Deps)
-	}
-	for _, app := range []string{rootImport + "authors", rootImport + "blog"} {
-		if !slices.Contains(projectPackage.Imports, app) || !slices.Contains(projectPackage.Deps, app) {
-			t.Fatalf("project companion does not own app edge %q: imports=%#v deps=%#v", app, projectPackage.Imports, projectPackage.Deps)
-		}
-	}
-}
-
-func parsedImports(t *testing.T, path string) []string {
-	t.Helper()
-	parsed, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
-	if err != nil {
-		t.Fatal(err)
-	}
-	imports := make([]string, len(parsed.Imports))
-	for index, imported := range parsed.Imports {
-		imports[index] = strings.Trim(imported.Path.Value, `"`)
-	}
-	return imports
-}
-
-func relationReverseProductDirectory(t *testing.T) string {
-	t.Helper()
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate reverse relation product test source")
-	}
-	return filepath.Dir(source)
 }

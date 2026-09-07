@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// These readers cover the checked-in workflow's block jobs, needs and include
+// These readers cover the checked-in workflow's block jobs, needs and matrix
 // records. Unsupported or missing structures fail the caller's required set;
 // they are not a general YAML parser or a replacement for Actions validation.
 func ciJobs(t *testing.T) map[string]string {
@@ -73,15 +73,16 @@ func ciNeeds(t *testing.T, job string) []string {
 	return values
 }
 
-func ciMatrix(t *testing.T, job string) []map[string]string {
+func ciMatrix(t *testing.T, job, axis string) []map[string]string {
 	t.Helper()
-	start := strings.Index(job, "\n        include:\n")
+	header := "\n        " + axis + ":\n"
+	start := strings.Index(job, header)
 	end := strings.Index(job, "\n    steps:")
 	if start < 0 || end <= start {
-		t.Fatal("workflow matrix include mapping could not be read")
+		t.Fatalf("workflow matrix %s mapping could not be read", axis)
 	}
 	var rows []map[string]string
-	for _, line := range strings.Split(job[start+len("\n        include:\n"):end], "\n") {
+	for _, line := range strings.Split(job[start+len(header):end], "\n") {
 		if strings.HasPrefix(line, "          - ") {
 			rows = append(rows, make(map[string]string))
 			line = "            " + strings.TrimPrefix(line, "          - ")
@@ -195,33 +196,32 @@ func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
 func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	jobs := ciJobs(t)
 	coordinates := []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
-	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "project-operator-product-matrix", "targeted-migrate-product-matrix", "sqlite-matrix"} {
+	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "project-operator-product-matrix", "targeted-migrate-product-matrix"} {
 		job := ciJob(t, jobs, name)
-		rows := ciMatrix(t, job)
-		matrixModes := name == "relation-product-matrix" || name == "product-project-check-matrix" || name == "project-operator-product-matrix" || name == "targeted-migrate-product-matrix"
+		rows := ciMatrix(t, job, "platform")
 		seen := make(map[string]bool)
 		for _, row := range rows {
-			seen[row["expected_goos"]+"/"+row["expected_goarch"]+"/"+row["mode"]] = true
-		}
-		modes := []string{""}
-		if matrixModes {
-			modes = []string{"normal", "race", "cgo0"}
+			seen[row["expected_goos"]+"/"+row["expected_goarch"]] = true
 		}
 		for _, coordinate := range coordinates {
-			for _, mode := range modes {
-				if !seen[coordinate+"/"+mode] {
-					t.Fatalf("%s misses %s mode=%s", name, coordinate, mode)
-				}
+			if !seen[coordinate] {
+				t.Fatalf("%s misses %s", name, coordinate)
 			}
 		}
-		ciRequire(t, name, job, "go env GOOS", "go env GOARCH", "matrix.expected_goos", "matrix.expected_goarch")
-		if matrixModes {
-			ciRequire(t, name, job, "matrix.mode", "-race", "CGO_ENABLED=0", "go test")
-		} else {
-			ciRequire(t, name, job, "go test -count=1", "go test -race", "CGO_ENABLED=0 go test")
+		modeAxis := regexp.MustCompile(`(?m)^        mode: \[([^\]]+)\]$`).FindStringSubmatch(job)
+		if len(modeAxis) != 2 {
+			t.Fatalf("%s lacks a mode axis", name)
 		}
+		modes := strings.FieldsFunc(modeAxis[1], func(r rune) bool { return r == ',' || r == ' ' || r == '\'' || r == '"' })
+		for _, mode := range []string{"normal", "race", "cgo0"} {
+			if !containsString(modes, mode) {
+				t.Fatalf("%s misses mode %s", name, mode)
+			}
+		}
+		ciRequire(t, name, job, "go env GOOS", "go env GOARCH", "matrix.platform.expected_goos", "matrix.platform.expected_goarch",
+			"matrix.mode", "-race", "CGO_ENABLED=0", "go test")
 	}
-	portable := ciMatrix(t, ciJob(t, jobs, "portable-go-matrix"))
+	portable := ciMatrix(t, ciJob(t, jobs, "portable-go-matrix"), "include")
 	for mode, prefix := range map[string]string{"normal": "go-test", "race": "go-race", "cgo0": "cgo-zero-build"} {
 		for _, group := range []string{"core", "integration", "conformance", "products"} {
 			found := false
@@ -236,7 +236,7 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 		}
 	}
 	seen := make(map[string]bool)
-	for _, row := range ciMatrix(t, ciJob(t, jobs, "postgresql-product")) {
+	for _, row := range ciMatrix(t, ciJob(t, jobs, "postgresql-product"), "include") {
 		seen[row["shard"]+"/"+row["mode"]] = true
 	}
 	for _, shard := range []string{"core", "operator-target"} {

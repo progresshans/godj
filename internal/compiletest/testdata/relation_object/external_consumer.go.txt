@@ -3,8 +3,8 @@ package externalconsumer
 import (
 	"context"
 
-	"github.com/progresshans/godj/conformance/relationobjectproduct/blog"
-	"github.com/progresshans/godj/conformance/relationobjectproduct/project"
+	"github.com/progresshans/godj/conformance/relationfixture/blog"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 )

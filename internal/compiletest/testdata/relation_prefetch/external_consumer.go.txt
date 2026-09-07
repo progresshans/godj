@@ -3,8 +3,8 @@ package consumer
 import (
 	"context"
 
-	"github.com/progresshans/godj/conformance/relationprefetchproduct/authors"
-	"github.com/progresshans/godj/conformance/relationprefetchproduct/project"
+	"github.com/progresshans/godj/conformance/relationfixture/authors"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db"
 )
 

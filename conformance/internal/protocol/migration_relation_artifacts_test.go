@@ -220,27 +220,8 @@ func TestMigrationRelationReferenceAndProductWiringIsLocked(t *testing.T) {
 		t.Fatalf("oracle-regenerate migration-relation manifest count = %d, want 1", got)
 	}
 
-	workflowContents, err := os.ReadFile(filepath.Join(root, ".github/workflows/ci.yml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	workflow := string(workflowContents)
-	relationProductStart := strings.Index(workflow, "  relation-product-matrix:\n")
-	productProjectStart := strings.Index(workflow, "  product-project-check-matrix:\n")
-	sqliteStart := strings.Index(workflow, "  sqlite-matrix:\n")
-	if relationProductStart < 0 || productProjectStart <= relationProductStart || sqliteStart <= productProjectStart {
-		t.Fatal("cannot isolate hosted relation-product and SQLite jobs")
-	}
-	relationProduct := workflow[relationProductStart:productProjectStart]
-	hasPackageToken := func(want string) bool {
-		for _, token := range strings.Fields(relationProduct) {
-			if token == want {
-				return true
-			}
-		}
-		return false
-	}
-	if !hasPackageToken("./conformance/migrationrelationproduct") {
+	relationProduct := ciJob(t, ciJobs(t), "relation-product-matrix")
+	if !containsString(strings.Fields(relationProduct), "./conformance/migrationrelationproduct") {
 		t.Fatal("migration-relation product observer package is missing from relation-product inventory")
 	}
 }

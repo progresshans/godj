@@ -16,7 +16,6 @@ OWNERS = {
     'targeted-migrate-product-matrix': {'cli', 'orm'},
     'python-compatibility-matrix': {'reference'},
     'postgresql-product': {'orm', 'cli', 'web', 'reference'},
-    'sqlite-matrix': {'orm'},
 }
 
 

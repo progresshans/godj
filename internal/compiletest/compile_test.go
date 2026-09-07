@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/conformance/relationdeleteproduct/fixture"
-	facade "github.com/progresshans/godj/conformance/relationdeleteproduct/project"
+	fixture "github.com/progresshans/godj/conformance/relationfixture"
+	facade "github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/internal/projectgenerate"
 )
 
@@ -57,7 +57,7 @@ func TestExternalConsumerCompiles(t *testing.T) {
 func TestRelationFacadeDoesNotExposeInternalObjects(t *testing.T) {
 	for _, name := range []string{
 		"codegen/testdata/relation_facade/project.golden",
-		"conformance/relationdeleteproduct/project/zz_godj_relation_facade.go",
+		"conformance/relationfixture/project/zz_godj_relation_facade.go",
 	} {
 		source, err := os.ReadFile(filepath.Join(repositoryRoot(t), filepath.FromSlash(name)))
 		if err != nil {
@@ -94,7 +94,7 @@ func verifyRelationFacadeProduction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixtureRoot := filepath.Join(root, "conformance", "relationdeleteproduct")
+	fixtureRoot := filepath.Join(root, "conformance", "relationfixture")
 	physicalBefore := readRelationFacadeInventory(t, fixtureRoot)
 	spec, err := fixture.ProjectSpec(t.Context())
 	if err != nil {
@@ -800,12 +800,12 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 		{from: modulePath + "/examples/article/modeldef", to: modulePath + "/examples/article/project"},
 		{from: modulePath + "/examples/article/cmd/projectrunner", to: modulePath + "/examples/article/models"},
 		{from: modulePath + "/examples/article/cmd/projectrunner", to: modulePath + "/examples/article/project"},
-		{from: modulePath + "/conformance/relationdeleteproduct/fixture", to: modulePath + "/conformance/relationdeleteproduct/authors"},
-		{from: modulePath + "/conformance/relationdeleteproduct/fixture", to: modulePath + "/conformance/relationdeleteproduct/blog"},
-		{from: modulePath + "/conformance/relationdeleteproduct/fixture", to: modulePath + "/conformance/relationdeleteproduct/project"},
-		{from: modulePath + "/conformance/relationdeleteproduct/cmd/projectrunner", to: modulePath + "/conformance/relationdeleteproduct/authors"},
-		{from: modulePath + "/conformance/relationdeleteproduct/cmd/projectrunner", to: modulePath + "/conformance/relationdeleteproduct/blog"},
-		{from: modulePath + "/conformance/relationdeleteproduct/cmd/projectrunner", to: modulePath + "/conformance/relationdeleteproduct/project"},
+		{from: modulePath + "/conformance/relationfixture", to: modulePath + "/conformance/relationfixture/authors"},
+		{from: modulePath + "/conformance/relationfixture", to: modulePath + "/conformance/relationfixture/blog"},
+		{from: modulePath + "/conformance/relationfixture", to: modulePath + "/conformance/relationfixture/project"},
+		{from: modulePath + "/conformance/relationfixture/cmd/projectrunner", to: modulePath + "/conformance/relationfixture/authors"},
+		{from: modulePath + "/conformance/relationfixture/cmd/projectrunner", to: modulePath + "/conformance/relationfixture/blog"},
+		{from: modulePath + "/conformance/relationfixture/cmd/projectrunner", to: modulePath + "/conformance/relationfixture/project"},
 		{from: modulePath + "/migrations", to: modulePath + "/migrations/definition"},
 		{from: modulePath + "/internal/projectcheck", to: modulePath + "/internal/projectcheck/linked"},
 		{from: modulePath + "/internal/projectcheck/linked", to: modulePath + "/internal/projectcheck"},

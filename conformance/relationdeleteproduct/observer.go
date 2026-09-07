@@ -14,9 +14,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/progresshans/godj/conformance/relationdeleteproduct/authors"
-	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
-	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
+	"github.com/progresshans/godj/conformance/relationfixture/authors"
+	"github.com/progresshans/godj/conformance/relationfixture/blog"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/query"

@@ -14,6 +14,8 @@ class PackagePartitionTests(unittest.TestCase):
             'codegen/internal/testschema': 'core', 'codegen/consumertest': 'integration',
             'cmd/godj': 'platform', 'internal/projectcheck/linked': 'platform',
             'examples/article': 'integration', 'conformance/runners/godj': 'platform',
+            'conformance/relationfixture': 'integration',
+            'conformance/relationfixture/cmd/projectrunner': 'integration',
             'conformance/cmd/godjcheck': 'conformance',
             'conformance/projectmigrateproduct': 'products',
             'conformance/projectoperatorproduct': 'products',

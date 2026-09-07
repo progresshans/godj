@@ -1,70 +1,22 @@
 package relationobjectproduct
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
-	"io"
-	"os/exec"
-	"path/filepath"
 	"reflect"
-	"runtime"
-	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/conformance/internal/generationtest"
-	"github.com/progresshans/godj/conformance/internal/relationschema"
-	"github.com/progresshans/godj/conformance/relationobjectproduct/authors"
-	"github.com/progresshans/godj/conformance/relationobjectproduct/blog"
-	"github.com/progresshans/godj/conformance/relationobjectproduct/project"
+	"github.com/progresshans/godj/conformance/relationfixture/authors"
+	"github.com/progresshans/godj/conformance/relationfixture/blog"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/query"
 )
-
-func TestCheckedInGeneratedRelationObjectProjectMatchesDeterministicCandidates(t *testing.T) {
-	t.Parallel()
-
-	authorsSchema, err := relationschema.AuthorsSchema()
-	if err != nil {
-		t.Fatal(err)
-	}
-	blogSchema, err := relationschema.BlogSchema()
-	if err != nil {
-		t.Fatal(err)
-	}
-	const rootImport = "github.com/progresshans/godj/conformance/relationobjectproduct/"
-	candidates := []generationtest.Candidate{
-		{Path: "authors/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
-		{Path: "authors/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
-		{Path: "authors/zz_godj_relation_object.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationObject("authors", authorsSchema) })},
-		{Path: "blog/zz_godj_generated.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
-		{Path: "blog/zz_godj_relation.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{Path: "blog/zz_godj_relation_object.go", Data: generationtest.Bytes(t, func() ([]byte, error) { return codegen.GenerateRelationObject("blog", blogSchema) })},
-		{Path: "project/zz_godj_bindings.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
-			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
-				{Alias: "authors", ImportPath: rootImport + "authors"},
-				{Alias: "blog", ImportPath: rootImport + "blog"},
-			})
-		})},
-		{Path: "project/zz_godj_relation_object.go", Data: generationtest.Bytes(t, func() ([]byte, error) {
-			return codegen.GenerateProjectRelationObject("project", []codegen.RelationObjectPackage{
-				{Alias: "authors", ImportPath: rootImport + "authors", Schema: authorsSchema},
-				{Alias: "blog", ImportPath: rootImport + "blog", Schema: blogSchema},
-			})
-		})},
-	}
-	generationtest.Check(t, relationObjectProductDirectory(t), candidates)
-}
 
 func TestObserveExecutesExactREL003AndREL006CasesAndDatabaseState(t *testing.T) {
 	t.Parallel()
@@ -591,71 +543,6 @@ func TestGeneratedObjectWrapperCachesMissingAndCardinalitySnapshots(t *testing.T
 	}
 }
 
-func TestGeneratedAppsHaveNoAppToAppDependenciesAndObserverIsOracleBlind(t *testing.T) {
-	t.Parallel()
-
-	root := relationObjectProductDirectory(t)
-	for _, relative := range []string{
-		"authors/zz_godj_generated.go",
-		"authors/zz_godj_relation.go",
-		"authors/zz_godj_relation_object.go",
-		"blog/zz_godj_generated.go",
-		"blog/zz_godj_relation.go",
-		"blog/zz_godj_relation_object.go",
-	} {
-		for _, imported := range parsedImports(t, filepath.Join(root, relative)) {
-			if strings.Contains(imported, "/relationobjectproduct/authors") || strings.Contains(imported, "/relationobjectproduct/blog") {
-				t.Fatalf("generated app file %s has app-to-app import %q", relative, imported)
-			}
-		}
-	}
-	for _, imported := range parsedImports(t, filepath.Join(root, "observer.go")) {
-		for _, forbidden := range []string{"/oracles/", "/fixtures/", "relation-oracle", "not-implemented"} {
-			if strings.Contains(imported, forbidden) {
-				t.Fatalf("REL-003/006 observer imports expected artifact %q", imported)
-			}
-		}
-	}
-
-	const rootImport = "github.com/progresshans/godj/conformance/relationobjectproduct/"
-	command := exec.Command("go", "list", "-json", rootImport+"authors", rootImport+"blog", rootImport+"project")
-	command.Dir = root
-	output, err := command.Output()
-	if err != nil {
-		t.Fatalf("go list relation-object project: %v", err)
-	}
-	type listedPackage struct {
-		ImportPath string
-		Imports    []string
-		Deps       []string
-	}
-	listed := make(map[string]listedPackage, 3)
-	decoder := json.NewDecoder(bytes.NewReader(output))
-	for {
-		var candidate listedPackage
-		if err := decoder.Decode(&candidate); err == io.EOF {
-			break
-		} else if err != nil {
-			t.Fatal(err)
-		}
-		listed[candidate.ImportPath] = candidate
-	}
-	authorsPackage := listed[rootImport+"authors"]
-	blogPackage := listed[rootImport+"blog"]
-	projectPackage := listed[rootImport+"project"]
-	if slices.Contains(authorsPackage.Imports, rootImport+"blog") || slices.Contains(authorsPackage.Deps, rootImport+"blog") {
-		t.Fatalf("authors app reaches blog: imports=%#v deps=%#v", authorsPackage.Imports, authorsPackage.Deps)
-	}
-	if slices.Contains(blogPackage.Imports, rootImport+"authors") || slices.Contains(blogPackage.Deps, rootImport+"authors") {
-		t.Fatalf("blog app reaches authors: imports=%#v deps=%#v", blogPackage.Imports, blogPackage.Deps)
-	}
-	for _, required := range []string{rootImport + "authors", rootImport + "blog"} {
-		if !slices.Contains(projectPackage.Imports, required) {
-			t.Fatalf("project bridge imports = %#v, want %s", projectPackage.Imports, required)
-		}
-	}
-}
-
 type productAuthorResult struct {
 	value authors.Author
 	err   error
@@ -836,26 +723,4 @@ func awaitProductValue[T any](t *testing.T, values <-chan T, label string) T {
 func hasQueryCode(err error, code string) bool {
 	var queryError *query.Error
 	return errors.As(err, &queryError) && queryError.Code == code
-}
-
-func parsedImports(t *testing.T, path string) []string {
-	t.Helper()
-	parsed, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
-	if err != nil {
-		t.Fatal(err)
-	}
-	imports := make([]string, len(parsed.Imports))
-	for index, spec := range parsed.Imports {
-		imports[index] = strings.Trim(spec.Path.Value, `"`)
-	}
-	return imports
-}
-
-func relationObjectProductDirectory(t *testing.T) string {
-	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	return filepath.Dir(file)
 }

@@ -342,14 +342,14 @@ related objects, then initializes `_self`; exact internal CloneModel call count 
 returns an independent valid wrapper with the same source snapshot/backend. Nil, zero, composite and dereference-copy
 are structured invalid-plan failures.
 
-`GenerateProjectRelationQuery`, `RelationQueryGeneratorVersion`,
-`ProjectRelationQueryGeneratorVersion`, their goldens and checked-in `relationqueryproduct` output are immutable in
-this decision. Typed/dynamic nullable APIs are owned entirely by the new `Objects.BlogPost` surface.
+Typed/dynamic nullable APIs belong to the `Objects.BlogPost` surface. Historical query-generator byte locks describe
+the original rollout; current internal generated APIs can change with their consumer and behavioral verification.
 
 ### Product and compatibility decision
 
-New `conformance/relationobjectproduct/**` is an independent checked-in generated fixture. The actual adapter reads
-actual SQLite and generated APIs only; oracle/static fixtures and expected constants are not imported. REL-003 first
+`conformance/relationobjectproduct` consumes the shared `conformance/relationfixture` project; generated drift and
+dependency checks follow [testing](../TESTING.md). The actual adapter reads actual SQLite and generated APIs only;
+oracle/static fixtures and expected constants are not imported. REL-003 first
 loads Post 10 with generated QuerySet, then observes required cold/warm 1/0. REL-006 observes nil Reviewer at 0 I/O and
 typed/dynamic isnull `[11]` at one SELECT/JOIN 0. It additionally proves non-null nullable load, independent Fresh/new
 From, clone isolation, singleflight/cancellation, failure retry and 0/2 cardinality behavior as invariant gates.

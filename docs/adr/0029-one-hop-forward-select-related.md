@@ -278,9 +278,10 @@ This generated spelling is a bounded low-level bridge for GDJ-0029, not the cano
 a pre-1.0 public API freeze. Q-017 remains open. A later model-centered facade may delegate to this engine without
 changing REL-009/010/011 semantics.
 
-Exact compile union is the prior relationobjectproduct nine generated prerequisites + authors/blog projection companions
-two + project select-related companion one = twelve. Old generators/files are byte-locked. Pure generation validates full
-input/namespace/gofmt before returning bytes; caller-owned union compile/publication failure preserves last-good output.
+`relationselectproduct` consumes the shared `conformance/relationfixture` project, including app projection and project
+select-related companions. Complete generation and consumer compilation replace the historical twelve-file fixture lock;
+current ownership follows [testing](../TESTING.md). Pure generation validates full input/namespace/gofmt before returning
+bytes; caller-owned union compile/publication failure preserves last-good output.
 
 ## 결과
 
@@ -294,7 +295,7 @@ input/namespace/gofmt before returning bytes; caller-owned union compile/publica
 
 ### 비용과 제약
 
-- Two app projection files and one project file join the exact nine-file prerequisite union.
+- App projection and project selection companions must compile together with their generated prerequisites.
 - Projection scan and eager cache duplicate some QuerySet lifecycle code intentionally to preserve existing ABI.
 - Only one direct relation and All terminal are supported.
 

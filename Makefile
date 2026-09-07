@@ -138,10 +138,8 @@ format-check:
 generate-check:
 	go run ./cmd/godj generate --check --project ./examples/helpdesk/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/article/godj.toml
-	go run ./cmd/godj generate --check --project ./conformance/relationdeleteproduct/godj.toml
-	go test -count=1 -run '^TestCheckedInGenerated' \
-		./conformance/relationproduct ./conformance/relationqueryproduct ./conformance/relationobjectproduct \
-		./conformance/relationreverseproduct ./conformance/relationprefetchproduct ./conformance/relationselectproduct
+	go run ./cmd/godj generate --check --project ./conformance/relationfixture/godj.toml
+	go test -count=1 -run '^TestCheckedInGenerated' ./conformance/relationproduct
 
 project-command-dependencies:
 	go mod download all

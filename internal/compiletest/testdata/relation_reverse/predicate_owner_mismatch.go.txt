@@ -1,8 +1,8 @@
 package consumer
 
 import (
-	"github.com/progresshans/godj/conformance/relationreverseproduct/blog"
-	"github.com/progresshans/godj/conformance/relationreverseproduct/project"
+	"github.com/progresshans/godj/conformance/relationfixture/blog"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/orm"
 )
 

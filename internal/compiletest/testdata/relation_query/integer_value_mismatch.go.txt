@@ -1,6 +1,6 @@
 package consumer
 
-import "github.com/progresshans/godj/conformance/relationqueryproduct/project"
+import "github.com/progresshans/godj/conformance/relationfixture/project"
 
 func mismatch() {
 	relations, _ := project.BindRelations()

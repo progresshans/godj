@@ -134,6 +134,7 @@ jobs:
           go test -count=1
           ./query
           ./orm
+          ./conformance/relationfixture/...
           ./conformance/relationproduct/...
           ./conformance/relationqueryproduct/...
           ./conformance/relationobjectproduct/...
@@ -308,6 +309,7 @@ jobs:
           go env GOOS GOARCH
 
       - name: Run focused pure-Go lifecycle validation
+        if: ${{ !contains(fromJSON(needs.validation-plan.outputs.jobs), 'relation-product-matrix') || !contains(fromJSON(needs.validation-plan.outputs.jobs), 'product-project-check-matrix') }}
         env:
           CGO_ENABLED: "0"
         run: >
@@ -346,76 +348,33 @@ jobs:
   relation-product-matrix:
     needs: validation-plan
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'relation-product-matrix')
-    name: Relation product (${{ matrix.runs_on }}, ${{ matrix.mode }})
-    runs-on: ${{ matrix.runs_on }}
-    timeout-minutes: ${{ matrix.timeout_minutes }}
+    name: Relation product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.platform.runs_on }}
+    timeout-minutes: ${{ matrix.platform.timeout_minutes[matrix.mode] }}
     env:
       LC_ALL: C
       TZ: UTC
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: normal
-            timeout_minutes: 20
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: race
-            timeout_minutes: 20
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: cgo0
-            timeout_minutes: 20
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: normal
-            timeout_minutes: 20
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: race
-            timeout_minutes: 20
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: cgo0
-            timeout_minutes: 20
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: normal
-            timeout_minutes: 20
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: race
-            timeout_minutes: 30
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: cgo0
-            timeout_minutes: 20
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: normal
-            timeout_minutes: 20
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: race
-            timeout_minutes: 20
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: cgo0
-            timeout_minutes: 20
+        platform:
+          - runs_on: "ubuntu-22.04"
+            expected_goos: "linux"
+            expected_goarch: "amd64"
+            timeout_minutes: {normal: 20, race: 20, cgo0: 20}
+          - runs_on: "ubuntu-24.04-arm"
+            expected_goos: "linux"
+            expected_goarch: "arm64"
+            timeout_minutes: {normal: 20, race: 20, cgo0: 20}
+          - runs_on: "macos-15-intel"
+            expected_goos: "darwin"
+            expected_goarch: "amd64"
+            timeout_minutes: {normal: 20, race: 30, cgo0: 20}
+          - runs_on: "macos-26"
+            expected_goos: "darwin"
+            expected_goarch: "arm64"
+            timeout_minutes: {normal: 20, race: 20, cgo0: 20}
+        mode: [normal, race, cgo0]
 
     steps:
       - name: Checkout
@@ -434,10 +393,12 @@ jobs:
         run: |
           go version
           go env GOOS GOARCH
-          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
-          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+          test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
       - name: Run relation product mode
+        env:
+          RUNNER_COVERED: ${{ contains(fromJSON(needs.validation-plan.outputs.jobs), 'product-project-check-matrix') }}
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
@@ -451,20 +412,29 @@ jobs:
             *) exit 1 ;;
           esac
           packages=(
-            ./schema/... ./query ./codegen/... ./orm ./db/sqlite ./migrations ./migrations/definition
+            ./query ./codegen/consumertest ./orm ./db/sqlite ./migrations ./migrations/definition
+            ./conformance/relationfixture/...
             ./conformance/relationproduct/... ./conformance/relationqueryproduct/...
             ./conformance/relationobjectproduct/... ./conformance/relationreverseproduct/...
             ./conformance/relationprefetchproduct/... ./conformance/relationselectproduct/...
             ./conformance/relationdeleteproduct/... ./conformance/migrationrelationproduct
             ./conformance/internal/protocol ./internal/compiletest
           )
+          # Pure schema/codegen logic belongs to Portable Go. The generated
+          # consumers and actual relation products still run on every platform.
+          expected=("${packages[@]}" ./conformance/cmd/godjcheck)
+          if [ "$RUNNER_COVERED" != true ]; then
+            expected+=(./conformance/runners/godj)
+          fi
           expected_packages="$RUNNER_TEMP/relation-packages.txt"
-          go list "${packages[@]}" ./conformance/runners/godj ./conformance/cmd/godjcheck > "$expected_packages"
+          go list "${expected[@]}" > "$expected_packages"
+          required="$RUNNER_TEMP/relation-required.txt"
+          awk -F'|' -v covered="$RUNNER_COVERED" 'covered != "true" || $1 != "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$required"
           log="$RUNNER_TEMP/relation-product-tests.json"
           stderr_log="$RUNNER_TEMP/relation-product.stderr"
           status=0
           go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
-          if [ "$status" -eq 0 ]; then
+          if [ "$status" -eq 0 ] && [ "$RUNNER_COVERED" != true ]; then
             go test "${test_flags[@]}" -p=1 -run "$relation_godj_runner" ./conformance/runners/godj >> "$log" 2>> "$stderr_log" || status=$?
           fi
           if [ "$status" -eq 0 ]; then
@@ -474,7 +444,10 @@ jobs:
             python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true
             exit "$status"
           fi
-          python3 scripts/ci/go_test_events.py "$log" --required scripts/ci/relation-required.txt --packages "$expected_packages" --no-skips
+          python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$expected_packages" --no-skips
+          if [ "$mode" = normal ]; then
+            go vet ./migrations ./db/sqlite
+          fi
 
       - name: Require a clean worktree
         run: |
@@ -484,88 +457,37 @@ jobs:
   product-project-check-matrix:
     needs: validation-plan
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'product-project-check-matrix')
-    name: Product project check (${{ matrix.runs_on }}, ${{ matrix.mode }})
-    runs-on: ${{ matrix.runs_on }}
-    timeout-minutes: ${{ matrix.timeout_minutes }}
+    name: Product project check (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.platform.runs_on }}
+    timeout-minutes: ${{ matrix.platform.timeout_minutes[matrix.mode] }}
     env:
       LC_ALL: C
       TZ: UTC
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: normal
-            cmd_test_timeout: 20m
-            timeout_minutes: 45
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: race
-            cmd_test_timeout: 20m
-            timeout_minutes: 55
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: cgo0
-            cmd_test_timeout: 20m
-            timeout_minutes: 45
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: normal
-            cmd_test_timeout: 20m
-            timeout_minutes: 40
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: race
-            cmd_test_timeout: 20m
-            timeout_minutes: 50
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: cgo0
-            cmd_test_timeout: 20m
-            timeout_minutes: 40
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: normal
-            cmd_test_timeout: 30m
-            timeout_minutes: 55
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: race
-            cmd_test_timeout: 30m
-            timeout_minutes: 65
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: cgo0
-            cmd_test_timeout: 30m
-            timeout_minutes: 55
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: normal
-            cmd_test_timeout: 20m
-            timeout_minutes: 45
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: race
-            cmd_test_timeout: 20m
-            timeout_minutes: 55
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: cgo0
-            cmd_test_timeout: 20m
-            timeout_minutes: 45
+        platform:
+          - runs_on: "ubuntu-22.04"
+            expected_goos: "linux"
+            expected_goarch: "amd64"
+            cmd_test_timeout: "20m"
+            timeout_minutes: {normal: 45, race: 55, cgo0: 45}
+          - runs_on: "ubuntu-24.04-arm"
+            expected_goos: "linux"
+            expected_goarch: "arm64"
+            cmd_test_timeout: "20m"
+            timeout_minutes: {normal: 40, race: 50, cgo0: 40}
+          - runs_on: "macos-15-intel"
+            expected_goos: "darwin"
+            expected_goarch: "amd64"
+            cmd_test_timeout: "30m"
+            timeout_minutes: {normal: 55, race: 65, cgo0: 55}
+          - runs_on: "macos-26"
+            expected_goos: "darwin"
+            expected_goarch: "arm64"
+            cmd_test_timeout: "20m"
+            timeout_minutes: {normal: 45, race: 55, cgo0: 45}
+        mode: [normal, race, cgo0]
 
     steps:
       - name: Checkout
@@ -584,14 +506,14 @@ jobs:
         run: |
           go version
           go env GOOS GOARCH
-          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
-          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+          test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
       - name: Run and inventory product project-check mode
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          cmd_test_flags=(-timeout="${{ matrix.cmd_test_timeout }}" -count=1)
+          cmd_test_flags=(-timeout="${{ matrix.platform.cmd_test_timeout }}" -count=1)
           test_flags=(-timeout=20m -count=1)
           json_flags=(-timeout=15m -json -count=1)
           case "$mode" in
@@ -618,8 +540,19 @@ jobs:
           # operator product has its own OS/mode matrix below.
           go test "${cmd_test_flags[@]}" ./cmd/godj
           go test "${test_flags[@]}" ./project ./internal/projectcheck/...
-          # This matrix owns the real conformance runner on each OS/arch/mode.
-          go test "${test_flags[@]}" ./conformance/runners/godj
+          # This complete runner execution also owns relation sentinels when
+          # both matrices are selected. Missing/skipped execution must fail.
+          runner_log="$RUNNER_TEMP/conformance-runner-${mode}.json"
+          runner_stderr="$RUNNER_TEMP/conformance-runner.stderr"
+          status=0
+          go test "${test_flags[@]}" -json ./conformance/runners/godj > "$runner_log" 2> "$runner_stderr" || status=$?
+          if [ "$status" -ne 0 ]; then
+            python3 scripts/ci/go_test_events.py "$runner_log" --diagnostics --stderr "$runner_stderr" || true
+            exit "$status"
+          fi
+          runner_required="$RUNNER_TEMP/conformance-runner-required.txt"
+          awk -F'|' '$1 == "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$runner_required"
+          python3 scripts/ci/go_test_events.py "$runner_log" --required "$runner_required" --no-skips
 
           runserver_log="$RUNNER_TEMP/runserver-product-${mode}.json"
           stderr_log="$RUNNER_TEMP/product.stderr"
@@ -648,7 +581,7 @@ jobs:
           fi
 
       - name: Cold external CLI build milestone
-        if: needs.validation-plan.outputs.suite == 'full' && matrix.mode == 'normal' && matrix.expected_goos == 'linux' && matrix.expected_goarch == 'amd64'
+        if: needs.validation-plan.outputs.suite == 'full' && matrix.mode == 'normal' && matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64'
         env:
           GODJ_COLD_BUILD: "1"
         run: |
@@ -672,88 +605,37 @@ jobs:
   project-operator-product-matrix:
     needs: validation-plan
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'project-operator-product-matrix')
-    name: Project operator product (${{ matrix.runs_on }}, ${{ matrix.mode }})
-    runs-on: ${{ matrix.runs_on }}
-    timeout-minutes: ${{ matrix.timeout_minutes }}
+    name: Project operator product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.platform.runs_on }}
+    timeout-minutes: ${{ matrix.platform.timeout_minutes }}
     env:
       LC_ALL: C
       TZ: UTC
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: normal
-            test_timeout: 30m
+        platform:
+          - runs_on: "ubuntu-22.04"
+            expected_goos: "linux"
+            expected_goarch: "amd64"
+            test_timeout: "30m"
             timeout_minutes: 40
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: race
-            test_timeout: 30m
+          - runs_on: "ubuntu-24.04-arm"
+            expected_goos: "linux"
+            expected_goarch: "arm64"
+            test_timeout: "30m"
             timeout_minutes: 40
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: cgo0
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: normal
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: race
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: cgo0
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: normal
-            test_timeout: 45m
+          - runs_on: "macos-15-intel"
+            expected_goos: "darwin"
+            expected_goarch: "amd64"
+            test_timeout: "45m"
             timeout_minutes: 55
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: race
-            test_timeout: 45m
-            timeout_minutes: 55
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: cgo0
-            test_timeout: 45m
-            timeout_minutes: 55
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: normal
-            test_timeout: 35m
+          - runs_on: "macos-26"
+            expected_goos: "darwin"
+            expected_goarch: "arm64"
+            test_timeout: "35m"
             timeout_minutes: 45
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: race
-            test_timeout: 35m
-            timeout_minutes: 45
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: cgo0
-            test_timeout: 35m
-            timeout_minutes: 45
+        mode: [normal, race, cgo0]
 
     steps:
       - name: Checkout
@@ -772,8 +654,8 @@ jobs:
         run: |
           go version
           go env GOOS GOARCH
-          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
-          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+          test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
       - name: Prewarm project command dependencies
         run: go mod download all
@@ -782,7 +664,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1)
+          test_flags=(-timeout="${{ matrix.platform.test_timeout }}" -json -count=1)
           case "$mode" in
             normal)
               ;;
@@ -832,88 +714,37 @@ jobs:
   targeted-migrate-product-matrix:
     needs: validation-plan
     if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'targeted-migrate-product-matrix')
-    name: Targeted migrate product (${{ matrix.runs_on }}, ${{ matrix.mode }})
-    runs-on: ${{ matrix.runs_on }}
-    timeout-minutes: ${{ matrix.timeout_minutes }}
+    name: Targeted migrate product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.platform.runs_on }}
+    timeout-minutes: ${{ matrix.platform.timeout_minutes }}
     env:
       LC_ALL: C
       TZ: UTC
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: normal
-            test_timeout: 30m
+        platform:
+          - runs_on: "ubuntu-22.04"
+            expected_goos: "linux"
+            expected_goarch: "amd64"
+            test_timeout: "30m"
             timeout_minutes: 40
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: race
-            test_timeout: 30m
+          - runs_on: "ubuntu-24.04-arm"
+            expected_goos: "linux"
+            expected_goarch: "arm64"
+            test_timeout: "30m"
             timeout_minutes: 40
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-            mode: cgo0
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: normal
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: race
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-            mode: cgo0
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: normal
-            test_timeout: 45m
+          - runs_on: "macos-15-intel"
+            expected_goos: "darwin"
+            expected_goarch: "amd64"
+            test_timeout: "45m"
             timeout_minutes: 55
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: race
-            test_timeout: 45m
-            timeout_minutes: 55
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-            mode: cgo0
-            test_timeout: 45m
-            timeout_minutes: 55
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: normal
-            test_timeout: 30m
+          - runs_on: "macos-26"
+            expected_goos: "darwin"
+            expected_goarch: "arm64"
+            test_timeout: "30m"
             timeout_minutes: 40
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: race
-            test_timeout: 30m
-            timeout_minutes: 40
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-            mode: cgo0
-            test_timeout: 30m
-            timeout_minutes: 40
+        mode: [normal, race, cgo0]
 
     steps:
       - name: Checkout
@@ -932,14 +763,14 @@ jobs:
         run: |
           go version
           go env GOOS GOARCH
-          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
-          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+          test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
       - name: Run and inventory targeted migrate product mode
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
+          test_flags=(-timeout="${{ matrix.platform.test_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
           case "$mode" in
             normal)
               ;;
@@ -1355,69 +1186,6 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
-  sqlite-matrix:
-    needs: validation-plan
-    if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'sqlite-matrix')
-    name: SQLite (${{ matrix.runs_on }})
-    runs-on: ${{ matrix.runs_on }}
-    timeout-minutes: 20
-    env:
-      LC_ALL: C
-      TZ: UTC
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runs_on: ubuntu-22.04
-            expected_goos: linux
-            expected_goarch: amd64
-          - runs_on: ubuntu-24.04-arm
-            expected_goos: linux
-            expected_goarch: arm64
-          - runs_on: macos-15-intel
-            expected_goos: darwin
-            expected_goarch: amd64
-          - runs_on: macos-26
-            expected_goos: darwin
-            expected_goarch: arm64
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.26.5"
-          check-latest: false
-          cache: true
-
-      - name: Assert runner coordinate
-        run: |
-          go version
-          go env GOOS GOARCH
-          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
-          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
-
-      - name: Run normal SQLite tests
-        run: go test -count=1 ./migrations ./db/sqlite
-
-      - name: Run SQLite race tests
-        run: go test -race -count=1 ./migrations ./db/sqlite
-
-      - name: Run SQLite tests without CGO
-        run: CGO_ENABLED=0 go test -count=1 ./migrations ./db/sqlite
-
-      - name: Vet SQLite packages
-        run: go vet ./migrations ./db/sqlite
-
-      - name: Require a clean worktree
-        run: |
-          git diff --exit-code
-          test -z "$(git status --porcelain=v1)"
-
   required-ci:
     name: CI result (${{ inputs.suite || github.event.label.name || 'full' }})
     if: ${{ always() && (github.event_name != 'pull_request' || contains(fromJSON('["ci:full","ci:orm","ci:cli","ci:web","ci:reference"]'), github.event.label.name)) }}
@@ -1432,7 +1200,6 @@ jobs:
       - targeted-migrate-product-matrix
       - python-compatibility-matrix
       - postgresql-product
-      - sqlite-matrix
     runs-on: ubuntu-24.04
     timeout-minutes: 5
 

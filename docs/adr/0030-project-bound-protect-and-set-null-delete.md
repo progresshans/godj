@@ -383,10 +383,10 @@ constant, empty `RelationDeleters`, and a binder that still requires successful 
 aggregate. Namespace collision, exact exported
 surface and external-package compilation are gates. No facade, manager or model method is added.
 
-The GDJ-0030 compile artifact is a separate `conformance/relationdeleteproduct/**` exact thirteen-file union: the accepted
-twelve `relationselectproduct` prerequisites plus one new project delete companion. `relationselectproduct/**`, existing
-generators and all prior generated files remain byte-locked. Generation failure and union compile failure preserve last-good
-bytes.
+`conformance/relationdeleteproduct` now consumes the shared `conformance/relationfixture` project, including its delete
+companion. Whole-project drift, consumer compilation and mixed-snapshot rejection replace the original separate
+thirteen-file fixture lock; current ownership follows [testing](../TESTING.md). Generation failure and union compile
+failure preserve last-good bytes.
 
 ## 결과
 

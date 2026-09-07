@@ -49,8 +49,21 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 외부 build가 많은 conformance runner/godjcheck와 명령별 제품 흐름은 순수 core loop에서 분리한다.
 생성기의 byte/schema 단위 검사는 `codegen`, 생성된 별도 Go module의 compile·runtime·잘못된 조합 거부는
 `codegen/consumertest`가 소유한다. 후자는 integration과 relation platform 범위에서 실행하며 `make quick`에는 포함하지 않는다.
+순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
 DB schema/port/temp 디렉터리는 lane별로 분리하고 무거운 DB/process suite의 동시 실행 수를 제한한다.
+
+관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
+이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.
+기능별 product는 실제 query/object/reverse/prefetch/select/delete 결과와 cache·취소·rollback 검증을 소유한다.
+옛 fixture별 파일 수·이전 내부 ABI의 복제본을 유지하지 않는다. 현재 생성 조합의 일관성·잘못 섞인 snapshot 거부는
+`codegen/consumertest`, 소비자 타입 오류와 publication 실패 시 기존 결과 보존은 각각 compile·projectgenerate 검증이 맡는다.
+
+SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
+Full scope에서 conformance Go runner 전체를 project-check matrix가 실행하면 관계 matrix는 같은 runner subset을 다시 실행하지 않는다.
+해당 owner가 없는 ORM scope에서는 관계 matrix가 subset을 실행한다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
+aggregate는 선택한 owner의 실패·취소·누락을 거부한다. Full scope의 Darwin CGO-disabled lifecycle도 이 두 matrix가 소유하며,
+reference-only scope에서는 exact Darwin job이 직접 실행한다.
 
 ## 남겨야 하는 검증
 

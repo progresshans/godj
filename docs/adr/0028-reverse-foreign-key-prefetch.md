@@ -307,10 +307,10 @@ selector's lower-first private name such as `posts`/`reviewedPosts` must be uniq
 fixed/derived field. Adversarial aliases and selector collisions fail with nil bytes. Input normalization, namespace,
 unsupported-shape and render/gofmt errors are generator-owned and return nil bytes. A pure generator cannot inspect the
 caller's checked-in reverse companion/version; missing or ABI-incompatible `BindReverseObjects` is instead a caller-owned
-ten-file union compile/publication failure. Publication preserves last-good output after either kind of failure, and no
-same-surface version-constant check is invented. Existing `GenerateProjectRelationReverse`, its v1 version, golden and
-exact nine generated relation-product files are byte locked. New `relationprefetchproduct` external compile union is those
-nine plus exactly one prefetch companion.
+union compile/publication failure. Publication preserves last-good output after either kind of failure, and no
+same-surface version-constant check is invented. `relationprefetchproduct` consumes the shared `conformance/relationfixture`
+project. Whole-project drift and feature-specific prerequisite failure checks replace historical separate fixture
+copies and file-count locks; current ownership follows [testing](../TESTING.md).
 
 ### Product classification and verification ownership
 
@@ -322,8 +322,8 @@ Implementation must prove cross-runtime exact result/DB state/statement kinds/pr
 key count, JOIN 0 and extra-access 0. Separate internal gates prove sorted args/source-PK order/mutation-free trace before
 actual success publication without changing protocol shape. It must also prove IN immutability/error paths;
 empty/duplicate/permutation/zero/999/1000; resource and atomic failure paths;
-membership taxonomy; warm clone/concurrency/derived-cold behavior; deterministic generator and exact ten-file compile;
-old scalar/relation/compiler/generator byte locks.
+membership taxonomy; warm clone/concurrency/derived-cold behavior; deterministic generation and complete consumer compile;
+scalar/relation/compiler compatibility and mixed-snapshot rejection.
 
 The allowed Django test file may change only its hard-coded manifest-status vector so REL-012 becomes passing; its
 scenario/reference behavior and every other assertion remain byte/semantic locked. Local lane owners run focused normal

@@ -259,166 +259,10 @@ func (mutator *metricsProbeMutator) Delete(context.Context, query.DeletePlan) (i
 	return 2, nil
 }
 
-func TestGenerateMatchesLockedDjangoOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadLockedInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj suite differs from locked Django oracle in %d place(s)", len(differences))
-	}
-}
-
-func TestGenerateMatchesLockedWriteMigrationOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadWriteMigrationInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj write/migration suite differs from locked Django oracle in %d place(s)", len(differences))
-	}
-}
-
-func TestGenerateMatchesLockedSaveLifecycleOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadSaveLifecycleInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj save lifecycle suite differs from locked Django oracle in %d place(s)", len(differences))
-	}
-}
-
-func TestGenerateMatchesLockedQueryCacheOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadQueryCacheInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj query-cache suite differs from locked Django oracle in %d place(s)", len(differences))
-	}
-}
-
-func TestGenerateMatchesLockedMigrationPlanningOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadMigrationPlanningInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj migration-planning suite differs from locked Django oracle in %d place(s)", len(differences))
-	}
-}
-
-func TestGenerateMatchesLockedMigrationRestartOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadMigrationRestartInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj migration-restart suite differs from locked Django oracle in %d place(s)", len(differences))
-	}
-}
-
 func TestMigrationRestartRegistryMatchesManifestScenarios(t *testing.T) {
 	t.Parallel()
 
-	_, manifest, _ := loadMigrationRestartInputs(t)
+	_, manifest, _ := loadReferenceInputs(t, "migration-restart")
 	if len(migrationRestartFixtures) != len(manifest.Contracts) {
 		t.Fatalf("migration restart registry has %d scenarios, manifest has %d", len(migrationRestartFixtures), len(manifest.Contracts))
 	}
@@ -429,36 +273,10 @@ func TestMigrationRestartRegistryMatchesManifestScenarios(t *testing.T) {
 	}
 }
 
-func TestGenerateMatchesLockedMigrationStateReconstructionOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadMigrationStateReconstructionInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj migration-state-reconstruction suite differs from locked Django oracle in %d place(s)", len(differences))
-	}
-}
-
 func TestMigrationStateReconstructionRegistryMatchesManifestScenarios(t *testing.T) {
 	t.Parallel()
 
-	_, manifest, _ := loadMigrationStateReconstructionInputs(t)
+	_, manifest, _ := loadReferenceInputs(t, "migration-state-reconstruction")
 	if len(migrationStateReconstructionFixtures) != len(manifest.Contracts) {
 		t.Fatalf("migration state reconstruction registry has %d scenarios, manifest has %d", len(migrationStateReconstructionFixtures), len(manifest.Contracts))
 	}
@@ -519,36 +337,10 @@ func TestMigrationLifecycleRegistryMatchesManifestScenarios(t *testing.T) {
 	}
 }
 
-func TestGenerateMatchesLockedMigrationProjectCheckOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadMigrationProjectCheckInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj migration project-check suite differs from locked decision oracle in %d place(s)", len(differences))
-	}
-}
-
 func TestMigrationProjectCheckRegistryMatchesManifestScenarios(t *testing.T) {
 	t.Parallel()
 
-	_, manifest, _ := loadMigrationProjectCheckInputs(t)
+	_, manifest, _ := loadReferenceInputs(t, "migration-project-check")
 	if len(migrationProjectCheckFixtures) != len(manifest.Contracts) {
 		t.Fatalf("migration project-check registry has %d scenarios, manifest has %d", len(migrationProjectCheckFixtures), len(manifest.Contracts))
 	}
@@ -556,31 +348,6 @@ func TestMigrationProjectCheckRegistryMatchesManifestScenarios(t *testing.T) {
 		if _, ok := migrationProjectCheckFixtures[contract.Scenario]; !ok {
 			t.Fatalf("migration project-check scenario %q is not registered", contract.Scenario)
 		}
-	}
-}
-
-func TestGenerateMigrationProjectCheckIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, _ := loadMigrationProjectCheckInputs(t)
-	first, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(first) error = %v", err)
-	}
-	second, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(second) error = %v", err)
-	}
-	firstJSON, err := protocol.MarshalCanonical(first)
-	if err != nil {
-		t.Fatal(err)
-	}
-	secondJSON, err := protocol.MarshalCanonical(second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(firstJSON, secondJSON) {
-		t.Fatal("independent migration project-check actual outputs differ")
 	}
 }
 
@@ -637,7 +404,7 @@ func TestMigrationProjectCheckAdapterUsesActualProductEntryPointsWithoutExpected
 func TestMigrationProjectCheckProductInputMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, expected := loadMigrationProjectCheckInputs(t)
+	profile, manifest, expected := loadReferenceInputs(t, "migration-project-check")
 	tests := []struct {
 		name       string
 		contractID string
@@ -1106,131 +873,6 @@ func migrationLifecycleDeviationPolicyForRunnerTest() protocol.DeviationPolicy {
 				{Dimension: protocol.DeviationMetrics, Path: "steps[2]", Operation: protocol.DeviationReplace},
 			}},
 		},
-	}
-}
-
-func TestGenerateSaveLifecycleIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, _ := loadSaveLifecycleInputs(t)
-	first, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(first) error = %v", err)
-	}
-	second, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(second) error = %v", err)
-	}
-	firstJSON, err := protocol.MarshalCanonical(first)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(first) error = %v", err)
-	}
-	secondJSON, err := protocol.MarshalCanonical(second)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(second) error = %v", err)
-	}
-	if !bytes.Equal(firstJSON, secondJSON) {
-		t.Fatal("independent save lifecycle runs produced different canonical observations")
-	}
-}
-
-func TestGenerateQueryCacheIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, _ := loadQueryCacheInputs(t)
-	first, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(first) error = %v", err)
-	}
-	second, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(second) error = %v", err)
-	}
-	firstJSON, err := protocol.MarshalCanonical(first)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(first) error = %v", err)
-	}
-	secondJSON, err := protocol.MarshalCanonical(second)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(second) error = %v", err)
-	}
-	if !bytes.Equal(firstJSON, secondJSON) {
-		t.Fatal("independent query-cache runs produced different canonical observations")
-	}
-}
-
-func TestGenerateMigrationPlanningIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, _ := loadMigrationPlanningInputs(t)
-	first, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(first) error = %v", err)
-	}
-	second, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(second) error = %v", err)
-	}
-	firstJSON, err := protocol.MarshalCanonical(first)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(first) error = %v", err)
-	}
-	secondJSON, err := protocol.MarshalCanonical(second)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(second) error = %v", err)
-	}
-	if !bytes.Equal(firstJSON, secondJSON) {
-		t.Fatal("independent migration-planning runs produced different canonical observations")
-	}
-}
-
-func TestGenerateMigrationRestartIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, _ := loadMigrationRestartInputs(t)
-	first, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(first) error = %v", err)
-	}
-	second, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(second) error = %v", err)
-	}
-	firstJSON, err := protocol.MarshalCanonical(first)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(first) error = %v", err)
-	}
-	secondJSON, err := protocol.MarshalCanonical(second)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(second) error = %v", err)
-	}
-	if !bytes.Equal(firstJSON, secondJSON) {
-		t.Fatal("independent migration-restart runs produced different canonical observations")
-	}
-}
-
-func TestGenerateMigrationStateReconstructionIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, _ := loadMigrationStateReconstructionInputs(t)
-	first, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(first) error = %v", err)
-	}
-	second, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate(second) error = %v", err)
-	}
-	firstJSON, err := protocol.MarshalCanonical(first)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(first) error = %v", err)
-	}
-	secondJSON, err := protocol.MarshalCanonical(second)
-	if err != nil {
-		t.Fatalf("MarshalCanonical(second) error = %v", err)
-	}
-	if !bytes.Equal(firstJSON, secondJSON) {
-		t.Fatal("independent migration-state-reconstruction runs produced different canonical observations")
 	}
 }
 
@@ -1908,36 +1550,10 @@ func TestMigrationPlanningLogicalStateAndGraphFactsAreCanonical(t *testing.T) {
 	}
 }
 
-func TestGenerateMatchesLockedMigrationDefinitionSourceOracle(t *testing.T) {
-	t.Parallel()
-
-	profile, manifest, expected := loadMigrationDefinitionSourceInputs(t)
-	actual, err := Generate(context.Background(), profile, manifest)
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatalf("Compare() error = %v", err)
-	}
-	if len(differences) != 0 {
-		for _, difference := range differences {
-			t.Logf("%s %s: %s (expected %s, actual %s)",
-				difference.ContractID,
-				difference.Path,
-				difference.Message,
-				difference.Expected,
-				difference.Actual,
-			)
-		}
-		t.Fatalf("GoDj migration-definition-source suite differs from locked oracle in %d place(s)", len(differences))
-	}
-}
-
 func TestMigrationDefinitionSourceRegistryMatchesManifestScenarios(t *testing.T) {
 	t.Parallel()
 
-	_, manifest, _ := loadMigrationDefinitionSourceInputs(t)
+	_, manifest, _ := loadReferenceInputs(t, "migration-definition-source")
 	if len(migrationDefinitionSourceFixtures) != len(manifest.Contracts) {
 		t.Fatalf(
 			"migration definition source registry has %d scenarios, manifest has %d",
@@ -2028,7 +1644,7 @@ func TestMigrationDefinitionSourceUsesCurrentFormatAndLifecycleVocabulary(t *tes
 func TestMigrationDefinitionSourceMutationsProduceProtocolDifferences(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, expected := loadMigrationDefinitionSourceInputs(t)
+	profile, manifest, expected := loadReferenceInputs(t, "migration-definition-source")
 
 	tests := []struct {
 		name                    string
@@ -2500,7 +2116,7 @@ func TestSaveResultObservationUsesRecorderForArbitraryContract(t *testing.T) {
 func TestConstructionContractsAreObservedBeforeQueryIO(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, _ := loadLockedInputs(t)
+	profile, manifest, _ := loadReferenceInputs(t, "")
 	suite, err := Generate(context.Background(), profile, manifest)
 	if err != nil {
 		t.Fatalf("Generate() error = %v", err)
@@ -2534,76 +2150,13 @@ func TestConstructionContractsAreObservedBeforeQueryIO(t *testing.T) {
 func TestGenerateHonorsCanceledContext(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, _ := loadLockedInputs(t)
+	profile, manifest, _ := loadReferenceInputs(t, "")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err := Generate(ctx, profile, manifest)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Generate() error = %v, want context.Canceled", err)
 	}
-}
-
-func loadLockedInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
-}
-
-func loadWriteMigrationInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "write-migration-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "write-migration-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
-}
-
-func loadSaveLifecycleInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "save-lifecycle-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "save-lifecycle-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
-}
-
-func loadQueryCacheInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-cache-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
-}
-
-func loadMigrationPlanningInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "migration-planning-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-planning-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
-}
-
-func loadMigrationRestartInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "migration-restart-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-restart-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
-}
-
-func loadMigrationStateReconstructionInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-state-reconstruction-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
 }
 
 func loadMigrationLifecycleInputs(t *testing.T) (
@@ -2619,32 +2172,6 @@ func loadMigrationLifecycleInputs(t *testing.T) (
 	oracle := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-lifecycle-oracle.json"), protocol.LoadObservationSuite)
 	expectation := loadFixture(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-deviation-expected.json"), protocol.LoadDeviationExpectation)
 	return profile, manifest, oracle, expectation
-}
-
-func loadMigrationDefinitionSourceInputs(t *testing.T) (
-	protocol.Profile,
-	protocol.Manifest,
-	protocol.ObservationSuite,
-) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "migration-definition-source-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-definition-source-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
-}
-
-func loadMigrationProjectCheckInputs(t *testing.T) (
-	protocol.Profile,
-	protocol.Manifest,
-	protocol.ObservationSuite,
-) {
-	t.Helper()
-	root := filepath.Join("..", "..", "..")
-	profile := loadFixture(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), protocol.LoadProfile)
-	manifest := loadFixture(t, filepath.Join(root, "conformance", "contracts", "migration-project-check-manifest.json"), protocol.LoadManifest)
-	expected := loadFixture(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-project-check-oracle.json"), protocol.LoadObservationSuite)
-	return profile, manifest, expected
 }
 
 func loadRelationProductInputs(t *testing.T) (

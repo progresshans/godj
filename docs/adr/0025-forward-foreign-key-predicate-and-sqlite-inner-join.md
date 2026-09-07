@@ -341,10 +341,10 @@ This decision does not define LEFT OUTER JOIN or nullable `isnull` lowering. REL
 
 ### Product and compatibility decision
 
-`conformance/relationqueryproduct/**` is a new independent generated fixture so every existing
-`conformance/relationproduct/**` byte stays unchanged. It contains v2 `Author(ID,Name)`, v3
-`Post(ID,Title,AuthorID,ReviewerID)`, both existing relation metadata/project binding files and new query companions/
-project query bridge.
+`conformance/relationqueryproduct` owns the query observations and consumes the shared
+`conformance/relationfixture` Author/Post project. Whole-project drift and dependency boundaries are checked once
+there; feature-specific generation and external consumer compilation remain in codegen tests.
+Historical fixture byte locks do not require separate generated copies; current ownership follows [testing](../TESTING.md).
 
 The actual adapter provisions SQLite tables manually, enables FK enforcement, and observes two real QuerySet results.
 This provisioning is test fixture setup, not relation migration/DDL support. It records construction/evaluation query

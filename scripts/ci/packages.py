@@ -24,6 +24,8 @@ def group(package):
         return 'platform'
     if relative in PRODUCTS:
         return 'products'
+    if relative == 'conformance/relationfixture' or relative.startswith('conformance/relationfixture/'):
+        return 'integration'
     if relative.startswith('conformance/'):
         return 'conformance'
     if relative.startswith(('examples/', 'codegen/consumertest', 'internal/projectgenerate', 'internal/compiletest')):

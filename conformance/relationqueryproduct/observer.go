@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/progresshans/godj/conformance/relationqueryproduct/authors"
-	"github.com/progresshans/godj/conformance/relationqueryproduct/blog"
-	"github.com/progresshans/godj/conformance/relationqueryproduct/project"
+	"github.com/progresshans/godj/conformance/relationfixture/authors"
+	"github.com/progresshans/godj/conformance/relationfixture/blog"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db/sqlite"
 )
 
