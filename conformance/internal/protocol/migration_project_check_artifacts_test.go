@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,46 +11,10 @@ import (
 	"testing"
 )
 
-func TestMigrationProjectCheckArtifactHashesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]struct {
-		size   int64
-		sha256 string
-	}{
-		"conformance/contracts/migration-project-check-manifest.json": {
-			size:   5085,
-			sha256: "e689b37098a4b26e4faddbd7c7e8a09d9145526f2b7bd1de7fb6cd5cb139c16b",
-		},
-		"conformance/fixtures/godj-migration-project-check-not-implemented.json": {
-			size:   1729,
-			sha256: "86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json": {
-			size:   19971,
-			sha256: "8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa",
-		},
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if int64(len(contents)) != want.size {
-			t.Fatalf("migration-project-check artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want.sha256 {
-			t.Fatalf("migration-project-check artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
-	}
-}
-
 func TestMigrationProjectCheckArtifactBoundaryIsLocked(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadMigrationProjectCheckArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-project-check")
 	wantSlugs := []string{
 		"godj.migration.project_check.nested_project_success",
 		"godj.migration.project_check.explicit_project_override",
@@ -247,16 +210,6 @@ func TestMigrationProjectCheckRemainsInProductTarget(t *testing.T) {
 	if got := strings.Count(oracleRegenerateTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-regenerate project-check manifest count = %d, want 1", got)
 	}
-}
-
-func loadMigrationProjectCheckArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-project-check-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-project-check-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-project-check-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }
 
 func migrationProjectCheckMakeTarget(t *testing.T, text, startMarker, endMarker string) string {

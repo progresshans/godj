@@ -10,7 +10,7 @@ import (
 func TestRootListDeviationSelectorsBuildStrictProductExpectation(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationLifecycleArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-lifecycle")
 	contractIndex := -1
 	for index := range oracle.Contracts {
 		if oracle.Contracts[index].ID == "MIG-052" {
@@ -206,7 +206,7 @@ func TestRootListDeviationSelectorsRejectMalformedAndInvalidTraversal(t *testing
 func TestMigrationExecutionDeviationExpectationBuildsStrictProductExpectation(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationExecutionArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-execution")
 	manifestBefore := cloneManifest(t, manifest)
 	oracleBefore := cloneSuite(t, oracle)
 	expectation := loadMigrationExecutionDeviationExpectation(t)
@@ -254,7 +254,7 @@ func TestMigrationExecutionDeviationExpectationBuildsStrictProductExpectation(t 
 	}
 
 	for _, contractID := range []string{"MIG-018", "MIG-020", "MIG-022"} {
-		observation := migrationExecutionObservation(t, &product, contractID)
+		observation := observationByID(t, &product, contractID)
 		steps := migrationExecutionListField(t, observation.Metrics, "steps")
 		for stepIndex := range steps.Items {
 			model := migrationExecutionStringField(t, &steps.Items[stepIndex], "transaction_model")
@@ -267,7 +267,7 @@ func TestMigrationExecutionDeviationExpectationBuildsStrictProductExpectation(t 
 		}
 	}
 
-	mig024 := migrationExecutionObservation(t, &product, "MIG-024")
+	mig024 := observationByID(t, &product, "MIG-024")
 	if mig024.Phase != PhaseRollback {
 		t.Fatalf("MIG-024 product phase = %q, want rollback", mig024.Phase)
 	}
@@ -294,7 +294,7 @@ func TestMigrationExecutionDeviationExpectationBuildsStrictProductExpectation(t 
 		t.Fatalf("exact product expectation differs from itself: %#v", differences)
 	}
 	mutated := cloneSuite(t, product)
-	migrationExecutionSetStepField(t, migrationExecutionObservation(t, &mutated, "MIG-024"), 1, "status", "committed")
+	migrationExecutionSetStepField(t, observationByID(t, &mutated, "MIG-024"), 1, "status", "committed")
 	differences, err = Compare(profile, effective, product, mutated)
 	if err != nil {
 		t.Fatal(err)
@@ -307,7 +307,7 @@ func TestMigrationExecutionDeviationExpectationBuildsStrictProductExpectation(t 
 func TestMigrationExecutionDeviationExpectationFailsClosed(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationExecutionArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-execution")
 	baseManifest := approvedMigrationExecutionManifest(t, manifest)
 	baseExpectation := loadMigrationExecutionDeviationExpectation(t)
 	basePolicy := migrationExecutionDeviationPolicyForTest()
@@ -539,7 +539,7 @@ func cloneMigrationExecutionDeviationPolicy(value DeviationPolicy) DeviationPoli
 func TestMigrationLifecycleDeviationExpectationBuildsSparseCanonicalOrder(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationLifecycleArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-lifecycle")
 	manifestBefore := cloneManifest(t, manifest)
 	oracleBefore := cloneSuite(t, oracle)
 	expectation := loadMigrationLifecycleDeviationExpectation(t)
@@ -582,8 +582,8 @@ func TestMigrationLifecycleDeviationExpectationBuildsSparseCanonicalOrder(t *tes
 		}
 	}
 
-	reference := migrationLifecycleObservation(t, &oracle, "MIG-052")
-	actual := migrationLifecycleObservation(t, &product, "MIG-052")
+	reference := observationByID(t, &oracle, "MIG-052")
+	actual := observationByID(t, &product, "MIG-052")
 	if !reflect.DeepEqual(reference.DBState, actual.DBState) {
 		t.Fatal("MIG-052 sparse order deviation changed final schema or history")
 	}
@@ -632,7 +632,7 @@ func TestMigrationLifecycleDeviationExpectationBuildsSparseCanonicalOrder(t *tes
 		t.Fatalf("exact lifecycle product expectation differs from itself: %#v", differences)
 	}
 	mutated := cloneSuite(t, product)
-	plan := migrationLifecycleListField(t, migrationLifecycleObservation(t, &mutated, "MIG-052").Result, "plan")
+	plan := migrationLifecycleListField(t, observationByID(t, &mutated, "MIG-052").Result, "plan")
 	migrationLifecycleSetStringField(t, &plan.Items[0], "name", "changed")
 	differences, err = Compare(profile, effective, product, mutated)
 	if err != nil {
@@ -646,7 +646,7 @@ func TestMigrationLifecycleDeviationExpectationBuildsSparseCanonicalOrder(t *tes
 func TestMigrationLifecycleDeviationExpectationFailsClosed(t *testing.T) {
 	t.Parallel()
 
-	profile, baseManifest, baseOracle, _ := loadMigrationLifecycleArtifacts(t)
+	profile, baseManifest, baseOracle, _ := loadContractArtifacts(t, "migration-lifecycle")
 	baseExpectation := loadMigrationLifecycleDeviationExpectation(t)
 	basePolicy := migrationLifecycleDeviationPolicyForTest()
 

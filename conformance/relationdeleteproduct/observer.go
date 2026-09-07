@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/authors"
 	"github.com/progresshans/godj/conformance/relationfixture/blog"
 	"github.com/progresshans/godj/conformance/relationfixture/project"
@@ -30,23 +31,6 @@ const (
 	OperationRelationSetNull = "UPDATE"
 	OperationDelete          = "DELETE"
 )
-
-type AuthorRow struct {
-	ID   int64
-	Name string
-}
-
-type PostRow struct {
-	ID         int64
-	Title      string
-	AuthorID   int64
-	ReviewerID *int64
-}
-
-type DatabaseState struct {
-	Authors []AuthorRow
-	Posts   []PostRow
-}
 
 type CallerState struct {
 	ID         int64
@@ -91,8 +75,8 @@ type DeleteObservation struct {
 	Err          error
 	CallerBefore CallerState
 	CallerAfter  CallerState
-	Before       DatabaseState
-	After        DatabaseState
+	Before       relationstate.DatabaseState
+	After        relationstate.DatabaseState
 	Metrics      DeleteMetrics
 	Schema       PhysicalSchema
 }
@@ -115,8 +99,8 @@ type WriteMetrics struct {
 
 type UnsavedRelatedTargetObservation struct {
 	Err     error
-	Before  DatabaseState
-	After   DatabaseState
+	Before  relationstate.DatabaseState
+	After   relationstate.DatabaseState
 	Metrics WriteMetrics
 }
 
@@ -208,7 +192,7 @@ func observeUnsavedRelatedTargetWithFixture(
 	if err := provision(ctx, fixture.backend, defaultFixtureConfig()); err != nil {
 		return UnsavedRelatedTargetObservation{}, err
 	}
-	before, err := readState(ctx, fixture.backend)
+	before, err := relationstate.Read(ctx, fixture.backend, "relation-delete")
 	if err != nil {
 		return UnsavedRelatedTargetObservation{}, err
 	}
@@ -230,7 +214,7 @@ func observeUnsavedRelatedTargetWithFixture(
 		return UnsavedRelatedTargetObservation{}, fmt.Errorf("assign REL-002 target: %w", err)
 	}
 	saveErr := source.Save(ctx)
-	after, err := readState(ctx, fixture.backend)
+	after, err := relationstate.Read(ctx, fixture.backend, "relation-delete")
 	if err != nil {
 		return UnsavedRelatedTargetObservation{}, err
 	}
@@ -323,7 +307,7 @@ func observeWithFixture(
 	if err != nil {
 		return DeleteObservation{}, fmt.Errorf("bind generated relation deleters: %w", err)
 	}
-	before, err := readState(ctx, fixture.backend)
+	before, err := relationstate.Read(ctx, fixture.backend, "relation-delete")
 	if err != nil {
 		return DeleteObservation{}, err
 	}
@@ -340,7 +324,7 @@ func observeWithFixture(
 	callerBefore := callerState(target)
 	recorder := &recordingRelationAtomic{backend: fixture.backend}
 	returned, deleteErr := deleters.AuthorsAuthor.Delete(ctx, recorder, &target)
-	after, err := readState(ctx, fixture.backend)
+	after, err := relationstate.Read(ctx, fixture.backend, "relation-delete")
 	if err != nil {
 		return DeleteObservation{}, err
 	}
@@ -516,13 +500,13 @@ func provision(ctx context.Context, backend *sqlite.Backend, config fixtureConfi
 			return fmt.Errorf("provision relation-delete schema: %w", err)
 		}
 	}
-	for _, author := range []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}} {
+	for _, author := range []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}} {
 		if _, err := backend.ExecContext(ctx, `INSERT INTO "authors_author" ("id", "name") VALUES (?, ?)`, author.ID, author.Name); err != nil {
 			return fmt.Errorf("provision relation-delete author %d: %w", author.ID, err)
 		}
 	}
 	reviewer := int64(2)
-	posts := []PostRow{
+	posts := []relationstate.PostRow{
 		{ID: 10, Title: "Alpha", AuthorID: 1, ReviewerID: &reviewer},
 		{ID: 11, Title: "Beta", AuthorID: 1},
 		{ID: 12, Title: "Gamma", AuthorID: 3, ReviewerID: &reviewer},
@@ -663,31 +647,6 @@ func validatePhysicalSchema(schema PhysicalSchema) error {
 	return nil
 }
 
-func readState(ctx context.Context, backend *sqlite.Backend) (DatabaseState, error) {
-	authorModels, err := authors.AuthorObjects.Using(backend).OrderBy(authors.AuthorFields.ID.Asc()).All(ctx)
-	if err != nil {
-		return DatabaseState{}, fmt.Errorf("read relation-delete authors: %w", err)
-	}
-	postModels, err := blog.PostObjects.Using(backend).OrderBy(blog.PostFields.ID.Asc()).All(ctx)
-	if err != nil {
-		return DatabaseState{}, fmt.Errorf("read relation-delete posts: %w", err)
-	}
-	authorRows := make([]AuthorRow, len(authorModels))
-	for index, author := range authorModels {
-		authorRows[index] = AuthorRow{ID: author.ID, Name: author.Name}
-	}
-	postRows := make([]PostRow, len(postModels))
-	for index, post := range postModels {
-		postRows[index] = PostRow{
-			ID:         post.ID,
-			Title:      post.Title,
-			AuthorID:   post.AuthorID,
-			ReviewerID: cloneIntegerPointer(post.ReviewerID),
-		}
-	}
-	return DatabaseState{Authors: authorRows, Posts: postRows}, nil
-}
-
 func callerState(author authors.Author) CallerState {
 	_, present := (authors.AuthorDescriptor{}).PrimaryKey(author)
 	return CallerState{ID: author.ID, Name: author.Name, KeyPresent: present}
@@ -698,12 +657,4 @@ func defaultFixtureConfig() fixtureConfig {
 		authorDeleteAction:   "RESTRICT",
 		reviewerDeleteAction: "NO ACTION",
 	}
-}
-
-func cloneIntegerPointer(value *int64) *int64 {
-	if value == nil {
-		return nil
-	}
-	clone := *value
-	return &clone
 }

@@ -9,15 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io"
 	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 )
 
@@ -83,7 +81,7 @@ type targetMarker struct {
 
 func newTargetExternalProject(t *testing.T) *targetExternalProject {
 	t.Helper()
-	repository := targetRepositoryRoot(t)
+	repository := testfixture.RepositoryRoot(t)
 	universe, err := os.MkdirTemp("", "godj-target-migrate-external-")
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +91,7 @@ func newTargetExternalProject(t *testing.T) *targetExternalProject {
 			t.Errorf("remove external target migration universe: %v", err)
 		}
 	})
-	targetAssertSeparateRoot(t, repository, universe)
+	testfixture.AssertSeparateRoot(t, repository, universe)
 
 	root := filepath.Join(universe, "consumer")
 	nested := filepath.Join(root, "nested")
@@ -124,7 +122,7 @@ replace github.com/progresshans/godj => %s
 `, filepath.ToSlash(repository))), 0o600)
 	targetWriteFile(t, filepath.Join(root, "godj.toml"), []byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\n"), 0o600)
 	targetWriteFile(t, filepath.Join(root, "cmd", "projectrunner", "main.go"), []byte(targetProjectRunnerSource), 0o600)
-	targetAuditApplicationSources(t, repository, root)
+	testfixture.AuditApplicationSources(t, repository, root, targetAllowedGoDjImports)
 
 	moduleCacheDocument, err := exec.Command("go", "env", "GOMODCACHE").Output()
 	if err != nil {
@@ -142,7 +140,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnv := targetRemoveEnvironment(targetEnvironment(os.Environ(), map[string]string{
+	setupEnv := targetRemoveEnvironment(testfixture.Environment(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -169,7 +167,7 @@ replace github.com/progresshans/godj => %s
 	targetRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
 
 	secret := "target-migrate-secret-canary-5d7e248ca1"
-	baseEnv := targetEnvironment(setupEnv, map[string]string{
+	baseEnv := testfixture.Environment(setupEnv, map[string]string{
 		"GOPROXY":                         "off",
 		"GOSUMDB":                         "off",
 		targetSecretEnvironment:           secret,
@@ -193,7 +191,7 @@ replace github.com/progresshans/godj => %s
 		secret:       secret,
 		families:     make(map[string]int),
 	}
-	project.applicationHash = project.captureApplicationHashes(t)
+	project.applicationHash = testfixture.ApplicationHashes(t, project.root)
 	project.assertWorkspaceEmpty(t)
 	return project
 }
@@ -226,7 +224,7 @@ func (project *targetExternalProject) environmentWith(database, marker, catalog 
 	for key, value := range overrides {
 		values[key] = value
 	}
-	return targetEnvironment(project.baseEnv, values)
+	return testfixture.Environment(project.baseEnv, values)
 }
 
 func (project *targetExternalProject) postgresEnvironment(
@@ -267,7 +265,7 @@ func (project *targetExternalProject) postgresEnvironmentWith(
 	for key, value := range overrides {
 		values[key] = value
 	}
-	environment := targetEnvironment(base, values)
+	environment := testfixture.Environment(base, values)
 	actual := targetEnvironmentMap(environment)
 	if _, exists := actual[targetPostgresTestURLEnvironment]; exists {
 		t.Fatal("PostgreSQL target project environment retained test-only database URL")
@@ -307,7 +305,7 @@ func (project *targetExternalProject) runAt(t *testing.T, directory string, envi
 	targetAssertMarkerProcessesReaped(t, marker)
 	project.assertWorkspaceEmpty(t)
 	project.assertApplicationUnchanged(t)
-	project.assertArtifactsRedacted(t, sensitive...)
+	testfixture.AssertArtifactsRedacted(t, project.root, sensitive...)
 	targetAssertStateArtifactsRedacted(t, []string{database, marker}, sensitive...)
 	return result
 }
@@ -362,39 +360,9 @@ func targetPublicToken(value string) bool {
 	return value != "" && !strings.HasPrefix(value, "-")
 }
 
-func (project *targetExternalProject) captureApplicationHashes(t *testing.T) map[string][sha256.Size]byte {
-	t.Helper()
-	result := make(map[string][sha256.Size]byte)
-	err := filepath.WalkDir(project.root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("external application contains non-regular entry %s", path)
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		result[path] = sha256.Sum256(document)
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return result
-}
-
 func (project *targetExternalProject) assertApplicationUnchanged(t *testing.T) {
 	t.Helper()
-	after := project.captureApplicationHashes(t)
+	after := testfixture.ApplicationHashes(t, project.root)
 	if len(after) != len(project.applicationHash) {
 		t.Fatalf("product command changed external application file roster: before=%d after=%d", len(project.applicationHash), len(after))
 	}
@@ -413,38 +381,6 @@ func (project *targetExternalProject) assertWorkspaceEmpty(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("global command left private workspace residue: %v", targetEntryNames(entries))
-	}
-}
-
-func (project *targetExternalProject) assertArtifactsRedacted(t *testing.T, sensitive ...string) {
-	t.Helper()
-	err := filepath.WalkDir(project.root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() || info.Size() > 8<<20 {
-			return nil
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		for _, value := range sensitive {
-			if value != "" && bytes.Contains(document, []byte(value)) {
-				return errors.New("external application artifact contains a sensitive value")
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -631,85 +567,6 @@ func targetAssertMarkerAbsent(t *testing.T, path string) {
 	}
 }
 
-func targetRepositoryRoot(t *testing.T) string {
-	t.Helper()
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate repository")
-	}
-	root, err := filepath.EvalSymlinks(filepath.Join(filepath.Dir(source), "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return root
-}
-
-func targetAssertSeparateRoot(t *testing.T, repository, external string) {
-	t.Helper()
-	resolvedRepository, err := filepath.EvalSymlinks(repository)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolvedExternal, err := filepath.EvalSymlinks(external)
-	if err != nil {
-		t.Fatal(err)
-	}
-	relative, err := filepath.Rel(resolvedRepository, resolvedExternal)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))) {
-		t.Fatalf("external consumer root %q is inside repository %q", resolvedExternal, resolvedRepository)
-	}
-}
-
-func targetAuditApplicationSources(t *testing.T, repository, root string) {
-	t.Helper()
-	resolvedRepository, err := filepath.EvalSymlinks(repository)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fileSet := token.NewFileSet()
-	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
-			return nil
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if bytes.Contains(document, []byte(resolvedRepository)) || bytes.Contains(document, []byte(filepath.ToSlash(resolvedRepository))) {
-			return fmt.Errorf("application source %s contains repository absolute path", path)
-		}
-		parsed, err := parser.ParseFile(fileSet, path, document, parser.ImportsOnly)
-		if err != nil {
-			return err
-		}
-		for _, specification := range parsed.Imports {
-			importPath, err := strconv.Unquote(specification.Path.Value)
-			if err != nil {
-				return fmt.Errorf("decode import in %s: %w", path, err)
-			}
-			if !strings.HasPrefix(importPath, "github.com/progresshans/godj") {
-				continue
-			}
-			if strings.Contains(importPath, "/internal/") || strings.Contains(importPath, "/conformance/") || strings.Contains(importPath, "/examples/") {
-				return fmt.Errorf("application source %s imports forbidden GoDj package %s", path, importPath)
-			}
-			if _, ok := targetAllowedGoDjImports[importPath]; !ok {
-				return fmt.Errorf("application source %s imports non-allowlisted GoDj package %s", path, importPath)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func targetWriteFile(t *testing.T, path string, document []byte, mode fs.FileMode) {
 	t.Helper()
 	if err := os.WriteFile(path, document, mode); err != nil {
@@ -769,29 +626,6 @@ func targetRun(t *testing.T, directory string, environment []string, name string
 	return targetCommandResult{exitCode: exitCode, stdout: stdout.String(), stderr: stderr.String()}
 }
 
-func targetEnvironment(base []string, overrides map[string]string) []string {
-	values := make(map[string]string, len(base)+len(overrides))
-	for _, entry := range base {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	for key, value := range overrides {
-		values[key] = value
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, len(keys))
-	for index, key := range keys {
-		result[index] = key + "=" + values[key]
-	}
-	return result
-}
-
 func targetEnvironmentMap(environment []string) map[string]string {
 	values := make(map[string]string, len(environment))
 	for _, entry := range environment {
@@ -808,7 +642,7 @@ func targetRemoveEnvironment(environment []string, keys ...string) []string {
 	for _, key := range keys {
 		delete(values, key)
 	}
-	return targetEnvironment(nil, values)
+	return testfixture.Environment(nil, values)
 }
 
 func targetURLPassword(databaseURL string) string {

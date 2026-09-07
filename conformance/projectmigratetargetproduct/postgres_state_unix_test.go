@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
 var targetPostgresSchemaSequence atomic.Uint64
@@ -169,30 +169,30 @@ func targetCreatePostgresSchema(t *testing.T, databaseURL string) string {
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL schema owner: %v", targetPostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL schema owner: %v", testfixture.PostgresSafeError(err))
 	}
 	quoted := pgx.Identifier{schema}.Sanitize()
 	if _, err := connection.Exec(ctx, "CREATE SCHEMA "+quoted); err != nil {
 		_ = connection.Close(ctx)
-		t.Fatalf("create isolated targeted migrate PostgreSQL schema: %v", targetPostgresSafeError(err))
+		t.Fatalf("create isolated targeted migrate PostgreSQL schema: %v", testfixture.PostgresSafeError(err))
 	}
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cleanupCancel()
 		cleanup, err := pgx.Connect(cleanupCtx, databaseURL)
 		if err != nil {
-			t.Errorf("connect targeted migrate PostgreSQL schema cleanup: %v", targetPostgresSafeError(err))
+			t.Errorf("connect targeted migrate PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 			return
 		}
 		if _, err := cleanup.Exec(cleanupCtx, "DROP SCHEMA "+quoted+" CASCADE"); err != nil {
-			t.Errorf("drop targeted migrate PostgreSQL schema: %v", targetPostgresSafeError(err))
+			t.Errorf("drop targeted migrate PostgreSQL schema: %v", testfixture.PostgresSafeError(err))
 		}
 		if err := cleanup.Close(cleanupCtx); err != nil {
-			t.Errorf("close targeted migrate PostgreSQL schema cleanup: %v", targetPostgresSafeError(err))
+			t.Errorf("close targeted migrate PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 		}
 	})
 	if err := connection.Close(ctx); err != nil {
-		t.Fatalf("close PostgreSQL schema owner: %v", targetPostgresSafeError(err))
+		t.Fatalf("close PostgreSQL schema owner: %v", testfixture.PostgresSafeError(err))
 	}
 	return schema
 }
@@ -203,11 +203,11 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect targeted migrate PostgreSQL inspector: %v", targetPostgresSafeError(err))
+		t.Fatalf("connect targeted migrate PostgreSQL inspector: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close targeted migrate PostgreSQL inspector: %v", targetPostgresSafeError(err))
+			t.Errorf("close targeted migrate PostgreSQL inspector: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 
@@ -223,7 +223,7 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		&snapshot.namespace.owner,
 		&snapshot.namespace.acl,
 	); err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL namespace: %v", targetPostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL namespace: %v", testfixture.PostgresSafeError(err))
 	}
 
 	rows, err := connection.Query(ctx, `SELECT "c"."relname", "c"."relkind"::text
@@ -231,13 +231,13 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
 		WHERE "n"."nspname" = $1 ORDER BY "c"."relkind", "c"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL relations: %v", targetPostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL relations: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var relation targetPostgresRelation
 		if err := rows.Scan(&relation.name, &relation.kind); err != nil {
 			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL relation: %v", targetPostgresSafeError(err))
+			t.Fatalf("scan targeted migrate PostgreSQL relation: %v", testfixture.PostgresSafeError(err))
 		}
 		switch relation.kind {
 		case "r":
@@ -264,14 +264,14 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		WHERE "n"."nspname" = $1 AND "c"."relkind" = 'r' AND "a"."attnum" > 0 AND NOT "a"."attisdropped"
 		ORDER BY "c"."relname", "a"."attnum"`, schema)
 	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL columns: %v", targetPostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL columns: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var column targetPostgresColumn
 		if err := rows.Scan(&column.table, &column.ordinal, &column.name, &column.typeName, &column.notNull,
 			&column.identity, &column.generated, &column.hasDefault, &column.defaultCollation, &column.primary); err != nil {
 			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL column: %v", targetPostgresSafeError(err))
+			t.Fatalf("scan targeted migrate PostgreSQL column: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.columns = append(snapshot.columns, column)
 	}
@@ -287,14 +287,14 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		LEFT JOIN "pg_catalog"."pg_class" AS "constraint_index" ON "constraint_index"."oid" = "constraint"."conindid"
 		WHERE "n"."nspname" = $1 ORDER BY "table"."relname", "constraint"."conname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL constraints: %v", targetPostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL constraints: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var constraint targetPostgresConstraint
 		if err := rows.Scan(&constraint.table, &constraint.name, &constraint.kind, &constraint.deferrable,
 			&constraint.deferred, &constraint.validated, &constraint.key, &constraint.indexName); err != nil {
 			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL constraint: %v", targetPostgresSafeError(err))
+			t.Fatalf("scan targeted migrate PostgreSQL constraint: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.constraints = append(snapshot.constraints, constraint)
 	}
@@ -316,7 +316,7 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
 		WHERE "n"."nspname" = $1 ORDER BY "table"."relname", "index_class"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL indexes: %v", targetPostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL indexes: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var index targetPostgresIndex
@@ -324,7 +324,7 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 			&index.keyCount, &index.attributeCount, &index.keys, &index.method, &index.hasPredicate,
 			&index.hasExpressions, &index.exclusion); err != nil {
 			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL index: %v", targetPostgresSafeError(err))
+			t.Fatalf("scan targeted migrate PostgreSQL index: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.indexes = append(snapshot.indexes, index)
 	}
@@ -344,27 +344,27 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		&snapshot.policies,
 		&snapshot.rules,
 	); err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL trigger/policy/rule counts: %v", targetPostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL trigger/policy/rule counts: %v", testfixture.PostgresSafeError(err))
 	}
 
 	for _, table := range snapshot.tables {
 		quoted := pgx.Identifier{schema, table}.Sanitize()
 		var count int64
 		if err := connection.QueryRow(ctx, "SELECT COUNT(*) FROM "+quoted).Scan(&count); err != nil {
-			t.Fatalf("count targeted migrate PostgreSQL table: %v", targetPostgresSafeError(err))
+			t.Fatalf("count targeted migrate PostgreSQL table: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.counts[table] = count
 		if strings.HasPrefix(table, "target_") {
 			rows, err = connection.Query(ctx, `SELECT "id", "value" FROM `+quoted+` ORDER BY "id"`)
 			if err != nil {
-				t.Fatalf("inspect targeted migrate PostgreSQL sentinel rows: %v", targetPostgresSafeError(err))
+				t.Fatalf("inspect targeted migrate PostgreSQL sentinel rows: %v", testfixture.PostgresSafeError(err))
 			}
 			snapshot.values[table] = make([]targetPostgresValue, 0)
 			for rows.Next() {
 				var value targetPostgresValue
 				if err := rows.Scan(&value.id, &value.value); err != nil {
 					rows.Close()
-					t.Fatalf("scan targeted migrate PostgreSQL sentinel: %v", targetPostgresSafeError(err))
+					t.Fatalf("scan targeted migrate PostgreSQL sentinel: %v", testfixture.PostgresSafeError(err))
 				}
 				snapshot.values[table] = append(snapshot.values[table], value)
 			}
@@ -375,13 +375,13 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 	if targetPostgresHasTable(snapshot, "godj_migrations") {
 		rows, err = connection.Query(ctx, `SELECT "app", "name" FROM `+pgx.Identifier{schema, "godj_migrations"}.Sanitize()+` ORDER BY "app", "name"`)
 		if err != nil {
-			t.Fatalf("inspect targeted migrate PostgreSQL history: %v", targetPostgresSafeError(err))
+			t.Fatalf("inspect targeted migrate PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
 			var history targetSQLiteHistoryRow
 			if err := rows.Scan(&history.app, &history.name); err != nil {
 				rows.Close()
-				t.Fatalf("scan targeted migrate PostgreSQL history: %v", targetPostgresSafeError(err))
+				t.Fatalf("scan targeted migrate PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 			}
 			snapshot.history = append(snapshot.history, history)
 		}
@@ -391,14 +391,14 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		rows, err = connection.Query(ctx, `SELECT "singleton", "format_version", "epoch", "revision", "history_fingerprint"
 			FROM `+pgx.Identifier{schema, "godj_migration_revision"}.Sanitize()+` ORDER BY "singleton"`)
 		if err != nil {
-			t.Fatalf("inspect targeted migrate PostgreSQL revision: %v", targetPostgresSafeError(err))
+			t.Fatalf("inspect targeted migrate PostgreSQL revision: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
 			var revision targetPostgresRevision
 			var epoch, fingerprint []byte
 			if err := rows.Scan(&revision.singleton, &revision.format, &epoch, &revision.revision, &fingerprint); err != nil {
 				rows.Close()
-				t.Fatalf("scan targeted migrate PostgreSQL revision: %v", targetPostgresSafeError(err))
+				t.Fatalf("scan targeted migrate PostgreSQL revision: %v", testfixture.PostgresSafeError(err))
 			}
 			revision.epoch = hex.EncodeToString(epoch)
 			revision.fingerprint = hex.EncodeToString(fingerprint)
@@ -422,7 +422,7 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 			AND "owner_column"."attnum" = "dependency"."refobjsubid"
 		WHERE "n"."nspname" = $1 ORDER BY "c"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL sequences: %v", targetPostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL sequences: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var sequence targetPostgresSequence
@@ -430,7 +430,7 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 			&sequence.increment, &sequence.minimum, &sequence.maximum, &sequence.cache, &sequence.cycle,
 			&sequence.ownerTable, &sequence.ownerColumn, &sequence.dependency); err != nil {
 			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL sequence: %v", targetPostgresSafeError(err))
+			t.Fatalf("scan targeted migrate PostgreSQL sequence: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.sequences = append(snapshot.sequences, sequence)
 	}
@@ -441,7 +441,7 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 			&snapshot.sequences[index].last,
 			&snapshot.sequences[index].called,
 		); err != nil {
-			t.Fatalf("inspect targeted migrate PostgreSQL sequence state: %v", targetPostgresSafeError(err))
+			t.Fatalf("inspect targeted migrate PostgreSQL sequence state: %v", testfixture.PostgresSafeError(err))
 		}
 	}
 	return snapshot
@@ -454,7 +454,7 @@ func targetClosePostgresRows(t *testing.T, rows pgx.Rows, operation string) {
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		t.Fatalf("finish targeted migrate PostgreSQL %s query: %v", operation, targetPostgresSafeError(err))
+		t.Fatalf("finish targeted migrate PostgreSQL %s query: %v", operation, testfixture.PostgresSafeError(err))
 	}
 }
 
@@ -672,33 +672,16 @@ func targetInsertPostgresValue(t *testing.T, databaseURL, schema, table, value s
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect targeted migrate PostgreSQL sentinel writer: %v", targetPostgresSafeError(err))
+		t.Fatalf("connect targeted migrate PostgreSQL sentinel writer: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close targeted migrate PostgreSQL sentinel writer: %v", targetPostgresSafeError(err))
+			t.Errorf("close targeted migrate PostgreSQL sentinel writer: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 	var identifier int64
 	if err := connection.QueryRow(ctx, `INSERT INTO `+pgx.Identifier{schema, table}.Sanitize()+` ("value") VALUES ($1) RETURNING "id"`, value).Scan(&identifier); err != nil {
-		t.Fatalf("insert targeted migrate PostgreSQL sentinel: %v", targetPostgresSafeError(err))
+		t.Fatalf("insert targeted migrate PostgreSQL sentinel: %v", testfixture.PostgresSafeError(err))
 	}
 	return identifier
-}
-
-func targetPostgresSafeError(err error) error {
-	if err == nil {
-		return nil
-	}
-	var sqlState interface{ SQLState() string }
-	if errors.As(err, &sqlState) {
-		return fmt.Errorf("PostgreSQL SQLSTATE %s", sqlState.SQLState())
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return errors.New("PostgreSQL operation timed out")
-	}
-	if errors.Is(err, context.Canceled) {
-		return errors.New("PostgreSQL operation was canceled")
-	}
-	return errors.New("PostgreSQL operation failed")
 }

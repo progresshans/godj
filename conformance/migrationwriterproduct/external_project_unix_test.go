@@ -16,12 +16,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
 const (
@@ -72,7 +73,7 @@ type externalRestartResult struct {
 }
 
 func TestMigrationWriterExternalProjectSQLitePublicSurface(t *testing.T) {
-	repository := externalRepositoryRoot(t)
+	repository := testfixture.RepositoryRoot(t)
 	universe, err := os.MkdirTemp("", "godj-migrationwriter-external-")
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +83,7 @@ func TestMigrationWriterExternalProjectSQLitePublicSurface(t *testing.T) {
 			t.Errorf("remove external test universe: %v", err)
 		}
 	})
-	externalAssertSeparateRoot(t, repository, universe)
+	testfixture.AssertSeparateRoot(t, repository, universe)
 
 	projectRoot := filepath.Join(universe, "consumer")
 	for _, directory := range []string{
@@ -127,7 +128,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnvironment := externalEnvironment(os.Environ(), map[string]string{
+	setupEnvironment := testfixture.Environment(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -146,7 +147,7 @@ replace github.com/progresshans/godj => %s
 	if info, err := os.Stat(moduleCache); err != nil || !info.IsDir() {
 		t.Fatalf("prepared ambient module cache %q is unavailable: %v", moduleCache, err)
 	}
-	baseEnvironment := externalEnvironment(setupEnvironment, map[string]string{
+	baseEnvironment := testfixture.Environment(setupEnvironment, map[string]string{
 		"GOPROXY":                 "off",
 		"GOSUMDB":                 "off",
 		externalSecretEnvironment: "external-secret-canary-6e9b2ac73d18",
@@ -160,7 +161,7 @@ replace github.com/progresshans/godj => %s
 	databasePath := filepath.Join(universe, "sqlite-secret-path-93b4f7.sqlite3")
 	backendMarker := filepath.Join(universe, "backend-opened.log")
 	descriptor := filepath.Join(projectRoot, "godj.toml")
-	commandEnvironment := externalEnvironment(baseEnvironment, map[string]string{
+	commandEnvironment := testfixture.Environment(baseEnvironment, map[string]string{
 		externalDatabaseEnvironment: databasePath,
 		externalBackendMarker:       backendMarker,
 	})
@@ -278,45 +279,13 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("external backend marker = %q, want two migrate opens", marker)
 	}
 	externalAuditApplicationSources(t, repository, projectRoot)
-	externalAssertArtifactsRedacted(t, projectRoot, sensitive...)
+	testfixture.AssertArtifactsRedacted(t, projectRoot, sensitive...)
 	entries, err := os.ReadDir(filepath.Join(universe, "scratch"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(entries) != 0 {
 		t.Fatalf("external product left private workspace artifacts: %v", externalEntryNames(entries))
-	}
-}
-
-func externalRepositoryRoot(t *testing.T) string {
-	t.Helper()
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate repository")
-	}
-	root, err := filepath.EvalSymlinks(filepath.Join(filepath.Dir(source), "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return root
-}
-
-func externalAssertSeparateRoot(t *testing.T, repository, external string) {
-	t.Helper()
-	resolvedRepository, err := filepath.EvalSymlinks(repository)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolvedExternal, err := filepath.EvalSymlinks(external)
-	if err != nil {
-		t.Fatal(err)
-	}
-	relative, err := filepath.Rel(resolvedRepository, resolvedExternal)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))) {
-		t.Fatalf("external consumer root %q is inside repository %q", resolvedExternal, resolvedRepository)
 	}
 }
 
@@ -500,61 +469,6 @@ func externalDigestFile(t *testing.T, path string) [sha256.Size]byte {
 		t.Fatal(err)
 	}
 	return sha256.Sum256(document)
-}
-
-func externalAssertArtifactsRedacted(t *testing.T, root string, sensitive ...string) {
-	t.Helper()
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() || info.Size() > 8<<20 {
-			return nil
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		for _, value := range sensitive {
-			if value != "" && bytes.Contains(document, []byte(value)) {
-				return errors.New("external artifact contains a sensitive value")
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func externalEnvironment(base []string, overrides map[string]string) []string {
-	values := make(map[string]string, len(base)+len(overrides))
-	for _, entry := range base {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	for key, value := range overrides {
-		values[key] = value
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, 0, len(keys))
-	for _, key := range keys {
-		result = append(result, key+"="+values[key])
-	}
-	return result
 }
 
 func externalEntryNames(entries []os.DirEntry) []string {

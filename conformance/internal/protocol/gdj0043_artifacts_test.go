@@ -1,9 +1,7 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -119,44 +117,6 @@ func gdj0043ContractSets() []gdj0043ContractSet {
 				{CompareResult, CompareDBState, CompareMetrics},
 			},
 		},
-	}
-}
-
-func TestGDJ0043ArtifactBytesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]artifactLock{
-		"conformance/contracts/template-form-manifest.json":                            {7584, "4bc189cf71976b6d2ca301a97c6dfc5ee33463dec936f6c13d4181d56e1b1a41"},
-		"conformance/contracts/auth-session-manifest.json":                             {4932, "72d4a054839d0b2aa4723ffb44b6f526c34808b182c39905a92d59890a2c79c5"},
-		"conformance/contracts/article-admin-manifest.json":                            {6296, "b4ef4017c8af84e9f7428f541dda5276295f1e9f27c2af1b99bc049b306f451e"},
-		"conformance/fixtures/godj-template-form-deviation-expected.json":              {1472, "0f9b10539677c07aa18c058f0e78925b3388299be853506324325c2af11d2ff3"},
-		"conformance/fixtures/godj-auth-session-deviation-expected.json":               {1184, "f494fb64ae084d40564eaddad7e30792d5ed2f23799c8670e2a150ddb31a665d"},
-		"conformance/fixtures/godj-article-admin-deviation-expected.json":              {915, "47d6f144259fbf82046d1e2821b2bd374c245cda30c084b627c5418500b54fc3"},
-		"conformance/fixtures/godj-template-form-not-implemented.json":                 {1863, "b1e426264c53dc4885f70aa0f6d2f2231ade201da0fa9fd980d11400960cc1f5"},
-		"conformance/fixtures/godj-auth-session-not-implemented.json":                  {1553, "f55fafcf0d979bfb6ba9c534dd89bf8123d1afd740570e786432ae7468b4f618"},
-		"conformance/fixtures/godj-article-admin-not-implemented.json":                 {1699, "6cf265bc2b92565791c5f9d75f42fb0f86d5c88e9978df44b25d895538447a46"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json": {12873, "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json":  {6916, "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json": {17645, "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(contents) != want.size {
-			t.Fatalf("GDJ-0043 artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want.sha256 {
-			t.Fatalf("GDJ-0043 artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
 	}
 }
 

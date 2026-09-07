@@ -7,25 +7,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from .normalizer import normalize
-
-
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str,
-    metrics: Any,
-) -> dict[str, Any]:
-    return {
-        "db_state": None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics),
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
+from .observations import observed_writer
 
 
 def _sample_document() -> bytes:
@@ -69,7 +51,7 @@ def deterministic_candidate(contract_id: str) -> dict[str, Any]:
         {"case": "different_process", "document": document, "sha256": digest},
         {"case": "different_time", "document": document, "sha256": digest},
     ]
-    return _observed(
+    return observed_writer(
         contract_id,
         {
             "cases": cases,
@@ -97,7 +79,7 @@ def unsupported_delta_fail_closed(contract_id: str) -> dict[str, Any]:
         {"case": "self_or_cyclic_relation", "code": "relation_cycle"},
         {"case": "noncanonical_leaf", "code": "noncanonical_leaf"},
     ]
-    return _observed(
+    return observed_writer(
         contract_id,
         {
             "cases": [
@@ -122,7 +104,7 @@ def unsupported_delta_fail_closed(contract_id: str) -> dict[str, Any]:
 
 
 def snapshot_and_protocol_boundary(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed_writer(
         contract_id,
         {
             "catalog_and_schema_snapshot": "one_private_request",
@@ -144,7 +126,7 @@ def snapshot_and_protocol_boundary(contract_id: str) -> dict[str, Any]:
 
 
 def atomic_concurrent_publication(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed_writer(
         contract_id,
         {
             "cases": [
@@ -175,7 +157,7 @@ def atomic_concurrent_publication(contract_id: str) -> dict[str, Any]:
 
 
 def interruption_recovery_and_roundtrip(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed_writer(
         contract_id,
         {
             "cases": [

@@ -75,6 +75,8 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
 		"migrations/executor.go",
+		"conformance/internal/attestationio/io.go",
+		"conformance/internal/testfixture/external.go",
 		"query/plan.go",
 		"schema/ir/types.go",
 		"systemstate/testdata/0001_initial.godj.json",

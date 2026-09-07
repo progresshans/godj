@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+
 import ast
 import json
 import unittest
 from pathlib import Path
 from typing import Any
 
+from conformance.runners.django.tests.values import semantic
 from conformance.runners.django import migration_command_decisions as decisions
 from conformance.runners.django.normalizer import canonical_json
 
@@ -32,24 +34,6 @@ EXPECTED_SCENARIOS = (
     "godj.migration.command.backend_configuration_secret_boundary",
     "godj.migration.command.interrupt_rollback_cleanup",
 )
-
-
-def _semantic(value: Any) -> Any:
-    if value is None or not isinstance(value, dict) or "type" not in value:
-        return value
-    kind = value["type"]
-    if kind == "object":
-        return {
-            field["name"]: _semantic(field["value"])
-            for field in value["fields"]
-        }
-    if kind == "list":
-        return [_semantic(item) for item in value["items"]]
-    if kind == "null":
-        return None
-    if kind == "int":
-        return int(value["value"])
-    return value["value"]
 
 
 class MigrationCommandDecisionTests(unittest.TestCase):
@@ -125,7 +109,7 @@ class MigrationCommandDecisionTests(unittest.TestCase):
 
     def test_preflight_unknown_and_cleanup_boundaries_are_explicit(self) -> None:
         preflight = decisions.definition_preflight_before_backend("MIG-090")
-        cases = _semantic(preflight["result"])["cases"]
+        cases = semantic(preflight["result"])["cases"]
         self.assertEqual(
             [case["code"] for case in cases],
             ["invalid_definition_document", "definition_format_incompatible"],
@@ -135,16 +119,16 @@ class MigrationCommandDecisionTests(unittest.TestCase):
         unknown = decisions.commit_outcome_unknown("MIG-095")
         self.assertEqual(unknown["error"]["code"], "commit_outcome_unknown")
         self.assertIsNone(unknown["result"])
-        unknown_state = _semantic(unknown["db_state"])
-        unknown_metrics = _semantic(unknown["metrics"])
+        unknown_state = semantic(unknown["db_state"])
+        unknown_metrics = semantic(unknown["metrics"])
         self.assertFalse(unknown_state["reported_success"])
         self.assertEqual(unknown_metrics["automatic_retries"], 0)
         self.assertEqual(unknown_metrics["rollback_after_unknown"], 0)
 
         interrupted = decisions.interrupt_rollback_cleanup("MIG-098")
         self.assertIsNone(interrupted["result"])
-        interrupted_state = _semantic(interrupted["db_state"])
-        interrupted_metrics = _semantic(interrupted["metrics"])
+        interrupted_state = semantic(interrupted["db_state"])
+        interrupted_metrics = semantic(interrupted["metrics"])
         self.assertEqual(interrupted_state["rollback"], "completed")
         self.assertEqual(interrupted_state["session_close"], "completed")
         self.assertEqual(interrupted_state["backend_close"], "completed")
@@ -153,16 +137,16 @@ class MigrationCommandDecisionTests(unittest.TestCase):
 
     def test_secret_and_concurrency_decisions_are_fail_closed(self) -> None:
         secret = decisions.backend_configuration_secret_boundary("MIG-097")
-        result = _semantic(secret["result"])
-        metrics = _semantic(secret["metrics"])
+        result = semantic(secret["result"])
+        metrics = semantic(secret["metrics"])
         self.assertFalse(result["global_cli_parses_secret"])
         self.assertFalse(result["raw_causes_published"])
         for channel in ("artifact", "protocol", "stderr", "stdout"):
             self.assertEqual(metrics[f"{channel}_secret_occurrences"], 0)
 
         concurrent = decisions.concurrent_latest_fenced("MIG-096")
-        result = _semantic(concurrent["result"])
-        metrics = _semantic(concurrent["metrics"])
+        result = semantic(concurrent["result"])
+        metrics = semantic(concurrent["metrics"])
         self.assertFalse(result["duplicate_history"])
         self.assertFalse(result["corrupt_history"])
         self.assertEqual(metrics["child_processes"], 2)

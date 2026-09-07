@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,47 +9,10 @@ import (
 	"testing"
 )
 
-func TestQueryExpressionArtifactBytesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]artifactLock{
-		"conformance/contracts/query-expression-manifest.json": {
-			size:   16592,
-			sha256: "a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17",
-		},
-		"conformance/fixtures/godj-query-expression-not-implemented.json": {
-			size:   2465,
-			sha256: "7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json": {
-			size:   87852,
-			sha256: "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f",
-		},
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(contents) != want.size {
-			t.Fatalf("query-expression artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want.sha256 {
-			t.Fatalf("query-expression artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
-	}
-}
-
 func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadQueryExpressionArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "query-expression")
 	wantScenarios := []string{
 		"django.query.expression.scalar_exact_or",
 		"django.query.expression.escaped_ascii_icontains_or",
@@ -215,7 +177,7 @@ func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 func TestQueryExpressionDeclaredPayloadMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadQueryExpressionArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "query-expression")
 	for index, contract := range manifest.Contracts {
 		index, contract := index, contract
 		for _, dimension := range contract.Comparison {
@@ -235,7 +197,7 @@ func TestQueryExpressionDeclaredPayloadMutationsCannotFalseGreen(t *testing.T) {
 				if !changed {
 					t.Fatalf("contract %s declared %s without a mutable payload", contract.ID, dimension)
 				}
-				assertQueryExpressionMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+				assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 			})
 		}
 	}
@@ -244,7 +206,7 @@ func TestQueryExpressionDeclaredPayloadMutationsCannotFalseGreen(t *testing.T) {
 func TestQueryExpressionArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadQueryExpressionArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "query-expression")
 	for _, artifact := range []struct {
 		name  string
 		suite ObservationSuite
@@ -275,16 +237,6 @@ func TestQueryExpressionArtifactsRejectOrderPhaseAndProfileMutations(t *testing.
 			}
 		})
 	}
-}
-
-func loadQueryExpressionArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "query-expression-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-expression-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-query-expression-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }
 
 type queryExpressionProvenanceSpec struct {
@@ -407,22 +359,6 @@ func assertQueryExpressionProvenance(t *testing.T, index int, contract Contract)
 		spec := want[provenanceIndex]
 		if got.Kind != spec.kind || got.Reference != spec.reference || got.License != spec.license || got.Derived == nil || *got.Derived {
 			t.Fatalf("contract %s provenance %d = %#v, want kind=%q reference=%q license=%q derived=false", contract.ID, provenanceIndex, got, spec.kind, spec.reference, spec.license)
-		}
-	}
-}
-
-func assertQueryExpressionMutationDiffers(t *testing.T, profile Profile, manifest Manifest, oracle, actual ObservationSuite, contractID string) {
-	t.Helper()
-	differences, err := Compare(profile, manifest, oracle, actual)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(differences) == 0 {
-		t.Fatal("query-expression payload mutation produced a false green")
-	}
-	for _, difference := range differences {
-		if difference.ContractID != contractID {
-			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
 		}
 	}
 }

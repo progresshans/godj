@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,47 +9,10 @@ import (
 	"testing"
 )
 
-func TestQueryBreadthArtifactHashesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]artifactLock{
-		"conformance/contracts/query-breadth-manifest.json": {
-			size:   11282,
-			sha256: "04665808db8f775096c07ac1705e6e10f139ac233f71a10c2892403005245167",
-		},
-		"conformance/fixtures/godj-query-breadth-not-implemented.json": {
-			size:   1867,
-			sha256: "f618ca120d38304f8b06064514ac06e4380a492819ad1f3dbb8627183e1eb969",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json": {
-			size:   41943,
-			sha256: "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94",
-		},
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(contents) != want.size {
-			t.Fatalf("query-breadth artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want.sha256 {
-			t.Fatalf("query-breadth artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
-	}
-}
-
 func TestQueryBreadthPassingManifestKeepsExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadQueryBreadthArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "query-breadth")
 	wantScenarios := []string{
 		"django.query.breadth.ordered_projection",
 		"django.query.breadth.source_fields_outside_projection",
@@ -279,7 +241,7 @@ func TestQueryBreadthProductRemainsInConformanceTarget(t *testing.T) {
 func TestQueryBreadthPayloadMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadQueryBreadthArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "query-breadth")
 	for index, contract := range manifest.Contracts {
 		index, contract := index, contract
 		t.Run(contract.ID+" result", func(t *testing.T) {
@@ -287,14 +249,14 @@ func TestQueryBreadthPayloadMutationsCannotFalseGreen(t *testing.T) {
 			if !mutateFirstScalar(actual.Contracts[index].Result) {
 				t.Fatalf("%s result has no mutable scalar", contract.ID)
 			}
-			assertQueryBreadthMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+			assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 		})
 		t.Run(contract.ID+" metrics", func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
 			if !mutateFirstScalar(actual.Contracts[index].Metrics) {
 				t.Fatalf("%s metrics have no mutable scalar", contract.ID)
 			}
-			assertQueryBreadthMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+			assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 		})
 	}
 
@@ -303,14 +265,14 @@ func TestQueryBreadthPayloadMutationsCannotFalseGreen(t *testing.T) {
 		if !mutateFirstScalar(actual.Contracts[0].DBState) {
 			t.Fatal("QRY-022 database state has no mutable scalar")
 		}
-		assertQueryBreadthMutationDiffers(t, profile, manifest, oracle, actual, "QRY-022")
+		assertOnlyContractDiffers(t, profile, manifest, oracle, actual, "QRY-022")
 	})
 }
 
 func TestQueryBreadthArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadQueryBreadthArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "query-breadth")
 	for _, artifact := range []struct {
 		name  string
 		suite ObservationSuite
@@ -343,16 +305,6 @@ func TestQueryBreadthArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) 
 	}
 }
 
-func loadQueryBreadthArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "query-breadth-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-breadth-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-query-breadth-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
-}
-
 func assertQueryBreadthProvenance(t *testing.T, contract Contract) {
 	t.Helper()
 	decisionCount := 0
@@ -378,21 +330,5 @@ func assertQueryBreadthProvenance(t *testing.T, contract Contract) {
 	}
 	if decisionCount != 1 || djangoCount == 0 {
 		t.Fatalf("contract %s provenance counts = decision %d/Django %d, want 1/at least 1", contract.ID, decisionCount, djangoCount)
-	}
-}
-
-func assertQueryBreadthMutationDiffers(t *testing.T, profile Profile, manifest Manifest, oracle, actual ObservationSuite, contractID string) {
-	t.Helper()
-	differences, err := Compare(profile, manifest, oracle, actual)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(differences) == 0 {
-		t.Fatal("query-breadth payload mutation produced a false green")
-	}
-	for _, difference := range differences {
-		if difference.ContractID != contractID {
-			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
-		}
 	}
 }

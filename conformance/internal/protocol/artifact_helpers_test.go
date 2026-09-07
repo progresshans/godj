@@ -3,6 +3,7 @@ package protocol
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -123,4 +124,76 @@ func mutateFirstScalar(value *Value) bool {
 		}
 	}
 	return false
+}
+
+// Each load produces fresh mutable values; actual adapters never use this helper.
+func loadContractArtifacts(t *testing.T, name string) (Profile, Manifest, ObservationSuite, ObservationSuite) {
+	t.Helper()
+	root := filepath.Join(conformanceRepositoryRoot(t), "conformance")
+	return requireArtifact(t, filepath.Join(root, "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile),
+		requireArtifact(t, filepath.Join(root, "contracts", name+"-manifest.json"), LoadManifest),
+		requireArtifact(t, filepath.Join(root, "oracles", "django-6.1-sqlite-darwin-arm64", name+"-oracle.json"), LoadObservationSuite),
+		requireArtifact(t, filepath.Join(root, "fixtures", "godj-"+name+"-not-implemented.json"), LoadObservationSuite)
+}
+
+func observationByID(t *testing.T, suite *ObservationSuite, contractID string) *Observation {
+	t.Helper()
+	for index := range suite.Contracts {
+		if suite.Contracts[index].ID == contractID {
+			return &suite.Contracts[index]
+		}
+	}
+	t.Fatalf("observation %s is missing", contractID)
+	return nil
+}
+
+func assertOnlyContractDiffers(t *testing.T, profile Profile, manifest Manifest, oracle, actual ObservationSuite, contractID string) {
+	t.Helper()
+	differences, err := Compare(profile, manifest, oracle, actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(differences) == 0 {
+		t.Fatal("payload mutation produced a false green")
+	}
+	for _, difference := range differences {
+		if difference.ContractID != contractID {
+			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
+		}
+	}
+}
+
+func assertObservationDimensions(t *testing.T, contract Contract, observation Observation) {
+	t.Helper()
+	wantResult := false
+	wantError := false
+	wantDBState := false
+	wantMetrics := false
+	for _, dimension := range contract.Comparison {
+		switch dimension {
+		case CompareResult:
+			wantResult = true
+		case CompareError:
+			wantError = true
+		case CompareDBState:
+			wantDBState = true
+		case CompareMetrics:
+			wantMetrics = true
+		}
+	}
+	if (observation.Result != nil) != wantResult || (observation.Error != nil) != wantError ||
+		(observation.DBState != nil) != wantDBState || (observation.Metrics != nil) != wantMetrics {
+		t.Fatalf(
+			"observation %s dimensions result/error/db_state/metrics = %t/%t/%t/%t, want %t/%t/%t/%t",
+			contract.ID,
+			observation.Result != nil,
+			observation.Error != nil,
+			observation.DBState != nil,
+			observation.Metrics != nil,
+			wantResult,
+			wantError,
+			wantDBState,
+			wantMetrics,
+		)
+	}
 }

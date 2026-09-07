@@ -125,3 +125,16 @@ func WaitAbsent(groups []int, timeout time.Duration) error {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+func MergeGroups(left, right []int) []int {
+	unique := make(map[int]struct{}, len(left)+len(right))
+	for _, group := range append(append([]int(nil), left...), right...) {
+		unique[group] = struct{}{}
+	}
+	result := make([]int, 0, len(unique))
+	for group := range unique {
+		result = append(result, group)
+	}
+	sort.Ints(result)
+	return result
+}

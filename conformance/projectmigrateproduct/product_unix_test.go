@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
@@ -184,7 +185,7 @@ func TestGlobalMigrateArticleSQLiteProduct(t *testing.T) {
 			values[articleSQLiteDatabaseEnv] = sqliteSecret
 			values[articlePostgresURLEnv] = postgresSecret
 			values[articlePostgresSchemaEnv] = schemaSecret
-			result := runMigrate(t, globalBinary, repository, descriptor, sortedEnvironment(values))
+			result := runMigrate(t, globalBinary, repository, descriptor, testfixture.SortedEnvironment(values))
 			assertMigrateFailure(t, result, 3, "migration_backend_error/backend_open_failed\n")
 			assertOutputSanitized(t, result, sqliteSecret, postgresSecret, schemaSecret, "secret-user", "secret-password-91a3")
 			if _, err := os.Lstat(sqliteSecret); !errors.Is(err, os.ErrNotExist) {
@@ -506,7 +507,7 @@ func articleEnvironment(t *testing.T, databasePath, workspaceBase string) []stri
 	t.Helper()
 	values := environmentMap(articleEnvironmentWithoutDatabase(t, workspaceBase))
 	values[articleSQLiteDatabaseEnv] = databasePath
-	return sortedEnvironment(values)
+	return testfixture.SortedEnvironment(values)
 }
 
 func articleEnvironmentWithoutDatabase(t *testing.T, workspaceBase string) []string {
@@ -531,7 +532,7 @@ func articleEnvironmentWithoutDatabase(t *testing.T, workspaceBase string) []str
 		}
 		values["HOME"] = home
 	}
-	return sortedEnvironment(values)
+	return testfixture.SortedEnvironment(values)
 }
 
 func offlineEnvironment(input []string) []string {
@@ -542,7 +543,7 @@ func offlineEnvironment(input []string) []string {
 	values["GOFLAGS"] = ""
 	values["GOCACHEPROG"] = ""
 	values["GOPROXY"] = "off"
-	return sortedEnvironment(values)
+	return testfixture.SortedEnvironment(values)
 }
 
 func environmentMap(entries []string) map[string]string {
@@ -554,19 +555,6 @@ func environmentMap(entries []string) map[string]string {
 		}
 	}
 	return values
-}
-
-func sortedEnvironment(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, len(keys))
-	for index, key := range keys {
-		result[index] = key + "=" + values[key]
-	}
-	return result
 }
 
 func assertWorkspaceEmpty(t *testing.T, root string) {
@@ -1071,7 +1059,7 @@ func (result cleanupResult) failed() bool {
 func interruptAndWait(command *exec.Cmd, waited <-chan error, timeout time.Duration, knownGroups ...int) cleanupResult {
 	result := cleanupResult{}
 	groups, discoveryErr := testprocess.OwnedGroups(command.Process.Pid)
-	result.ProcessGroups = mergeProcessGroups(knownGroups, groups)
+	result.ProcessGroups = testprocess.MergeGroups(knownGroups, groups)
 	result.DiscoveryError = discoveryErr
 	result.SignalError = testprocess.SignalGroup(command.Process.Pid, syscall.SIGINT)
 	timer := time.NewTimer(timeout)
@@ -1081,7 +1069,7 @@ func interruptAndWait(command *exec.Cmd, waited <-chan error, timeout time.Durat
 	case <-timer.C:
 		result.Forced = true
 		refreshed, refreshErr := testprocess.OwnedGroups(command.Process.Pid)
-		result.ProcessGroups = mergeProcessGroups(result.ProcessGroups, refreshed)
+		result.ProcessGroups = testprocess.MergeGroups(result.ProcessGroups, refreshed)
 		result.DiscoveryError = errors.Join(result.DiscoveryError, refreshErr)
 		result.WaitError = errors.Join(testprocess.KillGroups(result.ProcessGroups, command.Process.Pid), testprocess.Wait(waited, 5*time.Second))
 	}
@@ -1090,19 +1078,6 @@ func interruptAndWait(command *exec.Cmd, waited <-chan error, timeout time.Durat
 		result.Forced = true
 		result.AbsenceError = errors.Join(result.AbsenceError, testprocess.KillGroups(result.ProcessGroups, command.Process.Pid), testprocess.WaitAbsent(result.ProcessGroups, 2*time.Second))
 	}
-	return result
-}
-
-func mergeProcessGroups(left, right []int) []int {
-	unique := make(map[int]struct{}, len(left)+len(right))
-	for _, group := range append(append([]int(nil), left...), right...) {
-		unique[group] = struct{}{}
-	}
-	result := make([]int, 0, len(unique))
-	for group := range unique {
-		result = append(result, group)
-	}
-	sort.Ints(result)
 	return result
 }
 

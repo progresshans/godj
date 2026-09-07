@@ -68,27 +68,27 @@ func TestGDJ0047APIAuthenticationHandlersObserveRealProfilesAndSQLite(t *testing
 
 func TestGDJ0047MutationAndProfileBoundariesAreIndependentlyObserved(t *testing.T) {
 	unsafe := gdj0047RunTestScenario(t, gdj0047ExpectedRegistrations[5])
-	unsafeDelta := parameterRoutingTestObjectField(t, *unsafe.Metrics, "article_row_delta")
+	unsafeDelta := testObjectField(t, *unsafe.Metrics, "article_row_delta")
 	if unsafeDelta.Text == nil || *unsafeDelta.Text != "1" {
 		t.Fatalf("unsafe Bearer row delta = %#v", unsafeDelta)
 	}
 
 	denied := gdj0047RunTestScenario(t, gdj0047ExpectedRegistrations[9])
-	totalMutations := parameterRoutingTestObjectField(t, *denied.Metrics, "total_mutations")
+	totalMutations := testObjectField(t, *denied.Metrics, "total_mutations")
 	if totalMutations.Text == nil || *totalMutations.Text != "0" {
 		t.Fatalf("denial mutations = %#v", totalMutations)
 	}
-	rowsChanged := parameterRoutingTestObjectField(t, *denied.DBState, "article_rows_changed")
+	rowsChanged := testObjectField(t, *denied.DBState, "article_rows_changed")
 	if rowsChanged.Text == nil || *rowsChanged.Text != "0" {
 		t.Fatalf("denial row change = %#v", rowsChanged)
 	}
-	handlerInvocations := parameterRoutingTestObjectField(t, *denied.Result, "handler_invocations")
+	handlerInvocations := testObjectField(t, *denied.Result, "handler_invocations")
 	if handlerInvocations.Text == nil || *handlerInvocations.Text != "0" {
 		t.Fatalf("denial handler invocations = %#v", handlerInvocations)
 	}
 
 	isolation := gdj0047RunTestScenario(t, gdj0047ExpectedRegistrations[6])
-	fallbacks := parameterRoutingTestObjectField(t, *isolation.Metrics, "fallback_authentications")
+	fallbacks := testObjectField(t, *isolation.Metrics, "fallback_authentications")
 	if fallbacks.Text == nil || *fallbacks.Text != "0" {
 		t.Fatalf("cross-profile fallback count = %#v", fallbacks)
 	}

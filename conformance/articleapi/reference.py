@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import os
 import sys
-import tempfile
 from pathlib import Path
+
+from conformance.atomic import write_atomic
 
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import generate_suite
@@ -34,22 +34,6 @@ SETS = {
 }
 
 
-def _write_atomic(path: Path, contents: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "wb") as output:
-            output.write(contents)
-            output.flush()
-            os.fsync(output.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--set", choices=tuple(SETS), required=True)
@@ -65,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         generated = canonical_json(generate_suite(arguments.profile, manifest))
         if arguments.write:
-            _write_atomic(output, generated)
+            write_atomic(output, generated)
             return 0
         existing = output.read_bytes()
         if existing != generated:

@@ -63,36 +63,6 @@ var systemStatePhases = []Phase{
 	PhaseEnvironment, PhaseEnvironment,
 }
 
-func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]artifactLock{
-		"conformance/contracts/system-state-manifest.json":                     {16420, "ddae48e95770eacf2e3b761c7c4931b53dbcb65020cc375f624413ac71e0996c"},
-		"conformance/fixtures/godj-system-state-not-implemented.json":          {3167, "eff126dff0e7e9375a09722d054a2f663150cea1440241875b82f60650d9aa53"},
-		"conformance/fixtures/godj-system-state-deviation-expected.json":       {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json": {37866, "2251157e801295b084a51a7879e496fab528d7360fcb8c55bdd7b0b368862913"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":        {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(contents) != want.size {
-			t.Fatalf("system-state artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want.sha256 {
-			t.Fatalf("system-state artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
-	}
-}
-
 func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	t.Parallel()
 

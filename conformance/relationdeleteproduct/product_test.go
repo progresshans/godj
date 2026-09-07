@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/authors"
 	"github.com/progresshans/godj/conformance/relationfixture/blog"
 	"github.com/progresshans/godj/conformance/relationfixture/project"
@@ -561,12 +562,12 @@ func TestProjectFacadePendingTargetSaveReconcilesAndPublishesBothRows(t *testing
 	}) {
 		t.Fatalf("original source Unwrap() error = %v, want unchanged required author", err)
 	}
-	state, err := readState(ctx, product.backend)
+	state, err := relationstate.Read(ctx, product.backend, "relation-delete")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(state.Authors) != 4 || state.Authors[3] != (AuthorRow{ID: 4, Name: "Dora"}) ||
-		len(state.Posts) != 4 || state.Posts[3] != (PostRow{ID: 13, Title: "Delta", AuthorID: 4}) {
+	if len(state.Authors) != 4 || state.Authors[3] != (relationstate.AuthorRow{ID: 4, Name: "Dora"}) ||
+		len(state.Posts) != 4 || state.Posts[3] != (relationstate.PostRow{ID: 13, Title: "Delta", AuthorID: 4}) {
 		t.Fatalf("reconciled database state = %#v", state)
 	}
 }
@@ -680,7 +681,7 @@ func TestProjectFacadeManualZeroKeyReachesDatabaseAndFailedInsertIsRetryable(t *
 	if got := recorder.snapshot(); got.InsertCount != 1 || got.QueryCount != 0 || !reflect.DeepEqual(got.StatementKinds, []string{OperationInsert}) {
 		t.Fatalf("manual-zero failed Save() metrics = %#v, want one INSERT reach", got)
 	}
-	if state, err := readState(ctx, product.backend); err != nil || !reflect.DeepEqual(state, initialDatabaseState()) {
+	if state, err := relationstate.Read(ctx, product.backend, "relation-delete"); err != nil || !reflect.DeepEqual(state, initialDatabaseState()) {
 		t.Fatalf("manual-zero failure database = (%#v, %v), want unchanged", state, err)
 	}
 	if _, err := product.backend.ExecContext(ctx, `INSERT INTO "authors_author" ("id", "name") VALUES (0, 'Zero')`); err != nil {
@@ -1163,7 +1164,7 @@ func TestProjectFacadeCallbackLocalWritesRollbackDatabaseWithoutRewindingPublish
 	if !reflect.DeepEqual(metrics, wantMetrics) {
 		t.Fatalf("callback-local write metrics = %#v, want %#v", metrics, wantMetrics)
 	}
-	state, stateErr := readState(ctx, product.backend)
+	state, stateErr := relationstate.Read(ctx, product.backend, "relation-delete")
 	if stateErr != nil || !reflect.DeepEqual(state, initialDatabaseState()) {
 		t.Fatalf("database after callback rollback = (%#v, %v), want exact initial state", state, stateErr)
 	}
@@ -1315,11 +1316,11 @@ func TestREL008AdversarialDeleteFailureRollsBackAndPreservesCaller(t *testing.T)
 	}
 }
 
-func initialDatabaseState() DatabaseState {
+func initialDatabaseState() relationstate.DatabaseState {
 	reviewer := int64(2)
-	return DatabaseState{
-		Authors: []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
-		Posts: []PostRow{
+	return relationstate.DatabaseState{
+		Authors: []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
+		Posts: []relationstate.PostRow{
 			{ID: 10, Title: "Alpha", AuthorID: 1, ReviewerID: &reviewer},
 			{ID: 11, Title: "Beta", AuthorID: 1},
 			{ID: 12, Title: "Gamma", AuthorID: 3, ReviewerID: &reviewer},
@@ -1327,10 +1328,10 @@ func initialDatabaseState() DatabaseState {
 	}
 }
 
-func setNullDatabaseState() DatabaseState {
-	return DatabaseState{
-		Authors: []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 3, Name: "Cleo"}},
-		Posts: []PostRow{
+func setNullDatabaseState() relationstate.DatabaseState {
+	return relationstate.DatabaseState{
+		Authors: []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 3, Name: "Cleo"}},
+		Posts: []relationstate.PostRow{
 			{ID: 10, Title: "Alpha", AuthorID: 1},
 			{ID: 11, Title: "Beta", AuthorID: 1},
 			{ID: 12, Title: "Gamma", AuthorID: 3},

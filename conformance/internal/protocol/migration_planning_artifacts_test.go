@@ -1,39 +1,15 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
 
-func TestMigrationPlanningArtifactHashesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]string{
-		"conformance/contracts/migration-planning-manifest.json":                            "f51d737bd68eafae32f7942669b467e3457372873ec536a13491ded60ef27ca6",
-		"conformance/fixtures/godj-migration-planning-not-implemented.json":                 "a9ef26842cd09e4ae01a21d38399ea27e527b0724a7d3e830ecf6c42a12aca13",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json": "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want {
-			t.Fatalf("migration-planning artifact %s checksum = %q, want immutable baseline %q", name, got, want)
-		}
-	}
-}
-
 func TestMigrationPlanningPassingArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadMigrationPlanningArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-planning")
 	if len(manifest.Contracts) != 12 {
 		t.Fatalf("migration-planning manifest has %d contracts, want 12", len(manifest.Contracts))
 	}
@@ -99,50 +75,50 @@ func TestMigrationPlanningPassingArtifactsKeepExplicitNotImplementedBaseline(t *
 func TestMigrationPlanningDeclaredPayloadMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationPlanningArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-planning")
 	for _, contract := range manifest.Contracts {
 		contract := contract
-		observation := migrationPlanningObservation(t, &oracle, contract.ID)
+		observation := observationByID(t, &oracle, contract.ID)
 		if observation.Result != nil {
 			t.Run(contract.ID+" result", func(t *testing.T) {
 				actual := cloneSuite(t, oracle)
-				value := migrationPlanningObservation(t, &actual, contract.ID).Result
+				value := observationByID(t, &actual, contract.ID).Result
 				if !mutateFirstMigrationPlanningLeaf(value) {
 					t.Fatalf("%s result has no mutable leaf: %#v", contract.ID, value)
 				}
-				assertMigrationPlanningMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+				assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 			})
 		}
 		if observation.Error != nil {
 			t.Run(contract.ID+" error category", func(t *testing.T) {
 				actual := cloneSuite(t, oracle)
-				migrationPlanningObservation(t, &actual, contract.ID).Error.Category = "changed_category"
-				assertMigrationPlanningMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+				observationByID(t, &actual, contract.ID).Error.Category = "changed_category"
+				assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 			})
 			t.Run(contract.ID+" error code", func(t *testing.T) {
 				actual := cloneSuite(t, oracle)
-				migrationPlanningObservation(t, &actual, contract.ID).Error.Code = "changed_code"
-				assertMigrationPlanningMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+				observationByID(t, &actual, contract.ID).Error.Code = "changed_code"
+				assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 			})
 		}
 		if observation.DBState != nil {
 			t.Run(contract.ID+" database state", func(t *testing.T) {
 				actual := cloneSuite(t, oracle)
-				value := migrationPlanningObservation(t, &actual, contract.ID).DBState
+				value := observationByID(t, &actual, contract.ID).DBState
 				if !mutateFirstMigrationPlanningLeaf(value) {
 					t.Fatalf("%s db_state has no mutable leaf: %#v", contract.ID, value)
 				}
-				assertMigrationPlanningMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+				assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 			})
 		}
 		if observation.Metrics != nil {
 			t.Run(contract.ID+" metrics", func(t *testing.T) {
 				actual := cloneSuite(t, oracle)
-				value := migrationPlanningObservation(t, &actual, contract.ID).Metrics
+				value := observationByID(t, &actual, contract.ID).Metrics
 				if !mutateFirstMigrationPlanningLeaf(value) {
 					t.Fatalf("%s metrics has no mutable leaf: %#v", contract.ID, value)
 				}
-				assertMigrationPlanningMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+				assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 			})
 		}
 	}
@@ -151,7 +127,7 @@ func TestMigrationPlanningDeclaredPayloadMutationsCannotFalseGreen(t *testing.T)
 func TestMigrationPlanningSemanticMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationPlanningArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-planning")
 	tests := []struct {
 		name       string
 		contractID string
@@ -252,9 +228,9 @@ func TestMigrationPlanningSemanticMutationsCannotFalseGreen(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			observation := migrationPlanningObservation(t, &actual, test.contractID)
+			observation := observationByID(t, &actual, test.contractID)
 			test.mutate(t, observation)
-			assertMigrationPlanningMutationDiffers(t, profile, manifest, oracle, actual, test.contractID)
+			assertOnlyContractDiffers(t, profile, manifest, oracle, actual, test.contractID)
 		})
 	}
 }
@@ -262,7 +238,7 @@ func TestMigrationPlanningSemanticMutationsCannotFalseGreen(t *testing.T) {
 func TestMigrationPlanningArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadMigrationPlanningArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-planning")
 	for _, artifact := range []struct {
 		name  string
 		suite ObservationSuite
@@ -295,27 +271,6 @@ func TestMigrationPlanningArtifactsRejectOrderPhaseAndProfileMutations(t *testin
 	}
 }
 
-func loadMigrationPlanningArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-planning-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-planning-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-planning-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
-}
-
-func migrationPlanningObservation(t *testing.T, suite *ObservationSuite, contractID string) *Observation {
-	t.Helper()
-	for index := range suite.Contracts {
-		if suite.Contracts[index].ID == contractID {
-			return &suite.Contracts[index]
-		}
-	}
-	t.Fatalf("migration-planning observation %s is missing", contractID)
-	return nil
-}
-
 func migrationPlanningCaseList(t *testing.T, root *Value, caseIndex int, field string) *Value {
 	t.Helper()
 	cases := objectField(t, root, "cases")
@@ -327,22 +282,6 @@ func migrationPlanningCaseList(t *testing.T, root *Value, caseIndex int, field s
 		t.Fatalf("migration-planning case field %q = %#v, want list", field, selected)
 	}
 	return selected
-}
-
-func assertMigrationPlanningMutationDiffers(t *testing.T, profile Profile, manifest Manifest, oracle, actual ObservationSuite, contractID string) {
-	t.Helper()
-	differences, err := Compare(profile, manifest, oracle, actual)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(differences) == 0 {
-		t.Fatal("migration-planning payload mutation produced a false green")
-	}
-	for _, difference := range differences {
-		if difference.ContractID != contractID {
-			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
-		}
-	}
 }
 
 func mutateFirstMigrationPlanningLeaf(value *Value) bool {

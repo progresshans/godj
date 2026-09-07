@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 )
 
@@ -36,7 +37,7 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 	workspaceBase := newWorkspaceBase(t)
 	values := environmentMap(articleEnvironment(t, databaseDSN, workspaceBase))
 	values[fullConcurrencyBarrierEnv] = barrierDirectory
-	environment := sortedEnvironment(values)
+	environment := testfixture.SortedEnvironment(values)
 
 	start := make(chan struct{})
 	completed := make(chan fullConcurrencyExecution, 2)
@@ -148,7 +149,7 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 	beforeReconciliation := digestFile(t, databasePath)
 	reconciliationValues := environmentMap(environment)
 	delete(reconciliationValues, fullConcurrencyBarrierEnv)
-	reconciliationEnvironment := sortedEnvironment(reconciliationValues)
+	reconciliationEnvironment := testfixture.SortedEnvironment(reconciliationValues)
 	reconciled := runMigrate(t, globalBinary, repository, descriptor, reconciliationEnvironment)
 	assertMigrateSuccess(t, reconciled, expected, databasePath, databaseDSN, barrierDirectory)
 	afterReconciliation := digestFile(t, databasePath)

@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
 const (
@@ -249,8 +249,8 @@ func TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart(t *testing.T) {
 		externalStatusAssertPostgresUnchanged(t, before, externalStatusCapturePostgres(t, databaseURL, schema))
 	})
 
-	externalStatusAuditApplicationSources(t, project.repository, project.root)
-	externalStatusAssertArtifactsRedacted(t, project.root, externalStatusPostgresSensitive(t, project, databaseURL, "")...)
+	testfixture.AuditApplicationSources(t, project.repository, project.root, externalStatusAllowedImports)
+	testfixture.AssertArtifactsRedacted(t, project.root, externalStatusPostgresSensitive(t, project, databaseURL, "")...)
 }
 
 func externalStatusPostgresTestURL(t *testing.T) string {
@@ -299,29 +299,29 @@ func externalStatusCreatePostgresSchema(t *testing.T, databaseURL string) string
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL schema owner: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL schema owner: %v", testfixture.PostgresSafeError(err))
 	}
 	quoted := pgx.Identifier{schema}.Sanitize()
 	if _, err := connection.Exec(ctx, "CREATE SCHEMA "+quoted); err != nil {
 		_ = connection.Close(ctx)
-		t.Fatalf("create PostgreSQL product schema: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("create PostgreSQL product schema: %v", testfixture.PostgresSafeError(err))
 	}
 	if err := connection.Close(ctx); err != nil {
-		t.Fatalf("close PostgreSQL schema owner: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("close PostgreSQL schema owner: %v", testfixture.PostgresSafeError(err))
 	}
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cleanupCancel()
 		cleanup, err := pgx.Connect(cleanupCtx, databaseURL)
 		if err != nil {
-			t.Errorf("connect PostgreSQL schema cleanup: %v", externalStatusPostgresSafeError(err))
+			t.Errorf("connect PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 			return
 		}
 		if _, err := cleanup.Exec(cleanupCtx, "DROP SCHEMA "+quoted+" CASCADE"); err != nil {
-			t.Errorf("drop PostgreSQL product schema: %v", externalStatusPostgresSafeError(err))
+			t.Errorf("drop PostgreSQL product schema: %v", testfixture.PostgresSafeError(err))
 		}
 		if err := cleanup.Close(cleanupCtx); err != nil {
-			t.Errorf("close PostgreSQL schema cleanup: %v", externalStatusPostgresSafeError(err))
+			t.Errorf("close PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 		}
 	})
 	return schema
@@ -333,11 +333,11 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL state inspector: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL state inspector: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close PostgreSQL state inspector: %v", externalStatusPostgresSafeError(err))
+			t.Errorf("close PostgreSQL state inspector: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 
@@ -346,7 +346,7 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		FROM "pg_catalog"."pg_namespace" AS "n"
 		JOIN "pg_catalog"."pg_roles" AS "owner" ON "owner"."oid" = "n"."nspowner"
 		WHERE "n"."nspname" = $1`, schema).Scan(&snapshot.namespace.oid, &snapshot.namespace.owner, &snapshot.namespace.acl); err != nil {
-		t.Fatalf("inspect PostgreSQL namespace: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL namespace: %v", testfixture.PostgresSafeError(err))
 	}
 
 	rows, err := connection.Query(ctx, `SELECT "c"."relname", "c"."relkind"::text, "c"."relpersistence"::text,
@@ -355,13 +355,13 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
 		WHERE "n"."nspname" = $1 ORDER BY "c"."relkind", "c"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect PostgreSQL relations: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL relations: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var value externalPostgresRelation
 		if err := rows.Scan(&value.name, &value.kind, &value.persistence, &value.options); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL relation: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL relation: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.relations = append(snapshot.relations, value)
 	}
@@ -381,14 +381,14 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		WHERE "n"."nspname" = $1 AND "c"."relkind" IN ('r', 'p') AND "a"."attnum" > 0 AND NOT "a"."attisdropped"
 		ORDER BY "c"."relname", "a"."attnum"`, schema)
 	if err != nil {
-		t.Fatalf("inspect PostgreSQL columns: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL columns: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var value externalPostgresColumn
 		if err := rows.Scan(&value.table, &value.ordinal, &value.name, &value.typeName, &value.notNull,
 			&value.identity, &value.generated, &value.defaultSQL, &value.collation); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL column: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL column: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.columns = append(snapshot.columns, value)
 	}
@@ -402,13 +402,13 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
 		WHERE "n"."nspname" = $1 ORDER BY "table"."relname", "constraint"."conname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect PostgreSQL constraints: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL constraints: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var value externalPostgresConstraint
 		if err := rows.Scan(&value.table, &value.name, &value.kind, &value.definition, &value.validated, &value.deferrable, &value.deferred); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL constraint: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL constraint: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.constraints = append(snapshot.constraints, value)
 	}
@@ -423,14 +423,14 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
 		WHERE "n"."nspname" = $1 ORDER BY "table"."relname", "index_class"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect PostgreSQL indexes: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL indexes: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var value externalPostgresIndex
 		if err := rows.Scan(&value.table, &value.name, &value.definition, &value.primary, &value.unique, &value.valid,
 			&value.ready, &value.live); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL index: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL index: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.indexes = append(snapshot.indexes, value)
 	}
@@ -450,14 +450,14 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		 AND "owner_column"."attnum" = "dependency"."refobjsubid"
 		WHERE "n"."nspname" = $1 ORDER BY "c"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("inspect PostgreSQL sequences: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL sequences: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var value externalPostgresSequence
 		if err := rows.Scan(&value.name, &value.typeName, &value.start, &value.increment, &value.minimum, &value.maximum,
 			&value.cache, &value.cycle, &value.ownerTable, &value.ownerColumn, &value.dependency); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL sequence: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL sequence: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.sequences = append(snapshot.sequences, value)
 	}
@@ -466,7 +466,7 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		identifier := pgx.Identifier{schema, snapshot.sequences[index].name}.Sanitize()
 		if err := connection.QueryRow(ctx, "SELECT last_value, is_called FROM "+identifier).Scan(
 			&snapshot.sequences[index].last, &snapshot.sequences[index].called); err != nil {
-			t.Fatalf("inspect PostgreSQL sequence state: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("inspect PostgreSQL sequence state: %v", testfixture.PostgresSafeError(err))
 		}
 	}
 
@@ -476,7 +476,7 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		}
 		var count int64
 		if err := connection.QueryRow(ctx, "SELECT COUNT(*) FROM "+pgx.Identifier{schema, relation.name}.Sanitize()).Scan(&count); err != nil {
-			t.Fatalf("count PostgreSQL table: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("count PostgreSQL table: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.counts = append(snapshot.counts, externalPostgresTableCount{table: relation.name, count: count})
 	}
@@ -484,13 +484,13 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 	if externalStatusPostgresHasTable(snapshot, "godj_migrations") {
 		rows, err = connection.Query(ctx, `SELECT "app", "name" FROM `+pgx.Identifier{schema, "godj_migrations"}.Sanitize()+` ORDER BY "app", "name"`)
 		if err != nil {
-			t.Fatalf("inspect PostgreSQL history: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("inspect PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
 			var value externalSQLiteHistoryRow
 			if err := rows.Scan(&value.app, &value.name); err != nil {
 				rows.Close()
-				t.Fatalf("scan PostgreSQL history: %v", externalStatusPostgresSafeError(err))
+				t.Fatalf("scan PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 			}
 			snapshot.history = append(snapshot.history, value)
 		}
@@ -500,14 +500,14 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		rows, err = connection.Query(ctx, `SELECT "singleton", "format_version", "epoch", "revision", "history_fingerprint" FROM `+
 			pgx.Identifier{schema, "godj_migration_revision"}.Sanitize()+` ORDER BY "singleton"`)
 		if err != nil {
-			t.Fatalf("inspect PostgreSQL revision: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("inspect PostgreSQL revision: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
 			var value externalPostgresRevisionRow
 			var epoch, fingerprint []byte
 			if err := rows.Scan(&value.singleton, &value.format, &epoch, &value.revision, &fingerprint); err != nil {
 				rows.Close()
-				t.Fatalf("scan PostgreSQL revision: %v", externalStatusPostgresSafeError(err))
+				t.Fatalf("scan PostgreSQL revision: %v", testfixture.PostgresSafeError(err))
 			}
 			value.epoch = hex.EncodeToString(epoch)
 			value.fingerprint = hex.EncodeToString(fingerprint)
@@ -518,13 +518,13 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 	if externalStatusPostgresHasTable(snapshot, "authors_author") {
 		rows, err = connection.Query(ctx, `SELECT "id", "name" FROM `+pgx.Identifier{schema, "authors_author"}.Sanitize()+` ORDER BY "id"`)
 		if err != nil {
-			t.Fatalf("inspect PostgreSQL authors: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("inspect PostgreSQL authors: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
 			var value externalPostgresAuthorRow
 			if err := rows.Scan(&value.id, &value.name); err != nil {
 				rows.Close()
-				t.Fatalf("scan PostgreSQL author: %v", externalStatusPostgresSafeError(err))
+				t.Fatalf("scan PostgreSQL author: %v", testfixture.PostgresSafeError(err))
 			}
 			snapshot.authors = append(snapshot.authors, value)
 		}
@@ -538,7 +538,7 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 		}
 		rows, err = connection.Query(ctx, statement)
 		if err != nil {
-			t.Fatalf("inspect PostgreSQL articles: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("inspect PostgreSQL articles: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
 			value := externalPostgresArticleRow{hasPublished: hasPublished}
@@ -549,7 +549,7 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 			}
 			if err != nil {
 				rows.Close()
-				t.Fatalf("scan PostgreSQL article: %v", externalStatusPostgresSafeError(err))
+				t.Fatalf("scan PostgreSQL article: %v", testfixture.PostgresSafeError(err))
 			}
 			snapshot.articles = append(snapshot.articles, value)
 		}
@@ -565,7 +565,7 @@ func externalStatusClosePostgresRows(t *testing.T, rows pgx.Rows, operation stri
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		t.Fatalf("finish PostgreSQL %s query: %v", operation, externalStatusPostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL %s query: %v", operation, testfixture.PostgresSafeError(err))
 	}
 }
 
@@ -640,15 +640,15 @@ func externalStatusSeedPostgresApplicationRows(t *testing.T, databaseURL, schema
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL application seed: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL application seed: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close PostgreSQL application seed: %v", externalStatusPostgresSafeError(err))
+			t.Errorf("close PostgreSQL application seed: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 	if _, err := connection.Exec(ctx, `INSERT INTO `+pgx.Identifier{schema, "authors_author"}.Sanitize()+` ("name") VALUES ($1)`, "durable author sentinel"); err != nil {
-		t.Fatalf("seed PostgreSQL author: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("seed PostgreSQL author: %v", testfixture.PostgresSafeError(err))
 	}
 	var publishedColumns int
 	if err := connection.QueryRow(ctx, `SELECT COUNT(*) FROM "pg_catalog"."pg_attribute" AS "a"
@@ -656,7 +656,7 @@ func externalStatusSeedPostgresApplicationRows(t *testing.T, databaseURL, schema
 		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
 		WHERE "n"."nspname" = $1 AND "c"."relname" = 'blog_article' AND "a"."attname" = 'published'
 		AND "a"."attnum" > 0 AND NOT "a"."attisdropped"`, schema).Scan(&publishedColumns); err != nil {
-		t.Fatalf("inspect PostgreSQL published column: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL published column: %v", testfixture.PostgresSafeError(err))
 	}
 	statement := `INSERT INTO ` + pgx.Identifier{schema, "blog_article"}.Sanitize() + ` ("title") VALUES ($1)`
 	arguments := []any{"durable article sentinel"}
@@ -667,7 +667,7 @@ func externalStatusSeedPostgresApplicationRows(t *testing.T, databaseURL, schema
 		t.Fatalf("PostgreSQL published column count = %d, want 0 or 1", publishedColumns)
 	}
 	if _, err := connection.Exec(ctx, statement, arguments...); err != nil {
-		t.Fatalf("seed PostgreSQL article: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("seed PostgreSQL article: %v", testfixture.PostgresSafeError(err))
 	}
 }
 
@@ -677,16 +677,16 @@ func externalStatusInstallInconsistentPostgresHistory(t *testing.T, databaseURL,
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL inconsistent history fixture: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL inconsistent history fixture: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close PostgreSQL inconsistent history fixture: %v", externalStatusPostgresSafeError(err))
+			t.Errorf("close PostgreSQL inconsistent history fixture: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 	transaction, err := connection.Begin(ctx)
 	if err != nil {
-		t.Fatalf("begin PostgreSQL inconsistent history fixture: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("begin PostgreSQL inconsistent history fixture: %v", testfixture.PostgresSafeError(err))
 	}
 	committed := false
 	defer func() {
@@ -697,18 +697,18 @@ func externalStatusInstallInconsistentPostgresHistory(t *testing.T, databaseURL,
 	historyTable := pgx.Identifier{schema, "godj_migrations"}.Sanitize()
 	result, err := transaction.Exec(ctx, `DELETE FROM `+historyTable+` WHERE "app" = $1 AND "name" = $2`, "authors", "0001_author")
 	if err != nil || result.RowsAffected() != 1 {
-		t.Fatalf("remove PostgreSQL applied parent: affected=%d error=%v", result.RowsAffected(), externalStatusPostgresSafeError(err))
+		t.Fatalf("remove PostgreSQL applied parent: affected=%d error=%v", result.RowsAffected(), testfixture.PostgresSafeError(err))
 	}
 	rows, err := transaction.Query(ctx, `SELECT "app", "name" FROM `+historyTable+` ORDER BY "app", "name"`)
 	if err != nil {
-		t.Fatalf("read PostgreSQL inconsistent history: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("read PostgreSQL inconsistent history: %v", testfixture.PostgresSafeError(err))
 	}
 	var history []externalSQLiteHistoryRow
 	for rows.Next() {
 		var value externalSQLiteHistoryRow
 		if err := rows.Scan(&value.app, &value.name); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL inconsistent history: %v", externalStatusPostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL inconsistent history: %v", testfixture.PostgresSafeError(err))
 		}
 		history = append(history, value)
 	}
@@ -717,27 +717,10 @@ func externalStatusInstallInconsistentPostgresHistory(t *testing.T, databaseURL,
 	revisionTable := pgx.Identifier{schema, "godj_migration_revision"}.Sanitize()
 	result, err = transaction.Exec(ctx, `UPDATE `+revisionTable+` SET "history_fingerprint" = $1 WHERE "singleton" = 1`, fingerprint[:])
 	if err != nil || result.RowsAffected() != 1 {
-		t.Fatalf("update PostgreSQL inconsistent-history fingerprint: affected=%d error=%v", result.RowsAffected(), externalStatusPostgresSafeError(err))
+		t.Fatalf("update PostgreSQL inconsistent-history fingerprint: affected=%d error=%v", result.RowsAffected(), testfixture.PostgresSafeError(err))
 	}
 	if err := transaction.Commit(ctx); err != nil {
-		t.Fatalf("commit PostgreSQL inconsistent history fixture: %v", externalStatusPostgresSafeError(err))
+		t.Fatalf("commit PostgreSQL inconsistent history fixture: %v", testfixture.PostgresSafeError(err))
 	}
 	committed = true
-}
-
-func externalStatusPostgresSafeError(err error) error {
-	if err == nil {
-		return nil
-	}
-	var structured interface{ SQLState() string }
-	if errors.As(err, &structured) {
-		return fmt.Errorf("PostgreSQL SQLSTATE %s", structured.SQLState())
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return errors.New("PostgreSQL operation timed out")
-	}
-	if errors.Is(err, context.Canceled) {
-		return errors.New("PostgreSQL operation was canceled")
-	}
-	return errors.New("PostgreSQL operation failed")
 }

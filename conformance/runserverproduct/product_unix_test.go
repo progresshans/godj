@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/migrations"
@@ -92,7 +94,7 @@ func TestRunserverProductCleanupHelper(t *testing.T) {
 		environment := environmentMap(os.Environ())
 		environment[runserverHarnessModeEnv] = "descendant"
 		child := exec.Command(os.Args[0], "-test.run=^TestRunserverProductCleanupHelper$")
-		child.Env = sortedRunserverEnvironment(environment)
+		child.Env = testfixture.SortedEnvironment(environment)
 		child.Stdout = io.Discard
 		child.Stderr = io.Discard
 		child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -121,7 +123,7 @@ func TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup(t *testing
 	environment[runserverHarnessModeEnv] = "supervisor"
 	environment[runserverHarnessReadyEnv] = ready
 	command := exec.Command(os.Args[0], "-test.run=^TestRunserverProductCleanupHelper$")
-	command.Env = sortedRunserverEnvironment(environment)
+	command.Env = testfixture.SortedEnvironment(environment)
 	command.Stdout = io.Discard
 	command.Stderr = io.Discard
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -773,7 +775,7 @@ func (result runserverCleanupResult) failed() bool {
 func interruptAndWaitRunserver(command *exec.Cmd, waited <-chan error, timeout time.Duration, knownGroups ...int) runserverCleanupResult {
 	result := runserverCleanupResult{}
 	groups, discoveryErr := runserverOwnedProcessGroups(command.Process.Pid)
-	result.ProcessGroups = mergeRunserverProcessGroups(knownGroups, groups)
+	result.ProcessGroups = testprocess.MergeGroups(knownGroups, groups)
 	result.DiscoveryError = discoveryErr
 	result.SignalError = signalRunserverTestProcessGroup(command.Process.Pid, syscall.SIGINT)
 	timer := time.NewTimer(timeout)
@@ -784,7 +786,7 @@ func interruptAndWaitRunserver(command *exec.Cmd, waited <-chan error, timeout t
 	case <-timer.C:
 		result.Forced = true
 		refreshed, refreshErr := runserverOwnedProcessGroups(command.Process.Pid)
-		result.ProcessGroups = mergeRunserverProcessGroups(result.ProcessGroups, refreshed)
+		result.ProcessGroups = testprocess.MergeGroups(result.ProcessGroups, refreshed)
 		result.DiscoveryError = errors.Join(result.DiscoveryError, refreshErr)
 		killErr := killRunserverTestProcessGroups(result.ProcessGroups, command.Process.Pid)
 		result.WaitError = errors.Join(killErr, boundedRunserverWait(waited, 3*time.Second))
@@ -865,19 +867,6 @@ func runserverOwnedProcessGroups(rootPID int) ([]int, error) {
 	}
 	sort.Ints(result)
 	return result, nil
-}
-
-func mergeRunserverProcessGroups(left, right []int) []int {
-	unique := make(map[int]struct{}, len(left)+len(right))
-	for _, group := range append(append([]int(nil), left...), right...) {
-		unique[group] = struct{}{}
-	}
-	result := make([]int, 0, len(unique))
-	for group := range unique {
-		result = append(result, group)
-	}
-	sort.Ints(result)
-	return result
 }
 
 func containsRunserverProcessGroup(groups []int, target int) bool {
@@ -1068,7 +1057,7 @@ func runserverEnvironment(t *testing.T, databasePath, workspaceBase string) []st
 		}
 		values["HOME"] = home
 	}
-	return sortedRunserverEnvironment(values)
+	return testfixture.SortedEnvironment(values)
 }
 
 func offlineRunserverEnvironment(input []string) []string {
@@ -1079,7 +1068,7 @@ func offlineRunserverEnvironment(input []string) []string {
 	values["GOFLAGS"] = ""
 	values["GOCACHEPROG"] = ""
 	values["GOPROXY"] = "off"
-	return sortedRunserverEnvironment(values)
+	return testfixture.SortedEnvironment(values)
 }
 
 func runserverGoAuditEnvironment(t *testing.T, input []string) ([]string, string) {
@@ -1107,7 +1096,7 @@ func runserverGoAuditEnvironment(t *testing.T, input []string) ([]string, string
 	values[runserverGoAuditModeEnv] = "1"
 	values[runserverGoAuditRealEnv] = realGo
 	values[runserverGoAuditLogEnv] = logPath
-	return sortedRunserverEnvironment(values), logPath
+	return testfixture.SortedEnvironment(values), logPath
 }
 
 func assertRunserverGoBuildAudit(t *testing.T, logPath string, wantPackages []string) {
@@ -1140,19 +1129,6 @@ func environmentMap(entries []string) map[string]string {
 		}
 	}
 	return values
-}
-
-func sortedRunserverEnvironment(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, len(keys))
-	for index, key := range keys {
-		result[index] = key + "=" + values[key]
-	}
-	return result
 }
 
 func assertRunserverWorkspaceEmpty(t *testing.T, root string) {

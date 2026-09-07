@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -45,35 +44,7 @@ var migrationStatusComparisons = [][]ComparisonDimension{
 func TestMigrationStatusReferenceArtifactsAreLockedValidatedAndPayloadSafe(t *testing.T) {
 	t.Parallel()
 
-	root := conformanceRepositoryRoot(t)
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	for name, want := range map[string]artifactLock{
-		"conformance/contracts/migration-status-manifest.json": {
-			size:   5263,
-			sha256: "dcb86295e683ea083cc57dca155284f9b26018d5d5a30c9606141bee8946fcc6",
-		},
-		"conformance/fixtures/godj-migration-status-not-implemented.json": {
-			size:   1566,
-			sha256: "0dd4dd08b13b9497ea541b7de4a85448cf6e0358b899c095c6eaafaf290f6cc6",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json": {
-			size:   39478,
-			sha256: "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f",
-		},
-	} {
-		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
-		if len(contents) != want.size {
-			t.Fatalf("migration-status artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		if got := fmt.Sprintf("%x", sha256.Sum256(contents)); got != want.sha256 {
-			t.Fatalf("migration-status artifact %s sha256 = %q, want %q", name, got, want.sha256)
-		}
-	}
-
-	profile, manifest, oracle, baseline := loadMigrationStatusArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-status")
 	if profile.ID != "django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.3" || profile.Lock.ManagerVersion != "0.10.12" {
 		t.Fatalf("unexpected migration-status profile: %#v", profile)
 	}
@@ -150,7 +121,7 @@ func TestMigrationStatusReferenceArtifactsAreLockedValidatedAndPayloadSafe(t *te
 func TestMigrationStatusDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationStatusArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-status")
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
 			actual := cloneJSONSuite(t, oracle)
@@ -191,7 +162,7 @@ func TestMigrationStatusDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 func TestMigrationStatusDjangoFixtureDetailsAreNotPublishedAsProductDimensions(t *testing.T) {
 	t.Parallel()
 
-	_, manifest, oracle, _ := loadMigrationStatusArtifacts(t)
+	_, manifest, oracle, _ := loadContractArtifacts(t, "migration-status")
 	for index := 1; index <= 4; index++ {
 		contract := manifest.Contracts[index]
 		if !reflect.DeepEqual(contract.Comparison, []ComparisonDimension{CompareResult}) {
@@ -316,14 +287,4 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 	if got := strings.Count(workflow, "conformance/fixtures/godj-migration-status-not-implemented.json"); got != 2 {
 		t.Fatalf("workflow migration-status NI lock count = %d, want 2", got)
 	}
-}
-
-func loadMigrationStatusArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-status-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-status-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-status-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }

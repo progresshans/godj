@@ -18,7 +18,7 @@ from django.db.migrations.operations.models import CreateModel
 from django.db.migrations.questioner import MigrationQuestioner
 from django.db.migrations.state import ModelState, ProjectState
 
-from .normalizer import normalize
+from .observations import observed_writer
 from .scenarios import configure_django
 
 
@@ -26,24 +26,6 @@ configure_django()
 
 
 Node = tuple[str, str]
-
-
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str,
-    metrics: Any,
-) -> dict[str, Any]:
-    return {
-        "db_state": None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics),
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
 
 
 def _project_state(*model_states: ModelState) -> ProjectState:
@@ -227,7 +209,7 @@ def _run_worker(action: str) -> dict[str, Any]:
 
 def no_changes_clean(contract_id: str) -> dict[str, Any]:
     changes = _detect(_project_state(_article_state()), _project_state(_article_state()))
-    return _observed(
+    return observed_writer(
         contract_id,
         {"candidate_count": len(_migration_values(changes)), "clean": not changes},
         phase="construction",
@@ -238,7 +220,7 @@ def no_changes_clean(contract_id: str) -> dict[str, Any]:
 def fresh_initial(contract_id: str) -> dict[str, Any]:
     changes = _detect(ProjectState(), _project_state(_article_state()))
     migrations = _migration_values(changes)
-    return _observed(
+    return observed_writer(
         contract_id,
         {"migrations": migrations},
         phase="construction",
@@ -256,7 +238,7 @@ def repeat_after_initial_noop(contract_id: str) -> dict[str, Any]:
         _project_state(_article_state()),
         graph=_graph(("blog", "0001_initial")),
     )
-    return _observed(
+    return observed_writer(
         contract_id,
         {
             "candidate_count": len(_migration_values(changes)),
@@ -281,7 +263,7 @@ def relation_dependency_topology(contract_id: str) -> dict[str, Any]:
             _project_state(_author_state(), _article_state(author="authors.Author")),
         )
     )
-    return _observed(
+    return observed_writer(
         contract_id,
         {"cases": [{"case": "same_app", "migrations": same_app}, {"case": "cross_app", "migrations": cross_app}]},
         phase="construction",
@@ -303,7 +285,7 @@ def additive_model_and_field_tail(contract_id: str) -> dict[str, Any]:
         graph=_graph(("blog", "0001_initial")),
     )
     migrations = _migration_values(changes)
-    return _observed(
+    return observed_writer(
         contract_id,
         {"migrations": migrations},
         phase="construction",
@@ -317,7 +299,7 @@ def additive_model_and_field_tail(contract_id: str) -> dict[str, Any]:
 
 def dry_run_no_mutation(contract_id: str) -> dict[str, Any]:
     result = _run_worker("dry_run")
-    return _observed(
+    return observed_writer(
         contract_id,
         result,
         phase="environment",
@@ -336,7 +318,7 @@ def dry_run_no_mutation(contract_id: str) -> dict[str, Any]:
 def check_clean_and_drift(contract_id: str) -> dict[str, Any]:
     clean = _run_worker("check_clean")
     drift = _run_worker("check_drift")
-    return _observed(
+    return observed_writer(
         contract_id,
         {"cases": [clean, drift]},
         phase="environment",

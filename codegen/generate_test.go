@@ -14,9 +14,9 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/codegen/internal/testschema"
 	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/internal/testschema"
 	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/schema/ir"
 )

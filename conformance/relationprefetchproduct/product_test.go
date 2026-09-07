@@ -4,6 +4,8 @@ import (
 	"context"
 	"reflect"
 	"testing"
+
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 )
 
 func TestObserveExecutesExactREL012PrefetchAndDatabaseState(t *testing.T) {
@@ -29,9 +31,9 @@ func TestObserveExecutesExactREL012PrefetchAndDatabaseState(t *testing.T) {
 		RelatedAccessExtraQueries: 0,
 	}
 	reviewer := int64(2)
-	wantState := DatabaseState{
-		Authors: []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
-		Posts: []PostRow{
+	wantState := relationstate.DatabaseState{
+		Authors: []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
+		Posts: []relationstate.PostRow{
 			{ID: 10, Title: "Alpha", AuthorID: 1, ReviewerID: &reviewer},
 			{ID: 11, Title: "Beta", AuthorID: 1},
 			{ID: 12, Title: "Gamma", AuthorID: 3, ReviewerID: &reviewer},
@@ -53,7 +55,7 @@ func TestREL012ObservationAndInternalGatesRejectFalseGreens(t *testing.T) {
 	}
 	t.Run("membership and state mutation changes payload", func(t *testing.T) {
 		config := defaultFixtureConfig()
-		config.posts[1].authorID = 3
+		config.posts[1].AuthorID = 3
 		mutated, err := observe(context.Background(), config)
 		if err != nil {
 			t.Fatal(err)
@@ -76,7 +78,7 @@ func TestREL012ObservationAndInternalGatesRejectFalseGreens(t *testing.T) {
 	})
 	t.Run("database state mutation changes payload", func(t *testing.T) {
 		config := defaultFixtureConfig()
-		config.authors[0].name = "Mutation Ada"
+		config.authors[0].Name = "Mutation Ada"
 		mutated, err := observe(context.Background(), config)
 		if err != nil {
 			t.Fatal(err)

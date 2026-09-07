@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+
 import json
 import unittest
 from pathlib import Path
 from typing import Any
 
+from conformance.runners.django.tests.values import semantic
 from conformance.runners.django import migration_writer_scenarios as scenarios
 from conformance.runners.django.normalizer import canonical_json
 
@@ -26,24 +28,6 @@ ORACLE = (
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64"
     / "migration-writer-oracle.json"
 )
-
-
-def _semantic(value: Any) -> Any:
-    if value is None or not isinstance(value, dict) or "type" not in value:
-        return value
-    kind = value["type"]
-    if kind == "object":
-        return {
-            field["name"]: _semantic(field["value"])
-            for field in value["fields"]
-        }
-    if kind == "list":
-        return [_semantic(item) for item in value["items"]]
-    if kind == "null":
-        return None
-    if kind == "int":
-        return int(value["value"])
-    return value["value"]
 
 
 class MigrationWriterScenarioTests(unittest.TestCase):
@@ -69,11 +53,11 @@ class MigrationWriterScenarioTests(unittest.TestCase):
     def test_no_change_initial_and_repeat_boundaries_are_exact(self) -> None:
         clean = scenarios.no_changes_clean("MIG-099")
         self.assertEqual(
-            _semantic(clean["result"]),
+            semantic(clean["result"]),
             {"candidate_count": 0, "clean": True},
         )
 
-        initial = _semantic(scenarios.fresh_initial("MIG-100")["result"])
+        initial = semantic(scenarios.fresh_initial("MIG-100")["result"])
         self.assertEqual(len(initial["migrations"]), 1)
         self.assertEqual(initial["migrations"][0]["app"], "blog")
         self.assertTrue(initial["migrations"][0]["initial"])
@@ -82,7 +66,7 @@ class MigrationWriterScenarioTests(unittest.TestCase):
             ["CreateModel"],
         )
 
-        repeat = _semantic(
+        repeat = semantic(
             scenarios.repeat_after_initial_noop("MIG-101")["result"]
         )
         self.assertEqual(
@@ -95,7 +79,7 @@ class MigrationWriterScenarioTests(unittest.TestCase):
         )
 
     def test_supported_relation_and_additive_topology_are_bounded(self) -> None:
-        relation = _semantic(
+        relation = semantic(
             scenarios.relation_dependency_topology("MIG-103")["result"]
         )
         self.assertEqual(
@@ -109,7 +93,7 @@ class MigrationWriterScenarioTests(unittest.TestCase):
             [{"app": "authors", "name": "0001_initial"}],
         )
 
-        additive = _semantic(
+        additive = semantic(
             scenarios.additive_model_and_field_tail("MIG-104")["result"]
         )
         self.assertEqual(len(additive["migrations"]), 1)
@@ -132,14 +116,14 @@ class MigrationWriterScenarioTests(unittest.TestCase):
         )
 
     def test_command_modes_are_observed_in_isolated_processes_without_mutation(self) -> None:
-        dry = _semantic(scenarios.dry_run_no_mutation("MIG-105")["result"])
+        dry = semantic(scenarios.dry_run_no_mutation("MIG-105")["result"])
         self.assertEqual(dry["action"], "dry_run")
         self.assertEqual(dry["exit_code"], 0)
         self.assertEqual(dry["files_before"], dry["files_after"])
         self.assertEqual(dry["tables_before"], dry["tables_after"])
         self.assertTrue(any("0001_initial.py" in line for line in dry["output"]))
 
-        check = _semantic(
+        check = semantic(
             scenarios.check_clean_and_drift("MIG-106")["result"]
         )
         clean, drift = check["cases"]

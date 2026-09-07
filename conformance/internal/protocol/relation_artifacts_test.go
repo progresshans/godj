@@ -12,43 +12,6 @@ import (
 	"testing"
 )
 
-func TestRelationArtifactBytesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]artifactLock{
-		"conformance/contracts/relation-manifest.json": {
-			size:   10770,
-			sha256: "791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b",
-		},
-		"conformance/fixtures/godj-relation-not-implemented.json": {
-			size:   1859,
-			sha256: "2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json": {
-			size:   33792,
-			sha256: "6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290",
-		},
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(contents) != want.size {
-			t.Fatalf("relation artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want.sha256 {
-			t.Fatalf("relation artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
-	}
-}
-
 // Current generated product drift is checked against the generator in each
 // relation product package and by godj generate --check. Reference byte locks
 // above remain independent of those mutable generated implementations.
@@ -101,7 +64,7 @@ func TestRelationManifestHistoryIsExactlyREL002ThenREL007REL008StatusTransitions
 func TestRelationArtifactBoundaryIsLocked(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadRelationArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "relation")
 	wantSlugs := []string{
 		"django.relation.cross_app_metadata",
 		"django.relation.unsaved_related_target",
@@ -192,7 +155,7 @@ func TestRelationArtifactBoundaryIsLocked(t *testing.T) {
 		if static.ID != contract.ID || static.Status != StatusNotImplemented || static.Phase != contract.Phase {
 			t.Fatalf("static contract %d = %#v, want %s not_implemented/%s", index, static, contract.ID, contract.Phase)
 		}
-		assertRelationObservationDimensions(t, contract, observation)
+		assertObservationDimensions(t, contract, observation)
 	}
 	if err := ValidateSuiteAgainst(profile, manifest, oracle); err != nil {
 		t.Fatalf("relation oracle does not validate: %v", err)
@@ -251,42 +214,4 @@ func TestRelationStaticFixtureExitsOneWithTwelveOrderedMismatches(t *testing.T) 
 		}
 		previous = position
 	}
-}
-
-func assertRelationObservationDimensions(t *testing.T, contract Contract, observation Observation) {
-	t.Helper()
-	wantResult := false
-	wantError := false
-	wantDBState := false
-	wantMetrics := false
-	for _, dimension := range contract.Comparison {
-		switch dimension {
-		case CompareResult:
-			wantResult = true
-		case CompareError:
-			wantError = true
-		case CompareDBState:
-			wantDBState = true
-		case CompareMetrics:
-			wantMetrics = true
-		}
-	}
-	if (observation.Result != nil) != wantResult || (observation.Error != nil) != wantError ||
-		(observation.DBState != nil) != wantDBState || (observation.Metrics != nil) != wantMetrics {
-		t.Fatalf("observation %s dimensions result/error/db_state/metrics = %t/%t/%t/%t, want %t/%t/%t/%t",
-			contract.ID,
-			observation.Result != nil, observation.Error != nil, observation.DBState != nil, observation.Metrics != nil,
-			wantResult, wantError, wantDBState, wantMetrics,
-		)
-	}
-}
-
-func loadRelationArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "relation-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-relation-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }

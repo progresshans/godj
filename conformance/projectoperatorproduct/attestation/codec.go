@@ -8,10 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"unicode/utf8"
+
+	"github.com/progresshans/godj/conformance/internal/attestationio"
 )
 
 const maxChecksumSize = 256
@@ -133,7 +134,7 @@ func Decode(document []byte) (Evidence, error) {
 	if !utf8.Valid(document) {
 		return Evidence{}, errors.New("external operator PostgreSQL attestation is not valid UTF-8")
 	}
-	if err := rejectDuplicateObjectNames(document); err != nil {
+	if err := attestationio.RejectDuplicateObjectNames(document); err != nil {
 		return Evidence{}, errors.New("external operator PostgreSQL attestation has invalid or duplicate object names")
 	}
 
@@ -170,11 +171,11 @@ func Load(repositoryRoot, attestationPath string) (Evidence, error) {
 	if filepath.Base(attestationPath) != FileName {
 		return Evidence{}, fmt.Errorf("external operator PostgreSQL attestation filename must be %q", FileName)
 	}
-	document, err := readBoundedRegularFile(attestationPath, MaxDocumentSize)
+	document, err := attestationio.ReadBoundedRegularFile(attestationPath, MaxDocumentSize)
 	if err != nil {
 		return Evidence{}, fmt.Errorf("read external operator PostgreSQL attestation: %w", err)
 	}
-	checksum, err := readBoundedRegularFile(filepath.Join(filepath.Dir(attestationPath), ChecksumFileName), maxChecksumSize)
+	checksum, err := attestationio.ReadBoundedRegularFile(filepath.Join(filepath.Dir(attestationPath), ChecksumFileName), maxChecksumSize)
 	if err != nil {
 		return Evidence{}, fmt.Errorf("read external operator PostgreSQL attestation checksum: %w", err)
 	}
@@ -346,101 +347,4 @@ func (wire wirePostgreSQL) toFingerprint() PostgreSQLFingerprint {
 		FullPageWrites:            wire.FullPageWrites,
 		SessionReplicationRole:    wire.SessionReplicationRole,
 	}
-}
-
-func rejectDuplicateObjectNames(document []byte) error {
-	decoder := json.NewDecoder(bytes.NewReader(document))
-	decoder.UseNumber()
-	if err := scanJSONValue(decoder); err != nil {
-		return err
-	}
-	if _, err := decoder.Token(); err != io.EOF {
-		if err == nil {
-			return errors.New("unexpected trailing JSON token")
-		}
-		return errors.New("invalid trailing JSON")
-	}
-	return nil
-}
-
-func scanJSONValue(decoder *json.Decoder) error {
-	token, err := decoder.Token()
-	if err != nil {
-		return err
-	}
-	delimiter, compound := token.(json.Delim)
-	if !compound {
-		return nil
-	}
-	switch delimiter {
-	case '{':
-		seen := make(map[string]struct{})
-		for decoder.More() {
-			nameToken, err := decoder.Token()
-			if err != nil {
-				return err
-			}
-			name, ok := nameToken.(string)
-			if !ok {
-				return errors.New("JSON object name is not a string")
-			}
-			if _, duplicate := seen[name]; duplicate {
-				return errors.New("duplicate JSON object name")
-			}
-			seen[name] = struct{}{}
-			if err := scanJSONValue(decoder); err != nil {
-				return err
-			}
-		}
-		closing, err := decoder.Token()
-		if err != nil {
-			return err
-		}
-		if closing != json.Delim('}') {
-			return errors.New("JSON object has an invalid closing delimiter")
-		}
-		return nil
-	case '[':
-		for decoder.More() {
-			if err := scanJSONValue(decoder); err != nil {
-				return err
-			}
-		}
-		closing, err := decoder.Token()
-		if err != nil {
-			return err
-		}
-		if closing != json.Delim(']') {
-			return errors.New("JSON array has an invalid closing delimiter")
-		}
-		return nil
-	default:
-		return fmt.Errorf("JSON has invalid opening delimiter %q", delimiter)
-	}
-}
-
-func readBoundedRegularFile(path string, limit int64) ([]byte, error) {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return nil, err
-	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return nil, errors.New("path is not a regular file")
-	}
-	if info.Size() < 0 || info.Size() > limit {
-		return nil, errors.New("file exceeds its size limit")
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	contents, err := io.ReadAll(io.LimitReader(file, limit+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(contents)) != info.Size() {
-		return nil, errors.New("file changed while it was being read")
-	}
-	return contents, nil
 }

@@ -10,7 +10,7 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/codegen/internal/testfixture"
-	"github.com/progresshans/godj/codegen/internal/testschema"
+	"github.com/progresshans/godj/internal/testschema"
 	"github.com/progresshans/godj/schema/ir"
 )
 

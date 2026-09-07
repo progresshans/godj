@@ -11,7 +11,7 @@ class PackagePartitionTests(unittest.TestCase):
     def test_slow_process_and_conformance_have_separate_owners(self):
         for relative, expected in {
             'orm': 'core', 'db/sqlite': 'core', 'codegen': 'core',
-            'codegen/internal/testschema': 'core', 'codegen/consumertest': 'integration',
+            'internal/testschema': 'core', 'codegen/consumertest': 'integration',
             'cmd/godj': 'platform', 'internal/projectcheck/linked': 'platform',
             'examples/article': 'integration', 'conformance/runners/godj': 'platform',
             'conformance/relationfixture': 'integration',

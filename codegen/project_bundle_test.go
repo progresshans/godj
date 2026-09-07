@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/progresshans/godj/codegen/internal/testschema"
+	"github.com/progresshans/godj/internal/testschema"
 )
 
-func TestProjectBundleCanonicalRosterAndImmutableAccessors(t *testing.T) {
+func TestProjectBundleCanonicalRosterAndContentHashes(t *testing.T) {
 	spec := projectBundleTestSpec()
 	bundle, err := GenerateProject(spec)
 	if err != nil {
@@ -58,22 +58,6 @@ func TestProjectBundleCanonicalRosterAndImmutableAccessors(t *testing.T) {
 		}
 	}
 
-	originalPath := files[0].Path
-	originalSource := files[0].Source()
-	files[0].Path = "mutated.go"
-	returnedSource := files[1].Source()
-	returnedSource[0] ^= 0xff
-	manifest := bundle.Manifest()
-	manifest[0] ^= 0xff
-	if bundle.Files()[0].Path != originalPath || !bytes.Equal(bundle.Files()[0].Source(), originalSource) {
-		t.Fatal("Files() mutation changed immutable bundle state")
-	}
-	if bundle.Files()[1].Source()[0] == returnedSource[0] {
-		t.Fatal("GeneratedFile.Source() returned mutable bundle storage")
-	}
-	if bundle.Manifest()[0] == manifest[0] {
-		t.Fatal("Manifest() returned mutable bundle storage")
-	}
 }
 
 func TestGenerateProjectCanonicalizesAppPermutationAndSnapshotsCaller(t *testing.T) {

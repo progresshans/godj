@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+
 import os
 import re
 import subprocess
@@ -14,6 +14,7 @@ from unittest.mock import patch
 from django.db import IntegrityError, connection, models
 from django.core.exceptions import FieldDoesNotExist
 
+from conformance.runners.django.tests.values import decode_primary_keys
 from conformance.runners.django import relation_scenarios as scenarios
 from conformance.runners.django import relation_fixture
 from conformance.runners.django.normalizer import canonical_json
@@ -31,43 +32,21 @@ STATIC_FIXTURE = (
 )
 
 
-def _decode(value: dict[str, Any]) -> Any:
-    kind = value["type"]
-    if kind == "null":
-        return None
-    if kind == "bool":
-        return value["value"]
-    if kind == "int":
-        return int(value["value"])
-    if kind == "string":
-        return value["value"]
-    if kind == "pk":
-        return _decode(value["value"])
-    if kind == "list":
-        return [_decode(item) for item in value["items"]]
-    if kind == "object":
-        return {
-            field["name"]: _decode(field["value"])
-            for field in value["fields"]
-        }
-    raise AssertionError(f"unsupported relation test value kind {kind!r}")
-
-
 def _decoded_observation(observation: dict[str, Any]) -> dict[str, Any]:
     return {
         **observation,
         "result": (
-            _decode(observation["result"])
+            decode_primary_keys(observation["result"])
             if observation["result"] is not None
             else None
         ),
         "db_state": (
-            _decode(observation["db_state"])
+            decode_primary_keys(observation["db_state"])
             if observation["db_state"] is not None
             else None
         ),
         "metrics": (
-            _decode(observation["metrics"])
+            decode_primary_keys(observation["metrics"])
             if observation["metrics"] is not None
             else None
         ),

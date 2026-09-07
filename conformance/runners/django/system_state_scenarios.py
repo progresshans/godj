@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .normalizer import normalize
+from .observations import observed_state
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -53,25 +53,6 @@ def _run(database: Path, action: str, payload: dict[str, Any] | None = None) -> 
     return value
 
 
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str,
-    db_state: Any,
-    metrics: Any,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state),
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics),
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
-
-
 def _assert_distinct_processes(*results: dict[str, Any]) -> None:
     process_ids = [result.get("_process_id") for result in results]
     if any(not isinstance(process_id, int) for process_id in process_ids):
@@ -90,7 +71,7 @@ def credential_permission_restart(contract_id: str) -> dict[str, Any]:
         initialized = _run(database, "initialize")
         restarted = _run(database, "authenticate")
         _assert_distinct_processes(initialized, restarted)
-    return _observed(
+    return observed_state(
         contract_id,
         {
             "active": restarted["active"],
@@ -115,7 +96,7 @@ def rotated_session_restart(contract_id: str) -> dict[str, Any]:
             {"cookies": logged_in["cookies"]},
         )
         _assert_distinct_processes(initialized, logged_in, restarted)
-    return _observed(
+    return observed_state(
         contract_id,
         {
             "admin_status": restarted["admin_status"],
@@ -146,7 +127,7 @@ def logout_restart_denial(contract_id: str) -> dict[str, Any]:
             {"cookies": copied_old_cookies},
         )
         _assert_distinct_processes(initialized, logged_in, logged_out, restarted)
-    return _observed(
+    return observed_state(
         contract_id,
         {
             "admin_status": restarted["admin_status"],
@@ -209,7 +190,7 @@ def csrf_restart(contract_id: str) -> dict[str, Any]:
             issued_fresh,
             accepted_fresh,
         )
-    return _observed(
+    return observed_state(
         contract_id,
         {
             "fresh": {
@@ -244,7 +225,7 @@ def admin_audit_fault_rollback(contract_id: str) -> dict[str, Any]:
         logged_in = _run(database, "login")
         failed = _run(database, "audit_fault", {"cookies": logged_in["cookies"]})
         _assert_distinct_processes(initialized, logged_in, failed)
-    return _observed(
+    return observed_state(
         contract_id,
         {
             "article_rolled_back": failed["article_delta"] == 0,
@@ -268,7 +249,7 @@ def audit_history_restart(contract_id: str) -> dict[str, Any]:
         written = _run(database, "history_write", {"cookies": logged_in["cookies"]})
         restarted = _run(database, "history_read")
         _assert_distinct_processes(initialized, logged_in, written, restarted)
-    return _observed(
+    return observed_state(
         contract_id,
         {
             "all_events": restarted["events"],

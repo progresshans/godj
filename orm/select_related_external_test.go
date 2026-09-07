@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/testschema"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -63,7 +64,7 @@ func (scan *publicPostProjectionScan) Decode() (relationQueryPost, query.Value, 
 }
 
 func TestPublicForwardSelectSurfaceCompilesAndWarmsRelatedObject(t *testing.T) {
-	authors, blog := relationSchemas()
+	authors, blog := testschema.Relation()
 	binding, err := orm.BindProject(authors, blog)
 	if err != nil {
 		t.Fatalf("BindProject() error = %v", err)

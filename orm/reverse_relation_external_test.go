@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/progresshans/godj/internal/testschema"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -67,7 +68,7 @@ func TestPublicReverseRelationBindingFailuresPublishOnlyZeroValues(t *testing.T)
 	_, err = orm.BindReverse(fixture.authorModel, "posts", fixture.authorModel)
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 
-	authors, blog := relationSchemas()
+	authors, blog := testschema.Relation()
 	otherBinding, err := orm.BindProject(authors, blog)
 	if err != nil {
 		t.Fatalf("second BindProject() error = %v", err)

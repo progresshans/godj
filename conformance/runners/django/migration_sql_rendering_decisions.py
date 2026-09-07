@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from .normalizer import normalize
+from .observations import observed_command
 
 
 SET_SLUG = "migration-sql-rendering"
@@ -23,25 +23,6 @@ _CAPABILITY_CATEGORY = "migration_capability_error"
 _MAX_STATEMENTS = 2_048
 _MAX_BODY_BYTES = 16 << 20
 _MAX_PRIVATE_RESPONSE_BYTES = 101 << 20
-
-
-def _observed(
-    contract_id: str,
-    *,
-    phase: str,
-    result: Any,
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
 
 
 def _pre_io_rejection(name: str, argv: list[str]) -> dict[str, Any]:
@@ -114,7 +95,7 @@ def argv_and_pre_io_rejection(contract_id: str) -> dict[str, Any]:
             ["sqlmigrate", "blog", "0002_render_sql", "--database", "other"],
         ),
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="environment",
         result={
@@ -186,7 +167,7 @@ def complete_load_exact_lookup_and_request(contract_id: str) -> dict[str, Any]:
             "request_materializations": 1,
         },
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="construction",
         result={
@@ -210,7 +191,7 @@ def complete_load_exact_lookup_and_request(contract_id: str) -> dict[str, Any]:
 
 
 def postgres_current_projection(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed_command(
         contract_id,
         phase="construction",
         result={
@@ -266,7 +247,7 @@ def canonical_deterministic_output(contract_id: str) -> dict[str, Any]:
         {"case": "parallel_b", "output": output},
         {"case": "fresh_process", "output": output},
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="evaluation",
         result={
@@ -326,7 +307,7 @@ def database_and_history_zero_calls(contract_id: str) -> dict[str, Any]:
         "session_opens",
         "transaction_begins",
     )
-    return _observed(
+    return observed_command(
         contract_id,
         phase="environment",
         result={
@@ -461,7 +442,7 @@ def renderer_and_operation_fail_closed(contract_id: str) -> dict[str, Any]:
         }
         for case in cases
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="evaluation",
         result={
@@ -547,7 +528,7 @@ def resource_cleanup_redaction_and_write(contract_id: str) -> dict[str, Any]:
             "write_attempts": 1,
         },
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="environment",
         result={
@@ -604,7 +585,7 @@ def external_project_configuration(contract_id: str) -> dict[str, Any]:
             "repository_external": True,
         },
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="environment",
         result={

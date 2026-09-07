@@ -23,6 +23,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -75,7 +76,7 @@ func TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	values := environmentMap(runserverEnvironment(t, databasePath, workspaceBase))
-	environment := sortedRunserverEnvironment(values)
+	environment := testfixture.SortedEnvironment(values)
 	assertRunserverOperatorEnvironment(t, environment, password)
 	before := snapshotRunserverProjectTree(t, articleRoot)
 	provisionRunserverOperator(t, globalBinary, repository, descriptor, environment, username, password)
@@ -391,7 +392,7 @@ func exerciseAuthenticatedRunserverArticle(
 		return errors.New("Admin login page omitted the masked CSRF token")
 	}
 	preLoginToken := string(match[1])
-	preLoginCSRF, err := uniqueAuthenticatedRunserverCookie(loginPage.cookies, websessionauth.DefaultCSRFCookieName)
+	preLoginCSRF, err := testfixture.UniqueCookie(loginPage.cookies, websessionauth.DefaultCSRFCookieName)
 	if err != nil {
 		return fmt.Errorf("Admin login CSRF cookie: %w", err)
 	}
@@ -424,11 +425,11 @@ func exerciseAuthenticatedRunserverArticle(
 		!bytes.Equal(login.body, []byte("Found\n")) {
 		return fmt.Errorf("Admin login status/location/body-bytes = %d/%t/%d", login.status, login.header.Get("Location") == "/admin/articles/", len(login.body))
 	}
-	sessionCookie, err := uniqueAuthenticatedRunserverCookie(login.cookies, websessionauth.DefaultSessionCookieName)
+	sessionCookie, err := testfixture.UniqueCookie(login.cookies, websessionauth.DefaultSessionCookieName)
 	if err != nil {
 		return fmt.Errorf("Admin login session cookie: %w", err)
 	}
-	rotatedCSRF, err := uniqueAuthenticatedRunserverCookie(login.cookies, websessionauth.DefaultCSRFCookieName)
+	rotatedCSRF, err := testfixture.UniqueCookie(login.cookies, websessionauth.DefaultCSRFCookieName)
 	if err != nil {
 		return fmt.Errorf("Admin rotated CSRF cookie: %w", err)
 	}
@@ -536,24 +537,6 @@ func requestAuthenticatedRunserver(
 		cookies:     response.Cookies(),
 		body:        payload,
 	}, nil
-}
-
-func uniqueAuthenticatedRunserverCookie(cookies []*http.Cookie, name string) (*http.Cookie, error) {
-	var found *http.Cookie
-	for _, cookie := range cookies {
-		if cookie.Name != name {
-			continue
-		}
-		if found != nil {
-			return nil, fmt.Errorf("response published duplicate %s cookies", name)
-		}
-		clone := *cookie
-		found = &clone
-	}
-	if found == nil {
-		return nil, fmt.Errorf("response omitted the %s cookie", name)
-	}
-	return found, nil
 }
 
 func authenticatedRunserverJarCookie(jar http.CookieJar, target *url.URL, name string) string {

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationdeleteproduct"
 	"github.com/progresshans/godj/conformance/relationobjectproduct"
 	"github.com/progresshans/godj/conformance/relationprefetchproduct"
@@ -64,7 +65,7 @@ func relationUnsavedRelatedTarget(ctx context.Context, contract protocol.Contrac
 		statementKinds[index] = protocol.String(kind)
 	}
 	messageIsContract := false
-	databaseState := relationDeleteDatabaseStateValue(observed.After)
+	databaseState := relationDatabaseStateValue(observed.After)
 	metrics := protocol.Object(map[string]protocol.Value{
 		"query_count":           protocol.Integer(strconv.FormatInt(observed.Metrics.QueryCount, 10)),
 		"statement_kinds":       protocol.List(statementKinds...),
@@ -105,7 +106,7 @@ func relationProtectDelete(ctx context.Context, contract protocol.Contract) (pro
 		return protocol.Observation{}, fmt.Errorf("REL-007 error = %v, want wrapped *query.Error", observed.Protect.Err)
 	}
 	messageIsContract := false
-	databaseState := relationDeleteDatabaseStateValue(observed.Protect.After)
+	databaseState := relationDatabaseStateValue(observed.Protect.After)
 	metrics := protocol.Object(map[string]protocol.Value{
 		"update_statement_count": protocol.Integer(strconv.FormatInt(observed.Protect.Metrics.RelationSetNullCount, 10)),
 		"delete_statement_count": protocol.Integer(strconv.FormatInt(observed.Protect.Metrics.DeleteCount, 10)),
@@ -160,7 +161,7 @@ func relationSetNullDelete(ctx context.Context, contract protocol.Contract) (pro
 		"affected_source_rows":   protocol.Integer(strconv.FormatInt(affectedSourceRows, 10)),
 		"deleted_target_rows":    protocol.Integer(strconv.FormatInt(deletedTargetRows, 10)),
 	})
-	databaseState := relationDeleteDatabaseStateValue(observed.SetNull.After)
+	databaseState := relationDatabaseStateValue(observed.SetNull.After)
 	return protocol.Observation{
 		ID:      contract.ID,
 		Status:  protocol.StatusObserved,
@@ -192,7 +193,7 @@ func relationRequiredSelectRelated(ctx context.Context, contract protocol.Contra
 		"plain": relationSelectQueryMetricsValue(observed.Required.PlainMetrics),
 		"eager": relationSelectQueryMetricsValue(observed.Required.EagerMetrics),
 	})
-	databaseState := relationSelectDatabaseStateValue(observed.DBState)
+	databaseState := relationDatabaseStateValue(observed.DBState)
 	return protocol.Observation{
 		ID:      contract.ID,
 		Status:  protocol.StatusObserved,
@@ -212,7 +213,7 @@ func relationNullableSelectRelated(ctx context.Context, contract protocol.Contra
 		"rows": relationSelectedRowsValue(observed.Nullable.Rows),
 	})
 	metrics := relationSelectQueryMetricsValue(observed.Nullable.Metrics)
-	databaseState := relationSelectDatabaseStateValue(observed.DBState)
+	databaseState := relationDatabaseStateValue(observed.DBState)
 	return protocol.Observation{
 		ID:      contract.ID,
 		Status:  protocol.StatusObserved,
@@ -234,7 +235,7 @@ func relationInvalidReverseSelectRelated(ctx context.Context, contract protocol.
 	}
 	messageIsContract := false
 	metrics := relationSelectInvalidMetricsValue(observed.Invalid.Metrics)
-	databaseState := relationSelectDatabaseStateValue(observed.DBState)
+	databaseState := relationDatabaseStateValue(observed.DBState)
 	return protocol.Observation{
 		ID:     contract.ID,
 		Status: protocol.StatusObserved,
@@ -259,7 +260,7 @@ func relationForwardLazyCache(ctx context.Context, contract protocol.Contract) (
 	warm := relationObjectAuthorValue(observed.Forward.Warm)
 	steps := make([]protocol.Value, len(observed.Forward.Steps))
 	for index, step := range observed.Forward.Steps {
-		value := relationObjectQueryMetricsValue(step.Metrics)
+		value := relationQueryMetricsValue(step.Metrics)
 		fields := map[string]protocol.Value{
 			"name": protocol.String(step.Name),
 		}
@@ -272,7 +273,7 @@ func relationForwardLazyCache(ctx context.Context, contract protocol.Contract) (
 		"cold": cold,
 		"warm": warm,
 	})
-	databaseState := relationObjectDatabaseStateValue(observed.DBState)
+	databaseState := relationDatabaseStateValue(observed.DBState)
 	metrics := protocol.Object(map[string]protocol.Value{
 		"steps": protocol.List(steps...),
 	})
@@ -303,11 +304,11 @@ func relationNullableAccessAndIsNull(ctx context.Context, contract protocol.Cont
 		"reviewer":        reviewer,
 		"isnull_post_ids": protocol.List(identifiers...),
 	})
-	databaseState := relationObjectDatabaseStateValue(observed.DBState)
+	databaseState := relationDatabaseStateValue(observed.DBState)
 	metrics := protocol.Object(map[string]protocol.Value{
-		"null_access":         relationObjectQueryMetricsValue(observed.Nullable.NullAccess),
-		"isnull_construction": relationObjectQueryMetricsValue(observed.Nullable.IsNullConstruction),
-		"isnull_evaluation":   relationObjectQueryMetricsValue(observed.Nullable.IsNullEvaluation),
+		"null_access":         relationQueryMetricsValue(observed.Nullable.NullAccess),
+		"isnull_construction": relationQueryMetricsValue(observed.Nullable.IsNullConstruction),
+		"isnull_evaluation":   relationQueryMetricsValue(observed.Nullable.IsNullEvaluation),
 	})
 	return protocol.Observation{
 		ID:      contract.ID,
@@ -386,10 +387,10 @@ func relationReverseAccessorAndLookup(ctx context.Context, contract protocol.Con
 		"accessor_post_ids": protocol.List(accessorIDs...),
 		"lookup_author_ids": protocol.List(lookupIDs...),
 	})
-	databaseState := relationReverseDatabaseStateValue(observed.DBState)
+	databaseState := relationDatabaseStateValue(observed.DBState)
 	metrics := protocol.Object(map[string]protocol.Value{
-		"accessor": relationReverseQueryMetricsValue(observed.Accessor),
-		"lookup":   relationReverseQueryMetricsValue(observed.Lookup),
+		"accessor": relationQueryMetricsValue(observed.Accessor),
+		"lookup":   relationQueryMetricsValue(observed.Lookup),
 	})
 	return protocol.Observation{
 		ID:      contract.ID,
@@ -420,7 +421,7 @@ func relationReversePrefetch(ctx context.Context, contract protocol.Contract) (p
 	result := protocol.Object(map[string]protocol.Value{
 		"authors": protocol.List(authors...),
 	})
-	databaseState := relationPrefetchDatabaseStateValue(observed.DBState)
+	databaseState := relationDatabaseStateValue(observed.DBState)
 	metrics := relationPrefetchQueryMetricsValue(observed.Metrics)
 	return protocol.Observation{
 		ID:      contract.ID,
@@ -432,43 +433,7 @@ func relationReversePrefetch(ctx context.Context, contract protocol.Contract) (p
 	}, nil
 }
 
-func relationQueryMetricsValue(metrics relationqueryproduct.QueryMetrics) protocol.Value {
-	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
-	for index, kind := range metrics.StatementKinds {
-		statementKinds[index] = protocol.String(kind)
-	}
-	joinKinds := make([]protocol.Value, len(metrics.JoinKinds))
-	for index, kind := range metrics.JoinKinds {
-		joinKinds[index] = protocol.String(kind)
-	}
-	return protocol.Object(map[string]protocol.Value{
-		"query_count":           protocol.Integer(strconv.FormatInt(metrics.QueryCount, 10)),
-		"statement_kinds":       protocol.List(statementKinds...),
-		"join_kinds":            protocol.List(joinKinds...),
-		"inner_join_count":      protocol.Integer(strconv.FormatInt(metrics.InnerJoinCount, 10)),
-		"left_outer_join_count": protocol.Integer(strconv.FormatInt(metrics.LeftOuterJoinCount, 10)),
-	})
-}
-
-func relationObjectQueryMetricsValue(metrics relationobjectproduct.QueryMetrics) protocol.Value {
-	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
-	for index, kind := range metrics.StatementKinds {
-		statementKinds[index] = protocol.String(kind)
-	}
-	joinKinds := make([]protocol.Value, len(metrics.JoinKinds))
-	for index, kind := range metrics.JoinKinds {
-		joinKinds[index] = protocol.String(kind)
-	}
-	return protocol.Object(map[string]protocol.Value{
-		"query_count":           protocol.Integer(strconv.FormatInt(metrics.QueryCount, 10)),
-		"statement_kinds":       protocol.List(statementKinds...),
-		"join_kinds":            protocol.List(joinKinds...),
-		"inner_join_count":      protocol.Integer(strconv.FormatInt(metrics.InnerJoinCount, 10)),
-		"left_outer_join_count": protocol.Integer(strconv.FormatInt(metrics.LeftOuterJoinCount, 10)),
-	})
-}
-
-func relationReverseQueryMetricsValue(metrics relationreverseproduct.QueryMetrics) protocol.Value {
+func relationQueryMetricsValue(metrics relationstate.QueryMetrics) protocol.Value {
 	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
 	for index, kind := range metrics.StatementKinds {
 		statementKinds[index] = protocol.String(kind)
@@ -559,7 +524,7 @@ func relationSelectedRowsValue(rows []relationselectproduct.PostRelatedRow) prot
 	return protocol.List(values...)
 }
 
-func relationDatabaseStateValue(state relationqueryproduct.DatabaseState) protocol.Value {
+func relationDatabaseStateValue(state relationstate.DatabaseState) protocol.Value {
 	authors := make([]protocol.Value, len(state.Authors))
 	for index, author := range state.Authors {
 		authors[index] = protocol.Object(map[string]protocol.Value{
@@ -586,142 +551,10 @@ func relationDatabaseStateValue(state relationqueryproduct.DatabaseState) protoc
 	})
 }
 
-func relationObjectAuthorValue(author relationobjectproduct.AuthorRow) protocol.Value {
+func relationObjectAuthorValue(author relationstate.AuthorRow) protocol.Value {
 	return protocol.Object(map[string]protocol.Value{
 		"id":   relationPrimaryKey(author.ID),
 		"name": protocol.String(author.Name),
-	})
-}
-
-func relationObjectDatabaseStateValue(state relationobjectproduct.DatabaseState) protocol.Value {
-	authors := make([]protocol.Value, len(state.Authors))
-	for index, author := range state.Authors {
-		authors[index] = relationObjectAuthorValue(author)
-	}
-	posts := make([]protocol.Value, len(state.Posts))
-	for index, post := range state.Posts {
-		reviewer := protocol.Null()
-		if post.ReviewerID != nil {
-			reviewer = relationPrimaryKey(*post.ReviewerID)
-		}
-		posts[index] = protocol.Object(map[string]protocol.Value{
-			"id":          relationPrimaryKey(post.ID),
-			"title":       protocol.String(post.Title),
-			"author_id":   relationPrimaryKey(post.AuthorID),
-			"reviewer_id": reviewer,
-		})
-	}
-	return protocol.Object(map[string]protocol.Value{
-		"authors": protocol.List(authors...),
-		"posts":   protocol.List(posts...),
-	})
-}
-
-func relationReverseDatabaseStateValue(state relationreverseproduct.DatabaseState) protocol.Value {
-	authors := make([]protocol.Value, len(state.Authors))
-	for index, author := range state.Authors {
-		authors[index] = protocol.Object(map[string]protocol.Value{
-			"id":   relationPrimaryKey(author.ID),
-			"name": protocol.String(author.Name),
-		})
-	}
-	posts := make([]protocol.Value, len(state.Posts))
-	for index, post := range state.Posts {
-		reviewer := protocol.Null()
-		if post.ReviewerID != nil {
-			reviewer = relationPrimaryKey(*post.ReviewerID)
-		}
-		posts[index] = protocol.Object(map[string]protocol.Value{
-			"id":          relationPrimaryKey(post.ID),
-			"title":       protocol.String(post.Title),
-			"author_id":   relationPrimaryKey(post.AuthorID),
-			"reviewer_id": reviewer,
-		})
-	}
-	return protocol.Object(map[string]protocol.Value{
-		"authors": protocol.List(authors...),
-		"posts":   protocol.List(posts...),
-	})
-}
-
-func relationPrefetchDatabaseStateValue(state relationprefetchproduct.DatabaseState) protocol.Value {
-	authors := make([]protocol.Value, len(state.Authors))
-	for index, author := range state.Authors {
-		authors[index] = protocol.Object(map[string]protocol.Value{
-			"id":   relationPrimaryKey(author.ID),
-			"name": protocol.String(author.Name),
-		})
-	}
-	posts := make([]protocol.Value, len(state.Posts))
-	for index, post := range state.Posts {
-		reviewer := protocol.Null()
-		if post.ReviewerID != nil {
-			reviewer = relationPrimaryKey(*post.ReviewerID)
-		}
-		posts[index] = protocol.Object(map[string]protocol.Value{
-			"id":          relationPrimaryKey(post.ID),
-			"title":       protocol.String(post.Title),
-			"author_id":   relationPrimaryKey(post.AuthorID),
-			"reviewer_id": reviewer,
-		})
-	}
-	return protocol.Object(map[string]protocol.Value{
-		"authors": protocol.List(authors...),
-		"posts":   protocol.List(posts...),
-	})
-}
-
-func relationSelectDatabaseStateValue(state relationselectproduct.DatabaseState) protocol.Value {
-	authors := make([]protocol.Value, len(state.Authors))
-	for index, author := range state.Authors {
-		authors[index] = protocol.Object(map[string]protocol.Value{
-			"id":   relationPrimaryKey(author.ID),
-			"name": protocol.String(author.Name),
-		})
-	}
-	posts := make([]protocol.Value, len(state.Posts))
-	for index, post := range state.Posts {
-		reviewer := protocol.Null()
-		if post.ReviewerID != nil {
-			reviewer = relationPrimaryKey(*post.ReviewerID)
-		}
-		posts[index] = protocol.Object(map[string]protocol.Value{
-			"id":          relationPrimaryKey(post.ID),
-			"title":       protocol.String(post.Title),
-			"author_id":   relationPrimaryKey(post.AuthorID),
-			"reviewer_id": reviewer,
-		})
-	}
-	return protocol.Object(map[string]protocol.Value{
-		"authors": protocol.List(authors...),
-		"posts":   protocol.List(posts...),
-	})
-}
-
-func relationDeleteDatabaseStateValue(state relationdeleteproduct.DatabaseState) protocol.Value {
-	authors := make([]protocol.Value, len(state.Authors))
-	for index, author := range state.Authors {
-		authors[index] = protocol.Object(map[string]protocol.Value{
-			"id":   relationPrimaryKey(author.ID),
-			"name": protocol.String(author.Name),
-		})
-	}
-	posts := make([]protocol.Value, len(state.Posts))
-	for index, post := range state.Posts {
-		reviewer := protocol.Null()
-		if post.ReviewerID != nil {
-			reviewer = relationPrimaryKey(*post.ReviewerID)
-		}
-		posts[index] = protocol.Object(map[string]protocol.Value{
-			"id":          relationPrimaryKey(post.ID),
-			"title":       protocol.String(post.Title),
-			"author_id":   relationPrimaryKey(post.AuthorID),
-			"reviewer_id": reviewer,
-		})
-	}
-	return protocol.Object(map[string]protocol.Value{
-		"authors": protocol.List(authors...),
-		"posts":   protocol.List(posts...),
 	})
 }
 

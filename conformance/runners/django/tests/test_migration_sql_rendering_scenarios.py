@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import ast
 import hashlib
 import inspect
@@ -23,6 +24,7 @@ from django.db.migrations.operations.fields import AddField
 from django.db.migrations.operations.models import CreateModel
 from django.db.migrations.recorder import MigrationRecorder
 
+from conformance.runners.django.tests.values import semantic
 from conformance.runners.django import migration_sql_rendering_scenarios as scenarios
 from conformance.runners.django.normalizer import canonical_json
 
@@ -68,21 +70,6 @@ PINNED_SOURCE = {
         "85b1c0c726e9e38f4be1169aa146473d4116efc4f7094c9c936a468dd109e1bf",
     ),
 }
-
-
-def _semantic(value: Any) -> Any:
-    if value is None or not isinstance(value, dict) or "type" not in value:
-        return value
-    kind = value["type"]
-    if kind == "object":
-        return {field["name"]: _semantic(field["value"]) for field in value["fields"]}
-    if kind == "list":
-        return [_semantic(item) for item in value["items"]]
-    if kind == "null":
-        return None
-    if kind == "int":
-        return int(value["value"])
-    return value["value"]
 
 
 def _model(result: dict[str, Any], app: str, model: str) -> dict[str, Any]:
@@ -291,7 +278,7 @@ class MigrationSQLRenderingScenarioTests(unittest.TestCase):
         self,
     ) -> None:
         observation = scenarios.forward_before_state_order("MIG-131")
-        result = _semantic(observation["result"])
+        result = semantic(observation["result"])
         self.assertEqual(
             result["plan"],
             [
@@ -348,7 +335,7 @@ class MigrationSQLRenderingScenarioTests(unittest.TestCase):
 
     def test_sqlite_create_add_meaning_is_normalized_without_raw_surface(self) -> None:
         observation = scenarios.sqlite_create_add_semantics("MIG-132")
-        result = _semantic(observation["result"])
+        result = semantic(observation["result"])
         self.assertEqual(result["backend"], "django.db.backends.sqlite3")
         self.assertFalse(result["raw_sql_bytes_compared"])
         self.assertFalse(result["comments_compared"])

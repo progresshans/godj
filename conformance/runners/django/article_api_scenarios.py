@@ -20,7 +20,8 @@ from .article_api_fixture.api import (
     canonical_relative_uri,
 )
 from .article_api_fixture.models import Article
-from .normalizer import PrimaryKey, normalize
+from .observations import observed
+from .observations import article_rows
 
 
 _REFERENCE_PASSWORD = "reference-password"
@@ -28,39 +29,6 @@ _RAW_BEARER_CANARY = "gdj-phase-a-raw-bearer-canary"
 _RAW_INACTIVE_BEARER = _RAW_BEARER_CANARY + "-inactive"
 _RAW_UNKNOWN_BEARER = "gdj-phase-a-unknown-bearer"
 _MAX_SIGNED_INT64 = (1 << 63) - 1
-
-
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str = "evaluation",
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
-
-
-def _article_state() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": PrimaryKey(primary_key),
-            "published": published,
-            "summary": summary,
-            "title": title,
-        }
-        for primary_key, title, published, summary in Article.objects.order_by(
-            "id"
-        ).values_list("id", "title", "published", "summary")
-    ]
 
 
 def _create_articles() -> None:
@@ -240,7 +208,7 @@ def _resolves(target: str) -> tuple[bool, dict[str, Any] | None]:
 def static_parameter_coexistence(contract_id: str) -> dict[str, Any]:
     static = resolve("/health/")
     parameter = resolve("/api/articles/0/")
-    return _observed(
+    return observed(
         contract_id,
         {
             "parameter": {
@@ -271,7 +239,7 @@ def nonnegative_int64_parameter(contract_id: str) -> dict[str, Any]:
         {"input": rendered, "matched": _resolves(f"/api/articles/{rendered}/")[0]}
         for rendered in ("-1", "01", str(_MAX_SIGNED_INT64 + 1), "x")
     ]
-    return _observed(
+    return observed(
         contract_id,
         {"invalid": invalid, "valid": valid},
         metrics={"borrowed_values": len(valid), "io_operations": 0},
@@ -289,7 +257,7 @@ def static_precedence_order_independent(contract_id: str) -> dict[str, Any]:
         matches = [route for route in patterns if route["kind"] == "static" or route["kind"] == "parameter"]
         match = next(route for route in matches if route["kind"] == "static")
         observations.append({"declaration": name, "matched": match["name"]})
-    return _observed(
+    return observed(
         contract_id,
         observations,
         metrics={"io_operations": 0, "orders_checked": 2},
@@ -318,7 +286,7 @@ def named_reverse_boundaries(contract_id: str) -> dict[str, Any]:
         else:
             outcome = "accepted"
         invalid.append({"case": name, "outcome": outcome})
-    return _observed(
+    return observed(
         contract_id,
         {"invalid": invalid, "valid": valid},
         phase="construction",
@@ -381,7 +349,7 @@ def ambiguous_route_rejection(contract_id: str) -> dict[str, Any]:
                 "outcome": "ambiguous_route" if _languages_overlap(*routes) else "accepted",
             }
         )
-    return _observed(
+    return observed(
         contract_id,
         cases,
         phase="construction",
@@ -404,7 +372,7 @@ def invalid_route_and_resource_caps(contract_id: str) -> dict[str, Any]:
         {"case": "parameter_name_bytes_65", "outcome": "resource_limit"},
         {"case": "reverse_result_path_bytes_4097", "outcome": "resource_limit"},
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "caps": {
@@ -440,7 +408,7 @@ def trailing_slash_and_invalid_path_404(contract_id: str) -> dict[str, Any]:
         {"path": target, "status": client.get(target).status_code}
         for target in targets
     ]
-    return _observed(
+    return observed(
         contract_id,
         cases,
         metrics={"requests": len(cases), "redirects": 0},
@@ -460,7 +428,7 @@ def method_not_allowed_allow_header(contract_id: str) -> dict[str, Any]:
     token = _csrf_token(client)
     response = _json_request(client, "POST", "/api/articles/1/", token=token)
     allow = sorted(part.strip() for part in response.headers.get("Allow", "").split(",") if part.strip())
-    return _observed(
+    return observed(
         contract_id,
         {"allow": allow, "response": _response(response)},
         metrics={"article_mutations": 0, "requests": 2},
@@ -502,7 +470,7 @@ def json_transport_boundary(contract_id: str) -> dict[str, Any]:
     cases.append({"case": "unacceptable_accept", "response": _response(unacceptable)})
     empty = client.get("/__reference__/echo/empty/", HTTP_ACCEPT="application/json")
     cases.append({"case": "empty_204", "response": _response(empty)})
-    return _observed(
+    return observed(
         contract_id,
         cases,
         metrics={"cases": len(cases), "requests": len(cases)},
@@ -540,7 +508,7 @@ def article_serializer_semantics(contract_id: str) -> dict[str, Any]:
                 "valid": valid,
             }
         )
-    return _observed(
+    return observed(
         contract_id,
         cases,
         metrics={"database_operations": 0, "validations": len(cases) - 1},
@@ -549,7 +517,7 @@ def article_serializer_semantics(contract_id: str) -> dict[str, Any]:
 
 def session_permission_csrf_denial(contract_id: str) -> dict[str, Any]:
     Article.objects.create(id=1, title="Existing", published=False, summary=None)
-    initial = _article_state()
+    initial = article_rows(Article)
     anonymous = Client(enforce_csrf_checks=True)
     anonymous_response = anonymous.get("/api/articles/", HTTP_ACCEPT="application/json")
 
@@ -579,16 +547,16 @@ def session_permission_csrf_denial(contract_id: str) -> dict[str, Any]:
         response = _json_request(public, "POST", "/api/articles/", token=token)
         attempts.append({"case": name, "response": _response(response)})
 
-    return _observed(
+    return observed(
         contract_id,
         {
             "anonymous": _response(anonymous_response),
             "permission_denied": _response(denied_response),
             "unsafe_attempts": attempts,
         },
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={
-            "article_mutations": 0 if _article_state() == initial else 1,
+            "article_mutations": 0 if article_rows(Article) == initial else 1,
             "requests": 2 + len(attempts),
         },
     )
@@ -617,10 +585,10 @@ def list_filter_order(contract_id: str) -> dict[str, Any]:
                 "results": _semantic_data(response.data["results"]),
             }
         cases.append({"case": name, "response": semantic})
-    return _observed(
+    return observed(
         contract_id,
         cases,
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={"article_mutations": 0, "requests": len(cases)},
     )
 
@@ -649,10 +617,10 @@ def page_number_pagination(contract_id: str) -> dict[str, Any]:
                 "results": _semantic_data(response.data["results"]),
             }
         cases.append({"case": name, "response": semantic})
-    return _observed(
+    return observed(
         contract_id,
         cases,
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={"article_mutations": 0, "page_size": 2, "requests": len(cases)},
     )
 
@@ -671,11 +639,11 @@ def create_article(contract_id: str) -> dict[str, Any]:
         token=token,
     )
     after = Article.objects.count()
-    return _observed(
+    return observed(
         contract_id,
         _response(response),
         phase="commit",
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={"article_row_delta": after - before, "requests": 2},
     )
 
@@ -698,10 +666,10 @@ def retrieve_article(contract_id: str) -> dict[str, Any]:
                 "response": _response(client.get(target, HTTP_ACCEPT="application/json")),
             }
         )
-    return _observed(
+    return observed(
         contract_id,
         cases,
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={"article_mutations": 0, "requests": len(cases)},
     )
 
@@ -718,7 +686,7 @@ def full_update(contract_id: str) -> dict[str, Any]:
         b'{"published":false,"summary":null}',
         token=token,
     )
-    after_invalid = _article_state()
+    after_invalid = article_rows(Article)
     valid = _json_request(
         client,
         "PUT",
@@ -726,7 +694,7 @@ def full_update(contract_id: str) -> dict[str, Any]:
         b'{"title":"Replaced","published":false,"summary":null}',
         token=token,
     )
-    return _observed(
+    return observed(
         contract_id,
         {
             "after_invalid": after_invalid,
@@ -734,7 +702,7 @@ def full_update(contract_id: str) -> dict[str, Any]:
             "valid": _response(valid),
         },
         phase="commit",
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={"article_mutations": 1, "requests": 3},
     )
 
@@ -759,13 +727,13 @@ def partial_update(contract_id: str) -> dict[str, Any]:
             token=token,
         )
         cases.append(
-            {"case": name, "response": _response(response), "state": _article_state()}
+            {"case": name, "response": _response(response), "state": article_rows(Article)}
         )
-    return _observed(
+    return observed(
         contract_id,
         cases,
         phase="commit",
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={"article_mutations": 3, "requests": 5},
     )
 
@@ -794,7 +762,7 @@ def delete_article(contract_id: str) -> dict[str, Any]:
     forbidden = _json_request(
         denied, "DELETE", "/api/articles/2/", token=denied_token
     )
-    return _observed(
+    return observed(
         contract_id,
         {
             "allowed": _response(deleted),
@@ -803,7 +771,7 @@ def delete_article(contract_id: str) -> dict[str, Any]:
             "repeated": _response(repeated),
         },
         phase="commit",
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={"article_row_delta": -1, "requests": 6},
     )
 
@@ -824,7 +792,7 @@ def missing_and_unsupported_authentication(contract_id: str) -> dict[str, Any]:
         cases.append(
             {"case": name, "response": _authentication_response(response)}
         )
-    return _observed(
+    return observed(
         contract_id,
         cases,
         metrics={
@@ -861,7 +829,7 @@ def invalid_and_valid_token(contract_id: str) -> dict[str, Any]:
         cases.append(
             {"case": name, "response": _authentication_response(response)}
         )
-    return _observed(
+    return observed(
         contract_id,
         cases,
         metrics={
@@ -874,7 +842,7 @@ def invalid_and_valid_token(contract_id: str) -> dict[str, Any]:
 
 def token_permission_denial(contract_id: str) -> dict[str, Any]:
     Article.objects.create(id=1, title="Preserve", published=False, summary=None)
-    before = _article_state()
+    before = article_rows(Article)
     _token_user("permission-denied-user", _RAW_BEARER_CANARY)
     client = Client(enforce_csrf_checks=True)
     response = _bearer_request(
@@ -883,8 +851,8 @@ def token_permission_denial(contract_id: str) -> dict[str, Any]:
         "/bearer/articles/",
         bearer=_RAW_BEARER_CANARY,
     )
-    after = _article_state()
-    return _observed(
+    after = article_rows(Article)
+    return observed(
         contract_id,
         _authentication_response(response),
         db_state=after,
@@ -913,11 +881,11 @@ def token_unsafe_without_csrf(contract_id: str) -> dict[str, Any]:
         payload=b'{"title":"Created without CSRF","published":true,"summary":null}',
     )
     after = Article.objects.count()
-    return _observed(
+    return observed(
         contract_id,
         _authentication_response(response),
         phase="commit",
-        db_state=_article_state(),
+        db_state=article_rows(Article),
         metrics={
             "article_row_delta": after - before,
             "csrf_credentials_supplied": 0,
@@ -937,7 +905,7 @@ def token_profile_isolation(contract_id: str) -> dict[str, Any]:
     client = Client(enforce_csrf_checks=True)
     client.force_login(user)
     session_cookie_present = settings.SESSION_COOKIE_NAME in client.cookies
-    before = _article_state()
+    before = article_rows(Article)
 
     missing = client.get(
         "/bearer/articles/",
@@ -970,8 +938,8 @@ def token_profile_isolation(contract_id: str) -> dict[str, Any]:
         {"case": "query_token_with_session", "response": _authentication_response(query)},
         {"case": "body_token_with_session", "response": _authentication_response(body)},
     ]
-    after = _article_state()
-    return _observed(
+    after = article_rows(Article)
+    return observed(
         contract_id,
         cases,
         db_state=after,

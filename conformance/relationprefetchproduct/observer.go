@@ -13,8 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/authors"
-	"github.com/progresshans/godj/conformance/relationfixture/blog"
 	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
@@ -39,44 +39,15 @@ type AuthorPosts struct {
 	PostIDs  []int64
 }
 
-type AuthorRow struct {
-	ID   int64
-	Name string
-}
-
-type PostRow struct {
-	ID         int64
-	Title      string
-	AuthorID   int64
-	ReviewerID *int64
-}
-
-type DatabaseState struct {
-	Authors []AuthorRow
-	Posts   []PostRow
-}
-
 type Observation struct {
 	Authors []AuthorPosts
 	Metrics QueryMetrics
-	DBState DatabaseState
-}
-
-type authorSeed struct {
-	id   int64
-	name string
-}
-
-type postSeed struct {
-	id         int64
-	title      string
-	authorID   int64
-	reviewerID *int64
+	DBState relationstate.DatabaseState
 }
 
 type fixtureConfig struct {
-	authors          []authorSeed
-	posts            []postSeed
+	authors          []relationstate.AuthorRow
+	posts            []relationstate.PostRow
 	ownersDescending bool
 	repeatPrimary    bool
 	forceColdAccess  bool
@@ -120,7 +91,7 @@ func observe(ctx context.Context, config fixtureConfig) (Observation, error) {
 }
 
 func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fixtureConfig) (Observation, error) {
-	if err := provision(ctx, backend, config); err != nil {
+	if err := relationstate.Provision(ctx, backend, "REL-012", config.authors, config.posts); err != nil {
 		return Observation{}, err
 	}
 	prefetches, err := project.BindReversePrefetches()
@@ -187,7 +158,7 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	if err := validateSuccessfulTrace(prefetchRecords, accessRecords, result); err != nil {
 		return Observation{}, err
 	}
-	state, err := readState(ctx, backend)
+	state, err := relationstate.Read(ctx, backend, "REL-012")
 	if err != nil {
 		return Observation{}, err
 	}
@@ -312,82 +283,10 @@ func validateSuccessfulTrace(prefetchRecords, accessRecords []recordedQuery, res
 	return nil
 }
 
-func provision(ctx context.Context, backend *sqlite.Backend, config fixtureConfig) error {
-	for _, statement := range []string{
-		`PRAGMA foreign_keys = ON`,
-		`CREATE TABLE "authors_author" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR(200) NOT NULL)`,
-		`CREATE TABLE "blog_post" ("id" INTEGER NOT NULL PRIMARY KEY, "title" VARCHAR(200) NOT NULL, "author_id" INTEGER NOT NULL REFERENCES "authors_author" ("id") ON DELETE RESTRICT, "reviewer_id" INTEGER NULL REFERENCES "authors_author" ("id") ON DELETE SET NULL)`,
-	} {
-		if _, err := backend.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("provision REL-012 schema: %w", err)
-		}
-	}
-	for _, author := range config.authors {
-		if _, err := backend.ExecContext(ctx, `INSERT INTO "authors_author" ("id", "name") VALUES (?, ?)`, author.id, author.name); err != nil {
-			return fmt.Errorf("provision REL-012 author %d: %w", author.id, err)
-		}
-	}
-	for _, post := range config.posts {
-		var reviewer any
-		if post.reviewerID != nil {
-			reviewer = *post.reviewerID
-		}
-		if _, err := backend.ExecContext(ctx, `INSERT INTO "blog_post" ("id", "title", "author_id", "reviewer_id") VALUES (?, ?, ?, ?)`, post.id, post.title, post.authorID, reviewer); err != nil {
-			return fmt.Errorf("provision REL-012 post %d: %w", post.id, err)
-		}
-	}
-	return nil
-}
-
-func readState(ctx context.Context, backend *sqlite.Backend) (DatabaseState, error) {
-	authorModels, err := authors.AuthorObjects.Using(backend).
-		OrderBy(authors.AuthorFields.ID.Asc()).
-		All(ctx)
-	if err != nil {
-		return DatabaseState{}, fmt.Errorf("read REL-012 authors: %w", err)
-	}
-	postModels, err := blog.PostObjects.Using(backend).
-		OrderBy(blog.PostFields.ID.Asc()).
-		All(ctx)
-	if err != nil {
-		return DatabaseState{}, fmt.Errorf("read REL-012 posts: %w", err)
-	}
-	authorRows := make([]AuthorRow, len(authorModels))
-	for index := range authorModels {
-		authorRows[index] = AuthorRow{ID: authorModels[index].ID, Name: authorModels[index].Name}
-	}
-	postRows := make([]PostRow, len(postModels))
-	for index := range postModels {
-		postRows[index] = PostRow{
-			ID:         postModels[index].ID,
-			Title:      postModels[index].Title,
-			AuthorID:   postModels[index].AuthorID,
-			ReviewerID: cloneIntegerPointer(postModels[index].ReviewerID),
-		}
-	}
-	return DatabaseState{Authors: authorRows, Posts: postRows}, nil
-}
-
 func defaultFixtureConfig() fixtureConfig {
-	reviewer := int64(2)
+	seed := relationstate.Seed()
 	return fixtureConfig{
-		authors: []authorSeed{
-			{id: 1, name: "Ada"},
-			{id: 2, name: "Bob"},
-			{id: 3, name: "Cleo"},
-		},
-		posts: []postSeed{
-			{id: 10, title: "Alpha", authorID: 1, reviewerID: &reviewer},
-			{id: 11, title: "Beta", authorID: 1},
-			{id: 12, title: "Gamma", authorID: 3, reviewerID: &reviewer},
-		},
+		authors: seed.Authors,
+		posts:   seed.Posts,
 	}
-}
-
-func cloneIntegerPointer(value *int64) *int64 {
-	if value == nil {
-		return nil
-	}
-	clone := *value
-	return &clone
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import ast
 import inspect
 import unittest
@@ -8,6 +9,7 @@ from unittest.mock import patch
 import django
 from django.core.management.commands import showmigrations
 
+from conformance.runners.django.tests.values import denormalize
 from conformance.runners.django import migration_status_scenarios as scenarios
 from conformance.runners.django.normalizer import canonical_json
 
@@ -18,24 +20,6 @@ EXPECTED_SCENARIOS = (
     "django.migration.status.fully_applied_restart",
     "django.migration.status.cross_app_branch_order",
 )
-
-
-def denormalize(value):
-    value_type = value["type"]
-    if value_type == "null":
-        return None
-    if value_type in {"bool", "string"}:
-        return value["value"]
-    if value_type == "int":
-        return int(value["value"])
-    if value_type == "list":
-        return [denormalize(item) for item in value["items"]]
-    if value_type == "object":
-        return {
-            field["name"]: denormalize(field["value"])
-            for field in value["fields"]
-        }
-    raise AssertionError(f"unexpected normalized value type: {value_type!r}")
 
 
 class MigrationStatusScenarioTests(unittest.TestCase):

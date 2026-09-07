@@ -27,6 +27,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -50,7 +51,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 	const username = "authenticated-restart-admin"
 	password := fmt.Sprintf("authenticated-restart-password-%d-%d-7Vq", os.Getpid(), time.Now().UnixNano())
 	values := environmentMap(articleEnvironment(t, databasePath, workspaceBase))
-	environment := sortedEnvironment(values)
+	environment := testfixture.SortedEnvironment(values)
 	authenticatedRestartAssertRuntimeEnvironment(t, environment, password)
 	sensitive := []string{password}
 	outputCanaries := []string{username, databasePath}
@@ -717,7 +718,7 @@ func authenticatedRestartLogin(
 	if err != nil {
 		return authenticatedRestartLoginState{}, err
 	}
-	preLoginCSRF, err := authenticatedRestartUniqueCookie(loginPage.Cookies, websessionauth.DefaultCSRFCookieName)
+	preLoginCSRF, err := testfixture.UniqueCookie(loginPage.Cookies, websessionauth.DefaultCSRFCookieName)
 	if err != nil {
 		return authenticatedRestartLoginState{}, err
 	}
@@ -747,11 +748,11 @@ func authenticatedRestartLogin(
 	if login.Status != http.StatusFound || login.Header.Get("Location") != "/admin/articles/" || !bytes.Equal(login.Body, []byte("Found\n")) {
 		return authenticatedRestartLoginState{}, fmt.Errorf("phase A Admin login status/location/body-shape=%d/%t/%t", login.Status, login.Header.Get("Location") == "/admin/articles/", bytes.Equal(login.Body, []byte("Found\n")))
 	}
-	sessionCookie, err := authenticatedRestartUniqueCookie(login.Cookies, websessionauth.DefaultSessionCookieName)
+	sessionCookie, err := testfixture.UniqueCookie(login.Cookies, websessionauth.DefaultSessionCookieName)
 	if err != nil {
 		return authenticatedRestartLoginState{}, err
 	}
-	rotatedCSRF, err := authenticatedRestartUniqueCookie(login.Cookies, websessionauth.DefaultCSRFCookieName)
+	rotatedCSRF, err := testfixture.UniqueCookie(login.Cookies, websessionauth.DefaultCSRFCookieName)
 	if err != nil {
 		return authenticatedRestartLoginState{}, err
 	}
@@ -998,24 +999,6 @@ func authenticatedRestartResponseCSRF(response authenticatedRestartHTTPResult, s
 	token := string(match[1])
 	*sensitive = append(*sensitive, token)
 	return token, nil
-}
-
-func authenticatedRestartUniqueCookie(cookies []*http.Cookie, name string) (*http.Cookie, error) {
-	var found *http.Cookie
-	for _, cookie := range cookies {
-		if cookie.Name != name {
-			continue
-		}
-		if found != nil {
-			return nil, fmt.Errorf("response published duplicate %s cookies", name)
-		}
-		clone := *cookie
-		found = &clone
-	}
-	if found == nil {
-		return nil, fmt.Errorf("response omitted the %s cookie", name)
-	}
-	return found, nil
 }
 
 func authenticatedRestartJarCookie(jar http.CookieJar, target *url.URL, name string) string {

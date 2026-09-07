@@ -49,99 +49,6 @@ func TestRunMatchesLockedOracleAndWritesActualSuite(t *testing.T) {
 	}
 }
 
-func TestRunMatchesLockedWriteMigrationOracle(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	actualPath := filepath.Join(t.TempDir(), "write-migration-actual.json")
-	arguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "write-migration-manifest.json"),
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "write-migration-oracle.json"),
-		"-actual-output", actualPath,
-	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-		t.Fatalf("run() code = %d, stderr = %s", code, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "match the locked Django oracle for 11 contracts") {
-		t.Fatalf("stdout = %q", stdout.String())
-	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q", stderr.String())
-	}
-	actual, err := protocol.LoadObservationSuite(actualPath)
-	if err != nil {
-		t.Fatalf("LoadObservationSuite(actual) error = %v", err)
-	}
-	if len(actual.Contracts) != 11 || actual.Contracts[0].ID != "MOD-001" || actual.Contracts[10].ID != "MIG-004" {
-		t.Fatalf("actual write/migration contracts = %#v", actual.Contracts)
-	}
-}
-
-func TestRunMatchesLockedSaveLifecycleOracle(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	actualPath := filepath.Join(t.TempDir(), "save-lifecycle-actual.json")
-	arguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "save-lifecycle-manifest.json"),
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "save-lifecycle-oracle.json"),
-		"-actual-output", actualPath,
-	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-		t.Fatalf("run() code = %d, stderr = %s", code, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "match the locked Django oracle for 12 contracts") {
-		t.Fatalf("stdout = %q", stdout.String())
-	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q", stderr.String())
-	}
-	actual, err := protocol.LoadObservationSuite(actualPath)
-	if err != nil {
-		t.Fatalf("LoadObservationSuite(actual) error = %v", err)
-	}
-	if len(actual.Contracts) != 12 || actual.Contracts[0].ID != "MOD-008" || actual.Contracts[11].ID != "MOD-019" {
-		t.Fatalf("actual save lifecycle contracts = %#v", actual.Contracts)
-	}
-}
-
-func TestRunMatchesLockedQueryCacheOracle(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	actualPath := filepath.Join(t.TempDir(), "query-cache-actual.json")
-	arguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"),
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-cache-oracle.json"),
-		"-actual-output", actualPath,
-	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-		t.Fatalf("run() code = %d, stderr = %s", code, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "match the locked Django oracle for 11 contracts") {
-		t.Fatalf("stdout = %q", stdout.String())
-	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q", stderr.String())
-	}
-	actual, err := protocol.LoadObservationSuite(actualPath)
-	if err != nil {
-		t.Fatalf("LoadObservationSuite(actual) error = %v", err)
-	}
-	if len(actual.Contracts) != 11 || actual.Contracts[0].ID != "QRY-011" || actual.Contracts[10].ID != "QRY-021" {
-		t.Fatalf("actual query-cache contracts = %#v", actual.Contracts)
-	}
-}
-
 func TestRunMatchesPinnedQueryBreadthOracle(t *testing.T) {
 	t.Parallel()
 
@@ -309,39 +216,6 @@ func TestRunRejectsUnregisteredQueryExpressionScenarioBeforePublishingActualOutp
 	}
 }
 
-func TestRunQueryCacheActualOutputIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	directory := t.TempDir()
-	firstPath := filepath.Join(directory, "query-cache-first.json")
-	secondPath := filepath.Join(directory, "query-cache-second.json")
-	baseArguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"),
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-cache-oracle.json"),
-	}
-	for _, outputPath := range []string{firstPath, secondPath} {
-		arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-			t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
-		}
-	}
-	first, err := os.ReadFile(firstPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := os.ReadFile(secondPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Fatal("independent godjcheck query-cache actual outputs differ")
-	}
-}
-
 func TestRunRejectsUnknownScenarioWithoutWritingActualOutput(t *testing.T) {
 	t.Parallel()
 
@@ -410,39 +284,6 @@ func TestRunMatchesLockedMigrationPlanningOracle(t *testing.T) {
 	}
 	if len(actual.Contracts) != 12 || actual.Contracts[0].ID != "MIG-005" || actual.Contracts[11].ID != "MIG-016" {
 		t.Fatalf("actual migration-planning contracts = %#v", actual.Contracts)
-	}
-}
-
-func TestRunMigrationPlanningActualOutputIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	directory := t.TempDir()
-	firstPath := filepath.Join(directory, "migration-planning-first.json")
-	secondPath := filepath.Join(directory, "migration-planning-second.json")
-	baseArguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-planning-manifest.json"),
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-planning-oracle.json"),
-	}
-	for _, outputPath := range []string{firstPath, secondPath} {
-		arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-			t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
-		}
-	}
-	first, err := os.ReadFile(firstPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := os.ReadFile(secondPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Fatal("independent godjcheck migration-planning actual outputs differ")
 	}
 }
 
@@ -592,39 +433,6 @@ func TestRunMatchesLockedMigrationRestartOracle(t *testing.T) {
 	}
 }
 
-func TestRunMigrationRestartActualOutputIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	directory := t.TempDir()
-	firstPath := filepath.Join(directory, "migration-restart-first.json")
-	secondPath := filepath.Join(directory, "migration-restart-second.json")
-	baseArguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-restart-manifest.json"),
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-restart-oracle.json"),
-	}
-	for _, outputPath := range []string{firstPath, secondPath} {
-		arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-			t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
-		}
-	}
-	first, err := os.ReadFile(firstPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := os.ReadFile(secondPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Fatal("independent godjcheck migration-restart actual outputs differ")
-	}
-}
-
 func TestRunRejectsUnknownMigrationRestartScenarioWithoutWritingActualOutput(t *testing.T) {
 	t.Parallel()
 
@@ -696,39 +504,6 @@ func TestRunMatchesLockedMigrationStateReconstructionOracle(t *testing.T) {
 	}
 	if len(actual.Contracts) != 10 || actual.Contracts[0].ID != "MIG-037" || actual.Contracts[9].ID != "MIG-046" {
 		t.Fatalf("actual migration-state-reconstruction contracts = %#v", actual.Contracts)
-	}
-}
-
-func TestRunMigrationStateReconstructionActualOutputIsDeterministic(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	directory := t.TempDir()
-	firstPath := filepath.Join(directory, "migration-state-reconstruction-first.json")
-	secondPath := filepath.Join(directory, "migration-state-reconstruction-second.json")
-	baseArguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"),
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-state-reconstruction-oracle.json"),
-	}
-	for _, outputPath := range []string{firstPath, secondPath} {
-		arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-			t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
-		}
-	}
-	first, err := os.ReadFile(firstPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := os.ReadFile(secondPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Fatal("independent godjcheck migration-state-reconstruction actual outputs differ")
 	}
 }
 
@@ -1694,4 +1469,86 @@ func writeCanonicalMainTestArtifact(t *testing.T, directory, name string, value 
 		t.Fatal(err)
 	}
 	return path
+}
+
+func TestRunActualOutputsAreDeterministic(t *testing.T) {
+	t.Parallel()
+	for _, set := range []string{"query-cache", "migration-planning", "migration-restart", "migration-state-reconstruction"} {
+		t.Run(set, func(t *testing.T) {
+			t.Parallel()
+
+			root := filepath.Join("..", "..", "..")
+			directory := t.TempDir()
+			firstPath := filepath.Join(directory, set+"-first.json")
+			secondPath := filepath.Join(directory, set+"-second.json")
+			baseArguments := []string{
+				"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+				"-manifest", filepath.Join(root, "conformance", "contracts", set+"-manifest.json"),
+				"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", set+"-oracle.json"),
+			}
+			for _, outputPath := range []string{firstPath, secondPath} {
+				arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
+				var stdout bytes.Buffer
+				var stderr bytes.Buffer
+				if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+					t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
+				}
+			}
+			first, err := os.ReadFile(firstPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			second, err := os.ReadFile(secondPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(first, second) {
+				t.Fatalf("independent godjcheck %s actual outputs differ", set)
+			}
+		})
+	}
+}
+
+func TestRunMatchesLockedModelAndQueryOracles(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		set         string
+		count       int
+		first, last string
+	}{
+		{"write-migration", 11, "MOD-001", "MIG-004"},
+		{"save-lifecycle", 12, "MOD-008", "MOD-019"},
+		{"query-cache", 11, "QRY-011", "QRY-021"},
+	} {
+		t.Run(test.set, func(t *testing.T) {
+			t.Parallel()
+
+			root := filepath.Join("..", "..", "..")
+			actualPath := filepath.Join(t.TempDir(), test.set+"-actual.json")
+			arguments := []string{
+				"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+				"-manifest", filepath.Join(root, "conformance", "contracts", test.set+"-manifest.json"),
+				"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", test.set+"-oracle.json"),
+				"-actual-output", actualPath,
+			}
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+				t.Fatalf("run() code = %d, stderr = %s", code, stderr.String())
+			}
+			if !strings.Contains(stdout.String(), fmt.Sprintf("match the locked Django oracle for %d contracts", test.count)) {
+				t.Fatalf("stdout = %q", stdout.String())
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("stderr = %q", stderr.String())
+			}
+			actual, err := protocol.LoadObservationSuite(actualPath)
+			if err != nil {
+				t.Fatalf("LoadObservationSuite(actual) error = %v", err)
+			}
+			if len(actual.Contracts) != test.count || actual.Contracts[0].ID != test.first || actual.Contracts[test.count-1].ID != test.last {
+				t.Fatalf("actual %s contracts = %#v", test.set, actual.Contracts)
+			}
+		})
+	}
 }

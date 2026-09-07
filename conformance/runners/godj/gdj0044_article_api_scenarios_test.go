@@ -74,11 +74,11 @@ func TestGDJ0044ArticleAPIDenialsMutateNoRowsAndObserveEveryUnsafeAttempt(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	unsafeAttempts := parameterRoutingTestObjectField(t, *observation.Result, "unsafe_attempts")
+	unsafeAttempts := testObjectField(t, *observation.Result, "unsafe_attempts")
 	if unsafeAttempts.Type != protocol.ValueList || len(unsafeAttempts.Items) != 4 {
 		t.Fatalf("unsafe_attempts = %#v, want four observations", unsafeAttempts)
 	}
-	mutations := parameterRoutingTestObjectField(t, *observation.Metrics, "article_mutations")
+	mutations := testObjectField(t, *observation.Metrics, "article_mutations")
 	if mutations.Text == nil || *mutations.Text != "0" {
 		t.Fatalf("article_mutations = %#v, want 0", mutations)
 	}
@@ -106,7 +106,7 @@ func TestGDJ0044ArticleAPICreateAndDeleteUseOneDurableMutation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			delta := parameterRoutingTestObjectField(t, *observation.Metrics, "article_row_delta")
+			delta := testObjectField(t, *observation.Metrics, "article_row_delta")
 			if delta.Text == nil || *delta.Text != test.want {
 				t.Fatalf("article_row_delta = %#v, want %s", delta, test.want)
 			}

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
 )
@@ -48,7 +49,7 @@ func TestGlobalMigrateSQLiteMiddleFailureAndFreshResume(t *testing.T) {
 	observationPath := filepath.Join(t.TempDir(), "migration-observations.log")
 	environmentValues := environmentMap(articleEnvironment(t, databasePath, workspaceBase))
 	environmentValues[failureResumeObservationEnv] = observationPath
-	environment := sortedEnvironment(environmentValues)
+	environment := testfixture.SortedEnvironment(environmentValues)
 
 	// The first catalog is a valid three-step chain. Its middle CreateModel is
 	// accepted by the backend-neutral IR, but its 2,001 columns exceed SQLite's

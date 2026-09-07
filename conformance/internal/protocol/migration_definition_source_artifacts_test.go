@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,27 +8,6 @@ import (
 	"strings"
 	"testing"
 )
-
-func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]string{
-		"conformance/contracts/migration-definition-source-manifest.json":                            "b5bc2612f3cfc642397ebff779294aa1cdc1a25b675632d2c7a2e615d47ee7fa",
-		"conformance/fixtures/godj-migration-definition-source-not-implemented.json":                 "41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json": "61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410",
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want {
-			t.Fatalf("migration-definition-source artifact %s checksum = %q, want locked %q", name, got, want)
-		}
-	}
-}
 
 func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	t.Parallel()
@@ -71,7 +49,7 @@ func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 func TestMigrationDefinitionSourceArtifactBoundaryIsLocked(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadMigrationDefinitionSourceArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-definition-source")
 	if len(manifest.Contracts) != 8 {
 		t.Fatalf("migration-definition-source manifest has %d contracts, want 8", len(manifest.Contracts))
 	}
@@ -143,7 +121,7 @@ func TestMigrationDefinitionSourceArtifactBoundaryIsLocked(t *testing.T) {
 func TestMigrationDefinitionSourceDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationDefinitionSourceArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-definition-source")
 	for index, contract := range manifest.Contracts {
 		index := index
 		contract := contract
@@ -189,7 +167,7 @@ func TestMigrationDefinitionSourceDeclaredDimensionsCannotFalseGreen(t *testing.
 func TestMigrationDefinitionSourceSemanticPayloadMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationDefinitionSourceArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-definition-source")
 	tests := []struct {
 		name       string
 		contractID string
@@ -297,7 +275,7 @@ func TestMigrationDefinitionSourceSemanticPayloadMutationsCannotFalseGreen(t *te
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			observation := migrationDefinitionSourceObservation(t, &actual, test.contractID)
+			observation := observationByID(t, &actual, test.contractID)
 			test.mutate(t, observation)
 			assertMigrationDefinitionSourceDiffers(t, profile, manifest, oracle, actual, test.contractID)
 		})
@@ -307,7 +285,7 @@ func TestMigrationDefinitionSourceSemanticPayloadMutationsCannotFalseGreen(t *te
 func TestMigrationDefinitionSourceProvenanceMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	_, manifest, _, _ := loadMigrationDefinitionSourceArtifacts(t)
+	_, manifest, _, _ := loadContractArtifacts(t, "migration-definition-source")
 	tests := []struct {
 		name   string
 		mutate func(*Manifest)
@@ -471,67 +449,10 @@ func TestRelationProductUsesIndependentReferenceTargets(t *testing.T) {
 	}
 }
 
-func TestMigrationDefinitionSourcePreservesPreviousNineArtifactSetBytes(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]string{
-		"conformance/contracts/manifest.json":                                                           "e395fc862d357b7d45f94fa7d2d15f5a5dfdf8c353db958adc280fd64870b874",
-		"conformance/contracts/migration-execution-manifest.json":                                       "1857dcf375ed09f8566798ce662c72a86ef41706e478eef6f208077b156886e9",
-		"conformance/contracts/migration-lifecycle-manifest.json":                                       "5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0",
-		"conformance/contracts/migration-planning-manifest.json":                                        "f51d737bd68eafae32f7942669b467e3457372873ec536a13491ded60ef27ca6",
-		"conformance/contracts/migration-restart-manifest.json":                                         "79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290",
-		"conformance/contracts/migration-state-reconstruction-manifest.json":                            "85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c",
-		"conformance/contracts/query-cache-manifest.json":                                               "35f808e361d85228fe3048ae2510cf296f3127bee5572ce3ed9e66c6fd3eb3e2",
-		"conformance/contracts/save-lifecycle-manifest.json":                                            "6f215f6aee153954dee84d0571cc28529c2d50ee31ee2b9755733db3f9762905",
-		"conformance/contracts/write-migration-manifest.json":                                           "b0ba235cb8b83e9b595b2ad3230ea7440d8b6ea74789de27c8a1f6625ecd05bb",
-		"conformance/fixtures/godj-migration-execution-deviation-expected.json":                         "568495ed3dc5e6f3760c28f1c61c40dc54a63483c5b9c11283bf7ae5a8ac7547",
-		"conformance/fixtures/godj-migration-execution-not-implemented.json":                            "6416e6e9a854d78b94d4242e6ffd1ed3a72caf3c058e0d9c4a78b0690e1a7a04",
-		"conformance/fixtures/godj-migration-lifecycle-deviation-expected.json":                         "58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b",
-		"conformance/fixtures/godj-migration-lifecycle-not-implemented.json":                            "b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722",
-		"conformance/fixtures/godj-migration-planning-not-implemented.json":                             "a9ef26842cd09e4ae01a21d38399ea27e527b0724a7d3e830ecf6c42a12aca13",
-		"conformance/fixtures/godj-migration-restart-not-implemented.json":                              "31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55",
-		"conformance/fixtures/godj-migration-state-reconstruction-not-implemented.json":                 "9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1",
-		"conformance/fixtures/godj-not-implemented.json":                                                "f02ea4e01e0ffcc9195d56d69129c5def0591cbcdcb5b07a62d2ec7395fa7874",
-		"conformance/fixtures/godj-query-cache-not-implemented.json":                                    "5cdec6cbd5440527529b08774673136c079895ab834fe2821a1626000d611d87",
-		"conformance/fixtures/godj-save-lifecycle-not-implemented.json":                                 "5ece667fe6babef5d01059ba4166e1243946176f9672119ae45f4c39c440c726",
-		"conformance/fixtures/godj-write-migration-not-implemented.json":                                "c565c877278032637b75f99c9490c5e7e02169c8730628069533f16da6d8e707",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json":            "641c8934fb80c74b59caa544f0ea3c30561e01515e0868c6f22678d69428430e",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json":            "7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json":             "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json":              "90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json": "bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json":                                "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json":                    "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json":                 "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json":                "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want {
-			t.Fatalf("previous artifact %s checksum = %q, want immutable baseline %q", name, got, want)
-		}
-	}
-}
-
 type migrationDefinitionSourceContractSet struct {
 	name     string
 	manifest Manifest
 	oracle   ObservationSuite
-}
-
-func loadMigrationDefinitionSourceArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-definition-source-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-definition-source-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-definition-source-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }
 
 func loadMigrationDefinitionSourceContractSet(t *testing.T, root, name, manifestName, oracleName string) migrationDefinitionSourceContractSet {
@@ -585,17 +506,6 @@ func assertMigrationDefinitionSourceDiffers(t *testing.T, profile Profile, manif
 	if differences[0].ContractID != contractID {
 		t.Fatalf("mutation reported against %q, want %q: %#v", differences[0].ContractID, contractID, differences)
 	}
-}
-
-func migrationDefinitionSourceObservation(t *testing.T, suite *ObservationSuite, contractID string) *Observation {
-	t.Helper()
-	for index := range suite.Contracts {
-		if suite.Contracts[index].ID == contractID {
-			return &suite.Contracts[index]
-		}
-	}
-	t.Fatalf("observation %s is missing", contractID)
-	return nil
 }
 
 func migrationDefinitionSourceListField(t *testing.T, value *Value, name string) *Value {

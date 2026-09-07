@@ -91,7 +91,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "default save concurrent database value",
 			contractID: "MOD-009",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-009")
+				observation := observationByID(t, suite, "MOD-009")
 				articles := objectField(t, observation.DBState, "articles")
 				summary := objectField(t, &articles.Items[0], "summary")
 				changed := "Concurrent database value"
@@ -102,7 +102,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "partial save preserves object and database divergence",
 			contractID: "MOD-010",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-010")
+				observation := observationByID(t, suite, "MOD-010")
 				instance := objectField(t, observation.Result, "instance_after")
 				summary := objectField(t, instance, "summary")
 				changed := "Database preserved"
@@ -113,7 +113,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "empty update fields performs zero queries",
 			contractID: "MOD-011",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-011")
+				observation := observationByID(t, suite, "MOD-011")
 				queryCount := objectField(t, observation.Metrics, "query_count")
 				changed := "1"
 				queryCount.Text = &changed
@@ -123,7 +123,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "primary key update field error code",
 			contractID: "MOD-012",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-012")
+				observation := observationByID(t, suite, "MOD-012")
 				observation.Error.Code = "changed_primary_key_error"
 			},
 		},
@@ -131,7 +131,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "force insert conflict preserves existing row",
 			contractID: "MOD-013",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-013")
+				observation := observationByID(t, suite, "MOD-013")
 				articles := objectField(t, observation.DBState, "articles")
 				title := objectField(t, &articles.Items[0], "title")
 				changed := "Conflicting value leaked"
@@ -142,7 +142,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "missing force update executes update",
 			contractID: "MOD-015",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-015")
+				observation := observationByID(t, suite, "MOD-015")
 				statements := objectField(t, observation.Metrics, "statement_kinds")
 				changed := "INSERT"
 				statements.Items[0].Text = &changed
@@ -152,7 +152,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "existing explicit primary key uses update",
 			contractID: "MOD-017",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-017")
+				observation := observationByID(t, suite, "MOD-017")
 				statements := objectField(t, observation.Metrics, "statement_kinds")
 				changed := "INSERT"
 				statements.Items[0].Text = &changed
@@ -162,7 +162,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "missing explicit primary key updates then inserts",
 			contractID: "MOD-018",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-018")
+				observation := observationByID(t, suite, "MOD-018")
 				statements := objectField(t, observation.Metrics, "statement_kinds")
 				statements.Items[0], statements.Items[1] = statements.Items[1], statements.Items[0]
 			},
@@ -171,7 +171,7 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			name:       "rollback leaves assigned object primary key",
 			contractID: "MOD-019",
 			mutate: func(t *testing.T, suite *ObservationSuite) {
-				observation := saveLifecycleObservation(t, suite, "MOD-019")
+				observation := observationByID(t, suite, "MOD-019")
 				created := objectField(t, observation.Result, "created_instance_after")
 				primaryKey := objectField(t, created, "pk")
 				changed := "99"
@@ -313,17 +313,6 @@ func loadCheckedInContractSet(t *testing.T, root, name, manifestName, oracleName
 	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", manifestName), LoadManifest)
 	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", oracleName), LoadObservationSuite)
 	return checkedInContractSet{name: name, manifest: manifest, oracle: oracle}
-}
-
-func saveLifecycleObservation(t *testing.T, suite *ObservationSuite, contractID string) *Observation {
-	t.Helper()
-	for index := range suite.Contracts {
-		if suite.Contracts[index].ID == contractID {
-			return &suite.Contracts[index]
-		}
-	}
-	t.Fatalf("save lifecycle observation %s is missing", contractID)
-	return nil
 }
 
 func conformanceRepositoryRoot(t *testing.T) string {

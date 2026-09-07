@@ -59,6 +59,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"conformance/runners/godj/runner.go",
 		"conformance/cmd/godjcheck/main.go",
 		"conformance/internal/protocol/protocol.go",
+		"conformance/internal/attestationio/io.go",
 		"conformance/contracts/system-state-manifest.json",
 	}
 	for _, relative := range paths {

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/blog"
 	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/db/sqlite"
@@ -56,9 +57,9 @@ func TestObserveExecutesExactREL009REL010AndREL011Cases(t *testing.T) {
 		t.Fatalf("REL-011 error = %v, want field_error/invalid_related_path posts", got.Invalid.Err)
 	}
 	reviewer := int64(2)
-	wantState := DatabaseState{
-		Authors: []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
-		Posts: []PostRow{
+	wantState := relationstate.DatabaseState{
+		Authors: []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
+		Posts: []relationstate.PostRow{
 			{ID: 10, Title: "Alpha", AuthorID: 1, ReviewerID: &reviewer},
 			{ID: 11, Title: "Beta", AuthorID: 1},
 			{ID: 12, Title: "Gamma", AuthorID: 3, ReviewerID: &reviewer},
@@ -84,7 +85,7 @@ func TestREL009REL010REL011FalseGreenMutations(t *testing.T) {
 		{
 			name: "required target membership",
 			mutate: func(config *fixtureConfig) {
-				config.posts[0].authorID = 3
+				config.posts[0].AuthorID = 3
 			},
 			check: func(t *testing.T, got Observation) {
 				if got.Required.Eager[0].Name == nil || *got.Required.Eager[0].Name != "Cleo" {
@@ -96,7 +97,7 @@ func TestREL009REL010REL011FalseGreenMutations(t *testing.T) {
 			name: "nullable absence",
 			mutate: func(config *fixtureConfig) {
 				reviewer := int64(2)
-				config.posts[1].reviewerID = &reviewer
+				config.posts[1].ReviewerID = &reviewer
 			},
 			check: func(t *testing.T, got Observation) {
 				if got.Nullable.Rows[1].Name == nil || *got.Nullable.Rows[1].Name != "Bob" {
@@ -165,7 +166,8 @@ func TestTypedAndDynamicSelectRelatedConvergeOnTheSamePlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := provision(ctx, backend, defaultFixtureConfig()); err != nil {
+	config := defaultFixtureConfig()
+	if err := relationstate.Provision(ctx, backend, "select-related", config.authors, config.posts); err != nil {
 		t.Fatal(err)
 	}
 	recorder := &recordingQueryer{backend: backend}

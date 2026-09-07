@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
@@ -80,7 +81,7 @@ func TestGlobalMigrateArticlePostgresProduct(t *testing.T) {
 		workspaceBase := newWorkspaceBase(t)
 		values := environmentMap(projectMigratePostgresEnvironment(t, databaseURL, schema, workspaceBase))
 		values[fullConcurrencyBarrierEnv] = barrierDirectory
-		environment := sortedEnvironment(values)
+		environment := testfixture.SortedEnvironment(values)
 		projectMigratePostgresAssertEnvironment(t, environment, databaseURL, schema)
 
 		start := make(chan struct{})
@@ -187,7 +188,7 @@ func TestGlobalMigrateArticlePostgresProduct(t *testing.T) {
 
 		reconciliationValues := environmentMap(environment)
 		delete(reconciliationValues, fullConcurrencyBarrierEnv)
-		reconciliationEnvironment := sortedEnvironment(reconciliationValues)
+		reconciliationEnvironment := testfixture.SortedEnvironment(reconciliationValues)
 		reconciled := runMigrate(t, globalBinary, repository, contentionDescriptor, reconciliationEnvironment)
 		projectMigratePostgresAssertVisibleSecretFree(t, reconciled.Stdout, reconciled.Stderr, secrets)
 		assertMigrateSuccess(t, reconciled, expected, secrets...)
@@ -300,7 +301,7 @@ func projectMigratePostgresBuildGlobalGodj(t *testing.T, repository string) stri
 	} {
 		delete(values, key)
 	}
-	command.Env = sortedEnvironment(values)
+	command.Env = testfixture.SortedEnvironment(values)
 	var stdout, stderr gobuild.Capture
 	command.Stdout = &stdout
 	command.Stderr = &stderr
@@ -321,27 +322,27 @@ func projectMigratePostgresCreateSchema(t *testing.T, databaseURL string) string
 	defer cancel()
 	admin, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL schema owner: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL schema owner: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := admin.Close(ctx); err != nil {
-			t.Errorf("close PostgreSQL schema owner: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("close PostgreSQL schema owner: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 	var before int
 	if err := admin.QueryRow(ctx, `SELECT COUNT(*) FROM "pg_catalog"."pg_namespace" WHERE "nspname" = $1`, schema).Scan(&before); err != nil {
-		t.Fatalf("inspect PostgreSQL schema uniqueness: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL schema uniqueness: %v", testfixture.PostgresSafeError(err))
 	}
 	if before != 0 {
 		t.Fatal("generated PostgreSQL product schema was not unique")
 	}
 	quoted := pgx.Identifier{schema}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+quoted); err != nil {
-		t.Fatalf("create isolated PostgreSQL product schema: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("create isolated PostgreSQL product schema: %v", testfixture.PostgresSafeError(err))
 	}
 	var after int
 	if err := admin.QueryRow(ctx, `SELECT COUNT(*) FROM "pg_catalog"."pg_namespace" WHERE "nspname" = $1`, schema).Scan(&after); err != nil {
-		t.Fatalf("verify isolated PostgreSQL product schema: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("verify isolated PostgreSQL product schema: %v", testfixture.PostgresSafeError(err))
 	}
 	if after != 1 {
 		t.Fatal("isolated PostgreSQL product schema was not created exactly once")
@@ -351,14 +352,14 @@ func projectMigratePostgresCreateSchema(t *testing.T, databaseURL string) string
 		defer cleanupCancel()
 		cleanup, err := pgx.Connect(cleanupCtx, databaseURL)
 		if err != nil {
-			t.Errorf("connect PostgreSQL schema cleanup: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("connect PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 			return
 		}
 		if _, err := cleanup.Exec(cleanupCtx, "DROP SCHEMA "+quoted+" CASCADE"); err != nil {
-			t.Errorf("drop isolated PostgreSQL product schema: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("drop isolated PostgreSQL product schema: %v", testfixture.PostgresSafeError(err))
 		}
 		if err := cleanup.Close(cleanupCtx); err != nil {
-			t.Errorf("close PostgreSQL schema cleanup: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("close PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 		}
 	})
 	return schema
@@ -383,7 +384,7 @@ func projectMigratePostgresEnvironment(t *testing.T, databaseURL, schema, worksp
 	delete(values, projectMigratePostgresRequiredEnv)
 	values[articlePostgresURLEnv] = databaseURL
 	values[articlePostgresSchemaEnv] = schema
-	return sortedEnvironment(values)
+	return testfixture.SortedEnvironment(values)
 }
 
 func projectMigratePostgresAssertEnvironment(t *testing.T, environment []string, databaseURL, schema string) {
@@ -504,11 +505,11 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL product inspection: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL product inspection: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close PostgreSQL product inspection: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("close PostgreSQL product inspection: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 
@@ -520,18 +521,18 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		WHERE "n"."nspname" = $1 AND "c"."relkind" = 'r'
 		ORDER BY "c"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("query PostgreSQL product tables: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL product tables: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var table string
 		if err := rows.Scan(&table); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL product table: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL product table: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Tables = append(snapshot.Tables, table)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product table query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL product table query: %v", testfixture.PostgresSafeError(err))
 	}
 	rows, err = connection.Query(ctx, `
 		SELECT "c"."relname", "c"."relkind"::text
@@ -540,18 +541,18 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		WHERE "n"."nspname" = $1 AND "c"."relkind" NOT IN ('r', 'i', 'S')
 		ORDER BY "c"."relkind", "c"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("query PostgreSQL unexpected product relations: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL unexpected product relations: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var relation projectMigratePostgresOtherRelation
 		if err := rows.Scan(&relation.Name, &relation.Kind); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL unexpected product relation: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL unexpected product relation: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.OtherRelations = append(snapshot.OtherRelations, relation)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL unexpected product relation query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL unexpected product relation query: %v", testfixture.PostgresSafeError(err))
 	}
 
 	rows, err = connection.Query(ctx, `
@@ -575,7 +576,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		  AND "a"."attnum" > 0 AND NOT "a"."attisdropped"
 		ORDER BY "c"."relname", "a"."attnum"`, schema)
 	if err != nil {
-		t.Fatalf("query PostgreSQL product columns: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL product columns: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var column projectMigratePostgresColumn
@@ -592,12 +593,12 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 			&column.Primary,
 		); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL product column: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL product column: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Columns = append(snapshot.Columns, column)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product column query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL product column query: %v", testfixture.PostgresSafeError(err))
 	}
 
 	rows, err = connection.Query(ctx, `
@@ -615,7 +616,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		WHERE "n"."nspname" = $1
 		ORDER BY "table"."relname", "constraint"."conname"`, schema)
 	if err != nil {
-		t.Fatalf("query PostgreSQL product constraints: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL product constraints: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var constraint projectMigratePostgresConstraint
@@ -631,12 +632,12 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 			&constraint.InternalTriggers,
 		); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL product constraint: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL product constraint: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Constraints = append(snapshot.Constraints, constraint)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product constraint query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL product constraint query: %v", testfixture.PostgresSafeError(err))
 	}
 
 	rows, err = connection.Query(ctx, `
@@ -664,7 +665,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		WHERE "n"."nspname" = $1
 		ORDER BY "table"."relname", "index_class"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("query PostgreSQL product indexes: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL product indexes: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var index projectMigratePostgresIndex
@@ -685,12 +686,12 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 			&index.Exclusion,
 		); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL product index: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL product index: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Indexes = append(snapshot.Indexes, index)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product index query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL product index query: %v", testfixture.PostgresSafeError(err))
 	}
 	if err := connection.QueryRow(ctx, `
 		SELECT
@@ -709,7 +710,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		   JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "rule"."ev_class"
 		   JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
 		   WHERE "n"."nspname" = $1)`, schema).Scan(&snapshot.Triggers, &snapshot.Policies, &snapshot.Rules); err != nil {
-		t.Fatalf("count PostgreSQL product trigger, policy, and rule artifacts: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("count PostgreSQL product trigger, policy, and rule artifacts: %v", testfixture.PostgresSafeError(err))
 	}
 
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
@@ -717,25 +718,25 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		quotedTable := pgx.Identifier{schema, table}.Sanitize()
 		var count int64
 		if err := connection.QueryRow(ctx, "SELECT COUNT(*) FROM "+quotedTable).Scan(&count); err != nil {
-			t.Fatalf("count PostgreSQL product table rows: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("count PostgreSQL product table rows: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Counts[table] = count
 	}
 
 	rows, err = connection.Query(ctx, `SELECT "app", "name" FROM `+quotedSchema+`."godj_migrations" ORDER BY "app", "name"`)
 	if err != nil {
-		t.Fatalf("query PostgreSQL migration history: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL migration history: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var row historyRow
 		if err := rows.Scan(&row.App, &row.Name); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL migration history: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL migration history: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.History = append(snapshot.History, row)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL migration history query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL migration history query: %v", testfixture.PostgresSafeError(err))
 	}
 	var epoch []byte
 	var fingerprint []byte
@@ -745,7 +746,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		&snapshot.Revision.Revision,
 		&fingerprint,
 	); err != nil {
-		t.Fatalf("query PostgreSQL migration revision: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL migration revision: %v", testfixture.PostgresSafeError(err))
 	}
 	if len(epoch) != len(snapshot.Revision.Epoch) || len(fingerprint) != len(snapshot.Revision.HistoryFingerprint) {
 		t.Fatal("PostgreSQL migration revision contained an invalid bounded digest or epoch")
@@ -753,7 +754,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 	copy(snapshot.Revision.Epoch[:], epoch)
 	copy(snapshot.Revision.HistoryFingerprint[:], fingerprint)
 	if err := connection.QueryRow(ctx, `SELECT COUNT(*) - 1 FROM `+quotedSchema+`."godj_migration_revision"`).Scan(&snapshot.Revision.AdditionalRows); err != nil {
-		t.Fatalf("count PostgreSQL migration revision rows: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("count PostgreSQL migration revision rows: %v", testfixture.PostgresSafeError(err))
 	}
 
 	rows, err = connection.Query(ctx, `
@@ -779,7 +780,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		WHERE "n"."nspname" = $1
 		ORDER BY "c"."relname"`, schema)
 	if err != nil {
-		t.Fatalf("query PostgreSQL product sequences: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL product sequences: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var sequence projectMigratePostgresSequence
@@ -799,12 +800,12 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 			&sequence.Dependency,
 		); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL product sequence: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL product sequence: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Sequences = append(snapshot.Sequences, sequence)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product sequence query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL product sequence query: %v", testfixture.PostgresSafeError(err))
 	}
 	for index := range snapshot.Sequences {
 		sequenceName := pgx.Identifier{schema, snapshot.Sequences[index].Name}.Sanitize()
@@ -812,24 +813,24 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 			&snapshot.Sequences[index].Last,
 			&snapshot.Sequences[index].Called,
 		); err != nil {
-			t.Fatalf("inspect PostgreSQL product sequence state: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("inspect PostgreSQL product sequence state: %v", testfixture.PostgresSafeError(err))
 		}
 	}
 
 	rows, err = connection.Query(ctx, `SELECT "id", "title", "published" FROM `+quotedSchema+`."godj_conformance_article" ORDER BY "id"`)
 	if err != nil {
-		t.Fatalf("query PostgreSQL Article rows: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query PostgreSQL Article rows: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
 		var article projectMigratePostgresArticle
 		if err := rows.Scan(&article.ID, &article.Title, &article.Published); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL Article row: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL Article row: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Articles = append(snapshot.Articles, article)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL Article row query: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL Article row query: %v", testfixture.PostgresSafeError(err))
 	}
 	return snapshot
 }
@@ -1030,17 +1031,17 @@ func projectMigratePostgresInsertArticle(t *testing.T, databaseURL, schema, titl
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL Article seed: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL Article seed: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close PostgreSQL Article seed: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("close PostgreSQL Article seed: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 	var id int64
 	statement := `INSERT INTO ` + pgx.Identifier{schema, "godj_conformance_article"}.Sanitize() + ` ("title", "published", "summary") VALUES ($1, TRUE, NULL) RETURNING "id"`
 	if err := connection.QueryRow(ctx, statement, title).Scan(&id); err != nil {
-		t.Fatalf("insert PostgreSQL Article sentinel: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("insert PostgreSQL Article sentinel: %v", testfixture.PostgresSafeError(err))
 	}
 	if id != 1 {
 		t.Fatalf("inserted PostgreSQL Article ID = %d, want 1", id)
@@ -1153,11 +1154,11 @@ func projectMigratePostgresAssertStoredValuesSecretFree(t *testing.T, databaseUR
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect PostgreSQL artifact inspection: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("connect PostgreSQL artifact inspection: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close PostgreSQL artifact inspection: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("close PostgreSQL artifact inspection: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 	rows, err := connection.Query(ctx, `
@@ -1171,7 +1172,7 @@ func projectMigratePostgresAssertStoredValuesSecretFree(t *testing.T, databaseUR
 		  AND "type"."typname" IN ('varchar', 'text')
 		ORDER BY "c"."relname", "a"."attnum"`, schema)
 	if err != nil {
-		t.Fatalf("enumerate PostgreSQL text artifacts: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("enumerate PostgreSQL text artifacts: %v", testfixture.PostgresSafeError(err))
 	}
 	type field struct{ table, column string }
 	var fields []field
@@ -1179,24 +1180,24 @@ func projectMigratePostgresAssertStoredValuesSecretFree(t *testing.T, databaseUR
 		var value field
 		if err := rows.Scan(&value.table, &value.column); err != nil {
 			rows.Close()
-			t.Fatalf("scan PostgreSQL text artifact field: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL text artifact field: %v", testfixture.PostgresSafeError(err))
 		}
 		fields = append(fields, value)
 	}
 	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL text artifact enumeration: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL text artifact enumeration: %v", testfixture.PostgresSafeError(err))
 	}
 	for _, field := range fields {
 		statement := "SELECT COALESCE(" + pgx.Identifier{field.column}.Sanitize() + ", '') FROM " + pgx.Identifier{schema, field.table}.Sanitize()
 		values, err := connection.Query(ctx, statement)
 		if err != nil {
-			t.Fatalf("query PostgreSQL text artifact: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("query PostgreSQL text artifact: %v", testfixture.PostgresSafeError(err))
 		}
 		for values.Next() {
 			var value string
 			if err := values.Scan(&value); err != nil {
 				values.Close()
-				t.Fatalf("scan PostgreSQL text artifact: %v", projectMigratePostgresSafeError(err))
+				t.Fatalf("scan PostgreSQL text artifact: %v", testfixture.PostgresSafeError(err))
 			}
 			for _, secret := range sensitive {
 				if secret != "" && strings.Contains(value, secret) {
@@ -1206,7 +1207,7 @@ func projectMigratePostgresAssertStoredValuesSecretFree(t *testing.T, databaseUR
 			}
 		}
 		if err := projectMigratePostgresCloseRows(values); err != nil {
-			t.Fatalf("finish PostgreSQL text artifact query: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("finish PostgreSQL text artifact query: %v", testfixture.PostgresSafeError(err))
 		}
 	}
 }
@@ -1253,21 +1254,4 @@ func projectMigratePostgresCloseRows(rows pgx.Rows) error {
 	}
 	rows.Close()
 	return rows.Err()
-}
-
-func projectMigratePostgresSafeError(err error) error {
-	if err == nil {
-		return nil
-	}
-	var structured interface{ SQLState() string }
-	if errors.As(err, &structured) {
-		return fmt.Errorf("PostgreSQL SQLSTATE %s", structured.SQLState())
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return errors.New("PostgreSQL operation timed out")
-	}
-	if errors.Is(err, context.Canceled) {
-		return errors.New("PostgreSQL operation was canceled")
-	}
-	return errors.New("PostgreSQL operation failed")
 }

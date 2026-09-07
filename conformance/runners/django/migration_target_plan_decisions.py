@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from .normalizer import normalize
+from .observations import observed_command
 
 
 SET_SLUG = "migration-target-plan"
@@ -24,25 +24,6 @@ _MAX_RESPONSE_BYTES = 101 << 20
 _MAX_PLAN_ROWS = 2_048
 _MAX_IDENTITY_BYTES = 1 << 20
 _MAX_IDENTITY_AGGREGATE_BYTES = 16 << 20
-
-
-def _observed(
-    contract_id: str,
-    *,
-    phase: str,
-    result: Any,
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
 
 
 def _invalid_argv(name: str, argv: list[str]) -> dict[str, Any]:
@@ -156,7 +137,7 @@ def target_argv_and_pre_io_rejection(contract_id: str) -> dict[str, Any]:
             "requested_name": "0001",
         }
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="environment",
         result={
@@ -209,7 +190,7 @@ def target_noop_and_legacy_zero(contract_id: str) -> dict[str, Any]:
             "plan": None,
         },
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="evaluation",
         result={
@@ -248,7 +229,7 @@ def plan_exact_and_no_mutation(contract_id: str) -> dict[str, Any]:
         "revision": 2,
         "schema": "unchanged",
     }
-    return _observed(
+    return observed_command(
         contract_id,
         phase="evaluation",
         result={"cases": cases, "plan_is_execution_authority": False},
@@ -271,7 +252,7 @@ def plan_exact_and_no_mutation(contract_id: str) -> dict[str, Any]:
 
 
 def preview_drift_fresh_execute(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed_command(
         contract_id,
         phase="commit",
         result={
@@ -332,7 +313,7 @@ def reverse_middle_failure_resume(contract_id: str) -> dict[str, Any]:
             "unstarted": [],
         },
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="rollback",
         result={"cases": cases, "unstarted_tail_started": False},
@@ -394,7 +375,7 @@ def reverse_commit_outcomes(contract_id: str) -> dict[str, Any]:
             "rollback_after_outcome": 0,
         },
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="commit",
         result={"cases": cases, "reconciliation_required_after_unknown": True},
@@ -586,7 +567,7 @@ def project_protocol_and_ownership(contract_id: str) -> dict[str, Any]:
             "unit": "rows",
         },
     ]
-    return _observed(
+    return observed_command(
         contract_id,
         phase="environment",
         result={

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/db/postgres"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/migrations"
@@ -83,22 +84,22 @@ func createRunserverPostgresSchema(t *testing.T, databaseURL string) string {
 	defer cancel()
 	admin, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect runserver PostgreSQL database: %v", runserverPostgresSafeError(err))
+		t.Fatalf("connect runserver PostgreSQL database: %v", testfixture.PostgresSafeError(err))
 	}
 	schema := fmt.Sprintf("godj_runserver_article_%d_%d", os.Getpid(), time.Now().UnixNano())
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+quotedSchema); err != nil {
 		_ = admin.Close(ctx)
-		t.Fatalf("create isolated runserver PostgreSQL schema: %v", runserverPostgresSafeError(err))
+		t.Fatalf("create isolated runserver PostgreSQL schema: %v", testfixture.PostgresSafeError(err))
 	}
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cleanupCancel()
 		if _, err := admin.Exec(cleanupCtx, "DROP SCHEMA "+quotedSchema+" CASCADE"); err != nil {
-			t.Errorf("drop isolated runserver PostgreSQL schema: %v", runserverPostgresSafeError(err))
+			t.Errorf("drop isolated runserver PostgreSQL schema: %v", testfixture.PostgresSafeError(err))
 		}
 		if err := admin.Close(cleanupCtx); err != nil {
-			t.Errorf("close runserver PostgreSQL admin connection: %v", runserverPostgresSafeError(err))
+			t.Errorf("close runserver PostgreSQL admin connection: %v", testfixture.PostgresSafeError(err))
 		}
 	})
 	return schema
@@ -129,7 +130,7 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 	defer cancel()
 	backend, err := postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})
 	if err != nil {
-		t.Fatalf("open Article PostgreSQL migration backend: %v", runserverPostgresSafeError(err))
+		t.Fatalf("open Article PostgreSQL migration backend: %v", testfixture.PostgresSafeError(err))
 	}
 	closed := false
 	defer func() {
@@ -138,7 +139,7 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 		}
 	}()
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
-		t.Fatalf("migrate Article and system PostgreSQL database: %v", runserverPostgresSafeError(err))
+		t.Fatalf("migrate Article and system PostgreSQL database: %v", testfixture.PostgresSafeError(err))
 	}
 	for index, fixture := range runserverPostgresArticleFixtures() {
 		input := articlemodels.NewArticleCreate(fixture.title).WithPublished(fixture.published)
@@ -149,7 +150,7 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 		}
 		article, err := articlemodels.ArticleObjects.Create(ctx, backend, input)
 		if err != nil {
-			t.Fatalf("seed Article PostgreSQL row %d: %v", index, runserverPostgresSafeError(err))
+			t.Fatalf("seed Article PostgreSQL row %d: %v", index, testfixture.PostgresSafeError(err))
 		}
 		if article.ID != fixture.id || article.Title != fixture.title || article.Published != fixture.published ||
 			!runserverOptionalStringEqual(article.Summary, fixture.summary) {
@@ -157,7 +158,7 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 		}
 	}
 	if err := backend.Close(); err != nil {
-		t.Fatalf("close prepared Article PostgreSQL database: %v", runserverPostgresSafeError(err))
+		t.Fatalf("close prepared Article PostgreSQL database: %v", testfixture.PostgresSafeError(err))
 	}
 	closed = true
 }
@@ -275,7 +276,7 @@ func runserverPostgresEnvironment(t *testing.T, databaseURL, schema, workspaceBa
 		}
 		values["HOME"] = home
 	}
-	return sortedRunserverEnvironment(values)
+	return testfixture.SortedEnvironment(values)
 }
 
 func assertRunserverPostgresEnvironment(t *testing.T, environment []string, databaseURL, schema string) {
@@ -317,7 +318,7 @@ func verifyRunserverArticlePostgresDatabase(t *testing.T, databaseURL, schema st
 	defer cancel()
 	backend, err := postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})
 	if err != nil {
-		t.Fatalf("reopen durable Article PostgreSQL database: %v", runserverPostgresSafeError(err))
+		t.Fatalf("reopen durable Article PostgreSQL database: %v", testfixture.PostgresSafeError(err))
 	}
 	history, historyErr := backend.ReadAppliedMigrations(ctx)
 	articles, articleErr := articlemodels.ArticleObjects.Using(backend).
@@ -325,7 +326,7 @@ func verifyRunserverArticlePostgresDatabase(t *testing.T, databaseURL, schema st
 		All(ctx)
 	closeErr := backend.Close()
 	if err := errors.Join(historyErr, articleErr, closeErr); err != nil {
-		t.Fatalf("inspect durable Article PostgreSQL database: %v", runserverPostgresSafeError(err))
+		t.Fatalf("inspect durable Article PostgreSQL database: %v", testfixture.PostgresSafeError(err))
 	}
 	systemMigration := systemstate.InitialMigrationKey()
 	if len(history) != 2 ||
@@ -357,23 +358,6 @@ func runserverPostgresArticleFixtures() []runserverPostgresArticleFixture {
 		{id: 8, title: "Go Mirror", published: true, summary: runserverString("Go Mirror")},
 		{id: 9, title: "Go Split", published: true, summary: runserverString("Elsewhere")},
 	}
-}
-
-func runserverPostgresSafeError(err error) error {
-	if err == nil {
-		return nil
-	}
-	var structured interface{ SQLState() string }
-	if errors.As(err, &structured) {
-		return fmt.Errorf("PostgreSQL SQLSTATE %s", structured.SQLState())
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return errors.New("PostgreSQL operation timed out")
-	}
-	if errors.Is(err, context.Canceled) {
-		return errors.New("PostgreSQL operation was canceled")
-	}
-	return errors.New("PostgreSQL operation failed")
 }
 
 func runserverProjectTreesEqual(left, right map[string]runserverProjectTreeEntry) bool {

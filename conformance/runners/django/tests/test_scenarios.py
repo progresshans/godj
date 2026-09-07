@@ -3,6 +3,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
+import sys
+import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
@@ -488,318 +491,75 @@ class ScenarioTests(unittest.TestCase):
         os.environ.get("GODJ_EXACT_PROFILE") == "1",
         "requires the locked darwin/arm64 reference profile",
     )
-    def test_write_migration_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_WRITE_MIGRATION_MANIFEST)
+    def test_reference_suites_are_byte_deterministic_and_ordered(self) -> None:
+        cases = (
+            (DEFAULT_WRITE_MIGRATION_MANIFEST, DEFAULT_WRITE_MIGRATION_ORACLE),
+            (DEFAULT_SAVE_LIFECYCLE_MANIFEST, DEFAULT_SAVE_LIFECYCLE_ORACLE),
+            (DEFAULT_QUERY_CACHE_MANIFEST, DEFAULT_QUERY_CACHE_ORACLE),
+            (DEFAULT_QUERY_BREADTH_MANIFEST, DEFAULT_QUERY_BREADTH_ORACLE),
+            (DEFAULT_QUERY_EXPRESSION_MANIFEST, DEFAULT_QUERY_EXPRESSION_ORACLE),
+            (DEFAULT_MIGRATION_PLANNING_MANIFEST, DEFAULT_MIGRATION_PLANNING_ORACLE),
+            (DEFAULT_MIGRATION_EXECUTION_MANIFEST, DEFAULT_MIGRATION_EXECUTION_ORACLE),
+            (DEFAULT_MIGRATION_RESTART_MANIFEST, DEFAULT_MIGRATION_RESTART_ORACLE),
+            (DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST, DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE),
+            (DEFAULT_MIGRATION_LIFECYCLE_MANIFEST, DEFAULT_MIGRATION_LIFECYCLE_ORACLE),
+            (DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST, DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE),
+            (DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST, DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE),
+            (DEFAULT_RELATION_MANIFEST, DEFAULT_RELATION_ORACLE),
+            (DEFAULT_MIGRATION_RELATION_MANIFEST, DEFAULT_MIGRATION_RELATION_ORACLE),
         )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_WRITE_MIGRATION_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_WRITE_MIGRATION_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_WRITE_MIGRATION_ORACLE.read_bytes())
+        for manifest_path, oracle_path in cases:
+            with self.subTest(manifest=manifest_path.name):
+                first = canonical_json(generate_suite(DEFAULT_PROFILE, manifest_path))
+                second = canonical_json(generate_suite(DEFAULT_PROFILE, manifest_path))
+                self.assertEqual(first, second)
+                manifest = _load_json(manifest_path)
+                suite = json.loads(first)
+                self.assertEqual(
+                    [contract["id"] for contract in suite["contracts"]],
+                    [contract["id"] for contract in manifest["contracts"]],
+                )
+                self.assertEqual(first, oracle_path.read_bytes())
 
     @unittest.skipUnless(
         os.environ.get("GODJ_EXACT_PROFILE") == "1",
         "requires the locked darwin/arm64 reference profile",
     )
-    def test_save_lifecycle_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_SAVE_LIFECYCLE_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_SAVE_LIFECYCLE_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_SAVE_LIFECYCLE_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_SAVE_LIFECYCLE_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_query_cache_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_CACHE_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_CACHE_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_QUERY_CACHE_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_QUERY_CACHE_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_query_breadth_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_BREADTH_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_BREADTH_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_QUERY_BREADTH_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_QUERY_BREADTH_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_query_expression_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_EXPRESSION_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_EXPRESSION_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_QUERY_EXPRESSION_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_QUERY_EXPRESSION_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_planning_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_PLANNING_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_PLANNING_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_PLANNING_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_MIGRATION_PLANNING_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_execution_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_EXECUTION_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_EXECUTION_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_EXECUTION_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_MIGRATION_EXECUTION_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_restart_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_RESTART_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_RESTART_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_RESTART_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_MIGRATION_RESTART_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_state_reconstruction_suite_is_byte_deterministic_and_ordered(
-        self,
-    ) -> None:
-        first = canonical_json(
-            generate_suite(
-                DEFAULT_PROFILE,
-                DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST,
-            )
-        )
-        second = canonical_json(
-            generate_suite(
-                DEFAULT_PROFILE,
-                DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST,
-            )
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(
-            first,
-            DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE.read_bytes(),
-        )
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_lifecycle_suite_is_byte_deterministic_and_ordered(
-        self,
-    ) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_LIFECYCLE_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_LIFECYCLE_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_LIFECYCLE_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_MIGRATION_LIFECYCLE_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_definition_source_suite_is_byte_deterministic_and_ordered(
-        self,
-    ) -> None:
-        first = canonical_json(
-            generate_suite(
-                DEFAULT_PROFILE,
-                DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
-            )
-        )
-        second = canonical_json(
-            generate_suite(
-                DEFAULT_PROFILE,
-                DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
-            )
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(
-            first,
-            DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE.read_bytes(),
-        )
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_project_check_suite_is_byte_deterministic_and_ordered(
-        self,
-    ) -> None:
-        first = canonical_json(
-            generate_suite(
-                DEFAULT_PROFILE,
-                DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST,
-            )
-        )
-        second = canonical_json(
-            generate_suite(
-                DEFAULT_PROFILE,
-                DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST,
-            )
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(
-            first,
-            DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE.read_bytes(),
-        )
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_relation_suite_is_byte_deterministic_and_ordered(self) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_RELATION_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_RELATION_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_RELATION_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_RELATION_ORACLE.read_bytes())
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_migration_relation_suite_is_byte_deterministic_and_ordered(
-        self,
-    ) -> None:
-        first = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_RELATION_MANIFEST)
-        )
-        second = canonical_json(
-            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_RELATION_MANIFEST)
-        )
-        self.assertEqual(first, second)
-        manifest = _load_json(DEFAULT_MIGRATION_RELATION_MANIFEST)
-        suite = json.loads(first)
-        self.assertEqual(
-            [contract["id"] for contract in suite["contracts"]],
-            [contract["id"] for contract in manifest["contracts"]],
-        )
-        self.assertEqual(first, DEFAULT_MIGRATION_RELATION_ORACLE.read_bytes())
+    def test_migration_references_match_in_two_hashseed_processes(self) -> None:
+        for manifest, oracle in (
+            (DEFAULT_MIGRATION_LIFECYCLE_MANIFEST, DEFAULT_MIGRATION_LIFECYCLE_ORACLE),
+            (DEFAULT_MIGRATION_RESTART_MANIFEST, DEFAULT_MIGRATION_RESTART_ORACLE),
+            (DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST, DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE),
+            (DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST, DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE),
+            (DEFAULT_MIGRATION_RELATION_MANIFEST, DEFAULT_MIGRATION_RELATION_ORACLE),
+        ):
+            with self.subTest(manifest=manifest.name):
+                outputs: list[bytes] = []
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    for index, hash_seed in enumerate(("17", "982451653"), 1):
+                        output = Path(temporary_directory) / f"reference-{index}.json"
+                        environment = os.environ.copy()
+                        environment.update(
+                            {"LC_ALL": "C", "PYTHONHASHSEED": hash_seed, "TZ": "UTC"}
+                        )
+                        subprocess.run(
+                            [
+                                sys.executable,
+                                "-m",
+                                "conformance.runners.django",
+                                "--profile", str(DEFAULT_PROFILE),
+                                "--manifest", str(manifest),
+                                "--output", str(output),
+                            ],
+                            cwd=Path(__file__).resolve().parents[4],
+                            env=environment,
+                            check=True,
+                            capture_output=True,
+                            text=True,
+                        )
+                        outputs.append(output.read_bytes())
+                self.assertEqual(outputs[0], outputs[1])
+                self.assertEqual(outputs[0], oracle.read_bytes())
 
 
 if __name__ == "__main__":

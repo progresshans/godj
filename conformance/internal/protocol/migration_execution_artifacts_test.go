@@ -1,40 +1,15 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
 
-func TestMigrationExecutionArtifactHashesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]string{
-		"conformance/contracts/migration-execution-manifest.json":                            "1857dcf375ed09f8566798ce662c72a86ef41706e478eef6f208077b156886e9",
-		"conformance/fixtures/godj-migration-execution-deviation-expected.json":              "568495ed3dc5e6f3760c28f1c61c40dc54a63483c5b9c11283bf7ae5a8ac7547",
-		"conformance/fixtures/godj-migration-execution-not-implemented.json":                 "6416e6e9a854d78b94d4242e6ffd1ed3a72caf3c058e0d9c4a78b0690e1a7a04",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json": "641c8934fb80c74b59caa544f0ea3c30561e01515e0868c6f22678d69428430e",
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want {
-			t.Fatalf("migration-execution artifact %s checksum = %q, want immutable baseline %q", name, got, want)
-		}
-	}
-}
-
 func TestMigrationExecutionApprovedArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadMigrationExecutionArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-execution")
 	if len(manifest.Contracts) != 10 {
 		t.Fatalf("migration-execution manifest has %d contracts, want 10", len(manifest.Contracts))
 	}
@@ -127,7 +102,7 @@ func TestMigrationExecutionApprovedArtifactsKeepExplicitNotImplementedBaseline(t
 func TestMigrationExecutionDeclaredPayloadMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationExecutionArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-execution")
 	for index, contract := range manifest.Contracts {
 		contract := contract
 		observation := &oracle.Contracts[index]
@@ -157,7 +132,7 @@ func TestMigrationExecutionDeclaredPayloadMutationsCannotFalseGreen(t *testing.T
 				default:
 					t.Fatalf("%s has unsupported comparison dimension %q", contract.ID, dimension)
 				}
-				assertMigrationExecutionMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+				assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 			})
 		}
 	}
@@ -166,7 +141,7 @@ func TestMigrationExecutionDeclaredPayloadMutationsCannotFalseGreen(t *testing.T
 func TestMigrationExecutionSemanticMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationExecutionArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-execution")
 	tests := []struct {
 		name       string
 		contractID string
@@ -391,9 +366,9 @@ func TestMigrationExecutionSemanticMutationsCannotFalseGreen(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			observation := migrationExecutionObservation(t, &actual, test.contractID)
+			observation := observationByID(t, &actual, test.contractID)
 			test.mutate(t, observation)
-			assertMigrationExecutionMutationDiffers(t, profile, manifest, oracle, actual, test.contractID)
+			assertOnlyContractDiffers(t, profile, manifest, oracle, actual, test.contractID)
 		})
 	}
 }
@@ -401,7 +376,7 @@ func TestMigrationExecutionSemanticMutationsCannotFalseGreen(t *testing.T) {
 func TestMigrationExecutionArtifactsRejectOrderPhaseStatusAndProfileMutations(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadMigrationExecutionArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-execution")
 	for _, artifact := range []struct {
 		name  string
 		suite ObservationSuite
@@ -439,43 +414,6 @@ func TestMigrationExecutionArtifactsRejectOrderPhaseStatusAndProfileMutations(t 
 			}
 		})
 	}
-}
-
-func loadMigrationExecutionArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-execution-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-execution-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-execution-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
-}
-
-func assertMigrationExecutionMutationDiffers(t *testing.T, profile Profile, manifest Manifest, oracle, actual ObservationSuite, contractID string) {
-	t.Helper()
-	differences, err := Compare(profile, manifest, oracle, actual)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(differences) == 0 {
-		t.Fatal("migration-execution payload mutation produced a false green")
-	}
-	for _, difference := range differences {
-		if difference.ContractID != contractID {
-			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
-		}
-	}
-}
-
-func migrationExecutionObservation(t *testing.T, suite *ObservationSuite, contractID string) *Observation {
-	t.Helper()
-	for index := range suite.Contracts {
-		if suite.Contracts[index].ID == contractID {
-			return &suite.Contracts[index]
-		}
-	}
-	t.Fatalf("migration-execution observation %s is missing", contractID)
-	return nil
 }
 
 func migrationExecutionListField(t *testing.T, value *Value, name string) *Value {

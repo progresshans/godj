@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
 func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T) {
@@ -27,7 +28,7 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 	const username = "authenticated-postgres-restart-admin"
 	password := fmt.Sprintf("authenticated-postgres-restart-password-%d-%d-9Xq", os.Getpid(), time.Now().UnixNano())
 	values := environmentMap(projectMigratePostgresEnvironment(t, databaseURL, schema, workspaceBase))
-	environment := sortedEnvironment(values)
+	environment := testfixture.SortedEnvironment(values)
 	projectMigratePostgresAssertEnvironment(t, environment, databaseURL, schema)
 	authenticatedRestartAssertRuntimeEnvironment(t, environment, password)
 
@@ -146,11 +147,11 @@ func authenticatedRestartInspectPostgres(
 	defer cancel()
 	connection, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect authenticated restart PostgreSQL inspection: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("connect authenticated restart PostgreSQL inspection: %v", testfixture.PostgresSafeError(err))
 	}
 	defer func() {
 		if err := connection.Close(ctx); err != nil {
-			t.Errorf("close authenticated restart PostgreSQL inspection: %v", projectMigratePostgresSafeError(err))
+			t.Errorf("close authenticated restart PostgreSQL inspection: %v", testfixture.PostgresSafeError(err))
 		}
 	}()
 
@@ -161,18 +162,18 @@ func authenticatedRestartInspectPostgres(
 			pgx.Identifier{schema, "godj_conformance_article"}.Sanitize()+` ORDER BY "id"`,
 	)
 	if err != nil {
-		t.Fatalf("query authenticated restart PostgreSQL Articles: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query authenticated restart PostgreSQL Articles: %v", testfixture.PostgresSafeError(err))
 	}
 	for articleRows.Next() {
 		var row authenticatedRestartPersistedArticle
 		if err := articleRows.Scan(&row.ID, &row.Title, &row.Published, &row.Summary); err != nil {
 			articleRows.Close()
-			t.Fatalf("scan authenticated restart PostgreSQL Article: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan authenticated restart PostgreSQL Article: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Articles = append(snapshot.Articles, row)
 	}
 	if err := projectMigratePostgresCloseRows(articleRows); err != nil {
-		t.Fatalf("finish authenticated restart PostgreSQL Article rows: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish authenticated restart PostgreSQL Article rows: %v", testfixture.PostgresSafeError(err))
 	}
 
 	sessionRows, err := connection.Query(
@@ -181,18 +182,18 @@ func authenticatedRestartInspectPostgres(
 			pgx.Identifier{schema, "godj_system_session"}.Sanitize()+` ORDER BY "id"`,
 	)
 	if err != nil {
-		t.Fatalf("query authenticated restart PostgreSQL sessions: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query authenticated restart PostgreSQL sessions: %v", testfixture.PostgresSafeError(err))
 	}
 	for sessionRows.Next() {
 		var row authenticatedRestartSessionRow
 		if err := sessionRows.Scan(&row.Digest, &row.Payload); err != nil {
 			sessionRows.Close()
-			t.Fatalf("scan authenticated restart PostgreSQL session: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan authenticated restart PostgreSQL session: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Sessions = append(snapshot.Sessions, row)
 	}
 	if err := projectMigratePostgresCloseRows(sessionRows); err != nil {
-		t.Fatalf("finish authenticated restart PostgreSQL session rows: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish authenticated restart PostgreSQL session rows: %v", testfixture.PostgresSafeError(err))
 	}
 
 	auditRows, err := connection.Query(
@@ -201,7 +202,7 @@ func authenticatedRestartInspectPostgres(
 			pgx.Identifier{schema, "godj_system_audit"}.Sanitize()+` ORDER BY "id"`,
 	)
 	if err != nil {
-		t.Fatalf("query authenticated restart PostgreSQL audit: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query authenticated restart PostgreSQL audit: %v", testfixture.PostgresSafeError(err))
 	}
 	for auditRows.Next() {
 		var row authenticatedRestartAuditRow
@@ -215,12 +216,12 @@ func authenticatedRestartInspectPostgres(
 			&row.DisplayLabel,
 		); err != nil {
 			auditRows.Close()
-			t.Fatalf("scan authenticated restart PostgreSQL audit: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan authenticated restart PostgreSQL audit: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Audits = append(snapshot.Audits, row)
 	}
 	if err := projectMigratePostgresCloseRows(auditRows); err != nil {
-		t.Fatalf("finish authenticated restart PostgreSQL audit rows: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish authenticated restart PostgreSQL audit rows: %v", testfixture.PostgresSafeError(err))
 	}
 
 	credentialRows, err := connection.Query(
@@ -229,7 +230,7 @@ func authenticatedRestartInspectPostgres(
 			pgx.Identifier{schema, "godj_system_credential"}.Sanitize()+` ORDER BY "id"`,
 	)
 	if err != nil {
-		t.Fatalf("query authenticated restart PostgreSQL credential: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("query authenticated restart PostgreSQL credential: %v", testfixture.PostgresSafeError(err))
 	}
 	for credentialRows.Next() {
 		var row authenticatedRestartCredentialRow
@@ -243,12 +244,12 @@ func authenticatedRestartInspectPostgres(
 			&row.DefinitionDigest,
 		); err != nil {
 			credentialRows.Close()
-			t.Fatalf("scan authenticated restart PostgreSQL credential: %v", projectMigratePostgresSafeError(err))
+			t.Fatalf("scan authenticated restart PostgreSQL credential: %v", testfixture.PostgresSafeError(err))
 		}
 		snapshot.Credential = append(snapshot.Credential, row)
 	}
 	if err := projectMigratePostgresCloseRows(credentialRows); err != nil {
-		t.Fatalf("finish authenticated restart PostgreSQL credential rows: %v", projectMigratePostgresSafeError(err))
+		t.Fatalf("finish authenticated restart PostgreSQL credential rows: %v", testfixture.PostgresSafeError(err))
 	}
 	return snapshot
 }

@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -58,34 +57,8 @@ func TestMigrationCommandArtifactsAreLockedValidatedAndPayloadSafe(t *testing.T)
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	for name, want := range map[string]artifactLock{
-		"conformance/contracts/migration-command-manifest.json": {
-			size:   6166,
-			sha256: "d2846327e4d8cbf82a25568e41b198c67878bb7853958729969eb7077ca4c0e1",
-		},
-		"conformance/fixtures/godj-migration-command-not-implemented.json": {
-			size:   1838,
-			sha256: "8680d5e8ce7cf11604af69da1e96a64f580f64074277a2a015af8ad250bb0016",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json": {
-			size:   12690,
-			sha256: "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee",
-		},
-	} {
-		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
-		if len(contents) != want.size {
-			t.Fatalf("migration-command artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		if got := fmt.Sprintf("%x", sha256.Sum256(contents)); got != want.sha256 {
-			t.Fatalf("migration-command artifact %s sha256 = %q, want %q", name, got, want.sha256)
-		}
-	}
 
-	profile, manifest, oracle, baseline := loadMigrationCommandArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-command")
 	if profile.ID != "django-6.1-sqlite-darwin-arm64" || profile.Fingerprint.DjangoVersion != "6.1" || profile.Fingerprint.PythonVersion != "3.14.3" || profile.Lock.ManagerVersion != "0.10.12" {
 		t.Fatalf("unexpected migration-command profile: %#v", profile)
 	}
@@ -165,7 +138,7 @@ func TestMigrationCommandArtifactsAreLockedValidatedAndPayloadSafe(t *testing.T)
 func TestMigrationCommandDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationCommandArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-command")
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
 			actual := cloneJSONSuite(t, oracle)
@@ -273,46 +246,4 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 		}
 	}
 
-}
-
-func TestMigrationCommandDoesNotReviveRetiredMigrationRelationBytes(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	locks := map[string]artifactLock{
-		"conformance/contracts/migration-relation-manifest.json":                                     {7858, "ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9"},
-		"conformance/fixtures/godj-migration-relation-not-implemented.json":                          {1846, "f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json":          {120502, "5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968"},
-		"conformance/runners/django/migration_relation_scenarios.py":                                 {36448, "70c33f9554e38fd7e839685d7b47f6064b07f8c7bdaf6f86e1bbfb0a0bbbf84c"},
-		"conformance/runners/godj/migration_relation_scenarios.go":                                   {12102, "9d463f7e7b67ca1fe921530f6504eb6e3c225defc65c503df55d09fa3ba221e3"},
-		"conformance/runners/django/tests/test_migration_relation_scenarios.py":                      {29396, "570c369ce5a23d473b0fee9fbdc2c3ee4dc36601bbadff598b1aed3628746829"},
-		"conformance/runners/django/migration_relation_fixture/__init__.py":                          {67, "baf7af31b1ca827850c3226ca7dd97e242cecc35af531eb4258297f7c4cc9ce6"},
-		"conformance/runners/django/migration_relation_fixture/apps.py":                              {194, "820fccf07b3d805bd246ab234559b9ecb9cfa9d8cd59765b67f5b66619dfea2b"},
-		"conformance/runners/django/migration_relation_fixture/migrations/__init__.py":               {71, "44cf2a4bbe2bd1360aa7dc09079e45f271240f6a9e36e06253ba4bcb9b04a601"},
-		"conformance/runners/django/migration_relation_fixture/migrations/0001_initial.py":           {1090, "899553d0865f8cb0c53fc44d688a3d60720117d3eaa140fc3ba2576fc3b3e4b2"},
-		"conformance/runners/django/migration_relation_fixture/migrations/0002_nullable_relation.py": {548, "230a39c2c0b9ce101d8f18cee6f5b268063a29cf037230c5a9de0bafc886de95"},
-	}
-	if len(locks) != 11 {
-		t.Fatalf("retired migration-relation lock count = %d, want 11", len(locks))
-	}
-	for name, want := range locks {
-		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
-		if len(contents) != want.size || fmt.Sprintf("%x", sha256.Sum256(contents)) != want.sha256 {
-			t.Fatalf("retired migration-relation bytes changed: %s", name)
-		}
-	}
-}
-
-func loadMigrationCommandArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-command-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-command-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-command-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }

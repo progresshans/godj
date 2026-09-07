@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/blog"
 	"github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/orm"
@@ -17,14 +18,14 @@ func TestObserveExecutesExactREL004CasesAndDatabaseState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantMetric := QueryMetrics{
+	wantMetric := relationstate.QueryMetrics{
 		QueryCount:         1,
 		StatementKinds:     []string{"SELECT"},
 		JoinKinds:          []string{"INNER"},
 		InnerJoinCount:     1,
 		LeftOuterJoinCount: 0,
 	}
-	wantConstruction := QueryMetrics{StatementKinds: []string{}, JoinKinds: []string{}}
+	wantConstruction := relationstate.QueryMetrics{StatementKinds: []string{}, JoinKinds: []string{}}
 	wantCases := []CaseObservation{
 		{Name: "one_predicate", PostIDs: []int64{10, 11}, Construction: wantConstruction, Evaluation: wantMetric},
 		{Name: "two_predicates", PostIDs: []int64{10, 11}, Construction: wantConstruction, Evaluation: wantMetric},
@@ -33,9 +34,9 @@ func TestObserveExecutesExactREL004CasesAndDatabaseState(t *testing.T) {
 		t.Fatalf("cases = %#v, want %#v", got.Cases, wantCases)
 	}
 	reviewer := int64(2)
-	wantState := DatabaseState{
-		Authors: []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
-		Posts: []PostRow{
+	wantState := relationstate.DatabaseState{
+		Authors: []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
+		Posts: []relationstate.PostRow{
 			{ID: 10, Title: "Alpha", AuthorID: 1, ReviewerID: &reviewer},
 			{ID: 11, Title: "Beta", AuthorID: 1},
 			{ID: 12, Title: "Gamma", AuthorID: 3, ReviewerID: &reviewer},
@@ -61,14 +62,14 @@ func TestObservationChangesForEachOwnedREL004Mutation(t *testing.T) {
 		{
 			name: "author name",
 			mutate: func(config *fixtureConfig) {
-				config.authors[0].name = "Adele"
+				config.authors[0].Name = "Adele"
 			},
 			wantPostIDs: [][]int64{{}, {}},
 		},
 		{
 			name: "foreign key identity",
 			mutate: func(config *fixtureConfig) {
-				config.posts[2].authorID = 1
+				config.posts[2].AuthorID = 1
 			},
 			wantPostIDs: [][]int64{{10, 11, 12}, {10, 11, 12}},
 		},

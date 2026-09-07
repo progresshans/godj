@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+
 import ast
 import inspect
 import unittest
 from typing import Any
 
+from conformance.runners.django.tests.values import semantic
 from conformance.runners.django import migration_sql_rendering_decisions as decisions
 from conformance.runners.django.normalizer import canonical_json
 
@@ -29,21 +31,6 @@ CONTRACT_IDS = (
     "MIG-137",
     "MIG-138",
 )
-
-
-def _semantic(value: Any) -> Any:
-    if value is None or not isinstance(value, dict) or "type" not in value:
-        return value
-    kind = value["type"]
-    if kind == "object":
-        return {field["name"]: _semantic(field["value"]) for field in value["fields"]}
-    if kind == "list":
-        return [_semantic(item) for item in value["items"]]
-    if kind == "null":
-        return None
-    if kind == "int":
-        return int(value["value"])
-    return value["value"]
 
 
 class MigrationSQLRenderingDecisionTests(unittest.TestCase):
@@ -90,8 +77,8 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
 
     def test_exact_two_argv_forms_and_all_rejections_are_pre_io(self) -> None:
         observation = decisions.argv_and_pre_io_rejection("MIG-129")
-        result = _semantic(observation["result"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        metrics = semantic(observation["metrics"])
         self.assertEqual(result["exact_public_forms"], 2)
         self.assertEqual(
             [case["argv"] for case in result["accepted"]],
@@ -131,8 +118,8 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
 
     def test_complete_load_exact_lookup_and_request_precedence_is_closed(self) -> None:
         observation = decisions.complete_load_exact_lookup_and_request("MIG-130")
-        result = _semantic(observation["result"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        metrics = semantic(observation["metrics"])
         self.assertEqual(
             result["stages"],
             [
@@ -181,8 +168,8 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
 
     def test_postgres_projection_is_schema_only_and_database_free(self) -> None:
         observation = decisions.postgres_current_projection("MIG-133")
-        result = _semantic(observation["result"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        metrics = semantic(observation["metrics"])
         self.assertEqual(
             result["configuration"],
             {"immutable": True, "inputs": ["schema"], "schema": "public"},
@@ -214,8 +201,8 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
 
     def test_canonical_output_is_cardinality_bound_and_byte_deterministic(self) -> None:
         observation = decisions.canonical_deterministic_output("MIG-134")
-        result = _semantic(observation["result"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        metrics = semantic(observation["metrics"])
         self.assertEqual(len(result["bodies"]), 2)
         self.assertTrue(all(";" not in body for body in result["bodies"]))
         outputs = [case["output"] for case in result["observations"]]
@@ -240,9 +227,9 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
         self,
     ) -> None:
         observation = decisions.database_and_history_zero_calls("MIG-135")
-        result = _semantic(observation["result"])
-        db_state = _semantic(observation["db_state"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        db_state = semantic(observation["db_state"])
+        metrics = semantic(observation["metrics"])
         self.assertEqual(
             [case["case"] for case in result["cases"]],
             ["success", "render_failure", "canceled"],
@@ -269,8 +256,8 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
         self,
     ) -> None:
         observation = decisions.renderer_and_operation_fail_closed("MIG-136")
-        result = _semantic(observation["result"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        metrics = semantic(observation["metrics"])
         cases = {case["case"]: case for case in result["cases"]}
         self.assertEqual(
             list(cases),
@@ -322,8 +309,8 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
         self,
     ) -> None:
         observation = decisions.resource_cleanup_redaction_and_write("MIG-137")
-        result = _semantic(observation["result"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        metrics = semantic(observation["metrics"])
         cases = {case["case"]: case for case in result["resource_cases"]}
         self.assertEqual(cases["statement_count_exact_limit"]["limit"], 2_048)
         self.assertTrue(cases["statement_count_exact_limit"]["accepted"])
@@ -359,9 +346,9 @@ class MigrationSQLRenderingDecisionTests(unittest.TestCase):
 
     def test_external_project_configuration_is_public_and_bounded(self) -> None:
         observation = decisions.external_project_configuration("MIG-138")
-        result = _semantic(observation["result"])
-        db_state = _semantic(observation["db_state"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        db_state = semantic(observation["db_state"])
+        metrics = semantic(observation["metrics"])
         self.assertEqual(result["direct_project_config_field"], "MigrationSQLRenderer")
         self.assertEqual(result["sqlite_constructor_inputs"], [])
         self.assertEqual(result["postgres_constructor_inputs"], ["schema"])

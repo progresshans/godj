@@ -19,30 +19,13 @@ from django.urls import reverse
 
 from .auth_admin_fixture.admin import publish_atomic_observations
 from .auth_admin_fixture.models import Article
-from .normalizer import PrimaryKey, normalize
+from .observations import observed
+from .observations import article_rows
+from .normalizer import PrimaryKey
 
 
 _REFERENCE_CREDENTIAL = "reference-password"
 _ADMIN_USERNAME = "reference-admin"
-
-
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str = "evaluation",
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
 
 
 def _admin_user():
@@ -124,20 +107,6 @@ def _location_category(response: Any) -> str:
     return "other_local"
 
 
-def _article_state() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": PrimaryKey(primary_key),
-            "published": published,
-            "summary": summary,
-            "title": title,
-        }
-        for primary_key, title, published, summary in Article.objects.order_by(
-            "id"
-        ).values_list("id", "title", "published", "summary")
-    ]
-
-
 def _create_articles() -> None:
     Article.objects.bulk_create(
         [
@@ -204,7 +173,7 @@ def anonymous_request(contract_id: str) -> dict[str, Any]:
     response = client.get(reverse("admin:index"))
     after = Session.objects.count()
     principal = response.wsgi_request.user
-    return _observed(
+    return observed(
         contract_id,
         {
             "authenticated": principal.is_authenticated,
@@ -228,7 +197,7 @@ def valid_login_rotation(contract_id: str) -> dict[str, Any]:
     new_key = client.cookies[settings.SESSION_COOKIE_NAME].value
     principal_response = client.get(reverse("admin:index"))
     principal = principal_response.wsgi_request.user
-    return _observed(
+    return observed(
         contract_id,
         {
             "authenticated": principal.is_authenticated,
@@ -275,7 +244,7 @@ def rejected_login(contract_id: str) -> dict[str, Any]:
                 "status": response.status_code,
             }
         )
-    return _observed(
+    return observed(
         contract_id,
         {"cases": cases},
         metrics={"auth_state_writes": Session.objects.count() - before_rows},
@@ -294,7 +263,7 @@ def logout_flush(contract_id: str) -> dict[str, Any]:
         reverse("admin:logout"), {"csrfmiddlewaretoken": token}
     )
     subsequent = client.get(reverse("admin:index"))
-    return _observed(
+    return observed(
         contract_id,
         {
             "old_session_removed": not Session.objects.filter(session_key=old_key).exists(),
@@ -329,7 +298,7 @@ def cookie_policy(contract_id: str) -> dict[str, Any]:
         reverse("admin:logout"), {"csrfmiddlewaretoken": token}
     )
     delete_cookie = logout_response.cookies[settings.SESSION_COOKIE_NAME]
-    return _observed(
+    return observed(
         contract_id,
         {
             "delete": _cookie_shape(delete_cookie),
@@ -362,7 +331,7 @@ def permission_and_safe_next(contract_id: str) -> dict[str, Any]:
             "username": _ADMIN_USERNAME,
         },
     )
-    return _observed(
+    return observed(
         contract_id,
         {
             "anonymous": {
@@ -386,12 +355,12 @@ def csrf_rejection(contract_id: str) -> dict[str, Any]:
     client, _ = _authorized_client(csrf=True)
     add_url = reverse("admin:godj_auth_admin_article_add")
     _csrf_cookie(client, add_url)
-    before = _article_state()
+    before = article_rows(Article)
     payload = {"_save": "Save", "published": "on", "summary": "Summary", "title": "Rejected"}
     missing = client.post(add_url, payload)
     wrong = client.post(add_url, {**payload, "csrfmiddlewaretoken": "wrong"})
-    after = _article_state()
-    return _observed(
+    after = article_rows(Article)
+    return observed(
         contract_id,
         {
             "missing_status": missing.status_code,
@@ -431,7 +400,7 @@ def csrf_acceptance_and_rotation(contract_id: str) -> dict[str, Any]:
     if login_response.status_code != 302:
         raise AssertionError("replay fixture login failed")
     rotated_token = replay_client.cookies[settings.CSRF_COOKIE_NAME].value
-    before_replay = _article_state()
+    before_replay = article_rows(Article)
     replay_response = replay_client.post(
         add_url,
         {
@@ -442,8 +411,8 @@ def csrf_acceptance_and_rotation(contract_id: str) -> dict[str, Any]:
             "title": "Replay rejected",
         },
     )
-    after_replay = _article_state()
-    return _observed(
+    after_replay = article_rows(Article)
+    return observed(
         contract_id,
         {
             "form_status": form_response.status_code,
@@ -472,7 +441,7 @@ def access_matrix(contract_id: str) -> dict[str, Any]:
     staff_client = Client()
     staff_client.force_login(staff)
     staff_response = staff_client.get(list_url)
-    return _observed(
+    return observed(
         contract_id,
         {
             "anonymous": {"redirect": _location_category(anonymous), "status": anonymous.status_code},
@@ -491,7 +460,7 @@ def stable_list(contract_id: str) -> dict[str, Any]:
     model_admin = admin.site._registry[Article]
     action_names = sorted(model_admin.get_actions(response.wsgi_request))
     result_ids = [PrimaryKey(article.pk) for article in changelist.result_list]
-    return _observed(
+    return observed(
         contract_id,
         {
             "actions": action_names,
@@ -501,7 +470,7 @@ def stable_list(contract_id: str) -> dict[str, Any]:
             "result_count": changelist.result_count,
             "result_ids": result_ids,
         },
-        db_state={"articles": _article_state()},
+        db_state={"articles": article_rows(Article)},
         metrics={"page_size": len(result_ids), "registered_models": len(admin.site._registry)},
     )
 
@@ -510,13 +479,13 @@ def search_boundary(contract_id: str) -> dict[str, Any]:
     _create_articles()
     client, _ = _authorized_client()
     list_url = reverse("admin:godj_auth_admin_article_changelist")
-    before = _article_state()
+    before = article_rows(Article)
     searched = client.get(list_url, {"q": "django"})
     changelist = searched.context["cl"]
     ids = [PrimaryKey(article.pk) for article in changelist.result_list]
     invalid = client.get(list_url, {"p": "not-an-integer", "q": "django"})
-    after = _article_state()
-    return _observed(
+    after = article_rows(Article)
+    return observed(
         contract_id,
         {
             "invalid": {"redirect": _location_category(invalid), "status": invalid.status_code},
@@ -548,7 +517,7 @@ def change_form_shape(contract_id: str) -> dict[str, Any]:
         )
         if response.context[key]
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "allowed_operations": allowed,
@@ -560,7 +529,7 @@ def change_form_shape(contract_id: str) -> dict[str, Any]:
             },
             "status": response.status_code,
         },
-        db_state={"articles": _article_state()},
+        db_state={"articles": article_rows(Article)},
         metrics={"editable_fields": len(form.fields)},
     )
 
@@ -571,7 +540,7 @@ def invalid_edit(contract_id: str) -> dict[str, Any]:
     )
     client, _ = _authorized_client()
     change_url = reverse("admin:godj_auth_admin_article_change", args=[article.pk])
-    before = _article_state()
+    before = article_rows(Article)
     submitted_title = "x" * 201
     submitted_summary = "bad\x00summary"
     response = client.post(
@@ -579,8 +548,8 @@ def invalid_edit(contract_id: str) -> dict[str, Any]:
         {"_save": "Save", "published": "on", "summary": submitted_summary, "title": submitted_title},
     )
     form = response.context["adminform"].form
-    after = _article_state()
-    return _observed(
+    after = article_rows(Article)
+    return observed(
         contract_id,
         {
             "errors": _form_error_codes(form),
@@ -604,7 +573,7 @@ def valid_add(contract_id: str) -> dict[str, Any]:
         {"_save": "Save", "published": "on", "summary": "Created summary", "title": "Created"},
     )
     log = LogEntry.objects.get()
-    return _observed(
+    return observed(
         contract_id,
         {
             "event": _event(log),
@@ -612,7 +581,7 @@ def valid_add(contract_id: str) -> dict[str, Any]:
             "status": response.status_code,
         },
         phase="commit",
-        db_state={"articles": _article_state()},
+        db_state={"articles": article_rows(Article)},
         metrics={"audit_events": 1, "rows_added": Article.objects.count()},
     )
 
@@ -627,7 +596,7 @@ def valid_edit(contract_id: str) -> dict[str, Any]:
         {"_save": "Save", "published": "on", "summary": "After summary", "title": "After"},
     )
     log = LogEntry.objects.get()
-    return _observed(
+    return observed(
         contract_id,
         {
             "event": _event(log),
@@ -635,7 +604,7 @@ def valid_edit(contract_id: str) -> dict[str, Any]:
             "status": response.status_code,
         },
         phase="commit",
-        db_state={"articles": _article_state()},
+        db_state={"articles": article_rows(Article)},
         metrics={"audit_events": 1, "rows_changed": 1},
     )
 
@@ -673,7 +642,7 @@ def delete_boundaries(contract_id: str) -> dict[str, Any]:
         reverse("admin:godj_auth_admin_article_delete", args=[3]), {"post": "yes"}
     )
     log = LogEntry.objects.get(action_flag=DELETION)
-    return _observed(
+    return observed(
         contract_id,
         {
             "confirmed": {"event": _event(log), "status": success.status_code},
@@ -681,7 +650,7 @@ def delete_boundaries(contract_id: str) -> dict[str, Any]:
             "missing_csrf": {"row_preserved": Article.objects.filter(pk=3).exists(), "status": unsafe.status_code},
         },
         phase="commit",
-        db_state={"articles": _article_state()},
+        db_state={"articles": article_rows(Article)},
         metrics={"audit_events": LogEntry.objects.count(), "rows_deleted": 1},
     )
 
@@ -704,13 +673,13 @@ def semantic_history(contract_id: str) -> dict[str, Any]:
         {"post": "yes"},
     )
     events = [_event(log) for log in LogEntry.objects.order_by("id")]
-    return _observed(
+    return observed(
         contract_id,
         {
             "events": events,
             "statuses": [add_response.status_code, change_response.status_code, delete_response.status_code],
         },
-        db_state={"articles": _article_state()},
+        db_state={"articles": article_rows(Article)},
         metrics={"audit_events": len(events), "remaining_rows": Article.objects.count()},
     )
 
@@ -747,7 +716,7 @@ def publish_action(contract_id: str) -> dict[str, Any]:
         }
         for message in emitted
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "affected": Article.objects.filter(published=True).count(),
@@ -757,7 +726,7 @@ def publish_action(contract_id: str) -> dict[str, Any]:
             "unselected_unchanged": not Article.objects.get(pk=2).published,
         },
         phase="commit",
-        db_state={"articles": _article_state()},
+        db_state={"articles": article_rows(Article)},
         metrics={
             "action_calls": len(publish_atomic_observations),
             "atomic_blocks": sum(publish_atomic_observations),

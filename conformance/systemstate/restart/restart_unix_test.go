@@ -27,6 +27,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
@@ -96,7 +97,7 @@ func TestSystemStatePostgresDistinctProcessRestartSentinel(t *testing.T) {
 	open := func(ctx context.Context) (restartDatabaseBackend, error) {
 		backend, err := postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})
 		if err != nil {
-			return nil, restartPostgresSafeError(err)
+			return nil, testfixture.PostgresSafeError(err)
 		}
 		return backend, nil
 	}
@@ -437,7 +438,7 @@ func loginRestartSite(
 	if err != nil {
 		return restartLoginState{}, err
 	}
-	preLoginCSRF, err := uniqueRestartCookie(loginPage.cookies, websessionauth.DefaultCSRFCookieName)
+	preLoginCSRF, err := testfixture.UniqueCookie(loginPage.cookies, websessionauth.DefaultCSRFCookieName)
 	if err != nil {
 		return restartLoginState{}, err
 	}
@@ -467,11 +468,11 @@ func loginRestartSite(
 	if login.status != http.StatusFound || login.header.Get("Location") != "/admin/articles/" || string(login.body) != "Found\n" {
 		return restartLoginState{}, fmt.Errorf("phase A Admin login status/location/body-shape=%d/%t/%t", login.status, login.header.Get("Location") == "/admin/articles/", string(login.body) == "Found\n")
 	}
-	sessionCookie, err := uniqueRestartCookie(login.cookies, websessionauth.DefaultSessionCookieName)
+	sessionCookie, err := testfixture.UniqueCookie(login.cookies, websessionauth.DefaultSessionCookieName)
 	if err != nil {
 		return restartLoginState{}, err
 	}
-	rotatedCSRF, err := uniqueRestartCookie(login.cookies, websessionauth.DefaultCSRFCookieName)
+	rotatedCSRF, err := testfixture.UniqueCookie(login.cookies, websessionauth.DefaultCSRFCookieName)
 	if err != nil {
 		return restartLoginState{}, err
 	}
@@ -558,24 +559,6 @@ func responseCSRFToken(response restartHTTPResult) (string, error) {
 		return "", errors.New("Admin response omitted the masked CSRF token")
 	}
 	return string(match[1]), nil
-}
-
-func uniqueRestartCookie(cookies []*http.Cookie, name string) (*http.Cookie, error) {
-	var found *http.Cookie
-	for _, cookie := range cookies {
-		if cookie.Name != name {
-			continue
-		}
-		if found != nil {
-			return nil, fmt.Errorf("response published duplicate %s cookies", name)
-		}
-		clone := *cookie
-		found = &clone
-	}
-	if found == nil {
-		return nil, fmt.Errorf("response omitted the %s cookie", name)
-	}
-	return found, nil
 }
 
 func restartJarCookie(jar http.CookieJar, target *url.URL, name string) string {
@@ -1175,31 +1158,31 @@ func createRestartPostgresSchema(t *testing.T, databaseURL string) string {
 	defer cancel()
 	admin, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		t.Fatalf("connect restart PostgreSQL database: %v", restartPostgresSafeError(err))
+		t.Fatalf("connect restart PostgreSQL database: %v", testfixture.PostgresSafeError(err))
 	}
 	schema := fmt.Sprintf("godj_systemstate_restart_%d_%d", os.Getpid(), time.Now().UnixNano())
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+quotedSchema); err != nil {
 		_ = admin.Close(ctx)
-		t.Fatalf("create isolated restart PostgreSQL schema: %v", restartPostgresSafeError(err))
+		t.Fatalf("create isolated restart PostgreSQL schema: %v", testfixture.PostgresSafeError(err))
 	}
 	t.Cleanup(func() {
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cleanupCancel()
 		cleanup, err := pgx.Connect(cleanupCtx, databaseURL)
 		if err != nil {
-			t.Errorf("connect PostgreSQL schema cleanup: %v", restartPostgresSafeError(err))
+			t.Errorf("connect PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 			return
 		}
 		if _, err := cleanup.Exec(cleanupCtx, "DROP SCHEMA "+quotedSchema+" CASCADE"); err != nil {
-			t.Errorf("drop isolated restart PostgreSQL schema: %v", restartPostgresSafeError(err))
+			t.Errorf("drop isolated restart PostgreSQL schema: %v", testfixture.PostgresSafeError(err))
 		}
 		if err := cleanup.Close(cleanupCtx); err != nil {
-			t.Errorf("close PostgreSQL schema cleanup: %v", restartPostgresSafeError(err))
+			t.Errorf("close PostgreSQL schema cleanup: %v", testfixture.PostgresSafeError(err))
 		}
 	})
 	if err := admin.Close(ctx); err != nil {
-		t.Fatalf("close PostgreSQL schema creation handle: %v", restartPostgresSafeError(err))
+		t.Fatalf("close PostgreSQL schema creation handle: %v", testfixture.PostgresSafeError(err))
 	}
 	return schema
 }
@@ -1220,23 +1203,6 @@ func restartPostgresSensitiveValues(t *testing.T, databaseURL string) []string {
 	return values
 }
 
-func restartPostgresSafeError(err error) error {
-	if err == nil {
-		return nil
-	}
-	var structured interface{ SQLState() string }
-	if errors.As(err, &structured) {
-		return fmt.Errorf("PostgreSQL SQLSTATE %s", structured.SQLState())
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return errors.New("PostgreSQL operation timed out")
-	}
-	if errors.Is(err, context.Canceled) {
-		return errors.New("PostgreSQL operation was canceled")
-	}
-	return errors.New("PostgreSQL operation failed")
-}
-
 func assertPostgresArtifactsExcludeSensitive(
 	t *testing.T,
 	ctx context.Context,
@@ -1246,7 +1212,7 @@ func assertPostgresArtifactsExcludeSensitive(
 	t.Helper()
 	backend, err := openBackend(ctx)
 	if err != nil {
-		t.Fatalf("open PostgreSQL artifact inspection handle: %v", restartPostgresSafeError(err))
+		t.Fatalf("open PostgreSQL artifact inspection handle: %v", testfixture.PostgresSafeError(err))
 	}
 	open := true
 	defer func() {
@@ -1284,7 +1250,7 @@ func assertPostgresArtifactsExcludeSensitive(
 		}
 	}
 	if err := backend.Close(); err != nil {
-		t.Fatalf("close PostgreSQL artifact inspection handle: %v", restartPostgresSafeError(err))
+		t.Fatalf("close PostgreSQL artifact inspection handle: %v", testfixture.PostgresSafeError(err))
 	}
 	open = false
 }
@@ -1299,14 +1265,14 @@ func restartTextColumnValues(
 	field := query.NewFieldRef(column, column, query.FieldString, false)
 	plan, err := query.NewPlan(table, []query.FieldRef{field}).WithLimit(4)
 	if err != nil {
-		t.Fatalf("build PostgreSQL artifact query: %v", restartPostgresSafeError(err))
+		t.Fatalf("build PostgreSQL artifact query: %v", testfixture.PostgresSafeError(err))
 	}
 	rows, err := queryer.Query(ctx, plan)
 	if err != nil {
 		if rows != nil {
 			_ = rows.Close()
 		}
-		t.Fatalf("query PostgreSQL restart artifact: %v", restartPostgresSafeError(err))
+		t.Fatalf("query PostgreSQL restart artifact: %v", testfixture.PostgresSafeError(err))
 	}
 	if rows == nil {
 		t.Fatal("query PostgreSQL restart artifact returned nil rows")
@@ -1316,7 +1282,7 @@ func restartTextColumnValues(
 		var value string
 		if err := rows.Scan(&value); err != nil {
 			_ = rows.Close()
-			t.Fatalf("scan PostgreSQL restart artifact: %v", restartPostgresSafeError(err))
+			t.Fatalf("scan PostgreSQL restart artifact: %v", testfixture.PostgresSafeError(err))
 		}
 		values = append(values, value)
 		if len(values) > 4 {
@@ -1327,7 +1293,7 @@ func restartTextColumnValues(
 	iterationErr := rows.Err()
 	closeErr := rows.Close()
 	if err := errors.Join(iterationErr, closeErr); err != nil {
-		t.Fatalf("finish PostgreSQL restart artifact query: %v", restartPostgresSafeError(err))
+		t.Fatalf("finish PostgreSQL restart artifact query: %v", testfixture.PostgresSafeError(err))
 	}
 	return values
 }

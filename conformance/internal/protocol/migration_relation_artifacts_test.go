@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,47 +11,10 @@ import (
 	"testing"
 )
 
-func TestMigrationRelationArtifactBytesAreLocked(t *testing.T) {
-	t.Parallel()
-
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	root := conformanceRepositoryRoot(t)
-	wanted := map[string]artifactLock{
-		"conformance/contracts/migration-relation-manifest.json": {
-			size:   7858,
-			sha256: "ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9",
-		},
-		"conformance/fixtures/godj-migration-relation-not-implemented.json": {
-			size:   1846,
-			sha256: "f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json": {
-			size:   120502,
-			sha256: "5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968",
-		},
-	}
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(contents) != want.size {
-			t.Fatalf("migration-relation artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		got := fmt.Sprintf("%x", sha256.Sum256(contents))
-		if got != want.sha256 {
-			t.Fatalf("migration-relation artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
-	}
-}
-
 func TestMigrationRelationArtifactBoundaryIsLocked(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadMigrationRelationArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-relation")
 	wantSlugs := []string{
 		"godj.migration.relation.current_abi",
 		"godj.migration.relation.current_format_validation",
@@ -120,7 +82,7 @@ func TestMigrationRelationArtifactBoundaryIsLocked(t *testing.T) {
 		if observation.ID != contract.ID || observation.Status != StatusObserved || observation.Phase != contract.Phase {
 			t.Fatalf("oracle contract %d = %#v, want %s observed/%s", index, observation, contract.ID, contract.Phase)
 		}
-		assertMigrationRelationObservationDimensions(t, contract, observation)
+		assertObservationDimensions(t, contract, observation)
 		static := baseline.Contracts[index]
 		if static.ID != contract.ID || static.Status != StatusNotImplemented || static.Phase != contract.Phase {
 			t.Fatalf("static contract %d = %#v, want %s not_implemented/%s", index, static, contract.ID, contract.Phase)
@@ -229,7 +191,7 @@ func TestMigrationRelationReferenceAndProductWiringIsLocked(t *testing.T) {
 func TestMigrationRelationDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationRelationArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-relation")
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
 			contract := contract
@@ -263,7 +225,7 @@ func TestMigrationRelationDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 func TestMigrationRelationSemanticPayloadMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationRelationArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-relation")
 	tests := []struct {
 		name       string
 		contractID string
@@ -383,7 +345,7 @@ func TestMigrationRelationSemanticPayloadMutationsCannotFalseGreen(t *testing.T)
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			observation := migrationRelationObservation(t, &actual, test.contractID)
+			observation := observationByID(t, &actual, test.contractID)
 			test.mutate(t, observation)
 			assertMigrationRelationDiffers(t, profile, manifest, oracle, actual, test.contractID)
 		})
@@ -393,7 +355,7 @@ func TestMigrationRelationSemanticPayloadMutationsCannotFalseGreen(t *testing.T)
 func TestMigrationRelationProvenanceMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	_, manifest, _, _ := loadMigrationRelationArtifacts(t)
+	_, manifest, _, _ := loadContractArtifacts(t, "migration-relation")
 	tests := []struct {
 		name   string
 		mutate func(*Manifest)
@@ -455,7 +417,7 @@ func TestMigrationRelationReferenceIsDistinctFromLegacyTwelveSets(t *testing.T) 
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	profile, manifest, oracle, _ := loadMigrationRelationArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-relation")
 	legacy := []migrationDefinitionSourceContractSet{
 		loadMigrationDefinitionSourceContractSet(t, root, "read", "manifest.json", "oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "write-migration", "write-migration-manifest.json", "write-migration-oracle.json"),
@@ -498,16 +460,6 @@ func TestMigrationRelationReferenceIsDistinctFromLegacyTwelveSets(t *testing.T) 
 	if crossBindings != 24 {
 		t.Fatalf("migration-relation isolation checked %d bindings, want 24", crossBindings)
 	}
-}
-
-func loadMigrationRelationArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-relation-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-relation-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-relation-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }
 
 func validateMigrationRelationProvenance(contract Contract) error {
@@ -570,41 +522,6 @@ func validateMigrationRelationProvenance(contract Contract) error {
 	return nil
 }
 
-func assertMigrationRelationObservationDimensions(t *testing.T, contract Contract, observation Observation) {
-	t.Helper()
-	wantResult := false
-	wantError := false
-	wantDBState := false
-	wantMetrics := false
-	for _, dimension := range contract.Comparison {
-		switch dimension {
-		case CompareResult:
-			wantResult = true
-		case CompareError:
-			wantError = true
-		case CompareDBState:
-			wantDBState = true
-		case CompareMetrics:
-			wantMetrics = true
-		}
-	}
-	if (observation.Result != nil) != wantResult || (observation.Error != nil) != wantError ||
-		(observation.DBState != nil) != wantDBState || (observation.Metrics != nil) != wantMetrics {
-		t.Fatalf(
-			"observation %s dimensions result/error/db_state/metrics = %t/%t/%t/%t, want %t/%t/%t/%t",
-			contract.ID,
-			observation.Result != nil,
-			observation.Error != nil,
-			observation.DBState != nil,
-			observation.Metrics != nil,
-			wantResult,
-			wantError,
-			wantDBState,
-			wantMetrics,
-		)
-	}
-}
-
 func assertMigrationRelationDiffers(t *testing.T, profile Profile, manifest Manifest, expected, actual ObservationSuite, contractID string) {
 	t.Helper()
 	differences, err := Compare(profile, manifest, expected, actual)
@@ -617,17 +534,6 @@ func assertMigrationRelationDiffers(t *testing.T, profile Profile, manifest Mani
 	if differences[0].ContractID != contractID {
 		t.Fatalf("mutation reported against %q, want %q: %#v", differences[0].ContractID, contractID, differences)
 	}
-}
-
-func migrationRelationObservation(t *testing.T, suite *ObservationSuite, contractID string) *Observation {
-	t.Helper()
-	for index := range suite.Contracts {
-		if suite.Contracts[index].ID == contractID {
-			return &suite.Contracts[index]
-		}
-	}
-	t.Fatalf("observation %s is missing", contractID)
-	return nil
 }
 
 func migrationRelationListField(t *testing.T, value *Value, name string) *Value {

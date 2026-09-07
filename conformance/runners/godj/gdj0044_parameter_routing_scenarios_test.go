@@ -75,7 +75,7 @@ func TestGDJ0044MethodNotAllowedObservationUsesStableSortedAllow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	allow := parameterRoutingTestObjectField(t, *observation.Result, "allow")
+	allow := testObjectField(t, *observation.Result, "allow")
 	got := make([]string, len(allow.Items))
 	for index, value := range allow.Items {
 		if value.Type != protocol.ValueString || value.Text == nil {
@@ -87,8 +87,8 @@ func TestGDJ0044MethodNotAllowedObservationUsesStableSortedAllow(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Allow = %#v, want %#v", got, want)
 	}
-	response := parameterRoutingTestObjectField(t, *observation.Result, "response")
-	status := parameterRoutingTestObjectField(t, response, "status")
+	response := testObjectField(t, *observation.Result, "response")
+	status := testObjectField(t, response, "status")
 	if status.Text == nil || *status.Text != "405" {
 		t.Fatalf("status = %#v, want 405", status)
 	}
@@ -440,18 +440,4 @@ func runGDJ0044ExternalCompile(t *testing.T, directory string) (string, error) {
 	command.Env = append(os.Environ(), "GOFLAGS=", "GOTOOLCHAIN=local", "GOWORK=off")
 	output, err := command.CombinedOutput()
 	return string(output), err
-}
-
-func parameterRoutingTestObjectField(t *testing.T, value protocol.Value, name string) protocol.Value {
-	t.Helper()
-	if value.Type != protocol.ValueObject {
-		t.Fatalf("value = %#v, want object", value)
-	}
-	for _, field := range value.Fields {
-		if field.Name == name {
-			return field.Value
-		}
-	}
-	t.Fatalf("object has no field %q: %#v", name, value)
-	return protocol.Value{}
 }

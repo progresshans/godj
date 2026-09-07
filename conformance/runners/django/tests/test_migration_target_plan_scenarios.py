@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import unittest
 from typing import Any
 from unittest.mock import patch
@@ -8,6 +9,7 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
 
+from conformance.runners.django.tests.values import semantic
 from conformance.runners.django import migration_planning_scenarios as planning
 from conformance.runners.django import migration_target_plan_scenarios as scenarios
 from conformance.runners.django.normalizer import canonical_json
@@ -20,26 +22,8 @@ EXPECTED_SCENARIOS = (
 )
 
 
-def _semantic(value: Any) -> Any:
-    if value is None or not isinstance(value, dict) or "type" not in value:
-        return value
-    kind = value["type"]
-    if kind == "object":
-        return {
-            field["name"]: _semantic(field["value"])
-            for field in value["fields"]
-        }
-    if kind == "list":
-        return [_semantic(item) for item in value["items"]]
-    if kind == "null":
-        return None
-    if kind == "int":
-        return int(value["value"])
-    return value["value"]
-
-
 def _plan(observation: dict[str, Any]) -> list[tuple[str, str, str]]:
-    result = _semantic(observation["result"])
+    result = semantic(observation["result"])
     return [
         (row["app"], row["name"], row["direction"])
         for row in result["plan"]
@@ -108,7 +92,7 @@ class MigrationTargetPlanScenarioTests(unittest.TestCase):
 
     def test_named_reverse_removes_descendant_dependent_but_retains_direct_child(self) -> None:
         observation = scenarios.named_reverse_descendants("MIG-121")
-        result = _semantic(observation["result"])
+        result = semantic(observation["result"])
         plan = [
             (row["app"], row["name"], row["direction"])
             for row in result["plan"]
@@ -146,7 +130,7 @@ class MigrationTargetPlanScenarioTests(unittest.TestCase):
                 ("alpha", "0001_initial", "backward"),
             ],
         )
-        result = _semantic(observation["result"])
+        result = semantic(observation["result"])
         self.assertIn(
             {"app": "gamma", "name": "0001_unrelated"},
             result["applied"],

@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -43,38 +42,8 @@ func TestMigrationWriterArtifactsAreLockedAndPhaseAReferenceRemainsPayloadFree(t
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	type artifactLock struct {
-		size   int
-		sha256 string
-	}
-	for name, want := range map[string]artifactLock{
-		"conformance/contracts/migration-writer-manifest.json": {
-			size:   9227,
-			sha256: "90bce609ffb4f771007379495629a31efbf00594dca16f9efe875005e97f1c72",
-		},
-		"conformance/fixtures/godj-migration-writer-deviation-expected.json": {
-			size:   7242,
-			sha256: "74617f20f72ecd5b26284ae8cffb7a1c408cdef03e0933d457beeb82f9f4718e",
-		},
-		"conformance/fixtures/godj-migration-writer-not-implemented.json": {
-			size:   1876,
-			sha256: "b27563a864fe417df53a20092c44f169829e9798cb2e40348c8dbbdcf4715502",
-		},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json": {
-			size:   25980,
-			sha256: "9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41",
-		},
-	} {
-		contents := readArtifact(t, filepath.Join(root, filepath.FromSlash(name)))
-		if len(contents) != want.size {
-			t.Fatalf("migration-writer artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		if got := fmt.Sprintf("%x", sha256.Sum256(contents)); got != want.sha256 {
-			t.Fatalf("migration-writer artifact %s checksum = %q, want %q", name, got, want.sha256)
-		}
-	}
 
-	profile, manifest, oracle, baseline := loadMigrationWriterArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "migration-writer")
 	deviation, err := LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", "godj-migration-writer-deviation-expected.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +134,7 @@ func TestMigrationWriterArtifactsAreLockedAndPhaseAReferenceRemainsPayloadFree(t
 func TestMigrationWriterDeclaredDimensionsAndBindingsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadMigrationWriterArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-writer")
 	for index, contract := range manifest.Contracts {
 		for _, dimension := range contract.Comparison {
 			actual := cloneJSONSuite(t, oracle)
@@ -322,14 +291,4 @@ func assertMigrationWriterProvenance(t *testing.T, contract Contract, djangoAuth
 			t.Fatalf("contract %s unpinned Django provenance: %#v", contract.ID, provenance)
 		}
 	}
-}
-
-func loadMigrationWriterArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", "migration-writer-manifest.json"), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-writer-oracle.json"), LoadObservationSuite)
-	baseline := requireArtifact(t, filepath.Join(root, "conformance", "fixtures", "godj-migration-writer-not-implemented.json"), LoadObservationSuite)
-	return profile, manifest, oracle, baseline
 }

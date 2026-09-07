@@ -86,6 +86,15 @@ func TestRelationObserversRemainOracleBlind(t *testing.T) {
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("discover relation observers: paths=%v error=%v", paths, err)
 	}
+	shared, err := filepath.Glob(filepath.Join(fixtureDirectory(t), "..", "internal", "relationstate", "*.go"))
+	if err != nil || len(shared) == 0 {
+		t.Fatalf("discover shared relation observation source: paths=%v error=%v", shared, err)
+	}
+	for _, path := range shared {
+		if !strings.HasSuffix(path, "_test.go") {
+			paths = append(paths, path)
+		}
+	}
 	for _, path := range paths {
 		t.Run(filepath.Base(filepath.Dir(path)), func(t *testing.T) {
 			source, err := os.ReadFile(path)

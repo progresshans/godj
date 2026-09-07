@@ -160,7 +160,7 @@ func TestRunGDJ0047RequiresExactDeviationBeforeActualHandlers(t *testing.T) {
 	actualPath := filepath.Join(directory, "must-not-exist.json")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	assertGDJ0047PreHandlerFailure(
+	assertPreHandlerFailure(
 		t,
 		ctx,
 		gdj0047RunArguments(root, "", actualPath),
@@ -205,7 +205,7 @@ func TestRunGDJ0047RejectsTokenTableAndDBStateSelectorEscapesBeforeActualHandler
 			actualPath := filepath.Join(directory, "must-not-exist.json")
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			assertGDJ0047PreHandlerFailure(
+			assertPreHandlerFailure(
 				t,
 				ctx,
 				gdj0047RunArguments(root, expectationPath, actualPath),
@@ -226,28 +226,4 @@ func gdj0047RunArguments(root, deviation, actual string) []string {
 		arguments = append(arguments, "-deviation-expected", deviation)
 	}
 	return append(arguments, "-actual-output", actual)
-}
-
-func assertGDJ0047PreHandlerFailure(
-	t *testing.T,
-	ctx context.Context,
-	arguments []string,
-	actualPath string,
-	wantError string,
-) {
-	t.Helper()
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if code := run(ctx, arguments, &stdout, &stderr); code != 2 {
-		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
-	}
-	if stdout.Len() != 0 || !strings.Contains(stderr.String(), wantError) {
-		t.Fatalf("stdout=%q stderr=%q, want error containing %q", stdout.String(), stderr.String(), wantError)
-	}
-	if strings.Contains(stderr.String(), context.Canceled.Error()) {
-		t.Fatalf("stderr=%q reached actual generation instead of failing at the deviation gate", stderr.String())
-	}
-	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
-		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
-	}
 }

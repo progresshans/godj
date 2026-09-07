@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+
 import ast
 import unittest
 from pathlib import Path
 from typing import Any
 
+from conformance.runners.django.tests.values import semantic
 from conformance.runners.django import migration_target_plan_decisions as decisions
 from conformance.runners.django.normalizer import canonical_json
 
@@ -18,24 +20,6 @@ EXPECTED_SCENARIOS = (
     "godj.migration.target_plan.reverse_commit_outcomes",
     "godj.migration.target_plan.project_protocol_and_ownership",
 )
-
-
-def _semantic(value: Any) -> Any:
-    if value is None or not isinstance(value, dict) or "type" not in value:
-        return value
-    kind = value["type"]
-    if kind == "object":
-        return {
-            field["name"]: _semantic(field["value"])
-            for field in value["fields"]
-        }
-    if kind == "list":
-        return [_semantic(item) for item in value["items"]]
-    if kind == "null":
-        return None
-    if kind == "int":
-        return int(value["value"])
-    return value["value"]
 
 
 class MigrationTargetPlanDecisionTests(unittest.TestCase):
@@ -87,8 +71,8 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
 
     def test_exact_argv_families_and_rejections_are_pre_io(self) -> None:
         observation = decisions.target_argv_and_pre_io_rejection("MIG-119")
-        result = _semantic(observation["result"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        metrics = semantic(observation["metrics"])
         self.assertEqual(result["exact_public_families"], 8)
         self.assertEqual(len(result["accepted"]), 8)
         self.assertEqual(
@@ -141,7 +125,7 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
         self.assertEqual(metrics["post_discovery_target_not_found_cases"], 1)
 
     def test_noop_plan_and_fresh_execute_decisions_are_non_authoritative(self) -> None:
-        noop = _semantic(decisions.target_noop_and_legacy_zero("MIG-123")["result"])
+        noop = semantic(decisions.target_noop_and_legacy_zero("MIG-123")["result"])
         noop_cases = {case["case"]: case for case in noop["cases"]}
         self.assertEqual(noop_cases["applied_named_leaf"]["plan"], [])
         self.assertEqual(noop_cases["legacy_zero_unknown_app"]["plan"], [])
@@ -154,9 +138,9 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
         )
 
         exact = decisions.plan_exact_and_no_mutation("MIG-124")
-        exact_result = _semantic(exact["result"])
-        exact_state = _semantic(exact["db_state"])
-        exact_metrics = _semantic(exact["metrics"])
+        exact_result = semantic(exact["result"])
+        exact_state = semantic(exact["db_state"])
+        exact_metrics = semantic(exact["metrics"])
         self.assertEqual(
             [case["stdout"] for case in exact_result["cases"]],
             [
@@ -181,9 +165,9 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
             self.assertEqual(exact_metrics[field], 0)
 
         drift = decisions.preview_drift_fresh_execute("MIG-125")
-        drift_result = _semantic(drift["result"])
-        drift_state = _semantic(drift["db_state"])
-        drift_metrics = _semantic(drift["metrics"])
+        drift_result = semantic(drift["result"])
+        drift_state = semantic(drift["db_state"])
+        drift_metrics = semantic(drift["metrics"])
         self.assertEqual(len(drift_result["preview_plan"]), 1)
         self.assertEqual(drift_result["execute_plan"], [])
         self.assertFalse(drift_result["preview_token_accepted"])
@@ -193,9 +177,9 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
 
     def test_reverse_failure_and_commit_outcomes_are_case_local(self) -> None:
         resume = decisions.reverse_middle_failure_resume("MIG-126")
-        resume_result = _semantic(resume["result"])
-        resume_state = _semantic(resume["db_state"])
-        resume_metrics = _semantic(resume["metrics"])
+        resume_result = semantic(resume["result"])
+        resume_state = semantic(resume["db_state"])
+        resume_metrics = semantic(resume["metrics"])
         resume_cases = {case["case"]: case for case in resume_result["cases"]}
         self.assertEqual(
             resume_cases["first_process"],
@@ -264,8 +248,8 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
         )
 
         outcomes = decisions.reverse_commit_outcomes("MIG-127")
-        outcome_result = _semantic(outcomes["result"])
-        outcome_metrics = _semantic(outcomes["metrics"])
+        outcome_result = semantic(outcomes["result"])
+        outcome_metrics = semantic(outcomes["metrics"])
         cases = {case["case"]: case for case in outcome_result["cases"]}
         self.assertEqual(
             cases["commit_outcome_unknown"]["code"],
@@ -282,9 +266,9 @@ class MigrationTargetPlanDecisionTests(unittest.TestCase):
 
     def test_protocol_decision_is_current_only_owned_and_redacted(self) -> None:
         observation = decisions.project_protocol_and_ownership("MIG-128")
-        result = _semantic(observation["result"])
-        state = _semantic(observation["db_state"])
-        metrics = _semantic(observation["metrics"])
+        result = semantic(observation["result"])
+        state = semantic(observation["db_state"])
+        metrics = semantic(observation["metrics"])
 
         self.assertEqual(
             set(result),

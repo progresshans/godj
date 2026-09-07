@@ -62,7 +62,7 @@ func TestTemplateFormScenarioHandlerObservesPhaseDContracts(t *testing.T) {
 				t.Fatalf("db_state present = %v, want %v", got, test.dbState)
 			}
 			for name, want := range test.metrics {
-				metric := templateFormTestObjectField(t, *observation.Metrics, name)
+				metric := testObjectField(t, *observation.Metrics, name)
 				if metric.Type != protocol.ValueInt || metric.Text == nil || *metric.Text != want {
 					t.Fatalf("metric %q = %#v, want int %q", name, metric, want)
 				}
@@ -86,15 +86,15 @@ func TestTemplateFormCallableExposureObservesClosedNoCallValue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	autoCalled := templateFormTestObjectField(t, *observation.Result, "auto_called")
+	autoCalled := testObjectField(t, *observation.Result, "auto_called")
 	if autoCalled.Type != protocol.ValueBool || autoCalled.Bool == nil || *autoCalled.Bool {
 		t.Fatalf("auto_called = %#v, want false", autoCalled)
 	}
-	category := templateFormTestObjectField(t, *observation.Result, "rendered_return_category")
+	category := testObjectField(t, *observation.Result, "rendered_return_category")
 	if category.Type != protocol.ValueString || category.Text == nil || *category.Text != "closed_value" {
 		t.Fatalf("rendered_return_category = %#v, want closed_value", category)
 	}
-	invocations := templateFormTestObjectField(t, *observation.Metrics, "callable_invocations")
+	invocations := testObjectField(t, *observation.Metrics, "callable_invocations")
 	if invocations.Type != protocol.ValueInt || invocations.Text == nil || *invocations.Text != "0" {
 		t.Fatalf("callable_invocations = %#v, want 0", invocations)
 	}
@@ -109,7 +109,7 @@ func TestTemplateFormDottedLookupObservesClosedPublicAlgebra(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	shadowed := templateFormTestObjectField(t, *observation.Result, "attribute_fallback_shadowed")
+	shadowed := testObjectField(t, *observation.Result, "attribute_fallback_shadowed")
 	if shadowed.Type != protocol.ValueBool || shadowed.Bool == nil || *shadowed.Bool {
 		t.Fatalf("attribute_fallback_shadowed = %#v, want false without a competing attribute fallback", shadowed)
 	}
@@ -118,12 +118,12 @@ func TestTemplateFormDottedLookupObservesClosedPublicAlgebra(t *testing.T) {
 		"list_index":        "one",
 		"object_dictionary": "dictionary-value",
 	} {
-		got := templateFormTestObjectField(t, *observation.Result, name)
+		got := testObjectField(t, *observation.Result, name)
 		if got.Type != protocol.ValueString || got.Text == nil || *got.Text != want {
 			t.Fatalf("result %q = %#v, want string %q", name, got, want)
 		}
 	}
-	lookups := templateFormTestObjectField(t, *observation.Metrics, "object_dictionary_lookups")
+	lookups := testObjectField(t, *observation.Metrics, "object_dictionary_lookups")
 	if lookups.Type != protocol.ValueInt || lookups.Text == nil || *lookups.Text != "0" {
 		t.Fatalf("object_dictionary_lookups = %#v, want no application callback in the closed algebra", lookups)
 	}
@@ -416,8 +416,8 @@ func TestTemplateFormModelFormWriteBoundaryObservesExactRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := templateFormTestObjectField(t, *observation.DBState, "before")
-	after := templateFormTestObjectField(t, *observation.DBState, "after")
+	before := testObjectField(t, *observation.DBState, "before")
+	after := testObjectField(t, *observation.DBState, "after")
 	if before.Type != protocol.ValueList || len(before.Items) != 4 {
 		t.Fatalf("before rows = %#v, want 4", before)
 	}
@@ -425,25 +425,11 @@ func TestTemplateFormModelFormWriteBoundaryObservesExactRows(t *testing.T) {
 		t.Fatalf("after rows = %#v, want 5", after)
 	}
 	updated := after.Items[0]
-	if got := templateFormTestObjectField(t, updated, "title"); got.Type != protocol.ValueString || got.Text == nil || *got.Text != "Updated" {
+	if got := testObjectField(t, updated, "title"); got.Type != protocol.ValueString || got.Text == nil || *got.Text != "Updated" {
 		t.Fatalf("updated title = %#v", got)
 	}
 	created := after.Items[4]
-	if got := templateFormTestObjectField(t, created, "title"); got.Type != protocol.ValueString || got.Text == nil || *got.Text != "Created" {
+	if got := testObjectField(t, created, "title"); got.Type != protocol.ValueString || got.Text == nil || *got.Text != "Created" {
 		t.Fatalf("created title = %#v", got)
 	}
-}
-
-func templateFormTestObjectField(t *testing.T, value protocol.Value, name string) protocol.Value {
-	t.Helper()
-	if value.Type != protocol.ValueObject {
-		t.Fatalf("value = %#v, want object", value)
-	}
-	for _, field := range value.Fields {
-		if field.Name == name {
-			return field.Value
-		}
-	}
-	t.Fatalf("object has no field %q: %#v", name, value)
-	return protocol.Value{}
 }

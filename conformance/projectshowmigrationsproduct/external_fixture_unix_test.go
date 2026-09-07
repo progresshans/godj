@@ -3,16 +3,12 @@
 package projectshowmigrationsproduct_test
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"go/parser"
-	"go/token"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 )
 
@@ -70,7 +67,7 @@ type externalStatusMarker struct {
 
 func newExternalStatusProject(t *testing.T) *externalStatusProject {
 	t.Helper()
-	repository := externalStatusRepositoryRoot(t)
+	repository := testfixture.RepositoryRoot(t)
 	universe, err := os.MkdirTemp("", "godj-showmigrations-external-")
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +77,7 @@ func newExternalStatusProject(t *testing.T) *externalStatusProject {
 			t.Errorf("remove external showmigrations universe: %v", err)
 		}
 	})
-	externalStatusAssertSeparateRoot(t, repository, universe)
+	testfixture.AssertSeparateRoot(t, repository, universe)
 
 	root := filepath.Join(universe, "consumer")
 	nested := filepath.Join(root, "nested")
@@ -109,7 +106,7 @@ replace github.com/progresshans/godj => %s
 `, filepath.ToSlash(repository))), 0o600)
 	externalStatusWriteFile(t, filepath.Join(root, "godj.toml"), []byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\n"), 0o600)
 	externalStatusWriteFile(t, filepath.Join(root, "cmd", "projectrunner", "main.go"), []byte(externalStatusProjectRunnerSource), 0o600)
-	externalStatusAuditApplicationSources(t, repository, root)
+	testfixture.AuditApplicationSources(t, repository, root, externalStatusAllowedImports)
 
 	moduleCacheDocument, err := exec.Command("go", "env", "GOMODCACHE").Output()
 	if err != nil {
@@ -127,7 +124,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnv := externalStatusEnvironment(os.Environ(), map[string]string{
+	setupEnv := testfixture.Environment(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -143,7 +140,7 @@ replace github.com/progresshans/godj => %s
 	externalStatusRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
 
 	secret := "showmigrations-secret-canary-2f11630d7a"
-	baseEnv := externalStatusEnvironment(setupEnv, map[string]string{
+	baseEnv := testfixture.Environment(setupEnv, map[string]string{
 		"GOPROXY":                       "off",
 		"GOSUMDB":                       "off",
 		externalStatusSecretEnvironment: secret,
@@ -174,7 +171,7 @@ func (project *externalStatusProject) paths(t *testing.T, name string) (string, 
 }
 
 func (project *externalStatusProject) environment(database, marker, catalog string) []string {
-	return externalStatusEnvironment(project.baseEnv, map[string]string{
+	return testfixture.Environment(project.baseEnv, map[string]string{
 		externalStatusBackendEnvironment:  "sqlite",
 		externalStatusDatabaseEnvironment: database,
 		externalStatusMarkerEnvironment:   marker,
@@ -190,7 +187,7 @@ func (project *externalStatusProject) postgresEnvironment(t *testing.T, database
 		externalStatusPostgresRequiredEnvironment,
 		externalStatusDatabaseEnvironment,
 	)
-	environment := externalStatusEnvironment(base, map[string]string{
+	environment := testfixture.Environment(base, map[string]string{
 		externalStatusBackendEnvironment:        "postgres",
 		externalStatusPostgresURLEnvironment:    databaseURL,
 		externalStatusPostgresSchemaEnvironment: schema,
@@ -255,85 +252,6 @@ func (project *externalStatusProject) sensitive(database string) []string {
 		filepath.ToSlash(database),
 		"sqlite-secret-path-8c813d",
 		project.secret,
-	}
-}
-
-func externalStatusRepositoryRoot(t *testing.T) string {
-	t.Helper()
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate repository")
-	}
-	root, err := filepath.EvalSymlinks(filepath.Join(filepath.Dir(source), "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return root
-}
-
-func externalStatusAssertSeparateRoot(t *testing.T, repository, external string) {
-	t.Helper()
-	resolvedRepository, err := filepath.EvalSymlinks(repository)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolvedExternal, err := filepath.EvalSymlinks(external)
-	if err != nil {
-		t.Fatal(err)
-	}
-	relative, err := filepath.Rel(resolvedRepository, resolvedExternal)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))) {
-		t.Fatalf("external consumer root %q is inside repository %q", resolvedExternal, resolvedRepository)
-	}
-}
-
-func externalStatusAuditApplicationSources(t *testing.T, repository, root string) {
-	t.Helper()
-	resolvedRepository, err := filepath.EvalSymlinks(repository)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fileSet := token.NewFileSet()
-	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
-			return nil
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if bytes.Contains(document, []byte(resolvedRepository)) || bytes.Contains(document, []byte(filepath.ToSlash(resolvedRepository))) {
-			return fmt.Errorf("application source %s contains repository absolute path", path)
-		}
-		parsed, err := parser.ParseFile(fileSet, path, document, parser.ImportsOnly)
-		if err != nil {
-			return err
-		}
-		for _, specification := range parsed.Imports {
-			importPath, err := strconv.Unquote(specification.Path.Value)
-			if err != nil {
-				return fmt.Errorf("decode import in %s: %w", path, err)
-			}
-			if !strings.HasPrefix(importPath, "github.com/progresshans/godj") {
-				continue
-			}
-			if strings.Contains(importPath, "/internal/") || strings.Contains(importPath, "/conformance/") || strings.Contains(importPath, "/examples/") {
-				return fmt.Errorf("application source %s imports forbidden GoDj package %s", path, importPath)
-			}
-			if _, ok := externalStatusAllowedImports[importPath]; !ok {
-				return fmt.Errorf("application source %s imports non-allowlisted GoDj package %s", path, importPath)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -483,61 +401,6 @@ func externalStatusAssertMarkerAbsent(t *testing.T, path string) {
 	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("backend marker unexpectedly exists: %v", err)
 	}
-}
-
-func externalStatusAssertArtifactsRedacted(t *testing.T, root string, sensitive ...string) {
-	t.Helper()
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() || info.Size() > 8<<20 {
-			return nil
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		for _, value := range sensitive {
-			if value != "" && bytes.Contains(document, []byte(value)) {
-				return errors.New("external artifact contains a sensitive value")
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func externalStatusEnvironment(base []string, overrides map[string]string) []string {
-	values := make(map[string]string, len(base)+len(overrides))
-	for _, entry := range base {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	for key, value := range overrides {
-		values[key] = value
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, 0, len(keys))
-	for _, key := range keys {
-		result = append(result, key+"="+values[key])
-	}
-	return result
 }
 
 func externalStatusRemoveEnvironment(base []string, keys ...string) []string {

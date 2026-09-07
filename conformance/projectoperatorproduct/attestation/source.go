@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/progresshans/godj/conformance/internal/attestationio"
 )
 
 const (
@@ -74,6 +76,7 @@ var commandAndInternalSourcePrefixes = []string{
 var conformanceConsumerSourcePrefixes = []string{
 	"conformance/cmd/godjcheck/",
 	"conformance/internal/protocol/",
+	"conformance/internal/attestationio/",
 }
 
 var embeddedAssetPrefixes = []string{
@@ -152,7 +155,7 @@ func ComputeSourceBinding(repositoryRoot string) (SourceBinding, error) {
 		if info.Size() < 0 || info.Size() > maxSourceBytes-payloadBytes {
 			return errors.New("external operator behavioral source scope exceeds its byte limit")
 		}
-		contents, err := readSourceFile(path, info.Size())
+		contents, err := attestationio.ReadSourceFile(path, info.Size())
 		if err != nil {
 			return fmt.Errorf("read external operator behavioral source path %q: %w", relative, err)
 		}
@@ -313,20 +316,4 @@ func normalizedGitMode(mode fs.FileMode) string {
 		return "100755"
 	}
 	return "100644"
-}
-
-func readSourceFile(path string, expectedSize int64) ([]byte, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	contents, err := io.ReadAll(io.LimitReader(file, expectedSize+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(contents)) != expectedSize {
-		return nil, errors.New("source file changed while it was being read")
-	}
-	return contents, nil
 }

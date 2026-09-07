@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 	"github.com/progresshans/godj/conformance/relationfixture/authors"
 	"github.com/progresshans/godj/conformance/relationfixture/blog"
 	"github.com/progresshans/godj/conformance/relationfixture/project"
@@ -25,9 +26,9 @@ func TestObserveExecutesExactREL003AndREL006CasesAndDatabaseState(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantCold := QueryMetrics{QueryCount: 1, StatementKinds: []string{"SELECT"}}
-	wantWarm := QueryMetrics{}
-	if got.Forward.Cold != (AuthorRow{ID: 1, Name: "Ada"}) || got.Forward.Warm != got.Forward.Cold {
+	wantCold := relationstate.QueryMetrics{QueryCount: 1, StatementKinds: []string{"SELECT"}}
+	wantWarm := relationstate.QueryMetrics{}
+	if got.Forward.Cold != (relationstate.AuthorRow{ID: 1, Name: "Ada"}) || got.Forward.Warm != got.Forward.Cold {
 		t.Fatalf("forward result = %#v", got.Forward)
 	}
 	wantSteps := []AccessStep{
@@ -46,9 +47,9 @@ func TestObserveExecutesExactREL003AndREL006CasesAndDatabaseState(t *testing.T) 
 		t.Fatalf("nullable metrics = %#v", got.Nullable)
 	}
 	reviewer := int64(2)
-	wantState := DatabaseState{
-		Authors: []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
-		Posts: []PostRow{
+	wantState := relationstate.DatabaseState{
+		Authors: []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
+		Posts: []relationstate.PostRow{
 			{ID: 10, Title: "Alpha", AuthorID: 1, ReviewerID: &reviewer},
 			{ID: 11, Title: "Beta", AuthorID: 1},
 			{ID: 12, Title: "Gamma", AuthorID: 3, ReviewerID: &reviewer},
@@ -74,7 +75,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 		{
 			name: "target name",
 			mutate: func(config *fixtureConfig) {
-				config.authors[0].name = "Adele"
+				config.authors[0].Name = "Adele"
 			},
 			check: func(t *testing.T, got Observation) {
 				if got.Forward.Cold.Name != "Adele" || got.Forward.Warm.Name != "Adele" {
@@ -85,7 +86,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 		{
 			name: "required source key",
 			mutate: func(config *fixtureConfig) {
-				config.posts[0].authorID = 3
+				config.posts[0].AuthorID = 3
 			},
 			check: func(t *testing.T, got Observation) {
 				if got.Forward.Cold.ID != 3 || got.Forward.Warm.ID != 3 {
@@ -97,7 +98,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 			name: "nullable source key",
 			mutate: func(config *fixtureConfig) {
 				reviewer := int64(2)
-				config.posts[1].reviewerID = &reviewer
+				config.posts[1].ReviewerID = &reviewer
 			},
 			check: func(t *testing.T, got Observation) {
 				if got.Nullable.Reviewer == nil || got.Nullable.Reviewer.ID != 2 || len(got.Nullable.IsNullPostIDs) != 0 {
@@ -119,7 +120,7 @@ func TestObservationChangesForEachOwnedREL003AndREL006Mutation(t *testing.T) {
 		{
 			name: "result ordering",
 			mutate: func(config *fixtureConfig) {
-				config.posts[2].reviewerID = nil
+				config.posts[2].ReviewerID = nil
 				config.descending = true
 			},
 			check: func(t *testing.T, got Observation) {
@@ -158,7 +159,8 @@ func TestGeneratedObjectWrapperFreshAliasCloneAndCopyBoundaries(t *testing.T) {
 			t.Errorf("Close() error = %v", err)
 		}
 	})
-	if err := provision(ctx, backend, defaultFixtureConfig()); err != nil {
+	seedConfig := defaultFixtureConfig()
+	if err := relationstate.Provision(ctx, backend, "REL-003/006", seedConfig.authors, seedConfig.posts); err != nil {
 		t.Fatal(err)
 	}
 	recorder := &recordingQueryer{backend: backend}
@@ -246,7 +248,8 @@ func TestGeneratedObjectWrapperCapturesBackendLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := provision(ctx, coldBackend, defaultFixtureConfig()); err != nil {
+	coldSeedConfig := defaultFixtureConfig()
+	if err := relationstate.Provision(ctx, coldBackend, "REL-003/006", coldSeedConfig.authors, coldSeedConfig.posts); err != nil {
 		t.Fatal(err)
 	}
 	coldPost, err := loadPost(ctx, coldBackend, 10)
@@ -268,7 +271,8 @@ func TestGeneratedObjectWrapperCapturesBackendLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := provision(ctx, warmBackend, defaultFixtureConfig()); err != nil {
+	warmSeedConfig := defaultFixtureConfig()
+	if err := relationstate.Provision(ctx, warmBackend, "REL-003/006", warmSeedConfig.authors, warmSeedConfig.posts); err != nil {
 		t.Fatal(err)
 	}
 	warmPost, err := loadPost(ctx, warmBackend, 10)
@@ -305,7 +309,8 @@ func TestGeneratedObjectWrapperCapturesBackendLifetime(t *testing.T) {
 			t.Errorf("Close(other backend) error = %v", err)
 		}
 	})
-	if err := provision(ctx, otherBackend, defaultFixtureConfig()); err != nil {
+	otherSeedConfig := defaultFixtureConfig()
+	if err := relationstate.Provision(ctx, otherBackend, "REL-003/006", otherSeedConfig.authors, otherSeedConfig.posts); err != nil {
 		t.Fatal(err)
 	}
 	otherObject, err := objects.BlogPost.From(otherBackend, warmPost)

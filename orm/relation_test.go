@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/progresshans/godj/internal/testschema"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -14,7 +15,7 @@ import (
 func TestBindProjectMixedSchemasPublishesCanonicalFreshProjections(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationSchemas()
+	authors, blog := testschema.Relation()
 	binding, err := orm.BindProject(blog, authors)
 	if err != nil {
 		t.Fatalf("BindProject() error = %v", err)
@@ -87,7 +88,7 @@ func TestBindProjectMixedSchemasPublishesCanonicalFreshProjections(t *testing.T)
 		t.Fatalf("caller mutation changed ReverseRelations(): %#v", got)
 	}
 
-	authorsAgain, blogAgain := relationSchemas()
+	authorsAgain, blogAgain := testschema.Relation()
 	permuted, err := orm.BindProject(authorsAgain, blogAgain)
 	if err != nil {
 		t.Fatalf("BindProject() permuted error = %v", err)
@@ -108,7 +109,7 @@ func TestBindProjectNoReverseAndZeroProject(t *testing.T) {
 		t.Fatalf("zero binding accessors = (%#v, %#v), want nil slices", empty.ForwardRelations(), empty.ReverseRelations())
 	}
 
-	authors, blog := relationSchemas()
+	authors, blog := testschema.Relation()
 	blog.Models[0].Fields[1].Relation.Reverse = ir.ReverseRelation{Disabled: true}
 	binding, err := orm.BindProject(authors, blog)
 	if err != nil {
@@ -126,7 +127,7 @@ func TestBindProjectErrorsAreTypedDeterministicAndPublishNothing(t *testing.T) {
 	t.Parallel()
 
 	t.Run("duplicate app precheck", func(t *testing.T) {
-		authors, _ := relationSchemas()
+		authors, _ := testschema.Relation()
 		duplicate := authors.Clone()
 		duplicate.Models = nil // Duplicate-app precheck must precede IR validation.
 		binding, err := orm.BindProject(duplicate, authors)
@@ -138,7 +139,7 @@ func TestBindProjectErrorsAreTypedDeterministicAndPublishNothing(t *testing.T) {
 	})
 
 	t.Run("unresolved target", func(t *testing.T) {
-		_, blog := relationSchemas()
+		_, blog := testschema.Relation()
 		binding, err := orm.BindProject(blog)
 		assertBindingError(t, err, &orm.RelationBindingError{
 			Code:      orm.RelationBindingUnresolvedTarget,
@@ -151,7 +152,7 @@ func TestBindProjectErrorsAreTypedDeterministicAndPublishNothing(t *testing.T) {
 	})
 
 	t.Run("reverse target field collision", func(t *testing.T) {
-		authors, blog := relationSchemas()
+		authors, blog := testschema.Relation()
 		blog.Models[0].Fields[1].Relation.Reverse.Name = "name"
 		binding, err := orm.BindProject(blog, authors)
 		assertBindingError(t, err, &orm.RelationBindingError{
@@ -166,7 +167,7 @@ func TestBindProjectErrorsAreTypedDeterministicAndPublishNothing(t *testing.T) {
 	})
 
 	t.Run("reverse relation collision", func(t *testing.T) {
-		authors, blog := relationSchemas()
+		authors, blog := testschema.Relation()
 		blog.Models[0].Fields[2].Relation.Reverse.Name = "posts"
 		binding, err := orm.BindProject(authors, blog)
 		assertBindingError(t, err, &orm.RelationBindingError{
@@ -181,7 +182,7 @@ func TestBindProjectErrorsAreTypedDeterministicAndPublishNothing(t *testing.T) {
 	})
 
 	t.Run("IR validation remains IR owned", func(t *testing.T) {
-		authors, blog := relationSchemas()
+		authors, blog := testschema.Relation()
 		blog.Models[0].Fields[1].Relation.OnDelete = ir.DeleteSetNull
 		binding, err := orm.BindProject(authors, blog)
 		var validationError *ir.ValidationError
@@ -197,7 +198,7 @@ func TestBindProjectErrorsAreTypedDeterministicAndPublishNothing(t *testing.T) {
 
 	// Multiple failures always select the first canonical source relation,
 	// independent of input schema order.
-	authors, blog := relationSchemas()
+	authors, blog := testschema.Relation()
 	blog.Models = append(blog.Models, ir.Model{
 		Name:   "comment",
 		GoName: "Comment",
@@ -233,7 +234,7 @@ func TestBindProjectErrorsAreTypedDeterministicAndPublishNothing(t *testing.T) {
 func TestProjectBindingConcurrentReads(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationSchemas()
+	authors, blog := testschema.Relation()
 	binding, err := orm.BindProject(authors, blog)
 	if err != nil {
 		t.Fatalf("BindProject() error = %v", err)
@@ -258,56 +259,6 @@ func TestProjectBindingConcurrentReads(t *testing.T) {
 		}()
 	}
 	wait.Wait()
-}
-
-func relationSchemas() (ir.Schema, ir.Schema) {
-	authors := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "authors",
-		Models: []ir.Model{{
-			Name:   "author",
-			GoName: "Author",
-			Fields: []ir.Field{
-				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-				{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 100},
-			},
-		}},
-	}
-	blog := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "blog",
-		Models: []ir.Model{{
-			Name:   "post",
-			GoName: "Post",
-			Fields: []ir.Field{
-				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-				{
-					Name:   "author",
-					GoName: "AuthorID",
-					Kind:   ir.FieldForeignKey,
-					Relation: &ir.ForeignKeyRelation{
-						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-						Cardinality: ir.RelationManyToOne,
-						Reverse:     ir.ReverseRelation{Name: "posts"},
-						OnDelete:    ir.DeleteProtect,
-					},
-				},
-				{
-					Name:     "reviewer",
-					GoName:   "ReviewerID",
-					Kind:     ir.FieldForeignKey,
-					Nullable: true,
-					Relation: &ir.ForeignKeyRelation{
-						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-						Cardinality: ir.RelationManyToOne,
-						Reverse:     ir.ReverseRelation{Name: "reviewed_posts"},
-						OnDelete:    ir.DeleteSetNull,
-					},
-				},
-			},
-		}},
-	}
-	return authors, blog
 }
 
 func assertBindingError(t *testing.T, err error, want *orm.RelationBindingError) {

@@ -1,9 +1,7 @@
 package protocol
 
 import (
-	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -87,46 +85,6 @@ func gdj0044ContractSets() []gdj0044ContractSet {
 				{CompareResult, CompareDBState, CompareMetrics}, {CompareResult, CompareDBState, CompareMetrics},
 			},
 		},
-	}
-}
-
-func TestGDJ0044ArtifactBytesAndExistingDjangoReferenceAreLocked(t *testing.T) {
-	t.Parallel()
-
-	type artifactLock struct {
-		size int
-		hash string
-	}
-	wanted := map[string]artifactLock{
-		"pyproject.toml": {227, "3076234a966a3bdbb3a0d775576764709632e2e160594040b1fee65d8ad591bd"},
-		"uv.lock":        {3162, "ad825e872092be26169a6706c0d9643e88875d877f24bffc5c1a3471d82b1fb7"},
-		"conformance/profiles/django-6.1-sqlite-darwin-arm64.json":                                    {879, "8b557bf935575f5366f4ebdc07441a8f4a3e2097f8af4a42450eb0fde12a5041"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                               {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
-		"conformance/reference/drf/pyproject.toml":                                                    {319, "46b3482056a64d2c9ac84320f047089c9c406d14d8bec7cf0e7a7b43f71be8b3"},
-		"conformance/reference/drf/uv.lock":                                                           {4199, "efc431a1585aaecd9099d40194980771b395bbe261370619f29b5ccf58728f8f"},
-		"conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json":                         {916, "6c0243b8ad398cca45e1ae1edfd99c321bd75e5ef6d0763cef76a5193c99ef1f"},
-		"conformance/contracts/parameter-routing-manifest.json":                                       {4689, "85365b3670df5fa5a0d51241dd958d25816d9a285a5070e416120423793a264e"},
-		"conformance/contracts/article-api-manifest.json":                                             {6618, "5047ca955ba5b2099f0d8bf2f6f0ed09944e2fcc705eb4ccd1c5bd6fa500a4e1"},
-		"conformance/fixtures/godj-parameter-routing-deviation-expected.json":                         {2174, "f9d084d178cccdf5928830813810f4d28c930d4414c73091a06dcd825ed38f60"},
-		"conformance/fixtures/godj-article-api-deviation-expected.json":                               {2003, "54758fdf850d4a61f65b764131a444c276ad7bb311a65d86b8b4a1780c979623"},
-		"conformance/fixtures/godj-parameter-routing-not-implemented.json":                            {1608, "7a7e3f3c433f837fb3240f97a75ef66022cf8887c6322d960dc3291eb48776b1"},
-		"conformance/fixtures/godj-article-api-not-implemented.json":                                  {1736, "fdb05cf9ff8e257c60b210dff29ec012a834110f22b703664f943e6740c2a27d"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json": {12663, "4aded47e2a0db9524a18625174e8d8815b69911e5310323fbe17bad34899cc53"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json":       {46466, "f63f06ac26a1cedac0ea3e7fe9339b163b2571cdbc2a7fea87f8debef690ab56"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS":                    {283, "429b5f8a1c7ce554f5fa676b0e5c32fdf528cf4888128063a901f3c4d89cda8a"},
-	}
-	root := conformanceRepositoryRoot(t)
-	for name, want := range wanted {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(contents) != want.size {
-			t.Fatalf("artifact %s size = %d, want %d", name, len(contents), want.size)
-		}
-		if got := fmt.Sprintf("%x", sha256.Sum256(contents)); got != want.hash {
-			t.Fatalf("artifact %s sha256 = %q, want %q", name, got, want.hash)
-		}
 	}
 }
 

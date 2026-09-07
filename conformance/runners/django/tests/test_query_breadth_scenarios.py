@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import json
 import unittest
 from copy import deepcopy
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+from conformance.runners.django.tests.values import decode_primary_keys
 from conformance.querybreadth import reference
 from conformance.querybreadth.reference import generate_suite
 from conformance.runners.django import query_breadth_scenarios as scenarios
@@ -34,34 +36,12 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
-def _decode(value: dict[str, Any]) -> Any:
-    kind = value["type"]
-    if kind == "null":
-        return None
-    if kind == "bool":
-        return value["value"]
-    if kind == "int":
-        return int(value["value"])
-    if kind == "string":
-        return value["value"]
-    if kind == "pk":
-        return _decode(value["value"])
-    if kind == "list":
-        return [_decode(item) for item in value["items"]]
-    if kind == "object":
-        return {
-            field["name"]: _decode(field["value"])
-            for field in value["fields"]
-        }
-    raise AssertionError(f"unsupported query-breadth test value kind {kind!r}")
-
-
 def _decoded(observation: dict[str, Any]) -> dict[str, Any]:
     return {
         **observation,
-        "result": _decode(observation["result"]),
-        "db_state": _decode(observation["db_state"]),
-        "metrics": _decode(observation["metrics"]),
+        "result": decode_primary_keys(observation["result"]),
+        "db_state": decode_primary_keys(observation["db_state"]),
+        "metrics": decode_primary_keys(observation["metrics"]),
     }
 
 

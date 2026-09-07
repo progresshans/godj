@@ -11,7 +11,9 @@ from django.db import connection
 from django.template import Context, Engine, TemplateSyntaxError
 from django.utils.safestring import mark_safe
 
-from .normalizer import PrimaryKey, normalize
+from .observations import observed
+from .observations import article_rows
+from .normalizer import PrimaryKey
 from .scenarios import Article, article_database, configure_django
 
 
@@ -21,25 +23,6 @@ configure_django()
 _ENGINE = Engine(debug=False)
 
 
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str = "evaluation",
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
-
-
 def _render(source: str, values: dict[str, Any]) -> str:
     return _ENGINE.from_string(source).render(Context(values, autoescape=True))
 
@@ -47,7 +30,7 @@ def _render(source: str, values: dict[str, Any]) -> str:
 def scalar_and_missing(contract_id: str) -> dict[str, Any]:
     rendered = _render("{{ title }}|{{ missing }}", {"title": "Article"})
     scalar, missing = rendered.split("|", 1)
-    return _observed(
+    return observed(
         contract_id,
         {
             "missing_is_empty": missing == "",
@@ -81,7 +64,7 @@ def dotted_lookup_precedence(contract_id: str) -> dict[str, Any]:
         },
     )
     mapping_value, probe_value, list_value = rendered.split("|")
-    return _observed(
+    return observed(
         contract_id,
         {
             "attribute_fallback_shadowed": probe_value != _LookupProbe.name,
@@ -104,7 +87,7 @@ def autoescape_and_safe(contract_id: str) -> dict[str, Any]:
         {"unsafe": unsafe, "trusted": mark_safe(trusted)},
     )
     unsafe_rendered, trusted_rendered = rendered.split("|", 1)
-    return _observed(
+    return observed(
         contract_id,
         {
             "ordinary_markup_escaped": unsafe_rendered == "&lt;b&gt;&amp;",
@@ -126,7 +109,7 @@ def if_for_and_empty(contract_id: str) -> dict[str, Any]:
     )
     populated = _render(source, {"enabled": True, "items": ["alpha", "beta"]})
     empty = _render(source, {"enabled": False, "items": []})
-    return _observed(
+    return observed(
         contract_id,
         {
             "empty_branch": empty.split("|", 1)[1],
@@ -144,7 +127,7 @@ def closed_filters(contract_id: str) -> dict[str, Any]:
         {"items": [1, 2, 3], "label": "GoDJ"},
     )
     default_value, length_value, lower_value = rendered.split("|")
-    return _observed(
+    return observed(
         contract_id,
         {
             "default": default_value,
@@ -176,7 +159,7 @@ def construction_failures(contract_id: str) -> dict[str, Any]:
             )
         else:
             observations.append({"accepted": True, "code": code, "python_type": None})
-    return _observed(
+    return observed(
         contract_id,
         {"cases": observations},
         phase="construction",
@@ -199,7 +182,7 @@ class _CallableProbe:
 def callable_exposure(contract_id: str) -> dict[str, Any]:
     probe = _CallableProbe()
     rendered = _render("{{ probe.exposed }}", {"probe": probe})
-    return _observed(
+    return observed(
         contract_id,
         {
             "auto_called": probe.calls == 1,
@@ -249,7 +232,7 @@ def unbound_and_bound_empty(contract_id: str) -> dict[str, Any]:
     unbound_errors = _error_codes(unbound)
     bound = _ArticleForm(data={})
     bound_valid = bound.is_valid()
-    return _observed(
+    return observed(
         contract_id,
         {
             "bound_empty": {
@@ -275,7 +258,7 @@ def valid_article_clean(contract_id: str) -> dict[str, Any]:
     if not valid:
         raise AssertionError("valid Article form fixture failed validation")
     cleaned = form.cleaned_data
-    return _observed(
+    return observed(
         contract_id,
         {
             "cleaned": {
@@ -300,7 +283,7 @@ def field_error_codes(contract_id: str) -> dict[str, Any]:
         form = _ArticleForm(data={"title": title, "published": "", "summary": ""})
         valid = form.is_valid()
         cases.append({"case": name, "errors": _error_codes(form), "valid": valid})
-    return _observed(
+    return observed(
         contract_id,
         {"cases": cases},
         metrics={"cases": len(cases), "valid_cases": sum(case["valid"] for case in cases)},
@@ -312,7 +295,7 @@ def cross_field_validation(contract_id: str) -> dict[str, Any]:
         data={"title": "x" * 201, "published": "on", "summary": ""}
     )
     valid = form.is_valid()
-    return _observed(
+    return observed(
         contract_id,
         {
             "changed_fields": form.changed_data,
@@ -323,20 +306,6 @@ def cross_field_validation(contract_id: str) -> dict[str, Any]:
         },
         metrics={"cross_field_validators": 1, "validation_errors": len(_error_codes(form))},
     )
-
-
-def _article_rows() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": PrimaryKey(primary_key),
-            "published": published,
-            "summary": summary,
-            "title": title,
-        }
-        for primary_key, title, published, summary in Article.objects.order_by(
-            "id"
-        ).values_list("id", "title", "published", "summary")
-    ]
 
 
 def _capture_write_count(operation: Callable[[], Any]) -> tuple[Any, int]:
@@ -362,7 +331,7 @@ def _capture_write_count(operation: Callable[[], Any]) -> tuple[Any, int]:
 
 def model_form_write_boundary(contract_id: str) -> dict[str, Any]:
     with article_database():
-        before = _article_rows()
+        before = article_rows(Article)
         invalid = _ArticleModelForm(
             data={"title": "", "published": "on", "summary": "invalid"}
         )
@@ -386,9 +355,9 @@ def model_form_write_boundary(contract_id: str) -> dict[str, Any]:
         if not update_form.is_valid():
             raise AssertionError("valid update ModelForm failed validation")
         updated, update_writes = _capture_write_count(update_form.save)
-        after = _article_rows()
+        after = article_rows(Article)
 
-        return _observed(
+        return observed(
             contract_id,
             {
                 "create": {

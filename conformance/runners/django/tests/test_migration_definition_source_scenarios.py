@@ -1,13 +1,10 @@
 from __future__ import annotations
 
+
 import ast
 import hashlib
 import inspect
 import json
-import os
-import subprocess
-import sys
-import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
@@ -16,6 +13,7 @@ from unittest.mock import patch
 from django.db import connections
 from django.db.migrations.executor import MigrationExecutor
 
+from conformance.runners.django.tests.values import denormalize
 from conformance.runners.django import (
     migration_definition_source_scenarios as scenarios,
 )
@@ -36,24 +34,6 @@ STATIC = (
     / "conformance/fixtures"
     / "godj-migration-definition-source-not-implemented.json"
 )
-
-
-def denormalize(value):
-    value_type = value["type"]
-    if value_type == "null":
-        return None
-    if value_type in {"bool", "string"}:
-        return value["value"]
-    if value_type == "int":
-        return int(value["value"])
-    if value_type == "list":
-        return [denormalize(item) for item in value["items"]]
-    if value_type == "object":
-        return {
-            field["name"]: denormalize(field["value"])
-            for field in value["fields"]
-        }
-    raise AssertionError(f"unexpected normalized value type: {value_type!r}")
 
 
 def observed(scenario, contract_id):
@@ -1827,45 +1807,6 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
                 scenarios.public_loaded_executor("untrusted-contract")
         self.assertEqual(len(calls), 1)
         self.assertNotIn(scenarios._DATABASE_ALIAS, connections.databases)
-
-    @unittest.skipUnless(
-        os.environ.get("GODJ_EXACT_PROFILE") == "1",
-        "requires the locked darwin/arm64 reference profile",
-    )
-    def test_two_independent_hashseed_processes_match_checked_in_oracle(self) -> None:
-        outputs = []
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            for index, hash_seed in enumerate(("17", "982451653"), 1):
-                output = Path(temporary_directory) / f"definition-source-{index}.json"
-                environment = os.environ.copy()
-                environment.update(
-                    {
-                        "LC_ALL": "C",
-                        "PYTHONHASHSEED": hash_seed,
-                        "TZ": "UTC",
-                    }
-                )
-                subprocess.run(
-                    [
-                        sys.executable,
-                        "-m",
-                        "conformance.runners.django",
-                        "--profile",
-                        str(PROFILE),
-                        "--manifest",
-                        str(MANIFEST),
-                        "--output",
-                        str(output),
-                    ],
-                    cwd=ROOT,
-                    env=environment,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                outputs.append(output.read_bytes())
-        self.assertEqual(outputs[0], outputs[1])
-        self.assertEqual(outputs[0], ORACLE.read_bytes())
 
 
 if __name__ == "__main__":

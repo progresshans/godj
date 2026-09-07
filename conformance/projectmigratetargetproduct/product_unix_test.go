@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
 func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
@@ -55,7 +57,7 @@ func TestProjectLinkedTargetedMigrateSQLite(t *testing.T) {
 		project.assertAllPublicFamilies(t)
 		project.assertWorkspaceEmpty(t)
 		project.assertApplicationUnchanged(t)
-		project.assertArtifactsRedacted(t, project.secret)
+		testfixture.AssertArtifactsRedacted(t, project.root, project.secret)
 	})
 }
 

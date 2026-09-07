@@ -16,7 +16,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 )
 
@@ -250,7 +250,7 @@ func (poison *sqlProductPostgresPoison) verifyAttemptObservation() error {
 
 func newSQLProductProject(t *testing.T) *sqlProductProject {
 	t.Helper()
-	repository := sqlProductRepositoryRoot(t)
+	repository := testfixture.RepositoryRoot(t)
 	universe, err := os.MkdirTemp("", "godj-sqlmigrate-external-")
 	if err != nil {
 		t.Fatal(err)
@@ -260,7 +260,7 @@ func newSQLProductProject(t *testing.T) *sqlProductProject {
 			t.Errorf("remove external sqlmigrate universe: %v", err)
 		}
 	})
-	sqlProductAssertSeparateRoot(t, repository, universe)
+	testfixture.AssertSeparateRoot(t, repository, universe)
 
 	root := filepath.Join(universe, "consumer")
 	nested := filepath.Join(root, "nested")
@@ -311,7 +311,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnv := sqlProductSanitizeDatabaseEnvironment(sqlProductRemoveEnvironment(sqlProductEnvironment(os.Environ(), map[string]string{
+	setupEnv := sqlProductSanitizeDatabaseEnvironment(sqlProductRemoveEnvironment(testfixture.Environment(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -353,7 +353,7 @@ replace github.com/progresshans/godj => %s
 	baseOverrides[sqlProductCatalogEnvironment] = sqlProductCatalogFull
 	baseOverrides[sqlProductRendererEnvironment] = sqlProductRendererSQLite
 	baseOverrides[sqlProductPostgresURLEnvironment] = postgresURL
-	baseEnv := sqlProductEnvironment(setupEnv, baseOverrides)
+	baseEnv := testfixture.Environment(setupEnv, baseOverrides)
 	globalBinary := filepath.Join(universe, "godj")
 	sqlProductRunSuccess(t, repository, baseEnv, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")
 
@@ -372,7 +372,7 @@ replace github.com/progresshans/godj => %s
 		postgresURL:      postgresURL,
 		postgresPoison:   postgresPoison,
 	}
-	project.applicationHash = project.captureApplicationHashes(t)
+	project.applicationHash = testfixture.ApplicationHashes(t, project.root)
 	project.assertWorkspaceEmpty(t)
 	return project
 }
@@ -393,7 +393,7 @@ func (project *sqlProductProject) state(t *testing.T, name string) sqlProductSta
 }
 
 func (project *sqlProductProject) environment(state sqlProductState, catalog, renderer string) []string {
-	return sqlProductEnvironment(project.baseEnv, map[string]string{
+	return testfixture.Environment(project.baseEnv, map[string]string{
 		sqlProductCatalogEnvironment:        catalog,
 		sqlProductRendererEnvironment:       renderer,
 		sqlProductInitMarkerEnvironment:     state.initMarker,
@@ -404,7 +404,7 @@ func (project *sqlProductProject) environment(state sqlProductState, catalog, re
 }
 
 func (project *sqlProductProject) postgresEnvironment(state sqlProductState) []string {
-	return sqlProductEnvironment(
+	return testfixture.Environment(
 		project.environment(state, sqlProductCatalogFull, sqlProductRendererPostgres),
 		map[string]string{
 			sqlProductPostgresSchemaEnvironment: sqlProductPostgresSchema,
@@ -563,7 +563,7 @@ func (project *sqlProductProject) assertCommandBoundary(t *testing.T, state sqlP
 	project.assertPoisonAbsent(t, state)
 	project.assertWorkspaceEmpty(t)
 	project.assertApplicationUnchanged(t)
-	project.assertApplicationArtifactsRedacted(t, sensitive...)
+	testfixture.AssertArtifactsRedacted(t, project.root, sensitive...)
 	sqlProductAssertStateArtifactsRedacted(t, state.directory, sensitive...)
 }
 
@@ -614,39 +614,9 @@ func (project *sqlProductProject) assertPoisonAbsent(t *testing.T, state sqlProd
 	}
 }
 
-func (project *sqlProductProject) captureApplicationHashes(t *testing.T) map[string][sha256.Size]byte {
-	t.Helper()
-	result := make(map[string][sha256.Size]byte)
-	err := filepath.WalkDir(project.root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("external application contains non-regular entry %s", path)
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		result[path] = sha256.Sum256(document)
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return result
-}
-
 func (project *sqlProductProject) assertApplicationUnchanged(t *testing.T) {
 	t.Helper()
-	after := project.captureApplicationHashes(t)
+	after := testfixture.ApplicationHashes(t, project.root)
 	if len(after) != len(project.applicationHash) {
 		t.Fatalf("sqlmigrate changed external application file roster: before=%d after=%d", len(project.applicationHash), len(after))
 	}
@@ -666,38 +636,6 @@ func (project *sqlProductProject) assertWorkspaceEmpty(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("sqlmigrate left private workspace residue: %v", sqlProductEntryNames(entries))
-	}
-}
-
-func (project *sqlProductProject) assertApplicationArtifactsRedacted(t *testing.T, sensitive ...string) {
-	t.Helper()
-	err := filepath.WalkDir(project.root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() || info.Size() > 8<<20 {
-			return nil
-		}
-		document, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		for _, value := range sensitive {
-			if value != "" && bytes.Contains(document, []byte(value)) {
-				return errors.New("external application artifact contains a sensitive value")
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -811,38 +749,6 @@ func sqlProductAssertMarkerAbsent(t *testing.T, path string) {
 	t.Helper()
 	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("marker %s unexpectedly exists: %v", filepath.Base(path), err)
-	}
-}
-
-func sqlProductRepositoryRoot(t *testing.T) string {
-	t.Helper()
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("cannot locate repository")
-	}
-	root, err := filepath.EvalSymlinks(filepath.Join(filepath.Dir(source), "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return root
-}
-
-func sqlProductAssertSeparateRoot(t *testing.T, repository, external string) {
-	t.Helper()
-	resolvedRepository, err := filepath.EvalSymlinks(repository)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolvedExternal, err := filepath.EvalSymlinks(external)
-	if err != nil {
-		t.Fatal(err)
-	}
-	relative, err := filepath.Rel(resolvedRepository, resolvedExternal)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))) {
-		t.Fatalf("external consumer root %q is inside repository %q", resolvedExternal, resolvedRepository)
 	}
 }
 
@@ -1749,29 +1655,6 @@ func sqlProductBoundedWaitChannel(waited <-chan struct{}, timeout time.Duration)
 	}
 }
 
-func sqlProductEnvironment(base []string, overrides map[string]string) []string {
-	values := make(map[string]string, len(base)+len(overrides))
-	for _, entry := range base {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	for key, value := range overrides {
-		values[key] = value
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, len(keys))
-	for index, key := range keys {
-		result[index] = key + "=" + values[key]
-	}
-	return result
-}
-
 func sqlProductSanitizeDatabaseEnvironment(environment []string) []string {
 	values := make(map[string]string, len(environment))
 	for _, entry := range environment {
@@ -1781,7 +1664,7 @@ func sqlProductSanitizeDatabaseEnvironment(environment []string) []string {
 		}
 		values[key] = value
 	}
-	return sqlProductEnvironment(nil, values)
+	return testfixture.Environment(nil, values)
 }
 
 func sqlProductIsDatabaseEnvironmentKey(key string) bool {
@@ -1806,7 +1689,7 @@ func sqlProductRemoveEnvironment(environment []string, keys ...string) []string 
 	for _, key := range keys {
 		delete(values, key)
 	}
-	return sqlProductEnvironment(nil, values)
+	return testfixture.Environment(nil, values)
 }
 
 func sqlProductEntryNames(entries []os.DirEntry) []string {

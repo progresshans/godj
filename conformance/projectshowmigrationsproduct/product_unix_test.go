@@ -4,6 +4,8 @@ package projectshowmigrationsproduct_test
 
 import (
 	"testing"
+
+	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
 const (
@@ -190,8 +192,8 @@ func TestGlobalShowMigrationsExternalProjectSQLiteProduct(t *testing.T) {
 		after := externalStatusCaptureSQLite(t, database)
 		externalStatusAssertSQLiteUnchanged(t, before, after)
 
-		externalStatusAuditApplicationSources(t, project.repository, project.root)
-		externalStatusAssertArtifactsRedacted(t, project.root, project.secret, "sqlite-secret-path-8c813d")
+		testfixture.AuditApplicationSources(t, project.repository, project.root, externalStatusAllowedImports)
+		testfixture.AssertArtifactsRedacted(t, project.root, project.secret, "sqlite-secret-path-8c813d")
 		project.assertWorkspaceEmpty(t)
 	})
 }

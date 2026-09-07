@@ -4,6 +4,8 @@ import (
 	"context"
 	"reflect"
 	"testing"
+
+	"github.com/progresshans/godj/conformance/internal/relationstate"
 )
 
 func TestObserveExecutesExactREL005AccessorLookupAndDatabaseState(t *testing.T) {
@@ -13,12 +15,12 @@ func TestObserveExecutesExactREL005AccessorLookupAndDatabaseState(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantAccessor := QueryMetrics{
+	wantAccessor := relationstate.QueryMetrics{
 		QueryCount:     1,
 		StatementKinds: []string{"SELECT"},
 		JoinKinds:      []string{},
 	}
-	wantLookup := QueryMetrics{
+	wantLookup := relationstate.QueryMetrics{
 		QueryCount:         1,
 		StatementKinds:     []string{"SELECT"},
 		JoinKinds:          []string{"INNER"},
@@ -32,9 +34,9 @@ func TestObserveExecutesExactREL005AccessorLookupAndDatabaseState(t *testing.T) 
 		t.Fatalf("REL-005 result/metrics = %#v", got)
 	}
 	reviewer := int64(2)
-	wantState := DatabaseState{
-		Authors: []AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
-		Posts: []PostRow{
+	wantState := relationstate.DatabaseState{
+		Authors: []relationstate.AuthorRow{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Bob"}, {ID: 3, Name: "Cleo"}},
+		Posts: []relationstate.PostRow{
 			{ID: 10, Title: "Alpha", AuthorID: 1, ReviewerID: &reviewer},
 			{ID: 11, Title: "Beta", AuthorID: 1},
 			{ID: 12, Title: "Gamma", AuthorID: 3, ReviewerID: &reviewer},
@@ -60,7 +62,7 @@ func TestObservationChangesForEveryOwnedREL005ResultStateAndMetricMutation(t *te
 		{
 			name: "accessor source key",
 			mutate: func(config *fixtureConfig) {
-				config.posts[1].authorID = 3
+				config.posts[1].AuthorID = 3
 			},
 			check: func(t *testing.T, got Observation) {
 				if !reflect.DeepEqual(got.AccessorPostIDs, []int64{10}) {
@@ -71,7 +73,7 @@ func TestObservationChangesForEveryOwnedREL005ResultStateAndMetricMutation(t *te
 		{
 			name: "lookup terminal value",
 			mutate: func(config *fixtureConfig) {
-				config.posts[0].title = "Mutation Alpha"
+				config.posts[0].Title = "Mutation Alpha"
 			},
 			check: func(t *testing.T, got Observation) {
 				if len(got.LookupAuthorIDs) != 0 {
@@ -93,7 +95,7 @@ func TestObservationChangesForEveryOwnedREL005ResultStateAndMetricMutation(t *te
 		{
 			name: "database state",
 			mutate: func(config *fixtureConfig) {
-				config.authors[0].name = "Mutation Ada"
+				config.authors[0].Name = "Mutation Ada"
 			},
 			check: func(t *testing.T, got Observation) {
 				if got.DBState.Authors[0].Name != "Mutation Ada" ||
