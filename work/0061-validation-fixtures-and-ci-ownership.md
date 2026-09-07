@@ -1,6 +1,6 @@
 ---
 id: GDJ-0061
-status: active
+status: complete
 updated: 2026-09-07
 baseline_commit: "ddb8c5135533f9fb7fc280d0446f2688b7b6b649"
 ---
@@ -33,11 +33,11 @@ baseline_commit: "ddb8c5135533f9fb7fc280d0446f2688b7b6b649"
 - [x] 공통 fixture 이관과 불필요한 복제·중복 테스트 정리
 - [x] CI의 중복 실행과 반복 선언 정리, scope와 필수 sentinel 연결
 - [x] 변경 묶음의 compile·관련 normal/race/CGO-disabled·generated drift와 부정 회귀
-- [ ] 고정 소스의 Hosted 통합 확인, 실제 코드 양·실행 범위·제한 기록
+- [x] 고정 소스의 Hosted 통합 확인, 실제 코드 양·실행 범위·제한 기록
 
 편집 중에는 필요한 compile만 확인한다. 관련 검증은 변경 묶음이 완성된 뒤 실행하고,
 전체 플랫폼 검증은 마지막 Hosted 통합 시점이 소유한다. 실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 한 번 기록한다.
 
 ## 다음 행동
 
-고정 소스로 Hosted full scope를 실행하고 전체 플랫폼·PostgreSQL 증거를 확인한다. 현재 blocker는 없다.
+이번 정리는 완료했다. 후속 기능은 별도 의미와 범위를 정한 뒤 시작하며 현재 blocker는 없다.

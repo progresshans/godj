@@ -1,9 +1,9 @@
 # 현재 상태
 
 - 갱신: 2026-09-07
-- 활성 작업: [GDJ-0061 검증 fixture와 CI 실행 소유권 정리](../../work/0061-validation-fixtures-and-ci-ownership.md)
-- 최근 완료: [GDJ-0060 생성기 검증의 실행 경계 정리](../../work/0060-codegen-validation-boundaries.md)
-- 최근 검증 소스(full scope): `d1115c7d8371cd52627eb4e1a6c7888b64b981fa`
+- 활성 작업: 없음
+- 최근 완료: [GDJ-0061 검증 fixture와 CI 실행 소유권 정리](../../work/0061-validation-fixtures-and-ci-ownership.md)
+- 최근 검증 소스(full scope): `21ceeb56021e65c7c718eef93a898150812b6c32`
 - 작업 브랜치: `codex/revision-fenced-migration-lifecycle`
 
 ## 현재 구현
@@ -14,14 +14,14 @@ Helpdesk는 티켓과 배정 Category를 한 번에 읽는 상세 API를 제공�
 
 ## 완료 결과
 
-GDJ-0060에서 순수 생성기 검사와 외부 consumer 실행을 분리하고 동일한 schema·임시 module 준비를 공유했다.
-기존 검증을 유지하면서 빠른 경로의 외부 빌드와 포맷 프로세스 중복을 줄였다.
+GDJ-0061에서 관계 product의 생성 fixture와 중복 테스트를 통합하고, 같은 환경에서 반복되던 CI 실행을 정리했다.
+실제 DB·cache·취소·rollback과 생성 조합 오류 검증은 유지하면서 검증 코드의 절대량을 줄였다.
 관련 로컬 normal/race/CGO-disabled와 고정 source의 전체 Hosted 검증을 통과했다.
 실제 실행 범위·시간 관측·환경별 skip의 검증 소유자는 [테스트 증거](TEST_EVIDENCE.md)에 기록했다.
 
 ## 다음 행동
 
-GDJ-0061에서 관계 fixture 복제·중복 테스트와 CI 반복 실행을 함께 정리한다. 현재 blocker는 없다.
+이번 정리는 완료했다. 현재 blocker는 없다.
 eager Count·다중 관계 탐색은 별도 의미와 작업 범위를 정한 뒤 시작한다. 기존 PR #1은 Draft로 유지한다.
 
 ## 검증과 제한
