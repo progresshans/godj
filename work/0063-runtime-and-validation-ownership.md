@@ -1,6 +1,6 @@
 ---
 id: GDJ-0063
-status: active
+status: complete
 updated: 2026-09-08
 baseline_commit: "df19040fc0e9c5a0e966ceada4b2d4484bdc5a57"
 integration_owner: "Codex"
@@ -28,7 +28,7 @@ integration_owner: "Codex"
 - [x] S8: 위험별 unit/process/DB/platform 검증 소유권과 CI 선택 정리, required/no-skip/completion 유지
 - [x] M2: 실제 generated header 기준 집계 도구와 기존 분류 오류 정정
 - [x] 관련 normal/race/CGO-disabled·generated drift·Python/oracle·DB/process 통합 checkpoint
-- [ ] 고정 구현 소스의 전체 Hosted 검증, 기존 Draft PR 정리와 완료 기록
+- [x] 고정 구현 소스의 전체 Hosted 검증, 기존 Draft PR 정리와 완료 기록
 
 작은 편집 중에는 필요한 compile 확인만 한다. 각 설계 묶음의 제품·지원 코드·회귀 테스트를 함께 완성한 뒤
 관련 검증을 실행한다. 로컬은 변경 위험의 집중 검증을, 마지막 Hosted 실행은 전체 플랫폼·PostgreSQL·cold-build를 소유한다.
@@ -43,7 +43,7 @@ argv·private envelope·실패 분류·공개 결과는 각 명령이 소유한�
 | 명령 | 준비와 실행 경계 | 완료 뒤 취소와 실패 선택 |
 | --- | --- | --- |
 | check | argv, 선택, workspace, build, 제한된 child 응답 | 엄격한 parse 뒤 outer cancellation barrier 유지 |
-| migrate / showmigrations / sqlmigrate | argv, 선택, workspace, build, 전체 response drain과 parse | 완성된 child 결과가 terminal. 늦은 취소로 durable 결과·닫힌 read 결과를 덮어쓰지 않음 |
+| migrate / showmigrations / sqlmigrate | argv, 선택, workspace, build, child drain과 bounded parse | 완성된 child 결과가 terminal. 늦은 취소로 durable 결과·닫힌 read 결과를 덮어쓰지 않음 |
 | generate | 공용 준비 뒤 ProjectSpec, bundle 검사·publication | publication의 durable commit과 recovery-required 의미 유지 |
 | makemigrations | build 전후 입력 fingerprint, writer lock 뒤 재계획·append | fsync된 prefix가 생기면 늦은 취소로 결과를 덮어쓰지 않음 |
 | createsuperuser | 잘못된 argv는 환경·cwd·TTY보다 먼저 거부. build 뒤 TTY와 별도 sensitive child | terminal 복구 실패·known-created·outcome-unknown 및 전용 cleanup 오류 보존 |
@@ -55,7 +55,8 @@ workspace 부분 생성 실패는 생성 owner가 회수하고 retained project�
 ## 현재 상태와 다음 행동
 
 F1/F2, M1/M2와 S1..S8 구현·관련 의미 문서화를 마쳤다. 집중 normal, 관련 race/CGO-disabled와
-소비자 통합·실행 대조·외부 명령·고정 reference 검증을 확인했다. 구현 소스를 고정하고
-Hosted full scope의 실제 PostgreSQL·platform·cold-build 결과까지 확인한다.
+소비자 통합·실행 대조·외부 명령·고정 reference 검증을 확인했다. 구현 소스
+`0badd6b369fa599ee5891665602990aaf44df3fe`의 Hosted full scope와 같은 실행의 PostgreSQL capture를 확인했다.
+초기 누락한 Admin 테스트 wrapper와 환경 timeout의 수정·재실행은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다.
 DB별 physical safety, generated bundle의 복구와 migration 문서의 append-only publication, 인증 방식별 경계는 유지한다.
-검토 후보 전부를 추적하며 공통화가 부적절한 부분은 남겨야 하는 의미와 검증 근거를 기록한다.
+검토 항목을 모두 처리했다. 기존 Draft PR #1을 유지하며 현재 후속 구현 작업과 blocker는 없다.
