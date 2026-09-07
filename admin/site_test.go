@@ -653,7 +653,7 @@ func (store *siteCountingStore) Create(ctx context.Context, record sessions.Reco
 	return store.Store.Create(ctx, record)
 }
 
-func (store *siteCountingStore) Touch(ctx context.Context, id sessions.ID, accessedAt, idleExpiresAt time.Time) (sessions.Record, bool, error) {
+func (store *siteCountingStore) Touch(ctx context.Context, id sessions.ID, accessedAt, idleExpiresAt time.Time) (sessions.Record, sessions.TouchStatus, error) {
 	store.mu.Lock()
 	store.touches++
 	store.mu.Unlock()
