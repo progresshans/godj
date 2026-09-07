@@ -893,11 +893,8 @@ jobs:
           log="$RUNNER_TEMP/python-compatibility-tests.txt"
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
-            python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
-          test "$(grep -c '^test_' "$log")" -eq 325
-          test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 21
-          grep -Fq 'Ran 325 tests' "$log"
-          grep -Fq 'OK (skipped=21)' "$log"
+            python -m scripts.ci.python_tests 2>&1 | tee "$log"
+          grep -Eq '^PYTHON_SUITE_VERIFIED tests=[1-9][0-9]* skips=[0-9]+$' "$log"
 
       - name: Verify all-scenario semantic digest
         env:

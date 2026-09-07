@@ -8,7 +8,7 @@
 - 작업: [GDJ-0062](../../work/0062-validation-duplication-audit.md)
 - 기준: `6ecf0b628465014ee1b1260454a08ce67713bd1a`, `codex/revision-fenced-migration-lifecycle`.
 - 로컬: 2026-09-07 KST, Go 1.26.5 darwin/arm64. 기준에 아래 구현을 적용한 checkout에서 실행했다.
-- 상태: 구현과 관련 로컬 checkpoint 완료. 고정 소스의 전체 Hosted 검증은 아직 실행 전이다.
+- 상태: 구현·관련 로컬 checkpoint와 CI 완료 검사 수정 검증 완료. 마지막 고정 소스의 전체 Hosted 검증을 준비한다.
 
 ### 검색 범위와 남긴 경계
 
@@ -51,18 +51,21 @@ framework/CLI 순으로 서로 겹치지 않는다. 프레임워크 runtime/API�
 
 | 분류 | 기준 | 구현 후 | 변화 |
 |---|---:|---:|---:|
-| Go 전체 | 315,925줄 | 313,581줄 | -2,344줄 |
-| `_test.go` | 166,681줄 | 164,799줄 | -1,882줄 |
-| conformance 지원 Go | 54,560줄 | 54,098줄 | -462줄 |
-| Python 전체 | 37,863줄 | 36,197줄 | -1,666줄 |
-| Python `test_*.py` | 13,771줄 | 12,233줄 | -1,538줄 |
+| Go 전체 | 315,925줄 | 313,585줄 | -2,340줄 |
+| `_test.go` | 166,681줄 | 164,801줄 | -1,880줄 |
+| conformance 지원 Go | 54,560줄 | 54,100줄 | -460줄 |
+| Python 전체 | 37,863줄 | 36,330줄 | -1,533줄 |
+| Python `test_*.py` | 13,771줄 | 12,289줄 | -1,482줄 |
 | generated / framework·CLI Go | 12,614 / 77,913줄 | 12,614 / 77,913줄 | 0 |
 
-Go/Python 코드 합계는 **4,010줄 감소**했다. Go의 테스트+conformance 지원 비중은 70.030% → 69.806%다.
-최상위 Go `Test*`는 2,213 → 2,192개(TestMain 제외), Python unittest method는 325 → 274개다. 합친 입력과 부정 대조는 위와 같이
+Go/Python 코드 합계는 **3,873줄 감소**했다. Go의 테스트+conformance 지원 비중은 70.030% → 69.807%다.
+최상위 Go `Test*`는 2,213 → 2,192개(TestMain 제외), Python reference suite의 unittest method는 325 → 274개다. 합친 입력과 부정 대조는 위와 같이
 유지했으며 이 개수를 새로운 영구 잠금으로 만들지 않는다. 코드 절대량과 반복 준비를 줄인 결과이며 실행 시간 개선율을 주장하지 않는다.
 
 ### 로컬 checkpoint
+
+아래 A/B와 exact Python/oracle 검증의 구현 소스는 `8c47cbd2ebf0510cf5fb4ba1f42920e8598dc5c6`다. 이후 변경은 아래 CI 완료 검사와
+그 source inventory에 한정하며 해당 변경의 별도 검증을 이어서 기록한다.
 
 A: `./codegen/... ./internal/testschema ./orm`, `./conformance/internal/{protocol,relationstate,testprocess}`,
 `./conformance/relationfixture/...`, 여섯 relation product, `./conformance/runners/godj ./conformance/cmd/godjcheck`,
@@ -89,7 +92,32 @@ Oracle 대조는 같은 uv 환경에서 `make oracle-check`를 실행했다. DRF
 `make generate-check`는 Helpdesk·Article·공통 relation 프로젝트 및 별도 metadata relation fixture에서 PASS다. A/B의 `go vet`,
 `make ci-tools-test`(17 tests), `make docs-check format-check`(83 documents), `git diff --check`도 PASS다.
 전체 OS/arch·cold build·PostgreSQL·외부 process의 모든 mode는 마지막 Hosted 실행이 소유한다. 로컬 전체 `make ci`를 중복하지 않았다.
-고정 소스의 Hosted 결과는 완료 후 이 절에 기록한다.
+
+
+### 초기 Hosted 실패와 CI 완료 검사 수정
+
+[CI 34100953054](https://github.com/progresshans/godj/actions/runs/34100953054), source `8c47cbd2ebf0510cf5fb4ba1f42920e8598dc5c6`의
+Python 3.12.13/3.13.15/3.14.3/3.14.7 job은 모두 `Ran 274 tests`, `OK (skipped=4)`까지 통과했지만 후속 shell이 이전
+325 tests/21 skips 수량을 요구해 실패했다. 관련 job ID는 `101675085715` / `101675085702` / `101675085617` / `101675085712`다.
+이 실행의 남은 job을 취소했다. 최종 49 success / 5 failure(네 Python 완료 검사와 aggregate) / 20 cancelled이며 full PASS가 아니다.
+
+고정 수량 grep을 `scripts/ci/python_tests.py`로 교체했다. 현재 발견한 각 testcase가 정확히 한 번 시작·종료했는지 확인하고,
+실패·expected failure·예상 밖 skip과 subtest skip을 거부한다. 별도 exact profile job이 실행하는 네 검사만 portable skip을 허용한다.
+성공 marker는 전체 확인 후에만 출력하며 workflow의 pipefail과 terminal marker 검사로 중단된 실행도 거부한다.
+새 일반 회귀를 추가할 때 전역 test-count를 갱신하지 않는다. 새 CI 실행 코드는 두 attestation의 source inventory에도 포함했다.
+
+수정 후 검증:
+
+- `make ci-tools-test`: PASS, 21 tests. empty/duplicate/missing discovery, dropped execution, missing stop, failure/xfail 및 임의 skip 거부 포함.
+- 두 attestation package의 `go test -count=1`, `go test -race -count=1`, `CGO_ENABLED=0 go test -count=1`: 모두 PASS.
+- CI와 같은 isolated Python 3.13.15 + Django 6.1/DRF 3.18.0 환경에서 새 runner: PASS, 274 tests / 4 exact-profile skips,
+  `PYTHON_SUITE_VERIFIED tests=274 skips=4`. 기존 reference 코드나 고정 입력을 변경하지 않았다.
+- 같은 환경에서 workflow의 semantic digest 코드 실행: PASS, 311 scenarios / 1,081,058 bytes /
+  `b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5`.
+- actionlint v1.7.12: PASS. ShellCheck/Pyflakes는 미포함.
+
+마지막 소스의 Hosted full scope와 새 source-bound PostgreSQL capture를 확인한 후 완료한다.
+
 
 ## GDJ-0061 — 검증 fixture와 CI 실행 소유권 정리
 

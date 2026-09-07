@@ -77,6 +77,8 @@ reference-only scope에서는 exact Darwin job이 직접 실행한다.
 테스트를 삭제하거나 통합하면 위 위험을 현재 어느 test가 검증하는지 확인한다.
 전체 이름·개수·payload 길이의 영구 잠금 대신 실행한 scope, required capability/sentinel과 실제 실패/skip를 검사한다.
 Test 파일의 문장이나 work 일지에 같은 prose가 남아 있는지는 runtime 안전성의 대체 검증이 아니다.
+Python compatibility는 현재 발견한 testcase의 시작·종료와 허용된 exact-profile skip을 대조한다. 전역 테스트 수를 고정하지 않고
+실패·expected failure·임의 skip·중단된 실행을 거부하며 고정 reference 의미의 별도 digest 검증을 유지한다.
 
 고정 reference 파일의 size/hash는 protocol의 공통 artifact catalog에서 대조한다. 각 계약의 phase·payload·provenance와
 부정 대조는 해당 계약 테스트가 맡는다. 구현 파일 자체의 과거 SHA를 보존하기 위해 현재 테스트의 구조를 고정하지 않는다.

@@ -27,6 +27,7 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/ci/go_test_events.py":                               {},
 	"scripts/ci/packages.py":                                     {},
 	"scripts/ci/scopes.py":                                       {},
+	"scripts/ci/python_tests.py":                                 {},
 	".github/workflows/ci.yml":                                   {},
 	"Makefile":                                                   {},
 	"conformance/contracts/system-state-manifest.json":           {},
