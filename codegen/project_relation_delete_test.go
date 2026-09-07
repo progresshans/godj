@@ -4,26 +4,26 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/codegen/internal/testfixture"
+	"github.com/progresshans/godj/codegen/internal/testschema"
 	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestGenerateProjectRelationDeleteIsCanonicalAndByteLocked(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationQueryGenerationSchemas()
-	packages := relationDeletePackages("example.com/godj-relation-delete", "authors", "blog", authors, blog)
+	authors, blog := testschema.QueryRelation()
+	packages := testfixture.TargetSourcePackages("example.com/godj-relation-delete", "authors", "blog", authors, blog)
 	first, err := codegen.GenerateProjectRelationDelete("project", packages)
 	if err != nil {
 		t.Fatalf("GenerateProjectRelationDelete() error = %v", err)
@@ -40,7 +40,7 @@ func TestGenerateProjectRelationDeleteIsCanonicalAndByteLocked(t *testing.T) {
 		reorderedBlog.Models[0].Fields[3], reorderedBlog.Models[0].Fields[2]
 	third, err := codegen.GenerateProjectRelationDelete(
 		"project",
-		relationDeletePackages("example.com/godj-relation-delete", "authors", "blog", authors, reorderedBlog),
+		testfixture.TargetSourcePackages("example.com/godj-relation-delete", "authors", "blog", authors, reorderedBlog),
 	)
 	if err != nil {
 		t.Fatalf("GenerateProjectRelationDelete() permuted edge error = %v", err)
@@ -116,12 +116,12 @@ func TestGenerateProjectRelationDeleteIsCanonicalAndByteLocked(t *testing.T) {
 func TestGenerateProjectRelationDeleteLocksExactFingerprintV1AndSemanticDrift(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationQueryGenerationSchemas()
+	authors, blog := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-delete-fingerprint"
-	baseline := mustGeneratedCode(t, "relation delete fingerprint baseline", func() ([]byte, error) {
+	baseline := testfixture.Generate(t, "relation delete fingerprint baseline", func() ([]byte, error) {
 		return codegen.GenerateProjectRelationDelete(
 			"project",
-			relationDeletePackages(modulePath, "authors", "blog", authors, blog),
+			testfixture.TargetSourcePackages(modulePath, "authors", "blog", authors, blog),
 		)
 	})
 	const exactDigest = "eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58"
@@ -148,7 +148,7 @@ func TestGenerateProjectRelationDeleteLocksExactFingerprintV1AndSemanticDrift(t 
 			mutation.edit(&target, &source)
 			candidate, err := codegen.GenerateProjectRelationDelete(
 				"project",
-				relationDeletePackages(modulePath, "authors", "blog", target, source),
+				testfixture.TargetSourcePackages(modulePath, "authors", "blog", target, source),
 			)
 			if err != nil {
 				t.Fatalf("GenerateProjectRelationDelete() semantic mutation error = %v", err)
@@ -163,16 +163,16 @@ func TestGenerateProjectRelationDeleteLocksExactFingerprintV1AndSemanticDrift(t 
 func TestGenerateProjectRelationDeleteRejectsInvalidInputsBeforeBytes(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationQueryGenerationSchemas()
-	valid := relationDeletePackages("example.com/godj-relation-delete-invalid", "authors", "blog", authors, blog)
+	authors, blog := testschema.QueryRelation()
+	valid := testfixture.TargetSourcePackages("example.com/godj-relation-delete-invalid", "authors", "blog", authors, blog)
 	unsupportedPolicy := blog.Clone()
 	unsupportedPolicy.Models[0].Fields[2].Relation.OnDelete = ir.DeletePolicy("cascade")
 	invalidSetNull := blog.Clone()
 	invalidSetNull.Models[0].Fields[3].Nullable = false
 	invalidTargetKey := authors.Clone()
 	invalidTargetKey.Models[0].Fields[0].PrimaryKey = false
-	reservedAlias := relationDeletePackages("example.com/godj-relation-delete-reserved", "query", "blog", authors, blog)
-	reservedPath := relationDeletePackages("example.com/godj-relation-delete-reserved", "authors", "blog", authors, blog)
+	reservedAlias := testfixture.TargetSourcePackages("example.com/godj-relation-delete-reserved", "query", "blog", authors, blog)
+	reservedPath := testfixture.TargetSourcePackages("example.com/godj-relation-delete-reserved", "authors", "blog", authors, blog)
 	reservedPath[0].ImportPath = "github.com/progresshans/godj/orm"
 	for _, test := range []struct {
 		name     string
@@ -186,17 +186,17 @@ func TestGenerateProjectRelationDeleteRejectsInvalidInputsBeforeBytes(t *testing
 		{name: "reserved import path", pkg: "project", packages: reservedPath, contains: "github.com/progresshans/godj/orm"},
 		{
 			name: "unsupported delete policy", pkg: "project",
-			packages: relationDeletePackages("example.com/godj-relation-delete-policy", "authors", "blog", authors, unsupportedPolicy),
+			packages: testfixture.TargetSourcePackages("example.com/godj-relation-delete-policy", "authors", "blog", authors, unsupportedPolicy),
 			contains: "unsupported",
 		},
 		{
 			name: "nonnullable set null", pkg: "project",
-			packages: relationDeletePackages("example.com/godj-relation-delete-nullability", "authors", "blog", authors, invalidSetNull),
+			packages: testfixture.TargetSourcePackages("example.com/godj-relation-delete-nullability", "authors", "blog", authors, invalidSetNull),
 			contains: "invalid_nullability",
 		},
 		{
 			name: "invalid target key", pkg: "project",
-			packages: relationDeletePackages("example.com/godj-relation-delete-key", "authors", "blog", invalidTargetKey, blog),
+			packages: testfixture.TargetSourcePackages("example.com/godj-relation-delete-key", "authors", "blog", invalidTargetKey, blog),
 			contains: "AutoField must be the primary key",
 		},
 		{
@@ -224,10 +224,10 @@ func TestGenerateProjectRelationDeleteRejectsInvalidInputsBeforeBytes(t *testing
 func TestGenerateProjectRelationDeleteAliasDiffersFromAppLabelAndZeroUniverse(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationQueryGenerationSchemas()
+	authors, blog := testschema.QueryRelation()
 	aliased, err := codegen.GenerateProjectRelationDelete(
 		"project",
-		relationDeletePackages("example.com/godj-relation-delete-alias", "people", "entries", authors, blog),
+		testfixture.TargetSourcePackages("example.com/godj-relation-delete-alias", "people", "entries", authors, blog),
 	)
 	if err != nil {
 		t.Fatalf("GenerateProjectRelationDelete() aliased error = %v", err)
@@ -287,9 +287,9 @@ func TestGenerateProjectRelationDeleteAliasDiffersFromAppLabelAndZeroUniverse(t 
 func TestGenerateProjectRelationDeleteLeavesCurrentPrerequisitesStableAndPreservesLastGood(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationQueryGenerationSchemas()
+	authors, blog := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-delete-current-stability"
-	packages := relationDeletePackages(modulePath, "authors", "blog", authors, blog)
+	packages := testfixture.TargetSourcePackages(modulePath, "authors", "blog", authors, blog)
 	before := projectRelationDeletePrerequisiteBytes(t, modulePath, authors, blog, packages)
 	candidate, err := codegen.GenerateProjectRelationDelete("project", packages)
 	if err != nil {
@@ -321,223 +321,6 @@ func TestGenerateProjectRelationDeleteLeavesCurrentPrerequisitesStableAndPreserv
 	}
 	if !bytes.Equal(got, lastGood) {
 		t.Fatalf("failed union verification changed last-good bytes: %q", got)
-	}
-}
-
-func TestGeneratedProjectRelationDeleteExactTwelveFileUnionCompilesAndBinds(t *testing.T) {
-	authors, blog := relationQueryGenerationSchemas()
-	const modulePath = "example.com/godj-relation-delete-union"
-	directory, files := writeGeneratedRelationSelectRelatedProject(
-		t,
-		modulePath,
-		"people",
-		"entries",
-		authors,
-		blog,
-		false,
-	)
-	companion, err := codegen.GenerateProjectRelationDelete(
-		"project",
-		relationDeletePackages(modulePath, "people", "entries", authors, blog),
-	)
-	if err != nil {
-		t.Fatalf("GenerateProjectRelationDelete() union error = %v", err)
-	}
-	const companionPath = "project/zz_godj_relation_delete.go"
-	writeGeneratedTestFile(t, directory, companionPath, companion)
-	files = append(files, companionPath)
-	if len(files) != 12 {
-		t.Fatalf("generated relation delete union has %d files, want exact 12: %v", len(files), files)
-	}
-	writeGeneratedTestFile(
-		t,
-		directory,
-		"project/relation_delete_external_test.go",
-		[]byte(fmt.Sprintf(`package project_test
-
-import (
-	"testing"
-
-	project %q
-)
-
-func TestGeneratedRelationDeleteAggregateBinds(t *testing.T) {
-	deleters, err := project.BindRelationDeleters()
-	if err != nil {
-		t.Fatalf("BindRelationDeleters() error = %%v", err)
-	}
-	_ = deleters.PeopleAuthor
-}
-`, modulePath+"/project")),
-	)
-
-	command := exec.Command("go", "test", "-mod=mod", "./...")
-	command.Dir = directory
-	command.Env = generatedTestEnvironment()
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("generated exact twelve-file relation delete union did not compile and bind: %v\n%s", err, output)
-	}
-}
-
-func TestGeneratedProjectRelationDeleteFingerprintDriftFailsCold(t *testing.T) {
-	authors, blog := relationQueryGenerationSchemas()
-	const modulePath = "example.com/godj-relation-delete-stale-fingerprint"
-	directory, _ := writeGeneratedRelationSelectRelatedProject(
-		t,
-		modulePath,
-		"authors",
-		"blog",
-		authors,
-		blog,
-		false,
-	)
-	companion, err := codegen.GenerateProjectRelationDelete(
-		"project",
-		relationDeletePackages(modulePath, "authors", "blog", authors, blog),
-	)
-	if err != nil {
-		t.Fatalf("GenerateProjectRelationDelete() stale fixture error = %v", err)
-	}
-	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_delete.go", companion)
-
-	changedBlog := blog.Clone()
-	changedBlog.Models[0].Fields[3].Relation.OnDelete = ir.DeleteProtect
-	changedMetadata, err := codegen.GenerateRelationMetadata("blog", changedBlog)
-	if err != nil {
-		t.Fatalf("generate changed source metadata: %v", err)
-	}
-	writeGeneratedTestFile(t, directory, "source/zz_godj_relation.go", changedMetadata)
-	writeGeneratedTestFile(
-		t,
-		directory,
-		"project/relation_delete_stale_external_test.go",
-		[]byte(fmt.Sprintf(`package project_test
-
-import (
-	"errors"
-	"reflect"
-	"testing"
-
-	project %q
-	"github.com/progresshans/godj/query"
-)
-
-func TestGeneratedRelationDeleteRejectsStaleFingerprint(t *testing.T) {
-	deleters, err := project.BindRelationDeleters()
-	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
-		t.Fatalf("BindRelationDeleters() error = %%v, want query_error/invalid_plan", err)
-	}
-	if !reflect.DeepEqual(deleters, project.RelationDeleters{}) {
-		t.Fatalf("failed relation deleter binding published %%#v", deleters)
-	}
-}
-`, modulePath+"/project")),
-	)
-
-	command := exec.Command("go", "test", "-mod=mod", "./...")
-	command.Dir = directory
-	command.Env = generatedTestEnvironment()
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("generated stale-fingerprint relation delete gate failed: %v\n%s", err, output)
-	}
-}
-
-func TestGeneratedProjectRelationDeleteRejectsAddedAndRemovedTargetsBeforeBinding(t *testing.T) {
-	authors, blog := relationQueryGenerationSchemas()
-	categories, reviews := relationDeleteAdditionalSchemas()
-	for _, test := range []struct {
-		name       string
-		fullDelete bool
-		fullBind   bool
-	}{
-		{name: "added target", fullDelete: false, fullBind: true},
-		{name: "removed target", fullDelete: true, fullBind: false},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			modulePath := "example.com/godj-relation-delete-target-set-" + strings.ReplaceAll(test.name, " ", "-")
-			directory, _ := writeGeneratedRelationSelectRelatedProject(
-				t,
-				modulePath,
-				"authors",
-				"blog",
-				authors,
-				blog,
-				false,
-			)
-			writeGeneratedRelationDeleteAdditionalPackages(t, directory, categories, reviews)
-
-			deletePackages := relationDeletePackages(modulePath, "authors", "blog", authors, blog)
-			if test.fullDelete {
-				deletePackages = append(deletePackages,
-					codegen.RelationObjectPackage{Alias: "categories", ImportPath: modulePath + "/category", Schema: categories},
-					codegen.RelationObjectPackage{Alias: "reviews", ImportPath: modulePath + "/review", Schema: reviews},
-				)
-			}
-			companion, err := codegen.GenerateProjectRelationDelete("project", deletePackages)
-			if err != nil {
-				t.Fatalf("GenerateProjectRelationDelete() target-set fixture error = %v", err)
-			}
-			writeGeneratedTestFile(t, directory, "project/zz_godj_relation_delete.go", companion)
-
-			if test.fullBind {
-				binding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
-					{Alias: "authors", ImportPath: modulePath + "/target"},
-					{Alias: "blog", ImportPath: modulePath + "/source"},
-					{Alias: "categories", ImportPath: modulePath + "/category"},
-					{Alias: "reviews", ImportPath: modulePath + "/review"},
-				})
-				if err != nil {
-					t.Fatalf("generate expanded project binding: %v", err)
-				}
-				writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", binding)
-			}
-			writeGeneratedTestFile(
-				t,
-				directory,
-				"project/relation_delete_target_set_external_test.go",
-				[]byte(fmt.Sprintf(`package project_test
-
-import (
-	"errors"
-	"strings"
-	"testing"
-
-	project %q
-	"github.com/progresshans/godj/query"
-)
-
-func TestGeneratedRelationDeleteRejectsTargetSetDrift(t *testing.T) {
-	_, err := project.BindRelationDeleters()
-	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
-		t.Fatalf("BindRelationDeleters() error = %%v, want query_error/invalid_plan", err)
-	}
-	if !strings.Contains(err.Error(), "target set") {
-		t.Fatalf("BindRelationDeleters() error = %%v, want target-set rejection before field binding", err)
-	}
-}
-`, modulePath+"/project")),
-			)
-
-			command := exec.Command("go", "test", "-mod=mod", "./...")
-			command.Dir = directory
-			command.Env = generatedTestEnvironment()
-			output, err := command.CombinedOutput()
-			if err != nil {
-				t.Fatalf("generated target-set drift gate failed: %v\n%s", err, output)
-			}
-		})
-	}
-}
-
-func relationDeletePackages(
-	modulePath, targetAlias, sourceAlias string,
-	authors, blog ir.Schema,
-) []codegen.RelationObjectPackage {
-	return []codegen.RelationObjectPackage{
-		{Alias: targetAlias, ImportPath: modulePath + "/target", Schema: authors},
-		{Alias: sourceAlias, ImportPath: modulePath + "/source", Schema: blog},
 	}
 }
 
@@ -589,65 +372,6 @@ func relationDeleteAggregateFieldCollisionPackages() []codegen.RelationObjectPac
 	}
 }
 
-func relationDeleteAdditionalSchemas() (ir.Schema, ir.Schema) {
-	categories := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "categories",
-		Models: []ir.Model{{
-			Name: "category", GoName: "Category",
-			Fields: []ir.Field{
-				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-				{Name: "label", GoName: "Label", Kind: ir.FieldChar, MaxLength: 80},
-			},
-		}},
-	}
-	reviews := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "reviews",
-		Models: []ir.Model{{
-			Name: "review", GoName: "Review",
-			Fields: []ir.Field{
-				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-				{
-					Name: "category", GoName: "CategoryID", Kind: ir.FieldForeignKey,
-					Relation: &ir.ForeignKeyRelation{
-						Target: ir.ModelIdentity{AppLabel: "categories", ModelName: "category"}, Cardinality: ir.RelationManyToOne,
-						Reverse: ir.ReverseRelation{Name: "reviews"}, OnDelete: ir.DeleteProtect,
-					},
-				},
-			},
-		}},
-	}
-	return categories, reviews
-}
-
-func writeGeneratedRelationDeleteAdditionalPackages(
-	t *testing.T,
-	directory string,
-	categories, reviews ir.Schema,
-) {
-	t.Helper()
-	for _, candidate := range []struct {
-		packageName string
-		directory   string
-		schema      ir.Schema
-	}{
-		{packageName: "categories", directory: "category", schema: categories},
-		{packageName: "reviews", directory: "review", schema: reviews},
-	} {
-		main, err := codegen.Generate(candidate.packageName, candidate.schema)
-		if err != nil {
-			t.Fatalf("generate additional %s main: %v", candidate.packageName, err)
-		}
-		metadata, err := codegen.GenerateRelationMetadata(candidate.packageName, candidate.schema)
-		if err != nil {
-			t.Fatalf("generate additional %s metadata: %v", candidate.packageName, err)
-		}
-		writeGeneratedTestFile(t, directory, candidate.directory+"/zz_godj_generated.go", main)
-		writeGeneratedTestFile(t, directory, candidate.directory+"/zz_godj_relation.go", metadata)
-	}
-}
-
 func projectRelationDeletePrerequisiteBytes(
 	t *testing.T,
 	modulePath string,
@@ -656,20 +380,20 @@ func projectRelationDeletePrerequisiteBytes(
 ) [][]byte {
 	t.Helper()
 	return [][]byte{
-		mustGeneratedCode(t, "project binding", func() ([]byte, error) {
+		testfixture.Generate(t, "project binding", func() ([]byte, error) {
 			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 				{Alias: "authors", ImportPath: modulePath + "/target"},
 				{Alias: "blog", ImportPath: modulePath + "/source"},
 			})
 		}),
-		mustGeneratedCode(t, "project object", func() ([]byte, error) {
+		testfixture.Generate(t, "project object", func() ([]byte, error) {
 			return codegen.GenerateProjectRelationObject("project", packages)
 		}),
-		mustGeneratedCode(t, "project select related", func() ([]byte, error) {
+		testfixture.Generate(t, "project select related", func() ([]byte, error) {
 			return codegen.GenerateProjectRelationSelectRelated("project", packages)
 		}),
-		mustGeneratedCode(t, "target main", func() ([]byte, error) { return codegen.Generate("authors", authors) }),
-		mustGeneratedCode(t, "source main", func() ([]byte, error) { return codegen.Generate("blog", blog) }),
+		testfixture.Generate(t, "target main", func() ([]byte, error) { return codegen.Generate("authors", authors) }),
+		testfixture.Generate(t, "source main", func() ([]byte, error) { return codegen.Generate("blog", blog) }),
 	}
 }
 

@@ -22,7 +22,8 @@ Python 내부 객체 구조와 소스 호환은 목표가 아니다. 현재 미�
 
 ## 검증과 기록
 
-- 편집 중에는 gofmt, affected test/compile, 필요한 generated drift를 실행한다.
+- 한 가지 설계 변경에 필요한 제품 코드·생성기·테스트를 먼저 함께 정리한다. 편집 중에는 필요한 compile 확인만 한다.
+- 변경 묶음이 완성되면 gofmt, affected test와 필요한 generated drift를 모아 실행한다.
 - 관련 DB·race·process 회귀는 통합 checkpoint에서 실행한다. 전체 platform/cold-build 검증은 명시한 통합 milestone이 소유한다.
 - 로컬 전체와 Hosted 전체를 관성적으로 중복하지 않는다. 검증 범위와 필요한 환경을 먼저 정한다.
 - 테스트 삭제·통합 시 어떤 위험을 어디에서 계속 검증하는지 확인한다. 필수 실행 누락·skip·잘린 증거는 성공이 아니다.

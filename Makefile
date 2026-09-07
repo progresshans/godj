@@ -119,8 +119,16 @@ endef
 
 format-check:
 	@set -euo pipefail; \
-	unformatted="$$(git ls-files -z --cached --others --exclude-standard -- '*.go' | \
-		xargs -0 sh -ec 'for file do test ! -f "$$file" || gofmt -l "$$file"; done' sh)"; \
+	format_manifest="$$(mktemp)"; \
+	trap 'rm -f "$$format_manifest"' EXIT; \
+	git ls-files -z --cached --others --exclude-standard -- '*.go' | \
+		while IFS= read -r -d '' file; do \
+			if [ -f "$$file" ]; then printf '%s\0' "$$file"; fi; \
+		done > "$$format_manifest"; \
+	unformatted=""; \
+	if [ -s "$$format_manifest" ]; then \
+		unformatted="$$(xargs -0 gofmt -l -- < "$$format_manifest")"; \
+	fi; \
 	if [ -n "$$unformatted" ]; then \
 		echo "unformatted Go files:"; \
 		echo "$$unformatted"; \

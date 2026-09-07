@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/codegen/internal/testschema"
 	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/schema"
@@ -32,7 +33,7 @@ func TestGeneratorVersionTracksCloneModelABI(t *testing.T) {
 func TestCurrentGeneratorPublishesCompleteRelationModelSurface(t *testing.T) {
 	t.Parallel()
 
-	_, blog := relationGenerationSchemas()
+	_, blog := testschema.Relation()
 	first, err := codegen.Generate("models", blog)
 	if err != nil {
 		t.Fatalf("Generate() relation error = %v", err)
@@ -146,14 +147,14 @@ func TestCurrentGeneratorPublishesCompleteRelationModelSurface(t *testing.T) {
 func TestGenerateRelationMainSnapshotsInputAndRejectsFixedNameCollision(t *testing.T) {
 	t.Parallel()
 
-	_, blog := relationGenerationSchemas()
+	_, blog := testschema.Relation()
 	before, err := codegen.Generate("models", blog)
 	if err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
 	blog.Models[0].Fields[1].Relation.Target.AppLabel = "mutated"
 	after, err := codegen.Generate("models", func() ir.Schema {
-		_, fresh := relationGenerationSchemas()
+		_, fresh := testschema.Relation()
 		return fresh
 	}())
 	if err != nil {
@@ -550,54 +551,4 @@ func TestGenerateRejectsSaveBindingSymbolCollisions(t *testing.T) {
 			}
 		})
 	}
-}
-
-func relationGenerationSchemas() (ir.Schema, ir.Schema) {
-	authors := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "authors",
-		Models: []ir.Model{{
-			Name:   "author",
-			GoName: "Author",
-			Fields: []ir.Field{
-				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-				{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 100},
-			},
-		}},
-	}
-	blog := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "blog",
-		Models: []ir.Model{{
-			Name:   "post",
-			GoName: "Post",
-			Fields: []ir.Field{
-				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-				{
-					Name:   "author",
-					GoName: "AuthorID",
-					Kind:   ir.FieldForeignKey,
-					Relation: &ir.ForeignKeyRelation{
-						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-						Cardinality: ir.RelationManyToOne,
-						Reverse:     ir.ReverseRelation{Name: "posts"},
-						OnDelete:    ir.DeleteProtect,
-					},
-				},
-				{
-					Name:     "reviewer",
-					GoName:   "ReviewerID",
-					Kind:     ir.FieldForeignKey,
-					Nullable: true,
-					Relation: &ir.ForeignKeyRelation{
-						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-						Cardinality: ir.RelationManyToOne,
-						Reverse:     ir.ReverseRelation{Name: "reviewed_posts"},
-						OnDelete:    ir.DeleteSetNull,
-					},
-				},
-			},
-		}},
-	}
-	return authors, blog
 }

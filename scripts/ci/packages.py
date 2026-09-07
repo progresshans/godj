@@ -26,7 +26,7 @@ def group(package):
         return 'products'
     if relative.startswith('conformance/'):
         return 'conformance'
-    if relative.startswith(('examples/', 'internal/projectgenerate', 'internal/compiletest')):
+    if relative.startswith(('examples/', 'codegen/consumertest', 'internal/projectgenerate', 'internal/compiletest')):
         return 'integration'
     return 'core'
 

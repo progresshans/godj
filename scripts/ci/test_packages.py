@@ -11,6 +11,7 @@ class PackagePartitionTests(unittest.TestCase):
     def test_slow_process_and_conformance_have_separate_owners(self):
         for relative, expected in {
             'orm': 'core', 'db/sqlite': 'core', 'codegen': 'core',
+            'codegen/internal/testschema': 'core', 'codegen/consumertest': 'integration',
             'cmd/godj': 'platform', 'internal/projectcheck/linked': 'platform',
             'examples/article': 'integration', 'conformance/runners/godj': 'platform',
             'conformance/cmd/godjcheck': 'conformance',
@@ -72,3 +73,35 @@ exit 0
             result = subprocess.run(['make', '--no-print-directory', 'format-check'], cwd=directory,
                                     capture_output=True, timeout=10)
             self.assertEqual(0, result.returncode, result.stderr.decode())
+
+            # Preserve filename framing and ignore a tracked file deleted from
+            # the working tree while batching existing files into gofmt.
+            spaced = directory / 'space name.go'
+            spaced.write_text('package valid\nfunc sample( ){ }\n')
+            deleted = directory / 'deleted.go'
+            deleted.write_text('package valid\n')
+            subprocess.run(['git', 'add', '.'], cwd=directory, check=True, capture_output=True)
+            deleted.unlink()
+            result = subprocess.run(['make', '--no-print-directory', 'format-check'], cwd=directory,
+                                    capture_output=True, timeout=10)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn(b'space name.go', result.stdout)
+            self.assertNotIn(b'deleted.go', result.stderr)
+            spaced.write_text('package valid\n\nfunc sample() {}\n')
+            result = subprocess.run(['make', '--no-print-directory', 'format-check'], cwd=directory,
+                                    capture_output=True, timeout=10)
+            self.assertEqual(0, result.returncode, result.stderr.decode())
+
+            fake_git = directory / 'git'
+            fake_git.write_text('''#!/bin/sh
+printf 'a.go\\0'
+exit "${GODJ_TEST_GIT_EXIT:-9}"
+''')
+            fake_git.chmod(0o700)
+            environment = dict(os.environ, PATH=str(directory) + os.pathsep + os.environ['PATH'])
+            for exit_code in ('9', '0'):
+                environment['GODJ_TEST_GIT_EXIT'] = exit_code
+                result = subprocess.run(['make', '--no-print-directory', 'format-check'], cwd=directory,
+                                        env=environment, capture_output=True, timeout=10)
+                self.assertEqual(exit_code == '0', result.returncode == 0,
+                                 'a partial Git listing must fail even when its files are formatted')

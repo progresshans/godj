@@ -46,9 +46,11 @@ jobs:
               print('docs_only=' + str(docs).lower(), file=output)
           print('Scope: documentation only' if docs else 'Scope: fast core; full platform validation is separate')
           PY
-      - name: Whitespace and CI tool regression checks
+      - name: Whitespace check
+        run: git diff --check ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+      - name: Documentation feedback
+        if: steps.change.outputs.docs_only == 'true'
         run: |
-          git diff --check ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
           python3 scripts/check_docs.py
           python3 -m unittest discover -s scripts/ci -p 'test_*.py'
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0

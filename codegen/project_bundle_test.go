@@ -4,18 +4,13 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"go/parser"
 	"go/token"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/codegen/internal/testschema"
 )
 
 func TestProjectBundleCanonicalRosterAndImmutableAccessors(t *testing.T) {
@@ -158,42 +153,6 @@ func TestGenerateProjectRejectsReservedAppIdentitiesBeforeBundle(t *testing.T) {
 	}
 }
 
-func TestGenerateProjectFullUnionCompilesAndMixedSnapshotFails(t *testing.T) {
-	baseline, err := GenerateProject(sparseProjectBundleTestSpec())
-	if err != nil {
-		t.Fatalf("GenerateProject() error = %v", err)
-	}
-	baselineRoot := writeProjectBundleModule(t, baseline)
-	if output, err := compileProjectBundleModule(baselineRoot); err != nil {
-		t.Fatalf("full generated union does not compile: %v\n%s", err, output)
-	}
-
-	changedSpec := sparseProjectBundleTestSpec()
-	changedSpec.Apps[1].Schema.Models[0].Fields[0].MaxLength++
-	changed, err := GenerateProject(changedSpec)
-	if err != nil {
-		t.Fatalf("GenerateProject(changed) error = %v", err)
-	}
-	if changed.SnapshotSHA256() == baseline.SnapshotSHA256() {
-		t.Fatal("schema change did not change project snapshot")
-	}
-	changedRoot := writeProjectBundleModule(t, changed)
-	if output, err := compileProjectBundleModule(changedRoot); err != nil {
-		t.Fatalf("changed generated union does not compile: %v\n%s", err, output)
-	}
-
-	for _, oldFile := range baseline.Files() {
-		oldFile := oldFile
-		t.Run(oldFile.Path, func(t *testing.T) {
-			mixedRoot := writeProjectBundleModule(t, changed)
-			writeProjectBundleTestFile(t, filepath.Join(mixedRoot, filepath.FromSlash(oldFile.Path)), oldFile.Source())
-			if output, err := compileProjectBundleModule(mixedRoot); err == nil {
-				t.Fatalf("mixed snapshot unexpectedly compiled\n%s", output)
-			}
-		})
-	}
-}
-
 func TestProjectBundleAppSourcesHaveNoDirectAppImports(t *testing.T) {
 	spec := projectBundleTestSpec()
 	bundle, err := GenerateProject(spec)
@@ -260,44 +219,7 @@ func assertProjectBundleFilesEqual(t *testing.T, left, right []GeneratedFile) {
 }
 
 func projectBundleTestSpec() ProjectSpec {
-	authors := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "authors",
-		Models: []ir.Model{{
-			Name:   "author",
-			GoName: "Author",
-			Fields: []ir.Field{{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 100}},
-		}},
-	}
-	blog := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "blog",
-		Models: []ir.Model{{
-			Name:   "blog_post",
-			GoName: "BlogPost",
-			Fields: []ir.Field{
-				{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
-				{
-					Name: "author", GoName: "AuthorID", Kind: ir.FieldForeignKey,
-					Relation: &ir.ForeignKeyRelation{
-						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-						Cardinality: ir.RelationManyToOne,
-						Reverse:     ir.ReverseRelation{Name: "blog_posts"},
-						OnDelete:    ir.DeleteProtect,
-					},
-				},
-				{
-					Name: "reviewer", GoName: "ReviewerID", Kind: ir.FieldForeignKey, Nullable: true,
-					Relation: &ir.ForeignKeyRelation{
-						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-						Cardinality: ir.RelationManyToOne,
-						Reverse:     ir.ReverseRelation{Name: "reviewed_posts"},
-						OnDelete:    ir.DeleteSetNull,
-					},
-				},
-			},
-		}},
-	}
+	authors, blog := testschema.Bundle()
 	return ProjectSpec{
 		Project: PackageSpec{PackageName: "project", ImportPath: "example.com/godj-project-bundle/project", Directory: "project"},
 		Apps: []AppSpec{
@@ -305,42 +227,6 @@ func projectBundleTestSpec() ProjectSpec {
 			{Alias: "authors", Package: PackageSpec{PackageName: "authors", ImportPath: "example.com/godj-project-bundle/authors", Directory: "authors"}, Schema: authors},
 		},
 	}
-}
-
-func sparseProjectBundleTestSpec() ProjectSpec {
-	spec := projectBundleTestSpec()
-	for index := range spec.Apps {
-		switch spec.Apps[index].Alias {
-		case "authors":
-			spec.Apps[index].Schema.Models = append(spec.Apps[index].Schema.Models,
-				ir.Model{
-					Name: "category", GoName: "Category",
-					Fields: []ir.Field{
-						{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-						{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 80},
-					},
-				},
-				ir.Model{
-					Name: "profile", GoName: "Profile",
-					Fields: []ir.Field{
-						{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
-						{Name: "label", GoName: "Label", Kind: ir.FieldChar, MaxLength: 80},
-					},
-				},
-			)
-		case "blog":
-			spec.Apps[index].Schema.Models[0].Fields = append(spec.Apps[index].Schema.Models[0].Fields, ir.Field{
-				Name: "category", GoName: "CategoryID", Kind: ir.FieldForeignKey, Nullable: true,
-				Relation: &ir.ForeignKeyRelation{
-					Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "category"},
-					Cardinality: ir.RelationManyToOne,
-					Reverse:     ir.ReverseRelation{Name: "categorized_posts"},
-					OnDelete:    ir.DeleteSetNull,
-				},
-			})
-		}
-	}
-	return spec
 }
 
 func projectBundleFile(t *testing.T, bundle GeneratedBundle, name string) GeneratedFile {
@@ -352,69 +238,4 @@ func projectBundleFile(t *testing.T, bundle GeneratedBundle, name string) Genera
 	}
 	t.Fatalf("bundle file %q not found", name)
 	return GeneratedFile{}
-}
-
-func writeProjectBundleModule(t *testing.T, bundle GeneratedBundle) string {
-	t.Helper()
-	directory := t.TempDir()
-	root := projectBundleRepositoryRoot(t)
-	writeProjectBundleTestFile(t, filepath.Join(directory, "go.mod"), []byte(fmt.Sprintf(`module example.com/godj-project-bundle
-
-go 1.26.0
-
-require github.com/progresshans/godj v0.0.0
-
-replace github.com/progresshans/godj => %s
-`, filepath.ToSlash(root))))
-	for _, file := range bundle.Files() {
-		writeProjectBundleTestFile(t, filepath.Join(directory, filepath.FromSlash(file.Path)), file.Source())
-	}
-	writeProjectBundleTestFile(t, filepath.Join(directory, "consumer", "consumer.go"), []byte(`package consumer
-
-import project "example.com/godj-project-bundle/project"
-
-var _ = project.GoDjProjectRelationFacadeGeneratorVersion
-`))
-	return directory
-}
-
-func compileProjectBundleModule(directory string) ([]byte, error) {
-	command := exec.Command("go", "test", "./...")
-	command.Dir = directory
-	command.Env = projectBundleTestEnvironment(os.Environ())
-	return command.CombinedOutput()
-}
-
-func projectBundleTestEnvironment(environment []string) []string {
-	blocked := map[string]struct{}{
-		"GOWORK": {}, "GOTOOLCHAIN": {}, "GOPROXY": {}, "GOSUMDB": {},
-	}
-	result := make([]string, 0, len(environment)+4)
-	for _, entry := range environment {
-		name, _, found := strings.Cut(entry, "=")
-		if _, remove := blocked[name]; found && remove {
-			continue
-		}
-		result = append(result, entry)
-	}
-	return append(result, "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
-}
-
-func projectBundleRepositoryRoot(t *testing.T) string {
-	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve project bundle test source")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), ".."))
-}
-
-func writeProjectBundleTestFile(t *testing.T, filename string, data []byte) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
-		t.Fatalf("create parent for %s: %v", filename, err)
-	}
-	if err := os.WriteFile(filename, data, 0o644); err != nil {
-		t.Fatalf("write %s: %v", filename, err)
-	}
 }

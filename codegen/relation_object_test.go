@@ -11,13 +11,14 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/codegen/internal/testschema"
 	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationQueryGenerationSchemas()
+	authors, blog := testschema.QueryRelation()
 	tests := []struct {
 		name         string
 		packageName  string
@@ -129,7 +130,7 @@ func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 func TestGenerateRelationObjectSnapshotsInputAndNeverWritesOnFailure(t *testing.T) {
 	t.Parallel()
 
-	_, blog := relationQueryGenerationSchemas()
+	_, blog := testschema.QueryRelation()
 	generated, err := codegen.GenerateRelationObject("blog", blog)
 	if err != nil {
 		t.Fatalf("GenerateRelationObject() error = %v", err)
@@ -138,7 +139,7 @@ func TestGenerateRelationObjectSnapshotsInputAndNeverWritesOnFailure(t *testing.
 	if bytes.Contains(generated, []byte("mutated")) {
 		t.Fatal("post-generation schema mutation changed relation object bytes")
 	}
-	_, freshBlog := relationQueryGenerationSchemas()
+	_, freshBlog := testschema.QueryRelation()
 
 	directory := t.TempDir()
 	sentinelPath := filepath.Join(directory, "committed.go")
@@ -161,7 +162,7 @@ func TestGenerateRelationObjectSnapshotsInputAndNeverWritesOnFailure(t *testing.
 func TestGenerateRelationObjectRejectsOwnFixedNamespaceCollision(t *testing.T) {
 	t.Parallel()
 
-	authors, _ := relationQueryGenerationSchemas()
+	authors, _ := testschema.QueryRelation()
 	authors.Models[0].GoName = "GoDjRelationObjectGeneratorVersion"
 	if _, err := codegen.GenerateRelationObject("authors", authors); err == nil {
 		t.Fatal("GenerateRelationObject() accepted object provenance collision")

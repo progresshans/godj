@@ -1,7 +1,7 @@
 # 현재 상태
 
 - 갱신: 2026-09-07
-- 활성 작업: 없음
+- 활성 작업: [GDJ-0060 생성기 검증의 실행 경계 정리](../../work/0060-codegen-validation-boundaries.md)
 - 최근 완료: [GDJ-0059 테스트와 검증 코드 공통화](../../work/0059-test-validation-compaction.md)
 - 최근 검증 소스(full scope): `623ce53e52187c7d2ab656775e356ba5e0ce5117`
 - 작업 브랜치: `codex/revision-fenced-migration-lifecycle`
@@ -21,7 +21,7 @@ GDJ-0059에서 동일한 process helper·관계 fixture·검증 준비를 공유
 
 ## 다음 행동
 
-현재 요청한 공통화 작업은 완료했으며 blocker는 없다. 다음 구현 작업은 아직 정하지 않았다.
+GDJ-0060에서 생성기 단위 검사와 외부 consumer 실행을 분리하고 반복되는 테스트 준비를 정리한다. 현재 blocker는 없다.
 eager Count·다중 관계 탐색은 별도 의미와 작업 범위를 정한 뒤 시작한다. 기존 PR #1은 Draft로 유지한다.
 
 ## 검증과 제한

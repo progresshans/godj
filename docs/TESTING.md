@@ -5,7 +5,8 @@
 
 ## 작업 중
 
-변경한 Go 파일은 gofmt하고 affected package/test부터 실행한다. 아래 package는 예시이며 변경 영향에 맞게 바꾼다.
+한 가지 설계 변경에 필요한 제품 코드·생성기·테스트를 먼저 함께 정리한다. 편집 중에는 필요한 compile 확인만 하고,
+변경 묶음이 완성되면 gofmt와 affected package/test를 모아 실행한다. 아래 package는 예시이며 변경 영향에 맞게 바꾼다.
 
 ```sh
 go test ./schema/... ./query/...
@@ -46,6 +47,8 @@ Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 이 문�
 Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cache로 저장하지 않는다.
 
 외부 build가 많은 conformance runner/godjcheck와 명령별 제품 흐름은 순수 core loop에서 분리한다.
+생성기의 byte/schema 단위 검사는 `codegen`, 생성된 별도 Go module의 compile·runtime·잘못된 조합 거부는
+`codegen/consumertest`가 소유한다. 후자는 integration과 relation platform 범위에서 실행하며 `make quick`에는 포함하지 않는다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
 DB schema/port/temp 디렉터리는 lane별로 분리하고 무거운 DB/process suite의 동시 실행 수를 제한한다.
 

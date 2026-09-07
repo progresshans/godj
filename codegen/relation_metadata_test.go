@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/codegen/internal/testschema"
 	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestGenerateRelationMetadataSupportsCurrentScalarAndRelationSchemas(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationGenerationSchemas()
+	authors, blog := testschema.Relation()
 	tests := []struct {
 		name      string
 		input     ir.Schema
@@ -91,7 +92,7 @@ func TestGenerateRelationMetadataSupportsCurrentScalarAndRelationSchemas(t *test
 func TestGenerateRelationMetadataSnapshotsInputAndRendersDisabledReverse(t *testing.T) {
 	t.Parallel()
 
-	_, blog := relationGenerationSchemas()
+	_, blog := testschema.Relation()
 	blog.Models[0].Fields[1].Relation.Reverse = ir.ReverseRelation{Disabled: true}
 	before, err := codegen.GenerateRelationMetadata("models", blog)
 	if err != nil {
@@ -109,7 +110,7 @@ func TestGenerateRelationMetadataSnapshotsInputAndRendersDisabledReverse(t *test
 func TestGenerateRelationMetadataRejectsInvalidPackageAndFixedSymbolCollision(t *testing.T) {
 	t.Parallel()
 
-	authors, _ := relationGenerationSchemas()
+	authors, _ := testschema.Relation()
 	if _, err := codegen.GenerateRelationMetadata("bad-package", authors); err == nil {
 		t.Fatal("GenerateRelationMetadata() accepted invalid package name")
 	}
