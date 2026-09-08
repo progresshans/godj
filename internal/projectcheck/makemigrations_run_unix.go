@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -472,16 +473,8 @@ func makemigrationsBarrier(input MakemigrationsInvocation, primary *Makemigratio
 	if primary != nil && primary.Category == MakemigrationsCategoryProcess && primary.Code == MakemigrationsCodeProjectCleanupFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := MakemigrationsFailure{Category: MakemigrationsCategoryProcess, Code: MakemigrationsCodeProjectInterrupted}
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := MakemigrationsFailure{Category: MakemigrationsCategoryProcess, Code: MakemigrationsCodeProjectCanceled}
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := MakemigrationsFailure{Category: MakemigrationsCategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary
@@ -570,14 +563,11 @@ func chooseMakemigrationsResult(report *MakemigrationsReport, result Makemigrati
 func makemigrationsExitCode(failure MakemigrationsFailure) (int, bool) {
 	switch failure.Category {
 	case MakemigrationsCategoryCommand:
-		return exactMakemigrationsCode(failure.Code, 2, MakemigrationsCodeInvalidArguments)
+		return failurecode.Exact(failure.Code, 2, MakemigrationsCodeInvalidArguments)
 	case MakemigrationsCategorySelection:
-		return exactMakemigrationsCode(failure.Code, 2,
-			MakemigrationsCodeProjectNotFound, MakemigrationsCodeProjectSearchLimitExceeded,
-			MakemigrationsCodeInvalidProjectDescriptor, MakemigrationsCodeProjectDescriptorIncompatible,
-			MakemigrationsCodeProjectSelectionFailed)
+		return failurecode.Selection(failure.Code, 2)
 	case MakemigrationsCategoryBuild:
-		return exactMakemigrationsCode(failure.Code, 3,
+		return failurecode.Exact(failure.Code, 3,
 			MakemigrationsCodeProjectTemporaryStorageFailed, MakemigrationsCodeProjectInventoryFailed,
 			MakemigrationsCodeProjectBuildFailed)
 	case MakemigrationsCategorySource:
@@ -599,7 +589,7 @@ func makemigrationsExitCode(failure MakemigrationsFailure) (int, bool) {
 			return 0, false
 		}
 	case writerprotocol.CategoryProtocol:
-		return exactMakemigrationsCode(failure.Code, 3,
+		return failurecode.Exact(failure.Code, 3,
 			writerprotocol.CodeInvalidRequest, writerprotocol.CodeProtocolIncompatible,
 			writerprotocol.CodeInvalidResponse, writerprotocol.CodeRunnerFailed)
 	case writerprotocol.CategoryDeclaration, writerprotocol.CategoryDiscovery,
@@ -610,28 +600,12 @@ func makemigrationsExitCode(failure MakemigrationsFailure) (int, bool) {
 		}
 		return 0, false
 	case MakemigrationsCategoryProcess:
-		switch failure.Code {
-		case MakemigrationsCodeProjectCanceled, MakemigrationsCodeProjectCleanupFailed:
-			return 3, true
-		case MakemigrationsCodeProjectInterrupted:
-			return 130, true
-		default:
-			return 0, false
-		}
+		return failurecode.Process(failure.Code)
 	case MakemigrationsCategoryInternal:
-		return exactMakemigrationsCode(failure.Code, 3, MakemigrationsCodeProjectInternalError)
+		return failurecode.Exact(failure.Code, 3, MakemigrationsCodeProjectInternalError)
 	default:
 		return 0, false
 	}
-}
-
-func exactMakemigrationsCode(code string, exit int, allowed ...string) (int, bool) {
-	for _, candidate := range allowed {
-		if code == candidate {
-			return exit, true
-		}
-	}
-	return 0, false
 }
 
 func publishMakemigrations(input MakemigrationsInvocation, report *MakemigrationsReport) {

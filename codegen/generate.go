@@ -6,7 +6,6 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"go/token"
 	"strconv"
 	"unicode"
@@ -25,7 +24,7 @@ func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("normalize codegen schema: %w", err)
 	}
-	return generate(packageName, prepared)
+	return finalizeSource(generate(packageName, prepared))
 }
 
 func generate(packageName string, prepared preparedSchema) ([]byte, error) {
@@ -55,11 +54,7 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 		renderModel(&output, model)
 	}
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated source: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func hasNullableQueryStorage(schema ir.Schema) bool {

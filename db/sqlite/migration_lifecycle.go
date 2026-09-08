@@ -5,13 +5,13 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"database/sql/driver"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/progresshans/godj/db/internal/migrationhistory"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -148,10 +148,10 @@ func (session *sqliteRevisionFencedSession) ReadAppliedMigrations(ctx context.Co
 			errors.New("SQLite migration recorder exists without revision metadata; exclusive adoption is required"),
 		)
 	}
-	session.records = cloneAppliedMigrations(snapshot.records)
+	session.records = migrationhistory.Clone(snapshot.records)
 	session.token = snapshot.token
 	session.state = revisionSessionReady
-	return cloneAppliedMigrations(snapshot.records), nil
+	return migrationhistory.Clone(snapshot.records), nil
 }
 
 func shouldPoisonRevisionSessionForBackendEntryError(err error) bool {
@@ -226,7 +226,7 @@ func (session *sqliteRevisionFencedSession) finishTransaction(
 	session.active = nil
 	if committed {
 		session.token = successorToken
-		session.records = cloneAppliedMigrations(successorRecords)
+		session.records = migrationhistory.Clone(successorRecords)
 	}
 	if poison {
 		session.state = revisionSessionPoisoned
@@ -294,7 +294,7 @@ func (transaction *sqliteRevisionFencedTransaction) claimRevision(ctx context.Co
 		)
 	}
 	if !equalMigrationRevisionToken(current.token, transaction.expectedToken) ||
-		!equalAppliedMigrations(current.records, transaction.expectedRecords) {
+		!migrationhistory.Equal(current.records, transaction.expectedRecords) {
 		return newRevisionFenceError(
 			migrationbackend.RevisionFenceFailureStale,
 			errors.New("SQLite migration history revision is stale"),
@@ -576,7 +576,7 @@ func (transaction *sqliteRevisionFencedTransaction) verifySuccessor(ctx context.
 	}
 	if !current.metadataPresent || !current.recorderPresent ||
 		!equalMigrationRevisionToken(current.token, transaction.successorToken) ||
-		!equalAppliedMigrations(current.records, transaction.successorRecords) {
+		!migrationhistory.Equal(current.records, transaction.successorRecords) {
 		return newRevisionFenceError(
 			migrationbackend.RevisionFenceFailureIntegrity,
 			errors.New("fenced migration durable successor does not match its declared history transition"),
@@ -678,7 +678,7 @@ func inspectMigrationRevisionSnapshot(ctx context.Context, executor migrationSQL
 			recorderPresent: recorderPresent,
 			records:         []migrationbackend.AppliedMigration{},
 			token: migrationRevisionToken{
-				fingerprint: fingerprintMigrationHistory(nil),
+				fingerprint: migrationhistory.Fingerprint(nil),
 			},
 		}, nil
 	}
@@ -700,7 +700,7 @@ func inspectMigrationRevisionSnapshot(ctx context.Context, executor migrationSQL
 	if err != nil {
 		return migrationRevisionSnapshot{}, err
 	}
-	fingerprint := fingerprintMigrationHistory(records)
+	fingerprint := migrationhistory.Fingerprint(records)
 	if fingerprint != token.fingerprint {
 		return migrationRevisionSnapshot{}, newRevisionFenceError(
 			migrationbackend.RevisionFenceFailureIntegrity,
@@ -946,7 +946,7 @@ func readRevisionRecorderHistory(ctx context.Context, executor migrationSQLExecu
 	if err := rows.Err(); err != nil {
 		return nil, classifyRevisionIntegrityIO("iterate revision-fenced migration recorder", err)
 	}
-	sortAppliedMigrations(records)
+	migrationhistory.Sort(records)
 	for index := 1; index < len(records); index++ {
 		if records[index] == records[index-1] {
 			return nil, newRevisionFenceError(
@@ -1049,9 +1049,9 @@ func migrationHistorySuccessor(
 	records []migrationbackend.AppliedMigration,
 	transition migrationbackend.HistoryTransition,
 ) ([]migrationbackend.AppliedMigration, error) {
-	successor := cloneAppliedMigrations(records)
+	successor := migrationhistory.Clone(records)
 	index := sort.Search(len(successor), func(index int) bool {
-		return compareAppliedMigration(successor[index], transition.Migration) >= 0
+		return migrationhistory.Compare(successor[index], transition.Migration) >= 0
 	})
 	if transition.Kind == migrationbackend.HistoryTransitionApply {
 		if index < len(successor) && successor[index] == transition.Migration {
@@ -1072,66 +1072,6 @@ func migrationHistorySuccessor(
 		)
 	}
 	return append(successor[:index:index], successor[index+1:]...), nil
-}
-
-func fingerprintMigrationHistory(records []migrationbackend.AppliedMigration) [sha256.Size]byte {
-	canonical := cloneAppliedMigrations(records)
-	sortAppliedMigrations(canonical)
-	hash := sha256.New()
-	var length [8]byte
-	binary.BigEndian.PutUint64(length[:], uint64(len(canonical)))
-	_, _ = hash.Write(length[:])
-	for _, record := range canonical {
-		for _, value := range []string{record.App, record.Name} {
-			binary.BigEndian.PutUint64(length[:], uint64(len(value)))
-			_, _ = hash.Write(length[:])
-			_, _ = hash.Write([]byte(value))
-		}
-	}
-	var result [sha256.Size]byte
-	copy(result[:], hash.Sum(nil))
-	return result
-}
-
-func cloneAppliedMigrations(records []migrationbackend.AppliedMigration) []migrationbackend.AppliedMigration {
-	if records == nil {
-		return []migrationbackend.AppliedMigration{}
-	}
-	return append([]migrationbackend.AppliedMigration(nil), records...)
-}
-
-func sortAppliedMigrations(records []migrationbackend.AppliedMigration) {
-	sort.Slice(records, func(left, right int) bool {
-		return compareAppliedMigration(records[left], records[right]) < 0
-	})
-}
-
-func compareAppliedMigration(left, right migrationbackend.AppliedMigration) int {
-	if left.App < right.App {
-		return -1
-	}
-	if left.App > right.App {
-		return 1
-	}
-	if left.Name < right.Name {
-		return -1
-	}
-	if left.Name > right.Name {
-		return 1
-	}
-	return 0
-}
-
-func equalAppliedMigrations(left, right []migrationbackend.AppliedMigration) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
 }
 
 func equalMigrationRevisionToken(left, right migrationRevisionToken) bool {

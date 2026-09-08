@@ -1,9 +1,9 @@
 package query
 
 import (
-	"regexp"
 	"strings"
 
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -15,8 +15,6 @@ const (
 	RelationForward RelationDirection = "forward"
 	RelationReverse RelationDirection = "reverse"
 )
-
-var canonicalRelationIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
 // RelationTerminalScope identifies whether a relation condition ends on a
 // scalar field of the related model or on the source model's local key. The
@@ -247,7 +245,7 @@ func canonicalModelIdentity(identity ir.ModelIdentity) bool {
 }
 
 func canonicalIdentifier(value string) bool {
-	return canonicalRelationIdentifier.MatchString(value)
+	return identifiers.SQL(value)
 }
 
 func validReverseTerminal(field FieldRef) bool {

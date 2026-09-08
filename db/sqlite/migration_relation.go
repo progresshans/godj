@@ -14,6 +14,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/db/internal/migrationhistory"
+	"github.com/progresshans/godj/internal/irresource"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -99,11 +101,6 @@ type sqliteRelationCatalogObjectKey struct {
 	schema string
 	name   string
 	kind   string
-}
-
-type sqliteRelationResourceBudget struct {
-	nodes uint64
-	bytes uint64
 }
 
 type sqliteRelationReverseOwnerIndex struct {
@@ -329,7 +326,7 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	}
 	successorToken := session.token
 	successorToken.initialized = true
-	successorToken.fingerprint = fingerprintMigrationHistory(successorRecords)
+	successorToken.fingerprint = migrationhistory.Fingerprint(successorRecords)
 	if session.token.initialized {
 		if session.token.revision == math.MaxInt64 {
 			session.state = revisionSessionPoisoned
@@ -404,8 +401,8 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 		connection:       connectionBoundary,
 		session:          session,
 		transition:       transition,
-		expectedRecords:  cloneAppliedMigrations(session.records),
-		successorRecords: cloneAppliedMigrations(successorRecords),
+		expectedRecords:  migrationhistory.Clone(session.records),
+		successorRecords: migrationhistory.Clone(successorRecords),
 		expectedToken:    session.token,
 		successorToken:   successorToken,
 		bootstrap:        !session.token.initialized,
@@ -465,7 +462,7 @@ func validateAndSealSQLiteRelationIntent(
 	if err := validateSQLiteRelationZeroSentinels(transition, intent); err != nil {
 		return sqliteRelationIntentSeal{}, err
 	}
-	pinned := cloneSQLiteRelationIntent(intent)
+	pinned := intent.Clone()
 	externalTargets, err := validateSQLiteRelationIntent(transition, pinned)
 	if err != nil {
 		return sqliteRelationIntentSeal{}, err
@@ -505,169 +502,58 @@ func validateAndSealSQLiteRelationIntent(
 func scanSQLiteRelationIntentResources(
 	transition migrationbackend.HistoryTransition,
 	intent migrationbackend.MigrationIntent,
-) error {
+) (resultErr error) {
+	defer func() {
+		if resultErr != nil {
+			resultErr = relationIntentIntegrity("%v", resultErr)
+		}
+	}()
 	if len(intent.Operations) > sqliteRelationMaxOperations {
-		return relationIntentIntegrity("relation intent has %d operations, maximum %d", len(intent.Operations), sqliteRelationMaxOperations)
+		return fmt.Errorf("relation intent has %d operations, maximum %d", len(intent.Operations), sqliteRelationMaxOperations)
 	}
-	budget := sqliteRelationResourceBudget{}
-	if err := budget.consumeNodes("transition", 1); err != nil {
+	budget := irresource.New(irresource.Limits{Fields: sqliteRelationMaxFields, StringBytes: sqliteRelationMaxStringBytes, Nodes: sqliteRelationMaxNodes, Bytes: sqliteRelationMaxAggregateBytes})
+	if err := budget.ConsumeNodes("transition", 1); err != nil {
 		return err
 	}
-	if err := budget.consumeString("transition.migration.app", transition.Migration.App); err != nil {
+	if err := budget.ConsumeString("transition.migration.app", transition.Migration.App); err != nil {
 		return err
 	}
-	if err := budget.consumeString("transition.migration.name", transition.Migration.Name); err != nil {
+	if err := budget.ConsumeString("transition.migration.name", transition.Migration.Name); err != nil {
 		return err
 	}
-	if err := budget.consumeNodes("operations", len(intent.Operations)); err != nil {
+	if err := budget.ConsumeNodes("operations", len(intent.Operations)); err != nil {
 		return err
 	}
 	for operationIndex := range intent.Operations {
 		operation := intent.Operations[operationIndex]
 		prefix := fmt.Sprintf("operations[%d]", operationIndex)
-		if err := budget.scanModel(prefix+".before", operation.Before); err != nil {
+		if err := budget.ScanModel(prefix+".before", operation.Before); err != nil {
 			return err
 		}
-		if err := budget.scanModel(prefix+".after", operation.After); err != nil {
+		if err := budget.ScanModel(prefix+".after", operation.After); err != nil {
 			return err
 		}
 		if len(operation.Targets) > sqliteRelationMaxTargets {
-			return relationIntentIntegrity("%s has %d targets, maximum %d", prefix, len(operation.Targets), sqliteRelationMaxTargets)
+			return fmt.Errorf("%s has %d targets, maximum %d", prefix, len(operation.Targets), sqliteRelationMaxTargets)
 		}
-		if err := budget.consumeNodes(prefix+".targets", len(operation.Targets)); err != nil {
+		if err := budget.ConsumeNodes(prefix+".targets", len(operation.Targets)); err != nil {
 			return err
 		}
 		for targetIndex := range operation.Targets {
 			target := operation.Targets[targetIndex]
 			targetPrefix := fmt.Sprintf("%s.targets[%d]", prefix, targetIndex)
-			if err := budget.scanField(targetPrefix+".source_field", target.SourceField); err != nil {
+			if err := budget.ScanField(targetPrefix+".source_field", target.SourceField); err != nil {
 				return err
 			}
-			if err := budget.scanModel(targetPrefix+".target_model", target.TargetModel); err != nil {
+			if err := budget.ScanModel(targetPrefix+".target_model", target.TargetModel); err != nil {
 				return err
 			}
-			if err := budget.scanField(targetPrefix+".target_key", target.TargetKey); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (budget *sqliteRelationResourceBudget) scanModel(path string, model ir.Model) error {
-	if err := budget.consumeNodes(path, 1); err != nil {
-		return err
-	}
-	for _, value := range []string{model.Name, model.GoName, model.DBTable} {
-		if err := budget.consumeString(path, value); err != nil {
-			return err
-		}
-	}
-	if len(model.Fields) > sqliteRelationMaxFields {
-		return relationIntentIntegrity("%s has %d fields, maximum %d", path, len(model.Fields), sqliteRelationMaxFields)
-	}
-	if err := budget.consumeNodes(path+".fields", len(model.Fields)); err != nil {
-		return err
-	}
-	for index := range model.Fields {
-		if err := budget.scanField(fmt.Sprintf("%s.fields[%d]", path, index), model.Fields[index]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (budget *sqliteRelationResourceBudget) scanField(path string, field ir.Field) error {
-	if err := budget.consumeNodes(path, 1); err != nil {
-		return err
-	}
-	for _, value := range []string{field.Name, field.GoName, field.Column, string(field.Kind)} {
-		if err := budget.consumeString(path, value); err != nil {
-			return err
-		}
-	}
-	if field.Default != nil {
-		if err := budget.consumeNodes(path+".default", 1); err != nil {
-			return err
-		}
-		for _, value := range []string{string(field.Default.Kind), field.Default.String} {
-			if err := budget.consumeString(path+".default", value); err != nil {
-				return err
-			}
-		}
-	}
-	if field.Relation != nil {
-		if err := budget.consumeNodes(path+".relation", 1); err != nil {
-			return err
-		}
-		for _, value := range []string{
-			field.Relation.Target.AppLabel,
-			field.Relation.Target.ModelName,
-			string(field.Relation.Cardinality),
-			field.Relation.Reverse.Name,
-			string(field.Relation.OnDelete),
-		} {
-			if err := budget.consumeString(path+".relation", value); err != nil {
+			if err := budget.ScanField(targetPrefix+".target_key", target.TargetKey); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
-}
-
-func (budget *sqliteRelationResourceBudget) consumeNodes(path string, count int) error {
-	if count < 0 || uint64(count) > sqliteRelationMaxNodes-budget.nodes {
-		return relationIntentIntegrity("%s exceeds the aggregate relation intent node limit %d", path, sqliteRelationMaxNodes)
-	}
-	budget.nodes += uint64(count)
-	return nil
-}
-
-func (budget *sqliteRelationResourceBudget) consumeString(path, value string) error {
-	if len(value) > sqliteRelationMaxStringBytes {
-		return relationIntentIntegrity("%s contains a string of %d bytes, maximum %d", path, len(value), sqliteRelationMaxStringBytes)
-	}
-	if uint64(len(value)) > sqliteRelationMaxAggregateBytes-budget.bytes {
-		return relationIntentIntegrity("%s exceeds the aggregate relation intent byte limit %d", path, sqliteRelationMaxAggregateBytes)
-	}
-	budget.bytes += uint64(len(value))
-	return nil
-}
-
-func cloneSQLiteRelationIntent(intent migrationbackend.MigrationIntent) migrationbackend.MigrationIntent {
-	clone := migrationbackend.MigrationIntent{}
-	if intent.Operations == nil {
-		return clone
-	}
-	clone.Operations = make([]migrationbackend.MigrationOperation, len(intent.Operations))
-	for operationIndex := range intent.Operations {
-		operation := intent.Operations[operationIndex]
-		operation.Before = cloneSQLiteRelationModel(operation.Before)
-		operation.After = cloneSQLiteRelationModel(operation.After)
-		if operation.Targets != nil {
-			operation.Targets = make([]migrationbackend.MigrationTarget, len(operation.Targets))
-			for targetIndex := range intent.Operations[operationIndex].Targets {
-				target := intent.Operations[operationIndex].Targets[targetIndex]
-				target.SourceField = target.SourceField.Clone()
-				target.TargetModel = cloneSQLiteRelationModel(target.TargetModel)
-				target.TargetKey = target.TargetKey.Clone()
-				operation.Targets[targetIndex] = target
-			}
-		}
-		clone.Operations[operationIndex] = operation
-	}
-	return clone
-}
-
-func cloneSQLiteRelationModel(model ir.Model) ir.Model {
-	clone := model
-	if model.Fields != nil {
-		clone.Fields = make([]ir.Field, len(model.Fields))
-		for index := range model.Fields {
-			clone.Fields[index] = model.Fields[index].Clone()
-		}
-	}
-	return clone
 }
 
 func hashSQLiteRelationIntent(intent migrationbackend.MigrationIntent) ([sha256.Size]byte, error) {
@@ -1252,29 +1138,36 @@ func deriveSQLiteRelationMutationTargets(
 func validateSQLiteDerivedTargetExpansionResources(
 	sources []ir.Field,
 	changed migrationbackend.MigrationTarget,
-) error {
-	derived := sqliteRelationResourceBudget{}
-	if err := derived.consumeNodes("derived relation targets", len(sources)); err != nil {
+) (resultErr error) {
+	defer func() {
+		if resultErr != nil {
+			resultErr = relationIntentIntegrity("%v", resultErr)
+		}
+	}()
+	derived := irresource.New(irresource.Limits{Fields: sqliteRelationMaxFields, StringBytes: sqliteRelationMaxStringBytes, Nodes: sqliteRelationMaxNodes, Bytes: sqliteRelationMaxAggregateBytes})
+	if err := derived.ConsumeNodes("derived relation targets", len(sources)); err != nil {
 		return err
 	}
 	for index := range sources {
-		if err := derived.scanField(fmt.Sprintf("derived relation targets[%d].source_field", index), sources[index]); err != nil {
+		if err := derived.ScanField(fmt.Sprintf("derived relation targets[%d].source_field", index), sources[index]); err != nil {
 			return err
 		}
 	}
-	perTarget := sqliteRelationResourceBudget{}
-	if err := perTarget.scanModel("derived relation target.model", changed.TargetModel); err != nil {
+	perTarget := irresource.New(irresource.Limits{Fields: sqliteRelationMaxFields, StringBytes: sqliteRelationMaxStringBytes, Nodes: sqliteRelationMaxNodes, Bytes: sqliteRelationMaxAggregateBytes})
+	if err := perTarget.ScanModel("derived relation target.model", changed.TargetModel); err != nil {
 		return err
 	}
-	if err := perTarget.scanField("derived relation target.key", changed.TargetKey); err != nil {
+	if err := perTarget.ScanField("derived relation target.key", changed.TargetKey); err != nil {
 		return err
 	}
 	count := uint64(len(sources))
-	if perTarget.nodes != 0 && count > (sqliteRelationMaxNodes-derived.nodes)/perTarget.nodes {
-		return relationIntentIntegrity("derived relation targets exceed the aggregate relation intent node limit %d", sqliteRelationMaxNodes)
+	derivedNodes, derivedBytes := derived.Counts()
+	perTargetNodes, perTargetBytes := perTarget.Counts()
+	if perTargetNodes != 0 && count > (sqliteRelationMaxNodes-derivedNodes)/perTargetNodes {
+		return fmt.Errorf("derived relation targets exceed the aggregate relation intent node limit %d", sqliteRelationMaxNodes)
 	}
-	if perTarget.bytes != 0 && count > (sqliteRelationMaxAggregateBytes-derived.bytes)/perTarget.bytes {
-		return relationIntentIntegrity("derived relation targets exceed the aggregate relation intent byte limit %d", sqliteRelationMaxAggregateBytes)
+	if perTargetBytes != 0 && count > (sqliteRelationMaxAggregateBytes-derivedBytes)/perTargetBytes {
+		return fmt.Errorf("derived relation targets exceed the aggregate relation intent byte limit %d", sqliteRelationMaxAggregateBytes)
 	}
 	return nil
 }

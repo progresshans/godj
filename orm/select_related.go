@@ -488,6 +488,8 @@ func (q ForwardSelectQuery[S, T]) scan(ctx context.Context, plan query.Plan, max
 	lifecycle := rowsLifecycle{rows: rows}
 	defer lifecycle.close()
 	projected := make([]projectedRow[S, T], 0)
+	sourceColumnCount := len(plan.SourceFields())
+	targetColumnCount := len(q.selection.path.projection.TargetColumns())
 	for (maximum == 0 || len(projected) < maximum) && rows.Next() {
 		if contextErr := ctx.Err(); contextErr != nil {
 			err = contextErr
@@ -501,8 +503,8 @@ func (q ForwardSelectQuery[S, T]) scan(ctx context.Context, plan query.Plan, max
 		}
 		sourceDestinations := sourceScan.Destinations()
 		targetDestinations := targetScan.Destinations()
-		if !validProjectionDestinations(sourceDestinations, len(plan.SourceFields())) ||
-			!validProjectionDestinations(targetDestinations, len(q.selection.path.projection.TargetColumns())) {
+		if !validProjectionDestinations(sourceDestinations, sourceColumnCount) ||
+			!validProjectionDestinations(targetDestinations, targetColumnCount) {
 			err = relationInvalidPlan("projection scan destinations do not match the selected columns")
 			break
 		}

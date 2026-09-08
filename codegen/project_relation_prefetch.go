@@ -3,7 +3,6 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"strconv"
 )
 
@@ -24,7 +23,7 @@ func GenerateProjectRelationPrefetch(
 	if err != nil {
 		return nil, err
 	}
-	return generateProjectRelationPrefetch(packageName, newRelationProjectPlan(canonical))
+	return generateProjectCompanion(packageName, newRelationProjectPlan(canonical), companionPrefetch)
 }
 
 func generateProjectRelationPrefetch(packageName string, plan *relationProjectPlan) ([]byte, error) {
@@ -36,13 +35,7 @@ func generateProjectRelationPrefetch(packageName string, plan *relationProjectPl
 	if err != nil {
 		return nil, err
 	}
-	if err := validateProjectRelationReverseNamespaces(plan, owners); err != nil {
-		return nil, fmt.Errorf("validate project relation reverse prerequisites: %w", err)
-	}
 	objectOwners := projectRelationReverseObjectOwners(owners)
-	if err := validateProjectRelationPrefetchNamespaces(plan, owners, objectOwners); err != nil {
-		return nil, fmt.Errorf("validate project relation prefetch names: %w", err)
-	}
 	objectModels := projectRelationReverseUsedModels(models, objectOwners)
 	usedApps := projectRelationReverseUsedApps(canonical, objectModels)
 
@@ -78,11 +71,7 @@ func generateProjectRelationPrefetch(packageName string, plan *relationProjectPl
 	fmt.Fprintln(&output)
 	renderBindReversePrefetches(&output, objectOwners)
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated project relation prefetch companion: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func validateProjectRelationPrefetchImports(apps []normalizedRelationPackage) error {
@@ -93,104 +82,6 @@ func validateProjectRelationPrefetchImports(apps []normalizedRelationPackage) er
 		}
 		if app.importPath == "context" {
 			return fmt.Errorf("reserved relation prefetch import path %q", app.importPath)
-		}
-	}
-	return nil
-}
-
-func validateProjectRelationPrefetchNamespaces(
-	plan *relationProjectPlan,
-	owners []projectRelationReverseOwner,
-	objectOwners []projectRelationReverseOwner,
-) error {
-	packageNames := make(map[string]string)
-	addPackageName := func(name, owner string) error {
-		if previous, duplicate := packageNames[name]; duplicate {
-			return fmt.Errorf("package symbol %s for %s conflicts with %s", name, owner, previous)
-		}
-		packageNames[name] = owner
-		return nil
-	}
-	prerequisiteNames := []struct {
-		name  string
-		owner string
-	}{
-		{name: "GoDjProjectBindingGeneratorVersion", owner: "project binding provenance constant"},
-		{name: "Bind", owner: "project binding function"},
-		{name: "GoDjProjectRelationReverseGeneratorVersion", owner: "project reverse provenance constant"},
-		{name: "ReverseRelations", owner: "project reverse relation aggregate"},
-		{name: "BindReverseRelations", owner: "project reverse relation binding function"},
-		{name: "ReverseObjects", owner: "project reverse object aggregate"},
-		{name: "BindReverseObjects", owner: "project reverse object binding function"},
-	}
-	for _, prerequisite := range prerequisiteNames {
-		if err := addPackageName(prerequisite.name, prerequisite.owner); err != nil {
-			return err
-		}
-	}
-	if err := seedProjectRelationReversePrerequisiteNames(plan, addPackageName); err != nil {
-		return err
-	}
-	objectOwnerSet := make(map[*projectRelationModel]struct{}, len(objectOwners))
-	for index := range objectOwners {
-		objectOwnerSet[objectOwners[index].model] = struct{}{}
-	}
-	for _, owner := range owners {
-		identity := owner.model.identity.AppLabel + "." + owner.model.identity.ModelName
-		if err := addPackageName(owner.relationsType, "reverse relations for "+identity); err != nil {
-			return err
-		}
-		if _, objectCapable := objectOwnerSet[owner.model]; objectCapable {
-			if err := addPackageName(owner.factoryType, "reverse object factory for "+identity); err != nil {
-				return err
-			}
-			if err := addPackageName(owner.objectType, "reverse object wrapper for "+identity); err != nil {
-				return err
-			}
-		}
-		for _, relation := range owner.relations {
-			if err := addPackageName(relation.typeName, "reverse relation "+identity+"."+relation.name); err != nil {
-				return err
-			}
-		}
-	}
-	prefetchNames := []struct {
-		name  string
-		owner string
-	}{
-		{name: "GoDjProjectRelationPrefetchGeneratorVersion", owner: "project relation prefetch provenance constant"},
-		{name: "ReversePrefetches", owner: "project relation prefetch aggregate"},
-		{name: "BindReversePrefetches", owner: "project relation prefetch binding function"},
-	}
-	for _, prefetch := range prefetchNames {
-		if err := addPackageName(prefetch.name, prefetch.owner); err != nil {
-			return err
-		}
-	}
-
-	aggregateFields := make(map[string]string, len(objectOwners))
-	for _, owner := range objectOwners {
-		identity := owner.model.identity.AppLabel + "." + owner.model.identity.ModelName
-		if previous, duplicate := aggregateFields[owner.surface]; duplicate {
-			return fmt.Errorf("prefetch aggregate field %s for %s conflicts with %s", owner.surface, identity, previous)
-		}
-		aggregateFields[owner.surface] = identity
-		if err := addPackageName(owner.surface+"ReversePrefetches", "reverse prefetches for "+identity); err != nil {
-			return err
-		}
-		privateFields := map[string]string{"objects": "reverse object factory"}
-		for _, relation := range owner.relations {
-			private := lowerFirst(relation.selector)
-			if previous, duplicate := privateFields[private]; duplicate {
-				return fmt.Errorf(
-					"private prefetch field %s for %s.%s conflicts with %s",
-					private,
-					identity,
-					relation.name,
-					previous,
-				)
-			}
-			privateFields[private] = relation.name
 		}
 	}
 	return nil

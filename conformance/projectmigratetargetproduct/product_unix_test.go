@@ -4,6 +4,8 @@ package projectmigratetargetproduct_test
 
 import (
 	"errors"
+	"github.com/progresshans/godj/conformance/internal/dbstate"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -95,7 +97,7 @@ func targetExerciseAcceptedPublicFamilies(t *testing.T, project *targetExternalP
 		t.Run(test.name, func(t *testing.T) {
 			database, marker := project.paths(t, "accepted-"+test.name)
 			if !test.execute {
-				targetInitializeSQLite(t, database)
+				dbstate.InitializeSQLite(t, database)
 			}
 			result := project.run(t, project.environment(database, marker, targetCatalogBranch), test.argv...)
 			if test.execute {
@@ -135,8 +137,8 @@ func targetAssertRejectedArgumentsPrecedeProjectIO(t *testing.T, project *target
 func targetAssertPrefixLookingNameIsExactMiss(t *testing.T, project *targetExternalProject) {
 	t.Helper()
 	database, marker := project.paths(t, "prefix-looking-exact-miss")
-	targetInitializeSQLite(t, database)
-	before := targetCaptureSQLite(t, database)
+	dbstate.InitializeSQLite(t, database)
+	before := dbstate.CaptureSQLite(t, database)
 	result := project.run(t, project.environment(database, marker, targetCatalogBranch),
 		"migrate", targetAlphaApp, "0001", "--plan", "--project", project.descriptor)
 	targetAssertFailure(t, result, 1, "migration_plan_error/target_not_found\n", project.sensitive(database)...)
@@ -153,8 +155,8 @@ func targetAssertPrefixLookingNameIsExactMiss(t *testing.T, project *targetExter
 func targetAssertNamedForwardClosure(t *testing.T, project *targetExternalProject) {
 	t.Helper()
 	database, marker := project.paths(t, "named-forward")
-	targetInitializeSQLite(t, database)
-	before := targetCaptureSQLite(t, database)
+	dbstate.InitializeSQLite(t, database)
+	before := dbstate.CaptureSQLite(t, database)
 	plan := project.run(t, project.environment(database, marker, targetCatalogBranch),
 		"migrate", targetAlphaApp, targetAlpha3, "--plan", "--project", project.descriptor)
 	targetAssertSuccess(t, plan, targetPlanOutput(t,
@@ -196,7 +198,7 @@ func targetAssertNamedReverseDescendants(t *testing.T, project *targetExternalPr
 	targetAssertExecuteSuccess(t, seed, 6, project.sensitive(database)...)
 	targetInsertSQLiteValue(t, database, targetAlpha1Table, "named reverse sentinel")
 	targetResetMarker(t, marker)
-	before := targetCaptureSQLite(t, database)
+	before := dbstate.CaptureSQLite(t, database)
 
 	plan := project.run(t, environment, "migrate", targetAlphaApp, targetAlpha1, "--plan", "--project", project.descriptor)
 	targetAssertSuccess(t, plan, targetPlanOutput(t,
@@ -240,7 +242,7 @@ func targetAssertAppZeroOrder(t *testing.T, project *targetExternalProject) {
 	targetInsertSQLiteValue(t, database, targetGamma1Table, "unrelated survives zero")
 	targetAssertSQLiteRevision(t, database, 5)
 	targetResetMarker(t, marker)
-	before := targetCaptureSQLite(t, database)
+	before := dbstate.CaptureSQLite(t, database)
 
 	plan := project.run(t, environment, "migrate", targetAlphaApp, "zero", "--plan", "--project", project.descriptor)
 	targetAssertSuccess(t, plan, targetPlanOutput(t,
@@ -287,7 +289,7 @@ func targetAssertNoopAndKnownZeroUnknown(t *testing.T, project *targetExternalPr
 		seed := project.run(t, environment, "migrate", targetBlogApp, targetBlog2, "--project", project.descriptor)
 		targetAssertExecuteSuccess(t, seed, 2, project.sensitive(database)...)
 		targetResetMarker(t, marker)
-		before := targetCaptureSQLite(t, database)
+		before := dbstate.CaptureSQLite(t, database)
 		plan := project.run(t, environment, "migrate", targetBlogApp, targetBlog2, "--plan", "--project", project.descriptor)
 		targetAssertSuccess(t, plan, targetPlanOutput(t), project.sensitive(database)...)
 		targetAssertSQLiteUnchanged(t, database, before)
@@ -301,8 +303,8 @@ func targetAssertNoopAndKnownZeroUnknown(t *testing.T, project *targetExternalPr
 
 	t.Run("public_known_zero_unknown", func(t *testing.T) {
 		database, marker := project.paths(t, "unknown-zero")
-		targetInitializeSQLite(t, database)
-		before := targetCaptureSQLite(t, database)
+		dbstate.InitializeSQLite(t, database)
+		before := dbstate.CaptureSQLite(t, database)
 		result := project.run(t, project.environment(database, marker, targetCatalogBlog),
 			"migrate", "unknown", "zero", "--plan", "--project", project.descriptor)
 		targetAssertFailure(t, result, 1, "migration_plan_error/target_not_found\n", project.sensitive(database)...)
@@ -329,7 +331,7 @@ func targetAssertPlanIsReadOnly(t *testing.T, project *targetExternalProject) {
 			targetAssertExecuteSuccess(t, seed, 2, project.sensitive(database)...)
 			targetInsertSQLiteValue(t, database, targetBlog1Table, "plan sentinel")
 			targetResetMarker(t, marker)
-			before := targetCaptureSQLite(t, database)
+			before := dbstate.CaptureSQLite(t, database)
 			result := project.run(t, environment, "migrate", targetBlogApp, test.planTarget, "--plan", "--project", project.descriptor)
 			targetAssertSuccess(t, result, targetPlanOutput(t, test.want...), project.sensitive(database)...)
 			targetAssertSQLiteUnchanged(t, database, before)
@@ -349,7 +351,7 @@ func targetAssertPreviewDriftUsesFreshHistory(t *testing.T, project *targetExter
 	targetAssertExecuteSuccess(t, seed, 2, project.sensitive(database)...)
 	targetInsertSQLiteValue(t, database, targetBlog1Table, "preview drift sentinel")
 	targetResetMarker(t, marker)
-	previewBefore := targetCaptureSQLite(t, database)
+	previewBefore := dbstate.CaptureSQLite(t, database)
 	preview := project.run(t, environment, "migrate", targetBlogApp, targetBlog2, "--plan", "--project", project.descriptor)
 	targetAssertSuccess(t, preview, targetPlanOutput(t, targetPlanRow{App: targetBlogApp, Name: targetBlog2, Direction: "forward"}), project.sensitive(database)...)
 	targetAssertSQLiteUnchanged(t, database, previewBefore)
@@ -375,7 +377,7 @@ func targetAssertPreviewDriftUsesFreshHistory(t *testing.T, project *targetExter
 		targetBeginEvent(targetBlogApp, targetBlog2, "forward"), targetCreateEvent(targetBlog2Table), targetRecordAppliedEvent(targetBlogApp, targetBlog2), targetCommitEvent(targetBlogApp, targetBlog2, "forward"),
 		targetEventSessionClose, targetEventBackendClose,
 	)
-	afterDrift := targetCaptureSQLite(t, database)
+	afterDrift := dbstate.CaptureSQLite(t, database)
 
 	targetResetMarker(t, marker)
 	freshExecute := project.run(t, environment, "migrate", targetBlogApp, targetBlog2, "--project", project.descriptor)
@@ -396,8 +398,8 @@ func targetAssertPhaseCOwnershipSubset(t *testing.T, project *targetExternalProj
 
 	t.Run("outer_close_discards_plan", func(t *testing.T) {
 		database, marker := project.paths(t, "outer-close")
-		targetInitializeSQLite(t, database)
-		before := targetCaptureSQLite(t, database)
+		dbstate.InitializeSQLite(t, database)
+		before := dbstate.CaptureSQLite(t, database)
 		environment := project.environmentWith(database, marker, targetCatalogBlog, map[string]string{targetFailBackendCloseEnvironment: "1"})
 		result := project.run(t, environment, "migrate", "--plan", "--project", project.descriptor)
 		targetAssertFailure(t, result, 3, "migration_backend_error/backend_close_failed\n", project.sensitive(database)...)
@@ -415,11 +417,11 @@ func targetAssertPhaseCOwnershipSubset(t *testing.T, project *targetExternalProj
 	})
 }
 
-func targetAssertExecuteSuccess(t *testing.T, result targetCommandResult, definitions int, sensitive ...string) targetExecuteResult {
+func targetAssertExecuteSuccess(t *testing.T, result testprocess.CommandResult, definitions int, sensitive ...string) targetExecuteResult {
 	t.Helper()
 	targetAssertRedacted(t, result, sensitive...)
-	if result.exitCode != 0 || result.stderr != "" || result.stdout == "" {
-		t.Fatalf("target migrate execute = exit:%d stdout:%q stderr:%q", result.exitCode, result.stdout, result.stderr)
+	if result.ExitCode != 0 || result.Stderr != "" || result.Stdout == "" {
+		t.Fatalf("target migrate execute = exit:%d stdout:%q stderr:%q", result.ExitCode, result.Stdout, result.Stderr)
 	}
 	decoded := targetDecodeExecuteResult(t, result)
 	if decoded.SourceCount != definitions || decoded.DefinitionCount != definitions || decoded.DefinitionSetDigest == "" {

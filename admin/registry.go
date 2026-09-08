@@ -946,38 +946,27 @@ func validateRegisteredSnapshot(object Object, modelFields map[string]ir.Field, 
 			return &ConfigError{Path: "snapshot." + name, Code: "missing_field"}
 		}
 	}
+	return validateObject(object, modelFields)
+}
+
+// Projectors construct their exact selected fields; registrations separately
+// check their required subset. Both validate exposed values against a prepared
+// field index, preserving unknown-field errors before value-constraint errors.
+func validateObject(object Object, fieldByName map[string]ir.Field) error {
 	members, ok := object.values.Members()
 	if !ok {
 		return &ConfigError{Path: "snapshot.values", Code: "invalid"}
 	}
-	fields := make([]ir.Field, 0, len(members))
 	for _, member := range members {
-		field, found := modelFields[member.Name()]
-		if !found {
+		if _, found := fieldByName[member.Name()]; !found {
 			return &ConfigError{Path: "snapshot." + member.Name(), Code: "unknown_field"}
 		}
-		fields = append(fields, field)
 	}
-	return validateObject(object, fields)
-}
-
-func validateObject(object Object, fields []ir.Field) error {
-	if object.id <= 0 || object.label == "" || object.values.Kind() != templates.ValueObject {
+	if object.id <= 0 || object.label == "" {
 		return &ConfigError{Path: "snapshot", Code: "invalid"}
 	}
-	members, ok := object.values.Members()
-	if !ok || len(members) != len(fields) {
-		return &ConfigError{Path: "snapshot.values", Code: "field_count_mismatch"}
-	}
-	fieldByName := make(map[string]ir.Field, len(fields))
-	for _, field := range fields {
-		fieldByName[field.Name] = field
-	}
 	for _, member := range members {
-		field, exists := fieldByName[member.Name()]
-		if !exists {
-			return &ConfigError{Path: "snapshot." + member.Name(), Code: "unknown_field"}
-		}
+		field := fieldByName[member.Name()]
 		if !validSnapshotValue(member.Value(), field, object.id) {
 			return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
 		}

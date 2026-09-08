@@ -3,22 +3,19 @@ package orm
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/relationpolicy"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
-
-const relationDeletePolicyFingerprintVersion = "godj-relation-delete-policy-v1"
 
 // RelationDeleter is one immutable project-bound low-level delete capability.
 // It owns the complete incoming ForeignKey policy for one target model.
@@ -493,46 +490,17 @@ func relationDeletePolicyFingerprint(
 	targetPrimaryKey ir.Field,
 	edges []relationDeleteEdge,
 ) string {
-	hash := sha256.New()
-	writeRelationDeleteFingerprintValue(hash, relationDeletePolicyFingerprintVersion)
-	writeRelationDeleteFingerprintValue(hash, target.AppLabel)
-	writeRelationDeleteFingerprintValue(hash, target.ModelName)
-	writeRelationDeleteFingerprintValue(hash, targetModel.DBTable)
-	writeRelationDeleteFingerprintValue(hash, targetPrimaryKey.Name)
-	writeRelationDeleteFingerprintValue(hash, targetPrimaryKey.Column)
-	writeRelationDeleteFingerprintValue(hash, strconv.FormatUint(uint64(len(edges)), 10))
-	for _, edge := range edges {
-		nullable := "0"
-		if edge.metadata.Nullable {
-			nullable = "1"
-		}
-		for _, value := range []string{
-			edge.metadata.Source.AppLabel,
-			edge.metadata.Source.ModelName,
-			edge.sourceModel.DBTable,
-			edge.sourcePrimaryKey.Name,
-			edge.sourcePrimaryKey.Column,
-			edge.sourceForeignKey.Name,
-			edge.sourceForeignKey.Column,
-			nullable,
-			string(edge.metadata.Cardinality),
-			string(edge.metadata.OnDelete),
-		} {
-			writeRelationDeleteFingerprintValue(hash, value)
+	incoming := make([]relationpolicy.Edge, len(edges))
+	for index, edge := range edges {
+		incoming[index] = relationpolicy.Edge{
+			Source: relationpolicy.ModelKey{Identity: edge.metadata.Source, Table: edge.sourceModel.DBTable,
+				PrimaryKeyName: edge.sourcePrimaryKey.Name, PrimaryKeyColumn: edge.sourcePrimaryKey.Column},
+			Field: edge.sourceForeignKey.Name, Column: edge.sourceForeignKey.Column,
+			Nullable: edge.metadata.Nullable, Cardinality: edge.metadata.Cardinality, OnDelete: edge.metadata.OnDelete,
 		}
 	}
-	return hex.EncodeToString(hash.Sum(nil))
-}
-
-type relationDeleteFingerprintWriter interface {
-	Write([]byte) (int, error)
-}
-
-func writeRelationDeleteFingerprintValue(writer relationDeleteFingerprintWriter, value string) {
-	var length [8]byte
-	binary.BigEndian.PutUint64(length[:], uint64(len(value)))
-	_, _ = writer.Write(length[:])
-	_, _ = writer.Write([]byte(value))
+	return relationpolicy.Fingerprint(relationpolicy.ModelKey{Identity: target, Table: targetModel.DBTable,
+		PrimaryKeyName: targetPrimaryKey.Name, PrimaryKeyColumn: targetPrimaryKey.Column}, incoming)
 }
 
 func validLowerSHA256(value string) bool {

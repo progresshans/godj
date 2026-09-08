@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/progresshans/godj/internal/irresource"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -337,8 +338,7 @@ const (
 )
 
 type loadedDerivedIntentBudget struct {
-	nodes uint64
-	bytes uint64
+	irresource.Budget
 }
 
 type loadedRelationOperationKind uint8
@@ -1436,17 +1436,20 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			),
 		)
 	}
-	budget := &loadedDerivedIntentBudget{}
-	if err := budget.consumeNodes("transition", 1); err != nil {
+	budget := &loadedDerivedIntentBudget{Budget: irresource.New(irresource.Limits{
+		Fields: loadedDerivedIntentMaxFields, StringBytes: loadedDerivedIntentMaxStringBytes,
+		Nodes: loadedDerivedIntentMaxNodes, Bytes: loadedDerivedIntentMaxAggregateBytes,
+	})}
+	if err := budget.ConsumeNodes("transition", 1); err != nil {
 		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
 	}
-	if err := budget.consumeString("transition.migration.app", step.Key.App); err != nil {
+	if err := budget.ConsumeString("transition.migration.app", step.Key.App); err != nil {
 		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
 	}
-	if err := budget.consumeString("transition.migration.name", step.Key.Name); err != nil {
+	if err := budget.ConsumeString("transition.migration.name", step.Key.Name); err != nil {
 		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
 	}
-	if err := budget.consumeNodes("operations", len(indices)); err != nil {
+	if err := budget.ConsumeNodes("operations", len(indices)); err != nil {
 		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
 	}
 
@@ -1804,10 +1807,10 @@ func (budget *loadedDerivedIntentBudget) scanOperation(
 	targets []loadedRelationTargetView,
 ) error {
 	prefix := fmt.Sprintf("operations[%d]", operationIndex)
-	if err := budget.scanModel(prefix+".before", before); err != nil {
+	if err := budget.ScanModel(prefix+".before", before); err != nil {
 		return err
 	}
-	if err := budget.scanModel(prefix+".after", after); err != nil {
+	if err := budget.ScanModel(prefix+".after", after); err != nil {
 		return err
 	}
 	if len(targets) > loadedDerivedIntentMaxTargets {
@@ -1816,101 +1819,21 @@ func (budget *loadedDerivedIntentBudget) scanOperation(
 	if len(sourceFields) != len(targets) {
 		return fmt.Errorf("%s target source-field count is inconsistent", prefix)
 	}
-	if err := budget.consumeNodes(prefix+".targets", len(targets)); err != nil {
+	if err := budget.ConsumeNodes(prefix+".targets", len(targets)); err != nil {
 		return err
 	}
 	for targetIndex := range targets {
 		targetPrefix := fmt.Sprintf("%s.targets[%d]", prefix, targetIndex)
-		if err := budget.scanField(targetPrefix+".source_field", sourceFields[targetIndex]); err != nil {
+		if err := budget.ScanField(targetPrefix+".source_field", sourceFields[targetIndex]); err != nil {
 			return err
 		}
-		if err := budget.scanModel(targetPrefix+".target_model", targets[targetIndex].targetModel); err != nil {
+		if err := budget.ScanModel(targetPrefix+".target_model", targets[targetIndex].targetModel); err != nil {
 			return err
 		}
-		if err := budget.scanField(targetPrefix+".target_key", targets[targetIndex].targetPrimaryKey); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (budget *loadedDerivedIntentBudget) scanModel(path string, model ir.Model) error {
-	if err := budget.consumeNodes(path, 1); err != nil {
-		return err
-	}
-	for _, value := range []string{model.Name, model.GoName, model.DBTable} {
-		if err := budget.consumeString(path, value); err != nil {
+		if err := budget.ScanField(targetPrefix+".target_key", targets[targetIndex].targetPrimaryKey); err != nil {
 			return err
 		}
 	}
-	if len(model.Fields) > loadedDerivedIntentMaxFields {
-		return fmt.Errorf("%s has %d fields, maximum %d", path, len(model.Fields), loadedDerivedIntentMaxFields)
-	}
-	if err := budget.consumeNodes(path+".fields", len(model.Fields)); err != nil {
-		return err
-	}
-	for fieldIndex := range model.Fields {
-		if err := budget.scanField(fmt.Sprintf("%s.fields[%d]", path, fieldIndex), model.Fields[fieldIndex]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (budget *loadedDerivedIntentBudget) scanField(path string, field ir.Field) error {
-	if err := budget.consumeNodes(path, 1); err != nil {
-		return err
-	}
-	for _, value := range []string{field.Name, field.GoName, field.Column, string(field.Kind)} {
-		if err := budget.consumeString(path, value); err != nil {
-			return err
-		}
-	}
-	if field.Default != nil {
-		if err := budget.consumeNodes(path+".default", 1); err != nil {
-			return err
-		}
-		for _, value := range []string{string(field.Default.Kind), field.Default.String} {
-			if err := budget.consumeString(path+".default", value); err != nil {
-				return err
-			}
-		}
-	}
-	if field.Relation != nil {
-		if err := budget.consumeNodes(path+".relation", 1); err != nil {
-			return err
-		}
-		for _, value := range []string{
-			field.Relation.Target.AppLabel,
-			field.Relation.Target.ModelName,
-			string(field.Relation.Cardinality),
-			field.Relation.Reverse.Name,
-			string(field.Relation.OnDelete),
-		} {
-			if err := budget.consumeString(path+".relation", value); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (budget *loadedDerivedIntentBudget) consumeNodes(path string, count int) error {
-	if count < 0 || uint64(count) > loadedDerivedIntentMaxNodes-budget.nodes {
-		return fmt.Errorf("%s exceeds the aggregate relation intent node limit %d", path, loadedDerivedIntentMaxNodes)
-	}
-	budget.nodes += uint64(count)
-	return nil
-}
-
-func (budget *loadedDerivedIntentBudget) consumeString(path, value string) error {
-	if len(value) > loadedDerivedIntentMaxStringBytes {
-		return fmt.Errorf("%s contains a string of %d bytes, maximum %d", path, len(value), loadedDerivedIntentMaxStringBytes)
-	}
-	if uint64(len(value)) > loadedDerivedIntentMaxAggregateBytes-budget.bytes {
-		return fmt.Errorf("%s exceeds the aggregate relation intent byte limit %d", path, loadedDerivedIntentMaxAggregateBytes)
-	}
-	budget.bytes += uint64(len(value))
 	return nil
 }
 
@@ -2172,6 +2095,14 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	if budget.nodeOverflow || isNilOperation(operation) {
 		return
 	}
+	// Reject unknown dynamic operation types at the typed snapshot boundary
+	// without invoking any methods on an embedding wrapper while scanning.
+	operation = operationValue(operation)
+	switch operation.(type) {
+	case CreateModel, AddField:
+	default:
+		return
+	}
 	kind := operation.Kind()
 	wireKind := loadedOperationWireKind(operation)
 	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].kind", index), wireKind, false)
@@ -2196,7 +2127,7 @@ func loadedOperationWireKind(operation Operation) string {
 	case AddField, *AddField:
 		return "add_field"
 	default:
-		return operation.Kind()
+		return ""
 	}
 }
 

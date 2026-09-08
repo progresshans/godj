@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"sort"
 
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -34,7 +35,7 @@ func canonicalRelationPackages(inputs []relationPackageInput, policy relationPac
 		if !policy.validAlias(input.alias) {
 			return nil, fmt.Errorf("invalid relation %s package alias %q", policy.name, input.alias)
 		}
-		if !validImportPath(input.importPath) {
+		if !identifiers.ImportPath(input.importPath) {
 			return nil, fmt.Errorf("invalid relation %s import path %q", policy.name, input.importPath)
 		}
 		checks := []func(ir.Schema) error{validateGeneratedNames, validateRelationMetadataNames}

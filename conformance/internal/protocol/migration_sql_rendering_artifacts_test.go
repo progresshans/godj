@@ -3,7 +3,6 @@ package protocol
 import (
 	"crypto/sha256"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -248,92 +247,6 @@ func TestMigrationSQLRenderingAuthoritySourcesAreIndependentAndArtifactBlind(t *
 				t.Fatalf("migration-sql-rendering source %s leaks forbidden value %q", name, forbidden)
 			}
 		}
-	}
-}
-
-func TestMigrationSQLRenderingPublishedReferenceAndProductWiringIsExact(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	runner := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
-	for fragment, want := range map[string]int{
-		"SCENARIOS as MIGRATION_SQL_RENDERING_DECISION_SCENARIOS": 1,
-		"SCENARIOS as MIGRATION_SQL_RENDERING_DJANGO_SCENARIOS":   1,
-		"MIGRATION_SQL_RENDERING_SCENARIOS = {":                   1,
-		"    MIGRATION_SQL_RENDERING_SCENARIOS,":                  1,
-		"DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST = (":            1,
-		"DEFAULT_MIGRATION_SQL_RENDERING_ORACLE = (":              1,
-		"DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST.resolve(): (":   1,
-		"        DEFAULT_MIGRATION_SQL_RENDERING_ORACLE":          1,
-	} {
-		if got := strings.Count(runner, fragment); got != want {
-			t.Fatalf("Django runner fragment %q count = %d, want %d", fragment, got, want)
-		}
-	}
-
-	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
-	for variable, value := range map[string]string{
-		"MIGRATION_SQL_RENDERING_MANIFEST":        migrationSQLRenderingManifestArtifact,
-		"MIGRATION_SQL_RENDERING_ORACLE":          migrationSQLRenderingOracleArtifact,
-		"MIGRATION_SQL_RENDERING_NOT_IMPLEMENTED": migrationSQLRenderingBaselineArtifact,
-	} {
-		definition := variable + " := " + value
-		if got := strings.Count(makeText, definition); got != 1 {
-			t.Fatalf("Makefile definition %q count = %d, want 1", definition, got)
-		}
-	}
-	conformanceStart := strings.Index(makeText, "conformance-check:\n")
-	productStart := strings.Index(makeText, "godj-conformance:")
-	oracleCheckStart := strings.Index(makeText, "oracle-check:\n")
-	oracleRegenerateStart := strings.Index(makeText, "oracle-regenerate:\n")
-	ciStart := strings.Index(makeText, "\nci:")
-	if conformanceStart < 0 || productStart <= conformanceStart || oracleCheckStart <= productStart || oracleRegenerateStart <= oracleCheckStart || ciStart <= oracleRegenerateStart {
-		t.Fatal("cannot isolate Makefile conformance targets")
-	}
-	referenceTarget := makeText[conformanceStart:productStart]
-	productTarget := makeText[productStart:oracleCheckStart]
-	oracleCheckTarget := makeText[oracleCheckStart:oracleRegenerateStart]
-	oracleRegenerateTarget := makeText[oracleRegenerateStart:ciStart]
-	if got := strings.Count(referenceTarget, "$(MIGRATION_SQL_RENDERING_MANIFEST)"); got != 2 {
-		t.Fatalf("reference migration-sql-rendering manifest count = %d, want oracle and NI", got)
-	}
-	if got := strings.Count(referenceTarget, "$(MIGRATION_SQL_RENDERING_ORACLE)"); got != 1 {
-		t.Fatalf("reference migration-sql-rendering oracle count = %d, want 1", got)
-	}
-	if got := strings.Count(referenceTarget, "$(MIGRATION_SQL_RENDERING_NOT_IMPLEMENTED)"); got != 1 {
-		t.Fatalf("reference migration-sql-rendering NI count = %d, want 1", got)
-	}
-	for variable, want := range map[string]int{
-		"$(MIGRATION_SQL_RENDERING_MANIFEST)":        1,
-		"$(MIGRATION_SQL_RENDERING_ORACLE)":          1,
-		"$(MIGRATION_SQL_RENDERING_NOT_IMPLEMENTED)": 0,
-	} {
-		if got := strings.Count(productTarget, variable); got != want {
-			t.Fatalf("product migration-sql-rendering variable %s count = %d, want %d", variable, got, want)
-		}
-	}
-	exactProductAdapter := "go run ./conformance/cmd/godjcheck \\\n" +
-		"\t\t-profile $(PROFILE) -manifest $(MIGRATION_SQL_RENDERING_MANIFEST) \\\n" +
-		"\t\t-expected $(MIGRATION_SQL_RENDERING_ORACLE)"
-	if got := strings.Count(productTarget, exactProductAdapter); got != 1 {
-		t.Fatalf("exact migration-sql-rendering product adapter count = %d, want 1", got)
-	}
-	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
-		if got := strings.Count(target, "$(MIGRATION_SQL_RENDERING_MANIFEST)"); got != 1 {
-			t.Fatalf("%s migration-sql-rendering manifest count = %d, want 1", name, got)
-		}
-	}
-
-	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
-	if got := strings.Count(workflow, migrationSQLRenderingBaselineArtifact); got != 2 {
-		t.Fatalf("workflow migration-sql-rendering NI lock count = %d, want 2", got)
-	}
-	if strings.Contains(makeText, "MIGRATION_SQL_RENDERING_DEVIATION_EXPECTED") {
-		t.Fatal("reference-only migration-sql-rendering checkpoint unexpectedly wires a deviation fixture")
-	}
-	productInfo, err := os.Stat(filepath.Join(root, "conformance", "projectsqlmigrateproduct"))
-	if err != nil || !productInfo.IsDir() {
-		t.Fatalf("Phase C external product-flow package is absent or invalid: info=%v error=%v", productInfo, err)
 	}
 }
 

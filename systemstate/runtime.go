@@ -313,96 +313,37 @@ func validateSystemStateCall(ctx context.Context, backend Backend) error {
 // it still requires both exact table query surfaces and must distinguish a
 // clean empty state from dependent rows without a credential.
 func inspectProvisionSessionTable(ctx context.Context, queryer db.Queryer) (bool, error) {
-	plan, err := query.NewPlan(
-		sessionTableName,
-		[]query.FieldRef{systemRowIDField, sessionDigestField, sessionPayloadField},
-	).WithLimit(1)
+	plan, err := query.NewPlan(sessionTableName, []query.FieldRef{systemRowIDField, sessionDigestField, sessionPayloadField}).WithLimit(1)
 	if err != nil {
-		return false, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName, Detail: "required session table is unavailable", Cause: err}
+		return false, schemaRowsFailure(sessionTableName)(err)
 	}
-	result, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(result) {
-			_ = result.Close()
-		}
-		return false, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName, Detail: "required session table is unavailable", Cause: err}
-	}
-	if isNilInterface(result) {
-		return false, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName, Detail: "required session table is unavailable"}
-	}
-	present := result.Next()
-	if present {
-		var identifier int64
-		var digest, payload string
-		if err := result.Scan(&identifier, &digest, &payload); err != nil {
-			_ = result.Close()
+	present := false
+	err = scanRows(ctx, queryer, plan, schemaRowsFailure(sessionTableName), func(rows db.Rows) (bool, error) {
+		var row persistedSessionRow
+		if err := rows.Scan(&row.id, &row.digest, &row.payload); err != nil {
 			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row cannot be decoded", Cause: err}
 		}
-	}
-	if err := ctx.Err(); err != nil {
-		_ = result.Close()
-		return false, err
-	}
-	iterationErr := result.Err()
-	closeErr := result.Close()
-	if iterationErr != nil || closeErr != nil {
-		return false, &Error{
-			Code:   CodeSchemaUnavailable,
-			Field:  sessionTableName,
-			Detail: "required session table is unavailable",
-			Cause:  errors.Join(iterationErr, closeErr),
-		}
-	}
-	return present, nil
+		present = true
+		return false, nil
+	})
+	return present && err == nil, err
 }
 
 func inspectProvisionAuditTable(ctx context.Context, queryer db.Queryer) (bool, error) {
 	plan, err := query.NewPlan(auditTableName, auditFieldRefs).WithLimit(1)
 	if err != nil {
-		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
+		return false, schemaRowsFailure(auditTableName)(err)
 	}
-	result, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(result) {
-			_ = result.Close()
+	present := false
+	err = scanRows(ctx, queryer, plan, schemaRowsFailure(auditTableName), func(rows db.Rows) (bool, error) {
+		var row persistedAuditRow
+		if err := row.scan(rows); err != nil {
+			return false, err
 		}
-		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
-	}
-	if isNilInterface(result) {
-		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable"}
-	}
-	present := result.Next()
-	if present {
-		var identifier int64
-		var actorID, model, objectID, action, changedFields, displayLabel string
-		if err := result.Scan(
-			&identifier,
-			&actorID,
-			&model,
-			&objectID,
-			&action,
-			&changedFields,
-			&displayLabel,
-		); err != nil {
-			_ = result.Close()
-			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "stored audit row cannot be decoded", Cause: err}
-		}
-	}
-	if err := ctx.Err(); err != nil {
-		_ = result.Close()
-		return false, err
-	}
-	iterationErr := result.Err()
-	closeErr := result.Close()
-	if iterationErr != nil || closeErr != nil {
-		return false, &Error{
-			Code:   CodeSchemaUnavailable,
-			Field:  auditTableName,
-			Detail: "required audit table is unavailable",
-			Cause:  errors.Join(iterationErr, closeErr),
-		}
-	}
-	return present, nil
+		present = true
+		return false, nil
+	})
+	return present && err == nil, err
 }
 
 // Authenticator returns the restart-verified immutable credential boundary.

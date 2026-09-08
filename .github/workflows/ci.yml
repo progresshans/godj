@@ -202,6 +202,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout_minutes }}
     env:
+      GODJ_CI_OWNERS: ${{ needs.validation-plan.outputs.jobs }}
       LC_ALL: C
       TZ: UTC
     strategy:
@@ -377,7 +378,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - runs_on: "ubuntu-22.04"
+          - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
             timeout_minutes: {normal: 20, race: 20, cgo0: 20}
@@ -417,6 +418,7 @@ jobs:
 
       - name: Run relation product mode
         env:
+          PORTABLE_COVERED: ${{ contains(fromJSON(needs.validation-plan.outputs.jobs), 'portable-go-matrix') && matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
           RUNNER_COVERED: ${{ contains(fromJSON(needs.validation-plan.outputs.jobs), 'product-project-check-matrix') }}
         run: |
           set -euo pipefail
@@ -430,25 +432,20 @@ jobs:
             cgo0) export CGO_ENABLED=0 ;;
             *) exit 1 ;;
           esac
-          packages=(
-            ./query ./codegen/consumertest ./orm ./db/sqlite ./migrations ./migrations/definition
-            ./conformance/relationfixture/...
-            ./conformance/relationproduct/... ./conformance/relationqueryproduct/...
-            ./conformance/relationobjectproduct/... ./conformance/relationreverseproduct/...
-            ./conformance/relationprefetchproduct/... ./conformance/relationselectproduct/...
-            ./conformance/relationdeleteproduct/... ./conformance/migrationrelationproduct
-            ./conformance/internal/protocol ./internal/compiletest
-          )
-          # Pure schema/codegen logic belongs to Portable Go. The generated
-          # consumers and actual relation products still run on every platform.
-          expected=("${packages[@]}" ./conformance/cmd/godjcheck)
+          selected_packages="$(go list ./... | python3 scripts/ci/packages.py relation)"
+          packages=()
+          while IFS= read -r package; do packages+=("$package"); done <<< "$selected_packages"
+          expected=("${packages[@]}")
+          if [ "$PORTABLE_COVERED" != true ]; then
+            expected+=(./conformance/cmd/godjcheck)
+          fi
           if [ "$RUNNER_COVERED" != true ]; then
             expected+=(./conformance/runners/godj)
           fi
           expected_packages="$RUNNER_TEMP/relation-packages.txt"
           go list "${expected[@]}" > "$expected_packages"
           required="$RUNNER_TEMP/relation-required.txt"
-          awk -F'|' -v covered="$RUNNER_COVERED" 'covered != "true" || $1 != "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$required"
+          awk -F'|' -v runner="$RUNNER_COVERED" -v portable="$PORTABLE_COVERED" '(runner != "true" || $1 != "github.com/progresshans/godj/conformance/runners/godj") && (portable != "true" || $1 != "github.com/progresshans/godj/conformance/cmd/godjcheck")' scripts/ci/relation-required.txt > "$required"
           log="$RUNNER_TEMP/relation-product-tests.json"
           stderr_log="$RUNNER_TEMP/relation-product.stderr"
           status=0
@@ -456,7 +453,7 @@ jobs:
           if [ "$status" -eq 0 ] && [ "$RUNNER_COVERED" != true ]; then
             go test "${test_flags[@]}" -p=1 -run "$relation_godj_runner" ./conformance/runners/godj >> "$log" 2>> "$stderr_log" || status=$?
           fi
-          if [ "$status" -eq 0 ]; then
+          if [ "$status" -eq 0 ] && [ "$PORTABLE_COVERED" != true ]; then
             go test "${test_flags[@]}" -p=1 -run "$relation_godjcheck" ./conformance/cmd/godjcheck >> "$log" 2>> "$stderr_log" || status=$?
           fi
           if [ "$status" -ne 0 ]; then
@@ -464,7 +461,7 @@ jobs:
             exit "$status"
           fi
           python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$expected_packages" --no-skips
-          if [ "$mode" = normal ]; then
+          if [ "$mode" = normal ] && [ "$PORTABLE_COVERED" != true ]; then
             go vet ./migrations ./db/sqlite
           fi
 
@@ -486,7 +483,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - runs_on: "ubuntu-22.04"
+          - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
             cmd_test_timeout: "20m"
@@ -529,6 +526,8 @@ jobs:
           test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
       - name: Run and inventory product project-check mode
+        env:
+          PORTABLE_COVERED: ${{ contains(fromJSON(needs.validation-plan.outputs.jobs), 'portable-go-matrix') && matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
@@ -597,7 +596,7 @@ jobs:
           done > "$required"
           python3 scripts/ci/go_test_events.py "$runserver_log" --required "$required"
 
-          if [ "$mode" = "normal" ]; then
+          if [ "$mode" = "normal" ] && [ "$PORTABLE_COVERED" != true ]; then
             go vet ./cmd/godj $platform_packages
             go vet ./conformance/runserverproduct
           fi
@@ -637,7 +636,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - runs_on: "ubuntu-22.04"
+          - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
             test_timeout: "30m"
@@ -746,7 +745,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - runs_on: "ubuntu-22.04"
+          - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
             test_timeout: "30m"

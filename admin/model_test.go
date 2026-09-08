@@ -10,11 +10,15 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestModelObjectUsesExplicitAllowlistAndValidatesTypedValues(t *testing.T) {
+func TestModelProjectorUsesExplicitAllowlistAndValidatesTypedValues(t *testing.T) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	details := "original"
 	ticket := models.Ticket{ID: 1, Subject: "Printer", Details: &details, CategoryID: 2}
-	object, err := admin.ModelObject(metadata, ticket, (models.TicketDescriptor{}).WriteFieldValue, ticket.ID, ticket.Subject, "subject", "details")
+	projector, err := admin.NewModelProjector(metadata, (models.TicketDescriptor{}).WriteFieldValue, "subject", "details")
+	if err != nil {
+		t.Fatal(err)
+	}
+	object, err := projector.Project(ticket, ticket.ID, ticket.Subject)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +32,7 @@ func TestModelObjectUsesExplicitAllowlistAndValidatesTypedValues(t *testing.T) {
 		t.Fatal("snapshot retained nullable model state")
 	}
 	for _, names := range [][]string{nil, {"unknown"}, {"subject", "subject"}} {
-		if _, err := admin.ModelObject(metadata, ticket, (models.TicketDescriptor{}).WriteFieldValue, 1, "Printer", names...); err == nil {
+		if _, err := admin.NewModelProjector(metadata, (models.TicketDescriptor{}).WriteFieldValue, names...); err == nil {
 			t.Fatal("invalid allowlist accepted")
 		}
 	}
@@ -39,8 +43,21 @@ func TestModelObjectUsesExplicitAllowlistAndValidatesTypedValues(t *testing.T) {
 		func(models.Ticket, ir.Field) (query.Value, bool) { return query.Null(), true },
 		func(models.Ticket, ir.Field) (query.Value, bool) { return query.String(strings.Repeat("x", 121)), true },
 	} {
-		if _, err := admin.ModelObject(metadata, ticket, reader, 1, "Printer", "subject"); err == nil {
+		projector, err := admin.NewModelProjector(metadata, reader, "subject")
+		if err == nil {
+			_, err = projector.Project(ticket, 1, "Printer")
+		}
+		if err == nil {
 			t.Fatal("invalid typed projection accepted")
 		}
+	}
+	for index := range metadata.Fields {
+		metadata.Fields[index].Name = "changed"
+	}
+	if _, err := projector.Project(ticket, ticket.ID, ticket.Subject); err != nil {
+		t.Fatalf("caller metadata changed prepared projector: %v", err)
+	}
+	if _, err := (admin.ModelProjector[models.Ticket]{}).Project(ticket, 1, "Printer"); err == nil {
+		t.Fatal("zero projector accepted")
 	}
 }

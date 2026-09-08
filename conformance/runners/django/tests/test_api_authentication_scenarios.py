@@ -17,8 +17,8 @@ from conformance.runners.django.article_api_proxy import (
 )
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
+    SUITES,
     API_AUTHENTICATION_SCENARIOS,
-    DEFAULT_API_AUTHENTICATION_MANIFEST,
     DEFAULT_DRF_PROFILE,
 )
 
@@ -77,7 +77,7 @@ def _observation(name: str, contract_id: str) -> dict[str, Any]:
 class APIAuthenticationScenarioTests(unittest.TestCase):
     def test_exact_mixed_registry_and_manifest_order(self) -> None:
         manifest = json.loads(
-            DEFAULT_API_AUTHENTICATION_MANIFEST.read_text(encoding="utf-8")
+            SUITES["api-authentication"].manifest.read_text(encoding="utf-8")
         )
         self.assertEqual(
             tuple(contract["scenario"] for contract in manifest["contracts"]),
@@ -174,12 +174,12 @@ class APIAuthenticationScenarioTests(unittest.TestCase):
         with patch("conformance.runners.django.runner.verify_profile"):
             first = canonical_json(
                 generate_suite(
-                    DEFAULT_DRF_PROFILE, DEFAULT_API_AUTHENTICATION_MANIFEST
+                    DEFAULT_DRF_PROFILE, SUITES["api-authentication"].manifest
                 )
             )
             second = canonical_json(
                 generate_suite(
-                    DEFAULT_DRF_PROFILE, DEFAULT_API_AUTHENTICATION_MANIFEST
+                    DEFAULT_DRF_PROFILE, SUITES["api-authentication"].manifest
                 )
             )
         self.assertEqual(first, second)

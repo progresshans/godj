@@ -21,8 +21,7 @@ func articleSpec() (serializers.Spec, error) {
 }
 
 func (a *Application) articleValue(article articleapp.Article) (serializers.Value, error) {
-	descriptor := articlemodels.ArticleDescriptor{}
-	return serializers.ModelValue(a.spec, descriptor.Metadata(), articleapp.ModelSnapshot(article), descriptor.WriteFieldValue)
+	return a.encoder.Encode(articleapp.ModelSnapshot(article))
 }
 
 func (a *Application) bind(request *web.Request, mode serializers.Mode) (serializers.Values, web.Response, bool, error) {

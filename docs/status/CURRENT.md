@@ -1,9 +1,9 @@
 # 현재 상태
 
 - 갱신: 2026-09-08
-- 활성 작업: 없음
+- 활성 작업: [GDJ-0065 코드와 검증 체계의 중복 정리](../../work/0065-codebase-refactoring.md)
 - 최근 완료: [GDJ-0064 추가 결함 수정과 불변 값의 복사 정리](../../work/0064-review-fixes-and-immutable-values.md) — 구현·간단한 로컬 검증 범위
-- 현재 소스: GDJ-0064 변경을 포함한 작업 브랜치 HEAD
+- 현재 소스: `341659d` 위 GDJ-0065 구현 작업 사본
 - 마지막 전체 검증 소스(이번 변경 이전): `0badd6b369fa599ee5891665602990aaf44df3fe`
 - 작업 브랜치: `codex/revision-fenced-migration-lifecycle`
 
@@ -18,8 +18,9 @@ GDJ-0064에서 browser-origin CSRF 보호, panic 시 rows·조회 대기 정리,
 
 ## 다음 행동
 
-사용자 요청에 따라 GitHub CI·전체 DB/race/platform 검증은 후속 통합 시점으로 남긴다. 현재 작업 사본을 full-scope PASS로
-표현하지 않는다. 기존 PR #1은 Draft다. eager Count·다중 관계 탐색은 별도 의미와 범위를 정한 뒤 시작한다.
+사용자 승인에 따라 감사에서 확인한 오류·중복·불필요한 호환 계층을 리팩터링하고 검증 소유권을 정리한다.
+영역별 구현·관련 회귀 뒤 최종 소스의 통합 검증을 실행한다. 진행 중 작업 사본을 full-scope PASS로 표현하지 않는다.
+기존 PR #1은 Draft다. eager Count·다중 관계 탐색은 이번 중복 정리의 범위가 아니다.
 
 ## 근거
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/progresshans/godj/examples/article/articleapp"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -58,11 +59,11 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 		t.Fatalf("NewDurableService(contender): %v", err)
 	}
 
-	first, err := holderService.Create(ctx, principalID, adminapp.Input{Title: "Seed one"})
+	first, err := holderService.Create(ctx, principalID, articleapp.Input{Title: "Seed one"})
 	if err != nil {
 		t.Fatalf("Create(first seed): %v", err)
 	}
-	second, err := holderService.Create(ctx, principalID, adminapp.Input{Title: "Seed two"})
+	second, err := holderService.Create(ctx, principalID, articleapp.Input{Title: "Seed two"})
 	if err != nil {
 		t.Fatalf("Create(second seed): %v", err)
 	}
@@ -75,12 +76,12 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	holderResult := make(chan articleCreateResult, 1)
 	contenderResult := make(chan articleCreateResult, 1)
 	go func() {
-		article, err := holderService.Create(ctx, principalID, adminapp.Input{Title: "Holder"})
+		article, err := holderService.Create(ctx, principalID, articleapp.Input{Title: "Holder"})
 		holderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.holderEntered, "holder coordinated callback")
 	go func() {
-		article, err := contenderService.Create(ctx, principalID, adminapp.Input{Title: "Contender"})
+		article, err := contenderService.Create(ctx, principalID, articleapp.Input{Title: "Contender"})
 		contenderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.contenderAttempted, "contender coordinated attempt")
@@ -128,14 +129,14 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	if err != nil {
 		t.Fatalf("NewDurableService(failing audit): %v", err)
 	}
-	if _, err := failingService.Create(ctx, principalID, adminapp.Input{Title: "Rolled back"}); !errors.Is(err, rollbackFailure) {
+	if _, err := failingService.Create(ctx, principalID, articleapp.Input{Title: "Rolled back"}); !errors.Is(err, rollbackFailure) {
 		t.Fatalf("Create(audit callback failure) error = %v, want injected failure", err)
 	}
 	if failingAudit.calls != 1 {
 		t.Fatalf("failing audit calls = %d, want 1", failingAudit.calls)
 	}
 	assertArticleMultiRuntimeAudit(t, ctx, contenderRaw, wantAudit)
-	page, err := contenderService.List(ctx, adminapp.ListOptions{Limit: 10})
+	page, err := contenderService.List(ctx, articleapp.ListOptions{Limit: 10})
 	if err != nil || page.Total != 4 || len(page.Articles) != 4 {
 		t.Fatalf("List(after callback rollback) = (%#v, %v), want four committed Articles", page, err)
 	}
@@ -210,7 +211,7 @@ func (barrier *articleCoordinationBarrier) release() {
 }
 
 type articleCreateResult struct {
-	article adminapp.Article
+	article articleapp.Article
 	err     error
 }
 

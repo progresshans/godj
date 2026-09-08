@@ -511,75 +511,25 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 	}
 }
 
-func TestCurrentTwentySevenReferenceSetsHave311ContractsAndReject702OrderedCrossBindings(t *testing.T) {
+func TestReferenceInventoryHasUniqueContractsAndRejectsCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	djangoProfile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	drfProfile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "drf-3.18.0-django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	type inventorySet struct {
 		name     string
 		profile  Profile
 		manifest Manifest
 		oracle   ObservationSuite
 	}
-	djangoSets := []struct{ name, manifest, oracle string }{
-		{"read", "manifest.json", "oracle.json"},
-		{"write-migration", "write-migration-manifest.json", "write-migration-oracle.json"},
-		{"save-lifecycle", "save-lifecycle-manifest.json", "save-lifecycle-oracle.json"},
-		{"query-cache", "query-cache-manifest.json", "query-cache-oracle.json"},
-		{"migration-planning", "migration-planning-manifest.json", "migration-planning-oracle.json"},
-		{"migration-execution", "migration-execution-manifest.json", "migration-execution-oracle.json"},
-		{"migration-restart", "migration-restart-manifest.json", "migration-restart-oracle.json"},
-		{"migration-state-reconstruction", "migration-state-reconstruction-manifest.json", "migration-state-reconstruction-oracle.json"},
-		{"migration-lifecycle", "migration-lifecycle-manifest.json", "migration-lifecycle-oracle.json"},
-		{"migration-definition-source", "migration-definition-source-manifest.json", "migration-definition-source-oracle.json"},
-		{"migration-project-check", "migration-project-check-manifest.json", "migration-project-check-oracle.json"},
-		{"migration-command", "migration-command-manifest.json", "migration-command-oracle.json"},
-		{"migration-writer", "migration-writer-manifest.json", "migration-writer-oracle.json"},
-		{"migration-status", "migration-status-manifest.json", "migration-status-oracle.json"},
-		{"migration-target-plan", "migration-target-plan-manifest.json", "migration-target-plan-oracle.json"},
-		{"migration-sql-rendering", "migration-sql-rendering-manifest.json", "migration-sql-rendering-oracle.json"},
-		{"relation", "relation-manifest.json", "relation-oracle.json"},
-		{"query-breadth", "query-breadth-manifest.json", "query-breadth-oracle.json"},
-		{"query-expression", "query-expression-manifest.json", "query-expression-oracle.json"},
-		{"migration-relation", "migration-relation-manifest.json", "migration-relation-oracle.json"},
-		{"template-form", "template-form-manifest.json", "template-form-oracle.json"},
-		{"auth-session", "auth-session-manifest.json", "auth-session-oracle.json"},
-		{"article-admin", "article-admin-manifest.json", "article-admin-oracle.json"},
-		{"system-state", "system-state-manifest.json", "system-state.json"},
+	var sets []inventorySet
+	catalog := readExecutionCatalog(t)
+	for _, suite := range catalog.Suites {
+		profilePath := catalog.Profiles[suite.Profile].Path
+		profile := requireArtifact(t, filepath.Join(root, profilePath), LoadProfile)
+		manifest := requireArtifact(t, filepath.Join(root, suite.Manifest), LoadManifest)
+		oracle := requireArtifact(t, filepath.Join(root, suite.Oracle), LoadObservationSuite)
+		sets = append(sets, inventorySet{suite.Name, profile, manifest, oracle})
 	}
-	sets := make([]inventorySet, 0, 27)
-	for _, source := range djangoSets {
-		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", source.manifest))
-		if err != nil {
-			t.Fatal(err)
-		}
-		oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", source.oracle))
-		if err != nil {
-			t.Fatal(err)
-		}
-		sets = append(sets, inventorySet{source.name, djangoProfile, manifest, oracle})
-	}
-	for _, source := range gdj0044ContractSets() {
-		manifest, oracle, _ := loadGDJ0044Set(t, root, source)
-		sets = append(sets, inventorySet{source.name, drfProfile, manifest, oracle})
-	}
-	apiAuthenticationManifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "api-authentication-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	apiAuthenticationOracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "drf-3.18.0-django-6.1-sqlite-darwin-arm64", "api-authentication-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	sets = append(sets, inventorySet{"api-authentication", drfProfile, apiAuthenticationManifest, apiAuthenticationOracle})
 	ids, scenarios := map[string]string{}, map[string]string{}
 	lockedIDs := make([]string, 0, 12)
 	passing, deviations, locked, total := 0, 0, 0, 0
@@ -633,13 +583,6 @@ func TestCurrentTwentySevenReferenceSetsHave311ContractsAndReject702OrderedCross
 	if crossBindings != 702 {
 		t.Fatalf("ordered cross-bindings = %d, want 702", crossBindings)
 	}
-}
-
-func TestSystemStateProductUsesCurrentEvidence(t *testing.T) {
-	assertConformanceAdapter(t, "SYSTEM_STATE", true)
-	makefile := ciRead(t, "Makefile")
-	product := ciMakeTarget(t, makefile, "godj-conformance")
-	ciRequire(t, "system-state product", product, "require-live-evidence", "$(SYSTEM_STATE_POSTGRES_ATTESTATION)", "$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)")
 }
 
 func loadSystemStateArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite, DeviationExpectation) {

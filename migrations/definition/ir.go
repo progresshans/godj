@@ -63,102 +63,9 @@ func cloneMigrations(definitions []migrations.Migration) []migrations.Migration 
 	return clones
 }
 
-func fixedAutoField() ir.Field {
-	return ir.Field{
-		Name:       "_godj_loader_pk",
-		GoName:     "GodjLoaderPK",
-		Column:     "_godj_loader_pk",
-		Kind:       ir.FieldAuto,
-		PrimaryKey: true,
-	}
-}
-
-func fixedValidationModel() ir.Model {
-	return ir.Model{
-		Name:    "_godj_loader_validation",
-		GoName:  "GodjLoaderValidation",
-		DBTable: "_godj_loader_validation",
-		Fields:  []ir.Field{fixedAutoField()},
-	}
-}
-
 func exactNormalized(schema ir.Schema) bool {
 	normalized, err := ir.Normalize(schema)
 	return err == nil && reflect.DeepEqual(normalized, schema)
-}
-
-func validAppLabel(value string) bool {
-	return exactNormalized(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      value,
-		Models:        []ir.Model{fixedValidationModel()},
-	})
-}
-
-func validModelName(value string) bool {
-	model := fixedValidationModel()
-	model.Name = value
-	return exactNormalized(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "_godj_loader_validation",
-		Models:        []ir.Model{model},
-	})
-}
-
-func validModelGoName(value string) bool {
-	model := fixedValidationModel()
-	model.GoName = value
-	return exactNormalized(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "_godj_loader_validation",
-		Models:        []ir.Model{model},
-	})
-}
-
-func validModelTable(value string) bool {
-	model := fixedValidationModel()
-	model.DBTable = value
-	return exactNormalized(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "_godj_loader_validation",
-		Models:        []ir.Model{model},
-	})
-}
-
-func validFieldName(value string) bool {
-	field := fixedAutoField()
-	field.Name = value
-	model := fixedValidationModel()
-	model.Fields = []ir.Field{field}
-	return exactNormalized(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "_godj_loader_validation",
-		Models:        []ir.Model{model},
-	})
-}
-
-func validFieldGoName(value string) bool {
-	field := fixedAutoField()
-	field.GoName = value
-	model := fixedValidationModel()
-	model.Fields = []ir.Field{field}
-	return exactNormalized(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "_godj_loader_validation",
-		Models:        []ir.Model{model},
-	})
-}
-
-func validFieldColumn(value string) bool {
-	field := fixedAutoField()
-	field.Column = value
-	model := fixedValidationModel()
-	model.Fields = []ir.Field{field}
-	return exactNormalized(ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "_godj_loader_validation",
-		Models:        []ir.Model{model},
-	})
 }
 
 func fullyNormalizedCreateModel(appLabel string, model ir.Model) bool {
@@ -166,20 +73,6 @@ func fullyNormalizedCreateModel(appLabel string, model ir.Model) bool {
 		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      appLabel,
 		Models:        []ir.Model{model.Clone()},
-	}
-	return exactNormalized(wrapper)
-}
-
-// validAddFieldModelName intentionally delegates the identifier decision to
-// schema/ir.Normalize. A product-local regex would duplicate and eventually
-// drift from the canonical IR rule.
-func validAddFieldModelName(modelName string) bool {
-	model := fixedValidationModel()
-	model.Name = modelName
-	wrapper := ir.Schema{
-		FormatVersion: ir.CurrentFormatVersion,
-		AppLabel:      "_godj_loader_validation",
-		Models:        []ir.Model{model},
 	}
 	return exactNormalized(wrapper)
 }

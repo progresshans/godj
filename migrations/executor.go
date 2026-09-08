@@ -245,9 +245,15 @@ func preflight(before ProjectState, migration Migration, direction Direction) ([
 	indices := operationIndices(len(migration.Operations), direction)
 	prepared := make([]preparedOperation, 0, len(indices))
 	for _, index := range indices {
-		op := migration.Operations[index]
+		op := operationValue(migration.Operations[index])
 		if isNilOperation(op) {
 			return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, index, "", errors.New("operation is nil"))
+		}
+		switch op.(type) {
+		case CreateModel, AddField:
+		default:
+			return nil, before.Clone(), migrationError(CategoryCapability, CodeUnsupported, direction, migration, index, "",
+				backend.NewCapabilityError("migration_operation", "only built-in CreateModel and AddField operations are supported", fmt.Errorf("unsupported operation type %T", op)))
 		}
 		if op.App() != migration.App {
 			return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, index, op.Kind(), fmt.Errorf("operation app %q does not match migration app %q", op.App(), migration.App))

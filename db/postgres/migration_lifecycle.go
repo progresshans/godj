@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/progresshans/godj/db/internal/migrationhistory"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -124,10 +125,10 @@ func (session *postgresRevisionFencedSession) ReadAppliedMigrations(
 			errors.New("PostgreSQL migration recorder exists without revision metadata; exclusive adoption is required"),
 		)
 	}
-	session.records = clonePostgresAppliedMigrations(snapshot.records)
+	session.records = migrationhistory.Clone(snapshot.records)
 	session.token = snapshot.token
 	session.state = postgresRevisionSessionReady
-	return clonePostgresAppliedMigrations(snapshot.records), nil
+	return migrationhistory.Clone(snapshot.records), nil
 }
 
 func (session *postgresRevisionFencedSession) BeginMigration(
@@ -171,7 +172,7 @@ func (session *postgresRevisionFencedSession) BeginMigration(
 	}
 	successorToken := session.token
 	successorToken.initialized = true
-	successorToken.fingerprint = fingerprintPostgresMigrationHistory(successorRecords)
+	successorToken.fingerprint = migrationhistory.Fingerprint(successorRecords)
 	if session.token.initialized {
 		if session.token.revision == math.MaxInt64 {
 			session.state = postgresRevisionSessionPoisoned
@@ -210,8 +211,8 @@ func (session *postgresRevisionFencedSession) BeginMigration(
 		session:          session,
 		schema:           schema,
 		transition:       transition,
-		expectedRecords:  clonePostgresAppliedMigrations(session.records),
-		successorRecords: clonePostgresAppliedMigrations(successorRecords),
+		expectedRecords:  migrationhistory.Clone(session.records),
+		successorRecords: migrationhistory.Clone(successorRecords),
 		expectedToken:    session.token,
 		successorToken:   successorToken,
 		bootstrap:        !session.token.initialized,
@@ -327,7 +328,7 @@ func (session *postgresRevisionFencedSession) finishTransaction(
 	session.active = nil
 	if committed {
 		session.token = successorToken
-		session.records = clonePostgresAppliedMigrations(successorRecords)
+		session.records = migrationhistory.Clone(successorRecords)
 	}
 	if poison {
 		session.state = postgresRevisionSessionPoisoned
@@ -631,7 +632,7 @@ func (transaction *postgresRevisionFencedTransaction) verifyExpectedSnapshot(
 		return postgresRevisionIntegrity("PostgreSQL migration revision metadata exists without a recorder", nil)
 	}
 	if !equalPostgresMigrationRevisionToken(current.token, transaction.expectedToken) ||
-		!equalPostgresAppliedMigrations(current.records, transaction.expectedRecords) {
+		!migrationhistory.Equal(current.records, transaction.expectedRecords) {
 		return newPostgresRevisionFenceError(
 			migrationbackend.RevisionFenceFailureStale,
 			errors.New("PostgreSQL migration history revision is stale"),
@@ -743,7 +744,7 @@ func (transaction *postgresRevisionFencedTransaction) verifySuccessor(ctx contex
 	}
 	if !current.revisionPresent || !current.recorderPresent ||
 		!equalPostgresMigrationRevisionToken(current.token, transaction.successorToken) ||
-		!equalPostgresAppliedMigrations(current.records, transaction.successorRecords) {
+		!migrationhistory.Equal(current.records, transaction.successorRecords) {
 		return postgresRevisionIntegrity(
 			"PostgreSQL fenced migration durable successor does not match its declared history transition",
 			nil,

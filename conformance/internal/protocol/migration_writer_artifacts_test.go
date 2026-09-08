@@ -168,7 +168,7 @@ func TestMigrationWriterDeclaredDimensionsAndBindingsCannotFalseGreen(t *testing
 	}
 }
 
-func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
+func TestMigrationWriterObservationAuthorityRemainsIndependent(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -188,68 +188,6 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 		}
 	}
 
-	runner := string(readArtifact(t, filepath.Join(root, "conformance", "runners", "django", "runner.py")))
-	for fragment, want := range map[string]int{
-		"SCENARIOS as MIGRATION_WRITER_DECISION_SCENARIOS":                             1,
-		"SCENARIOS as MIGRATION_WRITER_DJANGO_SCENARIOS":                               1,
-		"    MIGRATION_WRITER_SCENARIOS,":                                              1,
-		"DEFAULT_MIGRATION_WRITER_MANIFEST = (":                                        1,
-		"DEFAULT_MIGRATION_WRITER_ORACLE = (":                                          1,
-		"DEFAULT_MIGRATION_WRITER_MANIFEST.resolve(): DEFAULT_MIGRATION_WRITER_ORACLE": 1,
-	} {
-		if got := strings.Count(runner, fragment); got != want {
-			t.Fatalf("Django runner fragment %q count = %d, want %d", fragment, got, want)
-		}
-	}
-
-	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
-	for variable, value := range map[string]string{
-		"MIGRATION_WRITER_MANIFEST":           "conformance/contracts/migration-writer-manifest.json",
-		"MIGRATION_WRITER_ORACLE":             "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json",
-		"MIGRATION_WRITER_NOT_IMPLEMENTED":    "conformance/fixtures/godj-migration-writer-not-implemented.json",
-		"MIGRATION_WRITER_DEVIATION_EXPECTED": "conformance/fixtures/godj-migration-writer-deviation-expected.json",
-	} {
-		definition := variable + " := " + value
-		if got := strings.Count(makeText, definition); got != 1 {
-			t.Fatalf("Makefile definition %q count = %d, want 1", definition, got)
-		}
-	}
-	conformanceStart := strings.Index(makeText, "conformance-check:\n")
-	productStart := strings.Index(makeText, "godj-conformance:")
-	oracleCheckStart := strings.Index(makeText, "oracle-check:\n")
-	oracleRegenerateStart := strings.Index(makeText, "oracle-regenerate:\n")
-	ciStart := strings.Index(makeText, "\nci:")
-	if conformanceStart < 0 || productStart <= conformanceStart || oracleCheckStart <= productStart || oracleRegenerateStart <= oracleCheckStart || ciStart <= oracleRegenerateStart {
-		t.Fatal("cannot isolate Makefile conformance targets")
-	}
-	referenceTarget := makeText[conformanceStart:productStart]
-	productTarget := makeText[productStart:oracleCheckStart]
-	oracleCheckTarget := makeText[oracleCheckStart:oracleRegenerateStart]
-	oracleRegenerateTarget := makeText[oracleRegenerateStart:ciStart]
-	if got := strings.Count(referenceTarget, "$(MIGRATION_WRITER_MANIFEST)"); got != 2 {
-		t.Fatalf("reference migration-writer manifest count = %d, want oracle and NI", got)
-	}
-	for _, fragment := range []string{"MIGRATION_WRITER_MANIFEST", "MIGRATION_WRITER_ORACLE", "MIGRATION_WRITER_DEVIATION_EXPECTED"} {
-		if !strings.Contains(productTarget, fragment) {
-			t.Fatalf("Phase D product adapter is missing %s", fragment)
-		}
-	}
-	if strings.Contains(productTarget, "MIGRATION_WRITER_NOT_IMPLEMENTED") {
-		t.Fatal("Phase D product adapter uses the migration-writer not-implemented fixture")
-	}
-	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
-		if got := strings.Count(target, "$(MIGRATION_WRITER_MANIFEST)"); got != 1 {
-			t.Fatalf("%s migration-writer manifest count = %d, want 1", name, got)
-		}
-	}
-
-	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
-	if got := strings.Count(workflow, "conformance/fixtures/godj-migration-writer-not-implemented.json"); got != 2 {
-		t.Fatalf("workflow migration-writer NI lock count = %d, want 2", got)
-	}
-	if got := strings.Count(workflow, "conformance/fixtures/godj-migration-writer-deviation-expected.json"); got != 2 {
-		t.Fatalf("workflow migration-writer deviation lock count = %d, want 2", got)
-	}
 }
 
 func assertMigrationWriterProvenance(t *testing.T, contract Contract, djangoAuthority bool) {

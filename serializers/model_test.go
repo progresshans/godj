@@ -45,7 +45,7 @@ func TestModelSerializerProjectsConstraintsWithExplicitExposure(t *testing.T) {
 	}
 }
 
-func TestModelValueUsesExplicitAllowlistWithoutInputCleaning(t *testing.T) {
+func TestModelEncoderUsesExplicitAllowlistWithoutInputCleaning(t *testing.T) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true})
 	if err != nil {
@@ -53,7 +53,11 @@ func TestModelValueUsesExplicitAllowlistWithoutInputCleaning(t *testing.T) {
 	}
 	details := " original "
 	ticket := models.Ticket{ID: 1, Subject: " Printer ", Details: &details, CategoryID: 2}
-	value, err := serializers.ModelValue(spec, metadata, ticket, (models.TicketDescriptor{}).WriteFieldValue)
+	encoder, err := serializers.NewModelEncoder(spec, metadata, (models.TicketDescriptor{}).WriteFieldValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := encoder.Encode(ticket)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +78,56 @@ func TestModelValueUsesExplicitAllowlistWithoutInputCleaning(t *testing.T) {
 		func(models.Ticket, ir.Field) (query.Value, bool) { return query.String(strings.Repeat("x", 121)), true },
 		func(models.Ticket, ir.Field) (query.Value, bool) { return query.String("bad\xff"), true },
 	} {
-		if _, err := serializers.ModelValue(spec, metadata, ticket, reader); err == nil {
-			t.Fatal("invalid typed projection accepted")
+		encoder, err := serializers.NewModelEncoder(spec, metadata, reader)
+		if err == nil {
+			_, err = encoder.Encode(ticket)
 		}
+		if err == nil {
+			t.Fatal("invalid typed encoder accepted")
+		}
+	}
+}
+
+func TestModelEncoderOwnsMetadataAndDetachesReaderFields(t *testing.T) {
+	metadata := (models.TicketDescriptor{}).Metadata()
+	for index := range metadata.Fields {
+		if metadata.Fields[index].Name == "subject" {
+			metadata.Fields[index].Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: "seed"}
+		}
+	}
+	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "subject"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoder, err := serializers.NewModelEncoder(spec, metadata, func(ticket models.Ticket, field ir.Field) (query.Value, bool) {
+		if field.Default == nil || field.Default.String != "seed" {
+			t.Fatal("reader mutated the prepared field")
+		}
+		value, found := (models.TicketDescriptor{}).WriteFieldValue(ticket, field)
+		field.Default.String = "changed"
+		return value, found
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := range metadata.Fields {
+		if metadata.Fields[index].Default != nil {
+			metadata.Fields[index].Default.String = "caller change"
+		}
+		metadata.Fields[index].Name = "changed"
+	}
+	for range 2 {
+		value, err := encoder.Encode(models.Ticket{Subject: "original"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		object, _ := value.AsObject()
+		subject, _ := object.Get("subject")
+		if text, ok := subject.AsString(); !ok || text != "original" {
+			t.Fatalf("encoded subject = %q, %v", text, ok)
+		}
+	}
+	if _, err := (serializers.ModelEncoder[models.Ticket]{}).Encode(models.Ticket{}); err == nil {
+		t.Fatal("zero encoder accepted")
 	}
 }

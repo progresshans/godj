@@ -3,7 +3,6 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"strconv"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -23,7 +22,7 @@ func GenerateRelationMetadata(packageName string, input ir.Schema) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("normalize relation metadata schema: %w", err)
 	}
-	return generateRelationMetadata(packageName, prepared)
+	return finalizeSource(generateRelationMetadata(packageName, prepared))
 }
 
 func generateRelationMetadata(packageName string, prepared preparedSchema) ([]byte, error) {
@@ -46,11 +45,7 @@ func generateRelationMetadata(packageName string, prepared preparedSchema) ([]by
 	fmt.Fprintln(&output, "\t}")
 	fmt.Fprintln(&output, "}")
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated relation metadata: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func validateRelationMetadataNames(schema ir.Schema) error {

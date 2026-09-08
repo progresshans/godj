@@ -115,22 +115,8 @@ func showMigrationsBarrier(input ShowMigrationsInvocation, primary *ShowMigratio
 	if primary != nil && primary.Category == showmigrationsprotocol.CategoryProcess && primary.Code == showmigrationsprotocol.CodeProjectCleanupFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := showMigrationsFailure(
-				showmigrationsprotocol.CategoryProcess,
-				showmigrationsprotocol.CodeProjectInterrupted,
-			)
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := showMigrationsFailure(
-			showmigrationsprotocol.CategoryProcess,
-			showmigrationsprotocol.CodeProjectCanceled,
-		)
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := ShowMigrationsFailure{Category: showmigrationsprotocol.CategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary

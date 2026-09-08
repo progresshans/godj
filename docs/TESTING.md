@@ -37,7 +37,10 @@ Full/scoped Hosted 검증은 CI workflow의 수동 실행 또는 `ci:full`, `ci:
 Draft PR을 테스트 서버로 쓸 수 있으며 매 docs push가 전체 platform 검증을 다시 요청하지 않게 한다.
 Job 선택과 aggregate가 필요한 검증의 누락을 확인한다. 선택하지 않은 그룹은 not-selected이며 PASS로 가장하지 않는다.
 
-Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 이 문서에 명령별 테스트 수·해시·Job/Step 수를 복사하지 않는다.
+Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 계약별 profile·manifest·oracle·baseline과 제품 실행 여부는
+[suite catalog](../conformance/suites.json)가 한 번 선언한다. `scripts/conformance.py plan`으로 실제 실행 인자를 확인한다.
+Reference check와 product check는 각각 checker를 한 번 build하고, 계약마다 새 process를 실행한다. Python oracle은 각 profile의
+locked project에서 새 process로 관측하며 Go actual·expected를 공통 구현으로 만들지 않는다. 이 문서에 명령별 테스트 수·해시·Job/Step 수를 복사하지 않는다.
 [Makefile](../Makefile), [workflows](../.github/workflows/)의 현재 설정을 사용한다.
 
 ## 반복 실행과 cache
@@ -68,8 +71,9 @@ linked runner를 실행하며 protocol 패키지 전체를 다시 선택하지 �
 | 공통 Query AST 의미 | backend compiler unit | SQLite와 PostgreSQL 실제 SQL·identifier/NULL·rollback은 각각 DB owner |
 | 관계 actual 생성 | contract별 fresh observer | 관계별 query/cache/rollback 회귀, 고정 oracle 대조와 sibling case 미실행 대조 |
 
-Portable의 ubuntu-24.04와 관계/CLI의 ubuntu-22.04는 다른 OS 이미지다. Linux/architecture/CGO/race의 동일 이름만으로
-그 실행을 제거하지 않는다. 실제 SQLite·생성 소비자·process 경계의 matrix는 유지하고 pure protocol 반복만 owner를 옮긴다.
+Portable과 관계/CLI matrix의 Linux amd64는 같은 Ubuntu 이미지와 Go 버전을 사용한다. 같은 scope에 관계 owner가 선택되면
+`scripts/ci/packages.py`가 관계 package 전체를 Portable에서 제외한다. Runserver도 project-check owner가 선택된 경우 그 matrix가 맡는다.
+선택한 owner가 없는 scoped/local 실행은 Portable의 원래 package 범위를 유지한다. OS·architecture·CGO·race가 다른 좌표의 검증은 유지한다.
 
 관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
 이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.
@@ -79,7 +83,9 @@ Portable의 ubuntu-24.04와 관계/CLI의 ubuntu-22.04는 다른 OS 이미지다
 
 SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
 Full scope에서 conformance Go runner 전체를 project-check matrix가 실행하면 관계 matrix는 같은 runner subset을 다시 실행하지 않는다.
-해당 owner가 없는 ORM scope에서는 관계 matrix가 subset을 실행한다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
+해당 owner가 없는 ORM scope에서는 관계 matrix가 subset을 실행한다. Linux amd64 checker 전체를 Portable이 실행하면 관계 matrix의 같은 subset은 생략한다.
+Portable conformance는 `scripts/ci/conformance_tests.py`가 JSON 시작·종료와 package 완료를 대조하고, 옮겨진 checker의 필수 sentinel·no-skip도 확인한다.
+선택된 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
 aggregate는 선택한 owner의 실패·취소·누락을 거부한다. Full scope의 Darwin CGO-disabled lifecycle도 이 두 matrix가 소유하며,
 reference-only scope에서는 exact Darwin job이 직접 실행한다.
 
@@ -98,10 +104,15 @@ Test 파일의 문장이나 work 일지에 같은 prose가 남아 있는지는 r
 Python compatibility는 현재 발견한 testcase의 시작·종료와 허용된 exact-profile skip을 대조한다. 전역 테스트 수를 고정하지 않고
 실패·expected failure·임의 skip·중단된 실행을 거부하며 고정 reference 의미의 별도 digest 검증을 유지한다.
 
-고정 reference 파일의 size/hash는 protocol의 공통 artifact catalog에서 대조한다. 각 계약의 phase·payload·provenance와
-부정 대조는 해당 계약 테스트가 맡는다. 구현 파일 자체의 과거 SHA를 보존하기 위해 현재 테스트의 구조를 고정하지 않는다.
+고정 reference 파일의 size/hash는 protocol의 artifact 검증에서 대조한다. 실행 catalog는 그 expected payload의 원본이 아니다.
+전체 manifest/oracle 교차 거부는 현재 계약 집합에서 한 번 검증하며, 각 계약의 phase·payload·provenance와 부정 대조는 해당 계약 테스트가 맡는다.
+실제 catalog 실행 계획과 Make target dispatch로 빠진 계약·잘못된 profile·expected/capture wiring을 검증한다.
+구현 파일 자체의 과거 SHA를 보존하기 위해 현재 테스트의 구조를 고정하지 않는다.
 공통 fixture는 호출마다 새 mutable 입력을 만들며 actual 관찰과 expected 로딩은 별도로 유지한다.
 공통화한 환경 준비에서도 각 실행의 timeout·출력 제한·cleanup·필수 DB 조건을 유지한다.
+SQLite command snapshot은 `conformance/internal/dbstate`, process 출력·readiness·종료 관리는 `conformance/internal/testprocess`가 맡는다.
+호출자는 명령별 시간·출력 한도를 지정하며 snapshot의 raw bytes·schema·행 수·migration history·revision 관측은 그대로 유지한다.
+Django migration 관측은 Django 내부에서만 schema/field 정규화를 공유한다. 계약별 primary-key 필드·datetime 정규화와 recorder 접근 순서는 보존한다.
 Select/object/delete 관계 handler는 자신이 맡은 case만 관측한다. 같은 DB에서 sibling case 전체를 실행한 결과의 전역 cache는
 사용하지 않는다. 검증 편의를 위한 test-only 결합은 각 case의 fresh DB 결과와 DB state 일치도 따로 확인한다.
 

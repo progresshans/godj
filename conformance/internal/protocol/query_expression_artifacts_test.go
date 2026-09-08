@@ -2,10 +2,8 @@ package protocol
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -136,41 +134,6 @@ func TestGDJ0043ProductPublicationYieldsCurrentStatusAggregate(t *testing.T) {
 	}
 	if passing != 179 || deviations != 10 || oracleLocked != 12 {
 		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 179 + 10 + 12", passing, deviations, oracleLocked)
-	}
-}
-
-func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	contents, err := os.ReadFile(filepath.Join(root, "Makefile"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(contents)
-	conformanceStart := strings.Index(text, "conformance-check:\n")
-	productStart := strings.Index(text, "godj-conformance:")
-	oracleCheckStart := strings.Index(text, "oracle-check:\n")
-	oracleRegenerateStart := strings.Index(text, "oracle-regenerate:\n")
-	ciStart := strings.Index(text, "\nci:")
-	if conformanceStart < 0 || productStart <= conformanceStart || oracleCheckStart <= productStart || oracleRegenerateStart <= oracleCheckStart || ciStart <= oracleRegenerateStart {
-		t.Fatal("cannot isolate Makefile conformance targets")
-	}
-	referenceTarget := text[conformanceStart:productStart]
-	productTarget := text[productStart:oracleCheckStart]
-	oracleCheckTarget := text[oracleCheckStart:oracleRegenerateStart]
-	oracleRegenerateTarget := text[oracleRegenerateStart:ciStart]
-	if got := strings.Count(referenceTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 2 {
-		t.Fatalf("reference conformance query-expression manifest count = %d, want 2", got)
-	}
-	if got := strings.Count(productTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
-		t.Fatalf("product conformance query-expression manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(oracleCheckTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
-		t.Fatalf("oracle-check query-expression manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(oracleRegenerateTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
-		t.Fatalf("oracle-regenerate query-expression manifest count = %d, want 1", got)
 	}
 }
 

@@ -1,18 +1,8 @@
 package attestation
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"errors"
-	"fmt"
-	"io"
-	"io/fs"
-	"os"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/progresshans/godj/conformance/internal/attestationio"
 )
@@ -23,6 +13,10 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"scripts/conformance.py":                                     {},
+	"conformance/suites.json":                                    {},
+	"conformance/catalog.py":                                     {},
+	"scripts/ci/conformance_tests.py":                            {},
 	"scripts/ci/capture_artifact.py":                             {},
 	"scripts/ci/go_test_events.py":                               {},
 	"scripts/ci/packages.py":                                     {},
@@ -42,6 +36,10 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"internal/identifiers/",
+	"internal/relationpolicy/",
+	"internal/irresource/",
+	"internal/projectcheck/failurecode/",
 	"internal/gobuild/",
 	"admin/",
 	"api/",
@@ -80,6 +78,7 @@ var conformanceConsumerSourcePrefixes = []string{
 	"conformance/cmd/godjcheck/",
 	"conformance/internal/protocol/",
 	"conformance/internal/attestationio/",
+	"conformance/internal/testprocess/",
 }
 
 var embeddedAssetPrefixes = []string{
@@ -104,102 +103,18 @@ const captureFixturePrefix = "conformance/projectoperatorproduct/attestation/tes
 // dependency locks, Makefile, and hosted workflow. The capture codec fixture
 // directory is excluded to avoid a digest self-reference.
 func ComputeSourceBinding(repositoryRoot string) (SourceBinding, error) {
-	root, err := filepath.Abs(repositoryRoot)
-	if err != nil {
-		return SourceBinding{}, errors.New("resolve repository root")
-	}
-	rootInfo, err := os.Stat(root)
-	if err != nil {
-		return SourceBinding{}, errors.New("inspect repository root")
-	}
-	if !rootInfo.IsDir() {
-		return SourceBinding{}, errors.New("repository root is not a directory")
-	}
-
-	entries := make([]sourceEntry, 0, 256)
-	var payloadBytes int64
-	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return errors.New("walk external operator behavioral source scope")
-		}
-		relative, err := filepath.Rel(root, path)
-		if err != nil {
-			return errors.New("derive repository-relative source path")
-		}
-		relative = filepath.ToSlash(relative)
-		if relative == "." {
-			return nil
-		}
-		if entry.IsDir() {
-			if sourceDirectoryExcluded(relative) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if entry.Type()&os.ModeSymlink != 0 && sourceSymlinkMayHideOwnedSource(relative) {
-			return fmt.Errorf("external operator behavioral source directory %q is a symbolic link", relative)
-		}
-		if !sourcePathOwned(relative) {
-			return nil
-		}
-		if !utf8.ValidString(relative) || strings.ContainsAny(relative, "\x00\n") {
-			return errors.New("external operator behavioral source path is not frame-safe UTF-8")
-		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("external operator behavioral source path %q is a symbolic link", relative)
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return fmt.Errorf("inspect external operator behavioral source path %q", relative)
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("external operator behavioral source path %q is not a regular file", relative)
-		}
-		if info.Size() < 0 || info.Size() > maxSourceBytes-payloadBytes {
-			return errors.New("external operator behavioral source scope exceeds its byte limit")
-		}
-		contents, err := attestationio.ReadSourceFile(path, info.Size())
-		if err != nil {
-			return fmt.Errorf("read external operator behavioral source path %q: %w", relative, err)
-		}
-		digest := sha256.Sum256(contents)
-		entries = append(entries, sourceEntry{
-			path:   relative,
-			mode:   normalizedGitMode(info.Mode()),
-			size:   info.Size(),
-			sha256: hex.EncodeToString(digest[:]),
-		})
-		payloadBytes += info.Size()
-		if len(entries) > maxSourceFiles {
-			return errors.New("external operator behavioral source scope exceeds its file limit")
-		}
-		return nil
+	inventory, err := attestationio.BindSource(repositoryRoot, attestationio.SourcePolicy{
+		Name:                      "external operator behavioral source",
+		MaxFiles:                  maxSourceFiles,
+		MaxBytes:                  maxSourceBytes,
+		DirectoryExcluded:         sourceDirectoryExcluded,
+		PathOwned:                 sourcePathOwned,
+		SymlinkMayHideOwnedSource: sourceSymlinkMayHideOwnedSource,
 	})
 	if err != nil {
 		return SourceBinding{}, err
 	}
-	if len(entries) == 0 {
-		return SourceBinding{}, errors.New("external operator behavioral source scope is empty")
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].path < entries[j].path })
-	hasher := sha256.New()
-	for _, entry := range entries {
-		if _, err := io.WriteString(hasher, entry.frame()); err != nil {
-			return SourceBinding{}, errors.New("hash external operator behavioral source inventory")
-		}
-	}
-	return newSourceBinding(int64(len(entries)), payloadBytes, hex.EncodeToString(hasher.Sum(nil)))
-}
-
-type sourceEntry struct {
-	path   string
-	mode   string
-	size   int64
-	sha256 string
-}
-
-func (entry sourceEntry) frame() string {
-	return entry.path + "\x00" + entry.mode + "\x00" + strconv.FormatInt(entry.size, 10) + "\x00" + entry.sha256 + "\n"
+	return newSourceBinding(inventory.FileCount, inventory.PayloadBytes, inventory.SHA256)
 }
 
 func sourcePathOwned(path string) bool {
@@ -312,11 +227,4 @@ func pathComponentExcluded(path string) bool {
 		strings.HasPrefix(path, "conformance/oracles/") ||
 		strings.HasPrefix(path, "conformance/fixtures/") ||
 		strings.HasPrefix(path, captureFixturePrefix)
-}
-
-func normalizedGitMode(mode fs.FileMode) string {
-	if mode.Perm()&0o111 != 0 {
-		return "100755"
-	}
-	return "100644"
 }

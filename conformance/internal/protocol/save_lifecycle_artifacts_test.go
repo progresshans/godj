@@ -6,12 +6,6 @@ import (
 	"testing"
 )
 
-type checkedInContractSet struct {
-	name     string
-	manifest Manifest
-	oracle   ObservationSuite
-}
-
 func TestPassingSaveLifecycleArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
@@ -201,60 +195,6 @@ func TestSaveLifecycleOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 	}
 }
 
-func TestCheckedInContractSetsAreGloballyDistinctAndRejectCrossBinding(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	sets := []checkedInContractSet{
-		loadCheckedInContractSet(t, root, "read", "manifest.json", "oracle.json"),
-		loadCheckedInContractSet(t, root, "write-migration", "write-migration-manifest.json", "write-migration-oracle.json"),
-		loadCheckedInContractSet(t, root, "save-lifecycle", "save-lifecycle-manifest.json", "save-lifecycle-oracle.json"),
-		loadCheckedInContractSet(t, root, "query-cache", "query-cache-manifest.json", "query-cache-oracle.json"),
-		loadCheckedInContractSet(t, root, "migration-planning", "migration-planning-manifest.json", "migration-planning-oracle.json"),
-		loadCheckedInContractSet(t, root, "migration-execution", "migration-execution-manifest.json", "migration-execution-oracle.json"),
-	}
-
-	contractIDs := make(map[string]string)
-	scenarios := make(map[string]string)
-	for _, set := range sets {
-		if err := ValidateSuiteAgainst(profile, set.manifest, set.oracle); err != nil {
-			t.Fatalf("%s set does not validate: %v", set.name, err)
-		}
-		for _, contract := range set.manifest.Contracts {
-			if previous, exists := contractIDs[contract.ID]; exists {
-				t.Fatalf("contract ID %q is shared by %s and %s", contract.ID, previous, set.name)
-			}
-			contractIDs[contract.ID] = set.name
-			if previous, exists := scenarios[contract.Scenario]; exists {
-				t.Fatalf("scenario %q is shared by %s and %s", contract.Scenario, previous, set.name)
-			}
-			scenarios[contract.Scenario] = set.name
-		}
-	}
-
-	crossBindings := 0
-	for manifestIndex, manifestSet := range sets {
-		for suiteIndex, suiteSet := range sets {
-			if manifestIndex == suiteIndex {
-				continue
-			}
-			crossBindings++
-			t.Run(manifestSet.name+" manifest rejects "+suiteSet.name+" oracle", func(t *testing.T) {
-				if err := ValidateSuiteAgainst(profile, manifestSet.manifest, suiteSet.oracle); err == nil {
-					t.Fatal("checked-in cross-set binding produced a false green")
-				}
-			})
-		}
-	}
-	if crossBindings != 30 {
-		t.Fatalf("checked %d ordered cross-set bindings, want 30", crossBindings)
-	}
-}
-
 func TestSaveLifecycleArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) {
 	t.Parallel()
 
@@ -306,13 +246,6 @@ func TestSaveLifecycleArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T)
 			}
 		})
 	}
-}
-
-func loadCheckedInContractSet(t *testing.T, root, name, manifestName, oracleName string) checkedInContractSet {
-	t.Helper()
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", manifestName), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", oracleName), LoadObservationSuite)
-	return checkedInContractSet{name: name, manifest: manifest, oracle: oracle}
 }
 
 func conformanceRepositoryRoot(t *testing.T) string {

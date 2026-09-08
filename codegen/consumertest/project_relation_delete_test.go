@@ -258,15 +258,6 @@ func writeGeneratedRelationDeleteAdditionalPackages(
 		{packageName: "categories", directory: "category", schema: categories},
 		{packageName: "reviews", directory: "review", schema: reviews},
 	} {
-		main, err := codegen.Generate(candidate.packageName, candidate.schema)
-		if err != nil {
-			t.Fatalf("generate additional %s main: %v", candidate.packageName, err)
-		}
-		metadata, err := codegen.GenerateRelationMetadata(candidate.packageName, candidate.schema)
-		if err != nil {
-			t.Fatalf("generate additional %s metadata: %v", candidate.packageName, err)
-		}
-		writeGeneratedTestFile(t, directory, candidate.directory+"/zz_godj_generated.go", main)
-		writeGeneratedTestFile(t, directory, candidate.directory+"/zz_godj_relation.go", metadata)
+		writeGeneratedAppFixture(t, directory, candidate.directory, candidate.packageName, candidate.schema, appFixtureFeatures{})
 	}
 }

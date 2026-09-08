@@ -68,8 +68,9 @@ HTML과 JSON의 표현 차이는 유지하고 model 의미를 반복 선언하�
 FK 입력은 거부한다. Relation field를 입력에서 제외하고 scalar만 편집할 수 있다.
 `admin.ModelConfig.FormFields`는 같은 선택을 사용한다. `ReadOnly` 등록은 List/Snapshot을 요구하며 mutation callback·action을
 받지 않고 mutation route를 게시하지 않는다. Get/History는 필요한 read flow에 연결한다.
-Snapshot은 list/form에서 실제 사용하는 필드만 필수다. `forms/model.InitialValues`, `admin.ModelObject`,
-`serializers.ModelValue`는 generated descriptor의 typed reader와 명시적 필드 선택으로 변환을 공유한다.
+Snapshot은 list/form에서 실제 사용하는 필드만 필수다. `forms/model.InitialValues`와
+`admin.NewModelProjector`·`serializers.NewModelEncoder`는 generated descriptor의 typed reader와 명시적 필드 선택을 사용한다.
+Admin/API projector는 시작 시 선택 metadata를 검증·복사하고 목록의 각 객체에서는 값만 변환한다.
 
 `serializers.FromModel`은 명시적인 `ModelField` 목록에서 kind/null/default/length를 IR로부터 가져온다.
 `ReadOnly`, `Optional`, `AllowEmpty` 같은 API 표현 선택은 여전히 명시한다. Auto PK는 read-only다.

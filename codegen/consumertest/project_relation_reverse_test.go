@@ -16,30 +16,6 @@ func TestGeneratedProjectRelationReverseExactNineFileUnionCompiles(t *testing.T)
 	authors, blog := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-reverse-project"
 
-	authorsMain, err := codegen.Generate("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors main: %v", err)
-	}
-	authorsMetadata, err := codegen.GenerateRelationMetadata("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors metadata: %v", err)
-	}
-	authorsObject, err := codegen.GenerateRelationObject("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors object: %v", err)
-	}
-	blogMain, err := codegen.Generate("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog main: %v", err)
-	}
-	blogMetadata, err := codegen.GenerateRelationMetadata("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog metadata: %v", err)
-	}
-	blogObject, err := codegen.GenerateRelationObject("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog object: %v", err)
-	}
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: "authors", ImportPath: modulePath + "/authors"},
 		{Alias: "blog", ImportPath: modulePath + "/blog"},
@@ -60,17 +36,13 @@ func TestGeneratedProjectRelationReverseExactNineFileUnionCompiles(t *testing.T)
 		name string
 		data []byte
 	}{
-		{name: "authors/zz_godj_generated.go", data: authorsMain},
-		{name: "authors/zz_godj_relation.go", data: authorsMetadata},
-		{name: "authors/zz_godj_relation_object.go", data: authorsObject},
-		{name: "blog/zz_godj_generated.go", data: blogMain},
-		{name: "blog/zz_godj_relation.go", data: blogMetadata},
-		{name: "blog/zz_godj_relation_object.go", data: blogObject},
 		{name: "project/zz_godj_bindings.go", data: projectBinding},
 		{name: "project/zz_godj_relation_reverse.go", data: projectReverse},
 	}
-	if len(generatedFiles) != 8 {
-		t.Fatalf("generated inventory has %d files, want exact eight", len(generatedFiles))
+	names := writeGeneratedAppFixture(t, directory, "authors", "authors", authors, appFixtureFeatures{object: true})
+	names = append(names, writeGeneratedAppFixture(t, directory, "blog", "blog", blog, appFixtureFeatures{object: true})...)
+	if count := len(names) + len(generatedFiles); count != 8 {
+		t.Fatalf("generated inventory has %d files, want exact eight", count)
 	}
 	for _, file := range generatedFiles {
 		writeGeneratedTestFile(t, directory, file.name, file.data)
@@ -269,23 +241,8 @@ func writeProjectRelationReverseVariant(
 		bridgePackages[index] = codegen.BridgePackage{Alias: candidate.name, ImportPath: importPath}
 		reversePackages[index] = codegen.RelationReversePackage{Alias: candidate.name, ImportPath: importPath, Schema: candidate.schema}
 
-		main, err := codegen.Generate(candidate.name, candidate.schema)
-		if err != nil {
-			t.Fatalf("generate %s main: %v", candidate.name, err)
-		}
-		metadata, err := codegen.GenerateRelationMetadata(candidate.name, candidate.schema)
-		if err != nil {
-			t.Fatalf("generate %s metadata: %v", candidate.name, err)
-		}
-		object, err := codegen.GenerateRelationObject(candidate.name, candidate.schema)
-		if err != nil {
-			t.Fatalf("generate %s object: %v", candidate.name, err)
-		}
-		writeGeneratedTestFile(t, directory, candidate.name+"/zz_godj_generated.go", main)
-		writeGeneratedTestFile(t, directory, candidate.name+"/zz_godj_relation.go", metadata)
-		if candidate.name != omitObjectFor {
-			writeGeneratedTestFile(t, directory, candidate.name+"/zz_godj_relation_object.go", object)
-		}
+		writeGeneratedAppFixture(t, directory, candidate.name, candidate.name, candidate.schema,
+			appFixtureFeatures{object: candidate.name != omitObjectFor})
 	}
 	bridge, err := codegen.GenerateProjectBridge("project", bridgePackages)
 	if err != nil {
@@ -407,4 +364,19 @@ func TestGeneratedReverseSurface(t *testing.T) {
 	var _ *orm.RelatedSet[blog.Post] = posts1
 }
 `, modulePath, modulePath, modulePath))
+}
+
+func TestGeneratedReverseSelectorCanMatchFactoryMethodOnDifferentReceiver(t *testing.T) {
+	authors, blog := testschema.QueryRelation()
+	blog.Models[0].Fields[2].Relation.Reverse.Name = "from"
+	compileProjectRelationReverseVariant(t, "example.com/reverse-from", []namedRelationReverseSchema{
+		{name: "authors", schema: authors},
+		{name: "blog", schema: blog},
+	}, `package project_test
+
+import project "example.com/reverse-from/project"
+
+var _ = project.AuthorsAuthorReverseObjectFactory.From
+var _ = (*project.AuthorsAuthorReverseObject).From
+`)
 }

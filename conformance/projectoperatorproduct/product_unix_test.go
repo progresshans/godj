@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"io"
 	"net"
 	"net/http"
@@ -409,7 +410,7 @@ func (project *operatorExternalProject) runProvisionPTY(
 		t.Fatalf("close external operator PTY slave: %v", err)
 	}
 
-	output := &operatorBoundedOutput{maximum: operatorMaximumOutput}
+	output := testprocess.NewBuffer(operatorMaximumOutput)
 	drained := make(chan error, 1)
 	go func() {
 		_, copyErr := io.Copy(output, master)
@@ -510,7 +511,7 @@ func (project *operatorExternalProject) runProvisionPublicStreamLoss(
 	command.Stdin = slave
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	command.WaitDelay = 2 * time.Second
-	output := &operatorBoundedOutput{maximum: operatorMaximumOutput}
+	output := testprocess.NewBuffer(operatorMaximumOutput)
 
 	var brokenReader, childWriter *os.File
 	var drained chan error
@@ -640,7 +641,7 @@ func (project *operatorExternalProject) runProvisionPublicStreamLoss(
 	}
 }
 
-func operatorAwaitPTYPrompt(t *testing.T, output *operatorBoundedOutput, waited <-chan struct{}, prompt string) {
+func operatorAwaitPTYPrompt(t *testing.T, output *testprocess.Buffer, waited <-chan struct{}, prompt string) {
 	t.Helper()
 	deadline := time.Now().Add(operatorCommandTimeout)
 	for {
@@ -707,8 +708,8 @@ func (project *operatorExternalProject) runRuntime(
 	address := operatorReserveLoopbackAddress(t)
 	arguments := []string{"runserver", "--project", project.descriptor, "--addr", address}
 	operatorAssertSecretFreeInvocation(t, project.globalBinary, project.nested, environment, password, arguments...)
-	stdout := &operatorBoundedOutput{maximum: operatorMaximumOutput}
-	stderr := &operatorBoundedOutput{maximum: operatorMaximumOutput}
+	stdout := testprocess.NewBuffer(operatorMaximumOutput)
+	stderr := testprocess.NewBuffer(operatorMaximumOutput)
 	command := exec.Command(project.globalBinary, arguments...)
 	command.Dir = project.nested
 	command.Env = append([]string(nil), environment...)
@@ -777,7 +778,7 @@ func (project *operatorExternalProject) runRuntime(
 func operatorWaitRuntimeReady(
 	t *testing.T,
 	address, marker string,
-	stdout, stderr *operatorBoundedOutput,
+	stdout, stderr *testprocess.Buffer,
 	waited <-chan struct{},
 	password []byte,
 ) int {
@@ -819,7 +820,7 @@ func operatorStopRunningCommand(command *exec.Cmd, waited <-chan struct{}) {
 		return
 	case <-time.After(5 * time.Second):
 	}
-	groups, _ := operatorOwnedProcessGroups(command.Process.Pid)
+	groups, _ := testprocess.OwnedGroups(command.Process.Pid)
 	for _, group := range groups {
 		_ = syscall.Kill(-group, syscall.SIGKILL)
 	}
@@ -835,7 +836,7 @@ func operatorAssertLiveProcessMetadata(t *testing.T, pids []int, password []byte
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	command := exec.CommandContext(ctx, "ps", arguments...)
-	output := &operatorBoundedOutput{maximum: operatorMaximumOutput}
+	output := testprocess.NewBuffer(operatorMaximumOutput)
 	command.Stdout = output
 	command.Stderr = output
 	if err := command.Run(); err != nil || ctx.Err() != nil || output.Truncated() {

@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -435,79 +434,6 @@ func TestMigrationRestartArtifactsRejectOrderPhaseProfileAndStatusMutations(t *t
 			t.Fatalf("draft manifest status produced a false green: %v", err)
 		}
 	})
-}
-
-func TestSevenCheckedInContractSetsAreGloballyDistinctAndReject42OrderedCrossBindings(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	sets := []migrationRestartContractSet{
-		loadMigrationRestartContractSet(t, root, "read", "manifest.json", "oracle.json"),
-		loadMigrationRestartContractSet(t, root, "write-migration", "write-migration-manifest.json", "write-migration-oracle.json"),
-		loadMigrationRestartContractSet(t, root, "save-lifecycle", "save-lifecycle-manifest.json", "save-lifecycle-oracle.json"),
-		loadMigrationRestartContractSet(t, root, "query-cache", "query-cache-manifest.json", "query-cache-oracle.json"),
-		loadMigrationRestartContractSet(t, root, "migration-planning", "migration-planning-manifest.json", "migration-planning-oracle.json"),
-		loadMigrationRestartContractSet(t, root, "migration-execution", "migration-execution-manifest.json", "migration-execution-oracle.json"),
-		loadMigrationRestartContractSet(t, root, "migration-restart", "migration-restart-manifest.json", "migration-restart-oracle.json"),
-	}
-
-	contractIDs := make(map[string]string)
-	scenarios := make(map[string]string)
-	totalContracts := 0
-	for _, set := range sets {
-		if err := ValidateSuiteAgainst(profile, set.manifest, set.oracle); err != nil {
-			t.Fatalf("%s set does not validate: %v", set.name, err)
-		}
-		totalContracts += len(set.manifest.Contracts)
-		for _, contract := range set.manifest.Contracts {
-			if previous, exists := contractIDs[contract.ID]; exists {
-				t.Fatalf("contract ID %q is shared by %s and %s", contract.ID, previous, set.name)
-			}
-			contractIDs[contract.ID] = set.name
-			if previous, exists := scenarios[contract.Scenario]; exists {
-				t.Fatalf("scenario %q is shared by %s and %s", contract.Scenario, previous, set.name)
-			}
-			scenarios[contract.Scenario] = set.name
-		}
-	}
-	if totalContracts != 77 {
-		t.Fatalf("seven-set reference contract count = %d, want 77", totalContracts)
-	}
-
-	crossBindings := 0
-	for manifestIndex, manifestSet := range sets {
-		for suiteIndex, suiteSet := range sets {
-			if manifestIndex == suiteIndex {
-				continue
-			}
-			crossBindings++
-			t.Run(manifestSet.name+" manifest rejects "+suiteSet.name+" oracle", func(t *testing.T) {
-				if err := ValidateSuiteAgainst(profile, manifestSet.manifest, suiteSet.oracle); err == nil {
-					t.Fatal("checked-in cross-set binding produced a false green")
-				}
-			})
-		}
-	}
-	if crossBindings != 42 {
-		t.Fatalf("checked %d ordered cross-set bindings, want 42", crossBindings)
-	}
-}
-
-type migrationRestartContractSet struct {
-	name     string
-	manifest Manifest
-	oracle   ObservationSuite
-}
-
-func loadMigrationRestartContractSet(t *testing.T, root, name, manifestName, oracleName string) migrationRestartContractSet {
-	t.Helper()
-	manifest := requireArtifact(t, filepath.Join(root, "conformance", "contracts", manifestName), LoadManifest)
-	oracle := requireArtifact(t, filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", oracleName), LoadObservationSuite)
-	return migrationRestartContractSet{name: name, manifest: manifest, oracle: oracle}
 }
 
 func migrationRestartListField(t *testing.T, value *Value, name string) *Value {

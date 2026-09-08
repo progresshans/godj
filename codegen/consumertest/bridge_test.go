@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -26,22 +28,6 @@ func TestGeneratedMutualAndSelfRelationProjectHasZeroAppImportEdges(t *testing.T
 func validateGeneratedRelationProject(t *testing.T, authorsSchema, blogSchema ir.Schema, wantForward, wantReverse int) {
 	t.Helper()
 
-	authorsMain, err := codegen.Generate("authors", authorsSchema)
-	if err != nil {
-		t.Fatalf("generate authors main: %v", err)
-	}
-	authorsCompanion, err := codegen.GenerateRelationMetadata("authors", authorsSchema)
-	if err != nil {
-		t.Fatalf("generate authors companion: %v", err)
-	}
-	blogMain, err := codegen.Generate("blog", blogSchema)
-	if err != nil {
-		t.Fatalf("generate blog main: %v", err)
-	}
-	blogCompanion, err := codegen.GenerateRelationMetadata("blog", blogSchema)
-	if err != nil {
-		t.Fatalf("generate blog companion: %v", err)
-	}
 	bridge, err := codegen.GenerateProjectBridge("binding", []codegen.BridgePackage{
 		{Alias: "blog", ImportPath: "example.com/godj-relation-project/blog"},
 		{Alias: "authors", ImportPath: "example.com/godj-relation-project/authors"},
@@ -50,28 +36,24 @@ func validateGeneratedRelationProject(t *testing.T, authorsSchema, blogSchema ir
 		t.Fatalf("generate project bridge: %v", err)
 	}
 
-	for name, source := range map[string][]byte{
-		"authors main":      authorsMain,
-		"authors companion": authorsCompanion,
-	} {
-		if bytes.Contains(source, []byte("example.com/godj-relation-project/blog")) {
-			t.Fatalf("%s has an authors -> blog generated import edge:\n%s", name, source)
-		}
-	}
-	for name, source := range map[string][]byte{
-		"blog main":      blogMain,
-		"blog companion": blogCompanion,
-	} {
-		if bytes.Contains(source, []byte("example.com/godj-relation-project/authors")) {
-			t.Fatalf("%s has a blog -> authors generated import edge:\n%s", name, source)
-		}
-	}
-
 	directory := newGeneratedModule(t, "example.com/godj-relation-project")
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_generated.go", authorsMain)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation.go", authorsCompanion)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_generated.go", blogMain)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation.go", blogCompanion)
+	for _, app := range []struct {
+		name, other string
+		schema      ir.Schema
+	}{
+		{"authors", "blog", authorsSchema},
+		{"blog", "authors", blogSchema},
+	} {
+		for _, name := range writeGeneratedAppFixture(t, directory, app.name, app.name, app.schema, appFixtureFeatures{}) {
+			source, err := os.ReadFile(filepath.Join(directory, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bytes.Contains(source, []byte("example.com/godj-relation-project/"+app.other)) {
+				t.Fatalf("%s has an %s -> %s generated import edge:\n%s", name, app.name, app.other, source)
+			}
+		}
+	}
 	writeGeneratedTestFile(t, directory, "binding/zz_godj_binding.go", bridge)
 	writeGeneratedTestFile(t, directory, "binding/binding_test.go", []byte(fmt.Sprintf(`package binding_test
 

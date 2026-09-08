@@ -163,8 +163,8 @@ class MigrationWriterScenarioTests(unittest.TestCase):
             "godj.migration.writer.interruption_recovery_and_roundtrip",
         )
         self.assertEqual(tuple(runner.MIGRATION_WRITER_SCENARIOS), expected)
-        self.assertEqual(runner.DEFAULT_MIGRATION_WRITER_MANIFEST, MANIFEST)
-        self.assertEqual(runner.DEFAULT_MIGRATION_WRITER_ORACLE, ORACLE)
+        self.assertEqual(runner.SUITES["migration-writer"].manifest, MANIFEST)
+        self.assertEqual(runner.SUITES["migration-writer"].oracle, ORACLE)
 
         profile = json.loads(PROFILE.read_text(encoding="utf-8"))
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))

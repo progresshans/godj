@@ -114,3 +114,33 @@ exit "${GODJ_TEST_GIT_EXIT:-9}"
                                         env=environment, capture_output=True, timeout=10)
                 self.assertEqual(exit_code == '0', result.returncode == 0,
                                  'a partial Git listing must fail even when its files are formatted')
+
+
+class ExecutionOwnerTests(unittest.TestCase):
+    def test_every_scope_preserves_exactly_one_portable_or_relation_owner(self):
+        from packages import RELATION_PACKAGES, RELATION_PREFIXES, PORTABLE_PRODUCTS, selected as select_packages
+        from scopes import SCOPES, selected as select_owners
+        relatives = sorted(RELATION_PACKAGES | set(RELATION_PREFIXES) | PORTABLE_PRODUCTS | {
+            'codegen', 'schema/ir', 'internal/projectgenerate', 'conformance/cmd/godjcheck',
+            'conformance/relationfixture/blog', 'conformance/systemstate/attestation',
+        })
+        packages = [MODULE + relative for relative in relatives]
+        for scope in SCOPES:
+            _, owners = select_owners(scope)
+            if 'portable-go-matrix' not in owners:
+                continue
+            portable = [package for category in ('core', 'integration', 'conformance', 'portable-products')
+                        for package in select_packages(packages, category, owners)]
+            relation = select_packages(packages, 'relation', owners) if 'relation-product-matrix' in owners else []
+            runserver = [MODULE + 'conformance/runserverproduct'] if 'product-project-check-matrix' in owners else []
+            for package in packages:
+                with self.subTest(scope=scope, package=package):
+                    self.assertEqual(1, (portable + relation + runserver).count(package))
+        # A local invocation without CI owners must retain the complete groups.
+        self.assertIn(MODULE + 'db/sqlite', select_packages(packages, 'core'))
+        self.assertIn(MODULE + 'conformance/runserverproduct', select_packages(packages, 'portable-products'))
+
+    def test_unrecognized_owner_cannot_hide_a_package(self):
+        from packages import selected
+        with self.assertRaises(ValueError):
+            selected([MODULE + 'orm'], 'core', ['unregistered-owner'])

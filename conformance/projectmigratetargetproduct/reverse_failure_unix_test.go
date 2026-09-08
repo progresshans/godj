@@ -3,6 +3,7 @@
 package projectmigratetargetproduct_test
 
 import (
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"reflect"
 	"testing"
 )
@@ -24,7 +25,7 @@ func targetAssertReverseMiddleFailureResume(t *testing.T, project *targetExterna
 	seedEpoch := targetSQLiteEpoch(t, database)
 
 	targetResetMarker(t, marker)
-	beforePlan := targetCaptureSQLite(t, database)
+	beforePlan := dbstate.CaptureSQLite(t, database)
 	plan := project.run(t, environment,
 		"migrate", targetFailureApp, targetFailure1, "--plan", "--project", project.descriptor)
 	targetAssertSuccess(t, plan, targetPlanOutput(t,

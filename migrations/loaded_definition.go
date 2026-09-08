@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"errors"
 
 	"github.com/progresshans/godj/migrations/internal/loadeddefinition"
@@ -47,6 +48,32 @@ func (s LoadedDefinitionSet) Definitions() []Migration {
 // Sources returns a fresh copy of the canonical source inventory.
 func (s LoadedDefinitionSet) Sources() []DefinitionSourceInfo {
 	return loadeddefinition.Sources(loadedDefinitionPublication(s))
+}
+
+// Reconstructor prepares the historical-state core from this loader-owned
+// catalog. It reuses the immutable identity graph while checking operation
+// resources, chronology and forward/reverse readiness before publication.
+// The returned reconstructor can serve repeated requests and never exposes
+// aliases to the definition set or to previously returned states.
+func (s LoadedDefinitionSet) Reconstructor(ctx context.Context) (StateReconstructor, error) {
+	if ctx == nil {
+		return StateReconstructor{}, executionContextError(PlanStep{}, errors.New("context is nil"))
+	}
+	if err := ctx.Err(); err != nil {
+		return StateReconstructor{}, executionContextError(PlanStep{}, err)
+	}
+	view, ok := s.view()
+	if !ok {
+		return StateReconstructor{}, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition set is invalid"))
+	}
+	if err := validateLoadedDefinitionResources(view.Values); err != nil {
+		return StateReconstructor{}, err
+	}
+	core, err := buildLoadedStateReconstructor(ctx, view.Values, view.Prepared)
+	if err != nil {
+		return StateReconstructor{}, err
+	}
+	return StateReconstructor{core: core, initialized: true}, nil
 }
 
 // Statuses validates and lists one applied-history snapshot against this

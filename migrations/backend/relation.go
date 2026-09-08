@@ -47,3 +47,45 @@ type MigrationTarget struct {
 	TargetModel ir.Model
 	TargetKey   ir.Field
 }
+
+// Clone returns a detached execution-intent snapshot. Nil and empty slices
+// remain distinct because the intent validators use nil as a missing value.
+func (intent MigrationIntent) Clone() MigrationIntent {
+	if intent.Operations == nil {
+		return MigrationIntent{}
+	}
+	clone := MigrationIntent{Operations: make([]MigrationOperation, len(intent.Operations))}
+	for index, operation := range intent.Operations {
+		operation.Before = cloneIntentModel(operation.Before)
+		operation.After = cloneIntentModel(operation.After)
+		operation.Targets = CloneMigrationTargets(operation.Targets)
+		clone.Operations[index] = operation
+	}
+	return clone
+}
+
+func CloneMigrationTargets(targets []MigrationTarget) []MigrationTarget {
+	if targets == nil {
+		return nil
+	}
+	cloned := make([]MigrationTarget, len(targets))
+	for index, target := range targets {
+		cloned[index] = MigrationTarget{
+			SourceField: target.SourceField.Clone(),
+			TargetModel: cloneIntentModel(target.TargetModel),
+			TargetKey:   target.TargetKey.Clone(),
+		}
+	}
+	return cloned
+}
+
+func cloneIntentModel(model ir.Model) ir.Model {
+	clone := model
+	if model.Fields != nil {
+		clone.Fields = make([]ir.Field, len(model.Fields))
+		for index, field := range model.Fields {
+			clone.Fields[index] = field.Clone()
+		}
+	}
+	return clone
+}

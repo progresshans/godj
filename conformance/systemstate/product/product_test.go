@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/examples/article/articleapp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -230,17 +231,17 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil {
 		t.Fatalf("construct rollback Article audit service: %v", err)
 	}
-	if _, err := rollbackService.Create(ctx, secondConfig.PrincipalID, adminapp.Input{Title: "Rolled back Article"}); !errors.Is(err, errInjectedAuditRollback) {
+	if _, err := rollbackService.Create(ctx, secondConfig.PrincipalID, articleapp.Input{Title: "Rolled back Article"}); !errors.Is(err, errInjectedAuditRollback) {
 		t.Fatalf("Article create with injected audit failure = %v, want rollback sentinel", err)
 	}
 	if rollbackStore.objectID <= 0 {
 		t.Fatal("rollback audit store did not observe the Article object identity")
 	}
-	repository, err := adminapp.NewRepository(secondRuntime)
+	repository, err := articleapp.NewRepository(secondRuntime)
 	if err != nil {
 		t.Fatalf("construct Article product repository: %v", err)
 	}
-	page, err := repository.List(ctx, adminapp.ListOptions{})
+	page, err := repository.List(ctx, articleapp.ListOptions{})
 	if err != nil || page.Total != 0 || len(page.Articles) != 0 {
 		t.Fatalf("Article rows after transactional audit rollback = (%#v, %v)", page, err)
 	}
@@ -253,11 +254,11 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil {
 		t.Fatalf("construct committed Article audit service: %v", err)
 	}
-	committedArticle, err := commitService.Create(ctx, secondConfig.PrincipalID, adminapp.Input{Title: "Committed Article"})
+	committedArticle, err := commitService.Create(ctx, secondConfig.PrincipalID, articleapp.Input{Title: "Committed Article"})
 	if err != nil || committedArticle.ID <= 0 {
 		t.Fatalf("commit Article and audit together = (%#v, %v)", committedArticle, err)
 	}
-	page, err = repository.List(ctx, adminapp.ListOptions{})
+	page, err = repository.List(ctx, articleapp.ListOptions{})
 	if err != nil || page.Total != 1 || len(page.Articles) != 1 || page.Articles[0].ID != committedArticle.ID {
 		t.Fatalf("committed Article rows = (%#v, %v)", page, err)
 	}

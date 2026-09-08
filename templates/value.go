@@ -5,6 +5,7 @@ package templates
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -23,8 +24,8 @@ const (
 	ValueSafeHTML
 )
 
-// Value is a closed immutable template value. Composite constructors detach
-// all nested storage from their callers.
+// Value is a closed immutable template value. Composite constructors snapshot
+// caller-owned containers and share already immutable child values.
 type Value struct {
 	kind    ValueKind
 	text    string
@@ -44,11 +45,7 @@ func Integer(value int64) Value { return Value{kind: ValueInteger, integer: valu
 func TrustedHTML(value string) Value { return Value{kind: ValueSafeHTML, text: value} }
 
 func List(values ...Value) Value {
-	clone := make([]Value, len(values))
-	for index := range values {
-		clone[index] = values[index].clone()
-	}
-	return Value{kind: ValueList, list: clone}
+	return Value{kind: ValueList, list: slices.Clone(values)}
 }
 
 // Object copies a closed string-to-Value object. Private/underscore names are
@@ -59,7 +56,7 @@ func Object(values map[string]Value) (Value, error) {
 		if !validIdentifier(name) {
 			return Value{}, &ValueError{Path: name, Code: "invalid_key"}
 		}
-		clone[name] = value.clone()
+		clone[name] = value
 	}
 	return Value{kind: ValueObject, object: clone}, nil
 }
@@ -83,20 +80,16 @@ func (v Value) Items() ([]Value, bool) {
 	if v.kind != ValueList {
 		return nil, false
 	}
-	items := make([]Value, len(v.list))
-	for index := range v.list {
-		items[index] = v.list[index].clone()
-	}
-	return items, true
+	return slices.Clone(v.list), true
 }
 
-// Member returns a detached object member.
+// Member returns an immutable object member.
 func (v Value) Member(name string) (Value, bool) {
 	if v.kind != ValueObject || !validIdentifier(name) {
 		return Value{}, false
 	}
 	value, ok := v.object[name]
-	return value.clone(), ok
+	return value, ok
 }
 
 // Members returns object entries sorted by name so no map iteration order leaks
@@ -112,7 +105,7 @@ func (v Value) Members() ([]Member, bool) {
 	sort.Strings(names)
 	items := make([]Member, len(names))
 	for index, name := range names {
-		items[index] = Member{name: name, value: v.object[name].clone()}
+		items[index] = Member{name: name, value: v.object[name]}
 	}
 	return items, true
 }
@@ -123,24 +116,7 @@ type Member struct {
 }
 
 func (m Member) Name() string { return m.name }
-func (m Member) Value() Value { return m.value.clone() }
-
-func (v Value) clone() Value {
-	clone := v
-	if v.list != nil {
-		clone.list = make([]Value, len(v.list))
-		for index := range v.list {
-			clone.list[index] = v.list[index].clone()
-		}
-	}
-	if v.object != nil {
-		clone.object = make(map[string]Value, len(v.object))
-		for name, value := range v.object {
-			clone.object[name] = value.clone()
-		}
-	}
-	return clone
-}
+func (m Member) Value() Value { return m.value }
 
 func (v Value) truth() bool {
 	switch v.kind {
@@ -174,6 +150,16 @@ func (e *ValueError) Error() string {
 // Context is an immutable top-level name resolver.
 type Context struct {
 	values map[string]Value
+	scope  *loopScope
+}
+
+// Render-local scopes share the immutable root map. Each nested loop binds
+// only its element and loop metadata; leaving the loop restores its parent.
+type loopScope struct {
+	parent *loopScope
+	name   string
+	value  Value
+	loop   Value
 }
 
 func NewContext(values map[string]Value) (Context, error) {
@@ -182,7 +168,7 @@ func NewContext(values map[string]Value) (Context, error) {
 		if !validIdentifier(name) {
 			return Context{}, &ValueError{Path: name, Code: "invalid_context_name"}
 		}
-		clone[name] = value.clone()
+		clone[name] = value
 	}
 	return Context{values: clone}, nil
 }
@@ -191,17 +177,25 @@ func (c Context) Get(name string) (Value, bool) {
 	if !validIdentifier(name) {
 		return Value{}, false
 	}
-	value, ok := c.values[name]
-	return value.clone(), ok
+	return c.lookup(name)
 }
 
-func (c Context) with(name string, value Value) Context {
-	values := make(map[string]Value, len(c.values)+1)
-	for current, item := range c.values {
-		values[current] = item
+func (c Context) withLoop(name string, value, loop Value) Context {
+	c.scope = &loopScope{parent: c.scope, name: name, value: value, loop: loop}
+	return c
+}
+
+func (c Context) lookup(name string) (Value, bool) {
+	for scope := c.scope; scope != nil; scope = scope.parent {
+		if name == "forloop" {
+			return scope.loop, true
+		}
+		if name == scope.name {
+			return scope.value, true
+		}
 	}
-	values[name] = value
-	return Context{values: values}
+	value, ok := c.values[name]
+	return value, ok
 }
 
 func validIdentifier(name string) bool {

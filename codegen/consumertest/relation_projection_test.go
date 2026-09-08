@@ -3,7 +3,6 @@ package codegen_test
 import (
 	"testing"
 
-	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/testschema"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -26,48 +25,9 @@ func writeGeneratedRelationProjectionApps(
 	includeTests bool,
 ) string {
 	t.Helper()
-	authorsMain, err := codegen.Generate("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors main: %v", err)
-	}
-	authorsMetadata, err := codegen.GenerateRelationMetadata("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors metadata: %v", err)
-	}
-	authorsObject, err := codegen.GenerateRelationObject("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors object: %v", err)
-	}
-	authorsProjection, err := codegen.GenerateRelationProjection("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors projection: %v", err)
-	}
-	blogMain, err := codegen.Generate("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog main: %v", err)
-	}
-	blogMetadata, err := codegen.GenerateRelationMetadata("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog metadata: %v", err)
-	}
-	blogObject, err := codegen.GenerateRelationObject("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog object: %v", err)
-	}
-	blogProjection, err := codegen.GenerateRelationProjection("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog projection: %v", err)
-	}
-
 	directory := newGeneratedModule(t, modulePath)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_generated.go", authorsMain)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation.go", authorsMetadata)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation_object.go", authorsObject)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation_projection.go", authorsProjection)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_generated.go", blogMain)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation.go", blogMetadata)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_object.go", blogObject)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_projection.go", blogProjection)
+	writeGeneratedAppFixture(t, directory, "authors", "authors", authors, appFixtureFeatures{object: true, projection: true})
+	writeGeneratedAppFixture(t, directory, "blog", "blog", blog, appFixtureFeatures{object: true, projection: true})
 	if includeTests {
 		writeGeneratedTestFile(t, directory, "authors/relation_projection_test.go", generatedAuthorsProjectionTest())
 		writeGeneratedTestFile(t, directory, "blog/relation_projection_test.go", generatedBlogProjectionTest())

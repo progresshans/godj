@@ -112,6 +112,24 @@ func TestGeneratedProjectRelationSelectRelatedMissingProjectionPrerequisiteFails
 	}
 }
 
+func TestGeneratedRequiredSelectorCanMatchFactoryMethodOnDifferentReceiver(t *testing.T) {
+	authors, blog := testschema.QueryRelation()
+	blog.Models[0].Fields[2].GoName = "SelectRelatedID"
+	const modulePath = "example.com/required-select-related"
+	directory, _ := writeGeneratedRelationSelectRelatedProject(t, modulePath, "authors", "blog", authors, blog, false)
+	writeGeneratedTestFile(t, directory, "project/receiver_namespace_test.go", []byte(`package project_test
+
+import project "example.com/required-select-related/project"
+
+var _ = project.BlogPostObjectFactory.SelectRelated
+var _ = (*project.BlogPostObject).SelectRelated
+`))
+	command := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "./...")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("different receiver methods did not compile: %v\n%s", err, output)
+	}
+}
+
 func writeGeneratedRelationSelectRelatedProject(
 	t *testing.T,
 	modulePath, targetPackage, sourcePackage string,
@@ -119,38 +137,6 @@ func writeGeneratedRelationSelectRelatedProject(
 	includeExternalTest bool,
 ) (string, []string) {
 	t.Helper()
-	authorsMain, err := codegen.Generate(targetPackage, authors)
-	if err != nil {
-		t.Fatalf("generate target main: %v", err)
-	}
-	authorsMetadata, err := codegen.GenerateRelationMetadata(targetPackage, authors)
-	if err != nil {
-		t.Fatalf("generate target metadata: %v", err)
-	}
-	authorsObject, err := codegen.GenerateRelationObject(targetPackage, authors)
-	if err != nil {
-		t.Fatalf("generate target object: %v", err)
-	}
-	authorsProjection, err := codegen.GenerateRelationProjection(targetPackage, authors)
-	if err != nil {
-		t.Fatalf("generate target projection: %v", err)
-	}
-	blogMain, err := codegen.Generate(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate source main: %v", err)
-	}
-	blogMetadata, err := codegen.GenerateRelationMetadata(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate source metadata: %v", err)
-	}
-	blogObject, err := codegen.GenerateRelationObject(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate source object: %v", err)
-	}
-	blogProjection, err := codegen.GenerateRelationProjection(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate source projection: %v", err)
-	}
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: targetPackage, ImportPath: modulePath + "/target"},
 		{Alias: sourcePackage, ImportPath: modulePath + "/source"},
@@ -173,22 +159,15 @@ func writeGeneratedRelationSelectRelatedProject(
 		name string
 		data []byte
 	}{
-		{name: "target/zz_godj_generated.go", data: authorsMain},
-		{name: "target/zz_godj_relation.go", data: authorsMetadata},
-		{name: "target/zz_godj_relation_object.go", data: authorsObject},
-		{name: "target/zz_godj_relation_projection.go", data: authorsProjection},
-		{name: "source/zz_godj_generated.go", data: blogMain},
-		{name: "source/zz_godj_relation.go", data: blogMetadata},
-		{name: "source/zz_godj_relation_object.go", data: blogObject},
-		{name: "source/zz_godj_relation_projection.go", data: blogProjection},
 		{name: "project/zz_godj_binding.go", data: projectBinding},
 		{name: "project/zz_godj_relation_object.go", data: projectObject},
 		{name: "project/zz_godj_relation_select_related.go", data: projectSelectRelated},
 	}
-	names := make([]string, len(files))
-	for index, file := range files {
+	names := writeGeneratedAppFixture(t, directory, "target", targetPackage, authors, appFixtureFeatures{object: true, projection: true})
+	names = append(names, writeGeneratedAppFixture(t, directory, "source", sourcePackage, blog, appFixtureFeatures{object: true, projection: true})...)
+	for _, file := range files {
 		writeGeneratedTestFile(t, directory, file.name, file.data)
-		names[index] = file.name
+		names = append(names, file.name)
 	}
 	if includeExternalTest {
 		surface := strings.ToUpper(sourcePackage[:1]) + sourcePackage[1:] + "Post"

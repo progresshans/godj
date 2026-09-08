@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"os"
 	"reflect"
 	"strings"
@@ -120,7 +121,7 @@ type externalPostgresSnapshot struct {
 	indexes     []externalPostgresIndex
 	sequences   []externalPostgresSequence
 	counts      []externalPostgresTableCount
-	history     []externalSQLiteHistoryRow
+	history     []dbstate.HistoryRow
 	revisions   []externalPostgresRevisionRow
 	authors     []externalPostgresAuthorRow
 	articles    []externalPostgresArticleRow
@@ -167,8 +168,8 @@ func TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart(t *testing.T) {
 		externalStatusSeedPostgresApplicationRows(t, databaseURL, schema)
 		before := externalStatusCapturePostgres(t, databaseURL, schema)
 		externalStatusAssertPostgresHistory(t, before, 2,
-			externalSQLiteHistoryRow{app: "authors", name: "0001_author"},
-			externalSQLiteHistoryRow{app: "blog", name: "0001_article"},
+			dbstate.HistoryRow{App: "authors", Name: "0001_author"},
+			dbstate.HistoryRow{App: "blog", Name: "0001_article"},
 		)
 
 		result := project.runShow(t, project.postgresEnvironment(t, databaseURL, schema, marker, "full"))
@@ -187,9 +188,9 @@ func TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart(t *testing.T) {
 		externalStatusSeedPostgresApplicationRows(t, databaseURL, schema)
 		before := externalStatusCapturePostgres(t, databaseURL, schema)
 		externalStatusAssertPostgresHistory(t, before, 3,
-			externalSQLiteHistoryRow{app: "authors", name: "0001_author"},
-			externalSQLiteHistoryRow{app: "blog", name: "0001_article"},
-			externalSQLiteHistoryRow{app: "blog", name: "0002_publish"},
+			dbstate.HistoryRow{App: "authors", Name: "0001_author"},
+			dbstate.HistoryRow{App: "blog", Name: "0001_article"},
+			dbstate.HistoryRow{App: "blog", Name: "0002_publish"},
 		)
 
 		first := project.runShow(t, environment)
@@ -201,7 +202,7 @@ func TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart(t *testing.T) {
 		second := project.runShow(t, environment)
 		externalStatusAssertSuccess(t, second, externalStatusFullOutput, sensitive...)
 		secondPID := externalStatusAssertReadLifecycle(t, marker)
-		if first.stdout != second.stdout || firstPID == secondPID || firstPID == os.Getpid() || secondPID == os.Getpid() {
+		if first.Stdout != second.Stdout || firstPID == secondPID || firstPID == os.Getpid() || secondPID == os.Getpid() {
 			t.Fatalf("PostgreSQL restart proof was not byte-identical, process-distinct, and external: first_pid=%d second_pid=%d", firstPID, secondPID)
 		}
 		externalStatusAssertPostgresUnchanged(t, before, externalStatusCapturePostgres(t, databaseURL, schema))
@@ -216,11 +217,11 @@ func TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart(t *testing.T) {
 		externalStatusSeedPostgresApplicationRows(t, databaseURL, schema)
 		before := externalStatusCapturePostgres(t, databaseURL, schema)
 		externalStatusAssertPostgresHistory(t, before, 5,
-			externalSQLiteHistoryRow{app: "authors", name: "0001_author"},
-			externalSQLiteHistoryRow{app: "blog", name: "0000_removed"},
-			externalSQLiteHistoryRow{app: "blog", name: "0001_article"},
-			externalSQLiteHistoryRow{app: "blog", name: "9999_removed"},
-			externalSQLiteHistoryRow{app: "legacy", name: "0001_gone"},
+			dbstate.HistoryRow{App: "authors", Name: "0001_author"},
+			dbstate.HistoryRow{App: "blog", Name: "0000_removed"},
+			dbstate.HistoryRow{App: "blog", Name: "0001_article"},
+			dbstate.HistoryRow{App: "blog", Name: "9999_removed"},
+			dbstate.HistoryRow{App: "legacy", Name: "0001_gone"},
 		)
 
 		result := project.runShow(t, project.postgresEnvironment(t, databaseURL, schema, marker, "full"))
@@ -239,8 +240,8 @@ func TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart(t *testing.T) {
 		externalStatusInstallInconsistentPostgresHistory(t, databaseURL, schema)
 		before := externalStatusCapturePostgres(t, databaseURL, schema)
 		externalStatusAssertPostgresHistory(t, before, 3,
-			externalSQLiteHistoryRow{app: "blog", name: "0001_article"},
-			externalSQLiteHistoryRow{app: "blog", name: "0002_publish"},
+			dbstate.HistoryRow{App: "blog", Name: "0001_article"},
+			dbstate.HistoryRow{App: "blog", Name: "0002_publish"},
 		)
 
 		result := project.runShow(t, environment)
@@ -487,8 +488,8 @@ func externalStatusCapturePostgres(t *testing.T, databaseURL, schema string) ext
 			t.Fatalf("inspect PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
-			var value externalSQLiteHistoryRow
-			if err := rows.Scan(&value.app, &value.name); err != nil {
+			var value dbstate.HistoryRow
+			if err := rows.Scan(&value.App, &value.Name); err != nil {
 				rows.Close()
 				t.Fatalf("scan PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 			}
@@ -604,7 +605,7 @@ func externalStatusAssertPostgresUnchanged(t *testing.T, before, after externalP
 	}
 }
 
-func externalStatusAssertPostgresHistory(t *testing.T, snapshot externalPostgresSnapshot, revision int64, want ...externalSQLiteHistoryRow) {
+func externalStatusAssertPostgresHistory(t *testing.T, snapshot externalPostgresSnapshot, revision int64, want ...dbstate.HistoryRow) {
 	t.Helper()
 	if !reflect.DeepEqual(snapshot.history, want) {
 		t.Fatalf("PostgreSQL migration history = %+v, want %+v", snapshot.history, want)
@@ -614,7 +615,7 @@ func externalStatusAssertPostgresHistory(t *testing.T, snapshot externalPostgres
 		len(snapshot.revisions[0].fingerprint) != sha256.Size*2 {
 		t.Fatalf("PostgreSQL revision row is not current and bounded: %+v", snapshot.revisions)
 	}
-	wantFingerprint := externalStatusFingerprintHistory(want)
+	wantFingerprint := dbstate.FingerprintHistory(want)
 	if snapshot.revisions[0].fingerprint != hex.EncodeToString(wantFingerprint[:]) {
 		t.Fatalf("PostgreSQL revision fingerprint = %q, want %x", snapshot.revisions[0].fingerprint, wantFingerprint)
 	}
@@ -628,8 +629,8 @@ func externalStatusPostgresMigrateSetup(t *testing.T, project *externalStatusPro
 	t.Helper()
 	result := project.runMigrate(t, environment)
 	externalStatusAssertRedacted(t, result, sensitive...)
-	if result.exitCode != 0 || result.stderr != "" || result.stdout == "" {
-		t.Fatalf("external PostgreSQL migrate setup failed: exit=%d stdout=%q stderr=%q", result.exitCode, result.stdout, result.stderr)
+	if result.ExitCode != 0 || result.Stderr != "" || result.Stdout == "" {
+		t.Fatalf("external PostgreSQL migrate setup failed: exit=%d stdout=%q stderr=%q", result.ExitCode, result.Stdout, result.Stderr)
 	}
 	externalStatusResetMarker(t, marker)
 }
@@ -703,17 +704,17 @@ func externalStatusInstallInconsistentPostgresHistory(t *testing.T, databaseURL,
 	if err != nil {
 		t.Fatalf("read PostgreSQL inconsistent history: %v", testfixture.PostgresSafeError(err))
 	}
-	var history []externalSQLiteHistoryRow
+	var history []dbstate.HistoryRow
 	for rows.Next() {
-		var value externalSQLiteHistoryRow
-		if err := rows.Scan(&value.app, &value.name); err != nil {
+		var value dbstate.HistoryRow
+		if err := rows.Scan(&value.App, &value.Name); err != nil {
 			rows.Close()
 			t.Fatalf("scan PostgreSQL inconsistent history: %v", testfixture.PostgresSafeError(err))
 		}
 		history = append(history, value)
 	}
 	externalStatusClosePostgresRows(t, rows, "inconsistent history")
-	fingerprint := externalStatusFingerprintHistory(history)
+	fingerprint := dbstate.FingerprintHistory(history)
 	revisionTable := pgx.Identifier{schema, "godj_migration_revision"}.Sanitize()
 	result, err = transaction.Exec(ctx, `UPDATE `+revisionTable+` SET "history_fingerprint" = $1 WHERE "singleton" = 1`, fingerprint[:])
 	if err != nil || result.RowsAffected() != 1 {

@@ -309,6 +309,64 @@ func TestEngineIsConcurrentSafe(t *testing.T) {
 	wait.Wait()
 }
 
+func TestLoopFlagsUseCollectionLengthAndKeepNestedScope(t *testing.T) {
+	engine := newEngine(t, map[string]string{
+		"flags":  `{% for item in items %}{{ forloop.counter }}:{{ forloop.first }}:{{ forloop.last }};{% endfor %}`,
+		"nested": `{% for item in items %}{{ forloop.counter }}[{% for item in item %}{{ forloop.last }};{% endfor %}]{{ forloop.last }};{% endfor %}|{{ item }}|{{ forloop }}`,
+	}, templates.Config{})
+	for _, test := range []struct {
+		name  string
+		items templates.Value
+		want  string
+	}{
+		{"empty", templates.List(), ""},
+		{"single", templates.List(templates.String("one")), "1:True:True;"},
+		{"strings", templates.List(templates.String("one"), templates.String("two"), templates.String("three")), "1:True:False;2:False:False;3:False:True;"},
+		{"objects", templates.List(objectOf(t, map[string]templates.Value{}), objectOf(t, map[string]templates.Value{})), "1:True:False;2:False:True;"},
+		{"lists", templates.List(templates.List(templates.Integer(1)), templates.List()), "1:True:False;2:False:True;"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			output, err := engine.Render(context.Background(), "flags", contextOf(t, map[string]templates.Value{"items": test.items}), templates.Capabilities{})
+			if err != nil || string(output) != test.want {
+				t.Fatalf("Render = %q, %v; want %q", output, err, test.want)
+			}
+		})
+	}
+	values := contextOf(t, map[string]templates.Value{
+		"items": templates.List(templates.List(templates.Integer(1), templates.Integer(2)), templates.List(templates.Integer(3))),
+		"item":  templates.String("outer"), "forloop": templates.String("root"),
+	})
+	output, err := engine.Render(context.Background(), "nested", values, templates.Capabilities{})
+	if want := "1[False;True;]False;2[True;]True;|outer|root"; err != nil || string(output) != want {
+		t.Fatalf("nested Render = %q, %v; want %q", output, err, want)
+	}
+}
+
+func TestClosedValuesDetachContainersAndShareImmutableChildren(t *testing.T) {
+	members := map[string]templates.Value{"text": templates.String("original")}
+	child := objectOf(t, members)
+	items := []templates.Value{child}
+	list := templates.List(items...)
+	input := map[string]templates.Value{"items": list}
+	values := contextOf(t, input)
+	members["text"] = templates.String("changed")
+	items[0] = templates.Null()
+	input["items"] = templates.Null()
+	returned, _ := list.Items()
+	returned[0] = templates.Null()
+	entries, _ := child.Members()
+	entries[0] = templates.Member{}
+	published, ok := values.Get("items")
+	if !ok {
+		t.Fatal("context lost its list")
+	}
+	retained, _ := published.Items()
+	text, _ := retained[0].Member("text")
+	if got, ok := text.AsString(); !ok || got != "original" {
+		t.Fatalf("published child changed: %q, %v", got, ok)
+	}
+}
+
 func FuzzEngineConstruction(f *testing.F) {
 	f.Add("plain")
 	f.Add("{{ value|lower }}")

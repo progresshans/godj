@@ -17,27 +17,47 @@ type ModelField struct {
 	AllowEmpty bool
 }
 
-// ModelValue projects precisely the serializer's allowlist through a typed
-// scalar reader, for example descriptor.WriteFieldValue. Output validation
-// checks kind/nullability/length without applying input trimming or defaults.
-func ModelValue[M any](spec Spec, model ir.Model, value M, read func(M, ir.Field) (query.Value, bool)) (Value, error) {
+// ModelEncoder binds an immutable serializer allowlist to owned model metadata.
+// The caller supplies only a model value when encoding each row. The reader
+// receives a detached field, so it cannot change subsequent projections.
+type ModelEncoder[M any] struct {
+	spec   Spec
+	fields []ir.Field
+	read   func(M, ir.Field) (query.Value, bool)
+}
+
+func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (query.Value, bool)) (ModelEncoder[M], error) {
 	if !spec.valid || read == nil {
-		return Value{}, invalidConfig("model", "invalid projection")
+		return ModelEncoder[M]{}, invalidConfig("model", "invalid projection")
 	}
 	byName := make(map[string]ir.Field, len(model.Fields))
 	for _, field := range model.Fields {
 		if _, duplicate := byName[field.Name]; duplicate {
-			return Value{}, invalidConfig("model", "duplicate field")
+			return ModelEncoder[M]{}, invalidConfig("model", "duplicate field")
 		}
 		byName[field.Name] = field
 	}
-	members := make([]Member, 0, len(spec.fields))
-	for _, field := range spec.fields {
+	fields := make([]ir.Field, len(spec.fields))
+	for index, field := range spec.fields {
 		metadata, found := byName[field.name]
 		if !found {
-			return Value{}, invalidConfig("model."+field.name, "unknown field")
+			return ModelEncoder[M]{}, invalidConfig("model."+field.name, "unknown field")
 		}
-		scalar, found := read(value, metadata.Clone())
+		fields[index] = metadata.Clone()
+	}
+	return ModelEncoder[M]{spec: spec, fields: fields, read: read}, nil
+}
+
+// Encode validates output types, nullability and lengths without applying
+// input trimming/defaults or retaining the model and its mutable pointers.
+func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
+	if encoder.read == nil {
+		return Value{}, invalidConfig("model", "invalid projection")
+	}
+	members := make([]Member, 0, len(encoder.fields))
+	for index, metadata := range encoder.fields {
+		field := encoder.spec.fields[index]
+		scalar, found := encoder.read(value, metadata.Clone())
 		if !found {
 			return Value{}, invalidValue(field.name, "missing model value")
 		}

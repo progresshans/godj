@@ -9,8 +9,10 @@ import (
 )
 
 // Operation is intentionally limited to built-in typed operations in this
-// first migration slice. New operation kinds extend this package after their
-// state and database semantics are specified.
+// first migration slice. Embedding an operation does not create an accepted
+// operation type: execution and reconstruction reject wrappers before invoking
+// methods. New kinds extend this package after their state and database
+// semantics are specified.
 type Operation interface {
 	operation()
 	Kind() string

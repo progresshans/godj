@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"unicode/utf8"
 )
 
 func RejectDuplicateObjectNames(document []byte) error {
@@ -122,4 +123,34 @@ func ReadSourceFile(path string, expectedSize int64) ([]byte, error) {
 		return nil, errors.New("source file changed while it was being read")
 	}
 	return contents, nil
+}
+
+// DecodeDocument validates the bounded JSON wire grammar. The caller owns
+// schema semantics and the final canonical-byte equality check.
+func DecodeDocument(document []byte, maximum int, label string, destination any) error {
+	if len(document) == 0 {
+		return io.ErrUnexpectedEOF
+	}
+	if len(document) > maximum {
+		return fmt.Errorf("%s exceeds its size limit", label)
+	}
+	if !utf8.Valid(document) {
+		return fmt.Errorf("%s is not valid UTF-8", label)
+	}
+	if err := RejectDuplicateObjectNames(document); err != nil {
+		return fmt.Errorf("%s has invalid or duplicate object names", label)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return fmt.Errorf("%s has an invalid JSON shape", label)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("%s contains a trailing JSON value", label)
+		}
+		return fmt.Errorf("%s contains invalid trailing data", label)
+	}
+	return nil
 }

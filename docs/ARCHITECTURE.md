@@ -46,6 +46,10 @@ compile되지 않아도 생성기는 실행할 수 있어야 한다. [ADR-0006](
 Project bundle의 renderer는 같은 준비된 모델·관계 해석을 공유한다.
 App schema도 생성 호출마다 한 번 정규화하고 canonical hash를 계산해 app renderer·manifest·facade가 공유한다.
 `ir.NormalizeAndHash`의 반환 schema는 caller 소유이며 수정하면 hash도 다시 계산해야 한다. 전역 schema cache는 두지 않는다.
+Generated namespace는 실제 생성 AST의 package/import/receiver 선언에서 수집한다. 별도 수작업 심볼 목록을 복제하지 않으며,
+standalone 생성은 필요한 선행 companion까지 같은 규칙으로 검증한다. Promoted raw field/method의 충돌은 별도 source audit을
+유지하고 전체 후보 compile도 수행한다. Bundle은 raw rendering 뒤 seal·format·parse를 한 번에 마친다.
+식별자의 공통 어휘는 `internal/identifiers`, 관계 삭제 policy fingerprint는 `internal/relationpolicy`가 소유한다.
 
 생성물의 manifest와 recovery journal은 서로 다른 입력의 파일이 섞이거나 중단 뒤 부분 결과가 정상으로 인정되는 일을 막는다.
 소유 파일, source namespace와 입력 snapshot을 확인하고 다른 사용자의 파일을 덮어쓰지 않는다. Publication의 원자성과
@@ -85,7 +89,10 @@ Definition은 실행 가능한 Python/Go plugin이 아니라 current data format
 Loader가 정의·source inventory를 복사하고 검증된 immutable graph를 한 번 게시한다. 내부 lifecycle과 SQL projection은
 이를 빌려 읽으며 매번 전체 정의를 복사하거나 같은 graph를 재구축하지 않는다. `Digest`는 저장된 문자열을 반환하고,
 `Sources`와 `Definitions`는 각각 요청한 mutable view만 복사한다. 외부 raw reconstructor 입력은 별도 검증·복사 경계다.
-지원 operation의 non-nil 포인터는 이 경계에서 값으로 정규화한다. Typed nil과 알 수 없는 operation은 오류 의미를 보존한다.
+지원 operation의 non-nil 포인터는 이 경계에서 값으로 정규화한다. Raw DirectExecutor도 현재 built-in operation만 받으며,
+embedding wrapper·typed nil·unknown type은 I/O 전에 거부한다. Go method promotion을 재현하는 호환 계층은 두지 않는다.
+`LoadedDefinitionSet.Reconstructor`는 준비된 graph를 빌리되 operation resource·chronology·readiness를 검증한다.
+Writer의 최초 historical replay는 Detect와 snapshot이 공유하며, 변경된 candidate와 각 durable prefix의 strict load/replay는 별도로 수행한다.
 
 Historical `ProjectState`는 적용할 당시의 schema를 dependency 순서로 재구성한다. 현재 generated model의 field를 읽어
 과거 migration을 복원하지 않는다. 모든 definition을 검증하고 chronology·known history·exact target을 확인한 뒤 backend
@@ -102,6 +109,10 @@ transaction에 묶는다. 전체 migration 목록을 하나의 outer transaction
 SQLite FK DDL은 같은 pinned connection의 FK 설정·물리 schema를 검증하고, 허용한 경우에만 remake한다. 기존 rows,
 NULL/default 의미, PK/sequence와 FK constraint를 보존해야 한다. 검증하지 않은 index·trigger·inbound/self/cyclic schema를
 조용히 재작성하지 않는다. 지원하지 않는 작업은 mutation 전에 capability error로 끝낸다.
+IR intent의 resource 순회는 `internal/irresource`, detached intent 복사는 migration backend 값이 소유한다. 각 backend의
+limit·오류·DDL 의미는 그대로 분리한다. History의 정렬·canonical hash는 두 backend가 같은 순수 구현을 사용한다.
+PostgreSQL은 detached intent 전체를 preflight와 완료 시 검증하고, SQL 직전에는 transition과 현재 operation 전체의 seal을
+검증한다. 최종 physical 검사와 전체 seal 검증이 끝나기 전에는 recorder 성공을 기록하지 않는다.
 
 `sqlmigrate`는 target 직전 historical state의 forward intent를 pure renderer로 projection한다. Preview SQL을 실행 plan으로
 재사용하지 않으며 renderer가 DB opener, recorder, transaction 또는 credential을 갖지 않는다. 실제 migration 실행은 backend
@@ -137,6 +148,9 @@ Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, re
 공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는
 application이 명시적으로 연결한다. Admin snapshot은 실제 list/form 필드를 요구하고 저장 전용 새 필드의 매핑을 강제하지 않는다.
 명시적으로 제공한 snapshot 값은 known field/type 검사를 받는다. Serializer가 임의 model memory나 credential을 reflection으로 노출하지 않는다.
+`ModelEncoder`와 `ModelProjector`는 시작 시 선택 metadata를 복사해 준비하고 각 객체의 reader 결과를 계속 검증한다.
+Article Service는 공통 article repository를 직접 사용하며 Admin의 not-found 변환은 등록 callback 경계가 소유한다.
+Full update와 patch는 transaction 골격을 공유하되 입력 검증·field mask·audit action은 구분한다.
 
 Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사용한다. Bearer가 잘못되었을 때 다른 credential로 fallback하지
 않으며 권한 거부·인증 실패·CSRF 실패를 구분한다. Raw token/password와 verifier cause는 logs·errors·audit에 남기지 않는다.

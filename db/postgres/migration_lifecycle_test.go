@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/db/internal/migrationhistory"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 )
 
@@ -39,7 +40,7 @@ func TestPostgresRevisionExpectedSnapshot(t *testing.T) {
 	record := migrationbackend.AppliedMigration{App: "app", Name: "0001"}
 	token := postgresMigrationRevisionToken{initialized: true, revision: 7}
 	copy(token.epoch[:], []byte("0123456789abcdef"))
-	token.fingerprint = fingerprintPostgresMigrationHistory([]migrationbackend.AppliedMigration{record})
+	token.fingerprint = migrationhistory.Fingerprint([]migrationbackend.AppliedMigration{record})
 
 	tests := []struct {
 		name        string

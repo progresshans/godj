@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"go/format"
 	"strconv"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -37,7 +36,7 @@ func GenerateProjectRelationFacade(
 	if err != nil {
 		return nil, err
 	}
-	return generateProjectRelationFacade(packageName, newRelationProjectPlan(canonical))
+	return generateProjectCompanion(packageName, newRelationProjectPlan(canonical), companionFacade)
 }
 
 func generateProjectRelationFacade(packageName string, plan *relationProjectPlan) ([]byte, error) {
@@ -54,15 +53,9 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	if err != nil {
 		return nil, err
 	}
-	if err := validateProjectRelationObjectNamespaces(canonical, sources); err != nil {
-		return nil, fmt.Errorf("validate project relation facade object prerequisites: %w", err)
-	}
-	if err := validateProjectRelationSelectRelatedNamespaces(plan, sources); err != nil {
-		return nil, fmt.Errorf("validate project relation facade select-related prerequisites: %w", err)
-	}
 	facadeModels := buildProjectRelationFacadeSurface(models, sources)
-	if err := validateProjectRelationFacadeNamespaces(plan, sources, facadeModels); err != nil {
-		return nil, fmt.Errorf("validate project relation facade names: %w", err)
+	if err := validateProjectRelationFacadeFields(facadeModels); err != nil {
+		return nil, err
 	}
 	inputHash := projectRelationFacadeInputSHA256(packageName, canonical)
 
@@ -98,11 +91,32 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	}
 	renderProjectRelationFacadeAggregate(&output, facadeModels)
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated project relation facade companion: %w", err)
+	return output.Bytes(), nil
+}
+
+// Promoted fields come from imported model types and are not declarations in
+// the project AST. Keep this cross-package check beside the facade renderer;
+// direct fields, methods and package names are checked by the common finalizer.
+func validateProjectRelationFacadeFields(models []projectRelationFacadeModel) error {
+	for _, model := range models {
+		methods := map[string]bool{"Unwrap": true, "Save": true, "MarshalJSON": true, "UnmarshalJSON": true}
+		if model.source != nil {
+			for _, relation := range model.source.relations {
+				methods[relation.selector] = true
+				methods["With"+relation.selector] = true
+				methods["With"+relation.selector+"ID"] = true
+				if relation.field.Nullable {
+					methods["Clear"+relation.selector] = true
+				}
+			}
+		}
+		for _, field := range model.model.model.Fields {
+			if methods[field.GoName] {
+				return fmt.Errorf("promoted schema field %s.%s conflicts with wrapper method %s", model.surface, field.Name, field.GoName)
+			}
+		}
 	}
-	return formatted, nil
+	return nil
 }
 
 func validateProjectRelationFacadeImports(apps []normalizedRelationPackage) error {
@@ -142,136 +156,6 @@ func buildProjectRelationFacadeSurface(
 		}
 	}
 	return result
-}
-
-func validateProjectRelationFacadeNamespaces(
-	plan *relationProjectPlan,
-	sources []projectRelationObjectSource,
-	models []projectRelationFacadeModel,
-) error {
-	packageNames, err := projectRelationDeletePrerequisiteNames(plan, sources)
-	if err != nil {
-		return err
-	}
-	add := func(name, owner string) error {
-		if previous, duplicate := packageNames[name]; duplicate {
-			return fmt.Errorf("package symbol %s for %s conflicts with %s", name, owner, previous)
-		}
-		packageNames[name] = owner
-		return nil
-	}
-	for _, candidate := range []struct {
-		name  string
-		owner string
-	}{
-		{name: "GoDjProjectRelationDeleteGeneratorVersion", owner: "project relation delete provenance constant"},
-		{name: "RelationDeleters", owner: "project relation delete aggregate"},
-		{name: "BindRelationDeleters", owner: "project relation delete binding function"},
-		{name: "GoDjProjectRelationFacadeGeneratorVersion", owner: "project relation facade provenance constant"},
-		{name: "GoDjProjectRelationFacadeInputSHA256", owner: "project relation facade input hash constant"},
-		{name: "Backend", owner: "project relation facade backend capability"},
-		{name: "Models", owner: "project relation facade aggregate"},
-		{name: "Using", owner: "project relation facade constructor"},
-		{name: "relationFacadeState", owner: "project relation facade private state"},
-		{name: "relationFacadeNil", owner: "project relation facade nil validator"},
-		{name: "relationFacadeQueryInvalid", owner: "project relation facade query error constructor"},
-		{name: "relationFacadeBackendInvalid", owner: "project relation facade backend error constructor"},
-		{name: "relationFacadePrimaryKeyUpdate", owner: "project relation facade primary-key mutation error constructor"},
-		{name: "relationFacadeContext", owner: "project relation facade context validator"},
-		{name: "relationFacadeUnsavedRelated", owner: "project relation facade unsaved relation error constructor"},
-		{name: "relationFacadeRequiredRelated", owner: "project relation facade required relation error constructor"},
-	} {
-		if err := add(candidate.name, candidate.owner); err != nil {
-			return err
-		}
-	}
-
-	aggregateFields := make(map[string]string, len(models))
-	for _, model := range models {
-		identity := model.model.identity.AppLabel + "." + model.model.identity.ModelName
-		if previous, duplicate := aggregateFields[model.surface]; duplicate {
-			return fmt.Errorf("Models field %s for %s conflicts with %s", model.surface, identity, previous)
-		}
-		aggregateFields[model.surface] = identity
-		for _, candidate := range []struct {
-			name  string
-			owner string
-		}{
-			{name: model.surface, owner: "project wrapper for " + identity},
-			{name: model.rawAlias, owner: "private raw-model alias for " + identity},
-			{name: model.queryType, owner: "project query root for " + identity},
-			{name: "new" + model.surface + "Query", owner: "project query constructor for " + identity},
-			{name: "Select" + model.surface + "Into", owner: "project typed projection bridge for " + identity},
-			{name: "Aggregate" + model.surface + "Into", owner: "project typed aggregate bridge for " + identity},
-		} {
-			if err := add(candidate.name, candidate.owner); err != nil {
-				return err
-			}
-		}
-		methodNames := map[string]string{
-			"validate":                 "wrapper state validation",
-			"relationFacadePrimaryKey": "wrapper primary-key lookup",
-			"Unwrap":                   "wrapper raw-model projection",
-			"Save":                     "wrapper persistence",
-			"MarshalJSON":              "wrapper direct JSON marshal rejection",
-			"UnmarshalJSON":            "wrapper direct JSON unmarshal rejection",
-		}
-		if model.source != nil {
-			methodNames["relationFacadeDerived"] = "wrapper derivation"
-			methodNames["relationFacadePrepareSave"] = "wrapper relation save preflight"
-		}
-		addMethod := func(name, owner string) error {
-			if previous, duplicate := methodNames[name]; duplicate {
-				return fmt.Errorf("wrapper method %s for %s conflicts with %s", name, owner, previous)
-			}
-			methodNames[name] = owner
-			return nil
-		}
-		for _, field := range model.model.model.Fields {
-			if err := addMethod(field.GoName, "promoted schema field "+identity+"."+field.Name); err != nil {
-				return err
-			}
-		}
-		if model.source == nil {
-			continue
-		}
-		for _, candidate := range []struct {
-			name  string
-			owner string
-		}{
-			{name: model.surface + "RelationSelector", owner: "relation selector for " + identity},
-			{name: model.surface + "RelationSelectors", owner: "relation selector aggregate for " + identity},
-			{name: model.surface + "EagerQuery", owner: "eager query for " + identity},
-			{name: lowerFirst(model.surface) + "RelationSelector", owner: "private relation selector for " + identity},
-		} {
-			if err := add(candidate.name, candidate.owner); err != nil {
-				return err
-			}
-		}
-		selectorFields := make(map[string]string, len(model.source.relations))
-		for _, relation := range model.source.relations {
-			if previous, duplicate := selectorFields[relation.selector]; duplicate {
-				return fmt.Errorf("relation selector field %s for %s.%s conflicts with %s", relation.selector, identity, relation.field.Name, previous)
-			}
-			selectorFields[relation.selector] = relation.field.Name
-			owner := identity + "." + relation.field.Name
-			if err := addMethod(relation.selector, "relation accessor "+owner); err != nil {
-				return err
-			}
-			if err := addMethod("With"+relation.selector, "relation assignment "+owner); err != nil {
-				return err
-			}
-			if err := addMethod("With"+relation.selector+"ID", "relation scalar assignment "+owner); err != nil {
-				return err
-			}
-			if relation.field.Nullable {
-				if err := addMethod("Clear"+relation.selector, "nullable relation clear "+owner); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
 }
 
 func projectRelationFacadeInputSHA256(
@@ -428,7 +312,7 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\treturn _query.state.new%s(_value)\n", model.surface)
+	fmt.Fprintf(output, "\treturn _query.state.wrap%s(_value, true)\n", model.surface)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_query %s) Filter(_predicates ...orm.Predicate[%s]) %s {\n", model.queryType, rawType, model.queryType)
@@ -502,7 +386,7 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err != nil || !_found {")
 	fmt.Fprintln(output, "\t\treturn nil, _found, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_wrapped, _err := _query.state.wrap%s(_value)\n", model.surface)
+	fmt.Fprintf(output, "\t_wrapped, _err := _query.state.wrap%s(_value, false)\n", model.surface)
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, false, _err")
 	fmt.Fprintln(output, "\t}")
@@ -519,7 +403,7 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintf(output, "\t_results := make([]*%s, len(_values))\n", model.surface)
 	fmt.Fprintln(output, "\tfor _index := range _values {")
-	fmt.Fprintf(output, "\t\t_wrapped, _err := _query.state.wrap%s(_values[_index])\n", model.surface)
+	fmt.Fprintf(output, "\t\t_wrapped, _err := _query.state.wrap%s(_values[_index], false)\n", model.surface)
 	fmt.Fprintln(output, "\t\tif _err != nil {")
 	fmt.Fprintln(output, "\t\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t\t}")
@@ -553,7 +437,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 
-	fmt.Fprintf(output, "func (_state *relationFacadeState) wrap%s(_value %s) (*%s, error) {\n", model.surface, rawType, model.surface)
+	fmt.Fprintf(output, "func (_state *relationFacadeState) wrap%s(_value %s, _new bool) (*%s, error) {\n", model.surface, rawType, model.surface)
 	fmt.Fprintln(output, "\tif _err := _state.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
@@ -568,32 +452,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintf(output, "\t_result := &%s{state: _state, %s: _cloned, object: _object}\n", model.surface, model.rawAlias)
 	}
 	if model.source != nil {
-		renderProjectRelationFacadeInitialCaches(output, model, "_value", false)
-	}
-	fmt.Fprintln(output, "\t_result._self = _result")
-	fmt.Fprintln(output, "\tif _err := _result.relationFacadeRefreshSnapshots(); _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _result, nil")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-
-	fmt.Fprintf(output, "func (_state *relationFacadeState) new%s(_value %s) (*%s, error) {\n", model.surface, rawType, model.surface)
-	fmt.Fprintln(output, "\tif _err := _state.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_cloned := (%s.%sDescriptor{}).CloneWriteModel(_value)\n", model.model.app.alias, model.model.model.GoName)
-	if model.source == nil {
-		fmt.Fprintf(output, "\t_result := &%s{state: _state, %s: _cloned}\n", model.surface, model.rawAlias)
-	} else {
-		fmt.Fprintf(output, "\t_object, _err := _state.objects.%s.From(_state.backend, _cloned)\n", model.source.surface)
-		fmt.Fprintln(output, "\tif _err != nil {")
-		fmt.Fprintln(output, "\t\treturn nil, _err")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_result := &%s{state: _state, %s: _cloned, object: _object}\n", model.surface, model.rawAlias)
-	}
-	if model.source != nil {
-		renderProjectRelationFacadeInitialCaches(output, model, "_value", true)
+		renderProjectRelationFacadeInitialCaches(output, model, "_value", "_new")
 	}
 	fmt.Fprintln(output, "\t_result._self = _result")
 	fmt.Fprintln(output, "\tif _err := _result.relationFacadeRefreshSnapshots(); _err != nil {")
@@ -617,7 +476,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintf(output, "\t_cloned := (%s.%sDescriptor{}).CloneWriteModel(_model)\n", model.model.app.alias, model.model.model.GoName)
 		fmt.Fprintf(output, "\t_result := &%s{state: _state, %s: _cloned, object: _object}\n", model.surface, model.rawAlias)
-		renderProjectRelationFacadeInitialCaches(output, model, "_model", false)
+		renderProjectRelationFacadeInitialCaches(output, model, "_model", "false")
 		fmt.Fprintln(output, "\t_result._self = _result")
 		fmt.Fprintln(output, "\tif _err := _result.relationFacadeRefreshSnapshots(); _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
@@ -795,7 +654,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintln(output, "\t\t}")
 			fmt.Fprintln(output, "\t\treturn nil, _present, _err")
 			fmt.Fprintln(output, "\t}")
-			fmt.Fprintf(output, "\t_wrapped, _err := _model.state.wrap%s(_value)\n", targetSurface)
+			fmt.Fprintf(output, "\t_wrapped, _err := _model.state.wrap%s(_value, false)\n", targetSurface)
 			fmt.Fprintln(output, "\tif _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t}")
@@ -837,7 +696,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_wrapped, _err := _model.state.wrap%s(_value)\n", targetSurface)
+		fmt.Fprintf(output, "\t_wrapped, _err := _model.state.wrap%s(_value, false)\n", targetSurface)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
@@ -850,7 +709,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	}
 }
 
-func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projectRelationFacadeModel, raw string, newModel bool) {
+func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projectRelationFacadeModel, raw, newModel string) {
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
 		targetSurface := relation.target.app.prefix + relation.target.model.GoName
@@ -862,8 +721,8 @@ func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projec
 			fmt.Fprintln(output, "\t}")
 			continue
 		}
-		if newModel {
-			fmt.Fprintf(output, "\t_result.%sScalarPresent = %s.%s != 0\n", name, raw, relation.field.GoName)
+		if newModel != "false" {
+			fmt.Fprintf(output, "\t_result.%sScalarPresent = !%s || %s.%s != 0\n", name, newModel, raw, relation.field.GoName)
 		} else {
 			fmt.Fprintf(output, "\t_result.%sScalarPresent = true\n", name)
 		}

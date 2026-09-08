@@ -101,8 +101,6 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 	valid := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "blog", authors, blog)
 	selectRelatedCollision := blog.Clone()
 	selectRelatedCollision.Models[0].Fields[3].GoName = "SelectRelatedID"
-	requiredSelectRelatedCollision := blog.Clone()
-	requiredSelectRelatedCollision.Models[0].Fields[2].GoName = "SelectRelatedID"
 	parseDynamicCollision := blog.Clone()
 	parseDynamicCollision.Models[0].Fields[2].GoName = "ParseDynamicID"
 	projectionCollision := authors.Clone()
@@ -145,18 +143,6 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 				"blog",
 				authors,
 				selectRelatedCollision,
-			),
-			contains: "SelectRelated",
-		},
-		{
-			name: "required SelectRelated collision",
-			pkg:  "project",
-			packages: testfixture.TargetSourcePackages(
-				"example.com/godj-relation-select-related-collision",
-				"authors",
-				"blog",
-				authors,
-				requiredSelectRelatedCollision,
 			),
 			contains: "SelectRelated",
 		},

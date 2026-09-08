@@ -47,3 +47,53 @@ func TestBufferSupportsConcurrentWritersAndReaders(t *testing.T) {
 		t.Fatal("concurrent output lost its prefix or truncation signal")
 	}
 }
+
+func TestReadinessBufferWaitsForCompleteLineAndPublishesOnlyFirst(t *testing.T) {
+	t.Parallel()
+	output := NewReadinessBuffer(128, "listening ")
+	for _, fragment := range []string{"noise\nlist", "ening 127.0."} {
+		_, _ = output.Write([]byte(fragment))
+	}
+	select {
+	case address := <-output.Ready():
+		t.Fatalf("partial readiness published %q", address)
+	default:
+	}
+	_, _ = output.Write([]byte("0.1:8123\nlistening other\n"))
+	select {
+	case address := <-output.Ready():
+		if address != "127.0.0.1:8123" {
+			t.Fatalf("complete readiness = %q", address)
+		}
+	default:
+		t.Fatal("complete readiness was not published")
+	}
+	select {
+	case address := <-output.Ready():
+		t.Fatalf("second readiness published %q", address)
+	default:
+	}
+	bounded := NewReadinessBuffer(10, "listening ")
+	_, _ = bounded.Write([]byte("listening host:80\n"))
+	if !bounded.Truncated() {
+		t.Fatal("readiness output lost its bound")
+	}
+	select {
+	case <-bounded.Ready():
+		t.Fatal("truncated readiness line was published")
+	default:
+	}
+}
+
+func TestBufferEmptyWriteAndCopiedBytesPreserveOutput(t *testing.T) {
+	t.Parallel()
+	buffer := NewBuffer(3)
+	_, _ = buffer.Write([]byte("abc"))
+	_, _ = buffer.Write(nil)
+	copied := buffer.Bytes()
+	copied[0] = 'X'
+	value, truncated := buffer.Snapshot()
+	if value != "abc" || truncated {
+		t.Fatalf("snapshot = %q truncated=%t", value, truncated)
+	}
+}

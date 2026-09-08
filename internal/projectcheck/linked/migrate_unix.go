@@ -247,19 +247,9 @@ func completeMigrateResponse(
 	response migrateprotocol.Response,
 	honorCancellation bool,
 ) (Report, error) {
-	if dependencies.beforeResponseWrite != nil {
-		dependencies.beforeResponseWrite()
-	}
-	if honorCancellation {
-		if err := ctx.Err(); err != nil {
-			return report, err
-		}
-	}
-	report.RunnerResponseWrites++
-	if err := migrateprotocol.WriteResponse(writer, response); err != nil {
-		return report, err
-	}
-	return report, nil
+	err := publishLinkedResponse(ctx, dependencies.beforeResponseWrite, honorCancellation, &report.RunnerResponseWrites,
+		func() error { return migrateprotocol.WriteResponse(writer, response) })
+	return report, err
 }
 
 func classifyMigrationFailure(err error) migrateprotocol.Failure {

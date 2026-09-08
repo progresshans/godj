@@ -5,6 +5,7 @@ package projectcheck
 import (
 	"encoding/json"
 	"errors"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"sort"
 
 	"github.com/progresshans/godj/internal/gobuild"
@@ -229,16 +230,8 @@ func generationBarrier(input GenerationInvocation, primary *GenerationFailure) *
 	if primary != nil && primary.Category == GenerationCategoryProcess && primary.Code == GenerationCodeProjectCleanupFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := GenerationFailure{Category: GenerationCategoryProcess, Code: GenerationCodeProjectInterrupted}
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := GenerationFailure{Category: GenerationCategoryProcess, Code: GenerationCodeProjectCanceled}
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := GenerationFailure{Category: GenerationCategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary
@@ -311,20 +304,17 @@ func chooseGenerationResult(report *GenerationReport, result GenerationResult) {
 func generationExitCode(failure GenerationFailure) (int, bool) {
 	switch failure.Category {
 	case GenerationCategoryCommand:
-		return exactGenerationCode(failure.Code, 2, GenerationCodeInvalidArguments)
+		return failurecode.Exact(failure.Code, 2, GenerationCodeInvalidArguments)
 	case GenerationCategorySelection:
-		return exactGenerationCode(failure.Code, 2,
-			GenerationCodeProjectNotFound, GenerationCodeProjectSearchLimitExceeded,
-			GenerationCodeInvalidProjectDescriptor, GenerationCodeProjectDescriptorIncompatible,
-			GenerationCodeProjectSelectionFailed)
+		return failurecode.Selection(failure.Code, 2)
 	case GenerationCategoryBuild:
-		return exactGenerationCode(failure.Code, 3, GenerationCodeProjectTemporaryStorageFailed, GenerationCodeProjectBuildFailed)
+		return failurecode.Exact(failure.Code, 3, GenerationCodeProjectTemporaryStorageFailed, GenerationCodeProjectBuildFailed)
 	case GenerationCategoryProtocol:
-		return exactGenerationCode(failure.Code, 3,
+		return failurecode.Exact(failure.Code, 3,
 			projectgenerateprotocol.CodeInvalidResponse, projectgenerateprotocol.CodeRunnerFailed,
 			projectgenerateprotocol.CodeProtocolIncompatible)
 	case GenerationCategoryDeclaration:
-		return exactGenerationCode(failure.Code, 1, projectgenerateprotocol.CodeProjectSpecLoadFailed)
+		return failurecode.Exact(failure.Code, 1, projectgenerateprotocol.CodeProjectSpecLoadFailed)
 	case GenerationCategoryGeneration:
 		switch failure.Code {
 		case GenerationCodeProjectGenerateFailed, GenerationCodeProjectCheckFailed,
@@ -336,28 +326,12 @@ func generationExitCode(failure GenerationFailure) (int, bool) {
 			return 0, false
 		}
 	case GenerationCategoryProcess:
-		switch failure.Code {
-		case GenerationCodeProjectCanceled, GenerationCodeProjectCleanupFailed:
-			return 3, true
-		case GenerationCodeProjectInterrupted:
-			return 130, true
-		default:
-			return 0, false
-		}
+		return failurecode.Process(failure.Code)
 	case GenerationCategoryInternal:
-		return exactGenerationCode(failure.Code, 3, GenerationCodeProjectInternalError)
+		return failurecode.Exact(failure.Code, 3, GenerationCodeProjectInternalError)
 	default:
 		return 0, false
 	}
-}
-
-func exactGenerationCode(code string, exit int, allowed ...string) (int, bool) {
-	for _, candidate := range allowed {
-		if code == candidate {
-			return exit, true
-		}
-	}
-	return 0, false
 }
 
 func publishGeneration(input GenerationInvocation, report *GenerationReport) {

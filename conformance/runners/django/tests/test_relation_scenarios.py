@@ -19,9 +19,8 @@ from conformance.runners.django import relation_scenarios as scenarios
 from conformance.runners.django import relation_fixture
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
+    SUITES,
     DEFAULT_PROFILE,
-    DEFAULT_RELATION_MANIFEST,
-    DEFAULT_RELATION_ORACLE,
     REPOSITORY_ROOT,
     _load_json,
 )
@@ -99,7 +98,7 @@ class RelationScenarioTests(unittest.TestCase):
         return observations
 
     def test_registry_manifest_and_static_fixture_lock_exact_order(self) -> None:
-        manifest = _load_json(DEFAULT_RELATION_MANIFEST)
+        manifest = _load_json(SUITES["relation"].manifest)
         static = _load_json(STATIC_FIXTURE)
         identifiers = [f"REL-{number:03d}" for number in range(1, 13)]
 
@@ -132,7 +131,7 @@ class RelationScenarioTests(unittest.TestCase):
         )
 
     def test_manifest_provenance_is_pinned_independent_and_licensed(self) -> None:
-        manifest = _load_json(DEFAULT_RELATION_MANIFEST)
+        manifest = _load_json(SUITES["relation"].manifest)
         references = []
         for contract in manifest["contracts"]:
             self.assertTrue(contract["provenance"])
@@ -539,14 +538,14 @@ class RelationScenarioTests(unittest.TestCase):
 import sys
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
+    SUITES,
     DEFAULT_PROFILE,
-    DEFAULT_RELATION_MANIFEST,
     _load_json,
     _run_contract,
     _validate_manifest_basics,
 )
 profile = _load_json(DEFAULT_PROFILE)
-manifest = _load_json(DEFAULT_RELATION_MANIFEST)
+manifest = _load_json(SUITES["relation"].manifest)
 contracts = _validate_manifest_basics(manifest, profile)
 suite = {
     "format_version": 2,
@@ -574,7 +573,7 @@ sys.stdout.buffer.write(canonical_json(suite))
             self.assertEqual(completed.returncode, 0, completed.stderr.decode())
             outputs.append(completed.stdout)
         self.assertEqual(outputs[0], outputs[1])
-        self.assertEqual(outputs[0], DEFAULT_RELATION_ORACLE.read_bytes())
+        self.assertEqual(outputs[0], SUITES["relation"].oracle.read_bytes())
 
     def test_portable_runtime_uses_django_61_and_actual_sqlite(self) -> None:
         import django

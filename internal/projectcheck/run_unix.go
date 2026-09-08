@@ -134,16 +134,8 @@ func barrierFailure(input Invocation, primary *Failure) *Failure {
 	if primary != nil && primary.Category == protocol.CategoryProcess && primary.Code == protocol.CodeProjectCleanupFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := failure(protocol.CategoryProcess, protocol.CodeProjectInterrupted)
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := failure(protocol.CategoryProcess, protocol.CodeProjectCanceled)
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := Failure{Category: protocol.CategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary

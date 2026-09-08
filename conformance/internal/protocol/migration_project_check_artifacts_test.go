@@ -3,9 +3,7 @@ package protocol
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -183,41 +181,4 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 		}
 		previous = position
 	}
-}
-
-func TestMigrationProjectCheckRemainsInProductTarget(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	contents, err := os.ReadFile(filepath.Join(root, "Makefile"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(contents)
-	referenceTarget := migrationProjectCheckMakeTarget(t, text, "conformance-check:\n", "godj-conformance:")
-	productTarget := migrationProjectCheckMakeTarget(t, text, "godj-conformance:", "oracle-check:\n")
-	oracleCheckTarget := migrationProjectCheckMakeTarget(t, text, "oracle-check:\n", "oracle-regenerate:\n")
-	oracleRegenerateTarget := migrationProjectCheckMakeTarget(t, text, "oracle-regenerate:\n", "ci:")
-	if got := strings.Count(referenceTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 2 {
-		t.Fatalf("reference target project-check manifest count = %d, want 2", got)
-	}
-	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
-		t.Fatalf("product target project-check manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
-		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(oracleRegenerateTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
-		t.Fatalf("oracle-regenerate project-check manifest count = %d, want 1", got)
-	}
-}
-
-func migrationProjectCheckMakeTarget(t *testing.T, text, startMarker, endMarker string) string {
-	t.Helper()
-	start := strings.Index(text, startMarker)
-	end := strings.Index(text, endMarker)
-	if start < 0 || end <= start {
-		t.Fatalf("cannot isolate Makefile target %q..%q", startMarker, endMarker)
-	}
-	return text[start:end]
 }

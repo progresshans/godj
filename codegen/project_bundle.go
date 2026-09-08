@@ -5,10 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"go/ast"
-	"go/format"
-	"go/parser"
-	"go/token"
 	"io/fs"
 	"path"
 	"sort"
@@ -59,7 +55,7 @@ func GenerateProject(input ProjectSpec) (GeneratedBundle, error) {
 	if err := sealProjectSnapshot(rendered, normalized, snapshotSHA256); err != nil {
 		return GeneratedBundle{}, err
 	}
-	if err := validateProjectRenderedNamespaces(rendered); err != nil {
+	if err := finalizeGeneratedFiles(rendered); err != nil {
 		return GeneratedBundle{}, err
 	}
 
@@ -139,7 +135,7 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 		render   func() ([]byte, error)
 	}{
 		{filename: "zz_godj_bindings.go", render: func() ([]byte, error) {
-			return GenerateProjectBridge(input.project.PackageName, bridgePackages)
+			return generateProjectBridge(input.project.PackageName, bridgePackages)
 		}},
 		{filename: "zz_godj_relation_query.go", render: func() ([]byte, error) {
 			return generateProjectRelationQuery(input.project.PackageName, plan)
@@ -271,76 +267,14 @@ func sealProjectSnapshot(
 		} else {
 			return fmt.Errorf("generated output %q has no package owner", candidate.path)
 		}
-		sealed, err := appendProjectSnapshotDeclarations(candidate.source, declarations)
-		if err != nil {
-			return fmt.Errorf("seal generated output %q: %w", candidate.path, err)
-		}
-		candidate.source = sealed
+		candidate.source = appendProjectSnapshotDeclarations(candidate.source, declarations)
 	}
 	return nil
 }
 
-func appendProjectSnapshotDeclarations(source []byte, declarations string) ([]byte, error) {
+func appendProjectSnapshotDeclarations(source []byte, declarations string) []byte {
 	candidate := make([]byte, 0, len(source)+len(declarations)+1)
 	candidate = append(candidate, source...)
 	candidate = append(candidate, '\n')
-	candidate = append(candidate, declarations...)
-	formatted, err := format.Source(candidate)
-	if err != nil {
-		return nil, fmt.Errorf("format snapshot seal: %w", err)
-	}
-	return formatted, nil
-}
-
-func validateProjectRenderedNamespaces(files []projectRenderedFile) error {
-	packages := make(map[string]map[string]string)
-	for _, candidate := range files {
-		parsed, err := parser.ParseFile(token.NewFileSet(), candidate.path, candidate.source, parser.AllErrors)
-		if err != nil {
-			return fmt.Errorf("parse generated output %q: %w", candidate.path, err)
-		}
-		directory := path.Dir(candidate.path)
-		names := packages[directory]
-		if names == nil {
-			names = make(map[string]string)
-			packages[directory] = names
-		}
-		for _, declaration := range parsed.Decls {
-			switch current := declaration.(type) {
-			case *ast.FuncDecl:
-				if current.Recv == nil {
-					if err := addProjectGeneratedName(names, current.Name.Name, candidate.path); err != nil {
-						return err
-					}
-				}
-			case *ast.GenDecl:
-				for _, specification := range current.Specs {
-					switch value := specification.(type) {
-					case *ast.TypeSpec:
-						if err := addProjectGeneratedName(names, value.Name.Name, candidate.path); err != nil {
-							return err
-						}
-					case *ast.ValueSpec:
-						for _, name := range value.Names {
-							if name.Name == "_" {
-								continue
-							}
-							if err := addProjectGeneratedName(names, name.Name, candidate.path); err != nil {
-								return err
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func addProjectGeneratedName(names map[string]string, name, filename string) error {
-	if previous, duplicate := names[name]; duplicate {
-		return fmt.Errorf("generated package symbol %s in %s conflicts with %s", name, filename, previous)
-	}
-	names[name] = filename
-	return nil
+	return append(candidate, declarations...)
 }

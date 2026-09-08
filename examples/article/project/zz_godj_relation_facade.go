@@ -85,7 +85,7 @@ func (_query ModelsArticleQuery) New(_value models.Article) (*ModelsArticle, err
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	return _query.state.newModelsArticle(_value)
+	return _query.state.wrapModelsArticle(_value, true)
 }
 
 func (_query ModelsArticleQuery) Filter(_predicates ...orm.Predicate[models.Article]) ModelsArticleQuery {
@@ -162,7 +162,7 @@ func (_query ModelsArticleQuery) First(_ctx context.Context) (*ModelsArticle, bo
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsArticle(_value)
+	_wrapped, _err := _query.state.wrapModelsArticle(_value, false)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -179,7 +179,7 @@ func (_query ModelsArticleQuery) All(_ctx context.Context) ([]*ModelsArticle, er
 	}
 	_results := make([]*ModelsArticle, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsArticle(_values[_index])
+		_wrapped, _err := _query.state.wrapModelsArticle(_values[_index], false)
 		if _err != nil {
 			return nil, _err
 		}
@@ -198,20 +198,7 @@ type ModelsArticle struct {
 	_self                     *ModelsArticle
 }
 
-func (_state *relationFacadeState) wrapModelsArticle(_value models.Article) (*ModelsArticle, error) {
-	if _err := _state.validate(); _err != nil {
-		return nil, _err
-	}
-	_cloned := (models.ArticleDescriptor{}).CloneWriteModel(_value)
-	_result := &ModelsArticle{state: _state, modelsArticleModel: _cloned}
-	_result._self = _result
-	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
-		return nil, _err
-	}
-	return _result, nil
-}
-
-func (_state *relationFacadeState) newModelsArticle(_value models.Article) (*ModelsArticle, error) {
+func (_state *relationFacadeState) wrapModelsArticle(_value models.Article, _new bool) (*ModelsArticle, error) {
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -17,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/db/internal/migrationhistory"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -132,38 +132,6 @@ func TestSQLiteRevisionFenceBootstrapReopenAddFieldAndReverse(t *testing.T) {
 	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published")
 	if err := session.Close(ctx); err != nil {
 		t.Fatalf("close reopened session: %v", err)
-	}
-}
-
-func TestSQLiteMigrationHistoryFingerprintV1Goldens(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name    string
-		records []migrationbackend.AppliedMigration
-		want    string
-	}{
-		{name: "empty", want: "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"},
-		{
-			name:    "alpha",
-			records: []migrationbackend.AppliedMigration{{App: "alpha", Name: "0001"}},
-			want:    "d082f0a0b67b8c2b5c7efc208270dd2e17c6a346d9b2fa0e572e6396dedff40e",
-		},
-		{
-			name:    "utf8_byte_length",
-			records: []migrationbackend.AppliedMigration{{App: "legacy", Name: "ä"}},
-			want:    "35e542d7c4bce2ba60aa694f4301300cb1835e58ca14efe54a781ea7ae03e45c",
-		},
-	}
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			fingerprint := fingerprintMigrationHistory(test.records)
-			got := hex.EncodeToString(fingerprint[:])
-			if got != test.want {
-				t.Fatalf("fingerprint = %s, want %s", got, test.want)
-			}
-		})
 	}
 }
 
@@ -607,7 +575,7 @@ func TestSQLiteRevisionFencedDeclaredTransitionIntegrity(t *testing.T) {
 		_, err = session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent())
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureIntegrity)
 		after, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
-		if err != nil || !equalMigrationRevisionToken(before.token, after.token) || !equalAppliedMigrations(before.records, after.records) {
+		if err != nil || !equalMigrationRevisionToken(before.token, after.token) || !migrationhistory.Equal(before.records, after.records) {
 			t.Fatalf("already-present attempt changed durable history: before=%+v after=%+v err=%v", before, after, err)
 		}
 		if stats := backend.database.Stats(); stats.InUse != 0 {
@@ -637,7 +605,7 @@ func TestSQLiteRevisionFencedDeclaredTransitionIntegrity(t *testing.T) {
 }
 
 func TestSQLiteRevisionMetadataCorruptionFailsClosed(t *testing.T) {
-	validHash := fingerprintMigrationHistory(nil)
+	validHash := migrationhistory.Fingerprint(nil)
 	validEpoch := make([]byte, migrationRevisionEpochSize)
 	for index := range validEpoch {
 		validEpoch[index] = byte(index + 1)
@@ -882,7 +850,7 @@ func TestSQLiteRevisionMetadataCorruptionFailsClosed(t *testing.T) {
 
 func TestSQLiteRevisionRecorderCorruptionFailsClosed(t *testing.T) {
 	validEpoch := make([]byte, migrationRevisionEpochSize)
-	validHash := fingerprintMigrationHistory(nil)
+	validHash := migrationhistory.Fingerprint(nil)
 	type corruptionCase struct {
 		name  string
 		setup func(*testing.T, *Backend)
@@ -989,7 +957,7 @@ func TestSQLiteRevisionRecorderCorruptionFailsClosed(t *testing.T) {
 				if _, err := backend.ExecContext(context.Background(), `INSERT INTO "godj_migrations" VALUES ('', '0001')`); err != nil {
 					t.Fatal(err)
 				}
-				blankHash := fingerprintMigrationHistory([]migrationbackend.AppliedMigration{{Name: "0001"}})
+				blankHash := migrationhistory.Fingerprint([]migrationbackend.AppliedMigration{{Name: "0001"}})
 				createMetadata(t, backend, blankHash)
 			},
 		},
@@ -1115,7 +1083,7 @@ func installSQLiteRevisionHistoryFixture(
 		}
 		records[index] = record
 	}
-	fingerprint := fingerprintMigrationHistory(records)
+	fingerprint := migrationhistory.Fingerprint(records)
 	if _, err := transaction.ExecContext(
 		ctx,
 		`INSERT INTO "godj_migration_revision" VALUES (1, 1, ?, ?, ?)`,
@@ -1159,7 +1127,7 @@ func TestSQLiteRevisionFenceRejectsOverflowBeforeMutation(t *testing.T) {
 	if _, err := backend.ExecContext(ctx, createMigrationRevisionTableSQL); err != nil {
 		t.Fatal(err)
 	}
-	hash := fingerprintMigrationHistory(nil)
+	hash := migrationhistory.Fingerprint(nil)
 	if _, err := backend.ExecContext(
 		ctx,
 		`INSERT INTO "godj_migration_revision" VALUES (1, 1, ?, ?, ?)`,
@@ -1285,7 +1253,7 @@ func TestSQLiteRevisionFenceRejectsFingerprintABAWithHigherRevision(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !equalAppliedMigrations(before.records, after.records) || before.token.fingerprint != after.token.fingerprint {
+	if !migrationhistory.Equal(before.records, after.records) || before.token.fingerprint != after.token.fingerprint {
 		t.Fatalf("fixture did not restore identical identity fingerprint: before=%+v after=%+v", before, after)
 	}
 	if before.token.revision != 1 || after.token.revision != 3 {
@@ -1297,7 +1265,7 @@ func TestSQLiteRevisionFenceRejectsFingerprintABAWithHigherRevision(t *testing.T
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureStale)
 	}
 	final, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
-	if err != nil || !equalMigrationRevisionToken(after.token, final.token) || !equalAppliedMigrations(after.records, final.records) {
+	if err != nil || !equalMigrationRevisionToken(after.token, final.token) || !migrationhistory.Equal(after.records, final.records) {
 		t.Fatalf("stale ABA attempt mutated history: after=%+v final=%+v err=%v", after, final, err)
 	}
 }
@@ -1904,7 +1872,7 @@ func TestSQLiteRevisionIOClassifiesBusyAndLockedAtLiveCallSites(t *testing.T) {
 		}
 		successorToken := before.token
 		successorToken.revision++
-		successorToken.fingerprint = fingerprintMigrationHistory(successorRecords)
+		successorToken.fingerprint = migrationhistory.Fingerprint(successorRecords)
 		connection, err := backend.database.Conn(ctx)
 		if err != nil {
 			t.Fatal(err)
@@ -1917,8 +1885,8 @@ func TestSQLiteRevisionIOClassifiesBusyAndLockedAtLiveCallSites(t *testing.T) {
 		candidate := &sqliteRevisionFencedTransaction{
 			connection:       pinned,
 			transition:       second,
-			expectedRecords:  cloneAppliedMigrations(before.records),
-			successorRecords: cloneAppliedMigrations(successorRecords),
+			expectedRecords:  migrationhistory.Clone(before.records),
+			successorRecords: migrationhistory.Clone(successorRecords),
 			expectedToken:    before.token,
 			successorToken:   successorToken,
 		}
@@ -1928,7 +1896,7 @@ func TestSQLiteRevisionIOClassifiesBusyAndLockedAtLiveCallSites(t *testing.T) {
 			t.Fatalf("rollback failed claim: %v", err)
 		}
 		after, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
-		if err != nil || !equalMigrationRevisionToken(before.token, after.token) || !equalAppliedMigrations(before.records, after.records) {
+		if err != nil || !equalMigrationRevisionToken(before.token, after.token) || !migrationhistory.Equal(before.records, after.records) {
 			t.Fatalf("failed claim mutated history: before=%+v after=%+v err=%v", before, after, err)
 		}
 	})

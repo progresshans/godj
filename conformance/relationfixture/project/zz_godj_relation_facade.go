@@ -94,7 +94,7 @@ func (_query AuthorsAuthorQuery) New(_value authors.Author) (*AuthorsAuthor, err
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	return _query.state.newAuthorsAuthor(_value)
+	return _query.state.wrapAuthorsAuthor(_value, true)
 }
 
 func (_query AuthorsAuthorQuery) Filter(_predicates ...orm.Predicate[authors.Author]) AuthorsAuthorQuery {
@@ -171,7 +171,7 @@ func (_query AuthorsAuthorQuery) First(_ctx context.Context) (*AuthorsAuthor, bo
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapAuthorsAuthor(_value)
+	_wrapped, _err := _query.state.wrapAuthorsAuthor(_value, false)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -188,7 +188,7 @@ func (_query AuthorsAuthorQuery) All(_ctx context.Context) ([]*AuthorsAuthor, er
 	}
 	_results := make([]*AuthorsAuthor, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapAuthorsAuthor(_values[_index])
+		_wrapped, _err := _query.state.wrapAuthorsAuthor(_values[_index], false)
 		if _err != nil {
 			return nil, _err
 		}
@@ -207,20 +207,7 @@ type AuthorsAuthor struct {
 	_self                     *AuthorsAuthor
 }
 
-func (_state *relationFacadeState) wrapAuthorsAuthor(_value authors.Author) (*AuthorsAuthor, error) {
-	if _err := _state.validate(); _err != nil {
-		return nil, _err
-	}
-	_cloned := (authors.AuthorDescriptor{}).CloneWriteModel(_value)
-	_result := &AuthorsAuthor{state: _state, authorsAuthorModel: _cloned}
-	_result._self = _result
-	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
-		return nil, _err
-	}
-	return _result, nil
-}
-
-func (_state *relationFacadeState) newAuthorsAuthor(_value authors.Author) (*AuthorsAuthor, error) {
+func (_state *relationFacadeState) wrapAuthorsAuthor(_value authors.Author, _new bool) (*AuthorsAuthor, error) {
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
@@ -330,7 +317,7 @@ func (_query BlogPostQuery) New(_value blog.Post) (*BlogPost, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	return _query.state.newBlogPost(_value)
+	return _query.state.wrapBlogPost(_value, true)
 }
 
 func (_query BlogPostQuery) Filter(_predicates ...orm.Predicate[blog.Post]) BlogPostQuery {
@@ -407,7 +394,7 @@ func (_query BlogPostQuery) First(_ctx context.Context) (*BlogPost, bool, error)
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapBlogPost(_value)
+	_wrapped, _err := _query.state.wrapBlogPost(_value, false)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -424,7 +411,7 @@ func (_query BlogPostQuery) All(_ctx context.Context) ([]*BlogPost, error) {
 	}
 	_results := make([]*BlogPost, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapBlogPost(_values[_index])
+		_wrapped, _err := _query.state.wrapBlogPost(_values[_index], false)
 		if _err != nil {
 			return nil, _err
 		}
@@ -450,7 +437,7 @@ type BlogPost struct {
 	_self                     *BlogPost
 }
 
-func (_state *relationFacadeState) wrapBlogPost(_value blog.Post) (*BlogPost, error) {
+func (_state *relationFacadeState) wrapBlogPost(_value blog.Post, _new bool) (*BlogPost, error) {
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
@@ -461,31 +448,7 @@ func (_state *relationFacadeState) wrapBlogPost(_value blog.Post) (*BlogPost, er
 	}
 	_result := &BlogPost{state: _state, blogPostModel: _cloned, object: _object}
 	_result.authorCache = orm.NewRelationCache[AuthorsAuthor]()
-	_result.authorScalarPresent = true
-	_result.reviewerCache = orm.NewRelationCache[AuthorsAuthor]()
-	_result.reviewerScalarPresent = _value.ReviewerID != nil
-	if _value.ReviewerID == nil {
-		_ = _result.reviewerCache.Store(orm.RelationAssignedAbsent, nil, false)
-	}
-	_result._self = _result
-	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
-		return nil, _err
-	}
-	return _result, nil
-}
-
-func (_state *relationFacadeState) newBlogPost(_value blog.Post) (*BlogPost, error) {
-	if _err := _state.validate(); _err != nil {
-		return nil, _err
-	}
-	_cloned := (blog.PostDescriptor{}).CloneWriteModel(_value)
-	_object, _err := _state.objects.BlogPost.From(_state.backend, _cloned)
-	if _err != nil {
-		return nil, _err
-	}
-	_result := &BlogPost{state: _state, blogPostModel: _cloned, object: _object}
-	_result.authorCache = orm.NewRelationCache[AuthorsAuthor]()
-	_result.authorScalarPresent = _value.AuthorID != 0
+	_result.authorScalarPresent = !_new || _value.AuthorID != 0
 	_result.reviewerCache = orm.NewRelationCache[AuthorsAuthor]()
 	_result.reviewerScalarPresent = _value.ReviewerID != nil
 	if _value.ReviewerID == nil {
@@ -988,7 +951,7 @@ func (_model *BlogPost) Author(_ctx context.Context) (*AuthorsAuthor, error) {
 	if _err != nil {
 		return nil, _err
 	}
-	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value)
+	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value, false)
 	if _err != nil {
 		return nil, _err
 	}
@@ -1031,7 +994,7 @@ func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, er
 		}
 		return nil, _present, _err
 	}
-	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value)
+	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value, false)
 	if _err != nil {
 		return nil, false, _err
 	}

@@ -267,9 +267,9 @@ func TestWorkflowKeepsOracleIndependentAndCapturesCurrent(t *testing.T) {
 	ciRequire(t, "PostgreSQL capture producer", postgres, "scripts/ci/capture_artifact.py pack", "actions/upload-artifact@", "if-no-files-found: error")
 	ciRequire(t, "current capture consumer", reference, "actions/download-artifact@", "scripts/ci/capture_artifact.py verify", "ATTESTATION_DIR:", "godj-conformance")
 	for _, artifact := range []string{"systemstate-postgres", "operator-postgres"} {
-		ciRequire(t, "capture producer", postgres, "name: "+artifact)
-		ciRequire(t, "capture consumer", reference, "name: "+artifact)
+		ciRequire(t, "capture producer", postgres, "name: "+artifact+"-${{ github.run_attempt }}")
 	}
+	ciRequire(t, "successful same-run capture resolution", reference, "scripts/ci/capture_artifact.py resolve", "artifact-ids: ${{ steps.captures.outputs.systemstate_artifact_id }}", "artifact-ids: ${{ steps.captures.outputs.operator_artifact_id }}", "run-id: ${{ github.run_id }}", "--producer-attempt")
 	for _, file := range []string{"postgresql-17.10-two-process-v1.json", "postgresql-17.10-sqlite-external-operator-v1.json"} {
 		ciRequire(t, "capture producer", postgres, file)
 		ciRequire(t, "capture consumer", reference, file)
@@ -283,17 +283,7 @@ func TestRunserverKeepsNormalRaceAndCGOZeroProductCoverage(t *testing.T) {
 	makefile := ciRead(t, "Makefile")
 	for target, mode := range map[string]string{"go-test-products": "", "go-race-products": "-race", "cgo-zero-build-products": "CGO_ENABLED=0"} {
 		body := ciMakeTarget(t, makefile, target)
-		found := false
-		for _, line := range strings.Split(body, "\n") {
-			if strings.Contains(line, "./conformance/runserverproduct") {
-				ciRequire(t, target, line, "go test", mode)
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Fatalf("%s misses actual runserver product tests", target)
-		}
+		ciRequire(t, target, body, "scripts/ci/packages.py portable-products", "go test", mode)
 	}
 	ciRequire(t, "fast feedback", ciRead(t, ".github/workflows/feedback.yml"), "make quick", "scripts/ci", "not full platform validation")
 	quick := ciMakeTarget(t, makefile, "quick")
@@ -302,29 +292,6 @@ func TestRunserverKeepsNormalRaceAndCGOZeroProductCoverage(t *testing.T) {
 			t.Fatalf("quick feedback unexpectedly owns %s", heavy)
 		}
 	}
-}
-
-func assertConformanceAdapter(t *testing.T, prefix string, deviation bool) {
-	t.Helper()
-	makefile := ciRead(t, "Makefile")
-	manifest, oracle, baseline := "$("+prefix+"_MANIFEST)", "$("+prefix+"_ORACLE)", "$("+prefix+"_NOT_IMPLEMENTED)"
-	ciRequire(t, "reference adapter "+prefix, ciMakeTarget(t, makefile, "conformance-check"), manifest, oracle, baseline)
-	product := ciMakeTarget(t, makefile, "godj-conformance")
-	ciRequire(t, "product adapter "+prefix, product, "go run ./conformance/cmd/godjcheck", manifest, oracle)
-	if strings.Contains(product, baseline) {
-		t.Fatalf("product adapter %s uses a not-implemented observation", prefix)
-	}
-	if deviation {
-		ciRequire(t, "product deviation "+prefix, product, "$("+prefix+"_DEVIATION_EXPECTED)")
-	}
-	check := strings.ReplaceAll(ciMakeTarget(t, makefile, "oracle-check"), "\\\n", " ")
-	for _, line := range strings.Split(check, "\n") {
-		if strings.Contains(line, manifest) {
-			ciRequire(t, "independent oracle check "+prefix, line, oracle, "--check")
-			return
-		}
-	}
-	t.Fatalf("oracle-check misses %s", prefix)
 }
 
 func containsString(values []string, value string) bool {
@@ -413,5 +380,30 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 			}
 		}
 		ciRequire(t, inventory.job, job, "${"+inventory.array+"[@]}", "scripts/ci/go_test_events.py", "--required", "--no-skips")
+	}
+}
+
+func TestWorkflowSharedLinuxOwnersKeepSentinelsAndTheSameEnvironment(t *testing.T) {
+	jobs := ciJobs(t)
+	portable := ciJob(t, jobs, "portable-go-matrix")
+	image := regexp.MustCompile(`(?m)^    runs-on: ([^\n]+)$`).FindStringSubmatch(portable)
+	if len(image) != 2 {
+		t.Fatal("portable runner image is missing")
+	}
+	ciRequire(t, "portable package ownership", portable, "GODJ_CI_OWNERS: ${{ needs.validation-plan.outputs.jobs }}")
+	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix"} {
+		job := ciJob(t, jobs, name)
+		for _, row := range ciMatrix(t, job, "platform") {
+			if row["expected_goos"] == "linux" && row["expected_goarch"] == "amd64" && row["runs_on"] != image[1] {
+				t.Fatalf("%s cannot replace a portable execution on a different OS image", name)
+			}
+		}
+		ciRequire(t, name, job, "PORTABLE_COVERED:", "matrix.platform.expected_goos == 'linux'", "matrix.platform.expected_goarch == 'amd64'")
+	}
+	relation := ciJob(t, jobs, "relation-product-matrix")
+	ciRequire(t, "relation execution owner", relation, "scripts/ci/packages.py relation", "--required", "--packages", "--no-skips", `"$PORTABLE_COVERED" != true`)
+	makefile := ciRead(t, "Makefile")
+	for target, mode := range map[string]string{"go-test-conformance": "normal", "go-race-conformance": "race", "cgo-zero-build-conformance": "cgo0"} {
+		ciRequire(t, "portable conformance owner", ciMakeTarget(t, makefile, target), "scripts/ci/conformance_tests.py "+mode)
 	}
 }

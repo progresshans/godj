@@ -3,7 +3,6 @@
 package projectmigrateproduct_test
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -401,8 +400,8 @@ func runMigrate(t *testing.T, globalBinary, repository, descriptor string, envir
 }
 
 func executeBounded(binary, directory string, environment []string, arguments ...string) (commandResult, error) {
-	stdout := &boundedOutput{maximum: maximumCommandOutput}
-	stderr := &boundedOutput{maximum: maximumCommandOutput}
+	stdout := testprocess.NewBuffer(maximumCommandOutput)
+	stderr := testprocess.NewBuffer(maximumCommandOutput)
 	command := exec.Command(binary, arguments...)
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
@@ -938,8 +937,8 @@ func runGlobalArticleServerOnce(
 	environment []string,
 ) (int, string) {
 	t.Helper()
-	stdout := newReadinessOutput()
-	stderr := &boundedOutput{maximum: maximumCommandOutput}
+	stdout := testprocess.NewReadinessBuffer(maximumCommandOutput, articleReadinessPrefix)
+	stderr := testprocess.NewBuffer(maximumCommandOutput)
 	command := exec.Command(globalBinary, "runserver", "--project", descriptor, "--addr", expectedAddress)
 	command.Dir = repository
 	command.Env = append([]string(nil), environment...)
@@ -964,7 +963,7 @@ func runGlobalArticleServerOnce(
 	timer := time.NewTimer(commandTimeout)
 	defer timer.Stop()
 	select {
-	case address = <-stdout.ready:
+	case address = <-stdout.Ready():
 		if address != expectedAddress {
 			t.Fatalf("Article readiness address = %q, want %q", address, expectedAddress)
 		}
@@ -1079,90 +1078,6 @@ func interruptAndWait(command *exec.Cmd, waited <-chan error, timeout time.Durat
 		result.AbsenceError = errors.Join(result.AbsenceError, testprocess.KillGroups(result.ProcessGroups, command.Process.Pid), testprocess.WaitAbsent(result.ProcessGroups, 2*time.Second))
 	}
 	return result
-}
-
-type boundedOutput struct {
-	mutex     sync.Mutex
-	buffer    bytes.Buffer
-	maximum   int
-	truncated bool
-}
-
-func (output *boundedOutput) Write(payload []byte) (int, error) {
-	output.mutex.Lock()
-	defer output.mutex.Unlock()
-	remaining := output.maximum - output.buffer.Len()
-	if remaining > 0 {
-		kept := payload
-		if len(kept) > remaining {
-			kept = kept[:remaining]
-		}
-		_, _ = output.buffer.Write(kept)
-	}
-	if len(payload) > remaining {
-		output.truncated = true
-	}
-	return len(payload), nil
-}
-
-func (output *boundedOutput) String() string {
-	output.mutex.Lock()
-	defer output.mutex.Unlock()
-	return output.buffer.String()
-}
-
-func (output *boundedOutput) Truncated() bool {
-	output.mutex.Lock()
-	defer output.mutex.Unlock()
-	return output.truncated
-}
-
-type readinessOutput struct {
-	boundedOutput
-	ready   chan string
-	once    sync.Once
-	scanned int
-}
-
-func newReadinessOutput() *readinessOutput {
-	return &readinessOutput{
-		boundedOutput: boundedOutput{maximum: maximumCommandOutput},
-		ready:         make(chan string, 1),
-	}
-}
-
-func (output *readinessOutput) Write(payload []byte) (int, error) {
-	output.mutex.Lock()
-	remaining := output.maximum - output.buffer.Len()
-	if remaining > 0 {
-		kept := payload
-		if len(kept) > remaining {
-			kept = kept[:remaining]
-		}
-		_, _ = output.buffer.Write(kept)
-	}
-	if len(payload) > remaining {
-		output.truncated = true
-	}
-	var addresses []string
-	contents := output.buffer.Bytes()
-	for output.scanned < len(contents) {
-		relativeEnd := bytes.IndexByte(contents[output.scanned:], '\n')
-		if relativeEnd < 0 {
-			break
-		}
-		end := output.scanned + relativeEnd
-		line := string(contents[output.scanned:end])
-		output.scanned = end + 1
-		if strings.HasPrefix(line, articleReadinessPrefix) {
-			addresses = append(addresses, strings.TrimPrefix(line, articleReadinessPrefix))
-		}
-	}
-	output.mutex.Unlock()
-	for _, address := range addresses {
-		output.once.Do(func() { output.ready <- address })
-	}
-	return len(payload), nil
 }
 
 func repositoryRoot(t *testing.T) string {

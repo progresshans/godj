@@ -1,5 +1,7 @@
 package createsuperuserprotocol
 
+import "github.com/progresshans/godj/internal/projectcheck/failurecode"
+
 const (
 	CategoryCommand   = "operator_project_command_error"
 	CategorySelection = "operator_project_selection_error"
@@ -73,17 +75,9 @@ func ExitCode(failure Failure) (int, bool) {
 	}
 	switch failure.Category {
 	case CategoryCommand:
-		return exactPublicCode(failure.Code, 2, CodeInvalidArguments)
+		return failurecode.Exact(failure.Code, 2, CodeInvalidArguments)
 	case CategorySelection:
-		switch failure.Code {
-		case CodeProjectNotFound,
-			CodeProjectSearchLimitExceeded,
-			CodeInvalidProjectDescriptor,
-			CodeProjectDescriptorIncompatible:
-			return 2, true
-		case CodeProjectSelectionFailed:
-			return 3, true
-		}
+		return failurecode.Selection(failure.Code, 3)
 	case CategoryInput:
 		switch failure.Code {
 		case CodeInputNotTerminal, CodeInvalidUsername, CodeInvalidPassword, CodePasswordMismatch:
@@ -92,9 +86,9 @@ func ExitCode(failure Failure) (int, bool) {
 			return 3, true
 		}
 	case CategoryBuild:
-		return exactPublicCode(failure.Code, 3, CodeProjectTemporaryStorageFailed, CodeProjectBuildFailed)
+		return failurecode.Exact(failure.Code, 3, CodeProjectTemporaryStorageFailed, CodeProjectBuildFailed)
 	case CategoryProtocol:
-		return exactPublicCode(
+		return failurecode.Exact(
 			failure.Code,
 			3,
 			CodeInvalidRequest,
@@ -127,7 +121,7 @@ func ExitCode(failure Failure) (int, bool) {
 			return 3, true
 		}
 	case CategoryBackend:
-		return exactPublicCode(
+		return failurecode.Exact(
 			failure.Code,
 			3,
 			CodeBackendOpenFailed,
@@ -136,16 +130,7 @@ func ExitCode(failure Failure) (int, bool) {
 			CodeOperatorCreatedBackendCleanupFailed,
 		)
 	case CategoryInternal:
-		return exactPublicCode(failure.Code, 3, CodeProjectInternalError, CodeOperatorCreatedOutputFailed)
-	}
-	return 0, false
-}
-
-func exactPublicCode(input string, exit int, values ...string) (int, bool) {
-	for _, value := range values {
-		if input == value {
-			return exit, true
-		}
+		return failurecode.Exact(failure.Code, 3, CodeProjectInternalError, CodeOperatorCreatedOutputFailed)
 	}
 	return 0, false
 }

@@ -6,6 +6,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+
+	"github.com/progresshans/godj/internal/projectcheck/protocol"
 )
 
 // Common mechanics stop before command-specific outcome classification. In
@@ -77,4 +79,20 @@ func publicFailureDocument(report *Report, category, code string) []byte {
 		}
 	}
 	return []byte(document)
+}
+
+// commandInterruption observes interrupt before cancellation. Callers decide
+// whether an existing cleanup failure or a completed result takes precedence.
+func commandInterruption(ctx context.Context, interrupt <-chan struct{}) string {
+	if interrupt != nil {
+		select {
+		case <-interrupt:
+			return protocol.CodeProjectInterrupted
+		default:
+		}
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return protocol.CodeProjectCanceled
+	}
+	return ""
 }

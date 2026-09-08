@@ -152,7 +152,6 @@ func TestGenerateProjectRelationReverseRejectsInvalidInputsAndNamespaces(t *test
 		"posts_init",
 		"model",
 		"fresh",
-		"from",
 		"parse_dynamic",
 	} {
 		tests = append(tests, struct {
@@ -190,10 +189,10 @@ func TestGenerateProjectRelationReverseRejectsImmutablePrerequisiteNamespaceFail
 		goName     string
 		wantReason string
 	}{
-		{name: "object Model method", fieldIndex: 2, goName: "ModelID", wantReason: "object method Model"},
-		{name: "object Fresh method", fieldIndex: 2, goName: "FreshID", wantReason: "object method Fresh"},
-		{name: "object factory From method", fieldIndex: 3, goName: "FromID", wantReason: "object factory field From"},
-		{name: "object private factory field", fieldIndex: 2, goName: "FactoryID", wantReason: "private object field factory"},
+		{name: "object Model method", fieldIndex: 2, goName: "ModelID", wantReason: "BlogPostObjectFactory member model"},
+		{name: "object Fresh method", fieldIndex: 2, goName: "FreshID", wantReason: "BlogPostObject member Fresh"},
+		{name: "object factory From method", fieldIndex: 3, goName: "FromID", wantReason: "BlogPostObjectFactory member From"},
+		{name: "object private factory field", fieldIndex: 2, goName: "FactoryID", wantReason: "BlogPostObject member factory"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()

@@ -3,9 +3,7 @@ package codegen_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
-	"path/filepath"
 	"slices"
 	"testing"
 
@@ -18,14 +16,6 @@ import (
 func TestGeneratedProjectRelationQueryScalarOnlyModelsCompile(t *testing.T) {
 	authors, _ := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-query-scalar-only"
-	mainSource, err := codegen.Generate("authors", authors)
-	if err != nil {
-		t.Fatalf("generate scalar app main: %v", err)
-	}
-	metadataSource, err := codegen.GenerateRelationMetadata("authors", authors)
-	if err != nil {
-		t.Fatalf("generate scalar app metadata: %v", err)
-	}
 	bindingSource, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{{Alias: "authors", ImportPath: modulePath + "/authors"}})
 	if err != nil {
 		t.Fatalf("generate scalar project binding: %v", err)
@@ -41,8 +31,7 @@ func TestGeneratedProjectRelationQueryScalarOnlyModelsCompile(t *testing.T) {
 	}
 
 	directory := newGeneratedModule(t, modulePath)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_generated.go", mainSource)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation.go", metadataSource)
+	writeGeneratedAppFixture(t, directory, "authors", "authors", authors, appFixtureFeatures{})
 	writeGeneratedTestFile(t, directory, "project/zz_godj_bindings.go", bindingSource)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", querySource)
 	command := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "./...")
@@ -53,22 +42,6 @@ func TestGeneratedProjectRelationQueryScalarOnlyModelsCompile(t *testing.T) {
 
 func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T) {
 	authors, blog := sparseRelationQueryGenerationSchemas()
-	authorsMain, err := codegen.Generate("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors main: %v", err)
-	}
-	authorsMetadata, err := codegen.GenerateRelationMetadata("authors", authors)
-	if err != nil {
-		t.Fatalf("generate authors metadata: %v", err)
-	}
-	blogMain, err := codegen.Generate("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog main: %v", err)
-	}
-	blogMetadata, err := codegen.GenerateRelationMetadata("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog metadata: %v", err)
-	}
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: "authors", ImportPath: "example.com/godj-relation-query-project/authors"},
 		{Alias: "blog", ImportPath: "example.com/godj-relation-query-project/blog"},
@@ -81,20 +54,9 @@ func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T
 		t.Fatalf("generate project relation query: %v", err)
 	}
 
-	root := codegenRepositoryRoot(t)
-	directory := t.TempDir()
-	writeGeneratedTestFile(t, directory, "go.mod", []byte(fmt.Sprintf(`module example.com/godj-relation-query-project
-
-go 1.26.0
-
-require github.com/progresshans/godj v0.0.0
-
-replace github.com/progresshans/godj => %s
-`, filepath.ToSlash(root))))
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_generated.go", authorsMain)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation.go", authorsMetadata)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_generated.go", blogMain)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation.go", blogMetadata)
+	directory := newGeneratedModule(t, "example.com/godj-relation-query-project")
+	writeGeneratedAppFixture(t, directory, "authors", "authors", authors, appFixtureFeatures{})
+	writeGeneratedAppFixture(t, directory, "blog", "blog", blog, appFixtureFeatures{})
 	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", projectBinding)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", projectQuery)
 	writeGeneratedTestFile(t, directory, "project/relation_query_test.go", []byte(`package project_test
@@ -200,22 +162,6 @@ func validateGeneratedProjectRelationQueryAlias(t *testing.T, alias string) {
 
 	authors, blog := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-query-alias"
-	targetMain, err := codegen.Generate("target", authors)
-	if err != nil {
-		t.Fatalf("generate target main: %v", err)
-	}
-	targetMetadata, err := codegen.GenerateRelationMetadata("target", authors)
-	if err != nil {
-		t.Fatalf("generate target metadata: %v", err)
-	}
-	sourceMain, err := codegen.Generate(alias, blog)
-	if err != nil {
-		t.Fatalf("generate source main: %v", err)
-	}
-	sourceMetadata, err := codegen.GenerateRelationMetadata(alias, blog)
-	if err != nil {
-		t.Fatalf("generate source metadata: %v", err)
-	}
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: "target", ImportPath: modulePath + "/target"},
 		{Alias: alias, ImportPath: modulePath + "/source"},
@@ -232,10 +178,8 @@ func validateGeneratedProjectRelationQueryAlias(t *testing.T, alias string) {
 	}
 
 	directory := newGeneratedModule(t, modulePath)
-	writeGeneratedTestFile(t, directory, "target/zz_godj_generated.go", targetMain)
-	writeGeneratedTestFile(t, directory, "target/zz_godj_relation.go", targetMetadata)
-	writeGeneratedTestFile(t, directory, "source/zz_godj_generated.go", sourceMain)
-	writeGeneratedTestFile(t, directory, "source/zz_godj_relation.go", sourceMetadata)
+	writeGeneratedAppFixture(t, directory, "target", "target", authors, appFixtureFeatures{})
+	writeGeneratedAppFixture(t, directory, "source", alias, blog, appFixtureFeatures{})
 	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", projectBinding)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", projectQuery)
 

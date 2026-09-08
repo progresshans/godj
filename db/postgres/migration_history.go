@@ -4,11 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
 
+	"github.com/progresshans/godj/db/internal/migrationhistory"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 )
 
@@ -113,7 +113,7 @@ func (b *Backend) ReadAppliedMigrations(ctx context.Context) ([]migrationbackend
 			errors.New("PostgreSQL migration recorder exists without revision metadata; exclusive adoption is required"),
 		)
 	}
-	return clonePostgresAppliedMigrations(snapshot.records), nil
+	return migrationhistory.Clone(snapshot.records), nil
 }
 
 func readAtomicPostgresMigrationSnapshot(
@@ -186,7 +186,7 @@ func inspectPostgresMigrationSnapshot(
 			recorderPresent: recorderPresent,
 			records:         []migrationbackend.AppliedMigration{},
 			token: postgresMigrationRevisionToken{
-				fingerprint: fingerprintPostgresMigrationHistory(nil),
+				fingerprint: migrationhistory.Fingerprint(nil),
 			},
 		}, nil
 	}
@@ -244,7 +244,7 @@ func inspectPostgresMigrationSnapshot(
 	if err != nil {
 		return postgresMigrationRevisionSnapshot{}, err
 	}
-	fingerprint := fingerprintPostgresMigrationHistory(records)
+	fingerprint := migrationhistory.Fingerprint(records)
 	if fingerprint != token.fingerprint {
 		return postgresMigrationRevisionSnapshot{}, postgresRevisionIntegrity(
 			"stored PostgreSQL migration history fingerprint does not match recorder identities",
@@ -810,10 +810,10 @@ func postgresMigrationHistorySuccessor(
 	records []migrationbackend.AppliedMigration,
 	transition migrationbackend.HistoryTransition,
 ) ([]migrationbackend.AppliedMigration, error) {
-	successor := clonePostgresAppliedMigrations(records)
-	sortPostgresAppliedMigrations(successor)
+	successor := migrationhistory.Clone(records)
+	migrationhistory.Sort(successor)
 	index := sort.Search(len(successor), func(index int) bool {
-		return comparePostgresAppliedMigration(successor[index], transition.Migration) >= 0
+		return migrationhistory.Compare(successor[index], transition.Migration) >= 0
 	})
 	if transition.Kind == migrationbackend.HistoryTransitionApply {
 		if index < len(successor) && successor[index] == transition.Migration {
@@ -840,66 +840,6 @@ func postgresMigrationHistorySuccessor(
 		)
 	}
 	return append(successor[:index:index], successor[index+1:]...), nil
-}
-
-func fingerprintPostgresMigrationHistory(records []migrationbackend.AppliedMigration) [sha256.Size]byte {
-	canonical := clonePostgresAppliedMigrations(records)
-	sortPostgresAppliedMigrations(canonical)
-	hash := sha256.New()
-	var length [8]byte
-	binary.BigEndian.PutUint64(length[:], uint64(len(canonical)))
-	_, _ = hash.Write(length[:])
-	for _, record := range canonical {
-		for _, value := range []string{record.App, record.Name} {
-			binary.BigEndian.PutUint64(length[:], uint64(len(value)))
-			_, _ = hash.Write(length[:])
-			_, _ = hash.Write([]byte(value))
-		}
-	}
-	var result [sha256.Size]byte
-	copy(result[:], hash.Sum(nil))
-	return result
-}
-
-func clonePostgresAppliedMigrations(records []migrationbackend.AppliedMigration) []migrationbackend.AppliedMigration {
-	if records == nil {
-		return []migrationbackend.AppliedMigration{}
-	}
-	return append([]migrationbackend.AppliedMigration(nil), records...)
-}
-
-func sortPostgresAppliedMigrations(records []migrationbackend.AppliedMigration) {
-	sort.Slice(records, func(left, right int) bool {
-		return comparePostgresAppliedMigration(records[left], records[right]) < 0
-	})
-}
-
-func comparePostgresAppliedMigration(left, right migrationbackend.AppliedMigration) int {
-	if left.App < right.App {
-		return -1
-	}
-	if left.App > right.App {
-		return 1
-	}
-	if left.Name < right.Name {
-		return -1
-	}
-	if left.Name > right.Name {
-		return 1
-	}
-	return 0
-}
-
-func equalPostgresAppliedMigrations(left, right []migrationbackend.AppliedMigration) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
 }
 
 func equalPostgresMigrationRevisionToken(left, right postgresMigrationRevisionToken) bool {

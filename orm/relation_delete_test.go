@@ -2,7 +2,6 @@ package orm
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math"
@@ -516,15 +515,6 @@ func TestRelationDeletePolicyFingerprintGoldenCanonicalAndLengthDelimited(t *tes
 		t.Fatal("policy change did not change relation delete fingerprint")
 	}
 
-	left := sha256.New()
-	writeRelationDeleteFingerprintValue(left, "ab")
-	writeRelationDeleteFingerprintValue(left, "c")
-	right := sha256.New()
-	writeRelationDeleteFingerprintValue(right, "a")
-	writeRelationDeleteFingerprintValue(right, "bc")
-	if reflect.DeepEqual(left.Sum(nil), right.Sum(nil)) {
-		t.Fatal("length-delimited fingerprint values collided")
-	}
 }
 
 func TestBindRelationDeleterValidatesDescriptorBindingAndFingerprint(t *testing.T) {

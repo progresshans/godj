@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/identifiers"
 )
 
 const (
@@ -347,78 +348,15 @@ func validManifestFilePath(value string) bool {
 		return false
 	}
 	for _, segment := range segments {
-		if !validPortableManifestPathElement(segment) {
+		if !identifiers.PortablePathElement(segment) {
 			return false
 		}
 	}
 	return true
 }
 
-func validPortableManifestPathElement(element string) bool {
-	if element == "" || element == "." || element == ".." || strings.Trim(element, ".") == "" || strings.HasSuffix(element, ".") {
-		return false
-	}
-	for _, current := range element {
-		if current != '-' && current != '.' && current != '_' && current != '~' && current != '+' &&
-			!(current >= '0' && current <= '9') && !(current >= 'A' && current <= 'Z') && !(current >= 'a' && current <= 'z') {
-			return false
-		}
-	}
-	short := element
-	if dot := strings.IndexByte(short, '.'); dot >= 0 {
-		short = short[:dot]
-	}
-	return !reservedWindowsManifestElement(short) && !hasWindowsManifestShortName(short)
-}
-
-func validManifestImportPath(importPath string) bool {
-	if importPath == "" || len(importPath) > maxManifestStringBytes || !utf8.ValidString(importPath) || importPath == "go" || importPath == "type" ||
-		strings.HasPrefix(importPath, "-") || strings.HasPrefix(importPath, "/") || strings.HasSuffix(importPath, "/") || strings.Contains(importPath, "//") {
-		return false
-	}
-	for _, element := range strings.Split(importPath, "/") {
-		if element == "" || strings.Trim(element, ".") == "" || strings.HasSuffix(element, ".") {
-			return false
-		}
-		for _, current := range element {
-			if current != '-' && current != '.' && current != '_' && current != '~' && current != '+' &&
-				!(current >= '0' && current <= '9') && !(current >= 'A' && current <= 'Z') && !(current >= 'a' && current <= 'z') {
-				return false
-			}
-		}
-		short := element
-		if dot := strings.IndexByte(short, '.'); dot >= 0 {
-			short = short[:dot]
-		}
-		if reservedWindowsManifestElement(short) || hasWindowsManifestShortName(short) {
-			return false
-		}
-	}
-	return true
-}
-
-func reservedWindowsManifestElement(element string) bool {
-	upper := strings.ToUpper(element)
-	if upper == "CON" || upper == "PRN" || upper == "AUX" || upper == "NUL" {
-		return true
-	}
-	if len(upper) != 4 || upper[3] < '1' || upper[3] > '9' {
-		return false
-	}
-	return strings.HasPrefix(upper, "COM") || strings.HasPrefix(upper, "LPT")
-}
-
-func hasWindowsManifestShortName(element string) bool {
-	tilde := strings.LastIndexByte(element, '~')
-	if tilde < 0 || tilde == len(element)-1 {
-		return false
-	}
-	for _, current := range element[tilde+1:] {
-		if current < '0' || current > '9' {
-			return false
-		}
-	}
-	return true
+func validManifestImportPath(value string) bool {
+	return len(value) <= maxManifestStringBytes && identifiers.ImportPath(value)
 }
 
 func validManifestAlias(value string) bool {
@@ -442,15 +380,7 @@ func validManifestAlias(value string) bool {
 }
 
 func validManifestAppLabel(value string) bool {
-	if value == "" || len(value) > maxManifestStringBytes || !utf8.ValidString(value) || !((value[0] >= 'a' && value[0] <= 'z') || value[0] == '_') {
-		return false
-	}
-	for _, current := range value {
-		if !(current >= 'a' && current <= 'z') && !(current >= '0' && current <= '9') && current != '_' {
-			return false
-		}
-	}
-	return true
+	return len(value) <= maxManifestStringBytes && identifiers.SQL(value)
 }
 
 func validLowerSHA256(value string) bool {

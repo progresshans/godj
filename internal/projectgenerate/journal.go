@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/progresshans/godj/internal/wirejson"
 )
 
 const (
@@ -267,80 +269,14 @@ func digestBytes(value []byte) string {
 }
 
 func rejectDuplicateJSONMembers(document []byte) error {
-	decoder := json.NewDecoder(bytes.NewReader(document))
-	decoder.UseNumber()
-	if err := scanJSONValue(decoder, 0); err != nil {
-		return err
-	}
-	return requireJSONEOF(decoder)
-}
-
-func scanJSONValue(decoder *json.Decoder, depth int) error {
-	if depth > maximumPublicationJSONDepth {
-		return fmt.Errorf("JSON nesting exceeds limit")
-	}
-	token, err := decoder.Token()
-	if err != nil {
-		return err
-	}
-	if value, ok := token.(string); ok && len(value) > maximumPublicationPathBytes {
-		return fmt.Errorf("JSON string exceeds limit")
-	}
-	delimiter, ok := token.(json.Delim)
-	if !ok {
-		return nil
-	}
-	switch delimiter {
-	case '{':
-		seen := make(map[string]struct{})
-		members := 0
-		for decoder.More() {
-			members++
-			if members > maximumPublicationObjectMembers {
-				return fmt.Errorf("JSON object member count exceeds limit")
-			}
-			member, err := decoder.Token()
-			if err != nil {
-				return err
-			}
-			name, ok := member.(string)
-			if !ok {
-				return errors.New("object member name is not a string")
-			}
-			if len(name) > maximumPublicationPathBytes {
-				return fmt.Errorf("JSON member name exceeds limit")
-			}
-			if _, duplicate := seen[name]; duplicate {
-				return fmt.Errorf("duplicate object member %q", name)
-			}
-			seen[name] = struct{}{}
-			if err := scanJSONValue(decoder, depth+1); err != nil {
-				return err
-			}
-		}
-		closing, err := decoder.Token()
-		if err != nil || closing != json.Delim('}') {
-			return errors.New("invalid object closing delimiter")
-		}
-	case '[':
-		entries := 0
-		for decoder.More() {
-			entries++
-			if entries > maximumPublicationJournalFiles {
-				return fmt.Errorf("JSON array entry count exceeds limit")
-			}
-			if err := scanJSONValue(decoder, depth+1); err != nil {
-				return err
-			}
-		}
-		closing, err := decoder.Token()
-		if err != nil || closing != json.Delim(']') {
-			return errors.New("invalid array closing delimiter")
-		}
-	default:
-		return errors.New("invalid opening delimiter")
-	}
-	return nil
+	return wirejson.Scan(document, wirejson.Limits{
+		Bytes:       maximumPublicationJournalBytes,
+		ValueDepth:  maximumPublicationJSONDepth,
+		ObjectKeys:  maximumPublicationObjectMembers,
+		ArrayValues: maximumPublicationJournalFiles,
+		StringBytes: maximumPublicationPathBytes,
+		KeyBytes:    maximumPublicationPathBytes,
+	})
 }
 
 func requireJSONEOF(decoder *json.Decoder) error {

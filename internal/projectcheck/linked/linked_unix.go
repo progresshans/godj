@@ -217,21 +217,9 @@ func completeResponse(
 	report Report,
 	response protocol.Response,
 ) (Report, error) {
-	if dependencies.beforeResponseWrite != nil {
-		dependencies.beforeResponseWrite()
-	}
-	if err := ctx.Err(); err != nil {
-		return report, err
-	}
-	return writeResponse(writer, report, response)
-}
-
-func writeResponse(writer io.Writer, report Report, response protocol.Response) (Report, error) {
-	report.RunnerResponseWrites++
-	if err := protocol.WriteResponse(writer, response); err != nil {
-		return report, err
-	}
-	return report, nil
+	err := publishLinkedResponse(ctx, dependencies.beforeResponseWrite, true, &report.RunnerResponseWrites,
+		func() error { return protocol.WriteResponse(writer, response) })
+	return report, err
 }
 
 func classifyLoadFailure(err error) (protocol.Failure, bool) {

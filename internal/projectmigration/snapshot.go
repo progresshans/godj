@@ -5,6 +5,7 @@ package projectmigration
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -207,10 +208,6 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 		return Snapshot{}, snapshotError(CategoryCatalog, CodeInvalidCatalog, err)
 	}
 
-	current, err := reconstructLatest(loaded)
-	if err != nil {
-		return Snapshot{}, snapshotError(CategoryCatalog, CodeInvalidCatalog, err)
-	}
 	managed, err := managedApps(normalized, filesystem, loaded)
 	if err != nil {
 		return Snapshot{}, snapshotError(CategoryCatalog, CodeInvalidCatalog, err)
@@ -223,11 +220,22 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 	})
 	if err != nil {
 		var detection *migrationautodetect.Error
-		if errors.As(err, &detection) && detection != nil && detection.Code == migrationautodetect.CodeUnsupportedChange {
-			return Snapshot{}, snapshotError(CategoryPlanning, CodeUnsupportedChange, err)
+		if errors.As(err, &detection) && detection != nil {
+			if detection.Code == migrationautodetect.CodeUnsupportedChange {
+				return Snapshot{}, snapshotError(CategoryPlanning, CodeUnsupportedChange, err)
+			}
+			// Detection owns the one historical replay, but a reconstruction
+			// failure is still a catalog failure. Retain its structured cause
+			// without introducing an autodetection classification into the
+			// linked command's source/graph/catalog error precedence.
+			var historical *migrations.Error
+			if detection.Code == migrationautodetect.CodeInvalidRequest && errors.As(detection.Cause, &historical) {
+				return Snapshot{}, snapshotError(CategoryCatalog, CodeInvalidCatalog, detection.Cause)
+			}
 		}
 		return Snapshot{}, snapshotError(CategoryPlanning, CodeInvalidPlan, err)
 	}
+	current := plan.BaseState()
 
 	migrationsPlan := plan.Migrations()
 	if len(migrationsPlan) > protocol.MaxCandidates {
@@ -457,7 +465,7 @@ func writeUint64(writer byteWriter, value uint64) {
 }
 
 func reconstructLatest(loaded migrations.LoadedDefinitionSet) (migrations.ProjectState, error) {
-	reconstructor, err := migrations.NewStateReconstructor(loaded.Definitions()...)
+	reconstructor, err := loaded.Reconstructor(context.Background())
 	if err != nil {
 		return migrations.ProjectState{}, err
 	}

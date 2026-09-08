@@ -2,7 +2,6 @@ package systemstate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -112,6 +111,13 @@ type persistedAuditRow struct {
 	displayLabel  string
 }
 
+func (row *persistedAuditRow) scan(rows db.Rows) error {
+	if err := rows.Scan(&row.id, &row.actorID, &row.model, &row.objectID, &row.action, &row.changedFields, &row.displayLabel); err != nil {
+		return &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "stored audit row cannot be decoded", Cause: err}
+	}
+	return nil
+}
+
 func (row persistedAuditRow) entry() (admin.AuditEntry, error) {
 	objectID, err := strconv.ParseInt(row.objectID, 10, 64)
 	if row.id <= 0 || err != nil || objectID <= 0 || strconv.FormatInt(objectID, 10) != row.objectID ||
@@ -147,68 +153,32 @@ func (row persistedAuditRow) entry() (admin.AuditEntry, error) {
 }
 
 func inspectAuditTable(ctx context.Context, queryer db.Queryer, capacity int) (bool, error) {
-	plan := query.NewPlan(auditTableName, auditFieldRefs).
-		WithOrderings(query.NewOrdering(auditIDRef, query.Ascending))
-	plan, err := plan.WithLimit(capacity + 1)
+	plan, err := query.NewPlan(auditTableName, auditFieldRefs).
+		WithOrderings(query.NewOrdering(auditIDRef, query.Ascending)).WithLimit(capacity + 1)
 	if err != nil {
-		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
+		return false, schemaRowsFailure(auditTableName)(err)
 	}
-	result, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(result) {
-			_ = result.Close()
-		}
-		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
-	}
-	if isNilInterface(result) {
-		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: errors.New("backend returned nil rows")}
-	}
-
 	count := 0
 	var previous int64
-	for result.Next() {
-		if err := ctx.Err(); err != nil {
-			_ = result.Close()
-			return false, err
-		}
+	err = scanRows(ctx, queryer, plan, schemaRowsFailure(auditTableName), func(rows db.Rows) (bool, error) {
 		var row persistedAuditRow
-		if err := result.Scan(
-			&row.id,
-			&row.actorID,
-			&row.model,
-			&row.objectID,
-			&row.action,
-			&row.changedFields,
-			&row.displayLabel,
-		); err != nil {
-			_ = result.Close()
-			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "stored audit row cannot be decoded", Cause: err}
+		if err := row.scan(rows); err != nil {
+			return false, err
 		}
 		count++
 		if count > capacity {
-			_ = result.Close()
 			return false, cardinalityFailure("audit", "stored audit history exceeds configured capacity")
 		}
 		if row.id <= previous {
-			_ = result.Close()
 			return false, cardinalityFailure("audit", "stored audit sequences are not strictly increasing")
 		}
 		if _, err := row.entry(); err != nil {
-			_ = result.Close()
 			return false, err
 		}
 		previous = row.id
-	}
-	if err := ctx.Err(); err != nil {
-		_ = result.Close()
-		return false, err
-	}
-	iterationErr := result.Err()
-	closeErr := result.Close()
-	if iterationErr != nil || closeErr != nil {
-		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: errors.Join(iterationErr, closeErr)}
-	}
-	return count != 0, nil
+		return true, nil
+	})
+	return count != 0 && err == nil, err
 }
 
 func queryAuditRows(
@@ -219,10 +189,8 @@ func queryAuditRows(
 	limit int,
 	direction query.Direction,
 ) ([]persistedAuditRow, error) {
-	plan := query.NewPlan(auditTableName, auditFieldRefs).
-		WithOrderings(query.NewOrdering(auditIDRef, direction))
-	var err error
-	plan, err = plan.WithLimit(limit)
+	plan, err := query.NewPlan(auditTableName, auditFieldRefs).
+		WithOrderings(query.NewOrdering(auditIDRef, direction)).WithLimit(limit)
 	if err != nil {
 		return nil, persistenceFailure("build audit query", err)
 	}
@@ -232,82 +200,56 @@ func queryAuditRows(
 			query.NewCondition(auditObjectIDRef, query.LookupExact, query.String(strconv.FormatInt(objectID, 10))),
 		)
 	}
-	result, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(result) {
-			_ = result.Close()
-		}
-		return nil, persistenceFailure("query audit", err)
-	}
-	if isNilInterface(result) {
-		return nil, persistenceFailure("query audit", errors.New("backend returned nil rows"))
-	}
 	rows := make([]persistedAuditRow, 0, limit)
-	for result.Next() {
+	err = scanRows(ctx, queryer, plan, persistenceRowsFailure("query audit"), func(result db.Rows) (bool, error) {
 		var row persistedAuditRow
-		if err := result.Scan(
-			&row.id,
-			&row.actorID,
-			&row.model,
-			&row.objectID,
-			&row.action,
-			&row.changedFields,
-			&row.displayLabel,
-		); err != nil {
-			_ = result.Close()
-			return nil, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "stored audit row cannot be decoded", Cause: err}
+		if err := row.scan(result); err != nil {
+			return false, err
 		}
 		rows = append(rows, row)
 		if len(rows) > limit {
-			_ = result.Close()
-			return nil, cardinalityFailure("audit", "backend returned more rows than the bounded audit plan")
+			return false, cardinalityFailure("audit", "backend returned more rows than the bounded audit plan")
 		}
-	}
-	iterationErr := result.Err()
-	closeErr := result.Close()
-	if iterationErr != nil || closeErr != nil {
-		return nil, persistenceFailure("iterate audit", errors.Join(iterationErr, closeErr))
+		return true, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return rows, nil
 }
 
 func pruneAuditRows(ctx context.Context, session db.Session, capacity int) error {
-	plan := query.NewPlan(auditTableName, []query.FieldRef{auditIDRef}).
-		WithOrderings(query.NewOrdering(auditIDRef, query.Descending))
-	plan, err := plan.WithLimit(capacity + 1)
+	plan, err := query.NewPlan(auditTableName, []query.FieldRef{auditIDRef}).
+		WithOrderings(query.NewOrdering(auditIDRef, query.Descending)).WithLimit(capacity + 1)
 	if err != nil {
 		return persistenceFailure("build audit prune query", err)
 	}
-	rows, err := session.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(rows) {
-			_ = rows.Close()
-		}
-		return persistenceFailure("query audit prune", err)
-	}
-	if isNilInterface(rows) {
-		return persistenceFailure("query audit prune", errors.New("backend returned nil rows"))
-	}
-	identifiers := make([]int64, 0, capacity+1)
-	for rows.Next() {
+	// Keep the retained prefix out of memory. The bounded query can contribute
+	// only one victim, and all row/close validation must finish before deletion.
+	count := 0
+	var victim int64
+	err = scanRows(ctx, session, plan, persistenceRowsFailure("query audit prune"), func(rows db.Rows) (bool, error) {
 		var identifier int64
 		if err := rows.Scan(&identifier); err != nil {
-			_ = rows.Close()
-			return &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit sequence cannot be decoded", Cause: err}
+			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit sequence cannot be decoded", Cause: err}
 		}
 		if identifier <= 0 {
-			_ = rows.Close()
-			return &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit sequence is invalid"}
+			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit sequence is invalid"}
 		}
-		identifiers = append(identifiers, identifier)
+		count++
+		if count > capacity+1 {
+			return false, cardinalityFailure("audit", "backend returned more rows than the bounded prune plan")
+		}
+		if count > capacity {
+			victim = identifier
+		}
+		return true, nil
+	})
+	if err != nil {
+		return err
 	}
-	iterationErr := rows.Err()
-	closeErr := rows.Close()
-	if iterationErr != nil || closeErr != nil {
-		return persistenceFailure("iterate audit prune", errors.Join(iterationErr, closeErr))
-	}
-	for _, identifier := range identifiers[minimumInt(capacity, len(identifiers)):] {
-		affected, err := session.Delete(ctx, query.NewDeletePlan(auditTableName, auditIDRef, query.Integer(identifier)))
+	if victim != 0 {
+		affected, err := session.Delete(ctx, query.NewDeletePlan(auditTableName, auditIDRef, query.Integer(victim)))
 		if err != nil {
 			return persistenceFailure("prune audit", err)
 		}
@@ -316,11 +258,4 @@ func pruneAuditRows(ctx context.Context, session db.Session, capacity int) error
 		}
 	}
 	return nil
-}
-
-func minimumInt(left, right int) int {
-	if left < right {
-		return left
-	}
-	return right
 }

@@ -189,7 +189,7 @@ func TestGenerateProjectRelationFacadeRejectsInvalidInputsBeforeBytes(t *testing
 		{name: "MarshalJSON promoted field collision", pkg: "project", packages: testfixture.FacadePackages("example.com/godj-relation-facade-marshal", marshalFieldCollision, blog), contains: "MarshalJSON"},
 		{name: "UnmarshalJSON promoted field collision", pkg: "project", packages: testfixture.FacadePackages("example.com/godj-relation-facade-unmarshal", unmarshalFieldCollision, blog), contains: "UnmarshalJSON"},
 		{name: "private raw alias import collision", pkg: "project", packages: aliasCollision, contains: "blogPostModel"},
-		{name: "all-model surface collision", pkg: "project", packages: relationFacadeSurfaceCollisionPackages(), contains: "Models field ABC"},
+		{name: "all-model surface collision", pkg: "project", packages: relationFacadeSurfaceCollisionPackages(), contains: "ABCQuery"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			generated, err := codegen.GenerateProjectRelationFacade(test.pkg, test.packages)

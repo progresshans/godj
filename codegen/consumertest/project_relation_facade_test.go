@@ -390,22 +390,8 @@ func writeGeneratedRelationFacadeUniverse(
 			t.Fatalf("fixture import path %q is not confined to module %q", candidate.ImportPath, modulePath)
 		}
 		bridgePackages[index] = codegen.BridgePackage{Alias: candidate.Alias, ImportPath: candidate.ImportPath}
-		main := testfixture.Generate(t, candidate.Alias+" main", func() ([]byte, error) {
-			return codegen.Generate(candidate.Alias, candidate.Schema)
-		})
-		metadata := testfixture.Generate(t, candidate.Alias+" metadata", func() ([]byte, error) {
-			return codegen.GenerateRelationMetadata(candidate.Alias, candidate.Schema)
-		})
-		object := testfixture.Generate(t, candidate.Alias+" object", func() ([]byte, error) {
-			return codegen.GenerateRelationObject(candidate.Alias, candidate.Schema)
-		})
-		projection := testfixture.Generate(t, candidate.Alias+" projection", func() ([]byte, error) {
-			return codegen.GenerateRelationProjection(candidate.Alias, candidate.Schema)
-		})
-		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_generated.go", main)
-		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_relation.go", metadata)
-		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_relation_object.go", object)
-		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_relation_projection.go", projection)
+		writeGeneratedAppFixture(t, directory, directoryName, candidate.Alias, candidate.Schema,
+			appFixtureFeatures{object: true, projection: true})
 	}
 
 	binding := bindingOverride
@@ -568,7 +554,7 @@ func TestProjectRelationFacadePendingNoPKLaterKeyAndManualKey(t *testing.T) {
 	rawPresent, err := models.BlogPost.New(blog.Post{Title: "raw present", AuthorID: 1})
 	if err != nil { t.Fatal(err) }
 	if raw, err := rawPresent.Unwrap(); err != nil || raw.AuthorID != 1 { t.Fatalf("new raw nonzero presence = %%#v, %%v", raw, err) }
-	loadedZero, err := models.BlogPost.state.wrapBlogPost(blog.Post{ID: 12, Title: "loaded zero", AuthorID: 0})
+	loadedZero, err := models.BlogPost.state.wrapBlogPost(blog.Post{ID: 12, Title: "loaded zero", AuthorID: 0}, false)
 	if err != nil { t.Fatal(err) }
 	if raw, err := loadedZero.Unwrap(); err != nil || raw.AuthorID != 0 { t.Fatalf("loaded zero presence = %%#v, %%v", raw, err) }
 	beforeLoadedZero := backend.queries
@@ -1205,7 +1191,7 @@ func TestGeneratedFacadeInvalidStates(t *testing.T) {
 	assertFacadeError(t, err, query.CategoryQuery)
 
 	reviewerID := int64(2)
-	wrapped, err := models.BlogPost.state.wrapBlogPost(blog.Post{ID: 1, Title: "post", AuthorID: 1, ReviewerID: &reviewerID})
+	wrapped, err := models.BlogPost.state.wrapBlogPost(blog.Post{ID: 1, Title: "post", AuthorID: 1, ReviewerID: &reviewerID}, false)
 	if err != nil {
 		t.Fatalf("wrapBlogPost() error = %%v", err)
 	}

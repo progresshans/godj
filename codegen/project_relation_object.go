@@ -3,7 +3,6 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"sort"
 	"strconv"
 
@@ -45,7 +44,7 @@ func GenerateProjectRelationObject(packageName string, packages []RelationObject
 	if err != nil {
 		return nil, err
 	}
-	return generateProjectRelationObject(packageName, newRelationProjectPlan(canonical))
+	return generateProjectCompanion(packageName, newRelationProjectPlan(canonical), companionObject)
 }
 
 func generateProjectRelationObject(packageName string, plan *relationProjectPlan) ([]byte, error) {
@@ -53,9 +52,6 @@ func generateProjectRelationObject(packageName string, plan *relationProjectPlan
 	models, sources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err
-	}
-	if err := validateProjectRelationObjectNamespaces(canonical, sources); err != nil {
-		return nil, fmt.Errorf("validate project relation object names: %w", err)
 	}
 
 	var output bytes.Buffer
@@ -98,11 +94,7 @@ func generateProjectRelationObject(packageName string, plan *relationProjectPlan
 	fmt.Fprintln(&output)
 	renderBindObjects(&output, models, sources)
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated project relation object bridge: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func canonicalRelationObjectPackages(packages []RelationObjectPackage) ([]normalizedRelationPackage, error) {
@@ -211,108 +203,6 @@ func projectRelationObjectAutoPrimaryKey(model ir.Model) (ir.Field, bool) {
 		found = true
 	}
 	return result, found
-}
-
-func validateProjectRelationObjectNamespaces(
-	apps []normalizedRelationPackage,
-	sources []projectRelationObjectSource,
-) error {
-	packageNames := map[string]string{
-		"GoDjProjectBindingGeneratorVersion": "project binding provenance constant",
-		"Bind":                               "project binding function",
-		"GoDjProjectRelationQueryGeneratorVersion": "project relation query provenance constant",
-		"Relations":     "project relation query aggregate",
-		"BindRelations": "project relation query binding function",
-		"GoDjProjectRelationObjectGeneratorVersion": "project relation object provenance constant",
-		"Objects":     "project relation object aggregate",
-		"BindObjects": "project relation object binding function",
-	}
-	addPackageName := func(name, owner string) error {
-		if previous, duplicate := packageNames[name]; duplicate {
-			return fmt.Errorf("package symbol %s for %s conflicts with %s", name, owner, previous)
-		}
-		packageNames[name] = owner
-		return nil
-	}
-	for _, app := range apps {
-		if previous, collision := packageNames[app.alias]; collision {
-			return fmt.Errorf("import alias %s conflicts with %s", app.alias, previous)
-		}
-	}
-	// The immutable project relation-query v1 companion is published in the
-	// same package. Seed every declaration it would emit so the current object
-	// generator fails before returning bytes on an old/new union collision.
-	for _, source := range sources {
-		owner := source.model.identity.AppLabel + "." + source.model.identity.ModelName
-		hasRequired := false
-		for _, relation := range source.relations {
-			if relation.field.Nullable {
-				continue
-			}
-			hasRequired = true
-			name := source.surface + relation.selector + "Relation"
-			if err := addPackageName(name, "existing required relation "+owner+"."+relation.field.Name); err != nil {
-				return err
-			}
-		}
-		if hasRequired {
-			if err := addPackageName(source.surface+"Relations", "existing relations for "+owner); err != nil {
-				return err
-			}
-		}
-	}
-
-	aggregateFields := make(map[string]string, len(sources))
-	for _, source := range sources {
-		owner := source.model.identity.AppLabel + "." + source.model.identity.ModelName
-		if err := addPackageName(source.factoryType, "object factory for "+owner); err != nil {
-			return err
-		}
-		if err := addPackageName(source.objectType, "object wrapper for "+owner); err != nil {
-			return err
-		}
-		if previous, duplicate := aggregateFields[source.surface]; duplicate {
-			return fmt.Errorf("Objects field %s for %s conflicts with %s", source.surface, owner, previous)
-		}
-		aggregateFields[source.surface] = owner
-
-		wrapperMethods := map[string]string{
-			"Model": "generated Model method",
-			"Fresh": "generated Fresh method",
-		}
-		factoryFields := map[string]string{
-			"From":         "generated From method",
-			"ParseDynamic": "generated ParseDynamic method",
-		}
-		privateFields := map[string]string{
-			"model":   "generated model field",
-			"factory": "generated factory field",
-			"backend": "generated backend field",
-			"_self":   "generated self sentinel",
-		}
-		for _, relation := range source.relations {
-			if previous, duplicate := wrapperMethods[relation.selector]; duplicate {
-				return fmt.Errorf("object method %s for %s.%s conflicts with %s", relation.selector, owner, relation.field.Name, previous)
-			}
-			wrapperMethods[relation.selector] = relation.field.Name
-			private := lowerFirst(relation.selector)
-			if previous, duplicate := privateFields[private]; duplicate {
-				return fmt.Errorf("private object field %s for %s.%s conflicts with %s", private, owner, relation.field.Name, previous)
-			}
-			privateFields[private] = relation.field.Name
-			if !relation.field.Nullable {
-				continue
-			}
-			if err := addPackageName(relation.typeName, "nullable relation "+owner+"."+relation.field.Name); err != nil {
-				return err
-			}
-			if previous, duplicate := factoryFields[relation.selector]; duplicate {
-				return fmt.Errorf("object factory field %s for %s.%s conflicts with %s", relation.selector, owner, relation.field.Name, previous)
-			}
-			factoryFields[relation.selector] = relation.field.Name
-		}
-	}
-	return nil
 }
 
 func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelationObjectSource) {

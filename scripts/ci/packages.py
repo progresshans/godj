@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Partition Go package tests by execution cost and ownership, not test names."""
 import argparse
+import json
+import os
 import sys
+
+from scopes import OWNERS
 
 MODULE = 'github.com/progresshans/godj/'
 PRODUCTS = {
@@ -22,6 +26,51 @@ PURE_PROTOCOLS = {
     'internal/projectgenerate/protocol',
     'internal/projectmigration/protocol',
 }
+
+
+# These complete package suites have one owner per OS/arch/mode when the
+# relation matrix is selected. CLI/checker subsets are handled separately.
+RELATION_PACKAGES = {
+    'query', 'codegen/consumertest', 'orm', 'db/sqlite', 'migrations',
+    'migrations/definition', 'conformance/migrationrelationproduct',
+    'conformance/internal/protocol', 'internal/compiletest',
+}
+RELATION_PREFIXES = (
+    'conformance/relationfixture', 'conformance/relationproduct',
+    'conformance/relationqueryproduct', 'conformance/relationobjectproduct',
+    'conformance/relationreverseproduct', 'conformance/relationprefetchproduct',
+    'conformance/relationselectproduct', 'conformance/relationdeleteproduct',
+)
+PORTABLE_PRODUCTS = PRODUCTS - {
+    'conformance/projectmigratetargetproduct', 'conformance/projectoperatorproduct',
+}
+
+
+def relation_owned(relative):
+    return relative in RELATION_PACKAGES or any(relative == prefix or relative.startswith(prefix + '/') for prefix in RELATION_PREFIXES)
+
+
+def selected(packages, group_name, owners=()):
+    if not set(owners) <= set(OWNERS):
+        raise ValueError('unknown CI execution owner')
+    result = []
+    for package in packages:
+        category = group(package)
+        relative = package[len(MODULE):]
+        if group_name == 'relation':
+            include = relation_owned(relative)
+        elif group_name == 'portable-products':
+            include = relative in PORTABLE_PRODUCTS
+        else:
+            include = group_name == 'all' or category == group_name
+        if include and group_name in ('core', 'integration', 'conformance', 'portable-products'):
+            if 'relation-product-matrix' in owners and relation_owned(relative):
+                include = False
+            if 'product-project-check-matrix' in owners and relative == 'conformance/runserverproduct':
+                include = False
+        if include:
+            result.append(package)
+    return result
 
 
 def group(package):
@@ -48,15 +97,21 @@ def group(package):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('group', choices=['core', 'integration', 'conformance', 'products', 'platform', 'all'])
+    parser.add_argument('group', choices=['core', 'integration', 'conformance', 'products', 'portable-products', 'platform', 'relation', 'all'])
     args = parser.parse_args()
     packages = [line.strip() for line in sys.stdin if line.strip()]
     if not packages or len(packages) != len(set(packages)):
         raise SystemExit('package discovery is empty or duplicated')
-    selected = [package for package in packages if args.group == 'all' or group(package) == args.group]
-    if not selected:
+    try:
+        owners = json.loads(os.environ.get('GODJ_CI_OWNERS', '[]'))
+        if not isinstance(owners, list) or any(not isinstance(owner, str) for owner in owners):
+            raise ValueError('CI owners must be a list of job names')
+        result = selected(packages, args.group, owners)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    if not result:
         raise SystemExit('selected package group is empty')
-    print('\n'.join(selected))
+    print('\n'.join(result))
 
 
 if __name__ == '__main__':

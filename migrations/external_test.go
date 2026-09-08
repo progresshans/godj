@@ -238,7 +238,7 @@ func TestExternalNestedHiddenOperationCannotBypassRawRelationBoundary(t *testing
 	var migrationError *migrations.Error
 	var capability *backend.CapabilityError
 	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
-		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capability) || capability.Feature != "relation_migration" {
+		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capability) || capability.Feature != "migration_operation" {
 		t.Fatalf("nested hidden relation wrapper error = %#v capability=%#v", err, capability)
 	}
 
@@ -250,13 +250,13 @@ func TestExternalNestedHiddenOperationCannotBypassRawRelationBoundary(t *testing
 	})
 	migrationError = nil
 	capability = nil
-	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
-		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capability) {
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capability) || capability.Feature != "migration_operation" {
 		t.Fatalf("nested hidden scalar wrapper error = %#v capability=%#v", err, capability)
 	}
 }
 
-func TestExternalShadowedRelationUsesEffectiveScalarOperation(t *testing.T) {
+func TestExternalShadowedOperationIsRejectedBeforeIO(t *testing.T) {
 	t.Parallel()
 
 	scalar := ir.Model{
@@ -281,8 +281,8 @@ func TestExternalShadowedRelationUsesEffectiveScalarOperation(t *testing.T) {
 	})
 	var migrationError *migrations.Error
 	var capability *backend.CapabilityError
-	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
-		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capability) {
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capability) || capability.Feature != "migration_operation" {
 		t.Fatalf("shadowed external relation error = %#v capability=%#v", err, capability)
 	}
 }

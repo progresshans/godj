@@ -5,12 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"unicode"
 	"unicode/utf8"
-)
 
-var databaseIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+	"github.com/progresshans/godj/internal/identifiers"
+)
 
 type ValidationError struct {
 	Path string
@@ -34,7 +32,7 @@ func Normalize(input Schema) (Schema, error) {
 			fmt.Sprintf("got %d, want %d", schema.FormatVersion, CurrentFormatVersion),
 		)
 	}
-	if !databaseIdentifier.MatchString(schema.AppLabel) {
+	if !identifiers.SQL(schema.AppLabel) {
 		return Schema{}, validation("app_label", "invalid_identifier", schema.AppLabel)
 	}
 	if len(schema.Models) == 0 {
@@ -47,16 +45,16 @@ func Normalize(input Schema) (Schema, error) {
 	for index := range schema.Models {
 		modelPath := fmt.Sprintf("models[%d]", index)
 		model := &schema.Models[index]
-		if !databaseIdentifier.MatchString(model.Name) {
+		if !identifiers.SQL(model.Name) {
 			return Schema{}, validation(modelPath+".name", "invalid_identifier", model.Name)
 		}
-		if !exportedIdentifier(model.GoName) {
+		if !identifiers.ExportedGo(model.GoName) {
 			return Schema{}, validation(modelPath+".go_name", "invalid_go_identifier", model.GoName)
 		}
 		if model.DBTable == "" {
 			model.DBTable = schema.AppLabel + "_" + model.Name
 		}
-		if !databaseIdentifier.MatchString(model.DBTable) {
+		if !identifiers.SQL(model.DBTable) {
 			return Schema{}, validation(modelPath+".db_table", "invalid_identifier", model.DBTable)
 		}
 		if duplicate(modelNames, model.Name) {
@@ -110,13 +108,13 @@ func normalizeModel(model *Model, path string) error {
 				field.Column = field.Name
 			}
 		}
-		if !databaseIdentifier.MatchString(field.Name) {
+		if !identifiers.SQL(field.Name) {
 			return validation(fieldPath+".name", "invalid_identifier", field.Name)
 		}
-		if !exportedIdentifier(field.GoName) {
+		if !identifiers.ExportedGo(field.GoName) {
 			return validation(fieldPath+".go_name", "invalid_go_identifier", field.GoName)
 		}
-		if !databaseIdentifier.MatchString(field.Column) {
+		if !identifiers.SQL(field.Column) {
 			return validation(fieldPath+".column", "invalid_identifier", field.Column)
 		}
 		if duplicate(names, field.Name) {
@@ -215,10 +213,10 @@ func validateField(field Field, path string) error {
 }
 
 func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path string) error {
-	if !databaseIdentifier.MatchString(relation.Target.AppLabel) {
+	if !identifiers.SQL(relation.Target.AppLabel) {
 		return validation(path+".target.app_label", "invalid_identifier", relation.Target.AppLabel)
 	}
-	if !databaseIdentifier.MatchString(relation.Target.ModelName) {
+	if !identifiers.SQL(relation.Target.ModelName) {
 		return validation(path+".target.model_name", "invalid_identifier", relation.Target.ModelName)
 	}
 	if relation.Cardinality != RelationManyToOne {
@@ -227,7 +225,7 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 	if relation.Reverse.Disabled == (relation.Reverse.Name != "") {
 		return validation(path+".reverse", "invalid", "exactly one of name or disabled must be set")
 	}
-	if relation.Reverse.Name != "" && !databaseIdentifier.MatchString(relation.Reverse.Name) {
+	if relation.Reverse.Name != "" && !identifiers.SQL(relation.Reverse.Name) {
 		return validation(path+".reverse.name", "invalid_identifier", relation.Reverse.Name)
 	}
 	switch relation.OnDelete {
@@ -313,20 +311,4 @@ func duplicate(seen map[string]struct{}, value string) bool {
 	}
 	seen[value] = struct{}{}
 	return false
-}
-
-func exportedIdentifier(value string) bool {
-	if value == "" || !utf8.ValidString(value) {
-		return false
-	}
-	first, size := utf8.DecodeRuneInString(value)
-	if first == utf8.RuneError || !unicode.IsUpper(first) {
-		return false
-	}
-	for _, current := range value[size:] {
-		if current != '_' && !unicode.IsLetter(current) && !unicode.IsDigit(current) {
-			return false
-		}
-	}
-	return true
 }

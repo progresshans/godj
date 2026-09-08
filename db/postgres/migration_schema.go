@@ -273,6 +273,9 @@ func (schema *postgresMigrationSchema) VerifyComplete(
 	if err := schema.validateOperationContext(ctx); err != nil {
 		return err
 	}
+	if err := schema.verifySeal(); err != nil {
+		return err
+	}
 	if executor == nil {
 		return postgresMigrationIntentIntegrity("migration schema executor is nil", nil)
 	}
@@ -287,7 +290,7 @@ func (schema *postgresMigrationSchema) VerifyComplete(
 	for identity, model := range schema.final.models {
 		entry := postgresMigrationPreflightTable{
 			model:   model.Clone(),
-			targets: clonePostgresMigrationTargets(schema.final.targets[identity]),
+			targets: migrationbackend.CloneMigrationTargets(schema.final.targets[identity]),
 		}
 		finalByTable[model.DBTable] = entry
 	}
@@ -334,10 +337,13 @@ func (schema *postgresMigrationSchema) postgresMigrationCurrentOperation(
 	if executor == nil {
 		return migrationbackend.MigrationOperation{}, postgresMigrationIntentIntegrity("migration schema executor is nil", nil)
 	}
-	if schema.cursor >= len(schema.intent.Operations) {
+	if schema.cursor < 0 || schema.cursor >= len(schema.intent.Operations) {
 		return migrationbackend.MigrationOperation{}, postgresMigrationIntentIntegrity("migration schema received an operation after the sealed cursor ended", nil)
 	}
 	operation := schema.intent.Operations[schema.cursor]
+	if err := schema.verifyOperationSeal(operation); err != nil {
+		return migrationbackend.MigrationOperation{}, err
+	}
 	if operation.Kind != want {
 		return migrationbackend.MigrationOperation{}, postgresMigrationIntentIntegrity(
 			fmt.Sprintf("migration schema cursor %d has kind %d, caller requested %d", schema.cursor, operation.Kind, want),
@@ -357,7 +363,7 @@ func (schema *postgresMigrationSchema) postgresMigrationPreflightTables() (
 	for identity, model := range schema.initial.models {
 		existing[model.DBTable] = postgresMigrationPreflightTable{
 			model:   model.Clone(),
-			targets: clonePostgresMigrationTargets(schema.initial.targets[identity]),
+			targets: migrationbackend.CloneMigrationTargets(schema.initial.targets[identity]),
 		}
 	}
 	for index := range schema.intent.Operations {

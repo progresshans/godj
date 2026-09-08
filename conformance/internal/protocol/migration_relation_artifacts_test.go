@@ -3,9 +3,7 @@ package protocol
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -145,46 +143,6 @@ func TestMigrationRelationStaticFixtureExitsOneWithTwelveOrderedMismatches(t *te
 			t.Fatalf("observationcmp stderr does not preserve contract order at %s: %q", needle, text)
 		}
 		previous = position
-	}
-}
-
-func TestMigrationRelationReferenceAndProductWiringIsLocked(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	contents, err := os.ReadFile(filepath.Join(root, "Makefile"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(contents)
-	conformanceStart := strings.Index(text, "conformance-check:\n")
-	productStart := strings.Index(text, "godj-conformance:")
-	oracleCheckStart := strings.Index(text, "oracle-check:\n")
-	oracleRegenerateStart := strings.Index(text, "oracle-regenerate:\n")
-	ciStart := strings.Index(text, "ci:")
-	if conformanceStart < 0 || productStart <= conformanceStart || oracleCheckStart <= productStart || oracleRegenerateStart <= oracleCheckStart || ciStart <= oracleRegenerateStart {
-		t.Fatal("cannot isolate Makefile conformance targets")
-	}
-	referenceTarget := text[conformanceStart:productStart]
-	productTarget := text[productStart:oracleCheckStart]
-	oracleCheckTarget := text[oracleCheckStart:oracleRegenerateStart]
-	oracleRegenerateTarget := text[oracleRegenerateStart:ciStart]
-	if got := strings.Count(referenceTarget, "$(MIGRATION_RELATION_MANIFEST)"); got != 2 {
-		t.Fatalf("reference conformance migration-relation manifest count = %d, want 2", got)
-	}
-	if got := strings.Count(productTarget, "$(MIGRATION_RELATION_MANIFEST)"); got != 0 {
-		t.Fatalf("product conformance migration-relation manifest count = %d, want 0", got)
-	}
-	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_RELATION_MANIFEST)"); got != 1 {
-		t.Fatalf("oracle-check migration-relation manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(oracleRegenerateTarget, "$(MIGRATION_RELATION_MANIFEST)"); got != 1 {
-		t.Fatalf("oracle-regenerate migration-relation manifest count = %d, want 1", got)
-	}
-
-	relationProduct := ciJob(t, ciJobs(t), "relation-product-matrix")
-	if !containsString(strings.Fields(relationProduct), "./conformance/migrationrelationproduct") {
-		t.Fatal("migration-relation product observer package is missing from relation-product inventory")
 	}
 }
 
@@ -410,55 +368,6 @@ func TestMigrationRelationProvenanceMutationsCannotFalseGreen(t *testing.T) {
 			}
 			t.Fatal("provenance mutation produced a false green")
 		})
-	}
-}
-
-func TestMigrationRelationReferenceIsDistinctFromLegacyTwelveSets(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	profile, manifest, oracle, _ := loadContractArtifacts(t, "migration-relation")
-	legacy := []migrationDefinitionSourceContractSet{
-		loadMigrationDefinitionSourceContractSet(t, root, "read", "manifest.json", "oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "write-migration", "write-migration-manifest.json", "write-migration-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "save-lifecycle", "save-lifecycle-manifest.json", "save-lifecycle-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "query-cache", "query-cache-manifest.json", "query-cache-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "migration-planning", "migration-planning-manifest.json", "migration-planning-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "migration-execution", "migration-execution-manifest.json", "migration-execution-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "migration-restart", "migration-restart-manifest.json", "migration-restart-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "migration-state-reconstruction", "migration-state-reconstruction-manifest.json", "migration-state-reconstruction-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "migration-lifecycle", "migration-lifecycle-manifest.json", "migration-lifecycle-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "migration-definition-source", "migration-definition-source-manifest.json", "migration-definition-source-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "migration-project-check", "migration-project-check-manifest.json", "migration-project-check-oracle.json"),
-		loadMigrationDefinitionSourceContractSet(t, root, "relation", "relation-manifest.json", "relation-oracle.json"),
-	}
-	newIDs := make(map[string]struct{}, len(manifest.Contracts))
-	newScenarios := make(map[string]struct{}, len(manifest.Contracts))
-	for _, contract := range manifest.Contracts {
-		newIDs[contract.ID] = struct{}{}
-		newScenarios[contract.Scenario] = struct{}{}
-	}
-	crossBindings := 0
-	for _, set := range legacy {
-		for _, contract := range set.manifest.Contracts {
-			if _, exists := newIDs[contract.ID]; exists {
-				t.Fatalf("migration-relation contract ID %q is shared with %s", contract.ID, set.name)
-			}
-			if _, exists := newScenarios[contract.Scenario]; exists {
-				t.Fatalf("migration-relation scenario %q is shared with %s", contract.Scenario, set.name)
-			}
-		}
-		if err := ValidateSuiteAgainst(profile, manifest, set.oracle); err == nil {
-			t.Fatalf("migration-relation manifest accepted %s oracle", set.name)
-		}
-		crossBindings++
-		if err := ValidateSuiteAgainst(profile, set.manifest, oracle); err == nil {
-			t.Fatalf("%s manifest accepted migration-relation oracle", set.name)
-		}
-		crossBindings++
-	}
-	if crossBindings != 24 {
-		t.Fatalf("migration-relation isolation checked %d bindings, want 24", crossBindings)
 	}
 }
 

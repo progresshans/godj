@@ -13,6 +13,7 @@ from django.db.migrations.recorder import MigrationRecorder
 
 from conformance.runners.django.tests.values import denormalize
 from conformance.runners.django import (
+    migration_observation,
     migration_state_reconstruction_scenarios as scenarios,
 )
 
@@ -662,15 +663,15 @@ class MigrationStateReconstructionScenarioTests(unittest.TestCase):
         ]
         mutated = migration.mutate_state(state)
         with self.assertRaisesRegex(AssertionError, "unsupported field kind"):
-            scenarios._state_value(mutated)
+            migration_observation.state_value(mutated)
 
         invalid_default = models.CharField(default=False, max_length=8)
         with self.assertRaisesRegex(AssertionError, "unsupported default type"):
-            scenarios._default_value(invalid_default, "char")
+            migration_observation.default_value(invalid_default, "char")
 
         callable_default = models.BooleanField(default=lambda: True)
         with self.assertRaisesRegex(AssertionError, "callable defaults"):
-            scenarios._default_value(callable_default, "boolean")
+            migration_observation.default_value(callable_default, "boolean")
 
     def test_payload_excludes_sql_select_counts_and_private_object_shape(self) -> None:
         keys: set[str] = set()

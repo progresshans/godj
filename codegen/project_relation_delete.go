@@ -2,20 +2,15 @@ package codegen
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
-	"go/format"
 	"sort"
 	"strconv"
 
+	"github.com/progresshans/godj/internal/relationpolicy"
 	"github.com/progresshans/godj/schema/ir"
 )
 
 const ProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"
-
-const projectRelationDeletePolicyVersion = "godj-relation-delete-policy-v1"
 
 type projectRelationDeleteEdge struct {
 	source     *projectRelationModel
@@ -45,7 +40,7 @@ func GenerateProjectRelationDelete(
 	if err != nil {
 		return nil, err
 	}
-	return generateProjectRelationDelete(packageName, newRelationProjectPlan(canonical))
+	return generateProjectCompanion(packageName, newRelationProjectPlan(canonical), companionDelete)
 }
 
 func generateProjectRelationDelete(packageName string, plan *relationProjectPlan) ([]byte, error) {
@@ -58,22 +53,9 @@ func generateProjectRelationDelete(packageName string, plan *relationProjectPlan
 			return nil, fmt.Errorf("validate relation delete projection prerequisite %q: %w", app.alias, err)
 		}
 	}
-	_, objectSources, err := plan.objectSurface()
-	if err != nil {
-		return nil, err
-	}
-	if err := validateProjectRelationObjectNamespaces(canonical, objectSources); err != nil {
-		return nil, fmt.Errorf("validate project relation delete object prerequisites: %w", err)
-	}
-	if err := validateProjectRelationSelectRelatedNamespaces(plan, objectSources); err != nil {
-		return nil, fmt.Errorf("validate project relation delete immutable prerequisites: %w", err)
-	}
 	targets, err := plan.deleteSurface()
 	if err != nil {
 		return nil, err
-	}
-	if err := validateProjectRelationDeleteNamespaces(plan, objectSources, targets); err != nil {
-		return nil, fmt.Errorf("validate project relation delete names: %w", err)
 	}
 	usedApps := projectRelationDeleteUsedApps(canonical, targets)
 
@@ -124,11 +106,7 @@ func generateProjectRelationDelete(packageName string, plan *relationProjectPlan
 	fmt.Fprintln(&output)
 	renderBindRelationDeleters(&output, targets)
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated project relation delete companion: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func buildProjectRelationDeleteSurface(
@@ -253,43 +231,17 @@ func compareProjectRelationDeleteIdentity(left, right ir.ModelIdentity) int {
 }
 
 func projectRelationDeleteFingerprint(target projectRelationDeleteTarget) string {
-	values := []string{
-		projectRelationDeletePolicyVersion,
-		target.model.identity.AppLabel,
-		target.model.identity.ModelName,
-		target.model.model.DBTable,
-		target.primaryKey.Name,
-		target.primaryKey.Column,
-		strconv.Itoa(len(target.edges)),
-	}
-	for _, edge := range target.edges {
-		nullable := "0"
-		if edge.foreignKey.Nullable {
-			nullable = "1"
+	incoming := make([]relationpolicy.Edge, len(target.edges))
+	for index, edge := range target.edges {
+		incoming[index] = relationpolicy.Edge{
+			Source: relationpolicy.ModelKey{Identity: edge.source.identity, Table: edge.source.model.DBTable,
+				PrimaryKeyName: edge.primaryKey.Name, PrimaryKeyColumn: edge.primaryKey.Column},
+			Field: edge.foreignKey.Name, Column: edge.foreignKey.Column,
+			Nullable: edge.foreignKey.Nullable, Cardinality: edge.foreignKey.Relation.Cardinality, OnDelete: edge.foreignKey.Relation.OnDelete,
 		}
-		values = append(values,
-			edge.source.identity.AppLabel,
-			edge.source.identity.ModelName,
-			edge.source.model.DBTable,
-			edge.primaryKey.Name,
-			edge.primaryKey.Column,
-			edge.foreignKey.Name,
-			edge.foreignKey.Column,
-			nullable,
-			string(edge.foreignKey.Relation.Cardinality),
-			string(edge.foreignKey.Relation.OnDelete),
-		)
 	}
-
-	var encoded bytes.Buffer
-	var length [8]byte
-	for _, value := range values {
-		binary.BigEndian.PutUint64(length[:], uint64(len(value)))
-		_, _ = encoded.Write(length[:])
-		_, _ = encoded.WriteString(value)
-	}
-	digest := sha256.Sum256(encoded.Bytes())
-	return hex.EncodeToString(digest[:])
+	return relationpolicy.Fingerprint(relationpolicy.ModelKey{Identity: target.model.identity, Table: target.model.model.DBTable,
+		PrimaryKeyName: target.primaryKey.Name, PrimaryKeyColumn: target.primaryKey.Column}, incoming)
 }
 
 func projectRelationDeleteUsedApps(
@@ -307,169 +259,6 @@ func projectRelationDeleteUsedApps(
 		}
 	}
 	return result
-}
-
-func validateProjectRelationDeleteNamespaces(
-	plan *relationProjectPlan,
-	objectSources []projectRelationObjectSource,
-	targets []projectRelationDeleteTarget,
-) error {
-	packageNames, err := projectRelationDeletePrerequisiteNames(plan, objectSources)
-	if err != nil {
-		return err
-	}
-	add := func(name, owner string) error {
-		if previous, duplicate := packageNames[name]; duplicate {
-			return fmt.Errorf("package symbol %s for %s conflicts with %s", name, owner, previous)
-		}
-		packageNames[name] = owner
-		return nil
-	}
-	for _, candidate := range []struct {
-		name  string
-		owner string
-	}{
-		{name: "GoDjProjectRelationDeleteGeneratorVersion", owner: "project relation delete provenance constant"},
-		{name: "RelationDeleters", owner: "project relation delete aggregate"},
-		{name: "BindRelationDeleters", owner: "project relation delete binding function"},
-	} {
-		if err := add(candidate.name, candidate.owner); err != nil {
-			return err
-		}
-	}
-	aggregateFields := make(map[string]string, len(targets))
-	for _, target := range targets {
-		identity := target.model.identity.AppLabel + "." + target.model.identity.ModelName
-		if previous, duplicate := aggregateFields[target.surface]; duplicate {
-			return fmt.Errorf("RelationDeleters field %s for %s conflicts with %s", target.surface, identity, previous)
-		}
-		aggregateFields[target.surface] = identity
-	}
-	return nil
-}
-
-func projectRelationDeletePrerequisiteNames(
-	plan *relationProjectPlan,
-	objectSources []projectRelationObjectSource,
-) (map[string]string, error) {
-	apps := plan.apps
-	names := make(map[string]string)
-	add := func(name, owner string) error {
-		if previous, duplicate := names[name]; duplicate {
-			return fmt.Errorf("package symbol %s for %s conflicts with %s", name, owner, previous)
-		}
-		names[name] = owner
-		return nil
-	}
-	for _, candidate := range []struct {
-		name  string
-		owner string
-	}{
-		{name: "GoDjProjectBindingGeneratorVersion", owner: "project binding provenance constant"},
-		{name: "Bind", owner: "project binding function"},
-		{name: "GoDjProjectRelationQueryGeneratorVersion", owner: "project relation query provenance constant"},
-		{name: "Relations", owner: "project relation query aggregate"},
-		{name: "BindRelations", owner: "project relation query binding function"},
-		{name: "GoDjProjectRelationObjectGeneratorVersion", owner: "project relation object provenance constant"},
-		{name: "Objects", owner: "project relation object aggregate"},
-		{name: "BindObjects", owner: "project relation object binding function"},
-		{name: "GoDjProjectRelationReverseGeneratorVersion", owner: "project reverse provenance constant"},
-		{name: "ReverseRelations", owner: "project reverse relation aggregate"},
-		{name: "BindReverseRelations", owner: "project reverse relation binding function"},
-		{name: "ReverseObjects", owner: "project reverse object aggregate"},
-		{name: "BindReverseObjects", owner: "project reverse object binding function"},
-		{name: "GoDjProjectRelationPrefetchGeneratorVersion", owner: "project prefetch provenance constant"},
-		{name: "ReversePrefetches", owner: "project prefetch aggregate"},
-		{name: "BindReversePrefetches", owner: "project prefetch binding function"},
-		{name: "GoDjProjectRelationSelectRelatedGeneratorVersion", owner: "project select-related provenance constant"},
-	} {
-		if err := add(candidate.name, candidate.owner); err != nil {
-			return nil, err
-		}
-	}
-	for _, app := range apps {
-		if err := add(app.alias, "import alias for "+app.schema.AppLabel); err != nil {
-			return nil, err
-		}
-	}
-
-	_, querySources, err := plan.querySurface()
-	if err != nil {
-		return nil, fmt.Errorf("build immutable project relation query namespace: %w", err)
-	}
-	for _, source := range querySources {
-		identity := source.model.identity.AppLabel + "." + source.model.identity.ModelName
-		if err := add(source.relationsType, "relation query surface for "+identity); err != nil {
-			return nil, err
-		}
-		for _, relation := range source.relations {
-			if err := add(relation.typeName, "relation query edge "+identity+"."+relation.field.Name); err != nil {
-				return nil, err
-			}
-		}
-	}
-	_, reverseOwners, err := plan.reverseSurface()
-	if err != nil {
-		return nil, fmt.Errorf("build immutable project reverse namespace: %w", err)
-	}
-	reverseObjectOwners := projectRelationReverseObjectOwners(reverseOwners)
-	reverseObjectSet := make(map[*projectRelationModel]struct{}, len(reverseObjectOwners))
-	for index := range reverseObjectOwners {
-		reverseObjectSet[reverseObjectOwners[index].model] = struct{}{}
-	}
-	for _, owner := range reverseOwners {
-		identity := owner.model.identity.AppLabel + "." + owner.model.identity.ModelName
-		if err := add(owner.relationsType, "reverse relation surface for "+identity); err != nil {
-			return nil, err
-		}
-		if _, objectCapable := reverseObjectSet[owner.model]; objectCapable {
-			if err := add(owner.factoryType, "reverse object factory for "+identity); err != nil {
-				return nil, err
-			}
-			if err := add(owner.objectType, "reverse object wrapper for "+identity); err != nil {
-				return nil, err
-			}
-			if err := add(owner.surface+"ReversePrefetches", "reverse prefetches for "+identity); err != nil {
-				return nil, err
-			}
-		}
-		for _, relation := range owner.relations {
-			if err := add(relation.typeName, "reverse relation "+identity+"."+relation.name); err != nil {
-				return nil, err
-			}
-		}
-	}
-	for _, source := range objectSources {
-		identity := source.model.identity.AppLabel + "." + source.model.identity.ModelName
-		if err := add(source.factoryType, "object factory for "+identity); err != nil {
-			return nil, err
-		}
-		if err := add(source.objectType, "object wrapper for "+identity); err != nil {
-			return nil, err
-		}
-		for _, relation := range source.relations {
-			if relation.field.Nullable {
-				if err := add(relation.typeName, "nullable object relation "+identity+"."+relation.field.Name); err != nil {
-					return nil, err
-				}
-			}
-		}
-		if err := add(source.surface+"SelectRelated", "select-related builder for "+identity); err != nil {
-			return nil, err
-		}
-		if err := add(source.surface+"DynamicSelectRelatedQuery", "dynamic select-related query for "+identity); err != nil {
-			return nil, err
-		}
-		for _, relation := range source.relations {
-			if err := add(
-				source.surface+relation.selector+"SelectRelatedQuery",
-				"select-related query for "+identity+"."+relation.field.Name,
-			); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return names, nil
 }
 
 func renderBindRelationDeleters(output *bytes.Buffer, targets []projectRelationDeleteTarget) {

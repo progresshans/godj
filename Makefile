@@ -2,103 +2,10 @@ SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 # Pipeline recipes also set their flags explicitly for macOS GNU Make 3.81.
 
-PROFILE := conformance/profiles/django-6.1-sqlite-darwin-arm64.json
-MANIFEST := conformance/contracts/manifest.json
-ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json
-NOT_IMPLEMENTED := conformance/fixtures/godj-not-implemented.json
-WRITE_MIGRATION_MANIFEST := conformance/contracts/write-migration-manifest.json
-WRITE_MIGRATION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json
-WRITE_MIGRATION_NOT_IMPLEMENTED := conformance/fixtures/godj-write-migration-not-implemented.json
-SAVE_LIFECYCLE_MANIFEST := conformance/contracts/save-lifecycle-manifest.json
-SAVE_LIFECYCLE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json
-SAVE_LIFECYCLE_NOT_IMPLEMENTED := conformance/fixtures/godj-save-lifecycle-not-implemented.json
-QUERY_CACHE_MANIFEST := conformance/contracts/query-cache-manifest.json
-QUERY_CACHE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json
-QUERY_CACHE_NOT_IMPLEMENTED := conformance/fixtures/godj-query-cache-not-implemented.json
-QUERY_BREADTH_MANIFEST := conformance/contracts/query-breadth-manifest.json
-QUERY_BREADTH_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json
-QUERY_BREADTH_NOT_IMPLEMENTED := conformance/fixtures/godj-query-breadth-not-implemented.json
-QUERY_EXPRESSION_MANIFEST := conformance/contracts/query-expression-manifest.json
-QUERY_EXPRESSION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json
-QUERY_EXPRESSION_NOT_IMPLEMENTED := conformance/fixtures/godj-query-expression-not-implemented.json
-MIGRATION_PLANNING_MANIFEST := conformance/contracts/migration-planning-manifest.json
-MIGRATION_PLANNING_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json
-MIGRATION_PLANNING_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-planning-not-implemented.json
-MIGRATION_EXECUTION_MANIFEST := conformance/contracts/migration-execution-manifest.json
-MIGRATION_EXECUTION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json
-MIGRATION_EXECUTION_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-execution-not-implemented.json
-MIGRATION_EXECUTION_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-execution-deviation-expected.json
-MIGRATION_RESTART_MANIFEST := conformance/contracts/migration-restart-manifest.json
-MIGRATION_RESTART_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json
-MIGRATION_RESTART_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-restart-not-implemented.json
-MIGRATION_STATE_RECONSTRUCTION_MANIFEST := conformance/contracts/migration-state-reconstruction-manifest.json
-MIGRATION_STATE_RECONSTRUCTION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json
-MIGRATION_STATE_RECONSTRUCTION_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-state-reconstruction-not-implemented.json
-MIGRATION_LIFECYCLE_MANIFEST := conformance/contracts/migration-lifecycle-manifest.json
-MIGRATION_LIFECYCLE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json
-MIGRATION_LIFECYCLE_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-lifecycle-not-implemented.json
-MIGRATION_LIFECYCLE_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-lifecycle-deviation-expected.json
-MIGRATION_DEFINITION_SOURCE_MANIFEST := conformance/contracts/migration-definition-source-manifest.json
-MIGRATION_DEFINITION_SOURCE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json
-MIGRATION_DEFINITION_SOURCE_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-definition-source-not-implemented.json
-MIGRATION_PROJECT_CHECK_MANIFEST := conformance/contracts/migration-project-check-manifest.json
-MIGRATION_PROJECT_CHECK_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json
-MIGRATION_PROJECT_CHECK_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-project-check-not-implemented.json
-MIGRATION_COMMAND_MANIFEST := conformance/contracts/migration-command-manifest.json
-MIGRATION_COMMAND_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json
-MIGRATION_COMMAND_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-command-not-implemented.json
-MIGRATION_WRITER_MANIFEST := conformance/contracts/migration-writer-manifest.json
-MIGRATION_WRITER_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json
-MIGRATION_WRITER_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-writer-not-implemented.json
-MIGRATION_WRITER_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-writer-deviation-expected.json
-MIGRATION_STATUS_MANIFEST := conformance/contracts/migration-status-manifest.json
-MIGRATION_STATUS_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json
-MIGRATION_STATUS_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-status-not-implemented.json
-MIGRATION_TARGET_PLAN_MANIFEST := conformance/contracts/migration-target-plan-manifest.json
-MIGRATION_TARGET_PLAN_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json
-MIGRATION_TARGET_PLAN_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-target-plan-not-implemented.json
-MIGRATION_TARGET_PLAN_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-target-plan-deviation-expected.json
-MIGRATION_SQL_RENDERING_MANIFEST := conformance/contracts/migration-sql-rendering-manifest.json
-MIGRATION_SQL_RENDERING_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-sql-rendering-oracle.json
-MIGRATION_SQL_RENDERING_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-sql-rendering-not-implemented.json
-RELATION_MANIFEST := conformance/contracts/relation-manifest.json
-RELATION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
-RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-relation-not-implemented.json
-MIGRATION_RELATION_MANIFEST := conformance/contracts/migration-relation-manifest.json
-MIGRATION_RELATION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json
-MIGRATION_RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-relation-not-implemented.json
-TEMPLATE_FORM_MANIFEST := conformance/contracts/template-form-manifest.json
-TEMPLATE_FORM_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json
-TEMPLATE_FORM_NOT_IMPLEMENTED := conformance/fixtures/godj-template-form-not-implemented.json
-TEMPLATE_FORM_DEVIATION_EXPECTED := conformance/fixtures/godj-template-form-deviation-expected.json
-AUTH_SESSION_MANIFEST := conformance/contracts/auth-session-manifest.json
-AUTH_SESSION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json
-AUTH_SESSION_NOT_IMPLEMENTED := conformance/fixtures/godj-auth-session-not-implemented.json
-AUTH_SESSION_DEVIATION_EXPECTED := conformance/fixtures/godj-auth-session-deviation-expected.json
-ARTICLE_ADMIN_MANIFEST := conformance/contracts/article-admin-manifest.json
-ARTICLE_ADMIN_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json
-ARTICLE_ADMIN_NOT_IMPLEMENTED := conformance/fixtures/godj-article-admin-not-implemented.json
-ARTICLE_ADMIN_DEVIATION_EXPECTED := conformance/fixtures/godj-article-admin-deviation-expected.json
-SYSTEM_STATE_MANIFEST := conformance/contracts/system-state-manifest.json
-SYSTEM_STATE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json
-SYSTEM_STATE_NOT_IMPLEMENTED := conformance/fixtures/godj-system-state-not-implemented.json
-SYSTEM_STATE_DEVIATION_EXPECTED := conformance/fixtures/godj-system-state-deviation-expected.json
 ATTESTATION_DIR ?=
 SYSTEM_STATE_POSTGRES_ATTESTATION ?= $(ATTESTATION_DIR)/systemstate/postgresql-17.10-two-process-v1.json
 PROJECT_OPERATOR_POSTGRES_ATTESTATION ?= $(ATTESTATION_DIR)/operator/postgresql-17.10-sqlite-external-operator-v1.json
-DRF_PROFILE := conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json
-PARAMETER_ROUTING_MANIFEST := conformance/contracts/parameter-routing-manifest.json
-PARAMETER_ROUTING_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json
-PARAMETER_ROUTING_NOT_IMPLEMENTED := conformance/fixtures/godj-parameter-routing-not-implemented.json
-PARAMETER_ROUTING_DEVIATION_EXPECTED := conformance/fixtures/godj-parameter-routing-deviation-expected.json
-ARTICLE_API_MANIFEST := conformance/contracts/article-api-manifest.json
-ARTICLE_API_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json
-ARTICLE_API_NOT_IMPLEMENTED := conformance/fixtures/godj-article-api-not-implemented.json
-ARTICLE_API_DEVIATION_EXPECTED := conformance/fixtures/godj-article-api-deviation-expected.json
-API_AUTHENTICATION_MANIFEST := conformance/contracts/api-authentication-manifest.json
-API_AUTHENTICATION_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json
-API_AUTHENTICATION_NOT_IMPLEMENTED := conformance/fixtures/godj-api-authentication-not-implemented.json
-API_AUTHENTICATION_DEVIATION_EXPECTED := conformance/fixtures/godj-api-authentication-deviation-expected.json
+
 PROJECT_MIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigrateproduct
 PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigratetargetproduct
 PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectshowmigrationsproduct
@@ -155,11 +62,9 @@ go-test-core:
 	go test -timeout=20m $$core_packages
 
 go-test-products: project-command-dependencies
-	go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
-	go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
-	go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
-	go test -timeout=15m -count=1 ./conformance/runserverproduct
-	go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py portable-products)"; \
+	go test -timeout=15m -count=1 -p=1 $$packages
 
 go-test-operator: project-command-dependencies
 	go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
@@ -175,11 +80,9 @@ go-race-core:
 	go test -timeout=20m -race $$core_packages
 
 go-race-products: project-command-dependencies
-	go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct
-	go test -timeout=15m -race -count=1 ./conformance/projectshowmigrationsproduct
-	go test -timeout=15m -race -count=1 ./conformance/projectsqlmigrateproduct
-	go test -timeout=15m -race -count=1 ./conformance/runserverproduct
-	go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct
+	@set -euo pipefail; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py portable-products)"; \
+	go test -timeout=15m -count=1 -p=1 -race $$packages
 
 go-race-operator: project-command-dependencies
 	go test -timeout=25m -race -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
@@ -197,16 +100,13 @@ cgo-zero-build-integration:
 	CGO_ENABLED=0 go test -count=1 -timeout=25m $$packages
 
 cgo-zero-build-conformance:
-	@set -euo pipefail; \
-	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py conformance)"; \
-	CGO_ENABLED=0 go test -count=1 -p=1 -timeout=25m $$packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py cgo0
 
 cgo-zero-build-products: project-command-dependencies
-	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
-	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
-	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
-	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
-	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
+	@set -euo pipefail; \
+	export CGO_ENABLED=0; \
+	packages="$$(go list ./... | python3 scripts/ci/packages.py portable-products)"; \
+	go test -timeout=15m -count=1 -p=1 $$packages
 
 cgo-zero-build-operator: project-command-dependencies
 	CGO_ENABLED=0 go test -timeout=25m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
@@ -229,370 +129,18 @@ python-test-exact:
 		-s conformance/runners/django/tests -v
 
 conformance-check:
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MANIFEST) -suite $(ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MANIFEST) -suite $(NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(WRITE_MIGRATION_MANIFEST) -suite $(WRITE_MIGRATION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(WRITE_MIGRATION_MANIFEST) -suite $(WRITE_MIGRATION_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(SAVE_LIFECYCLE_MANIFEST) -suite $(SAVE_LIFECYCLE_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(SAVE_LIFECYCLE_MANIFEST) -suite $(SAVE_LIFECYCLE_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(QUERY_CACHE_MANIFEST) -suite $(QUERY_CACHE_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(QUERY_CACHE_MANIFEST) -suite $(QUERY_CACHE_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(QUERY_BREADTH_MANIFEST) -suite $(QUERY_BREADTH_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(QUERY_BREADTH_MANIFEST) -suite $(QUERY_BREADTH_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(QUERY_EXPRESSION_MANIFEST) -suite $(QUERY_EXPRESSION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(QUERY_EXPRESSION_MANIFEST) -suite $(QUERY_EXPRESSION_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_PLANNING_MANIFEST) -suite $(MIGRATION_PLANNING_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_PLANNING_MANIFEST) -suite $(MIGRATION_PLANNING_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_EXECUTION_MANIFEST) -suite $(MIGRATION_EXECUTION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_EXECUTION_MANIFEST) -suite $(MIGRATION_EXECUTION_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_RESTART_MANIFEST) -suite $(MIGRATION_RESTART_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_RESTART_MANIFEST) -suite $(MIGRATION_RESTART_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_STATE_RECONSTRUCTION_MANIFEST) -suite $(MIGRATION_STATE_RECONSTRUCTION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_STATE_RECONSTRUCTION_MANIFEST) -suite $(MIGRATION_STATE_RECONSTRUCTION_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_LIFECYCLE_MANIFEST) -suite $(MIGRATION_LIFECYCLE_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_LIFECYCLE_MANIFEST) -suite $(MIGRATION_LIFECYCLE_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_DEFINITION_SOURCE_MANIFEST) -suite $(MIGRATION_DEFINITION_SOURCE_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_DEFINITION_SOURCE_MANIFEST) -suite $(MIGRATION_DEFINITION_SOURCE_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) -suite $(MIGRATION_PROJECT_CHECK_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) -suite $(MIGRATION_PROJECT_CHECK_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_COMMAND_MANIFEST) -suite $(MIGRATION_COMMAND_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_COMMAND_MANIFEST) -suite $(MIGRATION_COMMAND_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_WRITER_MANIFEST) -suite $(MIGRATION_WRITER_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_WRITER_MANIFEST) -suite $(MIGRATION_WRITER_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_STATUS_MANIFEST) -suite $(MIGRATION_STATUS_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_STATUS_MANIFEST) -suite $(MIGRATION_STATUS_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_TARGET_PLAN_MANIFEST) -suite $(MIGRATION_TARGET_PLAN_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_TARGET_PLAN_MANIFEST) -suite $(MIGRATION_TARGET_PLAN_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_SQL_RENDERING_MANIFEST) -suite $(MIGRATION_SQL_RENDERING_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_SQL_RENDERING_MANIFEST) -suite $(MIGRATION_SQL_RENDERING_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) -suite $(RELATION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) -suite $(RELATION_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_RELATION_MANIFEST) -suite $(MIGRATION_RELATION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_RELATION_MANIFEST) -suite $(MIGRATION_RELATION_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(TEMPLATE_FORM_MANIFEST) -suite $(TEMPLATE_FORM_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(TEMPLATE_FORM_MANIFEST) -suite $(TEMPLATE_FORM_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(AUTH_SESSION_MANIFEST) -suite $(AUTH_SESSION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(AUTH_SESSION_MANIFEST) -suite $(AUTH_SESSION_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) -suite $(ARTICLE_ADMIN_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) -suite $(ARTICLE_ADMIN_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(SYSTEM_STATE_MANIFEST) -suite $(SYSTEM_STATE_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(PROFILE) -manifest $(SYSTEM_STATE_MANIFEST) -suite $(SYSTEM_STATE_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) -suite $(PARAMETER_ROUTING_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) -suite $(PARAMETER_ROUTING_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) -suite $(ARTICLE_API_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) -suite $(ARTICLE_API_NOT_IMPLEMENTED)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(DRF_PROFILE) -manifest $(API_AUTHENTICATION_MANIFEST) -suite $(API_AUTHENTICATION_ORACLE)
-	go run ./conformance/cmd/contractcheck \
-		-profile $(DRF_PROFILE) -manifest $(API_AUTHENTICATION_MANIFEST) -suite $(API_AUTHENTICATION_NOT_IMPLEMENTED)
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/conformance.py reference
 
 godj-conformance: require-live-evidence
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MANIFEST) -expected $(ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(WRITE_MIGRATION_MANIFEST) \
-		-expected $(WRITE_MIGRATION_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(SAVE_LIFECYCLE_MANIFEST) \
-		-expected $(SAVE_LIFECYCLE_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(QUERY_CACHE_MANIFEST) \
-		-expected $(QUERY_CACHE_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(QUERY_BREADTH_MANIFEST) \
-		-expected $(QUERY_BREADTH_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(QUERY_EXPRESSION_MANIFEST) \
-		-expected $(QUERY_EXPRESSION_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_PLANNING_MANIFEST) \
-		-expected $(MIGRATION_PLANNING_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_EXECUTION_MANIFEST) \
-		-expected $(MIGRATION_EXECUTION_ORACLE) \
-		-deviation-expected $(MIGRATION_EXECUTION_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_RESTART_MANIFEST) \
-		-expected $(MIGRATION_RESTART_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_STATE_RECONSTRUCTION_MANIFEST) \
-		-expected $(MIGRATION_STATE_RECONSTRUCTION_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_LIFECYCLE_MANIFEST) \
-		-expected $(MIGRATION_LIFECYCLE_ORACLE) \
-		-deviation-expected $(MIGRATION_LIFECYCLE_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_DEFINITION_SOURCE_MANIFEST) \
-		-expected $(MIGRATION_DEFINITION_SOURCE_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) \
-		-expected $(MIGRATION_PROJECT_CHECK_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_COMMAND_MANIFEST) \
-		-expected $(MIGRATION_COMMAND_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_WRITER_MANIFEST) \
-		-expected $(MIGRATION_WRITER_ORACLE) \
-		-deviation-expected $(MIGRATION_WRITER_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_STATUS_MANIFEST) \
-		-expected $(MIGRATION_STATUS_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_TARGET_PLAN_MANIFEST) \
-		-expected $(MIGRATION_TARGET_PLAN_ORACLE) \
-		-deviation-expected $(MIGRATION_TARGET_PLAN_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(MIGRATION_SQL_RENDERING_MANIFEST) \
-		-expected $(MIGRATION_SQL_RENDERING_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
-		-expected $(RELATION_ORACLE)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(TEMPLATE_FORM_MANIFEST) \
-		-expected $(TEMPLATE_FORM_ORACLE) \
-		-deviation-expected $(TEMPLATE_FORM_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(AUTH_SESSION_MANIFEST) \
-		-expected $(AUTH_SESSION_ORACLE) \
-		-deviation-expected $(AUTH_SESSION_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) \
-		-expected $(ARTICLE_ADMIN_ORACLE) \
-		-deviation-expected $(ARTICLE_ADMIN_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(PROFILE) -manifest $(SYSTEM_STATE_MANIFEST) \
-		-expected $(SYSTEM_STATE_ORACLE) \
-		-deviation-expected $(SYSTEM_STATE_DEVIATION_EXPECTED) \
-		-system-state-postgres-attestation "$(SYSTEM_STATE_POSTGRES_ATTESTATION)" \
-		-project-operator-postgres-attestation "$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)"
-	go run ./conformance/cmd/godjcheck \
-		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) \
-		-expected $(PARAMETER_ROUTING_ORACLE) \
-		-deviation-expected $(PARAMETER_ROUTING_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) \
-		-expected $(ARTICLE_API_ORACLE) \
-		-deviation-expected $(ARTICLE_API_DEVIATION_EXPECTED)
-	go run ./conformance/cmd/godjcheck \
-		-profile $(DRF_PROFILE) -manifest $(API_AUTHENTICATION_MANIFEST) \
-		-expected $(API_AUTHENTICATION_ORACLE) \
-		-deviation-expected $(API_AUTHENTICATION_DEVIATION_EXPECTED)
+	SYSTEM_STATE_POSTGRES_ATTESTATION="$(SYSTEM_STATE_POSTGRES_ATTESTATION)" \
+		PROJECT_OPERATOR_POSTGRES_ATTESTATION="$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)" \
+		PYTHONDONTWRITEBYTECODE=1 python3 scripts/conformance.py product
 
 oracle-check:
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MANIFEST) --output $(ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(WRITE_MIGRATION_MANIFEST) \
-		--output $(WRITE_MIGRATION_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(SAVE_LIFECYCLE_MANIFEST) \
-		--output $(SAVE_LIFECYCLE_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(QUERY_CACHE_MANIFEST) \
-		--output $(QUERY_CACHE_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(QUERY_BREADTH_MANIFEST) \
-		--output $(QUERY_BREADTH_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(QUERY_EXPRESSION_MANIFEST) \
-		--output $(QUERY_EXPRESSION_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_PLANNING_MANIFEST) \
-		--output $(MIGRATION_PLANNING_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_EXECUTION_MANIFEST) \
-		--output $(MIGRATION_EXECUTION_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_RESTART_MANIFEST) \
-		--output $(MIGRATION_RESTART_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_STATE_RECONSTRUCTION_MANIFEST) \
-		--output $(MIGRATION_STATE_RECONSTRUCTION_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_LIFECYCLE_MANIFEST) \
-		--output $(MIGRATION_LIFECYCLE_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_DEFINITION_SOURCE_MANIFEST) \
-		--output $(MIGRATION_DEFINITION_SOURCE_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) \
-		--output $(MIGRATION_PROJECT_CHECK_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_COMMAND_MANIFEST) \
-		--output $(MIGRATION_COMMAND_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_WRITER_MANIFEST) \
-		--output $(MIGRATION_WRITER_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_STATUS_MANIFEST) \
-		--output $(MIGRATION_STATUS_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_TARGET_PLAN_MANIFEST) \
-		--output $(MIGRATION_TARGET_PLAN_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_SQL_RENDERING_MANIFEST) \
-		--output $(MIGRATION_SQL_RENDERING_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(RELATION_MANIFEST) \
-		--output $(RELATION_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_RELATION_MANIFEST) \
-		--output $(MIGRATION_RELATION_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(TEMPLATE_FORM_MANIFEST) \
-		--output $(TEMPLATE_FORM_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(AUTH_SESSION_MANIFEST) \
-		--output $(AUTH_SESSION_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(ARTICLE_ADMIN_MANIFEST) \
-		--output $(ARTICLE_ADMIN_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(SYSTEM_STATE_MANIFEST) \
-		--output $(SYSTEM_STATE_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
-		--profile $(DRF_PROFILE) --manifest $(PARAMETER_ROUTING_MANIFEST) \
-		--output $(PARAMETER_ROUTING_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
-		--profile $(DRF_PROFILE) --manifest $(ARTICLE_API_MANIFEST) \
-		--output $(ARTICLE_API_ORACLE) --check
-	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
-		--profile $(DRF_PROFILE) --manifest $(API_AUTHENTICATION_MANIFEST) \
-		--output $(API_AUTHENTICATION_ORACLE) --check
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/conformance.py oracle-check
 
 oracle-regenerate:
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MANIFEST) --output $(ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(WRITE_MIGRATION_MANIFEST) \
-		--output $(WRITE_MIGRATION_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(SAVE_LIFECYCLE_MANIFEST) \
-		--output $(SAVE_LIFECYCLE_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(QUERY_CACHE_MANIFEST) \
-		--output $(QUERY_CACHE_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(QUERY_BREADTH_MANIFEST) \
-		--output $(QUERY_BREADTH_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(QUERY_EXPRESSION_MANIFEST) \
-		--output $(QUERY_EXPRESSION_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_PLANNING_MANIFEST) \
-		--output $(MIGRATION_PLANNING_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_EXECUTION_MANIFEST) \
-		--output $(MIGRATION_EXECUTION_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_RESTART_MANIFEST) \
-		--output $(MIGRATION_RESTART_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_STATE_RECONSTRUCTION_MANIFEST) \
-		--output $(MIGRATION_STATE_RECONSTRUCTION_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_LIFECYCLE_MANIFEST) \
-		--output $(MIGRATION_LIFECYCLE_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_DEFINITION_SOURCE_MANIFEST) \
-		--output $(MIGRATION_DEFINITION_SOURCE_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) \
-		--output $(MIGRATION_PROJECT_CHECK_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_COMMAND_MANIFEST) \
-		--output $(MIGRATION_COMMAND_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_WRITER_MANIFEST) \
-		--output $(MIGRATION_WRITER_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_STATUS_MANIFEST) \
-		--output $(MIGRATION_STATUS_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_TARGET_PLAN_MANIFEST) \
-		--output $(MIGRATION_TARGET_PLAN_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_SQL_RENDERING_MANIFEST) \
-		--output $(MIGRATION_SQL_RENDERING_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(RELATION_MANIFEST) \
-		--output $(RELATION_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(MIGRATION_RELATION_MANIFEST) \
-		--output $(MIGRATION_RELATION_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(TEMPLATE_FORM_MANIFEST) \
-		--output $(TEMPLATE_FORM_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(AUTH_SESSION_MANIFEST) \
-		--output $(AUTH_SESSION_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(ARTICLE_ADMIN_MANIFEST) \
-		--output $(ARTICLE_ADMIN_ORACLE)
-	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
-		--profile $(PROFILE) --manifest $(SYSTEM_STATE_MANIFEST) \
-		--output $(SYSTEM_STATE_ORACLE)
-	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
-		--profile $(DRF_PROFILE) --manifest $(PARAMETER_ROUTING_MANIFEST) \
-		--output $(PARAMETER_ROUTING_ORACLE)
-	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
-		--profile $(DRF_PROFILE) --manifest $(ARTICLE_API_MANIFEST) \
-		--output $(ARTICLE_API_ORACLE)
-	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
-		--profile $(DRF_PROFILE) --manifest $(API_AUTHENTICATION_MANIFEST) \
-		--output $(API_AUTHENTICATION_ORACLE)
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/conformance.py oracle-regenerate
 
 ci: require-live-evidence docs-check format-check generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance
 
@@ -611,9 +159,7 @@ go-test-integration:
 	go test -count=1 -timeout=25m $$packages
 
 go-test-conformance:
-	@set -euo pipefail; \
-	packages="$$(go list ./... | python3 scripts/ci/packages.py conformance)"; \
-	go test -count=1 -p=1 -timeout=25m $$packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py normal
 
 go-race-integration:
 	@set -euo pipefail; \
@@ -621,9 +167,7 @@ go-race-integration:
 	go test -race -count=1 -timeout=25m $$packages
 
 go-race-conformance:
-	@set -euo pipefail; \
-	packages="$$(go list ./... | python3 scripts/ci/packages.py conformance)"; \
-	go test -race -count=1 -p=1 -timeout=25m $$packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py race
 
 .PHONY: require-live-evidence
 require-live-evidence:

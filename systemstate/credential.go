@@ -239,72 +239,26 @@ func (material provisionOperatorMaterial) encodedRow(ctx context.Context) (crede
 	}, nil
 }
 
-func readCredentialRows(ctx context.Context, queryer db.Queryer) (result []credentialRow, resultErr error) {
+func readCredentialRows(ctx context.Context, queryer db.Queryer) ([]credentialRow, error) {
 	plan, err := query.NewPlan(credentialTableName, credentialFieldRefs).
-		WithOrderings(query.NewOrdering(credentialIDRef, query.Ascending)).
-		WithLimit(2)
+		WithOrderings(query.NewOrdering(credentialIDRef, query.Ascending)).WithLimit(2)
 	if err != nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "credential_query", Detail: "credential query is invalid", Cause: err}
 	}
-	rows, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(rows) {
-			_ = rows.Close()
-		}
-		return nil, &Error{
-			Code:   CodeSchemaUnavailable,
-			Field:  credentialTableName,
-			Detail: "credential table is unavailable",
-			Cause:  err,
-		}
-	}
-	if isNilInterface(rows) {
-		return nil, &Error{
-			Code:   CodeSchemaUnavailable,
-			Field:  credentialTableName,
-			Detail: "credential query returned nil rows",
-		}
-	}
-	defer func() {
-		if err := rows.Close(); err != nil && resultErr == nil {
-			result = nil
-			resultErr = &Error{
-				Code:   CodeSchemaUnavailable,
-				Field:  credentialTableName,
-				Detail: "credential rows could not be closed",
-				Cause:  err,
-			}
-		}
-	}()
-
-	result = make([]credentialRow, 0, 2)
-	for rows.Next() {
+	result := make([]credentialRow, 0, 2)
+	err = scanRows(ctx, queryer, plan, schemaRowsFailure(credentialTableName), func(rows db.Rows) (bool, error) {
 		var row credentialRow
-		if err := rows.Scan(
-			&row.id,
-			&row.principalID,
-			&row.username,
-			&row.encodedPassword,
-			&row.active,
-			&row.permissions,
-			&row.definitionDigest,
-		); err != nil {
-			return nil, &Error{
-				Code:   CodeCorruptState,
-				Field:  "credential",
-				Detail: "stored credential row could not be decoded",
-				Cause:  err,
-			}
+		if err := rows.Scan(&row.id, &row.principalID, &row.username, &row.encodedPassword, &row.active, &row.permissions, &row.definitionDigest); err != nil {
+			return false, &Error{Code: CodeCorruptState, Field: "credential", Detail: "stored credential row could not be decoded", Cause: err}
 		}
 		result = append(result, row)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, &Error{
-			Code:   CodeSchemaUnavailable,
-			Field:  credentialTableName,
-			Detail: "credential rows could not be read",
-			Cause:  err,
+		if len(result) > 2 {
+			return false, credentialCardinalityError()
 		}
+		return true, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }

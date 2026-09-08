@@ -29,6 +29,9 @@ func TestDetectFreshInitialAndRepeatedNoOp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect(fresh): %v", err)
 	}
+	if !plan.BaseState().Equal(migrations.EmptyProjectState()) {
+		t.Fatal("fresh detection did not retain its empty historical base")
+	}
 	generated := plan.Migrations()
 	if len(generated) != 1 {
 		t.Fatalf("fresh migrations = %#v, want one migration", generated)
@@ -50,6 +53,9 @@ func TestDetectFreshInitialAndRepeatedNoOp(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("Detect(repeat): %v", err)
+	}
+	if !repeated.BaseState().Equal(desired) {
+		t.Fatal("no-op detection lost its reconstructed historical base")
 	}
 	if !repeated.Empty() || len(repeated.Migrations()) != 0 {
 		t.Fatalf("repeat plan = %#v, want empty", repeated.Migrations())

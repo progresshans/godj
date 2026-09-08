@@ -103,5 +103,25 @@ class GoEventsTests(unittest.TestCase):
             self.assertTrue(tail.truncated)
 
 
+
+
+class ScopedSkipTests(unittest.TestCase):
+    write = GoEventsTests.write
+
+    def test_new_owner_rejects_sentinel_package_skips_but_retains_optional_backend_skips(self):
+        path = self.write(
+            *({'Package': package, 'Action': action} for package in ('checker', 'postgres') for action in ('start',)),
+            *({'Package': package, 'Test': test, 'Action': action}
+              for package, test, result in (('checker', 'TestRequired', 'pass'), ('checker', 'TestExtra', 'skip'), ('postgres', 'TestLive', 'skip'))
+              for action in ('run', result)),
+            *({'Package': package, 'Action': 'pass'} for package in ('checker', 'postgres')),
+        )
+        inventory = inspect(path)
+        self.assertTrue(inventory.verify(required=[('checker', 'TestRequired')], no_skip_packages={'checker'}))
+        inventory.skips.remove(('checker', 'TestExtra'))
+        inventory.passes.add(('checker', 'TestExtra'))
+        self.assertEqual([], inventory.verify(required=[('checker', 'TestRequired')], no_skip_packages={'checker'}))
+
+
 if __name__ == '__main__':
     unittest.main()

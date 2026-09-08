@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
@@ -239,8 +240,9 @@ func (qs QuerySet[M]) Exists(ctx context.Context) (bool, error) {
 }
 
 // At returns the model at a zero-based index for an explicitly ordered plan.
-// Cold evaluation limits and drains only as many rows as required and leaves
-// the full result cache untouched.
+// Cold evaluation requests the indexed row with OFFSET/LIMIT and leaves the
+// full result cache untouched. Indexes beyond the backend-independent offset
+// range retain the bounded row-drain path.
 func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	var zero M
 	if err := qs.validateTerminal(ctx); err != nil {
@@ -267,7 +269,7 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 		return qs.descriptor.CloneModel(values[index]), true, nil
 	}
 
-	plan := planWithMaximumRows(qs.plan, index+1)
+	plan, scanIndex := planForIndex(qs.plan, index)
 	rows, err := openQueryRows(ctx, qs.backend, plan)
 	if err != nil {
 		return zero, false, err
@@ -277,7 +279,7 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	found := false
 	var value M
 	for position := 0; rows.Next(); position++ {
-		if position != index {
+		if position != scanIndex {
 			continue
 		}
 		value, err = qs.descriptor.Scan(rows)
@@ -294,6 +296,21 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 		return zero, false, err
 	}
 	return value, found, nil
+}
+
+func planForIndex(plan query.Plan, index int) (query.Plan, int) {
+	if limit, limited := plan.Limit(); limited && index >= limit {
+		empty, _ := plan.WithLimit(0)
+		return empty, 0
+	}
+	offset, _ := plan.Offset()
+	if index > math.MaxInt32-offset {
+		return planWithMaximumRows(plan, index+1), index
+	}
+	if index != 0 {
+		plan, _ = plan.WithOffset(offset + index)
+	}
+	return planWithMaximumRows(plan, 1), 0
 }
 
 // First returns the first model for an explicitly ordered plan.

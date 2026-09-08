@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/irresource"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -33,15 +34,16 @@ const (
 )
 
 type postgresMigrationSchema struct {
-	transition migrationbackend.HistoryTransition
-	intent     migrationbackend.MigrationIntent
-	digest     [sha256.Size]byte
-	namespace  string
-	initial    postgresMigrationBoundary
-	final      postgresMigrationBoundary
-	cursor     int
-	preflight  bool
-	verified   bool
+	transition       migrationbackend.HistoryTransition
+	intent           migrationbackend.MigrationIntent
+	digest           [sha256.Size]byte
+	operationDigests [][sha256.Size]byte
+	namespace        string
+	initial          postgresMigrationBoundary
+	final            postgresMigrationBoundary
+	cursor           int
+	preflight        bool
+	verified         bool
 }
 
 type postgresMigrationBoundary struct {
@@ -59,11 +61,6 @@ type preparedPostgresMigrationIntent struct {
 type postgresMigrationSealPayload struct {
 	Transition migrationbackend.HistoryTransition `json:"transition"`
 	Intent     migrationbackend.MigrationIntent   `json:"intent"`
-}
-
-type postgresMigrationResourceBudget struct {
-	nodes uint64
-	bytes uint64
 }
 
 func postgresMigrationIntentIntegrity(detail string, cause error) error {
@@ -89,12 +86,20 @@ func newPostgresMigrationSchema(
 	if err != nil {
 		return nil, err
 	}
+	operationDigests := make([][sha256.Size]byte, len(prepared.intent.Operations))
+	for index, operation := range prepared.intent.Operations {
+		operationDigests[index], err = hashPostgresMigrationOperation(transition, operation)
+		if err != nil {
+			return nil, postgresMigrationIntentIntegrity("seal PostgreSQL migration operation", err)
+		}
+	}
 	return &postgresMigrationSchema{
-		transition: transition,
-		intent:     prepared.intent,
-		digest:     prepared.digest,
-		initial:    prepared.initial,
-		final:      prepared.final,
+		transition:       transition,
+		intent:           prepared.intent,
+		digest:           prepared.digest,
+		operationDigests: operationDigests,
+		initial:          prepared.initial,
+		final:            prepared.final,
 	}, nil
 }
 
@@ -116,7 +121,7 @@ func preparePostgresMigrationIntent(
 	if err := scanPostgresMigrationResources(transition, intent); err != nil {
 		return preparedPostgresMigrationIntent{}, err
 	}
-	cloned := clonePostgresMigrationIntent(intent)
+	cloned := intent.Clone()
 	initial, final, err := validatePostgresMigrationIntent(transition, &cloned)
 	if err != nil {
 		return preparedPostgresMigrationIntent{}, err
@@ -196,6 +201,24 @@ func (schema *postgresMigrationSchema) verifySeal() error {
 	return nil
 }
 
+// verifyOperationSeal checks only the operation about to reach the database.
+// The entire detached intent is checked before preflight and again before
+// recording success. This keeps N operations linear in their total encoded
+// size instead of serializing all N operations before every SQL statement.
+func (schema *postgresMigrationSchema) verifyOperationSeal(operation migrationbackend.MigrationOperation) error {
+	if len(schema.operationDigests) != len(schema.intent.Operations) || schema.cursor < 0 || schema.cursor >= len(schema.operationDigests) {
+		return postgresMigrationIntentIntegrity("sealed PostgreSQL migration operation inventory changed", nil)
+	}
+	digest, err := hashPostgresMigrationOperation(schema.transition, operation)
+	if err != nil {
+		return postgresMigrationIntentIntegrity("hash sealed PostgreSQL migration operation", err)
+	}
+	if digest != schema.operationDigests[schema.cursor] {
+		return postgresMigrationIntentIntegrity("sealed PostgreSQL migration operation changed after validation", nil)
+	}
+	return nil
+}
+
 func (schema *postgresMigrationSchema) validateOperationContext(ctx context.Context) error {
 	if schema == nil {
 		return postgresMigrationIntentIntegrity("migration schema is nil", nil)
@@ -212,7 +235,7 @@ func (schema *postgresMigrationSchema) validateOperationContext(ctx context.Cont
 	if schema.verified {
 		return postgresMigrationIntentIntegrity("migration schema is already verified complete", nil)
 	}
-	return schema.verifySeal()
+	return nil
 }
 
 func validatePostgresMigrationIntent(
@@ -323,7 +346,7 @@ func validatePostgresMigrationIntent(
 	for identity, model := range initial.models {
 		if _, exists := final.models[identity]; !exists && !postgresBoundaryDeleted(intent.Operations, identity) {
 			final.models[identity] = model.Clone()
-			final.targets[identity] = clonePostgresMigrationTargets(initial.targets[identity])
+			final.targets[identity] = migrationbackend.CloneMigrationTargets(initial.targets[identity])
 		}
 	}
 	return initial, final, nil
@@ -426,7 +449,7 @@ func validateAndExpandPostgresMigrationTargets(
 			fmt.Sprintf("operation %d has %d relation targets, want %d", operation.OperationIndex, len(operation.Targets), len(relationFields)), nil,
 		)
 	}
-	result := clonePostgresMigrationTargets(operation.Targets)
+	result := migrationbackend.CloneMigrationTargets(operation.Targets)
 	for index := range result {
 		if !migrationFieldsEqual(result[index].SourceField, relationFields[index]) {
 			return nil, postgresMigrationIntentIntegrity("relation targets are not in exact source field order", nil)
@@ -609,161 +632,59 @@ func registerPostgresRelationName(owners map[string]string, name, owner string) 
 func scanPostgresMigrationResources(
 	transition migrationbackend.HistoryTransition,
 	intent migrationbackend.MigrationIntent,
-) error {
+) (resultErr error) {
+	defer func() {
+		if resultErr != nil {
+			resultErr = postgresMigrationIntentIntegrity("migration intent resource limit", resultErr)
+		}
+	}()
 	if len(intent.Operations) > postgresMigrationMaxOperations {
-		return postgresMigrationIntentIntegrity(fmt.Sprintf("intent has %d operations, maximum %d", len(intent.Operations), postgresMigrationMaxOperations), nil)
+		return fmt.Errorf("intent has %d operations, maximum %d", len(intent.Operations), postgresMigrationMaxOperations)
 	}
-	budget := postgresMigrationResourceBudget{}
-	if err := budget.consumeNodes(1); err != nil {
+	budget := irresource.New(irresource.Limits{
+		Fields: postgresMigrationMaxFields, StringBytes: postgresMigrationMaxStringBytes,
+		Nodes: postgresMigrationMaxNodes, Bytes: postgresMigrationMaxAggregateBytes,
+	})
+	if err := budget.ConsumeNodes("transition", 1); err != nil {
 		return err
 	}
-	for _, value := range []string{transition.Migration.App, transition.Migration.Name} {
-		if err := budget.consumeString(value); err != nil {
-			return err
-		}
-	}
-	if err := budget.consumeNodes(len(intent.Operations)); err != nil {
+	if err := budget.ConsumeString("transition.migration.app", transition.Migration.App); err != nil {
 		return err
 	}
-	for index := range intent.Operations {
-		operation := intent.Operations[index]
-		if err := budget.scanModel(operation.Before); err != nil {
+	if err := budget.ConsumeString("transition.migration.name", transition.Migration.Name); err != nil {
+		return err
+	}
+	if err := budget.ConsumeNodes("operations", len(intent.Operations)); err != nil {
+		return err
+	}
+	for index, operation := range intent.Operations {
+		prefix := fmt.Sprintf("operations[%d]", index)
+		if err := budget.ScanModel(prefix+".before", operation.Before); err != nil {
 			return err
 		}
-		if err := budget.scanModel(operation.After); err != nil {
+		if err := budget.ScanModel(prefix+".after", operation.After); err != nil {
 			return err
 		}
 		if len(operation.Targets) > postgresMigrationMaxTargets {
-			return postgresMigrationIntentIntegrity(fmt.Sprintf("operation %d has too many targets", operation.OperationIndex), nil)
+			return fmt.Errorf("%s has too many targets", prefix)
 		}
-		if err := budget.consumeNodes(len(operation.Targets)); err != nil {
+		if err := budget.ConsumeNodes(prefix+".targets", len(operation.Targets)); err != nil {
 			return err
 		}
-		for targetIndex := range operation.Targets {
-			target := operation.Targets[targetIndex]
-			if err := budget.scanField(target.SourceField); err != nil {
+		for targetIndex, target := range operation.Targets {
+			targetPrefix := fmt.Sprintf("%s.targets[%d]", prefix, targetIndex)
+			if err := budget.ScanField(targetPrefix+".source_field", target.SourceField); err != nil {
 				return err
 			}
-			if err := budget.scanModel(target.TargetModel); err != nil {
+			if err := budget.ScanModel(targetPrefix+".target_model", target.TargetModel); err != nil {
 				return err
 			}
-			if err := budget.scanField(target.TargetKey); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (budget *postgresMigrationResourceBudget) scanModel(model ir.Model) error {
-	if err := budget.consumeNodes(1); err != nil {
-		return err
-	}
-	for _, value := range []string{model.Name, model.GoName, model.DBTable} {
-		if err := budget.consumeString(value); err != nil {
-			return err
-		}
-	}
-	if len(model.Fields) > postgresMigrationMaxFields {
-		return postgresMigrationIntentIntegrity(fmt.Sprintf("model %q has too many fields", model.Name), nil)
-	}
-	if err := budget.consumeNodes(len(model.Fields)); err != nil {
-		return err
-	}
-	for index := range model.Fields {
-		if err := budget.scanField(model.Fields[index]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (budget *postgresMigrationResourceBudget) scanField(field ir.Field) error {
-	if err := budget.consumeNodes(1); err != nil {
-		return err
-	}
-	for _, value := range []string{field.Name, field.GoName, field.Column, string(field.Kind)} {
-		if err := budget.consumeString(value); err != nil {
-			return err
-		}
-	}
-	if field.Default != nil {
-		if err := budget.consumeNodes(1); err != nil {
-			return err
-		}
-		for _, value := range []string{string(field.Default.Kind), field.Default.String} {
-			if err := budget.consumeString(value); err != nil {
-				return err
-			}
-		}
-	}
-	if field.Relation != nil {
-		if err := budget.consumeNodes(1); err != nil {
-			return err
-		}
-		for _, value := range []string{
-			field.Relation.Target.AppLabel,
-			field.Relation.Target.ModelName,
-			string(field.Relation.Cardinality),
-			field.Relation.Reverse.Name,
-			string(field.Relation.OnDelete),
-		} {
-			if err := budget.consumeString(value); err != nil {
+			if err := budget.ScanField(targetPrefix+".target_key", target.TargetKey); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
-}
-
-func (budget *postgresMigrationResourceBudget) consumeNodes(count int) error {
-	if count < 0 || uint64(count) > postgresMigrationMaxNodes-budget.nodes {
-		return postgresMigrationIntentIntegrity("intent exceeds the aggregate node limit", nil)
-	}
-	budget.nodes += uint64(count)
-	return nil
-}
-
-func (budget *postgresMigrationResourceBudget) consumeString(value string) error {
-	if len(value) > postgresMigrationMaxStringBytes {
-		return postgresMigrationIntentIntegrity(fmt.Sprintf("intent contains a string of %d bytes", len(value)), nil)
-	}
-	if uint64(len(value)) > postgresMigrationMaxAggregateBytes-budget.bytes {
-		return postgresMigrationIntentIntegrity("intent exceeds the aggregate byte limit", nil)
-	}
-	budget.bytes += uint64(len(value))
-	return nil
-}
-
-func clonePostgresMigrationIntent(intent migrationbackend.MigrationIntent) migrationbackend.MigrationIntent {
-	cloned := migrationbackend.MigrationIntent{}
-	if intent.Operations == nil {
-		return cloned
-	}
-	cloned.Operations = make([]migrationbackend.MigrationOperation, len(intent.Operations))
-	for index := range intent.Operations {
-		operation := intent.Operations[index]
-		operation.Before = operation.Before.Clone()
-		operation.After = operation.After.Clone()
-		operation.Targets = clonePostgresMigrationTargets(operation.Targets)
-		cloned.Operations[index] = operation
-	}
-	return cloned
-}
-
-func clonePostgresMigrationTargets(targets []migrationbackend.MigrationTarget) []migrationbackend.MigrationTarget {
-	if targets == nil {
-		return nil
-	}
-	cloned := make([]migrationbackend.MigrationTarget, len(targets))
-	for index := range targets {
-		cloned[index] = migrationbackend.MigrationTarget{
-			SourceField: targets[index].SourceField.Clone(),
-			TargetModel: targets[index].TargetModel.Clone(),
-			TargetKey:   targets[index].TargetKey.Clone(),
-		}
-	}
-	return cloned
 }
 
 func clonePostgresMigrationBoundary(boundary postgresMigrationBoundary) postgresMigrationBoundary {
@@ -773,7 +694,7 @@ func clonePostgresMigrationBoundary(boundary postgresMigrationBoundary) postgres
 	}
 	for identity, model := range boundary.models {
 		cloned.models[identity] = model.Clone()
-		cloned.targets[identity] = clonePostgresMigrationTargets(boundary.targets[identity])
+		cloned.targets[identity] = migrationbackend.CloneMigrationTargets(boundary.targets[identity])
 	}
 	return cloned
 }
@@ -783,6 +704,20 @@ func hashPostgresMigrationIntent(
 	intent migrationbackend.MigrationIntent,
 ) ([sha256.Size]byte, error) {
 	encoded, err := json.Marshal(postgresMigrationSealPayload{Transition: transition, Intent: intent})
+	if err != nil {
+		return [sha256.Size]byte{}, err
+	}
+	return sha256.Sum256(encoded), nil
+}
+
+func hashPostgresMigrationOperation(
+	transition migrationbackend.HistoryTransition,
+	operation migrationbackend.MigrationOperation,
+) ([sha256.Size]byte, error) {
+	encoded, err := json.Marshal(struct {
+		Transition migrationbackend.HistoryTransition
+		Operation  migrationbackend.MigrationOperation
+	}{transition, operation})
 	if err != nil {
 		return [sha256.Size]byte{}, err
 	}

@@ -263,16 +263,8 @@ func removeLastCreatesuperuserInputRune(input []byte) []byte {
 }
 
 func createsuperuserInputBarrier(ctx context.Context, interrupt <-chan struct{}) *CreatesuperuserFailure {
-	if interrupt != nil {
-		select {
-		case <-interrupt:
-			failure := createsuperuserFailure(createsuperuserprotocol.CategoryProcess, createsuperuserprotocol.CodeProjectInterrupted)
-			return &failure
-		default:
-		}
-	}
-	if ctx != nil && ctx.Err() != nil {
-		failure := createsuperuserFailure(createsuperuserprotocol.CategoryProcess, createsuperuserprotocol.CodeProjectCanceled)
+	if code := commandInterruption(ctx, interrupt); code != "" {
+		failure := createsuperuserFailure(createsuperuserprotocol.CategoryProcess, code)
 		return &failure
 	}
 	return nil

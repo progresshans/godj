@@ -35,55 +35,54 @@ type DurableAuditStore interface {
 	AuditHistoryReader
 }
 
-// Service couples Article transactions to semantic audit events. The legacy
-// constructor retains the bounded process-lifetime AuditLog for unit and
-// walking-skeleton use. NewDurableService instead writes every event through
-// the borrowed Article transaction and never synthesizes a post-commit append.
+// Service couples Article transactions to semantic audit events. NewService
+// uses a bounded process-lifetime AuditLog. NewDurableService writes every event
+// through the borrowed Article transaction without a post-commit append.
 type Service struct {
-	repository   Repository
+	repository   *articleapp.Repository
 	memoryAudit  *admin.AuditLog
 	durableAudit DurableAuditStore
 }
 
-func NewService(backend Backend, audit *admin.AuditLog) (Service, error) {
-	repository, err := NewRepository(backend)
+func NewService(backend articleapp.Backend, audit *admin.AuditLog) (Service, error) {
+	repository, err := articleapp.NewRepository(backend)
 	if err != nil {
 		return Service{}, err
 	}
 	if !audit.Valid() {
 		return Service{}, invalid("audit", "audit log is zero or invalid")
 	}
-	return Service{repository: repository, memoryAudit: audit}, nil
+	return Service{repository: &repository, memoryAudit: audit}, nil
 }
 
-func NewDurableService(backend Backend, audit DurableAuditStore) (Service, error) {
-	repository, err := NewRepository(backend)
+func NewDurableService(backend articleapp.Backend, audit DurableAuditStore) (Service, error) {
+	repository, err := articleapp.NewRepository(backend)
 	if err != nil {
 		return Service{}, err
 	}
 	if interfaceNil(audit) {
 		return Service{}, invalid("audit", "durable audit store is nil")
 	}
-	return Service{repository: repository, durableAudit: audit}, nil
+	return Service{repository: &repository, durableAudit: audit}, nil
 }
 
-func (s Service) List(ctx context.Context, options ListOptions) (Page, error) {
+func (s Service) List(ctx context.Context, options articleapp.ListOptions) (articleapp.Page, error) {
 	if !s.validState() {
-		return Page{}, invalid("service", "service is zero or invalid")
+		return articleapp.Page{}, invalid("service", "service is zero or invalid")
 	}
 	return s.repository.List(ctx, options)
 }
 
-func (s Service) Get(ctx context.Context, id int64) (Article, bool, error) {
+func (s Service) Get(ctx context.Context, id int64) (articleapp.Article, bool, error) {
 	if !s.validState() {
-		return Article{}, false, invalid("service", "service is zero or invalid")
+		return articleapp.Article{}, false, invalid("service", "service is zero or invalid")
 	}
 	return s.repository.Get(ctx, id)
 }
 
-func (s Service) Create(ctx context.Context, actorID string, input Input) (Article, error) {
+func (s Service) Create(ctx context.Context, actorID string, input articleapp.Input) (articleapp.Article, error) {
 	if !s.validState() {
-		return Article{}, invalid("service", "service is zero or invalid")
+		return articleapp.Article{}, invalid("service", "service is zero or invalid")
 	}
 	template, err := admin.PrepareEventTemplate(
 		actorID,
@@ -93,7 +92,7 @@ func (s Service) Create(ctx context.Context, actorID string, input Input) (Artic
 		input.Title,
 	)
 	if err != nil {
-		return Article{}, fmt.Errorf("article admin prepare add audit: %w", err)
+		return articleapp.Article{}, fmt.Errorf("article admin prepare add audit: %w", err)
 	}
 	hook, publish := s.auditMutation(func(result articleapp.MutationResult) ([]admin.PreparedEvent, error) {
 		item, err := singleMutationItem(result, articleapp.MutationCreate)
@@ -106,23 +105,23 @@ func (s Service) Create(ctx context.Context, actorID string, input Input) (Artic
 		}
 		return []admin.PreparedEvent{event}, nil
 	})
-	created, err := s.repository.withMutationHook(hook).Create(ctx, input)
+	created, err := s.repository.WithMutationHook(hook).Create(ctx, input)
 	if err != nil {
-		return Article{}, err
+		return articleapp.Article{}, err
 	}
 	if err := publish(); err != nil {
-		return Article{}, err
+		return articleapp.Article{}, err
 	}
 	return created, nil
 }
 
-func (s Service) Update(ctx context.Context, actorID string, id int64, input Input) (Article, []string, error) {
+func (s Service) Update(ctx context.Context, actorID string, id int64, input articleapp.Input) (articleapp.Article, []string, error) {
 	if !s.validState() {
-		return Article{}, nil, invalid("service", "service is zero or invalid")
+		return articleapp.Article{}, nil, invalid("service", "service is zero or invalid")
 	}
 	_, err := admin.PrepareEventTemplate(actorID, articleModelIdentity, admin.ActionChange, nil, input.Title)
 	if err != nil {
-		return Article{}, nil, err
+		return articleapp.Article{}, nil, err
 	}
 	hook, publish := s.auditMutation(func(result articleapp.MutationResult) ([]admin.PreparedEvent, error) {
 		item, err := singleMutationItem(result, articleapp.MutationUpdate)
@@ -138,27 +137,27 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input Inp
 		}
 		return []admin.PreparedEvent{event}, nil
 	})
-	updated, changed, err := s.repository.withMutationHook(hook).Update(ctx, id, input)
+	updated, changed, err := s.repository.WithMutationHook(hook).Update(ctx, id, input)
 	if err != nil {
-		return Article{}, nil, err
+		return articleapp.Article{}, nil, err
 	}
 	if len(changed) == 0 {
 		return updated, nil, nil
 	}
 	if err := publish(); err != nil {
-		return Article{}, nil, err
+		return articleapp.Article{}, nil, err
 	}
 	return updated, append([]string(nil), changed...), nil
 }
 
-func (s Service) Delete(ctx context.Context, actorID string, id int64) (Article, error) {
+func (s Service) Delete(ctx context.Context, actorID string, id int64) (articleapp.Article, error) {
 	if !s.validState() {
-		return Article{}, invalid("service", "service is zero or invalid")
+		return articleapp.Article{}, invalid("service", "service is zero or invalid")
 	}
 	// Validate actor/model/action before backend work. The row-derived display
 	// label is validated by the hook after DML, so failure still rolls back.
 	if _, err := admin.PrepareEventTemplate(actorID, articleModelIdentity, admin.ActionDelete, nil, ""); err != nil {
-		return Article{}, fmt.Errorf("article admin prepare delete audit: %w", err)
+		return articleapp.Article{}, fmt.Errorf("article admin prepare delete audit: %w", err)
 	}
 	hook, publish := s.auditMutation(func(result articleapp.MutationResult) ([]admin.PreparedEvent, error) {
 		item, err := singleMutationItem(result, articleapp.MutationDelete)
@@ -178,19 +177,19 @@ func (s Service) Delete(ctx context.Context, actorID string, id int64) (Article,
 		}
 		return []admin.PreparedEvent{event}, nil
 	})
-	deleted, err := s.repository.withMutationHook(hook).Delete(ctx, id)
+	deleted, err := s.repository.WithMutationHook(hook).Delete(ctx, id)
 	if err != nil {
-		return Article{}, err
+		return articleapp.Article{}, err
 	}
 	if err := publish(); err != nil {
-		return Article{}, err
+		return articleapp.Article{}, err
 	}
 	return deleted, nil
 }
 
-func (s Service) Publish(ctx context.Context, actorID string, ids []int64) (PublishResult, error) {
+func (s Service) Publish(ctx context.Context, actorID string, ids []int64) (articleapp.PublishResult, error) {
 	if !s.validState() {
-		return PublishResult{}, invalid("service", "service is zero or invalid")
+		return articleapp.PublishResult{}, invalid("service", "service is zero or invalid")
 	}
 	template, err := admin.PrepareEventTemplate(
 		actorID,
@@ -200,7 +199,7 @@ func (s Service) Publish(ctx context.Context, actorID string, ids []int64) (Publ
 		"Article publish action",
 	)
 	if err != nil {
-		return PublishResult{}, fmt.Errorf("article admin prepare publish audit: %w", err)
+		return articleapp.PublishResult{}, fmt.Errorf("article admin prepare publish audit: %w", err)
 	}
 	hook, publish := s.auditMutation(func(result articleapp.MutationResult) ([]admin.PreparedEvent, error) {
 		if result.Operation != articleapp.MutationPublish || len(result.Items) == 0 {
@@ -221,15 +220,15 @@ func (s Service) Publish(ctx context.Context, actorID string, ids []int64) (Publ
 		}
 		return events, nil
 	})
-	result, err := s.repository.withMutationHook(hook).Publish(ctx, ids)
+	result, err := s.repository.WithMutationHook(hook).Publish(ctx, ids)
 	if err != nil {
-		return PublishResult{}, err
+		return articleapp.PublishResult{}, err
 	}
 	if result.Matched() == 0 {
 		return result, nil
 	}
 	if err := publish(); err != nil {
-		return PublishResult{}, err
+		return articleapp.PublishResult{}, err
 	}
 	return result, nil
 }
@@ -262,7 +261,7 @@ func (s Service) HistoryLimited(ctx context.Context, id int64, limit int) ([]adm
 }
 
 func (s Service) validState() bool {
-	if !s.repository.validState() {
+	if s.repository == nil {
 		return false
 	}
 	memory := s.memoryAudit != nil && s.memoryAudit.Valid()
@@ -345,4 +344,8 @@ func interfaceNil(value any) bool {
 	default:
 		return false
 	}
+}
+
+func invalid(field, detail string) error {
+	return &articleapp.Error{Code: articleapp.CodeInvalidInput, Field: field, Detail: detail}
 }

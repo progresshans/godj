@@ -3,7 +3,6 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"strconv"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -21,7 +20,7 @@ func GenerateRelationProjection(packageName string, input ir.Schema) ([]byte, er
 	if err != nil {
 		return nil, fmt.Errorf("normalize relation projection schema: %w", err)
 	}
-	return generateRelationProjection(packageName, prepared)
+	return finalizeSource(generateRelationProjection(packageName, prepared))
 }
 
 func generateRelationProjection(packageName string, prepared preparedSchema) ([]byte, error) {
@@ -60,11 +59,7 @@ func generateRelationProjection(packageName string, prepared preparedSchema) ([]
 		renderRelationProjectionModel(&output, model)
 	}
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated relation projection companion: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func validateRelationProjectionNames(schema ir.Schema) error {

@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/web"
 )
@@ -38,6 +39,7 @@ type Application struct {
 	repository articleapp.Repository
 	parser     api.Parser
 	spec       serializers.Spec
+	encoder    serializers.ModelEncoder[articlemodels.Article]
 	routes     []web.Route
 }
 
@@ -65,10 +67,16 @@ func New(backend articleapp.Backend, authentication api.Authentication) (*Applic
 	if err != nil {
 		return nil, fmt.Errorf("article api serializer: %w", err)
 	}
+	descriptor := articlemodels.ArticleDescriptor{}
+	encoder, err := serializers.NewModelEncoder(spec, descriptor.Metadata(), descriptor.WriteFieldValue)
+	if err != nil {
+		return nil, fmt.Errorf("article api encoder: %w", err)
+	}
 	application := &Application{
 		repository: repository,
 		parser:     parser,
 		spec:       spec,
+		encoder:    encoder,
 	}
 	routes, err := application.buildRoutes(authentication)
 	if err != nil {

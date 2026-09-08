@@ -412,19 +412,9 @@ func completeShowMigrationsResponse(
 	response showmigrationsprotocol.Response,
 	honorCancellation bool,
 ) (Report, error) {
-	if dependencies.beforeResponseWrite != nil {
-		dependencies.beforeResponseWrite()
-	}
-	if honorCancellation {
-		if err := ctx.Err(); err != nil {
-			return report, err
-		}
-	}
-	report.RunnerResponseWrites++
-	if err := showmigrationsprotocol.WriteResponse(writer, response); err != nil {
-		return report, err
-	}
-	return report, nil
+	err := publishLinkedResponse(ctx, dependencies.beforeResponseWrite, honorCancellation, &report.RunnerResponseWrites,
+		func() error { return showmigrationsprotocol.WriteResponse(writer, response) })
+	return report, err
 }
 
 func closeShowMigrationsSession(ctx context.Context, session backend.RevisionFencedSession) error {

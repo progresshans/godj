@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -170,8 +171,8 @@ func runGlobalPostgresArticleServerOnce(
 	databaseURL string,
 ) string {
 	t.Helper()
-	stdout := newReadinessOutput()
-	stderr := &synchronizedOutput{}
+	stdout := testprocess.NewReadinessBuffer(maximumRunserverOutput, articleReadinessPrefix)
+	stderr := testprocess.NewBuffer(maximumRunserverOutput)
 	command := exec.Command(
 		globalBinary,
 		"runserver",
@@ -205,7 +206,7 @@ func runGlobalPostgresArticleServerOnce(
 	readyTimer := time.NewTimer(3 * time.Minute)
 	defer readyTimer.Stop()
 	select {
-	case address = <-stdout.ready:
+	case address = <-stdout.Ready():
 		assertRunserverPostgresOutputSecretFree(t, databaseURL, stdout.String(), stderr.String())
 		if err := validateArticleReadinessAddress(address); err != nil {
 			t.Fatalf("invalid PostgreSQL Article readiness address %q: %v", address, err)
@@ -213,7 +214,7 @@ func runGlobalPostgresArticleServerOnce(
 		if address != expectedAddress {
 			t.Fatalf("PostgreSQL Article readiness address = %q, want reserved %q", address, expectedAddress)
 		}
-		groups, err := runserverOwnedProcessGroups(command.Process.Pid)
+		groups, err := testprocess.OwnedGroups(command.Process.Pid)
 		knownProcessGroups = groups
 		if err != nil || len(groups) < 2 {
 			t.Fatalf("capture global/PostgreSQL runtime process groups = %v, error=%v", groups, err)
@@ -241,6 +242,9 @@ func runGlobalPostgresArticleServerOnce(
 	assertRunserverPostgresOutputSecretFree(t, databaseURL, stdout.String(), stderr.String())
 	if cleanup.failed() || len(cleanup.ProcessGroups) < 2 {
 		t.Fatalf("clean global PostgreSQL runserver interrupt: cleanup=%+v stdout_bytes=%d stderr_bytes=%d", cleanup, len(stdout.String()), len(stderr.String()))
+	}
+	if stdout.Truncated() || stderr.Truncated() {
+		t.Fatal("global runserver exceeded output limit")
 	}
 	if stderr.String() != "" {
 		t.Fatalf("global PostgreSQL runserver stderr bytes = %d, want 0", len(stderr.String()))

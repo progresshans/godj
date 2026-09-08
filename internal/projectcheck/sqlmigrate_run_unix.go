@@ -104,16 +104,8 @@ func sqlMigrateBarrier(input SQLMigrateInvocation, primary *SQLMigrateFailure) *
 		primary.Code == sqlmigrateprotocol.CodeProjectCleanupFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := sqlMigrateFailure(sqlmigrateprotocol.CategoryProcess, sqlmigrateprotocol.CodeProjectInterrupted)
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := sqlMigrateFailure(sqlmigrateprotocol.CategoryProcess, sqlmigrateprotocol.CodeProjectCanceled)
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := SQLMigrateFailure{Category: sqlmigrateprotocol.CategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary

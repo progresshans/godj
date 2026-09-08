@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -16,7 +17,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -114,35 +114,6 @@ func TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI(t *testing.T) {
 
 const maximumRunserverProvisionOutput = 16 << 10
 
-type runserverProvisionOutput struct {
-	mutex     sync.Mutex
-	buffer    bytes.Buffer
-	truncated bool
-}
-
-func (output *runserverProvisionOutput) Write(payload []byte) (int, error) {
-	output.mutex.Lock()
-	defer output.mutex.Unlock()
-	remaining := maximumRunserverProvisionOutput - output.buffer.Len()
-	if remaining > 0 {
-		kept := payload
-		if len(kept) > remaining {
-			kept = kept[:remaining]
-		}
-		_, _ = output.buffer.Write(kept)
-	}
-	if len(payload) > remaining {
-		output.truncated = true
-	}
-	return len(payload), nil
-}
-
-func (output *runserverProvisionOutput) snapshot() (string, bool) {
-	output.mutex.Lock()
-	defer output.mutex.Unlock()
-	return output.buffer.String(), output.truncated
-}
-
 func provisionRunserverOperator(
 	t *testing.T,
 	globalBinary, repository, descriptor string,
@@ -176,7 +147,7 @@ func provisionRunserverOperator(
 		t.Fatalf("close parent createsuperuser PTY slave: %v", err)
 	}
 
-	output := &runserverProvisionOutput{}
+	output := testprocess.NewBuffer(maximumRunserverProvisionOutput)
 	drained := make(chan struct{})
 	go func() {
 		_, _ = io.Copy(output, master)
@@ -195,7 +166,7 @@ func provisionRunserverOperator(
 		if finished {
 			return
 		}
-		groups, _ := runserverOwnedProcessGroups(command.Process.Pid)
+		groups, _ := testprocess.OwnedGroups(command.Process.Pid)
 		_ = interruptAndWaitRunserver(command, waited, 5*time.Second, groups...)
 		_ = master.Close()
 		select {
@@ -231,7 +202,7 @@ func provisionRunserverOperator(
 			t.Fatal("createsuperuser PTY did not drain")
 		}
 	}
-	transcript, truncated := output.snapshot()
+	transcript, truncated := output.Snapshot()
 	if truncated || !strings.Contains(transcript, "Username: ") ||
 		!strings.Contains(transcript, "Password: ") ||
 		!strings.Contains(transcript, "Password (again): ") ||
@@ -248,14 +219,14 @@ func provisionRunserverOperator(
 	if strings.Contains(transcript, password) {
 		t.Fatal("createsuperuser PTY exposed the raw password")
 	}
-	if err := waitForRunserverProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
+	if err := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
 		t.Fatalf("createsuperuser process group remained: %v", err)
 	}
 }
 
 func awaitRunserverProvisionPrompt(
 	t *testing.T,
-	output *runserverProvisionOutput,
+	output *testprocess.Buffer,
 	exited <-chan struct{},
 	waitErr *error,
 	marker string,
@@ -263,7 +234,7 @@ func awaitRunserverProvisionPrompt(
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Minute)
 	for {
-		transcript, truncated := output.snapshot()
+		transcript, truncated := output.Snapshot()
 		if strings.Contains(transcript, marker) {
 			return
 		}

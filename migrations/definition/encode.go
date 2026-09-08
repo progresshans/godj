@@ -6,6 +6,7 @@ import (
 	"sort"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -109,7 +110,7 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 	if !utf8.ValidString(producer.Version) {
 		return encodeFailure("producer.version", "producer version is not valid UTF-8")
 	}
-	if !validAppLabel(migration.App) {
+	if !identifiers.SQL(migration.App) {
 		return encodeFailure("migration.app", "invalid current app identity %q", migration.App)
 	}
 	if migration.Name == "" {
@@ -121,7 +122,7 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 
 	for index, dependency := range migration.Dependencies {
 		path := fmt.Sprintf("migration.dependencies[%d]", index)
-		if !validAppLabel(dependency.App) {
+		if !identifiers.SQL(dependency.App) {
 			return encodeFailure(path+".app", "invalid current app identity %q", dependency.App)
 		}
 		if dependency.Name == "" {
@@ -157,7 +158,7 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			if value.AppLabel != migration.App {
 				return encodeFailure(path+".app_label", "operation app %q does not match migration app %q", value.AppLabel, migration.App)
 			}
-			if !validAddFieldModelName(value.ModelName) {
+			if !identifiers.SQL(value.ModelName) {
 				return encodeFailure(path+".model_name", "invalid current model identity %q", value.ModelName)
 			}
 			if !fullyNormalizedAddField(value.AppLabel, value.Field) {

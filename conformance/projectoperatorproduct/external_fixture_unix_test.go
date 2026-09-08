@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"go/parser"
 	"go/token"
 	"io"
@@ -19,7 +20,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -380,8 +380,8 @@ func (project *operatorExternalProject) assertWorkspaceEmpty(t *testing.T) {
 
 func operatorRunCommand(t *testing.T, binary, directory string, environment []string, arguments ...string) operatorCommandResult {
 	t.Helper()
-	stdout := &operatorBoundedOutput{maximum: operatorMaximumOutput}
-	stderr := &operatorBoundedOutput{maximum: operatorMaximumOutput}
+	stdout := testprocess.NewBuffer(operatorMaximumOutput)
+	stderr := testprocess.NewBuffer(operatorMaximumOutput)
 	command := exec.Command(binary, arguments...)
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
@@ -426,7 +426,7 @@ func operatorRunSetup(t *testing.T, directory string, environment []string, bina
 	command := exec.CommandContext(ctx, binary, arguments...)
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
-	output := &operatorBoundedOutput{maximum: operatorMaximumOutput}
+	output := testprocess.NewBuffer(operatorMaximumOutput)
 	command.Stdout = output
 	command.Stderr = output
 	if err := command.Run(); err != nil {
@@ -454,48 +454,6 @@ func operatorAssertCommandSuccess(t *testing.T, result operatorCommandResult, se
 	}
 }
 
-type operatorBoundedOutput struct {
-	mu        sync.Mutex
-	maximum   int
-	contents  []byte
-	truncated bool
-}
-
-func (output *operatorBoundedOutput) Write(document []byte) (int, error) {
-	output.mu.Lock()
-	defer output.mu.Unlock()
-	remaining := output.maximum - len(output.contents)
-	if remaining > 0 {
-		retain := len(document)
-		if retain > remaining {
-			retain = remaining
-		}
-		output.contents = append(output.contents, document[:retain]...)
-	}
-	if len(document) > remaining {
-		output.truncated = true
-	}
-	return len(document), nil
-}
-
-func (output *operatorBoundedOutput) String() string {
-	output.mu.Lock()
-	defer output.mu.Unlock()
-	return string(append([]byte(nil), output.contents...))
-}
-
-func (output *operatorBoundedOutput) Bytes() []byte {
-	output.mu.Lock()
-	defer output.mu.Unlock()
-	return append([]byte(nil), output.contents...)
-}
-
-func (output *operatorBoundedOutput) Truncated() bool {
-	output.mu.Lock()
-	defer output.mu.Unlock()
-	return output.truncated
-}
-
 func operatorBoundedWait(waited <-chan error, timeout time.Duration) (error, bool) {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
@@ -508,7 +466,7 @@ func operatorBoundedWait(waited <-chan error, timeout time.Duration) (error, boo
 }
 
 func operatorTerminateProcessTree(rootPID int, waited <-chan error) error {
-	groups, discoveryErr := operatorOwnedProcessGroups(rootPID)
+	groups, discoveryErr := testprocess.OwnedGroups(rootPID)
 	for _, group := range groups {
 		_ = syscall.Kill(-group, syscall.SIGINT)
 	}
@@ -520,56 +478,6 @@ func operatorTerminateProcessTree(rootPID int, waited <-chan error) error {
 	}
 	waitErr, _ := operatorBoundedWait(waited, 5*time.Second)
 	return errors.Join(discoveryErr, waitErr)
-}
-
-func operatorOwnedProcessGroups(rootPID int) ([]int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	command := exec.CommandContext(ctx, "ps", "-Ao", "pid=,ppid=,pgid=")
-	document, err := command.Output()
-	if err != nil {
-		return []int{rootPID}, err
-	}
-	type process struct{ pid, parent, group int }
-	processes := make([]process, 0, 128)
-	for _, line := range strings.Split(string(document), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 3 {
-			continue
-		}
-		pid, pidErr := strconv.Atoi(fields[0])
-		parent, parentErr := strconv.Atoi(fields[1])
-		group, groupErr := strconv.Atoi(fields[2])
-		if pidErr == nil && parentErr == nil && groupErr == nil {
-			processes = append(processes, process{pid: pid, parent: parent, group: group})
-		}
-	}
-	owned := map[int]struct{}{rootPID: {}}
-	changed := true
-	for changed {
-		changed = false
-		for _, process := range processes {
-			if _, parentOwned := owned[process.parent]; !parentOwned {
-				continue
-			}
-			if _, exists := owned[process.pid]; !exists {
-				owned[process.pid] = struct{}{}
-				changed = true
-			}
-		}
-	}
-	groups := map[int]struct{}{rootPID: {}}
-	for _, process := range processes {
-		if _, exists := owned[process.pid]; exists && process.group > 0 {
-			groups[process.group] = struct{}{}
-		}
-	}
-	result := make([]int, 0, len(groups))
-	for group := range groups {
-		result = append(result, group)
-	}
-	sort.Ints(result)
-	return result, nil
 }
 
 func operatorRequireProcessAbsent(t *testing.T, pid int) {

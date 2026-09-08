@@ -450,22 +450,8 @@ func createsuperuserBarrier(input CreatesuperuserInvocation, primary *Createsupe
 		primary.Code == createsuperuserprotocol.CodeTerminalStateFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := createsuperuserFailure(
-				createsuperuserprotocol.CategoryProcess,
-				createsuperuserprotocol.CodeProjectInterrupted,
-			)
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := createsuperuserFailure(
-			createsuperuserprotocol.CategoryProcess,
-			createsuperuserprotocol.CodeProjectCanceled,
-		)
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := CreatesuperuserFailure{Category: createsuperuserprotocol.CategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary

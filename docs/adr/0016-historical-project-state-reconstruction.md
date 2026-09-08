@@ -147,11 +147,12 @@ loaded []Migration
 - Restart orchestrator가 durable applied identity에 맞는 `before ProjectState`를 DB I/O
   없이 구할 수 있습니다.
 - Historical schema가 current generated code와 live database drift에서 분리됩니다.
-- Full migration definition을 deep-copy/replay하므로 identity-only Planner보다 memory·CPU
-  비용이 커집니다. Cache가 필요하다면 immutable result ownership과 version key를 별도
-  ADR/benchmark으로 입증해야 합니다.
-- Existing `Operation` interface가 package-sealed이므로 현재 built-in은 deep-copy할 수
-  있지만 data migration callback/plugin ABI는 아직 표현하지 못합니다.
+- Raw migration definition 입력은 deep-copy하고 replay하므로 identity-only Planner보다 memory·CPU 비용이 큽니다.
+  GDJ-0065의 `LoadedDefinitionSet.Reconstructor`는 loader가 소유한 graph를 재사용하며 resource·chronology·readiness
+  검사는 수행합니다. Writer invocation 안에서 검증된 최초 historical state를 Detect와 snapshot이 공유합니다.
+  변경된 candidate와 durable prefix는 다른 입력이므로 strict load/replay를 유지합니다. 전역 result cache는 없습니다.
+- `Operation`의 실제 dynamic type은 현재 built-in과 그 non-nil 포인터로 제한합니다. Embedding wrapper도 거부하므로
+  deep-copy할 수 있으며 data migration callback/plugin ABI는 표현하지 않습니다.
 - Same-app leaf accessor를 포함한 graph kernel을 Planner와 공유하고 Planner의 public
   behavior/order는 바꾸지 않았습니다.
 - GDJ-0016은 `StateReconstructor`와 tagged request를 구현하고 MIG-037..046을 10

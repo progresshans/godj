@@ -114,16 +114,8 @@ func migrateBarrier(input MigrateInvocation, primary *MigrateFailure) *MigrateFa
 	if primary != nil && primary.Category == migrateprotocol.CategoryProcess && primary.Code == migrateprotocol.CodeProjectCleanupFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := migrateFailure(migrateprotocol.CategoryProcess, migrateprotocol.CodeProjectInterrupted)
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := migrateFailure(migrateprotocol.CategoryProcess, migrateprotocol.CodeProjectCanceled)
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := MigrateFailure{Category: migrateprotocol.CategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary

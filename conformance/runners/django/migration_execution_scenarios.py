@@ -24,6 +24,7 @@ from django.db.migrations.operations.models import CreateModel
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.migrations.state import ProjectState
 
+from .migration_observation import managed_schema
 from .normalizer import normalize
 from .scenarios import configure_django
 
@@ -83,54 +84,12 @@ def _state_summary(state: ProjectState) -> dict[str, Any]:
     }
 
 
-def _type_family(type_code: Any) -> str:
-    rendered = str(type_code).lower()
-    if "int" in rendered:
-        return "integer"
-    if "char" in rendered or "clob" in rendered or "text" in rendered:
-        return "text"
-    if "bool" in rendered:
-        return "boolean"
-    return rendered
-
-
-def _managed_schema() -> list[dict[str, Any]]:
-    inventory: list[dict[str, Any]] = []
-    with connection.cursor() as cursor:
-        for table in sorted(connection.introspection.table_names(cursor)):
-            if not table.startswith(_TABLE_PREFIX):
-                continue
-            description = connection.introspection.get_table_description(cursor, table)
-            constraints = connection.introspection.get_constraints(cursor, table)
-            primary_key_columns = {
-                column
-                for constraint in constraints.values()
-                if constraint["primary_key"]
-                for column in constraint["columns"]
-            }
-            inventory.append(
-                {
-                    "columns": [
-                        {
-                            "name": column.name,
-                            "nullable": column.null_ok,
-                            "primary_key": column.name in primary_key_columns,
-                            "type_family": _type_family(column.type_code),
-                        }
-                        for column in sorted(description, key=lambda item: item.name)
-                    ],
-                    "name": table,
-                }
-            )
-    return inventory
-
-
 def _database_snapshot() -> dict[str, Any]:
     recorder = MigrationRecorder(connection)
     recorder_present = recorder.has_table()
     records = sorted(recorder.applied_migrations()) if recorder_present else []
     return {
-        "managed_schema": _managed_schema(),
+        "managed_schema": managed_schema(connection, _TABLE_PREFIX, primary_keys=True, datetime_types=False),
         "migration_records": [_key_value(key) for key in records],
         "recorder_present": recorder_present,
     }

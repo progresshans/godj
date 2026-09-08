@@ -94,15 +94,15 @@ class MigrationCommandDecisionTests(unittest.TestCase):
         from conformance.runners.django import runner
 
         self.assertEqual(
-            runner.DEFAULT_MIGRATION_COMMAND_MANIFEST,
+            runner.SUITES["migration-command"].manifest,
             ROOT / "conformance/contracts/migration-command-manifest.json",
         )
-        self.assertEqual(runner.DEFAULT_MIGRATION_COMMAND_ORACLE, ORACLE)
+        self.assertEqual(runner.SUITES["migration-command"].oracle, ORACLE)
         self.assertIs(
             runner.KNOWN_MANIFEST_ORACLES[
-                runner.DEFAULT_MIGRATION_COMMAND_MANIFEST.resolve()
+                runner.SUITES["migration-command"].manifest.resolve()
             ],
-            runner.DEFAULT_MIGRATION_COMMAND_ORACLE,
+            runner.SUITES["migration-command"].oracle,
         )
         for name, scenario in decisions.SCENARIOS.items():
             self.assertIs(runner.SCENARIOS[name], scenario)

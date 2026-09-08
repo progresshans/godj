@@ -3,11 +3,10 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"sort"
 	"strconv"
-	"strings"
-	"unicode/utf8"
+
+	"github.com/progresshans/godj/internal/identifiers"
 )
 
 const projectBindingGeneratorVersion = "godj-codegen-rel-project-v1"
@@ -20,6 +19,10 @@ type BridgePackage struct {
 // GenerateProjectBridge renders the import-cycle-free project owner that
 // passes every generated app schema companion to orm.BindProject at once.
 func GenerateProjectBridge(packageName string, packages []BridgePackage) ([]byte, error) {
+	return finalizeSource(generateProjectBridge(packageName, packages))
+}
+
+func generateProjectBridge(packageName string, packages []BridgePackage) ([]byte, error) {
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
 	}
@@ -52,11 +55,7 @@ func GenerateProjectBridge(packageName string, packages []BridgePackage) ([]byte
 	}
 	fmt.Fprintln(&output, "}")
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated project bridge: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func canonicalBridgePackages(packages []BridgePackage) ([]BridgePackage, error) {
@@ -84,7 +83,7 @@ func canonicalBridgePackages(packages []BridgePackage) ([]BridgePackage, error) 
 			return nil, fmt.Errorf("duplicate bridge package alias %q", app.Alias)
 		}
 		aliases[app.Alias] = struct{}{}
-		if !validImportPath(app.ImportPath) {
+		if !identifiers.ImportPath(app.ImportPath) {
 			return nil, fmt.Errorf("invalid bridge import path %q", app.ImportPath)
 		}
 		if _, duplicate := paths[app.ImportPath]; duplicate {
@@ -93,61 +92,4 @@ func canonicalBridgePackages(packages []BridgePackage) ([]BridgePackage, error) 
 		paths[app.ImportPath] = struct{}{}
 	}
 	return canonical, nil
-}
-
-func validImportPath(importPath string) bool {
-	if importPath == "" || !utf8.ValidString(importPath) || importPath == "go" || importPath == "type" ||
-		strings.HasPrefix(importPath, "-") || strings.HasPrefix(importPath, "/") ||
-		strings.HasSuffix(importPath, "/") || strings.Contains(importPath, "//") {
-		return false
-	}
-	for _, element := range strings.Split(importPath, "/") {
-		if element == "" || strings.Trim(element, ".") == "" || strings.HasSuffix(element, ".") {
-			return false
-		}
-		for _, current := range element {
-			if !validImportPathRune(current) {
-				return false
-			}
-		}
-		short := element
-		if dot := strings.IndexByte(short, '.'); dot >= 0 {
-			short = short[:dot]
-		}
-		if reservedWindowsImportElement(short) || hasWindowsShortNameSuffix(short) {
-			return false
-		}
-	}
-	return true
-}
-
-func validImportPathRune(current rune) bool {
-	return current == '-' || current == '.' || current == '_' || current == '~' || current == '+' ||
-		'0' <= current && current <= '9' ||
-		'A' <= current && current <= 'Z' ||
-		'a' <= current && current <= 'z'
-}
-
-func reservedWindowsImportElement(element string) bool {
-	upper := strings.ToUpper(element)
-	if upper == "CON" || upper == "PRN" || upper == "AUX" || upper == "NUL" {
-		return true
-	}
-	if len(upper) != 4 || upper[3] < '1' || upper[3] > '9' {
-		return false
-	}
-	return strings.HasPrefix(upper, "COM") || strings.HasPrefix(upper, "LPT")
-}
-
-func hasWindowsShortNameSuffix(element string) bool {
-	tilde := strings.LastIndexByte(element, '~')
-	if tilde < 0 || tilde == len(element)-1 {
-		return false
-	}
-	for _, current := range element[tilde+1:] {
-		if current < '0' || current > '9' {
-			return false
-		}
-	}
-	return true
 }

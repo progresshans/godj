@@ -1,14 +1,13 @@
-package adminapp_test
+package articleapp_test
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/examples/article/articleapp"
 	"testing"
 
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/db/sqlite"
-	"github.com/progresshans/godj/examples/article/adminapp"
 )
 
 func TestRepositorySQLiteCRUDSearchAndAtomicPublish(t *testing.T) {
@@ -31,25 +30,25 @@ func TestRepositorySQLiteCRUDSearchAndAtomicPublish(t *testing.T) {
 		t.Fatalf("create Article table: %v", err)
 	}
 
-	repository, err := adminapp.NewRepository(backend)
+	repository, err := articleapp.NewRepository(backend)
 	if err != nil {
 		t.Fatalf("NewRepository() error = %v", err)
 	}
 	goSummary := "Go systems"
-	first, err := repository.Create(ctx, adminapp.Input{Title: "Alpha", Summary: &goSummary})
+	first, err := repository.Create(ctx, articleapp.Input{Title: "Alpha", Summary: &goSummary})
 	if err != nil {
 		t.Fatalf("Create(first) error = %v", err)
 	}
-	second, err := repository.Create(ctx, adminapp.Input{Title: "Go Beta", Published: false})
+	second, err := repository.Create(ctx, articleapp.Input{Title: "Go Beta", Published: false})
 	if err != nil {
 		t.Fatalf("Create(second) error = %v", err)
 	}
-	third, err := repository.Create(ctx, adminapp.Input{Title: "Gamma", Published: false})
+	third, err := repository.Create(ctx, articleapp.Input{Title: "Gamma", Published: false})
 	if err != nil {
 		t.Fatalf("Create(third) error = %v", err)
 	}
 
-	page, err := repository.List(ctx, adminapp.ListOptions{Search: "go", Limit: 1})
+	page, err := repository.List(ctx, articleapp.ListOptions{Search: "go", Limit: 1})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
@@ -58,7 +57,7 @@ func TestRepositorySQLiteCRUDSearchAndAtomicPublish(t *testing.T) {
 	}
 
 	emptySummary := ""
-	updated, changed, err := repository.Update(ctx, first.ID, adminapp.Input{
+	updated, changed, err := repository.Update(ctx, first.ID, articleapp.Input{
 		Title:     "Alpha Updated",
 		Published: true,
 		Summary:   &emptySummary,
@@ -92,10 +91,10 @@ func TestRepositorySQLiteCRUDSearchAndAtomicPublish(t *testing.T) {
 	if _, found, err := repository.Get(ctx, second.ID); err != nil || found {
 		t.Fatalf("Get(deleted) found = %v, error = %v", found, err)
 	}
-	if _, err := repository.Delete(ctx, second.ID); !adminapp.IsCode(err, adminapp.CodeNotFound) {
+	if _, err := repository.Delete(ctx, second.ID); !articleapp.IsCode(err, articleapp.CodeNotFound) {
 		t.Fatalf("Delete(missing) error = %v, want not_found", err)
-	} else if !errors.Is(err, admin.ErrObjectNotFound) {
-		t.Fatalf("Delete(missing) error = %v, want admin.ErrObjectNotFound", err)
+	} else if !errors.Is(err, articleapp.ErrNotFound) {
+		t.Fatalf("Delete(missing) error = %v, want articleapp.ErrNotFound", err)
 	}
 }
 
@@ -106,18 +105,18 @@ func TestRepositoryRejectsInvalidInputBeforeBackendWork(t *testing.T) {
 		t.Fatalf("OpenMemory() error = %v", err)
 	}
 	t.Cleanup(func() { _ = backend.Close() })
-	repository, err := adminapp.NewRepository(backend)
+	repository, err := articleapp.NewRepository(backend)
 	if err != nil {
 		t.Fatalf("NewRepository() error = %v", err)
 	}
 
 	for name, run := range map[string]func() error{
 		"empty title": func() error {
-			_, err := repository.Create(ctx, adminapp.Input{Title: "  "})
+			_, err := repository.Create(ctx, articleapp.Input{Title: "  "})
 			return err
 		},
 		"negative offset": func() error {
-			_, err := repository.List(ctx, adminapp.ListOptions{Offset: -1})
+			_, err := repository.List(ctx, articleapp.ListOptions{Offset: -1})
 			return err
 		},
 		"empty action": func() error {
@@ -127,7 +126,7 @@ func TestRepositoryRejectsInvalidInputBeforeBackendWork(t *testing.T) {
 		"canceled context": func() error {
 			canceled, cancel := context.WithCancel(ctx)
 			cancel()
-			_, err := repository.List(canceled, adminapp.ListOptions{})
+			_, err := repository.List(canceled, articleapp.ListOptions{})
 			return err
 		},
 	} {
@@ -136,7 +135,7 @@ func TestRepositoryRejectsInvalidInputBeforeBackendWork(t *testing.T) {
 			if err == nil {
 				t.Fatal("operation error = nil")
 			}
-			if name != "canceled context" && !adminapp.IsCode(err, adminapp.CodeInvalidInput) {
+			if name != "canceled context" && !articleapp.IsCode(err, articleapp.CodeInvalidInput) {
 				t.Fatalf("operation error = %v, want invalid_input", err)
 			}
 			if name == "canceled context" && !errors.Is(err, context.Canceled) {

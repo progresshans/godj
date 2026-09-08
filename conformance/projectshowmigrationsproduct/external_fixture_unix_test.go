@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -52,12 +51,6 @@ type externalStatusProject struct {
 	scratch      string
 	baseEnv      []string
 	secret       string
-}
-
-type externalStatusResult struct {
-	exitCode int
-	stdout   string
-	stderr   string
 }
 
 type externalStatusMarker struct {
@@ -218,19 +211,19 @@ func (project *externalStatusProject) postgresEnvironment(t *testing.T, database
 	return environment
 }
 
-func (project *externalStatusProject) run(t *testing.T, environment []string, arguments ...string) externalStatusResult {
+func (project *externalStatusProject) run(t *testing.T, environment []string, arguments ...string) testprocess.CommandResult {
 	t.Helper()
-	result := externalStatusRun(t, project.nested, environment, project.globalBinary, arguments...)
+	result := testprocess.Run(t, testprocess.CommandLimits{Timeout: externalStatusCommandTimeout, Output: externalStatusMaximumOutput}, project.nested, environment, project.globalBinary, arguments...)
 	project.assertWorkspaceEmpty(t)
 	return result
 }
 
-func (project *externalStatusProject) runShow(t *testing.T, environment []string) externalStatusResult {
+func (project *externalStatusProject) runShow(t *testing.T, environment []string) testprocess.CommandResult {
 	t.Helper()
 	return project.run(t, environment, "showmigrations", "--project", project.descriptor)
 }
 
-func (project *externalStatusProject) runMigrate(t *testing.T, environment []string) externalStatusResult {
+func (project *externalStatusProject) runMigrate(t *testing.T, environment []string) testprocess.CommandResult {
 	t.Helper()
 	return project.run(t, environment, "migrate", "--project", project.descriptor)
 }
@@ -264,75 +257,31 @@ func externalStatusWriteFile(t *testing.T, path string, document []byte, mode fs
 
 func externalStatusRunSuccess(t *testing.T, directory string, environment []string, name string, arguments ...string) {
 	t.Helper()
-	result := externalStatusRun(t, directory, environment, name, arguments...)
-	if result.exitCode != 0 {
-		t.Fatalf("%s %s failed: exit=%d stdout=%q stderr=%q", name, strings.Join(arguments, " "), result.exitCode, result.stdout, result.stderr)
+	result := testprocess.Run(t, testprocess.CommandLimits{Timeout: externalStatusCommandTimeout, Output: externalStatusMaximumOutput}, directory, environment, name, arguments...)
+	if result.ExitCode != 0 {
+		t.Fatalf("%s %s failed: exit=%d stdout=%q stderr=%q", name, strings.Join(arguments, " "), result.ExitCode, result.Stdout, result.Stderr)
 	}
 }
 
-func externalStatusRun(t *testing.T, directory string, environment []string, name string, arguments ...string) externalStatusResult {
-	t.Helper()
-	stdout := testprocess.NewBuffer(externalStatusMaximumOutput)
-	stderr := testprocess.NewBuffer(externalStatusMaximumOutput)
-	command := exec.Command(name, arguments...)
-	command.Dir = directory
-	command.Env = append([]string(nil), environment...)
-	command.Stdout = stdout
-	command.Stderr = stderr
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if err := command.Start(); err != nil {
-		t.Fatalf("start %s %s: %v", name, strings.Join(arguments, " "), err)
-	}
-	waited := make(chan error, 1)
-	go func() { waited <- command.Wait() }()
-	timer := time.NewTimer(externalStatusCommandTimeout)
-	defer timer.Stop()
-	var waitErr error
-	select {
-	case waitErr = <-waited:
-	case <-timer.C:
-		groups, discoveryErr := testprocess.OwnedGroups(command.Process.Pid)
-		killErr := testprocess.KillGroups(groups, command.Process.Pid)
-		waitErr = testprocess.Wait(waited, 5*time.Second)
-		absenceErr := testprocess.WaitAbsent(groups, 2*time.Second)
-		t.Fatalf("%s %s timed out: %v", name, strings.Join(arguments, " "), errors.Join(discoveryErr, killErr, waitErr, absenceErr))
-	}
-	if stdout.Truncated() || stderr.Truncated() {
-		t.Fatalf("%s %s exceeded output limit", name, strings.Join(arguments, " "))
-	}
-	exitCode := 0
-	if waitErr != nil {
-		var exitError *exec.ExitError
-		if !errors.As(waitErr, &exitError) {
-			t.Fatalf("run %s %s: %v", name, strings.Join(arguments, " "), waitErr)
-		}
-		exitCode = exitError.ExitCode()
-	}
-	if err := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
-		t.Fatalf("wait for external root process group: %v", err)
-	}
-	return externalStatusResult{exitCode: exitCode, stdout: stdout.String(), stderr: stderr.String()}
-}
-
-func externalStatusAssertSuccess(t *testing.T, result externalStatusResult, want string, sensitive ...string) {
+func externalStatusAssertSuccess(t *testing.T, result testprocess.CommandResult, want string, sensitive ...string) {
 	t.Helper()
 	externalStatusAssertRedacted(t, result, sensitive...)
-	if result.exitCode != 0 || result.stdout != want || result.stderr != "" {
-		t.Fatalf("showmigrations success = exit:%d stdout:%q stderr:%q, want 0/%q/empty", result.exitCode, result.stdout, result.stderr, want)
+	if result.ExitCode != 0 || result.Stdout != want || result.Stderr != "" {
+		t.Fatalf("showmigrations success = exit:%d stdout:%q stderr:%q, want 0/%q/empty", result.ExitCode, result.Stdout, result.Stderr, want)
 	}
 }
 
-func externalStatusAssertFailure(t *testing.T, result externalStatusResult, exit int, stderr string, sensitive ...string) {
+func externalStatusAssertFailure(t *testing.T, result testprocess.CommandResult, exit int, stderr string, sensitive ...string) {
 	t.Helper()
 	externalStatusAssertRedacted(t, result, sensitive...)
-	if result.exitCode != exit || result.stdout != "" || result.stderr != stderr {
-		t.Fatalf("showmigrations failure = exit:%d stdout:%q stderr:%q, want %d/empty/%q", result.exitCode, result.stdout, result.stderr, exit, stderr)
+	if result.ExitCode != exit || result.Stdout != "" || result.Stderr != stderr {
+		t.Fatalf("showmigrations failure = exit:%d stdout:%q stderr:%q, want %d/empty/%q", result.ExitCode, result.Stdout, result.Stderr, exit, stderr)
 	}
 }
 
-func externalStatusAssertRedacted(t *testing.T, result externalStatusResult, sensitive ...string) {
+func externalStatusAssertRedacted(t *testing.T, result testprocess.CommandResult, sensitive ...string) {
 	t.Helper()
-	combined := result.stdout + result.stderr
+	combined := result.Stdout + result.Stderr
 	for _, value := range sensitive {
 		if value != "" && strings.Contains(combined, value) {
 			t.Fatal("external showmigrations output exposed a sensitive value")

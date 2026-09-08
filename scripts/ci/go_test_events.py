@@ -78,7 +78,7 @@ class Inventory:
             elif action == "pass":
                 self.passes.add(identity)
 
-    def verify(self, required=(), packages=(), no_skips=False):
+    def verify(self, required=(), packages=(), no_skips=False, no_skip_packages=()):
         errors = []
         if self.failed_builds or self.failed_packages or self.failed_tests:
             errors.append("build or test failures were recorded")
@@ -94,8 +94,9 @@ class Inventory:
         missing_packages = set(packages) - self.completed
         if missing_packages:
             errors.append("required packages are missing: " + repr(sorted(missing_packages)))
-        if no_skips and self.skips:
-            errors.append("tests skipped: " + repr(sorted(self.skips)))
+        forbidden_skips = self.skips if no_skips else {identity for identity in self.skips if identity[0] in no_skip_packages}
+        if forbidden_skips:
+            errors.append("tests skipped: " + repr(sorted(forbidden_skips)))
         return errors
 
 

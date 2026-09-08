@@ -18,10 +18,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -36,6 +34,7 @@ import (
 )
 
 const (
+	maximumRunserverOutput   = 1 << 20
 	articleSQLiteDatabaseEnv = "GODJ_ARTICLE_SQLITE_DATABASE"
 	articlePostgresURLEnv    = "GODJ_ARTICLE_POSTGRES_URL"
 	articlePostgresSchemaEnv = "GODJ_ARTICLE_POSTGRES_SCHEMA"
@@ -273,8 +272,8 @@ func runStaleCopiedArticle(
 	environment []string,
 ) (string, string, int) {
 	t.Helper()
-	stdout := &synchronizedOutput{}
-	stderr := &synchronizedOutput{}
+	stdout := testprocess.NewBuffer(maximumRunserverOutput)
+	stderr := testprocess.NewBuffer(maximumRunserverOutput)
 	command := exec.Command(globalBinary, "runserver", "--project", descriptor, "--addr", address)
 	command.Dir = repository
 	command.Env = append([]string(nil), environment...)
@@ -291,12 +290,15 @@ func runStaleCopiedArticle(
 	defer timer.Stop()
 	select {
 	case waitErr := <-waited:
-		if absenceErr := waitForRunserverProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); absenceErr != nil {
+		if absenceErr := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); absenceErr != nil {
 			t.Fatal(absenceErr)
 		}
 		var exitError *exec.ExitError
 		if !errors.As(waitErr, &exitError) {
 			t.Fatalf("stale copied Article wait error = %v, want exit error", waitErr)
+		}
+		if stdout.Truncated() || stderr.Truncated() {
+			t.Fatal("stale runserver exceeded output limit")
 		}
 		return stdout.String(), stderr.String(), exitError.ExitCode()
 	case <-timer.C:
@@ -526,8 +528,8 @@ func runGlobalArticleServer(
 	if exercise == nil {
 		t.Fatal("global runserver exercise is nil")
 	}
-	stdout := newReadinessOutput()
-	stderr := &synchronizedOutput{}
+	stdout := testprocess.NewReadinessBuffer(maximumRunserverOutput, articleReadinessPrefix)
+	stderr := testprocess.NewBuffer(maximumRunserverOutput)
 	command := exec.Command(
 		globalBinary,
 		"runserver",
@@ -559,7 +561,7 @@ func runGlobalArticleServer(
 	readyTimer := time.NewTimer(2 * time.Minute)
 	defer readyTimer.Stop()
 	select {
-	case address = <-stdout.ready:
+	case address = <-stdout.Ready():
 		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
 		if err := validateArticleReadinessAddress(address); err != nil {
 			t.Fatalf("invalid Article readiness address %q: %v", address, err)
@@ -567,7 +569,7 @@ func runGlobalArticleServer(
 		if address != expectedAddress {
 			t.Fatalf("Article readiness address = %q, want reserved %q", address, expectedAddress)
 		}
-		groups, err := runserverOwnedProcessGroups(command.Process.Pid)
+		groups, err := testprocess.OwnedGroups(command.Process.Pid)
 		knownProcessGroups = groups
 		if err != nil || len(groups) < 2 {
 			t.Fatalf("capture global/runtime process groups = %v, error=%v", groups, err)
@@ -595,6 +597,9 @@ func runGlobalArticleServer(
 	assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
 	if cleanup.failed() || len(cleanup.ProcessGroups) < 2 {
 		t.Fatalf("clean global runserver interrupt: cleanup=%+v stdout_bytes=%d stderr_bytes=%d", cleanup, len(stdout.String()), len(stderr.String()))
+	}
+	if stdout.Truncated() || stderr.Truncated() {
+		t.Fatal("global runserver exceeded output limit")
 	}
 	if stderr.String() != "" {
 		t.Fatalf("global runserver stderr bytes = %d, want 0", len(stderr.String()))
@@ -774,10 +779,10 @@ func (result runserverCleanupResult) failed() bool {
 
 func interruptAndWaitRunserver(command *exec.Cmd, waited <-chan error, timeout time.Duration, knownGroups ...int) runserverCleanupResult {
 	result := runserverCleanupResult{}
-	groups, discoveryErr := runserverOwnedProcessGroups(command.Process.Pid)
+	groups, discoveryErr := testprocess.OwnedGroups(command.Process.Pid)
 	result.ProcessGroups = testprocess.MergeGroups(knownGroups, groups)
 	result.DiscoveryError = discoveryErr
-	result.SignalError = signalRunserverTestProcessGroup(command.Process.Pid, syscall.SIGINT)
+	result.SignalError = testprocess.SignalGroup(command.Process.Pid, syscall.SIGINT)
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
@@ -785,88 +790,19 @@ func interruptAndWaitRunserver(command *exec.Cmd, waited <-chan error, timeout t
 		result.WaitError = waitErr
 	case <-timer.C:
 		result.Forced = true
-		refreshed, refreshErr := runserverOwnedProcessGroups(command.Process.Pid)
+		refreshed, refreshErr := testprocess.OwnedGroups(command.Process.Pid)
 		result.ProcessGroups = testprocess.MergeGroups(result.ProcessGroups, refreshed)
 		result.DiscoveryError = errors.Join(result.DiscoveryError, refreshErr)
-		killErr := killRunserverTestProcessGroups(result.ProcessGroups, command.Process.Pid)
-		result.WaitError = errors.Join(killErr, boundedRunserverWait(waited, 3*time.Second))
+		killErr := testprocess.KillGroups(result.ProcessGroups, command.Process.Pid)
+		result.WaitError = errors.Join(killErr, testprocess.Wait(waited, 3*time.Second))
 	}
-	result.AbsenceError = waitForRunserverProcessGroupsAbsent(result.ProcessGroups, 2*time.Second)
+	result.AbsenceError = testprocess.WaitAbsent(result.ProcessGroups, 2*time.Second)
 	if result.AbsenceError != nil && !result.Forced {
 		result.Forced = true
-		killErr := killRunserverTestProcessGroups(result.ProcessGroups, command.Process.Pid)
-		result.AbsenceError = errors.Join(result.AbsenceError, killErr, waitForRunserverProcessGroupsAbsent(result.ProcessGroups, 2*time.Second))
+		killErr := testprocess.KillGroups(result.ProcessGroups, command.Process.Pid)
+		result.AbsenceError = errors.Join(result.AbsenceError, killErr, testprocess.WaitAbsent(result.ProcessGroups, 2*time.Second))
 	}
 	return result
-}
-
-func boundedRunserverWait(waited <-chan error, timeout time.Duration) error {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case waitErr := <-waited:
-		return waitErr
-	case <-timer.C:
-		return errors.New("runserver process Wait remained blocked after forced cleanup")
-	}
-}
-
-func runserverOwnedProcessGroups(rootPID int) ([]int, error) {
-	output, err := exec.Command("ps", "-Ao", "pid=,ppid=,pgid=").Output()
-	if err != nil {
-		return []int{rootPID}, fmt.Errorf("inspect runserver process tree: %w", err)
-	}
-	type process struct {
-		pid  int
-		ppid int
-		pgid int
-	}
-	var processes []process
-	for _, line := range strings.Split(string(output), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if len(fields) != 3 {
-			return []int{rootPID}, fmt.Errorf("inspect runserver process tree: invalid ps row")
-		}
-		pid, pidErr := strconv.Atoi(fields[0])
-		ppid, ppidErr := strconv.Atoi(fields[1])
-		pgid, pgidErr := strconv.Atoi(fields[2])
-		if errors.Join(pidErr, ppidErr, pgidErr) != nil {
-			return []int{rootPID}, fmt.Errorf("inspect runserver process tree: invalid ps identifier")
-		}
-		processes = append(processes, process{pid: pid, ppid: ppid, pgid: pgid})
-	}
-	descendants := map[int]struct{}{rootPID: {}}
-	for changed := true; changed; {
-		changed = false
-		for _, candidate := range processes {
-			if _, parentOwned := descendants[candidate.ppid]; !parentOwned {
-				continue
-			}
-			if _, alreadyOwned := descendants[candidate.pid]; alreadyOwned {
-				continue
-			}
-			descendants[candidate.pid] = struct{}{}
-			changed = true
-		}
-	}
-	groups := map[int]struct{}{rootPID: {}}
-	for _, candidate := range processes {
-		if _, owned := descendants[candidate.pid]; owned {
-			groups[candidate.pgid] = struct{}{}
-		}
-	}
-	result := make([]int, 0, len(groups))
-	for group := range groups {
-		if group <= 1 || group == syscall.Getpgrp() {
-			return []int{rootPID}, fmt.Errorf("inspect runserver process tree: unsafe process group")
-		}
-		result = append(result, group)
-	}
-	sort.Ints(result)
-	return result, nil
 }
 
 func containsRunserverProcessGroup(groups []int, target int) bool {
@@ -897,130 +833,6 @@ func waitForRunserverHarnessPID(t *testing.T, path string) int {
 	}
 	t.Fatalf("runserver harness did not publish child PID at %s", path)
 	return 0
-}
-
-func signalRunserverTestProcessGroup(group int, signal syscall.Signal) error {
-	if group <= 1 || group == syscall.Getpgrp() {
-		return errors.New("refuse to signal unsafe runserver process group")
-	}
-	err := syscall.Kill(-group, signal)
-	if errors.Is(err, syscall.ESRCH) {
-		return nil
-	}
-	return err
-}
-
-func killRunserverTestProcessGroups(groups []int, rootGroup int) error {
-	var result error
-	for index := len(groups) - 1; index >= 0; index-- {
-		if groups[index] == rootGroup {
-			continue
-		}
-		result = errors.Join(result, signalRunserverTestProcessGroup(groups[index], syscall.SIGKILL))
-	}
-	return errors.Join(result, signalRunserverTestProcessGroup(rootGroup, syscall.SIGKILL))
-}
-
-func waitForRunserverProcessGroupsAbsent(groups []int, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		var remaining []int
-		for _, group := range groups {
-			err := syscall.Kill(-group, 0)
-			if err == nil || errors.Is(err, syscall.EPERM) {
-				remaining = append(remaining, group)
-			}
-		}
-		if len(remaining) == 0 {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("runserver process groups remain: %v", remaining)
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-}
-
-type synchronizedOutput struct {
-	mutex  sync.Mutex
-	buffer bytes.Buffer
-}
-
-func (output *synchronizedOutput) Write(payload []byte) (int, error) {
-	output.mutex.Lock()
-	defer output.mutex.Unlock()
-	return output.buffer.Write(payload)
-}
-
-func (output *synchronizedOutput) String() string {
-	output.mutex.Lock()
-	defer output.mutex.Unlock()
-	return output.buffer.String()
-}
-
-type readinessOutput struct {
-	synchronizedOutput
-	ready   chan string
-	once    sync.Once
-	scanned int
-}
-
-func newReadinessOutput() *readinessOutput {
-	return &readinessOutput{ready: make(chan string, 1)}
-}
-
-func (output *readinessOutput) Write(payload []byte) (int, error) {
-	output.mutex.Lock()
-	written, err := output.buffer.Write(payload)
-	var addresses []string
-	contents := output.buffer.Bytes()
-	for output.scanned < len(contents) {
-		relativeEnd := bytes.IndexByte(contents[output.scanned:], '\n')
-		if relativeEnd < 0 {
-			break
-		}
-		end := output.scanned + relativeEnd
-		line := string(contents[output.scanned:end])
-		output.scanned = end + 1
-		if strings.HasPrefix(line, articleReadinessPrefix) {
-			addresses = append(addresses, strings.TrimPrefix(line, articleReadinessPrefix))
-		}
-	}
-	output.mutex.Unlock()
-	if err != nil {
-		return written, err
-	}
-	for _, address := range addresses {
-		output.once.Do(func() {
-			output.ready <- address
-		})
-	}
-	return written, nil
-}
-
-func TestReadinessOutputWaitsForCompleteLine(t *testing.T) {
-	output := newReadinessOutput()
-	first := articleReadinessPrefix + "127.0."
-	if written, err := output.Write([]byte(first)); err != nil || written != len(first) {
-		t.Fatalf("first readiness write = %d, %v", written, err)
-	}
-	select {
-	case address := <-output.ready:
-		t.Fatalf("partial readiness published %q", address)
-	default:
-	}
-	second := "0.1:8123\n"
-	if written, err := output.Write([]byte(second)); err != nil || written != len(second) {
-		t.Fatalf("second readiness write = %d, %v", written, err)
-	}
-	select {
-	case address := <-output.ready:
-		if address != "127.0.0.1:8123" {
-			t.Fatalf("complete readiness = %q", address)
-		}
-	default:
-		t.Fatal("complete readiness was not published")
-	}
 }
 
 func validateArticleReadinessAddress(address string) error {

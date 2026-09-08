@@ -1061,8 +1061,8 @@ func projectMigratePostgresRunServerOnce(
 	sensitive []string,
 ) projectMigratePostgresServerObservation {
 	t.Helper()
-	stdout := newReadinessOutput()
-	stderr := &boundedOutput{maximum: maximumCommandOutput}
+	stdout := testprocess.NewReadinessBuffer(maximumCommandOutput, articleReadinessPrefix)
+	stderr := testprocess.NewBuffer(maximumCommandOutput)
 	command := exec.Command(globalBinary, "runserver", "--project", descriptor, "--addr", expectedAddress)
 	command.Dir = repository
 	command.Env = append([]string(nil), environment...)
@@ -1094,7 +1094,7 @@ func projectMigratePostgresRunServerOnce(
 	timer := time.NewTimer(commandTimeout)
 	defer timer.Stop()
 	select {
-	case address = <-stdout.ready:
+	case address = <-stdout.Ready():
 		projectMigratePostgresAssertVisibleSecretFree(t, stdout.String(), stderr.String(), sensitive)
 		if address != expectedAddress {
 			t.Fatal("PostgreSQL Article readiness address did not match the reserved loopback address")

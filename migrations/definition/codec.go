@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -478,7 +479,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if appLabel, present := object.member("app_label"); present {
 		if appLabel.kind != jsonString || appLabel.string != app {
 			candidates = append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/app_label", app, name, operationIndex, "invalid_operation"))
-		} else if !validAppLabel(appLabel.string) {
+		} else if !identifiers.SQL(appLabel.string) {
 			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/app_label", app, name, operationIndex, "invalid_ir"))
 		}
 	}
@@ -489,7 +490,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 		}
 	} else {
 		if modelName, present := object.member("model_name"); present {
-			if modelName.kind != jsonString || !validAddFieldModelName(modelName.string) {
+			if modelName.kind != jsonString || !identifiers.SQL(modelName.string) {
 				candidates = append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/model_name", app, name, operationIndex, "invalid_operation"))
 			}
 		}
@@ -525,11 +526,11 @@ func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string
 		if valid {
 			switch field {
 			case "db_table":
-				valid = validModelTable(child.string)
+				valid = identifiers.SQL(child.string)
 			case "go_name":
-				valid = validModelGoName(child.string)
+				valid = identifiers.ExportedGo(child.string)
 			case "name":
-				valid = validModelName(child.string)
+				valid = identifiers.SQL(child.string)
 			}
 		}
 		if !valid {
@@ -569,9 +570,9 @@ func collectModelFieldAggregateCandidates(values []jsonValue, sourceID, pointer,
 			seen  map[string]struct{}
 			valid func(string) bool
 		}{
-			{name: "name", seen: seenNames, valid: validFieldName},
-			{name: "go_name", seen: seenGoNames, valid: validFieldGoName},
-			{name: "column", seen: seenColumns, valid: validFieldColumn},
+			{name: "name", seen: seenNames, valid: identifiers.SQL},
+			{name: "go_name", seen: seenGoNames, valid: identifiers.ExportedGo},
+			{name: "column", seen: seenColumns, valid: identifiers.SQL},
 		} {
 			candidate, exists := value.member(member.name)
 			if !exists || candidate.kind != jsonString || !member.valid(candidate.string) {
@@ -625,11 +626,11 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 		if valid {
 			switch field {
 			case "column":
-				valid = validFieldColumn(child.string)
+				valid = identifiers.SQL(child.string)
 			case "go_name":
-				valid = validFieldGoName(child.string)
+				valid = identifiers.ExportedGo(child.string)
 			case "name":
-				valid = validFieldName(child.string)
+				valid = identifiers.SQL(child.string)
 			}
 		}
 		stringValid[field] = valid
@@ -791,10 +792,10 @@ func collectRelationCandidates(value jsonValue, sourceID, pointer, app, name str
 		)
 		candidates = append(candidates, faults...)
 		if targetOK {
-			if targetApp, exists := targetObject.member("app_label"); !exists || targetApp.kind != jsonString || !validAppLabel(targetApp.string) {
+			if targetApp, exists := targetObject.member("app_label"); !exists || targetApp.kind != jsonString || !identifiers.SQL(targetApp.string) {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/target/app_label", app, name, operationIndex, "invalid_ir"))
 			}
-			if targetModel, exists := targetObject.member("model_name"); !exists || targetModel.kind != jsonString || !validModelName(targetModel.string) {
+			if targetModel, exists := targetObject.member("model_name"); !exists || targetModel.kind != jsonString || !identifiers.SQL(targetModel.string) {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/target/model_name", app, name, operationIndex, "invalid_ir"))
 			}
 		}
@@ -809,7 +810,7 @@ func collectRelationCandidates(value jsonValue, sourceID, pointer, app, name str
 			nameNode, hasName := reverseObject.member("name")
 			disabledNode, hasDisabled := reverseObject.member("disabled")
 			if !hasName || nameNode.kind != jsonString || !hasDisabled || disabledNode.kind != jsonBoolean ||
-				disabledNode.boolean == (nameNode.string != "") || (nameNode.string != "" && !validFieldName(nameNode.string)) {
+				disabledNode.boolean == (nameNode.string != "") || (nameNode.string != "" && !identifiers.SQL(nameNode.string)) {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/reverse", app, name, operationIndex, "invalid_ir"))
 			}
 		}
@@ -944,7 +945,7 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 	case "add_field":
 		modelName, modelExists := value.member("model_name")
 		fieldValue, fieldExists := value.member("field")
-		if !modelExists || !fieldExists || modelName.kind != jsonString || !validAddFieldModelName(modelName.string) {
+		if !modelExists || !fieldExists || modelName.kind != jsonString || !identifiers.SQL(modelName.string) {
 			return nil, false
 		}
 		field, valid := materializeField(fieldValue)

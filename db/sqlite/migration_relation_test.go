@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/db/internal/migrationhistory"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
@@ -2338,7 +2339,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 	})
 
 	t.Run("duplicate_target_metadata_is_integrity", func(t *testing.T) {
-		forged := cloneSQLiteRelationIntent(valid)
+		forged := valid.Clone()
 		forged.Operations[1].Targets = append(forged.Operations[1].Targets, forged.Operations[1].Targets[0])
 		_, err := validateAndSealSQLiteRelationIntent(transition, forged)
 		if err == nil || !strings.Contains(err.Error(), "exact field order") {
@@ -2347,7 +2348,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 	})
 
 	t.Run("non_nil_empty_zero_sentinel_is_rejected_before_clone", func(t *testing.T) {
-		forged := cloneSQLiteRelationIntent(valid)
+		forged := valid.Clone()
 		forged.Operations[0].Before = ir.Model{Fields: []ir.Field{}}
 		_, err := validateAndSealSQLiteRelationIntent(transition, forged)
 		if err == nil || !strings.Contains(err.Error(), "non-zero Before") {
@@ -2361,7 +2362,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		before.Fields[1].MaxLength++
 		after := before.Clone()
 		after.Fields = append(after.Fields, extra)
-		forged := cloneSQLiteRelationIntent(valid)
+		forged := valid.Clone()
 		forged.Operations = append(forged.Operations, migrationbackend.MigrationOperation{
 			OperationIndex: 2,
 			Kind:           migrationbackend.MigrationAddField,
@@ -4317,7 +4318,7 @@ func assertSQLiteNullableRelationAddSeedSnapshot(
 	}
 	wantSequences := []sqliteNullableRelationAddSequence{{Table: "news_article", Value: 2}, {Table: "news_author", Value: 2}}
 	if snapshot.FormatVersion != migrationRevisionFormatVersion || snapshot.Revision != 1 ||
-		snapshot.Epoch == ([16]byte{}) || snapshot.Fingerprint != fingerprintMigrationHistory(snapshot.History) ||
+		snapshot.Epoch == ([16]byte{}) || snapshot.Fingerprint != migrationhistory.Fingerprint(snapshot.History) ||
 		!reflect.DeepEqual(snapshot.History, wantHistory) ||
 		!reflect.DeepEqual(snapshot.Authors, wantAuthors) ||
 		!reflect.DeepEqual(snapshot.Articles, wantArticles) ||
@@ -4479,7 +4480,7 @@ func assertSQLiteLoadedNullableRelationAddSeedSnapshot(t *testing.T, snapshot sq
 	}
 	wantSequences := []sqliteNullableRelationAddSequence{{Table: "news_article", Value: 2}, {Table: "news_author", Value: 2}}
 	if snapshot.FormatVersion != migrationRevisionFormatVersion || snapshot.Revision != 2 ||
-		snapshot.Epoch == ([16]byte{}) || snapshot.Fingerprint != fingerprintMigrationHistory(snapshot.History) ||
+		snapshot.Epoch == ([16]byte{}) || snapshot.Fingerprint != migrationhistory.Fingerprint(snapshot.History) ||
 		!reflect.DeepEqual(snapshot.History, wantHistory) ||
 		!reflect.DeepEqual(snapshot.Authors, wantAuthors) ||
 		!reflect.DeepEqual(snapshot.Articles, wantArticles) ||
@@ -5099,7 +5100,7 @@ func assertSQLiteLoadedRelationTaxonomySeed(t *testing.T, label string, snapshot
 	wantHistory := []migrationbackend.AppliedMigration{{App: "authors", Name: "0001_author"}}
 	if snapshot.FormatVersion != migrationRevisionFormatVersion || snapshot.Revision != 1 ||
 		snapshot.Epoch == ([sqliteLoadedRelationTaxonomyEpochBytes]byte{}) ||
-		snapshot.Fingerprint != fingerprintMigrationHistory(snapshot.History) ||
+		snapshot.Fingerprint != migrationhistory.Fingerprint(snapshot.History) ||
 		!reflect.DeepEqual(snapshot.History, wantHistory) || !reflect.DeepEqual(snapshot.AuthorIDs, []int64{41}) ||
 		len(snapshot.ForeignKeys) != 0 {
 		t.Fatalf("%s loaded relation taxonomy seed snapshot = %+v", label, snapshot)
@@ -5187,7 +5188,7 @@ func (session *sqliteLoadedRelationTaxonomySession) BeginMigration(
 ) (migrationbackend.RevisionFencedTransaction, error) {
 	session.owner.beginCalls++
 	session.owner.transition = transition
-	session.owner.intent = cloneSQLiteRelationIntent(intent)
+	session.owner.intent = intent.Clone()
 	if session.owner.beginErr != nil {
 		return nil, session.owner.beginErr
 	}

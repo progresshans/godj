@@ -179,17 +179,11 @@ func completeSQLMigrateResponse(
 	response sqlmigrateprotocol.Response,
 	honorCancellation bool,
 ) (Report, error) {
-	if dependencies.beforeResponseWrite != nil {
-		dependencies.beforeResponseWrite()
-	}
-	if honorCancellation {
-		if err := ctx.Err(); err != nil {
-			return report, err
+	err := publishLinkedResponse(ctx, dependencies.beforeResponseWrite, honorCancellation, &report.RunnerResponseWrites, func() error {
+		if err := sqlmigrateprotocol.WriteResponse(writer, response); err != nil {
+			return fmt.Errorf("project linked sqlmigrate: write response: %w", err)
 		}
-	}
-	report.RunnerResponseWrites++
-	if err := sqlmigrateprotocol.WriteResponse(writer, response); err != nil {
-		return report, fmt.Errorf("project linked sqlmigrate: write response: %w", err)
-	}
-	return report, nil
+		return nil
+	})
+	return report, err
 }

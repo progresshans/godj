@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/internal/projectspec"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -191,7 +192,7 @@ func normalizeProjectPackage(owner string, input PackageSpec) (PackageSpec, erro
 	if !validGeneratedPackageName(input.PackageName) {
 		return PackageSpec{}, fmt.Errorf("invalid %s package name %q", owner, input.PackageName)
 	}
-	if !validImportPath(input.ImportPath) {
+	if !identifiers.ImportPath(input.ImportPath) {
 		return PackageSpec{}, fmt.Errorf("invalid %s import path %q", owner, input.ImportPath)
 	}
 	if !validProjectDirectory(input.Directory) {
@@ -204,7 +205,7 @@ func validProjectDirectory(directory string) bool {
 	if directory == "." {
 		return true
 	}
-	if directory == "" || path.Clean(directory) != directory || !validImportPath(directory) {
+	if directory == "" || path.Clean(directory) != directory || !identifiers.ImportPath(directory) {
 		return false
 	}
 	if len(strings.Split(directory, "/"))+1 > maxProjectGeneratedPathDepth {

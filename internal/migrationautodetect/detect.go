@@ -5,6 +5,7 @@
 package migrationautodetect
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -84,6 +85,7 @@ type Request struct {
 // valid empty plan, but Detect never returns a non-zero plan with an error.
 type Plan struct {
 	migrations []migrations.Migration
+	baseState  migrations.ProjectState
 }
 
 // Empty reports whether the declared schema already matches current history.
@@ -96,6 +98,11 @@ func (p Plan) Empty() bool {
 func (p Plan) Migrations() []migrations.Migration {
 	return cloneMigrations(p.migrations)
 }
+
+// BaseState returns the history already validated by Detect. Publication
+// callers reuse it for final-state checks instead of reconstructing the same
+// immutable input catalog a second time. Empty successful plans retain it too.
+func (p Plan) BaseState() migrations.ProjectState { return p.baseState.Clone() }
 
 type appChange struct {
 	operations []migrations.Operation
@@ -122,7 +129,7 @@ func Detect(request Request) (Plan, error) {
 		return Plan{}, detectionError(CodeInvalidRequest, "", "", "", fmt.Errorf("desired state: %w", err))
 	}
 	existingDefinitions := request.Definitions.Definitions()
-	reconstructor, err := migrations.NewStateReconstructor(existingDefinitions...)
+	reconstructor, err := request.Definitions.Reconstructor(context.Background())
 	if err != nil {
 		return Plan{}, detectionError(CodeInvalidRequest, "", "", "", fmt.Errorf("historical definitions: %w", err))
 	}
@@ -157,7 +164,7 @@ func Detect(request Request) (Plan, error) {
 	}
 
 	if len(changes) == 0 {
-		return Plan{}, nil
+		return Plan{baseState: current}, nil
 	}
 
 	expected, err := expectedProjectState(current, desired, managed)
@@ -266,7 +273,7 @@ func Detect(request Request) (Plan, error) {
 	if !actual.Equal(expected) {
 		return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", fmt.Errorf("generated latest state differs from desired managed state"))
 	}
-	return Plan{migrations: cloneMigrations(ordered)}, nil
+	return Plan{migrations: cloneMigrations(ordered), baseState: current}, nil
 }
 
 // topologicalCandidates returns an order in which every candidate-only

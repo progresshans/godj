@@ -3,7 +3,6 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"strconv"
 )
 
@@ -23,7 +22,7 @@ func GenerateProjectRelationSelectRelated(
 	if err != nil {
 		return nil, err
 	}
-	return generateProjectRelationSelectRelated(packageName, newRelationProjectPlan(canonical))
+	return generateProjectCompanion(packageName, newRelationProjectPlan(canonical), companionSelect)
 }
 
 func generateProjectRelationSelectRelated(packageName string, plan *relationProjectPlan) ([]byte, error) {
@@ -39,12 +38,6 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 	models, sources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err
-	}
-	if err := validateProjectRelationObjectNamespaces(canonical, sources); err != nil {
-		return nil, fmt.Errorf("validate project relation select-related prerequisites: %w", err)
-	}
-	if err := validateProjectRelationSelectRelatedNamespaces(plan, sources); err != nil {
-		return nil, fmt.Errorf("validate project relation select-related names: %w", err)
 	}
 	usedModels := projectRelationSelectRelatedUsedModels(models, sources)
 	usedApps := projectRelationSelectRelatedUsedApps(canonical, usedModels)
@@ -94,11 +87,7 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 		renderProjectRelationSelectRelatedSource(&output, source)
 	}
 
-	formatted, err := format.Source(output.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("format generated project relation select-related companion: %w", err)
-	}
-	return formatted, nil
+	return output.Bytes(), nil
 }
 
 func validateProjectRelationSelectRelatedImports(apps []normalizedRelationPackage) error {
@@ -110,165 +99,6 @@ func validateProjectRelationSelectRelatedImports(apps []normalizedRelationPackag
 		switch app.importPath {
 		case "context", "database/sql", "github.com/progresshans/godj/db", "github.com/progresshans/godj/orm", "github.com/progresshans/godj/query", "github.com/progresshans/godj/schema/ir":
 			return fmt.Errorf("reserved relation select-related import path %q", app.importPath)
-		}
-	}
-	return nil
-}
-
-func validateProjectRelationSelectRelatedNamespaces(
-	plan *relationProjectPlan,
-	sources []projectRelationObjectSource,
-) error {
-	apps := plan.apps
-	packageNames := map[string]string{}
-	add := func(name, owner string) error {
-		if previous, duplicate := packageNames[name]; duplicate {
-			return fmt.Errorf("package symbol %s for %s conflicts with %s", name, owner, previous)
-		}
-		packageNames[name] = owner
-		return nil
-	}
-
-	for _, candidate := range []struct {
-		name  string
-		owner string
-	}{
-		{name: "GoDjProjectBindingGeneratorVersion", owner: "project binding provenance constant"},
-		{name: "Bind", owner: "project binding function"},
-		{name: "GoDjProjectRelationQueryGeneratorVersion", owner: "project relation query provenance constant"},
-		{name: "Relations", owner: "project relation query aggregate"},
-		{name: "BindRelations", owner: "project relation query binding function"},
-		{name: "GoDjProjectRelationObjectGeneratorVersion", owner: "project relation object provenance constant"},
-		{name: "Objects", owner: "project relation object aggregate"},
-		{name: "BindObjects", owner: "project relation object binding function"},
-		{name: "GoDjProjectRelationReverseGeneratorVersion", owner: "project reverse provenance constant"},
-		{name: "ReverseRelations", owner: "project reverse relation aggregate"},
-		{name: "BindReverseRelations", owner: "project reverse relation binding function"},
-		{name: "ReverseObjects", owner: "project reverse object aggregate"},
-		{name: "BindReverseObjects", owner: "project reverse object binding function"},
-		{name: "GoDjProjectRelationPrefetchGeneratorVersion", owner: "project prefetch provenance constant"},
-		{name: "ReversePrefetches", owner: "project prefetch aggregate"},
-		{name: "BindReversePrefetches", owner: "project prefetch binding function"},
-		{name: "GoDjProjectRelationSelectRelatedGeneratorVersion", owner: "project select-related provenance constant"},
-		{name: "relationSelectQuery", owner: "shared select-related terminal interface"},
-	} {
-		if err := add(candidate.name, candidate.owner); err != nil {
-			return err
-		}
-	}
-	for _, app := range apps {
-		if err := add(app.alias, "import alias for "+app.schema.AppLabel); err != nil {
-			return err
-		}
-	}
-	_, querySources, err := plan.querySurface()
-	if err != nil {
-		return fmt.Errorf("build immutable project relation query namespace: %w", err)
-	}
-	if err := validateProjectRelationQueryNamespaces(apps, querySources); err != nil {
-		return fmt.Errorf("validate immutable project relation query namespace: %w", err)
-	}
-	for _, source := range querySources {
-		identity := source.model.identity.AppLabel + "." + source.model.identity.ModelName
-		if err := add(source.relationsType, "relation query surface for "+identity); err != nil {
-			return err
-		}
-		for _, relation := range source.relations {
-			if err := add(relation.typeName, "relation query edge "+identity+"."+relation.field.Name); err != nil {
-				return err
-			}
-		}
-	}
-	_, reverseOwners, err := plan.reverseSurface()
-	if err != nil {
-		return fmt.Errorf("build immutable project reverse namespace: %w", err)
-	}
-	if err := validateProjectRelationReverseNamespaces(plan, reverseOwners); err != nil {
-		return fmt.Errorf("validate immutable project reverse namespace: %w", err)
-	}
-	reverseObjectOwners := projectRelationReverseObjectOwners(reverseOwners)
-	if err := validateProjectRelationPrefetchNamespaces(plan, reverseOwners, reverseObjectOwners); err != nil {
-		return fmt.Errorf("validate immutable project prefetch namespace: %w", err)
-	}
-	reverseObjectSet := make(map[*projectRelationModel]struct{}, len(reverseObjectOwners))
-	for index := range reverseObjectOwners {
-		reverseObjectSet[reverseObjectOwners[index].model] = struct{}{}
-	}
-	for _, owner := range reverseOwners {
-		identity := owner.model.identity.AppLabel + "." + owner.model.identity.ModelName
-		if err := add(owner.relationsType, "reverse relation surface for "+identity); err != nil {
-			return err
-		}
-		if _, objectCapable := reverseObjectSet[owner.model]; objectCapable {
-			if err := add(owner.factoryType, "reverse object factory for "+identity); err != nil {
-				return err
-			}
-			if err := add(owner.objectType, "reverse object wrapper for "+identity); err != nil {
-				return err
-			}
-			if err := add(owner.surface+"ReversePrefetches", "reverse prefetches for "+identity); err != nil {
-				return err
-			}
-		}
-		for _, relation := range owner.relations {
-			if err := add(relation.typeName, "reverse relation "+identity+"."+relation.name); err != nil {
-				return err
-			}
-		}
-	}
-
-	for _, source := range sources {
-		identity := source.model.identity.AppLabel + "." + source.model.identity.ModelName
-		if err := add(source.factoryType, "object factory for "+identity); err != nil {
-			return err
-		}
-		if err := add(source.objectType, "object wrapper for "+identity); err != nil {
-			return err
-		}
-		for _, relation := range source.relations {
-			if relation.field.Nullable {
-				if err := add(relation.typeName, "nullable object relation "+identity+"."+relation.field.Name); err != nil {
-					return err
-				}
-			}
-		}
-
-		builderType := source.surface + "SelectRelated"
-		dynamicType := source.surface + "DynamicSelectRelatedQuery"
-		if err := add(builderType, "select-related builder for "+identity); err != nil {
-			return err
-		}
-		if err := add(dynamicType, "dynamic select-related query for "+identity); err != nil {
-			return err
-		}
-		factoryMembers := map[string]string{
-			"From":          "existing object factory method",
-			"ParseDynamic":  "existing object factory method",
-			"SelectRelated": "select-related factory method",
-		}
-		builderMethods := map[string]string{
-			"ParseDynamic": "dynamic select-related method",
-		}
-		for _, relation := range source.relations {
-			if relation.selector == "SelectRelated" {
-				return fmt.Errorf("relation selector SelectRelated for %s.%s conflicts with the select-related factory method", identity, relation.field.Name)
-			}
-			if relation.field.Nullable {
-				if previous, duplicate := factoryMembers[relation.selector]; duplicate {
-					return fmt.Errorf("object factory member %s for %s.%s conflicts with %s", relation.selector, identity, relation.field.Name, previous)
-				}
-				factoryMembers[relation.selector] = relation.field.Name
-			}
-			if previous, duplicate := builderMethods[relation.selector]; duplicate {
-				return fmt.Errorf("select-related method %s for %s.%s conflicts with %s", relation.selector, identity, relation.field.Name, previous)
-			}
-			builderMethods[relation.selector] = relation.field.Name
-			if err := add(
-				source.surface+relation.selector+"SelectRelatedQuery",
-				"select-related query for "+identity+"."+relation.field.Name,
-			); err != nil {
-				return err
-			}
 		}
 	}
 	return nil

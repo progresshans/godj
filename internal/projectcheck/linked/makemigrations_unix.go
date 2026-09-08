@@ -366,15 +366,7 @@ func completeMakemigrationsResponse(
 	report MakemigrationsReport,
 	response writerprotocol.Response,
 ) (MakemigrationsReport, error) {
-	if dependencies.beforeResponseWrite != nil {
-		dependencies.beforeResponseWrite()
-	}
-	if err := ctx.Err(); err != nil {
-		return report, err
-	}
-	report.RunnerResponseWrites++
-	if err := writerprotocol.WriteResponse(writer, response); err != nil {
-		return report, err
-	}
-	return report, nil
+	err := publishLinkedResponse(ctx, dependencies.beforeResponseWrite, true, &report.RunnerResponseWrites,
+		func() error { return writerprotocol.WriteResponse(writer, response) })
+	return report, err
 }

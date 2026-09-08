@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"math"
 	"os"
 	"reflect"
@@ -117,7 +118,7 @@ type targetPostgresSnapshot struct {
 	policies       int
 	rules          int
 	counts         map[string]int64
-	history        []targetSQLiteHistoryRow
+	history        []dbstate.HistoryRow
 	revisions      []targetPostgresRevision
 	sequences      []targetPostgresSequence
 	values         map[string][]targetPostgresValue
@@ -378,8 +379,8 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 			t.Fatalf("inspect targeted migrate PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 		}
 		for rows.Next() {
-			var history targetSQLiteHistoryRow
-			if err := rows.Scan(&history.app, &history.name); err != nil {
+			var history dbstate.HistoryRow
+			if err := rows.Scan(&history.App, &history.Name); err != nil {
 				rows.Close()
 				t.Fatalf("scan targeted migrate PostgreSQL history: %v", testfixture.PostgresSafeError(err))
 			}
@@ -492,7 +493,7 @@ func targetAssertPostgresState(
 	schema string,
 	revision int64,
 	tables []string,
-	history []targetSQLiteHistoryRow,
+	history []dbstate.HistoryRow,
 	values map[string][]targetPostgresValue,
 ) targetPostgresSnapshot {
 	t.Helper()
@@ -514,17 +515,17 @@ func targetAssertPostgresState(
 	if snapshot.triggers != 0 || snapshot.policies != 0 || snapshot.rules != 0 {
 		t.Fatalf("targeted migrate PostgreSQL trigger/policy/rule counts = %d/%d/%d, want zero", snapshot.triggers, snapshot.policies, snapshot.rules)
 	}
-	canonicalHistory := append([]targetSQLiteHistoryRow(nil), history...)
+	canonicalHistory := append([]dbstate.HistoryRow(nil), history...)
 	sort.Slice(canonicalHistory, func(left, right int) bool {
-		if canonicalHistory[left].app != canonicalHistory[right].app {
-			return canonicalHistory[left].app < canonicalHistory[right].app
+		if canonicalHistory[left].App != canonicalHistory[right].App {
+			return canonicalHistory[left].App < canonicalHistory[right].App
 		}
-		return canonicalHistory[left].name < canonicalHistory[right].name
+		return canonicalHistory[left].Name < canonicalHistory[right].Name
 	})
 	if !reflect.DeepEqual(snapshot.history, canonicalHistory) {
 		t.Fatalf("targeted migrate PostgreSQL history = %+v, want %+v", snapshot.history, canonicalHistory)
 	}
-	wantFingerprint := targetFingerprintHistory(canonicalHistory)
+	wantFingerprint := dbstate.FingerprintHistory(canonicalHistory)
 	if len(snapshot.revisions) != 1 || snapshot.revisions[0].singleton != 1 || snapshot.revisions[0].format != 1 ||
 		len(snapshot.revisions[0].epoch) != 32 || snapshot.revisions[0].epoch == strings.Repeat("0", 32) ||
 		snapshot.revisions[0].revision != revision || snapshot.revisions[0].fingerprint != hex.EncodeToString(wantFingerprint[:]) {

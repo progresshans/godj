@@ -16,6 +16,8 @@ Nil/already-canceled context는 warm cache와 nullable no-I/O 경로에서도 �
 Descriptor·callback panic도 열린 rows를 정리하고 평가 flight를 해제해 waiter가 다시 시도할 수 있게 한다.
 Panic은 그대로 전파하며 partial result를 cache하지 않는다. 정상 반환의 rows·close·context 오류 결합은 유지한다.
 Limit/Offset/Distinct 파생은 불변 plan metadata를 공유하고, 외부로 반환하는 mutable slice는 분리한다.
+Cold At는 표현 가능한 기존 offset과 index를 합친 OFFSET/LIMIT 1로 한 row만 소비한다. 원래 limit을 벗어나면 빈 plan을
+사용하며 offset 범위를 넘는 index는 기존의 bounded row 소비 경로를 사용한다. DB 내부 offset 탐색 비용은 그대로다.
 
 이 경계의 이유는 [ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에 있다. QuerySet 자체의 안전성을 backend
 session·사용자 callback·반환된 mutable model의 임의 공유 안전성으로 확대하지 않는다.
@@ -76,6 +78,11 @@ Callback panic은 cleanup 뒤 같은 panic value로 다시 발생시킨다. Unkn
 각각 확인한다.
 
 ## 프로세스와 서비스
+
+Template의 공개 List/Object/Context 생성은 caller 소유 container를 복사하고 private immutable child 값은 공유한다.
+반복문의 변수와 forloop metadata는 render-local scope chain이 소유하여 중첩 반복이 바깥 binding을 바꾸지 않는다.
+준비된 serializer/Admin projector는 metadata를 공유하지만 사용자 reader에 전달하는 field는 복사한다. Reader와 model 자체의
+동시 접근 안전성은 application 책임이며, 준비된 metadata가 사용자 callback을 동기화하지 않는다.
 
 CLI child의 input/output pipe, process group, signal과 reap은 실행자가 소유한다. Timeout이나 caller cancellation 뒤에도
 child가 실행 중이거나 pipe writer가 남아 있는데 성공으로 반환하지 않는다. 큰 출력은 bounded protocol과 제한된 진단 buffer로

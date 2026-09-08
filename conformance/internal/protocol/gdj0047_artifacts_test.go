@@ -220,68 +220,6 @@ func TestGDJ0047PublishedArtifactsAreExactAndPayloadSafe(t *testing.T) {
 	}
 }
 
-func TestGDJ0047PublishedMakeAndWorkflowWiringIsExact(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	makeText := string(readArtifact(t, filepath.Join(root, "Makefile")))
-	for variable, value := range map[string]string{
-		"API_AUTHENTICATION_MANIFEST":           "conformance/contracts/api-authentication-manifest.json",
-		"API_AUTHENTICATION_ORACLE":             "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json",
-		"API_AUTHENTICATION_NOT_IMPLEMENTED":    "conformance/fixtures/godj-api-authentication-not-implemented.json",
-		"API_AUTHENTICATION_DEVIATION_EXPECTED": "conformance/fixtures/godj-api-authentication-deviation-expected.json",
-	} {
-		definition := variable + " := " + value
-		if got := strings.Count(makeText, definition); got != 1 {
-			t.Fatalf("Makefile definition %q count = %d, want 1", definition, got)
-		}
-	}
-	referenceTarget := gdj0047MakeTarget(t, makeText, "conformance-check:\n", "godj-conformance:")
-	productTarget := gdj0047MakeTarget(t, makeText, "godj-conformance:", "oracle-check:\n")
-	oracleCheckTarget := gdj0047MakeTarget(t, makeText, "oracle-check:\n", "oracle-regenerate:\n")
-	oracleRegenerateTarget := gdj0047MakeTarget(t, makeText, "oracle-regenerate:\n", "\nci:")
-	if got := strings.Count(referenceTarget, "$(API_AUTHENTICATION_MANIFEST)"); got != 2 {
-		t.Fatalf("reference API authentication manifest count = %d, want oracle and baseline", got)
-	}
-	if got := strings.Count(referenceTarget, "$(API_AUTHENTICATION_ORACLE)"); got != 1 {
-		t.Fatalf("reference API authentication oracle count = %d, want 1", got)
-	}
-	if got := strings.Count(referenceTarget, "$(API_AUTHENTICATION_NOT_IMPLEMENTED)"); got != 1 {
-		t.Fatalf("reference API authentication baseline count = %d, want 1", got)
-	}
-	if got := strings.Count(productTarget, "$(API_AUTHENTICATION_MANIFEST)"); got != 1 {
-		t.Fatalf("product API authentication manifest count = %d, want 1", got)
-	}
-	if got := strings.Count(productTarget, "$(API_AUTHENTICATION_ORACLE)"); got != 1 {
-		t.Fatalf("product API authentication oracle count = %d, want 1", got)
-	}
-	if got := strings.Count(productTarget, "$(API_AUTHENTICATION_DEVIATION_EXPECTED)"); got != 1 {
-		t.Fatalf("product API authentication deviation count = %d, want 1", got)
-	}
-	if strings.Contains(productTarget, "$(API_AUTHENTICATION_NOT_IMPLEMENTED)") {
-		t.Fatal("historical API authentication not-implemented fixture entered the product target")
-	}
-	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
-		if got := strings.Count(target, "$(API_AUTHENTICATION_MANIFEST)"); got != 1 {
-			t.Fatalf("%s API authentication manifest count = %d, want 1", name, got)
-		}
-		if got := strings.Count(target, "$(API_AUTHENTICATION_ORACLE)"); got != 1 {
-			t.Fatalf("%s API authentication oracle count = %d, want 1", name, got)
-		}
-	}
-	if !strings.Contains(oracleCheckTarget, "--output $(API_AUTHENTICATION_ORACLE) --check") {
-		t.Fatal("oracle-check does not require an exact API authentication no-rewrite check")
-	}
-
-	workflow := string(readArtifact(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
-	if got := strings.Count(workflow, "conformance/fixtures/godj-api-authentication-not-implemented.json"); got != 2 {
-		t.Fatalf("workflow API authentication baseline count = %d, want both reference gates", got)
-	}
-	if got := strings.Count(workflow, "conformance/fixtures/godj-api-authentication-deviation-expected.json"); got != 2 {
-		t.Fatalf("workflow API authentication deviation count = %d, want both artifact rewrite gates", got)
-	}
-}
-
 func assertGDJ0047Authority(t *testing.T, contract Contract) {
 	t.Helper()
 
@@ -340,17 +278,4 @@ func assertGDJ0047Authority(t *testing.T, contract Contract) {
 	if contract.Status == ContractPassing && deviationDecisionCount != 0 {
 		t.Fatalf("passing contract %s carries DEV-0009 provenance", contract.ID)
 	}
-}
-
-func gdj0047MakeTarget(t *testing.T, text, startMarker, endMarker string) string {
-	t.Helper()
-	start := strings.Index(text, startMarker)
-	if start < 0 {
-		t.Fatalf("Makefile target marker %q is missing", startMarker)
-	}
-	end := strings.Index(text[start+len(startMarker):], endMarker)
-	if end < 0 {
-		t.Fatalf("Makefile target end marker %q is missing", endMarker)
-	}
-	return text[start : start+len(startMarker)+end]
 }

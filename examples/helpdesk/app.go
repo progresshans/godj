@@ -41,7 +41,7 @@ type Application struct {
 	categoryID int64
 	registry   admin.Registry
 	input      serializers.Spec
-	output     serializers.Spec
+	encoder    serializers.ModelEncoder[models.Ticket]
 	parser     api.Parser
 	relations  project.Relations
 	objects    project.Models
@@ -81,8 +81,12 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.output, err = serializers.FromModel(metadata,
+	output, err := serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	a.encoder, err = serializers.NewModelEncoder(output, metadata, (models.TicketDescriptor{}).WriteFieldValue)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +107,10 @@ func (a *Application) Registry() admin.Registry { return a.registry }
 
 func (a *Application) register(builder *admin.Builder) error {
 	categoryDescriptor := models.CategoryDescriptor{}
+	categoryProjector, err := admin.NewModelProjector(categoryDescriptor.Metadata(), categoryDescriptor.WriteFieldValue, "id", "name")
+	if err != nil {
+		return err
+	}
 	if err := admin.RegisterModel(builder, admin.ModelConfig[models.Category]{
 		AppLabel: "helpdesk", Slug: "categories", Model: categoryDescriptor.Metadata(), ReadOnly: true,
 		ListFields: []string{"id", "name"}, SearchFields: []string{"name"}, Permissions: admin.Permissions{View: ViewCategory},
@@ -127,7 +135,7 @@ func (a *Application) register(builder *admin.Builder) error {
 			return admin.Page[models.Category]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, err
 		},
 		Snapshot: func(value models.Category) (admin.Object, error) {
-			return admin.ModelObject(categoryDescriptor.Metadata(), value, categoryDescriptor.WriteFieldValue, value.ID, value.Name, "id", "name")
+			return categoryProjector.Project(value, value.ID, value.Name)
 		},
 	}); err != nil {
 		return err
@@ -136,6 +144,10 @@ func (a *Application) register(builder *admin.Builder) error {
 	metadata := descriptor.Metadata()
 	fields := []string{"subject", "details", "closed"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
+	if err != nil {
+		return err
+	}
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category")
 	if err != nil {
 		return err
 	}
@@ -152,7 +164,7 @@ func (a *Application) register(builder *admin.Builder) error {
 			return value, true, nil
 		},
 		Snapshot: func(value models.Ticket) (admin.Object, error) {
-			return admin.ModelObject(metadata, value, descriptor.WriteFieldValue, value.ID, value.Subject, "id", "subject", "details", "closed", "category")
+			return ticketProjector.Project(value, value.ID, value.Subject)
 		},
 		Initial: func(value models.Ticket) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, form, value, descriptor.WriteFieldValue)
@@ -312,9 +324,8 @@ func (a *Application) APIRoutes(authentication api.Authentication) ([]web.Route,
 			return web.Response{}, err
 		}
 		values := make([]serializers.Value, 0, len(page.Items))
-		descriptor := models.TicketDescriptor{}
 		for _, value := range page.Items {
-			item, err := serializers.ModelValue(a.output, descriptor.Metadata(), value, descriptor.WriteFieldValue)
+			item, err := a.encoder.Encode(value)
 			if err != nil {
 				return web.Response{}, err
 			}
@@ -362,8 +373,7 @@ func (a *Application) APIRoutes(authentication api.Authentication) ([]web.Route,
 		if err != nil {
 			return web.Response{}, err
 		}
-		descriptor := models.TicketDescriptor{}
-		value, err := serializers.ModelValue(a.output, descriptor.Metadata(), created, descriptor.WriteFieldValue)
+		value, err := a.encoder.Encode(created)
 		if err != nil {
 			return web.Response{}, err
 		}
@@ -404,8 +414,7 @@ func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Respon
 	if err != nil {
 		return web.Response{}, err
 	}
-	descriptor := models.TicketDescriptor{}
-	ticketValue, err := serializers.ModelValue(a.output, descriptor.Metadata(), raw, descriptor.WriteFieldValue)
+	ticketValue, err := a.encoder.Encode(raw)
 	if err != nil {
 		return web.Response{}, err
 	}

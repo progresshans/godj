@@ -47,6 +47,33 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 	}
 }
 
+func TestMigrationIntentClonePreservesShapeAndDetachesNestedIR(t *testing.T) {
+	field := ir.Field{Name: "owner", Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "before"}, Relation: &ir.ForeignKeyRelation{Target: ir.ModelIdentity{AppLabel: "owners", ModelName: "owner"}}}
+	model := ir.Model{Name: "entry", Fields: []ir.Field{field}}
+	intent := MigrationIntent{Operations: []MigrationOperation{{
+		Before: model, After: model,
+		Targets: []MigrationTarget{{SourceField: field, TargetModel: model, TargetKey: field}},
+	}}}
+	cloned := intent.Clone()
+	cloned.Operations[0].Before.Fields[0].Default.String = "changed before"
+	cloned.Operations[0].After.Fields[0].Relation.Target.AppLabel = "changed after"
+	cloned.Operations[0].Targets[0].SourceField.Default.String = "changed source"
+	cloned.Operations[0].Targets[0].TargetModel.Fields[0].Default.String = "changed model"
+	cloned.Operations[0].Targets[0].TargetKey.Relation.Target.ModelName = "changed key"
+	if !reflect.DeepEqual(intent.Operations[0].Before, model) || field.Default.String != "before" || field.Relation.Target != (ir.ModelIdentity{AppLabel: "owners", ModelName: "owner"}) {
+		t.Fatal("intent clone retained a nested caller alias")
+	}
+	for _, value := range []MigrationIntent{
+		{}, {Operations: []MigrationOperation{}},
+		{Operations: []MigrationOperation{{Before: ir.Model{Fields: []ir.Field{}}, Targets: []MigrationTarget{}}}},
+		{Operations: []MigrationOperation{{Targets: []MigrationTarget{{TargetModel: ir.Model{Fields: []ir.Field{}}}}}}},
+	} {
+		if !reflect.DeepEqual(value.Clone(), value) {
+			t.Fatalf("intent clone changed nil/empty shape: %#v", value)
+		}
+	}
+}
+
 func TestRevisionFencedPortsExposeOneCapabilityAndBeginPath(t *testing.T) {
 	backendType := reflect.TypeOf((*RevisionFencedBackend)(nil)).Elem()
 	if backendType.NumMethod() != 2 {

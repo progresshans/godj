@@ -5,6 +5,7 @@ package protocol
 import (
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"io"
 	"regexp"
 	"strings"
@@ -216,54 +217,23 @@ func WriteResponse(writer io.Writer, response Response) error {
 func ExitCode(failure Failure) (int, bool) {
 	switch failure.Category {
 	case CategoryCommand:
-		return exactCode(failure.Code, 2, CodeInvalidArguments)
+		return failurecode.Exact(failure.Code, 2, CodeInvalidArguments)
 	case CategorySelection:
-		switch failure.Code {
-		case CodeProjectNotFound, CodeProjectSearchLimitExceeded, CodeInvalidProjectDescriptor, CodeProjectDescriptorIncompatible:
-			return 2, true
-		case CodeProjectSelectionFailed:
-			return 3, true
-		}
+		return failurecode.Selection(failure.Code, 3)
 	case CategoryBuild:
-		return exactCode(failure.Code, 3, CodeProjectTemporaryStorageFailed, CodeProjectBuildFailed)
+		return failurecode.Exact(failure.Code, 3, CodeProjectTemporaryStorageFailed, CodeProjectBuildFailed)
 	case CategoryProtocol:
-		return exactCode(failure.Code, 3, CodeInvalidProjectRunnerRequest, CodeProjectRunnerFailed, CodeProjectProtocolIncompatible, CodeInvalidProjectRunnerResponse)
+		return failurecode.Exact(failure.Code, 3, CodeInvalidProjectRunnerRequest, CodeProjectRunnerFailed, CodeProjectProtocolIncompatible, CodeInvalidProjectRunnerResponse)
 	case CategoryProcess:
-		switch failure.Code {
-		case CodeProjectCanceled, CodeProjectCleanupFailed:
-			return 3, true
-		case CodeProjectInterrupted:
-			return 130, true
-		}
+		return failurecode.Process(failure.Code)
 	case CategoryDiscovery:
-		switch failure.Code {
-		case CodeInvalidProjectSourceConfig, CodeInvalidSourceRoot:
-			return 2, true
-		case CodeInvalidSourceEntry, CodeUnsafeSourceEntry, CodeSourceCatalogLimitExceeded:
-			return 1, true
-		case CodeSourceDiscoveryFailed, CodeSourceReadFailed:
-			return 3, true
-		}
+		return failurecode.Discovery(failure.Code)
 	case CategorySource:
-		return exactCode(failure.Code, 1,
-			"invalid_definition_source",
-			"invalid_definition_document",
-			"definition_format_incompatible",
-			"unsupported_definition_operation",
-			"invalid_definition_operation",
-			"invalid_definition_ir",
-		)
+		return failurecode.Source(failure.Code)
 	case CategoryGraph:
-		return exactCode(failure.Code, 1,
-			"invalid_node",
-			"duplicate_node",
-			"invalid_dependency",
-			"duplicate_dependency",
-			"dependency_not_found",
-			"dependency_cycle",
-		)
+		return failurecode.Graph(failure.Code)
 	case CategoryInternal:
-		return exactCode(failure.Code, 3, CodeProjectInternalError)
+		return failurecode.Exact(failure.Code, 3, CodeProjectInternalError)
 	}
 	return 0, false
 }
@@ -326,15 +296,6 @@ func validDigest(value string) bool {
 		}
 	}
 	return true
-}
-
-func exactCode(code string, exit int, allowed ...string) (int, bool) {
-	for _, candidate := range allowed {
-		if code == candidate {
-			return exit, true
-		}
-	}
-	return 0, false
 }
 
 func invalidResponse() (Response, Failure, bool) {

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/examples/article/articleapp"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -1323,11 +1324,11 @@ func newSystemStateWebProcess(
 		if err := authRuntime.VerifyCSRF(request, nil); err != nil {
 			return systemStateWebResponse(http.StatusForbidden, "forbidden", "")
 		}
-		repository, err := adminapp.NewRepository(fixture.runtime)
+		repository, err := articleapp.NewRepository(fixture.runtime)
 		if err != nil {
 			return web.Response{}, err
 		}
-		if _, err := repository.Create(request.Context(), adminapp.Input{Title: "CSRF mutation"}); err != nil {
+		if _, err := repository.Create(request.Context(), articleapp.Input{Title: "CSRF mutation"}); err != nil {
 			return web.Response{}, err
 		}
 		return systemStateWebResponse(http.StatusCreated, "created", "")
@@ -1448,11 +1449,6 @@ func systemStateNamedCookie(jar http.CookieJar, rawURL, name string) (string, bo
 	return "", false
 }
 
-type systemStateAdminProcess struct {
-	server *httptest.Server
-	client *http.Client
-}
-
 func systemStateConfigureArticleAdmin(config *systemStateConfig) {
 	config.Permissions = []auth.Permission{
 		admin.DefaultAccessPermission,
@@ -1461,231 +1457,6 @@ func systemStateConfigureArticleAdmin(config *systemStateConfig) {
 		adminapp.ArticleChangePermission,
 		adminapp.ArticleDeletePermission,
 	}
-}
-
-func newSystemStateAdminProcess(
-	fixture *systemStateFixture,
-	jar http.CookieJar,
-	entropy byte,
-) (*systemStateAdminProcess, error) {
-	service, err := adminapp.NewDurableService(fixture.runtime, fixture.runtime)
-	if err != nil {
-		return nil, err
-	}
-	configured, err := settings.New(settings.Definition{
-		ProjectName: "system_state_admin_actual",
-		InstalledApps: []apps.Config{{
-			Name:  "github.com/progresshans/godj/examples/article/models",
-			Label: "godj_conformance",
-		}},
-	})
-	if err != nil {
-		return nil, err
-	}
-	builder := admin.NewBuilder(configured.Apps())
-	if err := adminapp.RegisterArticle(builder, service); err != nil {
-		return nil, err
-	}
-	registry, err := builder.Build()
-	if err != nil {
-		return nil, err
-	}
-	manager, err := sessions.NewManager(fixture.runtime.SessionStore(), sessions.Config{
-		AbsoluteLifetime: 2 * time.Hour,
-		IdleTimeout:      30 * time.Minute,
-		Clock:            func() time.Time { return systemStateClock },
-		Random:           bytes.NewReader(bytes.Repeat([]byte{entropy}, 32*32)),
-	})
-	if err != nil {
-		return nil, err
-	}
-	allowedNext, err := admin.SiteAllowedNextPaths(registry, "/admin")
-	if err != nil {
-		return nil, err
-	}
-	authRuntime, err := websessionauth.New(websessionauth.Config{
-		Sessions:         manager,
-		Authenticator:    fixture.runtime.Authenticator(),
-		Authorizer:       auth.PrincipalAuthorizer{},
-		SessionCookie:    websessionauth.CookieConfig{Path: "/", AllowInsecure: true, Lifetime: 2 * time.Hour},
-		CSRFCookie:       websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
-		LoginPath:        "/admin/login/",
-		FallbackPath:     "/admin/",
-		AllowedNextPaths: allowedNext,
-		Random:           bytes.NewReader(bytes.Repeat([]byte{entropy + 1}, 32*64)),
-		Clock:            func() time.Time { return systemStateClock },
-	})
-	if err != nil {
-		return nil, err
-	}
-	site, err := admin.NewSite(admin.SiteConfig{
-		Apps:      configured.Apps(),
-		Namespace: "godj_conformance",
-		BasePath:  "/admin",
-		Registry:  registry,
-		Auth:      authRuntime,
-		Random:    bytes.NewReader(bytes.Repeat([]byte{entropy + 2}, 32)),
-	})
-	if err != nil {
-		return nil, err
-	}
-	application, err := web.NewApplication(web.Config{Settings: configured, Routes: site.Routes()})
-	if err != nil {
-		return nil, err
-	}
-	server := httptest.NewServer(application)
-	client := server.Client()
-	client.Jar = jar
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &systemStateAdminProcess{server: server, client: client}, nil
-}
-
-func (process *systemStateAdminProcess) close() {
-	if process != nil && process.server != nil {
-		process.server.Close()
-	}
-}
-
-func (process *systemStateAdminProcess) request(
-	ctx context.Context,
-	method, path string,
-	values url.Values,
-) (int, http.Header, string, error) {
-	var body io.Reader
-	if values != nil {
-		body = strings.NewReader(values.Encode())
-	}
-	request, err := http.NewRequestWithContext(ctx, method, process.server.URL+path, body)
-	if err != nil {
-		return 0, nil, "", err
-	}
-	if values != nil {
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	}
-	response, err := process.client.Do(request)
-	if err != nil {
-		return 0, nil, "", err
-	}
-	payload, readErr := io.ReadAll(response.Body)
-	closeErr := response.Body.Close()
-	return response.StatusCode, response.Header.Clone(), string(payload), errors.Join(readErr, closeErr)
-}
-
-func (process *systemStateAdminProcess) login(
-	ctx context.Context,
-	config systemStateConfig,
-) (int, error) {
-	status, _, body, err := process.request(ctx, http.MethodGet, "/admin/login/?next=/admin/articles/", nil)
-	if err != nil || status != http.StatusOK {
-		return status, fmt.Errorf("load system-state Admin login: status=%d: %w", status, err)
-	}
-	token, err := systemStateHTMLCSRFToken(body)
-	if err != nil {
-		return 0, err
-	}
-	status, _, _, err = process.request(ctx, http.MethodPost, "/admin/login/", url.Values{
-		"csrfmiddlewaretoken": {token},
-		"username":            {config.Username},
-		"password":            {config.Password},
-		"next":                {"/admin/articles/"},
-	})
-	return status, err
-}
-
-func (process *systemStateAdminProcess) formToken(ctx context.Context, path string) (string, error) {
-	status, _, body, err := process.request(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return "", err
-	}
-	if status != http.StatusOK {
-		return "", fmt.Errorf("load system-state Admin form: status=%d", status)
-	}
-	return systemStateHTMLCSRFToken(body)
-}
-
-func systemStateHTMLCSRFToken(body string) (string, error) {
-	const marker = `name="csrfmiddlewaretoken" value="`
-	start := strings.Index(body, marker)
-	if start < 0 {
-		return "", errors.New("system-state Admin form omitted CSRF token")
-	}
-	remaining := body[start+len(marker):]
-	end := strings.IndexByte(remaining, '"')
-	if end <= 0 {
-		return "", errors.New("system-state Admin form published malformed CSRF token")
-	}
-	return remaining[:end], nil
-}
-
-func systemStateAuditValues(entries []admin.AuditEntry) []protocol.Value {
-	values := make([]protocol.Value, len(entries))
-	for index, entry := range entries {
-		values[index] = protocol.Object(map[string]protocol.Value{
-			"action":   protocol.String(string(entry.Action)),
-			"sequence": systemStateInt64(int64(entry.Sequence)),
-		})
-	}
-	return values
-}
-
-func systemStateAuditStrictlyIncreasing(entries []admin.AuditEntry) bool {
-	for index := 1; index < len(entries); index++ {
-		if entries[index-1].Sequence >= entries[index].Sequence {
-			return false
-		}
-	}
-	return true
-}
-
-func systemStateAuditContiguous(entries []admin.AuditEntry) bool {
-	for index := 1; index < len(entries); index++ {
-		if entries[index-1].Sequence+1 != entries[index].Sequence {
-			return false
-		}
-	}
-	return true
-}
-
-func systemStateAuditAcceptsNonContiguous(ctx context.Context) (bool, error) {
-	fixture, err := newSystemStateFixture(ctx, false, nil)
-	if err != nil {
-		return false, err
-	}
-	defer fixture.cleanup()
-	events := make([]admin.PreparedEvent, 0, 3)
-	for _, seed := range []struct {
-		objectID int64
-		action   admin.Action
-	}{
-		{objectID: 7, action: admin.ActionAdd},
-		{objectID: 8, action: admin.ActionAdd},
-		{objectID: 7, action: admin.ActionChange},
-	} {
-		event, err := admin.PrepareEvent(
-			fixture.config.PrincipalID,
-			systemStateArticleModel,
-			seed.objectID,
-			seed.action,
-			nil,
-			"Gap probe",
-		)
-		if err != nil {
-			return false, err
-		}
-		events = append(events, event)
-	}
-	for _, event := range events {
-		if err := fixture.runtime.Atomic(ctx, func(session db.Session) error {
-			return fixture.runtime.AppendAudit(ctx, session, event)
-		}); err != nil {
-			return false, err
-		}
-	}
-	history, err := fixture.runtime.AuditHistory(ctx, systemStateArticleModel, 7, 3)
-	if err != nil {
-		return false, err
-	}
-	return len(history) == 2 && systemStateAuditStrictlyIncreasing(history) && !systemStateAuditContiguous(history), nil
 }
 
 type systemStateCommitUnknownBackend struct {
@@ -1774,7 +1545,7 @@ func systemStateCommitOutcomeUnknown(
 		return protocol.Observation{}, err
 	}
 	fixture.observed.resetDML()
-	_, mutationErr := service.Create(ctx, fixture.config.PrincipalID, adminapp.Input{Title: "Outcome unknown"})
+	_, mutationErr := service.Create(ctx, fixture.config.PrincipalID, articleapp.Input{Title: "Outcome unknown"})
 	var outcome *query.Error
 	classifiedUnknown := errors.As(mutationErr, &outcome) && outcome.Code == query.CodeCommitOutcomeUnknown
 	if !classifiedUnknown {

@@ -93,7 +93,7 @@ func (_query ModelsCategoryQuery) New(_value models.Category) (*ModelsCategory, 
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	return _query.state.newModelsCategory(_value)
+	return _query.state.wrapModelsCategory(_value, true)
 }
 
 func (_query ModelsCategoryQuery) Filter(_predicates ...orm.Predicate[models.Category]) ModelsCategoryQuery {
@@ -170,7 +170,7 @@ func (_query ModelsCategoryQuery) First(_ctx context.Context) (*ModelsCategory, 
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsCategory(_value)
+	_wrapped, _err := _query.state.wrapModelsCategory(_value, false)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -187,7 +187,7 @@ func (_query ModelsCategoryQuery) All(_ctx context.Context) ([]*ModelsCategory, 
 	}
 	_results := make([]*ModelsCategory, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsCategory(_values[_index])
+		_wrapped, _err := _query.state.wrapModelsCategory(_values[_index], false)
 		if _err != nil {
 			return nil, _err
 		}
@@ -206,20 +206,7 @@ type ModelsCategory struct {
 	_self                     *ModelsCategory
 }
 
-func (_state *relationFacadeState) wrapModelsCategory(_value models.Category) (*ModelsCategory, error) {
-	if _err := _state.validate(); _err != nil {
-		return nil, _err
-	}
-	_cloned := (models.CategoryDescriptor{}).CloneWriteModel(_value)
-	_result := &ModelsCategory{state: _state, modelsCategoryModel: _cloned}
-	_result._self = _result
-	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
-		return nil, _err
-	}
-	return _result, nil
-}
-
-func (_state *relationFacadeState) newModelsCategory(_value models.Category) (*ModelsCategory, error) {
+func (_state *relationFacadeState) wrapModelsCategory(_value models.Category, _new bool) (*ModelsCategory, error) {
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
@@ -328,7 +315,7 @@ func (_query ModelsTicketQuery) New(_value models.Ticket) (*ModelsTicket, error)
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
 	}
-	return _query.state.newModelsTicket(_value)
+	return _query.state.wrapModelsTicket(_value, true)
 }
 
 func (_query ModelsTicketQuery) Filter(_predicates ...orm.Predicate[models.Ticket]) ModelsTicketQuery {
@@ -405,7 +392,7 @@ func (_query ModelsTicketQuery) First(_ctx context.Context) (*ModelsTicket, bool
 	if _err != nil || !_found {
 		return nil, _found, _err
 	}
-	_wrapped, _err := _query.state.wrapModelsTicket(_value)
+	_wrapped, _err := _query.state.wrapModelsTicket(_value, false)
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -422,7 +409,7 @@ func (_query ModelsTicketQuery) All(_ctx context.Context) ([]*ModelsTicket, erro
 	}
 	_results := make([]*ModelsTicket, len(_values))
 	for _index := range _values {
-		_wrapped, _err := _query.state.wrapModelsTicket(_values[_index])
+		_wrapped, _err := _query.state.wrapModelsTicket(_values[_index], false)
 		if _err != nil {
 			return nil, _err
 		}
@@ -445,7 +432,7 @@ type ModelsTicket struct {
 	_self                     *ModelsTicket
 }
 
-func (_state *relationFacadeState) wrapModelsTicket(_value models.Ticket) (*ModelsTicket, error) {
+func (_state *relationFacadeState) wrapModelsTicket(_value models.Ticket, _new bool) (*ModelsTicket, error) {
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
@@ -456,26 +443,7 @@ func (_state *relationFacadeState) wrapModelsTicket(_value models.Ticket) (*Mode
 	}
 	_result := &ModelsTicket{state: _state, modelsTicketModel: _cloned, object: _object}
 	_result.categoryCache = orm.NewRelationCache[ModelsCategory]()
-	_result.categoryScalarPresent = true
-	_result._self = _result
-	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
-		return nil, _err
-	}
-	return _result, nil
-}
-
-func (_state *relationFacadeState) newModelsTicket(_value models.Ticket) (*ModelsTicket, error) {
-	if _err := _state.validate(); _err != nil {
-		return nil, _err
-	}
-	_cloned := (models.TicketDescriptor{}).CloneWriteModel(_value)
-	_object, _err := _state.objects.ModelsTicket.From(_state.backend, _cloned)
-	if _err != nil {
-		return nil, _err
-	}
-	_result := &ModelsTicket{state: _state, modelsTicketModel: _cloned, object: _object}
-	_result.categoryCache = orm.NewRelationCache[ModelsCategory]()
-	_result.categoryScalarPresent = _value.CategoryID != 0
+	_result.categoryScalarPresent = !_new || _value.CategoryID != 0
 	_result._self = _result
 	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
 		return nil, _err
@@ -802,7 +770,7 @@ func (_model *ModelsTicket) Category(_ctx context.Context) (*ModelsCategory, err
 	if _err != nil {
 		return nil, _err
 	}
-	_wrapped, _err := _model.state.wrapModelsCategory(_value)
+	_wrapped, _err := _model.state.wrapModelsCategory(_value, false)
 	if _err != nil {
 		return nil, _err
 	}

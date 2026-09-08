@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -8,6 +9,51 @@ import (
 
 	"github.com/progresshans/godj/migrations/internal/loadeddefinition"
 )
+
+func TestLoadedReconstructorReusesGraphAndKeepsHistoricalValidation(t *testing.T) {
+	definitions := stateFixtureDefinitions()
+	loaded := testLoadedDefinitionSet(t, definitions)
+	reconstructor, err := loaded.Reconstructor(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, _ := loaded.view()
+	if reconstructor.core.planner.graph != view.Prepared.graph {
+		t.Fatal("loaded reconstruction rebuilt its published identity graph")
+	}
+	want, err := reconstructor.Reconstruct(LatestStateRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	inspection := loaded.Definitions()
+	inspection[0].Operations = nil
+	definitions[0].Operations = nil
+	if got, err := reconstructor.Reconstruct(LatestStateRequest()); err != nil || !got.Equal(want) {
+		t.Fatalf("loaded reconstruction changed after caller mutation: %v", err)
+	}
+	invalid := testLoadedDefinitionSet(t, []Migration{{App: "bad", Name: "0001", Operations: []Operation{CreateModel{AppLabel: "bad"}}}})
+	if _, err := invalid.Reconstructor(context.Background()); err == nil {
+		t.Fatal("identity-validated catalog bypassed historical model validation")
+	}
+	if _, err := (LoadedDefinitionSet{}).Reconstructor(context.Background()); err == nil {
+		t.Fatal("zero catalog yielded a reconstructor")
+	}
+	if _, err := loaded.Reconstructor(nil); err == nil {
+		t.Fatal("nil reconstruction context was accepted")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := loaded.Reconstructor(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled loaded reconstruction = %v", err)
+	}
+	empty, err := testLoadedDefinitionSet(t, nil).Reconstructor(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state, err := empty.Reconstruct(LatestStateRequest()); err != nil || !state.Equal(EmptyProjectState()) {
+		t.Fatalf("loaded empty reconstruction = %v", err)
+	}
+}
 
 func TestLoadedDefinitionSetStatusesPreservesLoaderAuthority(t *testing.T) {
 	alpha1 := MigrationKey{App: "alpha", Name: "0001"}

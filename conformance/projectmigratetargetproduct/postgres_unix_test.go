@@ -4,6 +4,7 @@ package projectmigratetargetproduct_test
 
 import (
 	"errors"
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"os"
 	"reflect"
 	"testing"
@@ -40,7 +41,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		targetAssertExecuteSuccess(t, execute, 6, sensitive...)
 		targetAssertPostgresState(t, databaseURL, schema, 3,
 			[]string{targetAlpha1Table, targetAlpha2Table, targetAlpha3Table},
-			[]targetSQLiteHistoryRow{
+			[]dbstate.HistoryRow{
 				targetHistory(targetAlphaApp, targetAlpha1),
 				targetHistory(targetAlphaApp, targetAlpha2),
 				targetHistory(targetAlphaApp, targetAlpha3),
@@ -66,7 +67,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		identifier := targetInsertPostgresValue(t, databaseURL, schema, targetAlpha1Table, "named reverse PostgreSQL sentinel")
 		seedState := targetAssertPostgresState(t, databaseURL, schema, 6,
 			[]string{targetAlpha1Table, targetAlpha2Table, targetAlpha3Table, targetBeta1Table, targetCharlie1Table, targetGamma1Table},
-			[]targetSQLiteHistoryRow{
+			[]dbstate.HistoryRow{
 				targetHistory(targetAlphaApp, targetAlpha1), targetHistory(targetAlphaApp, targetAlpha2), targetHistory(targetAlphaApp, targetAlpha3),
 				targetHistory(targetBetaApp, targetBeta1), targetHistory(targetCharlieApp, targetCharlie1), targetHistory(targetGammaApp, targetGamma1),
 			},
@@ -95,7 +96,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		targetAssertExecuteSuccess(t, execute, 6, sensitive...)
 		after := targetAssertPostgresState(t, databaseURL, schema, 9,
 			[]string{targetAlpha1Table, targetBeta1Table, targetGamma1Table},
-			[]targetSQLiteHistoryRow{
+			[]dbstate.HistoryRow{
 				targetHistory(targetAlphaApp, targetAlpha1),
 				targetHistory(targetBetaApp, targetBeta1),
 				targetHistory(targetGammaApp, targetGamma1),
@@ -124,7 +125,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		identifier := targetInsertPostgresValue(t, databaseURL, schema, targetGamma1Table, "unrelated PostgreSQL zero sentinel")
 		seedState := targetAssertPostgresState(t, databaseURL, schema, 5,
 			[]string{targetAlpha1Table, targetAlpha2Table, targetAlpha3Table, targetBeta1Table, targetGamma1Table},
-			[]targetSQLiteHistoryRow{
+			[]dbstate.HistoryRow{
 				targetHistory(targetAlphaApp, targetAlpha1), targetHistory(targetAlphaApp, targetAlpha2), targetHistory(targetAlphaApp, targetAlpha3),
 				targetHistory(targetBetaApp, targetBeta1), targetHistory(targetGammaApp, targetGamma1),
 			},
@@ -154,7 +155,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		targetAssertExecuteSuccess(t, execute, 5, sensitive...)
 		after := targetAssertPostgresState(t, databaseURL, schema, 9,
 			[]string{targetGamma1Table},
-			[]targetSQLiteHistoryRow{targetHistory(targetGammaApp, targetGamma1)},
+			[]dbstate.HistoryRow{targetHistory(targetGammaApp, targetGamma1)},
 			map[string][]targetPostgresValue{targetGamma1Table: {{id: identifier, value: "unrelated PostgreSQL zero sentinel"}}},
 		)
 		if got := targetPostgresEpoch(t, after); got != seedEpoch {
@@ -190,7 +191,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		identifier := targetInsertPostgresValue(t, databaseURL, schema, targetBlog1Table, "PostgreSQL preview drift sentinel")
 		seedState := targetAssertPostgresState(t, databaseURL, schema, 1,
 			[]string{targetBlog1Table},
-			[]targetSQLiteHistoryRow{targetHistory(targetBlogApp, targetBlog1)},
+			[]dbstate.HistoryRow{targetHistory(targetBlogApp, targetBlog1)},
 			map[string][]targetPostgresValue{targetBlog1Table: {{id: identifier, value: "PostgreSQL preview drift sentinel"}}},
 		)
 		seedEpoch := targetPostgresEpoch(t, seedState)
@@ -213,7 +214,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		targetAssertExecuteSuccess(t, drift, 2, sensitive...)
 		afterDrift := targetAssertPostgresState(t, databaseURL, schema, 2,
 			[]string{targetBlog1Table, targetBlog2Table},
-			[]targetSQLiteHistoryRow{targetHistory(targetBlogApp, targetBlog1), targetHistory(targetBlogApp, targetBlog2)},
+			[]dbstate.HistoryRow{targetHistory(targetBlogApp, targetBlog1), targetHistory(targetBlogApp, targetBlog2)},
 			map[string][]targetPostgresValue{targetBlog1Table: {{id: identifier, value: "PostgreSQL preview drift sentinel"}}},
 		)
 		if got := targetPostgresEpoch(t, afterDrift); got != seedEpoch {
@@ -244,7 +245,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		identifier := targetInsertPostgresValue(t, databaseURL, schema, targetFailure1Table, "PostgreSQL reverse resume sentinel")
 		seedState := targetAssertPostgresState(t, databaseURL, schema, 4,
 			[]string{targetFailure1Table, targetFailure2Table, targetFailure3FirstTable, targetFailure3SecondTable, targetFailure4Table},
-			[]targetSQLiteHistoryRow{
+			[]dbstate.HistoryRow{
 				targetHistory(targetFailureApp, targetFailure1), targetHistory(targetFailureApp, targetFailure2),
 				targetHistory(targetFailureApp, targetFailure3), targetHistory(targetFailureApp, targetFailure4),
 			},
@@ -281,7 +282,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		)
 		failedState := targetAssertPostgresState(t, databaseURL, schema, 5,
 			[]string{targetFailure1Table, targetFailure2Table, targetFailure3FirstTable, targetFailure3SecondTable},
-			[]targetSQLiteHistoryRow{
+			[]dbstate.HistoryRow{
 				targetHistory(targetFailureApp, targetFailure1), targetHistory(targetFailureApp, targetFailure2), targetHistory(targetFailureApp, targetFailure3),
 			},
 			map[string][]targetPostgresValue{targetFailure1Table: {{id: identifier, value: "PostgreSQL reverse resume sentinel"}}},
@@ -302,7 +303,7 @@ func TestGlobalTargetedMigratePostgresLifecycle(t *testing.T) {
 		)
 		after := targetAssertPostgresState(t, databaseURL, schema, 7,
 			[]string{targetFailure1Table},
-			[]targetSQLiteHistoryRow{targetHistory(targetFailureApp, targetFailure1)},
+			[]dbstate.HistoryRow{targetHistory(targetFailureApp, targetFailure1)},
 			map[string][]targetPostgresValue{targetFailure1Table: {{id: identifier, value: "PostgreSQL reverse resume sentinel"}}},
 		)
 		if got := targetPostgresEpoch(t, after); got != seedEpoch {

@@ -129,8 +129,9 @@ func (state *renderState) renderNodes(
 			if len(value.list) > state.engine.limits.MaxLoopItems-state.loopItems {
 				return renderError(owner, item.line, item.column, "loop_items_exceeded", nil)
 			}
-			state.loopItems += len(value.list)
-			for index, value := range value.list {
+			items := value.list
+			state.loopItems += len(items)
+			for index, value := range items {
 				if err := ctx.Err(); err != nil {
 					return renderError(owner, item.line, item.column, "context_canceled", err)
 				}
@@ -138,9 +139,9 @@ func (state *renderState) renderNodes(
 					"counter":  Integer(int64(index + 1)),
 					"counter0": Integer(int64(index)),
 					"first":    Bool(index == 0),
-					"last":     Bool(index == len(value.list)-1),
+					"last":     Bool(index == len(items)-1),
 				}}
-				nested := values.with(item.name, value).with("forloop", loop)
+				nested := values.withLoop(item.name, value, loop)
 				if err := state.renderNodes(ctx, owner, item.children, nested, overrides, depth); err != nil {
 					return err
 				}
@@ -225,7 +226,7 @@ func (state *renderState) renderValue(owner string, item *node, value Value) err
 }
 
 func evaluate(expression expression, context Context) (Value, error) {
-	value, ok := context.values[expression.path[0]]
+	value, ok := context.lookup(expression.path[0])
 	if !ok {
 		value = Null()
 	}

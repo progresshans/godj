@@ -7,10 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"runtime"
-	"unicode/utf8"
 
 	"github.com/progresshans/godj/conformance/internal/attestationio"
 )
@@ -130,31 +128,9 @@ func MarshalCanonical(evidence Evidence) ([]byte, error) {
 // duplicate object names before decoding, unknown fields, trailing values,
 // non-canonical bytes, and every profile other than the fixed SYS-020 profile.
 func Decode(document []byte) (Evidence, error) {
-	if len(document) == 0 {
-		return Evidence{}, io.ErrUnexpectedEOF
-	}
-	if len(document) > MaxDocumentSize {
-		return Evidence{}, errors.New("PostgreSQL live attestation exceeds its size limit")
-	}
-	if !utf8.Valid(document) {
-		return Evidence{}, errors.New("PostgreSQL live attestation is not valid UTF-8")
-	}
-	if err := attestationio.RejectDuplicateObjectNames(document); err != nil {
-		return Evidence{}, errors.New("PostgreSQL live attestation has invalid or duplicate object names")
-	}
-
 	var wire wireEvidence
-	decoder := json.NewDecoder(bytes.NewReader(document))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&wire); err != nil {
-		return Evidence{}, errors.New("PostgreSQL live attestation has an invalid JSON shape")
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); err != io.EOF {
-		if err == nil {
-			return Evidence{}, errors.New("PostgreSQL live attestation contains a trailing JSON value")
-		}
-		return Evidence{}, errors.New("PostgreSQL live attestation contains invalid trailing data")
+	if err := attestationio.DecodeDocument(document, MaxDocumentSize, "PostgreSQL live attestation", &wire); err != nil {
+		return Evidence{}, err
 	}
 	evidence, err := wire.toEvidence()
 	if err != nil {

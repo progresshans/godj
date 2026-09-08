@@ -4,6 +4,7 @@ package projectcheck
 
 import (
 	"errors"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"path/filepath"
 
 	"github.com/progresshans/godj/codegen"
@@ -237,16 +238,8 @@ func runserverBarrier(input RunServerInvocation, primary *RunServerFailure) *Run
 	if primary != nil && primary.Category == RunServerCategoryProcess && primary.Code == RunServerCodeProjectCleanupFailed {
 		return primary
 	}
-	if input.Interrupt != nil {
-		select {
-		case <-input.Interrupt:
-			candidate := RunServerFailure{Category: RunServerCategoryProcess, Code: RunServerCodeProjectInterrupted}
-			return &candidate
-		default:
-		}
-	}
-	if input.Context != nil && input.Context.Err() != nil {
-		candidate := RunServerFailure{Category: RunServerCategoryProcess, Code: RunServerCodeProjectCanceled}
+	if code := commandInterruption(input.Context, input.Interrupt); code != "" {
+		candidate := RunServerFailure{Category: RunServerCategoryProcess, Code: code}
 		return &candidate
 	}
 	return primary
@@ -335,40 +328,29 @@ func chooseRunserverResult(report *RunServerReport, result RunServerResult) {
 func runserverExitCode(failure RunServerFailure) (int, bool) {
 	switch failure.Category {
 	case RunServerCategoryCommand:
-		return exactGenerationCode(failure.Code, 2, RunServerCodeInvalidArguments)
+		return failurecode.Exact(failure.Code, 2, RunServerCodeInvalidArguments)
 	case RunServerCategorySelection:
-		switch failure.Code {
-		case RunServerCodeProjectNotFound, RunServerCodeProjectSearchLimitExceeded,
-			RunServerCodeInvalidProjectDescriptor, RunServerCodeProjectDescriptorIncompatible:
-			return 2, true
-		case RunServerCodeProjectSelectionFailed:
-			return 3, true
-		}
+		return failurecode.Selection(failure.Code, 3)
 	case RunServerCategoryConfiguration:
-		return exactGenerationCode(failure.Code, 2, RunServerCodeNotConfigured)
+		return failurecode.Exact(failure.Code, 2, RunServerCodeNotConfigured)
 	case RunServerCategoryBuild:
-		return exactGenerationCode(failure.Code, 3, RunServerCodeProjectTemporaryStorageFailed,
+		return failurecode.Exact(failure.Code, 3, RunServerCodeProjectTemporaryStorageFailed,
 			RunServerCodeProjectBuildFailed, RunServerCodeRuntimeBuildFailed)
 	case projectgenerateprotocol.CategoryProtocol:
-		return exactGenerationCode(failure.Code, 3, projectgenerateprotocol.CodeInvalidRequest, projectgenerateprotocol.CodeInvalidResponse,
+		return failurecode.Exact(failure.Code, 3, projectgenerateprotocol.CodeInvalidRequest, projectgenerateprotocol.CodeInvalidResponse,
 			projectgenerateprotocol.CodeRunnerFailed, projectgenerateprotocol.CodeProtocolIncompatible)
 	case projectgenerateprotocol.CategoryDeclaration:
-		return exactGenerationCode(failure.Code, 1, projectgenerateprotocol.CodeProjectSpecLoadFailed)
+		return failurecode.Exact(failure.Code, 1, projectgenerateprotocol.CodeProjectSpecLoadFailed)
 	case RunServerCategoryGeneration:
-		return exactGenerationCode(failure.Code, 1, RunServerCodeProjectGenerateFailed,
+		return failurecode.Exact(failure.Code, 1, RunServerCodeProjectGenerateFailed,
 			RunServerCodeGeneratedBundleStale, RunServerCodeProjectCheckFailed)
 	case RunServerCategoryRuntime:
-		return exactGenerationCode(failure.Code, 3, RunServerCodeRuntimeStartFailed,
+		return failurecode.Exact(failure.Code, 3, RunServerCodeRuntimeStartFailed,
 			RunServerCodeRuntimeExited, RunServerCodeRuntimeStreamFailed)
 	case RunServerCategoryProcess:
-		switch failure.Code {
-		case RunServerCodeProjectCanceled, RunServerCodeProjectCleanupFailed:
-			return 3, true
-		case RunServerCodeProjectInterrupted:
-			return 130, true
-		}
+		return failurecode.Process(failure.Code)
 	case RunServerCategoryInternal:
-		return exactGenerationCode(failure.Code, 3, RunServerCodeProjectInternalError)
+		return failurecode.Exact(failure.Code, 3, RunServerCodeProjectInternalError)
 	}
 	return 0, false
 }

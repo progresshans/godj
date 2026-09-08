@@ -241,19 +241,9 @@ func completeCreatesuperuserResponse(
 	response createsuperuserprotocol.Response,
 	honorCancellation bool,
 ) (CreatesuperuserReport, error) {
-	if dependencies.beforeResponseWrite != nil {
-		dependencies.beforeResponseWrite()
-	}
-	if honorCancellation {
-		if err := ctx.Err(); err != nil {
-			return report, err
-		}
-	}
-	report.RunnerResponseWrites++
-	if err := createsuperuserprotocol.WriteResponse(writer, response); err != nil {
-		return report, err
-	}
-	return report, nil
+	err := publishLinkedResponse(ctx, dependencies.beforeResponseWrite, honorCancellation, &report.RunnerResponseWrites,
+		func() error { return createsuperuserprotocol.WriteResponse(writer, response) })
+	return report, err
 }
 
 func classifyCreatesuperuserStateFailure(err error) createsuperuserprotocol.Failure {

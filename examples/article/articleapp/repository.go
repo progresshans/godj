@@ -54,11 +54,9 @@ type Error struct {
 
 func (e *Error) Error() string {
 	if e == nil {
-		return "article admin: <nil>"
+		return "article: <nil>"
 	}
-	// Preserve the existing Admin-facing error bytes while persistence moves to
-	// this neutral package. Presentation layers must not serialize this prose.
-	message := "article admin: " + string(e.Code)
+	message := "article: " + string(e.Code)
 	if e.Field != "" {
 		message += ": " + e.Field
 	}
@@ -304,7 +302,7 @@ func (r Repository) List(ctx context.Context, options ListOptions) (Page, error)
 	}
 	total, err := querySet.Count(ctx)
 	if err != nil {
-		return Page{}, fmt.Errorf("article admin list count: %w", err)
+		return Page{}, fmt.Errorf("article list count: %w", err)
 	}
 	ordering := articlemodels.ArticleFields.ID.Asc()
 	if options.Ordering == IDDescending {
@@ -312,15 +310,15 @@ func (r Repository) List(ctx context.Context, options ListOptions) (Page, error)
 	}
 	pageQuery, err := querySet.OrderBy(ordering).Offset(options.Offset)
 	if err != nil {
-		return Page{}, fmt.Errorf("article admin list offset: %w", err)
+		return Page{}, fmt.Errorf("article list offset: %w", err)
 	}
 	pageQuery, err = pageQuery.Limit(options.Limit)
 	if err != nil {
-		return Page{}, fmt.Errorf("article admin list limit: %w", err)
+		return Page{}, fmt.Errorf("article list limit: %w", err)
 	}
 	models, err := pageQuery.All(ctx)
 	if err != nil {
-		return Page{}, fmt.Errorf("article admin list rows: %w", err)
+		return Page{}, fmt.Errorf("article list rows: %w", err)
 	}
 	articles := make([]Article, len(models))
 	for index := range models {
@@ -368,7 +366,7 @@ func (r Repository) Create(ctx context.Context, input Input) (Article, error) {
 		return mutationResult(MutationCreate, snapshot(created), nil), nil
 	})
 	if err != nil {
-		return Article{}, fmt.Errorf("article admin create: %w", err)
+		return Article{}, fmt.Errorf("article create: %w", err)
 	}
 	return snapshot(created), nil
 }
@@ -380,40 +378,13 @@ func (r Repository) Update(ctx context.Context, id int64, input Input) (Article,
 	if id <= 0 {
 		return Article{}, nil, invalid("id", "id must be positive")
 	}
-	var updated articlemodels.Article
-	var changed []string
-	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
-		current, found, err := getModel(ctx, session, id)
-		if err != nil {
-			return MutationResult{}, err
-		}
-		if !found {
-			return MutationResult{}, notFound(id)
-		}
-		changed = changedFields(current, input)
-		if len(changed) == 0 {
-			updated = current
-			return MutationResult{Operation: MutationUpdate}, nil
-		}
-		patch := (articlemodels.ArticlePatch{}).
-			WithTitle(input.Title).
-			WithPublished(input.Published)
-		if input.Summary == nil {
-			patch = patch.WithSummaryNull()
-		} else {
-			patch = patch.WithSummary(*input.Summary)
-		}
-		value, err := articlemodels.ArticleObjects.Update(ctx, session, current, patch)
-		if err != nil {
-			return MutationResult{}, err
-		}
-		updated = value
-		return mutationResult(MutationUpdate, snapshot(updated), changed), nil
-	})
-	if err != nil {
-		return Article{}, nil, fmt.Errorf("article admin update: %w", err)
+	patch := (Patch{}).WithTitle(input.Title).WithPublished(input.Published)
+	if input.Summary == nil {
+		patch = patch.WithSummaryNull()
+	} else {
+		patch = patch.WithSummary(*input.Summary)
 	}
-	return snapshot(updated), append([]string(nil), changed...), nil
+	return r.update(ctx, id, patch, MutationUpdate)
 }
 
 // Patch updates only supplied fields. It reads and conditionally updates the
@@ -433,6 +404,10 @@ func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, 
 		return Article{}, nil, err
 	}
 
+	return r.update(ctx, id, patch, MutationPatch)
+}
+
+func (r Repository) update(ctx context.Context, id int64, patch Patch, operation MutationOperation) (Article, []string, error) {
 	var updated articlemodels.Article
 	var changed []string
 	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
@@ -446,17 +421,17 @@ func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, 
 		changed = patchChangedFields(current, patch)
 		if len(changed) == 0 {
 			updated = current
-			return MutationResult{Operation: MutationPatch}, nil
+			return MutationResult{Operation: operation}, nil
 		}
 
 		modelPatch := articlemodels.ArticlePatch{}
-		if patch.title.supplied && current.Title != patch.title.value {
+		if operation == MutationUpdate || patch.title.supplied && current.Title != patch.title.value {
 			modelPatch = modelPatch.WithTitle(patch.title.value)
 		}
-		if patch.published.supplied && current.Published != patch.published.value {
+		if operation == MutationUpdate || patch.published.supplied && current.Published != patch.published.value {
 			modelPatch = modelPatch.WithPublished(patch.published.value)
 		}
-		if patch.summary.supplied && !patchSummaryEquals(current.Summary, patch.summary) {
+		if operation == MutationUpdate || patch.summary.supplied && !patchSummaryEquals(current.Summary, patch.summary) {
 			if patch.summary.null {
 				modelPatch = modelPatch.WithSummaryNull()
 			} else {
@@ -468,10 +443,10 @@ func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, 
 			return MutationResult{}, err
 		}
 		updated = value
-		return mutationResult(MutationPatch, snapshot(updated), changed), nil
+		return mutationResult(operation, snapshot(updated), changed), nil
 	})
 	if err != nil {
-		return Article{}, nil, fmt.Errorf("article admin patch: %w", err)
+		return Article{}, nil, fmt.Errorf("article %s: %w", operation, err)
 	}
 	return snapshot(updated), append([]string(nil), changed...), nil
 }
@@ -502,7 +477,7 @@ func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
 		return mutationResult(MutationDelete, snapshot(deleted), nil), nil
 	})
 	if err != nil {
-		return Article{}, fmt.Errorf("article admin delete: %w", err)
+		return Article{}, fmt.Errorf("article delete: %w", err)
 	}
 	return snapshot(deleted), nil
 }
@@ -543,7 +518,7 @@ func (r Repository) Publish(ctx context.Context, ids []int64) (PublishResult, er
 		return MutationResult{Operation: MutationPublish, Items: items}, nil
 	})
 	if err != nil {
-		return PublishResult{}, fmt.Errorf("article admin publish: %w", err)
+		return PublishResult{}, fmt.Errorf("article publish: %w", err)
 	}
 	return PublishResult{MatchedIDs: append([]int64(nil), matched...)}, nil
 }
@@ -606,7 +581,7 @@ func getModel(ctx context.Context, backend db.Queryer, id int64) (articlemodels.
 		OrderBy(articlemodels.ArticleFields.ID.Asc())
 	value, found, err := querySet.First(ctx)
 	if err != nil {
-		return articlemodels.Article{}, false, fmt.Errorf("article admin get: %w", err)
+		return articlemodels.Article{}, false, fmt.Errorf("article get: %w", err)
 	}
 	return value, found, nil
 }
@@ -709,20 +684,6 @@ func canonicalIDs(ids []int64) ([]int64, error) {
 	return canonical[:write], nil
 }
 
-func changedFields(current articlemodels.Article, input Input) []string {
-	changed := make([]string, 0, 3)
-	if current.Title != input.Title {
-		changed = append(changed, "title")
-	}
-	if current.Published != input.Published {
-		changed = append(changed, "published")
-	}
-	if !equalStringPointer(current.Summary, input.Summary) {
-		changed = append(changed, "summary")
-	}
-	return changed
-}
-
 func patchChangedFields(current articlemodels.Article, patch Patch) []string {
 	changed := make([]string, 0, 3)
 	if patch.title.supplied && current.Title != patch.title.value {
@@ -742,13 +703,6 @@ func patchSummaryEquals(current *string, patch patchNullableString) bool {
 		return current == nil
 	}
 	return current != nil && *current == patch.value
-}
-
-func equalStringPointer(left, right *string) bool {
-	if left == nil || right == nil {
-		return left == nil && right == nil
-	}
-	return *left == *right
 }
 
 func snapshot(value articlemodels.Article) Article {

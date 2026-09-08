@@ -193,7 +193,7 @@ func authenticatedRestartProvisionOperator(
 		t.Fatalf("close parent provision PTY slave: %v", err)
 	}
 
-	output := &boundedOutput{maximum: maximumCommandOutput}
+	output := testprocess.NewBuffer(maximumCommandOutput)
 	drained := make(chan error, 1)
 	go func() {
 		_, copyErr := io.Copy(output, master)
@@ -277,7 +277,7 @@ func authenticatedRestartProvisionOperator(
 
 func authenticatedRestartAwaitProvisionPrompt(
 	t *testing.T,
-	output *boundedOutput,
+	output *testprocess.Buffer,
 	waited <-chan struct{},
 	waitErr *error,
 	marker string,
@@ -1074,8 +1074,8 @@ func authenticatedRestartRunServer(
 	if exercise == nil {
 		t.Fatal("authenticated restart exercise is nil")
 	}
-	stdout := newReadinessOutput()
-	stderr := &boundedOutput{maximum: maximumCommandOutput}
+	stdout := testprocess.NewReadinessBuffer(maximumCommandOutput, articleReadinessPrefix)
+	stderr := testprocess.NewBuffer(maximumCommandOutput)
 	command := exec.Command(globalBinary, "runserver", "--project", descriptor, "--addr", expectedAddress)
 	command.Dir = repository
 	command.Env = append([]string(nil), environment...)
@@ -1106,7 +1106,7 @@ func authenticatedRestartRunServer(
 	readyTimer := time.NewTimer(commandTimeout)
 	defer readyTimer.Stop()
 	select {
-	case address := <-stdout.ready:
+	case address := <-stdout.Ready():
 		if address != expectedAddress || authenticatedRestartValidateAddress(address) != nil {
 			t.Fatal("authenticated runserver published an invalid readiness address")
 		}

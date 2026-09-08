@@ -78,30 +78,6 @@ func writeGeneratedRelationObjectProject(
 	includeExternalTest bool,
 ) string {
 	t.Helper()
-	authorsMain, err := codegen.Generate(targetPackage, authors)
-	if err != nil {
-		t.Fatalf("generate authors main: %v", err)
-	}
-	authorsMetadata, err := codegen.GenerateRelationMetadata(targetPackage, authors)
-	if err != nil {
-		t.Fatalf("generate authors metadata: %v", err)
-	}
-	authorsObject, err := codegen.GenerateRelationObject(targetPackage, authors)
-	if err != nil {
-		t.Fatalf("generate authors object companion: %v", err)
-	}
-	blogMain, err := codegen.Generate(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate blog main: %v", err)
-	}
-	blogMetadata, err := codegen.GenerateRelationMetadata(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate blog metadata: %v", err)
-	}
-	blogObject, err := codegen.GenerateRelationObject(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate blog object companion: %v", err)
-	}
 	packages := []codegen.RelationObjectPackage{
 		{Alias: targetPackage, ImportPath: modulePath + "/target", Schema: authors},
 		{Alias: sourcePackage, ImportPath: modulePath + "/source", Schema: blog},
@@ -126,12 +102,8 @@ func writeGeneratedRelationObjectProject(
 	}
 
 	directory := newGeneratedModule(t, modulePath)
-	writeGeneratedTestFile(t, directory, "target/zz_godj_generated.go", authorsMain)
-	writeGeneratedTestFile(t, directory, "target/zz_godj_relation.go", authorsMetadata)
-	writeGeneratedTestFile(t, directory, "target/zz_godj_relation_object.go", authorsObject)
-	writeGeneratedTestFile(t, directory, "source/zz_godj_generated.go", blogMain)
-	writeGeneratedTestFile(t, directory, "source/zz_godj_relation.go", blogMetadata)
-	writeGeneratedTestFile(t, directory, "source/zz_godj_relation_object.go", blogObject)
+	writeGeneratedAppFixture(t, directory, "target", targetPackage, authors, appFixtureFeatures{object: true})
+	writeGeneratedAppFixture(t, directory, "source", sourcePackage, blog, appFixtureFeatures{object: true})
 	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", projectBinding)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", projectQuery)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_object.go", projectObject)

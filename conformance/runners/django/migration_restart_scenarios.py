@@ -26,6 +26,7 @@ from django.db.migrations.operations.models import CreateModel
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.migrations.state import ProjectState
 
+from .migration_observation import managed_schema
 from .normalizer import normalize
 from .scenarios import configure_django
 
@@ -134,60 +135,12 @@ def _capture_error(
     raise AssertionError(f"expected {expected.__name__}")
 
 
-def _type_family(type_code: Any) -> str:
-    rendered = str(type_code).lower()
-    if "int" in rendered:
-        return "integer"
-    if "char" in rendered or "clob" in rendered or "text" in rendered:
-        return "text"
-    if "bool" in rendered:
-        return "boolean"
-    if "date" in rendered or "time" in rendered:
-        return "datetime"
-    return rendered
-
-
-def _managed_schema(database_connection: Any) -> list[dict[str, Any]]:
-    inventory: list[dict[str, Any]] = []
-    with database_connection.cursor() as cursor:
-        for table in sorted(database_connection.introspection.table_names(cursor)):
-            if not table.startswith(_MANAGED_TABLE_PREFIX):
-                continue
-            description = database_connection.introspection.get_table_description(
-                cursor, table
-            )
-            constraints = database_connection.introspection.get_constraints(
-                cursor, table
-            )
-            primary_key_columns = {
-                column
-                for constraint in constraints.values()
-                if constraint["primary_key"]
-                for column in constraint["columns"]
-            }
-            inventory.append(
-                {
-                    "columns": [
-                        {
-                            "name": column.name,
-                            "nullable": column.null_ok,
-                            "primary_key": column.name in primary_key_columns,
-                            "type_family": _type_family(column.type_code),
-                        }
-                        for column in sorted(description, key=lambda item: item.name)
-                    ],
-                    "name": table,
-                }
-            )
-    return inventory
-
-
 def _database_snapshot(database_connection: Any) -> dict[str, Any]:
     recorder = MigrationRecorder(database_connection)
     applied = sorted(recorder.applied_migrations())
     return {
         "applied_migrations": _key_values(applied),
-        "managed_schema": _managed_schema(database_connection),
+        "managed_schema": managed_schema(database_connection, _MANAGED_TABLE_PREFIX, primary_keys=True, datetime_types=True),
         "recorder_present": recorder.has_table(),
     }
 

@@ -317,45 +317,9 @@ func TestGDJ0044OraclesAreSecretFreeAndScenariosAreOracleBlind(t *testing.T) {
 	}
 }
 
-func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
+func TestDRFReferenceUsesLockedRuntimeAndChecksumChecks(t *testing.T) {
 	t.Parallel()
-
 	root := conformanceRepositoryRoot(t)
-	contents, err := os.ReadFile(filepath.Join(root, "Makefile"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(contents)
-	conformanceStart := strings.Index(text, "conformance-check:\n")
-	productStart := strings.Index(text, "godj-conformance:")
-	oracleCheckStart := strings.Index(text, "oracle-check:\n")
-	oracleRegenerateStart := strings.Index(text, "oracle-regenerate:\n")
-	ciStart := strings.Index(text, "\nci:")
-	if conformanceStart < 0 || productStart <= conformanceStart || oracleCheckStart <= productStart || oracleRegenerateStart <= oracleCheckStart || ciStart <= oracleRegenerateStart {
-		t.Fatal("cannot isolate Makefile conformance targets")
-	}
-	referenceTarget := text[conformanceStart:productStart]
-	productTarget := text[productStart:oracleCheckStart]
-	oracleCheckTarget := text[oracleCheckStart:oracleRegenerateStart]
-	oracleRegenerateTarget := text[oracleRegenerateStart:ciStart]
-	for _, variable := range []string{"$(PARAMETER_ROUTING_MANIFEST)", "$(ARTICLE_API_MANIFEST)"} {
-		if got := strings.Count(referenceTarget, variable); got != 2 {
-			t.Fatalf("reference target %s count = %d, want oracle and baseline", variable, got)
-		}
-		if got := strings.Count(productTarget, variable); got != 1 {
-			t.Fatalf("product target %s count = %d, want one product adapter", variable, got)
-		}
-		if got := strings.Count(oracleCheckTarget, variable); got != 1 {
-			t.Fatalf("oracle-check %s count = %d, want 1", variable, got)
-		}
-		if got := strings.Count(oracleRegenerateTarget, variable); got != 1 {
-			t.Fatalf("oracle-regenerate %s count = %d, want 1", variable, got)
-		}
-	}
-	if got := strings.Count(oracleCheckTarget, "--project conformance/reference/drf --frozen"); got != 3 {
-		t.Fatalf("nested DRF oracle-check command count = %d, want 3", got)
-	}
-
 	ci, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "ci.yml"))
 	if err != nil {
 		t.Fatal(err)
@@ -370,110 +334,6 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 		if !strings.Contains(ciText, required) {
 			t.Fatalf("CI lacks GDJ-0044 reference fragment %q", required)
 		}
-	}
-}
-
-func TestGDJ0044CheckpointTwentyReferenceSetsHave219ContractsAndReject380OrderedCrossBindings(t *testing.T) {
-	t.Parallel()
-
-	root := conformanceRepositoryRoot(t)
-	oldProfile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	drfProfile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "drf-3.18.0-django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	type inventorySet struct {
-		name     string
-		profile  Profile
-		manifest Manifest
-		oracle   ObservationSuite
-	}
-	sets := make([]inventorySet, 0, 20)
-	old := []struct{ name, manifest, oracle string }{
-		{"read", "manifest.json", "oracle.json"},
-		{"write-migration", "write-migration-manifest.json", "write-migration-oracle.json"},
-		{"save-lifecycle", "save-lifecycle-manifest.json", "save-lifecycle-oracle.json"},
-		{"query-cache", "query-cache-manifest.json", "query-cache-oracle.json"},
-		{"migration-planning", "migration-planning-manifest.json", "migration-planning-oracle.json"},
-		{"migration-execution", "migration-execution-manifest.json", "migration-execution-oracle.json"},
-		{"migration-restart", "migration-restart-manifest.json", "migration-restart-oracle.json"},
-		{"migration-state-reconstruction", "migration-state-reconstruction-manifest.json", "migration-state-reconstruction-oracle.json"},
-		{"migration-lifecycle", "migration-lifecycle-manifest.json", "migration-lifecycle-oracle.json"},
-		{"migration-definition-source", "migration-definition-source-manifest.json", "migration-definition-source-oracle.json"},
-		{"migration-project-check", "migration-project-check-manifest.json", "migration-project-check-oracle.json"},
-		{"relation", "relation-manifest.json", "relation-oracle.json"},
-		{"query-breadth", "query-breadth-manifest.json", "query-breadth-oracle.json"},
-		{"query-expression", "query-expression-manifest.json", "query-expression-oracle.json"},
-		{"migration-relation", "migration-relation-manifest.json", "migration-relation-oracle.json"},
-		{"template-form", "template-form-manifest.json", "template-form-oracle.json"},
-		{"auth-session", "auth-session-manifest.json", "auth-session-oracle.json"},
-		{"article-admin", "article-admin-manifest.json", "article-admin-oracle.json"},
-	}
-	for _, source := range old {
-		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", source.manifest))
-		if err != nil {
-			t.Fatal(err)
-		}
-		oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", source.oracle))
-		if err != nil {
-			t.Fatal(err)
-		}
-		sets = append(sets, inventorySet{source.name, oldProfile, manifest, oracle})
-	}
-	for _, source := range gdj0044ContractSets() {
-		manifest, oracle, _ := loadGDJ0044Set(t, root, source)
-		sets = append(sets, inventorySet{source.name, drfProfile, manifest, oracle})
-	}
-
-	ids := make(map[string]string)
-	scenarios := make(map[string]string)
-	passing, deviations, locked, total := 0, 0, 0, 0
-	for _, set := range sets {
-		if err := ValidateSuiteAgainst(set.profile, set.manifest, set.oracle); err != nil {
-			t.Fatalf("%s set does not validate: %v", set.name, err)
-		}
-		total += len(set.manifest.Contracts)
-		for _, contract := range set.manifest.Contracts {
-			if previous := ids[contract.ID]; previous != "" {
-				t.Fatalf("contract %s shared by %s and %s", contract.ID, previous, set.name)
-			}
-			if previous := scenarios[contract.Scenario]; previous != "" {
-				t.Fatalf("scenario %s shared by %s and %s", contract.Scenario, previous, set.name)
-			}
-			ids[contract.ID], scenarios[contract.Scenario] = set.name, set.name
-			switch contract.Status {
-			case ContractPassing:
-				passing++
-			case ContractDeviation:
-				deviations++
-			case ContractOracleLocked:
-				locked++
-			default:
-				t.Fatalf("contract %s has unexpected status %q", contract.ID, contract.Status)
-			}
-		}
-	}
-	if len(sets) != 20 || total != 219 || len(ids) != 219 || len(scenarios) != 219 || passing != 192 || deviations != 15 || locked != 12 {
-		t.Fatalf("GDJ-0044 checkpoint inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
-	}
-
-	crossBindings := 0
-	for manifestIndex, manifestSet := range sets {
-		for suiteIndex, suiteSet := range sets {
-			if manifestIndex == suiteIndex {
-				continue
-			}
-			crossBindings++
-			if err := ValidateSuiteAgainst(manifestSet.profile, manifestSet.manifest, suiteSet.oracle); err == nil {
-				t.Fatalf("%s manifest accepted %s oracle", manifestSet.name, suiteSet.name)
-			}
-		}
-	}
-	if crossBindings != 380 {
-		t.Fatalf("ordered cross-bindings = %d, want 380", crossBindings)
 	}
 }
 

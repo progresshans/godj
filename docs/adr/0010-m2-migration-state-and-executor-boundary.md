@@ -58,6 +58,9 @@ versioned ProjectState derived from Schema IR
 ```
 
 - 첫 operation은 `CreateModel`, nullable `AddField`와 그 역방향으로 제한합니다.
+- GDJ-0065에서 raw DirectExecutor도 지원 built-in과 그 non-nil 포인터만 받는 closed boundary로 정리했습니다.
+  Built-in을 embedding한 외부 wrapper는 method promotion과 무관하게 I/O 전에 거부합니다. 미배포 내부 API의 과거
+  wrapper 호환성보다 실행 가능한 operation의 명확한 범위와 우회 방지를 우선합니다.
 - executor는 operation과 recorder 갱신을 backend가 지원하는 atomic DDL 경계 안에서
   처리하고, 실패 시 구조화된 error와 회복 가능한 connection을 반환합니다.
 - recorder의 계약 key는 app/name이며 비결정적인 적용 timestamp는 differential 비교에서

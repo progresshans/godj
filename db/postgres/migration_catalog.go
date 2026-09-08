@@ -201,37 +201,27 @@ func readPostgresMigrationColumns(
 	ctx context.Context,
 	executor migrationSQLExecutor,
 	tableOID int64,
-) (columns []postgresMigrationColumnCatalog, resultErr error) {
-	rows, err := executor.QueryContext(
-		ctx,
-		`SELECT "a"."attnum"::integer, "a"."attname", "tn"."nspname", "t"."typname", `+
-			`"a"."atttypmod", "a"."attnotnull", "a"."attidentity"::text, `+
-			`"a"."attgenerated"::text, ("d"."oid" IS NOT NULL), `+
-			`("a"."attcollation" = "t"."typcollation") `+
-			`FROM "pg_catalog"."pg_attribute" AS "a" `+
-			`JOIN "pg_catalog"."pg_type" AS "t" ON "t"."oid" = "a"."atttypid" `+
-			`JOIN "pg_catalog"."pg_namespace" AS "tn" ON "tn"."oid" = "t"."typnamespace" `+
-			`LEFT JOIN "pg_catalog"."pg_attrdef" AS "d" `+
-			`ON "d"."adrelid" = "a"."attrelid" AND "d"."adnum" = "a"."attnum" `+
-			`WHERE "a"."attrelid" = $1 AND "a"."attnum" > 0 AND NOT "a"."attisdropped" `+
-			`ORDER BY "a"."attnum" LIMIT $2`,
-		tableOID,
-		postgresMigrationMaxAttributeSlots+1,
-	)
-	if err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "inspect PostgreSQL application columns", err)
-	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			resultErr = errors.Join(resultErr, classifyPostgresMigrationIO(ctx, "close PostgreSQL application column rows", closeErr))
-		}
-	}()
-	for rows.Next() {
-		if len(columns) >= postgresMigrationMaxAttributeSlots {
-			return nil, postgresMigrationCapability("PostgreSQL application table exceeds the current column limit", errPostgresMigrationPhysicalDrift)
-		}
+) ([]postgresMigrationColumnCatalog, error) {
+	return queryPostgresCatalogRows(ctx, "application columns", postgresMigrationMaxAttributeSlots, func() (*sql.Rows, error) {
+		return executor.QueryContext(
+			ctx,
+			`SELECT "a"."attnum"::integer, "a"."attname", "tn"."nspname", "t"."typname", `+
+				`"a"."atttypmod", "a"."attnotnull", "a"."attidentity"::text, `+
+				`"a"."attgenerated"::text, ("d"."oid" IS NOT NULL), `+
+				`("a"."attcollation" = "t"."typcollation") `+
+				`FROM "pg_catalog"."pg_attribute" AS "a" `+
+				`JOIN "pg_catalog"."pg_type" AS "t" ON "t"."oid" = "a"."atttypid" `+
+				`JOIN "pg_catalog"."pg_namespace" AS "tn" ON "tn"."oid" = "t"."typnamespace" `+
+				`LEFT JOIN "pg_catalog"."pg_attrdef" AS "d" `+
+				`ON "d"."adrelid" = "a"."attrelid" AND "d"."adnum" = "a"."attnum" `+
+				`WHERE "a"."attrelid" = $1 AND "a"."attnum" > 0 AND NOT "a"."attisdropped" `+
+				`ORDER BY "a"."attnum" LIMIT $2`,
+			tableOID,
+			postgresMigrationMaxAttributeSlots+1,
+		)
+	}, func(rows *sql.Rows) (postgresMigrationColumnCatalog, error) {
 		var column postgresMigrationColumnCatalog
-		if err := rows.Scan(
+		err := rows.Scan(
 			&column.attributeNumber,
 			&column.name,
 			&column.typeSchema,
@@ -242,62 +232,46 @@ func readPostgresMigrationColumns(
 			&column.generated,
 			&column.hasDefault,
 			&column.defaultCollation,
-		); err != nil {
-			return nil, classifyPostgresMigrationIO(ctx, "scan PostgreSQL application column", err)
-		}
-		columns = append(columns, column)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "iterate PostgreSQL application columns", err)
-	}
-	return columns, nil
+		)
+		return column, err
+	})
 }
 
 func readPostgresMigrationConstraints(
 	ctx context.Context,
 	executor migrationSQLExecutor,
 	tableOID int64,
-) (constraints []postgresMigrationConstraintCatalog, resultErr error) {
-	rows, err := executor.QueryContext(
-		ctx,
-		`SELECT "k"."oid"::bigint, "k"."conname", "k"."contype"::text, `+
-			`"k"."condeferrable", "k"."condeferred", "k"."convalidated", `+
-			`COALESCE("pg_catalog"."cardinality"("k"."conkey"), 0), `+
-			`COALESCE("k"."conkey"[1]::integer, 0), "k"."confrelid"::bigint, `+
-			`COALESCE("tn"."nspname", ''), COALESCE("tc"."relname", ''), `+
-			`COALESCE("ta"."attname", ''), `+
-			`COALESCE("pg_catalog"."cardinality"("k"."confkey"), 0), `+
-			`COALESCE("k"."confkey"[1]::integer, 0), `+
-			`"k"."confupdtype"::text, "k"."confdeltype"::text, "k"."confmatchtype"::text, `+
-			`"k"."conindid"::bigint, `+
-			`(SELECT COUNT(*) FROM "pg_catalog"."pg_trigger" AS "all_trigger" `+
-			`WHERE "all_trigger"."tgconstraint" = "k"."oid" AND "all_trigger"."tgisinternal"), `+
-			`(SELECT COUNT(*) FROM "pg_catalog"."pg_trigger" AS "enabled_trigger" `+
-			`WHERE "enabled_trigger"."tgconstraint" = "k"."oid" AND "enabled_trigger"."tgisinternal" `+
-			`AND "enabled_trigger"."tgenabled" = 'O') `+
-			`FROM "pg_catalog"."pg_constraint" AS "k" `+
-			`LEFT JOIN "pg_catalog"."pg_class" AS "tc" ON "tc"."oid" = "k"."confrelid" `+
-			`LEFT JOIN "pg_catalog"."pg_namespace" AS "tn" ON "tn"."oid" = "tc"."relnamespace" `+
-			`LEFT JOIN "pg_catalog"."pg_attribute" AS "ta" `+
-			`ON "ta"."attrelid" = "k"."confrelid" AND "ta"."attnum" = "k"."confkey"[1] `+
-			`WHERE "k"."conrelid" = $1 ORDER BY "k"."conname" LIMIT $2`,
-		tableOID,
-		postgresMigrationMaxFields+2,
-	)
-	if err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "inspect PostgreSQL application constraints", err)
-	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			resultErr = errors.Join(resultErr, classifyPostgresMigrationIO(ctx, "close PostgreSQL application constraint rows", closeErr))
-		}
-	}()
-	for rows.Next() {
-		if len(constraints) >= postgresMigrationMaxFields+1 {
-			return nil, postgresMigrationCapability("PostgreSQL application table exceeds the current constraint limit", errPostgresMigrationPhysicalDrift)
-		}
+) ([]postgresMigrationConstraintCatalog, error) {
+	return queryPostgresCatalogRows(ctx, "application constraints", postgresMigrationMaxFields+1, func() (*sql.Rows, error) {
+		return executor.QueryContext(
+			ctx,
+			`SELECT "k"."oid"::bigint, "k"."conname", "k"."contype"::text, `+
+				`"k"."condeferrable", "k"."condeferred", "k"."convalidated", `+
+				`COALESCE("pg_catalog"."cardinality"("k"."conkey"), 0), `+
+				`COALESCE("k"."conkey"[1]::integer, 0), "k"."confrelid"::bigint, `+
+				`COALESCE("tn"."nspname", ''), COALESCE("tc"."relname", ''), `+
+				`COALESCE("ta"."attname", ''), `+
+				`COALESCE("pg_catalog"."cardinality"("k"."confkey"), 0), `+
+				`COALESCE("k"."confkey"[1]::integer, 0), `+
+				`"k"."confupdtype"::text, "k"."confdeltype"::text, "k"."confmatchtype"::text, `+
+				`"k"."conindid"::bigint, `+
+				`(SELECT COUNT(*) FROM "pg_catalog"."pg_trigger" AS "all_trigger" `+
+				`WHERE "all_trigger"."tgconstraint" = "k"."oid" AND "all_trigger"."tgisinternal"), `+
+				`(SELECT COUNT(*) FROM "pg_catalog"."pg_trigger" AS "enabled_trigger" `+
+				`WHERE "enabled_trigger"."tgconstraint" = "k"."oid" AND "enabled_trigger"."tgisinternal" `+
+				`AND "enabled_trigger"."tgenabled" = 'O') `+
+				`FROM "pg_catalog"."pg_constraint" AS "k" `+
+				`LEFT JOIN "pg_catalog"."pg_class" AS "tc" ON "tc"."oid" = "k"."confrelid" `+
+				`LEFT JOIN "pg_catalog"."pg_namespace" AS "tn" ON "tn"."oid" = "tc"."relnamespace" `+
+				`LEFT JOIN "pg_catalog"."pg_attribute" AS "ta" `+
+				`ON "ta"."attrelid" = "k"."confrelid" AND "ta"."attnum" = "k"."confkey"[1] `+
+				`WHERE "k"."conrelid" = $1 ORDER BY "k"."conname" LIMIT $2`,
+			tableOID,
+			postgresMigrationMaxFields+2,
+		)
+	}, func(rows *sql.Rows) (postgresMigrationConstraintCatalog, error) {
 		var constraint postgresMigrationConstraintCatalog
-		if err := rows.Scan(
+		err := rows.Scan(
 			&constraint.oid,
 			&constraint.name,
 			&constraint.kind,
@@ -318,49 +292,33 @@ func readPostgresMigrationConstraints(
 			&constraint.indexOID,
 			&constraint.internalTriggers,
 			&constraint.enabledInternal,
-		); err != nil {
-			return nil, classifyPostgresMigrationIO(ctx, "scan PostgreSQL application constraint", err)
-		}
-		constraints = append(constraints, constraint)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "iterate PostgreSQL application constraints", err)
-	}
-	return constraints, nil
+		)
+		return constraint, err
+	})
 }
 
 func readPostgresMigrationIndexes(
 	ctx context.Context,
 	executor migrationSQLExecutor,
 	tableOID int64,
-) (indexes []postgresMigrationIndexCatalog, resultErr error) {
-	rows, err := executor.QueryContext(
-		ctx,
-		`SELECT "ic"."oid"::bigint, "ic"."relname", "i"."indisprimary", "i"."indisunique", `+
-			`"i"."indisvalid", "i"."indisready", "i"."indislive", `+
-			`"i"."indnkeyatts"::integer, "i"."indnatts"::integer, `+
-			`COALESCE("i"."indkey"[0]::integer, 0), `+
-			`("i"."indpred" IS NOT NULL), ("i"."indexprs" IS NOT NULL) `+
-			`FROM "pg_catalog"."pg_index" AS "i" `+
-			`JOIN "pg_catalog"."pg_class" AS "ic" ON "ic"."oid" = "i"."indexrelid" `+
-			`WHERE "i"."indrelid" = $1 ORDER BY "ic"."relname" LIMIT $2`,
-		tableOID,
-		postgresMigrationMaxFields+2,
-	)
-	if err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "inspect PostgreSQL application indexes", err)
-	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			resultErr = errors.Join(resultErr, classifyPostgresMigrationIO(ctx, "close PostgreSQL application index rows", closeErr))
-		}
-	}()
-	for rows.Next() {
-		if len(indexes) >= postgresMigrationMaxFields+1 {
-			return nil, postgresMigrationCapability("PostgreSQL application table exceeds the current index limit", errPostgresMigrationPhysicalDrift)
-		}
+) ([]postgresMigrationIndexCatalog, error) {
+	return queryPostgresCatalogRows(ctx, "application indexes", postgresMigrationMaxFields+1, func() (*sql.Rows, error) {
+		return executor.QueryContext(
+			ctx,
+			`SELECT "ic"."oid"::bigint, "ic"."relname", "i"."indisprimary", "i"."indisunique", `+
+				`"i"."indisvalid", "i"."indisready", "i"."indislive", `+
+				`"i"."indnkeyatts"::integer, "i"."indnatts"::integer, `+
+				`COALESCE("i"."indkey"[0]::integer, 0), `+
+				`("i"."indpred" IS NOT NULL), ("i"."indexprs" IS NOT NULL) `+
+				`FROM "pg_catalog"."pg_index" AS "i" `+
+				`JOIN "pg_catalog"."pg_class" AS "ic" ON "ic"."oid" = "i"."indexrelid" `+
+				`WHERE "i"."indrelid" = $1 ORDER BY "ic"."relname" LIMIT $2`,
+			tableOID,
+			postgresMigrationMaxFields+2,
+		)
+	}, func(rows *sql.Rows) (postgresMigrationIndexCatalog, error) {
 		var index postgresMigrationIndexCatalog
-		if err := rows.Scan(
+		err := rows.Scan(
 			&index.oid,
 			&index.name,
 			&index.primary,
@@ -373,61 +331,45 @@ func readPostgresMigrationIndexes(
 			&index.firstAttributeNumber,
 			&index.hasPredicate,
 			&index.hasExpressions,
-		); err != nil {
-			return nil, classifyPostgresMigrationIO(ctx, "scan PostgreSQL application index", err)
-		}
-		indexes = append(indexes, index)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "iterate PostgreSQL application indexes", err)
-	}
-	return indexes, nil
+		)
+		return index, err
+	})
 }
 
 func readPostgresMigrationSequences(
 	ctx context.Context,
 	executor migrationSQLExecutor,
 	tableOID int64,
-) (sequences []postgresMigrationSequenceCatalog, resultErr error) {
-	rows, err := executor.QueryContext(
-		ctx,
-		`SELECT "sc"."oid"::bigint, "sn"."nspname", "sc"."relname", `+
-			`"sc"."relkind"::text, "sc"."relpersistence"::text, `+
-			`"tn"."nspname", "t"."typname", `+
-			`"s"."seqstart", "s"."seqincrement", "s"."seqmax", "s"."seqmin", `+
-			`"s"."seqcache", "s"."seqcycle", `+
-			`"d"."refobjid"::bigint, "d"."refobjsubid"::integer, "d"."deptype"::text, `+
-			`(SELECT COUNT(*) FROM "pg_catalog"."pg_depend" AS "all_d" `+
-			`WHERE "all_d"."classid" = "d"."classid" AND "all_d"."objid" = "sc"."oid" `+
-			`AND "all_d"."refclassid" = "d"."refclassid" AND "all_d"."refobjid" = $1) `+
-			`FROM "pg_catalog"."pg_sequence" AS "s" `+
-			`JOIN "pg_catalog"."pg_class" AS "sc" ON "sc"."oid" = "s"."seqrelid" `+
-			`JOIN "pg_catalog"."pg_namespace" AS "sn" ON "sn"."oid" = "sc"."relnamespace" `+
-			`JOIN "pg_catalog"."pg_type" AS "t" ON "t"."oid" = "s"."seqtypid" `+
-			`JOIN "pg_catalog"."pg_namespace" AS "tn" ON "tn"."oid" = "t"."typnamespace" `+
-			`JOIN "pg_catalog"."pg_depend" AS "d" ON "d"."objid" = "sc"."oid" `+
-			`JOIN "pg_catalog"."pg_class" AS "dc" ON "dc"."oid" = "d"."classid" `+
-			`JOIN "pg_catalog"."pg_namespace" AS "dn" ON "dn"."oid" = "dc"."relnamespace" `+
-			`WHERE "dn"."nspname" = 'pg_catalog' AND "dc"."relname" = 'pg_class' `+
-			`AND "d"."refclassid" = "d"."classid" AND "d"."refobjid" = $1 `+
-			`AND "d"."deptype" = 'i' ORDER BY "sc"."relname" LIMIT $2`,
-		tableOID,
-		3,
-	)
-	if err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "inspect PostgreSQL identity sequences", err)
-	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			resultErr = errors.Join(resultErr, classifyPostgresMigrationIO(ctx, "close PostgreSQL identity sequence rows", closeErr))
-		}
-	}()
-	for rows.Next() {
-		if len(sequences) >= 2 {
-			return nil, postgresMigrationCapability("PostgreSQL application table has too many identity sequences", errPostgresMigrationPhysicalDrift)
-		}
+) ([]postgresMigrationSequenceCatalog, error) {
+	return queryPostgresCatalogRows(ctx, "identity sequences", 2, func() (*sql.Rows, error) {
+		return executor.QueryContext(
+			ctx,
+			`SELECT "sc"."oid"::bigint, "sn"."nspname", "sc"."relname", `+
+				`"sc"."relkind"::text, "sc"."relpersistence"::text, `+
+				`"tn"."nspname", "t"."typname", `+
+				`"s"."seqstart", "s"."seqincrement", "s"."seqmax", "s"."seqmin", `+
+				`"s"."seqcache", "s"."seqcycle", `+
+				`"d"."refobjid"::bigint, "d"."refobjsubid"::integer, "d"."deptype"::text, `+
+				`(SELECT COUNT(*) FROM "pg_catalog"."pg_depend" AS "all_d" `+
+				`WHERE "all_d"."classid" = "d"."classid" AND "all_d"."objid" = "sc"."oid" `+
+				`AND "all_d"."refclassid" = "d"."refclassid" AND "all_d"."refobjid" = $1) `+
+				`FROM "pg_catalog"."pg_sequence" AS "s" `+
+				`JOIN "pg_catalog"."pg_class" AS "sc" ON "sc"."oid" = "s"."seqrelid" `+
+				`JOIN "pg_catalog"."pg_namespace" AS "sn" ON "sn"."oid" = "sc"."relnamespace" `+
+				`JOIN "pg_catalog"."pg_type" AS "t" ON "t"."oid" = "s"."seqtypid" `+
+				`JOIN "pg_catalog"."pg_namespace" AS "tn" ON "tn"."oid" = "t"."typnamespace" `+
+				`JOIN "pg_catalog"."pg_depend" AS "d" ON "d"."objid" = "sc"."oid" `+
+				`JOIN "pg_catalog"."pg_class" AS "dc" ON "dc"."oid" = "d"."classid" `+
+				`JOIN "pg_catalog"."pg_namespace" AS "dn" ON "dn"."oid" = "dc"."relnamespace" `+
+				`WHERE "dn"."nspname" = 'pg_catalog' AND "dc"."relname" = 'pg_class' `+
+				`AND "d"."refclassid" = "d"."classid" AND "d"."refobjid" = $1 `+
+				`AND "d"."deptype" = 'i' ORDER BY "sc"."relname" LIMIT $2`,
+			tableOID,
+			3,
+		)
+	}, func(rows *sql.Rows) (postgresMigrationSequenceCatalog, error) {
 		var sequence postgresMigrationSequenceCatalog
-		if err := rows.Scan(
+		err := rows.Scan(
 			&sequence.oid,
 			&sequence.schema,
 			&sequence.name,
@@ -445,15 +387,9 @@ func readPostgresMigrationSequences(
 			&sequence.ownerAttributeNumber,
 			&sequence.dependencyType,
 			&sequence.tableDependencyCount,
-		); err != nil {
-			return nil, classifyPostgresMigrationIO(ctx, "scan PostgreSQL identity sequence", err)
-		}
-		sequences = append(sequences, sequence)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, classifyPostgresMigrationIO(ctx, "iterate PostgreSQL identity sequences", err)
-	}
-	return sequences, nil
+		)
+		return sequence, err
+	})
 }
 
 func assertPostgresMigrationModelCatalog(

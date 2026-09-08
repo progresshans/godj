@@ -2,6 +2,7 @@ package article_test
 
 import (
 	"context"
+	"github.com/progresshans/godj/examples/article/articleapp"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -301,7 +302,7 @@ func newArticleAdminSiteFixture(t *testing.T) articleAdminSiteFixture {
 	return newArticleAdminSiteFixtureWithBackend(t, backend)
 }
 
-func newArticleAdminSiteFixtureWithBackend(t *testing.T, backend adminapp.Backend) articleAdminSiteFixture {
+func newArticleAdminSiteFixtureWithBackend(t *testing.T, backend articleapp.Backend) articleAdminSiteFixture {
 	t.Helper()
 	ctx := context.Background()
 	audit, err := admin.NewAuditLog(64)
@@ -522,7 +523,7 @@ func (result articleAdminHTTPResult) csrfToken(t *testing.T) string {
 	return match[1]
 }
 
-func assertArticleAdminArticleEqual(t *testing.T, got, want adminapp.Article) {
+func assertArticleAdminArticleEqual(t *testing.T, got, want articleapp.Article) {
 	t.Helper()
 	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published || !articleAdminOptionalStringEqual(got.Summary, want.Summary) {
 		t.Fatalf("Article = %#v, want %#v", got, want)

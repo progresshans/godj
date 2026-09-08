@@ -433,6 +433,9 @@ func TestQuerySetColdAndWarmTerminalSemantics(t *testing.T) {
 	var aggregateRows *resultTestRows
 	backend := &cacheTestBackend{query: func(_ int, _ context.Context, plan query.Plan) (db.Rows, error) {
 		limitedValues := values
+		if offset, ok := plan.Offset(); ok {
+			limitedValues = limitedValues[min(offset, len(limitedValues)):]
+		}
 		if limit, ok := plan.Limit(); ok && limit < len(limitedValues) {
 			limitedValues = limitedValues[:limit]
 		}
@@ -496,7 +499,10 @@ func TestQuerySetColdAndWarmTerminalSemantics(t *testing.T) {
 	}
 	assertPlanLimit(t, backend.plan(0), 0, false)
 	assertPlanLimit(t, backend.plan(1), 1, true)
-	assertPlanLimit(t, backend.plan(2), 2, true)
+	assertPlanLimit(t, backend.plan(2), 1, true)
+	if offset, present := backend.plan(2).Offset(); !present || offset != 1 {
+		t.Fatalf("cold At(1) offset = %d, %v", offset, present)
+	}
 	assertPlanLimit(t, backend.plan(3), 1, true)
 	assertPlanLimit(t, backend.plan(4), 0, false)
 

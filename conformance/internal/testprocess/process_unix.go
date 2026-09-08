@@ -5,6 +5,7 @@
 package testprocess
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -27,7 +28,9 @@ func Wait(waited <-chan error, timeout time.Duration) error {
 }
 
 func OwnedGroups(rootPID int) ([]int, error) {
-	output, err := exec.Command("ps", "-Ao", "pid=,ppid=,pgid=").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "ps", "-Ao", "pid=,ppid=,pgid=").Output()
 	if err != nil {
 		return []int{rootPID}, fmt.Errorf("inspect process tree: %w", err)
 	}

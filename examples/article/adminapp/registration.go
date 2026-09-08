@@ -2,6 +2,7 @@ package adminapp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/progresshans/godj/admin"
@@ -39,10 +40,14 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 	if err != nil {
 		return err
 	}
-	return admin.RegisterModel(builder, admin.ModelConfig[Article]{
+	projector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "title", "published", "summary")
+	if err != nil {
+		return err
+	}
+	return admin.RegisterModel(builder, admin.ModelConfig[articleapp.Article]{
 		AppLabel:   "godj_conformance",
 		Slug:       "articles",
-		Model:      (articlemodels.ArticleDescriptor{}).Metadata(),
+		Model:      metadata,
 		FormFields: append([]string(nil), articleWritableFields...),
 		FormOverrides: []formmodel.Override{
 			formmodel.OverrideField("title", formmodel.WithValidators(articleDisplayTextValidator("title"))),
@@ -51,45 +56,47 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		ListFields:   []string{"id", "title", "published", "summary"},
 		SearchFields: []string{"title", "summary"},
 		Permissions:  permissions,
-		List: func(ctx context.Context, request admin.ListRequest) (admin.Page[Article], error) {
-			page, err := service.List(ctx, ListOptions{
+		List: func(ctx context.Context, request admin.ListRequest) (admin.Page[articleapp.Article], error) {
+			page, err := service.List(ctx, articleapp.ListOptions{
 				Search: request.Search,
 				Offset: request.Offset,
 				Limit:  request.Limit,
 			})
 			if err != nil {
-				return admin.Page[Article]{}, err
+				return admin.Page[articleapp.Article]{}, err
 			}
-			return admin.Page[Article]{
-				Items:  append([]Article(nil), page.Articles...),
+			return admin.Page[articleapp.Article]{
+				Items:  append([]articleapp.Article(nil), page.Articles...),
 				Total:  page.Total,
 				Offset: page.Offset,
 				Limit:  page.Limit,
 			}, nil
 		},
 		Get: service.Get,
-		Snapshot: func(article Article) (admin.Object, error) {
-			return articleObject(article)
+		Snapshot: func(article articleapp.Article) (admin.Object, error) {
+			return projector.Project(articleapp.ModelSnapshot(article), article.ID, article.Title)
 		},
-		Initial: func(article Article) (map[string]forms.Value, error) {
+		Initial: func(article articleapp.Article) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, initialSpec, articleapp.ModelSnapshot(article), descriptor.WriteFieldValue)
 		},
-		Create: func(ctx context.Context, principal auth.Principal, values forms.Values) (Article, error) {
+		Create: func(ctx context.Context, principal auth.Principal, values forms.Values) (articleapp.Article, error) {
 			input, err := articleInput(values)
 			if err != nil {
-				return Article{}, err
+				return articleapp.Article{}, err
 			}
 			return service.Create(ctx, principal.ID(), input)
 		},
-		Update: func(ctx context.Context, principal auth.Principal, id int64, values forms.Values) (Article, []string, error) {
+		Update: func(ctx context.Context, principal auth.Principal, id int64, values forms.Values) (articleapp.Article, []string, error) {
 			input, err := articleInput(values)
 			if err != nil {
-				return Article{}, nil, err
+				return articleapp.Article{}, nil, err
 			}
-			return service.Update(ctx, principal.ID(), id, input)
+			article, changed, err := service.Update(ctx, principal.ID(), id, input)
+			return article, changed, adminMutationError(err)
 		},
-		Delete: func(ctx context.Context, principal auth.Principal, id int64) (Article, error) {
-			return service.Delete(ctx, principal.ID(), id)
+		Delete: func(ctx context.Context, principal auth.Principal, id int64) (articleapp.Article, error) {
+			article, err := service.Delete(ctx, principal.ID(), id)
+			return article, adminMutationError(err)
 		},
 		History: func(ctx context.Context, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
 			return service.HistoryLimited(ctx, id, request.Limit)
@@ -130,26 +137,30 @@ func articleDisplayTextValidator(field validation.Field) forms.FieldValidator {
 	})
 }
 
-func articleObject(article Article) (admin.Object, error) {
-	descriptor := articlemodels.ArticleDescriptor{}
-	return admin.ModelObject(descriptor.Metadata(), articleapp.ModelSnapshot(article), descriptor.WriteFieldValue, article.ID, article.Title, "id", "title", "published", "summary")
+// Add the framework marker at the Admin callback boundary while preserving
+// the original error chain, including rollback and outcome-unknown failures.
+func adminMutationError(err error) error {
+	if errors.Is(err, articleapp.ErrNotFound) {
+		return errors.Join(admin.ErrObjectNotFound, err)
+	}
+	return err
 }
 
-func articleInput(values forms.Values) (Input, error) {
+func articleInput(values forms.Values) (articleapp.Input, error) {
 	if len(values.All()) != len(articleWritableFields) {
-		return Input{}, invalid("form", "cleaned Article field set is incomplete")
+		return articleapp.Input{}, invalid("form", "cleaned Article field set is incomplete")
 	}
 	title, ok := values.String("title")
 	if !ok {
-		return Input{}, invalid("title", "cleaned title is unavailable")
+		return articleapp.Input{}, invalid("title", "cleaned title is unavailable")
 	}
 	published, ok := values.Boolean("published")
 	if !ok {
-		return Input{}, invalid("published", "cleaned published value is unavailable")
+		return articleapp.Input{}, invalid("published", "cleaned published value is unavailable")
 	}
 	summaryValue, ok := values.Get("summary")
 	if !ok {
-		return Input{}, invalid("summary", "cleaned summary is unavailable")
+		return articleapp.Input{}, invalid("summary", "cleaned summary is unavailable")
 	}
 	var summary *string
 	switch summaryValue.Kind() {
@@ -157,15 +168,15 @@ func articleInput(values forms.Values) (Input, error) {
 	case forms.ValueString:
 		value, stringOK := summaryValue.AsString()
 		if !stringOK {
-			return Input{}, invalid("summary", "cleaned summary type is invalid")
+			return articleapp.Input{}, invalid("summary", "cleaned summary type is invalid")
 		}
 		summary = &value
 	default:
-		return Input{}, invalid("summary", "cleaned summary type is invalid")
+		return articleapp.Input{}, invalid("summary", "cleaned summary type is invalid")
 	}
-	input := Input{Title: title, Published: published, Summary: summary}
+	input := articleapp.Input{Title: title, Published: published, Summary: summary}
 	if err := articleapp.ValidateInput(input); err != nil {
-		return Input{}, fmt.Errorf("article admin form conversion: %w", err)
+		return articleapp.Input{}, fmt.Errorf("article admin form conversion: %w", err)
 	}
 	return input, nil
 }

@@ -439,70 +439,34 @@ func listSessionRows(ctx context.Context, queryer db.Queryer, limit int) ([]pers
 // digest makes duplicates adjacent, so fail-closed cardinality needs constant
 // memory even at the hard record cap. Payload bytes are never selected here.
 func scanSessionInventory(ctx context.Context, queryer db.Queryer, limit int) (int, error) {
-	if ctx == nil {
-		return 0, &Error{Code: CodeInvalidInput, Field: "context", Detail: "context is nil"}
-	}
-	if queryer == nil {
-		return 0, &Error{Code: CodeInvalidConfig, Field: "backend", Detail: "query backend is nil"}
-	}
-	plan, err := query.NewPlan(sessionTableName, []query.FieldRef{
-		systemRowIDField,
-		sessionDigestField,
-	}).WithLimit(limit)
+	plan, err := query.NewPlan(sessionTableName, []query.FieldRef{systemRowIDField, sessionDigestField}).WithLimit(limit)
 	if err != nil {
 		return 0, persistenceFailure("build session inventory query", err)
 	}
-	plan = plan.WithOrderings(
-		query.NewOrdering(sessionDigestField, query.Ascending),
-		query.NewOrdering(systemRowIDField, query.Ascending),
-	)
-	result, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(result) {
-			_ = result.Close()
-		}
-		return 0, persistenceFailure("query session inventory", err)
-	}
-	if isNilInterface(result) {
-		return 0, persistenceFailure("query session inventory", errors.New("backend returned nil rows"))
-	}
-
+	plan = plan.WithOrderings(query.NewOrdering(sessionDigestField, query.Ascending), query.NewOrdering(systemRowIDField, query.Ascending))
 	count := 0
 	previousDigest := ""
-	for result.Next() {
-		if err := ctx.Err(); err != nil {
-			_ = result.Close()
-			return 0, err
-		}
+	err = scanRows(ctx, queryer, plan, persistenceRowsFailure("query session inventory"), func(rows db.Rows) (bool, error) {
 		var rowID int64
 		var digest string
-		if err := result.Scan(&rowID, &digest); err != nil {
-			_ = result.Close()
-			return 0, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session inventory row cannot be decoded", Cause: err}
+		if err := rows.Scan(&rowID, &digest); err != nil {
+			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session inventory row cannot be decoded", Cause: err}
 		}
 		count++
 		if count > limit {
-			_ = result.Close()
-			return 0, cardinalityFailure("session", "backend returned more rows than the bounded inventory plan")
+			return false, cardinalityFailure("session", "backend returned more rows than the bounded inventory plan")
 		}
 		if rowID <= 0 || !validSessionDigest(digest) {
-			_ = result.Close()
-			return 0, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session inventory row is malformed"}
+			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session inventory row is malformed"}
 		}
 		if previousDigest != "" && digest == previousDigest {
-			_ = result.Close()
-			return 0, cardinalityFailure("session_digest", "stored session digest is duplicated")
+			return false, cardinalityFailure("session_digest", "stored session digest is duplicated")
 		}
 		previousDigest = digest
-	}
-	if err := ctx.Err(); err != nil {
-		_ = result.Close()
+		return true, nil
+	})
+	if err != nil {
 		return 0, err
-	}
-	iterationErr := result.Err()
-	closeErr := result.Close()
-	if iterationErr != nil || closeErr != nil {
-		return 0, persistenceFailure("iterate session inventory", errors.Join(iterationErr, closeErr))
 	}
 	return count, nil
 }
@@ -510,6 +474,7 @@ func scanSessionInventory(ctx context.Context, queryer db.Queryer, limit int) (i
 // scanSessionPayloads holds at most one persisted payload and one decoded
 // record at a time. The byte bound is checked immediately after Scan and
 // before base64 decoding or value-map allocation.
+
 func scanSessionPayloads(
 	ctx context.Context,
 	queryer db.Queryer,
@@ -517,79 +482,42 @@ func scanSessionPayloads(
 	limit int,
 	visit func(int64, sessions.Record) error,
 ) (int, error) {
-	if ctx == nil {
-		return 0, &Error{Code: CodeInvalidInput, Field: "context", Detail: "context is nil"}
-	}
-	if queryer == nil {
-		return 0, &Error{Code: CodeInvalidConfig, Field: "backend", Detail: "query backend is nil"}
-	}
-	plan, err := query.NewPlan(sessionTableName, []query.FieldRef{
-		systemRowIDField,
-		sessionDigestField,
-		sessionPayloadField,
-	}).WithLimit(limit)
+	plan, err := query.NewPlan(sessionTableName, []query.FieldRef{systemRowIDField, sessionDigestField, sessionPayloadField}).WithLimit(limit)
 	if err != nil {
 		return 0, persistenceFailure("build session payload scan", err)
 	}
-	// The primary-key ordering can stream without a payload-bearing sort. A
-	// digest-only inventory scan has already established duplicate cardinality
-	// before every caller reaches this path.
+	// The digest-only inventory established uniqueness first. This primary-key
+	// ordering streams payloads without a payload-bearing sort.
 	plan = plan.WithOrderings(query.NewOrdering(systemRowIDField, query.Ascending))
-	result, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(result) {
-			_ = result.Close()
-		}
-		return 0, persistenceFailure("query session payloads", err)
-	}
-	if isNilInterface(result) {
-		return 0, persistenceFailure("query session payloads", errors.New("backend returned nil rows"))
-	}
-
 	count := 0
-	for result.Next() {
-		if err := ctx.Err(); err != nil {
-			_ = result.Close()
-			return 0, err
-		}
+	err = scanRows(ctx, queryer, plan, persistenceRowsFailure("query session payloads"), func(rows db.Rows) (bool, error) {
 		var row persistedSessionRow
-		if err := result.Scan(&row.id, &row.digest, &row.payload); err != nil {
-			_ = result.Close()
-			return 0, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row cannot be decoded", Cause: err}
+		if err := rows.Scan(&row.id, &row.digest, &row.payload); err != nil {
+			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row cannot be decoded", Cause: err}
 		}
 		count++
 		if count > limit {
-			_ = result.Close()
-			return 0, cardinalityFailure("session", "backend returned more rows than the bounded payload plan")
+			return false, cardinalityFailure("session", "backend returned more rows than the bounded payload plan")
 		}
 		if row.id <= 0 || !validSessionDigest(row.digest) {
-			_ = result.Close()
-			return 0, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row is malformed"}
+			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row is malformed"}
 		}
 		if len(row.payload) > maxSessionPayloadBytes {
-			_ = result.Close()
-			return 0, &Error{Code: CodeCorruptState, Field: "session_payload", Detail: "stored session payload exceeds the current storage bound"}
+			return false, &Error{Code: CodeCorruptState, Field: "session_payload", Detail: "stored session payload exceeds the current storage bound"}
 		}
 		metadata, err := decodeSessionMetadata(row.payload, limits)
 		if err != nil {
-			_ = result.Close()
-			return 0, err
+			return false, err
 		}
 		if visit != nil {
 			if err := visit(row.id, metadata); err != nil {
-				_ = result.Close()
-				return 0, err
+				return false, err
 			}
 		}
-	}
-	if err := ctx.Err(); err != nil {
-		_ = result.Close()
+		return true, nil
+	})
+	if err != nil {
 		return 0, err
-	}
-	iterationErr := result.Err()
-	closeErr := result.Close()
-	if iterationErr != nil || closeErr != nil {
-		return 0, persistenceFailure("iterate session payloads", errors.Join(iterationErr, closeErr))
 	}
 	return count, nil
 }
@@ -629,48 +557,23 @@ func sessionInspectionFailure(err error) error {
 }
 
 func readSessionRows(ctx context.Context, queryer db.Queryer, plan query.Plan, limit int) ([]persistedSessionRow, error) {
-	if queryer == nil {
-		return nil, &Error{Code: CodeInvalidConfig, Field: "backend", Detail: "query backend is nil"}
-	}
-	result, err := queryer.Query(ctx, plan)
-	if err != nil {
-		if !isNilInterface(result) {
-			_ = result.Close()
-		}
-		return nil, persistenceFailure("query sessions", err)
-	}
-	if isNilInterface(result) {
-		return nil, persistenceFailure("query sessions", errors.New("backend returned nil rows"))
-	}
 	rows := make([]persistedSessionRow, 0, limit)
-	for result.Next() {
-		if err := ctx.Err(); err != nil {
-			_ = result.Close()
-			return nil, err
-		}
+	err := scanRows(ctx, queryer, plan, persistenceRowsFailure("query sessions"), func(result db.Rows) (bool, error) {
 		var row persistedSessionRow
 		if err := result.Scan(&row.id, &row.digest, &row.payload); err != nil {
-			_ = result.Close()
-			return nil, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row cannot be decoded", Cause: err}
+			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row cannot be decoded", Cause: err}
 		}
 		if len(row.payload) > maxSessionPayloadBytes {
-			_ = result.Close()
-			return nil, &Error{Code: CodeCorruptState, Field: "session_payload", Detail: "stored session payload exceeds the current storage bound"}
+			return false, &Error{Code: CodeCorruptState, Field: "session_payload", Detail: "stored session payload exceeds the current storage bound"}
 		}
 		rows = append(rows, row)
 		if len(rows) > limit {
-			_ = result.Close()
-			return nil, cardinalityFailure("session", "backend returned more rows than the bounded plan")
+			return false, cardinalityFailure("session", "backend returned more rows than the bounded plan")
 		}
-	}
-	if err := ctx.Err(); err != nil {
-		_ = result.Close()
+		return true, nil
+	})
+	if err != nil {
 		return nil, err
-	}
-	iterationErr := result.Err()
-	closeErr := result.Close()
-	if iterationErr != nil || closeErr != nil {
-		return nil, persistenceFailure("iterate sessions", errors.Join(iterationErr, closeErr))
 	}
 	return rows, nil
 }
