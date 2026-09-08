@@ -8,7 +8,7 @@
 - 작업과 감사 항목별 처리: [GDJ-0065](../../work/0065-codebase-refactoring.md).
 - 기준: `341659d290ed0d344e1db51de086c5d4baac5f4e`, 기존 Draft PR #1의 동일 작업 브랜치.
 - 로컬: 2026-09-08 KST, Go 1.26.5 darwin/arm64, 기준 위 변경 작업 사본.
-- 상태: 영역별 구현·affected 검증과 독립 리뷰를 통합했다. Process smoke를 마무리하며 최종 Hosted full scope는 아직 완료되지 않았다.
+- 상태: 영역별 구현·affected 검증·process smoke와 독립 리뷰를 통합했다. 초기 Hosted 검사 실패를 수정했고 최종 full scope를 다시 검증한다.
 
 ### 로컬 checkpoint
 
@@ -23,6 +23,7 @@
 | `go test -run '^$' -p 2 ./...` | 저장소 전체 127 package compile PASS. 테스트 본문 실행이나 다른 platform의 compile 성공을 뜻하지 않는다. |
 | 검증 helper·attestation·protocol·CI tools | 관련 Go packages PASS, Python CI tools 33 tests PASS. Source binding·complete inventory·suite 선택·owner/sentinel 이전을 확인했다. |
 | Django·DRF·reference | Django 274 tests PASS, 7 skips(DRF 전용 3개·exact-profile 전용 4개). Locked DRF 환경에서 API-auth 5/5 PASS로 해당 3개를 실행했다. Reference catalog는 54회 독립 contractcheck PASS. Exact-profile oracle 실행은 Hosted가 소유한다. |
+| 공유 helper의 실제 SQLite process 소비자 | targeted-migrate, showmigrations, migrate, operator, runserver의 관련 normal smoke PASS. Runserver 강제 descendant cleanup도 실행했다. |
 | 문서·형식·workflow | `make docs-check format-check`, `git diff --check`, actionlint v1.7.12의 두 workflow 검사 PASS. |
 
 초기 통합 검사에서 세 원인을 발견했다. Article Service의 과거 Admin sentinel 기대값을 현재 core repository 오류로 고쳤고,
@@ -53,19 +54,29 @@ Apple M3 Pro의 짧은 microbenchmark이며 전체 DB/HTTP 처리량이나 장�
 | Go 역할 | 기준 줄 수 | 구현 후 | 변화 |
 |---|---:|---:|---:|
 | Framework·CLI·generator·support | 82,273 | 80,431 | -1,842 |
-| 테스트 | 165,402 | 163,687 | -1,715 |
+| 테스트 | 165,402 | 163,688 | -1,714 |
 | Conformance 지원 | 53,478 | 53,541 | +63 |
 | 직접 작성한 예제 | 4,157 | 3,968 | -189 |
 | 생성물 | 6,805 | 6,723 | -82 |
-| **Go 합계** | **312,115** | **308,350** | **-3,765** |
+| **Go 합계** | **312,115** | **308,351** | **-3,764** |
 
-Python은 36,523→36,442줄(-81)이며 **Go+Python 합계 3,846줄 순감소**다. Go는 870→892파일,
+Python은 36,523→36,442줄(-81)이며 **Go+Python 합계 3,845줄 순감소**다. Go는 870→892파일,
 Python은 134→139파일이다. 작게 분리한 공통 소유자·회귀 테스트가 늘었으므로 파일 수 감소를 목표로 삼지 않았다.
 Makefile·JSON catalog·문서는 이 소스 분류 합계에 포함하지 않는다.
 기준/구현 후 source digest는 `039e4f21d3772bf2ba69cbdf9265d72c0ba2385c42086bf1e5d708b3d548988d` /
-`c149fb148e84e464cf051a7777b7328fb0d3f115cdadc7f3ebfc4c6fb63cc0e5`다.
+`3c1c2ba9a6523f16101a0a29b8a060473f22ad74d91ee48065940e0b6f72786c`다.
 
-Hosted 실행 결과는 통합 완료 후 아래에 기록한다. 로컬 전체 `make ci`와 Hosted 전체를 중복 실행하지 않는다.
+### 초기 Hosted 검사와 수정
+
+최초 구현 `105c09fe76a8f6f8e62608f29d675b6ec87a8f8c`의
+[CI 34175399787](https://github.com/progresshans/godj/actions/runs/34175399787)에서 PostgreSQL core의 normal/race/CGO-disabled가
+같은 `TestPostgresRevisionFenceCrossProcessIntegration`의 초기 빈 이력 비교에서 실패했다. 공통 Clone은 빈 목록을 일관되게
+반환하지만 기존 integration helper가 `reflect.DeepEqual`로 nil과 empty를 구분했다. 이력의 개수·순서·App/Name을 비교하는
+`slices.Equal`로 고쳤으며 history/fingerprint unit과 PostgreSQL test package compile이 통과했다. 실행 본문이나 required/no-skip
+검사는 제거하지 않았다. 실제 교차 프로세스 검사는 수정 소스의 Hosted에서 다시 실행한다.
+
+초기 PR feedback은 성공했지만 전체 CI 성공이 아니며, 수정 소스로 전체 실행을 시작할 때 이전 미완료 job은 취소된다.
+최종 Hosted 실행 결과는 완료 후 아래에 기록한다. 로컬 전체 `make ci`와 Hosted 전체를 중복 실행하지 않는다.
 
 ## GDJ-0064 — 추가 결함 수정과 불변 값의 복사 정리
 

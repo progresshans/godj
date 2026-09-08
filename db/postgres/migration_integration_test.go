@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1467,7 +1468,7 @@ func assertPostgresMigrationIntegrationSessionHistory(
 	if err != nil {
 		t.Fatalf("read PostgreSQL revision-fenced integration session: %v", err)
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("PostgreSQL revision-fenced session history = %v, want %v", got, want)
 	}
 }
