@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -46,6 +47,54 @@ func TestProjectSnapshotCanonicalizesAppsButPreservesSchemaOrder(t *testing.T) {
 	}
 	if fieldSHA == firstSHA {
 		t.Fatal("semantic field order change did not change project snapshot")
+	}
+}
+
+func TestProjectPreparationOwnsSharedSchema(t *testing.T) {
+	input := projectBundleTestSpec()
+	prepared, err := normalizeProjectSpec(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, hash, err := projectSnapshot(prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := renderProjectBundle(prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.Apps[0].Schema.Models[0].Fields[0].GoName = "Mutated"
+	input.Apps[0].Schema.Models[0].Fields[1].Relation.Target.AppLabel = "mutated"
+	input.Apps[1].Alias = "mutated"
+	second, err := renderProjectBundle(prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, afterHash, err := projectSnapshot(prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hash != afterHash || !bytes.Equal(before, after) || !reflect.DeepEqual(first, second) {
+		t.Fatal("caller or renderer mutation changed the prepared project snapshot")
+	}
+}
+
+func TestProjectPreparationPreservesAppRendererCollisionChecks(t *testing.T) {
+	for _, symbol := range []string{
+		"GoDjGeneratorVersion", "GoDjRelationSchema", "GoDjRelationObjectGeneratorVersion", "GoDjRelationProjectionGeneratorVersion",
+	} {
+		t.Run(symbol, func(t *testing.T) {
+			spec := projectBundleTestSpec()
+			spec.Apps[0].Schema.Models[0].GoName = symbol
+			bundle, err := GenerateProject(spec)
+			if err == nil || !strings.Contains(err.Error(), "conflicts with") {
+				t.Fatalf("GenerateProject() error = %v, want symbol collision", err)
+			}
+			if bundle.SnapshotSHA256() != "" || len(bundle.Files()) != 0 || len(bundle.Manifest()) != 0 {
+				t.Fatal("app namespace failure returned a partial bundle")
+			}
+		})
 	}
 }
 

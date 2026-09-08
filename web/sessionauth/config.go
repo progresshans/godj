@@ -97,6 +97,7 @@ type Runtime struct {
 	clockMu          sync.Mutex
 	limits           Limits
 	csrfKeyRing      CSRFKeyRing
+	originProtection http.CrossOriginProtection
 }
 
 func (*Runtime) String() string   { return "sessionauth.Runtime{redacted}" }

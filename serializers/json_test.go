@@ -183,3 +183,29 @@ func FuzzDecodeObjectNeverPanics(f *testing.F) {
 		_, _ = serializers.DecodeObject(document, serializers.Limits{MaxDocumentBytes: 4096})
 	})
 }
+
+func TestImmutableValuesIsolateInputAndReturnedSlices(t *testing.T) {
+	input := []serializers.Value{serializers.String("original")}
+	list, err := serializers.NewList(input...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	members := []serializers.Member{serializers.MemberOf("items", list)}
+	object, err := serializers.NewObject(members...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias, _ := object.Value().AsObject()
+	input[0] = serializers.String("input changed")
+	members[0] = serializers.MemberOf("replaced", serializers.Null())
+	returned := alias.Members()
+	values, _ := returned[0].Value().AsList()
+	values[0] = serializers.String("returned list changed")
+	returned[0] = serializers.Member{}
+	for _, snapshot := range []serializers.Object{object, alias} {
+		encoded, err := serializers.EncodeObject(snapshot, serializers.Limits{})
+		if err != nil || string(encoded) != `{"items":["original"]}` {
+			t.Fatalf("immutable object changed: %s, %v", encoded, err)
+		}
+	}
+}

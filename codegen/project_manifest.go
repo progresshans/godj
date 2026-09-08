@@ -3,8 +3,6 @@ package codegen
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/progresshans/godj/schema/ir"
 )
 
 type projectManifestApp struct {
@@ -50,15 +48,11 @@ func projectManifest(
 		Files:          make([]projectManifestFile, len(files)),
 	}
 	for index, app := range input.apps {
-		hash, err := ir.Hash(app.Schema)
-		if err != nil {
-			return nil, fmt.Errorf("hash manifest app %q: %w", app.Alias, err)
-		}
 		document.Apps[index] = projectManifestApp{
 			Alias:        app.Alias,
-			AppLabel:     app.Schema.AppLabel,
+			AppLabel:     app.schema.AppLabel,
 			Package:      projectPackageDocumentFromSpec(app.Package),
-			SchemaSHA256: hash,
+			SchemaSHA256: app.hash,
 		}
 	}
 	for index, file := range files {

@@ -286,7 +286,7 @@ func denialResponse(status int, code api.ResponseCode, challenge string) (web.Re
 	}
 	header := response.Header()
 	header.Set("WWW-Authenticate", challenge)
-	response, err = web.NewResponse(response.Status(), header, response.Body())
+	response, err = response.WithHeaders(header)
 	if err != nil {
 		return web.Response{}, &Error{Code: CodeResponse, Field: "challenge", Detail: "Bearer challenge could not be applied", Cause: err}
 	}

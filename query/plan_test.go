@@ -34,6 +34,82 @@ func TestPlanDerivationDoesNotMutateSource(t *testing.T) {
 	}
 }
 
+func TestPlanScalarDerivationsPreserveCompositeOwnership(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	for _, kind := range []string{"model", "projection", "relation"} {
+		t.Run(kind, func(t *testing.T) {
+			fields := []query.FieldRef{id, title}
+			orderings := []query.Ordering{query.NewOrdering(id, query.Ascending)}
+			base := query.NewPlan("blog_post", fields).WithOrderings(orderings...)
+			var err error
+			switch kind {
+			case "projection":
+				shape, shapeErr := query.NewProjectionResult(id, title)
+				if shapeErr != nil {
+					t.Fatal(shapeErr)
+				}
+				base, err = base.WithResultShape(shape)
+			case "relation":
+				base, err = base.WithRelationProjection(newTestRelationProjection(t, false))
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			limited, err := base.WithLimit(7)
+			if err != nil {
+				t.Fatal(err)
+			}
+			offset, err := limited.WithOffset(3)
+			if err != nil {
+				t.Fatal(err)
+			}
+			derived := offset.WithDistinct()
+			if _, set := base.Limit(); set {
+				t.Fatal("WithLimit mutated its source")
+			}
+			if _, set := limited.Offset(); set || offset.Distinct() {
+				t.Fatal("Offset or Distinct mutated its source")
+			}
+			if limit, set := derived.Limit(); !set || limit != 7 {
+				t.Fatalf("derived limit = %d, %v", limit, set)
+			}
+			if value, set := derived.Offset(); !set || value != 3 || !derived.Distinct() {
+				t.Fatalf("derived offset/distinct = %d, %v, %v", value, set, derived.Distinct())
+			}
+			fields[0] = title
+			orderings[0] = query.NewOrdering(title, query.Descending)
+			derived.SourceFields()[0] = title
+			derived.Orderings()[0] = orderings[0]
+			if kind == "projection" {
+				derived.ResultShape().Expressions()[0] = query.CountAllResult()
+			}
+			if projection, ok := derived.RelationProjection(); ok {
+				projection.TargetColumns()[0] = title
+			}
+			for _, plan := range []query.Plan{base, limited, offset, derived} {
+				if !plan.SourceFields()[0].Equal(id) || !plan.Orderings()[0].Equal(query.NewOrdering(id, query.Ascending)) {
+					t.Fatal("caller slice mutation reached shared plan metadata")
+				}
+				if !plan.ResultShape().Equal(base.ResultShape()) {
+					t.Fatal("scalar derivation changed result shape")
+				}
+				if kind == "projection" && plan.ResultShape().Expressions()[0].Kind() != query.ResultField {
+					t.Fatal("result accessor exposed shared projection storage")
+				}
+				if kind == "relation" {
+					projection, ok := plan.RelationProjection()
+					if !ok || !projection.Equal(newTestRelationProjection(t, false)) {
+						t.Fatal("scalar derivation changed relation projection")
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestPlanWhereIsAuthoritativeAndConditionsAreComputedDFS(t *testing.T) {
 	t.Parallel()
 

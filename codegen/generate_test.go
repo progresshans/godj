@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -433,6 +434,49 @@ func TestWriteFilePreservesLastGoodWhenCandidateVerificationFails(t *testing.T) 
 	}
 	if !bytes.Equal(got, lastGood) {
 		t.Fatalf("last-good output changed: %q", got)
+	}
+}
+
+func TestWriteFileCanceledDuringVerificationDoesNotPublish(t *testing.T) {
+	t.Parallel()
+
+	for _, existing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("existing_%t", existing), func(t *testing.T) {
+			target := filepath.Join(t.TempDir(), "generated.go")
+			lastGood := []byte("package fixture\n")
+			if existing {
+				if err := os.WriteFile(target, lastGood, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			var candidatePath string
+			err := codegen.WriteFile(ctx, target, []byte("package fixture\nconst Candidate = true\n"), codegen.WriteOptions{
+				Verify: func(_ context.Context, candidate string) error {
+					candidatePath = candidate
+					cancel()
+					return nil
+				},
+			})
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("WriteFile() error = %v, want context.Canceled", err)
+			}
+			if candidatePath == "" {
+				t.Fatal("candidate verifier was not called")
+			}
+			if _, err := os.Stat(candidatePath); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("canceled candidate was not removed: %v", err)
+			}
+			got, err := os.ReadFile(target)
+			if existing {
+				if err != nil || !bytes.Equal(got, lastGood) {
+					t.Fatalf("last-good output changed: %q, error %v", got, err)
+				}
+			} else if !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("canceled first output was published: %q, error %v", got, err)
+			}
+		})
 	}
 }
 

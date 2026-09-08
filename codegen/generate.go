@@ -21,16 +21,17 @@ func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
 	}
-	schema, err := ir.Normalize(input)
+	prepared, err := prepareSchema(input)
 	if err != nil {
 		return nil, fmt.Errorf("normalize codegen schema: %w", err)
 	}
+	return generate(packageName, prepared)
+}
+
+func generate(packageName string, prepared preparedSchema) ([]byte, error) {
+	schema, hash := prepared.schema, prepared.hash
 	if err := validateGeneratedNames(schema); err != nil {
 		return nil, fmt.Errorf("validate generated names: %w", err)
-	}
-	hash, err := ir.Hash(schema)
-	if err != nil {
-		return nil, fmt.Errorf("hash codegen schema: %w", err)
 	}
 
 	var output bytes.Buffer

@@ -85,7 +85,7 @@ func (a *Application) create(request *web.Request, _ auth.Principal) (web.Respon
 	}
 	header := response.Header()
 	header.Set("Location", location)
-	return web.NewResponse(response.Status(), header, response.Body())
+	return response.WithHeaders(header)
 }
 
 func (a *Application) retrieve(request *web.Request, _ auth.Principal) (web.Response, error) {
@@ -198,7 +198,7 @@ func optionsResponse(methods ...string) (web.Response, error) {
 	}
 	header := response.Header()
 	header.Set("Allow", strings.Join(methods, ", "))
-	return web.NewResponse(response.Status(), header, response.Body())
+	return response.WithHeaders(header)
 }
 
 func detailID(request *web.Request) (int64, bool) {

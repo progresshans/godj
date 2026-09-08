@@ -143,17 +143,6 @@ func projectRelativeDirectoryEntries(root, relative string) ([]fs.DirEntry, erro
 	return entries, nil
 }
 
-func projectRelativePathExists(root, relative string, directory bool) (bool, error) {
-	file, err := openProjectRelative(root, relative, directory)
-	if errors.Is(err, errProjectPathMissing) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, file.Close()
-}
-
 // scanReservedGeneratedNamespace walks the physical project tree without
 // following symlinks and reports generated-source namespace members not owned
 // by either the desired or prior manifest. Publication uses the same scanner

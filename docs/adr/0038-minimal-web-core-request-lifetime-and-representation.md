@@ -49,6 +49,8 @@ implicit I/O가 생길 수 있습니다. 첫 Web slice 전에 request lifetime�
    만듭니다. QuerySet/cache/wrapper를 application global에 보관하지 않습니다.
 8. `web.Response`는 bounded immutable buffer입니다. Handler가 성공한 뒤에만 header/status/body를 한 번 씁니다.
    Handler error는 detail을 노출하지 않는 sanitized 500이고 partial body는 0입니다.
+   `Response.WithHeaders`는 검증한 header snapshot으로 교체하면서 immutable body·status·router origin marker를 유지합니다.
+   Header만 바꾸는 session/API adapter는 body를 다시 복사하지 않으며 zero response는 파생할 수 없습니다.
 9. Server shutdown은 canceled serve context를 재사용하지 않고 별도 bounded cleanup context로 in-flight request를 drain한
    뒤 반환합니다. Context cancellation뿐 아니라 permanent listener/serve failure에서도 같은 bounded drain과 force-close를
    완료하고 나서 반환합니다. Application owner가 server 종료 뒤 backend를 닫습니다.

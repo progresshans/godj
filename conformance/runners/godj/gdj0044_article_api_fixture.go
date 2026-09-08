@@ -307,7 +307,7 @@ func newArticleAPIFixture(ctx context.Context, contractID string) (*articleAPIFi
 				}
 				header := response.Header()
 				header.Set(webRuntime.CSRFHeader(), token.Value())
-				response, responseErr = web.NewResponse(response.Status(), header, response.Body())
+				response, responseErr = response.WithHeaders(header)
 				if responseErr != nil {
 					return web.Response{}, responseErr
 				}

@@ -378,3 +378,55 @@ func FuzzParameterizedRouteCanonicalInt64(f *testing.F) {
 		}
 	})
 }
+
+func TestReverseEscapesStaticAndPatternLiterals(t *testing.T) {
+	for _, literal := range []string{"literal%41", "literal%", "literal%2f", "한글 공백"} {
+		for _, parameterized := range []bool{false, true} {
+			path := "/" + literal + "/"
+			var arguments []web.ReverseArgument
+			if parameterized {
+				path += "<int64:id>/"
+				arguments = []web.ReverseArgument{web.Int64Argument("id", 1)}
+			}
+			t.Run(path, func(t *testing.T) {
+				application := newTestApplication(t, web.Config{Routes: []web.Route{{Name: "articles:literal", Method: http.MethodGet, Path: path, Handler: textHandler("matched")}}})
+				reversed, err := application.ReverseWith("articles:literal", arguments...)
+				if err != nil {
+					t.Fatal(err)
+				}
+				request, err := http.NewRequest(http.MethodGet, "http://example.test"+reversed, nil)
+				if err != nil {
+					t.Fatalf("Reverse returned an invalid URL: %v", err)
+				}
+				response := httptest.NewRecorder()
+				application.ServeHTTP(response, request)
+				if response.Code != http.StatusOK || response.Body.String() != "matched" {
+					t.Fatalf("round trip %q = %d, %q", reversed, response.Code, response.Body.String())
+				}
+			})
+		}
+	}
+}
+
+func TestReverseAppliesByteLimitAfterEscaping(t *testing.T) {
+	for _, tc := range []struct {
+		path      string
+		arguments []web.ReverseArgument
+	}{
+		{"/" + strings.Repeat("%", 1365), nil},
+		{"/" + strings.Repeat("%", 1364) + "/<int64:id>/", []web.ReverseArgument{web.Int64Argument("id", 1)}},
+	} {
+		application := newTestApplication(t, web.Config{Routes: []web.Route{{Name: "articles:boundary", Method: http.MethodGet, Path: tc.path, Handler: textHandler("boundary")}}})
+		path, err := application.ReverseWith("articles:boundary", tc.arguments...)
+		if err != nil || len(path) != 4096 {
+			t.Fatalf("escaped boundary length=%d, error=%v", len(path), err)
+		}
+		if response := serve(application, http.MethodGet, path); response.Code != http.StatusOK {
+			t.Fatalf("boundary response = %d", response.Code)
+		}
+		application = newTestApplication(t, web.Config{Routes: []web.Route{{Name: "articles:overflow", Method: http.MethodGet, Path: tc.path + "%", Handler: textHandler("unexpected")}}})
+		if _, err := application.ReverseWith("articles:overflow", tc.arguments...); !errors.Is(err, &web.Error{Code: web.CodeReverseArguments}) {
+			t.Fatalf("escaped overflow = %v", err)
+		}
+	}
+}

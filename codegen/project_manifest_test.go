@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
+
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestProjectManifestCanonicalSchemaAndFinalLF(t *testing.T) {
-	bundle, err := GenerateProject(projectBundleTestSpec())
+	spec := projectBundleTestSpec()
+	bundle, err := GenerateProject(spec)
 	if err != nil {
 		t.Fatalf("GenerateProject() error = %v", err)
 	}
@@ -51,6 +54,17 @@ func TestProjectManifestCanonicalSchemaAndFinalLF(t *testing.T) {
 	}
 	if len(document.Apps) != 2 || document.Apps[0].AppLabel != "authors" || document.Apps[1].AppLabel != "blog" {
 		t.Fatalf("manifest apps are not canonical: %#v", document.Apps)
+	}
+	for _, input := range spec.Apps {
+		hash, err := ir.Hash(input.Schema)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, app := range document.Apps {
+			if app.AppLabel == input.Schema.AppLabel && app.SchemaSHA256 != hash {
+				t.Fatalf("manifest app %s hash = %q, want canonical schema hash %q", app.AppLabel, app.SchemaSHA256, hash)
+			}
+		}
 	}
 	files := bundle.Files()
 	if len(document.Files) != len(files) {

@@ -270,6 +270,10 @@ func CanonicalJSON(input Schema) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return canonicalJSON(normalized)
+}
+
+func canonicalJSON(normalized Schema) ([]byte, error) {
 	data, err := json.Marshal(normalized)
 	if err != nil {
 		return nil, fmt.Errorf("marshal normalized schema: %w", err)
@@ -278,12 +282,25 @@ func CanonicalJSON(input Schema) ([]byte, error) {
 }
 
 func Hash(input Schema) (string, error) {
-	canonical, err := CanonicalJSON(input)
+	_, hash, err := NormalizeAndHash(input)
+	return hash, err
+}
+
+// NormalizeAndHash returns a caller-owned normalized schema and the SHA-256 of
+// its canonical JSON, including the trailing newline. It normalizes only once
+// and returns zero values on failure. The hash describes the returned snapshot;
+// callers that modify that schema must compute a new hash.
+func NormalizeAndHash(input Schema) (Schema, string, error) {
+	normalized, err := Normalize(input)
 	if err != nil {
-		return "", err
+		return Schema{}, "", err
+	}
+	canonical, err := canonicalJSON(normalized)
+	if err != nil {
+		return Schema{}, "", err
 	}
 	sum := sha256.Sum256(canonical)
-	return hex.EncodeToString(sum[:]), nil
+	return normalized, hex.EncodeToString(sum[:]), nil
 }
 
 func validation(path, code, info string) error {

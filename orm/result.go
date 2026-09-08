@@ -332,6 +332,8 @@ func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Pr
 	if err != nil {
 		return nil, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	values := make([]R, 0)
 	for rows.Next() {
 		decoder := projection.newDecoder()
@@ -341,7 +343,7 @@ func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Pr
 		}
 		values = append(values, decoder.decode())
 	}
-	err = finishRowsLifecycle(ctx, err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return nil, err
 	}
@@ -374,9 +376,11 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	if err != nil {
 		return zero, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	decoder := aggregate.newDecoder()
 	if !rows.Next() {
-		if err := finishRowsLifecycle(ctx, nil, rows); err != nil {
+		if err := lifecycle.finish(ctx, nil); err != nil {
 			return zero, err
 		}
 		return zero, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "aggregate query returned no row"}
@@ -386,7 +390,7 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	} else if rows.Next() {
 		err = &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "aggregate query returned more than one row"}
 	}
-	err = finishRowsLifecycle(ctx, err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return zero, err
 	}

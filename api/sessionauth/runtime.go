@@ -131,7 +131,7 @@ func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedH
 			header = make(http.Header)
 		}
 		header.Set(r.runtime.CSRFHeader(), token.Value())
-		response, err = web.NewResponse(response.Status(), header, response.Body())
+		response, err = response.WithHeaders(header)
 		if err != nil {
 			return web.Response{}, &Error{Code: CodeResponse, Field: "csrf_header", Detail: "CSRF response header could not be applied", Cause: err}
 		}

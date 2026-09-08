@@ -193,11 +193,13 @@ func (qs QuerySet[M]) countRowsByIteration(ctx context.Context) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	var count int64
 	for rows.Next() {
 		count++
 	}
-	err = finishRowsLifecycle(ctx, err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return 0, err
 	}
@@ -226,8 +228,10 @@ func (qs QuerySet[M]) Exists(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	exists := rows.Next()
-	err = finishRowsLifecycle(ctx, nil, rows)
+	err = lifecycle.finish(ctx, nil)
 	if err != nil {
 		return false, err
 	}
@@ -268,6 +272,8 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	if err != nil {
 		return zero, false, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	found := false
 	var value M
 	for position := 0; rows.Next(); position++ {
@@ -283,7 +289,7 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 		}
 		break
 	}
-	err = finishRowsLifecycle(ctx, err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return zero, false, err
 	}
@@ -314,6 +320,8 @@ func (qs QuerySet[M]) Iterate(ctx context.Context, callback func(M) error) error
 	if err != nil {
 		return err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	for rows.Next() {
 		value, scanErr := qs.descriptor.Scan(rows)
 		if scanErr != nil {
@@ -325,7 +333,7 @@ func (qs QuerySet[M]) Iterate(ctx context.Context, callback func(M) error) error
 			break
 		}
 	}
-	return finishRowsLifecycle(ctx, err, rows)
+	return lifecycle.finish(ctx, err)
 }
 
 func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
@@ -355,6 +363,8 @@ func (qs QuerySet[M]) scanAll(ctx context.Context) ([]M, error) {
 	if err != nil {
 		return nil, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	values := make([]M, 0)
 	for rows.Next() {
 		value, scanErr := qs.descriptor.Scan(rows)
@@ -366,7 +376,7 @@ func (qs QuerySet[M]) scanAll(ctx context.Context) ([]M, error) {
 		// canonical cache. A second clone is made for every caller below.
 		values = append(values, qs.descriptor.CloneModel(value))
 	}
-	err = finishRowsLifecycle(ctx, err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return nil, err
 	}
@@ -401,9 +411,27 @@ func openQueryRows(ctx context.Context, backend db.Queryer, plan query.Plan) (db
 	return rows, nil
 }
 
-func finishRowsLifecycle(ctx context.Context, err error, rows db.Rows) error {
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
+// rowsLifecycle owns an acquired cursor until either normal completion or
+// stack unwinding. Callers defer close immediately, then use finish to retain
+// iteration, close, and context errors on normal returns.
+type rowsLifecycle struct {
+	rows db.Rows
+}
+
+func (lifecycle *rowsLifecycle) close() error {
+	rows := lifecycle.rows
+	if rows == nil {
+		return nil
+	}
+	lifecycle.rows = nil
+	return rows.Close()
+}
+
+func (lifecycle *rowsLifecycle) finish(ctx context.Context, err error) error {
+	err = joinRowsErr(err, lifecycle.rows)
+	if closeErr := lifecycle.close(); closeErr != nil {
+		err = errors.Join(err, fmt.Errorf("close model rows: %w", closeErr))
+	}
 	return joinContextErr(err, ctx)
 }
 
@@ -432,13 +460,6 @@ func invalidTerminalContext() error {
 func joinRowsErr(err error, rows db.Rows) error {
 	if rowsErr := rows.Err(); rowsErr != nil {
 		err = errors.Join(err, fmt.Errorf("iterate model rows: %w", rowsErr))
-	}
-	return err
-}
-
-func closeRows(err error, rows db.Rows) error {
-	if closeErr := rows.Close(); closeErr != nil {
-		err = errors.Join(err, fmt.Errorf("close model rows: %w", closeErr))
 	}
 	return err
 }

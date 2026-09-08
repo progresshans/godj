@@ -33,12 +33,16 @@ func TestCurrentScalarCanonicalHashIsDeterministic(t *testing.T) {
 	if !bytes.Equal(canonical, []byte(want)) {
 		t.Fatalf("current scalar canonical bytes changed\nwant: %s\n got: %s", want, canonical)
 	}
-	hash, err := ir.Hash(input)
+	normalized, hash, err := ir.NormalizeAndHash(input)
 	if err != nil {
-		t.Fatalf("Hash() error = %v", err)
+		t.Fatalf("NormalizeAndHash() error = %v", err)
 	}
 	if hash != "3e6ec104d26c21665690e9d4a20f547ae2f7212b2eb35f5e741d38a85274647d" {
 		t.Fatalf("current scalar hash = %s", hash)
+	}
+	encoded, err := json.Marshal(normalized)
+	if err != nil || !bytes.Equal(append(encoded, '\n'), canonical) {
+		t.Fatalf("NormalizeAndHash() returned a different canonical schema: %s, error %v", encoded, err)
 	}
 }
 

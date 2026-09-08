@@ -449,7 +449,7 @@ func (p Plan) WithLimit(limit int) (Plan, error) {
 	if limit < 0 {
 		return Plan{}, &Error{Category: CategoryQuery, Code: CodeInvalidLimit, Detail: "limit cannot be negative"}
 	}
-	clone := p.clone()
+	clone := p
 	clone.limit = &limit
 	return clone, nil
 }
@@ -458,13 +458,13 @@ func (p Plan) WithOffset(offset int) (Plan, error) {
 	if offset < 0 || int64(offset) > math.MaxInt32 {
 		return Plan{}, &Error{Category: CategoryQuery, Code: CodeInvalidOffset, Detail: "offset must be between zero and 2147483647"}
 	}
-	clone := p.clone()
+	clone := p
 	clone.offset = &offset
 	return clone, nil
 }
 
 func (p Plan) WithDistinct() Plan {
-	clone := p.clone()
+	clone := p
 	clone.distinct = true
 	return clone
 }

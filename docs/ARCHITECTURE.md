@@ -44,6 +44,8 @@ compile되지 않아도 생성기는 실행할 수 있어야 한다. [ADR-0006](
 
 공통 relation cache는 `orm.RelationCache[T]` runtime이 소유하고 생성 코드는 typed 연결을 만든다.
 Project bundle의 renderer는 같은 준비된 모델·관계 해석을 공유한다.
+App schema도 생성 호출마다 한 번 정규화하고 canonical hash를 계산해 app renderer·manifest·facade가 공유한다.
+`ir.NormalizeAndHash`의 반환 schema는 caller 소유이며 수정하면 hash도 다시 계산해야 한다. 전역 schema cache는 두지 않는다.
 
 생성물의 manifest와 recovery journal은 서로 다른 입력의 파일이 섞이거나 중단 뒤 부분 결과가 정상으로 인정되는 일을 막는다.
 소유 파일, source namespace와 입력 snapshot을 확인하고 다른 사용자의 파일을 덮어쓰지 않는다. Publication의 원자성과

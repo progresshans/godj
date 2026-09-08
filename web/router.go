@@ -3,6 +3,7 @@ package web
 import (
 	"math"
 	"net/http"
+	"net/url"
 	pathpkg "path"
 	"sort"
 	"strconv"
@@ -464,7 +465,7 @@ func (r router) reverse(name string, arguments []ReverseArgument) (string, error
 		if len(arguments) != 0 {
 			return "", reverseArgumentError("static route does not accept arguments")
 		}
-		return route.path, nil
+		return reversePath(route.path)
 	}
 	return reversePattern(*route.pattern, arguments)
 }
@@ -523,7 +524,15 @@ func reversePattern(pattern routePattern, arguments []ReverseArgument) (string, 
 			return "", reverseArgumentError("reversed path exceeds the route byte limit")
 		}
 	}
-	return result.String(), nil
+	return reversePath(result.String())
+}
+
+func reversePath(path string) (string, error) {
+	escaped := (&url.URL{Path: path}).EscapedPath()
+	if len(escaped) > maximumRoutePathBytes {
+		return "", reverseArgumentError("reversed path exceeds the route byte limit")
+	}
+	return escaped, nil
 }
 
 func reverseArgumentError(detail string) error {

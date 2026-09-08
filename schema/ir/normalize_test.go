@@ -3,6 +3,7 @@ package ir_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/schema"
@@ -148,6 +149,34 @@ func TestSchemaCloneDoesNotShareDefaultState(t *testing.T) {
 	clone.Models[0].Fields[0].Default.Boolean = true
 	if input.Models[0].Fields[0].Default.Boolean {
 		t.Fatal("Clone shared typed default pointer with its input")
+	}
+}
+
+func TestNormalizeAndHashOwnsSchemaAndReturnsZeroOnFailure(t *testing.T) {
+	t.Parallel()
+
+	input := relationSchema()
+	input.Models[0].Fields = append(input.Models[0].Fields, ir.Field{
+		Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 100,
+		Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"},
+	})
+	normalized, hash, err := ir.NormalizeAndHash(input)
+	if err != nil {
+		t.Fatalf("NormalizeAndHash() error = %v", err)
+	}
+	input.Models[0].Fields[1].Relation.Target.AppLabel = "mutated"
+	input.Models[0].Fields[2].Default.String = "mutated"
+	if normalized.Models[0].Fields[1].Relation.Target.AppLabel != "authors" ||
+		normalized.Models[0].Fields[2].Default.String != "original" {
+		t.Fatal("NormalizeAndHash() retained mutable caller state")
+	}
+	if got, err := ir.Hash(normalized); err != nil || got != hash {
+		t.Fatalf("prepared hash = %q, Hash(normalized) = %q, error %v", hash, got, err)
+	}
+	normalized, hash, err = ir.NormalizeAndHash(ir.Schema{})
+	var validation *ir.ValidationError
+	if !errors.As(err, &validation) || !reflect.DeepEqual(normalized, ir.Schema{}) || hash != "" {
+		t.Fatalf("invalid schema returned (%#v, %q, %v), want zero values and ValidationError", normalized, hash, err)
 	}
 }
 

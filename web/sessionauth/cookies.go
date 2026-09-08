@@ -20,10 +20,13 @@ func (change ResponseChange) Apply(response web.Response) (web.Response, error) 
 		return response, nil
 	}
 	header := response.Header()
+	if header == nil {
+		header = make(http.Header)
+	}
 	for _, cookie := range change.cookies {
 		header.Add("Set-Cookie", cookie.String())
 	}
-	updated, err := web.NewResponse(response.Status(), header, response.Body())
+	updated, err := response.WithHeaders(header)
 	if err != nil {
 		return web.Response{}, &Error{Code: CodeResponse, Detail: "response cookie application failed", Cause: err}
 	}

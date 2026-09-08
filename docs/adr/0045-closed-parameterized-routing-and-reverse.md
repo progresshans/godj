@@ -33,6 +33,8 @@ unbounded matching surface를 갖고, parameter를 raw context/map에 저장하�
    context handoff와 reflection conversion은 public API가 아닙니다.
 6. Parameter reverse는 name과 closed typed argument를 받아 canonical decimal segment를 생성합니다. Missing/extra/wrong-kind,
    overflow와 path injection은 response I/O 전에 structured error입니다.
+   Static과 parameter reverse 모두 decoded literal을 URL path로 escape합니다. Percent·공백·Unicode literal도 요청의
+   decoded Path로 되돌아와 같은 route를 찾으며, escape된 결과에도 path byte cap을 적용합니다.
 7. Trailing slash는 선언 bytes와 exact match합니다. Invalid converter value는 404, path pattern이 맞고 method만 다르면 sorted
    `Allow`를 포함한 405입니다.
 8. Parameter 개수, pattern bytes, segment count와 input path bytes는 explicit cap으로 제한합니다.

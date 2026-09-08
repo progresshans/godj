@@ -96,22 +96,22 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 	relationPackages := make([]normalizedRelationPackage, len(input.apps))
 
 	for index, app := range input.apps {
-		owner := "app:" + app.Schema.AppLabel
+		owner := "app:" + app.schema.AppLabel
 		renderers := []struct {
 			filename string
 			render   func() ([]byte, error)
 		}{
 			{filename: "zz_godj_generated.go", render: func() ([]byte, error) {
-				return Generate(app.Package.PackageName, app.Schema)
+				return generate(app.Package.PackageName, app.preparedSchema)
 			}},
 			{filename: "zz_godj_relation.go", render: func() ([]byte, error) {
-				return GenerateRelationMetadata(app.Package.PackageName, app.Schema)
+				return generateRelationMetadata(app.Package.PackageName, app.preparedSchema)
 			}},
 			{filename: "zz_godj_relation_object.go", render: func() ([]byte, error) {
-				return GenerateRelationObject(app.Package.PackageName, app.Schema)
+				return generateRelationObject(app.Package.PackageName, app.preparedSchema)
 			}},
 			{filename: "zz_godj_relation_projection.go", render: func() ([]byte, error) {
-				return GenerateRelationProjection(app.Package.PackageName, app.Schema)
+				return generateRelationProjection(app.Package.PackageName, app.preparedSchema)
 			}},
 		}
 		for _, renderer := range renderers {
@@ -129,7 +129,7 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 		bridgePackages[index] = BridgePackage{Alias: app.Alias, ImportPath: app.Package.ImportPath}
 		relationPackages[index] = normalizedRelationPackage{
 			alias: app.Alias, prefix: exportedRelationQueryPrefix(app.Alias),
-			importPath: app.Package.ImportPath, schema: app.Schema,
+			importPath: app.Package.ImportPath, preparedSchema: app.preparedSchema,
 		}
 	}
 
@@ -236,12 +236,12 @@ func sealProjectSnapshot(
 ) error {
 	appMarker := "GoDjProjectSnapshot_" + snapshotSHA256
 	projectMarker := "goDjProjectSnapshot_" + snapshotSHA256
-	appByDirectory := make(map[string]AppSpec, len(input.apps))
+	appByDirectory := make(map[string]struct{}, len(input.apps))
 	for _, app := range input.apps {
-		appByDirectory[app.Package.Directory] = app
-		for _, model := range app.Schema.Models {
+		appByDirectory[app.Package.Directory] = struct{}{}
+		for _, model := range app.schema.Models {
 			if model.GoName == appMarker {
-				return fmt.Errorf("project snapshot marker %s conflicts with model %s.%s", appMarker, app.Schema.AppLabel, model.Name)
+				return fmt.Errorf("project snapshot marker %s conflicts with model %s.%s", appMarker, app.schema.AppLabel, model.Name)
 			}
 		}
 	}

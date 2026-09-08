@@ -1311,19 +1311,6 @@ func readDefinitionSQLiteHistory(t *testing.T, database *sqlite.Backend) []backe
 	return records
 }
 
-func assertDefinitionSQLiteHistory(t *testing.T, database *sqlite.Backend, want ...backend.AppliedMigration) {
-	t.Helper()
-	got := readDefinitionSQLiteHistory(t, database)
-	if len(got) != len(want) {
-		t.Fatalf("SQLite migration history = %v, want %v", got, want)
-	}
-	for index := range want {
-		if got[index] != want[index] {
-			t.Fatalf("SQLite migration history = %v, want %v", got, want)
-		}
-	}
-}
-
 func seedDefinitionSQLiteHistoryTransition(
 	t *testing.T,
 	database *sqlite.Backend,

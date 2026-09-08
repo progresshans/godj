@@ -51,6 +51,9 @@ jobs:
     name: Validate references and current product captures
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
     env:
       LC_ALL: C
       PYTHONHASHSEED: "0"
@@ -84,24 +87,40 @@ jobs:
           uv run --frozen python -c 'import django, platform, sqlite3, sys; print(sys.version); print(django.get_version()); print(sqlite3.sqlite_version); print(platform.platform())'
           go version
 
+      - name: Resolve successful capture producers from this run
+        id: captures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/ci/capture_artifact.py resolve postgresql-17.10-two-process-v1.json
+          python3 scripts/ci/capture_artifact.py resolve postgresql-17.10-sqlite-external-operator-v1.json
+
       - name: Download current system-state capture
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: systemstate-postgres-${{ github.run_attempt }}
+          artifact-ids: ${{ steps.captures.outputs.systemstate_artifact_id }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+          merge-multiple: true
           path: ${{ runner.temp }}/godj-evidence/systemstate
 
       - name: Download current operator capture
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: operator-postgres-${{ github.run_attempt }}
+          artifact-ids: ${{ steps.captures.outputs.operator_artifact_id }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+          merge-multiple: true
           path: ${{ runner.temp }}/godj-evidence/operator
 
       - name: Verify same-run capture provenance and execute conformance
         env:
           ATTESTATION_DIR: ${{ runner.temp }}/godj-evidence
+          SYSTEMSTATE_PRODUCER_ATTEMPT: ${{ steps.captures.outputs.systemstate_producer_attempt }}
+          OPERATOR_PRODUCER_ATTEMPT: ${{ steps.captures.outputs.operator_producer_attempt }}
         run: |
-          python3 scripts/ci/capture_artifact.py verify "$ATTESTATION_DIR/systemstate" postgresql-17.10-two-process-v1.json
-          python3 scripts/ci/capture_artifact.py verify "$ATTESTATION_DIR/operator" postgresql-17.10-sqlite-external-operator-v1.json
+          python3 scripts/ci/capture_artifact.py verify "$ATTESTATION_DIR/systemstate" postgresql-17.10-two-process-v1.json --producer-attempt "$SYSTEMSTATE_PRODUCER_ATTEMPT"
+          python3 scripts/ci/capture_artifact.py verify "$ATTESTATION_DIR/operator" postgresql-17.10-sqlite-external-operator-v1.json --producer-attempt "$OPERATOR_PRODUCER_ATTEMPT"
           make docs-check format-check generate-check python-test conformance-check godj-conformance
 
       - name: Compile migration definition and project-check products on 32-bit Linux

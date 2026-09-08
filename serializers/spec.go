@@ -2,6 +2,7 @@ package serializers
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -64,7 +65,7 @@ func WithMaxLength(limit int) FieldOption {
 
 func WithDefault(value Value) FieldOption {
 	return fieldOption(func(config *fieldConfig) {
-		config.defaultValue = value.clone()
+		config.defaultValue = value
 		config.hasDefault = true
 		config.required = false
 	})
@@ -172,7 +173,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 		nullable:       config.nullable,
 		readOnly:       config.readOnly,
 		maxLength:      config.maxLength,
-		defaultValue:   config.defaultValue.clone(),
+		defaultValue:   config.defaultValue,
 		hasDefault:     config.hasDefault,
 		allowEmpty:     config.allowEmpty,
 		trimWhitespace: config.trimWhitespace,
@@ -214,7 +215,7 @@ func (f Field) AllowEmpty() bool     { return f.allowEmpty }
 func (f Field) TrimWhitespace() bool { return f.trimWhitespace }
 
 func (f Field) Default() (Value, bool) {
-	return f.defaultValue.clone(), f.hasDefault
+	return f.defaultValue, f.hasDefault
 }
 
 // Mode controls absence semantics. Full mode applies defaults and required
@@ -251,7 +252,6 @@ func NewSpec(fields []Field) (Spec, error) {
 			return Spec{}, invalidConfig("fields."+field.name, "field name is duplicated")
 		}
 		result.index[field.name] = index
-		field.defaultValue = field.defaultValue.clone()
 		result.fields[index] = field
 	}
 	return result, nil
@@ -261,12 +261,7 @@ func (s Spec) Fields() []Field {
 	if !s.valid {
 		return nil
 	}
-	fields := make([]Field, len(s.fields))
-	for index := range s.fields {
-		fields[index] = s.fields[index]
-		fields[index].defaultValue = s.fields[index].defaultValue.clone()
-	}
-	return fields
+	return slices.Clone(s.fields)
 }
 
 // Entry is one ordered cleaned serializer value.
@@ -276,7 +271,7 @@ type Entry struct {
 }
 
 func (e Entry) Name() string { return e.name }
-func (e Entry) Value() Value { return e.value.clone() }
+func (e Entry) Value() Value { return e.value }
 
 // Values is an immutable ordered cleaned-value collection.
 type Values struct {
@@ -290,21 +285,21 @@ func newValues(order []string, values map[string]Value) Values {
 		values: make(map[string]Value, len(values)),
 	}
 	for name, value := range values {
-		result.values[name] = value.clone()
+		result.values[name] = value
 	}
 	return result
 }
 
 func (v Values) Get(name string) (Value, bool) {
 	value, ok := v.values[name]
-	return value.clone(), ok
+	return value, ok
 }
 
 func (v Values) All() []Entry {
 	entries := make([]Entry, 0, len(v.order))
 	for _, name := range v.order {
 		if value, ok := v.values[name]; ok {
-			entries = append(entries, Entry{name: name, value: value.clone()})
+			entries = append(entries, Entry{name: name, value: value})
 		}
 	}
 	return entries
@@ -350,7 +345,7 @@ func (s Spec) Bind(object Object, mode Mode) (Result, error) {
 			}
 			if field.hasDefault {
 				cleanedOrder = append(cleanedOrder, field.name)
-				cleanedValues[field.name] = field.defaultValue.clone()
+				cleanedValues[field.name] = field.defaultValue
 				continue
 			}
 			if field.required {
@@ -393,7 +388,7 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 		return Value{}, oneViolation(field.name, CodeType)
 	}
 	if field.kind != FieldString {
-		return value.clone(), validation.NewErrors()
+		return value, validation.NewErrors()
 	}
 	cleaned := value.string
 	if field.trimWhitespace {

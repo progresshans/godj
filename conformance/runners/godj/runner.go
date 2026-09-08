@@ -98,10 +98,6 @@ func RequiredObservedContractIDs(manifest protocol.Manifest) ([]string, error) {
 
 type scenarioHandler func(context.Context, protocol.Contract) (protocol.Observation, error)
 
-func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	return runScenarioWithInputs(ctx, contract, Inputs{})
-}
-
 func runScenarioWithInputs(ctx context.Context, contract protocol.Contract, inputs Inputs) (protocol.Observation, error) {
 	handler, ok := lookupScenarioHandlerWithInputs(contract.Scenario, inputs)
 	if !ok {

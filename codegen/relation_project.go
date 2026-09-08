@@ -10,7 +10,7 @@ type normalizedRelationPackage struct {
 	alias      string
 	prefix     string
 	importPath string
-	schema     ir.Schema
+	preparedSchema
 }
 
 type projectRelationModel struct {

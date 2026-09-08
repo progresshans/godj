@@ -17,10 +17,15 @@ func GenerateRelationObject(packageName string, input ir.Schema) ([]byte, error)
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
 	}
-	schema, err := ir.Normalize(input.Clone())
+	prepared, err := prepareSchema(input)
 	if err != nil {
 		return nil, fmt.Errorf("normalize relation object schema: %w", err)
 	}
+	return generateRelationObject(packageName, prepared)
+}
+
+func generateRelationObject(packageName string, prepared preparedSchema) ([]byte, error) {
+	schema, hash := prepared.schema, prepared.hash
 	if err := validateGeneratedNames(schema); err != nil {
 		return nil, fmt.Errorf("validate object prerequisite names: %w", err)
 	}
@@ -29,10 +34,6 @@ func GenerateRelationObject(packageName string, input ir.Schema) ([]byte, error)
 	}
 	if err := validateRelationObjectNames(schema); err != nil {
 		return nil, fmt.Errorf("validate relation object names: %w", err)
-	}
-	hash, err := ir.Hash(schema)
-	if err != nil {
-		return nil, fmt.Errorf("hash relation object schema: %w", err)
 	}
 
 	var output bytes.Buffer

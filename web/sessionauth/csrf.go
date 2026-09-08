@@ -59,9 +59,9 @@ func (r *Runtime) CSRFToken(request *web.Request) (CSRFToken, error) {
 	for index := 0; index < csrfSecretBytes; index++ {
 		masked[csrfSecretBytes+index] = mask[index] ^ secret[index]
 	}
-	// Bind the randomized prefix rather than the raw cookie secret so every
-	// rendered token remains fully masked while sibling-domain cookie injection
-	// still cannot manufacture a server-authenticated token.
+	// Authenticate the randomized prefix without exposing a stable secret.
+	// VerifyCSRF also rejects cross-origin browser requests: a valid signed
+	// pair alone cannot establish the request origin.
 	mac := r.csrfKeyRing.sign(masked[:2*csrfSecretBytes])
 	copy(masked[2*csrfSecretBytes:], mac[:])
 	return CSRFToken{value: base64.RawURLEncoding.EncodeToString(masked), change: change}, nil
@@ -70,7 +70,10 @@ func (r *Runtime) CSRFToken(request *web.Request) (CSRFToken, error) {
 // VerifyCSRF exempts HTTP safe methods and otherwise requires one canonical
 // cookie secret plus one masked form or supported-header token. formTokens is
 // a slice so duplicate form keys can be rejected before any mutation. When
-// both token sources are present they must be identical.
+// both token sources are present they must be identical. Non-safe browser
+// requests must also pass the standard library cross-origin check, including
+// same-site sibling origins. Proxies must preserve the original request Host;
+// forwarded headers do not grant trusted origins.
 func (r *Runtime) VerifyCSRF(request *web.Request, formTokens []string) error {
 	httpRequest, err := r.request(request)
 	if err != nil {
@@ -78,6 +81,9 @@ func (r *Runtime) VerifyCSRF(request *web.Request, formTokens []string) error {
 	}
 	if safeMethod(httpRequest.Method) {
 		return nil
+	}
+	if err := r.originProtection.Check(httpRequest); err != nil {
+		return csrfRejected()
 	}
 	encodedSecret, found, err := r.namedCookie(httpRequest, r.csrfCookie.Name)
 	if err != nil || !found {

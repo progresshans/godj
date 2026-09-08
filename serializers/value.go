@@ -1,6 +1,7 @@
 package serializers
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -35,14 +36,14 @@ func String(value string) Value { return Value{kind: ValueString, string: value,
 func Boolean(value bool) Value  { return Value{kind: ValueBoolean, boolean: value, valid: true} }
 func Integer(value int64) Value { return Value{kind: ValueInteger, integer: value, valid: true} }
 
-// NewList returns an immutable list detached recursively from its input.
+// NewList snapshots the input slice and shares its immutable child values.
 func NewList(values ...Value) (Value, error) {
 	cloned := make([]Value, len(values))
 	for index := range values {
 		if !values[index].validValue() {
 			return Value{}, invalidValue("list", "list contains an invalid value")
 		}
-		cloned[index] = values[index].clone()
+		cloned[index] = values[index]
 	}
 	return Value{kind: ValueList, list: cloned, valid: true}, nil
 }
@@ -56,7 +57,7 @@ type Member struct {
 
 func MemberOf(name string, value Value) Member { return Member{name: name, value: value} }
 func (m Member) Name() string                  { return m.name }
-func (m Member) Value() Value                  { return m.value.clone() }
+func (m Member) Value() Value                  { return m.value }
 
 // Object is an immutable ordered JSON object with indexed lookup. Member
 // declaration order is retained for deterministic rendering and validation.
@@ -66,7 +67,7 @@ type Object struct {
 	valid   bool
 }
 
-// NewObject validates and recursively snapshots ordered members.
+// NewObject validates and snapshots ordered members, sharing immutable values.
 func NewObject(members ...Member) (Object, error) {
 	result := Object{
 		members: make([]Member, len(members)),
@@ -85,7 +86,7 @@ func NewObject(members ...Member) (Object, error) {
 			return Object{}, invalidValue("object."+member.name, "object member name is duplicated")
 		}
 		result.index[member.name] = index
-		result.members[index] = Member{name: member.name, value: member.value.clone()}
+		result.members[index] = Member{name: member.name, value: member.value}
 	}
 	return result, nil
 }
@@ -102,7 +103,7 @@ func (o Object) Len() int {
 	return len(o.members)
 }
 
-// Get returns a detached value for name.
+// Get returns the immutable value for name.
 func (o Object) Get(name string) (Value, bool) {
 	if !o.valid {
 		return Value{}, false
@@ -111,27 +112,23 @@ func (o Object) Get(name string) (Value, bool) {
 	if !ok {
 		return Value{}, false
 	}
-	return o.members[index].value.clone(), true
+	return o.members[index].value, true
 }
 
-// Members returns a recursively detached ordered snapshot.
+// Members returns a detached slice of immutable ordered members.
 func (o Object) Members() []Member {
 	if !o.valid {
 		return nil
 	}
-	members := make([]Member, len(o.members))
-	for index := range o.members {
-		members[index] = Member{name: o.members[index].name, value: o.members[index].value.clone()}
-	}
-	return members
+	return slices.Clone(o.members)
 }
 
-// Value returns this object as a detached closed JSON value.
+// Value returns this immutable object as a closed JSON value.
 func (o Object) Value() Value {
 	if !o.valid {
 		return Value{}
 	}
-	return Value{kind: ValueObject, object: o.clone(), valid: true}
+	return Value{kind: ValueObject, object: o, valid: true}
 }
 
 func (v Value) Kind() ValueKind {
@@ -159,35 +156,14 @@ func (v Value) AsList() ([]Value, bool) {
 	if !v.valid || v.kind != ValueList {
 		return nil, false
 	}
-	values := make([]Value, len(v.list))
-	for index := range v.list {
-		values[index] = v.list[index].clone()
-	}
-	return values, true
+	return slices.Clone(v.list), true
 }
 
 func (v Value) AsObject() (Object, bool) {
 	if !v.valid || v.kind != ValueObject {
 		return Object{}, false
 	}
-	return v.object.clone(), true
-}
-
-func (v Value) clone() Value {
-	clone := v
-	if !v.valid {
-		return Value{}
-	}
-	if v.kind == ValueList {
-		clone.list = make([]Value, len(v.list))
-		for index := range v.list {
-			clone.list[index] = v.list[index].clone()
-		}
-	}
-	if v.kind == ValueObject {
-		clone.object = v.object.clone()
-	}
-	return clone
+	return v.object, true
 }
 
 func (v Value) validValue() bool {
@@ -224,23 +200,6 @@ func (o Object) validObject() bool {
 		}
 	}
 	return true
-}
-
-func (o Object) clone() Object {
-	if !o.valid {
-		return Object{}
-	}
-	clone := Object{
-		members: make([]Member, len(o.members)),
-		index:   make(map[string]int, len(o.index)),
-		valid:   true,
-	}
-	for index := range o.members {
-		member := o.members[index]
-		clone.members[index] = Member{name: member.name, value: member.value.clone()}
-		clone.index[member.name] = index
-	}
-	return clone
 }
 
 func invalidValue(field, detail string) error {

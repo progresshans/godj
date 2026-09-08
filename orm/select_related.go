@@ -485,6 +485,8 @@ func (q ForwardSelectQuery[S, T]) scan(ctx context.Context, plan query.Plan, max
 	if err != nil {
 		return nil, err
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 	projected := make([]projectedRow[S, T], 0)
 	for (maximum == 0 || len(projected) < maximum) && rows.Next() {
 		if contextErr := ctx.Err(); contextErr != nil {
@@ -522,7 +524,7 @@ func (q ForwardSelectQuery[S, T]) scan(ctx context.Context, plan query.Plan, max
 			targetPresence: targetPresence,
 		})
 	}
-	err = finishRowsLifecycle(ctx, err, rows)
+	err = lifecycle.finish(ctx, err)
 	if err != nil {
 		return nil, err
 	}

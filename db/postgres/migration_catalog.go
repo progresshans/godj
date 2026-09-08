@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
@@ -721,13 +720,4 @@ func postgresMigrationCatalogDrift(table, detail string) error {
 		fmt.Sprintf("PostgreSQL application table %q %s", table, detail),
 		errPostgresMigrationPhysicalDrift,
 	)
-}
-
-func sortedPostgresMigrationCatalogNames(models map[string]ir.Model) []string {
-	names := make([]string, 0, len(models))
-	for _, model := range models {
-		names = append(names, model.DBTable)
-	}
-	sort.Strings(names)
-	return names
 }

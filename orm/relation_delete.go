@@ -336,6 +336,8 @@ func collectProtectedRelationRows(
 	if interfaceIsNil(rows) {
 		return joinContextErr(relationBackendInvalidPlan("relation session returned nil protected rows without an error"), ctx)
 	}
+	lifecycle := rowsLifecycle{rows: rows}
+	defer lifecycle.close()
 
 	for rows.Next() {
 		if contextErr := ctx.Err(); contextErr != nil {
@@ -356,7 +358,7 @@ func collectProtectedRelationRows(
 		}
 		protected[relationDeleteProtectedSource{source: edge.metadata.Source, primaryKey: primaryKey}] = struct{}{}
 	}
-	return finishRowsLifecycle(ctx, err, rows)
+	return lifecycle.finish(ctx, err)
 }
 
 type relationDeleteCallbackGuard struct {

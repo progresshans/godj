@@ -1097,19 +1097,6 @@ type authSessionArticle struct {
 	Summary   string
 }
 
-func authSessionArticleList(articles []authSessionArticle) protocol.Value {
-	values := make([]protocol.Value, len(articles))
-	for index, article := range articles {
-		values[index] = protocol.Object(map[string]protocol.Value{
-			"id":        protocol.PrimaryKey(protocol.Integer(strconv.FormatInt(article.ID, 10))),
-			"published": protocol.Boolean(article.Published),
-			"summary":   protocol.String(article.Summary),
-			"title":     protocol.String(article.Title),
-		})
-	}
-	return protocol.List(values...)
-}
-
 type authSessionHTTPResponse struct {
 	status  int
 	header  http.Header

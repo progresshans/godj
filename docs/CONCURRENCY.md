@@ -13,6 +13,9 @@ Filter/OrderBy/Limit/Fresh에서 만들어진 query는 독립 평가 state를 �
 Backend/scan/rows/close/context 실패는 성공 cache로 남기지 않는다. Cold Count/Exists/At/First는 full cache를 채우지 않으며,
 warm terminal은 cache를 사용할 수 있다. Iterate는 full result cache를 사용하거나 채우지 않는다.
 Nil/already-canceled context는 warm cache와 nullable no-I/O 경로에서도 확인한다.
+Descriptor·callback panic도 열린 rows를 정리하고 평가 flight를 해제해 waiter가 다시 시도할 수 있게 한다.
+Panic은 그대로 전파하며 partial result를 cache하지 않는다. 정상 반환의 rows·close·context 오류 결합은 유지한다.
+Limit/Offset/Distinct 파생은 불변 plan metadata를 공유하고, 외부로 반환하는 mutable slice는 분리한다.
 
 이 경계의 이유는 [ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에 있다. QuerySet 자체의 안전성을 backend
 session·사용자 callback·반환된 mutable model의 임의 공유 안전성으로 확대하지 않는다.

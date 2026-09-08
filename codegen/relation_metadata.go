@@ -19,16 +19,17 @@ func GenerateRelationMetadata(packageName string, input ir.Schema) ([]byte, erro
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
 	}
-	schema, err := ir.Normalize(input)
+	prepared, err := prepareSchema(input)
 	if err != nil {
 		return nil, fmt.Errorf("normalize relation metadata schema: %w", err)
 	}
+	return generateRelationMetadata(packageName, prepared)
+}
+
+func generateRelationMetadata(packageName string, prepared preparedSchema) ([]byte, error) {
+	schema, hash := prepared.schema, prepared.hash
 	if err := validateRelationMetadataNames(schema); err != nil {
 		return nil, fmt.Errorf("validate relation metadata names: %w", err)
-	}
-	hash, err := ir.Hash(schema)
-	if err != nil {
-		return nil, fmt.Errorf("hash relation metadata schema: %w", err)
 	}
 
 	var output bytes.Buffer

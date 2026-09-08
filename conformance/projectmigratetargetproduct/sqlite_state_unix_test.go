@@ -180,13 +180,6 @@ func targetAssertSQLiteUnchanged(t *testing.T, path string, before targetSQLiteS
 	}
 }
 
-func targetAssertInitializedEmpty(t *testing.T, snapshot targetSQLiteSnapshot) {
-	t.Helper()
-	if len(snapshot.schema) != 0 || len(snapshot.counts) != 0 || len(snapshot.history) != 0 || snapshot.revision.present {
-		t.Fatalf("initialized empty SQLite state is not empty: %+v", snapshot)
-	}
-}
-
 func targetAssertSQLiteHistory(t *testing.T, path string, want ...targetSQLiteHistoryRow) {
 	t.Helper()
 	snapshot := targetCaptureSQLite(t, path)
@@ -252,16 +245,6 @@ func targetAssertSQLiteTables(t *testing.T, path string, present ...string) {
 	sort.Strings(want)
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("SQLite application tables = %v, want exact %v", got, want)
-	}
-}
-
-func targetAssertSQLiteTablesAbsent(t *testing.T, path string, absent ...string) {
-	t.Helper()
-	snapshot := targetCaptureSQLite(t, path)
-	for _, name := range absent {
-		if targetSnapshotHasTable(snapshot, name) {
-			t.Errorf("SQLite table %q is present", name)
-		}
 	}
 }
 

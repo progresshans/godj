@@ -67,10 +67,21 @@ func (state *evaluationState[M]) evaluate(ctx context.Context, load func(context
 		flight := &evaluationFlight{done: make(chan struct{})}
 		state.flight = flight
 		state.mu.Unlock()
-		values, err := load(ctx)
+		return state.evaluateFlight(ctx, flight, load)
+	}
+}
 
+func (state *evaluationState[M]) evaluateFlight(
+	ctx context.Context,
+	flight *evaluationFlight,
+	load func(context.Context) ([]M, error),
+) (values []M, err error) {
+	completed := false
+	defer func() {
 		state.mu.Lock()
-		if err == nil {
+		// A panicking loader still releases its flight, but only a normal,
+		// successful return can publish canonical values. Waiters may retry.
+		if completed && err == nil {
 			state.values = values
 			state.ready = true
 		}
@@ -78,6 +89,8 @@ func (state *evaluationState[M]) evaluate(ctx context.Context, load func(context
 		state.flight = nil
 		close(flight.done)
 		state.mu.Unlock()
-		return values, err
-	}
+	}()
+	values, err = load(ctx)
+	completed = true
+	return values, err
 }

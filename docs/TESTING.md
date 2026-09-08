@@ -110,6 +110,9 @@ Select/object/delete 관계 handler는 자신이 맡은 case만 관측한다. �
 PostgreSQL actual은 검증할 source·observer·환경에서 생성하고, source/profile/scenario identity와 digest를 확인한 consumer가 사용한다.
 Oracle·expected로 actual을 만들지 않고, 다른 source의 actual이나 stale attestation을 current proof로 인정하지 않는다.
 같은 신뢰된 CI 실행의 artifact를 생성 job에서 소비 job으로 전달한다. 장기 기록은 source·환경·명령·결과와 불변 artifact 위치를 남긴다.
+Consumer만 재시도할 때는 같은 run의 성공한 producer attempt를 재사용할 수 있다. `capture_artifact.py resolve`가
+artifact ID와 실제 normal producer job의 run·source·성공 상태를 확인하고, consumer는 그 producing attempt의 envelope를
+검증한다. 새 attempt의 실패를 과거 성공 artifact로 숨기거나 checkout/payload 검사를 생략하지 않는다.
 관찰자나 attestation I/O를 공통 helper로 옮기면 그 helper도 사용하는 attestation의 source binding에 포함한다.
 JSON/file 읽기 구현을 공유해도 각 attestation의 source inventory·크기 제한·schema는 독립적으로 검증한다.
 
@@ -130,6 +133,7 @@ Go consumer는 checksum과 실제 source/profile/scenario binding도 확인한�
 
 ```sh
 export GITHUB_REPOSITORY=progresshans/godj GITHUB_RUN_ID="$ci_run" GITHUB_RUN_ATTEMPT="$ci_attempt"
+export GITHUB_REPOSITORY_ID="$(gh api repos/progresshans/godj --jq .id)"
 python3 scripts/ci/capture_artifact.py verify "$capture_root/systemstate" postgresql-17.10-two-process-v1.json
 python3 scripts/ci/capture_artifact.py verify "$capture_root/operator" postgresql-17.10-sqlite-external-operator-v1.json
 ATTESTATION_DIR="$capture_root" make ci

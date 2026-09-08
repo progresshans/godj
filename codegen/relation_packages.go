@@ -23,11 +23,11 @@ type relationPackagePolicy struct {
 
 // canonicalRelationPackages is the only normalization and identity validation
 // path for individual relation renderers. Whole-project generation already owns
-// normalized AppSpecs and constructs its shared plan directly from those.
+// prepared app schemas and constructs its shared plan directly from those.
 func canonicalRelationPackages(inputs []relationPackageInput, policy relationPackagePolicy) ([]normalizedRelationPackage, error) {
 	canonical := make([]normalizedRelationPackage, len(inputs))
 	for index, input := range inputs {
-		schema, err := ir.Normalize(input.schema)
+		prepared, err := prepareSchema(input.schema)
 		if err != nil {
 			return nil, fmt.Errorf("normalize relation %s package %q: %w", policy.name, input.alias, err)
 		}
@@ -42,13 +42,13 @@ func canonicalRelationPackages(inputs []relationPackageInput, policy relationPac
 			checks = append(checks, validateRelationObjectNames)
 		}
 		for _, check := range checks {
-			if err := check(schema); err != nil {
+			if err := check(prepared.schema); err != nil {
 				return nil, fmt.Errorf("validate relation %s package %q: %w", policy.name, input.alias, err)
 			}
 		}
 		canonical[index] = normalizedRelationPackage{
 			alias: input.alias, prefix: exportedRelationQueryPrefix(input.alias),
-			importPath: input.importPath, schema: schema,
+			importPath: input.importPath, preparedSchema: prepared,
 		}
 	}
 	sort.Slice(canonical, func(left, right int) bool {

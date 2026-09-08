@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"io"
 	"path"
-	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -472,15 +471,6 @@ func joinManifestPath(directory, filename string) string {
 		return filename
 	}
 	return path.Join(directory, filename)
-}
-
-func sortedManifestFilePaths(manifest committedManifest) []string {
-	paths := make([]string, len(manifest.Files))
-	for index, file := range manifest.Files {
-		paths[index] = file.Path
-	}
-	sort.Strings(paths)
-	return paths
 }
 
 func preflightCommittedManifest(document []byte) error {

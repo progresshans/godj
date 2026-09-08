@@ -22,15 +22,8 @@ func NewResponse(status int, header http.Header, body []byte) (Response, error) 
 	if (status == http.StatusNoContent || status == http.StatusNotModified) && len(body) != 0 {
 		return Response{}, &Error{Code: CodeInvalidResponse, Field: "body", Detail: "status does not permit a response body"}
 	}
-	for name, values := range header {
-		if !validHeaderName(name) {
-			return Response{}, &Error{Code: CodeInvalidResponse, Field: "header", Detail: "header name is not a valid ASCII HTTP token"}
-		}
-		for _, value := range values {
-			if !validHeaderValue(value) {
-				return Response{}, &Error{Code: CodeInvalidResponse, Field: "header", Detail: "header value contains a line break or invalid control byte"}
-			}
-		}
+	if err := validateResponseHeaders(header); err != nil {
+		return Response{}, err
 	}
 	return Response{
 		status: status,
@@ -38,6 +31,33 @@ func NewResponse(status int, header http.Header, body []byte) (Response, error) 
 		body:   append([]byte(nil), body...),
 		valid:  true,
 	}, nil
+}
+
+// WithHeaders replaces the headers with a validated snapshot, preserving the
+// immutable body, status and routing origin. A zero Response cannot be derived.
+func (r Response) WithHeaders(header http.Header) (Response, error) {
+	if !r.valid {
+		return Response{}, &Error{Code: CodeInvalidResponse, Detail: "cannot derive headers from a zero or invalid response"}
+	}
+	if err := validateResponseHeaders(header); err != nil {
+		return Response{}, err
+	}
+	r.header = header.Clone()
+	return r, nil
+}
+
+func validateResponseHeaders(header http.Header) error {
+	for name, values := range header {
+		if !validHeaderName(name) {
+			return &Error{Code: CodeInvalidResponse, Field: "header", Detail: "header name is not a valid ASCII HTTP token"}
+		}
+		for _, value := range values {
+			if !validHeaderValue(value) {
+				return &Error{Code: CodeInvalidResponse, Field: "header", Detail: "header value contains a line break or invalid control byte"}
+			}
+		}
+	}
+	return nil
 }
 
 // HTML creates a UTF-8 HTML response from already-rendered bytes.

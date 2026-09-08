@@ -41,7 +41,13 @@ type projectPackageDocument struct {
 
 type normalizedProjectSpec struct {
 	project PackageSpec
-	apps    []AppSpec
+	apps    []preparedProjectApp
+}
+
+type preparedProjectApp struct {
+	Alias   string
+	Package PackageSpec
+	preparedSchema
 }
 
 type projectSnapshotApp struct {
@@ -96,7 +102,7 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 		return normalizedProjectSpec{}, err
 	}
 
-	apps := make([]AppSpec, len(input.Apps))
+	apps := make([]preparedProjectApp, len(input.Apps))
 	for index := range input.Apps {
 		candidate := input.Apps[index]
 		if err := validateProjectWireString(fmt.Sprintf("apps[%d] alias", index), candidate.Alias); err != nil {
@@ -109,22 +115,22 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 		if err != nil {
 			return normalizedProjectSpec{}, err
 		}
-		schema, err := ir.Normalize(candidate.Schema)
+		prepared, err := prepareSchema(candidate.Schema)
 		if err != nil {
 			return normalizedProjectSpec{}, fmt.Errorf("normalize project app %q: %w", candidate.Alias, err)
 		}
-		if err := validateProjectWireString(fmt.Sprintf("apps[%d] app label", index), schema.AppLabel); err != nil {
+		if err := validateProjectWireString(fmt.Sprintf("apps[%d] app label", index), prepared.schema.AppLabel); err != nil {
 			return normalizedProjectSpec{}, err
 		}
-		if err := validateProjectWireString(fmt.Sprintf("apps[%d] owner", index), "app:"+schema.AppLabel); err != nil {
+		if err := validateProjectWireString(fmt.Sprintf("apps[%d] owner", index), "app:"+prepared.schema.AppLabel); err != nil {
 			return normalizedProjectSpec{}, err
 		}
-		apps[index] = AppSpec{Alias: candidate.Alias, Package: pkg, Schema: schema}
+		apps[index] = preparedProjectApp{Alias: candidate.Alias, Package: pkg, preparedSchema: prepared}
 	}
 
 	sort.Slice(apps, func(left, right int) bool {
-		if apps[left].Schema.AppLabel != apps[right].Schema.AppLabel {
-			return apps[left].Schema.AppLabel < apps[right].Schema.AppLabel
+		if apps[left].schema.AppLabel != apps[right].schema.AppLabel {
+			return apps[left].schema.AppLabel < apps[right].schema.AppLabel
 		}
 		if apps[left].Alias != apps[right].Alias {
 			return apps[left].Alias < apps[right].Alias
@@ -160,10 +166,10 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 			)
 		}
 		directories[foldedDirectory] = app.Package.Directory
-		if _, duplicate := appLabels[app.Schema.AppLabel]; duplicate {
-			return normalizedProjectSpec{}, fmt.Errorf("duplicate project app label %q", app.Schema.AppLabel)
+		if _, duplicate := appLabels[app.schema.AppLabel]; duplicate {
+			return normalizedProjectSpec{}, fmt.Errorf("duplicate project app label %q", app.schema.AppLabel)
 		}
-		appLabels[app.Schema.AppLabel] = struct{}{}
+		appLabels[app.schema.AppLabel] = struct{}{}
 	}
 
 	return normalizedProjectSpec{project: project, apps: apps}, nil
@@ -246,7 +252,7 @@ func projectSnapshotWithABI(
 		document.Apps[index] = projectSnapshotApp{
 			Alias:   app.Alias,
 			Package: projectPackageDocumentFromSpec(app.Package),
-			Schema:  app.Schema.Clone(),
+			Schema:  app.schema,
 		}
 	}
 	data, err := json.Marshal(document)

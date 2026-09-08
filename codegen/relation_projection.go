@@ -17,10 +17,15 @@ func GenerateRelationProjection(packageName string, input ir.Schema) ([]byte, er
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
 	}
-	schema, err := ir.Normalize(input.Clone())
+	prepared, err := prepareSchema(input)
 	if err != nil {
 		return nil, fmt.Errorf("normalize relation projection schema: %w", err)
 	}
+	return generateRelationProjection(packageName, prepared)
+}
+
+func generateRelationProjection(packageName string, prepared preparedSchema) ([]byte, error) {
+	schema, hash := prepared.schema, prepared.hash
 	if err := validateGeneratedNames(schema); err != nil {
 		return nil, fmt.Errorf("validate projection prerequisite names: %w", err)
 	}
@@ -32,10 +37,6 @@ func GenerateRelationProjection(packageName string, input ir.Schema) ([]byte, er
 	}
 	if err := validateRelationProjectionNames(schema); err != nil {
 		return nil, fmt.Errorf("validate relation projection names: %w", err)
-	}
-	hash, err := ir.Hash(schema)
-	if err != nil {
-		return nil, fmt.Errorf("hash relation projection schema: %w", err)
 	}
 
 	var output bytes.Buffer

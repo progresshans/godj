@@ -560,13 +560,6 @@ func targetResetMarker(t *testing.T, path string) {
 	}
 }
 
-func targetAssertMarkerAbsent(t *testing.T, path string) {
-	t.Helper()
-	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("target migration marker unexpectedly exists: %v", err)
-	}
-}
-
 func targetWriteFile(t *testing.T, path string, document []byte, mode fs.FileMode) {
 	t.Helper()
 	if err := os.WriteFile(path, document, mode); err != nil {
@@ -665,15 +658,6 @@ func targetEnvironmentValue(environment []string, wanted string) string {
 		}
 	}
 	return ""
-}
-
-func targetDigestFile(t *testing.T, path string) [sha256.Size]byte {
-	t.Helper()
-	document, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return sha256.Sum256(document)
 }
 
 func targetEntryNames(entries []os.DirEntry) []string {

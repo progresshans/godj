@@ -75,6 +75,11 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
 5. CSRF는 safe method를 exempt하고 anonymous safe GET에서도 session write 없이 CSPRNG cookie secret을 발급할 수 있습니다. Unsafe
    method는 cookie secret과 masked form token 또는 supported header token을 constant-time 검증합니다. Login은 cookie secret을
    회전하므로 missing/malformed/wrong/pre-login token은 403과 mutation 0입니다. Token/source body size를 cap합니다.
+   Unsafe browser 요청에는 Go `net/http.CrossOriginProtection`도 적용합니다. `Sec-Fetch-Site`의 same-site sibling/cross-site를
+   거부하고 metadata가 없으면 Origin의 Host와 원래 request Host를 비교합니다. 두 header가 모두 없는 non-browser 요청은
+   기존 signed token 검증을 계속 요구합니다. Referer·scheme을 포함한 Django의 origin 정책 전체를 구현했다는 뜻은 아닙니다.
+   Proxy는 원래 Host를 보존해야 하며 Forwarded/X-Forwarded-*로 trusted origin을 추가하지 않습니다. 이 검사는 정상 CSRF
+   cookie가 먼저 만료돼 다른 subdomain의 유효 signed pair만 남더라도 browser 변경 요청을 차단합니다.
 6. `web/sessionauth`는 `Require(permission, AuthenticatedHandler)`처럼 typed Principal을 explicit argument로 넘깁니다. Context나
    `web.Request`에 principal을 몰래 저장하지 않고 lower `web` package를 변경하지 않습니다.
 7. Redirect `next`는 registered local absolute path만 허용합니다. Scheme-relative, absolute URL, control byte와 unknown route는 safe

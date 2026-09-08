@@ -3,6 +3,43 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0064 — 추가 결함 수정과 불변 값의 복사 정리
+
+- 작업: [GDJ-0064](../../work/0064-review-fixes-and-immutable-values.md).
+- 검증 소스: `863724a06cd6fe75d1b8f6fe3a23b9cf10c8ec1d` 위 GDJ-0064 변경 작업 사본에서 실행했다.
+- 환경: 2026-09-08 KST, Go 1.26.5 darwin/arm64.
+- 범위: 사용자 요청에 따라 구현 및 간단한 로컬 확인만 완료했다. 전체 Hosted/DB/race/platform 검증은 실행하지 않았다.
+
+| 실제 실행 | 결과와 한계 |
+|---|---|
+| `go test ./orm ./query` | PASS. panic 중 rows Close·flight 해제·waiter 재시도·partial cache 방지와 plan 파생 격리를 확인했다. |
+| `go test ./codegen ./schema/ir -count=1` | PASS. 검증 후 취소 시 기존/첫 파일 publication 방지, canonical schema/hash와 기존 생성물 golden 비교. 별도 consumer matrix는 실행하지 않았다. |
+| `go test ./web/... ./api/sessionauth ./api/bearerauth ./serializers ./admin` | 6 packages PASS. sibling/cross-site signed pair 거부, 정상 origin/logout, nil-header cookie, immutable response/serializer와 reverse round trip·escape 후 cap을 확인했다. |
+| `go test -run '^$' ./conformance/runners/godj ./examples/article/apiapp` | 두 소비자 compile PASS. 해당 conformance 시나리오를 실행한 결과는 아니다. |
+| 미사용 함수 제거 영향 compile | projectmigratetargetproduct, db/postgres, internal/projectgenerate, migrations/definition PASS. 실제 DB·외부 프로세스 검증은 아니다. |
+| capture artifact Python unit | 6 tests PASS. producer attempt 1 → consumer attempt 2, repository/run/checkout/payload/producer mismatch, 실패·취소·누락·중복·미래 attempt 거부를 검사했다. GitHub API 응답은 fixture다. |
+| Workflow·format·문서 | YAML 및 resolver → artifact ID download → producer-attempt 검증 연결 확인. 변경 Go 파일 gofmt와 `git diff --check`, 로컬 Markdown link 검사 PASS. Hosted 실행·actionlint는 하지 않았다. |
+
+별도 공개 API 재현에서도 SQLite in-memory의 callback panic 후 다음 조회와 동일 QuerySet 재평가가 성공했다.
+Nil-header cookie 적용은 panic 없이 204이며, 취소된 WriteFile은 context canceled를 반환하고 기존 파일을 보존했다.
+Percent literal의 static/parameter Reverse는 모두 실제 HTTP request로 왕복해 200을 반환했다. 정상 로그인 뒤
+sibling Origin과 유효 서명 쌍을 전송한 요청은 403과 mutation 0이었다. 이번 수정 후 Chrome 재실행은 하지 않았다.
+
+동일한 1/100/1000개 flat 값·field 예제를 각 30회 관찰했다. Object.Value/Value.AsObject는 현재 0 bytes·0 allocations,
+Plan.WithLimit은 8 bytes·1 allocation이다. 1000개 기준 변경 전은 각각 약 186KB와 57,352 bytes였다.
+이 비교는 개별 호출의 할당 관찰이며 workload 처리량·race·최악 입력 성능을 검증한 것이 아니다.
+App generation의 구조는 app당 Normalize 11→1회와 schema hash 6→1회로 정리됐고 생성 golden은 변경되지 않았다.
+
+중간 compile에서 병행 ORM 편집의 `finishRowsLifecycle` 잔여 호출을 발견해 수정했으며 최종 영향 패키지 검사는 통과했다.
+외부 재현 스크립트의 첫 실행은 정상 로그인에도 `Sec-Fetch-Site: same-site`를 설정하던 fixture가 새 정책에 의해
+403으로 차단됐다. 정상 로그인은 same-origin, 공격 요청은 same-site로 구분한 뒤 재실행해 위 결과를 확인했다.
+
+미사용 함수 17개는 선언 범위 679줄이며 주변 공백/import 포함 698줄을 제거했다. 기존 distinct-process registry와
+그 실행 테스트는 보존했다. 새 오류·불변성 회귀 테스트가 추가됐으므로 이 수치를 전체 diff 순감소량으로 해석하지 않는다.
+
+미실행: `make ci`, 전체 `make generate-check`, codegen consumer/process matrix, pinned Django/DRF conformance,
+PostgreSQL·race·CGO-disabled·다른 OS/architecture·Hosted CI. 아래 GDJ-0063의 성공은 과거 고정 소스의 결과다.
+
 ## GDJ-0063 — 제품·검증 코드의 책임 정리와 결함 수정
 
 - 작업: [GDJ-0063](../../work/0063-runtime-and-validation-ownership.md)

@@ -27,6 +27,8 @@ number precision, null/omitted와 application I/O ownership을 숨깁니다. 첫
 
 1. `serializers`는 immutable field order, input presence/null/value, ordered stable validation errors와 full/partial mode를
    소유하며 common `validation` primitive를 재사용합니다. Form public API/lifecycle과는 분리합니다.
+   Closed Value/Object/Member는 mutable 내부를 노출하지 않으므로 자식 값을 공유합니다. 생성자와 Members/AsList/Fields는
+   caller가 수정할 수 있는 slice를 분리하고, getter·default·cleaned value는 불변 값을 다시 재귀 복사하지 않습니다.
 2. Public serializer ingress는 bounded JSON object와 declared fields입니다. Raw `any`, reflection, struct tag discovery,
    arbitrary callback I/O와 generic autosave는 허용하지 않습니다.
 3. JSON decoder는 exactly one top-level object, duplicate/unknown field rejection, bounded bytes/depth/string length와 trailing-data
