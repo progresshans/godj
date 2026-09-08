@@ -8,7 +8,7 @@
 - 작업과 감사 항목별 처리: [GDJ-0065](../../work/0065-codebase-refactoring.md).
 - 기준: `341659d290ed0d344e1db51de086c5d4baac5f4e`, 기존 Draft PR #1의 동일 작업 브랜치.
 - 로컬: 2026-09-08 KST, Go 1.26.5 darwin/arm64, 기준 위 변경 작업 사본.
-- 상태: 영역별 구현·affected 검증·process smoke와 독립 리뷰를 통합했다. 초기 Hosted 검사 실패를 수정했고 최종 full scope를 다시 검증한다.
+- 상태: 영역별 구현·affected 검증·process smoke·독립 리뷰와 수정 소스의 Hosted full scope를 완료했다.
 
 ### 로컬 checkpoint
 
@@ -66,6 +66,13 @@ Makefile·JSON catalog·문서는 이 소스 분류 합계에 포함하지 않�
 기준/구현 후 source digest는 `039e4f21d3772bf2ba69cbdf9265d72c0ba2385c42086bf1e5d708b3d548988d` /
 `3c1c2ba9a6523f16101a0a29b8a060473f22ad74d91ee48065940e0b6f72786c`다.
 
+실행 catalog를 정적으로 대조하면 full scope의 Linux amd64에서 모드당 26개 package 선택 중복을 정리했다.
+25개 relation package와 runserver 1개로, normal/race/CGO-disabled 합계의 해당 선택은 156→78이다.
+이 중 18개 package에 Linux test 파일이 있고 8개는 fixture 지원 package이므로 이를 테스트 suite 78회 절감으로 표현하지 않는다.
+별도로 root test 6개를 선택하던 godjcheck relation subset 명령 3회도 생략한다. Go runner subset은 이전 full scope에서도
+생략했으므로 새 절감에 포함하지 않는다. 기존 Portable Ubuntu 24.04와 relation/project-check 22.04를 모두 24.04로 맞춘
+환경 정책 변경과 소유권 이전의 결과이며, 같은 과거 환경의 실행 시간·비용을 실측한 절감률이 아니다.
+
 ### 초기 Hosted 검사와 수정
 
 최초 구현 `105c09fe76a8f6f8e62608f29d675b6ec87a8f8c`의
@@ -73,10 +80,34 @@ Makefile·JSON catalog·문서는 이 소스 분류 합계에 포함하지 않�
 같은 `TestPostgresRevisionFenceCrossProcessIntegration`의 초기 빈 이력 비교에서 실패했다. 공통 Clone은 빈 목록을 일관되게
 반환하지만 기존 integration helper가 `reflect.DeepEqual`로 nil과 empty를 구분했다. 이력의 개수·순서·App/Name을 비교하는
 `slices.Equal`로 고쳤으며 history/fingerprint unit과 PostgreSQL test package compile이 통과했다. 실행 본문이나 required/no-skip
-검사는 제거하지 않았다. 실제 교차 프로세스 검사는 수정 소스의 Hosted에서 다시 실행한다.
+검사는 제거하지 않았다. 실제 교차 프로세스 검사는 아래 수정 소스의 Hosted에서 다시 실행해 통과했다.
 
-초기 PR feedback은 성공했지만 전체 CI 성공이 아니며, 수정 소스로 전체 실행을 시작할 때 이전 미완료 job은 취소된다.
-최종 Hosted 실행 결과는 완료 후 아래에 기록한다. 로컬 전체 `make ci`와 Hosted 전체를 중복 실행하지 않는다.
+초기 PR feedback은 성공했지만 전체 CI 성공이 아니며, 수정 소스로 전체 실행을 시작하면서 이전 미완료 job은 취소됐다.
+로컬 전체 `make ci`와 Hosted 전체는 중복 실행하지 않았다.
+
+### 수정 소스의 Hosted 검증
+
+[CI 34175865564](https://github.com/progresshans/godj/actions/runs/34175865564)는 제품 소스
+`ce86851372a0fc29292aca26381482d5f24429eb`의 full scope를 검증했다. PR checkout은
+`d7ed3cfaa7341a994e5774f4c52f0e0e4940e2c2`이며 두 commit의 전체 tree diff가 0인 것을 확인했다.
+2026-09-08 10:46 KST 최종 conclusion은 success이며, 74개 고유 job이 모두 completed/success다.
+Aggregate는 `scope: full`, `full_platform_verified: true`와 아홉 필수 owner의 성공을 확인했다.
+Linux/macOS amd64·arm64의 normal/race/CGO-disabled, PostgreSQL 17.10, 32-bit Linux, cold external build,
+고정 Django/DRF oracle과 Python 3.12.13/3.13.15/3.14.3/3.14.7을 포함한다. 수정 소스의 전체 실행은 attempt 1에서 완료됐다.
+
+PostgreSQL 17.10의 core/operator-target은 normal·race·CGO-disabled 모두 success다. 각 core는
+11 packages·44 run/pass, operator-target은 2 packages·12 run/pass이며 모두 skip 0이다.
+초기 실패했던 교차 프로세스 revision-fence 검사도 이 required/no-skip 실행을 통과했다.
+
+두 capture는 성공한 같은 run의 attempt 1 normal producer가 생성했다. `capture_artifact.py resolve`가 실제 producer job과
+artifact ID를 확인했고, `verify`가 해당 PR checkout의 별도 작업 사본에서 repository/run/attempt/checkout·checksum을 검증했다.
+두 Go consumer의 `Load`도 현재 제품 작업 사본의 canonical format·profile·checksum·behavioral source binding을 검증했다.
+Hosted conformance consumer도 같은 두 artifact와 producer attempt 1을 확인해 모든 product suite 대조를 통과했다.
+
+| Capture | Artifact / producer job | Payload SHA-256 | Source binding |
+|---|---|---|---|
+| SYS-020 two-process | `10037287698` / `101905103605` | `f74395f956d3003fba30068fa3422a40c156fd9d63faac2ce0eac442e07eda02` | 321 files / 3,742,523 bytes / `50e8e106b6019937a04b916aa4b6b2fe85a6e824a85cd04b7e5ad7b377539cc6` |
+| SYS-029 external operator | `10037284632` / `101905103693` | `ceb1226265816c78d9ef9ac3daa78865e881d1a6e0e288bcc21376d492479f64` | 382 files / 3,493,366 bytes / `77dcadb47945ef28eb60c46379372f3e398203e981df362f3e5f21ff9150e13f` |
 
 ## GDJ-0064 — 추가 결함 수정과 불변 값의 복사 정리
 

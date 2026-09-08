@@ -1,6 +1,6 @@
 ---
 id: GDJ-0065
-status: active
+status: complete
 updated: 2026-09-08
 baseline_commit: "341659d290ed0d344e1db51de086c5d4baac5f4e"
 integration_owner: "root"
@@ -24,8 +24,8 @@ Schema/ORM/codegen, DB/migrations/systemstate, conformance/CI, Web/Admin/API와 
 - [x] 생성 namespace·IR 검증·hash·budget·journal·CLI 공통 규칙 단일화
 - [x] Migration/Article의 과거 내부 호환 계층 제거와 소비자 갱신
 - [x] 미사용 검증·과거 inventory·fixture·reference·실행 catalog와 CI 중복 정리
-- [ ] 관련 normal/generated/consumer 검사와 최종 통합 검증
-- [ ] 현행 계약·검증 소유권·실행 증거와 남은 한계 기록
+- [x] 관련 normal/generated/consumer 검사와 최종 통합 검증
+- [x] 현행 계약·검증 소유권·실행 증거와 남은 한계 기록
 
 편집 중에는 compile만 확인하고 변경 묶음 완성 후 affected 검증을 실행한다.
 전체 backend/race/platform/reference 검증은 최종 통합 소스 한 곳에서 실행하고 로컬 전체와 중복하지 않는다.
@@ -33,8 +33,9 @@ Schema/ORM/codegen, DB/migrations/systemstate, conformance/CI, Web/Admin/API와 
 
 ## 현재 상태와 다음 행동
 
-영역별 구현을 통합했고 관련 회귀와 독립 리뷰를 진행한다. 최종 Hosted full scope가 backend/race/platform/reference
-통합을 소유하며, 그 전까지 전체 PASS는 주장하지 않는다.
+구현·관련 회귀·독립 리뷰와 최종 Hosted full scope를 완료했다. 초기 PostgreSQL 빈 이력 검사 실패를 수정한 제품 소스와
+모든 실행 범위·관측 자료는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0065--코드와-검증-체계의-중복-정리)에 기록했다.
+추가 제품 기능은 이 작업에서 새로 선택하지 않는다.
 
 ## 감사 항목의 처리
 
