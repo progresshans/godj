@@ -1,6 +1,6 @@
 ---
 id: GDJ-0066
-status: active
+status: complete
 updated: 2026-09-10
 baseline_commit: "d6443fa048ffdf4e22e0d817f4e8d0aaeb83e8da"
 integration_owner: "Codex"
@@ -34,8 +34,8 @@ integration_owner: "Codex"
 - [x] 변경 전 비교 workload와 수치 확보
 - [x] 위 구현 항목과 추가 후보 처리
 - [x] 묶음별 compile, affected normal·race·CGO-disabled·generated 검증
-- [ ] 최종 소스의 Hosted full platform·PostgreSQL·reference·cold build 검증
-- [ ] 현행 명세·작업 상태·단일 [실행 증거](../docs/status/TEST_EVIDENCE.md) 정리
+- [x] 최종 소스의 Hosted full platform·PostgreSQL·reference·cold build 검증
+- [x] 현행 명세·작업 상태·단일 [실행 증거](../docs/status/TEST_EVIDENCE.md) 정리
 
 로컬 전체와 Hosted 전체를 중복하지 않는다. 로컬은 변경 경로와 비교 측정을 맡고, 최종 통합 milestone은
 현재 소스의 Hosted full scope가 소유한다. 미실행·skip·다른 소스의 결과를 현재 PASS로 기록하지 않는다.
@@ -63,6 +63,9 @@ integration_owner: "Codex"
 
 ## 현재 상태와 다음 행동
 
-구현, 비교 측정, 관련 로컬 회귀와 외부 다섯 명령의 실제 실행을 마쳤다. 다음은 최종 제품 커밋을 push하고
-Hosted full scope로 PostgreSQL 17.10·모든 OS/arch/mode·cold build·reference·capture 생성/소비를 확인하는 것이다.
-로컬 PostgreSQL 17.5의 raw catalog negative control은 통과했으며 제품의 17.10 profile 검증을 대신하지 않는다.
+채택한 구현, 비교 측정, 관련 로컬 회귀와 외부 다섯 명령의 실제 실행을 마쳤다. 제품 커밋
+`b028b77fa27f680c82f4cb188d5af1088dbb61c2`의
+[Hosted full scope](https://github.com/progresshans/godj/actions/runs/34385261400)도 완료했다.
+PostgreSQL 17.10·OS/arch/mode·cold build·reference·현재 소스의 capture를 검증했으며 결과와 DNS 실패의 같은 소스 재시도는
+단일 [실행 증거](../docs/status/TEST_EVIDENCE.md)에 기록했다. ADR-0039·0044와 현행 명세를 새 API·실행 의미에 맞췄다.
+기존 Draft PR #1을 유지하며 이번 작업에서 채택한 변경과 필수 검증의 미완료 항목은 없다.

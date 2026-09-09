@@ -7,7 +7,7 @@
 
 - 작업: [GDJ-0066](../../work/0066-measured-runtime-and-validation-optimization.md).
 - 기준 제품: `d6443fa048ffdf4e22e0d817f4e8d0aaeb83e8da`, 기존 Draft PR #1의 동일 작업 브랜치.
-- 상태: 구현과 관련 로컬 검증 완료, 최종 Hosted full scope 대기. Baseline은 제품 변경 전 비교 benchmark와 문서만 추가한 작업 사본이다.
+- 상태: 구현·비교 측정·관련 로컬 검증과 최종 Hosted full scope 완료. Baseline은 제품 변경 전 비교 benchmark와 문서만 추가한 작업 사본이다.
 - 환경: 2026-09-10 KST, Apple M3 Pro, Go 1.26.5 darwin/arm64.
 
 ### 변경 전 측정
@@ -54,7 +54,51 @@ Eager의 기준은 Query storage 변경 후·eager 최적화 전 작업 사본�
 
 초기 Query API 전환에서 기존 unchecked 입력 테스트가 실패해 생성자 오류 경계로 수정했다. 초기 Python 실행은 host uv 0.12.3
 profile 불일치와 DRF 없는 root 환경으로 실패·skip했으며, 고정 uv와 별도 DRF 환경의 완료 gate로 위 결과를 얻었다.
-예전 reference/oracle/lock·생성물은 바꾸지 않았다. 아직 최종 Hosted 전체 검증 PASS를 주장하지 않는다.
+예전 reference/oracle/lock·생성물은 바꾸지 않았다. 초기 실패와 아래 확정된 실행 결과를 구분한다.
+
+### 제품 소스의 Hosted 검증
+
+[CI 34385261400](https://github.com/progresshans/godj/actions/runs/34385261400)는 제품 소스
+`b028b77fa27f680c82f4cb188d5af1088dbb61c2`를 workflow dispatch의 `full` scope로 검증했다.
+이벤트 source와 실제 checkout은 같은 commit이다. 2026-09-10 03:26 KST의 최종 conclusion은 success이며,
+74개 고유 job의 최신 결과가 모두 completed/success다. 최종 aggregate job `102592262213`은 `scope: full`,
+`full_platform_verified: true`와 아홉 필수 owner의 성공을 확인했다. Linux/macOS amd64·arm64의 normal/race/CGO-disabled,
+PostgreSQL 17.10·cold build·고정 oracle·Python 호환성 및 선택한 32-bit Linux compile/관계 실행을 포함한다.
+
+Attempt 1의 macOS Intel relation normal job `102579851988`은 `TestExternalConsumerCompiles`의
+`project_external_consumer.go.txt`에서 module checksum 확인 중 `proxy.golang.org` DNS `i/o timeout`으로 실패했다.
+변경하지 않은 compile harness의 의존성 조회 실패이며, 이 실행을 제품 PASS로 계산하지 않는다. 최초 aggregate도 그
+owner 실패를 정확히 거부했다. 실행 종료 후 제품 변경 없이 실패 job과 aggregate만 attempt 2로 재실행했다.
+재시도 job `102590752409`는 26 packages·2,903 run/pass·skip 0으로 성공했다. 기존 72개 성공 결과는 유지했으며,
+API의 시작/종료 시각 대조로 두 job만 실제 재실행된 것을 확인했다.
+
+PostgreSQL 17.10 core/operator-target의 normal·race·CGO-disabled 여섯 작업은 모두 success다.
+각 core는 12 packages·54 run/pass, operator-target은 2 packages·12 run/pass이며 모두 skip 0이다.
+공통 catalog 관측기의 물리 변경 대조와 관계 Count/MIN의 실제 DB 실행을 포함한다.
+Linux amd64 normal의 cold external CLI milestone도 `GODJ_COLD_BUILD=1`, 1 package·2 run/pass·skip 0으로 완료했다.
+
+Python 3.12.13/3.13.15/3.14.3/3.14.7 호환성 작업은 각각 `PYTHON_SUITE_VERIFIED tests=274 skips=4`로 완료했다.
+그 4개는 고정 profile 전용 검사이며 exact darwin/arm64 작업이 별도로 실행했다. Exact 작업의 root Python suite는
+274 tests·DRF 전용 3 skips, locked oracle 대조는 성공했다. DRF 검사는 별도 의존성을 갖춘 호환성 작업과
+위 로컬 고정 DRF 환경의 274 tests·skip 0 결과가 검증한다. 비대상 skip을 실제 실행으로 계산하지 않는다.
+Linux reference 작업의 root Python suite는 같은 고정 profile 4개와 DRF 3개를 제외한 274 tests·7 skips였다.
+그 작업의 reference catalog·GoDj product expectation 대조, generated drift 및 32-bit Linux 검사는 모두 성공했다.
+
+두 capture는 같은 run의 성공한 attempt 1 normal producer가 생성했다. `capture_artifact.py resolve`로 실제 producer job과
+artifact ID를 확인하고, `verify`로 repository/run/attempt/checkout·payload checksum을 검증했다.
+두 Go consumer의 `Load`도 현재 제품 작업 사본에서 canonical format·profile·checksum·behavioral source binding을 검증했다.
+Hosted conformance consumer도 같은 artifact ID와 producer attempt 1을 확인해 제품 동작 대조를 완료했다.
+최종 run attempt 2에서도 resolver와 provenance 검사는 성공한 producer attempt 1을 올바르게 선택·검증했다.
+SYS-020의 loss/divergence/drift/secret은 모두 0이며 restart와 barrier 조건을 만족한다. SYS-029의 실제 PostgreSQL·SQLite
+두 backend 모두 Admin/API 인증과 서로 다른 세 process의 provision/runtime/restart를 확인했다.
+
+| Capture | Artifact / producer job | Payload SHA-256 | Source binding |
+|---|---|---|---|
+| SYS-020 two-process | `10117570038` / `102579851272` | `58c41d0f78e08b21f6cdc642516ba88cf3376f889c1822bb3bcb072b4a536305` | 322 files / 3,742,404 bytes / `2482656983e81f20966666af7de5a7a1728b1c4460524b7e02811a63e4e8b04e` |
+| SYS-029 external operator | `10117537379` / `102579851285` | `1ac5c01249a676fd5750cafd97be876256fc78d01d6ca1dc4b6d94862591cd43` | 383 files / 3,492,733 bytes / `b20cb7120a6a9ca958bdf66424d0132f475dfb7fc4dbdcece7100ea9731defd8` |
+
+최종 제품 검증 이후에는 ADR-0039·0044, CURRENT, 이 실행 증거와 work의 Markdown 다섯 파일만 정리했다.
+제품 소스 diff가 없고 두 behavioral source binding이 위 값과 같음을 확인했다. 후속 문서에는 링크·상태·diff 검사를 적용한다.
 
 ## GDJ-0065 — 코드와 검증 체계의 중복 정리
 

@@ -6,6 +6,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-08-23
+- 후속 반영: 2026-09-10, GDJ-0066의 MIN과 관계 filter Count
 - 관련 work/contract: GDJ-0039, QRY-022..033, Q-011, M4
 - 대체하는 ADR: 없음
 
@@ -35,6 +36,8 @@ Go method는 receiver에 없는 새 type parameter를 선언할 수 없으므로
 - projection과 aggregate field는 exact source universe에 속해야 합니다.
 - relation projection과 DTO projection/aggregate는 같은 plan에서 결합하지 않고 structured unsupported로
   fail-closed합니다.
+- 관계 filter의 단일 COUNT(*)는 기존 JOIN row source를 집계할 수 있습니다. 관계의 일반 projection·MIN/MAX와
+  eager Count는 지원하지 않습니다.
 - 기존 `db.Queryer.Query(context.Context, query.Plan)` port는 바꾸지 않습니다.
 
 Full-model plan은 기존 field order와 descriptor scan 의미를 그대로 사용합니다. DTO projection은 exact selected
@@ -47,8 +50,8 @@ Model-specific scalar fields는 sealed `ScalarField[M,V]` capability를 구현�
 `Projection[M,R]`, fixed-arity `Project1`..`Project4`와 top-level
 `SelectInto[M,R](context.Context, QuerySet[M], Projection[M,R])`를 사용합니다.
 
-Scalar aggregate는 typed `CountRows`, `Max` expression, fixed-arity aggregate result builder와 top-level
-`AggregateInto`를 사용합니다. Empty `MAX`는 zero value가 아니라 explicit nullable result입니다. Generated
+Scalar aggregate는 typed `CountRows`, `Min`, `Max` expression, fixed-arity aggregate result builder와 top-level
+`AggregateInto`를 사용합니다. MIN/MAX는 `OrderedField` capability를 사용하며 빈 입력은 explicit nullable result입니다. Generated
 project facade는 raw backend나 QuerySet internals를 공개하지 않고 model-specific top-level generic bridge를
 생성합니다.
 
@@ -67,6 +70,9 @@ PostgreSQL에서 같은 의미를 냅니다.
 - projection/aggregate terminal은 source QuerySet의 model cache를 읽거나 채우지 않습니다.
 - `Count`와 aggregate는 filter/distinct/order/offset/limit이 이미 적용된 logical QuerySet을 대상으로 합니다.
   Backend compiler는 필요하면 derived table을 사용하며 aggregate row 자체에 slice를 잘못 적용하지 않습니다.
+
+GDJ-0066의 관계 filter Count도 검증된 JOIN SELECT를 derived table로 감쌉니다. 모델 행을 전송하지 않으면서
+JOIN multiplicity와 Distinct·슬라이스를 유지하려는 선택이며 일반 관계 집계로 지원 범위를 넓히지 않습니다.
 
 PostgreSQL에서 distinct projection의 ordering expression이 SELECT result에 없으면 암묵적으로 result를 넓히지
 않고 pre-I/O structured unsupported error를 반환합니다. SQL 문자열 동일성보다 결과, 오류, query count와 cache

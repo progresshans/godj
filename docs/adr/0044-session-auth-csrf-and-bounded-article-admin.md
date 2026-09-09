@@ -6,6 +6,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-08-24
+- 후속 반영: 2026-09-10, GDJ-0066의 단일 atomic session access
 - 관련 work/contract: [GDJ-0043](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0043-safe-template-validation-session-auth-and-article-admin.md), AUT-001..008, ADM-001..010, Q-015, M6
 - 선행 결정: [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md),
   [ADR-0042](0042-project-linked-runserver-and-article-development-loop.md),
@@ -58,11 +59,13 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
 
 ## 결정
 
-1. `sessions`는 opaque CSPRNG session ID, immutable Record, absolute/idle expiry와 `Load/Create/Touch/Rotate/Delete` Store boundary를
-   소유합니다. `Touch`는 저장된 현재 record의 만료 판정·갱신·만료 삭제를 한 원자 연산으로 수행하고 active/expired/missing을
-   구분합니다. Detached Load 뒤 다른 요청이 연장한 세션을 오래된 deadline으로 삭제해서는 안 됩니다. MemoryStore는 lock,
-   durable store는 coordination transaction 안에서 이 의미를 구현합니다. Manager는 ID entropy, expiry, fixation-safe rotation과
-   flush를 검증합니다. MemoryStore의 상태는 process restart/다중 process 사이에 공유되지 않습니다.
+1. `sessions`는 opaque CSPRNG session ID, immutable Record, absolute/idle expiry와 `Load/Create/Access/Rotate/Delete` Store boundary를
+   소유합니다. Manager.Load는 한 `Access` 안에서 저장된 현재 record의 정책 검증·시계 관측·만료 판정·갱신·만료 삭제를 수행하고
+   active/expired/missing을 구분합니다. 별도 Load/Touch의 중복 조회와 transaction을 없애되 잘못된 record는 시계 관측·저장 전에
+   거부합니다. 다른 요청이 연장한 세션을 오래된 deadline으로 삭제해서는 안 됩니다. MemoryStore는 lock, durable store는
+   coordination transaction 안에서 불변 `AccessPolicy`를 적용합니다. Clock은 즉시 반환하고 I/O나 manager/store 재진입을 하지
+   않아야 합니다. Manager는 ID entropy, expiry, fixation-safe rotation과 flush를 검증합니다. MemoryStore의 상태는 process
+   restart/다중 process 사이에 공유되지 않습니다.
 2. Session cookie는 bounded name/path/domain configuration, HttpOnly, SameSite, Secure policy와 exact expiry/delete semantics를
    사용합니다. Loopback HTTP example은 Secure=false라는 개발 경계를 명시하고 production cookie policy를 주장하지 않습니다.
 3. `auth`는 Principal, exact string Permission, CredentialAuthenticator, Authorizer와 injectable PasswordHasher를 소유합니다.
