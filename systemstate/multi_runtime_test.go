@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"github.com/progresshans/godj/internal/sessiontest"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -226,13 +227,13 @@ func TestTwoRuntimeSQLiteOutOfOrderTouchPreservesNewestState(t *testing.T) {
 	holderResult := make(chan touchResult, 1)
 	contenderResult := make(chan touchResult, 1)
 	go func() {
-		touched, status, err := holderStore.Touch(ctx, record.ID(), newestAccess, newestIdle)
-		holderResult <- touchResult{record: touched, found: status == sessions.TouchActive, err: err}
+		touched, status, err := sessiontest.AccessAt(ctx, holderStore, record.ID(), newestAccess, (newestIdle).Sub(newestAccess))
+		holderResult <- touchResult{record: touched, found: status == sessions.AccessActive, err: err}
 	}()
 	barrier.waitHolderEntered(t)
 	go func() {
-		touched, status, err := contenderStore.Touch(ctx, record.ID(), staleAccess, staleIdle)
-		contenderResult <- touchResult{record: touched, found: status == sessions.TouchActive, err: err}
+		touched, status, err := sessiontest.AccessAt(ctx, contenderStore, record.ID(), staleAccess, (staleIdle).Sub(staleAccess))
+		contenderResult <- touchResult{record: touched, found: status == sessions.AccessActive, err: err}
 	}()
 	barrier.assertContenderCallbackBlocked(t)
 	barrier.release()
@@ -402,8 +403,8 @@ func TestTwoRuntimeSQLiteRotateTouchAndLogoutLanesAreLinearized(t *testing.T) {
 		holderResult := make(chan touchResult, 1)
 		contenderResult := make(chan rotateResult, 1)
 		go func() {
-			_, status, err := holderStore.Touch(ctx, old.ID(), newestAccess, newestIdle)
-			holderResult <- touchResult{found: status == sessions.TouchActive, err: err}
+			_, status, err := sessiontest.AccessAt(ctx, holderStore, old.ID(), newestAccess, (newestIdle).Sub(newestAccess))
+			holderResult <- touchResult{found: status == sessions.AccessActive, err: err}
 		}()
 		barrier.waitHolderEntered(t)
 		go func() {
@@ -455,8 +456,14 @@ func TestTwoRuntimeSQLiteRotateTouchAndLogoutLanesAreLinearized(t *testing.T) {
 		}()
 		barrier.waitHolderEntered(t)
 		go func() {
-			touched, status, err := contenderStore.Touch(ctx, old.ID(), base.Add(time.Minute), base.Add(61*time.Minute))
-			contenderResult <- touchResult{record: touched, found: status == sessions.TouchActive, err: err}
+			touched, status, err := sessiontest.AccessAt(
+				ctx,
+				contenderStore,
+				old.ID(),
+				base.Add(time.Minute),
+				(base.Add(61 * time.Minute)).Sub(base.Add(time.Minute)),
+			)
+			contenderResult <- touchResult{record: touched, found: status == sessions.AccessActive, err: err}
 		}()
 		barrier.assertContenderCallbackBlocked(t)
 		barrier.release()

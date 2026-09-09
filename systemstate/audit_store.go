@@ -2,6 +2,7 @@ package systemstate
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -195,10 +196,13 @@ func queryAuditRows(
 		return nil, persistenceFailure("build audit query", err)
 	}
 	if model != "" {
-		plan = plan.WithConditions(
+		plan, err = plan.WithConditions(
 			query.NewCondition(auditModelRef, query.LookupExact, query.String(model)),
 			query.NewCondition(auditObjectIDRef, query.LookupExact, query.String(strconv.FormatInt(objectID, 10))),
 		)
+		if err != nil {
+			return nil, persistenceFailure("build audit predicate", err)
+		}
 	}
 	rows := make([]persistedAuditRow, 0, limit)
 	err = scanRows(ctx, queryer, plan, persistenceRowsFailure("query audit"), func(result db.Rows) (bool, error) {
@@ -224,29 +228,45 @@ func pruneAuditRows(ctx context.Context, session db.Session, capacity int) error
 	if err != nil {
 		return persistenceFailure("build audit prune query", err)
 	}
-	// Keep the retained prefix out of memory. The bounded query can contribute
-	// only one victim, and all row/close validation must finish before deletion.
-	count := 0
-	var victim int64
+	shape, err := query.NewAggregateResult(query.CountAllResult(), query.MinResult(auditIDRef))
+	if err != nil {
+		return persistenceFailure("build audit prune aggregate", err)
+	}
+	plan, err = plan.WithResultShape(shape)
+	if err != nil {
+		return persistenceFailure("build audit prune result", err)
+	}
+	// Aggregate exactly the bounded newest prefix. Its minimum checks every
+	// retained sequence for positivity and identifies the sole possible victim.
+	// No deletion may run before cardinality, iteration and close validation.
+	var count int64
+	var minimum sql.NullInt64
+	resultRows := 0
 	err = scanRows(ctx, session, plan, persistenceRowsFailure("query audit prune"), func(rows db.Rows) (bool, error) {
-		var identifier int64
-		if err := rows.Scan(&identifier); err != nil {
-			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit sequence cannot be decoded", Cause: err}
+		resultRows++
+		if resultRows > 1 {
+			return false, cardinalityFailure("audit", "audit prune aggregate returned more than one row")
 		}
-		if identifier <= 0 {
-			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit sequence is invalid"}
+		if err := rows.Scan(&count, &minimum); err != nil {
+			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit prune aggregate cannot be decoded", Cause: err}
 		}
-		count++
-		if count > capacity+1 {
-			return false, cardinalityFailure("audit", "backend returned more rows than the bounded prune plan")
+		if count < 0 || count > int64(capacity)+1 {
+			return false, cardinalityFailure("audit", "audit prune aggregate exceeds the bounded plan")
 		}
-		if count > capacity {
-			victim = identifier
+		if (count == 0 && minimum.Valid) || (count > 0 && (!minimum.Valid || minimum.Int64 <= 0)) {
+			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "audit prune minimum sequence is invalid"}
 		}
 		return true, nil
 	})
 	if err != nil {
 		return err
+	}
+	if resultRows != 1 {
+		return cardinalityFailure("audit", "audit prune aggregate returned no row")
+	}
+	var victim int64
+	if count > int64(capacity) {
+		victim = minimum.Int64
 	}
 	if victim != 0 {
 		affected, err := session.Delete(ctx, query.NewDeletePlan(auditTableName, auditIDRef, query.Integer(victim)))

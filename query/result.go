@@ -20,10 +20,11 @@ const (
 	ResultField    ResultExpressionKind = "field"
 	ResultCountAll ResultExpressionKind = "count_all"
 	ResultMax      ResultExpressionKind = "max"
+	ResultMin      ResultExpressionKind = "min"
 )
 
 // ResultExpression is an immutable, backend-independent selected value.
-// COUNT(*) has no field; field projection and MAX require one exact source
+// COUNT(*) has no field; field projection, MIN and MAX require one exact source
 // field reference.
 type ResultExpression struct {
 	kind  ResultExpressionKind
@@ -42,11 +43,15 @@ func MaxResult(field FieldRef) ResultExpression {
 	return ResultExpression{kind: ResultMax, field: field}
 }
 
+func MinResult(field FieldRef) ResultExpression {
+	return ResultExpression{kind: ResultMin, field: field}
+}
+
 func (e ResultExpression) Kind() ResultExpressionKind { return e.kind }
 
 func (e ResultExpression) Field() (FieldRef, bool) {
 	switch e.kind {
-	case ResultField, ResultMax:
+	case ResultField, ResultMax, ResultMin:
 		return e.field, true
 	default:
 		return FieldRef{}, false
@@ -57,7 +62,7 @@ func (e ResultExpression) Equal(other ResultExpression) bool {
 	return e == other
 }
 
-// ResultShape is sealed by constructors and detached when read from a Plan.
+// ResultShape is sealed by constructors and shares immutable private storage.
 // A model result derives its exact ordered cells from Plan.SourceFields.
 type ResultShape struct {
 	kind        ResultKind
@@ -94,19 +99,17 @@ func modelResult() ResultShape { return ResultShape{kind: ResultModel} }
 
 func (s ResultShape) Kind() ResultKind { return s.kind }
 
+// IsCountAll reports the single COUNT(*) aggregate supported over relation filters.
+func (s ResultShape) IsCountAll() bool {
+	return s.kind == ResultAggregate && len(s.expressions) == 1 && s.expressions[0].kind == ResultCountAll
+}
+
 func (s ResultShape) Expressions() []ResultExpression {
 	return append([]ResultExpression(nil), s.expressions...)
 }
 
 func (s ResultShape) Equal(other ResultShape) bool {
 	return s.kind == other.kind && slices.Equal(s.expressions, other.expressions)
-}
-
-func (s ResultShape) clone() ResultShape {
-	return ResultShape{
-		kind:        s.kind,
-		expressions: append([]ResultExpression(nil), s.expressions...),
-	}
 }
 
 func (s ResultShape) validate() error {
@@ -142,10 +145,10 @@ func (s ResultShape) validate() error {
 				if _, hasField := expression.Field(); hasField {
 					return invalidPlanError("COUNT(*) result cannot contain a field")
 				}
-			case ResultMax:
+			case ResultMax, ResultMin:
 				field, ok := expression.Field()
 				if !ok || !validResultField(field) || (field.Kind() != FieldInteger && field.Kind() != FieldString) {
-					return invalidPlanError("MAX result requires an integer or string field")
+					return invalidPlanError("MIN/MAX result requires an integer or string field")
 				}
 			default:
 				return invalidPlanError("aggregate result contains an unsupported expression")

@@ -32,6 +32,13 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 	_, relationProjection := plan.RelationProjection()
 	hasRelation := relationProjection || where.hasRelations
 
+	if where.hasRelations && !relationProjection && plan.ResultShape().IsCountAll() {
+		inner, arguments, err := compileRelation(schema, plan, sourceFields, where)
+		if err != nil {
+			return "", nil, err
+		}
+		return `SELECT COUNT(*) FROM (` + inner + `) AS "godj_count_source"`, arguments, nil
+	}
 	resultKind := plan.ResultShape().Kind()
 	if resultKind != query.ResultModel && hasRelation {
 		return "", nil, unsupportedResultShape(
@@ -238,9 +245,8 @@ type whereAnalyzer struct {
 }
 
 // analyzeWhere validates the authoritative Boolean tree independently of the
-// query constructors. That second boundary is intentional: WithConditions
-// preserves malformed historical inputs so every backend must still fail
-// closed before database I/O.
+// query constructors. Identifier, capability and source metadata checks remain
+// an independent boundary before database I/O.
 func analyzeWhere(plan query.Plan, sourceFields []query.FieldRef) (whereAnalysis, error) {
 	expression, present := plan.Where()
 	if !present {

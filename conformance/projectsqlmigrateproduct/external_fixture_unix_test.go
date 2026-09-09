@@ -26,6 +26,7 @@ import (
 
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 const (
@@ -338,6 +339,7 @@ replace github.com/progresshans/godj => %s
 	// Dependency resolution is fixture setup. Every product invocation after
 	// this point disables dependency-network resolution and retains only the
 	// test-owned loopback PostgreSQL poison endpoint.
+	setupEnv = gobuild.Environment(setupEnv, os.Environ(), universe)
 	sqlProductRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
 
 	secret := "sqlmigrate-secret-canary-81ae0d75"

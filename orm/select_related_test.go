@@ -660,7 +660,7 @@ func TestForwardSelectEmptyResultIsNonNilAndCached(t *testing.T) {
 	}
 }
 
-func requiredSelectQuery(t *testing.T, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor] {
+func requiredSelectQuery(t testing.TB, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor] {
 	t.Helper()
 	post, _, required, _ := bindRelationObjectTestFixture(t)
 	path, err := ResolveForwardSelectPath(post, "author")

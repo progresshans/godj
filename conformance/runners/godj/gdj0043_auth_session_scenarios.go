@@ -1221,14 +1221,14 @@ func (store *authSessionCountingStore) Create(ctx context.Context, record sessio
 	return created, err
 }
 
-func (store *authSessionCountingStore) Touch(
+func (store *authSessionCountingStore) Access(
 	ctx context.Context,
 	id sessions.ID,
-	accessedAt, idleExpiresAt time.Time,
-) (sessions.Record, sessions.TouchStatus, error) {
-	record, status, err := store.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
-	if err == nil && status != sessions.TouchMissing {
-		if status == sessions.TouchExpired {
+	policy sessions.AccessPolicy,
+) (sessions.Record, sessions.AccessStatus, error) {
+	record, status, err := store.Store.Access(ctx, id, policy)
+	if err == nil && status != sessions.AccessMissing {
+		if status == sessions.AccessExpired {
 			store.mu.Lock()
 			delete(store.rows, id)
 			store.mu.Unlock()

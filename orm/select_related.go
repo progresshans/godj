@@ -261,6 +261,7 @@ func modelFieldReferences(model ir.Model) []query.FieldRef {
 type ForwardSelectQuery[S, T any] struct {
 	backend          db.Queryer
 	plan             query.Plan
+	targetBase       query.Plan
 	selection        forwardSelectState[S, T]
 	evaluation       *evaluationState[forwardSelectedValue[S, T]]
 	configurationErr error
@@ -309,6 +310,13 @@ func (s ForwardSelect[S, T]) Select(source QuerySet[S]) ForwardSelectQuery[S, T]
 		return result
 	}
 	result.plan = plan
+	// Every materialized related object shares this immutable target source.
+	// Only its key predicate and evaluation cache belong to the individual row.
+	target := s.state.path.relation.targetModel
+	result.targetBase, err = query.NewPlan(target.DBTable, modelFieldReferences(target)).WithLimit(2)
+	if err != nil {
+		result.configurationErr = err
+	}
 	return result
 }
 
@@ -633,17 +641,19 @@ func (q ForwardSelectQuery[S, T]) readyRelated(value forwardSelectedValue[S, T])
 	if !value.targetPresent {
 		return newAbsentRelatedObject[T]()
 	}
-	identifier, _ := value.targetKey.Integer()
-	primaryKey := NewIntegerField[T](q.selection.relation.targetKey)
-	querySet := NewManager[T](q.selection.targetDescriptor).
-		Using(q.backend).
-		Filter(primaryKey.Exact(identifier))
-	limited, _ := querySet.Limit(2)
+	plan, err := q.targetBase.WithConditions(query.NewCondition(
+		fieldReference(q.selection.relation.targetKey), query.LookupExact, value.targetKey,
+	))
 	evaluation := newEvaluationState[T]()
 	evaluation.values = []T{q.selection.targetDescriptor.CloneModel(value.target)}
 	evaluation.ready = true
-	limited.evaluation = evaluation
-	return newRelatedObject(limited)
+	return newRelatedObject(QuerySet[T]{
+		backend:          q.backend,
+		descriptor:       q.selection.targetDescriptor,
+		plan:             plan,
+		evaluation:       evaluation,
+		configurationErr: err,
+	})
 }
 
 func invalidRelatedPath(path string) *query.Error {

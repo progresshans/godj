@@ -20,7 +20,7 @@ import (
 )
 
 func TestDurableSessionStoreAtomicAccess(t *testing.T) {
-	sessiontest.AtomicAccess(t, func(t *testing.T) sessions.Store {
+	newStore := func(t *testing.T) sessions.Store {
 		ctx := context.Background()
 		backend := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "access.sqlite3"))+"?mode=rwc")
 		t.Cleanup(func() {
@@ -30,7 +30,9 @@ func TestDurableSessionStoreAtomicAccess(t *testing.T) {
 		})
 		explicitlyMigrateSystemState(t, ctx, backend)
 		return mustDurableSessionStore(t, &sessionStoreTestGate{backend: backend}, 4)
-	})
+	}
+	sessiontest.AtomicAccess(t, newStore)
+	sessiontest.AccessValidation(t, newStore)
 }
 
 func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing.T) {
@@ -86,8 +88,14 @@ func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing
 		_ = secondBackend.Close()
 		t.Fatalf("loaded principal = %q", principal)
 	}
-	touched, status, err := secondStore.Touch(ctx, oldID, createdAt.Add(5*time.Minute), createdAt.Add(35*time.Minute))
-	if err != nil || status != sessions.TouchActive || !touched.AccessedAt().Equal(createdAt.Add(5*time.Minute)) ||
+	touched, status, err := sessiontest.AccessAt(
+		ctx,
+		secondStore,
+		oldID,
+		createdAt.Add(5*time.Minute),
+		(createdAt.Add(35 * time.Minute)).Sub(createdAt.Add(5*time.Minute)),
+	)
+	if err != nil || status != sessions.AccessActive || !touched.AccessedAt().Equal(createdAt.Add(5*time.Minute)) ||
 		!touched.IdleExpiresAt().Equal(createdAt.Add(35*time.Minute)) {
 		_ = secondBackend.Close()
 		t.Fatalf("Touch() = (%v,%v,%v), want monotonic persisted touch", touched, status, err)
@@ -96,8 +104,14 @@ func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing
 		t.Fatalf("advancing Touch updates = %d, want 1", got)
 	}
 	// An out-of-order touch cannot move either timestamp backwards.
-	regression, status, err := secondStore.Touch(ctx, oldID, createdAt.Add(time.Minute), createdAt.Add(31*time.Minute))
-	if err != nil || status != sessions.TouchActive || regression.AccessedAt() != touched.AccessedAt() || regression.IdleExpiresAt() != touched.IdleExpiresAt() {
+	regression, status, err := sessiontest.AccessAt(
+		ctx,
+		secondStore,
+		oldID,
+		createdAt.Add(time.Minute),
+		(createdAt.Add(31 * time.Minute)).Sub(createdAt.Add(time.Minute)),
+	)
+	if err != nil || status != sessions.AccessActive || regression.AccessedAt() != touched.AccessedAt() || regression.IdleExpiresAt() != touched.IdleExpiresAt() {
 		_ = secondBackend.Close()
 		t.Fatalf("Touch(regression) = (%v,%v,%v), want unchanged timestamps", regression, status, err)
 	}
@@ -117,8 +131,14 @@ func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing
 	)
 	// The replacement was detached before a later confirmed access. Rotate must
 	// merge that stored touch atomically instead of publishing stale timestamps.
-	latest, status, err := secondStore.Touch(ctx, oldID, createdAt.Add(10*time.Minute), createdAt.Add(40*time.Minute))
-	if err != nil || status != sessions.TouchActive {
+	latest, status, err := sessiontest.AccessAt(
+		ctx,
+		secondStore,
+		oldID,
+		createdAt.Add(10*time.Minute),
+		(createdAt.Add(40 * time.Minute)).Sub(createdAt.Add(10*time.Minute)),
+	)
+	if err != nil || status != sessions.AccessActive {
 		_ = secondBackend.Close()
 		t.Fatalf("Touch(after detached replacement) = (%v,%v,%v)", latest, status, err)
 	}
@@ -519,9 +539,11 @@ type sessionStoreTestGate struct {
 	backend        *sqlite.Backend
 	failNextInsert error
 	updates        atomic.Int64
+	calls          atomic.Int64
 }
 
 func (gate *sessionStoreTestGate) withAtomic(ctx context.Context, callback func(db.Session) error) error {
+	gate.calls.Add(1)
 	gate.mu.Lock()
 	defer gate.mu.Unlock()
 	failure := gate.failNextInsert
@@ -663,4 +685,37 @@ func mustSessionStoreRecord(
 		t.Fatalf("sessions.RestoreRecord(): %v", err)
 	}
 	return record
+}
+
+func TestManagerAccessReadsDurableRecordInOneTransaction(t *testing.T) {
+	ctx := context.Background()
+	backend := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "one-access.sqlite3")))
+	t.Cleanup(func() { _ = backend.Close() })
+	explicitlyMigrateSystemState(t, ctx, backend)
+	gate := &sessionStoreTestGate{backend: backend}
+	store := mustDurableSessionStore(t, gate, 4)
+	now := time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)
+	manager, err := sessions.NewManager(store, sessions.Config{Clock: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := manager.Create(ctx, map[string]string{"principal": "operator"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, advance := range []time.Duration{time.Minute, 0} {
+		now = now.Add(advance)
+		beforeCalls, beforeQueries, beforeUpdates := gate.calls.Load(), backend.QueryCount(), gate.updates.Load()
+		loaded, found, err := manager.Load(ctx, record.ID())
+		if err != nil || !found || loaded.AccessedAt() != now {
+			t.Fatalf("Load = %v/%v/%v", loaded, found, err)
+		}
+		wantUpdates := int64(0)
+		if advance != 0 {
+			wantUpdates = 1
+		}
+		if gate.calls.Load()-beforeCalls != 1 || backend.QueryCount()-beforeQueries != 1 || gate.updates.Load()-beforeUpdates != wantUpdates {
+			t.Fatalf("Load calls/queries/updates = %d/%d/%d", gate.calls.Load()-beforeCalls, backend.QueryCount()-beforeQueries, gate.updates.Load()-beforeUpdates)
+		}
+	}
 }

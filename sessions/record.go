@@ -148,16 +148,16 @@ func (r Record) Values() map[string]string { return cloneValues(r.values) }
 
 // Touch derives the next immutable state from the authoritative stored record.
 // Store implementations must call it while holding their atomic boundary and
-// delete the stored record when it returns TouchExpired. It never revives an
+// delete the stored record when it returns AccessExpired. It never revives an
 // expired record, reduces a confirmed timestamp, or extends absolute lifetime.
-func (r Record) Touch(accessedAt, idleExpiresAt time.Time) (Record, TouchStatus, error) {
+func (r Record) Touch(accessedAt, idleExpiresAt time.Time) (Record, AccessStatus, error) {
 	if !r.id.Valid() || accessedAt.IsZero() || idleExpiresAt.IsZero() {
-		return Record{}, TouchMissing, &Error{Code: CodeInvalidRecord, Field: "touch", Detail: "session touch input is invalid"}
+		return Record{}, AccessMissing, &Error{Code: CodeInvalidRecord, Field: "touch", Detail: "session touch input is invalid"}
 	}
 	accessedAt = canonicalTime(accessedAt)
 	idleExpiresAt = canonicalTime(idleExpiresAt)
 	if r.expired(accessedAt) {
-		return Record{}, TouchExpired, nil
+		return Record{}, AccessExpired, nil
 	}
 	if accessedAt.Before(r.accessedAt) {
 		accessedAt = r.accessedAt
@@ -167,10 +167,10 @@ func (r Record) Touch(accessedAt, idleExpiresAt time.Time) (Record, TouchStatus,
 	}
 	idleExpiresAt = minimumTime(idleExpiresAt, r.absoluteExpiresAt)
 	if !idleExpiresAt.After(accessedAt) {
-		return Record{}, TouchMissing, &Error{Code: CodeInvalidRecord, Field: "expiry", Detail: "session touch timestamps are invalid"}
+		return Record{}, AccessMissing, &Error{Code: CodeInvalidRecord, Field: "expiry", Detail: "session touch timestamps are invalid"}
 	}
 	r.accessedAt, r.idleExpiresAt = accessedAt, idleExpiresAt
-	return r.clone(), TouchActive, nil
+	return r.clone(), AccessActive, nil
 }
 
 // Snapshot returns a detached current persistence snapshot. A zero or corrupt

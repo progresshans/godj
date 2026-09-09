@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -14,7 +15,7 @@ func TestPlanDerivationDoesNotMutateSource(t *testing.T) {
 
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	base := query.NewPlan("news_article", []query.FieldRef{title})
-	filtered := base.WithConditions(query.NewCondition(title, query.LookupExact, query.String("Django")))
+	filtered := querytest.Conditions(t, base, query.NewCondition(title, query.LookupExact, query.String("Django")))
 	ordered := filtered.WithOrderings(query.NewOrdering(title, query.Descending))
 
 	if len(base.Conditions()) != 0 || len(base.Orderings()) != 0 {
@@ -34,7 +35,7 @@ func TestPlanDerivationDoesNotMutateSource(t *testing.T) {
 	}
 }
 
-func TestPlanScalarDerivationsPreserveCompositeOwnership(t *testing.T) {
+func TestPlanDerivationsPreserveCompositeOwnership(t *testing.T) {
 	t.Parallel()
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
@@ -67,6 +68,23 @@ func TestPlanScalarDerivationsPreserveCompositeOwnership(t *testing.T) {
 				t.Fatal(err)
 			}
 			derived := offset.WithDistinct()
+			filtered, err := derived.WithWhere(expressionLeaf(t, query.NewCondition(id, query.LookupExact, query.Integer(7))))
+			if err != nil {
+				t.Fatal(err)
+			}
+			freshOrderings := []query.Ordering{query.NewOrdering(title, query.Descending)}
+			reordered := filtered.WithOrderings(freshOrderings...)
+			freshOrderings[0] = query.NewOrdering(id, query.Descending)
+			if !reordered.Orderings()[0].Equal(query.NewOrdering(title, query.Descending)) {
+				t.Fatal("ordering derivation retained the caller's input slice")
+			}
+			reshaped, err := filtered.WithResultShape(base.ResultShape())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, exists := derived.Where(); exists {
+				t.Fatal("filter changed the original plan predicate")
+			}
 			if _, set := base.Limit(); set {
 				t.Fatal("WithLimit mutated its source")
 			}
@@ -89,7 +107,7 @@ func TestPlanScalarDerivationsPreserveCompositeOwnership(t *testing.T) {
 			if projection, ok := derived.RelationProjection(); ok {
 				projection.TargetColumns()[0] = title
 			}
-			for _, plan := range []query.Plan{base, limited, offset, derived} {
+			for _, plan := range []query.Plan{base, limited, offset, derived, filtered, reshaped} {
 				if !plan.SourceFields()[0].Equal(id) || !plan.Orderings()[0].Equal(query.NewOrdering(id, query.Ascending)) {
 					t.Fatal("caller slice mutation reached shared plan metadata")
 				}
@@ -173,8 +191,8 @@ func TestPlanImplicitAndConvergesAcrossConditionAndExpressionPaths(t *testing.T)
 	publishedCondition := query.NewCondition(published, query.LookupExact, query.Boolean(true))
 	base := query.NewPlan("news_article", []query.FieldRef{title, published})
 
-	variadicConditions := base.WithConditions(titleCondition, publishedCondition)
-	repeatedConditions := base.WithConditions(titleCondition).WithConditions(publishedCondition)
+	variadicConditions := querytest.Conditions(t, base, titleCondition, publishedCondition)
+	repeatedConditions := querytest.Conditions(t, querytest.Conditions(t, base, titleCondition), publishedCondition)
 	if !variadicConditions.Equal(repeatedConditions) {
 		t.Fatal("variadic and repeated WithConditions produced different trees")
 	}
@@ -205,46 +223,41 @@ func TestPlanImplicitAndConvergesAcrossConditionAndExpressionPaths(t *testing.T)
 	}
 }
 
-func TestPlanWithConditionsRetainsMalformedAndOverLimitTreesForValidation(t *testing.T) {
+func TestPlanConditionConstructionRejectsInvalidInputWithoutPartialPlan(t *testing.T) {
 	t.Parallel()
-
 	field := query.NewFieldRef("title", "title", query.FieldString, false)
 	base := query.NewPlan("news_article", []query.FieldRef{field})
-	malformed := base.WithConditions(query.Condition{})
-	where, ok := malformed.Where()
-	if !ok || where.Kind() != query.ExpressionLeaf {
-		t.Fatalf("malformed WithConditions Where() = (%#v, %v)", where, ok)
+	valid := query.NewCondition(field, query.LookupExact, query.String("valid"))
+	oversized := make([]query.Condition, 1024)
+	for index := range oversized {
+		oversized[index] = valid
 	}
-	conditions := malformed.Conditions()
-	if len(conditions) != 1 || conditions[0] != (query.Condition{}) {
-		t.Fatalf("malformed diagnostic leaves = %#v, want retained zero condition", conditions)
-	}
-	if _, err := base.WithWhere(where); !isInvalidPlan(err) {
-		t.Fatalf("WithWhere(malformed leaf) error = %v, want invalid_plan", err)
-	}
-	valid := expressionLeaf(t, query.NewCondition(field, query.LookupExact, query.String("valid")))
-	if _, err := malformed.WithWhere(valid); !isInvalidPlan(err) {
-		t.Fatalf("append to malformed plan error = %v, want invalid_plan", err)
+	for name, conditions := range map[string][]query.Condition{
+		"zero":           {query.Condition{}},
+		"foreign field":  {query.NewCondition(query.NewFieldRef("other", "other", query.FieldString, false), query.LookupExact, query.String("x"))},
+		"unknown lookup": {query.NewCondition(field, query.Lookup("unknown"), query.String("x"))},
+		"partial input":  {valid, query.Condition{}},
+		"node cap":       oversized,
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan, err := base.WithConditions(conditions...)
+			if !isInvalidPlan(err) || !plan.Equal(query.Plan{}) {
+				t.Fatalf("invalid construction = (%#v, %v), want zero plan and invalid_plan", plan, err)
+			}
+			if _, exists := base.Where(); exists {
+				t.Fatal("failed construction changed source")
+			}
+		})
 	}
 	if _, err := base.WithWhere(query.Expression{}); !isInvalidPlan(err) {
-		t.Fatalf("WithWhere(zero) error = %v, want invalid_plan", err)
+		t.Fatalf("zero expression = %v", err)
 	}
-
-	condition := query.NewCondition(field, query.LookupExact, query.String("bounded"))
-	overLimit := make([]query.Condition, 1024)
-	for index := range overLimit {
-		overLimit[index] = condition
+	if empty, err := base.WithConditions(); err != nil || !empty.Equal(base) {
+		t.Fatalf("empty conjunction = (%#v,%v)", empty, err)
 	}
-	unchecked := base.WithConditions(overLimit...)
-	if got := len(unchecked.Conditions()); got != 1024 {
-		t.Fatalf("over-limit low-level leaf inventory = %d, want 1024", got)
-	}
-	overLimitWhere, ok := unchecked.Where()
-	if !ok {
-		t.Fatal("over-limit low-level tree was discarded")
-	}
-	if _, err := base.WithWhere(overLimitWhere); !isInvalidPlan(err) {
-		t.Fatalf("WithWhere(over-limit tree) error = %v, want invalid_plan", err)
+	bounded := querytest.Conditions(t, base, oversized[:1023]...)
+	if _, err := bounded.WithConditions(valid); !isInvalidPlan(err) {
+		t.Fatalf("combined node cap = %v", err)
 	}
 }
 
@@ -376,14 +389,14 @@ func TestInConditionClonesValuesAndPlanEqualityUsesListContents(t *testing.T) {
 	}
 
 	base := query.NewPlan("blog_post", []query.FieldRef{author})
-	plan := base.WithConditions(condition)
+	plan := querytest.Conditions(t, base, condition)
 	equalCondition, err := query.NewInCondition(author, []query.Value{
 		query.Integer(3), query.Integer(1), query.Integer(2),
 	})
 	if err != nil {
 		t.Fatalf("second NewInCondition() error = %v", err)
 	}
-	if !plan.Equal(base.WithConditions(equalCondition)) {
+	if !plan.Equal(querytest.Conditions(t, base, equalCondition)) {
 		t.Fatal("plans with equal IN contents differ")
 	}
 	differentCondition, err := query.NewInCondition(author, []query.Value{
@@ -392,7 +405,7 @@ func TestInConditionClonesValuesAndPlanEqualityUsesListContents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("different NewInCondition() error = %v", err)
 	}
-	if plan.Equal(base.WithConditions(differentCondition)) {
+	if plan.Equal(querytest.Conditions(t, base, differentCondition)) {
 		t.Fatal("plans with differently ordered IN contents compare equal")
 	}
 

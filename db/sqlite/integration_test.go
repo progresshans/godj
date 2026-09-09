@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	modernsqlite "modernc.org/sqlite"
@@ -265,7 +266,9 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	namePath := integrationRelationPath(t, "blog_post", "author_id", authorName)
 	idPath := integrationRelationPath(t, "blog_post", "author_id", targetID)
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}),
 		query.NewRelatedCondition(namePath, query.LookupExact, query.String("Ada")),
 		query.NewRelatedCondition(idPath, query.LookupExact, query.Integer(1)),
 	).WithOrderings(query.NewOrdering(id, query.Ascending))
@@ -306,8 +309,7 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 	if err != nil {
 		t.Fatalf("NewInCondition(author) error = %v", err)
 	}
-	inPlan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).
-		WithConditions(authorIn).
+	inPlan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}), authorIn).
 		WithOrderings(query.NewOrdering(id, query.Ascending))
 	inStatement, inArguments, err := sqlite.Compile(inPlan)
 	if err != nil {
@@ -359,7 +361,9 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 	if err != nil {
 		t.Fatalf("NewNullableForwardRelationIsNullPath() error = %v", err)
 	}
-	nullablePlan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+	nullablePlan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}),
 		query.NewRelatedCondition(nullablePath, query.LookupIsNull, query.Boolean(true)),
 	).WithOrderings(query.NewOrdering(id, query.Ascending))
 	statement, arguments, err := sqlite.Compile(nullablePlan)
@@ -401,11 +405,8 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 		t.Fatalf("nullable source-key query count = %d, want 1", got)
 	}
 
-	invalidNullable := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
-		query.NewRelatedCondition(nullablePath, query.LookupIsNull, query.Boolean(true)),
-	)
 	before = backend.QueryCount()
-	_, err = backend.Query(ctx, invalidNullable)
+	_, err = query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(query.NewRelatedCondition(nullablePath, query.LookupIsNull, query.Boolean(true)))
 	var queryError *query.Error
 	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
 		t.Fatalf("invalid nullable source-key Query() error = %v, want invalid_plan", err)
@@ -415,11 +416,8 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 	}
 
 	wrongRoot := integrationRelationPath(t, "other_post", "author_id", authorName)
-	invalid := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
-		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Ada")),
-	)
 	before = backend.QueryCount()
-	_, err = backend.Query(ctx, invalid)
+	_, err = query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Ada")))
 	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
 		t.Fatalf("invalid relation Query() error = %v, want invalid_plan", err)
 	}
@@ -540,7 +538,9 @@ func TestSQLiteBackendExecutesRequiredAndNullableForwardProjections(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	forgedPlan := query.NewPlan("blog_post", rootColumns).WithConditions(
+	forgedPlan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", rootColumns),
 		query.NewRelatedCondition(forgedPath, query.LookupIsNull, query.Boolean(true)),
 	)
 	forgedPlan, err = forgedPlan.WithRelationProjection(nullableProjection)
@@ -609,7 +609,9 @@ func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("authors_author", []query.FieldRef{id, name}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("authors_author", []query.FieldRef{id, name}),
 		query.NewRelatedCondition(titlePath, query.LookupExact, query.String("Alpha")),
 		query.NewRelatedCondition(postIDPath, query.LookupExact, query.Integer(10)),
 	).WithOrderings(query.NewOrdering(id, query.Ascending))
@@ -662,11 +664,8 @@ func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	invalid := query.NewPlan("authors_author", []query.FieldRef{id, name}).WithConditions(
-		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Alpha")),
-	)
 	before = backend.QueryCount()
-	_, err = backend.Query(ctx, invalid)
+	_, err = query.NewPlan("authors_author", []query.FieldRef{id, name}).WithConditions(query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Alpha")))
 	var queryError *query.Error
 	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
 		t.Fatalf("invalid reverse relation Query() error = %v, want invalid_plan", err)

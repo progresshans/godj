@@ -123,12 +123,12 @@ class QueryCacheScenarioTests(unittest.TestCase):
                 second = cursor.execute("SELECT 2").fetchone()[0]
             return first, second
 
-        result, metrics = scenarios._capture(two_queries)
+        result, metrics = scenarios.capture_statements(connection, two_queries, classify=scenarios._statement_kind)
         self.assertEqual(result, (1, 2))
         self.assertEqual(metrics["query_count"], 2)
         self.assertEqual(metrics["statement_kinds"], ["SELECT", "SELECT"])
 
-        result, metrics = scenarios._capture(lambda: "no I/O")
+        result, metrics = scenarios.capture_statements(connection, lambda: "no I/O", classify=scenarios._statement_kind)
         self.assertEqual(result, "no I/O")
         self.assertEqual(metrics, {"query_count": 0, "statement_kinds": []})
 
@@ -150,12 +150,12 @@ class QueryCacheScenarioTests(unittest.TestCase):
         for index, scenario in enumerate(scenarios.SCENARIOS.values(), 11):
             contract_id = f"QRY-{index:03d}"
             capture_index = 0
-            original_capture = scenarios._capture
+            original_capture = scenarios.capture_statements
             original_missing_table = scenarios._capture_missing_table
 
-            def instrument_capture(operation):
+            def instrument_capture(*args, **kwargs):
                 nonlocal capture_index
-                result, metrics = original_capture(operation)
+                result, metrics = original_capture(*args, **kwargs)
                 capture_index += 1
                 metrics["capture_token"] = f"capture-{capture_index}"
                 return result, metrics
@@ -171,7 +171,7 @@ class QueryCacheScenarioTests(unittest.TestCase):
                 self.subTest(contract=contract_id),
                 patch.object(
                     scenarios,
-                    "_capture",
+                    "capture_statements",
                     side_effect=instrument_capture,
                 ) as capture,
                 patch.object(

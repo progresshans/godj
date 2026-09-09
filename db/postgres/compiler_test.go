@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -23,13 +24,14 @@ func TestCompileScalarUsesQualifiedTablesAndNumberedArguments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("news_article", []query.FieldRef{id, title, published, summary}).
-		WithConditions(
-			query.NewCondition(summary, query.LookupIsNull, query.Boolean(false)),
-			query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
-			in,
-			query.NewCondition(published, query.LookupExact, query.Boolean(true)),
-		).
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published, summary}),
+		query.NewCondition(summary, query.LookupIsNull, query.Boolean(false)),
+		query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
+		in,
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(title, query.Descending), query.NewOrdering(id, query.Ascending))
 	plan, err = plan.WithLimit(2)
 	if err != nil {
@@ -68,7 +70,9 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	forwardPlan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorKey}).WithConditions(
+	forwardPlan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorKey}),
 		query.NewRelatedCondition(forward, query.LookupExact, query.String("Ada")),
 	)
 	statement, arguments, err := compilePlan("godj_app", forwardPlan)
@@ -87,7 +91,9 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reversePlan := query.NewPlan("authors_author", []query.FieldRef{authorID, authorName}).WithConditions(
+	reversePlan := querytest.Conditions(
+		t,
+		query.NewPlan("authors_author", []query.FieldRef{authorID, authorName}),
 		query.NewRelatedCondition(reverse, query.LookupExact, query.String("Hello")),
 	)
 	statement, arguments, err = compilePlan("godj_app", reversePlan)
@@ -135,7 +141,9 @@ func TestCompileNullableRelationIsNullTrimsJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, authorKey}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, authorKey}),
 		query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
 	)
 	statement, arguments, err := compilePlan("godj_app", plan)
@@ -490,4 +498,13 @@ func assertUnsupported(t *testing.T, err error) {
 	if !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}) {
 		t.Fatalf("error = %v, want backend unsupported_feature", err)
 	}
+}
+
+// Invalid construction returns before the backend is entered.
+func compileConditions(schema string, base query.Plan, conditions ...query.Condition) (string, []any, error) {
+	plan, err := base.WithConditions(conditions...)
+	if err != nil {
+		return "", nil, err
+	}
+	return compilePlan(schema, plan)
 }

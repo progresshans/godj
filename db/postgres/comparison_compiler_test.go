@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -20,7 +21,9 @@ func TestCompileOrderedLiteralAndFieldComparisonsPreservesPlaceholderOrder(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("news_article", []query.FieldRef{id, title, summary}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, summary}),
 		query.NewCondition(id, query.LookupGreaterThan, query.Integer(1)),
 		titleEqualsSummary,
 		query.NewCondition(title, query.LookupGreaterThanOrEqual, query.String("A")),
@@ -158,7 +161,7 @@ func TestCompileFieldComparisonRejectsRHSOutsideSourceInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = compilePlan("godj_app", query.NewPlan("news_article", []query.FieldRef{id, title}).WithConditions(condition))
+	_, _, err = compileConditions("godj_app", query.NewPlan("news_article", []query.FieldRef{id, title}), condition)
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) ||
 		!strings.Contains(err.Error(), "right-hand-side field") {
 		t.Fatalf("compilePlan() error = %v, want RHS source invalid_plan", err)
@@ -185,7 +188,9 @@ func TestCompileRelationAndRootFieldComparisonUseRootAlias(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, summary, authorKey}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, summary, authorKey}),
 		fieldCondition,
 		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
 	)

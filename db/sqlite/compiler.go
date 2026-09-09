@@ -17,6 +17,13 @@ func Compile(plan query.Plan) (string, []any, error) {
 	}
 	_, selected := plan.RelationProjection()
 	related := where.hasRelations
+	if related && !selected && plan.ResultShape().IsCountAll() {
+		inner, arguments, err := compileRelation(plan, where)
+		if err != nil {
+			return "", nil, err
+		}
+		return `SELECT COUNT(*) FROM (` + inner + `) AS "godj_count_source"`, arguments, nil
+	}
 	if plan.ResultShape().Kind() != query.ResultModel && (selected || related) {
 		return "", nil, unsupportedResult("SQLite projection and aggregate results cannot combine with relation paths or relation projection")
 	}
@@ -216,8 +223,8 @@ type relationJoin struct {
 }
 
 func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, error) {
-	if plan.ResultShape().Kind() != query.ResultModel {
-		return "", nil, unsupportedResult("SQLite relation compilation requires a model result")
+	if plan.ResultShape().Kind() != query.ResultModel && !plan.ResultShape().IsCountAll() {
+		return "", nil, unsupportedResult("SQLite relation compilation requires a model result or COUNT(*)")
 	}
 	if plan.Table() == "" {
 		return "", nil, invalidPlan("table is empty")

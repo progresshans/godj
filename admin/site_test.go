@@ -626,11 +626,11 @@ func (sitePlainHasher) ValidateEncoded(encoded string) error {
 }
 
 type siteStoreCounts struct {
-	loads   int
-	creates int
-	touches int
-	rotates int
-	deletes int
+	loads    int
+	creates  int
+	accesses int
+	rotates  int
+	deletes  int
 }
 
 type siteCountingStore struct {
@@ -653,11 +653,11 @@ func (store *siteCountingStore) Create(ctx context.Context, record sessions.Reco
 	return store.Store.Create(ctx, record)
 }
 
-func (store *siteCountingStore) Touch(ctx context.Context, id sessions.ID, accessedAt, idleExpiresAt time.Time) (sessions.Record, sessions.TouchStatus, error) {
+func (store *siteCountingStore) Access(ctx context.Context, id sessions.ID, policy sessions.AccessPolicy) (sessions.Record, sessions.AccessStatus, error) {
 	store.mu.Lock()
-	store.touches++
+	store.accesses++
 	store.mu.Unlock()
-	return store.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
+	return store.Store.Access(ctx, id, policy)
 }
 
 func (store *siteCountingStore) Rotate(ctx context.Context, id sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {

@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
@@ -78,7 +79,9 @@ func TestRuntimeExplicitProvisionRestartAndDatabaseInterfaces(t *testing.T) {
 		t.Fatalf("Runtime.Insert() = id %d/error %v/calls %d/%d", auditID, err, firstBackend.atomicCalls.Load(), firstBackend.insertCalls.Load())
 	}
 	firstBackend.resetObservation()
-	rows, err := firstRuntime.Query(ctx, query.NewPlan(auditTableName, auditFieldRefs).WithConditions(
+	rows, err := firstRuntime.Query(ctx, querytest.Conditions(
+		t,
+		query.NewPlan(auditTableName, auditFieldRefs),
 		query.NewCondition(auditIDRef, query.LookupExact, query.Integer(auditID)),
 	))
 	if err != nil {

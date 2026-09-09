@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/conformance/internal/testfixture"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 const (
@@ -143,6 +144,7 @@ replace github.com/progresshans/godj => %s
 	// Use the ambient configured proxy so a cold runner does not need an
 	// accidentally prewarmed dependency-test cache. Every built product command
 	// below still executes with the network-disabled environment.
+	setupEnvironment = gobuild.Environment(setupEnvironment, os.Environ(), universe)
 	externalRunSuccess(t, projectRoot, setupEnvironment, "go", "mod", "tidy")
 	if info, err := os.Stat(moduleCache); err != nil || !info.IsDir() {
 		t.Fatalf("prepared ambient module cache %q is unavailable: %v", moduleCache, err)

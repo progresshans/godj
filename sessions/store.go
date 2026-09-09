@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"context"
-	"time"
 )
 
 // Store is the atomic persistence boundary used by Manager. Implementations
@@ -10,10 +9,10 @@ import (
 // durable implementations may consume it transiently to derive a lookup key but
 // must never persist, log, format, or return its encoded value in diagnostics.
 //
-// Touch must use the currently stored record for its expiry decision, before
+// Access must apply its policy to the currently stored record before
 // advancing any timestamp. It atomically deletes an expired record and reports
-// TouchExpired, or publishes the monotonic active state and reports TouchActive.
-// A missing ID reports TouchMissing. Expiry and absence are distinct so callers
+// AccessExpired, or publishes the monotonic active state and reports AccessActive.
+// A missing ID reports AccessMissing. Expiry and absence are distinct so callers
 // can observe an actual deletion without a second, racy lookup or Delete call.
 // Rotate must atomically delete oldID, preserve the stored record's immutable
 // creation/absolute-expiry state and latest confirmed access/idle timestamps,
@@ -25,17 +24,17 @@ import (
 type Store interface {
 	Load(context.Context, ID) (Record, bool, error)
 	Create(context.Context, Record) (created bool, err error)
-	Touch(context.Context, ID, time.Time, time.Time) (Record, TouchStatus, error)
+	Access(context.Context, ID, AccessPolicy) (Record, AccessStatus, error)
 	Rotate(context.Context, ID, Record) (published Record, rotated bool, err error)
 	Delete(context.Context, ID) error
 }
 
-// TouchStatus is the closed outcome of one atomic Store.Touch operation.
-// Only TouchActive carries a Record; TouchExpired confirms a deletion.
-type TouchStatus uint8
+// AccessStatus is the closed outcome of one atomic Store.Access operation.
+// Only AccessActive carries a Record; AccessExpired confirms a deletion.
+type AccessStatus uint8
 
 const (
-	TouchMissing TouchStatus = iota
-	TouchActive
-	TouchExpired
+	AccessMissing AccessStatus = iota
+	AccessActive
+	AccessExpired
 )

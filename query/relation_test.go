@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -68,19 +69,22 @@ func TestForwardRelationPathAccessorsAndPlanCopies(t *testing.T) {
 		t.Fatal("Condition.RelationPath() exposed mutable path storage")
 	}
 
-	plan := query.NewPlan("blog_post", []query.FieldRef{
+	plan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{
 		query.NewFieldRef("id", "id", query.FieldInteger, false),
-	}).WithConditions(related)
+		query.NewFieldRef("author", "author_id", query.FieldInteger, false), name,
+	}), related)
 	conditions := plan.Conditions()
 	conditions[0] = query.NewCondition(name, query.LookupExact, query.String("mutated"))
 	gotPath, ok := plan.Conditions()[0].RelationPath()
 	if !ok || !gotPath.Equal(path) {
 		t.Fatal("Plan.Conditions() exposed mutable related condition storage")
 	}
-	if !plan.Equal(query.NewPlan("blog_post", plan.SourceFields()).WithConditions(related)) {
+	if !plan.Equal(querytest.Conditions(t, query.NewPlan("blog_post", plan.SourceFields()), related)) {
 		t.Fatal("equal relation plans differ")
 	}
-	if plan.Equal(query.NewPlan("blog_post", plan.SourceFields()).WithConditions(
+	if plan.Equal(querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", plan.SourceFields()),
 		query.NewCondition(name, query.LookupExact, query.String("Ada")),
 	)) {
 		t.Fatal("scalar and related conditions compared equal")
@@ -135,10 +139,10 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 	}
 
 	condition := query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true))
-	plan := query.NewPlan("blog_post", []query.FieldRef{
+	plan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{
 		query.NewFieldRef("id", "id", query.FieldInteger, false),
 		sourceKey,
-	}).WithConditions(condition)
+	}), condition)
 	derived, err := plan.WithLimit(2)
 	if err != nil {
 		t.Fatalf("WithLimit() error = %v", err)
@@ -147,7 +151,7 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 	if !ok || !clonedPath.Equal(path) || clonedPath.TerminalScope() != query.RelationTerminalSourceKey {
 		t.Fatalf("derived source-key path = (%#v, %v)", clonedPath, ok)
 	}
-	unlimited := query.NewPlan("blog_post", plan.SourceFields()).WithConditions(condition)
+	unlimited := querytest.Conditions(t, query.NewPlan("blog_post", plan.SourceFields()), condition)
 	if derived.Equal(unlimited) {
 		t.Fatal("limited and unlimited plans compared equal")
 	}
@@ -287,9 +291,9 @@ func TestReverseRelationPathIsDeclarationCentricAndImmutable(t *testing.T) {
 	}
 
 	condition := query.NewRelatedCondition(path, query.LookupExact, query.String("Alpha"))
-	plan := query.NewPlan("authors_author", []query.FieldRef{
+	plan := querytest.Conditions(t, query.NewPlan("authors_author", []query.FieldRef{
 		query.NewFieldRef("id", "id", query.FieldInteger, false),
-	}).WithConditions(condition)
+	}), condition)
 	returned, ok := plan.Conditions()[0].RelationPath()
 	if !ok || !returned.Equal(path) {
 		t.Fatalf("plan reverse path = (%#v, %v), want original", returned, ok)

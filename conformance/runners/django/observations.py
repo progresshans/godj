@@ -5,77 +5,25 @@ from typing import Any
 from .normalizer import PrimaryKey, normalize
 
 
+_ABSENT = object()
+
+
 def observed(
     contract_id: str,
-    result: Any,
+    result: Any = _ABSENT,
     *,
     phase: str = "evaluation",
+    error: dict[str, Any] | None = None,
     db_state: Any | None = None,
     metrics: Any | None = None,
 ) -> dict[str, Any]:
     return {
         "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
+        "error": error,
         "id": contract_id,
         "metrics": normalize(metrics) if metrics is not None else None,
         "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
-
-
-def observed_command(
-    contract_id: str,
-    *,
-    phase: str,
-    result: Any,
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
-
-
-def observed_state(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str,
-    db_state: Any,
-    metrics: Any,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state),
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics),
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
-
-
-def observed_writer(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str,
-    metrics: Any,
-) -> dict[str, Any]:
-    return {
-        "db_state": None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics),
-        "phase": phase,
-        "result": normalize(result),
+        "result": None if result is _ABSENT else normalize(result),
         "status": "observed",
     }
 

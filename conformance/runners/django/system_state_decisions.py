@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from .observations import observed_state
+from .observations import observed
 
 
 def explicit_migration_gate(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "migration_identity": "godj_system.0001_initial",
@@ -43,7 +43,7 @@ def admin_bootstrap_gate(contract_id: str) -> dict[str, Any]:
         {"case": "corrupt", "outcome": "fail_closed", "writes": 0},
         {"case": "duplicate", "outcome": "fail_closed", "writes": 0},
     ]
-    return observed_state(
+    return observed(
         contract_id,
         {"cases": cases, "repair_attempted": False},
         phase="commit",
@@ -57,7 +57,7 @@ def admin_bootstrap_gate(contract_id: str) -> dict[str, Any]:
 
 
 def session_expiry_and_touch(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "absolute_expiry_denied": True,
@@ -76,7 +76,7 @@ def session_expiry_and_touch(contract_id: str) -> dict[str, Any]:
 
 
 def capacity_reap_and_rotate_rollback(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "capacity_after_bounded_reap": "available",
@@ -98,7 +98,7 @@ def capacity_reap_and_rotate_rollback(contract_id: str) -> dict[str, Any]:
 
 
 def digest_only_current_codec(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "bearer_storage": "domain_separated_sha256_digest",
@@ -124,7 +124,7 @@ def digest_only_current_codec(contract_id: str) -> dict[str, Any]:
 
 
 def commit_outcome_unknown(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "outcome": "commit_outcome_unknown",
@@ -143,7 +143,7 @@ def commit_outcome_unknown(contract_id: str) -> dict[str, Any]:
 
 
 def coordinated_atomic_fence(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "acquire_before_callback": True,
@@ -172,7 +172,7 @@ def coordinated_atomic_fence(contract_id: str) -> dict[str, Any]:
 
 
 def concurrent_admin_bootstrap(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "concurrent_empty": "identical_material_success",
@@ -194,7 +194,7 @@ def concurrent_admin_bootstrap(contract_id: str) -> dict[str, Any]:
 
 
 def concurrent_session_capacity(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "capacity_overshoot": False,
@@ -217,7 +217,7 @@ def concurrent_session_capacity(contract_id: str) -> dict[str, Any]:
 
 
 def concurrent_touch_monotonicity(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "accessed_at_monotonic": True,
@@ -239,7 +239,7 @@ def concurrent_touch_monotonicity(contract_id: str) -> dict[str, Any]:
 
 
 def concurrent_session_rotation(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "logout_first": "later_rotate_denied",
@@ -270,7 +270,7 @@ def concurrent_session_rotation(contract_id: str) -> dict[str, Any]:
 
 
 def concurrent_article_audit(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "article_and_audit_atomic": True,
@@ -292,7 +292,7 @@ def concurrent_article_audit(contract_id: str) -> dict[str, Any]:
 
 
 def shared_csrf_key_ring(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "active_key_signs_new_values": True,
@@ -316,7 +316,7 @@ def shared_csrf_key_ring(contract_id: str) -> dict[str, Any]:
 
 
 def two_process_backend_restart(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "backend_cases": [
@@ -349,7 +349,7 @@ def two_process_backend_restart(contract_id: str) -> dict[str, Any]:
 
 
 def explicit_operator_provisioning(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "current_api": ["OpenExisting", "ProvisionOperator"],
@@ -373,7 +373,7 @@ def explicit_operator_provisioning(contract_id: str) -> dict[str, Any]:
 
 
 def createsuperuser_argv_and_pre_io(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "accepted_argv": [
@@ -405,7 +405,7 @@ def createsuperuser_argv_and_pre_io(contract_id: str) -> dict[str, Any]:
 
 
 def tty_secret_transport(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "confirmation": "required_and_parent_verified",
@@ -437,7 +437,7 @@ def tty_secret_transport(contract_id: str) -> dict[str, Any]:
 
 
 def project_provision_ownership(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "gates": ["exact_system_migration", "system_state_readiness"],
@@ -466,7 +466,7 @@ def project_provision_ownership(contract_id: str) -> dict[str, Any]:
 
 
 def operator_provision_cardinality(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "cases": [
@@ -515,7 +515,7 @@ def operator_provision_cardinality(contract_id: str) -> dict[str, Any]:
 
 
 def provision_outcome_ownership(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "cases": [
@@ -566,7 +566,7 @@ def provision_outcome_ownership(contract_id: str) -> dict[str, Any]:
 
 
 def open_existing_authenticator(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "raw_secret_required": False,
@@ -608,7 +608,7 @@ def open_existing_authenticator(contract_id: str) -> dict[str, Any]:
 
 
 def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "cases": [
@@ -660,7 +660,7 @@ def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
 
 
 def operator_backend_login_restart(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "backend_cases": [
@@ -703,7 +703,7 @@ def operator_backend_login_restart(contract_id: str) -> dict[str, Any]:
 
 
 def sensitive_child_cleanup(contract_id: str) -> dict[str, Any]:
-    return observed_state(
+    return observed(
         contract_id,
         {
             "bounded_response": True,

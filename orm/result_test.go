@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -308,16 +309,17 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewForwardRelationPath() error = %v", err)
 	}
-	backend := &resultTestBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) {
+	backend := &resultTestBackend{query: func(_ int, _ context.Context, plan query.Plan) (db.Rows, error) {
+		if plan.ResultShape().IsCountAll() {
+			return &resultTestRows{values: [][]any{{int64(2)}}}, nil
+		}
 		return &resultTestRows{values: [][]any{
 			{int64(10), "first", int64(1), nil},
 			{int64(11), "second", int64(1), nil},
 		}}, nil
 	}}
 	source := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend)
-	source.plan = source.plan.WithConditions(
-		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
-	)
+	source.plan = querytest.Conditions(t, source.plan, query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")))
 	id := NewIntegerField[relationObjectTestPost](relationObjectTestPostField("id"))
 	if _, projectionErr := SelectInto(
 		context.Background(),
@@ -331,7 +333,7 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	if _, aggregateErr := AggregateInto(
 		context.Background(),
 		source,
-		Aggregate1(CountRows[relationObjectTestPost](), func(count int64) int64 { return count }),
+		Aggregate1(Max(id), func(value Optional[int64]) Optional[int64] { return value }),
 	); aggregateErr == nil {
 		t.Fatal("relation-backed AggregateInto() succeeded")
 	} else {
@@ -345,8 +347,8 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	if err != nil || cold != 2 {
 		t.Fatalf("cold relation Count() = (%d, %v), want (2, nil)", cold, err)
 	}
-	if len(backend.plans) != 1 || backend.plans[0].ResultShape().Kind() != query.ResultModel {
-		t.Fatalf("cold relation Count() plans = %#v, want one model-row fallback", backend.plans)
+	if len(backend.plans) != 1 || !backend.plans[0].ResultShape().IsCountAll() {
+		t.Fatalf("cold relation Count() plans = %#v, want one COUNT(*) aggregate", backend.plans)
 	}
 	values, err := source.All(context.Background())
 	if err != nil || len(values) != 2 {
@@ -1047,5 +1049,30 @@ func assertResultModelID(t *testing.T, source QuerySet[resultTestModel], want in
 	}
 	if len(values) != 1 || values[0].ID != want {
 		t.Fatalf("All() = %#v, want ID %d", values, want)
+	}
+}
+
+func TestTypedMinDecodesNullableOrderedValues(t *testing.T) {
+	fields := newResultTestFields()
+	for _, empty := range []bool{false, true} {
+		values := []any{int64(2), "Alpha", ""}
+		if empty {
+			values = []any{nil, nil, nil}
+		}
+		backend := &resultTestBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) {
+			return &resultTestRows{values: [][]any{values}}, nil
+		}}
+		aggregate := Aggregate3(Min(fields.ID), Min(fields.Title), Min(fields.Note),
+			func(id Optional[int64], title, note Optional[string]) resultAggregate4 {
+				return resultAggregate4{MaxID: id, MaxTitle: title, MaxNote: note}
+			})
+		got, err := AggregateInto(context.Background(), newResultTestQuerySet(backend), aggregate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.MaxID.Valid() == empty || got.MaxTitle.Valid() == empty || got.MaxNote.Valid() == empty {
+			t.Fatalf("MIN nullability = %#v", got)
+		}
+		assertResultAggregatePlan(t, backend.plans[0], query.MinResult(fields.ID.reference), query.MinResult(fields.Title.reference), query.MinResult(fields.Note.reference))
 	}
 }

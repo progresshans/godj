@@ -228,14 +228,6 @@ func (p RelationPath) Equal(other RelationPath) bool {
 	return true
 }
 
-func (p RelationPath) clone() RelationPath {
-	return RelationPath{
-		hops:     append([]RelationHop(nil), p.hops...),
-		terminal: p.terminal,
-		scope:    p.scope,
-	}
-}
-
 func validModelIdentity(identity ir.ModelIdentity) bool {
 	return !blank(identity.AppLabel) && !blank(identity.ModelName)
 }

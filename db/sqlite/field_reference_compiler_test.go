@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 )
 
@@ -28,7 +29,9 @@ func TestSQLiteCompilerRendersLiteralAndFieldComparisonOperators(t *testing.T) {
 	} {
 		t.Run(test.name+" literal", func(t *testing.T) {
 			t.Parallel()
-			plan := query.NewPlan("comparison_row", []query.FieldRef{left, right}).WithConditions(
+			plan := querytest.Conditions(
+				t,
+				query.NewPlan("comparison_row", []query.FieldRef{left, right}),
 				query.NewCondition(left, test.lookup, query.Integer(7)),
 			)
 			statement, arguments, err := sqlite.Compile(plan)
@@ -50,7 +53,7 @@ func TestSQLiteCompilerRendersLiteralAndFieldComparisonOperators(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewFieldCondition() error = %v", err)
 			}
-			plan := query.NewPlan("comparison_row", []query.FieldRef{left, right}).WithConditions(condition)
+			plan := querytest.Conditions(t, query.NewPlan("comparison_row", []query.FieldRef{left, right}), condition)
 			statement, arguments, err := sqlite.Compile(plan)
 			if err != nil {
 				t.Fatalf("Compile() error = %v", err)
@@ -243,7 +246,7 @@ func TestSQLiteFieldReferenceCompilerBindsRootAliasForRelationProjection(t *test
 	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
 	condition := sqliteFieldCondition(t, title, query.LookupExact, peerTitle)
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, peerTitle, authorID}).WithConditions(condition)
+	plan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{id, title, peerTitle, authorID}), condition)
 	plan, err := plan.WithRelationProjection(forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName}))
 	if err != nil {
 		t.Fatalf("WithRelationProjection() error = %v", err)
@@ -268,9 +271,7 @@ func TestSQLiteFieldReferenceCompilerRejectsRHSOutsideSource(t *testing.T) {
 	left := query.NewFieldRef("left", "left_value", query.FieldInteger, false)
 	foreign := query.NewFieldRef("foreign", "foreign_value", query.FieldInteger, false)
 	condition := sqliteFieldCondition(t, left, query.LookupExact, foreign)
-	statement, arguments, err := sqlite.Compile(
-		query.NewPlan("comparison_row", []query.FieldRef{left}).WithConditions(condition),
-	)
+	statement, arguments, err := compileConditions(query.NewPlan("comparison_row", []query.FieldRef{left}), condition)
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("Compile() error = %v, want query/invalid_plan", err)
 	}

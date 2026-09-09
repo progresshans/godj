@@ -1031,6 +1031,7 @@ jobs:
           mode="${{ matrix.mode }}"
           shard="${{ matrix.shard }}"
           core_required_passes=(
+            "github.com/progresshans/godj/conformance/internal/dbstate|TestPostgresCatalogDetectsPhysicalMutation"
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration"
             "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration"
             "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration"
@@ -1066,6 +1067,7 @@ jobs:
             core)
               required_passes=("${core_required_passes[@]}")
               packages=(
+                ./conformance/internal/dbstate
                 ./cmd/godj
                 ./db/postgres
                 ./examples/article

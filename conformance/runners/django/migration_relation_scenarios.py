@@ -27,7 +27,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
 
 from . import migration_definition_source_scenarios as current_definition
-from .normalizer import normalize
+from .observations import observed
 from .scenarios import configure_django
 
 
@@ -54,25 +54,6 @@ class RelationMigrationDDLFailure(RuntimeError):
 
 class RelationMigrationRecorderFailure(RuntimeError):
     """Stable local sentinel raised at the 0002 recorder write."""
-
-
-def _success(
-    contract_id: str,
-    phase: str,
-    result: Any,
-    *,
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -129,9 +110,8 @@ def _current_vector() -> dict[str, Any]:
 def current_abi(contract_id: str) -> dict[str, Any]:
     first = _current_vector()
     second = _current_vector()
-    return _success(
+    return observed(
         contract_id,
-        "construction",
         {
             "classification": "current_only_decision_reference",
             "current": first,
@@ -139,6 +119,7 @@ def current_abi(contract_id: str) -> dict[str, Any]:
             "repeat_equal": first == second,
             "scalar_and_relation_share_format": True,
         },
+        phase="construction",
         metrics={
             "artifact_reads": 0,
             "definition_loads": 2,
@@ -200,14 +181,14 @@ def current_format_validation(contract_id: str) -> dict[str, Any]:
         _format_case("overflow_format_version", overflow),
         _format_case("retired_compatibility_tuple", retired_tuple),
     ]
-    return _success(
+    return observed(
         contract_id,
-        "environment",
         {
             "cases": observations,
             "classification": "current_only_decision_reference",
             "publication_atomic": True,
         },
+        phase="environment",
         metrics={
             "accepted_documents": sum(item["accepted"] for item in observations),
             "artifact_reads": 0,
@@ -283,9 +264,8 @@ def current_digest(contract_id: str) -> dict[str, Any]:
     permuted_digest, _ = _current_digest(
         (scalar_definition, relation)
     )
-    return _success(
+    return observed(
         contract_id,
-        "construction",
         {
             "classification": "current_only_decision_reference",
             "combined": {
@@ -306,6 +286,7 @@ def current_digest(contract_id: str) -> dict[str, Any]:
             },
             "profile_metadata_present": False,
         },
+        phase="construction",
         metrics={
             "artifact_reads": 0,
             "database_io": 0,
@@ -340,9 +321,8 @@ def current_state(contract_id: str) -> dict[str, Any]:
     )
     cloned = deepcopy(relation_state)
     cloned["models"][0]["fields"][0]["name"] = "changed_only_in_clone"
-    return _success(
+    return observed(
         contract_id,
-        "construction",
         {
             "alias_free": relation_state["models"][0]["fields"][0]["name"] == "id",
             "classification": "current_only_decision_reference",
@@ -355,6 +335,7 @@ def current_state(contract_id: str) -> dict[str, Any]:
                 == _CURRENT_STATE_FORMAT
             ),
         },
+        phase="construction",
         metrics={
             "artifact_reads": 0,
             "database_io": 0,
@@ -408,9 +389,8 @@ def structural_preflight(contract_id: str) -> dict[str, Any]:
             "reads_allowed": True,
         },
     ]
-    return _success(
+    return observed(
         contract_id,
-        "evaluation",
         {
             "classification": "current_only_staged_preflight_decision_reference",
             "lanes": lanes,
@@ -419,6 +399,7 @@ def structural_preflight(contract_id: str) -> dict[str, Any]:
                 "replacement_error": "migration_capability_unavailable",
             },
         },
+        phase="evaluation",
         metrics={
             "artifact_reads": 0,
             "lanes_checked": len(lanes),
@@ -676,13 +657,13 @@ def create_lifecycle(contract_id: str) -> dict[str, Any]:
             )
             statement_groups.append({"label": label, **_statement_metrics(statements)})
         final = _snapshot(session.connection)
-    return _success(
+    return observed(
         contract_id,
-        "commit",
         {
             "classification": "django_observed",
             "transitions": transitions,
         },
+        phase="commit",
         db_state=final,
         metrics={"artifact_reads": 0, "statement_groups": statement_groups},
     )
@@ -701,9 +682,8 @@ def add_nullable_populated(contract_id: str) -> dict[str, Any]:
             lambda: executor.migrate([_M2], plan=plan),
         )
         after = _snapshot(session.connection)
-    return _success(
+    return observed(
         contract_id,
-        "commit",
         {
             "classification": "django_observed_plus_current_godj_decision",
             "django_observation": {
@@ -726,6 +706,7 @@ def add_nullable_populated(contract_id: str) -> dict[str, Any]:
                 "pre_ddl": True,
             },
         },
+        phase="commit",
         db_state={"after": after, "before": before},
         metrics={
             "artifact_reads": 0,
@@ -755,9 +736,8 @@ def remove_remake(contract_id: str) -> dict[str, Any]:
     after_article = next(
         item["rows"] for item in after["rows"] if item["table"] == _ARTICLE_TABLE
     )
-    return _success(
+    return observed(
         contract_id,
-        "commit",
         {
             "classification": "django_observed",
             "plan": _plan_value(plan),
@@ -769,6 +749,7 @@ def remove_remake(contract_id: str) -> dict[str, Any]:
                 "sequence_before": before["sequences"],
             },
         },
+        phase="commit",
         db_state={"after": after, "before": before},
         metrics={"artifact_reads": 0, **_statement_metrics(statements)},
     )
@@ -792,9 +773,8 @@ def physical_fk_policy(contract_id: str) -> dict[str, Any]:
         for table in after["foreign_keys"]
         for constraint in table["constraints"]
     ]
-    return _success(
+    return observed(
         contract_id,
-        "commit",
         {
             "classification": "django_observed_plus_current_godj_decision",
             "django_observation": {
@@ -819,6 +799,7 @@ def physical_fk_policy(contract_id: str) -> dict[str, Any]:
                 "same_physical_connection_required": True,
             },
         },
+        phase="commit",
         db_state=after,
         metrics={
             "artifact_reads": 0,
@@ -849,15 +830,15 @@ def file_restart(contract_id: str) -> dict[str, Any]:
             for app, model in sorted(returned_state.models)
             if app == _APP
         ]
-    return _success(
+    return observed(
         contract_id,
-        "commit",
         {
             "classification": "django_observed",
             "connection_replaced": connection_replaced,
             "fresh_plan": _plan_value(plan),
             "reconstructed_models": state_models,
         },
+        phase="commit",
         db_state={"after_reopen": after, "before_close": before},
         metrics={
             "artifact_reads": 0,
@@ -955,9 +936,8 @@ def _fault_case(kind: str) -> dict[str, Any]:
 def precommit_faults(contract_id: str) -> dict[str, Any]:
     ddl = _fault_case("ddl")
     recorder = _fault_case("recorder")
-    return _success(
+    return observed(
         contract_id,
-        "rollback",
         {
             "classification": "django_observed_plus_current_godj_decision",
             "django_faults": [
@@ -974,6 +954,7 @@ def precommit_faults(contract_id: str) -> dict[str, Any]:
                 "same_transaction": True,
             },
         },
+        phase="rollback",
         db_state={
             "ddl": {
                 "after": ddl["after"],
@@ -1038,14 +1019,14 @@ def commit_outcomes(contract_id: str) -> dict[str, Any]:
             "state_published": False,
         },
     ]
-    return _success(
+    return observed(
         contract_id,
-        "commit",
         {
             "cases": cases,
             "classification": "accepted_no_retry_plus_current_godj_decision",
             "retained_connection_policy": "outside_compatibility_reset_scope",
         },
+        phase="commit",
         metrics={
             "artifact_reads": 0,
             "commit_calls": sum(case["commit_calls"] for case in cases),

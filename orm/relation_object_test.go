@@ -659,7 +659,7 @@ func TestTypedAndDynamicNullableRelationObjectsSharePlan(t *testing.T) {
 	}
 }
 
-func bindRelationObjectTestFixture(t *testing.T) (
+func bindRelationObjectTestFixture(t testing.TB) (
 	BoundModel[relationObjectTestPost],
 	BoundModel[relationObjectTestAuthor],
 	RequiredForwardObject[relationObjectTestPost, relationObjectTestAuthor],

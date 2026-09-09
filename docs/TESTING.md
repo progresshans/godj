@@ -110,9 +110,13 @@ Python compatibility는 현재 발견한 testcase의 시작·종료와 허용된
 구현 파일 자체의 과거 SHA를 보존하기 위해 현재 테스트의 구조를 고정하지 않는다.
 공통 fixture는 호출마다 새 mutable 입력을 만들며 actual 관찰과 expected 로딩은 별도로 유지한다.
 공통화한 환경 준비에서도 각 실행의 timeout·출력 제한·cleanup·필수 DB 조건을 유지한다.
-SQLite command snapshot은 `conformance/internal/dbstate`, process 출력·readiness·종료 관리는 `conformance/internal/testprocess`가 맡는다.
+SQLite command snapshot과 PostgreSQL migrate/target의 공통 physical catalog는 `conformance/internal/dbstate`가 관측한다.
+제품별 expected와 application/history/revision 검증은 각 호출자가 소유한다. 더 상세한 SQL 정의를 검증하는 showmigrations 관측도 유지한다.
+PostgreSQL catalog의 컬럼·인덱스·sequence·constraint trigger·policy·view 변경 감지는 실제 DB negative control이 검증한다.
+Process 출력·readiness·종료 관리는 `conformance/internal/testprocess`가 맡는다.
 호출자는 명령별 시간·출력 한도를 지정하며 snapshot의 raw bytes·schema·행 수·migration history·revision 관측은 그대로 유지한다.
-Django migration 관측은 Django 내부에서만 schema/field 정규화를 공유한다. 계약별 primary-key 필드·datetime 정규화와 recorder 접근 순서는 보존한다.
+Django 관측 envelope는 `observations`, SQL capture는 `sql_observation`이 공유한다. 결과 누락과 명시적 null을 구분하고
+계약별 SQL 분류·실패 판단은 호출자가 유지한다. Django migration 관측은 Django 내부에서만 schema/field 정규화를 공유한다. 계약별 primary-key 필드·datetime 정규화와 recorder 접근 순서는 보존한다.
 Select/object/delete 관계 handler는 자신이 맡은 case만 관측한다. 같은 DB에서 sibling case 전체를 실행한 결과의 전역 cache는
 사용하지 않는다. 검증 편의를 위한 test-only 결합은 각 case의 fresh DB 결과와 DB state 일치도 따로 확인한다.
 

@@ -15,7 +15,8 @@ warm terminal은 cache를 사용할 수 있다. Iterate는 full result cache를 
 Nil/already-canceled context는 warm cache와 nullable no-I/O 경로에서도 확인한다.
 Descriptor·callback panic도 열린 rows를 정리하고 평가 flight를 해제해 waiter가 다시 시도할 수 있게 한다.
 Panic은 그대로 전파하며 partial result를 cache하지 않는다. 정상 반환의 rows·close·context 오류 결합은 유지한다.
-Limit/Offset/Distinct 파생은 불변 plan metadata를 공유하고, 외부로 반환하는 mutable slice는 분리한다.
+Filter/OrderBy/Limit/Offset/Distinct 파생은 바뀌지 않은 private 불변 plan metadata를 공유하고, 입력·반환 mutable slice는 분리한다.
+Cold Count는 현재 지원 관계 filter도 DB 집계로 실행하며 JOIN multiplicity와 Distinct·슬라이스를 보존한다.
 Cold At는 표현 가능한 기존 offset과 index를 합친 OFFSET/LIMIT 1로 한 row만 소비한다. 원래 limit을 벗어나면 빈 plan을
 사용하며 offset 범위를 넘는 index는 기존의 bounded row 소비 경로를 사용한다. DB 내부 offset 탐색 비용은 그대로다.
 
@@ -30,6 +31,7 @@ session·사용자 callback·반환된 mutable model의 임의 공유 안전성�
 - Eager First는 cold query에서 최대 한 row를 읽고 All cache를 채우지 않는다. Warm All cache의 첫 결과도 독립 복제하며,
   관계 검증과 row close가 끝나기 전에는 결과를 반환하지 않는다. 기존 QuerySet.First처럼 명시적 정렬을 요구한다.
 - Relation assignment는 FK 값과 cache를 함께 reconcile한다. Application memory를 DB rollback으로 자동 되돌리지 않는다.
+- Eager materialization의 target source plan은 한 번 준비해 공유한다. 각 행의 key predicate와 ready cache는 독립적으로 만든다.
 - 다른 query materialization에서 얻은 동일 PK의 객체가 같은 pointer일 필요는 없다.
 - Transaction에서 만든 query의 사용 가능 범위는 transaction/session 계약을 따른다. Warm cache가 session 이후에도 값을 제공할 수 있다는 사실을
   session I/O가 계속 유효하다는 뜻으로 해석하지 않는다.

@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from .observations import observed_writer
+from .observations import observed
 
 
 def _sample_document() -> bytes:
@@ -51,7 +51,7 @@ def deterministic_candidate(contract_id: str) -> dict[str, Any]:
         {"case": "different_process", "document": document, "sha256": digest},
         {"case": "different_time", "document": document, "sha256": digest},
     ]
-    return observed_writer(
+    return observed(
         contract_id,
         {
             "cases": cases,
@@ -79,7 +79,7 @@ def unsupported_delta_fail_closed(contract_id: str) -> dict[str, Any]:
         {"case": "self_or_cyclic_relation", "code": "relation_cycle"},
         {"case": "noncanonical_leaf", "code": "noncanonical_leaf"},
     ]
-    return observed_writer(
+    return observed(
         contract_id,
         {
             "cases": [
@@ -104,7 +104,7 @@ def unsupported_delta_fail_closed(contract_id: str) -> dict[str, Any]:
 
 
 def snapshot_and_protocol_boundary(contract_id: str) -> dict[str, Any]:
-    return observed_writer(
+    return observed(
         contract_id,
         {
             "catalog_and_schema_snapshot": "one_private_request",
@@ -126,7 +126,7 @@ def snapshot_and_protocol_boundary(contract_id: str) -> dict[str, Any]:
 
 
 def atomic_concurrent_publication(contract_id: str) -> dict[str, Any]:
-    return observed_writer(
+    return observed(
         contract_id,
         {
             "cases": [
@@ -157,7 +157,7 @@ def atomic_concurrent_publication(contract_id: str) -> dict[str, Any]:
 
 
 def interruption_recovery_and_roundtrip(contract_id: str) -> dict[str, Any]:
-    return observed_writer(
+    return observed(
         contract_id,
         {
             "cases": [

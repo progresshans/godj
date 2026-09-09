@@ -9,7 +9,7 @@
 |---|---|---|---|
 | Schema/IR | normalized schema, current scalar/FK 의미, immutable snapshot | 모든 Django field·custom field 아님 | [schema](../../schema/) |
 | 생성 | ProjectSpec, typed model/FieldSet/descriptor와 project relation binding, 후보 compile/publication/recovery | Linux/macOS local filesystem 중심 | [codegen](../../codegen/) |
-| Query | typed/dynamic 공통 AST, Boolean composition, scalar comparison, same-model F, projection·Count/Max | annotation/grouping/subquery/window/bulk/locking은 별도 | [orm](../../orm/), [query](../../query/) |
+| Query | typed/dynamic 공통 AST, Boolean composition, scalar comparison, same-model F, projection·Count/Min/Max·관계 filter Count | annotation/grouping/subquery/window/bulk/locking은 별도 | [orm](../../orm/), [query](../../query/) |
 | 평가 | lazy query, full-result cache, cloning, iterator와 cancellation | 임의 model/callback의 goroutine 안전성을 포함하지 않음 | [ORM cache](../CONCURRENCY.md#queryset-평가) |
 | 관계 | AutoField-target FK, 자기·상호 참조 선언/생성, lazy/forward/reverse, prefetch/eager All·First, assignment/cache, PROTECT/SET_NULL | eager First는 명시적 정렬 필요; eager Count·임의 깊이/다중 관계 탐색·일반 순환 관계 동작·ManyToMany/OneToOne 미지원 | [관계 소유권](../CONCURRENCY.md#관계-객체) |
 | Migration | strict current definition, historical replay, immutable planner, revision fence, durable prefix, bounded reverse | arbitrary custom/data operation·general schema repair·fake/squash 미지원 | [migrations](../../migrations/) |

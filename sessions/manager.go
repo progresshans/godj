@@ -19,7 +19,8 @@ const (
 
 // Config controls session creation and expiry. Zero values select the bounded
 // current profile. Clock and Random exist for deterministic testing; Manager
-// serializes calls to both sources.
+// serializes calls to both sources. Clock must be prompt and must not perform
+// I/O or reenter a manager or store; Load samples it inside Store.Access.
 type Config struct {
 	AbsoluteLifetime time.Duration
 	IdleTimeout      time.Duration
@@ -34,6 +35,7 @@ type Manager struct {
 	store            Store
 	absoluteLifetime time.Duration
 	idleTimeout      time.Duration
+	accessPolicy     AccessPolicy
 	limits           Limits
 	clock            func() time.Time
 	random           io.Reader
@@ -69,14 +71,19 @@ func NewManager(store Store, config Config) (*Manager, error) {
 	if config.Random == nil {
 		config.Random = rand.Reader
 	}
-	return &Manager{
+	manager := &Manager{
 		store:            store,
 		absoluteLifetime: config.AbsoluteLifetime,
 		idleTimeout:      config.IdleTimeout,
 		limits:           limits,
 		clock:            config.Clock,
 		random:           config.Random,
-	}, nil
+	}
+	manager.accessPolicy, err = NewAccessPolicy(config.IdleTimeout, limits, manager.now)
+	if err != nil {
+		return nil, err
+	}
+	return manager, nil
 }
 
 // Load returns a detached active record and atomically advances its sliding
@@ -89,38 +96,20 @@ func (m *Manager) Load(ctx context.Context, id ID) (Record, bool, error) {
 	if !id.Valid() {
 		return Record{}, false, &Error{Code: CodeInvalidInput, Field: "session_id", Detail: "session identifier is invalid"}
 	}
-	record, found, err := m.store.Load(ctx, id)
+	touched, status, err := m.store.Access(ctx, id, m.accessPolicy)
 	if err != nil {
-		return Record{}, false, storeFailure("load", err)
-	}
-	if !found {
-		return Record{}, false, nil
-	}
-	if !record.valid(m.limits) || record.id != id {
-		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid session record"}
-	}
-	now := m.now()
-	if now.IsZero() {
-		return Record{}, false, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
-	}
-	// A clock moving backwards must not reduce AccessedAt or extend lifetime
-	// from an earlier instant.
-	if now.Before(record.accessedAt) {
-		now = record.accessedAt
-	}
-	idleExpiresAt := minimumTime(now.Add(m.idleTimeout), record.absoluteExpiresAt)
-	// Idle expiry may have advanced since Load. Touch makes the expiry and
-	// deletion decision against the current record in the Store's atomic scope.
-	touched, status, err := m.store.Touch(ctx, id, now, idleExpiresAt)
-	if err != nil {
-		return Record{}, false, storeFailure("touch", err)
+		var policyError *accessPolicyError
+		if errors.As(err, &policyError) {
+			return Record{}, false, policyError.cause
+		}
+		return Record{}, false, storeFailure("access", err)
 	}
 	switch status {
-	case TouchMissing, TouchExpired:
+	case AccessMissing, AccessExpired:
 		return Record{}, false, nil
-	case TouchActive:
+	case AccessActive:
 	default:
-		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid touch outcome"}
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid access outcome"}
 	}
 	if !touched.valid(m.limits) || touched.id != id {
 		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid touched record"}
@@ -172,7 +161,7 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 		return Record{}, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
 	}
 	// Absolute expiry is immutable, so a detached snapshot can decide it safely.
-	// Idle expiry can have advanced through a concurrent Load/Touch after current
+	// Idle expiry can have advanced through a concurrent Access after current
 	// was detached; Store.Rotate owns the authoritative atomic expiry decision.
 	if !current.absoluteExpiresAt.After(now) {
 		if err := m.store.Delete(ctx, current.id); err != nil {
@@ -248,18 +237,17 @@ func (m *Manager) validCall(ctx context.Context) error {
 func (m *Manager) newID() (ID, error) {
 	buffer := make([]byte, sessionIDBytes)
 	m.sourceMu.Lock()
+	defer m.sourceMu.Unlock()
 	if _, err := io.ReadFull(m.random, buffer); err != nil {
-		m.sourceMu.Unlock()
 		return ID{}, &Error{Code: CodeEntropy, Detail: "session entropy source failed", Cause: err}
 	}
-	m.sourceMu.Unlock()
 	return ID{encoded: base64.RawURLEncoding.EncodeToString(buffer)}, nil
 }
 
 func (m *Manager) now() time.Time {
 	m.sourceMu.Lock()
+	defer m.sourceMu.Unlock()
 	now := m.clock()
-	m.sourceMu.Unlock()
 	return canonicalTime(now)
 }
 

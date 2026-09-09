@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -21,8 +22,11 @@ func TestCompileScalarProjectionUsesResultOrderAndSourceValidation(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, title, published, summary}).
-		WithConditions(query.NewCondition(published, query.LookupExact, query.Boolean(true))).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published, summary}),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(summary, query.Descending)).
 		WithResultShape(shape)
 	if err != nil {
@@ -49,11 +53,12 @@ func TestCompileDistinctProjectionAndPaginationPreservePlaceholderOrder(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, title, published}).
-		WithConditions(
-			query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
-			query.NewCondition(published, query.LookupExact, query.Boolean(true)),
-		).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published}),
+		query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(id, query.Descending)).
 		WithResultShape(shape)
 	if err != nil {
@@ -85,8 +90,11 @@ func TestCompileOffsetOnlyAndDistinctModel(t *testing.T) {
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
-	base := query.NewPlan("news_article", []query.FieldRef{id, title}).
-		WithConditions(query.NewCondition(title, query.LookupExact, query.String("hello")))
+	base := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title}),
+		query.NewCondition(title, query.LookupExact, query.String("hello")),
+	)
 	offset, err := base.WithOffset(9)
 	if err != nil {
 		t.Fatal(err)
@@ -124,11 +132,12 @@ func TestCompileAggregateWrapsTheSlicedLogicalSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, title, published}).
-		WithConditions(
-			query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
-			query.NewCondition(published, query.LookupExact, query.Boolean(true)),
-		).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published}),
+		query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(id, query.Descending)).
 		WithResultShape(shape)
 	if err != nil {
@@ -169,11 +178,12 @@ func TestCompileSimpleAggregateUsesDirectSourceAndDropsOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, summary, published}).
-		WithConditions(
-			query.NewCondition(published, query.LookupExact, query.Boolean(true)),
-			query.NewCondition(summary, query.LookupIContains, query.String("Go")),
-		).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, summary, published}),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+		query.NewCondition(summary, query.LookupIContains, query.String("Go")),
+	).
 		WithOrderings(query.NewOrdering(id, query.Descending)).
 		WithResultShape(shape)
 	if err != nil {
@@ -371,8 +381,11 @@ func TestCompilerRejectsNonModelRelationResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := query.NewPlan("blog_post", []query.FieldRef{id, title, authorKey}).
-		WithConditions(query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")))
+	base := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorKey}),
+		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
+	)
 	projection, err := query.NewProjectionResult(id, title)
 	if err != nil {
 		t.Fatal(err)
@@ -408,8 +421,11 @@ func TestCompileRelationModelSupportsDistinctAndOffset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, authorKey}).
-		WithConditions(query.NewRelatedCondition(path, query.LookupExact, query.String("Ada"))).
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, authorKey}),
+		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
+	).
 		WithDistinct()
 	plan, err = plan.WithOffset(4)
 	if err != nil {

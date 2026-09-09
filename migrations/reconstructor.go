@@ -743,39 +743,38 @@ func newLoadedAncestorIndex(graph *plannerGraph) loadedAncestorIndex {
 	for index, key := range graph.nodes {
 		positions[key] = index
 	}
-	indegree := make(map[MigrationKey]int, len(graph.nodes))
-	for _, key := range graph.nodes {
-		indegree[key] = len(graph.parents[key])
+	// Every topological order produces the same ancestor sets. Sorted graph
+	// inputs make this queue deterministic without re-scanning all nodes or
+	// imposing the planner's externally observable minimum-ready ordering.
+	indegree := make([]int, len(graph.nodes))
+	ordered := make([]int, 0, len(graph.nodes))
+	for position, key := range graph.nodes {
+		indegree[position] = len(graph.parents[key])
+		if indegree[position] == 0 {
+			ordered = append(ordered, position)
+		}
 	}
-	ordered := make([]MigrationKey, 0, len(graph.nodes))
-	processed := make(map[MigrationKey]struct{}, len(graph.nodes))
-	for len(ordered) != len(graph.nodes) {
-		var next MigrationKey
-		found := false
-		for _, key := range graph.nodes {
-			if _, exists := processed[key]; exists || indegree[key] != 0 {
-				continue
+	for head := 0; head < len(ordered); head++ {
+		for _, child := range graph.children[graph.nodes[ordered[head]]] {
+			position := positions[child]
+			indegree[position]--
+			if indegree[position] == 0 {
+				ordered = append(ordered, position)
 			}
-			next = key
-			found = true
-			break
 		}
-		if !found {
-			// NewPlanner already rejected cycles. A zero index fails closed in
-			// chronology if that invariant ever changes.
-			return loadedAncestorIndex{positions: positions, sets: make([][]uint64, len(graph.nodes))}
-		}
-		processed[next] = struct{}{}
-		ordered = append(ordered, next)
-		for _, child := range graph.children[next] {
-			indegree[child]--
-		}
+	}
+	if len(ordered) != len(graph.nodes) {
+		// NewPlanner rejects cycles before this boundary. Preserve a closed
+		// index if that invariant ever changes.
+		return loadedAncestorIndex{positions: positions, sets: make([][]uint64, len(graph.nodes))}
 	}
 	words := (len(graph.nodes) + 63) / 64
 	sets := make([][]uint64, len(graph.nodes))
-	for _, key := range ordered {
-		position := positions[key]
-		ancestors := make([]uint64, words)
+	storage := make([]uint64, len(graph.nodes)*words)
+	for _, position := range ordered {
+		key := graph.nodes[position]
+		start, end := position*words, (position+1)*words
+		ancestors := storage[start:end:end]
 		for _, parent := range graph.parents[key] {
 			parentPosition := positions[parent]
 			ancestors[parentPosition/64] |= uint64(1) << uint(parentPosition%64)

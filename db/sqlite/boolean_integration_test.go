@@ -284,7 +284,7 @@ func TestSQLiteBooleanInvalidTreesAndRelationCompositionRemainPreIO(t *testing.T
 	for index := range conditions {
 		conditions[index] = condition
 	}
-	if _, err := backend.Query(ctx, query.NewPlan("missing_table", []query.FieldRef{id}).WithConditions(conditions...)); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+	if _, err := query.NewPlan("missing_table", []query.FieldRef{id}).WithConditions(conditions...); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("Query(over-limit) error = %v, want query invalid_plan", err)
 	}
 	if backend.QueryCount() != 0 {

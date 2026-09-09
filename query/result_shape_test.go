@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -60,8 +61,11 @@ func TestPlanResultShapeDerivationRetainsDetachedSourceMetadata(t *testing.T) {
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
 	sources := []query.FieldRef{id, title, published}
-	base := query.NewPlan("news_article", sources).
-		WithConditions(query.NewCondition(published, query.LookupExact, query.Boolean(true))).
+	base := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", sources),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(id, query.Descending))
 	sources[0] = query.NewFieldRef("mutated", "mutated", query.FieldString, false)
 
@@ -218,6 +222,8 @@ func TestAggregateResultLimitsTypesAccessorsAndEquality(t *testing.T) {
 		{name: "zero expression", expressions: []query.ResultExpression{{}}},
 		{name: "field projection expression", expressions: []query.ResultExpression{query.FieldResult(id)}},
 		{name: "MAX zero field", expressions: []query.ResultExpression{query.MaxResult(query.FieldRef{})}},
+		{name: "MIN boolean", expressions: []query.ResultExpression{query.MinResult(published)}},
+		{name: "MIN zero field", expressions: []query.ResultExpression{query.MinResult(query.FieldRef{})}},
 		{name: "MAX boolean", expressions: []query.ResultExpression{query.MaxResult(published)}},
 		{name: "MAX unsupported", expressions: []query.ResultExpression{query.MaxResult(query.NewFieldRef("score", "score", query.FieldKind("float"), false))}},
 	}

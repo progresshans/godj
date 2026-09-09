@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 )
 
@@ -68,8 +69,7 @@ func TestSQLiteFieldReferenceComparisonsExecuteWithLiteralParity(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			plan := query.NewPlan("comparison_row", source).
-				WithConditions(test.condition).
+			plan := querytest.Conditions(t, query.NewPlan("comparison_row", source), test.condition).
 				WithOrderings(query.NewOrdering(id, query.Ascending))
 			plan, err = plan.WithResultShape(projection)
 			if err != nil {
@@ -170,7 +170,7 @@ func TestSQLiteFieldReferenceMissingSourceRejectsBeforeIO(t *testing.T) {
 	left := query.NewFieldRef("left", "left_value", query.FieldInteger, false)
 	foreign := query.NewFieldRef("foreign", "foreign_value", query.FieldInteger, false)
 	condition := sqliteFieldCondition(t, left, query.LookupExact, foreign)
-	if _, err := backend.Query(ctx, query.NewPlan("missing_table", []query.FieldRef{left}).WithConditions(condition)); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+	if _, err := query.NewPlan("missing_table", []query.FieldRef{left}).WithConditions(condition); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("Query() error = %v, want query/invalid_plan", err)
 	}
 	if backend.QueryCount() != 0 {

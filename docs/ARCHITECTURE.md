@@ -60,12 +60,16 @@ standalone 생성은 필요한 선행 companion까지 같은 규칙으로 검증
 
 Typed selector는 model/field/value type을 compile time에 연결한다. 동적 lookup은 요청에서 받은 이름을 metadata로
 검증한 뒤 같은 AST를 만든다. 알 수 없는 field·lookup·relation 경로는 SQL 실행 전에 명시적으로 거부한다.
-AST는 immutable value이며 parameter binding과 identifier quoting은 backend compiler가 소유한다.
+AST의 생성자는 caller 입력을 복사하고 private 불변 저장소는 파생 plan끼리 공유한다. Mutable accessor 결과는 복사한다.
+`WithConditions`와 `WithWhere`는 잘못된 값·source membership·expression budget을 구성 시점에 오류로 반환한다.
+Parameter binding과 identifier quoting은 backend compiler가 소유한다.
 DB 독립 projection·ordering·relation key·scalar 의미 검사는 `db/internal/queryplan`이 공유한다. 각 compiler는
 물리 identifier 제한과 quoting, schema qualification, parameter 형식과 SQL 배치를 소유한다.
 
 Nullable read와 write의 omitted/null/value는 구분한다. Save의 update field 선택·force mode·PK 유무는 명시적 입력이다.
 DB rollback이 application memory를 자동 복원하지는 않는다. Query plan과 평가 cache도 별개의 수명이다.
+Scalar 집계는 COUNT/MIN/MAX를 지원한다. 현재 관계 filter의 cold Count는 JOIN 결과에 Distinct·정렬·슬라이스를 적용한
+SELECT를 감싸 DB에서 COUNT(*)를 실행한다. 관계 일반 projection·MIN/MAX 집계와 eager Count는 별도 범위다.
 
 관계 상태는 project가 연결하고 model 객체의 소유권에 따라 관리한다. 같은 객체의 cache 공유, 복사·Fresh 이후 독립성,
 eager/prefetch의 성공 후 일괄 publication과 assignment 뒤 FK/cache reconciliation을 구분한다.
@@ -155,9 +159,14 @@ Full update와 patch는 transaction 골격을 공유하되 입력 검증·field 
 Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사용한다. Bearer가 잘못되었을 때 다른 credential로 fallback하지
 않으며 권한 거부·인증 실패·CSRF 실패를 구분한다. Raw token/password와 verifier cause는 logs·errors·audit에 남기지 않는다.
 Durable credential은 explicit provisioning 후 `OpenExisting`으로 열며 startup이 비밀번호를 다시 받거나 권한을 몰래 바꾸지 않는다.
-Session Store의 `Touch`는 현재 record의 idle/absolute 만료 판정·갱신·만료 삭제를 원자적으로 소유하고
-active/expired/missing을 구분한다. Manager는 detached `Load`의 오래된 deadline으로 같은 ID를 무조건 삭제하지 않는다.
-Touch는 현재 record의 단조로운 access/idle deadline과 고정 absolute lifetime을 보존하며 rotation된 ID를 되살리지 않는다.
+Session Store의 `Access`는 현재 record를 한 번 읽고 `AccessPolicy`의 record 검증·clock 확인·idle/absolute 만료 판정·
+갱신 또는 만료 삭제를 한 원자적 연산에서 수행하며 active/expired/missing을 구분한다. Manager.Load는 이 연산을 사용하고,
+Store.Load는 갱신 없는 원시 조회다. 정책 검증·취소가 실패하면 저장 내용을 바꾸지 않는다.
+Access는 단조로운 access/idle deadline과 고정 absolute lifetime을 보존하며 rotation된 ID를 되살리지 않는다.
+Clock은 저장소 원자적 범위에서 호출되므로 신속히 반환하고 I/O나 manager/store 재진입을 하지 않아야 한다.
+Clock·entropy callback의 panic은 그대로 전파하되 source lock과 저장소 transaction은 해제한다.
+감사 로그 prune은 최신 capacity+1 범위의 COUNT/MIN 한 행을 읽고 양수 sequence·cardinality·rows 종료를 검증한 뒤
+최대 한 행을 삭제한다. DB 내부의 bounded 탐색은 유지하고 capacity만큼의 행을 애플리케이션으로 전송하지 않는다.
 
 System-state와 application mutation이 같은 transaction이어야 하는 흐름은 동일 backend coordination domain에서 수행한다.
 Multi-runtime 안전성은 같은 normalized policy를 사용하고 fence에 참여하는 writer 사이의 계약이다. 비협력 writer·외부 process의

@@ -25,9 +25,9 @@ type ScalarField[M, V any] interface {
 	scalarResultField(M, V) (query.FieldRef, func() scalarCell[V], error)
 }
 
-// MaxField is the sealed scalar subset with a defined nullable MAX result.
-type MaxField[M, V any] interface {
-	scalarMaxField(M, V) (query.FieldRef, func() scalarCell[Optional[V]], error)
+// OrderedField is the sealed scalar subset with nullable MIN/MAX results.
+type OrderedField[M, V any] interface {
+	scalarOrderedField(M, V) (query.FieldRef, func() scalarCell[Optional[V]], error)
 }
 
 type scalarCell[V any] struct {
@@ -42,7 +42,7 @@ func (f IntegerField[M]) scalarResultField(M, int64) (query.FieldRef, func() sca
 	}, f.err
 }
 
-func (f IntegerField[M]) scalarMaxField(M, int64) (query.FieldRef, func() scalarCell[Optional[int64]], error) {
+func (f IntegerField[M]) scalarOrderedField(M, int64) (query.FieldRef, func() scalarCell[Optional[int64]], error) {
 	return f.reference, func() scalarCell[Optional[int64]] {
 		var value sql.NullInt64
 		return scalarCell[Optional[int64]]{
@@ -61,7 +61,7 @@ func (f StringField[M]) scalarResultField(M, string) (query.FieldRef, func() sca
 	}, f.err
 }
 
-func (f StringField[M]) scalarMaxField(M, string) (query.FieldRef, func() scalarCell[Optional[string]], error) {
+func (f StringField[M]) scalarOrderedField(M, string) (query.FieldRef, func() scalarCell[Optional[string]], error) {
 	return f.reference, func() scalarCell[Optional[string]] {
 		var value sql.NullString
 		return scalarCell[Optional[string]]{
@@ -89,7 +89,7 @@ func (f NullableStringField[M]) scalarResultField(M, *string) (query.FieldRef, f
 	}, f.err
 }
 
-func (f NullableStringField[M]) scalarMaxField(M, string) (query.FieldRef, func() scalarCell[Optional[string]], error) {
+func (f NullableStringField[M]) scalarOrderedField(M, string) (query.FieldRef, func() scalarCell[Optional[string]], error) {
 	return f.reference, func() scalarCell[Optional[string]] {
 		var value sql.NullString
 		return scalarCell[Optional[string]]{
@@ -219,13 +219,25 @@ func CountRows[M any]() AggregateExpression[M, int64] {
 	}
 }
 
-func Max[M, V any](field MaxField[M, V]) AggregateExpression[M, Optional[V]] {
+func Max[M, V any](field OrderedField[M, V]) AggregateExpression[M, Optional[V]] {
 	if interfaceIsNil(field) {
 		return AggregateExpression[M, Optional[V]]{err: invalidResultBuilder("MAX field is nil")}
 	}
-	reference, newCell, err := field.scalarMaxField(*new(M), *new(V))
+	reference, newCell, err := field.scalarOrderedField(*new(M), *new(V))
 	return AggregateExpression[M, Optional[V]]{
 		expression: query.MaxResult(reference),
+		newCell:    newCell,
+		err:        err,
+	}
+}
+
+func Min[M, V any](field OrderedField[M, V]) AggregateExpression[M, Optional[V]] {
+	if interfaceIsNil(field) {
+		return AggregateExpression[M, Optional[V]]{err: invalidResultBuilder("MIN field is nil")}
+	}
+	reference, newCell, err := field.scalarOrderedField(*new(M), *new(V))
+	return AggregateExpression[M, Optional[V]]{
+		expression: query.MinResult(reference),
 		newCell:    newCell,
 		err:        err,
 	}
@@ -361,12 +373,14 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	if aggregate.newDecoder == nil {
 		return zero, invalidResultBuilder("aggregate decoder is nil")
 	}
-	if err := validateScalarResultSource(source.plan); err != nil {
-		return zero, err
-	}
 	shape, err := query.NewAggregateResult(aggregate.expressions...)
 	if err != nil {
 		return zero, err
+	}
+	if !shape.IsCountAll() {
+		if err := validateScalarResultSource(source.plan); err != nil {
+			return zero, err
+		}
 	}
 	plan, err := source.plan.WithResultShape(shape)
 	if err != nil {

@@ -3,6 +3,59 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0066 — 실행 비용과 중복 책임의 측정 기반 정리
+
+- 작업: [GDJ-0066](../../work/0066-measured-runtime-and-validation-optimization.md).
+- 기준 제품: `d6443fa048ffdf4e22e0d817f4e8d0aaeb83e8da`, 기존 Draft PR #1의 동일 작업 브랜치.
+- 상태: 구현과 관련 로컬 검증 완료, 최종 Hosted full scope 대기. Baseline은 제품 변경 전 비교 benchmark와 문서만 추가한 작업 사본이다.
+- 환경: 2026-09-10 KST, Apple M3 Pro, Go 1.26.5 darwin/arm64.
+
+### 변경 전 측정
+
+`go test -run '^$' -bench 'Benchmark(PlanDerivation|LoadedAncestorIndex|AuditPruneFullSQLite|ActiveSessionLoad)$' -benchtime=200ms -count=3 ./query ./migrations ./systemstate ./sessions`
+
+각 행은 세 번 실행한 ns/op의 중앙값이다. DB/prune 준비와 migration graph 구성은 benchmark loop 밖이다.
+Audit는 실제 file-backed SQLite에 보존 한도만큼 ID를 채운 뒤 prune query를 반복한다. HTTP 처리량 또는 전체 CI 시간의 측정은 아니다.
+
+| workload | 기준 → 변경 ns/op | 기준 → 변경 B/op | 기준 → 변경 allocs/op |
+|---|---:|---:|---:|
+| Plan order / 64 fields | 776.1 → 25.53 | 9,120 → 80 | 4 → 1 |
+| Plan filter / 64 fields | 782.1 → 25.93 | 9,040 → 0 | 3 → 0 |
+| Plan order / 256 fields | 2,453 → 25.62 | 35,616 → 80 | 4 → 1 |
+| Plan filter / 256 fields | 2,446 → 25.77 | 35,536 → 0 | 3 → 0 |
+| Ancestor index / 128 chain | 113,634 → 13,195 | 42,920 → 18,264 | 140 → 8 |
+| Ancestor index / 2,048 chain | 28,482,495 → 394,881 | 1,229,330 → 803,025 | 2,078 → 14 |
+| Full audit prune / 10,000 rows | 1,246,068 → 595,376 | 319,593 → 2,752 | 29,782 → 53 |
+| Full audit prune / 100,000 rows | 12,535,509 → 6,096,642 | 3,199,626 → 2,768 | 299,782 → 53 |
+| Active memory session Load | 1,275 → 1,039 | 2,112 → 1,648 | 26 → 21 |
+| Eager ready-related cache / one row | 2,177 → 200.6 | 3,921 → 584 | 45 → 5 |
+
+변경 후에는 위 selector에 `ForwardSelectedReadyCache`와 `./orm`을 추가해 같은 조건으로 실행했다.
+Eager의 기준은 Query storage 변경 후·eager 최적화 전 작업 사본에서 별도로 측정한 값이다.
+시간·할당 모두 세 실행의 중앙값이며 개선 비율은 이 microbenchmark 범위다. 감사 prune은 DB 내부 bounded scan을 계속 수행한다.
+관계 Count는 실제 JOIN multiplicity·Distinct·slice·NULL fixture에서 한 aggregate 행을 소비함을 확인했고,
+영속 Manager.Load는 transaction 1회·행 조회 1회, timestamp 변화 시 write 1회·동일 값일 때 write 0회를 확인했다.
+
+### 로컬 checkpoint
+
+| 실제 실행 | 결과와 보존한 검증 |
+|---|---|
+| 전체 `go test -run '^$' ./...` | PASS. 새 Query/Store API와 checked-in 소비자 전체 compile. 테스트 실행 PASS를 의미하지 않는다. |
+| Query/ORM/SQLite/PostgreSQL compiler/systemstate normal | PASS. 생성 시점 오류·불변 소유권·관계 Count와 MIN, rows/cardinality/close/cancel과 audit rollback. PostgreSQL 서비스 필요 10개는 로컬 skip이며 Hosted가 소유한다. |
+| `./sessions ./systemstate ./admin ./web/sessionauth` normal | PASS. atomic access interleaving, 저장 전 정책 검증, missing-before-clock, 시계·entropy panic cleanup, 한 transaction/한 read와 실제 인증 흐름. |
+| eager 변경 뒤 `./orm` normal | PASS. 독립 ready cache·Fresh·nullable·projection·취소·모델 복사 회귀. |
+| `./query ./orm ./migrations ./sessions ./systemstate ./db/internal/queryplan ./db/sqlite ./internal/gobuild` race | PASS. 실제 테스트가 없는 공통 queryplan 패키지는 compile만 수행하며 호출 backend의 검사가 해당 경로를 검증한다. |
+| Query/ORM/migrations/sessions/systemstate/SQLite/PostgreSQL CGO-disabled | PASS. PostgreSQL 서비스 의존 10개 skip은 Hosted 검증 전까지 미실행이다. |
+| 다섯 외부 SQLite 제품 sentinel normal | writer·targeted migrate·operator·showmigrations·sqlmigrate 모두 실제 build/child/DB 실행 PASS. `go_test_events.py`가 필수 sentinel·package 완료·no-skip을 확인했다. |
+| `make generate-check` | PASS. Helpdesk 12·Article 12·relation fixture 16개 생성 파일 clean, checked-in generated test PASS. |
+| PostgreSQL raw catalog negative control | PostgreSQL 17.5 별도 임시 cluster에서 PASS. 컬럼 null/default, expression/partial index, sequence, internal FK trigger, policy/view와 cancellation을 확인하고 cluster를 종료·정리했다. 요구 profile 17.10은 Hosted에서 검증한다. |
+| 고정 Python/DRF reference 환경 | uv 0.10.12, Python 3.14.3, Django 6.1, DRF 3.18.0으로 `GODJ_EXACT_PROFILE=1` 및 complete discovery gate 실행: `PYTHON_SUITE_VERIFIED tests=274 skips=0`. 고정 reference byte/hashseed 대조 포함. |
+| CI 도구·Actions | `scripts/ci` unittest 33개 PASS; actionlint v1.7.7 PASS. 새 PostgreSQL catalog sentinel을 core required/no-skip inventory에 포함했다. |
+
+초기 Query API 전환에서 기존 unchecked 입력 테스트가 실패해 생성자 오류 경계로 수정했다. 초기 Python 실행은 host uv 0.12.3
+profile 불일치와 DRF 없는 root 환경으로 실패·skip했으며, 고정 uv와 별도 DRF 환경의 완료 gate로 위 결과를 얻었다.
+예전 reference/oracle/lock·생성물은 바꾸지 않았다. 아직 최종 Hosted 전체 검증 PASS를 주장하지 않는다.
+
 ## GDJ-0065 — 코드와 검증 체계의 중복 정리
 
 - 작업과 감사 항목별 처리: [GDJ-0065](../../work/0065-codebase-refactoring.md).

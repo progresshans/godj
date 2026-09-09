@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from .normalizer import normalize
+from .observations import observed
 
 
 def _error(category: str, code: str) -> dict[str, Any]:
@@ -19,26 +19,6 @@ def _error(category: str, code: str) -> dict[str, Any]:
         "category": category,
         "code": code,
         "message_is_contract": False,
-    }
-
-
-def _observed(
-    contract_id: str,
-    *,
-    phase: str,
-    result: Any | None,
-    error: dict[str, Any] | None = None,
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": error,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result) if result is not None else None,
-        "status": "observed",
     }
 
 
@@ -68,7 +48,7 @@ def _read_metrics(*, stdout_writes: int) -> dict[str, Any]:
 
 
 def empty_catalog(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
         phase="evaluation",
         result={
@@ -95,7 +75,7 @@ def unknown_record_visible(contract_id: str) -> dict[str, Any]:
         {"app": "blog", "name": "9999_removed", "status": "unknown"},
         {"app": "legacy", "name": "0001_gone", "status": "unknown"},
     ]
-    return _observed(
+    return observed(
         contract_id,
         phase="evaluation",
         result={
@@ -127,10 +107,9 @@ def unknown_record_visible(contract_id: str) -> dict[str, Any]:
 
 
 def inconsistent_known_history(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
         phase="evaluation",
-        result=None,
         error=_error(
             "migration_history_error",
             "inconsistent_applied_history",
@@ -433,7 +412,7 @@ def project_boundary(contract_id: str) -> dict[str, Any]:
             stdout_write_errors=1,
         ),
     ]
-    return _observed(
+    return observed(
         contract_id,
         phase="environment",
         result={

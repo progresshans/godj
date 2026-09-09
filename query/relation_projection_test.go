@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -35,8 +36,11 @@ func TestForwardRelationProjectionIsSingularImmutableAndPlanPreserving(t *testin
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
-	base := query.NewPlan("blog_post", []query.FieldRef{id, title}).
-		WithConditions(query.NewCondition(title, query.LookupExact, query.String("Alpha"))).
+	base := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title}),
+		query.NewCondition(title, query.LookupExact, query.String("Alpha")),
+	).
 		WithOrderings(query.NewOrdering(id, query.Ascending))
 	limited, err := base.WithLimit(2)
 	if err != nil {
@@ -73,7 +77,7 @@ func TestForwardRelationProjectionIsSingularImmutableAndPlanPreserving(t *testin
 	} else {
 		assertInvalidProjectionPlanError(t, err)
 	}
-	if selected.WithConditions(query.NewCondition(id, query.LookupExact, query.Integer(10))).Equal(selected) {
+	if querytest.Conditions(t, selected, query.NewCondition(id, query.LookupExact, query.Integer(10))).Equal(selected) {
 		t.Fatal("derived projected plan omitted new condition from equality")
 	}
 	if got, ok := selected.WithOrderings().RelationProjection(); !ok || !got.Equal(projection) {

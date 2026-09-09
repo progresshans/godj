@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
@@ -404,77 +405,12 @@ func projectMigratePostgresAssertEnvironment(t *testing.T, environment []string,
 	}
 }
 
-type projectMigratePostgresColumn struct {
-	Table            string
-	Ordinal          int
-	Name             string
-	Type             string
-	NotNull          bool
-	Identity         string
-	Generated        string
-	HasDefault       bool
-	DefaultCollation bool
-	Primary          bool
-}
-
-type projectMigratePostgresConstraint struct {
-	Table            string
-	Name             string
-	Kind             string
-	Deferrable       bool
-	Deferred         bool
-	Validated        bool
-	Key              string
-	IndexName        string
-	InternalTriggers int
-}
-
-type projectMigratePostgresIndex struct {
-	Table          string
-	Name           string
-	Primary        bool
-	Unique         bool
-	Valid          bool
-	Ready          bool
-	Live           bool
-	KeyCount       int
-	AttributeCount int
-	Keys           string
-	Method         string
-	HasPredicate   bool
-	HasExpressions bool
-	Exclusion      bool
-}
-
-type projectMigratePostgresOtherRelation struct {
-	Name string
-	Kind string
-}
-
 type projectMigratePostgresRevision struct {
 	FormatVersion      int
 	Epoch              [16]byte
 	Revision           int64
 	HistoryFingerprint [32]byte
 	AdditionalRows     int
-}
-
-type projectMigratePostgresSequence struct {
-	Name        string
-	Kind        string
-	Persistence string
-	DataType    string
-	Start       int64
-	Increment   int64
-	Minimum     int64
-	Maximum     int64
-	Cache       int64
-	Cycle       bool
-	OwnerTable  string
-	OwnerColumn string
-	Dependency  string
-	Last        int64
-	Called      bool
 }
 
 type projectMigratePostgresArticle struct {
@@ -484,19 +420,11 @@ type projectMigratePostgresArticle struct {
 }
 
 type projectMigratePostgresSnapshot struct {
-	Tables         []string
-	OtherRelations []projectMigratePostgresOtherRelation
-	Columns        []projectMigratePostgresColumn
-	Constraints    []projectMigratePostgresConstraint
-	Indexes        []projectMigratePostgresIndex
-	Triggers       int
-	Policies       int
-	Rules          int
-	History        []historyRow
-	Revision       projectMigratePostgresRevision
-	Sequences      []projectMigratePostgresSequence
-	Counts         map[string]int64
-	Articles       []projectMigratePostgresArticle
+	dbstate.PostgresCatalog
+	History  []historyRow
+	Revision projectMigratePostgresRevision
+	Counts   map[string]int64
+	Articles []projectMigratePostgresArticle
 }
 
 func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) projectMigratePostgresSnapshot {
@@ -513,206 +441,11 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		}
 	}()
 
-	snapshot := projectMigratePostgresSnapshot{Counts: make(map[string]int64)}
-	rows, err := connection.Query(ctx, `
-		SELECT "c"."relname"
-		FROM "pg_catalog"."pg_class" AS "c"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
-		WHERE "n"."nspname" = $1 AND "c"."relkind" = 'r'
-		ORDER BY "c"."relname"`, schema)
+	catalog, err := dbstate.CapturePostgresCatalog(ctx, connection, schema)
 	if err != nil {
-		t.Fatalf("query PostgreSQL product tables: %v", testfixture.PostgresSafeError(err))
+		t.Fatalf("inspect PostgreSQL product catalog: %v", testfixture.PostgresSafeError(err))
 	}
-	for rows.Next() {
-		var table string
-		if err := rows.Scan(&table); err != nil {
-			rows.Close()
-			t.Fatalf("scan PostgreSQL product table: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.Tables = append(snapshot.Tables, table)
-	}
-	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product table query: %v", testfixture.PostgresSafeError(err))
-	}
-	rows, err = connection.Query(ctx, `
-		SELECT "c"."relname", "c"."relkind"::text
-		FROM "pg_catalog"."pg_class" AS "c"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
-		WHERE "n"."nspname" = $1 AND "c"."relkind" NOT IN ('r', 'i', 'S')
-		ORDER BY "c"."relkind", "c"."relname"`, schema)
-	if err != nil {
-		t.Fatalf("query PostgreSQL unexpected product relations: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var relation projectMigratePostgresOtherRelation
-		if err := rows.Scan(&relation.Name, &relation.Kind); err != nil {
-			rows.Close()
-			t.Fatalf("scan PostgreSQL unexpected product relation: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.OtherRelations = append(snapshot.OtherRelations, relation)
-	}
-	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL unexpected product relation query: %v", testfixture.PostgresSafeError(err))
-	}
-
-	rows, err = connection.Query(ctx, `
-		SELECT "c"."relname", "a"."attnum", "a"."attname",
-		       "pg_catalog"."format_type"("a"."atttypid", "a"."atttypmod"),
-		       "a"."attnotnull", "a"."attidentity"::text, "a"."attgenerated"::text,
-		       ("d"."oid" IS NOT NULL),
-		       COALESCE("a"."attcollation" = "type"."typcollation", "a"."attcollation" = 0),
-		       EXISTS (
-		         SELECT 1 FROM "pg_catalog"."pg_index" AS "i"
-		         WHERE "i"."indrelid" = "c"."oid" AND "i"."indisprimary"
-		           AND "a"."attnum" = ANY("i"."indkey")
-		       )
-		FROM "pg_catalog"."pg_class" AS "c"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
-		JOIN "pg_catalog"."pg_attribute" AS "a" ON "a"."attrelid" = "c"."oid"
-		JOIN "pg_catalog"."pg_type" AS "type" ON "type"."oid" = "a"."atttypid"
-		LEFT JOIN "pg_catalog"."pg_attrdef" AS "d"
-		  ON "d"."adrelid" = "a"."attrelid" AND "d"."adnum" = "a"."attnum"
-		WHERE "n"."nspname" = $1 AND "c"."relkind" = 'r'
-		  AND "a"."attnum" > 0 AND NOT "a"."attisdropped"
-		ORDER BY "c"."relname", "a"."attnum"`, schema)
-	if err != nil {
-		t.Fatalf("query PostgreSQL product columns: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var column projectMigratePostgresColumn
-		if err := rows.Scan(
-			&column.Table,
-			&column.Ordinal,
-			&column.Name,
-			&column.Type,
-			&column.NotNull,
-			&column.Identity,
-			&column.Generated,
-			&column.HasDefault,
-			&column.DefaultCollation,
-			&column.Primary,
-		); err != nil {
-			rows.Close()
-			t.Fatalf("scan PostgreSQL product column: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.Columns = append(snapshot.Columns, column)
-	}
-	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product column query: %v", testfixture.PostgresSafeError(err))
-	}
-
-	rows, err = connection.Query(ctx, `
-		SELECT "table"."relname", "constraint"."conname", "constraint"."contype"::text,
-		       "constraint"."condeferrable", "constraint"."condeferred", "constraint"."convalidated",
-		       COALESCE("pg_catalog"."array_to_string"("constraint"."conkey", ','), ''),
-		       COALESCE("constraint_index"."relname", ''),
-		       (SELECT COUNT(*) FROM "pg_catalog"."pg_trigger" AS "trigger"
-		        WHERE "trigger"."tgconstraint" = "constraint"."oid" AND "trigger"."tgisinternal")
-		FROM "pg_catalog"."pg_constraint" AS "constraint"
-		JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "constraint"."conrelid"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
-		LEFT JOIN "pg_catalog"."pg_class" AS "constraint_index"
-		  ON "constraint_index"."oid" = "constraint"."conindid"
-		WHERE "n"."nspname" = $1
-		ORDER BY "table"."relname", "constraint"."conname"`, schema)
-	if err != nil {
-		t.Fatalf("query PostgreSQL product constraints: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var constraint projectMigratePostgresConstraint
-		if err := rows.Scan(
-			&constraint.Table,
-			&constraint.Name,
-			&constraint.Kind,
-			&constraint.Deferrable,
-			&constraint.Deferred,
-			&constraint.Validated,
-			&constraint.Key,
-			&constraint.IndexName,
-			&constraint.InternalTriggers,
-		); err != nil {
-			rows.Close()
-			t.Fatalf("scan PostgreSQL product constraint: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.Constraints = append(snapshot.Constraints, constraint)
-	}
-	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product constraint query: %v", testfixture.PostgresSafeError(err))
-	}
-
-	rows, err = connection.Query(ctx, `
-		SELECT "table"."relname", "index_class"."relname",
-		       "index"."indisprimary", "index"."indisunique", "index"."indisvalid",
-		       "index"."indisready", "index"."indislive",
-		       "index"."indnkeyatts"::integer, "index"."indnatts"::integer,
-		       COALESCE((
-		         SELECT "pg_catalog"."string_agg"("attribute"."attname", ',' ORDER BY "key"."ordinality")
-		         FROM "pg_catalog"."unnest"("index"."indkey"::smallint[]) WITH ORDINALITY
-		           AS "key"("attribute_number", "ordinality")
-		         JOIN "pg_catalog"."pg_attribute" AS "attribute"
-		           ON "attribute"."attrelid" = "index"."indrelid"
-		          AND "attribute"."attnum" = "key"."attribute_number"
-		         WHERE "key"."ordinality" <= "index"."indnkeyatts"
-		       ), ''),
-		       "access_method"."amname",
-		       ("index"."indpred" IS NOT NULL), ("index"."indexprs" IS NOT NULL),
-		       "index"."indisexclusion"
-		FROM "pg_catalog"."pg_index" AS "index"
-		JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "index"."indrelid"
-		JOIN "pg_catalog"."pg_class" AS "index_class" ON "index_class"."oid" = "index"."indexrelid"
-		JOIN "pg_catalog"."pg_am" AS "access_method" ON "access_method"."oid" = "index_class"."relam"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
-		WHERE "n"."nspname" = $1
-		ORDER BY "table"."relname", "index_class"."relname"`, schema)
-	if err != nil {
-		t.Fatalf("query PostgreSQL product indexes: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var index projectMigratePostgresIndex
-		if err := rows.Scan(
-			&index.Table,
-			&index.Name,
-			&index.Primary,
-			&index.Unique,
-			&index.Valid,
-			&index.Ready,
-			&index.Live,
-			&index.KeyCount,
-			&index.AttributeCount,
-			&index.Keys,
-			&index.Method,
-			&index.HasPredicate,
-			&index.HasExpressions,
-			&index.Exclusion,
-		); err != nil {
-			rows.Close()
-			t.Fatalf("scan PostgreSQL product index: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.Indexes = append(snapshot.Indexes, index)
-	}
-	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product index query: %v", testfixture.PostgresSafeError(err))
-	}
-	if err := connection.QueryRow(ctx, `
-		SELECT
-		  (SELECT COUNT(*)
-		   FROM "pg_catalog"."pg_trigger" AS "trigger"
-		   JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "trigger"."tgrelid"
-		   JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
-		   WHERE "n"."nspname" = $1),
-		  (SELECT COUNT(*)
-		   FROM "pg_catalog"."pg_policy" AS "policy"
-		   JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "policy"."polrelid"
-		   JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
-		   WHERE "n"."nspname" = $1),
-		  (SELECT COUNT(*)
-		   FROM "pg_catalog"."pg_rewrite" AS "rule"
-		   JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "rule"."ev_class"
-		   JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
-		   WHERE "n"."nspname" = $1)`, schema).Scan(&snapshot.Triggers, &snapshot.Policies, &snapshot.Rules); err != nil {
-		t.Fatalf("count PostgreSQL product trigger, policy, and rule artifacts: %v", testfixture.PostgresSafeError(err))
-	}
-
+	snapshot := projectMigratePostgresSnapshot{PostgresCatalog: catalog, Counts: make(map[string]int64)}
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
 	for _, table := range snapshot.Tables {
 		quotedTable := pgx.Identifier{schema, table}.Sanitize()
@@ -723,7 +456,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		snapshot.Counts[table] = count
 	}
 
-	rows, err = connection.Query(ctx, `SELECT "app", "name" FROM `+quotedSchema+`."godj_migrations" ORDER BY "app", "name"`)
+	rows, err := connection.Query(ctx, `SELECT "app", "name" FROM `+quotedSchema+`."godj_migrations" ORDER BY "app", "name"`)
 	if err != nil {
 		t.Fatalf("query PostgreSQL migration history: %v", testfixture.PostgresSafeError(err))
 	}
@@ -755,66 +488,6 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 	copy(snapshot.Revision.HistoryFingerprint[:], fingerprint)
 	if err := connection.QueryRow(ctx, `SELECT COUNT(*) - 1 FROM `+quotedSchema+`."godj_migration_revision"`).Scan(&snapshot.Revision.AdditionalRows); err != nil {
 		t.Fatalf("count PostgreSQL migration revision rows: %v", testfixture.PostgresSafeError(err))
-	}
-
-	rows, err = connection.Query(ctx, `
-		SELECT "c"."relname", "c"."relkind"::text, "c"."relpersistence"::text,
-		       "pg_catalog"."format_type"("s"."seqtypid", NULL),
-		       "s"."seqstart", "s"."seqincrement", "s"."seqmin",
-		       "s"."seqmax", "s"."seqcache", "s"."seqcycle",
-		       COALESCE("owner_table"."relname", ''), COALESCE("owner_column"."attname", ''),
-		       COALESCE("dependency"."deptype"::text, '')
-		FROM "pg_catalog"."pg_sequence" AS "s"
-		JOIN "pg_catalog"."pg_class" AS "c" ON "c"."oid" = "s"."seqrelid"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
-		LEFT JOIN "pg_catalog"."pg_depend" AS "dependency"
-		  ON "dependency"."classid" = 'pg_catalog.pg_class'::regclass
-		 AND "dependency"."objid" = "c"."oid"
-		 AND "dependency"."refclassid" = 'pg_catalog.pg_class'::regclass
-		 AND "dependency"."deptype" IN ('a', 'i')
-		LEFT JOIN "pg_catalog"."pg_class" AS "owner_table"
-		  ON "owner_table"."oid" = "dependency"."refobjid"
-		LEFT JOIN "pg_catalog"."pg_attribute" AS "owner_column"
-		  ON "owner_column"."attrelid" = "dependency"."refobjid"
-		 AND "owner_column"."attnum" = "dependency"."refobjsubid"
-		WHERE "n"."nspname" = $1
-		ORDER BY "c"."relname"`, schema)
-	if err != nil {
-		t.Fatalf("query PostgreSQL product sequences: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var sequence projectMigratePostgresSequence
-		if err := rows.Scan(
-			&sequence.Name,
-			&sequence.Kind,
-			&sequence.Persistence,
-			&sequence.DataType,
-			&sequence.Start,
-			&sequence.Increment,
-			&sequence.Minimum,
-			&sequence.Maximum,
-			&sequence.Cache,
-			&sequence.Cycle,
-			&sequence.OwnerTable,
-			&sequence.OwnerColumn,
-			&sequence.Dependency,
-		); err != nil {
-			rows.Close()
-			t.Fatalf("scan PostgreSQL product sequence: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.Sequences = append(snapshot.Sequences, sequence)
-	}
-	if err := projectMigratePostgresCloseRows(rows); err != nil {
-		t.Fatalf("finish PostgreSQL product sequence query: %v", testfixture.PostgresSafeError(err))
-	}
-	for index := range snapshot.Sequences {
-		sequenceName := pgx.Identifier{schema, snapshot.Sequences[index].Name}.Sanitize()
-		if err := connection.QueryRow(ctx, "SELECT last_value, is_called FROM "+sequenceName).Scan(
-			&snapshot.Sequences[index].Last,
-			&snapshot.Sequences[index].Called,
-		); err != nil {
-			t.Fatalf("inspect PostgreSQL product sequence state: %v", testfixture.PostgresSafeError(err))
-		}
 	}
 
 	rows, err = connection.Query(ctx, `SELECT "id", "title", "published" FROM `+quotedSchema+`."godj_conformance_article" ORDER BY "id"`)
@@ -933,9 +606,9 @@ func projectMigratePostgresAssertLatest(
 	}
 }
 
-func projectMigratePostgresExpectedConstraints() []projectMigratePostgresConstraint {
-	primary := func(table, name, key string) projectMigratePostgresConstraint {
-		return projectMigratePostgresConstraint{
+func projectMigratePostgresExpectedConstraints() []dbstate.PostgresConstraint {
+	primary := func(table, name, key string) dbstate.PostgresConstraint {
+		return dbstate.PostgresConstraint{
 			Table:     table,
 			Name:      name,
 			Kind:      "p",
@@ -944,7 +617,7 @@ func projectMigratePostgresExpectedConstraints() []projectMigratePostgresConstra
 			IndexName: name,
 		}
 	}
-	return []projectMigratePostgresConstraint{
+	return []dbstate.PostgresConstraint{
 		primary("godj_conformance_article", "godj_pk_7f21c7e928b78be2fc532391565427000c1cf0627bdaf24a", "1"),
 		primary("godj_migration_revision", "godj_migration_revision_pkey", "1"),
 		primary("godj_migrations", "godj_migrations_pkey", "1,2"),
@@ -954,9 +627,9 @@ func projectMigratePostgresExpectedConstraints() []projectMigratePostgresConstra
 	}
 }
 
-func projectMigratePostgresExpectedIndexes() []projectMigratePostgresIndex {
-	primary := func(table, name, keys string, count int) projectMigratePostgresIndex {
-		return projectMigratePostgresIndex{
+func projectMigratePostgresExpectedIndexes() []dbstate.PostgresIndex {
+	primary := func(table, name, keys string, count int) dbstate.PostgresIndex {
+		return dbstate.PostgresIndex{
 			Table:          table,
 			Name:           name,
 			Primary:        true,
@@ -970,7 +643,7 @@ func projectMigratePostgresExpectedIndexes() []projectMigratePostgresIndex {
 			Method:         "btree",
 		}
 	}
-	return []projectMigratePostgresIndex{
+	return []dbstate.PostgresIndex{
 		primary("godj_conformance_article", "godj_pk_7f21c7e928b78be2fc532391565427000c1cf0627bdaf24a", "id", 1),
 		primary("godj_migration_revision", "godj_migration_revision_pkey", "singleton", 1),
 		primary("godj_migrations", "godj_migrations_pkey", "app,name", 2),
@@ -980,20 +653,20 @@ func projectMigratePostgresExpectedIndexes() []projectMigratePostgresIndex {
 	}
 }
 
-func projectMigratePostgresExpectedColumns() []projectMigratePostgresColumn {
-	column := func(table string, ordinal int, name, fieldType string, notNull bool, identity string, primary bool) projectMigratePostgresColumn {
-		return projectMigratePostgresColumn{
+func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
+	column := func(table string, ordinal int, name, fieldType string, notNull bool, identity string, primary bool) dbstate.PostgresColumn {
+		return dbstate.PostgresColumn{
 			Table:            table,
 			Ordinal:          ordinal,
 			Name:             name,
-			Type:             fieldType,
+			DataType:         fieldType,
 			NotNull:          notNull,
 			Identity:         identity,
 			DefaultCollation: true,
 			Primary:          primary,
 		}
 	}
-	return []projectMigratePostgresColumn{
+	return []dbstate.PostgresColumn{
 		column("godj_conformance_article", 1, "id", "bigint", true, "d", true),
 		column("godj_conformance_article", 2, "title", "character varying(200)", true, "", false),
 		column("godj_conformance_article", 3, "published", "boolean", true, "", false),

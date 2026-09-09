@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .observations import observed_state
+from .observations import observed
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -71,7 +71,7 @@ def credential_permission_restart(contract_id: str) -> dict[str, Any]:
         initialized = _run(database, "initialize")
         restarted = _run(database, "authenticate")
         _assert_distinct_processes(initialized, restarted)
-    return observed_state(
+    return observed(
         contract_id,
         {
             "active": restarted["active"],
@@ -96,7 +96,7 @@ def rotated_session_restart(contract_id: str) -> dict[str, Any]:
             {"cookies": logged_in["cookies"]},
         )
         _assert_distinct_processes(initialized, logged_in, restarted)
-    return observed_state(
+    return observed(
         contract_id,
         {
             "admin_status": restarted["admin_status"],
@@ -127,7 +127,7 @@ def logout_restart_denial(contract_id: str) -> dict[str, Any]:
             {"cookies": copied_old_cookies},
         )
         _assert_distinct_processes(initialized, logged_in, logged_out, restarted)
-    return observed_state(
+    return observed(
         contract_id,
         {
             "admin_status": restarted["admin_status"],
@@ -190,7 +190,7 @@ def csrf_restart(contract_id: str) -> dict[str, Any]:
             issued_fresh,
             accepted_fresh,
         )
-    return observed_state(
+    return observed(
         contract_id,
         {
             "fresh": {
@@ -225,7 +225,7 @@ def admin_audit_fault_rollback(contract_id: str) -> dict[str, Any]:
         logged_in = _run(database, "login")
         failed = _run(database, "audit_fault", {"cookies": logged_in["cookies"]})
         _assert_distinct_processes(initialized, logged_in, failed)
-    return observed_state(
+    return observed(
         contract_id,
         {
             "article_rolled_back": failed["article_delta"] == 0,
@@ -249,7 +249,7 @@ def audit_history_restart(contract_id: str) -> dict[str, Any]:
         written = _run(database, "history_write", {"cookies": logged_in["cookies"]})
         restarted = _run(database, "history_read")
         _assert_distinct_processes(initialized, logged_in, written, restarted)
-    return observed_state(
+    return observed(
         contract_id,
         {
             "all_events": restarted["events"],

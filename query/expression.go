@@ -41,22 +41,13 @@ func NewExpression(condition Condition) (Expression, error) {
 	if err := validateExpressionCondition(condition); err != nil {
 		return Expression{}, err
 	}
-	return newUncheckedExpression(condition), nil
-}
-
-// newUncheckedExpression retains a low-level condition even when it is
-// malformed. Plan.WithConditions uses this path because its historical
-// signature cannot return an error; backend validation must still observe and
-// reject the original leaf instead of receiving an empty or partial plan.
-func newUncheckedExpression(condition Condition) Expression {
-	cloned := condition.clone()
 	return Expression{node: &expressionNode{
 		kind:         ExpressionLeaf,
-		condition:    cloned,
+		condition:    condition,
 		depth:        1,
 		nodes:        1,
-		hasRelations: cloned.relationPath != nil,
-	}}
+		hasRelations: condition.relationPath != nil,
+	}}, nil
 }
 
 // AndExpressions constructs one ordered n-ary AND. Nested AND nodes are
@@ -101,12 +92,12 @@ func (e Expression) Kind() ExpressionKind {
 	return e.node.kind
 }
 
-// Condition returns a detached condition for a leaf expression.
+// Condition returns an immutable condition for a leaf expression.
 func (e Expression) Condition() (Condition, bool) {
 	if e.node == nil || e.node.kind != ExpressionLeaf {
 		return Condition{}, false
 	}
-	return e.node.condition.clone(), true
+	return e.node.condition, true
 }
 
 // Children returns a detached child slice for a connector expression. Child
@@ -197,73 +188,14 @@ func connectExpressions(kind ExpressionKind, left, right Expression, rest ...Exp
 	}}, nil
 }
 
+// Non-zero nodes are created only by validating constructors and contain no
+// externally mutable storage. Their cached shape is authoritative; validating
+// an operand never needs to revisit all of its leaves.
 func (e Expression) validate() error {
-	visited := 0
-	_, _, _, err := validateExpressionNode(e.node, 1, &visited)
-	return err
-}
-
-func validateExpressionNode(node *expressionNode, currentDepth int, visited *int) (int, int, bool, error) {
-	if node == nil {
-		return 0, 0, false, invalidPlanError("query expression is zero or malformed")
+	if e.node == nil {
+		return invalidPlanError("query expression is zero or malformed")
 	}
-	if currentDepth > maximumExpressionDepth {
-		return 0, 0, false, invalidPlanError("query expression exceeds the maximum depth of 64")
-	}
-	(*visited)++
-	if *visited > maximumExpressionNodes {
-		return 0, 0, false, invalidPlanError("query expression exceeds the maximum node count of 1024")
-	}
-
-	switch node.kind {
-	case ExpressionLeaf:
-		if len(node.children) != 0 || node.depth != 1 || node.nodes != 1 {
-			return 0, 0, false, invalidPlanError("query expression leaf is malformed")
-		}
-		if err := validateExpressionCondition(node.condition); err != nil {
-			return 0, 0, false, err
-		}
-		hasRelations := node.condition.relationPath != nil
-		if node.hasRelations != hasRelations {
-			return 0, 0, false, invalidPlanError("query expression relation metadata is malformed")
-		}
-		return 1, 1, hasRelations, nil
-	case ExpressionAnd, ExpressionOr:
-		if len(node.children) < 2 {
-			return 0, 0, false, invalidPlanError("AND and OR query expressions require at least two children")
-		}
-	case ExpressionNot:
-		if len(node.children) != 1 {
-			return 0, 0, false, invalidPlanError("NOT query expressions require exactly one child")
-		}
-	default:
-		return 0, 0, false, invalidPlanError("query expression kind is invalid")
-	}
-
-	calculatedDepth := 1
-	calculatedNodes := 1
-	hasRelations := false
-	for _, child := range node.children {
-		childDepth, childNodes, childRelations, err := validateExpressionNode(child.node, currentDepth+1, visited)
-		if err != nil {
-			return 0, 0, false, err
-		}
-		if childDepth+1 > calculatedDepth {
-			calculatedDepth = childDepth + 1
-		}
-		if childNodes > maximumExpressionNodes-calculatedNodes {
-			return 0, 0, false, invalidPlanError("query expression exceeds the maximum node count of 1024")
-		}
-		calculatedNodes += childNodes
-		hasRelations = hasRelations || childRelations
-	}
-	if calculatedDepth > maximumExpressionDepth {
-		return 0, 0, false, invalidPlanError("query expression exceeds the maximum depth of 64")
-	}
-	if node.depth != calculatedDepth || node.nodes != calculatedNodes || node.hasRelations != hasRelations {
-		return 0, 0, false, invalidPlanError("query expression cached metadata is malformed")
-	}
-	return calculatedDepth, calculatedNodes, hasRelations, nil
+	return nil
 }
 
 func validateExpressionCondition(condition Condition) error {
@@ -325,7 +257,7 @@ func validateExpressionCondition(condition Condition) error {
 		if condition.lookup != LookupIn || condition.rhs.value != (Value{}) || condition.rhs.field != (FieldRef{}) {
 			return invalidPlanError("query expression list right-hand side is malformed")
 		}
-		if _, ok := condition.Values(); !ok {
+		if condition.relationPath != nil || !validInValues(field, condition.rhs.values) {
 			return invalidPlanError("query expression IN condition is malformed")
 		}
 	case conditionRHSField:
@@ -388,55 +320,6 @@ func equalExpressionNodes(left, right *expressionNode) bool {
 	return true
 }
 
-// uncheckedAndExpressions constructs the same ordered canonical AND shape as
-// AndExpressions without validating leaves or enforcing resource caps. It is
-// deliberately package-private and exists only for Plan.WithConditions,
-// whose non-error-returning compatibility signature must preserve malformed
-// input for later fail-closed backend validation.
-func uncheckedAndExpressions(expressions ...Expression) Expression {
-	if len(expressions) == 0 {
-		return Expression{}
-	}
-	if len(expressions) == 1 {
-		return expressions[0]
-	}
-
-	childCount := 0
-	for _, expression := range expressions {
-		if expression.node.kind == ExpressionAnd {
-			childCount += len(expression.node.children)
-		} else {
-			childCount++
-		}
-	}
-	children := make([]Expression, 0, childCount)
-	for _, expression := range expressions {
-		if expression.node.kind == ExpressionAnd {
-			children = append(children, expression.node.children...)
-		} else {
-			children = append(children, expression)
-		}
-	}
-
-	depth := 1
-	nodes := 1
-	hasRelations := false
-	for _, child := range children {
-		if child.node.depth+1 > depth {
-			depth = child.node.depth + 1
-		}
-		nodes += child.node.nodes
-		hasRelations = hasRelations || child.node.hasRelations
-	}
-	return Expression{node: &expressionNode{
-		kind:         ExpressionAnd,
-		children:     children,
-		depth:        depth,
-		nodes:        nodes,
-		hasRelations: hasRelations,
-	}}
-}
-
 func expressionConditions(expression Expression) []Condition {
 	if expression.node == nil {
 		return nil
@@ -448,7 +331,7 @@ func expressionConditions(expression Expression) []Condition {
 
 func appendExpressionConditions(conditions *[]Condition, node *expressionNode) {
 	if node.kind == ExpressionLeaf {
-		*conditions = append(*conditions, node.condition.clone())
+		*conditions = append(*conditions, node.condition)
 		return
 	}
 	for _, child := range node.children {

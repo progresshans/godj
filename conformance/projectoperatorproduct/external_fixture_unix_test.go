@@ -144,6 +144,7 @@ replace github.com/progresshans/godj => %s
 		"GOFLAGS":         "",
 		"GOCACHEPROG":     "",
 	})
+	setupEnvironment = gobuild.Environment(setupEnvironment, os.Environ(), universe)
 	operatorRunSetup(t, root, setupEnvironment, "go", "mod", "tidy")
 
 	baseEnvironment := operatorEnvironment(setupEnvironment, map[string]string{

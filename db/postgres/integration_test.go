@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -484,12 +485,9 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 	})
 
 	t.Run("scalar query update and delete", func(t *testing.T) {
-		plan := query.NewPlan("blog_post", []query.FieldRef{
+		plan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{
 			fields.id, fields.title, fields.published, fields.summary, fields.authorKey, fields.editorKey,
-		}).WithConditions(
-			query.NewCondition(fields.title, query.LookupIContains, query.String("50%_")),
-			query.NewCondition(fields.published, query.LookupExact, query.Boolean(true)),
-		).WithOrderings(query.NewOrdering(fields.id, query.Ascending))
+		}), query.NewCondition(fields.title, query.LookupIContains, query.String("50%_")), query.NewCondition(fields.published, query.LookupExact, query.Boolean(true))).WithOrderings(query.NewOrdering(fields.id, query.Ascending))
 		rows, err := backend.Query(ctx, plan)
 		if err != nil {
 			t.Fatal(err)
@@ -539,7 +537,9 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		forwardRows, err := backend.Query(ctx, query.NewPlan("blog_post", []query.FieldRef{fields.id, fields.title, fields.authorKey}).WithConditions(
+		forwardRows, err := backend.Query(ctx, querytest.Conditions(
+			t,
+			query.NewPlan("blog_post", []query.FieldRef{fields.id, fields.title, fields.authorKey}),
 			query.NewRelatedCondition(forward, query.LookupExact, query.String("Ada")),
 		))
 		if err != nil {
@@ -558,7 +558,9 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		reverseRows, err := backend.Query(ctx, query.NewPlan("authors_author", []query.FieldRef{fields.id, fields.authorName}).WithConditions(
+		reverseRows, err := backend.Query(ctx, querytest.Conditions(
+			t,
+			query.NewPlan("authors_author", []query.FieldRef{fields.id, fields.authorName}),
 			query.NewRelatedCondition(reverse, query.LookupExact, query.String("Hello 50%_Go")),
 		))
 		if err != nil {
@@ -578,8 +580,11 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		projectionPlan, err := query.NewPlan("blog_post", []query.FieldRef{fields.id, fields.title, fields.editorKey}).
-			WithConditions(query.NewCondition(fields.id, query.LookupExact, query.Integer(postID))).
+		projectionPlan, err := querytest.Conditions(
+			t,
+			query.NewPlan("blog_post", []query.FieldRef{fields.id, fields.title, fields.editorKey}),
+			query.NewCondition(fields.id, query.LookupExact, query.Integer(postID)),
+		).
 			WithRelationProjection(projection)
 		if err != nil {
 			t.Fatal(err)
@@ -669,6 +674,18 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 		if !errors.Is(err, context.Canceled) || integrationTitleCount(t, ctx, backend, fields, canceledTitle) != 0 {
 			t.Fatalf("canceled atomic error = %v", err)
 		}
+	})
+
+	t.Run("relation count and minimum aggregates", func(t *testing.T) {
+		for _, statement := range querytest.AggregateFixtureSQL() {
+			for _, table := range []string{"aggregate_author", "aggregate_post"} {
+				statement = strings.ReplaceAll(statement, `"`+table+`"`, quotedSchema+`."`+table+`"`)
+			}
+			if _, err := admin.Exec(ctx, statement); err != nil {
+				t.Fatal(err)
+			}
+		}
+		querytest.CheckAggregateSemantics(t, ctx, backend)
 	})
 
 	t.Run("concurrent queries and close", func(t *testing.T) {
@@ -859,7 +876,9 @@ func collectTwoColumnIDs(t *testing.T, rows db.Rows) []int64 {
 
 func integrationTitleCount(t *testing.T, ctx context.Context, backend *Backend, fields integrationPhase1Fields, title string) int {
 	t.Helper()
-	rows, err := backend.Query(ctx, query.NewPlan("blog_post", []query.FieldRef{fields.id, fields.title}).WithConditions(
+	rows, err := backend.Query(ctx, querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{fields.id, fields.title}),
 		query.NewCondition(fields.title, query.LookupExact, query.String(title)),
 	))
 	if err != nil {

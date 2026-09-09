@@ -3,7 +3,6 @@ package sessions
 import (
 	"context"
 	"sync"
-	"time"
 )
 
 const (
@@ -75,24 +74,27 @@ func (s *MemoryStore) Create(ctx context.Context, record Record) (bool, error) {
 	return true, nil
 }
 
-func (s *MemoryStore) Touch(ctx context.Context, id ID, accessedAt, idleExpiresAt time.Time) (Record, TouchStatus, error) {
+func (s *MemoryStore) Access(ctx context.Context, id ID, policy AccessPolicy) (Record, AccessStatus, error) {
 	if err := validStoreCall(ctx, s, id); err != nil {
-		return Record{}, TouchMissing, err
+		return Record{}, AccessMissing, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := ctx.Err(); err != nil {
-		return Record{}, TouchMissing, err
+		return Record{}, AccessMissing, err
 	}
 	record, exists := s.records[id]
 	if !exists {
-		return Record{}, TouchMissing, nil
+		return Record{}, AccessMissing, nil
 	}
-	touched, status, err := record.Touch(accessedAt, idleExpiresAt)
+	touched, status, err := policy.Apply(id, record)
 	if err != nil {
-		return Record{}, TouchMissing, err
+		return Record{}, AccessMissing, err
 	}
-	if status == TouchExpired {
+	if err := ctx.Err(); err != nil {
+		return Record{}, AccessMissing, err
+	}
+	if status == AccessExpired {
 		delete(s.records, id)
 	} else {
 		s.records[id] = touched

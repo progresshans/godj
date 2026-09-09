@@ -599,9 +599,9 @@ func (s *countingStore) Create(ctx context.Context, record sessions.Record) (boo
 	return created, err
 }
 
-func (s *countingStore) Touch(ctx context.Context, id sessions.ID, accessedAt, idleExpiresAt time.Time) (sessions.Record, sessions.TouchStatus, error) {
-	record, status, err := s.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
-	if err == nil && status != sessions.TouchMissing {
+func (s *countingStore) Access(ctx context.Context, id sessions.ID, policy sessions.AccessPolicy) (sessions.Record, sessions.AccessStatus, error) {
+	record, status, err := s.Store.Access(ctx, id, policy)
+	if err == nil && status != sessions.AccessMissing {
 		s.writes.Add(1)
 	}
 	return record, status, err

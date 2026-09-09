@@ -17,6 +17,7 @@ import (
 
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 const (
@@ -130,6 +131,7 @@ replace github.com/progresshans/godj => %s
 	})
 	// Module resolution is fixture setup. Every product command after this
 	// point executes with network access disabled.
+	setupEnv = gobuild.Environment(setupEnv, os.Environ(), universe)
 	externalStatusRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
 
 	secret := "showmigrations-secret-canary-2f11630d7a"

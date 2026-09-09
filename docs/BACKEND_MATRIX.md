@@ -19,6 +19,8 @@
 Schema는 Auto primary key, Char, Boolean과 AutoField-target ForeignKey를 중심으로 구현되어 있다.
 모든 Django Field, OneToOne/ManyToMany, arbitrary `to_field`, self/cyclic relation이나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
+Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
+슬라이스의 결과 행 수를 세며 eager projection이나 일반 관계 집계를 허용하지 않는다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
 
 ## SQLite 경계

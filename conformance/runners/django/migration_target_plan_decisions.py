@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from .observations import observed_command
+from .observations import observed
 
 
 SET_SLUG = "migration-target-plan"
@@ -137,7 +137,7 @@ def target_argv_and_pre_io_rejection(contract_id: str) -> dict[str, Any]:
             "requested_name": "0001",
         }
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="environment",
         result={
@@ -190,7 +190,7 @@ def target_noop_and_legacy_zero(contract_id: str) -> dict[str, Any]:
             "plan": None,
         },
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="evaluation",
         result={
@@ -229,7 +229,7 @@ def plan_exact_and_no_mutation(contract_id: str) -> dict[str, Any]:
         "revision": 2,
         "schema": "unchanged",
     }
-    return observed_command(
+    return observed(
         contract_id,
         phase="evaluation",
         result={"cases": cases, "plan_is_execution_authority": False},
@@ -252,7 +252,7 @@ def plan_exact_and_no_mutation(contract_id: str) -> dict[str, Any]:
 
 
 def preview_drift_fresh_execute(contract_id: str) -> dict[str, Any]:
-    return observed_command(
+    return observed(
         contract_id,
         phase="commit",
         result={
@@ -313,7 +313,7 @@ def reverse_middle_failure_resume(contract_id: str) -> dict[str, Any]:
             "unstarted": [],
         },
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="rollback",
         result={"cases": cases, "unstarted_tail_started": False},
@@ -375,7 +375,7 @@ def reverse_commit_outcomes(contract_id: str) -> dict[str, Any]:
             "rollback_after_outcome": 0,
         },
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="commit",
         result={"cases": cases, "reconciliation_required_after_unknown": True},
@@ -567,7 +567,7 @@ def project_protocol_and_ownership(contract_id: str) -> dict[str, Any]:
             "unit": "rows",
         },
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="environment",
         result={

@@ -246,7 +246,7 @@ func TestBindModelRejectsMutableRelationObjectSnapshotShape(t *testing.T) {
 	assertRelationObjectQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 }
 
-func relationObjectTestBinding(t *testing.T) ProjectBinding {
+func relationObjectTestBinding(t testing.TB) ProjectBinding {
 	t.Helper()
 	authors, blog := relationObjectTestSchemas()
 	binding, err := BindProject(authors, blog)

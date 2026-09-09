@@ -1,5 +1,6 @@
-// Package query owns GoDj's database-independent query AST. Plan values use
-// copy-on-write operations so a derived QuerySet cannot mutate its source.
+// Package query owns GoDj's database-independent query AST. Constructors copy
+// caller-owned containers; immutable handles share private storage. Accessors
+// copy mutable containers so a derived QuerySet cannot mutate its source.
 package query
 
 import (
@@ -110,16 +111,13 @@ func NewFieldCondition(field FieldRef, lookup Lookup, right FieldRef) (Condition
 	return condition, nil
 }
 
-// NewRelatedCondition constructs a condition over the terminal field of a
-// relation path. The path is copied so callers cannot retain aliases into a
-// query plan.
+// NewRelatedCondition constructs a condition over an immutable relation path.
 func NewRelatedCondition(path RelationPath, lookup Lookup, value Value) Condition {
-	cloned := path.clone()
 	return Condition{
-		field:        cloned.Terminal(),
+		field:        path.Terminal(),
 		lookup:       lookup,
 		rhs:          &conditionRHS{kind: conditionRHSLiteral, value: value},
-		relationPath: &cloned,
+		relationPath: &path,
 	}
 }
 
@@ -151,7 +149,7 @@ func (c Condition) RelationPath() (RelationPath, bool) {
 	if c.relationPath == nil {
 		return RelationPath{}, false
 	}
-	return c.relationPath.clone(), true
+	return *c.relationPath, true
 }
 func (c Condition) Equal(other Condition) bool {
 	if c.field != other.field || c.lookup != other.lookup || (c.rhs == nil) != (other.rhs == nil) {
@@ -168,20 +166,6 @@ func (c Condition) Equal(other Condition) bool {
 	leftPath, leftOK := c.RelationPath()
 	rightPath, rightOK := other.RelationPath()
 	return leftOK == rightOK && (!leftOK || leftPath.Equal(rightPath))
-}
-
-func (c Condition) clone() Condition {
-	clone := c
-	if c.rhs != nil {
-		rhs := *c.rhs
-		rhs.values = append([]Value(nil), c.rhs.values...)
-		clone.rhs = &rhs
-	}
-	if c.relationPath != nil {
-		path := c.relationPath.clone()
-		clone.relationPath = &path
-	}
-	return clone
 }
 
 func validInValues(field FieldRef, values []Value) bool {
@@ -298,16 +282,16 @@ func (p Plan) Offset() (int, bool) {
 
 func (p Plan) Distinct() bool { return p.distinct }
 
-func (p Plan) ResultShape() ResultShape { return p.result.clone() }
+func (p Plan) ResultShape() ResultShape { return p.result }
 
-// RelationProjection returns a detached copy of the singular eager relation
+// RelationProjection returns an immutable handle to the singular eager relation
 // projection carried by this plan. Plans without eager selection retain the
 // exact pre-projection behavior and report false.
 func (p Plan) RelationProjection() (RelationProjection, bool) {
 	if p.relationProjection == nil {
 		return RelationProjection{}, false
 	}
-	return p.relationProjection.clone(), true
+	return *p.relationProjection, true
 }
 
 // WithRelationProjection derives a plan with exactly one immutable forward
@@ -323,29 +307,41 @@ func (p Plan) WithRelationProjection(projection RelationProjection) (Plan, error
 	if p.result.Kind() != ResultModel {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
-	clone := p.clone()
-	value := projection.clone()
-	clone.relationProjection = &value
+	clone := p
+	clone.relationProjection = &projection
 	return clone, nil
 }
 
-func (p Plan) WithConditions(conditions ...Condition) Plan {
-	clone := p.clone()
-	expressions := make([]Expression, 0, len(conditions)+1)
-	if clone.where.node != nil {
-		expressions = append(expressions, clone.where)
+// WithConditions adds one validated conjunction. Invalid conditions and
+// oversized input fail during construction, before any backend can perform I/O.
+func (p Plan) WithConditions(conditions ...Condition) (Plan, error) {
+	if len(conditions) == 0 {
+		return p, nil
 	}
-	for _, condition := range conditions {
-		expressions = append(expressions, newUncheckedExpression(condition))
+	if len(conditions) >= maximumExpressionNodes {
+		return Plan{}, invalidPlanError("query expression exceeds the maximum node count of 1024")
 	}
-	clone.where = uncheckedAndExpressions(expressions...)
-	return clone
+	expressions := make([]Expression, len(conditions))
+	for index, condition := range conditions {
+		expression, err := NewExpression(condition)
+		if err != nil {
+			return Plan{}, err
+		}
+		expressions[index] = expression
+	}
+	where := expressions[0]
+	if len(expressions) > 1 {
+		var err error
+		where, err = AndExpressions(expressions[0], expressions[1], expressions[2:]...)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
+	return p.WithWhere(where)
 }
 
 // WithWhere derives a plan by implicitly AND-ing one validated expression
-// with the existing authoritative where tree. It is the error-returning path
-// used by ORM construction; low-level callers that need the historical
-// non-error signature continue to use WithConditions.
+// with the existing authoritative where tree.
 func (p Plan) WithWhere(expression Expression) (Plan, error) {
 	if err := expression.validate(); err != nil {
 		return Plan{}, err
@@ -358,10 +354,10 @@ func (p Plan) WithWhere(expression Expression) (Plan, error) {
 			return Plan{}, err
 		}
 	}
-	if err := p.validateWhereSource(where); err != nil {
+	if err := p.validateWhereSource(expression); err != nil {
 		return Plan{}, err
 	}
-	clone := p.clone()
+	clone := p
 	clone.where = where
 	return clone, nil
 }
@@ -440,7 +436,7 @@ func containsPlanIntegerColumn(fields []FieldRef, column string) bool {
 }
 
 func (p Plan) WithOrderings(orderings ...Ordering) Plan {
-	clone := p.clone()
+	clone := p
 	clone.orderings = append([]Ordering(nil), orderings...)
 	return clone
 }
@@ -481,8 +477,8 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 			return Plan{}, invalidPlanError("result field is not part of the plan source metadata")
 		}
 	}
-	clone := p.clone()
-	clone.result = result.clone()
+	clone := p
+	clone.result = result
 	return clone, nil
 }
 
@@ -510,24 +506,4 @@ func (p Plan) Equal(other Plan) bool {
 	leftProjection, leftOK := p.RelationProjection()
 	rightProjection, rightOK := other.RelationProjection()
 	return leftOK == rightOK && (!leftOK || leftProjection.Equal(rightProjection))
-}
-
-func (p Plan) clone() Plan {
-	clone := p
-	clone.sourceFields = append([]FieldRef(nil), p.sourceFields...)
-	clone.orderings = append([]Ordering(nil), p.orderings...)
-	if p.limit != nil {
-		limit := *p.limit
-		clone.limit = &limit
-	}
-	if p.offset != nil {
-		offset := *p.offset
-		clone.offset = &offset
-	}
-	clone.result = p.result.clone()
-	if p.relationProjection != nil {
-		projection := p.relationProjection.clone()
-		clone.relationProjection = &projection
-	}
-	return clone
 }

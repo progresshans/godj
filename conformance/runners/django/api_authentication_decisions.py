@@ -11,30 +11,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .normalizer import normalize
+from .observations import observed
 
 
 _MAX_BEARER_BYTES = 4096
 _BEARER_TOKEN = re.compile(rb"[A-Za-z0-9\-._~+/]+={0,}\Z")
-
-
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str,
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
 
 
 def common_authentication_boundary(contract_id: str) -> dict[str, Any]:
@@ -65,7 +46,7 @@ def common_authentication_boundary(contract_id: str) -> dict[str, Any]:
             "routes_published": 0,
         },
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "cases": cases,
@@ -137,7 +118,7 @@ def bounded_bearer_header(contract_id: str) -> dict[str, Any]:
                 "verifier_calls": verifier_calls,
             }
         )
-    return _observed(
+    return observed(
         contract_id,
         {
             "alternate_transports": {
@@ -197,7 +178,7 @@ def secret_and_failure_boundary(contract_id: str) -> dict[str, Any]:
             "retries": 0,
         },
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "cases": cases,
@@ -222,7 +203,7 @@ def article_route_reuse(contract_id: str) -> dict[str, Any]:
         "PATCH /api/articles/:id/",
         "DELETE /api/articles/:id/",
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "profiles": {
@@ -288,7 +269,7 @@ def denial_mutation_boundary(contract_id: str) -> dict[str, Any]:
             "status": 401,
         },
     ]
-    return _observed(
+    return observed(
         contract_id,
         {"cases": cases, "handler_invocations": 0},
         phase="evaluation",

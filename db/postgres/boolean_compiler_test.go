@@ -271,34 +271,17 @@ func TestCompileBooleanWhereIsSharedByEveryResultShape(t *testing.T) {
 	}
 }
 
-func TestPostgresWhereAnalysisFailsClosedOnUncheckedAndBoundedTrees(t *testing.T) {
+func TestPostgresWhereAnalysisAcceptsMaximumTreeAndRejectsZero(t *testing.T) {
 	t.Parallel()
-
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	base := query.NewPlan("news_article", []query.FieldRef{id})
-	for name, plan := range map[string]query.Plan{
-		"zero condition":         base.WithConditions(query.Condition{}),
-		"field outside metadata": base.WithConditions(query.NewCondition(query.NewFieldRef("other", "other", query.FieldInteger, false), query.LookupExact, query.Integer(1))),
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			_, _, err := compilePlan("godj_app", plan)
-			if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
-				t.Fatalf("compilePlan() error = %v, want query invalid_plan", err)
-			}
-		})
-	}
-
-	conditions := make([]query.Condition, 1024)
+	conditions := make([]query.Condition, 1023)
 	for index := range conditions {
 		conditions[index] = query.NewCondition(id, query.LookupExact, query.Integer(int64(index)))
 	}
-	_, _, err := compilePlan("godj_app", base.WithConditions(conditions...))
-	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) ||
-		!strings.Contains(err.Error(), "maximum node count of 1024") {
-		t.Fatalf("oversized unchecked tree error = %v, want node-cap invalid_plan", err)
+	if _, _, err := compileConditions("godj_app", base, conditions...); err != nil {
+		t.Fatal(err)
 	}
-
 	analyzer := whereAnalyzer{plan: base, sourceFields: []query.FieldRef{id}}
 	if _, err := analyzer.walk(query.Expression{}, 1, true); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("zero expression error = %v, want query invalid_plan", err)

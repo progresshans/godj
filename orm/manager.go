@@ -175,44 +175,11 @@ func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 	if values, ok := qs.evaluation.cachedValues(); ok {
 		return int64(len(values)), nil
 	}
-	// Scalar aggregate terminals intentionally reject relation traversal.
-	// Preserve Count's established cold/warm behavior for relation-backed
-	// QuerySets by retaining the legacy row-drain path until relation
-	// aggregates become an explicit compiler capability.
-	if planUsesRelations(qs.plan) {
-		return qs.countRowsByIteration(ctx)
-	}
 	return AggregateInto(
 		ctx,
 		qs,
 		Aggregate1(CountRows[M](), func(count int64) int64 { return count }),
 	)
-}
-
-func (qs QuerySet[M]) countRowsByIteration(ctx context.Context) (int64, error) {
-	rows, err := openQueryRows(ctx, qs.backend, qs.plan)
-	if err != nil {
-		return 0, err
-	}
-	lifecycle := rowsLifecycle{rows: rows}
-	defer lifecycle.close()
-	var count int64
-	for rows.Next() {
-		count++
-	}
-	err = lifecycle.finish(ctx, err)
-	if err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
-func planUsesRelations(plan query.Plan) bool {
-	if _, selected := plan.RelationProjection(); selected {
-		return true
-	}
-	where, ok := plan.Where()
-	return ok && where.HasRelations()
 }
 
 // Exists reports whether the plan contains at least one row. Cold evaluation

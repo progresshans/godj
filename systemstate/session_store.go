@@ -127,23 +127,22 @@ func (store *durableSessionStore) Create(ctx context.Context, record sessions.Re
 	return created, nil
 }
 
-func (store *durableSessionStore) Touch(
+func (store *durableSessionStore) Access(
 	ctx context.Context,
 	id sessions.ID,
-	accessedAt time.Time,
-	idleExpiresAt time.Time,
-) (sessions.Record, sessions.TouchStatus, error) {
+	policy sessions.AccessPolicy,
+) (sessions.Record, sessions.AccessStatus, error) {
 	if err := store.validCall(ctx, id); err != nil {
-		return sessions.Record{}, sessions.TouchMissing, err
+		return sessions.Record{}, sessions.AccessMissing, err
 	}
 	digest, err := sessionDigest(id)
 	if err != nil {
-		return sessions.Record{}, sessions.TouchMissing, err
+		return sessions.Record{}, sessions.AccessMissing, err
 	}
 	var result sessions.Record
-	status := sessions.TouchMissing
+	status := sessions.AccessMissing
 	err = store.gate.withAtomic(ctx, func(session db.Session) error {
-		result, status = sessions.Record{}, sessions.TouchMissing
+		result, status = sessions.Record{}, sessions.AccessMissing
 		row, present, err := loadSessionRow(ctx, session, digest)
 		if err != nil || !present {
 			return err
@@ -152,17 +151,20 @@ func (store *durableSessionStore) Touch(
 		if err != nil {
 			return err
 		}
-		touched, outcome, err := current.Touch(accessedAt, idleExpiresAt)
+		touched, outcome, err := policy.Apply(id, current)
 		if err != nil {
 			return err
 		}
-		if outcome == sessions.TouchExpired {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if outcome == sessions.AccessExpired {
 			affected, err := session.Delete(ctx, query.NewDeletePlan(sessionTableName, systemRowIDField, query.Integer(row.id)))
 			if err != nil {
 				return persistenceFailure("delete expired session", err)
 			}
 			if affected != 1 {
-				return cardinalityFailure("session", fmt.Sprintf("expired touch delete affected %d rows, want 1", affected))
+				return cardinalityFailure("session", fmt.Sprintf("expired access delete affected %d rows, want 1", affected))
 			}
 			status = outcome
 			return nil
@@ -172,10 +174,10 @@ func (store *durableSessionStore) Touch(
 			return err
 		}
 		if payload == row.payload {
-			// A monotonic clamp can reduce an out-of-order or equal touch to the
+			// A monotonic clamp can reduce an out-of-order or equal access to the
 			// exact stored state. Preserve found=true without manufacturing a
 			// database write or a new publication event.
-			result, status = current, sessions.TouchActive
+			result, status = current, sessions.AccessActive
 			return nil
 		}
 		affected, err := session.Update(ctx, query.NewUpdatePlan(
@@ -185,16 +187,16 @@ func (store *durableSessionStore) Touch(
 			query.Integer(row.id),
 		))
 		if err != nil {
-			return persistenceFailure("touch session", err)
+			return persistenceFailure("access session", err)
 		}
 		if affected != 1 {
-			return cardinalityFailure("session", fmt.Sprintf("touch affected %d rows, want 1", affected))
+			return cardinalityFailure("session", fmt.Sprintf("access affected %d rows, want 1", affected))
 		}
-		result, status = touched, sessions.TouchActive
+		result, status = touched, sessions.AccessActive
 		return nil
 	})
 	if err != nil {
-		return sessions.Record{}, sessions.TouchMissing, err
+		return sessions.Record{}, sessions.AccessMissing, err
 	}
 	return result, status, nil
 }
@@ -396,7 +398,10 @@ func loadSessionRow(ctx context.Context, queryer db.Queryer, digest string) (per
 	if err != nil {
 		return persistedSessionRow{}, false, persistenceFailure("build session lookup", err)
 	}
-	plan = plan.WithConditions(query.NewCondition(sessionDigestField, query.LookupExact, query.String(digest)))
+	plan, err = plan.WithConditions(query.NewCondition(sessionDigestField, query.LookupExact, query.String(digest)))
+	if err != nil {
+		return persistedSessionRow{}, false, persistenceFailure("build session predicate", err)
+	}
 	rows, err := readSessionRows(ctx, queryer, plan, 2)
 	if err != nil {
 		return persistedSessionRow{}, false, err

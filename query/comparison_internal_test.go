@@ -44,19 +44,3 @@ func TestComparisonRHSUnionRejectsMalformedAndRelationShapes(t *testing.T) {
 		t.Fatal("relation condition with field RHS unexpectedly validated")
 	}
 }
-
-func TestComparisonConditionCloneDoesNotAliasRHSList(t *testing.T) {
-	t.Parallel()
-
-	field := NewFieldRef("id", "id", FieldInteger, false)
-	condition, err := NewInCondition(field, []Value{Integer(1), Integer(2)})
-	if err != nil {
-		t.Fatalf("NewInCondition() error = %v", err)
-	}
-	clone := condition.clone()
-	clone.rhs.values[0] = Integer(99)
-	value, ok := condition.rhs.values[0].Integer()
-	if !ok || value != 1 {
-		t.Fatalf("clone mutated source RHS list: (%d, %v)", value, ok)
-	}
-}

@@ -16,13 +16,15 @@ import (
 )
 
 func TestMemoryStoreAtomicAccess(t *testing.T) {
-	sessiontest.AtomicAccess(t, func(t *testing.T) sessions.Store {
+	newStore := func(t *testing.T) sessions.Store {
 		store, err := sessions.NewMemoryStore(4)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return store
-	})
+	}
+	sessiontest.AtomicAccess(t, newStore)
+	sessiontest.AccessValidation(t, newStore)
 }
 
 func TestManagerCreateLoadRotateAndFlush(t *testing.T) {
@@ -260,11 +262,17 @@ func TestMemoryStoreTouchDoesNotRegressUnderOutOfOrderCalls(t *testing.T) {
 	}
 	laterAccess := now.Add(9 * time.Minute)
 	laterExpiry := now.Add(19 * time.Minute)
-	if _, status, err := store.Touch(context.Background(), record.ID(), laterAccess, laterExpiry); err != nil || status != sessions.TouchActive {
+	if _, status, err := sessiontest.AccessAt(context.Background(), store, record.ID(), laterAccess, (laterExpiry).Sub(laterAccess)); err != nil || status != sessions.AccessActive {
 		t.Fatalf("later touch: status=%v err=%v", status, err)
 	}
-	touched, status, err := store.Touch(context.Background(), record.ID(), now.Add(5*time.Minute), now.Add(15*time.Minute))
-	if err != nil || status != sessions.TouchActive {
+	touched, status, err := sessiontest.AccessAt(
+		context.Background(),
+		store,
+		record.ID(),
+		now.Add(5*time.Minute),
+		(now.Add(15 * time.Minute)).Sub(now.Add(5*time.Minute)),
+	)
+	if err != nil || status != sessions.AccessActive {
 		t.Fatalf("older touch: status=%v err=%v", status, err)
 	}
 	if !touched.AccessedAt().Equal(laterAccess) || !touched.IdleExpiresAt().Equal(laterExpiry) {

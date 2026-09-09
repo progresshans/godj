@@ -233,7 +233,7 @@ func unsupportedRelatedCondition(condition query.Condition, detail string) error
 }
 
 // AppendAggregates validates the closed scalar aggregate grammar before each
-// field reaches backend quoting. COUNT and MAX syntax is shared; quoting and
+// field reaches backend quoting. COUNT, MIN and MAX syntax is shared; quoting and
 // schema/alias qualification are supplied by the actual compiler.
 func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, quoteField func(query.FieldRef) (string, error)) error {
 	for index, expression := range expressions {
@@ -246,17 +246,21 @@ func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression
 				return invalidPlan("COUNT(*) result contains a field")
 			}
 			sql.WriteString("COUNT(*)")
-		case query.ResultMax:
+		case query.ResultMin, query.ResultMax:
 			field, ok := expression.Field()
 			if !ok || !ContainsField(sourceFields, field) ||
 				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
-				return invalidPlan("MAX result requires an integer or string source field")
+				return invalidPlan("MIN/MAX result requires an integer or string source field")
 			}
 			quoted, err := quoteField(field)
 			if err != nil {
 				return err
 			}
-			sql.WriteString("MAX(")
+			if expression.Kind() == query.ResultMin {
+				sql.WriteString("MIN(")
+			} else {
+				sql.WriteString("MAX(")
+			}
 			sql.WriteString(quoted)
 			sql.WriteByte(')')
 		default:

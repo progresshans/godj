@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from .observations import observed_command
+from .observations import observed
 
 
 SET_SLUG = "migration-sql-rendering"
@@ -95,7 +95,7 @@ def argv_and_pre_io_rejection(contract_id: str) -> dict[str, Any]:
             ["sqlmigrate", "blog", "0002_render_sql", "--database", "other"],
         ),
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="environment",
         result={
@@ -167,7 +167,7 @@ def complete_load_exact_lookup_and_request(contract_id: str) -> dict[str, Any]:
             "request_materializations": 1,
         },
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="construction",
         result={
@@ -191,7 +191,7 @@ def complete_load_exact_lookup_and_request(contract_id: str) -> dict[str, Any]:
 
 
 def postgres_current_projection(contract_id: str) -> dict[str, Any]:
-    return observed_command(
+    return observed(
         contract_id,
         phase="construction",
         result={
@@ -247,7 +247,7 @@ def canonical_deterministic_output(contract_id: str) -> dict[str, Any]:
         {"case": "parallel_b", "output": output},
         {"case": "fresh_process", "output": output},
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="evaluation",
         result={
@@ -307,7 +307,7 @@ def database_and_history_zero_calls(contract_id: str) -> dict[str, Any]:
         "session_opens",
         "transaction_begins",
     )
-    return observed_command(
+    return observed(
         contract_id,
         phase="environment",
         result={
@@ -442,7 +442,7 @@ def renderer_and_operation_fail_closed(contract_id: str) -> dict[str, Any]:
         }
         for case in cases
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="evaluation",
         result={
@@ -528,7 +528,7 @@ def resource_cleanup_redaction_and_write(contract_id: str) -> dict[str, Any]:
             "write_attempts": 1,
         },
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="environment",
         result={
@@ -585,7 +585,7 @@ def external_project_configuration(contract_id: str) -> dict[str, Any]:
             "repository_external": True,
         },
     ]
-    return observed_command(
+    return observed(
         contract_id,
         phase="environment",
         result={

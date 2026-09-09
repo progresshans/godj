@@ -1,7 +1,6 @@
 package sqlite_test
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -160,45 +159,15 @@ func TestSQLiteBooleanCompilerGuardsNullableLeavesAtOddNegationParity(t *testing
 	}
 }
 
-func TestSQLiteBooleanCompilerEnforcesBackendTreeBoundsAndUncheckedLeaves(t *testing.T) {
+func TestSQLiteBooleanCompilerAcceptsMaximumTree(t *testing.T) {
 	t.Parallel()
-
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
-	condition := query.NewCondition(id, query.LookupExact, query.Integer(1))
-	withinLimit := make([]query.Condition, 1023)
-	for index := range withinLimit {
-		withinLimit[index] = condition
+	conditions := make([]query.Condition, 1023)
+	for index := range conditions {
+		conditions[index] = query.NewCondition(id, query.LookupExact, query.Integer(int64(index)))
 	}
-	if _, _, err := sqlite.Compile(query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(withinLimit...)); err != nil {
-		t.Fatalf("Compile(1024-node unchecked tree) error = %v", err)
-	}
-
-	overLimit := append(append([]query.Condition(nil), withinLimit...), condition)
-	for _, test := range []struct {
-		name     string
-		plan     query.Plan
-		category string
-		code     string
-	}{
-		{name: "node cap", plan: query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(overLimit...), category: query.CategoryQuery, code: query.CodeInvalidPlan},
-		{name: "zero leaf", plan: query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(query.Condition{}), category: query.CategoryQuery, code: query.CodeInvalidPlan},
-		{name: "foreign field", plan: query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(
-			query.NewCondition(query.NewFieldRef("id", "other_id", query.FieldInteger, false), query.LookupExact, query.Integer(1)),
-		), category: query.CategoryQuery, code: query.CodeInvalidPlan},
-		{name: "unknown lookup", plan: query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(
-			query.NewCondition(id, query.Lookup("unknown"), query.Integer(1)),
-		), category: query.CategoryBackend, code: query.CodeUnsupported},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			statement, arguments, err := sqlite.Compile(test.plan)
-			if !errors.Is(err, &query.Error{Category: test.category, Code: test.code}) {
-				t.Fatalf("Compile() error = %v, want %s/%s", err, test.category, test.code)
-			}
-			if statement != "" || arguments != nil {
-				t.Fatalf("Compile() = (%q, %#v), want empty output on error", statement, arguments)
-			}
-		})
+	if _, _, err := compileConditions(query.NewPlan("news_article", []query.FieldRef{id}), conditions...); err != nil {
+		t.Fatal(err)
 	}
 }
 

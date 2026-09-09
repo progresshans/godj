@@ -12,27 +12,7 @@ from collections.abc import Callable, Mapping
 from copy import deepcopy
 from typing import Any
 
-from .normalizer import normalize
-
-
-def _observed(
-    contract_id: str,
-    result: Any,
-    *,
-    phase: str,
-    error: dict[str, Any] | None = None,
-    db_state: Any | None = None,
-    metrics: Any | None = None,
-) -> dict[str, Any]:
-    return {
-        "db_state": normalize(db_state) if db_state is not None else None,
-        "error": error,
-        "id": contract_id,
-        "metrics": normalize(metrics) if metrics is not None else None,
-        "phase": phase,
-        "result": normalize(result) if result is not None else None,
-        "status": "observed",
-    }
+from .observations import observed
 
 
 def _error(category: str, code: str) -> dict[str, Any]:
@@ -44,7 +24,7 @@ def _error(category: str, code: str) -> dict[str, Any]:
 
 
 def fresh_latest(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
         {
             "definition_snapshot": "loaded_once_before_backend_open",
@@ -67,7 +47,7 @@ def fresh_latest(contract_id: str) -> dict[str, Any]:
 
 
 def applied_prefix_tail(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
         {
             "committed_prefix_preserved": True,
@@ -92,7 +72,7 @@ def applied_prefix_tail(contract_id: str) -> dict[str, Any]:
 
 
 def fully_applied_fresh_noop(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
         {
             "fresh_process": True,
@@ -131,7 +111,7 @@ def definition_preflight_before_backend(contract_id: str) -> dict[str, Any]:
             "code": "definition_format_incompatible",
         },
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "cases": cases,
@@ -149,9 +129,8 @@ def definition_preflight_before_backend(contract_id: str) -> dict[str, Any]:
 
 
 def inconsistent_history_preflight(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
-        None,
         phase="evaluation",
         error=_error(
             "migration_history_error", "inconsistent_applied_history"
@@ -172,9 +151,8 @@ def inconsistent_history_preflight(contract_id: str) -> dict[str, Any]:
 
 
 def capability_preflight_before_begin(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
-        None,
         phase="evaluation",
         error=_error(
             "migration_capability_error", "unsupported_operation"
@@ -192,9 +170,8 @@ def capability_preflight_before_begin(contract_id: str) -> dict[str, Any]:
 
 
 def middle_failure_durable_prefix(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
-        None,
         phase="rollback",
         error=_error("migration_execution_error", "operation_failed"),
         db_state={
@@ -214,7 +191,7 @@ def middle_failure_durable_prefix(contract_id: str) -> dict[str, Any]:
 
 
 def fresh_resume_after_failure(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
         {
             "committed_prefix_reapplied": False,
@@ -237,9 +214,8 @@ def fresh_resume_after_failure(contract_id: str) -> dict[str, Any]:
 
 
 def commit_outcome_unknown(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
-        None,
         phase="commit",
         error=_error(
             "migration_transaction_error", "commit_outcome_unknown"
@@ -260,7 +236,7 @@ def commit_outcome_unknown(contract_id: str) -> dict[str, Any]:
 
 
 def concurrent_latest_fenced(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
         {
             "corrupt_history": False,
@@ -304,7 +280,7 @@ def backend_configuration_secret_boundary(contract_id: str) -> dict[str, Any]:
             "exit": "nonzero",
         },
     ]
-    return _observed(
+    return observed(
         contract_id,
         {
             "cases": cases,
@@ -323,9 +299,8 @@ def backend_configuration_secret_boundary(contract_id: str) -> dict[str, Any]:
 
 
 def interrupt_rollback_cleanup(contract_id: str) -> dict[str, Any]:
-    return _observed(
+    return observed(
         contract_id,
-        None,
         phase="rollback",
         error=_error(
             "migration_project_process_error", "project_interrupted"

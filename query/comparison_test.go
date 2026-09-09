@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 )
 
@@ -54,7 +55,7 @@ func TestFieldComparisonConditionIsImmutableAndSourceBound(t *testing.T) {
 			if err != nil {
 				t.Fatalf("WithWhere() error = %v", err)
 			}
-			if !plan.Equal(query.NewPlan("article", []query.FieldRef{id, minimum, title, summary}).WithConditions(condition)) {
+			if !plan.Equal(querytest.Conditions(t, query.NewPlan("article", []query.FieldRef{id, minimum, title, summary}), condition)) {
 				t.Fatal("validated and unchecked plans with the same field condition differ")
 			}
 			returned := plan.Conditions()

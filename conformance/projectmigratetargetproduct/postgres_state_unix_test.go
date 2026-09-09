@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"math"
 	"os"
 	"reflect"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 )
 
@@ -28,70 +28,6 @@ type targetPostgresNamespace struct {
 	oid   uint32
 	owner string
 	acl   string
-}
-
-type targetPostgresRelation struct {
-	name string
-	kind string
-}
-
-type targetPostgresColumn struct {
-	table            string
-	ordinal          int
-	name             string
-	typeName         string
-	notNull          bool
-	identity         string
-	generated        string
-	hasDefault       bool
-	defaultCollation bool
-	primary          bool
-}
-
-type targetPostgresConstraint struct {
-	table      string
-	name       string
-	kind       string
-	deferrable bool
-	deferred   bool
-	validated  bool
-	key        string
-	indexName  string
-}
-
-type targetPostgresIndex struct {
-	table          string
-	name           string
-	primary        bool
-	unique         bool
-	valid          bool
-	ready          bool
-	live           bool
-	keyCount       int
-	attributeCount int
-	keys           string
-	method         string
-	hasPredicate   bool
-	hasExpressions bool
-	exclusion      bool
-}
-
-type targetPostgresSequence struct {
-	name        string
-	kind        string
-	persistence string
-	typeName    string
-	start       int64
-	increment   int64
-	minimum     int64
-	maximum     int64
-	cache       int64
-	cycle       bool
-	ownerTable  string
-	ownerColumn string
-	dependency  string
-	last        int64
-	called      bool
 }
 
 type targetPostgresRevision struct {
@@ -108,20 +44,12 @@ type targetPostgresValue struct {
 }
 
 type targetPostgresSnapshot struct {
-	namespace      targetPostgresNamespace
-	tables         []string
-	otherRelations []targetPostgresRelation
-	columns        []targetPostgresColumn
-	constraints    []targetPostgresConstraint
-	indexes        []targetPostgresIndex
-	triggers       int
-	policies       int
-	rules          int
-	counts         map[string]int64
-	history        []dbstate.HistoryRow
-	revisions      []targetPostgresRevision
-	sequences      []targetPostgresSequence
-	values         map[string][]targetPostgresValue
+	dbstate.PostgresCatalog
+	namespace targetPostgresNamespace
+	counts    map[string]int64
+	history   []dbstate.HistoryRow
+	revisions []targetPostgresRevision
+	values    map[string][]targetPostgresValue
 }
 
 func targetPostgresTestURL(t *testing.T) string {
@@ -227,128 +155,13 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		t.Fatalf("inspect targeted migrate PostgreSQL namespace: %v", testfixture.PostgresSafeError(err))
 	}
 
-	rows, err := connection.Query(ctx, `SELECT "c"."relname", "c"."relkind"::text
-		FROM "pg_catalog"."pg_class" AS "c"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
-		WHERE "n"."nspname" = $1 ORDER BY "c"."relkind", "c"."relname"`, schema)
+	snapshot.PostgresCatalog, err = dbstate.CapturePostgresCatalog(ctx, connection, schema)
 	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL relations: %v", testfixture.PostgresSafeError(err))
+		t.Fatalf("inspect targeted migrate PostgreSQL catalog: %v", testfixture.PostgresSafeError(err))
 	}
-	for rows.Next() {
-		var relation targetPostgresRelation
-		if err := rows.Scan(&relation.name, &relation.kind); err != nil {
-			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL relation: %v", testfixture.PostgresSafeError(err))
-		}
-		switch relation.kind {
-		case "r":
-			snapshot.tables = append(snapshot.tables, relation.name)
-		case "i", "S":
-		default:
-			snapshot.otherRelations = append(snapshot.otherRelations, relation)
-		}
-	}
-	targetClosePostgresRows(t, rows, "relations")
+	var rows pgx.Rows
 
-	rows, err = connection.Query(ctx, `SELECT "c"."relname", "a"."attnum", "a"."attname",
-		"pg_catalog"."format_type"("a"."atttypid", "a"."atttypmod"),
-		"a"."attnotnull", "a"."attidentity"::text, "a"."attgenerated"::text,
-		("d"."oid" IS NOT NULL),
-		COALESCE("a"."attcollation" = "type"."typcollation", "a"."attcollation" = 0),
-		EXISTS (SELECT 1 FROM "pg_catalog"."pg_index" AS "i"
-			WHERE "i"."indrelid" = "c"."oid" AND "i"."indisprimary" AND "a"."attnum" = ANY("i"."indkey"))
-		FROM "pg_catalog"."pg_class" AS "c"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
-		JOIN "pg_catalog"."pg_attribute" AS "a" ON "a"."attrelid" = "c"."oid"
-		JOIN "pg_catalog"."pg_type" AS "type" ON "type"."oid" = "a"."atttypid"
-		LEFT JOIN "pg_catalog"."pg_attrdef" AS "d" ON "d"."adrelid" = "a"."attrelid" AND "d"."adnum" = "a"."attnum"
-		WHERE "n"."nspname" = $1 AND "c"."relkind" = 'r' AND "a"."attnum" > 0 AND NOT "a"."attisdropped"
-		ORDER BY "c"."relname", "a"."attnum"`, schema)
-	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL columns: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var column targetPostgresColumn
-		if err := rows.Scan(&column.table, &column.ordinal, &column.name, &column.typeName, &column.notNull,
-			&column.identity, &column.generated, &column.hasDefault, &column.defaultCollation, &column.primary); err != nil {
-			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL column: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.columns = append(snapshot.columns, column)
-	}
-	targetClosePostgresRows(t, rows, "columns")
-
-	rows, err = connection.Query(ctx, `SELECT "table"."relname", "constraint"."conname", "constraint"."contype"::text,
-		"constraint"."condeferrable", "constraint"."condeferred", "constraint"."convalidated",
-		COALESCE("pg_catalog"."array_to_string"("constraint"."conkey", ','), ''),
-		COALESCE("constraint_index"."relname", '')
-		FROM "pg_catalog"."pg_constraint" AS "constraint"
-		JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "constraint"."conrelid"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
-		LEFT JOIN "pg_catalog"."pg_class" AS "constraint_index" ON "constraint_index"."oid" = "constraint"."conindid"
-		WHERE "n"."nspname" = $1 ORDER BY "table"."relname", "constraint"."conname"`, schema)
-	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL constraints: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var constraint targetPostgresConstraint
-		if err := rows.Scan(&constraint.table, &constraint.name, &constraint.kind, &constraint.deferrable,
-			&constraint.deferred, &constraint.validated, &constraint.key, &constraint.indexName); err != nil {
-			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL constraint: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.constraints = append(snapshot.constraints, constraint)
-	}
-	targetClosePostgresRows(t, rows, "constraints")
-
-	rows, err = connection.Query(ctx, `SELECT "table"."relname", "index_class"."relname",
-		"index"."indisprimary", "index"."indisunique", "index"."indisvalid", "index"."indisready", "index"."indislive",
-		"index"."indnkeyatts"::integer, "index"."indnatts"::integer,
-		COALESCE((SELECT "pg_catalog"."string_agg"("attribute"."attname", ',' ORDER BY "key"."ordinality")
-			FROM "pg_catalog"."unnest"("index"."indkey"::smallint[]) WITH ORDINALITY AS "key"("attribute_number", "ordinality")
-			JOIN "pg_catalog"."pg_attribute" AS "attribute" ON "attribute"."attrelid" = "index"."indrelid"
-				AND "attribute"."attnum" = "key"."attribute_number"
-			WHERE "key"."ordinality" <= "index"."indnkeyatts"), ''),
-		"access_method"."amname", ("index"."indpred" IS NOT NULL), ("index"."indexprs" IS NOT NULL), "index"."indisexclusion"
-		FROM "pg_catalog"."pg_index" AS "index"
-		JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "index"."indrelid"
-		JOIN "pg_catalog"."pg_class" AS "index_class" ON "index_class"."oid" = "index"."indexrelid"
-		JOIN "pg_catalog"."pg_am" AS "access_method" ON "access_method"."oid" = "index_class"."relam"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace"
-		WHERE "n"."nspname" = $1 ORDER BY "table"."relname", "index_class"."relname"`, schema)
-	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL indexes: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var index targetPostgresIndex
-		if err := rows.Scan(&index.table, &index.name, &index.primary, &index.unique, &index.valid, &index.ready, &index.live,
-			&index.keyCount, &index.attributeCount, &index.keys, &index.method, &index.hasPredicate,
-			&index.hasExpressions, &index.exclusion); err != nil {
-			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL index: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.indexes = append(snapshot.indexes, index)
-	}
-	targetClosePostgresRows(t, rows, "indexes")
-
-	if err := connection.QueryRow(ctx, `SELECT
-		(SELECT COUNT(*) FROM "pg_catalog"."pg_trigger" AS "trigger"
-			JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "trigger"."tgrelid"
-			JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace" WHERE "n"."nspname" = $1),
-		(SELECT COUNT(*) FROM "pg_catalog"."pg_policy" AS "policy"
-			JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "policy"."polrelid"
-			JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace" WHERE "n"."nspname" = $1),
-		(SELECT COUNT(*) FROM "pg_catalog"."pg_rewrite" AS "rule"
-			JOIN "pg_catalog"."pg_class" AS "table" ON "table"."oid" = "rule"."ev_class"
-			JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "table"."relnamespace" WHERE "n"."nspname" = $1)`, schema).Scan(
-		&snapshot.triggers,
-		&snapshot.policies,
-		&snapshot.rules,
-	); err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL trigger/policy/rule counts: %v", testfixture.PostgresSafeError(err))
-	}
-
-	for _, table := range snapshot.tables {
+	for _, table := range snapshot.Tables {
 		quoted := pgx.Identifier{schema, table}.Sanitize()
 		var count int64
 		if err := connection.QueryRow(ctx, "SELECT COUNT(*) FROM "+quoted).Scan(&count); err != nil {
@@ -408,43 +221,6 @@ func targetCapturePostgres(t *testing.T, databaseURL, schema string) targetPostg
 		targetClosePostgresRows(t, rows, "revision")
 	}
 
-	rows, err = connection.Query(ctx, `SELECT "c"."relname", "c"."relkind"::text, "c"."relpersistence"::text,
-		"pg_catalog"."format_type"("s"."seqtypid", NULL), "s"."seqstart", "s"."seqincrement", "s"."seqmin",
-		"s"."seqmax", "s"."seqcache", "s"."seqcycle", COALESCE("owner_table"."relname", ''),
-		COALESCE("owner_column"."attname", ''), COALESCE("dependency"."deptype"::text, '')
-		FROM "pg_catalog"."pg_sequence" AS "s"
-		JOIN "pg_catalog"."pg_class" AS "c" ON "c"."oid" = "s"."seqrelid"
-		JOIN "pg_catalog"."pg_namespace" AS "n" ON "n"."oid" = "c"."relnamespace"
-		LEFT JOIN "pg_catalog"."pg_depend" AS "dependency" ON "dependency"."classid" = 'pg_catalog.pg_class'::regclass
-			AND "dependency"."objid" = "c"."oid" AND "dependency"."refclassid" = 'pg_catalog.pg_class'::regclass
-			AND "dependency"."deptype" IN ('a', 'i')
-		LEFT JOIN "pg_catalog"."pg_class" AS "owner_table" ON "owner_table"."oid" = "dependency"."refobjid"
-		LEFT JOIN "pg_catalog"."pg_attribute" AS "owner_column" ON "owner_column"."attrelid" = "dependency"."refobjid"
-			AND "owner_column"."attnum" = "dependency"."refobjsubid"
-		WHERE "n"."nspname" = $1 ORDER BY "c"."relname"`, schema)
-	if err != nil {
-		t.Fatalf("inspect targeted migrate PostgreSQL sequences: %v", testfixture.PostgresSafeError(err))
-	}
-	for rows.Next() {
-		var sequence targetPostgresSequence
-		if err := rows.Scan(&sequence.name, &sequence.kind, &sequence.persistence, &sequence.typeName, &sequence.start,
-			&sequence.increment, &sequence.minimum, &sequence.maximum, &sequence.cache, &sequence.cycle,
-			&sequence.ownerTable, &sequence.ownerColumn, &sequence.dependency); err != nil {
-			rows.Close()
-			t.Fatalf("scan targeted migrate PostgreSQL sequence: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.sequences = append(snapshot.sequences, sequence)
-	}
-	targetClosePostgresRows(t, rows, "sequences")
-	for index := range snapshot.sequences {
-		quoted := pgx.Identifier{schema, snapshot.sequences[index].name}.Sanitize()
-		if err := connection.QueryRow(ctx, "SELECT last_value, is_called FROM "+quoted).Scan(
-			&snapshot.sequences[index].last,
-			&snapshot.sequences[index].called,
-		); err != nil {
-			t.Fatalf("inspect targeted migrate PostgreSQL sequence state: %v", testfixture.PostgresSafeError(err))
-		}
-	}
 	return snapshot
 }
 
@@ -460,7 +236,7 @@ func targetClosePostgresRows(t *testing.T, rows pgx.Rows, operation string) {
 }
 
 func targetPostgresHasTable(snapshot targetPostgresSnapshot, table string) bool {
-	for _, candidate := range snapshot.tables {
+	for _, candidate := range snapshot.Tables {
 		if candidate == table {
 			return true
 		}
@@ -470,11 +246,11 @@ func targetPostgresHasTable(snapshot targetPostgresSnapshot, table string) bool 
 
 func targetAssertPostgresEmpty(t *testing.T, snapshot targetPostgresSnapshot) {
 	t.Helper()
-	if snapshot.namespace.oid == 0 || snapshot.namespace.owner == "" || len(snapshot.tables) != 0 ||
-		len(snapshot.otherRelations) != 0 || len(snapshot.columns) != 0 || len(snapshot.constraints) != 0 ||
-		len(snapshot.indexes) != 0 || snapshot.triggers != 0 || snapshot.policies != 0 || snapshot.rules != 0 ||
+	if snapshot.namespace.oid == 0 || snapshot.namespace.owner == "" || len(snapshot.Tables) != 0 ||
+		len(snapshot.OtherRelations) != 0 || len(snapshot.Columns) != 0 || len(snapshot.Constraints) != 0 ||
+		len(snapshot.Indexes) != 0 || snapshot.Triggers != 0 || snapshot.Policies != 0 || snapshot.Rules != 0 ||
 		len(snapshot.counts) != 0 || len(snapshot.history) != 0 || len(snapshot.revisions) != 0 ||
-		len(snapshot.sequences) != 0 || len(snapshot.values) != 0 {
+		len(snapshot.Sequences) != 0 || len(snapshot.values) != 0 {
 		t.Fatalf("fresh targeted migrate PostgreSQL schema is not exact and empty: %+v", snapshot)
 	}
 }
@@ -500,20 +276,20 @@ func targetAssertPostgresState(
 	snapshot := targetCapturePostgres(t, databaseURL, schema)
 	wantTables := append([]string{"godj_migration_revision", "godj_migrations"}, tables...)
 	sort.Strings(wantTables)
-	if !reflect.DeepEqual(snapshot.tables, wantTables) || len(snapshot.otherRelations) != 0 {
-		t.Fatalf("targeted migrate PostgreSQL tables/other relations = %v/%v, want exact %v/empty", snapshot.tables, snapshot.otherRelations, wantTables)
+	if !reflect.DeepEqual(snapshot.Tables, wantTables) || len(snapshot.OtherRelations) != 0 {
+		t.Fatalf("targeted migrate PostgreSQL tables/other relations = %v/%v, want exact %v/empty", snapshot.Tables, snapshot.OtherRelations, wantTables)
 	}
-	if !reflect.DeepEqual(snapshot.columns, targetExpectedPostgresColumns(tables)) {
-		t.Fatalf("targeted migrate PostgreSQL columns differ from exact current profile: %+v", snapshot.columns)
+	if !reflect.DeepEqual(snapshot.Columns, targetExpectedPostgresColumns(tables)) {
+		t.Fatalf("targeted migrate PostgreSQL columns differ from exact current profile: %+v", snapshot.Columns)
 	}
-	if !reflect.DeepEqual(snapshot.constraints, targetExpectedPostgresConstraints(tables)) {
-		t.Fatalf("targeted migrate PostgreSQL constraints differ from exact current profile: %+v", snapshot.constraints)
+	if !reflect.DeepEqual(snapshot.Constraints, targetExpectedPostgresConstraints(tables)) {
+		t.Fatalf("targeted migrate PostgreSQL constraints differ from exact current profile: %+v", snapshot.Constraints)
 	}
-	if !reflect.DeepEqual(snapshot.indexes, targetExpectedPostgresIndexes(tables)) {
-		t.Fatalf("targeted migrate PostgreSQL indexes differ from exact current profile: %+v", snapshot.indexes)
+	if !reflect.DeepEqual(snapshot.Indexes, targetExpectedPostgresIndexes(tables)) {
+		t.Fatalf("targeted migrate PostgreSQL indexes differ from exact current profile: %+v", snapshot.Indexes)
 	}
-	if snapshot.triggers != 0 || snapshot.policies != 0 || snapshot.rules != 0 {
-		t.Fatalf("targeted migrate PostgreSQL trigger/policy/rule counts = %d/%d/%d, want zero", snapshot.triggers, snapshot.policies, snapshot.rules)
+	if snapshot.Triggers != 0 || snapshot.Policies != 0 || snapshot.Rules != 0 {
+		t.Fatalf("targeted migrate PostgreSQL trigger/policy/rule counts = %d/%d/%d, want zero", snapshot.Triggers, snapshot.Policies, snapshot.Rules)
 	}
 	canonicalHistory := append([]dbstate.HistoryRow(nil), history...)
 	sort.Slice(canonicalHistory, func(left, right int) bool {
@@ -547,20 +323,20 @@ func targetAssertPostgresState(
 	if !reflect.DeepEqual(snapshot.counts, wantCounts) || !reflect.DeepEqual(snapshot.values, wantValues) {
 		t.Fatalf("targeted migrate PostgreSQL counts/values = %+v/%+v, want %+v/%+v", snapshot.counts, snapshot.values, wantCounts, wantValues)
 	}
-	if !reflect.DeepEqual(snapshot.sequences, targetExpectedPostgresSequences(tables, wantValues)) {
-		t.Fatalf("targeted migrate PostgreSQL sequences differ from exact AutoField profile: %+v", snapshot.sequences)
+	if !reflect.DeepEqual(snapshot.Sequences, targetExpectedPostgresSequences(tables, wantValues)) {
+		t.Fatalf("targeted migrate PostgreSQL sequences differ from exact AutoField profile: %+v", snapshot.Sequences)
 	}
 	return snapshot
 }
 
-func targetExpectedPostgresColumns(tables []string) []targetPostgresColumn {
-	column := func(table string, ordinal int, name, typeName string, notNull bool, identity string, primary bool) targetPostgresColumn {
-		return targetPostgresColumn{
-			table: table, ordinal: ordinal, name: name, typeName: typeName, notNull: notNull,
-			identity: identity, defaultCollation: true, primary: primary,
+func targetExpectedPostgresColumns(tables []string) []dbstate.PostgresColumn {
+	column := func(table string, ordinal int, name, typeName string, notNull bool, identity string, primary bool) dbstate.PostgresColumn {
+		return dbstate.PostgresColumn{
+			Table: table, Ordinal: ordinal, Name: name, DataType: typeName, NotNull: notNull,
+			Identity: identity, DefaultCollation: true, Primary: primary,
 		}
 	}
-	result := []targetPostgresColumn{
+	result := []dbstate.PostgresColumn{
 		column("godj_migration_revision", 1, "singleton", "smallint", true, "", true),
 		column("godj_migration_revision", 2, "format_version", "integer", true, "", false),
 		column("godj_migration_revision", 3, "epoch", "bytea", true, "", false),
@@ -576,19 +352,19 @@ func targetExpectedPostgresColumns(tables []string) []targetPostgresColumn {
 		)
 	}
 	sort.Slice(result, func(left, right int) bool {
-		if result[left].table != result[right].table {
-			return result[left].table < result[right].table
+		if result[left].Table != result[right].Table {
+			return result[left].Table < result[right].Table
 		}
-		return result[left].ordinal < result[right].ordinal
+		return result[left].Ordinal < result[right].Ordinal
 	})
 	return result
 }
 
-func targetExpectedPostgresConstraints(tables []string) []targetPostgresConstraint {
-	primary := func(table, name, key string) targetPostgresConstraint {
-		return targetPostgresConstraint{table: table, name: name, kind: "p", validated: true, key: key, indexName: name}
+func targetExpectedPostgresConstraints(tables []string) []dbstate.PostgresConstraint {
+	primary := func(table, name, key string) dbstate.PostgresConstraint {
+		return dbstate.PostgresConstraint{Table: table, Name: name, Kind: "p", Validated: true, Key: key, IndexName: name}
 	}
-	result := []targetPostgresConstraint{
+	result := []dbstate.PostgresConstraint{
 		primary("godj_migration_revision", "godj_migration_revision_pkey", "1"),
 		primary("godj_migrations", "godj_migrations_pkey", "1,2"),
 	}
@@ -596,22 +372,22 @@ func targetExpectedPostgresConstraints(tables []string) []targetPostgresConstrai
 		result = append(result, primary(table, targetPostgresDerivedName("godj/postgres/primary-key/v1", "godj_pk_", table), "1"))
 	}
 	sort.Slice(result, func(left, right int) bool {
-		if result[left].table != result[right].table {
-			return result[left].table < result[right].table
+		if result[left].Table != result[right].Table {
+			return result[left].Table < result[right].Table
 		}
-		return result[left].name < result[right].name
+		return result[left].Name < result[right].Name
 	})
 	return result
 }
 
-func targetExpectedPostgresIndexes(tables []string) []targetPostgresIndex {
-	primary := func(table, name, keys string, count int) targetPostgresIndex {
-		return targetPostgresIndex{
-			table: table, name: name, primary: true, unique: true, valid: true, ready: true, live: true,
-			keyCount: count, attributeCount: count, keys: keys, method: "btree",
+func targetExpectedPostgresIndexes(tables []string) []dbstate.PostgresIndex {
+	primary := func(table, name, keys string, count int) dbstate.PostgresIndex {
+		return dbstate.PostgresIndex{
+			Table: table, Name: name, Primary: true, Unique: true, Valid: true, Ready: true, Live: true,
+			KeyCount: count, AttributeCount: count, Keys: keys, Method: "btree",
 		}
 	}
-	result := []targetPostgresIndex{
+	result := []dbstate.PostgresIndex{
 		primary("godj_migration_revision", "godj_migration_revision_pkey", "singleton", 1),
 		primary("godj_migrations", "godj_migrations_pkey", "app,name", 2),
 	}
@@ -619,16 +395,16 @@ func targetExpectedPostgresIndexes(tables []string) []targetPostgresIndex {
 		result = append(result, primary(table, targetPostgresDerivedName("godj/postgres/primary-key/v1", "godj_pk_", table), "id", 1))
 	}
 	sort.Slice(result, func(left, right int) bool {
-		if result[left].table != result[right].table {
-			return result[left].table < result[right].table
+		if result[left].Table != result[right].Table {
+			return result[left].Table < result[right].Table
 		}
-		return result[left].name < result[right].name
+		return result[left].Name < result[right].Name
 	})
 	return result
 }
 
-func targetExpectedPostgresSequences(tables []string, values map[string][]targetPostgresValue) []targetPostgresSequence {
-	result := make([]targetPostgresSequence, 0, len(tables))
+func targetExpectedPostgresSequences(tables []string, values map[string][]targetPostgresValue) []dbstate.PostgresSequence {
+	result := make([]dbstate.PostgresSequence, 0, len(tables))
 	for _, table := range tables {
 		last := int64(1)
 		called := false
@@ -636,14 +412,14 @@ func targetExpectedPostgresSequences(tables []string, values map[string][]target
 			last = rows[len(rows)-1].id
 			called = true
 		}
-		result = append(result, targetPostgresSequence{
-			name: targetPostgresDerivedName("godj/postgres/identity-sequence/v1", "godj_seq_", table, "id"),
-			kind: "S", persistence: "p", typeName: "bigint", start: 1, increment: 1, minimum: 1,
-			maximum: math.MaxInt64, cache: 1, ownerTable: table, ownerColumn: "id", dependency: "i",
-			last: last, called: called,
+		result = append(result, dbstate.PostgresSequence{
+			Name: targetPostgresDerivedName("godj/postgres/identity-sequence/v1", "godj_seq_", table, "id"),
+			Kind: "S", Persistence: "p", DataType: "bigint", Start: 1, Increment: 1, Minimum: 1,
+			Maximum: math.MaxInt64, Cache: 1, OwnerTable: table, OwnerColumn: "id", Dependency: "i",
+			Last: last, Called: called,
 		})
 	}
-	sort.Slice(result, func(left, right int) bool { return result[left].name < result[right].name })
+	sort.Slice(result, func(left, right int) bool { return result[left].Name < result[right].Name })
 	return result
 }
 

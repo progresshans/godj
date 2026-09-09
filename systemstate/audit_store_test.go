@@ -122,6 +122,37 @@ func TestRuntimeAuditAppendRollbackAndPruneFailureAreAtomic(t *testing.T) {
 	}
 }
 
+func TestRuntimeAuditPruneRejectsNonpositiveSequenceAndRollsBackAppend(t *testing.T) {
+	ctx := context.Background()
+	backend := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "audit-sequence.sqlite3")))
+	t.Cleanup(func() { _ = backend.Close() })
+	explicitlyMigrateSystemState(t, ctx, backend)
+	runtime := mustAuditRuntime(t, ctx, backend, 2)
+	for id := int64(1); id <= 2; id++ {
+		if err := appendRuntimeAudit(ctx, runtime, mustPreparedAuditEvent(t, "operator", id, admin.ActionAdd, nil, "Seed")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Simulate an uncooperative writer after open-time validation. MIN must
+	// still validate the retained prefix, including a non-victim sequence.
+	if _, err := backend.ExecContext(ctx, `UPDATE "`+auditTableName+`" SET "id" = 0 WHERE "id" = 1`); err != nil {
+		t.Fatal(err)
+	}
+	before, err := inspectAllAuditRows(ctx, backend, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = appendRuntimeAudit(ctx, runtime, mustPreparedAuditEvent(t, "operator", 3, admin.ActionAdd, nil, "Rejected"))
+	var classified *Error
+	if !errors.As(err, &classified) || classified.Code != CodeCorruptState {
+		t.Fatalf("corrupt sequence append = %v", err)
+	}
+	after, err := inspectAllAuditRows(ctx, backend, 3)
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatalf("append changed corrupt history: before=%v after=%v error=%v", before, after, err)
+	}
+}
+
 func TestRuntimeOpenRejectsCorruptAndOverCapacityAuditWithoutMutation(t *testing.T) {
 	ctx := context.Background()
 	t.Run("corrupt later row", func(t *testing.T) {

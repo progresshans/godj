@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/internal/querytest"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -19,11 +20,12 @@ func TestCompilePredicatesOrderingAndLimit(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
-	plan := query.NewPlan("news_article", []query.FieldRef{id, title, published}).
-		WithConditions(
-			query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
-			query.NewCondition(published, query.LookupExact, query.Boolean(true)),
-		).
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published}),
+		query.NewCondition(title, query.LookupIContains, query.String(`50%_Go\SQL`)),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(title, query.Descending), query.NewOrdering(id, query.Ascending))
 	plan, err := plan.WithLimit(2)
 	if err != nil {
@@ -54,8 +56,11 @@ func TestCompileScalarProjectionUsesExpressionOrderAndSourceMetadata(t *testing.
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, title, published}).
-		WithConditions(query.NewCondition(published, query.LookupExact, query.Boolean(true))).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published}),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(published, query.Descending)).
 		WithResultShape(result)
 	if err != nil {
@@ -85,11 +90,12 @@ func TestCompileDistinctProjectionLimitOffsetPreservesArgumentOrder(t *testing.T
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, title, published}).
-		WithConditions(
-			query.NewCondition(title, query.LookupIContains, query.String("Go")),
-			query.NewCondition(published, query.LookupExact, query.Boolean(true)),
-		).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published}),
+		query.NewCondition(title, query.LookupIContains, query.String("Go")),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(title, query.Ascending), query.NewOrdering(id, query.Descending)).
 		WithDistinct().
 		WithResultShape(result)
@@ -182,8 +188,11 @@ func TestCompileAggregateWrapsTheSlicedLogicalSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAggregateResult() error = %v", err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, title, summary, published}).
-		WithConditions(query.NewCondition(published, query.LookupExact, query.Boolean(true))).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, summary, published}),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(id, query.Descending)).
 		WithDistinct().
 		WithResultShape(result)
@@ -227,11 +236,12 @@ func TestCompileSimpleAggregateUsesDirectSourceAndDropsOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAggregateResult() error = %v", err)
 	}
-	plan, err := query.NewPlan("news_article", []query.FieldRef{id, summary, published}).
-		WithConditions(
-			query.NewCondition(published, query.LookupExact, query.Boolean(true)),
-			query.NewCondition(summary, query.LookupIContains, query.String("Go")),
-		).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, summary, published}),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+		query.NewCondition(summary, query.LookupIContains, query.String("Go")),
+	).
 		WithOrderings(query.NewOrdering(id, query.Descending)).
 		WithResultShape(result)
 	if err != nil {
@@ -360,9 +370,13 @@ func TestCompileRejectsInvalidReadSourceMetadataForScalarAndRelation(t *testing.
 		},
 	}
 
-	relatedPath := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
+	projection := forwardProjection(t, query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.NewFieldRef("id", "id", query.FieldInteger, false), []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)})
 	for _, test := range tests {
 		test := test
+		relationPlan, err := query.NewPlan("blog_post", test.fields).WithRelationProjection(projection)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for _, compilerPath := range []struct {
 			name string
 			plan query.Plan
@@ -370,9 +384,7 @@ func TestCompileRejectsInvalidReadSourceMetadataForScalarAndRelation(t *testing.
 			{name: "scalar", plan: query.NewPlan("news_article", test.fields)},
 			{
 				name: "relation",
-				plan: query.NewPlan("blog_post", test.fields).WithConditions(
-					query.NewRelatedCondition(relatedPath, query.LookupExact, query.String("Ada")),
-				),
+				plan: relationPlan,
 			},
 		} {
 			compilerPath := compilerPath
@@ -410,14 +422,16 @@ func TestCompileReadSourceMetadataRetainsSQLiteIdentifierQuoting(t *testing.T) {
 	}
 
 	relatedPath := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
-	relationPlan := query.NewPlan("blog_post", []query.FieldRef{field}).WithConditions(
+	relationPlan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{field, query.NewFieldRef("author", "author_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(relatedPath, query.LookupExact, query.String("Ada")),
 	)
 	relationSQL, relationArguments, err := sqlite.Compile(relationPlan)
 	if err != nil {
 		t.Fatalf("Compile(relation) error = %v", err)
 	}
-	wantRelation := `SELECT "t0"."select ""value""" FROM "blog_post" AS "t0" ` +
+	wantRelation := `SELECT "t0"."select ""value""", "t0"."author_id" FROM "blog_post" AS "t0" ` +
 		`INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t1"."name" = ?`
 	if relationSQL != wantRelation {
 		t.Fatalf("relation SQL = %q, want %q", relationSQL, wantRelation)
@@ -441,17 +455,16 @@ func TestBackendRejectsInvalidReadSourceMetadataBeforeIO(t *testing.T) {
 		}
 	})
 
-	relatedPath := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
+	projection := forwardProjection(t, query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.NewFieldRef("id", "id", query.FieldInteger, false), []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)})
+	relationPlan, err := query.NewPlan("missing_relation_table", []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false), query.NewFieldRef("alias", "ID", query.FieldInteger, false)}).WithRelationProjection(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
 	plans := []query.Plan{
 		query.NewPlan("missing_scalar_table", []query.FieldRef{
 			query.NewFieldRef("", "id", query.FieldInteger, false),
 		}),
-		query.NewPlan("missing_relation_table", []query.FieldRef{
-			query.NewFieldRef("id", "id", query.FieldInteger, false),
-			query.NewFieldRef("alias", "ID", query.FieldInteger, false),
-		}).WithConditions(
-			query.NewRelatedCondition(relatedPath, query.LookupExact, query.String("Ada")),
-		),
+		relationPlan,
 	}
 	for index, plan := range plans {
 		rows, queryErr := backend.Query(ctx, plan)
@@ -566,8 +579,7 @@ func TestCompiledDirectAggregatePreservesEmptyNullableMax(t *testing.T) {
 		t.Fatalf("NewAggregateResult() error = %v", err)
 	}
 	base := query.NewPlan("compiler_direct_aggregate", []query.FieldRef{id, summary, published})
-	filtered, err := base.
-		WithConditions(query.NewCondition(published, query.LookupExact, query.Boolean(true))).
+	filtered, err := querytest.Conditions(t, base, query.NewCondition(published, query.LookupExact, query.Boolean(true))).
 		WithOrderings(query.NewOrdering(id, query.Descending)).
 		WithResultShape(result)
 	if err != nil {
@@ -593,8 +605,7 @@ func TestCompiledDirectAggregatePreservesEmptyNullableMax(t *testing.T) {
 		t.Fatalf("Rows.Close(filtered) = %v", closeErr)
 	}
 
-	empty, err := base.
-		WithConditions(query.NewCondition(summary, query.LookupExact, query.String("missing"))).
+	empty, err := querytest.Conditions(t, base, query.NewCondition(summary, query.LookupExact, query.String("missing"))).
 		WithResultShape(result)
 	if err != nil {
 		t.Fatalf("WithResultShape(empty) error = %v", err)
@@ -626,7 +637,9 @@ func TestCompileProjectionAndAggregateRejectRelationPaths(t *testing.T) {
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 	path := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
-	base := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}).WithConditions(
+	base := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}),
 		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
 	)
 	projection, err := query.NewProjectionResult(id, title)
@@ -657,8 +670,11 @@ func TestCompileRelationModelSupportsDistinctAndOffset(t *testing.T) {
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 	path := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
-	plan, err := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}).
-		WithConditions(query.NewRelatedCondition(path, query.LookupExact, query.String("Ada"))).
+	plan, err := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}),
+		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
+	).
 		WithOrderings(query.NewOrdering(id, query.Ascending)).
 		WithDistinct().
 		WithOffset(3)
@@ -708,8 +724,11 @@ func TestCompiledProjectionAndAggregateExecuteWithSQLiteSemantics(t *testing.T) 
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
-	projected, err := query.NewPlan("compiler_article", []query.FieldRef{id, title, published}).
-		WithConditions(query.NewCondition(published, query.LookupExact, query.Boolean(true))).
+	projected, err := querytest.Conditions(
+		t,
+		query.NewPlan("compiler_article", []query.FieldRef{id, title, published}),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(title, query.Ascending)).
 		WithDistinct().
 		WithResultShape(projection)
@@ -750,8 +769,11 @@ func TestCompiledProjectionAndAggregateExecuteWithSQLiteSemantics(t *testing.T) 
 	if err != nil {
 		t.Fatalf("NewAggregateResult() error = %v", err)
 	}
-	aggregated, err := query.NewPlan("compiler_article", []query.FieldRef{id, title, published}).
-		WithConditions(query.NewCondition(published, query.LookupExact, query.Boolean(true))).
+	aggregated, err := querytest.Conditions(
+		t,
+		query.NewPlan("compiler_article", []query.FieldRef{id, title, published}),
+		query.NewCondition(published, query.LookupExact, query.Boolean(true)),
+	).
 		WithOrderings(query.NewOrdering(id, query.Ascending)).
 		WithDistinct().
 		WithResultShape(aggregate)
@@ -793,7 +815,9 @@ func TestCompiledProjectionAndAggregateExecuteWithSQLiteSemantics(t *testing.T) 
 		t.Fatalf("Rows.Close(aggregate) = %v", closeErr)
 	}
 
-	empty := query.NewPlan("compiler_article", []query.FieldRef{id, title, published}).WithConditions(
+	empty := querytest.Conditions(
+		t,
+		query.NewPlan("compiler_article", []query.FieldRef{id, title, published}),
 		query.NewCondition(title, query.LookupExact, query.String("missing")),
 	)
 	empty, err = empty.WithResultShape(aggregate)
@@ -831,7 +855,9 @@ func TestCompileIsNullHasNoBoundArgument(t *testing.T) {
 	t.Parallel()
 
 	summary := query.NewFieldRef("summary", "summary", query.FieldString, true)
-	plan := query.NewPlan("news_article", []query.FieldRef{summary}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{summary}),
 		query.NewCondition(summary, query.LookupIsNull, query.Boolean(false)),
 	)
 	statement, arguments, err := sqlite.Compile(plan)
@@ -868,8 +894,13 @@ func TestCompileRootInConditionsPreserveValueOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewInCondition(published) error = %v", err)
 	}
-	plan := query.NewPlan("news_article", []query.FieldRef{id, title, published}).
-		WithConditions(idIn, titleIn, publishedIn).
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("news_article", []query.FieldRef{id, title, published}),
+		idIn,
+		titleIn,
+		publishedIn,
+	).
 		WithOrderings(query.NewOrdering(id, query.Ascending))
 
 	statement, arguments, err := sqlite.Compile(plan)
@@ -890,31 +921,30 @@ func TestCompileRejectsScalarAndRelatedInConditions(t *testing.T) {
 	t.Parallel()
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
-	_, _, err := sqlite.Compile(query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(
+	_, _, err := compileConditions(
+		query.NewPlan("news_article", []query.FieldRef{id}),
 		query.NewCondition(id, query.LookupIn, query.Integer(1)),
-	))
+	)
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("scalar IN error = %v, want query invalid_plan", err)
 	}
 
 	authorNamePath := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
-	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+	_, _, err = compileConditions(
+		query.NewPlan("blog_post", []query.FieldRef{id}),
 		query.NewRelatedCondition(authorNamePath, query.LookupIn, query.String("Ada")),
-	))
+	)
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("related IN error = %v, want query invalid_plan", err)
 	}
 }
 
-func TestCompileRejectsConditionFromOtherModel(t *testing.T) {
+func TestConditionConstructionRejectsFieldFromOtherModel(t *testing.T) {
 	t.Parallel()
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	otherID := query.NewFieldRef("id", "other_id", query.FieldInteger, false)
-	plan := query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(
-		query.NewCondition(otherID, query.LookupExact, query.Integer(1)),
-	)
-	_, _, err := sqlite.Compile(plan)
+	_, err := query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(query.NewCondition(otherID, query.LookupExact, query.Integer(1)))
 	var queryError *query.Error
 	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
 		t.Fatalf("error = %v, want invalid_plan", err)
@@ -929,7 +959,9 @@ func TestCompileRequiredForwardRelationQualifiesAndReusesJoin(t *testing.T) {
 	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 	authorNamePath := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
 	authorIDPath := requiredAuthorPath(t, query.NewFieldRef("id", "id", query.FieldInteger, false))
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}),
 		query.NewRelatedCondition(authorNamePath, query.LookupExact, query.String("Ada")),
 		query.NewRelatedCondition(authorIDPath, query.LookupExact, query.Integer(1)),
 	).WithOrderings(query.NewOrdering(id, query.Ascending))
@@ -956,7 +988,9 @@ func TestCompileReverseRelationInvertsRootAndReusesJoin(t *testing.T) {
 		query.NewFieldRef("title", "title", query.FieldString, false))
 	postIDPath := reversePostsPath(t, "authors_author", "author", "author_id", "posts", false,
 		query.NewFieldRef("id", "id", query.FieldInteger, false))
-	plan := query.NewPlan("authors_author", []query.FieldRef{id, name}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("authors_author", []query.FieldRef{id, name}),
 		query.NewRelatedCondition(titlePath, query.LookupExact, query.String("Alpha")),
 		query.NewRelatedCondition(postIDPath, query.LookupExact, query.Integer(10)),
 	).WithOrderings(query.NewOrdering(id, query.Ascending))
@@ -980,7 +1014,9 @@ func TestCompileNullableReverseTargetPredicateStillUsesInnerJoin(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	path := reversePostsPath(t, "authors_author", "reviewer", "reviewer_id", "reviewed_posts", true,
 		query.NewFieldRef("title", "title", query.FieldString, false))
-	plan := query.NewPlan("authors_author", []query.FieldRef{id}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("authors_author", []query.FieldRef{id}),
 		query.NewRelatedCondition(path, query.LookupExact, query.String("Gamma")),
 	)
 
@@ -1017,7 +1053,9 @@ func TestCompileForwardAndReverseSelfEdgesHaveDistinctJoinKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("people_person", []query.FieldRef{id, name}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("people_person", []query.FieldRef{id, name, query.NewFieldRef("manager", "manager_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(forward, query.LookupExact, query.String("Ada")),
 		query.NewRelatedCondition(reverse, query.LookupExact, query.String("Bob")),
 	)
@@ -1026,7 +1064,7 @@ func TestCompileForwardAndReverseSelfEdgesHaveDistinctJoinKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT "t0"."id", "t0"."name" FROM "people_person" AS "t0" INNER JOIN "people_person" AS "t1" ON "t0"."manager_id" = "t1"."id" INNER JOIN "people_person" AS "t2" ON "t0"."id" = "t2"."manager_id" WHERE ("t1"."name" = ? AND "t2"."name" = ?)`
+	wantSQL := `SELECT "t0"."id", "t0"."name", "t0"."manager_id" FROM "people_person" AS "t0" INNER JOIN "people_person" AS "t1" ON "t0"."manager_id" = "t1"."id" INNER JOIN "people_person" AS "t2" ON "t0"."id" = "t2"."manager_id" WHERE ("t1"."name" = ? AND "t2"."name" = ?)`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -1041,15 +1079,17 @@ func TestCompileReverseRelationRejectsRootMismatchAndNonExact(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	terminal := query.NewFieldRef("title", "title", query.FieldString, false)
 	wrongRoot := reversePostsPath(t, "other_author", "author", "author_id", "posts", false, terminal)
-	_, _, err := sqlite.Compile(query.NewPlan("authors_author", []query.FieldRef{id}).WithConditions(
+	_, _, err := compileConditions(
+		query.NewPlan("authors_author", []query.FieldRef{id}),
 		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Alpha")),
-	))
+	)
 	assertQueryCode(t, err, query.CodeInvalidPlan)
 
 	path := reversePostsPath(t, "authors_author", "author", "author_id", "posts", false, terminal)
-	_, _, err = sqlite.Compile(query.NewPlan("authors_author", []query.FieldRef{id}).WithConditions(
+	_, _, err = compileConditions(
+		query.NewPlan("authors_author", []query.FieldRef{id}),
 		query.NewRelatedCondition(path, query.LookupIContains, query.String("Alpha")),
-	))
+	)
 	assertQueryCode(t, err, query.CodeUnsupported)
 }
 
@@ -1068,11 +1108,15 @@ func TestCompileRelationJoinAliasesAreCanonicalRatherThanConditionOrdered(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	left := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+	left := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.NewFieldRef("editor", "editor_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(editor, query.LookupExact, query.String("Bob")),
 		query.NewRelatedCondition(author, query.LookupExact, query.String("Ada")),
 	)
-	right := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+	right := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.NewFieldRef("editor", "editor_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(author, query.LookupExact, query.String("Ada")),
 		query.NewRelatedCondition(editor, query.LookupExact, query.String("Bob")),
 	)
@@ -1104,9 +1148,10 @@ func TestCompileRelationRejectsRootMismatchAndConflictingRepeatedEdge(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+	_, _, err = compileConditions(
+		query.NewPlan("blog_post", []query.FieldRef{id}),
 		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Ada")),
-	))
+	)
 	assertQueryCode(t, err, query.CodeInvalidPlan)
 
 	first := requiredAuthorPath(t, terminal)
@@ -1119,10 +1164,11 @@ func TestCompileRelationRejectsRootMismatchAndConflictingRepeatedEdge(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+	_, _, err = compileConditions(
+		query.NewPlan("blog_post", []query.FieldRef{id}),
 		query.NewRelatedCondition(first, query.LookupExact, query.String("Ada")),
 		query.NewRelatedCondition(conflict, query.LookupExact, query.String("Ada")),
-	))
+	)
 	assertQueryCode(t, err, query.CodeInvalidPlan)
 }
 
@@ -1131,14 +1177,16 @@ func TestCompileRelationRejectsNonExactAndWrongValueKind(t *testing.T) {
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	path := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
-	_, _, err := sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+	_, _, err := compileConditions(
+		query.NewPlan("blog_post", []query.FieldRef{id, query.NewFieldRef("author", "author_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(path, query.LookupIContains, query.String("Ada")),
-	))
+	)
 	assertQueryCode(t, err, query.CodeUnsupported)
 
-	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+	_, _, err = compileConditions(
+		query.NewPlan("blog_post", []query.FieldRef{id, query.NewFieldRef("author", "author_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(path, query.LookupExact, query.Integer(1)),
-	))
+	)
 	assertQueryCode(t, err, query.CodeInvalidPlan)
 }
 
@@ -1161,7 +1209,9 @@ func TestCompileNullableForwardSourceKeyIsNullTrimsJoin(t *testing.T) {
 			t.Parallel()
 
 			path := nullableReviewerPath(t, reviewerID)
-			plan := query.NewPlan("blog_post", []query.FieldRef{id, title, reviewerID}).WithConditions(
+			plan := querytest.Conditions(
+				t,
+				query.NewPlan("blog_post", []query.FieldRef{id, title, reviewerID}),
 				query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(test.value)),
 			).WithOrderings(query.NewOrdering(id, query.Ascending))
 
@@ -1191,7 +1241,9 @@ func TestCompileNullableForwardSourceKeyCanCoexistWithRequiredJoin(t *testing.T)
 	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
 	author := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
 	reviewer := nullableReviewerPath(t, reviewerID)
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, authorID, reviewerID}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, authorID, reviewerID}),
 		query.NewRelatedCondition(reviewer, query.LookupIsNull, query.Boolean(true)),
 		query.NewRelatedCondition(author, query.LookupExact, query.String("Ada")),
 	)
@@ -1219,7 +1271,9 @@ func TestCompileRequiredForwardProjectionSelectsRootThenTargetAndReusesPredicate
 	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
 	projection := forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName})
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}),
 		query.NewRelatedCondition(requiredAuthorPath(t, targetName), query.LookupExact, query.String("Ada")),
 	).WithOrderings(query.NewOrdering(id, query.Ascending))
 	plan, err := plan.WithRelationProjection(projection)
@@ -1253,7 +1307,9 @@ func TestCompileNullableForwardProjectionUsesLeftOuterJoinAndPreservesRootPlan(t
 	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
 	projection := forwardProjection(t, reviewerID, targetID, []query.FieldRef{targetID, targetName})
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}),
 		query.NewCondition(title, query.LookupIContains, query.String("a")),
 	).WithOrderings(query.NewOrdering(id, query.Descending))
 	plan, err := plan.WithLimit(2)
@@ -1298,7 +1354,9 @@ func TestCompileForwardProjectionRejectsUnrelatedRelationPredicate(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := query.NewPlan("blog_post", []query.FieldRef{id, authorID}).WithConditions(
+	plan := querytest.Conditions(
+		t,
+		query.NewPlan("blog_post", []query.FieldRef{id, authorID, query.NewFieldRef("editor", "editor_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(editorPath, query.LookupExact, query.String("Ada")),
 	)
 	plan, err = plan.WithRelationProjection(projection)
@@ -1321,7 +1379,9 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 
 	t.Run("same hop remains valid", func(t *testing.T) {
 		path := nullableReviewerPath(t, reviewerID)
-		plan := query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}).WithConditions(
+		plan := querytest.Conditions(
+			t,
+			query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}),
 			query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
 		)
 		plan, err := plan.WithRelationProjection(reviewerProjection)
@@ -1364,7 +1424,9 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 			if err != nil {
 				t.Fatal(err)
 			}
-			plan := query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}).WithConditions(
+			plan := querytest.Conditions(
+				t,
+				query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}),
 				query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
 			)
 			plan, err = plan.WithRelationProjection(reviewerProjection)
@@ -1379,7 +1441,9 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 	t.Run("unrelated nullable source key remains a root filter", func(t *testing.T) {
 		path := nullableReviewerPath(t, reviewerID)
 		authorProjection := forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName})
-		plan := query.NewPlan("blog_post", []query.FieldRef{id, authorID, reviewerID}).WithConditions(
+		plan := querytest.Conditions(
+			t,
+			query.NewPlan("blog_post", []query.FieldRef{id, authorID, reviewerID}),
 			query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
 		)
 		plan, err := plan.WithRelationProjection(authorProjection)
@@ -1456,7 +1520,7 @@ func TestCompileNullableForwardSourceKeyRejectsMutationBeforeIO(t *testing.T) {
 			path:    path,
 			lookup:  query.LookupExact,
 			value:   query.Boolean(true),
-			code:    query.CodeUnsupported,
+			code:    query.CodeInvalidPlan,
 		},
 		{
 			name:    "wrong value kind",
@@ -1481,9 +1545,10 @@ func TestCompileNullableForwardSourceKeyRejectsMutationBeforeIO(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, _, err := sqlite.Compile(query.NewPlan("blog_post", test.columns).WithConditions(
+			_, _, err := compileConditions(
+				query.NewPlan("blog_post", test.columns),
 				query.NewRelatedCondition(test.path, test.lookup, test.value),
-			))
+			)
 			assertQueryCode(t, err, test.code)
 		})
 	}
@@ -1497,10 +1562,21 @@ func TestCompileNullableForwardSourceKeyRejectsMutationBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}).WithConditions(
+	_, _, err = compileConditions(
+		query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}),
 		query.NewRelatedCondition(wrongRoot, query.LookupIsNull, query.Boolean(true)),
-	))
+	)
 	assertQueryCode(t, err, query.CodeInvalidPlan)
+}
+
+// Exercise the public construction-to-compiler pipeline. Invalid input cannot
+// manufacture an unchecked Plan merely to defer the error to SQLite.
+func compileConditions(base query.Plan, conditions ...query.Condition) (string, []any, error) {
+	plan, err := base.WithConditions(conditions...)
+	if err != nil {
+		return "", nil, err
+	}
+	return sqlite.Compile(plan)
 }
 
 func requiredAuthorPath(t *testing.T, terminal query.FieldRef) query.RelationPath {
@@ -1567,4 +1643,23 @@ func assertQueryCode(t *testing.T, err error, code string) {
 	if !errors.As(err, &queryError) || queryError.Code != code {
 		t.Fatalf("error = %v, want query error code %q", err, code)
 	}
+}
+
+func TestRelationCountAndMinExecuteWithSQLite(t *testing.T) {
+	ctx := context.Background()
+	backend, err := sqlite.OpenMemory(ctx, "aggregate-semantics-"+t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	for _, statement := range querytest.AggregateFixtureSQL() {
+		if _, err := backend.ExecContext(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	querytest.CheckAggregateSemantics(t, ctx, backend)
 }

@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from .normalizer import normalize
+from .observations import observed
 
 
 EMPTY_DEFINITION_SET_DIGEST = (
@@ -82,23 +83,6 @@ def _result(
     }
 
 
-def _success_observation(
-    contract_id: str,
-    phase: str,
-    result: dict[str, Any],
-    metrics: dict[str, Any],
-) -> dict[str, Any]:
-    return {
-        "db_state": None,
-        "error": None,
-        "id": contract_id,
-        "metrics": normalize(metrics),
-        "phase": phase,
-        "result": normalize(result),
-        "status": "observed",
-    }
-
-
 def _failure_observation(
     contract_id: str,
     phase: str,
@@ -123,15 +107,15 @@ def _failure_observation(
 
 
 def nested_project_success(contract_id: str) -> dict[str, Any]:
-    return _success_observation(
+    return observed(
         contract_id,
-        "environment",
         _result(
             source_count=1,
             definition_count=1,
             definition_set_digest=ONE_MODEL_DEFINITION_SET_DIGEST,
         ),
-        _metrics(
+        phase="environment",
+        metrics=_metrics(
             build_calls=1,
             runner_calls=1,
             runner_response_writes=1,
@@ -154,15 +138,15 @@ def nested_project_success(contract_id: str) -> dict[str, Any]:
 
 
 def explicit_project_override(contract_id: str) -> dict[str, Any]:
-    return _success_observation(
+    return observed(
         contract_id,
-        "environment",
         _result(
             source_count=1,
             definition_count=1,
             definition_set_digest=ONE_MODEL_DEFINITION_SET_DIGEST,
         ),
-        _metrics(
+        phase="environment",
+        metrics=_metrics(
             build_calls=1,
             runner_calls=1,
             runner_response_writes=1,
@@ -184,15 +168,15 @@ def explicit_project_override(contract_id: str) -> dict[str, Any]:
 
 
 def empty_catalog(contract_id: str) -> dict[str, Any]:
-    return _success_observation(
+    return observed(
         contract_id,
-        "construction",
         _result(
             source_count=0,
             definition_count=0,
             definition_set_digest=EMPTY_DEFINITION_SET_DIGEST,
         ),
-        _metrics(
+        phase="construction",
+        metrics=_metrics(
             build_calls=1,
             runner_calls=1,
             runner_response_writes=1,
@@ -209,15 +193,15 @@ def empty_catalog(contract_id: str) -> dict[str, Any]:
 
 
 def canonical_filesystem_order(contract_id: str) -> dict[str, Any]:
-    return _success_observation(
+    return observed(
         contract_id,
-        "construction",
         _result(
             source_count=2,
             definition_count=2,
             definition_set_digest=TWO_SOURCE_DEFINITION_SET_DIGEST,
         ),
-        _metrics(
+        phase="construction",
+        metrics=_metrics(
             build_calls=1,
             runner_calls=1,
             runner_response_writes=1,

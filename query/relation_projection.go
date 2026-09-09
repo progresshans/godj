@@ -86,13 +86,6 @@ func (p RelationProjection) Equal(other RelationProjection) bool {
 	return p.hop.Equal(other.hop) && slices.Equal(p.targetColumns, other.targetColumns)
 }
 
-func (p RelationProjection) clone() RelationProjection {
-	return RelationProjection{
-		hop:           p.hop,
-		targetColumns: append([]FieldRef(nil), p.targetColumns...),
-	}
-}
-
 func (p RelationProjection) validate() error {
 	targetKey := FieldRef{}
 	for _, field := range p.targetColumns {
