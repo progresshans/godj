@@ -1,7 +1,8 @@
 # GDJ-0069 — 바인딩·쿼리 준비와 감사 후속 개선
 
-- 상태: F1~F8 구현·전후 측정·로컬 통합 검증 완료. Hosted full scope는 아직 실행 전.
+- 상태: 완료. F1~F8 구현·전후 측정·로컬 통합과 동일 제품 소스의 Hosted full scope를 모두 통과했다.
 - 기준 소스: `71ba61f0ecf26d397b10ac207212146f27441de7`.
+- 검증 소스: `b74a79eb4948ef6b57ef5271103cf05eb514d23e`, [Hosted full scope 완료](https://github.com/progresshans/godj/actions/runs/34466299719).
 - 요청: 외부 감사 F1~F8을 빠짐없이 계획하고 동작·오류·무결성을 보존하며 엄격하게 수정한다.
 - 구현과 통합 기록 소유자: 현재 작업 담당자 한 명. 기존 Draft PR #1과 작업 브랜치를 유지한다.
 
@@ -9,14 +10,14 @@
 
 | 항목 | 구현·조사 범위 | 보존 조건 | 상태 |
 |---|---|---|---|
-| F1 | ReverseObject의 반복 정적 검사를 바인딩 경계로 모으고 prefetch의 중복 private field를 제거했다. | 공개 metadata·descriptor snapshot 격리, zero/nil·backend·PK/callback 검사, 오류 순서, 독립 cache·취소·동시 사용 | 구현·개별 검증 완료 |
-| F2 | CheckHistory 내부 읽기 전용 map 전달에서 복사를 제거했다. | Plan의 mutable working 복사, caller input 복사, canonical history 오류 순서, 반복·동시 사용 | 구현·개별 검증 완료 |
-| F3 | PostgreSQL 컴파일의 IN 값을 한 번 준비해 기존 leaf 순서로 검증/출력에서 재사용한다. | 공개 Values 복사, scalar/relation/aggregate와 SQL·인자 순서, 오류 우선순위, bounded·compile-local 소유권 | 구현·실제 PostgreSQL 검증 완료 |
-| F4 | 8/64/256/1023개 조건의 chain/batch 의미·비용을 측정하고 Article 검색의 최대 6개 조건을 모았다. | AST 불변성·표현식 한도·오류 순서·QuerySet 평가 소유권; 실측 없는 AST 전면 변경 금지 | 구현·개별 검증 완료 |
-| F5 | 경로 개수 계산의 임시 Split을 Count로 바꿨다. | 루트와 malformed 입력의 결과, URL 검증 순서 | 구현·개별 검증 완료 |
-| F6 | 미사용 canonicalUnsigned와 regexp import를 제거했다. | 실제 wirejson 정수 검증과 외부 공개 API 유지 | 구현·개별 검증 완료 |
-| F7 | Article PostgreSQL setup, 두 conformance 성공 검증의 준비, 동등 slice 비교를 같은 패키지 안에서 정리했다. | 독립 schema·flow·oracle/actual, fixture hash·로드 보고서, required-DB 정책, redaction, context/cleanup 수명 | 구현·실제 PostgreSQL/CLI 검증 완료 |
-| F8 | 실제 SQLite/PostgreSQL의 34 workload를 전후 각 3회 측정하고 digest의 임시 decode 할당을 제거했다. | bounded streaming, digest 중복·손상 감지, 전체 검사 후 최소 ID 만료 행 1개 삭제, 원자 gate와 cross-runtime fence | 실측·동등 수정·로컬 통합 완료 |
+| F1 | ReverseObject의 반복 정적 검사를 바인딩 경계로 모으고 prefetch의 중복 private field를 제거했다. | 공개 metadata·descriptor snapshot 격리, zero/nil·backend·PK/callback 검사, 오류 순서, 독립 cache·취소·동시 사용 | 구현·측정·통합 완료 |
+| F2 | CheckHistory 내부 읽기 전용 map 전달에서 복사를 제거했다. | Plan의 mutable working 복사, caller input 복사, canonical history 오류 순서, 반복·동시 사용 | 구현·측정·통합 완료 |
+| F3 | PostgreSQL 컴파일의 IN 값을 한 번 준비해 기존 leaf 순서로 검증/출력에서 재사용한다. | 공개 Values 복사, scalar/relation/aggregate와 SQL·인자 순서, 오류 우선순위, bounded·compile-local 소유권 | 구현·측정·통합 완료 |
+| F4 | 8/64/256/1023개 조건의 chain/batch 의미·비용을 측정하고 Article 검색의 최대 6개 조건을 모았다. | AST 불변성·표현식 한도·오류 순서·QuerySet 평가 소유권; 실측 없는 AST 전면 변경 금지 | 구현·측정·통합 완료 |
+| F5 | 경로 개수 계산의 임시 Split을 Count로 바꿨다. | 루트와 malformed 입력의 결과, URL 검증 순서 | 구현·통합 완료 |
+| F6 | 미사용 canonicalUnsigned와 regexp import를 제거했다. | 실제 wirejson 정수 검증과 외부 공개 API 유지 | 구현·통합 완료 |
+| F7 | Article PostgreSQL setup, 두 conformance 성공 검증의 준비, 동등 slice 비교를 같은 패키지 안에서 정리했다. | 독립 schema·flow·oracle/actual, fixture hash·로드 보고서, required-DB 정책, redaction, context/cleanup 수명 | 구현·통합 완료 |
+| F8 | 실제 SQLite/PostgreSQL의 34 workload를 전후 각 3회 측정하고 digest의 임시 decode 할당을 제거했다. | bounded streaming, digest 중복·손상 감지, 전체 검사 후 최소 ID 만료 행 1개 삭제, 원자 gate와 cross-runtime fence | 실측·동등 수정·통합 완료 |
 
 F8은 보고서에서도 병목이 확정되지 않은 항목이다. 측정 없이 COUNT·조기 삭제·검증 생략을 도입하지 않는다.
 동일 계약의 개선이 확인되면 적용하고, 스키마·무결성 정책 변경이 필요한 경우 그 근거와 측정치를 남겨 현재 정책 유지와

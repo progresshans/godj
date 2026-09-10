@@ -7,7 +7,7 @@
 
 - 작업: [GDJ-0069](../../work/0069-boundary-preparation-and-audit-followup.md).
 - 기준: `71ba61f0ecf26d397b10ac207212146f27441de7`.
-- 상태: F1~F8 구현·전후 측정·관련 로컬 통합 검증 완료. Hosted full scope는 아직 실행 전.
+- 상태: F1~F8 구현·전후 측정·관련 로컬 통합과 동일 제품 소스의 Hosted full scope 완료.
 - 검증 소유권: 묶음별 affected local checkpoint, 관련 DB·race·CGO-disabled 통합, 최종 제품 소스 Hosted full scope.
 - 아래 GDJ-0068은 직전 완료 근거이며 GDJ-0069 변경 소스의 PASS가 아니다.
 
@@ -50,6 +50,8 @@ go test -p=1 -run '^$' -bench 'Benchmark(PlannerCheckHistory|ReverseObjectFrom|R
 
 PostgreSQL 일반 exact 조건은 leaf 준비 공간이 16 bytes 늘었고 시간은 이 측정에서 비슷했다. IN 999의 49 KB는
 전체 할당량이 아니라 제거된 두 번째 public Values 복사량에 해당한다. 공개 getter의 방어적 복사는 유지한다.
+각 IN leaf의 snapshot은 컴파일이 끝날 때까지 보유하므로 여러 IN이 있으면 동시에 보유하는 복사 공간은 목록 길이의 합에
+비례한다. 표는 한 IN의 총 할당량 측정이며 다중 IN의 peak memory 감소를 증명하지 않는다.
 
 | 유효 조건 수 | chain → batch ns/op | chain → batch B/op | chain → batch allocs/op |
 |---|---:|---:|---:|
@@ -118,7 +120,7 @@ stdlib decode/re-encode oracle로 대조한다. COUNT, 첫 만료 행을 찾자�
 - F3 초기 normal은 265 pass·PostgreSQL 환경 관련 10 skip, F4 초기 normal은 166 pass·4 PostgreSQL skip이었다.
   실제 DB 설정 뒤 아래 실행으로 해당 integration과 Article 흐름을 확인했다.
 - `GODJ_REQUIRE_POSTGRES=1 go test -json -count=1 ./db/postgres ./examples/article ./examples/article/webapp` —
-  3 packages·310 pass. 단독 실행용 `TestPostgresRevisionFenceHelperProcess` 1개만 환경 없는 부모 열거에서 skip하고,
+  3 packages·310 pass. 단독 실행용 `TestPostgresRevisionFenceHelperProcess` 1개만 전용 helper marker가 없는 부모 열거에서 skip하고,
   실제 cross-process integration의 자식 경로는 실행됐다. 서비스 필요 테스트의 미실행을 PASS로 세지 않았다.
 - F7의 두 CLI 성공 helper 소비자 — 2 pass, skip 0. Separate actual output과 locked oracle을 실제 비교했다.
 - `go test -json -count=1 -timeout=15m ./systemstate ./sessions ./db/sqlite ./codegen/consumertest` —
@@ -140,9 +142,52 @@ GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 go test -json -count=1 -timeout=15m ./migr
 - 자체 diff 검토에서 F1의 callback field 복사/매회 검사, F3의 analysis/emission DFS와 null-negation, F4의 predicate 순서,
   F7의 setup context/cleanup 수명·독립 oracle, F8의 canonical ASCII grammar·전체 검사 후 DML을 대조했다.
 
-### 최종 통합
+### 동일 제품 소스의 Hosted full scope
 
-아직 실행 결과를 기록하지 않았다. 동일 제품 소스를 기존 Draft PR #1에 반영한 뒤 Hosted full scope와 source-bound capture를 검증한다.
+- 제품·검증 소스: `b74a79eb4948ef6b57ef5271103cf05eb514d23e`.
+- [CI 34466299719](https://github.com/progresshans/godj/actions/runs/34466299719), `workflow_dispatch`, `suite=full`, attempt 1:
+  2026-09-10 20:04:40 KST `completed/success`. 62개 고유 job 모두 재실행 없이 `completed/success`다.
+- 최종 aggregate `102845405925`의 실제 출력은 `scope: full`, `full_platform_verified: true`이며 8개 필수 owner가 모두 있다.
+  현재 workflow의 62개 예상 job 이름·OS/arch/mode와 실제 목록을 대조해 누락·중복이 없고 source/run/attempt도 모두 같음을 확인했다.
+- Linux/macOS amd64·arm64 × normal/race/CGO-disabled의 relation·project·command 조합과 Portable Go 12개 조합을 모두 통과했다.
+- 같은 소스의 [PR feedback 34466280714](https://github.com/progresshans/godj/actions/runs/34466280714)는 `completed/success`다.
+- Command 12개 job의 실제 로그를 전부 대조해 각각 operator 15 run/pass·targeted migrate 33 run/pass·skip 0과
+  `verified_command_products: [operator, targeted]`를 확인했다.
+- PostgreSQL 17.10 core/operator-target × normal/race/CGO-disabled 모두 완료됐다. 각 core는 12 packages·54 run/pass,
+  operator-target은 2 packages·12 run/pass이며 여섯 로그 모두 skip 0이다.
+- 고정 Darwin reference `102835624565`는 `PYTHON_SUITE_VERIFIED tests=274 skips=0`과 locked oracle 검사를 통과했다.
+  Python 3.12.13·3.13.15·3.14.3·3.14.7의 각 실행은 274개와 선언된 exact 전용 4개 skip 및 semantic digest를 통과했다.
+- Reference job `102837127710`은 같은 run의 두 capture를 소비해 전체 conformance 대조와 Linux 32-bit compile·관계 실행을 완료했다.
+- Project-check normal Linux job `102835625169`의 `GODJ_COLD_BUILD=1` 필수 선택은 1 package·2 run/pass·skip 0으로 완료됐다.
+  같은 job의 일반 Runserver 선택에서 PostgreSQL service 미설정으로 skip한 한 항목은 PostgreSQL 전담 owner가 실제 실행했다.
+
+| 실제 PostgreSQL owner | normal job | race job | CGO-disabled job |
+|---|---|---|---|
+| core | `102835624811` | `102835624837` | `102835624755` |
+| operator-target | `102835624756` | `102835624740` | `102835624792` |
+
+### 현재 capture의 독립 확인
+
+공식 resolver로 같은 run의 성공한 producer를 선택하고 GitHub archive digest, repository/run/attempt/checkout,
+payload SHA-256·`SHA256SUMS`를 확인했다. 두 공식 Go `Load`도 현재 소스의 profile·canonical JSON·behavioral source binding을 검증했다.
+
+| capture | artifact / producer job / attempt | payload SHA-256 |
+|---|---|---|
+| SYS-020 | `10147775230` / `102835624811` / `1` | `3c6e2537b8aa456b1e37fef858362609db1096718fcc5bea0cd812d015e3b332` |
+| SYS-029 | `10147738561` / `102835624756` / `1` | `1ae68529847f7e9697711bac83b786e73d225ad3f92b7537536f5c0318f8e5f8` |
+
+SYS-020 source binding은 327 files / 3,749,392 bytes /
+`ab344c55038c4d40570fa69c8e5c3e0b0288322ea94c6554af9089dac31134ee`,
+SYS-029는 389 files / 3,488,968 bytes /
+`13404d6eefb717c2067c409510355d695f9f66889323bcae3be76b4bb5bd43af`다.
+GitHub archive SHA-256도 각각 `3fe181b8510173668b2dfe6d70eaa07165cdd5c78d9c9556724b40d3585b1921`,
+`e874ffcb5170f299c2cb02209d390040aa84eb4baa1b531fc3c35c9c856f7ac5`와 일치했다.
+
+SYS-020은 writer 두 process의 barrier·restart 보존과 divergence/loss/drift/secret 0을 확인했다.
+SYS-029는 PostgreSQL·SQLite 각각 세 독립 process, Admin/API 인증·restart 유지와 state loss/schema drift/raw secret 0을 확인했다.
+
+완료 기록은 CURRENT·TEST_EVIDENCE·GDJ-0069 작업 문서의 Markdown만 변경한다. 제품·검증 소스와 두 behavioral source binding은
+Hosted 소스와 동일하며 문서 링크·상태·diff와 공식 capture Load를 별도로 확인한다. 기존 PR #1은 Draft로 유지한다.
 
 ## GDJ-0068 — 불변 값 전달과 검증 비용 정리
 
