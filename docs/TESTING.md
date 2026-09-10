@@ -57,6 +57,11 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 CGO-disabled가 소유한다(`!race`). Runtime facade JSON·candidate verifier 검사는 같은 패키지의 세 mode에서 계속 실행한다.
 따라서 부모 race 실행에서 동일한 비계측 ABI child compile을 반복하지 않는다. 외부 fixture는 실행 owner가 locked
 dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=off로 컴파일한다. ABI와 생성 소비자 fixture는 저장소 checksum도 복사한다.
+독립 ABI fixture는 한 임시 module의 별도 package로 묶는다. 각 package의 시작·종료와 자기 `build-fail`·진단을
+대조하며 aggregate 실패만으로 negative fixture를 통과시키지 않는다. `consumer.go`만 있는 정상 fixture의
+`[no test files]` 종료는 compile 성공을 뜻하며, runtime test의 skip은 허용하지 않는다.
+환경 준비는 `internal/testenv`가 마지막 값·플랫폼별 키 비교·정렬·제거를 소유한다. 공통 offline Go profile은
+host goenv·GOFLAGS·외부 cache program·private module network 우회를 닫으며, suite별 DB·비밀값·TTY/poison 정책은 호출자가 유지한다.
 순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
 DB schema/port/temp 디렉터리는 lane별로 분리하고 무거운 DB/process suite의 동시 실행 수를 제한한다.
@@ -79,6 +84,11 @@ linked runner를 실행하며 protocol 패키지 전체를 다시 선택하지 �
 Portable과 관계/CLI matrix의 Linux amd64는 같은 Ubuntu 이미지와 Go 버전을 사용한다. 같은 scope에 관계 owner가 선택되면
 `scripts/ci/packages.py`가 관계 package 전체를 Portable에서 제외한다. Runserver도 project-check owner가 선택된 경우 그 matrix가 맡는다.
 선택한 owner가 없는 scoped/local 실행은 Portable의 원래 package 범위를 유지한다. OS·architecture·CGO·race가 다른 좌표의 검증은 유지한다.
+
+Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`에서 checkout·toolchain·dependency 준비를 공유한다.
+각 제품은 독립 process·timeout·JSON log·required sentinel·no-skip 검사를 유지한다. 하나가 실패해도 취소되지 않은 다른 선택 제품은
+실행하며, 마지막 outcome 검사가 선택된 step의 실패·skip·누락을 거부한다. `web`은 operator, `orm`은 targeted migrate,
+`cli`와 `full`은 둘 다 실행한다. PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
 관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
 이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.

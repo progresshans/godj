@@ -51,7 +51,7 @@ func CompileInsert(plan query.InsertPlan) (string, []any, error) {
 	if len(assignments) == 0 {
 		return "INSERT INTO " + table + " DEFAULT VALUES", []any{}, nil
 	}
-	columns, arguments, err := compileAssignments(assignments)
+	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey)
 	if err != nil {
 		return "", nil, err
 	}
@@ -78,7 +78,7 @@ func CompileUpdate(plan query.UpdatePlan) (string, []any, error) {
 			return "", nil, invalidPlan("update cannot assign its key field")
 		}
 	}
-	columns, arguments, err := compileAssignments(assignments)
+	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey)
 	if err != nil {
 		return "", nil, err
 	}
@@ -179,45 +179,23 @@ func executeDelete(ctx context.Context, executor writeExecutor, plan query.Delet
 	return rowsAffected, nil
 }
 
-func compileAssignments(assignments []query.Assignment) ([]string, []any, error) {
-	columns := make([]string, len(assignments))
-	arguments := make([]any, len(assignments))
-	seen := make(map[string]struct{}, len(assignments))
-	for index, assignment := range assignments {
-		field := assignment.Field()
-		column, err := quoteIdentifier(field.Column())
-		if err != nil {
-			return nil, nil, err
-		}
-		identifierKey := sqliteIdentifierKey(field.Column())
-		if _, duplicate := seen[identifierKey]; duplicate {
-			return nil, nil, invalidPlan(fmt.Sprintf("field column %q is assigned more than once", field.Column()))
-		}
-		seen[identifierKey] = struct{}{}
-		if err := queryplan.WriteValue(field, assignment.Value()); err != nil {
-			return nil, nil, err
-		}
-		argument, err := assignment.Value().DatabaseValue()
-		if err != nil {
-			return nil, nil, err
-		}
-		columns[index] = column
-		arguments[index] = argument
-	}
-	return columns, arguments, nil
-}
-
 // SQLite folds only ASCII case in identifiers, including quoted identifiers.
 // Preserve all other bytes so validation mirrors SQLite instead of applying
 // Unicode case folding that the database itself does not perform.
 func sqliteIdentifierKey(identifier string) string {
-	key := []byte(identifier)
-	for index, value := range key {
+	for index := 0; index < len(identifier); index++ {
+		value := identifier[index]
 		if value >= 'A' && value <= 'Z' {
-			key[index] = value + ('a' - 'A')
+			key := []byte(identifier)
+			for offset := index; offset < len(key); offset++ {
+				if key[offset] >= 'A' && key[offset] <= 'Z' {
+					key[offset] += 'a' - 'A'
+				}
+			}
+			return string(key)
 		}
 	}
-	return string(key)
+	return identifier
 }
 
 func (b *Backend) validateWriteContext(ctx context.Context) error {

@@ -75,6 +75,7 @@ var embeddedAssetPrefixes = []string{
 }
 
 var conformanceSourcePrefixes = []string{
+	"internal/testenv/",
 	"conformance/cmd/godjcheck/",
 	"conformance/internal/protocol/",
 	"conformance/internal/attestationio/",

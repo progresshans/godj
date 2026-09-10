@@ -22,12 +22,13 @@ import (
 	"github.com/progresshans/godj/codegen"
 	fixture "github.com/progresshans/godj/conformance/relationfixture"
 	"github.com/progresshans/godj/internal/projectgenerate"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{
+	fixtures := []string{
 		"external_consumer.go.txt",
 		"write_external_consumer.go.txt",
 		"save_external_consumer.go.txt",
@@ -43,11 +44,14 @@ func TestExternalConsumerCompiles(t *testing.T) {
 		"relation_select_related/external_consumer.go.txt",
 		"relation_delete/backend_external_consumer.go.txt",
 		"relation_delete/generated_external_consumer.go.txt",
-	} {
-		result := compileFixture(t, fixture)
-		if result.err != nil {
-			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
-		}
+	}
+	results := compileFixtures(t, fixtures)
+	for index, fixture := range fixtures {
+		t.Run(fixture, func(t *testing.T) {
+			if result := results[index]; result.err != nil {
+				t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
+			}
+		})
 	}
 
 	verifyRelationFacadeProduction(t)
@@ -746,9 +750,14 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	fixtures := make([]string, len(tests))
+	for index, test := range tests {
+		fixtures[index] = test.fixture
+	}
+	results := compileFixtures(t, fixtures)
+	for index, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := compileFixture(t, test.fixture)
+			result := results[index]
 			if result.err == nil {
 				t.Fatalf("fixture %s unexpectedly compiled", test.fixture)
 			}
@@ -876,26 +885,59 @@ type compileResult struct {
 	err    error
 }
 
-func compileFixture(t *testing.T, fixture string) compileResult {
+// Each fixture has its own package in one isolated module. The JSON stream
+// must prove every package's terminal result; one aggregate failure is not a
+// substitute for each negative fixture's own build failure and diagnostics.
+func compileFixtures(t *testing.T, fixtures []string) []compileResult {
 	t.Helper()
-
+	if len(fixtures) == 0 {
+		t.Fatal("compile fixture set is empty")
+	}
 	root := repositoryRoot(t)
-	source, err := os.ReadFile(filepath.Join(root, "internal", "compiletest", "testdata", fixture))
-	if err != nil {
-		t.Fatalf("read fixture %s: %v", fixture, err)
-	}
-
 	directory := t.TempDir()
-	writeCompileModule(t, directory, "example.com/godj-compile-gate")
-	if err := os.WriteFile(filepath.Join(directory, "consumer.go"), source, 0o644); err != nil {
-		t.Fatalf("write fixture source: %v", err)
+	const consumerModule = "example.com/godj-compile-gate"
+	writeCompileModule(t, directory, consumerModule)
+	arguments := []string{"test", "-mod=mod", "-json"}
+	packages := make([]string, len(fixtures))
+	for index, fixture := range fixtures {
+		source, err := os.ReadFile(filepath.Join(root, "internal", "compiletest", "testdata", fixture))
+		if err != nil {
+			t.Fatalf("read fixture %s: %v", fixture, err)
+		}
+		name := fmt.Sprintf("fixture%03d", index)
+		path := filepath.Join(directory, name)
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "consumer.go"), source, 0o644); err != nil {
+			t.Fatalf("write fixture %s: %v", fixture, err)
+		}
+		packages[index] = consumerModule + "/" + name
+		arguments = append(arguments, "./"+name)
 	}
-
-	command := exec.CommandContext(t.Context(), "go", "test", "-mod=mod", "./...")
+	command := exec.CommandContext(t.Context(), "go", arguments...)
 	command.Dir = directory
 	command.Env = commandEnvironment()
-	output, err := command.CombinedOutput()
-	return compileResult{output: string(output), err: err}
+	var standardError bytes.Buffer
+	command.Stderr = &standardError
+	output, commandError := command.Output()
+	results, err := parseCompileEvents(output, packages)
+	if err != nil {
+		t.Fatalf("incomplete fixture compilation: %v; command %v\nstderr: %s\n%s", err, commandError, standardError.Bytes(), output)
+	}
+	failed := false
+	for _, result := range results {
+		failed = failed || result.err != nil
+	}
+	if (commandError != nil) != failed || t.Context().Err() != nil {
+		t.Fatalf("compiler exit disagrees with fixture results: %v; context %v\n%s", commandError, t.Context().Err(), standardError.Bytes())
+	}
+	if commandError != nil {
+		if exit, ok := commandError.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
+			t.Fatalf("unexpected compiler exit: %v\n%s", commandError, standardError.Bytes())
+		}
+	}
+	return results
 }
 
 type dependencyEdge struct {
@@ -910,20 +952,7 @@ func commandEnvironment() []string {
 }
 
 func compileEnvironment(ambient []string) []string {
-	fixed := []string{"GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GONOPROXY=none"}
-	blocked := make(map[string]bool, len(fixed))
-	for _, entry := range fixed {
-		key, _, _ := strings.Cut(entry, "=")
-		blocked[key] = true
-	}
-	environment := make([]string, 0, len(ambient)+len(fixed))
-	for _, entry := range ambient {
-		key, _, _ := strings.Cut(entry, "=")
-		if !blocked[key] {
-			environment = append(environment, entry)
-		}
-	}
-	return append(environment, fixed...)
+	return testenv.OfflineGo(ambient, "")
 }
 
 func writeCompileModule(t *testing.T, directory, name string) {

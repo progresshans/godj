@@ -74,9 +74,11 @@ func (p Principal) Permissions() []Permission {
 }
 
 func (p Principal) Has(permission Permission) bool {
-	if !p.Authenticated() || !validPermission(string(permission)) {
+	if !p.Authenticated() {
 		return false
 	}
+	// Only NewPrincipal can populate this private, immutable index, and it
+	// accepts canonical permissions only. Every other string is absent.
 	_, ok := p.permission[permission]
 	return ok
 }

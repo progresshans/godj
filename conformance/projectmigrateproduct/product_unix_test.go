@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/conformance/internal/dbstate"
-	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/systemstate"
@@ -180,11 +180,11 @@ func TestGlobalMigrateArticleSQLiteProduct(t *testing.T) {
 			sqliteSecret := filepath.Join(secretRoot, "sqlite-secret-canary-4f8056.sqlite3")
 			postgresSecret := "postgres://secret-user:secret-password-91a3@127.0.0.1:1/secret-database"
 			schemaSecret := "secret_schema_b904"
-			values := environmentMap(articleEnvironmentWithoutDatabase(t, workspaceBase))
+			values := testenv.Map(articleEnvironmentWithoutDatabase(t, workspaceBase))
 			values[articleSQLiteDatabaseEnv] = sqliteSecret
 			values[articlePostgresURLEnv] = postgresSecret
 			values[articlePostgresSchemaEnv] = schemaSecret
-			result := runMigrate(t, globalBinary, repository, descriptor, testfixture.SortedEnvironment(values))
+			result := runMigrate(t, globalBinary, repository, descriptor, testenv.Sorted(values))
 			assertMigrateFailure(t, result, 3, "migration_backend_error/backend_open_failed\n")
 			assertOutputSanitized(t, result, sqliteSecret, postgresSecret, schemaSecret, "secret-user", "secret-password-91a3")
 			if _, err := os.Lstat(sqliteSecret); !errors.Is(err, os.ErrNotExist) {
@@ -382,7 +382,7 @@ func buildGlobalGodj(t *testing.T, repository string) string {
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-mod=readonly", "-o", binary, "./cmd/godj")
 	command.Dir = repository
-	command.Env = offlineEnvironment(os.Environ())
+	command.Env = testenv.OfflineGo(os.Environ(), "")
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("build global godj: %v\n%s", err, output)
@@ -504,26 +504,20 @@ func newWorkspaceBase(t *testing.T) string {
 
 func articleEnvironment(t *testing.T, databasePath, workspaceBase string) []string {
 	t.Helper()
-	values := environmentMap(articleEnvironmentWithoutDatabase(t, workspaceBase))
+	values := testenv.Map(articleEnvironmentWithoutDatabase(t, workspaceBase))
 	values[articleSQLiteDatabaseEnv] = databasePath
-	return testfixture.SortedEnvironment(values)
+	return testenv.Sorted(values)
 }
 
 func articleEnvironmentWithoutDatabase(t *testing.T, workspaceBase string) []string {
 	t.Helper()
-	values := environmentMap(os.Environ())
+	values := testenv.Map(os.Environ())
 	delete(values, articleSQLiteDatabaseEnv)
 	delete(values, articlePostgresURLEnv)
 	delete(values, articlePostgresSchemaEnv)
 	delete(values, articleAdminUsernameEnv)
 	delete(values, articleAdminPasswordEnv)
 	values["TMPDIR"] = workspaceBase
-	values["GOWORK"] = "off"
-	values["GOTOOLCHAIN"] = "local"
-	values["GOENV"] = "off"
-	values["GOFLAGS"] = ""
-	values["GOCACHEPROG"] = ""
-	values["GOPROXY"] = "off"
 	if strings.TrimSpace(values["HOME"]) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -531,29 +525,7 @@ func articleEnvironmentWithoutDatabase(t *testing.T, workspaceBase string) []str
 		}
 		values["HOME"] = home
 	}
-	return testfixture.SortedEnvironment(values)
-}
-
-func offlineEnvironment(input []string) []string {
-	values := environmentMap(input)
-	values["GOWORK"] = "off"
-	values["GOTOOLCHAIN"] = "local"
-	values["GOENV"] = "off"
-	values["GOFLAGS"] = ""
-	values["GOCACHEPROG"] = ""
-	values["GOPROXY"] = "off"
-	return testfixture.SortedEnvironment(values)
-}
-
-func environmentMap(entries []string) map[string]string {
-	values := make(map[string]string, len(entries))
-	for _, entry := range entries {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok && key != "" {
-			values[key] = value
-		}
-	}
-	return values
+	return testenv.OfflineGo(testenv.Sorted(values), "")
 }
 
 func assertWorkspaceEmpty(t *testing.T, root string) {

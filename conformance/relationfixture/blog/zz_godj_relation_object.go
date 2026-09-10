@@ -34,8 +34,18 @@ type postAuthorIDRelationStorage struct{}
 var _ orm.RelationStorage[Post] = postAuthorIDRelationStorage{}
 
 func (postAuthorIDRelationStorage) Field() ir.Field {
-	schema := GoDjRelationSchema()
-	return schema.Models[0].Fields[2].Clone()
+	return ir.Field{
+		Name:   "author",
+		GoName: "AuthorID",
+		Column: "author_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "posts"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
 }
 
 func (postAuthorIDRelationStorage) Value(value Post) (query.Value, bool) {
@@ -47,8 +57,19 @@ type postReviewerIDRelationStorage struct{}
 var _ orm.RelationStorage[Post] = postReviewerIDRelationStorage{}
 
 func (postReviewerIDRelationStorage) Field() ir.Field {
-	schema := GoDjRelationSchema()
-	return schema.Models[0].Fields[3].Clone()
+	return ir.Field{
+		Name:     "reviewer",
+		GoName:   "ReviewerID",
+		Column:   "reviewer_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "reviewed_posts"},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	}
 }
 
 func (postReviewerIDRelationStorage) Value(value Post) (query.Value, bool) {

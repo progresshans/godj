@@ -109,20 +109,18 @@ func NewAuthorCreate() AuthorCreate {
 }
 
 func (input AuthorCreate) BuildCreate() orm.Mutation[Author] {
-	metadata := authorMetadata()
 	var value Author
 	assignments := make([]query.Assignment, 0, 0)
-	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+	return orm.NewCreateMutation(value, "authors_author", assignments)
 }
 
 type AuthorPatch struct {
 }
 
 func (input AuthorPatch) BuildPatch(current Author) orm.Mutation[Author] {
-	metadata := authorMetadata()
 	value := current
 	assignments := make([]query.Assignment, 0, 0)
-	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+	return orm.NewPatchMutation(value, "authors_author", assignments)
 }
 
 func authorMetadata() ir.Model {

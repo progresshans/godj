@@ -49,6 +49,9 @@ App schema도 생성 호출마다 한 번 정규화하고 canonical hash를 계�
 Generated namespace는 실제 생성 AST의 package/import/receiver 선언에서 수집한다. 별도 수작업 심볼 목록을 복제하지 않으며,
 standalone 생성은 필요한 선행 companion까지 같은 규칙으로 검증한다. Promoted raw field/method의 충돌은 별도 source audit을
 유지하고 전체 후보 compile도 수행한다. Bundle은 raw rendering 뒤 seal·format·parse를 한 번에 마친다.
+App renderer 목록은 standalone과 bundle이 공유한다. Create/Patch assignment와 관계 storage의 단일 field는 normalized IR에서
+직접 출력하며 이를 위해 전체 model/app metadata를 매번 만들지 않는다. Query/object/reverse의 project model binding도 같은
+검증·출력 owner를 사용한다.
 식별자의 공통 어휘는 `internal/identifiers`, 관계 삭제 policy fingerprint는 `internal/relationpolicy`가 소유한다.
 
 생성물의 manifest와 recovery journal은 서로 다른 입력의 파일이 섞이거나 중단 뒤 부분 결과가 정상으로 인정되는 일을 막는다.
@@ -69,7 +72,8 @@ DB 독립 projection·ordering·relation key·scalar 의미 검사는 `db/intern
 
 `NewManager`는 descriptor metadata를 생성 시점에 한 번 deep copy하고 기본 plan을 준비한다. 같은 Manager의 읽기·쓰기는
 이 스냅샷을 사용한다. Metadata 변경을 반영하려면 새 Manager를 만든다. `Using`은 준비된 불변 plan을 공유하되 매번 독립
-평가 state를 만든다. Write callback에 전달하는 metadata는 다시 복사하며 Scan·Clone·write callback의 일관성과 동시성은
+평가 state를 만든다. 쓰기 descriptor는 primary key와 full field reference/name index도 한 번 준비한다.
+각 WriteFieldValue callback 직전에 해당 field를 복사하며 Scan·Clone·write callback의 일관성과 동시성은
 descriptor 구현자가 소유한다. Project-bound lazy/reverse 객체도 검증된 model로 기본 plan을 한 번 준비한다.
 
 Nullable read와 write의 omitted/null/value는 구분한다. Save의 update field 선택·force mode·PK 유무는 명시적 입력이다.
@@ -107,6 +111,8 @@ Writer의 최초 historical replay는 Detect와 snapshot이 공유하며, 변경
 Historical `ProjectState`는 적용할 당시의 schema를 dependency 순서로 재구성한다. 현재 generated model의 field를 읽어
 과거 migration을 복원하지 않는다. 모든 definition을 검증하고 chronology·known history·exact target을 확인한 뒤 backend
 실행을 시작한다. Source-only check와 DB-backed history check는 서로 다른 결과다.
+상태의 equality는 복제 없이 schema 의미를 비교한다. App 변경은 바깥 map과 변경된 schema만 복사하고 바뀌지 않은 private
+schema를 공유한다. 공개 Schema/Model/Clone과 mutable replay builder의 복사는 유지한다.
 
 Planner는 불변 identity graph를 사용하며 같은 입력에 canonical plan을 만든다. 비교 불가능한 sibling의 합법적 순서는
 Django와 다를 수 있다. [DEV-0002](DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)는 이를 명시적으로
@@ -158,12 +164,16 @@ Template은 startup에서 참조·cycle을 검증하고 상속 parent와 불변 
 복제하지 않고 block 없는 child는 부모 map을 공유한다. Engine의 render 깊이로 실행할 수 없는 상속에는 map을 준비하지 않으며,
 실제 Render는 기존 깊이·취소·오류 위치를 유지한다. JSON List/Object는 생성 시 입력 container와 자식 유효성을 확인해 게시하고,
 Encode와 Spec.Bind는 그 private 불변 상태를 신뢰한다. 문자열 유효성과 출력별 resource limit은 계속 검사한다.
-JSON encoder/scratch는 Encode 호출 안에서만 재사용하며 JSON·HTML의 최종 독점 출력 버퍼는 반환 시 소유권을 이전한다.
+JSON·HTML escape는 출력 예산을 검사하며 최종 버퍼에 직접 기록한다. 큰 중간 escape 문자열을 만들지 않고,
+오류가 나면 부분 출력을 게시하지 않는다. 성공한 독점 출력 버퍼는 반환 시 소유권을 이전한다.
 Public Response 입력과 mutable getter의 방어적 복사는 유지한다.
 
 Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, read-only, nullable와 validation은 의미가 같을 때
 공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는
 application이 명시적으로 연결한다. Admin snapshot은 실제 list/form 필드를 요구하고 저장 전용 새 필드의 매핑을 강제하지 않는다.
+Form Spec은 field index와 기본 초기값을 준비하고 요청의 초기값이 있을 때만 값을 분리해 겹친다. Bind는 소유한 cleaned 값과
+오류를 불변 결과로 게시한다. Validation 오류는 field/cross/unknown 순서를 유지해 한 번 합치며 mutable slice/map getter는
+복사한다. API Page도 생성 시 검증한 불변 result list를 응답 사이에 공유한다.
 명시적으로 제공한 snapshot 값은 known field/type 검사를 받는다. Serializer가 임의 model memory나 credential을 reflection으로 노출하지 않는다.
 `ModelEncoder`와 `ModelProjector`는 시작 시 선택 metadata를 복사해 준비하고 각 객체의 reader 결과를 계속 검증한다.
 Article Service는 공통 article repository를 직접 사용하며 Admin의 not-found 변환은 등록 callback 경계가 소유한다.
@@ -171,6 +181,8 @@ Full update와 patch는 transaction 골격을 공유하되 입력 검증·field 
 
 Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사용한다. Bearer가 잘못되었을 때 다른 credential로 fallback하지
 않으며 권한 거부·인증 실패·CSRF 실패를 구분한다. Raw token/password와 verifier cause는 logs·errors·audit에 남기지 않는다.
+Principal은 생성 시 복사·검증한 private 권한을 공유하고 Permissions는 별도 slice를 반환한다. Session ID는 외부 입력을
+ParseID에서 엄격히 검증한다. Record의 값 map은 입력·변경·mutable snapshot에서 복사하며 touch·load·rotation의 불변 전달은 공유한다.
 Durable credential은 explicit provisioning 후 `OpenExisting`으로 열며 startup이 비밀번호를 다시 받거나 권한을 몰래 바꾸지 않는다.
 Session Store의 `Access`는 현재 record를 한 번 읽고 `AccessPolicy`의 record 검증·clock 확인·idle/absolute 만료 판정·
 갱신 또는 만료 삭제를 한 원자적 연산에서 수행하며 active/expired/missing을 구분한다. Manager.Load는 이 연산을 사용하고,

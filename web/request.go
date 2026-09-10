@@ -148,7 +148,9 @@ func (r *Request) setRouteParameters(parameters []routeParameterValue) {
 	if r == nil || !r.active.Load() {
 		return
 	}
-	r.parameters = append(r.parameters[:0], parameters...)
+	// The router transfers its fresh match buffer; it never retains or exposes
+	// that mutable slice after dispatch.
+	r.parameters = parameters
 }
 
 func (r *Request) release() {

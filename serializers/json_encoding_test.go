@@ -13,13 +13,30 @@ import (
 )
 
 func TestEncodeStringEscapingAndOutputOwnership(t *testing.T) {
-	values := []string{"", "<tag>&'", "quote\"\\/", "\b\t\n\f\r", "한글😀\u2028\u2029", strings.Repeat("long", 1024), "x"}
+	values := []string{"", "<tag>&'", "quote\"\\/", "\b\t\n\f\r", "한글😀\u2028\u2029", "\u2027\u202a\u0800\u8000\u0080\uffff\U0010ffff", strings.Repeat("long", 1024), "x"}
 	for character := byte(1); character < 32; character++ {
 		values = append(values, string([]byte{character}))
 	}
 	children := make([]serializers.Value, len(values))
 	for index, value := range values {
 		children[index] = serializers.String(value)
+		var quoted bytes.Buffer
+		encoder := json.NewEncoder(&quoted)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(value); err != nil {
+			t.Fatal(err)
+		}
+		want := strings.TrimSuffix(quoted.String(), "\n")
+		for _, limit := range []int{len(want), len(want) - 1} {
+			output, err := serializers.Encode(children[index], serializers.Limits{MaxDocumentBytes: limit})
+			if limit == len(want) {
+				if err != nil || string(output) != want {
+					t.Fatalf("exact string budget = %q, %v; want %q", output, err, want)
+				}
+			} else if output != nil || !errors.Is(err, &serializers.Error{Code: serializers.CodeResourceLimit, Field: "value.document"}) {
+				t.Fatalf("escaped string overflow = %q, %v", output, err)
+			}
+		}
 	}
 	list, err := serializers.NewList(children...)
 	if err != nil {

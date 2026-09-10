@@ -92,8 +92,9 @@ func (state *saveOptionState[M]) setFieldMask(fields []WritableField[M], names [
 		return
 	}
 	state.fieldMaskSet = true
-	state.typedFields = append([]WritableField[M](nil), fields...)
-	state.dynamicNames = append([]string(nil), names...)
+	// SaveOption already snapshots these immutable slices at construction.
+	state.typedFields = fields
+	state.dynamicNames = names
 }
 
 func (state *saveOptionState[M]) setError(err error) {
@@ -130,7 +131,7 @@ type saveExecutionPlan struct {
 // supplied by db.Atomic; successful generated-key assignment intentionally
 // remains on value if that outer transaction later rolls back.
 func (m Manager[M]) Save(ctx context.Context, backend db.Mutator, value *M, options ...SaveOption[M]) error {
-	descriptor, metadata, primaryKey, err := m.writeConfiguration(ctx, backend)
+	descriptor, prepared, err := m.writeConfiguration(ctx, backend)
 	if err != nil {
 		return err
 	}
@@ -140,7 +141,7 @@ func (m Manager[M]) Save(ctx context.Context, backend db.Mutator, value *M, opti
 	// A deep snapshot keeps nullable pointees and any future reference-like
 	// generated fields from mutating an already-built plan through the caller.
 	snapshot := descriptor.CloneWriteModel(*value)
-	plan, err := buildSaveExecutionPlan(descriptor, metadata, primaryKey, snapshot, options)
+	plan, err := buildSaveExecutionPlan(descriptor, prepared, snapshot, options)
 	if err != nil {
 		return err
 	}
@@ -149,11 +150,11 @@ func (m Manager[M]) Save(ctx context.Context, backend db.Mutator, value *M, opti
 
 func buildSaveExecutionPlan[M any](
 	descriptor WriteDescriptor[M],
-	metadata ir.Model,
-	primaryKey ir.Field,
+	prepared *preparedModel,
 	value M,
 	options []SaveOption[M],
 ) (saveExecutionPlan, error) {
+	metadata, primaryKey := prepared.metadata, prepared.primaryKey
 	state := saveOptionState[M]{}
 	for _, option := range options {
 		if option.kind == 0 {
@@ -172,7 +173,7 @@ func buildSaveExecutionPlan[M any](
 		}
 	}
 
-	selectedFields, err := resolveSaveFields[M](metadata, state)
+	selectedFields, err := resolveSaveFields[M](prepared, state)
 	if err != nil {
 		return saveExecutionPlan{}, err
 	}
@@ -223,26 +224,6 @@ func buildSaveExecutionPlan[M any](
 		}, nil
 	}
 
-	keyAssignment := NewAssignment(primaryKey, keyValue)
-	insertAssignments := make([]query.Assignment, 0, len(writableAssignments)+1)
-	for _, field := range metadata.Fields {
-		if field.PrimaryKey {
-			insertAssignments = append(insertAssignments, keyAssignment)
-			continue
-		}
-		assignment, ok := assignmentForField(writableAssignments, field)
-		if ok {
-			insertAssignments = append(insertAssignments, assignment)
-		}
-	}
-
-	if state.forceInsert {
-		return saveExecutionPlan{
-			hasInsert: true,
-			insert:    query.NewInsertPlanReturningKey(metadata.DBTable, insertAssignments, fieldReference(primaryKey)),
-		}, nil
-	}
-
 	zeroRows := saveZeroRowsInsert
 	hasInsert := true
 	missingRowCode := ""
@@ -254,19 +235,36 @@ func buildSaveExecutionPlan[M any](
 			missingRowCode = query.CodeForceUpdateMissingRow
 		}
 	}
-	return saveExecutionPlan{
-		hasUpdate: true,
-		update: query.NewUpdatePlan(
+	plan := saveExecutionPlan{
+		hasUpdate:      !state.forceInsert,
+		hasInsert:      hasInsert,
+		zeroRows:       zeroRows,
+		missingRowCode: missingRowCode,
+	}
+	if plan.hasUpdate {
+		plan.update = query.NewUpdatePlan(
 			metadata.DBTable,
 			writableAssignments,
 			fieldReference(primaryKey),
 			keyValue,
-		),
-		hasInsert:      hasInsert,
-		insert:         query.NewInsertPlanReturningKey(metadata.DBTable, insertAssignments, fieldReference(primaryKey)),
-		zeroRows:       zeroRows,
-		missingRowCode: missingRowCode,
-	}, nil
+		)
+	}
+	if hasInsert {
+		// Inserts have every writable field in metadata order: force_insert
+		// cannot carry a mask, and masked/forced updates have no insert fallback.
+		insertAssignments := make([]query.Assignment, len(metadata.Fields))
+		next := 0
+		for index, field := range metadata.Fields {
+			if field.PrimaryKey {
+				insertAssignments[index] = NewAssignment(primaryKey, keyValue)
+			} else {
+				insertAssignments[index] = writableAssignments[next]
+				next++
+			}
+		}
+		plan.insert = query.NewInsertPlanReturningKey(metadata.DBTable, insertAssignments, fieldReference(primaryKey))
+	}
+	return plan, nil
 }
 
 func executeSavePlan[M any](
@@ -312,7 +310,7 @@ func executeSavePlan[M any](
 	return nil
 }
 
-func resolveSaveFields[M any](metadata ir.Model, state saveOptionState[M]) ([]ir.Field, error) {
+func resolveSaveFields[M any](prepared *preparedModel, state saveOptionState[M]) ([]ir.Field, error) {
 	if !state.fieldMaskSet {
 		return nil, nil
 	}
@@ -330,7 +328,7 @@ func resolveSaveFields[M any](metadata ir.Model, state saveOptionState[M]) ([]ir
 		if err != nil {
 			return nil, err
 		}
-		field, ok := mutationField(metadata, reference)
+		field, ok := prepared.mutationField(reference)
 		if !ok {
 			return nil, &query.Error{
 				Category: query.CategoryField,
@@ -345,7 +343,7 @@ func resolveSaveFields[M any](metadata ir.Model, state saveOptionState[M]) ([]ir
 		selected[field.Name] = struct{}{}
 	}
 	for _, name := range state.dynamicNames {
-		field, ok := namedMetadataField(metadata, name)
+		index, ok := prepared.byName[name]
 		if !ok {
 			return nil, &query.Error{
 				Category: query.CategoryField,
@@ -354,13 +352,14 @@ func resolveSaveFields[M any](metadata ir.Model, state saveOptionState[M]) ([]ir
 				Detail:   "dynamic update field is not descriptor metadata",
 			}
 		}
+		field := prepared.metadata.Fields[index]
 		if field.PrimaryKey {
 			return nil, primaryKeyUpdateField(field.Name)
 		}
 		selected[field.Name] = struct{}{}
 	}
 	fields := make([]ir.Field, 0, len(selected))
-	for _, field := range metadata.Fields {
+	for _, field := range prepared.metadata.Fields {
 		if _, ok := selected[field.Name]; ok {
 			fields = append(fields, field)
 		}
@@ -384,7 +383,7 @@ func saveAssignments[M any](descriptor WriteDescriptor[M], value M, fields []ir.
 		if field.PrimaryKey {
 			return nil, primaryKeyUpdateField(field.Name)
 		}
-		fieldValue, ok := descriptor.WriteFieldValue(value, field)
+		fieldValue, ok := descriptor.WriteFieldValue(value, field.Clone())
 		if !ok || !mutationValueMatches(field, fieldValue) {
 			return nil, &query.Error{
 				Category: query.CategoryField,
@@ -396,25 +395,6 @@ func saveAssignments[M any](descriptor WriteDescriptor[M], value M, fields []ir.
 		assignments = append(assignments, NewAssignment(field, fieldValue))
 	}
 	return assignments, nil
-}
-
-func assignmentForField(assignments []query.Assignment, field ir.Field) (query.Assignment, bool) {
-	reference := fieldReference(field)
-	for _, assignment := range assignments {
-		if assignment.Field().Equal(reference) {
-			return assignment, true
-		}
-	}
-	return query.Assignment{}, false
-}
-
-func namedMetadataField(metadata ir.Model, name string) (ir.Field, bool) {
-	for _, field := range metadata.Fields {
-		if field.Name == name {
-			return field, true
-		}
-	}
-	return ir.Field{}, false
 }
 
 func primaryKeyUpdateField(name string) error {

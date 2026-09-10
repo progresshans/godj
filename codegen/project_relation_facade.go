@@ -44,11 +44,6 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	if err := validateProjectRelationFacadeImports(canonical); err != nil {
 		return nil, err
 	}
-	for _, app := range canonical {
-		if err := validateRelationProjectionNames(app.schema); err != nil {
-			return nil, fmt.Errorf("validate relation facade projection prerequisite %q: %w", app.alias, err)
-		}
-	}
 	models, sources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err

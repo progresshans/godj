@@ -27,6 +27,7 @@ import (
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const (
@@ -312,7 +313,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnv := sqlProductSanitizeDatabaseEnvironment(sqlProductRemoveEnvironment(testfixture.Environment(os.Environ(), map[string]string{
+	setupEnv := sqlProductSanitizeDatabaseEnvironment(testenv.Without(testenv.With(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -355,7 +356,7 @@ replace github.com/progresshans/godj => %s
 	baseOverrides[sqlProductCatalogEnvironment] = sqlProductCatalogFull
 	baseOverrides[sqlProductRendererEnvironment] = sqlProductRendererSQLite
 	baseOverrides[sqlProductPostgresURLEnvironment] = postgresURL
-	baseEnv := testfixture.Environment(setupEnv, baseOverrides)
+	baseEnv := testenv.With(setupEnv, baseOverrides)
 	globalBinary := filepath.Join(universe, "godj")
 	sqlProductRunSuccess(t, repository, baseEnv, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")
 
@@ -395,7 +396,7 @@ func (project *sqlProductProject) state(t *testing.T, name string) sqlProductSta
 }
 
 func (project *sqlProductProject) environment(state sqlProductState, catalog, renderer string) []string {
-	return testfixture.Environment(project.baseEnv, map[string]string{
+	return testenv.With(project.baseEnv, map[string]string{
 		sqlProductCatalogEnvironment:        catalog,
 		sqlProductRendererEnvironment:       renderer,
 		sqlProductInitMarkerEnvironment:     state.initMarker,
@@ -406,7 +407,7 @@ func (project *sqlProductProject) environment(state sqlProductState, catalog, re
 }
 
 func (project *sqlProductProject) postgresEnvironment(state sqlProductState) []string {
-	return testfixture.Environment(
+	return testenv.With(
 		project.environment(state, sqlProductCatalogFull, sqlProductRendererPostgres),
 		map[string]string{
 			sqlProductPostgresSchemaEnvironment: sqlProductPostgresSchema,
@@ -1038,7 +1039,7 @@ func sqlProductSanitizeDatabaseEnvironment(environment []string) []string {
 		}
 		values[key] = value
 	}
-	return testfixture.Environment(nil, values)
+	return testenv.With(nil, values)
 }
 
 func sqlProductIsDatabaseEnvironmentKey(key string) bool {
@@ -1050,20 +1051,6 @@ func sqlProductIsDatabaseEnvironmentKey(key string) bool {
 		strings.HasPrefix(key, "POSTGRESQL_") ||
 		strings.HasSuffix(key, "_POSTGRES_URL") ||
 		strings.HasSuffix(key, "_DATABASE_URL")
-}
-
-func sqlProductRemoveEnvironment(environment []string, keys ...string) []string {
-	values := make(map[string]string, len(environment))
-	for _, entry := range environment {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	for _, key := range keys {
-		delete(values, key)
-	}
-	return testfixture.Environment(nil, values)
 }
 
 func sqlProductEntryNames(entries []os.DirEntry) []string {

@@ -123,7 +123,6 @@ func (input CategoryCreate) WithName(value string) CategoryCreate {
 }
 
 func (input CategoryCreate) BuildCreate() orm.Mutation[Category] {
-	metadata := categoryMetadata()
 	var value Category
 	assignments := make([]query.Assignment, 0, 1)
 	changedName, changedNameSet := input.name.Get()
@@ -136,8 +135,8 @@ func (input CategoryCreate) BuildCreate() orm.Mutation[Category] {
 		})
 	}
 	value.Name = changedName
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedName)))
-	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
+	return orm.NewCreateMutation(value, "helpdesk_category", assignments)
 }
 
 type CategoryPatch struct {
@@ -150,14 +149,13 @@ func (input CategoryPatch) WithName(value string) CategoryPatch {
 }
 
 func (input CategoryPatch) BuildPatch(current Category) orm.Mutation[Category] {
-	metadata := categoryMetadata()
 	value := current
 	assignments := make([]query.Assignment, 0, 1)
 	if changedName, ok := input.name.Get(); ok {
 		value.Name = changedName
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedName)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
 	}
-	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+	return orm.NewPatchMutation(value, "helpdesk_category", assignments)
 }
 
 func categoryMetadata() ir.Model {
@@ -343,7 +341,6 @@ func (input TicketCreate) WithCategoryID(value int64) TicketCreate {
 }
 
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
-	metadata := ticketMetadata()
 	var value Ticket
 	assignments := make([]query.Assignment, 0, 4)
 	changedSubject, changedSubjectSet := input.subject.Get()
@@ -356,19 +353,19 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 		})
 	}
 	value.Subject = changedSubject
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedSubject)))
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
 	changedDetails, changedDetailsState := input.details.Get()
 	switch changedDetailsState {
 	case orm.NullableChangeUnset:
 		value.Details = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("details", "details", query.FieldString, true), query.Null()))
 	case orm.NullableChangeValue:
 		storedDetails := changedDetails
 		value.Details = &storedDetails
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.String(changedDetails)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("details", "details", query.FieldString, true), query.String(changedDetails)))
 	case orm.NullableChangeNull:
 		value.Details = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("details", "details", query.FieldString, true), query.Null()))
 	default:
 		return orm.InvalidMutation[Ticket](&query.Error{
 			Category: query.CategoryQuery,
@@ -382,7 +379,7 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 		changedClosed = false
 	}
 	value.Closed = changedClosed
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Boolean(changedClosed)))
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("closed", "closed", query.FieldBoolean, false), query.Boolean(changedClosed)))
 	changedCategoryID, changedCategoryIDSet := input.categoryID.Get()
 	if !changedCategoryIDSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -393,8 +390,8 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 		})
 	}
 	value.CategoryID = changedCategoryID
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[4], query.Integer(changedCategoryID)))
-	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("category", "category_id", query.FieldInteger, false), query.Integer(changedCategoryID)))
+	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
 type TicketPatch struct {
@@ -430,12 +427,11 @@ func (input TicketPatch) WithCategoryID(value int64) TicketPatch {
 }
 
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
-	metadata := ticketMetadata()
 	value := current
 	assignments := make([]query.Assignment, 0, 4)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedSubject)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
 	}
 	changedDetails, changedDetailsState := input.details.Get()
 	switch changedDetailsState {
@@ -443,10 +439,10 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	case orm.NullableChangeValue:
 		storedDetails := changedDetails
 		value.Details = &storedDetails
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.String(changedDetails)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("details", "details", query.FieldString, true), query.String(changedDetails)))
 	case orm.NullableChangeNull:
 		value.Details = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("details", "details", query.FieldString, true), query.Null()))
 	default:
 		return orm.InvalidMutation[Ticket](&query.Error{
 			Category: query.CategoryQuery,
@@ -457,13 +453,13 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	}
 	if changedClosed, ok := input.closed.Get(); ok {
 		value.Closed = changedClosed
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Boolean(changedClosed)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("closed", "closed", query.FieldBoolean, false), query.Boolean(changedClosed)))
 	}
 	if changedCategoryID, ok := input.categoryID.Get(); ok {
 		value.CategoryID = changedCategoryID
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[4], query.Integer(changedCategoryID)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("category", "category_id", query.FieldInteger, false), query.Integer(changedCategoryID)))
 	}
-	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
 func ticketMetadata() ir.Model {

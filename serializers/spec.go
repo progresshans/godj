@@ -279,17 +279,6 @@ type Values struct {
 	values map[string]Value
 }
 
-func newValues(order []string, values map[string]Value) Values {
-	result := Values{
-		order:  append([]string(nil), order...),
-		values: make(map[string]Value, len(values)),
-	}
-	for name, value := range values {
-		result.values[name] = value
-	}
-	return result
-}
-
 func (v Values) Get(name string) (Value, bool) {
 	value, ok := v.values[name]
 	return value, ok
@@ -313,8 +302,8 @@ type Result struct {
 }
 
 func (r Result) Valid() bool               { return r.valid }
-func (r Result) Errors() validation.Errors { return validation.NewErrors(r.errors.All()...) }
-func (r Result) Values() Values            { return newValues(r.values.order, r.values.values) }
+func (r Result) Errors() validation.Errors { return r.errors }
+func (r Result) Values() Values            { return r.values }
 
 // Bind validates an ordered object in field declaration order, followed by
 // strict unknown-field errors in lexical field-name order.
@@ -330,12 +319,12 @@ func (s Spec) Bind(object Object, mode Mode) (Result, error) {
 	}
 	cleanedOrder := make([]string, 0, len(s.fields))
 	cleanedValues := make(map[string]Value, len(s.fields))
-	errorsOut := validation.NewErrors()
+	var failures []validation.Errors
 	for _, field := range s.fields {
 		value, present := object.Get(field.name)
 		if field.readOnly {
 			if present {
-				errorsOut = errorsOut.Append(oneViolation(field.name, CodeReadOnly))
+				failures = append(failures, oneViolation(field.name, CodeReadOnly))
 			}
 			continue
 		}
@@ -349,13 +338,14 @@ func (s Spec) Bind(object Object, mode Mode) (Result, error) {
 				continue
 			}
 			if field.required {
-				errorsOut = errorsOut.Append(oneViolation(field.name, CodeRequired))
+				failures = append(failures, oneViolation(field.name, CodeRequired))
 			}
 			continue
 		}
 		cleaned, fieldErrors := cleanValue(field, value)
-		errorsOut = errorsOut.Append(fieldErrors)
-		if fieldErrors.Empty() {
+		if !fieldErrors.Empty() {
+			failures = append(failures, fieldErrors)
+		} else {
 			cleanedOrder = append(cleanedOrder, field.name)
 			cleanedValues[field.name] = cleaned
 		}
@@ -368,12 +358,13 @@ func (s Spec) Bind(object Object, mode Mode) (Result, error) {
 	}
 	sort.Strings(unknown)
 	for _, name := range unknown {
-		errorsOut = errorsOut.Append(oneViolation(name, CodeUnknown))
+		failures = append(failures, oneViolation(name, CodeUnknown))
 	}
+	errorsOut := validation.Join(failures...)
 	return Result{
 		valid:  errorsOut.Empty(),
 		errors: errorsOut,
-		values: newValues(cleanedOrder, cleanedValues),
+		values: Values{order: cleanedOrder, values: cleanedValues},
 	}, nil
 }
 

@@ -180,11 +180,6 @@ func (c Context) Get(name string) (Value, bool) {
 	return c.lookup(name)
 }
 
-func (c Context) withLoop(name string, value, loop Value) Context {
-	c.scope = &loopScope{parent: c.scope, name: name, value: value, loop: loop}
-	return c
-}
-
 func (c Context) lookup(name string) (Value, bool) {
 	for scope := c.scope; scope != nil; scope = scope.parent {
 		if name == "forloop" {

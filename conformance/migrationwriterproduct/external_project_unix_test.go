@@ -24,6 +24,7 @@ import (
 
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/internal/gobuild"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const (
@@ -129,7 +130,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnvironment := testfixture.Environment(os.Environ(), map[string]string{
+	setupEnvironment := testenv.With(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -149,7 +150,7 @@ replace github.com/progresshans/godj => %s
 	if info, err := os.Stat(moduleCache); err != nil || !info.IsDir() {
 		t.Fatalf("prepared ambient module cache %q is unavailable: %v", moduleCache, err)
 	}
-	baseEnvironment := testfixture.Environment(setupEnvironment, map[string]string{
+	baseEnvironment := testenv.With(setupEnvironment, map[string]string{
 		"GOPROXY":                 "off",
 		"GOSUMDB":                 "off",
 		externalSecretEnvironment: "external-secret-canary-6e9b2ac73d18",
@@ -163,7 +164,7 @@ replace github.com/progresshans/godj => %s
 	databasePath := filepath.Join(universe, "sqlite-secret-path-93b4f7.sqlite3")
 	backendMarker := filepath.Join(universe, "backend-opened.log")
 	descriptor := filepath.Join(projectRoot, "godj.toml")
-	commandEnvironment := testfixture.Environment(baseEnvironment, map[string]string{
+	commandEnvironment := testenv.With(baseEnvironment, map[string]string{
 		externalDatabaseEnvironment: databasePath,
 		externalBackendMarker:       backendMarker,
 	})

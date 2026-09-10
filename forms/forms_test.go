@@ -1,6 +1,7 @@
 package forms_test
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -187,6 +188,18 @@ func TestCrossValidatorReceivesOnlySuccessfullyCleanedFields(t *testing.T) {
 		errors[1].Field() != validation.NonField || errors[1].Code() != "title_publish_conflict" {
 		t.Fatalf("errors = %#v", errors)
 	}
+	retained := seen
+	entries := retained.All()
+	entries[0] = forms.Entry{}
+	if _, err := spec.Bind(forms.NewData(map[string][]string{"title": {"next"}}), nil); err != nil {
+		t.Fatal(err)
+	}
+	if published, ok := retained.Boolean("published"); !ok || !published {
+		t.Fatal("later bind or returned entries changed the retained callback values")
+	}
+	if _, ok := retained.Get("title"); ok {
+		t.Fatal("later bind added a field to earlier callback values")
+	}
 }
 
 func TestSpecAndDataAreSafeForConcurrentEvaluation(t *testing.T) {
@@ -198,16 +211,32 @@ func TestSpecAndDataAreSafeForConcurrentEvaluation(t *testing.T) {
 	const workers = 32
 	var wait sync.WaitGroup
 	wait.Add(workers)
-	for range workers {
+	for index := range workers {
 		go func() {
 			defer wait.Done()
-			form, err := spec.Bind(data, nil)
+			title := fmt.Sprintf("old-%d", index)
+			initial := map[string]forms.Value{"title": forms.String(title)}
+			form, err := spec.Bind(data, initial)
 			if err != nil || !form.Valid() {
 				t.Errorf("Bind = valid %v, err %v", form.Valid(), err)
+				return
+			}
+			initial["title"] = forms.String("changed")
+			entries := form.Initial().All()
+			entries[0] = forms.Entry{}
+			if got, _ := form.Initial().String("title"); got != title {
+				t.Errorf("initial overlay = %q, want %q", got, title)
 			}
 		}()
 	}
 	wait.Wait()
+	unbound, err := spec.Unbound(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := unbound.Initial().String("title"); got != "" {
+		t.Fatalf("shared defaults changed: %q", got)
+	}
 }
 
 func TestConfigurationFailuresAreFailClosed(t *testing.T) {

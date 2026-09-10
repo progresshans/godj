@@ -66,7 +66,7 @@ func compileInsert(schema string, plan query.InsertPlan) (string, []any, error) 
 	if len(assignments) == 0 {
 		return "INSERT INTO " + table + " DEFAULT VALUES RETURNING " + returningColumn, []any{}, nil
 	}
-	columns, arguments, err := compileAssignments(assignments)
+	columns, arguments, err := queryplan.Assignments(assignments, validateWriteValue, quoteIdentifier, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -92,7 +92,7 @@ func compileUpdate(schema string, plan query.UpdatePlan) (string, []any, error) 
 			return "", nil, invalidPlan("update cannot assign its key field")
 		}
 	}
-	columns, arguments, err := compileAssignments(assignments)
+	columns, arguments, err := queryplan.Assignments(assignments, validateWriteValue, quoteIdentifier, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -171,33 +171,6 @@ func executeDelete(ctx context.Context, executor writeExecutor, schema string, p
 		return 0, fmt.Errorf("read PostgreSQL delete rows affected: %w", err)
 	}
 	return rowsAffected, nil
-}
-
-func compileAssignments(assignments []query.Assignment) ([]string, []any, error) {
-	columns := make([]string, len(assignments))
-	arguments := make([]any, len(assignments))
-	seen := make(map[string]struct{}, len(assignments))
-	for index, assignment := range assignments {
-		field := assignment.Field()
-		column, err := quoteIdentifier(field.Column())
-		if err != nil {
-			return nil, nil, err
-		}
-		if _, duplicate := seen[field.Column()]; duplicate {
-			return nil, nil, invalidPlan(fmt.Sprintf("field column %q is assigned more than once", field.Column()))
-		}
-		seen[field.Column()] = struct{}{}
-		if err := validateWriteValue(field, assignment.Value()); err != nil {
-			return nil, nil, err
-		}
-		argument, err := assignment.Value().DatabaseValue()
-		if err != nil {
-			return nil, nil, err
-		}
-		columns[index] = column
-		arguments[index] = argument
-	}
-	return columns, arguments, nil
 }
 
 func validateWriteValue(field query.FieldRef, value query.Value) error {

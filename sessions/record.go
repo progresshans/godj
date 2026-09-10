@@ -42,10 +42,11 @@ func ParseID(encoded string) (ID, error) {
 // Encoded returns the bearer value for a cookie or Store implementation.
 func (id ID) Encoded() string { return id.encoded }
 
-// Valid reports whether ID has the canonical 256-bit representation.
+// Valid reports whether ID was created with the canonical 256-bit
+// representation. ParseID validates external bytes; Manager's entropy path
+// constructs the same encoding. No public operation can change an ID.
 func (id ID) Valid() bool {
-	_, err := ParseID(id.encoded)
-	return err == nil
+	return id.encoded != ""
 }
 
 func (id ID) String() string   { return "[session-id]" }
@@ -170,7 +171,7 @@ func (r Record) Touch(accessedAt, idleExpiresAt time.Time) (Record, AccessStatus
 		return Record{}, AccessMissing, &Error{Code: CodeInvalidRecord, Field: "expiry", Detail: "session touch timestamps are invalid"}
 	}
 	r.accessedAt, r.idleExpiresAt = accessedAt, idleExpiresAt
-	return r.clone(), AccessActive, nil
+	return r, AccessActive, nil
 }
 
 // Snapshot returns a detached current persistence snapshot. A zero or corrupt

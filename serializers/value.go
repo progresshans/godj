@@ -187,7 +187,3 @@ func (v Value) validValue() bool {
 func invalidValue(field, detail string) error {
 	return &Error{Code: CodeInvalidValue, Field: field, Detail: detail}
 }
-
-func invalidValueCause(field, detail string, cause error) error {
-	return &Error{Code: CodeInvalidValue, Field: field, Detail: detail, Cause: cause}
-}

@@ -2,6 +2,7 @@ package orm_test
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -40,6 +41,15 @@ func TestManagerSnapshotsMetadataAcrossReadWriteAndConcurrentUsing(t *testing.T)
 					t.Errorf("All: %v", err)
 				}
 			}
+			writer := &writeSpy{lastInsertID: 1, updateRows: 1}
+			created, err := manager.Create(context.Background(), writer, models.NewArticleCreate("Concurrent"))
+			if err != nil {
+				t.Errorf("Create: %v", err)
+				return
+			}
+			if err := manager.Save(context.Background(), writer, &created); err != nil {
+				t.Errorf("Save after callback metadata mutation: %v", err)
+			}
 		})
 	}
 	group.Wait()
@@ -58,6 +68,31 @@ func TestManagerSnapshotsMetadataAcrossReadWriteAndConcurrentUsing(t *testing.T)
 	}
 	if got := orm.NewManager[models.Article](descriptor).Using(nil).Plan().Table(); got != "changed" {
 		t.Fatalf("new Manager did not take the new snapshot: %q", got)
+	}
+}
+
+func TestSaveKeepsNonleadingPrimaryKeyOrderForForcedAndFallbackInsert(t *testing.T) {
+	metadata := (models.ArticleDescriptor{}).Metadata()
+	fields := metadata.Fields
+	metadata.Fields = []ir.Field{fields[1], fields[3], fields[0], fields[2]}
+	manager := orm.NewManager[models.Article](&mutableManagerDescriptor{metadata: metadata})
+	for _, force := range []bool{false, true} {
+		article := models.NewArticleWithID(7)
+		article.Title = "Saved"
+		backend := &saveBackendSpy{updateRows: []int64{0}, insertIDs: []int64{7}}
+		var options []orm.SaveOption[models.Article]
+		wantCalls := []string{"update", "insert"}
+		if force {
+			options = append(options, orm.ForceInsert[models.Article]())
+			wantCalls = []string{"insert"}
+		}
+		if err := manager.Save(context.Background(), backend, &article, options...); err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(backend.calls, wantCalls) {
+			t.Fatalf("Save calls = %v, want %v", backend.calls, wantCalls)
+		}
+		assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "title", "summary", "id", "published")
 	}
 }
 

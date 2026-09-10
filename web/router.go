@@ -84,7 +84,7 @@ func newRouter(registry apps.Registry, routes []Route) (router, error) {
 			return router{}, &Error{
 				Code:   CodeInvalidRoute,
 				Field:  "routes",
-				Detail: "route at index " + decimal(index) + " is invalid",
+				Detail: "route at index " + strconv.Itoa(index) + " is invalid",
 				Cause:  err,
 			}
 		}
@@ -302,16 +302,19 @@ func (r router) match(method string, request *http.Request) routeMatch {
 		return routeMatch{allow: sortedMethods(methods), code: CodeMethodNotAllowed}
 	}
 	pathSegments := strings.Split(path, "/")
-	allowed := make(map[string]struct{})
+	var allowed map[string]struct{}
 	for _, candidate := range r.parameters {
 		parameters, ok := matchRoutePattern(candidate.pattern, pathSegments)
 		if !ok {
 			continue
 		}
-		allowed[candidate.route.Method] = struct{}{}
 		if candidate.route.Method == method {
 			return routeMatch{route: candidate.route, parameters: parameters}
 		}
+		if allowed == nil {
+			allowed = make(map[string]struct{})
+		}
+		allowed[candidate.route.Method] = struct{}{}
 	}
 	if len(allowed) == 0 {
 		return routeMatch{code: CodeRouteNotFound}
@@ -547,19 +550,4 @@ func methodNotAllowedResponse(allow []string) Response {
 	response.header.Set("Allow", strings.Join(allow, ", "))
 	response.routingError = CodeMethodNotAllowed
 	return response
-}
-
-func decimal(value int) string {
-	if value == 0 {
-		return "0"
-	}
-	digits := make([]byte, 0, 20)
-	for value > 0 {
-		digits = append(digits, byte('0'+value%10))
-		value /= 10
-	}
-	for left, right := 0, len(digits)-1; left < right; left, right = left+1, right-1 {
-		digits[left], digits[right] = digits[right], digits[left]
-	}
-	return string(digits)
 }

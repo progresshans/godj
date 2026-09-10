@@ -4,7 +4,9 @@ package migrations
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"sort"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -42,7 +44,7 @@ func NewProjectState(schemas ...ir.Schema) (ProjectState, error) {
 		if _, exists := state.apps[normalized.AppLabel]; exists {
 			return ProjectState{}, fmt.Errorf("duplicate project app %q", normalized.AppLabel)
 		}
-		state.apps[normalized.AppLabel] = normalized.Clone()
+		state.apps[normalized.AppLabel] = normalized
 	}
 	return state, nil
 }
@@ -94,7 +96,13 @@ func (s ProjectState) Model(app, name string) (ir.Model, bool) {
 }
 
 func (s ProjectState) Equal(other ProjectState) bool {
-	return reflect.DeepEqual(s.Clone(), other.Clone())
+	return s.FormatVersion() == other.FormatVersion() && maps.EqualFunc(s.apps, other.apps, func(left, right ir.Schema) bool {
+		return left.FormatVersion == right.FormatVersion && left.AppLabel == right.AppLabel &&
+			slices.EqualFunc(left.Models, right.Models, func(left, right ir.Model) bool {
+				return left.Name == right.Name && left.GoName == right.GoName && left.DBTable == right.DBTable &&
+					slices.EqualFunc(left.Fields, right.Fields, fieldEqual)
+			})
+	})
 }
 
 func (s ProjectState) validate() error {
@@ -126,51 +134,48 @@ func (s ProjectState) validate() error {
 }
 
 func (s ProjectState) withSchema(schema ir.Schema) ProjectState {
-	next := s.Clone()
+	next := s.copyApps()
 	next.apps[schema.AppLabel] = schema.Clone()
 	return next
 }
 
 func (s ProjectState) withoutApp(app string) ProjectState {
-	next := s.Clone()
+	next := s.copyApps()
 	delete(next.apps, app)
 	return next
+}
+
+// Unchanged app schemas are immutable and can be shared by derived states.
+// Public Schema/Model/Clone and mutable replay builders still detach their data.
+func (s ProjectState) copyApps() ProjectState {
+	apps := make(map[string]ir.Schema, len(s.apps)+1)
+	maps.Copy(apps, s.apps)
+	return ProjectState{formatVersion: s.FormatVersion(), apps: apps}
 }
 
 func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
 	schema, err := ir.Normalize(ir.Schema{
 		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      app,
-		Models:        []ir.Model{model.Clone()},
+		Models:        []ir.Model{model},
 	})
 	if err != nil {
 		return ir.Model{}, err
 	}
-	return schema.Models[0].Clone(), nil
+	return schema.Models[0], nil
 }
 
-func firstProjectStateRelation(value ProjectState) (app, model, field string, exists bool) {
-	apps := value.Apps()
-	for _, app = range apps {
-		schema := value.apps[app]
-		models := append([]ir.Model(nil), schema.Models...)
-		sort.Slice(models, func(left, right int) bool { return models[left].Name < models[right].Name })
-		for _, candidate := range models {
-			fields := append([]ir.Field(nil), candidate.Fields...)
-			sort.Slice(fields, func(left, right int) bool { return fields[left].Name < fields[right].Name })
-			for _, candidateField := range fields {
-				if fieldContainsRelation(candidateField) {
-					return app, candidate.Name, candidateField.Name, true
+func projectStateRequiresRelationLifecycle(value ProjectState) bool {
+	for _, schema := range value.apps {
+		for _, model := range schema.Models {
+			for _, field := range model.Fields {
+				if fieldContainsRelation(field) {
+					return true
 				}
 			}
 		}
 	}
-	return "", "", "", false
-}
-
-func projectStateRequiresRelationLifecycle(value ProjectState) bool {
-	_, _, _, exists := firstProjectStateRelation(value)
-	return exists
+	return false
 }
 
 func modelEqual(left, right ir.Model) bool {
@@ -178,5 +183,12 @@ func modelEqual(left, right ir.Model) bool {
 }
 
 func fieldEqual(left, right ir.Field) bool {
-	return reflect.DeepEqual(left, right)
+	if left.Default != right.Default && (left.Default == nil || right.Default == nil || *left.Default != *right.Default) {
+		return false
+	}
+	if left.Relation != right.Relation && (left.Relation == nil || right.Relation == nil || *left.Relation != *right.Relation) {
+		return false
+	}
+	left.Default, right.Default, left.Relation, right.Relation = nil, nil, nil, nil
+	return left == right
 }

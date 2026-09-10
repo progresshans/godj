@@ -18,6 +18,7 @@ import (
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const (
@@ -118,7 +119,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnv := testfixture.Environment(os.Environ(), map[string]string{
+	setupEnv := testenv.With(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -135,7 +136,7 @@ replace github.com/progresshans/godj => %s
 	externalStatusRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
 
 	secret := "showmigrations-secret-canary-2f11630d7a"
-	baseEnv := testfixture.Environment(setupEnv, map[string]string{
+	baseEnv := testenv.With(setupEnv, map[string]string{
 		"GOPROXY":                       "off",
 		"GOSUMDB":                       "off",
 		externalStatusSecretEnvironment: secret,
@@ -166,7 +167,7 @@ func (project *externalStatusProject) paths(t *testing.T, name string) (string, 
 }
 
 func (project *externalStatusProject) environment(database, marker, catalog string) []string {
-	return testfixture.Environment(project.baseEnv, map[string]string{
+	return testenv.With(project.baseEnv, map[string]string{
 		externalStatusBackendEnvironment:  "sqlite",
 		externalStatusDatabaseEnvironment: database,
 		externalStatusMarkerEnvironment:   marker,
@@ -182,7 +183,7 @@ func (project *externalStatusProject) postgresEnvironment(t *testing.T, database
 		externalStatusPostgresRequiredEnvironment,
 		externalStatusDatabaseEnvironment,
 	)
-	environment := testfixture.Environment(base, map[string]string{
+	environment := testenv.With(base, map[string]string{
 		externalStatusBackendEnvironment:        "postgres",
 		externalStatusPostgresURLEnvironment:    databaseURL,
 		externalStatusPostgresSchemaEnvironment: schema,

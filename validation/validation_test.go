@@ -1,6 +1,7 @@
 package validation_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/progresshans/godj/validation"
@@ -39,6 +40,34 @@ func TestErrorsAreOrderedAndDetached(t *testing.T) {
 	if _, ok := errors.At(3); ok {
 		t.Fatal("At(len) succeeded")
 	}
+}
+
+func TestJoinPreservesSharedGroupsAndParameterSnapshots(t *testing.T) {
+	first := validation.NewErrors(validation.New("title", "max_length", validation.NewParam("limit", "8")))
+	last := validation.NewErrors(validation.New(validation.NonField, "conflict"))
+	groups := []validation.Errors{{}, first, {}, last}
+	joined := validation.Join(groups...)
+	groups[1] = last
+	if !validation.Join().Empty() || validation.Join(validation.Errors{}, first).Len() != 1 {
+		t.Fatal("empty groups changed the result")
+	}
+	var workers sync.WaitGroup
+	for range 16 {
+		workers.Go(func() {
+			for _, collection := range []validation.Errors{first, validation.Join(first), joined.ByField("title")} {
+				items := collection.All()
+				params := items[0].Params()
+				params[0] = validation.NewParam("mutated", "true")
+				items[0] = validation.New("other", "changed")
+			}
+			items := joined.All()
+			if len(items) != 2 || items[0].Field() != "title" || items[1].Field() != validation.NonField ||
+				items[0].Params()[0].Value() != "8" {
+				t.Errorf("joined errors changed: %#v", items)
+			}
+		})
+	}
+	workers.Wait()
 }
 
 func TestByFieldAndAppendPreserveSourceCollections(t *testing.T) {

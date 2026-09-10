@@ -3,7 +3,6 @@ package templates
 import (
 	"context"
 	"fmt"
-	"html"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -20,6 +19,40 @@ func (output *boundedOutput) append(value string) error {
 	}
 	output.bytes = append(output.bytes, value...)
 	return nil
+}
+
+// appendEscaped uses html.EscapeString's five substitutions without building
+// an intermediate string. An output failure never publishes the partial buffer.
+func (output *boundedOutput) appendEscaped(value string) error {
+	if len(value) > output.limit-len(output.bytes) {
+		return fmt.Errorf("output limit exceeded")
+	}
+	for {
+		index := strings.IndexAny(value, "&'<>\"")
+		if index < 0 {
+			return output.append(value)
+		}
+		if err := output.append(value[:index]); err != nil {
+			return err
+		}
+		var escaped string
+		switch value[index] {
+		case '&':
+			escaped = "&amp;"
+		case '\'':
+			escaped = "&#39;"
+		case '<':
+			escaped = "&lt;"
+		case '>':
+			escaped = "&gt;"
+		case '"':
+			escaped = "&#34;"
+		}
+		if err := output.append(escaped); err != nil {
+			return err
+		}
+		value = value[index+1:]
+	}
 }
 
 type blockOverride struct {
@@ -120,17 +153,20 @@ func (state *renderState) renderNodes(
 			}
 			items := value.list
 			state.loopItems += len(items)
+			// This frame is private to one synchronous loop invocation. Includes
+			// borrow it while rendering; nested loops allocate their own frame.
+			loop := Value{kind: ValueObject, object: make(map[string]Value, 4)}
+			nested := values
+			nested.scope = &loopScope{parent: values.scope, name: item.name, loop: loop}
 			for index, value := range items {
 				if err := ctx.Err(); err != nil {
 					return renderError(owner, item.line, item.column, "context_canceled", err)
 				}
-				loop := Value{kind: ValueObject, object: map[string]Value{
-					"counter":  Integer(int64(index + 1)),
-					"counter0": Integer(int64(index)),
-					"first":    Bool(index == 0),
-					"last":     Bool(index == len(items)-1),
-				}}
-				nested := values.withLoop(item.name, value, loop)
+				loop.object["counter"] = Integer(int64(index + 1))
+				loop.object["counter0"] = Integer(int64(index))
+				loop.object["first"] = Bool(index == 0)
+				loop.object["last"] = Bool(index == len(items)-1)
+				nested.scope.value = value
 				if err := state.renderNodes(ctx, owner, item.children, nested, overrides, depth); err != nil {
 					return err
 				}
@@ -177,8 +213,14 @@ func (state *renderState) renderNodes(
 			if !validTextValue(token) {
 				return renderError(owner, item.line, item.column, "csrf_token_invalid", nil)
 			}
-			markup := `<input type="hidden" name="csrfmiddlewaretoken" value="` + html.EscapeString(token) + `">`
-			if err := state.output.append(markup); err != nil {
+			err = state.output.append(`<input type="hidden" name="csrfmiddlewaretoken" value="`)
+			if err == nil {
+				err = state.output.appendEscaped(token)
+			}
+			if err == nil {
+				err = state.output.append(`">`)
+			}
+			if err != nil {
 				return renderError(owner, item.line, item.column, "output_exceeded", nil)
 			}
 		default:
@@ -194,7 +236,10 @@ func (state *renderState) renderValue(owner string, item *node, value Value) err
 	case ValueNull:
 		return nil
 	case ValueString:
-		rendered = html.EscapeString(value.text)
+		if err := state.output.appendEscaped(value.text); err != nil {
+			return renderError(owner, item.line, item.column, "output_exceeded", nil)
+		}
+		return nil
 	case ValueSafeHTML:
 		rendered = value.text
 	case ValueBoolean:

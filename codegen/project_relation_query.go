@@ -104,7 +104,7 @@ func canonicalRelationQueryPackages(packages []RelationQueryPackage) ([]normaliz
 		inputs[index] = relationPackageInput{alias: candidate.Alias, importPath: candidate.ImportPath, schema: candidate.Schema}
 	}
 	return canonicalRelationPackages(inputs, relationPackagePolicy{
-		name: "query", validAlias: validRelationQueryAlias, objectNames: false,
+		name: "query", validAlias: validRelationQueryAlias,
 		reservedPaths: []string{"github.com/progresshans/godj/orm", "github.com/progresshans/godj/schema/ir"},
 	})
 }
@@ -286,10 +286,6 @@ func renderBindRelations(
 		fmt.Fprintln(output, "}")
 		return
 	}
-	fmt.Fprintln(output, "\t_binding, _err := Bind()")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn Relations{}, _err")
-	fmt.Fprintln(output, "\t}")
 	usedModels := make(map[int]struct{}, len(models))
 	for _, source := range sources {
 		usedModels[source.model.bind] = struct{}{}
@@ -297,25 +293,7 @@ func renderBindRelations(
 			usedModels[relation.target.bind] = struct{}{}
 		}
 	}
-	for _, model := range models {
-		fmt.Fprintf(output, "\t_model%d, _err := orm.BindModel(\n", model.bind)
-		fmt.Fprintln(output, "\t\t_binding,")
-		fmt.Fprintf(
-			output,
-			"\t\tir.ModelIdentity{AppLabel: %s, ModelName: %s},\n",
-			strconv.Quote(model.identity.AppLabel),
-			strconv.Quote(model.identity.ModelName),
-		)
-		fmt.Fprintf(output, "\t\t%s.%sDescriptor{},\n", model.app.alias, model.model.GoName)
-		fmt.Fprintln(output, "\t)")
-		fmt.Fprintln(output, "\tif _err != nil {")
-		fmt.Fprintln(output, "\t\treturn Relations{}, _err")
-		fmt.Fprintln(output, "\t}")
-		if _, used := usedModels[model.bind]; !used {
-			fmt.Fprintf(output, "\t_ = _model%d\n", model.bind)
-		}
-	}
-
+	renderProjectModelBindings(output, models, "Relations", usedModels)
 	for _, source := range sources {
 		for _, relation := range source.relations {
 			fmt.Fprintf(

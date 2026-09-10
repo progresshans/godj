@@ -36,6 +36,7 @@ jobs:
     outputs:
       suite: ${{ steps.plan.outputs.suite }}
       jobs: ${{ steps.plan.outputs.jobs }}
+      command_products: ${{ steps.plan.outputs.command_products }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -626,10 +627,10 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
-  project-operator-product-matrix:
+  command-product-matrix:
     needs: validation-plan
-    if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'project-operator-product-matrix')
-    name: Project operator product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
+    if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'command-product-matrix')
+    name: Command products (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
     runs-on: ${{ matrix.platform.runs_on }}
     timeout-minutes: ${{ matrix.platform.timeout_minutes }}
     env:
@@ -642,27 +643,32 @@ jobs:
           - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
-            test_timeout: "30m"
-            timeout_minutes: 40
+            operator_timeout: "30m"
+            target_timeout: "30m"
+            timeout_minutes: 75
           - runs_on: "ubuntu-24.04-arm"
             expected_goos: "linux"
             expected_goarch: "arm64"
-            test_timeout: "30m"
-            timeout_minutes: 40
+            operator_timeout: "30m"
+            target_timeout: "30m"
+            timeout_minutes: 75
           - runs_on: "macos-15-intel"
             expected_goos: "darwin"
             expected_goarch: "amd64"
-            test_timeout: "45m"
-            timeout_minutes: 55
+            operator_timeout: "45m"
+            target_timeout: "45m"
+            timeout_minutes: 105
           - runs_on: "macos-26"
             expected_goos: "darwin"
             expected_goarch: "arm64"
-            test_timeout: "35m"
-            timeout_minutes: 45
+            operator_timeout: "35m"
+            target_timeout: "30m"
+            timeout_minutes: 80
         mode: [normal, race, cgo0]
 
     steps:
       - name: Checkout
+        id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -682,13 +688,16 @@ jobs:
           test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
       - name: Prewarm project command dependencies
+        id: dependencies
         run: go mod download all
 
       - name: Run and inventory project operator product mode
+        id: operator
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && contains(fromJSON(needs.validation-plan.outputs.command_products || '[]'), 'operator') }}
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          test_flags=(-timeout="${{ matrix.platform.test_timeout }}" -json -count=1)
+          test_flags=(-timeout="${{ matrix.platform.operator_timeout }}" -json -count=1)
           case "$mode" in
             normal)
               ;;
@@ -718,7 +727,7 @@ jobs:
             printf '%s|%s\n' "$operator_package" "$test_name"
           done > "$required"
           operator_log="$RUNNER_TEMP/project-operator-sqlite-${mode}.json"
-          stderr_log="$RUNNER_TEMP/product.stderr"
+          stderr_log="$RUNNER_TEMP/project-operator-${mode}.stderr"
           status=0
           go test "${test_flags[@]}" -run "$required_regex" ./conformance/projectoperatorproduct > "$operator_log" 2> "$stderr_log" || status=$?
           if [ "$status" -ne 0 ]; then
@@ -730,71 +739,13 @@ jobs:
             go vet ./conformance/projectoperatorproduct
           fi
 
-      - name: Require a clean worktree
-        run: |
-          git diff --exit-code
-          test -z "$(git status --porcelain=v1)"
-
-  targeted-migrate-product-matrix:
-    needs: validation-plan
-    if: needs.validation-plan.result == 'success' && contains(fromJSON(needs.validation-plan.outputs.jobs || '[]'), 'targeted-migrate-product-matrix')
-    name: Targeted migrate product (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
-    runs-on: ${{ matrix.platform.runs_on }}
-    timeout-minutes: ${{ matrix.platform.timeout_minutes }}
-    env:
-      LC_ALL: C
-      TZ: UTC
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - runs_on: "ubuntu-24.04"
-            expected_goos: "linux"
-            expected_goarch: "amd64"
-            test_timeout: "30m"
-            timeout_minutes: 40
-          - runs_on: "ubuntu-24.04-arm"
-            expected_goos: "linux"
-            expected_goarch: "arm64"
-            test_timeout: "30m"
-            timeout_minutes: 40
-          - runs_on: "macos-15-intel"
-            expected_goos: "darwin"
-            expected_goarch: "amd64"
-            test_timeout: "45m"
-            timeout_minutes: 55
-          - runs_on: "macos-26"
-            expected_goos: "darwin"
-            expected_goarch: "arm64"
-            test_timeout: "30m"
-            timeout_minutes: 40
-        mode: [normal, race, cgo0]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.26.5"
-          check-latest: false
-          cache: true
-
-      - name: Assert runner coordinate
-        run: |
-          go version
-          go env GOOS GOARCH
-          test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
-          test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
-
       - name: Run and inventory targeted migrate product mode
+        id: targeted
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && contains(fromJSON(needs.validation-plan.outputs.command_products || '[]'), 'targeted') }}
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          test_flags=(-timeout="${{ matrix.platform.test_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
+          test_flags=(-timeout="${{ matrix.platform.target_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
           case "$mode" in
             normal)
               ;;
@@ -809,9 +760,8 @@ jobs:
               exit 1
               ;;
           esac
-          go mod download all
           log="$RUNNER_TEMP/project-migrate-target-product-${mode}.json"
-          stderr_log="$RUNNER_TEMP/product.stderr"
+          stderr_log="$RUNNER_TEMP/project-targeted-${mode}.stderr"
           status=0
           go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct > "$log" 2> "$stderr_log" || status=$?
           if [ "$status" -ne 0 ]; then
@@ -841,7 +791,16 @@ jobs:
             go vet ./conformance/projectmigratetargetproduct
           fi
 
+      - name: Require every selected command product
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        env:
+          VALIDATION_SUITE: ${{ needs.validation-plan.outputs.suite }}
+          COMMAND_PRODUCTS_RESULTS_JSON: >-
+            {"operator":{"result":"${{ steps.operator.outcome }}"},"targeted":{"result":"${{ steps.targeted.outcome }}"}}
+        run: python3 scripts/ci/scopes.py verify-command-products
+
       - name: Require a clean worktree
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         run: |
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
@@ -1219,8 +1178,7 @@ jobs:
       - exact-darwin-validation
       - relation-product-matrix
       - product-project-check-matrix
-      - project-operator-product-matrix
-      - targeted-migrate-product-matrix
+      - command-product-matrix
       - python-compatibility-matrix
       - postgresql-product
     runs-on: ubuntu-24.04

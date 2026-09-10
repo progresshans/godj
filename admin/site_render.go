@@ -28,7 +28,8 @@ func (site *Site) render(request *web.Request, name string, values map[string]te
 	if err != nil {
 		return web.Response{}, err
 	}
-	values = cloneTemplateValues(values)
+	// Site handlers transfer a fresh context map. NewContext snapshots it once
+	// after these shared navigation values have been added.
 	values["index_path"] = templates.String(site.basePath + "/")
 	values["login_path"] = templates.String(site.basePath + "/login/")
 	values["logout_path"] = templates.String(site.basePath + "/logout/")
@@ -441,14 +442,6 @@ func templateObject(values map[string]templates.Value) (templates.Value, error) 
 		return templates.Value{}, &ConfigError{Path: "site.context.object", Code: "invalid", Cause: err}
 	}
 	return value, nil
-}
-
-func cloneTemplateValues(values map[string]templates.Value) map[string]templates.Value {
-	clone := make(map[string]templates.Value, len(values)+3)
-	for name, value := range values {
-		clone[name] = value
-	}
-	return clone
 }
 
 func safeDisplayText(value string) string {

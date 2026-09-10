@@ -498,7 +498,7 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 		sql.WriteString(" LIKE ? ESCAPE '\\'")
-		return []any{"%" + escapeLike(text) + "%"}, nil
+		return []any{"%" + queryplan.EscapeLike(text) + "%"}, nil
 	case query.LookupIsNull:
 		isNull, ok := value.Boolean()
 		if !ok {
@@ -591,12 +591,6 @@ func validateReadSourceFields(fields []query.FieldRef) error {
 		columns[columnKey] = struct{}{}
 	}
 	return nil
-}
-
-func escapeLike(value string) string {
-	value = strings.ReplaceAll(value, `\`, `\\`)
-	value = strings.ReplaceAll(value, `%`, `\%`)
-	return strings.ReplaceAll(value, `_`, `\_`)
 }
 
 func invalidPlan(detail string) error {

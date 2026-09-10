@@ -11,6 +11,49 @@ import (
 	"strconv"
 )
 
+type appCompanion uint8
+
+const (
+	appMain appCompanion = iota
+	appMetadata
+	appObject
+	appProjection
+)
+
+// App and whole-project generation use the same raw renderers. Standalone
+// entry points inspect the actual prerequisite ASTs before returning one file.
+func renderAppSources(packageName string, prepared preparedSchema, through appCompanion) ([]projectRenderedFile, error) {
+	renderers := []struct {
+		filename string
+		render   func(string, preparedSchema) ([]byte, error)
+	}{
+		{"zz_godj_generated.go", generate},
+		{"zz_godj_relation.go", generateRelationMetadata},
+		{"zz_godj_relation_object.go", generateRelationObject},
+		{"zz_godj_relation_projection.go", generateRelationProjection},
+	}
+	files := make([]projectRenderedFile, 0, int(through)+1)
+	for _, renderer := range renderers[:int(through)+1] {
+		source, err := renderer.render(packageName, prepared)
+		if err != nil {
+			return nil, fmt.Errorf("render %s: %w", renderer.filename, err)
+		}
+		files = append(files, projectRenderedFile{path: renderer.filename, source: source})
+	}
+	return files, nil
+}
+
+func generateAppCompanion(packageName string, prepared preparedSchema, through appCompanion) ([]byte, error) {
+	files, err := renderAppSources(packageName, prepared, through)
+	if err != nil {
+		return nil, err
+	}
+	if err := finalizeGeneratedFiles(files); err != nil {
+		return nil, err
+	}
+	return files[len(files)-1].source, nil
+}
+
 type relationCompanion uint8
 
 const (
@@ -27,8 +70,18 @@ const (
 // prerequisite companions. The whole-project path renders the same raw files
 // directly and finalizes once, after attaching snapshot markers.
 func generateProjectCompanion(packageName string, plan *relationProjectPlan, through relationCompanion) ([]byte, error) {
+	appThrough := appMetadata
+	if through >= companionObject {
+		appThrough = appObject
+	}
+	if through >= companionSelect {
+		appThrough = appProjection
+	}
 	bridges := make([]BridgePackage, len(plan.apps))
 	for index, app := range plan.apps {
+		if _, err := generateAppCompanion(app.alias, app.preparedSchema, appThrough); err != nil {
+			return nil, fmt.Errorf("validate app prerequisite %q: %w", app.alias, err)
+		}
 		bridges[index] = BridgePackage{Alias: app.alias, ImportPath: app.importPath}
 	}
 	binding, err := generateProjectBridge(packageName, bridges)

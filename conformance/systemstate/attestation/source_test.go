@@ -97,6 +97,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"scripts/ci/conformance_tests.py",
 
 		"conformance/internal/testfixture/external.go",
+		"internal/testenv/environment.go",
 		"conformance/internal/relationstate/observe.go",
 		"query/plan.go",
 		"schema/ir/types.go",

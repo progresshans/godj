@@ -36,7 +36,7 @@ type Page struct {
 	count    int64
 	next     Link
 	previous Link
-	results  []serializers.Value
+	results  serializers.Value
 	valid    bool
 }
 
@@ -50,30 +50,28 @@ func NewPage(count int64, next, previous Link, results []serializers.Value) (Pag
 	if next.value != "" && !next.valid || previous.value != "" && !previous.valid {
 		return Page{}, &Error{Code: FailureInvalidConfig, Field: "links", Detail: "page contains an invalid optional link"}
 	}
-	cloned := make([]serializers.Value, len(results))
 	for index := range results {
-		object, ok := results[index].AsObject()
+		_, ok := results[index].AsObject()
 		if !ok {
 			return Page{}, &Error{Code: FailureInvalidConfig, Field: "results", Detail: "page result must be a JSON object"}
 		}
-		cloned[index] = object.Value()
 	}
-	return Page{count: count, next: next, previous: previous, results: cloned, valid: true}, nil
+	list, err := serializers.NewList(results...)
+	if err != nil {
+		return Page{}, &Error{Code: FailureInvalidConfig, Field: "results", Detail: "page results are invalid", Cause: err}
+	}
+	return Page{count: count, next: next, previous: previous, results: list, valid: true}, nil
 }
 
 func (p Page) Response() (web.Response, error) {
 	if !p.valid {
 		return web.Response{}, &Error{Code: FailureInvalidResponse, Field: "page", Detail: "page is zero or invalid"}
 	}
-	results, err := serializers.NewList(p.results...)
-	if err != nil {
-		return web.Response{}, &Error{Code: FailureInvalidResponse, Field: "results", Detail: "page results are invalid", Cause: err}
-	}
 	object, err := serializers.NewObject(
 		serializers.MemberOf("count", serializers.Integer(p.count)),
 		serializers.MemberOf("next", linkValue(p.next)),
 		serializers.MemberOf("previous", linkValue(p.previous)),
-		serializers.MemberOf("results", results),
+		serializers.MemberOf("results", p.results),
 	)
 	if err != nil {
 		return web.Response{}, &Error{Code: FailureInvalidResponse, Field: "page", Detail: "page envelope is invalid", Cause: err}

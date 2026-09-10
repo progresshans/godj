@@ -180,6 +180,12 @@ func TestMemoryAuthenticatorUniformUnknownInactiveAndWrongPassword(t *testing.T)
 	if err != nil || resolved.ID() != "operator" {
 		t.Fatalf("resolve active: principal=%v err=%v", resolved, err)
 	}
+	permissions := resolved.Permissions()
+	permissions[0] = auth.Permission("article.article.delete")
+	again, err := authenticator.Resolve(context.Background(), "operator")
+	if err != nil || !again.Has(view) || !principal.Has(view) || again.Has(permissions[0]) {
+		t.Fatalf("resolved permissions aliased a public snapshot: %v", err)
+	}
 	for _, id := range []string{"disabled", "missing"} {
 		if _, err := authenticator.Resolve(context.Background(), id); !errors.Is(err, auth.ErrInvalidCredentials) {
 			t.Fatalf("resolve %q was not uniform: %v", id, err)
@@ -247,6 +253,14 @@ func TestPrincipalAndAuthorizerAreImmutable(t *testing.T) {
 	}
 	if auth.Anonymous().Authenticated() || auth.Anonymous().Has(view) {
 		t.Fatal("anonymous principal was authenticated or permitted")
+	}
+	for _, permission := range []auth.Permission{"", "Article.view", "article..view", "article.article.view ", "article.article.view\x00"} {
+		if principal.Has(permission) {
+			t.Fatalf("invalid permission matched: %q", permission)
+		}
+		if _, err := (auth.PrincipalAuthorizer{}).Allowed(context.Background(), principal, permission); err == nil {
+			t.Fatalf("authorizer accepted invalid permission: %q", permission)
+		}
 	}
 }
 

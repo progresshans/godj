@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/testenv"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -50,7 +51,7 @@ func TestRunserverPublicOnlyEnvironmentsDiscardAmbientArticleCredentials(t *test
 		),
 	}
 	for backend, environment := range environments {
-		values := environmentMap(environment)
+		values := testenv.Map(environment)
 		for _, name := range []string{articleAdminUsernameEnv, articleAdminPasswordEnv} {
 			if _, exists := values[name]; exists {
 				t.Errorf("%s public-only runserver environment retained %s", backend, name)
@@ -75,8 +76,8 @@ func TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI(t *testing.T) {
 	if err := os.Mkdir(workspaceBase, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	values := environmentMap(runserverEnvironment(t, databasePath, workspaceBase))
-	environment := testfixture.SortedEnvironment(values)
+	values := testenv.Map(runserverEnvironment(t, databasePath, workspaceBase))
+	environment := testenv.Sorted(values)
 	assertRunserverOperatorEnvironment(t, environment, password)
 	before := snapshotRunserverProjectTree(t, articleRoot)
 	provisionRunserverOperator(t, globalBinary, repository, descriptor, environment, username, password)
@@ -268,7 +269,7 @@ func writeRunserverProvisionLine(t *testing.T, terminal *os.File, value string) 
 
 func assertRunserverOperatorEnvironment(t *testing.T, environment []string, password string) {
 	t.Helper()
-	values := environmentMap(environment)
+	values := testenv.Map(environment)
 	for _, name := range []string{articleAdminUsernameEnv, articleAdminPasswordEnv} {
 		if _, exists := values[name]; exists {
 			t.Fatalf("runserver environment retained retired startup credential %s", name)

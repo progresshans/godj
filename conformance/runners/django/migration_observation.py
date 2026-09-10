@@ -6,11 +6,34 @@ selection. This module neither loads expected artifacts nor observes GoDj.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from django.db import models
 from django.db.migrations.state import ProjectState
 from django.db.models.fields import NOT_PROVIDED
+
+
+NodeKey = tuple[str, str]
+Dependency = tuple[NodeKey, NodeKey]
+
+
+def key_value(key: tuple[str, str | None]) -> dict[str, str | None]:
+    return {"app": key[0], "name": key[1]}
+
+
+def key_values(keys: Sequence[tuple[str, str | None]]) -> list[dict[str, Any]]:
+    return [key_value(key) for key in keys]
+
+
+def graph_facts(nodes: Sequence[NodeKey], dependencies: Sequence[Dependency]) -> dict[str, Any]:
+    return {
+        "dependencies": [
+            {"child": key_value(child), "parent": key_value(parent)}
+            for child, parent in sorted(dependencies)
+        ],
+        "nodes": key_values(sorted(nodes)),
+    }
 
 
 _FIELD_KINDS = {

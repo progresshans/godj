@@ -105,6 +105,27 @@ func TestDecodeObjectAcceptsPairedSurrogateAndEscapedLiteral(t *testing.T) {
 	}
 }
 
+func TestDecodeEmptyNameKeepsChildDuplicateAndBudgetErrorPrecedence(t *testing.T) {
+	for _, test := range []struct {
+		document string
+		limits   serializers.Limits
+		field    string
+		code     serializers.ErrorCode
+	}{
+		{`{"":1}`, serializers.Limits{}, "document.object", serializers.CodeInvalidDocument},
+		{`{"":1,"":2}`, serializers.Limits{}, "document.object.", serializers.CodeInvalidDocument},
+		{`{"":1.5}`, serializers.Limits{}, "document.number", serializers.CodeInvalidDocument},
+		{`{"":1,"next":2}`, serializers.Limits{MaxObjectMembers: 1}, "document.object", serializers.CodeResourceLimit},
+		{`{"nested":{"":1},"next":1.5}`, serializers.Limits{}, "document.object", serializers.CodeInvalidDocument},
+	} {
+		object, err := serializers.DecodeObject([]byte(test.document), test.limits)
+		var failure *serializers.Error
+		if object.Valid() || !errors.As(err, &failure) || failure.Code != test.code || failure.Field != test.field {
+			t.Fatalf("DecodeObject(%s) = valid %v, %#v", test.document, object.Valid(), err)
+		}
+	}
+}
+
 func TestDecodeEncodeObjectEnforcesEveryResourceLimit(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -39,7 +39,7 @@ func NewCredential(username, encodedHash string, principal Principal) (Credentia
 	if principal.id == "" {
 		return Credential{}, &Error{Code: CodeInvalidInput, Field: "principal", Detail: "credential principal is invalid"}
 	}
-	return Credential{username: username, hash: encodedHash, principal: principal.clone()}, nil
+	return Credential{username: username, hash: encodedHash, principal: principal}, nil
 }
 
 func (Credential) String() string   { return "auth.Credential{redacted}" }
@@ -80,9 +80,8 @@ func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher) (*M
 		if err := hasher.ValidateEncoded(credential.hash); err != nil {
 			return nil, &Error{Code: CodeInvalidConfig, Field: "credentials", Detail: "credential contains an invalid encoded password", Cause: err}
 		}
-		clone := Credential{username: credential.username, hash: credential.hash, principal: credential.principal.clone()}
-		result.byUsername[clone.username] = clone
-		result.byID[clone.principal.id] = clone
+		result.byUsername[credential.username] = credential
+		result.byID[credential.principal.id] = credential
 	}
 	dummyHash, err := hasher.Hash(context.Background(), "godj-unmatchable-dummy-password")
 	if err != nil {
@@ -115,7 +114,7 @@ func (a *MemoryAuthenticator) Authenticate(ctx context.Context, username, passwo
 	if !found || !credential.principal.Active() || !verified || !validUsername(username) {
 		return Principal{}, ErrInvalidCredentials
 	}
-	return credential.principal.clone(), nil
+	return credential.principal, nil
 }
 
 func (a *MemoryAuthenticator) Resolve(ctx context.Context, principalID string) (Principal, error) {
@@ -126,7 +125,7 @@ func (a *MemoryAuthenticator) Resolve(ctx context.Context, principalID string) (
 	if !found || !credential.principal.Active() || !validIdentity(principalID) {
 		return Principal{}, ErrInvalidCredentials
 	}
-	return credential.principal.clone(), nil
+	return credential.principal, nil
 }
 
 func validAuthCall(ctx context.Context, authenticator *MemoryAuthenticator) error {
@@ -145,14 +144,4 @@ func validAuthCall(ctx context.Context, authenticator *MemoryAuthenticator) erro
 func validUsername(username string) bool {
 	return username != "" && len(username) <= maxUsernameBytes && utf8.ValidString(username) &&
 		!strings.ContainsRune(username, '\x00') && strings.TrimSpace(username) == username
-}
-
-func (p Principal) clone() Principal {
-	clone := p
-	clone.permissions = append([]Permission(nil), p.permissions...)
-	clone.permission = make(map[Permission]struct{}, len(p.permission))
-	for permission := range p.permission {
-		clone.permission[permission] = struct{}{}
-	}
-	return clone
 }

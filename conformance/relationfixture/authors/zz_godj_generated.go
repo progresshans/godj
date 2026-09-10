@@ -122,7 +122,6 @@ func (input AuthorCreate) WithName(value string) AuthorCreate {
 }
 
 func (input AuthorCreate) BuildCreate() orm.Mutation[Author] {
-	metadata := authorMetadata()
 	var value Author
 	assignments := make([]query.Assignment, 0, 1)
 	changedName, changedNameSet := input.name.Get()
@@ -135,8 +134,8 @@ func (input AuthorCreate) BuildCreate() orm.Mutation[Author] {
 		})
 	}
 	value.Name = changedName
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedName)))
-	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
+	return orm.NewCreateMutation(value, "authors_author", assignments)
 }
 
 type AuthorPatch struct {
@@ -149,14 +148,13 @@ func (input AuthorPatch) WithName(value string) AuthorPatch {
 }
 
 func (input AuthorPatch) BuildPatch(current Author) orm.Mutation[Author] {
-	metadata := authorMetadata()
 	value := current
 	assignments := make([]query.Assignment, 0, 1)
 	if changedName, ok := input.name.Get(); ok {
 		value.Name = changedName
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedName)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
 	}
-	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+	return orm.NewPatchMutation(value, "authors_author", assignments)
 }
 
 func authorMetadata() ir.Model {

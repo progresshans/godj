@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -208,7 +209,7 @@ func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int) (Va
 
 func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int) (Value, error) {
 	members := make([]Member, 0)
-	seen := make(map[string]struct{})
+	byName := make(map[string]int)
 	for decoder.More() {
 		if len(members) >= budget.limits.MaxObjectMembers {
 			return Value{}, resourceLimit("document.object", "JSON object member count exceeds the configured limit")
@@ -224,10 +225,10 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int) (V
 		if err := validateJSONString(name, budget.limits, "document.object.name"); err != nil {
 			return Value{}, err
 		}
-		if _, duplicate := seen[name]; duplicate {
+		if _, duplicate := byName[name]; duplicate {
 			return Value{}, invalidDocument("document.object."+name, "JSON object member is duplicated", nil)
 		}
-		seen[name] = struct{}{}
+		byName[name] = len(members)
 		value, err := decodeJSONValue(decoder, budget, depth+1)
 		if err != nil {
 			return Value{}, err
@@ -238,11 +239,15 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int) (V
 	if err != nil || closing != json.Delim('}') {
 		return Value{}, invalidDocument("document.object", "JSON object is incomplete", err)
 	}
-	object, err := NewObject(members...)
-	if err != nil {
-		return Value{}, invalidDocument("document.object", "JSON object contains an invalid member", err)
+	// Keep empty-name rejection after parsing the entire object, as in
+	// NewObject. Duplicate, malformed child and budget failures precede it.
+	if _, empty := byName[""]; empty {
+		return Value{}, invalidDocument("document.object", "JSON object contains an invalid member",
+			invalidValue("object.name", "object member name is empty or invalid UTF-8 text"))
 	}
-	return object.Value(), nil
+	// The decoder validated every name and child while building these private
+	// containers. Publish them directly, with no caller-owned slice to snapshot.
+	return (Object{members: members, index: byName, valid: true}).Value(), nil
 }
 
 func decodeJSONArray(decoder *json.Decoder, budget *decodeBudget, depth int) (Value, error) {
@@ -261,21 +266,15 @@ func decodeJSONArray(decoder *json.Decoder, budget *decodeBudget, depth int) (Va
 	if err != nil || closing != json.Delim(']') {
 		return Value{}, invalidDocument("document.array", "JSON array is incomplete", err)
 	}
-	list, err := NewList(values...)
-	if err != nil {
-		return Value{}, invalidDocument("document.array", "JSON array contains an invalid value", err)
-	}
-	return list, nil
+	return Value{kind: ValueList, list: values, valid: true}, nil
 }
 
 func validateJSONString(value string, limits Limits, field string) error {
 	if !utf8.ValidString(value) {
 		return invalidDocument(field, "JSON string is not valid UTF-8", nil)
 	}
-	for index := 0; index < len(value); index++ {
-		if value[index] == 0 {
-			return invalidDocument(field, "JSON string contains NUL", nil)
-		}
+	if strings.IndexByte(value, 0) >= 0 {
+		return invalidDocument(field, "JSON string contains NUL", nil)
 	}
 	if len(value) > limits.MaxStringBytes {
 		return resourceLimit(field, "JSON string exceeds the configured byte limit")
@@ -309,8 +308,6 @@ type encodeState struct {
 	limits   Limits
 	values   int
 	document []byte
-	scratch  bytes.Buffer
-	encoder  *json.Encoder
 }
 
 func (s *encodeState) appendValue(value Value, depth int) error {
@@ -333,14 +330,7 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 		var digits [20]byte
 		return s.appendBytes(strconv.AppendInt(digits[:0], value.integer, 10))
 	case ValueString:
-		if err := validateJSONString(value.string, s.limits, "value.string"); err != nil {
-			return err
-		}
-		encoded, err := s.encodeString(value.string)
-		if err != nil {
-			return invalidValueCause("value.string", "string could not be encoded", err)
-		}
-		return s.appendBytes(encoded)
+		return s.appendString(value.string, "value.string")
 	case ValueList:
 		if len(value.list) > s.limits.MaxArrayItems {
 			return resourceLimit("value.array", "JSON array item count exceeds the configured limit")
@@ -373,14 +363,7 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 				}
 			}
 			member := value.object.members[index]
-			if err := validateJSONString(member.name, s.limits, "value.object.name"); err != nil {
-				return err
-			}
-			encodedName, err := s.encodeString(member.name)
-			if err != nil {
-				return invalidValueCause("value.object.name", "object member name could not be encoded", err)
-			}
-			if err := s.appendBytes(encodedName); err != nil {
+			if err := s.appendString(member.name, "value.object.name"); err != nil {
 				return err
 			}
 			if err := s.appendBytes([]byte{':'}); err != nil {
@@ -404,22 +387,63 @@ func (s *encodeState) appendBytes(value []byte) error {
 	return nil
 }
 
-// encodeString lends scratch bytes until the next call. appendValue copies
-// them into the bounded document before another string can reuse the buffer.
-func (s *encodeState) encodeString(value string) ([]byte, error) {
-	if s.encoder == nil {
-		s.encoder = json.NewEncoder(&s.scratch)
-		s.encoder.SetEscapeHTML(false)
+// appendString writes validated UTF-8 directly into the bounded document. Its
+// escaping matches encoding/json with SetEscapeHTML(false): controls, quotes,
+// backslashes and U+2028/U+2029 are escaped, and other UTF-8 bytes are retained.
+func (s *encodeState) appendString(value, field string) error {
+	if err := validateJSONString(value, s.limits, field); err != nil {
+		return err
 	}
-	s.scratch.Reset()
-	if err := s.encoder.Encode(value); err != nil {
-		return nil, err
+	if len(value)+2 > s.limits.MaxDocumentBytes-len(s.document) {
+		return resourceLimit("value.document", "encoded JSON exceeds the configured byte limit")
 	}
-	encoded := s.scratch.Bytes()
-	if len(encoded) == 0 || encoded[len(encoded)-1] != '\n' {
-		return nil, errors.New("JSON string encoder omitted its terminator")
+	if err := s.appendBytes([]byte{'"'}); err != nil {
+		return err
 	}
-	return encoded[:len(encoded)-1], nil
+	start := 0
+	escaped := [6]byte{'\\'}
+	for index := 0; index < len(value); index++ {
+		length, width := 2, 1
+		switch value[index] {
+		case '"', '\\':
+			escaped[1] = value[index]
+		case '\b':
+			escaped[1] = 'b'
+		case '\f':
+			escaped[1] = 'f'
+		case '\n':
+			escaped[1] = 'n'
+		case '\r':
+			escaped[1] = 'r'
+		case '\t':
+			escaped[1] = 't'
+		default:
+			if value[index] < 0x20 {
+				copy(escaped[1:4], "u00")
+				escaped[4] = "0123456789abcdef"[value[index]>>4]
+				escaped[5] = "0123456789abcdef"[value[index]&0xf]
+				length = 6
+			} else if value[index] == 0xe2 && index+2 < len(value) && value[index+1] == 0x80 && (value[index+2] == 0xa8 || value[index+2] == 0xa9) {
+				copy(escaped[1:5], "u202")
+				escaped[5] = '8' + value[index+2] - 0xa8
+				length, width = 6, 3
+			} else {
+				continue
+			}
+		}
+		if err := s.appendBytes([]byte(value[start:index])); err != nil {
+			return err
+		}
+		if err := s.appendBytes(escaped[:length]); err != nil {
+			return err
+		}
+		index += width - 1
+		start = index + 1
+	}
+	if err := s.appendBytes([]byte(value[start:])); err != nil {
+		return err
+	}
+	return s.appendBytes([]byte{'"'})
 }
 
 func resolveLimits(limits Limits) (Limits, error) {

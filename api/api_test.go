@@ -138,10 +138,12 @@ func TestPageUsesRelativeLinksStableFieldOrderAndObjectResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, err := api.NewPage(3, next, api.Link{}, []serializers.Value{article.Value()})
+	results := []serializers.Value{article.Value()}
+	page, err := api.NewPage(3, next, api.Link{}, results)
 	if err != nil {
 		t.Fatal(err)
 	}
+	results[0] = serializers.String("changed")
 	response, err := page.Response()
 	if err != nil {
 		t.Fatal(err)
@@ -149,6 +151,12 @@ func TestPageUsesRelativeLinksStableFieldOrderAndObjectResults(t *testing.T) {
 	want := `{"count":3,"next":"/api/articles/?page=2&ordering=-id","previous":null,"results":[{"id":1,"title":"Go"}]}`
 	if got := string(response.Body()); got != want {
 		t.Fatalf("body = %s, want %s", got, want)
+	}
+	body := response.Body()
+	body[0] = '!'
+	again, err := page.Response()
+	if err != nil || string(again.Body()) != want {
+		t.Fatalf("repeated page response changed: %s, %v", again.Body(), err)
 	}
 	for _, invalid := range []string{
 		"", "//evil.test/a", "https://evil.test/a", "/a\\b", "/a#fragment", "/a\n",

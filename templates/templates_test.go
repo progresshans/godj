@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
+	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -73,6 +75,26 @@ func TestAutoescapeAndExplicitTrustedHTML(t *testing.T) {
 	}
 	if got, want := string(output), `&lt;b title=&#34;x&#34;&gt;&amp;&lt;/b&gt;|<strong>trusted</strong>`; got != want {
 		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
+func TestEscapedOutputHonorsExactByteLimit(t *testing.T) {
+	for _, value := range []string{"", "plain한글😀", "&<>'\"", "\n\t/", strings.Repeat("a&", 512)} {
+		want := "prefix:" + html.EscapeString(value)
+		for _, limit := range []int{len(want), len(want) - 1} {
+			engine := newEngine(t, map[string]string{"page": `prefix:{{ value }}`}, templates.Config{Limits: templates.Limits{MaxOutputBytes: limit}})
+			output, err := engine.Render(context.Background(), "page", contextOf(t, map[string]templates.Value{"value": templates.String(value)}), templates.Capabilities{})
+			if limit == len(want) {
+				if err != nil || string(output) != want {
+					t.Fatalf("exact escape budget = %q, %v; want %q", output, err, want)
+				}
+			} else {
+				var failure *templates.Error
+				if output != nil || !errors.As(err, &failure) || failure.Code != "output_exceeded" {
+					t.Fatalf("escape overflow published output: %q, %v", output, err)
+				}
+			}
+		}
 	}
 }
 
@@ -311,8 +333,10 @@ func TestEngineIsConcurrentSafe(t *testing.T) {
 
 func TestLoopFlagsUseCollectionLengthAndKeepNestedScope(t *testing.T) {
 	engine := newEngine(t, map[string]string{
-		"flags":  `{% for item in items %}{{ forloop.counter }}:{{ forloop.first }}:{{ forloop.last }};{% endfor %}`,
-		"nested": `{% for item in items %}{{ forloop.counter }}[{% for item in item %}{{ forloop.last }};{% endfor %}]{{ forloop.last }};{% endfor %}|{{ item }}|{{ forloop }}`,
+		"flags":     `{% for item in items %}{{ forloop.counter }}:{{ forloop.first }}:{{ forloop.last }};{% endfor %}`,
+		"nested":    `{% for item in items %}{{ forloop.counter }}[{% for item in item %}{{ forloop.last }};{% endfor %}]{{ forloop.last }};{% endfor %}|{{ item }}|{{ forloop }}`,
+		"included":  `{% for item in items %}{% include "iteration" %}{% endfor %}|{{ item }}|{{ forloop }}`,
+		"iteration": `{{ forloop.counter0 }}/{{ forloop|length }}:{{ item|length }};`,
 	}, templates.Config{})
 	for _, test := range []struct {
 		name  string
@@ -340,6 +364,16 @@ func TestLoopFlagsUseCollectionLengthAndKeepNestedScope(t *testing.T) {
 	if want := "1[False;True;]False;2[True;]True;|outer|root"; err != nil || string(output) != want {
 		t.Fatalf("nested Render = %q, %v; want %q", output, err, want)
 	}
+	var workers sync.WaitGroup
+	for range 16 {
+		workers.Go(func() {
+			output, err := engine.Render(context.Background(), "included", values, templates.Capabilities{})
+			if want := "0/4:2;1/4:1;|outer|root"; err != nil || string(output) != want {
+				t.Errorf("included loop scope = %q, %v; want %q", output, err, want)
+			}
+		})
+	}
+	workers.Wait()
 }
 
 func TestClosedValuesDetachContainersAndShareImmutableChildren(t *testing.T) {

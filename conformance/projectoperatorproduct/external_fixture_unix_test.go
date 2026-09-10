@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/testenv"
 	"go/parser"
 	"go/token"
 	"io"
@@ -131,7 +132,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("ambient Go module cache path %q is not absolute", moduleCache)
 	}
 
-	setupEnvironment := operatorEnvironment(operatorSanitizeEnvironment(os.Environ()), map[string]string{
+	setupEnvironment := testenv.With(operatorSanitizeEnvironment(os.Environ()), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -147,14 +148,14 @@ replace github.com/progresshans/godj => %s
 	setupEnvironment = gobuild.Environment(setupEnvironment, os.Environ(), universe)
 	operatorRunSetup(t, root, setupEnvironment, "go", "mod", "tidy")
 
-	baseEnvironment := operatorEnvironment(setupEnvironment, map[string]string{
+	baseEnvironment := testenv.With(setupEnvironment, map[string]string{
 		"GOPROXY": "off",
 		"GOSUMDB": "off",
 	})
 	globalBinary := filepath.Join(universe, "godj")
 	operatorRunSetup(t, repository, setupEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")
 
-	generateEnvironment := operatorEnvironment(baseEnvironment, map[string]string{
+	generateEnvironment := testenv.With(baseEnvironment, map[string]string{
 		operatorSQLiteDatabaseEnvironment: filepath.Join(state, "generate-unused.sqlite3"),
 		operatorMarkerEnvironment:         filepath.Join(state, "generate-unused.pid"),
 		operatorRunnerMarkerEnvironment:   "",
@@ -183,7 +184,7 @@ replace github.com/progresshans/godj => %s
 
 func (project *operatorExternalProject) sqliteEnvironment(t *testing.T, database, marker string) []string {
 	t.Helper()
-	environment := operatorEnvironment(operatorRemoveEnvironment(
+	environment := testenv.With(testenv.Without(
 		project.baseEnvironment,
 		operatorPostgresURLEnvironment,
 		operatorPostgresSchemaEnvironment,
@@ -199,7 +200,7 @@ func (project *operatorExternalProject) sqliteEnvironment(t *testing.T, database
 
 func (project *operatorExternalProject) postgresEnvironment(t *testing.T, databaseURL, schema, marker string) []string {
 	t.Helper()
-	environment := operatorEnvironment(operatorRemoveEnvironment(
+	environment := testenv.With(testenv.Without(
 		project.baseEnvironment,
 		operatorSQLiteDatabaseEnvironment,
 	), map[string]string{
@@ -544,49 +545,8 @@ func operatorAssertSecretFreeEnvironment(t *testing.T, environment []string, sen
 	}
 }
 
-func operatorEnvironment(base []string, overrides map[string]string) []string {
-	values := make(map[string]string, len(base)+len(overrides))
-	for _, entry := range base {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok && key != "" {
-			values[key] = value
-		}
-	}
-	for key, value := range overrides {
-		values[key] = value
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, len(keys))
-	for index, key := range keys {
-		result[index] = key + "=" + values[key]
-	}
-	return result
-}
-
-func operatorRemoveEnvironment(environment []string, keys ...string) []string {
-	blocked := make(map[string]struct{}, len(keys))
-	for _, key := range keys {
-		blocked[key] = struct{}{}
-	}
-	result := make([]string, 0, len(environment))
-	for _, entry := range environment {
-		key, _, ok := strings.Cut(entry, "=")
-		if !ok {
-			continue
-		}
-		if _, remove := blocked[key]; !remove {
-			result = append(result, entry)
-		}
-	}
-	return result
-}
-
 func operatorSanitizeEnvironment(environment []string) []string {
-	return operatorRemoveEnvironment(
+	return testenv.Without(
 		environment,
 		operatorSQLiteDatabaseEnvironment,
 		operatorPostgresURLEnvironment,

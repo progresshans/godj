@@ -113,6 +113,13 @@ func TestCompileWriteRejectsSQLiteCaseFoldedColumnCollisions(t *testing.T) {
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("case-folded key update error = %v, want invalid_plan", err)
 	}
+	statement, arguments, err := sqlite.CompileInsert(query.NewInsertPlan("news_article", []query.Assignment{
+		query.NewAssignment(query.NewFieldRef("upper", "Ä", query.FieldString, false), query.String("first")),
+		query.NewAssignment(query.NewFieldRef("lower", "ä", query.FieldString, false), query.String("second")),
+	}))
+	if err != nil || statement != `INSERT INTO "news_article" ("Ä", "ä") VALUES (?, ?)` || len(arguments) != 2 {
+		t.Fatalf("SQLite non-ASCII identifier case was folded: %q %v, %v", statement, arguments, err)
+	}
 }
 
 func TestSQLiteInsertDefaultValuesSupportsAutoOnlyModel(t *testing.T) {

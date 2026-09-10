@@ -30,11 +30,6 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 	if err := validateProjectRelationSelectRelatedImports(canonical); err != nil {
 		return nil, err
 	}
-	for _, app := range canonical {
-		if err := validateRelationProjectionNames(app.schema); err != nil {
-			return nil, fmt.Errorf("validate relation projection prerequisite %q: %w", app.alias, err)
-		}
-	}
 	models, sources, err := plan.objectSurface()
 	if err != nil {
 		return nil, err

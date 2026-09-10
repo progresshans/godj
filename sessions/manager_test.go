@@ -71,6 +71,21 @@ func TestManagerCreateLoadRotateAndFlush(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	withoutTheme := changed.WithoutValue("theme")
+	if _, found := withoutTheme.Value("theme"); found {
+		t.Fatal("derived value removal failed")
+	}
+	for _, previous := range []sessions.Record{record, loaded} {
+		if _, found := previous.Value("principal"); found {
+			t.Fatal("derived value change modified an earlier record")
+		}
+		if theme, _ := previous.Value("theme"); theme != "dark" {
+			t.Fatal("derived value removal modified an earlier record")
+		}
+	}
+	if !record.AccessedAt().Equal(now) {
+		t.Fatal("sliding access modified an earlier record's timestamps")
+	}
 	rotated, err := manager.Rotate(context.Background(), changed)
 	if err != nil {
 		t.Fatal(err)

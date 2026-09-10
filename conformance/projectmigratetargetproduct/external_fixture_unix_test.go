@@ -24,6 +24,7 @@ import (
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const (
@@ -134,7 +135,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnv := targetRemoveEnvironment(testfixture.Environment(os.Environ(), map[string]string{
+	setupEnv := targetRemoveEnvironment(testenv.With(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -162,7 +163,7 @@ replace github.com/progresshans/godj => %s
 	targetRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
 
 	secret := "target-migrate-secret-canary-5d7e248ca1"
-	baseEnv := testfixture.Environment(setupEnv, map[string]string{
+	baseEnv := testenv.With(setupEnv, map[string]string{
 		"GOPROXY":                         "off",
 		"GOSUMDB":                         "off",
 		targetSecretEnvironment:           secret,
@@ -219,7 +220,7 @@ func (project *targetExternalProject) environmentWith(database, marker, catalog 
 	for key, value := range overrides {
 		values[key] = value
 	}
-	return testfixture.Environment(project.baseEnv, values)
+	return testenv.With(project.baseEnv, values)
 }
 
 func (project *targetExternalProject) postgresEnvironment(
@@ -260,7 +261,7 @@ func (project *targetExternalProject) postgresEnvironmentWith(
 	for key, value := range overrides {
 		values[key] = value
 	}
-	environment := testfixture.Environment(base, values)
+	environment := testenv.With(base, values)
 	actual := targetEnvironmentMap(environment)
 	if _, exists := actual[targetPostgresTestURLEnvironment]; exists {
 		t.Fatal("PostgreSQL target project environment retained test-only database URL")
@@ -586,7 +587,7 @@ func targetRemoveEnvironment(environment []string, keys ...string) []string {
 	for _, key := range keys {
 		delete(values, key)
 	}
-	return testfixture.Environment(nil, values)
+	return testenv.With(nil, values)
 }
 
 func targetURLPassword(databaseURL string) string {

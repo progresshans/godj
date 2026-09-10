@@ -15,7 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -83,29 +82,6 @@ func AssertArtifactsRedacted(t *testing.T, root string, sensitive ...string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func Environment(base []string, overrides map[string]string) []string {
-	values := make(map[string]string, len(base)+len(overrides))
-	for _, entry := range base {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	for key, value := range overrides {
-		values[key] = value
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, 0, len(keys))
-	for _, key := range keys {
-		result = append(result, key+"="+values[key])
-	}
-	return result
 }
 
 func ApplicationHashes(t *testing.T, root string) map[string][sha256.Size]byte {
@@ -218,17 +194,4 @@ func AuditApplicationSources(t *testing.T, repository, root string, allowedImpor
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func SortedEnvironment(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	result := make([]string, len(keys))
-	for index, key := range keys {
-		result[index] = key + "=" + values[key]
-	}
-	return result
 }

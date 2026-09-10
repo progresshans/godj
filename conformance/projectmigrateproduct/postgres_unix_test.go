@@ -23,6 +23,7 @@ import (
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const (
@@ -80,9 +81,9 @@ func TestGlobalMigrateArticlePostgresProduct(t *testing.T) {
 			t.Fatal("create PostgreSQL migration barrier directory")
 		}
 		workspaceBase := newWorkspaceBase(t)
-		values := environmentMap(projectMigratePostgresEnvironment(t, databaseURL, schema, workspaceBase))
+		values := testenv.Map(projectMigratePostgresEnvironment(t, databaseURL, schema, workspaceBase))
 		values[fullConcurrencyBarrierEnv] = barrierDirectory
-		environment := testfixture.SortedEnvironment(values)
+		environment := testenv.Sorted(values)
 		projectMigratePostgresAssertEnvironment(t, environment, databaseURL, schema)
 
 		start := make(chan struct{})
@@ -187,9 +188,9 @@ func TestGlobalMigrateArticlePostgresProduct(t *testing.T) {
 		converged := projectMigratePostgresInspect(t, databaseURL, schema)
 		projectMigratePostgresAssertLatest(t, converged, expected, nil)
 
-		reconciliationValues := environmentMap(environment)
+		reconciliationValues := testenv.Map(environment)
 		delete(reconciliationValues, fullConcurrencyBarrierEnv)
-		reconciliationEnvironment := testfixture.SortedEnvironment(reconciliationValues)
+		reconciliationEnvironment := testenv.Sorted(reconciliationValues)
 		reconciled := runMigrate(t, globalBinary, repository, contentionDescriptor, reconciliationEnvironment)
 		projectMigratePostgresAssertVisibleSecretFree(t, reconciled.Stdout, reconciled.Stderr, secrets)
 		assertMigrateSuccess(t, reconciled, expected, secrets...)
@@ -290,7 +291,7 @@ func projectMigratePostgresBuildGlobalGodj(t *testing.T, repository string) stri
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-mod=readonly", "-o", binary, "./cmd/godj")
 	command.Dir = repository
-	values := environmentMap(offlineEnvironment(os.Environ()))
+	values := testenv.Map(testenv.OfflineGo(os.Environ(), ""))
 	for _, key := range []string{
 		projectMigratePostgresTestURLEnv,
 		projectMigratePostgresRequiredEnv,
@@ -302,7 +303,7 @@ func projectMigratePostgresBuildGlobalGodj(t *testing.T, repository string) stri
 	} {
 		delete(values, key)
 	}
-	command.Env = testfixture.SortedEnvironment(values)
+	command.Env = testenv.Sorted(values)
 	var stdout, stderr gobuild.Capture
 	command.Stdout = &stdout
 	command.Stderr = &stderr
@@ -380,17 +381,17 @@ func projectMigratePostgresValidSchema(schema string) bool {
 
 func projectMigratePostgresEnvironment(t *testing.T, databaseURL, schema, workspaceBase string) []string {
 	t.Helper()
-	values := environmentMap(articleEnvironmentWithoutDatabase(t, workspaceBase))
+	values := testenv.Map(articleEnvironmentWithoutDatabase(t, workspaceBase))
 	delete(values, projectMigratePostgresTestURLEnv)
 	delete(values, projectMigratePostgresRequiredEnv)
 	values[articlePostgresURLEnv] = databaseURL
 	values[articlePostgresSchemaEnv] = schema
-	return testfixture.SortedEnvironment(values)
+	return testenv.Sorted(values)
 }
 
 func projectMigratePostgresAssertEnvironment(t *testing.T, environment []string, databaseURL, schema string) {
 	t.Helper()
-	values := environmentMap(environment)
+	values := testenv.Map(environment)
 	if _, exists := values[articleSQLiteDatabaseEnv]; exists {
 		t.Fatal("PostgreSQL product environment retained SQLite configuration")
 	}

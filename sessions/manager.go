@@ -114,7 +114,7 @@ func (m *Manager) Load(ctx context.Context, id ID) (Record, bool, error) {
 	if !touched.valid(m.limits) || touched.id != id {
 		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid touched record"}
 	}
-	return touched.clone(), true, nil
+	return touched, true, nil
 }
 
 // Create publishes a new 256-bit session with detached validated values.
@@ -141,7 +141,7 @@ func (m *Manager) Create(ctx context.Context, values map[string]string) (Record,
 			return Record{}, storeFailure("create", err)
 		}
 		if created {
-			return record.clone(), nil
+			return record, nil
 		}
 	}
 	return Record{}, &Error{Code: CodeEntropy, Detail: "session identifier collision limit was reached"}
@@ -177,14 +177,10 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 		if err != nil {
 			return Record{}, err
 		}
-		replacement := newRecord(
-			id,
-			current.values,
-			current.createdAt,
-			now,
-			current.absoluteExpiresAt,
-			minimumTime(now.Add(m.idleTimeout), current.absoluteExpiresAt),
-		)
+		replacement := current
+		replacement.id = id
+		replacement.accessedAt = now
+		replacement.idleExpiresAt = minimumTime(now.Add(m.idleTimeout), current.absoluteExpiresAt)
 		published, rotated, err := m.store.Rotate(ctx, current.id, replacement)
 		if err != nil {
 			var classified *Error
@@ -199,7 +195,7 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 		if !published.valid(m.limits) || published.id != replacement.id {
 			return Record{}, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid rotated session record"}
 		}
-		return published.clone(), nil
+		return published, nil
 	}
 	return Record{}, &Error{Code: CodeEntropy, Detail: "session rotation collision limit was reached"}
 }

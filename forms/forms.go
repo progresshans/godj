@@ -282,13 +282,6 @@ type Values struct {
 	values map[string]Value
 }
 
-func newValues(order []string, values map[string]Value) Values {
-	return Values{
-		order:  append([]string(nil), order...),
-		values: cloneValueMap(values),
-	}
-}
-
 func (v Values) Get(name string) (Value, bool) {
 	value, ok := v.values[name]
 	return value, ok
@@ -330,33 +323,47 @@ func cloneValueMap(values map[string]Value) map[string]Value {
 
 // Spec is an immutable reusable form definition.
 type Spec struct {
-	fields []Field
-	cross  []CrossValidator
-	valid  bool
+	fields  []Field
+	index   map[string]int
+	initial Values
+	cross   []CrossValidator
+	valid   bool
 }
 
 func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 	if len(fields) == 0 {
 		return Spec{}, &ConfigError{Path: "fields", Code: "empty"}
 	}
-	seen := make(map[string]struct{}, len(fields))
+	byName := make(map[string]int, len(fields))
 	cloned := make([]Field, len(fields))
+	initial := Values{order: make([]string, len(fields)), values: make(map[string]Value, len(fields))}
 	for index, field := range fields {
 		if !validName(field.name) {
 			return Spec{}, &ConfigError{Path: fmt.Sprintf("fields[%d]", index), Code: "invalid"}
 		}
-		if _, ok := seen[field.name]; ok {
+		if _, ok := byName[field.name]; ok {
 			return Spec{}, &ConfigError{Path: "fields." + field.name, Code: "duplicate"}
 		}
-		seen[field.name] = struct{}{}
+		byName[field.name] = index
 		cloned[index] = field.clone()
+		initial.order[index] = field.name
+		value := String("")
+		switch {
+		case field.hasDefault:
+			value = field.defaultValue
+		case field.kind == FieldBoolean:
+			value = Boolean(false)
+		case field.nullable:
+			value = Null()
+		}
+		initial.values[field.name] = value
 	}
 	for index, validator := range validators {
 		if nilInterface(validator) {
 			return Spec{}, &ConfigError{Path: fmt.Sprintf("validators[%d]", index), Code: "nil"}
 		}
 	}
-	return Spec{fields: cloned, cross: append([]CrossValidator(nil), validators...), valid: true}, nil
+	return Spec{fields: cloned, index: byName, initial: initial, cross: append([]CrossValidator(nil), validators...), valid: true}, nil
 }
 
 func (s Spec) Fields() []Field {
@@ -379,9 +386,9 @@ type Form struct {
 
 func (f Form) Bound() bool               { return f.bound }
 func (f Form) Valid() bool               { return f.valid }
-func (f Form) Errors() validation.Errors { return validation.NewErrors(f.errors.All()...) }
-func (f Form) Cleaned() Values           { return newValues(f.cleaned.order, f.cleaned.values) }
-func (f Form) Initial() Values           { return newValues(f.initial.order, f.initial.values) }
+func (f Form) Errors() validation.Errors { return f.errors }
+func (f Form) Cleaned() Values           { return f.cleaned }
+func (f Form) Initial() Values           { return f.initial }
 func (f Form) Changed() []string         { return append([]string(nil), f.changed...) }
 
 // Unbound constructs a form without running validators. Initial values are
@@ -394,7 +401,7 @@ func (s Spec) Unbound(initial map[string]Value) (Form, error) {
 	if err != nil {
 		return Form{}, err
 	}
-	return Form{initial: resolved, cleaned: newValues(nil, nil)}, nil
+	return Form{initial: resolved}, nil
 }
 
 // Bind cleans submitted data in field order, then runs cross-field validators
@@ -410,11 +417,11 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 	cleanedMap := make(map[string]Value, len(s.fields))
 	cleanedOrder := make([]string, 0, len(s.fields))
 	changed := make([]string, 0, len(s.fields))
-	errors := validation.NewErrors()
+	var failures []validation.Errors
 	for _, field := range s.fields {
 		value, fieldErrors := cleanField(field, data)
-		errors = errors.Append(fieldErrors)
 		if !fieldErrors.Empty() {
+			failures = append(failures, fieldErrors)
 			initialValue, _ := resolvedInitial.Get(field.name)
 			if fieldChanged(field, data, initialValue) {
 				changed = append(changed, field.name)
@@ -428,10 +435,13 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 			changed = append(changed, field.name)
 		}
 	}
-	cleaned := newValues(cleanedOrder, cleanedMap)
+	cleaned := Values{order: cleanedOrder, values: cleanedMap}
 	for _, validator := range s.cross {
-		errors = errors.Append(validator.ValidateForm(cleaned))
+		if failure := validator.ValidateForm(cleaned); !failure.Empty() {
+			failures = append(failures, failure)
+		}
 	}
+	errors := validation.Join(failures...)
 	return Form{
 		bound:   true,
 		valid:   errors.Empty(),
@@ -443,15 +453,15 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 }
 
 func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
-	fieldByName := make(map[string]Field, len(s.fields))
-	for _, field := range s.fields {
-		fieldByName[field.name] = field
+	if len(provided) == 0 {
+		return s.initial, nil
 	}
 	for name, value := range provided {
-		field, ok := fieldByName[name]
+		index, ok := s.index[name]
 		if !ok {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "unknown_field"}
 		}
+		field := s.fields[index]
 		if !validValueForField(value, field.kind, field.nullable) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "type_mismatch"}
 		}
@@ -462,34 +472,20 @@ func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "max_length"}
 		}
 	}
-	values := make(map[string]Value, len(s.fields))
-	order := make([]string, 0, len(s.fields))
-	for _, field := range s.fields {
-		value, ok := provided[field.name]
-		if !ok {
-			switch {
-			case field.hasDefault:
-				value = field.defaultValue
-			case field.kind == FieldBoolean:
-				value = Boolean(false)
-			case field.nullable:
-				value = Null()
-			default:
-				value = String("")
-			}
-		}
-		values[field.name] = value
-		order = append(order, field.name)
+	values := cloneValueMap(s.initial.values)
+	for name, value := range provided {
+		values[name] = value
 	}
-	return newValues(order, values), nil
+	return Values{order: s.initial.order, values: values}, nil
 }
 
 func cleanField(field Field, data Data) (Value, validation.Errors) {
-	submitted, present := data.Get(field.name)
+	submitted, present := data.values[field.name]
 	if len(submitted) > 1 {
 		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "multiple"))
 	}
 	var value Value
+	var failures []validation.Errors
 	switch field.kind {
 	case FieldChar:
 		raw := ""
@@ -508,17 +504,16 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 		} else {
 			value = String(raw)
 		}
-		errors := validation.NewErrors()
 		if raw != "" && !utf8.ValidString(raw) {
-			errors = errors.Append(validation.NewErrors(validation.New(validation.Field(field.name), "invalid_utf8")))
+			failures = append(failures, validation.NewErrors(validation.New(validation.Field(field.name), "invalid_utf8")))
 		}
 		if raw != "" && strings.ContainsRune(raw, 0) {
-			errors = errors.Append(validation.NewErrors(validation.New(validation.Field(field.name), "null_characters_not_allowed")))
+			failures = append(failures, validation.NewErrors(validation.New(validation.Field(field.name), "null_characters_not_allowed")))
 		}
 		if raw != "" && field.maxLength > 0 {
 			actual := utf8.RuneCountInString(raw)
 			if actual > field.maxLength {
-				errors = errors.Append(validation.NewErrors(validation.New(
+				failures = append(failures, validation.NewErrors(validation.New(
 					validation.Field(field.name),
 					"max_length",
 					validation.NewParam("limit", strconv.Itoa(field.maxLength)),
@@ -526,10 +521,6 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 				)))
 			}
 		}
-		for _, validator := range field.validators {
-			errors = errors.Append(validator.ValidateField(value))
-		}
-		return value, errors
 	case FieldBoolean:
 		raw := ""
 		if present && len(submitted) == 1 {
@@ -549,15 +540,16 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 	default:
 		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "unsupported"))
 	}
-	errors := validation.NewErrors()
 	for _, validator := range field.validators {
-		errors = errors.Append(validator.ValidateField(value))
+		if failure := validator.ValidateField(value); !failure.Empty() {
+			failures = append(failures, failure)
+		}
 	}
-	return value, errors
+	return value, validation.Join(failures...)
 }
 
 func fieldChanged(field Field, data Data, initial Value) bool {
-	submitted, present := data.Get(field.name)
+	submitted, present := data.values[field.name]
 	if len(submitted) > 1 {
 		return true
 	}

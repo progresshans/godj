@@ -162,7 +162,6 @@ func (input ArticleCreate) WithSummaryNull() ArticleCreate {
 }
 
 func (input ArticleCreate) BuildCreate() orm.Mutation[Article] {
-	metadata := articleMetadata()
 	var value Article
 	assignments := make([]query.Assignment, 0, 3)
 	changedTitle, changedTitleSet := input.title.Get()
@@ -175,25 +174,25 @@ func (input ArticleCreate) BuildCreate() orm.Mutation[Article] {
 		})
 	}
 	value.Title = changedTitle
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedTitle)))
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, false), query.String(changedTitle)))
 	changedPublished, changedPublishedSet := input.published.Get()
 	if !changedPublishedSet {
 		changedPublished = false
 	}
 	value.Published = changedPublished
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Boolean(changedPublished)))
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("published", "published", query.FieldBoolean, false), query.Boolean(changedPublished)))
 	changedSummary, changedSummaryState := input.summary.Get()
 	switch changedSummaryState {
 	case orm.NullableChangeUnset:
 		value.Summary = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, true), query.Null()))
 	case orm.NullableChangeValue:
 		storedSummary := changedSummary
 		value.Summary = &storedSummary
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.String(changedSummary)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, true), query.String(changedSummary)))
 	case orm.NullableChangeNull:
 		value.Summary = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, true), query.Null()))
 	default:
 		return orm.InvalidMutation[Article](&query.Error{
 			Category: query.CategoryQuery,
@@ -202,7 +201,7 @@ func (input ArticleCreate) BuildCreate() orm.Mutation[Article] {
 			Detail:   "unknown nullable change state",
 		})
 	}
-	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+	return orm.NewCreateMutation(value, "godj_conformance_article", assignments)
 }
 
 type ArticlePatch struct {
@@ -232,16 +231,15 @@ func (input ArticlePatch) WithSummaryNull() ArticlePatch {
 }
 
 func (input ArticlePatch) BuildPatch(current Article) orm.Mutation[Article] {
-	metadata := articleMetadata()
 	value := current
 	assignments := make([]query.Assignment, 0, 3)
 	if changedTitle, ok := input.title.Get(); ok {
 		value.Title = changedTitle
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedTitle)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, false), query.String(changedTitle)))
 	}
 	if changedPublished, ok := input.published.Get(); ok {
 		value.Published = changedPublished
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Boolean(changedPublished)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("published", "published", query.FieldBoolean, false), query.Boolean(changedPublished)))
 	}
 	changedSummary, changedSummaryState := input.summary.Get()
 	switch changedSummaryState {
@@ -249,10 +247,10 @@ func (input ArticlePatch) BuildPatch(current Article) orm.Mutation[Article] {
 	case orm.NullableChangeValue:
 		storedSummary := changedSummary
 		value.Summary = &storedSummary
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.String(changedSummary)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, true), query.String(changedSummary)))
 	case orm.NullableChangeNull:
 		value.Summary = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, true), query.Null()))
 	default:
 		return orm.InvalidMutation[Article](&query.Error{
 			Category: query.CategoryQuery,
@@ -261,7 +259,7 @@ func (input ArticlePatch) BuildPatch(current Article) orm.Mutation[Article] {
 			Detail:   "unknown nullable change state",
 		})
 	}
-	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+	return orm.NewPatchMutation(value, "godj_conformance_article", assignments)
 }
 
 func articleMetadata() ir.Model {

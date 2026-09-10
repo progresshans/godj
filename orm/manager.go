@@ -17,8 +17,12 @@ type Manager[M any] struct {
 }
 
 type preparedModel struct {
-	metadata ir.Model
-	plan     query.Plan
+	metadata    ir.Model
+	plan        query.Plan
+	primaryKey  ir.Field
+	writeValid  bool
+	byReference map[query.FieldRef]int
+	byName      map[string]int
 }
 
 // NewManager snapshots Metadata once for both reads and writes. Later changes
@@ -29,9 +33,26 @@ func NewManager[M any](descriptor ModelDescriptor[M]) Manager[M] {
 	manager := Manager[M]{descriptor: descriptor}
 	if !descriptorIsNil(descriptor) {
 		metadata := descriptor.Metadata().Clone()
+		references := modelFieldReferences(metadata)
 		manager.prepared = &preparedModel{
 			metadata: metadata,
-			plan:     query.NewPlan(metadata.DBTable, modelFieldReferences(metadata)),
+			plan:     query.NewPlan(metadata.DBTable, references),
+		}
+		if _, writable := descriptor.(WriteDescriptor[M]); writable {
+			prepared := manager.prepared
+			prepared.primaryKey, prepared.writeValid = autoPrimaryKey(metadata)
+			prepared.byReference = make(map[query.FieldRef]int, len(references))
+			prepared.byName = make(map[string]int, len(references))
+			for index, reference := range references {
+				// Preserve first-match behavior even for custom metadata with
+				// duplicate names or references. Full reference identity is kept.
+				if _, exists := prepared.byReference[reference]; !exists {
+					prepared.byReference[reference] = index
+				}
+				if _, exists := prepared.byName[reference.Name()]; !exists {
+					prepared.byName[reference.Name()] = index
+				}
+			}
 		}
 	}
 	return manager

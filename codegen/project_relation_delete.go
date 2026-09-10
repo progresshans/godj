@@ -48,11 +48,6 @@ func generateProjectRelationDelete(packageName string, plan *relationProjectPlan
 	if err := validateProjectRelationSelectRelatedImports(canonical); err != nil {
 		return nil, err
 	}
-	for _, app := range canonical {
-		if err := validateRelationProjectionNames(app.schema); err != nil {
-			return nil, fmt.Errorf("validate relation delete projection prerequisite %q: %w", app.alias, err)
-		}
-	}
 	targets, err := plan.deleteSurface()
 	if err != nil {
 		return nil, err

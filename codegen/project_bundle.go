@@ -93,33 +93,14 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 
 	for index, app := range input.apps {
 		owner := "app:" + app.schema.AppLabel
-		renderers := []struct {
-			filename string
-			render   func() ([]byte, error)
-		}{
-			{filename: "zz_godj_generated.go", render: func() ([]byte, error) {
-				return generate(app.Package.PackageName, app.preparedSchema)
-			}},
-			{filename: "zz_godj_relation.go", render: func() ([]byte, error) {
-				return generateRelationMetadata(app.Package.PackageName, app.preparedSchema)
-			}},
-			{filename: "zz_godj_relation_object.go", render: func() ([]byte, error) {
-				return generateRelationObject(app.Package.PackageName, app.preparedSchema)
-			}},
-			{filename: "zz_godj_relation_projection.go", render: func() ([]byte, error) {
-				return generateRelationProjection(app.Package.PackageName, app.preparedSchema)
-			}},
+		files, err := renderAppSources(app.Package.PackageName, app.preparedSchema, appProjection)
+		if err != nil {
+			return nil, fmt.Errorf("render app %s: %w", app.Package.Directory, err)
 		}
-		for _, renderer := range renderers {
-			source, err := renderer.render()
-			if err != nil {
-				return nil, fmt.Errorf("render %s: %w", path.Join(app.Package.Directory, renderer.filename), err)
-			}
-			result = append(result, projectRenderedFile{
-				path:   projectGeneratedPath(app.Package.Directory, renderer.filename),
-				owner:  owner,
-				source: source,
-			})
+		for _, file := range files {
+			file.path = projectGeneratedPath(app.Package.Directory, file.path)
+			file.owner = owner
+			result = append(result, file)
 		}
 
 		bridgePackages[index] = BridgePackage{Alias: app.Alias, ImportPath: app.Package.ImportPath}

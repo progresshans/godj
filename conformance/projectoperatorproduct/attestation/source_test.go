@@ -73,6 +73,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"conformance/internal/testprocess/buffer.go",
 		"conformance/internal/testprocess/process_unix.go",
 		"internal/identifiers/validate.go",
+		"internal/testenv/environment.go",
 		"internal/relationpolicy/validate.go",
 		"internal/irresource/size.go",
 		"internal/projectcheck/failurecode/code.go",

@@ -24,10 +24,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/systemstate"
@@ -90,10 +90,10 @@ func TestRunserverProductCleanupHelper(t *testing.T) {
 	signal.Ignore(os.Interrupt)
 	switch mode {
 	case "supervisor":
-		environment := environmentMap(os.Environ())
+		environment := testenv.Map(os.Environ())
 		environment[runserverHarnessModeEnv] = "descendant"
 		child := exec.Command(os.Args[0], "-test.run=^TestRunserverProductCleanupHelper$")
-		child.Env = testfixture.SortedEnvironment(environment)
+		child.Env = testenv.Sorted(environment)
 		child.Stdout = io.Discard
 		child.Stderr = io.Discard
 		child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -118,11 +118,11 @@ func TestRunserverProductCleanupHelper(t *testing.T) {
 
 func TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup(t *testing.T) {
 	ready := filepath.Join(t.TempDir(), "ready")
-	environment := environmentMap(os.Environ())
+	environment := testenv.Map(os.Environ())
 	environment[runserverHarnessModeEnv] = "supervisor"
 	environment[runserverHarnessReadyEnv] = ready
 	command := exec.Command(os.Args[0], "-test.run=^TestRunserverProductCleanupHelper$")
-	command.Env = testfixture.SortedEnvironment(environment)
+	command.Env = testenv.Sorted(environment)
 	command.Stdout = io.Discard
 	command.Stderr = io.Discard
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -486,7 +486,7 @@ func buildGlobalGodj(t *testing.T, repository string) string {
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-mod=readonly", "-o", binary, "./cmd/godj")
 	command.Dir = repository
-	command.Env = offlineRunserverEnvironment(os.Environ())
+	command.Env = testenv.OfflineGo(os.Environ(), "")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build global godj: %v\n%s", err, output)
 	}
@@ -849,19 +849,13 @@ func validateArticleReadinessAddress(address string) error {
 
 func runserverEnvironment(t *testing.T, databasePath, workspaceBase string) []string {
 	t.Helper()
-	values := environmentMap(os.Environ())
+	values := testenv.Map(os.Environ())
 	values[articleSQLiteDatabaseEnv] = databasePath
 	delete(values, articlePostgresURLEnv)
 	delete(values, articlePostgresSchemaEnv)
 	delete(values, articleAdminUsernameEnv)
 	delete(values, articleAdminPasswordEnv)
 	values["TMPDIR"] = workspaceBase
-	values["GOWORK"] = "off"
-	values["GOTOOLCHAIN"] = "local"
-	values["GOENV"] = "off"
-	values["GOFLAGS"] = ""
-	values["GOCACHEPROG"] = ""
-	values["GOPROXY"] = "off"
 	if strings.TrimSpace(values["HOME"]) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -869,18 +863,7 @@ func runserverEnvironment(t *testing.T, databasePath, workspaceBase string) []st
 		}
 		values["HOME"] = home
 	}
-	return testfixture.SortedEnvironment(values)
-}
-
-func offlineRunserverEnvironment(input []string) []string {
-	values := environmentMap(input)
-	values["GOWORK"] = "off"
-	values["GOTOOLCHAIN"] = "local"
-	values["GOENV"] = "off"
-	values["GOFLAGS"] = ""
-	values["GOCACHEPROG"] = ""
-	values["GOPROXY"] = "off"
-	return testfixture.SortedEnvironment(values)
+	return testenv.OfflineGo(testenv.Sorted(values), "")
 }
 
 func runserverGoAuditEnvironment(t *testing.T, input []string) ([]string, string) {
@@ -899,7 +882,7 @@ func runserverGoAuditEnvironment(t *testing.T, input []string) ([]string, string
 		t.Fatal(err)
 	}
 	logPath := filepath.Join(t.TempDir(), "go-build-audit.jsonl")
-	values := environmentMap(input)
+	values := testenv.Map(input)
 	if existingPath := values["PATH"]; existingPath == "" {
 		values["PATH"] = wrapperDirectory
 	} else {
@@ -908,7 +891,7 @@ func runserverGoAuditEnvironment(t *testing.T, input []string) ([]string, string
 	values[runserverGoAuditModeEnv] = "1"
 	values[runserverGoAuditRealEnv] = realGo
 	values[runserverGoAuditLogEnv] = logPath
-	return testfixture.SortedEnvironment(values), logPath
+	return testenv.Sorted(values), logPath
 }
 
 func assertRunserverGoBuildAudit(t *testing.T, logPath string, wantPackages []string) {
@@ -930,17 +913,6 @@ func assertRunserverGoBuildAudit(t *testing.T, logPath string, wantPackages []st
 			t.Fatalf("runserver Go build audit %d = %q, want exact readonly build for %q", index, arguments, wantPackages[index])
 		}
 	}
-}
-
-func environmentMap(entries []string) map[string]string {
-	values := make(map[string]string, len(entries))
-	for _, entry := range entries {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok && key != "" {
-			values[key] = value
-		}
-	}
-	return values
 }
 
 func assertRunserverWorkspaceEmpty(t *testing.T, root string) {

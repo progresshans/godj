@@ -16,6 +16,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	operatorattestation "github.com/progresshans/godj/conformance/projectoperatorproduct/attestation"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 const (
@@ -46,7 +47,7 @@ func TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct(t *testing.T) {
 	defer clear(password)
 	const username = "external-postgres-operator"
 	provisionMarker := project.marker(t, "postgres-provision")
-	provisionEnvironment := operatorEnvironment(environment, map[string]string{
+	provisionEnvironment := testenv.With(environment, map[string]string{
 		operatorMarkerEnvironment: provisionMarker,
 		operatorHoldEnvironment:   "1000",
 	})
@@ -64,7 +65,7 @@ func TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct(t *testing.T) {
 
 	var authentication operatorAuthenticationState
 	runtimeAMarker := project.marker(t, "postgres-runtime-a")
-	runtimeAEnvironment := operatorEnvironment(environment, map[string]string{
+	runtimeAEnvironment := testenv.With(environment, map[string]string{
 		operatorMarkerEnvironment:       runtimeAMarker,
 		operatorRunnerMarkerEnvironment: "",
 		operatorHoldEnvironment:         "",
@@ -79,7 +80,7 @@ func TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct(t *testing.T) {
 	operatorAssertPostgresCredential(t, databaseURL, schema, username, password)
 
 	runtimeBMarker := project.marker(t, "postgres-runtime-b")
-	runtimeBEnvironment := operatorEnvironment(environment, map[string]string{
+	runtimeBEnvironment := testenv.With(environment, map[string]string{
 		operatorMarkerEnvironment:       runtimeBMarker,
 		operatorRunnerMarkerEnvironment: "",
 		operatorHoldEnvironment:         "",

@@ -3,6 +3,8 @@ package codegen
 import (
 	"strings"
 	"testing"
+
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestGeneratedNamespaceChecksActualDeclarationsAcrossFiles(t *testing.T) {
@@ -33,5 +35,24 @@ func TestGeneratedNamespaceChecksActualDeclarationsAcrossFiles(t *testing.T) {
 				t.Fatalf("namespace error = %v, want %q", err, test.conflict)
 			}
 		})
+	}
+}
+
+func TestStandaloneAppCompanionsCheckActualPrerequisiteNamespaces(t *testing.T) {
+	entrypoints := []func(string, ir.Schema) ([]byte, error){Generate, GenerateRelationMetadata, GenerateRelationObject, GenerateRelationProjection}
+	for owner, symbol := range []string{"GoDjGeneratorVersion", "GoDjRelationSchema", "GoDjRelationObjectGeneratorVersion", "GoDjRelationProjectionGeneratorVersion"} {
+		input := ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "app", Models: []ir.Model{{
+			Name: "record", GoName: symbol, Fields: []ir.Field{{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true}},
+		}}}
+		for stage, generate := range entrypoints {
+			source, err := generate("models", input)
+			if stage < owner {
+				if err != nil || len(source) == 0 {
+					t.Fatalf("stage %d rejected %s before its declaration exists: %v", stage, symbol, err)
+				}
+			} else if source != nil || err == nil || !strings.Contains(err.Error(), "conflicts with") {
+				t.Fatalf("stage %d published colliding prerequisite %s: %v", stage, symbol, err)
+			}
+		}
 	}
 }

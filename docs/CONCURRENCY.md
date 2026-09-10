@@ -9,7 +9,8 @@ Query plan은 불변이고 평가 cache는 별도 state다. Direct QuerySet valu
 Filter/OrderBy/Limit/Fresh에서 만들어진 query는 독립 평가 state를 갖는다. 같은 state의 concurrent All은 한 owner가
 평가하고 waiter는 자신의 context로 기다린다. Waiter cancellation이 owner를 취소하지 않는다.
 Manager는 생성 시 복사한 metadata와 기본 plan을 공유한다. `Using`은 descriptor.Metadata를 다시 호출하지 않고
-독립 평가 state를 만든다. 쓰기마다 callback 입력 metadata를 복제하므로 callback mutation이 다음 호출을 바꾸지 않는다.
+독립 평가 state를 만든다. 쓰기 field index는 준비된 metadata를 빌리고 각 callback 직전에 해당 field를 복제하므로
+callback mutation이 같은 쓰기의 다음 callback이나 이후 호출을 바꾸지 않는다.
 
 성공한 전체 결과만 cache한다. Empty 결과도 성공이며 caller에게는 descriptor clone으로 분리한 model을 돌려준다.
 Backend/scan/rows/close/context 실패는 성공 cache로 남기지 않는다. Cold Count/Exists/At/First는 full cache를 채우지 않으며,
@@ -85,8 +86,13 @@ Callback panic은 cleanup 뒤 같은 panic value로 다시 발생시킨다. Unkn
 
 ## 프로세스와 서비스
 
+Principal·Session Record·Form/Serializer 결과·Validation 오류의 private 값은 불변이며 전달 시 공유한다. 외부 slice/map 입력과
+mutable getter는 복사하고, 값 변경과 초기값 overlay는 바뀌는 container를 분리한다. Form validator가 보관한 cleaned 값은
+후속 Bind가 바꾸지 않는다. 사용자 callback 자체의 동시 실행 안전성은 이 값 소유권과 별개다.
+
 Template의 공개 List/Object/Context 생성은 caller 소유 container를 복사하고 private immutable child 값은 공유한다.
-반복문의 변수와 forloop metadata는 render-local scope chain이 소유하여 중첩 반복이 바깥 binding을 바꾸지 않는다.
+반복문의 변수와 forloop metadata는 render-local scope chain이 소유한다. 같은 동기 반복 안에서 frame을 재사용하며,
+중첩 반복은 별도 frame을 갖고 include는 호출 동안만 현재 frame을 빌린다. 다른 Render나 바깥 binding과 공유하지 않는다.
 준비된 serializer/Admin projector는 metadata를 공유하지만 사용자 reader에 전달하는 field는 복사한다. Reader와 model 자체의
 동시 접근 안전성은 application 책임이며, 준비된 metadata가 사용자 callback을 동기화하지 않는다.
 Password·CSRF entropy와 cookie clock의 직렬화 잠금은 callback panic에도 해제한다. 같은 panic은 기존 호출 경계로 전파한다.

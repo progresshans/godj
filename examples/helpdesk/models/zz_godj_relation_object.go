@@ -42,8 +42,18 @@ type ticketCategoryIDRelationStorage struct{}
 var _ orm.RelationStorage[Ticket] = ticketCategoryIDRelationStorage{}
 
 func (ticketCategoryIDRelationStorage) Field() ir.Field {
-	schema := GoDjRelationSchema()
-	return schema.Models[1].Fields[4].Clone()
+	return ir.Field{
+		Name:   "category",
+		GoName: "CategoryID",
+		Column: "category_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "tickets"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
 }
 
 func (ticketCategoryIDRelationStorage) Value(value Ticket) (query.Value, bool) {

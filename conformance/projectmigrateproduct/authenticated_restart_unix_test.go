@@ -29,6 +29,7 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/testenv"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -50,8 +51,8 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 
 	const username = "authenticated-restart-admin"
 	password := fmt.Sprintf("authenticated-restart-password-%d-%d-7Vq", os.Getpid(), time.Now().UnixNano())
-	values := environmentMap(articleEnvironment(t, databasePath, workspaceBase))
-	environment := testfixture.SortedEnvironment(values)
+	values := testenv.Map(articleEnvironment(t, databasePath, workspaceBase))
+	environment := testenv.Sorted(values)
 	authenticatedRestartAssertRuntimeEnvironment(t, environment, password)
 	sensitive := []string{password}
 	outputCanaries := []string{username, databasePath}
@@ -316,7 +317,7 @@ func authenticatedRestartWritePTYLine(t *testing.T, terminal *os.File, value str
 
 func authenticatedRestartAssertRuntimeEnvironment(t *testing.T, environment []string, rawPassword string) {
 	t.Helper()
-	values := environmentMap(environment)
+	values := testenv.Map(environment)
 	for _, name := range []string{articleAdminUsernameEnv, articleAdminPasswordEnv} {
 		if _, exists := values[name]; exists {
 			t.Fatalf("Article runtime environment retained retired startup credential %s", name)

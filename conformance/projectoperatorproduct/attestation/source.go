@@ -77,6 +77,7 @@ var commandAndInternalSourcePrefixes = []string{
 }
 
 var conformanceConsumerSourcePrefixes = []string{
+	"internal/testenv/",
 	"conformance/cmd/godjcheck/",
 	"conformance/internal/protocol/",
 	"conformance/internal/attestationio/",

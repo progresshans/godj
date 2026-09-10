@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -23,6 +24,56 @@ func TestProjectStateZeroValueIsImmutableEmptyState(t *testing.T) {
 	if !state.Equal(EmptyProjectState()) {
 		t.Fatal("zero state does not equal explicit empty state")
 	}
+	left := ProjectState{apps: map[string]ir.Schema{"empty": {AppLabel: "empty"}}}
+	right := ProjectState{formatVersion: StateFormatVersion, apps: map[string]ir.Schema{"empty": {AppLabel: "empty", Models: []ir.Model{}}}}
+	if !left.Equal(right) {
+		t.Fatal("nil and empty models differ after clone normalization")
+	}
+	left.apps["empty"] = ir.Schema{Models: []ir.Model{{Fields: nil}}}
+	right.apps["empty"] = ir.Schema{Models: []ir.Model{{Fields: []ir.Field{}}}}
+	if !left.Equal(right) {
+		t.Fatal("nil and empty fields differ after clone normalization")
+	}
+	right.formatVersion++
+	if left.Equal(right) {
+		t.Fatal("different state versions compare equal")
+	}
+}
+
+func TestProjectStateDerivedSnapshotsKeepSchemaOwnership(t *testing.T) {
+	base, err := NewProjectState(articleSchema(), relationMigrationSchema())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := base.Clone()
+	schema, _ := base.Schema("news")
+	schema.Models[0].Fields[1].MaxLength = 100
+	changed := base.withSchema(schema)
+	schema.Models[0].Fields[1].MaxLength = 1
+	removed := changed.withoutApp("blog")
+	if _, found := removed.Schema("blog"); found {
+		t.Fatal("removed app remains")
+	}
+	if _, found := changed.Schema("blog"); !found {
+		t.Fatal("removing an app changed an earlier state")
+	}
+	if base.Equal(changed) || changed.Equal(removed) {
+		t.Fatal("different schema snapshots compare equal")
+	}
+	var workers sync.WaitGroup
+	for range 16 {
+		workers.Go(func() {
+			for _, state := range []ProjectState{base, changed, removed} {
+				model, _ := state.Model("news", "article")
+				model.Fields[1].Column = "changed"
+			}
+			model, _ := changed.Model("news", "article")
+			if model.Fields[1].MaxLength != 100 || !base.Equal(want) {
+				t.Error("input or getter mutation changed a published state")
+			}
+		})
+	}
+	workers.Wait()
 }
 
 func TestProjectStateNormalizesAndDeepClonesSchemaIR(t *testing.T) {

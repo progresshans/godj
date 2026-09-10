@@ -1,10 +1,16 @@
 package codegen
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/progresshans/godj/schema/ir"
 )
+
+func queryFieldReferenceLiteral(field ir.Field) string {
+	return fmt.Sprintf("query.NewFieldRef(%s, %s, query.Field%s, %t)",
+		strconv.Quote(field.Name), strconv.Quote(field.Column), fieldRenderKind(field.Kind).queryValue, field.Nullable)
+}
 
 // fieldRenderSpec is the shared lowering of one normalized IR kind into Go
 // storage, query values, typed fields and joined-row scan storage. Root scans

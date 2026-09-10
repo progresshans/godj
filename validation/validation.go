@@ -2,6 +2,8 @@
 // diagnostics shared by forms and higher-level product packages.
 package validation
 
+import "slices"
+
 // Field identifies the input field that owns a violation. NonField identifies
 // a violation that belongs to the whole input rather than one field.
 type Field string
@@ -52,44 +54,34 @@ func (v Violation) Params() []Param {
 	return append([]Param(nil), v.params...)
 }
 
-func (v Violation) clone() Violation {
-	return New(v.field, v.code, v.params...)
-}
-
 // Errors is an immutable ordered collection of violations. Its zero value is
 // a valid empty collection.
 type Errors struct {
 	items []Violation
 }
 
-// NewErrors returns an ordered collection detached from all caller-owned
-// slices, including nested parameter slices.
+// NewErrors snapshots the caller's slice. Each Violation already owns its
+// immutable parameters, which can be shared between collections.
 func NewErrors(items ...Violation) Errors {
-	cloned := make([]Violation, len(items))
-	for index := range items {
-		cloned[index] = items[index].clone()
-	}
-	return Errors{items: cloned}
+	return Errors{items: slices.Clone(items)}
 }
 
 func (e Errors) Len() int    { return len(e.items) }
 func (e Errors) Empty() bool { return len(e.items) == 0 }
 
-// At returns a detached violation and false when index is outside the
+// At returns an immutable violation and false when index is outside the
 // collection.
 func (e Errors) At(index int) (Violation, bool) {
 	if index < 0 || index >= len(e.items) {
 		return Violation{}, false
 	}
-	return e.items[index].clone(), true
+	return e.items[index], true
 }
 
 // All returns a detached copy in stable insertion order.
 func (e Errors) All() []Violation {
 	items := make([]Violation, len(e.items))
-	for index := range e.items {
-		items[index] = e.items[index].clone()
-	}
+	copy(items, e.items)
 	return items
 }
 
@@ -98,7 +90,7 @@ func (e Errors) ByField(field Field) Errors {
 	items := make([]Violation, 0)
 	for _, item := range e.items {
 		if item.field == field {
-			items = append(items, item.clone())
+			items = append(items, item)
 		}
 	}
 	return Errors{items: items}
@@ -106,12 +98,28 @@ func (e Errors) ByField(field Field) Errors {
 
 // Append returns a new collection without changing either operand.
 func (e Errors) Append(other Errors) Errors {
-	items := make([]Violation, 0, len(e.items)+len(other.items))
-	for _, item := range e.items {
-		items = append(items, item.clone())
+	return Join(e, other)
+}
+
+// Join concatenates immutable collections in argument order with at most one
+// new item slice. Accumulate groups and join once instead of repeatedly copying
+// a growing error prefix. Empty groups do not force a copy.
+func Join(groups ...Errors) Errors {
+	var only Errors
+	count, nonempty := 0, 0
+	for _, group := range groups {
+		if !group.Empty() {
+			count += len(group.items)
+			nonempty++
+			only = group
+		}
 	}
-	for _, item := range other.items {
-		items = append(items, item.clone())
+	if nonempty < 2 {
+		return only
+	}
+	items := make([]Violation, 0, count)
+	for _, group := range groups {
+		items = append(items, group.items...)
 	}
 	return Errors{items: items}
 }

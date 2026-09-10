@@ -18,7 +18,6 @@ type relationPackageInput struct {
 type relationPackagePolicy struct {
 	name          string
 	validAlias    func(string) bool
-	objectNames   bool
 	reservedPaths []string
 }
 
@@ -37,15 +36,6 @@ func canonicalRelationPackages(inputs []relationPackageInput, policy relationPac
 		}
 		if !identifiers.ImportPath(input.importPath) {
 			return nil, fmt.Errorf("invalid relation %s import path %q", policy.name, input.importPath)
-		}
-		checks := []func(ir.Schema) error{validateGeneratedNames, validateRelationMetadataNames}
-		if policy.objectNames {
-			checks = append(checks, validateRelationObjectNames)
-		}
-		for _, check := range checks {
-			if err := check(prepared.schema); err != nil {
-				return nil, fmt.Errorf("validate relation %s package %q: %w", policy.name, input.alias, err)
-			}
 		}
 		canonical[index] = normalizedRelationPackage{
 			alias: input.alias, prefix: exportedRelationQueryPrefix(input.alias),

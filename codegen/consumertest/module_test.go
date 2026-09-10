@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strings"
 	"testing"
+
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 func newGeneratedModule(t *testing.T, modulePath string) string {
@@ -63,24 +64,11 @@ func generatedGoCommand(ctx context.Context, directory string, arguments ...stri
 }
 
 func generatedTestEnvironment(environment []string) []string {
-	flags := "GOFLAGS="
+	flags := ""
 	if consumerRaceEnabled {
-		flags += "-race"
+		flags = "-race"
 	}
-	settings := []string{"GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GONOPROXY=none", flags}
-	blocked := make(map[string]bool, len(settings))
-	for _, setting := range settings {
-		name, _, _ := strings.Cut(setting, "=")
-		blocked[name] = true
-	}
-	result := make([]string, 0, len(environment)+len(settings))
-	for _, entry := range environment {
-		name, _, found := strings.Cut(entry, "=")
-		if !found || !blocked[name] {
-			result = append(result, entry)
-		}
-	}
-	return append(result, settings...)
+	return testenv.OfflineGo(environment, flags)
 }
 
 func TestGeneratedConsumerEnvironmentKeepsModeAndIsolatesHostControls(t *testing.T) {
@@ -91,6 +79,8 @@ func TestGeneratedConsumerEnvironmentKeepsModeAndIsolatesHostControls(t *testing
 	if consumerRaceEnabled {
 		want[len(want)-1] = "GOFLAGS=-race"
 	}
+	want = append(want, "GOENV=off", "GOCACHEPROG=")
+	slices.Sort(want)
 	got := generatedTestEnvironment(input)
 	if !slices.Equal(got, want) {
 		t.Fatalf("consumer environment = %q, want %q", got, want)

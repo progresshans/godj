@@ -42,7 +42,7 @@ func (s *MemoryStore) Load(ctx context.Context, id ID) (Record, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return Record{}, false, err
 	}
-	return record.clone(), ok, nil
+	return record, ok, nil
 }
 
 func (s *MemoryStore) Create(ctx context.Context, record Record) (bool, error) {
@@ -70,7 +70,7 @@ func (s *MemoryStore) Create(ctx context.Context, record Record) (bool, error) {
 	if len(s.records) >= s.maxRecords {
 		return false, &Error{Code: CodeStoreFull, Detail: "memory session capacity is exhausted"}
 	}
-	s.records[record.id] = record.clone()
+	s.records[record.id] = record
 	return true, nil
 }
 
@@ -99,7 +99,7 @@ func (s *MemoryStore) Access(ctx context.Context, id ID, policy AccessPolicy) (R
 	} else {
 		s.records[id] = touched
 	}
-	return touched.clone(), status, nil
+	return touched, status, nil
 }
 
 func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) (Record, bool, error) {
@@ -143,17 +143,16 @@ func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) 
 	if !current.absoluteExpiresAt.After(accessedAt) || !idleExpiresAt.After(accessedAt) {
 		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "rotated session timestamps are invalid"}
 	}
-	published := newRecord(
-		replacement.id,
-		replacement.values,
-		current.createdAt,
-		accessedAt,
-		current.absoluteExpiresAt,
-		idleExpiresAt,
-	)
+	// Value changes have already detached replacement's immutable map. Only
+	// the authoritative timestamps need reconciliation while holding the lock.
+	published := replacement
+	published.createdAt = current.createdAt
+	published.accessedAt = accessedAt
+	published.absoluteExpiresAt = current.absoluteExpiresAt
+	published.idleExpiresAt = idleExpiresAt
 	delete(s.records, oldID)
-	s.records[replacement.id] = published.clone()
-	return published.clone(), true, nil
+	s.records[replacement.id] = published
+	return published, true, nil
 }
 
 func (s *MemoryStore) Delete(ctx context.Context, id ID) error {

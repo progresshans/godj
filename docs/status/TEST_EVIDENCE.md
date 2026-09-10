@@ -3,6 +3,154 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0068 — 불변 값 전달과 검증 비용 정리
+
+- 작업: [GDJ-0068](../../work/0068-immutable-value-transfer-and-verification-cost.md).
+- 기준: `6e826a1acc41720b1df99acb7e488c71f24c2841`.
+- 상태: 제품·생성기·추가 후보 구현, 전후 측정과 관련 로컬 통합 검증 완료. Hosted full scope는 아직 실행하지 않았다.
+- 검증 소유권: affected local checkpoint 후 기존 Draft PR의 같은 제품 소스 Hosted full scope.
+
+### 전후 측정
+
+2026-09-10 KST, Go 1.26.5 darwin/arm64, Apple M3 Pro. 각 묶음은 해당 제품 변경 전에 benchmark를 추가해 기준을
+측정했다. Generated construction의 기준은 ORM 변경 후 생성기를 바꾸기 직전의 checkpoint다.
+마지막에는 다른 로컬 검증이 끝난 뒤 같은 호스트에서 package를 순차 실행했다. 아래는 각각 세 번의 중앙값이며
+DB latency·전체 서비스 처리량·CI 시간을 측정한 결과가 아니다.
+
+```sh
+go test -p=1 -run '^$' -bench 'Benchmark(PrincipalResolve|ActiveSessionLoad|FormBindErrors|FormResultAccess|SerializerUnknownErrors|JSONDecoding|JSONEncoding|JSONRejectedString|TemplateLoop|TemplateRejectedEscape|ProjectStateEquality|ProjectStateAppChange|WideModelWrite|GeneratedConstruction)$' -benchtime=200ms -count=3 ./auth ./sessions ./forms ./serializers ./templates ./migrations ./orm ./codegen/consumertest
+```
+
+| workload | 기준 → 변경 ns/op | 기준 → 변경 B/op | 기준 → 변경 allocs/op |
+|---|---:|---:|---:|
+| Principal resolve / 8 permissions | 240.9 → 32.93 | 416 → 0 | 4 → 0 |
+| Principal resolve / 128 permissions | 2,371 → 31.04 | 8,952 → 0 | 6 → 0 |
+| Active memory session load / 3 values | 1,039 → 361.4 | 1,648 → 0 | 21 → 0 |
+| Form bind errors / 16 fields | 9,194 → 2,325 | 37,024 → 6,568 | 300 → 59 |
+| Form bind errors / 256 fields | 940,227 → 34,087 | 4,362,293 → 108,072 | 35,220 → 783 |
+| Form immutable result access / 16 fields | 866.2 → 16.29 | 4,176 → 0 | 8 → 0 |
+| Serializer unknown errors / 16 fields | 2,603 → 937.1 | 10,640 → 3,304 | 22 → 27 |
+| Serializer unknown errors / 256 fields | 326,611 → 11,779 | 1,984,533 → 57,832 | 266 → 275 |
+| Serializer unknown errors / 1,024 fields | 5,359,130 → 47,784 | 31,876,024 → 242,024 | 1,037 → 1,048 |
+| JSON decode / 16 array-valued members | 19,223 → 17,465 | 35,912 → 27,248 | 516 → 497 |
+| JSON decode / 256 array-valued members | 297,454 → 271,844 | 573,090 → 436,810 | 7,969 → 7,710 |
+| Template loop / 1,000 items | 278,860 → 178,383 | 1,042,235 → 50,704 | 5,757 → 2,759 |
+| Template rejected escape / 1 MiB input, 64-byte cap | 1,974,799 → 24,619 | 10,485,856 → 96 | 4 → 2 |
+| ProjectState equality / 16 apps | 13,680 → 1,055 | 26,808 → 0 | 135 → 0 |
+| ProjectState app replacement / 16 apps | 2,568 → 592.5 | 10,408 → 2,760 | 41 → 6 |
+| JSON rejected string / 64-byte document cap | 247,322 → 3,094 | 487,065 → 64 | 6 → 1 |
+| JSON encode / 1 row | 1,718 → 883.7 | 1,352 → 744 | 29 → 6 |
+| JSON encode / 100 rows | 159,792 → 81,108 | 185,383 → 153,000 | 2,022 → 19 |
+
+Serializer unknown 오류는 작은 임시 collection의 할당 수가 조금 늘었지만 누적 prefix 복사와 총 할당량이 크게 줄었다.
+JSON decode의 이득은 이 측정에서 약 9~10%이며 encoder·출력 거부 경로의 큰 변화와 구분한다.
+Form/Session/Principal의 불변 반환만 복사를 줄였고 mutable getter, 외부 입력과 callback 소유권은 계속 검증했다.
+Template과 JSON의 출력 거부는 입력 검증 자체를 생략하지 않으며 중간 escape 문자열을 만들지 않는다.
+
+`BenchmarkWideModelWrite`는 O(1) field reader와 fake Mutator를 가진 4/32/256개 writable scalar field 모델이다.
+쓰기 재사용과 constructor 비용을 따로 측정했다. 공개 metadata 입력은 복사하고 callback에 전달할 field도 매번 분리한다.
+
+| workload | 기준 → 변경 ns/op | 기준 → 변경 B/op | 기준 → 변경 allocs/op |
+|---|---:|---:|---:|
+| fields 4/Create | 812 → 661.5 | 1,872 → 1,392 | 6 → 5 |
+| fields 4/Update | 858.1 → 708.6 | 1,968 → 1,488 | 7 → 6 |
+| fields 4/Save | 1,065 → 561.2 | 2,944 → 2,464 | 8 → 7 |
+| fields 4/SaveMask | 1,199 → 495 | 3,008 → 1,312 | 9 → 5 |
+| fields 4/NewManager | 307.5 → 674.8 | 1,360 → 2,368 | 5 → 9 |
+| fields 32/Create | 9,534 → 4,302 | 15,544 → 12,344 | 9 → 8 |
+| fields 32/Update | 9,583 → 4,445 | 16,536 → 13,336 | 10 → 9 |
+| fields 32/Save | 7,813 → 3,012 | 20,768 → 17,568 | 8 → 7 |
+| fields 32/SaveMask | 10,108 → 3,444 | 23,112 → 12,488 | 12 → 8 |
+| fields 32/NewManager | 1,279 → 3,481 | 7,600 → 14,560 | 5 → 13 |
+| fields 256/Create | 361,115 → 33,600 | 122,808 → 95,544 | 9 → 8 |
+| fields 256/Update | 334,514 → 34,655 | 132,504 → 105,240 | 10 → 9 |
+| fields 256/Save | 257,598 → 22,677 | 168,480 → 141,216 | 8 → 7 |
+| fields 256/SaveMask | 344,249 → 26,076 | 186,952 → 100,296 | 12 → 8 |
+| fields 256/NewManager | 8,931 → 26,498 | 60,336 → 115,168 | 5 → 13 |
+
+준비된 lookup을 추가해 `NewManager`의 시간과 메모리는 늘었다. 이 변경은 Manager를 반복 사용하는 경로를 위한 것이며,
+일회성 생성·쓰기까지 무조건 빨라졌다는 뜻은 아니다. Save의 fallback insert는 전체 필드를 순서대로 한 번 읽고,
+forced/masked update는 사용하지 않는 insert plan을 만들지 않는다.
+
+다음은 실제 checked-in Article 생성 코드의 BuildCreate/BuildPatch와 관계 fixture의 storage.Field 호출이다.
+
+| workload | 기준 → 변경 ns/op | 기준 → 변경 B/op | 기준 → 변경 allocs/op |
+|---|---:|---:|---:|
+| Create | 169.8 → 83.08 | 752 → 320 | 3 → 1 |
+| Patch | 119.2 → 52.1 | 544 → 112 | 3 → 1 |
+| RelationStorage | 490.9 → 277.2 | 1,696 → 384 | 12 → 4 |
+
+Compile fixture는 15개 positive와 29개 negative를 각각 독립 package로 두고 두 외부 module build로 검사한다.
+각 package의 start·terminal, negative 자신의 build failure·diagnostic을 확인한다. Dependency failure, 누락·잘린 JSON,
+중복 결과나 runtime skip을 fixture 성공으로 인정하지 않는다. No-test-files terminal은 compile-only package에서만 별도 증명한다.
+동일한 두 top-level 검사의 단일 관측은 package 7.128→2.736초, negative 2.31→0.12초였다.
+이는 반복 성능 실험이나 Hosted 단축 시간의 증명이 아니며, 실제 facade/architecture/부모·자식 race 검사는 별도로 유지했다.
+
+제품·CLI·생성기 Go는 같은 `scripts/sourceinventory` 분류에서 80,619→80,448줄이다. Generated Go는 6,723→6,740줄이고,
+회귀·측정 Go는 164,446→165,320줄이다. 순수 줄 수를 줄이기 위한 테스트 삭제는 하지 않았다.
+
+### 로컬 변경 묶음
+
+- `go test ./validation ./auth ./sessions ./forms/... ./serializers ./api/... ./admin ./web/...`: PASS.
+  외부 snapshot, 세션 원본·파생값 분리, Form 초기값 동시 overlay·callback 보관 값, invalid permission·반복 Page 응답.
+- `go test ./templates ./serializers ./migrations`: PASS. Nested/include loop scope·forloop object 의미,
+  escape의 정확한 cap·오류 시 nil, JSON empty-name/duplicate/child/budget 우선순위, ProjectState zero/empty·상태별 소유권.
+- `go test ./orm`: PASS. Full field reference, 순서가 다른 PK의 forced/fallback insert,
+  callback metadata의 동시 변경 격리와 기존 write/save 회귀.
+- JSON 직접 bounded 출력 후 `go test ./serializers`: PASS. `encoding/json`의 `SetEscapeHTML(false)`를 독립 비교값으로
+  사용해 ASCII control, quote/backslash, Unicode/U+2028/U+2029와 정확한 document cap을 대조했다.
+- `go test ./codegen ./codegen/consumertest ./orm ./internal/compiletest`: PASS. Standalone/bundle의 실제 선행 AST 충돌,
+  정상·오용 ABI와 generated module의 실제 소비자 실행을 포함한다.
+- SQLite·PostgreSQL assignment compiler의 quoting/duplicate/value 오류 순서와 SQLite ASCII column key 검사: PASS.
+  이 checkpoint는 실제 PostgreSQL 서비스 실행 증거가 아니다.
+- Testenv·두 attestation profile과 compile/generated environment 검사: PASS. 마지막 env 값·Windows case-fold 의미,
+  offline flags·실제 부모 race·취소·helper source 변경에 의한 binding 무효화를 확인했다.
+- Django planning/restart의 공유 관측 helper 검사 23개 PASS. Go actual과 Django expected는 합치지 않았다.
+- CI 도구 전체 `PYTHONPATH=scripts/ci PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/ci -p 'test_*.py'`:
+  36개 PASS. Command owner의 선택·미선택·실패·누락·skip과 CLI output을 확인했다.
+- Actionlint v1.7.12로 `ci.yml`·`feedback.yml` PASS. `-shellcheck= -pyflakes=`로 실행했으므로 두 별도 도구 검사는 포함하지 않는다.
+
+### 통합 checkpoint
+
+영향 범위 25개 package를 아래 selector로 normal checkpoint 이후 race·CGO-disabled에서 실행했다.
+
+```sh
+go test -race -json -count=1 -timeout=15m ./validation ./auth ./sessions ./forms/... ./serializers ./templates ./migrations ./orm ./api/... ./admin ./web/... ./systemstate ./db/internal/queryplan ./db/sqlite ./db/postgres ./internal/testenv ./internal/compiletest ./codegen ./codegen/consumertest ./conformance/systemstate/attestation ./conformance/projectoperatorproduct/attestation
+```
+
+CGO-disabled는 같은 명령에서 `-race`를 빼고 `CGO_ENABLED=0`을 적용했다. 각 exit status와 전체 JSON terminal을 검사했다.
+Race는 25 packages·2,955 pass/2,965 run, CGO-disabled는 25 packages·3,006 pass/3,016 run이다.
+각각 PostgreSQL integration·helper 10개가 로컬 서비스 환경 부재로 skip됐다. 실제 PostgreSQL 검증은 Hosted 전담 owner가 맡는다.
+
+실제 command 검증은 `go test -p=1 -json -count=1 -timeout=25m`에서 아래 20개 top-level test만 `-run`으로 선택했다.
+모든 하위 test를 포함하며 필수 목록을 `go_test_events.py --required ... --no-skips`로 확인했다.
+결과는 7 packages·120 run/pass·skip 0이다.
+
+| package (`conformance/` 아래) | 필수 top-level test |
+|---|---|
+| projectmigrateproduct | `TestGlobalMigrateArticleSQLiteProduct`, `TestGlobalMigrateSQLiteMiddleFailureAndFreshResume`, `TestGlobalMigrateArticleSQLiteFullMIG096Concurrency`, `TestGlobalMigrateAuthenticatedArticleRestartDurability` |
+| runserverproduct | `TestRunserverPublicOnlyEnvironmentsDiscardAmbientArticleCredentials`, `TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI`, `TestGlobalRunserverArticleSQLiteDevelopmentLoop`, `TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime`, `TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup` |
+| migrationwriterproduct | `TestMigrationWriterExternalProjectSQLitePublicSurface` |
+| projectshowmigrationsproduct | `TestGlobalShowMigrationsExternalProjectSQLiteProduct` |
+| projectsqlmigrateproduct | `TestGlobalSQLMigrateExternalSQLiteProduct`, `TestSQLProductRunnerPipelineExecutionControls`, `TestSQLProductRunnerSourceBoundaries` |
+| projectoperatorproduct | `TestOperatorSanitizeEnvironmentDropsHostOnlyControls`, `TestGlobalCreatesuperuserExternalSQLiteProduct`, `TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity`, `TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation`, `TestOperatorCountRawSecretOccurrencesDetectsAuditMarker` |
+| projectmigratetargetproduct | `TestProjectLinkedTargetedMigrateSQLite` |
+
+- 고정 Python/Django/DRF exact: `PYTHONDONTWRITEBYTECODE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv tool run --from uv==0.10.12 uv run --project conformance/reference/drf --frozen python -m scripts.ci.python_tests --profile exact`:
+  PASS, `PYTHON_SUITE_VERIFIED tests=274 skips=0`. Lock을 변경하지 않았다.
+- `make docs-check format-check generate-check`: 최종 PASS. Helpdesk 12·Article 12·relationfixture 16개와 별도 metadata fixture를 확인했다.
+- 최종 영향 package의 `go vet`와 `git diff --check`: PASS.
+
+초기 compile에서 삭제한 namespace validator 호출과 이동한 environment import가 남아 실패했으며 함께 정리한 뒤 통과했다.
+초기 `make generate-check`는 별도 `relationproduct`의 main 생성물 두 파일이 오래되어 실패했다. 두 파일을 재생성하고 전체 drift와
+해당 소비자의 normal·race·CGO-disabled를 다시 실행해 모두 PASS를 확인했다. 첫 runtime benchmark의 package는 모두 PASS였지만
+출력 wrapper가 zsh readonly `status` 대입으로 실패했다. 원래 완료 로그와 측정값을 확인했고 최종 측정 wrapper도 정상 종료했다.
+
+CI는 같은 OS/arch/mode의 operator·targeted command를 한 job에서 차례로 실행해 checkout·Go·의존성 준비를 공유한다.
+각 test selector·필수 sentinel·no-skip·timeout·normal vet를 유지하며 첫 제품 실패 뒤에도 다음 제품과 최종 outcome gate를 실행한다.
+선택된 제품의 누락·skip은 성공이 될 수 없다. 예정된 full job 수는 74→62개이며 전체 실행 시간은 Hosted 완료 후 기록한다.
+전체 platform·PostgreSQL·capture·cold CLI·32-bit의 현재 제품 소스 증거는 아직 없다.
+
 ## GDJ-0067 — 불변 준비와 실행 비용 정리
 
 - 작업: [GDJ-0067](../../work/0067-immutable-preparation-and-execution-cost.md).

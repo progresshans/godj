@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/testenv"
 	"io"
 	"net"
 	"net/http"
@@ -150,7 +151,7 @@ func operatorRunSQLiteLostResponseProduct(t *testing.T) {
 			defer clear(password)
 			username := "lost-response-" + test.mode
 			provisionMarker := project.marker(t, "lost-response-provision-"+test.mode)
-			provisionEnvironment := operatorEnvironment(environment, map[string]string{
+			provisionEnvironment := testenv.With(environment, map[string]string{
 				operatorMarkerEnvironment:       provisionMarker,
 				operatorResponseModeEnvironment: test.mode,
 			})
@@ -212,7 +213,7 @@ func operatorRunSQLiteLostResponseProduct(t *testing.T) {
 			defer clear(password)
 			username := "lost-public-" + test.stream
 			provisionMarker := project.marker(t, "lost-public-provision-"+test.stream)
-			provisionEnvironment := operatorEnvironment(environment, map[string]string{
+			provisionEnvironment := testenv.With(environment, map[string]string{
 				operatorMarkerEnvironment:       provisionMarker,
 				operatorResponseModeEnvironment: test.responseMode,
 				operatorHoldEnvironment:         "1000",
@@ -262,7 +263,7 @@ func operatorRunSQLiteBackendProduct(t *testing.T) operatorattestation.ObservedF
 	defer clear(password)
 	const username = "external-operator"
 	provisionMarker := project.marker(t, "provision")
-	provisionEnvironment := operatorEnvironment(environment, map[string]string{
+	provisionEnvironment := testenv.With(environment, map[string]string{
 		operatorMarkerEnvironment: provisionMarker,
 		operatorHoldEnvironment:   "1000",
 	})
@@ -280,7 +281,7 @@ func operatorRunSQLiteBackendProduct(t *testing.T) operatorattestation.ObservedF
 
 	var authentication operatorAuthenticationState
 	runtimeAMarker := project.marker(t, "runtime-a")
-	runtimeAEnvironment := operatorEnvironment(environment, map[string]string{
+	runtimeAEnvironment := testenv.With(environment, map[string]string{
 		operatorMarkerEnvironment:       runtimeAMarker,
 		operatorRunnerMarkerEnvironment: "",
 		operatorHoldEnvironment:         "",
@@ -295,7 +296,7 @@ func operatorRunSQLiteBackendProduct(t *testing.T) operatorattestation.ObservedF
 	operatorAssertSQLiteCredential(t, database, username, password)
 
 	runtimeBMarker := project.marker(t, "runtime-b")
-	runtimeBEnvironment := operatorEnvironment(environment, map[string]string{
+	runtimeBEnvironment := testenv.With(environment, map[string]string{
 		operatorMarkerEnvironment:       runtimeBMarker,
 		operatorRunnerMarkerEnvironment: "",
 		operatorHoldEnvironment:         "",

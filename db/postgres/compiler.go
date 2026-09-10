@@ -797,7 +797,7 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 		statement.WriteString(" ILIKE ")
 		statement.WriteString(placeholder(firstArgument))
 		statement.WriteString(` ESCAPE '\'`)
-		return []any{"%" + escapeLike(text) + "%"}, nil
+		return []any{"%" + queryplan.EscapeLike(text) + "%"}, nil
 	case query.LookupIsNull:
 		isNull, ok := value.Boolean()
 		if !ok {
@@ -913,12 +913,6 @@ func quoteQualified(alias, column string) (string, error) {
 
 func placeholder(position int) string {
 	return "$" + strconv.Itoa(position)
-}
-
-func escapeLike(value string) string {
-	value = strings.ReplaceAll(value, `\`, `\\`)
-	value = strings.ReplaceAll(value, `%`, `\%`)
-	return strings.ReplaceAll(value, `_`, `\_`)
 }
 
 func invalidPlan(detail string) error {

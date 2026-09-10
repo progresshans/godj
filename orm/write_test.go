@@ -138,6 +138,16 @@ func TestManagerRejectsInjectedMutationMetadataAndValuesBeforeBackend(t *testing
 			code: query.CodeUnknownField,
 		},
 		{
+			name:       "same name and column with different kind",
+			assignment: query.NewAssignment(query.NewFieldRef("title", "title", query.FieldInteger, false), query.String("value")),
+			code:       query.CodeUnknownField,
+		},
+		{
+			name:       "same name and column with different nullability",
+			assignment: query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, true), query.String("value")),
+			code:       query.CodeUnknownField,
+		},
+		{
 			name:       "result model mismatch",
 			assignment: orm.NewAssignment(metadata.Fields[1], query.String("stored")),
 			code:       query.CodeInvalidValue,

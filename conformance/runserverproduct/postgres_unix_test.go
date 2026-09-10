@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -258,7 +259,7 @@ func runGlobalPostgresArticleServerOnce(
 
 func runserverPostgresEnvironment(t *testing.T, databaseURL, schema, workspaceBase string) []string {
 	t.Helper()
-	values := environmentMap(os.Environ())
+	values := testenv.Map(os.Environ())
 	delete(values, articleSQLiteDatabaseEnv)
 	delete(values, runserverPostgresTestURLEnv)
 	delete(values, runserverPostgresRequiredEnv)
@@ -267,12 +268,6 @@ func runserverPostgresEnvironment(t *testing.T, databaseURL, schema, workspaceBa
 	values[articlePostgresURLEnv] = databaseURL
 	values[articlePostgresSchemaEnv] = schema
 	values["TMPDIR"] = workspaceBase
-	values["GOWORK"] = "off"
-	values["GOTOOLCHAIN"] = "local"
-	values["GOENV"] = "off"
-	values["GOFLAGS"] = ""
-	values["GOCACHEPROG"] = ""
-	values["GOPROXY"] = "off"
 	if strings.TrimSpace(values["HOME"]) == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -280,12 +275,12 @@ func runserverPostgresEnvironment(t *testing.T, databaseURL, schema, workspaceBa
 		}
 		values["HOME"] = home
 	}
-	return testfixture.SortedEnvironment(values)
+	return testenv.OfflineGo(testenv.Sorted(values), "")
 }
 
 func assertRunserverPostgresEnvironment(t *testing.T, environment []string, databaseURL, schema string) {
 	t.Helper()
-	values := environmentMap(environment)
+	values := testenv.Map(environment)
 	if _, exists := values[articleSQLiteDatabaseEnv]; exists {
 		t.Fatal("PostgreSQL Article runtime environment retained SQLite configuration")
 	}

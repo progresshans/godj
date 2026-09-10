@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T) {
@@ -27,8 +28,8 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 
 	const username = "authenticated-postgres-restart-admin"
 	password := fmt.Sprintf("authenticated-postgres-restart-password-%d-%d-9Xq", os.Getpid(), time.Now().UnixNano())
-	values := environmentMap(projectMigratePostgresEnvironment(t, databaseURL, schema, workspaceBase))
-	environment := testfixture.SortedEnvironment(values)
+	values := testenv.Map(projectMigratePostgresEnvironment(t, databaseURL, schema, workspaceBase))
+	environment := testenv.Sorted(values)
 	projectMigratePostgresAssertEnvironment(t, environment, databaseURL, schema)
 	authenticatedRestartAssertRuntimeEnvironment(t, environment, password)
 

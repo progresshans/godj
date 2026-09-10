@@ -159,7 +159,6 @@ func (input PostCreate) WithReviewerIDNull() PostCreate {
 }
 
 func (input PostCreate) BuildCreate() orm.Mutation[Post] {
-	metadata := postMetadata()
 	var value Post
 	assignments := make([]query.Assignment, 0, 3)
 	changedTitle, changedTitleSet := input.title.Get()
@@ -172,7 +171,7 @@ func (input PostCreate) BuildCreate() orm.Mutation[Post] {
 		})
 	}
 	value.Title = changedTitle
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedTitle)))
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, false), query.String(changedTitle)))
 	changedAuthorID, changedAuthorIDSet := input.authorID.Get()
 	if !changedAuthorIDSet {
 		return orm.InvalidMutation[Post](&query.Error{
@@ -183,19 +182,19 @@ func (input PostCreate) BuildCreate() orm.Mutation[Post] {
 		})
 	}
 	value.AuthorID = changedAuthorID
-	assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Integer(changedAuthorID)))
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.Integer(changedAuthorID)))
 	changedReviewerID, changedReviewerIDState := input.reviewerID.Get()
 	switch changedReviewerIDState {
 	case orm.NullableChangeUnset:
 		value.ReviewerID = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true), query.Null()))
 	case orm.NullableChangeValue:
 		storedReviewerID := changedReviewerID
 		value.ReviewerID = &storedReviewerID
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Integer(changedReviewerID)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true), query.Integer(changedReviewerID)))
 	case orm.NullableChangeNull:
 		value.ReviewerID = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true), query.Null()))
 	default:
 		return orm.InvalidMutation[Post](&query.Error{
 			Category: query.CategoryQuery,
@@ -204,7 +203,7 @@ func (input PostCreate) BuildCreate() orm.Mutation[Post] {
 			Detail:   "unknown nullable change state",
 		})
 	}
-	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+	return orm.NewCreateMutation(value, "blog_post", assignments)
 }
 
 type PostPatch struct {
@@ -234,16 +233,15 @@ func (input PostPatch) WithReviewerIDNull() PostPatch {
 }
 
 func (input PostPatch) BuildPatch(current Post) orm.Mutation[Post] {
-	metadata := postMetadata()
 	value := current
 	assignments := make([]query.Assignment, 0, 3)
 	if changedTitle, ok := input.title.Get(); ok {
 		value.Title = changedTitle
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedTitle)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, false), query.String(changedTitle)))
 	}
 	if changedAuthorID, ok := input.authorID.Get(); ok {
 		value.AuthorID = changedAuthorID
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Integer(changedAuthorID)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.Integer(changedAuthorID)))
 	}
 	changedReviewerID, changedReviewerIDState := input.reviewerID.Get()
 	switch changedReviewerIDState {
@@ -251,10 +249,10 @@ func (input PostPatch) BuildPatch(current Post) orm.Mutation[Post] {
 	case orm.NullableChangeValue:
 		storedReviewerID := changedReviewerID
 		value.ReviewerID = &storedReviewerID
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Integer(changedReviewerID)))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true), query.Integer(changedReviewerID)))
 	case orm.NullableChangeNull:
 		value.ReviewerID = nil
-		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true), query.Null()))
 	default:
 		return orm.InvalidMutation[Post](&query.Error{
 			Category: query.CategoryQuery,
@@ -263,7 +261,7 @@ func (input PostPatch) BuildPatch(current Post) orm.Mutation[Post] {
 			Detail:   "unknown nullable change state",
 		})
 	}
-	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+	return orm.NewPatchMutation(value, "blog_post", assignments)
 }
 
 func postMetadata() ir.Model {

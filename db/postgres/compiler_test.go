@@ -261,6 +261,30 @@ func TestCompileUpdateAndDelete(t *testing.T) {
 	}
 }
 
+func TestCompileAssignmentValidationPrecedesValueConversion(t *testing.T) {
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	for _, test := range []struct {
+		name, column, detail string
+		duplicate            bool
+	}{
+		{"invalid-name", "", "identifier must match", false},
+		{"invalid-name", "title", "field name identifier must match", false},
+		{"invalid-name", "title", `field column "title" is assigned more than once`, true},
+	} {
+		var assignments []query.Assignment
+		if test.duplicate {
+			assignments = append(assignments, query.NewAssignment(title, query.String("first")))
+		}
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef(test.name, test.column, query.FieldString, false), query.Value{}))
+		statement, arguments, err := compileInsert("app", query.NewInsertPlanReturningKey("record", assignments, id))
+		var failure *query.Error
+		if statement != "" || arguments != nil || !errors.As(err, &failure) || !strings.HasPrefix(failure.Detail, test.detail) {
+			t.Fatalf("assignment precedence = %q %v, %v; want %q", statement, arguments, err, test.detail)
+		}
+	}
+}
+
 func TestSQLSTATEClassificationIsStructuredAndConservative(t *testing.T) {
 	t.Parallel()
 
