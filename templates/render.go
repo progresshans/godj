@@ -32,14 +32,12 @@ type renderState struct {
 	capabilities Capabilities
 	output       boundedOutput
 	loopItems    int
-	stack        []string
 }
 
 func (state *renderState) renderTemplate(
 	ctx context.Context,
 	name string,
 	values Context,
-	overrides map[string]blockOverride,
 	depth int,
 ) error {
 	if err := ctx.Err(); err != nil {
@@ -48,31 +46,22 @@ func (state *renderState) renderTemplate(
 	if depth > state.engine.limits.MaxRenderDepth {
 		return renderError(name, 0, 0, "render_depth_exceeded", nil)
 	}
-	for _, active := range state.stack {
-		if active == name {
-			return renderError(name, 0, 0, "template_cycle", nil)
-		}
-	}
 	template, ok := state.engine.templates[name]
 	if !ok {
 		return renderError(name, 0, 0, "unknown_template", nil)
 	}
-	state.stack = append(state.stack, name)
-	defer func() { state.stack = state.stack[:len(state.stack)-1] }()
-
-	merged := make(map[string]blockOverride, len(template.blocks)+len(overrides))
-	for blockName, override := range overrides {
-		merged[blockName] = override
-	}
-	for blockName, block := range template.blocks {
-		if _, exists := merged[blockName]; !exists {
-			merged[blockName] = blockOverride{owner: name, node: block}
+	overrides := template.overrides
+	for template.parent != nil {
+		template = template.parent
+		depth++
+		if err := ctx.Err(); err != nil {
+			return renderError(template.name, 0, 0, "context_canceled", err)
+		}
+		if depth > state.engine.limits.MaxRenderDepth {
+			return renderError(template.name, 0, 0, "render_depth_exceeded", nil)
 		}
 	}
-	if template.extends != "" {
-		return state.renderTemplate(ctx, template.extends, values, merged, depth+1)
-	}
-	return state.renderNodes(ctx, name, template.nodes, values, merged, depth)
+	return state.renderNodes(ctx, template.name, template.nodes, values, overrides, depth)
 }
 
 func (state *renderState) renderNodes(
@@ -147,7 +136,7 @@ func (state *renderState) renderNodes(
 				}
 			}
 		case nodeInclude:
-			if err := state.renderTemplate(ctx, item.name, values, nil, depth+1); err != nil {
+			if err := state.renderTemplate(ctx, item.name, values, depth+1); err != nil {
 				return err
 			}
 		case nodeExtends:

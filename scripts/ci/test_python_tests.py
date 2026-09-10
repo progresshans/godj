@@ -1,10 +1,23 @@
 import io
+import os
 import unittest
+from unittest.mock import patch
 
-from python_tests import run_suite
+from python_tests import EXACT_PROFILE_TESTS, configure_profile, run_suite
 
 
 class PythonSuiteTests(unittest.TestCase):
+    def test_profiles_own_the_exact_flag_before_discovery(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(frozenset(), configure_profile("exact"))
+            self.assertEqual("1", os.environ["GODJ_EXACT_PROFILE"])
+            for profile in ("normal", "compatibility"):
+                os.environ["GODJ_EXACT_PROFILE"] = "1"
+                self.assertEqual(EXACT_PROFILE_TESTS, configure_profile(profile))
+                self.assertNotIn("GODJ_EXACT_PROFILE", os.environ)
+            with self.assertRaises(ValueError):
+                configure_profile("unknown")
+
     def case(self, name, outcome="pass"):
         def execute(test):
             if outcome == "skip":

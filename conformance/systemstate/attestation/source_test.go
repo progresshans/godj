@@ -75,9 +75,12 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
 		"scripts/ci/python_tests.py",
+		"scripts/ci/relation-required.txt",
+		"scripts/ci/compile-required.txt",
 		"migrations/executor.go",
 		"migrations/internal/loadeddefinition/set.go",
 		"db/internal/queryplan/read.go",
+		"db/internal/queryplan/joins.go",
 		"internal/wirejson/decode.go",
 		"internal/projectwire/spec.go",
 		"conformance/internal/attestationio/io.go",

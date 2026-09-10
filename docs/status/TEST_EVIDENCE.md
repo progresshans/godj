@@ -3,6 +3,79 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0067 — 불변 준비와 실행 비용 정리
+
+- 작업: [GDJ-0067](../../work/0067-immutable-preparation-and-execution-cost.md).
+- 기준 제품: `9c21568dcbd7bb33c817d6e830a44026d2554e32`.
+- 상태: 구현·로컬 통합 검증 완료, Hosted full scope 대기. 각 baseline은 해당 제품 변경 전 실행했다.
+- 환경: 2026-09-10 KST, Apple M3 Pro, Go 1.26.5 darwin/arm64.
+
+`go test -run '^$' -bench 'Benchmark(JSONEncoding|JSONNestedConstruction|TemplateComposition|TemplateLoop)$' -benchtime=200ms -count=3 ./serializers ./templates`
+
+각 값은 세 실행의 중앙값이다. Encoding은 10개 문자열 필드를 가진 1/100행, construction은 중첩 object 생성이다.
+기존 template composition은 1,000개 불변 child 공유, loop는 1,000개 항목 렌더링을 측정한다.
+
+| workload | 기준 → 변경 ns/op | 기준 → 변경 B/op | 기준 → 변경 allocs/op |
+|---|---:|---:|---:|
+| JSON encode / 1 row | 3,258 → 1,740 | 4,169 → 1,352 | 87 → 29 |
+| JSON encode / 100 rows | 307,603 → 158,443 | 498,217 → 185,383 | 8,020 → 2,022 |
+| JSON nested construction / depth 8 | 1,394 → 829.0 | 3,072 → 3,072 | 24 → 24 |
+| JSON nested construction / depth 64 | 51,506 → 6,471 | 24,576 → 24,576 | 192 → 192 |
+| Template loop / 1,000 items | 280,251 → 289,060 | 1,046,343 → 1,042,220 | 5,759 → 5,757 |
+| Template inheritance / depth 1 | 222.5 → 131.5 | 96 → 56 | 5 → 3 |
+| Template inheritance / depth 8 | 1,024 → 169.7 | 320 → 56 | 8 → 3 |
+| Template inheritance / depth 32 | 4,116 → 204.4 | 1,088 → 56 | 10 → 3 |
+| ORM reused Manager.Using / 4 fields | 2,022 → 23.17 | 3,457 → 48 | 37 → 1 |
+| ORM NewManager / 4 fields | 1.773 → 2,070 | 0 → 4,210 | 0 → 40 |
+| Reverse prefetch / 20 owners, 1,000 rows | 162,051 → 151,262 | 476,520 → 465,114 | 8,426 → 7,390 |
+
+Inheritance은 같은 `-benchtime=200ms -count=3` 조건의 `BenchmarkTemplateInheritance`를 template 제품 변경 전후에 실행했다.
+Template loop는 복사·할당은 줄었지만 이 측정의 시간은 약 3% 증가했다. 전체 render가 빨라졌다고 일반화하지 않는다.
+ORM은 `Benchmark(ManagerPreparation|ReversePrefetch)$`를 제품 변경 전후에 같은 조건으로 실행했다.
+준비 비용을 `NewManager`로 옮겼으므로 재사용하는 Manager의 `Using`이 측정 대상이며, 일회성 constructor가 공짜라고 주장하지 않는다.
+Prefetch는 pointer field가 있는 모델과 fake row source로 복사·그룹·cache 비용을 측정하며 DB latency를 포함하지 않는다.
+
+### 로컬 변경 묶음
+
+- `go test ./auth ./web/sessionauth`: PASS. 난수 panic의 원래 값 전파·후속 병렬 해싱,
+  clock/entropy panic을 HTTP 500으로 복구한 뒤 다음 요청의 CSRF token/cookie 발급을 확인했다.
+- `go test ./serializers`: PASS. 문자열 escape·독립 동시 출력·공유 subtree의 출력 budget·정수 경계·기존 오류 우선순위.
+  초기 compile에서 삭제한 `validObject`의 Spec.Bind 호출이 남아 실패했고, 같은 불변 object 검증 경계로 전환한 뒤 통과했다.
+- `go test ./templates ./apps ./forms/... ./web`: PASS. 상속·nested block·include scope·깊이 실패 위치·동시 render와 기존 입력/라우팅 회귀.
+- 추가 후보: JSON 정수 출력의 임시 slice 할당과 salt read 뒤 취소된 PBKDF2 계산을 제거했다. 해싱 work profile과 오류 종류는 유지했다.
+- `go test ./orm`: PASS. metadata 입력/getter와 쓰기 callback mutation 격리, using별 독립 평가, 기존 relation/prefetch/eager 회귀.
+- `go test ./db/sqlite ./db/postgres`: PASS. 각 dialect의 JOIN/nullable/alias/오류·SQL 결과 회귀. PostgreSQL 서비스 의존 테스트는
+  로컬 환경에서 skip하며 실제 PostgreSQL 검증은 아직 Hosted owner에 남아 있다.
+- `go test -count=1 -timeout=25m ./internal/compiletest ./codegen/consumertest`: PASS. 전체 정상·오용 ABI와 생성 소비자.
+  최종 `-count=1`·checksum 복사·완전 offline 설정 뒤 생성 소비자 전체를 normal·race·CGO-disabled로 다시 실행해 통과했다.
+- `make python-test ci-tools-test`: normal `PYTHON_SUITE_VERIFIED tests=274 skips=4`, CI 도구 34개 PASS.
+  Skip은 선언된 exact 전용 네 검사다. DRF 직접 관측은 모두 실행했다.
+- Attestation 두 profile normal과 migration/SQLMigrate/ShowMigrations outer flow normal: PASS.
+  공유 source validation에서도 profile별 자원 한도·타입·digest 범위를 유지하고, 명령별 runner code·취소·비정상 process 분류를 확인했다.
+
+### 통합 checkpoint
+
+| 실제 실행 | 결과와 범위 |
+|---|---|
+| `go test -run '^$' ./...`, `go vet ./...` | PASS. 전체 패키지 compile·정적 분석. 전체 테스트 실행을 의미하지 않는다. |
+| API·Admin·SystemState·Sessions·Article·Helpdesk normal | PASS. 새 Manager metadata 준비를 사용하는 실제 읽기·쓰기·HTTP·인증 흐름. |
+| Forward object·prefetch·select·delete 제품 normal | PASS. 프로젝트에 연결된 생성 모델과 실제 SQLite 관계·cache·NULL·rollback 관측. |
+| Migrate SQLite 외부 제품·중간 실패/재개·인증 restart | PASS. 세 필수 sentinel과 하위 항목을 `go_test_events.py`로 검증: 1 package, 10 run/pass, skip 0. |
+| Auth·SessionAuth·Serializer·Template·ORM·SQLite/PG compiler·Attestation 두 profile·생성 소비자 race | 각 패키지 PASS. 초기 합동 실행은 `internal/compiletest`의 공용 `repositoryRoot`가 `!race` 파일에 남아 compile 실패했다. 공통 파일로 옮긴 뒤 해당 패키지의 race·normal·CGO-disabled 재검증 PASS. |
+| 같은 영향 범위 CGO-disabled | PASS. 외부 ABI 오용과 생성 소비자 전체 포함. PostgreSQL 서비스 I/O는 로컬에서 검증하지 않았다. |
+| Migration command 공통 분류와 세 outer 흐름 race | PASS. runner code·취소·cleanup·잘못된 process failure 거부 유지. |
+| 고정 Python/DRF exact | uv 0.10.12, Python 3.14.3, Django 6.1, DRF 3.18.0. `PYTHON_SUITE_VERIFIED tests=274 skips=0`; 고정 byte/hashseed 관측 포함. |
+| `make docs-check format-check generate-check`, actionlint v1.7.7 | PASS. Helpdesk 12·Article 12·relation 16개 생성 파일 clean, checked-in 생성물 검사와 Actions 문법 검증. |
+
+Exact Python은 `uv tool run --from uv==0.10.12 uv run --project conformance/reference/drf --frozen python -m scripts.ci.python_tests --profile exact`로
+실행했고 `PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC`를 적용했다. Host uv가 다른 버전이어도 lock을 변경하지 않는다.
+새 JOIN helper와 CI 필수 실행 목록 변경이 두 behavioral source binding을 무효화하는 mutation test도 통과했다.
+PostgreSQL projection 충돌은 기존 category/code를 유지하고 상세 메시지에 해당 edge 이름을 추가했다.
+
+실제 제품·생성기·CLI Go 코드는 기준 80,658줄에서 80,619줄로 줄었다(`scripts/sourceinventory`의 같은 분류).
+회귀·성능 측정 코드는 추가했으며 생성된 45파일/6,723줄은 바꾸지 않았다. 대규모 줄 수 절감이나 전체 서비스 처리량의 개선을 주장하지 않는다.
+
+
 ## GDJ-0066 — 실행 비용과 중복 책임의 측정 기반 정리
 
 - 작업: [GDJ-0066](../../work/0066-measured-runtime-and-validation-optimization.md).

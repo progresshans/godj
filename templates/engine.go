@@ -102,8 +102,42 @@ func New(source fs.FS, config Config) (*Engine, error) {
 	if err := rejectReferenceCycles(compiled, names); err != nil {
 		return nil, err
 	}
+	for _, template := range compiled {
+		prepareInheritance(template, compiled, limits.MaxRenderDepth)
+	}
 	sort.Strings(names)
-	return &Engine{templates: compiled, names: append([]string(nil), names...), limits: limits}, nil
+	return &Engine{templates: compiled, names: names, limits: limits}, nil
+}
+
+// prepareInheritance links the already-validated DAG once. Root defaults need
+// no override entries, and a child with no blocks shares its parent's map.
+// Chains that cannot render under this engine's limit need no prepared map.
+func prepareInheritance(template *compiledTemplate, compiled map[string]*compiledTemplate, maxDepth int) {
+	if template.inheritanceDepth != 0 {
+		return
+	}
+	template.inheritanceDepth = 1
+	if template.extends == "" {
+		return
+	}
+	parent := compiled[template.extends]
+	prepareInheritance(parent, compiled, maxDepth)
+	template.parent = parent
+	template.inheritanceDepth += parent.inheritanceDepth
+	if template.inheritanceDepth > maxDepth {
+		return
+	}
+	if len(template.blocks) == 0 {
+		template.overrides = parent.overrides
+		return
+	}
+	template.overrides = make(map[string]blockOverride, len(parent.overrides)+len(template.blocks))
+	for name, override := range parent.overrides {
+		template.overrides[name] = override
+	}
+	for name, block := range template.blocks {
+		template.overrides[name] = blockOverride{owner: template.name, node: block}
+	}
 }
 
 func readBounded(source fs.FS, name string, limit int) ([]byte, error) {
@@ -185,13 +219,13 @@ func (e *Engine) Render(ctx context.Context, name string, values Context, capabi
 		capabilities: capabilities,
 		output:       boundedOutput{limit: e.limits.MaxOutputBytes},
 	}
-	if err := state.renderTemplate(ctx, name, values, nil, 1); err != nil {
+	if err := state.renderTemplate(ctx, name, values, 1); err != nil {
 		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, renderError(name, 0, 0, "context_canceled", err)
 	}
-	return append([]byte(nil), state.output.bytes...), nil
+	return state.output.bytes, nil
 }
 
 func validateContext(context Context, maxDepth int) error {

@@ -110,7 +110,7 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 			}
 			selected[name] = true
 		}
-		projection := model.Clone()
+		projection := model
 		projection.Fields = nil
 		for _, field := range model.Fields {
 			if selected[field.Name] {

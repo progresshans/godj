@@ -297,7 +297,7 @@ func Encode(value Value, limits Limits) ([]byte, error) {
 	if err := state.appendValue(value, 1); err != nil {
 		return nil, err
 	}
-	return append([]byte(nil), state.document...), nil
+	return state.document, nil
 }
 
 // EncodeObject renders one ordered Object.
@@ -309,6 +309,8 @@ type encodeState struct {
 	limits   Limits
 	values   int
 	document []byte
+	scratch  bytes.Buffer
+	encoder  *json.Encoder
 }
 
 func (s *encodeState) appendValue(value Value, depth int) error {
@@ -328,12 +330,13 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 		}
 		return s.appendBytes([]byte("false"))
 	case ValueInteger:
-		return s.appendBytes(strconv.AppendInt(nil, value.integer, 10))
+		var digits [20]byte
+		return s.appendBytes(strconv.AppendInt(digits[:0], value.integer, 10))
 	case ValueString:
 		if err := validateJSONString(value.string, s.limits, "value.string"); err != nil {
 			return err
 		}
-		encoded, err := encodeJSONString(value.string)
+		encoded, err := s.encodeString(value.string)
 		if err != nil {
 			return invalidValueCause("value.string", "string could not be encoded", err)
 		}
@@ -357,9 +360,6 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 		}
 		return s.appendBytes([]byte{']'})
 	case ValueObject:
-		if !value.object.validObject() {
-			return invalidValue("value.object", "object is invalid")
-		}
 		if len(value.object.members) > s.limits.MaxObjectMembers {
 			return resourceLimit("value.object", "JSON object member count exceeds the configured limit")
 		}
@@ -376,7 +376,7 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			if err := validateJSONString(member.name, s.limits, "value.object.name"); err != nil {
 				return err
 			}
-			encodedName, err := encodeJSONString(member.name)
+			encodedName, err := s.encodeString(member.name)
 			if err != nil {
 				return invalidValueCause("value.object.name", "object member name could not be encoded", err)
 			}
@@ -404,18 +404,22 @@ func (s *encodeState) appendBytes(value []byte) error {
 	return nil
 }
 
-func encodeJSONString(value string) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(value); err != nil {
+// encodeString lends scratch bytes until the next call. appendValue copies
+// them into the bounded document before another string can reuse the buffer.
+func (s *encodeState) encodeString(value string) ([]byte, error) {
+	if s.encoder == nil {
+		s.encoder = json.NewEncoder(&s.scratch)
+		s.encoder.SetEscapeHTML(false)
+	}
+	s.scratch.Reset()
+	if err := s.encoder.Encode(value); err != nil {
 		return nil, err
 	}
-	encoded := buffer.Bytes()
+	encoded := s.scratch.Bytes()
 	if len(encoded) == 0 || encoded[len(encoded)-1] != '\n' {
 		return nil, errors.New("JSON string encoder omitted its terminator")
 	}
-	return append([]byte(nil), encoded[:len(encoded)-1]...), nil
+	return encoded[:len(encoded)-1], nil
 }
 
 func resolveLimits(limits Limits) (Limits, error) {

@@ -88,26 +88,7 @@ func mapMigrateOuterFailure(input Failure) MigrateFailure {
 }
 
 func migrateProcessFailure(stage ProcessStage, process ProcessResult) *MigrateFailure {
-	if process.Failure != nil {
-		candidate := mapMigrateOuterFailure(*process.Failure)
-		if candidate.Category == migrateprotocol.CategoryProcess {
-			switch candidate.Code {
-			case migrateprotocol.CodeProjectCanceled, migrateprotocol.CodeProjectInterrupted, migrateprotocol.CodeProjectCleanupFailed:
-				return &candidate
-			}
-		}
-		internal := migrateInternalFailure()
-		return &internal
-	}
-	if process.Started && process.ExitCode == 0 {
-		return nil
-	}
-	if stage == BuildStage {
-		candidate := migrateFailure(migrateprotocol.CategoryBuild, migrateprotocol.CodeProjectBuildFailed)
-		return &candidate
-	}
-	candidate := migrateFailure(migrateprotocol.CategoryProtocol, migrateprotocol.CodeRunnerFailed)
-	return &candidate
+	return migrationCommandProcessFailure(stage, process, migrateprotocol.CodeRunnerFailed, migrateFailure)
 }
 
 func migrateBarrier(input MigrateInvocation, primary *MigrateFailure) *MigrateFailure {

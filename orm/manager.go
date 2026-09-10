@@ -13,15 +13,33 @@ import (
 
 type Manager[M any] struct {
 	descriptor ModelDescriptor[M]
+	prepared   *preparedModel
 }
 
+type preparedModel struct {
+	metadata ir.Model
+	plan     query.Plan
+}
+
+// NewManager snapshots Metadata once for both reads and writes. Later changes
+// to descriptor metadata require a new Manager. The descriptor retains ownership
+// of Scan, CloneModel and optional write callbacks; they must remain consistent
+// with the snapshot and support the caller's concurrency.
 func NewManager[M any](descriptor ModelDescriptor[M]) Manager[M] {
-	return Manager[M]{descriptor: descriptor}
+	manager := Manager[M]{descriptor: descriptor}
+	if !descriptorIsNil(descriptor) {
+		metadata := descriptor.Metadata().Clone()
+		manager.prepared = &preparedModel{
+			metadata: metadata,
+			plan:     query.NewPlan(metadata.DBTable, modelFieldReferences(metadata)),
+		}
+	}
+	return manager
 }
 
 // Using binds a backend to a new QuerySet. It performs no I/O.
 func (m Manager[M]) Using(backend db.Queryer) QuerySet[M] {
-	if descriptorIsNil(m.descriptor) {
+	if m.prepared == nil {
 		return QuerySet[M]{
 			backend:    backend,
 			descriptor: m.descriptor,
@@ -33,17 +51,24 @@ func (m Manager[M]) Using(backend db.Queryer) QuerySet[M] {
 			},
 		}
 	}
-	metadata := m.descriptor.Metadata()
-	columns := make([]query.FieldRef, len(metadata.Fields))
-	for index, field := range metadata.Fields {
-		columns[index] = fieldReference(field)
-	}
+	return newQuerySet(backend, m.descriptor, m.prepared.plan)
+}
+
+func newQuerySet[M any](backend db.Queryer, descriptor ModelDescriptor[M], plan query.Plan) QuerySet[M] {
 	return QuerySet[M]{
 		backend:    backend,
-		descriptor: m.descriptor,
-		plan:       query.NewPlan(metadata.DBTable, columns),
+		descriptor: descriptor,
+		plan:       plan,
 		evaluation: newEvaluationState[M](),
 	}
+}
+
+func modelFieldReferences(model ir.Model) []query.FieldRef {
+	result := make([]query.FieldRef, len(model.Fields))
+	for index, field := range model.Fields {
+		result[index] = fieldReference(field)
+	}
+	return result
 }
 
 type QuerySet[M any] struct {

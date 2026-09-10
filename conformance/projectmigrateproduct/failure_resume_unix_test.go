@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
@@ -401,9 +402,9 @@ func failureResumeExpectedCatalog(t *testing.T, root string) articleCatalogExpec
 	failureResumeAssertCatalog(t, root, failureResumeGoodMiddleTable)
 	loaded := failureResumeLoadCatalog(t, root)
 	definitions := loaded.Definitions()
-	history := make([]historyRow, len(definitions))
+	history := make([]dbstate.HistoryRow, len(definitions))
 	for index, definition := range definitions {
-		history[index] = historyRow{App: definition.App, Name: definition.Name}
+		history[index] = dbstate.HistoryRow{App: definition.App, Name: definition.Name}
 	}
 	sort.Slice(history, func(left, right int) bool {
 		if history[left].App != history[right].App {
@@ -418,7 +419,7 @@ func failureResumeExpectedCatalog(t *testing.T, root string) articleCatalogExpec
 			DefinitionSetDigest: loaded.Digest(),
 		},
 		History:            history,
-		HistoryFingerprint: fingerprintHistory(history),
+		HistoryFingerprint: dbstate.FingerprintHistory(history),
 		DefinitionDigest:   decodeSHA256Digest(t, loaded.Digest()),
 	}
 }
@@ -430,11 +431,11 @@ func failureResumeAssertCommittedPrefixOnly(t *testing.T, databasePath, sentinel
 	if !reflect.DeepEqual(snapshot.Tables, wantTables) {
 		t.Fatalf("middle-failure tables = %v, want exact committed prefix %v", snapshot.Tables, wantTables)
 	}
-	wantHistory := []historyRow{{App: failureResumeApp, Name: failureResumePrefixMigration}}
+	wantHistory := []dbstate.HistoryRow{{App: failureResumeApp, Name: failureResumePrefixMigration}}
 	if !reflect.DeepEqual(snapshot.History, wantHistory) {
 		t.Fatalf("middle-failure history = %+v, want durable prefix %+v", snapshot.History, wantHistory)
 	}
-	assertRevision(t, snapshot.Revision, 1, wantHistory, fingerprintHistory(wantHistory))
+	assertRevision(t, snapshot.Revision, 1, wantHistory, dbstate.FingerprintHistory(wantHistory))
 	failureResumeAssertColumns(t, snapshot, map[string][]columnSnapshot{
 		failureResumePrefixTable: {
 			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},

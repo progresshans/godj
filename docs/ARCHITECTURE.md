@@ -65,6 +65,12 @@ AST의 생성자는 caller 입력을 복사하고 private 불변 저장소는 �
 Parameter binding과 identifier quoting은 backend compiler가 소유한다.
 DB 독립 projection·ordering·relation key·scalar 의미 검사는 `db/internal/queryplan`이 공유한다. 각 compiler는
 물리 identifier 제한과 quoting, schema qualification, parameter 형식과 SQL 배치를 소유한다.
+관계 projection의 provenance·edge 충돌, 정렬된 alias와 JOIN 방향·nullable outer join도 공통 계획에서 결정한다.
+
+`NewManager`는 descriptor metadata를 생성 시점에 한 번 deep copy하고 기본 plan을 준비한다. 같은 Manager의 읽기·쓰기는
+이 스냅샷을 사용한다. Metadata 변경을 반영하려면 새 Manager를 만든다. `Using`은 준비된 불변 plan을 공유하되 매번 독립
+평가 state를 만든다. Write callback에 전달하는 metadata는 다시 복사하며 Scan·Clone·write callback의 일관성과 동시성은
+descriptor 구현자가 소유한다. Project-bound lazy/reverse 객체도 검증된 model로 기본 plan을 한 번 준비한다.
 
 Nullable read와 write의 omitted/null/value는 구분한다. Save의 update field 선택·force mode·PK 유무는 명시적 입력이다.
 DB rollback이 application memory를 자동 복원하지는 않는다. Query plan과 평가 cache도 별개의 수명이다.
@@ -147,6 +153,13 @@ plan이 파일을 덮어쓰지 않게 한다. `showmigrations`는 한 snapshot�
 Web request는 명시적 context·routing·representation 경계를 갖는다. Template은 closed value를 render하고 기본 escape를
 적용한다. Model method나 arbitrary attribute lookup이 template evaluation 중 I/O를 실행하게 하지 않는다. Safe HTML은
 검토 가능한 construction 경계에서만 만든다.
+
+Template은 startup에서 참조·cycle을 검증하고 상속 parent와 불변 block override를 준비한다. 기본 root block은 별도 override로
+복제하지 않고 block 없는 child는 부모 map을 공유한다. Engine의 render 깊이로 실행할 수 없는 상속에는 map을 준비하지 않으며,
+실제 Render는 기존 깊이·취소·오류 위치를 유지한다. JSON List/Object는 생성 시 입력 container와 자식 유효성을 확인해 게시하고,
+Encode와 Spec.Bind는 그 private 불변 상태를 신뢰한다. 문자열 유효성과 출력별 resource limit은 계속 검사한다.
+JSON encoder/scratch는 Encode 호출 안에서만 재사용하며 JSON·HTML의 최종 독점 출력 버퍼는 반환 시 소유권을 이전한다.
+Public Response 입력과 mutable getter의 방어적 복사는 유지한다.
 
 Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, read-only, nullable와 validation은 의미가 같을 때
 공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는

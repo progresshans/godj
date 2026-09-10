@@ -35,6 +35,8 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
 		"scripts/ci/python_tests.py",
+		"scripts/ci/relation-required.txt",
+		"scripts/ci/compile-required.txt",
 		".github/workflows/ci.yml",
 		"Makefile",
 		"go.mod",
@@ -46,6 +48,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"internal/projectwire/spec.go",
 		"migrations/internal/loadeddefinition/set.go",
 		"db/internal/queryplan/read.go",
+		"db/internal/queryplan/joins.go",
 		"internal/projectgenerate/candidate.go",
 		"project/project_unix.go",
 		"systemstate/runtime.go",

@@ -41,6 +41,9 @@ class PackagePartitionTests(unittest.TestCase):
             marker = directory / 'test-ran'
             fake = directory / 'go'
             fake.write_text('''#!/bin/sh
+if [ "$1" = mod ] && [ "$2" = download ]; then
+  exit 0
+fi
 if [ "$1" = list ]; then
   printf '%s\\n' github.com/progresshans/godj/orm github.com/progresshans/godj/examples/article github.com/progresshans/godj/conformance/cmd/godjcheck github.com/progresshans/godj/cmd/godj
   exit "${GODJ_TEST_LIST_EXIT:-9}"

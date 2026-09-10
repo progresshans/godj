@@ -94,7 +94,7 @@ cgo-zero-build-core:
 	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py core)"; \
 	CGO_ENABLED=0 go test -count=1 -timeout=20m $$packages
 
-cgo-zero-build-integration:
+cgo-zero-build-integration: project-command-dependencies
 	@set -euo pipefail; \
 	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py integration)"; \
 	CGO_ENABLED=0 go test -count=1 -timeout=25m $$packages
@@ -121,12 +121,12 @@ targeted-migrate-product: project-command-dependencies
 	CGO_ENABLED=0 go test -timeout=30m -count=1 ./conformance/projectmigratetargetproduct
 
 python-test:
-	PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python -m unittest discover \
-		-s conformance/runners/django/tests -v
+	PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen --project conformance/reference/drf \
+		python -m scripts.ci.python_tests --profile normal
 
 python-test-exact:
-	GODJ_EXACT_PROFILE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python -m unittest discover \
-		-s conformance/runners/django/tests -v
+	PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen --project conformance/reference/drf \
+		python -m scripts.ci.python_tests --profile exact
 
 conformance-check:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/conformance.py reference
@@ -153,7 +153,7 @@ ci-tools-test:
 
 quick: docs-check format-check ci-tools-test go-test-core
 
-go-test-integration:
+go-test-integration: project-command-dependencies
 	@set -euo pipefail; \
 	packages="$$(go list ./... | python3 scripts/ci/packages.py integration)"; \
 	go test -count=1 -timeout=25m $$packages
@@ -161,7 +161,7 @@ go-test-integration:
 go-test-conformance:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py normal
 
-go-race-integration:
+go-race-integration: project-command-dependencies
 	@set -euo pipefail; \
 	packages="$$(go list ./... | python3 scripts/ci/packages.py integration)"; \
 	go test -race -count=1 -timeout=25m $$packages

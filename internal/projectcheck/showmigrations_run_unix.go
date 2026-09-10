@@ -81,34 +81,7 @@ func mapShowMigrationsOuterFailure(input Failure) ShowMigrationsFailure {
 }
 
 func showMigrationsProcessFailure(stage ProcessStage, process ProcessResult) *ShowMigrationsFailure {
-	if process.Failure != nil {
-		candidate := mapShowMigrationsOuterFailure(*process.Failure)
-		if candidate.Category == showmigrationsprotocol.CategoryProcess {
-			switch candidate.Code {
-			case showmigrationsprotocol.CodeProjectCanceled,
-				showmigrationsprotocol.CodeProjectInterrupted,
-				showmigrationsprotocol.CodeProjectCleanupFailed:
-				return &candidate
-			}
-		}
-		internal := showMigrationsInternalFailure()
-		return &internal
-	}
-	if process.Started && process.ExitCode == 0 {
-		return nil
-	}
-	if stage == BuildStage {
-		candidate := showMigrationsFailure(
-			showmigrationsprotocol.CategoryBuild,
-			showmigrationsprotocol.CodeProjectBuildFailed,
-		)
-		return &candidate
-	}
-	candidate := showMigrationsFailure(
-		showmigrationsprotocol.CategoryProtocol,
-		showmigrationsprotocol.CodeRunnerFailed,
-	)
-	return &candidate
+	return migrationCommandProcessFailure(stage, process, showmigrationsprotocol.CodeRunnerFailed, showMigrationsFailure)
 }
 
 func showMigrationsBarrier(input ShowMigrationsInvocation, primary *ShowMigrationsFailure) *ShowMigrationsFailure {

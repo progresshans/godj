@@ -142,14 +142,16 @@ func (m Manager[M]) writeConfiguration(ctx context.Context, backend db.Mutator) 
 			Detail:   "backend is nil",
 		}
 	}
-	if descriptorIsNil(m.descriptor) {
+	if m.prepared == nil {
 		return zeroDescriptor, ir.Model{}, ir.Field{}, invalidWritePlan("descriptor is nil")
 	}
 	descriptor, ok := m.descriptor.(WriteDescriptor[M])
 	if !ok || interfaceIsNil(descriptor) {
 		return zeroDescriptor, ir.Model{}, ir.Field{}, invalidWritePlan("descriptor does not implement write key state")
 	}
-	metadata := descriptor.Metadata()
+	// Fields cross the user-owned WriteFieldValue callback boundary. Keep the
+	// Manager's canonical snapshot private even when a callback mutates them.
+	metadata := m.prepared.metadata.Clone()
 	primaryKey, ok := autoPrimaryKey(metadata)
 	if !ok {
 		return zeroDescriptor, ir.Model{}, ir.Field{}, invalidWritePlan("metadata must contain exactly one AutoField primary key")

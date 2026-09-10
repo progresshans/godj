@@ -20,7 +20,6 @@ type Config struct {
 // an empty registry.
 type Registry struct {
 	configs []Config
-	byName  map[string]int
 	byLabel map[string]int
 }
 
@@ -28,9 +27,9 @@ type Registry struct {
 func New(configs []Config) (Registry, error) {
 	result := Registry{
 		configs: make([]Config, len(configs)),
-		byName:  make(map[string]int, len(configs)),
 		byLabel: make(map[string]int, len(configs)),
 	}
+	byName := make(map[string]struct{}, len(configs))
 	for index, config := range configs {
 		config.Name = strings.TrimSpace(config.Name)
 		config.Label = strings.TrimSpace(config.Label)
@@ -44,14 +43,14 @@ func New(configs []Config) (Registry, error) {
 				Detail: "label must start with a letter and contain only letters, digits, or underscores",
 			}
 		}
-		if _, exists := result.byName[config.Name]; exists {
+		if _, exists := byName[config.Name]; exists {
 			return Registry{}, &Error{Code: CodeDuplicateName, Field: "name", Detail: "name is already installed"}
 		}
 		if _, exists := result.byLabel[config.Label]; exists {
 			return Registry{}, &Error{Code: CodeDuplicateLabel, Field: "label", Detail: "label is already installed"}
 		}
 		result.configs[index] = config
-		result.byName[config.Name] = index
+		byName[config.Name] = struct{}{}
 		result.byLabel[config.Label] = index
 	}
 	return result, nil

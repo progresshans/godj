@@ -3,7 +3,6 @@ package postgres
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -617,12 +616,6 @@ func appendPagination(statement *strings.Builder, arguments *[]any, plan query.P
 	}
 }
 
-type relationJoin struct {
-	hop       query.RelationHop
-	alias     string
-	leftOuter bool
-}
-
 func compileRelation(
 	schema string,
 	plan query.Plan,
@@ -646,47 +639,12 @@ func compileRelation(
 		joinsByKey[key] = leaf.hop
 	}
 
+	prepared, err := queryplan.PrepareJoins(plan, joinsByKey, sourceKeyHops, "PostgreSQL")
+	if err != nil {
+		return "", nil, err
+	}
+	keys, joins, projectionKey := prepared.Keys, prepared.ByKey, prepared.ProjectionKey
 	projection, selected := plan.RelationProjection()
-	var projectionKey queryplan.RelationKey
-	if selected {
-		var err error
-		projectionKey, err = queryplan.RelationProjection(plan, projection, "PostgreSQL")
-		if err != nil {
-			return "", nil, err
-		}
-		hop := projection.Hop()
-		for _, sourceKeyHop := range sourceKeyHops {
-			if queryplan.SameSourceEdge(sourceKeyHop, hop) && !sourceKeyHop.Equal(hop) {
-				return "", nil, invalidPlan("relation projection source-key provenance does not match the selected edge")
-			}
-		}
-		if previous, exists := joinsByKey[projectionKey]; exists && !previous.Equal(hop) {
-			return "", nil, invalidPlan("relation edge has inconsistent predicate and projection metadata")
-		}
-		joinsByKey[projectionKey] = hop
-		for key := range joinsByKey {
-			if key != projectionKey {
-				return "", nil, invalidPlan("PostgreSQL relation projection cannot combine unrelated relation joins")
-			}
-		}
-	}
-
-	keys := make([]queryplan.RelationKey, 0, len(joinsByKey))
-	for key := range joinsByKey {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(left, right int) bool {
-		return queryplan.CompareRelationKey(keys[left], keys[right]) < 0
-	})
-	joins := make(map[queryplan.RelationKey]relationJoin, len(keys))
-	for index, key := range keys {
-		hop := joinsByKey[key]
-		joins[key] = relationJoin{
-			hop:       hop,
-			alias:     fmt.Sprintf("t%d", index+1),
-			leftOuter: selected && key == projectionKey && hop.Nullable(),
-		}
-	}
 
 	const rootAlias = "t0"
 	var statement strings.Builder
@@ -705,7 +663,7 @@ func compileRelation(
 		statement.WriteString(qualified)
 	}
 	if selected {
-		alias := joins[projectionKey].alias
+		alias := joins[projectionKey].Alias
 		for _, column := range projection.TargetColumns() {
 			statement.WriteString(", ")
 			qualified, err := quoteQualified(alias, column.Column())
@@ -726,28 +684,20 @@ func compileRelation(
 	statement.WriteString(quotedRootAlias)
 	for _, key := range keys {
 		join := joins[key]
-		joinedTableName := join.hop.TargetTable()
-		rootColumnName := join.hop.SourceColumn()
-		joinedColumnName := join.hop.TargetPrimaryKeyColumn()
-		if join.hop.Direction() == query.RelationReverse {
-			joinedTableName = join.hop.SourceTable()
-			rootColumnName = join.hop.TargetPrimaryKeyColumn()
-			joinedColumnName = join.hop.SourceColumn()
-		}
-		joinedTable, err := quoteTable(schema, joinedTableName)
+		joinedTable, err := quoteTable(schema, join.Table)
 		if err != nil {
 			return "", nil, err
 		}
-		alias, _ := quoteIdentifier(join.alias)
-		rootColumn, err := quoteQualified(rootAlias, rootColumnName)
+		alias, _ := quoteIdentifier(join.Alias)
+		rootColumn, err := quoteQualified(rootAlias, join.RootColumn)
 		if err != nil {
 			return "", nil, err
 		}
-		joinedColumn, err := quoteQualified(join.alias, joinedColumnName)
+		joinedColumn, err := quoteQualified(join.Alias, join.Column)
 		if err != nil {
 			return "", nil, err
 		}
-		if join.leftOuter {
+		if join.LeftOuter {
 			statement.WriteString(" LEFT OUTER JOIN ")
 		} else {
 			statement.WriteString(" INNER JOIN ")
@@ -769,7 +719,7 @@ func compileRelation(
 			if !ok {
 				return "", invalidPlan("relation predicate join metadata is missing")
 			}
-			alias = join.alias
+			alias = join.Alias
 		}
 		return quoteQualified(alias, condition.Field().Column())
 	}

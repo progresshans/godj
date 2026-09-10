@@ -110,12 +110,12 @@ func (h *PBKDF2) Hash(ctx context.Context, password string) (string, error) {
 		return "", err
 	}
 	salt := make([]byte, h.saltBytes)
-	h.entropyMu.Lock()
-	if _, err := io.ReadFull(h.random, salt); err != nil {
-		h.entropyMu.Unlock()
+	if err := h.readSalt(salt); err != nil {
 		return "", &Error{Code: CodeEntropy, Detail: "password salt source failed", Cause: err}
 	}
-	h.entropyMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	key, err := pbkdf2.Key(sha256.New, password, salt, h.iterations, h.keyBytes)
 	if err != nil {
 		return "", &Error{Code: CodeCredential, Detail: "password derivation failed", Cause: err}
@@ -134,6 +134,13 @@ func (h *PBKDF2) Hash(ctx context.Context, password string) (string, error) {
 		return "", &Error{Code: CodeInvalidConfig, Field: "encoded_password", Detail: "configured password hash exceeds the encoded resource limit"}
 	}
 	return encoded, nil
+}
+
+func (h *PBKDF2) readSalt(salt []byte) error {
+	h.entropyMu.Lock()
+	defer h.entropyMu.Unlock()
+	_, err := io.ReadFull(h.random, salt)
+	return err
 }
 
 func (h *PBKDF2) Verify(ctx context.Context, password, encoded string) (bool, error) {

@@ -75,28 +75,7 @@ func mapSQLMigrateOuterFailure(input Failure) SQLMigrateFailure {
 }
 
 func sqlMigrateProcessFailure(stage ProcessStage, process ProcessResult) *SQLMigrateFailure {
-	if process.Failure != nil {
-		candidate := mapSQLMigrateOuterFailure(*process.Failure)
-		if candidate.Category == sqlmigrateprotocol.CategoryProcess {
-			switch candidate.Code {
-			case sqlmigrateprotocol.CodeProjectCanceled,
-				sqlmigrateprotocol.CodeProjectInterrupted,
-				sqlmigrateprotocol.CodeProjectCleanupFailed:
-				return &candidate
-			}
-		}
-		internal := sqlMigrateInternalFailure()
-		return &internal
-	}
-	if process.Started && process.ExitCode == 0 {
-		return nil
-	}
-	if stage == BuildStage {
-		candidate := sqlMigrateFailure(sqlmigrateprotocol.CategoryBuild, sqlmigrateprotocol.CodeProjectBuildFailed)
-		return &candidate
-	}
-	candidate := sqlMigrateFailure(sqlmigrateprotocol.CategoryProtocol, sqlmigrateprotocol.CodeRunnerFailed)
-	return &candidate
+	return migrationCommandProcessFailure(stage, process, sqlmigrateprotocol.CodeRunnerFailed, sqlMigrateFailure)
 }
 
 func sqlMigrateBarrier(input SQLMigrateInvocation, primary *SQLMigrateFailure) *SQLMigrateFailure {

@@ -96,3 +96,25 @@ func commandInterruption(ctx context.Context, interrupt <-chan struct{}) string 
 	}
 	return ""
 }
+
+// Migration commands share only outer child-execution classification. Their
+// runner codes, response grammars and durable publication decisions stay local.
+func migrationCommandProcessFailure[F any](stage ProcessStage, process ProcessResult, runnerCode string, makeFailure func(string, string) F) *F {
+	category, code := protocol.CategoryInternal, protocol.CodeProjectInternalError
+	if process.Failure != nil {
+		if process.Failure.Category == protocol.CategoryProcess {
+			switch process.Failure.Code {
+			case protocol.CodeProjectCanceled, protocol.CodeProjectInterrupted, protocol.CodeProjectCleanupFailed:
+				category, code = process.Failure.Category, process.Failure.Code
+			}
+		}
+	} else if process.Started && process.ExitCode == 0 {
+		return nil
+	} else if stage == BuildStage {
+		category, code = protocol.CategoryBuild, protocol.CodeProjectBuildFailed
+	} else {
+		category, code = protocol.CategoryProtocol, runnerCode
+	}
+	candidate := makeFailure(category, code)
+	return &candidate
+}

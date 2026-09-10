@@ -142,8 +142,8 @@ func (r *Runtime) newCSRFSecret() (string, error) {
 
 func (r *Runtime) readRandom(target []byte) error {
 	r.entropyMu.Lock()
+	defer r.entropyMu.Unlock()
 	_, err := io.ReadFull(r.random, target)
-	r.entropyMu.Unlock()
 	if err != nil {
 		return &Error{Code: CodeEntropy, Detail: "CSRF entropy source failed", Cause: err}
 	}

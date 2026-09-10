@@ -22,6 +22,8 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/ci/packages.py":                                    {},
 	"scripts/ci/scopes.py":                                      {},
 	"scripts/ci/python_tests.py":                                {},
+	"scripts/ci/relation-required.txt":                          {},
+	"scripts/ci/compile-required.txt":                           {},
 	".github/workflows/ci.yml":                                  {},
 	"Makefile":                                                  {},
 	"admin/site_templates/delete.html":                          {},

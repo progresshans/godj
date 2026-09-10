@@ -22,6 +22,7 @@ type reverseObjectState[Owner, Source any] struct {
 	relation         reverseRelationState
 	ownerDescriptor  PrimaryKeyObjectDescriptor[Owner]
 	sourceDescriptor RelationObjectDescriptor[Source]
+	sourcePlan       query.Plan
 	ownerPrimaryKey  ir.Field
 	sourceForeignKey ir.Field
 	sourcePrimaryKey ir.Field
@@ -82,6 +83,7 @@ func BindReverseObject[Owner, Source any](
 		relation:         relation,
 		ownerDescriptor:  ownerDescriptor,
 		sourceDescriptor: source.objectDescriptor,
+		sourcePlan:       source.objectPlan,
 		ownerPrimaryKey:  ownerPrimaryKey.Clone(),
 		sourceForeignKey: sourceForeignKey.Clone(),
 		sourcePrimaryKey: sourcePrimaryKey.Clone(),
@@ -122,8 +124,7 @@ func (r ReverseObject[Owner, Source]) From(
 		query.Integer(identifier),
 	), nil)
 	ordering := NewIntegerField[Source](r.state.sourcePrimaryKey).Asc()
-	querySet := NewManager[Source](r.state.sourceDescriptor).
-		Using(backend).
+	querySet := newQuerySet(backend, r.state.sourceDescriptor, r.state.sourcePlan).
 		Filter(predicate).
 		OrderBy(ordering)
 	if querySet.configurationErr != nil {

@@ -6,7 +6,8 @@ package attestation
 import (
 	"errors"
 	"fmt"
-	"regexp"
+
+	"github.com/progresshans/godj/conformance/internal/attestationio"
 )
 
 const (
@@ -33,8 +34,6 @@ const (
 	maxInvocationCount = 16
 	maxRowCount        = 1_000_000_000
 )
-
-var lowercaseSHA256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // ObservedFacts is the mutable input collected from one complete external
 // PostgreSQL operator product run. It records observations, not an expected or
@@ -190,20 +189,9 @@ type SourceBinding struct {
 }
 
 func newSourceBinding(fileCount, payloadBytes int64, digest string) (SourceBinding, error) {
-	if fileCount <= 0 {
-		return SourceBinding{}, errors.New("source binding contains no files")
-	}
-	if fileCount > maxSourceFiles {
-		return SourceBinding{}, fmt.Errorf("source binding file count %d exceeds %d", fileCount, maxSourceFiles)
-	}
-	if payloadBytes < 0 {
-		return SourceBinding{}, errors.New("source binding payload size is negative")
-	}
-	if payloadBytes > maxSourceBytes {
-		return SourceBinding{}, fmt.Errorf("source binding payload size %d exceeds %d", payloadBytes, maxSourceBytes)
-	}
-	if !lowercaseSHA256Pattern.MatchString(digest) {
-		return SourceBinding{}, errors.New("source binding SHA-256 is not 64 lowercase hexadecimal bytes")
+	inventory := attestationio.SourceInventory{FileCount: fileCount, PayloadBytes: payloadBytes, SHA256: digest}
+	if err := inventory.Validate(maxSourceFiles, maxSourceBytes); err != nil {
+		return SourceBinding{}, err
 	}
 	return SourceBinding{state: &sourceBindingState{
 		fileCount:    fileCount,
@@ -216,8 +204,7 @@ func (binding SourceBinding) validate() error {
 	if binding.state == nil {
 		return errors.New("source binding is uninitialized")
 	}
-	_, err := newSourceBinding(binding.state.fileCount, binding.state.payloadBytes, binding.state.sha256)
-	return err
+	return (attestationio.SourceInventory{FileCount: binding.state.fileCount, PayloadBytes: binding.state.payloadBytes, SHA256: binding.state.sha256}).Validate(maxSourceFiles, maxSourceBytes)
 }
 
 func (binding SourceBinding) FileCount() int64 {

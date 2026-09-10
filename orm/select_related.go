@@ -248,14 +248,6 @@ func mustFindField(fields []ir.Field, name string) ir.Field {
 	return field
 }
 
-func modelFieldReferences(model ir.Model) []query.FieldRef {
-	result := make([]query.FieldRef, len(model.Fields))
-	for index, field := range model.Fields {
-		result[index] = fieldReference(field)
-	}
-	return result
-}
-
 // ForwardSelectQuery is the independent evaluation surface for one
 // eager projection. It does not evaluate or populate the source QuerySet.
 type ForwardSelectQuery[S, T any] struct {

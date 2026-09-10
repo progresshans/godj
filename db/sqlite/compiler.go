@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/progresshans/godj/db/internal/queryplan"
@@ -216,12 +215,6 @@ func appendPagination(sql *strings.Builder, arguments []any, plan query.Plan) []
 	return arguments
 }
 
-type relationJoin struct {
-	hop       query.RelationHop
-	alias     string
-	leftOuter bool
-}
-
 func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, error) {
 	if plan.ResultShape().Kind() != query.ResultModel && !plan.ResultShape().IsCountAll() {
 		return "", nil, unsupportedResult("SQLite relation compilation requires a model result or COUNT(*)")
@@ -309,52 +302,12 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		conditionKeys[index] = key
 	}
 
+	prepared, err := queryplan.PrepareJoins(plan, joinsByKey, sourceKeyHops, "SQLite")
+	if err != nil {
+		return "", nil, err
+	}
+	keys, joins, projectionKey := prepared.Keys, prepared.ByKey, prepared.ProjectionKey
 	projection, selected := plan.RelationProjection()
-	var projectionKey queryplan.RelationKey
-	if selected {
-		var err error
-		projectionKey, err = queryplan.RelationProjection(plan, projection, "SQLite")
-		if err != nil {
-			return "", nil, err
-		}
-		hop := projection.Hop()
-		for _, sourceKeyHop := range sourceKeyHops {
-			if queryplan.SameSourceEdge(sourceKeyHop, hop) && !sourceKeyHop.Equal(hop) {
-				return "", nil, invalidPlan("relation projection source-key provenance does not match the selected edge")
-			}
-		}
-		if previous, exists := joinsByKey[projectionKey]; exists && !previous.Equal(hop) {
-			return "", nil, invalidPlan(fmt.Sprintf(
-				"relation edge %s.%s.%s has inconsistent predicate and projection metadata",
-				projectionKey.SourceApp,
-				projectionKey.SourceModel,
-				projectionKey.Field,
-			))
-		}
-		joinsByKey[projectionKey] = hop
-		for key := range joinsByKey {
-			if key != projectionKey {
-				return "", nil, invalidPlan("SQLite relation projection cannot combine unrelated relation joins")
-			}
-		}
-	}
-
-	keys := make([]queryplan.RelationKey, 0, len(joinsByKey))
-	for key := range joinsByKey {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(left, right int) bool {
-		return queryplan.CompareRelationKey(keys[left], keys[right]) < 0
-	})
-	joins := make(map[queryplan.RelationKey]relationJoin, len(keys))
-	for index, key := range keys {
-		hop := joinsByKey[key]
-		joins[key] = relationJoin{
-			hop:       hop,
-			alias:     fmt.Sprintf("t%d", index+1),
-			leftOuter: selected && key == projectionKey && hop.Nullable(),
-		}
-	}
 
 	const rootAlias = "t0"
 	var sql strings.Builder
@@ -373,7 +326,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		sql.WriteString(qualified)
 	}
 	if selected {
-		alias := joins[projectionKey].alias
+		alias := joins[projectionKey].Alias
 		for _, column := range projection.TargetColumns() {
 			sql.WriteString(", ")
 			qualified, err := quoteQualified(alias, column.Column())
@@ -397,31 +350,23 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 	sql.WriteString(quotedRootAlias)
 	for _, key := range keys {
 		join := joins[key]
-		joinedTableName := join.hop.TargetTable()
-		rootColumnName := join.hop.SourceColumn()
-		joinedColumnName := join.hop.TargetPrimaryKeyColumn()
-		if join.hop.Direction() == query.RelationReverse {
-			joinedTableName = join.hop.SourceTable()
-			rootColumnName = join.hop.TargetPrimaryKeyColumn()
-			joinedColumnName = join.hop.SourceColumn()
-		}
-		joinedTable, err := quoteIdentifier(joinedTableName)
+		joinedTable, err := quoteIdentifier(join.Table)
 		if err != nil {
 			return "", nil, err
 		}
-		alias, err := quoteIdentifier(join.alias)
+		alias, err := quoteIdentifier(join.Alias)
 		if err != nil {
 			return "", nil, err
 		}
-		rootColumn, err := quoteQualified(rootAlias, rootColumnName)
+		rootColumn, err := quoteQualified(rootAlias, join.RootColumn)
 		if err != nil {
 			return "", nil, err
 		}
-		joinedColumn, err := quoteQualified(join.alias, joinedColumnName)
+		joinedColumn, err := quoteQualified(join.Alias, join.Column)
 		if err != nil {
 			return "", nil, err
 		}
-		if join.leftOuter {
+		if join.LeftOuter {
 			sql.WriteString(" LEFT OUTER JOIN ")
 		} else {
 			sql.WriteString(" INNER JOIN ")
@@ -438,7 +383,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 	for index, leaf := range where.leaves {
 		alias := rootAlias
 		if relatedConditions[index] {
-			alias = joins[conditionKeys[index]].alias
+			alias = joins[conditionKeys[index]].Alias
 		}
 		field, err := quoteQualified(alias, leaf.condition.Field().Column())
 		if err != nil {

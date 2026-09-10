@@ -322,7 +322,7 @@ func (s Spec) Bind(object Object, mode Mode) (Result, error) {
 	if !s.valid {
 		return Result{}, invalidConfig("spec", "serializer spec is zero or invalid")
 	}
-	if !object.validObject() {
+	if !object.valid {
 		return Result{}, invalidValue("object", "input object is zero or invalid")
 	}
 	if mode != ModeFull && mode != ModePartial {

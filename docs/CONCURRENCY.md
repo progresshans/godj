@@ -8,6 +8,8 @@
 Query plan은 불변이고 평가 cache는 별도 state다. Direct QuerySet value copy는 같은 평가 state를 공유할 수 있지만
 Filter/OrderBy/Limit/Fresh에서 만들어진 query는 독립 평가 state를 갖는다. 같은 state의 concurrent All은 한 owner가
 평가하고 waiter는 자신의 context로 기다린다. Waiter cancellation이 owner를 취소하지 않는다.
+Manager는 생성 시 복사한 metadata와 기본 plan을 공유한다. `Using`은 descriptor.Metadata를 다시 호출하지 않고
+독립 평가 state를 만든다. 쓰기마다 callback 입력 metadata를 복제하므로 callback mutation이 다음 호출을 바꾸지 않는다.
 
 성공한 전체 결과만 cache한다. Empty 결과도 성공이며 caller에게는 descriptor clone으로 분리한 model을 돌려준다.
 Backend/scan/rows/close/context 실패는 성공 cache로 남기지 않는다. Cold Count/Exists/At/First는 full cache를 채우지 않으며,
@@ -32,6 +34,8 @@ session·사용자 callback·반환된 mutable model의 임의 공유 안전성�
   관계 검증과 row close가 끝나기 전에는 결과를 반환하지 않는다. 기존 QuerySet.First처럼 명시적 정렬을 요구한다.
 - Relation assignment는 FK 값과 cache를 함께 reconcile한다. Application memory를 DB rollback으로 자동 되돌리지 않는다.
 - Eager materialization의 target source plan은 한 번 준비해 공유한다. 각 행의 key predicate와 ready cache는 독립적으로 만든다.
+- Lazy/reverse 기본 plan도 project binding이 준비한다. Prefetch의 함수 내부 그룹은 `All`의 소유 model을 빌리고,
+  storage callback 입력과 각 owner의 cache를 각각 복제한다. 중복 owner 사이에도 mutable model을 공유하지 않는다.
 - 다른 query materialization에서 얻은 동일 PK의 객체가 같은 pointer일 필요는 없다.
 - Transaction에서 만든 query의 사용 가능 범위는 transaction/session 계약을 따른다. Warm cache가 session 이후에도 값을 제공할 수 있다는 사실을
   session I/O가 계속 유효하다는 뜻으로 해석하지 않는다.
@@ -85,6 +89,7 @@ Template의 공개 List/Object/Context 생성은 caller 소유 container를 복�
 반복문의 변수와 forloop metadata는 render-local scope chain이 소유하여 중첩 반복이 바깥 binding을 바꾸지 않는다.
 준비된 serializer/Admin projector는 metadata를 공유하지만 사용자 reader에 전달하는 field는 복사한다. Reader와 model 자체의
 동시 접근 안전성은 application 책임이며, 준비된 metadata가 사용자 callback을 동기화하지 않는다.
+Password·CSRF entropy와 cookie clock의 직렬화 잠금은 callback panic에도 해제한다. 같은 panic은 기존 호출 경계로 전파한다.
 
 CLI child의 input/output pipe, process group, signal과 reap은 실행자가 소유한다. Timeout이나 caller cancellation 뒤에도
 child가 실행 중이거나 pipe writer가 남아 있는데 성공으로 반환하지 않는다. 큰 출력은 bounded protocol과 제한된 진단 buffer로

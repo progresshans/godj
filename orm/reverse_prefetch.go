@@ -139,7 +139,7 @@ func (p ReversePrefetch[Owner, Source]) Load(
 		return nil, err
 	}
 	ordering := NewIntegerField[Source](p.state.sourcePrimaryKey).Asc()
-	base := NewManager[Source](p.state.reverse.sourceDescriptor).Using(backend)
+	base := newQuerySet(backend, p.state.reverse.sourceDescriptor, p.state.reverse.sourcePlan)
 	batch := base.
 		Filter(predicateFromCondition[Source](inCondition, nil)).
 		OrderBy(ordering)
@@ -188,10 +188,9 @@ func (p ReversePrefetch[Owner, Source]) Load(
 				"reverse prefetch source ForeignKey is outside the requested owner set",
 			)
 		}
-		groups[identifier] = append(
-			groups[identifier],
-			p.state.reverse.sourceDescriptor.CloneModel(source),
-		)
+		// All returned owned models, and groups never escape this operation.
+		// Clone separately when publishing each owner's independent cache below.
+		groups[identifier] = append(groups[identifier], source)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

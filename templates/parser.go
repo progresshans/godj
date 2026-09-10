@@ -75,6 +75,10 @@ type compiledTemplate struct {
 	extends string
 	blocks  map[string]*node
 	refs    []string
+
+	parent           *compiledTemplate
+	inheritanceDepth int
+	overrides        map[string]blockOverride
 }
 
 func tokenize(name, source string) ([]token, error) {

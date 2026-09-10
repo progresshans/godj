@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -25,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
@@ -53,7 +53,7 @@ type migrateResult struct {
 
 type articleCatalogExpectation struct {
 	Command            migrateResult
-	History            []historyRow
+	History            []dbstate.HistoryRow
 	HistoryFingerprint [sha256.Size]byte
 	DefinitionDigest   [sha256.Size]byte
 }
@@ -281,10 +281,10 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}
 	definitions := loaded.Definitions()
-	history := make([]historyRow, len(definitions))
+	history := make([]dbstate.HistoryRow, len(definitions))
 	for index := range definitions {
 		key := definitions[index].Key()
-		history[index] = historyRow{App: key.App, Name: key.Name}
+		history[index] = dbstate.HistoryRow{App: key.App, Name: key.Name}
 	}
 	sort.Slice(history, func(left, right int) bool {
 		if history[left].App != history[right].App {
@@ -300,7 +300,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 			DefinitionSetDigest: loaded.Digest(),
 		},
 		History:            history,
-		HistoryFingerprint: fingerprintHistory(history),
+		HistoryFingerprint: dbstate.FingerprintHistory(history),
 		DefinitionDigest:   digest,
 	}
 }
@@ -581,11 +581,6 @@ func digestFile(t *testing.T, path string) [sha256.Size]byte {
 	return sha256.Sum256(payload)
 }
 
-type historyRow struct {
-	App  string
-	Name string
-}
-
 type revisionRow struct {
 	FormatVersion      int
 	EpochBytes         int
@@ -604,7 +599,7 @@ type columnSnapshot struct {
 
 type databaseSnapshot struct {
 	Tables   []string
-	History  []historyRow
+	History  []dbstate.HistoryRow
 	Revision revisionRow
 	Columns  map[string][]columnSnapshot
 }
@@ -668,7 +663,7 @@ func inspectDatabase(t *testing.T, databasePath string) databaseSnapshot {
 			t.Fatal(err)
 		}
 		for historyRows.Next() {
-			var row historyRow
+			var row dbstate.HistoryRow
 			if err := historyRows.Scan(&row.App, &row.Name); err != nil {
 				_ = historyRows.Close()
 				t.Fatal(err)
@@ -710,10 +705,10 @@ func assertPrefixDatabase(t *testing.T, databasePath, sentinel string) {
 	if !reflect.DeepEqual(snapshot.Tables, wantTables) {
 		t.Fatalf("prefix tables = %v, want %v", snapshot.Tables, wantTables)
 	}
-	if !reflect.DeepEqual(snapshot.History, []historyRow{{App: "godj_conformance", Name: "0001_initial"}}) {
+	if !reflect.DeepEqual(snapshot.History, []dbstate.HistoryRow{{App: "godj_conformance", Name: "0001_initial"}}) {
 		t.Fatalf("prefix history = %+v", snapshot.History)
 	}
-	assertRevision(t, snapshot.Revision, 1, snapshot.History, fingerprintHistory(snapshot.History))
+	assertRevision(t, snapshot.Revision, 1, snapshot.History, dbstate.FingerprintHistory(snapshot.History))
 	assertExpectedColumns(t, snapshot, wantTables)
 	assertArticleSentinel(t, databasePath, sentinel)
 }
@@ -753,11 +748,11 @@ func assertRevision(
 	t *testing.T,
 	got revisionRow,
 	wantRevision int64,
-	wantHistory []historyRow,
+	wantHistory []dbstate.HistoryRow,
 	wantFingerprint [sha256.Size]byte,
 ) {
 	t.Helper()
-	calculated := fingerprintHistory(wantHistory)
+	calculated := dbstate.FingerprintHistory(wantHistory)
 	if calculated != wantFingerprint {
 		t.Fatalf("expected migration history fingerprint = %x, loaded-catalog fingerprint = %x", calculated, wantFingerprint)
 	}
@@ -771,30 +766,6 @@ func assertRevision(
 	if got != want {
 		t.Fatalf("migration revision = %+v, want %+v", got, want)
 	}
-}
-
-func fingerprintHistory(records []historyRow) [sha256.Size]byte {
-	canonical := append([]historyRow(nil), records...)
-	sort.Slice(canonical, func(left, right int) bool {
-		if canonical[left].App != canonical[right].App {
-			return canonical[left].App < canonical[right].App
-		}
-		return canonical[left].Name < canonical[right].Name
-	})
-	hash := sha256.New()
-	var length [8]byte
-	binary.BigEndian.PutUint64(length[:], uint64(len(canonical)))
-	_, _ = hash.Write(length[:])
-	for _, record := range canonical {
-		for _, value := range []string{record.App, record.Name} {
-			binary.BigEndian.PutUint64(length[:], uint64(len(value)))
-			_, _ = hash.Write(length[:])
-			_, _ = hash.Write([]byte(value))
-		}
-	}
-	var result [sha256.Size]byte
-	copy(result[:], hash.Sum(nil))
-	return result
 }
 
 func decodeSHA256Digest(t *testing.T, digest string) [sha256.Size]byte {

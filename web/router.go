@@ -303,8 +303,6 @@ func (r router) match(method string, request *http.Request) routeMatch {
 	}
 	pathSegments := strings.Split(path, "/")
 	allowed := make(map[string]struct{})
-	var matched Route
-	var matchedParameters []routeParameterValue
 	for _, candidate := range r.parameters {
 		parameters, ok := matchRoutePattern(candidate.pattern, pathSegments)
 		if !ok {
@@ -312,12 +310,8 @@ func (r router) match(method string, request *http.Request) routeMatch {
 		}
 		allowed[candidate.route.Method] = struct{}{}
 		if candidate.route.Method == method {
-			matched = candidate.route
-			matchedParameters = parameters
+			return routeMatch{route: candidate.route, parameters: parameters}
 		}
-	}
-	if matched.Handler != nil {
-		return routeMatch{route: matched, parameters: matchedParameters}
 	}
 	if len(allowed) == 0 {
 		return routeMatch{code: CodeRouteNotFound}

@@ -80,7 +80,9 @@ jobs:
           enable-cache: true
 
       - name: Install locked Python dependencies
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          uv sync --project conformance/reference/drf --frozen
 
       - name: Print non-authoritative CI fingerprint
         run: |
@@ -332,12 +334,9 @@ jobs:
         if: ${{ !contains(fromJSON(needs.validation-plan.outputs.jobs), 'relation-product-matrix') || !contains(fromJSON(needs.validation-plan.outputs.jobs), 'product-project-check-matrix') }}
         env:
           CGO_ENABLED: "0"
-        run: >
-          go test -count=1
-          ./migrations
-          ./db/sqlite
-          ./conformance/runners/godj
-          ./internal/compiletest
+        run: |
+          go mod download all
+          go test -count=1 ./migrations ./db/sqlite ./conformance/runners/godj ./internal/compiletest
 
       - name: Verify exact Python profile and locked oracles
         run: make python-test-exact oracle-check
@@ -433,6 +432,7 @@ jobs:
             *) exit 1 ;;
           esac
           selected_packages="$(go list ./... | python3 scripts/ci/packages.py relation)"
+          go mod download all
           packages=()
           while IFS= read -r package; do packages+=("$package"); done <<< "$selected_packages"
           expected=("${packages[@]}")
@@ -447,6 +447,9 @@ jobs:
           required="$RUNNER_TEMP/relation-required.txt"
           awk -F'|' -v runner="$RUNNER_COVERED" -v portable="$PORTABLE_COVERED" '(runner != "true" || $1 != "github.com/progresshans/godj/conformance/runners/godj") && (portable != "true" || $1 != "github.com/progresshans/godj/conformance/cmd/godjcheck")' scripts/ci/relation-required.txt > "$required"
           log="$RUNNER_TEMP/relation-product-tests.json"
+          if [ "$mode" != race ]; then
+            cat scripts/ci/compile-required.txt >> "$required"
+          fi
           stderr_log="$RUNNER_TEMP/relation-product.stderr"
           status=0
           go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
@@ -914,7 +917,7 @@ jobs:
           log="$RUNNER_TEMP/python-compatibility-tests.txt"
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
-            python -m scripts.ci.python_tests 2>&1 | tee "$log"
+            python -m scripts.ci.python_tests --profile compatibility 2>&1 | tee "$log"
           grep -Eq '^PYTHON_SUITE_VERIFIED tests=[1-9][0-9]* skips=[0-9]+$' "$log"
 
       - name: Verify all-scenario semantic digest

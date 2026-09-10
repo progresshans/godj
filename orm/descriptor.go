@@ -11,7 +11,8 @@ import (
 // ModelDescriptor is owned by the generic consumer. Generated zero-state
 // concrete descriptor types satisfy it without runtime registration or a
 // mutable freeze phase. Scan's M return keeps descriptor instantiations model
-// specific at compile time.
+// specific at compile time. NewManager reads Metadata at construction; its
+// immutable snapshot is independent of future Metadata results.
 type ModelDescriptor[M any] interface {
 	Metadata() ir.Model
 	Scan(db.Row) (M, error)

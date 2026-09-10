@@ -52,6 +52,11 @@ Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cac
 외부 build가 많은 conformance runner/godjcheck와 명령별 제품 흐름은 순수 core loop에서 분리한다.
 생성기의 byte/schema 단위 검사는 `codegen`, 생성된 별도 Go module의 compile·runtime·잘못된 조합 거부는
 `codegen/consumertest`가 소유한다. 후자는 integration과 relation platform 범위에서 실행하며 `make quick`에는 포함하지 않는다.
+생성 module의 자식 테스트도 부모의 race build tag에 따라 실제 `-race`로 실행하고 `-count=1`로 결과 cache를 끈다. Host GOFLAGS·workspace로 검사를
+바꾸지 않으며 CGO/OS/arch 설정은 유지한다. 별도 `internal/compiletest`의 ABI·오용·정적 source 검사는 normal과
+CGO-disabled가 소유한다(`!race`). Runtime facade JSON·candidate verifier 검사는 같은 패키지의 세 mode에서 계속 실행한다.
+따라서 부모 race 실행에서 동일한 비계측 ABI child compile을 반복하지 않는다. 외부 fixture는 실행 owner가 locked
+dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=off로 컴파일한다. ABI와 생성 소비자 fixture는 저장소 checksum도 복사한다.
 순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
 각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
 DB schema/port/temp 디렉터리는 lane별로 분리하고 무거운 DB/process suite의 동시 실행 수를 제한한다.
@@ -101,8 +106,11 @@ reference-only scope에서는 exact Darwin job이 직접 실행한다.
 테스트를 삭제하거나 통합하면 위 위험을 현재 어느 test가 검증하는지 확인한다.
 전체 이름·개수·payload 길이의 영구 잠금 대신 실행한 scope, required capability/sentinel과 실제 실패/skip를 검사한다.
 Test 파일의 문장이나 work 일지에 같은 prose가 남아 있는지는 runtime 안전성의 대체 검증이 아니다.
-Python compatibility는 현재 발견한 testcase의 시작·종료와 허용된 exact-profile skip을 대조한다. 전역 테스트 수를 고정하지 않고
-실패·expected failure·임의 skip·중단된 실행을 거부하며 고정 reference 의미의 별도 digest 검증을 유지한다.
+Python normal·exact·compatibility는 `scripts/ci/python_tests.py --profile`의 공통 launcher로 현재 발견한 testcase의
+시작·종료와 허용 skip을 대조한다. Make의 normal/exact는 고정 DRF 환경에서 전체 suite를 실행하며 DRF skip을 허용하지 않는다.
+Normal·compatibility의 고정 reference 전용 네 검사는 exact가 맡고, exact는 skip을 허용하지 않는다. Launcher가 discovery 전에
+exact flag를 설정하므로 host flag가 선택한 profile을 바꾸지 않는다. 전역 테스트 수를 고정하지 않고 실패·expected failure·
+임의 skip·중단된 실행을 거부하며 고정 reference 의미의 별도 digest 검증을 유지한다.
 
 고정 reference 파일의 size/hash는 protocol의 artifact 검증에서 대조한다. 실행 catalog는 그 expected payload의 원본이 아니다.
 전체 manifest/oracle 교차 거부는 현재 계약 집합에서 한 번 검증하며, 각 계약의 phase·payload·provenance와 부정 대조는 해당 계약 테스트가 맡는다.

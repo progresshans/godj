@@ -421,7 +421,7 @@ type projectMigratePostgresArticle struct {
 
 type projectMigratePostgresSnapshot struct {
 	dbstate.PostgresCatalog
-	History  []historyRow
+	History  []dbstate.HistoryRow
 	Revision projectMigratePostgresRevision
 	Counts   map[string]int64
 	Articles []projectMigratePostgresArticle
@@ -461,7 +461,7 @@ func projectMigratePostgresInspect(t *testing.T, databaseURL, schema string) pro
 		t.Fatalf("query PostgreSQL migration history: %v", testfixture.PostgresSafeError(err))
 	}
 	for rows.Next() {
-		var row historyRow
+		var row dbstate.HistoryRow
 		if err := rows.Scan(&row.App, &row.Name); err != nil {
 			rows.Close()
 			t.Fatalf("scan PostgreSQL migration history: %v", testfixture.PostgresSafeError(err))

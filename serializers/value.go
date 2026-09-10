@@ -171,35 +171,17 @@ func (v Value) validValue() bool {
 		return false
 	}
 	switch v.kind {
-	case ValueNull, ValueBoolean, ValueInteger:
+	case ValueNull, ValueBoolean, ValueInteger, ValueList:
+		// NewList validates and snapshots its children before publication.
+		// Opaque immutable containers never need a second descendant walk.
 		return true
 	case ValueString:
 		return utf8.ValidString(v.string) && !strings.ContainsRune(v.string, 0)
-	case ValueList:
-		for index := range v.list {
-			if !v.list[index].validValue() {
-				return false
-			}
-		}
-		return true
 	case ValueObject:
-		return v.object.validObject()
+		return v.object.valid
 	default:
 		return false
 	}
-}
-
-func (o Object) validObject() bool {
-	if !o.valid || len(o.members) != len(o.index) {
-		return false
-	}
-	for index := range o.members {
-		member := o.members[index]
-		if !validMemberName(member.name) || !member.value.validValue() || o.index[member.name] != index {
-			return false
-		}
-	}
-	return true
 }
 
 func invalidValue(field, detail string) error {

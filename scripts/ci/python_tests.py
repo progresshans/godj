@@ -1,5 +1,7 @@
-"""Run the portable reference suite with complete discovery and explicit skips."""
+"""Run every reference test to completion under an explicit execution profile."""
 
+import argparse
+import os
 import sys
 import unittest
 
@@ -45,7 +47,7 @@ def run_suite(suite, allowed_skips, stream):
     if not discovered or len(discovered) != len(set(discovered)):
         raise ValueError("test discovery is empty or duplicated")
     if not allowed_skips <= set(discovered):
-        raise ValueError("an exact-profile test is missing from discovery")
+        raise ValueError("a profile-owned test is missing from discovery")
     result = unittest.TextTestRunner(
         stream=stream, verbosity=2, resultclass=CompleteResult
     ).run(suite)
@@ -58,14 +60,28 @@ def run_suite(suite, allowed_skips, stream):
     ):
         raise ValueError("not every discovered test completed exactly once")
     if sorted(test.id() for test, _ in result.skipped) != sorted(allowed_skips):
-        raise ValueError("suite skips do not match the exact-profile test owners")
+        raise ValueError("suite skips do not match the selected profile owners")
     return result.testsRun, len(result.skipped)
 
 
+def configure_profile(profile):
+    if profile == "exact":
+        os.environ["GODJ_EXACT_PROFILE"] = "1"
+        return frozenset()
+    if profile not in {"normal", "compatibility"}:
+        raise ValueError("unknown Python execution profile")
+    os.environ.pop("GODJ_EXACT_PROFILE", None)
+    return EXACT_PROFILE_TESTS
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profile", choices=("normal", "exact", "compatibility"), required=True)
+    args = parser.parse_args()
+    allowed_skips = configure_profile(args.profile)
     suite = unittest.defaultTestLoader.discover("conformance/runners/django/tests")
     try:
-        count, skipped = run_suite(suite, EXACT_PROFILE_TESTS, sys.stderr)
+        count, skipped = run_suite(suite, allowed_skips, sys.stderr)
     except ValueError as error:
         print(f"Python suite rejected: {error}", file=sys.stderr)
         return 1

@@ -1,3 +1,5 @@
+//go:build !race
+
 package compiletest
 
 import (
@@ -13,14 +15,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
 	fixture "github.com/progresshans/godj/conformance/relationfixture"
-	facade "github.com/progresshans/godj/conformance/relationfixture/project"
 	"github.com/progresshans/godj/internal/projectgenerate"
 )
 
@@ -69,24 +69,6 @@ func TestRelationFacadeDoesNotExposeInternalObjects(t *testing.T) {
 	}
 }
 
-func TestRelationFacadeDirectJSONDoesNotExposeOrMutateModels(t *testing.T) {
-	post := facade.BlogPost{}
-	post.Title = "private post"
-	author := facade.AuthorsAuthor{}
-	author.Name = "private author"
-	for _, value := range []any{post, &post, author, &author} {
-		if document, err := json.Marshal(value); err == nil || len(document) != 0 {
-			t.Fatalf("direct JSON marshal of %T = %q, %v", value, document, err)
-		}
-	}
-	if err := json.Unmarshal([]byte(`{"Title":"changed"}`), &post); err == nil || post.Title != "private post" {
-		t.Fatalf("direct JSON unmarshal changed post: title=%q error=%v", post.Title, err)
-	}
-	if err := json.Unmarshal([]byte(`{"Name":"changed"}`), &author); err == nil || author.Name != "private author" {
-		t.Fatalf("direct JSON unmarshal changed author: name=%q error=%v", author.Name, err)
-	}
-}
-
 func verifyRelationFacadeProduction(t *testing.T) {
 	t.Helper()
 	root := repositoryRoot(t)
@@ -108,17 +90,7 @@ func verifyRelationFacadeProduction(t *testing.T) {
 		t.Fatalf("current relation facade generated drift = %#v, %v", report, err)
 	}
 	directory := t.TempDir()
-	goMod := fmt.Sprintf(`module example.com/godj-relation-facade-consumer
-
-go 1.26.0
-
-require %s v0.0.0
-
-replace %s => %s
-`, modulePath, modulePath, filepath.ToSlash(root))
-	if err := os.WriteFile(filepath.Join(directory, "go.mod"), []byte(goMod), 0o644); err != nil {
-		t.Fatalf("write relation facade go.mod: %v", err)
-	}
+	writeCompileModule(t, directory, "example.com/godj-relation-facade-consumer")
 	consumerPath := filepath.Join(directory, "consumer.go")
 	if err := os.WriteFile(consumerPath, consumerSource, 0o644); err != nil {
 		t.Fatalf("write relation facade consumer: %v", err)
@@ -914,17 +886,7 @@ func compileFixture(t *testing.T, fixture string) compileResult {
 	}
 
 	directory := t.TempDir()
-	goMod := fmt.Sprintf(`module example.com/godj-compile-gate
-
-go 1.26.0
-
-require %s v0.0.0
-
-replace %s => %s
-`, modulePath, modulePath, filepath.ToSlash(root))
-	if err := os.WriteFile(filepath.Join(directory, "go.mod"), []byte(goMod), 0o644); err != nil {
-		t.Fatalf("write fixture go.mod: %v", err)
-	}
+	writeCompileModule(t, directory, "example.com/godj-compile-gate")
 	if err := os.WriteFile(filepath.Join(directory, "consumer.go"), source, 0o644); err != nil {
 		t.Fatalf("write fixture source: %v", err)
 	}
@@ -941,23 +903,40 @@ type dependencyEdge struct {
 	to   string
 }
 
-func repositoryRoot(t *testing.T) string {
-	t.Helper()
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve compile test source path")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", ".."))
+// commandEnvironment keeps every child compiler offline after the execution
+// owner has downloaded the locked module graph once.
+func commandEnvironment() []string {
+	return compileEnvironment(os.Environ())
 }
 
-func commandEnvironment() []string {
-	environment := make([]string, 0, len(os.Environ())+3)
-	for _, entry := range os.Environ() {
-		if strings.HasPrefix(entry, "GOFLAGS=") || strings.HasPrefix(entry, "GOWORK=") || strings.HasPrefix(entry, "GOTOOLCHAIN=") {
-			continue
-		}
-		environment = append(environment, entry)
+func compileEnvironment(ambient []string) []string {
+	fixed := []string{"GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GONOPROXY=none"}
+	blocked := make(map[string]bool, len(fixed))
+	for _, entry := range fixed {
+		key, _, _ := strings.Cut(entry, "=")
+		blocked[key] = true
 	}
-	environment = append(environment, "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local")
-	return environment
+	environment := make([]string, 0, len(ambient)+len(fixed))
+	for _, entry := range ambient {
+		key, _, _ := strings.Cut(entry, "=")
+		if !blocked[key] {
+			environment = append(environment, entry)
+		}
+	}
+	return append(environment, fixed...)
+}
+
+func writeCompileModule(t *testing.T, directory, name string) {
+	t.Helper()
+	root := repositoryRoot(t)
+	goMod := fmt.Sprintf("module %s\n\ngo 1.26.0\n\nrequire %s v0.0.0\n\nreplace %s => %s\n", name, modulePath, modulePath, filepath.ToSlash(root))
+	checksums, err := os.ReadFile(filepath.Join(root, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string][]byte{"go.mod": []byte(goMod), "go.sum": checksums} {
+		if err := os.WriteFile(filepath.Join(directory, name), content, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

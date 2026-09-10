@@ -67,7 +67,9 @@ type QuerySet[M any] struct {
 }
 ```
 
-- `Manager.Using`은 항상 새 evaluation state를 만듭니다.
+- `NewManager`는 metadata의 immutable deep snapshot과 기본 plan을 한 번 준비합니다. `Using`은 이 plan을 공유하고
+  항상 새 evaluation state를 만듭니다. GDJ-0067에서 반복 준비 비용을 생성 시점으로 옮겼으며, metadata 변경을 반영하려면
+  새 Manager가 필요합니다. 쓰기 operation도 같은 snapshot을 사용하되 callback에 전달하는 metadata는 복제합니다.
 - 직접 Go value copy는 같은 logical QuerySet으로 정의하고 state pointer를 공유합니다.
 - `Filter`, `OrderBy`, 성공한 `Limit`와 `Fresh`는 plan이 실질적으로 같아도 새 state를
   만듭니다. Source cache를 derived handle에 복사하지 않습니다.

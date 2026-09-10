@@ -124,8 +124,8 @@ func (r *Runtime) deletionCookie(config CookieConfig) http.Cookie {
 
 func (r *Runtime) now() time.Time {
 	r.clockMu.Lock()
+	defer r.clockMu.Unlock()
 	value := r.clock().Round(0).UTC()
-	r.clockMu.Unlock()
 	if value.IsZero() {
 		return time.Unix(1, 0).UTC()
 	}

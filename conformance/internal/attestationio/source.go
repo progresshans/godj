@@ -32,6 +32,32 @@ type SourceInventory struct {
 	SHA256       string
 }
 
+// Validate checks the common framing facts against the owning profile's caps.
+// Source scope, observation types and success policy remain with that owner.
+func (inventory SourceInventory) Validate(maxFiles, maxBytes int64) error {
+	if inventory.FileCount <= 0 {
+		return errors.New("source binding contains no files")
+	}
+	if inventory.FileCount > maxFiles {
+		return fmt.Errorf("source binding file count %d exceeds %d", inventory.FileCount, maxFiles)
+	}
+	if inventory.PayloadBytes < 0 {
+		return errors.New("source binding payload size is negative")
+	}
+	if inventory.PayloadBytes > maxBytes {
+		return fmt.Errorf("source binding payload size %d exceeds %d", inventory.PayloadBytes, maxBytes)
+	}
+	validDigest := len(inventory.SHA256) == sha256.Size*2
+	for index := 0; validDigest && index < len(inventory.SHA256); index++ {
+		character := inventory.SHA256[index]
+		validDigest = character >= '0' && character <= '9' || character >= 'a' && character <= 'f'
+	}
+	if !validDigest {
+		return errors.New("source binding SHA-256 is not 64 lowercase hexadecimal bytes")
+	}
+	return nil
+}
+
 // BindSource hashes sorted, mode-aware and length-aware file facts without
 // loading a capture or expected artifact. It rejects nonregular/unsafe entries
 // and source changes observed while reading, within the owner's resource caps.

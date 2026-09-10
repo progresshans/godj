@@ -204,8 +204,7 @@ func (state forwardObjectState[S, T]) from(backend db.Queryer, source S) (*Relat
 	}
 
 	primaryKey := NewIntegerField[T](state.targetKey)
-	querySet := NewManager[T](state.target.objectDescriptor).
-		Using(backend).
+	querySet := newQuerySet(backend, state.target.objectDescriptor, state.target.objectPlan).
 		Filter(primaryKey.Exact(identifier))
 	limited, err := querySet.Limit(2)
 	if err != nil {

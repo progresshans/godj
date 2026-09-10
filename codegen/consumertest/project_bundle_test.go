@@ -2,7 +2,6 @@ package codegen_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
@@ -99,7 +98,6 @@ var _ = project.GoDjProjectRelationFacadeGeneratorVersion
 
 func compileProjectBundleModule(ctx context.Context, directory string) ([]byte, error) {
 	command := generatedGoCommand(ctx, directory, "test", "./...")
-	command.Env = generatedTestEnvironment(os.Environ(), "GOSUMDB=off")
 	return command.CombinedOutput()
 }
 
