@@ -7,7 +7,7 @@
 
 - 작업: [GDJ-0068](../../work/0068-immutable-value-transfer-and-verification-cost.md).
 - 기준: `6e826a1acc41720b1df99acb7e488c71f24c2841`.
-- 상태: 제품·생성기·추가 후보 구현, 전후 측정과 관련 로컬 통합 검증 완료. 첫 Hosted의 CI 구성 검사 실패를 보정했다.
+- 상태: 구현·전후 측정·관련 로컬 통합 검증과 보정 소스의 Hosted full scope 완료.
 - 검증 소유권: affected local checkpoint 후 기존 Draft PR의 같은 제품 소스 Hosted full scope.
 
 ### 전후 측정
@@ -148,8 +148,7 @@ Race는 25 packages·2,955 pass/2,965 run, CGO-disabled는 25 packages·3,006 pa
 
 CI는 같은 OS/arch/mode의 operator·targeted command를 한 job에서 차례로 실행해 checkout·Go·의존성 준비를 공유한다.
 각 test selector·필수 sentinel·no-skip·timeout·normal vet를 유지하며 첫 제품 실패 뒤에도 다음 제품과 최종 outcome gate를 실행한다.
-선택된 제품의 누락·skip은 성공이 될 수 없다. 예정된 full job 수는 74→62개이며 전체 실행 시간은 Hosted 완료 후 기록한다.
-전체 platform·PostgreSQL·capture·cold CLI·32-bit의 현재 제품 소스 증거는 아직 없다.
+선택된 제품의 누락·skip은 성공이 될 수 없다. 전체 platform·PostgreSQL·capture·cold CLI·32-bit의 최종 증거는 아래 Hosted 결과다.
 
 ### 첫 Hosted 구성 검사 실패와 보정
 
@@ -164,6 +163,59 @@ arm64 CGO-disabled `102775334610`과 macOS race `102775334557`의 실제 실패 
 보정 뒤 `go test -count=1 -timeout=10m ./conformance/internal/protocol`의 normal·race·CGO-disabled 모두 PASS다.
 제품 구현은 바꾸지 않았으나 검증 source binding이 바뀌므로 보정 소스에서 전체 Hosted와 capture를 새로 실행한다.
 첫 실행의 일부 성공한 job이나 capture를 최종 전체 검증으로 재사용하지 않는다.
+보정 실행을 요청한 뒤 첫 실행의 남은 작업은 취소됐고 최종 conclusion은 `cancelled`다.
+
+### 보정 소스의 Hosted full scope
+
+- 제품·검증 소스: `ffe384492bee0b98aec918d594f6c17531797280`.
+- [CI 34447908999](https://github.com/progresshans/godj/actions/runs/34447908999), `workflow_dispatch`, `suite=full`, attempt 1:
+  2026-09-10 16:31 KST `completed/success`. 이 새 실행의 62개 고유 job 모두 재실행 없이 `completed/success`다.
+- 최종 aggregate `102784486761`의 실제 출력은 `scope: full`, `full_platform_verified: true`다.
+  Command·reference·exact Darwin·portable Go·PostgreSQL·project check·Python compatibility·relation의 8개 필수 owner를 확인했다.
+- 같은 소스의 [PR feedback 34447900215](https://github.com/progresshans/godj/actions/runs/34447900215)도 `completed/success`다.
+- Linux/macOS amd64·arm64 × normal/race/CGO-disabled의 relation·project·command 조합과 Portable Go 12개 조합을 모두 통과했다.
+  Command 12개 job의 실제 로그를 전부 대조해 각각 operator 15 run/pass, targeted migrate 33 run/pass, skip 0과
+  `verified_command_products: [operator, targeted]`를 확인했다.
+- PostgreSQL 17.10 core/operator-target × 세 mode 모두 PASS. 각 core는 12 packages·54 run/pass,
+  operator-target은 2 packages·12 run/pass이며 여섯 로그 모두 skip 0이다.
+- 고정 Darwin reference는 `PYTHON_SUITE_VERIFIED tests=274 skips=0`과 locked oracle 검사를 통과했다.
+  Python 3.12.13·3.13.15·3.14.3·3.14.7은 각각 274개·선언된 exact 전용 4개 skip과 semantic digest를 통과했다.
+- Reference job `102778261410`은 같은 run의 두 capture를 소비해 전체 conformance 대조와 Linux 32-bit compile·관계 실행을 완료했다.
+  Cold CLI job `102776873840`의 `GODJ_COLD_BUILD=1` 필수 선택은 1 package·2 run/pass·skip 0이다.
+  같은 job의 일반 Runserver 선택에서 PostgreSQL service 미설정으로 skip한 한 항목은 PostgreSQL 전담 owner가 실제 실행했다.
+
+| 실제 PostgreSQL owner | normal job | race job | CGO-disabled job |
+|---|---|---|---|
+| core | `102776873451` | `102776873485` | `102776873467` |
+| operator-target | `102776873391` | `102776873456` | `102776873526` |
+
+Full job 수는 직전 74개에서 62개로 줄었다. Workflow 생성부터 마지막 job 완료까지는 직전
+[34432064345](https://github.com/progresshans/godj/actions/runs/34432064345)의 36분 21초에서 이번 29분 59초로 줄었다
+(07:01:24→07:31:23 UTC). 이는 runner 대기를 포함한 각 한 번의 관측이다. 소스·cache·배정 조건이 다른 실행이므로
+6분 22초 전체를 job 통합만의 효과로 해석하지 않는다. 제거한 12개 checkout·toolchain·dependency 준비와 실제 각 검증의 완료는 확인했다.
+
+### 현재 capture의 독립 확인
+
+성공한 normal producer의 artifact를 공식 resolver로 선택하고 GitHub archive digest, repository/run/attempt/checkout,
+payload SHA-256과 `SHA256SUMS`를 검증했다. 두 공식 Go `Load`도 현재 소스의 profile·canonical JSON·behavioral source binding을 확인했다.
+
+| capture | artifact / producer job / attempt | payload SHA-256 |
+|---|---|---|
+| SYS-020 | `10140459061` / `102776873451` / `1` | `2299e5f562775927b6cd3f9e6015844b32875e48c1cba9f4823373bcf9d9267f` |
+| SYS-029 | `10140444503` / `102776873391` / `1` | `6a9151f6e8a1bc1e0b58ef4b5aac07380e6e421270e2fe88a9e6443e64786f48` |
+
+SYS-020의 source binding은 327 files / 3,750,356 bytes /
+`bd244ee50dea57f95fd5a25dc911ecb3ab941592b2157d69f3c401f4ee08579c`,
+SYS-029는 389 files / 3,489,542 bytes /
+`a00eb7b61fd71685b7d06e3d15239459d8be7316dca550fd56770ac4559653bf`다.
+각 GitHub archive digest는 `95f3c120f51c6007f3335c7cd902cc29e53a7468bc89644d9cdd8c3f51ebb026`과
+`6a6683d56946b1d7cbebde754d2351b38e8fe570574430f998be981699ea9b8c`이며 다운로드한 archive와 일치했다.
+
+SYS-020은 writer 두 process의 barrier·restart 보존과 divergence/loss/drift/secret 0을 확인했다.
+SYS-029는 PostgreSQL·SQLite 각각 세 독립 process, Admin/API 인증·restart 유지와 state loss/schema drift/raw secret 0을 확인했다.
+
+완료 기록은 CURRENT·TEST_EVIDENCE·GDJ-0068 작업 문서의 Markdown만 변경한다. 제품·검증 소스와 두 behavioral source binding은
+Hosted 소스와 동일하며, 문서 링크·상태·diff와 공식 capture Load를 별도로 확인한다. 기존 PR #1은 Draft로 유지한다.
 
 ## GDJ-0067 — 불변 준비와 실행 비용 정리
 

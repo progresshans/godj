@@ -1,6 +1,6 @@
 ---
 id: GDJ-0068
-status: active
+status: completed
 updated: 2026-09-10
 baseline_commit: "6e826a1acc41720b1df99acb7e488c71f24c2841"
 integration_owner: "existing Draft PR #1"
@@ -41,14 +41,14 @@ integration_owner: "existing Draft PR #1"
 - [x] 제품·생성기·관련 회귀·추가 후보 구현
 - [x] 전후 측정, affected normal, 필요한 generated drift·소비자 compile
 - [x] 통합 race·CGO-disabled·SQLite·실제 command와 reference/CI 도구 검사
-- [ ] 같은 제품 소스 Hosted full scope·실제 PostgreSQL capture 및 aggregate 확인
-- [ ] 현행 계약·CURRENT·증거와 Draft PR 마감
+- [x] 같은 제품 소스 Hosted full scope·실제 PostgreSQL capture 및 aggregate 확인
+- [x] 현행 계약·CURRENT·증거와 Draft PR 마감
 
 로컬 전체와 Hosted 전체를 중복하지 않는다. 로컬은 변경 묶음과 통합 위험을 검사하고,
 최종 Hosted milestone이 전체 OS/arch/mode·PostgreSQL·cold build·capture를 소유한다.
 조건부 성능 후보는 측정 후 설계를 정하며, 검증을 생략해 얻은 속도를 개선으로 기록하지 않는다.
 
-## 현재 상태와 다음 행동
+## 완료 상태
 
 제품·생성기·DB·환경 helper와 CI 배치 변경을 구현했다. 외부 ABI의 각 정상/오용 결과를 보존하면서
 compile 준비를 공유하고, CI command 묶음 안에서도 선택된 각 제품의 완료 결과를 따로 요구한다.
@@ -56,5 +56,6 @@ compile 준비를 공유하고, CI command 묶음 안에서도 선택된 각 제
 누락 검사도 포함했다. Affected normal, 실제 command·race·CGO-disabled 통합 검증과 최종 측정을 마쳤다.
 누락됐던 별도 metadata fixture도 재생성해 drift와 세 mode 소비자 검사를 통과했다.
 첫 Hosted에서 통합 전 job 이름을 기대하던 구성 검사 두 개를 찾고 보정했다. 각 제품 step의 실행 조건·모드·필수 항목을
-개별 확인하며 해당 protocol package의 세 mode 검사를 통과했다. 보정 소스에서 Hosted full scope를 새로 실행한다.
-전후 측정과 각 checkpoint의 범위는 TEST_EVIDENCE 한 곳에 기록한다.
+개별 확인하며 해당 protocol package의 세 mode 검사를 통과했다.
+보정 소스 `ffe384492bee0b98aec918d594f6c17531797280`의 Hosted full scope와 현재 capture 검증을 완료했다.
+전후 측정·첫 실패와 최종 완료 근거는 TEST_EVIDENCE 한 곳에 기록한다. 기존 PR #1은 Draft로 유지한다.
