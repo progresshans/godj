@@ -7,7 +7,7 @@
 
 - 작업: [GDJ-0067](../../work/0067-immutable-preparation-and-execution-cost.md).
 - 기준 제품: `9c21568dcbd7bb33c817d6e830a44026d2554e32`.
-- 상태: 구현·로컬 통합 검증 완료, Hosted full scope 대기. 각 baseline은 해당 제품 변경 전 실행했다.
+- 상태: 구현·로컬 통합 검증·동일 제품 소스 Hosted full scope 완료. 각 baseline은 해당 제품 변경 전 실행했다.
 - 환경: 2026-09-10 KST, Apple M3 Pro, Go 1.26.5 darwin/arm64.
 
 `go test -run '^$' -bench 'Benchmark(JSONEncoding|JSONNestedConstruction|TemplateComposition|TemplateLoop)$' -benchtime=200ms -count=3 ./serializers ./templates`
@@ -74,6 +74,39 @@ PostgreSQL projection 충돌은 기존 category/code를 유지하고 상세 메�
 
 실제 제품·생성기·CLI Go 코드는 기준 80,658줄에서 80,619줄로 줄었다(`scripts/sourceinventory`의 같은 분류).
 회귀·성능 측정 코드는 추가했으며 생성된 45파일/6,723줄은 바꾸지 않았다. 대규모 줄 수 절감이나 전체 서비스 처리량의 개선을 주장하지 않는다.
+
+### Hosted 통합 검증
+
+- 제품 소스: `56303abeefd1c911ad5954cd062a2e4ed67ce41e`.
+- 실행: [34432064345](https://github.com/progresshans/godj/actions/runs/34432064345), `workflow_dispatch`, `suite=full`, attempt 1.
+- 최종 결과: 2026-09-10 12:43 KST `completed/success`. 74개 고유 job이 모두 completed/success이며 attempt 1에서 재실행 없이 통과했다.
+  최종 aggregate job `102736316913`의 실제 출력은 `scope: full`, `full_platform_verified: true`이며 아홉 필수 owner를 확인했다.
+- Reference·현재 capture 소비, 전체 OS/arch/mode와 Linux 32-bit compile·ORM/관계·runner 실행을 확인했다.
+  macOS Intel relation normal은 26 packages·2,906 run/pass·skip 0, race는 26 packages·2,871 run/pass·skip 0이다.
+  마지막 targeted migration normal은 1 package·33 run/pass·skip 0으로 끝났다.
+- PostgreSQL 17.10 core/operator-target의 normal·race·CGO-disabled 여섯 작업은 completed/success이며 실제 job 로그의
+  완료 gate도 각각 core 12 packages·54 run/pass, operator 2 packages·12 run/pass, 모두 skip 0이다.
+- Python compatibility 3.12.13·3.13.15·3.14.3·3.14.7은 각각 `PYTHON_SUITE_VERIFIED tests=274 skips=4`와 semantic digest를
+  통과했다. Hosted exact Darwin은 274개·skip 0과 locked oracle 검사를 통과했다. 네 skip은 해당 exact owner가 실제 실행했다.
+- Cold CLI 전담 선택은 `GODJ_COLD_BUILD=1`에서 1 package·2 run/pass·skip 0으로 통과했다. 같은 job의 Runserver 일반
+  선택에서 PostgreSQL 환경 부재로 skip한 한 항목은 위 PostgreSQL 전담 여섯 작업 중 core가 실제 실행했다.
+- 정상 producer가 게시한 두 capture를 현재 run의 artifact ID·producer attempt/job으로 선택했다. Python의 checkout/run/
+  provenance/payload checksum 검사와 공식 Go `Load`의 profile·behavioral source 검사가 모두 통과했다.
+
+| capture | artifact / producer job / attempt | payload SHA-256 |
+|---|---|---|
+| SYS-020 | `10134915349` / `102729493640` / `1` | `6f86d690ce1fcf66a5b06cb997cb1fefa5d08c7cd13fd3b31f80f8bdae1df9fe` |
+| SYS-029 | `10134892644` / `102729493575` / `1` | `290c7ae34481a0635f393f4b8c0bfb10369a5dbe3af49f17cd7238cf06ac28b8` |
+
+SYS-020의 source binding은 325 files / 3,746,834 bytes /
+`8d22988e05578d6da4ca54284c41543e7b2ae538848dbdaaf43ac2cda44fc083`,
+SYS-029는 386 files / 3,496,180 bytes /
+`ed8afb62d161a0366fc4901cd59764bc14f162bfddbb2d99b7f28cb5d17b94bc`다.
+둘 다 고정한 제품 소스의 로컬 계산과 일치한다. SYS-020은 barrier/restart 유지와 divergence/loss/drift/secret 0,
+SYS-029는 PostgreSQL·SQLite의 세 독립 process, Admin/API 인증·restart 유지와 state loss/schema drift/raw secret 0을 확인했다.
+
+제품 검증 뒤 마감 변경은 CURRENT·TEST_EVIDENCE·GDJ-0067 작업 문서 세 Markdown 파일이다. 제품 source diff는 없고
+두 behavioral source binding·capture Load 결과가 검증 당시와 같다. 문서 링크·상태·diff 검사를 별도로 적용한다.
 
 
 ## GDJ-0066 — 실행 비용과 중복 책임의 측정 기반 정리

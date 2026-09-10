@@ -1,6 +1,6 @@
 # GDJ-0067 불변 준비와 실행 비용 정리
 
-- 상태: 로컬 구현·검증 완료, Hosted 통합 검증 대기
+- 상태: 완료 — 제품 `56303abeefd1c911ad5954cd062a2e4ed67ce41e`의 [Hosted full scope](https://github.com/progresshans/godj/actions/runs/34432064345) 검증 포함
 - 기준: `9c21568dcbd7bb33c817d6e830a44026d2554e32`
 - 요청: 전체 감사의 수정·추가 후보를 엄격하게 구현하고 추가 탐색까지 완료한다.
 
@@ -41,8 +41,8 @@
 - [x] baseline 측정과 수정 묶음
 - [x] 전체 감사 항목 구현·추가 탐색
 - [x] 영향 범위 normal·race·CGO-disabled·generated·Python/reference 검증
-- [ ] 동일 제품 소스 Hosted full scope 완료
-- [ ] 현행 계약·최종 실행 증거·CURRENT 정리
+- [x] 동일 제품 소스 Hosted full scope 완료
+- [x] 현행 계약·최종 실행 증거·CURRENT 정리
 
 ## 추가 탐색 처리
 
