@@ -16,10 +16,11 @@ GDJ-0068은 검증 오류 누적·불변 값 전달·템플릿과 metadata 준�
 범위와 보존할 위험은 [활성 작업](../../work/0068-immutable-value-transfer-and-verification-cost.md),
 실행한 검증은 [증거](TEST_EVIDENCE.md)에 둔다. 제품·생성기·검증 실행 구조를 구현했으며,
 affected normal, 실제 command·race·CGO-disabled 통합 검증과 최종 측정을 마쳤다.
+첫 Hosted에서 통합 전 CI job 이름을 기대하던 두 검사를 찾고 보정했다. 보정된 구성 검사는 세 mode 모두 통과했다.
 
 ## 다음 행동
 
-제품 소스를 고정해 기존 Draft PR의 Hosted full scope를 실행하고 필수 완료·현재 capture·aggregate를 확인한다.
+보정 소스에서 기존 Draft PR의 Hosted full scope를 새로 실행하고 필수 완료·현재 capture·aggregate를 확인한다.
 전체 platform·PostgreSQL 검증은 최종 제품 소스의 Hosted milestone이 소유한다. 기존 Draft PR #1을 유지한다.
 
 ## 근거

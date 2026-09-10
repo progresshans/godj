@@ -52,6 +52,32 @@ func ciJob(t *testing.T, jobs map[string]string, name string) string {
 	return job
 }
 
+// A packed job must retain each product's execution and completion checks.
+// Reading one step prevents another product's flags from satisfying them.
+func ciStep(t *testing.T, job, id string) string {
+	t.Helper()
+	starts := regexp.MustCompile(`(?m)^      - name:.*$`).FindAllStringIndex(job, -1)
+	identity := regexp.MustCompile(`(?m)^        id: ` + regexp.QuoteMeta(id) + `$`)
+	var found string
+	for index, start := range starts {
+		end := len(job)
+		if index+1 < len(starts) {
+			end = starts[index+1][0]
+		}
+		step := job[start[0]:end]
+		if identity.MatchString(step) {
+			if found != "" {
+				t.Fatalf("duplicate CI step %q", id)
+			}
+			found = step
+		}
+	}
+	if found == "" {
+		t.Fatalf("required CI step %q is missing", id)
+	}
+	return found
+}
+
 func ciNeeds(t *testing.T, job string) []string {
 	t.Helper()
 	match := regexp.MustCompile(`(?m)^    needs:[ \t]*([^\n]*)\n((?:      - [^\n]+\n)*)`).FindStringSubmatch(job)
@@ -196,7 +222,7 @@ func TestWorkflowSelectedOwnersReachAggregate(t *testing.T) {
 func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 	jobs := ciJobs(t)
 	coordinates := []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64"}
-	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "project-operator-product-matrix", "targeted-migrate-product-matrix"} {
+	for _, name := range []string{"relation-product-matrix", "product-project-check-matrix", "command-product-matrix"} {
 		job := ciJob(t, jobs, name)
 		rows := ciMatrix(t, job, "platform")
 		seen := make(map[string]bool)
@@ -221,6 +247,15 @@ func TestWorkflowRetainsDeclaredCoordinatesAndModes(t *testing.T) {
 		ciRequire(t, name, job, "go env GOOS", "go env GOARCH", "matrix.platform.expected_goos", "matrix.platform.expected_goarch",
 			"matrix.mode", "-race", "CGO_ENABLED=0", "go test")
 	}
+	commands := ciJob(t, jobs, "command-product-matrix")
+	for _, product := range []string{"operator", "targeted"} {
+		step := ciStep(t, commands, product)
+		ciRequire(t, product, step, "matrix.mode", "-race", "CGO_ENABLED=0", "go test", "go vet", "-timeout=",
+			"!cancelled()", "steps.dependencies.outcome == 'success'",
+			"contains(fromJSON(needs.validation-plan.outputs.command_products || '[]'), '"+product+"')")
+	}
+	ciRequire(t, "command outcome gate", commands, "steps.operator.outcome", "steps.targeted.outcome",
+		"COMMAND_PRODUCTS_RESULTS_JSON", "scripts/ci/scopes.py verify-command-products")
 	portable := ciMatrix(t, ciJob(t, jobs, "portable-go-matrix"), "include")
 	for mode, prefix := range map[string]string{"normal": "go-test", "race": "go-race", "cgo0": "cgo-zero-build"} {
 		for _, group := range []string{"core", "integration", "conformance", "products"} {
@@ -356,15 +391,18 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 		"github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
 	}
 	for _, inventory := range []struct {
-		job, array string
-		required   []string
+		job, step, array string
+		required         []string
 	}{
-		{"project-operator-product-matrix", "required_tests", operatorRequiredSentinels},
-		{"targeted-migrate-product-matrix", "required_passes", targetRequiredSentinels},
-		{"postgresql-product", "core_required_passes", postgresCoreRequiredSentinels},
-		{"postgresql-product", "operator_target_required_passes", postgresOperatorTargetRequiredSentinels},
+		{"command-product-matrix", "operator", "required_tests", operatorRequiredSentinels},
+		{"command-product-matrix", "targeted", "required_passes", targetRequiredSentinels},
+		{"postgresql-product", "", "core_required_passes", postgresCoreRequiredSentinels},
+		{"postgresql-product", "", "operator_target_required_passes", postgresOperatorTargetRequiredSentinels},
 	} {
 		job := ciJob(t, jobs, inventory.job)
+		if inventory.step != "" {
+			job = ciStep(t, job, inventory.step)
+		}
 		pattern := regexp.MustCompile(`(?s)\b` + regexp.QuoteMeta(inventory.array) + `=\(\s*(.*?)\s*\)`)
 		array := pattern.FindStringSubmatch(job)
 		if len(array) != 2 {

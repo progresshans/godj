@@ -55,4 +55,6 @@ compile 준비를 공유하고, CI command 묶음 안에서도 선택된 각 제
 추가 탐색에서 JSON 직접 bounded 출력·LIKE 공통 escape·단일 field 생성·callback별 복사·필수 실행
 누락 검사도 포함했다. Affected normal, 실제 command·race·CGO-disabled 통합 검증과 최종 측정을 마쳤다.
 누락됐던 별도 metadata fixture도 재생성해 drift와 세 mode 소비자 검사를 통과했다.
-전후 측정과 각 checkpoint의 범위는 TEST_EVIDENCE 한 곳에 기록한다. 제품 소스를 고정해 Hosted full scope를 실행한다.
+첫 Hosted에서 통합 전 job 이름을 기대하던 구성 검사 두 개를 찾고 보정했다. 각 제품 step의 실행 조건·모드·필수 항목을
+개별 확인하며 해당 protocol package의 세 mode 검사를 통과했다. 보정 소스에서 Hosted full scope를 새로 실행한다.
+전후 측정과 각 checkpoint의 범위는 TEST_EVIDENCE 한 곳에 기록한다.

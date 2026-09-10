@@ -7,7 +7,7 @@
 
 - 작업: [GDJ-0068](../../work/0068-immutable-value-transfer-and-verification-cost.md).
 - 기준: `6e826a1acc41720b1df99acb7e488c71f24c2841`.
-- 상태: 제품·생성기·추가 후보 구현, 전후 측정과 관련 로컬 통합 검증 완료. Hosted full scope는 아직 실행하지 않았다.
+- 상태: 제품·생성기·추가 후보 구현, 전후 측정과 관련 로컬 통합 검증 완료. 첫 Hosted의 CI 구성 검사 실패를 보정했다.
 - 검증 소유권: affected local checkpoint 후 기존 Draft PR의 같은 제품 소스 Hosted full scope.
 
 ### 전후 측정
@@ -86,7 +86,7 @@ Compile fixture는 15개 positive와 29개 negative를 각각 독립 package로 
 동일한 두 top-level 검사의 단일 관측은 package 7.128→2.736초, negative 2.31→0.12초였다.
 이는 반복 성능 실험이나 Hosted 단축 시간의 증명이 아니며, 실제 facade/architecture/부모·자식 race 검사는 별도로 유지했다.
 
-제품·CLI·생성기 Go는 같은 `scripts/sourceinventory` 분류에서 80,619→80,448줄이다. Generated Go는 6,723→6,740줄이고,
+주요 구현 소스 `aaf104b`의 제품·CLI·생성기 Go는 같은 `scripts/sourceinventory` 분류에서 80,619→80,448줄이다. Generated Go는 6,723→6,740줄이고,
 회귀·측정 Go는 164,446→165,320줄이다. 순수 줄 수를 줄이기 위한 테스트 삭제는 하지 않았다.
 
 ### 로컬 변경 묶음
@@ -150,6 +150,20 @@ CI는 같은 OS/arch/mode의 operator·targeted command를 한 job에서 차례�
 각 test selector·필수 sentinel·no-skip·timeout·normal vet를 유지하며 첫 제품 실패 뒤에도 다음 제품과 최종 outcome gate를 실행한다.
 선택된 제품의 누락·skip은 성공이 될 수 없다. 예정된 full job 수는 74→62개이며 전체 실행 시간은 Hosted 완료 후 기록한다.
 전체 platform·PostgreSQL·capture·cold CLI·32-bit의 현재 제품 소스 증거는 아직 없다.
+
+### 첫 Hosted 구성 검사 실패와 보정
+
+첫 제출 소스 `aaf104b6ada9444c1683f8d9a13f62cc218618a7`의
+[full scope 34447460391](https://github.com/progresshans/godj/actions/runs/34447460391), attempt 1에서
+`TestWorkflowRetainsDeclaredCoordinatesAndModes`와 `TestWorkflowRequiredProductSentinelsRemainInventoried`가 실패했다.
+두 검사는 통합 전 `project-operator-product-matrix` 이름을 참조하고 있었다. Linux normal job `102775334624`,
+arm64 CGO-disabled `102775334610`과 macOS race `102775334557`의 실제 실패 로그로 확인했다.
+
+검사를 새 command owner로 연결하고 각 product step을 분리해 mode·timeout·vet·실행 조건·필수 sentinel·no-skip을
+확인하도록 보강했다. 두 step의 outcome을 최종 gate에 전달하는 검사도 유지했다.
+보정 뒤 `go test -count=1 -timeout=10m ./conformance/internal/protocol`의 normal·race·CGO-disabled 모두 PASS다.
+제품 구현은 바꾸지 않았으나 검증 source binding이 바뀌므로 보정 소스에서 전체 Hosted와 capture를 새로 실행한다.
+첫 실행의 일부 성공한 job이나 capture를 최종 전체 검증으로 재사용하지 않는다.
 
 ## GDJ-0067 — 불변 준비와 실행 비용 정리
 
