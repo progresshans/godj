@@ -1,201 +1,41 @@
-# 핵심 미결정 사항
+# 열린 질문
 
-- 상태: Active register
-- 마지막 검토: 2026-08-08
+지금 답이 필요한 질문만 유지한다. 과거 조사·phase·CI 이력은 [Git 기록](https://github.com/progresshans/godj/blob/da1bfc524c4f205075fc7fac7f00b437473a5e1f/docs/OPEN_QUESTIONS.md)에 있다.
+이미 선택한 개별 단면을 아래의 넓은 미결정 범위 때문에 다시 미구현으로 취급하지 않는다.
 
-이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
+| ID | 현재 남은 질문 | 현재 기준 |
+|---|---|---|
+| Q-010 | project scaffold, installed version negotiation와 첫 지원 릴리스 이후 upgrade 정책 | 현재 CLI/generate/migration command는 구현됨 |
+| Q-011 | 넓은 expression/aggregate/bulk/locking과 background 평가 소유권 | immutable AST와 cache/terminal 의미는 구현됨 |
+| Q-012 | custom/data operation, destructive/general writer, repair/crash reconciliation | loaded definition, revision-fenced lifecycle와 bounded target/reverse는 구현됨 |
+| Q-013 | OneToOne/ManyToMany, arbitrary target/depth/cycle와 relation 일반화 | AutoField-target FK와 현행 query/cache/delete 단면은 구현됨 |
+| Q-016 | API schema/OpenAPI, viewset 일반화와 wider routing | bounded serializer/JSON CRUD/auth profile은 구현됨 |
+| Q-017 | 현재 generated model의 사용성·namespace와 broader relation facade | whole-project publication과 current facade는 구현됨; consumer로 다음 제약을 찾음 |
+| Q-019 | SQLite quarantine의 운영 recovery 안내 | single retained handle·새 I/O 거부는 GDJ-0057에서 통합 검증 완료; 자동 복구 미지원 |
+| Q-020 | 비협력 writer, 넓은 deployment topology·key distribution | 같은 normalized policy의 cooperative runtime만 지원 |
+| Q-021 | token issuance/refresh, OAuth/OIDC/JWT, production BFF | injected Bearer resource-server와 Session 경계는 구현됨 |
+| Q-022 | 더 넓은 multi-user/credential lifecycle | provision/open과 explicit permission CAS·session 폐기 구현; 나머지는 후속 |
 
-| ID | 우선순위 | 결정 시점 | 질문 |
-|---|---|---|---|
-| Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
-| Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
-| Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0018 active | MIG-047..056 fenced coordinator/session/commit durability와 MIG-052 DEV-0002를 구현 중; source loader, CLI와 crash recovery는 후속 open |
-| Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
-| Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
-| Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
-| Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P2 | API freeze 전 | pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
-| Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
+## Q-017 — 모델 사용성과 생성물
 
-## M0에서 해결한 질문
+Schema 선언은 generated model과 분리하고 project가 cross-app relation을 연결한다. 이 결정 자체는 다시 열지 않는다.
+새 consumer에서 모델 method·field·relation의 자연스러운 사용, 복사와 cache ownership, Form/Admin/API metadata 연결을 확인한다.
+과거 renderer version·파일 개수·companion 이름의 보존을 사용성 목표보다 우선하지 않는다.
+안전한 전체 후보 검증과 실패 시 last-good preservation은 유지한다.
 
-| ID | 결과 |
-|---|---|
-| Q-001 | 선언 package와 generated target을 import graph에서 분리 — [ADR-0006](adr/0006-codegen-input-package-boundary.md) |
-| Q-002 | exact runtime fingerprint와 `uv.lock` hash를 profile에서 검증 — [Compatibility Lab](../conformance/README.md) |
-| Q-003 | M0에서 strict JSON protocol v1과 explicit adapter를 채택한 뒤, GDJ-0003에서 contract phase를 결속하는 v2로 명시 승격 — [protocol](../conformance/internal/protocol) |
-| Q-004 | 독립 시나리오와 upstream 파생물을 구분하고 Django BSD 고지를 보수적으로 포함 — [Licensing](LICENSING.md) |
+## Q-019 — SQLite unknown-outcome retained connection resource policy
 
-## M1에서 해결한 질문
+첫 미확인 rollback/discard 뒤 retained connection을 하나로 제한하고 같은 Backend의 새 I/O를
+`backend_recovery_required`로 닫는 구현이 존재한다. 이미 admitted된 작업과 explicit Close의 경계는
+[CONCURRENCY](CONCURRENCY.md#sqlite-raw-transaction과-quarantine), 선택 이유는
+[ADR-0057](adr/0057-sqlite-retained-connection-terminal-quarantine.md)에 있다.
+GDJ-0057 source `0b8235c`의 전체 platform 검증을 마쳤으며 [Evidence](status/TEST_EVIDENCE.md)에 기록했다.
+후속 변경의 검증 범위는 해당 작업의 기록을 따른다. 운영자가 새 backend를 열기 전 DB outcome을 확인하는 안내가 남아 있다.
+보관 handle을 무조건 pool에 반환하거나 자동 retry/reopen하는 정책으로 바꾸지 않는다.
 
-| ID | 결과 |
-|---|---|
-| Q-005 | `orm` 소유 generic interface + generated zero-state concrete descriptor, generation/compile 시점 freeze — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
-| Q-008 | ordered input을 `ParseDynamic`에서 즉시 typed predicate 또는 error로 변환 — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
-| Q-009 | consumer-owned interface와 external module compile + `go list` dependency gate — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
+## 이미 선택한 기초
 
-## M2에서 해결한 질문
-
-| ID | 결과 |
-|---|---|
-| Q-006 | generated create/patch와 nullable change state는 ADR-0009, mutable instance Save/typed mask/explicit key orchestration은 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md); MOD-001..019 verified |
-| Q-012 core | preflighted ProjectState/Operation/Executor와 한 transaction의 SQLite editor/recorder — [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) |
-
-## Q-001 — Codegen bootstrap — Resolved
-
-초안의 임시 runner import 방식은 schema package가 오래된 generated type 때문에
-compile되지 않으면 동작하지 않습니다. 실행 spike에서 rename/delete, stale 사용자
-메서드, last-good output 보존을 검증하고 선언/generated package 분리를
-채택했습니다. Project runner 형태는 Q-010에서 계속 다룹니다.
-
-## Q-006 — Nullable와 변경 추적
-
-M1 read model은 nullable CharField에 `*string`을 사용해 `nil`, `ptr("")`, 일반 값을
-구분합니다. MOD-002~004 oracle과 GDJ-0004 구현을 거쳐 generated immutable
-create/patch builder, `Change[T]`/`NullableChange[T]`와 Manager write API를
-[ADR-0009](adr/0009-m2-explicit-write-change-state.md)에서 채택·검증했습니다. Django가
-기본 `save()`에서 실제 dirty tracking을 하는지 추측하지 않고, instance save/new/loaded,
-`update_fields`, force flag, explicit PK와 rollback 의미를
-[GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)의 MOD-008..019로
-고정했습니다. Fully loaded default save는 field 전체를 쓰며 dirty-only가 아닙니다.
-Go에서는 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md)에 따라 concrete
-`SaveOption[M]`, sealed `WritableField[M]`, generated explicit-key constructor와
-`Manager[M].Save`를 사용합니다. Generated instance method는 model field `Save`와의
-충돌 때문에 만들지 않으며, MOD-008..019가 이 경계로 모두 통과했습니다.
-
-## Q-007 — QuerySet cache
-
-불변 plan과 instance result cache를 분리해야 합니다.
-[GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)에서 chain,
-반복/빈/실패 평가, iterator/Count/Exists/fresh clone의 Django 외부 동작을 먼저
-QRY-011..021의 exact 계약으로 고정했습니다. 당시 oracle은 `oracle_locked`이고 제품은
-intentionally uncached였습니다. Value-copy QuerySet의 cache ownership, cached result alias,
-동시 `All`, waiter cancellation과 Go terminal 표면은 그 결과를 입력으로
-[ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에서 Accepted했습니다.
-[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)은 이를 제품 unit/compile/
-race/differential test로 구현해 QRY-011..021 모두를 `passing`으로 검증했습니다. 따라서
-Q-007은 해결됐습니다. Q-011은 QuerySet evaluation subset만 해결됐고 request,
-transaction-bound session과 hook의 goroutine ownership은 후속 단계에 남습니다.
-
-## Q-012 — Migration format과 실행 수명주기
-
-MIG-001~004와 GDJ-0004 제품 구현을 거쳐 state/operation/executor/schema editor/
-recorder core를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에서
-채택·검증했습니다.
-[GDJ-0009](../work/0009-migration-planning-compatibility-contracts.md)는 제품 graph를 먼저
-만들지 않고 MIG-005..016으로 dependency/applied-state 기반 forward/backward plan,
-multi-target 중복 제거와 잘못된 graph/history 오류를 contract-only로 고정했습니다.
-
-[ADR-0013](adr/0013-immutable-migration-planner.md)은 `ProjectState`와 applied history를
-분리하고 immutable identity graph의 zero-I/O Planner를 사용하기로 결정했습니다.
-[GDJ-0010](../work/0010-immutable-migration-planner-product-slice.md)은 이 경계와 actual
-adapter를 구현해 MIG-005..016을 모두 `passing`으로 검증했습니다. MIG-012는 caller target
-order와 dependency precedence만 잠그며, incomparable sibling의 Django private DFS
-tie-break는 호환 계약이 아닌 Go deterministic 정책입니다.
-
-[GDJ-0011](../work/0011-migration-plan-execution-compatibility-contracts.md)은
-multi-migration execution과 partial commit/failure stop 의미를 MIG-017..026의 여섯 번째
-exact set으로 잠갔습니다. Django backward의 `schema_then_record` 때문에 정상 backward
-세 계약의 transaction model과 recorder failure 한 계약의 DB state/phase가 GoDj 기존
-same-transaction reverse와 다릅니다.
-
-완료된 [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md)는 full zero-I/O
-preflight, migration별 existing Apply/Unapply commit과 last durable state를 가진 최소
-`ExecutePlan`을 구현했습니다. Same-transaction reverse는
-[ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)와
-[DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)의
-Accepted/Verified 결정이며 GDJ-0012 완료 당시 제품 상태는
-`63 passing + 4 deviation`이었습니다.
-
-완료된 [GDJ-0013](../work/0013-recorder-backed-restart-planning-compatibility-contracts.md)은
-새 process/executor가 durable recorder에서 applied identity를 읽고 남은 plan을 계산하는
-의미를 MIG-027..036의 10 `oracle_locked` 계약으로 고정했습니다. Absent read는 table을
-만들지 않고, unknown legacy row는 보존하며, known inconsistent history는 explicit
-migrate-style preflight에서 plan 전에 거부합니다.
-
-완료된 [GDJ-0014](../work/0014-recorder-backed-restart-planning-product-slice.md)와 Accepted
-[ADR-0015](adr/0015-recorder-backed-applied-state.md)는 transaction write interface와 분리된
-raw recorder read port, core `LoadAppliedState`와 `Planner.CheckHistory`, SQLite read-only
-reader를 제품화했습니다. Fresh file-backed restart를 포함한 MIG-027..036은 10
-`passing`이며 GDJ-0014 완료 당시 제품 분류는 `73 passing + 4 deviation`이었습니다.
-Recorder key만으로
-`ProjectState`를 재구성할 수 없고 read/execution 사이 lock도 없으므로 public
-restart/migrate convenience API는 아직 만들지 않습니다.
-
-완료된
-[GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
-MIG-037..046으로 historical `ProjectState` reconstruction의 외부 의미를 여덟 번째 exact
-set에 고정했습니다. Explicit empty와 omitted latest는 다른 request mode이고, target
-before/after는 dependency closure의 포함 위치를 구분합니다. Applied projection은 unrelated
-known branch를 포함하되 unknown legacy identity를 schema로 만들지 않습니다. 새 10개는
-`oracle_locked`이고 GDJ-0015 완료 당시 제품 adapter는 fail-closed했습니다.
-
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 Accepted이며, 완료된
-[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은 explicit
-request API, immutable definition ownership/clone, Planner graph kernel 공유와 structured error를
-구현했습니다. MIG-037..046은 10 `passing`, 전체 제품 분류는 `83 passing + 4 deviation`입니다.
-Applied adapter는 real SQLite recorder snapshot을 쓰지만 reconstructor core는 backend I/O가
-없는 pure replay 경계입니다.
-
-Migration file encoding/source loader, listing accessor, data callback ABI,
-graph merge/squash/optimizer, multi-process lock와 crash recovery는 여전히 결정하지 않았으며
-public CLI 전에 별도 ADR과 contract가 필요합니다. Recorder read/planning 제품 subset과
-historical-state product를 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
-
-완료된
-[GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
-loader/CLI보다 lifecycle의 observable meaning과 stale-snapshot safety feasibility를 먼저
-분리합니다. MIG-047..056은 fresh/prefix/no-op latest, named forward/reverse, app zero target,
-unknown legacy, explicit inconsistent-history preflight, middle failure와 fresh durable restart의
-아홉 번째 exact set으로 고정했습니다. MIG-054의 preflight 소유자는
-`MigrationExecutor.migrate()` 자체가 아니라 public command orchestration의
-`loader.check_consistent_history(connection) → target/plan → migrate` 순서이며
-`plan_invoked=false`와 transaction/DDL/write 0을 관찰합니다. MIG-056은 `:memory:` 재사용이
-아니라 temporary file database close/reopen과 fresh connection/loader/executor를 요구합니다.
-Backward MIG-051/052는 abstract step outcome과 final schema/recorder만 비교하고 physical
-transaction topology는 기존 DEV-0001/ADR-0014에 남깁니다.
-
-[Accepted ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 recorder identities와
-opaque freshness revision을 한 snapshot으로 읽고 각 migration transaction 안에서 첫 DDL/write
-전에 expected token을 검증합니다. SQLite spike는 persistent epoch와 monotonic revision을
-후보로 검증했고 fingerprint는 direct non-ABA recorder drift를 잡는 보조 gate로만 사용했지만,
-제품 storage와 token encoding은 아직 open입니다. Outer transaction 없이 migration별 durable
-commit을 유지하고 stale conflict는 current step mutation 0/last-durable state로 fail-closed하며
-semantic auto retry를 하지 않습니다. Spike가 optional capability와 unsupported fallback 금지를
-검증했지만 public coordinator/backend API와 final error taxonomy는 후속 제품 work에서 정합니다.
-
-GDJ-0017이 끝났어도 file/source encoding, operation codec/version, data callback, public
-coordinator/CLI, lease/fairness, process-kill crash reconciliation과 non-SQLite backend는 여전히
-Q-012 후속입니다.
-
-활성
-[GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md)은 Q-012 중
-already-loaded definition lifecycle만 닫습니다. 실제 `Executor`가 backend를 소유하므로
-`Executor.Migrate(ctx, definitions, request)`와 explicit latest/targeted tagged request를
-Proposed 우선 shape로 검증합니다. 별도 optional backend-owned session이 identities와 private
-epoch/revision/fingerprint snapshot을 결속하고 각 step transaction의 first write 전에
-검증하도록 합니다. Session은 exact-one snapshot 뒤 call 사이 connection을 pin하지 않고
-mandatory Close/state machine을 가지며, dedicated fenced transaction은 rolled-back/committed/
-unknown durability를 반환합니다. Unsupported/adoption/stale/contention/integrity/commit_outcome_unknown을
-structured error로 분리합니다. Fresh recorder/metadata absent bootstrap만 자동 허용하고 existing
-recorder는 empty여도 exclusive adoption-required입니다.
-
-Accepted ADR-0013의 canonical ascending plan은 바꾸지 않습니다. MIG-052의 Django
-B1←A3←A2←A1과 GoDj A3←A2←B1←A1은 incomparable sibling order만 다르므로 final
-state/schema/history는 exact match를 유지하고 ordered plan/steps 여섯 path만 DEV-0002 sparse
-expectation 후보입니다. 완료 목표는 lifecycle 9 `passing` + 1 `deviation`, 전체
-`92 passing + 5 deviation`입니다.
-
-이 work에는 exact A2의 empty-table `BooleanField(default=false)`를 logical state에 보존하면서
-physical persistent default 없이 추가하는 좁은 SQLite AddField 경계가 포함됩니다. Nonempty
-table backfill/rebuild는 계속 unsupported입니다. Public adoption/repair command, source/file
-encoding과 versioned loader, operation/data callback codec, CLI/project handshake, copy/restore
-epoch와 crash reconciliation은 해결하지 않으며 후속 GDJ-0019+에서 별도 contract/ADR로 다룹니다.
-
-## Q-013 — 관계 API
-
-초안의 `RelationField[Post]`에는 target type이 없지만 `PostFields.Author.Name`을 사용합니다. symbolic relation binding, target descriptor, generated loader, reverse relation과 import cycle을 한 설계로 검증해야 합니다.
-
-새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.
+Schema IR 단일 원본, codegen/generic/runtime metadata 역할, 선언/generated import graph 분리,
+nullable read와 explicit write intent, typed/dynamic AST 수렴, immutable query와 cache ownership,
+historical model과 runtime model의 분리는 [ARCHITECTURE](ARCHITECTURE.md)와 해당 ADR에서 확인한다.
+새 질문은 현재 코드의 구체적인 동작·실패·consumer 요구에서 출발한다. 과거 work를 읽고 단계 전체를 재개하지 않는다.

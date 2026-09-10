@@ -19,6 +19,191 @@ class PrimaryKey:
     value: Any
 
 
+def _sql_tokens(sql: str) -> list[str]:
+    """Return unquoted SQL words for the small conformance shape parser.
+
+    The relation corpus compares statement and join *shape*, never raw SQL.
+    Quoted identifiers, string literals, and comments therefore must not be
+    able to introduce apparent JOIN keywords into the observation.
+    """
+
+    if not isinstance(sql, str):
+        raise TypeError("SQL must be a string")
+
+    tokens: list[str] = []
+    index = 0
+    length = len(sql)
+    while index < length:
+        character = sql[index]
+
+        if character in {"'", '"', "`"}:
+            quote = character
+            index += 1
+            while index < length:
+                if sql[index] == quote:
+                    if index + 1 < length and sql[index + 1] == quote:
+                        index += 2
+                        continue
+                    index += 1
+                    break
+                index += 1
+            continue
+
+        if character == "[":
+            index += 1
+            while index < length:
+                if sql[index] == "]":
+                    if index + 1 < length and sql[index + 1] == "]":
+                        index += 2
+                        continue
+                    index += 1
+                    break
+                index += 1
+            continue
+
+        if character == "-" and index + 1 < length and sql[index + 1] == "-":
+            newline = sql.find("\n", index + 2)
+            index = length if newline == -1 else newline + 1
+            continue
+
+        if character == "/" and index + 1 < length and sql[index + 1] == "*":
+            terminator = sql.find("*/", index + 2)
+            index = length if terminator == -1 else terminator + 2
+            continue
+
+        if character.isalpha() or character == "_":
+            end = index + 1
+            while end < length and (sql[end].isalnum() or sql[end] == "_"):
+                end += 1
+            tokens.append(sql[index:end].upper())
+            index = end
+            continue
+
+        index += 1
+
+    return tokens
+
+
+def normalize_sql_shape(sql: str) -> dict[str, Any]:
+    """Normalize one SQL statement to its statement kind and ordered joins."""
+
+    tokens = _sql_tokens(sql)
+    if not tokens:
+        return {"statement_kind": "EMPTY", "join_kinds": []}
+
+    join_kinds: list[str] = []
+    for index, token in enumerate(tokens):
+        if token != "JOIN":
+            continue
+        previous = tokens[index - 1] if index >= 1 else ""
+        before_previous = tokens[index - 2] if index >= 2 else ""
+        if previous == "OUTER" and before_previous in {"LEFT", "RIGHT", "FULL"}:
+            join_kinds.append(f"{before_previous}_OUTER")
+        elif previous in {"LEFT", "RIGHT", "FULL"}:
+            join_kinds.append(f"{previous}_OUTER")
+        elif previous in {"CROSS", "NATURAL"}:
+            join_kinds.append(previous)
+        else:
+            # SQL's unqualified JOIN and explicit INNER JOIN are equivalent
+            # for the relation shape comparison.
+            join_kinds.append("INNER")
+
+    return {
+        "statement_kind": tokens[0],
+        "join_kinds": join_kinds,
+    }
+
+
+def normalize_sql_in_predicate_columns(sql: str) -> list[str]:
+    """Return ordered identifier names immediately preceding SQL IN.
+
+    This is intentionally narrower than a SQL parser. It strips string
+    literals and comments, preserves quoted or unquoted identifiers, and lets
+    the relation corpus lock the semantic ForeignKey batch column without
+    comparing a backend's full SQL text, aliases, or placeholder spelling.
+    """
+
+    if not isinstance(sql, str):
+        raise TypeError("SQL must be a string")
+
+    tokens: list[str] = []
+    index = 0
+    length = len(sql)
+    while index < length:
+        character = sql[index]
+
+        if character == "'":
+            index += 1
+            while index < length:
+                if sql[index] == "'":
+                    if index + 1 < length and sql[index + 1] == "'":
+                        index += 2
+                        continue
+                    index += 1
+                    break
+                index += 1
+            continue
+
+        if character in {'"', "`"}:
+            quote = character
+            index += 1
+            value: list[str] = []
+            while index < length:
+                if sql[index] == quote:
+                    if index + 1 < length and sql[index + 1] == quote:
+                        value.append(quote)
+                        index += 2
+                        continue
+                    index += 1
+                    break
+                value.append(sql[index])
+                index += 1
+            tokens.append("".join(value).upper())
+            continue
+
+        if character == "[":
+            index += 1
+            value = []
+            while index < length:
+                if sql[index] == "]":
+                    if index + 1 < length and sql[index + 1] == "]":
+                        value.append("]")
+                        index += 2
+                        continue
+                    index += 1
+                    break
+                value.append(sql[index])
+                index += 1
+            tokens.append("".join(value).upper())
+            continue
+
+        if character == "-" and index + 1 < length and sql[index + 1] == "-":
+            newline = sql.find("\n", index + 2)
+            index = length if newline == -1 else newline + 1
+            continue
+
+        if character == "/" and index + 1 < length and sql[index + 1] == "*":
+            terminator = sql.find("*/", index + 2)
+            index = length if terminator == -1 else terminator + 2
+            continue
+
+        if character.isalpha() or character == "_":
+            end = index + 1
+            while end < length and (sql[end].isalnum() or sql[end] == "_"):
+                end += 1
+            tokens.append(sql[index:end].upper())
+            index = end
+            continue
+
+        index += 1
+
+    return [
+        tokens[index - 1].lower()
+        for index, token in enumerate(tokens)
+        if token == "IN" and index > 0
+    ]
+
+
 def normalize(value: Any) -> dict[str, Any]:
     """Convert a supported Python value to the protocol's tagged value algebra."""
 

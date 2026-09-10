@@ -1,403 +1,191 @@
-# 테스트 전략
+# 검증 실행
 
-- 상태: Accepted
-- 마지막 검토: 2026-08-08
+테스트는 중요한 위험을 찾아내는 도구다. 테스트 이름·파일 수·옛 byte roster 자체를 보존하기 위해 제품 개발을 멈추지 않는다.
+제품 동작, Go-native 안전성, Django 비교와 실제 프로세스·DB 검증은 목적이 다르므로 필요한 위치에서 실행한다.
 
-GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
+## 작업 중
 
-테스트 우선은 Django 테스트 전체를 미리 번역하거나 범용 scenario 언어부터 만드는 뜻이 아닙니다. 소수의 외부 계약을 Django에서 고정하고, 그 계약을 끝까지 통과하는 얇은 수직 단면을 반복합니다.
+한 가지 설계 변경에 필요한 제품 코드·생성기·테스트를 먼저 함께 정리한다. 편집 중에는 필요한 compile 확인만 하고,
+변경 묶음이 완성되면 gofmt와 affected package/test를 모아 실행한다. 아래 package는 예시이며 변경 영향에 맞게 바꾼다.
 
-## 세 계층
-
-### 1. Differential contract
-
-같은 시나리오를 고정된 Django와 GoDj에서 실행하고 정규화된 외부 결과를 비교합니다.
-
-비교 대상:
-
-- 조회 결과와 순서
-- DB 최종 상태와 부작용
-- 오류 범주와 발생 단계
-- transaction/rollback/locking 의미
-- model metadata와 migration schema
-- form cleaned data와 오류 code
-- HTTP response, Admin permission, realtime event, GIS 결과
-
-SQL 문자열은 기본 비교 대상이 아닙니다.
-
-### 2. Translated invariant
-
-Django 테스트가 보장하려는 의미를 GoDj 내부 구조에 맞게 다시 표현합니다.
-
-- QuerySet 지연 평가와 체이닝 불변성
-- result cache 의미
-- Schema IR normalization/versioning
-- typed/dynamic API의 동일 Query AST
-- migration project/historical state
-- relation graph와 lookup registry
-- backend capability와 compiler 의미
-- app/Admin registry
-
-Django의 Python class 이름이나 내부 객체 graph를 그대로 복제하지 않습니다.
-
-### 3. Go-native safety
-
-- unit/integration/compile test
-- generated code golden/idempotency/atomicity test
-- deterministic schema hash
-- external consumer package compile test
-- race detector와 goroutine leak test
-- fuzz/property test
-- context cancellation과 timeout
-- connection pool과 concurrent transaction
-- rollback/error path
-- dependency boundary test
-- benchmark/allocation/regression test
-
-## Compatibility Lab 구조
-
-M0에서는 다음 책임만 가진 작은 harness를 구현했습니다.
-
-```text
-contract manifest
-    ├─ explicit Django scenario adapter
-    └─ explicit GoDj scenario adapter
-             ↓
-       normalized observation
-             ↓
-          comparator
+```sh
+go test ./schema/... ./query/...
+go test ./orm -count=1
 ```
 
-초기 scenario는 각 runner에 명시적으로 작성합니다. YAML/JSON으로 Django의 모든 operation을 표현하는 범용 언어는 만들지 않습니다. 반복 패턴이 실제로 확인된 뒤 fixture와 parameter만 공통 protocol로 추출합니다.
+실제로 존재하는 selector를 선택하고 테스트가 하나도 실행되지 않은 성공을 근거로 사용하지 않는다.
+생성기·IR·모델 선언 변경에는 `make generate-check`와 관련 whole-candidate/external compile을 포함한다.
+순수 parsing/validation의 각 입력마다 외부 앱 전체를 다시 build하지 않는다. Public API·generated ABI 변경은 소비자 compile까지 확인한다.
 
-현재 directory는 다음 책임으로 구성됩니다.
+## 검증 범위
 
-```text
-conformance/
-  contracts/manifest.json
-  contracts/write-migration-manifest.json
-  contracts/save-lifecycle-manifest.json
-  contracts/query-cache-manifest.json
-  contracts/migration-planning-manifest.json
-  contracts/migration-execution-manifest.json
-  contracts/migration-restart-manifest.json
-  contracts/migration-state-reconstruction-manifest.json
-  contracts/migration-lifecycle-manifest.json
-  profiles/
-  runners/django/
-  runners/godj/
-  internal/protocol/
-  cmd/contractcheck/
-  cmd/godjcheck/
-  cmd/observationcmp/
-  fixtures/godj-not-implemented.json
-  fixtures/godj-write-migration-not-implemented.json
-  fixtures/godj-save-lifecycle-not-implemented.json
-  fixtures/godj-migration-lifecycle-not-implemented.json
-  fixtures/godj-query-cache-not-implemented.json
-  fixtures/godj-migration-planning-not-implemented.json
-  fixtures/godj-migration-execution-not-implemented.json
-  fixtures/godj-migration-restart-not-implemented.json
-  fixtures/godj-migration-state-reconstruction-not-implemented.json
-  oracles/django-6.1-sqlite-darwin-arm64/
-  codegenbootstrap/
+| 범위 | 소유하는 위험 | 실행 시점 |
+|---|---|---|
+| 빠른 feedback | formatting, compile, pure/affected logic, 관련 drift | 편집·PR feedback |
+| 관련 integration | SQLite/PostgreSQL 실제 동작, relation/cache, security, rollback와 필요한 race | 관련 변경 통합 |
+| CLI/process | 실제 linked build/child, TTY/signal/cancel/reap, private workspace와 output | 명령·프로세스 소유권 변경 |
+| Reference | pinned Django/DRF actual, normalizer/comparator와 source authority | 해당 계약·adapter·profile 변경 |
+| 전체 platform | OS/arch/mode, cold build, external archive와 전체 기능 간 조합 | 명시한 통합 milestone |
+| 장기 검증 | 반복 stress/fuzz, 큰 입력, RSS·성능 | 관련 위험 또는 주기적 실행 |
+
+`make quick`, `make generate-check`, 관련 `go-test-*`는 PostgreSQL capture 없이 실행할 수 있다.
+`make ci`는 현재 소스에 맞는 실제 PostgreSQL capture를 추가로 요구하는 전체 로컬 gate다.
+Capture가 없으면 시작 단계에서 실패하며, 준비 방법은 아래를 따른다. PR의 빠른 feedback 성공은 전체 CI·다른 DB/platform의 성공이 아니다.
+Full/scoped Hosted 검증은 CI workflow의 수동 실행 또는 `ci:full`, `ci:orm`, `ci:cli`, `ci:web`, `ci:reference` 라벨로 선택한다.
+대상 커밋을 먼저 push한 뒤 라벨을 추가한다. 라벨 추가 이벤트 시점의 PR head를 검증하므로,
+같은 라벨로 다시 실행하려면 기존 라벨을 제거한 뒤 다시 추가한다. 라벨이 붙어 있는 상태에서의 PR push는 빠른 feedback만 실행한다.
+Draft PR을 테스트 서버로 쓸 수 있으며 매 docs push가 전체 platform 검증을 다시 요청하지 않게 한다.
+Job 선택과 aggregate가 필요한 검증의 누락을 확인한다. 선택하지 않은 그룹은 not-selected이며 PASS로 가장하지 않는다.
+
+Makefile과 workflow가 실제 명령·platform matrix를 소유한다. 계약별 profile·manifest·oracle·baseline과 제품 실행 여부는
+[suite catalog](../conformance/suites.json)가 한 번 선언한다. `scripts/conformance.py plan`으로 실제 실행 인자를 확인한다.
+Reference check와 product check는 각각 checker를 한 번 build하고, 계약마다 새 process를 실행한다. Python oracle은 각 profile의
+locked project에서 새 process로 관측하며 Go actual·expected를 공통 구현으로 만들지 않는다. 이 문서에 명령별 테스트 수·해시·Job/Step 수를 복사하지 않는다.
+[Makefile](../Makefile), [workflows](../.github/workflows/)의 현재 설정을 사용한다.
+
+## 반복 실행과 cache
+
+일반 CI는 dependency/build cache를 재사용할 수 있다. 실제 DB/process 검증은 `-count=1`로 test-result cache를 끄더라도
+다운로드와 compile cache를 재사용한다. Cold build나 private workspace 격리가 검증 대상일 때만 그 경계를 따로 실행한다.
+Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cache로 저장하지 않는다.
+
+외부 build가 많은 conformance runner/godjcheck와 명령별 제품 흐름은 순수 core loop에서 분리한다.
+생성기의 byte/schema 단위 검사는 `codegen`, 생성된 별도 Go module의 compile·runtime·잘못된 조합 거부는
+`codegen/consumertest`가 소유한다. 후자는 integration과 relation platform 범위에서 실행하며 `make quick`에는 포함하지 않는다.
+생성 module의 자식 테스트도 부모의 race build tag에 따라 실제 `-race`로 실행하고 `-count=1`로 결과 cache를 끈다. Host GOFLAGS·workspace로 검사를
+바꾸지 않으며 CGO/OS/arch 설정은 유지한다. 별도 `internal/compiletest`의 ABI·오용·정적 source 검사는 normal과
+CGO-disabled가 소유한다(`!race`). Runtime facade JSON·candidate verifier 검사는 같은 패키지의 세 mode에서 계속 실행한다.
+따라서 부모 race 실행에서 동일한 비계측 ABI child compile을 반복하지 않는다. 외부 fixture는 실행 owner가 locked
+dependency graph를 한 번 준비한 뒤 GOPROXY=off·GONOPROXY=none·GOSUMDB=off로 컴파일한다. ABI와 생성 소비자 fixture는 저장소 checksum도 복사한다.
+독립 ABI fixture는 한 임시 module의 별도 package로 묶는다. 각 package의 시작·종료와 자기 `build-fail`·진단을
+대조하며 aggregate 실패만으로 negative fixture를 통과시키지 않는다. `consumer.go`만 있는 정상 fixture의
+`[no test files]` 종료는 compile 성공을 뜻하며, runtime test의 skip은 허용하지 않는다.
+환경 준비는 `internal/testenv`가 마지막 값·플랫폼별 키 비교·정렬·제거를 소유한다. 공통 offline Go profile은
+host goenv·GOFLAGS·외부 cache program·private module network 우회를 닫으며, suite별 DB·비밀값·TTY/poison 정책은 호출자가 유지한다.
+순수 schema/codegen 검사는 Portable Go의 각 mode에서 실행한다. 관계 matrix는 생성 소비자와 실제 DB 동작의 플랫폼 차이를 검증한다.
+각 위험에 주 실행 경로를 두고 같은 test/platform/mode의 반복은 새 위험이나 실패를 조사할 때만 추가한다.
+DB schema/port/temp 디렉터리는 lane별로 분리하고 무거운 DB/process suite의 동시 실행 수를 제한한다.
+
+`internal/projectcheck`의 다섯 protocol과 projectgenerate/projectmigration protocol은 Portable core가 문법·resource 검사를
+소유한다. 공용 `wirejson`과 `projectwire`도 core에 속한다. CLI platform owner는 이들을 사용하는 실제 outer command와
+linked runner를 실행하며 protocol 패키지 전체를 다시 선택하지 않는다. 32-bit compile은 정수 범위와 architecture 경계를 위해 유지한다.
+
+| 변경 위험 | 주 검증 위치 | 추가 실행 경계와 보존할 관측 |
+|---|---|---|
+| Strict JSON·Schema IR wire | 공용 primitive와 명령별 protocol unit | duplicate/trailing/Unicode·정확한 budget·transport precedence, 실제 linked wire의 정상/실패 연결 |
+| SQLMigrate argv 전체 조합 | `TestParseSQLMigrateArgumentsRejectsInvalidForms` | outer Run과 global dispatch의 대표 arity/identity/option 실패, absent cwd·poison descriptor·build/init 0 |
+| CLI 공용 수명 | `internal/projectcheck` fault/process 회귀 | retained root·workspace 정리·완료 뒤 취소, 외부 migrate/writer/operator/server의 durable/TTY/signal 경계 |
+| SQL projection의 실제 위임 | `TestSQLProductRunnerPipelineExecutionControls` | compiled bypass·private rename·IR 변경 대조. 별도 Phase D는 Hosted PostgreSQL 환경 격리·DB 접속 0·중단/reap |
+| 세션 동시 접근 | real MemoryStore·durable SQLite의 `AtomicAccess` | 같은 ID의 갱신/만료/rotation/취소 interleaving, multi-runtime PostgreSQL·restart는 DB owner |
+| Loaded definition·operation | migration/definition unit·lifecycle | 입력/결과 mutation·동시 replay·typed nil, fresh history·revision fence·durable prefix는 실제 DB owner |
+| 공통 Query AST 의미 | backend compiler unit | SQLite와 PostgreSQL 실제 SQL·identifier/NULL·rollback은 각각 DB owner |
+| 관계 actual 생성 | contract별 fresh observer | 관계별 query/cache/rollback 회귀, 고정 oracle 대조와 sibling case 미실행 대조 |
+
+Portable과 관계/CLI matrix의 Linux amd64는 같은 Ubuntu 이미지와 Go 버전을 사용한다. 같은 scope에 관계 owner가 선택되면
+`scripts/ci/packages.py`가 관계 package 전체를 Portable에서 제외한다. Runserver도 project-check owner가 선택된 경우 그 matrix가 맡는다.
+선택한 owner가 없는 scoped/local 실행은 Portable의 원래 package 범위를 유지한다. OS·architecture·CGO·race가 다른 좌표의 검증은 유지한다.
+
+Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`에서 checkout·toolchain·dependency 준비를 공유한다.
+각 제품은 독립 process·timeout·JSON log·required sentinel·no-skip 검사를 유지한다. 하나가 실패해도 취소되지 않은 다른 선택 제품은
+실행하며, 마지막 outcome 검사가 선택된 step의 실패·skip·누락을 거부한다. `web`은 operator, `orm`은 targeted migrate,
+`cli`와 `full`은 둘 다 실행한다. PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
+
+관계 product의 Author/Post 생성 모델과 프로젝트는 `conformance/relationfixture`를 공유한다.
+이 패키지가 whole-project drift, 생성물 없이 declaration runner를 만드는 bootstrap, 앱 간 의존성과 observer의 oracle-blind 경계를 검증한다.
+기능별 product는 실제 query/object/reverse/prefetch/select/delete 결과와 cache·취소·rollback 검증을 소유한다.
+옛 fixture별 파일 수·이전 내부 ABI의 복제본을 유지하지 않는다. 현재 생성 조합의 일관성·잘못 섞인 snapshot 거부는
+`codegen/consumertest`, 소비자 타입 오류와 publication 실패 시 기존 결과 보존은 각각 compile·projectgenerate 검증이 맡는다.
+
+SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
+Full scope에서 conformance Go runner 전체를 project-check matrix가 실행하면 관계 matrix는 같은 runner subset을 다시 실행하지 않는다.
+해당 owner가 없는 ORM scope에서는 관계 matrix가 subset을 실행한다. Linux amd64 checker 전체를 Portable이 실행하면 관계 matrix의 같은 subset은 생략한다.
+Portable conformance는 `scripts/ci/conformance_tests.py`가 JSON 시작·종료와 package 완료를 대조하고, 옮겨진 checker의 필수 sentinel·no-skip도 확인한다.
+선택된 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
+aggregate는 선택한 owner의 실패·취소·누락을 거부한다. Full scope의 Darwin CGO-disabled lifecycle도 이 두 matrix가 소유하며,
+reference-only scope에서는 exact Darwin job이 직접 실행한다.
+
+## 남겨야 하는 검증
+
+- Migration의 per-step atomicity, durable prefix, restart, revision fence와 outcome unknown
+- Codegen의 stale/mixed candidate 거부, 실패 시 이전 결과 보존과 중단 후 recovery
+- Typed/dynamic 의미 일치, nullable 값, relation/cache 복사·소유권
+- 권한 거부, CSRF, token/password 비노출, session rotation/logout/revocation
+- Context cancellation, signal, pipe ownership와 child reap
+- Oracle-blind actual, comparator negative control, 필수 실행 누락·skip·잘린 로그 거부
+
+테스트를 삭제하거나 통합하면 위 위험을 현재 어느 test가 검증하는지 확인한다.
+전체 이름·개수·payload 길이의 영구 잠금 대신 실행한 scope, required capability/sentinel과 실제 실패/skip를 검사한다.
+Test 파일의 문장이나 work 일지에 같은 prose가 남아 있는지는 runtime 안전성의 대체 검증이 아니다.
+Python normal·exact·compatibility는 `scripts/ci/python_tests.py --profile`의 공통 launcher로 현재 발견한 testcase의
+시작·종료와 허용 skip을 대조한다. Make의 normal/exact는 고정 DRF 환경에서 전체 suite를 실행하며 DRF skip을 허용하지 않는다.
+Normal·compatibility의 고정 reference 전용 네 검사는 exact가 맡고, exact는 skip을 허용하지 않는다. Launcher가 discovery 전에
+exact flag를 설정하므로 host flag가 선택한 profile을 바꾸지 않는다. 전역 테스트 수를 고정하지 않고 실패·expected failure·
+임의 skip·중단된 실행을 거부하며 고정 reference 의미의 별도 digest 검증을 유지한다.
+
+고정 reference 파일의 size/hash는 protocol의 artifact 검증에서 대조한다. 실행 catalog는 그 expected payload의 원본이 아니다.
+전체 manifest/oracle 교차 거부는 현재 계약 집합에서 한 번 검증하며, 각 계약의 phase·payload·provenance와 부정 대조는 해당 계약 테스트가 맡는다.
+실제 catalog 실행 계획과 Make target dispatch로 빠진 계약·잘못된 profile·expected/capture wiring을 검증한다.
+구현 파일 자체의 과거 SHA를 보존하기 위해 현재 테스트의 구조를 고정하지 않는다.
+공통 fixture는 호출마다 새 mutable 입력을 만들며 actual 관찰과 expected 로딩은 별도로 유지한다.
+공통화한 환경 준비에서도 각 실행의 timeout·출력 제한·cleanup·필수 DB 조건을 유지한다.
+SQLite command snapshot과 PostgreSQL migrate/target의 공통 physical catalog는 `conformance/internal/dbstate`가 관측한다.
+제품별 expected와 application/history/revision 검증은 각 호출자가 소유한다. 더 상세한 SQL 정의를 검증하는 showmigrations 관측도 유지한다.
+PostgreSQL catalog의 컬럼·인덱스·sequence·constraint trigger·policy·view 변경 감지는 실제 DB negative control이 검증한다.
+Process 출력·readiness·종료 관리는 `conformance/internal/testprocess`가 맡는다.
+호출자는 명령별 시간·출력 한도를 지정하며 snapshot의 raw bytes·schema·행 수·migration history·revision 관측은 그대로 유지한다.
+Django 관측 envelope는 `observations`, SQL capture는 `sql_observation`이 공유한다. 결과 누락과 명시적 null을 구분하고
+계약별 SQL 분류·실패 판단은 호출자가 유지한다. Django migration 관측은 Django 내부에서만 schema/field 정규화를 공유한다. 계약별 primary-key 필드·datetime 정규화와 recorder 접근 순서는 보존한다.
+Select/object/delete 관계 handler는 자신이 맡은 case만 관측한다. 같은 DB에서 sibling case 전체를 실행한 결과의 전역 cache는
+사용하지 않는다. 검증 편의를 위한 test-only 결합은 각 case의 fresh DB 결과와 DB state 일치도 따로 확인한다.
+
+## 실제 source의 증거
+
+PostgreSQL actual은 검증할 source·observer·환경에서 생성하고, source/profile/scenario identity와 digest를 확인한 consumer가 사용한다.
+Oracle·expected로 actual을 만들지 않고, 다른 source의 actual이나 stale attestation을 current proof로 인정하지 않는다.
+같은 신뢰된 CI 실행의 artifact를 생성 job에서 소비 job으로 전달한다. 장기 기록은 source·환경·명령·결과와 불변 artifact 위치를 남긴다.
+Consumer만 재시도할 때는 같은 run의 성공한 producer attempt를 재사용할 수 있다. `capture_artifact.py resolve`가
+artifact ID와 실제 normal producer job의 run·source·성공 상태를 확인하고, consumer는 그 producing attempt의 envelope를
+검증한다. 새 attempt의 실패를 과거 성공 artifact로 숨기거나 checkout/payload 검사를 생략하지 않는다.
+관찰자나 attestation I/O를 공통 helper로 옮기면 그 helper도 사용하는 attestation의 source binding에 포함한다.
+JSON/file 읽기 구현을 공유해도 각 attestation의 source inventory·크기 제한·schema는 독립적으로 검증한다.
+
+로컬에서 전체 gate를 재현하려면 검증할 소스의 성공한 CI run과 attempt를 선택하고 두 artifact를 내려받는다.
+아래 `RUN_ID`, `ATTEMPT`, 절대 경로를 실제 값으로 바꾼다. Artifact는 90일간 보관하므로 만료됐다면 같은 소스에서 새 CI 실행이 필요하다.
+
+```sh
+ci_run=RUN_ID
+ci_attempt=ATTEMPT
+capture_root=/absolute/path/to/godj-evidence
+gh run download "$ci_run" --name "systemstate-postgres-$ci_attempt" --dir "$capture_root/systemstate"
+gh run download "$ci_run" --name "operator-postgres-$ci_attempt" --dir "$capture_root/operator"
 ```
 
-## Reference 환경 잠금
+두 `provenance.json`의 `checkout`과 같은 commit을 별도 작업 사본에서 사용한다. PR 실행의 checkout은 PR head와 다른 merge commit일 수 있다.
+그 작업 사본에서 아래를 실행한다. 다른 저장소·run·attempt·payload·checkout은 envelope 검증이 거부하고,
+Go consumer는 checksum과 실제 source/profile/scenario binding도 확인한다. `testdata`의 고정 codec fixture는 이 입력으로 사용할 수 없다.
 
-oracle에는 다음을 기록합니다.
+```sh
+export GITHUB_REPOSITORY=progresshans/godj GITHUB_RUN_ID="$ci_run" GITHUB_RUN_ATTEMPT="$ci_attempt"
+export GITHUB_REPOSITORY_ID="$(gh api repos/progresshans/godj --jq .id)"
+python3 scripts/ci/capture_artifact.py verify "$capture_root/systemstate" postgresql-17.10-two-process-v1.json
+python3 scripts/ci/capture_artifact.py verify "$capture_root/operator" postgresql-17.10-sqlite-external-operator-v1.json
+ATTESTATION_DIR="$capture_root" make ci
+```
 
-- Django exact version/tag/commit
-- Python exact version
-- DB product/library exact version
-- timezone, locale, collation
-- dependency lock/hash
-- scenario version
-- 생성 명령과 source checkout
+이 로컬 gate는 현재 OS에서의 재현이다. 다른 OS/arch와 PostgreSQL service 실행 결과까지 새로 만든 것으로 기록하지 않는다.
 
-GDJ-0001은 CPython 3.14.3, Django 6.1 wheel/hash, SQLite 3.50.4와
-`sqlite_source_id`, darwin/arm64, UTC/C locale, uv/lock hash를 exact profile로
-고정했습니다. 일반 Linux CI는 portable scenario와 artifact validation을 실행하지만
-darwin oracle을 재생성했다고 주장하지 않습니다.
+실행 로그는 build-output/build-fail과 dependency ImportPath/FailedBuild, test failure, timeout, malformed/truncated JSON과
+stderr-only failure를 구분해야 한다. 원래 test exit code와 유용한 원인을 보존하고 bounded/redacted diagnostics를 출력한다.
+검증을 리팩터링할 때는 대표적인 실제 결함·필수 실행 누락·위조 actual이 여전히 실패하는지 확인한다.
 
-## 정규화 규칙
+## 문서와 과거 증거
 
-- 각 producer의 JSON bytes는 독립 재생성에서 결정적이어야 합니다. Cross-runtime 비교는
-  object member ordering과 optional `null` 생략을 protocol decoder가 정규화한 typed
-  payload 의미를 기준으로 합니다.
-- datetime은 timezone과 precision을 명시합니다.
-- decimal은 float로 바꾸지 않고 정규 문자열 또는 tuple로 표현합니다.
-- UUID, bytes, auto PK, NULL을 타입이 드러나는 형태로 표현합니다.
-- DB vendor가 포함된 raw exception text 대신 안정적인 error category/code를 비교합니다.
-- 순서가 계약이면 절대 sort하지 않습니다.
-- 비결정 값은 생성 원인을 통제하거나 명시적인 placeholder 규칙을 사용합니다.
-- normalizer 자체에 unit/property test를 둡니다.
+문서-only 변경은 local link·상태 일관성과 `git diff --check`를 검증한다. 제품 입력을 바꾸지 않은 실행 기록 추가 때문에
+전체 product matrix를 반복하지 않는다. 현재 source에서 실행한 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 한 번 기록한다.
+명령, source, 환경, 결과, 실패/skip, 미실행 범위를 남기면 된다. 작은 수정마다 여러 activation/checkpoint/terminal EVID를 만들지 않는다.
 
-## M0 계약 후보와 검증
-
-초기 8~12개 계약은 [COMPATIBILITY.md](COMPATIBILITY.md)의 후보에서 고릅니다. M0는 다음을 증명해야 합니다.
-
-- Django oracle이 같은 환경에서 두 번 byte-identical하게 생성됨
-- manifest/schema validation이 잘못된 contract를 거부함
-- comparator가 의도적으로 바꾼 결과, 순서, error category를 탐지함
-- 미구현 GoDj runner가 false pass를 만들지 않음
-- upstream source와 license provenance가 추적됨
-
-M0에서 11개 contract가 `oracle_locked` 상태가 됐고 normalizer/comparator의
-mutation test가 false green을 차단합니다. M1은
-`Schema DSL → IR → Codegen → Manager/QuerySet → AST → SQLite`의 한 모델 수직
-단면으로 실제 differential contract를 통과해야 완료됩니다.
-
-GDJ-0003은 같은 profile에 MOD 7개와 MIG 4개의 별도 set을 추가했습니다. 각 manifest는
-8~12개 bound를 독립적으로 지키며, registry 전체를 선택 manifest 하나에 강제로 넣지
-않습니다. Checked-in 두 manifest의 scenario 합집합은 registry와 정확히 일치해야 하고,
-cross-set oracle, draft status, contract별 phase, result/error/DB state/metrics 변이는 모두
-실패해야 합니다.
-GDJ-0004는 두 번째 set도 실제 GoDj adapter로 실행해 11개 모두 `passing`으로
-전환했습니다. Static GoDj fixture는 계속 11개 명시적 `not_implemented` mismatch를
-내며, 미구현 상태를 녹색으로 만들 수 없는 false-green regression으로 보존합니다.
-Contract별 phase binding을 추가한 GDJ-0003부터 protocol v2를 사용하며 v1 artifact는
-v2 validator가 명시적으로 거부합니다.
-
-GDJ-0005는 Save lifecycle 12개를 세 번째 set에 추가했습니다. `commit`은 persistent
-write 성공, `evaluation`은 terminal no-op/validation 또는 explicit transaction 밖에서
-끝난 실패, `rollback`은 명시적 transaction/savepoint 복원을 뜻합니다. 따라서 empty
-`update_fields`, force-insert conflict와 0-row force-update는 statement count와 kind를
-metrics로 보존하되 phase는 `evaluation`이고, 실제 `atomic()` 복원인 MOD-019만
-`rollback`입니다. 세 set의 ID/scenario 전역 uniqueness, 모든 cross-pair, Save payload
-mutation과 two-process oracle bytes를 gate로 둡니다.
-GDJ-0006은 실제 GoDj Save adapter를 연결해 세 번째 set도 `passing`으로 전환했습니다.
-Adapter metrics는 임의 contract/statement sequence가 recorder에서 직접 유도되는지
-검증하고, SQLite primary-key 오류는 opaque wrapper 안의 structured extended code만
-분류하는 회귀로 oracle-shaped 하드코딩과 문자열 비교 false green을 막습니다.
-
-GDJ-0007은 QuerySet evaluation/cache 11개를 네 번째 set으로 먼저 추가했습니다. 모든
-scenario는 setup DDL/DML과 terminal capture window를 분리하고, result/DB state와 함께
-ordered step별 SELECT count를 비교합니다. 네 set의 ID/scenario 전역 uniqueness와 모든
-12개 ordered cross-pair를 검증합니다. Query-count/result/error mutation뿐 아니라 fixture
-sentinel과 capture token이 11개 scenario의 live 실행 결과까지 전파되는지를 검사해
-checked-in oracle을 그대로 반환하는 하드코딩도 거부합니다. GDJ-0007 완료 당시에는 제품
-adapter가 없어 `oracle_locked`였고, static fixture의 정확한 11 mismatch와 `godjcheck`
-unknown-scenario fail-closed가 기대 결과였습니다.
-
-GDJ-0008은 네 번째 set을 generated model, generic QuerySet과 SQLite 실제 제품 경로에
-연결해 11개 모두 `passing`으로 전환했습니다. 당시 `make godj-conformance`는 M1 11개,
-M2 write/migration 11개, Save 12개와 QuerySet cache 11개, 총 45개를 실행했습니다. 임의로
-등록되지 않은 scenario는 계속 actual을 쓰지 않고 fail-closed합니다. QuerySet의 direct
-copy/chain/fresh ownership, 같은 state `All` singleflight, owner cancellation 뒤 live
-waiter 재시도와 waiter-only cancellation 격리, nullable pointer deep clone, cold/warm
-`Count`/`Exists`/`At`/`First`, cache-bypass `Iterate`, context와 rows cleanup은 별도
-unit/compile/race/SQLite gate로 검증합니다.
-
-두 독립 Go actual은 각각 56,283 bytes, SHA-256
-`c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`로 서로
-byte-identical합니다. Django oracle은 56,426 bytes, SHA-256
-`d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`이며 Go actual과
-byte-identical하지 않습니다. 합격 근거는 protocol comparator의 계약 의미 0-diff입니다.
-Query-cache static fixture의 ordered 11 mismatch는 구현 전 false-green 회귀 증거로 계속
-유지합니다. 명령과 checkout별 결과는
-[EVID-20260808-007](status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
-기록합니다.
-
-GDJ-0009은 MIG-005..016을 다섯 번째 reference set으로 추가했습니다. Linear/cross-app
-forward/backward, applied pruning, prior/zero target, ordered multi-target/shared dependency와
-target/history/graph/cycle error를 result/error, DB state와 I/O metrics로 함께 잠급니다.
-Planning capture는 DDL/write/기타 non-SELECT statement가 0이고 recorder/schema state가
-같은지 확인합니다. 모든 SELECT까지 0이라고 주장하지 않습니다.
-
-다섯 set의 ID/scenario는 전역으로 유일하며 20개 ordered cross-pair가 모두 거부됩니다.
-Two-process/random hash-seed와 graph insertion permutation이 reference bytes를 흔들지 않는지
-검사하고, plan order/direction/target/applied state/dedup/retained branch/error facts/
-zero-mutation payload를 각각 바꾸는 mutation gate를 둡니다. MIG-012는 caller target order와
-dependency precedence만 잠그고 incomparable sibling의 Django private DFS tie-break는
-계약하지 않습니다.
-
-GDJ-0009 완료 당시 migration-planning manifest는 12개 `oracle_locked`이고 static fixture는
-ordered 12 `not_implemented` mismatch를 냈습니다. GoDj product runner는 unknown scenario
-exit 2와 actual 미생성으로 fail-closed했고, 당시 `make godj-conformance`는 제품 adapter가
-있는 기존 45개만 실행했습니다. 상세 증거는
-[EVID-20260808-008](status/TEST_EVIDENCE.md#evid-20260808-008--gdj-0009-migration-planning-compatibility-contracts)에
-기록합니다.
-
-GDJ-0010은 public immutable Planner와 다섯 번째 GoDj adapter를 연결해 MIG-005..016을
-`passing`으로 전환했습니다. 현재 `make godj-conformance`는 11 + 11 + 12 + 11 + 12,
-총 57개를 실행합니다. Adapter의 plan/error는 실제 public API에서 얻고, logical
-before/after applied state와 zero-I/O metrics는 backend를 호출하지 않는 공통 structural
-capture에서 산출합니다. 실제 DB probe를 실행했다고 주장하지 않습니다.
-
-Fixture target/applied/dependency 변이는 echo된 전체 observation이 아니라 `plan` 하위값을
-직접 바꾸어야 하고, missing dependency를 self-cycle로 바꾸면 실제 error code가 바뀌어야
-합니다. Adapter source의 `MIG-` literal/oracle/static path와 DB import를 금지하고, 두 독립
-Go actual 결정성, static ordered 12 mismatch, unknown scenario fail-closed를 함께 유지합니다.
-상세 증거는
-[EVID-20260808-009](status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)에
-기록합니다.
-
-GDJ-0011은 MIG-017..026을 여섯 번째 reference set으로 추가했습니다. Success plan은
-migration별 commit과 ordered schema/recorder outcome을, failure plan은 앞선 durable step,
-실패 step rollback 또는 partial commit과 이후 `not_started`를 구분합니다. Mixed plan은 첫
-domain step 전에 거부하고 empty plan은 recorder/backend mutation 없는 no-op입니다.
-
-External metrics는 connection summary와 compact ordered steps만 비교합니다. Raw render/
-operation/recorder/transaction event는 live scenario가 compact observation을 사실에서
-유도하는지 확인하는 내부 assertion이며 protocol payload가 아닙니다. Historical
-before/after는 MIG-019에만, recorder fault point는 MIG-023/024에
-`before_record_write`로만 노출합니다. MIG-024는 schema A1, records A1/A2와 `commit` phase를
-고정해 Django backward의 schema-then-record partial commit을 숨기지 않습니다.
-
-여섯 set의 ID/scenario는 전역으로 유일하며 30개 ordered cross-pair가 모두 거부됩니다.
-Two-process/random hash-seed exact bytes, step order/direction/status, transaction model,
-schema/recorder outcome, historical transition, failure/not-started, fault point와
-mixed/empty state mutation을 각각 검증합니다. Static fixture는 ordered 10 mismatch이며
-product `godjcheck`는 exit 2/no actual output입니다.
-
-GDJ-0011 완료 당시 `make godj-conformance`는 기존 다섯 adapter 57개만 0-diff로
-실행했고 sixth set 10개는 `oracle_locked`였습니다. 당시 증거는
-[EVID-20260808-010](status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts)에
-기록합니다. GDJ-0012는 reference oracle/core comparator를 완화하지 않고 6 exact
-`passing`과 4 atomic-reverse `deviation`을 별도
-`godj-migration-execution-deviation-expected.json`으로 검증합니다. Reference manifest의
-Django phase는 유지하고 effective product phase는 code-owned selector policy와
-fail-closed harness 안에서만 적용합니다. Missing/extra/unregistered change, 잘못된
-status/provenance 또는 fixture 누락은 actual을 쓰기 전에 exit 2로 실패해야 합니다.
-GDJ-0012 완료 당시 `make godj-conformance`는 여섯 제품 set의 67개를 실행했고 결과를
-`63 passing + 4 deviation`으로 구분해 보고했습니다. 상세 제품 증거는
-[EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
-기록합니다.
-
-GDJ-0013은 MIG-027..036을 일곱 번째 reference set으로 추가했습니다. Recorder table
-absent/empty, record/unrecord fresh read, database isolation, applied-prefix/fully-applied plan,
-unknown/known history와 middle-failure restart를 비교합니다. Fresh는 setup object의 cache
-재사용이 아니라 durable database에서 새 recorder/loader/executor를 구성하는 뜻입니다.
-
-일곱 set의 ID/scenario는 전역으로 유일하며 42개 ordered cross-pair를 모두 거부합니다.
-Two-process random-hashseed exact bytes, recorder presence/identity/setup transition, alias
-partition, plan order/direction/empty, unknown partition, history error와 pre-plan timing,
-durable prefix/tail, DDL/write/기타 non-SELECT 0과 before/after state를 각각 변형합니다.
-Static fixture는 ordered 10 mismatch이고 product `godjcheck`는 exit 2/no actual output입니다.
-
-GDJ-0013 완료 당시 새 set은 10 `oracle_locked`이며 `make godj-conformance`는 계속 제품
-adapter가 있는 여섯 set만 실행해 `63 passing + 4 deviation`을 보고했습니다. 당시
-reference 총 77개를 제품 통과로 세지 않습니다. 상세 증거는
-[EVID-20260808-012](status/TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)에
-기록합니다.
-
-GDJ-0014는 일곱 번째 live adapter를 별도 `AppliedMigrationReader`, core
-`LoadAppliedState`/`Planner.CheckHistory`와 SQLite read-only recorder reader에
-연결했습니다. File-backed database를 닫고 새 backend로 다시 열어 fresh boundary를
-검증하며, absent table read의 no-create, exact missing-table normalization, raw invalid/
-duplicate identity, unknown legacy preservation, pre-plan history timing, deterministic tail과
-zero mutation을 unit/integration/race/source gate와 함께 확인합니다.
-
-Manifest status는 10 `passing`으로 바뀌어 10,165 bytes, SHA-256
-`79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290`입니다. Locked
-Django oracle과 static fixture는 각각 33,888 bytes/
-`90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`, 1,715 bytes/
-`31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`로 유지됩니다. 두
-독립 Go actual은 각각 33,795 bytes, SHA-256
-`f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`이고 protocol
-의미상 10개 0-diff입니다. GDJ-0014 완료 당시 `make godj-conformance`는 일곱 제품 set을 실행해
-`73 passing + 4 deviation`을 구분해 보고하며, static ordered 10 mismatch와 42
-cross-binding도 계속 보존합니다. 상세 증거는
-[EVID-20260808-013](status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
-기록합니다.
-
-GDJ-0015는 MIG-037..046을 여덟 번째 reference set으로 추가했습니다. Explicit empty,
-first/middle before·after, cross-app dependency, multiple target/shared dependency,
-omitted-target latest leaves, applied-prefix startup과 unrelated-known branch inclusion을
-loaded migration definition의 state replay 결과로 비교합니다. Unknown legacy identity는
-applied observation에 남기되 schema state로 만들지 않고, deliberately divergent live
-database는 capture 전후 불변이어야 합니다.
-
-여덟 set의 ID/scenario는 전역으로 유일하며 56개 ordered cross-pair를 모두 거부합니다.
-State의 app/model/field 포함, table/column, field kind/primary-key/null/max-length/default,
-request mode/target/position, applied membership, graph dependency와 DB/metrics를 각각
-변형하는 semantic gate를 둡니다. 두 random-hashseed exact process와 checked-in oracle은
-byte-identical합니다. Static fixture는 MIG-037..046 ordered 10 mismatch이고 제품
-`godjcheck`는 exit 2/no actual output으로 fail-closed합니다.
-
-Manifest는 9,257 bytes, SHA-256
-`04b7e92a5bbf9ff50f0247be7708dfb18a5534e40bac86a518a6b744fc0ef728`, Django oracle은
-89,997 bytes, SHA-256
-`bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`, static fixture는
-1,715 bytes, SHA-256
-`9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1`입니다. 새 10개는
-`oracle_locked`이고 GDJ-0015 완료 당시 `make godj-conformance`는 일곱 product set만
-실행했으므로 분류는 `73 passing + 4 deviation + 10 oracle_locked`, reference 총계는
-87개였습니다. 상세
-증거는
-[EVID-20260808-014](status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)에
-기록합니다.
-
-완료된 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
-Accepted [ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 immutable
-reconstructor와 explicit empty/latest/before/after/applied request API, read-only
-recorder-backed live adapter를 구현했습니다. Passing manifest는 9,197 bytes, SHA-256
-`85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c`입니다. Locked
-oracle/static/SHA256SUMS는 불변이고, 두 actual은 각각 89,867 bytes, SHA-256
-`a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
-byte-identical하며 oracle과 protocol 의미상 10개 0-diff입니다. `make godj-conformance`는
-8 product set을 실행해 `83 passing + 4 deviation`을 보고하며 87 unique contract와 56
-cross-binding, static ordered 10 mismatch를 유지합니다. 상세 증거는
-[EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
-기록합니다.
-
-GDJ-0017은 MIG-047..056을 아홉 번째 reference set으로 추가했습니다. Public Django
-orchestration의 fresh/prefix/target/reverse/zero/unknown/preflight/failure/restart 의미를
-compact state/schema/recorder/step payload로 비교하고 SQL 문자열, SELECT count, timestamp,
-path와 reverse private transaction topology는 제외합니다. 아홉 set 97 ID/scenario와 72
-ordered cross-binding, contract-ID independence, definition/target/fault/seed/legacy mutation,
-two-process oracle byte identity, static ordered 10 mismatch와 product exit 2/no actual을
-검증합니다.
-
-`conformance/lifecyclefence/**`는 제품 package를 바꾸지 않는 test-only gate입니다. Current
-unfenced stale acceptance를 먼저 재현한 뒤 persistent epoch+revision CAS와 fingerprint 보조
-검증으로 stale-before-write, step 사이 conflict, two-connection/process single winner,
-uninitialized bootstrap, all-stage BUSY/LOCKED, DDL/recorder 이후 rollback, exact no-retry와
-legacy capability fail-closed를 검증합니다. 이 gate의 성공을 public lifecycle API나 crash-safe
-제품 구현으로 분류하지 않습니다. 상세 증거는
-[EVID-20260808-016](status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)에
-기록합니다.
-
-## 기능별 기본 테스트 요구
-
-모든 테스트 종류를 모든 작은 변경에 억지로 추가하지는 않습니다. 위험에 맞게 선택하되, 다음 변경은 기본 gate를 가집니다.
-
-| 변경 | 최소 검증 |
-|---|---|
-| Schema/IR | validation, normalization, round-trip, deterministic hash, fuzz |
-| Codegen | golden, idempotency, compile, stale output, multi-file failure atomicity |
-| Typed query API | compile-positive/negative, AST invariant, differential result |
-| Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
-| Query execution | integration, cancellation, resource close, backend contract |
-| QuerySet cache/terminal | state ownership, singleflight, cancellation isolation, clone alias, cold/warm I/O, differential |
-| Migration | state diff, graph construction, applied pruning, forward/backward, recorder absent/fresh read, raw history validation, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock; historical reconstruction은 별도 contract와 제품 replay/round-trip/determinism gate 뒤에만 지원으로 분류 |
-| Concurrency | `go test -race`, cancellation, goroutine/connection leak |
-| Backend | capability matrix, conformance, explicit unsupported errors |
-| Security boundary | regression test, adversarial input, no silent fallback |
-
-## 테스트 증거
-
-“테스트 통과”라는 문장만 남기지 않습니다. [status/TEST_EVIDENCE.md](status/TEST_EVIDENCE.md)에 다음을 기록합니다.
-
-- 날짜와 checkout/commit
-- 환경과 backend
-- 실행한 정확한 명령
-- pass/fail/skip 수와 exit status
-- 실패 또는 실행하지 못한 항목
-- 관련 contract/work ID
-
-checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 뜻하지 않습니다.
-
-## CI gate 순서
-
-구현이 생기면 빠른 gate부터 실행합니다.
-
-1. format/static checks와 manifest validation
-2. unit/compile/golden tests
-3. SQLite integration과 differential subset
-4. race/fuzz의 제한된 CI profile
-5. backend matrix와 긴 conformance suite
-6. release 전 security/performance/migration matrix
-
-실제 command는 toolchain과 파일이 생긴 작업에서 확정합니다. 존재하지 않는 명령을 현재 표준처럼 문서화하지 않습니다.
+코드 규모는 `go run ./scripts/sourceinventory`로 집계한다. 현재 작업 사본의 Git 추적 파일과 무시되지 않은 새 Go/Python 파일을
+포함하고 삭제된 파일은 제외한다. `-revision COMMIT`은 고정 commit의 바이트를 읽는다. Go는 `ast.IsGenerated`로 판정하고
+test → generated → conformance 지원 → examples → framework/CLI/generator/support 순서로 중복 없이 분류한다.
+생성 머리말을 문자열로 출력하는 수작업 생성기는 generated가 아니다. 빈 줄·주석도 줄 수에 포함하며 source digest와 파일별
+SHA-256을 함께 출력한다. 이 집계는 품질이나 성능을 대신하는 목표값이 아니다.

@@ -1,56 +1,37 @@
-# 구현·호환 상태표
+# 현재 구현 범위
 
-- 마지막 갱신: 2026-08-08
-- `Design`은 문서 결정, `Code`는 현재 checkout 구현, `Verified`는 기록된 실행 증거를 뜻합니다.
-- `—`는 해당 검증이 아직 적용되지 않음을 뜻하며 pass가 아닙니다.
+코드가 존재하는 범위와 검증 환경을 구분한다. 아래 기능은 모두 bounded subset이며 Django 전체 구현률을 뜻하지 않는다.
+현재 작업 상태는 [CURRENT](CURRENT.md), 실제 명령·source·환경별 결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
-| Capability | Contract | Design | Code | Unit/Compile | Differential | Backend |
-|---|---|---|---|---|---|---|
-| Compatibility profile | META-001 | Accepted exact profile | Implemented | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | Nine reference sets and eight product adapter sets bound to one exact profile | Django 6.1 / SQLite 3.50.4 reference |
-| Contract/oracle harness | META-002 | Accepted protocol v2 + fail-closed deviation policy | Nine-set Django reference harness + eight GoDj product adapters + explicit static/deviation baselines | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | Product `83 passing + 4 deviation` plus 10 `oracle_locked`; 97 unique contracts and nine-set 72 cross-bindings | Django exact reference + Go SQLite 3.53.3 |
-| Write/migration reference oracle | MOD-001..MOD-007, MIG-001..MIG-004 | Accepted compatibility contracts | Django oracle + GoDj runtime adapter + explicit not-implemented fixture | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | 11 `passing`; static fixture는 expected 11 mismatch | Django 6.1 / SQLite 3.50.4 vs Go SQLite 3.53.3 |
-| Django model metadata oracle | SCH-001 | Accepted M0 observation | Django reference + generated descriptor projection implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | `passing` | Django SQLite 3.50.4 / Go SQLite 3.53.3 |
-| Schema DSL | SCH-M1-001 subset | M1 scope Accepted | Auto/Char/Boolean/nullable Article + typed scalar default | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | SCH-001 `passing` through IR/codegen | — |
-| Normalized Schema IR | SCH-M1-001 | [ADR-0001](../adr/0001-schema-ir-as-canonical-source.md) Accepted | Version 2 normalize/validate/canonical hash/default deep clone | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | SCH-001 `passing` | — |
-| Deterministic codegen | GEN-M1-001 | ADR-0002/0006/0009/0011/0012 Accepted | v3 read model + `CloneModel` + create/patch/write descriptor + Save/key helpers, hash/golden/check/last-good | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | SCH/MOD/QRY generated paths `passing` | external positive/negative compile |
-| Codegen bootstrap | GEN-010 / GEN-M1-001 | [ADR-0006](../adr/0006-codegen-input-package-boundary.md) Accepted | M0 spike + production overlay compile-only replacement implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | — | missing/stale target fixtures |
-| Generated model/FieldSet | GEN-M1-001 | ADR-0007/0009/0011/0012 Accepted for verified subset | Article/FieldSet/descriptor/Manager/`CloneModel`/create/patch/Save option binding implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | QRY/SCH/MOD subset `passing` | SQLite 3.53.3 |
-| Generic Manager/QuerySet | QRY-001..QRY-021 | ADR-0003/0007/0012 Accepted for verified subset | Filter/OrderBy/Limit/Fresh + cached All/Count/Exists/At/First/Iterate implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | 21 QRY contracts `passing` | SQLite 3.53.3 |
-| Typed predicate API | QRY-M1-001 | ADR-0003/0007 Accepted for M1 | exact/icontains/isnull + typed order implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | relevant QRY contracts `passing` | external negative compile |
-| Dynamic lookup API | QRY-008/QRY-010 + QRY-M1-001 | [ADR-0007](../adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) Accepted for M1 | Ordered ParseDynamic + policy/error taxonomy implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | QRY-008/010 `passing` | pre-execution validation |
-| Shared Query AST | QRY-M1-001 | ADR-0003 Accepted | Immutable Plan/Condition/Ordering/Value subset implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | typed/dynamic equality + QRY `passing` | SQLite compiler |
-| QuerySet evaluation/cache reference | QRY-011..QRY-021 | Accepted GDJ-0007 contracts | Django runner/oracle + explicit not-implemented fixture | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | 11 `passing`; static fixture remains expected 11 mismatch | Django 6.1 / SQLite 3.50.4 |
-| QuerySet cache/terminal product | Q-007, Q-011 / QRY-011..QRY-021 | [ADR-0012](../adr/0012-queryset-evaluation-cache-ownership.md) Accepted; GDJ-0008 completed | Shared evaluation state, singleflight, deep clone, `Fresh`, and six terminal APIs implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | 11 `passing` | SQLite 3.53.3 |
-| SQLite query execution | DB-SQLITE-001 | [ADR-0008](../adr/0008-m1-sqlite-driver-and-execution-boundary.md) Accepted for M1 | Compiler/executor/context/cleanup + structured `missing_table` subset implemented | [Pass EVID-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice) | QRY-001..021 `passing` | modernc v1.56.0 / SQLite 3.53.3 |
-| SQLite mutation/transaction | MOD-001..MOD-007 | [ADR-0009](../adr/0009-m2-explicit-write-change-state.md) Accepted | Parameterized one-row mutation + callback-bound Atomic implemented | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | MOD-001..007 `passing` | modernc v1.56.0 / SQLite 3.53.3 |
-| Model write lifecycle subset | MOD-001..MOD-007 | [ADR-0009](../adr/0009-m2-explicit-write-change-state.md) Accepted | Generated create/patch + Manager create/update/delete implemented | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | 7 `passing`; instance Save is separate row, dirty/bulk not claimed | SQLite 3.53.3 |
-| Save lifecycle reference oracle | MOD-008..MOD-019 | Accepted GDJ-0005 contracts | Django runner/oracle + explicit not-implemented fixture | [Pass EVID-005](TEST_EVIDENCE.md#evid-20260808-005--gdj-0006-save-lifecycle-product-slice) | 12 `passing`; static fixture는 expected 12 mismatch | Django 6.1 / SQLite 3.50.4 |
-| Mutable instance Save product | MOD-008..MOD-019 | [ADR-0011](../adr/0011-m2-save-lifecycle-orchestration.md) Accepted | Manager Save, typed/dynamic mask, force, explicit key/fallback implemented | [Pass EVID-005](TEST_EVIDENCE.md#evid-20260808-005--gdj-0006-save-lifecycle-product-slice) | 12 `passing` | SQLite 3.53.3 |
-| Migration state/executor subset | MIG-001..MIG-004 | [ADR-0010](../adr/0010-m2-migration-state-and-executor-boundary.md) Accepted | ProjectState/CreateModel/AddField/Executor implemented | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | MIG-001..004 `passing` | backend-neutral core |
-| SQLite migration editor/recorder | MIG-001..MIG-004 | [ADR-0010](../adr/0010-m2-migration-state-and-executor-boundary.md) Accepted | Same-transaction DDL/recorder + explicit capability errors | [Pass EVID-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton) | 4 `passing`; file/graph/lock not claimed | modernc v1.56.0 / SQLite 3.53.3 |
-| Migration planning reference | MIG-005..MIG-016 | Accepted GDJ-0009 contracts | Django runner/oracle + GoDj public Planner adapter + explicit not-implemented fixture | [Pass EVID-009](TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice) | 12 `passing`; static ordered 12 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Migration graph/planner product | MIG-005..MIG-016 / Q-012 | [ADR-0013](../adr/0013-immutable-migration-planner.md) Accepted; GDJ-0010 completed | Immutable identity graph, separate AppliedState, canonical zero-I/O Planner와 structured errors implemented | [Pass EVID-009](TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice) | 12 `passing`; pure zero-I/O planner subset | Backend-neutral pure structural boundary |
-| Migration plan execution reference | MIG-017..MIG-026 / Q-012 | Accepted GDJ-0011 contracts | Django runner/oracle + GoDj live adapter + explicit static/deviation fixtures | [Pass EVID-011](TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse) | 6 `passing` + 4 verified `deviation`; Django oracle 10 `observed`; static ordered 10 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Migration plan execution product | MIG-017..MIG-026 / Q-012 / DEV-0001 | [ADR-0014](../adr/0014-migration-plan-execution-atomic-reverse.md) Accepted; GDJ-0012 completed | Full-preflight `ExecutePlan`, per-migration commit, last durable state, cancellation와 same-transaction reverse implemented | [Pass EVID-011](TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse) | 6 exact `passing` + 4 DEV-0001 expected 0-diff | Existing backend interface + modernc SQLite 3.53.3 |
-| Recorder-backed restart planning reference | MIG-027..MIG-036 / Q-012 | Accepted GDJ-0013 contracts | Django runner/oracle + GoDj live adapter + explicit not-implemented fixture | [Pass EVID-013](TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice) | 10 `passing`; Django oracle 10 `observed`; static ordered 10 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Recorder-backed restart planning product | MIG-027..MIG-036 / Q-012 | [ADR-0015](../adr/0015-recorder-backed-applied-state.md) Accepted; GDJ-0014 completed | Separate applied-history reader, `LoadAppliedState`, `CheckHistory`, SQLite fresh-file read와 live adapter implemented | [Pass EVID-013](TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice) | 10 `passing`; Django oracle와 protocol 의미상 0-diff | Backend-neutral reader/core + modernc SQLite 3.53.3 |
-| Historical ProjectState reconstruction reference | MIG-037..MIG-046 / Q-012 | Accepted GDJ-0015 contracts | Locked Django runner/oracle + explicit not-implemented fixture | [Pass EVID-015](TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice) | Product manifest 10 `passing`; Django oracle 10 `observed`; static ordered 10 mismatch | Django 6.1 / SQLite 3.50.4 reference |
-| Historical ProjectState reconstruction product | MIG-037..MIG-046 / Q-012 | [ADR-0016](../adr/0016-historical-project-state-reconstruction.md) Accepted; GDJ-0016 completed | Immutable tagged-request `StateReconstructor`, cloned definition/state replay, read-only recorder-backed live adapter implemented | [Pass EVID-015](TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice) | 10 `passing`; two byte-identical Go actuals and Django oracle protocol 10/0-diff | Backend-neutral pure core + mode=ro modernc SQLite 3.53.3 adapter |
-| Migration lifecycle reference | MIG-047..MIG-056 / Q-012 | Accepted GDJ-0017 contracts | Locked Django public-orchestration runner/oracle + explicit not-implemented fixture; GoDj adapter 없음 | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | 10 `oracle_locked`; Django oracle 10 `observed`; static ordered 10 mismatch; product exit 2/no actual | Django 6.1 / SQLite 3.50.4 reference |
-| Revision-fenced migration lifecycle feasibility | Q-012 | [ADR-0017](../adr/0017-revision-fenced-migration-lifecycle.md) Accepted safety direction; GDJ-0017 completed | Test-only SQLite fence/coordinator와 current product stale-gap characterization; 제품 source/API 미구현 | [Pass EVID-016](TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike) | Stale-before-write/between-step, single-winner, rollback, contention, unsupported와 process repetition pass; product differential 적용 안 됨 | modernc SQLite 3.53.3 test-only spike |
-| Relations | REL-001+ | Open Q-013 / M3 | Not started | Not run | Not run | — |
-| PostgreSQL backend | DB-PG-001+ | Planned M3 | Not started | Not run | Not run | Not started |
-| Web core | WEB-001+ | Long-term accepted | Not started | Not run | Not run | — |
-| Forms/Auth/Admin | FRM/AUT/ADM | Long-term accepted | Not started | Not run | Not run | — |
-| API | API-001+ | Profile open Q-016 | Not started | Not run | Not run | — |
-| Realtime | RTM-001+ | Profile open Q-016 | Not started | Not run | Not run | — |
-| MySQL/MariaDB/Oracle | DB-* | Planned M9 | Not started | Not run | Not run | Not started |
-| GIS/i18n/contrib | GIS/I18N/CTR | Long-term accepted | Not started | Not run | Not run | — |
+## 기능
 
-## 상태 갱신 규칙
+| 영역 | 구현된 범위 | 주요 제한·다음 경계 | 코드 |
+|---|---|---|---|
+| Schema/IR | normalized schema, current scalar/FK 의미, immutable snapshot | 모든 Django field·custom field 아님 | [schema](../../schema/) |
+| 생성 | ProjectSpec, typed model/FieldSet/descriptor와 project relation binding, 후보 compile/publication/recovery | Linux/macOS local filesystem 중심 | [codegen](../../codegen/) |
+| Query | typed/dynamic 공통 AST, Boolean composition, scalar comparison, same-model F, projection·Count/Min/Max·관계 filter Count | annotation/grouping/subquery/window/bulk/locking은 별도 | [orm](../../orm/), [query](../../query/) |
+| 평가 | lazy query, full-result cache, cloning, iterator와 cancellation | 임의 model/callback의 goroutine 안전성을 포함하지 않음 | [ORM cache](../CONCURRENCY.md#queryset-평가) |
+| 관계 | AutoField-target FK, 자기·상호 참조 선언/생성, lazy/forward/reverse, prefetch/eager All·First, assignment/cache, PROTECT/SET_NULL | eager First는 명시적 정렬 필요; eager Count·임의 깊이/다중 관계 탐색·일반 순환 관계 동작·ManyToMany/OneToOne 미지원 | [관계 소유권](../CONCURRENCY.md#관계-객체) |
+| Migration | strict current definition, historical replay, immutable planner, revision fence, durable prefix, bounded reverse | arbitrary custom/data operation·general schema repair·fake/squash 미지원 | [migrations](../../migrations/) |
+| Migration CLI | project check, migrate/plan/target, showmigrations, bounded makemigrations, forward sqlmigrate | writer는 지원하는 difference만 작성 | [project](../../project/), [CLI](../../cmd/godj/) |
+| SQLite/PostgreSQL | current AST/CRUD/migration/system-state paths | 각 backend capability와 물리 schema precondition 적용 | [Backend Matrix](../BACKEND_MATRIX.md) |
+| SQLite quarantine | retained handle 최대 1, 이후 새 I/O 거부, explicit Close | GDJ-0057 통합 source의 backend/platform/mode 검증 완료 | [lifecycle](../../db/sqlite/relation_transaction.go) |
+| Web | request context, routing/reverse, middleware, bounded HTTP errors, server lifecycle | arbitrary converters/realtime/production deployment toolkit 미지원 | [web](../../web/) |
+| Template/Form | closed safe template value, escaping, validation, model field allowlist projection | 선택한 scalar 입력만 편집; arbitrary callable/attribute 실행 없음 | [templates](../../templates/), [forms](../../forms/) |
+| Admin | registry, permission, CRUD/history/action composition, read-only 등록 | 선택한 model field만 편집; 모든 relation UI의 일반화를 뜻하지 않음 | [admin](../../admin/) |
+| JSON API | model-derived allowlist serializer, bounded parser, PUT/PATCH, pagination/filter, authentication profile | OpenAPI/browsable API/일반 viewset 자동화 미지원 | [api](../../api/), [serializers](../../serializers/) |
+| Auth/session | password hashing, Session/CSRF, injected strict Bearer verifier, rotation/logout | token issuer/JWT/OAuth/OIDC/password reset·multi-user lifecycle 별도 | [auth](../../auth/), [sessions](../../sessions/) |
+| Durable system state | explicit provision/open, permission CAS와 session 폐기, cooperative application transaction | 비협력 writer·자동 policy/key 전파 미지원 | [systemstate](../../systemstate/) |
+| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 티켓 상세 조회 | GDJ-0058 상세 조회는 SQLite/PostgreSQL normal/race/CGO-disabled 검증; 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님 | [examples](../../examples/) |
 
-- `Code = Implemented`는 관련 source가 현재 checkout에 있을 때만 사용합니다.
-- `Unit/Compile = Pass`와 `Differential = passing`은 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)의 evidence ID를 셀 또는 주석에 연결합니다.
-- backend 이름만 적지 않고 exact profile을 evidence에 기록합니다.
-- 기능 일부만 통과하면 행을 더 잘게 나눕니다. 부분 구현을 전체 capability의 pass로 올리지 않습니다.
-- intentional deviation은 [COMPATIBILITY.md](../COMPATIBILITY.md)의 정책과 ADR 링크를 함께 남깁니다.
+## 계약과 증거
+
+Machine contract/provenance/status는 [conformance/contracts](../../conformance/contracts/)가 소유한다.
+Reference-only MIG-075..086은 미등록 진단 reference이며 제품 passing으로 세지 않는다.
+Django와 다른 결과는 [DEVIATIONS](../DEVIATIONS.md)에 제한된 차이로 기록한다.
+
+GDJ-0057의 `0b8235c`는 전체 통합, GDJ-0058의 `aca9115`는 관련 ORM scope를 검증했다.
+과거 결과와 합쳐 PASS로 표시하지 않으며 Quick feedback, 관련 backend 검증과 전체 platform 검증은 각각 자신의 범위만 증명한다.
+
+Realtime, MySQL/MariaDB/Oracle, GIS/i18n/contrib와 넓은 ORM/Form/Admin/API는 [장기 범위](../CAPABILITY_CATALOG.md)이며
+현재 지원 항목이 아니다.

@@ -26,6 +26,7 @@ from django.db.migrations.operations.models import CreateModel
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.migrations.state import ProjectState
 
+from .migration_observation import Dependency, NodeKey, graph_facts, key_value, key_values, managed_schema
 from .normalizer import normalize
 from .scenarios import configure_django
 
@@ -33,8 +34,6 @@ from .scenarios import configure_django
 configure_django()
 
 
-NodeKey = tuple[str, str]
-Dependency = tuple[NodeKey, NodeKey]
 Plan = Sequence[tuple[Migration, bool]]
 
 _A1 = ("alpha", "0001_initial")
@@ -55,14 +54,6 @@ class ConformanceRestartOperationFailure(RuntimeError):
     """Stable sentinel used to leave a durable prefix after a failed step."""
 
 
-def _key_value(key: tuple[str, str | None]) -> dict[str, str | None]:
-    return {"app": key[0], "name": key[1]}
-
-
-def _key_values(keys: Sequence[tuple[str, str | None]]) -> list[dict[str, Any]]:
-    return [_key_value(key) for key in keys]
-
-
 def _migration_key(migration: Migration) -> NodeKey:
     return (migration.app_label, migration.name)
 
@@ -76,19 +67,6 @@ def _plan_value(plan: Plan) -> list[dict[str, str]]:
         }
         for migration, backwards in plan
     ]
-
-
-def _graph_facts(
-    nodes: Sequence[NodeKey],
-    dependencies: Sequence[Dependency],
-) -> dict[str, Any]:
-    return {
-        "dependencies": [
-            {"child": _key_value(child), "parent": _key_value(parent)}
-            for child, parent in sorted(dependencies)
-        ],
-        "nodes": _key_values(sorted(nodes)),
-    }
 
 
 def _statement_kind(sql: str) -> str:
@@ -134,60 +112,12 @@ def _capture_error(
     raise AssertionError(f"expected {expected.__name__}")
 
 
-def _type_family(type_code: Any) -> str:
-    rendered = str(type_code).lower()
-    if "int" in rendered:
-        return "integer"
-    if "char" in rendered or "clob" in rendered or "text" in rendered:
-        return "text"
-    if "bool" in rendered:
-        return "boolean"
-    if "date" in rendered or "time" in rendered:
-        return "datetime"
-    return rendered
-
-
-def _managed_schema(database_connection: Any) -> list[dict[str, Any]]:
-    inventory: list[dict[str, Any]] = []
-    with database_connection.cursor() as cursor:
-        for table in sorted(database_connection.introspection.table_names(cursor)):
-            if not table.startswith(_MANAGED_TABLE_PREFIX):
-                continue
-            description = database_connection.introspection.get_table_description(
-                cursor, table
-            )
-            constraints = database_connection.introspection.get_constraints(
-                cursor, table
-            )
-            primary_key_columns = {
-                column
-                for constraint in constraints.values()
-                if constraint["primary_key"]
-                for column in constraint["columns"]
-            }
-            inventory.append(
-                {
-                    "columns": [
-                        {
-                            "name": column.name,
-                            "nullable": column.null_ok,
-                            "primary_key": column.name in primary_key_columns,
-                            "type_family": _type_family(column.type_code),
-                        }
-                        for column in sorted(description, key=lambda item: item.name)
-                    ],
-                    "name": table,
-                }
-            )
-    return inventory
-
-
 def _database_snapshot(database_connection: Any) -> dict[str, Any]:
     recorder = MigrationRecorder(database_connection)
     applied = sorted(recorder.applied_migrations())
     return {
-        "applied_migrations": _key_values(applied),
-        "managed_schema": _managed_schema(database_connection),
+        "applied_migrations": key_values(applied),
+        "managed_schema": managed_schema(database_connection, _MANAGED_TABLE_PREFIX, primary_keys=True, datetime_types=True),
         "recorder_present": recorder.has_table(),
     }
 
@@ -480,7 +410,7 @@ def absent_recorder_read(contract_id: str) -> dict[str, Any]:
             raise AssertionError("reading an absent recorder created its table")
         return _success_observation(
             contract_id,
-            {"applied_migrations": _key_values(sorted(applied))},
+            {"applied_migrations": key_values(sorted(applied))},
             before,
             after,
             statements,
@@ -500,7 +430,7 @@ def empty_recorder_read(contract_id: str) -> dict[str, Any]:
         after = _database_snapshot(connection)
         return _success_observation(
             contract_id,
-            {"applied_migrations": _key_values(sorted(applied))},
+            {"applied_migrations": key_values(sorted(applied))},
             before,
             after,
             statements,
@@ -521,8 +451,8 @@ def record_visible_to_fresh_reader(contract_id: str) -> dict[str, Any]:
         return _success_observation(
             contract_id,
             {
-                "applied_migrations": _key_values(sorted(applied)),
-                "recorded_migration": _key_value(_A1),
+                "applied_migrations": key_values(sorted(applied)),
+                "recorded_migration": key_value(_A1),
             },
             before,
             after,
@@ -530,7 +460,7 @@ def record_visible_to_fresh_reader(contract_id: str) -> dict[str, Any]:
             restart_boundary="fresh_recorder",
             facts={
                 "setup": {
-                    "migration": _key_value(_A1),
+                    "migration": key_value(_A1),
                     "transition": "recorded",
                 }
             },
@@ -553,8 +483,8 @@ def unrecord_hidden_from_fresh_reader(contract_id: str) -> dict[str, Any]:
         return _success_observation(
             contract_id,
             {
-                "applied_migrations": _key_values(sorted(applied)),
-                "unrecorded_migration": _key_value(_A1),
+                "applied_migrations": key_values(sorted(applied)),
+                "unrecorded_migration": key_value(_A1),
             },
             before,
             after,
@@ -562,7 +492,7 @@ def unrecord_hidden_from_fresh_reader(contract_id: str) -> dict[str, Any]:
             restart_boundary="fresh_recorder",
             facts={
                 "setup": {
-                    "migration": _key_value(_A1),
+                    "migration": key_value(_A1),
                     "transition": "recorded_then_unrecorded",
                 }
             },
@@ -587,13 +517,13 @@ def database_alias_isolation(contract_id: str) -> dict[str, Any]:
                 "databases": [
                     {
                         "alias": "default",
-                        "applied_migrations": _key_values(
+                        "applied_migrations": key_values(
                             sorted(default_reader.applied_migrations())
                         ),
                     },
                     {
                         "alias": "other",
-                        "applied_migrations": _key_values(
+                        "applied_migrations": key_values(
                             sorted(other_reader.applied_migrations())
                         ),
                     },
@@ -622,11 +552,11 @@ def applied_prefix_tail(contract_id: str) -> dict[str, Any]:
             if executor is setup_executor:
                 raise AssertionError("restart reused the setup executor")
             return {
-                "applied_migrations": _key_values(
+                "applied_migrations": key_values(
                     sorted(executor.loader.applied_migrations)
                 ),
                 "plan": _plan_value(plan),
-                "target": _key_value(_A3),
+                "target": key_value(_A3),
             }
 
         result, statements = _capture([connection], restart)
@@ -638,7 +568,7 @@ def applied_prefix_tail(contract_id: str) -> dict[str, Any]:
             after,
             statements,
             restart_boundary="fresh_executor",
-            facts={"graph": _graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
+            facts={"graph": graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
         )
 
 
@@ -652,11 +582,11 @@ def fully_applied_empty_plan(contract_id: str) -> dict[str, Any]:
             if executor is setup_executor:
                 raise AssertionError("restart reused the setup executor")
             return {
-                "applied_migrations": _key_values(
+                "applied_migrations": key_values(
                     sorted(executor.loader.applied_migrations)
                 ),
                 "plan": _plan_value(plan),
-                "target": _key_value(_A3),
+                "target": key_value(_A3),
             }
 
         result, statements = _capture([connection], restart)
@@ -668,7 +598,7 @@ def fully_applied_empty_plan(contract_id: str) -> dict[str, Any]:
             after,
             statements,
             restart_boundary="fresh_executor",
-            facts={"graph": _graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
+            facts={"graph": graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
         )
 
 
@@ -683,13 +613,13 @@ def unknown_legacy_record(contract_id: str) -> dict[str, Any]:
             applied = sorted(executor.loader.applied_migrations)
             known_nodes = set(executor.loader.graph.nodes)
             return {
-                "applied_migrations": _key_values(applied),
-                "known_applied": _key_values(
+                "applied_migrations": key_values(applied),
+                "known_applied": key_values(
                     [key for key in applied if key in known_nodes]
                 ),
                 "plan": _plan_value(plan),
-                "target": _key_value(_A3),
-                "unknown_applied": _key_values(
+                "target": key_value(_A3),
+                "unknown_applied": key_values(
                     [key for key in applied if key not in known_nodes]
                 ),
             }
@@ -703,7 +633,7 @@ def unknown_legacy_record(contract_id: str) -> dict[str, Any]:
             after,
             statements,
             restart_boundary="fresh_executor",
-            facts={"graph": _graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
+            facts={"graph": graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
         )
 
 
@@ -737,12 +667,12 @@ def inconsistent_known_history(contract_id: str) -> dict[str, Any]:
             after,
             statements,
             facts={
-                "graph": _graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES),
+                "graph": graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES),
                 "request": {
-                    "applied_migrations": _key_values([_A2]),
+                    "applied_migrations": key_values([_A2]),
                     "operation": "validate_history_before_planning",
                     "plan_invoked": plan_invoked,
-                    "target": _key_value(_A3),
+                    "target": key_value(_A3),
                 },
             },
         )
@@ -785,12 +715,12 @@ def failure_tail(contract_id: str) -> dict[str, Any]:
             ):
                 raise AssertionError("restart reused a migration fixture object")
             return {
-                "applied_migrations": _key_values(
+                "applied_migrations": key_values(
                     sorted(executor.loader.applied_migrations)
                 ),
-                "failed_migration": _key_value(_A2),
+                "failed_migration": key_value(_A2),
                 "plan": _plan_value(plan),
-                "target": _key_value(_A3),
+                "target": key_value(_A3),
             }
 
         result, statements = _capture([connection], restart)
@@ -802,7 +732,7 @@ def failure_tail(contract_id: str) -> dict[str, Any]:
             after,
             statements,
             restart_boundary="fresh_executor",
-            facts={"graph": _graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
+            facts={"graph": graph_facts(_LINEAR_NODES, _LINEAR_DEPENDENCIES)},
         )
 
 

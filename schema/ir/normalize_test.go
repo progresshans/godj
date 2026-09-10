@@ -2,6 +2,8 @@ package ir_test
 
 import (
 	"errors"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/schema"
@@ -36,8 +38,8 @@ func TestNormalizeAddsImplicitAutoFieldAndDefaults(t *testing.T) {
 	if !model.Fields[3].Nullable {
 		t.Fatal("summary should be nullable")
 	}
-	if got.FormatVersion != 2 {
-		t.Fatalf("FormatVersion = %d, want 2", got.FormatVersion)
+	if got.FormatVersion != ir.CurrentFormatVersion {
+		t.Fatalf("FormatVersion = %d, want %d", got.FormatVersion, ir.CurrentFormatVersion)
 	}
 	publishedDefault := model.Fields[2].Default
 	if publishedDefault == nil || publishedDefault.Kind != ir.ScalarBoolean || publishedDefault.Boolean {
@@ -49,7 +51,8 @@ func TestCanonicalHashIsStableAndInputIsNotMutated(t *testing.T) {
 	t.Parallel()
 
 	input := ir.Schema{
-		AppLabel: "news",
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:   "article",
 			GoName: "Article",
@@ -67,7 +70,7 @@ func TestCanonicalHashIsStableAndInputIsNotMutated(t *testing.T) {
 	if first != second {
 		t.Fatalf("hash changed: %s != %s", first, second)
 	}
-	if input.FormatVersion != 0 || len(input.Models[0].Fields) != 1 || input.Models[0].DBTable != "" {
+	if input.FormatVersion != ir.CurrentFormatVersion || len(input.Models[0].Fields) != 1 || input.Models[0].DBTable != "" {
 		t.Fatalf("Normalize mutated input: %#v", input)
 	}
 	if len(first) != 64 {
@@ -119,7 +122,8 @@ func TestNormalizeRejectsMismatchedTypedDefault(t *testing.T) {
 	t.Parallel()
 
 	_, err := ir.Normalize(ir.Schema{
-		AppLabel: "news",
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:   "article",
 			GoName: "Article",
@@ -148,13 +152,47 @@ func TestSchemaCloneDoesNotShareDefaultState(t *testing.T) {
 	}
 }
 
-func TestNormalizeRejectsSchemaIRV1(t *testing.T) {
+func TestNormalizeAndHashOwnsSchemaAndReturnsZeroOnFailure(t *testing.T) {
 	t.Parallel()
 
-	_, err := ir.Normalize(ir.Schema{FormatVersion: 1, AppLabel: "news"})
+	input := relationSchema()
+	input.Models[0].Fields = append(input.Models[0].Fields, ir.Field{
+		Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 100,
+		Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"},
+	})
+	normalized, hash, err := ir.NormalizeAndHash(input)
+	if err != nil {
+		t.Fatalf("NormalizeAndHash() error = %v", err)
+	}
+	input.Models[0].Fields[1].Relation.Target.AppLabel = "mutated"
+	input.Models[0].Fields[2].Default.String = "mutated"
+	if normalized.Models[0].Fields[1].Relation.Target.AppLabel != "authors" ||
+		normalized.Models[0].Fields[2].Default.String != "original" {
+		t.Fatal("NormalizeAndHash() retained mutable caller state")
+	}
+	if got, err := ir.Hash(normalized); err != nil || got != hash {
+		t.Fatalf("prepared hash = %q, Hash(normalized) = %q, error %v", hash, got, err)
+	}
+	normalized, hash, err = ir.NormalizeAndHash(ir.Schema{})
 	var validation *ir.ValidationError
-	if !errors.As(err, &validation) || validation.Code != "unsupported_version" {
-		t.Fatalf("error = %v, want unsupported_version ValidationError", err)
+	if !errors.As(err, &validation) || !reflect.DeepEqual(normalized, ir.Schema{}) || hash != "" {
+		t.Fatalf("invalid schema returned (%#v, %q, %v), want zero values and ValidationError", normalized, hash, err)
+	}
+}
+
+func TestNormalizeRejectsNonCurrentSchemaIRVersion(t *testing.T) {
+	t.Parallel()
+
+	for _, version := range []int{0, ir.CurrentFormatVersion + 1} {
+		version := version
+		t.Run(fmt.Sprintf("version_%d", version), func(t *testing.T) {
+			t.Parallel()
+			_, err := ir.Normalize(ir.Schema{FormatVersion: version, AppLabel: "news"})
+			var validation *ir.ValidationError
+			if !errors.As(err, &validation) || validation.Code != "unsupported_version" || validation.Path != "format_version" {
+				t.Fatalf("error = %#v, want format_version unsupported_version ValidationError", err)
+			}
+		})
 	}
 }
 
@@ -162,7 +200,8 @@ func TestNormalizeRejectsInvalidUTF8StringDefault(t *testing.T) {
 	t.Parallel()
 
 	_, err := ir.Normalize(ir.Schema{
-		AppLabel: "news",
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:   "article",
 			GoName: "Article",

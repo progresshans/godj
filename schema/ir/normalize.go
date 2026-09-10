@@ -5,12 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"unicode"
 	"unicode/utf8"
-)
 
-var databaseIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+	"github.com/progresshans/godj/internal/identifiers"
+)
 
 type ValidationError struct {
 	Path string
@@ -27,13 +25,14 @@ func (e *ValidationError) Error() string {
 
 func Normalize(input Schema) (Schema, error) {
 	schema := input.Clone()
-	if schema.FormatVersion == 0 {
-		schema.FormatVersion = FormatVersion
+	if schema.FormatVersion != CurrentFormatVersion {
+		return Schema{}, validation(
+			"format_version",
+			"unsupported_version",
+			fmt.Sprintf("got %d, want %d", schema.FormatVersion, CurrentFormatVersion),
+		)
 	}
-	if schema.FormatVersion != FormatVersion {
-		return Schema{}, validation("format_version", "unsupported_version", fmt.Sprintf("got %d, want %d", schema.FormatVersion, FormatVersion))
-	}
-	if !databaseIdentifier.MatchString(schema.AppLabel) {
+	if !identifiers.SQL(schema.AppLabel) {
 		return Schema{}, validation("app_label", "invalid_identifier", schema.AppLabel)
 	}
 	if len(schema.Models) == 0 {
@@ -46,16 +45,16 @@ func Normalize(input Schema) (Schema, error) {
 	for index := range schema.Models {
 		modelPath := fmt.Sprintf("models[%d]", index)
 		model := &schema.Models[index]
-		if !databaseIdentifier.MatchString(model.Name) {
+		if !identifiers.SQL(model.Name) {
 			return Schema{}, validation(modelPath+".name", "invalid_identifier", model.Name)
 		}
-		if !exportedIdentifier(model.GoName) {
+		if !identifiers.ExportedGo(model.GoName) {
 			return Schema{}, validation(modelPath+".go_name", "invalid_go_identifier", model.GoName)
 		}
 		if model.DBTable == "" {
 			model.DBTable = schema.AppLabel + "_" + model.Name
 		}
-		if !databaseIdentifier.MatchString(model.DBTable) {
+		if !identifiers.SQL(model.DBTable) {
 			return Schema{}, validation(modelPath+".db_table", "invalid_identifier", model.DBTable)
 		}
 		if duplicate(modelNames, model.Name) {
@@ -103,15 +102,19 @@ func normalizeModel(model *Model, path string) error {
 		fieldPath := fmt.Sprintf("%s.fields[%d]", path, index)
 		field := &model.Fields[index]
 		if field.Column == "" {
-			field.Column = field.Name
+			if field.Kind == FieldForeignKey {
+				field.Column = field.Name + "_id"
+			} else {
+				field.Column = field.Name
+			}
 		}
-		if !databaseIdentifier.MatchString(field.Name) {
+		if !identifiers.SQL(field.Name) {
 			return validation(fieldPath+".name", "invalid_identifier", field.Name)
 		}
-		if !exportedIdentifier(field.GoName) {
+		if !identifiers.ExportedGo(field.GoName) {
 			return validation(fieldPath+".go_name", "invalid_go_identifier", field.GoName)
 		}
-		if !databaseIdentifier.MatchString(field.Column) {
+		if !identifiers.SQL(field.Column) {
 			return validation(fieldPath+".column", "invalid_identifier", field.Column)
 		}
 		if duplicate(names, field.Name) {
@@ -137,6 +140,9 @@ func normalizeModel(model *Model, path string) error {
 }
 
 func validateField(field Field, path string) error {
+	if field.Kind != FieldForeignKey && field.Relation != nil {
+		return validation(path+".relation", "unsupported", "relation arm requires ForeignKey field kind")
+	}
 	if field.Default != nil {
 		if err := validateScalarDefault(*field.Default, path+".default"); err != nil {
 			return err
@@ -184,8 +190,52 @@ func validateField(field Field, path string) error {
 		if field.Default != nil && field.Default.Kind != ScalarBoolean {
 			return validation(path+".default", "type_mismatch", "BooleanField default must be a boolean")
 		}
+	case FieldForeignKey:
+		if field.PrimaryKey {
+			return validation(path+".primary_key", "unsupported", "ForeignKey cannot be the primary key")
+		}
+		if field.MaxLength != 0 {
+			return validation(path+".max_length", "unsupported", "ForeignKey has no max length")
+		}
+		if field.Default != nil {
+			return validation(path+".default", "unsupported", "ForeignKey defaults are not supported")
+		}
+		if field.Relation == nil {
+			return validation(path+".relation", "required", "ForeignKey requires relation metadata")
+		}
+		if err := validateForeignKeyRelation(*field.Relation, field.Nullable, path+".relation"); err != nil {
+			return err
+		}
 	default:
 		return validation(path+".kind", "unsupported_field_kind", string(field.Kind))
+	}
+	return nil
+}
+
+func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path string) error {
+	if !identifiers.SQL(relation.Target.AppLabel) {
+		return validation(path+".target.app_label", "invalid_identifier", relation.Target.AppLabel)
+	}
+	if !identifiers.SQL(relation.Target.ModelName) {
+		return validation(path+".target.model_name", "invalid_identifier", relation.Target.ModelName)
+	}
+	if relation.Cardinality != RelationManyToOne {
+		return validation(path+".cardinality", "unsupported", string(relation.Cardinality))
+	}
+	if relation.Reverse.Disabled == (relation.Reverse.Name != "") {
+		return validation(path+".reverse", "invalid", "exactly one of name or disabled must be set")
+	}
+	if relation.Reverse.Name != "" && !identifiers.SQL(relation.Reverse.Name) {
+		return validation(path+".reverse.name", "invalid_identifier", relation.Reverse.Name)
+	}
+	switch relation.OnDelete {
+	case DeleteProtect:
+	case DeleteSetNull:
+		if !nullable {
+			return validation(path+".on_delete", "invalid_nullability", "set_null requires a nullable ForeignKey")
+		}
+	default:
+		return validation(path+".on_delete", "unsupported", string(relation.OnDelete))
 	}
 	return nil
 }
@@ -218,6 +268,10 @@ func CanonicalJSON(input Schema) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return canonicalJSON(normalized)
+}
+
+func canonicalJSON(normalized Schema) ([]byte, error) {
 	data, err := json.Marshal(normalized)
 	if err != nil {
 		return nil, fmt.Errorf("marshal normalized schema: %w", err)
@@ -226,12 +280,25 @@ func CanonicalJSON(input Schema) ([]byte, error) {
 }
 
 func Hash(input Schema) (string, error) {
-	canonical, err := CanonicalJSON(input)
+	_, hash, err := NormalizeAndHash(input)
+	return hash, err
+}
+
+// NormalizeAndHash returns a caller-owned normalized schema and the SHA-256 of
+// its canonical JSON, including the trailing newline. It normalizes only once
+// and returns zero values on failure. The hash describes the returned snapshot;
+// callers that modify that schema must compute a new hash.
+func NormalizeAndHash(input Schema) (Schema, string, error) {
+	normalized, err := Normalize(input)
 	if err != nil {
-		return "", err
+		return Schema{}, "", err
+	}
+	canonical, err := canonicalJSON(normalized)
+	if err != nil {
+		return Schema{}, "", err
 	}
 	sum := sha256.Sum256(canonical)
-	return hex.EncodeToString(sum[:]), nil
+	return normalized, hex.EncodeToString(sum[:]), nil
 }
 
 func validation(path, code, info string) error {
@@ -244,20 +311,4 @@ func duplicate(seen map[string]struct{}, value string) bool {
 	}
 	seen[value] = struct{}{}
 	return false
-}
-
-func exportedIdentifier(value string) bool {
-	if value == "" || !utf8.ValidString(value) {
-		return false
-	}
-	first, size := utf8.DecodeRuneInString(value)
-	if first == utf8.RuneError || !unicode.IsUpper(first) {
-		return false
-	}
-	for _, current := range value[size:] {
-		if current != '_' && !unicode.IsLetter(current) && !unicode.IsDigit(current) {
-			return false
-		}
-	}
-	return true
 }

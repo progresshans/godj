@@ -1,0 +1,117 @@
+package definition
+
+import (
+	"reflect"
+
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+func cloneField(field ir.Field) ir.Field {
+	return field.Clone()
+}
+
+// operationValue borrows the current built-in representation. Resource checks
+// reject nil and unsupported inputs before any deep copy; loaded and encoded
+// snapshots contain only the two value forms.
+func operationValue(operation migrations.Operation) migrations.Operation {
+	switch value := operation.(type) {
+	case *migrations.CreateModel:
+		if value != nil {
+			return *value
+		}
+	case *migrations.AddField:
+		if value != nil {
+			return *value
+		}
+	}
+	return operation
+}
+
+func cloneOperation(operation migrations.Operation) migrations.Operation {
+	switch value := operationValue(operation).(type) {
+	case migrations.CreateModel:
+		value.Model = value.Model.Clone()
+		return value
+	case migrations.AddField:
+		value.Field = value.Field.Clone()
+		return value
+	default:
+		return value
+	}
+}
+
+func cloneMigration(migration migrations.Migration) migrations.Migration {
+	clone := migrations.Migration{
+		App:          migration.App,
+		Name:         migration.Name,
+		Dependencies: make([]migrations.MigrationKey, len(migration.Dependencies)),
+		Operations:   make([]migrations.Operation, len(migration.Operations)),
+	}
+	copy(clone.Dependencies, migration.Dependencies)
+	for index, operation := range migration.Operations {
+		clone.Operations[index] = cloneOperation(operation)
+	}
+	return clone
+}
+
+func cloneMigrations(definitions []migrations.Migration) []migrations.Migration {
+	clones := make([]migrations.Migration, len(definitions))
+	for index, definition := range definitions {
+		clones[index] = cloneMigration(definition)
+	}
+	return clones
+}
+
+func exactNormalized(schema ir.Schema) bool {
+	normalized, err := ir.Normalize(schema)
+	return err == nil && reflect.DeepEqual(normalized, schema)
+}
+
+func fullyNormalizedCreateModel(appLabel string, model ir.Model) bool {
+	wrapper := ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      appLabel,
+		Models:        []ir.Model{model.Clone()},
+	}
+	return exactNormalized(wrapper)
+}
+
+func fullyNormalizedAddField(appLabel string, field ir.Field) bool {
+	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldBoolean && field.Kind != ir.FieldForeignKey) {
+		return false
+	}
+
+	syntheticName := "_godj_loader_pk"
+	syntheticGoName := "GodjLoaderPK"
+	syntheticColumn := "_godj_loader_pk"
+	for field.Name == syntheticName || field.GoName == syntheticGoName || field.Column == syntheticColumn {
+		syntheticName += "_"
+		syntheticGoName += "X"
+		syntheticColumn += "_"
+	}
+	synthetic := ir.Field{
+		Name:       syntheticName,
+		GoName:     syntheticGoName,
+		Column:     syntheticColumn,
+		Kind:       ir.FieldAuto,
+		PrimaryKey: true,
+	}
+	model := ir.Model{
+		Name:    "_godj_loader_validation",
+		GoName:  "GodjLoaderValidation",
+		DBTable: "_godj_loader_validation",
+		Fields:  []ir.Field{synthetic, cloneField(field)},
+	}
+	wrapper := ir.Schema{
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      appLabel,
+		Models:        []ir.Model{model},
+	}
+	normalized, err := ir.Normalize(wrapper)
+	return err == nil &&
+		reflect.DeepEqual(normalized, wrapper) &&
+		len(normalized.Models) == 1 &&
+		len(normalized.Models[0].Fields) == 2 &&
+		reflect.DeepEqual(normalized.Models[0].Fields[1], field)
+}

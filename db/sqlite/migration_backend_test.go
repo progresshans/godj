@@ -17,7 +17,7 @@ import (
 func TestSQLiteMigrationRoundTripPreservesRowsAndRecorder(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
-	executor := migrations.Executor{Backend: backend}
+	executor := migrations.DirectExecutor{Backend: backend}
 	initial, summary := migrationTestMigrations()
 
 	state0 := migrations.EmptyProjectState()
@@ -77,7 +77,7 @@ func TestSQLiteMigrationAutoFieldDoesNotReuseDeletedMaximumID(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
 	initial, _ := migrationTestMigrations()
-	if _, err := (migrations.Executor{Backend: backend}).Apply(ctx, migrations.EmptyProjectState(), initial); err != nil {
+	if _, err := (migrations.DirectExecutor{Backend: backend}).Apply(ctx, migrations.EmptyProjectState(), initial); err != nil {
 		t.Fatalf("apply initial migration: %v", err)
 	}
 	first, err := backend.ExecContext(ctx, `INSERT INTO "godj_migration_article" ("title", "published") VALUES ('first', 0)`)
@@ -154,7 +154,7 @@ func TestSQLiteMigrationOperationFailureRollsBackAndConnectionRecovers(t *testin
 		},
 	}
 	state0 := migrations.EmptyProjectState()
-	stateAfter, err := (migrations.Executor{Backend: backend}).Apply(ctx, state0, migration)
+	stateAfter, err := (migrations.DirectExecutor{Backend: backend}).Apply(ctx, state0, migration)
 	assertSQLiteMigrationError(t, err, migrations.CategoryExecution, migrations.CodeOperationFailed, 1, "CreateModel")
 	if !stateAfter.Equal(state0) {
 		t.Fatal("operation failure changed returned state")
@@ -176,7 +176,7 @@ func TestSQLiteMigrationOperationFailureRollsBackAndConnectionRecovers(t *testin
 		t.Fatalf("query after rollback: value=%d err=%v", value, err)
 	}
 	initial, _ := migrationTestMigrations()
-	if _, err := (migrations.Executor{Backend: backend}).Apply(ctx, state0, initial); err != nil {
+	if _, err := (migrations.DirectExecutor{Backend: backend}).Apply(ctx, state0, initial); err != nil {
 		t.Fatalf("apply migration after operation rollback: %v", err)
 	}
 }
@@ -193,7 +193,7 @@ func TestSQLiteMigrationRecorderFailureRollsBackSchema(t *testing.T) {
 
 	initial, _ := migrationTestMigrations()
 	state0 := migrations.EmptyProjectState()
-	stateAfter, err := (migrations.Executor{Backend: backend}).Apply(ctx, state0, initial)
+	stateAfter, err := (migrations.DirectExecutor{Backend: backend}).Apply(ctx, state0, initial)
 	assertSQLiteMigrationError(t, err, migrations.CategoryRecorder, migrations.CodeRecordFailed, migrations.NoOperation, "")
 	if !stateAfter.Equal(state0) {
 		t.Fatal("recorder failure changed returned state")
@@ -207,7 +207,7 @@ func TestSQLiteMigrationRecorderFailureRollsBackSchema(t *testing.T) {
 func TestSQLiteMigrationReverseRecorderFailureRestoresDroppedColumn(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
-	executor := migrations.Executor{Backend: backend}
+	executor := migrations.DirectExecutor{Backend: backend}
 	initial, summary := migrationTestMigrations()
 	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
 	if err != nil {
@@ -281,8 +281,9 @@ func TestSQLiteMigrationCommitFailureRollsBackAndConnectionRecovers(t *testing.T
 	if err := transaction.Commit(ctx); err == nil {
 		t.Fatal("Commit() error = nil, want deferred foreign-key failure")
 	}
-	// This mirrors Executor's best-effort rollback after a failed commit. The
-	// modernc driver has already resolved the failed sql.Tx, so it is a no-op.
+	// This mirrors DirectExecutor's best-effort rollback after a failed literal
+	// COMMIT. Unlike driver.Tx.Commit, manual COMMIT leaves the transaction open
+	// after a deferred constraint failure, so this rollback is required.
 	if err := transaction.Rollback(ctx); err != nil {
 		t.Fatalf("Rollback() after failed Commit(): %v", err)
 	}
@@ -361,7 +362,7 @@ func TestSQLiteMigrationDropColumnRejectsDependenciesWithoutRebuild(t *testing.T
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 			backend := openMigrationTestBackend(t)
-			executor := migrations.Executor{Backend: backend}
+			executor := migrations.DirectExecutor{Backend: backend}
 			initial, summary := migrationTestMigrations()
 			state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
 			if err != nil {
@@ -451,7 +452,7 @@ func TestSQLiteMigrationDropColumnClassifiesTableDefinitionDependencies(t *testi
 func TestSQLiteMigrationAllowsNonNullableAddFieldOnEmptyTableAndReverse(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
-	executor := migrations.Executor{Backend: backend}
+	executor := migrations.DirectExecutor{Backend: backend}
 	initial, _ := migrationTestMigrations()
 	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
 	if err != nil {
@@ -497,7 +498,7 @@ func TestSQLiteMigrationAllowsNonNullableAddFieldOnEmptyTableAndReverse(t *testi
 func TestSQLiteMigrationRejectsNonNullableAddFieldOnNonemptyTable(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
-	executor := migrations.Executor{Backend: backend}
+	executor := migrations.DirectExecutor{Backend: backend}
 	initial, _ := migrationTestMigrations()
 	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
 	if err != nil {
@@ -530,10 +531,10 @@ func TestSQLiteMigrationRejectsNonNullableAddFieldOnNonemptyTable(t *testing.T) 
 	assertMigrationRecords(t, backend, "news.0001_initial")
 }
 
-func TestSQLiteMigrationRejectsNullableAddFieldDefaultWithoutBackfill(t *testing.T) {
+func TestSQLiteMigrationAllowsDefaultAddFieldOnEmptyTableWithoutPersistentDefault(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
-	executor := migrations.Executor{Backend: backend}
+	executor := migrations.DirectExecutor{Backend: backend}
 	initial, _ := migrationTestMigrations()
 	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
 	if err != nil {
@@ -553,12 +554,83 @@ func TestSQLiteMigrationRejectsNullableAddFieldDefaultWithoutBackfill(t *testing
 		}},
 	}
 	after, err := executor.Apply(ctx, state1, migration)
+	if err != nil {
+		t.Fatalf("apply default AddField on empty table: %v", err)
+	}
+	model, exists := after.Model("news", "article")
+	if !exists || len(model.Fields) != 4 || model.Fields[3].Default == nil ||
+		model.Fields[3].Default.Kind != ir.ScalarString || model.Fields[3].Default.String != "backfilled" {
+		t.Fatalf("logical default field = %#v", model.Fields)
+	}
+	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published", "summary")
+	assertSQLiteColumnHasNoPersistentDefault(t, backend, "godj_migration_article", "summary")
+	assertMigrationRecords(t, backend, "news.0001_initial", "news.0002_summary_default")
+}
+
+func TestSQLiteMigrationAllowsBooleanFalseDefaultOnEmptyTableWithoutDatabaseDefault(t *testing.T) {
+	ctx := context.Background()
+	backend := openMigrationTestBackend(t)
+	executor := migrations.DirectExecutor{Backend: backend}
+	initial, _ := migrationTestMigrations()
+	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
+	if err != nil {
+		t.Fatalf("apply initial migration: %v", err)
+	}
+	falseDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	migration := migrations.Migration{
+		App: "news", Name: "0002_featured_default",
+		Operations: []migrations.Operation{migrations.AddField{
+			AppLabel: "news", ModelName: "article",
+			Field: ir.Field{Name: "featured", GoName: "Featured", Column: "featured", Kind: ir.FieldBoolean, Default: falseDefault},
+		}},
+	}
+	state2, err := executor.Apply(ctx, state1, migration)
+	if err != nil {
+		t.Fatalf("apply boolean default AddField: %v", err)
+	}
+	model, exists := state2.Model("news", "article")
+	if !exists || len(model.Fields) != 4 || model.Fields[3].Default == nil ||
+		model.Fields[3].Default.Kind != ir.ScalarBoolean || model.Fields[3].Default.Boolean {
+		t.Fatalf("logical boolean false default = %#v", model.Fields)
+	}
+	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published", "featured")
+	assertSQLiteColumnHasNoPersistentDefault(t, backend, "godj_migration_article", "featured")
+	if _, err := backend.ExecContext(
+		ctx,
+		`INSERT INTO "godj_migration_article" ("title", "published") VALUES ('missing-featured', 0)`,
+	); err == nil {
+		t.Fatal("raw insert without featured succeeded; physical database default leaked")
+	}
+	assertMigrationRecords(t, backend, "news.0001_initial", "news.0002_featured_default")
+}
+
+func TestSQLiteMigrationRejectsDefaultAddFieldOnNonemptyTable(t *testing.T) {
+	ctx := context.Background()
+	backend := openMigrationTestBackend(t)
+	executor := migrations.DirectExecutor{Backend: backend}
+	initial, _ := migrationTestMigrations()
+	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
+	if err != nil {
+		t.Fatalf("apply initial migration: %v", err)
+	}
+	if _, err := backend.ExecContext(ctx, `INSERT INTO "godj_migration_article" ("title", "published") VALUES ('existing', 0)`); err != nil {
+		t.Fatalf("seed row: %v", err)
+	}
+	defaultValue := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	migration := migrations.Migration{
+		App: "news", Name: "0002_featured_default",
+		Operations: []migrations.Operation{migrations.AddField{
+			AppLabel: "news", ModelName: "article",
+			Field: ir.Field{Name: "featured", GoName: "Featured", Column: "featured", Kind: ir.FieldBoolean, Default: defaultValue},
+		}},
+	}
+	after, err := executor.Apply(ctx, state1, migration)
 	assertSQLiteMigrationError(t, err, migrations.CategoryCapability, migrations.CodeUnsupported, 0, "AddField")
 	if !migrationbackend.IsCapabilityError(err) {
 		t.Fatalf("Apply() error = %v, want capability error", err)
 	}
 	if !after.Equal(state1) {
-		t.Fatal("unsupported default AddField changed returned state")
+		t.Fatal("rejected default AddField changed returned state")
 	}
 	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published")
 	assertMigrationRecords(t, backend, "news.0001_initial")
@@ -588,7 +660,7 @@ func TestSQLiteMigrationHonorsCanceledContextAndReleasesConnection(t *testing.T)
 	}
 
 	initial, _ := migrationTestMigrations()
-	if _, err := (migrations.Executor{Backend: backend}).Apply(context.Background(), migrations.EmptyProjectState(), initial); err != nil {
+	if _, err := (migrations.DirectExecutor{Backend: backend}).Apply(context.Background(), migrations.EmptyProjectState(), initial); err != nil {
 		t.Fatalf("apply after canceled transaction: %v", err)
 	}
 }
@@ -722,6 +794,37 @@ func assertSQLiteColumns(t *testing.T, backend *Backend, table string, want ...s
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("columns for %s = %v, want %v", table, got, want)
 	}
+}
+
+func assertSQLiteColumnHasNoPersistentDefault(t *testing.T, backend *Backend, table, column string) {
+	t.Helper()
+	quotedTable, err := quoteIdentifier(table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := backend.database.QueryContext(context.Background(), "PRAGMA table_info("+quotedTable+")")
+	if err != nil {
+		t.Fatalf("inspect defaults for %s: %v", table, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var sequence, notNull, primaryKey int
+		var name, declaredType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&sequence, &name, &declaredType, &notNull, &defaultValue, &primaryKey); err != nil {
+			t.Fatalf("scan column for %s: %v", table, err)
+		}
+		if name == column {
+			if defaultValue.Valid {
+				t.Fatalf("column %s.%s persistent default = %q, want NULL", table, column, defaultValue.String)
+			}
+			return
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate columns for %s: %v", table, err)
+	}
+	t.Fatalf("column %s.%s not found", table, column)
 }
 
 func assertArticleRows(t *testing.T, backend *Backend, want ...articleMigrationRow) {

@@ -1,0 +1,189 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0010",
+  "contracts": [
+    {
+      "id": "MIG-103",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "cases[0].migrations[0].operations[1].fields[3].on_delete",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "CASCADE"},
+          "product": {"type": "string", "value": "PROTECT"}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[1].migrations[1].operations[0].fields[3].on_delete",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "CASCADE"},
+          "product": {"type": "string", "value": "PROTECT"}
+        }
+      ]
+    },
+    {
+      "id": "MIG-104",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "migrations[0].name",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "0002_category_article_summary_article_category"},
+          "product": {"type": "string", "value": "0002_auto_7fb2bf122b7c"}
+        }
+      ]
+    },
+    {
+      "id": "MIG-105",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "files_before",
+          "operation": "replace",
+          "reference": {"type": "list", "items": [{"type": "string", "value": "__init__.py"}]},
+          "product": {"type": "list", "items": []}
+        },
+        {
+          "dimension": "result",
+          "path": "files_after",
+          "operation": "replace",
+          "reference": {"type": "list", "items": [{"type": "string", "value": "__init__.py"}]},
+          "product": {"type": "list", "items": []}
+        },
+        {
+          "dimension": "result",
+          "path": "output",
+          "operation": "replace",
+          "reference": {
+            "type": "list",
+            "items": [
+              {"type": "string", "value": "Migrations for 'godj_migration_writer':"},
+              {"type": "string", "value": "<migration-root>/0001_initial.py"},
+              {"type": "string", "value": "+ Create model Article"}
+            ]
+          },
+          "product": {
+            "type": "list",
+            "items": [
+              {"type": "string", "value": "{\"status\":\"pending\",\"candidate_count\":1,\"candidates\":[{\"app\":\"blog\",\"name\":\"0001_initial\",\"path\":\"migrations/blog_0001_initial.godj.json\",\"source_id\":\"migrations/blog_0001_initial.godj.json\",\"sha256\":\"4d3f693fffbdb0ae5519d1134a862d757fe3eeb6f4872249f9da7e60791bd26d\"}]}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "MIG-106",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "cases[0].files_before",
+          "operation": "replace",
+          "reference": {"type": "list", "items": [{"type": "string", "value": "0001_initial.py"}, {"type": "string", "value": "__init__.py"}]},
+          "product": {"type": "list", "items": [{"type": "string", "value": "blog_0001_initial.godj.json"}]}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[0].files_after",
+          "operation": "replace",
+          "reference": {"type": "list", "items": [{"type": "string", "value": "0001_initial.py"}, {"type": "string", "value": "__init__.py"}]},
+          "product": {"type": "list", "items": [{"type": "string", "value": "blog_0001_initial.godj.json"}]}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[0].output",
+          "operation": "replace",
+          "reference": {"type": "list", "items": [{"type": "string", "value": "No changes detected in app 'godj_migration_writer'"}]},
+          "product": {"type": "list", "items": [{"type": "string", "value": "{\"status\":\"clean\",\"candidate_count\":0,\"candidates\":[]}"}]}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[1].files_before",
+          "operation": "replace",
+          "reference": {"type": "list", "items": [{"type": "string", "value": "__init__.py"}]},
+          "product": {"type": "list", "items": []}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[1].files_after",
+          "operation": "replace",
+          "reference": {"type": "list", "items": [{"type": "string", "value": "__init__.py"}]},
+          "product": {"type": "list", "items": []}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[1].output",
+          "operation": "replace",
+          "reference": {
+            "type": "list",
+            "items": [
+              {"type": "string", "value": "Migrations for 'godj_migration_writer':"},
+              {"type": "string", "value": "<migration-root>/0001_initial.py"},
+              {"type": "string", "value": "+ Create model Article"}
+            ]
+          },
+          "product": {
+            "type": "list",
+            "items": [
+              {"type": "string", "value": "{\"status\":\"pending\",\"candidate_count\":1,\"candidates\":[{\"app\":\"blog\",\"name\":\"0001_initial\",\"path\":\"migrations/blog_0001_initial.godj.json\",\"source_id\":\"migrations/blog_0001_initial.godj.json\",\"sha256\":\"4d3f693fffbdb0ae5519d1134a862d757fe3eeb6f4872249f9da7e60791bd26d\"}]}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "MIG-107",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "cases[0].code",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "unsupported_delta"},
+          "product": {"type": "string", "value": "unsupported_change"}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[1].code",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "unsupported_delta"},
+          "product": {"type": "string", "value": "unsupported_change"}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[2].code",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "unsupported_delta"},
+          "product": {"type": "string", "value": "unsupported_change"}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[3].code",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "unsupported_delta"},
+          "product": {"type": "string", "value": "unsupported_change"}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[4].code",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "unsupported_delta"},
+          "product": {"type": "string", "value": "unsupported_change"}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[5].code",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "relation_cycle"},
+          "product": {"type": "string", "value": "invalid_relation"}
+        },
+        {
+          "dimension": "result",
+          "path": "cases[6].code",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "noncanonical_leaf"},
+          "product": {"type": "string", "value": "unsupported_change"}
+        }
+      ]
+    }
+  ]
+}

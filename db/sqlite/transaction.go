@@ -20,9 +20,11 @@ type transactionSession struct {
 	active      atomic.Bool
 }
 
-// Atomic rolls back on callback errors and context/commit failures. A panic is
-// not converted into a framework error: the deferred rollback runs and the
-// original panic continues to the caller.
+// Atomic rolls back on callback errors and context cancellation observed
+// before commit. A literal COMMIT error has an unknown outcome and requires
+// reconciliation rather than an automatic retry. A panic is not converted
+// into a framework error: the deferred rollback runs and the original panic
+// continues to the caller.
 func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) error {
 	if err := b.validateWriteContext(ctx); err != nil {
 		return err
@@ -68,19 +70,29 @@ func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) e
 		}
 		return contextErr
 	}
-	if err := transaction.Commit(); err != nil {
+	if commitErr := transaction.Commit(); commitErr != nil {
 		rollbackErr := transaction.Rollback()
 		finished = true
-		if errors.Is(rollbackErr, sql.ErrTxDone) {
-			rollbackErr = nil
-		}
-		return errors.Join(
-			fmt.Errorf("commit SQLite transaction: %w", err),
-			wrapTransactionRollback(rollbackErr),
-		)
+		return sqliteCommitUnknown(commitErr, rollbackErr)
 	}
 	finished = true
 	return nil
+}
+
+func sqliteCommitUnknown(commitErr, rollbackErr error) error {
+	if errors.Is(rollbackErr, sql.ErrTxDone) {
+		rollbackErr = nil
+	}
+	cause := commitErr
+	if rollbackErr != nil {
+		cause = errors.Join(commitErr, wrapTransactionRollback(rollbackErr))
+	}
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeCommitOutcomeUnknown,
+		Detail:   "SQLite commit outcome is unknown; do not retry automatically",
+		Cause:    cause,
+	}
 }
 
 func wrapTransactionRollback(err error) error {

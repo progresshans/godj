@@ -1,207 +1,207 @@
-# GoDj 아키텍처
+# 아키텍처
 
-- 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-08
-
-이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
+GoDj의 모델 의미와 계층별 소유권을 설명한다. 현재 지원 폭은 [구현 현황](status/IMPLEMENTATION_MATRIX.md),
+동시성·실패 의미는 [CONCURRENCY](CONCURRENCY.md), 결정 이유는 [ADR](adr/README.md)를 따른다.
+아래 경계는 현재 개발 기준이며 과거 생성 파일 이름이나 내부 버전을 보존하기 위한 호환 계층은 만들지 않는다.
 
 ## 전체 흐름
 
 ```text
-사용자 Schema DSL
-        ↓ validate / normalize
-정규화된 Schema IR
-   ├── codegen ──→ generated model / fields / descriptor / codec binding
-   ├── migration snapshot / project state
-   ├── runtime metadata
-   └── documentation / introspection
-        ↓
-Generic Core: Manager[M], QuerySet[M], Predicate[M], Field[M,V]
-        ↓
-불변 Query AST / execution plan
-        ↓
-Backend compiler + schema editor + adapters
-        ↓
-SQLite / PostgreSQL / MySQL / MariaDB / Oracle
+Schema DSL → normalized Schema IR
+               ├─ codegen → model, fields, descriptor, codec, project relation binding
+               ├─ migration historical state
+               └─ runtime metadata → Form / Admin / API
+
+typed query ─┐
+             ├─ immutable Query AST → backend compiler → database
+lookup input ┘
 ```
 
-## 계층별 책임
-
-| 계층 | 책임 | 하지 않는 일 |
+| 계층 | 소유하는 일 | 소유하지 않는 일 |
 |---|---|---|
-| Schema DSL | 사람이 모델 의미를 선언하는 API | DB 실행, 생성 코드 형식 결정 |
-| Schema IR | 모든 소비자가 공유하는 정규화·직렬화 가능한 의미 | ORM이나 Admin 구현 import |
-| Codegen | 모델별 Go 타입, typed fields, descriptor와 codec 연결 생성 | 런타임 쿼리 해석, DB별 SQL 생성 |
-| Generic Core | 모델 공통 동작 재사용, 컴파일 시 타입 보존 | 문자열로 새 struct/field 이름 생성 |
-| Runtime Metadata | 동적 lookup, Admin, Historical Model, introspection | 두 번째 schema 원본 역할 |
-| Query AST | typed/dynamic API가 공유하는 DB 독립 쿼리 의미 | SQL dialect 문자열 보유 |
-| Backend | AST compilation, DDL, introspection, value adaptation, capability | 상위 Admin/API 정책 알기 |
-| 상위 모듈 | Form, Admin, API, Realtime, GIS 등 제품 경험 | 하위 계층의 독립성을 역전하기 |
+| schema / schema/ir | 모델 의미의 검증·정규화·직렬화 | DB I/O, 생성된 model import |
+| codegen | 모델별 정적 타입·접근자·descriptor 연결과 안전한 publication | 모델 공통 runtime 동작의 반복 복사 |
+| orm / query | typed query, 평가·cache, DB 독립 AST | SQL dialect, 연결 pool |
+| db / backend 구현 | compile, 값 변환, I/O, transaction, capability | Admin 권한 정책 |
+| migrations | definition, history, graph, historical state, 실행 의도 | 현재 model struct로 과거 schema 추측 |
+| project / internal/projectcheck | 프로젝트 설정과 실행 파일의 조립·명령 수명 | product policy를 전역 환경에서 추측 |
+| forms / admin / serializers / api / web | 모델 metadata·권한·표현의 조합 | 생성 model에 숨은 I/O를 template에서 실행 |
 
-## 단일 원본 규칙
+## Schema와 생성
 
-Schema DSL은 입력 형식이고 Schema IR이 정규화된 의미의 단일 원본입니다. Codegen, migration state, runtime metadata, Form/Admin/API schema가 각자 DSL을 해석하거나 별도 모델 정의를 만들면 안 됩니다.
+Schema IR은 normalized model 의미의 원본이다. 각 소비자가 별도 field/default/nullability 정의를 만들지 않는다.
+입력은 검증 후 복사하고, caller가 가진 slice·map·nested metadata를 바꿔 이미 만든 schema나 query 의미를 변경할 수 없어야 한다.
+FK target은 app/model identity로 선언하고 project binding 시 graph 전체를 해석한다. 현재 FK target과 relation kind의 제한은
+[Backend Matrix](BACKEND_MATRIX.md)에 명시한다.
 
-Schema IR은 최소한 다음 성질을 가집니다.
+선언 package는 generated target package를 import하지 않는다. 사용자 코드가 새 model/field 이름을 참조해 기존 생성물이
+compile되지 않아도 생성기는 실행할 수 있어야 한다. [ADR-0006](adr/0006-codegen-input-package-boundary.md)이 이 bootstrap
+분리의 이유를 보존한다.
 
-- schema version이 명시됨
-- 결정적 serialization과 hash가 가능함
-- 선언 순서처럼 의미 있는 순서와 canonical ordering을 구분함
-- closure 대신 안정적인 identifier로 default/validator를 참조함
-- 현재 모델과 historical model이 같은 의미 구조를 공유할 수 있음
-- backward/forward compatibility 정책을 테스트할 수 있음
+`codegen.ProjectSpec`은 app schema와 project layout을 연결한다. 생성기는 전체 후보를 검증한 뒤 publication하며,
+실패 시 기존 정상 결과를 보존한다. 결정적 output, gofmt, 입력 identity, generated drift와 전체 후보 compile은 의미 있는
+검증이다. 과거 파일 수·test 이름·byte 길이를 그대로 유지하는 것은 제품 계약이 아니다.
 
-## Codegen, Generics, Metadata의 역할
+공통 relation cache는 `orm.RelationCache[T]` runtime이 소유하고 생성 코드는 typed 연결을 만든다.
+Project bundle의 renderer는 같은 준비된 모델·관계 해석을 공유한다.
+App schema도 생성 호출마다 한 번 정규화하고 canonical hash를 계산해 app renderer·manifest·facade가 공유한다.
+`ir.NormalizeAndHash`의 반환 schema는 caller 소유이며 수정하면 hash도 다시 계산해야 한다. 전역 schema cache는 두지 않는다.
+Generated namespace는 실제 생성 AST의 package/import/receiver 선언에서 수집한다. 별도 수작업 심볼 목록을 복제하지 않으며,
+standalone 생성은 필요한 선행 companion까지 같은 규칙으로 검증한다. Promoted raw field/method의 충돌은 별도 source audit을
+유지하고 전체 후보 compile도 수행한다. Bundle은 raw rendering 뒤 seal·format·parse를 한 번에 마친다.
+App renderer 목록은 standalone과 bundle이 공유한다. Create/Patch assignment와 관계 storage의 단일 field는 normalized IR에서
+직접 출력하며 이를 위해 전체 model/app metadata를 매번 만들지 않는다. Query/object/reverse의 project model binding도 같은
+검증·출력 owner를 사용한다.
+식별자의 공통 어휘는 `internal/identifiers`, 관계 삭제 policy fingerprint는 `internal/relationpolicy`가 소유한다.
 
-```text
-Codegen: Post, PostFieldSet, PostDescriptor처럼 모델마다 다른 형태
-Generics: Manager[Post], QuerySet[Post]처럼 모든 모델에 공통인 동작
-Metadata: author__email__icontains처럼 실행 중 결정되는 경로
-```
+생성물의 manifest와 recovery journal은 서로 다른 입력의 파일이 섞이거나 중단 뒤 부분 결과가 정상으로 인정되는 일을 막는다.
+소유 파일, source namespace와 입력 snapshot을 확인하고 다른 사용자의 파일을 덮어쓰지 않는다. Publication의 원자성과
+복구 범위는 local filesystem 기준이며 임의 네트워크 filesystem의 crash durability를 보장하지 않는다.
+[ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)에 대안과 failure model이 있다.
 
-Go에서는 메서드가 receiver에 없는 새 type parameter를 선언할 수 없습니다. 예를 들어 `QuerySet[M].SelectInto[R]` 형태는 사용할 수 없으므로, 추가 결과 타입이 필요한 연산은 `SelectInto[M, R](...)` 같은 최상위 함수 또는 별도 generic builder로 설계합니다.
+## ORM과 관계
 
-M1에서는 `orm`이 `ModelDescriptor[M]` interface를 소유하고 codegen이 상태 없는
-concrete descriptor를 생성합니다. `Metadata()`는 독립 복사를 반환하고 `Scan` 반환
-타입이 `M`을 보존합니다. Runtime freeze/registry 없이 생성·compile 시점부터 frozen인
-경계는 [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)에
-고정했습니다. Relation binding이 필요해질 때 확장 여부를 다시 검토합니다.
+Typed selector는 model/field/value type을 compile time에 연결한다. 동적 lookup은 요청에서 받은 이름을 metadata로
+검증한 뒤 같은 AST를 만든다. 알 수 없는 field·lookup·relation 경로는 SQL 실행 전에 명시적으로 거부한다.
+AST의 생성자는 caller 입력을 복사하고 private 불변 저장소는 파생 plan끼리 공유한다. Mutable accessor 결과는 복사한다.
+`WithConditions`와 `WithWhere`는 잘못된 값·source membership·expression budget을 구성 시점에 오류로 반환한다.
+Parameter binding과 identifier quoting은 backend compiler가 소유한다.
+DB 독립 projection·ordering·relation key·scalar 의미 검사는 `db/internal/queryplan`이 공유한다. 각 compiler는
+물리 identifier 제한과 quoting, schema qualification, parameter 형식과 SQL 배치를 소유한다.
+관계 projection의 provenance·edge 충돌, 정렬된 alias와 JOIN 방향·nullable outer join도 공통 계획에서 결정한다.
 
-GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
-Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
-격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은
-generator version, golden/compile test와 generated drift gate로 함께 고정합니다.
+`NewManager`는 descriptor metadata를 생성 시점에 한 번 deep copy하고 기본 plan을 준비한다. 같은 Manager의 읽기·쓰기는
+이 스냅샷을 사용한다. Metadata 변경을 반영하려면 새 Manager를 만든다. `Using`은 준비된 불변 plan을 공유하되 매번 독립
+평가 state를 만든다. 쓰기 descriptor는 primary key와 full field reference/name index도 한 번 준비한다.
+각 WriteFieldValue callback 직전에 해당 field를 복사하며 Scan·Clone·write callback의 일관성과 동시성은
+descriptor 구현자가 소유한다. Project-bound lazy/reverse 객체도 검증된 model로 기본 plan을 한 번 준비한다.
 
-## Query 경로
+Nullable read와 write의 omitted/null/value는 구분한다. Save의 update field 선택·force mode·PK 유무는 명시적 입력이다.
+DB rollback이 application memory를 자동 복원하지는 않는다. Query plan과 평가 cache도 별개의 수명이다.
+Scalar 집계는 COUNT/MIN/MAX를 지원한다. 현재 관계 filter의 cold Count는 JOIN 결과에 Distinct·정렬·슬라이스를 적용한
+SELECT를 감싸 DB에서 COUNT(*)를 실행한다. 관계 일반 projection·MIN/MAX 집계와 eager Count는 별도 범위다.
 
-일반 애플리케이션은 typed predicate를 기본으로 사용하고, HTTP query, Admin, Historical Model은 allowlist와 coercion이 있는 dynamic lookup을 사용합니다. 둘은 같은 AST node와 오류 taxonomy로 수렴해야 합니다.
+관계 상태는 project가 연결하고 model 객체의 소유권에 따라 관리한다. 같은 객체의 cache 공유, 복사·Fresh 이후 독립성,
+eager/prefetch의 성공 후 일괄 publication과 assignment 뒤 FK/cache reconciliation을 구분한다.
+Lazy relation I/O는 context와 error를 갖는 호출로 드러난다. 서로 다른 materialization 사이의 전역 identity map은 없다.
+더 자세한 복사·취소 계약은 [CONCURRENCY](CONCURRENCY.md)에 있다.
 
-```text
-typed field predicate ─┐
-                      ├─→ validated expression ─→ Query AST ─→ backend compiler
-dynamic lookup ────────┘
-```
-
-QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니다. M1 dynamic API는
-`ParseDynamic`에서 construction 오류를 즉시 반환하고, 성공한 `Predicate[M]`를 typed
-`Filter`에 넘깁니다. GDJ-0008부터 immutable plan과 pointer evaluation state를 분리합니다.
-Direct Go value copy는 state를 공유하지만 `Filter`/`OrderBy`/성공한 `Limit`와 `Fresh`는
-새 state를 받습니다. 성공한 full `All`만 cache하고 같은 state의 동시 `All`은
-singleflight하며, 실패/cancellation은 cache하지 않습니다. Owner와 waiter context를
-격리하고 generated deep clone을 통해 canonical cache를 caller에게 직접 노출하지
-않습니다. Cold `Count`/`Exists`/`At`/`First`는 full cache를 채우지 않고 warm terminal은
-cache를 재사용하며, `Iterate`는 cache를 우회·보존합니다. 이 경계는
-[ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에 고정합니다.
-
-## Model과 Migration
-
-생성 모델은 가능한 한 데이터 타입으로 유지하고, row scan, value encode, metadata, state 접근은 생성 descriptor/codec 경계에 둡니다.
-
-Migration은 현재 생성 타입을 과거 migration state에 사용하지 않습니다. GDJ-0004는
-Schema IR 기반 `ProjectState`, typed operation, executor와 같은 SQLite transaction의
-schema editor/recorder를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에
-따라 검증했습니다. [ADR-0013](adr/0013-immutable-migration-planner.md)은 historical
-`ProjectState`와 applied migration history를 분리하고, operation/backend를 보관하지 않는
-immutable identity graph가 caller-supplied AppliedState와 target으로 zero-I/O plan을
-계산하도록 결정했습니다. GDJ-0010은 이 immutable Planner와 structured graph/history/
-target error를 구현하고 MIG-005..016 actual adapter로 검증했습니다. Planning의 logical
-state와 zero-I/O metrics는 실제 database probe가 아니라 backend를 import하지 않는 pure
-structural 경계에서 산출합니다. [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)는
-`ExecutePlan`이 전체 plan/state를 backend I/O 전에 검증하고 기존 `Apply`/`Unapply`를
-migration별 transaction으로 실행하도록 결정했습니다. 첫 실패는 뒤 step을 시작하지 않고
-마지막 durable `ProjectState`를 반환하며, reverse schema와 recorder는 DEV-0001에 따라 같은
-transaction에 둡니다. Public migration file 형식, loader/CLI, data callback, locking과 crash
-recovery는 여전히 Q-012의 후속 결정입니다.
-
-GDJ-0013은 recorder table absent/empty, durable record/unrecord, fresh applied-prefix plan과
-history preflight를 MIG-027..036 reference로 잠갔습니다. GDJ-0014와 Accepted
-[ADR-0015](adr/0015-recorder-backed-applied-state.md)는 `AtomicBackend`/`Transaction`과
-별도인 backend raw applied-migration read port, core `LoadAppliedState` validation과 explicit
-`Planner.CheckHistory`를 구현했습니다. SQLite reader는 recorder table을 직접 SELECT하고
-정확한 missing-table만 empty로 정규화하므로 read가 table을 만들지 않습니다. Fresh
-file-backed backend를 다시 열어 record/unrecord, database isolation, applied tail과 restart
-tail을 검증했고 MIG-027..036은 10개 모두 `passing`입니다.
-
-이 read/check/plan 경계는 `ExecutePlan`과 한 API가 아니며 snapshot과 이후 실행 사이의
-lock·revision binding도 제공하지 않습니다. Recorder identity만으로 historical
-`ProjectState`를 재구성할 수도 없습니다. 완료된
-[GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
-MIG-037..046에서 explicit empty와 omitted latest, target before/after, dependency closure와
-durable applied-history projection의 외부 의미를 여덟 번째 exact reference set으로
-고정했습니다. Logical state는 loaded migration definition에서 나오고 deliberately divergent
-live database는 capture 전후 그대로 남아야 합니다. 이 10개는 `oracle_locked`이며 제품
-adapter가 없어 GDJ-0015 완료 시 제품 분류는 `73 passing + 4 deviation`이었습니다.
-
-완료된
-[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)과 Accepted
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 full loaded definition을
-deep-copy하는 별도 immutable `StateReconstructor`와 explicit empty/latest/before/after/applied
-request를 구현했습니다. Existing Planner graph/order kernel과 operation state transition만
-사용하므로 core에는 DB handle, backend/SQLite/SQL import나 I/O가 없습니다. Applied live
-adapter는 real SQLite recorder를 read-only로 읽어 `LoadAppliedState`를 거치며 MIG-037..046은
-10 `passing`, 현재 제품 분류는 `83 passing + 4 deviation`입니다. 이 경계는 recorder
-identity만으로 definition을 발명하지 않으며 read/reconstruct/plan/execute가 하나의 atomic
-lifecycle이라는 뜻도 아닙니다.
-
-완료된 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
-MIG-047..056으로 read/check/reconstruct/plan/execute lifecycle의 fresh/target/failure/restart
-외부 의미를 아홉 번째 exact set에 고정했습니다. 10개는 `oracle_locked`이고 제품 adapter나
-public lifecycle API는 없습니다. Accepted
-[ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 제품 승격 시 recorder identities와
-opaque freshness revision을 같은 snapshot으로 읽고 각 migration transaction의 첫 DDL/write
-전에 expected token을 검증하도록 결정합니다. SQLite feasibility harness는 persistent epoch와
-monotonic revision을 후보로 사용했고 fingerprint는 direct non-ABA drift를 잡는 보조 gate로만
-검증했지만, 제품 storage와 token encoding은 아직 결정하지 않았습니다. Harness는 per-step commit,
-last-durable state, no retry와 unsupported fail-closed를 검증했지만 product package를 변경하지
-않았습니다. Cutover 전 non-cooperating ABA, recorder 밖 schema drift와 crash repair는 계속
-Q-012 후속입니다.
-
-## CLI와 프로젝트 실행
-
-전역 `godj` CLI는 `version`, `startproject`, `startapp`, 프로젝트 탐색과 orchestration을 담당합니다. 프로젝트 설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행합니다.
+## Migration
 
 ```text
-godj CLI
-  ├─ 독립 명령
-  └─ 프로젝트 탐색/빌드/실행
-           ↓
-프로젝트 바이너리
-  ├─ serve
-  ├─ migrate
-  ├─ createsuperuser
-  └─ custom commands
+strict definition sources → opaque LoadedDefinitionSet
+  → complete graph/history validation → historical ProjectState
+  → fresh target plan → backend-owned revision session
+  → each step: validate fence → schema + recorder + successor revision → commit
 ```
 
-`manage.py` 파일은 복제하지 않지만 프로젝트 전용 실행기라는 역할은 보존합니다. `go generate`는 보조 진입점이고 공식 orchestration은 `godj generate`입니다.
+Definition은 실행 가능한 Python/Go plugin이 아니라 current data format이다. Unknown field/version, duplicate key/identity,
+비정상 문자열·범위 초과·resource limit과 graph 모순을 명시적으로 거부한다. 전체 load가 성공하기 전에는 partial set을
+게시하지 않는다. Canonical digest는 정규화된 의미를 식별하며 caller-owned 원문이나 runtime model을 execution authority로
+다시 사용하지 않는다. Codecs는 backend handle이나 credential을 포함하지 않는다.
 
-## 의존 방향
+Loader가 정의·source inventory를 복사하고 검증된 immutable graph를 한 번 게시한다. 내부 lifecycle과 SQL projection은
+이를 빌려 읽으며 매번 전체 정의를 복사하거나 같은 graph를 재구축하지 않는다. `Digest`는 저장된 문자열을 반환하고,
+`Sources`와 `Definitions`는 각각 요청한 mutable view만 복사한다. 외부 raw reconstructor 입력은 별도 검증·복사 경계다.
+지원 operation의 non-nil 포인터는 이 경계에서 값으로 정규화한다. Raw DirectExecutor도 현재 built-in operation만 받으며,
+embedding wrapper·typed nil·unknown type은 I/O 전에 거부한다. Go method promotion을 재현하는 호환 계층은 두지 않는다.
+`LoadedDefinitionSet.Reconstructor`는 준비된 graph를 빌리되 operation resource·chronology·readiness를 검증한다.
+Writer의 최초 historical replay는 Detect와 snapshot이 공유하며, 변경된 candidate와 각 durable prefix의 strict load/replay는 별도로 수행한다.
 
-화살표는 “왼쪽이 오른쪽을 import할 수 있음”을 의미합니다.
+Historical `ProjectState`는 적용할 당시의 schema를 dependency 순서로 재구성한다. 현재 generated model의 field를 읽어
+과거 migration을 복원하지 않는다. 모든 definition을 검증하고 chronology·known history·exact target을 확인한 뒤 backend
+실행을 시작한다. Source-only check와 DB-backed history check는 서로 다른 결과다.
+상태의 equality는 복제 없이 schema 의미를 비교한다. App 변경은 바깥 map과 변경된 schema만 복사하고 바뀌지 않은 private
+schema를 공유한다. 공개 Schema/Model/Clone과 mutable replay builder의 복사는 유지한다.
 
-```text
-schema DSL ─→ schema/ir
-codegen ────→ schema/ir
-migrations ─→ schema/ir, backend contracts
-orm ────────→ query, schema/ir metadata, backend contracts
-backends ───→ query, schema/ir, backend contracts
-forms/auth/templates ─→ metadata와 제한된 ORM interface
-admin/api/realtime ───→ 공개 하위 module interface
-gis extension ────────→ schema/query/backend의 명시적 extension point
-```
+Planner는 불변 identity graph를 사용하며 같은 입력에 canonical plan을 만든다. 비교 불가능한 sibling의 합법적 순서는
+Django와 다를 수 있다. [DEV-0002](DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)는 이를 명시적으로
+분류하며 final schema/history, dependency order와 durable prefix를 대신 생략하지 않는다.
 
-금지 예시는 `schema/ir → orm`, `query → admin`, `orm → admin`, `orm → api`, `forms → admin`, `backend → 상위 제품 모듈`입니다. 거대한 범용 `core` 패키지는 만들지 않습니다. 실제 패키지가 생기면 dependency test로 검증하고 interface 소유 패키지를 명시합니다.
+Plan은 실행 권한을 가진 불변 token이 아니다. Preview 뒤 writer가 history를 바꿀 수 있으므로 실행은 새 revision snapshot에서
+fresh plan을 만든다. Each-step fence는 DDL/recorder 첫 mutation 전에 검사하고 schema·recorder·successor revision을 한
+transaction에 묶는다. 전체 migration 목록을 하나의 outer transaction으로 감싸지 않아 성공한 앞부분은 뒤 실패 후에도 남는다.
 
-## Codegen bootstrap 경계
+SQLite FK DDL은 같은 pinned connection의 FK 설정·물리 schema를 검증하고, 허용한 경우에만 remake한다. 기존 rows,
+NULL/default 의미, PK/sequence와 FK constraint를 보존해야 한다. 검증하지 않은 index·trigger·inbound/self/cyclic schema를
+조용히 재작성하지 않는다. 지원하지 않는 작업은 mutation 전에 capability error로 끝낸다.
+IR intent의 resource 순회는 `internal/irresource`, detached intent 복사는 migration backend 값이 소유한다. 각 backend의
+limit·오류·DDL 의미는 그대로 분리한다. History의 정렬·canonical hash는 두 backend가 같은 순수 구현을 사용한다.
+PostgreSQL은 detached intent 전체를 preflight와 완료 시 검증하고, SQL 직전에는 transition과 현재 operation 전체의 seal을
+검증한다. 최종 physical 검사와 전체 seal 검증이 끝나기 전에는 recorder 성공을 기록하지 않는다.
 
-선언 package와 generated target을 분리하고 generator는 Schema IR만 의미 입력으로
-사용합니다. Target 교체 전 candidate를 `gofmt`/parse하고 Go overlay로 실제 target
-package를 compile하며, 실패하면 last-good bytes를 보존합니다. 이 결정과 M0
-rename/delete/stale fixture는 [ADR-0006](adr/0006-codegen-input-package-boundary.md)에
-기록합니다. 전역 CLI와 project library version protocol은 Q-010으로 남아 있어 현재
-runner는 `internal/cmd/m1generate`입니다.
+`sqlmigrate`는 target 직전 historical state의 forward intent를 pure renderer로 projection한다. Preview SQL을 실행 plan으로
+재사용하지 않으며 renderer가 DB opener, recorder, transaction 또는 credential을 갖지 않는다. 실제 migration 실행은 backend
+capability와 fresh history를 다시 검증한다.
 
-## 목표 저장소 구조
+## CLI와 프로젝트
 
-최종적으로 `cmd/godj`, schema/IR, codegen, query, ORM, backends, migrations, forms, templates, admin, auth, API, realtime, GIS, i18n, contrib, testing/conformance, examples가 필요할 수 있습니다. 구현하지 않은 미래 패키지는 미리 만들지 않습니다.
+전역 `godj`는 `godj.toml`로 project-owned runner를 찾는다. Runner는 선언 schema·migration catalog·backend opener·operator
+정책을 조립한다. 전역 도구와 프로젝트의 명시적 protocol을 구분하여 host의 다른 설정이나 source를 암묵적으로 섞지 않는다.
 
-현재 핵심 미결정 사항은 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), 채택된 이유는 [adr/](adr/README.md)에 기록합니다.
+잘못된 argv와 descriptor는 불필요한 build/init/I/O 전에 거부한다. 실제 child 실행은 timeout·cancel·signal·stdout/stderr·reap의
+소유자를 하나로 둔다. 성공 결과는 strict bounded protocol로 검증한 뒤 게시한다. Child/build의 실패 원인을 보존하되
+credential·사용자 secret·원문 private path를 공개 오류에 붙이지 않는다. Build 실패만 category/code 뒤에 제한된 sanitized 원인을 추가한다.
+공통 빌드 도구는 dependency/compiler cache를 재사용하며 runtime의 private workspace·환경과 분리한다. 자세한 실행 범위는 [TESTING](TESTING.md)에 있다.
+
+`internal/wirejson`은 strict lexical/구조 검사와 bounded read를, `internal/projectwire`는 ProjectSpec·Schema IR의 wire 표현과
+크기 계산을 소유한다. Envelope·숫자/배열/깊이 budget·오류 우선순위·overflow 후 drain 정책은 각 protocol이 선택한다.
+Definition JSON의 결정적인 source/JSON-pointer 오류 선택은 별도 loader 책임이다.
+CLI의 retained project·workspace·build·child·cleanup은 공용 실행 owner가 관리한다. 명령별 terminal policy가 공개 결과를
+선택하며, 완료된 migrate/read 결과나 durable publication을 늦은 취소로 덮어쓰지 않는다. TTY credential과 foreground server의
+전용 수명은 각각 operator와 runserver가 소유한다.
+
+`makemigrations`는 model difference에서 지원하는 작업만 작성한다. Input/catalog을 publication 시점에도 다시 확인하여 stale
+plan이 파일을 덮어쓰지 않게 한다. `showmigrations`는 한 snapshot의 상태 출력이며 이후 writer를 막는 lock이 아니다.
+
+## Web, Form, Admin, API
+
+Web request는 명시적 context·routing·representation 경계를 갖는다. Template은 closed value를 render하고 기본 escape를
+적용한다. Model method나 arbitrary attribute lookup이 template evaluation 중 I/O를 실행하게 하지 않는다. Safe HTML은
+검토 가능한 construction 경계에서만 만든다.
+
+Template은 startup에서 참조·cycle을 검증하고 상속 parent와 불변 block override를 준비한다. 기본 root block은 별도 override로
+복제하지 않고 block 없는 child는 부모 map을 공유한다. Engine의 render 깊이로 실행할 수 없는 상속에는 map을 준비하지 않으며,
+실제 Render는 기존 깊이·취소·오류 위치를 유지한다. JSON List/Object는 생성 시 입력 container와 자식 유효성을 확인해 게시하고,
+Encode와 Spec.Bind는 그 private 불변 상태를 신뢰한다. 문자열 유효성과 출력별 resource limit은 계속 검사한다.
+JSON·HTML escape는 출력 예산을 검사하며 최종 버퍼에 직접 기록한다. 큰 중간 escape 문자열을 만들지 않고,
+오류가 나면 부분 출력을 게시하지 않는다. 성공한 독점 출력 버퍼는 반환 시 소유권을 이전한다.
+Public Response 입력과 mutable getter의 방어적 복사는 유지한다.
+
+Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, read-only, nullable와 validation은 의미가 같을 때
+공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는
+application이 명시적으로 연결한다. Admin snapshot은 실제 list/form 필드를 요구하고 저장 전용 새 필드의 매핑을 강제하지 않는다.
+Form Spec은 field index와 기본 초기값을 준비하고 요청의 초기값이 있을 때만 값을 분리해 겹친다. Bind는 소유한 cleaned 값과
+오류를 불변 결과로 게시한다. Validation 오류는 field/cross/unknown 순서를 유지해 한 번 합치며 mutable slice/map getter는
+복사한다. API Page도 생성 시 검증한 불변 result list를 응답 사이에 공유한다.
+명시적으로 제공한 snapshot 값은 known field/type 검사를 받는다. Serializer가 임의 model memory나 credential을 reflection으로 노출하지 않는다.
+`ModelEncoder`와 `ModelProjector`는 시작 시 선택 metadata를 복사해 준비하고 각 객체의 reader 결과를 계속 검증한다.
+Article Service는 공통 article repository를 직접 사용하며 Admin의 not-found 변환은 등록 callback 경계가 소유한다.
+Full update와 patch는 transaction 골격을 공유하되 입력 검증·field mask·audit action은 구분한다.
+
+Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사용한다. Bearer가 잘못되었을 때 다른 credential로 fallback하지
+않으며 권한 거부·인증 실패·CSRF 실패를 구분한다. Raw token/password와 verifier cause는 logs·errors·audit에 남기지 않는다.
+Principal은 생성 시 복사·검증한 private 권한을 공유하고 Permissions는 별도 slice를 반환한다. Session ID는 외부 입력을
+ParseID에서 엄격히 검증한다. Record의 값 map은 입력·변경·mutable snapshot에서 복사하며 touch·load·rotation의 불변 전달은 공유한다.
+Durable credential은 explicit provisioning 후 `OpenExisting`으로 열며 startup이 비밀번호를 다시 받거나 권한을 몰래 바꾸지 않는다.
+Session Store의 `Access`는 현재 record를 한 번 읽고 `AccessPolicy`의 record 검증·clock 확인·idle/absolute 만료 판정·
+갱신 또는 만료 삭제를 한 원자적 연산에서 수행하며 active/expired/missing을 구분한다. Manager.Load는 이 연산을 사용하고,
+Store.Load는 갱신 없는 원시 조회다. 정책 검증·취소가 실패하면 저장 내용을 바꾸지 않는다.
+Access는 단조로운 access/idle deadline과 고정 absolute lifetime을 보존하며 rotation된 ID를 되살리지 않는다.
+Clock은 저장소 원자적 범위에서 호출되므로 신속히 반환하고 I/O나 manager/store 재진입을 하지 않아야 한다.
+Clock·entropy callback의 panic은 그대로 전파하되 source lock과 저장소 transaction은 해제한다.
+감사 로그 prune은 최신 capacity+1 범위의 COUNT/MIN 한 행을 읽고 양수 sequence·cardinality·rows 종료를 검증한 뒤
+최대 한 행을 삭제한다. DB 내부의 bounded 탐색은 유지하고 capacity만큼의 행을 애플리케이션으로 전송하지 않는다.
+
+System-state와 application mutation이 같은 transaction이어야 하는 흐름은 동일 backend coordination domain에서 수행한다.
+Multi-runtime 안전성은 같은 normalized policy를 사용하고 fence에 참여하는 writer 사이의 계약이다. 비협력 writer·외부 process의
+직접 SQL이나 자동 분산 policy 전파까지 보장하지 않는다.
+
+## 설계 기록
+
+과거 format tuple·optional relation handoff·additive generated companion 유지 규칙은
+[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에서 폐기했다.
+그때의 strict decoding, immutable snapshot, provenance, historical replay, revision fence, rollback/unknown outcome,
+FK physical preflight와 candidate failure preservation은 위 현행 경계에 남긴다.
+대체된 ADR 원문과 실행 과정은 [고정 Git 문서](https://github.com/progresshans/godj/tree/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr)에서
+필요할 때만 확인한다.

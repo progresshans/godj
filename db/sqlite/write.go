@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 	modernsqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -50,7 +51,7 @@ func CompileInsert(plan query.InsertPlan) (string, []any, error) {
 	if len(assignments) == 0 {
 		return "INSERT INTO " + table + " DEFAULT VALUES", []any{}, nil
 	}
-	columns, arguments, err := compileAssignments(assignments)
+	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey)
 	if err != nil {
 		return "", nil, err
 	}
@@ -77,7 +78,7 @@ func CompileUpdate(plan query.UpdatePlan) (string, []any, error) {
 			return "", nil, invalidPlan("update cannot assign its key field")
 		}
 	}
-	columns, arguments, err := compileAssignments(assignments)
+	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey)
 	if err != nil {
 		return "", nil, err
 	}
@@ -85,7 +86,7 @@ func CompileUpdate(plan query.UpdatePlan) (string, []any, error) {
 	for index, column := range columns {
 		setClauses[index] = column + " = ?"
 	}
-	keyColumn, keyArgument, err := compileKey(plan.KeyField(), plan.KeyValue())
+	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier)
 	if err != nil {
 		return "", nil, err
 	}
@@ -99,7 +100,7 @@ func CompileDelete(plan query.DeletePlan) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	keyColumn, keyArgument, err := compileKey(plan.KeyField(), plan.KeyValue())
+	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier)
 	if err != nil {
 		return "", nil, err
 	}
@@ -178,87 +179,25 @@ func executeDelete(ctx context.Context, executor writeExecutor, plan query.Delet
 	return rowsAffected, nil
 }
 
-func compileAssignments(assignments []query.Assignment) ([]string, []any, error) {
-	columns := make([]string, len(assignments))
-	arguments := make([]any, len(assignments))
-	seen := make(map[string]struct{}, len(assignments))
-	for index, assignment := range assignments {
-		field := assignment.Field()
-		column, err := quoteIdentifier(field.Column())
-		if err != nil {
-			return nil, nil, err
-		}
-		identifierKey := sqliteIdentifierKey(field.Column())
-		if _, duplicate := seen[identifierKey]; duplicate {
-			return nil, nil, invalidPlan(fmt.Sprintf("field column %q is assigned more than once", field.Column()))
-		}
-		seen[identifierKey] = struct{}{}
-		if err := validateWriteValue(field, assignment.Value()); err != nil {
-			return nil, nil, err
-		}
-		argument, err := assignment.Value().DatabaseValue()
-		if err != nil {
-			return nil, nil, err
-		}
-		columns[index] = column
-		arguments[index] = argument
-	}
-	return columns, arguments, nil
-}
-
 // SQLite folds only ASCII case in identifiers, including quoted identifiers.
 // Preserve all other bytes so validation mirrors SQLite instead of applying
 // Unicode case folding that the database itself does not perform.
 func sqliteIdentifierKey(identifier string) string {
-	key := []byte(identifier)
-	for index, value := range key {
+	for index := 0; index < len(identifier); index++ {
+		value := identifier[index]
 		if value >= 'A' && value <= 'Z' {
-			key[index] = value + ('a' - 'A')
+			key := []byte(identifier)
+			for offset := index; offset < len(key); offset++ {
+				if key[offset] >= 'A' && key[offset] <= 'Z' {
+					key[offset] += 'a' - 'A'
+				}
+			}
+			return string(key)
 		}
 	}
-	return string(key)
-}
-
-func compileKey(field query.FieldRef, value query.Value) (string, any, error) {
-	if field.Nullable() || value.IsNull() {
-		return "", nil, invalidPlan("mutation key cannot be nullable or NULL")
-	}
-	if err := validateWriteValue(field, value); err != nil {
-		return "", nil, err
-	}
-	column, err := quoteIdentifier(field.Column())
-	if err != nil {
-		return "", nil, err
-	}
-	argument, err := value.DatabaseValue()
-	if err != nil {
-		return "", nil, err
-	}
-	return column, argument, nil
-}
-
-func validateWriteValue(field query.FieldRef, value query.Value) error {
-	if value.IsNull() {
-		if !field.Nullable() {
-			return invalidPlan(fmt.Sprintf("non-null field %q cannot be assigned NULL", field.Name()))
-		}
-		return nil
-	}
-	if !valueMatchesField(value.Kind(), field.Kind()) {
-		return invalidPlan(fmt.Sprintf("value kind %q does not match field %q", value.Kind(), field.Name()))
-	}
-	return nil
+	return identifier
 }
 
 func (b *Backend) validateWriteContext(ctx context.Context) error {
-	if b == nil || b.database == nil || b.closed.Load() {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend is nil or closed"}
-	}
-	if ctx == nil {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	return nil
+	return b.validateBackendContext(ctx)
 }

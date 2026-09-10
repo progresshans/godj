@@ -1,0 +1,170 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-099",
+      "title": "An unchanged project state produces no migration candidate or mutation",
+      "scenario": "django.migration.writer.no_changes_clean",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/autodetector.py::MigrationAutodetector.changes", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_autodetector.py", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-100",
+      "title": "A fresh app produces one initial migration with the exact created model state",
+      "scenario": "django.migration.writer.fresh_initial",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/autodetector.py::MigrationAutodetector.generate_created_models", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/migration.py::Migration.suggest_name", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-101",
+      "title": "A fresh repeat after the initial migration is a no-op that preserves prior source",
+      "scenario": "django.migration.writer.repeat_after_initial_noop",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/autodetector.py::MigrationAutodetector.changes", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-102",
+      "title": "Candidate roster identity dependencies operations and current document bytes are deterministic",
+      "scenario": "godj.migration.writer.deterministic_candidate",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-103",
+      "title": "Supported same-app and cross-app relations produce dependency-valid topology",
+      "scenario": "django.migration.writer.relation_dependency_topology",
+      "phase": "construction",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "decision", "reference": "DEV-0010", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/autodetector.py::MigrationAutodetector.generate_created_models", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_autodetector.py", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-104",
+      "title": "Supported appended models and fields extend the exact prior app leaf",
+      "scenario": "django.migration.writer.additive_model_and_field_tail",
+      "phase": "construction",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "decision", "reference": "DEV-0010", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/autodetector.py::MigrationAutodetector.generate_created_models", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/autodetector.py::MigrationAutodetector.generate_added_fields", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_autodetector.py", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-105",
+      "title": "Dry-run reports the pending migration while leaving source and database state unchanged",
+      "scenario": "django.migration.writer.dry_run_no_mutation",
+      "phase": "environment",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "decision", "reference": "DEV-0010", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/makemigrations.py::Command.handle", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-106",
+      "title": "Check mode exits clean for equality and nonzero for drift without writing",
+      "scenario": "django.migration.writer.check_clean_and_drift",
+      "phase": "environment",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "decision", "reference": "DEV-0010", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/makemigrations.py::Command.handle", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-107",
+      "title": "Unsupported destructive ambiguous cyclic and noncanonical deltas fail closed without candidates",
+      "scenario": "godj.migration.writer.unsupported_delta_fail_closed",
+      "phase": "construction",
+      "status": "deviation",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false},
+        {"kind": "decision", "reference": "DEV-0010", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-108",
+      "title": "One bounded private request snapshots schema and catalog without changing existing protocols",
+      "scenario": "godj.migration.writer.snapshot_and_protocol_boundary",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-109",
+      "title": "Concurrent writers replan under one lock and publish no overwrite or stale success",
+      "scenario": "godj.migration.writer.atomic_concurrent_publication",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-110",
+      "title": "Interruption preserves a strict dependency prefix that a fresh invocation completes",
+      "scenario": "godj.migration.writer.interruption_recovery_and_roundtrip",
+      "phase": "rollback",
+      "status": "passing",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0052", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    }
+  ]
+}

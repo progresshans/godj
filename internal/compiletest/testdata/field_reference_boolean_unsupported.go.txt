@@ -1,0 +1,8 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+var _ = orm.F(models.ArticleFields.Published)

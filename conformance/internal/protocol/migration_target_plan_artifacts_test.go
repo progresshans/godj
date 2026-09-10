@@ -1,0 +1,367 @@
+package protocol
+
+import (
+	"fmt"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+const (
+	migrationTargetPlanManifestArtifact  = "conformance/contracts/migration-target-plan-manifest.json"
+	migrationTargetPlanBaselineArtifact  = "conformance/fixtures/godj-migration-target-plan-not-implemented.json"
+	migrationTargetPlanDeviationArtifact = "conformance/fixtures/godj-migration-target-plan-deviation-expected.json"
+	migrationTargetPlanOracleArtifact    = "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json"
+)
+
+type migrationTargetPlanProvenanceLock struct {
+	kind      string
+	reference string
+	license   string
+}
+
+var migrationTargetPlanScenarios = []string{
+	"godj.migration.target_plan.target_argv_and_pre_io_rejection",
+	"django.migration.target_plan.named_forward_closure",
+	"django.migration.target_plan.named_reverse_descendants",
+	"django.migration.target_plan.app_zero_cross_app_dependents",
+	"godj.migration.target_plan.target_noop_and_legacy_zero",
+	"godj.migration.target_plan.plan_exact_and_no_mutation",
+	"godj.migration.target_plan.preview_drift_fresh_execute",
+	"godj.migration.target_plan.reverse_middle_failure_resume",
+	"godj.migration.target_plan.reverse_commit_outcomes",
+	"godj.migration.target_plan.project_protocol_and_ownership",
+}
+
+var migrationTargetPlanPhases = []Phase{
+	PhaseEnvironment,
+	PhaseEvaluation,
+	PhaseEvaluation,
+	PhaseEvaluation,
+	PhaseEvaluation,
+	PhaseEvaluation,
+	PhaseCommit,
+	PhaseRollback,
+	PhaseCommit,
+	PhaseEnvironment,
+}
+
+var migrationTargetPlanComparisons = [][]ComparisonDimension{
+	{CompareResult, CompareMetrics},
+	{CompareResult},
+	{CompareResult},
+	{CompareResult},
+	{CompareResult, CompareMetrics},
+	{CompareResult, CompareDBState, CompareMetrics},
+	{CompareResult, CompareDBState, CompareMetrics},
+	{CompareResult, CompareDBState, CompareMetrics},
+	{CompareResult, CompareDBState, CompareMetrics},
+	{CompareResult, CompareDBState, CompareMetrics},
+}
+
+func TestMigrationTargetPlanPublishedArtifactsAreLockedAndBaselineRemainsPayloadFree(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, baseline := loadMigrationTargetPlanStaticArtifacts(t)
+	if profile.ID != "django-6.1-sqlite-darwin-arm64" ||
+		profile.Fingerprint.DjangoVersion != "6.1" ||
+		profile.Fingerprint.DjangoCommit != "fe0a859f537d4238cf49fca39073513206f83122" ||
+		profile.Fingerprint.PythonVersion != "3.14.3" ||
+		profile.Fingerprint.SQLiteVersion != "3.50.4" ||
+		profile.Lock.ManagerVersion != "0.10.12" {
+		t.Fatalf("unexpected migration-target-plan profile: %#v", profile)
+	}
+	if !reflect.DeepEqual(baseline.Profile, profile.Snapshot()) {
+		t.Fatal("migration-target-plan baseline does not preserve the exact profile snapshot")
+	}
+	if len(manifest.Contracts) != 10 || len(baseline.Contracts) != 10 {
+		t.Fatalf("migration-target-plan static lengths = %d/%d, want 10/10", len(manifest.Contracts), len(baseline.Contracts))
+	}
+
+	for index, contract := range manifest.Contracts {
+		wantID := fmt.Sprintf("MIG-%03d", index+119)
+		wantStatus := ContractPassing
+		if wantID == "MIG-122" {
+			wantStatus = ContractDeviation
+		}
+		if contract.ID != wantID ||
+			contract.Scenario != migrationTargetPlanScenarios[index] ||
+			contract.Phase != migrationTargetPlanPhases[index] ||
+			contract.Status != wantStatus ||
+			!reflect.DeepEqual(contract.Comparison, migrationTargetPlanComparisons[index]) {
+			t.Fatalf("migration-target-plan contract %d = %#v", index, contract)
+		}
+		assertMigrationTargetPlanProvenance(t, contract)
+
+		locked := baseline.Contracts[index]
+		if locked.ID != wantID ||
+			locked.Phase != contract.Phase ||
+			locked.Status != StatusNotImplemented ||
+			locked.Result != nil ||
+			locked.Error != nil ||
+			locked.DBState != nil ||
+			locked.Metrics != nil {
+			t.Fatalf("migration-target-plan baseline contract %d is not payload-free: %#v", index, locked)
+		}
+	}
+	if err := ValidateSuiteAgainst(profile, manifest, baseline); err != nil {
+		t.Fatalf("migration-target-plan baseline does not validate: %v", err)
+	}
+}
+
+func TestMigrationTargetPlanOracleIsLockedValidatedAndCannotFalseGreen(t *testing.T) {
+	t.Parallel()
+
+	root := conformanceRepositoryRoot(t)
+
+	profile, manifest, baseline := loadMigrationTargetPlanStaticArtifacts(t)
+	oracle, err := LoadObservationSuite(filepath.Join(root, filepath.FromSlash(migrationTargetPlanOracleArtifact)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(oracle.Profile, profile.Snapshot()) {
+		t.Fatal("migration-target-plan oracle does not preserve the exact profile snapshot")
+	}
+	if len(oracle.Contracts) != 10 {
+		t.Fatalf("migration-target-plan oracle contracts = %d, want 10", len(oracle.Contracts))
+	}
+
+	for index, contract := range manifest.Contracts {
+		observation := oracle.Contracts[index]
+		if observation.ID != contract.ID || observation.Phase != contract.Phase || observation.Status != StatusObserved || observation.Error != nil {
+			t.Fatalf("migration-target-plan oracle contract %d = %#v", index, observation)
+		}
+		assertMigrationTargetPlanDeclaredPayloads(t, contract, observation)
+	}
+	if err := ValidateSuiteAgainst(profile, manifest, oracle); err != nil {
+		t.Fatalf("migration-target-plan oracle does not validate: %v", err)
+	}
+
+	differences, err := Compare(profile, manifest, oracle, baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(differences) != 10 {
+		t.Fatalf("migration-target-plan oracle/baseline differences = %d, want 10: %#v", len(differences), differences)
+	}
+	for index, difference := range differences {
+		if difference.ContractID != fmt.Sprintf("MIG-%03d", index+119) ||
+			difference.Path != "status" ||
+			difference.Expected != string(StatusObserved) ||
+			difference.Actual != string(StatusNotImplemented) {
+			t.Fatalf("migration-target-plan difference %d = %#v", index, difference)
+		}
+	}
+
+	for index, contract := range manifest.Contracts {
+		for _, dimension := range contract.Comparison {
+			actual := cloneJSONSuite(t, oracle)
+			observation := &actual.Contracts[index]
+			var changed bool
+			switch dimension {
+			case CompareResult:
+				changed = mutateFirstValue(observation.Result)
+			case CompareDBState:
+				changed = mutateFirstValue(observation.DBState)
+			case CompareMetrics:
+				changed = mutateFirstValue(observation.Metrics)
+			default:
+				t.Fatalf("contract %s has unexpected comparison dimension %q", contract.ID, dimension)
+			}
+			if !changed {
+				t.Fatalf("contract %s declares %s without a mutable oracle payload", contract.ID, dimension)
+			}
+			differences, err := Compare(profile, manifest, oracle, actual)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(differences) == 0 {
+				t.Fatalf("contract %s %s mutation produced a false green", contract.ID, dimension)
+			}
+			for _, difference := range differences {
+				if difference.ContractID != contract.ID {
+					t.Fatalf("contract %s %s mutation reported against %s", contract.ID, dimension, difference.ContractID)
+				}
+			}
+		}
+	}
+
+	reordered := cloneJSONSuite(t, oracle)
+	reordered.Contracts[0], reordered.Contracts[1] = reordered.Contracts[1], reordered.Contracts[0]
+	if err := ValidateSuiteAgainst(profile, manifest, reordered); err == nil {
+		t.Fatal("migration-target-plan oracle contract reorder produced a false green")
+	}
+}
+
+func TestMigrationTargetPlanAuthoritySourcesAreIndependentAndArtifactBlind(t *testing.T) {
+	t.Parallel()
+
+	root := conformanceRepositoryRoot(t)
+	decisionPath := filepath.Join(root, "conformance", "runners", "django", "migration_target_plan_decisions.py")
+	decision := string(readArtifact(t, decisionPath))
+	for _, forbidden := range []string{
+		"from django", "import django", "sqlite3", "conformance/contracts", "conformance/oracles",
+		"conformance/fixtures", "not_implemented", "not-implemented",
+	} {
+		if strings.Contains(decision, forbidden) {
+			t.Fatalf("migration-target-plan decision source crosses forbidden boundary %q", forbidden)
+		}
+	}
+
+	djangoPath := filepath.Join(root, "conformance", "runners", "django", "migration_target_plan_scenarios.py")
+	djangoSource := string(readArtifact(t, djangoPath))
+	for _, forbidden := range []string{
+		"conformance/contracts", "conformance/oracles", "conformance/fixtures", "not_implemented", "not-implemented",
+	} {
+		if strings.Contains(djangoSource, forbidden) {
+			t.Fatalf("migration-target-plan Django source crosses forbidden boundary %q", forbidden)
+		}
+	}
+	for _, required := range []string{
+		"planning._plan_case(",
+		"django.migration.target_plan.named_forward_closure",
+		"django.migration.target_plan.named_reverse_descendants",
+		"django.migration.target_plan.app_zero_cross_app_dependents",
+		"B1, A3, A2, A1",
+		"DEV-0002",
+	} {
+		if !strings.Contains(djangoSource, required) {
+			t.Fatalf("migration-target-plan Django authority does not preserve required fragment %q", required)
+		}
+	}
+	for _, name := range []string{decisionPath, djangoPath} {
+		contents := string(readArtifact(t, name))
+		for _, forbidden := range []string{"postgres://", "password=", root} {
+			if strings.Contains(contents, forbidden) {
+				t.Fatalf("migration-target-plan source %s leaks forbidden value %q", name, forbidden)
+			}
+		}
+	}
+}
+
+func TestMigrationTargetPlanDjangoOrderHazardMustRemainExplicit(t *testing.T) {
+	t.Parallel()
+
+	root := conformanceRepositoryRoot(t)
+	oracle, err := LoadObservationSuite(filepath.Join(root, filepath.FromSlash(migrationTargetPlanOracleArtifact)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deviation, err := LoadDeviationExpectation(filepath.Join(root, filepath.FromSlash(migrationTargetPlanDeviationArtifact)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Preserve the observed B1/A3/A2/A1 order and the narrow reviewed
+	// difference in data; wording in a completed work packet is not proof.
+	wantReference := []string{
+		"beta.0001_direct_dependent/backward",
+		"alpha.0003_third/backward",
+		"alpha.0002_second/backward",
+		"alpha.0001_initial/backward",
+	}
+	var referenceOrder []string
+	for _, observation := range oracle.Contracts {
+		if observation.ID != "MIG-122" {
+			continue
+		}
+		plan := objectField(t, observation.Result, "plan")
+		for index := range plan.Items {
+			referenceOrder = append(referenceOrder, migrationLifecycleOrderIdentity(t, &plan.Items[index]))
+		}
+	}
+	if !reflect.DeepEqual(referenceOrder, wantReference) {
+		t.Fatalf("Django app-zero reference order = %v, want %v", referenceOrder, wantReference)
+	}
+	if deviation.Decision != "DEV-0002" || len(deviation.Contracts) != 1 || deviation.Contracts[0].ID != "MIG-122" {
+		t.Fatalf("app-zero order deviation scope = %#v", deviation)
+	}
+	changes := deviation.Contracts[0].Changes
+	if len(changes) != 3 {
+		t.Fatalf("app-zero order changes = %d, want three plan replacements", len(changes))
+	}
+	wantProduct := []string{wantReference[1], wantReference[2], wantReference[0]}
+	for index, change := range changes {
+		if change.Dimension != DeviationResult || change.Operation != DeviationReplace || change.Path != fmt.Sprintf("plan[%d]", index) ||
+			migrationLifecycleOrderIdentity(t, &change.Reference) != wantReference[index] ||
+			migrationLifecycleOrderIdentity(t, &change.Product) != wantProduct[index] {
+			t.Fatalf("app-zero order replacement %d = %#v", index, change)
+		}
+	}
+}
+
+func assertMigrationTargetPlanProvenance(t *testing.T, contract Contract) {
+	t.Helper()
+
+	want := []migrationTargetPlanProvenanceLock{
+		{kind: "proposal", reference: "GDJ-0052"},
+		{kind: "documentation", reference: "ADR-0054"},
+	}
+	const djangoRevision = "django@fe0a859f537d4238cf49fca39073513206f83122:"
+	switch contract.ID {
+	case "MIG-120":
+		want = append(want,
+			migrationTargetPlanProvenanceLock{"source", djangoRevision + "django/db/migrations/executor.py::MigrationExecutor.migration_plan", "BSD-3-Clause"},
+			migrationTargetPlanProvenanceLock{"test", djangoRevision + "tests/migrations/test_executor.py::ExecutorTests.test_run", "BSD-3-Clause"},
+		)
+	case "MIG-121":
+		want = append(want,
+			migrationTargetPlanProvenanceLock{"source", djangoRevision + "django/db/migrations/executor.py::MigrationExecutor.migration_plan", "BSD-3-Clause"},
+			migrationTargetPlanProvenanceLock{"test", djangoRevision + "tests/migrations/test_executor.py::ExecutorUnitTests.test_minimize_rollbacks_branchy", "BSD-3-Clause"},
+			migrationTargetPlanProvenanceLock{"test", djangoRevision + "tests/migrations/test_executor.py::ExecutorTests.test_unrelated_applied_migrations_mutate_state", "BSD-3-Clause"},
+		)
+	case "MIG-122":
+		want = append(want,
+			migrationTargetPlanProvenanceLock{"source", djangoRevision + "django/db/migrations/executor.py::MigrationExecutor.migration_plan", "BSD-3-Clause"},
+			migrationTargetPlanProvenanceLock{"test", djangoRevision + "tests/migrations/test_executor.py::ExecutorTests.test_run", "BSD-3-Clause"},
+			migrationTargetPlanProvenanceLock{"decision", "DEV-0002", ""},
+		)
+	}
+	if len(contract.Provenance) != len(want) {
+		t.Fatalf("contract %s provenance = %#v, want %d entries", contract.ID, contract.Provenance, len(want))
+	}
+	for index, expected := range want {
+		got := contract.Provenance[index]
+		if got.Kind != expected.kind || got.Reference != expected.reference || got.License != expected.license || got.Derived == nil || *got.Derived {
+			t.Fatalf("contract %s provenance %d = %#v, want %#v derived=false", contract.ID, index, got, expected)
+		}
+	}
+}
+
+func assertMigrationTargetPlanDeclaredPayloads(t *testing.T, contract Contract, observation Observation) {
+	t.Helper()
+
+	wantResult, wantDBState, wantMetrics := false, false, false
+	for _, dimension := range contract.Comparison {
+		switch dimension {
+		case CompareResult:
+			wantResult = true
+		case CompareDBState:
+			wantDBState = true
+		case CompareMetrics:
+			wantMetrics = true
+		}
+	}
+	if (observation.Result != nil) != wantResult ||
+		(observation.DBState != nil) != wantDBState ||
+		(observation.Metrics != nil) != wantMetrics {
+		t.Fatalf("contract %s payloads result/db_state/metrics = %t/%t/%t, want %t/%t/%t",
+			contract.ID,
+			observation.Result != nil,
+			observation.DBState != nil,
+			observation.Metrics != nil,
+			wantResult,
+			wantDBState,
+			wantMetrics,
+		)
+	}
+}
+
+func loadMigrationTargetPlanStaticArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite) {
+	t.Helper()
+	root := conformanceRepositoryRoot(t)
+	profile := requireArtifact(t, filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"), LoadProfile)
+	manifest := requireArtifact(t, filepath.Join(root, filepath.FromSlash(migrationTargetPlanManifestArtifact)), LoadManifest)
+	baseline := requireArtifact(t, filepath.Join(root, filepath.FromSlash(migrationTargetPlanBaselineArtifact)), LoadObservationSuite)
+	return profile, manifest, baseline
+}

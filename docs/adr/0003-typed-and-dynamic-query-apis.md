@@ -1,5 +1,9 @@
 # ADR-0003: Typed query API와 Dynamic lookup API를 함께 제공
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0003-typed-and-dynamic-query-apis.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-07
 - 관련 질문: Q-007, Q-008, Q-013
@@ -23,7 +27,3 @@
 ## 의도적으로 결정하지 않은 것
 
 `FilterKw`의 정확한 signature, error accumulation 시점, relation selector API, result cache는 정하지 않았습니다. 문서 초안의 chaining 예시는 normative API가 아닙니다.
-
-## 검증
-
-M1에서 typed/dynamic exact와 icontains가 같은 normalized AST와 결과를 만들고, unknown field/lookup과 disallowed path가 query 실행 전에 명시적 오류가 되는지 검증합니다.

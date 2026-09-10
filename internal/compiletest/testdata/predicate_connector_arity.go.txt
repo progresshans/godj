@@ -1,0 +1,9 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+var _ = orm.And(models.ArticleFields.Title.Exact("django"))
+var _ = orm.Or(models.ArticleFields.Title.Exact("django"))

@@ -18,7 +18,7 @@ type preparedPlanStep struct {
 // migration transaction at a time. It validates the complete definition,
 // plan, and historical state transition sequence before the first backend
 // transaction starts.
-func (e Executor) ExecutePlan(
+func (e DirectExecutor) ExecutePlan(
 	ctx context.Context,
 	before ProjectState,
 	definitions []Migration,
@@ -30,8 +30,16 @@ func (e Executor) ExecutePlan(
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), executionContextError(PlanStep{}, err)
 	}
-	if len(plan) == 0 {
-		return before.Clone(), nil
+	if projectStateRequiresRelationLifecycle(before) || definitionsContainRelation(definitions) {
+		direction := Direction("")
+		if len(plan) != 0 {
+			direction = plan[0].Direction
+		}
+		unsupported := relationMigrationUnsupported(definitions, direction, errors.New("direct ExecutePlan relation execution is not loader-authorized"))
+		if err := ctx.Err(); err != nil {
+			return before.Clone(), executionContextError(PlanStep{}, err)
+		}
+		return before.Clone(), unsupported
 	}
 
 	// Snapshot caller-owned slices and the built-in operation values before
@@ -39,6 +47,12 @@ func (e Executor) ExecutePlan(
 	// the known built-ins are deep-copied below.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
 	planSnapshot := append([]PlanStep(nil), plan...)
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(PlanStep{}, err)
+	}
+	if len(planSnapshot) == 0 {
+		return before.Clone(), nil
+	}
 	prepared, err := preflightPlan(ctx, before, definitionSnapshot, planSnapshot)
 	if err != nil {
 		return before.Clone(), err
@@ -193,37 +207,36 @@ func cloneMigrationDefinitions(definitions []Migration) []Migration {
 }
 
 func cloneMigrationOperation(operation Operation) Operation {
-	switch operation := operation.(type) {
+	switch operation := operationValue(operation).(type) {
 	case CreateModel:
 		operation.Model = operation.Model.Clone()
 		return operation
-	case *CreateModel:
-		if operation == nil {
-			return operation
-		}
-		cloned := *operation
-		cloned.Model = operation.Model.Clone()
-		return cloned
 	case AddField:
 		operation.Field = cloneMigrationField(operation.Field)
 		return operation
-	case *AddField:
-		if operation == nil {
-			return operation
-		}
-		cloned := *operation
-		cloned.Field = cloneMigrationField(operation.Field)
-		return cloned
 	default:
 		return operation
 	}
 }
 
-func cloneMigrationField(field ir.Field) ir.Field {
-	cloned := field
-	if field.Default != nil {
-		defaultValue := *field.Default
-		cloned.Default = &defaultValue
+// operationValue borrows built-in inputs without copying nested IR. Input
+// resource scans use this before allocation; snapshots clone the returned
+// value once. Nil pointers and unrecognized implementations remain visible to
+// each caller's error policy rather than invoking methods on a nil receiver.
+func operationValue(operation Operation) Operation {
+	switch value := operation.(type) {
+	case *CreateModel:
+		if value != nil {
+			return *value
+		}
+	case *AddField:
+		if value != nil {
+			return *value
+		}
 	}
-	return cloned
+	return operation
+}
+
+func cloneMigrationField(field ir.Field) ir.Field {
+	return field.Clone()
 }

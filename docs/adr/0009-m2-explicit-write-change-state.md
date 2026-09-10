@@ -1,5 +1,9 @@
 # ADR-0009: M2 write 입력은 변경 의도를 명시적으로 보존한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0009-m2-explicit-write-change-state.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0003, GDJ-0004, MOD-001..MOD-007, Q-006
@@ -106,22 +110,3 @@ Query/mutation plan과 SQLite binding까지 사용자 의도를 잃지 않고 �
 - loaded/new/dirty state를 model 내부에 둘지 별도 wrapper에 둘지
 - bulk create/update, hook/signal, database-generated default
 - concurrent instance mutation과 write object의 goroutine safety
-
-## 검증
-
-- Go 1.26.5 별도 module compile spike에서 positive 후보와 negative compiler fixture 실행
-- non-null NULL, wrong scalar, nullable/non-null wrapper 혼합과 존재하지 않는
-  `WithTitleNull`이 compile 실패하는지 확인
-- `BuildCreate() Mutation[M]`의 cross-model input이 compile 실패하는지 확인
-- nullable/non-null/omitted constructor의 external positive·negative compile test
-- state round-trip과 immutable mutation plan unit/property test
-- MOD-001..MOD-007 differential comparison
-- validation failure의 zero-I/O와 SQLite rollback/resource cleanup test
-
-GDJ-0004에서 이 경계를 제품 codegen/generic Manager/SQLite write로 구현했고
-[EVID-20260808-003](../status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)의
-MOD-001..007 differential과 external compile/race gate로 검증했습니다. Instance
-`Save()`의 외부 의미는 GDJ-0005의 MOD-008..019로 고정됐습니다. Fully loaded default
-save가 dirty-only가 아니라 field 전체를 쓴다는 결과 때문에 hidden dirty map은 다음
-단면의 전제에서 제외합니다. Typed field mask, force mode와 explicit-key constructor를
-이 API에 연결하는 public shape는 GDJ-0006/ADR-0011에서 결정합니다.

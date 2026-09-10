@@ -35,6 +35,21 @@ func TestCompileWritePlansBindZeroEmptyAndNullValues(t *testing.T) {
 	if want := []any{"", false, nil}; !reflect.DeepEqual(insertArguments, want) {
 		t.Fatalf("insert arguments = %#v, want %#v", insertArguments, want)
 	}
+	returningSQL, returningArguments, err := sqlite.CompileInsert(
+		query.NewInsertPlanReturningKey("news_article", assignments, id),
+	)
+	if err != nil {
+		t.Fatalf("CompileInsert(returning key) error = %v", err)
+	}
+	if returningSQL != insertSQL || !reflect.DeepEqual(returningArguments, insertArguments) {
+		t.Fatalf(
+			"returning insert = %q %#v, want byte-identical %q %#v",
+			returningSQL,
+			returningArguments,
+			insertSQL,
+			insertArguments,
+		)
+	}
 
 	updateSQL, updateArguments, err := sqlite.CompileUpdate(query.NewUpdatePlan("news_article", assignments[1:], id, query.Integer(9)))
 	if err != nil {
@@ -98,6 +113,13 @@ func TestCompileWriteRejectsSQLiteCaseFoldedColumnCollisions(t *testing.T) {
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("case-folded key update error = %v, want invalid_plan", err)
 	}
+	statement, arguments, err := sqlite.CompileInsert(query.NewInsertPlan("news_article", []query.Assignment{
+		query.NewAssignment(query.NewFieldRef("upper", "Ä", query.FieldString, false), query.String("first")),
+		query.NewAssignment(query.NewFieldRef("lower", "ä", query.FieldString, false), query.String("second")),
+	}))
+	if err != nil || statement != `INSERT INTO "news_article" ("Ä", "ä") VALUES (?, ?)` || len(arguments) != 2 {
+		t.Fatalf("SQLite non-ASCII identifier case was folded: %q %v, %v", statement, arguments, err)
+	}
 }
 
 func TestSQLiteInsertDefaultValuesSupportsAutoOnlyModel(t *testing.T) {
@@ -129,6 +151,28 @@ func TestSQLiteInsertDefaultValuesSupportsAutoOnlyModel(t *testing.T) {
 	}
 	if identifier != 1 {
 		t.Fatalf("default insert ID = %d, want 1", identifier)
+	}
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	returningPlan := query.NewInsertPlanReturningKey("only_id", nil, id)
+	returningStatement, returningArguments, err := sqlite.CompileInsert(returningPlan)
+	if err != nil {
+		t.Fatalf("CompileInsert(default values returning key) error = %v", err)
+	}
+	if returningStatement != statement || !reflect.DeepEqual(returningArguments, arguments) {
+		t.Fatalf(
+			"returning default insert = %q %#v, want byte-identical %q %#v",
+			returningStatement,
+			returningArguments,
+			statement,
+			arguments,
+		)
+	}
+	returningIdentifier, err := backend.Insert(ctx, returningPlan)
+	if err != nil {
+		t.Fatalf("Insert(default values returning key) error = %v", err)
+	}
+	if returningIdentifier != 2 {
+		t.Fatalf("returning-key default insert ID = %d, want 2", returningIdentifier)
 	}
 }
 

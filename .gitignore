@@ -3,3 +3,6 @@ __pycache__/
 *.py[cod]
 .DS_Store
 conformance/.tmp/
+**/.godj/generate.lock
+**/.godj/publication-journal.json
+**/.godj/transactions/
