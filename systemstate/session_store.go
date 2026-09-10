@@ -2,7 +2,6 @@ package systemstate
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -603,11 +602,18 @@ func decodeSessionMetadata(payload string, limits sessions.Limits) (sessions.Rec
 }
 
 func validSessionDigest(digest string) bool {
-	if len(digest) != sessionDigestMaxLength || strings.ToLower(digest) != digest {
+	if len(digest) != sessionDigestMaxLength {
 		return false
 	}
-	decoded, err := hex.DecodeString(digest)
-	return err == nil && len(decoded) == 32
+	// Stored digests are canonical lowercase ASCII hex. Validate the bytes
+	// directly; capacity scans do not need an allocated decoded digest.
+	for index := range len(digest) {
+		value := digest[index]
+		if (value < '0' || value > '9') && (value < 'a' || value > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func persistenceFailure(operation string, cause error) error {

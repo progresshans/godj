@@ -405,9 +405,18 @@ func TestPlannerCheckHistoryRepeatedAndConcurrentCallsAreImmutable(t *testing.T)
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
+			target, want := NamedTarget(alpha3), forward(alpha3)
+			if worker%2 != 0 {
+				target, want = NamedTarget(alpha1), backward(alpha2)
+			}
 			for iteration := 0; iteration < 100; iteration++ {
 				if err := planner.CheckHistory(applied); err != nil {
 					errorsChannel <- err
+					return
+				}
+				steps, err := planner.Plan(applied, target)
+				if err != nil || len(steps) != 1 || steps[0] != want {
+					errorsChannel <- fmt.Errorf("concurrent Plan() = (%v, %v), want [%v]", steps, err, want)
 					return
 				}
 			}
@@ -417,6 +426,9 @@ func TestPlannerCheckHistoryRepeatedAndConcurrentCallsAreImmutable(t *testing.T)
 	close(errorsChannel)
 	for err := range errorsChannel {
 		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(applied.keys, map[MigrationKey]struct{}{alpha1: {}, alpha2: {}}) {
+		t.Fatalf("concurrent history and forward/backward planning changed applied state: %v", applied.keys)
 	}
 }
 

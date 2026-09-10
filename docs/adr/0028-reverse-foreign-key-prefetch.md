@@ -150,10 +150,12 @@ func (p ReversePrefetch[Owner, Source]) Load(
 ) ([]*RelatedSet[Source], error)
 ```
 
-`ReversePrefetch` snapshots the canonical private `ReverseObject` state and binds the physical source ForeignKey's
-`RelationStorage[Source]`. It is immutable/copyable; each `Load` owns independent evaluation state. The extra storage
-capability is validated here only. Existing `BindReverseObject`, `ReverseObject.From`, `RelatedSet` and Manager/QuerySet
-public signatures and behavior are byte/semantic locked.
+`ReversePrefetch` shares the canonical private immutable fields of its bound `ReverseObject` and binds the physical
+source ForeignKey's `RelationStorage[Source]`. It is immutable/copyable; each `Load` owns independent evaluation state.
+Storage availability and immutable value shape are validated at binding. Each `Load` still validates `storage.Field()`:
+a zero-size value may read external state, so a prior callback result cannot establish the current result's validity.
+Canonical fields are not cloned or compared against duplicate private copies on each use. Owner PK, membership,
+context/backend validation and atomic cache publication retain their existing behavior.
 
 `Load` never issues or hides the primary owner query. Caller passes owners already obtained from the existing QuerySet.
 It performs at most one batch source query and never starts a goroutine or coordinates with another `Load` call.

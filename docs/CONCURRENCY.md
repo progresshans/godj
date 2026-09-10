@@ -19,6 +19,9 @@ Nil/already-canceled context는 warm cache와 nullable no-I/O 경로에서도 �
 Descriptor·callback panic도 열린 rows를 정리하고 평가 flight를 해제해 waiter가 다시 시도할 수 있게 한다.
 Panic은 그대로 전파하며 partial result를 cache하지 않는다. 정상 반환의 rows·close·context 오류 결합은 유지한다.
 Filter/OrderBy/Limit/Offset/Distinct 파생은 바뀌지 않은 private 불변 plan metadata를 공유하고, 입력·반환 mutable slice는 분리한다.
+다수의 optional predicate를 미리 수집할 수 있으면 `Filter(predicates...)`로 한 번 전달해 기존 AND 자식의 반복 복사를 줄인다.
+공개 `Condition.Values`는 복사본을 반환하며 PostgreSQL compiler는 검증 시 얻은 목록을 해당 컴파일의 준비된 leaf에만 보관한다.
+출력은 같은 불변 tree의 DFS 순서로 그 목록을 읽고, 반환 SQL 인자와 다른 컴파일 사이에 mutable slice를 공유하지 않는다.
 Cold Count는 현재 지원 관계 filter도 DB 집계로 실행하며 JOIN multiplicity와 Distinct·슬라이스를 보존한다.
 Cold At는 표현 가능한 기존 offset과 index를 합친 OFFSET/LIMIT 1로 한 row만 소비한다. 원래 limit을 벗어나면 빈 plan을
 사용하며 offset 범위를 넘는 index는 기존의 bounded row 소비 경로를 사용한다. DB 내부 offset 탐색 비용은 그대로다.
@@ -37,6 +40,9 @@ session·사용자 callback·반환된 mutable model의 임의 공유 안전성�
 - Eager materialization의 target source plan은 한 번 준비해 공유한다. 각 행의 key predicate와 ready cache는 독립적으로 만든다.
 - Lazy/reverse 기본 plan도 project binding이 준비한다. Prefetch의 함수 내부 그룹은 `All`의 소유 model을 빌리고,
   storage callback 입력과 각 owner의 cache를 각각 복제한다. 중복 owner 사이에도 mutable model을 공유하지 않는다.
+- Reverse object의 모델·관계·descriptor 형태·PK metadata 일치는 바인딩 시 검증한다. 게시한 private field snapshot은
+  prefetch도 공유하며 매 호출의 깊은 비교나 같은 metadata의 별도 보관본을 만들지 않는다. Zero/nil handle과 backend,
+  owner PK·storage callback의 현재 반환값 검사는 매 사용 시 유지한다. Zero-size descriptor가 callback의 순수성을 보장하지 않는다.
 - 다른 query materialization에서 얻은 동일 PK의 객체가 같은 pointer일 필요는 없다.
 - Transaction에서 만든 query의 사용 가능 범위는 transaction/session 계약을 따른다. Warm cache가 session 이후에도 값을 제공할 수 있다는 사실을
   session I/O가 계속 유효하다는 뜻으로 해석하지 않는다.

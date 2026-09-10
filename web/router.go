@@ -262,7 +262,7 @@ func routePathSegmentCount(value string) int {
 	if value == "/" {
 		return 0
 	}
-	return len(strings.Split(strings.Trim(value, "/"), "/"))
+	return strings.Count(strings.Trim(value, "/"), "/") + 1
 }
 
 func routePatternsOverlap(left, right routePattern) bool {

@@ -614,65 +614,26 @@ func TestRunMatchesReviewedMigrationLifecycleExpectationAndWritesActualOutput(t 
 
 func TestRunAcceptsMigrationDefinitionSourceSetAndWritesMatchingActualOutput(t *testing.T) {
 	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-definition-source-manifest.json")
-	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-definition-source-oracle.json")
-	manifest, err := protocol.LoadManifest(manifestPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(manifest.Contracts) != 8 || manifest.Contracts[0].ID != "MIG-057" || manifest.Contracts[7].ID != "MIG-064" {
-		t.Fatalf("migration definition source contracts = %#v", manifest.Contracts)
-	}
-	directory := t.TempDir()
-	actualPath := filepath.Join(directory, "actual.json")
-	arguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", manifestPath,
-		"-expected", oraclePath,
-		"-actual-output", actualPath,
-	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
-		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "match the locked reference oracle for 8 contracts") {
-		t.Fatalf("stdout = %q", stdout.String())
-	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q, want empty", stderr.String())
-	}
-	actual, err := protocol.LoadObservationSuite(actualPath)
-	if err != nil {
-		t.Fatalf("load actual output: %v", err)
-	}
-	expected, err := protocol.LoadObservationSuite(oraclePath)
-	if err != nil {
-		t.Fatalf("load expected output: %v", err)
-	}
-	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if differences, compareErr := protocol.Compare(profile, manifest, expected, actual); compareErr != nil || len(differences) != 0 {
-		t.Fatalf("written migration definition actual differs: differences=%#v error=%v", differences, compareErr)
-	}
+	assertRunWritesMatchingActual(t, "migration-definition-source", 8, "MIG-057", "MIG-064")
 }
 
 func TestRunWritesMigrationProjectCheckActualThatMatchesLockedOracle(t *testing.T) {
 	t.Parallel()
+	assertRunWritesMatchingActual(t, "migration-project-check", 10, "MIG-065", "MIG-074")
+}
+
+func assertRunWritesMatchingActual(t *testing.T, suite string, count int, firstID, lastID string) {
+	t.Helper()
 
 	root := filepath.Join("..", "..", "..")
-	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-project-check-manifest.json")
-	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-project-check-oracle.json")
+	manifestPath := filepath.Join(root, "conformance", "contracts", suite+"-manifest.json")
+	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", suite+"-oracle.json")
 	manifest, err := protocol.LoadManifest(manifestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(manifest.Contracts) != 10 || manifest.Contracts[0].ID != "MIG-065" || manifest.Contracts[9].ID != "MIG-074" {
-		t.Fatalf("migration project-check contracts = %#v", manifest.Contracts)
+	if len(manifest.Contracts) != count || manifest.Contracts[0].ID != firstID || manifest.Contracts[count-1].ID != lastID {
+		t.Fatalf("%s contracts = %#v", suite, manifest.Contracts)
 	}
 	directory := t.TempDir()
 	actualPath := filepath.Join(directory, "actual.json")
@@ -687,7 +648,7 @@ func TestRunWritesMigrationProjectCheckActualThatMatchesLockedOracle(t *testing.
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "match the locked reference oracle for 10 contracts") {
+	if !strings.Contains(stdout.String(), fmt.Sprintf("match the locked reference oracle for %d contracts", count)) {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 	if stderr.Len() != 0 {
@@ -706,7 +667,7 @@ func TestRunWritesMigrationProjectCheckActualThatMatchesLockedOracle(t *testing.
 		t.Fatal(err)
 	}
 	if differences, compareErr := protocol.Compare(profile, manifest, expected, actual); compareErr != nil || len(differences) != 0 {
-		t.Fatalf("written migration project-check actual differs: differences=%#v error=%v", differences, compareErr)
+		t.Fatalf("written actual differs: differences=%#v error=%v", differences, compareErr)
 	}
 }
 

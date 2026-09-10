@@ -22,14 +22,11 @@ type ReversePrefetch[Owner, Source any] struct {
 }
 
 type reversePrefetchState[Owner, Source any] struct {
-	reverse          reverseObjectState[Owner, Source]
-	storage          RelationStorage[Source]
-	ownerPrimaryKey  ir.Field
-	sourceForeignKey ir.Field
-	sourcePrimaryKey ir.Field
-	valid            bool
-	ownerMarker      [0]func(Owner)
-	sourceMarker     [0]func(Source)
+	reverse      reverseObjectState[Owner, Source]
+	storage      RelationStorage[Source]
+	valid        bool
+	ownerMarker  [0]func(Owner)
+	sourceMarker [0]func(Source)
 }
 
 // BindReversePrefetch adds the source ForeignKey storage capability required
@@ -51,17 +48,12 @@ func BindReversePrefetch[Owner, Source any](
 		return ReversePrefetch[Owner, Source]{}, relationInvalidPlan("reverse prefetch source ForeignKey storage is not canonical")
 	}
 
-	reverseState := reverse.state
-	reverseState.ownerPrimaryKey = reverse.state.ownerPrimaryKey.Clone()
-	reverseState.sourceForeignKey = reverse.state.sourceForeignKey.Clone()
-	reverseState.sourcePrimaryKey = reverse.state.sourcePrimaryKey.Clone()
+	// The reverse handle already owns immutable canonical fields. Only the
+	// field passed to the user storage callback above crosses an ownership edge.
 	state := reversePrefetchState[Owner, Source]{
-		reverse:          reverseState,
-		storage:          storage,
-		ownerPrimaryKey:  reverse.state.ownerPrimaryKey.Clone(),
-		sourceForeignKey: reverse.state.sourceForeignKey.Clone(),
-		sourcePrimaryKey: reverse.state.sourcePrimaryKey.Clone(),
-		valid:            true,
+		reverse: reverse.state,
+		storage: storage,
+		valid:   true,
 	}
 	return ReversePrefetch[Owner, Source]{state: state}, nil
 }
@@ -101,7 +93,7 @@ func (p ReversePrefetch[Owner, Source]) Load(
 			return nil, &query.Error{
 				Category: query.CategoryQuery,
 				Code:     query.CodeMissingPrimaryKey,
-				Field:    p.state.ownerPrimaryKey.Name,
+				Field:    p.state.reverse.ownerPrimaryKey.Name,
 				Detail:   "reverse prefetch owner has no explicit primary key state",
 			}
 		}
@@ -134,11 +126,11 @@ func (p ReversePrefetch[Owner, Source]) Load(
 	for index, identifier := range batchKeys {
 		values[index] = query.Integer(identifier)
 	}
-	inCondition, err := query.NewInCondition(fieldReference(p.state.sourceForeignKey), values)
+	inCondition, err := query.NewInCondition(fieldReference(p.state.reverse.sourceForeignKey), values)
 	if err != nil {
 		return nil, err
 	}
-	ordering := NewIntegerField[Source](p.state.sourcePrimaryKey).Asc()
+	ordering := NewIntegerField[Source](p.state.reverse.sourcePrimaryKey).Asc()
 	base := newQuerySet(backend, p.state.reverse.sourceDescriptor, p.state.reverse.sourcePlan)
 	batch := base.
 		Filter(predicateFromCondition[Source](inCondition, nil)).
@@ -150,7 +142,7 @@ func (p ReversePrefetch[Owner, Source]) Load(
 	coldSets := make([]*RelatedSet[Source], len(ownerKeys))
 	for index, identifier := range ownerKeys {
 		exact := predicateFromCondition[Source](query.NewCondition(
-			fieldReference(p.state.sourceForeignKey),
+			fieldReference(p.state.reverse.sourceForeignKey),
 			query.LookupExact,
 			query.Integer(identifier),
 		), nil)
@@ -178,13 +170,13 @@ func (p ReversePrefetch[Owner, Source]) Load(
 		identifier, ok := foreignKey.Integer()
 		if !ok || foreignKey.IsNull() {
 			return nil, relatedSetMembershipError(
-				p.state.sourceForeignKey,
+				p.state.reverse.sourceForeignKey,
 				"reverse prefetch source returned a NULL or non-integer ForeignKey",
 			)
 		}
 		if _, exists := requested[identifier]; !exists {
 			return nil, relatedSetMembershipError(
-				p.state.sourceForeignKey,
+				p.state.reverse.sourceForeignKey,
 				"reverse prefetch source ForeignKey is outside the requested owner set",
 			)
 		}
@@ -217,26 +209,9 @@ func (state reversePrefetchState[Owner, Source]) validate() error {
 	if err := state.reverse.validate(); err != nil {
 		return err
 	}
-	if !immutableZeroStateValue(state.storage) {
-		return relationInvalidPlan("reverse prefetch storage is not an immutable zero-state value")
-	}
-	if !reflect.DeepEqual(state.ownerPrimaryKey, state.reverse.ownerPrimaryKey) ||
-		!reflect.DeepEqual(state.sourceForeignKey, state.reverse.sourceForeignKey) ||
-		!reflect.DeepEqual(state.sourcePrimaryKey, state.reverse.sourcePrimaryKey) {
-		return relationInvalidPlan("reverse prefetch relation fields changed")
-	}
-	sourceForeignKey, ok := findField(
-		state.reverse.relation.forward.sourceModel.Fields,
-		state.reverse.relation.forward.metadata.Field,
-	)
-	if !ok || !reflect.DeepEqual(sourceForeignKey, state.sourceForeignKey) {
-		return relationInvalidPlan("reverse prefetch source ForeignKey changed")
-	}
-	sourcePrimaryKey, ok := relationAutoPrimaryKey(state.reverse.relation.forward.sourceModel)
-	if !ok || !reflect.DeepEqual(sourcePrimaryKey, state.sourcePrimaryKey) {
-		return relationInvalidPlan("reverse prefetch source primary key changed")
-	}
-	if !reflect.DeepEqual(state.storage.Field(), state.sourceForeignKey) {
+	// A zero-state storage value cannot change its type, but its methods may
+	// consult external state. Keep validating the callback's current result.
+	if !reflect.DeepEqual(state.storage.Field(), state.reverse.sourceForeignKey) {
 		return relationInvalidPlan("reverse prefetch storage field changed")
 	}
 	return nil

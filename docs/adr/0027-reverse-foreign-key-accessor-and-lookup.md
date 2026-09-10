@@ -193,6 +193,9 @@ supplies presence-aware `PrimaryKey`; numeric zero is not used as a presence tes
 may use `BindReverse` but `BindReverseObject` fails `CategoryQuery/CodeInvalidPlan` before I/O.
 
 Both owner and source object descriptors must be generated immutable named non-pointer zero-size snapshots.
+Model/relation/descriptor-shape/PK metadata agreement is established before publishing the bound handle. The handle owns
+private canonical field snapshots and its prepared source plan; it does not retain duplicate model metadata for per-call
+deep comparison. Use-time checks still reject unbound/nil handles and backends and validate the current owner PK result.
 `BindReverseObject` internally derives the source Manager, a private scalar exact predicate from the canonical
 ForeignKey `FieldRef`, and source AutoField ordering. It does not pass a ForeignKey through the public AutoField-only
 `IntegerField` constructor. `From`

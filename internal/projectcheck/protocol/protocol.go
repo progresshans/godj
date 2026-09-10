@@ -5,11 +5,10 @@ package protocol
 import (
 	"errors"
 	"fmt"
-	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"io"
-	"regexp"
 	"strings"
 
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"github.com/progresshans/godj/internal/wirejson"
 )
 
@@ -58,8 +57,6 @@ const (
 	CodeSourceReadFailed              = "source_read_failed"
 	CodeProjectInternalError          = "project_internal_error"
 )
-
-var canonicalUnsigned = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
 
 // Failure is the public-detail-free category/code pair carried over the
 // private wire. It deliberately contains no path, document, or diagnostic.

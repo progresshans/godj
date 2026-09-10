@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -520,30 +521,6 @@ func migrationCommandExpectedHistory(sources []definition.Source) ([]migrations.
 	return history, loaded.Digest(), nil
 }
 
-func slicesEqual(left, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
-}
-
-func migrationCommandKeysEqual(left, right []migrations.MigrationKey) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
-}
-
 func migrationCommandDuplicateHistory(history []migrations.MigrationKey) int {
 	seen := make(map[migrations.MigrationKey]int, len(history))
 	duplicates := 0
@@ -702,7 +679,7 @@ func migrationCommandAppliedPrefixTail(ctx context.Context, contract protocol.Co
 		{App: migrationCommandApp, Name: migrationCommandMiddle},
 		{App: migrationCommandApp, Name: migrationCommandTail},
 	}
-	exactTail := migrationCommandKeysEqual(observed.beginKeys, wantTail) && migrationCommandKeysEqual(observed.recorderWrites, wantTail)
+	exactTail := slices.Equal(observed.beginKeys, wantTail) && slices.Equal(observed.recorderWrites, wantTail)
 	exactErr := migrationCommandAssertExactSQLiteLatest(snapshot, history)
 	latest := exactErr == nil
 	if !latest || !exactTail || prefixWrites != 0 {
@@ -1185,8 +1162,8 @@ func migrationCommandMiddleFailure(ctx context.Context, contract protocol.Contra
 		{App: migrationCommandApp, Name: migrationCommandMiddle},
 	}
 	wantWrites := []migrations.MigrationKey{{App: migrationCommandApp, Name: migrationCommandPrefix}}
-	exactAttempts := migrationCommandKeysEqual(observed.beginKeys, wantBegins) &&
-		migrationCommandKeysEqual(observed.recorderWrites, wantWrites) &&
+	exactAttempts := slices.Equal(observed.beginKeys, wantBegins) &&
+		slices.Equal(observed.recorderWrites, wantWrites) &&
 		execution.linked.RevisionLifecycleCalls == 1 && observed.rollbackCalls == 1 &&
 		observed.sessionCloseCalls == 1 && observed.backendCloseCalls == 1
 	automaticRetries := (execution.linked.RevisionLifecycleCalls - 1) +
@@ -1244,10 +1221,10 @@ func migrationCommandFreshResume(ctx context.Context, contract protocol.Contract
 	wantFailedCreates := []string{migrationCommandPrefixTable, migrationCommandMiddleTable}
 	wantFailedWrites := []string{"command/" + migrationCommandPrefix}
 	wantFailedCommits := []string{"command/" + migrationCommandPrefix + ":2"}
-	if !slicesEqual(failedBegins, wantFailedBegins) ||
-		!slicesEqual(failedCreates, wantFailedCreates) ||
-		!slicesEqual(failedWrites, wantFailedWrites) ||
-		!slicesEqual(failedCommits, wantFailedCommits) ||
+	if !slices.Equal(failedBegins, wantFailedBegins) ||
+		!slices.Equal(failedCreates, wantFailedCreates) ||
+		!slices.Equal(failedWrites, wantFailedWrites) ||
+		!slices.Equal(failedCommits, wantFailedCommits) ||
 		migrationCommandTraceCount(failedParticipant.trace, "session_attempt") != 1 ||
 		migrationCommandTraceCount(failedParticipant.trace, "snapshot_attempt") != 1 ||
 		migrationCommandTraceCount(failedParticipant.trace, "failure_injected:command/"+migrationCommandMiddle) != 1 ||
@@ -1308,8 +1285,8 @@ func migrationCommandFreshResume(ctx context.Context, contract protocol.Contract
 	failedSnapshotAttempts := migrationCommandTraceCount(failedParticipant.trace, "snapshot_attempt")
 	resumeSessionAttempts := migrationCommandTraceCount(resumedParticipant.trace, "session_attempt")
 	resumeSnapshotAttempts := migrationCommandTraceCount(resumedParticipant.trace, "snapshot_attempt")
-	exactAttempts := slicesEqual(resumeBegins, wantResume) && slicesEqual(resumeCreates, wantResumeCreates) &&
-		slicesEqual(resumeWrites, wantResume) && slicesEqual(resumeCommits, wantResumeCommits) &&
+	exactAttempts := slices.Equal(resumeBegins, wantResume) && slices.Equal(resumeCreates, wantResumeCreates) &&
+		slices.Equal(resumeWrites, wantResume) && slices.Equal(resumeCommits, wantResumeCommits) &&
 		resumeSessionAttempts == 1 && resumeSnapshotAttempts == 1
 	automaticRetries := (failedSessionAttempts - 1) + (failedSnapshotAttempts - 1) +
 		(resumeSessionAttempts - 1) + (resumeSnapshotAttempts - 1)
@@ -1465,13 +1442,13 @@ func migrationCommandConcurrentLatest(ctx context.Context, contract protocol.Con
 			return protocol.Observation{}, errors.New("migration-command concurrency private response did not parse")
 		}
 		if index == 0 {
-			if !slicesEqual(begins, wantWinnerBegins) || !response.OK ||
-				!slicesEqual(migrationCommandTracePrefix(participant.trace, "record_complete:"), wantWinnerBegins) {
+			if !slices.Equal(begins, wantWinnerBegins) || !response.OK ||
+				!slices.Equal(migrationCommandTracePrefix(participant.trace, "record_complete:"), wantWinnerBegins) {
 				return protocol.Observation{}, fmt.Errorf("migration-command concurrency winner pid=%d trace=%v response=%+v", participant.pid, participant.trace, response)
 			}
 			continue
 		}
-		if !slicesEqual(begins, wantContenderBegins) || response.OK ||
+		if !slices.Equal(begins, wantContenderBegins) || response.OK ||
 			response.Failure.Category != migrateprotocol.CategoryTransaction ||
 			response.Failure.Code != string(migrations.CodeHistoryRevisionContended) ||
 			migrationCommandTraceCount(participant.trace, "begin_contended:command/"+migrationCommandPrefix) != 1 ||
@@ -1618,7 +1595,7 @@ func migrationCommandBackendSecrets(ctx context.Context, contract protocol.Contr
 			return protocol.Observation{}, fmt.Errorf("migration-command backend case %s participants=%d", test.name, len(matched))
 		}
 		participant := matched[0]
-		if !slicesEqual(participant.trace, []string{"backend_open_attempt"}) {
+		if !slices.Equal(participant.trace, []string{"backend_open_attempt"}) {
 			return protocol.Observation{}, fmt.Errorf("migration-command backend case %s trace=%v", test.name, participant.trace)
 		}
 		access, err := os.ReadFile(filepath.Join(project.trace, "secret-access-"+strconv.Itoa(participant.pid)))
@@ -1770,8 +1747,8 @@ func migrationCommandInterruptCleanup(ctx context.Context, contract protocol.Con
 	workspaceResidue := execution.report.ResidualTemp
 	wantBegins := []string{"command/" + migrationCommandMiddle}
 	wantCreates := []string{migrationCommandMiddleTable}
-	exactAttempts := slicesEqual(migrationCommandTracePrefix(participant.trace, "begin_attempt:"), wantBegins) &&
-		slicesEqual(migrationCommandTracePrefix(participant.trace, "create_complete:"), wantCreates) &&
+	exactAttempts := slices.Equal(migrationCommandTracePrefix(participant.trace, "begin_attempt:"), wantBegins) &&
+		slices.Equal(migrationCommandTracePrefix(participant.trace, "create_complete:"), wantCreates) &&
 		len(migrationCommandTracePrefix(participant.trace, "record_attempt:")) == 0 &&
 		migrationCommandTraceCount(participant.trace, "session_attempt") == 1 &&
 		migrationCommandTraceCount(participant.trace, "snapshot_attempt") == 1 &&

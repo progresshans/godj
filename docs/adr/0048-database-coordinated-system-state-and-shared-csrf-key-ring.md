@@ -97,6 +97,10 @@ package-private fault test가 소유합니다. 실제 distinct-process barrier�
 - SQLite는 database-wide writer serialization이라 더 강한 contention을 가질 수 있습니다. PostgreSQL은 schema 단위로
   직렬화됩니다.
 - 모든 system-state/Article writer가 coarse fence를 공유하므로 첫 구현은 correctness 우선이며 throughput 최적화는 측정 뒤 분리합니다.
+- GDJ-0069의 실제 DB 측정에서도 session Create는 행 수에 따라 inventory 비용이 늘고, 포화 시 전체 payload 검증 비용이
+  추가됩니다. Inventory는 canonical digest·중복을 모두 검사하고, 포화 시 bounded payload stream 전체가 유효한 뒤 최소 ID의
+  만료 행 하나만 삭제합니다. Digest 검증의 임시 decode 할당만 제거하며 `COUNT`·조기 삭제로 이 정책을 대체하지 않습니다.
+  스캔을 없애려면 DB constraint·만료 metadata·손상 검사 책임을 함께 설계해야 하며 현재 변경의 범위가 아닙니다.
 - Shared key ring은 distribution/provider가 아니라 already-loaded material 경계이므로 deployment가 같은 bounded set을 주입해야 합니다.
 - Session/capacity/audit policy 값도 DB authority가 아니라 deployment가 동일한 normalized profile로 주입해야 합니다. Persisted
   configuration negotiation은 이 ADR의 지원 범위가 아닙니다.

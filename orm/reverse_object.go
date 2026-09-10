@@ -19,7 +19,6 @@ type ReverseObject[Owner, Source any] struct {
 }
 
 type reverseObjectState[Owner, Source any] struct {
-	relation         reverseRelationState
 	ownerDescriptor  PrimaryKeyObjectDescriptor[Owner]
 	sourceDescriptor RelationObjectDescriptor[Source]
 	sourcePlan       query.Plan
@@ -80,7 +79,6 @@ func BindReverseObject[Owner, Source any](
 	}
 
 	state := reverseObjectState[Owner, Source]{
-		relation:         relation,
 		ownerDescriptor:  ownerDescriptor,
 		sourceDescriptor: source.objectDescriptor,
 		sourcePlan:       source.objectPlan,
@@ -137,15 +135,8 @@ func (state reverseObjectState[Owner, Source]) validate() error {
 	if !state.valid || interfaceIsNil(state.ownerDescriptor) || interfaceIsNil(state.sourceDescriptor) {
 		return relationInvalidPlan("reverse object relation is unbound")
 	}
-	if err := validateReverseRelationState(state.relation); err != nil {
-		return err
-	}
-	if !immutableZeroStateValue(state.ownerDescriptor) || !immutableZeroStateValue(state.sourceDescriptor) {
-		return relationInvalidPlan("reverse object descriptors are not immutable zero-state values")
-	}
-	if !reflect.DeepEqual(state.ownerPrimaryKey, state.relation.forward.targetPrimaryKey) {
-		return relationInvalidPlan("reverse object owner primary key changed")
-	}
+	// BindReverseObject publishes only canonical private field snapshots and
+	// immutable descriptor values. Owner and callback results remain per-call.
 	return nil
 }
 

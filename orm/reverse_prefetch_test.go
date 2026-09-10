@@ -331,6 +331,29 @@ func TestBindReversePrefetchValidatesSourceStorage(t *testing.T) {
 	}
 }
 
+func TestReversePrefetchChecksStorageCallbackAfterBinding(t *testing.T) {
+	reversePrefetchChangedField.Store(false)
+	t.Cleanup(func() { reversePrefetchChangedField.Store(false) })
+	reverse := bindReverseObjectWithDescriptors(t, relationObjectTestAuthorDescriptor{}, reversePrefetchChangingFieldDescriptor{})
+	prefetch, err := BindReversePrefetch(reverse)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &reversePostBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) {
+		return &reversePostRows{}, nil
+	}}
+	reversePrefetchChangedField.Store(true)
+	sets, err := prefetch.Load(context.Background(), backend, []relationObjectTestAuthor{{ID: 1}})
+	assertReversePrefetchError(t, err, query.CategoryQuery, query.CodeInvalidPlan, "")
+	if sets != nil || backend.callCount() != 0 {
+		t.Fatalf("changed storage field returned sets or performed I/O: %v, %d", sets, backend.callCount())
+	}
+	reversePrefetchChangedField.Store(false)
+	if sets, err := prefetch.Load(context.Background(), backend, []relationObjectTestAuthor{{ID: 1}}); err != nil || len(sets) != 1 {
+		t.Fatalf("restored storage callback Load() = (%v, %v)", sets, err)
+	}
+}
+
 func TestReversePrefetchResourceFailuresReturnNilCloseOnceAndRetry(t *testing.T) {
 	prefetch := bindReversePrefetchTestRelation(t, "posts")
 	tests := []struct {
@@ -693,6 +716,31 @@ func integerRange(first, last int64) []int64 {
 }
 
 var reversePrefetchOwnerCloneCalls atomic.Int64
+var reversePrefetchChangedField atomic.Bool
+
+type reversePrefetchChangingFieldDescriptor struct {
+	relationObjectTestPostDescriptor
+}
+
+func (reversePrefetchChangingFieldDescriptor) SnapshotRelationObjectDescriptor() RelationObjectDescriptor[relationObjectTestPost] {
+	return reversePrefetchChangingFieldDescriptor{}
+}
+
+func (reversePrefetchChangingFieldDescriptor) BindRelationStorage(ir.Field) (RelationStorage[relationObjectTestPost], bool) {
+	return reversePrefetchChangingFieldStorage{}, true
+}
+
+type reversePrefetchChangingFieldStorage struct {
+	relationObjectTestAuthorStorage
+}
+
+func (reversePrefetchChangingFieldStorage) Field() ir.Field {
+	field := relationObjectTestAuthorStorage{}.Field()
+	if reversePrefetchChangedField.Load() {
+		field.Column = "changed_after_binding"
+	}
+	return field
+}
 
 type reversePrefetchCloneCountingAuthorDescriptor struct {
 	relationObjectTestAuthorDescriptor

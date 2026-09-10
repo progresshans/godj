@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 
 	"github.com/progresshans/godj/migrations"
@@ -386,7 +387,7 @@ func migrationCommandAssertExactSQLiteState(
 			return fmt.Errorf("exact migration-command SQLite schema object[%d] is not an expected table", index)
 		}
 	}
-	if !migrationCommandKeysEqual(snapshot.history, wantHistory) {
+	if !slices.Equal(snapshot.history, wantHistory) {
 		return fmt.Errorf("exact migration-command SQLite history row count or identity differs: got %d, want %d", len(snapshot.history), len(wantHistory))
 	}
 	if err := migrationCommandAssertExactSQLiteRevision(snapshot.revision, wantHistory); err != nil {
@@ -511,7 +512,7 @@ func migrationCommandCompareExactSQLite(
 			return fmt.Errorf("migration-command SQLite semantic snapshot changed: %w", err)
 		}
 	}
-	if !migrationCommandKeysEqual(before.history, after.history) {
+	if !slices.Equal(before.history, after.history) {
 		return errors.New("migration-command SQLite semantic history changed")
 	}
 	if before.revision.rowCount != after.revision.rowCount ||

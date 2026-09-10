@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -303,7 +304,7 @@ func TestMigrationCommandExactSQLiteInspectIsReadOnly(t *testing.T) {
 	if beforeHash != afterHash {
 		t.Fatalf("read-only exact SQLite inspection changed database bytes: before=%x after=%x", beforeHash, afterHash)
 	}
-	if !slicesEqual(beforeInventory, afterInventory) {
+	if !slices.Equal(beforeInventory, afterInventory) {
 		t.Fatalf("read-only exact SQLite inspection changed directory inventory: before=%v after=%v", beforeInventory, afterInventory)
 	}
 }

@@ -18,6 +18,12 @@ import (
 const articleAPIPostgresDefinitionSHA256 = "47dd38dfb269c2ad411ad741e3b04d08699ace513c99e496c474e3cdc5eb1e50"
 
 func TestArticleAPIAdminSessionPostgresUserFlow(t *testing.T) {
+	runArticleAPIAdminSessionUserFlow(t, newArticleAPIPostgresBackend(t, "godj_article_api"))
+}
+
+// Every caller owns a fresh schema and backend; only setup is shared.
+func newArticleAPIPostgresBackend(t *testing.T, schemaPrefix string) *postgres.Backend {
+	t.Helper()
 	databaseURL := strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL"))
 	if databaseURL == "" {
 		if os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
@@ -32,8 +38,8 @@ func TestArticleAPIAdminSessionPostgresUserFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("connect Article API PostgreSQL database: %v", articlePostgresRedactedConnectionError(err))
 	}
-	schema := fmt.Sprintf("godj_article_api_%d", time.Now().UnixNano())
-	quotedSchema := `"` + schema + `"`
+	schema := fmt.Sprintf("%s_%d", schemaPrefix, time.Now().UnixNano())
+	quotedSchema := pgx.Identifier{schema}.Sanitize()
 	if _, err := adminConnection.Exec(ctx, "CREATE SCHEMA "+quotedSchema); err != nil {
 		_ = adminConnection.Close(ctx)
 		t.Fatalf("create Article API PostgreSQL schema: %v", err)
@@ -76,5 +82,5 @@ func TestArticleAPIAdminSessionPostgresUserFlow(t *testing.T) {
 		t.Fatalf("migrate Article API PostgreSQL fixture: %v", err)
 	}
 
-	runArticleAPIAdminSessionUserFlow(t, backend)
+	return backend
 }

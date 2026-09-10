@@ -224,6 +224,7 @@ const (
 )
 
 type whereLeaf struct {
+	inValues []query.Value
 	related  bool
 	hop      query.RelationHop
 	usesJoin bool
@@ -328,7 +329,8 @@ func (a *whereAnalyzer) walk(
 }
 
 func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootConjunction bool) (whereLeaf, error) {
-	if err := validateWhereCondition(condition); err != nil {
+	values, err := prepareWhereCondition(condition)
+	if err != nil {
 		return whereLeaf{}, err
 	}
 	path, related := condition.RelationPath()
@@ -339,7 +341,7 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		if right, ok := condition.RHSField(); ok && !queryplan.ContainsField(a.sourceFields, right) {
 			return whereLeaf{}, invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
 		}
-		return whereLeaf{}, nil
+		return whereLeaf{inValues: values}, nil
 	}
 	if !relationAtRootConjunction {
 		return whereLeaf{}, unsupportedBooleanRelation(condition)
@@ -391,66 +393,68 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 	return leaf, nil
 }
 
-func validateWhereCondition(condition query.Condition) error {
+func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 	field := condition.Field()
 	if err := validateIdentifier(field.Name()); err != nil {
-		return invalidPlan("condition field name " + err.Error())
+		return nil, invalidPlan("condition field name " + err.Error())
 	}
 	if err := validateIdentifier(field.Column()); err != nil {
-		return invalidPlan("condition field column " + err.Error())
+		return nil, invalidPlan("condition field column " + err.Error())
 	}
 	switch field.Kind() {
 	case query.FieldInteger, query.FieldString, query.FieldBoolean:
 	default:
-		return invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
+		return nil, invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
 	}
 	if right, ok := condition.RHSField(); ok {
 		if _, related := condition.RelationPath(); related {
-			return invalidPlan("PostgreSQL relation conditions cannot use a field right-hand side")
+			return nil, invalidPlan("PostgreSQL relation conditions cannot use a field right-hand side")
 		}
 		if err := validateIdentifier(right.Name()); err != nil {
-			return invalidPlan("condition right-hand-side field name " + err.Error())
+			return nil, invalidPlan("condition right-hand-side field name " + err.Error())
 		}
 		if err := validateIdentifier(right.Column()); err != nil {
-			return invalidPlan("condition right-hand-side field column " + err.Error())
+			return nil, invalidPlan("condition right-hand-side field column " + err.Error())
 		}
 		if right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
-			return invalidPlan("PostgreSQL field comparison requires same-kind Integer or String fields")
+			return nil, invalidPlan("PostgreSQL field comparison requires same-kind Integer or String fields")
 		}
 		if condition.Lookup() != query.LookupExact && !orderedComparisonLookup(condition.Lookup()) {
-			return unsupportedLookup(field, condition.Lookup())
+			return nil, unsupportedLookup(field, condition.Lookup())
 		}
-		return nil
+		return nil, nil
 	}
 
 	switch condition.Lookup() {
 	case query.LookupExact:
 		if !queryplan.ValueMatchesField(condition.Value().Kind(), field.Kind()) {
-			return invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", condition.Value().Kind(), field.Name()))
+			return nil, invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", condition.Value().Kind(), field.Name()))
 		}
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
 		if !queryplan.OrderedValueMatchesField(condition.Value().Kind(), field.Kind()) {
-			return unsupportedLookup(field, condition.Lookup())
+			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 	case query.LookupIContains:
 		if _, ok := condition.Value().String(); field.Kind() != query.FieldString || !ok {
-			return unsupportedLookup(field, condition.Lookup())
+			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 	case query.LookupIsNull:
 		if _, ok := condition.Value().Boolean(); !ok {
-			return unsupportedLookup(field, condition.Lookup())
+			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 	case query.LookupIn:
 		if _, related := condition.RelationPath(); related {
-			return invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
+			return nil, invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
 		}
-		if _, ok := condition.Values(); !ok {
-			return invalidPlan("PostgreSQL IN requires a valid root-table list-backed condition")
+		values, ok := condition.Values()
+		if !ok {
+			return nil, invalidPlan("PostgreSQL IN requires a valid root-table list-backed condition")
 		}
+		return values, nil
 	default:
-		return unsupportedLookup(field, condition.Lookup())
+		return nil, unsupportedLookup(field, condition.Lookup())
 	}
-	return nil
+	return nil, nil
 }
 
 type whereFieldResolver func(query.Condition) (string, error)
@@ -475,8 +479,12 @@ func appendWhere(
 		return arguments, nil
 	}
 	statement.WriteString(" WHERE ")
-	if err := appendWhereExpression(statement, where.expression, resolveField, resolveRHSField, &arguments, false); err != nil {
+	leaves := where.leaves
+	if err := appendWhereExpression(statement, where.expression, &leaves, resolveField, resolveRHSField, &arguments, false); err != nil {
 		return nil, err
+	}
+	if len(leaves) != 0 {
+		return nil, invalidPlan("query expression has unused prepared leaves")
 	}
 	return arguments, nil
 }
@@ -484,6 +492,7 @@ func appendWhere(
 func appendWhereExpression(
 	statement *strings.Builder,
 	expression query.Expression,
+	leaves *[]whereLeaf,
 	resolveField whereFieldResolver,
 	resolveRHSField whereRHSFieldResolver,
 	arguments *[]any,
@@ -496,6 +505,13 @@ func appendWhereExpression(
 		if !ok {
 			return invalidPlan("query expression leaf is malformed")
 		}
+		if len(*leaves) == 0 {
+			return invalidPlan("query expression is missing a prepared leaf")
+		}
+		// Analysis and emission walk the same immutable expression in DFS order.
+		// Advance a local slice header; the prepared values remain read-only.
+		leaf := (*leaves)[0]
+		*leaves = (*leaves)[1:]
 		field, err := resolveField(condition)
 		if err != nil {
 			return err
@@ -509,7 +525,7 @@ func appendWhereExpression(
 			}
 		}
 		statement.WriteString(field)
-		conditionArguments, err := compileCondition(statement, condition, right, len(*arguments)+1)
+		conditionArguments, err := compileCondition(statement, condition, right, leaf.inValues, len(*arguments)+1)
 		if err != nil {
 			return err
 		}
@@ -537,14 +553,14 @@ func appendWhereExpression(
 			if index > 0 {
 				statement.WriteString(operator)
 			}
-			if err := appendWhereExpression(statement, child, resolveField, resolveRHSField, arguments, negated); err != nil {
+			if err := appendWhereExpression(statement, child, leaves, resolveField, resolveRHSField, arguments, negated); err != nil {
 				return err
 			}
 		}
 	case query.ExpressionNot:
 		children := expression.Children()
 		statement.WriteString("NOT ")
-		if err := appendWhereExpression(statement, children[0], resolveField, resolveRHSField, arguments, !negated); err != nil {
+		if err := appendWhereExpression(statement, children[0], leaves, resolveField, resolveRHSField, arguments, !negated); err != nil {
 			return err
 		}
 	default:
@@ -760,7 +776,7 @@ func compileRelation(
 	return statement.String(), arguments, nil
 }
 
-func compileCondition(statement *strings.Builder, condition query.Condition, rightField string, firstArgument int) ([]any, error) {
+func compileCondition(statement *strings.Builder, condition query.Condition, rightField string, inValues []query.Value, firstArgument int) ([]any, error) {
 	field := condition.Field()
 	value := condition.Value()
 	switch condition.Lookup() {
@@ -810,13 +826,12 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 		}
 		return nil, nil
 	case query.LookupIn:
-		values, ok := condition.Values()
-		if !ok {
+		if len(inValues) == 0 {
 			return nil, invalidPlan("PostgreSQL IN requires a valid root-table list-backed condition")
 		}
 		statement.WriteString(" IN (")
-		arguments := make([]any, len(values))
-		for index, item := range values {
+		arguments := make([]any, len(inValues))
+		for index, item := range inValues {
 			if index > 0 {
 				statement.WriteString(", ")
 			}

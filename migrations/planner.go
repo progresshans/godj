@@ -172,7 +172,8 @@ func (p Planner) CheckHistory(applied AppliedState) error {
 	if graph == nil {
 		graph = emptyPlannerGraph()
 	}
-	return graph.validateAppliedHistory(cloneAppliedKeys(applied.keys))
+	// Both snapshots are private and immutable; only Plan needs a mutable copy.
+	return graph.validateAppliedHistory(applied.keys)
 }
 
 // Statuses returns a fresh read-only view of every known migration and every

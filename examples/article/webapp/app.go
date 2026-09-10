@@ -133,25 +133,26 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 		return web.Response{}, fmt.Errorf("article list: bind request facade: %w", err)
 	}
 	matching := bound.ModelsArticle
+	predicates := make([]orm.Predicate[articlemodels.Article], 0, 6)
 	if options.Query != nil {
-		matching = matching.Filter(orm.Or(
+		predicates = append(predicates, orm.Or(
 			articlemodels.ArticleFields.Title.IContains(*options.Query),
 			articlemodels.ArticleFields.Summary.IContains(*options.Query),
 		))
 	}
 	if options.Published != nil {
-		matching = matching.Filter(articlemodels.ArticleFields.Published.Exact(*options.Published))
+		predicates = append(predicates, articlemodels.ArticleFields.Published.Exact(*options.Published))
 	}
 	if options.ExcludeTitle != nil {
-		matching = matching.Filter(orm.Not(
+		predicates = append(predicates, orm.Not(
 			articlemodels.ArticleFields.Title.IContains(*options.ExcludeTitle),
 		))
 	}
 	if options.MinID != nil {
-		matching = matching.Filter(articlemodels.ArticleFields.ID.GreaterThanOrEqual(*options.MinID))
+		predicates = append(predicates, articlemodels.ArticleFields.ID.GreaterThanOrEqual(*options.MinID))
 	}
 	if options.MaxID != nil {
-		matching = matching.Filter(articlemodels.ArticleFields.ID.LessThanOrEqual(*options.MaxID))
+		predicates = append(predicates, articlemodels.ArticleFields.ID.LessThanOrEqual(*options.MaxID))
 	}
 	if options.TitleMatchesSummary != nil {
 		matchesSummary := articlemodels.ArticleFields.Title.ExactField(
@@ -160,7 +161,10 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 		if !*options.TitleMatchesSummary {
 			matchesSummary = orm.Not(matchesSummary)
 		}
-		matching = matching.Filter(matchesSummary)
+		predicates = append(predicates, matchesSummary)
+	}
+	if len(predicates) > 0 {
+		matching = matching.Filter(predicates...)
 	}
 	matching = matching.Distinct()
 	pageQuery, err := matching.

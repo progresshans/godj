@@ -11,6 +11,27 @@ import (
 var benchmarkPreparedQuery QuerySet[relationObjectTestPost]
 var benchmarkPreparedManager Manager[relationObjectTestPost]
 var benchmarkPrefetchedSets []*RelatedSet[relationObjectTestPost]
+var benchmarkReverseSet *RelatedSet[relationObjectTestPost]
+
+func BenchmarkReverseObjectFrom(b *testing.B) {
+	post, author, _, _ := bindRelationObjectTestFixture(b)
+	reverse, err := BindReverseObject(author, "posts", post)
+	if err != nil {
+		b.Fatal(err)
+	}
+	backend := &reversePostBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) {
+		b.Fatal("From performed database I/O")
+		return nil, nil
+	}}
+	owner := relationObjectTestAuthor{ID: 1, Name: "Owner"}
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkReverseSet, err = reverse.From(backend, owner)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
 
 func BenchmarkManagerPreparation(b *testing.B) {
 	b.Run("Using", func(b *testing.B) {

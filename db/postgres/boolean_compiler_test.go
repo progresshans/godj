@@ -218,12 +218,30 @@ func TestCompileBooleanWhereIsSharedByEveryResultShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ids, err := query.NewInCondition(id, []query.Value{query.Integer(3), query.Integer(8)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	titles, err := query.NewInCondition(title, []query.Value{query.String("ORM"), query.String("Go")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	excluded, err := query.NotExpression(mustPostgresExpression(t, titles))
+	if err != nil {
+		t.Fatal(err)
+	}
+	where, err = query.AndExpressions(where, mustPostgresExpression(t, ids),
+		mustPostgresExpression(t, query.NewCondition(published, query.LookupIsNull, query.Boolean(false))),
+		excluded, mustPostgresExpression(t, ids))
+	if err != nil {
+		t.Fatal(err)
+	}
 	base, err := query.NewPlan("news_article", []query.FieldRef{id, title, published}).WithWhere(where)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantWhere := ` WHERE (("title" ILIKE $1 ESCAPE '\') OR ("title" = $2))`
-	wantArguments := []any{"%django%", "Other"}
+	wantWhere := ` WHERE ((("title" ILIKE $1 ESCAPE '\') OR ("title" = $2)) AND ("id" IN ($3, $4)) AND ("published" IS NOT NULL) AND (NOT ("title" IN ($5, $6))) AND ("id" IN ($7, $8)))`
+	wantArguments := []any{"%django%", "Other", int64(3), int64(8), "ORM", "Go", int64(3), int64(8)}
 
 	projection, err := query.NewProjectionResult(id, title)
 	if err != nil {
@@ -257,15 +275,18 @@ func TestCompileBooleanWhereIsSharedByEveryResultShape(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			statement, arguments, compileErr := compilePlan("godj_app", test.plan)
-			if compileErr != nil {
-				t.Fatal(compileErr)
-			}
-			if !strings.Contains(statement, wantWhere) {
-				t.Fatalf("SQL = %q, want shared predicate %q", statement, wantWhere)
-			}
-			if len(arguments) < len(wantArguments) || !reflect.DeepEqual(arguments[:len(wantArguments)], wantArguments) {
-				t.Fatalf("arguments = %#v, want prefix %#v", arguments, wantArguments)
+			for range 2 {
+				statement, arguments, compileErr := compilePlan("godj_app", test.plan)
+				if compileErr != nil {
+					t.Fatal(compileErr)
+				}
+				if !strings.Contains(statement, wantWhere) {
+					t.Fatalf("SQL = %q, want shared predicate %q", statement, wantWhere)
+				}
+				if len(arguments) < len(wantArguments) || !reflect.DeepEqual(arguments[:len(wantArguments)], wantArguments) {
+					t.Fatalf("arguments = %#v, want prefix %#v", arguments, wantArguments)
+				}
+				arguments[2] = int64(999)
 			}
 		})
 	}
@@ -314,7 +335,11 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 	}
 	authorLeaf := mustPostgresExpression(t, query.NewRelatedCondition(authorPath, query.LookupExact, query.String("Ada")))
 	categoryLeaf := mustPostgresExpression(t, query.NewRelatedCondition(categoryPath, query.LookupExact, query.String("Go")))
-	where, err := query.AndExpressions(categoryLeaf, authorLeaf)
+	ids, err := query.NewInCondition(id, []query.Value{query.Integer(3), query.Integer(8)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	where, err := query.AndExpressions(categoryLeaf, authorLeaf, mustPostgresExpression(t, ids))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,9 +354,9 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 	}
 	// Alias allocation is sorted by symbolic edge (author before category),
 	// while the arguments retain expression DFS order (category before author).
-	want := `SELECT "t0"."id", "t0"."title", "t0"."author_id", "t0"."category_id" FROM "godj_app"."blog_post" AS "t0" INNER JOIN "godj_app"."authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" INNER JOIN "godj_app"."catalog_category" AS "t2" ON "t0"."category_id" = "t2"."id" WHERE (("t2"."name" = $1) AND ("t1"."name" = $2))`
-	if statement != want || !reflect.DeepEqual(arguments, []any{"Go", "Ada"}) {
-		t.Fatalf("relation = %q %#v, want %q [Go Ada]", statement, arguments, want)
+	want := `SELECT "t0"."id", "t0"."title", "t0"."author_id", "t0"."category_id" FROM "godj_app"."blog_post" AS "t0" INNER JOIN "godj_app"."authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" INNER JOIN "godj_app"."catalog_category" AS "t2" ON "t0"."category_id" = "t2"."id" WHERE (("t2"."name" = $1) AND ("t1"."name" = $2) AND ("t0"."id" IN ($3, $4)))`
+	if statement != want || !reflect.DeepEqual(arguments, []any{"Go", "Ada", int64(3), int64(8)}) {
+		t.Fatalf("relation = %q %#v, want %q [Go Ada 3 8]", statement, arguments, want)
 	}
 
 	scalarLeaf := mustPostgresExpression(t, query.NewCondition(title, query.LookupExact, query.String("Other")))

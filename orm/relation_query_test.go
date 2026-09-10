@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 
@@ -230,6 +231,53 @@ func TestBindModelSealsRelationObjectDescriptorExactlyOnce(t *testing.T) {
 	value, ok, err := loaded.Get(context.Background())
 	if err != nil || !ok || value.ID != 1 {
 		t.Fatalf("sealed storage Get() = (%#v, %v, %v)", value, ok, err)
+	}
+	reverse, err := BindReverseObject(author, "posts", bound)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefetch, err := BindReversePrefetch(reverse)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata, found := binding.Model(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"})
+	if !found {
+		t.Fatal("bound post metadata is missing")
+	}
+	metadata.DBTable = "caller_mutation"
+	for index := range metadata.Fields {
+		metadata.Fields[index].Column = "caller_mutation"
+		if relation := metadata.Fields[index].Relation; relation != nil {
+			relation.Reverse.Name = "caller_mutation"
+		}
+	}
+	binding.ForwardRelations()[0].Reverse.Name = "caller_mutation"
+	binding.ReverseRelations()[0].Name = "caller_mutation"
+	posts := &reversePostBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) {
+		return &reversePostRows{values: []relationObjectTestPost{{ID: 10, AuthorID: 1}}}, nil
+	}}
+	for index := range 16 {
+		t.Run(fmt.Sprintf("concurrent_reverse_%d", index), func(t *testing.T) {
+			t.Parallel()
+			set, err := reverse.From(posts, relationObjectTestAuthor{ID: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertReverseSetPlan(t, set.querySet.Plan(), "author", 1, "id", query.Ascending)
+			values, err := set.All(context.Background())
+			if err != nil || len(values) != 1 || values[0].AuthorID != 1 {
+				t.Fatalf("sealed reverse All() = (%v, %v)", values, err)
+			}
+			values[0].AuthorID = 999
+			sets, err := prefetch.Load(context.Background(), posts, []relationObjectTestAuthor{{ID: 1}})
+			if err != nil || len(sets) != 1 {
+				t.Fatalf("sealed prefetch Load() = (%v, %v)", sets, err)
+			}
+			values, err = sets[0].All(context.Background())
+			if err != nil || len(values) != 1 || values[0].AuthorID != 1 {
+				t.Fatalf("sealed prefetch All() = (%v, %v)", values, err)
+			}
+		})
 	}
 }
 

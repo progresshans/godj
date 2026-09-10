@@ -2,6 +2,7 @@ package systemstate
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"testing"
@@ -9,6 +10,30 @@ import (
 
 	"github.com/progresshans/godj/sessions"
 )
+
+func TestSessionDigestValidationMatchesCanonicalHex(t *testing.T) {
+	t.Parallel()
+	check := func(value string) {
+		t.Helper()
+		decoded, err := hex.DecodeString(value)
+		want := err == nil && len(decoded) == 32 && hex.EncodeToString(decoded) == value
+		if got := validSessionDigest(value); got != want {
+			t.Fatalf("validSessionDigest(%q) = %v, want %v", value, got, want)
+		}
+	}
+	const canonical = "4159c5d401af09c2a95c8c36a664299a4eae8676e8c406cdfb44fc5511bc2b4d"
+	for position := range len(canonical) {
+		for value := range 256 {
+			candidate := []byte(canonical)
+			candidate[position] = byte(value)
+			check(string(candidate))
+		}
+	}
+	for _, value := range []string{"", canonical[:63], canonical + "0", strings.ToUpper(canonical),
+		strings.Repeat("Ａ", 21) + "0", strings.Repeat("a", 62) + "é", strings.Repeat("0", 64), strings.Repeat("f", 64)} {
+		check(value)
+	}
+}
 
 func TestSessionPayloadRoundTripCanonicalDigestOnlyAndDetached(t *testing.T) {
 	t.Parallel()

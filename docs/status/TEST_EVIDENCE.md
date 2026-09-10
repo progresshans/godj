@@ -3,6 +3,147 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0069 — 바인딩·쿼리 준비와 감사 후속 개선
+
+- 작업: [GDJ-0069](../../work/0069-boundary-preparation-and-audit-followup.md).
+- 기준: `71ba61f0ecf26d397b10ac207212146f27441de7`.
+- 상태: F1~F8 구현·전후 측정·관련 로컬 통합 검증 완료. Hosted full scope는 아직 실행 전.
+- 검증 소유권: 묶음별 affected local checkpoint, 관련 DB·race·CGO-disabled 통합, 최종 제품 소스 Hosted full scope.
+- 아래 GDJ-0068은 직전 완료 근거이며 GDJ-0069 변경 소스의 PASS가 아니다.
+
+### 변경과 검증 대상
+
+| 항목 | 최종 변경 | 보존하는 검증 |
+|---|---|---|
+| F1 | ReverseObject의 정적 검사를 Bind가 소유하며 prefetch는 canonical private field를 공유 | 공개 metadata 변조·descriptor snapshot·zero/nil·PK·callback field 변경·cold cache·취소·16개 동시 소비 |
+| F2 | CheckHistory가 private immutable applied map을 읽음 | Plan의 별도 mutable 복사, unknown/history 오류 순서, 64 goroutine의 반복 CheckHistory와 forward/backward Plan |
+| F3 | PostgreSQL IN 값을 compile-local leaf에 한 번 준비 | mixed IN/NOT/ISNULL·relation alias·model/projection/aggregate·재컴파일 인자 독립성·기존 오류 우선순위 |
+| F4 | Article의 최대 6개 optional predicate를 한 번에 Filter | 기존 typed/dynamic AST와 유효 조건의 batch/chain 의미, 검색·페이지·정렬·SQLite/PostgreSQL HTTP 흐름 |
+| F5/F6 | 경로 Count 전환, 미사용 regexp 제거 | 기존 root/malformed/segment bound와 wirejson 숫자 거부 |
+| F7 | 두 Article PostgreSQL 준비와 두 CLI assertion helper 공유, 표준 slices.Equal | 독립 schema·flow·fixture hash/LoadReport·required DB·redaction·별도 oracle/actual·exact SQLite snapshot |
+| F8 | canonical digest byte 검증으로 임시 decode 할당 제거 | 64개 위치 각각 모든 byte와 stdlib canonical hex 대조, 기존 손상·중복·전체 검증 뒤 만료 1행 삭제·cross-runtime fence |
+
+검증 비용을 줄이기 위해 assertion·필수 DB·오류 검사를 삭제하지 않았다. F1의 storage.Field는 외부 상태를 볼 수 있는
+callback이므로 매 Load에서 계속 검사한다. F4는 이미 검증된 최대 6개 predicate를 수집하며 한도 밖의 임의 chain/batch가
+같은 오류 우선순위를 갖는다고 일반화하지 않는다. F7은 fixture와 DB 수명만 공유하며 oracle을 actual 생성에 전달하지 않는다.
+
+### F1~F4 전후 측정
+
+2026-09-10 KST, Go 1.26.5 darwin/arm64, Apple M3 Pro. 각 제품 변경 전에 같은 workload를 추가해 기준을 측정했다.
+`-benchtime=200ms -count=3`의 중앙값이며 마지막 비교는 `-p=1`로 package를 순차 실행했다. DB·HTTP 전체 성능의 증거는 아니다.
+
+```sh
+go test -p=1 -run '^$' -bench 'Benchmark(PlannerCheckHistory|ReverseObjectFrom|ReversePrefetch|PostgresConditionCompilation|ConditionBatching)$' -benchtime=200ms -count=3 ./migrations ./orm ./db/postgres ./query
+```
+
+| workload | 기준 → 변경 ns/op | 기준 → 변경 B/op | 기준 → 변경 allocs/op |
+|---|---:|---:|---:|
+| ReverseObject.From | 2,093 → 282.4 | 1,408 → 736 | 15 → 7 |
+| ReversePrefetch / 20 owners·1,000 rows | 166,038 → 140,910 | 465,117 → 463,482 | 7,390 → 7,372 |
+| CheckHistory / 32 applied | 2,391 → 1,383 | 2,728 → 0 | 3 → 0 |
+| CheckHistory / 256 applied | 19,231 → 11,700 | 21,800 → 0 | 3 → 0 |
+| CheckHistory / 1,024 applied | 90,187 → 51,232 | 98,384 → 0 | 5 → 0 |
+| PostgreSQL full compile / exact | 488.9 → 490.9 | 504 → 520 | 13 → 13 |
+| PostgreSQL full compile / IN 8 | 827.9 → 755.9 | 1,640 → 1,272 | 17 → 16 |
+| PostgreSQL full compile / IN 256 | 10,948 → 9,121 | 43,112 → 29,560 | 180 → 179 |
+| PostgreSQL full compile / IN 999 | 48,908 → 42,537 | 168,665 → 119,528 | 1,670 → 1,669 |
+
+PostgreSQL 일반 exact 조건은 leaf 준비 공간이 16 bytes 늘었고 시간은 이 측정에서 비슷했다. IN 999의 49 KB는
+전체 할당량이 아니라 제거된 두 번째 public Values 복사량에 해당한다. 공개 getter의 방어적 복사는 유지한다.
+
+| 유효 조건 수 | chain → batch ns/op | chain → batch B/op | chain → batch allocs/op |
+|---|---:|---:|---:|
+| 8 | 951.8 → 502.1 | 2,456 → 1,488 | 22 → 12 |
+| 64 | 11,110 → 3,278 | 35,416 → 10,896 | 190 → 68 |
+| 256 | 78,062 → 12,848 | 353,563 → 43,920 | 766 → 260 |
+| 1,023 | 932,708 → 52,908 | 4,764,445 → 172,033 | 3,067 → 1,027 |
+
+이 비교는 같은 유효 Plan의 수집 방식 차이다. Immutable AST의 체인 구성 자체를 변경하지 않았고 새 전역 cache를 추가하지 않았다.
+
+### F8 실제 DB 측정과 정책 결정
+
+SQLite는 modernc v1.56.0의 실제 임시 파일과 `_busy_timeout=5000`, PostgreSQL은 기존 로컬 17.5 서비스에 새로 만든
+전용 DB·개별 schema를 사용했다. 모두 framework migration으로 준비하고 실제 coordinated transaction을 실행했다.
+PostgreSQL 17.10의 Hosted 환경과 이 로컬 버전을 구분한다. 양쪽 전후 각각 34 workload × 3회, 총 102 sample이 완료됐다.
+
+```sh
+GODJ_REQUIRE_POSTGRES=1 go test -run '^$' -bench 'BenchmarkSession(Capacity|Operations)Database$' -benchtime=200ms -count=3 -timeout=15m ./systemstate
+```
+
+`GODJ_TEST_POSTGRES_URL`은 실행 전 전용 DB를 가리키도록 설정했다. Capacity는 64/1024/4096 상한 각각 25%·full-live·full-expired를
+측정한다. Full-expired의 fixture 복원은 timer 밖이며 측정에는 전체 검증·실제 1행 삭제·commit이 포함된다.
+
+| 4096 상한 / occupancy | 기준 → 변경 ms/op | 기준 → 변경 B/op | 기준 → 변경 allocs/op |
+|---|---:|---:|---:|
+| SQLite / 25% | 1.294 → 1.210 | 181,681 → 148,904 | 6,986 → 5,962 |
+| SQLite / full-live | 18.580 → 17.028 | 15,306,836 → 15,044,732 | 241,287 → 233,095 |
+| SQLite / full-expired | 18.152 → 18.037 | 15,308,345 → 15,046,251 | 241,303 → 233,111 |
+| PostgreSQL / 25% | 0.747 → 0.702 | 183,647 → 150,881 | 7,025 → 6,001 |
+| PostgreSQL / full-live | 14.734 → 14.393 | 15,308,844 → 15,046,713 | 241,316 → 233,124 |
+| PostgreSQL / full-expired | 14.735 → 14.296 | 15,309,532 → 15,047,401 | 241,333 → 233,142 |
+
+포화 시 두 번의 digest scan에서 4096×2개의 decode 할당을 제거했고 payload 복원 검증은 유지했다.
+용량이 남아도 inventory는 O(n)이며 포화 시 추가 O(n) payload 검증이 남는다.
+
+Operations는 1024/4092행에서 독립 backend/Runtime 1개·4개를 사용한다. Create는 직후 Delete까지 한 cycle이며 Rotate는 두 ID를
+번갈아 사용한다. 아래 값은 4092행의 cycle당 평균 wall time이며 개별 요청의 대기 시간을 뜻하지 않는다.
+
+| DB / operation / Runtime 수 | 기준 → 변경 ms/cycle | 기준 → 변경 B/cycle |
+|---|---:|---:|
+| SQLite / create-delete / 1 | 7.730 → 7.824 | 738,567 → 607,590 |
+| SQLite / create-delete / 4 | 10.768 → 10.284 | 739,382 → 608,245 |
+| SQLite / rotate / 1 | 0.986 → 0.979 | 16,105 → 16,073 |
+| SQLite / rotate / 4 | 1.266 → 1.236 | 16,209 → 16,171 |
+| PostgreSQL / create-delete / 1 | 3.775 → 3.973 | 742,434 → 611,472 |
+| PostgreSQL / create-delete / 4 | 3.773 → 3.499 | 742,973 → 611,930 |
+| PostgreSQL / rotate / 1 | 0.769 → 0.767 | 19,558 → 19,525 |
+| PostgreSQL / rotate / 4 | 0.681 → 0.626 | 19,604 → 19,571 |
+
+할당 감소는 반복해서 관측되지만 일부 create-delete 시간은 늘었으므로 모든 DB 작업의 속도 개선을 주장하지 않는다.
+Rotate는 row 수를 유지하며 ensureCapacity를 호출하지 않는다. Create의 inventory와 두 operation의 digest lookup·DB fence 비용을
+구분한다. 모든 workload 종료 후 실제 inventory의 행 수·digest 유효성·중복 없음도 확인했다.
+
+첫 SQLite 동시 benchmark는 busy timeout을 지정하지 않아 SQLITE_BUSY로 실패했다. 지원 계약대로 acquisition 실패를 전파한 것이며
+제품에 retry를 추가하지 않았다. 성공 경합 비용 측정을 위해 fixture를 기존 waiting-fence profile로 고친 뒤 전후 전체를 다시 실행했다.
+
+채택한 수정은 canonical lowercase ASCII hex의 동등 byte 검사뿐이다. 64개 위치 × 모든 256개 byte와 길이·대문자·Unicode를
+stdlib decode/re-encode oracle로 대조한다. COUNT, 첫 만료 행을 찾자마자 삭제, payload decode 생략은 도입하지 않는다.
+전체 스캔 제거에는 DB constraint·만료 metadata·손상 검사 책임을 함께 설계해야 한다. 현행 정책 유지 결정은
+[ADR-0048](../adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)에 반영했다.
+
+### 로컬 checkpoint
+
+- F2/F5/F6: `go test -json -count=1 ./migrations ./web ./internal/projectcheck/protocol` — 3 packages·521 test pass, skip 0.
+- F1: `go test -json -count=1 ./orm` — 457 test pass, skip 0. 외부 소비자는 아래 통합 checkpoint에서 실행했다.
+- F3 초기 normal은 265 pass·PostgreSQL 환경 관련 10 skip, F4 초기 normal은 166 pass·4 PostgreSQL skip이었다.
+  실제 DB 설정 뒤 아래 실행으로 해당 integration과 Article 흐름을 확인했다.
+- `GODJ_REQUIRE_POSTGRES=1 go test -json -count=1 ./db/postgres ./examples/article ./examples/article/webapp` —
+  3 packages·310 pass. 단독 실행용 `TestPostgresRevisionFenceHelperProcess` 1개만 환경 없는 부모 열거에서 skip하고,
+  실제 cross-process integration의 자식 경로는 실행됐다. 서비스 필요 테스트의 미실행을 PASS로 세지 않았다.
+- F7의 두 CLI 성공 helper 소비자 — 2 pass, skip 0. Separate actual output과 locked oracle을 실제 비교했다.
+- `go test -json -count=1 -timeout=15m ./systemstate ./sessions ./db/sqlite ./codegen/consumertest` —
+  4 packages·888 pass·skip 0. 실제 외부 Go module의 generated reverse/prefetch 소비자를 포함한다.
+- `go test -json -count=1 -timeout=10m -run '^TestMigrationCommand' ./conformance/runners/godj` —
+  47 pass·skip 0. Exact SQLite snapshot의 실제 상태·false-green 거부·catalog 손상·read-only·byte identity를 유지했다.
+- 아래 관련 10 package는 race와 CGO-disabled 각각 1695 pass다. 두 모드 모두 PostgreSQL 필수 환경을 설정하고 실제 DB 테스트를
+  실행했다. 위와 같은 subprocess 전용 helper 한 항목만 부모 열거에서 skip하며 테스트 실패·DB 누락은 없다.
+
+```sh
+GODJ_REQUIRE_POSTGRES=1 go test -race -json -count=1 -timeout=15m ./migrations ./orm ./query ./db/postgres ./systemstate ./codegen/consumertest ./web ./internal/projectcheck/protocol ./examples/article ./examples/article/webapp
+GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 go test -json -count=1 -timeout=15m ./migrations ./orm ./query ./db/postgres ./systemstate ./codegen/consumertest ./web ./internal/projectcheck/protocol ./examples/article ./examples/article/webapp
+```
+
+- `make docs-check format-check generate-check` — PASS. 문서 90개 링크, Helpdesk 12·Article 12·relationfixture 16개와
+  별도 relationproduct의 checked-in generated fixture가 모두 현재 소스와 일치한다.
+- 변경 영향 package의 `go vet`와 `git diff --check` — PASS.
+- 로컬 검증과 benchmark 종료 후 이 작업에서 만든 전용 PostgreSQL DB만 삭제했고 기존 17.5 서비스가 계속 실행됨을 확인했다.
+- 자체 diff 검토에서 F1의 callback field 복사/매회 검사, F3의 analysis/emission DFS와 null-negation, F4의 predicate 순서,
+  F7의 setup context/cleanup 수명·독립 oracle, F8의 canonical ASCII grammar·전체 검사 후 DML을 대조했다.
+
+### 최종 통합
+
+아직 실행 결과를 기록하지 않았다. 동일 제품 소스를 기존 Draft PR #1에 반영한 뒤 Hosted full scope와 source-bound capture를 검증한다.
+
 ## GDJ-0068 — 불변 값 전달과 검증 비용 정리
 
 - 작업: [GDJ-0068](../../work/0068-immutable-value-transfer-and-verification-cost.md).
