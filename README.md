@@ -22,6 +22,9 @@ export GODJ_ARTICLE_SQLITE_DATABASE="$godj_demo_dir/article.sqlite3"
 [Article](http://127.0.0.1:8000/)과 [Admin](http://127.0.0.1:8000/admin/)을 열고, 종료는 Ctrl-C를 사용한다.
 같은 DB로 다시 실행할 때는 `runserver`만 실행한다. Provisioning은 한 번만 수행하며 startup은 저장된 credential을 연다.
 
+Admin에 로그인한 같은 브라우저에서 [Article OpenAPI](http://127.0.0.1:8000/api/openapi.json)를 조회할 수 있다.
+기존 API의 모델 기반 요청·응답, route와 Session/CSRF 조건을 제공한다. [코드에서 사용하는 방법](docs/DEVELOPER_EXPERIENCE.md#openapi와-client)은 개발 흐름을 따른다.
+
 SQLite 선택과 PostgreSQL 환경변수를 동시에 설정하지 않는다. PostgreSQL 사용법과 명령별 흐름은
 [개발 흐름](docs/DEVELOPER_EXPERIENCE.md)에 있다. 예제는 loopback 개발 서버이며 배포 설정을 대신하지 않는다.
 

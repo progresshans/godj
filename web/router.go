@@ -71,6 +71,12 @@ type routeMatch struct {
 }
 
 func newRouter(registry apps.Registry, routes []Route) (router, error) {
+	return compileRouter(&registry, routes)
+}
+
+// A nil registry checks route declarations before an application has selected
+// its installed apps. Publication through New still checks namespace membership.
+func compileRouter(registry *apps.Registry, routes []Route) (router, error) {
 	if len(routes) > maximumRoutes {
 		return router{}, &Error{Code: CodeInvalidRoute, Field: "routes", Detail: "route count exceeds the application limit"}
 	}
@@ -115,7 +121,7 @@ func newRouter(registry apps.Registry, routes []Route) (router, error) {
 	return result, nil
 }
 
-func validateRoute(registry apps.Registry, route Route) (*routePattern, error) {
+func validateRoute(registry *apps.Registry, route Route) (*routePattern, error) {
 	if route.Handler == nil {
 		return nil, &Error{Code: CodeInvalidRoute, Field: "handler", Detail: "handler is nil"}
 	}
@@ -127,11 +133,13 @@ func validateRoute(registry apps.Registry, route Route) (*routePattern, error) {
 		return nil, err
 	}
 	label, name, found := strings.Cut(route.Name, ":")
-	if !found || strings.Contains(name, ":") || !validRoutePart(name) {
+	if !found || label == "" || strings.Contains(name, ":") || !validRoutePart(name) {
 		return nil, &Error{Code: CodeInvalidRoute, Field: "name", Detail: "name must be <installed-app-label>:<route>"}
 	}
-	if _, installed := registry.Lookup(label); !installed {
-		return nil, &Error{Code: CodeInvalidRoute, Field: "name", Detail: "route namespace is not an installed app label"}
+	if registry != nil {
+		if _, installed := registry.Lookup(label); !installed {
+			return nil, &Error{Code: CodeInvalidRoute, Field: "name", Detail: "route namespace is not an installed app label"}
+		}
 	}
 	return pattern, nil
 }

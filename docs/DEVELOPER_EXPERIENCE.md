@@ -2,6 +2,7 @@
 
 실행 가능한 시작점은 [README의 Article 예제](../README.md#article-실행)다.
 아래는 현재 명령과 코드 경계를 설명한다. 제품 지원 폭은 [구현 현황](status/IMPLEMENTATION_MATRIX.md)을 따른다.
+새 기능의 작성·변경·진단 편의를 평가할 때는 [개발 판단 기준](DEVELOPMENT_CRITERIA.md)을 사용한다.
 
 ## 모델에서 query까지
 
@@ -84,6 +85,36 @@ Startup이 새 권한을 자동 승인하거나 이미 admitted된 작업을 소
 [Helpdesk 소비자](../examples/helpdesk/app_test.go)는 Category–Ticket 관계, 선택형 Admin, API와 기존 DB의 operator 권한 변경을 같은 공개 API로 검증한다.
 
 두 번째 모델이나 cross-app flow를 추가할 때는 새 모델이 실제로 같은 공개 경계를 사용하도록 구성하고 core 수정 없이 안 되는 지점을 확인한다.
+
+## OpenAPI와 client
+
+Article 개발 서버에서 Admin에 로그인한 뒤 `/api/openapi.json`을 조회한다. 문서는 Article view 권한으로 보호되며,
+credential을 provision하지 않은 public-only 구성에는 이 경로가 없다. JSON 문서만 제공하고 HTML 문서 UI는 아직 없다.
+
+[Article operation 선언](../examples/article/apiapp/openapi.go)은 실행 route와 같은 원본이며, serializer Spec에서 full/partial
+요청과 응답 schema를 가져온다. 독립 구성에서는 `articleAPI.OpenAPI()`의 오류를 처리하고 반환한 `Document.Response()`를
+application이 선택한 인증·권한 handler로 감싸 게시한다. `Document.Bytes()`는 파일이나 client 도구에 전달할 수 있는 복사본이다.
+`Document.Routes()`에는 설명한 API route만 있고 문서 조회 route를 자동 추가하지 않는다.
+
+Model serializer를 이미 갖고 있다면 다음 공개 투영 API를 사용한다. `spec`은 실제 binding·encoding에 쓰는 같은 Spec이다.
+
+| 용도 | 호출 |
+|---|---|
+| Full 입력 | `openapi.RequestSchema(spec, serializers.ModeFull)` |
+| Partial 입력 | `openapi.RequestSchema(spec, serializers.ModePartial)` |
+| ModelEncoder 응답 | `openapi.ModelResponseSchema(spec)` |
+
+각 호출의 schema와 오류를 처리한다. `openapi.Operation`에 route·permission·query·body·response를 연결하고
+`openapi.New`로 문서를 검증한다. Handler를 같은 authentication·permission으로 보호하고 API middleware를 구성하는 책임은
+application에 있다. 문서를 만들었다고 handler에 인증이나 응답 검증이 자동 추가되지 않는다.
+
+Full 입력의 `title`은 필수이고 생략한 `published`는 false다. PATCH는 생략한 값을 바꾸지 않으며 `summary:null`과
+`summary:""`를 구분한다. Read-only `id`는 입력 schema에서 빠진다. Trim 후 길이·빈 문자열 규칙은 `x-godj-normalization`에,
+body·문자열 byte 제한과 query의 세부 오류 규칙은 설명에 기록한다. 일반 JSON Schema 검사만으로 모든 runtime 제한을 재현할 수 없다.
+Session unsafe 요청은 session·CSRF cookie와 masked header를 함께 요구한다. Bearer로 구성한 API의 문서는 HTTP bearer만 표시한다.
+
+[실제 HTTP client 회귀](../examples/article/apiapp/openapi_test.go)는 문서와 생성·PATCH·HEAD의 응답을 대조한다.
+생성 SDK나 임의 외부 client generator의 호환성까지 검증한 범위는 아니다.
 
 ## PostgreSQL
 

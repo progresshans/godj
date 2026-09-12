@@ -8,6 +8,12 @@
 Article와 Category–Ticket Helpdesk에서 사용한 공개 API를 출발점으로, 실제 앱의 다음 요구를 한 가지 고른다.
 Schema→Migration→ORM→Form/Admin/API 중 어디까지 연결해야 하는지와 실패 의미를 정한 뒤 필요한 기능만 확장한다.
 
+[개발 판단 기준](DEVELOPMENT_CRITERIA.md)으로 그 흐름의 조립·변경·실패 진단 비용을 확인한다.
+지원하는 기본 구성을 반복해서 연결하는 부담과 같은 모델 의미의 중복 선언을 우선 줄인다.
+API 확장에서는 typed 입력/출력·endpoint·OpenAPI·client 연결을 함께 고려하되, 구체적인 DSL과 생성 방식은
+작은 실제 소비자 흐름으로 선택한다. [비교 조사](research/2026-09-12-framework-developer-experience.md)의 권고는
+새 전체 리팩토링이나 모든 후보 구현을 기능 개발의 선행 조건으로 만들지 않는다.
+
 - ORM/관계: eager Count와 다중 관계 탐색은 joined row·cardinality·cache 의미를 먼저 정한다.
 - 앱 성장: 새로운 모델·필드·관계가 요구하는 migration과 기존 데이터의 처리를 함께 검증한다.
 - 모델 연결: 현재 allowlist·typed reader로 표현할 수 없는 실제 Form/Admin/API 흐름이 있는지 확인한다.

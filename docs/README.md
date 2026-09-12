@@ -5,6 +5,7 @@
 | 필요한 정보 | 위치 |
 |---|---|
 | 제품 목적 | [CHARTER](CHARTER.md) |
+| 기능 선택과 개발 사용성 기준 | [DEVELOPMENT_CRITERIA](DEVELOPMENT_CRITERIA.md) |
 | 실제 사용 시작 | [저장소 README](../README.md), [개발 흐름](DEVELOPER_EXPERIENCE.md) |
 | 계층·소유권·공개 경계 | [ARCHITECTURE](ARCHITECTURE.md), [CONCURRENCY](CONCURRENCY.md) |
 | 현재 기능과 제한 | [IMPLEMENTATION_MATRIX](status/IMPLEMENTATION_MATRIX.md), [BACKEND_MATRIX](BACKEND_MATRIX.md) |
@@ -15,6 +16,7 @@
 | 장기 범위 | [CAPABILITY_CATALOG](CAPABILITY_CATALOG.md) |
 | 왜 이 결정을 선택했는가 | [ADR 목록](adr/README.md)에서 해당 결정만 |
 | 기준 출처와 라이선스 | [SOURCES](SOURCES.md), [LICENSING](LICENSING.md) |
+| 통합 개발 경험·현대 API 비교 근거 | [프레임워크 조사](research/2026-09-12-framework-developer-experience.md) |
 
 ## 한 사실은 한 곳에
 

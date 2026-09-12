@@ -179,6 +179,13 @@ Form Spec은 field index와 기본 초기값을 준비하고 요청의 초기값
 Article Service는 공통 article repository를 직접 사용하며 Admin의 not-found 변환은 등록 callback 경계가 소유한다.
 Full update와 patch는 transaction 골격을 공유하되 입력 검증·field mask·audit action은 구분한다.
 
+`api/openapi`는 같은 serializer Spec에서 writable full/partial 입력과 ModelEncoder 응답 schema를 구분해 투영한다.
+Article의 operation 선언은 실제 route·permission·query·body·response를 소유한다. Web route compiler와 OAS metadata를
+검증한 뒤 불변 문서를 게시하며, 문서 생성 중 handler·Require·DB I/O는 실행하지 않는다.
+Authentication의 선택적인 description은 실제 공개 cookie/header 이름만 제공한다. Secret과 token 형식은 추측하지 않는다.
+최종 application의 route 설치·middleware·인가 검증, parser의 lexical·byte·정규화 제약은 계속 각각의 runtime이 소유한다.
+자세한 투영과 인증 보안 요구의 의미는 [ADR-0058](adr/0058-model-derived-openapi-and-operation-ownership.md)을 따른다.
+
 Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사용한다. Bearer가 잘못되었을 때 다른 credential로 fallback하지
 않으며 권한 거부·인증 실패·CSRF 실패를 구분한다. Raw token/password와 verifier cause는 logs·errors·audit에 남기지 않는다.
 Principal은 생성 시 복사·검증한 private 권한을 공유하고 Permissions는 별도 slice를 반환한다. Session ID는 외부 입력을

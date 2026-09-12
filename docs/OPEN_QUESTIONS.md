@@ -9,7 +9,7 @@
 | Q-011 | 넓은 expression/aggregate/bulk/locking과 background 평가 소유권 | immutable AST와 cache/terminal 의미는 구현됨 |
 | Q-012 | custom/data operation, destructive/general writer, repair/crash reconciliation | loaded definition, revision-fenced lifecycle와 bounded target/reverse는 구현됨 |
 | Q-013 | OneToOne/ManyToMany, arbitrary target/depth/cycle와 relation 일반화 | AutoField-target FK와 현행 query/cache/delete 단면은 구현됨 |
-| Q-016 | API schema/OpenAPI, viewset 일반화와 wider routing | bounded serializer/JSON CRUD/auth profile은 구현됨 |
+| Q-016 | 넓은 API schema·docs UI·생성 client, viewset 일반화와 wider routing | bounded serializer/JSON CRUD/auth profile과 모델·operation 기반 OpenAPI의 Article 흐름은 구현됨 |
 | Q-017 | 현재 generated model의 사용성·namespace와 broader relation facade | whole-project publication과 current facade는 구현됨; consumer로 다음 제약을 찾음 |
 | Q-019 | SQLite quarantine의 운영 recovery 안내 | single retained handle·새 I/O 거부는 GDJ-0057에서 통합 검증 완료; 자동 복구 미지원 |
 | Q-020 | 비협력 writer, 넓은 deployment topology·key distribution | 같은 normalized policy의 cooperative runtime만 지원 |

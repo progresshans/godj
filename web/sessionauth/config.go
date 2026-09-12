@@ -127,6 +127,14 @@ func (r *Runtime) CSRFHeader() string {
 	return r.csrfHeader
 }
 
+// CookieNames returns normalized public names, never cookie values or secrets.
+func (r *Runtime) CookieNames() (session, csrf string) {
+	if r == nil {
+		return "", ""
+	}
+	return r.sessionCookie.Name, r.csrfCookie.Name
+}
+
 // AllowsNext reports whether raw is a canonical bounded request URI accepted
 // by this runtime rather than merely returning the fallback chosen by SafeNext.
 func (r *Runtime) AllowsNext(raw string) bool {

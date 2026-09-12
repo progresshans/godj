@@ -3,6 +3,7 @@ package siteapp
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/migrations"
@@ -33,7 +35,30 @@ func TestSharedCSRFKeyRingComposesAcrossTwoArticleSiteRuntimes(t *testing.T) {
 		t.Fatalf("NewCSRFKeyRing(): %v", err)
 	}
 	fixture := newSiteAppCSRFFixture(t, ring)
+	anonymousDocument := fixture.request(t, http.MethodGet, fixture.firstURL+apiapp.OpenAPIPath, api.JSONContentType, "", "")
+	if anonymousDocument.status != http.StatusForbidden || anonymousDocument.body != `{"code":"not_authenticated","errors":[]}` {
+		t.Fatal("anonymous request obtained the protected API document")
+	}
 	fixture.login(t)
+	firstDocument := fixture.request(t, http.MethodGet, fixture.firstURL+apiapp.OpenAPIPath, api.JSONContentType, "", "")
+	secondDocument := fixture.request(t, http.MethodGet, fixture.secondURL+apiapp.OpenAPIPath, api.JSONContentType, "", "")
+	if firstDocument.status != http.StatusOK || secondDocument.status != http.StatusOK ||
+		firstDocument.header.Get("Content-Type") != api.JSONContentType || firstDocument.body != secondDocument.body {
+		t.Fatal("authenticated runtimes did not publish the same JSON API document")
+	}
+	var document struct {
+		OpenAPI string
+		Paths   map[string]json.RawMessage
+	}
+	if err := json.Unmarshal([]byte(firstDocument.body), &document); err != nil ||
+		!strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 2 || document.Paths[apiapp.ListPath] == nil {
+		t.Fatal("published API document does not describe the Article routes")
+	}
+	for _, secret := range []string{fixture.username, fixture.password, firstDocument.header.Get(websessionauth.DefaultCSRFHeader)} {
+		if secret != "" && strings.Contains(firstDocument.body, secret) {
+			t.Fatal("API document contains runtime credential or CSRF material")
+		}
+	}
 
 	apiToken := fixture.apiToken(t, fixture.firstURL)
 	created := fixture.request(

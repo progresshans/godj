@@ -41,3 +41,11 @@ Django-named reference corpus에 저장되어 있어도 GoDj 정책을 Django의
 이전 조사에서 읽은 exact blob·symbol·hash와 실행 과정은
 [정리 전 출처 기록](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/SOURCES.md)에 보존한다.
 현재 코드 수정에 필요한 근거만 이 인덱스나 해당 contract에 추가한다.
+
+통합 개발 경험과 API 사용성의 공식 문서·태그 고정 소스 비교는
+[프레임워크 조사](research/2026-09-12-framework-developer-experience.md#출처)에 있다.
+이 자료의 조사 버전을 현재 Django/DRF conformance profile이나 제품 dependency로 자동 채택하지 않는다.
+
+모델·operation 문서의 표현 기준은 [OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html)이다.
+독립 규격 검사는 [openapi-spec-validator](https://openapi-spec-validator.readthedocs.io/en/latest/)를 격리 실행하며,
+실제 사용 버전과 범위는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다.

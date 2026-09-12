@@ -3,6 +3,70 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0070 — 모델과 실제 API 선언에서 OpenAPI 제공
+
+- 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), 설계: [ADR-0058](../adr/0058-model-derived-openapi-and-operation-ownership.md).
+- 기준 HEAD: `6d30973ae3034e16dc56b9d2b9e0a6faffe1fb49`에 이 작업의 미커밋 변경을 적용한 2026-09-12 작업 사본이다.
+  위 HEAD 자체의 PASS나 Hosted 검증을 뜻하지 않는다.
+- 최종 변경 Go 파일 20개의 SHA256 manifest digest: `ef9271c9bf993514f82939e087a90d13942b2cdb7bf8ed8f5d7af9dc77014a5a`.
+  HEAD 대비 변경·새 Go 파일의 경로를 정렬하고 각 `<file-sha256>  <relative-path>\n` 행을 이어 SHA256으로 계산했다.
+- 환경: darwin/arm64, Go 1.26.5, modernc SQLite와 로컬 PostgreSQL 17.5. 이 작업 전용 임시 PostgreSQL DB와
+  테스트별 schema·임시 SQLite fixture를 사용했다. 기존 개발 DB는 변경하지 않았다.
+
+### 구현과 위험 검증
+
+- 같은 serializer Spec에서 full/partial 입력과 ModelEncoder 응답을 투영한다. Read-only·required/default·null·empty·
+  Unicode 문자 길이, input trim 이후 제약과 untrimmed output 길이의 차이, field allowlist와 immutable snapshot을 검증했다.
+- 실제 operation에서 route·permission·body·response를 연결한다. Web의 이름·경로 문법·교차 route language 충돌,
+  OAS template 고유성, 잘못된 media type, profile 소유 header 충돌과 실패 시 부분 게시 없음의 회귀를 포함한다.
+- 실제 Session/Bearer adapter의 공개 metadata와 custom cookie/header 정규화, description 중 인증·인가·entropy 작업 없음,
+  unsafe Session의 세 조건 AND, Bearer challenge·JSON 오류와 HEAD/204/plain 500을 검증했다.
+- 실제 `http.Client`와 임시 HTTP server로 문서의 입력·출력과 Article 생성·PATCH·HEAD 200/403/404/406·빈 query 응답을 대조했다.
+  기존 site fixture에서 문서의 익명 403·로그인 후 200·secret 부재와 public-only 404를 확인했다.
+  기존 CRUD·missing target 우선순위·CSRF·취소·audit·two-runtime 흐름도 아래 관련 package 범위에서 실행했다.
+
+### 실행
+
+첫 통합은 `./api/... ./serializers ./web/... ./examples/article/...`에서 normal/race/CGO-disabled를 실행했다.
+Normal 최초 실행의 PostgreSQL 4개는 환경 미설정으로 skip이었다. 이후 전용 DB를 만들었으나 host 없는 URL은 GoDj의
+configuration 검증에서 거부되어 PostgreSQL normal/race 4개가 각각 실패했다. Host를 포함한 URL로 수정하고 해당 네 흐름을
+다시 실행해 모두 PASS를 확인했다. 이 설정 실패를 제품 회귀나 미실행 성공으로 세지 않는다.
+
+최종 리뷰에서 발견한 응답 `maxLength` 누락을 고친 뒤 변경이 영향을 주는 OpenAPI와 Article 전체를 다시 실행했다.
+아래 세 명령은 각각 **11 packages, 185 tests PASS, fail/skip 0**이다.
+
+```sh
+GODJ_REQUIRE_POSTGRES=1 go test -json -count=1 -timeout=10m ./api/openapi ./examples/article/...
+GODJ_REQUIRE_POSTGRES=1 go test -race -json -count=1 -timeout=15m ./api/openapi ./examples/article/...
+GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 go test -json -count=1 -timeout=15m ./api/openapi ./examples/article/...
+```
+
+`GODJ_TEST_POSTGRES_URL`은 실행 전에 전용 DB로 설정했다. 최종 수정에서 바뀌지 않은 `api`, `api/sessionauth`, `api/bearerauth`,
+`serializers`, `web`, `web/sessionauth`는 첫 통합에서 각 모드 **6 packages, 312 tests PASS, fail/skip 0**이다.
+두 범위를 합쳐 각 모드 497개 test의 관련 위험을 검증했다. Article의 실제 생성물 drift·declaration bootstrap 회귀도 포함한다.
+
+- `openapi-spec-validator==0.9.0` 격리 실행: 실제 Article Session/Bearer 구성에서 생성한 3.1.1 문서 두 개 모두 PASS.
+  최종 문서는 각각 35,137/43,433 bytes, 10 operations다. Registry나 DB 내용을 문서에 넣지 않는다.
+- 같은 격리 환경의 `jsonschema==4.26.0` Draft 2020-12 validator: 186개 schema 위치의 유효성과 50개 수용/거부 사례 PASS.
+  Full/partial, readonly·누락·추가 필드, null·empty, 응답 Unicode 최대 길이, int64 범위, page와 오류 envelope를 확인했다.
+  Fixture 사례는 실제 HTTP 검증과 구분하며 parser lexical/byte·trim 정책 전체의 동치 검증을 주장하지 않는다.
+- 관련 `go vet`, `make docs-check format-check`, `git diff --check`: PASS. 문서 94개의 local link destination을 확인했다.
+- 새 Go dependency·Django oracle lock·generated ABI 변경은 없다. 외부 validator는 프로젝트 Python lock에 추가하지 않았다.
+- Hosted full matrix, 다른 OS/arch·PostgreSQL 버전, 새 Django differential contract, 별도 모듈 설치·생성 SDK와 외부 client generator는
+  이번 범위에서 실행하지 않았다. 아래 과거 Hosted 전체 성공은 GDJ-0070 소스의 PASS가 아니다.
+
+## 2026-09-12 — 통합 개발 경험 조사와 개발 기준
+
+- 범위: [공식 문서·source 비교 보고서](../research/2026-09-12-framework-developer-experience.md)와
+  [개발 판단 기준](../DEVELOPMENT_CRITERIA.md), 관련 현행 문서의 연결·상태 정리.
+- 코드 읽기 기준: `6d30973ae3034e16dc56b9d2b9e0a6faffe1fb49`. 제품 코드·생성물·dependency·CI·conformance profile은 변경하지 않았다.
+- `PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_docs.py`: PASS, 92개 문서의 local link destination 확인.
+- 보고서의 각주 56개: 참조·정의의 누락·중복·미사용 없음. 새 문서의 EOF·trailing whitespace·fence 정합 확인.
+- `git diff --check`: PASS. Django/DRF, FastAPI/Template/Litestar, Ninja/Modern REST 비교의 독립 source 리뷰에서
+  남은 실질적 오류를 발견하지 않았다. 진단 정보의 공개 대상과 기록 절차의 중복 가능성 두 문구는 보정했다.
+- 비교용 앱 구현·실행, 개발 시간·성능 측정, Go/DB/race/platform·Hosted 검증은 이번 문서 작업에서 수행하지 않았다.
+  공식 테스트 source의 기대값을 읽은 사실을 로컬 실행 PASS로 표시하지 않는다. 아래 GDJ-0069는 이전 제품 소스의 검증 기록이다.
+
 ## GDJ-0069 — 바인딩·쿼리 준비와 감사 후속 개선
 
 - 작업: [GDJ-0069](../../work/0069-boundary-preparation-and-audit-followup.md).

@@ -62,6 +62,7 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0055](0055-project-linked-deterministic-migration-sql-projection.md) | Accepted | Project-linked Deterministic Migration SQL Projection |
 | [0056](0056-explicit-operator-provisioning-and-open-existing.md) | Accepted | Explicit Operator Provisioning and Open-existing System State |
 | [0057](0057-sqlite-retained-connection-terminal-quarantine.md) | Proposed | SQLite Retained-connection Terminal Quarantine |
+| [0058](0058-model-derived-openapi-and-operation-ownership.md) | Accepted | 실제 operation과 모델 serializer에서 OpenAPI를 투영하고 인증 metadata의 소유권을 유지 |
 
 ## 대체된 결정
 

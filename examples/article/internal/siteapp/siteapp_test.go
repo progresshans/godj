@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/migrations"
@@ -124,6 +127,15 @@ func TestNewSelectsPublicOnlyOnlyForExactMigratedCredentialAbsent(t *testing.T) 
 	if _, err := application.Reverse("admin:index"); err == nil {
 		t.Fatal("credential-absent application published Admin routes")
 	}
+	if _, err := application.Reverse(apiapp.OpenAPIRouteName); err == nil {
+		t.Fatal("credential-absent application published its API document")
+	}
+	request := httptest.NewRequest(http.MethodGet, apiapp.OpenAPIPath, nil)
+	response := httptest.NewRecorder()
+	application.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound || response.Body.String() != "Not Found\n" {
+		t.Fatal("public-only application exposed an API document")
+	}
 	publicPolicy, err := operatorconfig.CredentialPolicy()
 	if err != nil {
 		t.Fatal(err)
@@ -137,6 +149,9 @@ func TestNewSelectsPublicOnlyOnlyForExactMigratedCredentialAbsent(t *testing.T) 
 	}
 	if _, err := application.Reverse("admin:index"); err == nil {
 		t.Fatal("already-running public-only application hot-upgraded Admin routes")
+	}
+	if _, err := application.Reverse(apiapp.OpenAPIRouteName); err == nil {
+		t.Fatal("already-running public-only application hot-upgraded its API document")
 	}
 
 	unmigrated := openSiteAppStateBackend(t, "siteapp-unmigrated")

@@ -29,6 +29,17 @@ Intentional difference는 [DEVIATIONS](DEVIATIONS.md)의 계약과 selector로 �
 Oracle만 있거나 static not-implemented fixture가 유효한 것은 제품 구현이 아니다. Reference-only MIG-075..086을 product passing에 포함하지 않는다.
 현재 등록 범위는 [구현 현황](status/IMPLEMENTATION_MATRIX.md), 실제 실행한 source/환경은 [Evidence](status/TEST_EVIDENCE.md)에 있다.
 
+## 개발 경험의 비교 기준
+
+Django/DRF는 채택한 계약의 외부 동작 기준이다. 개발자가 사용하는 Go API의 형태와 도구 연결은
+[개발 판단 기준](DEVELOPMENT_CRITERIA.md)에 따라 통합 작업·변경 비용·타입·진단의 관점에서 평가한다.
+FastAPI·Django Ninja·Django Modern REST 등의 typed 입력/출력과 OpenAPI 연결은 사용성 참고 자료로 삼는다.
+[비교 조사](research/2026-09-12-framework-developer-experience.md)는 지원·정확한 호환성의 추가 약속이 아니다.
+
+새 외부 동작을 채택할 때는 계약별 기준과 source를 고정한다. 서로 다른 framework의 기본값을 섞거나
+사용성 개선을 이유로 기존 mismatch를 면제하지 않는다. 기존 결과가 달라지면 위 deviation 절차를 따른다.
+HTTP·OpenAPI 표준과 Go 고유 정책도 해당 계약의 authority로 구분하며 모든 참고 framework의 oracle을 추가하지 않는다.
+
 ## 현재 개발 단계의 내부 변경
 
 아직 외부 지원 릴리스의 내부 ABI를 보존할 의무는 없다. 필요하면 Schema IR, generated ABI, private runner protocol과 public

@@ -19,7 +19,7 @@
 | Web | request context, routing/reverse, middleware, bounded HTTP errors, server lifecycle | arbitrary converters/realtime/production deployment toolkit 미지원 | [web](../../web/) |
 | Template/Form | closed safe template value, escaping, validation, model field allowlist projection | 선택한 scalar 입력만 편집; arbitrary callable/attribute 실행 없음 | [templates](../../templates/), [forms](../../forms/) |
 | Admin | registry, permission, CRUD/history/action composition, read-only 등록 | 선택한 model field만 편집; 모든 relation UI의 일반화를 뜻하지 않음 | [admin](../../admin/) |
-| JSON API | model-derived allowlist serializer, bounded parser, PUT/PATCH, pagination/filter, authentication profile | OpenAPI/browsable API/일반 viewset 자동화 미지원 | [api](../../api/), [serializers](../../serializers/) |
+| JSON API | model-derived allowlist serializer, bounded parser, PUT/PATCH, pagination/filter, authentication profile, operation·모델 기반 OpenAPI 3.1과 Article 게시 | browsable API·생성 SDK·일반 viewset 자동화 미지원; schema는 runtime parser·인가 검증의 대체가 아님 | [api](../../api/), [OpenAPI](../../api/openapi/), [serializers](../../serializers/) |
 | Auth/session | password hashing, Session/CSRF, injected strict Bearer verifier, rotation/logout | token issuer/JWT/OAuth/OIDC/password reset·multi-user lifecycle 별도 | [auth](../../auth/), [sessions](../../sessions/) |
 | Durable system state | explicit provision/open, permission CAS와 session 폐기, cooperative application transaction | 비협력 writer·자동 policy/key 전파 미지원 | [systemstate](../../systemstate/) |
 | 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 티켓 상세 조회 | GDJ-0058 상세 조회는 SQLite/PostgreSQL normal/race/CGO-disabled 검증; 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님 | [examples](../../examples/) |

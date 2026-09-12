@@ -19,7 +19,7 @@ GoDj가 향하는 기능 범위다. 아래 목록은 구현 완료·지원·API 
 | Template | escaping/trusted value, inheritance/include, filters/tags, localization, safe rendering과 resource limits |
 | Admin | metadata registry, list/search/filter/order/page, relation UI, CRUD/actions/history, permission, safe extension points |
 | Identity/security | user/group/permission, credential lifecycle, server-side session, CSRF, login/logout/reset/revocation, security headers, audit |
-| API | serializer/model serializer, JSON/viewset/router, filtering/pagination, Session/Bearer/OAuth/OIDC, OpenAPI, browsable API, throttling/versioning |
+| API | serializer/model serializer, typed 요청/응답·endpoint 선언, JSON/viewset/router, filtering/pagination, Session/Bearer/OAuth/OIDC, 실행과 연결된 OpenAPI·client tooling, browsable API, throttling/versioning |
 | Realtime | WebSocket/SSE, consumer, groups/channel layer, presence, backpressure, cancellation, multi-process delivery |
 | GIS | spatial fields/lookups/geometry, backend feature negotiation, projection/distance, GeoJSON와 Admin/map integration |
 | i18n/지역화 | gettext/catalog, locale/timezone, localized formats, translated validation/template/Admin |
