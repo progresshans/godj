@@ -27,6 +27,10 @@ type Config struct {
 	Version        string
 	Operations     []Operation
 	Authentication api.Authentication `json:"-"`
+	// JSONPolicy must be the same policy installed in web.Config.Middleware.
+	// Its zero value does not advertise JSON negotiation or a 406 response.
+	JSONPolicy api.JSONPolicy `json:"-"`
+	Schemas    []NamedSchema
 }
 
 // Operation associates documentation with the same route used for execution.
@@ -114,7 +118,18 @@ func New(config Config) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
-	errorSchema, err := JSONErrorSchema()
+	errorDefinition, err := JSONErrorSchema()
+	if err != nil {
+		return Document{}, err
+	}
+	schemaDeclarations := make([]NamedSchema, 0, len(config.Schemas)+1)
+	schemaDeclarations = append(schemaDeclarations, NamedSchema{Name: ErrorSchemaName, Schema: errorDefinition})
+	schemaDeclarations = append(schemaDeclarations, config.Schemas...)
+	catalog, err := prepareSchemaCatalog(schemaDeclarations)
+	if err != nil {
+		return Document{}, err
+	}
+	errorSchema, err := Ref(ErrorSchemaName)
 	if err != nil {
 		return Document{}, err
 	}
@@ -149,17 +164,29 @@ func New(config Config) (Document, error) {
 		if _, duplicate := paths[path.Template][method]; duplicate {
 			return Document{}, documentError("operation.path", "method and path are duplicated")
 		}
-		value, err := operationValue(operation, path, description, errorSchema)
+		negotiatesJSON, err := config.JSONPolicy.RouteNegotiation(route.Path)
+		if err != nil {
+			return Document{}, err
+		}
+		value, err := operationValue(operation, path, description, errorSchema, negotiatesJSON, catalog)
 		if err != nil {
 			return Document{}, err
 		}
 		paths[path.Template][method] = value
 	}
+	components := map[string]any{"securitySchemes": securitySchemes(description)}
+	schemas, err := catalog.components()
+	if err != nil {
+		return Document{}, err
+	}
+	if len(schemas) != 0 {
+		components["schemas"] = schemas
+	}
 	value := map[string]any{
 		"openapi":    "3.1.1",
 		"info":       map[string]string{"title": config.Title, "version": config.Version},
 		"paths":      paths,
-		"components": map[string]any{"securitySchemes": securitySchemes(description)},
+		"components": components,
 	}
 	encoded, err := json.Marshal(value)
 	if err != nil {
@@ -171,7 +198,7 @@ func New(config Config) (Document, error) {
 	return Document{encoded: encoded, routes: routes}, nil
 }
 
-func operationValue(operation Operation, path web.RoutePathDescription, profile api.AuthenticationDescription, errorSchema Schema) (map[string]any, error) {
+func operationValue(operation Operation, path web.RoutePathDescription, profile api.AuthenticationDescription, errorSchema Schema, negotiatesJSON bool, catalog schemaCatalog) (map[string]any, error) {
 	if !validText(operation.Summary, 256, false) || !validText(operation.Description, 8192, false) {
 		return nil, documentError("operation.description", "operation text is invalid or too long")
 	}
@@ -209,7 +236,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 			return nil, documentError("operation.parameter", "parameter is duplicated")
 		}
 		seen[key] = true
-		schema, err := rawSchema(parameter.Schema)
+		schema, err := catalog.raw(parameter.Schema)
 		if err != nil {
 			return nil, err
 		}
@@ -223,6 +250,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		parameters = append(parameters, value)
 	}
 	responses := make(map[string]any)
+	declarations := make(map[int]Response, len(operation.Responses))
 	for _, response := range operation.Responses {
 		for _, header := range response.Headers {
 			if profile.Kind == api.AuthenticationSession && strings.EqualFold(header.Name, profile.CSRFHeader) ||
@@ -234,22 +262,28 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		if _, duplicate := responses[key]; duplicate {
 			return nil, documentError("operation.response", "response status is duplicated")
 		}
-		value, err := responseValue(response)
+		value, err := responseValue(response, catalog)
 		if err != nil {
 			return nil, err
 		}
 		responses[key] = value
+		declarations[response.Status] = response
 	}
-	for _, status := range failureStatuses(profile) {
+	for _, status := range failureStatuses(profile, negotiatesJSON) {
 		key := strconv.Itoa(status)
-		if existing, found := responses[key]; found {
+		if _, found := responses[key]; found {
 			// A body validation 400 and a Bearer syntax 400 share the same wire
 			// envelope. Refuse a declaration that would hide that difference.
-			if !sameJSONErrorContent(existing.(map[string]any), errorSchema) {
+			if !sameJSONErrorContent(declarations[status], errorSchema, catalog) {
 				return nil, documentError("operation.response", "profile failure status must use the API JSON error envelope")
 			}
+			for _, header := range declarations[status].Headers {
+				if header.Required {
+					return nil, documentError("operation.response.headers", "application headers cannot be required on a status shared with authentication or negotiation failures")
+				}
+			}
 		} else {
-			value, err := responseValue(Response{Status: status, Description: http.StatusText(status), ContentType: api.JSONContentType, Schema: errorSchema})
+			value, err := responseValue(Response{Status: status, Description: http.StatusText(status), ContentType: api.JSONContentType, Schema: errorSchema}, catalog)
 			if err != nil {
 				return nil, err
 			}
@@ -262,7 +296,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	if _, found := responses["500"]; found {
 		return nil, documentError("operation.response", "the Web runtime owns the internal-error response")
 	}
-	internal, err := responseValue(Response{Status: 500, Description: "Internal server error. Internal causes are not exposed.", ContentType: "text/plain", Schema: String()})
+	internal, err := responseValue(Response{Status: 500, Description: "Internal server error. Internal causes are not exposed.", ContentType: "text/plain", Schema: String()}, catalog)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +334,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		if !validText(body.Description, 4096, false) {
 			return nil, documentError("operation.request_body", "body description is invalid or too long")
 		}
-		schema, err := rawSchema(body.Schema)
+		schema, err := catalog.raw(body.Schema)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +346,7 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	return value, nil
 }
 
-func responseValue(response Response) (map[string]any, error) {
+func responseValue(response Response, catalog schemaCatalog) (map[string]any, error) {
 	if response.Status < 200 || response.Status > 599 || !validText(response.Description, 4096, true) || len(response.Headers) > 32 {
 		return nil, documentError("operation.response", "response status, description, or header count is invalid")
 	}
@@ -326,7 +360,7 @@ func responseValue(response Response) (map[string]any, error) {
 		if err != nil || mediaType != response.ContentType || !strings.Contains(mediaType, "/") || strings.Contains(mediaType, "*") || response.Status == 204 || response.Status == 304 {
 			return nil, documentError("operation.response", "response media type is invalid or the status forbids a body")
 		}
-		schema, err := rawSchema(response.Schema)
+		schema, err := catalog.raw(response.Schema)
 		if err != nil {
 			return nil, err
 		}
@@ -340,7 +374,7 @@ func responseValue(response Response) (map[string]any, error) {
 			return nil, documentError("operation.response.headers", "response header is invalid, reserved, or duplicated")
 		}
 		seen[key] = true
-		schema, err := rawSchema(header.Schema)
+		schema, err := catalog.raw(header.Schema)
 		if err != nil {
 			return nil, err
 		}
@@ -363,21 +397,31 @@ func rawSchema(schema Schema) (json.RawMessage, error) {
 	return encoded, nil
 }
 
-func sameJSONErrorContent(response map[string]any, schema Schema) bool {
-	want, err := rawSchema(schema)
+func (catalog schemaCatalog) raw(schema Schema) (json.RawMessage, error) {
+	if err := catalog.validate(schema); err != nil {
+		return nil, err
+	}
+	return rawSchema(schema)
+}
+
+func sameJSONErrorContent(response Response, schema Schema, catalog schemaCatalog) bool {
+	if response.ContentType != api.JSONContentType {
+		return false
+	}
+	definition, err := catalog.resolveRoot(schema)
 	if err != nil {
 		return false
 	}
-	content, ok := response["content"].(map[string]any)
-	if !ok || len(content) != 1 {
+	want, err := rawSchema(definition)
+	if err != nil {
 		return false
 	}
-	media, ok := content[api.JSONContentType].(map[string]any)
-	if !ok {
+	resolved, err := catalog.resolveRoot(response.Schema)
+	if err != nil {
 		return false
 	}
-	actual, ok := media["schema"].(json.RawMessage)
-	return ok && string(actual) == string(want)
+	actual, err := rawSchema(resolved)
+	return err == nil && string(actual) == string(want)
 }
 
 func addResponseHeader(response map[string]any, name, description string) {
@@ -435,11 +479,15 @@ func securitySchemes(profile api.AuthenticationDescription) map[string]any {
 	}
 }
 
-func failureStatuses(profile api.AuthenticationDescription) []int {
+func failureStatuses(profile api.AuthenticationDescription, negotiatesJSON bool) []int {
+	statuses := []int{403}
 	if profile.Kind == api.AuthenticationBearer {
-		return []int{400, 401, 403, 406}
+		statuses = []int{400, 401, 403}
 	}
-	return []int{403, 406}
+	if negotiatesJSON {
+		statuses = append(statuses, 406)
+	}
+	return statuses
 }
 
 func safeMethod(method string) bool {

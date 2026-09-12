@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -136,6 +137,196 @@ func TestDocumentBearerProfileMergesKnownErrorsWithoutCookieRequirements(t *test
 	}
 	if authentication.requireCalls != 0 {
 		t.Fatalf("document construction called Require %d times", authentication.requireCalls)
+	}
+}
+
+func TestDocumentOnlyAdvertisesConfiguredJSONNegotiation(t *testing.T) {
+	for _, prefix := range []string{"", "/articles/", "/other/"} {
+		config := documentConfig(t, &describedAuthentication{description: sessionDescription()})
+		config.JSONPolicy = api.JSONPolicy{}
+		if prefix != "" {
+			var err error
+			config.JSONPolicy, err = api.NewJSONPolicy(prefix)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		decoded := decodeDocument(t, newDocument(t, config))
+		for _, path := range decoded.Paths {
+			for _, operation := range path {
+				_, present := operation.Responses["406"]
+				if present != (prefix == "/articles/") {
+					t.Fatalf("policy %q, operation %s: 406=%v", prefix, operation.OperationID, present)
+				}
+			}
+		}
+	}
+}
+
+func TestDocumentRejectsPartialDynamicRouteNegotiation(t *testing.T) {
+	config := documentConfig(t, &describedAuthentication{description: sessionDescription()})
+	policy, err := api.NewJSONPolicy("/articles/1/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.JSONPolicy = policy
+	// The policy applies to id=1 but not to every value accepted by the same
+	// /articles/{id}/ operation. One operation cannot advertise both policies.
+	requireDocumentConfigError(t, config, "json_policy")
+}
+
+func TestDocumentMergedFailuresAllowOnlyOptionalApplicationHeaders(t *testing.T) {
+	errorSchema, err := openapi.JSONErrorSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name        string
+		description api.AuthenticationDescription
+		status      int
+		merged      bool
+	}{
+		{"session forbidden", sessionDescription(), http.StatusForbidden, true},
+		{"session negotiation", sessionDescription(), http.StatusNotAcceptable, true},
+		{"bearer malformed", api.AuthenticationDescription{Kind: api.AuthenticationBearer}, http.StatusBadRequest, true},
+		{"bearer unauthenticated", api.AuthenticationDescription{Kind: api.AuthenticationBearer}, http.StatusUnauthorized, true},
+		{"bearer forbidden", api.AuthenticationDescription{Kind: api.AuthenticationBearer}, http.StatusForbidden, true},
+		{"bearer negotiation", api.AuthenticationDescription{Kind: api.AuthenticationBearer}, http.StatusNotAcceptable, true},
+		// A session application's own 400 is not an authentication failure.
+		{"application only", sessionDescription(), http.StatusBadRequest, false},
+	} {
+		for _, required := range []bool{false, true} {
+			t.Run(test.name+"/required="+strconv.FormatBool(required), func(t *testing.T) {
+				config := documentConfig(t, &describedAuthentication{description: test.description})
+				config.Operations[0].Responses = append(config.Operations[0].Responses, openapi.Response{
+					Status: test.status, Description: "Application error", ContentType: api.JSONContentType, Schema: errorSchema,
+					Headers: []openapi.Header{{Name: "X-Application-Error", Schema: openapi.String(), Required: required}},
+				})
+				if required && test.merged {
+					requireDocumentConfigError(t, config, "operation.response.headers")
+					return
+				}
+				decoded := decodeDocument(t, newDocument(t, config))
+				response := decoded.Paths["/articles/"]["get"].Responses[strconv.Itoa(test.status)]
+				header, found := responseHeader(response, "X-Application-Error")
+				if !found || header.Required != required || header.Schema["type"] != "string" {
+					t.Fatalf("application header presence changed while merging the response: %#v", header)
+				}
+			})
+		}
+	}
+}
+
+func TestDocumentMergesOnlyAliasesOfTheAPIErrorEnvelope(t *testing.T) {
+	errorSchema, err := openapi.JSONErrorSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias, err := openapi.Ref("ApplicationError")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := openapi.Ref("ApplicationErrorBody")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		schema openapi.Schema
+		valid  bool
+	}{
+		{"API error envelope", errorSchema, true},
+		{"different envelope", openapi.String(), false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			config := documentConfig(t, &describedAuthentication{description: api.AuthenticationDescription{Kind: api.AuthenticationBearer}})
+			config.Schemas = []openapi.NamedSchema{
+				{Name: "ApplicationError", Schema: target},
+				{Name: "ApplicationErrorBody", Schema: test.schema},
+			}
+			config.Operations[1].Responses = append(config.Operations[1].Responses, openapi.Response{
+				Status: http.StatusBadRequest, Description: "Invalid application input", ContentType: api.JSONContentType, Schema: alias,
+			})
+			if !test.valid {
+				requireDocumentConfigError(t, config, "operation.response")
+				return
+			}
+			decoded := decodeDocument(t, newDocument(t, config))
+			responseSchema := decoded.Paths["/articles/"]["post"].Responses["400"].Content[api.JSONContentType].Schema
+			if responseSchema["$ref"] != "#/components/schemas/ApplicationError" || decoded.Components.Schemas["ApplicationError"]["$ref"] != "#/components/schemas/ApplicationErrorBody" {
+				t.Fatal("merging the error response expanded or replaced the caller's schema identity")
+			}
+			if decoded.Components.Schemas["ApplicationErrorBody"]["type"] != "object" || decoded.Components.Schemas[openapi.ErrorSchemaName]["type"] != "object" {
+				t.Fatal("merged aliases lost the caller or builtin error definition")
+			}
+		})
+	}
+}
+
+func TestDocumentValidatesReferencesAtEveryOperationSchemaBoundary(t *testing.T) {
+	reference, err := openapi.Ref("LateBound")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		change func(*openapi.Config)
+		read   func(documentJSON) map[string]any
+	}{
+		{"request", func(config *openapi.Config) { config.Operations[1].RequestBody.Schema = reference },
+			func(document documentJSON) map[string]any {
+				return document.Paths["/articles/"]["post"].RequestBody.Content[api.JSONContentType].Schema
+			}},
+		{"response", func(config *openapi.Config) { config.Operations[0].Responses[0].Schema = reference },
+			func(document documentJSON) map[string]any {
+				return document.Paths["/articles/"]["get"].Responses["200"].Content[api.JSONContentType].Schema
+			}},
+		{"parameter", func(config *openapi.Config) { config.Operations[0].Parameters[0].Schema = reference },
+			func(document documentJSON) map[string]any {
+				return document.Paths["/articles/"]["get"].Parameters[0].Schema
+			}},
+		{"response header", func(config *openapi.Config) { config.Operations[1].Responses[0].Headers[0].Schema = reference },
+			func(document documentJSON) map[string]any {
+				return document.Paths["/articles/"]["post"].Responses["201"].Headers["Location"].Schema
+			}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			config := documentConfig(t, &describedAuthentication{description: sessionDescription()})
+			test.change(&config)
+			requireDocumentConfigError(t, config, "schema.reference")
+			// Supplying the missing component must make the same boundary valid
+			// while preserving its reference in the published document.
+			config.Schemas = []openapi.NamedSchema{{Name: "LateBound", Schema: openapi.String()}}
+			decoded := decodeDocument(t, newDocument(t, config))
+			if test.read(decoded)["$ref"] != "#/components/schemas/LateBound" {
+				t.Fatal("operation schema reference was dropped or expanded")
+			}
+		})
+	}
+}
+
+func TestDocumentReservesTheBuiltinAPIErrorSchemaIdentity(t *testing.T) {
+	errorSchema, err := openapi.JSONErrorSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := documentConfig(t, &describedAuthentication{description: sessionDescription()})
+	decoded := decodeDocument(t, newDocument(t, config))
+	if decoded.Components.Schemas[openapi.ErrorSchemaName]["type"] != "object" || decoded.Paths["/articles/"]["get"].Responses["403"].Content[api.JSONContentType].Schema["$ref"] != "#/components/schemas/"+openapi.ErrorSchemaName {
+		t.Fatal("the default authentication error does not use the builtin component identity")
+	}
+	for _, test := range []struct {
+		name   string
+		schema openapi.Schema
+	}{
+		{"same definition collision", errorSchema},
+		{"different definition override", openapi.String()},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			config := documentConfig(t, &describedAuthentication{description: sessionDescription()})
+			config.Schemas = []openapi.NamedSchema{{Name: openapi.ErrorSchemaName, Schema: test.schema}}
+			requireDocumentConfigError(t, config, "schema.components")
+		})
 	}
 }
 
@@ -326,6 +517,10 @@ func TestZeroDocumentCannotPublishAResponse(t *testing.T) {
 
 func documentConfig(t *testing.T, authentication api.Authentication) openapi.Config {
 	t.Helper()
+	policy, err := api.NewJSONPolicy("/articles/")
+	if err != nil {
+		t.Fatal(err)
+	}
 	input, err := openapi.Object(openapi.Property{Name: "title", Schema: openapi.String()})
 	if err != nil {
 		t.Fatal(err)
@@ -347,6 +542,7 @@ func documentConfig(t *testing.T, authentication api.Authentication) openapi.Con
 	created.Headers = []openapi.Header{{Name: "Location", Description: "Created article", Schema: openapi.String(), Required: true}}
 	return openapi.Config{
 		Title: "Article API", Version: "1", Authentication: authentication,
+		JSONPolicy: policy,
 		Operations: []openapi.Operation{
 			{Route: route("list", http.MethodGet, "/articles/"), Permission: "articles.view_article", Parameters: []openapi.Parameter{{Name: "search", In: "query", Schema: openapi.String()}}, Responses: []openapi.Response{jsonResponse(http.StatusOK)}},
 			{Route: route("create", http.MethodPost, "/articles/"), Summary: "Create article", Permission: "articles.add_article", RequestBody: &openapi.RequestBody{Schema: input, Required: true}, Responses: []openapi.Response{created}},
@@ -367,12 +563,24 @@ func newDocument(t *testing.T, config openapi.Config) openapi.Document {
 	return document
 }
 
+func requireDocumentConfigError(t *testing.T, config openapi.Config, field string) {
+	t.Helper()
+	document, err := openapi.New(config)
+	if !errors.Is(err, &api.Error{Code: api.FailureInvalidConfig, Field: field}) {
+		t.Fatalf("New error = %v, want invalid_config at %s", err, field)
+	}
+	if len(document.Bytes()) != 0 || len(document.Routes()) != 0 {
+		t.Fatal("failed document composition published partial bytes or routes")
+	}
+}
+
 type documentJSON struct {
 	OpenAPI    string                              `json:"openapi"`
 	Info       map[string]string                   `json:"info"`
 	Paths      map[string]map[string]operationJSON `json:"paths"`
 	Components struct {
 		SecuritySchemes map[string]securitySchemeJSON `json:"securitySchemes"`
+		Schemas         map[string]map[string]any     `json:"schemas"`
 	} `json:"components"`
 }
 

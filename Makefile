@@ -18,7 +18,7 @@ GODJ_RUNNER_IMPORT := github.com/progresshans/godj/conformance/runners/godj
 GODJCHECK_IMPORT := github.com/progresshans/godj/conformance/cmd/godjcheck
 MULTIRUNTIME_WORKER_IMPORT := github.com/progresshans/godj/conformance/systemstate/multiruntimeworker
 
-.PHONY: cgo-zero-build cgo-zero-build-core cgo-zero-build-operator cgo-zero-build-products check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-race-core go-race-operator go-race-products go-test go-test-core go-test-operator go-test-products go-vet oracle-check oracle-regenerate project-command-dependencies project-operator-product python-test python-test-exact targeted-migrate-product
+.PHONY: api-client-dependencies cgo-zero-build cgo-zero-build-core cgo-zero-build-operator cgo-zero-build-products check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-race-core go-race-operator go-race-products go-test go-test-core go-test-operator go-test-products go-vet oracle-check oracle-regenerate project-command-dependencies project-operator-product python-test python-test-exact targeted-migrate-product
 
 define select_core_go_packages
 core_packages="$$(go list ./... | python3 scripts/ci/packages.py core)"
@@ -50,6 +50,19 @@ generate-check:
 
 project-command-dependencies:
 	go mod download all
+
+api-client-dependencies:
+	@set -euo pipefail; \
+	client_module="$(CURDIR)/api/openapi/consumertest/testdata/client"; \
+	dependency_directory="$$(mktemp -d)"; \
+	trap 'rm -rf "$$dependency_directory"' EXIT; \
+	cp "$$client_module/go.mod" "$$client_module/go.sum" "$$dependency_directory/"; \
+	cd "$$dependency_directory"; \
+	GOWORK=off go mod download; \
+	if ! cmp -s "$$client_module/go.mod" go.mod || ! cmp -s "$$client_module/go.sum" go.sum; then \
+		echo "API client dependency preparation changed the copied module lock." >&2; \
+		exit 1; \
+	fi
 
 core-package-selection-check:
 	@set -euo pipefail; \
@@ -94,7 +107,7 @@ cgo-zero-build-core:
 	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py core)"; \
 	CGO_ENABLED=0 go test -count=1 -timeout=20m $$packages
 
-cgo-zero-build-integration: project-command-dependencies
+cgo-zero-build-integration: project-command-dependencies api-client-dependencies
 	@set -euo pipefail; \
 	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py integration)"; \
 	CGO_ENABLED=0 go test -count=1 -timeout=25m $$packages
@@ -153,7 +166,7 @@ ci-tools-test:
 
 quick: docs-check format-check ci-tools-test go-test-core
 
-go-test-integration: project-command-dependencies
+go-test-integration: project-command-dependencies api-client-dependencies
 	@set -euo pipefail; \
 	packages="$$(go list ./... | python3 scripts/ci/packages.py integration)"; \
 	go test -count=1 -timeout=25m $$packages
@@ -161,7 +174,7 @@ go-test-integration: project-command-dependencies
 go-test-conformance:
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py normal
 
-go-race-integration: project-command-dependencies
+go-race-integration: project-command-dependencies api-client-dependencies
 	@set -euo pipefail; \
 	packages="$$(go list ./... | python3 scripts/ci/packages.py integration)"; \
 	go test -race -count=1 -timeout=25m $$packages

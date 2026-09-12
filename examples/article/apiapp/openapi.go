@@ -23,21 +23,47 @@ func (a *Application) OpenAPI() (openapi.Document, error) {
 		Version:        "development",
 		Operations:     a.operations,
 		Authentication: a.authentication,
+		JSONPolicy:     a.jsonPolicy,
+		Schemas:        a.schemas,
 	})
 }
 
 func (a *Application) buildOperations(authentication api.Authentication) ([]openapi.Operation, error) {
+	named := func(name string, schema openapi.Schema) (openapi.Schema, error) {
+		reference, err := openapi.Ref(name)
+		if err != nil {
+			return openapi.Schema{}, err
+		}
+		a.schemas = append(a.schemas, openapi.NamedSchema{Name: name, Schema: schema})
+		return reference, nil
+	}
 	article, err := openapi.ModelResponseSchema(a.spec)
 	if err != nil {
 		return nil, fmt.Errorf("article api response schema: %w", err)
+	}
+	article, err = named("Article", article)
+	if err != nil {
+		return nil, err
 	}
 	full, err := openapi.RequestSchema(a.spec, serializers.ModeFull)
 	if err != nil {
 		return nil, fmt.Errorf("article api full input schema: %w", err)
 	}
+	create, err := named("ArticleCreate", full)
+	if err != nil {
+		return nil, err
+	}
+	replace, err := named("ArticleReplace", full)
+	if err != nil {
+		return nil, err
+	}
 	partial, err := openapi.RequestSchema(a.spec, serializers.ModePartial)
 	if err != nil {
 		return nil, fmt.Errorf("article api partial input schema: %w", err)
+	}
+	partial, err = named("ArticlePatch", partial)
+	if err != nil {
+		return nil, err
 	}
 	items, err := openapi.Array(article)
 	if err != nil {
@@ -56,6 +82,10 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 	if err != nil {
 		return nil, err
 	}
+	page, err = named("ArticlePage", page)
+	if err != nil {
+		return nil, err
+	}
 	listOptions, err := articleOptionsSchema(http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPost)
 	if err != nil {
 		return nil, err
@@ -68,7 +98,7 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 	if err != nil {
 		return nil, err
 	}
-	errorSchema, err := openapi.JSONErrorSchema()
+	errorSchema, err := openapi.Ref(openapi.ErrorSchemaName)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +143,7 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 			Route:       web.Route{Name: Namespace + ":article-create", Method: http.MethodPost, Path: ListPath},
 			Summary:     "Create an Article",
 			Permission:  articleapp.ArticleAddPermission,
-			RequestBody: &openapi.RequestBody{Schema: full, Required: true, Description: bodyLimits + " Title is required; omitted published defaults to false and omitted summary becomes null. The generated id cannot be supplied."},
+			RequestBody: &openapi.RequestBody{Schema: create, Required: true, Description: bodyLimits + " Title is required; omitted published defaults to false and omitted summary becomes null. The generated id cannot be supplied."},
 			Responses:   []openapi.Response{created, invalid, tooLarge, unsupported},
 		}, handler: a.create},
 		{operation: openapi.Operation{
@@ -135,7 +165,7 @@ func (a *Application) buildOperations(authentication api.Authentication) ([]open
 			Route:   web.Route{Name: Namespace + ":article-update", Method: http.MethodPut, Path: DetailPath},
 			Summary: "Update an Article", Description: updateOrder,
 			Permission:  articleapp.ArticleChangePermission,
-			RequestBody: &openapi.RequestBody{Schema: full, Required: true, Description: bodyLimits + " Title is required. Omitted published defaults to false. Omitted summary preserves its current value; explicit null clears it."},
+			RequestBody: &openapi.RequestBody{Schema: replace, Required: true, Description: bodyLimits + " Title is required. Omitted published defaults to false. Omitted summary preserves its current value; explicit null clears it."},
 			Responses:   writeResponses,
 		}, handler: a.update},
 		{operation: openapi.Operation{

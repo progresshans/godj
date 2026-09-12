@@ -55,7 +55,7 @@ func TestArticleOpenAPIDescribesPublishedRoutesAndModelContracts(t *testing.T) {
 		if operation.RequestBody == nil || !operation.RequestBody.Required {
 			t.Fatal("full write does not require a request body")
 		}
-		schema := operation.RequestBody.Content[api.JSONContentType].Schema
+		schema := decoded.resolve(t, operation.RequestBody.Content[api.JSONContentType].Schema)
 		if !slices.Equal(schema.Required, []string{"title"}) || string(schema.Properties["published"].Default) != "false" {
 			t.Fatalf("full input required/default = %v/%s", schema.Required, schema.Properties["published"].Default)
 		}
@@ -66,7 +66,7 @@ func TestArticleOpenAPIDescribesPublishedRoutesAndModelContracts(t *testing.T) {
 			t.Fatal("summary null input is absent from the schema")
 		}
 	}
-	patch := detail["patch"].RequestBody.Content[api.JSONContentType].Schema
+	patch := decoded.resolve(t, detail["patch"].RequestBody.Content[api.JSONContentType].Schema)
 	if len(patch.Required) != 0 || len(patch.Properties["published"].Default) != 0 {
 		t.Fatal("PATCH documentation requires fields or applies a missing published default")
 	}
@@ -202,7 +202,7 @@ func TestArticleOpenAPIResponseContractMatchesHTTPCreatePatchAndHEAD(t *testing.
 		t.Fatalf("create status = %d", created.status)
 	}
 	createResponse := decoded.Paths[apiapp.ListPath]["post"].Responses["201"]
-	assertDocumentedArticle(t, createResponse.Content[created.header.Get("Content-Type")].Schema, created.body)
+	assertDocumentedArticle(t, decoded.resolve(t, createResponse.Content[created.header.Get("Content-Type")].Schema), created.body)
 	if !bytes.Contains([]byte(created.body), []byte(`"published":false`)) || !bytes.Contains([]byte(created.body), []byte(`"summary":null`)) {
 		t.Fatal("actual omitted values differ from the documented full-input behavior")
 	}
@@ -240,7 +240,7 @@ func TestArticleOpenAPIResponseContractMatchesHTTPCreatePatchAndHEAD(t *testing.
 		t.Fatalf("patch status = %d", patched.status)
 	}
 	patchResponse := decoded.Paths["/api/articles/{id}/"]["patch"].Responses["200"]
-	assertDocumentedArticle(t, patchResponse.Content[patched.header.Get("Content-Type")].Schema, patched.body)
+	assertDocumentedArticle(t, decoded.resolve(t, patchResponse.Content[patched.header.Get("Content-Type")].Schema), patched.body)
 	if !bytes.Contains([]byte(patched.body), []byte(`"summary":""`)) {
 		t.Fatal("an accepted empty summary was not preserved in the documented response")
 	}
@@ -270,7 +270,24 @@ type articleDocument struct {
 	Paths      map[string]map[string]articleDocumentOperation
 	Components struct {
 		SecuritySchemes map[string]struct{ Type, In, Name string }
+		Schemas         map[string]articleDocumentSchema
 	}
+}
+
+func (document articleDocument) resolve(t *testing.T, schema articleDocumentSchema) articleDocumentSchema {
+	t.Helper()
+	if schema.Ref == "" {
+		return schema
+	}
+	name, ok := strings.CutPrefix(schema.Ref, "#/components/schemas/")
+	if !ok {
+		t.Fatalf("schema has unsupported reference %q", schema.Ref)
+	}
+	resolved, found := document.Components.Schemas[name]
+	if !found || resolved.Ref != "" {
+		t.Fatalf("model schema %q is not a concrete definition", name)
+	}
+	return resolved
 }
 
 type articleDocumentOperation struct {
@@ -301,6 +318,7 @@ type articleDocumentResponse struct {
 type articleDocumentMedia struct{ Schema articleDocumentSchema }
 
 type articleDocumentSchema struct {
+	Ref        string `json:"$ref"`
 	Type       json.RawMessage
 	Properties map[string]articleDocumentSchema
 	Required   []string

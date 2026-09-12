@@ -41,6 +41,7 @@ type Application struct {
 	categoryID int64
 	registry   admin.Registry
 	input      serializers.Spec
+	output     serializers.Spec
 	encoder    serializers.ModelEncoder[models.Ticket]
 	parser     api.Parser
 	relations  project.Relations
@@ -81,16 +82,16 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	output, err := serializers.FromModel(metadata,
+	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
-	a.encoder, err = serializers.NewModelEncoder(output, metadata, (models.TicketDescriptor{}).WriteFieldValue)
+	a.encoder, err = serializers.NewModelEncoder(a.output, metadata, (models.TicketDescriptor{}).WriteFieldValue)
 	if err != nil {
 		return nil, err
 	}
-	a.parser, err = api.NewParser(api.ParserConfig{MaxBodyBytes: 4096})
+	a.parser, err = api.NewParser(api.ParserConfig{MaxBodyBytes: maximumJSONBodyBytes})
 	if err != nil {
 		return nil, err
 	}
@@ -308,85 +309,64 @@ func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, erro
 	return removed, err
 }
 
-// APIRoutes exposes a deliberately small authenticated collection API. The
-// same typed create path backs Admin and JSON; category is never writable.
-func (a *Application) APIRoutes(authentication api.Authentication) ([]web.Route, error) {
-	if a == nil || authentication == nil {
-		return nil, errors.New("helpdesk: missing application or authentication")
-	}
-	detail, err := authentication.Require(ViewTicket, a.detail)
+func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Response, error) {
+	page, err := a.list(request.Context(), admin.ListRequest{Limit: 20})
 	if err != nil {
-		return nil, err
+		return web.Response{}, err
 	}
-	list, err := authentication.Require(ViewTicket, func(request *web.Request, _ auth.Principal) (web.Response, error) {
-		page, err := a.list(request.Context(), admin.ListRequest{Limit: 20})
+	values := make([]serializers.Value, 0, len(page.Items))
+	for _, value := range page.Items {
+		item, err := a.encoder.Encode(value)
 		if err != nil {
 			return web.Response{}, err
 		}
-		values := make([]serializers.Value, 0, len(page.Items))
-		for _, value := range page.Items {
-			item, err := a.encoder.Encode(value)
-			if err != nil {
-				return web.Response{}, err
-			}
-			values = append(values, item)
-		}
-		value, err := serializers.NewList(values...)
-		if err != nil {
-			return web.Response{}, err
-		}
-		return api.JSON(http.StatusOK, value)
-	})
+		values = append(values, item)
+	}
+	value, err := serializers.NewList(values...)
 	if err != nil {
-		return nil, err
+		return web.Response{}, err
 	}
-	create, err := authentication.Require(AddTicket, func(request *web.Request, _ auth.Principal) (web.Response, error) {
-		object, err := a.parser.ParseObject(request)
-		if err != nil {
-			response, handled, responseErr := api.RequestErrorResponse(err)
-			if handled {
-				return response, responseErr
-			}
-			return web.Response{}, err
-		}
-		bound, err := a.input.Bind(object, serializers.ModeFull)
-		if err != nil {
-			return web.Response{}, err
-		}
-		if !bound.Valid() {
-			return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, bound.Errors())
-		}
-		values := bound.Values()
-		subject, _ := values.Get("subject")
-		text, _ := subject.AsString()
-		closed, _ := values.Get("closed")
-		boolean, _ := closed.AsBoolean()
-		input := ticketInput{subject: text, closed: boolean}
-		if details, present := values.Get("details"); present && !details.IsNull() {
-			text, _ := details.AsString()
-			input.details = &text
-		}
-		created, err := a.create(request.Context(), input)
-		if errors.Is(err, admin.ErrObjectNotFound) {
-			return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
-		}
-		if err != nil {
-			return web.Response{}, err
-		}
-		value, err := a.encoder.Encode(created)
-		if err != nil {
-			return web.Response{}, err
-		}
-		return api.JSON(http.StatusCreated, value)
-	})
+	return api.JSON(http.StatusOK, value)
+}
+
+func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
+	object, err := a.parser.ParseObject(request)
 	if err != nil {
-		return nil, err
+		response, handled, responseErr := api.RequestErrorResponse(err)
+		if handled {
+			return response, responseErr
+		}
+		return web.Response{}, err
 	}
-	return []web.Route{
-		{Name: "helpdesk:ticket-list", Method: http.MethodGet, Path: "/api/tickets/", Handler: list},
-		{Name: "helpdesk:ticket-create", Method: http.MethodPost, Path: "/api/tickets/", Handler: create},
-		{Name: "helpdesk:ticket-detail", Method: http.MethodGet, Path: "/api/tickets/<int64:id>/", Handler: detail},
-	}, nil
+	bound, err := a.input.Bind(object, serializers.ModeFull)
+	if err != nil {
+		return web.Response{}, err
+	}
+	if !bound.Valid() {
+		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, bound.Errors())
+	}
+	values := bound.Values()
+	subject, _ := values.Get("subject")
+	text, _ := subject.AsString()
+	closed, _ := values.Get("closed")
+	boolean, _ := closed.AsBoolean()
+	input := ticketInput{subject: text, closed: boolean}
+	if details, present := values.Get("details"); present && !details.IsNull() {
+		text, _ := details.AsString()
+		input.details = &text
+	}
+	created, err := a.create(request.Context(), input)
+	if errors.Is(err, admin.ErrObjectNotFound) {
+		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
+	}
+	if err != nil {
+		return web.Response{}, err
+	}
+	value, err := a.encoder.Encode(created)
+	if err != nil {
+		return web.Response{}, err
+	}
+	return api.JSON(http.StatusCreated, value)
 }
 
 // Viewing a ticket includes its assigned category's identity and label. The

@@ -90,6 +90,9 @@ def group(package):
         return 'integration'
     if relative.startswith('conformance/'):
         return 'conformance'
+    # The separate generated-client module runs tooling and real HTTP fixtures.
+    if relative == 'api/openapi/consumertest' or relative.startswith('api/openapi/consumertest/'):
+        return 'integration'
     if relative.startswith(('examples/', 'codegen/consumertest', 'internal/projectgenerate', 'internal/compiletest')):
         return 'integration'
     return 'core'

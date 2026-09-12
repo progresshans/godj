@@ -272,10 +272,6 @@ func newArticleAPIBearerFixture(t *testing.T, backend articleapp.Backend) articl
 	if err != nil {
 		t.Fatal(err)
 	}
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		t.Fatal(err)
-	}
 	projectSettings, err := settings.New(settings.Definition{
 		ProjectName: "article_api_bearer_e2e",
 		InstalledApps: []apps.Config{{
@@ -290,7 +286,7 @@ func newArticleAPIBearerFixture(t *testing.T, backend articleapp.Backend) articl
 	application, err := web.NewApplication(web.Config{
 		Settings:   projectSettings,
 		Routes:     articleAPI.Routes(),
-		Middleware: middleware,
+		Middleware: articleAPI.Middleware(),
 		Logger:     slog.New(slog.NewTextHandler(logs, nil)),
 	})
 	if err != nil {

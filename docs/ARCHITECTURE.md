@@ -180,10 +180,12 @@ Article Service는 공통 article repository를 직접 사용하며 Admin의 not
 Full update와 patch는 transaction 골격을 공유하되 입력 검증·field mask·audit action은 구분한다.
 
 `api/openapi`는 같은 serializer Spec에서 writable full/partial 입력과 ModelEncoder 응답 schema를 구분해 투영한다.
-Article의 operation 선언은 실제 route·permission·query·body·response를 소유한다. Web route compiler와 OAS metadata를
+Article과 Helpdesk의 operation 선언은 실제 route·permission·query·body·response를 소유한다. Web route compiler와 OAS metadata를
 검증한 뒤 불변 문서를 게시하며, 문서 생성 중 handler·Require·DB I/O는 실행하지 않는다.
 Authentication의 선택적인 description은 실제 공개 cookie/header 이름만 제공한다. Secret과 token 형식은 추측하지 않는다.
 최종 application의 route 설치·middleware·인가 검증, parser의 lexical·byte·정규화 제약은 계속 각각의 runtime이 소유한다.
+이름 있는 local schema의 참조는 startup에서 graph와 budget을 검사하고 정체성을 유지한다. JSON negotiation은 같은
+`api.JSONPolicy`에서 middleware와 문서가 함께 읽는다. 외부 생성 Go client는 별도 module의 integration 검증이 소유한다.
 자세한 투영과 인증 보안 요구의 의미는 [ADR-0058](adr/0058-model-derived-openapi-and-operation-ownership.md)을 따른다.
 
 Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사용한다. Bearer가 잘못되었을 때 다른 credential로 fallback하지

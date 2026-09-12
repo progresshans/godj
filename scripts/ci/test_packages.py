@@ -12,6 +12,9 @@ class PackagePartitionTests(unittest.TestCase):
         for relative, expected in {
             'orm': 'core', 'db/sqlite': 'core', 'codegen': 'core',
             'internal/testschema': 'core', 'codegen/consumertest': 'integration',
+            'api/openapi': 'core', 'api/openapi/consumertest': 'integration',
+            'api/openapi/consumertest/helpers': 'integration',
+            'api/openapi/consumertesthelper': 'core',
             'cmd/godj': 'platform', 'internal/projectcheck/linked': 'platform',
             'examples/article': 'integration', 'conformance/runners/godj': 'platform',
             'conformance/relationfixture': 'integration',
@@ -64,10 +67,52 @@ exit 0
             # A positive control ensures an unrelated make/configuration error
             # cannot make all of the failure-path assertions pass.
             environment['GODJ_TEST_LIST_EXIT'] = '0'
-            result = subprocess.run(['make', '--no-print-directory', 'go-test-integration'], cwd=root, env=environment,
-                                    capture_output=True, timeout=10)
-            self.assertEqual(0, result.returncode, result.stderr.decode())
-            self.assertTrue(marker.exists(), 'successful discovery did not execute go test')
+            for prefix in ('go-test', 'go-race', 'cgo-zero-build'):
+                with self.subTest(positive_control=prefix):
+                    marker.unlink(missing_ok=True)
+                    result = subprocess.run(['make', '--no-print-directory', prefix + '-integration'], cwd=root, env=environment,
+                                            capture_output=True, timeout=10)
+                    self.assertEqual(0, result.returncode, result.stderr.decode())
+                    self.assertTrue(marker.exists(), 'successful discovery did not execute go test')
+
+    def test_api_client_dependency_preparation_uses_an_unchanged_lock_copy(self):
+        root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            shutil.copyfile(root / 'Makefile', directory / 'Makefile')
+            module_path = Path('api/openapi/consumertest/testdata/client')
+            source = directory / module_path
+            source.mkdir(parents=True)
+            for name in ('go.mod', 'go.sum'):
+                shutil.copyfile(root / module_path / name, source / name)
+            originals = {name: (source / name).read_bytes() for name in ('go.mod', 'go.sum')}
+            marker = directory / 'download-ran'
+            fake = directory / 'go'
+            fake.write_text('''#!/bin/sh
+set -eu
+test "$#" = 2 && test "$1" = mod && test "$2" = download
+test "$PWD" != "$GODJ_TEST_SOURCE"
+test "$GOWORK" = off
+cmp "$GODJ_TEST_SOURCE/go.mod" go.mod
+cmp "$GODJ_TEST_SOURCE/go.sum" go.sum
+touch "$GODJ_TEST_DOWNLOAD_MARKER"
+if [ "${GODJ_TEST_LOCK_CHANGE:-0}" = 1 ]; then
+  printf '\\nchanged copy\\n' >> go.sum
+fi
+exit "${GODJ_TEST_DOWNLOAD_EXIT:-0}"
+''')
+            fake.chmod(0o700)
+            environment = dict(os.environ, PATH=str(directory) + os.pathsep + os.environ['PATH'],
+                               GODJ_TEST_SOURCE=str(source), GODJ_TEST_DOWNLOAD_MARKER=str(marker))
+            for exit_code, change_lock, succeeds in (('0', '0', True), ('7', '0', False), ('0', '1', False)):
+                with self.subTest(download_exit=exit_code, change_lock=change_lock):
+                    marker.unlink(missing_ok=True)
+                    environment.update(GODJ_TEST_DOWNLOAD_EXIT=exit_code, GODJ_TEST_LOCK_CHANGE=change_lock)
+                    result = subprocess.run(['make', '--no-print-directory', 'api-client-dependencies'], cwd=directory,
+                                            env=environment, capture_output=True, timeout=10)
+                    self.assertEqual(succeeds, result.returncode == 0, result.stderr.decode())
+                    self.assertTrue(marker.exists(), 'dependency download was not attempted')
+                    self.assertEqual(originals, {name: (source / name).read_bytes() for name in originals})
 
     def test_format_error_is_not_hidden_by_a_later_valid_file(self):
         root = Path(__file__).resolve().parents[2]
@@ -125,6 +170,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         from scopes import SCOPES, selected as select_owners
         relatives = sorted(RELATION_PACKAGES | set(RELATION_PREFIXES) | PORTABLE_PRODUCTS | {
             'codegen', 'schema/ir', 'internal/projectgenerate', 'conformance/cmd/godjcheck',
+            'api/openapi', 'api/openapi/consumertest',
             'conformance/relationfixture/blog', 'conformance/systemstate/attestation',
         })
         packages = [MODULE + relative for relative in relatives]

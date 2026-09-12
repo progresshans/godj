@@ -153,8 +153,11 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		}
 	}
 	client := helpdeskHTTP(t, application, runtime, auth.PrincipalAuthorizer{})
+	assertHelpdeskOperationContracts(t, client.document, client.api.Routes())
 	if response := client.request("GET", "/api/tickets/", "", false); response.Code != http.StatusForbidden {
 		t.Fatalf("anonymous API: %d", response.Code)
+	} else {
+		assertHelpdeskResponseDocumented(t, client.document, "GET", "/api/tickets/", response)
 	}
 	detailPath := fmt.Sprintf("/api/tickets/%d/", seed.ID)
 	beforeDetail := reads.queries
@@ -168,8 +171,24 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("POST", "/admin/login/", login.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("login: %d %s", response.Code, response.Body)
 	}
+	listRequest := httptest.NewRequest(http.MethodGet, "http://helpdesk.test/api/tickets/?search=ignored&page=999&unknown=ignored", nil)
+	listRequest.Header.Set("Accept", "text/html")
+	for _, cookie := range client.cookies {
+		listRequest.AddCookie(cookie)
+	}
+	listResponse := httptest.NewRecorder()
+	client.application.ServeHTTP(listResponse, listRequest)
+	assertHelpdeskResponseDocumented(t, client.document, "GET", "/api/tickets/", listResponse)
+	var listed []struct {
+		ID       int64 `json:"id"`
+		Category int64 `json:"category"`
+	}
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &listed); err != nil || listResponse.Code != http.StatusOK || len(listed) != 1 || listed[0].ID != seed.ID || listed[0].Category != category.ID {
+		t.Fatalf("documented bare list, ignored query, or absent Accept policy changed: %d %s %v", listResponse.Code, listResponse.Body, err)
+	}
 	beforeDetail = reads.queries
 	detailResponse := client.request("GET", detailPath, "", false)
+	assertHelpdeskResponseDocumented(t, client.document, "GET", "/api/tickets/{id}/", detailResponse)
 	var detail map[string]map[string]json.RawMessage
 	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
@@ -230,6 +249,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatalf("unselected category leaked through direct object read: %d", response.Code)
 	}
 	response := client.request("POST", "/api/tickets/", `{"subject":"JSON ticket","details":null}`, true)
+	assertHelpdeskResponseDocumented(t, client.document, "POST", "/api/tickets/", response)
 	if response.Code != http.StatusCreated {
 		t.Fatalf("JSON create: %d %s", response.Code, response.Body)
 	}
@@ -242,9 +262,14 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID <= seed.ID || created.Category != category.ID || created.Closed || created.Details != nil {
 		t.Fatalf("typed JSON projection: %+v %v", created, err)
 	}
-	for _, document := range []string{`{"subject":"Bad","category":` + strconv.FormatInt(other.ID, 10) + `}`, `{"subject":"` + strings.Repeat("x", 121) + `"}`} {
+	if response.Header().Get("Location") != "" {
+		t.Fatal("create added an undocumented Location header")
+	}
+	for _, document := range []string{`{"subject":"Bad","category":` + strconv.FormatInt(other.ID, 10) + `}`, `{"subject":"Bad","id":1}`, `{"subject":"` + strings.Repeat("x", 121) + `"}`} {
 		if response := client.request("POST", "/api/tickets/", document, true); response.Code != http.StatusBadRequest {
 			t.Fatalf("invalid API data accepted: %d %s", response.Code, response.Body)
+		} else {
+			assertHelpdeskResponseDocumented(t, client.document, "POST", "/api/tickets/", response)
 		}
 	}
 	changePath := fmt.Sprintf("/admin/tickets/change/?id=%d", created.ID)
@@ -321,6 +346,8 @@ func verifyConcurrentPermissionMaintenance(t *testing.T, ctx context.Context, op
 type helpdeskClient struct {
 	t           *testing.T
 	application *web.Application
+	api         *helpdesk.API
+	document    helpdeskDocument
 	cookies     map[string]*http.Cookie
 	csrf        string
 }
@@ -353,15 +380,19 @@ func helpdeskHTTP(t *testing.T, application *helpdesk.Application, runtime *syst
 	if err != nil {
 		t.Fatal(err)
 	}
-	apiRoutes, err := application.APIRoutes(apiAuth)
+	adapter, err := application.API(apiAuth)
 	if err != nil {
 		t.Fatal(err)
 	}
-	webApp, err := web.NewApplication(web.Config{Settings: configured, Routes: append(site.Routes(), apiRoutes...)})
+	document, err := adapter.OpenAPI()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &helpdeskClient{t: t, application: webApp, cookies: map[string]*http.Cookie{}}
+	webApp, err := web.NewApplication(web.Config{Settings: configured, Routes: append(site.Routes(), adapter.Routes()...)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &helpdeskClient{t: t, application: webApp, api: adapter, document: decodeHelpdeskDocument(t, document.Bytes()), cookies: map[string]*http.Cookie{}}
 }
 
 func (c *helpdeskClient) request(method, path, body string, jsonBody bool) *httptest.ResponseRecorder {

@@ -93,7 +93,7 @@ credential을 provision하지 않은 public-only 구성에는 이 경로가 없�
 
 [Article operation 선언](../examples/article/apiapp/openapi.go)은 실행 route와 같은 원본이며, serializer Spec에서 full/partial
 요청과 응답 schema를 가져온다. 독립 구성에서는 `articleAPI.OpenAPI()`의 오류를 처리하고 반환한 `Document.Response()`를
-application이 선택한 인증·권한 handler로 감싸 게시한다. `Document.Bytes()`는 파일이나 client 도구에 전달할 수 있는 복사본이다.
+application이 선택한 인증·권한 handler로 감싸 게시한다. Article middleware는 같은 `articleAPI.Middleware()`에서 가져온다. `Document.Bytes()`는 파일이나 client 도구에 전달할 수 있는 복사본이다.
 `Document.Routes()`에는 설명한 API route만 있고 문서 조회 route를 자동 추가하지 않는다.
 
 Model serializer를 이미 갖고 있다면 다음 공개 투영 API를 사용한다. `spec`은 실제 binding·encoding에 쓰는 같은 Spec이다.
@@ -113,8 +113,28 @@ Full 입력의 `title`은 필수이고 생략한 `published`는 false다. PATCH�
 body·문자열 byte 제한과 query의 세부 오류 규칙은 설명에 기록한다. 일반 JSON Schema 검사만으로 모든 runtime 제한을 재현할 수 없다.
 Session unsafe 요청은 session·CSRF cookie와 masked header를 함께 요구한다. Bearer로 구성한 API의 문서는 HTTP bearer만 표시한다.
 
+타입을 여러 operation에서 공유할 때는 `openapi.NamedSchema{Name: "Ticket", Schema: ticketSchema}`를 `Config.Schemas`에
+등록하고 `openapi.Ref("Ticket")`의 결과를 쓴다. 이름의 중복·미해결 참조·순환은 문서를 게시하기 전에 실패한다.
+공통 오류 `GoDjAPIError`는 문서가 소유하므로 재선언하지 않는다. 구조가 같은 타입을 자동으로 합치지 않는다.
+
+JSON negotiation을 설치하는 application은 `api.NewJSONPolicy("/api/")`로 만든 같은 policy의 `Middleware()`와
+`openapi.Config.JSONPolicy`를 사용한다. Zero policy에는 406이 없다. 한 dynamic route 일부에만 적용되는 prefix는 거부한다.
+
+Helpdesk는 `application.API(authentication)`을 한 번 호출해 `Routes()`와 `OpenAPI()`를 얻는다.
+선택 category의 bare list·nested detail과 create만 설명하며, 입력에서 category/id를 받지 않는다. 기존 Helpdesk에는
+JSON negotiation middleware가 없으므로 Article의 406 정책을 그대로 붙이지 않는다.
+
 [실제 HTTP client 회귀](../examples/article/apiapp/openapi_test.go)는 문서와 생성·PATCH·HEAD의 응답을 대조한다.
-생성 SDK나 임의 외부 client generator의 호환성까지 검증한 범위는 아니다.
+[외부 생성 client 회귀](../api/openapi/consumertest/README.md)는 별도 module의 고정 ogen v1.24.0 Go client로
+Article Bearer·Session과 Helpdesk Session을 검증한다. 생성물과 입력 문서·설정·lock의 일치도 필수다.
+
+```sh
+make api-client-dependencies
+go test -count=1 ./api/openapi/consumertest
+```
+
+Session은 실제 cookie·CSRF를 사용하며 parent fixture가 준비한 session에서 시작한다. SDK의 로그인 기능이나 임의 generator,
+다른 언어의 정수/nullable 동작까지 검증한 범위는 아니다. 문서/생성물 변경은 위 회귀의 README 갱신 절차를 따른다.
 
 ## PostgreSQL
 

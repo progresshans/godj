@@ -12,6 +12,8 @@ import (
 
 // Schema is an immutable JSON Schema value. Its zero value is invalid.
 // Construction uses the supported schema vocabulary rather than arbitrary maps.
+// Ref constructs a local component reference; document construction checks its
+// target and rejects recursive schema graphs rather than expanding references.
 type Schema struct {
 	value serializers.Value
 }

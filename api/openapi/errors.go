@@ -1,5 +1,10 @@
 package openapi
 
+// ErrorSchemaName is the component identity reserved for the framework's API
+// error envelope. New always defines it; applications may reference it without
+// repeating a named declaration.
+const ErrorSchemaName = "GoDjAPIError"
+
 // JSONErrorSchema describes the stable API error envelope, including ordered
 // field diagnostics and presentation-independent string parameters. Internal
 // Web failures have a separate text response and never use this schema.

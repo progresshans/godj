@@ -3,6 +3,82 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0071 — schema 정체성·JSON 정책과 실제 생성 client
+
+- 작업: [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), 설계: [ADR-0058](../adr/0058-model-derived-openapi-and-operation-ownership.md).
+- 기준 commit: `f7db3ed1ab0e7fcdedd9f4af0c1f760893bad823`에 이번 변경을 적용한 2026-09-12 작업 사본이다.
+  해당 기준 commit 자체나 이전 Hosted 결과를 이 변경의 PASS로 표시하지 않는다.
+- 최종 변경 source 입력 80개의 SHA256 manifest digest: `b452bb6f6eb748d206434bace1a81c83cba40b12d98540ce1e7a30e1e012f69e`.
+  기준 commit 대비 변경·새 Go/Python/JSON/YAML 파일과 Makefile·go.mod·go.sum 경로를 정렬하고,
+  각 `<file-sha256>  <relative-path>\n` 행을 이어 SHA256으로 계산했다. 문서·license는 이 digest에서 제외했다.
+- 환경: darwin/arm64, Go 1.26.5, modernc SQLite, 로컬 PostgreSQL 17.5. 새 전용 PostgreSQL DB와 테스트별 schema,
+  임시 SQLite 파일을 사용했다. 기존 개발 DB를 변경하지 않았고 작업 전용 PostgreSQL DB는 검증 후 제거했다.
+
+### 구현과 위험의 소유권
+
+- `JSONPolicy`의 middleware와 문서가 실제 subtree 적용을 공유한다. Zero policy와 Helpdesk에는 자동 406이 없고,
+  dynamic route 일부에만 적용되는 prefix는 명시적으로 실패한다. Article의 기존 협상·routing error 동작을 유지한다.
+- 명시적 named schema와 local reference를 그대로 출력한다. 중복·미해결·순환·지원 외 참조, depth/node/byte budget,
+  property 이름과 참조의 구분, 불변 snapshot과 결정성을 검증했다. 공통 오류 component의 재선언은 거부한다.
+- 네 schema 연결 위치의 참조 검사, 공유 auth/406 실패 status의 필수 application header 거부,
+  root error alias와 공통 오류의 일치, 빈 문서/부분 게시 방지를 확인했다.
+- Helpdesk는 단일 API 구성에서 route와 문서를 만든다. 실제 encoder/input Spec, bare list·nested category,
+  선택 category 밖 ticket의 404, 생성 default·null·빈 문자열, 권한 선행과 기존 category/ticket 보존을 검증했다.
+
+### 관련 Go와 실제 외부 client 실행
+
+통합 범위는 `./api/... ./web/... ./examples/article/... ./examples/helpdesk`다. Test가 있는 **18 packages**에서
+각 모드 **555개의 test 완료 event PASS(하위 test 포함), fail/실제 test skip 0**을 확인했다.
+별도의 5개 package는 Go 소스만 있어 `[no test files]`이며 실행 누락된 test를 의미하지 않는다.
+
+```sh
+make api-client-dependencies
+GODJ_REQUIRE_POSTGRES=1 go test -json -count=1 ./api/... ./web/... ./examples/article/... ./examples/helpdesk
+GODJ_REQUIRE_POSTGRES=1 go test -race -json -count=1 ./api/... ./web/... ./examples/article/... ./examples/helpdesk
+GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 go test -json -count=1 ./api/... ./web/... ./examples/article/... ./examples/helpdesk
+```
+
+`GODJ_TEST_POSTGRES_URL`은 전용 DB로 설정했다. Normal 첫 실행에서는 generator의 일반 stderr 경고를 consumer runtime과
+똑같이 실패로 처리한 harness 때문에 외부 consumer가 실패했다. 경고는 `WWW-Authenticate`를 Go의 canonical casing으로
+다루는 도구 진단이었다. Tool의 일반 진단과 실행 consumer의 엄격한 stderr 계약을 구분하고 generation drift를 그대로 유지했다.
+최종 document 연결 회귀도 포함해 `./api/openapi ./api/openapi/consumertest`를 다시 실행하여 **2 packages, 125 PASS**를 확인했다.
+그 외 변경되지 않은 **16 packages, 430 PASS**는 첫 normal 실행 결과다. Race/CGO0는 최종 제품/test 소스로 전체 관련 범위를 실행했다.
+
+외부 consumer는 GoDj를 import/replace하지 않는 별도 module에서 **ogen v1.24.0**으로 생성한 세 client를 사용한다.
+실제 API 문서 세 개의 byte 일치, 고정된 schema/config/tool/lock의 offline 재생성, 정확한 generated 파일 집합·내용,
+별도 executable build와 실제 HTTP를 같은 테스트에서 확인했다. 부모 race 실행에서는 consumer executable도 race로 빌드했다.
+
+- 실제 HTTP: Article Bearer CRUD·PATCH omitted/null/empty/false·PUT default/보존·인증/인가 오류, Session cookie·CSRF CRUD와
+  잘못된 CSRF, Helpdesk selected relation·생성 default·읽기 전용 거부, 사전 취소 요청과 최종 DB effects.
+- 별도 wire fixture: int64 최대 path/response와 overflow 거부, 필수 nullable/read-only 필드 누락과 추가 응답 필드 거부,
+  PATCH의 실제 serialized omitted/null/empty/false. 각 mock 응답은 정확히 한 HTTP 교환을 요구한다.
+- 완료 보고: 12개 필수 check의 정확한 집합, 중복 JSON member·잘린/후행 보고·race 불일치 거부. 빈 파일도 경로 이름을
+  검사하며 subprocess 실패·취소·출력 초과·성공 종료의 runtime stderr를 성공으로 취급하지 않는 부정 대조군을 포함한다.
+- Session은 실제 adapter와 CSRF 교환을 쓰지만 parent가 메모리 session을 준비한다. 생성 SDK의 로그인 기능 검증은 아니다.
+  생성기의 template 출처와 Apache-2.0 license는 client fixture에 보존했다. Root framework의 go.mod/go.sum은 바꾸지 않았다.
+
+### 독립 규격·CI 연결·문서 검증
+
+- 격리 `uv --no-project` 환경의 openapi-spec-validator **0.9.0**, jsonschema **4.26.0**, referencing **0.37.0**:
+  OpenAPI 3.1.1 문서 **3개**, named schema **17개** 유효성, native local ref를 resolve한 수용/거부 **158사례**
+  (수용 69/거부 89; Article profile별 59, Helpdesk 40), default annotation **7검사** PASS.
+  `default`는 값을 삽입하지 않고, `x-godj-normalization`·parser lexical/byte·권한/DB 계약은 JSON Schema가 검사하지 않음을 확인했다.
+- 검사한 문서 SHA256: Article Bearer `13733fb869ffdd8d2395bd0e457854b80226154401ced9d1d7a143e067d80847`,
+  Article Session `a5a951276698455afd214e207a2e6c52681a11468c2f80a05f0be1f92bdaa333`,
+  Helpdesk Session `0b09e0a2589fee4e93ba061026114f39a5556820a54138e2cb5980ea1d7ae6fb`.
+- CI package/scopes의 Python 회귀 **12개 PASS**. 정확한 모듈 경로를 integration으로 분류하고 normal/race/CGO0 Make target이
+  의존성 준비를 소유한다. 실제 `go list`에서도 consumer는 integration, nested client는 root package 목록 밖임을 확인했다.
+  의존성 준비는 임시 복사본에서 수행해 lock 변화를 거부한다. Portable Go cache key에 client go.sum을 포함했다.
+- 유지보수 export 명령의 별도 compile과 실제 실행 PASS. Article Bearer 24,491 bytes/10 operations,
+  Article Session 21,331 bytes/10 operations, Helpdesk Session 7,105 bytes/3 operations가 저장된 입력과 byte-identical이었다.
+  비어 있지 않은 출력으로 재실행하면 exit 1이고 기존 세 파일의 SHA256가 유지됐다. 갱신 절차는
+  [consumer README](../../api/openapi/consumertest/README.md)에 있다. 이 명령은 기본 Go test package 집합 밖에서 별도로 검증했다.
+- 관련 `go vet`, `make format-check docs-check`, `git diff --check`: PASS. 현행 Markdown **97개**의 local link를 검사했다.
+- 현행 API와 문서, subprocess/receipt·CI/CLI의 독립 읽기 리뷰를 완료했다. 발견한 empty-file membership와 상속 `GORACE`에
+  의한 child false PASS 가능성을 수정하고 해당 부정 대조군까지 실행했다.
+- Hosted full matrix·Linux/다른 arch와 PostgreSQL 버전, 새 Django differential contract, 배포형 SDK·다른 언어 generator는
+  이번 범위에서 실행하지 않았다. 외부 validator는 repository Python lock을 변경하지 않았다.
+
 ## GDJ-0070 — 모델과 실제 API 선언에서 OpenAPI 제공
 
 - 작업: [GDJ-0070](../../work/0070-model-derived-openapi.md), 설계: [ADR-0058](../adr/0058-model-derived-openapi-and-operation-ownership.md).

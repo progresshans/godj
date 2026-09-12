@@ -200,10 +200,6 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article OpenAPI authentication: %w", err)
 	}
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		return nil, fmt.Errorf("article site application: API middleware: %w", err)
-	}
 	routes := append(adminSite.Routes(), articleAPI.Routes()...)
 	routes = append(routes, web.Route{
 		Name:    apiapp.OpenAPIRouteName,
@@ -211,7 +207,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		Path:    apiapp.OpenAPIPath,
 		Handler: schemaHandler,
 	})
-	application, err := webapp.NewComposedApplication(runtime, routes, middleware)
+	application, err := webapp.NewComposedApplication(runtime, routes, articleAPI.Middleware())
 	if err != nil {
 		return nil, fmt.Errorf("article site application: compose Web application: %w", err)
 	}

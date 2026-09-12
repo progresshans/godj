@@ -1,7 +1,21 @@
 # Helpdesk 소비자
 
 Category–Ticket 관계 모델에 선택형 Form/Admin, 읽기 전용 Category Admin, 인증·CSRF API를 연결한다.
-`App`은 caller가 제공한 backend를 사용한다. 테스트는 실제 migration, HTTP CRUD, 재시작과 권한 교체를 검증한다.
+`Application`은 caller가 제공한 backend를 사용한다. 테스트는 실제 migration, HTTP CRUD, 재시작과 권한 교체를 검증한다.
+
+`New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
+`application.API(authentication)`으로 API를 한 번 조합한 뒤 `api.Routes()`를 Web 설정에 연결한다.
+`api.OpenAPI()`는 같은 operation과 인증 구성에서 OpenAPI 3.1 문서를 만든다. 문서 제공 경로와 권한은 caller가 정한다.
+문서화 profile이 없는 custom authentication도 Routes에 사용할 수 있지만 OpenAPI 구성은 명시적으로 실패한다.
+
+문서의 `Ticket`, `TicketCreate`, `TicketDetail`, `CategorySummary`는 명시적인 component 이름이다.
+Ticket 응답과 생성 입력은 실제 ModelEncoder와 Bind가 사용하는 serializer spec에서 파생하며,
+CategorySummary는 직접 출력하는 id/name 구조를 기술한다.
+`GET /api/tickets/`는 선택 Category의 티켓을 ID 오름차순으로 최대 20개 담은 배열이며 query parameter를 무시한다.
+`POST /api/tickets/`는 subject/details/closed만 받아 Ticket과 201을 반환하고 Location header를 추가하지 않는다.
+subject는 필수이며 생략한 closed는 false, 생략하거나 null로 지정한 details는 null이다. 빈 details 문자열은 null과 구별한다.
+본문은 4096바이트로 제한하고 중복 JSON member와 뒤따르는 데이터를 거절한다.
+기본 조합에는 Accept negotiation middleware가 없으므로 문서도 406을 광고하지 않는다.
 
 `GET /api/tickets/<id>/`는 `ViewTicket` 권한과 서버가 배정한 Category 범위를 확인한 뒤 티켓과 Category를
 하나의 JOIN 조회로 반환한다. 응답의 `ticket`은 id/subject/details/closed/category, `category`는 id/name만 포함한다.

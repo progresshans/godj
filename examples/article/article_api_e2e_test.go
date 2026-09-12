@@ -344,15 +344,11 @@ func newArticleAPIAdminSessionFixture(t *testing.T, backend articleapp.Backend) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		t.Fatal(err)
-	}
 	routes := append(adminSite.Routes(), articleAPI.Routes()...)
 	application, err := web.NewApplication(web.Config{
 		Settings:   projectSettings,
 		Routes:     routes,
-		Middleware: middleware,
+		Middleware: articleAPI.Middleware(),
 	})
 	if err != nil {
 		t.Fatal(err)

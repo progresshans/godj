@@ -519,10 +519,6 @@ func newHarness(t *testing.T) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		t.Fatal(err)
-	}
 	configured, err := settings.New(settings.Definition{
 		ProjectName: "article_api_test",
 		InstalledApps: []apps.Config{{
@@ -536,7 +532,7 @@ func newHarness(t *testing.T) *harness {
 	application, err := web.NewApplication(web.Config{
 		Settings:   configured,
 		Routes:     adapter.Routes(),
-		Middleware: middleware,
+		Middleware: adapter.Middleware(),
 	})
 	if err != nil {
 		t.Fatal(err)

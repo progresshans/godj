@@ -43,6 +43,8 @@ type Application struct {
 	encoder        serializers.ModelEncoder[articlemodels.Article]
 	authentication api.Authentication
 	operations     []openapi.Operation
+	schemas        []openapi.NamedSchema
+	jsonPolicy     api.JSONPolicy
 }
 
 // New validates every construction dependency before publishing any route.
@@ -53,6 +55,10 @@ func New(backend articleapp.Backend, authentication api.Authentication) (*Applic
 	}
 	if nilAuthentication(authentication) {
 		return nil, fmt.Errorf("article api authentication: adapter is nil")
+	}
+	jsonPolicy, err := api.NewJSONPolicy("/api/")
+	if err != nil {
+		return nil, fmt.Errorf("article api JSON policy: %w", err)
 	}
 	parser, err := api.NewParser(api.ParserConfig{
 		MaxBodyBytes: maximumJSONBodyBytes,
@@ -80,6 +86,7 @@ func New(backend articleapp.Backend, authentication api.Authentication) (*Applic
 		spec:           spec,
 		encoder:        encoder,
 		authentication: authentication,
+		jsonPolicy:     jsonPolicy,
 	}
 	operations, err := application.buildOperations(authentication)
 	if err != nil {
@@ -115,16 +122,10 @@ func nilAuthentication(authentication api.Authentication) bool {
 	}
 }
 
-// Middleware constructs the API subtree representation and JSON negotiation
-// chain in outermost-first Web order.
-func Middleware() ([]web.Middleware, error) {
-	negotiation, err := api.JSONNegotiation("/api/")
-	if err != nil {
-		return nil, err
+// Middleware returns the same JSON policy described by OpenAPI, in Web order.
+func (a *Application) Middleware() []web.Middleware {
+	if a == nil {
+		return nil
 	}
-	representation, err := api.Representation("/api/")
-	if err != nil {
-		return nil, err
-	}
-	return []web.Middleware{negotiation, representation}, nil
+	return a.jsonPolicy.Middleware()
 }

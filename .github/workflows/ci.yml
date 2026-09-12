@@ -274,6 +274,9 @@ jobs:
           go-version: "1.26.5"
           check-latest: false
           cache: true
+          cache-dependency-path: |
+            go.sum
+            api/openapi/consumertest/testdata/client/go.sum
 
       - name: Assert runner coordinate
         run: |

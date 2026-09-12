@@ -49,3 +49,7 @@ Django-named reference corpus에 저장되어 있어도 GoDj 정책을 Django의
 모델·operation 문서의 표현 기준은 [OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html)이다.
 독립 규격 검사는 [openapi-spec-validator](https://openapi-spec-validator.readthedocs.io/en/latest/)를 격리 실행하며,
 실제 사용 버전과 범위는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다.
+
+외부 Go client 검증은 [ogen v1.24.0](https://github.com/ogen-go/ogen/tree/v1.24.0)의 client generator를 고정해서 사용한다.
+[설정과 module lock](../api/openapi/consumertest/testdata/client/go.mod),
+[생성·검증 절차](../api/openapi/consumertest/README.md)에 실제 소비 경계를 둔다. 다른 generator의 지원을 추론하지 않는다.
