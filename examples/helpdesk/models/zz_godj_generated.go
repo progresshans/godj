@@ -11,7 +11,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "6951db0249e3ca208bca4c765f2eb69229fe0635cd6a7359e66992c250de07d5"
+const GoDjSchemaSHA256 = "700b62ae36674925f5ba1e89f8c696443769552d7e6027e4a90f65cb85805427"
 
 type Category struct {
 	ID                    int64
@@ -189,6 +189,7 @@ type Ticket struct {
 	Closed                bool
 	CategoryID            int64
 	Priority              *int64
+	Resolution            *string
 	godjPrimaryKeyPresent bool
 }
 
@@ -206,7 +207,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var value Ticket
 	var scanDetails sql.NullString
 	var scanPriority sql.NullInt64
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority); err != nil {
+	var scanResolution sql.NullString
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -216,6 +218,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanPriority.Valid {
 		scanned := scanPriority.Int64
 		value.Priority = &scanned
+	}
+	if scanResolution.Valid {
+		scanned := scanResolution.String
+		value.Resolution = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -245,6 +251,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 		clonedPriority := *value.Priority
 		clone.Priority = &clonedPriority
 	}
+	if value.Resolution != nil {
+		clonedResolution := *value.Resolution
+		clone.Resolution = &clonedResolution
+	}
 	return clone
 }
 
@@ -272,27 +282,34 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.Integer(*value.Priority), true
+	case "resolution":
+		if value.Resolution == nil {
+			return query.Null(), true
+		}
+		return query.String(*value.Resolution), true
 	default:
 		return query.Value{}, false
 	}
 }
 
 type TicketFieldSet struct {
-	ID       orm.AutoField[Ticket]
-	Subject  orm.StringField[Ticket]
-	Details  orm.NullableStringField[Ticket]
-	Closed   orm.BooleanField[Ticket]
-	Priority orm.NullableIntegerField[Ticket]
+	ID         orm.AutoField[Ticket]
+	Subject    orm.StringField[Ticket]
+	Details    orm.NullableStringField[Ticket]
+	Closed     orm.BooleanField[Ticket]
+	Priority   orm.NullableIntegerField[Ticket]
+	Resolution orm.NullableStringField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
 	metadata := ticketMetadata()
 	return TicketFieldSet{
-		ID:       orm.NewAutoField[Ticket](metadata.Fields[0]),
-		Subject:  orm.NewStringField[Ticket](metadata.Fields[1]),
-		Details:  orm.NewNullableStringField[Ticket](metadata.Fields[2]),
-		Closed:   orm.NewBooleanField[Ticket](metadata.Fields[3]),
-		Priority: orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
+		ID:         orm.NewAutoField[Ticket](metadata.Fields[0]),
+		Subject:    orm.NewStringField[Ticket](metadata.Fields[1]),
+		Details:    orm.NewNullableStringField[Ticket](metadata.Fields[2]),
+		Closed:     orm.NewBooleanField[Ticket](metadata.Fields[3]),
+		Priority:   orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
+		Resolution: orm.NewNullableStringField[Ticket](metadata.Fields[6]),
 	}
 }()
 
@@ -324,6 +341,7 @@ type TicketCreate struct {
 	closed     orm.Change[bool]
 	categoryID orm.Change[int64]
 	priority   orm.NullableChange[int64]
+	resolution orm.NullableChange[string]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -368,9 +386,19 @@ func (input TicketCreate) WithPriorityNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithResolution(value string) TicketCreate {
+	input.resolution = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithResolutionNull() TicketCreate {
+	input.resolution = orm.SetNull[string]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 5)
+	assignments := make([]query.Assignment, 0, 6)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -439,6 +467,26 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedResolution, changedResolutionState := input.resolution.Get()
+	switch changedResolutionState {
+	case orm.NullableChangeUnset:
+		value.Resolution = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("resolution", "resolution", query.FieldString, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedResolution := changedResolution
+		value.Resolution = &storedResolution
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("resolution", "resolution", query.FieldString, true), query.String(changedResolution)))
+	case orm.NullableChangeNull:
+		value.Resolution = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("resolution", "resolution", query.FieldString, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "resolution",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -448,6 +496,7 @@ type TicketPatch struct {
 	closed     orm.Change[bool]
 	categoryID orm.Change[int64]
 	priority   orm.NullableChange[int64]
+	resolution orm.NullableChange[string]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -485,9 +534,19 @@ func (input TicketPatch) WithPriorityNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithResolution(value string) TicketPatch {
+	input.resolution = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithResolutionNull() TicketPatch {
+	input.resolution = orm.SetNull[string]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 5)
+	assignments := make([]query.Assignment, 0, 6)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -533,6 +592,24 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
 			Field:    "priority",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedResolution, changedResolutionState := input.resolution.Get()
+	switch changedResolutionState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedResolution := changedResolution
+		value.Resolution = &storedResolution
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("resolution", "resolution", query.FieldString, true), query.String(changedResolution)))
+	case orm.NullableChangeNull:
+		value.Resolution = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("resolution", "resolution", query.FieldString, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "resolution",
 			Detail:   "unknown nullable change state",
 		})
 	}
@@ -593,8 +670,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldInteger,
 				Nullable: true,
 			},
+			{
+				Name:     "resolution",
+				GoName:   "Resolution",
+				Column:   "resolution",
+				Kind:     ir.FieldText,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_95a9e4fc32a274b794870a593ad9edd06d141602611e9a3aaa9a65061b74e6d3 struct{}
+type GoDjProjectSnapshot_7907be16125b268e11c1ebd1cecbbe15409976fa0d05987a1fbb7f1f04d75632 struct{}

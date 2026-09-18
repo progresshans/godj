@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"strings"
 
 	hs "example.com/godj-openapi-client/helpdesksession"
 )
@@ -19,7 +20,7 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		return fail("helpdesk client setup")
 	}
 	initial, err := helpdeskList(ctx, client, transport, state)
-	if err != nil || len(initial) != 1 || initial[0].ID != target.TicketID || initial[0].Category != target.CategoryID || initial[0].Subject != "Existing ticket" || !initial[0].Priority.Null {
+	if err != nil || len(initial) != 1 || initial[0].ID != target.TicketID || initial[0].Category != target.CategoryID || initial[0].Subject != "Existing ticket" || !initial[0].Priority.Null || !initial[0].Resolution.Null {
 		return fail("helpdesk initial bare list")
 	}
 	seed := initial[0]
@@ -35,9 +36,10 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	}
 	details := hs.OptNilString{}
 	details.SetToNull()
-	createdResponse, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: "  Consumer ticket  ", Details: details})
+	resolution := "First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"
+	createdResponse, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: "  Consumer ticket  ", Details: details, Resolution: hs.NewOptNilString(resolution)})
 	created, ok := createdResponse.(*hs.Ticket)
-	if err != nil || !ok || transport.lastStatus() != http.StatusCreated || created.ID <= 0 || created.ID == target.TicketID || created.ID == target.OtherTicketID || created.Subject != "Consumer ticket" || !created.Details.Null || !created.Priority.Null || created.Closed || created.Category != target.CategoryID {
+	if err != nil || !ok || transport.lastStatus() != http.StatusCreated || created.ID <= 0 || created.ID == target.TicketID || created.ID == target.OtherTicketID || created.Subject != "Consumer ticket" || !created.Details.Null || !created.Priority.Null || created.Resolution.Null || created.Resolution.Value != resolution || created.Closed || created.Category != target.CategoryID {
 		return fail("helpdesk create projection and defaults")
 	}
 	expected := []hs.Ticket{seed, *created}
@@ -52,10 +54,19 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		} else {
 			priority.SetTo(test.value)
 		}
-		response, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: test.subject, Priority: priority})
+		text := hs.OptNilString{}
+		if test.subject == "Maximum priority" {
+			text.SetTo("")
+		} else if test.subject == "Minimum priority" {
+			text.SetToNull()
+		}
+		response, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: test.subject, Priority: priority, Resolution: text})
 		value, ok := response.(*hs.Ticket)
 		if err != nil || !ok || transport.lastStatus() != http.StatusCreated || value.ID <= expected[len(expected)-1].ID || value.Subject != test.subject || value.Category != target.CategoryID || value.Closed || !value.Details.Null || value.Priority.Null != test.null || (!test.null && value.Priority.Value != test.value) {
 			return fail("helpdesk integer create precision and null")
+		}
+		if value.Resolution.Null != (test.subject != "Maximum priority") || value.Resolution.Value != "" {
+			return fail("helpdesk Text omission, null, or empty string")
 		}
 		expected = append(expected, *value)
 	}

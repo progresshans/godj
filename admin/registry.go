@@ -738,7 +738,7 @@ func validateFieldSelection(path string, fields []string, known map[string]ir.Fi
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "duplicate"}
 		}
 		seen[name] = struct{}{}
-		if charOnly && field.Kind != ir.FieldChar {
+		if charOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldText {
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "not_searchable"}
 		}
 	}
@@ -1009,7 +1009,7 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 		}
 		_, ok := value.AsInteger()
 		return ok
-	case ir.FieldChar:
+	case ir.FieldChar, ir.FieldText:
 		if value.IsNull() {
 			return field.Nullable
 		}

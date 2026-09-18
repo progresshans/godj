@@ -49,7 +49,7 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit subject/details/closed/priority. Every create
+// category, while clients may edit subject/details/closed/priority/resolution. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -78,12 +78,14 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	}
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
-		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true})
+		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
-		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true})
+		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true})
 	if err != nil {
 		return nil, err
 	}
@@ -143,12 +145,12 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority"}
+	fields := []string{"subject", "details", "closed", "priority", "resolution"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution")
 	if err != nil {
 		return err
 	}
@@ -210,10 +212,11 @@ func (a *Application) list(ctx context.Context, request admin.ListRequest) (admi
 }
 
 type ticketInput struct {
-	subject  string
-	details  *string
-	closed   bool
-	priority *int64
+	subject    string
+	details    *string
+	closed     bool
+	priority   *int64
+	resolution *string
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
@@ -221,7 +224,8 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	closed, closedOK := values.Boolean("closed")
 	details, detailsOK := values.Get("details")
 	priority, priorityOK := values.Get("priority")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || len(values.All()) != 4 {
+	resolution, resolutionOK := values.Get("resolution")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || len(values.All()) != 5 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
@@ -238,6 +242,13 @@ func fromForm(values forms.Values) (ticketInput, error) {
 			return ticketInput{}, errors.New("helpdesk: invalid details")
 		}
 		input.details = &text
+	}
+	if !resolution.IsNull() {
+		text, ok := resolution.AsString()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid resolution")
+		}
+		input.resolution = &text
 	}
 	return input, nil
 }
@@ -263,6 +274,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 			create = create.WithDetailsNull()
 		} else {
 			create = create.WithDetails(*input.details)
+		}
+		if input.resolution == nil {
+			create = create.WithResolutionNull()
+		} else {
+			create = create.WithResolution(*input.resolution)
 		}
 		var err error
 		created, err = models.TicketObjects.Create(ctx, session, create)
@@ -292,8 +308,14 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 		} else {
 			patch = patch.WithDetails(*input.details)
 		}
+		if input.resolution == nil {
+			patch = patch.WithResolutionNull()
+		} else {
+			patch = patch.WithResolution(*input.resolution)
+		}
 		next := current
 		next.Subject, next.Details, next.Closed, next.Priority = input.subject, input.details, input.closed, input.priority
+		next.Resolution = input.resolution
 		descriptor := models.TicketDescriptor{}
 		for _, field := range descriptor.Metadata().Fields {
 			before, _ := descriptor.WriteFieldValue(current, field)
@@ -377,6 +399,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 	if details, present := values.Get("details"); present && !details.IsNull() {
 		text, _ := details.AsString()
 		input.details = &text
+	}
+	if resolution, present := values.Get("resolution"); present && !resolution.IsNull() {
+		text, _ := resolution.AsString()
+		input.resolution = &text
 	}
 	created, err := a.create(request.Context(), input)
 	if errors.Is(err, admin.ErrObjectNotFound) {

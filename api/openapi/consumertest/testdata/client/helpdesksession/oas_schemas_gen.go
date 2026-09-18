@@ -641,12 +641,13 @@ func (s *SessionAuth) SetRoles(val []string) {
 
 // Ref: #/components/schemas/Ticket
 type Ticket struct {
-	ID       int64     `json:"id"`
-	Subject  string    `json:"subject"`
-	Details  NilString `json:"details"`
-	Closed   bool      `json:"closed"`
-	Category int64     `json:"category"`
-	Priority NilInt64  `json:"priority"`
+	ID         int64     `json:"id"`
+	Subject    string    `json:"subject"`
+	Details    NilString `json:"details"`
+	Closed     bool      `json:"closed"`
+	Category   int64     `json:"category"`
+	Priority   NilInt64  `json:"priority"`
+	Resolution NilString `json:"resolution"`
 }
 
 // GetID returns the value of ID.
@@ -679,6 +680,11 @@ func (s *Ticket) GetPriority() NilInt64 {
 	return s.Priority
 }
 
+// GetResolution returns the value of Resolution.
+func (s *Ticket) GetResolution() NilString {
+	return s.Resolution
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -709,14 +715,20 @@ func (s *Ticket) SetPriority(val NilInt64) {
 	s.Priority = val
 }
 
+// SetResolution sets the value of Resolution.
+func (s *Ticket) SetResolution(val NilString) {
+	s.Resolution = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {
-	Subject  string       `json:"subject"`
-	Details  OptNilString `json:"details"`
-	Closed   OptBool      `json:"closed"`
-	Priority OptNilInt64  `json:"priority"`
+	Subject    string       `json:"subject"`
+	Details    OptNilString `json:"details"`
+	Closed     OptBool      `json:"closed"`
+	Priority   OptNilInt64  `json:"priority"`
+	Resolution OptNilString `json:"resolution"`
 }
 
 // GetSubject returns the value of Subject.
@@ -739,6 +751,11 @@ func (s *TicketCreate) GetPriority() OptNilInt64 {
 	return s.Priority
 }
 
+// GetResolution returns the value of Resolution.
+func (s *TicketCreate) GetResolution() OptNilString {
+	return s.Resolution
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -757,6 +774,11 @@ func (s *TicketCreate) SetClosed(val OptBool) {
 // SetPriority sets the value of Priority.
 func (s *TicketCreate) SetPriority(val OptNilInt64) {
 	s.Priority = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *TicketCreate) SetResolution(val OptNilString) {
+	s.Resolution = val
 }
 
 // Ref: #/components/schemas/TicketDetail

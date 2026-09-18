@@ -136,7 +136,7 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		var projected Field
 		var err error
 		switch field.Kind {
-		case ir.FieldChar:
+		case ir.FieldChar, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			projected, err = StringField(field.Name, options...)
 		case ir.FieldBoolean:

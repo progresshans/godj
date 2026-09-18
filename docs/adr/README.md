@@ -64,6 +64,7 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0057](0057-sqlite-retained-connection-terminal-quarantine.md) | Proposed | SQLite Retained-connection Terminal Quarantine |
 | [0058](0058-model-derived-openapi-and-operation-ownership.md) | Accepted | 실제 operation과 모델 serializer에서 OpenAPI를 투영하고 인증 metadata의 소유권을 유지 |
 | [0059](0059-signed-integer-field-and-model-growth.md) | Accepted | signed int64의 수정 가능한 일반 필드와 자동 ID를 분리하고 기존 모델을 migration으로 확장 |
+| [0060](0060-text-field-and-form-widget-semantics.md) | Accepted | Text 저장과 Form widget을 분리하고 nullable Text의 빈 문자열 의미를 명시 |
 
 ## 대체된 결정
 

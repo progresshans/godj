@@ -5,6 +5,8 @@
 {% for error in non_field_errors %}<p data-error-field="__all__" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
 {% for field in fields %}<div data-field-name="{{ field.name }}"><label>{{ field.label }}
 {% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.textarea %}<textarea name="{{ field.name }}"{% if field.required %} required{% endif %}>
+{{ field.value }}</textarea>{% endif %}
 {% if field.integer %}<input type="text" inputmode="numeric" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}</label>
 {% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endfor %}

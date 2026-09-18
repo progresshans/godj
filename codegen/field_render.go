@@ -33,6 +33,8 @@ func fieldRenderKind(kind ir.FieldKind) fieldRenderSpec {
 		return fieldRenderSpec{"int64", "Integer", "IntegerField", "NullableIntegerField", "sql.NullInt64", "Int64", "ir.FieldInteger"}
 	case ir.FieldChar:
 		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldChar"}
+	case ir.FieldText:
+		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldText"}
 	case ir.FieldBoolean:
 		return fieldRenderSpec{"bool", "Boolean", "BooleanField", "", "sql.NullBool", "Bool", "ir.FieldBoolean"}
 	case ir.FieldForeignKey:

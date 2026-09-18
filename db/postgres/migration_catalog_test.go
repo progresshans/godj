@@ -168,6 +168,9 @@ func postgresMigrationTestCatalog(
 			column.typeName = "varchar"
 			column.typeModifier = field.MaxLength + 4
 			column.notNull = !field.Nullable
+		case ir.FieldText:
+			column.typeName = "text"
+			column.notNull = !field.Nullable
 		case ir.FieldBoolean:
 			column.typeName = "bool"
 			column.notNull = true
@@ -251,4 +254,28 @@ func clonePostgresMigrationTestCatalog(value postgresMigrationTableCatalog) post
 	value.indexes = append([]postgresMigrationIndexCatalog(nil), value.indexes...)
 	value.sequences = append([]postgresMigrationSequenceCatalog(nil), value.sequences...)
 	return value
+}
+
+func TestTextCatalogRequiresUnboundedTextWithExactNullability(t *testing.T) {
+	for _, nullable := range []bool{false, true} {
+		model := postgresMigrationTestAuthorModel()
+		model.Fields = append(model.Fields, ir.Field{Name: "bio", GoName: "Bio", Column: "bio", Kind: ir.FieldText, Nullable: nullable})
+		exact := postgresMigrationTestCatalog(t, "product_schema", model, nil)
+		if err := assertPostgresMigrationModelCatalog(exact, "product_schema", model, nil); err != nil {
+			t.Fatal(err)
+		}
+		for _, mutate := range []func(*postgresMigrationColumnCatalog){
+			func(c *postgresMigrationColumnCatalog) { c.typeName = "varchar" },
+			func(c *postgresMigrationColumnCatalog) { c.typeModifier = 84 },
+			func(c *postgresMigrationColumnCatalog) { c.notNull = !c.notNull },
+			func(c *postgresMigrationColumnCatalog) { c.identity = "d" },
+			func(c *postgresMigrationColumnCatalog) { c.hasDefault = true },
+		} {
+			catalog := clonePostgresMigrationTestCatalog(exact)
+			mutate(&catalog.columns[2])
+			if err := assertPostgresMigrationModelCatalog(catalog, "product_schema", model, nil); err == nil || !migrationbackend.IsCapabilityError(err) {
+				t.Fatalf("Text physical drift was not rejected as capability: %v", err)
+			}
+		}
+	}
 }

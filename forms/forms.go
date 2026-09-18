@@ -59,6 +59,16 @@ const (
 	FieldInteger
 )
 
+// Widget selects presentation independently of the field's cleaned value type.
+// Only combinations with an implemented submission representation are accepted.
+type Widget uint8
+
+const (
+	TextInput Widget = iota + 1
+	Textarea
+	Checkbox
+)
+
 // FieldValidator performs pure validation of one already-cleaned field value.
 // Implementations should be concurrency-safe when a Spec is shared.
 type FieldValidator interface {
@@ -114,6 +124,18 @@ func WithDefault(value Value) FieldOption {
 	})
 }
 
+func WithWidget(widget Widget) FieldOption {
+	return fieldOption(func(config *fieldConfig) { config.widget = widget })
+}
+
+// WithEmptyValue selects Null or the empty string for optional string input.
+// A null empty value requires a nullable field; it is not an input default.
+func WithEmptyValue(value Value) FieldOption {
+	return fieldOption(func(config *fieldConfig) {
+		config.emptyValue, config.hasEmptyValue = value, true
+	})
+}
+
 func WithValidators(validators ...FieldValidator) FieldOption {
 	detached := append([]FieldValidator(nil), validators...)
 	return fieldOption(func(config *fieldConfig) {
@@ -122,13 +144,16 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 }
 
 type fieldConfig struct {
-	label        string
-	required     bool
-	nullable     bool
-	maxLength    int
-	defaultValue Value
-	hasDefault   bool
-	validators   []FieldValidator
+	label         string
+	widget        Widget
+	emptyValue    Value
+	hasEmptyValue bool
+	required      bool
+	nullable      bool
+	maxLength     int
+	defaultValue  Value
+	hasDefault    bool
+	validators    []FieldValidator
 }
 
 // Field is an immutable form field definition.
@@ -136,6 +161,8 @@ type Field struct {
 	name         string
 	label        string
 	kind         FieldKind
+	widget       Widget
+	emptyValue   Value
 	required     bool
 	nullable     bool
 	maxLength    int
@@ -156,7 +183,7 @@ func (e *ConfigError) Error() string {
 
 // CharField creates a stripped Unicode string field.
 func CharField(name string, options ...FieldOption) (Field, error) {
-	config := fieldConfig{label: name, required: true}
+	config := fieldConfig{label: name, required: true, widget: TextInput}
 	for _, option := range options {
 		if option == nil {
 			return Field{}, &ConfigError{Path: "fields." + name, Code: "nil_option"}
@@ -169,7 +196,7 @@ func CharField(name string, options ...FieldOption) (Field, error) {
 // BooleanField creates a checkbox-like boolean field. Missing input cleans to
 // false; callers may opt into required=true when false must be rejected.
 func BooleanField(name string, options ...FieldOption) (Field, error) {
-	config := fieldConfig{label: name}
+	config := fieldConfig{label: name, widget: Checkbox}
 	for _, option := range options {
 		if option == nil {
 			return Field{}, &ConfigError{Path: "fields." + name, Code: "nil_option"}
@@ -182,7 +209,7 @@ func BooleanField(name string, options ...FieldOption) (Field, error) {
 // IntegerField cleans signed decimal input without converting through floating
 // point. Optional empty input requires WithNullable and cleans to Null.
 func IntegerField(name string, options ...FieldOption) (Field, error) {
-	config := fieldConfig{label: name, required: true}
+	config := fieldConfig{label: name, required: true, widget: TextInput}
 	for _, option := range options {
 		if option == nil {
 			return Field{}, &ConfigError{Path: "fields." + name, Code: "nil_option"}
@@ -198,6 +225,18 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	}
 	if config.label == "" || !utf8.ValidString(config.label) || strings.ContainsRune(config.label, 0) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".label", Code: "invalid"}
+	}
+	if !(kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
+		kind == FieldBoolean && config.widget == Checkbox || kind == FieldInteger && config.widget == TextInput) {
+		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
+	}
+	if config.hasEmptyValue {
+		if kind != FieldChar || !(config.emptyValue.IsNull() && config.nullable ||
+			config.emptyValue.kind == ValueString && config.emptyValue.string == "") {
+			return Field{}, &ConfigError{Path: "fields." + name + ".empty_value", Code: "unsupported"}
+		}
+	} else if kind == FieldChar && !config.nullable {
+		config.emptyValue = String("")
 	}
 	for index, validator := range config.validators {
 		if nilInterface(validator) {
@@ -247,6 +286,8 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		name:         name,
 		label:        config.label,
 		kind:         kind,
+		widget:       config.widget,
+		emptyValue:   config.emptyValue,
 		required:     config.required,
 		nullable:     config.nullable,
 		maxLength:    config.maxLength,
@@ -264,12 +305,14 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 		kind == FieldInteger && value.kind == ValueInteger
 }
 
-func (f Field) Name() string    { return f.name }
-func (f Field) Label() string   { return f.label }
-func (f Field) Kind() FieldKind { return f.kind }
-func (f Field) Required() bool  { return f.required }
-func (f Field) Nullable() bool  { return f.nullable }
-func (f Field) MaxLength() int  { return f.maxLength }
+func (f Field) Name() string              { return f.name }
+func (f Field) Label() string             { return f.label }
+func (f Field) Kind() FieldKind           { return f.kind }
+func (f Field) Widget() Widget            { return f.widget }
+func (f Field) EmptyValue() (Value, bool) { return f.emptyValue, f.kind == FieldChar }
+func (f Field) Required() bool            { return f.required }
+func (f Field) Nullable() bool            { return f.nullable }
+func (f Field) MaxLength() int            { return f.maxLength }
 
 func (f Field) Default() (Value, bool) { return f.defaultValue, f.hasDefault }
 
@@ -396,6 +439,8 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 		case field.kind == FieldInteger:
 			// An unbound required integer starts blank rather than inventing zero.
 			value = Null()
+		case field.kind == FieldChar:
+			value = field.emptyValue
 		case field.nullable:
 			value = Null()
 		}
@@ -552,10 +597,8 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			switch {
 			case field.required:
 				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
-			case field.nullable:
-				value = Null()
 			default:
-				value = String("")
+				value = field.emptyValue
 			}
 		} else {
 			value = String(raw)
@@ -623,8 +666,8 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 			raw = strings.TrimSpace(submitted[0])
 		}
 		value := String(raw)
-		if raw == "" && field.nullable {
-			value = Null()
+		if raw == "" {
+			value = field.emptyValue
 		}
 		return !value.Equal(initial)
 	case FieldBoolean:

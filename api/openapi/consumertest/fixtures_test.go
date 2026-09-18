@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,6 +154,10 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			"Consumer ticket": nil, "Null priority": nil,
 			"Maximum priority": new(int64(math.MaxInt64)), "Minimum priority": new(int64(math.MinInt64)), "Zero priority": new(int64(0)),
 		}
+		wantResolution := map[string]*string{
+			"Consumer ticket":  new("First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"),
+			"Maximum priority": new(""), "Minimum priority": nil, "Zero priority": nil, "Null priority": nil,
+		}
 		for _, stored := range tickets {
 			if stored.CategoryID == category.ID {
 				selectedCount++
@@ -175,10 +180,15 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if !known || (stored.Priority == nil) != (want == nil) || (want != nil && stored.Priority != nil && *stored.Priority != *want) || stored.Closed || stored.Details != nil {
 					t.Error("generated client changed an integer value, null, or default during persistence")
 				}
+				text, known := wantResolution[stored.Subject]
+				if !known || (stored.Resolution == nil) != (text == nil) || (text != nil && stored.Resolution != nil && *stored.Resolution != *text) {
+					t.Error("generated client changed Text content or null/empty presence during persistence")
+				}
 				delete(wantPriority, stored.Subject)
+				delete(wantResolution, stored.Subject)
 			}
 		}
-		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 {
+		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
 		}
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
@@ -336,6 +346,9 @@ func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string
 
 func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
 	if left.ID != right.ID || left.Subject != right.Subject || left.Closed != right.Closed || left.CategoryID != right.CategoryID {
+		return false
+	}
+	if (left.Resolution == nil) != (right.Resolution == nil) || (left.Resolution != nil && *left.Resolution != *right.Resolution) {
 		return false
 	}
 	if (left.Priority == nil) != (right.Priority == nil) || (left.Priority != nil && *left.Priority != *right.Priority) {

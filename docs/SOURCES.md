@@ -57,3 +57,6 @@ Django-named reference corpus에 저장되어 있어도 GoDj 정책을 Django의
 외부 Go client 검증은 [ogen v1.24.0](https://github.com/ogen-go/ogen/tree/v1.24.0)의 client generator를 고정해서 사용한다.
 [설정과 module lock](../api/openapi/consumertest/testdata/client/go.mod),
 [생성·검증 절차](../api/openapi/consumertest/README.md)에 실제 소비 경계를 둔다. 다른 generator의 지원을 추론하지 않는다.
+
+TextField와 Form widget·빈 문자열 정책은 같은 고정 Django의 CharField/TextField·Char Form·textarea template을 참조한다.
+[ADR-0060](adr/0060-text-field-and-form-widget-semantics.md#출처와-제한), [실제 관찰 runner](../conformance/runners/django/text_field_reference.py)에 비교 범위와 출처를 둔다.

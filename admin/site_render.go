@@ -314,7 +314,8 @@ func (site *Site) formContext(
 		item, err := templateObject(map[string]templates.Value{
 			"name":       templates.String(field.Name()),
 			"label":      templates.String(field.Label()),
-			"char":       templates.Bool(field.Kind() == forms.FieldChar),
+			"char":       templates.Bool(field.Kind() == forms.FieldChar && field.Widget() == forms.TextInput),
+			"textarea":   templates.Bool(field.Widget() == forms.Textarea),
 			"integer":    templates.Bool(field.Kind() == forms.FieldInteger),
 			"boolean":    templates.Bool(field.Kind() == forms.FieldBoolean),
 			"required":   templates.Bool(field.Required()),

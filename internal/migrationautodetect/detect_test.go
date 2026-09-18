@@ -381,6 +381,8 @@ func TestDetectRejectsUnsafeExistingTableAddField(t *testing.T) {
 		name  string
 		field ir.Field
 	}{
+		{name: "non-null TextField", field: ir.Field{Name: "body", GoName: "Body", Kind: ir.FieldText}},
+		{name: "nullable TextField with default", field: ir.Field{Name: "body", GoName: "Body", Kind: ir.FieldText, Nullable: true, Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: ""}}},
 		{name: "non-null CharField", field: testChar("slug", false, nil)},
 		{name: "nullable CharField with default", field: testChar("summary", true, &ir.ScalarDefault{Kind: ir.ScalarString, String: ""})},
 		{name: "non-null BooleanField", field: testBoolean("published", false)},

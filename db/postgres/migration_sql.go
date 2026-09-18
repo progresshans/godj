@@ -205,6 +205,14 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 			return "", errors.New("BooleanField has an invalid PostgreSQL migration shape")
 		}
 		declaration = "BOOLEAN NOT NULL"
+	case ir.FieldText:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarString {
+			return "", errors.New("TextField has an invalid PostgreSQL migration shape")
+		}
+		declaration = "TEXT NOT NULL"
+		if field.Nullable {
+			declaration = "TEXT NULL"
+		}
 	case ir.FieldForeignKey:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Default != nil || field.Relation == nil {
 			return "", errors.New("ForeignKey has an invalid PostgreSQL migration shape")

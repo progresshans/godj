@@ -187,7 +187,7 @@ func (r ReverseRelation[Owner, Source]) String(
 	if field.err != nil {
 		return RelatedStringField[Owner]{}, field.err
 	}
-	metadata, ok := matchingTerminalField(r.state.forward.sourceModel, field.reference, ir.FieldChar)
+	metadata, ok := matchingStringTerminalField(r.state.forward.sourceModel, field.reference)
 	if !ok || metadata.Nullable {
 		return RelatedStringField[Owner]{}, unknownRelatedField(field.reference.Name())
 	}

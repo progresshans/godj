@@ -3,6 +3,66 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0073 — TextField와 여러 줄 Form/Admin 입력
+
+- 작업: [GDJ-0073](../../work/0073-text-field-and-multiline-model-forms.md), 의미: [ADR-0060](../adr/0060-text-field-and-form-widget-semantics.md).
+- Source: `b43552a1f88259babe97ec9fe83951f8cd205261` 기반의 2026-09-19 작업 사본. 중간 `fa74d0e`는 문서만 바꾼 commit이다.
+  최종 변경·새 파일 중 Markdown을 제외한 73개 파일의 `<sha256>  <relative-path>\n` 정렬 manifest SHA256은
+  `589be36af37d844dc66a5b5b2314da1a735011ddd4ccb334623712820285fb7c`다. HTML template, Python 관찰기·fixture와 생성 JSON·Go도 포함한다.
+- 환경: darwin/arm64, Go 1.26.5, modernc SQLite, PostgreSQL 17.5. 새 전용 PostgreSQL DB와 테스트별 schema·임시 SQLite를 사용했고
+  검증 뒤 작업 전용 DB만 제거했다. 기존 개발 DB와 Helpdesk 0001·0002 migration은 바꾸지 않았다.
+
+### 관련 실행과 실패 수정
+
+`GODJ_REQUIRE_POSTGRES=1`, 전용 `GODJ_TEST_POSTGRES_URL`로 normal은 다음 범위를 실행했다.
+
+```text
+./schema/... ./orm ./query ./codegen/... ./migrations/... ./db/sqlite ./db/postgres
+./forms/... ./admin ./serializers ./api/... ./examples/helpdesk/...
+./examples/article/adminapp ./examples/article/apiapp ./internal/migrationautodetect
+./internal/projectgenerate/... ./internal/projectmigration/...
+```
+
+첫 실행은 DB 주소에 host가 빠져 backend URL 검증에 거절됐고, 새 테스트가 기존 관계 terminal에 없는 IContains와
+serializer default의 공백 보존을 가정해 실패했다. DB 주소를 명시적 localhost URL로 수정하고 기존 implicit-exact 및
+serializer normalization 의미에 맞게 테스트를 고쳤다. 제품 정책을 테스트에 맞춰 완화하지 않았다.
+실패한 `db/postgres`, Helpdesk, serializers, codegen/consumertest 패키지를 각각 전부 재실행했다.
+추가로 raw textarea의 선행 newline·HTML escaping·invalid Form 뒤 DB 보존과 실제 본문 수정을 보강해 Helpdesk를 세 모드로 재실행했다.
+각 패키지의 최종 결과로 normal은 **29 packages, 3,427 test 완료 event PASS, fail 0**, no-test package 6개다.
+
+다음 범위를 `go test -race -count=1 -json`과 `CGO_ENABLED=0 go test -count=1 -json`으로 실행했다.
+
+```text
+./schema/... ./orm ./codegen ./codegen/consumertest ./migrations/definition
+./db/sqlite ./db/postgres ./forms/... ./admin ./serializers
+./api/openapi/consumertest ./examples/helpdesk ./internal/migrationautodetect
+```
+
+두 모드 모두 최종 **15 packages, 2,357 test 완료 event PASS, fail 0**이다. 위 event 수는 하위 test를 포함한다.
+Normal의 `TestPostgresRevisionFenceHelperProcess`·`TestPublicationCrashHelper`, race/CGO0의 PostgreSQL helper는 직접 호출하지
+않는 parent 진입에서 skip했다. 실제 부모 테스트는 별도 helper process를 실행해 통과했고 이 skip을 기능 PASS로 세지 않았다.
+
+### 검증한 의미
+
+- Schema/codec의 Text kind·nullable·긴 문자열/빈 default 보존, 잘못된 length/default/PK 거부. 양 DB TEXT DDL에는 영속 DEFAULT가 없고
+  PostgreSQL catalog는 varchar·length·nullability·identity·persistent default drift를 거절했다.
+- 실제 생성된 별도 module의 Text consumer는 required/default/empty/null, 긴 Unicode 본문 저장, typed/dynamic/F query,
+  nullable projection·Max aggregate, cache 포인터 분리와 Create/Patch/Save mask를 확인했다. 필수 child test 두 개가 각각
+  정확히 한 번 완료되어야 하며 skip·실패·잘린 출력·stderr는 거절한다. Forward/reverse 생성 관계의 nonnullable Text exact binding도 검증했다.
+- Helpdesk 양 DB: 0001에 기존 행 입력 → 0002 → 0003 → 0001 reverse → 0003 재적용, 기존 값과 NULL backfill 보존.
+  권한·CSRF·재시작, 잘못된 Text 타입/NUL·4096 bytes 초과 거부, 긴 본문의 API→DB→textarea→Admin 수정,
+  빈 Form Text의 빈 문자열과 integer Null 구분을 확인했다. 실제 브라우저 전체 E2E를 실행했다는 주장은 아니다.
+- 외부 ogen v1.24.0 module: 실제 HTTP와 DB를 확인하는 **14개 필수 check**, 문서·생성물 drift, multiline/HTML 본문과
+  생략/null/empty string을 검증했다. Article 문서와 client 의존성 lock은 변경하지 않았다.
+- 고정 Django 6.1 Char/Text × nullable × required의 **104개 관찰값**과 Go cleaning·widget·오류 code가 일치했다.
+  Python live fixture 비교 1 test PASS. 같은 locked 환경의 Python suite는 **276 tests 중 269 PASS, 7 skip**이다.
+  4개 capture/profile 요구와 설치되지 않은 DRF를 요구하는 3개 test는 이 실행의 검증 범위가 아니다. 전체 reference 통합 PASS로 쓰지 않는다.
+- `go test -run '^$' ./...` 전체 compile, `go vet ./...`, `make generate-check`, `make docs-check format-check`, `git diff --check` PASS.
+  Helpdesk `makemigrations` 재실행은 `status=clean`, candidate 0이었다.
+
+이번 작업의 새 Hosted full은 실행하지 않았다. 이전 `b43552a` full 결과는 GDJ-0072까지의 근거이며 위 Text 변경의 platform PASS가 아니다.
+후속 구현과 누적 변경의 영향에 맞춰 별도 통합 milestone을 선택한다.
+
 ## GDJ-0072 — 일반 정수와 기존 Helpdesk 모델의 성장
 
 - 작업: [GDJ-0072](../../work/0072-integer-field-model-growth.md), 의미: [ADR-0059](../adr/0059-signed-integer-field-and-model-growth.md).

@@ -952,15 +952,20 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		e.FieldStart("priority")
 		s.Priority.Encode(e)
 	}
+	{
+		e.FieldStart("resolution")
+		s.Resolution.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfTicket = [6]string{
+var jsonFieldsNameOfTicket = [7]string{
 	0: "id",
 	1: "subject",
 	2: "details",
 	3: "closed",
 	4: "category",
 	5: "priority",
+	6: "resolution",
 }
 
 // Decode decodes Ticket from json.
@@ -1040,6 +1045,16 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"priority\"")
 			}
+		case "resolution":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Resolution.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -1050,7 +1065,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1127,13 +1142,20 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 			s.Priority.Encode(e)
 		}
 	}
+	{
+		if s.Resolution.Set {
+			e.FieldStart("resolution")
+			s.Resolution.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketCreate = [4]string{
+var jsonFieldsNameOfTicketCreate = [5]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
 	3: "priority",
+	4: "resolution",
 }
 
 // Decode decodes TicketCreate from json.
@@ -1187,6 +1209,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"priority\"")
+			}
+		case "resolution":
+			if err := func() error {
+				s.Resolution.Reset()
+				if err := s.Resolution.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolution\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

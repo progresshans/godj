@@ -75,6 +75,12 @@ func CharField(name, goName string, maxLength int, options ...FieldOption) Field
 	return newField(name, goName, ir.FieldChar, maxLength, options)
 }
 
+// TextField stores a Unicode string without a declared storage length limit.
+// HTTP and form input budgets remain explicit application choices.
+func TextField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldText, 0, options)
+}
+
 func BooleanField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldBoolean, 0, options)
 }

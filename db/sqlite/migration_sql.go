@@ -115,6 +115,14 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 			return "", fmt.Errorf("nullable BooleanField is unsupported")
 		}
 		declaration = "BOOLEAN NOT NULL"
+	case ir.FieldText:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarString {
+			return "", fmt.Errorf("TextField has an invalid SQLite migration shape")
+		}
+		declaration = "TEXT NOT NULL"
+		if field.Nullable {
+			declaration = "TEXT NULL"
+		}
 	default:
 		return "", fmt.Errorf("unsupported field kind %q", field.Kind)
 	}

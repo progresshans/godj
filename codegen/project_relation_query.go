@@ -216,7 +216,7 @@ func supportedProjectRelationQueryTerminal(field ir.Field) bool {
 	if field.Relation != nil || field.Nullable {
 		return false
 	}
-	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar
+	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
 }
 
 func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelationQuerySource) {
@@ -232,7 +232,7 @@ func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelatio
 					source.model.app.alias,
 					source.model.model.GoName,
 				)
-			case ir.FieldChar:
+			case ir.FieldChar, ir.FieldText:
 				fmt.Fprintf(
 					output,
 					"\t%s orm.RelatedStringField[%s.%s]\n",

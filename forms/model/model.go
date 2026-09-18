@@ -43,6 +43,12 @@ func WithRequired(required bool) OverrideOption {
 	})
 }
 
+func WithWidget(widget forms.Widget) OverrideOption {
+	return overrideOption(func(config *overrideConfig) {
+		config.widget, config.hasWidget = widget, true
+	})
+}
+
 func WithValidators(validators ...forms.FieldValidator) OverrideOption {
 	detached := append([]forms.FieldValidator(nil), validators...)
 	return overrideOption(func(config *overrideConfig) {
@@ -55,6 +61,8 @@ type overrideConfig struct {
 	hasLabel    bool
 	required    bool
 	hasRequired bool
+	widget      forms.Widget
+	hasWidget   bool
 	validators  []forms.FieldValidator
 }
 
@@ -185,6 +193,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		label = override.label
 	}
 	options := []forms.FieldOption{forms.WithLabel(label)}
+	if override.hasWidget {
+		options = append(options, forms.WithWidget(override.widget))
+	}
 	if override.hasRequired {
 		options = append(options, forms.WithRequired(override.required))
 	}
@@ -210,9 +221,17 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			options = append(options, forms.WithDefault(forms.Integer(field.Default.Integer)))
 		}
 		return forms.IntegerField(field.Name, options...)
-	case ir.FieldChar:
-		if field.PrimaryKey || field.MaxLength <= 0 {
+	case ir.FieldChar, ir.FieldText:
+		if field.PrimaryKey || field.Relation != nil ||
+			field.Kind == ir.FieldChar && field.MaxLength <= 0 ||
+			field.Kind == ir.FieldText && field.MaxLength != 0 {
 			return forms.Field{}, &Error{Code: "invalid_char_metadata"}
+		}
+		if field.Kind == ir.FieldText && !override.hasWidget {
+			options = append(options, forms.WithWidget(forms.Textarea))
+		}
+		if field.Kind == ir.FieldText {
+			options = append(options, forms.WithEmptyValue(forms.String("")))
 		}
 		options = append(options, forms.WithRequired(!field.Nullable), forms.WithMaxLength(field.MaxLength))
 		if override.hasRequired {

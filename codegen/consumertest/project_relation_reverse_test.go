@@ -104,7 +104,7 @@ func TestGeneratedProjectRelationReverseCurrentAndNoEdgeVariantsCompile(t *testi
 
 	t.Run("current reverse owner is object capable", func(t *testing.T) {
 		blog := blog.Clone()
-		blog.Models[0].Fields = append(blog.Models[0].Fields, ir.Field{Name: "points", GoName: "Points", Column: "points", Kind: ir.FieldInteger})
+		blog.Models[0].Fields = append(blog.Models[0].Fields, ir.Field{Name: "points", GoName: "Points", Column: "points", Kind: ir.FieldInteger}, ir.Field{Name: "body", GoName: "Body", Column: "body", Kind: ir.FieldText})
 		const modulePath = "example.com/godj-relation-reverse-current"
 		generated := generateProjectRelationReverseVariant(t, modulePath, []namedRelationReverseSchema{
 			{name: "authors", schema: authors},
@@ -140,6 +140,7 @@ func TestCurrentReverse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_ = relations.AuthorsAuthor.Posts.Body.Exact("multiline")
 	_ = relations.AuthorsAuthor.Posts.Title.Exact("Alpha")
 	_ = relations.AuthorsAuthor.Posts.Points.Exact(-9223372036854775808)
 	if _, err := project.BindReverseObjects(); err != nil {

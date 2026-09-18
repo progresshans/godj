@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "6951db0249e3ca208bca4c765f2eb69229fe0635cd6a7359e66992c250de07d5"
+const GoDjRelationProjectionSchemaSHA256 = "700b62ae36674925f5ba1e89f8c696443769552d7e6027e4a90f65cb85805427"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -65,6 +65,7 @@ type ticketProjectionScan struct {
 	scanClosed     sql.NullBool
 	scanCategoryID sql.NullInt64
 	scanPriority   sql.NullInt64
+	scanResolution sql.NullString
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -78,6 +79,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanClosed,
 		&_scan.scanCategoryID,
 		&_scan.scanPriority,
+		&_scan.scanResolution,
 	}
 }
 
@@ -85,7 +87,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -113,8 +115,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 		_scanned := _scan.scanPriority.Int64
 		_value.Priority = &_scanned
 	}
+	if _scan.scanResolution.Valid {
+		_scanned := _scan.scanResolution.String
+		_value.Resolution = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_95a9e4fc32a274b794870a593ad9edd06d141602611e9a3aaa9a65061b74e6d3
+var _ GoDjProjectSnapshot_7907be16125b268e11c1ebd1cecbbe15409976fa0d05987a1fbb7f1f04d75632

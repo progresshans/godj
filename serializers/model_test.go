@@ -1,6 +1,7 @@
 package serializers_test
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"strings"
@@ -175,6 +176,50 @@ func TestIntegerModelSerializerPreservesDefaultAndPatchPresence(t *testing.T) {
 		if want, ok := test.want.AsInteger(); ok {
 			if integer, valid := value.AsInteger(); !valid || integer != want {
 				t.Fatal("integer value or default changed")
+			}
+		}
+	}
+}
+
+func TestTextModelSerializerPreservesDefaultNullAndPatchPresence(t *testing.T) {
+	long := strings.Repeat("body line\n日本語 ", 1000)
+	definition, err := schema.Build(schema.Definition{AppLabel: "notes", Models: []schema.Model{{Name: "note", GoName: "Note", Fields: []schema.Field{
+		schema.TextField("body", "Body", schema.Nullable(), schema.Default(long)),
+	}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := serializers.FromModel(definition.Models[0], serializers.ModelField{Name: "body", AllowEmpty: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(map[string]string{"body": long})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		document string
+		mode     serializers.Mode
+		present  bool
+		want     serializers.Value
+	}{
+		{`{}`, serializers.ModeFull, true, serializers.String(strings.TrimSpace(long))},
+		{`{}`, serializers.ModePartial, false, serializers.Value{}},
+		{`{"body":null}`, serializers.ModePartial, true, serializers.Null()},
+		{`{"body":""}`, serializers.ModeFull, true, serializers.String("")},
+		{string(encoded), serializers.ModeFull, true, serializers.String(strings.TrimSpace(long))},
+	} {
+		bound, err := spec.Bind(decodeObject(t, test.document), test.mode)
+		if err != nil || !bound.Valid() {
+			t.Fatalf("Text bind: %v %v", bound.Errors(), err)
+		}
+		value, present := bound.Values().Get("body")
+		if present != test.present || present && value.Kind() != test.want.Kind() {
+			t.Fatal("Text null or presence changed")
+		}
+		if want, ok := test.want.AsString(); ok {
+			if actual, valid := value.AsString(); !valid || actual != want {
+				t.Fatal("Text value or default changed")
 			}
 		}
 	}

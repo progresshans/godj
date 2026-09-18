@@ -514,7 +514,7 @@ func fieldReference(field ir.Field) query.FieldRef {
 		kind = query.FieldInteger
 	case ir.FieldForeignKey:
 		kind = query.FieldInteger
-	case ir.FieldChar:
+	case ir.FieldChar, ir.FieldText:
 		kind = query.FieldString
 	case ir.FieldBoolean:
 		kind = query.FieldBoolean

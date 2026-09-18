@@ -166,7 +166,7 @@ func (r ForwardRelation[S, T]) String(field StringField[T]) (RelatedStringField[
 	if field.err != nil {
 		return RelatedStringField[S]{}, field.err
 	}
-	metadata, ok := matchingTerminalField(r.state.targetModel, field.reference, ir.FieldChar)
+	metadata, ok := matchingStringTerminalField(r.state.targetModel, field.reference)
 	if !ok || metadata.Nullable {
 		return RelatedStringField[S]{}, unknownRelatedField(field.reference.Name())
 	}
@@ -175,6 +175,15 @@ func (r ForwardRelation[S, T]) String(field StringField[T]) (RelatedStringField[
 		return RelatedStringField[S]{}, err
 	}
 	return RelatedStringField[S]{path: path, valid: true}, nil
+}
+
+func matchingStringTerminalField(model ir.Model, reference query.FieldRef) (ir.Field, bool) {
+	for _, kind := range []ir.FieldKind{ir.FieldChar, ir.FieldText} {
+		if field, found := matchingTerminalField(model, reference, kind); found {
+			return field, true
+		}
+	}
+	return ir.Field{}, false
 }
 
 func (f RelatedIntegerField[M]) Exact(value int64) Predicate[M] {

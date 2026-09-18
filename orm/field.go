@@ -58,11 +58,19 @@ func NewNullableIntegerField[M any](metadata ir.Field) NullableIntegerField[M] {
 }
 
 func NewStringField[M any](metadata ir.Field) StringField[M] {
-	return StringField[M]{field: newField[M](metadata, query.FieldString, ir.FieldChar, false)}
+	return StringField[M]{field: newStringField[M](metadata, false)}
 }
 
 func NewNullableStringField[M any](metadata ir.Field) NullableStringField[M] {
-	return NullableStringField[M]{field: newField[M](metadata, query.FieldString, ir.FieldChar, true)}
+	return NullableStringField[M]{field: newStringField[M](metadata, true)}
+}
+
+func newStringField[M any](metadata ir.Field, nullable bool) field[M] {
+	kind := ir.FieldChar
+	if metadata.Kind == ir.FieldText {
+		kind = ir.FieldText
+	}
+	return newField[M](metadata, query.FieldString, kind, nullable)
 }
 
 func NewBooleanField[M any](metadata ir.Field) BooleanField[M] {

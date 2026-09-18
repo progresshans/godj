@@ -44,7 +44,9 @@ func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T
 	authors, blog := sparseRelationQueryGenerationSchemas()
 	authors.Models[0].Fields = append(authors.Models[0].Fields,
 		ir.Field{Name: "points", GoName: "Points", Column: "points", Kind: ir.FieldInteger},
-		ir.Field{Name: "rank", GoName: "Rank", Column: "rank", Kind: ir.FieldInteger, Nullable: true})
+		ir.Field{Name: "rank", GoName: "Rank", Column: "rank", Kind: ir.FieldInteger, Nullable: true},
+		ir.Field{Name: "bio", GoName: "Bio", Column: "bio", Kind: ir.FieldText},
+		ir.Field{Name: "notes", GoName: "Notes", Column: "notes", Kind: ir.FieldText, Nullable: true})
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: "authors", ImportPath: "example.com/godj-relation-query-project/authors"},
 		{Alias: "blog", ImportPath: "example.com/godj-relation-query-project/blog"},
@@ -92,11 +94,13 @@ func TestGeneratedRelationQueryProject(t *testing.T) {
 		relations.BlogPost.Author.Name.Exact("Ada"),
 		relations.BlogPost.Author.ID.Exact(1),
 		relations.BlogPost.Author.Points.Exact(-10),
+		relations.BlogPost.Author.Bio.Exact("biography"),
 	).Plan()
 	dynamicPredicates, err := relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{
 		{Key: "author__name", Value: "Ada"},
 		{Key: "author__id", Value: int64(1)},
 		{Key: "author__points", Value: int64(-10)},
+		{Key: "author__bio", Value: "biography"},
 	})
 	if err != nil {
 		t.Fatalf("ParseDynamic() error = %v", err)
@@ -107,6 +111,10 @@ func TestGeneratedRelationQueryProject(t *testing.T) {
 	}
 	if _, err := relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{{Key: "author__rank", Value: int64(1)}}); err == nil {
 		t.Fatal("nullable related integer silently entered the nonnullable terminal scope")
+	}
+
+	if _, err := relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{{Key: "author__notes", Value: "text"}}); err == nil {
+		t.Fatal("nullable related Text silently entered the nonnullable terminal scope")
 	}
 
 	post, err := (blog.PostDescriptor{}).Scan(postRow{})

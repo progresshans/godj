@@ -1,6 +1,6 @@
 ---
 id: GDJ-0073
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "b43552a1f88259babe97ec9fe83951f8cd205261"
 integration_owner: "root"
@@ -24,15 +24,20 @@ integration_owner: "root"
 
 ## 구현과 검증
 
-- [ ] IR·DSL·historical definition·양 DB의 TEXT 물리 schema
-- [ ] shared string query/생성 코드·nullable/default와 실제 외부 소비자
-- [ ] 명시적 widget과 Form/Admin·serializer/OpenAPI
-- [ ] Helpdesk migration·기존 데이터·긴 본문·생성 client
-- [ ] 영향 범위의 normal/race/CGO0·Django 비교·generated drift·문서
+- [x] IR·DSL·historical definition·양 DB의 TEXT 물리 schema
+- [x] shared string query/생성 코드·nullable/default와 실제 외부 소비자
+- [x] 명시적 widget과 Form/Admin·serializer/OpenAPI
+- [x] Helpdesk migration·기존 데이터·긴 본문·생성 client
+- [x] 영향 범위의 normal/race/CGO0·Django 비교·generated drift·문서
 
 편집 중에는 compile만 확인한다. 구현 묶음이 준비되면 영향 범위의 검증을 모으며 전체 Hosted 통합은 후속 milestone으로 묶는다.
 
-## 현재
+## 결과와 다음
 
-고정 Django TextField와 현행 Char/Integer의 IR→query→Form/API 경계를 확인했다. TEXT 저장 의미, Form widget·빈 입력 정책과
-Helpdesk resolution의 0003 migration·생성물을 구현 중이다. 현재 compile만 확인했으며 회귀 테스트·생성 client·실제 DB 검증은 진행 전이다.
+IR·DSL·historical definition·양 DB TEXT·shared string runtime·generated consumer와 Form widget/empty-value 의미를 연결했다.
+Helpdesk resolution을 실제 generator의 0003 migration으로 확장하고 OpenAPI·독립 ogen client도 재생성했다.
+Local normal/race/CGO0, 기존 DB 보존·실제 Admin/API·Django 입력 비교와 drift 검증을 마쳤다.
+소스·환경·실패 수정과 실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md), 장기 의미는 [ADR-0060](../docs/adr/0060-text-field-and-form-widget-semantics.md)에 있다.
+
+이 작업의 제한된 Text 범위를 완료했다. 전체 기능 카탈로그나 현재 Text 변경의 Hosted platform 검증을 완료한 것은 아니다.
+다음은 모델 시각 필드가 필요로 하는 Query scalar·양 DB 정밀도/시간대와 Form/API 표현을 함께 확장한다.

@@ -39,6 +39,8 @@ articles, err := models.ArticleObjects.Using(sqliteBackend).
 일반 정수는 `schema.IntegerField("priority", "Priority", schema.Nullable())`처럼 선언한다. 저장·계산 타입은 int64이며 nullable
 model 값은 `*int64`다. generated Create/Patch의 `WithPriority(0)`과 `WithPriorityNull()`은 다른 값을 표현한다.
 `schema.Default(int64(...))`는 생략한 Create 값에 적용한다. `orm.AutoField` ID는 수정 mask에 넣을 수 없고 일반 정수는 넣을 수 있다.
+긴 본문은 `schema.TextField("resolution", "Resolution", schema.Nullable())`로 선언한다. 저장형은 TEXT이고 generated 값은
+`*string`이다. `WithResolution("")`와 `WithResolutionNull()`을 구분한다. 저장 길이 제약과 HTTP/parser 자원 한도는 별개다.
 기존 행이 있는 Helpdesk의 확장 예는 [새 migration과 consumer](../examples/helpdesk/README.md)에 있다.
 
 ## 프로젝트 명령
@@ -72,6 +74,8 @@ HTML과 JSON의 표현 차이는 유지하고 model 의미를 반복 선언하�
 권한이 부족한 요청은 DB mutation 전에 거부하고, 인증/CSRF/error response에 credential이나 internal cause를 넣지 않는다.
 `forms/model.NewSpecForFields`는 editable field allowlist에서 Form을 만든다. 선언 순서를 유지하고 unknown/duplicate/PK/지원하지 않는
 FK 입력은 거부한다. Relation field를 입력에서 제외하고 scalar만 편집할 수 있다.
+Text는 Textarea, Char는 TextInput을 기본 widget으로 사용한다. `forms/model.WithWidget`은 표시만 바꾸며 호환되지 않는 조합은
+시작 시 거부한다. Optional nullable Char의 빈 입력은 Null, Text의 빈 입력은 빈 문자열이다. [상세 의미](adr/0060-text-field-and-form-widget-semantics.md)를 따른다.
 `admin.ModelConfig.FormFields`는 같은 선택을 사용한다. `ReadOnly` 등록은 List/Snapshot을 요구하며 mutation callback·action을
 받지 않고 mutation route를 게시하지 않는다. Get/History는 필요한 read flow에 연결한다.
 Snapshot은 list/form에서 실제 사용하는 필드만 필수다. `forms/model.InitialValues`와

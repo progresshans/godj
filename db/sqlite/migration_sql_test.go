@@ -113,3 +113,28 @@ func migrationTestModel(withSummary bool) ir.Model {
 	}
 	return ir.Model{Name: "article", GoName: "Article", DBTable: "godj_migration_article", Fields: fields}
 }
+
+func TestTextMigrationColumnHasNoLengthOrPersistentDefault(t *testing.T) {
+	for _, nullable := range []bool{false, true} {
+		field := ir.Field{Name: "body", GoName: "Body", Column: "body", Kind: ir.FieldText, Nullable: nullable, Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "line one\nline two"}}
+		statement, err := compileMigrationColumn(field)
+		want := `"body" TEXT NOT NULL`
+		if nullable {
+			want = `"body" TEXT NULL`
+		}
+		if err != nil || statement != want {
+			t.Fatalf("Text DDL = %q, %v; want %q", statement, err, want)
+		}
+		for _, mutate := range []func(*ir.Field){
+			func(f *ir.Field) { f.MaxLength = 10 },
+			func(f *ir.Field) { f.PrimaryKey = true },
+			func(f *ir.Field) { f.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger} },
+		} {
+			invalid := field
+			mutate(&invalid)
+			if _, err := compileMigrationColumn(invalid); err == nil {
+				t.Fatal("invalid Text metadata accepted by migration compiler")
+			}
+		}
+	}
+}

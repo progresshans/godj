@@ -3021,6 +3021,8 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return "BIGINT", nil
 	case ir.FieldChar:
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
+	case ir.FieldText:
+		return "TEXT", nil
 	case ir.FieldBoolean:
 		return "BOOLEAN", nil
 	default:

@@ -172,18 +172,21 @@ func validateField(field Field, path string) error {
 		if field.Default != nil && field.Default.Kind != ScalarInteger {
 			return validation(path+".default", "type_mismatch", "IntegerField default must be an int64")
 		}
-	case FieldChar:
+	case FieldChar, FieldText:
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")
 		}
-		if field.MaxLength <= 0 {
+		if field.Kind == FieldChar && field.MaxLength <= 0 {
 			return validation(path+".max_length", "invalid", "CharField max length must be positive")
+		}
+		if field.Kind == FieldText && field.MaxLength != 0 {
+			return validation(path+".max_length", "unsupported", "TextField has no storage length constraint")
 		}
 		if field.Default != nil {
 			if field.Default.Kind != ScalarString {
-				return validation(path+".default", "type_mismatch", "CharField default must be a string")
+				return validation(path+".default", "type_mismatch", "string field default must be a string")
 			}
-			if utf8.RuneCountInString(field.Default.String) > field.MaxLength {
+			if field.MaxLength > 0 && utf8.RuneCountInString(field.Default.String) > field.MaxLength {
 				return validation(path+".default", "max_length", "CharField default exceeds max length")
 			}
 		}
