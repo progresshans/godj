@@ -200,6 +200,9 @@ func compileRelationFacade(ctx context.Context, backend project.Backend) error {
 	if err != nil {
 		return err
 	}
+	if _, err := limitedAuthorEager.Count(ctx); err != nil {
+		return err
+	}
 	posts, err := limitedAuthorEager.All(ctx)
 	if err != nil {
 		return err

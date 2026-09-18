@@ -223,6 +223,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatalf("existing model data lost during permission update/reopen: %v", err)
 	}
 	reads := &helpdeskReadCounter{Backend: runtime}
+	verifyHelpdeskEagerCount(t, ctx, reads, category, seed)
 	application, err := helpdesk.New(reads, category.ID)
 	if err != nil {
 		t.Fatal(err)

@@ -108,6 +108,7 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 	sqlAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "sql", "blog", authors, blog)
 	lenAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "len", authors, blog)
 	anyAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "any", authors, blog)
+	countAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "int64", authors, blog)
 	databaseSQLPath := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "blog", authors, blog)
 	databaseSQLPath[0].ImportPath = "database/sql"
 	for _, test := range []struct {
@@ -121,6 +122,7 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 		{name: "reserved sql alias", pkg: "project", packages: sqlAlias, contains: "sql"},
 		{name: "used predeclared len alias", pkg: "project", packages: lenAlias, contains: "len"},
 		{name: "generic any constraint alias", pkg: "project", packages: anyAlias, contains: "any"},
+		{name: "Count result type alias", pkg: "project", packages: countAlias, contains: "int64"},
 		{name: "reserved database sql path", pkg: "project", packages: databaseSQLPath, contains: "database/sql"},
 		{
 			name: "projection prerequisite collision",

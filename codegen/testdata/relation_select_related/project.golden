@@ -17,6 +17,7 @@ var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
 
 type relationSelectQuery[O any] interface {
 	All(context.Context) ([]*O, error)
+	Count(context.Context) (int64, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -72,6 +73,10 @@ func (_query BlogPostAuthorSelectRelatedQuery) First(_ctx context.Context) (*Blo
 	}
 	_object, _err := _query.wrap(_selected)
 	return _object, _err == nil, _err
+}
+
+func (_query BlogPostAuthorSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
 
 func (_query BlogPostAuthorSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[blog.Post, authors.Author]) (*BlogPostObject, error) {
@@ -134,6 +139,10 @@ func (_query BlogPostReviewerSelectRelatedQuery) First(_ctx context.Context) (*B
 	}
 	_object, _err := _query.wrap(_selected)
 	return _object, _err == nil, _err
+}
+
+func (_query BlogPostReviewerSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
 
 func (_query BlogPostReviewerSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[blog.Post, authors.Author]) (*BlogPostObject, error) {
@@ -206,4 +215,11 @@ func (_query BlogPostDynamicSelectRelatedQuery) First(_ctx context.Context) (*Bl
 		return nil, false, _err
 	}
 	return _query.query.First(_ctx)
+}
+
+func (_query BlogPostDynamicSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return (orm.ForwardSelectQuery[blog.Post, blog.Post]{}).WithConfigurationError(_err).Count(_ctx)
+	}
+	return _query.query.Count(_ctx)
 }

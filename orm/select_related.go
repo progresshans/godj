@@ -412,6 +412,23 @@ func (q ForwardSelectQuery[S, T]) All(ctx context.Context) ([]*ForwardSelected[S
 	return result, nil
 }
 
+// Count returns the source row count, including its filters, distinct and
+// slice. A warm complete eager cache is reused. A cold count omits eager
+// materialization and leaves both the eager and original QuerySet caches cold.
+func (q ForwardSelectQuery[S, T]) Count(ctx context.Context) (int64, error) {
+	if err := q.validateTerminal(ctx); err != nil {
+		return 0, err
+	}
+	if values, ready := q.evaluation.cachedValues(); ready {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		return int64(len(values)), nil
+	}
+	source := newQuerySet[S](q.backend, q.selection.sourceDescriptor, q.plan.WithoutRelationProjection())
+	return source.Count(ctx)
+}
+
 // First returns the first joined result for an explicitly ordered plan. A
 // cold query scans at most one row without populating the full All cache.
 func (q ForwardSelectQuery[S, T]) First(ctx context.Context) (*ForwardSelected[S, T], bool, error) {

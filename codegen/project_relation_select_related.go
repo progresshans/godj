@@ -73,6 +73,7 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 	if len(sources) > 0 {
 		fmt.Fprintln(&output, "type relationSelectQuery[O any] interface {")
 		fmt.Fprintln(&output, "\tAll(context.Context) ([]*O, error)")
+		fmt.Fprintln(&output, "\tCount(context.Context) (int64, error)")
 		fmt.Fprintln(&output, "\tFirst(context.Context) (*O, bool, error)")
 		fmt.Fprintln(&output, "}")
 		fmt.Fprintln(&output)
@@ -88,7 +89,7 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 func validateProjectRelationSelectRelatedImports(apps []normalizedRelationPackage) error {
 	for _, app := range apps {
 		switch app.alias {
-		case "any", "context", "sql", "db", "orm", "query", "ir", "len", "make", "string", "uint8":
+		case "any", "context", "sql", "db", "orm", "query", "ir", "int64", "len", "make", "string", "uint8":
 			return fmt.Errorf("invalid relation select-related package alias %q", app.alias)
 		}
 		switch app.importPath {
@@ -217,6 +218,13 @@ func renderProjectRelationSelectRelatedSource(output *bytes.Buffer, source proje
 	fmt.Fprintln(output, "\treturn _query.query.First(_ctx)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) Count(_ctx context.Context) (int64, error) {\n", dynamicType)
+	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
+	fmt.Fprintf(output, "\t\treturn (orm.ForwardSelectQuery[%s, %s]{}).WithConfigurationError(_err).Count(_ctx)\n", sourceType, sourceType)
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\treturn _query.query.Count(_ctx)")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
 }
 
 func renderProjectRelationSelectRelatedEdge(
@@ -285,6 +293,10 @@ func renderProjectRelationSelectRelatedEdge(
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\t_object, _err := _query.wrap(_selected)")
 	fmt.Fprintln(output, "\treturn _object, _err == nil, _err")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) Count(_ctx context.Context) (int64, error) {\n", queryType)
+	fmt.Fprintln(output, "\treturn _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_query %s) wrap(_selected *orm.ForwardSelected[%s, %s]) (*%s, error) {\n", queryType, sourceType, targetType, source.objectType)

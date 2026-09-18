@@ -1160,6 +1160,19 @@ func (_query BlogPostEagerQuery) First(_ctx context.Context) (*BlogPost, bool, e
 	return _wrapped, _err == nil, _err
 }
 
+func (_query BlogPostEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if relationFacadeNil(_ctx) {
+		return 0, relationFacadeQueryInvalid("context is nil")
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+
 func (_query BlogPostEagerQuery) wrap(_ctx context.Context, _object *BlogPostObject) (*BlogPost, error) {
 	_wrapped, _err := _query.state.wrapBlogPostObject(_object)
 	if _err != nil {

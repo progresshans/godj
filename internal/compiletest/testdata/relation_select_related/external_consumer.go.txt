@@ -20,3 +20,21 @@ func consume(ctx context.Context, backend db.Queryer) ([]*project.BlogPostObject
 	}
 	return selected.Author().All(ctx)
 }
+
+func count(ctx context.Context, backend db.Queryer) (int64, int64, error) {
+	objects, err := project.BindObjects()
+	if err != nil {
+		return 0, 0, err
+	}
+	selected := objects.BlogPost.SelectRelated(blog.PostObjects.Using(backend))
+	typed, err := selected.Author().Count(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	dynamic, err := selected.ParseDynamic("reviewer")
+	if err != nil {
+		return 0, 0, err
+	}
+	other, err := dynamic.Count(ctx)
+	return typed, other, err
+}

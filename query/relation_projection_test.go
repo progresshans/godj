@@ -53,6 +53,9 @@ func TestForwardRelationProjectionIsSingularImmutableAndPlanPreserving(t *testin
 	if _, ok := limited.RelationProjection(); ok {
 		t.Fatal("WithRelationProjection mutated its source plan")
 	}
+	if !selected.WithoutRelationProjection().Equal(limited) || !limited.WithoutRelationProjection().Equal(limited) {
+		t.Fatal("removing eager materialization changed the logical source")
+	}
 	returned, ok := selected.RelationProjection()
 	if !ok || !returned.Equal(projection) {
 		t.Fatalf("RelationProjection() = (%#v, %v)", returned, ok)

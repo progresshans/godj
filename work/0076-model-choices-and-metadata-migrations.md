@@ -1,6 +1,6 @@
 ---
 id: GDJ-0076
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "adb3ea62f7c8f9a57c623634e2c11b60f04374bc"
 integration_owner: "root"
@@ -39,5 +39,5 @@ Callable/grouped choices, Python enum 내부 API·이름의 복제, 다른 scala
 ## 현재
 
 IR·생성기·Form/Admin·serializer/OpenAPI와 choices-only AlterField를 연결했다. Helpdesk의 새 0005/0006 migration과 독립 generated model·OpenAPI client를 함께 갱신했다.
-[ADR-0063](../docs/adr/0063-model-choices-and-metadata-only-migrations.md)이 장기 의미를 소유한다. 필수 로컬 normal·race·CGO0·양 DB·generated consumer·독립 reference 검증을 마쳤다. 실제 범위와 수정 이력은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다. Hosted ORM은 아직 완료 전이다.
+[ADR-0063](../docs/adr/0063-model-choices-and-metadata-only-migrations.md)이 장기 의미를 소유한다. 필수 로컬 normal·race·CGO0·양 DB·generated consumer·독립 reference 검증을 마쳤다. 실제 범위와 수정 이력은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록했다. 수정 source `d0f079481d660682c7a18884ce2c305234f6ad38`의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35401719591)도 완료했다. 최초 Hosted에서 발견한 외부 어댑터 compile fixture 누락을 고쳤으며, 실패·취소된 최초 실행을 성공으로 세지 않았다.
 기준 source의 GDJ-0075 Hosted ORM은 [별도 실행](https://github.com/progresshans/godj/actions/runs/35392098111)에서 완료했다. 이번 choices 변경을 그 결과에 합치지 않는다.
