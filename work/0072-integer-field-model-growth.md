@@ -1,6 +1,6 @@
 ---
 id: GDJ-0072
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "8ade467afe918474e9c42fd066edbfe7972ee600"
 integration_owner: "root"
@@ -30,8 +30,8 @@ GoDj `IntegerField`는 플랫폼에 독립적인 signed int64를 사용하고, n
 - [x] IR/DSL·migration decode/write/replay·SQLite/PostgreSQL 물리 schema
 - [x] typed/dynamic query·nullable projection/aggregate·생성 CRUD와 read-only primary key
 - [x] Form/Admin·serializer/OpenAPI·Helpdesk 새 migration과 기존 데이터 보존
-- [ ] fixed Django source/실제 비교, 관련 normal/race/CGO0 및 생성 client 갱신
-- [ ] 통합 검증 소유 범위·미실행 환경·현행 문서 갱신
+- [x] fixed Django source/실제 비교, 관련 normal/race/CGO0 및 생성 client 갱신
+- [x] 통합 검증 소유 범위·미실행 환경·현행 문서 갱신
 
 편집 중 compile만 확인하고 설계 변경 묶음이 준비되면 영향을 받는 검증을 통합한다.
 ORM·migration·generator의 공통 경계를 변경하므로 통합 시점에는 해당 Hosted scope와 source를 확인한다.
@@ -45,7 +45,12 @@ ORM·migration·generator의 공통 경계를 변경하므로 통합 시점에�
 
 이번 통합 milestone은 GDJ-0070/0071/0072의 누적 제품 소스에 Hosted full을 한 번 적용한다.
 로컬 전체 matrix를 반복하지 않으며 OS·race·CGO0·고정 PostgreSQL·process/reference 검증은 그 실행을 소유자로 삼는다.
-필수 job과 source SHA가 일치하는 최종 결과를 확인하기 전까지 이 work의 통합 검증은 미완료다.
+필수 job과 source SHA가 일치하는 최종 결과를 확인했으며 이 work의 통합 검증을 완료했다.
 
 첫 Hosted 실행에서 이전 API middleware 변경의 conformance/process consumer 네 곳이 누락된 것을 발견해 같은 API 인스턴스로
-수정했다. 전체 compile/vet와 관련 63개 실제 테스트를 통과했으며 수정 source의 full 통합을 다시 확인한다.
+수정했다. 전체 compile/vet와 관련 63개 실제 테스트를 통과했다.
+
+`b43552a1f88259babe97ec9fe83951f8cd205261`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/35370184198)은
+최종 attempt 2에서 성공했다. 체크섬 서버 연결 timeout으로 실패한 macOS 항목만 같은 source에서 재실행을 요청했다.
+최종 62개 고유 job의 완료·성공과 full aggregate를 확인했다. 전체 프레임워크의 완성 목표는 계속 활성 상태이며,
+다음 [TextField 작업](0073-text-field-and-multiline-model-forms.md)은 별도 worktree에서 구현 중이다.

@@ -56,8 +56,22 @@ source `48165d8fc7b7d3d8412fe75784ac10e7c4ed1873`에서 이전 GDJ-0071 API 변�
 네 consumer 모두 실제 API 인스턴스의 `Middleware()`로 연결하고 불필요한 wrapper를 제거했다. 호환 shim을 추가하지 않았다.
 수정 후 `go test -run '^$' ./...` 전체 compile과 `go vet ./...`을 통과했다. 관련 GDJ-0044/0047 API/auth reference,
 process worker·외부 SQLite operator의 기존 실제 흐름을 재실행해 **3 packages, 63 test PASS, skip/fail 0**을 확인했다.
-수정 소스에서 Hosted full을 다시 실행하며 exact source·terminal 결과를 확인하기 전까지 통합 검증은 미완료다.
-이전 `b74a79e`의 전체 성공을 이번 변경의 PASS로 가져오지 않는다.
+수정 source `b43552a1f88259babe97ec9fe83951f8cd205261`의
+[Hosted full 35370184198](https://github.com/progresshans/godj/actions/runs/35370184198)은 최종 attempt 2에서 **completed/success**다.
+62개 고유 job 모두 같은 source·run에 묶인 completed/success이며, 최종 aggregate는 `scope=full`,
+`full_platform_verified=true`와 8개 필수 owner를 확인했다. 로컬·원격 브랜치 source도 일치했다.
+
+Attempt 1에서는 macOS Intel normal command job의 `go mod tidy`가 `proxy.golang.org`의 checksum 서버 연결 timeout으로 실패했다.
+소스를 바꾸거나 checksum 검사를 끄지 않고 `gh run rerun --failed`로 실패 항목 재실행을 요청했다. 재실행한 command job은
+operator·targeted migrate 양쪽의 필수 실행을 확인했고 최종 aggregate도 성공했다. GitHub의 최종 attempt job 목록에는 이전 성공 결과가
+포함되므로 모든 성공 검사를 새로 중복 실행했다고 표현하지 않는다.
+
+- Portable normal/race/CGO0, 관계·project-check·명령의 Linux/macOS·amd64/arm64 matrix와 PostgreSQL 17.10 여섯 조합이 완료됐다.
+- API/client의 normal/race/CGO0, 정수 generated consumer와 32-bit compile, 실제 DB·process와 필수 sentinel은 해당 실행 owner가 검증했다.
+- 고정 Darwin Python **275 tests·skip 0**, normal reference **275 tests·profile 소유 skip 4**, 네 Python 버전의 compatibility 검증이 통과했다.
+- 현재 run/source의 system-state와 operator capture를 reference job이 검증·소비했다. 두 producer는 성공한 attempt 1이며,
+  최종 attempt에서 그 provenance를 보존한다. 다른 source의 capture나 과거 `b74a79e` 결과로 대체하지 않았다.
+- 후속 TextField 작업은 별도 worktree의 미완성 변경이며 이 full PASS의 대상이 아니다.
 
 ## GDJ-0071 — schema 정체성·JSON 정책과 실제 생성 client
 
