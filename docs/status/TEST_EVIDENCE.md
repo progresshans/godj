@@ -60,6 +60,9 @@ Normal의 `TestPostgresRevisionFenceHelperProcess`·`TestPublicationCrashHelper`
 - `go test -run '^$' ./...` 전체 compile, `go vet ./...`, `make generate-check`, `make docs-check format-check`, `git diff --check` PASS.
   Helpdesk `makemigrations` 재실행은 `status=clean`, candidate 0이었다.
 
+최종 구현 commit은 `fca8cbfa38c072c9f8825f000a90f206ce291ddf`이며 로컬·원격 source가 일치했다.
+[해당 source의 Fast feedback](https://github.com/progresshans/godj/actions/runs/35377057526)은 completed/success다.
+문서-only 선행 commit 위로 통합하면서 제품·테스트 파일의 위 manifest가 그대로 유지됨을 확인했다.
 이번 작업의 새 Hosted full은 실행하지 않았다. 이전 `b43552a` full 결과는 GDJ-0072까지의 근거이며 위 Text 변경의 platform PASS가 아니다.
 후속 구현과 누적 변경의 영향에 맞춰 별도 통합 milestone을 선택한다.
 

@@ -1,7 +1,9 @@
 # 현재 상태
 
 - 갱신: 2026-09-19
+- 활성 작업: [GDJ-0074 DateTimeField와 모델 시각 값](../../work/0074-datetime-field-and-model-time-values.md)
 - 최근 완료: [GDJ-0073 TextField와 모델의 여러 줄 입력](../../work/0073-text-field-and-multiline-model-forms.md)
+- 최근 완료 소스: `fca8cbfa38c072c9f8825f000a90f206ce291ddf`
 - 최신 관련 검증: TextField의 local normal/race/CGO0·SQLite/PostgreSQL·Django 비교·생성 client — [증거](TEST_EVIDENCE.md)
 - 최신 전체 검증 소스: `b43552a1f88259babe97ec9fe83951f8cd205261` (GDJ-0072까지)
 - 최신 전체 검증: [Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35370184198)
@@ -19,6 +21,7 @@ Schema/Codegen/ORM/Migration, SQLite·PostgreSQL과 Article·Helpdesk의 Web/For
 
 모델의 시각 필드와 공통 Query scalar, SQLite/PostgreSQL의 정밀도·시간대, Form/API 표현을 함께 확장한다.
 현재 Schema IR·Query에는 시간 scalar가 없으므로 고정 Django 관찰과 저장 표현을 먼저 확인한다.
+GDJ-0074는 별도 `feature/datetime-model-growth` 작업 사본에서 이어가며 TextField 완료 소스와 구분한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정을 두지 않고 남은 기반과 기능을 의존성 순서로 계속 구현한다.
 TextField의 새 Hosted full은 아직 실행하지 않았으며 이전 full 성공을 이번 source의 platform PASS로 사용하지 않는다.
 기존 Draft PR #1을 유지하고 누적 통합 milestone의 검증 범위는 실제 변경에 맞춰 선택한다.
