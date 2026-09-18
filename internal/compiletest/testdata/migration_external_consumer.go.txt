@@ -152,6 +152,9 @@ func (*externalLifecycleTransaction) AddField(context.Context, ir.Model, ir.Fiel
 func (*externalLifecycleTransaction) RemoveField(context.Context, ir.Model, ir.Field) error {
 	return nil
 }
+func (*externalLifecycleTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	return backend.NewCapabilityError("alter_field", "external fixture does not implement metadata changes", nil)
+}
 func (*externalLifecycleTransaction) RecordApplied(context.Context, string, string) error { return nil }
 func (*externalLifecycleTransaction) RecordUnapplied(context.Context, string, string) error {
 	return nil
