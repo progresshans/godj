@@ -1,6 +1,6 @@
 ---
 id: GDJ-0074
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "fca8cbfa38c072c9f8825f000a90f206ce291ddf"
 integration_owner: "root"
@@ -52,4 +52,6 @@ GDJ-0073 Text와 GDJ-0074 DateTime의 누적 scalar/default/generator/backend/Fo
 제품과 기준 fixture는 보존하고 compatibility expected의 차이를 명시했으며 네 Python 버전의 해당 테스트를 각각 통과했다.
 수정한 통합 source로 다시 실행하고 terminal 결과·job 누락·skip·artifact를 확인한 뒤 환경별 상태를 갱신한다.
 
-현재 DateTime의 local 구현과 전체 Hosted 검증은 구분한다. 기능 카탈로그의 완성까지 다음 의존 기능을 계속 이어간다.
+현재 DateTime의 제한된 구현 범위와 Text+DateTime 누적 Hosted full을 완료했다. 검증 source는
+`8fd8936d634b5038a534936c15a2b1cfac4b853b`이며 실제 실행과 실패 수정은 TEST_EVIDENCE에 기록했다.
+날짜·시간대 기능 전체나 프레임워크 전체가 완료된 것은 아니다. 다음은 공개 scalar IN·빈 목록·NULL/부정 조건·empty query의 실행 의미를 확장한다.

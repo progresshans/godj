@@ -78,7 +78,14 @@ process/reference·cold-build를 소유한다. 첫 구현 source `cea93c5dd00b50
 Compatibility test는 알려진 두 runtime의 2개 expected 결과만 명시적으로 선택하고 전체 roster를 계속 비교한다.
 수정 뒤 네 버전 모두 해당 unittest **1 test PASS, skip 0**이다. Go 제품·고정 reference fixture는 바꾸지 않았으며 기존 Go 실행 bytes도 유지한다.
 실패를 확인한 이전 run의 남은 작업은 취소하고 수정 source로 full을 다시 실행한다. 이전 run이나 b43552a의 결과를 새 source의 PASS로 사용하지 않는다.
-정확한 재실행 SHA와 terminal 근거는 완료 후 이 절에 기록한다.
+수정 source는 `8fd8936d634b5038a534936c15a2b1cfac4b853b`이며 [재실행 full](https://github.com/progresshans/godj/actions/runs/35384697050)의
+attempt 1은 **completed/success**다. 서로 다른 **62개 job**이 모두 completed/success이고 실패·취소·skip job은 없다.
+`CI result (full)`의 실제 report에서 `full_platform_verified=true`와 전체 선택 owner의 성공을 확인했다.
+같은 run의 `systemstate-postgres-1`·`operator-postgres-1` capture 두 개가 게시됐고, reference job이 현재 source와 producer provenance를 검증해 소비했다.
+
+이 full은 누적 Text/DateTime의 Linux/macOS/Windows·normal/race/CGO0·32-bit compile·고정 PostgreSQL 17.10·exact Darwin·Python compatibility·
+process·cold-build와 reference 통합 범위를 완료했다. Python compatibility 네 버전도 모두 terminal success다.
+완료 기록 이후의 Markdown 변경이나 별도 GDJ-0075 작업 사본의 IN 구현을 이 full source의 검증으로 합치지 않는다.
 
 ## GDJ-0073 — TextField와 여러 줄 Form/Admin 입력
 
