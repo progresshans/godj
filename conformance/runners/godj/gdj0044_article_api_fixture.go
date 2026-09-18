@@ -329,10 +329,7 @@ func newArticleAPIFixture(ctx context.Context, contractID string) (*articleAPIFi
 			},
 		},
 	)
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		return fail(err)
-	}
+	middleware := adapter.Middleware()
 	fixtureNegotiation, err := api.JSONNegotiation(articleAPIFixturePrefix)
 	if err != nil {
 		return fail(err)

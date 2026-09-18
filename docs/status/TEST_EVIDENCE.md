@@ -48,7 +48,15 @@ helper 전용 환경·pipe로 child를 실행하고 통과했다. 이 skip을 �
 ### 통합 검증 소유권
 
 누적 GDJ-0070/0071/0072를 묶은 Hosted full이 OS·race·CGO0·고정 PostgreSQL·process/reference 통합을 소유한다.
-로컬 전체 matrix는 반복하지 않는다. Hosted 실행의 정확한 source와 terminal 결과 확인은 아직 미완료이며,
+로컬 전체 matrix는 반복하지 않는다. 첫 [Hosted 실행](https://github.com/progresshans/godj/actions/runs/35369545141)은
+source `48165d8fc7b7d3d8412fe75784ac10e7c4ed1873`에서 이전 GDJ-0071 API 변경의 네 consumer 갱신 누락을 발견했다.
+`apiapp.Middleware()`가 제거됐는데 reference fixture·distinct-process worker·외부 operator runner가 남은 호출을 사용해 compile에 실패했다.
+같은 원인 확인 후 나머지 실행을 취소했으며 이 run은 통합 PASS가 아니다.
+
+네 consumer 모두 실제 API 인스턴스의 `Middleware()`로 연결하고 불필요한 wrapper를 제거했다. 호환 shim을 추가하지 않았다.
+수정 후 `go test -run '^$' ./...` 전체 compile과 `go vet ./...`을 통과했다. 관련 GDJ-0044/0047 API/auth reference,
+process worker·외부 SQLite operator의 기존 실제 흐름을 재실행해 **3 packages, 63 test PASS, skip/fail 0**을 확인했다.
+수정 소스에서 Hosted full을 다시 실행하며 exact source·terminal 결과를 확인하기 전까지 통합 검증은 미완료다.
 이전 `b74a79e`의 전체 성공을 이번 변경의 PASS로 가져오지 않는다.
 
 ## GDJ-0071 — schema 정체성·JSON 정책과 실제 생성 client

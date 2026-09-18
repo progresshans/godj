@@ -337,11 +337,11 @@ func newGDJ0047APIFixture(
 	}
 
 	logs := &gdj0047LockedBuffer{}
-	bearerApplication, err := gdj0047WebApplication(bearerAdapter.Routes(), logs)
+	bearerApplication, err := gdj0047ConfiguredApplication(bearerAdapter.Routes(), bearerAdapter.Middleware(), logs)
 	if err != nil {
 		return fail(err)
 	}
-	sessionApplication, err := gdj0047WebApplication(sessionAdapter.Routes(), logs)
+	sessionApplication, err := gdj0047ConfiguredApplication(sessionAdapter.Routes(), sessionAdapter.Middleware(), logs)
 	if err != nil {
 		return fail(err)
 	}
@@ -355,14 +355,6 @@ func newGDJ0047APIFixture(
 		bearerApplication: bearerApplication, sessionApplication: sessionApplication,
 		sessionCookie: sessionCookie, logs: logs, artifacts: &gdj0047LockedBuffer{},
 	}, nil
-}
-
-func gdj0047WebApplication(routes []web.Route, logs io.Writer) (*web.Application, error) {
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		return nil, err
-	}
-	return gdj0047ConfiguredApplication(routes, middleware, logs)
 }
 
 func gdj0047ConfiguredApplication(routes []web.Route, middleware []web.Middleware, logs io.Writer) (*web.Application, error) {

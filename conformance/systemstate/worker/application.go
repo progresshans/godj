@@ -278,10 +278,6 @@ func composeWorkerSite(
 	if err != nil {
 		return nil, fail(errorApplication)
 	}
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		return nil, fail(errorApplication)
-	}
 	routes := append(adminSite.Routes(), articleAPI.Routes()...)
 	routes = append(routes, web.Route{
 		Name:    apiapp.Namespace + ":worker-principal",
@@ -289,7 +285,7 @@ func composeWorkerSite(
 		Path:    workerPrincipalProbePath,
 		Handler: webAuth.Require(articleapp.ArticleViewPermission, principalProbeHandler),
 	})
-	application, err := webapp.NewComposedApplication(runtime, routes, middleware)
+	application, err := webapp.NewComposedApplication(runtime, routes, articleAPI.Middleware())
 	if err != nil {
 		return nil, fail(errorApplication)
 	}

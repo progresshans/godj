@@ -46,3 +46,6 @@ ORM·migration·generator의 공통 경계를 변경하므로 통합 시점에�
 이번 통합 milestone은 GDJ-0070/0071/0072의 누적 제품 소스에 Hosted full을 한 번 적용한다.
 로컬 전체 matrix를 반복하지 않으며 OS·race·CGO0·고정 PostgreSQL·process/reference 검증은 그 실행을 소유자로 삼는다.
 필수 job과 source SHA가 일치하는 최종 결과를 확인하기 전까지 이 work의 통합 검증은 미완료다.
+
+첫 Hosted 실행에서 이전 API middleware 변경의 conformance/process consumer 네 곳이 누락된 것을 발견해 같은 API 인스턴스로
+수정했다. 전체 compile/vet와 관련 63개 실제 테스트를 통과했으며 수정 source의 full 통합을 다시 확인한다.

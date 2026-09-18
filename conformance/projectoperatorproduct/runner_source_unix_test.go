@@ -380,12 +380,8 @@ func New(ctx context.Context, backend systemstate.Backend) (*web.Application, er
 	if err != nil {
 		return nil, err
 	}
-	middleware, err := apiapp.Middleware()
-	if err != nil {
-		return nil, err
-	}
 	routes := append(adminSite.Routes(), articleAPI.Routes()...)
-	application, err := webapp.NewComposedApplication(runtime, routes, middleware)
+	application, err := webapp.NewComposedApplication(runtime, routes, articleAPI.Middleware())
 	if err != nil {
 		return nil, fmt.Errorf("compose external operator application: %w", err)
 	}
