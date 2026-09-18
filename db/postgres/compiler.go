@@ -224,10 +224,11 @@ const (
 )
 
 type whereLeaf struct {
-	inValues []query.Value
-	related  bool
-	hop      query.RelationHop
-	usesJoin bool
+	inValues  []query.Value
+	inHasNull bool
+	related   bool
+	hop       query.RelationHop
+	usesJoin  bool
 }
 
 type whereAnalysis struct {
@@ -340,6 +341,13 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		}
 		if right, ok := condition.RHSField(); ok && !queryplan.ContainsField(a.sourceFields, right) {
 			return whereLeaf{}, invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
+		}
+		if condition.Lookup() == query.LookupIn {
+			parameters, hasNull, err := queryplan.MembershipValues(condition)
+			if err != nil {
+				return whereLeaf{}, err
+			}
+			return whereLeaf{inValues: parameters, inHasNull: hasNull}, nil
 		}
 		return whereLeaf{inValues: values}, nil
 	}
@@ -524,18 +532,28 @@ func appendWhereExpression(
 				return err
 			}
 		}
-		statement.WriteString(field)
-		conditionArguments, err := compileCondition(statement, condition, right, leaf.inValues, len(*arguments)+1)
-		if err != nil {
-			return err
+		if condition.Lookup() == query.LookupIn && len(leaf.inValues) == 0 {
+			statement.WriteString("0 = 1")
+		} else {
+			statement.WriteString(field)
+			conditionArguments, err := compileCondition(statement, condition, right, leaf.inValues, len(*arguments)+1)
+			if err != nil {
+				return err
+			}
+			*arguments = append(*arguments, conditionArguments...)
 		}
-		*arguments = append(*arguments, conditionArguments...)
 		_, related := condition.RelationPath()
 		if negated && !related && nullableNegationGuard(condition.Lookup()) {
 			if condition.Field().Nullable() {
-				statement.WriteString(" AND ")
-				statement.WriteString(field)
-				statement.WriteString(" IS NOT NULL")
+				if condition.Lookup() == query.LookupIn && leaf.inHasNull {
+					statement.WriteString(" OR ")
+					statement.WriteString(field)
+					statement.WriteString(" IS NULL")
+				} else {
+					statement.WriteString(" AND ")
+					statement.WriteString(field)
+					statement.WriteString(" IS NOT NULL")
+				}
 			}
 			if hasRightField && rightField.Nullable() && !rightField.Equal(condition.Field()) {
 				statement.WriteString(" AND ")

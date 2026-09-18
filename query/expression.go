@@ -270,7 +270,7 @@ func validateExpressionCondition(condition Condition) error {
 		}
 		if field.kind != condition.rhs.field.kind ||
 			(field.kind != FieldInteger && field.kind != FieldString && field.kind != FieldDateTime) {
-			return invalidPlanError("query expression field comparison requires same-kind Integer or String fields")
+			return invalidPlanError("query expression field comparison requires same-kind ordered scalar fields")
 		}
 	default:
 		return invalidPlanError("query expression condition has an unknown right-hand-side kind")

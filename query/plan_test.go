@@ -440,8 +440,6 @@ func TestInConditionValidationAndScalarMisuse(t *testing.T) {
 		{name: "NUL name", field: query.NewFieldRef("author\x00", "author_id", query.FieldInteger, false), values: []query.Value{query.Integer(1)}},
 		{name: "NUL column", field: query.NewFieldRef("author", "author_id\x00", query.FieldInteger, false), values: []query.Value{query.Integer(1)}},
 		{name: "unsupported kind", field: query.NewFieldRef("score", "score", query.FieldKind("float"), false), values: []query.Value{query.Integer(1)}},
-		{name: "empty", field: validInteger},
-		{name: "NULL", field: validInteger, values: []query.Value{query.Null()}},
 		{name: "wrong kind", field: validInteger, values: []query.Value{query.String("1")}},
 		{name: "zero value", field: validInteger, values: []query.Value{{}}},
 	}

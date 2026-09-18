@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 )
 
@@ -300,9 +301,12 @@ func executeAdmittedAtomicRelation(
 		return errors.Join(primary, discardErr)
 	}
 
+	lifetime, finishLifetime := context.WithCancelCause(ctx)
+	defer finishLifetime(sql.ErrTxDone)
 	session := &relationSession{
 		connection: connection,
 		queryCount: queryCount,
+		lifetime:   lifetime,
 		active:     true,
 	}
 	deferredCleanup := true
@@ -431,6 +435,7 @@ type relationSession struct {
 	mu               sync.Mutex
 	connection       relationPinnedConnection
 	queryCount       *atomic.Uint64
+	lifetime         context.Context
 	active           bool
 	mutationPossible bool
 }
@@ -447,6 +452,9 @@ func (session *relationSession) Query(ctx context.Context, plan query.Plan) (db.
 	statement, arguments, err := Compile(plan)
 	if err != nil {
 		return nil, err
+	}
+	if plan.EmptyResult() {
+		return queryplan.EmptyRowsInSession(ctx, session.lifetime, plan.ResultShape())
 	}
 	if session.queryCount != nil {
 		session.queryCount.Add(1)
@@ -565,7 +573,7 @@ func (session *relationSession) RelationSetNull(ctx context.Context, plan query.
 }
 
 func (session *relationSession) validateLocked(ctx context.Context) error {
-	if session == nil || session.connection == nil || !session.active {
+	if session == nil || session.connection == nil || session.lifetime == nil || !session.active {
 		return inactiveRelationSessionError()
 	}
 	if ctx == nil {
@@ -574,7 +582,7 @@ func (session *relationSession) validateLocked(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return nil
+	return context.Cause(session.lifetime)
 }
 
 func inactiveRelationSessionError() error {

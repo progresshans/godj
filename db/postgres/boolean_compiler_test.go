@@ -360,6 +360,21 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 	}
 
 	scalarLeaf := mustPostgresExpression(t, query.NewCondition(title, query.LookupExact, query.String("Other")))
+	emptyCondition, err := query.NewInCondition(id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsupportedRelation, err := query.OrExpressions(authorLeaf, scalarLeaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	emptyUnsupported, err := query.AndExpressions(mustPostgresExpression(t, emptyCondition), unsupportedRelation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := base.WithWhere(emptyUnsupported); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported}) {
+		t.Fatalf("empty source concealed unsupported Boolean relation: %v", err)
+	}
 	for name, makeExpression := range map[string]func() (query.Expression, error){
 		"OR":  func() (query.Expression, error) { return query.OrExpressions(authorLeaf, scalarLeaf) },
 		"NOT": func() (query.Expression, error) { return query.NotExpression(authorLeaf) },

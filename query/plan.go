@@ -81,12 +81,14 @@ func NewCondition(field FieldRef, lookup Lookup, value Value) Condition {
 // NewInCondition constructs one immutable scalar-list membership condition.
 // The values are copied so later caller mutation cannot alter the condition or
 // a query plan that contains it.
+// Empty lists are valid. Explicit NULL members remain part of the AST because
+// negation of a nullable field distinguishes them from an absent member.
 func NewInCondition(field FieldRef, values []Value) (Condition, error) {
 	if !validInValues(field, values) {
 		return Condition{}, &Error{
 			Category: CategoryQuery,
 			Code:     CodeInvalidPlan,
-			Detail:   "IN requires a supported field and a non-empty same-kind non-NULL value list",
+			Detail:   "IN requires a supported field and a same-kind scalar or NULL value list",
 		}
 	}
 	return Condition{
@@ -171,8 +173,7 @@ func (c Condition) Equal(other Condition) bool {
 
 func validInValues(field FieldRef, values []Value) bool {
 	if field.name == "" || field.column == "" ||
-		strings.ContainsRune(field.name, '\x00') || strings.ContainsRune(field.column, '\x00') ||
-		len(values) == 0 {
+		strings.ContainsRune(field.name, '\x00') || strings.ContainsRune(field.column, '\x00') {
 		return false
 	}
 
@@ -190,7 +191,7 @@ func validInValues(field FieldRef, values []Value) bool {
 		return false
 	}
 	for _, value := range values {
-		if value.IsNull() || value.Kind() != expected {
+		if !value.IsNull() && value.Kind() != expected {
 			return false
 		}
 	}

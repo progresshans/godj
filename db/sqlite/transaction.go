@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 )
 
@@ -17,6 +18,7 @@ var _ db.Session = (*transactionSession)(nil)
 type transactionSession struct {
 	transaction *sql.Tx
 	backend     *Backend
+	lifetime    context.Context
 	active      atomic.Bool
 }
 
@@ -36,7 +38,9 @@ func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) e
 	if err != nil {
 		return fmt.Errorf("begin SQLite transaction: %w", err)
 	}
-	session := &transactionSession{transaction: transaction, backend: b}
+	lifetime, finishLifetime := context.WithCancelCause(ctx)
+	defer finishLifetime(sql.ErrTxDone)
+	session := &transactionSession{transaction: transaction, backend: b, lifetime: lifetime}
 	session.active.Store(true)
 	finished := false
 	defer func() {
@@ -110,6 +114,9 @@ func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (
 	if err != nil {
 		return nil, err
 	}
+	if plan.EmptyResult() {
+		return queryplan.EmptyRowsInSession(ctx, session.lifetime, plan.ResultShape())
+	}
 	session.backend.queryCount.Add(1)
 	rows, err := session.transaction.QueryContext(ctx, statement, arguments...)
 	if err != nil {
@@ -140,7 +147,7 @@ func (session *transactionSession) Delete(ctx context.Context, plan query.Delete
 }
 
 func (session *transactionSession) validate(ctx context.Context) error {
-	if session == nil || session.transaction == nil || !session.active.Load() {
+	if session == nil || session.transaction == nil || session.lifetime == nil || !session.active.Load() {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite transaction session is nil or no longer active"}
 	}
 	if ctx == nil {
@@ -149,5 +156,5 @@ func (session *transactionSession) validate(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return nil
+	return context.Cause(session.lifetime)
 }

@@ -63,11 +63,22 @@ func ParseDynamic[M any](descriptor ModelDescriptor[M], policy LookupPolicy, inp
 				Detail:   "lookup was rejected by policy",
 			}
 		}
-		value, err := dynamicValue(field, lookup, input.Value)
-		if err != nil {
-			return nil, err
+		var condition query.Condition
+		var err error
+		if lookup == query.LookupIn {
+			values, valueErr := dynamicMembership(field, input.Value)
+			if valueErr != nil {
+				return nil, valueErr
+			}
+			condition, err = query.NewInCondition(fieldReference(field), values)
+		} else {
+			value, valueErr := dynamicValue(field, lookup, input.Value)
+			if valueErr != nil {
+				return nil, valueErr
+			}
+			condition = query.NewCondition(fieldReference(field), lookup, value)
 		}
-		predicate := predicateFromCondition[M](query.NewCondition(fieldReference(field), lookup, value), nil)
+		predicate := predicateFromCondition[M](condition, err)
 		if predicate.err != nil {
 			return nil, predicate.err
 		}
@@ -96,6 +107,8 @@ func findField(fields []ir.Field, name string) (ir.Field, bool) {
 func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	lookup := query.Lookup(name)
 	switch lookup {
+	case query.LookupIn:
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime
 	case query.LookupExact:
 		return lookup, true
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:

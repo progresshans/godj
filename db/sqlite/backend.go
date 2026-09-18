@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 	modernsqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -68,6 +69,9 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	statement, arguments, err := Compile(plan)
 	if err != nil {
 		return nil, err
+	}
+	if plan.EmptyResult() {
+		return queryplan.EmptyRows(ctx, plan.ResultShape())
 	}
 	b.queryCount.Add(1)
 	rows, err := b.database.QueryContext(ctx, statement, arguments...)

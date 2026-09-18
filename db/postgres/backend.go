@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 )
 
@@ -354,6 +355,9 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	statement, arguments, err := compilePlan(b.schema, plan)
 	if err != nil {
 		return nil, err
+	}
+	if plan.EmptyResult() {
+		return queryplan.EmptyRows(ctx, plan.ResultShape())
 	}
 	rows, err := b.database.QueryContext(ctx, statement, arguments...)
 	if err != nil {

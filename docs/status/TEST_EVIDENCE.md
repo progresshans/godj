@@ -3,6 +3,64 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0075 — Scalar IN과 빈 조회의 실행
+
+- 작업: [GDJ-0075](../../work/0075-scalar-membership-and-empty-query-semantics.md), 의미: [ADR-0062](../adr/0062-scalar-membership-and-empty-query-execution.md).
+- Source: `8fd8936d634b5038a534936c15a2b1cfac4b853b` 기반 작업 사본. Markdown을 제외한 변경·새 파일 29개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `e3394ceec710e1e56f6271519673e2028a2121db48941ac9e22351b832450863`이다.
+  실제 generated consumer 입력·Python runner·독립 JSON fixture를 포함하고 모든 checkpoint 동안 이 bytes를 유지했다.
+- 환경: Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5 (Homebrew). 새 전용 PostgreSQL DB와 테스트별 schema·임시 SQLite를 사용했다.
+  로컬 lane 종료 뒤 이 전용 DB만 제거했다. 기존 개발 DB와 checked-in generated Go·migration은 변경하지 않았다.
+
+### 로컬 실행과 실패 수정
+
+`GODJ_REQUIRE_POSTGRES=1`로 실제 PostgreSQL을 필수화하고 `go test -json -count=1 -timeout=15m`을 실행했다.
+
+```text
+./query ./orm ./db/... ./codegen/...
+./conformance/relationproduct ./conformance/relationqueryproduct ./conformance/relationprefetchproduct
+./conformance/relationselectproduct ./conformance/relationobjectproduct ./conformance/relationreverseproduct
+./conformance/relationdeleteproduct ./conformance/postgresproduct ./examples/...
+```
+
+첫 checkpoint는 SQLite 일반 Atomic 경로에서 빈 조회가 실제 SELECT를 실행하는 누락을 발견했다. 해당 실행 경계에도 전체 compile 뒤
+empty rows 처리를 연결했다. 빈 조건과 미지원 relation의 결합은 compiler보다 앞선 AST 구성에서 이미 오류이므로 새 회귀의 기대 시점을
+그 계약에 맞췄다. 추가 검토에서 synthetic cursor를 원래 transaction lifetime에 묶어 detached Query context가 취소를 우회하거나
+transaction 종료 뒤 결과를 읽는 일을 막았다. 실패한 중간 실행을 PASS로 합치지 않고 완성된 묶음의 위 normal 범위를 다시 실행했다.
+
+최종 normal은 **27 packages, 2,273 test 완료 event PASS**, no-test package 11개다. 같은 source의 다음 범위를 race와 CGO0로 실행했다.
+
+```text
+./query ./orm ./db/... ./codegen/...
+./conformance/relationprefetchproduct ./conformance/relationqueryproduct ./examples/helpdesk
+```
+
+`go test -race -json -count=1 -timeout=15m`과 `CGO_ENABLED=0 go test -json -count=1 -timeout=15m`은 각각
+**11 packages, 2,089 test 완료 event PASS**, no-test package 2개다. 모든 JSON event의 시작/종료·필수 test·package를 대조했고 fail·잘린 로그는 없다.
+세 mode의 유일한 test skip은 부모가 별도 process로 실행하는 `TestPostgresRevisionFenceHelperProcess`의 직접 진입이다.
+필수 membership·generated consumer는 skip 없이 완료됐고 helper skip은 기능 PASS로 세지 않는다.
+
+### 검증한 의미와 한계
+
+- 독립 Django 6.1/UTC/SQLite의 여섯 field × 다섯 목록 × 네 Boolean 구성, **120개** 결과·SELECT 수를 보존했다.
+  Python 3.12.13·3.13.15·3.14.3·3.14.7의 locked Django/DRF/asgiref/sqlparse 환경에서 각 **1 test PASS, skip 0**로 fixture 전체를 다시 관찰했다.
+- 외부 module에 실제 생성한 모델의 dynamic 120개·typed 84개를 실제 SQLite 결과와 QueryCount로 대조했다. Typed concrete slice에 없는
+  explicit NULL member는 dynamic으로 검사하며 이를 typed 실행으로 세지 않는다. 필수 child test 네 개가 각각 정확히 한 번 완료돼야 통과한다.
+- 실제 PostgreSQL의 120개 결과·model SELECT 수가 같은 reference와 일치했다. Trace는 SQL/credential을 보관하지 않고 호출 수만 센다.
+  Empty source는 checkout/profile SQL까지 0회였으며 COUNT 0·MIN/MAX NULL도 driver 호출 없이 반환했다. 일반 nonempty query의 profile 검증 SQL은
+  model SELECT 수와 구분했다. 고정 Django의 PostgreSQL 관찰 전체를 재현했다는 주장은 아니다.
+- Caller slice·accessor·cached nullable pointer 소유권, derived query의 독립 cache, int64·UTC 연도 경계, NULL/empty와 nullable NOT을 확인했다.
+  All/Count/Exists/ordered First/At/Iterate/projection/aggregate, invalid list·policy 우선순위·field/order/relation 오류·취소·closed/quarantine을 검증했다.
+- SQLite Atomic/CoordinatedAtomic/AtomicRelation과 PostgreSQL Atomic/CoordinatedAtomic의 empty query·expired session·detached context 취소·
+  종료 후 synthetic cursor 차단을 실제 transaction에서 확인했다. BEGIN/COMMIT/coordination lock 자체의 무 I/O를 주장하지 않는다.
+- 0/NULL aggregate scanner는 실제 `database/sql` SQLite와 numeric alias·pointer·Scanner·string/bytes·지원하지 않는 destination의 오류를 대조했다.
+- 전체 compile (`go test -run '^$' ./...`), `go vet ./...`, `make generate-check`, `make docs-check format-check`, `git diff --check` PASS.
+
+### 통합 검증 소유자
+
+이번 변경은 Hosted `orm` scope를 선택한다. 현재 이 source의 Hosted 실행은 대기 중이며 다른 source의 성공을 가져오지 않는다.
+전체 reference/platform/cold-build를 요청한 `full`은 아니다. 기존 Text+DateTime full은 아래 GDJ-0074의 source에만 적용된다.
+
 ## GDJ-0074 — DateTimeField와 UTC 시각 값
 
 - 작업: [GDJ-0074](../../work/0074-datetime-field-and-model-time-values.md), 의미: [ADR-0061](../adr/0061-datetime-field-and-canonical-instant-values.md).
