@@ -19,6 +19,23 @@
 
 ## 상태와 범위
 
+2026-09-19 GDJ-0077에서 eager `Count(ctx)`를 추가한다.
+
+- Typed selector·dynamic selector·facade는 `ForwardSelectQuery.Count`를 사용한다. 먼저 context·binding·query를 검증한다.
+- Cold Count는 eager target projection만 제거한 immutable source를 기존 scalar COUNT 경로로 실행한다.
+  WHERE의 relation JOIN과 multiplicity, Distinct·Offset·Limit은 유지하고 원래 query plan은 바꾸지 않는다.
+- 완전한 eager All cache가 있으면 그 길이를 재사용한다. Cold Count는 eager·원래 QuerySet의 full cache를 채우거나 빌려 쓰지 않으며,
+  진행 중인 All을 기다리지 않는다. Count는 관련 객체를 materialize하거나 projection row의 무결성을 검사하는 terminal이 아니다.
+- 관계 필터에 필요한 JOIN만 남기므로, 별도의 eager edge와 결합한 cold Count가 지원되더라도 같은 query의 다중 JOIN All은
+  여전히 명시적 미지원 오류일 수 있다. Nullable target-field lookup 등 기존 입력 capability를 이 작업에서 확장하지 않는다.
+- 고정 Django 6.1의 [독립 관찰](../../conformance/runners/django/eager_count_reference.py)은 22개 경우다.
+  GoDj는 지원하는 21개 경우의 count·cold SQL 수·JOIN 수를 실제 SQLite에서 비교하고, nullable target-field lookup 1개는
+  기존 미지원 오류를 검사한다. 이 1개를 Django와 같은 기능의 PASS로 계산하지 않는다.
+  서로 다른 관계 JOIN의 All 6개 경우도 기존 미지원 경계를 검사한다.
+- `QuerySet.count`·`Query.get_aggregation`의 외부 결과를 참조했다(Django 6.1, BSD-3-Clause). Python 내부 API는 복제하지 않는다.
+  환경별 완료 여부는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md), 작업은 [GDJ-0077](../../work/0077-eager-count-and-query-cache-semantics.md)을 따른다.
+
+
 2026-09-06 GDJ-0058에서 다음 확장을 Accepted로 추가한다. 아래 본문의 All-only 제한은 이 범위에서 대체된다.
 
 - typed/dynamic/facade는 공통 typed query를 실행한다. 생성 adapter의 binding 오류는

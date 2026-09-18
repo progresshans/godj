@@ -16,6 +16,7 @@ var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
 
 type relationSelectQuery[O any] interface {
 	All(context.Context) ([]*O, error)
+	Count(context.Context) (int64, error)
 	First(context.Context) (*O, bool, error)
 }
 
@@ -71,6 +72,10 @@ func (_query ModelsTicketCategorySelectRelatedQuery) First(_ctx context.Context)
 	}
 	_object, _err := _query.wrap(_selected)
 	return _object, _err == nil, _err
+}
+
+func (_query ModelsTicketCategorySelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
 
 func (_query ModelsTicketCategorySelectRelatedQuery) wrap(_selected *orm.ForwardSelected[models.Ticket, models.Category]) (*ModelsTicketObject, error) {
@@ -137,6 +142,13 @@ func (_query ModelsTicketDynamicSelectRelatedQuery) First(_ctx context.Context) 
 		return nil, false, _err
 	}
 	return _query.query.First(_ctx)
+}
+
+func (_query ModelsTicketDynamicSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return (orm.ForwardSelectQuery[models.Ticket, models.Ticket]{}).WithConfigurationError(_err).Count(_ctx)
+	}
+	return _query.query.Count(_ctx)
 }
 
 var _ goDjProjectSnapshot_258eb010b1b5ac237fc882f1e6c5d4eb1f69a94a16ebe0c386bda77cfb4566ab

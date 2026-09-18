@@ -38,3 +38,8 @@ go run ./cmd/godj generate --check --project examples/helpdesk/godj.toml
 `0001_initial`부터 `0004_ticket_due_at`까지 보존한다. `0005_alter_ticket_priority`는 선택값을 추가하고 `0006_alter_ticket_priority`는 표시명·순서를 변경한다. 두 metadata 변경은 DDL을 만들지 않는다. `MigrationSources()`의 전체 source를 loader에 전달한다.
 테스트는 0001의 기존 행, 필드 추가/역방향, 0004의 범위 밖 priority 값에 0005·0006 적용/역방향/재적용, Form/Admin/API의 선택값 검증과 기존 값 보존을 다룬다.
 PostgreSQL 검증은 `GODJ_TEST_POSTGRES_URL`과 명시적인 `GODJ_REQUIRE_POSTGRES=1`로 실행하며, CI의 pinned service가 소유한다.
+
+관계와 함께 읽는 목록은 같은 query의 `Count(ctx)`로 페이지네이션할 수 있다. 예를 들어
+`project.Using(backend)`의 `ModelsTicket.SelectRelated(objects.ModelsTicket.Related.Category)`에서 Count를 호출한 뒤
+Offset·Limit·All을 적용한다. Cold Count는 category 객체를 읽지 않고 필터와 슬라이스의 의미를 보존한다.
+이미 All을 마친 query의 Count는 그 eager cache를 재사용한다. 실제 SQLite/PostgreSQL 소비자는 기존 데이터에서 이 흐름을 검사한다.

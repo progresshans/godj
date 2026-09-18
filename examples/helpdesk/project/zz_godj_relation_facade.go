@@ -933,6 +933,19 @@ func (_query ModelsTicketEagerQuery) First(_ctx context.Context) (*ModelsTicket,
 	return _wrapped, _err == nil, _err
 }
 
+func (_query ModelsTicketEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if relationFacadeNil(_ctx) {
+		return 0, relationFacadeQueryInvalid("context is nil")
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+
 func (_query ModelsTicketEagerQuery) wrap(_ctx context.Context, _object *ModelsTicketObject) (*ModelsTicket, error) {
 	_wrapped, _err := _query.state.wrapModelsTicketObject(_object)
 	if _err != nil {

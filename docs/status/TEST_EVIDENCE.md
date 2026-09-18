@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0077 — 관계 조회 Count와 캐시 의미
+
+- 작업: [GDJ-0077](../../work/0077-eager-count-and-query-cache-semantics.md), 의미: [ADR-0029 추가 결정](../adr/0029-one-hop-forward-select-related.md).
+- Source: `d0f079481d660682c7a18884ce2c305234f6ad38` 기반 작업 사본. Markdown을 제외한 변경·새 파일 24개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `f88b777ce1d44f94620828e5f198d7c82884269e1f73e8da73e985d53f1f80e0`이다.
+  별도 generated module의 test 입력, Python runner와 독립 JSON fixture를 포함한다.
+- Go 1.26.5 darwin/arm64, modernc SQLite, 실제 PostgreSQL 17.5 (Homebrew)의 전용 DB와 테스트별 schema를 사용했다.
+  모든 로컬 lane 뒤 이 작업이 만든 전용 DB만 제거했다.
+
+### 로컬 실행
+
+`GODJ_REQUIRE_POSTGRES=1`, `go test -json -count=1 -timeout=15m`으로 다음 영향 범위를 실행했다.
+
+```text
+./query ./orm ./codegen/... ./internal/compiletest ./db/... ./examples/helpdesk
+./conformance/relationselectproduct ./conformance/relationproduct ./conformance/relationqueryproduct
+./internal/projectgenerate/...
+```
+
+최종 normal은 **16 packages, 2,371 test 완료 event PASS**, no-test package 2개다.
+최초 실행에서 새 독립 consumer가 기존 generated relation API의 범위를 잘못 사용해 compile에 실패했다.
+Reverse adapter를 올바르게 사용하도록 고치고 nullable target-field lookup은 기존 미지원 오류를 검사하도록 수정했다.
+해당 `codegen/consumertest` package 전체를 다시 실행했다. 다른 Go 제품·테스트·fixture bytes는 그대로이며,
+추가 변경한 Python runner의 version guard는 아래 독립 reference lane에서 검증했다. 실패한 event는 PASS로 계산하지 않았다.
+
+다음 범위를 `go test -race -json -count=1 -timeout=15m`과 `CGO_ENABLED=0 go test -json -count=1 -timeout=15m`으로 실행했다.
+
+```text
+./query ./orm ./db/... ./codegen/consumertest ./examples/helpdesk ./conformance/relationselectproduct
+```
+
+Race·CGO0는 각각 **9 packages, 1,775 test 완료 event PASS**, no-test package 1개다.
+모든 test의 start/terminal event를 대조했고 필수 generated consumer·실제 Helpdesk 양 DB·Count 실패/동시성 검사가 완료됐다.
+Normal의 직접 진입 skip은 PostgreSQL revision-fence·generated publication crash helper 두 개, race/CGO0는 PostgreSQL helper 한 개다.
+부모 process 검증과 구분하며 이 skip을 기능 PASS로 세지 않는다.
+
+### 확인한 경계
+
+- Eager projection만 제거하고 filter·order·Distinct·Offset·Limit을 보존한다. Cold Count는 SQL 집계를 사용하며
+  두 번 호출하면 각각 평가한다. Eager All 완료 뒤에는 그 cache의 길이를 재사용하고 원래 QuerySet의 cache는 빌려 쓰지 않는다.
+- Context/typed-nil/zero query/binding 오류의 사전 거부, scan/rows/close/backend 실패의 원인 보존·정확한 Close·재시도,
+  실행 중인 All과 독립적인 cold Count를 검사했다. Count는 related object를 materialize하거나 그 row 무결성을 검사하지 않는다.
+- 별도 module의 실제 generated project에서 typed·dynamic·facade Count, 필수·nullable FK, 빈 IN·slice·Distinct와
+  reverse filter의 중복 행을 검증했다. 고정 Django 6.1의 22개 관찰 중 **21개 count·cold SQL 수·JOIN 수를 실제 SQLite에서 대조**했다.
+  Nullable target-field filter 1개는 기존 미지원 오류를 확인했고 parity로 세지 않는다. 서로 다른 eager/filter JOIN의 All 6개도 미지원 상태다.
+- 실제 SQLite/PostgreSQL Helpdesk에서 기존 DB 재연결 후 eager Count→페이지 All→cache Count와 관계 접근을 확인했다.
+  기존 외부 `.go.txt` compile 소비자에도 typed/dynamic/facade Count를 연결했다.
+- 독립 reference는 Python 3.12.13·3.13.15·3.14.3·3.14.7에서 각각 **1 test PASS, skip 0**로 다시 관찰했다.
+- 전체 compile (`go test -run '^$' ./...`), `go vet ./...`, `make generate-check`, `make docs-check format-check`, `git diff --check` PASS.
+
+### 검증 소유자
+
+이 변경의 필수 로컬 영향 범위를 완료했다. DB별 SQL 또는 platform/process 구현은 변경하지 않았다.
+새 Hosted ORM은 다음 관계 query 확장과 묶은 통합 checkpoint가 소유한다. GDJ-0076의 Hosted 결과는 그 기준 source만 증명하며
+이 Count 변경의 Hosted·전체 플랫폼·새 full·배포 결과로 표시하지 않는다.
+
 ## GDJ-0076 — 모델 선택값과 metadata-only migration
 
 - 작업: [GDJ-0076](../../work/0076-model-choices-and-metadata-migrations.md), 의미: [ADR-0063](../adr/0063-model-choices-and-metadata-only-migrations.md).

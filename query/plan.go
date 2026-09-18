@@ -298,6 +298,14 @@ func (p Plan) RelationProjection() (RelationProjection, bool) {
 	return *p.relationProjection, true
 }
 
+// WithoutRelationProjection derives the same logical source without eager
+// target columns. Relation predicates, ordering, distinct and slicing remain
+// intact; only materialization of the related object is removed.
+func (p Plan) WithoutRelationProjection() Plan {
+	p.relationProjection = nil
+	return p
+}
+
 // WithRelationProjection derives a plan with exactly one immutable forward
 // relation projection. A projection is singular by contract: callers cannot
 // overwrite or extend one that is already present.

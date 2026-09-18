@@ -23,6 +23,8 @@ Filter/OrderBy/Limit/Offset/Distinct 파생은 바뀌지 않은 private 불변 p
 공개 `Condition.Values`는 복사본을 반환하며 PostgreSQL compiler는 검증 시 얻은 목록을 해당 컴파일의 준비된 leaf에만 보관한다.
 출력은 같은 불변 tree의 DFS 순서로 그 목록을 읽고, 반환 SQL 인자와 다른 컴파일 사이에 mutable slice를 공유하지 않는다.
 Cold Count는 현재 지원 관계 filter도 DB 집계로 실행하며 JOIN multiplicity와 Distinct·슬라이스를 보존한다.
+Eager Count는 eager target projection만 제외한 같은 source를 집계하고, warm eager All cache의 길이만 재사용한다.
+Cold eager Count는 진행 중인 All을 기다리거나 eager·원래 QuerySet의 cache를 채우지 않는다.
 Cold At는 표현 가능한 기존 offset과 index를 합친 OFFSET/LIMIT 1로 한 row만 소비한다. 원래 limit을 벗어나면 빈 plan을
 사용하며 offset 범위를 넘는 index는 기존의 bounded row 소비 경로를 사용한다. DB 내부 offset 탐색 비용은 그대로다.
 
