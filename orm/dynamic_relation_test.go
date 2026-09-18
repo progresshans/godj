@@ -71,7 +71,6 @@ func TestDynamicRelationErrorsFollowFrozenPrecedence(t *testing.T) {
 		{name: "middle empty", input: orm.LookupInput{Key: "author____name", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "trailing empty", input: orm.LookupInput{Key: "author__", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "unknown relation", input: orm.LookupInput{Key: "missing__id", Value: int64(1)}, category: query.CategoryField, code: query.CodeUnknownRelation},
-		{name: "nullable relation", input: orm.LookupInput{Key: "reviewer__id", Value: int64(1)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "unknown related field", input: orm.LookupInput{Key: "author__missing", Value: int64(1)}, category: query.CategoryField, code: query.CodeUnknownRelatedField},
 		{name: "invalid string value", input: orm.LookupInput{Key: "author__name", Value: 1}, category: query.CategoryField, code: query.CodeInvalidValue},
 		{name: "invalid integer value", input: orm.LookupInput{Key: "author__id", Value: "1"}, category: query.CategoryField, code: query.CodeInvalidValue},
@@ -115,7 +114,7 @@ func TestDynamicRelationErrorsFollowFrozenPrecedence(t *testing.T) {
 	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
 }
 
-func TestDynamicRelationObjectsAddsOnlyNullableIsNullAndIsAtomic(t *testing.T) {
+func TestDynamicRelationObjectsSupportsNullableIsNullAndIsAtomic(t *testing.T) {
 	t.Parallel()
 
 	fixture := newRelationQueryFixture(t)
@@ -155,7 +154,6 @@ func TestDynamicRelationObjectsAddsOnlyNullableIsNullAndIsAtomic(t *testing.T) {
 		code     string
 	}{
 		{name: "required isnull", inputs: []orm.LookupInput{{Key: "author__isnull", Value: true}}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "nullable target traversal", inputs: []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "invalid bool", inputs: []orm.LookupInput{{Key: "reviewer__isnull", Value: "true"}}, category: query.CategoryField, code: query.CodeInvalidValue},
 		{name: "policy before value", inputs: []orm.LookupInput{{Key: "reviewer__isnull", Value: "true"}}, policy: func(ir.Field, query.Lookup) bool { return false }, category: query.CategoryField, code: query.CodeDisallowedLookup},
 		{name: "mixed no partial", inputs: []orm.LookupInput{{Key: "author__name", Value: "Ada"}, {Key: "reviewer__isnull", Value: "true"}}, category: query.CategoryField, code: query.CodeInvalidValue},

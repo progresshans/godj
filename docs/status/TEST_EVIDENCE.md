@@ -3,6 +3,71 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0078 — Nullable forward 대상 필터와 Boolean JOIN
+
+- 작업: [GDJ-0078](../../work/0078-nullable-forward-relation-predicates.md), 의미: [ADR-0040 추가 결정](../adr/0040-composable-typed-boolean-predicates-and-article-search.md).
+- Source: `6eb40412501b8945dad06a75f95e3b39510e2fe0` 기반 작업 사본. Markdown을 제외한 변경·새 파일 36개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `289ba29a040db517ae8675c28163911dd6edb600902887219a7596473df6befc`다.
+  독립 Django runner/JSON, 실제 생성 소비자 입력, 양 DB 실행 fixture와 CI 필수 완료 sentinel을 포함한다.
+  검증 후 `ForwardRelation`·`BindForward`의 GoDoc 두 곳만 현재 nullable 지원에 맞춰 고쳤다. 실행 코드는 그대로이며
+  통합할 36-file manifest는 `14ad182cc754178cbbbf8151775394c653c9481bfee6da50b5411d985e710342`다.
+- Go 1.26.5 darwin/arm64, modernc SQLite, 실제 PostgreSQL 17.5 (Homebrew)의 전용 DB와 테스트별 schema를 사용했다.
+  최종 lane이 모두 끝난 뒤 이 작업에서 만든 전용 DB만 제거했다.
+
+### 로컬 실행
+
+`GODJ_REQUIRE_POSTGRES=1`, `go test -json -count=1 -timeout=15m`으로 다음 영향 범위를 실행했다.
+
+```text
+./query ./orm ./db/... ./codegen/... ./internal/compiletest
+./conformance/nullableforwardproduct ./conformance/relationqueryproduct
+./conformance/relationselectproduct ./conformance/relationobjectproduct
+./conformance/relationreverseproduct ./conformance/relationprefetchproduct
+./conformance/relationdeleteproduct ./examples/... ./internal/projectgenerate/...
+```
+
+최종 normal은 **29 packages, 2,699 test 완료 event PASS**, no-test package 12개다.
+다음 범위를 `go test -race -json -count=1 -timeout=15m`과 `CGO_ENABLED=0 go test -json -count=1 -timeout=15m`으로 실행했다.
+
+```text
+./query ./orm ./db/... ./codegen/consumertest ./examples/...
+./conformance/relationselectproduct ./conformance/relationqueryproduct
+./conformance/relationobjectproduct ./conformance/relationreverseproduct
+./conformance/relationprefetchproduct ./conformance/relationdeleteproduct
+```
+
+Race·CGO0는 각각 **24 packages, 2,114 test 완료 event PASS**, no-test package 10개다.
+모든 lane의 JSON 전체에서 test 시작/종료를 대조하고 양 DB의 73개 하위 case, generated nullable/eager Count 소비자와
+불일치하는 존재 증명의 사전 거부를 필수 완료로 확인했다. Normal의 직접 진입 skip은 PostgreSQL revision-fence·generated publication
+crash helper 두 개, race·CGO0는 PostgreSQL helper 한 개다. 부모의 process 실행과 구분하며 이 skip을 기능 PASS로 계산하지 않는다.
+
+### 확인한 경계와 수정
+
+- Required/nullable source FK의 직접 대상 exact를 typed/dynamic 같은 AST와 generated relation adapter에 연결했다.
+  기존 non-null Integer·Char/Text·DateTime과 대상 PK, root scalar·source-key isnull의 AND/OR/NOT·중첩 부정을 검증했다.
+- 필터가 반드시 요구하는 대상 존재를 공통 planner가 계산한다. Nullable edge의 INNER/LEFT JOIN과 홀수 부정의 joined 대상 column
+  IS NOT NULL 보정으로 null source 행을 보존한다. Source-key 존재 증명은 실제 predicate edge와 정확한 hop metadata 일치를 요구한다.
+- 고정 Django 6.1/SQLite를 별도 process로 실행해 **73개 독립 관찰**의 행 ID·Count를 실제 SQLite와 PostgreSQL에서 대조했다.
+  Named target-field JOIN 종류도 비교했다. Django target-PK JOIN 생략 최적화는 구현·parity 주장 대상이 아니다.
+  SQLite의 실제 query 수와 별도 생성 module의 cold/warm Count·eager cache·typed/dynamic AST를 확인했다.
+- 이전 GDJ-0077의 Count 관찰 22개 중 미지원이던 nullable target-field case도 이제 실제 generated consumer에서 지원한다.
+  현재 source에서는 **22개 전체의 Count를 검증**한다. 서로 다른 eager/filter edge의 All 6개는 계속 명시적 미지원이다.
+- 하위 Query AST의 기존 Boolean·nullable target scalar 허용과 SQLite quoted identifier 정책을 보존했다.
+  이것이 typed/dynamic nullable target scalar API 확장을 뜻하지 않는다. Reverse OR/NOT·다른 relation lookup·다중/중첩 eager는 미지원이다.
+- 초기 runtime 검사에서 남아 있던 nullable 거부 기대값과 sparse generated binding 기대값을 갱신했고, 테스트의 SQLite DateTime 저장 형식을
+  production의 고정 UTC microsecond text에 맞췄다. 두 Boolean case에서 source-key isnull의 존재 증명도 JOIN 계획에 반영했다.
+  검토 후 compiler validation의 불필요한 AST 축소와 혼합 metadata를 수정하고 위 normal 전체를 최종 source로 다시 실행했다.
+  중간 재실행의 PostgreSQL URL 환경 변수 오기는 실패로 남기고 올바른 필수 환경으로 다시 실행했다. 이전 실패를 PASS에 합치지 않았다.
+- Python 3.12.13·3.13.15·3.14.3·3.14.7에서 nullable-forward와 eager-count 독립 reference를 각각 **2 tests PASS, skip 0**으로 확인했다.
+- 전체 compile (`go test -run '^$' ./...`), `go vet ./...` 및 최종 공통 compiler 수정 후 `go vet ./db/...`, generated drift,
+  CI script unittest, docs·format·diff 검사 PASS. Generated/Python/CI 입력은 해당 검사 뒤 변하지 않았다.
+
+### 통합 검증 소유자
+
+로컬 영향 범위의 검증을 완료했다. GDJ-0077 Count와 GDJ-0078을 통합한 source의 Hosted ORM이 다음 checkpoint다.
+아직 이 변경의 Hosted PASS를 주장하지 않는다.
+GDJ-0076의 과거 Hosted와 Text+DateTime의 과거 full은 각각의 source만 증명하며 새 변경·전체 플랫폼·배포 결과로 합치지 않는다.
+
 ## GDJ-0077 — 관계 조회 Count와 캐시 의미
 
 - 작업: [GDJ-0077](../../work/0077-eager-count-and-query-cache-semantics.md), 의미: [ADR-0029 추가 결정](../adr/0029-one-hop-forward-select-related.md).

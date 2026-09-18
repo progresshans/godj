@@ -1663,3 +1663,55 @@ func TestRelationCountAndMinExecuteWithSQLite(t *testing.T) {
 	}
 	querytest.CheckAggregateSemantics(t, ctx, backend)
 }
+
+// Query AST capabilities are broader than the current generated relation
+// adapter. Keep its existing Boolean and nullable terminal compilation intact.
+func TestCompileForwardASTPreservesScalarDomain(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name     string
+		field    query.FieldRef
+		value    query.Value
+		argument any
+	}{
+		{"boolean", query.NewFieldRef("active", "active", query.FieldBoolean, false), query.Boolean(true), true},
+		{"nullable_string", query.NewFieldRef("alias", "alias", query.FieldString, true), query.String("Ada"), "Ada"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+			author := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+			path, err := query.NewForwardRelationPath(
+				ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "author", "author_id",
+				ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", false, test.field,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{id, author}), query.NewRelatedCondition(path, query.LookupExact, test.value))
+			statement, arguments, err := sqlite.Compile(plan)
+			if err != nil || !strings.Contains(statement, `"t1"."`+test.field.Column()+`" = ?`) || !reflect.DeepEqual(arguments, []any{test.argument}) {
+				t.Fatalf("forward AST = %s %#v, error=%v", statement, arguments, err)
+			}
+		})
+	}
+}
+
+func TestCompileForwardASTKeepsSQLiteIdentifierQuoting(t *testing.T) {
+	t.Parallel()
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	author := query.NewFieldRef("Author", `author "key"`, query.FieldInteger, false)
+	terminal := query.NewFieldRef("Alias", `display "name"`, query.FieldString, true)
+	path, err := query.NewForwardRelationPath(
+		ir.ModelIdentity{AppLabel: "Blog", ModelName: "Post"}, `blog.post`, "Author", author.Column(),
+		ir.ModelIdentity{AppLabel: "Authors", ModelName: "Author"}, `authors "table"`, "id", false, terminal,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := querytest.Conditions(t, query.NewPlan("blog.post", []query.FieldRef{id, author}), query.NewRelatedCondition(path, query.LookupExact, query.String(`Ada' OR 1=1`)))
+	statement, arguments, err := sqlite.Compile(plan)
+	want := `SELECT "t0"."id", "t0"."author ""key""" FROM "blog.post" AS "t0" INNER JOIN "authors ""table""" AS "t1" ON "t0"."author ""key""" = "t1"."id" WHERE "t1"."display ""name""" = ?`
+	if err != nil || statement != want || !reflect.DeepEqual(arguments, []any{`Ada' OR 1=1`}) {
+		t.Fatalf("quoted forward AST = %s %#v, error=%v", statement, arguments, err)
+	}
+}

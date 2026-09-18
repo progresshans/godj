@@ -119,6 +119,23 @@ func NullableSourceKey(
 	return nil
 }
 
+// ForwardCondition validates edge provenance. The AST constructor owns the
+// terminal metadata domain; each backend owns identifiers and scalar values.
+// In particular, a direct AST path may use Boolean or nullable target fields
+// even when a higher-level relation adapter does not yet expose them.
+func ForwardCondition(columns []query.FieldRef, condition query.Condition, hop query.RelationHop, backendName string) error {
+	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne {
+		return unsupportedRelatedCondition(condition, backendName+" forward related-field paths require many-to-one traversal")
+	}
+	if hop.ReverseName() != "" {
+		return invalidPlan("forward relation path contains a reverse name")
+	}
+	if !ContainsField(columns, query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())) {
+		return invalidPlan("forward relation source key is not selected model metadata")
+	}
+	return nil
+}
+
 func ReverseCondition(condition query.Condition, hop query.RelationHop, backendName string) error {
 	if hop.Cardinality() != ir.RelationOneToMany {
 		return unsupportedRelatedCondition(condition, backendName+" reverse related-field paths require one-to-many traversal")

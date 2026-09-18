@@ -261,7 +261,7 @@ func TestPlanConditionConstructionRejectsInvalidInputWithoutPartialPlan(t *testi
 	}
 }
 
-func TestPlanWithWhereBindsSourceFieldsAndKeepsRelationsRootConjunctive(t *testing.T) {
+func TestPlanWithWhereBindsSourceFieldsAndSupportsForwardBooleanPredicates(t *testing.T) {
 	t.Parallel()
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
@@ -300,25 +300,15 @@ func TestPlanWithWhereBindsSourceFieldsAndKeepsRelationsRootConjunctive(t *testi
 	if err != nil {
 		t.Fatalf("OrExpressions(scalar, related) error = %v", err)
 	}
-	if _, err := base.WithWhere(disjunctive); !errors.Is(err, &query.Error{
-		Category: query.CategoryQuery,
-		Code:     query.CodeUnsupported,
-		Field:    "name",
-		Lookup:   string(query.LookupExact),
-	}) {
-		t.Fatalf("WithWhere(relation under OR) error = %v, want structured unsupported", err)
+	if _, err := base.WithWhere(disjunctive); err != nil {
+		t.Fatalf("WithWhere(forward relation under OR) error = %v", err)
 	}
 	negated, err := query.NotExpression(related)
 	if err != nil {
 		t.Fatalf("NotExpression(related) error = %v", err)
 	}
-	if _, err := base.WithWhere(negated); !errors.Is(err, &query.Error{
-		Category: query.CategoryQuery,
-		Code:     query.CodeUnsupported,
-		Field:    "name",
-		Lookup:   string(query.LookupExact),
-	}) {
-		t.Fatalf("WithWhere(relation under NOT) error = %v, want structured unsupported", err)
+	if _, err := base.WithWhere(negated); err != nil {
+		t.Fatalf("WithWhere(forward relation under NOT) error = %v", err)
 	}
 
 	foreignScalar := expressionLeaf(t, query.NewCondition(authorName, query.LookupExact, query.String("Ada")))

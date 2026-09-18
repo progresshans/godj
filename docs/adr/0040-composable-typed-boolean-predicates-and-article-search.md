@@ -9,6 +9,28 @@
 - 관련 work/contract: GDJ-0040, QRY-034..043, Q-011, M4/M5
 - 대체하는 ADR: 없음
 
+## 직접 forward 관계의 Boolean 확장
+
+2026-09-19 GDJ-0078에서 required/nullable direct forward 관계의 기존 지원 scalar exact predicate를 AND/OR/NOT에 허용한다.
+Reverse one-to-many의 OR/NOT은 row multiplicity와 correlated existence 의미가 다르므로 기존 명시적 미지원 상태를 유지한다.
+
+- Canonical relation path는 FK의 Nullable 값을 보존한다. Typed·dynamic·generated adapter는 같은 AST를 사용한다.
+- 공통 `queryplan`은 Boolean 식이 참이려면 대상 행이 반드시 필요한 edge를 계산한다. Positive exact leaf는 자기 edge가 필요하고,
+  AND는 합집합·OR는 교집합이다. NOT은 논리 connector를 뒤집으며 홀수 부정의 nullable leaf는 대상 행이 없어도 참일 수 있다.
+- Nullable edge는 반드시 필요한 경우 INNER JOIN, 나머지는 LEFT OUTER JOIN이다. Eager projection도 같은 결정을 사용한다.
+  SQL quoting·placeholder·physical schema는 각 backend가 계속 소유하며 alias와 argument 순서는 결정적이다.
+- Nullable FK를 지난 대상 column은 선언 자체가 non-null이라도 JOIN 결과에서 NULL이 될 수 있다.
+  홀수 부정에서는 비교와 함께 **joined 대상 column의 IS NOT NULL**을 괄호 안에 넣는다. Root FK 값만 검사하는 보정으로 대체하지 않는다.
+- Root source-key isnull은 JOIN 없이 같은 Boolean 식에 참여한다. FK가 존재해야 하는 isnull 조건은 선언한 FK 무결성 아래에서
+  같은 edge를 INNER JOIN으로 내릴 근거가 된다. Nullable 대상 scalar 자체, relation lookup 확장과
+  다중/중첩 eager materialization은 포함하지 않는다. 다른 eager/filter edge의 All은 여전히 미지원이며 Count는 projection을 생략할 수 있다.
+- 고정 Django 6.1/SQLite의 [독립 관찰](../../conformance/runners/django/nullable_forward_reference.py)은
+  Char·Text·int64·DateTime·PK와 root 조건·isnull을 조합한 73개 case다.
+  `QuerySet`, `Q`, `JoinPromoter`의 외부 행·Count·JOIN/NULL 결과를 참조했다(Django, BSD-3-Clause).
+  Django의 target-PK JOIN 생략 최적화나 private join voting 구조를 복제하지 않는다.
+- 이 결정의 제품·환경별 완료는 [GDJ-0078](../../work/0078-nullable-forward-relation-predicates.md)와
+  [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다. 설계 채택과 compile 성공만으로 runtime PASS를 기록하지 않는다.
+
 ## 맥락
 
 ADR-0003/0007은 typed field predicate와 ordered dynamic lookup이 같은 query AST로 수렴하도록 정했고,

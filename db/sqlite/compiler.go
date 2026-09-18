@@ -6,7 +6,6 @@ import (
 
 	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
-	"github.com/progresshans/godj/schema/ir"
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
@@ -268,9 +267,10 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		case query.RelationTerminalRelatedField:
 			switch hop.Direction() {
 			case query.RelationForward:
-				if hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
-					return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports required forward many-to-one related-field paths only")
+				if err := queryplan.ForwardCondition(columns, condition, hop, "SQLite"); err != nil {
+					return "", nil, err
 				}
+				leaf.nullableRelation = hop.Nullable()
 			case query.RelationReverse:
 				if err := queryplan.ReverseCondition(condition, hop, "SQLite"); err != nil {
 					return "", nil, err

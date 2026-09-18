@@ -129,7 +129,7 @@ func buildProjectRelationQuerySurface(
 	for _, sourceModel := range models {
 		relations := make([]projectRelationQueryEdge, 0)
 		for _, field := range sourceModel.model.Fields {
-			if field.Relation == nil || field.Nullable {
+			if field.Relation == nil {
 				continue
 			}
 			selector, err := relationQuerySelector(field)

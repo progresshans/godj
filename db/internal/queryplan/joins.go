@@ -49,11 +49,24 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 		}
 	}
 
+	// Source-key presence can prove that a joined target exists only for the
+	// exact same edge. A matching logical identity alone is insufficient when
+	// callers construct AST paths with conflicting physical metadata.
+	for _, sourceKey := range sourceKeys {
+		if hop, exists := edges[KeyForRelation(sourceKey)]; exists && !sourceKey.Equal(hop) {
+			return Joins{}, invalidPlan("relation source-key provenance does not match the predicate edge")
+		}
+	}
+
 	keys := make([]RelationKey, 0, len(edges))
 	for key := range edges {
 		keys = append(keys, key)
 	}
 	slices.SortFunc(keys, CompareRelationKey)
+	required := map[RelationKey]bool(nil)
+	if where, ok := plan.Where(); ok {
+		required = requiredForwardJoins(where, false)
+	}
 	joins := make(map[RelationKey]Join, len(keys))
 	for index, key := range keys {
 		hop := edges[key]
@@ -62,7 +75,7 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 			RootColumn: hop.SourceColumn(),
 			Column:     hop.TargetPrimaryKeyColumn(),
 			Alias:      fmt.Sprintf("t%d", index+1),
-			LeftOuter:  selected && key == projectionKey && hop.Nullable(),
+			LeftOuter:  hop.Direction() == query.RelationForward && hop.Nullable() && !required[key],
 		}
 		if hop.Direction() == query.RelationReverse {
 			join.Table = hop.SourceTable()
@@ -72,4 +85,72 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 		joins[key] = join
 	}
 	return Joins{Keys: keys, ByKey: joins, ProjectionKey: projectionKey}, nil
+}
+
+// requiredForwardJoins finds edges whose joined row must exist for the
+// predicate to be true. It owns only join presence, not SQL rendering. Odd
+// negation swaps AND/OR and nullable negated leaves can match an absent row.
+// Keeping an optional edge outer is conservative when no proof is available.
+func requiredForwardJoins(expression query.Expression, negated bool) map[RelationKey]bool {
+	switch expression.Kind() {
+	case query.ExpressionLeaf:
+		condition, ok := expression.Condition()
+		if !ok {
+			return nil
+		}
+		path, related := condition.RelationPath()
+		if !related {
+			return nil
+		}
+		hops := path.Hops()
+		if len(hops) != 1 || hops[0].Direction() != query.RelationForward {
+			return nil
+		}
+		if path.TerminalScope() == query.RelationTerminalSourceKey && condition.Lookup() == query.LookupIsNull {
+			isNull, valid := condition.Value().Boolean()
+			if valid && isNull == negated {
+				// A present FK implies its target exists under the declared FK
+				// constraint. This can promote an edge used elsewhere in the tree.
+				return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+			}
+			return nil
+		}
+		if path.TerminalScope() != query.RelationTerminalRelatedField || negated || condition.Lookup() != query.LookupExact {
+			return nil
+		}
+		return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+	case query.ExpressionNot:
+		children := expression.Children()
+		if len(children) != 1 {
+			return nil
+		}
+		return requiredForwardJoins(children[0], !negated)
+	case query.ExpressionAnd, query.ExpressionOr:
+		union := (expression.Kind() == query.ExpressionAnd) != negated
+		var required map[RelationKey]bool
+		for index, child := range expression.Children() {
+			current := requiredForwardJoins(child, negated)
+			if index == 0 {
+				required = current
+				continue
+			}
+			if union {
+				if required == nil {
+					required = make(map[RelationKey]bool, len(current))
+				}
+				for key := range current {
+					required[key] = true
+				}
+			} else {
+				for key := range required {
+					if !current[key] {
+						delete(required, key)
+					}
+				}
+			}
+		}
+		return required
+	default:
+		return nil
+	}
 }

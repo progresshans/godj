@@ -8,7 +8,6 @@ import (
 
 	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
-	"github.com/progresshans/godj/schema/ir"
 )
 
 const postgresIdentifierMaxBytes = 63
@@ -351,9 +350,6 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		}
 		return whereLeaf{inValues: values}, nil
 	}
-	if !relationAtRootConjunction {
-		return whereLeaf{}, unsupportedBooleanRelation(condition)
-	}
 	if condition.Lookup() == query.LookupIn {
 		return whereLeaf{}, invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
 	}
@@ -362,6 +358,9 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		return whereLeaf{}, invalidPlan("PostgreSQL relation compiler requires exactly one relation hop")
 	}
 	hop := hops[0]
+	if !relationAtRootConjunction && hop.Direction() != query.RelationForward {
+		return whereLeaf{}, unsupportedBooleanRelation(condition)
+	}
 	if hop.Direction() == query.RelationForward && hop.SourceTable() != a.plan.Table() {
 		return whereLeaf{}, invalidPlan(fmt.Sprintf("relation source table %q does not match plan root table %q", hop.SourceTable(), a.plan.Table()))
 	}
@@ -377,8 +376,8 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 	case query.RelationTerminalRelatedField:
 		switch hop.Direction() {
 		case query.RelationForward:
-			if hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
-				return whereLeaf{}, unsupportedRelatedCondition(condition, "PostgreSQL relation compiler supports required forward many-to-one related-field paths only")
+			if err := queryplan.ForwardCondition(a.sourceFields, condition, hop, "PostgreSQL"); err != nil {
+				return whereLeaf{}, err
 			}
 		case query.RelationReverse:
 			if err := queryplan.ReverseCondition(condition, hop, "PostgreSQL"); err != nil {
@@ -542,9 +541,8 @@ func appendWhereExpression(
 			}
 			*arguments = append(*arguments, conditionArguments...)
 		}
-		_, related := condition.RelationPath()
-		if negated && !related && nullableNegationGuard(condition.Lookup()) {
-			if condition.Field().Nullable() {
+		if negated && nullableNegationGuard(condition.Lookup()) {
+			if condition.Field().Nullable() || leaf.usesJoin && leaf.hop.Direction() == query.RelationForward && leaf.hop.Nullable() {
 				if condition.Lookup() == query.LookupIn && leaf.inHasNull {
 					statement.WriteString(" OR ")
 					statement.WriteString(field)
@@ -978,7 +976,7 @@ func unsupportedBooleanRelation(condition query.Condition) error {
 		Code:     query.CodeUnsupported,
 		Field:    condition.Field().Name(),
 		Lookup:   string(condition.Lookup()),
-		Detail:   "PostgreSQL relation predicates under OR or NOT are not supported",
+		Detail:   "PostgreSQL reverse relation predicates under OR or NOT are not supported",
 	}
 }
 

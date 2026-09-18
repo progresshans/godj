@@ -16,7 +16,6 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 )
 
@@ -161,13 +160,7 @@ func TestGeneratedEagerCountReference(t *testing.T) {
 				if relation == "author" {
 					q = q.Filter(relations.ModelsPost.Author.Name.Exact("Bob"))
 				} else {
-					before := r.QueryCount()
-					predicates, err := relations.ModelsPost.ParseDynamic(nil, []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}})
-					var typed *query.Error
-					if predicates != nil || !errors.As(err, &typed) || typed.Code != query.CodeUnsupportedLookup || r.QueryCount() != before {
-						t.Fatalf("unsupported nullable target filter = %v", err)
-					}
-					return // The reference result is observed, not claimed as GoDj parity.
+					q = q.Filter(relations.ModelsPost.Reviewer.Name.Exact("Bob"))
 				}
 			case "reverse_filter", "reverse_distinct", "reverse_slice":
 				q = q.Filter(reverse.ModelsPost.Comments.Body.Exact("match"))

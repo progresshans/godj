@@ -228,7 +228,6 @@ func TestForwardRelationPathValidationIsStructured(t *testing.T) {
 		{name: "blank target table", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetPK: "id", terminal: terminal, code: query.CodeInvalidPlan},
 		{name: "blank target key", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", terminal: terminal, code: query.CodeInvalidPlan},
 		{name: "invalid terminal", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", code: query.CodeInvalidPlan},
-		{name: "nullable path", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", nullable: true, terminal: terminal, code: query.CodeUnsupportedLookup},
 	}
 
 	for _, test := range tests {

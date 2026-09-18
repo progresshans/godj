@@ -112,9 +112,9 @@ func NewReverseRelationPath(
 	}, nil
 }
 
-// NewForwardRelationPath constructs the one required many-to-one path owned by
-// GDJ-0025. AutoField target validation remains in the ORM binder, which owns
-// the complete normalized project snapshot.
+// NewForwardRelationPath constructs one direct many-to-one path, retaining
+// whether the source key is nullable. AutoField target validation remains in
+// the ORM binder, which owns the complete normalized project snapshot.
 func NewForwardRelationPath(
 	source ir.ModelIdentity,
 	sourceTable, field, sourceColumn string,
@@ -133,14 +133,6 @@ func NewForwardRelationPath(
 			Detail:   "forward relation path contains blank or invalid metadata",
 		}
 	}
-	if nullable {
-		return RelationPath{}, &Error{
-			Category: CategoryField,
-			Code:     CodeUnsupportedLookup,
-			Field:    field,
-			Detail:   "nullable forward relation paths are not supported",
-		}
-	}
 	hop := RelationHop{
 		source:                 source,
 		sourceTable:            sourceTable,
@@ -151,7 +143,7 @@ func NewForwardRelationPath(
 		targetPrimaryKeyColumn: targetPKColumn,
 		direction:              RelationForward,
 		cardinality:            ir.RelationManyToOne,
-		nullable:               false,
+		nullable:               nullable,
 	}
 	return RelationPath{
 		hops:     []RelationHop{hop},
