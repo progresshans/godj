@@ -20,6 +20,11 @@
 
 ## 상태와 범위
 
+2026-09-19 GDJ-0078은 nullable direct forward relation의 기존 지원 target scalar exact lookup을 같은 immutable path로 확장한다.
+Generated relation query adapter는 nullable FK도 포함한다. Boolean JOIN·NULL 판단은 [ADR-0040 추가 결정](0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-관계의-boolean-확장)을 따른다.
+아래의 과거 subset 제한과 달리 직접 forward predicate는 required/nullable 모두 AND/OR/NOT에 참여한다. 검증 상태는 TEST_EVIDENCE를 따른다.
+
+
 이 ADR은 **Accepted**입니다. REL-001..012 reference contract와
 `conformance/relationbinding/**` test-only feasibility는 local
 [EVID-20260810-031](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260810-031--gdj-0023-foreignkey-reference-and-binding-pre-hosted-local-validation)과

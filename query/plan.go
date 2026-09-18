@@ -391,19 +391,19 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 			}
 			return nil
 		}
-		if !relationAtRootConjunction {
+		if len(path.hops) != 1 {
+			return invalidPlanError("query expression relation path must contain exactly one hop")
+		}
+		hop := path.hops[0]
+		if !relationAtRootConjunction && hop.direction != RelationForward {
 			return &Error{
 				Category: CategoryQuery,
 				Code:     CodeUnsupported,
 				Field:    condition.field.name,
 				Lookup:   string(condition.lookup),
-				Detail:   "relation predicates under OR or NOT are not supported",
+				Detail:   "reverse relation predicates under OR or NOT are not supported",
 			}
 		}
-		if len(path.hops) != 1 {
-			return invalidPlanError("query expression relation path must contain exactly one hop")
-		}
-		hop := path.hops[0]
 		switch path.scope {
 		case RelationTerminalSourceKey:
 			if !slices.Contains(p.sourceFields, condition.field) {

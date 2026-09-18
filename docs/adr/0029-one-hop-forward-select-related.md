@@ -19,6 +19,11 @@
 
 ## 상태와 범위
 
+2026-09-19 GDJ-0078에서 required/nullable forward 대상 필터와 Boolean 조합을 추가한다. 아래 GDJ-0077의
+nullable target-field 미지원 1개는 이 후속 구현에서 지원되어 독립 Count 관찰 22개를 모두 실행한다. 서로 다른 eager/filter edge의
+All 6개는 계속 미지원이다. Nullable eager JOIN도 필터의 대상 존재 조건에 따라 INNER/LEFT를 결정하며,
+[ADR-0040 추가 결정](0040-composable-typed-boolean-predicates-and-article-search.md)의 null·provenance 의미를 따른다.
+
 2026-09-19 GDJ-0077에서 eager `Count(ctx)`를 추가한다.
 
 - Typed selector·dynamic selector·facade는 `ForwardSelectQuery.Count`를 사용한다. 먼저 context·binding·query를 검증한다.

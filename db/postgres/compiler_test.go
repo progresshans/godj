@@ -532,3 +532,35 @@ func compileConditions(schema string, base query.Plan, conditions ...query.Condi
 	}
 	return compilePlan(schema, plan)
 }
+
+// Query AST capabilities are broader than the current generated relation
+// adapter. Keep its existing Boolean and nullable terminal compilation intact.
+func TestCompileForwardASTPreservesScalarDomain(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name     string
+		field    query.FieldRef
+		value    query.Value
+		argument any
+	}{
+		{"boolean", query.NewFieldRef("active", "active", query.FieldBoolean, false), query.Boolean(true), true},
+		{"nullable_string", query.NewFieldRef("alias", "alias", query.FieldString, true), query.String("Ada"), "Ada"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+			author := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+			path, err := query.NewForwardRelationPath(
+				ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "author", "author_id",
+				ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", false, test.field,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{id, author}), query.NewRelatedCondition(path, query.LookupExact, test.value))
+			statement, arguments, err := compilePlan("godj_app", plan)
+			if err != nil || !strings.Contains(statement, `"t1"."`+test.field.Column()+`" = $1`) || !reflect.DeepEqual(arguments, []any{test.argument}) {
+				t.Fatalf("forward AST = %s %#v, error=%v", statement, arguments, err)
+			}
+		})
+	}
+}

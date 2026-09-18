@@ -7,8 +7,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// ParseDynamicRelations parses bounded forward, two-segment implicit-exact
-// lookups through the same path constructor used by typed related fields.
+// ParseDynamicRelations parses required or nullable direct forward, two-segment
+// implicit-exact lookups through the same path constructor as typed fields.
 func ParseDynamicRelations[M any](model BoundModel[M], policy LookupPolicy, inputs []LookupInput) ([]Predicate[M], error) {
 	return parseDynamicRelations(model, policy, inputs, false)
 }
@@ -93,8 +93,8 @@ func parseDynamicRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 }
 
 // ParseDynamicRelationObjects is the ordered additive object-surface parser.
-// It preserves every GDJ-0025 required implicit-exact lookup and adds only a
-// nullable forward relation's two-segment isnull form. Any failure discards
+// It accepts direct forward implicit-exact lookups and the nullable relation's
+// two-segment isnull form. Any failure discards
 // the entire candidate slice.
 func ParseDynamicRelationObjects[M any](
 	model BoundModel[M],

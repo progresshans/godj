@@ -150,9 +150,9 @@ func TestGeneratedRelationQueryProject(t *testing.T) {
 		t.Fatalf("generated relation query BindModel count = %d, want %d:\n%s", got, want, projectQuery)
 	}
 	for _, fragment := range [][]byte{
-		[]byte("\t_ = _model1\n"),
 		[]byte("\t_ = _model2\n"),
 		[]byte(`orm.BindForward(_model3, "author", _model0)`),
+		[]byte(`orm.BindForward(_model3, "category", _model1)`),
 	} {
 		if !bytes.Contains(projectQuery, fragment) {
 			t.Fatalf("sparse relation query source does not contain %q:\n%s", fragment, projectQuery)
@@ -160,6 +160,7 @@ func TestGeneratedRelationQueryProject(t *testing.T) {
 	}
 	for _, forbidden := range [][]byte{
 		[]byte("\t_ = _model0\n"),
+		[]byte("\t_ = _model1\n"),
 		[]byte("\t_ = _model3\n"),
 	} {
 		if bytes.Contains(projectQuery, forbidden) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestSQLiteBooleanPredicatesExecuteNullableNegationAndReuseResultShapes(t *testing.T) {
@@ -293,8 +294,12 @@ func TestSQLiteBooleanInvalidTreesAndRelationCompositionRemainPreIO(t *testing.T
 
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "id", "comments", false, query.NewFieldRef("name", "name", query.FieldString, false))
+	if err != nil {
+		t.Fatal(err)
+	}
 	related := sqliteTestExpression(t, query.NewRelatedCondition(
-		requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false)),
+		reversePath,
 		query.LookupExact,
 		query.String("Ada"),
 	))

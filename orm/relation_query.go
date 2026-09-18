@@ -66,8 +66,8 @@ func BindModel[M any](
 	}, nil
 }
 
-// ForwardRelation is a required one-hop many-to-one relation whose source and
-// target descriptors have already been checked against one project snapshot.
+// ForwardRelation is a direct many-to-one relation with a required or nullable
+// source key. Both descriptors have been checked against one project snapshot.
 type ForwardRelation[S, T any] struct {
 	state        forwardRelationState
 	sourceMarker [0]func(S)
@@ -83,9 +83,9 @@ type forwardRelationState struct {
 	targetPrimaryKey ir.Field
 }
 
-// BindForward resolves one required forward relation. It rejects independently
-// built or zero snapshots before relation lookup so no partially valid path is
-// published.
+// BindForward resolves one required or nullable forward relation. It rejects
+// independently built or zero snapshots before relation lookup so no partially
+// valid path is published.
 func BindForward[S, T any](
 	source BoundModel[S],
 	field string,
@@ -220,14 +220,6 @@ func resolveForwardRelation(
 	state, err := resolveForwardRelationState(snapshot, source, sourceModel, field)
 	if err != nil {
 		return forwardRelationState{}, err
-	}
-	if state.metadata.Nullable {
-		return forwardRelationState{}, &query.Error{
-			Category: query.CategoryField,
-			Code:     query.CodeUnsupportedLookup,
-			Field:    field,
-			Detail:   "nullable forward relation predicates are not supported",
-		}
 	}
 	return state, nil
 }

@@ -16,9 +16,15 @@ type BlogPostAuthorRelation struct {
 	Name orm.RelatedStringField[blog.Post]
 }
 
+type BlogPostReviewerRelation struct {
+	ID   orm.RelatedIntegerField[blog.Post]
+	Name orm.RelatedStringField[blog.Post]
+}
+
 type BlogPostRelations struct {
-	Author BlogPostAuthorRelation
-	model  orm.BoundModel[blog.Post]
+	Author   BlogPostAuthorRelation
+	Reviewer BlogPostReviewerRelation
+	model    orm.BoundModel[blog.Post]
 }
 
 func (_relations BlogPostRelations) ParseDynamic(
@@ -65,11 +71,27 @@ func BindRelations() (Relations, error) {
 	if _err != nil {
 		return Relations{}, _err
 	}
+	_relation1, _err := orm.BindForward(_model1, "reviewer", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_terminal2, _err := _relation1.Integer(authors.AuthorFields.ID)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_terminal3, _err := _relation1.String(authors.AuthorFields.Name)
+	if _err != nil {
+		return Relations{}, _err
+	}
 	return Relations{
 		BlogPost: BlogPostRelations{
 			Author: BlogPostAuthorRelation{
 				ID:   _terminal0,
 				Name: _terminal1,
+			},
+			Reviewer: BlogPostReviewerRelation{
+				ID:   _terminal2,
+				Name: _terminal3,
 			},
 			model: _model1,
 		},

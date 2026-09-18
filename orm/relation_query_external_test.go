@@ -46,6 +46,42 @@ type relationQueryFixture struct {
 	authorName       orm.RelatedStringField[relationQueryPost]
 }
 
+func TestNullableForwardTypedAndDynamicPredicatesShareBooleanAST(t *testing.T) {
+	fixture := newRelationQueryFixture(t)
+	reviewer, err := orm.BindForward(fixture.postModel, "reviewer", fixture.authorModel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, err := reviewer.String(orm.NewStringField[relationQueryAuthor](fixture.authorDescriptor.Metadata().Fields[1]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := reviewer.Integer(orm.NewAutoField[relationQueryAuthor](fixture.authorDescriptor.Metadata().Fields[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dynamic, err := orm.ParseDynamicRelationObjects(fixture.postModel, nil, []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}, {Key: "reviewer__id", Value: int64(2)}})
+	if err != nil || len(dynamic) != 2 {
+		t.Fatalf("nullable dynamic inputs = %v", err)
+	}
+	base := orm.NewManager[relationQueryPost](fixture.postDescriptor).Using(nil)
+	typedPlan := base.Filter(orm.Or(name.Exact("Bob"), orm.Not(id.Exact(2)))).Plan()
+	dynamicPlan := base.Filter(orm.Or(dynamic[0], orm.Not(dynamic[1]))).Plan()
+	if !typedPlan.Equal(dynamicPlan) {
+		t.Fatal("nullable typed/dynamic AST differ")
+	}
+	condition := base.Filter(name.Exact("Bob")).Plan().Conditions()[0]
+	path, ok := condition.RelationPath()
+	if !ok || len(path.Hops()) != 1 || !path.Hops()[0].Nullable() || path.Hops()[0].Field() != "reviewer" {
+		t.Fatalf("nullable provenance = %#v", path)
+	}
+	failed, err := orm.ParseDynamicRelationObjects(fixture.postModel, nil, []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}, {Key: "reviewer__id", Value: "2"}})
+	if failed != nil {
+		t.Fatal("invalid input published a partial nullable batch")
+	}
+	assertRelationQueryError(t, err, query.CategoryField, query.CodeInvalidValue)
+}
+
 func TestBoundForwardTypedFieldsBuildCanonicalImmutablePlans(t *testing.T) {
 	t.Parallel()
 
@@ -170,8 +206,6 @@ func TestRelationBindingFailuresAreStructuredAndPublishZeroValues(t *testing.T) 
 	}
 	_, err = orm.BindForward(postModel, "missing", authorModel)
 	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelation)
-	_, err = orm.BindForward(postModel, "reviewer", authorModel)
-	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnsupportedLookup)
 	_, err = orm.BindForward(postModel, "author", postModel)
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 

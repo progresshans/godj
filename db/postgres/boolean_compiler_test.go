@@ -364,7 +364,12 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	unsupportedRelation, err := query.OrExpressions(authorLeaf, scalarLeaf)
+	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", post, "blog_post", "id", "comments", false, authorName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reverseLeaf := mustPostgresExpression(t, query.NewRelatedCondition(reversePath, query.LookupExact, query.String("note")))
+	unsupportedRelation, err := query.OrExpressions(reverseLeaf, scalarLeaf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,8 +381,8 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 		t.Fatalf("empty source concealed unsupported Boolean relation: %v", err)
 	}
 	for name, makeExpression := range map[string]func() (query.Expression, error){
-		"OR":  func() (query.Expression, error) { return query.OrExpressions(authorLeaf, scalarLeaf) },
-		"NOT": func() (query.Expression, error) { return query.NotExpression(authorLeaf) },
+		"OR":  func() (query.Expression, error) { return query.OrExpressions(reverseLeaf, scalarLeaf) },
+		"NOT": func() (query.Expression, error) { return query.NotExpression(reverseLeaf) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

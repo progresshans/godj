@@ -8,6 +8,7 @@ import (
 
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestSQLiteBooleanCompilerPreservesPrecedenceAndDFSArgumentsAcrossResultShapes(t *testing.T) {
@@ -208,7 +209,12 @@ func TestSQLiteBooleanCompilerKeepsRelationJoinsRootConjunctive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	unsupported := sqliteTestAnd(t, sqliteTestExpression(t, emptyCondition), sqliteTestOr(t, related, titleChoice))
+	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "id", "comments", false, query.NewFieldRef("name", "name", query.FieldString, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reverse := sqliteTestExpression(t, query.NewRelatedCondition(reversePath, query.LookupExact, query.String("note")))
+	unsupported := sqliteTestAnd(t, sqliteTestExpression(t, emptyCondition), sqliteTestOr(t, reverse, titleChoice))
 	if _, err := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}).WithWhere(unsupported); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported}) {
 		t.Fatalf("empty source concealed unsupported Boolean relation: %v", err)
 	}

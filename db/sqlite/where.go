@@ -23,13 +23,14 @@ type sqliteWhereAnalysis struct {
 }
 
 type sqliteWhereNode struct {
-	kind        query.ExpressionKind
-	condition   query.Condition
-	children    []*sqliteWhereNode
-	fieldSQL    string
-	rhsFieldSQL string
-	inValues    []query.Value
-	inHasNull   bool
+	kind             query.ExpressionKind
+	condition        query.Condition
+	children         []*sqliteWhereNode
+	fieldSQL         string
+	rhsFieldSQL      string
+	inValues         []query.Value
+	inHasNull        bool
+	nullableRelation bool
 }
 
 func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
@@ -78,12 +79,12 @@ func analyzeWhereExpression(
 			}
 			node.inValues, node.inHasNull = values, hasNull
 		}
-		_, related := condition.RelationPath()
+		path, related := condition.RelationPath()
 		if related && !relationAtRootConjunction {
-			return nil, false, unsupportedRelatedCondition(
-				condition,
-				"SQLite relation predicates under OR or NOT are not supported",
-			)
+			hops := path.Hops()
+			if len(hops) != 1 || hops[0].Direction() != query.RelationForward {
+				return nil, false, unsupportedRelatedCondition(condition, "SQLite reverse relation predicates under OR or NOT are not supported")
+			}
 		}
 		if expression.HasRelations() != related {
 			return nil, false, invalidPlan("query expression relation metadata is malformed")
@@ -272,7 +273,7 @@ func nullableNegationGuards(node *sqliteWhereNode, oddNegation bool) []string {
 	}
 	guards := make([]string, 0, 2)
 	left := node.condition.Field()
-	if left.Nullable() {
+	if left.Nullable() || node.nullableRelation {
 		guards = append(guards, node.fieldSQL)
 	}
 	if right, ok := node.condition.RHSField(); ok && right.Nullable() && !right.Equal(left) {
