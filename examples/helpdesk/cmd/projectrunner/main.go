@@ -11,7 +11,10 @@ import (
 )
 
 func main() {
-	err := godjproject.Run(context.Background(), godjproject.Config{LoadProjectSpec: modeldef.ProjectSpec}, os.Args[1:], os.Stdin, os.Stdout)
+	err := godjproject.Run(context.Background(), godjproject.Config{
+		LoadProjectSpec:          modeldef.ProjectSpec,
+		MigrationDefinitionRoots: []string{"migrations"},
+	}, os.Args[1:], os.Stdin, os.Stdout)
 	if err != nil {
 		code := godjproject.RunnerExitCode(err)
 		if code == 1 {

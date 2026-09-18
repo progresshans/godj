@@ -72,14 +72,14 @@ func (AuthorDescriptor) WriteFieldValue(value Author, field ir.Field) (query.Val
 }
 
 type AuthorFieldSet struct {
-	ID   orm.IntegerField[Author]
+	ID   orm.AutoField[Author]
 	Name orm.StringField[Author]
 }
 
 var AuthorFields = func() AuthorFieldSet {
 	metadata := authorMetadata()
 	return AuthorFieldSet{
-		ID:   orm.NewIntegerField[Author](metadata.Fields[0]),
+		ID:   orm.NewAutoField[Author](metadata.Fields[0]),
 		Name: orm.NewStringField[Author](metadata.Fields[1]),
 	}
 }()

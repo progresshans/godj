@@ -510,7 +510,7 @@ func planWithMaximumRows(plan query.Plan, maximum int) query.Plan {
 func fieldReference(field ir.Field) query.FieldRef {
 	var kind query.FieldKind
 	switch field.Kind {
-	case ir.FieldAuto:
+	case ir.FieldAuto, ir.FieldInteger:
 		kind = query.FieldInteger
 	case ir.FieldForeignKey:
 		kind = query.FieldInteger

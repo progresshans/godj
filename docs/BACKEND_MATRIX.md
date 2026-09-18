@@ -16,7 +16,8 @@
 
 ## 현재 schema와 query 폭
 
-Schema는 Auto primary key, Char, Boolean과 AutoField-target ForeignKey를 중심으로 구현되어 있다.
+Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Boolean과 AutoField-target ForeignKey를 지원한다.
+일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 모든 Django Field, OneToOne/ManyToMany, arbitrary `to_field`, self/cyclic relation이나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·

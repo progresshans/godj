@@ -203,7 +203,7 @@ func (state forwardObjectState[S, T]) from(backend db.Queryer, source S) (*Relat
 		return nil, relationInvalidPlan("relation storage returned a non-integer key")
 	}
 
-	primaryKey := NewIntegerField[T](state.targetKey)
+	primaryKey := NewAutoField[T](state.targetKey)
 	querySet := newQuerySet(backend, state.target.objectDescriptor, state.target.objectPlan).
 		Filter(primaryKey.Exact(identifier))
 	limited, err := querySet.Limit(2)

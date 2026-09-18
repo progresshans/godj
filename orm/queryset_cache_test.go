@@ -112,7 +112,7 @@ func TestCompositeFilterDerivesFreshCacheWithoutMutatingWarmSource(t *testing.T)
 	assertCacheTestID(t, base, 1)
 
 	metadata := cacheTestDescriptor{}.Metadata()
-	id := NewIntegerField[cacheTestModel](metadata.Fields[0])
+	id := NewAutoField[cacheTestModel](metadata.Fields[0])
 	search := Or(id.Exact(1), id.Exact(2))
 	derived := base.Filter(search, Not(id.Exact(3)))
 	assertCacheTestID(t, derived, 2)
@@ -453,7 +453,7 @@ func TestQuerySetColdAndWarmTerminalSemantics(t *testing.T) {
 		return rows, nil
 	}}
 	metadata := (cacheTestDescriptor{}).Metadata()
-	ordered := newCacheTestManager().Using(backend).OrderBy(NewIntegerField[cacheTestModel](metadata.Fields[0]).Asc())
+	ordered := newCacheTestManager().Using(backend).OrderBy(NewAutoField[cacheTestModel](metadata.Fields[0]).Asc())
 	ctx := context.Background()
 
 	count, err := ordered.Count(ctx)
@@ -574,7 +574,7 @@ func TestQuerySetTerminalValidationAndRowsErrorsDoNotProduceFalseCache(t *testin
 			return rowsForIDs(1), nil
 		}}
 		metadata := (cacheTestDescriptor{}).Metadata()
-		querySet := newCacheTestManager().Using(backend).OrderBy(NewIntegerField[cacheTestModel](metadata.Fields[0]).Asc())
+		querySet := newCacheTestManager().Using(backend).OrderBy(NewAutoField[cacheTestModel](metadata.Fields[0]).Asc())
 		if _, err := querySet.All(context.Background()); err != nil {
 			t.Fatalf("populate All() error = %v", err)
 		}
@@ -707,7 +707,7 @@ func TestQuerySetTerminalValidationAndRowsErrorsDoNotProduceFalseCache(t *testin
 
 	t.Run("every cold terminal preserves rows and close errors", func(t *testing.T) {
 		metadata := (cacheTestDescriptor{}).Metadata()
-		ordering := NewIntegerField[cacheTestModel](metadata.Fields[0]).Asc()
+		ordering := NewAutoField[cacheTestModel](metadata.Fields[0]).Asc()
 		tests := []struct {
 			name string
 			run  func(QuerySet[cacheTestModel]) error

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -76,7 +77,8 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = backend.Close() })
-	loaded, _, err := definition.Load(systemstate.InitialDefinitionSource(), helpdesk.InitialMigrationSource())
+	sources := append([]definition.Source{systemstate.InitialDefinitionSource()}, helpdesk.MigrationSources()...)
+	loaded, _, err := definition.Load(sources[:2]...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,14 +93,42 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err != nil {
 		t.Fatal(err)
 	}
-	seed, err := models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Existing ticket", category.ID).WithDetailsNull())
+	seedID, err := insertHistoricalTicket(ctx, backend, "Existing ticket", category.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	outside, err := models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Other category ticket", other.ID))
+	outsideID, err := insertHistoricalTicket(ctx, backend, "Other category ticket", other.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
+	loaded, _, err = definition.Load(sources...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
+	}
+	seed := readGrownTicket(t, ctx, backend, seedID, "Existing ticket", category.ID)
+	outside := readGrownTicket(t, ctx, backend, outsideID, "Other category ticket", other.ID)
+	state, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded,
+		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0001_initial"})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	historical, found := state.Model("helpdesk", "ticket")
+	if !found {
+		t.Fatal("reverse integer migration removed the model")
+	}
+	for _, field := range historical.Fields {
+		if field.Name == "priority" {
+			t.Fatal("reverse integer migration retained priority")
+		}
+	}
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
+	}
+	readGrownTicket(t, ctx, backend, seedID, "Existing ticket", category.ID)
+	readGrownTicket(t, ctx, backend, outsideID, "Other category ticket", other.ID)
 	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +174,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("Category should need no form/CRUD adapter")
 	}
 	ticketInfo, ok := application.Registry().Lookup("helpdesk", "ticket")
-	if !ok || len(ticketInfo.FormFields) != 3 {
+	if !ok || len(ticketInfo.FormFields) != 4 {
 		t.Fatal("Ticket scalar selection")
 	}
 	for _, field := range ticketInfo.FormFields {
@@ -193,7 +223,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
 	}
-	if len(detail) != 2 || len(detail["ticket"]) != 5 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+	if len(detail) != 2 || len(detail["ticket"]) != 6 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
 		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
 	}
 	var categoryName string
@@ -231,10 +261,10 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("POST", "/admin/categories/add/", "", false); response.Code != http.StatusNotFound {
 		t.Fatalf("readonly mutation route exists: %d", response.Code)
 	}
-	if response := client.request("GET", "/admin/tickets/add/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), `name="category"`) {
+	if response := client.request("GET", "/admin/tickets/add/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), `name="category"`) || !strings.Contains(response.Body.String(), `inputmode="numeric"`) {
 		t.Fatalf("selected ticket form: %d %s", response.Code, response.Body)
 	}
-	values := url.Values{"subject": {"Admin ticket"}, "details": {""}, "closed": {"false"}, "csrfmiddlewaretoken": {client.csrf}, "category": {strconv.FormatInt(other.ID, 10)}}
+	values := url.Values{"subject": {"Admin ticket"}, "details": {""}, "closed": {"false"}, "priority": {strconv.FormatInt(math.MaxInt64, 10)}, "csrfmiddlewaretoken": {client.csrf}, "category": {strconv.FormatInt(other.ID, 10)}}
 	if response := client.request("POST", "/admin/tickets/add/", values.Encode(), false); response.Code != http.StatusBadRequest {
 		t.Fatalf("injected relationship accepted: %d", response.Code)
 	}
@@ -242,13 +272,13 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("POST", "/admin/tickets/add/", values.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("Admin create: %d %s", response.Code, response.Body)
 	}
-	if response := client.request("GET", "/admin/tickets/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other category ticket") {
+	if response := client.request("GET", "/admin/tickets/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other category ticket") || !strings.Contains(response.Body.String(), strconv.FormatInt(math.MaxInt64, 10)) {
 		t.Fatalf("scoped Admin list: %d %s", response.Code, response.Body)
 	}
 	if response := client.request("GET", fmt.Sprintf("/admin/tickets/change/?id=%d", outside.ID), "", false); response.Code != http.StatusNotFound {
 		t.Fatalf("unselected category leaked through direct object read: %d", response.Code)
 	}
-	response := client.request("POST", "/api/tickets/", `{"subject":"JSON ticket","details":null}`, true)
+	response := client.request("POST", "/api/tickets/", `{"subject":"JSON ticket","details":null,"priority":-9223372036854775808}`, true)
 	assertHelpdeskResponseDocumented(t, client.document, "POST", "/api/tickets/", response)
 	if response.Code != http.StatusCreated {
 		t.Fatalf("JSON create: %d %s", response.Code, response.Body)
@@ -258,14 +288,15 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		Category int64   `json:"category"`
 		Closed   bool    `json:"closed"`
 		Details  *string `json:"details"`
+		Priority *int64  `json:"priority"`
 	}
-	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID <= seed.ID || created.Category != category.ID || created.Closed || created.Details != nil {
+	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID <= seed.ID || created.Category != category.ID || created.Closed || created.Details != nil || created.Priority == nil || *created.Priority != math.MinInt64 {
 		t.Fatalf("typed JSON projection: %+v %v", created, err)
 	}
 	if response.Header().Get("Location") != "" {
 		t.Fatal("create added an undocumented Location header")
 	}
-	for _, document := range []string{`{"subject":"Bad","category":` + strconv.FormatInt(other.ID, 10) + `}`, `{"subject":"Bad","id":1}`, `{"subject":"` + strings.Repeat("x", 121) + `"}`} {
+	for _, document := range []string{`{"subject":"Bad","priority":9223372036854775808}`, `{"subject":"Bad","priority":-9223372036854775809}`, `{"subject":"Bad","priority":1.0}`, `{"subject":"Bad","priority":"1"}`, `{"subject":"Bad","priority":true}`, `{"subject":"Bad","category":` + strconv.FormatInt(other.ID, 10) + `}`, `{"subject":"Bad","id":1}`, `{"subject":"` + strings.Repeat("x", 121) + `"}`} {
 		if response := client.request("POST", "/api/tickets/", document, true); response.Code != http.StatusBadRequest {
 			t.Fatalf("invalid API data accepted: %d %s", response.Code, response.Body)
 		} else {
@@ -273,20 +304,48 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		}
 	}
 	changePath := fmt.Sprintf("/admin/tickets/change/?id=%d", created.ID)
-	if response := client.request("GET", changePath, "", false); response.Code != http.StatusOK {
+	if response := client.request("GET", changePath, "", false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `value="-9223372036854775808"`) || !strings.Contains(response.Body.String(), `inputmode="numeric"`) {
 		t.Fatalf("metadata-derived initial values: %d %s", response.Code, response.Body)
 	}
-	values = url.Values{"subject": {"Resolved"}, "details": {"done"}, "closed": {"true"}, "csrfmiddlewaretoken": {client.csrf}}
+	values = url.Values{"subject": {"Resolved"}, "details": {"done"}, "closed": {"true"}, "priority": {"+000.0"}, "csrfmiddlewaretoken": {client.csrf}}
 	if response := client.request("POST", changePath, values.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("Admin update: %d %s", response.Code, response.Body)
 	}
 	stored, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(created.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || stored.CategoryID != category.ID || stored.Subject != "Resolved" || !stored.Closed || stored.Details == nil || *stored.Details != "done" {
+	if err != nil || !found || stored.CategoryID != category.ID || stored.Subject != "Resolved" || !stored.Closed || stored.Details == nil || *stored.Details != "done" || stored.Priority == nil || *stored.Priority != 0 {
 		t.Fatalf("real stored mutation: %+v %v", stored, err)
+	}
+	values.Set("priority", "")
+	if response := client.request("POST", changePath, values.Encode(), false); response.Code != http.StatusFound {
+		t.Fatalf("clear integer priority: %d %s", response.Code, response.Body)
+	}
+	stored, found, err = models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(created.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+	if err != nil || !found || stored.Priority != nil {
+		t.Fatal("empty nullable integer did not clear the persisted value")
 	}
 	if count, err := models.TicketObjects.Using(backend).Count(ctx); err != nil || count != 4 {
 		t.Fatalf("invalid requests changed rows: %d %v", count, err)
 	}
+}
+
+// Seed through the historical column set before the new generated model can be
+// used. This makes the upgrade preserve actual pre-existing rows on both DBs.
+func insertHistoricalTicket(ctx context.Context, backend db.Mutator, subject string, category int64) (int64, error) {
+	return backend.Insert(ctx, query.NewInsertPlanReturningKey("helpdesk_ticket", []query.Assignment{
+		query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(subject)),
+		query.NewAssignment(query.NewFieldRef("details", "details", query.FieldString, true), query.Null()),
+		query.NewAssignment(query.NewFieldRef("closed", "closed", query.FieldBoolean, false), query.Boolean(false)),
+		query.NewAssignment(query.NewFieldRef("category", "category_id", query.FieldInteger, false), query.Integer(category)),
+	}, query.NewFieldRef("id", "id", query.FieldInteger, false)))
+}
+
+func readGrownTicket(t *testing.T, ctx context.Context, backend db.Queryer, id int64, subject string, category int64) models.Ticket {
+	t.Helper()
+	value, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+	if err != nil || !found || value.Subject != subject || value.CategoryID != category || value.Details != nil || value.Closed || value.Priority != nil {
+		t.Fatalf("integer migration did not preserve the historical row and NULL backfill: %v", err)
+	}
+	return value
 }
 
 func verifyConcurrentPermissionMaintenance(t *testing.T, ctx context.Context, open func(context.Context) (helpdeskBackend, error), first helpdeskBackend, before systemstate.CredentialPolicy, permissions []auth.Permission) {

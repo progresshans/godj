@@ -1,6 +1,7 @@
 package model_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/progresshans/godj/forms"
@@ -96,5 +97,41 @@ func TestOverridesCannotChangeStorageAuthority(t *testing.T) {
 	if !fields[2].Required() || fields[2].Label() != "Abstract" || !fields[2].Nullable() || fields[2].MaxLength() != 500 {
 		t.Fatalf("summary = label %q required %v nullable %v max %d",
 			fields[2].Label(), fields[2].Required(), fields[2].Nullable(), fields[2].MaxLength())
+	}
+}
+
+func TestIntegerProjectionPreservesNullabilityAndExactInitialDefault(t *testing.T) {
+	model := ir.Model{Name: "counter", GoName: "Counter", Fields: []ir.Field{
+		{Name: "count", GoName: "Count", Kind: ir.FieldInteger, Default: &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: math.MinInt64}},
+		{Name: "priority", GoName: "Priority", Kind: ir.FieldInteger, Nullable: true},
+	}}
+	spec, err := formmodel.NewSpec(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := spec.Fields()
+	if len(fields) != 2 || fields[0].Kind() != forms.FieldInteger || !fields[0].Required() || fields[0].Nullable() || fields[1].Required() || !fields[1].Nullable() {
+		t.Fatal("integer metadata projection diverged")
+	}
+	model.Fields[0].Default.Integer = 0
+	unbound, err := spec.Unbound(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, ok := unbound.Initial().Integer("count"); !ok || value != math.MinInt64 {
+		t.Fatal("default lost precision or retained caller metadata")
+	}
+	if value, ok := unbound.Initial().Get("priority"); !ok || !value.IsNull() {
+		t.Fatal("nullable initial invented zero")
+	}
+	bound, err := spec.Bind(forms.NewData(map[string][]string{"count": {"0"}, "priority": {""}}), nil)
+	if err != nil || !bound.Valid() {
+		t.Fatalf("integer form bind: %v", err)
+	}
+	if value, ok := bound.Cleaned().Integer("count"); !ok || value != 0 {
+		t.Fatal("zero was replaced by the default")
+	}
+	if _, err := formmodel.NewSpec(model, formmodel.OverrideField("count", formmodel.WithRequired(false))); err == nil {
+		t.Fatal("optional nonnullable integer has no representation for empty input")
 	}
 }

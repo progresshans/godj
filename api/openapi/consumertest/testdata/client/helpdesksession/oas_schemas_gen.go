@@ -296,6 +296,51 @@ func (s *HelpdeskTicketListOKHeaders) SetResponse(val []Ticket) {
 
 func (*HelpdeskTicketListOKHeaders) helpdeskTicketListRes() {}
 
+// NewNilInt64 returns new NilInt64 with value set to v.
+func NewNilInt64(v int64) NilInt64 {
+	return NilInt64{
+		Value: v,
+	}
+}
+
+// NilInt64 is nullable int64.
+type NilInt64 struct {
+	Value int64
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInt64) SetTo(v int64) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInt64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInt64) SetToNull() {
+	o.Null = true
+	var v int64
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInt64) Get() (v int64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilString returns new NilString with value set to v.
 func NewNilString(v string) NilString {
 	return NilString{
@@ -381,6 +426,74 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilInt64 returns new OptNilInt64 with value set to v.
+func NewOptNilInt64(v int64) OptNilInt64 {
+	return OptNilInt64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilInt64 is optional nullable int64.
+type OptNilInt64 struct {
+	Value int64
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilInt64 was set.
+func (o OptNilInt64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilInt64) Reset() {
+	var v int64
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilInt64) SetTo(v int64) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilInt64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilInt64) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v int64
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilInt64) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilInt64) Get() (v int64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilInt64) Or(d int64) int64 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -533,6 +646,7 @@ type Ticket struct {
 	Details  NilString `json:"details"`
 	Closed   bool      `json:"closed"`
 	Category int64     `json:"category"`
+	Priority NilInt64  `json:"priority"`
 }
 
 // GetID returns the value of ID.
@@ -560,6 +674,11 @@ func (s *Ticket) GetCategory() int64 {
 	return s.Category
 }
 
+// GetPriority returns the value of Priority.
+func (s *Ticket) GetPriority() NilInt64 {
+	return s.Priority
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -585,13 +704,19 @@ func (s *Ticket) SetCategory(val int64) {
 	s.Category = val
 }
 
+// SetPriority sets the value of Priority.
+func (s *Ticket) SetPriority(val NilInt64) {
+	s.Priority = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {
-	Subject string       `json:"subject"`
-	Details OptNilString `json:"details"`
-	Closed  OptBool      `json:"closed"`
+	Subject  string       `json:"subject"`
+	Details  OptNilString `json:"details"`
+	Closed   OptBool      `json:"closed"`
+	Priority OptNilInt64  `json:"priority"`
 }
 
 // GetSubject returns the value of Subject.
@@ -609,6 +734,11 @@ func (s *TicketCreate) GetClosed() OptBool {
 	return s.Closed
 }
 
+// GetPriority returns the value of Priority.
+func (s *TicketCreate) GetPriority() OptNilInt64 {
+	return s.Priority
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -622,6 +752,11 @@ func (s *TicketCreate) SetDetails(val OptNilString) {
 // SetClosed sets the value of Closed.
 func (s *TicketCreate) SetClosed(val OptBool) {
 	s.Closed = val
+}
+
+// SetPriority sets the value of Priority.
+func (s *TicketCreate) SetPriority(val OptNilInt64) {
+	s.Priority = val
 }
 
 // Ref: #/components/schemas/TicketDetail

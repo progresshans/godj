@@ -103,6 +103,8 @@ func TestGeneratedProjectRelationReverseCurrentAndNoEdgeVariantsCompile(t *testi
 	authors, blog := testschema.QueryRelation()
 
 	t.Run("current reverse owner is object capable", func(t *testing.T) {
+		blog := blog.Clone()
+		blog.Models[0].Fields = append(blog.Models[0].Fields, ir.Field{Name: "points", GoName: "Points", Column: "points", Kind: ir.FieldInteger})
 		const modulePath = "example.com/godj-relation-reverse-current"
 		generated := generateProjectRelationReverseVariant(t, modulePath, []namedRelationReverseSchema{
 			{name: "authors", schema: authors},
@@ -139,6 +141,7 @@ func TestCurrentReverse(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = relations.AuthorsAuthor.Posts.Title.Exact("Alpha")
+	_ = relations.AuthorsAuthor.Posts.Points.Exact(-9223372036854775808)
 	if _, err := project.BindReverseObjects(); err != nil {
 		t.Fatal(err)
 	}

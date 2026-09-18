@@ -192,7 +192,7 @@ func supportedRelatedTerminal(field ir.Field) bool {
 		return false
 	}
 	switch field.Kind {
-	case ir.FieldAuto, ir.FieldChar:
+	case ir.FieldAuto, ir.FieldInteger, ir.FieldChar:
 		return true
 	default:
 		return false

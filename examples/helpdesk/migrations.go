@@ -9,9 +9,15 @@ import (
 //go:embed migrations/0001_initial.godj.json
 var initialMigration []byte
 
-// InitialMigrationSource returns the fixed historical Category/Ticket schema.
-// Host setup explicitly loads/applies it alongside the system-state migration.
-// Later model changes must add migrations rather than rewrite this source.
-func InitialMigrationSource() definition.Source {
-	return definition.Source{SourceID: "helpdesk/0001_initial", Document: append([]byte(nil), initialMigration...)}
+//go:embed migrations/helpdesk_0002_ticket_priority.godj.json
+var priorityMigration []byte
+
+// MigrationSources returns detached historical definitions in declaration
+// order. Host setup loads them alongside its system-state migration. Existing
+// definitions are preserved when the current model grows.
+func MigrationSources() []definition.Source {
+	return []definition.Source{
+		{SourceID: "helpdesk/0001_initial", Document: append([]byte(nil), initialMigration...)},
+		{SourceID: "helpdesk/0002_ticket_priority", Document: append([]byte(nil), priorityMigration...)},
+	}
 }

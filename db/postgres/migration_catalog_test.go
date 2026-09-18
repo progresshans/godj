@@ -171,7 +171,7 @@ func postgresMigrationTestCatalog(
 		case ir.FieldBoolean:
 			column.typeName = "bool"
 			column.notNull = true
-		case ir.FieldForeignKey:
+		case ir.FieldInteger, ir.FieldForeignKey:
 			column.typeName = "int8"
 			column.notNull = !field.Nullable
 		}
@@ -222,6 +222,27 @@ func postgresMigrationTestCatalog(
 		})
 	}
 	return catalog
+}
+
+func TestIntegerCatalogRejectsNarrowTypeIdentityAndNullabilityDrift(t *testing.T) {
+	model := postgresMigrationTestAuthorModel()
+	model.Fields = append(model.Fields, ir.Field{Name: "amount", GoName: "Amount", Column: "amount", Kind: ir.FieldInteger, Nullable: true})
+	exact := postgresMigrationTestCatalog(t, "product_schema", model, nil)
+	if err := assertPostgresMigrationModelCatalog(exact, "product_schema", model, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*postgresMigrationColumnCatalog){
+		func(value *postgresMigrationColumnCatalog) { value.typeName = "int4" },
+		func(value *postgresMigrationColumnCatalog) { value.notNull = true },
+		func(value *postgresMigrationColumnCatalog) { value.identity = "d" },
+		func(value *postgresMigrationColumnCatalog) { value.hasDefault = true },
+	} {
+		catalog := clonePostgresMigrationTestCatalog(exact)
+		mutate(&catalog.columns[len(catalog.columns)-1])
+		if err := assertPostgresMigrationModelCatalog(catalog, "product_schema", model, nil); err == nil || !migrationbackend.IsCapabilityError(err) {
+			t.Fatalf("integer physical drift accepted: %v", err)
+		}
+	}
 }
 
 func clonePostgresMigrationTestCatalog(value postgresMigrationTableCatalog) postgresMigrationTableCatalog {

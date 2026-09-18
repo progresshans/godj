@@ -11,7 +11,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "c37e145e4ea988c3f6c1500ecc484ccc378284eda18396910aaebcdde321d613"
+const GoDjSchemaSHA256 = "6951db0249e3ca208bca4c765f2eb69229fe0635cd6a7359e66992c250de07d5"
 
 type Category struct {
 	ID                    int64
@@ -73,14 +73,14 @@ func (CategoryDescriptor) WriteFieldValue(value Category, field ir.Field) (query
 }
 
 type CategoryFieldSet struct {
-	ID   orm.IntegerField[Category]
+	ID   orm.AutoField[Category]
 	Name orm.StringField[Category]
 }
 
 var CategoryFields = func() CategoryFieldSet {
 	metadata := categoryMetadata()
 	return CategoryFieldSet{
-		ID:   orm.NewIntegerField[Category](metadata.Fields[0]),
+		ID:   orm.NewAutoField[Category](metadata.Fields[0]),
 		Name: orm.NewStringField[Category](metadata.Fields[1]),
 	}
 }()
@@ -188,6 +188,7 @@ type Ticket struct {
 	Details               *string
 	Closed                bool
 	CategoryID            int64
+	Priority              *int64
 	godjPrimaryKeyPresent bool
 }
 
@@ -204,12 +205,17 @@ func (TicketDescriptor) Metadata() ir.Model {
 func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var value Ticket
 	var scanDetails sql.NullString
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID); err != nil {
+	var scanPriority sql.NullInt64
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
 		scanned := scanDetails.String
 		value.Details = &scanned
+	}
+	if scanPriority.Valid {
+		scanned := scanPriority.Int64
+		value.Priority = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -235,6 +241,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 		clonedDetails := *value.Details
 		clone.Details = &clonedDetails
 	}
+	if value.Priority != nil {
+		clonedPriority := *value.Priority
+		clone.Priority = &clonedPriority
+	}
 	return clone
 }
 
@@ -257,25 +267,32 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 		return query.Boolean(value.Closed), true
 	case "category":
 		return query.Integer(value.CategoryID), true
+	case "priority":
+		if value.Priority == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.Priority), true
 	default:
 		return query.Value{}, false
 	}
 }
 
 type TicketFieldSet struct {
-	ID      orm.IntegerField[Ticket]
-	Subject orm.StringField[Ticket]
-	Details orm.NullableStringField[Ticket]
-	Closed  orm.BooleanField[Ticket]
+	ID       orm.AutoField[Ticket]
+	Subject  orm.StringField[Ticket]
+	Details  orm.NullableStringField[Ticket]
+	Closed   orm.BooleanField[Ticket]
+	Priority orm.NullableIntegerField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
 	metadata := ticketMetadata()
 	return TicketFieldSet{
-		ID:      orm.NewIntegerField[Ticket](metadata.Fields[0]),
-		Subject: orm.NewStringField[Ticket](metadata.Fields[1]),
-		Details: orm.NewNullableStringField[Ticket](metadata.Fields[2]),
-		Closed:  orm.NewBooleanField[Ticket](metadata.Fields[3]),
+		ID:       orm.NewAutoField[Ticket](metadata.Fields[0]),
+		Subject:  orm.NewStringField[Ticket](metadata.Fields[1]),
+		Details:  orm.NewNullableStringField[Ticket](metadata.Fields[2]),
+		Closed:   orm.NewBooleanField[Ticket](metadata.Fields[3]),
+		Priority: orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
 	}
 }()
 
@@ -306,6 +323,7 @@ type TicketCreate struct {
 	details    orm.NullableChange[string]
 	closed     orm.Change[bool]
 	categoryID orm.Change[int64]
+	priority   orm.NullableChange[int64]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -340,9 +358,19 @@ func (input TicketCreate) WithCategoryID(value int64) TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithPriority(value int64) TicketCreate {
+	input.priority = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithPriorityNull() TicketCreate {
+	input.priority = orm.SetNull[int64]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 4)
+	assignments := make([]query.Assignment, 0, 5)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -391,6 +419,26 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	}
 	value.CategoryID = changedCategoryID
 	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("category", "category_id", query.FieldInteger, false), query.Integer(changedCategoryID)))
+	changedPriority, changedPriorityState := input.priority.Get()
+	switch changedPriorityState {
+	case orm.NullableChangeUnset:
+		value.Priority = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedPriority := changedPriority
+		value.Priority = &storedPriority
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, true), query.Integer(changedPriority)))
+	case orm.NullableChangeNull:
+		value.Priority = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "priority",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -399,6 +447,7 @@ type TicketPatch struct {
 	details    orm.NullableChange[string]
 	closed     orm.Change[bool]
 	categoryID orm.Change[int64]
+	priority   orm.NullableChange[int64]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -426,9 +475,19 @@ func (input TicketPatch) WithCategoryID(value int64) TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithPriority(value int64) TicketPatch {
+	input.priority = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithPriorityNull() TicketPatch {
+	input.priority = orm.SetNull[int64]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 4)
+	assignments := make([]query.Assignment, 0, 5)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -458,6 +517,24 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	if changedCategoryID, ok := input.categoryID.Get(); ok {
 		value.CategoryID = changedCategoryID
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("category", "category_id", query.FieldInteger, false), query.Integer(changedCategoryID)))
+	}
+	changedPriority, changedPriorityState := input.priority.Get()
+	switch changedPriorityState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedPriority := changedPriority
+		value.Priority = &storedPriority
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, true), query.Integer(changedPriority)))
+	case orm.NullableChangeNull:
+		value.Priority = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "priority",
+			Detail:   "unknown nullable change state",
+		})
 	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
@@ -509,8 +586,15 @@ func ticketMetadata() ir.Model {
 					OnDelete:    ir.DeleteProtect,
 				},
 			},
+			{
+				Name:     "priority",
+				GoName:   "Priority",
+				Column:   "priority",
+				Kind:     ir.FieldInteger,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_6605a389197ac878b362a2710621656d081934d17a8eee4d5f2bd62bbde2529e struct{}
+type GoDjProjectSnapshot_95a9e4fc32a274b794870a593ad9edd06d141602611e9a3aaa9a65061b74e6d3 struct{}

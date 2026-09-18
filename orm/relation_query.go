@@ -124,22 +124,39 @@ type RelatedStringField[M any] struct {
 	marker [0]func(M)
 }
 
-func (r ForwardRelation[S, T]) Integer(field IntegerField[T]) (RelatedIntegerField[S], error) {
+func (r ForwardRelation[S, T]) Integer(field ReferenceField[T, int64]) (RelatedIntegerField[S], error) {
 	if err := validateForwardState(r.state); err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
-	if field.err != nil {
-		return RelatedIntegerField[S]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(r.state.targetModel, field.reference, ir.FieldAuto)
-	if !ok || metadata.Nullable {
-		return RelatedIntegerField[S]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedIntegerMetadata(r.state.targetModel, field)
+	if err != nil {
+		return RelatedIntegerField[S]{}, err
 	}
 	path, err := r.state.path(fieldReference(metadata))
 	if err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
 	return RelatedIntegerField[S]{path: path, valid: true}, nil
+}
+
+// Integer transport is shared by automatic keys and ordinary integer fields.
+// The project snapshot still owns exact field identity and supported nullability.
+func relatedIntegerMetadata[M any](model ir.Model, field ReferenceField[M, int64]) (ir.Field, error) {
+	if interfaceIsNil(field) {
+		return ir.Field{}, relationInvalidPlan("related integer field is nil")
+	}
+	var value M
+	reference, err := field.referenceField(value, 0)
+	if err != nil {
+		return ir.Field{}, err
+	}
+	for _, kind := range []ir.FieldKind{ir.FieldAuto, ir.FieldInteger} {
+		metadata, ok := matchingTerminalField(model, reference, kind)
+		if ok && !metadata.Nullable {
+			return metadata, nil
+		}
+	}
+	return ir.Field{}, unknownRelatedField(reference.Name())
 }
 
 func (r ForwardRelation[S, T]) String(field StringField[T]) (RelatedStringField[S], error) {

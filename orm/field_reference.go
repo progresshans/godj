@@ -34,7 +34,7 @@ func F[M, V any](field ReferenceField[M, V]) FieldReference[M, V] {
 	return FieldReference[M, V]{reference: reference, err: err}
 }
 
-func (f IntegerField[M]) referenceField(M, int64) (query.FieldRef, error) {
+func (f integerField[M]) referenceField(M, int64) (query.FieldRef, error) {
 	return f.reference, f.err
 }
 
@@ -46,23 +46,23 @@ func (f NullableStringField[M]) referenceField(M, string) (query.FieldRef, error
 	return f.reference, f.err
 }
 
-func (f IntegerField[M]) ExactField(right FieldReference[M, int64]) Predicate[M] {
+func (f integerField[M]) ExactField(right FieldReference[M, int64]) Predicate[M] {
 	return f.field.fieldPredicate(query.LookupExact, right.reference, right.err)
 }
 
-func (f IntegerField[M]) GreaterThanField(right FieldReference[M, int64]) Predicate[M] {
+func (f integerField[M]) GreaterThanField(right FieldReference[M, int64]) Predicate[M] {
 	return f.field.fieldPredicate(query.LookupGreaterThan, right.reference, right.err)
 }
 
-func (f IntegerField[M]) GreaterThanOrEqualField(right FieldReference[M, int64]) Predicate[M] {
+func (f integerField[M]) GreaterThanOrEqualField(right FieldReference[M, int64]) Predicate[M] {
 	return f.field.fieldPredicate(query.LookupGreaterThanOrEqual, right.reference, right.err)
 }
 
-func (f IntegerField[M]) LessThanField(right FieldReference[M, int64]) Predicate[M] {
+func (f integerField[M]) LessThanField(right FieldReference[M, int64]) Predicate[M] {
 	return f.field.fieldPredicate(query.LookupLessThan, right.reference, right.err)
 }
 
-func (f IntegerField[M]) LessThanOrEqualField(right FieldReference[M, int64]) Predicate[M] {
+func (f integerField[M]) LessThanOrEqualField(right FieldReference[M, int64]) Predicate[M] {
 	return f.field.fieldPredicate(query.LookupLessThanOrEqual, right.reference, right.err)
 }
 

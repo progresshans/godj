@@ -162,17 +162,14 @@ func (state reverseRelationState) path(terminal query.FieldRef) (query.RelationP
 }
 
 func (r ReverseRelation[Owner, Source]) Integer(
-	field IntegerField[Source],
+	field ReferenceField[Source, int64],
 ) (RelatedIntegerField[Owner], error) {
 	if err := validateReverseRelationState(r.state); err != nil {
 		return RelatedIntegerField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedIntegerField[Owner]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(r.state.forward.sourceModel, field.reference, ir.FieldAuto)
-	if !ok || metadata.Nullable {
-		return RelatedIntegerField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedIntegerMetadata(r.state.forward.sourceModel, field)
+	if err != nil {
+		return RelatedIntegerField[Owner]{}, err
 	}
 	path, err := r.state.path(fieldReference(metadata))
 	if err != nil {

@@ -17,7 +17,7 @@ func TestBindReverseBuildsCanonicalRequiredAndNullablePaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReverseRelation.String(title) error = %v", err)
 	}
-	id, err := posts.Integer(NewIntegerField[relationObjectTestPost](relationObjectTestPostField("id")))
+	id, err := posts.Integer(NewAutoField[relationObjectTestPost](relationObjectTestPostField("id")))
 	if err != nil {
 		t.Fatalf("ReverseRelation.Integer(id) error = %v", err)
 	}
@@ -77,7 +77,7 @@ func TestReverseRelationTerminalValidationAndStateAreFailClosed(t *testing.T) {
 		Name: "missing", GoName: "Missing", Column: "missing", Kind: ir.FieldChar, MaxLength: 10,
 	}))
 	assertRelationObjectQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
-	_, err = posts.Integer(NewIntegerField[relationObjectTestPost](ir.Field{
+	_, err = posts.Integer(NewAutoField[relationObjectTestPost](ir.Field{
 		Name: "fake", GoName: "Fake", Column: "fake", Kind: ir.FieldAuto, PrimaryKey: true,
 	}))
 	assertRelationObjectQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)

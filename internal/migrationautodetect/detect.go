@@ -488,7 +488,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 
 func safeExistingAddField(field ir.Field) bool {
 	return field.Nullable && field.Default == nil && !field.PrimaryKey &&
-		(field.Kind == ir.FieldChar || field.Kind == ir.FieldForeignKey)
+		(field.Kind == ir.FieldChar || field.Kind == ir.FieldInteger || field.Kind == ir.FieldForeignKey)
 }
 
 func validateAddedRelation(

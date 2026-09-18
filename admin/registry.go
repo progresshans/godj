@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -840,6 +841,13 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 			return forms.Values{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		switch field.Kind() {
+		case forms.FieldInteger:
+			if entry.Value().IsNull() {
+				canonicalData[field.Name()] = []string{""}
+			} else {
+				value, _ := entry.Value().AsInteger()
+				canonicalData[field.Name()] = []string{strconv.FormatInt(value, 10)}
+			}
 		case forms.FieldChar:
 			if entry.Value().IsNull() {
 				canonicalData[field.Name()] = []string{""}
@@ -865,6 +873,12 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 
 func validInitialValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldInteger:
+		if value.IsNull() {
+			return field.Nullable()
+		}
+		_, ok := value.AsInteger()
+		return ok
 	case forms.FieldChar:
 		if value.IsNull() {
 			return field.Nullable()
@@ -905,6 +919,10 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 	switch initial.Kind() {
 	case forms.ValueNull:
 		return snapshot.IsNull()
+	case forms.ValueInteger:
+		left, leftOK := initial.AsInteger()
+		right, rightOK := snapshot.AsInteger()
+		return leftOK && rightOK && left == right
 	case forms.ValueString:
 		left, leftOK := initial.AsString()
 		right, rightOK := snapshot.AsString()
@@ -920,6 +938,12 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldInteger:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsInteger()
+		return ok
 	case forms.FieldChar:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
@@ -979,6 +1003,12 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 	case ir.FieldAuto:
 		integer, ok := value.AsInteger()
 		return ok && integer > 0 && (!field.PrimaryKey || integer == objectID)
+	case ir.FieldInteger:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		_, ok := value.AsInteger()
+		return ok
 	case ir.FieldChar:
 		if value.IsNull() {
 			return field.Nullable

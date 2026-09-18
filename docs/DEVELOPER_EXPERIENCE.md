@@ -36,6 +36,11 @@ articles, err := models.ArticleObjects.Using(sqliteBackend).
 `err`를 처리하고 backend를 명시적으로 닫는다. Field/model을 잘못 조합하는 typed query는 compile 단계에서 거부하고,
 동적 이름으로 만든 query도 실행 전에 metadata로 검증한다. QuerySet 복사와 결과 cache의 의미는 [CONCURRENCY](CONCURRENCY.md)를 따른다.
 
+일반 정수는 `schema.IntegerField("priority", "Priority", schema.Nullable())`처럼 선언한다. 저장·계산 타입은 int64이며 nullable
+model 값은 `*int64`다. generated Create/Patch의 `WithPriority(0)`과 `WithPriorityNull()`은 다른 값을 표현한다.
+`schema.Default(int64(...))`는 생략한 Create 값에 적용한다. `orm.AutoField` ID는 수정 mask에 넣을 수 없고 일반 정수는 넣을 수 있다.
+기존 행이 있는 Helpdesk의 확장 예는 [새 migration과 consumer](../examples/helpdesk/README.md)에 있다.
+
 ## 프로젝트 명령
 
 README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사용한다.

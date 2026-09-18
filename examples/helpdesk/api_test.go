@@ -41,14 +41,14 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 		t.Fatal("the shared API error component is absent")
 	}
 	ticket := decoded.Components.Schemas["Ticket"]
-	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category"}) || len(ticket.Properties) != 5 || ticket.AdditionalProperties {
+	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority"}) || len(ticket.Properties) != 6 || ticket.AdditionalProperties {
 		t.Fatalf("Ticket fields = %+v", ticket)
 	}
 	if ticket.Properties["subject"].MaxLength != 120 || !ticket.Properties["category"].ReadOnly || !ticket.Properties["details"].allowsType("null") {
 		t.Fatal("Ticket response lost its encoder's field constraints")
 	}
 	input := decoded.Components.Schemas["TicketCreate"]
-	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 3 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") {
+	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 4 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
 		t.Fatalf("TicketCreate presence/defaults = %+v", input)
 	}
 	if _, found := input.Properties["id"]; found {

@@ -60,7 +60,7 @@ func TestPublicReverseObjectAndRelatedSetSurfaceCompilesAndEvaluates(t *testing.
 		t.Fatalf("warm RelatedSet.All() = (calls=%d, err=%v)", backend.calls, err)
 	}
 	postMetadata, _ := binding.Model(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"})
-	ordered, err := set.OrderBy(orm.NewIntegerField[relationQueryPost](postMetadata.Fields[0]).Desc())
+	ordered, err := set.OrderBy(orm.NewAutoField[relationQueryPost](postMetadata.Fields[0]).Desc())
 	if err != nil {
 		t.Fatalf("RelatedSet.OrderBy() error = %v", err)
 	}

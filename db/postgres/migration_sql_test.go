@@ -102,6 +102,24 @@ func TestCompilePostgresMigrationDefaultIsLogicalOnly(t *testing.T) {
 	}
 }
 
+func TestIntegerMigrationColumnUsesBigintWithoutIdentityOrPersistentDefault(t *testing.T) {
+	for _, nullable := range []bool{false, true} {
+		field := ir.Field{Name: "amount", GoName: "Amount", Column: "amount", Kind: ir.FieldInteger, Nullable: nullable, Default: &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: -9223372036854775808}}
+		statement, err := compilePostgresMigrationAddField("product_schema", postgresMigrationTestPostModel(false), field, nil)
+		want := `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "amount" BIGINT NOT NULL`
+		if nullable {
+			want = `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "amount" BIGINT NULL`
+		}
+		if err != nil || statement != want {
+			t.Fatalf("integer column = %q, %v; want %q", statement, err, want)
+		}
+		field.PrimaryKey = true
+		if _, err := compilePostgresMigrationAddField("product_schema", postgresMigrationTestPostModel(false), field, nil); err == nil {
+			t.Fatal("ordinary integer became an automatic primary key")
+		}
+	}
+}
+
 func TestPostgresMigrationConstraintNamesAreFixedAndDomainSeparated(t *testing.T) {
 	t.Parallel()
 

@@ -126,7 +126,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 		}
 		return &relationObjectAuthorRows{values: []relationObjectTestAuthor{{ID: 1, Name: "Ada"}}}, nil
 	}}
-	id := NewIntegerField[relationObjectTestPost](relationObjectTestPostField("id"))
+	id := NewAutoField[relationObjectTestPost](relationObjectTestPostField("id"))
 	title := NewStringField[relationObjectTestPost](relationObjectTestPostField("title"))
 	source := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).
 		Using(backend).

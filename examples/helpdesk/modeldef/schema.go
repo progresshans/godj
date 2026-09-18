@@ -18,6 +18,7 @@ func Schema() (ir.Schema, error) {
 			schema.CharField("details", "Details", 400, schema.Nullable()),
 			schema.BooleanField("closed", "Closed", schema.Default(false)),
 			schema.ForeignKey("category", "CategoryID", schema.Target("helpdesk", "category"), schema.RelatedName("tickets"), schema.Protect),
+			schema.IntegerField("priority", "Priority", schema.Nullable()),
 		}},
 	}})
 }

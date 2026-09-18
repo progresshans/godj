@@ -216,7 +216,7 @@ func supportedProjectRelationQueryTerminal(field ir.Field) bool {
 	if field.Relation != nil || field.Nullable {
 		return false
 	}
-	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldChar
+	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar
 }
 
 func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelationQuerySource) {
@@ -224,7 +224,7 @@ func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelatio
 		fmt.Fprintf(output, "type %s struct {\n", relation.typeName)
 		for _, terminal := range relation.terminals {
 			switch terminal.kind {
-			case ir.FieldAuto:
+			case ir.FieldAuto, ir.FieldInteger:
 				fmt.Fprintf(
 					output,
 					"\t%s orm.RelatedIntegerField[%s.%s]\n",
@@ -309,7 +309,7 @@ func renderBindRelations(
 			fmt.Fprintln(output, "\t}")
 			for _, terminal := range relation.terminals {
 				method := "String"
-				if terminal.kind == ir.FieldAuto {
+				if terminal.kind == ir.FieldAuto || terminal.kind == ir.FieldInteger {
 					method = "Integer"
 				}
 				fmt.Fprintf(

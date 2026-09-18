@@ -36,7 +36,7 @@ func TestAtUsesEffectiveOffsetWithoutWideningSourceSlice(t *testing.T) {
 				return issued, nil
 			}}
 			metadata := (cacheTestDescriptor{}).Metadata()
-			querySet := newCacheTestManager().Using(backend).OrderBy(NewIntegerField[cacheTestModel](metadata.Fields[0]).Asc()).Distinct()
+			querySet := newCacheTestManager().Using(backend).OrderBy(NewAutoField[cacheTestModel](metadata.Fields[0]).Asc()).Distinct()
 			querySet, _ = querySet.Offset(test.offset)
 			querySet, _ = querySet.Limit(test.limit)
 			original := querySet.Plan()

@@ -499,7 +499,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
 					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldBoolean) &&
-					fieldKind.string != string(ir.FieldForeignKey) {
+					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
 				if primaryKey, exists := field.member("primary_key"); exists && primaryKey.kind == jsonBoolean && primaryKey.boolean {
@@ -712,14 +712,18 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
 			}
-		case ir.FieldBoolean:
-			if defaultValid && defaultValue != nil && defaultValue.Kind != ir.ScalarBoolean {
+		case ir.FieldBoolean, ir.FieldInteger:
+			expectedDefault := ir.ScalarBoolean
+			if ir.FieldKind(kind.string) == ir.FieldInteger {
+				expectedDefault = ir.ScalarInteger
+			}
+			if defaultValid && defaultValue != nil && defaultValue.Kind != expectedDefault {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
 			}
 			if maxLengthValid && maxLength != 0 {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/max_length", app, name, operationIndex, "invalid_ir"))
 			}
-			if booleanValid["nullable"] {
+			if ir.FieldKind(kind.string) == ir.FieldBoolean && booleanValid["nullable"] {
 				nullable, _ := object.member("nullable")
 				if nullable.boolean {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/nullable", app, name, operationIndex, "invalid_ir"))

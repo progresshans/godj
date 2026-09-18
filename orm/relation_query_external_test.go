@@ -195,7 +195,7 @@ func TestRelationBindingFailuresAreStructuredAndPublishZeroValues(t *testing.T) 
 	}))
 	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
 	var zeroRelation orm.ForwardRelation[relationQueryPost, relationQueryAuthor]
-	_, err = zeroRelation.Integer(orm.NewIntegerField[relationQueryAuthor](authorMetadata.Fields[0]))
+	_, err = zeroRelation.Integer(orm.NewAutoField[relationQueryAuthor](authorMetadata.Fields[0]))
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 
 	var zeroRelated orm.RelatedStringField[relationQueryPost]
@@ -235,7 +235,7 @@ func newRelationQueryFixture(t *testing.T) relationQueryFixture {
 	if err != nil {
 		t.Fatalf("BindForward(author) error = %v", err)
 	}
-	authorID, err := author.Integer(orm.NewIntegerField[relationQueryAuthor](authorMetadata.Fields[0]))
+	authorID, err := author.Integer(orm.NewAutoField[relationQueryAuthor](authorMetadata.Fields[0]))
 	if err != nil {
 		t.Fatalf("ForwardRelation.Integer(id) error = %v", err)
 	}

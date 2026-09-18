@@ -91,7 +91,7 @@ func (ArticleDescriptor) WriteFieldValue(value Article, field ir.Field) (query.V
 }
 
 type ArticleFieldSet struct {
-	ID        orm.IntegerField[Article]
+	ID        orm.AutoField[Article]
 	Title     orm.StringField[Article]
 	Published orm.BooleanField[Article]
 	Summary   orm.NullableStringField[Article]
@@ -100,7 +100,7 @@ type ArticleFieldSet struct {
 var ArticleFields = func() ArticleFieldSet {
 	metadata := articleMetadata()
 	return ArticleFieldSet{
-		ID:        orm.NewIntegerField[Article](metadata.Fields[0]),
+		ID:        orm.NewAutoField[Article](metadata.Fields[0]),
 		Title:     orm.NewStringField[Article](metadata.Fields[1]),
 		Published: orm.NewBooleanField[Article](metadata.Fields[2]),
 		Summary:   orm.NewNullableStringField[Article](metadata.Fields[3]),

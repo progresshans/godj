@@ -98,7 +98,7 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	case query.LookupExact:
 		return lookup, true
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldChar
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:
@@ -126,7 +126,7 @@ func dynamicValue(field ir.Field, lookup query.Lookup, raw any) (query.Value, er
 		return query.Boolean(value), nil
 	}
 	switch field.Kind {
-	case ir.FieldAuto:
+	case ir.FieldAuto, ir.FieldInteger:
 		switch value := raw.(type) {
 		case int:
 			return query.Integer(int64(value)), nil

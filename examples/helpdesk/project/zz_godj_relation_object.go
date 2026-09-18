@@ -129,4 +129,4 @@ func BindObjects() (Objects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_6605a389197ac878b362a2710621656d081934d17a8eee4d5f2bd62bbde2529e
+var _ goDjProjectSnapshot_95a9e4fc32a274b794870a593ad9edd06d141602611e9a3aaa9a65061b74e6d3

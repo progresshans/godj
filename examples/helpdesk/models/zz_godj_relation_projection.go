@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "c37e145e4ea988c3f6c1500ecc484ccc378284eda18396910aaebcdde321d613"
+const GoDjRelationProjectionSchemaSHA256 = "6951db0249e3ca208bca4c765f2eb69229fe0635cd6a7359e66992c250de07d5"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -64,6 +64,7 @@ type ticketProjectionScan struct {
 	scanDetails    sql.NullString
 	scanClosed     sql.NullBool
 	scanCategoryID sql.NullInt64
+	scanPriority   sql.NullInt64
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -76,6 +77,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanDetails,
 		&_scan.scanClosed,
 		&_scan.scanCategoryID,
+		&_scan.scanPriority,
 	}
 }
 
@@ -83,7 +85,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -107,8 +109,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	}
 	_value.Closed = _scan.scanClosed.Bool
 	_value.CategoryID = _scan.scanCategoryID.Int64
+	if _scan.scanPriority.Valid {
+		_scanned := _scan.scanPriority.Int64
+		_value.Priority = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_6605a389197ac878b362a2710621656d081934d17a8eee4d5f2bd62bbde2529e
+var _ GoDjProjectSnapshot_95a9e4fc32a274b794870a593ad9edd06d141602611e9a3aaa9a65061b74e6d3

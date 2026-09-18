@@ -3,6 +3,54 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0072 — 일반 정수와 기존 Helpdesk 모델의 성장
+
+- 작업: [GDJ-0072](../../work/0072-integer-field-model-growth.md), 의미: [ADR-0059](../adr/0059-signed-integer-field-and-model-growth.md).
+- 로컬 source: `8ade467afe918474e9c42fd066edbfe7972ee600`에 이번 변경을 적용한 2026-09-19 작업 사본.
+  변경·새 파일 중 Markdown을 제외한 100개 파일의 `<sha256>  <relative-path>\n` 정렬 manifest SHA256은
+  `e06a8538d34c60b175ea14e7f4376ade3fe479575b21b2d602ea3a9ce55f7c8a`다. HTML template과 생성 JSON·Go도 포함한다.
+- 환경: darwin/arm64, Go 1.26.5, modernc SQLite, 로컬 PostgreSQL 17.5. 새 전용 PostgreSQL DB와 테스트별 schema,
+  임시 SQLite를 사용했다. 기존 개발 DB와 Helpdesk `migrations/0001_initial.godj.json`은 변경하지 않았다.
+  검증을 마친 작업 전용 PostgreSQL DB는 제거했다.
+
+### 로컬 관련 검증
+
+다음 범위를 `GODJ_REQUIRE_POSTGRES=1`, 전용 `GODJ_TEST_POSTGRES_URL`로 `go test -count=1 -json -timeout=15m` 실행했다.
+
+```text
+./schema/... ./orm ./forms/... ./serializers ./admin ./codegen/...
+./migrations/... ./db/... ./query ./internal/migrationautodetect ./internal/compiletest
+./api/... ./examples/article/... ./examples/helpdesk/... ./conformance/relationproduct
+```
+
+첫 실행에서 standalone 관계 product의 생성물 갱신 누락과 새 관계 consumer 테스트의 지원 밖 비교 연산 사용을 발견했다.
+실제 generator로 누락 파일을 재생성하고 기존 implicit-exact 의미에 맞게 테스트를 수정했다. 역방향 정수 terminal compile도 보강한 뒤
+`./codegen/consumertest ./conformance/relationproduct` 전체를 재실행했다. 나머지 패키지 소스에는 이후 동작 변경이 없다.
+최종 패키지별 결과는 **35 packages, 3,174 test 완료 event PASS(하위 test 포함), fail 0**이다. 13 packages는 `[no test files]`다.
+유일한 test skip은 직접 실행용이 아닌 `TestPostgresRevisionFenceHelperProcess`의 parent 진입이다. 실제 교차 process 부모 테스트는
+helper 전용 환경·pipe로 child를 실행하고 통과했다. 이 skip을 기능 검증 PASS로 세지 않았다.
+
+- 신규 generated integer consumer: 별도 module에서 required/default/min/max/null/zero, typed·dynamic·F query, nullable projection·Min/Max,
+  cache 포인터 분리, Create/Patch/Save mask·취소·쓰기 전 실패를 실제 SQLite와 검증했다. 필수 child test 두 개가 각각 정확히 한 번
+  완료되어야 하며 skip·실패·잘린 출력·stderr는 거부한다. linux/386/CGO0 generated model **cross-compile**도 통과했다. 386 runtime 주장은 아니다.
+- Helpdesk: SQLite·PostgreSQL에서 실제 0001 schema에 행을 만든 뒤 0002 적용·reverse·재적용, reopen·권한 교체와 Admin/API 흐름을
+  검증했다. 기존 row의 값과 새 nullable priority, int64 양 끝·0·null 입력, 잘못된 JSON 숫자·타입과 권한 거부 뒤 DB 보존을 확인했다.
+  Admin의 정확한 정수 렌더링과 null/zero 변경도 포함한다.
+- 외부 ogen v1.24.0 consumer: 실제 문서·offline 재생성·독립 module build·HTTP와 DB 결과를 함께 확인했다. Helpdesk 생성 요청의
+  생략/null/0/최소/최대 정수와 관계 범위·권한을 추가해 **13개 필수 check**를 확인한다. Article 문서와 client 의존성 lock은 변하지 않았다.
+- 고정 Django 6.1의 `BigIntegerField.formfield()`에서 required/optional **90개 관찰값**을 생성했다. Go Form이 같은 입력·정수·null·오류
+  코드를 통과했고 Python의 live 관찰/저장 fixture 비교 **1 test PASS**를 확인했다. 기존 전체 conformance corpus에 새 정수 contract가
+  등록됐다는 주장은 아니다.
+- `make generate-check`: Helpdesk·Article·관계 fixture 및 standalone 관계 product drift PASS.
+  Helpdesk `makemigrations` 재실행은 `status=clean`, candidate 0이었다.
+- 관련 `go vet`, `make docs-check format-check`, `git diff --check` PASS. 현재 Markdown 99개 local link를 검사했다.
+
+### 통합 검증 소유권
+
+누적 GDJ-0070/0071/0072를 묶은 Hosted full이 OS·race·CGO0·고정 PostgreSQL·process/reference 통합을 소유한다.
+로컬 전체 matrix는 반복하지 않는다. Hosted 실행의 정확한 source와 terminal 결과 확인은 아직 미완료이며,
+이전 `b74a79e`의 전체 성공을 이번 변경의 PASS로 가져오지 않는다.
+
 ## GDJ-0071 — schema 정체성·JSON 정책과 실제 생성 client
 
 - 작업: [GDJ-0071](../../work/0071-api-schema-identity-and-generated-client.md), 설계: [ADR-0058](../adr/0058-model-derived-openapi-and-operation-ownership.md).

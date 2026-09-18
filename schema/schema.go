@@ -83,6 +83,13 @@ func AutoField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldAuto, 0, options)
 }
 
+// IntegerField stores a signed 64-bit integer, independently of the Go target
+// architecture. Unlike AutoField, it is an ordinary writable, optionally
+// nullable scalar and may have an explicit int64 application default.
+func IntegerField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldInteger, 0, options)
+}
+
 func Target(appLabel, modelName string) ModelTarget {
 	return ModelTarget{AppLabel: appLabel, ModelName: modelName}
 }

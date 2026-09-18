@@ -28,7 +28,9 @@ type fieldRenderSpec struct {
 func fieldRenderKind(kind ir.FieldKind) fieldRenderSpec {
 	switch kind {
 	case ir.FieldAuto:
-		return fieldRenderSpec{"int64", "Integer", "IntegerField", "", "sql.NullInt64", "Int64", "ir.FieldAuto"}
+		return fieldRenderSpec{"int64", "Integer", "AutoField", "", "sql.NullInt64", "Int64", "ir.FieldAuto"}
+	case ir.FieldInteger:
+		return fieldRenderSpec{"int64", "Integer", "IntegerField", "NullableIntegerField", "sql.NullInt64", "Int64", "ir.FieldInteger"}
 	case ir.FieldChar:
 		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldChar"}
 	case ir.FieldBoolean:

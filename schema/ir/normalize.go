@@ -162,6 +162,16 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
+	case FieldInteger:
+		if field.PrimaryKey {
+			return validation(path+".primary_key", "unsupported", "only AutoField may be the primary key")
+		}
+		if field.MaxLength != 0 {
+			return validation(path+".max_length", "unsupported", "IntegerField has no max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarInteger {
+			return validation(path+".default", "type_mismatch", "IntegerField default must be an int64")
+		}
 	case FieldChar:
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")

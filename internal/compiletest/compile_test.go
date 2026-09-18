@@ -175,7 +175,7 @@ func verifyRelationFacadeProduction(t *testing.T) {
 		consumerPath,
 		selectorMutation,
 		"selector-negative.test",
-		[]string{"project.BlogPostRelationSelector", "orm.IntegerField[blog.Post]"},
+		[]string{"project.BlogPostRelationSelector", "orm.AutoField[blog.Post]"},
 	)
 
 	clearAuthorMutation := formatRelationFacadeMutation(t, replaceRelationFacadeToken(

@@ -2,12 +2,14 @@ package serializers_test
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/examples/helpdesk/modeldef"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/serializers"
 )
@@ -47,12 +49,13 @@ func TestModelSerializerProjectsConstraintsWithExplicitExposure(t *testing.T) {
 
 func TestModelEncoderUsesExplicitAllowlistWithoutInputCleaning(t *testing.T) {
 	metadata := (models.TicketDescriptor{}).Metadata()
-	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true})
+	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "priority", Optional: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	details := " original "
-	ticket := models.Ticket{ID: 1, Subject: " Printer ", Details: &details, CategoryID: 2}
+	priority := int64(math.MinInt64)
+	ticket := models.Ticket{ID: 1, Subject: " Printer ", Details: &details, CategoryID: 2, Priority: &priority}
 	encoder, err := serializers.NewModelEncoder(spec, metadata, (models.TicketDescriptor{}).WriteFieldValue)
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +65,7 @@ func TestModelEncoderUsesExplicitAllowlistWithoutInputCleaning(t *testing.T) {
 		t.Fatal(err)
 	}
 	details = "changed"
+	priority = 0
 	object, _ := value.AsObject()
 	if _, found := object.Get("category"); found {
 		t.Fatal("omitted model field exposed")
@@ -69,6 +73,10 @@ func TestModelEncoderUsesExplicitAllowlistWithoutInputCleaning(t *testing.T) {
 	projected, _ := object.Get("details")
 	if text, _ := projected.AsString(); text != " original " {
 		t.Fatal("output was cleaned or retained nullable model state")
+	}
+	projected, _ = object.Get("priority")
+	if value, ok := projected.AsInteger(); !ok || value != math.MinInt64 {
+		t.Fatal("output integer retained model state or lost precision")
 	}
 	for _, reader := range []func(models.Ticket, ir.Field) (query.Value, bool){
 		nil,
@@ -129,5 +137,45 @@ func TestModelEncoderOwnsMetadataAndDetachesReaderFields(t *testing.T) {
 	}
 	if _, err := (serializers.ModelEncoder[models.Ticket]{}).Encode(models.Ticket{}); err == nil {
 		t.Fatal("zero encoder accepted")
+	}
+}
+
+func TestIntegerModelSerializerPreservesDefaultAndPatchPresence(t *testing.T) {
+	definition, err := schema.Build(schema.Definition{AppLabel: "numbers", Models: []schema.Model{{Name: "counter", GoName: "Counter", Fields: []schema.Field{
+		schema.IntegerField("value", "Value", schema.Nullable(), schema.Default(int64(math.MaxInt64))),
+	}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := serializers.FromModel(definition.Models[0], serializers.ModelField{Name: "value"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		document string
+		mode     serializers.Mode
+		present  bool
+		want     serializers.Value
+	}{
+		{`{}`, serializers.ModeFull, true, serializers.Integer(math.MaxInt64)},
+		{`{}`, serializers.ModePartial, false, serializers.Value{}},
+		{`{"value":null}`, serializers.ModeFull, true, serializers.Null()},
+		{`{"value":null}`, serializers.ModePartial, true, serializers.Null()},
+		{`{"value":0}`, serializers.ModeFull, true, serializers.Integer(0)},
+		{`{"value":-9223372036854775808}`, serializers.ModePartial, true, serializers.Integer(math.MinInt64)},
+	} {
+		bound, err := spec.Bind(decodeObject(t, test.document), test.mode)
+		if err != nil || !bound.Valid() {
+			t.Fatalf("integer bind %s: %v %v", test.document, bound.Errors(), err)
+		}
+		value, present := bound.Values().Get("value")
+		if present != test.present || present && (value.Kind() != test.want.Kind()) {
+			t.Fatal("integer presence or null changed")
+		}
+		if want, ok := test.want.AsInteger(); ok {
+			if integer, valid := value.AsInteger(); !valid || integer != want {
+				t.Fatal("integer value or default changed")
+			}
+		}
 	}
 }

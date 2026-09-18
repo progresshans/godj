@@ -12,7 +12,7 @@ import (
 func orderedRequiredSelectQuery(t *testing.T, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor] {
 	t.Helper()
 	selected := requiredSelectQuery(t, backend)
-	id := NewIntegerField[relationObjectTestPost](relationObjectTestPostDescriptor{}.Metadata().Fields[0])
+	id := NewAutoField[relationObjectTestPost](relationObjectTestPostDescriptor{}.Metadata().Fields[0])
 	selected.plan = selected.plan.WithOrderings(id.Asc().ordering)
 	return selected
 }

@@ -315,6 +315,7 @@ func (site *Site) formContext(
 			"name":       templates.String(field.Name()),
 			"label":      templates.String(field.Label()),
 			"char":       templates.Bool(field.Kind() == forms.FieldChar),
+			"integer":    templates.Bool(field.Kind() == forms.FieldInteger),
 			"boolean":    templates.Bool(field.Kind() == forms.FieldBoolean),
 			"required":   templates.Bool(field.Required()),
 			"max_length": templates.Integer(int64(field.MaxLength())),
@@ -370,6 +371,10 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldBoolean {
 		checked, _ := initial.AsBoolean()
 		return "", checked
+	}
+	if field.Kind() == forms.FieldInteger {
+		value, _ := initial.AsInteger()
+		return strconv.FormatInt(value, 10), false
 	}
 	value, _ := initial.AsString()
 	return safeDisplayText(value), false

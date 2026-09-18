@@ -130,7 +130,7 @@ func (p ReversePrefetch[Owner, Source]) Load(
 	if err != nil {
 		return nil, err
 	}
-	ordering := NewIntegerField[Source](p.state.reverse.sourcePrimaryKey).Asc()
+	ordering := NewAutoField[Source](p.state.reverse.sourcePrimaryKey).Asc()
 	base := newQuerySet(backend, p.state.reverse.sourceDescriptor, p.state.reverse.sourcePlan)
 	batch := base.
 		Filter(predicateFromCondition[Source](inCondition, nil)).

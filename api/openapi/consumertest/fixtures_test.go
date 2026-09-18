@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"math"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -80,7 +81,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	articleSessionAuth, articleSession, articleViewSession := newConsumerSessionAuthentication(t, articleAll, articleView, apiapp.ListPath)
 	sessionURL, sessionDocument := newArticleConsumerAPI(t, sessionBackend, articleSessionAuth)
 
-	helpdeskBackend := newConsumerBackend(t, "helpdesk-session", helpdesk.InitialMigrationSource())
+	helpdeskBackend := newConsumerBackend(t, "helpdesk-session", helpdesk.MigrationSources()...)
 	category, err := helpdeskmodels.CategoryObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewCategoryCreate("Hardware & repairs"))
 	if err != nil {
 		t.Fatal("seed selected Helpdesk category:", err)
@@ -144,10 +145,14 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		if err != nil {
 			t.Fatal("read Helpdesk effects:", err)
 		}
-		if len(tickets) != 3 {
-			t.Fatalf("Helpdesk generated client left %d tickets, want two original and one created", len(tickets))
+		if len(tickets) != 7 {
+			t.Fatalf("Helpdesk generated client left %d tickets, want two original and five created", len(tickets))
 		}
 		selectedCount, createdCount := 0, 0
+		wantPriority := map[string]*int64{
+			"Consumer ticket": nil, "Null priority": nil,
+			"Maximum priority": new(int64(math.MaxInt64)), "Minimum priority": new(int64(math.MinInt64)), "Zero priority": new(int64(0)),
+		}
 		for _, stored := range tickets {
 			if stored.CategoryID == category.ID {
 				selectedCount++
@@ -166,9 +171,14 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if stored.CategoryID != category.ID {
 					t.Error("generated client created a ticket outside the selected category")
 				}
+				want, known := wantPriority[stored.Subject]
+				if !known || (stored.Priority == nil) != (want == nil) || (want != nil && stored.Priority != nil && *stored.Priority != *want) || stored.Closed || stored.Details != nil {
+					t.Error("generated client changed an integer value, null, or default during persistence")
+				}
+				delete(wantPriority, stored.Subject)
 			}
 		}
-		if selectedCount != 2 || createdCount != 1 {
+		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
 		}
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
@@ -179,7 +189,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	return input, documents, verify
 }
 
-func newConsumerBackend(t *testing.T, name string, source definition.Source) *sqlite.Backend {
+func newConsumerBackend(t *testing.T, name string, sources ...definition.Source) *sqlite.Backend {
 	t.Helper()
 	backend, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), name+".sqlite3"))
 	if err != nil {
@@ -190,7 +200,7 @@ func newConsumerBackend(t *testing.T, name string, source definition.Source) *sq
 			t.Error("close consumer database:", err)
 		}
 	})
-	loaded, _, err := definition.Load(source)
+	loaded, _, err := definition.Load(sources...)
 	if err != nil {
 		t.Fatal("load fixed consumer migration:", err)
 	}
@@ -326,6 +336,9 @@ func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string
 
 func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
 	if left.ID != right.ID || left.Subject != right.Subject || left.Closed != right.Closed || left.CategoryID != right.CategoryID {
+		return false
+	}
+	if (left.Priority == nil) != (right.Priority == nil) || (left.Priority != nil && *left.Priority != *right.Priority) {
 		return false
 	}
 	if left.Details == nil || right.Details == nil {

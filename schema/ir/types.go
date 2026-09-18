@@ -27,6 +27,7 @@ type FieldKind string
 
 const (
 	FieldAuto       FieldKind = "auto"
+	FieldInteger    FieldKind = "integer"
 	FieldChar       FieldKind = "char"
 	FieldBoolean    FieldKind = "boolean"
 	FieldForeignKey FieldKind = "foreign_key"

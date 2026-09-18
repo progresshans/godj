@@ -183,7 +183,7 @@ func TestDynamicReverseRelationsShareTypedASTAndPreserveNullableDeclaration(t *t
 	if err != nil {
 		t.Fatalf("BindReverse(posts) error = %v", err)
 	}
-	postID, err := posts.Integer(orm.NewIntegerField[relationQueryPost](postMetadata.Fields[0]))
+	postID, err := posts.Integer(orm.NewAutoField[relationQueryPost](postMetadata.Fields[0]))
 	if err != nil {
 		t.Fatalf("ReverseRelation.Integer(id) error = %v", err)
 	}

@@ -320,7 +320,7 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	}}
 	source := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend)
 	source.plan = querytest.Conditions(t, source.plan, query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")))
-	id := NewIntegerField[relationObjectTestPost](relationObjectTestPostField("id"))
+	id := NewAutoField[relationObjectTestPost](relationObjectTestPostField("id"))
 	if _, projectionErr := SelectInto(
 		context.Background(),
 		source,
@@ -585,7 +585,7 @@ func TestResultBuildersRejectNilAndInvalidInputsBeforeIO(t *testing.T) {
 	invalidTitle := NewStringField[resultTestModel](ir.Field{
 		Name: "title", Column: "title", Kind: ir.FieldBoolean,
 	})
-	var nilID *IntegerField[resultTestModel]
+	var nilID *AutoField[resultTestModel]
 	var nilTitle *StringField[resultTestModel]
 
 	tests := []struct {
@@ -602,7 +602,7 @@ func TestResultBuildersRejectNilAndInvalidInputsBeforeIO(t *testing.T) {
 			return err
 		}},
 		{name: "zero projection field", run: func(source QuerySet[resultTestModel]) error {
-			projection := Project1(IntegerField[resultTestModel]{}, func(id int64) int64 { return id })
+			projection := Project1(AutoField[resultTestModel]{}, func(id int64) int64 { return id })
 			_, err := SelectInto(context.Background(), source, projection)
 			return err
 		}},
@@ -626,7 +626,7 @@ func TestResultBuildersRejectNilAndInvalidInputsBeforeIO(t *testing.T) {
 			return err
 		}},
 		{name: "zero max field", run: func(source QuerySet[resultTestModel]) error {
-			maximum := Max(IntegerField[resultTestModel]{})
+			maximum := Max(AutoField[resultTestModel]{})
 			aggregate := Aggregate1(maximum, func(value Optional[int64]) Optional[int64] { return value })
 			_, err := AggregateInto(context.Background(), source, aggregate)
 			return err
@@ -818,7 +818,7 @@ func resultTestMetadata() ir.Model {
 }
 
 type resultTestFields struct {
-	ID        IntegerField[resultTestModel]
+	ID        AutoField[resultTestModel]
 	Title     StringField[resultTestModel]
 	Note      NullableStringField[resultTestModel]
 	Published BooleanField[resultTestModel]
@@ -827,7 +827,7 @@ type resultTestFields struct {
 func newResultTestFields() resultTestFields {
 	metadata := resultTestMetadata()
 	return resultTestFields{
-		ID:        NewIntegerField[resultTestModel](metadata.Fields[0]),
+		ID:        NewAutoField[resultTestModel](metadata.Fields[0]),
 		Title:     NewStringField[resultTestModel](metadata.Fields[1]),
 		Note:      NewNullableStringField[resultTestModel](metadata.Fields[2]),
 		Published: NewBooleanField[resultTestModel](metadata.Fields[3]),

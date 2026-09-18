@@ -49,7 +49,7 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit only subject/details/closed. Every create
+// category, while clients may edit subject/details/closed/priority. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -78,12 +78,12 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	}
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
-		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"})
+		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
-		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true})
+		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true})
 	if err != nil {
 		return nil, err
 	}
@@ -143,18 +143,18 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed"}
+	fields := []string{"subject", "details", "closed", "priority"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority")
 	if err != nil {
 		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		ListFields: []string{"id", "subject", "category", "closed"}, SearchFields: []string{"subject"},
+		ListFields: []string{"id", "subject", "category", "closed", "priority"}, SearchFields: []string{"subject"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -210,19 +210,28 @@ func (a *Application) list(ctx context.Context, request admin.ListRequest) (admi
 }
 
 type ticketInput struct {
-	subject string
-	details *string
-	closed  bool
+	subject  string
+	details  *string
+	closed   bool
+	priority *int64
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
 	subject, subjectOK := values.String("subject")
 	closed, closedOK := values.Boolean("closed")
 	details, detailsOK := values.Get("details")
-	if !subjectOK || !closedOK || !detailsOK || len(values.All()) != 3 {
+	priority, priorityOK := values.Get("priority")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || len(values.All()) != 4 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
+	if !priority.IsNull() {
+		integer, ok := priority.AsInteger()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid priority")
+		}
+		input.priority = &integer
+	}
 	if !details.IsNull() {
 		text, ok := details.AsString()
 		if !ok {
@@ -245,6 +254,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 			return admin.ErrObjectNotFound
 		}
 		create := models.NewTicketCreate(input.subject, a.categoryID).WithClosed(input.closed)
+		if input.priority == nil {
+			create = create.WithPriorityNull()
+		} else {
+			create = create.WithPriority(*input.priority)
+		}
 		if input.details == nil {
 			create = create.WithDetailsNull()
 		} else {
@@ -268,13 +282,18 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 			return admin.ErrObjectNotFound
 		}
 		patch := models.TicketPatch{}.WithSubject(input.subject).WithClosed(input.closed)
+		if input.priority == nil {
+			patch = patch.WithPriorityNull()
+		} else {
+			patch = patch.WithPriority(*input.priority)
+		}
 		if input.details == nil {
 			patch = patch.WithDetailsNull()
 		} else {
 			patch = patch.WithDetails(*input.details)
 		}
 		next := current
-		next.Subject, next.Details, next.Closed = input.subject, input.details, input.closed
+		next.Subject, next.Details, next.Closed, next.Priority = input.subject, input.details, input.closed, input.priority
 		descriptor := models.TicketDescriptor{}
 		for _, field := range descriptor.Metadata().Fields {
 			before, _ := descriptor.WriteFieldValue(current, field)
@@ -351,6 +370,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 	closed, _ := values.Get("closed")
 	boolean, _ := closed.AsBoolean()
 	input := ticketInput{subject: text, closed: boolean}
+	if priority, present := values.Get("priority"); present && !priority.IsNull() {
+		integer, _ := priority.AsInteger()
+		input.priority = &integer
+	}
 	if details, present := values.Get("details"); present && !details.IsNull() {
 		text, _ := details.AsString()
 		input.details = &text

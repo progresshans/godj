@@ -1,6 +1,7 @@
 package model_test
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -12,19 +13,29 @@ import (
 
 func TestInitialValuesSelectsTypedFieldsAndDetachesNullableValue(t *testing.T) {
 	metadata := (models.TicketDescriptor{}).Metadata()
-	spec, err := formmodel.NewSpecForFields(metadata, []string{"subject", "details", "closed"})
+	spec, err := formmodel.NewSpecForFields(metadata, []string{"subject", "details", "closed", "priority"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	details := "original"
-	ticket := models.Ticket{ID: 1, Subject: "Printer", Details: &details, CategoryID: 2}
+	priority := int64(math.MaxInt64)
+	ticket := models.Ticket{ID: 1, Subject: "Printer", Details: &details, CategoryID: 2, Priority: &priority}
 	initial, err := formmodel.InitialValues(metadata, spec, ticket, (models.TicketDescriptor{}).WriteFieldValue)
 	if err != nil {
 		t.Fatal(err)
 	}
 	details = "changed"
-	if text, ok := initial["details"].AsString(); !ok || text != "original" || len(initial) != 3 {
+	priority = 0
+	if text, ok := initial["details"].AsString(); !ok || text != "original" || len(initial) != 4 {
 		t.Fatal("initial values retained model state or exposed unselected fields")
+	}
+	if integer, ok := initial["priority"].AsInteger(); !ok || integer != math.MaxInt64 {
+		t.Fatal("integer initial value retained model state or lost precision")
+	}
+	ticket.Priority = nil
+	cleared, err := formmodel.InitialValues(metadata, spec, ticket, (models.TicketDescriptor{}).WriteFieldValue)
+	if err != nil || !cleared["priority"].IsNull() {
+		t.Fatal("nullable integer initial became zero")
 	}
 	for _, bad := range []models.Ticket{{Subject: strings.Repeat("x", 121)}, {Subject: "bad\x00text"}} {
 		if _, err := formmodel.InitialValues(metadata, spec, bad, (models.TicketDescriptor{}).WriteFieldValue); err == nil {

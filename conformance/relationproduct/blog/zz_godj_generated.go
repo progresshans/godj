@@ -88,13 +88,13 @@ func (PostDescriptor) WriteFieldValue(value Post, field ir.Field) (query.Value, 
 }
 
 type PostFieldSet struct {
-	ID orm.IntegerField[Post]
+	ID orm.AutoField[Post]
 }
 
 var PostFields = func() PostFieldSet {
 	metadata := postMetadata()
 	return PostFieldSet{
-		ID: orm.NewIntegerField[Post](metadata.Fields[0]),
+		ID: orm.NewAutoField[Post](metadata.Fields[0]),
 	}
 }()
 

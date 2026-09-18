@@ -19,6 +19,7 @@ const (
 	ValueNull ValueKind = iota
 	ValueString
 	ValueBoolean
+	ValueInteger
 )
 
 // Value is an immutable cleaned or initial form value.
@@ -26,11 +27,13 @@ type Value struct {
 	kind    ValueKind
 	string  string
 	boolean bool
+	integer int64
 }
 
 func Null() Value                  { return Value{kind: ValueNull} }
 func String(value string) Value    { return Value{kind: ValueString, string: value} }
 func Boolean(value bool) Value     { return Value{kind: ValueBoolean, boolean: value} }
+func Integer(value int64) Value    { return Value{kind: ValueInteger, integer: value} }
 func (v Value) Kind() ValueKind    { return v.kind }
 func (v Value) IsNull() bool       { return v.kind == ValueNull }
 func (v Value) Equal(o Value) bool { return v == o }
@@ -43,12 +46,17 @@ func (v Value) AsBoolean() (bool, bool) {
 	return v.boolean, v.kind == ValueBoolean
 }
 
+func (v Value) AsInteger() (int64, bool) {
+	return v.integer, v.kind == ValueInteger
+}
+
 // FieldKind is the bounded form field set implemented by this slice.
 type FieldKind uint8
 
 const (
 	FieldChar FieldKind = iota + 1
 	FieldBoolean
+	FieldInteger
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -171,6 +179,19 @@ func BooleanField(name string, options ...FieldOption) (Field, error) {
 	return makeField(name, FieldBoolean, config)
 }
 
+// IntegerField cleans signed decimal input without converting through floating
+// point. Optional empty input requires WithNullable and cleans to Null.
+func IntegerField(name string, options ...FieldOption) (Field, error) {
+	config := fieldConfig{label: name, required: true}
+	for _, option := range options {
+		if option == nil {
+			return Field{}, &ConfigError{Path: "fields." + name, Code: "nil_option"}
+		}
+		option.apply(&config)
+	}
+	return makeField(name, FieldInteger, config)
+}
+
 func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if !validName(name) {
 		return Field{}, &ConfigError{Path: "fields", Code: "invalid_name"}
@@ -184,6 +205,16 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
+	case FieldInteger:
+		if config.maxLength != 0 {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
+		}
+		if !config.required && !config.nullable {
+			return Field{}, &ConfigError{Path: "fields." + name + ".nullable", Code: "optional_integer_requires_null"}
+		}
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
+			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
+		}
 	case FieldChar:
 		if config.maxLength < 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "invalid"}
@@ -229,7 +260,8 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 	if value.kind == ValueNull {
 		return nullable
 	}
-	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean
+	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
+		kind == FieldInteger && value.kind == ValueInteger
 }
 
 func (f Field) Name() string    { return f.name }
@@ -303,6 +335,14 @@ func (v Values) Boolean(name string) (bool, bool) {
 	return value.AsBoolean()
 }
 
+func (v Values) Integer(name string) (int64, bool) {
+	value, ok := v.Get(name)
+	if !ok {
+		return 0, false
+	}
+	return value.AsInteger()
+}
+
 func (v Values) All() []Entry {
 	entries := make([]Entry, 0, len(v.order))
 	for _, name := range v.order {
@@ -353,6 +393,9 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = field.defaultValue
 		case field.kind == FieldBoolean:
 			value = Boolean(false)
+		case field.kind == FieldInteger:
+			// An unbound required integer starts blank rather than inventing zero.
+			value = Null()
 		case field.nullable:
 			value = Null()
 		}
@@ -487,6 +530,19 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 	var value Value
 	var failures []validation.Errors
 	switch field.kind {
+	case FieldInteger:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		var code validation.Code
+		value, code = cleanInteger(raw)
+		if code != "" {
+			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+		}
+		if value.IsNull() && field.required {
+			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
+		}
 	case FieldChar:
 		raw := ""
 		if present && len(submitted) == 1 {
@@ -554,6 +610,13 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		return true
 	}
 	switch field.kind {
+	case FieldInteger:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		value, code := cleanInteger(raw)
+		return code != "" || !value.Equal(initial)
 	case FieldChar:
 		raw := ""
 		if present && len(submitted) == 1 {

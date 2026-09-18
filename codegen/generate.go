@@ -475,7 +475,7 @@ func defaultValueExpression(value ir.ScalarDefault) string {
 	case ir.ScalarBoolean:
 		return strconv.FormatBool(value.Boolean)
 	case ir.ScalarInteger:
-		return strconv.FormatInt(value.Integer, 10)
+		return "int64(" + strconv.FormatInt(value.Integer, 10) + ")"
 	default:
 		return "nil"
 	}

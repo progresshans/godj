@@ -35,20 +35,36 @@ type scalarCell[V any] struct {
 	value       func() V
 }
 
-func (f IntegerField[M]) scalarResultField(M, int64) (query.FieldRef, func() scalarCell[int64], error) {
+func (f integerField[M]) scalarResultField(M, int64) (query.FieldRef, func() scalarCell[int64], error) {
 	return f.reference, func() scalarCell[int64] {
 		var value int64
 		return scalarCell[int64]{destination: &value, value: func() int64 { return value }}
 	}, f.err
 }
 
-func (f IntegerField[M]) scalarOrderedField(M, int64) (query.FieldRef, func() scalarCell[Optional[int64]], error) {
+func (f integerField[M]) scalarOrderedField(M, int64) (query.FieldRef, func() scalarCell[Optional[int64]], error) {
 	return f.reference, func() scalarCell[Optional[int64]] {
 		var value sql.NullInt64
 		return scalarCell[Optional[int64]]{
 			destination: &value,
 			value: func() Optional[int64] {
 				return Optional[int64]{value: value.Int64, valid: value.Valid}
+			},
+		}
+	}, f.err
+}
+
+func (f NullableIntegerField[M]) scalarResultField(M, *int64) (query.FieldRef, func() scalarCell[*int64], error) {
+	return f.reference, func() scalarCell[*int64] {
+		var value sql.NullInt64
+		return scalarCell[*int64]{
+			destination: &value,
+			value: func() *int64 {
+				if !value.Valid {
+					return nil
+				}
+				copy := value.Int64
+				return &copy
 			},
 		}
 	}, f.err

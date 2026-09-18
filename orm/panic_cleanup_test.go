@@ -106,7 +106,7 @@ func TestModelTerminalsCloseRowsAfterDescriptorOrCallbackPanic(t *testing.T) {
 					}
 					return rowsForIDs(9), nil
 				}}
-				id := NewIntegerField[cacheTestModel](descriptor.Metadata().Fields[0])
+				id := NewAutoField[cacheTestModel](descriptor.Metadata().Fields[0])
 				qs := NewManager[cacheTestModel](descriptor).Using(backend).OrderBy(id.Asc())
 				got := recoverTestPanic(func() {
 					if terminal == "at" {

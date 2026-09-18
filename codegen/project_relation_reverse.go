@@ -302,7 +302,7 @@ func renderProjectRelationReverseTypes(output *bytes.Buffer, owner projectRelati
 		fmt.Fprintf(output, "type %s struct {\n", relation.typeName)
 		for _, terminal := range relation.terminals {
 			fieldType := "orm.RelatedStringField"
-			if terminal.field.Kind == ir.FieldAuto {
+			if terminal.field.Kind == ir.FieldAuto || terminal.field.Kind == ir.FieldInteger {
 				fieldType = "orm.RelatedIntegerField"
 			}
 			fmt.Fprintf(output, "\t%s %s[%s]\n", terminal.field.GoName, fieldType, ownerType)
@@ -379,7 +379,7 @@ func renderBindReverseRelations(
 			fmt.Fprintln(output, "\t}")
 			for _, terminal := range relation.terminals {
 				method := "String"
-				if terminal.field.Kind == ir.FieldAuto {
+				if terminal.field.Kind == ir.FieldAuto || terminal.field.Kind == ir.FieldInteger {
 					method = "Integer"
 				}
 				fmt.Fprintf(

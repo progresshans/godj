@@ -23,7 +23,7 @@ func TestPublicReverseRelationQuerySurfaceDoesNotRequireObjectCapability(t *test
 	if err != nil {
 		t.Fatalf("BindReverse() with plain query descriptors error = %v", err)
 	}
-	postID, err := posts.Integer(orm.NewIntegerField[relationQueryPost](postMetadata.Fields[0]))
+	postID, err := posts.Integer(orm.NewAutoField[relationQueryPost](postMetadata.Fields[0]))
 	if err != nil {
 		t.Fatalf("ReverseRelation.Integer() error = %v", err)
 	}
@@ -45,7 +45,7 @@ func TestPublicReverseRelationQuerySurfaceDoesNotRequireObjectCapability(t *test
 	if err != nil {
 		t.Fatalf("BindReverse(reviewed_posts) error = %v", err)
 	}
-	reviewedID, err := reviewed.Integer(orm.NewIntegerField[relationQueryPost](postMetadata.Fields[0]))
+	reviewedID, err := reviewed.Integer(orm.NewAutoField[relationQueryPost](postMetadata.Fields[0]))
 	if err != nil {
 		t.Fatalf("nullable ReverseRelation.Integer() error = %v", err)
 	}
@@ -91,7 +91,7 @@ func TestPublicReverseRelationBindingFailuresPublishOnlyZeroValues(t *testing.T)
 
 	var zeroRelation orm.ReverseRelation[relationQueryAuthor, relationQueryPost]
 	postMetadata, _ = fixture.binding.Model(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"})
-	_, err = zeroRelation.Integer(orm.NewIntegerField[relationQueryPost](postMetadata.Fields[0]))
+	_, err = zeroRelation.Integer(orm.NewAutoField[relationQueryPost](postMetadata.Fields[0]))
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 	_, err = zeroRelation.String(orm.NewStringField[relationQueryPost](ir.Field{
 		Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 100,

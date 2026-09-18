@@ -46,6 +46,10 @@ Django-named reference corpus에 저장되어 있어도 GoDj 정책을 Django의
 [프레임워크 조사](research/2026-09-12-framework-developer-experience.md#출처)에 있다.
 이 자료의 조사 버전을 현재 Django/DRF conformance profile이나 제품 dependency로 자동 채택하지 않는다.
 
+일반 int64 필드는 고정된 Django 6.1 `BigIntegerField`와 그 integer form을 참조한다. BSD-3-Clause 소스 위치와 비교 범위는
+[ADR-0059](adr/0059-signed-integer-field-and-model-growth.md#출처), 실제 입력·오류 관찰은
+[integer reference runner](../conformance/runners/django/integer_field_reference.py)에 있다.
+
 모델·operation 문서의 표현 기준은 [OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html)이다.
 독립 규격 검사는 [openapi-spec-validator](https://openapi-spec-validator.readthedocs.io/en/latest/)를 격리 실행하며,
 실제 사용 버전과 범위는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다.

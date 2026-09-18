@@ -80,7 +80,7 @@ func OverrideField(name string, options ...OverrideOption) Override {
 	return Override{name: name, config: config}
 }
 
-// NewSpec projects editable Char and Boolean fields in exact IR declaration
+// NewSpec projects editable scalar fields in exact IR declaration
 // order. An Auto primary key is non-editable; every other unsupported kind is
 // rejected rather than silently omitted.
 func NewSpec(model ir.Model, overrides ...Override) (forms.Spec, error) {
@@ -192,6 +192,24 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		options = append(options, forms.WithValidators(override.validators...))
 	}
 	switch field.Kind {
+	case ir.FieldInteger:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_integer_metadata"}
+		}
+		options = append(options, forms.WithRequired(!field.Nullable))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ir.ScalarInteger {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Integer(field.Default.Integer)))
+		}
+		return forms.IntegerField(field.Name, options...)
 	case ir.FieldChar:
 		if field.PrimaryKey || field.MaxLength <= 0 {
 			return forms.Field{}, &Error{Code: "invalid_char_metadata"}

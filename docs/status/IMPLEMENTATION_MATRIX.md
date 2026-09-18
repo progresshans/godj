@@ -7,7 +7,7 @@
 
 | 영역 | 구현된 범위 | 주요 제한·다음 경계 | 코드 |
 |---|---|---|---|
-| Schema/IR | normalized schema, current scalar/FK 의미, immutable snapshot | 모든 Django field·custom field 아님 | [schema](../../schema/) |
+| Schema/IR | Auto·signed int64 Integer(nullable/default)·Char·Boolean·FK, normalized immutable snapshot | 넓은 field/constraint·custom field 미지원 | [schema](../../schema/), [정수 의미](../adr/0059-signed-integer-field-and-model-growth.md) |
 | 생성 | ProjectSpec, typed model/FieldSet/descriptor와 project relation binding, 후보 compile/publication/recovery | Linux/macOS local filesystem 중심 | [codegen](../../codegen/) |
 | Query | typed/dynamic 공통 AST, Boolean composition, scalar comparison, same-model F, projection·Count/Min/Max·관계 filter Count | annotation/grouping/subquery/window/bulk/locking은 별도 | [orm](../../orm/), [query](../../query/) |
 | 평가 | lazy query, full-result cache, cloning, iterator와 cancellation | 임의 model/callback의 goroutine 안전성을 포함하지 않음 | [ORM cache](../CONCURRENCY.md#queryset-평가) |
@@ -22,7 +22,7 @@
 | JSON API | model-derived allowlist serializer, bounded parser, PUT/PATCH, pagination/filter, authentication profile, operation·모델 기반 OpenAPI 3.1·named local schema, Article 게시·Helpdesk composition, 고정 ogen Go client 회귀 | browsable API·배포형/다언어 SDK·일반 viewset 자동화 미지원; schema는 runtime parser·인가 검증의 대체가 아님 | [api](../../api/), [OpenAPI](../../api/openapi/), [serializers](../../serializers/) |
 | Auth/session | password hashing, Session/CSRF, injected strict Bearer verifier, rotation/logout | token issuer/JWT/OAuth/OIDC/password reset·multi-user lifecycle 별도 | [auth](../../auth/), [sessions](../../sessions/) |
 | Durable system state | explicit provision/open, permission CAS와 session 폐기, cooperative application transaction | 비협력 writer·자동 policy/key 전파 미지원 | [systemstate](../../systemstate/) |
-| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 티켓 상세 조회 | GDJ-0058 상세 조회는 SQLite/PostgreSQL normal/race/CGO-disabled 검증; 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님 | [examples](../../examples/) |
+| 개발 예제 | Article 및 Category–Ticket Helpdesk의 Form/Admin/API·관계·기존 DB 권한 갱신, 단일 JOIN 상세, priority 새 migration | 전체 범용 Helpdesk 기능이나 별도 모듈 배포 검증 아님; 환경별 실행은 TEST_EVIDENCE 참조 | [examples](../../examples/) |
 
 ## 계약과 증거
 

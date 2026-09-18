@@ -583,9 +583,9 @@ func assertPostgresMigrationColumnCatalog(
 		if actual.typeName != "bool" || actual.typeModifier != -1 || !actual.notNull || actual.identity != "" {
 			return fmt.Errorf("BooleanField column %q has an unsupported physical shape", field.Column)
 		}
-	case ir.FieldForeignKey:
+	case ir.FieldInteger, ir.FieldForeignKey:
 		if actual.typeName != "int8" || actual.typeModifier != -1 || actual.notNull == field.Nullable || actual.identity != "" {
-			return fmt.Errorf("ForeignKey column %q has an unsupported physical shape", field.Column)
+			return fmt.Errorf("integer column %q has an unsupported physical shape", field.Column)
 		}
 	default:
 		return fmt.Errorf("column %q has unsupported field kind %q", field.Column, field.Kind)

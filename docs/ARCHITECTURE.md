@@ -30,6 +30,9 @@ lookup input ┘
 ## Schema와 생성
 
 Schema IR은 normalized model 의미의 원본이다. 각 소비자가 별도 field/default/nullability 정의를 만들지 않는다.
+
+일반 `IntegerField`는 signed int64이며 nullable/default를 같은 IR에서 소비한다. 읽기 전용 Auto ID와 writable integer의
+typed capability를 구분하고 양 backend·Form/Admin·JSON 경계를 함께 연결한다. [ADR-0059](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 입력은 검증 후 복사하고, caller가 가진 slice·map·nested metadata를 바꿔 이미 만든 schema나 query 의미를 변경할 수 없어야 한다.
 FK target은 app/model identity로 선언하고 project binding 시 graph 전체를 해석한다. 현재 FK target과 relation kind의 제한은
 [Backend Matrix](BACKEND_MATRIX.md)에 명시한다.

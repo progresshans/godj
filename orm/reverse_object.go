@@ -121,7 +121,7 @@ func (r ReverseObject[Owner, Source]) From(
 		query.LookupExact,
 		query.Integer(identifier),
 	), nil)
-	ordering := NewIntegerField[Source](r.state.sourcePrimaryKey).Asc()
+	ordering := NewAutoField[Source](r.state.sourcePrimaryKey).Asc()
 	querySet := newQuerySet(backend, r.state.sourceDescriptor, r.state.sourcePlan).
 		Filter(predicate).
 		OrderBy(ordering)

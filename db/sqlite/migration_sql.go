@@ -89,6 +89,17 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 		// Django's SQLite AutoField uses AUTOINCREMENT so deleting the current
 		// maximum key cannot make a later insert reuse that identifier.
 		declaration = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
+	case ir.FieldInteger:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil ||
+			field.Default != nil && field.Default.Kind != ir.ScalarInteger {
+			return "", fmt.Errorf("IntegerField has an invalid SQLite migration shape")
+		}
+		declaration = "BIGINT"
+		if field.Nullable {
+			declaration += " NULL"
+		} else {
+			declaration += " NOT NULL"
+		}
 	case ir.FieldChar:
 		if field.MaxLength <= 0 {
 			return "", fmt.Errorf("CharField max length must be positive")

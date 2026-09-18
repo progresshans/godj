@@ -141,7 +141,7 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 			projected, err = StringField(field.Name, options...)
 		case ir.FieldBoolean:
 			projected, err = BooleanField(field.Name, options...)
-		case ir.FieldAuto, ir.FieldForeignKey:
+		case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
 			projected, err = IntegerField(field.Name, options...)
 		default:
 			return Spec{}, invalidConfig("model."+field.Name, "unsupported model field")

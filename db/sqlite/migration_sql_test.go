@@ -72,6 +72,9 @@ func TestCompileMigrationColumnRejectsUnsupportedShape(t *testing.T) {
 		{name: "invalid char length", field: ir.Field{Column: "value", Kind: ir.FieldChar}},
 		{name: "nullable boolean", field: ir.Field{Column: "value", Kind: ir.FieldBoolean, Nullable: true}},
 		{name: "invalid auto", field: ir.Field{Column: "id", Kind: ir.FieldAuto}},
+		{name: "integer primary key", field: ir.Field{Column: "value", Kind: ir.FieldInteger, PrimaryKey: true}},
+		{name: "integer length", field: ir.Field{Column: "value", Kind: ir.FieldInteger, MaxLength: 1}},
+		{name: "integer wrong default", field: ir.Field{Column: "value", Kind: ir.FieldInteger, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean}}},
 		{name: "unknown kind", field: ir.Field{Column: "value", Kind: ir.FieldKind("unknown")}},
 	}
 	for _, test := range tests {
@@ -82,6 +85,20 @@ func TestCompileMigrationColumnRejectsUnsupportedShape(t *testing.T) {
 				t.Fatal("compileMigrationColumn() error = nil")
 			}
 		})
+	}
+}
+
+func TestIntegerMigrationColumnIsSignedStorageWithoutPersistentDefault(t *testing.T) {
+	for _, nullable := range []bool{false, true} {
+		field := ir.Field{Name: "amount", GoName: "Amount", Column: "amount", Kind: ir.FieldInteger, Nullable: nullable, Default: &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: -9223372036854775808}}
+		statement, err := compileMigrationColumn(field)
+		want := `"amount" BIGINT NOT NULL`
+		if nullable {
+			want = `"amount" BIGINT NULL`
+		}
+		if err != nil || statement != want {
+			t.Fatalf("integer column = %q, %v; want %q", statement, err, want)
+		}
 	}
 }
 
