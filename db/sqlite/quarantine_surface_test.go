@@ -19,6 +19,14 @@ func TestQuarantinedBackendRejectsNewIOBeforeDriverAdmission(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	queryPlan := query.NewPlan("quarantine_probe", []query.FieldRef{id})
+	emptyCondition, err := query.NewInCondition(id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	emptyPlan, err := queryPlan.WithConditions(emptyCondition)
+	if err != nil {
+		t.Fatal(err)
+	}
 	insertPlan := query.NewInsertPlan("quarantine_probe", []query.Assignment{
 		query.NewAssignment(title, query.String("value")),
 	})
@@ -36,6 +44,17 @@ func TestQuarantinedBackendRejectsNewIOBeforeDriverAdmission(t *testing.T) {
 		name   string
 		invoke func(context.Context, *quarantineSurfaceHarness, *atomic.Int32) error
 	}{
+		{
+			name: "empty membership query",
+			invoke: func(ctx context.Context, harness *quarantineSurfaceHarness, _ *atomic.Int32) error {
+				rows, err := harness.backend.Query(ctx, emptyPlan)
+				if rows != nil {
+					_ = rows.Close()
+					return errors.New("empty query bypassed quarantine")
+				}
+				return err
+			},
+		},
 		{
 			name: "query",
 			invoke: func(ctx context.Context, harness *quarantineSurfaceHarness, _ *atomic.Int32) error {

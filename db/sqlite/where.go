@@ -28,6 +28,8 @@ type sqliteWhereNode struct {
 	children    []*sqliteWhereNode
 	fieldSQL    string
 	rhsFieldSQL string
+	inValues    []query.Value
+	inHasNull   bool
 }
 
 func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
@@ -69,6 +71,13 @@ func analyzeWhereExpression(
 			return nil, false, invalidPlan("query expression leaf is zero or malformed")
 		}
 		node.condition = condition
+		if condition.Lookup() == query.LookupIn {
+			values, hasNull, err := queryplan.MembershipValues(condition)
+			if err != nil {
+				return nil, false, err
+			}
+			node.inValues, node.inHasNull = values, hasNull
+		}
 		_, related := condition.RelationPath()
 		if related && !relationAtRootConjunction {
 			return nil, false, unsupportedRelatedCondition(
@@ -194,16 +203,26 @@ func appendWhereNode(
 		if len(guards) > 0 && !alreadyGrouped {
 			sql.WriteByte('(')
 		}
-		sql.WriteString(node.fieldSQL)
-		conditionArguments, err := compileCondition(sql, node.condition, node.rhsFieldSQL)
-		if err != nil {
-			return err
+		if node.condition.Lookup() == query.LookupIn && len(node.inValues) == 0 {
+			sql.WriteString("0 = 1")
+		} else {
+			sql.WriteString(node.fieldSQL)
+			conditionArguments, err := compileCondition(sql, node.condition, node.rhsFieldSQL, node.inValues)
+			if err != nil {
+				return err
+			}
+			*arguments = append(*arguments, conditionArguments...)
 		}
-		*arguments = append(*arguments, conditionArguments...)
 		for _, guard := range guards {
-			sql.WriteString(" AND ")
-			sql.WriteString(guard)
-			sql.WriteString(" IS NOT NULL")
+			if node.condition.Lookup() == query.LookupIn && node.inHasNull {
+				sql.WriteString(" OR ")
+				sql.WriteString(guard)
+				sql.WriteString(" IS NULL")
+			} else {
+				sql.WriteString(" AND ")
+				sql.WriteString(guard)
+				sql.WriteString(" IS NOT NULL")
+			}
 		}
 		if len(guards) > 0 && !alreadyGrouped {
 			sql.WriteByte(')')

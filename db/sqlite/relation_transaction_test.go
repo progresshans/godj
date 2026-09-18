@@ -1009,7 +1009,7 @@ func TestRelationSessionMarksMutationPossibleImmediatelyBeforeExecution(t *testi
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			session := &relationSession{active: true}
+			session := &relationSession{active: true, lifetime: t.Context()}
 			connection := &relationFaultConnection{}
 			connection.exec = func(context.Context, string, []any) (sql.Result, error) {
 				if !session.mutationPossible {
@@ -1053,7 +1053,7 @@ func TestRelationSessionValidationFailureDoesNotMarkMutationPossible(t *testing.
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			connection := &relationFaultConnection{}
-			session := &relationSession{connection: connection, active: true}
+			session := &relationSession{connection: connection, active: true, lifetime: t.Context()}
 			rows, err := test.invoke(session)
 			if rows != 0 || !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 				t.Fatalf("invalid mutation = (%d, %v), want invalid_plan", rows, err)

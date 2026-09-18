@@ -444,7 +444,7 @@ func quoteQualified(alias, column string) (string, error) {
 	return quotedAlias + "." + quotedColumn, nil
 }
 
-func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldSQL string) ([]any, error) {
+func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldSQL string, inValues []query.Value) ([]any, error) {
 	field := condition.Field()
 	if right, ok := condition.RHSField(); ok {
 		if rhsFieldSQL == "" {
@@ -511,13 +511,12 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 		}
 		return nil, nil
 	case query.LookupIn:
-		values, ok := condition.Values()
-		if !ok {
+		if len(inValues) == 0 {
 			return nil, invalidPlan("SQLite IN requires a valid root-table list-backed condition")
 		}
 		sql.WriteString(" IN (")
-		arguments := make([]any, len(values))
-		for index, item := range values {
+		arguments := make([]any, len(inValues))
+		for index, item := range inValues {
 			if index > 0 {
 				sql.WriteString(", ")
 			}

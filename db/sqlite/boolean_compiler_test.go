@@ -1,6 +1,7 @@
 package sqlite_test
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -202,6 +203,14 @@ func TestSQLiteBooleanCompilerKeepsRelationJoinsRootConjunctive(t *testing.T) {
 	}
 	if want := []any{"Ada", "Alpha", "Beta"}; !reflect.DeepEqual(arguments, want) {
 		t.Fatalf("arguments = %#v, want %#v", arguments, want)
+	}
+	emptyCondition, err := query.NewInCondition(id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsupported := sqliteTestAnd(t, sqliteTestExpression(t, emptyCondition), sqliteTestOr(t, related, titleChoice))
+	if _, err := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}).WithWhere(unsupported); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported}) {
+		t.Fatalf("empty source concealed unsupported Boolean relation: %v", err)
 	}
 }
 

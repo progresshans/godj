@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -120,9 +121,12 @@ func executeAdmittedCoordinatedAtomic(
 		return errors.Join(primary, discardErr)
 	}
 
+	lifetime, finishLifetime := context.WithCancelCause(ctx)
+	defer finishLifetime(sql.ErrTxDone)
 	inner := &relationSession{
 		connection: connection,
 		queryCount: queryCount,
+		lifetime:   lifetime,
 		active:     true,
 	}
 	session := &coordinatedSession{session: inner}
