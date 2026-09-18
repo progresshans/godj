@@ -58,8 +58,16 @@ transaction 종료 뒤 결과를 읽는 일을 막았다. 실패한 중간 실�
 
 ### 통합 검증 소유자
 
-이번 변경은 Hosted `orm` scope를 선택한다. 현재 이 source의 Hosted 실행은 대기 중이며 다른 source의 성공을 가져오지 않는다.
-전체 reference/platform/cold-build를 요청한 `full`은 아니다. 기존 Text+DateTime full은 아래 GDJ-0074의 source에만 적용된다.
+통합 source는 `adb3ea62f7c8f9a57c623634e2c11b60f04374bc`다. Merge 뒤 로컬 checkpoint의 29개 파일 hash가 모두 같음을 확인했다.
+[Hosted ORM 실행](https://github.com/progresshans/godj/actions/runs/35392098111)의 attempt 1은 **completed/success**다.
+서로 다른 job 48개 중 **44개 success**, scope 밖 4개는 계획된 skip이다. 실패·취소·미완료 job은 없다.
+`CI result (orm)` 실제 로그의 `scope=orm`, `full_platform_verified=false`와 네 owner
+`portable-go-matrix`·`relation-product-matrix`·`command-product-matrix`·`postgresql-product`의 성공을 확인했다.
+
+실제 범위는 Linux/macOS amd64·arm64의 선택된 relation/command 제품과 Linux portable normal/race/CGO0, PostgreSQL 17.10의 실제 제품이다.
+비대상 skip은 project-check matrix·Python compatibility matrix·exact Darwin reference·current capture reference 통합이다.
+이 네 범위를 이번 실행의 PASS로 표현하지 않는다. Windows runtime과 전체 reference/platform/cold-build를 요청한 `full`은 아니며,
+기존 Text+DateTime full은 아래 GDJ-0074의 source에만 적용된다. 후속 GDJ-0076 작업 사본의 choices 구현도 이번 PASS에 포함하지 않는다.
 
 ## GDJ-0074 — DateTimeField와 UTC 시각 값
 
@@ -141,8 +149,9 @@ attempt 1은 **completed/success**다. 서로 다른 **62개 job**이 모두 com
 `CI result (full)`의 실제 report에서 `full_platform_verified=true`와 전체 선택 owner의 성공을 확인했다.
 같은 run의 `systemstate-postgres-1`·`operator-postgres-1` capture 두 개가 게시됐고, reference job이 현재 source와 producer provenance를 검증해 소비했다.
 
-이 full은 누적 Text/DateTime의 Linux/macOS/Windows·normal/race/CGO0·32-bit compile·고정 PostgreSQL 17.10·exact Darwin·Python compatibility·
+이 full은 누적 Text/DateTime의 Linux/macOS·normal/race/CGO0·32-bit compile·고정 PostgreSQL 17.10·exact Darwin·Python compatibility·
 process·cold-build와 reference 통합 범위를 완료했다. Python compatibility 네 버전도 모두 terminal success다.
+실제 CI runner는 Linux/macOS이며 Windows runtime 검증은 포함하지 않는다. 이전 완료 기록의 Windows 포함 표현을 실행 roster에 맞게 정정했다.
 완료 기록 이후의 Markdown 변경이나 별도 GDJ-0075 작업 사본의 IN 구현을 이 full source의 검증으로 합치지 않는다.
 
 ## GDJ-0073 — TextField와 여러 줄 Form/Admin 입력

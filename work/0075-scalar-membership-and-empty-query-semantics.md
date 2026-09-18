@@ -1,6 +1,6 @@
 ---
 id: GDJ-0075
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "8fd8936d634b5038a534936c15a2b1cfac4b853b"
 integration_owner: "root"
@@ -25,8 +25,9 @@ integration_owner: "root"
 장기 의미와 남은 범위는 [ADR-0062](../docs/adr/0062-scalar-membership-and-empty-query-execution.md), source·명령·실패 수정·실행 수는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다. Relation-path·tuple/composite-key·subquery IN과 대규모 목록의 분할은 미완료다.
 
-## 다음 검증
+## 통합 완료
 
-변경 source를 기존 draft PR에 통합하고 Hosted `orm` scope를 실행한다. 이 실행이 이번 변경의 Linux/macOS/Windows·고정 PostgreSQL과
-선택된 process/관계 통합 범위를 소유한다. 현재 로컬 PASS를 Hosted PASS나 전체 platform PASS로 표현하지 않는다.
-GDJ-0074의 Text+DateTime full source와 이번 IN source의 결과도 분리한다.
+통합 source `adb3ea62f7c8f9a57c623634e2c11b60f04374bc`를 기존 draft PR에 반영했다.
+[Hosted ORM](https://github.com/progresshans/godj/actions/runs/35392098111)의 선택된 owner가 모두 완료됐고 최종 scope report를 확인했다.
+전체 platform을 요청한 full 실행은 아니다. 환경별 상세·비대상 skip은 TEST_EVIDENCE에 기록했다.
+후속 [GDJ-0076](0076-model-choices-and-metadata-migrations.md)의 별도 구현을 이 source의 PASS로 합치지 않는다.

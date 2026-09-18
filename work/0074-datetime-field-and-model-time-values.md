@@ -46,7 +46,7 @@ Local normal의 최종 관련 패키지, 실제 SQLite/PostgreSQL Helpdesk, 외�
 ## 통합 milestone
 
 GDJ-0073 Text와 GDJ-0074 DateTime의 누적 scalar/default/generator/backend/Form/API 변경을 하나의 Hosted full milestone으로 묶는다.
-이 full이 Linux/macOS/Windows, normal/race/CGO0, 고정 PostgreSQL 17.10, process/reference 및 cold-build 검증을 소유한다.
+이 full이 Linux/macOS, normal/race/CGO0, 고정 PostgreSQL 17.10, process/reference 및 cold-build 검증을 소유한다.
 로컬 전체 matrix를 중복하지 않는다. 기존 b43552a의 full 결과는 이 두 변경의 PASS가 아니다.
 첫 full에서 Python 3.12/3.13의 24시 거부와 3.14의 수용을 같은 expected로 비교한 profile 오류를 발견했다.
 제품과 기준 fixture는 보존하고 compatibility expected의 차이를 명시했으며 네 Python 버전의 해당 테스트를 각각 통과했다.
