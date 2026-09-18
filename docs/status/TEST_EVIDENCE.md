@@ -11,7 +11,8 @@
   독립 Django runner/fixture, generated model 입력과 별도 OpenAPI client module을 포함한다.
 - 환경: Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5 (Homebrew). 새 전용 PostgreSQL DB와 테스트별 schema·임시 SQLite를 사용했다.
 - 로컬 lane 종료 후 이 작업에서 생성한 전용 DB만 제거했다.
-- Hosted는 이 변경 소스에서 아직 미완료다. 아래 로컬 결과와 이전 source의 Hosted 결과를 합쳐 전체 PASS로 표시하지 않는다.
+- 로컬 제품 bytes를 통합한 source는 `e5688068ea64ac55493ccbbe0d622ccdd084847b`이다. 이후 외부 migration 어댑터의 텍스트 compile fixture 한 파일을 수정한
+  `d0f079481d660682c7a18884ce2c305234f6ad38`에서 아래 Hosted ORM 검증을 완료했다.
 
 ### 로컬 실행
 
@@ -67,9 +68,24 @@ PostgreSQL revision fence·makemigrations crash·generated publication crash hel
 - Admin의 option/value/label escaping, 목록 밖 초기값 보존, 거부 입력의 무변경, 저장·audit의 raw 값 보존을 검사했다.
 - 전체 compile (`go test -run '^$' ./...`), `go vet ./...`, `make generate-check`, `make docs-check format-check`, `git diff --check` PASS.
 
+### Hosted ORM 통합 검증
+
+- 최초 [run 35401098373](https://github.com/progresshans/godj/actions/runs/35401098373), source `e5688068ea64ac55493ccbbe0d622ccdd084847b`는 실패를 발견한 뒤
+  수정 source의 실행으로 대체되어 최종 cancelled다. 외부 migration adapter의 `.go.txt` fixture에 새 `AlterField` 메서드가 빠져
+  Linux/macOS normal·CGO0 관계 작업 8개와 최종 scope 검사 1개가 실패했다. 기존 전체 compile은 테스트가 동적으로 만드는 이 소비자를 실행하지 않았다.
+- 이 fixture에 명시적 미지원 오류를 반환하는 메서드를 추가했다. `go test -json -count=1 -timeout=10m ./internal/compiletest`와
+  동일한 CGO0 명령에서 각각 **54 test 완료 PASS, skip 0**을 확인했다. 수정 commit은 이 fixture 한 파일의 3줄 추가뿐이다.
+- 수정 source `d0f079481d660682c7a18884ce2c305234f6ad38`, [run 35401719591](https://github.com/progresshans/godj/actions/runs/35401719591), attempt 1:
+  **completed/success, 고유 job 48개 중 44 success·4 의도한 skip**. 모든 job의 terminal 상태와 정확한 source를 확인했다.
+- 최종 job `105787183637`의 report는 `scope=orm`, `full_platform_verified=false`이며 소유자는
+  `command-product-matrix`, `portable-go-matrix`, `postgresql-product`, `relation-product-matrix`다.
+  실제 PostgreSQL 17.10, Linux amd64/arm64 및 macOS arm64/amd64의 선택된 normal·race·CGO0 제품/command 검증을 포함한다.
+- 비대상 네 owner는 product project-check matrix, Python compatibility matrix, exact darwin/arm64 reference profile,
+  reference/current-capture 통합이다. Windows runtime 또는 새 full 검증으로 표시하지 않는다.
+
 ### 통합 검증 소유자
 
-로컬 필수 검증을 마쳤고 같은 제품 bytes의 통합 source에서 Hosted ORM을 이어간다.
+이 작업의 로컬 및 수정 source의 Hosted ORM 검증을 완료했다.
 전체 플랫폼·reference·cold-build의 새 full 검증이나 배포 증거는 아니다. Callable/grouped choices, 다른 scalar choice,
 Python enum 내부 ABI, general physical AlterField와 전체 모델 validation은 이 작업으로 완료되지 않는다.
 
