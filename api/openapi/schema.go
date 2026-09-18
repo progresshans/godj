@@ -5,8 +5,10 @@ package openapi
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/serializers"
 )
 
@@ -191,6 +193,9 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 		}
 		defaultValue, hasDefault := field.Default()
+		if instant, ok := defaultValue.AsDateTime(); ok {
+			defaultValue = serializers.String(temporal.Format(instant))
+		}
 		if mode == serializers.ModeFull && hasDefault {
 			annotations = append(annotations, serializers.MemberOf("default", defaultValue))
 		}
@@ -246,6 +251,25 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	switch field.Kind() {
 	case serializers.FieldString:
 		schema = String()
+	case serializers.FieldDateTime:
+		var err error
+		policy, policyErr := serializers.NewObject(
+			serializers.MemberOf("timezone", serializers.String("UTC")),
+			serializers.MemberOf("precision", serializers.String("microsecond")),
+			serializers.MemberOf("subMicrosecond", serializers.String("truncate")),
+			serializers.MemberOf("minimum", serializers.String("0001-01-01T00:00:00.000000Z")),
+			serializers.MemberOf("maximum", serializers.String("9999-12-31T23:59:59.999999Z")),
+		)
+		if policyErr != nil {
+			return Schema{}, policyErr
+		}
+		// The locked ogen runtime's default date-time encoder drops fractions.
+		// Its supported extension preserves input precision until the server
+		// applies the documented microsecond policy; other clients use format.
+		schema, err = schemaAnnotate(String(), serializers.MemberOf("format", serializers.String("date-time")), serializers.MemberOf("x-godj-datetime", policy.Value()), serializers.MemberOf("x-ogen-time-format", serializers.String(time.RFC3339Nano)))
+		if err != nil {
+			return Schema{}, err
+		}
 	case serializers.FieldBoolean:
 		schema = Boolean()
 	case serializers.FieldInteger:

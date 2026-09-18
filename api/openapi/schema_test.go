@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
@@ -558,4 +559,47 @@ func schemaTestEncodeValue(t *testing.T, value serializers.Value) []byte {
 		t.Fatal(err)
 	}
 	return encoded
+}
+
+func TestDateTimeSchemaCarriesWireFormatPrecisionAndCanonicalDefault(t *testing.T) {
+	field, err := serializers.DateTimeField("at", serializers.WithNullable(), serializers.WithDefault(serializers.DateTime(time.Date(2026, 9, 19, 12, 34, 56, 123456789, time.FixedZone("input", 9*3600)))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := serializers.NewSpec([]serializers.Field{field})
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := openapi.RequestSchema(spec, serializers.ModeFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	property := schemaTestProperty(t, full, "at")
+	branches := schemaTestList(t, property, "anyOf")
+	if len(branches) != 2 || schemaTestString(t, schemaTestValueObject(t, branches[1]), "type") != "null" {
+		t.Fatal("nullable datetime lost its explicit null branch")
+	}
+	instant := schemaTestValueObject(t, branches[0])
+	if schemaTestString(t, instant, "format") != "date-time" || schemaTestString(t, instant, "x-ogen-time-format") != time.RFC3339Nano || schemaTestString(t, property, "default") != "2026-09-19T03:34:56.123456Z" {
+		t.Fatal("datetime format/default differs from runtime")
+	}
+	policy, _ := instant.Get("x-godj-datetime")
+	object, ok := policy.AsObject()
+	if !ok || schemaTestString(t, object, "precision") != "microsecond" || schemaTestString(t, object, "timezone") != "UTC" || schemaTestString(t, object, "subMicrosecond") != "truncate" {
+		t.Fatal("datetime normalization disappeared from schema")
+	}
+	partial, err := openapi.RequestSchema(spec, serializers.ModePartial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := schemaTestProperty(t, partial, "at").Get("default"); exists {
+		t.Fatal("PATCH schema defaulted an omitted datetime")
+	}
+	response, err := openapi.ModelResponseSchema(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := schemaTestRequired(t, response); !reflect.DeepEqual(got, []string{"at"}) {
+		t.Fatal("nullable datetime response became optional")
+	}
 }

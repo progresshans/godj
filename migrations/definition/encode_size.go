@@ -16,10 +16,11 @@ const (
 	modelStructuralLowerBound                = uint64(len(`{"name":"","go_name":"","db_table":"","fields":[]}`))
 	fieldStructuralLowerBound                = uint64(len(`{"name":"","go_name":"","column":"","kind":"","primary_key":true,"nullable":true,"max_length":0,"default":null}`))
 
-	stringDefaultStructuralLowerBound  = uint64(len(`{"kind":"","string":""}`))
-	booleanDefaultStructuralLowerBound = uint64(len(`{"kind":"","boolean":true}`))
-	integerDefaultStructuralLowerBound = uint64(len(`{"kind":"","integer":0}`))
-	nullStructuralLowerBound           = uint64(len(`null`))
+	datetimeDefaultStructuralLowerBound = uint64(len(`{"kind":"","datetime":""}`))
+	stringDefaultStructuralLowerBound   = uint64(len(`{"kind":"","string":""}`))
+	booleanDefaultStructuralLowerBound  = uint64(len(`{"kind":"","boolean":true}`))
+	integerDefaultStructuralLowerBound  = uint64(len(`{"kind":"","integer":0}`))
+	nullStructuralLowerBound            = uint64(len(`null`))
 
 	relationMemberStructuralLowerBound = uint64(len(`,"relation":`))
 	relationStructuralLowerBound       = uint64(len(`{"target":{"app_label":"","model_name":""},"cardinality":"","reverse":{"name":"","disabled":true},"on_delete":""}`))
@@ -233,8 +234,13 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 }
 
 func (scanner *encodingSizeScanner) scanDefault(path string, value ir.ScalarDefault) error {
+	if err := scanner.addString(path+".datetime", value.DateTime); err != nil {
+		return err
+	}
 	structural := uint64(0)
 	switch value.Kind {
+	case ir.ScalarDateTime:
+		structural = datetimeDefaultStructuralLowerBound
 	case ir.ScalarString:
 		structural = stringDefaultStructuralLowerBound
 	case ir.ScalarBoolean:
@@ -253,9 +259,8 @@ func (scanner *encodingSizeScanner) scanDefault(path string, value ir.ScalarDefa
 	if err := scanner.addString(path+".kind", string(value.Kind)); err != nil {
 		return err
 	}
-	// String is the only string payload in ScalarDefault. Valid non-string
-	// arms require it to be empty, while scanning it here also closes oversized
-	// malformed IR before a proportional snapshot.
+	// Scan both string payloads, even in malformed arms, before a proportional
+	// snapshot. The datetime payload was counted at entry.
 	return scanner.addString(path+".string", value.String)
 }
 

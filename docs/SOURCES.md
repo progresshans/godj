@@ -60,3 +60,7 @@ Django-named reference corpus에 저장되어 있어도 GoDj 정책을 Django의
 
 TextField와 Form widget·빈 문자열 정책은 같은 고정 Django의 CharField/TextField·Char Form·textarea template을 참조한다.
 [ADR-0060](adr/0060-text-field-and-form-widget-semantics.md#출처와-제한), [실제 관찰 runner](../conformance/runners/django/text_field_reference.py)에 비교 범위와 출처를 둔다.
+
+DateTimeField는 고정 Django 6.1의 model/form field·dateparse와 SQLite/PostgreSQL adapter를 참조한다(BSD-3-Clause).
+[ADR-0061](adr/0061-datetime-field-and-canonical-instant-values.md#출처와-남은-범위), [UTC 관찰 runner](../conformance/runners/django/datetime_field_reference.py)에
+Python 3.14.3 환경·지원 입력·정규화 정책·NUL 결과 차이를 명시한다.

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
@@ -65,6 +66,9 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = templates.Bool(boolean)
+		case query.ValueDateTime:
+			instant, _ := scalar.DateTime()
+			converted = templates.String(temporal.Format(instant))
 		case query.ValueInteger:
 			integer, _ := scalar.Integer()
 			converted = templates.Integer(integer)

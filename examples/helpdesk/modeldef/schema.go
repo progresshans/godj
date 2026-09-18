@@ -20,6 +20,7 @@ func Schema() (ir.Schema, error) {
 			schema.ForeignKey("category", "CategoryID", schema.Target("helpdesk", "category"), schema.RelatedName("tickets"), schema.Protect),
 			schema.IntegerField("priority", "Priority", schema.Nullable()),
 			schema.TextField("resolution", "Resolution", schema.Nullable()),
+			schema.DateTimeField("due_at", "DueAt", schema.Nullable()),
 		}},
 	}})
 }

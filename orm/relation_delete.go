@@ -418,7 +418,7 @@ func relationDeleteTargetKey(model ir.Model) (ir.Field, bool) {
 			if !field.PrimaryKey || !reflect.DeepEqual(field, primaryKey) {
 				return ir.Field{}, false
 			}
-		case ir.FieldChar, ir.FieldText, ir.FieldBoolean, ir.FieldInteger:
+		case ir.FieldChar, ir.FieldText, ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime:
 			if field.PrimaryKey {
 				return ir.Field{}, false
 			}

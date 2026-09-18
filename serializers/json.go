@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/progresshans/godj/internal/temporal"
 	"io"
 	"strconv"
 	"strings"
@@ -326,6 +327,9 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			return s.appendBytes([]byte("true"))
 		}
 		return s.appendBytes([]byte("false"))
+	case ValueDateTime:
+		instant, _ := value.AsDateTime()
+		return s.appendString(temporal.Format(instant), "value.datetime")
 	case ValueInteger:
 		var digits [20]byte
 		return s.appendBytes(strconv.AppendInt(digits[:0], value.integer, 10))

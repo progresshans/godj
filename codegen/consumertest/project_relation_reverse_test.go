@@ -104,7 +104,7 @@ func TestGeneratedProjectRelationReverseCurrentAndNoEdgeVariantsCompile(t *testi
 
 	t.Run("current reverse owner is object capable", func(t *testing.T) {
 		blog := blog.Clone()
-		blog.Models[0].Fields = append(blog.Models[0].Fields, ir.Field{Name: "points", GoName: "Points", Column: "points", Kind: ir.FieldInteger}, ir.Field{Name: "body", GoName: "Body", Column: "body", Kind: ir.FieldText})
+		blog.Models[0].Fields = append(blog.Models[0].Fields, ir.Field{Name: "points", GoName: "Points", Column: "points", Kind: ir.FieldInteger}, ir.Field{Name: "body", GoName: "Body", Column: "body", Kind: ir.FieldText}, ir.Field{Name: "at", GoName: "At", Column: "at", Kind: ir.FieldDateTime})
 		const modulePath = "example.com/godj-relation-reverse-current"
 		generated := generateProjectRelationReverseVariant(t, modulePath, []namedRelationReverseSchema{
 			{name: "authors", schema: authors},
@@ -132,6 +132,7 @@ func TestGeneratedProjectRelationReverseCurrentAndNoEdgeVariantsCompile(t *testi
 import (
 	"testing"
 
+	"time"
 	project "example.com/godj-relation-reverse-current/project"
 )
 
@@ -141,6 +142,7 @@ func TestCurrentReverse(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = relations.AuthorsAuthor.Posts.Body.Exact("multiline")
+	_ = relations.AuthorsAuthor.Posts.At.Exact(time.Time{})
 	_ = relations.AuthorsAuthor.Posts.Title.Exact("Alpha")
 	_ = relations.AuthorsAuthor.Posts.Points.Exact(-9223372036854775808)
 	if _, err := project.BindReverseObjects(); err != nil {

@@ -3,6 +3,75 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0074 — DateTimeField와 UTC 시각 값
+
+- 작업: [GDJ-0074](../../work/0074-datetime-field-and-model-time-values.md), 의미: [ADR-0061](../adr/0061-datetime-field-and-canonical-instant-values.md).
+- Source: `d3cb0a9cf1294efbddc7aee34cdef8cafecc9837` 기반의 2026-09-19 작업 사본. Markdown을 제외한 변경·새 파일 98개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `d26a9de41607bb9e0fadfdce3b169c82d2e92ad39b790bdb91c4aaefa0f39b38`이다.
+  HTML template, Python 관찰기/fixture, migration JSON과 실제 생성 Go/client도 포함한다.
+- 환경: Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5 (Homebrew), locked Django 6.1/Python 3.14.3.
+  새 전용 PostgreSQL DB와 테스트별 schema·임시 SQLite를 사용했고 모든 로컬 lane 종료 뒤 전용 DB만 제거했다.
+  기존 개발 DB와 Helpdesk 0001·0002·0003 migration은 변경하지 않았으며 Git 원본 bytes와 대조했다.
+
+### 로컬 실행과 실패 수정
+
+`GODJ_REQUIRE_POSTGRES=1`과 전용 DB URL로 다음 관련 범위의 `go test -count=1 -json -timeout=15m`을 실행했다.
+
+```text
+./schema/... ./internal/temporal ./query ./orm ./codegen/... ./migrations/... ./db/...
+./forms/... ./serializers ./admin ./api/... ./examples/helpdesk/... ./examples/article/...
+./internal/migrationautodetect ./internal/projectgenerate/... ./internal/projectmigration/...
+./conformance/definitionload ./conformance/relationproduct ./conformance/runners/godj
+```
+
+첫 checkpoint는 Form 공백/24시 처리 불일치, nullable OpenAPI branch를 잘못 읽은 새 테스트, 외부 client의 소수초 손실을 발견했다.
+빈 문자열만 NULL로 처리하고 Form의 유효한 24시를 다음 날 자정으로 정규화했다. OpenAPI 테스트는 실제 null/string branch를 확인하도록
+수정했다. 고정 ogen v1.24.0의 `json.EncodeDateTime`은 RFC3339 layout으로 소수초를 생략하므로, 표준 date-time과 지원되는
+`x-ogen-time-format` RFC3339Nano를 실제 문서에 게시하고 재생성했다. Consumer 기대값을 초 단위로 완화하지 않았다.
+
+영향받은 temporal/forms/query/OpenAPI/Helpdesk/client 패키지 전체를 재실행했으며 최종 패키지별 normal 결과는
+**42 packages, 3,984 test 완료 event PASS, fail 0**, no-test package 13개다. 뒤이어 ordered scalar 오류 설명의 잘못된 Integer/String
+표현만 정리했고 query 패키지는 normal/race/CGO0 모두 다시 통과했다.
+
+다음 관련 범위를 `go test -race -count=1 -json` 및 `CGO_ENABLED=0 go test -count=1 -json`으로 실행했다.
+
+```text
+./schema/... ./internal/temporal ./query ./orm ./codegen/... ./migrations/definition
+./db/sqlite ./db/postgres ./forms/... ./serializers ./admin ./api/openapi
+./api/openapi/consumertest ./examples/helpdesk ./internal/migrationautodetect
+```
+
+각 mode는 **18 packages, 2,690 test 완료 event PASS, fail 0**, no-test package 1개다. Event 수는 하위 test를 포함한다.
+Normal의 `TestPublicationCrashHelper`·`TestPostgresRevisionFenceHelperProcess`, race/CGO0의 PostgreSQL helper는 직접 실행하지
+않는 부모 진입에서 skip한다. 실제 부모가 별도 helper process를 실행해 통과했고 이 skip은 기능 PASS로 세지 않았다.
+
+### 검증한 의미와 한계
+
+- IR/default/historical codec: offset·monotonic 정보와 미세 자릿수를 제거한 default identity, UTC 연도 1·9999, 잘못된 scalar arm/비정규
+  문자열 거부. SQLite DATETIME와 PostgreSQL timestamptz DDL/catalog, application default와 영속 SQL DEFAULT의 분리를 확인했다.
+- 실제 생성 외부 model consumer: required/default/nullable/time.Time zero, epoch 이전 시각·양 끝 연도·microsecond ordering, typed/dynamic/F
+  query, nullable projection/scan·Min/Max/empty aggregate, cache pointer 분리, Create/Patch 정규화·Save mask·취소·I/O 전 invalid 거부를
+  실제 SQLite에서 확인했다. `Time`·`TimeValue` 필드가 Go import 이름과 충돌하지 않고 필수 child test 2개가 각각 완료되어야 한다.
+  Linux/386/CGO0 generated model cross-compile도 통과했으며 386 runtime을 실행한 것은 아니다.
+- 생성 forward/reverse 관계의 nonnullable DateTime exact binding을 실제 consumer에서 확인했다. 새 arbitrary relation lookup이나
+  nullable terminal 지원을 주장하지 않는다.
+- Helpdesk 양 DB: 0001의 기존 행 → 0003 → 새 0004 → 0001 reverse → 0004 재적용, 기존 값·NULL backfill·reopen 보존.
+  API offset/nanosecond 입력과 canonical 응답, Admin의 연도 1 표시·연도 9999 변경·blank NULL·invalid calendar 뒤 DB 보존,
+  실제 nullable MIN/MAX와 기존 권한·CSRF·4096 byte 제한을 확인했다. 실제 브라우저 전체 E2E는 별도다.
+- 독립 ogen module의 **15개 필수 check**가 실제 HTTP·DB에서 offset·precision·연도 1/9999·생략/null을 포함해 완료했다.
+  실제 문서와 locked generator의 생성물 drift를 확인했으며 Article 문서·client lock·ogen 설정은 보존했다.
+- 고정 Django live fixture 비교 **1 test PASS**. Go Form의 **46개** 입력은 값·오류 code·widget을 비교했고, NUL suffix **2개**는
+  실제 reference 결과를 보존한 [DEV-0011](../DEVIATIONS.md#dev-0011--datetime-입력의-nul을-거부하고-문자열-전체를-해석) invalid 회귀로 구분했다.
+  이 2개는 Django parity PASS가 아니다. Locale/DST 전체·date transform·자동 시각 default는 여전히 미완료다.
+- 전체 compile (`go test -run '^$' ./...`), `go vet ./...`, `make generate-check`, `make docs-check format-check`, `git diff --check` PASS.
+  Helpdesk `makemigrations`는 `status=clean`, candidate 0이었다.
+
+### 누적 통합 검증
+
+GDJ-0073 Text와 GDJ-0074 DateTime의 Hosted full milestone을 선택했다. 이 실행이 전체 플랫폼·고정 PostgreSQL 17.10·
+process/reference·cold-build를 소유한다. 아직 이 변경의 Hosted full 결과는 없으며 과거 b43552a의 성공을 이번 source의 PASS로 사용하지 않는다.
+실제 통합 SHA와 terminal 실행 근거는 완료 후 이 절에 기록한다.
+
 ## GDJ-0073 — TextField와 여러 줄 Form/Admin 입력
 
 - 작업: [GDJ-0073](../../work/0073-text-field-and-multiline-model-forms.md), 의미: [ADR-0060](../adr/0060-text-field-and-form-widget-semantics.md).

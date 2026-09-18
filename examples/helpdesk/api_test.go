@@ -41,18 +41,23 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 		t.Fatal("the shared API error component is absent")
 	}
 	ticket := decoded.Components.Schemas["Ticket"]
-	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution"}) || len(ticket.Properties) != 7 || ticket.AdditionalProperties {
+	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at"}) || len(ticket.Properties) != 8 || ticket.AdditionalProperties {
 		t.Fatalf("Ticket fields = %+v", ticket)
 	}
 	if ticket.Properties["subject"].MaxLength != 120 || !ticket.Properties["category"].ReadOnly || !ticket.Properties["details"].allowsType("null") {
 		t.Fatal("Ticket response lost its encoder's field constraints")
 	}
 	input := decoded.Components.Schemas["TicketCreate"]
-	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 5 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
+	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 6 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
 		t.Fatalf("TicketCreate presence/defaults = %+v", input)
 	}
 	if !input.Properties["resolution"].allowsType("null") || !ticket.Properties["resolution"].allowsType("null") || ticket.Properties["resolution"].MaxLength != 0 || input.Properties["resolution"].MaxLength != 0 {
 		t.Fatal("Text schema lost null or imposed a model length limit")
+	}
+	for _, field := range []helpdeskDocumentSchema{input.Properties["due_at"], ticket.Properties["due_at"]} {
+		if !field.allowsType("null") || len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].Format != "date-time" {
+			t.Fatal("datetime null or format disappeared from OpenAPI")
+		}
 	}
 	if _, found := input.Properties["id"]; found {
 		t.Fatal("generated id became writable")
@@ -219,6 +224,7 @@ type helpdeskDocumentSchema struct {
 	Ref                  string `json:"$ref"`
 	Type                 string
 	Required             []string
+	Format               string
 	Properties           map[string]helpdeskDocumentSchema
 	Items                *helpdeskDocumentSchema
 	AnyOf                []helpdeskDocumentSchema

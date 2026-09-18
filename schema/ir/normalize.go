@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/progresshans/godj/internal/temporal"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/internal/identifiers"
@@ -162,6 +163,13 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
+	case FieldDateTime:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DateTimeField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarDateTime {
+			return validation(path+".default", "type_mismatch", "DateTimeField default must be a time.Time")
+		}
 	case FieldInteger:
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "only AutoField may be the primary key")
@@ -259,15 +267,22 @@ func validateScalarDefault(value ScalarDefault, path string) error {
 		if !utf8.ValidString(value.String) {
 			return validation(path, "invalid_utf8", "string default must contain valid UTF-8")
 		}
-		if value.Boolean || value.Integer != 0 {
+		if value.Boolean || value.Integer != 0 || value.DateTime != "" {
 			return validation(path, "invalid_scalar", "string default carries another scalar payload")
 		}
 	case ScalarBoolean:
-		if value.String != "" || value.Integer != 0 {
+		if value.String != "" || value.Integer != 0 || value.DateTime != "" {
 			return validation(path, "invalid_scalar", "boolean default carries another scalar payload")
 		}
+	case ScalarDateTime:
+		if value.String != "" || value.Boolean || value.Integer != 0 {
+			return validation(path, "invalid_scalar", "datetime default carries another scalar payload")
+		}
+		if _, err := temporal.ParseCanonical(value.DateTime); err != nil {
+			return validation(path, "invalid_datetime", "datetime default must be canonical UTC microseconds")
+		}
 	case ScalarInteger:
-		if value.String != "" || value.Boolean {
+		if value.String != "" || value.Boolean || value.DateTime != "" {
 			return validation(path, "invalid_scalar", "integer default carries another scalar payload")
 		}
 	default:

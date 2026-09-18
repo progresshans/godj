@@ -9,6 +9,10 @@
 그 디렉터리의 `go.mod`·`go.sum`이 고정한다. 네트워크를 사용하는 의존성 준비는 `make api-client-dependencies`가 소유하며,
 부모 테스트의 생성·build는 준비된 module cache를 사용해 offline으로 실행한다.
 
+DateTime은 표준 `format: date-time`과 `x-ogen-time-format` RFC3339Nano를 사용한다. 고정 ogen v1.24.0의 기본 encoder가
+소수초를 생략하므로 실제 게시 문서가 precision 보존 extension을 제공한다. Consumer는 offset·nanosecond 입력의 UTC microsecond
+결과, 연도 1·9999, 생략/null을 실제 HTTP와 DB로 검증한다. 생성 코드를 수동 수정하거나 검사에서 소수초를 무시하지 않는다.
+
 ## 현재 소스에서 문서 내보내기
 
 저장소 루트에서 실행한다. `-out`은 존재하지 않는 경로 또는 빈 디렉터리여야 하고, symlink나 기존 파일이 있는 디렉터리는 거절한다.

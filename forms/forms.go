@@ -20,6 +20,7 @@ const (
 	ValueString
 	ValueBoolean
 	ValueInteger
+	ValueDateTime
 )
 
 // Value is an immutable cleaned or initial form value.
@@ -57,6 +58,7 @@ const (
 	FieldChar FieldKind = iota + 1
 	FieldBoolean
 	FieldInteger
+	FieldDateTime
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -67,6 +69,7 @@ const (
 	TextInput Widget = iota + 1
 	Textarea
 	Checkbox
+	DateTimeInput
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -227,7 +230,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".label", Code: "invalid"}
 	}
 	if !(kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
-		kind == FieldBoolean && config.widget == Checkbox || kind == FieldInteger && config.widget == TextInput) {
+		kind == FieldBoolean && config.widget == Checkbox || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput)) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
 	}
 	if config.hasEmptyValue {
@@ -244,6 +247,16 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
+	case FieldDateTime:
+		if config.maxLength != 0 {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
+		}
+		if !config.required && !config.nullable {
+			return Field{}, &ConfigError{Path: "fields." + name + ".nullable", Code: "optional_datetime_requires_null"}
+		}
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
+			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
+		}
 	case FieldInteger:
 		if config.maxLength != 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
@@ -302,7 +315,7 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 		return nullable
 	}
 	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime
 }
 
 func (f Field) Name() string              { return f.name }
@@ -436,7 +449,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = field.defaultValue
 		case field.kind == FieldBoolean:
 			value = Boolean(false)
-		case field.kind == FieldInteger:
+		case field.kind == FieldInteger || field.kind == FieldDateTime:
 			// An unbound required integer starts blank rather than inventing zero.
 			value = Null()
 		case field.kind == FieldChar:
@@ -575,6 +588,19 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 	var value Value
 	var failures []validation.Errors
 	switch field.kind {
+	case FieldDateTime:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		var code validation.Code
+		value, code = cleanDateTime(raw)
+		if code == "" && value.IsNull() && field.required {
+			code = "required"
+		}
+		if code != "" {
+			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+		}
 	case FieldInteger:
 		raw := ""
 		if present && len(submitted) == 1 {
@@ -653,6 +679,13 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		return true
 	}
 	switch field.kind {
+	case FieldDateTime:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		value, code := cleanDateTime(raw)
+		return code != "" || !value.Equal(initial)
 	case FieldInteger:
 		raw := ""
 		if present && len(submitted) == 1 {

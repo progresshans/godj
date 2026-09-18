@@ -1,6 +1,7 @@
 package definition
 
 import (
+	"github.com/progresshans/godj/internal/temporal"
 	"sort"
 	"strconv"
 	"strings"
@@ -498,7 +499,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
-					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldBoolean) &&
+					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldBoolean) &&
 					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
@@ -712,10 +713,13 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
 			}
-		case ir.FieldBoolean, ir.FieldInteger:
+		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime:
 			expectedDefault := ir.ScalarBoolean
 			if ir.FieldKind(kind.string) == ir.FieldInteger {
 				expectedDefault = ir.ScalarInteger
+			}
+			if ir.FieldKind(kind.string) == ir.FieldDateTime {
+				expectedDefault = ir.ScalarDateTime
 			}
 			if defaultValid && defaultValue != nil && defaultValue.Kind != expectedDefault {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
@@ -829,13 +833,22 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir")}
 	}
-	commonFields := []string{"boolean", "integer", "kind", "string"}
+	commonFields := []string{"boolean", "datetime", "integer", "kind", "string"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_ir"))
 	}
 	switch kind.string {
+	case string(ir.ScalarDateTime):
+		object, _, faults := semanticObjectCandidates(value, []string{"datetime", "kind"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+		candidates = append(candidates, faults...)
+		if child, present := object.member("datetime"); present {
+			_, err := temporal.ParseCanonical(child.string)
+			if child.kind != jsonString || err != nil {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/datetime", app, name, operationIndex, "invalid_ir"))
+			}
+		}
 	case string(ir.ScalarString):
 		object, _, faults := semanticObjectCandidates(value, []string{"kind", "string"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 		candidates = append(candidates, faults...)
@@ -1069,6 +1082,15 @@ func materializeDefault(value jsonValue) (*ir.ScalarDefault, bool) {
 		return nil, false
 	}
 	switch kind.string {
+	case string(ir.ScalarDateTime):
+		payload, exists := value.member("datetime")
+		if !exists || payload.kind != jsonString {
+			return nil, false
+		}
+		if _, err := temporal.ParseCanonical(payload.string); err != nil {
+			return nil, false
+		}
+		return &ir.ScalarDefault{Kind: ir.ScalarDateTime, DateTime: payload.string}, true
 	case string(ir.ScalarString):
 		payload, exists := value.member("string")
 		if !exists || payload.kind != jsonString {

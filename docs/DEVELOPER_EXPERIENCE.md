@@ -41,6 +41,9 @@ model 값은 `*int64`다. generated Create/Patch의 `WithPriority(0)`과 `WithPr
 `schema.Default(int64(...))`는 생략한 Create 값에 적용한다. `orm.AutoField` ID는 수정 mask에 넣을 수 없고 일반 정수는 넣을 수 있다.
 긴 본문은 `schema.TextField("resolution", "Resolution", schema.Nullable())`로 선언한다. 저장형은 TEXT이고 generated 값은
 `*string`이다. `WithResolution("")`와 `WithResolutionNull()`을 구분한다. 저장 길이 제약과 HTTP/parser 자원 한도는 별개다.
+시각은 `schema.DateTimeField("due_at", "DueAt", schema.Nullable())`로 선언한다. Generated 값은 `*time.Time`이며 `WithDueAt(time.Time{})`은
+연도 1의 실제 값이고 `WithDueAtNull()`과 다르다. 저장/조회는 UTC·microsecond로 정규화한다. JSON은 explicit offset이 있는 RFC3339,
+Form은 offset 생략 시 UTC로 해석한다. [정밀도·범위·남은 시간 기능](adr/0061-datetime-field-and-canonical-instant-values.md)을 따른다.
 기존 행이 있는 Helpdesk의 확장 예는 [새 migration과 consumer](../examples/helpdesk/README.md)에 있다.
 
 ## 프로젝트 명령

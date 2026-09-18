@@ -14,6 +14,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
@@ -317,6 +318,7 @@ func (site *Site) formContext(
 			"char":       templates.Bool(field.Kind() == forms.FieldChar && field.Widget() == forms.TextInput),
 			"textarea":   templates.Bool(field.Widget() == forms.Textarea),
 			"integer":    templates.Bool(field.Kind() == forms.FieldInteger),
+			"datetime":   templates.Bool(field.Kind() == forms.FieldDateTime),
 			"boolean":    templates.Bool(field.Kind() == forms.FieldBoolean),
 			"required":   templates.Bool(field.Required()),
 			"max_length": templates.Integer(int64(field.MaxLength())),
@@ -372,6 +374,10 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldBoolean {
 		checked, _ := initial.AsBoolean()
 		return "", checked
+	}
+	if field.Kind() == forms.FieldDateTime {
+		value, _ := initial.AsDateTime()
+		return temporal.Format(value), false
 	}
 	if field.Kind() == forms.FieldInteger {
 		value, _ := initial.AsInteger()

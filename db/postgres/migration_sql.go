@@ -205,6 +205,14 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 			return "", errors.New("BooleanField has an invalid PostgreSQL migration shape")
 		}
 		declaration = "BOOLEAN NOT NULL"
+	case ir.FieldDateTime:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDateTime {
+			return "", fmt.Errorf("DateTimeField has an invalid migration shape")
+		}
+		declaration = "TIMESTAMP WITH TIME ZONE NOT NULL"
+		if field.Nullable {
+			declaration = "TIMESTAMP WITH TIME ZONE NULL"
+		}
 	case ir.FieldText:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarString {
 			return "", errors.New("TextField has an invalid PostgreSQL migration shape")

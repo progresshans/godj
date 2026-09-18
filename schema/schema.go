@@ -3,7 +3,11 @@
 // model packages.
 package schema
 
-import "github.com/progresshans/godj/schema/ir"
+import (
+	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/schema/ir"
+	"time"
+)
 
 type Definition struct {
 	AppLabel string
@@ -55,7 +59,7 @@ func Column(name string) FieldOption {
 // types keep the declaration surface small for the M2 field subset while
 // preserving false and empty string as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64
+	string | bool | int64 | time.Time
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
@@ -65,6 +69,12 @@ func Default[T DefaultScalar](value T) FieldOption {
 			field.Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: typed}
 		case bool:
 			field.Default = &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: typed}
+		case time.Time:
+			canonical, err := temporal.Canonical(typed)
+			field.Default = &ir.ScalarDefault{Kind: ir.ScalarDateTime}
+			if err == nil {
+				field.Default.DateTime = temporal.Format(canonical)
+			}
 		case int64:
 			field.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: typed}
 		}
@@ -79,6 +89,11 @@ func CharField(name, goName string, maxLength int, options ...FieldOption) Field
 // HTTP and form input budgets remain explicit application choices.
 func TextField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldText, 0, options)
+}
+
+// DateTimeField stores an instant as UTC microseconds; zero time is a value.
+func DateTimeField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldDateTime, 0, options)
 }
 
 func BooleanField(name, goName string, options ...FieldOption) Field {

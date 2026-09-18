@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -17,6 +18,7 @@ const (
 	FieldString FieldKind = iota + 1
 	FieldBoolean
 	FieldInteger
+	FieldDateTime
 )
 
 const (
@@ -24,6 +26,7 @@ const (
 	CodeReadOnly  validation.Code = "read_only"
 	CodeNull      validation.Code = "null"
 	CodeType      validation.Code = "type"
+	CodeDateTime  validation.Code = "datetime"
 	CodeBlank     validation.Code = "blank"
 	CodeMaxLength validation.Code = "max_length"
 	CodeUnknown   validation.Code = "unknown"
@@ -159,7 +162,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger:
+	case FieldBoolean, FieldInteger, FieldDateTime:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -187,7 +190,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime
 }
 
 func validFieldName(name string) bool {
@@ -374,6 +377,13 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 			return Null(), validation.NewErrors()
 		}
 		return Value{}, oneViolation(field.name, CodeNull)
+	}
+	if field.kind == FieldDateTime && value.kind == ValueString {
+		parsed, err := temporal.ParseRFC3339(value.string)
+		if err != nil {
+			return Value{}, oneViolation(field.name, CodeDateTime)
+		}
+		return DateTime(parsed), validation.NewErrors()
 	}
 	if !valueMatchesField(value, field.kind, field.nullable) {
 		return Value{}, oneViolation(field.name, CodeType)

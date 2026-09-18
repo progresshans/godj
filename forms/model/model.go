@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -203,6 +204,25 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		options = append(options, forms.WithValidators(override.validators...))
 	}
 	switch field.Kind {
+	case ir.FieldDateTime:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_datetime_metadata"}
+		}
+		options = append(options, forms.WithRequired(!field.Nullable))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := temporal.ParseCanonical(field.Default.DateTime)
+			if field.Default.Kind != ir.ScalarDateTime || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.DateTime(value)))
+		}
+		return forms.DateTimeField(field.Name, options...)
 	case ir.FieldInteger:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_integer_metadata"}

@@ -32,6 +32,9 @@ func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M,
 		switch {
 		case scalar.IsNull() && field.Nullable():
 			result[field.Name()] = forms.Null()
+		case scalar.Kind() == query.ValueDateTime && field.Kind() == forms.FieldDateTime:
+			value, _ := scalar.DateTime()
+			result[field.Name()] = forms.DateTime(value)
 		case scalar.Kind() == query.ValueInteger && field.Kind() == forms.FieldInteger:
 			integer, _ := scalar.Integer()
 			result[field.Name()] = forms.Integer(integer)

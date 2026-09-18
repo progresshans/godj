@@ -4,6 +4,7 @@ package helpdesksession
 
 import (
 	"io"
+	"time"
 )
 
 // Ref: #/components/schemas/CategorySummary
@@ -296,6 +297,51 @@ func (s *HelpdeskTicketListOKHeaders) SetResponse(val []Ticket) {
 
 func (*HelpdeskTicketListOKHeaders) helpdeskTicketListRes() {}
 
+// NewNilDateTime returns new NilDateTime with value set to v.
+func NewNilDateTime(v time.Time) NilDateTime {
+	return NilDateTime{
+		Value: v,
+	}
+}
+
+// NilDateTime is nullable time.Time.
+type NilDateTime struct {
+	Value time.Time
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDateTime) SetTo(v time.Time) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDateTime) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDateTime) SetToNull() {
+	o.Null = true
+	var v time.Time
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDateTime) Get() (v time.Time, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInt64 returns new NilInt64 with value set to v.
 func NewNilInt64(v int64) NilInt64 {
 	return NilInt64{
@@ -426,6 +472,74 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilDateTime returns new OptNilDateTime with value set to v.
+func NewOptNilDateTime(v time.Time) OptNilDateTime {
+	return OptNilDateTime{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilDateTime is optional nullable time.Time.
+type OptNilDateTime struct {
+	Value time.Time
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilDateTime was set.
+func (o OptNilDateTime) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilDateTime) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilDateTime) SetTo(v time.Time) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilDateTime) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilDateTime) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v time.Time
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilDateTime) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilDateTime) Get() (v time.Time, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilDateTime) Or(d time.Time) time.Time {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -641,13 +755,14 @@ func (s *SessionAuth) SetRoles(val []string) {
 
 // Ref: #/components/schemas/Ticket
 type Ticket struct {
-	ID         int64     `json:"id"`
-	Subject    string    `json:"subject"`
-	Details    NilString `json:"details"`
-	Closed     bool      `json:"closed"`
-	Category   int64     `json:"category"`
-	Priority   NilInt64  `json:"priority"`
-	Resolution NilString `json:"resolution"`
+	ID         int64       `json:"id"`
+	Subject    string      `json:"subject"`
+	Details    NilString   `json:"details"`
+	Closed     bool        `json:"closed"`
+	Category   int64       `json:"category"`
+	Priority   NilInt64    `json:"priority"`
+	Resolution NilString   `json:"resolution"`
+	DueAt      NilDateTime `json:"due_at"`
 }
 
 // GetID returns the value of ID.
@@ -685,6 +800,11 @@ func (s *Ticket) GetResolution() NilString {
 	return s.Resolution
 }
 
+// GetDueAt returns the value of DueAt.
+func (s *Ticket) GetDueAt() NilDateTime {
+	return s.DueAt
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -720,15 +840,21 @@ func (s *Ticket) SetResolution(val NilString) {
 	s.Resolution = val
 }
 
+// SetDueAt sets the value of DueAt.
+func (s *Ticket) SetDueAt(val NilDateTime) {
+	s.DueAt = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {
-	Subject    string       `json:"subject"`
-	Details    OptNilString `json:"details"`
-	Closed     OptBool      `json:"closed"`
-	Priority   OptNilInt64  `json:"priority"`
-	Resolution OptNilString `json:"resolution"`
+	Subject    string         `json:"subject"`
+	Details    OptNilString   `json:"details"`
+	Closed     OptBool        `json:"closed"`
+	Priority   OptNilInt64    `json:"priority"`
+	Resolution OptNilString   `json:"resolution"`
+	DueAt      OptNilDateTime `json:"due_at"`
 }
 
 // GetSubject returns the value of Subject.
@@ -756,6 +882,11 @@ func (s *TicketCreate) GetResolution() OptNilString {
 	return s.Resolution
 }
 
+// GetDueAt returns the value of DueAt.
+func (s *TicketCreate) GetDueAt() OptNilDateTime {
+	return s.DueAt
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -779,6 +910,11 @@ func (s *TicketCreate) SetPriority(val OptNilInt64) {
 // SetResolution sets the value of Resolution.
 func (s *TicketCreate) SetResolution(val OptNilString) {
 	s.Resolution = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *TicketCreate) SetDueAt(val OptNilDateTime) {
+	s.DueAt = val
 }
 
 // Ref: #/components/schemas/TicketDetail

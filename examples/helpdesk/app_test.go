@@ -28,6 +28,7 @@ import (
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
@@ -108,7 +109,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal(err)
 	}
 	integerState, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded,
-		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0002_ticket_priority"})))
+		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0003_ticket_resolution"})))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,8 +118,8 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("integer migration removed the model")
 	}
 	for _, field := range integerModel.Fields {
-		if field.Name == "resolution" {
-			t.Fatal("text field appeared before its migration")
+		if field.Name == "due_at" {
+			t.Fatal("datetime field appeared before its migration")
 		}
 	}
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
@@ -136,7 +137,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("reverse field migrations removed the model")
 	}
 	for _, field := range historical.Fields {
-		if field.Name == "priority" || field.Name == "resolution" {
+		if field.Name == "priority" || field.Name == "resolution" || field.Name == "due_at" {
 			t.Fatal("reverse field migrations retained a later column")
 		}
 	}
@@ -190,7 +191,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("Category should need no form/CRUD adapter")
 	}
 	ticketInfo, ok := application.Registry().Lookup("helpdesk", "ticket")
-	if !ok || len(ticketInfo.FormFields) != 5 {
+	if !ok || len(ticketInfo.FormFields) != 6 {
 		t.Fatal("Ticket scalar selection")
 	}
 	for _, field := range ticketInfo.FormFields {
@@ -242,7 +243,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
 	}
-	if len(detail) != 2 || len(detail["ticket"]) != 7 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+	if len(detail) != 2 || len(detail["ticket"]) != 8 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
 		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
 	}
 	var categoryName string
@@ -283,7 +284,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("GET", "/admin/tickets/add/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), `name="category"`) || !strings.Contains(response.Body.String(), `inputmode="numeric"`) || !strings.Contains(response.Body.String(), `<textarea`) || !strings.Contains(response.Body.String(), `name="resolution"`) {
 		t.Fatalf("selected ticket form: %d %s", response.Code, response.Body)
 	}
-	values := url.Values{"subject": {"Admin ticket"}, "details": {""}, "closed": {"false"}, "priority": {strconv.FormatInt(math.MaxInt64, 10)}, "csrfmiddlewaretoken": {client.csrf}, "category": {strconv.FormatInt(other.ID, 10)}}
+	values := url.Values{"subject": {"Admin ticket"}, "due_at": {"0001-01-01T00:00:00Z"}, "details": {""}, "closed": {"false"}, "priority": {strconv.FormatInt(math.MaxInt64, 10)}, "csrfmiddlewaretoken": {client.csrf}, "category": {strconv.FormatInt(other.ID, 10)}}
 	if response := client.request("POST", "/admin/tickets/add/", values.Encode(), false); response.Code != http.StatusBadRequest {
 		t.Fatalf("injected relationship accepted: %d", response.Code)
 	}
@@ -291,14 +292,14 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("POST", "/admin/tickets/add/", values.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("Admin create: %d %s", response.Code, response.Body)
 	}
-	if response := client.request("GET", "/admin/tickets/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other category ticket") || !strings.Contains(response.Body.String(), strconv.FormatInt(math.MaxInt64, 10)) {
+	if response := client.request("GET", "/admin/tickets/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other category ticket") || !strings.Contains(response.Body.String(), strconv.FormatInt(math.MaxInt64, 10)) || !strings.Contains(response.Body.String(), "0001-01-01T00:00:00.000000Z") {
 		t.Fatalf("scoped Admin list: %d %s", response.Code, response.Body)
 	}
 	if response := client.request("GET", fmt.Sprintf("/admin/tickets/change/?id=%d", outside.ID), "", false); response.Code != http.StatusNotFound {
 		t.Fatalf("unselected category leaked through direct object read: %d", response.Code)
 	}
 	resolution := "first line\n" + strings.Repeat("Long explanation. ", 100) + "\n</textarea><script>alert(1)</script>&\""
-	createJSON, err := json.Marshal(map[string]any{"subject": "JSON ticket", "details": nil, "priority": int64(math.MinInt64), "resolution": resolution})
+	createJSON, err := json.Marshal(map[string]any{"subject": "JSON ticket", "details": nil, "priority": int64(math.MinInt64), "resolution": resolution, "due_at": "2026-09-19T12:34:56.123456789+09:00"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,20 +309,21 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatalf("JSON create: %d %s", response.Code, response.Body)
 	}
 	var created struct {
-		ID         int64   `json:"id"`
-		Category   int64   `json:"category"`
-		Closed     bool    `json:"closed"`
-		Details    *string `json:"details"`
-		Priority   *int64  `json:"priority"`
-		Resolution *string `json:"resolution"`
+		ID         int64      `json:"id"`
+		Category   int64      `json:"category"`
+		Closed     bool       `json:"closed"`
+		Details    *string    `json:"details"`
+		Priority   *int64     `json:"priority"`
+		Resolution *string    `json:"resolution"`
+		DueAt      *time.Time `json:"due_at"`
 	}
-	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID <= seed.ID || created.Category != category.ID || created.Closed || created.Details != nil || created.Priority == nil || *created.Priority != math.MinInt64 || created.Resolution == nil || *created.Resolution != resolution {
+	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID <= seed.ID || created.Category != category.ID || created.Closed || created.Details != nil || created.Priority == nil || *created.Priority != math.MinInt64 || created.Resolution == nil || *created.Resolution != resolution || created.DueAt == nil || !created.DueAt.Equal(time.Date(2026, 9, 19, 3, 34, 56, 123456000, time.UTC)) {
 		t.Fatalf("typed JSON projection: %+v %v", created, err)
 	}
 	if response.Header().Get("Location") != "" {
 		t.Fatal("create added an undocumented Location header")
 	}
-	for _, document := range []string{`{"subject":"Bad","resolution":17}`, `{"subject":"Bad","resolution":"bad\u0000text"}`} {
+	for _, document := range []string{`{"subject":"Bad","due_at":0}`, `{"subject":"Bad","due_at":"2026-09-19"}`, `{"subject":"Bad","due_at":"2026-02-30T00:00:00Z"}`, `{"subject":"Bad","due_at":"0001-01-01T00:00:00+01:00"}`, `{"subject":"Bad","resolution":17}`, `{"subject":"Bad","resolution":"bad\u0000text"}`} {
 		if response := client.request("POST", "/api/tickets/", document, true); response.Code != http.StatusBadRequest {
 			t.Fatalf("invalid Text accepted: %d %s", response.Code, response.Body)
 		}
@@ -339,35 +341,56 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		}
 	}
 	changePath := fmt.Sprintf("/admin/tickets/change/?id=%d", created.ID)
-	if response := client.request("GET", changePath, "", false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `value="-9223372036854775808"`) || !strings.Contains(response.Body.String(), `inputmode="numeric"`) {
+	if response := client.request("GET", changePath, "", false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `value="-9223372036854775808"`) || !strings.Contains(response.Body.String(), `inputmode="numeric"`) || !strings.Contains(response.Body.String(), `value="2026-09-19T03:34:56.123456Z"`) || !strings.Contains(response.Body.String(), "UTC if no offset is provided.") {
 		t.Fatalf("metadata-derived initial values: %d %s", response.Code, response.Body)
 	} else if !strings.Contains(response.Body.String(), ">\n"+html.EscapeString(resolution)+"</textarea>") || strings.Contains(response.Body.String(), "<script>") {
 		t.Fatal("textarea lost its content/newline prefix or failed to escape HTML")
 	}
 	updatedResolution := "Resolved first line\n" + resolution
-	values = url.Values{"subject": {""}, "details": {"done"}, "closed": {"true"}, "priority": {"+000.0"}, "resolution": {"\n\n" + updatedResolution}, "csrfmiddlewaretoken": {client.csrf}}
+	values = url.Values{"subject": {""}, "details": {"done"}, "closed": {"true"}, "priority": {"+000.0"}, "resolution": {"\n\n" + updatedResolution}, "due_at": {"9999-12-31 23:59:59.999999"}, "csrfmiddlewaretoken": {client.csrf}}
 	if response := client.request("POST", changePath, values.Encode(), false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), ">\n\n\n"+html.EscapeString(updatedResolution)+"</textarea>") || strings.Contains(response.Body.String(), "<script>") {
 		t.Fatalf("invalid form did not preserve escaped raw Text: %d", response.Code)
 	}
 	unchanged, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(created.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || unchanged.Subject != "JSON ticket" || unchanged.Priority == nil || *unchanged.Priority != math.MinInt64 || unchanged.Resolution == nil || *unchanged.Resolution != resolution {
+	if err != nil || !found || unchanged.Subject != "JSON ticket" || unchanged.Priority == nil || *unchanged.Priority != math.MinInt64 || unchanged.Resolution == nil || *unchanged.Resolution != resolution || unchanged.DueAt == nil || !unchanged.DueAt.Equal(*created.DueAt) {
 		t.Fatal("invalid multiline form changed stored data")
 	}
 	values.Set("subject", "Resolved")
+	values.Set("due_at", "2026-02-30 10:11:12")
+	if response := client.request("POST", changePath, values.Encode(), false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `data-error-field="due_at"`) {
+		t.Fatalf("invalid datetime form accepted: %d", response.Code)
+	}
+	afterInvalid, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(created.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+	if err != nil || !found || afterInvalid.Subject != unchanged.Subject || afterInvalid.DueAt == nil || !afterInvalid.DueAt.Equal(*unchanged.DueAt) {
+		t.Fatal("invalid datetime form changed stored data")
+	}
+	values.Set("due_at", "9999-12-31 23:59:59.999999")
 	if response := client.request("POST", changePath, values.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("Admin update: %d %s", response.Code, response.Body)
 	}
 	stored, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(created.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || stored.CategoryID != category.ID || stored.Subject != "Resolved" || !stored.Closed || stored.Details == nil || *stored.Details != "done" || stored.Priority == nil || *stored.Priority != 0 || stored.Resolution == nil || *stored.Resolution != updatedResolution {
+	if err != nil || !found || stored.CategoryID != category.ID || stored.Subject != "Resolved" || !stored.Closed || stored.Details == nil || *stored.Details != "done" || stored.Priority == nil || *stored.Priority != 0 || stored.Resolution == nil || *stored.Resolution != updatedResolution || stored.DueAt == nil || !stored.DueAt.Equal(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)) {
 		t.Fatalf("real stored mutation: %+v %v", stored, err)
+	}
+	type timeBounds struct{ Min, Max orm.Optional[time.Time] }
+	bounds, err := orm.AggregateInto(ctx, models.TicketObjects.Using(backend), orm.Aggregate2(orm.Min(models.TicketFields.DueAt), orm.Max(models.TicketFields.DueAt), func(min, max orm.Optional[time.Time]) timeBounds { return timeBounds{min, max} }))
+	if err != nil {
+		t.Fatal("aggregate nullable datetime on the real database:", err)
+	}
+	if minimum, ok := bounds.Min.Get(); !ok || !minimum.Equal(time.Time{}) {
+		t.Fatal("MIN datetime lost the valid year 1 value")
+	}
+	if maximum, ok := bounds.Max.Get(); !ok || !maximum.Equal(*stored.DueAt) {
+		t.Fatal("MAX datetime lost the valid year 9999 value")
 	}
 	values.Set("priority", "")
 	values.Set("resolution", "")
+	values.Set("due_at", "")
 	if response := client.request("POST", changePath, values.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("clear integer priority: %d %s", response.Code, response.Body)
 	}
 	stored, found, err = models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(created.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || stored.Priority != nil || stored.Resolution == nil || *stored.Resolution != "" {
+	if err != nil || !found || stored.Priority != nil || stored.Resolution == nil || *stored.Resolution != "" || stored.DueAt != nil {
 		t.Fatal("blank form did not preserve integer null versus Text empty string")
 	}
 	if count, err := models.TicketObjects.Using(backend).Count(ctx); err != nil || count != 4 {
@@ -389,7 +412,7 @@ func insertHistoricalTicket(ctx context.Context, backend db.Mutator, subject str
 func readGrownTicket(t *testing.T, ctx context.Context, backend db.Queryer, id int64, subject string, category int64) models.Ticket {
 	t.Helper()
 	value, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || value.Subject != subject || value.CategoryID != category || value.Details != nil || value.Closed || value.Priority != nil || value.Resolution != nil {
+	if err != nil || !found || value.Subject != subject || value.CategoryID != category || value.Details != nil || value.Closed || value.Priority != nil || value.Resolution != nil || value.DueAt != nil {
 		t.Fatalf("field migrations did not preserve the historical row and NULL backfill: %v", err)
 	}
 	return value

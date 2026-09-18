@@ -240,6 +240,11 @@ type fieldDocument struct {
 	Relation   *relationDocument `json:"relation,omitempty"`
 }
 
+type datetimeDefaultDocument struct {
+	Kind     ir.ScalarKind `json:"kind"`
+	DateTime string        `json:"datetime"`
+}
+
 type stringDefaultDocument struct {
 	Kind   ir.ScalarKind `json:"kind"`
 	String string        `json:"string"`
@@ -318,6 +323,8 @@ func encodeDefault(value *ir.ScalarDefault) any {
 		return nil
 	}
 	switch value.Kind {
+	case ir.ScalarDateTime:
+		return datetimeDefaultDocument{Kind: value.Kind, DateTime: value.DateTime}
 	case ir.ScalarString:
 		return stringDefaultDocument{Kind: value.Kind, String: value.String}
 	case ir.ScalarBoolean:

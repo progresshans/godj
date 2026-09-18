@@ -158,6 +158,11 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			"Consumer ticket":  new("First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"),
 			"Maximum priority": new(""), "Minimum priority": nil, "Zero priority": nil, "Null priority": nil,
 		}
+		wantDueAt := map[string]*time.Time{
+			"Consumer ticket":  new(time.Date(2026, 9, 19, 3, 34, 56, 123456000, time.UTC)),
+			"Maximum priority": new(time.Time{}), "Minimum priority": new(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)),
+			"Zero priority": nil, "Null priority": nil,
+		}
 		for _, stored := range tickets {
 			if stored.CategoryID == category.ID {
 				selectedCount++
@@ -184,11 +189,16 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if !known || (stored.Resolution == nil) != (text == nil) || (text != nil && stored.Resolution != nil && *stored.Resolution != *text) {
 					t.Error("generated client changed Text content or null/empty presence during persistence")
 				}
+				due, known := wantDueAt[stored.Subject]
+				if !known || (stored.DueAt == nil) != (due == nil) || (due != nil && stored.DueAt != nil && *stored.DueAt != *due) {
+					t.Error("generated client changed canonical datetime or null during persistence")
+				}
+				delete(wantDueAt, stored.Subject)
 				delete(wantPriority, stored.Subject)
 				delete(wantResolution, stored.Subject)
 			}
 		}
-		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 {
+		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
 		}
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
@@ -349,6 +359,9 @@ func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
 		return false
 	}
 	if (left.Resolution == nil) != (right.Resolution == nil) || (left.Resolution != nil && *left.Resolution != *right.Resolution) {
+		return false
+	}
+	if (left.DueAt == nil) != (right.DueAt == nil) || (left.DueAt != nil && !left.DueAt.Equal(*right.DueAt)) {
 		return false
 	}
 	if (left.Priority == nil) != (right.Priority == nil) || (left.Priority != nil && *left.Priority != *right.Priority) {

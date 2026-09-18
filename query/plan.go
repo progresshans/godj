@@ -12,9 +12,10 @@ import (
 type FieldKind string
 
 const (
-	FieldInteger FieldKind = "integer"
-	FieldString  FieldKind = "string"
-	FieldBoolean FieldKind = "boolean"
+	FieldInteger  FieldKind = "integer"
+	FieldString   FieldKind = "string"
+	FieldBoolean  FieldKind = "boolean"
+	FieldDateTime FieldKind = "datetime"
 )
 
 type FieldRef struct {
@@ -183,6 +184,8 @@ func validInValues(field FieldRef, values []Value) bool {
 		expected = ValueString
 	case FieldBoolean:
 		expected = ValueBoolean
+	case FieldDateTime:
+		expected = ValueDateTime
 	default:
 		return false
 	}

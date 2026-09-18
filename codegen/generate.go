@@ -11,6 +11,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -35,6 +36,9 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
+	if hasDateTimeStorage(schema) {
+		fmt.Fprintln(&output, "\t_godjtime \"time\"")
+	}
 	if hasNullableQueryStorage(schema) {
 		fmt.Fprintln(&output, "\t\"database/sql\"")
 	}
@@ -57,7 +61,18 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable {
+			if field.Nullable && field.Kind != ir.FieldDateTime {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasDateTimeStorage(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Kind == ir.FieldDateTime {
 				return true
 			}
 		}
@@ -95,6 +110,8 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	for _, field := range model.Fields {
 		if field.Nullable {
 			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
+		} else if field.Kind == ir.FieldDateTime {
+			fmt.Fprintf(output, "\tvar scan%s orm.DateTimeScanner\n", field.GoName)
 		}
 	}
 	fmt.Fprint(output, "\tif err := row.Scan(")
@@ -102,7 +119,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable {
+		if field.Nullable || field.Kind == ir.FieldDateTime {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -115,6 +132,8 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
+		} else if field.Kind == ir.FieldDateTime {
+			fmt.Fprintf(output, "\tvalue.%s = scan%s.Time\n", field.GoName, field.GoName)
 		}
 	}
 	if _, ok := primaryKey(model); ok {
@@ -332,6 +351,7 @@ func renderBuildCreate(output *bytes.Buffer, model ir.Model, typeName string, fi
 				fmt.Fprintf(output, "\t\t%s = %s\n", changedName, defaultValueExpression(*field.Default))
 				fmt.Fprintln(output, "\t}")
 			}
+			renderCanonicalDateTime(output, model.GoName, field, changedName, "\t")
 			fmt.Fprintf(output, "\tvalue.%s = %s\n", field.GoName, changedName)
 			fmt.Fprintf(output, "\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
 			continue
@@ -349,6 +369,7 @@ func renderBuildCreate(output *bytes.Buffer, model ir.Model, typeName string, fi
 			fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, "default"+field.GoName))
 		}
 		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
+		renderCanonicalDateTime(output, model.GoName, field, changedName, "\t\t")
 		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
 		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
 		fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
@@ -374,6 +395,7 @@ func renderBuildPatch(output *bytes.Buffer, model ir.Model, typeName string, fie
 		changedName := "changed" + field.GoName
 		if !field.Nullable {
 			fmt.Fprintf(output, "\tif %s, ok := input.%s.Get(); ok {\n", changedName, inputName)
+			renderCanonicalDateTime(output, model.GoName, field, changedName, "\t\t")
 			fmt.Fprintf(output, "\t\tvalue.%s = %s\n", field.GoName, changedName)
 			fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
 			fmt.Fprintln(output, "\t}")
@@ -384,6 +406,7 @@ func renderBuildPatch(output *bytes.Buffer, model ir.Model, typeName string, fie
 		fmt.Fprintf(output, "\tswitch %sState {\n", changedName)
 		fmt.Fprintln(output, "\tcase orm.NullableChangeUnset:")
 		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
+		renderCanonicalDateTime(output, model.GoName, field, changedName, "\t\t")
 		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
 		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
 		fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
@@ -470,6 +493,12 @@ func queryValueExpression(field ir.Field, value string) string {
 
 func defaultValueExpression(value ir.ScalarDefault) string {
 	switch value.Kind {
+	case ir.ScalarDateTime:
+		instant, err := temporal.ParseCanonical(value.DateTime)
+		if err != nil {
+			return "nil"
+		}
+		return fmt.Sprintf("_godjtime.UnixMicro(int64(%d)).UTC()", instant.UnixMicro())
 	case ir.ScalarString:
 		return strconv.Quote(value.String)
 	case ir.ScalarBoolean:
@@ -483,6 +512,8 @@ func defaultValueExpression(value ir.ScalarDefault) string {
 
 func defaultLiteral(value ir.ScalarDefault) string {
 	switch value.Kind {
+	case ir.ScalarDateTime:
+		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarDateTime, DateTime: %s}", strconv.Quote(value.DateTime))
 	case ir.ScalarString:
 		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarString, String: %s}", strconv.Quote(value.String))
 	case ir.ScalarBoolean:
@@ -522,4 +553,13 @@ func lowerFirst(value string) string {
 	}
 	first, size := utf8.DecodeRuneInString(value)
 	return string(unicode.ToLower(first)) + value[size:]
+}
+
+func renderCanonicalDateTime(output *bytes.Buffer, model string, field ir.Field, value, indent string) {
+	if field.Kind != ir.FieldDateTime {
+		return
+	}
+	fmt.Fprintf(output, "%s%sCanonical, %sValid := query.DateTime(%s).DateTime()\n", indent, value, value, value)
+	fmt.Fprintf(output, "%sif !%sValid { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"datetime is outside the supported UTC year range\"}) }\n", indent, value, model, strconv.Quote(field.Name))
+	fmt.Fprintf(output, "%s%s = %sCanonical\n", indent, value, value)
 }

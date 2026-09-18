@@ -30,6 +30,7 @@ const (
 	FieldInteger    FieldKind = "integer"
 	FieldChar       FieldKind = "char"
 	FieldText       FieldKind = "text"
+	FieldDateTime   FieldKind = "datetime"
 	FieldBoolean    FieldKind = "boolean"
 	FieldForeignKey FieldKind = "foreign_key"
 )
@@ -71,16 +72,18 @@ type ForeignKeyRelation struct {
 type ScalarKind string
 
 const (
-	ScalarString  ScalarKind = "string"
-	ScalarBoolean ScalarKind = "boolean"
-	ScalarInteger ScalarKind = "integer"
+	ScalarString   ScalarKind = "string"
+	ScalarBoolean  ScalarKind = "boolean"
+	ScalarInteger  ScalarKind = "integer"
+	ScalarDateTime ScalarKind = "datetime"
 )
 
 type ScalarDefault struct {
-	Kind    ScalarKind `json:"kind"`
-	String  string     `json:"string,omitempty"`
-	Boolean bool       `json:"boolean,omitempty"`
-	Integer int64      `json:"integer,omitempty"`
+	Kind     ScalarKind `json:"kind"`
+	String   string     `json:"string,omitempty"`
+	DateTime string     `json:"datetime,omitempty"`
+	Boolean  bool       `json:"boolean,omitempty"`
+	Integer  int64      `json:"integer,omitempty"`
 }
 
 type Field struct {

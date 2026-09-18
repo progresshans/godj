@@ -51,7 +51,7 @@ func CompileInsert(plan query.InsertPlan) (string, []any, error) {
 	if len(assignments) == 0 {
 		return "INSERT INTO " + table + " DEFAULT VALUES", []any{}, nil
 	}
-	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey)
+	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey, sqliteValue)
 	if err != nil {
 		return "", nil, err
 	}
@@ -78,7 +78,7 @@ func CompileUpdate(plan query.UpdatePlan) (string, []any, error) {
 			return "", nil, invalidPlan("update cannot assign its key field")
 		}
 	}
-	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey)
+	columns, arguments, err := queryplan.Assignments(assignments, queryplan.WriteValue, quoteIdentifier, sqliteIdentifierKey, sqliteValue)
 	if err != nil {
 		return "", nil, err
 	}
@@ -86,7 +86,7 @@ func CompileUpdate(plan query.UpdatePlan) (string, []any, error) {
 	for index, column := range columns {
 		setClauses[index] = column + " = ?"
 	}
-	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier)
+	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier, sqliteValue)
 	if err != nil {
 		return "", nil, err
 	}
@@ -100,7 +100,7 @@ func CompileDelete(plan query.DeletePlan) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier)
+	keyColumn, keyArgument, err := queryplan.Key(plan.KeyField(), plan.KeyValue(), queryplan.WriteValue, quoteIdentifier, sqliteValue)
 	if err != nil {
 		return "", nil, err
 	}

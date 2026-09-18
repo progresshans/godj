@@ -186,6 +186,13 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 		output = append(output, "null"...)
 	} else {
 		switch field.Default.Kind {
+		case ir.ScalarDateTime:
+			output = append(output, `{"datetime":`...)
+			output, err = appendCanonicalString(output, field.Default.DateTime)
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, `,"kind":"datetime"}`...)
 		case ir.ScalarString:
 			output = append(output, `{"kind":"string","string":`...)
 			output, err = appendCanonicalString(output, field.Default.String)

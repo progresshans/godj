@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "700b62ae36674925f5ba1e89f8c696443769552d7e6027e4a90f65cb85805427"
+const GoDjRelationSchemaSHA256 = "9401b30d5f0228462ec68d9d123cbb0426632b67f1bc871a25ac41a8251e242b"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -93,10 +93,17 @@ func GoDjRelationSchema() ir.Schema {
 						Kind:     ir.FieldText,
 						Nullable: true,
 					},
+					{
+						Name:     "due_at",
+						GoName:   "DueAt",
+						Column:   "due_at",
+						Kind:     ir.FieldDateTime,
+						Nullable: true,
+					},
 				},
 			},
 		},
 	}
 }
 
-var _ GoDjProjectSnapshot_7907be16125b268e11c1ebd1cecbbe15409976fa0d05987a1fbb7f1f04d75632
+var _ GoDjProjectSnapshot_00bff25092b765cb981cfe3296002150cb412f48219fb281bc8c3d9bc7bde0b5

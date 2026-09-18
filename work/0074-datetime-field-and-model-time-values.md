@@ -26,19 +26,28 @@ integration_owner: "root"
 - Helpdesk nullable `due_at`을 새 migration으로 추가하고 기존 데이터·권한·CSRF·요청 한도와 독립 생성 client를 검증한다.
 - auto_now/auto_now_add, 날짜 추출 lookup·임의 timezone 변환·모든 지역화·Date/Time/Duration은 이 작업과 구분해 계속 남은 범위로 관리한다.
 
-## 현재 확인과 미확정
+## 구현과 검증
 
-로컬 locked Django 6.1에서 offset-bearing 입력과 UTC 입력, naive/date-only 입력, 빈 값과 잘못된 날짜의 Form 처리를 확인했다.
-현재 UTC 설정에서는 naive/date-only 입력이 UTC로 해석되고 9자리 소수초 입력은 microsecond로 잘린다.
-SQLite adapter는 aware 값을 connection timezone의 naive 값으로 바꿔 저장하고 PostgreSQL adapter는 driver에 값을 전달한다.
-이 관찰만으로 GoDj의 전체 parser·timezone 정책을 채택하지 않는다. 지원 시간 범위·정밀도·정규화와 Form 입력 정책을 먼저 정한다.
+[ADR-0061](../docs/adr/0061-datetime-field-and-canonical-instant-values.md)의 UTC 연도 1..9999·microsecond 정책으로
+IR/default·Query scalar·양 DB·generated model/Create/Patch/Save·nullable scan·projection/aggregate를 연결했다.
+Form은 offset-free 입력을 UTC로 해석하고 JSON은 explicit offset의 RFC3339를 요구한다.
+Helpdesk due_at은 실제 generator의 새 0004 migration이며 기존 세 migration은 보존한다.
 
-## 실행 순서
+고정 Django 6.1/Python 3.14.3의 48개 원본 관찰 중 46개는 Form 값·오류·widget을 대조한다.
+NUL 뒤를 버리는 2개 reference 결과는 보존하고 [DEV-0011](../docs/DEVIATIONS.md#dev-0011--datetime-입력의-nul을-거부하고-문자열-전체를-해석)의
+명시적 invalid 회귀로 구분한다. 전체 locale/DST 호환을 주장하지 않는다.
 
-1. 고정 관찰 roster와 공통 time scalar·backend encoding 결정.
-2. IR·historical codec·generator·ORM·DB와 의미 있는 회귀를 하나의 변경 묶음으로 구현.
-3. Form/Admin·serializer/OpenAPI·Helpdesk·외부 client까지 연결.
-4. 관련 normal/race/CGO0·실제 양 DB·고정 reference와 drift 검증 후 기록.
+고정 ogen의 기본 인코더가 소수초를 생략하는 실제 소비자 실패를 발견했다. 표준 date-time과 지원되는 RFC3339Nano extension을
+실제 문서에 게시해 재생성하고 값의 정밀도를 유지했다. Client 생성물의 수동 수정이나 검증 완화는 하지 않았다.
 
-이 작업의 제품 구현·실제 DB 검증은 아직 시작하지 않았다. GDJ-0073과 이전 Hosted full은 이 작업의 PASS가 아니다.
-작업 상세 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 한 번 기록한다.
+Local normal의 최종 관련 패키지, 실제 SQLite/PostgreSQL Helpdesk, 외부 client, pinned reference, 전체 compile/vet와 generated drift를
+통과했다. Race/CGO0 checkpoint와 문서 검사도 마쳤다. 상세 실행·실패·scope·source는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
+
+## 통합 milestone
+
+GDJ-0073 Text와 GDJ-0074 DateTime의 누적 scalar/default/generator/backend/Form/API 변경을 하나의 Hosted full milestone으로 묶는다.
+이 full이 Linux/macOS/Windows, normal/race/CGO0, 고정 PostgreSQL 17.10, process/reference 및 cold-build 검증을 소유한다.
+로컬 전체 matrix를 중복하지 않는다. 기존 b43552a의 full 결과는 이 두 변경의 PASS가 아니다.
+정확한 통합 source로 명시적으로 실행하고 terminal 결과·job 누락·skip·artifact를 확인한 뒤 환경별 상태를 갱신한다.
+
+현재 DateTime의 local 구현과 전체 Hosted 검증은 구분한다. 기능 카탈로그의 완성까지 다음 의존 기능을 계속 이어간다.

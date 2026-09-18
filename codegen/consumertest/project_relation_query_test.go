@@ -46,7 +46,7 @@ func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T
 		ir.Field{Name: "points", GoName: "Points", Column: "points", Kind: ir.FieldInteger},
 		ir.Field{Name: "rank", GoName: "Rank", Column: "rank", Kind: ir.FieldInteger, Nullable: true},
 		ir.Field{Name: "bio", GoName: "Bio", Column: "bio", Kind: ir.FieldText},
-		ir.Field{Name: "notes", GoName: "Notes", Column: "notes", Kind: ir.FieldText, Nullable: true})
+		ir.Field{Name: "notes", GoName: "Notes", Column: "notes", Kind: ir.FieldText, Nullable: true}, ir.Field{Name: "joined", GoName: "Joined", Column: "joined", Kind: ir.FieldDateTime})
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: "authors", ImportPath: "example.com/godj-relation-query-project/authors"},
 		{Alias: "blog", ImportPath: "example.com/godj-relation-query-project/blog"},
@@ -69,6 +69,7 @@ func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"example.com/godj-relation-query-project/blog"
 	"example.com/godj-relation-query-project/project"
@@ -95,12 +96,14 @@ func TestGeneratedRelationQueryProject(t *testing.T) {
 		relations.BlogPost.Author.ID.Exact(1),
 		relations.BlogPost.Author.Points.Exact(-10),
 		relations.BlogPost.Author.Bio.Exact("biography"),
+		relations.BlogPost.Author.Joined.Exact(time.Time{}),
 	).Plan()
 	dynamicPredicates, err := relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{
 		{Key: "author__name", Value: "Ada"},
 		{Key: "author__id", Value: int64(1)},
 		{Key: "author__points", Value: int64(-10)},
 		{Key: "author__bio", Value: "biography"},
+		{Key:"author__joined",Value:time.Time{}},
 	})
 	if err != nil {
 		t.Fatalf("ParseDynamic() error = %v", err)

@@ -799,3 +799,29 @@ temporary protocol은 stdout/stderr/artifact에 남기지 않습니다.
 GoDj가 `CASCADE`와 Django-style Python migration ABI/output을 current public format으로 채택하거나, migration name/error taxonomy를
 새 versioned public policy로 바꿀 때 새 ADR/deviation으로 supersede합니다. MIG-107의 Phase-A decision oracle을 Django 관찰로
 재분류하거나 comparator에서 file/output/error selector를 무시해 복귀하지 않습니다.
+
+## DEV-0011 — DateTime 입력의 NUL을 거부하고 문자열 전체를 해석
+
+- Status: Verified
+- Date: 2026-09-19
+- Contracts: GDJ-0074의 직접 Form 관찰 roster; 기존 manifest의 passing contract로 계산하지 않음
+- Reference profile/backend: locked Django 6.1 / Python 3.14.3 / UTC Form, DB 독립
+- Related ADR/work/evidence: [ADR-0061](adr/0061-datetime-field-and-canonical-instant-values.md), [GDJ-0074](../work/0074-datetime-field-and-model-time-values.md), [실행 증거](status/TEST_EVIDENCE.md)
+
+### Django의 관찰 가능 동작
+
+고정 환경에서 `2026-09-19T03:34:56Z` 뒤 NUL 문자를 붙인 입력도 valid다. Python datetime parser가 NUL 뒤를 무시하며
+같은 시각을 반환한다. Required/optional 두 관찰 모두 원본 fixture에 그대로 보존한다.
+
+### GoDj에서 채택한 동작과 이유
+
+GoDj의 Form과 JSON DateTime parser는 NUL과 그 뒤의 suffix를 포함한 입력을 invalid로 거부한다. 문자열 전체를 해석하는 기존
+입력 검증 경계와 일치시키고, 서로 다른 소비자가 잘린 문자열과 전체 문자열을 다르게 해석하는 상황을 만들지 않는다.
+Reference의 잘린 입력 수용을 재현하는 대안은 채택하지 않는다. 정상 ISO 시각·빈 입력·offset의 의미는 이 결정으로 바뀌지 않는다.
+
+### 영향과 검증 조건
+
+미배포 새 필드이므로 기존 저장 데이터의 migration은 없다. 양 DB에는 parser를 통과한 같은 typed 값만 전달하며 transaction·concurrency
+정책은 변경하지 않는다. Go 비교는 NUL 2건을 parity 성공으로 세지 않고 deviation 전용 assertion으로 invalid를 요구한다.
+추가 parser 회귀는 NUL 뒤 garbage도 거부하는지 확인한다. 일반 locale/DST 등 아직 구현하지 않은 문법은 이 deviation의 범위가 아니다.
+Upstream의 NUL 수용이 바뀌면 고정 fixture와 reference 버전을 함께 검토하고 이 기록을 supersede한다.

@@ -402,7 +402,7 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		return nil, invalidPlan("condition field column " + err.Error())
 	}
 	switch field.Kind() {
-	case query.FieldInteger, query.FieldString, query.FieldBoolean:
+	case query.FieldInteger, query.FieldString, query.FieldBoolean, query.FieldDateTime:
 	default:
 		return nil, invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
 	}
@@ -416,8 +416,8 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		if err := validateIdentifier(right.Column()); err != nil {
 			return nil, invalidPlan("condition right-hand-side field column " + err.Error())
 		}
-		if right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
-			return nil, invalidPlan("PostgreSQL field comparison requires same-kind Integer or String fields")
+		if right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime) {
+			return nil, invalidPlan("PostgreSQL field comparison requires same-kind ordered scalar fields")
 		}
 		if condition.Lookup() != query.LookupExact && !orderedComparisonLookup(condition.Lookup()) {
 			return nil, unsupportedLookup(field, condition.Lookup())
@@ -603,7 +603,7 @@ func validateReadSourceFields(fields []query.FieldRef) ([]query.FieldRef, error)
 			return nil, invalidPlan("field column " + err.Error())
 		}
 		switch field.Kind() {
-		case query.FieldInteger, query.FieldString, query.FieldBoolean:
+		case query.FieldInteger, query.FieldString, query.FieldBoolean, query.FieldDateTime:
 		default:
 			return nil, invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
 		}

@@ -66,6 +66,8 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0059](0059-signed-integer-field-and-model-growth.md) | Accepted | signed int64의 수정 가능한 일반 필드와 자동 ID를 분리하고 기존 모델을 migration으로 확장 |
 | [0060](0060-text-field-and-form-widget-semantics.md) | Accepted | Text 저장과 Form widget을 분리하고 nullable Text의 빈 문자열 의미를 명시 |
 
+| [0061](0061-datetime-field-and-canonical-instant-values.md) | Accepted | DateTime 순간을 UTC·microsecond로 정규화하고 backend 저장·Form·JSON의 입력 정책을 명시 |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

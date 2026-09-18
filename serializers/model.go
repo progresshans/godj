@@ -3,6 +3,7 @@ package serializers
 import (
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -71,6 +72,9 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = Boolean(boolean)
+		case query.ValueDateTime:
+			instant, _ := scalar.DateTime()
+			converted = DateTime(instant)
 		case query.ValueInteger:
 			integer, _ := scalar.Integer()
 			converted = Integer(integer)
@@ -127,6 +131,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 				options = append(options, WithDefault(String(field.Default.String)))
 			case ir.ScalarBoolean:
 				options = append(options, WithDefault(Boolean(field.Default.Boolean)))
+			case ir.ScalarDateTime:
+				instant, err := temporal.ParseCanonical(field.Default.DateTime)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid datetime default")
+				}
+				options = append(options, WithDefault(DateTime(instant)))
 			case ir.ScalarInteger:
 				options = append(options, WithDefault(Integer(field.Default.Integer)))
 			default:
@@ -139,6 +149,8 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		case ir.FieldChar, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			projected, err = StringField(field.Name, options...)
+		case ir.FieldDateTime:
+			projected, err = DateTimeField(field.Name, options...)
 		case ir.FieldBoolean:
 			projected, err = BooleanField(field.Name, options...)
 		case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:

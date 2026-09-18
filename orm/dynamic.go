@@ -3,6 +3,7 @@ package orm
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -98,7 +99,7 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	case query.LookupExact:
 		return lookup, true
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:
@@ -135,6 +136,16 @@ func dynamicValue(field ir.Field, lookup query.Lookup, raw any) (query.Value, er
 		default:
 			return invalid("int or int64")
 		}
+	case ir.FieldDateTime:
+		value, ok := raw.(time.Time)
+		if !ok {
+			return invalid("time.Time")
+		}
+		result := query.DateTime(value)
+		if result.Kind() != query.ValueDateTime {
+			return invalid("time.Time in UTC years 1 through 9999")
+		}
+		return result, nil
 	case ir.FieldChar, ir.FieldText:
 		value, ok := raw.(string)
 		if !ok {

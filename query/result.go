@@ -147,8 +147,8 @@ func (s ResultShape) validate() error {
 				}
 			case ResultMax, ResultMin:
 				field, ok := expression.Field()
-				if !ok || !validResultField(field) || (field.Kind() != FieldInteger && field.Kind() != FieldString) {
-					return invalidPlanError("MIN/MAX result requires an integer or string field")
+				if !ok || !validResultField(field) || (field.Kind() != FieldInteger && field.Kind() != FieldString && field.Kind() != FieldDateTime) {
+					return invalidPlanError("MIN/MAX result requires an ordered scalar field")
 				}
 			default:
 				return invalidPlanError("aggregate result contains an unsupported expression")
@@ -165,7 +165,7 @@ func validResultField(field FieldRef) bool {
 		return false
 	}
 	switch field.Kind() {
-	case FieldInteger, FieldString, FieldBoolean:
+	case FieldInteger, FieldString, FieldBoolean, FieldDateTime:
 		return true
 	default:
 		return false

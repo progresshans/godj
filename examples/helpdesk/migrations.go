@@ -15,6 +15,9 @@ var priorityMigration []byte
 //go:embed migrations/helpdesk_0003_ticket_resolution.godj.json
 var resolutionMigration []byte
 
+//go:embed migrations/helpdesk_0004_ticket_due_at.godj.json
+var dueAtMigration []byte
+
 // MigrationSources returns detached historical definitions in declaration
 // order. Host setup loads them alongside its system-state migration. Existing
 // definitions are preserved when the current model grows.
@@ -23,5 +26,6 @@ func MigrationSources() []definition.Source {
 		{SourceID: "helpdesk/0001_initial", Document: append([]byte(nil), initialMigration...)},
 		{SourceID: "helpdesk/0002_ticket_priority", Document: append([]byte(nil), priorityMigration...)},
 		{SourceID: "helpdesk/0003_ticket_resolution", Document: append([]byte(nil), resolutionMigration...)},
+		{SourceID: "helpdesk/0004_ticket_due_at", Document: append([]byte(nil), dueAtMigration...)},
 	}
 }

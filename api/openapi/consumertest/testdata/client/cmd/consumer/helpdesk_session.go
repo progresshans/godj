@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strings"
+	"time"
 
 	hs "example.com/godj-openapi-client/helpdesksession"
 )
@@ -20,7 +21,7 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		return fail("helpdesk client setup")
 	}
 	initial, err := helpdeskList(ctx, client, transport, state)
-	if err != nil || len(initial) != 1 || initial[0].ID != target.TicketID || initial[0].Category != target.CategoryID || initial[0].Subject != "Existing ticket" || !initial[0].Priority.Null || !initial[0].Resolution.Null {
+	if err != nil || len(initial) != 1 || initial[0].ID != target.TicketID || initial[0].Category != target.CategoryID || initial[0].Subject != "Existing ticket" || !initial[0].Priority.Null || !initial[0].Resolution.Null || !initial[0].DueAt.Null {
 		return fail("helpdesk initial bare list")
 	}
 	seed := initial[0]
@@ -37,9 +38,10 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	details := hs.OptNilString{}
 	details.SetToNull()
 	resolution := "First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"
-	createdResponse, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: "  Consumer ticket  ", Details: details, Resolution: hs.NewOptNilString(resolution)})
+	dueAt := time.Date(2026, 9, 19, 12, 34, 56, 123456789, time.FixedZone("caller", 9*3600))
+	createdResponse, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: "  Consumer ticket  ", Details: details, Resolution: hs.NewOptNilString(resolution), DueAt: hs.NewOptNilDateTime(dueAt)})
 	created, ok := createdResponse.(*hs.Ticket)
-	if err != nil || !ok || transport.lastStatus() != http.StatusCreated || created.ID <= 0 || created.ID == target.TicketID || created.ID == target.OtherTicketID || created.Subject != "Consumer ticket" || !created.Details.Null || !created.Priority.Null || created.Resolution.Null || created.Resolution.Value != resolution || created.Closed || created.Category != target.CategoryID {
+	if err != nil || !ok || transport.lastStatus() != http.StatusCreated || created.ID <= 0 || created.ID == target.TicketID || created.ID == target.OtherTicketID || created.Subject != "Consumer ticket" || !created.Details.Null || !created.Priority.Null || created.Resolution.Null || created.Resolution.Value != resolution || created.DueAt.Null || !created.DueAt.Value.Equal(dueAt.UTC().Truncate(time.Microsecond)) || created.Closed || created.Category != target.CategoryID {
 		return fail("helpdesk create projection and defaults")
 	}
 	expected := []hs.Ticket{seed, *created}
@@ -60,13 +62,24 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		} else if test.subject == "Minimum priority" {
 			text.SetToNull()
 		}
-		response, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: test.subject, Priority: priority, Resolution: text})
+		due := hs.OptNilDateTime{}
+		if test.subject == "Maximum priority" {
+			due.SetTo(time.Time{})
+		} else if test.subject == "Minimum priority" {
+			due.SetTo(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC))
+		} else if test.subject == "Null priority" {
+			due.SetToNull()
+		}
+		response, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: test.subject, Priority: priority, Resolution: text, DueAt: due})
 		value, ok := response.(*hs.Ticket)
 		if err != nil || !ok || transport.lastStatus() != http.StatusCreated || value.ID <= expected[len(expected)-1].ID || value.Subject != test.subject || value.Category != target.CategoryID || value.Closed || !value.Details.Null || value.Priority.Null != test.null || (!test.null && value.Priority.Value != test.value) {
 			return fail("helpdesk integer create precision and null")
 		}
 		if value.Resolution.Null != (test.subject != "Maximum priority") || value.Resolution.Value != "" {
 			return fail("helpdesk Text omission, null, or empty string")
+		}
+		if value.DueAt.Null != (!due.Set || due.Null) || (!value.DueAt.Null && !value.DueAt.Value.Equal(due.Value)) {
+			return fail("helpdesk datetime range, omission, or null")
 		}
 		expected = append(expected, *value)
 	}

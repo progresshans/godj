@@ -8,10 +8,11 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	_godjtime "time"
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "700b62ae36674925f5ba1e89f8c696443769552d7e6027e4a90f65cb85805427"
+const GoDjSchemaSHA256 = "9401b30d5f0228462ec68d9d123cbb0426632b67f1bc871a25ac41a8251e242b"
 
 type Category struct {
 	ID                    int64
@@ -190,6 +191,7 @@ type Ticket struct {
 	CategoryID            int64
 	Priority              *int64
 	Resolution            *string
+	DueAt                 *_godjtime.Time
 	godjPrimaryKeyPresent bool
 }
 
@@ -208,7 +210,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanDetails sql.NullString
 	var scanPriority sql.NullInt64
 	var scanResolution sql.NullString
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution); err != nil {
+	var scanDueAt orm.NullableDateTimeScanner
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -222,6 +225,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanResolution.Valid {
 		scanned := scanResolution.String
 		value.Resolution = &scanned
+	}
+	if scanDueAt.Valid {
+		scanned := scanDueAt.Time
+		value.DueAt = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -255,6 +262,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 		clonedResolution := *value.Resolution
 		clone.Resolution = &clonedResolution
 	}
+	if value.DueAt != nil {
+		clonedDueAt := *value.DueAt
+		clone.DueAt = &clonedDueAt
+	}
 	return clone
 }
 
@@ -287,6 +298,11 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.String(*value.Resolution), true
+	case "due_at":
+		if value.DueAt == nil {
+			return query.Null(), true
+		}
+		return query.DateTime(*value.DueAt), true
 	default:
 		return query.Value{}, false
 	}
@@ -299,6 +315,7 @@ type TicketFieldSet struct {
 	Closed     orm.BooleanField[Ticket]
 	Priority   orm.NullableIntegerField[Ticket]
 	Resolution orm.NullableStringField[Ticket]
+	DueAt      orm.NullableDateTimeField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
@@ -310,6 +327,7 @@ var TicketFields = func() TicketFieldSet {
 		Closed:     orm.NewBooleanField[Ticket](metadata.Fields[3]),
 		Priority:   orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
 		Resolution: orm.NewNullableStringField[Ticket](metadata.Fields[6]),
+		DueAt:      orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
 	}
 }()
 
@@ -342,6 +360,7 @@ type TicketCreate struct {
 	categoryID orm.Change[int64]
 	priority   orm.NullableChange[int64]
 	resolution orm.NullableChange[string]
+	dueAt      orm.NullableChange[_godjtime.Time]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -396,9 +415,19 @@ func (input TicketCreate) WithResolutionNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithDueAt(value _godjtime.Time) TicketCreate {
+	input.dueAt = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithDueAtNull() TicketCreate {
+	input.dueAt = orm.SetNull[_godjtime.Time]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 6)
+	assignments := make([]query.Assignment, 0, 7)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -487,6 +516,31 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedDueAt, changedDueAtState := input.dueAt.Get()
+	switch changedDueAtState {
+	case orm.NullableChangeUnset:
+		value.DueAt = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("due_at", "due_at", query.FieldDateTime, true), query.Null()))
+	case orm.NullableChangeValue:
+		changedDueAtCanonical, changedDueAtValid := query.DateTime(changedDueAt).DateTime()
+		if !changedDueAtValid {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "due_at", Detail: "datetime is outside the supported UTC year range"})
+		}
+		changedDueAt = changedDueAtCanonical
+		storedDueAt := changedDueAt
+		value.DueAt = &storedDueAt
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("due_at", "due_at", query.FieldDateTime, true), query.DateTime(changedDueAt)))
+	case orm.NullableChangeNull:
+		value.DueAt = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("due_at", "due_at", query.FieldDateTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "due_at",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -497,6 +551,7 @@ type TicketPatch struct {
 	categoryID orm.Change[int64]
 	priority   orm.NullableChange[int64]
 	resolution orm.NullableChange[string]
+	dueAt      orm.NullableChange[_godjtime.Time]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -544,9 +599,19 @@ func (input TicketPatch) WithResolutionNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithDueAt(value _godjtime.Time) TicketPatch {
+	input.dueAt = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithDueAtNull() TicketPatch {
+	input.dueAt = orm.SetNull[_godjtime.Time]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 6)
+	assignments := make([]query.Assignment, 0, 7)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -610,6 +675,29 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
 			Field:    "resolution",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedDueAt, changedDueAtState := input.dueAt.Get()
+	switch changedDueAtState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		changedDueAtCanonical, changedDueAtValid := query.DateTime(changedDueAt).DateTime()
+		if !changedDueAtValid {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "due_at", Detail: "datetime is outside the supported UTC year range"})
+		}
+		changedDueAt = changedDueAtCanonical
+		storedDueAt := changedDueAt
+		value.DueAt = &storedDueAt
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("due_at", "due_at", query.FieldDateTime, true), query.DateTime(changedDueAt)))
+	case orm.NullableChangeNull:
+		value.DueAt = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("due_at", "due_at", query.FieldDateTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "due_at",
 			Detail:   "unknown nullable change state",
 		})
 	}
@@ -677,8 +765,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldText,
 				Nullable: true,
 			},
+			{
+				Name:     "due_at",
+				GoName:   "DueAt",
+				Column:   "due_at",
+				Kind:     ir.FieldDateTime,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_7907be16125b268e11c1ebd1cecbbe15409976fa0d05987a1fbb7f1f04d75632 struct{}
+type GoDjProjectSnapshot_00bff25092b765cb981cfe3296002150cb412f48219fb281bc8c3d9bc7bde0b5 struct{}

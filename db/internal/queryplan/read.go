@@ -58,7 +58,7 @@ func RelationProjection(plan query.Plan, projection query.RelationProjection, ba
 	columns := make(map[string]struct{}, len(targetColumns))
 	for _, field := range targetColumns {
 		if !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) ||
-			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldBoolean) {
+			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldBoolean && field.Kind() != query.FieldDateTime) {
 			return RelationKey{}, invalidPlan("relation projection contains an unsupported target field")
 		}
 		if _, exists := names[field.Name()]; exists {
@@ -131,7 +131,7 @@ func ReverseCondition(condition query.Condition, hop query.RelationHop, backendN
 	}
 	field := condition.Field()
 	if !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) || field.Nullable() ||
-		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
+		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime) {
 		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
 	}
 	return nil
@@ -175,13 +175,13 @@ func ContainsField(columns []query.FieldRef, candidate query.FieldRef) bool {
 }
 
 func ValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return (value == query.ValueInteger && field == query.FieldInteger) ||
+	return (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
 		(value == query.ValueString && field == query.FieldString) ||
 		(value == query.ValueBoolean && field == query.FieldBoolean)
 }
 
 func OrderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return (value == query.ValueInteger && field == query.FieldInteger) ||
+	return (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
 		(value == query.ValueString && field == query.FieldString)
 }
 
@@ -249,8 +249,8 @@ func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression
 		case query.ResultMin, query.ResultMax:
 			field, ok := expression.Field()
 			if !ok || !ContainsField(sourceFields, field) ||
-				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
-				return invalidPlan("MIN/MAX result requires an integer or string source field")
+				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime) {
+				return invalidPlan("MIN/MAX result requires an ordered scalar source field")
 			}
 			quoted, err := quoteField(field)
 			if err != nil {

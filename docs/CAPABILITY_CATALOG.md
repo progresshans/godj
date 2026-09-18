@@ -9,7 +9,7 @@ GoDj가 향하는 기능 범위다. 아래 목록은 구현 완료·지원·API 
 | Project/Core | settings/environment, deterministic app registry와 lifecycle, system check, management/custom command, logging, signal/event |
 | Web | routing/namespace/reverse, request/response, middleware, error handling, static/media/upload, development server/reload |
 | Schema/Model | 선언·IR·metadata, fields/options/default/validator, generated type/FieldSet/codec, model method·상속에 대응하는 Go 확장, introspection |
-| Fields | Auto/Integer/Float/Decimal/Boolean, Char/Text/Slug/Email/URL/UUID, Date/Time/Duration, Binary/JSON, File/Image, choices/enum, backend-specific array/range/generated/spatial |
+| Fields | Auto/Integer/Float/Decimal/Boolean, Char/Text/Slug/Email/URL/UUID, Date/DateTime/Time/Duration, Binary/JSON, File/Image, choices/enum, backend-specific array/range/generated/spatial |
 | Relation | ForeignKey/OneToOne/ManyToMany, target/depth/cycle, forward/reverse manager, prefetch/select-related, assignment와 delete semantics |
 | QuerySet | lazy/cache/iterator, typed/dynamic lookup, Q/F/expression, order/limit/distinct, projection/values, annotation/group/having, aggregate/subquery/window/function |
 | ORM writes | create/save/update/delete, get-or-create/update-or-create, bulk, row locking, transaction/savepoint와 failure/retry의 명시적 의미 |

@@ -9,7 +9,7 @@ import (
 // Assignments preserves quote, duplicate-column, value-validation and database
 // conversion order. Dialects own identifier equivalence and extra validation;
 // a nil columnKey means quoted column names are compared exactly.
-func Assignments(assignments []query.Assignment, validateValue func(query.FieldRef, query.Value) error, quoteIdentifier func(string) (string, error), columnKey func(string) string) ([]string, []any, error) {
+func Assignments(assignments []query.Assignment, validateValue func(query.FieldRef, query.Value) error, quoteIdentifier func(string) (string, error), columnKey func(string) string, encodeValue func(query.Value) (any, error)) ([]string, []any, error) {
 	columns := make([]string, len(assignments))
 	arguments := make([]any, len(assignments))
 	seen := make(map[string]struct{}, len(assignments))
@@ -30,7 +30,7 @@ func Assignments(assignments []query.Assignment, validateValue func(query.FieldR
 		if err := validateValue(field, assignment.Value()); err != nil {
 			return nil, nil, err
 		}
-		argument, err := assignment.Value().DatabaseValue()
+		argument, err := encodeValue(assignment.Value())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -39,7 +39,7 @@ func Assignments(assignments []query.Assignment, validateValue func(query.FieldR
 	return columns, arguments, nil
 }
 
-func Key(field query.FieldRef, value query.Value, validateValue func(query.FieldRef, query.Value) error, quoteIdentifier func(string) (string, error)) (string, any, error) {
+func Key(field query.FieldRef, value query.Value, validateValue func(query.FieldRef, query.Value) error, quoteIdentifier func(string) (string, error), encodeValue func(query.Value) (any, error)) (string, any, error) {
 	if field.Nullable() || value.IsNull() {
 		return "", nil, invalidPlan("mutation key cannot be nullable or NULL")
 	}
@@ -50,7 +50,7 @@ func Key(field query.FieldRef, value query.Value, validateValue func(query.Field
 	if err != nil {
 		return "", nil, err
 	}
-	argument, err := value.DatabaseValue()
+	argument, err := encodeValue(value)
 	if err != nil {
 		return "", nil, err
 	}
