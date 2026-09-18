@@ -657,3 +657,7 @@ func assertCalls(t *testing.T, got []string, want ...string) {
 		t.Fatalf("calls = %v, want %v", got, want)
 	}
 }
+
+func (t *fakeTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	return t.call("alter_field")
+}

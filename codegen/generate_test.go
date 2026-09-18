@@ -213,7 +213,7 @@ func TestGenerateIsDeterministicAndContainsProvenance(t *testing.T) {
 		[]byte("type ArticlePatch struct"),
 		[]byte("WithSummaryNull"),
 		[]byte("BuildCreate() orm.Mutation[Article]"),
-		[]byte("Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}"),
+		[]byte("Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}"),
 		[]byte("*string"),
 	} {
 		if !bytes.Contains(first, fragment) {

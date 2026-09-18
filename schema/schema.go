@@ -28,7 +28,8 @@ type Field struct {
 	Kind      ir.FieldKind
 	Nullable  bool
 	MaxLength int
-	Default   *ir.ScalarDefault
+	Default   *ir.Scalar
+	Choices   []ir.Choice
 	Relation  *ir.ForeignKeyRelation
 }
 
@@ -66,17 +67,17 @@ func Default[T DefaultScalar](value T) FieldOption {
 	return func(field *Field) {
 		switch typed := any(value).(type) {
 		case string:
-			field.Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: typed}
+			field.Default = &ir.Scalar{Kind: ir.ScalarString, String: typed}
 		case bool:
-			field.Default = &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: typed}
+			field.Default = &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: typed}
 		case time.Time:
 			canonical, err := temporal.Canonical(typed)
-			field.Default = &ir.ScalarDefault{Kind: ir.ScalarDateTime}
+			field.Default = &ir.Scalar{Kind: ir.ScalarDateTime}
 			if err == nil {
 				field.Default.DateTime = temporal.Format(canonical)
 			}
 		case int64:
-			field.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: typed}
+			field.Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: typed}
 		}
 	}
 }
@@ -164,7 +165,7 @@ func Build(definition Definition) (ir.Schema, error) {
 			Fields:  make([]ir.Field, len(model.Fields)),
 		}
 		for fieldIndex, field := range model.Fields {
-			var defaultValue *ir.ScalarDefault
+			var defaultValue *ir.Scalar
 			if field.Default != nil {
 				copy := *field.Default
 				defaultValue = &copy
@@ -183,6 +184,7 @@ func Build(definition Definition) (ir.Schema, error) {
 				Nullable:   field.Nullable,
 				MaxLength:  field.MaxLength,
 				Default:    defaultValue,
+				Choices:    field.Choices,
 				Relation:   relation,
 			}
 		}

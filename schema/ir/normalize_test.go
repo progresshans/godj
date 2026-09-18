@@ -131,7 +131,7 @@ func TestNormalizeRejectsMismatchedTypedDefault(t *testing.T) {
 				Name:    "published",
 				GoName:  "Published",
 				Kind:    ir.FieldBoolean,
-				Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "false"},
+				Default: &ir.Scalar{Kind: ir.ScalarString, String: "false"},
 			}},
 		}},
 	})
@@ -144,7 +144,7 @@ func TestNormalizeRejectsMismatchedTypedDefault(t *testing.T) {
 func TestSchemaCloneDoesNotShareDefaultState(t *testing.T) {
 	t.Parallel()
 
-	input := ir.Schema{Models: []ir.Model{{Fields: []ir.Field{{Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean}}}}}}
+	input := ir.Schema{Models: []ir.Model{{Fields: []ir.Field{{Default: &ir.Scalar{Kind: ir.ScalarBoolean}}}}}}
 	clone := input.Clone()
 	clone.Models[0].Fields[0].Default.Boolean = true
 	if input.Models[0].Fields[0].Default.Boolean {
@@ -158,7 +158,7 @@ func TestNormalizeAndHashOwnsSchemaAndReturnsZeroOnFailure(t *testing.T) {
 	input := relationSchema()
 	input.Models[0].Fields = append(input.Models[0].Fields, ir.Field{
 		Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 100,
-		Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"},
+		Default: &ir.Scalar{Kind: ir.ScalarString, String: "original"},
 	})
 	normalized, hash, err := ir.NormalizeAndHash(input)
 	if err != nil {
@@ -210,7 +210,7 @@ func TestNormalizeRejectsInvalidUTF8StringDefault(t *testing.T) {
 				GoName:    "Title",
 				Kind:      ir.FieldChar,
 				MaxLength: 20,
-				Default:   &ir.ScalarDefault{Kind: ir.ScalarString, String: string([]byte{0xff})},
+				Default:   &ir.Scalar{Kind: ir.ScalarString, String: string([]byte{0xff})},
 			}},
 		}},
 	})

@@ -381,7 +381,10 @@ func (schema *postgresMigrationSchema) postgresMigrationPreflightTables() (
 			}
 			if entry, exists := existing[target.TargetModel.DBTable]; exists {
 				if !reflect.DeepEqual(entry.model, target.TargetModel) {
-					return nil, nil, postgresMigrationIntentIntegrity("sealed source and target snapshots disagree for one PostgreSQL table", nil)
+					_, scheduled := schema.initial.models[target.TargetModel.Name]
+					if !scheduled || target.SourceField.Relation.Target.AppLabel != schema.transition.Migration.App || !postgresChoiceStorageEqual(entry.model, target.TargetModel) {
+						return nil, nil, postgresMigrationIntentIntegrity("sealed source and target snapshots disagree for one PostgreSQL table", nil)
+					}
 				}
 				continue
 			}

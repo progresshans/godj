@@ -22,14 +22,15 @@ const (
 )
 
 const (
-	CodeRequired  validation.Code = "required"
-	CodeReadOnly  validation.Code = "read_only"
-	CodeNull      validation.Code = "null"
-	CodeType      validation.Code = "type"
-	CodeDateTime  validation.Code = "datetime"
-	CodeBlank     validation.Code = "blank"
-	CodeMaxLength validation.Code = "max_length"
-	CodeUnknown   validation.Code = "unknown"
+	CodeRequired      validation.Code = "required"
+	CodeReadOnly      validation.Code = "read_only"
+	CodeNull          validation.Code = "null"
+	CodeType          validation.Code = "type"
+	CodeDateTime      validation.Code = "datetime"
+	CodeBlank         validation.Code = "blank"
+	CodeMaxLength     validation.Code = "max_length"
+	CodeUnknown       validation.Code = "unknown"
+	CodeInvalidChoice validation.Code = "invalid_choice"
 )
 
 // FieldOption is closed to this package so serializer structure cannot hide
@@ -86,6 +87,7 @@ func WithTrimWhitespace(trim bool) FieldOption {
 }
 
 type fieldConfig struct {
+	choices           []Choice
 	required          bool
 	nullable          bool
 	readOnly          bool
@@ -100,6 +102,7 @@ type fieldConfig struct {
 
 // Field is an immutable serializer field definition.
 type Field struct {
+	choices        []Choice
 	name           string
 	kind           FieldKind
 	required       bool
@@ -136,6 +139,9 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 		}
 		typed.apply(&config)
 	}
+	if err := configureChoices(name, kind, &config); err != nil {
+		return Field{}, err
+	}
 	if config.readOnly && (config.required || config.hasDefault) {
 		return Field{}, invalidConfig("fields."+name, "read-only field cannot be required or have a default")
 	}
@@ -170,6 +176,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 		return Field{}, invalidConfig("fields."+name, "field kind is unsupported")
 	}
 	return Field{
+		choices:        slices.Clone(config.choices),
 		name:           name,
 		kind:           kind,
 		required:       config.required,
@@ -387,6 +394,12 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 	}
 	if !valueMatchesField(value, field.kind, field.nullable) {
 		return Value{}, oneViolation(field.name, CodeType)
+	}
+	if field.choices != nil {
+		if !field.acceptsChoice(value) {
+			return Value{}, oneViolation(field.name, CodeInvalidChoice)
+		}
+		return value, validation.NewErrors()
 	}
 	if field.kind != FieldString {
 		return value, validation.NewErrors()

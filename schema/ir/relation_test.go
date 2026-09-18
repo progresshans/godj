@@ -20,7 +20,7 @@ func TestCurrentScalarCanonicalHashIsDeterministic(t *testing.T) {
 			GoName: "Article",
 			Fields: []ir.Field{
 				{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
-				{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean}},
+				{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean}},
 				{Name: "summary", GoName: "Summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 200},
 			},
 		}},
@@ -118,7 +118,7 @@ func TestCurrentRelationValidationMatrix(t *testing.T) {
 		{name: "primary key", edit: func(s *ir.Schema) { s.Models[0].Fields[1].PrimaryKey = true }, path: "models[0].fields[1].primary_key", code: "unsupported"},
 		{name: "max length", edit: func(s *ir.Schema) { s.Models[0].Fields[1].MaxLength = 1 }, path: "models[0].fields[1].max_length", code: "unsupported"},
 		{name: "default", edit: func(s *ir.Schema) {
-			s.Models[0].Fields[1].Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: 1}
+			s.Models[0].Fields[1].Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: 1}
 		}, path: "models[0].fields[1].default", code: "unsupported"},
 		{name: "target app", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.Target.AppLabel = "Authors" }, path: "models[0].fields[1].relation.target.app_label", code: "invalid_identifier"},
 		{name: "target model", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.Target.ModelName = "" }, path: "models[0].fields[1].relation.target.model_name", code: "invalid_identifier"},
@@ -151,7 +151,7 @@ func TestFieldAndModelCloneDeepCopyDefaultAndRelation(t *testing.T) {
 	}
 
 	field := relationSchema().Models[0].Fields[1]
-	field.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: 7}
+	field.Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: 7}
 	fieldClone := field.Clone()
 	modelClone := (ir.Model{Fields: []ir.Field{field}}).Clone()
 

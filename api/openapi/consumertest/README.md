@@ -13,6 +13,10 @@ DateTime은 표준 `format: date-time`과 `x-ogen-time-format` RFC3339Nano를 �
 소수초를 생략하므로 실제 게시 문서가 precision 보존 extension을 제공한다. Consumer는 offset·nanosecond 입력의 UTC microsecond
 결과, 연도 1·9999, 생략/null을 실제 HTTP와 DB로 검증한다. 생성 코드를 수동 수정하거나 검사에서 소수초를 무시하지 않는다.
 
+Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 request enum과 별도 int64 response를 확인하고,
+허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
+생성된 encoder는 `Validate()`를 자동 호출하지 않으므로 서버 검증이 별도로 필요하다.
+
 ## 현재 소스에서 문서 내보내기
 
 저장소 루트에서 실행한다. `-out`은 존재하지 않는 경로 또는 빈 디렉터리여야 하고, symlink나 기존 파일이 있는 디렉터리는 거절한다.

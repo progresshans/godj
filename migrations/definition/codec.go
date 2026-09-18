@@ -156,6 +156,12 @@ func knownMaxLengthLexicalCandidates(migration jsonValue, sourceID string) []fai
 				pointer := operationPointer + "/model/fields/" + strconv.Itoa(fieldIndex)
 				candidates = append(candidates, maxLengthLexicalCandidate(field, sourceID, pointer)...)
 			}
+		case "alter_field":
+			for _, member := range []string{"before", "after"} {
+				if field, exists := operation.member(member); exists {
+					candidates = append(candidates, maxLengthLexicalCandidate(field, sourceID, operationPointer+"/"+member)...)
+				}
+			}
 		case "add_field":
 			field, exists := operation.member("field")
 			if exists {
@@ -461,19 +467,22 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidOperation, sourceID, pointer, app, name, operationIndex, "invalid_operation")}
 	}
-	commonFields := []string{"app_label", "field", "kind", "model", "model_name"}
+	commonFields := []string{"after", "app_label", "before", "field", "kind", "model", "model_name"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_operation"))
 	}
-	if kind.string != "create_model" && kind.string != "add_field" {
+	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "alter_field" {
 		return append(candidates, semanticFailure(CodeUnsupportedOperation, sourceID, pointer+"/kind", app, name, operationIndex, "unsupported_operation"))
 	}
 
 	fields := []string{"app_label", "kind", "model"}
 	if kind.string == "add_field" {
 		fields = []string{"app_label", "field", "kind", "model_name"}
+	}
+	if kind.string == "alter_field" {
+		fields = []string{"after", "app_label", "before", "kind", "model_name"}
 	}
 	object, _, faults := semanticObjectCandidates(value, fields, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	candidates = append(candidates, faults...)
@@ -494,6 +503,17 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			if modelName.kind != jsonString || !identifiers.SQL(modelName.string) {
 				candidates = append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/model_name", app, name, operationIndex, "invalid_operation"))
 			}
+		}
+		if kind.string == "alter_field" {
+			for _, member := range []string{"before", "after"} {
+				if field, present := object.member(member); present {
+					candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/"+member, app, name, operationIndex)...)
+				}
+			}
+			if _, valid := materializeAlterField(object, app); !valid {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir"))
+			}
+			return candidates
 		}
 		if field, present := object.member("field"); present {
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
@@ -612,7 +632,7 @@ func collectModelFieldAggregateCandidates(values []jsonValue, sourceID, pointer,
 func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"column", "default", "go_name", "kind", "max_length", "name", "nullable", "primary_key"}
 	object, objectOK, candidates := semanticObjectWithOptionalCandidates(
-		value, fields, []string{"relation"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
+		value, fields, []string{"choices", "relation"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
 	)
 	if !objectOK {
 		return candidates
@@ -666,7 +686,7 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 	}
 
 	defaultValid := false
-	var defaultValue *ir.ScalarDefault
+	var defaultValue *ir.Scalar
 	if defaultNode, exists := object.member("default"); exists {
 		candidates = append(candidates, collectDefaultCandidates(defaultNode, sourceID, pointer+"/default", app, name, operationIndex)...)
 		if decoded, valid := materializeDefault(defaultNode); valid {
@@ -755,6 +775,9 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 		default:
 			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_ir"))
 		}
+	}
+	if choices, exists := object.member("choices"); exists {
+		candidates = append(candidates, collectChoicesCandidates(choices, object, sourceID, pointer+"/choices", app, name, operationIndex)...)
 	}
 	relationNode, hasRelation := object.member("relation")
 	kindNode, hasKind := object.member("kind")
@@ -970,6 +993,8 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 			return nil, false
 		}
 		return migrations.AddField{AppLabel: appLabel.string, ModelName: modelName.string, Field: cloneField(field)}, true
+	case "alter_field":
+		return materializeAlterField(value, appLabel.string)
 	default:
 		return nil, false
 	}
@@ -1032,6 +1057,13 @@ func materializeField(value jsonValue) (ir.Field, bool) {
 		MaxLength:  int(parsedMaximum),
 		Default:    decodedDefault,
 	}
+	if choices, exists := value.member("choices"); exists {
+		decoded, valid := materializeChoices(choices)
+		if !valid {
+			return ir.Field{}, false
+		}
+		field.Choices = decoded
+	}
 	if relationValue, exists := value.member("relation"); exists {
 		relation, valid := materializeRelation(relationValue)
 		if !valid {
@@ -1070,7 +1102,7 @@ func materializeRelation(value jsonValue) (ir.ForeignKeyRelation, bool) {
 	}, true
 }
 
-func materializeDefault(value jsonValue) (*ir.ScalarDefault, bool) {
+func materializeDefault(value jsonValue) (*ir.Scalar, bool) {
 	if value.kind == jsonNull {
 		return nil, true
 	}
@@ -1090,19 +1122,19 @@ func materializeDefault(value jsonValue) (*ir.ScalarDefault, bool) {
 		if _, err := temporal.ParseCanonical(payload.string); err != nil {
 			return nil, false
 		}
-		return &ir.ScalarDefault{Kind: ir.ScalarDateTime, DateTime: payload.string}, true
+		return &ir.Scalar{Kind: ir.ScalarDateTime, DateTime: payload.string}, true
 	case string(ir.ScalarString):
 		payload, exists := value.member("string")
 		if !exists || payload.kind != jsonString {
 			return nil, false
 		}
-		return &ir.ScalarDefault{Kind: ir.ScalarString, String: payload.string}, true
+		return &ir.Scalar{Kind: ir.ScalarString, String: payload.string}, true
 	case string(ir.ScalarBoolean):
 		payload, exists := value.member("boolean")
 		if !exists || payload.kind != jsonBoolean {
 			return nil, false
 		}
-		return &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: payload.boolean}, true
+		return &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: payload.boolean}, true
 	case string(ir.ScalarInteger):
 		payload, exists := value.member("integer")
 		if !exists {
@@ -1112,7 +1144,7 @@ func materializeDefault(value jsonValue) (*ir.ScalarDefault, bool) {
 		if !valid {
 			return nil, false
 		}
-		return &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: integer}, true
+		return &ir.Scalar{Kind: ir.ScalarInteger, Integer: integer}, true
 	default:
 		return nil, false
 	}

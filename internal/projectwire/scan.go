@@ -98,7 +98,18 @@ func parseField(decoder *json.Decoder, budget *specBudget) error {
 			if err := budget.consumeNodes(1); err != nil {
 				return err
 			}
-			return parseDefault(decoder)
+			return parseScalar(decoder)
+		},
+		"choices": func() error {
+			return wirejson.Array(decoder, projectspec.MaxAggregateNodes/2, func(int) error {
+				if err := budget.consumeNodes(2); err != nil {
+					return err
+				}
+				return wirejson.Object(decoder, []string{"value", "label"}, map[string]func() error{
+					"value": func() error { return parseScalar(decoder) },
+					"label": func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+				})
+			})
 		},
 		"relation": func() error {
 			if err := budget.consumeNodes(3); err != nil {
@@ -109,12 +120,13 @@ func parseField(decoder *json.Decoder, budget *specBudget) error {
 	})
 }
 
-func parseDefault(decoder *json.Decoder) error {
+func parseScalar(decoder *json.Decoder) error {
 	return wirejson.Object(decoder, []string{"kind"}, map[string]func() error{
-		"kind":    func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
-		"string":  func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
-		"boolean": func() error { return wirejson.Bool(decoder) },
-		"integer": func() error { _, err := wirejson.IntToken(decoder); return err },
+		"kind":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"string":   func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"datetime": func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"boolean":  func() error { return wirejson.Bool(decoder) },
+		"integer":  func() error { _, err := wirejson.IntToken(decoder); return err },
 	})
 }
 

@@ -117,6 +117,25 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 					if err := validateString(fieldPath+".default.string", field.Default.String); err != nil {
 						return budget, err
 					}
+					if err := validateString(fieldPath+".default.datetime", field.Default.DateTime); err != nil {
+						return budget, err
+					}
+				}
+				if err := consumeNodes(&budget, fieldPath+".choices", uint64(len(field.Choices))*2); err != nil {
+					return budget, err
+				}
+				for index, choice := range field.Choices {
+					choicePath := fmt.Sprintf("%s.choices[%d]", fieldPath, index)
+					for _, item := range []struct{ path, value string }{
+						{choicePath + ".label", choice.Label},
+						{choicePath + ".value.kind", string(choice.Value.Kind)},
+						{choicePath + ".value.string", choice.Value.String},
+						{choicePath + ".value.datetime", choice.Value.DateTime},
+					} {
+						if err := validateString(item.path, item.value); err != nil {
+							return budget, err
+						}
+					}
 				}
 				if field.Relation != nil {
 					if err := consumeNodes(&budget, fieldPath+".relation", 3); err != nil {

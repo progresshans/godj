@@ -287,7 +287,7 @@ func articleMetadata() ir.Model {
 				GoName:  "Published",
 				Column:  "published",
 				Kind:    ir.FieldBoolean,
-				Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
+				Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false},
 			},
 			{
 				Name:      "summary",

@@ -16,6 +16,7 @@ type SchemaEditor interface {
 	DeleteModel(context.Context, ir.Model) error
 	AddField(context.Context, ir.Model, ir.Field) error
 	RemoveField(context.Context, ir.Model, ir.Field) error
+	AlterField(context.Context, ir.Model, ir.Field, ir.Field) error
 }
 
 // Recorder maintains the durable app/name key for applied migrations.

@@ -16,7 +16,7 @@ func articleModel() ir.Model {
 		Fields: []ir.Field{
 			{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
 			{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
-			{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean}},
+			{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean}},
 			{Name: "summary", GoName: "Summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 500},
 		},
 	}
@@ -68,7 +68,7 @@ func TestNewSpecRejectsUnsupportedAndUnknownOverrides(t *testing.T) {
 		{
 			name: "mismatched default",
 			mutate: func(model *ir.Model) {
-				model.Fields[1].Default = &ir.ScalarDefault{Kind: ir.ScalarBoolean}
+				model.Fields[1].Default = &ir.Scalar{Kind: ir.ScalarBoolean}
 			},
 		},
 	}
@@ -102,7 +102,7 @@ func TestOverridesCannotChangeStorageAuthority(t *testing.T) {
 
 func TestIntegerProjectionPreservesNullabilityAndExactInitialDefault(t *testing.T) {
 	model := ir.Model{Name: "counter", GoName: "Counter", Fields: []ir.Field{
-		{Name: "count", GoName: "Count", Kind: ir.FieldInteger, Default: &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: math.MinInt64}},
+		{Name: "count", GoName: "Count", Kind: ir.FieldInteger, Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: math.MinInt64}},
 		{Name: "priority", GoName: "Priority", Kind: ir.FieldInteger, Nullable: true},
 	}}
 	spec, err := formmodel.NewSpec(model)

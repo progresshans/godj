@@ -479,7 +479,7 @@ func TestExecutorExecutePlanSnapshotsCallerPlanAndDefinitions(t *testing.T) {
 	fake.transactions[0].hooks["commit"] = func() {
 		mutated := definitions[1].Operations[0].(AddField)
 		mutated.ModelName = "missing"
-		mutated.Field.Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: "mutated"}
+		mutated.Field.Default = &ir.Scalar{Kind: ir.ScalarString, String: "mutated"}
 		definitions[1].Operations[0] = mutated
 		plan[1] = PlanStep{Key: first.Key(), Direction: DirectionBackward}
 	}
@@ -507,7 +507,7 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 		Fields: []ir.Field{
 			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
 			{Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 64,
-				Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"},
+				Default: &ir.Scalar{Kind: ir.ScalarString, String: "original"},
 				Relation: &ir.ForeignKeyRelation{
 					Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 					Cardinality: ir.RelationManyToOne,
@@ -518,7 +518,7 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 	}}
 	add := &AddField{AppLabel: "news", ModelName: "article", Field: ir.Field{
 		Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean,
-		Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
+		Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false},
 		Relation: &ir.ForeignKeyRelation{
 			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 			Cardinality: ir.RelationManyToOne,
@@ -681,4 +681,8 @@ func assertPlanTransactionCalls(t *testing.T, transaction *planTestTransaction, 
 	if !reflect.DeepEqual(transaction.calls, want) {
 		t.Fatalf("transaction calls = %v, want %v", transaction.calls, want)
 	}
+}
+
+func (t *planTestTransaction) AlterField(ctx context.Context, _ ir.Model, _, _ ir.Field) error {
+	return t.call(ctx, "alter_field")
 }

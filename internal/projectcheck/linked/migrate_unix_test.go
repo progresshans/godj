@@ -754,3 +754,7 @@ func (*migrationTestTransaction) Rollback(context.Context) error { return nil }
 var _ MigrationBackend = (*migrationTestBackend)(nil)
 var _ backend.RevisionFencedSession = (*migrationTestSession)(nil)
 var _ backend.RevisionFencedTransaction = (*migrationTestTransaction)(nil)
+
+func (*migrationTestTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	return nil
+}

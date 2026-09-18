@@ -85,7 +85,14 @@ func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string)
 		fmt.Fprintf(output, "%sMaxLength: %d,\n", indent, field.MaxLength)
 	}
 	if field.Default != nil {
-		fmt.Fprintf(output, "%sDefault: %s,\n", indent, defaultLiteral(*field.Default))
+		fmt.Fprintf(output, "%sDefault: &%s,\n", indent, scalarLiteral(*field.Default))
+	}
+	if field.Choices != nil {
+		fmt.Fprintf(output, "%sChoices: []ir.Choice{\n", indent)
+		for _, choice := range field.Choices {
+			fmt.Fprintf(output, "%s\t{Value: %s, Label: %s},\n", indent, scalarLiteral(choice.Value), strconv.Quote(choice.Label))
+		}
+		fmt.Fprintf(output, "%s},\n", indent)
 	}
 	if field.Relation != nil {
 		renderRelationLiteral(output, *field.Relation, indent)

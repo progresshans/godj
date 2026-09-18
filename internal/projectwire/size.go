@@ -79,17 +79,36 @@ func measureField(sizer *wirejson.Sizer, field ir.Field) bool {
 	if field.Default != nil && (!sizer.Literal(`,"default":`) || !measureDefault(sizer, *field.Default)) {
 		return false
 	}
+	if len(field.Choices) > 0 {
+		if !sizer.Literal(`,"choices":[`) {
+			return false
+		}
+		for index, choice := range field.Choices {
+			if index > 0 && !sizer.Literal(`,`) {
+				return false
+			}
+			if !sizer.Literal(`{"value":`) || !measureDefault(sizer, choice.Value) || !sizer.Literal(`,"label":`) || !sizer.String(choice.Label) || !sizer.Literal(`}`) {
+				return false
+			}
+		}
+		if !sizer.Literal(`]`) {
+			return false
+		}
+	}
 	if field.Relation != nil && (!sizer.Literal(`,"relation":`) || !measureRelation(sizer, *field.Relation)) {
 		return false
 	}
 	return sizer.Literal(`}`)
 }
 
-func measureDefault(sizer *wirejson.Sizer, value ir.ScalarDefault) bool {
+func measureDefault(sizer *wirejson.Sizer, value ir.Scalar) bool {
 	if !sizer.Literal(`{"kind":`) || !sizer.String(string(value.Kind)) {
 		return false
 	}
 	if value.String != "" && (!sizer.Literal(`,"string":`) || !sizer.String(value.String)) {
+		return false
+	}
+	if value.DateTime != "" && (!sizer.Literal(`,"datetime":`) || !sizer.String(value.DateTime)) {
 		return false
 	}
 	if value.Boolean && (!sizer.Literal(`,"boolean":`) || !sizer.Boolean(true)) {

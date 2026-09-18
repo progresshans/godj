@@ -344,7 +344,7 @@ func TestPlanMigrationsAreDeepCopyIsolated(t *testing.T) {
 	accounts := mustProjectState(t, testSchema("accounts", testModel("author", testChar("name", false, nil))))
 	loaded := mustLoadDefinitions(t, initialMigrationsFromState(t, accounts)...)
 	desiredSchema := testSchema("content", testModel("article",
-		testChar("title", false, &ir.ScalarDefault{Kind: ir.ScalarString, String: "draft"}),
+		testChar("title", false, &ir.Scalar{Kind: ir.ScalarString, String: "draft"}),
 		testForeignKey("author", true, "accounts", "author", "articles"),
 	))
 	desired := mustProjectState(t, desiredSchema)
@@ -382,11 +382,11 @@ func TestDetectRejectsUnsafeExistingTableAddField(t *testing.T) {
 		field ir.Field
 	}{
 		{name: "non-null DateTimeField", field: ir.Field{Name: "at", GoName: "At", Kind: ir.FieldDateTime}},
-		{name: "nullable DateTimeField with default", field: ir.Field{Name: "at", GoName: "At", Kind: ir.FieldDateTime, Nullable: true, Default: &ir.ScalarDefault{Kind: ir.ScalarDateTime, DateTime: "0001-01-01T00:00:00.000000Z"}}},
+		{name: "nullable DateTimeField with default", field: ir.Field{Name: "at", GoName: "At", Kind: ir.FieldDateTime, Nullable: true, Default: &ir.Scalar{Kind: ir.ScalarDateTime, DateTime: "0001-01-01T00:00:00.000000Z"}}},
 		{name: "non-null TextField", field: ir.Field{Name: "body", GoName: "Body", Kind: ir.FieldText}},
-		{name: "nullable TextField with default", field: ir.Field{Name: "body", GoName: "Body", Kind: ir.FieldText, Nullable: true, Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: ""}}},
+		{name: "nullable TextField with default", field: ir.Field{Name: "body", GoName: "Body", Kind: ir.FieldText, Nullable: true, Default: &ir.Scalar{Kind: ir.ScalarString, String: ""}}},
 		{name: "non-null CharField", field: testChar("slug", false, nil)},
-		{name: "nullable CharField with default", field: testChar("summary", true, &ir.ScalarDefault{Kind: ir.ScalarString, String: ""})},
+		{name: "nullable CharField with default", field: testChar("summary", true, &ir.Scalar{Kind: ir.ScalarString, String: ""})},
 		{name: "non-null BooleanField", field: testBoolean("published", false)},
 	}
 	for _, test := range tests {
@@ -821,11 +821,11 @@ func testModel(name string, fields ...ir.Field) ir.Model {
 	return ir.Model{Name: name, GoName: goName, Fields: fields}
 }
 
-func testChar(name string, nullable bool, defaultValue *ir.ScalarDefault) ir.Field {
+func testChar(name string, nullable bool, defaultValue *ir.Scalar) ir.Field {
 	return testCharLength(name, nullable, defaultValue, 255)
 }
 
-func testCharLength(name string, nullable bool, defaultValue *ir.ScalarDefault, maxLength int) ir.Field {
+func testCharLength(name string, nullable bool, defaultValue *ir.Scalar, maxLength int) ir.Field {
 	return ir.Field{
 		Name: name, GoName: testGoName(name), Kind: ir.FieldChar,
 		Nullable: nullable, MaxLength: maxLength, Default: defaultValue,
@@ -835,7 +835,7 @@ func testCharLength(name string, nullable bool, defaultValue *ir.ScalarDefault, 
 func testBoolean(name string, defaultValue bool) ir.Field {
 	return ir.Field{
 		Name: name, GoName: testGoName(name), Kind: ir.FieldBoolean,
-		Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: defaultValue},
+		Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: defaultValue},
 	}
 }
 

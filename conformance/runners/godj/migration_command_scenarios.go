@@ -1782,3 +1782,10 @@ func migrationCommandInterruptCleanup(ctx context.Context, contract protocol.Con
 		"signal_context_cancellations": migrationCommandInt(signalCancellations),
 	})), nil
 }
+
+func (transaction *migrationCommandSyntheticTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	transaction.backend.mu.Lock()
+	transaction.backend.schemaMutations++
+	transaction.backend.mu.Unlock()
+	return nil
+}

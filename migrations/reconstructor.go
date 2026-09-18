@@ -212,7 +212,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, AddField:
+	case CreateModel, AddField, AlterField:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -326,6 +326,7 @@ const (
 	loadedRequiresAddNullableForeignKey
 	loadedRequiresAddRequiredForeignKeyToEmptyTable
 	loadedRequiresRemoveForeignKey
+	loadedRequiresAlterFieldChoices
 )
 
 const (
@@ -348,6 +349,7 @@ const (
 	loadedRelationDeleteModel
 	loadedRelationAddField
 	loadedRelationRemoveField
+	loadedRelationAlterField
 )
 
 type loadedRelationIntent struct {
@@ -937,6 +939,8 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 		} else {
 			err = builder.removeField(value)
 		}
+	case AlterField:
+		err = builder.alterField(value, direction == DirectionBackward)
 	default:
 		err = fmt.Errorf("operation type %T is not supported by state reconstruction", operation)
 	}
@@ -1848,6 +1852,8 @@ func loadedBackendOperationKind(operation Operation, direction Direction) (loade
 			return loadedRelationAddField, nil
 		}
 		return loadedRelationRemoveField, nil
+	case AlterField:
+		return loadedRelationAlterField, nil
 	default:
 		return 0, fmt.Errorf("operation type %T is not supported by the loaded relation lifecycle", operation)
 	}
@@ -1857,6 +1863,9 @@ func loadedRequirementsForSourceFields(
 	kind loadedRelationOperationKind,
 	fields []ir.Field,
 ) loadedRelationRequirements {
+	if kind == loadedRelationAlterField {
+		return loadedRequiresAlterFieldChoices
+	}
 	if len(fields) == 0 {
 		return 0
 	}
@@ -1932,6 +1941,8 @@ func operationSourceModel(operation Operation) (string, string) {
 	case CreateModel:
 		return value.AppLabel, value.Model.Name
 	case AddField:
+		return value.AppLabel, value.ModelName
+	case AlterField:
 		return value.AppLabel, value.ModelName
 	default:
 		return operation.App(), ""
@@ -2098,7 +2109,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, AddField:
+	case CreateModel, AddField, AlterField:
 	default:
 		return
 	}
@@ -2116,6 +2127,14 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 			return
 		}
 		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].field", index), value.Field)
+	case AlterField:
+		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
+		loadedConsumeNodes(budget, 2)
+		if budget.nodeOverflow {
+			return
+		}
+		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].before", index), value.Before)
+		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].after", index), value.After)
 	}
 }
 
@@ -2125,6 +2144,8 @@ func loadedOperationWireKind(operation Operation) string {
 		return "create_model"
 	case AddField, *AddField:
 		return "add_field"
+	case AlterField, *AlterField:
+		return "alter_field"
 	default:
 		return ""
 	}
@@ -2174,6 +2195,18 @@ func loadedScanFieldResource(budget *loadedResourceBudget, migration Migration, 
 		}
 		loadedConsumeString(budget, migration, operationIndex, kind, path+".default.kind", string(field.Default.Kind), false)
 		loadedConsumeString(budget, migration, operationIndex, kind, path+".default.string", field.Default.String, true)
+		loadedConsumeString(budget, migration, operationIndex, kind, path+".default.datetime", field.Default.DateTime, true)
+	}
+	loadedConsumeNodes(budget, uint64(len(field.Choices))*2)
+	if budget.nodeOverflow {
+		return
+	}
+	for index, choice := range field.Choices {
+		prefix := fmt.Sprintf("%s.choices[%d]", path, index)
+		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".label", choice.Label, true)
+		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".value.kind", string(choice.Value.Kind), false)
+		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".value.string", choice.Value.String, true)
+		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".value.datetime", choice.Value.DateTime, true)
 	}
 	if field.Relation != nil {
 		loadedConsumeNodes(budget, 3)

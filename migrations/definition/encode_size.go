@@ -104,6 +104,12 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 			}
 		case *migrations.AddField:
 			return encodeFailure(path, "nil *migrations.AddField")
+		case migrations.AlterField:
+			if err := scanner.scanAlterField(path, value); err != nil {
+				return err
+			}
+		case *migrations.AlterField:
+			return encodeFailure(path, "nil *migrations.AlterField")
 		case nil:
 			return encodeFailure(path, "nil operation")
 		default:
@@ -225,6 +231,27 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 			return err
 		}
 	}
+	if field.Choices != nil {
+		if err := scanner.addStructural(path+".choices", uint64(len(`,"choices":[]`))); err != nil {
+			return err
+		}
+		for index, choice := range field.Choices {
+			itemPath := fmt.Sprintf("%s.choices[%d]", path, index)
+			structure := uint64(len(`{"value":null,"label":""}`))
+			if index > 0 {
+				structure++
+			}
+			if err := scanner.addStructural(itemPath, structure); err != nil {
+				return err
+			}
+			if err := scanner.addString(itemPath+".label", choice.Label); err != nil {
+				return err
+			}
+			if err := scanner.scanDefault(itemPath+".value", choice.Value); err != nil {
+				return err
+			}
+		}
+	}
 	if field.Relation != nil {
 		if err := scanner.scanRelation(path+".relation", *field.Relation); err != nil {
 			return err
@@ -233,7 +260,7 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 	return nil
 }
 
-func (scanner *encodingSizeScanner) scanDefault(path string, value ir.ScalarDefault) error {
+func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) error {
 	if err := scanner.addString(path+".datetime", value.DateTime); err != nil {
 		return err
 	}

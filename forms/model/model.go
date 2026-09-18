@@ -186,6 +186,9 @@ func NewSpecForFields(model ir.Model, names []string, overrides ...Override) (fo
 }
 
 func projectField(field ir.Field, override overrideConfig) (forms.Field, error) {
+	if err := ir.ValidateChoices(field); err != nil {
+		return forms.Field{}, &Error{Code: "invalid_choices"}
+	}
 	label := field.GoName
 	if label == "" {
 		label = field.Name
@@ -194,6 +197,17 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		label = override.label
 	}
 	options := []forms.FieldOption{forms.WithLabel(label)}
+	if field.Choices != nil {
+		choices := make([]forms.Choice, len(field.Choices))
+		for index, choice := range field.Choices {
+			value := forms.String(choice.Value.String)
+			if choice.Value.Kind == ir.ScalarInteger {
+				value = forms.Integer(choice.Value.Integer)
+			}
+			choices[index] = forms.Choice{Value: value, Label: choice.Label}
+		}
+		options = append(options, forms.WithChoices(choices...))
+	}
 	if override.hasWidget {
 		options = append(options, forms.WithWidget(override.widget))
 	}
@@ -247,10 +261,10 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			field.Kind == ir.FieldText && field.MaxLength != 0 {
 			return forms.Field{}, &Error{Code: "invalid_char_metadata"}
 		}
-		if field.Kind == ir.FieldText && !override.hasWidget {
+		if field.Kind == ir.FieldText && field.Choices == nil && !override.hasWidget {
 			options = append(options, forms.WithWidget(forms.Textarea))
 		}
-		if field.Kind == ir.FieldText {
+		if field.Kind == ir.FieldText && field.Choices == nil {
 			options = append(options, forms.WithEmptyValue(forms.String("")))
 		}
 		options = append(options, forms.WithRequired(!field.Nullable), forms.WithMaxLength(field.MaxLength))

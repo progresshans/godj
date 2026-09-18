@@ -15,6 +15,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"AddNullableForeignKey",
 		"AddRequiredForeignKeyToEmptyTable",
 		"RemoveForeignKey",
+		"AlterFieldChoices",
 	}
 	if capabilities.NumField() != len(wantCapabilities) {
 		t.Fatalf("MigrationCapabilities fields = %d, want %d", capabilities.NumField(), len(wantCapabilities))
@@ -42,13 +43,14 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 			t.Fatalf("MigrationOperation field[%d] = %s, want %s", index, operation.Field(index).Type, want)
 		}
 	}
-	if MigrationCreateModel != 1 || MigrationDeleteModel != 2 || MigrationAddField != 3 || MigrationRemoveField != 4 {
-		t.Fatalf("migration operation values = %d/%d/%d/%d", MigrationCreateModel, MigrationDeleteModel, MigrationAddField, MigrationRemoveField)
+	if MigrationCreateModel != 1 || MigrationDeleteModel != 2 || MigrationAddField != 3 || MigrationRemoveField != 4 || MigrationAlterField != 5 {
+		t.Fatalf("migration operation values = %d/%d/%d/%d/%d", MigrationCreateModel, MigrationDeleteModel, MigrationAddField, MigrationRemoveField, MigrationAlterField)
 	}
 }
 
 func TestMigrationIntentClonePreservesShapeAndDetachesNestedIR(t *testing.T) {
-	field := ir.Field{Name: "owner", Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "before"}, Relation: &ir.ForeignKeyRelation{Target: ir.ModelIdentity{AppLabel: "owners", ModelName: "owner"}}}
+	field := ir.Field{Name: "owner", Default: &ir.Scalar{Kind: ir.ScalarString, String: "before"}, Relation: &ir.ForeignKeyRelation{Target: ir.ModelIdentity{AppLabel: "owners", ModelName: "owner"}}}
+	field.Choices = []ir.Choice{{Value: ir.Scalar{Kind: ir.ScalarString, String: "before"}, Label: "Before"}}
 	model := ir.Model{Name: "entry", Fields: []ir.Field{field}}
 	intent := MigrationIntent{Operations: []MigrationOperation{{
 		Before: model, After: model,
@@ -60,7 +62,9 @@ func TestMigrationIntentClonePreservesShapeAndDetachesNestedIR(t *testing.T) {
 	cloned.Operations[0].Targets[0].SourceField.Default.String = "changed source"
 	cloned.Operations[0].Targets[0].TargetModel.Fields[0].Default.String = "changed model"
 	cloned.Operations[0].Targets[0].TargetKey.Relation.Target.ModelName = "changed key"
-	if !reflect.DeepEqual(intent.Operations[0].Before, model) || field.Default.String != "before" || field.Relation.Target != (ir.ModelIdentity{AppLabel: "owners", ModelName: "owner"}) {
+	cloned.Operations[0].Before.Fields[0].Choices[0].Label = "changed label"
+	cloned.Operations[0].Targets[0].TargetModel.Fields[0].Choices[0].Value.String = "changed choice"
+	if !reflect.DeepEqual(intent.Operations[0].Before, model) || field.Default.String != "before" || field.Choices[0].Label != "Before" || field.Choices[0].Value.String != "before" || field.Relation.Target != (ir.ModelIdentity{AppLabel: "owners", ModelName: "owner"}) {
 		t.Fatal("intent clone retained a nested caller alias")
 	}
 	for _, value := range []MigrationIntent{

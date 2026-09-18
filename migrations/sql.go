@@ -137,6 +137,11 @@ func RenderMigrationSQL(
 	}
 	intent := loadedBackendRelationIntent(materialized.intent)
 	wantStatements := len(intent.Operations)
+	for _, operation := range intent.Operations {
+		if operation.Kind == backend.MigrationAlterField {
+			wantStatements--
+		}
+	}
 	request := backend.ForwardMigrationSQLRequest{
 		App:    strings.Clone(target.App),
 		Name:   strings.Clone(target.Name),

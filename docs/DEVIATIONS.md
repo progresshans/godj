@@ -825,3 +825,25 @@ Reference의 잘린 입력 수용을 재현하는 대안은 채택하지 않는�
 정책은 변경하지 않는다. Go 비교는 NUL 2건을 parity 성공으로 세지 않고 deviation 전용 assertion으로 invalid를 요구한다.
 추가 parser 회귀는 NUL 뒤 garbage도 거부하는지 확인한다. 일반 locale/DST 등 아직 구현하지 않은 문법은 이 deviation의 범위가 아니다.
 Upstream의 NUL 수용이 바뀌면 고정 fixture와 reference 버전을 함께 검토하고 이 기록을 supersede한다.
+
+
+## DEV-0012 — Choice JSON 입력도 scalar type을 유지
+
+- Status: Verified
+- Date: 2026-09-19
+- Contracts: GDJ-0076의 직접 choice 입력 roster; 기존 manifest contract의 parity로 계산하지 않음
+- Reference profile/backend: locked Django 6.1 / DRF 3.18.0, DB 독립 입력 검증
+- Related ADR/work/evidence: [ADR-0063](adr/0063-model-choices-and-metadata-only-migrations.md), [GDJ-0076](../work/0076-model-choices-and-metadata-migrations.md), [실행 증거](status/TEST_EVIDENCE.md)
+
+Django model에서 파생한 DRF Integer ChoiceField는 선택값 0이 있으면 JSON 문자열 `"0"`도 정수 0으로 받는다.
+그 밖의 잘못된 scalar 종류는 membership 비교 중 invalid_choice로 분류한다. 원본 입력과 결과는
+[독립 관찰](../schema/testdata/choices-django61.json)에 그대로 보존한다.
+
+GoDj의 choice serializer는 기존 JSON scalar type 경계를 유지한다. Integer choice는 JSON integer, String choice는 JSON string만
+받으며 종류 불일치는 type이다. 선언한 nullability의 null 처리는 별도다. 타입이 맞고 membership이 다르면 invalid_choice다.
+문자열 숫자 coercion을 추가해 OpenAPI integer enum과 실제 서버의 수용 입력이 달라지는 대안은 채택하지 않는다.
+Form은 HTML 문자열 표현을 받으므로 독립 Django Form 결과와 따로 대조한다.
+
+비교 테스트는 serializer의 type 차이를 명시적으로 검사한다. 이를 DRF parity로 집계하지 않는다.
+현재 typed schema·generated client·서버 parser가 같은 입력 영역을 유지하는지 확인하고, 정수 JSON 문자열을 공개적으로
+수용하는 정책을 채택할 때에는 해당 세 경계와 이 기록을 함께 변경한다. 환경별 완료는 TEST_EVIDENCE를 따른다.

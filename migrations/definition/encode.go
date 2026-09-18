@@ -63,6 +63,11 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 				ModelName: value.ModelName,
 				Field:     encodeField(value.Field),
 			}
+		case migrations.AlterField:
+			document.Migration.Operations[index] = alterFieldDocument{
+				Kind: "alter_field", AppLabel: value.AppLabel, ModelName: value.ModelName,
+				Before: encodeField(value.Before), After: encodeField(value.After),
+			}
 		default:
 			return nil, encodeFailure(
 				fmt.Sprintf("migration.operations[%d]", index),
@@ -167,6 +172,16 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			if err := validateFieldWireRange(value.Field, path+".field"); err != nil {
 				return err
 			}
+		case migrations.AlterField:
+			if value.AppLabel != migration.App || !validAlterFieldDefinition(value) {
+				return encodeFailure(path, "AlterField requires exact normalized fields with a choices-only change")
+			}
+			if err := validateFieldWireRange(value.Before, path+".before"); err != nil {
+				return err
+			}
+			if err := validateFieldWireRange(value.After, path+".after"); err != nil {
+				return err
+			}
 		default:
 			return encodeFailure(path, "unsupported operation type %T", operation)
 		}
@@ -237,7 +252,13 @@ type fieldDocument struct {
 	Nullable   bool              `json:"nullable"`
 	MaxLength  int               `json:"max_length"`
 	Default    any               `json:"default"`
+	Choices    []choiceDocument  `json:"choices,omitempty"`
 	Relation   *relationDocument `json:"relation,omitempty"`
+}
+
+type choiceDocument struct {
+	Value any    `json:"value"`
+	Label string `json:"label"`
 }
 
 type datetimeDefaultDocument struct {
@@ -301,6 +322,12 @@ func encodeField(field ir.Field) fieldDocument {
 		MaxLength:  field.MaxLength,
 		Default:    encodeDefault(field.Default),
 	}
+	if field.Choices != nil {
+		encoded.Choices = make([]choiceDocument, len(field.Choices))
+		for index, choice := range field.Choices {
+			encoded.Choices[index] = choiceDocument{Value: encodeDefault(&choice.Value), Label: choice.Label}
+		}
+	}
 	if field.Relation != nil {
 		encoded.Relation = &relationDocument{
 			Target: relationTargetDocument{
@@ -318,7 +345,7 @@ func encodeField(field ir.Field) fieldDocument {
 	return encoded
 }
 
-func encodeDefault(value *ir.ScalarDefault) any {
+func encodeDefault(value *ir.Scalar) any {
 	if value == nil {
 		return nil
 	}

@@ -424,7 +424,7 @@ func migrationStatusDefinitions() ([]definition.Source, error) {
 			Dependencies: []migrations.MigrationKey{{App: "blog", Name: "0001_article"}},
 			Operations: []migrations.Operation{migrations.AddField{
 				AppLabel: "blog", ModelName: "article",
-				Field: ir.Field{Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}},
+				Field: ir.Field{Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}},
 			}},
 		},
 		migrations.Migration{

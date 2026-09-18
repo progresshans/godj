@@ -251,7 +251,7 @@ func TestModelResponseSchemaUsesCompleteExposureWithoutInputPolicies(t *testing.
 			{Name: "id", Kind: ir.FieldAuto, PrimaryKey: true},
 			{Name: "title", Kind: ir.FieldChar, MaxLength: 2},
 			{Name: "note", Kind: ir.FieldChar, MaxLength: 20, Nullable: true},
-			{Name: "published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: true}},
+			{Name: "published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: true}},
 			{Name: "secret", Kind: ir.FieldChar, MaxLength: 20},
 		},
 	}

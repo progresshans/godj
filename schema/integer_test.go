@@ -53,7 +53,7 @@ func TestIntegerFieldRejectsNonScalarOrAutomaticMetadata(t *testing.T) {
 		schema.IntegerField("value", "Value", schema.Default(false)),
 		{Name: "value", GoName: "Value", Kind: ir.FieldInteger, MaxLength: 10},
 		{Name: "value", GoName: "Value", Kind: ir.FieldInteger, Relation: &ir.ForeignKeyRelation{}},
-		{Name: "value", GoName: "Value", Kind: ir.FieldInteger, Default: &ir.ScalarDefault{Kind: ir.ScalarInteger, Boolean: true}},
+		{Name: "value", GoName: "Value", Kind: ir.FieldInteger, Default: &ir.Scalar{Kind: ir.ScalarInteger, Boolean: true}},
 	} {
 		if _, err := schema.Build(schema.Definition{AppLabel: "numbers", Models: []schema.Model{{Name: "counter", GoName: "Counter", Fields: []schema.Field{invalid}}}}); err == nil {
 			t.Fatalf("invalid integer metadata accepted: %+v", invalid)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"math"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -152,15 +151,15 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		selectedCount, createdCount := 0, 0
 		wantPriority := map[string]*int64{
 			"Consumer ticket": nil, "Null priority": nil,
-			"Maximum priority": new(int64(math.MaxInt64)), "Minimum priority": new(int64(math.MinInt64)), "Zero priority": new(int64(0)),
+			"Urgent priority": new(int64(1)), "Low priority": new(int64(-1)), "Zero priority": new(int64(0)),
 		}
 		wantResolution := map[string]*string{
-			"Consumer ticket":  new("First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"),
-			"Maximum priority": new(""), "Minimum priority": nil, "Zero priority": nil, "Null priority": nil,
+			"Consumer ticket": new("First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"),
+			"Urgent priority": new(""), "Low priority": nil, "Zero priority": nil, "Null priority": nil,
 		}
 		wantDueAt := map[string]*time.Time{
-			"Consumer ticket":  new(time.Date(2026, 9, 19, 3, 34, 56, 123456000, time.UTC)),
-			"Maximum priority": new(time.Time{}), "Minimum priority": new(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)),
+			"Consumer ticket": new(time.Date(2026, 9, 19, 3, 34, 56, 123456000, time.UTC)),
+			"Urgent priority": new(time.Time{}), "Low priority": new(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC)),
 			"Zero priority": nil, "Null priority": nil,
 		}
 		for _, stored := range tickets {

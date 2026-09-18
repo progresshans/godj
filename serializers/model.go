@@ -112,7 +112,21 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		if !found {
 			return Spec{}, invalidConfig("model."+selection.Name, "unknown model field")
 		}
+		if err := ir.ValidateChoices(field); err != nil {
+			return Spec{}, invalidConfig("model."+selection.Name, "invalid model choices")
+		}
 		options := []FieldOption{}
+		if field.Choices != nil {
+			choices := make([]Choice, len(field.Choices))
+			for index, choice := range field.Choices {
+				value := String(choice.Value.String)
+				if choice.Value.Kind == ir.ScalarInteger {
+					value = Integer(choice.Value.Integer)
+				}
+				choices[index] = Choice{Value: value, Label: choice.Label}
+			}
+			options = append(options, WithChoices(choices...))
+		}
 		if selection.ReadOnly || field.PrimaryKey {
 			options = append(options, WithReadOnly())
 		}

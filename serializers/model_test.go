@@ -101,7 +101,7 @@ func TestModelEncoderOwnsMetadataAndDetachesReaderFields(t *testing.T) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	for index := range metadata.Fields {
 		if metadata.Fields[index].Name == "subject" {
-			metadata.Fields[index].Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: "seed"}
+			metadata.Fields[index].Default = &ir.Scalar{Kind: ir.ScalarString, String: "seed"}
 		}
 	}
 	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "subject"})

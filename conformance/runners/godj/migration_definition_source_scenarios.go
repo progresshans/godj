@@ -591,7 +591,7 @@ func migrationDefinitionFieldValue(field ir.Field) protocol.Value {
 	})
 }
 
-func migrationDefinitionDefaultValue(value *ir.ScalarDefault) protocol.Value {
+func migrationDefinitionDefaultValue(value *ir.Scalar) protocol.Value {
 	if value == nil {
 		return protocol.Null()
 	}

@@ -6,9 +6,11 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 
 	ab "example.com/godj-openapi-client/articlebearer"
+	hs "example.com/godj-openapi-client/helpdesksession"
 	"github.com/ogen-go/ogen/ogenerrors"
 )
 
@@ -76,6 +78,43 @@ func checkGeneratedWire(ctx context.Context) error {
 		article, ok := response.(*ab.Article)
 		if err != nil || !ok || calls != 1 || article.ID != math.MaxInt64 {
 			return fail("generated optional nullable request wire")
+		}
+	}
+	return checkGeneratedChoiceResponseWire(ctx)
+}
+
+type wireHelpdeskSecurity struct{}
+
+func (wireHelpdeskSecurity) SessionAuth(context.Context, hs.OperationName) (hs.SessionAuth, error) {
+	return hs.SessionAuth{APIKey: "probe-session"}, nil
+}
+func (wireHelpdeskSecurity) CsrfCookie(context.Context, hs.OperationName) (hs.CsrfCookie, error) {
+	return hs.CsrfCookie{APIKey: "probe-cookie"}, nil
+}
+func (wireHelpdeskSecurity) CsrfHeader(context.Context, hs.OperationName) (hs.CsrfHeader, error) {
+	return hs.CsrfHeader{APIKey: "probe-header"}, nil
+}
+
+func checkGeneratedChoiceResponseWire(ctx context.Context) error {
+	for _, value := range []int64{math.MinInt64, math.MaxInt64, 99} {
+		calls := 0
+		body := `{"id":1,"subject":"Legacy priority","details":null,"closed":false,"category":1,"priority":` + strconv.FormatInt(value, 10) + `,"resolution":null,"due_at":null}`
+		httpClient := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			calls++
+			wire, err := io.ReadAll(request.Body)
+			if err != nil || request.Method != http.MethodPost || request.URL.Host != "probe.invalid" || request.URL.Path != "/api/tickets/" || !strings.Contains(string(wire), `"priority":0`) {
+				return nil, fail("generated choice request wire")
+			}
+			return &http.Response{StatusCode: http.StatusCreated, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: request}, nil
+		})}
+		client, err := hs.NewClient("https://probe.invalid", wireHelpdeskSecurity{}, hs.WithClient(httpClient))
+		if err != nil {
+			return fail("generated choice mock setup")
+		}
+		response, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: "Choice", Priority: hs.NewOptNilTicketCreatePriority(hs.TicketCreatePriority0)})
+		row, ok := response.(*hs.Ticket)
+		if err != nil || !ok || calls != 1 || row.Priority.Null || row.Priority.Value != value {
+			return fail("generated response excludes stored priority values")
 		}
 	}
 	return nil

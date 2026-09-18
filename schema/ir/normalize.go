@@ -145,7 +145,7 @@ func validateField(field Field, path string) error {
 		return validation(path+".relation", "unsupported", "relation arm requires ForeignKey field kind")
 	}
 	if field.Default != nil {
-		if err := validateScalarDefault(*field.Default, path+".default"); err != nil {
+		if err := validateScalar(*field.Default, path+".default"); err != nil {
 			return err
 		}
 	}
@@ -230,7 +230,7 @@ func validateField(field Field, path string) error {
 	default:
 		return validation(path+".kind", "unsupported_field_kind", string(field.Kind))
 	}
-	return nil
+	return validateChoices(field, path+".choices")
 }
 
 func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path string) error {
@@ -261,29 +261,29 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 	return nil
 }
 
-func validateScalarDefault(value ScalarDefault, path string) error {
+func validateScalar(value Scalar, path string) error {
 	switch value.Kind {
 	case ScalarString:
 		if !utf8.ValidString(value.String) {
-			return validation(path, "invalid_utf8", "string default must contain valid UTF-8")
+			return validation(path, "invalid_utf8", "string scalar must contain valid UTF-8")
 		}
 		if value.Boolean || value.Integer != 0 || value.DateTime != "" {
-			return validation(path, "invalid_scalar", "string default carries another scalar payload")
+			return validation(path, "invalid_scalar", "string scalar carries another scalar payload")
 		}
 	case ScalarBoolean:
 		if value.String != "" || value.Integer != 0 || value.DateTime != "" {
-			return validation(path, "invalid_scalar", "boolean default carries another scalar payload")
+			return validation(path, "invalid_scalar", "boolean scalar carries another scalar payload")
 		}
 	case ScalarDateTime:
 		if value.String != "" || value.Boolean || value.Integer != 0 {
-			return validation(path, "invalid_scalar", "datetime default carries another scalar payload")
+			return validation(path, "invalid_scalar", "datetime scalar carries another scalar payload")
 		}
 		if _, err := temporal.ParseCanonical(value.DateTime); err != nil {
-			return validation(path, "invalid_datetime", "datetime default must be canonical UTC microseconds")
+			return validation(path, "invalid_datetime", "datetime scalar must be canonical UTC microseconds")
 		}
 	case ScalarInteger:
 		if value.String != "" || value.Boolean || value.DateTime != "" {
-			return validation(path, "invalid_scalar", "integer default carries another scalar payload")
+			return validation(path, "invalid_scalar", "integer scalar carries another scalar payload")
 		}
 	default:
 		return validation(path+".kind", "unsupported_scalar_kind", string(value.Kind))

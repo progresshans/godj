@@ -164,11 +164,14 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 		if field.ReadOnly() {
 			continue
 		}
-		projected, err := schemaFieldType(field)
+		projected, err := choiceInputSchema(field)
 		if err != nil {
 			return Schema{}, err
 		}
-		var annotations []serializers.Member
+		annotations, err := choiceAnnotations(field)
+		if err != nil {
+			return Schema{}, err
+		}
 		if field.Kind() == serializers.FieldString {
 			if field.TrimWhitespace() {
 				normalization := []serializers.Member{
@@ -197,7 +200,7 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			defaultValue = serializers.String(temporal.Format(instant))
 		}
 		if mode == serializers.ModeFull && hasDefault {
-			annotations = append(annotations, serializers.MemberOf("default", defaultValue))
+			annotations = append(annotations, serializers.MemberOf(choiceDefaultName(field, defaultValue), defaultValue))
 		}
 		projected, err = schemaAnnotate(projected, annotations...)
 		if err != nil {
@@ -228,7 +231,10 @@ func ModelResponseSchema(spec serializers.Spec) (Schema, error) {
 		if err != nil {
 			return Schema{}, err
 		}
-		var annotations []serializers.Member
+		annotations, err := choiceAnnotations(field)
+		if err != nil {
+			return Schema{}, err
+		}
 		if field.ReadOnly() {
 			annotations = append(annotations, serializers.MemberOf("readOnly", serializers.Boolean(true)))
 		}

@@ -3,6 +3,76 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0076 — 모델 선택값과 metadata-only migration
+
+- 작업: [GDJ-0076](../../work/0076-model-choices-and-metadata-migrations.md), 의미: [ADR-0063](../adr/0063-model-choices-and-metadata-only-migrations.md).
+- Source: `adb3ea62f7c8f9a57c623634e2c11b60f04374bc` 기반 작업 사본. Markdown을 제외한 변경·새 파일 144개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `601ac03fd9d9a7742e69194444b628670c0bdf9374308ffd3bd4934ebc237037`이다.
+  독립 Django runner/fixture, generated model 입력과 별도 OpenAPI client module을 포함한다.
+- 환경: Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5 (Homebrew). 새 전용 PostgreSQL DB와 테스트별 schema·임시 SQLite를 사용했다.
+- 로컬 lane 종료 후 이 작업에서 생성한 전용 DB만 제거했다.
+- Hosted는 이 변경 소스에서 아직 미완료다. 아래 로컬 결과와 이전 source의 Hosted 결과를 합쳐 전체 PASS로 표시하지 않는다.
+
+### 로컬 실행
+
+`GODJ_REQUIRE_POSTGRES=1`, `go test -json -count=1 -timeout=15m`의 영향 범위는 다음과 같다.
+
+```text
+./schema/... ./forms/... ./serializers ./api/openapi/... ./admin
+./migrations/... ./db/... ./codegen/...
+./internal/projectwire ./internal/projectspec ./internal/irresource ./internal/migrationautodetect
+./internal/projectgenerate/... ./internal/projectmigration/... ./internal/projectcheck/...
+./examples/... ./conformance/choicesproduct ./conformance/migrationrelationproduct ./conformance/runners/godj
+```
+
+최종 normal은 **46 packages, 4,355 test 완료 event PASS**, no-test package 14개다.
+첫 broad normal 뒤 남은 실패는 새 capability의 기대값과 바뀐 Helpdesk 입력에 대한 parent fixture 기대값이었다.
+이를 반영하고 capability 없는 choices 변경의 사전 거부 검사를 추가한 뒤 `migrations`, `migrations/backend`, `db/sqlite`,
+`api/openapi/consumertest` 전체를 다시 실행했다. 최초 broad normal과 최종 source의 차이는 해당 네 package의 `_test.go` 네 파일뿐이며,
+나머지 package의 제품·테스트·fixture bytes는 그대로임을 hash로 대조했다. 실패한 event를 PASS로 계산하지 않고 package별 최종 실행을 사용했다.
+
+다음 범위를 `go test -race -json -count=1 -timeout=15m`과 `CGO_ENABLED=0 go test -json -count=1 -timeout=15m`으로 실행했다.
+
+```text
+./schema/... ./forms/... ./serializers ./admin ./api/openapi/...
+./migrations/... ./db/... ./codegen/consumertest ./conformance/choicesproduct ./examples/helpdesk
+./internal/projectwire ./internal/projectspec ./internal/migrationautodetect
+```
+
+Race·CGO0는 각각 **21 packages, 2,334 test 완료 event PASS**, no-test package 2개다.
+JSON 전체를 읽어 test 시작/종료·실패·필수 소비자 완료를 확인했다. Normal의 직접 진입 skip은 부모가 process로 실행하는
+PostgreSQL revision fence·makemigrations crash·generated publication crash helper 세 개이며, race/CGO0에는 PostgreSQL helper 한 개다.
+이 skip을 기능 PASS로 세지 않는다. 필수 choices·actual DB·generated model·OpenAPI client는 skip 없이 완료했다.
+
+### 수정과 검증한 의미
+
+- 초기 실행에서 AlterField가 이전 field slice를 공유해 변경 전 상태까지 바꾸는 문제를 발견했다. 요소를 교체하기 전에 slice를 분리해
+  정확한 Before/After와 역방향 복원을 보존했다. PostgreSQL은 같은 step의 relation target 선택값 변경을 허용하면서, 순서별 metadata의
+  정확한 일치는 별도로 검사하고 초기 물리 catalog 비교에서만 choices를 제외했다. 위조된 target label은 양 renderer에서 거부한다.
+- Project wire scan·크기 계산·resource scan, definition encode/decode·digest·loaded intent, SQLite seal에 choices와 scalar 전체 payload를
+  연결했다. 검토 중 확인한 DateTime default의 scan/size/seal 누락도 함께 보완했다. 기존 migration definition golden bytes는 유지했다.
+- 고정 Django 6.1/DRF 3.18.0의 독립 19개 입력을 Form/serializer에서 비교했다. [DEV-0012](../DEVIATIONS.md)의 JSON type 차이는
+  명시적 assertion으로 검사하며 parity로 세지 않는다. Python model clean 관찰은 GoDj 모델 validation 구현 증거가 아니다.
+  Python 3.12.13·3.13.15·3.14.3·3.14.7에서 각각 **1 test PASS, skip 0**로 reference 전체를 다시 관찰했다.
+- 별도 module의 실제 generated model은 string·Text·int64 choices의 metadata 소유권, Form Select·공백·null/0, serializer,
+  ordinary ORM Create/Update/Save·typed/dynamic query와 목록 밖 저장 값을 확인했다. child test 두 개의 완전한 종료를 요구한다.
+- Helpdesk의 이전 0001..0004 파일을 보존하고 실제 makemigrations로 0005 선택값 추가와 0006 label/order 변경을 작성했다.
+  양 DB에서 기존 priority 99를 전진/역방향/재적용 동안 보존하고, Admin/API에서 허용값을 검증하며 기존 int64 극값을 조회·표시했다.
+- SQLite는 metadata 왕복 뒤 schema_version 불변과 revision의 정확한 증가를, PostgreSQL은 table OID/heap 불변을 검사했다.
+  혼합 AlterField/AddField, FK 무결성, 물리 drift 거부와 recorder 보존을 실제 DB에서 확인했다. 순수 SQL projection은 choices에 0개,
+  물리 변경과 혼합된 step에는 물리 SQL만 반환한다.
+- 고정 ogen을 통해 request의 nullable integer enum을 실제 생성했다. 처음의 anyOf 바깥 enum은 생성기가 보존하지 않아 non-null branch로
+  옮겼다. 별도 client의 실제 HTTP는 선택값·null·생략과 잘못된 enum cast의 서버 거부를, 독립 wire 응답은 목록 밖 값과 int64 극값을 검증한다.
+  Parent는 DB의 최종 행·관계·정수·Text·시각을 별도로 검사한다. Client의 encoder는 Validate를 자동 호출하지 않는다.
+- Admin의 option/value/label escaping, 목록 밖 초기값 보존, 거부 입력의 무변경, 저장·audit의 raw 값 보존을 검사했다.
+- 전체 compile (`go test -run '^$' ./...`), `go vet ./...`, `make generate-check`, `make docs-check format-check`, `git diff --check` PASS.
+
+### 통합 검증 소유자
+
+로컬 필수 검증을 마쳤고 같은 제품 bytes의 통합 source에서 Hosted ORM을 이어간다.
+전체 플랫폼·reference·cold-build의 새 full 검증이나 배포 증거는 아니다. Callable/grouped choices, 다른 scalar choice,
+Python enum 내부 ABI, general physical AlterField와 전체 모델 validation은 이 작업으로 완료되지 않는다.
+
 ## GDJ-0075 — Scalar IN과 빈 조회의 실행
 
 - 작업: [GDJ-0075](../../work/0075-scalar-membership-and-empty-query-semantics.md), 의미: [ADR-0062](../adr/0062-scalar-membership-and-empty-query-execution.md).

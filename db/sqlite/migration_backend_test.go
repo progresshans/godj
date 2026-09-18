@@ -540,7 +540,7 @@ func TestSQLiteMigrationAllowsDefaultAddFieldOnEmptyTableWithoutPersistentDefaul
 	if err != nil {
 		t.Fatalf("apply initial migration: %v", err)
 	}
-	defaultValue := &ir.ScalarDefault{Kind: ir.ScalarString, String: "backfilled"}
+	defaultValue := &ir.Scalar{Kind: ir.ScalarString, String: "backfilled"}
 	migration := migrations.Migration{
 		App:  "news",
 		Name: "0002_summary_default",
@@ -576,7 +576,7 @@ func TestSQLiteMigrationAllowsBooleanFalseDefaultOnEmptyTableWithoutDatabaseDefa
 	if err != nil {
 		t.Fatalf("apply initial migration: %v", err)
 	}
-	falseDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	falseDefault := &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}
 	migration := migrations.Migration{
 		App: "news", Name: "0002_featured_default",
 		Operations: []migrations.Operation{migrations.AddField{
@@ -616,7 +616,7 @@ func TestSQLiteMigrationRejectsDefaultAddFieldOnNonemptyTable(t *testing.T) {
 	if _, err := backend.ExecContext(ctx, `INSERT INTO "godj_migration_article" ("title", "published") VALUES ('existing', 0)`); err != nil {
 		t.Fatalf("seed row: %v", err)
 	}
-	defaultValue := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	defaultValue := &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}
 	migration := migrations.Migration{
 		App: "news", Name: "0002_featured_default",
 		Operations: []migrations.Operation{migrations.AddField{

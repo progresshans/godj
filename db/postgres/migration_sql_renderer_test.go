@@ -76,7 +76,7 @@ func TestPostgresMigrationSQLRendererProjectsLogicalDefaultWithoutDDLDefault(t *
 	t.Parallel()
 
 	before := postgresMigrationTestPostModel(false)
-	logicalDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	logicalDefault := &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}
 	after := before.Clone()
 	after.Fields = append(after.Fields, ir.Field{
 		Name: "featured", GoName: "Featured", Column: "featured", Kind: ir.FieldBoolean, Default: logicalDefault,

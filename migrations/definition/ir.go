@@ -13,7 +13,7 @@ func cloneField(field ir.Field) ir.Field {
 
 // operationValue borrows the current built-in representation. Resource checks
 // reject nil and unsupported inputs before any deep copy; loaded and encoded
-// snapshots contain only the two value forms.
+// snapshots contain only recognized value forms.
 func operationValue(operation migrations.Operation) migrations.Operation {
 	switch value := operation.(type) {
 	case *migrations.CreateModel:
@@ -21,6 +21,10 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 			return *value
 		}
 	case *migrations.AddField:
+		if value != nil {
+			return *value
+		}
+	case *migrations.AlterField:
 		if value != nil {
 			return *value
 		}
@@ -35,6 +39,9 @@ func cloneOperation(operation migrations.Operation) migrations.Operation {
 		return value
 	case migrations.AddField:
 		value.Field = value.Field.Clone()
+		return value
+	case migrations.AlterField:
+		value.Before, value.After = value.Before.Clone(), value.After.Clone()
 		return value
 	default:
 		return value

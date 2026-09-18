@@ -306,6 +306,7 @@ type registeredModel struct {
 	model        ir.Model
 	form         forms.Spec
 	listFields   []string
+	choiceLabels map[string]map[ir.Scalar]string
 	searchFields []string
 	permissions  Permissions
 	actions      []registeredAction
@@ -438,6 +439,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		model:        model.Clone(),
 		form:         form,
 		listFields:   listFields,
+		choiceLabels: modelChoiceLabels(model, listFields),
 		searchFields: searchFields,
 		permissions:  permissions,
 		actions:      actions,

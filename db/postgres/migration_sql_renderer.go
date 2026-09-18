@@ -53,10 +53,10 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField {
+		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField {
 			return nil, migrationbackend.NewCapabilityError(
 				"postgres_migration_sql",
-				"current SQL projection supports only forward CreateModel and AddField operations",
+				"current SQL projection supports forward CreateModel, AddField and choices-only AlterField",
 				nil,
 			)
 		}
@@ -76,15 +76,18 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	statements := make([]string, len(prepared.intent.Operations))
+	statements := make([]string, 0, len(prepared.intent.Operations))
 	for index := range prepared.intent.Operations {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		operation := prepared.intent.Operations[index]
+		var statement string
 		switch operation.Kind {
+		case migrationbackend.MigrationAlterField:
+			continue
 		case migrationbackend.MigrationCreateModel:
-			statements[index], err = compilePostgresMigrationCreateModel(
+			statement, err = compilePostgresMigrationCreateModel(
 				renderer.schema,
 				operation.After,
 				operation.Targets,
@@ -95,7 +98,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 			if targetErr != nil {
 				return nil, targetErr
 			}
-			statements[index], err = compilePostgresMigrationAddField(
+			statement, err = compilePostgresMigrationAddField(
 				renderer.schema,
 				operation.Before,
 				field,
@@ -111,6 +114,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		if err != nil {
 			return nil, err
 		}
+		statements = append(statements, statement)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

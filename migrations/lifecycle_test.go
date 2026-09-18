@@ -1311,7 +1311,7 @@ func TestExecutorMigrateSnapshotsDefinitionsAndTargetsBeforeIO(t *testing.T) {
 		Column:    "title",
 		Kind:      ir.FieldChar,
 		MaxLength: 64,
-		Default:   &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"},
+		Default:   &ir.Scalar{Kind: ir.ScalarString, String: "original"},
 	})
 	createPointer := &create
 	definitions[0].Operations[0] = createPointer
@@ -2149,7 +2149,7 @@ func lifecycleLoadedOversizedRelationIntentDefinitions() []Migration {
 			ModelName: "post",
 			Field: ir.Field{
 				Name: name, GoName: fmt.Sprintf("Field%04d", index), Column: name,
-				Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean},
+				Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean},
 			},
 		})
 	}
@@ -2183,7 +2183,7 @@ func lifecycleLoadedOversizedRelationIntentDefinitions() []Migration {
 			App: prefixKey.App, Name: prefixKey.Name, Dependencies: []MigrationKey{sourceKey},
 			Operations: []Operation{AddField{
 				AppLabel: "blog", ModelName: "post",
-				Field: ir.Field{Name: "prefix", GoName: "Prefix", Column: "prefix", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean}},
+				Field: ir.Field{Name: "prefix", GoName: "Prefix", Column: "prefix", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean}},
 			}},
 		},
 		{
@@ -2235,7 +2235,7 @@ func lifecyclePublishedField() ir.Field {
 		GoName:   "Published",
 		Column:   "published",
 		Kind:     ir.FieldBoolean,
-		Default:  &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
+		Default:  &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false},
 		Nullable: false,
 	}
 }
@@ -2507,4 +2507,8 @@ func (t *lifecycleTestTransaction) call(name string) error {
 		return err
 	}
 	return nil
+}
+
+func (t *lifecycleTestTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	return t.call("alter_field")
 }

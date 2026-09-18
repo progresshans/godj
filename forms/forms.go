@@ -70,6 +70,7 @@ const (
 	Textarea
 	Checkbox
 	DateTimeInput
+	Select
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -128,7 +129,7 @@ func WithDefault(value Value) FieldOption {
 }
 
 func WithWidget(widget Widget) FieldOption {
-	return fieldOption(func(config *fieldConfig) { config.widget = widget })
+	return fieldOption(func(config *fieldConfig) { config.widget, config.hasWidget = widget, true })
 }
 
 // WithEmptyValue selects Null or the empty string for optional string input.
@@ -149,6 +150,8 @@ func WithValidators(validators ...FieldValidator) FieldOption {
 type fieldConfig struct {
 	label         string
 	widget        Widget
+	hasWidget     bool
+	choices       []Choice
 	emptyValue    Value
 	hasEmptyValue bool
 	required      bool
@@ -165,6 +168,7 @@ type Field struct {
 	label        string
 	kind         FieldKind
 	widget       Widget
+	choices      []Choice
 	emptyValue   Value
 	required     bool
 	nullable     bool
@@ -229,8 +233,15 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if config.label == "" || !utf8.ValidString(config.label) || strings.ContainsRune(config.label, 0) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".label", Code: "invalid"}
 	}
+	if err := validateChoices(name, kind, config); err != nil {
+		return Field{}, err
+	}
+	if config.choices != nil && !config.hasWidget {
+		config.widget = Select
+	}
 	if !(kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
-		kind == FieldBoolean && config.widget == Checkbox || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput)) {
+		kind == FieldBoolean && config.widget == Checkbox || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
+		config.choices != nil && config.widget == Select) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
 	}
 	if config.hasEmptyValue {
@@ -300,6 +311,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		label:        config.label,
 		kind:         kind,
 		widget:       config.widget,
+		choices:      append([]Choice(nil), config.choices...),
 		emptyValue:   config.emptyValue,
 		required:     config.required,
 		nullable:     config.nullable,
@@ -331,6 +343,7 @@ func (f Field) Default() (Value, bool) { return f.defaultValue, f.hasDefault }
 
 func (f Field) clone() Field {
 	clone := f
+	clone.choices = append([]Choice(nil), f.choices...)
 	clone.validators = append([]FieldValidator(nil), f.validators...)
 	return clone
 }
@@ -587,83 +600,95 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 	}
 	var value Value
 	var failures []validation.Errors
-	switch field.kind {
-	case FieldDateTime:
+	if field.choices != nil {
 		raw := ""
 		if present && len(submitted) == 1 {
 			raw = submitted[0]
 		}
 		var code validation.Code
-		value, code = cleanDateTime(raw)
-		if code == "" && value.IsNull() && field.required {
-			code = "required"
-		}
+		value, code = cleanChoice(field, raw)
 		if code != "" {
 			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
 		}
-	case FieldInteger:
-		raw := ""
-		if present && len(submitted) == 1 {
-			raw = submitted[0]
-		}
-		var code validation.Code
-		value, code = cleanInteger(raw)
-		if code != "" {
-			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
-		}
-		if value.IsNull() && field.required {
-			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
-		}
-	case FieldChar:
-		raw := ""
-		if present && len(submitted) == 1 {
-			raw = strings.TrimSpace(submitted[0])
-		}
-		if raw == "" {
-			switch {
-			case field.required:
+	} else {
+		switch field.kind {
+		case FieldDateTime:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = submitted[0]
+			}
+			var code validation.Code
+			value, code = cleanDateTime(raw)
+			if code == "" && value.IsNull() && field.required {
+				code = "required"
+			}
+			if code != "" {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+			}
+		case FieldInteger:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = submitted[0]
+			}
+			var code validation.Code
+			value, code = cleanInteger(raw)
+			if code != "" {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+			}
+			if value.IsNull() && field.required {
 				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
+			}
+		case FieldChar:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = strings.TrimSpace(submitted[0])
+			}
+			if raw == "" {
+				switch {
+				case field.required:
+					return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
+				default:
+					value = field.emptyValue
+				}
+			} else {
+				value = String(raw)
+			}
+			if raw != "" && !utf8.ValidString(raw) {
+				failures = append(failures, validation.NewErrors(validation.New(validation.Field(field.name), "invalid_utf8")))
+			}
+			if raw != "" && strings.ContainsRune(raw, 0) {
+				failures = append(failures, validation.NewErrors(validation.New(validation.Field(field.name), "null_characters_not_allowed")))
+			}
+			if raw != "" && field.maxLength > 0 {
+				actual := utf8.RuneCountInString(raw)
+				if actual > field.maxLength {
+					failures = append(failures, validation.NewErrors(validation.New(
+						validation.Field(field.name),
+						"max_length",
+						validation.NewParam("limit", strconv.Itoa(field.maxLength)),
+						validation.NewParam("actual", strconv.Itoa(actual)),
+					)))
+				}
+			}
+		case FieldBoolean:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = strings.ToLower(strings.TrimSpace(submitted[0]))
+			}
+			switch raw {
+			case "", "0", "false", "off", "no":
+				value = Boolean(false)
+			case "1", "true", "on", "yes":
+				value = Boolean(true)
 			default:
-				value = field.emptyValue
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "invalid"))
 			}
-		} else {
-			value = String(raw)
-		}
-		if raw != "" && !utf8.ValidString(raw) {
-			failures = append(failures, validation.NewErrors(validation.New(validation.Field(field.name), "invalid_utf8")))
-		}
-		if raw != "" && strings.ContainsRune(raw, 0) {
-			failures = append(failures, validation.NewErrors(validation.New(validation.Field(field.name), "null_characters_not_allowed")))
-		}
-		if raw != "" && field.maxLength > 0 {
-			actual := utf8.RuneCountInString(raw)
-			if actual > field.maxLength {
-				failures = append(failures, validation.NewErrors(validation.New(
-					validation.Field(field.name),
-					"max_length",
-					validation.NewParam("limit", strconv.Itoa(field.maxLength)),
-					validation.NewParam("actual", strconv.Itoa(actual)),
-				)))
+			if field.required && !value.boolean {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
 			}
-		}
-	case FieldBoolean:
-		raw := ""
-		if present && len(submitted) == 1 {
-			raw = strings.ToLower(strings.TrimSpace(submitted[0]))
-		}
-		switch raw {
-		case "", "0", "false", "off", "no":
-			value = Boolean(false)
-		case "1", "true", "on", "yes":
-			value = Boolean(true)
 		default:
-			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "invalid"))
+			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "unsupported"))
 		}
-		if field.required && !value.boolean {
-			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "required"))
-		}
-	default:
-		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "unsupported"))
 	}
 	for _, validator := range field.validators {
 		if failure := validator.ValidateField(value); !failure.Empty() {
@@ -677,6 +702,14 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 	submitted, present := data.values[field.name]
 	if len(submitted) > 1 {
 		return true
+	}
+	if field.choices != nil {
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		value, code := cleanChoice(field, raw)
+		return code != "" || !value.Equal(initial)
 	}
 	switch field.kind {
 	case FieldDateTime:

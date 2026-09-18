@@ -183,12 +183,5 @@ func modelEqual(left, right ir.Model) bool {
 }
 
 func fieldEqual(left, right ir.Field) bool {
-	if left.Default != right.Default && (left.Default == nil || right.Default == nil || *left.Default != *right.Default) {
-		return false
-	}
-	if left.Relation != right.Relation && (left.Relation == nil || right.Relation == nil || *left.Relation != *right.Relation) {
-		return false
-	}
-	left.Default, right.Default, left.Relation, right.Relation = nil, nil, nil, nil
-	return left == right
+	return left.Equal(right)
 }
