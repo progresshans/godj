@@ -27,7 +27,7 @@ func TestSchemaResourcePerContainerAndStringBoundaries(t *testing.T) {
 	fieldsAboveMaximum := make([]ir.Field, MaxFieldsPerModel+1)
 	assertResourceLimit(t, ValidateSchemas([]ir.Schema{{AppLabel: "app", Models: []ir.Model{{Fields: fieldsAboveMaximum}}}}), "fields_per_model")
 
-	schema.Models[0].Fields[0].Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: strings.Repeat("x", MaxSchemaStringBytes)}
+	schema.Models[0].Fields[0].Default = &ir.Scalar{Kind: ir.ScalarString, String: strings.Repeat("x", MaxSchemaStringBytes)}
 	if err := ValidateSchemas([]ir.Schema{schema}); err != nil {
 		t.Fatalf("maximum schema string rejected: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestSchemaResourceAggregateBoundariesWithoutLargeAllocations(t *testing.T) 
 
 func TestSchemaResourceCountsDefaultAndRelationNodesAndDoesNotMutate(t *testing.T) {
 	schema := ir.Schema{AppLabel: "app", Models: []ir.Model{{Fields: []ir.Field{{
-		Default: &ir.ScalarDefault{Kind: ir.ScalarString},
+		Default: &ir.Scalar{Kind: ir.ScalarString},
 		Relation: &ir.ForeignKeyRelation{
 			Target: ir.ModelIdentity{AppLabel: "target", ModelName: "entry"},
 		},
@@ -84,4 +84,20 @@ func assertResourceLimit(t *testing.T, err error, limit string) {
 	if !errors.As(err, &resource) || resource.Limit != limit {
 		t.Fatalf("resource error = %v, want limit %q", err, limit)
 	}
+}
+
+func TestChoiceResourceScanIncludesLabelsValuesAndInactivePayloads(t *testing.T) {
+	for _, mutate := range []func(*ir.Choice){
+		func(choice *ir.Choice) { choice.Label = strings.Repeat("x", MaxSchemaStringBytes+1) },
+		func(choice *ir.Choice) { choice.Value.String = strings.Repeat("x", MaxSchemaStringBytes+1) },
+		func(choice *ir.Choice) { choice.Value.DateTime = strings.Repeat("x", MaxSchemaStringBytes+1) },
+	} {
+		choice := ir.Choice{Value: ir.Scalar{Kind: ir.ScalarInteger}}
+		mutate(&choice)
+		schema := ir.Schema{AppLabel: "app", Models: []ir.Model{{Fields: []ir.Field{{Choices: []ir.Choice{choice}}}}}}
+		assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_bytes")
+	}
+	schema := ir.Schema{AppLabel: "app", Models: []ir.Model{{Fields: []ir.Field{{Choices: []ir.Choice{{Value: ir.Scalar{Kind: ir.ScalarInteger}}}}}}}}
+	_, err := validateSchemas([]ir.Schema{schema}, resourceBudget{nodes: MaxAggregateNodes - 4})
+	assertResourceLimit(t, err, "aggregate_schema_nodes")
 }

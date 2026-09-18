@@ -80,7 +80,7 @@ func TestCompilePostgresMigrationSQLUsesExplicitSchemaAndConstraints(t *testing.
 func TestCompilePostgresMigrationDefaultIsLogicalOnly(t *testing.T) {
 	t.Parallel()
 
-	logicalDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean}
+	logicalDefault := &ir.Scalar{Kind: ir.ScalarBoolean}
 	field := ir.Field{
 		Name: "featured", GoName: "Featured", Column: "featured",
 		Kind: ir.FieldBoolean, Default: logicalDefault,
@@ -104,7 +104,7 @@ func TestCompilePostgresMigrationDefaultIsLogicalOnly(t *testing.T) {
 
 func TestIntegerMigrationColumnUsesBigintWithoutIdentityOrPersistentDefault(t *testing.T) {
 	for _, nullable := range []bool{false, true} {
-		field := ir.Field{Name: "amount", GoName: "Amount", Column: "amount", Kind: ir.FieldInteger, Nullable: nullable, Default: &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: -9223372036854775808}}
+		field := ir.Field{Name: "amount", GoName: "Amount", Column: "amount", Kind: ir.FieldInteger, Nullable: nullable, Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: -9223372036854775808}}
 		statement, err := compilePostgresMigrationAddField("product_schema", postgresMigrationTestPostModel(false), field, nil)
 		want := `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "amount" BIGINT NOT NULL`
 		if nullable {
@@ -224,7 +224,7 @@ func postgresMigrationTestTarget(field ir.Field, model ir.Model) migrationbacken
 
 func TestTextMigrationColumnHasNoLengthOrPersistentDefault(t *testing.T) {
 	for _, nullable := range []bool{false, true} {
-		field := ir.Field{Name: "body", GoName: "Body", Column: "body", Kind: ir.FieldText, Nullable: nullable, Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "line one\nline two"}}
+		field := ir.Field{Name: "body", GoName: "Body", Column: "body", Kind: ir.FieldText, Nullable: nullable, Default: &ir.Scalar{Kind: ir.ScalarString, String: "line one\nline two"}}
 		statement, err := compilePostgresMigrationColumn(field)
 		want := `"body" TEXT NOT NULL`
 		if nullable {
@@ -236,7 +236,7 @@ func TestTextMigrationColumnHasNoLengthOrPersistentDefault(t *testing.T) {
 		for _, mutate := range []func(*ir.Field){
 			func(f *ir.Field) { f.MaxLength = 10 },
 			func(f *ir.Field) { f.PrimaryKey = true },
-			func(f *ir.Field) { f.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger} },
+			func(f *ir.Field) { f.Default = &ir.Scalar{Kind: ir.ScalarInteger} },
 		} {
 			invalid := field
 			mutate(&invalid)

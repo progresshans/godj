@@ -18,7 +18,9 @@ func Schema() (ir.Schema, error) {
 			schema.CharField("details", "Details", 400, schema.Nullable()),
 			schema.BooleanField("closed", "Closed", schema.Default(false)),
 			schema.ForeignKey("category", "CategoryID", schema.Target("helpdesk", "category"), schema.RelatedName("tickets"), schema.Protect),
-			schema.IntegerField("priority", "Priority", schema.Nullable()),
+			schema.IntegerField("priority", "Priority", schema.Nullable(), schema.Choices(
+				schema.Choice(int64(1), "Urgent"), schema.Choice(int64(0), "Normal"), schema.Choice(int64(-1), "Low"),
+			)),
 			schema.TextField("resolution", "Resolution", schema.Nullable()),
 			schema.DateTimeField("due_at", "DueAt", schema.Nullable()),
 		}},

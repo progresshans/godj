@@ -460,10 +460,10 @@ func newSiteApplicationHarness(t *testing.T, pageSize int) siteApplicationHarnes
 	return newSiteApplicationHarnessWithAuthorizer(t, pageSize, auth.PrincipalAuthorizer{})
 }
 
-func newSiteApplicationHarnessWithAuthorizer(t *testing.T, pageSize int, authorizer auth.Authorizer) siteApplicationHarness {
+func newSiteApplicationHarnessWithAuthorizer(t *testing.T, pageSize int, authorizer auth.Authorizer, configure ...func(*ModelConfig[registryArticle])) siteApplicationHarness {
 	t.Helper()
 	state := newSiteModelState()
-	registry := siteTestRegistry(t, state)
+	registry := siteTestRegistry(t, state, configure...)
 	installed := mustApps(t)
 	allowed, err := SiteAllowedNextPaths(registry, "/admin")
 	if err != nil {
@@ -718,9 +718,12 @@ func newSiteModelState() *siteModelState {
 	}
 }
 
-func siteTestRegistry(t *testing.T, state *siteModelState) Registry {
+func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*ModelConfig[registryArticle])) Registry {
 	t.Helper()
 	config := validRegistryConfig(t)
+	for _, apply := range configure {
+		apply(&config)
+	}
 	config.List = func(ctx context.Context, request ListRequest) (Page[registryArticle], error) {
 		if err := ctx.Err(); err != nil {
 			return Page[registryArticle]{}, err

@@ -322,18 +322,8 @@ func (s *TicketCreate) Validate() error {
 	if err := func() error {
 		if value, ok := s.Priority.Get(); ok {
 			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(value)); err != nil {
-					return errors.Wrap(err, "int")
+				if err := value.Validate(); err != nil {
+					return err
 				}
 				return nil
 			}(); err != nil {
@@ -351,6 +341,19 @@ func (s *TicketCreate) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s TicketCreatePriority) Validate() error {
+	switch s {
+	case 1:
+		return nil
+	case 0:
+		return nil
+	case -1:
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *TicketDetail) Validate() error {

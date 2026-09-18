@@ -629,7 +629,7 @@ func mustModel(t *testing.T) ir.Model {
 			DBTable: "godj_conformance_article",
 			Fields: []ir.Field{
 				{Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 200},
-				{Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean}},
+				{Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean}},
 				{Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 200},
 			},
 		}},

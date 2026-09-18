@@ -25,7 +25,7 @@ func TestDateTimeSQLUsesNativeUTCArgumentsAndTimestampWithTimeZone(t *testing.T)
 		t.Fatalf("datetime write argument: %v %v", writeArgs, err)
 	}
 	for _, nullable := range []bool{false, true} {
-		field := ir.Field{Name: "at", GoName: "At", Column: "at", Kind: ir.FieldDateTime, Nullable: nullable, Default: &ir.ScalarDefault{Kind: ir.ScalarDateTime, DateTime: "0001-01-01T00:00:00.000000Z"}}
+		field := ir.Field{Name: "at", GoName: "At", Column: "at", Kind: ir.FieldDateTime, Nullable: nullable, Default: &ir.Scalar{Kind: ir.ScalarDateTime, DateTime: "0001-01-01T00:00:00.000000Z"}}
 		ddl, err := compilePostgresMigrationColumn(field)
 		want := `"at" TIMESTAMP WITH TIME ZONE NOT NULL`
 		if nullable {

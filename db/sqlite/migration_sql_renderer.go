@@ -38,10 +38,10 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField {
+		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField {
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",
-				"current SQL projection supports only forward CreateModel and AddField operations",
+				"current SQL projection supports forward CreateModel, AddField and choices-only AlterField",
 				nil,
 			)
 		}
@@ -61,21 +61,24 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	statements := make([]string, len(seal.intent.Operations))
+	statements := make([]string, 0, len(seal.intent.Operations))
 	for index := range seal.intent.Operations {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		operation := seal.intent.Operations[index]
+		var statement string
 		switch operation.Kind {
+		case migrationbackend.MigrationAlterField:
+			continue
 		case migrationbackend.MigrationCreateModel:
-			statements[index], err = compileSQLiteRelationCreateModel(operation.After, operation.Targets)
+			statement, err = compileSQLiteRelationCreateModel(operation.After, operation.Targets)
 		case migrationbackend.MigrationAddField:
 			field := operation.After.Fields[len(operation.After.Fields)-1]
 			if field.Kind == ir.FieldForeignKey {
-				statements[index], err = compileSQLiteRelationAddField(operation.Before, field, operation.Targets)
+				statement, err = compileSQLiteRelationAddField(operation.Before, field, operation.Targets)
 			} else {
-				statements[index], err = compileMigrationAddField(operation.Before, field)
+				statement, err = compileMigrationAddField(operation.Before, field)
 			}
 		default:
 			return nil, migrationbackend.NewCapabilityError(
@@ -87,6 +90,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		if err != nil {
 			return nil, err
 		}
+		statements = append(statements, statement)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

@@ -211,7 +211,7 @@ func TestSuccessSizePreflightMatchesCanonicalMarshalForAllOptionalShapes(t *test
 		Fields: []ir.Field{{
 			Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
 			Nullable: true, MaxLength: 17,
-			Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "<&\u2028"},
+			Default: &ir.Scalar{Kind: ir.ScalarString, String: "<&\u2028"},
 			Relation: &ir.ForeignKeyRelation{
 				Target: ir.ModelIdentity{AppLabel: "auth", ModelName: "user"}, Cardinality: ir.RelationManyToOne,
 				Reverse: ir.ReverseRelation{Name: "articles", Disabled: true}, OnDelete: ir.DeleteSetNull,

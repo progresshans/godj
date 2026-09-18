@@ -546,74 +546,6 @@ func (o OptNilDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
-// NewOptNilInt64 returns new OptNilInt64 with value set to v.
-func NewOptNilInt64(v int64) OptNilInt64 {
-	return OptNilInt64{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptNilInt64 is optional nullable int64.
-type OptNilInt64 struct {
-	Value int64
-	Set   bool
-	Null  bool
-}
-
-// IsSet returns true if OptNilInt64 was set.
-func (o OptNilInt64) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptNilInt64) Reset() {
-	var v int64
-	o.Value = v
-	o.Set = false
-	o.Null = false
-}
-
-// SetTo sets value to v.
-func (o *OptNilInt64) SetTo(v int64) {
-	o.Set = true
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o OptNilInt64) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *OptNilInt64) SetToNull() {
-	o.Set = true
-	o.Null = true
-	var v int64
-	o.Value = v
-}
-
-// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
-func (o OptNilInt64) IsEmpty() bool {
-	return !o.Set && !o.Null
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptNilInt64) Get() (v int64, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptNilInt64) Or(d int64) int64 {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptNilString returns new OptNilString with value set to v.
 func NewOptNilString(v string) OptNilString {
 	return OptNilString{
@@ -676,6 +608,74 @@ func (o OptNilString) Get() (v string, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilString) Or(d string) string {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilTicketCreatePriority returns new OptNilTicketCreatePriority with value set to v.
+func NewOptNilTicketCreatePriority(v TicketCreatePriority) OptNilTicketCreatePriority {
+	return OptNilTicketCreatePriority{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilTicketCreatePriority is optional nullable TicketCreatePriority.
+type OptNilTicketCreatePriority struct {
+	Value TicketCreatePriority
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilTicketCreatePriority was set.
+func (o OptNilTicketCreatePriority) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilTicketCreatePriority) Reset() {
+	var v TicketCreatePriority
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilTicketCreatePriority) SetTo(v TicketCreatePriority) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilTicketCreatePriority) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilTicketCreatePriority) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v TicketCreatePriority
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilTicketCreatePriority) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilTicketCreatePriority) Get() (v TicketCreatePriority, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilTicketCreatePriority) Or(d TicketCreatePriority) TicketCreatePriority {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -849,12 +849,12 @@ func (*Ticket) helpdeskTicketCreateRes() {}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {
-	Subject    string         `json:"subject"`
-	Details    OptNilString   `json:"details"`
-	Closed     OptBool        `json:"closed"`
-	Priority   OptNilInt64    `json:"priority"`
-	Resolution OptNilString   `json:"resolution"`
-	DueAt      OptNilDateTime `json:"due_at"`
+	Subject    string                     `json:"subject"`
+	Details    OptNilString               `json:"details"`
+	Closed     OptBool                    `json:"closed"`
+	Priority   OptNilTicketCreatePriority `json:"priority"`
+	Resolution OptNilString               `json:"resolution"`
+	DueAt      OptNilDateTime             `json:"due_at"`
 }
 
 // GetSubject returns the value of Subject.
@@ -873,7 +873,7 @@ func (s *TicketCreate) GetClosed() OptBool {
 }
 
 // GetPriority returns the value of Priority.
-func (s *TicketCreate) GetPriority() OptNilInt64 {
+func (s *TicketCreate) GetPriority() OptNilTicketCreatePriority {
 	return s.Priority
 }
 
@@ -903,7 +903,7 @@ func (s *TicketCreate) SetClosed(val OptBool) {
 }
 
 // SetPriority sets the value of Priority.
-func (s *TicketCreate) SetPriority(val OptNilInt64) {
+func (s *TicketCreate) SetPriority(val OptNilTicketCreatePriority) {
 	s.Priority = val
 }
 
@@ -915,6 +915,23 @@ func (s *TicketCreate) SetResolution(val OptNilString) {
 // SetDueAt sets the value of DueAt.
 func (s *TicketCreate) SetDueAt(val OptNilDateTime) {
 	s.DueAt = val
+}
+
+type TicketCreatePriority int64
+
+const (
+	TicketCreatePriority1      TicketCreatePriority = 1
+	TicketCreatePriority0      TicketCreatePriority = 0
+	TicketCreatePriorityMinus1 TicketCreatePriority = -1
+)
+
+// AllValues returns all TicketCreatePriority values.
+func (TicketCreatePriority) AllValues() []TicketCreatePriority {
+	return []TicketCreatePriority{
+		TicketCreatePriority1,
+		TicketCreatePriority0,
+		TicketCreatePriorityMinus1,
+	}
 }
 
 // Ref: #/components/schemas/TicketDetail

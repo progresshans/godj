@@ -252,6 +252,24 @@ func validatePostgresMigrationIntent(
 	}
 	initialSeen := make(map[string]struct{})
 	tableOwners := make(map[string]string)
+	// A relation target may change choices earlier in this same step. Keep
+	// exact chronological metadata separate from physical preflight's initial
+	// catalog projection, so accepting that transition never accepts a forged
+	// target snapshot with merely the same storage shape.
+	scheduled := make(map[string]bool)
+	visible := make(map[string]ir.Model)
+	for _, operation := range intent.Operations {
+		name := operation.Before.Name
+		if name == "" {
+			name = operation.After.Name
+		}
+		if !scheduled[name] {
+			scheduled[name] = true
+			if operation.Before.Name != "" {
+				visible[name] = operation.Before
+			}
+		}
+	}
 
 	for position := range intent.Operations {
 		operation := &intent.Operations[position]
@@ -327,6 +345,14 @@ func validatePostgresMigrationIntent(
 		if err != nil {
 			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
 		}
+		for _, target := range expanded {
+			if target.SourceField.Relation.Target.AppLabel == transition.Migration.App && scheduled[target.TargetModel.Name] {
+				currentTarget, exists := visible[target.TargetModel.Name]
+				if !exists || !reflect.DeepEqual(currentTarget, target.TargetModel) {
+					return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("relation target differs from its exact scheduled metadata", nil)
+				}
+			}
+		}
 		operation.Targets = expanded
 		if firstIdentityOperation && reflect.DeepEqual(before, ir.Model{}) {
 			initial.targets[identity] = nil
@@ -336,9 +362,11 @@ func validatePostgresMigrationIntent(
 		if reflect.DeepEqual(after, ir.Model{}) {
 			delete(current.models, identity)
 			delete(current.targets, identity)
+			delete(visible, identity)
 		} else {
 			current.models[identity] = after.Clone()
 			current.targets[identity] = targetsForPostgresBoundary(after, expanded)
+			visible[identity] = after
 		}
 	}
 
@@ -404,6 +432,19 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 		if changed.PrimaryKey {
 			return before, after, changed, postgresMigrationIntentIntegrity("RemoveField cannot remove a primary key", nil)
 		}
+	case migrationbackend.MigrationAlterField:
+		before, after = operation.Before, operation.After
+		if err := validateExactPostgresMigrationModel(before); err != nil {
+			return before, after, changed, err
+		}
+		if err := validateExactPostgresMigrationModel(after); err != nil {
+			return before, after, changed, err
+		}
+		_, field, err := migrationbackend.ChangedChoiceField(before, after)
+		if err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("AlterField requires an exact choices-only delta", err)
+		}
+		changed = field
 	default:
 		return before, after, changed, postgresMigrationIntentIntegrity(fmt.Sprintf("operation kind %d is invalid", operation.Kind), nil)
 	}

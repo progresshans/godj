@@ -4,8 +4,9 @@ import "context"
 
 // ForwardMigrationSQLRequest carries one complete, ordered forward migration
 // intent together with its loader-owned identity. Renderers must treat the
-// request as immutable and must return one semicolon-free statement body for
-// every operation in Intent.
+// request as immutable and return ordered semicolon-free statement bodies.
+// Current CreateModel/AddField each produce one body; choices-only AlterField
+// produces none while remaining part of the complete validated intent.
 type ForwardMigrationSQLRequest struct {
 	App    string
 	Name   string

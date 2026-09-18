@@ -1017,3 +1017,10 @@ func (migrationExecutionStateTransaction) RecordUnapplied(context.Context, strin
 }
 func (migrationExecutionStateTransaction) Commit(context.Context) error   { return nil }
 func (migrationExecutionStateTransaction) Rollback(context.Context) error { return nil }
+
+func (transaction *migrationExecutionTransaction) AlterField(ctx context.Context, model ir.Model, before, after ir.Field) error {
+	return transaction.delegate.AlterField(ctx, model, before, after)
+}
+func (migrationExecutionStateTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	return nil
+}

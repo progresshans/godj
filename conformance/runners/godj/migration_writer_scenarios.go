@@ -309,7 +309,7 @@ func migrationWriterApp(label string, models ...ir.Model) codegen.AppSpec {
 func migrationWriterArticle(extra ...ir.Field) ir.Model {
 	fields := []ir.Field{
 		{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
-		{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}},
+		{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}},
 	}
 	fields = append(fields, extra...)
 	return ir.Model{Name: "article", GoName: "Article", Fields: fields}
@@ -1112,12 +1112,12 @@ func migrationWriterUnsupportedCases() ([]struct {
 	}
 	articleTitleOnly := ir.Model{Name: "article", GoName: "Article", Fields: []ir.Field{{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200}}}
 	reordered := ir.Model{Name: "article", GoName: "Article", Fields: []ir.Field{
-		{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}},
+		{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}},
 		{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
 	}}
 	renamed := ir.Model{Name: "article", GoName: "Article", Fields: []ir.Field{
 		{Name: "headline", GoName: "Headline", Kind: ir.FieldChar, MaxLength: 200},
-		{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}},
+		{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}},
 	}}
 	altered := migrationWriterArticle()
 	altered.Fields[0].MaxLength = 201

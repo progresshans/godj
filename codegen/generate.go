@@ -491,7 +491,7 @@ func queryValueExpression(field ir.Field, value string) string {
 	return "query." + kind + "(" + value + ")"
 }
 
-func defaultValueExpression(value ir.ScalarDefault) string {
+func defaultValueExpression(value ir.Scalar) string {
 	switch value.Kind {
 	case ir.ScalarDateTime:
 		instant, err := temporal.ParseCanonical(value.DateTime)
@@ -510,18 +510,18 @@ func defaultValueExpression(value ir.ScalarDefault) string {
 	}
 }
 
-func defaultLiteral(value ir.ScalarDefault) string {
+func scalarLiteral(value ir.Scalar) string {
 	switch value.Kind {
 	case ir.ScalarDateTime:
-		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarDateTime, DateTime: %s}", strconv.Quote(value.DateTime))
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDateTime, DateTime: %s}", strconv.Quote(value.DateTime))
 	case ir.ScalarString:
-		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarString, String: %s}", strconv.Quote(value.String))
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarString, String: %s}", strconv.Quote(value.String))
 	case ir.ScalarBoolean:
-		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: %t}", value.Boolean)
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarBoolean, Boolean: %t}", value.Boolean)
 	case ir.ScalarInteger:
-		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: %d}", value.Integer)
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarInteger, Integer: %d}", value.Integer)
 	default:
-		return "nil"
+		return "ir.Scalar{}"
 	}
 }
 

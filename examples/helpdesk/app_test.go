@@ -122,6 +122,47 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 			t.Fatal("datetime field appeared before its migration")
 		}
 	}
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded,
+		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0004_ticket_due_at"}))); err != nil {
+		t.Fatal(err)
+	}
+	legacy := readGrownTicket(t, ctx, backend, seedID, "Existing ticket", category.ID)
+	legacy, err = models.TicketObjects.Update(ctx, backend, legacy, models.TicketPatch{}.WithPriority(99))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"0005_alter_ticket_priority", "0006_alter_ticket_priority", "0004_ticket_due_at", "0006_alter_ticket_priority"} {
+		state, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded,
+			migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: name})))
+		if err != nil {
+			t.Fatal(err)
+		}
+		model, found := state.Model("helpdesk", "ticket")
+		if !found {
+			t.Fatal("choice migration removed ticket")
+		}
+		for _, field := range model.Fields {
+			if field.Name != "priority" {
+				continue
+			}
+			if name == "0004_ticket_due_at" {
+				if field.Choices != nil {
+					t.Fatal("reverse metadata retained choices")
+				}
+			} else if len(field.Choices) != 3 {
+				t.Fatal("historical choices missing")
+			} else if name == "0006_alter_ticket_priority" && (field.Choices[0].Value.Integer != 1 || field.Choices[0].Label != "Urgent") {
+				t.Fatal("choice label/order change missing")
+			}
+		}
+		persisted, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(seedID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+		if err != nil || !found || persisted.Priority == nil || *persisted.Priority != 99 {
+			t.Fatal("choice migration changed an existing out-of-choice row")
+		}
+	}
+	if _, err := models.TicketObjects.Update(ctx, backend, legacy, models.TicketPatch{}.WithPriorityNull()); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal(err)
 	}
@@ -195,6 +236,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("Ticket scalar selection")
 	}
 	for _, field := range ticketInfo.FormFields {
+		if field.Name() == "priority" && (field.Widget() != forms.Select || len(field.Choices()) != 3) {
+			t.Fatal("priority metadata did not select choices")
+		}
 		if field.Name() == "resolution" && field.Widget() != forms.Textarea {
 			t.Fatal("model Text did not select a textarea")
 		}
@@ -281,10 +325,10 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("POST", "/admin/categories/add/", "", false); response.Code != http.StatusNotFound {
 		t.Fatalf("readonly mutation route exists: %d", response.Code)
 	}
-	if response := client.request("GET", "/admin/tickets/add/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), `name="category"`) || !strings.Contains(response.Body.String(), `inputmode="numeric"`) || !strings.Contains(response.Body.String(), `<textarea`) || !strings.Contains(response.Body.String(), `name="resolution"`) {
+	if response := client.request("GET", "/admin/tickets/add/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), `name="category"`) || !strings.Contains(response.Body.String(), `<select name="priority">`) || !strings.Contains(response.Body.String(), `<textarea`) || !strings.Contains(response.Body.String(), `name="resolution"`) {
 		t.Fatalf("selected ticket form: %d %s", response.Code, response.Body)
 	}
-	values := url.Values{"subject": {"Admin ticket"}, "due_at": {"0001-01-01T00:00:00Z"}, "details": {""}, "closed": {"false"}, "priority": {strconv.FormatInt(math.MaxInt64, 10)}, "csrfmiddlewaretoken": {client.csrf}, "category": {strconv.FormatInt(other.ID, 10)}}
+	values := url.Values{"subject": {"Admin ticket"}, "due_at": {"0001-01-01T00:00:00Z"}, "details": {""}, "closed": {"false"}, "priority": {"1"}, "csrfmiddlewaretoken": {client.csrf}, "category": {strconv.FormatInt(other.ID, 10)}}
 	if response := client.request("POST", "/admin/tickets/add/", values.Encode(), false); response.Code != http.StatusBadRequest {
 		t.Fatalf("injected relationship accepted: %d", response.Code)
 	}
@@ -292,14 +336,14 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("POST", "/admin/tickets/add/", values.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("Admin create: %d %s", response.Code, response.Body)
 	}
-	if response := client.request("GET", "/admin/tickets/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other category ticket") || !strings.Contains(response.Body.String(), strconv.FormatInt(math.MaxInt64, 10)) || !strings.Contains(response.Body.String(), "0001-01-01T00:00:00.000000Z") {
+	if response := client.request("GET", "/admin/tickets/", "", false); response.Code != http.StatusOK || strings.Contains(response.Body.String(), "Other category ticket") || !strings.Contains(response.Body.String(), "Urgent") || !strings.Contains(response.Body.String(), "0001-01-01T00:00:00.000000Z") {
 		t.Fatalf("scoped Admin list: %d %s", response.Code, response.Body)
 	}
 	if response := client.request("GET", fmt.Sprintf("/admin/tickets/change/?id=%d", outside.ID), "", false); response.Code != http.StatusNotFound {
 		t.Fatalf("unselected category leaked through direct object read: %d", response.Code)
 	}
 	resolution := "first line\n" + strings.Repeat("Long explanation. ", 100) + "\n</textarea><script>alert(1)</script>&\""
-	createJSON, err := json.Marshal(map[string]any{"subject": "JSON ticket", "details": nil, "priority": int64(math.MinInt64), "resolution": resolution, "due_at": "2026-09-19T12:34:56.123456789+09:00"})
+	createJSON, err := json.Marshal(map[string]any{"subject": "JSON ticket", "details": nil, "priority": int64(-1), "resolution": resolution, "due_at": "2026-09-19T12:34:56.123456789+09:00"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +361,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		Resolution *string    `json:"resolution"`
 		DueAt      *time.Time `json:"due_at"`
 	}
-	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID <= seed.ID || created.Category != category.ID || created.Closed || created.Details != nil || created.Priority == nil || *created.Priority != math.MinInt64 || created.Resolution == nil || *created.Resolution != resolution || created.DueAt == nil || !created.DueAt.Equal(time.Date(2026, 9, 19, 3, 34, 56, 123456000, time.UTC)) {
+	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil || created.ID <= seed.ID || created.Category != category.ID || created.Closed || created.Details != nil || created.Priority == nil || *created.Priority != -1 || created.Resolution == nil || *created.Resolution != resolution || created.DueAt == nil || !created.DueAt.Equal(time.Date(2026, 9, 19, 3, 34, 56, 123456000, time.UTC)) {
 		t.Fatalf("typed JSON projection: %+v %v", created, err)
 	}
 	if response.Header().Get("Location") != "" {
@@ -333,7 +377,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	} else {
 		assertHelpdeskResponseDocumented(t, client.document, "POST", "/api/tickets/", response)
 	}
-	for _, document := range []string{`{"subject":"Bad","priority":9223372036854775808}`, `{"subject":"Bad","priority":-9223372036854775809}`, `{"subject":"Bad","priority":1.0}`, `{"subject":"Bad","priority":"1"}`, `{"subject":"Bad","priority":true}`, `{"subject":"Bad","category":` + strconv.FormatInt(other.ID, 10) + `}`, `{"subject":"Bad","id":1}`, `{"subject":"` + strings.Repeat("x", 121) + `"}`} {
+	for _, document := range []string{`{"subject":"Bad","priority":99}`, `{"subject":"Bad","priority":9223372036854775807}`, `{"subject":"Bad","priority":-9223372036854775808}`, `{"subject":"Bad","priority":9223372036854775808}`, `{"subject":"Bad","priority":-9223372036854775809}`, `{"subject":"Bad","priority":1.0}`, `{"subject":"Bad","priority":"1"}`, `{"subject":"Bad","priority":true}`, `{"subject":"Bad","category":` + strconv.FormatInt(other.ID, 10) + `}`, `{"subject":"Bad","id":1}`, `{"subject":"` + strings.Repeat("x", 121) + `"}`} {
 		if response := client.request("POST", "/api/tickets/", document, true); response.Code != http.StatusBadRequest {
 			t.Fatalf("invalid API data accepted: %d %s", response.Code, response.Body)
 		} else {
@@ -341,7 +385,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		}
 	}
 	changePath := fmt.Sprintf("/admin/tickets/change/?id=%d", created.ID)
-	if response := client.request("GET", changePath, "", false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `value="-9223372036854775808"`) || !strings.Contains(response.Body.String(), `inputmode="numeric"`) || !strings.Contains(response.Body.String(), `value="2026-09-19T03:34:56.123456Z"`) || !strings.Contains(response.Body.String(), "UTC if no offset is provided.") {
+	if response := client.request("GET", changePath, "", false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `<option value="-1" selected>Low</option>`) || !strings.Contains(response.Body.String(), `<select name="priority">`) || !strings.Contains(response.Body.String(), `value="2026-09-19T03:34:56.123456Z"`) || !strings.Contains(response.Body.String(), "UTC if no offset is provided.") {
 		t.Fatalf("metadata-derived initial values: %d %s", response.Code, response.Body)
 	} else if !strings.Contains(response.Body.String(), ">\n"+html.EscapeString(resolution)+"</textarea>") || strings.Contains(response.Body.String(), "<script>") {
 		t.Fatal("textarea lost its content/newline prefix or failed to escape HTML")
@@ -352,9 +396,10 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatalf("invalid form did not preserve escaped raw Text: %d", response.Code)
 	}
 	unchanged, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(created.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || unchanged.Subject != "JSON ticket" || unchanged.Priority == nil || *unchanged.Priority != math.MinInt64 || unchanged.Resolution == nil || *unchanged.Resolution != resolution || unchanged.DueAt == nil || !unchanged.DueAt.Equal(*created.DueAt) {
+	if err != nil || !found || unchanged.Subject != "JSON ticket" || unchanged.Priority == nil || *unchanged.Priority != -1 || unchanged.Resolution == nil || *unchanged.Resolution != resolution || unchanged.DueAt == nil || !unchanged.DueAt.Equal(*created.DueAt) {
 		t.Fatal("invalid multiline form changed stored data")
 	}
+	values.Set("priority", "0")
 	values.Set("subject", "Resolved")
 	values.Set("due_at", "2026-02-30 10:11:12")
 	if response := client.request("POST", changePath, values.Encode(), false); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `data-error-field="due_at"`) {
@@ -395,6 +440,24 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	}
 	if count, err := models.TicketObjects.Using(backend).Count(ctx); err != nil || count != 4 {
 		t.Fatalf("invalid requests changed rows: %d %v", count, err)
+	}
+	// Ordinary ORM writes keep the complete int64 storage range. Both API and
+	// Admin display those old/out-of-choice values without substituting labels.
+	for _, value := range []int64{math.MinInt64, math.MaxInt64} {
+		legacy, err := models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Legacy priority", category.ID).WithPriority(value))
+		if err != nil {
+			t.Fatalf("choices incorrectly constrained ORM save: %v", err)
+		}
+		response := client.request("GET", fmt.Sprintf("/api/tickets/%d/", legacy.ID), "", false)
+		var detail struct{ Ticket struct{ Priority *int64 } }
+		if err := json.Unmarshal(response.Body.Bytes(), &detail); err != nil || response.Code != http.StatusOK || detail.Ticket.Priority == nil || *detail.Ticket.Priority != value {
+			t.Fatalf("out-of-choice response: %d %v", response.Code, err)
+		}
+		assertHelpdeskResponseDocumented(t, client.document, "GET", "/api/tickets/{id}/", response)
+		response = client.request("GET", fmt.Sprintf("/admin/tickets/change/?id=%d", legacy.ID), "", false)
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `<option value="`+strconv.FormatInt(value, 10)+`" selected>`) {
+			t.Fatal("old priority silently selected another choice")
+		}
 	}
 }
 

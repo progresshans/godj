@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "9401b30d5f0228462ec68d9d123cbb0426632b67f1bc871a25ac41a8251e242b"
+const GoDjRelationProjectionSchemaSHA256 = "eb59105d62af118882f3951491ff1934fefdeb530bec42e446384083cc1da786"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -129,4 +129,4 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_00bff25092b765cb981cfe3296002150cb412f48219fb281bc8c3d9bc7bde0b5
+var _ GoDjProjectSnapshot_258eb010b1b5ac237fc882f1e6c5d4eb1f69a94a16ebe0c386bda77cfb4566ab

@@ -129,7 +129,7 @@ func TestEncodePreservesOperationOrder(t *testing.T) {
 			GoName:  "Featured",
 			Column:  "featured",
 			Kind:    ir.FieldBoolean,
-			Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: true},
+			Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: true},
 		},
 	}
 	migration := migrations.Migration{App: "blog", Name: "0002_fields", Operations: []migrations.Operation{first, second}}
@@ -234,7 +234,7 @@ func TestEncodeStrictLoadRoundTripWithDependencySources(t *testing.T) {
 func TestEncodeSnapshotsAndNeverMutatesInput(t *testing.T) {
 	t.Parallel()
 
-	defaultValue := &ir.ScalarDefault{Kind: ir.ScalarString, String: "untitled"}
+	defaultValue := &ir.Scalar{Kind: ir.ScalarString, String: "untitled"}
 	relation := &ir.ForeignKeyRelation{
 		Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		Cardinality: ir.RelationManyToOne,
@@ -419,7 +419,7 @@ func TestEncodeRejectsResourceAndDocumentOverflow(t *testing.T) {
 	maximum := int64(maximumWireLength)
 	overflow.MaxLength = int(maximum)
 	overflow.MaxLength++
-	overflow.Default = &ir.ScalarDefault{Kind: ir.ScalarString}
+	overflow.Default = &ir.Scalar{Kind: ir.ScalarString}
 	_, err := Encode(producer, migrations.Migration{
 		App:  "blog",
 		Name: "0002_field",
@@ -558,7 +558,7 @@ func TestEncodePreflightRejectsOversizedRawStringsBeforeSnapshot(t *testing.T) {
 						Column:    "summary",
 						Kind:      ir.FieldChar,
 						MaxLength: MaxDocumentBytes + 1,
-						Default: &ir.ScalarDefault{
+						Default: &ir.Scalar{
 							Kind:   ir.ScalarString,
 							String: strings.Repeat("d", MaxDocumentBytes+1),
 						},
@@ -657,7 +657,7 @@ func encodeArticleModel() ir.Model {
 				Column:    "title",
 				Kind:      ir.FieldChar,
 				MaxLength: 80,
-				Default:   &ir.ScalarDefault{Kind: ir.ScalarString, String: "untitled"},
+				Default:   &ir.Scalar{Kind: ir.ScalarString, String: "untitled"},
 			},
 			encodeBooleanField(),
 			{
@@ -692,7 +692,7 @@ func encodeBooleanField() ir.Field {
 		GoName:  "Published",
 		Column:  "published",
 		Kind:    ir.FieldBoolean,
-		Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean},
+		Default: &ir.Scalar{Kind: ir.ScalarBoolean},
 	}
 }
 

@@ -2399,3 +2399,10 @@ func migrationTargetPlanLoadBeforeOpen(ctx context.Context) (bool, error) {
 	}
 	return true, nil
 }
+
+func (transaction *migrationTargetPlanTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	transaction.backend.mu.Lock()
+	transaction.backend.schemaMutations++
+	transaction.backend.mu.Unlock()
+	return nil
+}

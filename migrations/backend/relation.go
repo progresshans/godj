@@ -9,6 +9,7 @@ type MigrationCapabilities struct {
 	AddNullableForeignKey             bool
 	AddRequiredForeignKeyToEmptyTable bool
 	RemoveForeignKey                  bool
+	AlterFieldChoices                 bool
 }
 
 // MigrationOperationKind identifies one operation in the complete
@@ -21,6 +22,7 @@ const (
 	MigrationDeleteModel
 	MigrationAddField
 	MigrationRemoveField
+	MigrationAlterField
 )
 
 // MigrationIntent carries a complete, ordered migration step. Scalar

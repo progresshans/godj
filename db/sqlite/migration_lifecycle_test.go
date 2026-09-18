@@ -74,7 +74,7 @@ func TestSQLiteRevisionFenceBootstrapReopenAddFieldAndReverse(t *testing.T) {
 		t.Fatalf("reopened records = (%v, %v), want %v", records, err, wantRecords)
 	}
 
-	falseDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	falseDefault := &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}
 	field := ir.Field{
 		Name: "featured", GoName: "Featured", Column: "featured",
 		Kind: ir.FieldBoolean, Default: falseDefault,

@@ -9,6 +9,7 @@
 {{ field.value }}</textarea>{% endif %}
 {% if field.datetime %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="YYYY-MM-DDTHH:MM:SSZ"{% if field.required %} required{% endif %}><span>UTC if no offset is provided.</span>{% endif %}
 {% if field.integer %}<input type="text" inputmode="numeric" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.select %}<select name="{{ field.name }}"{% if field.required %} required{% endif %}>{% for option in field.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>{% endif %}
 {% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}</label>
 {% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endfor %}
 <button type="submit">{{ submit_label }}</button></form><p><a href="{{ list_path }}">Back to list</a></p></main>

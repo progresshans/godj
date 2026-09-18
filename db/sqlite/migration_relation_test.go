@@ -26,6 +26,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
+		AlterFieldChoices:                 true,
 	}
 	if got != want {
 		t.Fatalf("MigrationCapabilities() = %+v, want %+v", got, want)
@@ -1538,7 +1539,7 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 
 	defaultedRequired := baseEditor.Clone()
 	defaultedRequired.Nullable = false
-	defaultedRequired.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: 1}
+	defaultedRequired.Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: 1}
 	differentTarget := target.Clone()
 	differentTarget.Name = "editor"
 	differentTarget.GoName = "Editor"

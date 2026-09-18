@@ -44,6 +44,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
+		AlterFieldChoices:                 true,
 	}
 }
 
@@ -602,10 +603,12 @@ func writeRelationField(hash sqliteRelationHashWriter, field ir.Field) {
 	writeRelationInt(hash, field.MaxLength)
 	writeRelationBool(hash, field.Default != nil)
 	if field.Default != nil {
-		writeRelationString(hash, string(field.Default.Kind))
-		writeRelationString(hash, field.Default.String)
-		writeRelationBool(hash, field.Default.Boolean)
-		writeRelationInt64(hash, field.Default.Integer)
+		writeRelationScalar(hash, *field.Default)
+	}
+	writeRelationSliceHeader(hash, field.Choices == nil, len(field.Choices))
+	for _, choice := range field.Choices {
+		writeRelationScalar(hash, choice.Value)
+		writeRelationString(hash, choice.Label)
 	}
 	writeRelationBool(hash, field.Relation != nil)
 	if field.Relation != nil {
@@ -616,6 +619,14 @@ func writeRelationField(hash sqliteRelationHashWriter, field ir.Field) {
 		writeRelationBool(hash, field.Relation.Reverse.Disabled)
 		writeRelationString(hash, string(field.Relation.OnDelete))
 	}
+}
+
+func writeRelationScalar(hash sqliteRelationHashWriter, scalar ir.Scalar) {
+	writeRelationString(hash, string(scalar.Kind))
+	writeRelationString(hash, scalar.String)
+	writeRelationString(hash, scalar.DateTime)
+	writeRelationBool(hash, scalar.Boolean)
+	writeRelationInt64(hash, scalar.Integer)
 }
 
 func writeRelationSliceHeader(hash sqliteRelationHashWriter, nilSlice bool, length int) {
@@ -776,6 +787,12 @@ func validateSQLiteRelationIntent(
 			} else {
 				expectedRelationFields[position] = relationFieldsInModel(before)
 			}
+		case migrationbackend.MigrationAlterField:
+			before, after = operation.Before, operation.After
+			if err := validateSQLiteChoiceDelta(before, after); err != nil {
+				return nil, relationIntentIntegrity("AlterField operation %d has an invalid choices delta: %v", operation.OperationIndex, err)
+			}
+			expectedRelationFields[position] = relationFieldsInModel(after)
 		default:
 			return nil, relationIntentIntegrity("relation operation %d has invalid kind %d", operation.OperationIndex, operation.Kind)
 		}
@@ -863,7 +880,8 @@ func validateSQLiteRelationIntent(
 			if operation.Kind != migrationbackend.MigrationCreateModel &&
 				operation.Kind != migrationbackend.MigrationDeleteModel &&
 				operation.Kind != migrationbackend.MigrationAddField &&
-				operation.Kind != migrationbackend.MigrationRemoveField {
+				operation.Kind != migrationbackend.MigrationRemoveField &&
+				operation.Kind != migrationbackend.MigrationAlterField {
 				return nil, relationIntentUnsupported("SQLite relation target metadata is unsupported on operation %d kind %d", operation.OperationIndex, operation.Kind)
 			}
 			target := operation.Targets[targetIndex]

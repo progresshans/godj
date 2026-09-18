@@ -188,7 +188,7 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 	required := ir.Field{Name: "slug", GoName: "Slug", Column: "slug", Kind: ir.FieldChar, MaxLength: 64}
 	withRequired := base.Clone()
 	withRequired.Fields = append(withRequired.Fields, required)
-	logicalDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	logicalDefault := &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}
 	featured := ir.Field{Name: "featured", GoName: "Featured", Column: "featured", Kind: ir.FieldBoolean, Default: logicalDefault}
 	withDefault := withRequired.Clone()
 	withDefault.Fields = append(withDefault.Fields, featured)

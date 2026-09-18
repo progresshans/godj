@@ -12,7 +12,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "9401b30d5f0228462ec68d9d123cbb0426632b67f1bc871a25ac41a8251e242b"
+const GoDjSchemaSHA256 = "eb59105d62af118882f3951491ff1934fefdeb530bec42e446384083cc1da786"
 
 type Category struct {
 	ID                    int64
@@ -737,7 +737,7 @@ func ticketMetadata() ir.Model {
 				GoName:  "Closed",
 				Column:  "closed",
 				Kind:    ir.FieldBoolean,
-				Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
+				Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false},
 			},
 			{
 				Name:   "category",
@@ -757,6 +757,11 @@ func ticketMetadata() ir.Model {
 				Column:   "priority",
 				Kind:     ir.FieldInteger,
 				Nullable: true,
+				Choices: []ir.Choice{
+					{Value: ir.Scalar{Kind: ir.ScalarInteger, Integer: 1}, Label: "Urgent"},
+					{Value: ir.Scalar{Kind: ir.ScalarInteger, Integer: 0}, Label: "Normal"},
+					{Value: ir.Scalar{Kind: ir.ScalarInteger, Integer: -1}, Label: "Low"},
+				},
 			},
 			{
 				Name:     "resolution",
@@ -776,4 +781,4 @@ func ticketMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_00bff25092b765cb981cfe3296002150cb412f48219fb281bc8c3d9bc7bde0b5 struct{}
+type GoDjProjectSnapshot_258eb010b1b5ac237fc882f1e6c5d4eb1f69a94a16ebe0c386bda77cfb4566ab struct{}

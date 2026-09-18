@@ -231,7 +231,7 @@ func fullCatalog() []migrations.Migration {
 					AppLabel: "blog", ModelName: "article",
 					Field: ir.Field{
 						Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean,
-						Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean},
+						Default: &ir.Scalar{Kind: ir.ScalarBoolean},
 					},
 				},
 			},

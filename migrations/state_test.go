@@ -82,7 +82,7 @@ func TestProjectStateNormalizesAndDeepClonesSchemaIR(t *testing.T) {
 	input := articleSchema()
 	input.Models[0].DBTable = ""
 	input.Models[0].Fields[0].Column = ""
-	input.Models[0].Fields[2].Default = &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	input.Models[0].Fields[2].Default = &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}
 	state, err := NewProjectState(input)
 	if err != nil {
 		t.Fatalf("NewProjectState() error = %v", err)

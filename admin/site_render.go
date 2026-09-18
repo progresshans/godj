@@ -124,7 +124,7 @@ func (site *Site) listContext(
 			if !ok {
 				return nil, &ConfigError{Path: "site.list." + field, Code: "missing_snapshot_value"}
 			}
-			cells[fieldIndex] = value
+			cells[fieldIndex] = choiceDisplayValue(model.choiceLabels[field], value)
 		}
 		item, err := templateObject(map[string]templates.Value{
 			"id":          templates.Integer(object.id),
@@ -308,6 +308,10 @@ func (site *Site) formContext(
 	fieldValues := make([]templates.Value, len(fields))
 	for index, field := range fields {
 		value, checked := renderedFieldValue(field, form, submitted)
+		options, err := choiceOptionValues(field, value)
+		if err != nil {
+			return nil, err
+		}
 		errors, err := violationValues(form.Errors().ByField(validation.Field(field.Name())))
 		if err != nil {
 			return nil, err
@@ -317,7 +321,9 @@ func (site *Site) formContext(
 			"label":      templates.String(field.Label()),
 			"char":       templates.Bool(field.Kind() == forms.FieldChar && field.Widget() == forms.TextInput),
 			"textarea":   templates.Bool(field.Widget() == forms.Textarea),
-			"integer":    templates.Bool(field.Kind() == forms.FieldInteger),
+			"integer":    templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
+			"select":     templates.Bool(field.Widget() == forms.Select),
+			"options":    templates.List(options...),
 			"datetime":   templates.Bool(field.Kind() == forms.FieldDateTime),
 			"boolean":    templates.Bool(field.Kind() == forms.FieldBoolean),
 			"required":   templates.Bool(field.Required()),
@@ -364,6 +370,9 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 			return safeDisplayText(first), false
 		}
 		if field.Kind() == forms.FieldBoolean {
+			return "", false
+		}
+		if field.Widget() == forms.Select {
 			return "", false
 		}
 	}

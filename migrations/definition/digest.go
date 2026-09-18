@@ -104,6 +104,8 @@ func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]
 		return appendCanonicalCreateModel(output, value)
 	case migrations.AddField:
 		return appendCanonicalAddField(output, value)
+	case migrations.AlterField:
+		return appendCanonicalAlterField(output, value)
 	default:
 		return nil, fmt.Errorf("unsupported canonical operation %T", operation)
 	}
@@ -174,9 +176,58 @@ func appendCanonicalModel(output []byte, model ir.Model) ([]byte, error) {
 	return append(output, '}'), nil
 }
 
-func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
-	output = append(output, `{"column":`...)
+func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 	var err error
+	switch value.Kind {
+	case ir.ScalarDateTime:
+		output = append(output, `{"datetime":`...)
+		output, err = appendCanonicalString(output, value.DateTime)
+		output = append(output, `,"kind":"datetime"}`...)
+	case ir.ScalarString:
+		output = append(output, `{"kind":"string","string":`...)
+		output, err = appendCanonicalString(output, value.String)
+		output = append(output, '}')
+	case ir.ScalarBoolean:
+		output = append(output, `{"boolean":`...)
+		output = strconv.AppendBool(output, value.Boolean)
+		output = append(output, `,"kind":"boolean"}`...)
+	case ir.ScalarInteger:
+		output = append(output, `{"integer":`...)
+		output = strconv.AppendInt(output, value.Integer, 10)
+		output = append(output, `,"kind":"integer"}`...)
+	default:
+		return nil, fmt.Errorf("unsupported canonical scalar %q", value.Kind)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
+	var err error
+	output = append(output, '{')
+	if len(field.Choices) > 0 {
+		output = append(output, `"choices":[`...)
+		for index, choice := range field.Choices {
+			if index > 0 {
+				output = append(output, ',')
+			}
+			output = append(output, `{"label":`...)
+			output, err = appendCanonicalString(output, choice.Label)
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, `,"value":`...)
+			output, err = appendCanonicalScalar(output, choice.Value)
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, '}')
+		}
+		output = append(output, `],`...)
+	}
+	output = append(output, `"column":`...)
 	output, err = appendCanonicalString(output, field.Column)
 	if err != nil {
 		return nil, err
@@ -185,31 +236,9 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	if field.Default == nil {
 		output = append(output, "null"...)
 	} else {
-		switch field.Default.Kind {
-		case ir.ScalarDateTime:
-			output = append(output, `{"datetime":`...)
-			output, err = appendCanonicalString(output, field.Default.DateTime)
-			if err != nil {
-				return nil, err
-			}
-			output = append(output, `,"kind":"datetime"}`...)
-		case ir.ScalarString:
-			output = append(output, `{"kind":"string","string":`...)
-			output, err = appendCanonicalString(output, field.Default.String)
-			if err != nil {
-				return nil, err
-			}
-			output = append(output, '}')
-		case ir.ScalarBoolean:
-			output = append(output, `{"boolean":`...)
-			output = strconv.AppendBool(output, field.Default.Boolean)
-			output = append(output, `,"kind":"boolean"}`...)
-		case ir.ScalarInteger:
-			output = append(output, `{"integer":`...)
-			output = strconv.AppendInt(output, field.Default.Integer, 10)
-			output = append(output, `,"kind":"integer"}`...)
-		default:
-			return nil, fmt.Errorf("unsupported canonical default %q", field.Default.Kind)
+		output, err = appendCanonicalScalar(output, *field.Default)
+		if err != nil {
+			return nil, err
 		}
 	}
 	output = append(output, `,"go_name":`...)

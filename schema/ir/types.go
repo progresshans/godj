@@ -4,6 +4,8 @@
 // other.
 package ir
 
+import "slices"
+
 // CurrentFormatVersion is the only Schema IR format accepted before GoDj's
 // first external release. Scalar and relation-bearing schemas use the same
 // normalized representation; relation presence is a field property, not a
@@ -66,9 +68,8 @@ type ForeignKeyRelation struct {
 	OnDelete    DeletePolicy        `json:"on_delete"`
 }
 
-// ScalarKind identifies the concrete GoDj scalar carried by a field default.
-// The enclosing *ScalarDefault pointer preserves whether a default exists;
-// the zero value of a scalar (notably false and "") remains an explicit value.
+// ScalarKind identifies a concrete value in defaults and choice metadata.
+// An enclosing pointer records default presence; false and "" are values.
 type ScalarKind string
 
 const (
@@ -78,12 +79,19 @@ const (
 	ScalarDateTime ScalarKind = "datetime"
 )
 
-type ScalarDefault struct {
+type Scalar struct {
 	Kind     ScalarKind `json:"kind"`
 	String   string     `json:"string,omitempty"`
 	DateTime string     `json:"datetime,omitempty"`
 	Boolean  bool       `json:"boolean,omitempty"`
 	Integer  int64      `json:"integer,omitempty"`
+}
+
+// Choice pairs a stored scalar with its presentation label. Declaration order
+// is significant for form options and historical schema identity.
+type Choice struct {
+	Value Scalar `json:"value"`
+	Label string `json:"label"`
 }
 
 type Field struct {
@@ -94,7 +102,8 @@ type Field struct {
 	PrimaryKey bool                `json:"primary_key"`
 	Nullable   bool                `json:"nullable"`
 	MaxLength  int                 `json:"max_length,omitempty"`
-	Default    *ScalarDefault      `json:"default,omitempty"`
+	Default    *Scalar             `json:"default,omitempty"`
+	Choices    []Choice            `json:"choices,omitempty"`
 	Relation   *ForeignKeyRelation `json:"relation,omitempty"`
 }
 
@@ -118,6 +127,10 @@ func (m Model) Clone() Model {
 
 func (f Field) Clone() Field {
 	clone := f
+	if f.Choices != nil {
+		clone.Choices = make([]Choice, len(f.Choices))
+		copy(clone.Choices, f.Choices)
+	}
 	if f.Default != nil {
 		value := *f.Default
 		clone.Default = &value
@@ -127,4 +140,17 @@ func (f Field) Clone() Field {
 		clone.Relation = &value
 	}
 	return clone
+}
+
+// Equal compares metadata values, including the ordered choices, rather than
+// treating independently owned default/relation pointers as different fields.
+func (f Field) Equal(other Field) bool {
+	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
+		f.Kind == other.Kind && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.MaxLength == other.MaxLength &&
+		equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
+		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
+}
+
+func equalOptional[T comparable](left, right *T) bool {
+	return left == right || left != nil && right != nil && *left == *right
 }

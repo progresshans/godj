@@ -48,6 +48,9 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 		t.Fatal("Ticket response lost its encoder's field constraints")
 	}
 	input := decoded.Components.Schemas["TicketCreate"]
+	if len(input.Properties["priority"].AnyOf) != 2 || string(input.Properties["priority"].AnyOf[0].Enum) != "[1,0,-1]" || len(ticket.Properties["priority"].Enum) != 0 || len(ticket.Properties["priority"].AnyOf[0].Enum) != 0 {
+		t.Fatal("choices input and existing-row output domains were conflated")
+	}
 	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 6 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
 		t.Fatalf("TicketCreate presence/defaults = %+v", input)
 	}
@@ -229,6 +232,7 @@ type helpdeskDocumentSchema struct {
 	Items                *helpdeskDocumentSchema
 	AnyOf                []helpdeskDocumentSchema
 	Default              json.RawMessage
+	Enum                 json.RawMessage
 	Normalization        json.RawMessage `json:"x-godj-normalization"`
 	MaxLength            int
 	ReadOnly             bool

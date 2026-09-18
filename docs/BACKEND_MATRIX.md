@@ -9,7 +9,7 @@
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
 | Relation delete | supported physical FK의 PROTECT/SET_NULL | declared current backend capability 기준 |
-| Migration | revision session, current Create/Delete/Add/Remove의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
+| Migration | revision session, current Create/Delete/Add/Remove와 choices-only AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
 | CGO | pure Go 경로 | pure Go 경로 |
@@ -21,6 +21,7 @@ Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char,
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
 nullable/time default·comparison/F·projection/Min/Max를 지원한다. [시간 값과 남은 범위](adr/0061-datetime-field-and-canonical-instant-values.md)를 따른다.
+String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterField는 양 DB의 revision-fenced lifecycle에서 DDL 없이 상태·recorder를 갱신하며 물리 catalog 검증은 수행한다. [선택값 의미](adr/0063-model-choices-and-metadata-only-migrations.md)를 따른다.
 모든 Django Field, OneToOne/ManyToMany, arbitrary `to_field`, self/cyclic relation이나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·

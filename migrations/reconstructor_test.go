@@ -1438,10 +1438,10 @@ type unsupportedStateOperation struct {
 }
 
 func stateFixtureDefinitions() []Migration {
-	falseDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
-	trueDefault := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: true}
-	emptyDefault := &ir.ScalarDefault{Kind: ir.ScalarString, String: ""}
-	archiveDefault := &ir.ScalarDefault{Kind: ir.ScalarString, String: "archive"}
+	falseDefault := &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}
+	trueDefault := &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: true}
+	emptyDefault := &ir.Scalar{Kind: ir.ScalarString, String: ""}
+	archiveDefault := &ir.Scalar{Kind: ir.ScalarString, String: "archive"}
 	return []Migration{
 		{
 			App:  stateAlphaRoot.App,

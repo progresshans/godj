@@ -2140,3 +2140,11 @@ func observeCommitOutcomeCase(
 	observation.Outcomes = append(observation.Outcomes, outcome)
 	return nil
 }
+
+func (transaction *observingTransaction) AlterField(ctx context.Context, model ir.Model, before, after ir.Field) error {
+	transaction.owner.record("alter_field", model.DBTable+"."+before.Column)
+	if transaction.owner.fault == faultOperation {
+		return errObservedOperation
+	}
+	return transaction.delegate.AlterField(ctx, model, before, after)
+}

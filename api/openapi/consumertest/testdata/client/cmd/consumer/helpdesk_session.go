@@ -49,23 +49,23 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		subject string
 		value   int64
 		null    bool
-	}{{"Maximum priority", math.MaxInt64, false}, {"Minimum priority", math.MinInt64, false}, {"Zero priority", 0, false}, {"Null priority", 0, true}} {
-		priority := hs.OptNilInt64{}
+	}{{"Urgent priority", 1, false}, {"Low priority", -1, false}, {"Zero priority", 0, false}, {"Null priority", 0, true}} {
+		priority := hs.OptNilTicketCreatePriority{}
 		if test.null {
 			priority.SetToNull()
 		} else {
-			priority.SetTo(test.value)
+			priority.SetTo(hs.TicketCreatePriority(test.value))
 		}
 		text := hs.OptNilString{}
-		if test.subject == "Maximum priority" {
+		if test.subject == "Urgent priority" {
 			text.SetTo("")
-		} else if test.subject == "Minimum priority" {
+		} else if test.subject == "Low priority" {
 			text.SetToNull()
 		}
 		due := hs.OptNilDateTime{}
-		if test.subject == "Maximum priority" {
+		if test.subject == "Urgent priority" {
 			due.SetTo(time.Time{})
-		} else if test.subject == "Minimum priority" {
+		} else if test.subject == "Low priority" {
 			due.SetTo(time.Date(9999, 12, 31, 23, 59, 59, 999999000, time.UTC))
 		} else if test.subject == "Null priority" {
 			due.SetToNull()
@@ -75,13 +75,29 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		if err != nil || !ok || transport.lastStatus() != http.StatusCreated || value.ID <= expected[len(expected)-1].ID || value.Subject != test.subject || value.Category != target.CategoryID || value.Closed || !value.Details.Null || value.Priority.Null != test.null || (!test.null && value.Priority.Value != test.value) {
 			return fail("helpdesk integer create precision and null")
 		}
-		if value.Resolution.Null != (test.subject != "Maximum priority") || value.Resolution.Value != "" {
+		if value.Resolution.Null != (test.subject != "Urgent priority") || value.Resolution.Value != "" {
 			return fail("helpdesk Text omission, null, or empty string")
 		}
 		if value.DueAt.Null != (!due.Set || due.Null) || (!value.DueAt.Null && !value.DueAt.Value.Equal(due.Value)) {
 			return fail("helpdesk datetime range, omission, or null")
 		}
 		expected = append(expected, *value)
+	}
+	if err := requireHelpdeskTickets(ctx, client, transport, state, expected...); err != nil {
+		return err
+	}
+	for _, value := range []int64{2, 99, math.MinInt64, math.MaxInt64} {
+		request := hs.TicketCreate{Subject: "Invalid choice", Priority: hs.NewOptNilTicketCreatePriority(hs.TicketCreatePriority(value))}
+		if request.Validate() == nil {
+			return fail("generated choice input validator")
+		}
+		// The generated encoder intentionally does not call Validate. The real
+		// server must independently reject a caller's explicit enum cast.
+		response, err := client.HelpdeskTicketCreate(ctx, &request)
+		bad, ok := response.(*hs.HelpdeskTicketCreateBadRequest)
+		if err != nil || !ok || transport.lastStatus() != http.StatusBadRequest || len(bad.Errors) != 1 || bad.Errors[0].Field != "priority" || bad.Errors[0].Code != "invalid_choice" {
+			return fail("server choice input rejection")
+		}
 	}
 	if err := requireHelpdeskTickets(ctx, client, transport, state, expected...); err != nil {
 		return err

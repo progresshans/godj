@@ -68,6 +68,9 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 
 | [0061](0061-datetime-field-and-canonical-instant-values.md) | Accepted | DateTime 순간을 UTC·microsecond로 정규화하고 backend 저장·Form·JSON의 입력 정책을 명시 |
 
+| [0062](0062-scalar-membership-and-empty-query-execution.md) | Accepted | Scalar IN의 NULL·empty 의미와 검증 뒤 SQL 생략 |
+| [0063](0063-model-choices-and-metadata-only-migrations.md) | Accepted | 모델 선택값을 입력·표시와 연결하고 metadata-only 변경 이력을 보존 |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

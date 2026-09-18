@@ -194,7 +194,7 @@ func TestProjectSpecSchemaResourcesPrecedeNormalizationAndRendering(t *testing.T
 			name: "nested schema string",
 			mutate: func(spec *ProjectSpec) {
 				spec.Apps[0].Schema.FormatVersion = 0
-				spec.Apps[0].Schema.Models[0].Fields[0].Default = &ir.ScalarDefault{
+				spec.Apps[0].Schema.Models[0].Fields[0].Default = &ir.Scalar{
 					Kind: ir.ScalarString, String: strings.Repeat("x", projectspec.MaxSchemaStringBytes+1),
 				}
 			},

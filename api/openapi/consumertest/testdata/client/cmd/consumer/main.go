@@ -45,6 +45,8 @@ var requiredChecks = [...]string{
 	"helpdesk_session_create_defaults",
 	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values",
 	"helpdesk_session_read_only_denied",
+	"helpdesk_session_choices",
+	"generated_choice_response_domain",
 	"generated_int64_wire",
 	"generated_response_rejections",
 	"pre_canceled_request",
@@ -136,9 +138,11 @@ func run(ctx context.Context, config input) ([]string, error) {
 		}},
 		{func() error { return checkHelpdeskSession(ctx, config.HelpdeskSession) }, []string{
 			"helpdesk_session_relations", "helpdesk_session_create_defaults", "helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_read_only_denied",
+			"helpdesk_session_choices",
 		}},
 		{func() error { return checkGeneratedWire(ctx) }, []string{
 			"generated_int64_wire", "generated_response_rejections",
+			"generated_choice_response_domain",
 		}},
 	}
 	for _, flow := range flows {

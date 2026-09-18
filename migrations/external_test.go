@@ -627,3 +627,7 @@ func (*externalTransaction) RecordApplied(context.Context, string, string) error
 func (*externalTransaction) RecordUnapplied(context.Context, string, string) error { return nil }
 func (*externalTransaction) Commit(context.Context) error                          { return nil }
 func (*externalTransaction) Rollback(context.Context) error                        { return nil }
+
+func (*externalTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
+	return nil
+}

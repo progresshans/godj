@@ -28,6 +28,7 @@ var requiredConsumerChecks = []string{
 	"article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors",
 	"article_session_csrf_crud", "article_session_invalid_csrf", "helpdesk_session_relations", "helpdesk_session_create_defaults",
 	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_read_only_denied", "generated_int64_wire", "generated_response_rejections", "pre_canceled_request",
+	"helpdesk_session_choices", "generated_choice_response_domain",
 }
 
 func TestGeneratedOpenAPIClientContract(t *testing.T) {

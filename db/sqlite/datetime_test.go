@@ -36,7 +36,7 @@ func TestDateTimeSQLUsesCanonicalTextForReadsAndWrites(t *testing.T) {
 		t.Fatalf("datetime IN encoding: %v %v", arguments, err)
 	}
 	for _, nullable := range []bool{false, true} {
-		field := ir.Field{Name: "at", GoName: "At", Column: "at", Kind: ir.FieldDateTime, Nullable: nullable, Default: &ir.ScalarDefault{Kind: ir.ScalarDateTime, DateTime: "0001-01-01T00:00:00.000000Z"}}
+		field := ir.Field{Name: "at", GoName: "At", Column: "at", Kind: ir.FieldDateTime, Nullable: nullable, Default: &ir.Scalar{Kind: ir.ScalarDateTime, DateTime: "0001-01-01T00:00:00.000000Z"}}
 		ddl, err := compileMigrationColumn(field)
 		want := `"at" DATETIME NOT NULL`
 		if nullable {

@@ -496,7 +496,7 @@ func migrationLifecycleDefinitions() []migrations.Migration {
 						migrationExecutionAutoField(),
 						{
 							Name: "a1_marker", GoName: "A1Marker", Column: "a1_marker", Kind: ir.FieldChar, MaxLength: 16,
-							Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "a1"},
+							Default: &ir.Scalar{Kind: ir.ScalarString, String: "a1"},
 						},
 					},
 				},
@@ -509,7 +509,7 @@ func migrationLifecycleDefinitions() []migrations.Migration {
 				AppLabel: migrationLifecycleA2.App, ModelName: "entry",
 				Field: ir.Field{
 					Name: "a2_marker", GoName: "A2Marker", Column: "a2_marker", Kind: ir.FieldBoolean,
-					Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
+					Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false},
 				},
 			}},
 		},
@@ -534,7 +534,7 @@ func migrationLifecycleDefinitions() []migrations.Migration {
 						migrationExecutionAutoField(),
 						{
 							Name: "b1_marker", GoName: "B1Marker", Column: "b1_marker", Kind: ir.FieldChar, MaxLength: 16,
-							Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "b1"},
+							Default: &ir.Scalar{Kind: ir.ScalarString, String: "b1"},
 						},
 					},
 				},
@@ -662,7 +662,7 @@ func migrationLifecycleDefinitionField(field ir.Field) map[string]any {
 	return document
 }
 
-func migrationLifecycleDefinitionDefault(value *ir.ScalarDefault) any {
+func migrationLifecycleDefinitionDefault(value *ir.Scalar) any {
 	if value == nil {
 		return nil
 	}
@@ -1142,4 +1142,9 @@ func migrationLifecycleStepValues(
 		steps = append(steps, protocol.Object(fields))
 	}
 	return steps, unstarted, nil
+}
+
+func (transaction *migrationLifecycleTraceTransaction) AlterField(ctx context.Context, model ir.Model, before, after ir.Field) error {
+	transaction.step.schemaStarted = true
+	return transaction.delegate.AlterField(ctx, model, before, after)
 }

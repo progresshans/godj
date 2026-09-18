@@ -446,13 +446,17 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 		}
 		for fieldIndex := range oldModel.Fields {
 			if !reflect.DeepEqual(oldModel.Fields[fieldIndex], newModel.Fields[fieldIndex]) {
-				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, newModel.Fields[fieldIndex].Name, fmt.Errorf("existing field identity/order/metadata changed at index %d", fieldIndex))
+				before, after := oldModel.Fields[fieldIndex], newModel.Fields[fieldIndex]
+				if err := ir.ValidateChoiceChange(before, after); err != nil {
+					return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, after.Name, fmt.Errorf("unsupported existing field change at index %d: %w", fieldIndex, err))
+				}
+				addedFields = append(addedFields, migrations.AlterField{AppLabel: app, ModelName: newModel.Name, Before: before.Clone(), After: after.Clone()})
 			}
 		}
 		for fieldIndex := len(oldModel.Fields); fieldIndex < len(newModel.Fields); fieldIndex++ {
 			field := newModel.Fields[fieldIndex].Clone()
 			if !safeExistingAddField(field) {
-				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing-table AddField requires nullable CharField or ForeignKey with no default"))
+				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing-table AddField requires a supported nullable scalar or ForeignKey with no default"))
 			}
 			if err := validateAddedRelation(app, newModel.Name, field, after, nil); err != nil {
 				return appChange{}, false, err
@@ -591,6 +595,12 @@ func operationSlug(operations []migrations.Operation) string {
 			}
 		case migrations.AddField:
 			return operation.ModelName + "_" + operation.Field.Name
+		case migrations.AlterField:
+			return "alter_" + operation.ModelName + "_" + operation.After.Name
+		case *migrations.AlterField:
+			if operation != nil {
+				return "alter_" + operation.ModelName + "_" + operation.After.Name
+			}
 		case *migrations.AddField:
 			if operation != nil {
 				return operation.ModelName + "_" + operation.Field.Name
@@ -598,11 +608,13 @@ func operationSlug(operations []migrations.Operation) string {
 		}
 	}
 	type change struct {
-		Kind  string    `json:"kind"`
-		App   string    `json:"app"`
-		Model string    `json:"model"`
-		Value *ir.Model `json:"value,omitempty"`
-		Field *ir.Field `json:"field,omitempty"`
+		Kind   string    `json:"kind"`
+		App    string    `json:"app"`
+		Model  string    `json:"model"`
+		Value  *ir.Model `json:"value,omitempty"`
+		Field  *ir.Field `json:"field,omitempty"`
+		Before *ir.Field `json:"before,omitempty"`
+		After  *ir.Field `json:"after,omitempty"`
 	}
 	values := make([]change, 0, len(operations))
 	for _, operation := range operations {
@@ -613,6 +625,9 @@ func operationSlug(operations []migrations.Operation) string {
 		case migrations.AddField:
 			field := value.Field.Clone()
 			values = append(values, change{Kind: "add_field", App: value.AppLabel, Model: value.ModelName, Field: &field})
+		case migrations.AlterField:
+			before, after := value.Before.Clone(), value.After.Clone()
+			values = append(values, change{Kind: "alter_field", App: value.AppLabel, Model: value.ModelName, Before: &before, After: &after})
 		}
 	}
 	document, _ := json.Marshal(values)
@@ -668,6 +683,15 @@ func cloneOperations(input []migrations.Operation) []migrations.Operation {
 		case *migrations.AddField:
 			if value != nil {
 				copy := migrations.AddField{AppLabel: value.AppLabel, ModelName: value.ModelName, Field: value.Field.Clone()}
+				result[index] = &copy
+			}
+		case migrations.AlterField:
+			value.Before, value.After = value.Before.Clone(), value.After.Clone()
+			result[index] = value
+		case *migrations.AlterField:
+			if value != nil {
+				copy := *value
+				copy.Before, copy.After = value.Before.Clone(), value.After.Clone()
 				result[index] = &copy
 			}
 		default:

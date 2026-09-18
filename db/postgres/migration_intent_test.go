@@ -322,7 +322,7 @@ func TestPostgresMigrationCreateThenAddKeepsInitialTableAbsent(t *testing.T) {
 func TestPostgresMigrationAddRequiresEmptyTable(t *testing.T) {
 	t.Parallel()
 
-	logicalDefault := &ir.ScalarDefault{Kind: ir.ScalarString, String: "backfilled"}
+	logicalDefault := &ir.Scalar{Kind: ir.ScalarString, String: "backfilled"}
 	tests := []struct {
 		name  string
 		field ir.Field
