@@ -69,8 +69,16 @@ Normal의 `TestPublicationCrashHelper`·`TestPostgresRevisionFenceHelperProcess`
 ### 누적 통합 검증
 
 GDJ-0073 Text와 GDJ-0074 DateTime의 Hosted full milestone을 선택했다. 이 실행이 전체 플랫폼·고정 PostgreSQL 17.10·
-process/reference·cold-build를 소유한다. 아직 이 변경의 Hosted full 결과는 없으며 과거 b43552a의 성공을 이번 source의 PASS로 사용하지 않는다.
-실제 통합 SHA와 terminal 실행 근거는 완료 후 이 절에 기록한다.
+process/reference·cold-build를 소유한다. 첫 구현 source `cea93c5dd00b50e9d0256ba764faa3554ff58b13`의
+[Hosted 실행](https://github.com/progresshans/godj/actions/runs/35383582028)은 Python 3.13.15 lane에서 DateTime reference 비교가 실패했다.
+고정 3.14.3에서 관찰한 24시 수용을 호환성 runtime에도 그대로 요구한 테스트의 profile 오류다.
+
+동일한 고정 Django/DRF/asgiref/sqlparse 의존성으로 Python 3.12.13·3.13.15·3.14.3·3.14.7을 각각 직접 실행했다.
+3.12/3.13은 required/optional `24:00:00` 2개를 invalid로 거부하고, 나머지 46개는 고정 fixture와 같았다. 3.14.3/3.14.7은 48개 모두 같았다.
+Compatibility test는 알려진 두 runtime의 2개 expected 결과만 명시적으로 선택하고 전체 roster를 계속 비교한다.
+수정 뒤 네 버전 모두 해당 unittest **1 test PASS, skip 0**이다. Go 제품·고정 reference fixture는 바꾸지 않았으며 기존 Go 실행 bytes도 유지한다.
+실패를 확인한 이전 run의 남은 작업은 취소하고 수정 source로 full을 다시 실행한다. 이전 run이나 b43552a의 결과를 새 source의 PASS로 사용하지 않는다.
+정확한 재실행 SHA와 terminal 근거는 완료 후 이 절에 기록한다.
 
 ## GDJ-0073 — TextField와 여러 줄 Form/Admin 입력
 

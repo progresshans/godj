@@ -51,7 +51,8 @@ nullable 값은 별도 null branch를 가진다. 고정 ogen v1.24.0의 기본 e
 
 저장소 lock의 Django 6.1/Python 3.14.3 환경에서 model DateTimeField, forms DateTimeField, `django.utils.dateparse`와 양 DB adapter를
 확인했다. Django는 BSD-3-Clause다. [Runner](../../conformance/runners/django/datetime_field_reference.py)의 독립 roster는
-`derived=false`이며 UTC 설정의 required/optional 48개 관찰을 보존한다. 이 중 NUL 뒤 입력을 버리는 Python parser 결과 2개와의 차이는
+`derived=false`이며 UTC 설정의 required/optional 48개 관찰을 보존한다. Python 3.12/3.13 compatibility lane에서는
+24시 입력 2개를 거부하는 버전별 결과도 명시적으로 비교하며, Go의 기준 결과는 계속 고정 Python 3.14.3이다. 이 중 NUL 뒤 입력을 버리는 Python parser 결과 2개와의 차이는
 [DEV-0011](../DEVIATIONS.md#dev-0011--datetime-입력의-nul을-거부하고-문자열-전체를-해석)로 명시한다. 이를 compatibility PASS로 세지 않는다.
 
 모든 locale 입력·ISO week/basic 표기·named-zone/DST 정책, USE_TZ=false에 해당하는 별도 local-time 저장, date extraction/transform,
