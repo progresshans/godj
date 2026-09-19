@@ -61,10 +61,19 @@ Python **3.12.13·3.13.15·3.14.3·3.14.7 각각 1 test PASS**, skip·warning·e
 
 ### Hosted 상태
 
-제품 source `2ea0735c7d811dd4e07862506de7643abc6073f9`를 기존 Draft PR에 통합하고
-[Hosted ORM run 35467983458](https://github.com/progresshans/godj/actions/runs/35467983458)을 dispatch했다.
-API의 head SHA를 대조했고 최종 결과를 기다린다. 아직 Hosted PASS가 아니다.
-GDJ-0085나 이전 full의 결과를 이번 nullable Boolean의 Hosted PASS로 사용하지 않는다.
+제품 source `2ea0735c7d811dd4e07862506de7643abc6073f9`의
+[Hosted ORM run 35467983458](https://github.com/progresshans/godj/actions/runs/35467983458)은 attempt 1에서 완료했다.
+API의 source·attempt·모든 terminal job을 대조했고 **48개 unique job 중 44 success·요청 범위 밖 skip 4개**를 확인했다.
+Job 목록과 skip owner는 기존 ORM 계획과 일치하며, 이번 workflow 변경은 새 consumer를 기존 실행과 필수 receipt에 추가한 것이다.
+최종 `CI result (orm)` job `105967047083`의 실제 로그는 다음과 같다.
+
+```json
+{"full_platform_verified": false, "scope": "orm", "verified_jobs": ["command-product-matrix", "portable-go-matrix", "postgresql-product", "relation-product-matrix"]}
+```
+
+새 generated consumer는 relation matrix의 SQLite 실행과 PostgreSQL product의 각 normal/race/CGO0 실행에서 필수다.
+이는 해당 source의 ORM scope 결과이며 현재 source의 full이나 Date 준비 작업의 PASS가 아니다.
+후속 통합 상태·완료 기록 commit은 Markdown만 바꾸며 제품 source는 같다. 기존 full의 source는 아래 기록과 CURRENT에서 구분한다.
 
 ## GDJ-0085 — Self/cyclic 자동 migration과 재개 가능한 게시
 

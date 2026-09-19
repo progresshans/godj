@@ -1,6 +1,6 @@
 ---
 id: GDJ-0086
-status: active
+status: completed
 updated: 2026-09-20
 baseline_commit: "6d3d42bd4023b9bc8bbe4588fd5645a949b4df9f"
 integration_owner: "root"
@@ -48,5 +48,5 @@ Form의 세 상태 widget과 Admin 초기값·snapshot·재검증, 실제 PUT/PA
 양 DB에서 검증한다. Related facade의 대상 객체는 기존 계약대로 pointer identity를 보존한다.
 
 제품·생성 소비자 연결과 로컬 영향 검증을 완료했다. 초기 검증에서 드러난 Admin의 null 재검증 경계를 수정했다.
-기존 Draft PR에 제품을 통합했고 해당 source의 Hosted ORM 검증을 확인 중이다. 실행 결과·source·환경과 초기 실패의 구분은
+기존 Draft PR에 제품을 통합했고 해당 source의 Hosted ORM 검증도 완료했다. 실행 결과·source·환경과 초기 실패의 구분은
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
