@@ -247,9 +247,9 @@ func TestSQLiteFieldReferenceCompilerBindsRootAliasForRelationProjection(t *test
 	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
 	condition := sqliteFieldCondition(t, title, query.LookupExact, peerTitle)
 	plan := querytest.Conditions(t, query.NewPlan("blog_post", []query.FieldRef{id, title, peerTitle, authorID}), condition)
-	plan, err := plan.WithRelationProjection(forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName}))
+	plan, err := plan.WithRelationProjections(forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName}))
 	if err != nil {
-		t.Fatalf("WithRelationProjection() error = %v", err)
+		t.Fatalf("WithRelationProjections() error = %v", err)
 	}
 
 	statement, arguments, err := sqlite.Compile(plan)

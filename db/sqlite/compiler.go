@@ -13,7 +13,7 @@ func Compile(plan query.Plan) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	_, selected := plan.RelationProjection()
+	selected := len(plan.RelationProjections()) != 0
 	related := where.hasRelations
 	if related && !selected && plan.ResultShape().IsCountAll() {
 		inner, arguments, err := compileRelation(plan, where)
@@ -302,8 +302,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 	if err != nil {
 		return "", nil, err
 	}
-	keys, joins, projectionKey := prepared.Keys, prepared.ByKey, prepared.ProjectionKey
-	projection, selected := plan.RelationProjection()
+	keys, joins := prepared.Keys, prepared.ByKey
 
 	const rootAlias = "t0"
 	var sql strings.Builder
@@ -321,8 +320,8 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		}
 		sql.WriteString(qualified)
 	}
-	if selected {
-		alias := joins[projectionKey].Alias
+	for _, projection := range plan.RelationProjections() {
+		alias := joins[queryplan.KeyForRelation(projection.Hop())].Alias
 		for _, column := range projection.TargetColumns() {
 			sql.WriteString(", ")
 			qualified, err := quoteQualified(alias, column.Column())

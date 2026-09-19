@@ -271,9 +271,9 @@ func TestGeneratedEagerJoinReference(t *testing.T) {
 				}
 				var typedQuery eagerQuery[project.ModelsPostObject]
 				if observation.Selected == "author" {
-					typedQuery = objects.ModelsPost.SelectRelated(typedRaw).Author()
+					typedQuery = objects.ModelsPost.SelectRelated(typedRaw).WithAuthor()
 				} else {
-					typedQuery = objects.ModelsPost.SelectRelated(typedRaw).Reviewer()
+					typedQuery = objects.ModelsPost.SelectRelated(typedRaw).WithReviewer()
 				}
 				checkQuery(t, backend, typedQuery, observation, objectObserver)
 			}

@@ -1065,7 +1065,10 @@ func TestProjectRelationFacadeEagerDerivationPreservesSourceAndCache(t *testing.
 	if _, err := derived.All(ctx); err != nil { t.Fatal(err) }
 	offset, hasOffset := backend.plan.Offset()
 	limit, hasLimit := backend.plan.Limit()
-	projection, hasProjection := backend.plan.RelationProjection()
+	projectionProjections := backend.plan.RelationProjections()
+	hasProjection := len(projectionProjections) == 1
+	var projection query.RelationProjection
+	if hasProjection { projection = projectionProjections[0] }
 	if !hasOffset || offset != 1 || !hasLimit || limit != 2 || !backend.plan.Distinct() || !hasProjection || projection.Hop().Field() != "reviewer" {
 		t.Fatalf("derived eager plan lost pagination/distinct/relation: %%#v", backend.plan)
 	}
@@ -1264,18 +1267,20 @@ func (*crossSelectorBackend) Insert(context.Context, query.InsertPlan) (int64, e
 func (*crossSelectorBackend) Update(context.Context, query.UpdatePlan) (int64, error) { return 0, nil }
 func (*crossSelectorBackend) Delete(context.Context, query.DeletePlan) (int64, error) { return 0, nil }
 
-func TestCrossModelSelectorFailsBeforeIO(t *testing.T) {
+func TestForeignBindingSelectorFailsBeforeIO(t *testing.T) {
 	backend := &crossSelectorBackend{}
 	models, err := Using(backend)
 	if err != nil {
 		t.Fatalf("Using() error = %v", err)
 	}
-	_, err = models.BlogPost.selectRelated(models.AuthorsAuthor.Related.Manager).All(context.Background())
+	other, err := Using(backend)
+	if err != nil { t.Fatal(err) }
+	_, err = models.BlogPost.SelectRelated(other.BlogPost.Related.Author).All(context.Background())
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
-		t.Fatalf("cross selector error = %v", err)
+		t.Fatalf("foreign binding selector error = %v", err)
 	}
 	if backend.io != 0 {
-		t.Fatalf("cross selector I/O = %d, want 0", backend.io)
+		t.Fatalf("foreign binding selector I/O = %d, want 0", backend.io)
 	}
 }
 `)

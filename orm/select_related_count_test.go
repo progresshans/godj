@@ -33,7 +33,7 @@ func TestForwardSelectCountPreservesSourceAndOnlyReusesCompleteEagerCache(t *tes
 			t.Fatal("cold Count populated eager cache")
 		}
 	}
-	want, err := before.WithoutRelationProjection().WithResultShape(mustCountShape(t))
+	want, err := before.WithoutRelationProjections().WithResultShape(mustCountShape(t))
 	if err != nil || !backend.plans[0].Equal(want) || !eager.Plan().Equal(before) {
 		t.Fatalf("Count changed the source or retained eager columns: %v", err)
 	}
@@ -45,13 +45,13 @@ func TestForwardSelectCountPreservesSourceAndOnlyReusesCompleteEagerCache(t *tes
 		t.Fatalf("warm Count = %d, %v; queries=%d", got, err, backend.callCount())
 	}
 	// An independently evaluated ordinary source is not this eager snapshot.
-	source := newQuerySet[relationObjectTestPost](backend, eager.selection.sourceDescriptor, before.WithoutRelationProjection())
+	source := newQuerySet[relationObjectTestPost](backend, eager.sourceDescriptor, before.WithoutRelationProjections())
 	if _, err := source.evaluation.evaluate(ctx, func(context.Context) ([]relationObjectTestPost, error) {
 		return []relationObjectTestPost{{ID: 1}}, nil
 	}); err != nil {
 		t.Fatal(err)
 	}
-	separate := (ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{state: eager.selection}).Select(source)
+	separate := (ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{state: eager.targets[0].(preparedForwardTarget[relationObjectTestPost, relationObjectTestAuthor]).state}).Select(source)
 	if got, err := separate.Count(ctx); err != nil || got != 2 || backend.callCount() != 4 {
 		t.Fatalf("eager Count borrowed ordinary source cache: %d, %v", got, err)
 	}
@@ -84,7 +84,7 @@ func TestForwardSelectCountContextConfigurationAndWarmEmpty(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	for _, q := range []ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor]{eager, invalid, {}} {
+	for _, q := range []ForwardSelectQuery[relationObjectTestPost]{eager, invalid, {}} {
 		if got, err := q.Count(ctx); got != 0 || !errors.Is(err, context.Canceled) {
 			t.Fatalf("cancellation precedence = %d, %v", got, err)
 		}

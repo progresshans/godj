@@ -313,4 +313,4 @@ func postMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_59b58f0c8a8aa1ad5fb962897102c2e9ae101bcbf0cd26465e9dc7e14ea20558 struct{}
+type GoDjProjectSnapshot_d8139213ae443cc90fc9bc1347fa2439f407de0fb706d64529666ca985490cce struct{}

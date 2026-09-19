@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"
-const GoDjProjectRelationFacadeInputSHA256 = "4ba93040e2b3b61ffca607fa7640690d89ee4e6d8ab22b7c3e9d32a81eea8401"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v6"
+const GoDjProjectRelationFacadeInputSHA256 = "d4fae73c7d93fe462a18dbe811070fa1a3020105ff8e0fc1b7e9f5742ca10869"
 
 type Backend interface {
 	db.Queryer
@@ -786,7 +786,7 @@ type ModelsTicketRelationSelector interface {
 
 type modelsTicketRelationSelector struct {
 	state *relationFacadeState
-	kind  uint8
+	kind  int
 }
 
 func (modelsTicketRelationSelector) godjModelsTicketRelationSelector() {}
@@ -795,44 +795,59 @@ type ModelsTicketRelationSelectors struct {
 	Category ModelsTicketRelationSelector
 }
 
-func (_query ModelsTicketQuery) SelectRelated(_selector ModelsTicketRelationSelector) ModelsTicketEagerQuery {
-	return _query.selectRelated(_selector)
-}
-
-func (_query ModelsTicketQuery) selectRelated(_candidate interface{}) ModelsTicketEagerQuery {
+func (_query ModelsTicketQuery) SelectRelated(_selectors ...ModelsTicketRelationSelector) ModelsTicketEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	if relationFacadeNil(_candidate) {
-		return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector is nil")}
+	if len(_selectors) == 0 {
+		return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("select-related requires at least one selector")}
 	}
-	_selector, _ok := _candidate.(modelsTicketRelationSelector)
-	if !_ok || _selector.state != _query.state {
-		return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+	_kinds := make([]int, 0, len(_selectors))
+	for _, _candidate := range _selectors {
+		if relationFacadeNil(_candidate) {
+			return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector is nil")}
+		}
+		_selector, _ok := _candidate.(modelsTicketRelationSelector)
+		if !_ok || _selector.state != _query.state {
+			return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_kinds = append(_kinds, _selector.kind)
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.query, _selector.kind)
+	return _query.state.newModelsTicketEagerQuery(_query.query, _kinds)
 }
 
 type ModelsTicketEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[models.Ticket]
-	kind             uint8
+	kinds            []int
 	projection       relationSelectQuery[ModelsTicketObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySet[models.Ticket], _kind uint8) ModelsTicketEagerQuery {
-	_result := ModelsTicketEagerQuery{state: _state, source: _source, kind: _kind}
+func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySet[models.Ticket], _kinds []int) ModelsTicketEagerQuery {
+	_result := ModelsTicketEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
 		return _result
 	}
-	switch _kind {
-	case 1:
-		_result.projection = _state.objects.ModelsTicket.SelectRelated(_source).Category()
-	default:
-		_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
+	_requested := make(map[int]bool, len(_kinds))
+	for _, _kind := range _kinds {
+		if _kind < 1 || _kind > 1 {
+			_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
+			return _result
+		}
+		_requested[_kind] = true
 	}
+	if len(_requested) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_projection := _state.objects.ModelsTicket.SelectRelated(_source)
+	if _requested[1] {
+		_result.kinds = append(_result.kinds, 1)
+		_projection = _projection.WithCategory()
+	}
+	_result.projection = _projection
 	return _result
 }
 
@@ -843,8 +858,15 @@ func (_query ModelsTicketEagerQuery) validate() error {
 	if _err := _query.state.validate(); _err != nil {
 		return _err
 	}
-	if _query.kind == 0 || _query.kind > 1 || _query.projection == nil {
+	if len(_query.kinds) == 0 || _query.projection == nil {
 		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	_previous := 0
+	for _, _kind := range _query.kinds {
+		if _kind <= _previous || _kind > 1 {
+			return relationFacadeQueryInvalid("selected relation inventory is zero or corrupt")
+		}
+		_previous = _kind
 	}
 	return nil
 }
@@ -854,7 +876,7 @@ func (_query ModelsTicketEagerQuery) Filter(_predicates ...orm.Predicate[models.
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.Filter(_predicates...), _query.kind)
+	return _query.state.newModelsTicketEagerQuery(_query.source.Filter(_predicates...), _query.kinds)
 }
 
 func (_query ModelsTicketEagerQuery) OrderBy(_orderings ...orm.Ordering[models.Ticket]) ModelsTicketEagerQuery {
@@ -862,7 +884,7 @@ func (_query ModelsTicketEagerQuery) OrderBy(_orderings ...orm.Ordering[models.T
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.OrderBy(_orderings...), _query.kind)
+	return _query.state.newModelsTicketEagerQuery(_query.source.OrderBy(_orderings...), _query.kinds)
 }
 
 func (_query ModelsTicketEagerQuery) Distinct() ModelsTicketEagerQuery {
@@ -870,7 +892,7 @@ func (_query ModelsTicketEagerQuery) Distinct() ModelsTicketEagerQuery {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.Distinct(), _query.kind)
+	return _query.state.newModelsTicketEagerQuery(_query.source.Distinct(), _query.kinds)
 }
 
 func (_query ModelsTicketEagerQuery) Fresh() ModelsTicketEagerQuery {
@@ -878,7 +900,7 @@ func (_query ModelsTicketEagerQuery) Fresh() ModelsTicketEagerQuery {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.Fresh(), _query.kind)
+	return _query.state.newModelsTicketEagerQuery(_query.source.Fresh(), _query.kinds)
 }
 
 func (_query ModelsTicketEagerQuery) Limit(_limit int) (ModelsTicketEagerQuery, error) {
@@ -889,7 +911,7 @@ func (_query ModelsTicketEagerQuery) Limit(_limit int) (ModelsTicketEagerQuery, 
 	if _err != nil {
 		return ModelsTicketEagerQuery{}, _err
 	}
-	return _query.state.newModelsTicketEagerQuery(_derived, _query.kind), nil
+	return _query.state.newModelsTicketEagerQuery(_derived, _query.kinds), nil
 }
 
 func (_query ModelsTicketEagerQuery) Offset(_offset int) (ModelsTicketEagerQuery, error) {
@@ -900,7 +922,7 @@ func (_query ModelsTicketEagerQuery) Offset(_offset int) (ModelsTicketEagerQuery
 	if _err != nil {
 		return ModelsTicketEagerQuery{}, _err
 	}
-	return _query.state.newModelsTicketEagerQuery(_derived, _query.kind), nil
+	return _query.state.newModelsTicketEagerQuery(_derived, _query.kinds), nil
 }
 
 func (_query ModelsTicketEagerQuery) All(_ctx context.Context) ([]*ModelsTicket, error) {
@@ -951,12 +973,14 @@ func (_query ModelsTicketEagerQuery) wrap(_ctx context.Context, _object *ModelsT
 	if _err != nil {
 		return nil, _err
 	}
-	switch _query.kind {
-	case 1:
-		_, _err = _wrapped.Category(_ctx)
-	}
-	if _err != nil {
-		return nil, _err
+	for _, _kind := range _query.kinds {
+		switch _kind {
+		case 1:
+			_, _err = _wrapped.Category(_ctx)
+		}
+		if _err != nil {
+			return nil, _err
+		}
 	}
 	return _wrapped, nil
 }
@@ -982,4 +1006,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_258eb010b1b5ac237fc882f1e6c5d4eb1f69a94a16ebe0c386bda77cfb4566ab
+var _ goDjProjectSnapshot_7777d450cd208876f933fd6fe0b231637ebe17d04d81de8ca78baf5ea7709d97

@@ -44,3 +44,11 @@ reference·generated drift를 실행한다. Materialization ABI의 통합 변경
 
 GDJ-0080 self-reference 보완은 baseline에 통합됐고 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35414363995)도 완료했다.
 정확한 source·scope는 TEST_EVIDENCE가 소유한다. 이 작업은 별도 worktree에서 구현하며 기존 검증 source를 바꾸지 않는다.
+
+## 구현 checkpoint
+
+Immutable 복수 projection, typed target adapter와 공통 scan/cache runtime, composable object builder와 variadic facade를 연결했다.
+단일 target 경로도 이 runtime으로 합쳤다. 기존 단일 선택 제약의 compile-fail fixture는 지원 기능의 positive consumer로 이동하며,
+잘못된 source model·다른 project selector·잘못된 target scanner·충돌한 중복 binding은 별도의 음성 검증을 유지한다.
+Generated Article·Helpdesk·relationfixture와 기존 소비자를 현재 ABI로 갱신했다. Normal·race·CGO0와 독립 Django 재생을 완료했다. Hosted ORM 통합 검증이 남아 있다.
+실행 수·source·실패 시도·환경은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0081--여러-direct-forward-target-동시-선택)에 기록한다.

@@ -373,7 +373,7 @@ func TestCompileRejectsInvalidReadSourceMetadataForScalarAndRelation(t *testing.
 	projection := forwardProjection(t, query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.NewFieldRef("id", "id", query.FieldInteger, false), []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)})
 	for _, test := range tests {
 		test := test
-		relationPlan, err := query.NewPlan("blog_post", test.fields).WithRelationProjection(projection)
+		relationPlan, err := query.NewPlan("blog_post", test.fields).WithRelationProjections(projection)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -456,7 +456,7 @@ func TestBackendRejectsInvalidReadSourceMetadataBeforeIO(t *testing.T) {
 	})
 
 	projection := forwardProjection(t, query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.NewFieldRef("id", "id", query.FieldInteger, false), []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)})
-	relationPlan, err := query.NewPlan("missing_relation_table", []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false), query.NewFieldRef("alias", "ID", query.FieldInteger, false)}).WithRelationProjection(projection)
+	relationPlan, err := query.NewPlan("missing_relation_table", []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false), query.NewFieldRef("alias", "ID", query.FieldInteger, false)}).WithRelationProjections(projection)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1278,9 +1278,9 @@ func TestCompileRequiredForwardProjectionSelectsRootThenTargetAndReusesPredicate
 		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}),
 		query.NewRelatedCondition(requiredAuthorPath(t, targetName), query.LookupExact, query.String("Ada")),
 	).WithOrderings(query.NewOrdering(id, query.Ascending))
-	plan, err := plan.WithRelationProjection(projection)
+	plan, err := plan.WithRelationProjections(projection)
 	if err != nil {
-		t.Fatalf("WithRelationProjection() error = %v", err)
+		t.Fatalf("WithRelationProjections() error = %v", err)
 	}
 
 	statement, arguments, err := sqlite.Compile(plan)
@@ -1318,9 +1318,9 @@ func TestCompileNullableForwardProjectionUsesLeftOuterJoinAndPreservesRootPlan(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err = plan.WithRelationProjection(projection)
+	plan, err = plan.WithRelationProjections(projection)
 	if err != nil {
-		t.Fatalf("WithRelationProjection() error = %v", err)
+		t.Fatalf("WithRelationProjections() error = %v", err)
 	}
 
 	statement, arguments, err := sqlite.Compile(plan)
@@ -1361,7 +1361,7 @@ func TestCompileForwardProjectionCombinesAnotherForwardPredicate(t *testing.T) {
 		query.NewPlan("blog_post", []query.FieldRef{id, authorID, query.NewFieldRef("editor", "editor_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(editorPath, query.LookupExact, query.String("Ada")),
 	)
-	plan, err = plan.WithRelationProjection(projection)
+	plan, err = plan.WithRelationProjections(projection)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1392,7 +1392,7 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 			query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}),
 			query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
 		)
-		plan, err := plan.WithRelationProjection(reviewerProjection)
+		plan, err := plan.WithRelationProjections(reviewerProjection)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1437,7 +1437,7 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 				query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}),
 				query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
 			)
-			plan, err = plan.WithRelationProjection(reviewerProjection)
+			plan, err = plan.WithRelationProjections(reviewerProjection)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1454,7 +1454,7 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 			query.NewPlan("blog_post", []query.FieldRef{id, authorID, reviewerID}),
 			query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
 		)
-		plan, err := plan.WithRelationProjection(authorProjection)
+		plan, err := plan.WithRelationProjections(authorProjection)
 		if err != nil {
 			t.Fatal(err)
 		}

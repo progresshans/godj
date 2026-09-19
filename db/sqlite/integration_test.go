@@ -461,7 +461,7 @@ func TestSQLiteBackendExecutesRequiredAndNullableForwardProjections(t *testing.T
 	targetColumns := []query.FieldRef{targetID, targetName}
 
 	requiredPlan := query.NewPlan("blog_post", rootColumns).WithOrderings(query.NewOrdering(id, query.Ascending))
-	requiredPlan, err = requiredPlan.WithRelationProjection(forwardProjection(t, authorID, targetID, targetColumns))
+	requiredPlan, err = requiredPlan.WithRelationProjections(forwardProjection(t, authorID, targetID, targetColumns))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -495,7 +495,7 @@ func TestSQLiteBackendExecutesRequiredAndNullableForwardProjections(t *testing.T
 
 	nullablePlan := query.NewPlan("blog_post", rootColumns).WithOrderings(query.NewOrdering(id, query.Ascending))
 	nullableProjection := forwardProjection(t, reviewerID, targetID, targetColumns)
-	nullablePlan, err = nullablePlan.WithRelationProjection(nullableProjection)
+	nullablePlan, err = nullablePlan.WithRelationProjections(nullableProjection)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -543,7 +543,7 @@ func TestSQLiteBackendExecutesRequiredAndNullableForwardProjections(t *testing.T
 		query.NewPlan("blog_post", rootColumns),
 		query.NewRelatedCondition(forgedPath, query.LookupIsNull, query.Boolean(true)),
 	)
-	forgedPlan, err = forgedPlan.WithRelationProjection(nullableProjection)
+	forgedPlan, err = forgedPlan.WithRelationProjections(nullableProjection)
 	if err != nil {
 		t.Fatal(err)
 	}

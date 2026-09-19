@@ -25,7 +25,7 @@ Filter/OrderBy/Limit/Offset/Distinct 파생은 바뀌지 않은 private 불변 p
 관계 JOIN의 필수 edge 집합·alias inventory는 각 compilation이 소유한다. AND/OR/NOT에서 만든 임시 map이나
 nullable 보정 상태를 원래 AST 또는 다른 compilation과 공유하지 않는다. Source-key 존재 증명은 같은 edge의 정확한 metadata를 요구한다.
 Cold Count는 현재 지원 관계 filter도 DB 집계로 실행하며 JOIN multiplicity와 Distinct·슬라이스를 보존한다.
-Eager Count는 eager target projection만 제외한 같은 source를 집계하고, warm eager All cache의 길이만 재사용한다.
+Eager Count는 모든 eager target projection을 제외한 같은 source를 집계하고, warm eager All cache의 길이만 재사용한다.
 Cold eager Count는 진행 중인 All을 기다리거나 eager·원래 QuerySet의 cache를 채우지 않는다.
 Cold At는 표현 가능한 기존 offset과 index를 합친 OFFSET/LIMIT 1로 한 row만 소비한다. 원래 limit을 벗어나면 빈 plan을
 사용하며 offset 범위를 넘는 index는 기존의 bounded row 소비 경로를 사용한다. DB 내부 offset 탐색 비용은 그대로다.
@@ -43,7 +43,9 @@ session·사용자 callback·반환된 mutable model의 임의 공유 안전성�
 - Eager First는 cold query에서 최대 한 row를 읽고 All cache를 채우지 않는다. Warm All cache의 첫 결과도 독립 복제하며,
   관계 검증과 row close가 끝나기 전에는 결과를 반환하지 않는다. 기존 QuerySet.First처럼 명시적 정렬을 요구한다.
 - Relation assignment는 FK 값과 cache를 함께 reconcile한다. Application memory를 DB rollback으로 자동 되돌리지 않는다.
-- Eager materialization의 target source plan은 한 번 준비해 공유한다. 각 행의 key predicate와 ready cache는 독립적으로 만든다.
+- 복수 selection의 immutable 목록은 caller slice와 분리한다. 각 target adapter는 구체 Go type을 유지하고 모든 target 검증 뒤 함께 게시한다.
+  같은 target PK를 가리키는 서로 다른 FK의 ready cache도 독립 소유한다.
+- Eager materialization의 각 target source plan은 한 번 준비해 공유한다. 각 행의 key predicate와 ready cache는 독립적으로 만든다.
 - Lazy/reverse 기본 plan도 project binding이 준비한다. Prefetch의 함수 내부 그룹은 `All`의 소유 model을 빌리고,
   storage callback 입력과 각 owner의 cache를 각각 복제한다. 중복 owner 사이에도 mutable model을 공유하지 않는다.
 - Reverse object의 모델·관계·descriptor 형태·PK metadata 일치는 바인딩 시 검증한다. 게시한 private field snapshot은

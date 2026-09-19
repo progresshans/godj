@@ -254,15 +254,15 @@ func (o Ordering) Equal(other Ordering) bool {
 }
 
 type Plan struct {
-	table              string
-	sourceFields       []FieldRef
-	where              Expression
-	orderings          []Ordering
-	limit              *int
-	offset             *int
-	distinct           bool
-	result             ResultShape
-	relationProjection *RelationProjection
+	table               string
+	sourceFields        []FieldRef
+	where               Expression
+	orderings           []Ordering
+	limit               *int
+	offset              *int
+	distinct            bool
+	result              ResultShape
+	relationProjections []RelationProjection
 }
 
 func NewPlan(table string, sourceFields []FieldRef) Plan {
@@ -321,40 +321,57 @@ func (p Plan) Distinct() bool { return p.distinct }
 
 func (p Plan) ResultShape() ResultShape { return p.result }
 
-// RelationProjection returns an immutable handle to the singular eager relation
-// projection carried by this plan. Plans without eager selection retain the
-// exact pre-projection behavior and report false.
-func (p Plan) RelationProjection() (RelationProjection, bool) {
-	if p.relationProjection == nil {
-		return RelationProjection{}, false
-	}
-	return *p.relationProjection, true
+// RelationProjections returns a detached, canonical list of immutable selected
+// targets. Declaration names own ordering, independent of caller order.
+func (p Plan) RelationProjections() []RelationProjection {
+	return slices.Clone(p.relationProjections)
 }
 
-// WithoutRelationProjection derives the same logical source without eager
-// target columns. Relation predicates, ordering, distinct and slicing remain
-// intact; only materialization of the related object is removed.
-func (p Plan) WithoutRelationProjection() Plan {
-	p.relationProjection = nil
+// WithoutRelationProjections preserves the logical source and its filters,
+// ordering and slice while removing all eager materialization.
+func (p Plan) WithoutRelationProjections() Plan {
+	p.relationProjections = nil
 	return p
 }
 
-// WithRelationProjection derives a plan with exactly one immutable forward
-// relation projection. A projection is singular by contract: callers cannot
-// overwrite or extend one that is already present.
-func (p Plan) WithRelationProjection(projection RelationProjection) (Plan, error) {
-	if p.relationProjection != nil {
-		return Plan{}, invalidPlanError("query plan already contains a relation projection")
-	}
-	if err := projection.validate(); err != nil {
-		return Plan{}, err
+// WithRelationProjections adds selected targets. Repeated identical declarations
+// coalesce only after validation; conflicting metadata never overwrites a target.
+func (p Plan) WithRelationProjections(projections ...RelationProjection) (Plan, error) {
+	if len(projections) == 0 {
+		return Plan{}, invalidPlanError("relation selection requires at least one projection")
 	}
 	if p.result.Kind() != ResultModel {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
-	clone := p
-	clone.relationProjection = &projection
-	return clone, nil
+	all := make([]RelationProjection, 0, len(p.relationProjections)+len(projections))
+	all = append(all, p.relationProjections...)
+	all = append(all, projections...)
+	byField := make(map[string]RelationProjection, len(all))
+	var root RelationHop
+	for index, projection := range all {
+		if err := projection.validate(); err != nil {
+			return Plan{}, err
+		}
+		hop := projection.Hop()
+		if index == 0 {
+			root = hop
+		} else if hop.Source() != root.Source() || hop.SourceTable() != root.SourceTable() {
+			return Plan{}, invalidPlanError("selected projections do not share one source model")
+		}
+		if previous, exists := byField[hop.Field()]; exists && !previous.Equal(projection) {
+			return Plan{}, invalidPlanError("selected projections contain conflicting FK or target metadata")
+		}
+		byField[hop.Field()] = projection
+	}
+	canonical := make([]RelationProjection, 0, len(byField))
+	for _, projection := range byField {
+		canonical = append(canonical, projection)
+	}
+	slices.SortFunc(canonical, func(left, right RelationProjection) int {
+		return strings.Compare(left.Hop().Field(), right.Hop().Field())
+	})
+	p.relationProjections = canonical
+	return p, nil
 }
 
 // WithConditions adds one validated conjunction. Invalid conditions and
@@ -514,7 +531,7 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	if err := result.validate(); err != nil {
 		return Plan{}, err
 	}
-	if p.relationProjection != nil && result.Kind() != ResultModel {
+	if len(p.relationProjections) != 0 && result.Kind() != ResultModel {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
 	for _, expression := range result.Expressions() {
@@ -548,7 +565,5 @@ func (p Plan) Equal(other Plan) bool {
 	if leftOK != rightOK || (leftOK && leftOffset != rightOffset) {
 		return false
 	}
-	leftProjection, leftOK := p.RelationProjection()
-	rightProjection, rightOK := other.RelationProjection()
-	return leftOK == rightOK && (!leftOK || leftProjection.Equal(rightProjection))
+	return slices.EqualFunc(p.relationProjections, other.relationProjections, func(left, right RelationProjection) bool { return left.Equal(right) })
 }

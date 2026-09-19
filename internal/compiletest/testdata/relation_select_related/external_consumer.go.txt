@@ -18,7 +18,7 @@ func consume(ctx context.Context, backend db.Queryer) ([]*project.BlogPostObject
 	if _, err := selected.ParseDynamic("author"); err != nil {
 		return nil, err
 	}
-	return selected.Author().All(ctx)
+	return selected.WithAuthor().All(ctx)
 }
 
 func count(ctx context.Context, backend db.Queryer) (int64, int64, error) {
@@ -27,7 +27,7 @@ func count(ctx context.Context, backend db.Queryer) (int64, int64, error) {
 		return 0, 0, err
 	}
 	selected := objects.BlogPost.SelectRelated(blog.PostObjects.Using(backend))
-	typed, err := selected.Author().Count(ctx)
+	typed, err := selected.WithAuthor().Count(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -37,4 +37,11 @@ func count(ctx context.Context, backend db.Queryer) (int64, int64, error) {
 	}
 	other, err := dynamic.Count(ctx)
 	return typed, other, err
+}
+
+func multiple(ctx context.Context, backend db.Queryer) ([]*project.BlogPostObject, error) {
+ objects, err := project.BindObjects()
+ if err != nil { return nil, err }
+ source := blog.PostObjects.Using(backend).OrderBy(blog.PostFields.ID.Asc())
+ return objects.BlogPost.SelectRelated(source).WithReviewer().WithAuthor().All(ctx)
 }

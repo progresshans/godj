@@ -114,7 +114,7 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projectionPlan, err := query.NewPlan("blog_post", []query.FieldRef{id, title, nullableAuthor}).WithRelationProjection(projection)
+	projectionPlan, err := query.NewPlan("blog_post", []query.FieldRef{id, title, nullableAuthor}).WithRelationProjections(projection)
 	if err != nil {
 		t.Fatal(err)
 	}

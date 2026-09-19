@@ -324,16 +324,16 @@ func TestResultShapeAndRelationProjectionAreMutuallyExclusive(t *testing.T) {
 		if shapeErr != nil {
 			t.Fatalf("WithResultShape(%q) error = %v", result.Kind(), shapeErr)
 		}
-		selected, selectedErr := shaped.WithRelationProjection(relation)
+		selected, selectedErr := shaped.WithRelationProjections(relation)
 		assertInvalidResultPlan(t, selectedErr)
 		if !selected.Equal(query.Plan{}) {
-			t.Fatalf("WithRelationProjection(%q result) = %#v, want zero", result.Kind(), selected)
+			t.Fatalf("WithRelationProjections(%q result) = %#v, want zero", result.Kind(), selected)
 		}
 	}
 
-	selected, err := base.WithRelationProjection(relation)
+	selected, err := base.WithRelationProjections(relation)
 	if err != nil {
-		t.Fatalf("WithRelationProjection() error = %v", err)
+		t.Fatalf("WithRelationProjections() error = %v", err)
 	}
 	for _, result := range []query.ResultShape{projection, aggregate} {
 		shaped, shapeErr := selected.WithResultShape(result)
@@ -345,8 +345,8 @@ func TestResultShapeAndRelationProjectionAreMutuallyExclusive(t *testing.T) {
 	if got := selected.SourceFields(); len(got) != 3 || !got[0].Equal(id) || !got[1].Equal(title) || !got[2].Equal(author) {
 		t.Fatalf("relation-selected SourceFields() = %#v", got)
 	}
-	if _, ok := base.RelationProjection(); ok {
-		t.Fatal("WithRelationProjection() mutated its source")
+	if len(base.RelationProjections()) != 0 {
+		t.Fatal("WithRelationProjections() mutated its source")
 	}
 }
 

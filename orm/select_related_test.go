@@ -112,7 +112,12 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 
 	backend := &selectRelatedBackend{query: func(call int, _ context.Context, plan query.Plan) (db.Rows, error) {
 		if call == 0 {
-			projection, ok := plan.RelationProjection()
+			projectionProjections := plan.RelationProjections()
+			ok := len(projectionProjections) == 1
+			var projection query.RelationProjection
+			if ok {
+				projection = projectionProjections[0]
+			}
 			if !ok || projection.Hop().Field() != "author" || projection.Hop().Nullable() {
 				t.Fatalf("eager plan projection = (%#v, %v)", projection, ok)
 			}
@@ -121,7 +126,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 				{source: relationObjectTestPost{ID: 12, Title: "Gamma", AuthorID: 3}, target: &relationObjectTestAuthor{ID: 3, Name: "Cleo"}},
 			}}, nil
 		}
-		if _, ok := plan.RelationProjection(); ok {
+		if len(plan.RelationProjections()) != 0 {
 			t.Fatal("fresh related-object query retained eager projection")
 		}
 		return &relationObjectAuthorRows{values: []relationObjectTestAuthor{{ID: 1, Name: "Ada"}}}, nil
@@ -146,7 +151,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 	if limit, ok := eager.Plan().Limit(); !ok || limit != 2 {
 		t.Fatalf("eager limit = (%d, %v)", limit, ok)
 	}
-	if _, ok := source.Plan().RelationProjection(); ok {
+	if len(source.Plan().RelationProjections()) != 0 {
 		t.Fatal("Select() mutated source QuerySet plan")
 	}
 
@@ -161,7 +166,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 	if err != nil || firstSource != (relationObjectTestPost{ID: 10, Title: "Alpha", AuthorID: 1}) {
 		t.Fatalf("Source() = (%#v, %v)", firstSource, err)
 	}
-	related, err := first[0].Related()
+	related, err := selection.Related(first[0])
 	if err != nil {
 		t.Fatalf("Related() error = %v", err)
 	}
@@ -184,7 +189,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 		t.Fatal("warm All reused ForwardSelected pointer ownership")
 	}
 	secondSource, _ := second[0].Source()
-	secondRelated, _ := second[0].Related()
+	secondRelated, _ := selection.Related(second[0])
 	secondAuthor, ok, err := secondRelated.Get(context.Background())
 	if err != nil || !ok || secondSource.Title != "Alpha" || secondAuthor.Name != "Ada" {
 		t.Fatalf("warm clones = source %#v author %#v ok=%v err=%v", secondSource, secondAuthor, ok, err)
@@ -200,7 +205,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 	if _, err := copied.Source(); err == nil {
 		t.Fatal("copied ForwardSelected.Source() succeeded")
 	}
-	if _, err := copied.Related(); err == nil {
+	if _, err := selection.Related(&copied); err == nil {
 		t.Fatal("copied ForwardSelected.Related() succeeded")
 	}
 
@@ -232,7 +237,12 @@ func TestForwardSelectNullablePublishesAbsentAndPresentReadyObjects(t *testing.T
 		{source: relationObjectTestPost{ID: 11, Title: "Beta", AuthorID: 1}, target: nil},
 	}}
 	backend := &selectRelatedBackend{query: func(_ int, _ context.Context, plan query.Plan) (db.Rows, error) {
-		projection, ok := plan.RelationProjection()
+		projectionProjections := plan.RelationProjections()
+		ok := len(projectionProjections) == 1
+		var projection query.RelationProjection
+		if ok {
+			projection = projectionProjections[0]
+		}
 		if !ok || !projection.Hop().Nullable() || projection.Hop().Field() != "reviewer" {
 			t.Fatalf("nullable projection = (%#v, %v)", projection, ok)
 		}
@@ -243,11 +253,11 @@ func TestForwardSelectNullablePublishesAbsentAndPresentReadyObjects(t *testing.T
 	if err != nil || len(result) != 2 {
 		t.Fatalf("nullable All() = (%#v, %v)", result, err)
 	}
-	first, _ := result[0].Related()
+	first, _ := selection.Related(result[0])
 	if value, ok, err := first.Get(context.Background()); err != nil || !ok || value.Name != "Bob" {
 		t.Fatalf("present reviewer Get() = (%#v, %v, %v)", value, ok, err)
 	}
-	absent, _ := result[1].Related()
+	absent, _ := selection.Related(result[1])
 	if value, ok, err := absent.Get(context.Background()); err != nil || ok || value != (relationObjectTestAuthor{}) {
 		t.Fatalf("absent reviewer Get() = (%#v, %v, %v)", value, ok, err)
 	}
@@ -369,7 +379,7 @@ func TestForwardSelectTerminalPrecedenceAndConfigurationValidation(t *testing.T)
 	} else {
 		assertSelectRelatedError(t, err, query.CategoryQuery, query.CodeInvalidPlan, "")
 	}
-	if _, err := (ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor]{}).All(context.Background()); err == nil {
+	if _, err := (ForwardSelectQuery[relationObjectTestPost]{}).All(context.Background()); err == nil {
 		t.Fatal("zero ForwardSelectQuery.All succeeded")
 	} else {
 		assertSelectRelatedError(t, err, query.CategoryBackend, query.CodeInvalidPlan, "")
@@ -660,7 +670,7 @@ func TestForwardSelectEmptyResultIsNonNilAndCached(t *testing.T) {
 	}
 }
 
-func requiredSelectQuery(t testing.TB, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor] {
+func requiredSelectQuery(t testing.TB, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost] {
 	t.Helper()
 	post, _, required, _ := bindRelationObjectTestFixture(t)
 	path, err := ResolveForwardSelectPath(post, "author")
@@ -890,7 +900,7 @@ func TestForwardSelectProductionTypesRemainNonAliasing(t *testing.T) {
 	for _, value := range []any{
 		ForwardSelectPath[relationObjectTestPost]{},
 		ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{},
-		ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor]{},
+		ForwardSelectQuery[relationObjectTestPost]{},
 	} {
 		typeOf := reflect.TypeOf(value)
 		for index := 0; index < typeOf.NumField(); index++ {

@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestForwardRelationProjectionIsSingularImmutableAndPlanPreserving(t *testing.T) {
+func TestForwardRelationProjectionIsImmutableAndPlanPreserving(t *testing.T) {
 	t.Parallel()
 
 	projection := newTestRelationProjection(t, false)
@@ -46,17 +46,22 @@ func TestForwardRelationProjectionIsSingularImmutableAndPlanPreserving(t *testin
 	if err != nil {
 		t.Fatalf("WithLimit() error = %v", err)
 	}
-	selected, err := limited.WithRelationProjection(projection)
+	selected, err := limited.WithRelationProjections(projection)
 	if err != nil {
-		t.Fatalf("WithRelationProjection() error = %v", err)
+		t.Fatalf("WithRelationProjections() error = %v", err)
 	}
-	if _, ok := limited.RelationProjection(); ok {
+	if len(limited.RelationProjections()) != 0 {
 		t.Fatal("WithRelationProjection mutated its source plan")
 	}
-	if !selected.WithoutRelationProjection().Equal(limited) || !limited.WithoutRelationProjection().Equal(limited) {
+	if !selected.WithoutRelationProjections().Equal(limited) || !limited.WithoutRelationProjections().Equal(limited) {
 		t.Fatal("removing eager materialization changed the logical source")
 	}
-	returned, ok := selected.RelationProjection()
+	returnedProjections := selected.RelationProjections()
+	ok := len(returnedProjections) == 1
+	var returned query.RelationProjection
+	if ok {
+		returned = returnedProjections[0]
+	}
 	if !ok || !returned.Equal(projection) {
 		t.Fatalf("RelationProjection() = (%#v, %v)", returned, ok)
 	}
@@ -67,23 +72,22 @@ func TestForwardRelationProjectionIsSingularImmutableAndPlanPreserving(t *testin
 	if !ok || limit != 2 {
 		t.Fatalf("selected limit = (%d, %v)", limit, ok)
 	}
-	identical, err := limited.WithRelationProjection(newTestRelationProjection(t, false))
+	identical, err := limited.WithRelationProjections(newTestRelationProjection(t, false))
 	if err != nil || !selected.Equal(identical) {
 		t.Fatalf("equal selected plans differ: err=%v", err)
 	}
-	different, err := limited.WithRelationProjection(newTestRelationProjection(t, true))
+	different, err := limited.WithRelationProjections(newTestRelationProjection(t, true))
 	if err != nil || selected.Equal(different) {
 		t.Fatalf("different selected plans compare equal: err=%v", err)
 	}
-	if overwritten, err := selected.WithRelationProjection(projection); err == nil || !overwritten.Equal(query.Plan{}) {
-		t.Fatalf("second WithRelationProjection() = (%#v, %v), want zero/error", overwritten, err)
-	} else {
-		assertInvalidProjectionPlanError(t, err)
+	if repeated, err := selected.WithRelationProjections(projection); err != nil || !repeated.Equal(selected) {
+		t.Fatalf("identical repeated projection changed the plan: %v", err)
 	}
+
 	if querytest.Conditions(t, selected, query.NewCondition(id, query.LookupExact, query.Integer(10))).Equal(selected) {
 		t.Fatal("derived projected plan omitted new condition from equality")
 	}
-	if got, ok := selected.WithOrderings().RelationProjection(); !ok || !got.Equal(projection) {
+	if got := selected.WithOrderings().RelationProjections(); len(got) != 1 || !got[0].Equal(projection) {
 		t.Fatal("plan derivation dropped relation projection")
 	}
 }
@@ -145,8 +149,8 @@ func TestForwardRelationProjectionValidationRejectsEveryUnsupportedShape(t *test
 		})
 	}
 
-	if plan, err := query.NewPlan("blog_post", nil).WithRelationProjection(query.RelationProjection{}); err == nil || !plan.Equal(query.Plan{}) {
-		t.Fatalf("WithRelationProjection(zero) = (%#v, %v), want zero/error", plan, err)
+	if plan, err := query.NewPlan("blog_post", nil).WithRelationProjections(query.RelationProjection{}); err == nil || !plan.Equal(query.Plan{}) {
+		t.Fatalf("WithRelationProjections(zero) = (%#v, %v), want zero/error", plan, err)
 	} else {
 		assertInvalidProjectionPlanError(t, err)
 	}

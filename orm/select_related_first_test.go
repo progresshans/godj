@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func orderedRequiredSelectQuery(t *testing.T, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost, relationObjectTestAuthor] {
+func orderedRequiredSelectQuery(t *testing.T, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost] {
 	t.Helper()
 	selected := requiredSelectQuery(t, backend)
 	id := NewAutoField[relationObjectTestPost](relationObjectTestPostDescriptor{}.Metadata().Fields[0])
@@ -36,7 +36,12 @@ func TestForwardSelectFirstBoundsScanPreservesPlanAndAllCache(t *testing.T) {
 	plan := backend.plans[0]
 	limit, _ := plan.Limit()
 	offset, _ := plan.Offset()
-	projection, projected := plan.RelationProjection()
+	projectionProjections := plan.RelationProjections()
+	projected := len(projectionProjections) == 1
+	var projection query.RelationProjection
+	if projected {
+		projection = projectionProjections[0]
+	}
 	if limit != 1 || offset != 2 || !plan.Distinct() || !projected || projection.Hop().Field() != "author" || len(plan.Orderings()) != 1 {
 		t.Fatalf("First lost source plan: %+v", plan)
 	}
@@ -52,10 +57,14 @@ func TestForwardSelectFirstBoundsScanPreservesPlanAndAllCache(t *testing.T) {
 	}
 	all[0].source.Title = "caller mutation"
 	warm, found, err := eager.First(ctx)
-	if err != nil || !found || warm.source.Title != "Alpha" || warm == all[0] || warm.related == all[0].related {
+	if err != nil || !found || warm.source.Title != "Alpha" || warm == all[0] || warm.targets["author"].related == all[0].targets["author"].related {
 		t.Fatalf("warm First shared result ownership: %v, %v, %v", warm, found, err)
 	}
-	author, found, err := warm.related.Get(ctx)
+	ready, ok := warm.targets["author"].related.(*RelatedObject[relationObjectTestAuthor])
+	if !ok {
+		t.Fatal("selected target lost its concrete model type")
+	}
+	author, found, err := ready.Get(ctx)
 	if err != nil || !found || author.Name != "Ada" || backend.callCount() != 2 {
 		t.Fatalf("warm relation = %+v, %v, %v, queries=%d", author, found, err, backend.callCount())
 	}

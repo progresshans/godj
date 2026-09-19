@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v6"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -1055,7 +1055,7 @@ func renderProjectRelationFacadeSelector(output *bytes.Buffer, model projectRela
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "type %s struct {\n", selectorType)
 	fmt.Fprintln(output, "\tstate *relationFacadeState")
-	fmt.Fprintln(output, "\tkind  uint8")
+	fmt.Fprintln(output, "\tkind  int")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (%s) godj%sRelationSelector() {}\n", selectorType, model.surface)
@@ -1066,14 +1066,13 @@ func renderProjectRelationFacadeSelector(output *bytes.Buffer, model projectRela
 	}
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) SelectRelated(_selector %s) %sEagerQuery {\n", model.queryType, selectorInterface, model.surface)
-	fmt.Fprintln(output, "\treturn _query.selectRelated(_selector)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) selectRelated(_candidate interface{}) %sEagerQuery {\n", model.queryType, model.surface)
+	fmt.Fprintf(output, "func (_query %s) SelectRelated(_selectors ...%s) %sEagerQuery {\n", model.queryType, selectorInterface, model.surface)
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintf(output, "\t\treturn %sEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}\n", model.surface)
 	fmt.Fprintln(output, "\t}")
+	fmt.Fprintf(output, "\tif len(_selectors)==0{return %sEagerQuery{state:_query.state,source:_query.query,configurationErr:relationFacadeQueryInvalid(\"select-related requires at least one selector\")}}\n", model.surface)
+	fmt.Fprintln(output, "\t_kinds:=make([]int,0,len(_selectors))")
+	fmt.Fprintln(output, "\tfor _,_candidate:=range _selectors{")
 	fmt.Fprintln(output, "\tif relationFacadeNil(_candidate) {")
 	fmt.Fprintf(output, "\t\treturn %sEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid(\"relation selector is nil\")}\n", model.surface)
 	fmt.Fprintln(output, "\t}")
@@ -1081,7 +1080,8 @@ func renderProjectRelationFacadeSelector(output *bytes.Buffer, model projectRela
 	fmt.Fprintln(output, "\tif !_ok || _selector.state != _query.state {")
 	fmt.Fprintf(output, "\t\treturn %sEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid(\"relation selector does not belong to this query\")}\n", model.surface)
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_query.query, _selector.kind)\n", model.surface)
+	fmt.Fprintln(output, "\t_kinds=append(_kinds,_selector.kind)\n\t}")
+	fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_query.query, _kinds)\n", model.surface)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 }
@@ -1092,36 +1092,31 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintf(output, "type %s struct {\n", eagerType)
 	fmt.Fprintln(output, "\tstate            *relationFacadeState")
 	fmt.Fprintf(output, "\tsource           orm.QuerySet[%s]\n", rawType)
-	fmt.Fprintln(output, "\tkind             uint8")
+	fmt.Fprintln(output, "\tkinds            []int")
 	fmt.Fprintf(output, "\tprojection       relationSelectQuery[%s]\n", model.source.objectType)
 	fmt.Fprintln(output, "\tconfigurationErr error")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(
 		output,
-		"func (_state *relationFacadeState) new%sEagerQuery(_source orm.QuerySet[%s], _kind uint8) %s {\n",
+		"func (_state *relationFacadeState) new%sEagerQuery(_source orm.QuerySet[%s], _kinds []int) %s {\n",
 		model.surface,
 		rawType,
 		eagerType,
 	)
-	fmt.Fprintf(output, "\t_result := %s{state: _state, source: _source, kind: _kind}\n", eagerType)
+	fmt.Fprintf(output, "\t_result := %s{state: _state, source: _source}\n", eagerType)
 	fmt.Fprintln(output, "\tif _err := _state.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\t_result.configurationErr = _err")
 	fmt.Fprintln(output, "\t\treturn _result")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\tswitch _kind {")
+	fmt.Fprintln(output, "\t_requested:=make(map[int]bool,len(_kinds))")
+	fmt.Fprintf(output, "\tfor _,_kind:=range _kinds{if _kind<1||_kind>%d{_result.configurationErr=relationFacadeQueryInvalid(\"relation selector is zero or corrupt\");return _result};_requested[_kind]=true}\n", len(model.source.relations))
+	fmt.Fprintln(output, "\tif len(_requested)==0{_result.configurationErr=relationFacadeQueryInvalid(\"relation selection is empty\");return _result}")
+	fmt.Fprintf(output, "\t_projection:=_state.objects.%s.SelectRelated(_source)\n", model.source.surface)
 	for index, relation := range model.source.relations {
-		fmt.Fprintf(output, "\tcase %d:\n", index+1)
-		fmt.Fprintf(
-			output,
-			"\t\t_result.projection = _state.objects.%s.SelectRelated(_source).%s()\n",
-			model.source.surface,
-			relation.selector,
-		)
+		fmt.Fprintf(output, "\tif _requested[%d]{_result.kinds=append(_result.kinds,%d);_projection=_projection.With%s()}\n", index+1, index+1, relation.selector)
 	}
-	fmt.Fprintln(output, "\tdefault:")
-	fmt.Fprintln(output, "\t\t_result.configurationErr = relationFacadeQueryInvalid(\"relation selector is zero or corrupt\")")
-	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_result.projection=_projection")
 	fmt.Fprintln(output, "\treturn _result")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -1132,9 +1127,11 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err := _query.state.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\tif _query.kind == 0 || _query.kind > %d || _query.projection == nil {\n", len(model.source.relations))
+	fmt.Fprintln(output, "\tif len(_query.kinds)==0 || _query.projection == nil {")
 	fmt.Fprintln(output, "\t\treturn relationFacadeQueryInvalid(\"generated eager query is zero or corrupt\")")
 	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_previous:=0")
+	fmt.Fprintf(output, "\tfor _,_kind:=range _query.kinds{if _kind<=_previous||_kind>%d{return relationFacadeQueryInvalid(\"selected relation inventory is zero or corrupt\")};_previous=_kind}\n", len(model.source.relations))
 	fmt.Fprintln(output, "\treturn nil")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -1143,7 +1140,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\t\t_query.configurationErr = _err")
 	fmt.Fprintln(output, "\t\treturn _query")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _query.state.new"+model.surface+"EagerQuery(_query.source.Filter(_predicates...), _query.kind)")
+	fmt.Fprintln(output, "\treturn _query.state.new"+model.surface+"EagerQuery(_query.source.Filter(_predicates...), _query.kinds)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_query %s) OrderBy(_orderings ...orm.Ordering[%s]) %s {\n", eagerType, rawType, eagerType)
@@ -1151,7 +1148,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\t\t_query.configurationErr = _err")
 	fmt.Fprintln(output, "\t\treturn _query")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _query.state.new"+model.surface+"EagerQuery(_query.source.OrderBy(_orderings...), _query.kind)")
+	fmt.Fprintln(output, "\treturn _query.state.new"+model.surface+"EagerQuery(_query.source.OrderBy(_orderings...), _query.kinds)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	for _, method := range []string{"Distinct", "Fresh"} {
@@ -1160,7 +1157,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 		fmt.Fprintln(output, "\t\t_query.configurationErr = _err")
 		fmt.Fprintln(output, "\t\treturn _query")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_query.source.%s(), _query.kind)\n", model.surface, method)
+		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_query.source.%s(), _query.kinds)\n", model.surface, method)
 		fmt.Fprintln(output, "}")
 		fmt.Fprintln(output)
 	}
@@ -1174,7 +1171,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintf(output, "\t\treturn %s{}, _err\n", eagerType)
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_derived, _query.kind), nil\n", model.surface)
+		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_derived, _query.kinds), nil\n", model.surface)
 		fmt.Fprintln(output, "}")
 		fmt.Fprintln(output)
 	}
@@ -1220,7 +1217,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\tswitch _query.kind {")
+	fmt.Fprintln(output, "\tfor _,_kind:=range _query.kinds{\n\tswitch _kind {")
 	for index, relation := range model.source.relations {
 		fmt.Fprintf(output, "\tcase %d:\n", index+1)
 		if relation.field.Nullable {
@@ -1232,6 +1229,7 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
+	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\treturn _wrapped, nil")
 	fmt.Fprintln(output, "}")

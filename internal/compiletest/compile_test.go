@@ -741,13 +741,6 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 				"orm.QuerySet[blog.Post]",
 			},
 		},
-		{
-			name:    "select-related remains singular",
-			fixture: "relation_select_related/multiple_selection.go.txt",
-			wantFragments: []string{
-				"Author().Reviewer undefined",
-			},
-		},
 	}
 
 	fixtures := make([]string, len(tests))
