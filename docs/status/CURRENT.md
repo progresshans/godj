@@ -1,8 +1,8 @@
 # 현재 상태
 
 - 갱신: 2026-09-19
-- 활성 작업: [GDJ-0079 Direct forward 관계의 scalar lookup](../../work/0079-forward-scalar-lookups.md)
-- 최근 완료: [GDJ-0078 Nullable ForeignKey의 대상 필터](../../work/0078-nullable-forward-relation-predicates.md)
+- 활성 작업: [GDJ-0080 Eager materialization과 filter JOIN 조합](../../work/0080-eager-filter-join-composition.md)
+- 최근 완료: [GDJ-0079 Direct forward 관계의 scalar lookup](../../work/0079-forward-scalar-lookups.md)
 - 최근 Hosted 기능 검증: source `c8bb50df3f540f56f37f5691fff36a6e0f7fcc8b`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35407175164)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
 - 최신 전체 검증: [Text+DateTime Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35384697050)
@@ -22,9 +22,9 @@ Nullable/required forward FK의 scalar 비교·문자열·isnull·IN과 AND/OR/N
 
 ## 다음 행동
 
-GDJ-0079의 제품·생성기·실제 양 DB와 별도 생성 소비자 검증을 연결했다.
-최종 normal·race·CGO0 검증을 완료했다. 다음은 서로 다른 eager/filter JOIN의 materialization 의미를 연결하고 이 변경과 Hosted ORM을 통합하는 작업이다.
-GDJ-0077 eager Count와 GDJ-0078은 위 source의 Hosted ORM까지 완료했다. 다음 구현의 검증 결과로 재사용하지 않는다.
+GDJ-0080에서 selected relation과 다른 forward/reverse filter JOIN의 All/First·중복 행·nullable cache 의미를 연결한다.
+GDJ-0079 scalar lookup의 필수 로컬 normal·race·CGO0·양 DB 검증을 완료했다. 두 변경을 합친 source에서 Hosted ORM을 실행한다.
+최근 Hosted는 GDJ-0077/0078의 위 source를 소유하며 새 lookup/materialization 변경의 검증 결과로 재사용하지 않는다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다. 기존 Draft PR #1을 이어간다.
 
 ## 근거
