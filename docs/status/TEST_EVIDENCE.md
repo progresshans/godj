@@ -24,6 +24,7 @@ Python/SQLite fingerprint는 실행 runtime과 대조하며 구버전의 model 1
 
 첫 27-package 통합 실행은 3 package가 실패했다. 기본 Django TimeInput이 초기 소수초를 제거해 Go의 precision 보존과 changed 결과
 10개가 달랐다. 기본 관찰을 보존한 채 supports_microseconds=true 위젯의 별도 실제 관찰을 추가하고 Go를 후자와 비교했다.
+이 precision 보존 결정은 [DEV-0014](../DEVIATIONS.md#dev-0014--timeinput의-초기-microsecond와-변경-감지를-보존)의 정확한 selector로 제한한다.
 또한 Helpdesk registry fixture의 필드 수를 새 allowlist에 맞추고, 독립 client test에서 request encoder가 Validate를 자동 호출한다는
 잘못된 가정을 제거해 명시적 Validate와 서버 검증을 구분했다. 제품의 소수초·JSON 보안·권한·transaction 경계를 약화하지 않았다.
 수정 후 Form·Helpdesk SQLite/PG·독립 OpenAPI client·생성 Clock model의 focused **4 packages / 160 pass events**, skip 0을 확인했다.

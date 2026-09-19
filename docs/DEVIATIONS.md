@@ -44,6 +44,31 @@
 
 ## 원장
 
+## DEV-0014 — TimeInput의 초기 microsecond와 변경 감지를 보존
+
+- Status: Verified
+- Date: 2026-09-20
+- Scope: GDJ-0088 raw reference의 `form[4,18,33,71,72,80,94,109,147,148].changed.same` 10개.
+  기존 등록 contract/manifest의 상태·집계는 변경하지 않는다.
+- Reference: Django 6.1 / DRF 3.18.0 / Python 3.14.3, UTC/en-us의
+  [기본·소수초 Form 관찰](../internal/clocktimetest/testdata/django61.json).
+- Related: [ADR-0066](adr/0066-clock-time-field-and-precision-boundaries.md), [GDJ-0088](../work/0088-clock-time-models.md),
+  [실행 source와 범위](status/TEST_EVIDENCE.md#gdj-0088--clock-time의-모델소비자-연결).
+
+Django 기본 TimeInput은 supports_microseconds=false여서 초기 `12:34:56.123456`을 `12:34:56`으로 만든다.
+그 결과 같은 소수초 입력은 changed=true이고 소수초가 없는 동일 clock은 changed=false다. GoDj TimeInput은 초기 소수초를
+보존해 전자를 unchanged, 후자를 changed로 처리한다. 다른 cleaned value·오류·null/required 의미는 바꾸지 않는다.
+
+기본 위젯의 정밀도 제거를 재현하는 대안도 검토했지만, 값을 표시·재제출하는 과정에서 저장된 microsecond를 잃을 수 있어
+채택하지 않았다. 독립 runner는 원래 기본 위젯의 152개 관찰을 그대로 보존하고, supports_microseconds=true 위젯의 152개를
+별도로 실행한다. Go Form은 후자와 직접 비교한다. Fresh Python 재생은 양쪽 전체 결과와 정확한 차이 10개를 검사한다.
+전체 Form corpus를 같다고 표시하거나 wildcard로 mismatch를 무시하지 않는다.
+
+새 TimeField의 초기 제품 결정이므로 이전 GoDj Time 소비자에 대한 migration은 없고 Date/DateTime 의미도 바꾸지 않는다.
+DB TIME 저장·권한·CSRF·transaction·source binding은 유지한다. 제품 source `9f0ffa8aeea143dd0da48789761235004dd4fa59`의
+normal/race Form 비교와 Helpdesk 양 DB의 실제 Admin 편집·재조회, CGO0 소비자에서 정밀도 보존을 확인했다.
+향후 widget별 precision 옵션을 추가하거나 기준 동작을 바꿀 때 이 지정된 selector와 데이터를 재검토하고 supersede한다.
+
 ## DEV-0013 — SQLite migration remake에서 삭제된 ID의 sequence 상한을 보존
 
 - Status: Verified

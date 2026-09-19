@@ -36,7 +36,7 @@ Scanner는 SQL TIME의 string/bytes, seconds와 1..6자리 fraction을 받는다
 GoDj TimeInput은 text input이며 초기값과 변경 감지에서 microsecond를 보존한다. 고정 Django 기본 TimeInput은
 `supports_microseconds=false`여서 Form이 초기 소수초를 제거한다. GoDj는 그 손실을 채택하지 않으며, 독립 reference에는 기본 위젯과
 `supports_microseconds=true`인 명시적 MicrosecondTimeInput의 결과를 모두 보존한다. Go Form은 후자의 cleaned/error/changed 결과와
-대조한다. 두 profile의 initial 변경 감지 차이는 숨기거나 실행에서 skip하지 않는다.
+대조한다. 두 profile의 initial 변경 감지 차이는 [DEV-0014](../DEVIATIONS.md#dev-0014--timeinput의-초기-microsecond와-변경-감지를-보존)로 기록하며 숨기거나 실행에서 skip하지 않는다.
 
 Form은 고정 en-us의 `%H:%M`, `%H:%M:%S`, `%H:%M:%S.%f` 입력을 받고 바깥 공백을 제거한다. Fraction은 1..6자리이며 offset은 거부한다.
 정확히 빈 optional 입력은 NULL이고 공백만 있는 입력은 invalid다. Admin은 canonical initial·snapshot·재검증을 사용하며 잘못된 raw
