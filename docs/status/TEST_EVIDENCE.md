@@ -57,7 +57,9 @@ runtime/복수 selection 구조에 맞게 고쳤다. Resolver를 바꿔 잘못�
 
 ### 통합 checkpoint
 
-이 복수 materialization ABI 변경은 다음 Hosted ORM checkpoint의 대상이다. 아직 이 source의 Hosted 결과는 없다.
+Feature `876595d7dd0a0425cf9a062e7f332f38e63f3e3e`를 통합한 source `7e5a933db69435154842162287ef86ef7172bc17`의
+[Hosted ORM run 35417711000](https://github.com/progresshans/godj/actions/runs/35417711000)을 dispatch했다. 통합 후 97개 source manifest가 로컬 검증과 같음을 확인했다.
+아직 Hosted 완료 결과는 없으며 이 실행은 전체 플랫폼 검증이 아니다.
 이전 GDJ-0080 source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`의 완료 결과를 이 변경의 PASS로 재사용하지 않는다.
 전체 플랫폼·Windows runtime·배포 검증은 이 로컬 결과에 포함하지 않는다.
 

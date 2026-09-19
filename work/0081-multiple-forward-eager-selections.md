@@ -50,5 +50,5 @@ GDJ-0080 self-reference 보완은 baseline에 통합됐고 [Hosted ORM](https://
 Immutable 복수 projection, typed target adapter와 공통 scan/cache runtime, composable object builder와 variadic facade를 연결했다.
 단일 target 경로도 이 runtime으로 합쳤다. 기존 단일 선택 제약의 compile-fail fixture는 지원 기능의 positive consumer로 이동하며,
 잘못된 source model·다른 project selector·잘못된 target scanner·충돌한 중복 binding은 별도의 음성 검증을 유지한다.
-Generated Article·Helpdesk·relationfixture와 기존 소비자를 현재 ABI로 갱신했다. Normal·race·CGO0와 독립 Django 재생을 완료했다. Hosted ORM 통합 검증이 남아 있다.
+Generated Article·Helpdesk·relationfixture와 기존 소비자를 현재 ABI로 갱신했다. Normal·race·CGO0와 독립 Django 재생을 완료했다. 통합 source `7e5a933db69435154842162287ef86ef7172bc17`의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35417711000)을 실행 중이다.
 실행 수·source·실패 시도·환경은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0081--여러-direct-forward-target-동시-선택)에 기록한다.
