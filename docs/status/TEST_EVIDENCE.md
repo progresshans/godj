@@ -71,7 +71,7 @@ DNS ENOTFOUND로 Go 도구 준비 전에 실패했다. 이 환경 실패를 제�
 문자열·aggregate 바이트 한도에 포함했다. System-state/operator source binding은 `calendar`, date input과 기존 temporal/Boolean
 input helper를 포함하도록 보완했다. 해당 파일이 바뀌면 실행 증거의 source binding이 달라지는 negative control을 추가했다.
 
-위 guard/fixture 보완은 별도 **11 files**이며 정렬된 파일 manifest SHA256은
+Guard/fixture 보완 source는 `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`이며 별도 **11 files**다. 정렬된 파일 manifest SHA256은
 `bce9fbb16b7df441b607c9661536bb649b02685fe5aa5c62d7f52c4f83399d06`이다. 이 추가 source에서:
 
 - Namespace/publication-recovery의 실제 실패 test는 normal/race/CGO0 각각 **1 package / 3 pass events**, skip 0으로 확인했다.
@@ -86,7 +86,7 @@ input helper를 포함하도록 보완했다. 해당 파일이 바뀌면 실행 
 Loaded migration의 oversized Date 테스트는 최초에 개별 payload path를 기대해 실패했다. 기존 오류 우선순위에서는 enclosing
 `definition_bytes`가 먼저 반환된다. 그 우선순위를 유지하고 실제 resource 거부를 assert하도록 테스트를 수정한 뒤 위 checkpoint가 통과했다.
 
-보완 source를 통합해 Hosted ORM을 다시 실행한다. 아직 이 날짜 작업의 Hosted PASS는 없다. 과거 GDJ-0086 ORM / GDJ-0074 full
+보완 source를 통합해 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35472148411)을 다시 실행했다. 아직 terminal 결과가 없어 이 날짜 작업의 Hosted PASS는 없다. 과거 GDJ-0086 ORM / GDJ-0074 full
 결과를 Date의 PASS로 사용하지 않는다. 전체 platform/cold-build 검증도 위 로컬 범위에 포함되지 않는다.
 
 ## GDJ-0086 — Nullable Boolean의 모델·Form/Admin/API 연결

@@ -2,7 +2,8 @@
 
 - 갱신: 2026-09-20
 - 활성 구현: [GDJ-0087 시간대 없는 날짜의 모델·소비자 연결](../../work/0087-calendar-date-models.md)
-- 검증 보완: Date의 첫 Hosted ORM은 fixture dependency 누락과 별도 runner DNS 실패 뒤 취소했다. [보완 근거](TEST_EVIDENCE.md#hosted에서-발견한-dependency-closure와-guard-보완)
+- 검증 중: source `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`, [Date Hosted ORM](https://github.com/progresshans/godj/actions/runs/35472148411)
+- 첫 Hosted 실패와 보완: [TEST_EVIDENCE](TEST_EVIDENCE.md#hosted에서-발견한-dependency-closure와-guard-보완)
 - 최근 완료: [GDJ-0086 nullable Boolean의 모델·Form/Admin/API 연결](../../work/0086-nullable-boolean-models.md)
 - 최근 Hosted 기능 검증: source `2ea0735c7d811dd4e07862506de7643abc6073f9`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35467983458)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
@@ -35,7 +36,7 @@ GDJ-0086의 모델·migration·생성 ORM·Form/Admin·Helpdesk PUT/PATCH·OpenA
 별도 `feature/calendar-date-models`에서 GDJ-0087의 날짜 값·IR·generator·양 DB·소비자 연결을 구현했다.
 로컬 affected 일반/race/CGO0, 생성물 drift·vet과 독립 Python reference 재생을 통과했다.
 기존 Draft PR의 첫 Hosted ORM에서 발견한 fixture dependency와 추가 resource/source-binding 경계를 보완했다.
-보완의 affected 일반/race와 Date 소비자 일반/race/CGO0을 통과했다. 남은 행동은 수정 source 통합·Hosted ORM 재실행과 terminal scope 확인이다.
+보완의 affected 일반/race와 Date 소비자 일반/race/CGO0을 통과했다. 수정 source를 통합하고 Hosted ORM을 다시 실행했다. 남은 행동은 위 run의 terminal 결과와 실제 scope 확인이다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거
