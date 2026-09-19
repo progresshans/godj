@@ -59,8 +59,12 @@ attempt 1은 48개 job의 source·run ID·완료 상태를 대조해 **44 succes
 최종 `CI result (orm)` report는 `scope=orm`, `full_platform_verified=false`이며 command/portable/postgresql/relation owner를 검증했다.
 PostgreSQL 17.10의 core/operator-target × normal/race/CGO0 여섯 조합과 선택된 Linux/macOS를 포함한다.
 그 뒤 위 self-reference 보완이 추가됐으므로 이 실행을 보완 후 source의 결과로 재사용하지 않는다.
-최종 보완 source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`의 [Hosted ORM run 35414363995](https://github.com/progresshans/godj/actions/runs/35414363995)이 진행 중이다.
-아직 이 source의 Hosted 완료를 주장하지 않는다.
+최종 보완 source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`의 [Hosted ORM run 35414363995](https://github.com/progresshans/godj/actions/runs/35414363995),
+attempt 1도 **44 success, 4 scope skip**으로 완료했다. 48개 job의 유일한 ID·run ID·head SHA·terminal 상태를 대조했다.
+`CI result (orm)` job `105822544681`의 report는 `scope=orm`, `full_platform_verified=false`와
+command/portable/postgresql/relation owner 완료를 기록한다. 실제 PostgreSQL 17.10의 여섯 mode/shard 조합과
+선택된 Linux amd64/arm64·macOS arm64/amd64의 관계·command 검증을 포함한다.
+네 skip은 project-check matrix·Python compatibility·exact Darwin profile·reference/current-capture job이며 해당 범위를 PASS로 계산하지 않는다.
 여러 selected projection·nested traversal·reverse OR/NOT·새 full/platform·배포·전체 ORM 완료는 이 결과에 포함하지 않는다.
 
 ## GDJ-0079 — Direct forward scalar lookup
@@ -131,7 +135,8 @@ Normal의 직접 진입 skip은 PostgreSQL revision-fence·generated publication
 ### 통합 검증 소유자
 
 이 작업의 구현과 필수 로컬 영향 범위를 완료했다. OS/process 구현이나 새 backend를 추가하지 않았다.
-새 Hosted ORM은 다음 eager query의 여러 JOIN 조합과 묶은 통합 checkpoint가 소유한다. 위 baseline의 GDJ-0078 Hosted는
+통합 Hosted ORM은 GDJ-0080과 함께 source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`에서 완료했다.
+위 GDJ-0080 checkpoint가 source·scope와 terminal 근거를 소유한다. 위 baseline의 GDJ-0078 Hosted는
 이 새 lookup source의 실행 결과가 아니다. 새 full·Windows runtime·배포·전체 ORM 완료를 주장하지 않는다.
 
 ## GDJ-0078 — Nullable forward 대상 필터와 Boolean JOIN

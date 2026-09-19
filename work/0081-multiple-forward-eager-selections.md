@@ -38,9 +38,9 @@ Python 객체 identity 공유는 목표가 아니며 Go의 clone/cache invariant
 
 제품·생성기·단일/복수 selection 소비자·양 DB·실패 경로를 하나의 변경 묶음으로 완성한 뒤 affected normal·race·CGO0와
 reference·generated drift를 실행한다. Materialization ABI의 통합 변경이 다음 Hosted ORM checkpoint를 소유한다.
-현재 진행 중인 GDJ-0080 Hosted는 baseline의 별도 source 검증이다. source·환경별 완료를 혼합하지 않는다.
+완료된 GDJ-0080 Hosted는 baseline의 별도 source 검증이다. source·환경별 완료를 혼합하지 않는다.
 
 ## 통합 경계
 
-GDJ-0080 self-reference 보완은 이미 baseline에 통합됐고 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35414363995)이 진행 중이다.
-Root가 그 결과의 기록을 소유한다. 이 작업은 별도 worktree에서 구현하며 기존 검증 source를 바꾸지 않는다.
+GDJ-0080 self-reference 보완은 baseline에 통합됐고 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35414363995)도 완료했다.
+정확한 source·scope는 TEST_EVIDENCE가 소유한다. 이 작업은 별도 worktree에서 구현하며 기존 검증 source를 바꾸지 않는다.
