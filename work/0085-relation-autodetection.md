@@ -20,9 +20,9 @@ migration 의존성을 이어 가는 작업이며 넓은 field 변경·임의 ba
   기존 모델의 nullable self Add에는 GDJ-0084의 runtime 기반을 사용할 수 있다.
 - 서로 다른 새 model의 later target과 cross-app candidate cycle은 아직 거부한다. 현재 `Detect`는 app당 candidate
   하나를 만들며 `NewStateReconstructor`로 최종 state가 desired와 정확히 같은지 확인한다.
-- 모델/필드 순서는 보존해야 한다. 관계 필드를 뒤로 옮기기만 하면 중간 FK 뒤에 scalar가 있는 선언의 순서가 달라진다.
-  필요한 Create prefix와 나머지 field suffix의 Add 순서를 함께 설계한다. Migration dependency graph는 DAG를 유지한다.
-- Same-app later target은 한 migration 안에서 Create prefix들을 먼저 만들고 미룬 suffix를 Add하면 처리할 수 있는지 확인한다.
+- 모델/필드 순서는 보존해야 한다. 명시적 AutoField는 어느 위치에도 올 수 있으므로 Create prefix만 남기면 PK를 잃을 수 있다.
+  필요한 FK만 Create에서 미루고 `AddField.BeforeField`로 원래 위치에 삽입한다. Migration dependency graph는 DAG를 유지한다.
+- Same-app later target은 한 migration 안에서 model들을 먼저 만들고 미룬 FK를 Add하는 순서로 연결한다.
   Cross-app은 app 후보 의존성의 순환 성분과 기존 target의 historical authority를 구분하고, 필요한 경우 생성 후보와 후속
   관계 후보로 나눈다. 단순히 모든 relation에 상대 app의 최신 후보 의존성을 추가하면 불필요한 cycle을 만들 수 있다.
 - SQLite/PostgreSQL은 새 빈 table에 대한 required/default Add의 검증 기반이 있다. 기존 populated table의 required 관계는
@@ -43,7 +43,15 @@ migration 의존성을 이어 가는 작업이며 넓은 field 변경·임의 ba
 
 ## 현재
 
-GDJ-0084의 로컬·Hosted ORM 검증을 완료했다. 별도 `feature/relation-autodetection` 작업 사본에서 self Create와
-existing nullable self Add의 거부 규칙을 수정하고 후보/재구성/no-op 검증을 작성했다. 현재 compile-only를 확인했으며,
-이 작업의 runtime PASS나 기존 Draft PR로의 제품 통합은 아직 없다. Same-app later target·cross-app cycle 분할과
-code-owned 거부 정책, 실제 CLI/DB 소비자를 이어서 구현한다.
+Self Create·nullable self Add, same-app later/mutual 관계와 cross-app cycle의 자동 계획을 구현했다. 매 후보를 정확한
+직전 durable prefix에서 다시 계산하여 어떤 후보 파일 뒤에서 중단해도 나머지 bytes가 같다. BeforeField는 선언 순서를
+보존하고 물리 column 순서와 분리된다. Required PROTECT FK는 실제 빈 table에서만 적용한다.
+
+실제 SQLite/PG의 apply/reopen/reverse/zero/reapply와 populated required Add 거부, 공개 CLI의 preview/write/clean,
+별도 module의 generated ORM 저장·조회, 세 후보 각각의 부분 쓰기/fsync SIGKILL 재개와 동시 게시를 연결했다.
+재접속 소비자에서 발견한 SQLite 기본 FK 검사 누락은 모든 physical connection의 초기화·readback으로 수정했다.
+Go-owned MIG-107만 현재 독립 decision 실행으로 갱신하고 나머지 관찰·Django profile은 보존했다.
+
+로컬 normal/race/CGO0의 affected runtime, 현재 writer conformance, 네 Python 버전의 독립 Django 관찰,
+전체 compile-only·affected vet·generated drift 검사를 완료했다. 상세 source·명령·범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 있다.
+기존 Draft PR의 제품 통합과 통합 source의 Hosted ORM 검증을 마무리한다. GDJ-0085의 완료는 전체 프레임워크 완성을 뜻하지 않는다.

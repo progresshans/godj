@@ -694,7 +694,10 @@ func validateSQLiteRelationStaticOperation(
 			return relationIntentUnsupported("relation-step DeleteModel operation %d cannot compile safely: %v", operation.OperationIndex, err)
 		}
 	case migrationbackend.MigrationAddField:
-		field := after.Fields[len(after.Fields)-1]
+		field, err := operation.ChangedField()
+		if err != nil {
+			return relationIntentIntegrity("invalid AddField delta: %v", err)
+		}
 		if field.Kind == ir.FieldForeignKey {
 			if _, err := compileSQLiteRelationAddField(before, field, operation.Targets); err != nil {
 				return relationIntentUnsupported("relation AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
@@ -708,7 +711,10 @@ func validateSQLiteRelationStaticOperation(
 			}
 		}
 	case migrationbackend.MigrationRemoveField:
-		field := before.Fields[len(before.Fields)-1]
+		field, err := operation.ChangedField()
+		if err != nil {
+			return relationIntentIntegrity("invalid RemoveField delta: %v", err)
+		}
 		if field.PrimaryKey {
 			return relationIntentUnsupported("relation-step RemoveField operation %d must be non-primary-key", operation.OperationIndex)
 		}
@@ -716,7 +722,10 @@ func validateSQLiteRelationStaticOperation(
 			if len(operation.Targets) == 0 {
 				return relationIntentIntegrity("relation RemoveField operation %d lacks target metadata", operation.OperationIndex)
 			}
-			retainedTargets := operation.Targets[:len(operation.Targets)-1]
+			retainedTargets, err := sqliteRelationTargetsForFields(after, operation.Targets)
+			if err != nil {
+				return err
+			}
 			if _, err := compileSQLiteRelationCreateModel(after, retainedTargets); err != nil {
 				return relationIntentUnsupported("relation RemoveField operation %d cannot compile bounded remake: %v", operation.OperationIndex, err)
 			}
@@ -736,11 +745,7 @@ func validateSQLiteRelationAddDelta(before, after ir.Model) (ir.Field, error) {
 	if err := validateExactNormalizedRelationModel(after); err != nil {
 		return ir.Field{}, fmt.Errorf("After model is not exact normalized IR: %w", err)
 	}
-	if !sqliteRelationSameModelIdentity(before, after) || len(after.Fields) != len(before.Fields)+1 ||
-		!reflect.DeepEqual(before.Fields, after.Fields[:len(before.Fields)]) {
-		return ir.Field{}, errors.New("After must append exactly one field to the same model")
-	}
-	return after.Fields[len(after.Fields)-1], nil
+	return (migrationbackend.MigrationOperation{Kind: migrationbackend.MigrationAddField, Before: before, After: after}).ChangedField()
 }
 
 func validateSQLiteRelationRemoveDelta(before, after ir.Model) (ir.Field, error) {
@@ -750,15 +755,7 @@ func validateSQLiteRelationRemoveDelta(before, after ir.Model) (ir.Field, error)
 	if err := validateExactNormalizedRelationModel(after); err != nil {
 		return ir.Field{}, fmt.Errorf("After model is not exact normalized IR: %w", err)
 	}
-	if !sqliteRelationSameModelIdentity(before, after) || len(before.Fields) != len(after.Fields)+1 ||
-		!reflect.DeepEqual(after.Fields, before.Fields[:len(after.Fields)]) {
-		return ir.Field{}, errors.New("After must remove exactly the final field from the same model")
-	}
-	return before.Fields[len(before.Fields)-1], nil
-}
-
-func sqliteRelationSameModelIdentity(left, right ir.Model) bool {
-	return left.Name == right.Name && left.GoName == right.GoName && left.DBTable == right.DBTable
+	return (migrationbackend.MigrationOperation{Kind: migrationbackend.MigrationRemoveField, Before: before, After: after}).ChangedField()
 }
 
 func validateExactNormalizedRelationModel(model ir.Model) error {
@@ -887,7 +884,10 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 		if operation.Kind != migrationbackend.MigrationAddField || len(operation.After.Fields) == 0 {
 			return relationIntentIntegrity("relation-step AddField does not match sealed operation kind at cursor %d", state.cursor)
 		}
-		wantField := operation.After.Fields[len(operation.After.Fields)-1]
+		wantField, deltaErr := operation.ChangedField()
+		if deltaErr != nil {
+			return relationIntentIntegrity("invalid sealed AddField delta: %v", deltaErr)
+		}
 		if !reflect.DeepEqual(model, operation.Before) || !reflect.DeepEqual(field, wantField) {
 			return relationIntentIntegrity("relation-step AddField does not match sealed model/field at cursor %d", state.cursor)
 		}
@@ -946,7 +946,10 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationRemoveField(
 		if operation.Kind != migrationbackend.MigrationRemoveField || len(operation.Before.Fields) == 0 {
 			return relationIntentIntegrity("relation-step RemoveField does not match sealed operation kind at cursor %d", state.cursor)
 		}
-		wantField := operation.Before.Fields[len(operation.Before.Fields)-1]
+		wantField, deltaErr := operation.ChangedField()
+		if deltaErr != nil {
+			return relationIntentIntegrity("invalid sealed RemoveField delta: %v", deltaErr)
+		}
 		if !reflect.DeepEqual(model, operation.Before) || !reflect.DeepEqual(field, wantField) {
 			return relationIntentIntegrity("relation-step RemoveField does not match sealed model/field at cursor %d", state.cursor)
 		}
@@ -1103,9 +1106,9 @@ func compileSQLiteRelationAddField(
 			len(relationFields)+1,
 		)
 	}
-	changed := targets[len(targets)-1]
-	if !reflect.DeepEqual(changed.SourceField, field) {
-		return "", relationIntentIntegrity("relation AddField %q changed target does not match the added field", model.DBTable)
+	changed, err := sqliteRelationTargetForField(field, targets)
+	if err != nil {
+		return "", err
 	}
 	table, err := quoteIdentifier(model.DBTable)
 	if err != nil {
@@ -1449,7 +1452,7 @@ func preflightSQLiteRelationModels(
 		if err := assertSQLiteRelationModelShape(ctx, executor, state.model, targets, known, validationCache); err != nil {
 			return fmt.Errorf("preflight relation input model %q: %w", state.model.DBTable, err)
 		}
-		if err := assertSQLiteRelationCanonicalTableSQL(ctx, executor, state.model, targets, known, tableObject.sql); err != nil {
+		if err := assertSQLiteRelationCanonicalTableSQL(ctx, executor, state.model, targets, known, tableObject.sql, validationCache); err != nil {
 			return fmt.Errorf("preflight relation input model %q SQL: %w", state.model.DBTable, err)
 		}
 	}
@@ -1470,7 +1473,10 @@ func preflightSQLiteRelationModels(
 		operation := seal.intent.Operations[operationIndex]
 		switch operation.Kind {
 		case migrationbackend.MigrationAddField:
-			field := operation.After.Fields[len(operation.After.Fields)-1]
+			field, err := operation.ChangedField()
+			if err != nil {
+				return relationIntentIntegrity("invalid sealed AddField delta: %v", err)
+			}
 			if field.Default == nil && field.Nullable {
 				continue
 			}
@@ -1506,7 +1512,10 @@ func preflightSQLiteRelationModels(
 				)
 			}
 		case migrationbackend.MigrationRemoveField:
-			field := operation.Before.Fields[len(operation.Before.Fields)-1]
+			field, err := operation.ChangedField()
+			if err != nil {
+				return relationIntentIntegrity("invalid sealed RemoveField delta: %v", err)
+			}
 			if owner, referenced := removeDependencies.owner(operation.Before.DBTable, field.Column); referenced {
 				return migrationbackend.NewCapabilityError(
 					"sqlite_drop_column",
@@ -1642,11 +1651,41 @@ func sqliteRelationTargetsForModel(
 }
 
 func sqliteRelationOperationChangesForeignKey(operation migrationbackend.MigrationOperation) bool {
-	model := operation.After
-	if operation.Kind == migrationbackend.MigrationRemoveField {
-		model = operation.Before
+	field, err := operation.ChangedField()
+	return err == nil && field.Kind == ir.FieldForeignKey
+}
+
+func sqliteRelationTargetForField(field ir.Field, targets []migrationbackend.MigrationTarget) (migrationbackend.MigrationTarget, error) {
+	for _, target := range targets {
+		if reflect.DeepEqual(target.SourceField, field) {
+			return target, nil
+		}
 	}
-	return len(model.Fields) != 0 && model.Fields[len(model.Fields)-1].Kind == ir.FieldForeignKey
+	return migrationbackend.MigrationTarget{}, relationIntentIntegrity("relation field %q lacks exact target authority", field.Name)
+}
+
+// Select retained bindings in the supplied model's field order. Supplied targets
+// have already passed graph admission; the result borrows immutable metadata.
+func sqliteRelationTargetsForFields(model ir.Model, targets []migrationbackend.MigrationTarget) ([]migrationbackend.MigrationTarget, error) {
+	byName := make(map[string]migrationbackend.MigrationTarget, len(targets))
+	for _, target := range targets {
+		if _, exists := byName[target.SourceField.Name]; exists {
+			return nil, relationIntentIntegrity("duplicate relation target %q", target.SourceField.Name)
+		}
+		byName[target.SourceField.Name] = target
+	}
+	selected := make([]migrationbackend.MigrationTarget, 0, len(targets))
+	for _, field := range model.Fields {
+		if field.Kind != ir.FieldForeignKey {
+			continue
+		}
+		target, exists := byName[field.Name]
+		if !exists || !reflect.DeepEqual(target.SourceField, field) {
+			return nil, relationIntentIntegrity("relation field %q lacks exact retained target authority", field.Name)
+		}
+		selected = append(selected, target)
+	}
+	return selected, nil
 }
 
 func assertSQLiteRelationNamespace(
@@ -1768,19 +1807,29 @@ func validateSQLiteRelationPhysicalGraph(
 			}
 			graph.remove(source)
 		case migrationbackend.MigrationAddField:
-			if len(operation.Targets) == 0 || len(operation.After.Fields) == 0 ||
-				operation.After.Fields[len(operation.After.Fields)-1].Kind != ir.FieldForeignKey {
+			field, err := operation.ChangedField()
+			if err != nil {
+				return relationIntentIntegrity("invalid AddField delta: %v", err)
+			}
+			if field.Kind != ir.FieldForeignKey {
 				continue
 			}
-			target := sqliteRelationIdentifierKey(operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
-			graph.add(source, target)
+			target, err := sqliteRelationTargetForField(field, operation.Targets)
+			if err != nil {
+				return err
+			}
+			graph.add(source, sqliteRelationIdentifierKey(target.TargetModel.DBTable))
 		case migrationbackend.MigrationRemoveField:
 			if len(operation.Targets) == 0 || !sqliteRelationOperationChangesForeignKey(operation) {
 				continue
 			}
 			graph.removeOutgoing(source)
-			for targetIndex := 0; targetIndex < len(operation.Targets)-1; targetIndex++ {
-				graph.add(source, sqliteRelationIdentifierKey(operation.Targets[targetIndex].TargetModel.DBTable))
+			retained, err := sqliteRelationTargetsForFields(operation.After, operation.Targets)
+			if err != nil {
+				return err
+			}
+			for _, target := range retained {
+				graph.add(source, sqliteRelationIdentifierKey(target.TargetModel.DBTable))
 			}
 		}
 	}
@@ -2090,7 +2139,7 @@ func verifySQLiteRelationFinalState(
 		if err := assertSQLiteRelationModelShape(ctx, executor, state.model, targets, known, validationCache); err != nil {
 			return fmt.Errorf("verify final relation model %q: %w", state.model.DBTable, err)
 		}
-		if err := assertSQLiteRelationCanonicalTableSQL(ctx, executor, state.model, targets, known, tableObject.sql); err != nil {
+		if err := assertSQLiteRelationCanonicalTableSQL(ctx, executor, state.model, targets, known, tableObject.sql, validationCache); err != nil {
 			return fmt.Errorf("verify final relation model %q SQL: %w", state.model.DBTable, err)
 		}
 	}
@@ -2121,6 +2170,9 @@ type sqliteRelationPhysicalForeignKey struct {
 
 type sqliteRelationPhysicalValidationCache struct {
 	autoKeys map[sqliteRelationAutoKey]error
+	// Layouts are populated only after exact column and FK catalog validation.
+	// They borrow sealed fields and live only within one boundary inspection.
+	layouts map[string][]ir.Field
 }
 
 type sqliteRelationAutoKey struct {
@@ -2129,7 +2181,7 @@ type sqliteRelationAutoKey struct {
 }
 
 func newSQLiteRelationPhysicalValidationCache() *sqliteRelationPhysicalValidationCache {
-	return &sqliteRelationPhysicalValidationCache{autoKeys: make(map[sqliteRelationAutoKey]error)}
+	return &sqliteRelationPhysicalValidationCache{autoKeys: make(map[sqliteRelationAutoKey]error), layouts: make(map[string][]ir.Field)}
 }
 
 func assertSQLiteRelationModelShape(
@@ -2179,8 +2231,18 @@ func assertSQLiteRelationModelShape(
 	if len(columns) != len(model.Fields) {
 		return relationPhysicalDrift("table %q has %d columns, want %d", model.DBTable, len(columns), len(model.Fields))
 	}
-	for index := range model.Fields {
-		field := model.Fields[index]
+	fieldsByColumn := make(map[string]ir.Field, len(model.Fields))
+	for _, field := range model.Fields {
+		fieldsByColumn[field.Column] = field
+	}
+	layout := make([]ir.Field, len(columns))
+	for index, column := range columns {
+		field, exists := fieldsByColumn[column.name]
+		if !exists {
+			return relationPhysicalDrift("table %q has unexpected or duplicate column %q", model.DBTable, column.name)
+		}
+		delete(fieldsByColumn, column.name)
+		layout[index] = field
 		declaredType, err := sqliteRelationDeclaredType(field)
 		if err != nil {
 			return err
@@ -2193,7 +2255,6 @@ func assertSQLiteRelationModelShape(
 		if field.PrimaryKey {
 			wantPrimaryKey = 1
 		}
-		column := columns[index]
 		if column.position != index || column.name != field.Column || column.declaredType != declaredType ||
 			column.notNull != wantNotNull || column.defaultValue.Valid || column.primaryKey != wantPrimaryKey || column.hidden != 0 {
 			return relationPhysicalDrift(
@@ -2245,6 +2306,7 @@ func assertSQLiteRelationModelShape(
 			return fmt.Errorf("table %q foreign key %q target: %w", model.DBTable, field.Column, err)
 		}
 	}
+	cache.layouts[model.DBTable] = layout
 	return nil
 }
 
@@ -2255,7 +2317,20 @@ func assertSQLiteRelationCanonicalTableSQL(
 	targets []migrationbackend.MigrationTarget,
 	targetsKnown bool,
 	actualSQL string,
+	cache *sqliteRelationPhysicalValidationCache,
 ) error {
+	layout, exists := cache.layouts[model.DBTable]
+	if !exists {
+		return relationIntentIntegrity("canonical table SQL requires validated physical layout for %q", model.DBTable)
+	}
+	model.Fields = layout
+	if targetsKnown {
+		ordered, err := sqliteRelationTargetsForFields(model, targets)
+		if err != nil {
+			return err
+		}
+		targets = ordered
+	}
 	relationFields := relationFieldsInModel(model)
 	if !targetsKnown {
 		foreignKeys, err := readSQLiteRelationForeignKeys(ctx, executor, model.DBTable, len(relationFields))

@@ -383,61 +383,71 @@ func TestMakemigrationsPhysicalCatalogReplacementConflictsBeforeRenameAndFreshRu
 }
 
 func TestRunMakemigrationsConcurrentWritersUseLockedSecondSnapshot(t *testing.T) {
-	fixture := newMakemigrationsRunFixture(t, false)
-	spec := makemigrationsRunSpec()
-	barrier := NewMakemigrationsConformanceFinalCatalogBarrier()
-	backends := []*liveMakemigrationsBackend{
-		{inventory: fixture.inventory, root: fixture.root, spec: spec},
-		{inventory: fixture.inventory, root: fixture.root, spec: spec},
-	}
-	type outcome struct {
-		report MakemigrationsReport
-		stderr string
-		err    error
-	}
-	outcomes := make(chan outcome, 2)
-	for _, backend := range backends {
-		backend := backend
-		go func() {
-			report, _, stderr, runErr := runLiveMakemigrationsFinalCatalogBarrier(
-				fixture, backend, context.Background(), nil, makemigrationsPublicationHooks{}, barrier,
-			)
-			outcomes <- outcome{report: report, stderr: stderr, err: runErr}
-		}()
-	}
-	generated := 0
-	clean := 0
-	published := 0
-	for range backends {
-		outcome := <-outcomes
-		if outcome.err != nil || outcome.report.ExitCode != 0 || !outcome.report.HasMakemigrationsResult || outcome.stderr != "" ||
-			outcome.report.RunnerCalls != 2 || outcome.report.WriterLockAcquisitions != 1 {
-			t.Fatalf("outcome=%+v stderr=%q err=%v", outcome.report, outcome.stderr, outcome.err)
-		}
-		switch outcome.report.MakemigrationsResult.Status {
-		case "generated":
-			generated++
-		case "clean":
-			clean++
-		default:
-			t.Fatalf("status=%q", outcome.report.MakemigrationsResult.Status)
-		}
-		published += outcome.report.PublishedCandidates
-	}
-	if barrier.arrivalCount() != 2 {
-		t.Fatalf("final catalog snapshots=%d, want 2", barrier.arrivalCount())
-	}
-	for _, backend := range backends {
-		if backend.Error() != nil {
-			t.Fatal(backend.Error())
-		}
-	}
-	if generated != 1 || clean != 1 || published != 1 {
-		t.Fatalf("generated=%d clean=%d published=%d", generated, clean, published)
-	}
-	assertNoMakemigrationsReservedTemps(t, fixture.root)
-	if _, err := strictLiveMakemigrationsState(fixture.root); err != nil {
-		t.Fatal(err)
+	for _, test := range []struct {
+		name  string
+		spec  codegen.ProjectSpec
+		count int
+	}{
+		{"scalar", makemigrationsRunSpec(), 1}, {"cyclic", cyclicMakemigrationsSpec(), 3},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newMakemigrationsRunFixture(t, false)
+			spec := test.spec
+			barrier := NewMakemigrationsConformanceFinalCatalogBarrier()
+			backends := []*liveMakemigrationsBackend{
+				{inventory: fixture.inventory, root: fixture.root, spec: spec},
+				{inventory: fixture.inventory, root: fixture.root, spec: spec},
+			}
+			type outcome struct {
+				report MakemigrationsReport
+				stderr string
+				err    error
+			}
+			outcomes := make(chan outcome, 2)
+			for _, backend := range backends {
+				backend := backend
+				go func() {
+					report, _, stderr, runErr := runLiveMakemigrationsFinalCatalogBarrier(
+						fixture, backend, context.Background(), nil, makemigrationsPublicationHooks{}, barrier,
+					)
+					outcomes <- outcome{report: report, stderr: stderr, err: runErr}
+				}()
+			}
+			generated := 0
+			clean := 0
+			published := 0
+			for range backends {
+				outcome := <-outcomes
+				if outcome.err != nil || outcome.report.ExitCode != 0 || !outcome.report.HasMakemigrationsResult || outcome.stderr != "" ||
+					outcome.report.RunnerCalls != 2 || outcome.report.WriterLockAcquisitions != 1 {
+					t.Fatalf("outcome=%+v stderr=%q err=%v", outcome.report, outcome.stderr, outcome.err)
+				}
+				switch outcome.report.MakemigrationsResult.Status {
+				case "generated":
+					generated++
+				case "clean":
+					clean++
+				default:
+					t.Fatalf("status=%q", outcome.report.MakemigrationsResult.Status)
+				}
+				published += outcome.report.PublishedCandidates
+			}
+			if barrier.arrivalCount() != 2 {
+				t.Fatalf("final catalog snapshots=%d, want 2", barrier.arrivalCount())
+			}
+			for _, backend := range backends {
+				if backend.Error() != nil {
+					t.Fatal(backend.Error())
+				}
+			}
+			if generated != 1 || clean != 1 || published != test.count {
+				t.Fatalf("generated=%d clean=%d published=%d", generated, clean, published)
+			}
+			assertNoMakemigrationsReservedTemps(t, fixture.root)
+			if _, err := strictLiveMakemigrationsState(fixture.root); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 

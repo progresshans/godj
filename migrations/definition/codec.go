@@ -467,7 +467,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidOperation, sourceID, pointer, app, name, operationIndex, "invalid_operation")}
 	}
-	commonFields := []string{"after", "app_label", "before", "field", "kind", "model", "model_name"}
+	commonFields := []string{"after", "app_label", "before", "before_field", "field", "kind", "model", "model_name"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
@@ -478,13 +478,15 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	}
 
 	fields := []string{"app_label", "kind", "model"}
+	var optional []string
 	if kind.string == "add_field" {
 		fields = []string{"app_label", "field", "kind", "model_name"}
+		optional = []string{"before_field"}
 	}
 	if kind.string == "alter_field" {
 		fields = []string{"after", "app_label", "before", "kind", "model_name"}
 	}
-	object, _, faults := semanticObjectCandidates(value, fields, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
+	object, _, faults := semanticObjectWithOptionalCandidates(value, fields, optional, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	candidates = append(candidates, faults...)
 	if appLabel, present := object.member("app_label"); present {
 		if appLabel.kind != jsonString || appLabel.string != app {
@@ -514,6 +516,9 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir"))
 			}
 			return candidates
+		}
+		if _, valid := materializeBeforeField(object); !valid {
+			candidates = append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/before_field", app, name, operationIndex, "invalid_operation"))
 		}
 		if field, present := object.member("field"); present {
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
@@ -992,12 +997,32 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 		if !valid || !fullyNormalizedAddField(appLabel.string, field) {
 			return nil, false
 		}
-		return migrations.AddField{AppLabel: appLabel.string, ModelName: modelName.string, Field: cloneField(field)}, true
+		before, valid := materializeBeforeField(value)
+		if !valid {
+			return nil, false
+		}
+		return migrations.AddField{AppLabel: appLabel.string, ModelName: modelName.string, Field: cloneField(field), BeforeField: before}, true
 	case "alter_field":
 		return materializeAlterField(value, appLabel.string)
 	default:
 		return nil, false
 	}
+}
+
+func materializeBeforeField(value jsonValue) (string, bool) {
+	before, exists := value.member("before_field")
+	if !exists {
+		return "", true
+	}
+	if before.kind != jsonString || before.string != "" && !identifiers.SQL(before.string) {
+		return "", false
+	}
+	if field, exists := value.member("field"); exists {
+		if name, exists := field.member("name"); exists && name.kind == jsonString && name.string == before.string {
+			return "", false
+		}
+	}
+	return before.string, true
 }
 
 func materializeModel(value jsonValue) (ir.Model, bool) {

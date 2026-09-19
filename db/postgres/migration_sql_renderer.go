@@ -93,7 +93,10 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 				operation.Targets,
 			)
 		case migrationbackend.MigrationAddField:
-			field := operation.After.Fields[len(operation.After.Fields)-1]
+			field, deltaErr := operation.ChangedField()
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid AddField delta", deltaErr)
+			}
 			target, targetErr := postgresMigrationAddFieldTarget(operation, field)
 			if targetErr != nil {
 				return nil, targetErr

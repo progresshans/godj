@@ -119,12 +119,12 @@
     },
     {
       "id": "MIG-107",
-      "title": "Unsupported destructive ambiguous cyclic and noncanonical deltas fail closed without candidates",
+      "title": "Unsupported destructive backfill and noncanonical deltas fail closed without candidates",
       "scenario": "godj.migration.writer.unsupported_delta_fail_closed",
       "phase": "construction",
       "status": "deviation",
       "provenance": [
-        {"kind": "proposal", "reference": "GDJ-0050", "derived": false},
+        {"kind": "proposal", "reference": "GDJ-0085", "derived": false},
         {"kind": "documentation", "reference": "ADR-0052", "derived": false},
         {"kind": "decision", "reference": "DEV-0010", "derived": false}
       ],

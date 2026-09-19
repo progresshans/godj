@@ -74,7 +74,10 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		case migrationbackend.MigrationCreateModel:
 			statement, err = compileSQLiteRelationCreateModel(operation.After, operation.Targets)
 		case migrationbackend.MigrationAddField:
-			field := operation.After.Fields[len(operation.After.Fields)-1]
+			field, deltaErr := operation.ChangedField()
+			if deltaErr != nil {
+				return nil, relationIntentIntegrity("invalid AddField delta: %v", deltaErr)
+			}
 			if field.Kind == ir.FieldForeignKey {
 				statement, err = compileSQLiteRelationAddField(operation.Before, field, operation.Targets)
 			} else {

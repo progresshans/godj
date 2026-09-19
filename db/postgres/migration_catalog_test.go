@@ -19,6 +19,33 @@ func TestAssertPostgresMigrationModelCatalogAcceptsExactShape(t *testing.T) {
 	}
 }
 
+func TestPostgresMigrationCatalogLogicalOrderDoesNotChangePhysicalAuthority(t *testing.T) {
+	author := postgresMigrationTestAuthorModel()
+	post := postgresMigrationTestPostModel(true)
+	target := postgresMigrationTestTarget(post.Fields[len(post.Fields)-1], author)
+	catalog := postgresMigrationTestCatalog(t, "product_schema", post, []migrationbackend.MigrationTarget{target})
+	logical := post.Clone()
+	logical.Fields = append([]ir.Field{logical.Fields[len(logical.Fields)-1]}, logical.Fields[:len(logical.Fields)-1]...)
+	if err := assertPostgresMigrationModelCatalog(catalog, "product_schema", logical, []migrationbackend.MigrationTarget{target}); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*postgresMigrationTableCatalog){
+		func(c *postgresMigrationTableCatalog) { c.columns[1].name = c.columns[0].name },
+		func(c *postgresMigrationTableCatalog) { c.columns[1].attributeNumber = c.columns[0].attributeNumber },
+		func(c *postgresMigrationTableCatalog) { c.columns[1].attributeNumber = c.attributeSlots + 1 },
+		func(c *postgresMigrationTableCatalog) { c.columns[len(c.columns)-1].typeName = "text" },
+		func(c *postgresMigrationTableCatalog) {
+			c.constraints[1].sourceAttributeNumber = c.columns[0].attributeNumber
+		},
+	} {
+		bad := clonePostgresMigrationTestCatalog(catalog)
+		mutate(&bad)
+		if err := assertPostgresMigrationModelCatalog(bad, "product_schema", logical, []migrationbackend.MigrationTarget{target}); err == nil {
+			t.Fatal("logical order support weakened physical catalog validation")
+		}
+	}
+}
+
 func TestAssertPostgresMigrationModelCatalogRejectsPhysicalDriftAsCapability(t *testing.T) {
 	t.Parallel()
 

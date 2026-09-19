@@ -79,28 +79,37 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 2. Desired state는 `LoadProjectSpec`의 normalized app schemas로 구성합니다. Historical state는 exactly-once loaded
    `LoadedDefinitionSet`을 `LatestStateRequest()`로 재구성합니다. Pure detector는 desired app과 filesystem-source가 소유했던
    app의 합집합만 managed app으로 비교하고 programmatic-only app은 현재 historical state 그대로 보존합니다.
-3. First delta domain은 다음뿐입니다.
+3. 현재 delta domain은 다음과 같습니다.
    - history가 없는 managed app/model의 `CreateModel`
-   - existing model field suffix의 nullable/no-default CharField 또는 ForeignKey `AddField`
+   - existing model의 nullable/no-default Char/Text/DateTime/Integer와 ForeignKey `AddField`
+   - 기존 field 순서를 유지하는 중간 삽입과 choices-only `AlterField`([ADR-0063](0063-model-choices-and-metadata-only-migrations.md))
    - new model의 current scalar/ForeignKey field shape
-   - same-app model creation topology와 cross-app migration dependency
-   DB-free detector는 existing row를 backfill할 수 없으므로 non-null/default-bearing field addition은 one-off default/table-remake
-   policy가 생길 때까지 unsupported입니다.
-4. Existing model/field order와 metadata는 desired state의 exact prefix여야 합니다. App/model/field removal, reorder, rename, alter,
-   self/cyclic new relation, missing relation target, multiple same-app leaves와 operation/resource limit 초과는 structured
+   - self/later target·순환 관계의 same-app operation 순서와 cross-app migration dependency
+   Required/no-default `PROTECT` FK는 실제 실행 시 backend가 source table이 비었음을 확인한 경우만 추가합니다. 이는 순환 생성의
+   부분 게시 뒤 남은 required FK를 재개하는 경로에도 적용합니다. Detector는 DB를 열지 않으며 populated row를 추측한 key나
+   default로 채우지 않습니다. Required scalar/default-bearing addition과 일반 backfill은 계속 unsupported입니다.
+4. Existing model order는 desired state의 exact prefix이고, 유지하는 field의 상대 순서와 metadata는 같아야 합니다(choices-only
+   변경 제외). App/model/field removal, retained reorder, rename, 일반 alter, missing relation target, multiple same-app leaves와 operation/resource limit 초과는 structured
    unsupported/invalid result이며 candidate publication은 0입니다. Desired와 historical state가 같은 clean no-op은 successor name이
    필요하지 않으므로 noncanonical single leaf를 이유로 실패하지 않습니다. 실제 delta가 있어 successor를 만들어야 할 때만
    noncanonical leaf numbering을 structured unsupported result로 닫습니다.
-5. 한 app의 한 invocation change는 한 migration으로 묶습니다. 첫 identity는 `0001_initial`; 다음 identity는 exact single
+5. 다음에 게시할 파일은 아직 생성되지 않은 다른 app의 target을 기다리지 않는 app에서 canonical app 순서로 선택합니다.
+   모두 기다리면 정렬된 target edge를 따라 실제 cycle을 찾고 그 cycle의 canonical app에서 unresolved cross-app FK를 제외한
+   model들을 먼저 생성합니다. 나머지 FK는 뒤의 후보가 추가하므로 한 app에 여러 파일이 생길 수 있습니다.
+   **각 후보 뒤의 정확한 historical prefix에서 다음 후보를 다시 계산**합니다. 중간 종료 뒤 fresh 탐지가 같은 나머지 bytes를
+   만들기 때문에 partial temp의 엄격한 recovery 규칙을 약화하지 않습니다. 후보는 최대 64개이며 남은 app 수만으로도 한도를
+   넘으면 추가 후보 구성 전에 거부합니다. 첫 identity는 `0001_initial`; 다음 identity는 exact single
    same-app leaf의 four-digit numeric prefix 다음 번호입니다. 단일 operation은 normalized semantic model name 또는
    `<model>_<field>` slug를 사용합니다. 복합 변경은 `auto_` 뒤에
    `SHA-256("godj/migration-name/v1\x00" || <canonical-semantic-change-json>)`의 앞 6 bytes를 12자리 lowercase hex로
    붙입니다. 완전한 suffix는 `auto_<12-lowercase-hex>`이고 시각과 random 값은 사용하지 않습니다. 이 writer가 Encode에
    전달하는 persisted producer는 exact `{"name":"godj-makemigrations","version":"1"}`입니다.
-6. Candidate dependencies는 same-app prior leaf와 relation target model의 실제 historical leaf 또는 새 creator candidate를 canonical
-   key order로 포함합니다. Candidate app graph는 topological order로 materialize하고 canonical tie-break는 app identity입니다.
-   Same-app `CreateModel`은 normalized desired model suffix order를 보존하며 relation target은 historical model 또는 그 suffix에서 먼저
-   생성된 model이어야 합니다. 선언 순서를 writer가 재배열하거나 later/self/cyclic target을 추측하지 않습니다.
+6. Candidate dependencies는 그 게시 prefix의 same-app prior leaf와 실제 relation target app의 historical leaf를 canonical key
+   order로 포함합니다. 앞서 계획한 candidate가 그 prefix에 반영되므로 dependency는 항상 이미 게시될 파일을 가리킵니다.
+   Same-app `CreateModel`은 normalized desired model suffix order를 보존합니다. Self는 같은 Create에서 visible하고 later target
+   FK만 미뤄 모든 Create 뒤에 Add합니다. 명시적 PK와 scalar 위치를 보존하기 위해 AddField의 optional `before_field`가 이미
+   존재하는 다음 field를 anchor로 사용합니다. Canonical digest/resource admission/역방향도 위치를 소유합니다.
+   [ADR-0064](0064-historical-relation-graphs-and-sqlite-remakes.md)의 logical/physical order 경계를 따릅니다.
 7. Writer-owned filesystem root는 첫 product에서 configured `MigrationDefinitionRoots`가 정확히 하나이고 그 root가 이미
    존재하는 physical directory일 때만 활성화합니다. Missing root를 자동 생성하지 않으며 mutation 0으로 실패합니다.
    Programmatic `MigrationDefinitionSources`는 read-only입니다. File roster는 flat

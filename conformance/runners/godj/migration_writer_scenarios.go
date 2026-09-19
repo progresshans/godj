@@ -1121,7 +1121,7 @@ func migrationWriterUnsupportedCases() ([]struct {
 	}}
 	altered := migrationWriterArticle()
 	altered.Fields[0].MaxLength = 201
-	self := migrationWriterArticle(migrationWriterForeignKey("parent", "ParentID", "blog", "article", true, ir.DeleteProtect))
+	required := migrationWriterArticle(ir.Field{Name: "required", GoName: "Required", Kind: ir.FieldText})
 	addSummary := migrationWriterSpec(migrationWriterApp("blog", migrationWriterArticle(
 		ir.Field{Name: "summary", GoName: "Summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 200},
 	)))
@@ -1135,7 +1135,7 @@ func migrationWriterUnsupportedCases() ([]struct {
 		{name: "field_reorder", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", reordered))},
 		{name: "field_rename", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", renamed))},
 		{name: "field_alter", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", altered))},
-		{name: "self_or_cyclic_relation", history: nil, desired: migrationWriterSpec(migrationWriterApp("blog", self))},
+		{name: "required_field_without_backfill", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", required))},
 		{name: "noncanonical_leaf", history: noncanonical, desired: addSummary},
 	}, nil
 }

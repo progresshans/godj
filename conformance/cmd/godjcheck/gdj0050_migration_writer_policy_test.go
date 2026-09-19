@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/conformance/internal/protocol"
 )
 
-func TestGDJ0050DeviationPolicyAndFixtureOwnExactlyNineteenResultLeaves(t *testing.T) {
+func TestMigrationWriterDeviationPolicyOwnsExactReviewedResultLeaves(t *testing.T) {
 	t.Parallel()
 
 	policy, err := deviationPolicyForDecision("DEV-0010")

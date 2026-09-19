@@ -176,6 +176,14 @@ func (scanner *encodingSizeScanner) scanAddField(path string, operation migratio
 	if err := scanner.addString(path+".model_name", operation.ModelName); err != nil {
 		return err
 	}
+	if operation.BeforeField != "" {
+		if err := scanner.addStructural(path+".before_field", uint64(len(`,"before_field":""`))); err != nil {
+			return err
+		}
+		if err := scanner.addString(path+".before_field", operation.BeforeField); err != nil {
+			return err
+		}
+	}
 	return scanner.scanField(path+".field", operation.Field)
 }
 

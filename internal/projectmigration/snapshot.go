@@ -221,6 +221,9 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 	if err != nil {
 		var detection *migrationautodetect.Error
 		if errors.As(err, &detection) && detection != nil {
+			if detection.Code == migrationautodetect.CodeCandidateResourceLimit {
+				return Snapshot{}, snapshotError(CategoryCandidate, CodeCandidateResourceLimit, err)
+			}
 			if detection.Code == migrationautodetect.CodeUnsupportedChange {
 				return Snapshot{}, snapshotError(CategoryPlanning, CodeUnsupportedChange, err)
 			}

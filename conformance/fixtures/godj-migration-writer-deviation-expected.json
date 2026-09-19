@@ -173,8 +173,8 @@
           "dimension": "result",
           "path": "cases[5].code",
           "operation": "replace",
-          "reference": {"type": "string", "value": "relation_cycle"},
-          "product": {"type": "string", "value": "invalid_relation"}
+          "reference": {"type": "string", "value": "unsupported_delta"},
+          "product": {"type": "string", "value": "unsupported_change"}
         },
         {
           "dimension": "result",

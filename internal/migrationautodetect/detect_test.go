@@ -265,7 +265,7 @@ func TestDetectCrossAppRelationsToHistoricalModelsDoNotCreateCandidateCycle(t *t
 		{App: "beta", Name: "0001_initial"},
 	}
 	wantBetaDependencies := []migrations.MigrationKey{
-		{App: "alpha", Name: "0001_initial"},
+		{App: "alpha", Name: got[0].Name},
 		{App: "beta", Name: "0001_initial"},
 	}
 	if !reflect.DeepEqual(got[0].Dependencies, wantAlphaDependencies) {
@@ -447,62 +447,8 @@ func TestDetectRejectsRemovalReorderAndAlter(t *testing.T) {
 	}
 }
 
-func TestDetectRejectsSelfAndLaterSameAppRelationTargets(t *testing.T) {
+func TestDetectRejectsMissingRelationTargets(t *testing.T) {
 	t.Parallel()
-
-	tests := []struct {
-		name    string
-		desired migrations.ProjectState
-		field   string
-	}{
-		{
-			name: "self target",
-			desired: mustProjectState(t, testSchema("content", testModel("article",
-				testChar("title", false, nil),
-				testForeignKey("parent", true, "content", "article", "children"),
-			))),
-			field: "parent",
-		},
-		{
-			name: "later-created target",
-			desired: mustProjectState(t, testSchema("content",
-				testModel("article",
-					testChar("title", false, nil),
-					testForeignKey("author", false, "content", "author", "articles"),
-				),
-				testModel("author", testChar("name", false, nil)),
-			)),
-			field: "author",
-		},
-	}
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			err := detectError(t, Request{
-				Definitions: mustLoadDefinitions(t),
-				Desired:     test.desired,
-				ManagedApps: []string{"content"},
-			}, CodeInvalidRelation)
-			if err.App != "content" || err.Model != "article" || err.Field != test.field {
-				t.Fatalf("relation error location = %+v", err)
-			}
-		})
-	}
-
-	t.Run("existing model self AddField", func(t *testing.T) {
-		t.Parallel()
-		history := mustProjectState(t, testSchema("content", testModel("article", testChar("title", false, nil))))
-		loaded := mustLoadDefinitions(t, initialMigrationsFromState(t, history)...)
-		desired := mustProjectState(t, testSchema("content", testModel("article",
-			testChar("title", false, nil),
-			testForeignKey("parent", true, "content", "article", "children"),
-		)))
-		err := detectError(t, Request{Definitions: loaded, Desired: desired, ManagedApps: []string{"content"}}, CodeInvalidRelation)
-		if err.App != "content" || err.Model != "article" || err.Field != "parent" {
-			t.Fatalf("self AddField error location = %+v", err)
-		}
-	})
 
 	t.Run("missing cross-app authority", func(t *testing.T) {
 		t.Parallel()
@@ -535,24 +481,6 @@ func TestDetectRejectsSelfAndLaterSameAppRelationTargets(t *testing.T) {
 			t.Fatalf("missing cross-app target error location = %+v", err)
 		}
 	})
-}
-
-func TestDetectRejectsCrossAppCandidateCycle(t *testing.T) {
-	t.Parallel()
-
-	desired := mustProjectState(t,
-		testSchema("alpha", testModel("alpha_item",
-			testForeignKey("beta", true, "beta", "beta_item", "alpha_items"),
-		)),
-		testSchema("beta", testModel("beta_item",
-			testForeignKey("alpha", true, "alpha", "alpha_item", "beta_items"),
-		)),
-	)
-	detectError(t, Request{
-		Definitions: mustLoadDefinitions(t),
-		Desired:     desired,
-		ManagedApps: []string{"beta", "alpha"},
-	}, CodeInvalidGeneratedPlan)
 }
 
 func TestDetectHonorsDefinitionOperationLimit(t *testing.T) {

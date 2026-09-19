@@ -740,7 +740,7 @@ challenge/detail을 무시해 복귀하지 않습니다.
 - Date: 2026-08-30
 - Contracts: MIG-103, MIG-104, MIG-105, MIG-106, MIG-107
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile의 MIG-103..106;
-  GDJ-0050 Phase-A GoDj decision oracle의 MIG-107; GoDj SQLite와 PostgreSQL 17.10 actual
+  GDJ-0085에서 갱신한 GoDj decision oracle의 MIG-107; GoDj SQLite와 PostgreSQL 17.10 actual
 - Related ADR/work/evidence:
   [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md),
   [GDJ-0050](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/work/0050-project-linked-deterministic-makemigrations.md),
@@ -755,10 +755,10 @@ Django MIG-103은 관찰한 새 `ForeignKey`의 `on_delete`를 `CASCADE`로 기�
 `0002_category_article_summary_article_category`를 사용합니다. MIG-105/106은 app-local Python migration directory의
 `__init__.py`, `0001_initial.py` roster와 사람이 읽는 다중 행 command output을 관찰합니다.
 
-MIG-107은 Django parity 계약이 아닙니다. Phase A에서 GoDj-owned fail-closed decision oracle이 unsupported scalar/remove/required
-field를 `unsupported_delta`, relation cycle을 `relation_cycle`, noncanonical applied leaf를 `noncanonical_leaf`로 분류했습니다.
-현재 제품 비교는 이 historical decision oracle을 입력으로 보존하되, production error taxonomy와 다른 값을 의도적으로
-supersede합니다.
+MIG-107은 Django parity 계약이 아닙니다. 독립 GoDj-owned fail-closed decision oracle이 unsupported scalar/remove/required
+field를 `unsupported_delta`, noncanonical applied leaf를 `noncanonical_leaf`로 분류합니다. GDJ-0085에서 지원하는
+self/cyclic 관계를 거부 case에서 제외하고 backfill 없는 required field 추가로 교체했습니다. 현재 독립 Python decision을
+실행하여 MIG-107 관찰만 다시 기록했으며 같은 artifact의 나머지 11개 관찰과 Django profile은 그대로 보존합니다.
 
 ### GoDj에서 채택한 동작
 
@@ -767,8 +767,10 @@ GoDj current writer는 지원하는 relation policy를 명시적으로 `PROTECT`
 `<app>_<name>.godj.json`이고 read-only/clean 결과와 candidate roster는 bounded canonical JSON 한 줄로 출력합니다. Python
 package marker나 `.py` source를 만들지 않습니다.
 
-MIG-107 actual은 production API가 소유하는 안정된 code만 노출합니다. 다섯 unsupported delta와 noncanonical leaf는
-`unsupported_change`, relation cycle은 `invalid_relation`입니다. Raw cause, path 또는 secret을 error code로 반사하지 않습니다.
+MIG-107 actual은 production API가 소유하는 안정된 code만 노출합니다. GDJ-0085는 self/cyclic 모델의 자동 계획을 구현했으므로
+현재 Go-owned 거부 목록의 `self_or_cyclic_relation`을 `required_field_without_backfill`로 교체합니다. 나머지 파괴적 변경과
+noncanonical leaf를 포함한 일곱 case는 `unsupported_change`입니다. Go-owned 기준의 재생 일치를 별도 검사하고,
+code selector만 제품 error taxonomy로 변환합니다. Raw cause, path 또는 secret을 error code로 반사하지 않습니다.
 
 Sparse expectation은 result dimension의 exact 열아홉 replacement만 허용합니다.
 
@@ -776,10 +778,17 @@ Sparse expectation은 result dimension의 exact 열아홉 replacement만 허용�
 - MIG-104: migration name 한 selector의 semantic Django name → digest-derived GoDj name
 - MIG-105: dry-run의 before/after flat roster와 canonical JSON output 세 selector
 - MIG-106: clean/check 두 case의 before/after flat roster와 canonical JSON output 여섯 selector
-- MIG-107: 일곱 case의 Phase-A decision-oracle code → stable production error code
+- MIG-107: 일곱 case의 Go-owned decision-oracle code → stable production error code
 
 Exit status, candidate/write/DB-open count, no-mutation, dependency/operation payload, interruption/resume와 나머지 result/metrics는
 locked reference와 같아야 합니다.
+
+GDJ-0085의 독립 Django 6.1 autodetector/SQLite 관찰은
+[별도 raw reference](../internal/migrationgraphtest/testdata/django-autodetect61.json)에 보존합니다. Django는 관계를 뒤에 붙이는
+historical field order와 `0002_initial` 같은 이름을 만들 수 있습니다. GoDj는 선언의 model/field 순서를 BeforeField로 보존하며
+기존 결정적 이름 규칙을 사용합니다. 비교는 정확한 이름별 field/constraint graph와 실제 관계 값에 적용하고, GoDj의 field order는
+독립 선언 순서와 따로 대조합니다. Raw plan이나 Django의 historical order를 고치지 않습니다. Populated required Add 실패 뒤
+삭제된 ID의 상한은 Django remake와 GoDj native Add에서 다를 수 있으며, 상한을 보존하는 기존 DEV-0013 정책을 유지합니다.
 
 ### 이유와 고려한 대안
 
@@ -791,8 +800,9 @@ detector 구조를 외부 ABI로 고정하므로 채택하지 않았습니다.
 ### 사용자·데이터·migration 영향
 
 Generated relation 삭제 의미는 Django default와 달리 `PROTECT`입니다. 이름과 file roster/output도 Django project와 byte-compatible하지
-않지만 같은 desired state에서는 결정적이고 repeat clean입니다. 기존 migration을 rewrite하지 않으며 이번 bounded writer는
-CreateModel/AddField만 지원합니다. Remove/alter/rename/custom/data operation은 stable `unsupported_change`로 fail-closed합니다.
+않지만 같은 desired state에서는 결정적이고 repeat clean입니다. 기존 migration을 rewrite하지 않으며 current writer는
+CreateModel/AddField와 choices-only AlterField를 지원합니다. Remove/넓은 alter/rename/custom/data operation은 stable
+`unsupported_change`로 fail-closed합니다.
 
 ### backend/concurrency/security 영향
 

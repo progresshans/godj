@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 
 	"github.com/progresshans/godj/internal/irresource"
@@ -999,10 +1000,22 @@ func (builder *loadedStateBuilder) addField(operation AddField) error {
 			return fmt.Errorf("field %s.%s.%s collides with reverse relation %s.%s.%s", identity.app, identity.model, field.Name, owner.source.app, owner.source.model, owner.field)
 		}
 	}
-	model.fieldNames[field.Name] = len(model.value.Fields)
+	position, err := addedFieldPosition(model.value.Fields, operation.BeforeField)
+	if err != nil {
+		return err
+	}
 	model.goNames[field.GoName] = field.Name
 	model.columns[field.Column] = field.Name
-	model.value.Fields = append(model.value.Fields, field.Clone())
+	fields := model.value.Fields
+	// Step materialization borrows the previous slice as immutable Before
+	// authority. Appending cannot change its elements; inserting can.
+	if position < len(fields) {
+		fields = slices.Clone(fields)
+	}
+	model.value.Fields = slices.Insert(fields, position, field.Clone())
+	for index := position; index < len(model.value.Fields); index++ {
+		model.fieldNames[model.value.Fields[index].Name] = index
+	}
 	return builder.addRelation(identity, field)
 }
 
@@ -1024,13 +1037,18 @@ func (builder *loadedStateBuilder) removeField(operation AddField) error {
 	if !fieldEqual(actual, want) {
 		return fmt.Errorf("field %s.%s.%s does not match AddField state", identity.app, identity.model, want.Name)
 	}
-	if index != len(model.value.Fields)-1 {
-		return fmt.Errorf("field %s.%s.%s is not the latest field on its model", identity.app, identity.model, want.Name)
+	if err := validateAddedFieldPosition(model.value.Fields, index, operation.BeforeField); err != nil {
+		return err
 	}
 	if err := builder.removeRelation(identity, actual); err != nil {
 		return err
 	}
-	model.value.Fields = model.value.Fields[:index]
+	// Do not shift or clear the borrowed Before snapshot's backing array.
+	fields := model.value.Fields
+	model.value.Fields = append(fields[:index:index], fields[index+1:]...)
+	for current := index; current < len(model.value.Fields); current++ {
+		model.fieldNames[model.value.Fields[current].Name] = current
+	}
 	delete(model.fieldNames, actual.Name)
 	delete(model.goNames, actual.GoName)
 	delete(model.columns, actual.Column)
@@ -2084,6 +2102,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 		loadedScanModelResource(budget, migration, index, kind, value.Model)
 	case AddField:
 		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
+		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].before_field", index), value.BeforeField, false)
 		loadedConsumeNodes(budget, 1)
 		if budget.nodeOverflow {
 			return

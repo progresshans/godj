@@ -1106,11 +1106,12 @@ func TestLoadedDefinitionResourceScanChargesNeutralWireOperationKind(t *testing.
 
 	operation := AddField{
 		AppLabel: "a", ModelName: "m",
-		Field: ir.Field{Name: "f", GoName: "F", Column: "f", Kind: ir.FieldBoolean},
+		Field:       ir.Field{Name: "f", GoName: "F", Column: "f", Kind: ir.FieldBoolean},
+		BeforeField: "anchor",
 	}
 	budget := loadedResourceBudget{}
 	loadedScanOperationResource(&budget, Migration{App: "a", Name: "0001"}, 0, operation)
-	wantBytes := uint64(len("add_field") + len("a") + len("m") + len("f") + len("F") + len("f") + len("boolean"))
+	wantBytes := uint64(len("add_field") + len("a") + len("m") + len("f") + len("F") + len("f") + len("boolean") + len("anchor"))
 	if budget.bytes != wantBytes || budget.nodes != 1 {
 		t.Fatalf("AddField resource charge = bytes:%d nodes:%d, want bytes:%d nodes:1", budget.bytes, budget.nodes, wantBytes)
 	}

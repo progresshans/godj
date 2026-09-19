@@ -116,15 +116,21 @@ func preflightSQLiteRelationRemakes(
 			!sqliteRelationOperationChangesForeignKey(operation) {
 			continue
 		}
-		field := operation.Before.Fields[len(operation.Before.Fields)-1]
-		if len(operation.Targets) == 0 ||
-			!reflect.DeepEqual(operation.Targets[len(operation.Targets)-1].SourceField, field) {
+		field, deltaErr := operation.ChangedField()
+		if deltaErr != nil {
+			return nil, [sha256.Size]byte{}, relationIntentIntegrity("invalid RemoveField delta: %v", deltaErr)
+		}
+		if _, err := sqliteRelationTargetForField(field, operation.Targets); err != nil {
 			return nil, [sha256.Size]byte{}, relationIntentIntegrity(
 				"relation RemoveField operation %d lacks exact changed-field target authority",
 				operation.OperationIndex,
 			)
 		}
-		retainedTargets := cloneSQLiteRelationTargets(operation.Targets[:len(operation.Targets)-1])
+		retainedTargets, err := sqliteRelationTargetsForFields(operation.After, operation.Targets)
+		if err != nil {
+			return nil, [sha256.Size]byte{}, err
+		}
+		retainedTargets = cloneSQLiteRelationTargets(retainedTargets)
 		primaryKey, err := exactRelationTargetPrimaryKey(operation.After)
 		if err != nil {
 			return nil, [sha256.Size]byte{}, relationIntentUnsupported(

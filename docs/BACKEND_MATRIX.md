@@ -40,6 +40,10 @@ Reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse traversal·rever
 
 ## SQLite 경계
 
+Backend가 생성하는 모든 physical connection은 외래키 검사를 ON으로 설정하고 readback 1을 확인한 뒤 pool에 게시한다.
+파일 reopen과 pool 증가/교체에도 적용한다. Driver-level OFF 옵션은 이 무결성 조건을 낮추지 않는다. Migration remake의
+제한된 FK suspension은 별도의 admission/terminal 복원·폐기 경로가 계속 소유한다.
+
 경로 최대 길이는 공통 AST의 64 hop이다. SQLite는 [물리 JOIN 제한](https://www.sqlite.org/limits.html#max_join)에 따라
 root를 포함해 64 table까지만 허용한다. 실제 JOIN 수를 compiler가 계산하여 초과를 빈 조회의 생략 전에 거부한다.
 

@@ -3,6 +3,92 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0085 — Self/cyclic 자동 migration과 재개 가능한 게시
+
+- 작업: [GDJ-0085](../../work/0085-relation-autodetection.md), 의미: [ADR-0052](../adr/0052-project-linked-deterministic-makemigrations.md),
+  [ADR-0064](../adr/0064-historical-relation-graphs-and-sqlite-remakes.md).
+- Baseline `7d9106bce77dfca422b38e5f3347108f57485740`의 `feature/relation-autodetection`에서 구현했다.
+  Markdown을 제외한 51개 변경 파일의 정렬된 `<sha256>  <relative-path>\n` manifest SHA256은
+  `6c0fb835c357137b957a5559e8f3d13c70e9c6623840a53ad2a75e251b6c5398`이다.
+- 일반 실행과 race/CGO0의 제품·test·자동 graph fixture bytes는 같다. 일반 실행 뒤 갱신한 MIG-107 policy/artifact/provenance는
+  별도 현재 writer conformance로 검증했다. 두 JSON의 기존 formatting 복원은 parsed payload가 같은지 대조했다.
+  CI의 필수 receipt 추가는 CI 도구 검사에 포함했다.
+
+### 로컬 실행
+
+Go 1.26.5 darwin/arm64, SQLite 3.53.3과 전용 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+`go test -count=1 -json ./migrations/... ./internal/migrationgraph ./internal/migrationautodetect
+./internal/projectmigration/... ./internal/projectcheck ./db/sqlite ./db/postgres ./conformance/migrationwriterproduct`를 실행했다.
+
+| 범위 | 결과 |
+|---|---|
+| affected normal / race / CGO_ENABLED=0 | 각 **11 test packages, 5,861 PASS events**, 1 no-test package; 세 test roster 동일 |
+| 현재 writer conformance | runner/checker/protocol의 `MigrationWriter\|GDJ0050` 검사 **3 packages, 20 PASS, skip 0**; 실제 MIG-099..110 12개 비교 포함 |
+| 전체 compile-only | **136 packages**, `go test -json -exec /usr/bin/true ./...`; 전체 runtime PASS는 아님 |
+| affected vet | PASS |
+| generated drift | Article·Helpdesk·relation fixture clean, checked-in relation product 검사 PASS |
+| Python CI 도구 | **37 tests PASS, skip 0** |
+| 문서·format·diff | 117개 문서의 로컬 링크, gofmt와 `git diff --check` PASS |
+
+Go JSON의 모든 test 시작/종료·package terminal, 새 graph/연결 초기화/중단 복구 필수 receipt와 빈 stderr를 대조했다.
+직접 skip 둘은 기존 `TestPostgresRevisionFenceHelperProcess`, `TestMakemigrationsCrashHelper`이며 실제 child는 parent
+process 검사가 실행한다. Helper skip과 Go event 수를 제품 기능 PASS 수로 세지 않는다.
+
+별도 module의 public CLI는 세 cyclic 후보의 preview/write/hash 일치·DB-free 게시·repeat clean을 실행한다. 실제 migrate,
+생성 모델의 저장·조회·명시적 순서의 First, 재접속과 잘못된 FK 저장 거부, populated reverse와 재적용·sequence를 검증한다.
+동시 writer는 한 게시자와 한 clean 결과로 끝나며, 후보 세 개 각각의 partial-temp write/directory fsync 뒤 SIGKILL을 주입한
+여섯 case는 이미 게시한 inode/bytes를 보존하고 동일한 나머지 후보를 재개한다.
+
+실제 양 DB에서 same-app/cross-app 자동 정의를 load/apply/reopen/zero/reapply한다. 명시적 PK가 중간에 있는 선언과
+여러 위치의 FK·integer·text를 보존하고 SQL projection, inbound/self 관계·기존 행과 sequence 상한을 검사한다.
+Required FK를 미룬 중간 table에 행이 있으면 정확한 empty-table guard에서 거부하며 그 step의 column/recorder는 게시하지 않는다.
+별도 column drift와 rollback·revision fence·quarantine 회귀도 유지한다.
+
+### 독립 기준과 발견한 결함
+
+고정 Django 6.1 / asgiref 3.12.1 / sqlparse 0.5.5를 사용한 실제 autodetector/loader/executor/schema editor/recorder 관찰을
+[raw fixture](../../internal/migrationgraphtest/testdata/django-autodetect61.json)에 보존했다. SHA256은
+`87487f710612204635c0b90d72b6939bb1013a23d07e8bb367acf3e482cb88fb`이며 기록 환경은 Python 3.14.7 / SQLite 3.53.1이다.
+File discovery만 fixture seam이다. 두 DB의 이름별 field/constraint graph와 실제 관계 값을 대조하며 GoDj field 순서는
+독립 선언 순서와 대조한다. Django historical field 순서·파일 이름·remake 후 ID 차이는 raw 그대로 보존하고
+[DEV-0010/DEV-0013](../DEVIATIONS.md)에 설명한다. Exact file/field-order/ID parity를 주장하지 않는다.
+
+`uv run --no-project --isolated --python <version> --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5
+python -m unittest conformance.runners.django.tests.test_migration_autodetect_reference
+conformance.runners.django.tests.test_migration_writer_decisions`를 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 실행했다.
+각 **6 tests PASS, skip 0**, ResourceWarning 오류 처리를 적용했다. Runtime fingerprint는 실행 환경과, 관찰 본문은 raw와 대조한다.
+MIG-107의 Go-owned 거부 case는 독립 Python decision의 현재 실행으로만 갱신했다. 같은 writer oracle의 나머지 11개 관찰과
+Django profile은 canonical bytes가 동일하며, 현재 Go-owned 다섯 decision의 재생 일치를 검사한다.
+
+외부 재접속 소비자가 드러낸 SQLite 기본 FK OFF 결함은 per-physical-connection connector에서 ON/readback을 수행하도록 수정했다.
+Pool growth·replacement·reopen, DSN의 OFF 옵션, 초기화/rows/close 오류와 취소를 검사했다. 이전 slice alias, fixture의 무정렬
+First·SQLite double-quoted string fallback·Django in-memory 연결 재사용 실패는 PASS로 세지 않았다.
+
+전체 로그·source manifest·event audit는 `/tmp/godj-0085-position-path`가 가리키는 로컬 scratch에 있다.
+현재 로컬 결과이며 통합 커밋의 Hosted ORM 검증을 이어간다. Full-platform·배포·전체 프레임워크 완성의 증거는 아니다.
+
+## GDJ-0085 — 자동 relation 계획의 field insertion 기반 checkpoint
+
+- [활성 work](../../work/0085-relation-autodetection.md)의 `feature/relation-autodetection`, baseline `7d9106bce77dfca422b38e5f3347108f57485740`에서 실행했다.
+  아래는 자동 cycle 분할을 연결하기 전의 **field insertion 기반** 검사이며 GDJ-0085 전체 완료 결과가 아니다.
+- Markdown을 제외한 25개 변경 파일의 정렬된 `<sha256>  <relative-path>\n` manifest SHA256은
+  `261aad3632e9b0d83c1d5c0c3f639b7223f51ddec806a24cae7024ecb7d363a2`다. 최초 self Create/nullable self Add 탐지 변경을 포함한다.
+- Go 1.26.5 darwin/arm64, 전용 PostgreSQL 17.5(Homebrew)와 SQLite를 사용했다.
+  `go test -count=1 -json ./migrations/... ./internal/migrationgraph ./internal/migrationautodetect
+  ./internal/projectmigration/... ./db/sqlite ./db/postgres`를 normal, `-race`, `CGO_ENABLED=0`에서 실행했다.
+  각 lane **9 test packages, 5,377 PASS events**, 1 no-test package이며 세 실행의 test roster가 정확히 일치한다.
+  유일한 직접 test skip은 `TestPostgresRevisionFenceHelperProcess`; 실제 helper는 기존 parent process integration이 실행한다.
+  모든 test 시작/종료·package terminal과 빈 stderr를 대조했다. Go event 수는 제품 기능 수가 아니다.
+- 새 실 DB 검사는 명시적 PK가 중간에 있는 self/inbound graph에 여러 FK·integer·text를 삽입한다. Serialized definition →
+  SQL projection → forward/reopen/no-op → 여러 populated reverse/remake → zero/reapply를 실행하며 정확한 logical field order,
+  기존 행/NULL/참조와 삭제된 ID의 sequence 상한을 보존한다. Retained column 이름 drift는 다음 schema/recorder 게시 전에 거부한다.
+- 위치의 codec roundtrip/canonical digest, 잘못된 anchor/type/과대 문자열, retained field 변경·순서 변경, physical column 중복/
+  ordinal/타입/constraint source 변조와 기존 rollback·contention·quarantine/process 검사를 포함한다.
+  첫 실행의 slice 삽입/삭제가 borrowed Before 배열을 바꾼 실패는 PASS로 세지 않았다. 복사 경계 수정 후의 위 source만 채택했다.
+- 원본 JSON·stderr·source manifest와 audit는 `/tmp/godj-0085-position-path`가 가리키는 로컬 scratch에 보관했다.
+  이후 자동 candidate 분할·부분 게시 재개, Go-owned MIG-107 갱신과 CLI/생성 소비자 검증이 남았다. 새 Hosted/full-platform/배포
+  결과나 기존 Draft PR에 통합된 source를 뜻하지 않는다.
+
 ## GDJ-0084 — Historical relation graph와 순환 migration
 
 - 작업: [GDJ-0084](../../work/0084-relation-migration-graphs.md), 의미: [ADR-0064](../adr/0064-historical-relation-graphs-and-sqlite-remakes.md).

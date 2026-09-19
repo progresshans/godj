@@ -320,11 +320,11 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 		if err := validateExactPostgresMigrationModel(after); err != nil {
 			return before, after, changed, err
 		}
-		if !postgresMigrationSameModel(before, after) || len(after.Fields) != len(before.Fields)+1 ||
-			!reflect.DeepEqual(before.Fields, after.Fields[:len(before.Fields)]) {
-			return before, after, changed, postgresMigrationIntentIntegrity("AddField must append exactly one field to the same model", nil)
+		var err error
+		changed, err = operation.ChangedField()
+		if err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("invalid AddField delta", err)
 		}
-		changed = after.Fields[len(after.Fields)-1]
 		if changed.PrimaryKey {
 			return before, after, changed, postgresMigrationIntentIntegrity("AddField cannot add a primary key", nil)
 		}
@@ -336,11 +336,11 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 		if err := validateExactPostgresMigrationModel(after); err != nil {
 			return before, after, changed, err
 		}
-		if !postgresMigrationSameModel(before, after) || len(before.Fields) != len(after.Fields)+1 ||
-			!reflect.DeepEqual(after.Fields, before.Fields[:len(after.Fields)]) {
-			return before, after, changed, postgresMigrationIntentIntegrity("RemoveField must remove exactly the final field from the same model", nil)
+		var err error
+		changed, err = operation.ChangedField()
+		if err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("invalid RemoveField delta", err)
 		}
-		changed = before.Fields[len(before.Fields)-1]
 		if changed.PrimaryKey {
 			return before, after, changed, postgresMigrationIntentIntegrity("RemoveField cannot remove a primary key", nil)
 		}

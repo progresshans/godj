@@ -26,6 +26,46 @@ func loadedGraphFK(name, target string) ir.Field {
 			Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}}
 }
 
+func TestLoadedAddFieldPositionPreservesNonleadingKeyAndReversesAnchors(t *testing.T) {
+	label := ir.Field{Name: "label", GoName: "Label", Kind: ir.FieldText}
+	key := ir.Field{Name: "key", GoName: "Key", Kind: ir.FieldAuto, PrimaryKey: true}
+	a := loadedGraphModel(t, "a", label, key, loadedGraphFK("parent", "a"))
+	b := loadedGraphModel(t, "b", loadedGraphFK("owner", "a"))
+	complete := loadedGraphModel(t, "a", loadedGraphFK("peer", "b"), label, loadedGraphFK("loop", "a"), key, loadedGraphFK("parent", "a"))
+	definition := Migration{App: "graph", Name: "0001_position", Operations: []Operation{
+		CreateModel{AppLabel: "graph", Model: a}, CreateModel{AppLabel: "graph", Model: b},
+		AddField{AppLabel: "graph", ModelName: "a", Field: complete.Fields[0], BeforeField: "label"},
+		AddField{AppLabel: "graph", ModelName: "a", Field: complete.Fields[2], BeforeField: "key"},
+	}}
+	r, err := newLoadedStateReconstructor([]Migration{definition})
+	if err != nil {
+		t.Fatal(err)
+	}
+	builder := newLoadedStateBuilder()
+	if _, err := r.materializeLoadedStep(context.Background(), builder, PlanStep{Key: definition.Key(), Direction: DirectionForward}, false); err != nil {
+		t.Fatal(err)
+	}
+	actual, _ := builder.model(loadedModelIdentity{app: "graph", model: "a"})
+	if !reflect.DeepEqual(actual.value, complete) {
+		t.Fatal("logical insertion moved a retained field or explicit key")
+	}
+	wrong := definition.Operations[3].(AddField)
+	wrong.BeforeField = "label"
+	if err := builder.clone().removeField(wrong); err == nil {
+		t.Fatal("reverse accepted a changed anchor")
+	}
+	if _, err := r.materializeLoadedStep(context.Background(), builder, PlanStep{Key: definition.Key(), Direction: DirectionBackward}, false); err != nil || !builder.empty() {
+		t.Fatalf("reverse anchored graph: %v", err)
+	}
+	bad := cloneMigrationDefinitions([]Migration{definition})[0]
+	wrong = bad.Operations[2].(AddField)
+	wrong.BeforeField = "missing"
+	bad.Operations[2] = wrong
+	if _, err := newLoadedStateReconstructor([]Migration{bad}); err == nil {
+		t.Fatal("accepted a missing insertion anchor")
+	}
+}
+
 func TestLoadedMigrationGraphMaterializesSelfAndTransitiveCycleInBothDirections(t *testing.T) {
 	a := loadedGraphModel(t, "a", loadedGraphFK("parent", "a"))
 	b := loadedGraphModel(t, "b", loadedGraphFK("a", "a"))

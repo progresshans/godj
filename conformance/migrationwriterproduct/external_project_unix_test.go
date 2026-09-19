@@ -41,6 +41,8 @@ var externalAllowedGoDjImports = map[string]struct{}{
 	"github.com/progresshans/godj/project":   {},
 	"github.com/progresshans/godj/query":     {},
 	"github.com/progresshans/godj/schema/ir": {},
+	"github.com/progresshans/godj/orm":       {},
+	"github.com/progresshans/godj/db":        {},
 }
 
 type externalCommandResult struct {
@@ -68,10 +70,12 @@ type externalMigrateResult struct {
 }
 
 type externalRestartResult struct {
-	PID     int      `json:"pid"`
-	History []string `json:"history"`
-	Title   string   `json:"title"`
-	Author  string   `json:"author"`
+	PID      int      `json:"pid"`
+	History  []string `json:"history"`
+	Title    string   `json:"title"`
+	Author   string   `json:"author"`
+	Parent   int64    `json:"parent"`
+	Featured int64    `json:"featured"`
 }
 
 func TestMigrationWriterExternalProjectSQLitePublicSurface(t *testing.T) {
@@ -175,10 +179,19 @@ replace github.com/progresshans/godj => %s
 		"external-secret-canary-6e9b2ac73d18",
 	}
 
+	preview := externalRun(t, projectRoot, commandEnvironment, globalBinary, "makemigrations", "--dry-run", "--project", descriptor)
+	externalAssertSuccessAndRedacted(t, preview, sensitive...)
+	previewResult := externalDecodeOne[externalMakemigrationsResult](t, preview.stdout)
+	if previewResult.Status != "pending" || previewResult.CandidateCount != 3 {
+		t.Fatalf("cyclic preview=%+v", previewResult)
+	}
+	if entries, err := os.ReadDir(filepath.Join(projectRoot, "migrations")); err != nil || len(entries) != 0 {
+		t.Fatalf("preview mutated source root: %v", err)
+	}
 	firstWriter := externalRun(t, filepath.Join(projectRoot, "nested"), commandEnvironment, globalBinary, "makemigrations", "--project", descriptor)
 	externalAssertSuccessAndRedacted(t, firstWriter, sensitive...)
 	firstWriterResult := externalDecodeOne[externalMakemigrationsResult](t, firstWriter.stdout)
-	if firstWriterResult.Status != "generated" || firstWriterResult.CandidateCount != 2 || len(firstWriterResult.Candidates) != 2 {
+	if firstWriterResult.Status != "generated" || firstWriterResult.CandidateCount != 3 || len(firstWriterResult.Candidates) != 3 {
 		t.Fatalf("first external makemigrations result = %+v", firstWriterResult)
 	}
 	if _, err := os.Lstat(backendMarker); !errors.Is(err, os.ErrNotExist) {
@@ -190,15 +203,17 @@ replace github.com/progresshans/godj => %s
 
 	wantCandidates := []struct {
 		app  string
+		name string
 		path string
 	}{
-		{app: "authors", path: "migrations/authors_0001_initial.godj.json"},
-		{app: "blog", path: "migrations/blog_0001_initial.godj.json"},
+		{app: "authors", name: "0001_initial", path: "migrations/authors_0001_initial.godj.json"},
+		{app: "blog", name: "0001_initial", path: "migrations/blog_0001_initial.godj.json"},
+		{app: "authors", name: "0002_author_featured", path: "migrations/authors_0002_author_featured.godj.json"},
 	}
 	published := make(map[string][sha256.Size]byte, len(wantCandidates))
 	for index, want := range wantCandidates {
 		candidate := firstWriterResult.Candidates[index]
-		if candidate.App != want.app || candidate.Name != "0001_initial" || candidate.Path != want.path || candidate.SourceID != want.path {
+		if candidate.App != want.app || candidate.Name != want.name || candidate.Path != want.path || candidate.SourceID != want.path || candidate.SHA256 != previewResult.Candidates[index].SHA256 {
 			t.Fatalf("external candidate[%d] = %+v", index, candidate)
 		}
 		path := filepath.Join(projectRoot, filepath.FromSlash(candidate.Path))
@@ -245,7 +260,7 @@ replace github.com/progresshans/godj => %s
 	firstMigrate := externalRun(t, filepath.Join(projectRoot, "nested"), commandEnvironment, globalBinary, "migrate", "--project", descriptor)
 	externalAssertSuccessAndRedacted(t, firstMigrate, sensitive...)
 	firstMigrateResult := externalDecodeOne[externalMigrateResult](t, firstMigrate.stdout)
-	if firstMigrateResult.SourceCount != 2 || firstMigrateResult.DefinitionCount != 2 ||
+	if firstMigrateResult.SourceCount != 3 || firstMigrateResult.DefinitionCount != 3 ||
 		len(firstMigrateResult.DefinitionSetDigest) != len("sha256:")+64 || !strings.HasPrefix(firstMigrateResult.DefinitionSetDigest, "sha256:") {
 		t.Fatalf("first external migrate result = %+v", firstMigrateResult)
 	}
@@ -269,8 +284,8 @@ replace github.com/progresshans/godj => %s
 	externalAssertSuccessAndRedacted(t, restart, sensitive...)
 	restartResult := externalDecodeOne[externalRestartResult](t, restart.stdout)
 	if restartResult.PID <= 0 || restartResult.PID == seedPID ||
-		strings.Join(restartResult.History, ",") != "authors/0001_initial,blog/0001_initial" ||
-		restartResult.Title != "external restart survives" || restartResult.Author != "External Author" {
+		strings.Join(restartResult.History, ",") != "authors/0001_initial,authors/0002_author_featured,blog/0001_initial" ||
+		restartResult.Title != "external restart survives" || restartResult.Author != "External Author" || restartResult.Parent != 1 || restartResult.Featured != 1 {
 		t.Fatalf("fresh external restart result = %+v, seed pid %d", restartResult, seedPID)
 	}
 
@@ -281,6 +296,23 @@ replace github.com/progresshans/godj => %s
 	if string(marker) != "opened\nopened\n" {
 		t.Fatalf("external backend marker = %q, want two migrate opens", marker)
 	}
+	generated := externalRun(t, projectRoot, commandEnvironment, globalBinary, "generate", "--project", descriptor)
+	externalAssertSuccessAndRedacted(t, generated, sensitive...)
+	externalWriteFile(t, filepath.Join(projectRoot, "cycle_test.go"), []byte(externalCycleConsumerSource), 0o600)
+	externalRunSuccess(t, projectRoot, setupEnvironment, "go", "mod", "tidy")
+	consumer := externalRun(t, projectRoot, commandEnvironment, "go", "test", "-json", "-count=1", "-mod=readonly", "-run", "^TestGeneratedCyclePersistence$", ".")
+	externalAssertSuccessAndRedacted(t, consumer, sensitive...)
+	externalAssertConsumerReceipt(t, consumer, "TestGeneratedCyclePersistence")
+	reverse := externalRun(t, projectRoot, commandEnvironment, globalBinary, "migrate", "authors", "0001_initial", "--project", descriptor)
+	externalAssertSuccessAndRedacted(t, reverse, sensitive...)
+	base := externalRun(t, projectRoot, commandEnvironment, runnerBinary, "verify-base")
+	externalAssertSuccessAndRedacted(t, base, sensitive...)
+	externalDecodePID(t, base.stdout, "base-preserved")
+	reapply := externalRun(t, projectRoot, commandEnvironment, globalBinary, "migrate", "--project", descriptor)
+	externalAssertSuccessAndRedacted(t, reapply, sensitive...)
+	reapplied := externalRun(t, projectRoot, commandEnvironment, "go", "test", "-json", "-count=1", "-mod=readonly", "-run", "^TestGeneratedCycleAfterReapply$", ".")
+	externalAssertSuccessAndRedacted(t, reapplied, sensitive...)
+	externalAssertConsumerReceipt(t, reapplied, "TestGeneratedCycleAfterReapply")
 	externalAuditApplicationSources(t, repository, projectRoot)
 	testfixture.AssertArtifactsRedacted(t, projectRoot, sensitive...)
 	entries, err := os.ReadDir(filepath.Join(universe, "scratch"))
@@ -289,6 +321,32 @@ replace github.com/progresshans/godj => %s
 	}
 	if len(entries) != 0 {
 		t.Fatalf("external product left private workspace artifacts: %v", externalEntryNames(entries))
+	}
+}
+
+func externalAssertConsumerReceipt(t *testing.T, result externalCommandResult, name string) {
+	t.Helper()
+	started, passed, terminal := 0, 0, false
+	for _, line := range strings.Split(strings.TrimSpace(result.stdout), "\n") {
+		var event struct{ Action, Test string }
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			t.Fatal(err)
+		}
+		if event.Test == name && event.Action == "run" {
+			started++
+		}
+		if event.Test == name && event.Action == "pass" {
+			passed++
+		}
+		if event.Action == "fail" || event.Action == "skip" {
+			t.Fatalf("generated cycle did not complete: %s", line)
+		}
+		if event.Test == "" && event.Action == "pass" {
+			terminal = true
+		}
+	}
+	if started != 1 || passed != 1 || !terminal {
+		t.Fatal("missing generated cycle consumer receipt")
 	}
 }
 
@@ -427,10 +485,10 @@ func externalAssertSuccessAndRedacted(t *testing.T, result externalCommandResult
 	}
 	if result.exitCode != 0 || result.stderr != "" {
 		t.Fatalf(
-			"external command failed: exit=%d stdout_bytes=%d stderr_bytes=%d",
+			"external command failed after redaction checks: exit=%d stdout=%s stderr=%s",
 			result.exitCode,
-			len(result.stdout),
-			len(result.stderr),
+			result.stdout,
+			result.stderr,
 		)
 	}
 }
@@ -543,6 +601,7 @@ func main() {
 		verify()
 		return
 	}
+	if len(os.Args) == 2 && os.Args[1] == "verify-base" { verifyBase(); return }
 	config := project.Config{
 		MigrationDefinitionRoots: []string{"migrations"},
 		LoadProjectSpec: loadProjectSpec,
@@ -574,7 +633,12 @@ func loadProjectSpec(context.Context) (codegen.ProjectSpec, error) {
 		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel: "authors",
 		Models: []ir.Model{{Name: "author", GoName: "Author", Fields: []ir.Field{
+			{Name: "featured", GoName: "FeaturedID", Kind: ir.FieldForeignKey, Nullable: true, Relation: &ir.ForeignKeyRelation{
+				Target: ir.ModelIdentity{AppLabel: "blog", ModelName: "blog_post"}, Cardinality: ir.RelationManyToOne,
+				Reverse: ir.ReverseRelation{Disabled: true}, OnDelete: ir.DeleteProtect,
+			}},
 			{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 100},
+			{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
 		}}},
 	}
 	blog := ir.Schema{
@@ -582,6 +646,10 @@ func loadProjectSpec(context.Context) (codegen.ProjectSpec, error) {
 		AppLabel: "blog",
 		Models: []ir.Model{{Name: "blog_post", GoName: "BlogPost", Fields: []ir.Field{
 			{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
+			{Name: "parent", GoName: "ParentID", Kind: ir.FieldForeignKey, Nullable: true, Relation: &ir.ForeignKeyRelation{
+				Target: ir.ModelIdentity{AppLabel: "blog", ModelName: "blog_post"}, Cardinality: ir.RelationManyToOne,
+				Reverse: ir.ReverseRelation{Disabled: true}, OnDelete: ir.DeleteProtect,
+			}},
 			{Name: "author", GoName: "AuthorID", Kind: ir.FieldForeignKey, Relation: &ir.ForeignKeyRelation{
 				Target: ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 				Cardinality: ir.RelationManyToOne,
@@ -612,6 +680,9 @@ func seed() {
 	if _, err := backend.ExecContext(ctx, "INSERT INTO blog_blog_post (title, author_id) VALUES (?, ?)", "external restart survives", int64(1)); err != nil {
 		_ = backend.Close()
 		fatal()
+	}
+	for _, statement := range []string{"UPDATE authors_author SET featured_id=1 WHERE id=1", "UPDATE blog_blog_post SET parent_id=1 WHERE id=1"} {
+		if _, err := backend.ExecContext(ctx, statement); err != nil { _ = backend.Close(); fatal() }
 	}
 	if err := backend.Close(); err != nil {
 		fatal()
@@ -645,6 +716,7 @@ func verify() {
 	rows, err := backend.Query(ctx, query.NewPlan("blog_blog_post", []query.FieldRef{
 		query.NewFieldRef("title", "title", query.FieldString, false),
 		query.NewFieldRef("author", "author_id", query.FieldInteger, false),
+		query.NewFieldRef("parent", "parent_id", query.FieldInteger, true),
 	}))
 	if err != nil || !rows.Next() {
 		if rows != nil {
@@ -654,7 +726,8 @@ func verify() {
 	}
 	var title string
 	var authorID int64
-	if err := rows.Scan(&title, &authorID); err != nil || authorID != 1 || rows.Next() || rows.Err() != nil {
+	var parentID int64
+	if err := rows.Scan(&title, &authorID, &parentID); err != nil || authorID != 1 || rows.Next() || rows.Err() != nil {
 		_ = rows.Close()
 		fatal()
 	}
@@ -663,6 +736,7 @@ func verify() {
 	}
 	authorRows, err := backend.Query(ctx, query.NewPlan("authors_author", []query.FieldRef{
 		query.NewFieldRef("name", "name", query.FieldString, false),
+		query.NewFieldRef("featured", "featured_id", query.FieldInteger, true),
 	}))
 	if err != nil || !authorRows.Next() {
 		if authorRows != nil {
@@ -671,7 +745,8 @@ func verify() {
 		fatal()
 	}
 	var author string
-	if err := authorRows.Scan(&author); err != nil || authorRows.Next() || authorRows.Err() != nil {
+	var featuredID int64
+	if err := authorRows.Scan(&author, &featuredID); err != nil || authorRows.Next() || authorRows.Err() != nil {
 		_ = authorRows.Close()
 		fatal()
 	}
@@ -683,7 +758,9 @@ func verify() {
 		History []string ` + "`json:\"history\"`" + `
 		Title string ` + "`json:\"title\"`" + `
 		Author string ` + "`json:\"author\"`" + `
-	}{PID: os.Getpid(), History: historyKeys, Title: title, Author: author})
+		Parent int64 ` + "`json:\"parent\"`" + `
+		Featured int64 ` + "`json:\"featured\"`" + `
+	}{PID: os.Getpid(), History: historyKeys, Title: title, Author: author, Parent: parentID, Featured: featuredID})
 }
 
 func writeJSON(value any) {
@@ -692,8 +769,85 @@ func writeJSON(value any) {
 	}
 }
 
+func verifyBase() {
+	ctx := context.Background()
+	backend, err := sqlite.Open(ctx, os.Getenv(databaseEnvironment)); if err != nil { fatal() }
+	defer func() { if err := backend.Close(); err != nil { fatal() } }()
+	history, err := backend.ReadAppliedMigrations(ctx); if err != nil || len(history)!=2 { fatal() }
+	for _, table := range []string{"authors_author", "blog_blog_post"} {
+		fields := []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)}
+		if table == "authors_author" { fields = append(fields, query.NewFieldRef("name", "name", query.FieldString, false)) } else { fields = append(fields, query.NewFieldRef("author", "author_id", query.FieldInteger, false), query.NewFieldRef("parent", "parent_id", query.FieldInteger, true)) }
+		rows, err := backend.Query(ctx, query.NewPlan(table, fields)); if err != nil { fatal() }
+		seen := make(map[int64]bool)
+		for rows.Next() {
+			var id, author, parent int64; var name string
+			if table == "authors_author" {
+				if err := rows.Scan(&id, &name); err != nil { fatal() }
+				if id==1 && name!="External Author" || id==2 && name!="Typed author" { fatal() }
+			} else {
+				if err := rows.Scan(&id, &author, &parent); err != nil || author!=id || parent!=id { fatal() }
+			}
+			if id<1 || id>2 || seen[id] { fatal() }; seen[id]=true
+		}
+		if rows.Err()!=nil || rows.Close()!=nil || len(seen)!=2 { fatal() }
+	}
+	// A qualified identifier cannot become SQLite's double-quoted string
+	// fallback when the removed column is absent.
+	if _, err := backend.ExecContext(ctx, "SELECT probe.featured_id FROM authors_author AS probe"); err==nil { fatal() }
+	writeJSON(struct { Status string ` + "`json:\"status\"`" + `; PID int ` + "`json:\"pid\"`" + ` }{Status:"base-preserved",PID:os.Getpid()})
+}
+
 func fatal() {
 	_, _ = fmt.Fprintln(os.Stderr, "external project helper failed")
 	os.Exit(1)
+}
+`
+
+const externalCycleConsumerSource = `package consumer_test
+
+import (
+ "os"
+ "testing"
+ "example.com/godj-migrationwriter-external/generated/authors"
+ "example.com/godj-migrationwriter-external/generated/blog"
+ "github.com/progresshans/godj/db/sqlite"
+)
+
+func TestGeneratedCyclePersistence(t *testing.T) {
+ ctx := t.Context()
+ backend, err := sqlite.Open(ctx, os.Getenv("GODJ_EXTERNAL_SQLITE_DATABASE"))
+ if err != nil { t.Fatal(err) }; defer func() { if err := backend.Close(); err != nil { t.Error(err) } }()
+ fields := (authors.AuthorDescriptor{}).Metadata().Fields
+ if len(fields)!=3 || fields[0].Name!="featured" || fields[1].Name!="name" || fields[2].Name!="id" { t.Fatal("generated descriptor changed declaration order") }
+ author, err := authors.AuthorObjects.Create(ctx, backend, authors.NewAuthorCreate("Typed author")); if err != nil { t.Fatal(err) }
+ post, err := blog.BlogPostObjects.Create(ctx, backend, blog.NewBlogPostCreate("Typed post", author.ID)); if err != nil { t.Fatal(err) }
+ author.FeaturedID = &post.ID
+ if err := authors.AuthorObjects.Save(ctx, backend, &author, authors.AuthorUpdateFieldNames("featured")); err != nil { t.Fatal(err) }
+ post.ParentID = &post.ID
+ if err := blog.BlogPostObjects.Save(ctx, backend, &post, blog.BlogPostUpdateFieldNames("parent")); err != nil { t.Fatal(err) }
+ if err := backend.Close(); err != nil { t.Fatal(err) }
+ backend, err = sqlite.Open(ctx, os.Getenv("GODJ_EXTERNAL_SQLITE_DATABASE")); if err != nil { t.Fatal(err) }
+ got, found, err := authors.AuthorObjects.Using(backend).Filter(authors.AuthorFields.ID.Exact(author.ID)).OrderBy(authors.AuthorFields.ID.Asc()).First(ctx)
+ if err != nil || !found || got.Name!="Typed author" || got.ID!=author.ID || got.FeaturedID==nil || *got.FeaturedID!=post.ID { t.Fatalf("typed author after reopen: %+v %v", got, err) }
+ linked, found, err := blog.BlogPostObjects.Using(backend).Filter(blog.BlogPostFields.ID.Exact(post.ID)).OrderBy(blog.BlogPostFields.ID.Asc()).First(ctx)
+ if err != nil || !found || linked.AuthorID!=author.ID || linked.ParentID==nil || *linked.ParentID!=post.ID { t.Fatalf("typed cycle after reopen: %+v %v", linked, err) }
+ invalid := int64(999999); got.FeaturedID = &invalid
+ if err := authors.AuthorObjects.Save(ctx, backend, &got, authors.AuthorUpdateFieldNames("featured")); err == nil { t.Fatal("invalid cyclic FK was accepted") }
+ got, found, err = authors.AuthorObjects.Using(backend).Filter(authors.AuthorFields.ID.Exact(author.ID)).OrderBy(authors.AuthorFields.ID.Asc()).First(ctx)
+ if err != nil || !found || got.FeaturedID==nil || *got.FeaturedID!=post.ID { t.Fatal("failed FK save changed the stored row") }
+}
+
+func TestGeneratedCycleAfterReapply(t *testing.T) {
+ ctx := t.Context()
+ backend, err := sqlite.Open(ctx, os.Getenv("GODJ_EXTERNAL_SQLITE_DATABASE")); if err != nil { t.Fatal(err) }
+ defer func() { if err := backend.Close(); err != nil { t.Error(err) } }()
+ for id:=int64(1); id<=2; id++ {
+  author, found, err := authors.AuthorObjects.Using(backend).Filter(authors.AuthorFields.ID.Exact(id)).OrderBy(authors.AuthorFields.ID.Asc()).First(ctx)
+  if err!=nil || !found || author.FeaturedID!=nil || author.ID!=id { t.Fatalf("reapplied nullable relation: %+v %v",author,err) }
+  post, found, err := blog.BlogPostObjects.Using(backend).Filter(blog.BlogPostFields.ID.Exact(id)).OrderBy(blog.BlogPostFields.ID.Asc()).First(ctx)
+  if err!=nil || !found || post.AuthorID!=id || post.ParentID==nil || *post.ParentID!=id { t.Fatalf("inbound/self values lost: %+v %v",post,err) }
+ }
+ next, err := authors.AuthorObjects.Create(ctx, backend, authors.NewAuthorCreate("After remake"))
+ if err!=nil || next.ID!=3 { t.Fatalf("sequence after remake: %+v %v",next,err) }
 }
 `

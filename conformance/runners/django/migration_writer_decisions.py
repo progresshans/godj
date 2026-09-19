@@ -76,7 +76,7 @@ def unsupported_delta_fail_closed(contract_id: str) -> dict[str, Any]:
         {"case": "field_reorder", "code": "unsupported_delta"},
         {"case": "field_rename", "code": "unsupported_delta"},
         {"case": "field_alter", "code": "unsupported_delta"},
-        {"case": "self_or_cyclic_relation", "code": "relation_cycle"},
+        {"case": "required_field_without_backfill", "code": "unsupported_delta"},
         {"case": "noncanonical_leaf", "code": "noncanonical_leaf"},
     ]
     return observed(

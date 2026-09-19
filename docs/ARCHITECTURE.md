@@ -127,6 +127,10 @@ Historical `ProjectState`는 적용할 당시의 schema를 dependency 순서로 
 상태의 equality는 복제 없이 schema 의미를 비교한다. App 변경은 바깥 map과 변경된 schema만 복사하고 바뀌지 않은 private
 schema를 공유한다. 공개 Schema/Model/Clone과 mutable replay builder의 복사는 유지한다.
 
+`AddField.BeforeField`는 기존 historical field 앞의 논리적 삽입을 표현하며 빈 값은 append다. Definition/hash/resource 검증과
+양방향 replay가 위치를 함께 보존한다. DB의 physical column 순서는 다를 수 있으나 이름별 전체 field/constraint metadata와
+physical ordinal의 무결성은 확인한다. 삽입·제거 과정은 이전 snapshot이 빌려 읽는 배열을 변경하지 않는다.
+
 Planner는 불변 identity graph를 사용하며 같은 입력에 canonical plan을 만든다. 비교 불가능한 sibling의 합법적 순서는
 Django와 다를 수 있다. [DEV-0002](DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)는 이를 명시적으로
 분류하며 final schema/history, dependency order와 durable prefix를 대신 생략하지 않는다.

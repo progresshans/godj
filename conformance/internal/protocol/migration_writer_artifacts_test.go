@@ -195,7 +195,11 @@ func assertMigrationWriterProvenance(t *testing.T, contract Contract, djangoAuth
 	if len(contract.Provenance) < 2 {
 		t.Fatalf("contract %s provenance = %#v", contract.ID, contract.Provenance)
 	}
-	for index, want := range []struct{ kind, reference string }{{"proposal", "GDJ-0050"}, {"documentation", "ADR-0052"}} {
+	proposal := "GDJ-0050"
+	if contract.ID == "MIG-107" {
+		proposal = "GDJ-0085"
+	}
+	for index, want := range []struct{ kind, reference string }{{"proposal", proposal}, {"documentation", "ADR-0052"}} {
 		got := contract.Provenance[index]
 		if got.Kind != want.kind || got.Reference != want.reference || got.Derived == nil || *got.Derived || got.License != "" {
 			t.Fatalf("contract %s provenance %d = %#v", contract.ID, index, got)

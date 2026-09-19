@@ -213,7 +213,10 @@ func (schema *postgresMigrationSchema) AddField(
 	if err != nil {
 		return err
 	}
-	changed := operation.After.Fields[len(operation.After.Fields)-1]
+	changed, err := operation.ChangedField()
+	if err != nil {
+		return postgresMigrationIntentIntegrity("invalid sealed AddField delta", err)
+	}
 	if !reflect.DeepEqual(model, operation.Before) || !migrationFieldsEqual(field, changed) {
 		return postgresMigrationIntentIntegrity("AddField arguments differ from the sealed migration operation", nil)
 	}
@@ -242,7 +245,10 @@ func (schema *postgresMigrationSchema) RemoveField(
 	if err != nil {
 		return err
 	}
-	changed := operation.Before.Fields[len(operation.Before.Fields)-1]
+	changed, err := operation.ChangedField()
+	if err != nil {
+		return postgresMigrationIntentIntegrity("invalid sealed RemoveField delta", err)
+	}
 	if !reflect.DeepEqual(model, operation.Before) || !migrationFieldsEqual(field, changed) {
 		return postgresMigrationIntentIntegrity("RemoveField arguments differ from the sealed migration operation", nil)
 	}
@@ -387,7 +393,10 @@ func (schema *postgresMigrationSchema) preflightPostgresRequiredAdds(
 		if operation.Kind != migrationbackend.MigrationAddField {
 			continue
 		}
-		field := operation.After.Fields[len(operation.After.Fields)-1]
+		field, deltaErr := operation.ChangedField()
+		if deltaErr != nil {
+			return postgresMigrationIntentIntegrity("invalid sealed AddField delta", deltaErr)
+		}
 		if !postgresMigrationAddRequiresEmptyTable(field) {
 			continue
 		}

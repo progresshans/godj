@@ -24,11 +24,15 @@ import (
 type ErrorCode string
 
 const (
-	CodeInvalidRequest       ErrorCode = "invalid_request"
-	CodeUnsupportedChange    ErrorCode = "unsupported_change"
-	CodeAmbiguousHistory     ErrorCode = "ambiguous_history"
-	CodeInvalidRelation      ErrorCode = "invalid_relation"
-	CodeInvalidGeneratedPlan ErrorCode = "invalid_generated_plan"
+	CodeInvalidRequest         ErrorCode = "invalid_request"
+	CodeUnsupportedChange      ErrorCode = "unsupported_change"
+	CodeAmbiguousHistory       ErrorCode = "ambiguous_history"
+	CodeInvalidRelation        ErrorCode = "invalid_relation"
+	CodeInvalidGeneratedPlan   ErrorCode = "invalid_generated_plan"
+	CodeCandidateResourceLimit ErrorCode = "candidate_resource_limit_exceeded"
+
+	// MaxCandidates bounds prefix planning and per-file publication CAS work.
+	MaxCandidates = 64
 
 	compositeMigrationNameDigestDomain = "godj/migration-name/v1\x00"
 )
@@ -117,8 +121,9 @@ type relationReference struct {
 }
 
 // Detect computes the additive-only migration plan required to make every
-// managed historical app exactly equal Desired. Existing model and field
-// order is an exact prefix contract because current operations only append.
+// managed historical app exactly equal Desired. Existing model order and the
+// relative order of retained fields are preserved. Deferred relations may be
+// inserted between retained fields without changing their metadata.
 func Detect(request Request) (Plan, error) {
 	if request.Definitions.Digest() == "" {
 		return Plan{}, detectionError(CodeInvalidRequest, "", "", "", fmt.Errorf("definition set is not initialized"))
@@ -148,182 +153,58 @@ func Detect(request Request) (Plan, error) {
 		}
 	}
 
-	leaves := migrationLeaves(existingDefinitions)
-	changes := make(map[string]appChange, len(managedOrder))
-	for _, app := range managedOrder {
-		if len(leaves[app]) > 1 {
-			return Plan{}, detectionError(CodeAmbiguousHistory, app, "", "", fmt.Errorf("managed app has %d migration leaves", len(leaves[app])))
-		}
-		change, changed, detectErr := detectAppChange(app, current, desired)
-		if detectErr != nil {
-			return Plan{}, detectErr
-		}
-		if changed {
-			changes[app] = change
-		}
-	}
-
-	if len(changes) == 0 {
-		return Plan{baseState: current}, nil
-	}
-
 	expected, err := expectedProjectState(current, desired, managed)
 	if err != nil {
 		return Plan{}, detectionError(CodeInvalidRequest, "", "", "", fmt.Errorf("expected state: %w", err))
 	}
-
-	candidates := make(map[string]migrations.Migration, len(changes))
-	changeApps := make([]string, 0, len(changes))
-	for app := range changes {
-		changeApps = append(changeApps, app)
-	}
-	sort.Strings(changeApps)
-	for _, app := range changeApps {
-		change := changes[app]
-		name, nameErr := nextMigrationName(app, leaves[app], change.operations, existingDefinitions)
-		if nameErr != nil {
-			return Plan{}, nameErr
-		}
-		dependencies := append([]migrations.MigrationKey(nil), leaves[app]...)
-		candidates[app] = migrations.Migration{
-			App:          app,
-			Name:         name,
-			Dependencies: dependencies,
-			Operations:   cloneOperations(change.operations),
-		}
-	}
-
-	for _, app := range changeApps {
-		candidate := candidates[app]
-		relations := append([]relationReference(nil), changes[app].relations...)
-		sort.Slice(relations, func(left, right int) bool {
-			if relations[left].targetApp != relations[right].targetApp {
-				return relations[left].targetApp < relations[right].targetApp
+	base := current
+	var candidates []migrations.Migration
+	for {
+		leaves := migrationLeaves(existingDefinitions)
+		changes := make(map[string]appChange, len(managedOrder))
+		for _, app := range managedOrder {
+			if len(leaves[app]) > 1 {
+				return Plan{}, detectionError(CodeAmbiguousHistory, app, "", "", fmt.Errorf("managed app has %d migration leaves", len(leaves[app])))
 			}
-			if relations[left].targetModel != relations[right].targetModel {
-				return relations[left].targetModel < relations[right].targetModel
+			change, changed, err := detectAppChange(app, current, desired)
+			if err != nil {
+				return Plan{}, err
 			}
-			if relations[left].sourceModel != relations[right].sourceModel {
-				return relations[left].sourceModel < relations[right].sourceModel
-			}
-			return relations[left].field < relations[right].field
-		})
-		for _, relation := range relations {
-			if relation.targetApp == app {
-				continue
-			}
-
-			// A relation to a model already present in historical state only
-			// requires that model's current app leaf. Depending on an unrelated
-			// candidate for the same app would create false candidate cycles.
-			if _, exists := current.Model(relation.targetApp, relation.targetModel); exists {
-				targetLeaves := leaves[relation.targetApp]
-				switch len(targetLeaves) {
-				case 1:
-					candidate.Dependencies = append(candidate.Dependencies, targetLeaves[0])
-				case 0:
-					return Plan{}, detectionError(CodeInvalidRelation, app, relation.sourceModel, relation.field, fmt.Errorf(
-						"historical relation target %s.%s has no migration authority",
-						relation.targetApp,
-						relation.targetModel,
-					))
-				default:
-					return Plan{}, detectionError(CodeAmbiguousHistory, relation.targetApp, relation.targetModel, "", fmt.Errorf(
-						"relation target app has %d migration leaves",
-						len(targetLeaves),
-					))
-				}
-				continue
-			}
-
-			if _, exists := desired.Model(relation.targetApp, relation.targetModel); !exists {
-				return Plan{}, detectionError(CodeInvalidRelation, app, relation.sourceModel, relation.field, fmt.Errorf(
-					"relation target model %s.%s does not exist",
-					relation.targetApp,
-					relation.targetModel,
-				))
-			}
-			if targetCandidate, exists := candidates[relation.targetApp]; exists {
-				candidate.Dependencies = append(candidate.Dependencies, targetCandidate.Key())
-				continue
-			}
-			return Plan{}, detectionError(CodeInvalidRelation, app, relation.sourceModel, relation.field, fmt.Errorf(
-				"new relation target %s.%s has no candidate migration authority",
-				relation.targetApp,
-				relation.targetModel,
-			))
-		}
-		candidate.Dependencies = canonicalDependencies(candidate.Dependencies)
-		candidates[app] = candidate
-	}
-
-	ordered, err := topologicalCandidates(candidates)
-	if err != nil {
-		return Plan{}, err
-	}
-	combined := append(cloneMigrations(existingDefinitions), cloneMigrations(ordered)...)
-	generated, err := migrations.NewStateReconstructor(combined...)
-	if err != nil {
-		return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", err)
-	}
-	actual, err := generated.Reconstruct(migrations.LatestStateRequest())
-	if err != nil {
-		return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", err)
-	}
-	if !actual.Equal(expected) {
-		return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", fmt.Errorf("generated latest state differs from desired managed state"))
-	}
-	return Plan{migrations: cloneMigrations(ordered), baseState: current}, nil
-}
-
-// topologicalCandidates returns an order in which every candidate-only
-// dependency is already a valid durable prefix. Existing dependencies are
-// ignored because they are present in the base loaded catalog.
-func topologicalCandidates(input map[string]migrations.Migration) ([]migrations.Migration, error) {
-	byKey := make(map[migrations.MigrationKey]migrations.Migration, len(input))
-	indegree := make(map[migrations.MigrationKey]int, len(input))
-	children := make(map[migrations.MigrationKey][]migrations.MigrationKey, len(input))
-	for _, migration := range input {
-		key := migration.Key()
-		byKey[key] = migration
-		indegree[key] = 0
-	}
-	for _, migration := range input {
-		child := migration.Key()
-		for _, dependency := range migration.Dependencies {
-			if _, candidate := byKey[dependency]; !candidate {
-				continue
-			}
-			indegree[child]++
-			children[dependency] = append(children[dependency], child)
-		}
-	}
-	ready := make([]migrations.MigrationKey, 0, len(input))
-	for key, count := range indegree {
-		if count == 0 {
-			ready = append(ready, key)
-		}
-	}
-	sortMigrationKeys(ready)
-	ordered := make([]migrations.Migration, 0, len(input))
-	for len(ready) != 0 {
-		key := ready[0]
-		ready = ready[1:]
-		ordered = append(ordered, byKey[key])
-		values := children[key]
-		sortMigrationKeys(values)
-		for _, child := range values {
-			indegree[child]--
-			if indegree[child] == 0 {
-				ready = append(ready, child)
-				sortMigrationKeys(ready)
+			if changed {
+				changes[app] = change
 			}
 		}
+		if len(changes) == 0 {
+			if !current.Equal(expected) {
+				return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", fmt.Errorf("generated latest state differs from desired managed state"))
+			}
+			return Plan{migrations: cloneMigrations(candidates), baseState: base}, nil
+		}
+		if len(changes) > MaxCandidates-len(candidates) {
+			return Plan{}, detectionError(CodeCandidateResourceLimit, "", "", "", fmt.Errorf("candidate count exceeds %d", MaxCandidates))
+		}
+		candidate, err := nextCandidate(changes, current, desired, leaves, existingDefinitions)
+		if err != nil {
+			return Plan{}, err
+		}
+		existingDefinitions = append(existingDefinitions, candidate)
+		// Each next candidate is computed from the exact durable prefix that
+		// will precede it. Re-running detection after any published prefix must
+		// produce the same remaining bytes, including partial-temp recovery.
+		generated, err := migrations.NewStateReconstructor(existingDefinitions...)
+		if err != nil {
+			return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", err)
+		}
+		next, err := generated.Reconstruct(migrations.LatestStateRequest())
+		if err != nil {
+			return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", err)
+		}
+		if next.Equal(current) {
+			return Plan{}, detectionError(CodeInvalidGeneratedPlan, "", "", "", fmt.Errorf("candidate made no historical progress"))
+		}
+		current = next
+		candidates = append(candidates, candidate)
 	}
-	if len(ordered) != len(input) {
-		return nil, detectionError(CodeInvalidGeneratedPlan, "", "", "", fmt.Errorf("candidate dependency graph contains a cycle"))
-	}
-	return ordered, nil
 }
 
 func sortMigrationKeys(values []migrations.MigrationKey) {
@@ -444,62 +325,71 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 		if len(newModel.Fields) < len(oldModel.Fields) {
 			return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, "", fmt.Errorf("field removal is unsupported"))
 		}
-		for fieldIndex := range oldModel.Fields {
-			if !reflect.DeepEqual(oldModel.Fields[fieldIndex], newModel.Fields[fieldIndex]) {
-				before, after := oldModel.Fields[fieldIndex], newModel.Fields[fieldIndex]
-				if err := ir.ValidateChoiceChange(before, after); err != nil {
-					return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, after.Name, fmt.Errorf("unsupported existing field change at index %d: %w", fieldIndex, err))
-				}
-				addedFields = append(addedFields, migrations.AlterField{AppLabel: app, ModelName: newModel.Name, Before: before.Clone(), After: after.Clone()})
-			}
+		oldNames := make(map[string]int, len(oldModel.Fields))
+		for index, field := range oldModel.Fields {
+			oldNames[field.Name] = index
 		}
-		for fieldIndex := len(oldModel.Fields); fieldIndex < len(newModel.Fields); fieldIndex++ {
-			field := newModel.Fields[fieldIndex].Clone()
-			if !safeExistingAddField(field) {
-				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing-table AddField requires a supported nullable scalar or ForeignKey with no default"))
+		retained := 0
+		for _, field := range newModel.Fields {
+			if oldIndex, exists := oldNames[field.Name]; exists {
+				if oldIndex != retained {
+					return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing field order changed"))
+				}
+				before := oldModel.Fields[oldIndex]
+				if !reflect.DeepEqual(before, field) {
+					if err := ir.ValidateChoiceChange(before, field); err != nil {
+						return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, err)
+					}
+					addedFields = append(addedFields, migrations.AlterField{AppLabel: app, ModelName: newModel.Name, Before: before.Clone(), After: field.Clone()})
+				}
+				retained++
+				continue
 			}
-			if err := validateAddedRelation(app, newModel.Name, field, after, nil); err != nil {
+			if !safeExistingAddField(field) {
+				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing-table AddField requires a supported nullable field or an empty-table ForeignKey, with no default"))
+			}
+			if err := validateAddedRelation(app, newModel.Name, field, after); err != nil {
 				return appChange{}, false, err
 			}
 			collectRelationReference(&change.relations, app, newModel.Name, field)
-			addedFields = append(addedFields, migrations.AddField{AppLabel: app, ModelName: newModel.Name, Field: field})
+			addedFields = append(addedFields, migrations.AddField{AppLabel: app, ModelName: newModel.Name, Field: field.Clone()})
+		}
+		if retained != len(oldModel.Fields) {
+			return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, "", fmt.Errorf("field removal is unsupported"))
 		}
 	}
 
-	existingModels := make(map[string]struct{}, len(before.Models))
-	for _, model := range before.Models {
-		existingModels[model.Name] = struct{}{}
-	}
-	visibleNew := make(map[string]struct{})
 	for modelIndex := len(before.Models); modelIndex < len(after.Models); modelIndex++ {
 		model := after.Models[modelIndex].Clone()
 		for _, field := range model.Fields {
-			if err := validateAddedRelation(app, model.Name, field, after, func(target string) bool {
-				_, historical := existingModels[target]
-				_, earlier := visibleNew[target]
-				return historical || earlier
-			}); err != nil {
+			if err := validateAddedRelation(app, model.Name, field, after); err != nil {
 				return appChange{}, false, err
 			}
 			collectRelationReference(&change.relations, app, model.Name, field)
 		}
 		change.operations = append(change.operations, migrations.CreateModel{AppLabel: app, Model: model})
-		visibleNew[model.Name] = struct{}{}
 	}
 	change.operations = append(change.operations, addedFields...)
 	return change, len(change.operations) != 0, nil
 }
 
 func safeExistingAddField(field ir.Field) bool {
-	return field.Nullable && field.Default == nil && !field.PrimaryKey &&
-		(field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldInteger || field.Kind == ir.FieldForeignKey)
+	if field.Default != nil || field.PrimaryKey {
+		return false
+	}
+	if field.Kind == ir.FieldForeignKey && field.Relation != nil {
+		// Required relations are executable only after the backend proves the
+		// source table empty. This also resumes an interrupted cyclic Create
+		// prefix; no guessed key, default, or populated-table backfill is used.
+		return field.Nullable || field.Relation.OnDelete == ir.DeleteProtect
+	}
+	return field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldInteger)
 }
 
 func validateAddedRelation(
 	app, model string,
 	field ir.Field,
 	desired ir.Schema,
-	sameAppTargetVisible func(string) bool,
 ) error {
 	if field.Kind != ir.FieldForeignKey || field.Relation == nil {
 		return nil
@@ -507,9 +397,6 @@ func validateAddedRelation(
 	target := field.Relation.Target
 	if target.AppLabel != app {
 		return nil
-	}
-	if target.ModelName == model {
-		return detectionError(CodeInvalidRelation, app, model, field.Name, fmt.Errorf("self relation generation is outside the current operation topology"))
 	}
 	targetExists := false
 	for _, candidate := range desired.Models {
@@ -520,9 +407,6 @@ func validateAddedRelation(
 	}
 	if !targetExists {
 		return detectionError(CodeInvalidRelation, app, model, field.Name, fmt.Errorf("same-app relation target %q does not exist", target.ModelName))
-	}
-	if sameAppTargetVisible != nil && !sameAppTargetVisible(target.ModelName) {
-		return detectionError(CodeInvalidRelation, app, model, field.Name, fmt.Errorf("same-app relation target %q must be created earlier", target.ModelName))
 	}
 	return nil
 }
@@ -608,13 +492,14 @@ func operationSlug(operations []migrations.Operation) string {
 		}
 	}
 	type change struct {
-		Kind   string    `json:"kind"`
-		App    string    `json:"app"`
-		Model  string    `json:"model"`
-		Value  *ir.Model `json:"value,omitempty"`
-		Field  *ir.Field `json:"field,omitempty"`
-		Before *ir.Field `json:"before,omitempty"`
-		After  *ir.Field `json:"after,omitempty"`
+		Kind        string    `json:"kind"`
+		App         string    `json:"app"`
+		Model       string    `json:"model"`
+		Value       *ir.Model `json:"value,omitempty"`
+		Field       *ir.Field `json:"field,omitempty"`
+		Before      *ir.Field `json:"before,omitempty"`
+		After       *ir.Field `json:"after,omitempty"`
+		BeforeField string    `json:"before_field,omitempty"`
 	}
 	values := make([]change, 0, len(operations))
 	for _, operation := range operations {
@@ -624,7 +509,7 @@ func operationSlug(operations []migrations.Operation) string {
 			values = append(values, change{Kind: "create_model", App: value.AppLabel, Model: value.Model.Name, Value: &model})
 		case migrations.AddField:
 			field := value.Field.Clone()
-			values = append(values, change{Kind: "add_field", App: value.AppLabel, Model: value.ModelName, Field: &field})
+			values = append(values, change{Kind: "add_field", App: value.AppLabel, Model: value.ModelName, Field: &field, BeforeField: value.BeforeField})
 		case migrations.AlterField:
 			before, after := value.Before.Clone(), value.After.Clone()
 			values = append(values, change{Kind: "alter_field", App: value.AppLabel, Model: value.ModelName, Before: &before, After: &after})
@@ -679,10 +564,12 @@ func cloneOperations(input []migrations.Operation) []migrations.Operation {
 				result[index] = &copy
 			}
 		case migrations.AddField:
-			result[index] = migrations.AddField{AppLabel: value.AppLabel, ModelName: value.ModelName, Field: value.Field.Clone()}
+			value.Field = value.Field.Clone()
+			result[index] = value
 		case *migrations.AddField:
 			if value != nil {
-				copy := migrations.AddField{AppLabel: value.AppLabel, ModelName: value.ModelName, Field: value.Field.Clone()}
+				copy := *value
+				copy.Field = value.Field.Clone()
 				result[index] = &copy
 			}
 		case migrations.AlterField:

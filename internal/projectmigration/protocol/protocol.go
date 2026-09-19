@@ -15,6 +15,7 @@ import (
 	"io"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/migrationautodetect"
 	"github.com/progresshans/godj/internal/projectwire"
 	"github.com/progresshans/godj/internal/wirejson"
 	"github.com/progresshans/godj/migrations/definition"
@@ -31,7 +32,7 @@ const (
 	// historical catalog bound. Publication performs a full source/catalog CAS
 	// before every append, so accepting the entire 2,048-source catalog as one
 	// batch would make an otherwise bounded request operationally unbounded.
-	MaxCandidates          = 64
+	MaxCandidates          = migrationautodetect.MaxCandidates
 	MaxProgrammaticSources = definition.MaxSources
 )
 

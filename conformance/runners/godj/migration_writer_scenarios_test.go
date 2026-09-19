@@ -101,7 +101,7 @@ func TestMigrationWriterScenariosExecuteActualBoundaries(t *testing.T) {
 					t.Fatalf("MIG-103 did not preserve the actual GoDj delete policy: %s", document)
 				}
 			case "MIG-107":
-				for _, code := range []string{"unsupported_change", "invalid_relation"} {
+				for _, code := range []string{"unsupported_change", "required_field_without_backfill"} {
 					if !strings.Contains(string(document), code) {
 						t.Fatalf("MIG-107 is missing actual code %q: %s", code, document)
 					}

@@ -151,6 +151,11 @@ func TestAtomicRelationPreconditionsAndForeignKeyVerification(t *testing.T) {
 	if err := backend.AtomicRelation(nil, func(db.RelationSession) error { called++; return nil }); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("AtomicRelation(nil context) error = %v", err)
 	}
+	// Open now enables every physical connection. Deliberate raw-connection
+	// drift must still be rejected before a relation callback can run.
+	if _, err := backend.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		t.Fatal(err)
+	}
 	if err := backend.AtomicRelation(ctx, func(db.RelationSession) error { called++; return nil }); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("AtomicRelation(FK off) error = %v", err)
 	}

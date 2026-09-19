@@ -16,6 +16,8 @@ Form/Admin·RFC3339 JSON/OpenAPI·독립 client까지 구현했다. Scalar typed
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
 SQLite remake의 inbound/self 참조 값·행·sequence와 실패 뒤 FK 복원/폐기·quarantine을 검증했다.
+Self·same-app later/mutual·cross-app cycle의 자동 migration 계획과 선언 순서, 부분 게시 뒤 결정적 재개를 구현했다.
+SQLite의 모든 새 물리 연결은 외래키 검사를 활성화·확인한다.
 관계를 함께 읽는 query에도 Count를 연결해 필터·Distinct·슬라이스와 eager cache 의미를 보존한다.
 Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교·문자열·isnull·IN과 AND/OR/NOT을 연결하고 JOIN·부정의 null 의미를 보존한다.
 여러 direct·nested forward selected 관계와 다른 forward/reverse filter JOIN의 All·First·Count, 중복 행·Distinct·슬라이스·하위 nullable cache를 연결했다. 현재 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
@@ -25,10 +27,9 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0084는 로컬 normal/race/CGO0·생성 소비자와 통합 source의 Hosted ORM 검증을 완료했다.
-별도 `feature/relation-autodetection`에서 GDJ-0085를 시작했다. Self Create/nullable self Add 자동 후보의 구현·compile 확인을
-마쳤으며 same-app later target과 cross-app cycle의 operation/candidate 분할, 선언 순서·durable publication prefix와
-실제 CLI/DB 검증을 이어간다. GDJ-0085 제품 변경은 아직 기존 Draft PR에 통합하지 않았고 runtime PASS도 없다.
+GDJ-0085의 자동 계획·CLI 게시·실제 SQLite/PG migration과 생성 ORM 소비자를 연결하고 로컬 통합 검증을 완료했다.
+기존 Draft PR에 통합하고 해당 source의 Hosted ORM 검증을 이어간다. 현재 새 Hosted 결과는 아직 없으며
+검증 범위는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에서 구분한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거

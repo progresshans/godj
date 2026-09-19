@@ -20,6 +20,33 @@ func TestPostgresHistoricalRelationGraphProduct(t *testing.T) {
 	})
 }
 
+func TestPostgresMigrationFieldPositionProduct(t *testing.T) {
+	databaseURL := postgresIntegrationURL(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	schema := postgresMigrationIntegrationSchema(t, ctx, databaseURL)
+	migrationgraphtest.RunFieldPositions(t, ctx, func() migrationgraphtest.Binding {
+		backend := openPostgresMigrationIntegrationBackend(t, ctx, databaseURL, schema)
+		return migrationgraphtest.Binding{Backend: backend, Database: backend.database, Renderer: NewMigrationSQLRenderer(MigrationSQLConfig{Schema: schema}), Close: backend.Close, Table: func(name string) string { return `"` + schema + `"."` + name + `"` }}
+	})
+}
+
+func TestPostgresAutomaticRelationGraphProduct(t *testing.T) {
+	databaseURL := postgresIntegrationURL(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	schemas := make(map[string]string)
+	migrationgraphtest.RunAutodetection(t, ctx, func(caseName string) migrationgraphtest.Binding {
+		schema, exists := schemas[caseName]
+		if !exists {
+			schema = postgresMigrationIntegrationSchema(t, ctx, databaseURL)
+			schemas[caseName] = schema
+		}
+		backend := openPostgresMigrationIntegrationBackend(t, ctx, databaseURL, schema)
+		return migrationgraphtest.Binding{Backend: backend, Database: backend.database, Renderer: NewMigrationSQLRenderer(MigrationSQLConfig{Schema: schema}), Close: backend.Close, Table: func(name string) string { return `"` + schema + `"."` + name + `"` }}
+	})
+}
+
 func TestPostgresHistoricalRelationGraphSealsTransitiveAuthority(t *testing.T) {
 	t.Parallel()
 	transition, intent := migrationgraphtest.TransitiveIntent(t)

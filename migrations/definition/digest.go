@@ -133,6 +133,13 @@ func appendCanonicalAddField(output []byte, operation migrations.AddField) ([]by
 	if err != nil {
 		return nil, err
 	}
+	if operation.BeforeField != "" {
+		output = append(output, `,"before_field":`...)
+		output, err = appendCanonicalString(output, operation.BeforeField)
+		if err != nil {
+			return nil, err
+		}
+	}
 	output = append(output, `,"field":`...)
 	output, err = appendCanonicalField(output, operation.Field)
 	if err != nil {

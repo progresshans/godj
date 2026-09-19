@@ -22,12 +22,32 @@ field 순서의 전체 direct binding, source/direct 외의 정렬된 transitive
 전체 initial/final forest를 검증한다. Operation/field/string/aggregate node·byte 한도는 복제 전에 검사하고 target binding의
 확장량도 제한한다. Transition에서 파생한 forest의 동일 app 문자열은 공유된 값으로 계산한다. 반환 IR은 깊게 복사한다.
 Migration dependencies는 DAG를 유지한다. Self Create는 같은 operation에서 visible하며 상호참조는 이미 존재하는 model에
-AddField를 적용하는 역사 순서로 표현한다. 일반 cyclic model 선언의 자동 분할·재정렬은 이 결정의 구현 범위가 아니다.
+AddField를 적용하는 역사 순서로 표현한다. 자동 후보 선택과 부분 게시 뒤 재개는
+[ADR-0052](0052-project-linked-deterministic-makemigrations.md)가 소유한다.
+
+GDJ-0085의 자동 계획에 필요한 field insertion은 `AddField.BeforeField`로 표현한다. 빈 값은 append이며, 이름을 지정하면
+그 historical field 바로 앞에 삽입한다. Anchor는 해당 경계에 실제로 존재해야 하며 reverse도 동일한 위치를 검증한다.
+Optional `before_field`는 definition codec, canonical digest, 복사와 resource admission에 포함된다. 유지하는 모든 field의
+순서·metadata와 model identity는 정확히 보존한다. 명시적 AutoField가 첫 field가 아니어도 관계만 나중에 삽입할 수 있다.
+Mutable replay builder의 삽입·제거는 빌려 준 Before snapshot의 배열을 변경하거나 비우지 않는다.
+
+Schema IR의 field order는 논리적 선언 순서다. Native ADD로 물리 column이 뒤에 생기는 것은 허용한다. PostgreSQL catalog는
+정확한 column 이름으로 field를 대조하되 physical ordinal/attribute-slot, 타입·null·default·PK/identity sequence·constraint 검사를
+유지한다. SQLite는 전체 column/FK catalog 검사를 통과한 물리 순서로만 canonical SQL을 재구성하여 기존 exact grammar를
+대조한다. SQL의 임의 정규화나 column/constraint 검사 생략은 하지 않는다. Remake의 retained FK와 변경 field는 마지막 원소가
+아니라 exact delta와 source identity로 선택한다. 자동 candidate 분할·publication 재개는 GDJ-0085가 별도로 소유한다.
 
 SQLite는 FK Remove의 remake와 self table Delete에서만 private pinned connection의 FK enforcement를 BEGIN 전에 끈다.
 기존 context-aware raw admission을 먼저 얻고 ON 확인 → OFF 확인 → BEGIN IMMEDIATE → physical graph/fence 검사 → DDL →
 전체 foreign_key_check → recorder/revision → COMMIT/ROLLBACK 순서로 실행한다. 이미 존재하는 inbound/self 관계 값과
 row/null/default/PK/sequence를 보존한다. Index/trigger 등 검증하지 않은 물리 구조를 임의로 재작성하지 않는다.
+
+GDJ-0085의 실제 reopen/생성 모델 검사에서 기존 Open은 새 physical connection에 FK enforcement를 보장하지 않는 것이 확인됐다.
+SQLite Backend는 등록된 driver의 `NewConnector`를 감싸 모든 새 연결에서 context를 전달해 ON과 readback 1을 확인한다.
+Pool 증가/교체·파일 재개에도 적용하며 driver DSN의 OFF보다 backend 무결성 조건이 우선한다. 실패한 연결은 닫고 게시하지 않는다.
+전역 hook/driver를 새로 등록하지 않아 기존 driver의 함수·collation·DSN 처리는 보존한다. Migration의 제한된 OFF 경로와
+terminal 복원/폐기 소유권은 그대로 유지한다. Caller가 raw primitive로 이후 설정을 변경한 경우 relation session의 검증은 계속
+거부하며, ordinary caller의 raw SQL 전체를 새로운 sandbox로 감싼다는 뜻은 아니다.
 
 Confirmed terminal 뒤에는 취소와 분리된 bounded context로 ON을 복원하고 readback 1을 확인한 다음에만 pool로 반환한다.
 설정 변경/BEGIN/종료가 불확실하거나 복원이 실패하면 물리 discard를 시도한다. Discard도 확인하지 못하면 admission을 통해

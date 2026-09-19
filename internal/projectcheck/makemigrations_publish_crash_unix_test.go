@@ -5,7 +5,9 @@ package projectcheck
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -15,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectmigration"
 	writerprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"github.com/progresshans/godj/schema/ir"
@@ -27,6 +30,7 @@ const (
 	makemigrationsCrashStepEnvironment      = "GODJ_MAKEMIGRATIONS_CRASH_STEP"
 	makemigrationsCrashIndexEnvironment     = "GODJ_MAKEMIGRATIONS_CRASH_INDEX"
 	makemigrationsCrashReadyEnvironment     = "GODJ_MAKEMIGRATIONS_CRASH_READY"
+	makemigrationsCrashSpecEnvironment      = "GODJ_MAKEMIGRATIONS_CRASH_SPEC"
 )
 
 func TestMakemigrationsSIGKILLLeavesRecoverableStrictPrefix(t *testing.T) {
@@ -59,7 +63,7 @@ func TestMakemigrationsSIGKILLLeavesRecoverableStrictPrefix(t *testing.T) {
 				t.Fatalf("candidates=%d", len(candidates))
 			}
 
-			crashMakemigrationsProcess(t, fixture, test.step, test.index)
+			crashMakemigrationsProcess(t, fixture, spec, test.step, test.index)
 			if test.wantTemp {
 				document := candidates[0].Document()
 				target, err := writerprotocol.CandidateTargetBasename(candidates[0].App(), candidates[0].Name())
@@ -316,7 +320,15 @@ func TestMakemigrationsCrashHelper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := &liveMakemigrationsBackend{inventory: inventory, root: root, spec: crossAppMakemigrationsSpec()}
+	specBytes, err := os.ReadFile(os.Getenv(makemigrationsCrashSpecEnvironment))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var spec codegen.ProjectSpec
+	if err := json.Unmarshal(specBytes, &spec); err != nil {
+		t.Fatal(err)
+	}
+	backend := &liveMakemigrationsBackend{inventory: inventory, root: root, spec: spec}
 	publication := makemigrationsPublicationHooks{after: func(actual makemigrationsPublicationStep, target string, actualIndex int) error {
 		if actual != step || actualIndex != index {
 			return nil
@@ -328,7 +340,10 @@ func TestMakemigrationsCrashHelper(t *testing.T) {
 	}}
 	if step == makemigrationsStepTempWriteProgress {
 		publication.writeTemp = func(file *os.File, document []byte, target string, actualIndex int) error {
-			if actualIndex != index || len(document) < 2 {
+			if actualIndex != index {
+				return writeMakemigrationsAll(file, document)
+			}
+			if len(document) < 2 {
 				return errors.New("invalid makemigrations partial-write crash fixture")
 			}
 			prefix := len(document) / 2
@@ -352,14 +367,23 @@ func TestMakemigrationsCrashHelper(t *testing.T) {
 func crashMakemigrationsProcess(
 	t *testing.T,
 	fixture makemigrationsRunFixture,
+	spec codegen.ProjectSpec,
 	step makemigrationsPublicationStep,
 	index int,
 ) {
 	t.Helper()
 	control := t.TempDir()
 	inventoryPath := filepath.Join(control, "inventory.json")
+	specPath := filepath.Join(control, "spec.json")
 	ready := filepath.Join(control, "ready")
 	if err := os.WriteFile(inventoryPath, fixture.inventory, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	specBytes, err := json.Marshal(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(specPath, specBytes, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	command := exec.Command(os.Args[0], "-test.run=^TestMakemigrationsCrashHelper$", "-test.v")
@@ -368,6 +392,7 @@ func crashMakemigrationsProcess(
 		makemigrationsCrashHelperEnvironment:    "1",
 		makemigrationsCrashRootEnvironment:      fixture.root,
 		makemigrationsCrashInventoryEnvironment: inventoryPath,
+		makemigrationsCrashSpecEnvironment:      specPath,
 		makemigrationsCrashStepEnvironment:      string(step),
 		makemigrationsCrashIndexEnvironment:     strconv.Itoa(index),
 		makemigrationsCrashReadyEnvironment:     ready,
@@ -400,6 +425,62 @@ func crashMakemigrationsProcess(
 	}
 	if err := command.Wait(); err == nil {
 		t.Fatalf("crash helper exited successfully: %s", output.String())
+	}
+}
+
+func cyclicMakemigrationsSpec() codegen.ProjectSpec {
+	spec := crossAppMakemigrationsSpec()
+	entry := &spec.Apps[0].Schema.Models[0]
+	entry.Fields = []ir.Field{entry.Fields[1], entry.Fields[0], {Name: "key", GoName: "Key", Kind: ir.FieldAuto, PrimaryKey: true}}
+	author := &spec.Apps[1].Schema.Models[0]
+	author.Fields = append([]ir.Field{{Name: "entry", GoName: "EntryID", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{Target: ir.ModelIdentity{AppLabel: "alpha", ModelName: "entry"}, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}}}, author.Fields...)
+	return spec
+}
+
+func TestMakemigrationsCyclicSIGKILLResumesEveryCandidatePrefix(t *testing.T) {
+	for index := 0; index < 3; index++ {
+		for _, step := range []makemigrationsPublicationStep{makemigrationsStepTempWriteProgress, makemigrationsStepDirectoryFsynced} {
+			t.Run(fmt.Sprintf("%s/%d", step, index), func(t *testing.T) {
+				fixture := newMakemigrationsRunFixture(t, false)
+				spec := cyclicMakemigrationsSpec()
+				want, err := liveMakemigrationsSnapshot(fixture.root, spec)
+				if err != nil {
+					t.Fatal(err)
+				}
+				candidates := want.Candidates()
+				if len(candidates) != 3 {
+					t.Fatalf("cyclic candidates=%d", len(candidates))
+				}
+				crashMakemigrationsProcess(t, fixture, spec, step, index)
+				visible := index
+				if step == makemigrationsStepDirectoryFsynced {
+					visible++
+				}
+				assertPublishedMakemigrationsCandidates(t, fixture.root, candidates[:visible])
+				if visible != 0 {
+					if _, err := strictLiveMakemigrationsState(fixture.root); err != nil {
+						t.Fatal(err)
+					}
+				}
+				before := publishedMakemigrationsInfo(t, fixture.root)
+				backend := &liveMakemigrationsBackend{inventory: fixture.inventory, root: fixture.root, spec: spec}
+				resume, _, stderr := runLiveMakemigrations(fixture, backend, context.Background(), nil, makemigrationsPublicationHooks{})
+				if backend.Error() != nil || resume.ExitCode != 0 || !resume.HasMakemigrationsResult || resume.PublishedCandidates != 3-visible || stderr != "" {
+					t.Fatalf("cyclic resume=%+v err=%v stderr=%s", resume, backend.Error(), stderr)
+				}
+				if step == makemigrationsStepTempWriteProgress && resume.OwnedTempRecoveries != 1 {
+					t.Fatal("partial cyclic candidate was not safely recovered")
+				}
+				assertNoMakemigrationsReservedTemps(t, fixture.root)
+				assertPublishedMakemigrationsCandidates(t, fixture.root, candidates)
+				assertMakemigrationsPublishedPrefixPreserved(t, before, publishedMakemigrationsInfo(t, fixture.root))
+				state, err := strictLiveMakemigrationsState(fixture.root)
+				if err != nil || !state.Equal(want.DesiredState()) {
+					t.Fatalf("resumed cycle differs from declaration: %v", err)
+				}
+			})
+		}
 	}
 }
 

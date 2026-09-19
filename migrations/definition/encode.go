@@ -58,10 +58,11 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 			}
 		case migrations.AddField:
 			document.Migration.Operations[index] = addFieldDocument{
-				Kind:      "add_field",
-				AppLabel:  value.AppLabel,
-				ModelName: value.ModelName,
-				Field:     encodeField(value.Field),
+				Kind:        "add_field",
+				AppLabel:    value.AppLabel,
+				ModelName:   value.ModelName,
+				Field:       encodeField(value.Field),
+				BeforeField: value.BeforeField,
 			}
 		case migrations.AlterField:
 			document.Migration.Operations[index] = alterFieldDocument{
@@ -169,6 +170,9 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			if !fullyNormalizedAddField(value.AppLabel, value.Field) {
 				return encodeFailure(path+".field", "field is not exact current normalized IR")
 			}
+			if value.BeforeField != "" && (!identifiers.SQL(value.BeforeField) || value.BeforeField == value.Field.Name) {
+				return encodeFailure(path+".before_field", "invalid AddField insertion anchor %q", value.BeforeField)
+			}
 			if err := validateFieldWireRange(value.Field, path+".field"); err != nil {
 				return err
 			}
@@ -230,10 +234,11 @@ type createModelDocument struct {
 }
 
 type addFieldDocument struct {
-	Kind      string        `json:"kind"`
-	AppLabel  string        `json:"app_label"`
-	ModelName string        `json:"model_name"`
-	Field     fieldDocument `json:"field"`
+	Kind        string        `json:"kind"`
+	AppLabel    string        `json:"app_label"`
+	ModelName   string        `json:"model_name"`
+	Field       fieldDocument `json:"field"`
+	BeforeField string        `json:"before_field,omitempty"`
 }
 
 type modelDocument struct {

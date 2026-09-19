@@ -34,10 +34,11 @@ func Open(ctx context.Context, dataSourceName string) (*Backend, error) {
 	if ctx == nil {
 		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
 	}
-	database, err := sql.Open("sqlite", dataSourceName)
+	connector, err := modernsqlite.NewConnector(dataSourceName)
 	if err != nil {
 		return nil, fmt.Errorf("open SQLite database: %w", err)
 	}
+	database := sql.OpenDB(foreignKeyConnector{Connector: connector})
 	if err := database.PingContext(ctx); err != nil {
 		_ = database.Close()
 		return nil, fmt.Errorf("ping SQLite database: %w", err)

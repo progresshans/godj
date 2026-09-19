@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import json
 import unittest
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,23 @@ def _semantic(value: Any) -> Any:
 
 
 class MigrationWriterDecisionTests(unittest.TestCase):
+    def test_current_go_owned_decisions_match_recorded_observations(self) -> None:
+        root = Path(__file__).resolve().parents[4]
+        suite = json.loads(
+            (root / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json").read_bytes()
+        )
+        observations = {item["id"]: item for item in suite["contracts"]}
+        for contract_id, scenario in zip(
+            ("MIG-102", "MIG-107", "MIG-108", "MIG-109", "MIG-110"),
+            decisions.SCENARIOS.values(),
+            strict=True,
+        ):
+            with self.subTest(contract=contract_id):
+                self.assertEqual(
+                    canonical_json(scenario(contract_id)),
+                    canonical_json(observations[contract_id]),
+                )
+
     def test_registry_is_exact_and_observations_are_deterministic(self) -> None:
         self.assertEqual(tuple(decisions.SCENARIOS), EXPECTED_SCENARIOS)
         contract_ids = ("MIG-102", "MIG-107", "MIG-108", "MIG-109", "MIG-110")
@@ -74,6 +92,12 @@ class MigrationWriterDecisionTests(unittest.TestCase):
             decisions.unsupported_delta_fail_closed("MIG-107")["result"]
         )
         self.assertFalse(unsupported["partial_success"])
+        self.assertEqual(
+            unsupported["cases"][5]["case"], "required_field_without_backfill"
+        )
+        self.assertNotIn(
+            "self_or_cyclic_relation", {case["case"] for case in unsupported["cases"]}
+        )
         self.assertEqual({case["candidate_count"] for case in unsupported["cases"]}, {0})
         self.assertEqual(
             {case["category"] for case in unsupported["cases"]},

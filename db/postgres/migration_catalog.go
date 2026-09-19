@@ -411,7 +411,16 @@ func assertPostgresMigrationModelCatalog(
 		return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("has %d columns, want %d", len(catalog.columns), len(model.Fields)))
 	}
 	previousAttributeNumber := 0
-	for index := range model.Fields {
+	fieldsByColumn := make(map[string]ir.Field, len(model.Fields))
+	for _, field := range model.Fields {
+		fieldsByColumn[field.Column] = field
+	}
+	for index := range catalog.columns {
+		field, exists := fieldsByColumn[catalog.columns[index].name]
+		if !exists {
+			return postgresMigrationCatalogDrift(model.DBTable, "unexpected or duplicate column")
+		}
+		delete(fieldsByColumn, catalog.columns[index].name)
 		if catalog.columns[index].attributeNumber > catalog.attributeSlots {
 			return postgresMigrationCatalogDrift(model.DBTable, "visible column exceeds the physical attribute-slot boundary")
 		}
@@ -419,7 +428,7 @@ func assertPostgresMigrationModelCatalog(
 			return postgresMigrationCatalogDrift(model.DBTable, "non-dropped columns are not in increasing physical order")
 		}
 		previousAttributeNumber = catalog.columns[index].attributeNumber
-		if err := assertPostgresMigrationColumnCatalog(catalog.columns[index], model.Fields[index]); err != nil {
+		if err := assertPostgresMigrationColumnCatalog(catalog.columns[index], field); err != nil {
 			return postgresMigrationCatalogDrift(model.DBTable, err.Error())
 		}
 	}
