@@ -12,16 +12,13 @@ type RelatedDateTimeField[M any] struct {
 	marker [0]func(M)
 }
 
-func (relation ForwardRelation[S, T]) DateTime(field DateTimeField[T]) (RelatedDateTimeField[S], error) {
+func (relation ForwardRelation[S, T]) DateTime(field ReferenceField[T, time.Time]) (RelatedDateTimeField[S], error) {
 	if err := validateForwardState(relation.state); err != nil {
 		return RelatedDateTimeField[S]{}, err
 	}
-	if field.err != nil {
-		return RelatedDateTimeField[S]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(relation.state.targetModel, field.reference, ir.FieldDateTime)
-	if !ok || metadata.Nullable {
-		return RelatedDateTimeField[S]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(relation.state.targetModel, field, true, ir.FieldDateTime)
+	if err != nil {
+		return RelatedDateTimeField[S]{}, err
 	}
 	path, err := relation.state.path(fieldReference(metadata))
 	if err != nil {

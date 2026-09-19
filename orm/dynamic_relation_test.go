@@ -60,8 +60,6 @@ func TestDynamicRelationErrorsFollowFrozenPrecedence(t *testing.T) {
 		code     string
 	}{
 		{name: "one segment", input: orm.LookupInput{Key: "author", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "explicit exact suffix", input: orm.LookupInput{Key: "author__name__exact", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "explicit nonexact suffix", input: orm.LookupInput{Key: "author__name__icontains", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "relation exact suffix", input: orm.LookupInput{Key: "author__exact", Value: int64(1)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "relation icontains suffix", input: orm.LookupInput{Key: "author__icontains", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "relation isnull suffix", input: orm.LookupInput{Key: "author__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
@@ -302,4 +300,40 @@ func TestDynamicReverseRelationErrorsFollowFrozenPrecedenceAndAreAtomic(t *testi
 		t.Fatalf("partial predicates = %#v, want nil", got)
 	}
 	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
+}
+
+func TestForwardLookupSuffixesShareTypedPlansAndPreservePolicyPrecedence(t *testing.T) {
+	fixture := newRelationQueryFixture(t)
+	base := orm.NewManager[relationQueryPost](fixture.postDescriptor).Using(nil)
+	for _, test := range []struct {
+		input orm.LookupInput
+		typed orm.Predicate[relationQueryPost]
+	}{
+		{orm.LookupInput{Key: "author__name__exact", Value: "Ada"}, fixture.authorName.Exact("Ada")},
+		{orm.LookupInput{Key: "author__name__icontains", Value: "a"}, fixture.authorName.IContains("a")},
+		{orm.LookupInput{Key: "author__name__gte", Value: "Ada"}, fixture.authorName.GreaterThanOrEqual("Ada")},
+		{orm.LookupInput{Key: "author__id__in", Value: []int64{1, 2}}, fixture.authorID.In(1, 2)},
+		{orm.LookupInput{Key: "author__name__isnull", Value: true}, fixture.authorName.IsNull(true)},
+	} {
+		values, err := orm.ParseDynamicRelations(fixture.postModel, nil, []orm.LookupInput{test.input})
+		if err != nil || len(values) != 1 {
+			t.Fatalf("%s: %v", test.input.Key, err)
+		}
+		if !base.Filter(test.typed).Plan().Equal(base.Filter(values[0]).Plan()) {
+			t.Fatalf("%s typed/dynamic differ", test.input.Key)
+		}
+	}
+	called := false
+	values, err := orm.ParseDynamicRelations(fixture.postModel, func(field ir.Field, lookup query.Lookup) bool {
+		called = true
+		if field.Name != "id" || lookup != query.LookupIn {
+			t.Fatalf("policy received %s,%s", field.Name, lookup)
+		}
+		field.Name = "tampered"
+		return false
+	}, []orm.LookupInput{{Key: "author__id__in", Value: "invalid"}})
+	if values != nil || !called {
+		t.Fatal("policy/batch contract changed")
+	}
+	assertRelationQueryError(t, err, query.CategoryField, query.CodeDisallowedLookup)
 }

@@ -98,6 +98,26 @@ func NewInCondition(field FieldRef, values []Value) (Condition, error) {
 	}, nil
 }
 
+// NewRelatedInCondition owns the same scalar list as NewInCondition while
+// retaining a direct forward path. Reverse and source-key membership are not
+// supported; nullable source-key isnull remains a separate path scope.
+func NewRelatedInCondition(path RelationPath, values []Value) (Condition, error) {
+	if !forwardMembershipPath(path) {
+		return Condition{}, invalidPlanError("related IN requires one direct forward target-field path")
+	}
+	condition, err := NewInCondition(path.Terminal(), values)
+	if err != nil {
+		return Condition{}, err
+	}
+	condition.relationPath = &path
+	return condition, nil
+}
+
+func forwardMembershipPath(path RelationPath) bool {
+	return path.scope == RelationTerminalRelatedField && len(path.hops) == 1 &&
+		path.hops[0].direction == RelationForward && validFieldRef(path.terminal)
+}
+
 // NewFieldCondition constructs one scalar comparison whose right-hand side is
 // another field in the same eventual plan source. Source membership is
 // intentionally deferred to Plan.WithWhere and repeated by each backend;
@@ -126,6 +146,18 @@ func NewRelatedCondition(path RelationPath, lookup Lookup, value Value) Conditio
 
 func (c Condition) Field() FieldRef { return c.field }
 func (c Condition) Lookup() Lookup  { return c.lookup }
+
+// OperandNullable reports whether the left scalar can be NULL in the supported
+// read paths. An optional forward target can be absent even when its field is
+// declared non-null. This describes the operand, not the Boolean lookup result.
+func (c Condition) OperandNullable() bool {
+	if c.field.Nullable() {
+		return true
+	}
+	path := c.relationPath
+	return path != nil && path.scope == RelationTerminalRelatedField && len(path.hops) == 1 &&
+		path.hops[0].direction == RelationForward && path.hops[0].nullable
+}
 func (c Condition) Value() Value {
 	if c.lookup == LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSLiteral {
 		return Value{}
@@ -134,7 +166,8 @@ func (c Condition) Value() Value {
 }
 func (c Condition) Values() ([]Value, bool) {
 	if c.lookup != LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSList ||
-		c.relationPath != nil || !validInValues(c.field, c.rhs.values) {
+		(c.relationPath != nil && (!forwardMembershipPath(*c.relationPath) || !c.field.Equal(c.relationPath.terminal))) ||
+		!validInValues(c.field, c.rhs.values) {
 		return nil, false
 	}
 	return append([]Value(nil), c.rhs.values...), true

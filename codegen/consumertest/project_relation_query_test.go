@@ -112,13 +112,12 @@ func TestGeneratedRelationQueryProject(t *testing.T) {
 	if !typed.Equal(dynamic) {
 		t.Fatalf("typed and dynamic generated plans differ\ntyped = %#v\ndynamic = %#v", typed, dynamic)
 	}
-	if _, err := relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{{Key: "author__rank", Value: int64(1)}}); err == nil {
-		t.Fatal("nullable related integer silently entered the nonnullable terminal scope")
-	}
-
-	if _, err := relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{{Key: "author__notes", Value: "text"}}); err == nil {
-		t.Fatal("nullable related Text silently entered the nonnullable terminal scope")
-	}
+ nullableInputs, err := relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{
+  {Key:"author__rank",Value:int64(1)}, {Key:"author__notes",Value:"text"},
+ })
+ if err != nil { t.Fatal(err) }
+ nullableTyped := blog.PostObjects.Using(nil).Filter(relations.BlogPost.Author.Rank.Exact(1),relations.BlogPost.Author.Notes.Exact("text")).Plan()
+ if !nullableTyped.Equal(blog.PostObjects.Using(nil).Filter(nullableInputs...).Plan()) { t.Fatal("nullable target typed/dynamic plans differ") }
 
 	post, err := (blog.PostDescriptor{}).Scan(postRow{})
 	if err != nil {

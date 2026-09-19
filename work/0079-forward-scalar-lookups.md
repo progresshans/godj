@@ -1,6 +1,6 @@
 ---
 id: GDJ-0079
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "c8bb50df3f540f56f37f5691fff36a6e0f7fcc8b"
 integration_owner: "root"
@@ -29,10 +29,11 @@ Category 이름의 부분 일치·여러 이름으로 Ticket을 찾거나, 선�
 ## 독립 관찰과 검증 계획
 
 고정 Django 6.1의 fresh process에서 required/nullable FK, non-null/nullable target, 모든 현재 scalar lookup과
-중첩 NOT·root AND/OR를 포함한 748개 관찰을 수집했다. 이는 설계 입력이며 GoDj 제품 검증은 아직 아니다.
+중첩 NOT·root AND/OR를 포함한 748개 관찰을 수집했다. 제품·생성기·공통 operand nullability와 actual DB/독립 생성 소비자를 구현했다.
+Typed 표현 628개와 explicit NULL member의 dynamic 표현 범위를 구분한다. 필수 로컬 normal·race·CGO0·실제 양 DB·독립 생성 소비자 검증을 완료했다. 정확한 source·scope는 TEST_EVIDENCE를 따른다.
 제품·생성기·별도 generated consumer·actual SQLite/PostgreSQL·빈 query의 전체 preflight를 한 묶음으로 정리한다.
 편집 중에는 필요한 compile만 확인하고, 완성 뒤 affected normal·race·CGO0, 독립 reference·generated drift를 실행한다.
 
 GDJ-0078의 exact-source Hosted ORM을 완료했다. 이 작업의 baseline을 검증하는 독립 checkpoint이며
 source·scope·실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
-그 결과를 이 작업의 새로운 lookup 구현 PASS로 재사용하지 않는다. Hosted 실행 범위와 통합 시점은 관련 변경 묶음의 위험을 기준으로 정한다.
+그 결과를 이 작업의 새로운 lookup 구현 PASS로 재사용하지 않는다. 새 Hosted ORM은 다음 eager query의 여러 JOIN 조합과 묶은 통합 checkpoint에서 실행한다.

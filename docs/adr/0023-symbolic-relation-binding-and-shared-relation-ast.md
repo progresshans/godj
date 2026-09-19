@@ -20,6 +20,9 @@
 
 ## 상태와 범위
 
+2026-09-19 GDJ-0079는 직접 forward의 nullable target scalar·Boolean·기존 scalar lookup을 추가한다.
+입력 타입·path nullability·IN 소유권·reverse 경계는 [ADR-0040 추가 결정](0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)을 따른다.
+
 2026-09-19 GDJ-0078은 nullable direct forward relation의 기존 지원 target scalar exact lookup을 같은 immutable path로 확장한다.
 Generated relation query adapter는 nullable FK도 포함한다. Boolean JOIN·NULL 판단은 [ADR-0040 추가 결정](0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-관계의-boolean-확장)을 따른다.
 아래의 과거 subset 제한과 달리 직접 forward predicate는 required/nullable 모두 AND/OR/NOT에 참여한다. 검증 상태는 TEST_EVIDENCE를 따른다.

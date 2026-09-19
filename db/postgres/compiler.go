@@ -350,9 +350,6 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		}
 		return whereLeaf{inValues: values}, nil
 	}
-	if condition.Lookup() == query.LookupIn {
-		return whereLeaf{}, invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
-	}
 	hops := path.Hops()
 	if len(hops) != 1 {
 		return whereLeaf{}, invalidPlan("PostgreSQL relation compiler requires exactly one relation hop")
@@ -386,8 +383,8 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		default:
 			return whereLeaf{}, invalidPlan("relation path has an unknown direction")
 		}
-		if condition.Lookup() != query.LookupExact {
-			return whereLeaf{}, unsupportedRelatedCondition(condition, "PostgreSQL relation compiler supports exact related lookups only")
+		if hop.Direction() == query.RelationReverse && condition.Lookup() != query.LookupExact {
+			return whereLeaf{}, unsupportedRelatedCondition(condition, "PostgreSQL reverse relation compiler supports exact related lookups only")
 		}
 		leaf.usesJoin = true
 	case query.RelationTerminalSourceKey:
@@ -396,6 +393,12 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		}
 	default:
 		return whereLeaf{}, invalidPlan("relation path has an unknown terminal scope")
+	}
+	if condition.Lookup() == query.LookupIn {
+		leaf.inValues, leaf.inHasNull, err = queryplan.MembershipValues(condition)
+		if err != nil {
+			return whereLeaf{}, err
+		}
 	}
 	return leaf, nil
 }
@@ -450,12 +453,9 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 	case query.LookupIn:
-		if _, related := condition.RelationPath(); related {
-			return nil, invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
-		}
 		values, ok := condition.Values()
 		if !ok {
-			return nil, invalidPlan("PostgreSQL IN requires a valid root-table list-backed condition")
+			return nil, invalidPlan("PostgreSQL IN requires a valid scalar list-backed condition")
 		}
 		return values, nil
 	default:
@@ -542,7 +542,7 @@ func appendWhereExpression(
 			*arguments = append(*arguments, conditionArguments...)
 		}
 		if negated && nullableNegationGuard(condition.Lookup()) {
-			if condition.Field().Nullable() || leaf.usesJoin && leaf.hop.Direction() == query.RelationForward && leaf.hop.Nullable() {
+			if condition.OperandNullable() {
 				if condition.Lookup() == query.LookupIn && leaf.inHasNull {
 					statement.WriteString(" OR ")
 					statement.WriteString(field)
@@ -843,7 +843,7 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 		return nil, nil
 	case query.LookupIn:
 		if len(inValues) == 0 {
-			return nil, invalidPlan("PostgreSQL IN requires a valid root-table list-backed condition")
+			return nil, invalidPlan("PostgreSQL IN requires a valid scalar list-backed condition")
 		}
 		statement.WriteString(" IN (")
 		arguments := make([]any, len(inValues))

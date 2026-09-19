@@ -5,6 +5,14 @@
 - 관련 작업: [GDJ-0075](../../work/0075-scalar-membership-and-empty-query-semantics.md)
 - 보완: [공통 Boolean AST](0040-composable-typed-boolean-predicates-and-article-search.md), [projection·aggregate](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)
 
+## 직접 forward 경로의 추가 결정
+
+2026-09-19 GDJ-0079는 직접 forward target-field IN도 같은 immutable 목록과 실행 경계로 확장한다.
+`NewRelatedInCondition`은 path를 보존하며, 선언이 non-null인 Boolean 등도 nullable FK 뒤에서는 NULL operand가 될 수 있다.
+`Condition.OperandNullable`을 사용해 부정의 NULL 보정과 empty-result 분석을 일치시킨다. Typed의 concrete 목록과
+explicit nil을 허용하는 dynamic 목록의 표현 범위는 root scalar와 같다. 실제 scope·증거는
+[ADR-0040 추가 결정](0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)과 TEST_EVIDENCE를 따른다.
+
 ## 공개 목록 조회
 
 Auto/Integer·Char/Text·Boolean·DateTime field의 typed `.In(...)`과 root scalar dynamic `field__in`은 같은 immutable
@@ -45,5 +53,5 @@ Session은 원래 transaction context와 callback 종료에 연결된 lifetime�
 [관찰 fixture](../../orm/testdata/in-django61.json)는 여섯 scalar field의 중복·NULL·empty·없는 값·AND/OR/NOT 결과와 SELECT 수를 보존한다.
 GoDj에서 유래한 expected가 아니며 고정 reference는 USE_TZ=true·UTC·SQLite다. PostgreSQL 결과는 실제 별도 실행으로 검증한다.
 
-Relation-path IN·tuple/composite-key IN·subquery IN, 대규모 목록의 backend parameter 한도 초과 분할은 별도 미완료 범위다.
+Reverse/multi-hop relation IN·tuple/composite-key IN·subquery IN, 대규모 목록의 backend parameter 한도 초과 분할은 별도 미완료 범위다.
 일반 bulk write나 새로운 field 종류를 포함하지 않는다. 실행 source·환경·실패 수정은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 기록한다.

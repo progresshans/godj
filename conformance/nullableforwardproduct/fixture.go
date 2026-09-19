@@ -55,12 +55,16 @@ func Plan(leaves map[string]Leaf, root Node) (query.Plan, error) {
 }
 
 func Expression(leaves map[string]Leaf, node Node) (query.Expression, error) {
+	return expressionFromInputs(leaves, node, Condition)
+}
+
+func expressionFromInputs(leaves map[string]Leaf, node Node, build func(Leaf) (query.Condition, error)) (query.Expression, error) {
 	if node.Name != "" {
 		leaf, ok := leaves[node.Name]
 		if !ok {
 			return query.Expression{}, fmt.Errorf("unknown reference input %q", node.Name)
 		}
-		condition, err := Condition(leaf)
+		condition, err := build(leaf)
 		if err != nil {
 			return query.Expression{}, err
 		}
@@ -68,7 +72,7 @@ func Expression(leaves map[string]Leaf, node Node) (query.Expression, error) {
 	}
 	children := make([]query.Expression, len(node.Children))
 	for i, child := range node.Children {
-		value, err := Expression(leaves, child)
+		value, err := expressionFromInputs(leaves, child, build)
 		if err != nil {
 			return query.Expression{}, err
 		}

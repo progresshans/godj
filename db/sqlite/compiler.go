@@ -245,9 +245,6 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		if _, ok := condition.RHSField(); ok {
 			return "", nil, invalidPlan("SQLite relation conditions cannot use a field-reference right-hand side")
 		}
-		if condition.Lookup() == query.LookupIn {
-			return "", nil, invalidPlan("SQLite IN conditions cannot traverse a relation path")
-		}
 		hops := path.Hops()
 		if len(hops) != 1 {
 			return "", nil, invalidPlan("SQLite relation compiler requires exactly one relation hop")
@@ -270,7 +267,6 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 				if err := queryplan.ForwardCondition(columns, condition, hop, "SQLite"); err != nil {
 					return "", nil, err
 				}
-				leaf.nullableRelation = hop.Nullable()
 			case query.RelationReverse:
 				if err := queryplan.ReverseCondition(condition, hop, "SQLite"); err != nil {
 					return "", nil, err
@@ -278,8 +274,8 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 			default:
 				return "", nil, invalidPlan("relation path has an unknown direction")
 			}
-			if condition.Lookup() != query.LookupExact {
-				return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports exact related lookups only")
+			if hop.Direction() == query.RelationReverse && condition.Lookup() != query.LookupExact {
+				return "", nil, unsupportedRelatedCondition(condition, "SQLite reverse relation compiler supports exact related lookups only")
 			}
 			relatedConditions[index] = true
 		case query.RelationTerminalSourceKey:
@@ -512,7 +508,7 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 		return nil, nil
 	case query.LookupIn:
 		if len(inValues) == 0 {
-			return nil, invalidPlan("SQLite IN requires a valid root-table list-backed condition")
+			return nil, invalidPlan("SQLite IN requires a valid scalar list-backed condition")
 		}
 		sql.WriteString(" IN (")
 		arguments := make([]any, len(inValues))

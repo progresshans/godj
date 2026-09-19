@@ -174,7 +174,8 @@ func buildProjectRelationReverseSurface(
 			}
 			terminals := make([]projectRelationReverseTerminal, 0)
 			for _, terminal := range source.model.Fields {
-				if supportedProjectRelationQueryTerminal(terminal) {
+				// Reverse adapters still expose only their non-null exact subset.
+				if !terminal.Nullable && terminal.Kind != ir.FieldBoolean && supportedProjectRelationQueryTerminal(terminal) {
 					terminals = append(terminals, projectRelationReverseTerminal{field: terminal.Clone()})
 				}
 			}

@@ -43,3 +43,9 @@ PostgreSQL 검증은 `GODJ_TEST_POSTGRES_URL`과 명시적인 `GODJ_REQUIRE_POST
 `project.Using(backend)`의 `ModelsTicket.SelectRelated(objects.ModelsTicket.Related.Category)`에서 Count를 호출한 뒤
 Offset·Limit·All을 적용한다. Cold Count는 category 객체를 읽지 않고 필터와 슬라이스의 의미를 보존한다.
 이미 All을 마친 query의 Count는 그 eager cache를 재사용한다. 실제 SQLite/PostgreSQL 소비자는 기존 데이터에서 이 흐름을 검사한다.
+
+카테고리 이름으로 Ticket을 찾을 때도 같은 relation binding을 사용한다.
+`relations.ModelsTicket.Category.Name.IContains("HARDWARE")`와
+`relations.ModelsTicket.Category.Name.In("Hardware & repairs", "Other")`를 `Filter`에 전달할 수 있다.
+Dynamic 경로는 `category__name__icontains`, `category__name__in`이며 입력을 받는 경계에서는 필요한 lookup policy를 제공한다.
+선택한 category의 materialization과 Count는 같은 필터를 유지한다.

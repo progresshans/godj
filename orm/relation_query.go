@@ -100,7 +100,7 @@ func BindForward[S, T any](
 	if source.snapshot != target.snapshot {
 		return ForwardRelation[S, T]{}, relationInvalidPlan("source and target models belong to different project snapshots")
 	}
-	state, err := resolveForwardRelation(source.snapshot, source.identity, source.model, field)
+	state, err := resolveForwardRelationState(source.snapshot, source.identity, source.model, field)
 	if err != nil {
 		return ForwardRelation[S, T]{}, err
 	}
@@ -128,7 +128,7 @@ func (r ForwardRelation[S, T]) Integer(field ReferenceField[T, int64]) (RelatedI
 	if err := validateForwardState(r.state); err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
-	metadata, err := relatedIntegerMetadata(r.state.targetModel, field)
+	metadata, err := relatedScalarMetadata(r.state.targetModel, field, true, ir.FieldAuto, ir.FieldInteger)
 	if err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
@@ -139,36 +139,34 @@ func (r ForwardRelation[S, T]) Integer(field ReferenceField[T, int64]) (RelatedI
 	return RelatedIntegerField[S]{path: path, valid: true}, nil
 }
 
-// Integer transport is shared by automatic keys and ordinary integer fields.
-// The project snapshot still owns exact field identity and supported nullability.
-func relatedIntegerMetadata[M any](model ir.Model, field ReferenceField[M, int64]) (ir.Field, error) {
+// Comparison transport is shared by nullable and non-null storage. Exact
+// metadata and supported kinds still come from the sealed project snapshot.
+func relatedScalarMetadata[M, V any](model ir.Model, field ReferenceField[M, V], allowNullable bool, kinds ...ir.FieldKind) (ir.Field, error) {
 	if interfaceIsNil(field) {
-		return ir.Field{}, relationInvalidPlan("related integer field is nil")
+		return ir.Field{}, relationInvalidPlan("related scalar field is nil")
 	}
-	var value M
-	reference, err := field.referenceField(value, 0)
+	var modelValue M
+	var scalarValue V
+	reference, err := field.referenceField(modelValue, scalarValue)
 	if err != nil {
 		return ir.Field{}, err
 	}
-	for _, kind := range []ir.FieldKind{ir.FieldAuto, ir.FieldInteger} {
+	for _, kind := range kinds {
 		metadata, ok := matchingTerminalField(model, reference, kind)
-		if ok && !metadata.Nullable {
+		if ok && (allowNullable || !metadata.Nullable) {
 			return metadata, nil
 		}
 	}
 	return ir.Field{}, unknownRelatedField(reference.Name())
 }
 
-func (r ForwardRelation[S, T]) String(field StringField[T]) (RelatedStringField[S], error) {
+func (r ForwardRelation[S, T]) String(field ReferenceField[T, string]) (RelatedStringField[S], error) {
 	if err := validateForwardState(r.state); err != nil {
 		return RelatedStringField[S]{}, err
 	}
-	if field.err != nil {
-		return RelatedStringField[S]{}, field.err
-	}
-	metadata, ok := matchingStringTerminalField(r.state.targetModel, field.reference)
-	if !ok || metadata.Nullable {
-		return RelatedStringField[S]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(r.state.targetModel, field, true, ir.FieldChar, ir.FieldText)
+	if err != nil {
+		return RelatedStringField[S]{}, err
 	}
 	path, err := r.state.path(fieldReference(metadata))
 	if err != nil {
@@ -209,19 +207,6 @@ func validateBoundModel[M any](model BoundModel[M]) error {
 		return relationInvalidPlan("bound model does not match its project snapshot")
 	}
 	return nil
-}
-
-func resolveForwardRelation(
-	snapshot *projectBindingSnapshot,
-	source ir.ModelIdentity,
-	sourceModel ir.Model,
-	field string,
-) (forwardRelationState, error) {
-	state, err := resolveForwardRelationState(snapshot, source, sourceModel, field)
-	if err != nil {
-		return forwardRelationState{}, err
-	}
-	return state, nil
 }
 
 func resolveForwardRelationState(

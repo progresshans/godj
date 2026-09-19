@@ -8,7 +8,7 @@ import (
 )
 
 // ParseDynamicRelations parses required or nullable direct forward, two-segment
-// implicit-exact lookups through the same path constructor as typed fields.
+// lookups with optional explicit suffixes through the same AST as typed fields.
 func ParseDynamicRelations[M any](model BoundModel[M], policy LookupPolicy, inputs []LookupInput) ([]Predicate[M], error) {
 	return parseDynamicRelations(model, policy, inputs, false)
 }
@@ -41,12 +41,12 @@ func parseDynamicRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 	if reverse {
 		direction = "reverse "
 	}
-	if len(segments) != 2 || segments[0] == "" || segments[1] == "" {
-		return Predicate[M]{}, unsupportedRelationLookup(input.Key, direction+"relation lookup must contain exactly two non-empty implicit-exact segments")
+	if (len(segments) != 2 && len(segments) != 3) || reverse && len(segments) != 2 || segments[0] == "" || segments[1] == "" || len(segments) == 3 && segments[2] == "" {
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, direction+"relation lookup requires a direct target field and a supported suffix")
 	}
 	relationName, terminalName := segments[0], segments[1]
-	if isRelationLookupSuffix(terminalName) {
-		return Predicate[M]{}, unsupportedRelationLookup(input.Key, "lookup suffixes on "+direction+"relations are not supported")
+	if len(segments) == 2 && isRelationLookupSuffix(terminalName) {
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "lookup suffixes on "+direction+"relations are not supported")
 	}
 	var related ir.Model
 	var pathFor func(query.FieldRef) (query.RelationPath, error)
@@ -58,9 +58,9 @@ func parseDynamicRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 		related, pathFor = state.forward.sourceModel, state.path
 	} else {
 		if hasReverseRelation(model.snapshot, model.identity, relationName) {
-			return Predicate[M]{}, unsupportedRelationLookup(input.Key, "reverse relation predicates are not supported")
+			return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "reverse relation predicates are not supported")
 		}
-		state, err := resolveForwardRelation(model.snapshot, model.identity, model.model, relationName)
+		state, err := resolveForwardRelationState(model.snapshot, model.identity, model.model, relationName)
 		if err != nil {
 			return Predicate[M]{}, err
 		}
@@ -70,22 +70,43 @@ func parseDynamicRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 	if !ok {
 		return Predicate[M]{}, unknownRelatedField(terminalName)
 	}
-	if !supportedRelatedTerminal(terminal) {
-		return Predicate[M]{}, unsupportedRelationLookup(input.Key, direction+"related field kind is not supported")
+	if !supportedRelatedTerminal(terminal, reverse) {
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, direction+"related field kind is not supported")
 	}
-	if policy != nil && !policy(terminal.Clone(), query.LookupExact) {
+	lookupName := string(query.LookupExact)
+	if len(segments) == 3 {
+		lookupName = segments[2]
+	}
+	lookup, supported := supportedLookup(terminal, lookupName)
+	if !supported {
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.Lookup(lookupName), "lookup is not supported for the related field kind")
+	}
+	if policy != nil && !policy(terminal.Clone(), lookup) {
 		return Predicate[M]{}, &query.Error{Category: query.CategoryField, Code: query.CodeDisallowedLookup,
-			Field: terminal.Name, Lookup: string(query.LookupExact), Detail: "lookup was rejected by policy"}
-	}
-	value, err := dynamicValue(terminal, query.LookupExact, input.Value)
-	if err != nil {
-		return Predicate[M]{}, err
+			Field: terminal.Name, Lookup: string(lookup), Detail: "lookup was rejected by policy"}
 	}
 	path, err := pathFor(fieldReference(terminal))
 	if err != nil {
 		return Predicate[M]{}, err
 	}
-	predicate := predicateFromCondition[M](query.NewRelatedCondition(path, query.LookupExact, value), nil)
+	var condition query.Condition
+	if lookup == query.LookupIn {
+		values, valueErr := dynamicMembership(terminal, input.Value)
+		if valueErr != nil {
+			return Predicate[M]{}, valueErr
+		}
+		condition, err = query.NewRelatedInCondition(path, values)
+		if err != nil {
+			return Predicate[M]{}, err
+		}
+	} else {
+		value, valueErr := dynamicValue(terminal, lookup, input.Value)
+		if valueErr != nil {
+			return Predicate[M]{}, valueErr
+		}
+		condition = query.NewRelatedCondition(path, lookup, value)
+	}
+	predicate := predicateFromCondition[M](condition, nil)
 	if predicate.err != nil {
 		return Predicate[M]{}, predicate.err
 	}
@@ -93,9 +114,8 @@ func parseDynamicRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 }
 
 // ParseDynamicRelationObjects is the ordered additive object-surface parser.
-// It accepts direct forward implicit-exact lookups and the nullable relation's
-// two-segment isnull form. Any failure discards
-// the entire candidate slice.
+// It accepts direct forward scalar lookups and the nullable relation's
+// two-segment source-key isnull form. Any failure discards the entire batch.
 func ParseDynamicRelationObjects[M any](
 	model BoundModel[M],
 	policy LookupPolicy,
@@ -140,7 +160,7 @@ func parseDynamicNullableRelationIsNull[M any](
 		return Predicate[M]{}, err
 	}
 	if !state.metadata.Nullable {
-		return Predicate[M]{}, unsupportedRelationLookup(input.Key, "required forward relation isnull is not supported")
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupIsNull, "required forward relation isnull is not supported")
 	}
 	sourceField, ok := findField(state.sourceModel.Fields, state.metadata.Field)
 	if !ok || sourceField.Kind != ir.FieldForeignKey || !sourceField.Nullable || sourceField.Relation == nil ||
@@ -187,12 +207,12 @@ func isRelationLookupSuffix(name string) bool {
 	}
 }
 
-func supportedRelatedTerminal(field ir.Field) bool {
-	if field.Relation != nil || field.Nullable {
+func supportedRelatedTerminal(field ir.Field, reverse bool) bool {
+	if field.Relation != nil || reverse && (field.Nullable || field.Kind == ir.FieldBoolean) {
 		return false
 	}
 	switch field.Kind {
-	case ir.FieldAuto, ir.FieldInteger, ir.FieldChar, ir.FieldText, ir.FieldDateTime:
+	case ir.FieldAuto, ir.FieldInteger, ir.FieldChar, ir.FieldText, ir.FieldDateTime, ir.FieldBoolean:
 		return true
 	default:
 		return false
@@ -211,12 +231,12 @@ func hasReverseRelation(snapshot *projectBindingSnapshot, owner ir.ModelIdentity
 	return false
 }
 
-func unsupportedRelationLookup(field, detail string) *query.Error {
+func unsupportedRelationLookup(field string, lookup query.Lookup, detail string) *query.Error {
 	return &query.Error{
 		Category: query.CategoryField,
 		Code:     query.CodeUnsupportedLookup,
 		Field:    field,
-		Lookup:   string(query.LookupExact),
+		Lookup:   string(lookup),
 		Detail:   detail,
 	}
 }

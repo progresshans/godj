@@ -3,6 +3,77 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0079 — Direct forward scalar lookup
+
+- 작업: [GDJ-0079](../../work/0079-forward-scalar-lookups.md), 의미: [ADR-0040 추가 결정](../adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup), [IN 의미](../adr/0062-scalar-membership-and-empty-query-execution.md).
+- Source: `c8bb50df3f540f56f37f5691fff36a6e0f7fcc8b` 기반 작업 사본. Markdown을 제외한 변경·새 파일 33개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `308bd105930855cca56e99da76444c2c542588111f8ce53206365e6899e667a0`이다.
+  독립 reference·generated consumer 입력·CI 필수 완료 sentinel·최종 테스트 보정을 포함한다.
+- Go 1.26.5 darwin/arm64, modernc SQLite와 PostgreSQL 17.5 (Homebrew)의 전용 DB/개별 schema에서 실행했다.
+  최종 lane 종료 뒤 이 작업에서 만든 전용 PostgreSQL DB만 제거했다.
+
+### 로컬 실행
+
+`GODJ_REQUIRE_POSTGRES=1`, `go test -json -count=1 -timeout=15m`으로 다음 영향 범위를 실행했다.
+
+```text
+./query ./orm ./db/... ./codegen/... ./internal/compiletest
+./conformance/nullableforwardproduct ./conformance/relationqueryproduct
+./conformance/relationselectproduct ./conformance/relationobjectproduct
+./conformance/relationreverseproduct ./conformance/relationprefetchproduct
+./conformance/relationdeleteproduct ./examples/... ./internal/projectgenerate/...
+```
+
+최종 normal은 **29 packages, 4,199 test 완료 event PASS**, no-test package 12개다.
+처음 실행 뒤 남은 두 package `codegen/consumertest`, `internal/compiletest` 전체를 보정 후 다시 실행했다.
+최초 normal source와 최종 source의 차이는 이 두 package의 `_test.go` 세 파일뿐임을 hash로 대조했다.
+그 외 제품·테스트·fixture bytes는 그대로다. Package별 마지막 완전한 실행을 사용하며 실패 event를 PASS에 합치지 않는다.
+
+다음 범위는 `go test -race -json -count=1 -timeout=15m`과 `CGO_ENABLED=0 go test -json -count=1 -timeout=15m`으로 실행했다.
+CGO0는 public generic API의 외부 compile 검사를 위해 `./internal/compiletest`도 포함했다.
+
+```text
+./query ./orm ./db/... ./codegen/consumertest ./examples/...
+./conformance/relationselectproduct ./conformance/relationqueryproduct
+./conformance/relationobjectproduct ./conformance/relationreverseproduct
+./conformance/relationprefetchproduct ./conformance/relationdeleteproduct
+```
+
+Race는 **24 packages, 3,614 test 완료 event PASS**, CGO0는 **25 packages, 3,668 test 완료 event PASS**다.
+각 no-test package는 10개다. 모든 test의 시작/종료와 필수 consumer, 양 DB의 748개 하위 case를 대조했다.
+Normal의 직접 진입 skip은 PostgreSQL revision-fence·generated publication crash helper 두 개, race/CGO0는 PostgreSQL helper 한 개다.
+부모의 process 실행과 구분하며 이 skip을 기능 PASS로 계산하지 않는다.
+
+### 확인한 의미와 수정
+
+- Forward target의 Integer·Char/Text·DateTime nullable/non-null과 Boolean을 typed/generation에 연결했다.
+  Scalar kind별 exact·비교·icontains·isnull·IN과 명시적 dynamic suffix, policy-before-value와 원자적 실패를 검사했다.
+- 같은 immutable AST에서 declared field nullability와 optional forward path를 함께 계산한다. Target isnull의 JOIN promotion과
+  explicit NULL member의 홀수 부정, 빈 목록의 SQL 생략을 확인했다. 원래 field metadata·입력 목록·accessor 반환 목록은 공유하지 않는다.
+- 고정 Django 6.1의 **748개 독립 관찰**에서 행 ID·Count·실제 SELECT 수와 named-field JOIN 종류를 양 DB에서 대조했다.
+  PostgreSQL은 production connection profile/physical guards를 유지한 tracer로 조회 수를 측정했다. Known-empty case는
+  전체 connection query 수도 늘지 않음을 확인했다. SQLite도 실제 backend query counter를 비교했다.
+- 별도 module의 generated model·migration·relation adapter·facade가 748개 dynamic 결과와 **typed로 표현하는 628개의 AST 일치**를 검사했다.
+  나머지 120개는 explicit NULL member가 있는 dynamic 입력이며 typed parity로 세지 않는다. Cold/warm Count·eager cache·nullable target scan과
+  invalid/canceled empty query의 pre-I/O 거부를 확인했다. 다른 eager/filter edge의 All은 기존 미지원 오류를 계속 검사한다.
+- 실제 Helpdesk 양 DB 재연결 뒤 category 이름의 IContains+IN, dynamic suffix와 eager Count/All을 연결했다.
+  서술형 검색 예시는 README에 추가했다. 일반 HTTP 검색 규칙이나 인가 정책을 바꾸지 않았다.
+- 생성 후보 compile에서 공유 terminal 필터가 reverse의 nullable/Boolean까지 넓어지는 문제를 발견했다. Reverse 생성 범위를 명시하고
+  세 프로젝트의 후보 compile·생성을 다시 완료했다. Reverse non-exact/OR/NOT은 계속 미지원이다.
+- 새로운 sealed ReferenceField signature에도 과거 진단 문자열을 요구하던 negative compile 기대값과 nullable target 미지원 기대값을 갱신했다.
+  실제 다른 model field의 사용은 계속 compile에 실패하며 타입 구분을 검사한다.
+- 748개 child test의 JSON이 compiler 진단용 128 KiB 캡처를 초과했다. Test 결과에는 별도의 bounded 4 MiB 캡처를 사용하고
+  초과분 drain·총량 대조·truncation/진단/skip/missing completion 거부를 유지했다. 잘린 첫 결과를 PASS로 세지 않고 package 전체를 다시 실행했다.
+- Python 3.12.13·3.13.15·3.14.3·3.14.7에서 forward-lookup·nullable-forward·eager-count reference 각각을 다시 관찰했다.
+  각 버전 **3 tests PASS, skip 0**다. 이 reference profile은 SQLite이며 PostgreSQL 비교는 위 실제 GoDj 실행이 소유한다.
+- 전체 compile·vet, 최종 보정 package의 vet, generated drift, CI script unittest, docs·format·diff 검사 PASS.
+
+### 통합 검증 소유자
+
+이 작업의 구현과 필수 로컬 영향 범위를 완료했다. OS/process 구현이나 새 backend를 추가하지 않았다.
+새 Hosted ORM은 다음 eager query의 여러 JOIN 조합과 묶은 통합 checkpoint가 소유한다. 위 baseline의 GDJ-0078 Hosted는
+이 새 lookup source의 실행 결과가 아니다. 새 full·Windows runtime·배포·전체 ORM 완료를 주장하지 않는다.
+
 ## GDJ-0078 — Nullable forward 대상 필터와 Boolean JOIN
 
 - 작업: [GDJ-0078](../../work/0078-nullable-forward-relation-predicates.md), 의미: [ADR-0040 추가 결정](../adr/0040-composable-typed-boolean-predicates-and-article-search.md).

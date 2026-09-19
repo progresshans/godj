@@ -257,7 +257,7 @@ func validateExpressionCondition(condition Condition) error {
 		if condition.lookup != LookupIn || condition.rhs.value != (Value{}) || condition.rhs.field != (FieldRef{}) {
 			return invalidPlanError("query expression list right-hand side is malformed")
 		}
-		if condition.relationPath != nil || !validInValues(field, condition.rhs.values) {
+		if (condition.relationPath != nil && !forwardMembershipPath(*condition.relationPath)) || !validInValues(field, condition.rhs.values) {
 			return invalidPlanError("query expression IN condition is malformed")
 		}
 	case conditionRHSField:
