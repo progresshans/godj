@@ -35,4 +35,5 @@ Time은 별도 Go 값·IR/AST/default·generator·양 DB TIME·Form/Admin·Helpd
 첫 affected checkpoint에서 Form 초기 소수초의 Django 기본 위젯 차이와 fixture 갱신 누락을 확인했다.
 기본 위젯과 소수초 보존 위젯의 독립 관찰을 모두 남기고, 정밀도를 보존하는 Go 입력은 후자와 대조한다.
 수정한 source의 affected 일반/race·양 DB·CGO0·생성물/독립 client·Python profile을 통과했다.
-기존 Draft PR에 통합하고 Hosted ORM의 해당 source와 terminal scope를 확인한다. 상세 실행과 source는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
+제품 source `9f0ffa8aeea143dd0da48789761235004dd4fa59`를 기존 Draft PR에 통합하고 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35475136652)을 실행했다.
+해당 source의 terminal 결과와 실제 scope를 확인한다. 상세 실행과 source는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

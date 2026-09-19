@@ -2,6 +2,7 @@
 
 - 갱신: 2026-09-20
 - 활성 구현: [GDJ-0088 시간 전용 값의 모델·소비자 연결](../../work/0088-clock-time-models.md)
+- 검증 중: source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, [Time Hosted ORM](https://github.com/progresshans/godj/actions/runs/35475136652)
 - 첫 Hosted 실패와 보완: [TEST_EVIDENCE](TEST_EVIDENCE.md#hosted에서-발견한-dependency-closure와-guard-보완)
 - 최근 완료: [GDJ-0087 Calendar Date의 모델·소비자 연결](../../work/0087-calendar-date-models.md)
 - 최근 Hosted 기능 검증: source `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`, [Date Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35472148411)
@@ -35,7 +36,7 @@ GDJ-0087의 Calendar Date·IR·generator·양 DB·Form/Admin·Helpdesk·OpenAPI/
 별도 `feature/clock-time-models`에서 GDJ-0088의 TimeField를 구현한다. 먼저 midnight와 NULL·microsecond·offset 입력 경계를
 독립 Django/DRF 관찰로 고정하고 IR/default·generator·ORM·양 DB TIME·소비자까지 함께 연결한다.
 TimeField의 값·IR·generator·양 DB·소비자 연결과 로컬 affected 일반/race·CGO0·독립 reference/client 검증을 완료했다.
-기존 Draft PR에 통합해 Hosted ORM을 실행하고 해당 source의 terminal 결과와 범위를 확인한다.
+제품 source를 기존 Draft PR에 통합하고 위 Hosted ORM을 실행했다. 해당 source의 terminal 결과와 실제 범위를 확인한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

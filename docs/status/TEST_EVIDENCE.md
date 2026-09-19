@@ -8,9 +8,10 @@
 - 활성 작업: [GDJ-0088](../../work/0088-clock-time-models.md), branch `feature/clock-time-models`.
 - Time 값·IR/AST/default·generator·양 DB TIME·Form/Admin·Helpdesk `0009_ticket_service_at`·OpenAPI/client를 연결했다.
   의미와 명시적 Python/Form 경계는 [ADR-0066](../adr/0066-clock-time-field-and-precision-boundaries.md)에 있다.
+- 제품·검증 source: `9f0ffa8aeea143dd0da48789761235004dd4fa59`. 기존 Draft PR #1에 통합하고 push했다.
 - 로컬 affected checkpoint를 완료했다. 제품·테스트·생성물·reference를 포함한 Markdown 제외 126개 파일의 정렬된
   `<sha256>  <relative-path>\n` manifest SHA256은 `2585525d6bf20dbb23a15d0b35f1868341f15eeb69847c44e3e8b55b85e20845`다.
-  아래 최종 실행 중 이 source를 보존했다. Hosted 검증은 아직 진행 전이다.
+  아래 최종 실행 중 이 source를 보존했다.
 
 ### 독립 기준과 초기 통합
 
@@ -58,6 +59,12 @@ Python/SQLite fingerprint는 실행 runtime과 대조하며 구버전의 model 1
   실제 Article Bearer/Session·Helpdesk Session 문서 세 개를 검증했고 모두 PASS다. 문서 링크·diff·format도 검사했다.
 
 현재 로컬 결과는 위 source·환경·범위에 적용한다. Hosted ORM과 전체 platform/cold-build 증거를 대신하지 않는다.
+
+### Hosted ORM 진행 중
+
+Source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, attempt 1의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35475136652)을 실행했다.
+아직 terminal 결과가 없으며 현재 source의 Hosted PASS로 표시하지 않는다. 최근 완료된 Date ORM과 과거 전체 platform 검증은
+각각의 source에 적용한다. 최종 summary의 실제 scope와 모든 job의 source·attempt·terminal 상태를 확인한다.
 
 ## GDJ-0087 — Calendar Date의 모델·소비자 연결
 
