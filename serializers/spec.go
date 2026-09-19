@@ -9,6 +9,7 @@ import (
 
 	"github.com/progresshans/godj/internal/dateinput"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/internal/timeinput"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -21,6 +22,7 @@ const (
 	FieldInteger
 	FieldDateTime
 	FieldDate
+	FieldTime
 )
 
 const (
@@ -30,6 +32,7 @@ const (
 	CodeType          validation.Code = "type"
 	CodeDateTime      validation.Code = "datetime"
 	CodeDate          validation.Code = "invalid"
+	CodeTime          validation.Code = "invalid"
 	CodeBlank         validation.Code = "blank"
 	CodeMaxLength     validation.Code = "max_length"
 	CodeUnknown       validation.Code = "unknown"
@@ -171,7 +174,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate:
+	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -200,7 +203,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime
 }
 
 func validFieldName(name string) bool {
@@ -387,6 +390,19 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 			return Null(), validation.NewErrors()
 		}
 		return Value{}, oneViolation(field.name, CodeNull)
+	}
+	if field.kind == FieldTime {
+		switch value.kind {
+		case ValueTime:
+			return value, validation.NewErrors()
+		case ValueDateTime:
+			return Value{}, oneViolation(field.name, CodeTime)
+		case ValueString:
+			if time, err := timeinput.ISO(value.string); err == nil {
+				return Time(time), validation.NewErrors()
+			}
+		}
+		return Value{}, oneViolation(field.name, CodeTime)
 	}
 	if field.kind == FieldDate {
 		switch value.kind {

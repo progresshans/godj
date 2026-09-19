@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -37,6 +38,9 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
+	if hasTimeStorage(schema) {
+		fmt.Fprintln(&output, "\t_godjclock \"github.com/progresshans/godj/clock\"")
+	}
 	if hasDateStorage(schema) {
 		fmt.Fprintln(&output, "\t_godjcalendar \"github.com/progresshans/godj/calendar\"")
 	}
@@ -65,7 +69,18 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate {
+			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && field.Kind != ir.FieldTime {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasTimeStorage(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Kind == ir.FieldTime {
 				return true
 			}
 		}
@@ -125,7 +140,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	for _, field := range model.Fields {
 		if field.Nullable {
 			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime {
 			fmt.Fprintf(output, "\tvar scan%s orm.%sScanner\n", field.GoName, fieldRenderKind(field.Kind).queryValue)
 		}
 	}
@@ -134,7 +149,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate {
+		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -147,7 +162,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime {
 			fmt.Fprintf(output, "\tvalue.%s = scan%s.%s\n", field.GoName, field.GoName, fieldRenderKind(field.Kind).sqlValue)
 		}
 	}
@@ -508,6 +523,12 @@ func queryValueExpression(field ir.Field, value string) string {
 
 func defaultValueExpression(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarTime:
+		time, err := clock.Parse(value.Time)
+		if err != nil {
+			return "nil"
+		}
+		return fmt.Sprintf("_godjclock.Time{Hour:%d, Minute:%d, Second:%d, Microsecond:%d}", time.Hour, time.Minute, time.Second, time.Microsecond)
 	case ir.ScalarDate:
 		date, err := calendar.Parse(value.Date)
 		if err != nil {
@@ -533,6 +554,8 @@ func defaultValueExpression(value ir.Scalar) string {
 
 func scalarLiteral(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarTime:
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarTime, Time: %s}", strconv.Quote(value.Time))
 	case ir.ScalarDate:
 		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDate, Date: %s}", strconv.Quote(value.Date))
 	case ir.ScalarDateTime:
@@ -579,6 +602,10 @@ func lowerFirst(value string) string {
 }
 
 func renderCanonicalTemporal(output *bytes.Buffer, model string, field ir.Field, value, indent string) {
+	if field.Kind == ir.FieldTime {
+		fmt.Fprintf(output, "%sif !%s.Valid() { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"time must be a valid clock with microsecond precision\"}) }\n", indent, value, model, strconv.Quote(field.Name))
+		return
+	}
 	if field.Kind == ir.FieldDate {
 		fmt.Fprintf(output, "%sif !%s.Valid() { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"date must be a valid Gregorian day in years 1 through 9999\"}) }\n", indent, value, model, strconv.Quote(field.Name))
 		return

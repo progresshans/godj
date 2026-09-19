@@ -186,6 +186,10 @@ func appendCanonicalModel(output []byte, model ir.Model) ([]byte, error) {
 func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 	var err error
 	switch value.Kind {
+	case ir.ScalarTime:
+		output = append(output, `{"kind":"time","time":`...)
+		output, err = appendCanonicalString(output, value.Time)
+		output = append(output, '}')
 	case ir.ScalarDate:
 		output = append(output, `{"date":`...)
 		output, err = appendCanonicalString(output, value.Date)

@@ -397,7 +397,7 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 			return nil, invalidPlan("SQLite field comparison is missing its right-hand-side binding")
 		}
 		if field.Kind() != right.Kind() ||
-			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate) {
+			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && field.Kind() != query.FieldTime) {
 			return nil, invalidPlan("SQLite field comparison requires same-kind ordered scalar fields")
 		}
 		operator, ok := comparisonOperator(condition.Lookup())
@@ -521,7 +521,7 @@ func validateReadSourceFields(fields []query.FieldRef) error {
 			return invalidPlan(fmt.Sprintf("field column %q is empty or contains NUL", field.Column()))
 		}
 		switch field.Kind() {
-		case query.FieldInteger, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate:
+		case query.FieldInteger, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime:
 		default:
 			return invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
 		}

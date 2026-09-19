@@ -1508,3 +1508,22 @@ func TestLoadedDefinitionDatePayloadIsBudgetedBeforeClone(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadedDefinitionTimePayloadIsBudgetedBeforeClone(t *testing.T) {
+	for _, choice := range []bool{false, true} {
+		for _, kind := range []ir.ScalarKind{ir.ScalarTime, ir.ScalarString} {
+			scalar := ir.Scalar{Kind: kind, Time: strings.Repeat("x", maxLoadedDefinitionBytes+1)}
+			field := ir.Field{Name: "at", GoName: "At", Column: "at", Kind: ir.FieldTime}
+			if choice {
+				field.Choices = []ir.Choice{{Value: scalar}}
+			} else {
+				field.Default = &scalar
+			}
+			migration := Migration{App: "dates", Name: "0002_day", Operations: []Operation{AddField{AppLabel: "dates", ModelName: "entry", Field: field}}}
+			err := validateLoadedDefinitionResources([]Migration{migration})
+			if err == nil || !strings.Contains(err.Error(), "resource limit exceeded") || !strings.Contains(err.Error(), "definition_bytes") {
+				t.Fatalf("oversized time bypassed loaded-definition budget: %v", err)
+			}
+		}
+	}
+}

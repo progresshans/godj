@@ -204,7 +204,7 @@ func validateExpressionCondition(condition Condition) error {
 		return invalidPlanError("query expression condition has an empty or NUL-containing field")
 	}
 	switch field.kind {
-	case FieldInteger, FieldString, FieldBoolean, FieldDateTime, FieldDate:
+	case FieldInteger, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime:
 	default:
 		return invalidPlanError("query expression condition has an unsupported field kind")
 	}
@@ -272,7 +272,7 @@ func validateExpressionCondition(condition Condition) error {
 			return invalidPlanError("query expression field right-hand side requires exact or ordered comparison")
 		}
 		if field.kind != condition.rhs.field.kind ||
-			(field.kind != FieldInteger && field.kind != FieldString && field.kind != FieldDateTime && field.kind != FieldDate) {
+			(field.kind != FieldInteger && field.kind != FieldString && field.kind != FieldDateTime && field.kind != FieldDate && field.kind != FieldTime) {
 			return invalidPlanError("query expression field comparison requires same-kind ordered scalar fields")
 		}
 	default:
@@ -296,11 +296,11 @@ func orderedComparisonLookup(lookup Lookup) bool {
 }
 
 func expressionOrderedValueMatchesField(value ValueKind, field FieldKind) bool {
-	return value == ValueDate && field == FieldDate || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger || value == ValueString && field == FieldString
+	return value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger || value == ValueString && field == FieldString
 }
 
 func expressionValueMatchesField(value ValueKind, field FieldKind) bool {
-	return value == ValueDate && field == FieldDate || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger ||
+	return value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger ||
 		value == ValueString && field == FieldString ||
 		value == ValueBoolean && field == FieldBoolean
 }

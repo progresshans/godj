@@ -69,3 +69,13 @@ Calendar Date는 같은 고정 Django의 model/form DateField·dateparse·en-us 
 참조한다(BSD-3-Clause). [ADR-0065](adr/0065-calendar-date-field-and-input-boundaries.md#출처와-검증-경계)와
 [독립 reference](../conformance/runners/django/calendar_date_reference.py)에 입력 경계·실제 DB 관찰을 둔다. Go의 comparable Date,
 invalid literal·strict canonical storage·scanner의 시각 거부는 별도로 명시한 Go API 정책이다.
+
+Clock Time은 [Django 6.1 model fields](https://github.com/django/django/blob/6.1/django/db/models/fields/__init__.py),
+[Form fields](https://github.com/django/django/blob/6.1/django/forms/fields.py)·[Form initial 처리](https://github.com/django/django/blob/6.1/django/forms/forms.py),
+[dateparse](https://github.com/django/django/blob/6.1/django/utils/dateparse.py)와
+[DRF 3.18.0 fields](https://github.com/encode/django-rest-framework/blob/3.18.0/rest_framework/fields.py)를 참조한다(BSD-3-Clause).
+Python 버전별 clock grammar는 [CPython 3.14.3](https://github.com/python/cpython/blob/v3.14.3/Modules/_datetimemodule.c)의 public 결과를 참조한다(PSF license).
+SQL driver 경계는 [pgx v5.10.0 TimeCodec](https://github.com/jackc/pgx/blob/v5.10.0/pgtype/time.go)(MIT), wire 의미는
+[OpenAPI time registry](https://spec.openapis.org/registry/format/time)의 RFC3339 full-time 정의를 확인했다.
+[ADR-0066](adr/0066-clock-time-field-and-precision-boundaries.md)와 [독립 runner](../conformance/runners/django/clock_time_reference.py)는
+기본 Django 위젯의 초기 소수초 제거와 Go의 precision 보존, JSON NUL 거부와 Python typed aware time의 별도 관찰을 명시한다.

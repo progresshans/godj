@@ -16,6 +16,7 @@ const (
 	modelStructuralLowerBound                = uint64(len(`{"name":"","go_name":"","db_table":"","fields":[]}`))
 	fieldStructuralLowerBound                = uint64(len(`{"name":"","go_name":"","column":"","kind":"","primary_key":true,"nullable":true,"max_length":0,"default":null}`))
 
+	timeDefaultStructuralLowerBound     = uint64(len(`{"kind":"","time":""}`))
 	dateDefaultStructuralLowerBound     = uint64(len(`{"kind":"","date":""}`))
 	datetimeDefaultStructuralLowerBound = uint64(len(`{"kind":"","datetime":""}`))
 	stringDefaultStructuralLowerBound   = uint64(len(`{"kind":"","string":""}`))
@@ -270,6 +271,9 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 }
 
 func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) error {
+	if err := scanner.addString(path+".time", value.Time); err != nil {
+		return err
+	}
 	if err := scanner.addString(path+".date", value.Date); err != nil {
 		return err
 	}
@@ -278,6 +282,8 @@ func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) er
 	}
 	structural := uint64(0)
 	switch value.Kind {
+	case ir.ScalarTime:
+		structural = timeDefaultStructuralLowerBound
 	case ir.ScalarDate:
 		structural = dateDefaultStructuralLowerBound
 	case ir.ScalarDateTime:

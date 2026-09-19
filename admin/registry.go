@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/internal/temporal"
@@ -845,6 +846,13 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 			return forms.Values{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		switch field.Kind() {
+		case forms.FieldTime:
+			if entry.Value().IsNull() {
+				canonicalData[field.Name()] = []string{""}
+			} else {
+				value, _ := entry.Value().AsTime()
+				canonicalData[field.Name()] = []string{value.String()}
+			}
 		case forms.FieldDate:
 			if entry.Value().IsNull() {
 				canonicalData[field.Name()] = []string{""}
@@ -895,6 +903,12 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 
 func validInitialValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldTime:
+		if value.IsNull() {
+			return field.Nullable()
+		}
+		_, ok := value.AsTime()
+		return ok
 	case forms.FieldDate:
 		if value.IsNull() {
 			return field.Nullable()
@@ -956,6 +970,10 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 	switch initial.Kind() {
 	case forms.ValueNull:
 		return snapshot.IsNull()
+	case forms.ValueTime:
+		left, leftOK := initial.AsTime()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.String() == right
 	case forms.ValueDate:
 		left, leftOK := initial.AsDate()
 		right, rightOK := snapshot.AsString()
@@ -983,6 +1001,12 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldTime:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsTime()
+		return ok
 	case forms.FieldDate:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
@@ -1063,6 +1087,16 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 	case ir.FieldAuto:
 		integer, ok := value.AsInteger()
 		return ok && integer > 0 && (!field.PrimaryKey || integer == objectID)
+	case ir.FieldTime:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		_, err := clock.Parse(text)
+		return err == nil
 	case ir.FieldDate:
 		if value.IsNull() {
 			return field.Nullable

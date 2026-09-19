@@ -14,6 +14,7 @@ github.com/progresshans/godj/conformance/relationdeleteproduct|TestREL008Adversa
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNullableForwardConsumer
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNullableBooleanConsumer
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedCalendarDateConsumer
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedClockTimeConsumer
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedEagerCountConsumer
 github.com/progresshans/godj/db/sqlite|TestSQLiteNullableForwardBooleanPredicatesMatchDjango
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedForwardLookupConsumer

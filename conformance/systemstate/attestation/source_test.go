@@ -74,6 +74,8 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
+		"clock/time.go",
+		"internal/timeinput/time.go",
 		"calendar/date.go",
 		"internal/dateinput/date.go",
 		"internal/temporal/datetime.go",

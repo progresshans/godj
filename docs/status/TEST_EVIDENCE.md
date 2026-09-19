@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0088 — Clock Time의 모델·소비자 연결
+
+- 활성 작업: [GDJ-0088](../../work/0088-clock-time-models.md), branch `feature/clock-time-models`.
+- Time 값·IR/AST/default·generator·양 DB TIME·Form/Admin·Helpdesk `0009_ticket_service_at`·OpenAPI/client를 연결했다.
+  의미와 명시적 Python/Form 경계는 [ADR-0066](../adr/0066-clock-time-field-and-precision-boundaries.md)에 있다.
+- 로컬 affected checkpoint를 완료했다. 제품·테스트·생성물·reference를 포함한 Markdown 제외 126개 파일의 정렬된
+  `<sha256>  <relative-path>\n` manifest SHA256은 `2585525d6bf20dbb23a15d0b35f1868341f15eeb69847c44e3e8b55b85e20845`다.
+  아래 최종 실행 중 이 source를 보존했다. Hosted 검증은 아직 진행 전이다.
+
+### 독립 기준과 초기 통합
+
+고정 Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5, Python 3.14.3 UTC/en-us의 실제 public API와 file SQLite를 사용했다.
+Raw 관찰은 model 85개·기본 Form 152개·microsecond Form 152개·serializer 344개, 실제 DB add/reopen/update/reverse·root/relation query 각 9개·Min/Max다.
+[Raw 파일](../../internal/clocktimetest/testdata/django61.json)의 SHA256은
+`0d57d17153ef6060a5088b807ca706ac1c5eb4ba5e2792acc6ced933eab106c0`다.
+Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 fresh subprocess의 pinned reference 재생을 각각 실행해 **1 test PASS**, skip/warning/exception 0을 확인했다.
+Python/SQLite fingerprint는 실행 runtime과 대조하며 구버전의 model 11개·serializer 44개 차이는 explicit profile로 검사한다.
+
+첫 27-package 통합 실행은 3 package가 실패했다. 기본 Django TimeInput이 초기 소수초를 제거해 Go의 precision 보존과 changed 결과
+10개가 달랐다. 기본 관찰을 보존한 채 supports_microseconds=true 위젯의 별도 실제 관찰을 추가하고 Go를 후자와 비교했다.
+또한 Helpdesk registry fixture의 필드 수를 새 allowlist에 맞추고, 독립 client test에서 request encoder가 Validate를 자동 호출한다는
+잘못된 가정을 제거해 명시적 Validate와 서버 검증을 구분했다. 제품의 소수초·JSON 보안·권한·transaction 경계를 약화하지 않았다.
+수정 후 Form·Helpdesk SQLite/PG·독립 OpenAPI client·생성 Clock model의 focused **4 packages / 160 pass events**, skip 0을 확인했다.
+그 뒤 추가한 import-name collision fixture와 Time config 오류 코드 정리를 포함해 다음 checkpoint를 실행했다.
+
+### 로컬 통합 checkpoint 완료
+
+환경은 **Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5(Homebrew)**다. 작업 전용 DB와 독립 schema를 사용하고
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 적용했다. 전용 DB는 모든 실행이 끝난 후 연결 0개를 확인하고 삭제했으며 기존 DB service는 유지했다.
+
+- Affected 일반 실행 **27 packages / 8,390 pass events**, 같은 범위 race **27 packages / 8,331 pass events**가 terminal PASS다.
+  Clock, schema/IR, query/ORM, codegen/consumer, migrations/definition, project wire/spec/generation/resource/autodetect,
+  Form/model, serializer, Admin/OpenAPI/client, 양 DB/queryplan, compile boundary, Helpdesk와 두 source attestation package를 포함한다.
+- 차이 **59 events**는 `internal/compiletest`의 명시적 `!race` source에 있는 7 root test와 subcase다. 일반 실행의 terminal event와
+  각 source build tag를 대조했다. 새 Time-vs-Date/DateTime predicate/write/F 컴파일 거부 6개가 일반 실행에 포함된다.
+- 양쪽 helper-only skip 2개는 `TestPostgresRevisionFenceHelperProcess`, `TestPublicationCrashHelper`다. 실제 process parent인
+  `TestPostgresRevisionFenceCrossProcessIntegration`, `TestPublishRecoversAfterProcessCrashAtPrecommitAndPostcommitBoundaries`는 normal/race 모두 PASS다.
+- CGO=0 focused 실행은 **3 packages / 4 root tests PASS, skip 0**이다. Generated Clock consumer, Helpdesk SQLite/PG,
+  독립 OpenAPI client를 정확한 root selector로 실행했다.
+- Generated consumer는 자정 default·NULL·microsecond·invalid mutation/동적 입력·원본/cache/projection 복사·F·empty aggregate·
+  취소·실패 Save와 update mask·기존 행의 추가/재연결/역방향·root/forward relation 관찰을 양 DB에서 확인했다.
+  SQLite/PG child의 terminal PASS를 필수 receipt로 검사했다. `Time` model과 `Time`/`TimeValue` 필드 이름도 import와 충돌하지 않는다.
+- Go Form은 microsecond를 보존하는 독립 관찰 **152개**의 cleaned/errors/changed를 대조한다. Serializer **328개**는 직접 field 결과와 대조하고,
+  NUL **12개**는 GoDj JSON parser의 invalid_document 경계를 별도로 assert한다. Python typed aware time **4개**는 raw 관찰을 확인하고
+  대응하는 zone-free Go 값이 없다는 경계로 구분했다. 344개 전체를 동일한 field parity로 표시하지 않는다.
+- Helpdesk는 실제 로그인/Admin·CSRF/permission·validation-before-transaction·canonical no-op PATCH·PUT omission/null·rollback·fresh reopen을 확인한다.
+  Ogen v1.24.0은 실제 builtin Session/CSRF 문서에서 재생성했고 독립 module의 compile/HTTP/DB·24개 required receipts,
+  canonical clock wire·required response/domain validation과 명시적 request.Validate를 확인했다. Module/tool lock은 바꾸지 않았다.
+- Affected vet와 `make generate-check` PASS, Helpdesk `makemigrations`는 **candidate_count:0**이다.
+  `go test -exec /usr/bin/true ./...`는 **144 packages compile-only**이며 runtime PASS가 아니다.
+  Generated Helpdesk model/project의 **GOOS=linux GOARCH=386 CGO_ENABLED=0 go build**도 PASS다.
+- CI Python tooling **37 tests PASS**. 별도 pinned openapi-spec-validator **0.9.0**, jsonschema **4.26.0**, referencing **0.37.0**으로
+  실제 Article Bearer/Session·Helpdesk Session 문서 세 개를 검증했고 모두 PASS다. 문서 링크·diff·format도 검사했다.
+
+현재 로컬 결과는 위 source·환경·범위에 적용한다. Hosted ORM과 전체 platform/cold-build 증거를 대신하지 않는다.
+
 ## GDJ-0087 — Calendar Date의 모델·소비자 연결
 
 - 작업: [GDJ-0087](../../work/0087-calendar-date-models.md), branch `feature/calendar-date-models`, integration baseline

@@ -25,6 +25,7 @@ func Schema() (ir.Schema, error) {
 			schema.DateTimeField("due_at", "DueAt", schema.Nullable()),
 			schema.BooleanField("reviewed", "Reviewed", schema.Nullable()),
 			schema.DateField("service_on", "ServiceOn", schema.Nullable()),
+			schema.TimeField("service_at", "ServiceAt", schema.Nullable()),
 		}},
 	}})
 }

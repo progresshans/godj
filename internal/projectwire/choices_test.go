@@ -18,6 +18,9 @@ func TestScalarChoicesWireMeasurementAndClosedScan(t *testing.T) {
 		{Kind: ir.ScalarInteger}, {Kind: ir.ScalarInteger, Integer: math.MinInt64},
 		{Kind: ir.ScalarInteger, Integer: math.MaxInt64}, {Kind: ir.ScalarBoolean, Boolean: true},
 		{Kind: ir.ScalarDate, Date: "0001-01-01"},
+		{Kind: ir.ScalarTime, Time: "00:00:00"},
+		{Kind: ir.ScalarTime, Time: "23:59:59.999999"},
+		{Kind: ir.ScalarString, Time: "<&>\u2028mixed", String: "payload"},
 		{Kind: ir.ScalarString, Date: "<&>\u2028mixed", String: "payload"},
 		{Kind: ir.ScalarDateTime, DateTime: "2026-09-19T00:00:00.000000Z"},
 	} {

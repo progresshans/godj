@@ -1772,19 +1772,24 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		e.FieldStart("service_on")
 		s.ServiceOn.Encode(e, json.EncodeDate)
 	}
+	{
+		e.FieldStart("service_at")
+		s.ServiceAt.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfTicket = [10]string{
-	0: "id",
-	1: "subject",
-	2: "details",
-	3: "closed",
-	4: "category",
-	5: "priority",
-	6: "resolution",
-	7: "due_at",
-	8: "reviewed",
-	9: "service_on",
+var jsonFieldsNameOfTicket = [11]string{
+	0:  "id",
+	1:  "subject",
+	2:  "details",
+	3:  "closed",
+	4:  "category",
+	5:  "priority",
+	6:  "resolution",
+	7:  "due_at",
+	8:  "reviewed",
+	9:  "service_on",
+	10: "service_at",
 }
 
 // Decode decodes Ticket from json.
@@ -1904,6 +1909,16 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_on\"")
 			}
+		case "service_at":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.ServiceAt.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -1915,7 +1930,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2016,9 +2031,15 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 			s.ServiceOn.Encode(e, json.EncodeDate)
 		}
 	}
+	{
+		if s.ServiceAt.Set {
+			e.FieldStart("service_at")
+			s.ServiceAt.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketCreate = [8]string{
+var jsonFieldsNameOfTicketCreate = [9]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2027,6 +2048,7 @@ var jsonFieldsNameOfTicketCreate = [8]string{
 	5: "due_at",
 	6: "reviewed",
 	7: "service_on",
+	8: "service_at",
 }
 
 // Decode decodes TicketCreate from json.
@@ -2034,7 +2056,7 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode TicketCreate to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -2121,6 +2143,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_on\"")
 			}
+		case "service_at":
+			if err := func() error {
+				s.ServiceAt.Reset()
+				if err := s.ServiceAt.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -2130,8 +2162,9 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b00000001,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2375,9 +2408,15 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 			s.ServiceOn.Encode(e, json.EncodeDate)
 		}
 	}
+	{
+		if s.ServiceAt.Set {
+			e.FieldStart("service_at")
+			s.ServiceAt.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketPatch = [8]string{
+var jsonFieldsNameOfTicketPatch = [9]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2386,6 +2425,7 @@ var jsonFieldsNameOfTicketPatch = [8]string{
 	5: "due_at",
 	6: "reviewed",
 	7: "service_on",
+	8: "service_at",
 }
 
 // Decode decodes TicketPatch from json.
@@ -2475,6 +2515,16 @@ func (s *TicketPatch) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_on\"")
+			}
+		case "service_at":
+			if err := func() error {
+				s.ServiceAt.Reset()
+				if err := s.ServiceAt.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_at\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2587,9 +2637,15 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 			s.ServiceOn.Encode(e, json.EncodeDate)
 		}
 	}
+	{
+		if s.ServiceAt.Set {
+			e.FieldStart("service_at")
+			s.ServiceAt.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketUpdate = [8]string{
+var jsonFieldsNameOfTicketUpdate = [9]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2598,6 +2654,7 @@ var jsonFieldsNameOfTicketUpdate = [8]string{
 	5: "due_at",
 	6: "reviewed",
 	7: "service_on",
+	8: "service_at",
 }
 
 // Decode decodes TicketUpdate from json.
@@ -2605,7 +2662,7 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode TicketUpdate to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -2692,6 +2749,16 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_on\"")
 			}
+		case "service_at":
+			if err := func() error {
+				s.ServiceAt.Reset()
+				if err := s.ServiceAt.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_at\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -2701,8 +2768,9 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b00000001,
+		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

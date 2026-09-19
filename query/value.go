@@ -2,6 +2,7 @@ package query
 
 import (
 	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/internal/temporal"
 	"time"
 )
@@ -13,6 +14,7 @@ const (
 	ValueInteger  ValueKind = "integer"
 	ValueString   ValueKind = "string"
 	ValueBoolean  ValueKind = "boolean"
+	ValueTime     ValueKind = "time"
 	ValueDate     ValueKind = "date"
 	ValueDateTime ValueKind = "datetime"
 )
@@ -39,8 +41,23 @@ func String(value string) Value {
 	return Value{kind: ValueString, text: value}
 }
 
-// Date snapshots a valid calendar day. Invalid literals remain invalid Values
-// and are rejected before a query or write reaches the backend.
+// Time snapshots valid clock components, including midnight. Invalid literals
+// are rejected before a query or write reaches the backend.
+func Time(value clock.Time) Value {
+	if !value.Valid() {
+		return Value{}
+	}
+	return Value{kind: ValueTime, text: value.String()}
+}
+func (v Value) Time() (clock.Time, bool) {
+	if v.kind != ValueTime {
+		return clock.Time{}, false
+	}
+	value, err := clock.Parse(v.text)
+	return value, err == nil
+}
+
+// Date snapshots a valid calendar day. Invalid literals remain invalid Values.
 func Date(value calendar.Date) Value {
 	if !value.Valid() {
 		return Value{}
@@ -104,6 +121,8 @@ func (v Value) DatabaseValue() (any, error) {
 	switch v.kind {
 	case ValueNull:
 		return nil, nil
+	case ValueTime:
+		return v.text, nil
 	case ValueDate:
 		return v.text, nil
 	case ValueDateTime:

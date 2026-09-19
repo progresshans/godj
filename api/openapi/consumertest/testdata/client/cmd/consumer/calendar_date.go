@@ -56,7 +56,7 @@ func checkHelpdeskCalendarDateUpdates(ctx context.Context, client *hs.Client, tr
 }
 
 func checkGeneratedCalendarDateWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"priority":null,"resolution":null,"due_at":null,"reviewed":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_at":null`
 	clear := hs.OptNilDate{}
 	clear.SetToNull()
 	for _, test := range []struct {

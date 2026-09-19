@@ -74,6 +74,8 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 
 | [0065](0065-calendar-date-field-and-input-boundaries.md) | Accepted | 시각과 구분되는 Calendar Date와 Form/JSON 입력 경계 |
 
+| [0066](0066-clock-time-field-and-precision-boundaries.md) | Accepted | 날짜와 시간대 없는 clock Time, microsecond와 Form/JSON 경계 |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

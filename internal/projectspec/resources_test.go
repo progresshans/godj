@@ -116,3 +116,17 @@ func TestDateDefaultResourceCapsApplyBeforeSemanticValidation(t *testing.T) {
 		assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_utf8")
 	}
 }
+
+func TestTimeDefaultResourceCapsApplyBeforeSemanticValidation(t *testing.T) {
+	for _, kind := range []ir.ScalarKind{ir.ScalarTime, ir.ScalarString} {
+		scalar := &ir.Scalar{Kind: kind, Time: strings.Repeat("x", MaxSchemaStringBytes)}
+		schema := ir.Schema{AppLabel: "dates", Models: []ir.Model{{Fields: []ir.Field{{Default: scalar}}}}}
+		if err := ValidateSchemas([]ir.Schema{schema}); err != nil {
+			t.Fatal("exact time resource cap rejected", err)
+		}
+		scalar.Time += "x"
+		assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_bytes")
+		scalar.Time = string([]byte{0xff})
+		assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_utf8")
+	}
+}

@@ -266,6 +266,11 @@ type choiceDocument struct {
 	Label string `json:"label"`
 }
 
+type timeDefaultDocument struct {
+	Kind ir.ScalarKind `json:"kind"`
+	Time string        `json:"time"`
+}
+
 type dateDefaultDocument struct {
 	Kind ir.ScalarKind `json:"kind"`
 	Date string        `json:"date"`
@@ -360,6 +365,8 @@ func encodeDefault(value *ir.Scalar) any {
 		return nil
 	}
 	switch value.Kind {
+	case ir.ScalarTime:
+		return timeDefaultDocument{Kind: value.Kind, Time: value.Time}
 	case ir.ScalarDate:
 		return dateDefaultDocument{Kind: value.Kind, Date: value.Date}
 	case ir.ScalarDateTime:

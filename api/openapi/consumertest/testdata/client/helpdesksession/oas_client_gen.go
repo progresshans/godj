@@ -52,7 +52,9 @@ type Invoker interface {
 	// application's selected category. The current row lookup and update share one transaction. Generated
 	// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
 	// explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-	// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone.
+	// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
+	// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
+	// clears the clock.
 	//
 	// PATCH /api/tickets/{id}/
 	HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error)
@@ -63,7 +65,9 @@ type Invoker interface {
 	// application's selected category. The current row lookup and update share one transaction. Generated
 	// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
 	// explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-	// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone.
+	// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
+	// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
+	// clears the clock.
 	//
 	// PUT /api/tickets/{id}/
 	HelpdeskTicketUpdate(ctx context.Context, request *TicketUpdate, params HelpdeskTicketUpdateParams) (HelpdeskTicketUpdateRes, error)
@@ -394,7 +398,9 @@ func (c *Client) sendHelpdeskTicketList(ctx context.Context) (res HelpdeskTicket
 // application's selected category. The current row lookup and update share one transaction. Generated
 // id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
 // explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone.
+// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
+// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
+// clears the clock.
 //
 // PATCH /api/tickets/{id}/
 func (c *Client) HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error) {
@@ -519,7 +525,9 @@ func (c *Client) sendHelpdeskTicketPatch(ctx context.Context, request *TicketPat
 // application's selected category. The current row lookup and update share one transaction. Generated
 // id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
 // explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone.
+// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
+// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
+// clears the clock.
 //
 // PUT /api/tickets/{id}/
 func (c *Client) HelpdeskTicketUpdate(ctx context.Context, request *TicketUpdate, params HelpdeskTicketUpdateParams) (HelpdeskTicketUpdateRes, error) {

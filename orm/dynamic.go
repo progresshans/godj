@@ -3,6 +3,7 @@ package orm
 import (
 	"fmt"
 	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"strings"
 	"time"
 
@@ -109,11 +110,11 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	lookup := query.Lookup(name)
 	switch lookup {
 	case query.LookupIn:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime
 	case query.LookupExact:
 		return lookup, true
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:
@@ -150,6 +151,12 @@ func dynamicValue(field ir.Field, lookup query.Lookup, raw any) (query.Value, er
 		default:
 			return invalid("int or int64")
 		}
+	case ir.FieldTime:
+		value, ok := raw.(clock.Time)
+		if !ok || !value.Valid() {
+			return invalid("valid clock.Time")
+		}
+		return query.Time(value), nil
 	case ir.FieldDate:
 		value, ok := raw.(calendar.Date)
 		if !ok || !value.Valid() {

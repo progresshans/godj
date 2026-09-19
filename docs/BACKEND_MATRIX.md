@@ -16,7 +16,7 @@
 
 ## 현재 schema와 query 폭
 
-Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Boolean과 AutoField-target ForeignKey를 지원한다.
+Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Boolean과 AutoField-target ForeignKey를 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
@@ -24,6 +24,11 @@ nullable/time default·comparison/F·projection/Min/Max를 지원한다. [시간
 String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterField는 양 DB의 revision-fenced lifecycle에서 DDL 없이 상태·recorder를 갱신하며 물리 catalog 검증은 수행한다. [선택값 의미](adr/0063-model-choices-and-metadata-only-migrations.md)를 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.
+Time은 자정을 포함하는 날짜·시간대 없는 clock과 별도 NULL이다. 양 DB TIME과 canonical clock parameter를 사용하며
+literal/default·typed/dynamic query·IN/F·projection/Min/Max·forward relation을 연결했다. PostgreSQL timetz와 구분하고
+SQL text scanner의 precision/24:00 경계는 [ADR-0066](adr/0066-clock-time-field-and-precision-boundaries.md)를 따른다.
+이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
+
 
 모든 Django Field, OneToOne/ManyToMany, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
@@ -32,7 +37,7 @@ Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한
 유한한 여러 단계의 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
-Typed/dynamic 대상은 Integer·Char/Text·Date·DateTime의 nullable/non-null과 Boolean이다.
+Typed/dynamic 대상은 Integer·Char/Text·Date·DateTime·Time의 nullable/non-null과 Boolean이다.
 여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.

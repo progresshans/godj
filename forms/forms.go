@@ -23,6 +23,7 @@ const (
 	ValueInteger
 	ValueDateTime
 	ValueDate
+	ValueTime
 )
 
 // Value is an immutable cleaned or initial form value.
@@ -62,6 +63,7 @@ const (
 	FieldInteger
 	FieldDateTime
 	FieldDate
+	FieldTime
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -76,6 +78,7 @@ const (
 	DateInput
 	Select
 	NullBooleanSelect
+	TimeInput
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -252,6 +255,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	}
 	if !(kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
+		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		kind == FieldDate && (config.widget == DateInput || config.widget == TextInput) ||
 		config.choices != nil && config.widget == Select) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
@@ -270,6 +274,16 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
+	case FieldTime:
+		if config.maxLength != 0 {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
+		}
+		if !config.required && !config.nullable {
+			return Field{}, &ConfigError{Path: "fields." + name + ".nullable", Code: "optional_time_requires_null"}
+		}
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
+			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
+		}
 	case FieldDate:
 		if config.maxLength != 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
@@ -346,7 +360,7 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 		return nullable
 	}
 	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime
 }
 
 func (f Field) Name() string              { return f.name }
@@ -481,7 +495,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = field.defaultValue
 		case field.kind == FieldBoolean && !field.nullable:
 			value = Boolean(false)
-		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate:
+		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime:
 			// An unbound required integer starts blank rather than inventing zero.
 			value = Null()
 		case field.kind == FieldChar:
@@ -631,6 +645,19 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 		}
 	} else {
 		switch field.kind {
+		case FieldTime:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = submitted[0]
+			}
+			var code validation.Code
+			value, code = cleanTime(raw)
+			if code == "" && value.IsNull() && field.required {
+				code = "required"
+			}
+			if code != "" {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+			}
 		case FieldDate:
 			raw := ""
 			if present && len(submitted) == 1 {
@@ -749,6 +776,13 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		return code != "" || !value.Equal(initial)
 	}
 	switch field.kind {
+	case FieldTime:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		value, code := cleanTime(raw)
+		return code != "" || !value.Equal(initial)
 	case FieldDate:
 		raw := ""
 		if present && len(submitted) == 1 {

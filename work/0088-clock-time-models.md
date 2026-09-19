@@ -26,12 +26,13 @@ Form에서는 invalid다. Source의 설명문만으로 이 경계들을 합치�
 Canonical 표현은 HH:MM:SS 및 nonzero microsecond의 여섯 자리 fraction이다. Constructor/parser는 오류를 반환하고 실패한 decode는 receiver를 보존한다.
 공개 타입·default/scanner/DB·JSON grammar는 전체 연결과 독립 관찰을 확인하며 확정한다.
 
-## 다음 행동
+## 현재 구현과 다음 행동
 
-1. Date 작업의 Hosted 검증과 source closeout을 완료했다.
-2. TimeField model/Form/DRF·실제 DB 관찰과 compatibility profile을 고정한다.
-3. Clock 값과 전체 IR/생성/ORM/DB/소비자 연결, raw scalar 자원 한도·source binding을 함께 구현한다.
-4. 완성된 변경 묶음에 대해 필요한 backend·race·consumer 검증을 실행한다.
+Date 작업은 source `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`의 Hosted ORM success로 완료했다.
+Time은 별도 Go 값·IR/AST/default·generator·양 DB TIME·Form/Admin·Helpdesk service_at·OpenAPI·독립 client까지 연결했다.
+[ADR-0066](../docs/adr/0066-clock-time-field-and-precision-boundaries.md)에 채택한 의미를 기록한다.
 
-현재는 별도 worktree의 값 초안과 독립 reference 준비 단계다. Raw 관찰은 model 85개·Form 152개·serializer 344개와 실제 DB 흐름을 포함한다.
-Python 3.12/3.13의 24:00·초 생략 fraction 차이를 직접 관찰했다. TimeField 제품 지원이나 Go runtime 검증을 완료한 상태가 아니다.
+첫 affected checkpoint에서 Form 초기 소수초의 Django 기본 위젯 차이와 fixture 갱신 누락을 확인했다.
+기본 위젯과 소수초 보존 위젯의 독립 관찰을 모두 남기고, 정밀도를 보존하는 Go 입력은 후자와 대조한다.
+수정한 source의 affected 일반/race·양 DB·CGO0·생성물/독립 client·Python profile을 통과했다.
+기존 Draft PR에 통합하고 Hosted ORM의 해당 source와 terminal scope를 확인한다. 상세 실행과 source는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

@@ -4,6 +4,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/calendar"
+	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -73,6 +74,9 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = Boolean(boolean)
+		case query.ValueTime:
+			instant, _ := scalar.Time()
+			converted = Time(instant)
 		case query.ValueDate:
 			instant, _ := scalar.Date()
 			converted = Date(instant)
@@ -149,6 +153,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 				options = append(options, WithDefault(String(field.Default.String)))
 			case ir.ScalarBoolean:
 				options = append(options, WithDefault(Boolean(field.Default.Boolean)))
+			case ir.ScalarTime:
+				instant, err := clock.Parse(field.Default.Time)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid time default")
+				}
+				options = append(options, WithDefault(Time(instant)))
 			case ir.ScalarDate:
 				instant, err := calendar.Parse(field.Default.Date)
 				if err != nil {
@@ -173,6 +183,8 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		case ir.FieldChar, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			projected, err = StringField(field.Name, options...)
+		case ir.FieldTime:
+			projected, err = TimeField(field.Name, options...)
 		case ir.FieldDate:
 			projected, err = DateField(field.Name, options...)
 		case ir.FieldDateTime:

@@ -515,6 +515,12 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "time predicate rejects date", fixture: "time_predicate_date.go.txt", wantFragments: []string{"calendar.Date{}", "clock.Time"}},
+		{name: "time write rejects date", fixture: "time_write_date.go.txt", wantFragments: []string{"calendar.Date{}", "clock.Time"}},
+		{name: "time reference rejects date", fixture: "time_reference_date.go.txt", wantFragments: []string{"orm.F(models.TicketFields.ServiceOn)", "clock.Time"}},
+		{name: "time predicate rejects datetime", fixture: "time_predicate_datetime.go.txt", wantFragments: []string{"time.Time{}", "clock.Time"}},
+		{name: "time write rejects datetime", fixture: "time_write_datetime.go.txt", wantFragments: []string{"time.Time{}", "clock.Time"}},
+		{name: "time reference rejects datetime", fixture: "time_reference_datetime.go.txt", wantFragments: []string{"orm.F(models.TicketFields.DueAt)", "clock.Time"}},
 		{name: "date predicate rejects datetime", fixture: "date_predicate_datetime.go.txt", wantFragments: []string{"time.Time{}", "calendar.Date"}},
 		{name: "date write rejects datetime", fixture: "date_write_datetime.go.txt", wantFragments: []string{"time.Time{}", "calendar.Date"}},
 		{name: "date reference rejects datetime", fixture: "date_reference_datetime.go.txt", wantFragments: []string{"orm.F(models.TicketFields.DueAt)", "calendar.Date"}},

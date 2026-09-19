@@ -232,7 +232,7 @@ func relationDeleteProductExternalRoot(
 		}
 		writeProjectGenerateTestFile(t, moduleRoot, relative, contents, 0o644)
 	}
-	for _, directory := range []string{"calendar", "db", "internal", "orm", "query", "schema"} {
+	for _, directory := range []string{"clock", "calendar", "db", "internal", "orm", "query", "schema"} {
 		if err := os.Symlink(filepath.Join(repositoryRoot, directory), filepath.Join(moduleRoot, directory)); err != nil {
 			t.Fatalf("link repository dependency %s into external module: %v", directory, err)
 		}

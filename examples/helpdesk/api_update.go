@@ -68,6 +68,13 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 				instant, _ := value.AsDateTime()
 				patch = patch.WithDueAt(instant)
 			}
+		case "service_at":
+			if value.IsNull() {
+				patch = patch.WithServiceAtNull()
+			} else {
+				clockValue, _ := value.AsTime()
+				patch = patch.WithServiceAt(clockValue)
+			}
 		case "service_on":
 			if value.IsNull() {
 				patch = patch.WithServiceOnNull()

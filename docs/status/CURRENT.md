@@ -34,7 +34,8 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 GDJ-0087의 Calendar Date·IR·generator·양 DB·Form/Admin·Helpdesk·OpenAPI/client와 해당 로컬·Hosted ORM 검증을 완료했다.
 별도 `feature/clock-time-models`에서 GDJ-0088의 TimeField를 구현한다. 먼저 midnight와 NULL·microsecond·offset 입력 경계를
 독립 Django/DRF 관찰로 고정하고 IR/default·generator·ORM·양 DB TIME·소비자까지 함께 연결한다.
-TimeField는 현재 준비 단계이며 제품 지원과 Go runtime 검증은 아직 완료되지 않았다.
+TimeField의 값·IR·generator·양 DB·소비자 연결과 로컬 affected 일반/race·CGO0·독립 reference/client 검증을 완료했다.
+기존 Draft PR에 통합해 Hosted ORM을 실행하고 해당 source의 terminal 결과와 범위를 확인한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

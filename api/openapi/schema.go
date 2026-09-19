@@ -196,6 +196,9 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 		}
 		defaultValue, hasDefault := field.Default()
+		if time, ok := defaultValue.AsTime(); ok {
+			defaultValue = serializers.String(time.String())
+		}
 		if date, ok := defaultValue.AsDate(); ok {
 			defaultValue = serializers.String(date.String())
 		}
@@ -260,6 +263,26 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	switch field.Kind() {
 	case serializers.FieldString:
 		schema = String()
+	case serializers.FieldTime:
+		var err error
+		policy, policyErr := serializers.NewObject(
+			serializers.MemberOf("timezone", serializers.String("none")),
+			serializers.MemberOf("precision", serializers.String("microsecond")),
+			serializers.MemberOf("inputOffset", serializers.String("discard-preserving-clock")),
+			serializers.MemberOf("subMicrosecond", serializers.String("truncate")),
+		)
+		if policyErr != nil {
+			return Schema{}, policyErr
+		}
+		schema, err = schemaAnnotate(String(),
+			serializers.MemberOf("pattern", serializers.String(`^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{6})?$`)),
+			serializers.MemberOf("minLength", serializers.Integer(8)),
+			serializers.MemberOf("maxLength", serializers.Integer(15)),
+			serializers.MemberOf("x-godj-time", policy.Value()),
+		)
+		if err != nil {
+			return Schema{}, err
+		}
 	case serializers.FieldDate:
 		var err error
 		schema, err = schemaAnnotate(String(), serializers.MemberOf("format", serializers.String("date")))

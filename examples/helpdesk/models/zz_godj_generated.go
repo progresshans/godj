@@ -5,6 +5,7 @@ package models
 import (
 	"database/sql"
 	_godjcalendar "github.com/progresshans/godj/calendar"
+	_godjclock "github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
@@ -13,7 +14,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "29a15b0d8731e9341ea621a745ce0c2a0cb5ecb0fc78823b528fcbbec75a7371"
+const GoDjSchemaSHA256 = "aaa9e2604e3c124bc223445379f19c9696df71b60b4f38cbee853e571b6962f2"
 
 type Category struct {
 	ID                    int64
@@ -195,6 +196,7 @@ type Ticket struct {
 	DueAt                 *_godjtime.Time
 	Reviewed              *bool
 	ServiceOn             *_godjcalendar.Date
+	ServiceAt             *_godjclock.Time
 	godjPrimaryKeyPresent bool
 }
 
@@ -216,7 +218,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanDueAt orm.NullableDateTimeScanner
 	var scanReviewed sql.NullBool
 	var scanServiceOn orm.NullableDateScanner
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn); err != nil {
+	var scanServiceAt orm.NullableTimeScanner
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -242,6 +245,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanServiceOn.Valid {
 		scanned := scanServiceOn.Date
 		value.ServiceOn = &scanned
+	}
+	if scanServiceAt.Valid {
+		scanned := scanServiceAt.Time
+		value.ServiceAt = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -286,6 +293,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.ServiceOn != nil {
 		clonedServiceOn := *value.ServiceOn
 		clone.ServiceOn = &clonedServiceOn
+	}
+	if value.ServiceAt != nil {
+		clonedServiceAt := *value.ServiceAt
+		clone.ServiceAt = &clonedServiceAt
 	}
 	return clone
 }
@@ -334,6 +345,11 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.Date(*value.ServiceOn), true
+	case "service_at":
+		if value.ServiceAt == nil {
+			return query.Null(), true
+		}
+		return query.Time(*value.ServiceAt), true
 	default:
 		return query.Value{}, false
 	}
@@ -349,6 +365,7 @@ type TicketFieldSet struct {
 	DueAt      orm.NullableDateTimeField[Ticket]
 	Reviewed   orm.NullableBooleanField[Ticket]
 	ServiceOn  orm.NullableDateField[Ticket]
+	ServiceAt  orm.NullableTimeField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
@@ -363,6 +380,7 @@ var TicketFields = func() TicketFieldSet {
 		DueAt:      orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
 		Reviewed:   orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
 		ServiceOn:  orm.NewNullableDateField[Ticket](metadata.Fields[9]),
+		ServiceAt:  orm.NewNullableTimeField[Ticket](metadata.Fields[10]),
 	}
 }()
 
@@ -398,6 +416,7 @@ type TicketCreate struct {
 	dueAt      orm.NullableChange[_godjtime.Time]
 	reviewed   orm.NullableChange[bool]
 	serviceOn  orm.NullableChange[_godjcalendar.Date]
+	serviceAt  orm.NullableChange[_godjclock.Time]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -482,9 +501,19 @@ func (input TicketCreate) WithServiceOnNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithServiceAt(value _godjclock.Time) TicketCreate {
+	input.serviceAt = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithServiceAtNull() TicketCreate {
+	input.serviceAt = orm.SetNull[_godjclock.Time]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 9)
+	assignments := make([]query.Assignment, 0, 10)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -641,6 +670,29 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedServiceAt, changedServiceAtState := input.serviceAt.Get()
+	switch changedServiceAtState {
+	case orm.NullableChangeUnset:
+		value.ServiceAt = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_at", "service_at", query.FieldTime, true), query.Null()))
+	case orm.NullableChangeValue:
+		if !changedServiceAt.Valid() {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "service_at", Detail: "time must be a valid clock with microsecond precision"})
+		}
+		storedServiceAt := changedServiceAt
+		value.ServiceAt = &storedServiceAt
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_at", "service_at", query.FieldTime, true), query.Time(changedServiceAt)))
+	case orm.NullableChangeNull:
+		value.ServiceAt = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_at", "service_at", query.FieldTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "service_at",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -654,6 +706,7 @@ type TicketPatch struct {
 	dueAt      orm.NullableChange[_godjtime.Time]
 	reviewed   orm.NullableChange[bool]
 	serviceOn  orm.NullableChange[_godjcalendar.Date]
+	serviceAt  orm.NullableChange[_godjclock.Time]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -731,9 +784,19 @@ func (input TicketPatch) WithServiceOnNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithServiceAt(value _godjclock.Time) TicketPatch {
+	input.serviceAt = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithServiceAtNull() TicketPatch {
+	input.serviceAt = orm.SetNull[_godjclock.Time]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 9)
+	assignments := make([]query.Assignment, 0, 10)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -862,6 +925,27 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedServiceAt, changedServiceAtState := input.serviceAt.Get()
+	switch changedServiceAtState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		if !changedServiceAt.Valid() {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "service_at", Detail: "time must be a valid clock with microsecond precision"})
+		}
+		storedServiceAt := changedServiceAt
+		value.ServiceAt = &storedServiceAt
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_at", "service_at", query.FieldTime, true), query.Time(changedServiceAt)))
+	case orm.NullableChangeNull:
+		value.ServiceAt = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_at", "service_at", query.FieldTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "service_at",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -952,8 +1036,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldDate,
 				Nullable: true,
 			},
+			{
+				Name:     "service_at",
+				GoName:   "ServiceAt",
+				Column:   "service_at",
+				Kind:     ir.FieldTime,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_dfd944da001338ab1c78aecd18e7f8ca6b65420cbdcdc5c94b174933ba62a296 struct{}
+type GoDjProjectSnapshot_536c681a9e1e19bb1e360c1bc87482f9d4c63fc328a1e0782c88f8c6fd9256c0 struct{}

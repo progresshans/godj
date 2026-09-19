@@ -1020,6 +1020,7 @@ jobs:
             "github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance"
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedNullableBooleanConsumer"
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedCalendarDateConsumer"
+            "github.com/progresshans/godj/codegen/consumertest|TestGeneratedClockTimeConsumer"
             "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow"
