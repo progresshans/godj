@@ -1,11 +1,10 @@
 # 현재 상태
 
 - 갱신: 2026-09-20
-- 활성 구현: [GDJ-0087 시간대 없는 날짜의 모델·소비자 연결](../../work/0087-calendar-date-models.md)
-- 검증 중: source `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`, [Date Hosted ORM](https://github.com/progresshans/godj/actions/runs/35472148411)
+- 활성 구현: [GDJ-0088 시간 전용 값의 모델·소비자 연결](../../work/0088-clock-time-models.md)
 - 첫 Hosted 실패와 보완: [TEST_EVIDENCE](TEST_EVIDENCE.md#hosted에서-발견한-dependency-closure와-guard-보완)
-- 최근 완료: [GDJ-0086 nullable Boolean의 모델·Form/Admin/API 연결](../../work/0086-nullable-boolean-models.md)
-- 최근 Hosted 기능 검증: source `2ea0735c7d811dd4e07862506de7643abc6073f9`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35467983458)
+- 최근 완료: [GDJ-0087 Calendar Date의 모델·소비자 연결](../../work/0087-calendar-date-models.md)
+- 최근 Hosted 기능 검증: source `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`, [Date Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35472148411)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
 - 최신 전체 검증: [Text+DateTime Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35384697050)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -32,11 +31,10 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0086의 모델·migration·생성 ORM·Form/Admin·Helpdesk PUT/PATCH·OpenAPI/client 연결과 로컬·Hosted ORM 검증을 완료했다.
-별도 `feature/calendar-date-models`에서 GDJ-0087의 날짜 값·IR·generator·양 DB·소비자 연결을 구현했다.
-로컬 affected 일반/race/CGO0, 생성물 drift·vet과 독립 Python reference 재생을 통과했다.
-기존 Draft PR의 첫 Hosted ORM에서 발견한 fixture dependency와 추가 resource/source-binding 경계를 보완했다.
-보완의 affected 일반/race와 Date 소비자 일반/race/CGO0을 통과했다. 수정 source를 통합하고 Hosted ORM을 다시 실행했다. 남은 행동은 위 run의 terminal 결과와 실제 scope 확인이다.
+GDJ-0087의 Calendar Date·IR·generator·양 DB·Form/Admin·Helpdesk·OpenAPI/client와 해당 로컬·Hosted ORM 검증을 완료했다.
+별도 `feature/clock-time-models`에서 GDJ-0088의 TimeField를 구현한다. 먼저 midnight와 NULL·microsecond·offset 입력 경계를
+독립 Django/DRF 관찰로 고정하고 IR/default·generator·ORM·양 DB TIME·소비자까지 함께 연결한다.
+TimeField는 현재 준비 단계이며 제품 지원과 Go runtime 검증은 아직 완료되지 않았다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

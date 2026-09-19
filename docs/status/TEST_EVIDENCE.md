@@ -86,8 +86,24 @@ Guard/fixture 보완 source는 `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`이며 
 Loaded migration의 oversized Date 테스트는 최초에 개별 payload path를 기대해 실패했다. 기존 오류 우선순위에서는 enclosing
 `definition_bytes`가 먼저 반환된다. 그 우선순위를 유지하고 실제 resource 거부를 assert하도록 테스트를 수정한 뒤 위 checkpoint가 통과했다.
 
-보완 source를 통합해 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35472148411)을 다시 실행했다. 아직 terminal 결과가 없어 이 날짜 작업의 Hosted PASS는 없다. 과거 GDJ-0086 ORM / GDJ-0074 full
-결과를 Date의 PASS로 사용하지 않는다. 전체 platform/cold-build 검증도 위 로컬 범위에 포함되지 않는다.
+### Hosted ORM 완료
+
+[Hosted ORM](https://github.com/progresshans/godj/actions/runs/35472148411)은 보완 source
+`8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`, attempt 1에서 terminal **success**로 종료했다.
+48개 unique job의 run ID·attempt·head SHA·terminal 상태를 대조했고 **44 success / 4 scope skip**을 확인했다.
+Command product·portable Go·PostgreSQL product·relation product matrix가 검증 범위다. 최초 실패했던 portable normal/CGO0
+integration과 macOS relation race도 이번 source에서 성공했다.
+
+Skip 4개는 exact darwin/arm64 profile·product project check matrix·Python compatibility matrix·reference/product capture gate다.
+필수 ORM 작업을 생략한 결과가 아니다. 최종 summary는 다음 scope를 명시한다.
+
+```json
+{"full_platform_verified":false,"scope":"orm","verified_jobs":["command-product-matrix","portable-go-matrix","postgresql-product","relation-product-matrix"]}
+```
+
+검증 source 이후의 Date 통합 변경은 상태 문서뿐이다. 위 로컬 Python reference 재생과 Hosted ORM은 각자의 실행 source와
+범위에 적용하며, 전체 platform/cold-build 검증이나 전체 프레임워크 완성을 뜻하지 않는다. GDJ-0087의 구현·검증은 완료했고
+다음 기능은 [GDJ-0088 clock Time](../../work/0088-clock-time-models.md)이다.
 
 ## GDJ-0086 — Nullable Boolean의 모델·Form/Admin/API 연결
 

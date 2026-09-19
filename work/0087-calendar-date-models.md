@@ -1,6 +1,6 @@
 ---
 id: GDJ-0087
-status: active
+status: completed
 updated: 2026-09-20
 baseline_commit: "13937986914317d365f580f2adead277d73e2ce1"
 integration_owner: "root"
@@ -46,5 +46,6 @@ Calendar Date의 값/IR/AST·generated ORM·양 DB migration·Form/Admin·Helpde
 제품 source `b2b01f80f9a8b04c1893f8dc5d24e9b19ba4b087`를 기존 Draft PR에 통합했다.
 첫 Hosted ORM의 fixture dependency 누락과 관련 resource/source-binding 경계를 보완하고 로컬 affected 검증을 통과했다.
 보완 source `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`로 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35472148411)을 다시 실행했다.
-Terminal 결과와 실제 scope를 확인한다. 실행별 source·범위는
+해당 source의 Hosted ORM은 terminal success이며 48 unique jobs / 44 success / 4 scope skip을 확인했다.
+Date 구현·검증을 완료하고 GDJ-0088의 clock Time으로 이어간다. 실행별 source·범위는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0087--calendar-date의-모델소비자-연결)에 기록한다.
