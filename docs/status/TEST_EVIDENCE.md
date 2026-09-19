@@ -58,8 +58,11 @@ runtime/복수 selection 구조에 맞게 고쳤다. Resolver를 바꿔 잘못�
 ### 통합 checkpoint
 
 Feature `876595d7dd0a0425cf9a062e7f332f38e63f3e3e`를 통합한 source `7e5a933db69435154842162287ef86ef7172bc17`의
-[Hosted ORM run 35417711000](https://github.com/progresshans/godj/actions/runs/35417711000)을 dispatch했다. 통합 후 97개 source manifest가 로컬 검증과 같음을 확인했다.
-아직 Hosted 완료 결과는 없으며 이 실행은 전체 플랫폼 검증이 아니다.
+[Hosted ORM run 35417711000](https://github.com/progresshans/godj/actions/runs/35417711000) attempt 1이 **44 success·4 expected scope skip**으로 완료했다.
+48개의 고유 job ID·run ID·head SHA·종료 상태를 대조했으며 최종 job `105831664789`의 보고서는
+`scope=orm`, `full_platform_verified=false`, command/portable/postgresql/relation owner 검증 완료다.
+PostgreSQL 17.10 여섯 mode/shard와 선택된 Linux/macOS 환경을 포함한다. Product project-check, Python compatibility,
+exact Darwin profile, reference/current-capture owner는 이 scope에서 제외했다. 통합한 97개 source manifest는 로컬 검증과 같았다.
 이전 GDJ-0080 source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`의 완료 결과를 이 변경의 PASS로 재사용하지 않는다.
 전체 플랫폼·Windows runtime·배포 검증은 이 로컬 결과에 포함하지 않는다.
 

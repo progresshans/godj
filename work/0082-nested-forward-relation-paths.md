@@ -29,7 +29,7 @@ integration_owner: "root"
 
 ## 현재와 다음
 
-GDJ-0081 제품 source는 baseline에 통합됐고 별도 Hosted ORM 검증이 진행 중이다. 이 작업은 별도 worktree에서 이어가며
+GDJ-0081 제품 source는 baseline에 통합됐고 Hosted ORM 검증도 완료했다. 이 작업은 별도 worktree에서 이어가며
 기존 CI source를 변경하지 않는다. 먼저 고정 Django 6.1의 경로·NULL·alias 관찰과 현재 IR/resolver/compiler의 연결을 확인한다.
 아직 이 범위의 제품 구현·동작 검증은 없다. 제품·생성기·실제 양 DB/생성 소비자를 하나의 변경 묶음으로 완성한 뒤
 영향 범위의 checkpoint를 실행하며, 환경과 source 증거는 TEST_EVIDENCE에서 분리한다.
