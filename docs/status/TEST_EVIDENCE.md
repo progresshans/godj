@@ -59,7 +59,8 @@ attempt 1은 48개 job의 source·run ID·완료 상태를 대조해 **44 succes
 최종 `CI result (orm)` report는 `scope=orm`, `full_platform_verified=false`이며 command/portable/postgresql/relation owner를 검증했다.
 PostgreSQL 17.10의 core/operator-target × normal/race/CGO0 여섯 조합과 선택된 Linux/macOS를 포함한다.
 그 뒤 위 self-reference 보완이 추가됐으므로 이 실행을 보완 후 source의 결과로 재사용하지 않는다.
-최종 보완 source의 Hosted ORM checkpoint가 남아 있으며, 아직 그 완료를 주장하지 않는다.
+최종 보완 source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`의 [Hosted ORM run 35414363995](https://github.com/progresshans/godj/actions/runs/35414363995)이 진행 중이다.
+아직 이 source의 Hosted 완료를 주장하지 않는다.
 여러 selected projection·nested traversal·reverse OR/NOT·새 full/platform·배포·전체 ORM 완료는 이 결과에 포함하지 않는다.
 
 ## GDJ-0079 — Direct forward scalar lookup
