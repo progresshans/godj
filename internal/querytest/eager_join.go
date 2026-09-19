@@ -26,7 +26,7 @@ func ConflictingEagerJoinPlans(t testing.TB) map[string]query.Plan {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base, err := query.NewPlan("blog_post", []query.FieldRef{id, author, reviewer}).WithRelationProjection(projection)
+	base, err := query.NewPlan("blog_post", []query.FieldRef{id, author, reviewer}).WithRelationProjections(projection)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func CheckSelfReferenceEagerRows(t testing.TB, backend db.Queryer) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := query.NewPlan("tree_node", fields).WithOrderings(query.NewOrdering(id, query.Ascending)).WithRelationProjection(projection)
+	plan, err := query.NewPlan("tree_node", fields).WithOrderings(query.NewOrdering(id, query.Ascending)).WithRelationProjections(projection)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,4 +140,41 @@ func CheckSelfReferenceEagerRows(t testing.TB, backend db.Queryer) {
 	if !reflect.DeepEqual(ids, []int64{1, 2, 2}) {
 		t.Fatalf("self reverse multiplicity=%v", ids)
 	}
+}
+
+// ConflictingMultipleEagerPlans also selects the second edge, so validation
+// cannot treat a conflicting selected target as an unrelated filter-only edge.
+func ConflictingMultipleEagerPlans(t testing.TB) map[string]query.Plan {
+	t.Helper()
+	root := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
+	person := ir.ModelIdentity{AppLabel: "people", ModelName: "person"}
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	key := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	columns := []query.FieldRef{id, query.NewFieldRef("name", "name", query.FieldString, false)}
+	projection, err := query.NewForwardRelationProjection(root, "blog_post", key, person, "people_person", id, columns)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := ConflictingEagerJoinPlans(t)
+	for name, plan := range result {
+		result[name], err = plan.WithRelationProjections(projection)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	missing, err := query.NewForwardRelationProjection(root, "blog_post", query.NewFieldRef("missing", "missing_id", query.FieldInteger, true), person, "people_person", id, columns)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := query.NewPlan("blog_post", []query.FieldRef{id, key}).WithRelationProjections(projection, missing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result["selected unknown source key"] = plan
+	empty, err := plan.WithLimit(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result["selected unknown source key empty"] = empty
+	return result
 }

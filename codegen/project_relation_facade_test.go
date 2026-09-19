@@ -65,7 +65,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v6"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type authorsAuthorModel = authors.Author"),
@@ -96,11 +96,11 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		[]byte("func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, error)"),
 		[]byte("type BlogPostRelationSelector interface"),
 		[]byte("type BlogPostRelationSelectors struct"),
-		[]byte("func (_query BlogPostQuery) SelectRelated(_selector BlogPostRelationSelector) BlogPostEagerQuery"),
+		[]byte("func (_query BlogPostQuery) SelectRelated(_selectors ...BlogPostRelationSelector) BlogPostEagerQuery"),
 		[]byte("func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error)"),
 		[]byte("_objects, _err := BindObjects()"),
-		[]byte("_result.projection = _state.objects.BlogPost.SelectRelated(_source).Author()"),
-		[]byte("_result.projection = _state.objects.BlogPost.SelectRelated(_source).Reviewer()"),
+		[]byte("_projection = _projection.WithAuthor()"),
+		[]byte("_projection = _projection.WithReviewer()"),
 	} {
 		if !bytes.Contains(first, fragment) {
 			t.Fatalf("generated facade source does not contain %q:\n%s", fragment, first)

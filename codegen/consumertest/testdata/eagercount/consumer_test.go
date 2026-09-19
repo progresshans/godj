@@ -185,7 +185,7 @@ func TestGeneratedEagerCountReference(t *testing.T) {
 				if err != nil || got != observation.Count || r.QueryCount()-before != uint64(len(observation.ColdSQL)) {
 					t.Fatalf("cold Count=%d,%v queries=%d", got, err, r.QueryCount()-before)
 				}
-				if _, selected := r.last.RelationProjection(); selected || !r.last.ResultShape().IsCountAll() {
+				if len(r.last.RelationProjections()) != 0 || !r.last.ResultShape().IsCountAll() {
 					t.Fatal("Count materializes models")
 				}
 				if len(observation.ColdSQL) > 0 && strings.Count(r.sql, " JOIN ") != strings.Count(observation.ColdSQL[0], " JOIN ") {
@@ -235,7 +235,7 @@ func TestGeneratedEagerCountPublicSurfaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := models.PostObjects.Using(r).Filter(models.PostFields.ID.GreaterThan(1))
-	typed := objects.ModelsPost.SelectRelated(raw).Author()
+	typed := objects.ModelsPost.SelectRelated(raw).WithAuthor()
 	dynamic, err := objects.ModelsPost.SelectRelated(raw).ParseDynamic("reviewer")
 	if err != nil {
 		t.Fatal(err)
@@ -247,12 +247,11 @@ func TestGeneratedEagerCountPublicSurfaces(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	var zeroDynamic project.ModelsPostDynamicSelectRelatedQuery
-	var zeroTyped project.ModelsPostAuthorSelectRelatedQuery
+	var zeroTyped project.ModelsPostSelectRelatedQuery
 	var zeroFacade project.ModelsPostEagerQuery
 	valid := facade.ModelsPost.SelectRelated(facade.ModelsPost.Related.Author)
 	before := r.QueryCount()
-	for _, count := range []func(context.Context) (int64, error){typed.Count, dynamic.Count, valid.Count, zeroTyped.Count, zeroDynamic.Count, zeroFacade.Count} {
+	for _, count := range []func(context.Context) (int64, error){typed.Count, dynamic.Count, valid.Count, zeroTyped.Count, zeroFacade.Count} {
 		if got, err := count(ctx); got != 0 || !errors.Is(err, context.Canceled) {
 			t.Fatalf("context precedence=%d,%v", got, err)
 		}
@@ -262,7 +261,7 @@ func TestGeneratedEagerCountPublicSurfaces(t *testing.T) {
 			}
 		}
 	}
-	for _, count := range []func(context.Context) (int64, error){zeroTyped.Count, zeroDynamic.Count, zeroFacade.Count} {
+	for _, count := range []func(context.Context) (int64, error){zeroTyped.Count, zeroFacade.Count} {
 		if got, err := count(t.Context()); got != 0 || err == nil {
 			t.Fatalf("zero query=%d,%v", got, err)
 		}

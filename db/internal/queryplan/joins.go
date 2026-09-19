@@ -15,29 +15,28 @@ type Join struct {
 }
 
 type Joins struct {
-	Keys          []RelationKey
-	ByKey         map[RelationKey]Join
-	ProjectionKey RelationKey
+	Keys  []RelationKey
+	ByKey map[RelationKey]Join
 }
 
 // PrepareJoins consumes the compiler's private edge inventory. Predicate
 // capabilities and duplicate-hop equality must already have been checked.
 // It validates projection provenance and owns deterministic alias allocation.
 func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sourceKeys []query.RelationHop, backendName string) (Joins, error) {
-	projection, selected := plan.RelationProjection()
-	var projectionKey RelationKey
-	if selected {
-		var err error
-		projectionKey, err = RelationProjection(plan, projection, backendName)
+	projections := plan.RelationProjections()
+	for _, projection := range projections {
+		key, err := RelationProjection(plan, projection, backendName)
 		if err != nil {
 			return Joins{}, err
 		}
 		hop := projection.Hop()
-		if previous, exists := edges[projectionKey]; exists && !previous.Equal(hop) {
-			return Joins{}, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent predicate and projection metadata", projectionKey.SourceApp, projectionKey.SourceModel, projectionKey.Field))
+		if previous, exists := edges[key]; exists && !previous.Equal(hop) {
+			return Joins{}, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent predicate and projection metadata", key.SourceApp, key.SourceModel, key.Field))
 		}
-		edges[projectionKey] = hop
-		if err := projectionJoinProvenance(plan.SourceFields(), hop, edges, sourceKeys); err != nil {
+		edges[key] = hop
+	}
+	if len(projections) > 0 {
+		if err := projectionJoinProvenance(plan.SourceFields(), projections[0].Hop(), edges, sourceKeys); err != nil {
 			return Joins{}, err
 		}
 	}
@@ -77,7 +76,7 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 		}
 		joins[key] = join
 	}
-	return Joins{Keys: keys, ByKey: joins, ProjectionKey: projectionKey}, nil
+	return Joins{Keys: keys, ByKey: joins}, nil
 }
 
 // A projection anchors the logical root identity. Other filter joins may use

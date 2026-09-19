@@ -27,7 +27,7 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	_, relationProjection := plan.RelationProjection()
+	relationProjection := len(plan.RelationProjections()) != 0
 	hasRelation := relationProjection || where.hasRelations
 
 	if where.hasRelations && !relationProjection && plan.ResultShape().IsCountAll() {
@@ -675,8 +675,7 @@ func compileRelation(
 	if err != nil {
 		return "", nil, err
 	}
-	keys, joins, projectionKey := prepared.Keys, prepared.ByKey, prepared.ProjectionKey
-	projection, selected := plan.RelationProjection()
+	keys, joins := prepared.Keys, prepared.ByKey
 
 	const rootAlias = "t0"
 	var statement strings.Builder
@@ -694,8 +693,8 @@ func compileRelation(
 		}
 		statement.WriteString(qualified)
 	}
-	if selected {
-		alias := joins[projectionKey].Alias
+	for _, projection := range plan.RelationProjections() {
+		alias := joins[queryplan.KeyForRelation(projection.Hop())].Alias
 		for _, column := range projection.TargetColumns() {
 			statement.WriteString(", ")
 			qualified, err := quoteQualified(alias, column.Column())

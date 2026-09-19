@@ -36,39 +36,11 @@ func TestGenerateProjectRelationSelectRelatedIsCanonicalAndByteLocked(t *testing
 	if !bytes.Equal(first, want) {
 		t.Fatalf("project relation select-related bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
-	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v2"`),
-		[]byte("var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
-		[]byte("var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}"),
-		[]byte("type BlogPostSelectRelated struct"),
-		[]byte("func (_factory BlogPostObjectFactory) SelectRelated(_source orm.QuerySet[blog.Post]) BlogPostSelectRelated"),
-		[]byte("type BlogPostAuthorSelectRelatedQuery struct"),
-		[]byte("type BlogPostReviewerSelectRelatedQuery struct"),
-		[]byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "author")`),
-		[]byte("orm.BindRequiredForwardSelect(_path, _selection.factory.author)"),
-		[]byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "reviewer")`),
-		[]byte("orm.BindNullableForwardSelect(_path, _selection.factory.reviewer)"),
-		[]byte("configurationErr error"),
-		[]byte("return BlogPostAuthorSelectRelatedQuery{configurationErr: _err}"),
-		[]byte("return BlogPostReviewerSelectRelatedQuery{configurationErr: _err}"),
-		[]byte("_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)"),
-		[]byte("_object.author = _related"),
-		[]byte("_object.reviewer = _related"),
-		[]byte("type BlogPostDynamicSelectRelatedQuery struct"),
-		[]byte("func (_selection BlogPostSelectRelated) ParseDynamic(_path string)"),
-		[]byte(`case "author":`),
-		[]byte(`case "reviewer":`),
-		[]byte("func (_query BlogPostDynamicSelectRelatedQuery) All(_ctx context.Context)"),
-	} {
-		if !bytes.Contains(first, fragment) {
-			t.Fatalf("project relation select-related source does not contain %q:\n%s", fragment, first)
-		}
-	}
+	// Generated consumers own binding and terminal behavior; this golden owns deterministic publication bytes.
 	for _, forbidden := range [][]byte{
 		[]byte("BindSelectRelated"),
 		[]byte("type SelectRelated struct"),
 		[]byte("func Bind"),
-		[]byte(".Author().Reviewer()"),
 		[]byte("interface{}"),
 		[]byte("reflect."),
 		[]byte("panic("),
@@ -78,13 +50,8 @@ func TestGenerateProjectRelationSelectRelatedIsCanonicalAndByteLocked(t *testing
 			t.Fatalf("project relation select-related source contains forbidden %q:\n%s", forbidden, first)
 		}
 	}
-	wantExported := []string{
-		"BlogPostAuthorSelectRelatedQuery",
-		"BlogPostDynamicSelectRelatedQuery",
-		"BlogPostReviewerSelectRelatedQuery",
-		"BlogPostSelectRelated",
-		"GoDjProjectRelationSelectRelatedGeneratorVersion",
-	}
+	wantExported := []string{"BlogPostSelectRelatedQuery", "GoDjProjectRelationSelectRelatedGeneratorVersion"}
+
 	if got := exportedDeclarations(t, "project_relation_select_related.go", first); !slices.Equal(got, wantExported) {
 		t.Fatalf("project relation select-related exported declarations = %v, want %v", got, wantExported)
 	}
@@ -108,6 +75,8 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 	sqlAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "sql", "blog", authors, blog)
 	lenAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "len", authors, blog)
 	anyAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "any", authors, blog)
+	appendAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "append", authors, blog)
+	integerAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "int", authors, blog)
 	countAlias := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "int64", authors, blog)
 	databaseSQLPath := testfixture.TargetSourcePackages("example.com/godj-relation-select-related", "authors", "blog", authors, blog)
 	databaseSQLPath[0].ImportPath = "database/sql"
@@ -123,6 +92,8 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 		{name: "used predeclared len alias", pkg: "project", packages: lenAlias, contains: "len"},
 		{name: "generic any constraint alias", pkg: "project", packages: anyAlias, contains: "any"},
 		{name: "Count result type alias", pkg: "project", packages: countAlias, contains: "int64"},
+		{name: "selection append alias", pkg: "project", packages: appendAlias, contains: "append"},
+		{name: "slice integer alias", pkg: "project", packages: integerAlias, contains: "int"},
 		{name: "reserved database sql path", pkg: "project", packages: databaseSQLPath, contains: "database/sql"},
 		{
 			name: "projection prerequisite collision",
@@ -149,7 +120,7 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 			contains: "SelectRelated",
 		},
 		{
-			name: "builder ParseDynamic collision",
+			name: "relation ParseDynamic namespace collision",
 			pkg:  "project",
 			packages: testfixture.TargetSourcePackages(
 				"example.com/godj-relation-select-related-collision",

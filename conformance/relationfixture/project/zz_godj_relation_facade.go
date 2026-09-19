@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v5"
-const GoDjProjectRelationFacadeInputSHA256 = "5e53c414dc973410519dbfc4d775e3cdfc0cc27e5f9c4fba83b370c9c97138a2"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v6"
+const GoDjProjectRelationFacadeInputSHA256 = "844375fc88a684bf311eb5feab019ccd2835419a0343100a2682a13ff4d414b2"
 
 type Backend interface {
 	db.Queryer
@@ -1010,7 +1010,7 @@ type BlogPostRelationSelector interface {
 
 type blogPostRelationSelector struct {
 	state *relationFacadeState
-	kind  uint8
+	kind  int
 }
 
 func (blogPostRelationSelector) godjBlogPostRelationSelector() {}
@@ -1020,46 +1020,63 @@ type BlogPostRelationSelectors struct {
 	Reviewer BlogPostRelationSelector
 }
 
-func (_query BlogPostQuery) SelectRelated(_selector BlogPostRelationSelector) BlogPostEagerQuery {
-	return _query.selectRelated(_selector)
-}
-
-func (_query BlogPostQuery) selectRelated(_candidate interface{}) BlogPostEagerQuery {
+func (_query BlogPostQuery) SelectRelated(_selectors ...BlogPostRelationSelector) BlogPostEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	if relationFacadeNil(_candidate) {
-		return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector is nil")}
+	if len(_selectors) == 0 {
+		return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("select-related requires at least one selector")}
 	}
-	_selector, _ok := _candidate.(blogPostRelationSelector)
-	if !_ok || _selector.state != _query.state {
-		return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+	_kinds := make([]int, 0, len(_selectors))
+	for _, _candidate := range _selectors {
+		if relationFacadeNil(_candidate) {
+			return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector is nil")}
+		}
+		_selector, _ok := _candidate.(blogPostRelationSelector)
+		if !_ok || _selector.state != _query.state {
+			return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_kinds = append(_kinds, _selector.kind)
 	}
-	return _query.state.newBlogPostEagerQuery(_query.query, _selector.kind)
+	return _query.state.newBlogPostEagerQuery(_query.query, _kinds)
 }
 
 type BlogPostEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[blog.Post]
-	kind             uint8
+	kinds            []int
 	projection       relationSelectQuery[BlogPostObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newBlogPostEagerQuery(_source orm.QuerySet[blog.Post], _kind uint8) BlogPostEagerQuery {
-	_result := BlogPostEagerQuery{state: _state, source: _source, kind: _kind}
+func (_state *relationFacadeState) newBlogPostEagerQuery(_source orm.QuerySet[blog.Post], _kinds []int) BlogPostEagerQuery {
+	_result := BlogPostEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
 		return _result
 	}
-	switch _kind {
-	case 1:
-		_result.projection = _state.objects.BlogPost.SelectRelated(_source).Author()
-	case 2:
-		_result.projection = _state.objects.BlogPost.SelectRelated(_source).Reviewer()
-	default:
-		_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
+	_requested := make(map[int]bool, len(_kinds))
+	for _, _kind := range _kinds {
+		if _kind < 1 || _kind > 2 {
+			_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
+			return _result
+		}
+		_requested[_kind] = true
 	}
+	if len(_requested) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_projection := _state.objects.BlogPost.SelectRelated(_source)
+	if _requested[1] {
+		_result.kinds = append(_result.kinds, 1)
+		_projection = _projection.WithAuthor()
+	}
+	if _requested[2] {
+		_result.kinds = append(_result.kinds, 2)
+		_projection = _projection.WithReviewer()
+	}
+	_result.projection = _projection
 	return _result
 }
 
@@ -1070,8 +1087,15 @@ func (_query BlogPostEagerQuery) validate() error {
 	if _err := _query.state.validate(); _err != nil {
 		return _err
 	}
-	if _query.kind == 0 || _query.kind > 2 || _query.projection == nil {
+	if len(_query.kinds) == 0 || _query.projection == nil {
 		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	_previous := 0
+	for _, _kind := range _query.kinds {
+		if _kind <= _previous || _kind > 2 {
+			return relationFacadeQueryInvalid("selected relation inventory is zero or corrupt")
+		}
+		_previous = _kind
 	}
 	return nil
 }
@@ -1081,7 +1105,7 @@ func (_query BlogPostEagerQuery) Filter(_predicates ...orm.Predicate[blog.Post])
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.Filter(_predicates...), _query.kind)
+	return _query.state.newBlogPostEagerQuery(_query.source.Filter(_predicates...), _query.kinds)
 }
 
 func (_query BlogPostEagerQuery) OrderBy(_orderings ...orm.Ordering[blog.Post]) BlogPostEagerQuery {
@@ -1089,7 +1113,7 @@ func (_query BlogPostEagerQuery) OrderBy(_orderings ...orm.Ordering[blog.Post]) 
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.OrderBy(_orderings...), _query.kind)
+	return _query.state.newBlogPostEagerQuery(_query.source.OrderBy(_orderings...), _query.kinds)
 }
 
 func (_query BlogPostEagerQuery) Distinct() BlogPostEagerQuery {
@@ -1097,7 +1121,7 @@ func (_query BlogPostEagerQuery) Distinct() BlogPostEagerQuery {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.Distinct(), _query.kind)
+	return _query.state.newBlogPostEagerQuery(_query.source.Distinct(), _query.kinds)
 }
 
 func (_query BlogPostEagerQuery) Fresh() BlogPostEagerQuery {
@@ -1105,7 +1129,7 @@ func (_query BlogPostEagerQuery) Fresh() BlogPostEagerQuery {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.Fresh(), _query.kind)
+	return _query.state.newBlogPostEagerQuery(_query.source.Fresh(), _query.kinds)
 }
 
 func (_query BlogPostEagerQuery) Limit(_limit int) (BlogPostEagerQuery, error) {
@@ -1116,7 +1140,7 @@ func (_query BlogPostEagerQuery) Limit(_limit int) (BlogPostEagerQuery, error) {
 	if _err != nil {
 		return BlogPostEagerQuery{}, _err
 	}
-	return _query.state.newBlogPostEagerQuery(_derived, _query.kind), nil
+	return _query.state.newBlogPostEagerQuery(_derived, _query.kinds), nil
 }
 
 func (_query BlogPostEagerQuery) Offset(_offset int) (BlogPostEagerQuery, error) {
@@ -1127,7 +1151,7 @@ func (_query BlogPostEagerQuery) Offset(_offset int) (BlogPostEagerQuery, error)
 	if _err != nil {
 		return BlogPostEagerQuery{}, _err
 	}
-	return _query.state.newBlogPostEagerQuery(_derived, _query.kind), nil
+	return _query.state.newBlogPostEagerQuery(_derived, _query.kinds), nil
 }
 
 func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error) {
@@ -1178,14 +1202,16 @@ func (_query BlogPostEagerQuery) wrap(_ctx context.Context, _object *BlogPostObj
 	if _err != nil {
 		return nil, _err
 	}
-	switch _query.kind {
-	case 1:
-		_, _err = _wrapped.Author(_ctx)
-	case 2:
-		_, _, _err = _wrapped.Reviewer(_ctx)
-	}
-	if _err != nil {
-		return nil, _err
+	for _, _kind := range _query.kinds {
+		switch _kind {
+		case 1:
+			_, _err = _wrapped.Author(_ctx)
+		case 2:
+			_, _, _err = _wrapped.Reviewer(_ctx)
+		}
+		if _err != nil {
+			return nil, _err
+		}
 	}
 	return _wrapped, nil
 }
@@ -1211,4 +1237,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_59b58f0c8a8aa1ad5fb962897102c2e9ae101bcbf0cd26465e9dc7e14ea20558
+var _ goDjProjectSnapshot_d8139213ae443cc90fc9bc1347fa2439f407de0fb706d64529666ca985490cce

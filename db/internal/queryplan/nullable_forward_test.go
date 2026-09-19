@@ -85,7 +85,7 @@ func TestNullableForwardJoinCompilationOwnsItsWorkingState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err = plan.WithRelationProjection(projection)
+	plan, err = plan.WithRelationProjections(projection)
 	if err != nil {
 		t.Fatal(err)
 	}

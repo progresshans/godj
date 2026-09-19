@@ -210,22 +210,22 @@ func TestGeneratedSelectRelatedSurfaceAndDynamicValidation(t *testing.T) {
 	backend := &countingBackend{}
 	sourceQuery := source.PostObjects.Using(backend).OrderBy(source.PostFields.ID.Asc())
 	selected := objects.BlogPost.SelectRelated(sourceQuery)
-	var zeroSelection project.BlogPostSelectRelated
+	var zeroSelection project.BlogPostSelectRelatedQuery
 	beforeResolve := backend.queries
-	if _, err := zeroSelection.Author().All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+	if _, err := zeroSelection.WithAuthor().All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("public zero-selection typed resolve error = %%v, want preserved query invalid-plan", err)
 	}
 	if backend.queries != beforeResolve {
 		t.Fatalf("public zero-selection typed resolve performed %%d queries", backend.queries-beforeResolve)
 	}
 
-	if _, err := selected.Author().All(context.Background()); err == nil {
+	if _, err := selected.WithAuthor().All(context.Background()); err == nil {
 		t.Fatal("typed Author All unexpectedly succeeded")
 	}
 	if backend.queries != 1 {
 		t.Fatalf("typed Author queries = %%d, want 1", backend.queries)
 	}
-	if _, err := selected.Reviewer().All(context.Background()); err == nil {
+	if _, err := selected.WithReviewer().All(context.Background()); err == nil {
 		t.Fatal("typed Reviewer All unexpectedly succeeded")
 	}
 	if backend.queries != 2 {
@@ -243,7 +243,7 @@ func TestGeneratedSelectRelatedSurfaceAndDynamicValidation(t *testing.T) {
 		t.Fatalf("dynamic Author queries = %%d, want 3", backend.queries)
 	}
 	for _, first := range []func(context.Context) (*project.BlogPostObject, bool, error){
-		selected.Author().First, selected.Reviewer().First, dynamic.First,
+		selected.WithAuthor().First, selected.WithReviewer().First, dynamic.First,
 	} {
 		before := backend.queries
 		value, found, err := first(context.Background())
@@ -263,9 +263,9 @@ func TestGeneratedSelectRelatedSurfaceAndDynamicValidation(t *testing.T) {
 		}
 	}
 
-	var zero project.BlogPostDynamicSelectRelatedQuery
-	if _, err := zero.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
-		t.Fatalf("zero dynamic All error = %%v", err)
+	var zero project.BlogPostSelectRelatedQuery
+	if _, err := zero.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("zero shared query All error = %%v", err)
 	}
 }
 `, modulePath, modulePath))
@@ -308,9 +308,9 @@ func TestGeneratedTypedSelectRelatedPreservesConfigurationCauseAndContextPrecede
 	nullableSelection := valid
 	nullableSelection.factory.reviewer = BlogPostObjectFactory{}.reviewer
 
-	resolveQuery := (BlogPostSelectRelated{}).Author()
-	requiredQuery := requiredSelection.Author()
-	nullableQuery := nullableSelection.Reviewer()
+	resolveQuery := (BlogPostSelectRelatedQuery{}).WithAuthor()
+	requiredQuery := requiredSelection.WithAuthor()
+	nullableQuery := nullableSelection.WithReviewer()
 	tests := []struct {
 		name    string
 		cause   error
@@ -325,7 +325,7 @@ func TestGeneratedTypedSelectRelatedPreservesConfigurationCauseAndContextPrecede
 				return err
 			},
 			dynamic: func() error {
-				_, err := (BlogPostSelectRelated{}).ParseDynamic("author")
+				_, err := (BlogPostSelectRelatedQuery{}).ParseDynamic("author")
 				return err
 			},
 		},
@@ -407,7 +407,7 @@ func TestGeneratedTypedSelectRelatedPreservesConfigurationCauseAndContextPrecede
 		})
 	}
 	sentinel := errors.New("stored select-related sentinel cause")
-	injected := BlogPostAuthorSelectRelatedQuery{configurationErr: &query.Error{
+	injected := BlogPostSelectRelatedQuery{configurationErr: &query.Error{
 		Category: query.CategoryQuery,
 		Code:     query.CodeInvalidPlan,
 		Field:    "author",
@@ -432,18 +432,13 @@ func TestGeneratedTypedSelectRelatedPreservesConfigurationCauseAndContextPrecede
 }
 
 func TestGeneratedSelectRelatedZeroAndCorruptQueriesKeepGenericErrors(t *testing.T) {
-	var zeroTyped BlogPostAuthorSelectRelatedQuery
+	var zeroTyped BlogPostSelectRelatedQuery
 	if _, err := zeroTyped.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("zero typed terminal error = %%v, want backend invalid-plan", err)
 	}
-	var zeroDynamic BlogPostDynamicSelectRelatedQuery
-	if _, err := zeroDynamic.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
-		t.Fatalf("zero dynamic terminal error = %%v, want query invalid-plan", err)
-	}
-	corruptDynamic := BlogPostDynamicSelectRelatedQuery{query: BlogPostAuthorSelectRelatedQuery{
-		configurationErr: &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan},
-	}}
-	if _, err := corruptDynamic.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+
+	configuredQuery := BlogPostSelectRelatedQuery{configurationErr: &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}}
+	if _, err := configuredQuery.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("corrupt dynamic terminal error = %%v, want query invalid-plan", err)
 	}
 }
@@ -492,13 +487,13 @@ func TestProjectFacadePassesThroughTypedSelectRelatedConfigurationCauses(t *test
 	}
 	selection := models.BlogPost.state.objects.BlogPost.SelectRelated(models.BlogPost.query)
 
-	resolve := (BlogPostSelectRelated{}).Author()
+	resolve := (BlogPostSelectRelatedQuery{}).WithAuthor()
 	requiredSelection := selection
 	requiredSelection.factory.author = BlogPostObjectFactory{}.author
-	required := requiredSelection.Author()
+	required := requiredSelection.WithAuthor()
 	nullableSelection := selection
 	nullableSelection.factory.reviewer = BlogPostObjectFactory{}.reviewer
-	nullable := nullableSelection.Reviewer()
+	nullable := nullableSelection.WithReviewer()
 
 	tests := []struct {
 		name  string
@@ -509,21 +504,21 @@ func TestProjectFacadePassesThroughTypedSelectRelatedConfigurationCauses(t *test
 			name:  "resolve",
 			cause: resolve.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, projection: resolve,
+				state: models.BlogPost.state, source: models.BlogPost.query, kinds: []int{1}, projection: resolve,
 			},
 		},
 		{
 			name:  "required bind",
 			cause: required.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, projection: required,
+				state: models.BlogPost.state, source: models.BlogPost.query, kinds: []int{1}, projection: required,
 			},
 		},
 		{
 			name:  "nullable bind",
 			cause: nullable.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kind: 2, projection: nullable,
+				state: models.BlogPost.state, source: models.BlogPost.query, kinds: []int{2}, projection: nullable,
 			},
 		},
 	}
@@ -560,12 +555,12 @@ func verifyGeneratedRelationSelectRelatedStalePublicCause(t *testing.T, authors,
 	if err != nil {
 		t.Fatal(err)
 	}
-	authorResolver := []byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "author")`)
-	reviewerResolver := []byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "reviewer")`)
+	authorResolver := []byte(`orm.ResolveForwardSelectPath(_query.factory.model, "author")`)
+	reviewerResolver := []byte(`orm.ResolveForwardSelectPath(_query.factory.model, "reviewer")`)
 	if bytes.Count(canonical, authorResolver) != 1 || bytes.Count(canonical, reviewerResolver) != 1 {
 		t.Fatalf("canonical typed resolver counts = author %d reviewer %d, want 1/1", bytes.Count(canonical, authorResolver), bytes.Count(canonical, reviewerResolver))
 	}
-	placeholder := []byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "godj_stale_swap")`)
+	placeholder := []byte(`orm.ResolveForwardSelectPath(_query.factory.model, "godj_stale_swap")`)
 	stale := bytes.Replace(canonical, authorResolver, placeholder, 1)
 	stale = bytes.Replace(stale, reviewerResolver, authorResolver, 1)
 	stale = bytes.Replace(stale, placeholder, reviewerResolver, 1)
@@ -629,8 +624,8 @@ func TestStaleTypedCompanionPreservesPublicLowLevelAndFacadeBindCauses(t *testin
 		name string
 		all  func() error
 	}{
-		{name: "low-level required", all: func() error { _, err := selected.Author().All(context.Background()); return err }},
-		{name: "low-level nullable", all: func() error { _, err := selected.Reviewer().All(context.Background()); return err }},
+		{name: "low-level required", all: func() error { _, err := selected.WithAuthor().All(context.Background()); return err }},
+		{name: "low-level nullable", all: func() error { _, err := selected.WithReviewer().All(context.Background()); return err }},
 		{name: "facade required", all: func() error {
 			_, err := models.BlogPost.SelectRelated(models.BlogPost.Related.Author).All(context.Background())
 			return err

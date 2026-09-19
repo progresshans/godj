@@ -6,10 +6,10 @@ import (
 	"strconv"
 )
 
-const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v2"
+const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v3"
 
 // GenerateProjectRelationSelectRelated renders the current project-only
-// select-related companion. It attaches a singular builder to the existing
+// select-related companion. It attaches a composable builder to the existing
 // relation-object factory; it does not create another project binding root.
 func GenerateProjectRelationSelectRelated(
 	packageName string,
@@ -89,7 +89,7 @@ func generateProjectRelationSelectRelated(packageName string, plan *relationProj
 func validateProjectRelationSelectRelatedImports(apps []normalizedRelationPackage) error {
 	for _, app := range apps {
 		switch app.alias {
-		case "any", "context", "sql", "db", "orm", "query", "ir", "int64", "len", "make", "string", "uint8":
+		case "append", "int", "any", "context", "sql", "db", "orm", "query", "ir", "int64", "len", "make", "string", "uint8":
 			return fmt.Errorf("invalid relation select-related package alias %q", app.alias)
 		}
 		switch app.importPath {
@@ -139,181 +139,80 @@ func projectRelationSelectRelatedUsedApps(
 
 func renderProjectRelationSelectRelatedSource(output *bytes.Buffer, source projectRelationObjectSource) {
 	sourceType := source.model.app.alias + "." + source.model.model.GoName
-	builderType := source.surface + "SelectRelated"
-	dynamicType := source.surface + "DynamicSelectRelatedQuery"
-
-	fmt.Fprintf(output, "type %s struct {\n", builderType)
-	fmt.Fprintf(output, "\tfactory %s\n", source.factoryType)
-	fmt.Fprintf(output, "\tsource  orm.QuerySet[%s]\n", sourceType)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(
-		output,
-		"func (_factory %s) SelectRelated(_source orm.QuerySet[%s]) %s {\n",
-		source.factoryType,
-		sourceType,
-		builderType,
-	)
-	fmt.Fprintf(output, "\treturn %s{factory: _factory, source: _source}\n", builderType)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-
-	for _, relation := range source.relations {
-		renderProjectRelationSelectRelatedEdge(output, source, relation, builderType)
-	}
-
-	fmt.Fprintf(output, "type %s struct {\n", dynamicType)
-	fmt.Fprintf(output, "\tquery relationSelectQuery[%s]\n", source.objectType)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(
-		output,
-		"func (_selection %s) ParseDynamic(_path string) (%s, error) {\n",
-		builderType,
-		dynamicType,
-	)
-	fmt.Fprintln(output, "\tswitch _path {")
-	for _, relation := range source.relations {
-		fmt.Fprintf(output, "\tcase %s:\n", strconv.Quote(relation.field.Name))
-		fmt.Fprintf(output, "\t\t_query := _selection.%s()\n", relation.selector)
-		fmt.Fprintln(output, "\t\tif _query.configurationErr != nil {")
-		fmt.Fprintf(output, "\t\t\treturn %s{}, _query.configurationErr\n", dynamicType)
-		fmt.Fprintln(output, "\t\t}")
-		fmt.Fprintf(output, "\t\treturn %s{query: _query}, nil\n", dynamicType)
-	}
-	fmt.Fprintln(output, "\tdefault:")
-	fmt.Fprintln(output, "\t\tif _, _err := orm.ResolveForwardSelectPath(_selection.factory.model, _path); _err != nil {")
-	fmt.Fprintf(output, "\t\t\treturn %s{}, _err\n", dynamicType)
-	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintf(output, "\t\treturn %s{}, &query.Error{\n", dynamicType)
-	fmt.Fprintln(output, "\t\t\tCategory: query.CategoryQuery,")
-	fmt.Fprintln(output, "\t\t\tCode:     query.CodeInvalidPlan,")
-	fmt.Fprintln(output, "\t\t\tDetail:   \"resolved forward selection is missing generated dispatch\",")
-	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) validate() error {\n", dynamicType)
-	fmt.Fprintln(output, "\tif _query.query == nil {")
-	fmt.Fprintln(output, "\t\treturn &query.Error{")
-	fmt.Fprintln(output, "\t\t\tCategory: query.CategoryQuery,")
-	fmt.Fprintln(output, "\t\t\tCode:     query.CodeInvalidPlan,")
-	fmt.Fprintln(output, "\t\t\tDetail:   \"generated dynamic select-related query is zero or corrupt\",")
-	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn nil")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) All(_ctx context.Context) ([]*%s, error) {\n", dynamicType, source.objectType)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _query.query.All(_ctx)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) First(_ctx context.Context) (*%s, bool, error) {\n", dynamicType, source.objectType)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, false, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _query.query.First(_ctx)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) Count(_ctx context.Context) (int64, error) {\n", dynamicType)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintf(output, "\t\treturn (orm.ForwardSelectQuery[%s, %s]{}).WithConfigurationError(_err).Count(_ctx)\n", sourceType, sourceType)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _query.query.Count(_ctx)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-}
-
-func renderProjectRelationSelectRelatedEdge(
-	output *bytes.Buffer,
-	source projectRelationObjectSource,
-	relation projectRelationObjectEdge,
-	builderType string,
-) {
-	sourceType := source.model.app.alias + "." + source.model.model.GoName
-	targetType := relation.target.app.alias + "." + relation.target.model.GoName
-	queryType := source.surface + relation.selector + "SelectRelatedQuery"
-	binder := "orm.BindRequiredForwardSelect"
-	if relation.field.Nullable {
-		binder = "orm.BindNullableForwardSelect"
-	}
-
+	queryType := source.surface + "SelectRelatedQuery"
 	fmt.Fprintf(output, "type %s struct {\n", queryType)
-	fmt.Fprintf(output, "\tfactory          %s\n", source.factoryType)
-	fmt.Fprintf(output, "\tquery            orm.ForwardSelectQuery[%s, %s]\n", sourceType, targetType)
-	fmt.Fprintln(output, "\tconfigurationErr error")
+	fmt.Fprintf(output, "\tfactory %s\n\tsource orm.QuerySet[%s]\n\tquery orm.ForwardSelectQuery[%s]\n\tselections []orm.ForwardSelection[%s]\n\tconfigurationErr error\n", source.factoryType, sourceType, sourceType, sourceType)
+	for _, relation := range source.relations {
+		targetType := relation.target.app.alias + "." + relation.target.model.GoName
+		fmt.Fprintf(output, "\t_select%s orm.ForwardSelect[%s,%s]\n", relation.selector, sourceType, targetType)
+	}
 	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_selection %s) %s() %s {\n", builderType, relation.selector, queryType)
-	fmt.Fprintf(
-		output,
-		"\t_path, _err := orm.ResolveForwardSelectPath(_selection.factory.model, %s)\n",
-		strconv.Quote(relation.field.Name),
-	)
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %s{configurationErr: _err}\n", queryType)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(
-		output,
-		"\t_relation, _err := %s(_path, _selection.factory.%s)\n",
-		binder,
-		lowerFirst(relation.selector),
-	)
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %s{configurationErr: _err}\n", queryType)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\treturn %s{\n", queryType)
-	fmt.Fprintln(output, "\t\tfactory: _selection.factory,")
-	fmt.Fprintln(output, "\t\tquery:   _relation.Select(_selection.source),")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) All(_ctx context.Context) ([]*%s, error) {\n", queryType, source.objectType)
-	fmt.Fprintln(output, "\t_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_results := make([]*%s, len(_selected))\n", source.objectType)
-	fmt.Fprintln(output, "\tfor _index := range _selected {")
-	fmt.Fprintln(output, "\t\t_results[_index], _err = _query.wrap(_selected[_index])")
-	fmt.Fprintln(output, "\t\tif _err != nil {")
-	fmt.Fprintln(output, "\t\t\treturn nil, _err")
+	fmt.Fprintf(output, "func (_factory %s) SelectRelated(_source orm.QuerySet[%s]) %s {\n", source.factoryType, sourceType, queryType)
+	fmt.Fprintf(output, "\treturn %s{factory:_factory,source:_source,query:orm.SelectForward(_source)}\n}\n", queryType)
+	for _, relation := range source.relations {
+		binder := "orm.BindRequiredForwardSelect"
+		if relation.field.Nullable {
+			binder = "orm.BindNullableForwardSelect"
+		}
+		fmt.Fprintf(output, "func (_query %s) With%s() %s {\n", queryType, relation.selector, queryType)
+		fmt.Fprintln(output, "\tif _query.configurationErr!=nil{return _query}")
+		fmt.Fprintf(output, "\t_path,_err:=orm.ResolveForwardSelectPath(_query.factory.model,%s)\n", strconv.Quote(relation.field.Name))
+		fmt.Fprintln(output, "\tif _err!=nil{_query.configurationErr=_err;return _query}")
+		fmt.Fprintf(output, "\t_selection,_err:=%s(_path,_query.factory.%s)\n", binder, lowerFirst(relation.selector))
+		fmt.Fprintln(output, "\tif _err!=nil{_query.configurationErr=_err;return _query}")
+		fmt.Fprintf(output, "\t_query._select%s=_selection\n", relation.selector)
+		fmt.Fprintf(output, "\t_targets:=append([]orm.ForwardSelection[%s](nil),_query.selections...)\n", sourceType)
+		fmt.Fprintln(output, "\t_query.selections=append(_targets,_selection)")
+		fmt.Fprintln(output, "\t_query.query=orm.SelectForward(_query.source,_query.selections...)")
+		fmt.Fprintln(output, "\treturn _query\n}")
+	}
+	fmt.Fprintf(output, "func (_query %s) ParseDynamic(_paths ...string)(%s,error){\n", queryType, queryType)
+	fmt.Fprintf(output, "\tif len(_paths)==0{return %s{}, &query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Detail:\"select-related requires at least one direct relation name\"}}\n", queryType)
+	fmt.Fprintf(output, "\tif _query.configurationErr!=nil{return %s{},_query.configurationErr}\n", queryType)
+	fmt.Fprintln(output, "\tfor _,_path:=range _paths{\n\t\tswitch _path{")
+	for _, relation := range source.relations {
+		fmt.Fprintf(output, "\t\tcase %s:_query=_query.With%s()\n", strconv.Quote(relation.field.Name), relation.selector)
+	}
+	fmt.Fprintln(output, "\t\tdefault:")
+	fmt.Fprintf(output, "\t\t\tif _,_err:=orm.ResolveForwardSelectPath(_query.factory.model,_path);_err!=nil{return %s{},_err}\n", queryType)
+	fmt.Fprintf(output, "\t\t\treturn %s{},&query.Error{Category:query.CategoryQuery,Code:query.CodeInvalidPlan,Detail:\"resolved forward selection is missing generated dispatch\"}\n", queryType)
 	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _results, nil")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) First(_ctx context.Context) (*%s, bool, error) {\n", queryType, source.objectType)
-	fmt.Fprintln(output, "\t_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)")
-	fmt.Fprintln(output, "\tif _err != nil || !_found {")
-	fmt.Fprintln(output, "\t\treturn nil, false, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_object, _err := _query.wrap(_selected)")
-	fmt.Fprintln(output, "\treturn _object, _err == nil, _err")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) Count(_ctx context.Context) (int64, error) {\n", queryType)
-	fmt.Fprintln(output, "\treturn _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) wrap(_selected *orm.ForwardSelected[%s, %s]) (*%s, error) {\n", queryType, sourceType, targetType, source.objectType)
-	fmt.Fprintln(output, "\t_source, _err := _selected.Source()")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_related, _err := _selected.Related()")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_object, _err := _query.factory.From(_query.query.Backend(), _source)")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_object.%s = _related\n", lowerFirst(relation.selector))
-	fmt.Fprintln(output, "\treturn _object, nil")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
+	fmt.Fprintf(output, "\t\tif _query.configurationErr!=nil{return %s{},_query.configurationErr}\n", queryType)
+	fmt.Fprintln(output, "\t}\n\treturn _query,nil\n}")
+	fmt.Fprintf(output, "func (_query %s) rebuild() %s {\n\t_query.query=orm.SelectForward(_query.source,_query.selections...)\n\treturn _query\n}\n", queryType, queryType)
+	for _, method := range []string{"Filter", "OrderBy"} {
+		paramType := "orm.Predicate[" + sourceType + "]"
+		if method == "OrderBy" {
+			paramType = "orm.Ordering[" + sourceType + "]"
+		}
+		fmt.Fprintf(output, "func (_query %s) %s(_values ...%s) %s {\n\t_query.source=_query.source.%s(_values...)\n\treturn _query.rebuild()\n}\n", queryType, method, paramType, queryType, method)
+	}
+	for _, method := range []string{"Distinct", "Fresh"} {
+		fmt.Fprintf(output, "func (_query %s) %s() %s {\n\t_query.source=_query.source.%s()\n\treturn _query.rebuild()\n}\n", queryType, method, queryType, method)
+	}
+	for _, method := range []string{"Limit", "Offset"} {
+		fmt.Fprintf(output, "func (_query %s) %s(_value int)(%s,error){\n", queryType, method, queryType)
+		fmt.Fprintf(output, "\tif _query.configurationErr!=nil{return %s{},_query.configurationErr}\n", queryType)
+		fmt.Fprintf(output, "\t_source,_err:=_query.source.%s(_value)\n", method)
+		fmt.Fprintf(output, "\tif _err!=nil{return %s{},_err}\n\t_query.source=_source\n\treturn _query.rebuild(),nil\n}\n", queryType)
+	}
+	fmt.Fprintf(output, "func (_query %s) All(_ctx context.Context)([]*%s,error){\n", queryType, source.objectType)
+	fmt.Fprintln(output, "\t_selected,_err:=_query.query.WithConfigurationError(_query.configurationErr).All(_ctx)")
+	fmt.Fprintln(output, "\tif _err!=nil{return nil,_err}")
+	fmt.Fprintf(output, "\t_results:=make([]*%s,len(_selected))\n", source.objectType)
+	fmt.Fprintln(output, "\tfor _index:=range _selected{\n\t\t_results[_index],_err=_query.wrap(_selected[_index])\n\t\tif _err!=nil{return nil,_err}\n\t}\n\treturn _results,nil\n}")
+	fmt.Fprintf(output, "func (_query %s) First(_ctx context.Context)(*%s,bool,error){\n", queryType, source.objectType)
+	fmt.Fprintln(output, "\t_selected,_found,_err:=_query.query.WithConfigurationError(_query.configurationErr).First(_ctx)")
+	fmt.Fprintln(output, "\tif _err!=nil||!_found{return nil,false,_err}\n\t_object,_err:=_query.wrap(_selected)\n\treturn _object,_err==nil,_err\n}")
+	fmt.Fprintf(output, "func (_query %s) Count(_ctx context.Context)(int64,error){return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)}\n", queryType)
+	fmt.Fprintf(output, "func (_query %s) wrap(_selected *orm.ForwardSelected[%s])(*%s,error){\n", queryType, sourceType, source.objectType)
+	fmt.Fprintln(output, "\t_source,_err:=_selected.Source()\n\tif _err!=nil{return nil,_err}")
+	fmt.Fprintln(output, "\t_object,_err:=_query.factory.From(_query.query.Backend(),_source)\n\tif _err!=nil{return nil,_err}")
+	for _, relation := range source.relations {
+		fmt.Fprintf(output, "\tif _has,_err:=_selected.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n", strconv.Quote(relation.field.Name))
+		fmt.Fprintf(output, "\t\t_related,_err:=_query._select%s.Related(_selected)\n", relation.selector)
+		fmt.Fprintln(output, "\t\tif _err!=nil{return nil,_err}")
+		fmt.Fprintf(output, "\t\t_object.%s=_related\n\t}\n", lowerFirst(relation.selector))
+	}
+	fmt.Fprintln(output, "\treturn _object,nil\n}")
 }

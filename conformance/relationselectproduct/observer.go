@@ -132,13 +132,13 @@ func observeRequired(ctx context.Context, recorder *recordingQueryer, objects pr
 
 	requiredStart := recorder.mark()
 	requiredQuery := orderedPosts(recorder, config.postsDescending)
-	required := objects.BlogPost.SelectRelated(requiredQuery).Author()
+	required := objects.BlogPost.SelectRelated(requiredQuery).WithAuthor()
 	requiredObjects, err := required.All(ctx)
 	if err != nil {
 		return RequiredObservation{}, fmt.Errorf("load REL-009 eager posts: %w", err)
 	}
 	if config.repeatRequiredEager {
-		freshRequired := objects.BlogPost.SelectRelated(requiredQuery.Fresh()).Author()
+		freshRequired := objects.BlogPost.SelectRelated(requiredQuery.Fresh()).WithAuthor()
 		if _, err := freshRequired.All(ctx); err != nil {
 			return RequiredObservation{}, fmt.Errorf("repeat REL-009 eager posts: %w", err)
 		}
@@ -176,7 +176,7 @@ func observeRequired(ctx context.Context, recorder *recordingQueryer, objects pr
 func observeNullable(ctx context.Context, recorder *recordingQueryer, objects project.Objects, config fixtureConfig) (NullableObservation, error) {
 	nullableStart := recorder.mark()
 	nullableQuery := orderedPosts(recorder, config.postsDescending)
-	nullableObjects, err := objects.BlogPost.SelectRelated(nullableQuery).Reviewer().All(ctx)
+	nullableObjects, err := objects.BlogPost.SelectRelated(nullableQuery).WithReviewer().All(ctx)
 	if err != nil {
 		return NullableObservation{}, fmt.Errorf("load REL-010 eager posts: %w", err)
 	}
@@ -328,7 +328,7 @@ func validatePlainTrace(records, accessRecords []recordedQuery) error {
 		return fmt.Errorf("REL-009 plain trace query/access count = %d/%d, want 4/3", len(records), len(accessRecords))
 	}
 	for index, record := range records {
-		if _, ok := record.plan.RelationProjection(); ok || strings.Contains(record.statement, " JOIN ") {
+		if len(record.plan.RelationProjections()) != 0 || strings.Contains(record.statement, " JOIN ") {
 			return fmt.Errorf("REL-009 plain trace query %d contains eager projection/JOIN", index)
 		}
 	}
@@ -339,7 +339,12 @@ func validateEagerTrace(records, accessRecords []recordedQuery, field string, nu
 	if len(records) != 1 || len(accessRecords) != 0 {
 		return fmt.Errorf("select-related %s trace query/access count = %d/%d, want 1/0", field, len(records), len(accessRecords))
 	}
-	projection, ok := records[0].plan.RelationProjection()
+	projectionProjections := records[0].plan.RelationProjections()
+	ok := len(projectionProjections) == 1
+	var projection query.RelationProjection
+	if ok {
+		projection = projectionProjections[0]
+	}
 	if !ok || projection.Hop().Field() != field || projection.Hop().Nullable() != nullable {
 		return fmt.Errorf("select-related %s trace has wrong or missing canonical projection", field)
 	}

@@ -104,7 +104,12 @@ func TestPublicForwardSelectSurfaceCompilesAndWarmsRelatedObject(t *testing.T) {
 	if selected.Backend() != backend {
 		t.Fatalf("Backend() = %T, want *publicSelectRelatedBackend", selected.Backend())
 	}
-	projection, ok := selected.Plan().RelationProjection()
+	projectionProjections := selected.Plan().RelationProjections()
+	ok := len(projectionProjections) == 1
+	var projection query.RelationProjection
+	if ok {
+		projection = projectionProjections[0]
+	}
 	if !ok || projection.Hop().Field() != "author" || projection.Hop().Nullable() {
 		t.Fatalf("Plan().RelationProjection() = (%#v, %v)", projection, ok)
 	}
@@ -116,7 +121,7 @@ func TestPublicForwardSelectSurfaceCompilesAndWarmsRelatedObject(t *testing.T) {
 	if err != nil || sourceValue != (relationQueryPost{ID: 10, AuthorID: 1}) {
 		t.Fatalf("Source() = (%#v, %v)", sourceValue, err)
 	}
-	ready, err := values[0].Related()
+	ready, err := selection.Related(values[0])
 	if err != nil {
 		t.Fatalf("Related() error = %v", err)
 	}

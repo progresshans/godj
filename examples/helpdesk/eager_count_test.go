@@ -21,7 +21,7 @@ func verifyHelpdeskEagerCount(t *testing.T, ctx context.Context, backend *helpde
 	if got, err := base.Count(ctx); err != nil || got != 2 || backend.queries != before+1 {
 		t.Fatalf("Helpdesk cold eager Count = %d, %v", got, err)
 	}
-	if _, selected := backend.last.RelationProjection(); selected || !backend.last.ResultShape().IsCountAll() {
+	if len(backend.last.RelationProjections()) != 0 || !backend.last.ResultShape().IsCountAll() {
 		t.Fatal("Helpdesk Count loads category objects")
 	}
 	relations, err := project.BindRelations()

@@ -52,7 +52,12 @@ func TestForwardSelectMixedJoinsFailureDoesNotPublishPartialDuplicates(t *testin
 				return success, nil
 			}}
 			eager := orderedRequiredSelectQuery(t, backend)
-			projection, ok := eager.plan.RelationProjection()
+			projectionProjections := eager.plan.RelationProjections()
+			ok := len(projectionProjections) == 1
+			var projection query.RelationProjection
+			if ok {
+				projection = projectionProjections[0]
+			}
 			if !ok {
 				t.Fatal("missing selected relation")
 			}

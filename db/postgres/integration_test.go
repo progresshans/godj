@@ -585,7 +585,7 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 			query.NewPlan("blog_post", []query.FieldRef{fields.id, fields.title, fields.editorKey}),
 			query.NewCondition(fields.id, query.LookupExact, query.Integer(postID)),
 		).
-			WithRelationProjection(projection)
+			WithRelationProjections(projection)
 		if err != nil {
 			t.Fatal(err)
 		}

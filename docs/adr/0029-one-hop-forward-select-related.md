@@ -19,6 +19,25 @@
 
 ## 상태와 범위
 
+
+2026-09-19 GDJ-0081은 여러 direct forward target의 동시 선택으로 확장한다. 단일 target도 같은 실행 경로를 사용한다.
+
+- Plan은 FK 선언 이름으로 정렬한 immutable `RelationProjections`를 보관한다. 동일 선택의 반복은 모든 metadata를 대조한 뒤
+  합치며, 순서·중복 입력에 따라 column 배치가 달라지지 않는다. 각 target 내부 column 순서는 descriptor가 소유한다.
+- `ForwardSelection[S]`는 닫힌 typed adapter이며 각 target의 구체 Go type을 보존한다. `ForwardSelectQuery[S]`는 source와
+  모든 target destination을 하나의 `Rows.Scan`에 전달한다. 모든 key/NULL 무결성·취소·Rows.Close 검증 뒤 전체 cache를 게시한다.
+- Generated object builder는 `WithAuthor().WithReviewer()`처럼 조합하며 `ParseDynamic(paths...)`는 같은 경로를 사용한다.
+  Facade는 model별 typed `SelectRelated(selectors...)`를 제공하고 다른 binding의 selector를 pre-I/O 거부한다.
+  Filter·OrderBy·Distinct·Offset·Limit·Fresh는 전체 선택을 보존한다. Empty selection은 암묵적인 graph 확장이 아닌 오류다.
+- 반복 root row와 같은 target PK의 서로 다른 FK도 각각 독립 cache를 소유한다. Cold Count는 모든 selected projection을 제외하고
+  원래 filter·Distinct·slice를 집계한다. Warm Count는 성공한 전체 All cache만 재사용한다.
+- Django 6.1의 [독립 관찰](../../conformance/runners/django/multiple_eager_reference.py) 220개는 두 Person FK·별도 Team FK,
+  선택 순서·반복, Boolean/filter JOIN·reverse 중복·slice와 cold/warm terminal을 비교한다. Invalid selector 관찰 8개에서 Django는
+  Count의 selected 이름을 무시하지만 GoDj는 Count에도 기존 binding/configuration 검증을 적용한다. 이 차이를 동등성으로 세지 않는다.
+- Nested traversal·reverse eager·무인자 자동 선택은 후속 범위다. 구현·환경별 검증은
+  [GDJ-0081](../../work/0081-multiple-forward-eager-selections.md)과 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
+
+
 2026-09-19 GDJ-0080은 하나의 selected forward relation과 다른 direct forward/reverse filter JOIN의 조합을 허용한다.
 아래 과거 기록의 서로 다른 eager/filter edge All 미지원은 이 범위에서 대체된다.
 
@@ -36,7 +55,7 @@
 - 고정 Django 6.1의 [88개 독립 관찰](../../conformance/runners/django/eager_join_reference.py)은 required/nullable selection,
   다른 forward Boolean/scalar 필터, reverse 중복, Distinct/slice, nullable target, cold/warm Count·First·All을 포함한다.
   Django 6.1의 공개 QuerySet/Q/select_related 결과를 참조했다(BSD-3-Clause). Python 객체 identity 공유는 복제하지 않는다.
-- 여러 selected target projection·nested traversal·reverse OR/NOT은 별도 범위다. 제품·환경별 실행은
+- 당시 여러 selected target은 위 GDJ-0081에서 확장한다. Nested traversal·reverse OR/NOT은 후속 범위다. 제품·환경별 실행은
   [GDJ-0080](../../work/0080-eager-filter-join-composition.md)과 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.
 
 

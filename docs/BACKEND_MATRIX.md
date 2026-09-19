@@ -30,8 +30,8 @@ Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 기존대로 JOIN 없이 참여한다.
 Typed/dynamic 대상은 Integer·Char/Text·DateTime의 nullable/non-null과 Boolean이다.
-한 selected forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
-Reverse non-exact/OR/NOT, 관계를 넘는 F·nested traversal·다중/중첩 eager materialization은 미지원이다.
+여러 selected direct forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
+Reverse non-exact/OR/NOT, 관계를 넘는 F·nested traversal·중첩/reverse eager materialization은 미지원이다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
 

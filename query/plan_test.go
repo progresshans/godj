@@ -54,7 +54,7 @@ func TestPlanDerivationsPreserveCompositeOwnership(t *testing.T) {
 				}
 				base, err = base.WithResultShape(shape)
 			case "relation":
-				base, err = base.WithRelationProjection(newTestRelationProjection(t, false))
+				base, err = base.WithRelationProjections(newTestRelationProjection(t, false))
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -104,8 +104,8 @@ func TestPlanDerivationsPreserveCompositeOwnership(t *testing.T) {
 			if kind == "projection" {
 				derived.ResultShape().Expressions()[0] = query.CountAllResult()
 			}
-			if projection, ok := derived.RelationProjection(); ok {
-				projection.TargetColumns()[0] = title
+			if projections := derived.RelationProjections(); len(projections) != 0 {
+				projections[0].TargetColumns()[0] = title
 			}
 			for _, plan := range []query.Plan{base, limited, offset, derived, filtered, reshaped} {
 				if !plan.SourceFields()[0].Equal(id) || !plan.Orderings()[0].Equal(query.NewOrdering(id, query.Ascending)) {
@@ -118,7 +118,12 @@ func TestPlanDerivationsPreserveCompositeOwnership(t *testing.T) {
 					t.Fatal("result accessor exposed shared projection storage")
 				}
 				if kind == "relation" {
-					projection, ok := plan.RelationProjection()
+					projectionProjections := plan.RelationProjections()
+					ok := len(projectionProjections) == 1
+					var projection query.RelationProjection
+					if ok {
+						projection = projectionProjections[0]
+					}
 					if !ok || !projection.Equal(newTestRelationProjection(t, false)) {
 						t.Fatal("scalar derivation changed relation projection")
 					}

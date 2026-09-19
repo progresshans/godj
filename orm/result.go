@@ -435,7 +435,7 @@ func scalarResult[M, V any](field ScalarField[M, V]) (query.FieldRef, func() sca
 }
 
 func validateScalarResultSource(plan query.Plan) error {
-	if _, selected := plan.RelationProjection(); selected {
+	if len(plan.RelationProjections()) != 0 {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed scalar result cannot combine with relation projection"}
 	}
 	if where, ok := plan.Where(); ok && where.HasRelations() {

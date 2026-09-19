@@ -1,7 +1,7 @@
 # 현재 상태
 
 - 갱신: 2026-09-19
-- 활성 구현: [GDJ-0081 여러 direct forward 관계를 함께 읽기](../../work/0081-multiple-forward-eager-selections.md)
+- 통합 검증 대상: [GDJ-0081 여러 direct forward 관계를 함께 읽기](../../work/0081-multiple-forward-eager-selections.md)
 - 최근 완료: [GDJ-0080 Eager/filter JOIN 조합과 self-reference 검증](../../work/0080-eager-filter-join-composition.md)
 - 최근 Hosted 기능 검증: source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35414363995)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
@@ -16,18 +16,16 @@ Form/Admin·RFC3339 JSON/OpenAPI·독립 client까지 구현했다. Scalar typed
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 관계를 함께 읽는 query에도 Count를 연결해 필터·Distinct·슬라이스와 eager cache 의미를 보존한다.
 Nullable/required forward FK의 scalar 비교·문자열·isnull·IN과 AND/OR/NOT을 연결하고 JOIN·부정의 null 의미를 보존한다.
-한 selected 관계와 다른 forward/reverse filter JOIN의 All·First·Count, 중복 행·Distinct·슬라이스·nullable cache를 연결했다. 현재 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
+여러 direct forward selected 관계와 다른 forward/reverse filter JOIN의 All·First·Count, 중복 행·Distinct·슬라이스·nullable cache를 연결했다. 현재 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
 
 모델 serializer와 같은 operation에서 Article·Helpdesk OpenAPI 3.1 문서를 만든다. Named schema와 JSON 정책을
 공유하고 별도 module의 고정 ogen Go client로 Bearer·Session/CSRF·CRUD·관계·정수·여러 줄 본문을 검증한다.
 
 ## 다음 행동
 
-GDJ-0079 scalar lookup과 GDJ-0080 eager/filter JOIN의 필수 로컬 normal·race·CGO0·양 DB 검증을 완료했다.
-Self-reference의 정방향/역방향 FK metadata 검증 보완까지 포함한 GDJ-0080의 Hosted ORM도 완료했다.
-별도 작업 사본의 GDJ-0081에서 immutable 복수 projection과 공통 scan/cache runtime·생성 selector를 함께 구현한다.
-최근 Hosted는 위 GDJ-0079/0080 source를 소유한다. GDJ-0081의 복수 projection 변경 결과로 재사용하지 않는다.
-장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다. 기존 Draft PR #1을 이어간다.
+GDJ-0081의 복수 projection·공통 typed scan/cache·생성 selector를 구현했고 normal·race·CGO0와 독립 reference를 완료했다.
+기존 Draft PR #1에 통합하고 materialization ABI 변경의 Hosted ORM checkpoint를 실행한다.
+장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거
 

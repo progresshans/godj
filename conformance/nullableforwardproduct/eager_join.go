@@ -87,7 +87,7 @@ func EagerJoinPlan(leaves map[string]Leaf, input EagerJoinInput) (query.Plan, er
 	if err != nil {
 		return query.Plan{}, err
 	}
-	return plan.WithRelationProjection(projection)
+	return plan.WithRelationProjections(projection)
 }
 
 // EagerJoinValue returns the actual scalar/list input for public dynamic APIs.
@@ -163,11 +163,15 @@ func eagerJoinCondition(leaf Leaf) (query.Condition, error) {
 // EvaluateEagerJoin exercises real SQL compilation and scanning. ORM cache and
 // generated surfaces are checked independently in the generated consumer.
 func EvaluateEagerJoin(ctx context.Context, backend db.Queryer, plan query.Plan) (int64, *EagerJoinRow, []EagerJoinRow, error) {
+	return evaluateEagerRows(ctx, backend, plan, eagerJoinRows)
+}
+
+func evaluateEagerRows[R any](ctx context.Context, backend db.Queryer, plan query.Plan, read func(context.Context, db.Queryer, query.Plan) ([]R, error)) (int64, *R, []R, error) {
 	shape, err := query.NewAggregateResult(query.CountAllResult())
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	countPlan, err := plan.WithoutRelationProjection().WithResultShape(shape)
+	countPlan, err := plan.WithoutRelationProjections().WithResultShape(shape)
 	if err != nil {
 		return 0, nil, nil, err
 	}
@@ -195,18 +199,18 @@ func EvaluateEagerJoin(ctx context.Context, backend db.Queryer, plan query.Plan)
 			return 0, nil, nil, err
 		}
 	}
-	firstRows, err := eagerJoinRows(ctx, backend, firstPlan)
+	firstRows, err := read(ctx, backend, firstPlan)
 	if err != nil {
 		return 0, nil, nil, err
 	}
 	if len(firstRows) > 1 {
 		return 0, nil, nil, fmt.Errorf("First returned extra rows")
 	}
-	var first *EagerJoinRow
+	var first *R
 	if len(firstRows) == 1 {
 		first = &firstRows[0]
 	}
-	all, err := eagerJoinRows(ctx, backend, plan)
+	all, err := read(ctx, backend, plan)
 	return count, first, all, err
 }
 

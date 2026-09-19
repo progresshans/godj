@@ -196,7 +196,7 @@ func TestTypedAndDynamicSelectRelatedConvergeOnTheSamePlan(t *testing.T) {
 	recorder := &recordingQueryer{backend: backend}
 	source := blog.PostObjects.Using(recorder).OrderBy(blog.PostFields.ID.Asc())
 	selected := objects.BlogPost.SelectRelated(source)
-	typed := selected.Author()
+	typed := selected.WithAuthor()
 	dynamic, err := selected.ParseDynamic("author")
 	if err != nil {
 		t.Fatal(err)

@@ -3,6 +3,64 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0081 — 여러 direct forward target 동시 선택
+
+- 작업: [GDJ-0081](../../work/0081-multiple-forward-eager-selections.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위).
+- Source: `1c71610ec705c29fae85417be4800068473003bd` 기반 feature 작업 사본. Markdown을 제외한 변경·새 파일·삭제 97개의
+  `<sha256 또는 deleted>  <relative-path>\n` 정렬 manifest SHA256은
+  `d7384cf7b3b3a660d93aa52ca6ed656ac432a8ec3439d9d2839ee3c1b561034f`다.
+- Go 1.26.5 darwin/arm64, modernc SQLite와 PostgreSQL 17.5(Homebrew)의 전용 DB·개별 schema에서 실행했다.
+  최종 lane 종료 후 이번 작업이 만든 두 전용 DB를 제거했다.
+
+### 로컬 실행
+
+`GODJ_REQUIRE_POSTGRES=1`, `go test -json -count=1 -timeout=10m`의 영향 범위는 다음과 같다.
+같은 패키지 목록을 `-race`, `CGO_ENABLED=0`에도 사용한다.
+
+```text
+./query ./orm ./db/... ./codegen ./codegen/consumertest ./internal/compiletest
+./conformance/nullableforwardproduct ./conformance/relationfixture/...
+./conformance/relationselectproduct ./conformance/relationobjectproduct
+./conformance/relationqueryproduct ./conformance/relationreverseproduct
+./conformance/relationprefetchproduct ./conformance/relationdeleteproduct
+./conformance/relationproduct ./examples/...
+```
+
+Normal·CGO0 각각 **28 packages, 4,792 test 완료 event PASS**, race는 **28 packages, 4,742 event PASS**다.
+각 lane의 no-test package는 15개다. `internal/compiletest`의 `!race` build tag로 제외하는 7개 compile-only 최상위 검사와
+그 하위 event 50개는 normal·CGO0에서 완료했다. Race에서 이 50개를 실행한 것으로 세지 않았으며 나머지 test roster가 일치함을 확인했다.
+시작/종료 event와 package 완료·필수 sentinel을 대조했다. 직접 진입 skip 한 개는 부모가 자식 프로세스로 실행하는
+`TestPostgresRevisionFenceHelperProcess`이며 기능 PASS로 세지 않는다. 최초 시도는 테스트 PostgreSQL URL의 hostname 누락으로
+실패했다. 이어 기존 dynamic 전용 zero 상태의 오류 기대값과 단일 selector private field를 주입하던 fixture를 현재 공통
+runtime/복수 selection 구조에 맞게 고쳤다. Resolver를 바꿔 잘못된 생성물을 만드는 음성 검증도 현재 생성 위치로 갱신했고,
+원래의 오류 cause·pre-I/O 거부를 계속 검사한다. 위 완료 결과는 이 fixture 보완을 포함한다.
+
+### 확인한 의미
+
+- FK 이름으로 정렬한 immutable projection 집합과 하나의 `ForwardSelectQuery[S]` runtime을 사용한다. Source와 모든 target을
+  한 번의 Rows.Scan으로 읽으며 구체 target Go type은 닫힌 adapter에 남는다. 입력 순서·같은 선택의 반복이 결과를 바꾸지 않는다.
+- 고정 Django 6.1의 **220개 독립 관찰**을 실제 SQLite·PostgreSQL의 rows·First·Count·SELECT 수·LEFT JOIN 수와 비교했다.
+  같은 Person을 가리키는 두 FK와 별도 Team FK, nullable target, reverse 중복·Distinct·Offset·Limit·빈 결과를 포함한다.
+- 별도 생성 모듈의 migration·SQLite·typed/dynamic object builder·model별 variadic facade를 실행했다.
+  Dynamic/facade는 220개, typed는 explicit NULL-only IN 입력을 제외한 215개다. 선택 후 Filter·OrderBy·Distinct·Offset·Limit과
+  Fresh가 전체 선택을 보존하며 cold/warm terminal과 각 relation accessor의 추가 I/O 없음도 검사했다.
+- 같은 PK의 서로 다른 FK, reverse JOIN으로 중복된 source와 query cache는 각각 독립 소유한다. 단일→복수 builder 파생과 caller의
+  selector slice 변경이 이전 query를 바꾸지 않는다. Concurrent All의 단일 평가와 모든 target cache의 독립 복제를 검사한다.
+- 두 번째 target의 잘못된 key·부분 NULL·부재, scan/rows/close/취소 실패는 All·First에서 부분 결과/cache를 게시하지 않으며
+  다음 All이 재시도한다. Nil scanner·잘못된 destination 수·typed nil destination, 다른 binding·충돌한 중복 selection도 거부한다.
+- 양 DB에서 selected/filter/source-key provenance 충돌과 존재하지 않는 두 번째 selected source key **30개 plan**을 SQL 전에 거부한다.
+  LIMIT 0도 이 검증을 생략하지 않는다. 기존 GDJ-0080의 정상 self-reference와 실패 경로도 같은 실행에서 유지한다.
+- Python 3.12.13·3.13.15·3.14.3·3.14.7에서 fresh Django runner를 다시 실행해 각각 **1 test PASS, skip 0**을 확인했다.
+  별도 invalid-selector 관찰 8개에서 Django Count는 selected 이름을 무시하지만 GoDj는 Count에도 기존 binding/configuration 검증을
+  적용한다. 이를 동등성 PASS로 세지 않는다. Django oracle은 SQLite profile이고 PostgreSQL은 위 GoDj 실제 DB 결과다.
+- 전체 134 package compile, affected vet, 세 프로젝트 generated drift, CI script unittest 37개, format·docs·diff 검사 PASS.
+
+### 통합 checkpoint
+
+이 복수 materialization ABI 변경은 다음 Hosted ORM checkpoint의 대상이다. 아직 이 source의 Hosted 결과는 없다.
+이전 GDJ-0080 source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`의 완료 결과를 이 변경의 PASS로 재사용하지 않는다.
+전체 플랫폼·Windows runtime·배포 검증은 이 로컬 결과에 포함하지 않는다.
+
 ## GDJ-0080 — Eager materialization과 filter JOIN 조합
 
 - 작업: [GDJ-0080](../../work/0080-eager-filter-join-composition.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위), [빈 조회 경계](../adr/0062-scalar-membership-and-empty-query-execution.md).
