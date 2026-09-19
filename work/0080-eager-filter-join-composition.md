@@ -36,4 +36,5 @@ GDJ-0079 scalar lookup과 이번 materialization 조합을 통합한 정확한 s
 
 공통 JOIN inventory의 조합·provenance 검증, LIMIT 0의 empty-source 처리, 실제 양 DB·독립 generated consumer를 구현했다.
 필수 로컬 normal·race·CGO0·Django reference·drift 검증을 완료했다. 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 둔다.
-GDJ-0079와 통합한 source의 Hosted ORM checkpoint가 남아 있다.
+Self-reference의 forward/reverse view도 같은 root FK 선언으로 대조하도록 보완했다. 정상 self-reference와 추가 충돌 입력을 포함한
+최종 source의 로컬 세 mode를 다시 통과했다. 초기 통합 Hosted와 구분해 보완 source의 Hosted ORM checkpoint가 남아 있다.

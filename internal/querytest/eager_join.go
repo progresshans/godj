@@ -1,8 +1,11 @@
 package querytest
 
 import (
+	"database/sql"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	"reflect"
 	"testing"
 )
 
@@ -45,16 +48,28 @@ func ConflictingEagerJoinPlans(t testing.TB) map[string]query.Plan {
 	if err != nil {
 		t.Fatal(err)
 	}
+	selfReverse := func(field query.FieldRef, table string) query.Condition {
+		path, err := query.NewReverseRelationPath(root, table, field.Name(), field.Column(), root, "blog_post", "id", "children", field.Nullable(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return query.NewRelatedCondition(path, query.LookupExact, query.Integer(1))
+	}
 	cases := map[string][]query.Condition{
-		"wrong forward root":              {forward(otherRoot, reviewer, person, "people_person", "id")},
-		"wrong reverse root":              {query.NewRelatedCondition(reverse, query.LookupExact, query.String("Ada"))},
-		"wrong source key root":           {presence(otherRoot, person, "people_person")},
-		"selected target identity":        {forward(root, author, otherPerson, "people_person", "id")},
-		"selected target table":           {forward(root, author, person, "archived_person", "id")},
-		"selected target primary key":     {forward(root, author, person, "people_person", "other_id")},
-		"nonselected target identity":     {forward(root, reviewer, person, "people_person", "id"), forward(root, reviewer, otherPerson, "people_person", "id")},
-		"nonselected source key identity": {forward(root, reviewer, person, "people_person", "id"), presence(root, otherPerson, "people_person")},
-		"two source key identities":       {presence(root, person, "people_person"), presence(root, otherPerson, "people_person")},
+		"wrong forward root":                         {forward(otherRoot, reviewer, person, "people_person", "id")},
+		"wrong reverse root":                         {query.NewRelatedCondition(reverse, query.LookupExact, query.String("Ada"))},
+		"wrong source key root":                      {presence(otherRoot, person, "people_person")},
+		"selected target identity":                   {forward(root, author, otherPerson, "people_person", "id")},
+		"selected target table":                      {forward(root, author, person, "archived_person", "id")},
+		"selected target primary key":                {forward(root, author, person, "people_person", "other_id")},
+		"nonselected target identity":                {forward(root, reviewer, person, "people_person", "id"), forward(root, reviewer, otherPerson, "people_person", "id")},
+		"nonselected source key identity":            {forward(root, reviewer, person, "people_person", "id"), presence(root, otherPerson, "people_person")},
+		"two source key identities":                  {presence(root, person, "people_person"), presence(root, otherPerson, "people_person")},
+		"self reverse conflicts with selected FK":    {selfReverse(author, "blog_post")},
+		"self reverse conflicts with nonselected FK": {forward(root, reviewer, person, "people_person", "id"), selfReverse(reviewer, "blog_post")},
+		"self reverse wrong source table":            {selfReverse(author, "archived_post")},
+		"self reverse unknown source field":          {selfReverse(query.NewFieldRef("missing", "missing_id", query.FieldInteger, false), "blog_post")},
+		"self reverse wrong source nullability":      {selfReverse(query.NewFieldRef("author", "author_id", query.FieldInteger, true), "blog_post")},
 	}
 	result := make(map[string]query.Plan, len(cases)*2)
 	for name, conditions := range cases {
@@ -67,4 +82,62 @@ func ConflictingEagerJoinPlans(t testing.TB) map[string]query.Plan {
 		result[name+" empty"] = empty
 	}
 	return result
+}
+
+// CheckSelfReferenceEagerRows verifies that opposite views of the same valid FK
+// still compose. The caller supplies a real tree_node table with one root and
+// matching child/grandchild rows; this is an invariant fixture, not an oracle.
+func CheckSelfReferenceEagerRows(t testing.TB, backend db.Queryer) {
+	t.Helper()
+	root := ir.ModelIdentity{AppLabel: "tree", ModelName: "node"}
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	name := query.NewFieldRef("name", "name", query.FieldString, false)
+	parent := query.NewFieldRef("parent", "parent_id", query.FieldInteger, true)
+	fields := []query.FieldRef{id, name, parent}
+	projection, err := query.NewForwardRelationProjection(root, "tree_node", parent, root, "tree_node", id, fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reverse, err := query.NewReverseRelationPath(root, "tree_node", "parent", "parent_id", root, "tree_node", "id", "children", true, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := query.NewPlan("tree_node", fields).WithOrderings(query.NewOrdering(id, query.Ascending)).WithRelationProjection(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan = Conditions(t, plan, query.NewRelatedCondition(reverse, query.LookupExact, query.String("child")))
+	rows, err := backend.Query(t.Context(), plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	ids := []int64{}
+	for rows.Next() {
+		var sourceID int64
+		var sourceName string
+		var sourceParent, targetID, targetParent sql.NullInt64
+		var targetName sql.NullString
+		if err := rows.Scan(&sourceID, &sourceName, &sourceParent, &targetID, &targetName, &targetParent); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, sourceID)
+		if sourceID == 1 {
+			if sourceName != "root" || sourceParent.Valid || targetID.Valid || targetName.Valid || targetParent.Valid {
+				t.Fatal("NULL self projection corrupted")
+			}
+		} else if sourceID != 2 || sourceName != "child" || !sourceParent.Valid || sourceParent.Int64 != 1 || !targetID.Valid || targetID.Int64 != 1 || !targetName.Valid || targetName.String != "root" || targetParent.Valid {
+			t.Fatal("present self projection corrupted")
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(ids, []int64{1, 2, 2}) {
+		t.Fatalf("self reverse multiplicity=%v", ids)
+	}
 }

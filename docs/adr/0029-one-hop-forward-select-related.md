@@ -29,6 +29,8 @@
 - Projection의 source identity를 root 기준으로 사용한다. Forward/source-key predicate의 source와 reverse predicate의 target이
   같은 root여야 한다. 하나의 forward FK 선언은 projection·filter·source-key proof에서 동일한 target/table/PK/nullability를 가져야 한다.
   Target identity가 다른 RelationKey라고 해서 같은 FK의 충돌을 별개의 JOIN으로 허용하지 않는다. 빈 결과도 이 검증을 생략하지 않는다.
+  Root가 직접 소유한 self-reference의 reverse view도 같은 FK 선언으로 비교한다. Traversal 방향·reverse name은 다를 수 있지만
+  source table/column·target identity/table/PK·nullable은 일치해야 한다. Root의 선언에 없는 self-reference field는 거부한다.
 - Optional selected target은 필터의 존재 증명에 따라 INNER/LEFT를 유지한다. Source FK와 selected target row의 무결성,
   cancellation·Rows.Close·전체 성공 뒤 cache publication은 기존 공통 eager runtime이 소유한다.
 - 고정 Django 6.1의 [88개 독립 관찰](../../conformance/runners/django/eager_join_reference.py)은 required/nullable selection,

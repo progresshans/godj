@@ -83,6 +83,19 @@ func TestSQLiteEagerFilterJoinCompositionMatchDjango(t *testing.T) {
 			}
 		})
 	}
+	t.Run("valid self reference", func(t *testing.T) {
+		for _, statement := range []string{`CREATE TABLE tree_node(id INTEGER PRIMARY KEY,name TEXT NOT NULL,parent_id INTEGER NULL REFERENCES tree_node(id))`, `INSERT INTO tree_node VALUES(1,'root',NULL),(2,'child',1),(3,'child',2),(4,'child',2)`} {
+			if _, err := backend.ExecContext(ctx, statement); err != nil {
+				t.Fatal(err)
+			}
+		}
+		before := backend.QueryCount()
+		querytest.CheckSelfReferenceEagerRows(t, backend)
+		if backend.QueryCount() != before+1 {
+			t.Fatal("self projection performed extra SQL")
+		}
+	})
+
 	for name, plan := range querytest.ConflictingEagerJoinPlans(t) {
 		t.Run("invalid/"+name, func(t *testing.T) {
 			before := backend.QueryCount()
