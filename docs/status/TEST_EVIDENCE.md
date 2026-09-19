@@ -58,6 +58,13 @@ Raw 관찰 helper의 빈 projection 처리, PostgreSQL fixture 관리 connection
 structured error 기대값을 바로잡았다. 없어진 per-edge query 타입과 충돌하던 옛 schema는 이제 허용하는 양성 검증으로
 전환했고, 실제 generic member/type namespace 충돌과 원자적 실패 검증은 유지한다.
 
+### 통합 checkpoint
+
+Feature `3cfecb9`를 기존 Draft PR #1에 통합한 source는 `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`다.
+제품 91개 파일이 로컬 검증 manifest와 일치함을 확인했다. 두 문서 충돌은 이미 반영한 GDJ-0081 Hosted 완료와
+새 구현 상태를 유지하여 해결했다. [Hosted ORM run 35421304637](https://github.com/progresshans/godj/actions/runs/35421304637)의
+`headSha`가 이 source와 같음을 확인했으며 현재 queued다. 완료·전체 platform PASS로 표시하지 않는다.
+
 ## GDJ-0081 — 여러 direct forward target 동시 선택
 
 - 작업: [GDJ-0081](../../work/0081-multiple-forward-eager-selections.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위).

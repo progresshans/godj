@@ -33,7 +33,8 @@ GDJ-0081 제품 source는 baseline에 통합됐고 Hosted ORM 검증도 완료�
 기존 CI source를 변경하지 않는다. 고정 Django 6.1의 경로·NULL·alias 관찰과 현재 IR/resolver/compiler의 연결을 확인했다.
 공통 AST·JOIN planner·typed/dynamic 경로·generator를 수정했고 3-app cyclic 생성 모듈까지 compile했다.
 양 DB·외부 생성 소비자의 normal/race/CGO0 checkpoint를 완료했다.
-환경과 source별 증거는 TEST_EVIDENCE에서 분리한다. 다음 통합 단계에서 기존 Draft PR의 Hosted ORM 범위를 검증한다.
+환경과 source별 증거는 TEST_EVIDENCE에서 분리한다. 통합 source `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35421304637) 완료를 확인한다.
+별도 GDJ-0083에서 중첩 eager materialization/cache 구현을 이어간다.
 
 ## 독립 관찰과 설계 입력
 
