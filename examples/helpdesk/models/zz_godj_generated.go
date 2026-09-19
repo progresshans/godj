@@ -12,7 +12,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "eb59105d62af118882f3951491ff1934fefdeb530bec42e446384083cc1da786"
+const GoDjSchemaSHA256 = "183a42f5dfefa5179b07b8c2fd9611f74e3b79ce669e790169654bd4a7dbdecc"
 
 type Category struct {
 	ID                    int64
@@ -192,6 +192,7 @@ type Ticket struct {
 	Priority              *int64
 	Resolution            *string
 	DueAt                 *_godjtime.Time
+	Reviewed              *bool
 	godjPrimaryKeyPresent bool
 }
 
@@ -211,7 +212,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanPriority sql.NullInt64
 	var scanResolution sql.NullString
 	var scanDueAt orm.NullableDateTimeScanner
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt); err != nil {
+	var scanReviewed sql.NullBool
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -229,6 +231,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanDueAt.Valid {
 		scanned := scanDueAt.Time
 		value.DueAt = &scanned
+	}
+	if scanReviewed.Valid {
+		scanned := scanReviewed.Bool
+		value.Reviewed = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -265,6 +271,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.DueAt != nil {
 		clonedDueAt := *value.DueAt
 		clone.DueAt = &clonedDueAt
+	}
+	if value.Reviewed != nil {
+		clonedReviewed := *value.Reviewed
+		clone.Reviewed = &clonedReviewed
 	}
 	return clone
 }
@@ -303,6 +313,11 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.DateTime(*value.DueAt), true
+	case "reviewed":
+		if value.Reviewed == nil {
+			return query.Null(), true
+		}
+		return query.Boolean(*value.Reviewed), true
 	default:
 		return query.Value{}, false
 	}
@@ -316,6 +331,7 @@ type TicketFieldSet struct {
 	Priority   orm.NullableIntegerField[Ticket]
 	Resolution orm.NullableStringField[Ticket]
 	DueAt      orm.NullableDateTimeField[Ticket]
+	Reviewed   orm.NullableBooleanField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
@@ -328,6 +344,7 @@ var TicketFields = func() TicketFieldSet {
 		Priority:   orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
 		Resolution: orm.NewNullableStringField[Ticket](metadata.Fields[6]),
 		DueAt:      orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
+		Reviewed:   orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
 	}
 }()
 
@@ -361,6 +378,7 @@ type TicketCreate struct {
 	priority   orm.NullableChange[int64]
 	resolution orm.NullableChange[string]
 	dueAt      orm.NullableChange[_godjtime.Time]
+	reviewed   orm.NullableChange[bool]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -425,9 +443,19 @@ func (input TicketCreate) WithDueAtNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithReviewed(value bool) TicketCreate {
+	input.reviewed = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithReviewedNull() TicketCreate {
+	input.reviewed = orm.SetNull[bool]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 7)
+	assignments := make([]query.Assignment, 0, 8)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -541,6 +569,26 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedReviewed, changedReviewedState := input.reviewed.Get()
+	switch changedReviewedState {
+	case orm.NullableChangeUnset:
+		value.Reviewed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewed", "reviewed", query.FieldBoolean, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedReviewed := changedReviewed
+		value.Reviewed = &storedReviewed
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewed", "reviewed", query.FieldBoolean, true), query.Boolean(changedReviewed)))
+	case orm.NullableChangeNull:
+		value.Reviewed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewed", "reviewed", query.FieldBoolean, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "reviewed",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -552,6 +600,7 @@ type TicketPatch struct {
 	priority   orm.NullableChange[int64]
 	resolution orm.NullableChange[string]
 	dueAt      orm.NullableChange[_godjtime.Time]
+	reviewed   orm.NullableChange[bool]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -609,9 +658,19 @@ func (input TicketPatch) WithDueAtNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithReviewed(value bool) TicketPatch {
+	input.reviewed = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithReviewedNull() TicketPatch {
+	input.reviewed = orm.SetNull[bool]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 7)
+	assignments := make([]query.Assignment, 0, 8)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -701,6 +760,24 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedReviewed, changedReviewedState := input.reviewed.Get()
+	switch changedReviewedState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedReviewed := changedReviewed
+		value.Reviewed = &storedReviewed
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewed", "reviewed", query.FieldBoolean, true), query.Boolean(changedReviewed)))
+	case orm.NullableChangeNull:
+		value.Reviewed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("reviewed", "reviewed", query.FieldBoolean, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "reviewed",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -777,8 +854,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldDateTime,
 				Nullable: true,
 			},
+			{
+				Name:     "reviewed",
+				GoName:   "Reviewed",
+				Column:   "reviewed",
+				Kind:     ir.FieldBoolean,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_1affef96d96e36d1a083b8c091c2356b0ceae37e90cc6784a76ea0a0fc4b1b6b struct{}
+type GoDjProjectSnapshot_d114160209f111da4c978dc15ed8baaeab4ad644094ecfc93db62e5b7882aebe struct{}

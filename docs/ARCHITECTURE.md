@@ -33,6 +33,9 @@ Schema IR은 normalized model 의미의 원본이다. 각 소비자가 별도 fi
 
 일반 `IntegerField`는 signed int64이며 nullable/default를 같은 IR에서 소비한다. 읽기 전용 Auto ID와 writable integer의
 typed capability를 구분하고 양 backend·Form/Admin·JSON 경계를 함께 연결한다. [ADR-0059](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
+Nullable `BooleanField`는 `*bool`로 읽으며 nil·false·true를 구분한다. Create/Patch는 생략·명시적 null·bool 값을
+구분하고 pointer·query/eager cache의 복사를 유지한다. Forward Boolean lookup의 sealed capability는 nullable target을
+받지만 미지원 Boolean F 비교를 허용하지 않는다. [GDJ-0086](../work/0086-nullable-boolean-models.md)의 검증 상태를 따른다.
 입력은 검증 후 복사하고, caller가 가진 slice·map·nested metadata를 바꿔 이미 만든 schema나 query 의미를 변경할 수 없어야 한다.
 FK target은 app/model identity로 선언하고 project binding 시 graph 전체를 해석한다. 현재 FK target과 relation kind의 제한은
 [Backend Matrix](BACKEND_MATRIX.md)에 명시한다.
@@ -189,6 +192,9 @@ Public Response 입력과 mutable getter의 방어적 복사는 유지한다.
 Form/Admin/API는 normalized model metadata를 소비한다. Field allowlist, read-only, nullable와 validation은 의미가 같을 때
 공유하고, HTML form 제출과 JSON PUT/PATCH의 omitted 규칙처럼 서로 다른 protocol 의미는 유지한다. Persistence·permission·audit는
 application이 명시적으로 연결한다. Admin snapshot은 실제 list/form 필드를 요구하고 저장 전용 새 필드의 매핑을 강제하지 않는다.
+Nullable Boolean은 `NullBooleanSelect`의 unknown/true/false 입력을 사용한다. JSON은 bool/null만 허용하고 숫자나 문자열을
+Boolean으로 강제 변환하지 않는다. Helpdesk PUT은 required/default를 적용하고 PATCH는 생략된 필드에 default를 적용하지 않는다.
+두 수정 방식 모두 생략한 nullable 필드를 보존하며 명시적 null만 값을 지운다. 현재 행 조회와 변경은 같은 transaction이 소유한다.
 Form Spec은 field index와 기본 초기값을 준비하고 요청의 초기값이 있을 때만 값을 분리해 겹친다. Bind는 소유한 cleaned 값과
 오류를 불변 결과로 게시한다. Validation 오류는 field/cross/unknown 순서를 유지해 한 번 합치며 mutable slice/map getter는
 복사한다. API Page도 생성 시 검증한 불변 result list를 응답 사이에 공유한다.

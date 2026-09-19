@@ -752,12 +752,6 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 			if maxLengthValid && maxLength != 0 {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/max_length", app, name, operationIndex, "invalid_ir"))
 			}
-			if ir.FieldKind(kind.string) == ir.FieldBoolean && booleanValid["nullable"] {
-				nullable, _ := object.member("nullable")
-				if nullable.boolean {
-					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/nullable", app, name, operationIndex, "invalid_ir"))
-				}
-			}
 			if booleanValid["primary_key"] {
 				primaryKey, _ := object.member("primary_key")
 				if primaryKey.boolean {

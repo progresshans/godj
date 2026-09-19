@@ -282,10 +282,13 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		}
 		return forms.CharField(field.Name, options...)
 	case ir.FieldBoolean:
-		if field.PrimaryKey || field.Nullable || field.MaxLength != 0 {
+		if field.PrimaryKey || field.Relation != nil || field.MaxLength != 0 {
 			return forms.Field{}, &Error{Code: "invalid_boolean_metadata"}
 		}
 		options = append(options, forms.WithRequired(false))
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
 		if override.hasRequired {
 			options = append(options, forms.WithRequired(override.required))
 		}

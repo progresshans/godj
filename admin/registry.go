@@ -866,6 +866,10 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 				canonicalData[field.Name()] = []string{value}
 			}
 		case forms.FieldBoolean:
+			if entry.Value().IsNull() {
+				canonicalData[field.Name()] = []string{"unknown"}
+				break
+			}
 			value, _ := entry.Value().AsBoolean()
 			if value {
 				canonicalData[field.Name()] = []string{"true"}
@@ -903,6 +907,9 @@ func validInitialValue(value forms.Value, field forms.Field) bool {
 		return ok && utf8.ValidString(text) && !strings.ContainsRune(text, 0) &&
 			(field.MaxLength() == 0 || utf8.RuneCountInString(text) <= field.MaxLength())
 	case forms.FieldBoolean:
+		if value.IsNull() {
+			return field.Nullable()
+		}
 		_, ok := value.AsBoolean()
 		return ok
 	default:
@@ -983,8 +990,11 @@ func validFormValue(value forms.Value, field forms.Field) bool {
 		}
 		return field.MaxLength() == 0 || utf8.RuneCountInString(text) <= field.MaxLength()
 	case forms.FieldBoolean:
+		if value.IsNull() {
+			return field.Nullable()
+		}
 		boolean, ok := value.AsBoolean()
-		return ok && (!field.Required() || boolean)
+		return ok && (field.Nullable() || !field.Required() || boolean)
 	default:
 		return false
 	}
@@ -1053,6 +1063,9 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 		return ok && value.Kind() == templates.ValueString && utf8.ValidString(text) &&
 			!strings.ContainsRune(text, 0) && (field.MaxLength == 0 || utf8.RuneCountInString(text) <= field.MaxLength)
 	case ir.FieldBoolean:
+		if value.IsNull() {
+			return field.Nullable
+		}
 		_, ok := value.AsBool()
 		return ok
 	case ir.FieldForeignKey:

@@ -80,7 +80,10 @@ func checkGeneratedWire(ctx context.Context) error {
 			return fail("generated optional nullable request wire")
 		}
 	}
-	return checkGeneratedChoiceResponseWire(ctx)
+	if err := checkGeneratedChoiceResponseWire(ctx); err != nil {
+		return err
+	}
+	return checkGeneratedNullableBooleanWire(ctx)
 }
 
 type wireHelpdeskSecurity struct{}
@@ -98,7 +101,7 @@ func (wireHelpdeskSecurity) CsrfHeader(context.Context, hs.OperationName) (hs.Cs
 func checkGeneratedChoiceResponseWire(ctx context.Context) error {
 	for _, value := range []int64{math.MinInt64, math.MaxInt64, 99} {
 		calls := 0
-		body := `{"id":1,"subject":"Legacy priority","details":null,"closed":false,"category":1,"priority":` + strconv.FormatInt(value, 10) + `,"resolution":null,"due_at":null}`
+		body := `{"id":1,"subject":"Legacy priority","details":null,"closed":false,"category":1,"priority":` + strconv.FormatInt(value, 10) + `,"resolution":null,"due_at":null,"reviewed":null}`
 		httpClient := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 			calls++
 			wire, err := io.ReadAll(request.Body)

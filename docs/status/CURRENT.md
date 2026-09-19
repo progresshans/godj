@@ -13,6 +13,8 @@
 Schema/Codegen/ORM/Migration, SQLite·PostgreSQL과 Article·Helpdesk의 Web/Form/Admin/API·영속 인증 흐름이 있다.
 일반 signed integer·Text·DateTime을 모델부터 실제 소비자까지 연결했다. DateTime은 UTC microsecond와 명시적 null을 사용하며
 Form/Admin·RFC3339 JSON/OpenAPI·독립 client까지 구현했다. Scalar typed/dynamic IN과 검증 뒤 빈 조회 SQL 생략도 구현했다.
+Nullable Boolean의 세 상태를 generated pointer·양 DB·Form/Admin·Helpdesk PUT/PATCH·OpenAPI/client까지 연결했다.
+환경별 검증 상태는 아래 현재 작업과 TEST_EVIDENCE를 따른다.
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
 SQLite remake의 inbound/self 참조 값·행·sequence와 실패 뒤 FK 복원/폐기·quarantine을 검증했다.
@@ -28,9 +30,10 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 ## 다음 행동
 
 GDJ-0085의 자동 계획·CLI 게시·실제 SQLite/PG migration과 생성 ORM 소비자를 연결하고 로컬·Hosted ORM 검증을 완료했다.
-별도 `feature/nullable-boolean-models`에서 GDJ-0086을 시작했다. 독립 Django/DRF의 세 상태 관찰을 준비하고 IR·nullable typed
-field·generator·DB schema/catalog·definition의 기본 연결을 작성했다. Compile-only 확인 상태이며 Go runtime PASS는 아직 없다.
-Form/Admin·실제 생성 소비자·JSON/OpenAPI/client 연결과 관련 검증을 이어간다. GDJ-0086 제품 변경은 아직 기존 Draft PR에 통합하지 않았다.
+별도 `feature/nullable-boolean-models`에서 GDJ-0086을 구현했다. 독립 Django/DRF 기준과 일반 affected 실행을 통과했다.
+로컬 영향 검증과 CI 필수 실행 목록을 마무리했으며, 기존 Draft PR 통합과 Hosted ORM 검증을 이어간다.
+세 상태와 생략 규칙을 모델·실제 양 DB migration/ORM·Form/Admin·PUT/PATCH·OpenAPI 및 외부 생성 client에서 연결했다.
+GDJ-0086 제품 변경은 아직 기존 Draft PR에 통합하지 않았다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거

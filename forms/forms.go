@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/booleaninput"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -71,6 +72,7 @@ const (
 	Checkbox
 	DateTimeInput
 	Select
+	NullBooleanSelect
 )
 
 // FieldValidator performs pure validation of one already-cleaned field value.
@@ -202,6 +204,9 @@ func CharField(name string, options ...FieldOption) (Field, error) {
 
 // BooleanField creates a checkbox-like boolean field. Missing input cleans to
 // false; callers may opt into required=true when false must be rejected.
+// WithNullable selects a three-state input whose missing/unknown value is Null.
+// The checkbox required rule does not apply to this nullable widget, matching
+// Django's NullBooleanField; custom field validators may reject Null.
 func BooleanField(name string, options ...FieldOption) (Field, error) {
 	config := fieldConfig{label: name, widget: Checkbox}
 	for _, option := range options {
@@ -239,8 +244,11 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if config.choices != nil && !config.hasWidget {
 		config.widget = Select
 	}
+	if kind == FieldBoolean && config.nullable && !config.hasWidget {
+		config.widget = NullBooleanSelect
+	}
 	if !(kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
-		kind == FieldBoolean && config.widget == Checkbox || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
+		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		config.choices != nil && config.widget == Select) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
 	}
@@ -294,13 +302,10 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "invalid_text"}
 		}
 	case FieldBoolean:
-		if config.nullable {
-			return Field{}, &ConfigError{Path: "fields." + name + ".nullable", Code: "unsupported"}
-		}
 		if config.maxLength != 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
 		}
-		if config.hasDefault && config.defaultValue.kind != ValueBoolean {
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
 			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
 		}
 	default:
@@ -460,7 +465,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 		switch {
 		case field.hasDefault:
 			value = field.defaultValue
-		case field.kind == FieldBoolean:
+		case field.kind == FieldBoolean && !field.nullable:
 			value = Boolean(false)
 		case field.kind == FieldInteger || field.kind == FieldDateTime:
 			// An unbound required integer starts blank rather than inventing zero.
@@ -673,8 +678,13 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 		case FieldBoolean:
 			raw := ""
 			if present && len(submitted) == 1 {
-				raw = strings.ToLower(strings.TrimSpace(submitted[0]))
+				raw = submitted[0]
 			}
+			if field.nullable {
+				value = nullableBooleanValue(raw)
+				break
+			}
+			raw = strings.ToLower(strings.TrimSpace(raw))
 			switch raw {
 			case "", "0", "false", "off", "no":
 				value = Boolean(false)
@@ -739,8 +749,12 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 	case FieldBoolean:
 		raw := ""
 		if present && len(submitted) == 1 {
-			raw = strings.ToLower(strings.TrimSpace(submitted[0]))
+			raw = submitted[0]
 		}
+		if field.nullable {
+			return !nullableBooleanValue(raw).Equal(initial)
+		}
+		raw = strings.ToLower(strings.TrimSpace(raw))
 		switch raw {
 		case "", "0", "false", "off", "no":
 			return !Boolean(false).Equal(initial)
@@ -752,6 +766,13 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 	default:
 		return true
 	}
+}
+
+func nullableBooleanValue(raw string) Value {
+	if value, known := booleaninput.NullableSelect(raw); known {
+		return Boolean(value)
+	}
+	return Null()
 }
 
 func validName(name string) bool {

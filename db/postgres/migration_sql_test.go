@@ -170,7 +170,7 @@ func TestCompilePostgresMigrationColumnRejectsUnsupportedShape(t *testing.T) {
 	tests := []ir.Field{
 		{Kind: ir.FieldChar, MaxLength: 1},
 		{Column: "value", Kind: ir.FieldChar},
-		{Column: "value", Kind: ir.FieldBoolean, Nullable: true},
+		{Column: "value", Kind: ir.FieldBoolean, Nullable: true, Default: &ir.Scalar{Kind: ir.ScalarInteger}},
 		{Column: "id", Kind: ir.FieldAuto},
 		{Column: "value", Kind: ir.FieldKind("unknown")},
 	}

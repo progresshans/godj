@@ -14,6 +14,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/internal/booleaninput"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/validation"
@@ -322,11 +323,11 @@ func (site *Site) formContext(
 			"char":       templates.Bool(field.Kind() == forms.FieldChar && field.Widget() == forms.TextInput),
 			"textarea":   templates.Bool(field.Widget() == forms.Textarea),
 			"integer":    templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
-			"select":     templates.Bool(field.Widget() == forms.Select),
+			"select":     templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect),
 			"options":    templates.List(options...),
 			"datetime":   templates.Bool(field.Kind() == forms.FieldDateTime),
-			"boolean":    templates.Bool(field.Kind() == forms.FieldBoolean),
-			"required":   templates.Bool(field.Required()),
+			"boolean":    templates.Bool(field.Widget() == forms.Checkbox),
+			"required":   templates.Bool(field.Required() && field.Widget() != forms.NullBooleanSelect),
 			"max_length": templates.Integer(int64(field.MaxLength())),
 			"value":      templates.String(value),
 			"checked":    templates.Bool(checked),
@@ -353,6 +354,18 @@ func (site *Site) formContext(
 }
 
 func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values) (string, bool) {
+	if field.Widget() == forms.NullBooleanSelect {
+		if form.Bound() {
+			if value, known := booleaninput.NullableSelect(submitted.Get(field.Name())); known {
+				return strconv.FormatBool(value), false
+			}
+		} else if initial, exists := form.Initial().Get(field.Name()); exists {
+			if value, known := initial.AsBoolean(); known {
+				return strconv.FormatBool(value), false
+			}
+		}
+		return "unknown", false
+	}
 	if form.Bound() {
 		if raw, ok := submitted[field.Name()]; ok {
 			first := ""

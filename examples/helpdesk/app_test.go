@@ -2,6 +2,7 @@ package helpdesk_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -126,11 +127,10 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0004_ticket_due_at"}))); err != nil {
 		t.Fatal(err)
 	}
-	legacy := readGrownTicket(t, ctx, backend, seedID, "Existing ticket", category.ID)
-	legacy, err = models.TicketObjects.Update(ctx, backend, legacy, models.TicketPatch{}.WithPriority(99))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Historical migrations expose only their own columns; the current model
+	// reader also selects reviewed, which does not exist until 0007.
+	assertHistoricalPriority(t, ctx, backend, seedID, nil)
+	setHistoricalPriority(t, ctx, backend, seedID, query.Integer(99))
 	for _, name := range []string{"0005_alter_ticket_priority", "0006_alter_ticket_priority", "0004_ticket_due_at", "0006_alter_ticket_priority"} {
 		state, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded,
 			migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: name})))
@@ -155,14 +155,11 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 				t.Fatal("choice label/order change missing")
 			}
 		}
-		persisted, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(seedID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-		if err != nil || !found || persisted.Priority == nil || *persisted.Priority != 99 {
-			t.Fatal("choice migration changed an existing out-of-choice row")
-		}
+		value := int64(99)
+		assertHistoricalPriority(t, ctx, backend, seedID, &value)
 	}
-	if _, err := models.TicketObjects.Update(ctx, backend, legacy, models.TicketPatch{}.WithPriorityNull()); err != nil {
-		t.Fatal(err)
-	}
+	setHistoricalPriority(t, ctx, backend, seedID, query.Null())
+
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +175,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("reverse field migrations removed the model")
 	}
 	for _, field := range historical.Fields {
-		if field.Name == "priority" || field.Name == "resolution" || field.Name == "due_at" {
+		if field.Name == "priority" || field.Name == "resolution" || field.Name == "due_at" || field.Name == "reviewed" {
 			t.Fatal("reverse field migrations retained a later column")
 		}
 	}
@@ -233,7 +230,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("Category should need no form/CRUD adapter")
 	}
 	ticketInfo, ok := application.Registry().Lookup("helpdesk", "ticket")
-	if !ok || len(ticketInfo.FormFields) != 6 {
+	if !ok || len(ticketInfo.FormFields) != 7 {
 		t.Fatal("Ticket scalar selection")
 	}
 	for _, field := range ticketInfo.FormFields {
@@ -288,7 +285,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
 	}
-	if len(detail) != 2 || len(detail["ticket"]) != 8 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+	if len(detail) != 2 || len(detail["ticket"]) != 9 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
 		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
 	}
 	var categoryName string
@@ -442,6 +439,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if count, err := models.TicketObjects.Using(backend).Count(ctx); err != nil || count != 4 {
 		t.Fatalf("invalid requests changed rows: %d %v", count, err)
 	}
+	verifyHelpdeskNullableBoolean(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
 	// Ordinary ORM writes keep the complete int64 storage range. Both API and
 	// Admin display those old/out-of-choice values without substituting labels.
 	for _, value := range []int64{math.MinInt64, math.MaxInt64} {
@@ -473,10 +471,52 @@ func insertHistoricalTicket(ctx context.Context, backend db.Mutator, subject str
 	}, query.NewFieldRef("id", "id", query.FieldInteger, false)))
 }
 
+func setHistoricalPriority(t *testing.T, ctx context.Context, backend db.Mutator, id int64, value query.Value) {
+	t.Helper()
+	count, err := backend.Update(ctx, query.NewUpdatePlan("helpdesk_ticket", []query.Assignment{
+		query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, true), value),
+	}, query.NewFieldRef("id", "id", query.FieldInteger, false), query.Integer(id)))
+	if err != nil || count != 1 {
+		t.Fatalf("historical priority update: %d %v", count, err)
+	}
+}
+
+func assertHistoricalPriority(t *testing.T, ctx context.Context, backend db.Queryer, id int64, expected *int64) {
+	t.Helper()
+	key := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	priority := query.NewFieldRef("priority", "priority", query.FieldInteger, true)
+	plan, err := query.NewPlan("helpdesk_ticket", []query.FieldRef{key, priority}).WithConditions(query.NewCondition(key, query.LookupExact, query.Integer(id)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := backend.Query(ctx, plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var storedID int64
+	var stored sql.NullInt64
+	if !rows.Next() {
+		t.Fatalf("historical row absent: %v", rows.Err())
+	}
+	if err := rows.Scan(&storedID, &stored); err != nil {
+		t.Fatal(err)
+	}
+	if storedID != id || stored.Valid != (expected != nil) || expected != nil && stored.Int64 != *expected {
+		t.Fatal("historical choices changed stored priority")
+	}
+	if rows.Next() || rows.Err() != nil {
+		t.Fatal("historical lookup returned extra rows or failed")
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func readGrownTicket(t *testing.T, ctx context.Context, backend db.Queryer, id int64, subject string, category int64) models.Ticket {
 	t.Helper()
 	value, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || value.Subject != subject || value.CategoryID != category || value.Details != nil || value.Closed || value.Priority != nil || value.Resolution != nil || value.DueAt != nil {
+	if err != nil || !found || value.Subject != subject || value.CategoryID != category || value.Details != nil || value.Closed || value.Priority != nil || value.Resolution != nil || value.DueAt != nil || value.Reviewed != nil {
 		t.Fatalf("field migrations did not preserve the historical row and NULL backfill: %v", err)
 	}
 	return value
@@ -594,7 +634,7 @@ func (c *helpdeskClient) request(method, path, body string, jsonBody bool) *http
 	for _, cookie := range c.cookies {
 		request.AddCookie(cookie)
 	}
-	if method == "POST" {
+	if method == "POST" || method == "PUT" || method == "PATCH" {
 		if jsonBody {
 			request.Header.Set("Content-Type", "application/json")
 			request.Header.Set(websessionauth.DefaultCSRFHeader, c.csrf)

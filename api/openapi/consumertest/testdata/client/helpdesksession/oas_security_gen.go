@@ -24,6 +24,8 @@ type SecuritySource interface {
 // operationRolesCsrfCookie is a private map storing roles per operation.
 var operationRolesCsrfCookie = map[string][]string{
 	HelpdeskTicketCreateOperation: []string{},
+	HelpdeskTicketPatchOperation:  []string{},
+	HelpdeskTicketUpdateOperation: []string{},
 }
 
 // GetRolesForCsrfCookie returns the required roles for the given operation.
@@ -50,6 +52,8 @@ func GetRolesForCsrfCookie(operation string) []string {
 // operationRolesCsrfHeader is a private map storing roles per operation.
 var operationRolesCsrfHeader = map[string][]string{
 	HelpdeskTicketCreateOperation: []string{},
+	HelpdeskTicketPatchOperation:  []string{},
+	HelpdeskTicketUpdateOperation: []string{},
 }
 
 // GetRolesForCsrfHeader returns the required roles for the given operation.
@@ -78,6 +82,8 @@ var operationRolesSessionAuth = map[string][]string{
 	HelpdeskTicketCreateOperation: []string{},
 	HelpdeskTicketDetailOperation: []string{},
 	HelpdeskTicketListOperation:   []string{},
+	HelpdeskTicketPatchOperation:  []string{},
+	HelpdeskTicketUpdateOperation: []string{},
 }
 
 // GetRolesForSessionAuth returns the required roles for the given operation.

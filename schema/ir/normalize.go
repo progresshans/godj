@@ -202,9 +202,6 @@ func validateField(field Field, path string) error {
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")
 		}
-		if field.Nullable {
-			return validation(path+".nullable", "unsupported", "nullable BooleanField is outside M1")
-		}
 		if field.MaxLength != 0 {
 			return validation(path+".max_length", "unsupported", "BooleanField has no max length")
 		}

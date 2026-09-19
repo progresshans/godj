@@ -100,7 +100,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	}
 	// Ticket viewing includes the category summary. Neither principal receives
 	// ViewCategory, which protects the separate Category Admin surface.
-	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket)
+	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket)
 	helpdeskView := consumerPrincipal(t, "helpdesk-client-view", helpdesk.ViewTicket)
 	helpdeskAuth, helpdeskSession, helpdeskViewSession := newConsumerSessionAuthentication(t, helpdeskAll, helpdeskView, "/api/tickets/")
 	helpdeskApplication, err := helpdesk.New(helpdeskBackend, category.ID)
@@ -153,6 +153,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			"Consumer ticket": nil, "Null priority": nil,
 			"Urgent priority": new(int64(1)), "Low priority": new(int64(-1)), "Zero priority": new(int64(0)),
 		}
+		wantReviewed := map[string]*bool{"Consumer ticket": new(false), "Urgent priority": new(true), "Low priority": new(false), "Zero priority": nil, "Null priority": nil}
 		wantResolution := map[string]*string{
 			"Consumer ticket": new("First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"),
 			"Urgent priority": new(""), "Low priority": nil, "Zero priority": nil, "Null priority": nil,
@@ -184,6 +185,11 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if !known || (stored.Priority == nil) != (want == nil) || (want != nil && stored.Priority != nil && *stored.Priority != *want) || stored.Closed || stored.Details != nil {
 					t.Error("generated client changed an integer value, null, or default during persistence")
 				}
+				reviewed, known := wantReviewed[stored.Subject]
+				if !known || (stored.Reviewed == nil) != (reviewed == nil) || (reviewed != nil && stored.Reviewed != nil && *stored.Reviewed != *reviewed) {
+					t.Error("generated client lost persisted nullable Boolean state")
+				}
+				delete(wantReviewed, stored.Subject)
 				text, known := wantResolution[stored.Subject]
 				if !known || (stored.Resolution == nil) != (text == nil) || (text != nil && stored.Resolution != nil && *stored.Resolution != *text) {
 					t.Error("generated client changed Text content or null/empty presence during persistence")
@@ -197,7 +203,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				delete(wantResolution, stored.Subject)
 			}
 		}
-		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 {
+		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
 		}
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
@@ -354,6 +360,9 @@ func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string
 }
 
 func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
+	if (left.Reviewed == nil) != (right.Reviewed == nil) || (left.Reviewed != nil && *left.Reviewed != *right.Reviewed) {
+		return false
+	}
 	if left.ID != right.ID || left.Subject != right.Subject || left.Closed != right.Closed || left.CategoryID != right.CategoryID {
 		return false
 	}

@@ -14,16 +14,21 @@ type RelatedBooleanField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (r ForwardRelation[S, T]) Boolean(field BooleanField[T]) (RelatedBooleanField[S], error) {
+func (r ForwardRelation[S, T]) Boolean(field BooleanLookupField[T]) (RelatedBooleanField[S], error) {
 	if err := r.route.validate(); err != nil {
 		return RelatedBooleanField[S]{}, err
 	}
-	if field.err != nil {
-		return RelatedBooleanField[S]{}, field.err
+	if interfaceIsNil(field) {
+		return RelatedBooleanField[S]{}, relationInvalidPlan("related Boolean field is nil")
 	}
-	metadata, ok := matchingTerminalField(r.route.last().targetModel, field.reference, ir.FieldBoolean)
-	if !ok || metadata.Nullable {
-		return RelatedBooleanField[S]{}, unknownRelatedField(field.reference.Name())
+	var model T
+	reference, err := field.booleanLookupField(model)
+	if err != nil {
+		return RelatedBooleanField[S]{}, err
+	}
+	metadata, found := matchingTerminalField(r.route.last().targetModel, reference, ir.FieldBoolean)
+	if !found {
+		return RelatedBooleanField[S]{}, unknownRelatedField(reference.Name())
 	}
 	path, err := r.route.path(fieldReference(metadata), query.RelationTerminalRelatedField)
 	if err != nil {

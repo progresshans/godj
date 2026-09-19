@@ -297,6 +297,123 @@ func (s *HelpdeskTicketListOKHeaders) SetResponse(val []Ticket) {
 
 func (*HelpdeskTicketListOKHeaders) helpdeskTicketListRes() {}
 
+type HelpdeskTicketPatchBadRequest GoDjAPIError
+
+func (*HelpdeskTicketPatchBadRequest) helpdeskTicketPatchRes() {}
+
+type HelpdeskTicketPatchForbidden GoDjAPIError
+
+func (*HelpdeskTicketPatchForbidden) helpdeskTicketPatchRes() {}
+
+type HelpdeskTicketPatchInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketPatchInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketPatchInternalServerError) helpdeskTicketPatchRes() {}
+
+type HelpdeskTicketPatchNotFound GoDjAPIError
+
+func (*HelpdeskTicketPatchNotFound) helpdeskTicketPatchRes() {}
+
+type HelpdeskTicketPatchRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketPatchRequestEntityTooLarge) helpdeskTicketPatchRes() {}
+
+type HelpdeskTicketPatchUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketPatchUnsupportedMediaType) helpdeskTicketPatchRes() {}
+
+type HelpdeskTicketUpdateBadRequest GoDjAPIError
+
+func (*HelpdeskTicketUpdateBadRequest) helpdeskTicketUpdateRes() {}
+
+type HelpdeskTicketUpdateForbidden GoDjAPIError
+
+func (*HelpdeskTicketUpdateForbidden) helpdeskTicketUpdateRes() {}
+
+type HelpdeskTicketUpdateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketUpdateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketUpdateInternalServerError) helpdeskTicketUpdateRes() {}
+
+type HelpdeskTicketUpdateNotFound GoDjAPIError
+
+func (*HelpdeskTicketUpdateNotFound) helpdeskTicketUpdateRes() {}
+
+type HelpdeskTicketUpdateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketUpdateRequestEntityTooLarge) helpdeskTicketUpdateRes() {}
+
+type HelpdeskTicketUpdateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketUpdateUnsupportedMediaType) helpdeskTicketUpdateRes() {}
+
+// NewNilBool returns new NilBool with value set to v.
+func NewNilBool(v bool) NilBool {
+	return NilBool{
+		Value: v,
+	}
+}
+
+// NilBool is nullable bool.
+type NilBool struct {
+	Value bool
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilBool) SetTo(v bool) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilBool) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilBool) SetToNull() {
+	o.Null = true
+	var v bool
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilBool) Get() (v bool, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilDateTime returns new NilDateTime with value set to v.
 func NewNilDateTime(v time.Time) NilDateTime {
 	return NilDateTime{
@@ -472,6 +589,74 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBool returns new OptNilBool with value set to v.
+func NewOptNilBool(v bool) OptNilBool {
+	return OptNilBool{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBool is optional nullable bool.
+type OptNilBool struct {
+	Value bool
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBool was set.
+func (o OptNilBool) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBool) Reset() {
+	var v bool
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBool) SetTo(v bool) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBool) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBool) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v bool
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilBool) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBool) Get() (v bool, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBool) Or(d bool) bool {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -682,6 +867,142 @@ func (o OptNilTicketCreatePriority) Or(d TicketCreatePriority) TicketCreatePrior
 	return d
 }
 
+// NewOptNilTicketPatchPriority returns new OptNilTicketPatchPriority with value set to v.
+func NewOptNilTicketPatchPriority(v TicketPatchPriority) OptNilTicketPatchPriority {
+	return OptNilTicketPatchPriority{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilTicketPatchPriority is optional nullable TicketPatchPriority.
+type OptNilTicketPatchPriority struct {
+	Value TicketPatchPriority
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilTicketPatchPriority was set.
+func (o OptNilTicketPatchPriority) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilTicketPatchPriority) Reset() {
+	var v TicketPatchPriority
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilTicketPatchPriority) SetTo(v TicketPatchPriority) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilTicketPatchPriority) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilTicketPatchPriority) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v TicketPatchPriority
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilTicketPatchPriority) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilTicketPatchPriority) Get() (v TicketPatchPriority, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilTicketPatchPriority) Or(d TicketPatchPriority) TicketPatchPriority {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilTicketUpdatePriority returns new OptNilTicketUpdatePriority with value set to v.
+func NewOptNilTicketUpdatePriority(v TicketUpdatePriority) OptNilTicketUpdatePriority {
+	return OptNilTicketUpdatePriority{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilTicketUpdatePriority is optional nullable TicketUpdatePriority.
+type OptNilTicketUpdatePriority struct {
+	Value TicketUpdatePriority
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilTicketUpdatePriority was set.
+func (o OptNilTicketUpdatePriority) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilTicketUpdatePriority) Reset() {
+	var v TicketUpdatePriority
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilTicketUpdatePriority) SetTo(v TicketUpdatePriority) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilTicketUpdatePriority) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilTicketUpdatePriority) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v TicketUpdatePriority
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilTicketUpdatePriority) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilTicketUpdatePriority) Get() (v TicketUpdatePriority, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilTicketUpdatePriority) Or(d TicketUpdatePriority) TicketUpdatePriority {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -763,6 +1084,7 @@ type Ticket struct {
 	Priority   NilInt64    `json:"priority"`
 	Resolution NilString   `json:"resolution"`
 	DueAt      NilDateTime `json:"due_at"`
+	Reviewed   NilBool     `json:"reviewed"`
 }
 
 // GetID returns the value of ID.
@@ -805,6 +1127,11 @@ func (s *Ticket) GetDueAt() NilDateTime {
 	return s.DueAt
 }
 
+// GetReviewed returns the value of Reviewed.
+func (s *Ticket) GetReviewed() NilBool {
+	return s.Reviewed
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -845,7 +1172,14 @@ func (s *Ticket) SetDueAt(val NilDateTime) {
 	s.DueAt = val
 }
 
+// SetReviewed sets the value of Reviewed.
+func (s *Ticket) SetReviewed(val NilBool) {
+	s.Reviewed = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
+func (*Ticket) helpdeskTicketPatchRes()  {}
+func (*Ticket) helpdeskTicketUpdateRes() {}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {
@@ -855,6 +1189,7 @@ type TicketCreate struct {
 	Priority   OptNilTicketCreatePriority `json:"priority"`
 	Resolution OptNilString               `json:"resolution"`
 	DueAt      OptNilDateTime             `json:"due_at"`
+	Reviewed   OptNilBool                 `json:"reviewed"`
 }
 
 // GetSubject returns the value of Subject.
@@ -887,6 +1222,11 @@ func (s *TicketCreate) GetDueAt() OptNilDateTime {
 	return s.DueAt
 }
 
+// GetReviewed returns the value of Reviewed.
+func (s *TicketCreate) GetReviewed() OptNilBool {
+	return s.Reviewed
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -915,6 +1255,11 @@ func (s *TicketCreate) SetResolution(val OptNilString) {
 // SetDueAt sets the value of DueAt.
 func (s *TicketCreate) SetDueAt(val OptNilDateTime) {
 	s.DueAt = val
+}
+
+// SetReviewed sets the value of Reviewed.
+func (s *TicketCreate) SetReviewed(val OptNilBool) {
+	s.Reviewed = val
 }
 
 type TicketCreatePriority int64
@@ -987,3 +1332,199 @@ func (s *TicketDetailHeaders) SetResponse(val TicketDetail) {
 }
 
 func (*TicketDetailHeaders) helpdeskTicketDetailRes() {}
+
+// Ref: #/components/schemas/TicketPatch
+type TicketPatch struct {
+	Subject    OptString                 `json:"subject"`
+	Details    OptNilString              `json:"details"`
+	Closed     OptBool                   `json:"closed"`
+	Priority   OptNilTicketPatchPriority `json:"priority"`
+	Resolution OptNilString              `json:"resolution"`
+	DueAt      OptNilDateTime            `json:"due_at"`
+	Reviewed   OptNilBool                `json:"reviewed"`
+}
+
+// GetSubject returns the value of Subject.
+func (s *TicketPatch) GetSubject() OptString {
+	return s.Subject
+}
+
+// GetDetails returns the value of Details.
+func (s *TicketPatch) GetDetails() OptNilString {
+	return s.Details
+}
+
+// GetClosed returns the value of Closed.
+func (s *TicketPatch) GetClosed() OptBool {
+	return s.Closed
+}
+
+// GetPriority returns the value of Priority.
+func (s *TicketPatch) GetPriority() OptNilTicketPatchPriority {
+	return s.Priority
+}
+
+// GetResolution returns the value of Resolution.
+func (s *TicketPatch) GetResolution() OptNilString {
+	return s.Resolution
+}
+
+// GetDueAt returns the value of DueAt.
+func (s *TicketPatch) GetDueAt() OptNilDateTime {
+	return s.DueAt
+}
+
+// GetReviewed returns the value of Reviewed.
+func (s *TicketPatch) GetReviewed() OptNilBool {
+	return s.Reviewed
+}
+
+// SetSubject sets the value of Subject.
+func (s *TicketPatch) SetSubject(val OptString) {
+	s.Subject = val
+}
+
+// SetDetails sets the value of Details.
+func (s *TicketPatch) SetDetails(val OptNilString) {
+	s.Details = val
+}
+
+// SetClosed sets the value of Closed.
+func (s *TicketPatch) SetClosed(val OptBool) {
+	s.Closed = val
+}
+
+// SetPriority sets the value of Priority.
+func (s *TicketPatch) SetPriority(val OptNilTicketPatchPriority) {
+	s.Priority = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *TicketPatch) SetResolution(val OptNilString) {
+	s.Resolution = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *TicketPatch) SetDueAt(val OptNilDateTime) {
+	s.DueAt = val
+}
+
+// SetReviewed sets the value of Reviewed.
+func (s *TicketPatch) SetReviewed(val OptNilBool) {
+	s.Reviewed = val
+}
+
+type TicketPatchPriority int64
+
+const (
+	TicketPatchPriority1      TicketPatchPriority = 1
+	TicketPatchPriority0      TicketPatchPriority = 0
+	TicketPatchPriorityMinus1 TicketPatchPriority = -1
+)
+
+// AllValues returns all TicketPatchPriority values.
+func (TicketPatchPriority) AllValues() []TicketPatchPriority {
+	return []TicketPatchPriority{
+		TicketPatchPriority1,
+		TicketPatchPriority0,
+		TicketPatchPriorityMinus1,
+	}
+}
+
+// Ref: #/components/schemas/TicketUpdate
+type TicketUpdate struct {
+	Subject    string                     `json:"subject"`
+	Details    OptNilString               `json:"details"`
+	Closed     OptBool                    `json:"closed"`
+	Priority   OptNilTicketUpdatePriority `json:"priority"`
+	Resolution OptNilString               `json:"resolution"`
+	DueAt      OptNilDateTime             `json:"due_at"`
+	Reviewed   OptNilBool                 `json:"reviewed"`
+}
+
+// GetSubject returns the value of Subject.
+func (s *TicketUpdate) GetSubject() string {
+	return s.Subject
+}
+
+// GetDetails returns the value of Details.
+func (s *TicketUpdate) GetDetails() OptNilString {
+	return s.Details
+}
+
+// GetClosed returns the value of Closed.
+func (s *TicketUpdate) GetClosed() OptBool {
+	return s.Closed
+}
+
+// GetPriority returns the value of Priority.
+func (s *TicketUpdate) GetPriority() OptNilTicketUpdatePriority {
+	return s.Priority
+}
+
+// GetResolution returns the value of Resolution.
+func (s *TicketUpdate) GetResolution() OptNilString {
+	return s.Resolution
+}
+
+// GetDueAt returns the value of DueAt.
+func (s *TicketUpdate) GetDueAt() OptNilDateTime {
+	return s.DueAt
+}
+
+// GetReviewed returns the value of Reviewed.
+func (s *TicketUpdate) GetReviewed() OptNilBool {
+	return s.Reviewed
+}
+
+// SetSubject sets the value of Subject.
+func (s *TicketUpdate) SetSubject(val string) {
+	s.Subject = val
+}
+
+// SetDetails sets the value of Details.
+func (s *TicketUpdate) SetDetails(val OptNilString) {
+	s.Details = val
+}
+
+// SetClosed sets the value of Closed.
+func (s *TicketUpdate) SetClosed(val OptBool) {
+	s.Closed = val
+}
+
+// SetPriority sets the value of Priority.
+func (s *TicketUpdate) SetPriority(val OptNilTicketUpdatePriority) {
+	s.Priority = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *TicketUpdate) SetResolution(val OptNilString) {
+	s.Resolution = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *TicketUpdate) SetDueAt(val OptNilDateTime) {
+	s.DueAt = val
+}
+
+// SetReviewed sets the value of Reviewed.
+func (s *TicketUpdate) SetReviewed(val OptNilBool) {
+	s.Reviewed = val
+}
+
+type TicketUpdatePriority int64
+
+const (
+	TicketUpdatePriority1      TicketUpdatePriority = 1
+	TicketUpdatePriority0      TicketUpdatePriority = 0
+	TicketUpdatePriorityMinus1 TicketUpdatePriority = -1
+)
+
+// AllValues returns all TicketUpdatePriority values.
+func (TicketUpdatePriority) AllValues() []TicketUpdatePriority {
+	return []TicketUpdatePriority{
+		TicketUpdatePriority1,
+		TicketUpdatePriority0,
+		TicketUpdatePriorityMinus1,
+	}
+}

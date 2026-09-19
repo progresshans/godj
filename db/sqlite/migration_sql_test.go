@@ -70,7 +70,7 @@ func TestCompileMigrationColumnRejectsUnsupportedShape(t *testing.T) {
 	}{
 		{name: "empty column", field: ir.Field{Kind: ir.FieldChar, MaxLength: 1}},
 		{name: "invalid char length", field: ir.Field{Column: "value", Kind: ir.FieldChar}},
-		{name: "nullable boolean", field: ir.Field{Column: "value", Kind: ir.FieldBoolean, Nullable: true}},
+		{name: "boolean wrong default", field: ir.Field{Column: "value", Kind: ir.FieldBoolean, Nullable: true, Default: &ir.Scalar{Kind: ir.ScalarInteger}}},
 		{name: "invalid auto", field: ir.Field{Column: "id", Kind: ir.FieldAuto}},
 		{name: "integer primary key", field: ir.Field{Column: "value", Kind: ir.FieldInteger, PrimaryKey: true}},
 		{name: "integer length", field: ir.Field{Column: "value", Kind: ir.FieldInteger, MaxLength: 1}},
@@ -134,6 +134,22 @@ func TestTextMigrationColumnHasNoLengthOrPersistentDefault(t *testing.T) {
 			mutate(&invalid)
 			if _, err := compileMigrationColumn(invalid); err == nil {
 				t.Fatal("invalid Text metadata accepted by migration compiler")
+			}
+		}
+	}
+}
+
+func TestBooleanMigrationColumnKeepsNullabilityWithoutPersistentDefault(t *testing.T) {
+	for _, nullable := range []bool{false, true} {
+		for _, value := range []bool{false, true} {
+			field := ir.Field{Name: "reviewed", GoName: "Reviewed", Column: "reviewed", Kind: ir.FieldBoolean, Nullable: nullable, Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: value}}
+			statement, err := compileMigrationColumn(field)
+			want := `"reviewed" BOOLEAN NOT NULL`
+			if nullable {
+				want = `"reviewed" BOOLEAN NULL`
+			}
+			if err != nil || statement != want {
+				t.Fatalf("Boolean column=%q err=%v want=%q", statement, err, want)
 			}
 		}
 	}

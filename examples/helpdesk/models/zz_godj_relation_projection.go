@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "eb59105d62af118882f3951491ff1934fefdeb530bec42e446384083cc1da786"
+const GoDjRelationProjectionSchemaSHA256 = "183a42f5dfefa5179b07b8c2fd9611f74e3b79ce669e790169654bd4a7dbdecc"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -67,6 +67,7 @@ type ticketProjectionScan struct {
 	scanPriority   sql.NullInt64
 	scanResolution sql.NullString
 	scanDueAt      orm.NullableDateTimeScanner
+	scanReviewed   sql.NullBool
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -82,6 +83,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanPriority,
 		&_scan.scanResolution,
 		&_scan.scanDueAt,
+		&_scan.scanReviewed,
 	}
 }
 
@@ -89,7 +91,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -125,8 +127,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 		_scanned := _scan.scanDueAt.Time
 		_value.DueAt = &_scanned
 	}
+	if _scan.scanReviewed.Valid {
+		_scanned := _scan.scanReviewed.Bool
+		_value.Reviewed = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_1affef96d96e36d1a083b8c091c2356b0ceae37e90cc6784a76ea0a0fc4b1b6b
+var _ GoDjProjectSnapshot_d114160209f111da4c978dc15ed8baaeab4ad644094ecfc93db62e5b7882aebe

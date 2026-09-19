@@ -21,8 +21,8 @@ type API struct {
 	schemas        []openapi.NamedSchema
 }
 
-// API binds authentication once for the collection, create, and detail routes.
-// Category policy and the typed create path remain shared with Admin. Callers
+// API binds authentication once for each collection and detail operation.
+// Category policy and typed mutation paths remain shared with Admin. Callers
 // choose the listener, middleware, and whether to publish the OpenAPI document.
 func (a *Application) API(authentication api.Authentication) (*API, error) {
 	if a == nil || nilAuthentication(authentication) {
@@ -36,6 +36,10 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	if err != nil {
 		return nil, fmt.Errorf("helpdesk API TicketCreate schema: %w", err)
 	}
+	partial, err := openapi.RequestSchema(a.input, serializers.ModePartial)
+	if err != nil {
+		return nil, fmt.Errorf("helpdesk API TicketPatch schema: %w", err)
+	}
 	category, err := openapi.Object(
 		openapi.Property{Name: "id", Schema: openapi.Integer(), Required: true},
 		openapi.Property{Name: "name", Schema: openapi.String(), Required: true},
@@ -48,6 +52,14 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 		return nil, err
 	}
 	inputRef, err := openapi.Ref("TicketCreate")
+	if err != nil {
+		return nil, err
+	}
+	updateRef, err := openapi.Ref("TicketUpdate")
+	if err != nil {
+		return nil, err
+	}
+	patchRef, err := openapi.Ref("TicketPatch")
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +123,7 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 		Summary:     "Create a ticket",
 		Description: "The application assigns the selected category and checks its existence within the create transaction. Authentication, CSRF when required, and permission checks precede body parsing; input validation precedes the category lookup.",
 		Permission:  AddTicket,
-		RequestBody: &openapi.RequestBody{Schema: inputRef, Required: true, Description: fmt.Sprintf("The body must be one JSON object, limited to %d bytes and depth %d. The JSON string limit is %d bytes, subject to the smaller whole-body limit. Duplicate members and trailing data are rejected. Subject is required. Omitted closed defaults to false; omitted details, priority, resolution and due_at become null. Due_at requires an RFC 3339 timestamp with an explicit offset; instants are normalized to UTC microseconds, truncating finer precision. Empty details and resolution are distinct from null. Resolution is multiline text without a model length limit; the request body budget still applies. Priority accepts 1 (Urgent), 0 (Normal), -1 (Low), or null; zero is distinct from null. Existing stored priorities outside these input choices remain visible in responses. Subject, details and resolution text is trimmed. The generated id and assigned category cannot be supplied.", maximumJSONBodyBytes, serializers.DefaultMaxDepth, serializers.DefaultMaxStringBytes)},
+		RequestBody: &openapi.RequestBody{Schema: inputRef, Required: true, Description: fmt.Sprintf("The body must be one JSON object, limited to %d bytes and depth %d. The JSON string limit is %d bytes, subject to the smaller whole-body limit. Duplicate members and trailing data are rejected. Subject is required. Omitted closed defaults to false; omitted details, priority, resolution, due_at and reviewed become null. Reviewed accepts only JSON true, false, or null; false is distinct from null. Due_at requires an RFC 3339 timestamp with an explicit offset; instants are normalized to UTC microseconds, truncating finer precision. Empty details and resolution are distinct from null. Resolution is multiline text without a model length limit; the request body budget still applies. Priority accepts 1 (Urgent), 0 (Normal), -1 (Low), or null; zero is distinct from null. Existing stored priorities outside these input choices remain visible in responses. Subject, details and resolution text is trimmed. The generated id and assigned category cannot be supplied.", maximumJSONBodyBytes, serializers.DefaultMaxDepth, serializers.DefaultMaxStringBytes)},
 		Responses: []openapi.Response{
 			helpdeskJSONResponse(http.StatusCreated, "The created ticket.", ticketRef),
 			helpdeskJSONResponse(http.StatusBadRequest, "The body cannot be parsed or a supplied field is invalid.", errorSchema),
@@ -123,12 +135,42 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
+	writeResponses := []openapi.Response{
+		helpdeskJSONResponse(http.StatusOK, "The updated ticket.", ticketRef),
+		helpdeskJSONResponse(http.StatusBadRequest, "The body cannot be parsed or a supplied field is invalid.", errorSchema),
+		notFound,
+		helpdeskJSONResponse(http.StatusRequestEntityTooLarge, fmt.Sprintf("The request body exceeds %d bytes.", maximumJSONBodyBytes), errorSchema),
+		helpdeskJSONResponse(http.StatusUnsupportedMediaType, "The request Content-Type is not supported application/json.", errorSchema),
+	}
+	const updateDescription = "Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive identifier returns 404. Input validation precedes the target lookup. The target must belong to the application's selected category. The current row lookup and update share one transaction. Generated id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts only JSON true, false, or null."
+	update, err := protect(openapi.Operation{
+		Route:   web.Route{Name: "helpdesk:ticket-update", Method: http.MethodPut, Path: "/api/tickets/<int64:id>/"},
+		Summary: "Update a ticket", Description: updateDescription,
+		Permission:  ChangeTicket,
+		RequestBody: &openapi.RequestBody{Schema: updateRef, Required: true, Description: "Uses the create input's parsing and normalization limits. Subject is required; omitted closed defaults to false. Omitted nullable fields are preserved."},
+		Responses:   writeResponses,
+	}, a.apiUpdate)
+	if err != nil {
+		return nil, err
+	}
+	patch, err := protect(openapi.Operation{
+		Route:   web.Route{Name: "helpdesk:ticket-patch", Method: http.MethodPatch, Path: "/api/tickets/<int64:id>/"},
+		Summary: "Partially update a ticket", Description: updateDescription,
+		Permission:  ChangeTicket,
+		RequestBody: &openapi.RequestBody{Schema: patchRef, Required: true, Description: "Uses the create input's parsing and normalization limits. Every field is optional and defaults are not applied. Omitted fields, including closed, are preserved. An empty object returns the existing ticket without an UPDATE."},
+		Responses:   writeResponses,
+	}, a.apiPatch)
+	if err != nil {
+		return nil, err
+	}
 	return &API{
 		authentication: authentication,
-		operations:     []openapi.Operation{list, create, detail},
+		operations:     []openapi.Operation{list, create, detail, update, patch},
 		schemas: []openapi.NamedSchema{
 			{Name: "Ticket", Schema: ticket},
 			{Name: "TicketCreate", Schema: input},
+			{Name: "TicketUpdate", Schema: input},
+			{Name: "TicketPatch", Schema: partial},
 			{Name: "TicketDetail", Schema: detailSchema},
 			{Name: "CategorySummary", Schema: category},
 		},

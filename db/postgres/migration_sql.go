@@ -201,10 +201,13 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 			declaration += " NOT NULL"
 		}
 	case ir.FieldBoolean:
-		if field.PrimaryKey || field.Nullable || field.MaxLength != 0 || field.Relation != nil {
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarBoolean {
 			return "", errors.New("BooleanField has an invalid PostgreSQL migration shape")
 		}
 		declaration = "BOOLEAN NOT NULL"
+		if field.Nullable {
+			declaration = "BOOLEAN NULL"
+		}
 	case ir.FieldDateTime:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDateTime {
 			return "", fmt.Errorf("DateTimeField has an invalid migration shape")

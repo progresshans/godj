@@ -3,6 +3,67 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0086 — Nullable Boolean의 모델·Form/Admin/API 연결
+
+- 작업: [GDJ-0086](../../work/0086-nullable-boolean-models.md), baseline `6d3d42bd4023b9bc8bbe4588fd5645a949b4df9f`,
+  구현 branch `feature/nullable-boolean-models`.
+- Markdown을 제외한 69개 변경 파일의 정렬된 `<sha256>  <relative-path>\n` manifest SHA256은
+  `ff7c94220331f4a80f09bdcd12c5a2e5b7fd0ef803c78ed08fbf501819650f52`다.
+- 제품·생성물은 일반/race/CGO0에서 같다. 넓은 일반·race 실행 뒤 추가한 관계 NOT/IN reference와 test helper,
+  필수 child receipt 및 CI 목록은 최종 focused 실행과 정적 CI 도구 검사로 확인했다. 이를 기존 실행에 소급해 합산하지 않는다.
+
+### 로컬 실행
+
+Go 1.26.5 darwin/arm64, 전용 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+일반/race 범위는 `./schema/... ./codegen ./codegen/consumertest ./orm ./forms/... ./admin ./examples/helpdesk
+./serializers ./api/openapi/... ./db/sqlite ./db/postgres ./migrations/definition ./internal/migrationautodetect ./internal/compiletest`다.
+
+| 범위 | 결과 |
+|---|---|
+| affected normal | **17 packages, 6,477 PASS events**, 직접 helper skip 1 |
+| affected race | **17 packages, 6,427 PASS events**, 직접 helper skip 1 |
+| focused CGO_ENABLED=0 | generated nullable Boolean·Helpdesk SQLite/PG·외부 OpenAPI client **3 packages, 4 tests PASS**, skip 0 |
+| 최종 nullable Boolean Form/reference/생성 소비자 | normal/race/CGO0 각각 **2 packages, 33 PASS events**, skip 0; child의 SQLite·PG 완료를 부모가 필수 확인 |
+| 전체 compile-only | **138 packages**, `go test -json -exec /usr/bin/true ./...`; 전체 runtime PASS는 아님 |
+| affected vet | PASS |
+| 생성 재현성 | Article·Helpdesk·relation fixture drift 없음, checked-in relation product PASS, Helpdesk makemigrations `candidate_count:0` |
+| Python CI 도구 | **37 tests PASS**, skip 0 |
+| 문서·format·diff | 로컬 링크 118개 문서, gofmt, `git diff --check` PASS |
+
+모든 test 시작/종료·package terminal과 빈 stderr를 대조했다. 일반과 race의 50 event 차이는 `internal/compiletest`의
+`!race`로 선언된 파일의 7개 root test와 그 하위 case다. 해당 compile 검증은 일반 실행이 소유한다.
+직접 skip 하나는 기존 `TestPostgresRevisionFenceHelperProcess`이며 parent의 cross-process 검사가 실제 child를 실행했다.
+Helper skip이나 nested Go event 수를 별도 제품 기능 수로 세지 않는다.
+
+생성 소비자는 실제 serialized migration의 기존 행 추가·역방향·새 연결, default nil/false/true·명시적 null/false,
+typed/dynamic root 및 nullable forward 관계의 exact/isnull/IN/NOT, scalar projection·query cache와 eager Unwrap 복사를 비교한다.
+Related facade 객체의 pointer identity는 보존하고 caller에게 복사한 raw snapshot을 검증한다. Save mask·취소·실패 입력도 포함한다.
+Helpdesk는 기존 0001 행을 0007까지 성장시키고 Form/Admin의 초기값·재검증·저장, PUT/PATCH 생략·default·명시적 null/false,
+권한·CSRF·category 범위·실패 transaction rollback과 재접속을 실제 SQLite/PG에서 실행한다.
+외부 ogen client는 실제 API 문서 byte 일치·offline 재생성·독립 compile·HTTP·최종 DB와 **20개 필수 receipt**를 확인한다.
+
+초기 실행의 Admin null 거부/재검증 coercion을 수정했다. 초기 PostgreSQL URL의 host 누락은 테스트 환경 설정을 바로잡았다.
+생성 소비자가 facade identity를 raw snapshot 복사로 오해한 assertion도 수정했다. 이 초기 실패들은 최종 PASS가 아니다.
+
+### 독립 기준
+
+Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5, Python 3.14.3의
+[독립 runner](../../conformance/runners/django/nullable_boolean_reference.py)가 public model·Form/widget·serializer·schema editor/ORM을 실행한다.
+[Raw 관찰](../../internal/nullablebooleantest/testdata/django61.json)의 SHA256은
+`ce9b6c827c8de2d449c4cba0f245592fa8969667f895d77879798d853d01ff8e`다.
+Required/optional widget 30개 입력 관찰, direct field와 JSON serializer의 별도 coercion·생략/default/partial,
+기존 table 추가·재접속·update·remove 및 root/nullable 관계 각각 6개 query를 보존한다. Python의 넓은 coercion을 Go JSON에 채택하지 않는다.
+
+`uv run --no-project --isolated --python <version> --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1
+--with sqlparse==0.5.5 python -W error::ResourceWarning -m unittest conformance.runners.django.tests.test_nullable_boolean_reference`는
+Python **3.12.13·3.13.15·3.14.3·3.14.7 각각 1 test PASS**, skip·warning·exception 0이다. SQLite fingerprint는 각 runtime에서
+직접 읽어 비교하고 의미 관찰은 고정 raw와 대조한다. DB connection은 `closing`으로 종료해 GC 경고를 성공으로 숨기지 않는다.
+
+### Hosted 상태
+
+GDJ-0086의 Hosted ORM은 아직 실행하지 않았다. 기존 Draft PR에 통합한 뒤 이 source의 scoped 검증을 이어간다.
+GDJ-0085나 이전 full의 결과를 이번 nullable Boolean의 Hosted PASS로 사용하지 않는다.
+
 ## GDJ-0085 — Self/cyclic 자동 migration과 재개 가능한 게시
 
 - 작업: [GDJ-0085](../../work/0085-relation-autodetection.md), 의미: [ADR-0052](../adr/0052-project-linked-deterministic-makemigrations.md),

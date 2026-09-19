@@ -7,3 +7,15 @@ type HelpdeskTicketDetailParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
 	ID int64
 }
+
+// HelpdeskTicketPatchParams is parameters of helpdesk:ticket-patch operation.
+type HelpdeskTicketPatchParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskTicketUpdateParams is parameters of helpdesk:ticket-update operation.
+type HelpdeskTicketUpdateParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}

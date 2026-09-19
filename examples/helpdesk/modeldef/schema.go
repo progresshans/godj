@@ -23,6 +23,7 @@ func Schema() (ir.Schema, error) {
 			)),
 			schema.TextField("resolution", "Resolution", schema.Nullable()),
 			schema.DateTimeField("due_at", "DueAt", schema.Nullable()),
+			schema.BooleanField("reviewed", "Reviewed", schema.Nullable()),
 		}},
 	}})
 }

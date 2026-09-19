@@ -12,3 +12,11 @@ type HelpdeskTicketDetailRes interface {
 type HelpdeskTicketListRes interface {
 	helpdeskTicketListRes()
 }
+
+type HelpdeskTicketPatchRes interface {
+	helpdeskTicketPatchRes()
+}
+
+type HelpdeskTicketUpdateRes interface {
+	helpdeskTicketUpdateRes()
+}

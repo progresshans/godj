@@ -193,4 +193,4 @@ func (_factory ModelsTicketObjectFactory) FromSelected(_selected *orm.ForwardSel
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_1affef96d96e36d1a083b8c091c2356b0ceae37e90cc6784a76ea0a0fc4b1b6b
+var _ goDjProjectSnapshot_d114160209f111da4c978dc15ed8baaeab4ad644094ecfc93db62e5b7882aebe

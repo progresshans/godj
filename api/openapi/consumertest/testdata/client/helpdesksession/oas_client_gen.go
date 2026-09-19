@@ -45,6 +45,26 @@ type Invoker interface {
 	//
 	// GET /api/tickets/
 	HelpdeskTicketList(ctx context.Context) (HelpdeskTicketListRes, error)
+	// HelpdeskTicketPatch invokes helpdesk:ticket-patch operation.
+	//
+	// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
+	// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
+	// application's selected category. The current row lookup and update share one transaction. Generated
+	// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
+	// explicit null clears them. Reviewed accepts only JSON true, false, or null.
+	//
+	// PATCH /api/tickets/{id}/
+	HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error)
+	// HelpdeskTicketUpdate invokes helpdesk:ticket-update operation.
+	//
+	// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
+	// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
+	// application's selected category. The current row lookup and update share one transaction. Generated
+	// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
+	// explicit null clears them. Reviewed accepts only JSON true, false, or null.
+	//
+	// PUT /api/tickets/{id}/
+	HelpdeskTicketUpdate(ctx context.Context, request *TicketUpdate, params HelpdeskTicketUpdateParams) (HelpdeskTicketUpdateRes, error)
 }
 
 // Client implements OAS client.
@@ -358,6 +378,254 @@ func (c *Client) sendHelpdeskTicketList(ctx context.Context) (res HelpdeskTicket
 	}()
 
 	result, err := decodeHelpdeskTicketListResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketPatch invokes helpdesk:ticket-patch operation.
+//
+// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
+// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
+// application's selected category. The current row lookup and update share one transaction. Generated
+// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
+// explicit null clears them. Reviewed accepts only JSON true, false, or null.
+//
+// PATCH /api/tickets/{id}/
+func (c *Client) HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error) {
+	res, err := c.sendHelpdeskTicketPatch(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (res HelpdeskTicketPatchRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/tickets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PATCH", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketPatchRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketUpdate invokes helpdesk:ticket-update operation.
+//
+// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
+// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
+// application's selected category. The current row lookup and update share one transaction. Generated
+// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
+// explicit null clears them. Reviewed accepts only JSON true, false, or null.
+//
+// PUT /api/tickets/{id}/
+func (c *Client) HelpdeskTicketUpdate(ctx context.Context, request *TicketUpdate, params HelpdeskTicketUpdateParams) (HelpdeskTicketUpdateRes, error) {
+	res, err := c.sendHelpdeskTicketUpdate(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketUpdate(ctx context.Context, request *TicketUpdate, params HelpdeskTicketUpdateParams) (res HelpdeskTicketUpdateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/tickets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketUpdateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketUpdateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

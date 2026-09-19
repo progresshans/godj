@@ -111,10 +111,13 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 			declaration += " NOT NULL"
 		}
 	case ir.FieldBoolean:
-		if field.Nullable {
-			return "", fmt.Errorf("nullable BooleanField is unsupported")
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarBoolean {
+			return "", fmt.Errorf("BooleanField has an invalid SQLite migration shape")
 		}
 		declaration = "BOOLEAN NOT NULL"
+		if field.Nullable {
+			declaration = "BOOLEAN NULL"
+		}
 	case ir.FieldDateTime:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDateTime {
 			return "", fmt.Errorf("DateTimeField has an invalid migration shape")

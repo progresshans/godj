@@ -23,3 +23,31 @@ func encodeHelpdeskTicketCreateRequest(
 	ht.SetBody(r, bytes.NewReader(encoded), contentType)
 	return nil
 }
+
+func encodeHelpdeskTicketPatchRequest(
+	req *TicketPatch,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeHelpdeskTicketUpdateRequest(
+	req *TicketUpdate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}

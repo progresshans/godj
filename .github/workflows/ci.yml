@@ -1018,6 +1018,7 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration"
             "github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP"
             "github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance"
+            "github.com/progresshans/godj/codegen/consumertest|TestGeneratedNullableBooleanConsumer"
             "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow"
@@ -1047,6 +1048,7 @@ jobs:
                 ./db/postgres
                 ./examples/article
                 ./examples/helpdesk
+                ./codegen/consumertest
                 ./conformance/postgresproduct/...
                 ./conformance/projectmigrateproduct
                 ./conformance/projectshowmigrationsproduct

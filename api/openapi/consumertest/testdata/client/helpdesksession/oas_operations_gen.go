@@ -9,4 +9,6 @@ const (
 	HelpdeskTicketCreateOperation OperationName = "HelpdeskTicketCreate"
 	HelpdeskTicketDetailOperation OperationName = "HelpdeskTicketDetail"
 	HelpdeskTicketListOperation   OperationName = "HelpdeskTicketList"
+	HelpdeskTicketPatchOperation  OperationName = "HelpdeskTicketPatch"
+	HelpdeskTicketUpdateOperation OperationName = "HelpdeskTicketUpdate"
 )

@@ -208,6 +208,86 @@ func (s *HelpdeskTicketListOKHeaders) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskTicketPatchBadRequest) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketPatchForbidden) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketPatchNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketPatchRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketPatchUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketUpdateBadRequest) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketUpdateForbidden) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketUpdateNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketUpdateRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketUpdateUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Ticket) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -411,4 +491,90 @@ func (s *TicketDetailHeaders) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *TicketPatch) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Priority.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "priority",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s TicketPatchPriority) Validate() error {
+	switch s {
+	case 1:
+		return nil
+	case 0:
+		return nil
+	case -1:
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *TicketUpdate) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Priority.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "priority",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s TicketUpdatePriority) Validate() error {
+	switch s {
+	case 1:
+		return nil
+	case 0:
+		return nil
+	case -1:
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }

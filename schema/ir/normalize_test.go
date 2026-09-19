@@ -78,23 +78,32 @@ func TestCanonicalHashIsStableAndInputIsNotMutated(t *testing.T) {
 	}
 }
 
-func TestNormalizeRejectsUnsupportedNullableBoolean(t *testing.T) {
+func TestNormalizeNullableBooleanPreservesDefaultAndDistinctIdentity(t *testing.T) {
 	t.Parallel()
-
-	_, err := schema.Build(schema.Definition{
-		AppLabel: "news",
-		Models: []schema.Model{{
-			Name:   "article",
-			GoName: "Article",
-			Fields: []schema.Field{schema.BooleanField("published", "Published", schema.Nullable())},
-		}},
-	})
-	var validation *ir.ValidationError
-	if !errors.As(err, &validation) {
-		t.Fatalf("error = %v, want ValidationError", err)
-	}
-	if validation.Code != "unsupported" {
-		t.Fatalf("code = %q, want unsupported", validation.Code)
+	hashes := make(map[string]bool)
+	for _, defaultValue := range []*ir.Scalar{nil, {Kind: ir.ScalarBoolean}, {Kind: ir.ScalarBoolean, Boolean: true}} {
+		input := ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "news", Models: []ir.Model{{Name: "article", GoName: "Article", Fields: []ir.Field{
+			{Name: "reviewed", GoName: "Reviewed", Kind: ir.FieldBoolean, Nullable: true, Default: defaultValue},
+		}}}}
+		got, err := ir.Normalize(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		field := got.Models[0].Fields[1]
+		if !field.Nullable || field.Kind != ir.FieldBoolean || !reflect.DeepEqual(field.Default, defaultValue) {
+			t.Fatalf("nullable Boolean changed default: %+v", field)
+		}
+		hash, err := ir.Hash(got)
+		if err != nil || hashes[hash] {
+			t.Fatalf("omitted/false/true defaults share an identity: %v", err)
+		}
+		hashes[hash] = true
+		if defaultValue != nil {
+			field.Default.Boolean = !field.Default.Boolean
+			if field.Default.Boolean == defaultValue.Boolean {
+				t.Fatal("normalized Boolean default aliases caller metadata")
+			}
+		}
 	}
 }
 

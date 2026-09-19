@@ -243,8 +243,8 @@ func TestConfigurationFailuresAreFailClosed(t *testing.T) {
 	if _, err := forms.CharField("_private"); err == nil {
 		t.Fatal("private field name accepted")
 	}
-	if _, err := forms.BooleanField("flag", forms.WithNullable()); err == nil {
-		t.Fatal("nullable boolean accepted")
+	if _, err := forms.BooleanField("flag", forms.WithNullable(), forms.WithWidget(forms.Checkbox)); err == nil {
+		t.Fatal("nullable boolean with a two-state checkbox accepted")
 	}
 	field, err := forms.CharField("title")
 	if err != nil {

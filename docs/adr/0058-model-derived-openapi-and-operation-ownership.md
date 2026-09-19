@@ -63,6 +63,14 @@ Session 검증은 실제 adapter·cookie·CSRF를 사용하되 로그인 과정�
 생략/null/value·false, full request default, relation 범위와 권한·취소를 실제 서버에서 검증하고 int64 최대/overflow·잘못된
 response 거부는 별도 wire fixture로 검사한다. 이는 고정된 한 Go generator와 명시한 흐름의 호환성 근거다.
 
+Helpdesk의 nullable Boolean과 PUT/PATCH는 [GDJ-0086](../../work/0086-nullable-boolean-models.md)에서 연결한다.
+`TicketUpdate`는 subject를 요구하고 생략한 closed의 false default를 적용한다. `TicketPatch`는 모든 필드의 생략을
+보존하며 default를 적용하지 않는다. 생략한 nullable 필드는 양쪽 모두 기존 값을 유지하고 명시적 null은 값을 지운다.
+입력 Boolean은 JSON true/false/null만 받는다. 응답의 reviewed는 항상 존재하며 Boolean 또는 null이다.
+Helpdesk 수정 operation은 인증·CSRF·변경 권한, 양수 ID 확인, 입력 검증, transaction 내부 대상/category 확인과 변경 순서다.
+따라서 유효한 양수 ID의 잘못된 입력은 대상 조회보다 먼저 400이 된다. 이는 해당 Helpdesk handler의 명시적 순서이며
+기존 Article의 대상 확인 우선 규칙이나 프레임워크 전체의 generic update 정책을 바꾸지 않는다.
+
 ## 결과와 남은 범위
 
 Article의 full/partial 입력, pagination, Location/Allow, Session/Bearer 오류와 HEAD/204·plain 500 표현을 client가 조회할 수 있다.

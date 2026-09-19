@@ -39,7 +39,7 @@ func choiceDisplayValue(labels map[ir.Scalar]string, value templates.Value) temp
 }
 
 func choiceOptionValues(field forms.Field, selected string) ([]templates.Value, error) {
-	if field.Widget() != forms.Select {
+	if field.Widget() != forms.Select && field.Widget() != forms.NullBooleanSelect {
 		return nil, nil
 	}
 	choices := field.Choices()
@@ -53,6 +53,14 @@ func choiceOptionValues(field forms.Field, selected string) ([]templates.Value, 
 			options = append(options, option)
 		}
 		return err
+	}
+	if field.Widget() == forms.NullBooleanSelect {
+		for _, option := range [][2]string{{"unknown", "Unknown"}, {"true", "Yes"}, {"false", "No"}} {
+			if err := appendOption(option[0], option[1]); err != nil {
+				return nil, err
+			}
+		}
+		return options, nil
 	}
 	hasEmpty, hasSelected := false, selected == ""
 	for _, choice := range choices {

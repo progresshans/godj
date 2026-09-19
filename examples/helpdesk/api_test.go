@@ -34,24 +34,35 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	if !slices.Equal(recording.permissions, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewTicket, helpdesk.AddTicket}) {
+	if !slices.Equal(recording.permissions, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket}) {
 		t.Fatalf("authentication composition = %v", recording.permissions)
 	}
 	if _, found := decoded.Components.Schemas[openapi.ErrorSchemaName]; !found {
 		t.Fatal("the shared API error component is absent")
 	}
 	ticket := decoded.Components.Schemas["Ticket"]
-	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at"}) || len(ticket.Properties) != 8 || ticket.AdditionalProperties {
+	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed"}) || len(ticket.Properties) != 9 || ticket.AdditionalProperties {
 		t.Fatalf("Ticket fields = %+v", ticket)
 	}
 	if ticket.Properties["subject"].MaxLength != 120 || !ticket.Properties["category"].ReadOnly || !ticket.Properties["details"].allowsType("null") {
 		t.Fatal("Ticket response lost its encoder's field constraints")
 	}
 	input := decoded.Components.Schemas["TicketCreate"]
+	update := decoded.Components.Schemas["TicketUpdate"]
+	patch := decoded.Components.Schemas["TicketPatch"]
+	for _, schema := range []helpdeskDocumentSchema{input, update, patch, ticket} {
+		field, present := schema.Properties["reviewed"]
+		if !present || !field.allowsType("boolean") || !field.allowsType("null") || len(field.Default) != 0 {
+			t.Fatal("nullable Boolean schema invented false or lost null")
+		}
+	}
+	if !slices.Equal(update.Required, []string{"subject"}) || string(update.Properties["closed"].Default) != "false" || len(patch.Required) != 0 || len(patch.Properties["closed"].Default) != 0 || len(patch.Properties) != 7 {
+		t.Fatal("PUT/PATCH lost required/default/omission policy")
+	}
 	if len(input.Properties["priority"].AnyOf) != 2 || string(input.Properties["priority"].AnyOf[0].Enum) != "[1,0,-1]" || len(ticket.Properties["priority"].Enum) != 0 || len(ticket.Properties["priority"].AnyOf[0].Enum) != 0 {
 		t.Fatal("choices input and existing-row output domains were conflated")
 	}
-	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 6 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
+	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 7 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
 		t.Fatalf("TicketCreate presence/defaults = %+v", input)
 	}
 	if !input.Properties["resolution"].allowsType("null") || !ticket.Properties["resolution"].allowsType("null") || ticket.Properties["resolution"].MaxLength != 0 || input.Properties["resolution"].MaxLength != 0 {
@@ -86,7 +97,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	encoded := document.Bytes()
 	encoded[0] = '!'
 	again, err := adapter.OpenAPI()
-	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != 3 {
+	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != 5 {
 		t.Fatalf("reading or mutating snapshots changed the API or repeated authentication: %v", err)
 	}
 }
@@ -102,7 +113,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(&helpdeskRecordingAuthentication{}); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 3; index++ {
+	for index := 1; index <= 5; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(recording); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -110,7 +121,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		}
 	}
 	adapter, err := application.API(&helpdeskRecordingAuthentication{})
-	if err != nil || len(adapter.Routes()) != 3 {
+	if err != nil || len(adapter.Routes()) != 5 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err == nil {
@@ -126,10 +137,10 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 2 || len(routes) != 3 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 1 {
-		t.Fatal("Helpdesk document changed the three-operation surface")
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 2 || len(routes) != 5 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 3 {
+		t.Fatal("Helpdesk document changed the five-operation surface")
 	}
-	for index, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ViewTicket} {
+	for index, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ViewTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket} {
 		route := routes[index]
 		path := strings.ReplaceAll(route.Path, "<int64:id>", "{id}")
 		operation := document.Paths[path][strings.ToLower(route.Method)]
@@ -164,6 +175,17 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	for _, status := range []string{"400", "404", "413", "415"} {
 		if _, documented := create.Responses[status]; !documented {
 			t.Fatalf("create failure %s is undocumented", status)
+		}
+	}
+	for method, schema := range map[string]string{"put": "TicketUpdate", "patch": "TicketPatch"} {
+		operation := document.Paths["/api/tickets/{id}/"][method]
+		if operation.RequestBody == nil || !operation.RequestBody.Required || operation.RequestBody.Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+schema || operation.Responses["200"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/Ticket" || len(operation.Security[0]) != 3 {
+			t.Fatal("update request/response or CSRF contract differs")
+		}
+		for _, status := range []string{"400", "404", "413", "415"} {
+			if _, exists := operation.Responses[status]; !exists {
+				t.Fatal("update failure is undocumented")
+			}
 		}
 	}
 	var session, csrfCookie, csrfHeader string

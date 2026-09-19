@@ -9,3 +9,11 @@ func (s *TicketCreate) setDefaults() {
 		s.Closed.SetTo(val)
 	}
 }
+
+// setDefaults set default value of fields.
+func (s *TicketUpdate) setDefaults() {
+	{
+		val := bool(false)
+		s.Closed.SetTo(val)
+	}
+}

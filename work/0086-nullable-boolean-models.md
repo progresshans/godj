@@ -2,7 +2,7 @@
 id: GDJ-0086
 status: active
 updated: 2026-09-20
-baseline_commit: "4320eba32a0dcb3a1e21b6244c87e32a89dad5b6"
+baseline_commit: "6d3d42bd4023b9bc8bbe4588fd5645a949b4df9f"
 integration_owner: "root"
 ---
 
@@ -41,11 +41,12 @@ Schema IR의 nullable 속성을 generated pointer/field API, typed/dynamic query
 
 ## 현재 상태와 다음 행동
 
-별도 `feature/nullable-boolean-models`에서 현재 거부 지점과 고정 Django/DRF source를 확인하고 독립 관찰을 준비했다.
-Model field cleaning, direct Form과 widget을 거친 Form, JSON serializer의 생략/null/default/partial, 실제 기존 table의 nullable
-Boolean 추가·저장·재접속·조회·역방향을 raw로 보존한다. ORM의 명시적 bool 입력과 Python의 넓은 coercion을 혼동하지 않는다.
-특히 `exclude(flag__in=[False, None])`와 `exclude(flag=False)`의 NULL 행 포함 여부가 다르므로 공통 AST의 기존 list 의미를 확인한다.
-IR·nullable typed field/scan·generator lowering·양 DB schema/catalog·정의 codec·nullable/no-default 자동 Add의 기본 연결을 작성했다.
-Affected package compile-only를 확인했다. 기존 nullable Boolean 거부 test는 default/identity 보존과 유효한 SQL·잘못된 default
-거부 검사로 전환 중이다. Go runtime PASS는 아직 없고 Form/Admin·실제 생성 소비자·JSON/OpenAPI/client 연결을 이어가야 한다.
-GDJ-0085의 Hosted 검증은 통합 담당이 기존 source에서 마무리하며, 이 작업의 결과로 합산하지 않는다.
+IR·nullable typed field/scan·generator·양 DB schema/catalog·정의 codec·nullable/no-default 자동 Add를 연결했다.
+Helpdesk reviewed field와 0007 migration은 실제 generate/makemigrations 명령으로 생성했다. 기존 행의 NULL 추가·역방향·재접속,
+Form의 세 상태 widget과 Admin 초기값·snapshot·재검증, 실제 PUT/PATCH와 별도 OpenAPI client까지 구현했다.
+부정 exact와 NULL을 포함한 IN의 다른 의미, generated default/명시적 null/false, query 결과 및 eager Unwrap snapshot 복사를
+양 DB에서 검증한다. Related facade의 대상 객체는 기존 계약대로 pointer identity를 보존한다.
+
+제품·생성 소비자 연결과 로컬 영향 검증을 완료했다. 초기 검증에서 드러난 Admin의 null 재검증 경계를 수정했다.
+기존 Draft PR 통합과 Hosted ORM 검증을 이어간다. 실행 결과·source·환경과 초기 실패의 구분은
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
