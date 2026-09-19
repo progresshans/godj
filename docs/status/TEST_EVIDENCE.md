@@ -7,7 +7,9 @@
 
 - 작업: [GDJ-0083](../../work/0083-nested-forward-eager-graphs.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위).
 - Baseline은 GDJ-0082 통합 source `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`다.
-  별도 `feature/nested-forward-eager` 작업 사본에서 구현·로컬 검증을 마쳤고 기존 Draft PR 통합과 Hosted ORM 검증을 이어간다.
+  별도 `feature/nested-forward-eager`의 구현 commit은 `401d3e9fe5b1c07030d3633178b63f2f1041b305`이며,
+  기존 Draft PR의 제품 통합 source는 `a49b592be1896d02d73a9657fe360623ffa296d8`다. 통합 뒤 89개 Go 검증 파일과
+  CI receipt 두 파일의 hash가 검증 사본과 일치함을 확인했다. 충돌은 CURRENT·active work의 이전 진행 설명 두 곳뿐이었다.
 - Python 3.14.7, Django 6.1, asgiref 3.12.1, sqlparse 0.5.5의 fresh process로
   [runner](../../conformance/runners/django/nested_eager_reference.py)의 **440개 관찰**을 수집했다.
   [fixture](../../orm/testdata/nested-eager-django61.json) SHA256:
@@ -63,7 +65,9 @@ Race에서 제외된 50 events는 기존 `internal/compiletest`의 `!race` 7개 
 PK-presence를 잃던 테스트도 정리했다. 추가 검토에서 찾은 미접근 형제 cache 유실은 수정 전 생성 코드에서 두 assignment 방식의
 실패를 재현한 뒤, 반환 전 하위 facade cache 준비로 해결했다. 정상 결과만으로 완료 처리하지 않고 최종 source의 세 lane을 대조했다.
 
-현재 source의 Hosted ORM은 아직 pending이다. 새 full/platform·Windows runtime·배포 검증과 전체 프레임워크 완성은 이 기록에 포함하지 않는다.
+제품 통합 source의 [Hosted ORM run 35425015186](https://github.com/progresshans/godj/actions/runs/35425015186)은
+`a49b592be1896d02d73a9657fe360623ffa296d8`로 시작했으며 아직 pending이다. 이후 문서 기록 commit을 그 실행 source로 표시하지 않는다.
+새 full/platform·Windows runtime·배포 검증과 전체 프레임워크 완성은 이 기록에 포함하지 않는다.
 Reverse/ManyToMany eager·무인자 자동 선택·일반 self/cyclic migration과 임의 cycle identity 공유는 후속 요구다.
 Query 소비자는 명시적 FK-enforced DDL 뒤 generated Create/Save를 사용하며 cyclic migration 지원 증거로 확대하지 않는다.
 

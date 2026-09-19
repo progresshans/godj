@@ -36,5 +36,7 @@ integration_owner: "root"
 Normal/race/CGO0·generated drift·compile/vet와 필수 실행 목록 대조를 마쳤다. Source manifest와 세부 범위는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0083--nested-eager-graph와-하위-cache)가 소유한다.
 
-기존 Draft PR에 통합하고 같은 제품 source의 Hosted ORM 검증을 완료한 뒤 다음 기능을 선택한다.
+기존 Draft PR에 제품 source `a49b592be1896d02d73a9657fe360623ffa296d8`로 통합했다.
+[Hosted ORM run 35425015186](https://github.com/progresshans/godj/actions/runs/35425015186)의 source·필수 job·최종 scope를 확인한 뒤
+다음 기능을 선택한다.
 현재 새 Hosted/full/platform 완료 주장은 없다. 장기 목표는 헌장·기능 카탈로그의 완성이며 이 작업의 완료로 축소하지 않는다.
