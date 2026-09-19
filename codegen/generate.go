@@ -11,6 +11,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -36,6 +37,9 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
+	if hasDateStorage(schema) {
+		fmt.Fprintln(&output, "\t_godjcalendar \"github.com/progresshans/godj/calendar\"")
+	}
 	if hasDateTimeStorage(schema) {
 		fmt.Fprintln(&output, "\t_godjtime \"time\"")
 	}
@@ -61,7 +65,18 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable && field.Kind != ir.FieldDateTime {
+			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasDateStorage(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Kind == ir.FieldDate {
 				return true
 			}
 		}
@@ -110,8 +125,8 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	for _, field := range model.Fields {
 		if field.Nullable {
 			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
-		} else if field.Kind == ir.FieldDateTime {
-			fmt.Fprintf(output, "\tvar scan%s orm.DateTimeScanner\n", field.GoName)
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate {
+			fmt.Fprintf(output, "\tvar scan%s orm.%sScanner\n", field.GoName, fieldRenderKind(field.Kind).queryValue)
 		}
 	}
 	fmt.Fprint(output, "\tif err := row.Scan(")
@@ -119,7 +134,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable || field.Kind == ir.FieldDateTime {
+		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -132,8 +147,8 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
-		} else if field.Kind == ir.FieldDateTime {
-			fmt.Fprintf(output, "\tvalue.%s = scan%s.Time\n", field.GoName, field.GoName)
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate {
+			fmt.Fprintf(output, "\tvalue.%s = scan%s.%s\n", field.GoName, field.GoName, fieldRenderKind(field.Kind).sqlValue)
 		}
 	}
 	if _, ok := primaryKey(model); ok {
@@ -351,7 +366,7 @@ func renderBuildCreate(output *bytes.Buffer, model ir.Model, typeName string, fi
 				fmt.Fprintf(output, "\t\t%s = %s\n", changedName, defaultValueExpression(*field.Default))
 				fmt.Fprintln(output, "\t}")
 			}
-			renderCanonicalDateTime(output, model.GoName, field, changedName, "\t")
+			renderCanonicalTemporal(output, model.GoName, field, changedName, "\t")
 			fmt.Fprintf(output, "\tvalue.%s = %s\n", field.GoName, changedName)
 			fmt.Fprintf(output, "\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
 			continue
@@ -369,7 +384,7 @@ func renderBuildCreate(output *bytes.Buffer, model ir.Model, typeName string, fi
 			fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, "default"+field.GoName))
 		}
 		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
-		renderCanonicalDateTime(output, model.GoName, field, changedName, "\t\t")
+		renderCanonicalTemporal(output, model.GoName, field, changedName, "\t\t")
 		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
 		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
 		fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
@@ -395,7 +410,7 @@ func renderBuildPatch(output *bytes.Buffer, model ir.Model, typeName string, fie
 		changedName := "changed" + field.GoName
 		if !field.Nullable {
 			fmt.Fprintf(output, "\tif %s, ok := input.%s.Get(); ok {\n", changedName, inputName)
-			renderCanonicalDateTime(output, model.GoName, field, changedName, "\t\t")
+			renderCanonicalTemporal(output, model.GoName, field, changedName, "\t\t")
 			fmt.Fprintf(output, "\t\tvalue.%s = %s\n", field.GoName, changedName)
 			fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
 			fmt.Fprintln(output, "\t}")
@@ -406,7 +421,7 @@ func renderBuildPatch(output *bytes.Buffer, model ir.Model, typeName string, fie
 		fmt.Fprintf(output, "\tswitch %sState {\n", changedName)
 		fmt.Fprintln(output, "\tcase orm.NullableChangeUnset:")
 		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
-		renderCanonicalDateTime(output, model.GoName, field, changedName, "\t\t")
+		renderCanonicalTemporal(output, model.GoName, field, changedName, "\t\t")
 		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
 		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
 		fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
@@ -493,6 +508,12 @@ func queryValueExpression(field ir.Field, value string) string {
 
 func defaultValueExpression(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarDate:
+		date, err := calendar.Parse(value.Date)
+		if err != nil {
+			return "nil"
+		}
+		return fmt.Sprintf("_godjcalendar.Date{Year:%d, Month:%d, Day:%d}", date.Year, date.Month, date.Day)
 	case ir.ScalarDateTime:
 		instant, err := temporal.ParseCanonical(value.DateTime)
 		if err != nil {
@@ -512,6 +533,8 @@ func defaultValueExpression(value ir.Scalar) string {
 
 func scalarLiteral(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarDate:
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDate, Date: %s}", strconv.Quote(value.Date))
 	case ir.ScalarDateTime:
 		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDateTime, DateTime: %s}", strconv.Quote(value.DateTime))
 	case ir.ScalarString:
@@ -555,7 +578,11 @@ func lowerFirst(value string) string {
 	return string(unicode.ToLower(first)) + value[size:]
 }
 
-func renderCanonicalDateTime(output *bytes.Buffer, model string, field ir.Field, value, indent string) {
+func renderCanonicalTemporal(output *bytes.Buffer, model string, field ir.Field, value, indent string) {
+	if field.Kind == ir.FieldDate {
+		fmt.Fprintf(output, "%sif !%s.Valid() { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"date must be a valid Gregorian day in years 1 through 9999\"}) }\n", indent, value, model, strconv.Quote(field.Name))
+		return
+	}
 	if field.Kind != ir.FieldDateTime {
 		return
 	}

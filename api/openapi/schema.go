@@ -196,6 +196,9 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 		}
 		defaultValue, hasDefault := field.Default()
+		if date, ok := defaultValue.AsDate(); ok {
+			defaultValue = serializers.String(date.String())
+		}
 		if instant, ok := defaultValue.AsDateTime(); ok {
 			defaultValue = serializers.String(temporal.Format(instant))
 		}
@@ -257,6 +260,12 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	switch field.Kind() {
 	case serializers.FieldString:
 		schema = String()
+	case serializers.FieldDate:
+		var err error
+		schema, err = schemaAnnotate(String(), serializers.MemberOf("format", serializers.String("date")))
+		if err != nil {
+			return Schema{}, err
+		}
 	case serializers.FieldDateTime:
 		var err error
 		policy, policyErr := serializers.NewObject(

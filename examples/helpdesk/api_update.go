@@ -68,6 +68,13 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 				instant, _ := value.AsDateTime()
 				patch = patch.WithDueAt(instant)
 			}
+		case "service_on":
+			if value.IsNull() {
+				patch = patch.WithServiceOnNull()
+			} else {
+				date, _ := value.AsDate()
+				patch = patch.WithServiceOn(date)
+			}
 		case "reviewed":
 			if value.IsNull() {
 				patch = patch.WithReviewedNull()

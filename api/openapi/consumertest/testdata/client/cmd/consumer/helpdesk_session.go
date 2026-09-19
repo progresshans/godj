@@ -21,7 +21,7 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		return fail("helpdesk client setup")
 	}
 	initial, err := helpdeskList(ctx, client, transport, state)
-	if err != nil || len(initial) != 1 || initial[0].ID != target.TicketID || initial[0].Category != target.CategoryID || initial[0].Subject != "Existing ticket" || !initial[0].Priority.Null || !initial[0].Resolution.Null || !initial[0].DueAt.Null || !initial[0].Reviewed.Null {
+	if err != nil || len(initial) != 1 || initial[0].ID != target.TicketID || initial[0].Category != target.CategoryID || initial[0].Subject != "Existing ticket" || !initial[0].Priority.Null || !initial[0].Resolution.Null || !initial[0].DueAt.Null || !initial[0].Reviewed.Null || !initial[0].ServiceOn.Null {
 		return fail("helpdesk initial bare list")
 	}
 	seed := initial[0]
@@ -39,9 +39,10 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	details.SetToNull()
 	resolution := "First line\n" + strings.Repeat("Multiline explanation. ", 80) + "\n</textarea><script>untrusted</script>"
 	dueAt := time.Date(2026, 9, 19, 12, 34, 56, 123456789, time.FixedZone("caller", 9*3600))
-	createdResponse, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: "  Consumer ticket  ", Details: details, Resolution: hs.NewOptNilString(resolution), DueAt: hs.NewOptNilDateTime(dueAt)})
+	serviceOn := time.Date(2026, 9, 20, 0, 0, 0, 0, time.FixedZone("calendar", 14*3600))
+	createdResponse, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: "  Consumer ticket  ", Details: details, Resolution: hs.NewOptNilString(resolution), DueAt: hs.NewOptNilDateTime(dueAt), ServiceOn: hs.NewOptNilDate(serviceOn)})
 	created, ok := createdResponse.(*hs.Ticket)
-	if err != nil || !ok || transport.lastStatus() != http.StatusCreated || created.ID <= 0 || created.ID == target.TicketID || created.ID == target.OtherTicketID || created.Subject != "Consumer ticket" || !created.Details.Null || !created.Priority.Null || created.Resolution.Null || created.Resolution.Value != resolution || created.DueAt.Null || !created.DueAt.Value.Equal(dueAt.UTC().Truncate(time.Microsecond)) || !created.Reviewed.Null || created.Closed || created.Category != target.CategoryID {
+	if err != nil || !ok || transport.lastStatus() != http.StatusCreated || created.ID <= 0 || created.ID == target.TicketID || created.ID == target.OtherTicketID || created.Subject != "Consumer ticket" || !created.Details.Null || !created.Priority.Null || created.Resolution.Null || created.Resolution.Value != resolution || created.DueAt.Null || !created.DueAt.Value.Equal(dueAt.UTC().Truncate(time.Microsecond)) || !created.Reviewed.Null || created.ServiceOn.Null || created.ServiceOn.Value.Format("2006-01-02") != "2026-09-20" || created.Closed || created.Category != target.CategoryID {
 		return fail("helpdesk create projection and defaults")
 	}
 	expected := []hs.Ticket{seed, *created}
@@ -78,7 +79,15 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		} else if test.subject == "Zero priority" {
 			reviewed.SetToNull()
 		}
-		response, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: test.subject, Priority: priority, Resolution: text, DueAt: due, Reviewed: reviewed})
+		day := hs.OptNilDate{}
+		if test.subject == "Urgent priority" {
+			day.SetTo(time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC))
+		} else if test.subject == "Low priority" {
+			day.SetTo(time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC))
+		} else if test.subject == "Null priority" {
+			day.SetToNull()
+		}
+		response, err := client.HelpdeskTicketCreate(ctx, &hs.TicketCreate{Subject: test.subject, Priority: priority, Resolution: text, DueAt: due, Reviewed: reviewed, ServiceOn: day})
 		value, ok := response.(*hs.Ticket)
 		if err != nil || !ok || transport.lastStatus() != http.StatusCreated || value.ID <= expected[len(expected)-1].ID || value.Subject != test.subject || value.Category != target.CategoryID || value.Closed || !value.Details.Null || value.Priority.Null != test.null || (!test.null && value.Priority.Value != test.value) {
 			return fail("helpdesk integer create precision and null")
@@ -91,6 +100,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		}
 		if value.Reviewed.Null != (!reviewed.Set || reviewed.Null) || (!value.Reviewed.Null && value.Reviewed.Value != reviewed.Value) {
 			return fail("helpdesk nullable Boolean create presence")
+		}
+		if value.ServiceOn.Null != (!day.Set || day.Null) || (!value.ServiceOn.Null && !value.ServiceOn.Value.Equal(day.Value)) {
+			return fail("helpdesk date range, null or omission")
 		}
 		expected = append(expected, *value)
 	}
@@ -114,6 +126,10 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 		return err
 	}
 	updated, err := checkHelpdeskNullableUpdates(ctx, client, transport, state, *created, target.OtherTicketID)
+	if err != nil {
+		return err
+	}
+	updated, err = checkHelpdeskCalendarDateUpdates(ctx, client, transport, updated)
 	if err != nil {
 		return err
 	}

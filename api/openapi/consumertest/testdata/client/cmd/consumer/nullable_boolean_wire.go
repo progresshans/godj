@@ -12,7 +12,7 @@ import (
 )
 
 func checkGeneratedNullableBooleanWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"priority":null,"resolution":null,"due_at":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"priority":null,"resolution":null,"due_at":null,"service_on":null`
 	clear := hs.OptNilBool{}
 	clear.SetToNull()
 	for _, test := range []struct {

@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"github.com/progresshans/godj/calendar"
 	"time"
 
 	"github.com/progresshans/godj/query"
@@ -62,6 +63,11 @@ func dynamicMembership(field ir.Field, raw any) ([]query.Value, error) {
 		return dynamicMembershipValues(field, values)
 	case []bool:
 		if field.Kind != ir.FieldBoolean {
+			break
+		}
+		return dynamicMembershipValues(field, values)
+	case []calendar.Date:
+		if field.Kind != ir.FieldDate {
 			break
 		}
 		return dynamicMembershipValues(field, values)

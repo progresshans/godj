@@ -11,9 +11,10 @@
 ## 현재 구현
 
 Schema/Codegen/ORM/Migration, SQLite·PostgreSQL과 Article·Helpdesk의 Web/Form/Admin/API·영속 인증 흐름이 있다.
-일반 signed integer·Text·DateTime을 모델부터 실제 소비자까지 연결했다. DateTime은 UTC microsecond와 명시적 null을 사용하며
+일반 signed integer·Text·Date·DateTime을 모델부터 실제 소비자까지 연결했다. DateTime은 UTC microsecond와 명시적 null을 사용하며
 Form/Admin·RFC3339 JSON/OpenAPI·독립 client까지 구현했다. Scalar typed/dynamic IN과 검증 뒤 빈 조회 SQL 생략도 구현했다.
 Nullable Boolean의 세 상태를 generated pointer·양 DB·Form/Admin·Helpdesk PUT/PATCH·OpenAPI/client까지 연결했다.
+Calendar Date를 별도 Go 값·양 DB DATE·Form/Admin·Helpdesk service_on·PUT/PATCH·OpenAPI/client까지 연결했다.
 환경별 검증 상태는 아래 현재 작업과 TEST_EVIDENCE를 따른다.
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
@@ -30,10 +31,10 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 ## 다음 행동
 
 GDJ-0086의 모델·migration·생성 ORM·Form/Admin·Helpdesk PUT/PATCH·OpenAPI/client 연결과 로컬·Hosted ORM 검증을 완료했다.
-별도 `feature/calendar-date-models`에서 GDJ-0087을 시작했다. 독립 Django/DRF 날짜 관찰과 `calendar.Date` 값 초안을 작성했고
-compile-only를 확인했다. DateField의 IR·Query AST·generator·양 DB·Form/Admin/API/client 연결과 Go runtime 검증은 아직 남아 있다.
-Date 준비 변경은 기존 Draft PR에 제품으로 통합하지 않았다. 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이
-필요한 기반과 기능을 이어간다.
+별도 `feature/calendar-date-models`에서 GDJ-0087의 날짜 값·IR·generator·양 DB·소비자 연결을 구현했다.
+로컬 affected 일반/race/CGO0, 생성물 drift·vet과 독립 Python reference 재생을 통과했다.
+남은 행동은 기존 Draft PR 통합과 해당 source의 Hosted ORM 검증이다.
+장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거
 

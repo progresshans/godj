@@ -72,6 +72,8 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0063](0063-model-choices-and-metadata-only-migrations.md) | Accepted | 모델 선택값을 입력·표시와 연결하고 metadata-only 변경 이력을 보존 |
 | [0064](0064-historical-relation-graphs-and-sqlite-remakes.md) | Accepted | Historical relation graph와 SQLite remake의 연결 소유권 |
 
+| [0065](0065-calendar-date-field-and-input-boundaries.md) | Accepted | 시각과 구분되는 Calendar Date와 Form/JSON 입력 경계 |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

@@ -3,6 +3,65 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0087 — Calendar Date의 모델·소비자 연결
+
+- 작업: [GDJ-0087](../../work/0087-calendar-date-models.md), branch `feature/calendar-date-models`, integration baseline
+  `13937986914317d365f580f2adead277d73e2ce1`.
+- Markdown 제외 109개 변경 파일의 정렬된 `<sha256>  <relative-path>\n` manifest SHA256은
+  `1a410b39897b27aa75016a1e22b5ac3e5bff6dafd6f698131e7b4f1696498289`다. 아래 실행 중 제품·생성물·reference·test bytes를 유지했다.
+- `calendar.Date`·IR/default/strict wire·typed/dynamic AST·generator·양 DB DATE·Form/Admin·Helpdesk 방문 예정일
+  `0008_ticket_service_on`·PUT/PATCH·OpenAPI/독립 client를 연결했다. 설계는 [ADR-0065](../adr/0065-calendar-date-field-and-input-boundaries.md)다.
+
+### 독립 기준
+
+Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5, Python 3.14.3, UTC/en-us의
+[독립 runner](../../conformance/runners/django/calendar_date_reference.py)를 실제 public API와 file SQLite로 실행했다.
+[Raw 관찰](../../internal/calendardatetest/testdata/django61.json)의 SHA256은
+`4b3560af943bec1bacc4799ace4ce8c2d6b4053ebc09fe9ba84c878e883071fd`다.
+Model 67개·Form 120개·serializer 272개, 날짜 추가 전 기존 행·재접속·갱신·역방향, root query 9개·forward relation 9개·Min/Max를 보존했다.
+모델의 datetime coercion은 Python 참조 관찰이며 Go 모델의 지원 기능으로 세지 않는다.
+
+`uv run --no-project --isolated --python <version> --with Django==6.1 --with djangorestframework==3.18.0
+--with asgiref==3.12.1 --with sqlparse==0.5.5 python -W error -m unittest
+conformance.runners.django.tests.test_calendar_date_reference`를 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 각각 실행했다.
+각 **1 test PASS, skip·warning·exception 0**이다. Fresh process의 모든 관찰을 대조하고 Python/SQLite fingerprint는 실행 runtime과 비교한다.
+
+Go Form은 120개 cleaned/error/changed 관찰, serializer는 268개 field 결과를 대조한다. NUL 4개는 기존 GoDj JSON parser의
+`invalid_document` 거부를 별도로 assert한다. DRF field 오류 코드와 같다고 세거나 필수 실행에서 skip하지 않는다.
+
+### 로컬 통합 checkpoint
+
+환경은 Go 1.26.5 darwin/arm64, modernc SQLite와 PostgreSQL 17.5(Homebrew)다. 이 작업의 전용 DB와 각 테스트의 독립 schema를
+사용했고 `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 적용했다. 임의로 UTC process 환경에 의존하지 않는지도 확인한다.
+
+- `go test -count=1 -json`의 affected **21 packages / 7,095 pass events**. Calendar, schema/ir, query/orm, codegen/consumer,
+  migration definition, project wire, autodetect, Form/model, serializer, Admin/OpenAPI/client, SQLite/PG/queryplan, compile boundary,
+  Helpdesk가 포함된다. Helper-only skip 1개는 `TestPostgresRevisionFenceHelperProcess`이며 이를 호출하는 실제
+  `TestPostgresRevisionFenceCrossProcessIntegration`은 PASS다.
+- 같은 범위의 `-race`: **21 packages / 7,042 pass events**, 같은 helper-only skip 1개. 일반 실행과의 53 event 차이는
+  `internal/compiletest`의 명시적인 `!race` source에 있는 7 root test와 subcase다. 양쪽의 terminal event 집합과 build tag를 대조했다.
+- `CGO_ENABLED=0` focused 실행: **3 packages / 4 root tests PASS, skip 0**. 생성 Date consumer, 독립 OpenAPI client,
+  Helpdesk SQLite·PostgreSQL을 포함한다. 처음 selection에 없던 Helpdesk SQLite는 정확한 root test 이름으로 별도 실행했다.
+- 새 generated Date consumer는 root/nullable default·invalid Create/Patch·기존 행 추가·fresh reopen·root/relation query와 independent
+  DB 관찰·same-model F·projection/Min/Max·cache/Unwrap 복사·Save 선택 필드·실패 보존·취소·역방향을 양 DB에서 실행한다.
+  Parent는 SQLite child와 PG URL이 주어진 경우 PostgreSQL child의 terminal PASS를 필수로 요구한다.
+- Helpdesk는 실제 인증·Admin·CSRF/permission 경로, 날짜 validation-before-transaction, canonical no-op PATCH·PUT omission/null,
+  실제 변경 뒤 강제 rollback과 새 연결의 저장 값을 검사한다. 기존 Boolean/DateTime/choices 동작도 함께 실행했다.
+- Ogen v1.24.0 client를 실제 builtin Session/CSRF의 OpenAPI 문서에서 다시 생성했다. 별도 module의 lock은 보존했고,
+  실제 HTTP·DB와 독립 transport의 required date response 오류·canonical wire·null/생략·연도 경계를 검사했다.
+- `go test -exec /usr/bin/true ./...`: **141 packages compile-only**. 이 명령은 테스트 본문을 실행한 PASS가 아니다.
+  Generated Date model/project의 `GOOS=linux GOARCH=386 CGO_ENABLED=0 go build`도 PASS다.
+- affected `go vet`: PASS. `make generate-check`의 모든 checked-in generated source가 clean이고,
+  Helpdesk `makemigrations` 재실행은 `candidate_count:0`이다. CI Python tooling **37 tests PASS**.
+
+첫 checkpoint의 Date relation 생성 consumer는 `WithConfigurationError` 누락으로 compile에 실패했다. 메서드를 연결한 뒤 다시 실행했다.
+같은 checkpoint의 serializer NUL 4개는 테스트가 global JSON 거부 전에 field binding을 기대해서 실패했다. 보안 규칙을 바꾸지 않고
+reference 대조와 document-boundary assertion을 구분했다. 수정 후 focused 실행과 위 일반 checkpoint가 통과했다.
+
+이 날짜 source의 Hosted 검증은 아직 시작하지 않았다. 과거 GDJ-0086 ORM / GDJ-0074 full 결과를 Date의 PASS로 사용하지 않는다.
+전체 platform/cold-build 검증도 위 로컬 범위에 포함되지 않는다. 문서 link·status·diff 검사는 **120 documents PASS**다.
+전용 로컬 PostgreSQL DB는 모든 실행을 마친 뒤 삭제했다. PostgreSQL service 자체는 유지했다.
+
 ## GDJ-0086 — Nullable Boolean의 모델·Form/Admin/API 연결
 
 - 작업: [GDJ-0086](../../work/0086-nullable-boolean-models.md), baseline `6d3d42bd4023b9bc8bbe4588fd5645a949b4df9f`,

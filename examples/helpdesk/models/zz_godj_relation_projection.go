@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "183a42f5dfefa5179b07b8c2fd9611f74e3b79ce669e790169654bd4a7dbdecc"
+const GoDjRelationProjectionSchemaSHA256 = "29a15b0d8731e9341ea621a745ce0c2a0cb5ecb0fc78823b528fcbbec75a7371"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -68,6 +68,7 @@ type ticketProjectionScan struct {
 	scanResolution sql.NullString
 	scanDueAt      orm.NullableDateTimeScanner
 	scanReviewed   sql.NullBool
+	scanServiceOn  orm.NullableDateScanner
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -84,6 +85,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanResolution,
 		&_scan.scanDueAt,
 		&_scan.scanReviewed,
+		&_scan.scanServiceOn,
 	}
 }
 
@@ -91,7 +93,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -131,8 +133,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 		_scanned := _scan.scanReviewed.Bool
 		_value.Reviewed = &_scanned
 	}
+	if _scan.scanServiceOn.Valid {
+		_scanned := _scan.scanServiceOn.Date
+		_value.ServiceOn = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_d114160209f111da4c978dc15ed8baaeab4ad644094ecfc93db62e5b7882aebe
+var _ GoDjProjectSnapshot_dfd944da001338ab1c78aecd18e7f8ca6b65420cbdcdc5c94b174933ba62a296

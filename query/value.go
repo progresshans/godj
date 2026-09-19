@@ -1,6 +1,7 @@
 package query
 
 import (
+	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/internal/temporal"
 	"time"
 )
@@ -12,6 +13,7 @@ const (
 	ValueInteger  ValueKind = "integer"
 	ValueString   ValueKind = "string"
 	ValueBoolean  ValueKind = "boolean"
+	ValueDate     ValueKind = "date"
 	ValueDateTime ValueKind = "datetime"
 )
 
@@ -35,6 +37,22 @@ func Integer(value int64) Value {
 
 func String(value string) Value {
 	return Value{kind: ValueString, text: value}
+}
+
+// Date snapshots a valid calendar day. Invalid literals remain invalid Values
+// and are rejected before a query or write reaches the backend.
+func Date(value calendar.Date) Value {
+	if !value.Valid() {
+		return Value{}
+	}
+	return Value{kind: ValueDate, text: value.String()}
+}
+func (v Value) Date() (calendar.Date, bool) {
+	if v.kind != ValueDate {
+		return calendar.Date{}, false
+	}
+	value, err := calendar.Parse(v.text)
+	return value, err == nil
 }
 
 // DateTime canonicalizes an instant to UTC microseconds. An out-of-range
@@ -86,6 +104,8 @@ func (v Value) DatabaseValue() (any, error) {
 	switch v.kind {
 	case ValueNull:
 		return nil, nil
+	case ValueDate:
+		return v.text, nil
 	case ValueDateTime:
 		value, _ := v.DateTime()
 		return value, nil

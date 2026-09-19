@@ -16,6 +16,7 @@ const (
 	modelStructuralLowerBound                = uint64(len(`{"name":"","go_name":"","db_table":"","fields":[]}`))
 	fieldStructuralLowerBound                = uint64(len(`{"name":"","go_name":"","column":"","kind":"","primary_key":true,"nullable":true,"max_length":0,"default":null}`))
 
+	dateDefaultStructuralLowerBound     = uint64(len(`{"kind":"","date":""}`))
 	datetimeDefaultStructuralLowerBound = uint64(len(`{"kind":"","datetime":""}`))
 	stringDefaultStructuralLowerBound   = uint64(len(`{"kind":"","string":""}`))
 	booleanDefaultStructuralLowerBound  = uint64(len(`{"kind":"","boolean":true}`))
@@ -269,11 +270,16 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 }
 
 func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) error {
+	if err := scanner.addString(path+".date", value.Date); err != nil {
+		return err
+	}
 	if err := scanner.addString(path+".datetime", value.DateTime); err != nil {
 		return err
 	}
 	structural := uint64(0)
 	switch value.Kind {
+	case ir.ScalarDate:
+		structural = dateDefaultStructuralLowerBound
 	case ir.ScalarDateTime:
 		structural = datetimeDefaultStructuralLowerBound
 	case ir.ScalarString:
@@ -294,8 +300,8 @@ func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) er
 	if err := scanner.addString(path+".kind", string(value.Kind)); err != nil {
 		return err
 	}
-	// Scan both string payloads, even in malformed arms, before a proportional
-	// snapshot. The datetime payload was counted at entry.
+	// Scan all string payloads, even in malformed arms, before a proportional
+	// snapshot. The date and datetime payloads were counted at entry.
 	return scanner.addString(path+".string", value.String)
 }
 

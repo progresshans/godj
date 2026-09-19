@@ -234,7 +234,7 @@ func validReverseTerminal(field FieldRef) bool {
 	if !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() {
 		return false
 	}
-	return field.Kind() == FieldDateTime || field.Kind() == FieldInteger || field.Kind() == FieldString
+	return field.Kind() == FieldDate || field.Kind() == FieldDateTime || field.Kind() == FieldInteger || field.Kind() == FieldString
 }
 
 func validFieldRef(field FieldRef) bool {
@@ -242,7 +242,7 @@ func validFieldRef(field FieldRef) bool {
 		return false
 	}
 	switch field.Kind() {
-	case FieldInteger, FieldString, FieldBoolean, FieldDateTime:
+	case FieldInteger, FieldString, FieldBoolean, FieldDateTime, FieldDate:
 		return true
 	default:
 		return false

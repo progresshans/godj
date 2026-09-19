@@ -4,6 +4,7 @@ package models
 
 import (
 	"database/sql"
+	_godjcalendar "github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
@@ -12,7 +13,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "183a42f5dfefa5179b07b8c2fd9611f74e3b79ce669e790169654bd4a7dbdecc"
+const GoDjSchemaSHA256 = "29a15b0d8731e9341ea621a745ce0c2a0cb5ecb0fc78823b528fcbbec75a7371"
 
 type Category struct {
 	ID                    int64
@@ -193,6 +194,7 @@ type Ticket struct {
 	Resolution            *string
 	DueAt                 *_godjtime.Time
 	Reviewed              *bool
+	ServiceOn             *_godjcalendar.Date
 	godjPrimaryKeyPresent bool
 }
 
@@ -213,7 +215,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanResolution sql.NullString
 	var scanDueAt orm.NullableDateTimeScanner
 	var scanReviewed sql.NullBool
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed); err != nil {
+	var scanServiceOn orm.NullableDateScanner
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -235,6 +238,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanReviewed.Valid {
 		scanned := scanReviewed.Bool
 		value.Reviewed = &scanned
+	}
+	if scanServiceOn.Valid {
+		scanned := scanServiceOn.Date
+		value.ServiceOn = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -275,6 +282,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.Reviewed != nil {
 		clonedReviewed := *value.Reviewed
 		clone.Reviewed = &clonedReviewed
+	}
+	if value.ServiceOn != nil {
+		clonedServiceOn := *value.ServiceOn
+		clone.ServiceOn = &clonedServiceOn
 	}
 	return clone
 }
@@ -318,6 +329,11 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.Boolean(*value.Reviewed), true
+	case "service_on":
+		if value.ServiceOn == nil {
+			return query.Null(), true
+		}
+		return query.Date(*value.ServiceOn), true
 	default:
 		return query.Value{}, false
 	}
@@ -332,6 +348,7 @@ type TicketFieldSet struct {
 	Resolution orm.NullableStringField[Ticket]
 	DueAt      orm.NullableDateTimeField[Ticket]
 	Reviewed   orm.NullableBooleanField[Ticket]
+	ServiceOn  orm.NullableDateField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
@@ -345,6 +362,7 @@ var TicketFields = func() TicketFieldSet {
 		Resolution: orm.NewNullableStringField[Ticket](metadata.Fields[6]),
 		DueAt:      orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
 		Reviewed:   orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
+		ServiceOn:  orm.NewNullableDateField[Ticket](metadata.Fields[9]),
 	}
 }()
 
@@ -379,6 +397,7 @@ type TicketCreate struct {
 	resolution orm.NullableChange[string]
 	dueAt      orm.NullableChange[_godjtime.Time]
 	reviewed   orm.NullableChange[bool]
+	serviceOn  orm.NullableChange[_godjcalendar.Date]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -453,9 +472,19 @@ func (input TicketCreate) WithReviewedNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithServiceOn(value _godjcalendar.Date) TicketCreate {
+	input.serviceOn = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithServiceOnNull() TicketCreate {
+	input.serviceOn = orm.SetNull[_godjcalendar.Date]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 8)
+	assignments := make([]query.Assignment, 0, 9)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -589,6 +618,29 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedServiceOn, changedServiceOnState := input.serviceOn.Get()
+	switch changedServiceOnState {
+	case orm.NullableChangeUnset:
+		value.ServiceOn = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_on", "service_on", query.FieldDate, true), query.Null()))
+	case orm.NullableChangeValue:
+		if !changedServiceOn.Valid() {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "service_on", Detail: "date must be a valid Gregorian day in years 1 through 9999"})
+		}
+		storedServiceOn := changedServiceOn
+		value.ServiceOn = &storedServiceOn
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_on", "service_on", query.FieldDate, true), query.Date(changedServiceOn)))
+	case orm.NullableChangeNull:
+		value.ServiceOn = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_on", "service_on", query.FieldDate, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "service_on",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -601,6 +653,7 @@ type TicketPatch struct {
 	resolution orm.NullableChange[string]
 	dueAt      orm.NullableChange[_godjtime.Time]
 	reviewed   orm.NullableChange[bool]
+	serviceOn  orm.NullableChange[_godjcalendar.Date]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -668,9 +721,19 @@ func (input TicketPatch) WithReviewedNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithServiceOn(value _godjcalendar.Date) TicketPatch {
+	input.serviceOn = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithServiceOnNull() TicketPatch {
+	input.serviceOn = orm.SetNull[_godjcalendar.Date]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 8)
+	assignments := make([]query.Assignment, 0, 9)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -778,6 +841,27 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedServiceOn, changedServiceOnState := input.serviceOn.Get()
+	switch changedServiceOnState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		if !changedServiceOn.Valid() {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "service_on", Detail: "date must be a valid Gregorian day in years 1 through 9999"})
+		}
+		storedServiceOn := changedServiceOn
+		value.ServiceOn = &storedServiceOn
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_on", "service_on", query.FieldDate, true), query.Date(changedServiceOn)))
+	case orm.NullableChangeNull:
+		value.ServiceOn = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("service_on", "service_on", query.FieldDate, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "service_on",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -861,8 +945,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldBoolean,
 				Nullable: true,
 			},
+			{
+				Name:     "service_on",
+				GoName:   "ServiceOn",
+				Column:   "service_on",
+				Kind:     ir.FieldDate,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_d114160209f111da4c978dc15ed8baaeab4ad644094ecfc93db62e5b7882aebe struct{}
+type GoDjProjectSnapshot_dfd944da001338ab1c78aecd18e7f8ca6b65420cbdcdc5c94b174933ba62a296 struct{}

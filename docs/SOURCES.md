@@ -64,3 +64,8 @@ TextField와 Form widget·빈 문자열 정책은 같은 고정 Django의 CharFi
 DateTimeField는 고정 Django 6.1의 model/form field·dateparse와 SQLite/PostgreSQL adapter를 참조한다(BSD-3-Clause).
 [ADR-0061](adr/0061-datetime-field-and-canonical-instant-values.md#출처와-남은-범위), [UTC 관찰 runner](../conformance/runners/django/datetime_field_reference.py)에
 Python 3.14.3 환경·지원 입력·정규화 정책·NUL 결과 차이를 명시한다.
+
+Calendar Date는 같은 고정 Django의 model/form DateField·dateparse·en-us date input formats와 DRF 3.18.0 DateField를
+참조한다(BSD-3-Clause). [ADR-0065](adr/0065-calendar-date-field-and-input-boundaries.md#출처와-검증-경계)와
+[독립 reference](../conformance/runners/django/calendar_date_reference.py)에 입력 경계·실제 DB 관찰을 둔다. Go의 comparable Date,
+invalid literal·strict canonical storage·scanner의 시각 거부는 별도로 명시한 Go API 정책이다.

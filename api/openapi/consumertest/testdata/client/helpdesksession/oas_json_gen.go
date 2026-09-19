@@ -1119,6 +1119,52 @@ func (s *NilBool) UnmarshalJSON(data []byte) error {
 }
 
 // Encode encodes time.Time as json.
+func (o NilDate) Encode(e *jx.Encoder, format func(*jx.Encoder, time.Time)) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	format(e, o.Value)
+}
+
+// Decode decodes time.Time from json.
+func (o *NilDate) Decode(d *jx.Decoder, format func(*jx.Decoder) (time.Time, error)) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilDate to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v time.Time
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	v, err := format(d)
+	if err != nil {
+		return err
+	}
+	o.Value = v
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilDate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e, json.EncodeDate)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilDate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d, json.DecodeDate)
+}
+
+// Encode encodes time.Time as json.
 func (o NilDateTime) Encode(e *jx.Encoder, format func(*jx.Encoder, time.Time)) {
 	if o.Null {
 		e.Null()
@@ -1340,6 +1386,57 @@ func (s OptNilBool) MarshalJSON() ([]byte, error) {
 func (s *OptNilBool) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
+}
+
+// Encode encodes time.Time as json.
+func (o OptNilDate) Encode(e *jx.Encoder, format func(*jx.Encoder, time.Time)) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	format(e, o.Value)
+}
+
+// Decode decodes time.Time from json.
+func (o *OptNilDate) Decode(d *jx.Decoder, format func(*jx.Decoder) (time.Time, error)) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilDate to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v time.Time
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	v, err := format(d)
+	if err != nil {
+		return err
+	}
+	o.Value = v
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilDate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e, json.EncodeDate)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilDate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d, json.DecodeDate)
 }
 
 // Encode encodes time.Time as json.
@@ -1671,9 +1768,13 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		e.FieldStart("reviewed")
 		s.Reviewed.Encode(e)
 	}
+	{
+		e.FieldStart("service_on")
+		s.ServiceOn.Encode(e, json.EncodeDate)
+	}
 }
 
-var jsonFieldsNameOfTicket = [9]string{
+var jsonFieldsNameOfTicket = [10]string{
 	0: "id",
 	1: "subject",
 	2: "details",
@@ -1683,6 +1784,7 @@ var jsonFieldsNameOfTicket = [9]string{
 	6: "resolution",
 	7: "due_at",
 	8: "reviewed",
+	9: "service_on",
 }
 
 // Decode decodes Ticket from json.
@@ -1792,6 +1894,16 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"reviewed\"")
 			}
+		case "service_on":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.ServiceOn.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_on\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -1803,7 +1915,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1898,9 +2010,15 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 			s.Reviewed.Encode(e)
 		}
 	}
+	{
+		if s.ServiceOn.Set {
+			e.FieldStart("service_on")
+			s.ServiceOn.Encode(e, json.EncodeDate)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketCreate = [7]string{
+var jsonFieldsNameOfTicketCreate = [8]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -1908,6 +2026,7 @@ var jsonFieldsNameOfTicketCreate = [7]string{
 	4: "resolution",
 	5: "due_at",
 	6: "reviewed",
+	7: "service_on",
 }
 
 // Decode decodes TicketCreate from json.
@@ -1991,6 +2110,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"reviewed\"")
+			}
+		case "service_on":
+			if err := func() error {
+				s.ServiceOn.Reset()
+				if err := s.ServiceOn.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_on\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2240,9 +2369,15 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 			s.Reviewed.Encode(e)
 		}
 	}
+	{
+		if s.ServiceOn.Set {
+			e.FieldStart("service_on")
+			s.ServiceOn.Encode(e, json.EncodeDate)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketPatch = [7]string{
+var jsonFieldsNameOfTicketPatch = [8]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2250,6 +2385,7 @@ var jsonFieldsNameOfTicketPatch = [7]string{
 	4: "resolution",
 	5: "due_at",
 	6: "reviewed",
+	7: "service_on",
 }
 
 // Decode decodes TicketPatch from json.
@@ -2329,6 +2465,16 @@ func (s *TicketPatch) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"reviewed\"")
+			}
+		case "service_on":
+			if err := func() error {
+				s.ServiceOn.Reset()
+				if err := s.ServiceOn.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_on\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2435,9 +2581,15 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 			s.Reviewed.Encode(e)
 		}
 	}
+	{
+		if s.ServiceOn.Set {
+			e.FieldStart("service_on")
+			s.ServiceOn.Encode(e, json.EncodeDate)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketUpdate = [7]string{
+var jsonFieldsNameOfTicketUpdate = [8]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2445,6 +2597,7 @@ var jsonFieldsNameOfTicketUpdate = [7]string{
 	4: "resolution",
 	5: "due_at",
 	6: "reviewed",
+	7: "service_on",
 }
 
 // Decode decodes TicketUpdate from json.
@@ -2528,6 +2681,16 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"reviewed\"")
+			}
+		case "service_on":
+			if err := func() error {
+				s.ServiceOn.Reset()
+				if err := s.ServiceOn.Decode(d, json.DecodeDate); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"service_on\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

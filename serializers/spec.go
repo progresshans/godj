@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/dateinput"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/validation"
 )
@@ -19,6 +20,7 @@ const (
 	FieldBoolean
 	FieldInteger
 	FieldDateTime
+	FieldDate
 )
 
 const (
@@ -27,6 +29,7 @@ const (
 	CodeNull          validation.Code = "null"
 	CodeType          validation.Code = "type"
 	CodeDateTime      validation.Code = "datetime"
+	CodeDate          validation.Code = "invalid"
 	CodeBlank         validation.Code = "blank"
 	CodeMaxLength     validation.Code = "max_length"
 	CodeUnknown       validation.Code = "unknown"
@@ -168,7 +171,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger, FieldDateTime:
+	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -197,7 +200,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate
 }
 
 func validFieldName(name string) bool {
@@ -384,6 +387,19 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 			return Null(), validation.NewErrors()
 		}
 		return Value{}, oneViolation(field.name, CodeNull)
+	}
+	if field.kind == FieldDate {
+		switch value.kind {
+		case ValueDate:
+			return value, validation.NewErrors()
+		case ValueDateTime:
+			return Value{}, oneViolation(field.name, CodeDateTime)
+		case ValueString:
+			if date, err := dateinput.ISO(value.string); err == nil {
+				return Date(date), validation.NewErrors()
+			}
+		}
+		return Value{}, oneViolation(field.name, CodeDate)
 	}
 	if field.kind == FieldDateTime && value.kind == ValueString {
 		parsed, err := temporal.ParseRFC3339(value.string)

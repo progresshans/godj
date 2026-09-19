@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/internal/temporal"
 	"unicode/utf8"
 
@@ -163,6 +164,13 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
+	case FieldDate:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DateField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarDate {
+			return validation(path+".default", "type_mismatch", "DateField default must be a calendar.Date")
+		}
 	case FieldDateTime:
 		if field.PrimaryKey || field.MaxLength != 0 {
 			return validation(path, "unsupported", "DateTimeField cannot be a primary key or have a max length")
@@ -264,22 +272,29 @@ func validateScalar(value Scalar, path string) error {
 		if !utf8.ValidString(value.String) {
 			return validation(path, "invalid_utf8", "string scalar must contain valid UTF-8")
 		}
-		if value.Boolean || value.Integer != 0 || value.DateTime != "" {
+		if value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" {
 			return validation(path, "invalid_scalar", "string scalar carries another scalar payload")
 		}
 	case ScalarBoolean:
-		if value.String != "" || value.Integer != 0 || value.DateTime != "" {
+		if value.String != "" || value.Integer != 0 || value.DateTime != "" || value.Date != "" {
 			return validation(path, "invalid_scalar", "boolean scalar carries another scalar payload")
 		}
+	case ScalarDate:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" {
+			return validation(path, "invalid_scalar", "date scalar carries another scalar payload")
+		}
+		if _, err := calendar.Parse(value.Date); err != nil {
+			return validation(path, "invalid_date", "date scalar must be a canonical Gregorian date")
+		}
 	case ScalarDateTime:
-		if value.String != "" || value.Boolean || value.Integer != 0 {
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.Date != "" {
 			return validation(path, "invalid_scalar", "datetime scalar carries another scalar payload")
 		}
 		if _, err := temporal.ParseCanonical(value.DateTime); err != nil {
 			return validation(path, "invalid_datetime", "datetime scalar must be canonical UTC microseconds")
 		}
 	case ScalarInteger:
-		if value.String != "" || value.Boolean || value.DateTime != "" {
+		if value.String != "" || value.Boolean || value.DateTime != "" || value.Date != "" {
 			return validation(path, "invalid_scalar", "integer scalar carries another scalar payload")
 		}
 	default:

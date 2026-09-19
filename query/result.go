@@ -147,7 +147,7 @@ func (s ResultShape) validate() error {
 				}
 			case ResultMax, ResultMin:
 				field, ok := expression.Field()
-				if !ok || !validResultField(field) || (field.Kind() != FieldInteger && field.Kind() != FieldString && field.Kind() != FieldDateTime) {
+				if !ok || !validResultField(field) || (field.Kind() != FieldInteger && field.Kind() != FieldString && field.Kind() != FieldDateTime && field.Kind() != FieldDate) {
 					return invalidPlanError("MIN/MAX result requires an ordered scalar field")
 				}
 			default:
@@ -165,7 +165,7 @@ func validResultField(field FieldRef) bool {
 		return false
 	}
 	switch field.Kind() {
-	case FieldInteger, FieldString, FieldBoolean, FieldDateTime:
+	case FieldInteger, FieldString, FieldBoolean, FieldDateTime, FieldDate:
 		return true
 	default:
 		return false

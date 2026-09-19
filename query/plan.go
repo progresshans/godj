@@ -15,6 +15,7 @@ const (
 	FieldInteger  FieldKind = "integer"
 	FieldString   FieldKind = "string"
 	FieldBoolean  FieldKind = "boolean"
+	FieldDate     FieldKind = "date"
 	FieldDateTime FieldKind = "datetime"
 )
 
@@ -223,6 +224,8 @@ func validInValues(field FieldRef, values []Value) bool {
 		expected = ValueString
 	case FieldBoolean:
 		expected = ValueBoolean
+	case FieldDate:
+		expected = ValueDate
 	case FieldDateTime:
 		expected = ValueDateTime
 	default:

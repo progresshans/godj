@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
@@ -51,7 +52,7 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed. Every create
+// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -81,13 +82,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true})
 	if err != nil {
 		return nil, err
 	}
@@ -147,18 +148,18 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed"}
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on")
 	if err != nil {
 		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed"}, SearchFields: []string{"subject"},
+		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on"}, SearchFields: []string{"subject"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -221,6 +222,7 @@ type ticketInput struct {
 	resolution *string
 	dueAt      *time.Time
 	reviewed   *bool
+	serviceOn  *calendar.Date
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
@@ -231,7 +233,8 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	resolution, resolutionOK := values.Get("resolution")
 	dueAt, dueAtOK := values.Get("due_at")
 	reviewed, reviewedOK := values.Get("reviewed")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || len(values.All()) != 7 {
+	serviceOn, serviceOnOK := values.Get("service_on")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || len(values.All()) != 8 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
@@ -269,6 +272,13 @@ func fromForm(values forms.Values) (ticketInput, error) {
 			return ticketInput{}, errors.New("helpdesk: invalid reviewed")
 		}
 		input.reviewed = &boolean
+	}
+	if !serviceOn.IsNull() {
+		date, ok := serviceOn.AsDate()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid service_on")
+		}
+		input.serviceOn = &date
 	}
 	return input, nil
 }
@@ -310,6 +320,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		} else {
 			create = create.WithReviewed(*input.reviewed)
 		}
+		if input.serviceOn == nil {
+			create = create.WithServiceOnNull()
+		} else {
+			create = create.WithServiceOn(*input.serviceOn)
+		}
 		var err error
 		created, err = models.TicketObjects.Create(ctx, session, create)
 		return err
@@ -346,6 +361,11 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 		patch = patch.WithReviewedNull()
 	} else {
 		patch = patch.WithReviewed(*input.reviewed)
+	}
+	if input.serviceOn == nil {
+		patch = patch.WithServiceOnNull()
+	} else {
+		patch = patch.WithServiceOn(*input.serviceOn)
 	}
 	return a.updatePatch(ctx, id, patch)
 }
@@ -471,6 +491,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 	if reviewed, present := values.Get("reviewed"); present && !reviewed.IsNull() {
 		boolean, _ := reviewed.AsBoolean()
 		input.reviewed = &boolean
+	}
+	if serviceOn, present := values.Get("service_on"); present && !serviceOn.IsNull() {
+		date, _ := serviceOn.AsDate()
+		input.serviceOn = &date
 	}
 	created, err := a.create(request.Context(), input)
 	if errors.Is(err, admin.ErrObjectNotFound) {

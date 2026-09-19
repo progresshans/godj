@@ -414,6 +414,51 @@ func (o NilBool) Or(d bool) bool {
 	return d
 }
 
+// NewNilDate returns new NilDate with value set to v.
+func NewNilDate(v time.Time) NilDate {
+	return NilDate{
+		Value: v,
+	}
+}
+
+// NilDate is nullable time.Time.
+type NilDate struct {
+	Value time.Time
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilDate) SetTo(v time.Time) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilDate) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilDate) SetToNull() {
+	o.Null = true
+	var v time.Time
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilDate) Get() (v time.Time, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilDate) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilDateTime returns new NilDateTime with value set to v.
 func NewNilDateTime(v time.Time) NilDateTime {
 	return NilDateTime{
@@ -657,6 +702,74 @@ func (o OptNilBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilDate returns new OptNilDate with value set to v.
+func NewOptNilDate(v time.Time) OptNilDate {
+	return OptNilDate{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilDate is optional nullable time.Time.
+type OptNilDate struct {
+	Value time.Time
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilDate was set.
+func (o OptNilDate) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilDate) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilDate) SetTo(v time.Time) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilDate) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilDate) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v time.Time
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilDate) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilDate) Get() (v time.Time, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilDate) Or(d time.Time) time.Time {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1085,6 +1198,7 @@ type Ticket struct {
 	Resolution NilString   `json:"resolution"`
 	DueAt      NilDateTime `json:"due_at"`
 	Reviewed   NilBool     `json:"reviewed"`
+	ServiceOn  NilDate     `json:"service_on"`
 }
 
 // GetID returns the value of ID.
@@ -1132,6 +1246,11 @@ func (s *Ticket) GetReviewed() NilBool {
 	return s.Reviewed
 }
 
+// GetServiceOn returns the value of ServiceOn.
+func (s *Ticket) GetServiceOn() NilDate {
+	return s.ServiceOn
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -1177,6 +1296,11 @@ func (s *Ticket) SetReviewed(val NilBool) {
 	s.Reviewed = val
 }
 
+// SetServiceOn sets the value of ServiceOn.
+func (s *Ticket) SetServiceOn(val NilDate) {
+	s.ServiceOn = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
@@ -1190,6 +1314,7 @@ type TicketCreate struct {
 	Resolution OptNilString               `json:"resolution"`
 	DueAt      OptNilDateTime             `json:"due_at"`
 	Reviewed   OptNilBool                 `json:"reviewed"`
+	ServiceOn  OptNilDate                 `json:"service_on"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1227,6 +1352,11 @@ func (s *TicketCreate) GetReviewed() OptNilBool {
 	return s.Reviewed
 }
 
+// GetServiceOn returns the value of ServiceOn.
+func (s *TicketCreate) GetServiceOn() OptNilDate {
+	return s.ServiceOn
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -1260,6 +1390,11 @@ func (s *TicketCreate) SetDueAt(val OptNilDateTime) {
 // SetReviewed sets the value of Reviewed.
 func (s *TicketCreate) SetReviewed(val OptNilBool) {
 	s.Reviewed = val
+}
+
+// SetServiceOn sets the value of ServiceOn.
+func (s *TicketCreate) SetServiceOn(val OptNilDate) {
+	s.ServiceOn = val
 }
 
 type TicketCreatePriority int64
@@ -1342,6 +1477,7 @@ type TicketPatch struct {
 	Resolution OptNilString              `json:"resolution"`
 	DueAt      OptNilDateTime            `json:"due_at"`
 	Reviewed   OptNilBool                `json:"reviewed"`
+	ServiceOn  OptNilDate                `json:"service_on"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1379,6 +1515,11 @@ func (s *TicketPatch) GetReviewed() OptNilBool {
 	return s.Reviewed
 }
 
+// GetServiceOn returns the value of ServiceOn.
+func (s *TicketPatch) GetServiceOn() OptNilDate {
+	return s.ServiceOn
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketPatch) SetSubject(val OptString) {
 	s.Subject = val
@@ -1414,6 +1555,11 @@ func (s *TicketPatch) SetReviewed(val OptNilBool) {
 	s.Reviewed = val
 }
 
+// SetServiceOn sets the value of ServiceOn.
+func (s *TicketPatch) SetServiceOn(val OptNilDate) {
+	s.ServiceOn = val
+}
+
 type TicketPatchPriority int64
 
 const (
@@ -1440,6 +1586,7 @@ type TicketUpdate struct {
 	Resolution OptNilString               `json:"resolution"`
 	DueAt      OptNilDateTime             `json:"due_at"`
 	Reviewed   OptNilBool                 `json:"reviewed"`
+	ServiceOn  OptNilDate                 `json:"service_on"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1477,6 +1624,11 @@ func (s *TicketUpdate) GetReviewed() OptNilBool {
 	return s.Reviewed
 }
 
+// GetServiceOn returns the value of ServiceOn.
+func (s *TicketUpdate) GetServiceOn() OptNilDate {
+	return s.ServiceOn
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketUpdate) SetSubject(val string) {
 	s.Subject = val
@@ -1510,6 +1662,11 @@ func (s *TicketUpdate) SetDueAt(val OptNilDateTime) {
 // SetReviewed sets the value of Reviewed.
 func (s *TicketUpdate) SetReviewed(val OptNilBool) {
 	s.Reviewed = val
+}
+
+// SetServiceOn sets the value of ServiceOn.
+func (s *TicketUpdate) SetServiceOn(val OptNilDate) {
+	s.ServiceOn = val
 }
 
 type TicketUpdatePriority int64

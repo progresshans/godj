@@ -12,7 +12,7 @@ Category–Ticket 관계 모델에 선택형 Form/Admin, 읽기 전용 Category 
 Ticket 응답과 생성 입력은 실제 ModelEncoder와 Bind가 사용하는 serializer spec에서 파생하며,
 CategorySummary는 직접 출력하는 id/name 구조를 기술한다.
 `GET /api/tickets/`는 선택 Category의 티켓을 ID 오름차순으로 최대 20개 담은 배열이며 query parameter를 무시한다.
-`POST /api/tickets/`는 subject/details/closed/priority/resolution/due_at을 받아 Ticket과 201을 반환하고 Location header를 추가하지 않는다.
+`POST /api/tickets/`는 subject/details/closed/priority/resolution/due_at/reviewed/service_on을 받아 Ticket과 201을 반환하고 Location header를 추가하지 않는다.
 subject는 필수이며 생략한 closed는 false, 생략하거나 null로 지정한 details는 null이다. 빈 details 문자열은 null과 구별한다.
 priority 입력은 1(Urgent), 0(Normal), -1(Low)과 null이다. 생략/null은 null이며 0은 실제 값이다. Form/Admin은 같은 모델에서 Select와 표시명을 만든다.
 ORM 저장·조회는 signed int64 범위를 유지하고 과거 목록 밖 값도 API 응답·Admin 편집 화면에 보존한다.
@@ -20,11 +20,18 @@ resolution은 여러 줄 Text다. API에서 생략/null은 null, 빈 문자열�
 Admin은 HTML을 escape한 textarea로 표시하고 빈 제출을 빈 문자열로 저장한다. 모델의 저장 길이 제약은 없다.
 due_at은 nullable 시각이다. API는 offset을 포함한 RFC3339를 받아 UTC·여섯 자리 microsecond로 반환한다. 생략/null은 null이다.
 Admin은 offset이 없으면 UTC로 해석하고 빈 제출은 null로 저장한다. 연도 1..9999를 지원하며 세부 의미는 [ADR-0061](../../docs/adr/0061-datetime-field-and-canonical-instant-values.md)을 따른다.
+reviewed는 nullable Boolean으로 API의 true/false/null과 Admin의 Yes/No/Unknown을 구분한다.
+service_on은 방문 예정일이다. 날짜만 있는 ISO 입력을 받아 `YYYY-MM-DD`로 반환하며 연도 1..9999·윤년을 검증한다.
+Admin은 달력/슬래시/영어 월 이름 날짜를 받고 빈 입력을 null로 저장한다. 시각·시간대로 날짜를 바꾸지 않는다.
+[Date 의미와 입력 경계](../../docs/adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.
+`PUT /api/tickets/<id>/`는 subject가 필수이고 생략한 closed는 false다. `PATCH`는 제출한 필드만 수정하며 default를 넣지 않는다.
+양쪽 모두 생략한 nullable field는 보존하고 명시적 null은 비운다. ChangeTicket 권한·CSRF·category 범위를 검사하며,
+같은 transaction에서 현재 행을 확인하고 바뀐 값만 저장한다.
 본문은 4096바이트로 제한하고 중복 JSON member와 뒤따르는 데이터를 거절한다.
 기본 조합에는 Accept negotiation middleware가 없으므로 문서도 406을 광고하지 않는다.
 
 `GET /api/tickets/<id>/`는 `ViewTicket` 권한과 서버가 배정한 Category 범위를 확인한 뒤 티켓과 Category를
-하나의 JOIN 조회로 반환한다. 응답의 `ticket`은 id/subject/details/closed/category/priority/resolution/due_at, `category`는 id/name만 포함한다.
+하나의 JOIN 조회로 반환한다. 응답의 `ticket`은 id/subject/details/closed/category/priority/resolution/due_at/reviewed/service_on, `category`는 id/name만 포함한다.
 티켓 조회 권한에는 그 티켓의 Category 이름 조회가 포함된다. 별도 Category Admin은 `ViewCategory` 권한을 요구한다.
 없는 티켓과 다른 Category의 티켓은 모두 404이며, 인증·권한 거부 시 제품 데이터 조회를 실행하지 않는다.
 
@@ -35,7 +42,7 @@ go run ./cmd/godj generate --check --project examples/helpdesk/godj.toml
 
 선언 runner는 생성·makemigrations 명령을 제공한다. `modeldef` 변경 후 같은 생성 명령에서 `--check`를 빼면 생성물을 갱신한다.
 `go run ./cmd/godj makemigrations --project examples/helpdesk/godj.toml`은 선언과 `migrations/`의 차이를 작성한다.
-`0001_initial`부터 `0004_ticket_due_at`까지 보존한다. `0005_alter_ticket_priority`는 선택값을 추가하고 `0006_alter_ticket_priority`는 표시명·순서를 변경한다. 두 metadata 변경은 DDL을 만들지 않는다. `MigrationSources()`의 전체 source를 loader에 전달한다.
+`0001_initial`부터 `0004_ticket_due_at`까지 보존한다. `0005_alter_ticket_priority`는 선택값을 추가하고 `0006_alter_ticket_priority`는 표시명·순서를 변경한다. 두 metadata 변경은 DDL을 만들지 않는다. `0007_ticket_reviewed`와 `0008_ticket_service_on`은 각각 nullable Boolean과 Date를 추가하고 기존 행은 null로 유지한다. `MigrationSources()`의 전체 source를 loader에 전달한다.
 테스트는 0001의 기존 행, 필드 추가/역방향, 0004의 범위 밖 priority 값에 0005·0006 적용/역방향/재적용, Form/Admin/API의 선택값 검증과 기존 값 보존을 다룬다.
 PostgreSQL 검증은 `GODJ_TEST_POSTGRES_URL`과 명시적인 `GODJ_REQUIRE_POSTGRES=1`로 실행하며, CI의 pinned service가 소유한다.
 

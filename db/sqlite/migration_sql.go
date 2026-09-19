@@ -118,6 +118,14 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 		if field.Nullable {
 			declaration = "BOOLEAN NULL"
 		}
+	case ir.FieldDate:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDate {
+			return "", fmt.Errorf("DateField has an invalid migration shape")
+		}
+		declaration = "DATE NOT NULL"
+		if field.Nullable {
+			declaration = "DATE NULL"
+		}
 	case ir.FieldDateTime:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDateTime {
 			return "", fmt.Errorf("DateTimeField has an invalid migration shape")

@@ -515,6 +515,9 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "date predicate rejects datetime", fixture: "date_predicate_datetime.go.txt", wantFragments: []string{"time.Time{}", "calendar.Date"}},
+		{name: "date write rejects datetime", fixture: "date_write_datetime.go.txt", wantFragments: []string{"time.Time{}", "calendar.Date"}},
+		{name: "date reference rejects datetime", fixture: "date_reference_datetime.go.txt", wantFragments: []string{"orm.F(models.TicketFields.DueAt)", "calendar.Date"}},
 		{
 			name:    "predicate model mismatch",
 			fixture: "predicate_model_mismatch.go.txt",

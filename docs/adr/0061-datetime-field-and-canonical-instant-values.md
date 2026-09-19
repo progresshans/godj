@@ -56,6 +56,7 @@ nullable 값은 별도 null branch를 가진다. 고정 ogen v1.24.0의 기본 e
 [DEV-0011](../DEVIATIONS.md#dev-0011--datetime-입력의-nul을-거부하고-문자열-전체를-해석)로 명시한다. 이를 compatibility PASS로 세지 않는다.
 
 모든 locale 입력·ISO week/basic 표기·named-zone/DST 정책, USE_TZ=false에 해당하는 별도 local-time 저장, date extraction/transform,
-임의 timezone query, auto_now/auto_now_add, DateField/TimeField/DurationField는 미완료 범위다. 지원하지 않는 Form 표현은 오류로
+임의 timezone query, auto_now/auto_now_add, TimeField/DurationField는 미완료 범위다. DateField의 별도 달력 의미는
+[ADR-0065](0065-calendar-date-field-and-input-boundaries.md)에서 추가했다. 지원하지 않는 Form 표현은 오류로
 남기며 임의 local timezone이나 서버 설정으로 추측하지 않는다. 기능 카탈로그의 완성 목표는 유지한다. 실행 결과와 환경은
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

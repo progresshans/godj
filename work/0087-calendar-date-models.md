@@ -2,7 +2,7 @@
 id: GDJ-0087
 status: active
 updated: 2026-09-20
-baseline_commit: "917fda6735b620c5b238ed8d77002d5cf8e3ce6b"
+baseline_commit: "13937986914317d365f580f2adead277d73e2ce1"
 integration_owner: "root"
 ---
 
@@ -21,13 +21,13 @@ DateTime과 다른 날짜 의미는 [ADR-0061](../docs/adr/0061-datetime-field-a
 
 ## 확인한 경계
 
-- 현재 IR·Query Value·generator·scanner에는 DateTime만 있고 Date는 없다.
+- 작업 시작 시 IR·Query Value·generator·scanner에는 DateTime만 있었다. 별도 Date arm과 generated/scanner 연결을 추가했다.
 - 고정 Django 6.1의 model DateField는 aware datetime을 기본 시간대로 옮겨 날짜를 취한다.
   Form DateField의 datetime 처리는 다르며 DRF 3.18.0 DateField는 datetime을 명시적으로 거부한다.
   이 입력 경계들을 하나의 coercion 규칙으로 합치지 않는다.
-- Go 값의 초안은 `calendar.Date{Year, Month, Day}`다. Comparable value로 복사되며 invalid literal/zero는 검증에서
+- Go 값은 `calendar.Date{Year, Month, Day}`다. Comparable value로 복사되며 invalid literal/zero는 검증에서
   거부한다. `New`와 canonical parser는 error를 반환하고 실패한 decode는 기존 receiver를 보존한다.
-  Literal/default·driver scan·comparison·JSON·generator의 전체 경계를 확인한 뒤 공개 형태를 확정한다.
+  Literal/default·driver scan·comparison·JSON·generator의 의미는 [ADR-0065](../docs/adr/0065-calendar-date-field-and-input-boundaries.md)에 정했다.
   time.Time의 시간대나 시각을 암묵적으로 버리는 API는 만들지 않는다.
 - GDJ-0086의 제품은 기존 Draft PR에서 Hosted ORM 검증을 완료했다. 해당 결과는 이 Date 작업의 PASS가 아니다.
 
@@ -41,7 +41,7 @@ DateTime과 다른 날짜 의미는 [ADR-0061](../docs/adr/0061-datetime-field-a
 
 ## 현재 상태와 다음 행동
 
-별도 `feature/calendar-date-models`에서 고정 reference의 public DateField source와 현재 DateTime 경계를 확인했다.
-독립 model·Form·serializer와 실제 DB 관찰을 고정하고 fresh process 재생을 확인했다.
-`calendar.Date` 값·canonical text/JSON·실패 decode 보존 초안과 Gregorian cycle/경계 검증을 작성했다.
-Compile-only만 확인했고 Go runtime은 실행하지 않았다. 다음은 IR·Query AST·generator·양 DB와 소비자 연결이다.
+Calendar Date의 값/IR/AST·generated ORM·양 DB migration·Form/Admin·Helpdesk·OpenAPI/독립 client를 연결했다.
+독립 reference와 정상·실패·취소·copy·rollback·재연결·역방향 검증을 추가했고 affected 일반/race/CGO0과 생성물 drift·vet을 통과했다.
+기존 Draft PR에 통합하고 해당 source의 Hosted ORM 결과를 확인한다. 실행별 source·범위는
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0087--calendar-date의-모델소비자-연결)에 기록한다.

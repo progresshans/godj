@@ -327,6 +327,8 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			return s.appendBytes([]byte("true"))
 		}
 		return s.appendBytes([]byte("false"))
+	case ValueDate:
+		return s.appendString(value.string, "value.date")
 	case ValueDateTime:
 		instant, _ := value.AsDateTime()
 		return s.appendString(temporal.Format(instant), "value.datetime")

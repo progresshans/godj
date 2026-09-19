@@ -569,6 +569,19 @@ func TestEncodePreflightRejectsOversizedRawStringsBeforeSnapshot(t *testing.T) {
 		},
 	}
 
+	for _, kind := range []ir.ScalarKind{ir.ScalarDate, ir.ScalarString} {
+		tests = append(tests, struct {
+			name      string
+			producer  Producer
+			migration migrations.Migration
+			wantPath  string
+		}{
+			name: "date payload in " + string(kind), producer: Producer{Name: "test", Version: "1"},
+			migration: migrations.Migration{App: "dates", Name: "0002_date", Operations: []migrations.Operation{migrations.AddField{AppLabel: "dates", ModelName: "entry", Field: ir.Field{Name: "day", GoName: "Day", Column: "day", Kind: ir.FieldDate, Default: &ir.Scalar{Kind: kind, Date: strings.Repeat("x", MaxDocumentBytes+1)}}}}},
+			wantPath:  "migration.operations[0].field.default.date",
+		})
+	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			document, err := Encode(test.producer, test.migration)

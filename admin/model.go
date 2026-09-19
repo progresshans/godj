@@ -66,6 +66,9 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = templates.Bool(boolean)
+		case query.ValueDate:
+			instant, _ := scalar.Date()
+			converted = templates.String(instant.String())
 		case query.ValueDateTime:
 			instant, _ := scalar.DateTime()
 			converted = templates.String(temporal.Format(instant))

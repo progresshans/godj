@@ -17,6 +17,8 @@ func TestScalarChoicesWireMeasurementAndClosedScan(t *testing.T) {
 		{Kind: ir.ScalarString}, {Kind: ir.ScalarString, String: "<&>\u2028한글"},
 		{Kind: ir.ScalarInteger}, {Kind: ir.ScalarInteger, Integer: math.MinInt64},
 		{Kind: ir.ScalarInteger, Integer: math.MaxInt64}, {Kind: ir.ScalarBoolean, Boolean: true},
+		{Kind: ir.ScalarDate, Date: "0001-01-01"},
+		{Kind: ir.ScalarString, Date: "<&>\u2028mixed", String: "payload"},
 		{Kind: ir.ScalarDateTime, DateTime: "2026-09-19T00:00:00.000000Z"},
 	} {
 		field := ir.Field{Name: "value", GoName: "Value", Column: "value", Kind: ir.FieldText, Default: &scalar, Choices: []ir.Choice{{Value: scalar, Label: "<Label> 한글"}}}

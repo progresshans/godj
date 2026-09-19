@@ -124,6 +124,7 @@ func parseScalar(decoder *json.Decoder) error {
 	return wirejson.Object(decoder, []string{"kind"}, map[string]func() error{
 		"kind":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"string":   func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"date":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"datetime": func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"boolean":  func() error { return wirejson.Bool(decoder) },
 		"integer":  func() error { _, err := wirejson.IntToken(decoder); return err },
