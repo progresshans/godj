@@ -7,7 +7,7 @@
 
 - 작업: [GDJ-0080](../../work/0080-eager-filter-join-composition.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위), [빈 조회 경계](../adr/0062-scalar-membership-and-empty-query-execution.md).
 - Source: `408c4179d52c5ea8925f503a000ef69d9f892289` 기반 작업 사본. Markdown을 제외한 변경·새 파일 21개의
-  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `99f8347dee452fe54b4fc796130a3b2dbb7ed1b1bc32e1837d21d63667556af2`다.
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `2e21f11bd6e759910e172ae4bf1c1471e0f51f8766a431913ec5a1b21c4ea93b`다.
 - Go 1.26.5 darwin/arm64, modernc SQLite와 PostgreSQL 17.5(Homebrew)의 전용 DB·개별 schema에서 실행했다.
   최종 lane 종료 뒤 이번 작업의 전용 PostgreSQL DB만 제거했다.
 
@@ -21,11 +21,13 @@
 ./conformance/relationqueryproduct ./conformance/relationreverseproduct ./examples/...
 ```
 
-Normal·race·CGO0 각각 **22 packages, 3,806 test 완료 event PASS**, no-test package 11개다.
+Normal·race·CGO0 각각 **22 packages, 3,828 test 완료 event PASS**, no-test package 11개다.
 모든 test의 시작/종료·package 완료와 필수 sentinel을 대조했다. 각 lane의 직접 진입 skip은 부모가 자식 프로세스로
 실행하는 `TestPostgresRevisionFenceHelperProcess` 한 개이며 이를 기능 PASS로 세지 않았다.
 초기 실행은 LIMIT 0의 불필요한 SQL과 새 무결성 테스트의 오류 code 기대값을 보정하기 전 실패했다.
-위 최종 결과는 보정된 전체 영향 범위를 다시 실행한 결과다. 별도 생성 모듈의 컴파일·실행으로 초기 소비자 실패 원인도 확인했다.
+별도 생성 모듈의 컴파일·실행으로 초기 소비자 실패 원인도 확인했다. 최종 검토에서는 같은 root FK의 forward/reverse view가
+서로 다른 target을 선언해도 compile되던 self-reference 경계를 재현하고 보완했다. 위 결과는 이 보완까지 포함한 전체 영향 범위를
+normal·race·CGO0로 다시 실행한 결과다.
 
 ### 확인한 의미
 
@@ -39,8 +41,9 @@ Normal·race·CGO0 각각 **22 packages, 3,806 test 완료 event PASS**, no-test
   Cold/warm All·First·Count, selected relation 접근의 추가 I/O 없음, 취소 우선순위와 typed/dynamic AST 일치를 대조했다.
 - 중복 source object·FK pointer·selected target cache의 수정이 다른 반환 객체나 query cache에 전파되지 않음을 검사했다.
   여러 JOIN의 scan/Rows.Err/Rows.Close/취소/행 무결성 실패 후 부분 cache를 게시하지 않고 retry가 성공함을 확인했다.
-- 다른 root identity, 같은 FK의 conflicting target/table/PK, nonselected FK·source-key proof 충돌을 포함한 **18개 잘못된 plan**을
-  양 DB에서 pre-I/O 거부했다. LIMIT 0으로 감싸도 검증을 생략하지 않는다. 공유 plan의 concurrent compile과 detached arguments도 확인했다.
+- 다른 root identity, 같은 FK의 conflicting target/table/PK, nonselected FK·source-key proof 충돌을 포함한 **28개 잘못된 plan**을
+  양 DB에서 pre-I/O 거부했다. LIMIT 0으로 감싸도 검증을 생략하지 않는다. 정상 self-reference는 동일 FK의 forward/reverse view로
+처리하며 실제 양 DB에서 NULL parent와 child/grandchild가 만든 중복 `[1, 2, 2]`를 보존했다. 공유 plan의 concurrent compile과 detached arguments도 확인했다.
 - `LIMIT 0`을 공통 empty-source 분석에 포함했다. Backend/session은 전체 compile·context/lifetime 검증을 먼저 실행하고
   model은 빈 결과, COUNT는 0을 반환한다. 조기 반환으로 metadata/capability 검사를 건너뛰지 않는다.
 - 기존 generated Count 22개·nullable-forward 73개·scalar-lookup 748개 관찰에서도 서로 다른 eager/filter edge의 All을
@@ -51,7 +54,12 @@ Normal·race·CGO0 각각 **22 packages, 3,806 test 완료 event PASS**, no-test
 
 ### 통합 checkpoint
 
-GDJ-0079와 이 작업을 합친 정확한 source의 Hosted ORM은 다음 단계다. 아직 이번 source의 Hosted 완료를 주장하지 않는다.
+초기 통합 source `629f0a0deaf9d8c2beed157ef9b51fcd464fcb6d`의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35413019895)을
+attempt 1은 48개 job의 source·run ID·완료 상태를 대조해 **44 success, 4 scope skip**으로 완료했다.
+최종 `CI result (orm)` report는 `scope=orm`, `full_platform_verified=false`이며 command/portable/postgresql/relation owner를 검증했다.
+PostgreSQL 17.10의 core/operator-target × normal/race/CGO0 여섯 조합과 선택된 Linux/macOS를 포함한다.
+그 뒤 위 self-reference 보완이 추가됐으므로 이 실행을 보완 후 source의 결과로 재사용하지 않는다.
+최종 보완 source의 Hosted ORM checkpoint가 남아 있으며, 아직 그 완료를 주장하지 않는다.
 여러 selected projection·nested traversal·reverse OR/NOT·새 full/platform·배포·전체 ORM 완료는 이 결과에 포함하지 않는다.
 
 ## GDJ-0079 — Direct forward scalar lookup

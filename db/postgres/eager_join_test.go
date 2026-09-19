@@ -133,6 +133,16 @@ func TestPostgreSQLEagerFilterJoinCompositionMatchDjango(t *testing.T) {
 			}
 		})
 	}
+	t.Run("valid self reference", func(t *testing.T) {
+		table := quoted + `."tree_node"`
+		for _, statement := range []string{`CREATE TABLE ` + table + `(id BIGINT PRIMARY KEY,name TEXT NOT NULL,parent_id BIGINT NULL REFERENCES ` + table + `(id))`, `INSERT INTO ` + table + ` VALUES(1,'root',NULL),(2,'child',1),(3,'child',2),(4,'child',2)`} {
+			if _, err := admin.Exec(ctx, statement); err != nil {
+				t.Fatal(err)
+			}
+		}
+		querytest.CheckSelfReferenceEagerRows(t, backend)
+	})
+
 	for name, plan := range querytest.ConflictingEagerJoinPlans(t) {
 		t.Run("invalid/"+name, func(t *testing.T) {
 			before := trace.total.Load()

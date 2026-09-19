@@ -37,7 +37,7 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 			return Joins{}, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent predicate and projection metadata", projectionKey.SourceApp, projectionKey.SourceModel, projectionKey.Field))
 		}
 		edges[projectionKey] = hop
-		if err := projectionJoinProvenance(hop, edges, sourceKeys); err != nil {
+		if err := projectionJoinProvenance(plan.SourceFields(), hop, edges, sourceKeys); err != nil {
 			return Joins{}, err
 		}
 	}
@@ -84,22 +84,29 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 // different edges, but a forward FK declaration must still describe exactly
 // one target. RelationKey alone cannot establish this: its target identity
 // differs when two paths forge different targets for the same source field.
-func projectionJoinProvenance(selected query.RelationHop, edges map[RelationKey]query.RelationHop, sourceKeys []query.RelationHop) error {
-	forward := make(map[string]query.RelationHop, len(edges)+len(sourceKeys))
+func projectionJoinProvenance(fields []query.FieldRef, selected query.RelationHop, edges map[RelationKey]query.RelationHop, sourceKeys []query.RelationHop) error {
+	declarations := make(map[string]query.RelationHop, len(edges)+len(sourceKeys))
 	check := func(hop query.RelationHop) error {
 		if hop.Direction() == query.RelationReverse {
 			if hop.Target() != selected.Source() {
 				return invalidPlan("reverse filter root identity does not match the relation projection")
 			}
-			return nil
-		}
-		if hop.Source() != selected.Source() {
+			if hop.Source() != selected.Source() {
+				return nil
+			}
+			// A self-reference is another view of a FK owned by this root,
+			// not an independent declaration on an unrelated source model.
+			field := query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())
+			if hop.SourceTable() != selected.SourceTable() || !ContainsField(fields, field) {
+				return invalidPlan("self-reference source key does not match the selected root metadata")
+			}
+		} else if hop.Source() != selected.Source() {
 			return invalidPlan("forward filter root identity does not match the relation projection")
 		}
-		if previous, exists := forward[hop.Field()]; exists && !previous.Equal(hop) {
-			return invalidPlan("forward source-key provenance conflicts across projection and filter edges")
+		if previous, exists := declarations[hop.Field()]; exists && !sameForeignKeyDeclaration(previous, hop) {
+			return invalidPlan("source-key provenance conflicts across projection and filter edges")
 		}
-		forward[hop.Field()] = hop
+		declarations[hop.Field()] = hop
 		return nil
 	}
 	for _, hop := range edges {
@@ -113,6 +120,15 @@ func projectionJoinProvenance(selected query.RelationHop, edges map[RelationKey]
 		}
 	}
 	return nil
+}
+
+// Direction, reverse accessor and traversal cardinality describe the view of
+// an edge; the physical FK declaration is the same from either direction.
+func sameForeignKeyDeclaration(left, right query.RelationHop) bool {
+	return left.Source() == right.Source() && left.SourceTable() == right.SourceTable() &&
+		left.Field() == right.Field() && left.SourceColumn() == right.SourceColumn() &&
+		left.Target() == right.Target() && left.TargetTable() == right.TargetTable() &&
+		left.TargetPrimaryKeyColumn() == right.TargetPrimaryKeyColumn() && left.Nullable() == right.Nullable()
 }
 
 // requiredForwardJoins finds edges whose joined row must exist for the
