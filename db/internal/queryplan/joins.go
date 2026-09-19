@@ -5,13 +5,14 @@ import (
 	"slices"
 
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 // Join contains unquoted SQL-independent names. Compilers own qualification,
 // quoting, placeholders and the final SQL text.
 type Join struct {
-	Table, RootColumn, Column, Alias string
-	LeftOuter                        bool
+	Table, FromAlias, FromColumn, Column, Alias string
+	LeftOuter                                   bool
 }
 
 type Joins struct {
@@ -19,37 +20,113 @@ type Joins struct {
 	ByKey map[RelationKey]Join
 }
 
-// PrepareJoins consumes the compiler's private edge inventory. Predicate
-// capabilities and duplicate-hop equality must already have been checked.
-// It validates projection provenance and owns deterministic alias allocation.
-func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sourceKeys []query.RelationHop, backendName string) (Joins, error) {
-	projections := plan.RelationProjections()
-	for _, projection := range projections {
-		key, err := RelationProjection(plan, projection, backendName)
+// PrepareJoins validates the private occurrence graph and declaration inventory.
+// Every compilation owns its maps; aliases and parent joins are deterministic.
+func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
+	type edge struct {
+		hop       query.RelationHop
+		parent    RelationKey
+		hasParent bool
+	}
+	edges := make(map[RelationKey]edge)
+	type declarationKey struct {
+		source ir.ModelIdentity
+		field  string
+	}
+	declarations := make(map[declarationKey]query.RelationHop)
+	tables := make(map[ir.ModelIdentity]string)
+	primaryKeys := make(map[ir.ModelIdentity]string)
+	var root ir.ModelIdentity
+	anchor := func(identity ir.ModelIdentity) error {
+		if root == (ir.ModelIdentity{}) {
+			root = identity
+			tables[root] = plan.Table()
+		} else if root != identity {
+			return invalidPlan("relation routes do not share one logical root")
+		}
+		return nil
+	}
+	declare := func(hop query.RelationHop) error {
+		for _, model := range []struct {
+			identity ir.ModelIdentity
+			table    string
+		}{{hop.Source(), hop.SourceTable()}, {hop.Target(), hop.TargetTable()}} {
+			if previous, exists := tables[model.identity]; exists && previous != model.table {
+				return invalidPlan("one relation model has conflicting table metadata")
+			}
+			tables[model.identity] = model.table
+		}
+		if previous, exists := primaryKeys[hop.Target()]; exists && previous != hop.TargetPrimaryKeyColumn() {
+			return invalidPlan("one relation target has conflicting primary key metadata")
+		}
+		primaryKeys[hop.Target()] = hop.TargetPrimaryKeyColumn()
+		if hop.Source() == root && !ContainsField(plan.SourceFields(), query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())) {
+			return invalidPlan("root-owned relation source key disagrees with selected model metadata")
+		}
+		key := declarationKey{hop.Source(), hop.Field()}
+		if previous, exists := declarations[key]; exists && !sameForeignKeyDeclaration(previous, hop) {
+			return invalidPlan("source-key provenance conflicts across projection and filter routes")
+		}
+		declarations[key] = hop
+		return nil
+	}
+	addPath := func(path query.RelationPath) error {
+		if err := path.Validate(); err != nil {
+			return err
+		}
+		hops := path.Hops()
+		identity := hops[0].Source()
+		if hops[0].Direction() == query.RelationReverse {
+			identity = hops[0].Target()
+		}
+		if err := anchor(identity); err != nil {
+			return err
+		}
+		materialized := len(hops)
+		if path.TerminalScope() == query.RelationTerminalSourceKey {
+			materialized--
+		}
+		for index, hop := range hops {
+			if err := declare(hop); err != nil {
+				return err
+			}
+			if index >= materialized {
+				continue
+			}
+			key := KeyForPath(hops[:index+1])
+			if previous, exists := edges[key]; exists && !previous.hop.Equal(hop) {
+				return invalidPlan("one relation route has conflicting hop metadata")
+			}
+			item := edge{hop: hop, hasParent: index > 0}
+			if index > 0 {
+				item.parent = KeyForPath(hops[:index])
+			}
+			edges[key] = item
+		}
+		return nil
+	}
+	for _, condition := range plan.Conditions() {
+		if path, related := condition.RelationPath(); related {
+			if err := RelationCondition(plan, condition, path, backendName); err != nil {
+				return Joins{}, err
+			}
+			if err := addPath(path); err != nil {
+				return Joins{}, err
+			}
+		}
+	}
+	for _, projection := range plan.RelationProjections() {
+		if _, err := RelationProjection(plan, projection, backendName); err != nil {
+			return Joins{}, err
+		}
+		path, err := query.NewForwardRelationChain([]query.RelationHop{projection.Hop()}, projection.TargetColumns()[0], query.RelationTerminalRelatedField)
 		if err != nil {
 			return Joins{}, err
 		}
-		hop := projection.Hop()
-		if previous, exists := edges[key]; exists && !previous.Equal(hop) {
-			return Joins{}, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent predicate and projection metadata", key.SourceApp, key.SourceModel, key.Field))
-		}
-		edges[key] = hop
-	}
-	if len(projections) > 0 {
-		if err := projectionJoinProvenance(plan.SourceFields(), projections[0].Hop(), edges, sourceKeys); err != nil {
+		if err = addPath(path); err != nil {
 			return Joins{}, err
 		}
 	}
-
-	// Source-key presence can prove that a joined target exists only for the
-	// exact same edge. A matching logical identity alone is insufficient when
-	// callers construct AST paths with conflicting physical metadata.
-	for _, sourceKey := range sourceKeys {
-		if hop, exists := edges[KeyForRelation(sourceKey)]; exists && !sourceKey.Equal(hop) {
-			return Joins{}, invalidPlan("relation source-key provenance does not match the predicate edge")
-		}
-	}
-
 	keys := make([]RelationKey, 0, len(edges))
 	for key := range edges {
 		keys = append(keys, key)
@@ -60,65 +137,35 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 		required = requiredForwardJoins(where, false)
 	}
 	joins := make(map[RelationKey]Join, len(keys))
+	// Track declared optional ancestry separately from the final join type.
+	// OR can require a shared parent while each child branch remains optional;
+	// demoting that parent must not erase the child's original outer semantics.
+	optionalRoutes := make(map[RelationKey]bool, len(keys))
 	for index, key := range keys {
-		hop := edges[key]
-		join := Join{
-			Table:      hop.TargetTable(),
-			RootColumn: hop.SourceColumn(),
-			Column:     hop.TargetPrimaryKeyColumn(),
-			Alias:      fmt.Sprintf("t%d", index+1),
-			LeftOuter:  hop.Direction() == query.RelationForward && hop.Nullable() && !required[key],
+		item := edges[key]
+		hop := item.hop
+		fromAlias := "t0"
+		parentOuter := false
+		optional := hop.Nullable()
+		if item.hasParent {
+			parent, found := joins[item.parent]
+			if !found {
+				return Joins{}, invalidPlan("relation parent route was not materialized")
+			}
+			fromAlias = parent.Alias
+			parentOuter = parent.LeftOuter
+			optional = optional || optionalRoutes[item.parent]
 		}
+		optionalRoutes[key] = optional
+		joined := Join{Table: hop.TargetTable(), FromAlias: fromAlias, FromColumn: hop.SourceColumn(), Column: hop.TargetPrimaryKeyColumn(), Alias: fmt.Sprintf("t%d", index+1), LeftOuter: hop.Direction() == query.RelationForward && (parentOuter || optional && !required[key])}
 		if hop.Direction() == query.RelationReverse {
-			join.Table = hop.SourceTable()
-			join.RootColumn = hop.TargetPrimaryKeyColumn()
-			join.Column = hop.SourceColumn()
+			joined.Table = hop.SourceTable()
+			joined.FromColumn = hop.TargetPrimaryKeyColumn()
+			joined.Column = hop.SourceColumn()
 		}
-		joins[key] = join
+		joins[key] = joined
 	}
 	return Joins{Keys: keys, ByKey: joins}, nil
-}
-
-// A projection anchors the logical root identity. Other filter joins may use
-// different edges, but a forward FK declaration must still describe exactly
-// one target. RelationKey alone cannot establish this: its target identity
-// differs when two paths forge different targets for the same source field.
-func projectionJoinProvenance(fields []query.FieldRef, selected query.RelationHop, edges map[RelationKey]query.RelationHop, sourceKeys []query.RelationHop) error {
-	declarations := make(map[string]query.RelationHop, len(edges)+len(sourceKeys))
-	check := func(hop query.RelationHop) error {
-		if hop.Direction() == query.RelationReverse {
-			if hop.Target() != selected.Source() {
-				return invalidPlan("reverse filter root identity does not match the relation projection")
-			}
-			if hop.Source() != selected.Source() {
-				return nil
-			}
-			// A self-reference is another view of a FK owned by this root,
-			// not an independent declaration on an unrelated source model.
-			field := query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())
-			if hop.SourceTable() != selected.SourceTable() || !ContainsField(fields, field) {
-				return invalidPlan("self-reference source key does not match the selected root metadata")
-			}
-		} else if hop.Source() != selected.Source() {
-			return invalidPlan("forward filter root identity does not match the relation projection")
-		}
-		if previous, exists := declarations[hop.Field()]; exists && !sameForeignKeyDeclaration(previous, hop) {
-			return invalidPlan("source-key provenance conflicts across projection and filter edges")
-		}
-		declarations[hop.Field()] = hop
-		return nil
-	}
-	for _, hop := range edges {
-		if err := check(hop); err != nil {
-			return err
-		}
-	}
-	for _, hop := range sourceKeys {
-		if err := check(hop); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Direction, reverse accessor and traversal cardinality describe the view of
@@ -146,7 +193,7 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 			return nil
 		}
 		hops := path.Hops()
-		if len(hops) != 1 || hops[0].Direction() != query.RelationForward {
+		if len(hops) == 0 || hops[0].Direction() != query.RelationForward {
 			return nil
 		}
 		if path.TerminalScope() == query.RelationTerminalSourceKey && condition.Lookup() == query.LookupIsNull {
@@ -154,7 +201,7 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 			if valid && isNull == negated {
 				// A present FK implies its target exists under the declared FK
 				// constraint. This can promote an edge used elsewhere in the tree.
-				return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+				return requiredPrefixes(hops)
 			}
 			return nil
 		}
@@ -164,7 +211,7 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 		if condition.Lookup() == query.LookupIsNull {
 			isNull, valid := condition.Value().Boolean()
 			if valid && isNull == negated {
-				return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+				return requiredPrefixes(hops)
 			}
 			return nil
 		}
@@ -172,7 +219,7 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 			switch condition.Lookup() {
 			case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
 				query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn:
-				return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+				return requiredPrefixes(hops)
 			}
 		}
 		return nil
@@ -210,4 +257,12 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 	default:
 		return nil
 	}
+}
+
+func requiredPrefixes(hops []query.RelationHop) map[RelationKey]bool {
+	required := make(map[RelationKey]bool, len(hops))
+	for index := range hops {
+		required[KeyForPath(hops[:index+1])] = true
+	}
+	return required
 }

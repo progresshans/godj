@@ -135,7 +135,7 @@ func TestCompileNullableRelationIsNullTrimsJoin(t *testing.T) {
 	author := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	authorKey := query.NewFieldRef("author", "author_id", query.FieldInteger, true)
-	path, err := query.NewNullableForwardRelationIsNullPath(
+	path, err := query.NewForwardRelationIsNullPath(
 		post, "blog_post", authorKey, author, "authors_author", "id",
 	)
 	if err != nil {

@@ -350,7 +350,7 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 		t.Fatalf("root IN query count = %d, want 1", got)
 	}
 
-	nullablePath, err := query.NewNullableForwardRelationIsNullPath(
+	nullablePath, err := query.NewForwardRelationIsNullPath(
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post",
 		reviewerID,
@@ -359,7 +359,7 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 		"id",
 	)
 	if err != nil {
-		t.Fatalf("NewNullableForwardRelationIsNullPath() error = %v", err)
+		t.Fatalf("NewForwardRelationIsNullPath() error = %v", err)
 	}
 	nullablePlan := querytest.Conditions(
 		t,
@@ -527,7 +527,7 @@ func TestSQLiteBackendExecutesRequiredAndNullableForwardProjections(t *testing.T
 		t.Fatalf("nullable projection query count = %d, want 1", got)
 	}
 
-	forgedPath, err := query.NewNullableForwardRelationIsNullPath(
+	forgedPath, err := query.NewForwardRelationIsNullPath(
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post",
 		reviewerID,

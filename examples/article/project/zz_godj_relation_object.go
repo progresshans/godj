@@ -8,7 +8,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v1"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"
 
 type Objects struct {
 }
@@ -30,4 +30,4 @@ func BindObjects() (Objects, error) {
 	return Objects{}, nil
 }
 
-var _ goDjProjectSnapshot_f0a987a42d6f73f8221220d59d293ed69c3708dfcf9b2705ff22b19ef9dbf617
+var _ goDjProjectSnapshot_1f89a45f6ca2f380ba1df7cd601ac069fd50c4946e3505408857213eb25dee25

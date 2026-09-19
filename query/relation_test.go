@@ -109,7 +109,7 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 	source := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
 	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
 	sourceKey := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
-	path, err := query.NewNullableForwardRelationIsNullPath(
+	path, err := query.NewForwardRelationIsNullPath(
 		source,
 		"blog_post",
 		sourceKey,
@@ -118,7 +118,7 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 		"id",
 	)
 	if err != nil {
-		t.Fatalf("NewNullableForwardRelationIsNullPath() error = %v", err)
+		t.Fatalf("NewForwardRelationIsNullPath() error = %v", err)
 	}
 	if got := path.TerminalScope(); got != query.RelationTerminalSourceKey {
 		t.Fatalf("TerminalScope() = %q, want %q", got, query.RelationTerminalSourceKey)
@@ -155,7 +155,7 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 	if derived.Equal(unlimited) {
 		t.Fatal("limited and unlimited plans compared equal")
 	}
-	identical, err := query.NewNullableForwardRelationIsNullPath(
+	identical, err := query.NewForwardRelationIsNullPath(
 		source, "blog_post", sourceKey, target, "authors_author", "id",
 	)
 	if err != nil || !path.Equal(identical) {
@@ -181,7 +181,6 @@ func TestNullableForwardRelationSourceKeyValidationIsStructured(t *testing.T) {
 		{name: "blank source", table: "blog_post", sourceKey: valid, target: target, targetTable: "authors_author", targetPK: "id"},
 		{name: "blank source table", source: source, sourceKey: valid, target: target, targetTable: "authors_author", targetPK: "id"},
 		{name: "blank source key", source: source, table: "blog_post", target: target, targetTable: "authors_author", targetPK: "id"},
-		{name: "nonnullable source key", source: source, table: "blog_post", sourceKey: query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, false), target: target, targetTable: "authors_author", targetPK: "id"},
 		{name: "noninteger source key", source: source, table: "blog_post", sourceKey: query.NewFieldRef("reviewer", "reviewer_id", query.FieldString, true), target: target, targetTable: "authors_author", targetPK: "id"},
 		{name: "blank target", source: source, table: "blog_post", sourceKey: valid, targetTable: "authors_author", targetPK: "id"},
 		{name: "blank target table", source: source, table: "blog_post", sourceKey: valid, target: target, targetPK: "id"},
@@ -189,7 +188,7 @@ func TestNullableForwardRelationSourceKeyValidationIsStructured(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := query.NewNullableForwardRelationIsNullPath(
+			_, err := query.NewForwardRelationIsNullPath(
 				test.source, test.table, test.sourceKey, test.target, test.targetTable, test.targetPK,
 			)
 			var queryError *query.Error

@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v1"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"
 
 type BlogPostReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[blog.Post, authors.Author]
@@ -33,7 +33,7 @@ func (_factory BlogPostObjectFactory) ParseDynamic(
 	_policy orm.LookupPolicy,
 	_inputs []orm.LookupInput,
 ) ([]orm.Predicate[blog.Post], error) {
-	return orm.ParseDynamicRelationObjects(_factory.model, _policy, _inputs)
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
 }
 
 func (_factory BlogPostObjectFactory) From(_backend db.Queryer, _value blog.Post) (*BlogPostObject, error) {
@@ -159,4 +159,4 @@ func BindObjects() (Objects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_d8139213ae443cc90fc9bc1347fa2439f407de0fb706d64529666ca985490cce
+var _ goDjProjectSnapshot_941123045dfa41c2b2ec155f9b5d290764f2f30fc6d4a3a7cbd057abd08097b9

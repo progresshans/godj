@@ -2,7 +2,7 @@
 
 package project
 
-const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v1"
+const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
 
 type Relations struct {
 }
@@ -14,4 +14,4 @@ func BindRelations() (Relations, error) {
 	return Relations{}, nil
 }
 
-var _ goDjProjectSnapshot_f0a987a42d6f73f8221220d59d293ed69c3708dfcf9b2705ff22b19ef9dbf617
+var _ goDjProjectSnapshot_1f89a45f6ca2f380ba1df7cd601ac069fd50c4946e3505408857213eb25dee25

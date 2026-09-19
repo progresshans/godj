@@ -130,7 +130,7 @@ func bindForwardObject[S, T any](
 		valid:     true,
 	}
 	if wantNullable {
-		state.nullablePath, err = query.NewNullableForwardRelationIsNullPath(
+		state.nullablePath, err = query.NewForwardRelationIsNullPath(
 			relation.sourceIdentity,
 			relation.sourceModel.DBTable,
 			fieldReference(sourceField),

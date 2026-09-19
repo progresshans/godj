@@ -107,7 +107,7 @@ func Condition(leaf Leaf) (query.Condition, error) {
 		return query.Condition{}, fmt.Errorf("invalid input path %q", leaf.Path)
 	}
 	if terminal == "isnull" && relation == "reviewer" {
-		path, err := query.NewNullableForwardRelationIsNullPath(post, "nullable_reference_post", SourceFields()[3], author, "nullable_reference_author", "id")
+		path, err := query.NewForwardRelationIsNullPath(post, "nullable_reference_post", SourceFields()[3], author, "nullable_reference_author", "id")
 		if err != nil {
 			return query.Condition{}, err
 		}

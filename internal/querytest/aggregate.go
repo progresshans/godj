@@ -40,7 +40,7 @@ func CheckAggregateSemantics(t *testing.T, ctx context.Context, backend db.Query
 	if err != nil {
 		t.Fatal(err)
 	}
-	nullable, err := query.NewNullableForwardRelationIsNullPath(post, "aggregate_post", reviewerKey, author, "aggregate_author", "id")
+	nullable, err := query.NewForwardRelationIsNullPath(post, "aggregate_post", reviewerKey, author, "aggregate_author", "id")
 	if err != nil {
 		t.Fatal(err)
 	}

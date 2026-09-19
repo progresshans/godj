@@ -622,7 +622,7 @@ func TestTypedAndDynamicNullableRelationObjectsSharePlan(t *testing.T) {
 	}
 
 	seenPolicy := false
-	dynamic, err := ParseDynamicRelationObjects(post, func(field ir.Field, lookup query.Lookup) bool {
+	dynamic, err := ParseDynamicRelations(post, func(field ir.Field, lookup query.Lookup) bool {
 		if field.Name == "reviewer" {
 			seenPolicy = field.Kind == ir.FieldForeignKey && field.Nullable && field.Column == "reviewer_id" &&
 				field.Relation != nil && field.Relation.Target == (ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}) &&
@@ -635,7 +635,7 @@ func TestTypedAndDynamicNullableRelationObjectsSharePlan(t *testing.T) {
 		{Key: "reviewer__isnull", Value: true},
 	})
 	if err != nil {
-		t.Fatalf("ParseDynamicRelationObjects() error = %v", err)
+		t.Fatalf("ParseDynamicRelations() error = %v", err)
 	}
 	if !seenPolicy {
 		t.Fatal("policy did not receive canonical nullable source field")

@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v1"
+const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"
 
 type RelationObjectPackage struct {
 	Alias      string
@@ -243,7 +243,7 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	fmt.Fprintln(output, "\t_policy orm.LookupPolicy,")
 	fmt.Fprintln(output, "\t_inputs []orm.LookupInput,")
 	fmt.Fprintf(output, ") ([]orm.Predicate[%s], error) {\n", sourceType)
-	fmt.Fprintln(output, "\treturn orm.ParseDynamicRelationObjects(_factory.model, _policy, _inputs)")
+	fmt.Fprintln(output, "\treturn orm.ParseDynamicRelations(_factory.model, _policy, _inputs)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_factory %s) From(_backend db.Queryer, _value %s) (*%s, error) {\n", source.factoryType, sourceType, source.objectType)

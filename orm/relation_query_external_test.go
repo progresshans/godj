@@ -60,7 +60,7 @@ func TestNullableForwardTypedAndDynamicPredicatesShareBooleanAST(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dynamic, err := orm.ParseDynamicRelationObjects(fixture.postModel, nil, []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}, {Key: "reviewer__id", Value: int64(2)}})
+	dynamic, err := orm.ParseDynamicRelations(fixture.postModel, nil, []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}, {Key: "reviewer__id", Value: int64(2)}})
 	if err != nil || len(dynamic) != 2 {
 		t.Fatalf("nullable dynamic inputs = %v", err)
 	}
@@ -75,7 +75,7 @@ func TestNullableForwardTypedAndDynamicPredicatesShareBooleanAST(t *testing.T) {
 	if !ok || len(path.Hops()) != 1 || !path.Hops()[0].Nullable() || path.Hops()[0].Field() != "reviewer" {
 		t.Fatalf("nullable provenance = %#v", path)
 	}
-	failed, err := orm.ParseDynamicRelationObjects(fixture.postModel, nil, []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}, {Key: "reviewer__id", Value: "2"}})
+	failed, err := orm.ParseDynamicRelations(fixture.postModel, nil, []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}, {Key: "reviewer__id", Value: "2"}})
 	if failed != nil {
 		t.Fatal("invalid input published a partial nullable batch")
 	}

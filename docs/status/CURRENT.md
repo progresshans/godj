@@ -2,9 +2,8 @@
 
 - 갱신: 2026-09-19
 - 활성 구현: [GDJ-0082 여러 단계의 forward 관계 조회](../../work/0082-nested-forward-relation-paths.md)
-- 통합 검증 중: [GDJ-0081 복수 eager selection](../../work/0081-multiple-forward-eager-selections.md), source `7e5a933db69435154842162287ef86ef7172bc17`, [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35417711000)
-- 최근 완료: [GDJ-0080 Eager/filter JOIN 조합과 self-reference 검증](../../work/0080-eager-filter-join-composition.md)
-- 최근 Hosted 기능 검증: source `7397a73b933eef4d30c5a8fa12c84a79fc7945e9`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35414363995)
+- 최근 완료: [GDJ-0081 여러 direct forward 관계를 함께 읽기](../../work/0081-multiple-forward-eager-selections.md)
+- 최근 Hosted 기능 검증: source `7e5a933db69435154842162287ef86ef7172bc17`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35417711000)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
 - 최신 전체 검증: [Text+DateTime Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35384697050)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -25,8 +24,9 @@ Nullable/required forward FK의 scalar 비교·문자열·isnull·IN과 AND/OR/N
 ## 다음 행동
 
 GDJ-0081의 복수 projection·공통 typed scan/cache·생성 selector를 구현했고 normal·race·CGO0와 독립 reference를 완료했다.
-기존 Draft PR #1에 통합한 source의 Hosted ORM 완료를 확인한다.
-별도 작업 사본의 GDJ-0082에서 여러 단계의 forward 경로·NULL·alias 의미를 독립 관찰하고 공통 Query AST와 typed/dynamic 탐색을 설계·구현한다.
+기존 Draft PR #1에 통합한 source의 Hosted ORM도 완료했다.
+GDJ-0082의 여러 단계 forward 경로·typed/dynamic 탐색을 구현하고 normal/race/CGO0의 양 DB·생성 소비자 검증을 완료했다.
+기존 Draft PR의 Hosted ORM 통합을 이어간다. 이후 같은 경로를 nested eager materialization/cache에 연결한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거

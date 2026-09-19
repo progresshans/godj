@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v1"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"
 
 type ModelsTicketObjectFactory struct {
 	model    orm.BoundModel[models.Ticket]
@@ -22,7 +22,7 @@ func (_factory ModelsTicketObjectFactory) ParseDynamic(
 	_policy orm.LookupPolicy,
 	_inputs []orm.LookupInput,
 ) ([]orm.Predicate[models.Ticket], error) {
-	return orm.ParseDynamicRelationObjects(_factory.model, _policy, _inputs)
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
 }
 
 func (_factory ModelsTicketObjectFactory) From(_backend db.Queryer, _value models.Ticket) (*ModelsTicketObject, error) {
@@ -129,4 +129,4 @@ func BindObjects() (Objects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_7777d450cd208876f933fd6fe0b231637ebe17d04d81de8ca78baf5ea7709d97
+var _ goDjProjectSnapshot_41fb8043313deb900f92e07e6f03c44e279b95f5fce5533200ee8a06765e2cb1

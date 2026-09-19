@@ -102,7 +102,6 @@ func TestGenerateProjectRelationReverseRejectsInvalidInputsAndNamespaces(t *test
 	duplicateReverse.Models[0].Fields[3].Relation.Reverse.Name = "posts"
 	missingOwnerPrimaryKey := authors.Clone()
 	missingOwnerPrimaryKey.Models[0].Fields[0].PrimaryKey = false
-	selfCollision := selfReverseUnionCollisionSchema()
 
 	tests := []struct {
 		name     string
@@ -135,7 +134,6 @@ func TestGenerateProjectRelationReverseRejectsInvalidInputsAndNamespaces(t *test
 		{name: "unresolved owner", pkg: "project", packages: []codegen.RelationReversePackage{valid[1]}},
 		{name: "owner without primary key", pkg: "project", packages: relationReverseGenerationPackages(missingOwnerPrimaryKey, blog)},
 		{name: "duplicate reverse namespace", pkg: "project", packages: relationReverseGenerationPackages(authors, duplicateReverse)},
-		{name: "immutable project query union collision", pkg: "project", packages: []codegen.RelationReversePackage{{Alias: "nodes", ImportPath: "example.com/nodes", Schema: selfCollision}}},
 	}
 	for _, reverseName := range []string{
 		"_posts",
@@ -297,5 +295,11 @@ func selfReverseUnionCollisionSchema() ir.Schema {
 				},
 			},
 		}},
+	}
+}
+
+func TestGenericQueryGroupsNoLongerCollideWithReverseRelationTypes(t *testing.T) {
+	if _, err := codegen.GenerateProjectRelationReverse("project", []codegen.RelationReversePackage{{Alias: "nodes", ImportPath: "example.com/nodes", Schema: selfReverseUnionCollisionSchema()}}); err != nil {
+		t.Fatalf("query generic groups must not reserve removed per-edge names: %v", err)
 	}
 }

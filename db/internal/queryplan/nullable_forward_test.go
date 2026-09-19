@@ -19,7 +19,7 @@ func TestNullableForwardJoinRejectsConflictingPresenceProof(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	presencePath, err := query.NewNullableForwardRelationIsNullPath(post, "blog_post", reviewer, author, "archived_author", "id")
+	presencePath, err := query.NewForwardRelationIsNullPath(post, "blog_post", reviewer, author, "archived_author", "id")
 	if err != nil {
 		t.Fatal(err)
 	}

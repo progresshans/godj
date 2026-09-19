@@ -1006,4 +1006,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_7777d450cd208876f933fd6fe0b231637ebe17d04d81de8ca78baf5ea7709d97
+var _ goDjProjectSnapshot_41fb8043313deb900f92e07e6f03c44e279b95f5fce5533200ee8a06765e2cb1

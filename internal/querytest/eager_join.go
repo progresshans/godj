@@ -38,7 +38,7 @@ func ConflictingEagerJoinPlans(t testing.TB) map[string]query.Plan {
 		return query.NewRelatedCondition(path, query.LookupExact, query.String("Ada"))
 	}
 	presence := func(source, target ir.ModelIdentity, table string) query.Condition {
-		path, err := query.NewNullableForwardRelationIsNullPath(source, "blog_post", reviewer, target, table, "id")
+		path, err := query.NewForwardRelationIsNullPath(source, "blog_post", reviewer, target, table, "id")
 		if err != nil {
 			t.Fatal(err)
 		}

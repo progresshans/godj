@@ -142,9 +142,9 @@ func TestPublicRelationObjectSurfaceCompilesAndLoads(t *testing.T) {
 	if _, ok, err := absent.Get(context.Background()); err != nil || ok {
 		t.Fatalf("nullable Get() = (ok=%v, err=%v)", ok, err)
 	}
-	predicates, err := orm.ParseDynamicRelationObjects(post, nil, []orm.LookupInput{{Key: "reviewer__isnull", Value: true}})
+	predicates, err := orm.ParseDynamicRelations(post, nil, []orm.LookupInput{{Key: "reviewer__isnull", Value: true}})
 	if err != nil || len(predicates) != 1 {
-		t.Fatalf("ParseDynamicRelationObjects() = (%#v, %v)", predicates, err)
+		t.Fatalf("ParseDynamicRelations() = (%#v, %v)", predicates, err)
 	}
 	typed := orm.NewManager[relationQueryPost](publicPostObjectDescriptor{}).Using(nil).Filter(nullable.IsNull(true)).Plan()
 	dynamic := orm.NewManager[relationQueryPost](publicPostObjectDescriptor{}).Using(nil).Filter(predicates...).Plan()

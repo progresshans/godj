@@ -9,28 +9,46 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v1"
+const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
 
-type BlogPostAuthorRelation struct {
-	ID   orm.RelatedIntegerField[blog.Post]
-	Name orm.RelatedStringField[blog.Post]
+type relationQueryBindings struct {
+	edge0 orm.ForwardRelation[blog.Post, authors.Author]
+	edge1 orm.ForwardRelation[blog.Post, authors.Author]
+}
+type AuthorsAuthorRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.ForwardRelation[S, authors.Author]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Name             orm.RelatedStringField[S]
 }
 
-type BlogPostReviewerRelation struct {
-	ID   orm.RelatedIntegerField[blog.Post]
-	Name orm.RelatedStringField[blog.Post]
+func newAuthorsAuthorRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, authors.Author]) AuthorsAuthorRelatedFields[S] {
+	_result := AuthorsAuthorRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(authors.AuthorFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(authors.AuthorFields.Name)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Name = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields AuthorsAuthorRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
 }
 
 type BlogPostRelations struct {
-	Author   BlogPostAuthorRelation
-	Reviewer BlogPostReviewerRelation
+	Author   AuthorsAuthorRelatedFields[blog.Post]
+	Reviewer AuthorsAuthorRelatedFields[blog.Post]
 	model    orm.BoundModel[blog.Post]
 }
 
-func (_relations BlogPostRelations) ParseDynamic(
-	_policy orm.LookupPolicy,
-	_inputs []orm.LookupInput,
-) ([]orm.Predicate[blog.Post], error) {
+func (_relations BlogPostRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[blog.Post], error) {
 	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
@@ -59,43 +77,31 @@ func BindRelations() (Relations, error) {
 	if _err != nil {
 		return Relations{}, _err
 	}
+	_routes := &relationQueryBindings{}
 	_relation0, _err := orm.BindForward(_model1, "author", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_terminal0, _err := _relation0.Integer(authors.AuthorFields.ID)
-	if _err != nil {
-		return Relations{}, _err
-	}
-	_terminal1, _err := _relation0.String(authors.AuthorFields.Name)
-	if _err != nil {
-		return Relations{}, _err
-	}
+	_routes.edge0 = _relation0
 	_relation1, _err := orm.BindForward(_model1, "reviewer", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_terminal2, _err := _relation1.Integer(authors.AuthorFields.ID)
-	if _err != nil {
-		return Relations{}, _err
+	_routes.edge1 = _relation1
+	_group0 := newAuthorsAuthorRelatedFields[blog.Post](_routes, _routes.edge0)
+	if _group0.configurationErr != nil {
+		return Relations{}, _group0.configurationErr
 	}
-	_terminal3, _err := _relation1.String(authors.AuthorFields.Name)
-	if _err != nil {
-		return Relations{}, _err
+	_group1 := newAuthorsAuthorRelatedFields[blog.Post](_routes, _routes.edge1)
+	if _group1.configurationErr != nil {
+		return Relations{}, _group1.configurationErr
 	}
 	return Relations{
-		BlogPost: BlogPostRelations{
-			Author: BlogPostAuthorRelation{
-				ID:   _terminal0,
-				Name: _terminal1,
-			},
-			Reviewer: BlogPostReviewerRelation{
-				ID:   _terminal2,
-				Name: _terminal3,
-			},
-			model: _model1,
+		BlogPost: BlogPostRelations{model: _model1,
+			Author:   _group0,
+			Reviewer: _group1,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_d8139213ae443cc90fc9bc1347fa2439f407de0fb706d64529666ca985490cce
+var _ goDjProjectSnapshot_941123045dfa41c2b2ec155f9b5d290764f2f30fc6d4a3a7cbd057abd08097b9

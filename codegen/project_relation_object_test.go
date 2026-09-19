@@ -36,7 +36,7 @@ func TestGenerateProjectRelationObjectIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("project relation object bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v1"`),
+		[]byte(`const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"`),
 		[]byte(`context "context"`),
 		[]byte(`db "github.com/progresshans/godj/db"`),
 		[]byte(`orm "github.com/progresshans/godj/orm"`),
@@ -91,7 +91,6 @@ func TestGenerateProjectRelationObjectRejectsInvalidInputsAndNamespaces(t *testi
 	valid := relationObjectGenerationPackages(authors, blog)
 	falseAlias := relationObjectGenerationPackages(authors, blog)
 	falseAlias[0].Alias = "false"
-	collisionAuthors, collisionBlog := relationObjectProjectNamespaceCollisionSchemas()
 	tests := []struct {
 		name     string
 		pkg      string
@@ -128,7 +127,6 @@ func TestGenerateProjectRelationObjectRejectsInvalidInputsAndNamespaces(t *testi
 		{name: "Fresh method collision", pkg: "project", packages: relationObjectPackagesWithFieldGoName(authors, blog, 2, "FreshID")},
 		{name: "nullable From field collision", pkg: "project", packages: relationObjectPackagesWithFieldGoName(authors, blog, 3, "FromID")},
 		{name: "nullable ParseDynamic field collision", pkg: "project", packages: relationObjectPackagesWithFieldGoName(authors, blog, 3, "ParseDynamicID")},
-		{name: "project query and object type collision", pkg: "project", packages: relationObjectGenerationPackages(collisionAuthors, collisionBlog)},
 		{name: "derived surface collision", pkg: "project", packages: collidingRelationObjectSurfaces()},
 	}
 	for _, test := range tests {
@@ -233,5 +231,12 @@ func TestRelationObjectPackageAliasesStayASCIIAndReserved(t *testing.T) {
 		if _, err := codegen.GenerateProjectRelationObject("project", packages); err != nil {
 			t.Fatalf("GenerateProjectRelationObject() rejected safe alias %q: %v", alias, err)
 		}
+	}
+}
+
+func TestGenericQueryGroupsNoLongerCollideWithObjectRelationTypes(t *testing.T) {
+	authors, blog := relationObjectProjectNamespaceCollisionSchemas()
+	if _, err := codegen.GenerateProjectRelationObject("project", relationObjectGenerationPackages(authors, blog)); err != nil {
+		t.Fatalf("query generic groups must not reserve removed per-edge names: %v", err)
 	}
 }

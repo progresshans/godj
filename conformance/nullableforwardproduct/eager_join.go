@@ -119,7 +119,7 @@ func eagerJoinCondition(leaf Leaf) (query.Condition, error) {
 		return query.NewRelatedCondition(path, query.LookupExact, query.String(value)), nil
 	}
 	if leaf.Path == "reviewer__isnull" {
-		path, err := query.NewNullableForwardRelationIsNullPath(post, "join_reference_post", SourceFields()[3], person, "join_reference_person", "id")
+		path, err := query.NewForwardRelationIsNullPath(post, "join_reference_post", SourceFields()[3], person, "join_reference_person", "id")
 		if err != nil {
 			return query.Condition{}, err
 		}
