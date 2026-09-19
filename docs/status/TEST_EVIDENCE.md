@@ -7,6 +7,7 @@
 
 - 작업: [GDJ-0087](../../work/0087-calendar-date-models.md), branch `feature/calendar-date-models`, integration baseline
   `13937986914317d365f580f2adead277d73e2ce1`.
+- 제품·로컬 검증 source: `b2b01f80f9a8b04c1893f8dc5d24e9b19ba4b087`. 기존 Draft PR #1에 fast-forward로 통합하고 push했다.
 - Markdown 제외 109개 변경 파일의 정렬된 `<sha256>  <relative-path>\n` manifest SHA256은
   `1a410b39897b27aa75016a1e22b5ac3e5bff6dafd6f698131e7b4f1696498289`다. 아래 실행 중 제품·생성물·reference·test bytes를 유지했다.
 - `calendar.Date`·IR/default/strict wire·typed/dynamic AST·generator·양 DB DATE·Form/Admin·Helpdesk 방문 예정일
@@ -58,7 +59,8 @@ Go Form은 120개 cleaned/error/changed 관찰, serializer는 268개 field 결�
 같은 checkpoint의 serializer NUL 4개는 테스트가 global JSON 거부 전에 field binding을 기대해서 실패했다. 보안 규칙을 바꾸지 않고
 reference 대조와 document-boundary assertion을 구분했다. 수정 후 focused 실행과 위 일반 checkpoint가 통과했다.
 
-이 날짜 source의 Hosted 검증은 아직 시작하지 않았다. 과거 GDJ-0086 ORM / GDJ-0074 full 결과를 Date의 PASS로 사용하지 않는다.
+같은 날짜 source의 [Hosted ORM 실행](https://github.com/progresshans/godj/actions/runs/35471559786)을 dispatch했다. 아직 terminal 결과가 없으며 PASS로 세지 않는다.
+과거 GDJ-0086 ORM / GDJ-0074 full 결과를 Date의 PASS로 사용하지 않는다.
 전체 platform/cold-build 검증도 위 로컬 범위에 포함되지 않는다. 문서 link·status·diff 검사는 **120 documents PASS**다.
 전용 로컬 PostgreSQL DB는 모든 실행을 마친 뒤 삭제했다. PostgreSQL service 자체는 유지했다.
 

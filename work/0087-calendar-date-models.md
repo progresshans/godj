@@ -43,5 +43,6 @@ DateTime과 다른 날짜 의미는 [ADR-0061](../docs/adr/0061-datetime-field-a
 
 Calendar Date의 값/IR/AST·generated ORM·양 DB migration·Form/Admin·Helpdesk·OpenAPI/독립 client를 연결했다.
 독립 reference와 정상·실패·취소·copy·rollback·재연결·역방향 검증을 추가했고 affected 일반/race/CGO0과 생성물 drift·vet을 통과했다.
-기존 Draft PR에 통합하고 해당 source의 Hosted ORM 결과를 확인한다. 실행별 source·범위는
+제품 source `b2b01f80f9a8b04c1893f8dc5d24e9b19ba4b087`를 기존 Draft PR에 통합했다.
+[Hosted ORM](https://github.com/progresshans/godj/actions/runs/35471559786)의 terminal 결과와 실제 scope를 확인한다. 실행별 source·범위는
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0087--calendar-date의-모델소비자-연결)에 기록한다.
