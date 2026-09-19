@@ -2,9 +2,8 @@
 
 - 갱신: 2026-09-19
 - 활성 구현: [GDJ-0083 중첩 forward eager 조회와 cache](../../work/0083-nested-forward-eager-graphs.md)
-- 통합 검증 중: [GDJ-0082 여러 단계의 forward 관계 조회](../../work/0082-nested-forward-relation-paths.md), source `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`, [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35421304637)
-- 최근 완료: [GDJ-0081 여러 direct forward 관계를 함께 읽기](../../work/0081-multiple-forward-eager-selections.md)
-- 최근 Hosted 기능 검증: source `7e5a933db69435154842162287ef86ef7172bc17`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35417711000)
+- 최근 완료: [GDJ-0082 여러 단계의 forward 관계 조회](../../work/0082-nested-forward-relation-paths.md)
+- 최근 Hosted 기능 검증: source `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35421304637)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
 - 최신 전체 검증: [Text+DateTime Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35384697050)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -24,10 +23,8 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0081의 복수 projection·공통 typed scan/cache·생성 selector를 구현했고 normal·race·CGO0와 독립 reference를 완료했다.
-기존 Draft PR #1에 통합한 source의 Hosted ORM도 완료했다.
-GDJ-0082의 여러 단계 forward 경로·typed/dynamic 탐색을 구현하고 normal/race/CGO0의 양 DB·생성 소비자 검증을 완료했다.
-기존 Draft PR의 Hosted ORM 완료를 확인하며 별도 작업 사본의 GDJ-0083에서 같은 경로를 nested eager materialization/cache에 연결한다.
+GDJ-0082의 다단계 forward 조회를 구현했고 normal/race/CGO0와 기존 Draft PR의 Hosted ORM 검증을 완료했다.
+별도 작업 사본의 GDJ-0083에서 전체 경로 projection·typed 자식 선택·scan/cache를 구현하고 생성 소비자까지 연결한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거

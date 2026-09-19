@@ -34,7 +34,7 @@
   terminal을 대조했다. 유일한 testcase skip은 부모가 별도 프로세스로 실행하는 `TestPostgresRevisionFenceHelperProcess`다.
 - Race도 **28 test packages, 5,068 test 완료 event PASS**다. Normal/CGO0가 실행한 `internal/compiletest`의
   `!race` 최상위 7개·하위 포함 50개 event를 제외한 test roster가 일치한다. 세 lane의 제품 source manifest가 같다.
-  이 source의 Hosted ORM은 다음 통합 단계이며 현재 결과를 Hosted/전체 platform PASS로 표시하지 않는다.
+  이 source의 Hosted ORM 완료는 아래 통합 checkpoint에 별도로 기록한다. 전체 platform PASS로 확대하지 않는다.
 - 양 DB에서 **146개 독립 관찰**의 All·First·Count·selected target field 값·SELECT 수·LEFT JOIN 수를 대조했다.
   Nullable ancestor 아래 required tail, self-cycle·공유 prefix·서로 다른 route, DateTime/정수/문자열/Boolean·IN·AND/OR/NOT,
   reverse 중복·Distinct·slice·direct eager 조합을 포함한다.
@@ -63,7 +63,16 @@ structured error 기대값을 바로잡았다. 없어진 per-edge query 타입�
 Feature `3cfecb9`를 기존 Draft PR #1에 통합한 source는 `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`다.
 제품 91개 파일이 로컬 검증 manifest와 일치함을 확인했다. 두 문서 충돌은 이미 반영한 GDJ-0081 Hosted 완료와
 새 구현 상태를 유지하여 해결했다. [Hosted ORM run 35421304637](https://github.com/progresshans/godj/actions/runs/35421304637)의
-`headSha`가 이 source와 같음을 확인했으며 현재 queued다. 완료·전체 platform PASS로 표시하지 않는다.
+48개 unique job의 `head_sha`·run ID·attempt 1·terminal 상태를 대조했다. **44 success, 4 expected scope skip**으로 완료했으며
+최종 `CI result (orm)` job `105841846273`의 보고서는 다음과 같다.
+
+```json
+{"full_platform_verified":false,"scope":"orm","verified_jobs":["command-product-matrix","portable-go-matrix","postgresql-product","relation-product-matrix"]}
+```
+
+PostgreSQL 17.10 여섯 mode/shard와 선택된 Linux/macOS를 검증했다. 제외 항목은 product project check,
+exact Darwin profile, Python compatibility, reference/current capture다. 최신 full은 별도 source `8fd8936d`의
+run `35384697050`이며, 이 source의 full·Windows runtime·배포 결과로 사용하지 않는다.
 
 ## GDJ-0081 — 여러 direct forward target 동시 선택
 

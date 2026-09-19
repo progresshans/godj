@@ -31,7 +31,7 @@ integration_owner: "root"
 
 ## 현재와 다음
 
-GDJ-0082의 normal/race/CGO0 양 DB·생성 소비자 검증을 완료했고 baseline의 Hosted ORM은 별도 진행 중이다.
+GDJ-0082의 normal/race/CGO0 양 DB·생성 소비자 검증을 완료했고 baseline의 Hosted ORM도 완료했다.
 Django 6.1 fresh process에서 명시적 path 집합 8개의 독립 관찰 440개를 준비했다. 현재는 scratch 연구이며 제품/회귀
 fixture로 게시하지 않았다. 각 selected prefix 접근은 원래 First/All SQL 안에 끝나고 warm 접근의 SQL은 0이었다.
 이 입력을 재현 가능한 reference로 정리한 뒤 projection·runtime·generator·consumer를 한 변경 묶음으로 구현한다.
