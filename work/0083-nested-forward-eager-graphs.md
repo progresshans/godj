@@ -1,6 +1,6 @@
 ---
 id: GDJ-0083
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0"
 integration_owner: "root"
@@ -37,6 +37,7 @@ Normal/race/CGO0·generated drift·compile/vet와 필수 실행 목록 대조를
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0083--nested-eager-graph와-하위-cache)가 소유한다.
 
 기존 Draft PR에 제품 source `a49b592be1896d02d73a9657fe360623ffa296d8`로 통합했다.
-[Hosted ORM run 35425015186](https://github.com/progresshans/godj/actions/runs/35425015186)의 source·필수 job·최종 scope를 확인한 뒤
-다음 기능을 선택한다.
-현재 새 Hosted/full/platform 완료 주장은 없다. 장기 목표는 헌장·기능 카탈로그의 완성이며 이 작업의 완료로 축소하지 않는다.
+[Hosted ORM run 35425015186](https://github.com/progresshans/godj/actions/runs/35425015186)의 source·48개 job·최종 ORM scope를 대조했고
+44 success와 예정된 scope skip 4개로 완료했다. 실행 상세와 제외 범위는 TEST_EVIDENCE에 기록했다.
+다음은 [GDJ-0084 historical relation graph와 순환 migration](0084-relation-migration-graphs.md)이다.
+현재 source의 full/platform 완료 주장은 없다. 장기 목표는 헌장·기능 카탈로그의 완성이며 이 작업의 완료로 축소하지 않는다.
