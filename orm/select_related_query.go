@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"slices"
-	"strings"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
 )
 
-// ForwardSelectQuery evaluates all selected direct targets in one rowset. Its
+// ForwardSelectQuery evaluates the selected forward target tree in one rowset. Its
 // cache is independent of the source QuerySet and retains concrete target types.
 type ForwardSelectQuery[S any] struct {
 	backend          db.Queryer
@@ -41,41 +39,32 @@ func SelectForward[S any](source QuerySet[S], selections ...ForwardSelection[S])
 	if len(source.plan.RelationProjections()) != 0 {
 		return result.WithConfigurationError(relationInvalidPlan("source QuerySet already contains eager projections"))
 	}
-	unique := make(map[string]preparedForwardSelection[S], len(selections))
-	for _, selection := range selections {
-		if interfaceIsNil(selection) {
-			return result.WithConfigurationError(relationInvalidPlan("forward selection is nil"))
-		}
-		target, err := selection.prepareForwardSelection()
-		if err != nil {
-			return result.WithConfigurationError(err)
-		}
+	remaining := MaximumForwardSelectionNodes
+	targets, err := prepareSelectionSet(selections, 1, &remaining)
+	if err != nil {
+		return result.WithConfigurationError(err)
+	}
+	result.targets = targets
+	for index, target := range targets {
 		path := target.path()
-		if len(unique) == 0 {
+		if index == 0 {
 			result.binding = path.source
 			result.sourceDescriptor = path.sourceDescriptor
 		}
 		if path.source.snapshot != result.binding.snapshot || path.source.identity != result.binding.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(result.sourceDescriptor) {
 			return result.WithConfigurationError(relationInvalidPlan("selected targets do not share one source binding"))
 		}
-		if previous, exists := unique[path.path]; exists && !previous.sameBinding(target) {
-			return result.WithConfigurationError(relationInvalidPlan("repeated selected target has conflicting binding metadata"))
-		}
-		unique[path.path] = target
 	}
 	if source.evaluation == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(result.sourceDescriptor) || !reflect.DeepEqual(source.descriptor.Metadata(), result.binding.model) || source.plan.Table() != result.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(result.binding.model)) {
 		return result.WithConfigurationError(relationInvalidPlan("source QuerySet does not match the selected source binding"))
 	}
-	result.targets = make([]preparedForwardSelection[S], 0, len(unique))
-	for _, target := range unique {
-		result.targets = append(result.targets, target)
-	}
-	slices.SortFunc(result.targets, func(left, right preparedForwardSelection[S]) int {
-		return strings.Compare(left.path().path, right.path().path)
-	})
-	projections := make([]query.RelationProjection, len(result.targets))
-	for index, target := range result.targets {
-		projections[index] = target.path().projection
+	var projections []query.RelationProjection
+	for _, target := range result.targets {
+		items, err := target.projections(nil)
+		if err != nil {
+			return result.WithConfigurationError(err)
+		}
+		projections = append(projections, items...)
 	}
 	plan, err := source.plan.WithRelationProjections(projections...)
 	if err != nil {
@@ -95,6 +84,23 @@ func (selection ForwardSelect[S, T]) Select(source QuerySet[S], others ...Forwar
 }
 func (q ForwardSelectQuery[S]) Plan() query.Plan    { return q.plan }
 func (q ForwardSelectQuery[S]) Backend() db.Queryer { return q.backend }
+
+// WithSourceBinding seals a generated object/facade query to its own project
+// source. A raw QuerySet alone has no project snapshot with which to compare a
+// selector, so the generated boundary supplies that ownership explicitly.
+func (q ForwardSelectQuery[S]) WithSourceBinding(source BoundModel[S]) ForwardSelectQuery[S] {
+	if q.configurationErr != nil {
+		return q
+	}
+	if err := validateObjectBoundModel(source); err != nil {
+		return q.WithConfigurationError(err)
+	}
+	if q.binding.snapshot != source.snapshot || q.binding.identity != source.identity || reflect.TypeOf(q.sourceDescriptor) != reflect.TypeOf(source.objectDescriptor) {
+		return q.WithConfigurationError(relationInvalidPlan("selected query belongs to another source binding"))
+	}
+	return q
+}
+func (q ForwardSelectQuery[S]) ConfigurationError() error { return q.configurationErr }
 func (q ForwardSelectQuery[S]) WithConfigurationError(err error) ForwardSelectQuery[S] {
 	if err != nil {
 		q.configurationErr = err
@@ -111,6 +117,7 @@ type selectedForwardCache struct {
 // Copying the struct does not transfer its ownership.
 type ForwardSelected[S any] struct {
 	source           S
+	backend          db.Queryer
 	binding          BoundModel[S]
 	sourceDescriptor ProjectionDescriptor[S]
 	targets          map[string]selectedForwardCache
@@ -119,15 +126,39 @@ type ForwardSelected[S any] struct {
 }
 
 func (s *ForwardSelected[S]) validate() error {
-	if s == nil || s._self != s || interfaceIsNil(s.sourceDescriptor) || len(s.targets) == 0 {
+	if s == nil || s._self != s || interfaceIsNil(s.sourceDescriptor) || interfaceIsNil(s.backend) || len(s.targets) == 0 {
 		return relationInvalidPlan("forward selected result is nil, zero, or copied")
 	}
 	for name, target := range s.targets {
-		if name != target.projection.Hop().Field() || interfaceIsNil(target.related) {
+		if name != target.projection.TerminalHop().Field() || interfaceIsNil(target.related) {
 			return relationInvalidPlan("forward selected target cache is invalid")
 		}
 	}
 	return nil
+}
+
+// ValidateSourceBinding protects generated graph wrappers from a same-shaped
+// model belonging to a different sealed project snapshot.
+func (s *ForwardSelected[S]) ValidateSourceBinding(source BoundModel[S]) error {
+	if err := s.validate(); err != nil {
+		return err
+	}
+	if err := validateObjectBoundModel(source); err != nil {
+		return err
+	}
+	if s.binding.snapshot != source.snapshot || s.binding.identity != source.identity || reflect.TypeOf(s.sourceDescriptor) != reflect.TypeOf(source.objectDescriptor) {
+		return relationInvalidPlan("selected graph belongs to another source binding")
+	}
+	return nil
+}
+
+// Backend retains the affinity of the evaluated graph, including lazy edges
+// that a generated wrapper may later access.
+func (s *ForwardSelected[S]) Backend() (db.Queryer, error) {
+	if err := s.validate(); err != nil {
+		return nil, err
+	}
+	return s.backend, nil
 }
 func (s *ForwardSelected[S]) Source() (S, error) {
 	var zero S
@@ -174,10 +205,11 @@ func (q ForwardSelectQuery[S]) validateTerminal(ctx context.Context) error {
 		return relationInvalidPlan("selected source descriptor changed")
 	}
 	projections := q.plan.RelationProjections()
-	if len(projections) != len(q.targets) || q.plan.Table() != q.binding.model.DBTable || !reflect.DeepEqual(q.plan.SourceFields(), modelFieldReferences(q.binding.model)) {
+	if q.plan.Table() != q.binding.model.DBTable || !reflect.DeepEqual(q.plan.SourceFields(), modelFieldReferences(q.binding.model)) {
 		return relationInvalidPlan("forward select query plan is zero or changed")
 	}
-	for index, target := range q.targets {
+	var expected []query.RelationProjection
+	for _, target := range q.targets {
 		if interfaceIsNil(target) {
 			return relationInvalidPlan("selected target is nil")
 		}
@@ -185,8 +217,23 @@ func (q ForwardSelectQuery[S]) validateTerminal(ctx context.Context) error {
 			return err
 		}
 		path := target.path()
-		if path.source.snapshot != q.binding.snapshot || path.source.identity != q.binding.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(q.sourceDescriptor) || !projections[index].Equal(path.projection) {
+		if path.source.snapshot != q.binding.snapshot || path.source.identity != q.binding.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(q.sourceDescriptor) {
 			return relationInvalidPlan("selected projection or binding changed")
+		}
+	}
+	for _, target := range q.targets {
+		items, err := target.projections(nil)
+		if err != nil {
+			return err
+		}
+		expected = append(expected, items...)
+	}
+	if len(projections) != len(expected) {
+		return relationInvalidPlan("selected projection roster changed")
+	}
+	for i, projection := range projections {
+		if !projection.Equal(expected[i]) {
+			return relationInvalidPlan("selected projection route changed")
 		}
 	}
 	return nil
@@ -291,7 +338,7 @@ func (q ForwardSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 				break
 			}
 			cells := scans[index].destinations()
-			if !validProjectionDestinations(cells, len(target.path().projection.TargetColumns())) {
+			if !validProjectionDestinations(cells, target.columnCount()) {
 				err = relationInvalidPlan("target projection scan destinations do not match selected columns")
 				break
 			}
@@ -355,10 +402,13 @@ func validProjectionDestinations(destinations []any, expected int) bool {
 	return true
 }
 func (q ForwardSelectQuery[S]) cloneSelection(value forwardSelectedValue[S]) *ForwardSelected[S] {
-	selected := &ForwardSelected[S]{source: q.sourceDescriptor.CloneModel(value.source), binding: q.binding, sourceDescriptor: q.sourceDescriptor, targets: make(map[string]selectedForwardCache, len(value.targets))}
+	return cloneForwardSelection(q.backend, q.binding, q.sourceDescriptor, value)
+}
+func cloneForwardSelection[S any](backend db.Queryer, binding BoundModel[S], descriptor ProjectionDescriptor[S], value forwardSelectedValue[S]) *ForwardSelected[S] {
+	selected := &ForwardSelected[S]{source: descriptor.CloneModel(value.source), backend: backend, binding: binding, sourceDescriptor: descriptor, targets: make(map[string]selectedForwardCache, len(value.targets))}
 	for _, target := range value.targets {
 		projection := target.projection()
-		selected.targets[projection.Hop().Field()] = selectedForwardCache{projection: projection, related: target.relatedObject(q.backend)}
+		selected.targets[projection.TerminalHop().Field()] = selectedForwardCache{projection: projection, related: target.relatedObject(backend)}
 	}
 	selected._self = selected
 	return selected

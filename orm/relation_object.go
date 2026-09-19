@@ -43,6 +43,7 @@ type forwardObjectState[S, T any] struct {
 // and zero values fail with a structured invalid-plan error.
 type RelatedObject[T any] struct {
 	querySet QuerySet[T]
+	selected *relatedSelectedState[T]
 	absent   bool
 	_self    *RelatedObject[T]
 	marker   [0]func(T)

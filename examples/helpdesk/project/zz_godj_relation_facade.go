@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v6"
-const GoDjProjectRelationFacadeInputSHA256 = "d4fae73c7d93fe462a18dbe811070fa1a3020105ff8e0fc1b7e9f5742ca10869"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v7"
+const GoDjProjectRelationFacadeInputSHA256 = "43ff4262e438a086cc50fb7efe177750185f01e6dbec1f515168ab90c92ab2ae"
 
 type Backend interface {
 	db.Queryer
@@ -67,6 +67,37 @@ func relationFacadePrimaryKeyUpdate(_field string) error {
 	return &query.Error{Category: query.CategoryModelState, Code: query.CodePrimaryKeyUpdateField, Field: _field, Detail: "promoted primary key changed after generated wrapper construction"}
 }
 
+type relationFacadeSelectionInput[S any] interface {
+	relationFacadeSelectionOwner() *relationFacadeState
+	relationFacadeSelectionValue() orm.ForwardSelection[S]
+}
+type relationFacadeSelection[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.ForwardSelect[S, T]
+}
+
+func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionValue() orm.ForwardSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeSelection[S, T]) WithChildren(_children ...relationFacadeSelectionInput[T]) relationFacadeSelection[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.ForwardSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadeSelectionValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
 func relationFacadeUnsavedRelated(_field string) error {
 	return &query.Error{Category: query.CategoryModelState, Code: query.CodeUnsavedRelatedObject, Field: _field, Detail: "save prohibited because the assigned related object has no primary key"}
 }
@@ -302,7 +333,10 @@ type ModelsTicketQuery struct {
 func newModelsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[models.Ticket]) ModelsTicketQuery {
 	_result := ModelsTicketQuery{state: _state, query: _query}
 	_result.Related = ModelsTicketRelationSelectors{
-		Category: modelsTicketRelationSelector{state: _state, kind: 1},
+		Category: relationFacadeSelection[models.Ticket, models.Category]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Category.selection = _state.objects.ModelsTicket.SelectCategory()
 	}
 	return _result
 }
@@ -780,77 +814,63 @@ func (_model *ModelsTicket) Category(_ctx context.Context) (*ModelsCategory, err
 	return _wrapped, nil
 }
 
-type ModelsTicketRelationSelector interface {
-	godjModelsTicketRelationSelector()
-}
-
-type modelsTicketRelationSelector struct {
-	state *relationFacadeState
-	kind  int
-}
-
-func (modelsTicketRelationSelector) godjModelsTicketRelationSelector() {}
-
+type ModelsTicketRelationSelector = relationFacadeSelectionInput[models.Ticket]
 type ModelsTicketRelationSelectors struct {
-	Category ModelsTicketRelationSelector
+	Category relationFacadeSelection[models.Ticket, models.Category]
 }
 
 func (_query ModelsTicketQuery) SelectRelated(_selectors ...ModelsTicketRelationSelector) ModelsTicketEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	if len(_selectors) == 0 {
-		return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("select-related requires at least one selector")}
-	}
-	_kinds := make([]int, 0, len(_selectors))
-	for _, _candidate := range _selectors {
-		if relationFacadeNil(_candidate) {
-			return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector is nil")}
-		}
-		_selector, _ok := _candidate.(modelsTicketRelationSelector)
-		if !_ok || _selector.state != _query.state {
+	_inputs := make([]orm.ForwardSelection[models.Ticket], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
 			return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
 		}
-		_kinds = append(_kinds, _selector.kind)
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.query, _kinds)
+	return _query.state.newModelsTicketEagerQuery(_query.query, _inputs)
+}
+func (_query ModelsTicketQuery) SelectRelatedPaths(_paths ...string) (ModelsTicketEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsTicketEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ModelsTicket.selectionInputs(_paths)
+	if _err != nil {
+		return ModelsTicketEagerQuery{}, _err
+	}
+	_result := _query.state.newModelsTicketEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return ModelsTicketEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
 }
 
 type ModelsTicketEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[models.Ticket]
-	kinds            []int
+	selections       []orm.ForwardSelection[models.Ticket]
 	projection       relationSelectQuery[ModelsTicketObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySet[models.Ticket], _kinds []int) ModelsTicketEagerQuery {
+func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySet[models.Ticket], _selections []orm.ForwardSelection[models.Ticket]) ModelsTicketEagerQuery {
 	_result := ModelsTicketEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
 		return _result
 	}
-	_requested := make(map[int]bool, len(_kinds))
-	for _, _kind := range _kinds {
-		if _kind < 1 || _kind > 1 {
-			_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
-			return _result
-		}
-		_requested[_kind] = true
-	}
-	if len(_requested) == 0 {
+	if len(_selections) == 0 {
 		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
 		return _result
 	}
-	_projection := _state.objects.ModelsTicket.SelectRelated(_source)
-	if _requested[1] {
-		_result.kinds = append(_result.kinds, 1)
-		_projection = _projection.WithCategory()
-	}
+	_result.selections = append([]orm.ForwardSelection[models.Ticket](nil), _selections...)
+	_projection := _state.objects.ModelsTicket.SelectRelated(_source).WithSelections(_result.selections...)
 	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
 	return _result
 }
-
 func (_query ModelsTicketEagerQuery) validate() error {
 	if _query.configurationErr != nil {
 		return _query.configurationErr
@@ -858,73 +878,59 @@ func (_query ModelsTicketEagerQuery) validate() error {
 	if _err := _query.state.validate(); _err != nil {
 		return _err
 	}
-	if len(_query.kinds) == 0 || _query.projection == nil {
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
 		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
-	}
-	_previous := 0
-	for _, _kind := range _query.kinds {
-		if _kind <= _previous || _kind > 1 {
-			return relationFacadeQueryInvalid("selected relation inventory is zero or corrupt")
-		}
-		_previous = _kind
 	}
 	return nil
 }
-
-func (_query ModelsTicketEagerQuery) Filter(_predicates ...orm.Predicate[models.Ticket]) ModelsTicketEagerQuery {
+func (_query ModelsTicketEagerQuery) Filter(_values ...orm.Predicate[models.Ticket]) ModelsTicketEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.Filter(_predicates...), _query.kinds)
+	return _query.state.newModelsTicketEagerQuery(_query.source.Filter(_values...), _query.selections)
 }
-
-func (_query ModelsTicketEagerQuery) OrderBy(_orderings ...orm.Ordering[models.Ticket]) ModelsTicketEagerQuery {
+func (_query ModelsTicketEagerQuery) OrderBy(_values ...orm.Ordering[models.Ticket]) ModelsTicketEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.OrderBy(_orderings...), _query.kinds)
+	return _query.state.newModelsTicketEagerQuery(_query.source.OrderBy(_values...), _query.selections)
 }
-
 func (_query ModelsTicketEagerQuery) Distinct() ModelsTicketEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.Distinct(), _query.kinds)
+	return _query.state.newModelsTicketEagerQuery(_query.source.Distinct(), _query.selections)
 }
-
 func (_query ModelsTicketEagerQuery) Fresh() ModelsTicketEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newModelsTicketEagerQuery(_query.source.Fresh(), _query.kinds)
+	return _query.state.newModelsTicketEagerQuery(_query.source.Fresh(), _query.selections)
 }
-
-func (_query ModelsTicketEagerQuery) Limit(_limit int) (ModelsTicketEagerQuery, error) {
+func (_query ModelsTicketEagerQuery) Limit(_value int) (ModelsTicketEagerQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ModelsTicketEagerQuery{}, _err
 	}
-	_derived, _err := _query.source.Limit(_limit)
+	_source, _err := _query.source.Limit(_value)
 	if _err != nil {
 		return ModelsTicketEagerQuery{}, _err
 	}
-	return _query.state.newModelsTicketEagerQuery(_derived, _query.kinds), nil
+	return _query.state.newModelsTicketEagerQuery(_source, _query.selections), nil
 }
-
-func (_query ModelsTicketEagerQuery) Offset(_offset int) (ModelsTicketEagerQuery, error) {
+func (_query ModelsTicketEagerQuery) Offset(_value int) (ModelsTicketEagerQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ModelsTicketEagerQuery{}, _err
 	}
-	_derived, _err := _query.source.Offset(_offset)
+	_source, _err := _query.source.Offset(_value)
 	if _err != nil {
 		return ModelsTicketEagerQuery{}, _err
 	}
-	return _query.state.newModelsTicketEagerQuery(_derived, _query.kinds), nil
+	return _query.state.newModelsTicketEagerQuery(_source, _query.selections), nil
 }
-
 func (_query ModelsTicketEagerQuery) All(_ctx context.Context) ([]*ModelsTicket, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -934,15 +940,17 @@ func (_query ModelsTicketEagerQuery) All(_ctx context.Context) ([]*ModelsTicket,
 		return nil, _err
 	}
 	_results := make([]*ModelsTicket, len(_objects))
-	for _index := range _objects {
-		_results[_index], _err = _query.wrap(_ctx, _objects[_index])
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedModelsTicketObject(_ctx, _object)
 		if _err != nil {
 			return nil, _err
 		}
 	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
 	return _results, nil
 }
-
 func (_query ModelsTicketEagerQuery) First(_ctx context.Context) (*ModelsTicket, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -951,15 +959,11 @@ func (_query ModelsTicketEagerQuery) First(_ctx context.Context) (*ModelsTicket,
 	if _err != nil || !_found {
 		return nil, false, _err
 	}
-	_wrapped, _err := _query.wrap(_ctx, _object)
+	_wrapped, _err := _query.state.wrapSelectedModelsTicketObject(_ctx, _object)
 	return _wrapped, _err == nil, _err
 }
-
 func (_query ModelsTicketEagerQuery) Count(_ctx context.Context) (int64, error) {
-	if relationFacadeNil(_ctx) {
-		return 0, relationFacadeQueryInvalid("context is nil")
-	}
-	if _err := _ctx.Err(); _err != nil {
+	if _err := relationFacadeContext(_ctx); _err != nil {
 		return 0, _err
 	}
 	if _err := _query.validate(); _err != nil {
@@ -967,20 +971,24 @@ func (_query ModelsTicketEagerQuery) Count(_ctx context.Context) (int64, error) 
 	}
 	return _query.projection.Count(_ctx)
 }
-
-func (_query ModelsTicketEagerQuery) wrap(_ctx context.Context, _object *ModelsTicketObject) (*ModelsTicket, error) {
-	_wrapped, _err := _query.state.wrapModelsTicketObject(_object)
+func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.Context, _object *ModelsTicketObject) (*ModelsTicket, error) {
+	_wrapped, _err := _state.wrapModelsTicketObject(_object)
 	if _err != nil {
 		return nil, _err
 	}
-	for _, _kind := range _query.kinds {
-		switch _kind {
-		case 1:
-			_, _err = _wrapped.Category(_ctx)
-		}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("category"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _err = _wrapped.Category(_ctx)
 		if _err != nil {
 			return nil, _err
 		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
 	}
 	return _wrapped, nil
 }
@@ -1006,4 +1014,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_41fb8043313deb900f92e07e6f03c44e279b95f5fce5533200ee8a06765e2cb1
+var _ goDjProjectSnapshot_1affef96d96e36d1a083b8c091c2356b0ceae37e90cc6784a76ea0a0fc4b1b6b

@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v6"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v7"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -243,6 +243,28 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 		fmt.Fprintln(output)
 	}
 	if hasRelationSources {
+		fmt.Fprint(output, `type relationFacadeSelectionInput[S any] interface {
+ relationFacadeSelectionOwner() *relationFacadeState
+ relationFacadeSelectionValue() orm.ForwardSelection[S]
+}
+type relationFacadeSelection[S,T any] struct {
+ state *relationFacadeState
+ selection orm.ForwardSelect[S,T]
+}
+func (_selector relationFacadeSelection[S,T]) relationFacadeSelectionOwner()*relationFacadeState{return _selector.state}
+func (_selector relationFacadeSelection[S,T]) relationFacadeSelectionValue()orm.ForwardSelection[S]{return _selector.selection}
+func (_selector relationFacadeSelection[S,T]) WithChildren(_children ...relationFacadeSelectionInput[T])relationFacadeSelection[S,T]{
+ if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
+ _inputs:=make([]orm.ForwardSelection[T],0,len(_children))
+ for _,_child:=range _children{
+  if relationFacadeNil(_child)||_child.relationFacadeSelectionOwner()!=_selector.state{_selector.selection=_selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child selection belongs to another facade origin"));return _selector}
+  _inputs=append(_inputs,_child.relationFacadeSelectionValue())
+ }
+ _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
+}
+`)
+	}
+	if hasRelationSources {
 		fmt.Fprintln(output, "func relationFacadeUnsavedRelated(_field string) error {")
 		fmt.Fprintln(output, "\treturn &query.Error{Category: query.CategoryModelState, Code: query.CodeUnsavedRelatedObject, Field: _field, Detail: \"save prohibited because the assigned related object has no primary key\"}")
 		fmt.Fprintln(output, "}")
@@ -285,16 +307,18 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintf(output, "\t_result := %s{state: _state, query: _query}\n", model.queryType)
 	if model.source != nil {
 		fmt.Fprintf(output, "\t_result.Related = %sRelationSelectors{\n", model.surface)
-		for index, relation := range model.source.relations {
-			fmt.Fprintf(
-				output,
-				"\t\t%s: %sRelationSelector{state: _state, kind: %d},\n",
-				relation.selector,
-				lowerFirst(model.surface),
-				index+1,
-			)
+		for _, relation := range model.source.relations {
+			targetType := relation.target.app.alias + "." + relation.target.model.GoName
+			fmt.Fprintf(output, "%s:relationFacadeSelection[%s,%s]{state:_state},\n", relation.selector, rawType, targetType)
 		}
+
 		fmt.Fprintln(output, "\t}")
+		fmt.Fprintln(output, "if _state!=nil{")
+		for _, relation := range model.source.relations {
+			fmt.Fprintf(output, "_result.Related.%s.selection=_state.objects.%s.Select%s()\n", relation.selector, model.source.surface, relation.selector)
+		}
+		fmt.Fprintln(output, "}")
+
 	}
 	fmt.Fprintln(output, "\treturn _result")
 	fmt.Fprintln(output, "}")
@@ -649,7 +673,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintln(output, "\t\t}")
 			fmt.Fprintln(output, "\t\treturn nil, _present, _err")
 			fmt.Fprintln(output, "\t}")
-			fmt.Fprintf(output, "\t_wrapped, _err := _model.state.wrap%s(_value, false)\n", targetSurface)
+			renderProjectRelationFacadeLoadedTarget(output, relation, relation.field.Nullable)
 			fmt.Fprintln(output, "\tif _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t}")
@@ -691,7 +715,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_wrapped, _err := _model.state.wrap%s(_value, false)\n", targetSurface)
+		renderProjectRelationFacadeLoadedTarget(output, relation, relation.field.Nullable)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
@@ -1047,193 +1071,107 @@ func projectRelationFacadeRawKeyEqualExpression(field ir.Field, raw, input strin
 }
 
 func renderProjectRelationFacadeSelector(output *bytes.Buffer, model projectRelationFacadeModel) {
-	selectorInterface := model.surface + "RelationSelector"
-	selectorType := lowerFirst(model.surface) + "RelationSelector"
-	fmt.Fprintf(output, "type %s interface {\n", selectorInterface)
-	fmt.Fprintf(output, "\tgodj%sRelationSelector()\n", model.surface)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "type %s struct {\n", selectorType)
-	fmt.Fprintln(output, "\tstate *relationFacadeState")
-	fmt.Fprintln(output, "\tkind  int")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (%s) godj%sRelationSelector() {}\n", selectorType, model.surface)
-	fmt.Fprintln(output)
+	rawType := model.model.app.alias + "." + model.model.model.GoName
+	fmt.Fprintf(output, "type %sRelationSelector = relationFacadeSelectionInput[%s]\n", model.surface, rawType)
 	fmt.Fprintf(output, "type %sRelationSelectors struct {\n", model.surface)
 	for _, relation := range model.source.relations {
-		fmt.Fprintf(output, "\t%s %s\n", relation.selector, selectorInterface)
+		fmt.Fprintf(output, "%s relationFacadeSelection[%s,%s.%s]\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName)
 	}
 	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) SelectRelated(_selectors ...%s) %sEagerQuery {\n", model.queryType, selectorInterface, model.surface)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %sEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}\n", model.surface)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\tif len(_selectors)==0{return %sEagerQuery{state:_query.state,source:_query.query,configurationErr:relationFacadeQueryInvalid(\"select-related requires at least one selector\")}}\n", model.surface)
-	fmt.Fprintln(output, "\t_kinds:=make([]int,0,len(_selectors))")
-	fmt.Fprintln(output, "\tfor _,_candidate:=range _selectors{")
-	fmt.Fprintln(output, "\tif relationFacadeNil(_candidate) {")
-	fmt.Fprintf(output, "\t\treturn %sEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid(\"relation selector is nil\")}\n", model.surface)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_selector, _ok := _candidate.(%s)\n", selectorType)
-	fmt.Fprintln(output, "\tif !_ok || _selector.state != _query.state {")
-	fmt.Fprintf(output, "\t\treturn %sEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid(\"relation selector does not belong to this query\")}\n", model.surface)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_kinds=append(_kinds,_selector.kind)\n\t}")
-	fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_query.query, _kinds)\n", model.surface)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
+	fmt.Fprintf(output, `func (_query %[1]s) SelectRelated(_selectors ...%[2]sRelationSelector)%[2]sEagerQuery{
+ if _err:=_query.validate();_err!=nil{return %[2]sEagerQuery{state:_query.state,source:_query.query,configurationErr:_err}}
+ _inputs:=make([]orm.ForwardSelection[%[3]s],0,len(_selectors))
+ for _,_selector:=range _selectors{
+  if relationFacadeNil(_selector)||_selector.relationFacadeSelectionOwner()!=_query.state{return %[2]sEagerQuery{state:_query.state,source:_query.query,configurationErr:relationFacadeQueryInvalid("relation selector does not belong to this query")}}
+  _inputs=append(_inputs,_selector.relationFacadeSelectionValue())
+ }
+ return _query.state.new%[2]sEagerQuery(_query.query,_inputs)
+}
+func (_query %[1]s) SelectRelatedPaths(_paths ...string)(%[2]sEagerQuery,error){
+ if _err:=_query.validate();_err!=nil{return %[2]sEagerQuery{},_err}
+ _inputs,_err:=_query.state.objects.%[2]s.selectionInputs(_paths);if _err!=nil{return %[2]sEagerQuery{},_err}
+ _result:=_query.state.new%[2]sEagerQuery(_query.query,_inputs);if _result.configurationErr!=nil{return %[2]sEagerQuery{},_result.configurationErr};return _result,nil
+}
+`, model.queryType, model.surface, rawType)
 }
 
 func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelationFacadeModel) {
 	rawType := model.model.app.alias + "." + model.model.model.GoName
 	eagerType := model.surface + "EagerQuery"
-	fmt.Fprintf(output, "type %s struct {\n", eagerType)
-	fmt.Fprintln(output, "\tstate            *relationFacadeState")
-	fmt.Fprintf(output, "\tsource           orm.QuerySet[%s]\n", rawType)
-	fmt.Fprintln(output, "\tkinds            []int")
-	fmt.Fprintf(output, "\tprojection       relationSelectQuery[%s]\n", model.source.objectType)
-	fmt.Fprintln(output, "\tconfigurationErr error")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(
-		output,
-		"func (_state *relationFacadeState) new%sEagerQuery(_source orm.QuerySet[%s], _kinds []int) %s {\n",
-		model.surface,
-		rawType,
-		eagerType,
-	)
-	fmt.Fprintf(output, "\t_result := %s{state: _state, source: _source}\n", eagerType)
-	fmt.Fprintln(output, "\tif _err := _state.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\t_result.configurationErr = _err")
-	fmt.Fprintln(output, "\t\treturn _result")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_requested:=make(map[int]bool,len(_kinds))")
-	fmt.Fprintf(output, "\tfor _,_kind:=range _kinds{if _kind<1||_kind>%d{_result.configurationErr=relationFacadeQueryInvalid(\"relation selector is zero or corrupt\");return _result};_requested[_kind]=true}\n", len(model.source.relations))
-	fmt.Fprintln(output, "\tif len(_requested)==0{_result.configurationErr=relationFacadeQueryInvalid(\"relation selection is empty\");return _result}")
-	fmt.Fprintf(output, "\t_projection:=_state.objects.%s.SelectRelated(_source)\n", model.source.surface)
-	for index, relation := range model.source.relations {
-		fmt.Fprintf(output, "\tif _requested[%d]{_result.kinds=append(_result.kinds,%d);_projection=_projection.With%s()}\n", index+1, index+1, relation.selector)
+	fmt.Fprintf(output, `type %[1]s struct {
+ state *relationFacadeState
+ source orm.QuerySet[%[2]s]
+ selections []orm.ForwardSelection[%[2]s]
+ projection relationSelectQuery[%[3]s]
+ configurationErr error
+}
+func (_state *relationFacadeState) new%[4]sEagerQuery(_source orm.QuerySet[%[2]s],_selections []orm.ForwardSelection[%[2]s])%[1]s{
+ _result:=%[1]s{state:_state,source:_source}
+ if _err:=_state.validate();_err!=nil{_result.configurationErr=_err;return _result}
+ if len(_selections)==0{_result.configurationErr=relationFacadeQueryInvalid("relation selection is empty");return _result}
+ _result.selections=append([]orm.ForwardSelection[%[2]s](nil),_selections...)
+ _projection:=_state.objects.%[4]s.SelectRelated(_source).WithSelections(_result.selections...)
+ _result.projection=_projection;_result.configurationErr=_projection.configurationErr;return _result
+}
+func (_query %[1]s) validate()error{
+ if _query.configurationErr!=nil{return _query.configurationErr}
+ if _err:=_query.state.validate();_err!=nil{return _err}
+ if len(_query.selections)==0||relationFacadeNil(_query.projection){return relationFacadeQueryInvalid("generated eager query is zero or corrupt")}
+ return nil
+}
+`, eagerType, rawType, model.source.objectType, model.surface)
+	for _, method := range []string{"Filter", "OrderBy"} {
+		paramType := "orm.Predicate[" + rawType + "]"
+		if method == "OrderBy" {
+			paramType = "orm.Ordering[" + rawType + "]"
+		}
+		fmt.Fprintf(output, `func (_query %[1]s) %[2]s(_values ...%[3]s)%[1]s{
+ if _err:=_query.validate();_err!=nil{_query.configurationErr=_err;return _query}
+ return _query.state.new%[4]sEagerQuery(_query.source.%[2]s(_values...),_query.selections)
+}
+`, eagerType, method, paramType, model.surface)
 	}
-	fmt.Fprintln(output, "\t_result.projection=_projection")
-	fmt.Fprintln(output, "\treturn _result")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) validate() error {\n", eagerType)
-	fmt.Fprintln(output, "\tif _query.configurationErr != nil {")
-	fmt.Fprintln(output, "\t\treturn _query.configurationErr")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\tif _err := _query.state.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\treturn _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\tif len(_query.kinds)==0 || _query.projection == nil {")
-	fmt.Fprintln(output, "\t\treturn relationFacadeQueryInvalid(\"generated eager query is zero or corrupt\")")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_previous:=0")
-	fmt.Fprintf(output, "\tfor _,_kind:=range _query.kinds{if _kind<=_previous||_kind>%d{return relationFacadeQueryInvalid(\"selected relation inventory is zero or corrupt\")};_previous=_kind}\n", len(model.source.relations))
-	fmt.Fprintln(output, "\treturn nil")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) Filter(_predicates ...orm.Predicate[%s]) %s {\n", eagerType, rawType, eagerType)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\t_query.configurationErr = _err")
-	fmt.Fprintln(output, "\t\treturn _query")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _query.state.new"+model.surface+"EagerQuery(_query.source.Filter(_predicates...), _query.kinds)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) OrderBy(_orderings ...orm.Ordering[%s]) %s {\n", eagerType, rawType, eagerType)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\t_query.configurationErr = _err")
-	fmt.Fprintln(output, "\t\treturn _query")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _query.state.new"+model.surface+"EagerQuery(_query.source.OrderBy(_orderings...), _query.kinds)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
 	for _, method := range []string{"Distinct", "Fresh"} {
-		fmt.Fprintf(output, "func (_query %s) %s() %s {\n", eagerType, method, eagerType)
-		fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-		fmt.Fprintln(output, "\t\t_query.configurationErr = _err")
-		fmt.Fprintln(output, "\t\treturn _query")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_query.source.%s(), _query.kinds)\n", model.surface, method)
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
+		fmt.Fprintf(output, `func (_query %[1]s) %[2]s()%[1]s{
+ if _err:=_query.validate();_err!=nil{_query.configurationErr=_err;return _query}
+ return _query.state.new%[3]sEagerQuery(_query.source.%[2]s(),_query.selections)
+}
+`, eagerType, method, model.surface)
 	}
 	for _, method := range []string{"Limit", "Offset"} {
-		argument := "_" + lowerFirst(method)
-		fmt.Fprintf(output, "func (_query %s) %s(%s int) (%s, error) {\n", eagerType, method, argument, eagerType)
-		fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-		fmt.Fprintf(output, "\t\treturn %s{}, _err\n", eagerType)
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_derived, _err := _query.source.%s(%s)\n", method, argument)
-		fmt.Fprintln(output, "\tif _err != nil {")
-		fmt.Fprintf(output, "\t\treturn %s{}, _err\n", eagerType)
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\treturn _query.state.new%sEagerQuery(_derived, _query.kinds), nil\n", model.surface)
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
+		fmt.Fprintf(output, `func (_query %[1]s) %[2]s(_value int)(%[1]s,error){
+ if _err:=_query.validate();_err!=nil{return %[1]s{},_err}
+ _source,_err:=_query.source.%[2]s(_value);if _err!=nil{return %[1]s{},_err};return _query.state.new%[3]sEagerQuery(_source,_query.selections),nil
+}
+`, eagerType, method, model.surface)
 	}
-	fmt.Fprintf(output, "func (_query %s) All(_ctx context.Context) ([]*%s, error) {\n", eagerType, model.surface)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_objects, _err := _query.projection.All(_ctx)")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_results := make([]*%s, len(_objects))\n", model.surface)
-	fmt.Fprintln(output, "\tfor _index := range _objects {")
-	fmt.Fprintln(output, "\t\t_results[_index], _err = _query.wrap(_ctx, _objects[_index])")
-	fmt.Fprintln(output, "\t\tif _err != nil {")
-	fmt.Fprintln(output, "\t\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t\t}")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _results, nil")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) First(_ctx context.Context) (*%s, bool, error) {\n", eagerType, model.surface)
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, false, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_object, _found, _err := _query.projection.First(_ctx)")
-	fmt.Fprintln(output, "\tif _err != nil || !_found {")
-	fmt.Fprintln(output, "\t\treturn nil, false, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_wrapped, _err := _query.wrap(_ctx, _object)")
-	fmt.Fprintln(output, "\treturn _wrapped, _err == nil, _err")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) Count(_ctx context.Context) (int64, error) {\n", eagerType)
-	fmt.Fprintln(output, "\tif relationFacadeNil(_ctx) { return 0, relationFacadeQueryInvalid(\"context is nil\") }")
-	fmt.Fprintln(output, "\tif _err := _ctx.Err(); _err != nil { return 0, _err }")
-	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil { return 0, _err }")
-	fmt.Fprintln(output, "\treturn _query.projection.Count(_ctx)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_query %s) wrap(_ctx context.Context, _object *%s) (*%s, error) {\n", eagerType, model.source.objectType, model.surface)
-	fmt.Fprintf(output, "\t_wrapped, _err := _query.state.wrap%sObject(_object)\n", model.surface)
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\tfor _,_kind:=range _query.kinds{\n\tswitch _kind {")
-	for index, relation := range model.source.relations {
-		fmt.Fprintf(output, "\tcase %d:\n", index+1)
+	fmt.Fprintf(output, `func (_query %[1]s) All(_ctx context.Context)([]*%[2]s,error){
+ if _err:=_query.validate();_err!=nil{return nil,_err}
+ _objects,_err:=_query.projection.All(_ctx);if _err!=nil{return nil,_err}
+ _results:=make([]*%[2]s,len(_objects));for _index,_object:=range _objects{_results[_index],_err=_query.state.wrapSelected%[2]sObject(_ctx,_object);if _err!=nil{return nil,_err}};if _err:=_ctx.Err();_err!=nil{return nil,_err};return _results,nil
+}
+func (_query %[1]s) First(_ctx context.Context)(*%[2]s,bool,error){
+ if _err:=_query.validate();_err!=nil{return nil,false,_err}
+ _object,_found,_err:=_query.projection.First(_ctx);if _err!=nil||!_found{return nil,false,_err};_wrapped,_err:=_query.state.wrapSelected%[2]sObject(_ctx,_object);return _wrapped,_err==nil,_err
+}
+func (_query %[1]s) Count(_ctx context.Context)(int64,error){
+ if _err:=relationFacadeContext(_ctx);_err!=nil{return 0,_err}
+ if _err:=_query.validate();_err!=nil{return 0,_err};return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelected%[2]sObject(_ctx context.Context,_object *%[3]s)(*%[2]s,error){
+ _wrapped,_err:=_state.wrap%[2]sObject(_object);if _err!=nil{return nil,_err}
+ if _object._selectedGraph==nil{return nil,relationFacadeQueryInvalid("selected object has no graph")}
+`, eagerType, model.surface, model.source.objectType)
+	for _, relation := range model.source.relations {
+		fmt.Fprintf(output, "if _has,_err:=_object._selectedGraph.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n", strconv.Quote(relation.field.Name))
 		if relation.field.Nullable {
-			fmt.Fprintf(output, "\t\t_, _, _err = _wrapped.%s(_ctx)\n", relation.selector)
+			fmt.Fprintf(output, "_,_,_err=_wrapped.%s(_ctx)\n", relation.selector)
 		} else {
-			fmt.Fprintf(output, "\t\t_, _err = _wrapped.%s(_ctx)\n", relation.selector)
+			fmt.Fprintf(output, "_,_err=_wrapped.%s(_ctx)\n", relation.selector)
 		}
+		fmt.Fprintln(output, "if _err!=nil{return nil,_err}\n}")
 	}
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintln(output, "\t\treturn nil, _err")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\treturn _wrapped, nil")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
+	fmt.Fprintln(output, "if _err:=_ctx.Err();_err!=nil{return nil,_err}\nreturn _wrapped,nil\n}")
 }
 
 func renderProjectRelationFacadeAggregate(
@@ -1269,4 +1207,31 @@ func renderProjectRelationFacadeAggregate(
 	}
 	fmt.Fprintln(output, "\t}, nil")
 	fmt.Fprintln(output, "}")
+}
+
+func renderProjectRelationFacadeLoadedTarget(output *bytes.Buffer, relation projectRelationObjectEdge, nullable bool) {
+	targetSurface := relation.target.app.prefix + relation.target.model.GoName
+	hasChildren := false
+	for _, field := range relation.target.model.Fields {
+		if field.Relation != nil {
+			hasChildren = true
+			break
+		}
+	}
+	if !hasChildren {
+		fmt.Fprintf(output, "_wrapped,_err:=_model.state.wrap%s(_value,false)\n", targetSurface)
+		return
+	}
+	failure := "return nil,_err"
+	if nullable {
+		failure = "return nil,false,_err"
+	}
+	fmt.Fprintf(output, `var _wrapped *%[1]s
+ _graph,_selected,_err:=_model.object.%[2]s.SelectedGraph(_ctx);if _err!=nil{%[3]s}
+ if _selected{
+  var _object *%[1]sObject
+  _object,_err=_model.state.objects.%[1]s.FromSelected(_graph);if _err!=nil{%[3]s}
+  _wrapped,_err=_model.state.wrapSelected%[1]sObject(_ctx,_object)
+ }else{_wrapped,_err=_model.state.wrap%[1]s(_value,false)}
+`, targetSurface, lowerFirst(relation.selector), failure)
 }

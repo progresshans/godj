@@ -11,11 +11,12 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
 
 type ModelsTicketObjectFactory struct {
-	model    orm.BoundModel[models.Ticket]
-	category orm.RequiredForwardObject[models.Ticket, models.Category]
+	_projectSelections *Objects
+	model              orm.BoundModel[models.Ticket]
+	category           orm.RequiredForwardObject[models.Ticket, models.Category]
 }
 
 func (_factory ModelsTicketObjectFactory) ParseDynamic(
@@ -42,11 +43,12 @@ func (_factory ModelsTicketObjectFactory) From(_backend db.Queryer, _value model
 }
 
 type ModelsTicketObject struct {
-	model    models.Ticket
-	factory  ModelsTicketObjectFactory
-	backend  db.Queryer
-	category *orm.RelatedObject[models.Category]
-	_self    *ModelsTicketObject
+	_selectedGraph *orm.ForwardSelected[models.Ticket]
+	model          models.Ticket
+	factory        ModelsTicketObjectFactory
+	backend        db.Queryer
+	category       *orm.RelatedObject[models.Category]
+	_self          *ModelsTicketObject
 }
 
 func (_object *ModelsTicketObject) _validate() error {
@@ -121,12 +123,14 @@ func BindObjects() (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	return Objects{
+	_objects := Objects{
 		ModelsTicket: ModelsTicketObjectFactory{
 			model:    _model1,
 			category: _relation0,
 		},
-	}, nil
+	}
+	_objects.ModelsTicket._projectSelections = &_objects
+	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_41fb8043313deb900f92e07e6f03c44e279b95f5fce5533200ee8a06765e2cb1
+var _ goDjProjectSnapshot_1affef96d96e36d1a083b8c091c2356b0ceae37e90cc6784a76ea0a0fc4b1b6b

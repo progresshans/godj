@@ -266,7 +266,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		sql.WriteString(qualified)
 	}
 	for _, projection := range plan.RelationProjections() {
-		alias := joins[queryplan.KeyForRelation(projection.Hop())].Alias
+		alias := joins[queryplan.KeyForPath(projection.Path().Hops())].Alias
 		for _, column := range projection.TargetColumns() {
 			sql.WriteString(", ")
 			qualified, err := quoteQualified(alias, column.Column())

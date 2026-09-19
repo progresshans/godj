@@ -351,30 +351,43 @@ func (p Plan) WithRelationProjections(projections ...RelationProjection) (Plan, 
 	all := make([]RelationProjection, 0, len(p.relationProjections)+len(projections))
 	all = append(all, p.relationProjections...)
 	all = append(all, projections...)
-	byField := make(map[string]RelationProjection, len(all))
+	byRoute := make(map[string]RelationProjection, len(all))
 	var root RelationHop
 	for index, projection := range all {
-		if err := projection.validate(); err != nil {
+		if err := projection.Validate(); err != nil {
 			return Plan{}, err
 		}
-		hop := projection.Hop()
+		first := projection.path.hops[0]
 		if index == 0 {
-			root = hop
-		} else if hop.Source() != root.Source() || hop.SourceTable() != root.SourceTable() {
+			root = first
+		} else if first.Source() != root.Source() || first.SourceTable() != root.SourceTable() {
 			return Plan{}, invalidPlanError("selected projections do not share one source model")
 		}
-		if previous, exists := byField[hop.Field()]; exists && !previous.Equal(projection) {
-			return Plan{}, invalidPlanError("selected projections contain conflicting FK or target metadata")
+		key := projectionRouteKey(projection.path.hops)
+		if previous, exists := byRoute[key]; exists && !previous.Equal(projection) {
+			return Plan{}, invalidPlanError("selected route contains conflicting FK or target metadata")
 		}
-		byField[hop.Field()] = projection
+		byRoute[key] = projection
 	}
-	canonical := make([]RelationProjection, 0, len(byField))
-	for _, projection := range byField {
+	canonical := make([]RelationProjection, 0, len(byRoute))
+	for _, projection := range byRoute {
+		hops := projection.path.hops
+		if len(hops) > 1 {
+			parent, found := byRoute[projectionRouteKey(hops[:len(hops)-1])]
+			if !found {
+				return Plan{}, invalidPlanError("nested projection requires its selected parent prefix")
+			}
+			if !slices.Equal(parent.path.hops, hops[:len(hops)-1]) {
+				return Plan{}, invalidPlanError("nested projection disagrees with its parent route")
+			}
+			hop := hops[len(hops)-1]
+			if !slices.Contains(parent.targetColumns, NewFieldRef(hop.Field(), hop.SourceColumn(), FieldInteger, hop.Nullable())) {
+				return Plan{}, invalidPlanError("nested projection source key is not canonical parent metadata")
+			}
+		}
 		canonical = append(canonical, projection)
 	}
-	slices.SortFunc(canonical, func(left, right RelationProjection) int {
-		return strings.Compare(left.Hop().Field(), right.Hop().Field())
-	})
+	slices.SortFunc(canonical, compareProjectionRoutes)
 	p.relationProjections = canonical
 	return p, nil
 }

@@ -13,7 +13,7 @@ func TestForwardRelationProjectionIsImmutableAndPlanPreserving(t *testing.T) {
 	t.Parallel()
 
 	projection := newTestRelationProjection(t, false)
-	hop := projection.Hop()
+	hop := projection.TerminalHop()
 	if hop.Source() != (ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}) ||
 		hop.SourceTable() != "blog_post" || hop.Field() != "author" || hop.SourceColumn() != "author_id" ||
 		hop.Target() != (ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}) ||

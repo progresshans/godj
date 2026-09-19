@@ -33,6 +33,11 @@ func TestGeneratedNestedForwardConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/consumer_test.go", consumer)
+	fixture, err := os.ReadFile("testdata/nestedforward/fixture_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/fixture_test.go", fixture)
 	reference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "orm/testdata/nested-forward-django61.json"))
 	if err != nil {
 		t.Fatal(err)

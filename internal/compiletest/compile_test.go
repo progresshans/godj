@@ -286,7 +286,7 @@ func verifyRelationFacadeProduction(t *testing.T) {
 	forgedSelector := append(bytes.Clone(consumerSource), []byte(`
 
 type forgedSelector struct{}
-func (forgedSelector) godjBlogPostRelationSelector() {}
+func (forgedSelector) relationFacadeSelectionOwner() any { return nil }
 var _ project.BlogPostRelationSelector = forgedSelector{}
 `)...)
 	verifyRelationFacadeCompileNegative(t, directory, consumerPath, forgedSelector,

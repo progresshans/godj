@@ -504,21 +504,21 @@ func TestProjectFacadePassesThroughTypedSelectRelatedConfigurationCauses(t *test
 			name:  "resolve",
 			cause: resolve.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kinds: []int{1}, projection: resolve,
+				state: models.BlogPost.state, source: models.BlogPost.query, selections: models.BlogPost.SelectRelated(models.BlogPost.Related.Author).selections, projection: resolve,
 			},
 		},
 		{
 			name:  "required bind",
 			cause: required.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kinds: []int{1}, projection: required,
+				state: models.BlogPost.state, source: models.BlogPost.query, selections: models.BlogPost.SelectRelated(models.BlogPost.Related.Author).selections, projection: required,
 			},
 		},
 		{
 			name:  "nullable bind",
 			cause: nullable.configurationErr,
 			query: BlogPostEagerQuery{
-				state: models.BlogPost.state, source: models.BlogPost.query, kinds: []int{2}, projection: nullable,
+				state: models.BlogPost.state, source: models.BlogPost.query, selections: models.BlogPost.SelectRelated(models.BlogPost.Related.Reviewer).selections, projection: nullable,
 			},
 		},
 	}
@@ -555,17 +555,17 @@ func verifyGeneratedRelationSelectRelatedStalePublicCause(t *testing.T, authors,
 	if err != nil {
 		t.Fatal(err)
 	}
-	authorResolver := []byte(`orm.ResolveForwardSelectPath(_query.factory.model, "author")`)
-	reviewerResolver := []byte(`orm.ResolveForwardSelectPath(_query.factory.model, "reviewer")`)
-	if bytes.Count(canonical, authorResolver) != 1 || bytes.Count(canonical, reviewerResolver) != 1 {
-		t.Fatalf("canonical typed resolver counts = author %d reviewer %d, want 1/1", bytes.Count(canonical, authorResolver), bytes.Count(canonical, reviewerResolver))
+	// A stale companion that loses its sealed object handle must retain the
+	// resulting structured cause through both the object and facade surfaces.
+	authorConstructor := []byte(`orm.SelectRequiredForward(_factory.author)`)
+	reviewerConstructor := []byte(`orm.SelectNullableForward(_factory.reviewer)`)
+	if bytes.Count(canonical, authorConstructor) != 1 || bytes.Count(canonical, reviewerConstructor) != 1 {
+		t.Fatal("canonical shared selection constructor roster changed")
 	}
-	placeholder := []byte(`orm.ResolveForwardSelectPath(_query.factory.model, "godj_stale_swap")`)
-	stale := bytes.Replace(canonical, authorResolver, placeholder, 1)
-	stale = bytes.Replace(stale, reviewerResolver, authorResolver, 1)
-	stale = bytes.Replace(stale, placeholder, reviewerResolver, 1)
-	if bytes.Count(stale, authorResolver) != 1 || bytes.Count(stale, reviewerResolver) != 1 || bytes.Equal(stale, canonical) {
-		t.Fatal("stale typed resolver swap did not produce the exact two-literal mutation")
+	stale := bytes.ReplaceAll(canonical, authorConstructor, []byte(`orm.SelectRequiredForward(BlogPostObjectFactory{}.author)`))
+	stale = bytes.ReplaceAll(stale, reviewerConstructor, []byte(`orm.SelectNullableForward(BlogPostObjectFactory{}.reviewer)`))
+	if bytes.Contains(stale, authorConstructor) || bytes.Contains(stale, reviewerConstructor) || bytes.Equal(stale, canonical) {
+		t.Fatal("stale handle mutation incomplete")
 	}
 	if err := os.WriteFile(path, stale, 0o644); err != nil {
 		t.Fatal(err)
@@ -641,7 +641,7 @@ func TestStaleTypedCompanionPreservesPublicLowLevelAndFacadeBindCauses(t *testin
 			err := test.all()
 			var queryErr *query.Error
 			if !errors.As(err, &queryErr) || queryErr.Category != query.CategoryQuery || queryErr.Code != query.CodeInvalidPlan ||
-				queryErr.Detail != "forward select path and object handle do not share one canonical project relation" || queryErr.Cause != nil {
+				queryErr.Detail != "forward object selection is unbound" || queryErr.Cause != nil {
 				t.Fatalf("public stale-companion error = %%v, want exact structured bind cause", err)
 			}
 			if errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {

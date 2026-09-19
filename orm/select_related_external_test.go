@@ -110,7 +110,7 @@ func TestPublicForwardSelectSurfaceCompilesAndWarmsRelatedObject(t *testing.T) {
 	if ok {
 		projection = projectionProjections[0]
 	}
-	if !ok || projection.Hop().Field() != "author" || projection.Hop().Nullable() {
+	if !ok || projection.TerminalHop().Field() != "author" || projection.TerminalHop().Nullable() {
 		t.Fatalf("Plan().RelationProjection() = (%#v, %v)", projection, ok)
 	}
 	values, err := selected.All(context.Background())

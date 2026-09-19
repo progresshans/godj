@@ -298,7 +298,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if limit, _ := reads.last.Limit(); limit != 1 {
 		t.Fatalf("detail limit = %d", limit)
 	}
-	if projections := reads.last.RelationProjections(); len(projections) != 1 || projections[0].Hop().Field() != "category" {
+	if projections := reads.last.RelationProjections(); len(projections) != 1 || projections[0].TerminalHop().Field() != "category" {
 		t.Fatal("detail did not use the category projection")
 	}
 	for _, id := range []int64{outside.ID, 0, outside.ID + 1000} {

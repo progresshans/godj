@@ -27,61 +27,19 @@ func KeyForRelation(hop query.RelationHop) RelationKey {
 }
 
 func RelationProjection(plan query.Plan, projection query.RelationProjection, backendName string) (RelationKey, error) {
-	hop := projection.Hop()
-	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || hop.ReverseName() != "" {
-		return RelationKey{}, invalidPlan(backendName + " relation projection requires one direct forward many-to-one hop")
+	if err := projection.Validate(); err != nil {
+		return RelationKey{}, err
 	}
-	if hop.SourceTable() != plan.Table() {
-		return RelationKey{}, invalidPlan(fmt.Sprintf(
-			"relation projection source table %q does not match plan root table %q",
-			hop.SourceTable(),
-			plan.Table(),
-		))
+	hops := projection.Path().Hops()
+	root := hops[0]
+	if root.SourceTable() != plan.Table() {
+		return RelationKey{}, invalidPlan(backendName + " relation projection source table does not match the query root")
 	}
-	if !canonicalIdentity(hop.Source()) || !canonicalIdentity(hop.Target()) ||
-		!CanonicalIdentifier(hop.SourceTable()) || !CanonicalIdentifier(hop.Field()) ||
-		!CanonicalIdentifier(hop.SourceColumn()) || !CanonicalIdentifier(hop.TargetTable()) ||
-		!CanonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
-		return RelationKey{}, invalidPlan("relation projection contains non-canonical metadata")
-	}
-	sourceKey := query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())
+	sourceKey := query.NewFieldRef(root.Field(), root.SourceColumn(), query.FieldInteger, root.Nullable())
 	if !ContainsField(plan.SourceFields(), sourceKey) {
-		return RelationKey{}, invalidPlan(fmt.Sprintf(
-			"relation projection source key %q is not selected model metadata",
-			hop.Field(),
-		))
+		return RelationKey{}, invalidPlan("relation projection source key is not selected model metadata")
 	}
-	targetColumns := projection.TargetColumns()
-	if len(targetColumns) == 0 {
-		return RelationKey{}, invalidPlan("relation projection target columns are empty")
-	}
-	primaryKeyCount := 0
-	names := make(map[string]struct{}, len(targetColumns))
-	columns := make(map[string]struct{}, len(targetColumns))
-	for _, field := range targetColumns {
-		if !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) ||
-			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldBoolean && field.Kind() != query.FieldDateTime) {
-			return RelationKey{}, invalidPlan("relation projection contains an unsupported target field")
-		}
-		if _, exists := names[field.Name()]; exists {
-			return RelationKey{}, invalidPlan("relation projection contains a duplicate target field")
-		}
-		if _, exists := columns[field.Column()]; exists {
-			return RelationKey{}, invalidPlan("relation projection contains a duplicate target column")
-		}
-		names[field.Name()] = struct{}{}
-		columns[field.Column()] = struct{}{}
-		if field.Column() == hop.TargetPrimaryKeyColumn() {
-			if field.Kind() != query.FieldInteger || field.Nullable() {
-				return RelationKey{}, invalidPlan("relation projection target primary key must be a non-null integer")
-			}
-			primaryKeyCount++
-		}
-	}
-	if primaryKeyCount != 1 {
-		return RelationKey{}, invalidPlan("relation projection must contain its target primary key exactly once")
-	}
-	return KeyForRelation(hop), nil
+	return KeyForPath(hops), nil
 }
 
 // RelationCondition validates a whole route against its root and terminal.

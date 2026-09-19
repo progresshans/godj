@@ -61,7 +61,7 @@ func TestForwardSelectMixedJoinsFailureDoesNotPublishPartialDuplicates(t *testin
 			if !ok {
 				t.Fatal("missing selected relation")
 			}
-			hop := projection.Hop()
+			hop := projection.TerminalHop()
 			path, err := query.NewForwardRelationPath(hop.Source(), hop.SourceTable(), "reviewer", "reviewer_id", hop.Target(), hop.TargetTable(), hop.TargetPrimaryKeyColumn(), true, query.NewFieldRef("name", "name", query.FieldString, false))
 			if err != nil {
 				t.Fatal(err)

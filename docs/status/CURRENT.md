@@ -16,7 +16,7 @@ Form/Admin·RFC3339 JSON/OpenAPI·독립 client까지 구현했다. Scalar typed
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 관계를 함께 읽는 query에도 Count를 연결해 필터·Distinct·슬라이스와 eager cache 의미를 보존한다.
 Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교·문자열·isnull·IN과 AND/OR/NOT을 연결하고 JOIN·부정의 null 의미를 보존한다.
-여러 direct forward selected 관계와 다른 forward/reverse filter JOIN의 All·First·Count, 중복 행·Distinct·슬라이스·nullable cache를 연결했다. 현재 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
+여러 direct·nested forward selected 관계와 다른 forward/reverse filter JOIN의 All·First·Count, 중복 행·Distinct·슬라이스·하위 nullable cache를 연결했다. 현재 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)을 따른다.
 
 모델 serializer와 같은 operation에서 Article·Helpdesk OpenAPI 3.1 문서를 만든다. Named schema와 JSON 정책을
 공유하고 별도 module의 고정 ogen Go client로 Bearer·Session/CSRF·CRUD·관계·정수·여러 줄 본문을 검증한다.
@@ -24,7 +24,8 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 ## 다음 행동
 
 GDJ-0082의 다단계 forward 조회를 구현했고 normal/race/CGO0와 기존 Draft PR의 Hosted ORM 검증을 완료했다.
-별도 작업 사본의 GDJ-0083에서 전체 경로 projection·typed 자식 선택·scan/cache를 구현하고 생성 소비자까지 연결한다.
+GDJ-0083의 typed/dynamic 중첩 선택과 생성 소비자·하위 cache를 구현하고 로컬 normal/race/CGO0를 검증했다.
+기존 Draft PR에 통합해 Hosted ORM 결과를 확인한 뒤 다음 기능으로 이어간다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거

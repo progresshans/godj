@@ -30,10 +30,12 @@ Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
 Typed/dynamic 대상은 Integer·Char/Text·DateTime의 nullable/non-null과 Boolean이다.
-여러 selected direct forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
-Reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse traversal·중첩/reverse eager materialization은 미지원이다.
+여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
+선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
+Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.
+Reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse traversal·reverse eager materialization은 미지원이다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
-유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 mutation·eager graph 전체를 지원한다는 뜻은 아니다.
+유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 migration·mutation이나 object identity 공유까지 지원한다는 뜻은 아니다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
 
 ## SQLite 경계
