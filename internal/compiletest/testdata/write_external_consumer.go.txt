@@ -5,7 +5,20 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/query"
 )
+
+var newInsertPlanReturningKey func(string, []query.Assignment, query.FieldRef) query.InsertPlan =
+	query.NewInsertPlanReturningKey
+
+func ReturnedInsertKey() (query.FieldRef, bool) {
+	plan := newInsertPlanReturningKey(
+		"news_article",
+		nil,
+		query.NewFieldRef("id", "id", query.FieldInteger, false),
+	)
+	return plan.ReturningKey()
+}
 
 func WriteArticle(ctx context.Context, backend db.Mutator) error {
 	created, err := models.ArticleObjects.Create(

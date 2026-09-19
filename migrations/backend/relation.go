@@ -1,0 +1,37 @@
+package backend
+
+import "github.com/progresshans/godj/internal/migrationgraph"
+
+// MigrationCapabilities reports the schema changes a backend can perform
+// atomically with revision-fenced migration history.
+type MigrationCapabilities struct {
+	CreateModelForeignKeys            bool
+	AddNullableForeignKey             bool
+	AddRequiredForeignKeyToEmptyTable bool
+	RemoveForeignKey                  bool
+	AlterFieldChoices                 bool
+}
+
+// The public backend contract shares the pure historical metadata types with
+// the state reconstructor. Database sessions and durability remain in backend.
+type MigrationOperationKind = migrationgraph.MigrationOperationKind
+type MigrationIntent = migrationgraph.MigrationIntent
+type MigrationOperation = migrationgraph.MigrationOperation
+type MigrationTarget = migrationgraph.MigrationTarget
+type MigrationModel = migrationgraph.MigrationModel
+
+const (
+	MigrationCreateModel = migrationgraph.MigrationCreateModel
+	MigrationDeleteModel = migrationgraph.MigrationDeleteModel
+	MigrationAddField    = migrationgraph.MigrationAddField
+	MigrationRemoveField = migrationgraph.MigrationRemoveField
+	MigrationAlterField  = migrationgraph.MigrationAlterField
+)
+
+func CloneMigrationModels(models []MigrationModel) []MigrationModel {
+	return migrationgraph.CloneMigrationModels(models)
+}
+
+func CloneMigrationTargets(targets []MigrationTarget) []MigrationTarget {
+	return migrationgraph.CloneMigrationTargets(targets)
+}

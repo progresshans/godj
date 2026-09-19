@@ -7,7 +7,7 @@
       "title": "A fresh database reaches all latest leaves through the full forward lifecycle",
       "scenario": "django.migration.lifecycle.fresh_latest",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -41,7 +41,7 @@
       "title": "A durable applied prefix executes only the remaining latest tail",
       "scenario": "django.migration.lifecycle.applied_prefix_latest",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -75,7 +75,7 @@
       "title": "A fully applied latest request is a no-op that still returns latest state",
       "scenario": "django.migration.lifecycle.fully_applied_latest_noop",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -103,7 +103,7 @@
       "title": "A named forward target applies its dependency closure and excludes descendants",
       "scenario": "django.migration.lifecycle.named_forward_target",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -137,7 +137,7 @@
       "title": "A named reverse target removes only same-app descendants and preserves an unrelated applied branch",
       "scenario": "django.migration.lifecycle.named_reverse_target",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -177,7 +177,7 @@
       "title": "An app zero target reverses the app and every cross-app dependent in dependent-first order",
       "scenario": "django.migration.lifecycle.zero_target",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "deviation",
       "provenance": [
         {
           "kind": "documentation",
@@ -202,6 +202,11 @@
           "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
           "derived": false,
           "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "decision",
+          "reference": "DEV-0002",
+          "derived": false
         }
       ],
       "comparison": ["result", "db_state", "metrics"]
@@ -211,7 +216,7 @@
       "title": "An unknown legacy record survives while a known applied prefix advances to latest",
       "scenario": "django.migration.lifecycle.unknown_legacy_tail",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -239,7 +244,7 @@
       "title": "Known inconsistent history is rejected before target selection, planning, or execution",
       "scenario": "django.migration.lifecycle.inconsistent_history_preflight",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -273,7 +278,7 @@
       "title": "A middle forward failure preserves the prior migration, rolls back the current step, and stops the tail",
       "scenario": "django.migration.lifecycle.middle_forward_failure",
       "phase": "rollback",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -313,7 +318,7 @@
       "title": "A fresh connection and executor resume the failed step and tail from the durable prefix",
       "scenario": "django.migration.lifecycle.restart_after_failure",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",

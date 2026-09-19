@@ -1,12 +1,18 @@
 package query
 
+import (
+	"github.com/progresshans/godj/internal/temporal"
+	"time"
+)
+
 type ValueKind string
 
 const (
-	ValueNull    ValueKind = "null"
-	ValueInteger ValueKind = "integer"
-	ValueString  ValueKind = "string"
-	ValueBoolean ValueKind = "boolean"
+	ValueNull     ValueKind = "null"
+	ValueInteger  ValueKind = "integer"
+	ValueString   ValueKind = "string"
+	ValueBoolean  ValueKind = "boolean"
+	ValueDateTime ValueKind = "datetime"
 )
 
 // Value is a deliberately small tagged scalar. Null is an explicit tagged
@@ -29,6 +35,23 @@ func Integer(value int64) Value {
 
 func String(value string) Value {
 	return Value{kind: ValueString, text: value}
+}
+
+// DateTime canonicalizes an instant to UTC microseconds. An out-of-range
+// instant produces an invalid value, rejected by plan/write validation.
+func DateTime(value time.Time) Value {
+	canonical, err := temporal.Canonical(value)
+	if err != nil {
+		return Value{}
+	}
+	return Value{kind: ValueDateTime, integer: canonical.UnixMicro()}
+}
+
+func (v Value) DateTime() (time.Time, bool) {
+	if v.kind != ValueDateTime {
+		return time.Time{}, false
+	}
+	return time.UnixMicro(v.integer).UTC(), true
 }
 
 func Boolean(value bool) Value {
@@ -63,6 +86,9 @@ func (v Value) DatabaseValue() (any, error) {
 	switch v.kind {
 	case ValueNull:
 		return nil, nil
+	case ValueDateTime:
+		value, _ := v.DateTime()
+		return value, nil
 	case ValueInteger:
 		return v.integer, nil
 	case ValueString:

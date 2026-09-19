@@ -1,0 +1,285 @@
+// Package queryplan owns the shared semantic checks used by SQL compilers.
+// It does not own backend identifier quoting, physical schema rules or I/O.
+package queryplan
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+// RelationKey is the deterministic semantic edge identity used to prepare a
+// join inventory. Full hop equality remains necessary before combining edges.
+type RelationKey struct {
+	SourceApp, SourceModel, Field, TargetApp, TargetModel string
+	Direction                                             query.RelationDirection
+	Parent                                                string
+	Depth                                                 int
+}
+
+func KeyForRelation(hop query.RelationHop) RelationKey {
+	return RelationKey{
+		SourceApp: hop.Source().AppLabel, SourceModel: hop.Source().ModelName, Field: hop.Field(),
+		TargetApp: hop.Target().AppLabel, TargetModel: hop.Target().ModelName, Direction: hop.Direction(),
+	}
+}
+
+func RelationProjection(plan query.Plan, projection query.RelationProjection, backendName string) (RelationKey, error) {
+	if err := projection.Validate(); err != nil {
+		return RelationKey{}, err
+	}
+	hops := projection.Path().Hops()
+	root := hops[0]
+	if root.SourceTable() != plan.Table() {
+		return RelationKey{}, invalidPlan(backendName + " relation projection source table does not match the query root")
+	}
+	sourceKey := query.NewFieldRef(root.Field(), root.SourceColumn(), query.FieldInteger, root.Nullable())
+	if !ContainsField(plan.SourceFields(), sourceKey) {
+		return RelationKey{}, invalidPlan("relation projection source key is not selected model metadata")
+	}
+	return KeyForPath(hops), nil
+}
+
+// RelationCondition validates a whole route against its root and terminal.
+// Structural path validation is shared with the AST; physical identifier/value
+// handling remains owned by the dialect compiler.
+func RelationCondition(plan query.Plan, condition query.Condition, path query.RelationPath, backendName string) error {
+	if err := path.Validate(); err != nil {
+		return err
+	}
+	if !condition.Field().Equal(path.Terminal()) {
+		return invalidPlan("related condition field does not match relation path terminal")
+	}
+	if _, ok := condition.RHSField(); ok {
+		return invalidPlan(backendName + " relation conditions cannot use a field-reference right-hand side")
+	}
+	hops := path.Hops()
+	root := hops[0]
+	if root.Direction() == query.RelationReverse {
+		if root.TargetTable() != plan.Table() {
+			return invalidPlan("reverse relation root table does not match plan source")
+		}
+		if err := ReverseCondition(condition, root, backendName); err != nil {
+			return err
+		}
+		if condition.Lookup() != query.LookupExact {
+			return unsupportedRelatedCondition(condition, backendName+" reverse relation compiler supports exact related lookups only")
+		}
+		return nil
+	}
+	if root.SourceTable() != plan.Table() || !ContainsField(plan.SourceFields(), query.NewFieldRef(root.Field(), root.SourceColumn(), query.FieldInteger, root.Nullable())) {
+		return invalidPlan("forward relation source key is not selected model metadata")
+	}
+	if path.TerminalScope() == query.RelationTerminalSourceKey {
+		if condition.Lookup() != query.LookupIsNull {
+			return unsupportedRelatedCondition(condition, backendName+" source-key relation paths support isnull only")
+		}
+		if _, ok := condition.Value().Boolean(); !ok {
+			return invalidPlan("source-key isnull requires a Boolean value")
+		}
+		for _, hop := range hops {
+			if !canonicalIdentity(hop.Source()) || !canonicalIdentity(hop.Target()) || !CanonicalIdentifier(hop.SourceTable()) || !CanonicalIdentifier(hop.Field()) || !CanonicalIdentifier(hop.SourceColumn()) || !CanonicalIdentifier(hop.TargetTable()) || !CanonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
+				return invalidPlan("source-key relation path contains non-canonical metadata")
+			}
+		}
+	}
+	return nil
+}
+
+func ReverseCondition(condition query.Condition, hop query.RelationHop, backendName string) error {
+	if hop.Cardinality() != ir.RelationOneToMany {
+		return unsupportedRelatedCondition(condition, backendName+" reverse related-field paths require one-to-many traversal")
+	}
+	if !canonicalIdentity(hop.Source()) || !canonicalIdentity(hop.Target()) ||
+		!CanonicalIdentifier(hop.SourceTable()) || !CanonicalIdentifier(hop.Field()) ||
+		!CanonicalIdentifier(hop.SourceColumn()) || !CanonicalIdentifier(hop.TargetTable()) ||
+		!CanonicalIdentifier(hop.TargetPrimaryKeyColumn()) || !CanonicalIdentifier(hop.ReverseName()) {
+		return invalidPlan("reverse relation path contains non-canonical metadata")
+	}
+	field := condition.Field()
+	if !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) || field.Nullable() ||
+		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime) {
+		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
+	}
+	return nil
+}
+
+func canonicalIdentity(identity ir.ModelIdentity) bool {
+	return CanonicalIdentifier(identity.AppLabel) && CanonicalIdentifier(identity.ModelName)
+}
+
+func CanonicalIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index, character := range value {
+		if character == '_' || character >= 'a' && character <= 'z' || index > 0 && character >= '0' && character <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func CompareRelationKey(left, right RelationKey) int {
+	if left.Depth < right.Depth {
+		return -1
+	}
+	if left.Depth > right.Depth {
+		return 1
+	}
+	if order := strings.Compare(left.Parent, right.Parent); order != 0 {
+		return order
+	}
+	leftParts := [...]string{left.SourceApp, left.SourceModel, left.Field, left.TargetApp, left.TargetModel, string(left.Direction)}
+	rightParts := [...]string{right.SourceApp, right.SourceModel, right.Field, right.TargetApp, right.TargetModel, string(right.Direction)}
+	for index := range leftParts {
+		if comparison := strings.Compare(leftParts[index], rightParts[index]); comparison != 0 {
+			return comparison
+		}
+	}
+	return 0
+}
+
+func ContainsField(columns []query.FieldRef, candidate query.FieldRef) bool {
+	for _, column := range columns {
+		if column.Equal(candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+func ValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
+	return (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
+		(value == query.ValueString && field == query.FieldString) ||
+		(value == query.ValueBoolean && field == query.FieldBoolean)
+}
+
+func OrderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
+	return (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
+		(value == query.ValueString && field == query.FieldString)
+}
+
+func ProjectionFields(result query.ResultShape, sourceFields []query.FieldRef) ([]query.FieldRef, error) {
+	expressions := result.Expressions()
+	if len(expressions) == 0 {
+		return nil, invalidPlan("projection result is empty")
+	}
+	fields := make([]query.FieldRef, len(expressions))
+	for index, expression := range expressions {
+		field, ok := expression.Field()
+		if expression.Kind() != query.ResultField || !ok || !ContainsField(sourceFields, field) {
+			return nil, invalidPlan("projection result contains a field outside the plan source metadata")
+		}
+		fields[index] = field
+	}
+	return fields, nil
+}
+
+func OmittedOrderings(orderings []query.Ordering, sourceFields []query.FieldRef, quoteIdentifier func(string) (string, error)) error {
+	for _, ordering := range orderings {
+		if !ContainsField(sourceFields, ordering.Field()) {
+			return invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
+		}
+		if _, err := quoteIdentifier(ordering.Field().Column()); err != nil {
+			return err
+		}
+		switch ordering.Direction() {
+		case query.Ascending, query.Descending:
+		default:
+			return invalidPlan("unknown ordering direction")
+		}
+	}
+	return nil
+}
+
+func invalidPlan(detail string) error {
+	return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: detail}
+}
+
+func unsupportedRelatedCondition(condition query.Condition, detail string) error {
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeUnsupported,
+		Field:    condition.Field().Name(),
+		Lookup:   string(condition.Lookup()),
+		Detail:   detail,
+	}
+}
+
+// AppendAggregates validates the closed scalar aggregate grammar before each
+// field reaches backend quoting. COUNT, MIN and MAX syntax is shared; quoting and
+// schema/alias qualification are supplied by the actual compiler.
+func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, quoteField func(query.FieldRef) (string, error)) error {
+	for index, expression := range expressions {
+		if index > 0 {
+			sql.WriteString(", ")
+		}
+		switch expression.Kind() {
+		case query.ResultCountAll:
+			if _, ok := expression.Field(); ok {
+				return invalidPlan("COUNT(*) result contains a field")
+			}
+			sql.WriteString("COUNT(*)")
+		case query.ResultMin, query.ResultMax:
+			field, ok := expression.Field()
+			if !ok || !ContainsField(sourceFields, field) ||
+				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime) {
+				return invalidPlan("MIN/MAX result requires an ordered scalar source field")
+			}
+			quoted, err := quoteField(field)
+			if err != nil {
+				return err
+			}
+			if expression.Kind() == query.ResultMin {
+				sql.WriteString("MIN(")
+			} else {
+				sql.WriteString("MAX(")
+			}
+			sql.WriteString(quoted)
+			sql.WriteByte(')')
+		default:
+			return invalidPlan("aggregate result contains an unsupported expression")
+		}
+	}
+	return nil
+}
+
+// KeyForPath distinguishes occurrences of the same declaration reached by
+// different root routes. Length-prefixed tokens cannot collide for raw AST
+// identifiers containing separators. Direct paths retain their existing keys.
+func KeyForPath(hops []query.RelationHop) RelationKey {
+	if len(hops) == 0 {
+		return RelationKey{}
+	}
+	key := KeyForRelation(hops[len(hops)-1])
+	key.Depth = len(hops) - 1
+	var prefix strings.Builder
+	for _, hop := range hops[:len(hops)-1] {
+		edge := KeyForRelation(hop)
+		for _, part := range []string{edge.SourceApp, edge.SourceModel, edge.Field, edge.TargetApp, edge.TargetModel, string(edge.Direction)} {
+			fmt.Fprintf(&prefix, "%d:%s", len(part), part)
+		}
+	}
+	key.Parent = prefix.String()
+	return key
+}
+
+// ConditionJoinKey names the row holding the terminal column. A source-key
+// predicate trims only its final target JOIN, never the ancestors' JOINs.
+func ConditionJoinKey(path query.RelationPath) (RelationKey, bool) {
+	hops := path.Hops()
+	if len(hops) == 0 {
+		return RelationKey{}, false
+	}
+	if path.TerminalScope() == query.RelationTerminalSourceKey {
+		hops = hops[:len(hops)-1]
+	}
+	if len(hops) == 0 {
+		return RelationKey{}, false
+	}
+	return KeyForPath(hops), true
+}

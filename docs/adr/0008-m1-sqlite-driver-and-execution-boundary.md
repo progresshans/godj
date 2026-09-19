@@ -1,5 +1,9 @@
 # ADR-0008: M1 SQLite backend는 modernc database/sql driver를 사용한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0008-m1-sqlite-driver-and-execution-boundary.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0002, DB-SQLITE-001, QRY-001..QRY-010
@@ -80,14 +84,3 @@ M1 backend는 C compiler 없이 build되고 generic ORM의 context를 `database/
 - SQLite version 차이가 영향을 주는 향후 Unicode/JSON/date contract
 - backend별 성능 우선순위와 CGO opt-in variant
 - Windows atomic generated-file replacement 의미
-
-## 검증
-
-- exact/ASCII icontains/isnull/AND/order/limit compiler 및 integration test
-- parameter binding, identifier quote, `%`/`_`/backslash escape test
-- pre-canceled `All`과 실행 중 recursive statement timeout
-- cancellation 후 같은 database 재사용
-- success/scan/iteration/close/backend error cleanup
-- concurrent Query/Close `go test -race`
-- `CGO_ENABLED=0` SQLite/GoDj conformance test
-- 11-contract Django oracle differential comparison

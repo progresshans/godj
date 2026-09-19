@@ -28,6 +28,7 @@ func TestSaveNewInstanceInsertsAllWritableFieldsAndAssignsGeneratedKey(t *testin
 	assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "title", query.String("New"))
 	assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "published", query.Boolean(false))
 	assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "summary", query.String(""))
+	assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
 	if article.ID != 41 {
 		t.Fatalf("article.ID = %d, want 41", article.ID)
 	}
@@ -253,6 +254,7 @@ func TestSavePrimaryKeyPresenceIsNotInferredFromNumericValue(t *testing.T) {
 			t.Fatalf("backend calls = %v, want [update insert]", backend.calls)
 		}
 		assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "id", query.Integer(0))
+		assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
 		key, present := (models.ArticleDescriptor{}).PrimaryKey(article)
 		if article.ID != 0 || !present || !key.Equal(query.Integer(0)) {
 			t.Fatalf("explicit-zero fallback key = ID %d value %v present %v", article.ID, key, present)
@@ -341,6 +343,7 @@ func TestSaveExplicitKeyUpdateFallbackAndForceInsertPlans(t *testing.T) {
 		assertAssignmentNames(t, backend.updatePlans[0].Assignments(), "title", "published", "summary")
 		assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "id", "title", "published", "summary")
 		assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "id", query.Integer(22))
+		assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
 		if article.ID != 22 {
 			t.Fatalf("explicit fallback replaced object ID with backend lastInsertID: %d", article.ID)
 		}
@@ -358,6 +361,7 @@ func TestSaveExplicitKeyUpdateFallbackAndForceInsertPlans(t *testing.T) {
 		}
 		assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "id", "title", "published", "summary")
 		assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "id", query.Integer(23))
+		assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
 		if article.ID != 23 {
 			t.Fatalf("explicit force insert replaced ID with backend lastInsertID: %d", article.ID)
 		}
@@ -424,6 +428,50 @@ func TestSaveOptionsCopyCallerSlices(t *testing.T) {
 		t.Fatalf("dynamic Save() error = %v", err)
 	}
 	assertAssignmentNames(t, dynamicBackend.updatePlans[0].Assignments(), "title")
+}
+
+func TestSaveAcceptsForeignKeyIntegerValues(t *testing.T) {
+	t.Parallel()
+
+	manager := orm.NewManager[relationWriteModel](relationWriteDescriptor{})
+	reviewerID := int64(0)
+	for _, test := range []struct {
+		name       string
+		reviewerID *int64
+	}{
+		{name: "nullable null"},
+		{name: "nullable explicit zero", reviewerID: &reviewerID},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			backend := &saveBackendSpy{insertIDs: []int64{41}}
+			value := relationWriteModel{AuthorID: 0, ReviewerID: test.reviewerID}
+			if err := manager.Save(context.Background(), backend, &value); err != nil {
+				t.Fatalf("Save() error = %v", err)
+			}
+			if !slices.Equal(backend.calls, []string{"insert"}) || value.ID != 41 || !value.primaryKeyPresent {
+				t.Fatalf("Save() = (%#v, calls=%v), want generated key and one insert", value, backend.calls)
+			}
+			assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "author", "reviewer")
+			assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "author", query.Integer(0))
+			assertInsertReturningKey(t, backend.insertPlans[0], query.NewFieldRef("id", "id", query.FieldInteger, false))
+			if test.reviewerID == nil {
+				assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "reviewer", query.Null())
+			} else {
+				assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "reviewer", query.Integer(0))
+			}
+		})
+	}
+}
+
+func TestSaveRejectsInvalidForeignKeyDescriptorValueBeforeBackendIO(t *testing.T) {
+	t.Parallel()
+
+	manager := orm.NewManager[relationWriteModel](relationWriteInvalidForeignKeyDescriptor{})
+	backend := &saveBackendSpy{insertIDs: []int64{41}}
+	value := relationWriteModel{AuthorID: 1}
+	err := manager.Save(context.Background(), backend, &value)
+	assertSaveError(t, err, query.CategoryField, query.CodeInvalidValue, "author")
+	assertNoSaveCalls(t, backend)
 }
 
 func TestQueryErrorPreservesCause(t *testing.T) {

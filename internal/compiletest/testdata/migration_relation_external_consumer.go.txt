@@ -1,0 +1,60 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+const (
+	createModel backend.MigrationOperationKind = backend.MigrationCreateModel
+	deleteModel backend.MigrationOperationKind = backend.MigrationDeleteModel
+	addField    backend.MigrationOperationKind = backend.MigrationAddField
+	removeField backend.MigrationOperationKind = backend.MigrationRemoveField
+)
+
+var (
+	_ backend.RevisionFencedBackend = (*relationBackend)(nil)
+	_ backend.RevisionFencedSession = (*relationSession)(nil)
+)
+
+type relationBackend struct{}
+
+func (*relationBackend) OpenRevisionFencedSession(context.Context) (backend.RevisionFencedSession, error) {
+	return &relationSession{}, nil
+}
+
+func (*relationBackend) MigrationCapabilities() backend.MigrationCapabilities {
+	return backend.MigrationCapabilities{
+		CreateModelForeignKeys:            true,
+		AddNullableForeignKey:             false,
+		AddRequiredForeignKeyToEmptyTable: false,
+		RemoveForeignKey:                  false,
+	}
+}
+
+type relationSession struct{}
+
+func (*relationSession) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
+	return nil, nil
+}
+
+func (*relationSession) BeginMigration(context.Context, backend.HistoryTransition, backend.MigrationIntent) (backend.RevisionFencedTransaction, error) {
+	return nil, nil
+}
+
+func (*relationSession) Close(context.Context) error { return nil }
+
+func relationIntent(model, targetModel ir.Model, sourceField, targetKey ir.Field) backend.MigrationIntent {
+	return backend.MigrationIntent{Operations: []backend.MigrationOperation{{
+		OperationIndex: 0,
+		Kind:           createModel,
+		After:          model,
+		Targets: []backend.MigrationTarget{{
+			SourceField: sourceField,
+			TargetModel: targetModel,
+			TargetKey:   targetKey,
+		}},
+	}}}
+}

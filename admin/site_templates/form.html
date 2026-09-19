@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ title }}</title></head>
+<body data-admin-view="form"><header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
+<main><h1>{{ title }}</h1><form method="post" action="{{ action }}">{% csrf_token %}
+{% for error in non_field_errors %}<p data-error-field="__all__" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
+{% for field in fields %}<div data-field-name="{{ field.name }}"><label>{{ field.label }}
+{% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.textarea %}<textarea name="{{ field.name }}"{% if field.required %} required{% endif %}>
+{{ field.value }}</textarea>{% endif %}
+{% if field.datetime %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="YYYY-MM-DDTHH:MM:SSZ"{% if field.required %} required{% endif %}><span>UTC if no offset is provided.</span>{% endif %}
+{% if field.integer %}<input type="text" inputmode="numeric" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.select %}<select name="{{ field.name }}"{% if field.required %} required{% endif %}>{% for option in field.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>{% endif %}
+{% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}</label>
+{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endfor %}
+<button type="submit">{{ submit_label }}</button></form><p><a href="{{ list_path }}">Back to list</a></p></main>
+</body></html>

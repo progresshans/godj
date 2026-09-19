@@ -14,10 +14,13 @@ const (
 
 const (
 	CodeUnknownField                 = "unknown_field"
+	CodeUnknownRelation              = "unknown_relation"
+	CodeUnknownRelatedField          = "unknown_related_field"
 	CodeUnsupportedLookup            = "unsupported_lookup"
 	CodeDisallowedLookup             = "disallowed_lookup"
 	CodeInvalidValue                 = "invalid_value"
 	CodeInvalidLimit                 = "invalid_limit"
+	CodeInvalidOffset                = "invalid_offset"
 	CodeInvalidIndex                 = "invalid_index"
 	CodeUnorderedQuery               = "unordered_query"
 	CodeInvalidPlan                  = "invalid_plan"
@@ -33,6 +36,16 @@ const (
 	CodeUpdateFieldsMissingRow       = "update_fields_missing_row"
 	CodeMutuallyExclusiveForceFlags  = "mutually_exclusive_force_flags"
 	CodeUniquePrimaryKey             = "unique_primary_key"
+	CodeRelatedObjectMissing         = "related_object_missing"
+	CodeRelatedObjectCardinality     = "related_object_cardinality"
+	CodeRelatedSetMembership         = "related_set_membership"
+	CodeInvalidRelatedPath           = "invalid_related_path"
+	CodeRelatedObjectProjection      = "related_object_projection"
+	CodeUnsavedRelatedObject         = "unsaved_related_object"
+	CodeProtectedForeignKey          = "protected_foreign_key"
+	CodeCommitOutcomeUnknown         = "commit_outcome_unknown"
+	CodeTransactionOutcomeUnknown    = "transaction_outcome_unknown"
+	CodeBackendRecoveryRequired      = "backend_recovery_required"
 )
 
 // Error is the stable error taxonomy shared by dynamic lookup validation and
@@ -48,6 +61,9 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
+	if e == nil {
+		return "query error"
+	}
 	location := ""
 	if e.Field != "" {
 		location = fmt.Sprintf(" field=%q", e.Field)
@@ -63,7 +79,7 @@ func (e *Error) Error() string {
 
 func (e *Error) Is(target error) bool {
 	other, ok := target.(*Error)
-	if !ok {
+	if !ok || e == nil || other == nil {
 		return false
 	}
 	return (other.Category == "" || e.Category == other.Category) &&
@@ -76,5 +92,8 @@ func (e *Error) Is(target error) bool {
 // category and code to callers. Consumers should branch on the stable fields;
 // errors.Is/As can still inspect the original driver error when necessary.
 func (e *Error) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.Cause
 }

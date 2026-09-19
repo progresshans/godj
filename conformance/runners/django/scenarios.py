@@ -34,6 +34,7 @@ def configure_django() -> None:
         INSTALLED_APPS=[
             "conformance.runners.django.migration_fixture.apps.GoDjMigrationFixtureConfig",
             "conformance.runners.django.migration_failure_fixture.apps.GoDjMigrationFailureFixtureConfig",
+            "conformance.runners.django.migration_relation_fixture.apps.GoDjMigrationRelationFixtureConfig",
         ],
         LANGUAGE_CODE="en-us",
         SECRET_KEY="godj-conformance-not-a-secret",

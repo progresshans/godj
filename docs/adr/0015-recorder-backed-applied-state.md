@@ -1,5 +1,9 @@
 # ADR-0015: Recorder-backed applied state는 별도 read port와 explicit history check를 사용한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0015-recorder-backed-applied-state.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0013, GDJ-0014, MIG-027..MIG-036, Q-012
@@ -161,31 +165,3 @@ concurrent read는 race-safe해야 하지만 concurrent migration writer와의 �
 - Crash repair, schema/recorder reconciliation
 - Alias registry/router, PostgreSQL/MySQL/Oracle backend
 - Replacement/squash/merge/fake와 data migration callback ABI
-
-## 검증과 구현 결과
-
-- MIG-027..036 live SQLite adapter가 locked Django oracle과 10개 semantic 0-diff
-- Recorder table absent read가 table/row를 생성하지 않는 unit/integration gate
-- Fresh file backend와 서로 다른 두 database 격리
-- Invalid/duplicate/unknown raw record와 explicit `CheckHistory` timing
-- Query/scan/rows/context 오류 cause와 typed-nil reader
-- Existing `AtomicBackend`/`Transaction` fake source compatibility
-- `migrations/backend`이 top-level `migrations`를 import하지 않는 dependency gate
-- Concurrent read race, full/race/CGO=0/vet와 deterministic two-process actual
-- Locked Django oracle/static fixture bytes, seven-set 42 cross-binding과 기존 제품 결과 보존
-
-GDJ-0014가 이 경계를 제품 commit
-`a9ce9597551840f1be8e1f27006d427842f38081`에 구현했습니다. Backend DTO/read port는
-transaction interface와 분리됐고, core는 reader 반환을 복사한 뒤 기존
-`NewAppliedState`로 검증합니다. SQLite는 read-only fresh file backend, absent/empty,
-record/unrecord, database isolation, malformed schema, cancellation, rows lifecycle와 concurrent
-read/close race를 검증했습니다.
-
-MIG-027..036 GoDj actual은 locked Django oracle과 10-contract semantic 0-diff이고 두
-actual은 33,795 bytes의 byte-identical 결과입니다. 기존 여섯 product set의
-`63 passing + 4 deviation`은 회귀 없이 유지됐고 새 set이 10 `passing`이 되어
-제품 분류는 `73 passing + 4 deviation`입니다. `make check`, full uncached
-regular/race/`CGO_ENABLED=0`/vet, portable 94 pass/9 skip와 exact Python 94/94가
-통과했으며 세부 증거는
-[EVID-20260808-013](../status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
-기록했습니다.

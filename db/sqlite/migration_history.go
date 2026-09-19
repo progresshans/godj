@@ -24,6 +24,9 @@ func (b *Backend) ReadAppliedMigrations(ctx context.Context) (records []migratio
 	if ctx == nil {
 		return nil, errors.New("read SQLite applied migrations: context is nil")
 	}
+	if err := b.relationRetention.availabilityError(); err != nil {
+		return nil, fmt.Errorf("read SQLite applied migrations: %w", err)
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("read SQLite applied migrations: %w", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/internal/queryplan"
 	"github.com/progresshans/godj/query"
 )
 
@@ -17,12 +18,15 @@ var _ db.Session = (*transactionSession)(nil)
 type transactionSession struct {
 	transaction *sql.Tx
 	backend     *Backend
+	lifetime    context.Context
 	active      atomic.Bool
 }
 
-// Atomic rolls back on callback errors and context/commit failures. A panic is
-// not converted into a framework error: the deferred rollback runs and the
-// original panic continues to the caller.
+// Atomic rolls back on callback errors and context cancellation observed
+// before commit. A literal COMMIT error has an unknown outcome and requires
+// reconciliation rather than an automatic retry. A panic is not converted
+// into a framework error: the deferred rollback runs and the original panic
+// continues to the caller.
 func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) error {
 	if err := b.validateWriteContext(ctx); err != nil {
 		return err
@@ -34,7 +38,9 @@ func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) e
 	if err != nil {
 		return fmt.Errorf("begin SQLite transaction: %w", err)
 	}
-	session := &transactionSession{transaction: transaction, backend: b}
+	lifetime, finishLifetime := context.WithCancelCause(ctx)
+	defer finishLifetime(sql.ErrTxDone)
+	session := &transactionSession{transaction: transaction, backend: b, lifetime: lifetime}
 	session.active.Store(true)
 	finished := false
 	defer func() {
@@ -68,19 +74,29 @@ func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) e
 		}
 		return contextErr
 	}
-	if err := transaction.Commit(); err != nil {
+	if commitErr := transaction.Commit(); commitErr != nil {
 		rollbackErr := transaction.Rollback()
 		finished = true
-		if errors.Is(rollbackErr, sql.ErrTxDone) {
-			rollbackErr = nil
-		}
-		return errors.Join(
-			fmt.Errorf("commit SQLite transaction: %w", err),
-			wrapTransactionRollback(rollbackErr),
-		)
+		return sqliteCommitUnknown(commitErr, rollbackErr)
 	}
 	finished = true
 	return nil
+}
+
+func sqliteCommitUnknown(commitErr, rollbackErr error) error {
+	if errors.Is(rollbackErr, sql.ErrTxDone) {
+		rollbackErr = nil
+	}
+	cause := commitErr
+	if rollbackErr != nil {
+		cause = errors.Join(commitErr, wrapTransactionRollback(rollbackErr))
+	}
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeCommitOutcomeUnknown,
+		Detail:   "SQLite commit outcome is unknown; do not retry automatically",
+		Cause:    cause,
+	}
 }
 
 func wrapTransactionRollback(err error) error {
@@ -97,6 +113,9 @@ func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (
 	statement, arguments, err := Compile(plan)
 	if err != nil {
 		return nil, err
+	}
+	if plan.EmptyResult() {
+		return queryplan.EmptyRowsInSession(ctx, session.lifetime, plan.ResultShape())
 	}
 	session.backend.queryCount.Add(1)
 	rows, err := session.transaction.QueryContext(ctx, statement, arguments...)
@@ -128,7 +147,7 @@ func (session *transactionSession) Delete(ctx context.Context, plan query.Delete
 }
 
 func (session *transactionSession) validate(ctx context.Context) error {
-	if session == nil || session.transaction == nil || !session.active.Load() {
+	if session == nil || session.transaction == nil || session.lifetime == nil || !session.active.Load() {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite transaction session is nil or no longer active"}
 	}
 	if ctx == nil {
@@ -137,5 +156,5 @@ func (session *transactionSession) validate(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return nil
+	return context.Cause(session.lifetime)
 }

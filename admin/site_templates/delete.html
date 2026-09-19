@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Delete {{ model_name }}</title></head>
+<body data-admin-view="delete"><header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
+<main><h1>Delete {{ model_name }}</h1><p>Delete {{ label }}?</p><form method="post" action="{{ action }}">{% csrf_token %}<input type="hidden" name="confirm" value="yes"><button type="submit">Yes, delete</button></form><a href="{{ list_path }}">Cancel</a></main>
+</body></html>

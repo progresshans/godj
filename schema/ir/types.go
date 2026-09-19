@@ -4,7 +4,13 @@
 // other.
 package ir
 
-const FormatVersion = 2
+import "slices"
+
+// CurrentFormatVersion is the only Schema IR format accepted before GoDj's
+// first external release. Scalar and relation-bearing schemas use the same
+// normalized representation; relation presence is a field property, not a
+// format generation.
+const CurrentFormatVersion = 1
 
 type Schema struct {
 	FormatVersion int     `json:"format_version"`
@@ -22,38 +28,83 @@ type Model struct {
 type FieldKind string
 
 const (
-	FieldAuto    FieldKind = "auto"
-	FieldChar    FieldKind = "char"
-	FieldBoolean FieldKind = "boolean"
+	FieldAuto       FieldKind = "auto"
+	FieldInteger    FieldKind = "integer"
+	FieldChar       FieldKind = "char"
+	FieldText       FieldKind = "text"
+	FieldDateTime   FieldKind = "datetime"
+	FieldBoolean    FieldKind = "boolean"
+	FieldForeignKey FieldKind = "foreign_key"
 )
 
-// ScalarKind identifies the concrete GoDj scalar carried by a field default.
-// The enclosing *ScalarDefault pointer preserves whether a default exists;
-// the zero value of a scalar (notably false and "") remains an explicit value.
+type ModelIdentity struct {
+	AppLabel  string `json:"app_label"`
+	ModelName string `json:"model_name"`
+}
+
+type RelationCardinality string
+
+const (
+	RelationManyToOne RelationCardinality = "many_to_one"
+	RelationOneToMany RelationCardinality = "one_to_many"
+)
+
+type DeletePolicy string
+
+const (
+	DeleteProtect DeletePolicy = "protect"
+	DeleteSetNull DeletePolicy = "set_null"
+)
+
+type ReverseRelation struct {
+	Name     string `json:"name,omitempty"`
+	Disabled bool   `json:"disabled,omitempty"`
+}
+
+type ForeignKeyRelation struct {
+	Target      ModelIdentity       `json:"target"`
+	Cardinality RelationCardinality `json:"cardinality"`
+	Reverse     ReverseRelation     `json:"reverse"`
+	OnDelete    DeletePolicy        `json:"on_delete"`
+}
+
+// ScalarKind identifies a concrete value in defaults and choice metadata.
+// An enclosing pointer records default presence; false and "" are values.
 type ScalarKind string
 
 const (
-	ScalarString  ScalarKind = "string"
-	ScalarBoolean ScalarKind = "boolean"
-	ScalarInteger ScalarKind = "integer"
+	ScalarString   ScalarKind = "string"
+	ScalarBoolean  ScalarKind = "boolean"
+	ScalarInteger  ScalarKind = "integer"
+	ScalarDateTime ScalarKind = "datetime"
 )
 
-type ScalarDefault struct {
-	Kind    ScalarKind `json:"kind"`
-	String  string     `json:"string,omitempty"`
-	Boolean bool       `json:"boolean,omitempty"`
-	Integer int64      `json:"integer,omitempty"`
+type Scalar struct {
+	Kind     ScalarKind `json:"kind"`
+	String   string     `json:"string,omitempty"`
+	DateTime string     `json:"datetime,omitempty"`
+	Boolean  bool       `json:"boolean,omitempty"`
+	Integer  int64      `json:"integer,omitempty"`
+}
+
+// Choice pairs a stored scalar with its presentation label. Declaration order
+// is significant for form options and historical schema identity.
+type Choice struct {
+	Value Scalar `json:"value"`
+	Label string `json:"label"`
 }
 
 type Field struct {
-	Name       string         `json:"name"`
-	GoName     string         `json:"go_name"`
-	Column     string         `json:"column"`
-	Kind       FieldKind      `json:"kind"`
-	PrimaryKey bool           `json:"primary_key"`
-	Nullable   bool           `json:"nullable"`
-	MaxLength  int            `json:"max_length,omitempty"`
-	Default    *ScalarDefault `json:"default,omitempty"`
+	Name       string              `json:"name"`
+	GoName     string              `json:"go_name"`
+	Column     string              `json:"column"`
+	Kind       FieldKind           `json:"kind"`
+	PrimaryKey bool                `json:"primary_key"`
+	Nullable   bool                `json:"nullable"`
+	MaxLength  int                 `json:"max_length,omitempty"`
+	Default    *Scalar             `json:"default,omitempty"`
+	Choices    []Choice            `json:"choices,omitempty"`
+	Relation   *ForeignKeyRelation `json:"relation,omitempty"`
 }
 
 func (s Schema) Clone() Schema {
@@ -68,11 +119,38 @@ func (s Schema) Clone() Schema {
 func (m Model) Clone() Model {
 	clone := m
 	clone.Fields = append([]Field(nil), m.Fields...)
-	for index := range clone.Fields {
-		if m.Fields[index].Default != nil {
-			value := *m.Fields[index].Default
-			clone.Fields[index].Default = &value
-		}
+	for index := range m.Fields {
+		clone.Fields[index] = m.Fields[index].Clone()
 	}
 	return clone
+}
+
+func (f Field) Clone() Field {
+	clone := f
+	if f.Choices != nil {
+		clone.Choices = make([]Choice, len(f.Choices))
+		copy(clone.Choices, f.Choices)
+	}
+	if f.Default != nil {
+		value := *f.Default
+		clone.Default = &value
+	}
+	if f.Relation != nil {
+		value := *f.Relation
+		clone.Relation = &value
+	}
+	return clone
+}
+
+// Equal compares metadata values, including the ordered choices, rather than
+// treating independently owned default/relation pointers as different fields.
+func (f Field) Equal(other Field) bool {
+	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
+		f.Kind == other.Kind && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.MaxLength == other.MaxLength &&
+		equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
+		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
+}
+
+func equalOptional[T comparable](left, right *T) bool {
+	return left == right || left != nil && right != nil && *left == *right
 }

@@ -1,5 +1,9 @@
 # ADR-0011: M2 Save는 typed option과 Manager orchestration으로 구현한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0011-m2-save-lifecycle-orchestration.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0005, GDJ-0006, MOD-008..MOD-019, Q-006
@@ -132,28 +136,3 @@ adapter가 driver 문자열을 임의로 해석해 제품 오류를 가장하지
 - custom/composite primary key, bulk save, upsert 일반화
 - concurrent Save serialization 또는 optimistic locking
 - PostgreSQL/MySQL/Oracle constraint code mapping
-
-## 검증
-
-- 별도 Go 1.26.5 compile spike에서 model marker가 없는 generic field interface의
-  cross-model false acceptance와, `M` marker 추가 뒤 정상 inference/오용 compile 실패를
-  비교합니다.
-- generated helper의 non-empty/empty mask, force option과 explicit zero/nonzero key를
-  external consumer compile test로 검증합니다.
-- primary-key dynamic mask, nil context/backend/value와 force validation이 Mutator 0회인지
-  fake backend로 검증합니다.
-- default all-field, partial field, force, UPDATE 0행 fallback과 exact INSERT/UPDATE sequence를
-  immutable plan/unit test로 검증합니다.
-- SQLite primary-key conflict, affected-row, rollback/object state와 resource/race test를
-  실행합니다.
-- GoDj adapter가 MOD-008..019를 실제 product package로 실행해 Django oracle과 0-diff인지
-  확인하고 기존 M1/M2 22개를 유지합니다.
-- generator golden/hash/version, last-good preservation, full vet/race/CGO=0와 exact oracle
-  gate를 통과합니다.
-
-결정 전 spike는 저장소 밖 `/tmp/godj-save-api-spike.pSZUC4`에서 수행했습니다.
-`go test ./candidate ./models . -count=1`, 같은 범위 `-race`, `go vet`과
-`-shuffle=on -count=20`이 통과했습니다. Cross-model field, primary-key typed field,
-cross-model option과 generated instance method/field 충돌 fixture는 각각 의도한 compiler
-오류를 냈습니다. 이 `/tmp` 경로는 재현 보조 자료이며 제품 검증 증거는 GDJ-0006의
-checked-in compile/runtime/differential gate로 다시 기록합니다.
