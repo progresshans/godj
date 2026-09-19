@@ -61,7 +61,9 @@ Python **3.12.13·3.13.15·3.14.3·3.14.7 각각 1 test PASS**, skip·warning·e
 
 ### Hosted 상태
 
-GDJ-0086의 Hosted ORM은 아직 실행하지 않았다. 기존 Draft PR에 통합한 뒤 이 source의 scoped 검증을 이어간다.
+제품 source `2ea0735c7d811dd4e07862506de7643abc6073f9`를 기존 Draft PR에 통합하고
+[Hosted ORM run 35467983458](https://github.com/progresshans/godj/actions/runs/35467983458)을 dispatch했다.
+API의 head SHA를 대조했고 최종 결과를 기다린다. 아직 Hosted PASS가 아니다.
 GDJ-0085나 이전 full의 결과를 이번 nullable Boolean의 Hosted PASS로 사용하지 않는다.
 
 ## GDJ-0085 — Self/cyclic 자동 migration과 재개 가능한 게시

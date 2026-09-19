@@ -33,7 +33,8 @@ GDJ-0085의 자동 계획·CLI 게시·실제 SQLite/PG migration과 생성 ORM 
 별도 `feature/nullable-boolean-models`에서 GDJ-0086을 구현했다. 독립 Django/DRF 기준과 일반 affected 실행을 통과했다.
 로컬 영향 검증과 CI 필수 실행 목록을 마무리했으며, 기존 Draft PR 통합과 Hosted ORM 검증을 이어간다.
 세 상태와 생략 규칙을 모델·실제 양 DB migration/ORM·Form/Admin·PUT/PATCH·OpenAPI 및 외부 생성 client에서 연결했다.
-GDJ-0086 제품 변경은 아직 기존 Draft PR에 통합하지 않았다.
+GDJ-0086 source `2ea0735c7d811dd4e07862506de7643abc6073f9`를 기존 Draft PR에 통합했다.
+[Hosted ORM](https://github.com/progresshans/godj/actions/runs/35467983458)의 최종 결과를 확인 중이며 아직 PASS가 아니다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거
