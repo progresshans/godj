@@ -66,7 +66,19 @@ drift가 없다. 두 소비자는 이제 수작업 DDL 대신 정확한 Schema I
 
 초기 checkpoint의 기존 flat-target 기대값 실패, shared app의 중복 byte 계산, 순수 core의 backend import, Django sequence
 차이와 cross-app target 선택 fixture 오류는 PASS로 세지 않았다. 최종 위 source의 완료 결과만 채택했다.
-Hosted ORM 검증은 통합 commit을 push한 뒤 별도 기록한다. 새 full/platform·Windows runtime·배포와 전체 프레임워크 완성은
+통합 source는 `d6db513aba479ebec6a5f256bebac9348a0a32ce`이며 35개 파일의 실제 bytes를 통합 사본에서도 대조했다.
+[Hosted ORM run 35456370913](https://github.com/progresshans/godj/actions/runs/35456370913)은 attempt 1에서 완료했다.
+48개 unique job의 run ID·head SHA·terminal 상태를 실제 API 목록과 대조했으며 **44 success, 4 expected scope skip**이다.
+최종 `CI result (orm)` job `105935247654`의 실제 보고서는 다음과 같다.
+
+```json
+{"full_platform_verified":false,"scope":"orm","verified_jobs":["command-product-matrix","portable-go-matrix","postgresql-product","relation-product-matrix"]}
+```
+
+PostgreSQL 17.10의 normal/race/CGO0·core/operator-target 여섯 조합, 선택한 Linux/macOS의 관계·명령·portable 검증을 완료했다.
+제외 항목은 Python compatibility, exact Darwin profile, product project check, reference/current capture다.
+전용 `godj_0084_normal` DB는 로컬 검증 후 제거했다. 이후 문서 기록 commit은 실행 source로 표시하지 않는다.
+새 full/platform·Windows runtime·배포와 전체 프레임워크 완성은
 이 로컬 기록의 범위가 아니다. 새 self/cyclic 선언의 자동 `makemigrations` 계획은 후속 요구다.
 
 ## GDJ-0083 — Nested eager graph와 하위 cache

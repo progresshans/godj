@@ -1,6 +1,6 @@
 ---
 id: GDJ-0084
-status: active
+status: complete
 updated: 2026-09-20
 baseline_commit: "9b3e8b53f8ef7cf6b5d60990b76c20c459309243"
 integration_owner: "root"
@@ -36,7 +36,8 @@ GDJ-0082/0083의 query 소비자에서 사용한 FK-enforced DDL을 실제 migra
 공통 순수 graph authority, loaded lifecycle과 양 DB의 전체 metadata/physical 검사, SQLite FK suspension·복원·quarantine을 구현했다.
 자기참조·순환·cross-app lifecycle와 실패 주입, 실제 generated 소비자의 로컬 normal/race/CGO0를 완료했다.
 Django 6.1의 독립 10단계 관찰을 얻었으며 기존 sequence 상한 보존 차이를 DEV-0013으로 한정했다.
-전체 compile-only·affected vet·독립 관찰 재생과 CI 도구 검증을 완료했다. 기존 Draft PR에 통합한 source의 Hosted ORM 검증이 남았다.
+전체 compile-only·affected vet·독립 관찰 재생과 CI 도구 검증을 완료했다. 기존 Draft PR에 source `d6db513aba479ebec6a5f256bebac9348a0a32ce`를 통합했고, [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35456370913)도 44 success와 예정된 scope skip 4개로 완료했다. 전체 framework/full-platform 완료는 아니다.
+다음 [GDJ-0085](0085-relation-autodetection.md)에서 이 기반을 self/cyclic 자동 migration 계획에 연결한다.
 장기 의미는 [ADR-0064](../docs/adr/0064-historical-relation-graphs-and-sqlite-remakes.md), 실행은 TEST_EVIDENCE에 기록한다.
 
 설계 근거: SQLite [FK와 DROP 동작](https://www.sqlite.org/foreignkeys.html#fk_schemacommands),
