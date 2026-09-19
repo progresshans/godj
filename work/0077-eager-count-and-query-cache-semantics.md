@@ -32,4 +32,4 @@ IR·AST 자체와 양 backend의 기존 COUNT 구현을 재사용한다. 새로�
 Nullable target-field lookup은 기존 미지원 범위다. 독립 관찰 22개 중 21개는 count 결과·SQL 수·JOIN 수를 대조하고,
 나머지 1개는 GoDj의 명시적 사전 거부를 확인한다. 다른 eager edge와 reverse filter를 함께 materialize하는 All도 미지원으로 보존한다.
 이번 변경은 DB별 SQL이나 platform/process 구현을 바꾸지 않으므로 로컬 실제 양 DB·generated consumer·race·CGO0와 drift를 소유한다.
-새 Hosted ORM 검증은 다음 관계 query 확장과 묶은 통합 checkpoint에서 실행한다. 이 작업에 이전 source의 Hosted PASS를 붙이지 않는다.
+새 Hosted ORM 검증은 GDJ-0078과 묶은 통합 checkpoint에서 완료했다. 정확한 source·scope는 TEST_EVIDENCE를 따르며 이전 source의 결과와 합치지 않는다.

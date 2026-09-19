@@ -64,9 +64,18 @@ crash helper 두 개, race·CGO0는 PostgreSQL helper 한 개다. 부모의 proc
 
 ### 통합 검증 소유자
 
-로컬 영향 범위의 검증을 완료했다. GDJ-0077 Count와 GDJ-0078을 통합한 source의 Hosted ORM이 다음 checkpoint다.
-아직 이 변경의 Hosted PASS를 주장하지 않는다.
-GDJ-0076의 과거 Hosted와 Text+DateTime의 과거 full은 각각의 source만 증명하며 새 변경·전체 플랫폼·배포 결과로 합치지 않는다.
+로컬 영향 범위와 GDJ-0077 Count를 포함한 Hosted ORM 통합 검증을 완료했다.
+
+- 통합 source `c8bb50df3f540f56f37f5691fff36a6e0f7fcc8b`, [run 35407175164](https://github.com/progresshans/godj/actions/runs/35407175164), attempt 1:
+  **completed/success, 고유 job 48개 중 44 success·4 의도한 scope skip**. 모든 job의 source·run identity·terminal 상태를 대조했다.
+- 최종 job `105802085743`의 report는 `scope=orm`, `full_platform_verified=false`이며 소유자는
+  `command-product-matrix`, `portable-go-matrix`, `postgresql-product`, `relation-product-matrix`다.
+  실제 PostgreSQL 17.10 core/operator-target의 normal·race·CGO0와 선택된 Linux amd64/arm64·macOS arm64/amd64 제품/command를 포함한다.
+- 비대상 네 owner는 product project-check matrix, Python compatibility matrix, exact darwin/arm64 reference profile,
+  reference/current-capture 통합이다. 새 full·Windows runtime·배포 결과로 표시하지 않는다.
+- 이후 GDJ-0079의 새 scalar lookup 구현은 이 source에 포함되지 않는다. 위 PASS를 다음 구현의 결과로 재사용하지 않는다.
+
+GDJ-0076의 과거 Hosted와 Text+DateTime의 과거 full은 각각의 source를 증명한다. 전체 프레임워크의 완료나 출시 결정이 아니다.
 
 ## GDJ-0077 — 관계 조회 Count와 캐시 의미
 
@@ -121,8 +130,8 @@ Normal의 직접 진입 skip은 PostgreSQL revision-fence·generated publication
 ### 검증 소유자
 
 이 변경의 필수 로컬 영향 범위를 완료했다. DB별 SQL 또는 platform/process 구현은 변경하지 않았다.
-새 Hosted ORM은 다음 관계 query 확장과 묶은 통합 checkpoint가 소유한다. GDJ-0076의 Hosted 결과는 그 기준 source만 증명하며
-이 Count 변경의 Hosted·전체 플랫폼·새 full·배포 결과로 표시하지 않는다.
+새 Hosted ORM은 위 GDJ-0078과 묶은 source `c8bb50df3f540f56f37f5691fff36a6e0f7fcc8b`에서 완료했다.
+GDJ-0076의 Hosted는 그 기준 source만 증명하며, 이번 통합 ORM을 전체 플랫폼·새 full·배포 결과로 표시하지 않는다.
 
 ## GDJ-0076 — 모델 선택값과 metadata-only migration
 
