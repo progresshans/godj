@@ -49,16 +49,9 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 }
 
 type sqliteRelationIntentSeal struct {
-	intent                 migrationbackend.MigrationIntent
-	digest                 [sha256.Size]byte
-	externalTargets        map[string]sqliteRelationExternalTarget
-	targetOperationByTable map[string][]int
-}
-
-type sqliteRelationExternalTarget struct {
-	app      string
-	model    string
-	snapshot ir.Model
+	intent    migrationbackend.MigrationIntent
+	digest    [sha256.Size]byte
+	graphPlan migrationbackend.MigrationGraphPlan
 }
 
 type sqliteRelationFencedState struct {
@@ -104,151 +97,6 @@ type sqliteRelationCatalogObjectKey struct {
 	kind   string
 }
 
-type sqliteRelationReverseOwnerIndex struct {
-	byApp      map[string]*sqliteRelationReverseAppOwners
-	appLookups int
-}
-
-type sqliteRelationReverseAppOwners struct {
-	byModel      map[string]map[string]sqliteRelationReverseOwner
-	modelLookups int
-}
-
-type sqliteRelationReverseOwner struct {
-	model string
-	field string
-}
-
-func newSQLiteRelationReverseOwnerIndex() *sqliteRelationReverseOwnerIndex {
-	return &sqliteRelationReverseOwnerIndex{
-		byApp: make(map[string]*sqliteRelationReverseAppOwners),
-	}
-}
-
-func (index *sqliteRelationReverseOwnerIndex) app(app string) *sqliteRelationReverseAppOwners {
-	index.appLookups++
-	owners := index.byApp[app]
-	if owners == nil {
-		owners = &sqliteRelationReverseAppOwners{byModel: make(map[string]map[string]sqliteRelationReverseOwner)}
-		index.byApp[app] = owners
-	}
-	return owners
-}
-
-func (index *sqliteRelationReverseAppOwners) register(
-	model,
-	reverse string,
-	owner sqliteRelationReverseOwner,
-) (sqliteRelationReverseOwner, bool) {
-	modelKey := sqliteRelationIdentifierKey(model)
-	index.modelLookups++
-	owners := index.byModel[modelKey]
-	if owners == nil {
-		owners = make(map[string]sqliteRelationReverseOwner)
-		index.byModel[modelKey] = owners
-	}
-	reverseKey := sqliteRelationIdentifierKey(reverse)
-	previous, exists := owners[reverseKey]
-	if !exists {
-		owners[reverseKey] = owner
-	}
-	return previous, exists
-}
-
-func (index *sqliteRelationReverseAppOwners) firstFieldCollision(
-	model string,
-	fields []ir.Field,
-) (ir.Field, sqliteRelationReverseOwner, bool) {
-	modelKey := sqliteRelationIdentifierKey(model)
-	index.modelLookups++
-	owners := index.byModel[modelKey]
-	if len(owners) == 0 {
-		return ir.Field{}, sqliteRelationReverseOwner{}, false
-	}
-	for fieldIndex := range fields {
-		field := fields[fieldIndex]
-		if owner, exists := owners[sqliteRelationIdentifierKey(field.Name)]; exists {
-			return field, owner, true
-		}
-	}
-	return ir.Field{}, sqliteRelationReverseOwner{}, false
-}
-
-func registerSQLiteInitialRelationReverseOwners(
-	transition migrationbackend.HistoryTransition,
-	intent migrationbackend.MigrationIntent,
-	initial map[string]ir.Model,
-	owners *sqliteRelationReverseOwnerIndex,
-) error {
-	for position := range intent.Operations {
-		operation := intent.Operations[position]
-		if reflect.DeepEqual(operation.Before, ir.Model{}) {
-			continue
-		}
-		relationFields := relationFieldsInModel(operation.Before)
-		for targetIndex := range relationFields {
-			field := relationFields[targetIndex]
-			if field.Relation == nil {
-				return relationIntentIntegrity(
-					"relation operation %d initial source field %q has no relation metadata",
-					operation.OperationIndex,
-					field.Name,
-				)
-			}
-			if targetIndex >= len(operation.Targets) ||
-				!reflect.DeepEqual(operation.Targets[targetIndex].SourceField, field) {
-				return relationIntentIntegrity(
-					"relation operation %d initial source target %d is not in exact field order",
-					operation.OperationIndex,
-					targetIndex,
-				)
-			}
-			target := &operation.Targets[targetIndex]
-			if target.TargetModel.Name != field.Relation.Target.ModelName {
-				return relationIntentIntegrity(
-					"relation operation %d initial source field %q lacks exact sealed target metadata",
-					operation.OperationIndex,
-					field.Name,
-				)
-			}
-			reverse := field.Relation.Reverse.Name
-			if reverse == "" {
-				continue
-			}
-			targetSnapshot := target.TargetModel
-			if field.Relation.Target.AppLabel == transition.Migration.App {
-				if visible, exists := initial[sqliteRelationIdentifierKey(field.Relation.Target.ModelName)]; exists {
-					targetSnapshot = visible
-				}
-			}
-			for fieldIndex := range targetSnapshot.Fields {
-				if targetSnapshot.Fields[fieldIndex].Name == reverse {
-					return relationIntentIntegrity(
-						"relation operation %d initial target field %q collides with reverse name registered by %s.%s",
-						operation.OperationIndex,
-						reverse,
-						operation.Before.Name,
-						field.Name,
-					)
-				}
-			}
-			owner := sqliteRelationReverseOwner{model: operation.Before.Name, field: field.Name}
-			targetOwners := owners.app(field.Relation.Target.AppLabel)
-			if previous, duplicate := targetOwners.register(target.TargetModel.Name, reverse, owner); duplicate && previous != owner {
-				return relationIntentIntegrity(
-					"relation reverse name %q on %s.%s is duplicated by %s.%s",
-					reverse,
-					field.Relation.Target.AppLabel,
-					target.TargetModel.Name,
-					previous.model,
-					previous.field,
-				)
-			}
-		}
-	}
-	return nil
-}
-
 type sqliteRelationBeginCheckpoint uint8
 
 const (
@@ -258,6 +106,7 @@ const (
 	sqliteRelationCheckpointPhysicalPreflightComplete
 	sqliteRelationCheckpointRevisionClaimStarting
 	sqliteRelationCheckpointRevisionClaimed
+	sqliteRelationCheckpointForeignKeysSuspended
 )
 
 func (session *sqliteRevisionFencedSession) notifyRelationBeginCheckpoint(checkpoint sqliteRelationBeginCheckpoint) {
@@ -355,8 +204,18 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 		return nil, fmt.Errorf("begin SQLite relation revision-fenced migration: %w", err)
 	}
 
+	suspendForeignKeys := sqliteMigrationSuspendsForeignKeys(seal.intent)
+	var admission *relationTransactionAdmission
+	if suspendForeignKeys {
+		admission, err = session.backend.relationRetention.acquire(ctx)
+		if err != nil {
+			session.state = revisionSessionPoisoned
+			return nil, err
+		}
+	}
 	connection, err := session.backend.database.Conn(ctx)
 	if err != nil {
+		admission.release()
 		session.state = revisionSessionPoisoned
 		return nil, classifyRevisionIO("acquire pinned relation migration connection", err)
 	}
@@ -365,12 +224,14 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 		connectionBoundary = session.relationConnectionHook(connectionBoundary)
 		if connectionBoundary == nil {
 			_ = connection.Close()
+			admission.release()
 			session.state = revisionSessionPoisoned
 			return nil, errors.New("begin SQLite relation revision-fenced migration: relation connection hook returned nil")
 		}
 	}
+	restoreForeignKeys := false
 	closeBeforeBegin := func(primary error) error {
-		return errors.Join(primary, closeOrDiscardMigrationConnection(connectionBoundary))
+		return errors.Join(primary, releaseFencedMigrationConnection(ctx, connectionBoundary, restoreForeignKeys, admission))
 	}
 	if _, err := connectionBoundary.ExecContext(ctx, `PRAGMA foreign_keys = ON`); err != nil {
 		session.state = revisionSessionPoisoned
@@ -387,27 +248,49 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 		return nil, closeBeforeBegin(sqliteRelationForeignKeysCapabilityError(foreignKeys))
 	}
 	session.notifyRelationBeginCheckpoint(sqliteRelationCheckpointForeignKeysRead)
+	if suspendForeignKeys {
+		// This connection is private and admitted to retention before the
+		// first mode change. Any uncertain change is discarded or retained;
+		// it must never be returned to the application pool with checks off.
+		restoreForeignKeys = true
+		if _, err := connectionBoundary.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+			session.state = revisionSessionPoisoned
+			return nil, errors.Join(fmt.Errorf("suspend pinned SQLite foreign keys: %w", err), discardOrRetainMigrationConnection(connectionBoundary, admission))
+		}
+		var readback int
+		if err := connectionBoundary.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&readback); err != nil {
+			session.state = revisionSessionPoisoned
+			return nil, errors.Join(fmt.Errorf("read suspended SQLite foreign keys: %w", err), discardOrRetainMigrationConnection(connectionBoundary, admission))
+		}
+		if readback != 0 {
+			session.state = revisionSessionPoisoned
+			return nil, errors.Join(relationIntentUnsupported("SQLite foreign keys cannot be suspended outside the migration transaction"), discardOrRetainMigrationConnection(connectionBoundary, admission))
+		}
+		session.notifyRelationBeginCheckpoint(sqliteRelationCheckpointForeignKeysSuspended)
+	}
 	if err := ctx.Err(); err != nil {
 		session.state = revisionSessionPoisoned
 		return nil, closeBeforeBegin(fmt.Errorf("begin SQLite relation revision-fenced migration: %w", err))
 	}
 	if _, err := connectionBoundary.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
-		discardErr := discardMigrationConnection(connectionBoundary)
+		discardErr := discardOrRetainMigrationConnection(connectionBoundary, admission)
 		session.state = revisionSessionPoisoned
 		return nil, errors.Join(classifyRevisionIO("begin immediate relation migration transaction", err), discardErr)
 	}
 	session.notifyRelationBeginCheckpoint(sqliteRelationCheckpointTransactionBegun)
 
 	transaction := &sqliteRevisionFencedTransaction{
-		connection:       connectionBoundary,
-		session:          session,
-		transition:       transition,
-		expectedRecords:  migrationhistory.Clone(session.records),
-		successorRecords: migrationhistory.Clone(successorRecords),
-		expectedToken:    session.token,
-		successorToken:   successorToken,
-		bootstrap:        !session.token.initialized,
-		relation:         &sqliteRelationFencedState{seal: seal},
+		connection:         connectionBoundary,
+		restoreForeignKeys: restoreForeignKeys,
+		admission:          admission,
+		session:            session,
+		transition:         transition,
+		expectedRecords:    migrationhistory.Clone(session.records),
+		successorRecords:   migrationhistory.Clone(successorRecords),
+		expectedToken:      session.token,
+		successorToken:     successorToken,
+		bootstrap:          !session.token.initialized,
+		relation:           &sqliteRelationFencedState{seal: seal},
 	}
 	remakes, remakeDigest, err := preflightSQLiteRelationIntent(
 		ctx,
@@ -464,39 +347,21 @@ func validateAndSealSQLiteRelationIntent(
 		return sqliteRelationIntentSeal{}, err
 	}
 	pinned := intent.Clone()
-	externalTargets, err := validateSQLiteRelationIntent(transition, pinned)
+	graphPlan, err := migrationbackend.ResolveMigrationGraphPlan(transition, pinned)
 	if err != nil {
-		return sqliteRelationIntentSeal{}, err
+		return sqliteRelationIntentSeal{}, relationIntentIntegrity("%v", err)
 	}
-	// ForeignKey Add/Remove validation expands the sealed private copy from
-	// the public changed-field target to a complete source-field-ordered target
-	// list. Re-scan the derived representation so cloning that authority cannot
-	// evade the original aggregate resource envelope.
-	if err := scanSQLiteRelationIntentResources(transition, pinned); err != nil {
+	if err := validateSQLiteRelationIntent(transition, pinned, graphPlan); err != nil {
 		return sqliteRelationIntentSeal{}, err
 	}
 	digest, err := hashSQLiteRelationIntent(pinned)
 	if err != nil {
 		return sqliteRelationIntentSeal{}, relationIntentIntegrity("seal relation migration intent: %v", err)
 	}
-	targetOperationByTable := make(map[string][]int)
-	for index := range pinned.Operations {
-		operation := pinned.Operations[index]
-		if len(operation.Targets) == 0 {
-			continue
-		}
-		model := operation.After
-		if operation.Kind == migrationbackend.MigrationDeleteModel {
-			model = operation.Before
-		}
-		tableKey := sqliteRelationIdentifierKey(model.DBTable)
-		targetOperationByTable[tableKey] = append(targetOperationByTable[tableKey], index)
-	}
 	return sqliteRelationIntentSeal{
-		intent:                 pinned,
-		digest:                 digest,
-		externalTargets:        externalTargets,
-		targetOperationByTable: targetOperationByTable,
+		intent:    pinned,
+		digest:    digest,
+		graphPlan: graphPlan,
 	}, nil
 }
 
@@ -553,6 +418,21 @@ func scanSQLiteRelationIntentResources(
 				return err
 			}
 		}
+		if len(operation.RelatedModels) > sqliteRelationMaxTargets {
+			return fmt.Errorf("%s has too many transitive relation models", prefix)
+		}
+		if err := budget.ConsumeNodes(prefix+".related_models", len(operation.RelatedModels)); err != nil {
+			return err
+		}
+		for index, model := range operation.RelatedModels {
+			path := fmt.Sprintf("%s.related_models[%d]", prefix, index)
+			if err := budget.ConsumeString(path+".app", model.AppLabel); err != nil {
+				return err
+			}
+			if err := budget.ScanModel(path+".model", model.Model); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -572,6 +452,11 @@ func hashSQLiteRelationIntent(intent migrationbackend.MigrationIntent) ([sha256.
 			writeRelationField(hash, target.SourceField)
 			writeRelationModel(hash, target.TargetModel)
 			writeRelationField(hash, target.TargetKey)
+		}
+		writeRelationSliceHeader(hash, operation.RelatedModels == nil, len(operation.RelatedModels))
+		for _, model := range operation.RelatedModels {
+			writeRelationString(hash, model.AppLabel)
+			writeRelationModel(hash, model.Model)
 		}
 	}
 	var digest [sha256.Size]byte
@@ -678,329 +563,120 @@ func validateSQLiteRelationZeroSentinels(
 func validateSQLiteRelationIntent(
 	transition migrationbackend.HistoryTransition,
 	intent migrationbackend.MigrationIntent,
-) (map[string]sqliteRelationExternalTarget, error) {
-	if intent.Operations == nil {
-		return nil, relationIntentIntegrity("migration intent operations are missing")
-	}
-	if len(intent.Operations) == 0 {
-		return map[string]sqliteRelationExternalTarget{}, nil
-	}
-
-	type modelIdentity struct {
-		name  string
-		table string
-	}
-	identities := make(map[string]modelIdentity)
-	tableOwners := make(map[string]string)
-	goNameOwners := make(map[string]string)
-	beforeModels := make([]ir.Model, len(intent.Operations))
-	afterModels := make([]ir.Model, len(intent.Operations))
-	expectedRelationFields := make([][]ir.Field, len(intent.Operations))
-	relationMutations := make(map[string]int)
-	for position := range intent.Operations {
-		operation := intent.Operations[position]
-		wantIndex := position
-		if transition.Kind == migrationbackend.HistoryTransitionUnapply {
-			wantIndex = len(intent.Operations) - 1 - position
+	graphPlan migrationbackend.MigrationGraphPlan,
+) error {
+	// SQLite folds identifier spelling. The shared historical graph keeps
+	// semantic app/model identities exact; this backend additionally rejects
+	// physical table/column aliases and reverse-name collisions.
+	tableOwners := make(map[string]ir.ModelIdentity)
+	modelNames := make(map[struct{ app, name string }]ir.ModelIdentity)
+	reverseOwners := make(map[ir.ModelIdentity]map[string]struct {
+		source ir.ModelIdentity
+		field  string
+	})
+	checkModel := func(snapshot migrationbackend.MigrationModel) error {
+		identity := snapshot.Identity()
+		model := snapshot.Model
+		if relationReservedTable(model.DBTable) {
+			return relationIntentIntegrity("relation model %s.%s uses a reserved SQLite table", identity.AppLabel, identity.ModelName)
 		}
-		if operation.OperationIndex != wantIndex {
-			return nil, relationIntentIntegrity("relation operation position %d has original index %d, want %d", position, operation.OperationIndex, wantIndex)
+		tableKey := sqliteRelationIdentifierKey(model.DBTable)
+		if owner, exists := tableOwners[tableKey]; exists && owner != identity {
+			return relationIntentIntegrity("different relation models share SQLite table %q", model.DBTable)
 		}
+		tableOwners[tableKey] = identity
+		modelKey := struct{ app, name string }{identity.AppLabel, sqliteRelationIdentifierKey(identity.ModelName)}
+		if owner, exists := modelNames[modelKey]; exists && owner != identity {
+			return relationIntentIntegrity("relation model names collide under SQLite identifier folding")
+		}
+		modelNames[modelKey] = identity
+		columns := make(map[string]bool, len(model.Fields))
+		for _, field := range model.Fields {
+			column := sqliteRelationIdentifierKey(field.Column)
+			if columns[column] {
+				return relationIntentIntegrity("relation model %q repeats SQLite column %q", model.Name, field.Column)
+			}
+			columns[column] = true
+			if field.Relation == nil || field.Relation.Reverse.Name == "" {
+				continue
+			}
+			owners := reverseOwners[field.Relation.Target]
+			if owners == nil {
+				owners = make(map[string]struct {
+					source ir.ModelIdentity
+					field  string
+				})
+				reverseOwners[field.Relation.Target] = owners
+			}
+			name := sqliteRelationIdentifierKey(field.Relation.Reverse.Name)
+			owner := struct {
+				source ir.ModelIdentity
+				field  string
+			}{identity, field.Name}
+			if previous, exists := owners[name]; exists && previous != owner {
+				return relationIntentIntegrity("relation reverse name %q has multiple owners", field.Relation.Reverse.Name)
+			}
+			owners[name] = owner
+		}
+		return nil
+	}
+	for position, operation := range intent.Operations {
 		if transition.Kind == migrationbackend.HistoryTransitionApply &&
 			(operation.Kind == migrationbackend.MigrationDeleteModel || operation.Kind == migrationbackend.MigrationRemoveField) ||
 			transition.Kind == migrationbackend.HistoryTransitionUnapply &&
 				(operation.Kind == migrationbackend.MigrationCreateModel || operation.Kind == migrationbackend.MigrationAddField) {
-			return nil, relationIntentIntegrity("relation operation %d kind %d does not match history transition %d", operation.OperationIndex, operation.Kind, transition.Kind)
+			return relationIntentIntegrity("relation operation %d kind does not match history transition", operation.OperationIndex)
 		}
-
-		var before, after ir.Model
+		before, after := operation.Before, operation.After
 		switch operation.Kind {
 		case migrationbackend.MigrationCreateModel:
-			if !reflect.DeepEqual(operation.Before, ir.Model{}) {
-				return nil, relationIntentIntegrity("relation CreateModel operation %d has non-zero Before model", operation.OperationIndex)
-			}
-			after = operation.After
-			if err := validateExactNormalizedRelationModel(after); err != nil {
-				return nil, relationIntentIntegrity("relation operation %d After model is not exact normalized IR: %v", operation.OperationIndex, err)
-			}
-			expectedRelationFields[position] = relationFieldsInModel(after)
-		case migrationbackend.MigrationAddField:
-			before, after = operation.Before, operation.After
-			field, err := validateSQLiteRelationAddDelta(before, after)
-			if err != nil {
-				return nil, relationIntentIntegrity("relation AddField operation %d: %v", operation.OperationIndex, err)
-			}
-			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
-				sourceKey := sqliteRelationIdentifierKey(after.Name)
-				relationMutations[sourceKey]++
-				if relationMutations[sourceKey] > 1 {
-					return nil, relationIntentUnsupported(
-						"relation AddField/RemoveField permits at most one relation mutation per source model %q in a migration step",
-						after.Name,
-					)
-				}
-				derived, err := deriveSQLiteRelationMutationTargets(operation, field, after)
-				if err != nil {
-					return nil, err
-				}
-				intent.Operations[position].Targets = derived
-				operation = intent.Operations[position]
-				expectedRelationFields[position] = relationFieldsInModel(after)
-			} else {
-				// Scalar mutations on relation-bearing models carry the complete
-				// retained relation target list. The metadata is authority for
-				// preflight/final-shape verification; the scalar DDL compiler does
-				// not consume it.
-				expectedRelationFields[position] = relationFieldsInModel(after)
+			if !reflect.DeepEqual(before, ir.Model{}) {
+				return relationIntentIntegrity("CreateModel has a non-zero Before model")
 			}
 		case migrationbackend.MigrationDeleteModel:
-			if !reflect.DeepEqual(operation.After, ir.Model{}) {
-				return nil, relationIntentIntegrity("relation DeleteModel operation %d has non-zero After model", operation.OperationIndex)
+			if !reflect.DeepEqual(after, ir.Model{}) {
+				return relationIntentIntegrity("DeleteModel has a non-zero After model")
 			}
-			before = operation.Before
-			if err := validateExactNormalizedRelationModel(before); err != nil {
-				return nil, relationIntentIntegrity("relation operation %d Before model is not exact normalized IR: %v", operation.OperationIndex, err)
+		case migrationbackend.MigrationAddField:
+			if _, err := validateSQLiteRelationAddDelta(before, after); err != nil {
+				return relationIntentIntegrity("relation AddField operation %d: %v", operation.OperationIndex, err)
 			}
-			expectedRelationFields[position] = relationFieldsInModel(before)
 		case migrationbackend.MigrationRemoveField:
-			before, after = operation.Before, operation.After
-			field, err := validateSQLiteRelationRemoveDelta(before, after)
-			if err != nil {
-				return nil, relationIntentIntegrity("relation RemoveField operation %d: %v", operation.OperationIndex, err)
-			}
-			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
-				sourceKey := sqliteRelationIdentifierKey(before.Name)
-				relationMutations[sourceKey]++
-				if relationMutations[sourceKey] > 1 {
-					return nil, relationIntentUnsupported(
-						"relation AddField/RemoveField permits at most one relation mutation per source model %q in a migration step",
-						before.Name,
-					)
-				}
-				derived, err := deriveSQLiteRelationMutationTargets(operation, field, before)
-				if err != nil {
-					return nil, err
-				}
-				intent.Operations[position].Targets = derived
-				operation = intent.Operations[position]
-				expectedRelationFields[position] = relationFieldsInModel(before)
-			} else {
-				expectedRelationFields[position] = relationFieldsInModel(before)
+			if _, err := validateSQLiteRelationRemoveDelta(before, after); err != nil {
+				return relationIntentIntegrity("relation RemoveField operation %d: %v", operation.OperationIndex, err)
 			}
 		case migrationbackend.MigrationAlterField:
-			before, after = operation.Before, operation.After
 			if err := validateSQLiteChoiceDelta(before, after); err != nil {
-				return nil, relationIntentIntegrity("AlterField operation %d has an invalid choices delta: %v", operation.OperationIndex, err)
+				return relationIntentIntegrity("AlterField operation %d has an invalid choices delta: %v", operation.OperationIndex, err)
 			}
-			expectedRelationFields[position] = relationFieldsInModel(after)
 		default:
-			return nil, relationIntentIntegrity("relation operation %d has invalid kind %d", operation.OperationIndex, operation.Kind)
+			return relationIntentIntegrity("relation operation %d has invalid kind %d", operation.OperationIndex, operation.Kind)
 		}
-		beforeModels[position], afterModels[position] = before, after
-		model := after
-		if reflect.DeepEqual(model, ir.Model{}) {
-			model = before
+		graph, exists := graphPlan.Operation(position)
+		if !exists {
+			return relationIntentIntegrity("relation operation has no sealed graph")
 		}
-		if relationReservedTable(model.DBTable) {
-			return nil, relationIntentIntegrity("relation operation %d uses reserved SQLite migration table %q", operation.OperationIndex, model.DBTable)
-		}
-		nameKey := sqliteRelationIdentifierKey(model.Name)
-		tableKey := sqliteRelationIdentifierKey(model.DBTable)
-		if identity, exists := identities[nameKey]; exists {
-			if identity.table != tableKey {
-				return nil, relationIntentIntegrity("relation model %q changes table identity from %q to %q", model.Name, identity.table, model.DBTable)
-			}
-		} else {
-			identities[nameKey] = modelIdentity{name: model.Name, table: tableKey}
-		}
-		if owner, exists := tableOwners[tableKey]; exists && owner != nameKey {
-			return nil, relationIntentIntegrity("relation models %q and %q collide on SQLite table %q", identities[owner].name, model.Name, model.DBTable)
-		}
-		tableOwners[tableKey] = nameKey
-		if owner, exists := goNameOwners[model.GoName]; exists && owner != nameKey {
-			return nil, relationIntentIntegrity("relation models %q and %q duplicate Go name %q", identities[owner].name, model.Name, model.GoName)
-		}
-		goNameOwners[model.GoName] = nameKey
-	}
-
-	current := make(map[string]ir.Model, len(identities))
-	initialized := make(map[string]bool, len(identities))
-	for position := range intent.Operations {
-		model := afterModels[position]
-		if reflect.DeepEqual(model, ir.Model{}) {
-			model = beforeModels[position]
-		}
-		nameKey := sqliteRelationIdentifierKey(model.Name)
-		if initialized[nameKey] {
-			continue
-		}
-		initialized[nameKey] = true
-		if !reflect.DeepEqual(beforeModels[position], ir.Model{}) {
-			current[nameKey] = beforeModels[position].Clone()
-		}
-	}
-
-	externalTargets := make(map[string]sqliteRelationExternalTarget)
-	externalIdentityTables := make(map[struct {
-		app   string
-		model string
-	}]string)
-	reverseOwners := newSQLiteRelationReverseOwnerIndex()
-	localReverseOwners := reverseOwners.app(transition.Migration.App)
-	if err := registerSQLiteInitialRelationReverseOwners(
-		transition,
-		intent,
-		current,
-		reverseOwners,
-	); err != nil {
-		return nil, err
-	}
-	for position := range intent.Operations {
-		operation := intent.Operations[position]
-		before, after := beforeModels[position], afterModels[position]
-		model := after
-		if reflect.DeepEqual(model, ir.Model{}) {
-			model = before
-		}
-		nameKey := sqliteRelationIdentifierKey(model.Name)
-		actual, exists := current[nameKey]
-		if reflect.DeepEqual(before, ir.Model{}) {
-			if exists {
-				return nil, relationIntentIntegrity("relation operation %d CreateModel source already exists in the ordered intent", operation.OperationIndex)
-			}
-		} else if !exists || !reflect.DeepEqual(actual, before) {
-			return nil, relationIntentIntegrity("relation operation %d Before model is discontinuous with the ordered intent", operation.OperationIndex)
-		}
-
-		relationFields := expectedRelationFields[position]
-		if len(operation.Targets) != len(relationFields) {
-			return nil, relationIntentIntegrity("relation operation %d has %d targets, want %d in exact field order", operation.OperationIndex, len(operation.Targets), len(relationFields))
-		}
-		for targetIndex := range operation.Targets {
-			if operation.Kind != migrationbackend.MigrationCreateModel &&
-				operation.Kind != migrationbackend.MigrationDeleteModel &&
-				operation.Kind != migrationbackend.MigrationAddField &&
-				operation.Kind != migrationbackend.MigrationRemoveField &&
-				operation.Kind != migrationbackend.MigrationAlterField {
-				return nil, relationIntentUnsupported("SQLite relation target metadata is unsupported on operation %d kind %d", operation.OperationIndex, operation.Kind)
-			}
-			target := operation.Targets[targetIndex]
-			sourceField := relationFields[targetIndex]
-			if !reflect.DeepEqual(target.SourceField, sourceField) {
-				return nil, relationIntentIntegrity("relation operation %d target %d source field does not match declared field order", operation.OperationIndex, targetIndex)
-			}
-			if sourceField.Relation == nil {
-				return nil, relationIntentIntegrity("relation operation %d target %d source field has no relation", operation.OperationIndex, targetIndex)
-			}
-			if err := validateExactNormalizedRelationModel(target.TargetModel); err != nil {
-				return nil, relationIntentIntegrity("relation operation %d target %d model is not exact normalized IR: %v", operation.OperationIndex, targetIndex, err)
-			}
-			if relationReservedTable(target.TargetModel.DBTable) {
-				return nil, relationIntentIntegrity("relation operation %d target %d uses reserved SQLite migration table %q", operation.OperationIndex, targetIndex, target.TargetModel.DBTable)
-			}
-			if sourceField.Relation.Target.ModelName != target.TargetModel.Name {
-				return nil, relationIntentIntegrity("relation operation %d target %d model name %q does not match source declaration %q", operation.OperationIndex, targetIndex, target.TargetModel.Name, sourceField.Relation.Target.ModelName)
-			}
-			primaryKey, err := exactRelationTargetPrimaryKey(target.TargetModel)
-			if err != nil {
-				return nil, relationIntentIntegrity("relation operation %d target %d: %v", operation.OperationIndex, targetIndex, err)
-			}
-			if !reflect.DeepEqual(target.TargetKey, primaryKey) {
-				return nil, relationIntentIntegrity("relation operation %d target %d key is not the exact historical AutoField primary key", operation.OperationIndex, targetIndex)
-			}
-			if reverse := sourceField.Relation.Reverse.Name; reverse != "" {
-				for fieldIndex := range target.TargetModel.Fields {
-					if target.TargetModel.Fields[fieldIndex].Name == reverse {
-						return nil, relationIntentIntegrity("relation operation %d reverse name %q collides with target field", operation.OperationIndex, reverse)
-					}
-				}
-				owner := sqliteRelationReverseOwner{model: model.Name, field: sourceField.Name}
-				targetReverseOwners := localReverseOwners
-				if sourceField.Relation.Target.AppLabel != transition.Migration.App {
-					targetReverseOwners = reverseOwners.app(sourceField.Relation.Target.AppLabel)
-				}
-				if previous, exists := targetReverseOwners.register(
-					target.TargetModel.Name,
-					reverse,
-					owner,
-				); exists && previous != owner {
-					return nil, relationIntentIntegrity(
-						"relation reverse name %q on %s.%s is duplicated by %s.%s",
-						reverse,
-						sourceField.Relation.Target.AppLabel,
-						target.TargetModel.Name,
-						previous.model,
-						previous.field,
-					)
-				}
-			}
-
-			targetNameKey := sqliteRelationIdentifierKey(target.TargetModel.Name)
-			targetTableKey := sqliteRelationIdentifierKey(target.TargetModel.DBTable)
-			if sourceField.Relation.Target.AppLabel == transition.Migration.App {
-				if targetNameKey == nameKey {
-					return nil, relationIntentIntegrity("relation operation %d contains a self relation", operation.OperationIndex)
-				}
-				if _, participates := identities[targetNameKey]; participates {
-					visible, visibleNow := current[targetNameKey]
-					if !visibleNow || !reflect.DeepEqual(visible, target.TargetModel) {
-						return nil, relationIntentIntegrity("relation operation %d target %d is not visible with the exact scheduled state", operation.OperationIndex, targetIndex)
-					}
-					continue
-				}
-			}
-			if owner, collision := tableOwners[targetTableKey]; collision {
-				return nil, relationIntentIntegrity("external relation target %s.%s collides with local model %q on table %q", sourceField.Relation.Target.AppLabel, target.TargetModel.Name, identities[owner].name, target.TargetModel.DBTable)
-			}
-			if len(relationFieldsInModel(target.TargetModel)) != 0 {
-				return nil, relationIntentUnsupported("external relation target %s.%s contains relation fields without nested sealed target metadata", sourceField.Relation.Target.AppLabel, target.TargetModel.Name)
-			}
-			targetIdentity := struct {
-				app   string
-				model string
-			}{app: sourceField.Relation.Target.AppLabel, model: target.TargetModel.Name}
-			if previousTable, exists := externalIdentityTables[targetIdentity]; exists && previousTable != targetTableKey {
-				return nil, relationIntentIntegrity("external relation target %s.%s maps to conflicting SQLite tables %q and %q", targetIdentity.app, targetIdentity.model, previousTable, target.TargetModel.DBTable)
-			}
-			if existing, exists := externalTargets[targetTableKey]; exists {
-				if existing.app != targetIdentity.app || existing.model != targetIdentity.model {
-					return nil, relationIntentIntegrity("external relation target identities %s.%s and %s.%s collide on SQLite table %q", existing.app, existing.model, targetIdentity.app, targetIdentity.model, target.TargetModel.DBTable)
-				}
-				if !reflect.DeepEqual(existing.snapshot, target.TargetModel) {
-					return nil, relationIntentIntegrity("relation target table %q has conflicting historical model snapshots", target.TargetModel.DBTable)
-				}
-			}
-			externalIdentityTables[targetIdentity] = targetTableKey
-			externalTargets[targetTableKey] = sqliteRelationExternalTarget{
-				app:      targetIdentity.app,
-				model:    targetIdentity.model,
-				snapshot: target.TargetModel.Clone(),
-			}
-		}
-		if !reflect.DeepEqual(after, ir.Model{}) {
-			if field, owner, exists := localReverseOwners.firstFieldCollision(
-				after.Name,
-				after.Fields,
-			); exists {
-				return nil, relationIntentIntegrity(
-					"relation operation %d field %q collides with reverse name registered by %s.%s",
-					operation.OperationIndex,
-					field.Name,
-					owner.model,
-					owner.field,
-				)
+		for _, snapshot := range graph.Models() {
+			if err := checkModel(snapshot); err != nil {
+				return err
 			}
 		}
 		if err := validateSQLiteRelationStaticOperation(operation, before, after); err != nil {
-			return nil, err
-		}
-		if reflect.DeepEqual(after, ir.Model{}) {
-			delete(current, nameKey)
-		} else {
-			current[nameKey] = after.Clone()
+			return err
 		}
 	}
-	return externalTargets, nil
+	for _, snapshot := range append(graphPlan.InitialModels(), graphPlan.FinalModels()...) {
+		if err := checkModel(snapshot); err != nil {
+			return err
+		}
+		owners := reverseOwners[snapshot.Identity()]
+		for _, field := range snapshot.Model.Fields {
+			if _, exists := owners[sqliteRelationIdentifierKey(field.Name)]; exists {
+				return relationIntentIntegrity("field %s.%s.%s collides with a relation reverse name", snapshot.AppLabel, snapshot.Model.Name, field.Name)
+			}
+		}
+	}
+	return nil
 }
 
 func validateSQLiteRelationStaticOperation(
@@ -1065,129 +741,6 @@ func validateSQLiteRelationAddDelta(before, after ir.Model) (ir.Field, error) {
 		return ir.Field{}, errors.New("After must append exactly one field to the same model")
 	}
 	return after.Fields[len(after.Fields)-1], nil
-}
-
-// deriveSQLiteRelationMutationTargets independently enforces the same
-// closed authority universe as migrations core. The public intent supplies
-// target metadata only for the changed field; SQLite may derive bindings for
-// pre-existing source relations solely by reusing that sealed snapshot when
-// every symbolic target is exactly identical. It never consults the physical
-// catalog or a current runtime registry to fill missing historical metadata.
-// The enclosing validator also permits at most one relation Add or Remove per
-// source model in a migration step so the initial/final target prefix is
-// unambiguous.
-func deriveSQLiteRelationMutationTargets(
-	operation migrationbackend.MigrationOperation,
-	field ir.Field,
-	relationBoundary ir.Model,
-) ([]migrationbackend.MigrationTarget, error) {
-	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey || field.Default != nil ||
-		(!field.Nullable && field.Relation.OnDelete != ir.DeleteProtect) {
-		return nil, relationIntentUnsupported(
-			"relation AddField operation %d requires a non-primary-key ForeignKey with no migration default; required fields must use PROTECT",
-			operation.OperationIndex,
-		)
-	}
-	if len(operation.Targets) != 1 || !reflect.DeepEqual(operation.Targets[0].SourceField, field) {
-		return nil, relationIntentIntegrity(
-			"relation operation %d requires exactly the changed-field target snapshot",
-			operation.OperationIndex,
-		)
-	}
-	changed := operation.Targets[0]
-	if err := validateExactNormalizedRelationModel(changed.TargetModel); err != nil {
-		return nil, relationIntentIntegrity(
-			"relation AddField operation %d target model is not exact normalized IR: %v",
-			operation.OperationIndex,
-			err,
-		)
-	}
-	if changed.TargetModel.Name != field.Relation.Target.ModelName {
-		return nil, relationIntentIntegrity(
-			"relation AddField operation %d target model name %q does not match source declaration %q",
-			operation.OperationIndex,
-			changed.TargetModel.Name,
-			field.Relation.Target.ModelName,
-		)
-	}
-	primaryKey, err := exactRelationTargetPrimaryKey(changed.TargetModel)
-	if err != nil {
-		return nil, relationIntentIntegrity("relation AddField operation %d target: %v", operation.OperationIndex, err)
-	}
-	if !reflect.DeepEqual(changed.TargetKey, primaryKey) {
-		return nil, relationIntentIntegrity(
-			"relation AddField operation %d target key is not the exact historical AutoField primary key",
-			operation.OperationIndex,
-		)
-	}
-	if len(relationFieldsInModel(changed.TargetModel)) != 0 {
-		return nil, relationIntentUnsupported(
-			"relation AddField operation %d target model contains nested relation fields outside the sealed target universe",
-			operation.OperationIndex,
-		)
-	}
-
-	relationFields := relationFieldsInModel(relationBoundary)
-	if err := validateSQLiteDerivedTargetExpansionResources(relationFields, changed); err != nil {
-		return nil, err
-	}
-	derived := make([]migrationbackend.MigrationTarget, len(relationFields))
-	for index := range relationFields {
-		source := relationFields[index]
-		if source.Relation == nil || source.Relation.Target != field.Relation.Target {
-			return nil, relationIntentUnsupported(
-				"relation operation %d source contains a relation with a different symbolic target",
-				operation.OperationIndex,
-			)
-		}
-		derived[index] = migrationbackend.MigrationTarget{
-			SourceField: source.Clone(),
-			// These values belong to the already-cloned private intent. Reuse the
-			// one immutable target snapshot across the derived bindings so an
-			// R-field source and T-field target never allocate O(R*T) model
-			// copies before the aggregate scanner can reject them.
-			TargetModel: changed.TargetModel,
-			TargetKey:   changed.TargetKey,
-		}
-	}
-	return derived, nil
-}
-
-func validateSQLiteDerivedTargetExpansionResources(
-	sources []ir.Field,
-	changed migrationbackend.MigrationTarget,
-) (resultErr error) {
-	defer func() {
-		if resultErr != nil {
-			resultErr = relationIntentIntegrity("%v", resultErr)
-		}
-	}()
-	derived := irresource.New(irresource.Limits{Fields: sqliteRelationMaxFields, StringBytes: sqliteRelationMaxStringBytes, Nodes: sqliteRelationMaxNodes, Bytes: sqliteRelationMaxAggregateBytes})
-	if err := derived.ConsumeNodes("derived relation targets", len(sources)); err != nil {
-		return err
-	}
-	for index := range sources {
-		if err := derived.ScanField(fmt.Sprintf("derived relation targets[%d].source_field", index), sources[index]); err != nil {
-			return err
-		}
-	}
-	perTarget := irresource.New(irresource.Limits{Fields: sqliteRelationMaxFields, StringBytes: sqliteRelationMaxStringBytes, Nodes: sqliteRelationMaxNodes, Bytes: sqliteRelationMaxAggregateBytes})
-	if err := perTarget.ScanModel("derived relation target.model", changed.TargetModel); err != nil {
-		return err
-	}
-	if err := perTarget.ScanField("derived relation target.key", changed.TargetKey); err != nil {
-		return err
-	}
-	count := uint64(len(sources))
-	derivedNodes, derivedBytes := derived.Counts()
-	perTargetNodes, perTargetBytes := perTarget.Counts()
-	if perTargetNodes != 0 && count > (sqliteRelationMaxNodes-derivedNodes)/perTargetNodes {
-		return fmt.Errorf("derived relation targets exceed the aggregate relation intent node limit %d", sqliteRelationMaxNodes)
-	}
-	if perTargetBytes != 0 && count > (sqliteRelationMaxAggregateBytes-derivedBytes)/perTargetBytes {
-		return fmt.Errorf("derived relation targets exceed the aggregate relation intent byte limit %d", sqliteRelationMaxAggregateBytes)
-	}
-	return nil
 }
 
 func validateSQLiteRelationRemoveDelta(before, after ir.Model) (ir.Field, error) {
@@ -1785,7 +1338,7 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 		sqliteRelationIdentifierKey(migrationRecorderTable): {},
 	}
 	touched := make(map[string]struct{}, len(seal.intent.Operations))
-	relevant := make(map[string]struct{}, len(seal.intent.Operations)+len(seal.externalTargets)+2)
+	relevant := make(map[string]struct{}, len(seal.intent.Operations)+2)
 	mutationHazards := make(map[string]struct{}, len(seal.intent.Operations)+2)
 	for key := range controls {
 		relevant[key] = struct{}{}
@@ -1802,8 +1355,8 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 		relevant[key] = struct{}{}
 		mutationHazards[key] = struct{}{}
 	}
-	for key := range seal.externalTargets {
-		relevant[key] = struct{}{}
+	for _, snapshot := range append(seal.graphPlan.InitialModels(), seal.graphPlan.FinalModels()...) {
+		relevant[sqliteRelationIdentifierKey(snapshot.Model.DBTable)] = struct{}{}
 	}
 
 	for _, object := range catalog.objects {
@@ -1889,7 +1442,7 @@ func preflightSQLiteRelationModels(
 		if !exists || tableObject.name != state.model.DBTable {
 			return relationPhysicalDrift("relation input table %q is missing or differs by SQLite identifier spelling", state.model.DBTable)
 		}
-		targets, known := sqliteRelationTargetsForModel(seal, state.model)
+		targets, known := sqliteRelationTargetsForModel(seal, state.model, false)
 		if !known && len(relationFieldsInModel(state.model)) != 0 {
 			return relationIntentUnsupported("scalar-touched relation model %q has no exact same-step target metadata", state.model.DBTable)
 		}
@@ -1964,31 +1517,6 @@ func preflightSQLiteRelationModels(
 		}
 	}
 
-	externalTables := make([]string, 0, len(seal.externalTargets))
-	for tableKey := range seal.externalTargets {
-		externalTables = append(externalTables, tableKey)
-	}
-	sort.Strings(externalTables)
-	for _, tableKey := range externalTables {
-		model := seal.externalTargets[tableKey].snapshot
-		if err := assertSQLiteRelationNamespace(ctx, executor, catalog, model.DBTable, true); err != nil {
-			return err
-		}
-		tableObject, exists, err := catalog.object("main", model.DBTable, "table")
-		if err != nil {
-			return err
-		}
-		if !exists || tableObject.name != model.DBTable {
-			return relationPhysicalDrift("external relation target table %q is missing or differs by SQLite identifier spelling", model.DBTable)
-		}
-		targets, known := sqliteRelationTargetsForModel(seal, model)
-		if err := assertSQLiteRelationModelShape(ctx, executor, model, targets, known, validationCache); err != nil {
-			return fmt.Errorf("preflight external relation target %q: %w", model.DBTable, err)
-		}
-		if err := assertSQLiteRelationCanonicalTableSQL(ctx, executor, model, targets, known, tableObject.sql); err != nil {
-			return fmt.Errorf("preflight external relation target %q SQL: %w", model.DBTable, err)
-		}
-	}
 	return validateSQLiteRelationPhysicalGraph(seal, physicalGraph)
 }
 
@@ -2063,22 +1591,26 @@ func sqliteRelationBoundaryStates(
 ) (map[string]sqliteRelationBoundaryModel, map[string]sqliteRelationBoundaryModel) {
 	initial := make(map[string]sqliteRelationBoundaryModel)
 	final := make(map[string]sqliteRelationBoundaryModel)
-	for index := range seal.intent.Operations {
-		operation := seal.intent.Operations[index]
-		model := operation.After
-		if reflect.DeepEqual(model, ir.Model{}) {
-			model = operation.Before
-		}
-		key := sqliteRelationIdentifierKey(model.DBTable)
-		if _, exists := initial[key]; !exists {
-			initial[key] = sqliteRelationBoundaryModel{
-				model:   modelForRelationBoundary(operation.Before, model),
-				present: !reflect.DeepEqual(operation.Before, ir.Model{}),
+	for _, snapshot := range seal.graphPlan.InitialModels() {
+		key := sqliteRelationIdentifierKey(snapshot.Model.DBTable)
+		initial[key] = sqliteRelationBoundaryModel{model: snapshot.Model, present: true}
+	}
+	for _, snapshot := range seal.graphPlan.FinalModels() {
+		key := sqliteRelationIdentifierKey(snapshot.Model.DBTable)
+		final[key] = sqliteRelationBoundaryModel{model: snapshot.Model, present: true}
+	}
+	for _, operation := range seal.intent.Operations {
+		if operation.Kind == migrationbackend.MigrationCreateModel {
+			key := sqliteRelationIdentifierKey(operation.After.DBTable)
+			if _, present := initial[key]; !present {
+				initial[key] = sqliteRelationBoundaryModel{model: operation.After.Clone()}
 			}
 		}
-		final[key] = sqliteRelationBoundaryModel{
-			model:   modelForRelationBoundary(operation.After, model),
-			present: !reflect.DeepEqual(operation.After, ir.Model{}),
+		if operation.Kind == migrationbackend.MigrationDeleteModel {
+			key := sqliteRelationIdentifierKey(operation.Before.DBTable)
+			if _, present := final[key]; !present {
+				final[key] = sqliteRelationBoundaryModel{model: operation.Before.Clone()}
+			}
 		}
 	}
 	return initial, final
@@ -2103,59 +1635,10 @@ func sortedSQLiteRelationBoundaryTables(states map[string]sqliteRelationBoundary
 func sqliteRelationTargetsForModel(
 	seal *sqliteRelationIntentSeal,
 	model ir.Model,
+	final bool,
 ) ([]migrationbackend.MigrationTarget, bool) {
-	relationFields := relationFieldsInModel(model)
-	if len(relationFields) == 0 {
-		return nil, true
-	}
-	candidates := seal.targetOperationByTable[sqliteRelationIdentifierKey(model.DBTable)]
-	if len(candidates) == 0 {
-		return nil, false
-	}
-	var selected []migrationbackend.MigrationTarget
-	matches := 0
-	for _, operationIndex := range candidates {
-		if operationIndex < 0 || operationIndex >= len(seal.intent.Operations) {
-			return nil, false
-		}
-		operation := seal.intent.Operations[operationIndex]
-		targets := operation.Targets
-		if len(targets) != len(relationFields) {
-			// A bounded relation Add/Remove seals the complete relation-bearing
-			// boundary target list. The opposite boundary contains the exact
-			// field-order prefix ending just before the changed ForeignKey; no
-			// other subset is authoritative.
-			if (operation.Kind != migrationbackend.MigrationAddField &&
-				operation.Kind != migrationbackend.MigrationRemoveField) ||
-				len(targets) != len(relationFields)+1 ||
-				!sqliteRelationOperationChangesForeignKey(operation) {
-				continue
-			}
-			targets = targets[:len(relationFields)]
-		}
-		matchesFields := true
-		for targetIndex := range relationFields {
-			if !reflect.DeepEqual(targets[targetIndex].SourceField, relationFields[targetIndex]) {
-				matchesFields = false
-				break
-			}
-		}
-		if !matchesFields {
-			continue
-		}
-		if matches != 0 && !reflect.DeepEqual(selected, targets) {
-			return nil, false
-		}
-		matches++
-		selected = targets
-	}
-	// Consecutive operations may expose the same model boundary (for example,
-	// CreateModel followed by a scalar AddField). Identical sealed target
-	// snapshots are one authority; any disagreement above fails closed.
-	if matches == 0 {
-		return nil, false
-	}
-	return selected, true
+	targets, err := seal.graphPlan.BoundaryTargets(model, final)
+	return targets, err == nil
 }
 
 func sqliteRelationOperationChangesForeignKey(operation migrationbackend.MigrationOperation) bool {
@@ -2270,17 +1753,16 @@ func validateSQLiteRelationPhysicalGraph(
 			graph.removeOutgoing(source)
 			for targetIndex := range operation.Targets {
 				target := sqliteRelationIdentifierKey(operation.Targets[targetIndex].TargetModel.DBTable)
-				if source == target {
-					return relationPhysicalDrift("relation CreateModel table %q has a physical self relation", model.DBTable)
-				}
 				graph.add(source, target)
 			}
 		case migrationbackend.MigrationDeleteModel:
-			if inbound := graph.incoming[source]; len(inbound) != 0 {
-				owners := make([]string, 0, len(inbound))
-				for owner := range inbound {
+			var owners []string
+			for owner := range graph.incoming[source] {
+				if owner != source {
 					owners = append(owners, owner)
 				}
+			}
+			if len(owners) != 0 {
 				sort.Strings(owners)
 				return relationPhysicalDrift("relation DeleteModel table %q has inbound foreign key from %q", model.DBTable, owners[0])
 			}
@@ -2291,29 +1773,10 @@ func validateSQLiteRelationPhysicalGraph(
 				continue
 			}
 			target := sqliteRelationIdentifierKey(operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
-			if source == target {
-				return relationPhysicalDrift("relation AddField table %q has a physical self relation", model.DBTable)
-			}
-			if !graph.hasEdge(source, target) && len(graph.outgoing[target]) != 0 {
-				// The sealed Add authority requires a relation-free target and its
-				// exact physical-shape preflight has already enforced zero foreign
-				// keys. This constant-time defensive check closes any future path
-				// that could turn the new edge into a cycle without rescanning an
-				// unrelated existing graph for every Add.
-				return relationPhysicalDrift("relation AddField target %q has an outgoing physical relation that could create a cycle", operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
-			}
 			graph.add(source, target)
 		case migrationbackend.MigrationRemoveField:
 			if len(operation.Targets) == 0 || !sqliteRelationOperationChangesForeignKey(operation) {
 				continue
-			}
-			if inbound := graph.incoming[source]; len(inbound) != 0 {
-				owners := make([]string, 0, len(inbound))
-				for owner := range inbound {
-					owners = append(owners, owner)
-				}
-				sort.Strings(owners)
-				return relationPhysicalDrift("relation RemoveField table %q has inbound foreign key from %q", model.DBTable, owners[0])
 			}
 			graph.removeOutgoing(source)
 			for targetIndex := 0; targetIndex < len(operation.Targets)-1; targetIndex++ {
@@ -2620,7 +2083,7 @@ func verifySQLiteRelationFinalState(
 		if !exists || tableObject.name != state.model.DBTable {
 			return relationPhysicalDrift("final relation table %q is missing or differs by SQLite identifier spelling", state.model.DBTable)
 		}
-		targets, known := sqliteRelationTargetsForModel(seal, state.model)
+		targets, known := sqliteRelationTargetsForModel(seal, state.model, true)
 		if !known && len(relationFieldsInModel(state.model)) != 0 {
 			return relationIntentUnsupported("final relation model %q has no exact sealed target metadata", state.model.DBTable)
 		}
@@ -2632,34 +2095,6 @@ func verifySQLiteRelationFinalState(
 		}
 	}
 
-	externalTables := make([]string, 0, len(seal.externalTargets))
-	for tableKey := range seal.externalTargets {
-		externalTables = append(externalTables, tableKey)
-	}
-	sort.Strings(externalTables)
-	for _, tableKey := range externalTables {
-		model := seal.externalTargets[tableKey].snapshot
-		if err := assertSQLiteRelationNamespace(ctx, executor, catalog, model.DBTable, true); err != nil {
-			return err
-		}
-		tableObject, exists, err := catalog.object("main", model.DBTable, "table")
-		if err != nil {
-			return err
-		}
-		if !exists || tableObject.name != model.DBTable {
-			return relationPhysicalDrift("final external relation target %q is missing or differs by SQLite identifier spelling", model.DBTable)
-		}
-		targets, known := sqliteRelationTargetsForModel(seal, model)
-		if !known && len(relationFieldsInModel(model)) != 0 {
-			return relationIntentUnsupported("final external relation target %q has no exact sealed target metadata", model.DBTable)
-		}
-		if err := assertSQLiteRelationModelShape(ctx, executor, model, targets, known, validationCache); err != nil {
-			return fmt.Errorf("verify final external relation target %q: %w", model.DBTable, err)
-		}
-		if err := assertSQLiteRelationCanonicalTableSQL(ctx, executor, model, targets, known, tableObject.sql); err != nil {
-			return fmt.Errorf("verify final external relation target %q SQL: %w", model.DBTable, err)
-		}
-	}
 	return runSQLiteRelationForeignKeyCheck(ctx, executor)
 }
 

@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	"github.com/progresshans/godj/internal/irresource"
+	"github.com/progresshans/godj/internal/migrationgraph"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -278,15 +279,16 @@ type loadedRelationTargetView struct {
 }
 
 type loadedOperationView struct {
-	index        int
-	operation    Operation
-	appLabel     string
-	before       ir.Model
-	beforeExists bool
-	after        ir.Model
-	afterExists  bool
-	sourceFields []ir.Field
-	targets      []loadedRelationTargetView
+	index         int
+	operation     Operation
+	appLabel      string
+	before        ir.Model
+	beforeExists  bool
+	after         ir.Model
+	afterExists   bool
+	sourceFields  []ir.Field
+	targets       []loadedRelationTargetView
+	relatedModels []migrationgraph.MigrationModel
 }
 
 // loadedStateBuilder is the private, loader-authorized historical state. It
@@ -297,6 +299,7 @@ type loadedStateBuilder struct {
 	apps          map[string]*loadedStateApp
 	relationCount uint64
 	reverse       map[loadedModelIdentity]map[string]loadedReverseOwner
+	incoming      map[loadedModelIdentity]map[loadedReverseOwner]struct{}
 }
 
 type loadedStateApp struct {
@@ -362,6 +365,7 @@ type loadedRelationOperation struct {
 	before         ir.Model
 	after          ir.Model
 	targets        []loadedRelationBackendTarget
+	relatedModels  []migrationgraph.MigrationModel
 }
 
 type loadedRelationBackendTarget struct {
@@ -395,11 +399,12 @@ type loadedStepSealPayload struct {
 }
 
 type loadedRelationOperationSeal struct {
-	OperationIndex int                         `json:"operation_index"`
-	Kind           loadedRelationOperationKind `json:"kind"`
-	Before         ir.Model                    `json:"before"`
-	After          ir.Model                    `json:"after"`
-	Targets        []loadedRelationTargetSeal  `json:"targets"`
+	OperationIndex int                             `json:"operation_index"`
+	Kind           loadedRelationOperationKind     `json:"kind"`
+	Before         ir.Model                        `json:"before"`
+	After          ir.Model                        `json:"after"`
+	Targets        []loadedRelationTargetSeal      `json:"targets"`
+	RelatedModels  []migrationgraph.MigrationModel `json:"related_models"`
 }
 
 type loadedRelationTargetSeal struct {
@@ -410,8 +415,9 @@ type loadedRelationTargetSeal struct {
 
 func newLoadedStateBuilder() *loadedStateBuilder {
 	return &loadedStateBuilder{
-		apps:    make(map[string]*loadedStateApp),
-		reverse: make(map[loadedModelIdentity]map[string]loadedReverseOwner),
+		apps:     make(map[string]*loadedStateApp),
+		reverse:  make(map[loadedModelIdentity]map[string]loadedReverseOwner),
+		incoming: make(map[loadedModelIdentity]map[loadedReverseOwner]struct{}),
 	}
 }
 
@@ -445,6 +451,13 @@ func (builder *loadedStateBuilder) clone() *loadedStateBuilder {
 			clonedOwners[name] = owner
 		}
 		cloned.reverse[target] = clonedOwners
+	}
+	for target, owners := range builder.incoming {
+		clonedOwners := make(map[loadedReverseOwner]struct{}, len(owners))
+		for owner := range owners {
+			clonedOwners[owner] = struct{}{}
+		}
+		cloned.incoming[target] = clonedOwners
 	}
 	return cloned
 }
@@ -491,7 +504,7 @@ func (builder *loadedStateBuilder) projectState() (ProjectState, error) {
 }
 
 func (builder *loadedStateBuilder) empty() bool {
-	return len(builder.apps) == 0 && builder.relationCount == 0 && len(builder.reverse) == 0
+	return len(builder.apps) == 0 && builder.relationCount == 0 && len(builder.reverse) == 0 && len(builder.incoming) == 0
 }
 
 func newLoadedStateReconstructor(
@@ -631,32 +644,6 @@ func loadedDeclarationLess(left, right loadedRelationDeclaration) bool {
 }
 
 func (r loadedStateReconstructor) validateChronology() error {
-	for _, declaration := range r.declarations {
-		if declaration.field.Relation == nil {
-			continue
-		}
-		target := loadedModelIdentity{app: declaration.field.Relation.Target.AppLabel, model: declaration.field.Relation.Target.ModelName}
-		if target == declaration.source {
-			return r.declarationError(declaration, errors.New("self-referential ForeignKey is outside the bounded relation lifecycle"))
-		}
-	}
-	if cycle := firstLoadedRelationCycle(r.declarations); len(cycle) != 0 {
-		cycleSet := make(map[loadedModelIdentity]struct{}, len(cycle))
-		for _, identity := range cycle {
-			cycleSet[identity] = struct{}{}
-		}
-		for _, declaration := range r.declarations {
-			if declaration.field.Relation == nil {
-				continue
-			}
-			target := loadedModelIdentity{app: declaration.field.Relation.Target.AppLabel, model: declaration.field.Relation.Target.ModelName}
-			_, sourceInCycle := cycleSet[declaration.source]
-			_, targetInCycle := cycleSet[target]
-			if sourceInCycle && targetInCycle {
-				return r.declarationError(declaration, errors.New("ForeignKey relation cycle is outside the bounded relation lifecycle"))
-			}
-		}
-	}
 	duplicateIdentities := make([]loadedModelIdentity, 0)
 	for identity, creators := range r.creators {
 		if len(creators) > 1 {
@@ -702,6 +689,8 @@ func (r loadedStateReconstructor) validateChronology() error {
 		}
 		creator := creators[0]
 		switch {
+		case target == declaration.source && sourceOwnedByCreate:
+			// The table and its self constraint are created by one operation.
 		case r.creatorVisibleBefore(creator, declaration):
 			// An earlier same-migration or explicit ancestor creator is visible.
 		case creator.key == declaration.key:
@@ -787,70 +776,6 @@ func newLoadedAncestorIndex(graph *plannerGraph) loadedAncestorIndex {
 		sets[position] = ancestors
 	}
 	return loadedAncestorIndex{positions: positions, sets: sets}
-}
-
-func firstLoadedRelationCycle(declarations []loadedRelationDeclaration) []loadedModelIdentity {
-	edges := make(map[loadedModelIdentity][]loadedModelIdentity)
-	nodes := make(map[loadedModelIdentity]struct{})
-	for _, declaration := range declarations {
-		if declaration.field.Relation == nil {
-			continue
-		}
-		target := loadedModelIdentity{app: declaration.field.Relation.Target.AppLabel, model: declaration.field.Relation.Target.ModelName}
-		edges[declaration.source] = append(edges[declaration.source], target)
-		nodes[declaration.source] = struct{}{}
-		nodes[target] = struct{}{}
-	}
-	ordered := make([]loadedModelIdentity, 0, len(nodes))
-	for node := range nodes {
-		ordered = append(ordered, node)
-	}
-	sort.Slice(ordered, func(left, right int) bool { return loadedIdentityLess(ordered[left], ordered[right]) })
-	for node := range edges {
-		sort.Slice(edges[node], func(left, right int) bool { return loadedIdentityLess(edges[node][left], edges[node][right]) })
-	}
-	type relationFrame struct {
-		node loadedModelIdentity
-		next int
-	}
-	state := make(map[loadedModelIdentity]uint8, len(nodes))
-	positions := make(map[loadedModelIdentity]int, len(nodes))
-	path := make([]loadedModelIdentity, 0, len(nodes))
-	frames := make([]relationFrame, 0, len(nodes))
-	for _, node := range ordered {
-		if state[node] != 0 {
-			continue
-		}
-		state[node] = 1
-		positions[node] = len(path)
-		path = append(path, node)
-		frames = append(frames, relationFrame{node: node})
-		for len(frames) != 0 {
-			frame := &frames[len(frames)-1]
-			neighbors := edges[frame.node]
-			if frame.next == len(neighbors) {
-				state[frame.node] = 2
-				delete(positions, frame.node)
-				path = path[:len(path)-1]
-				frames = frames[:len(frames)-1]
-				continue
-			}
-			target := neighbors[frame.next]
-			frame.next++
-			switch state[target] {
-			case 0:
-				state[target] = 1
-				positions[target] = len(path)
-				path = append(path, target)
-				frames = append(frames, relationFrame{node: target})
-			case 1:
-				cycle := append([]loadedModelIdentity(nil), path[positions[target]:]...)
-				sort.Slice(cycle, func(left, right int) bool { return loadedIdentityLess(cycle[left], cycle[right]) })
-				return cycle
-			}
-		}
-	}
-	return nil
 }
 
 func loadedIdentityLess(left, right loadedModelIdentity) bool {
@@ -1011,8 +936,10 @@ func (builder *loadedStateBuilder) deleteModel(operation CreateModel) error {
 		return fmt.Errorf("model %s.%s does not match CreateModel state", operation.AppLabel, want.Name)
 	}
 	identity := loadedModelIdentity{app: operation.AppLabel, model: want.Name}
-	if reverse := builder.reverse[identity]; len(reverse) != 0 {
-		return fmt.Errorf("model %s.%s is still targeted by relation reverse owners", identity.app, identity.model)
+	for owner := range builder.incoming[identity] {
+		if owner.source != identity {
+			return fmt.Errorf("model %s.%s is still targeted by relation reverse owners", identity.app, identity.model)
+		}
 	}
 	for _, field := range actual.value.Fields {
 		if err := builder.removeRelation(identity, field); err != nil {
@@ -1168,6 +1095,16 @@ func (builder *loadedStateBuilder) addRelation(source loadedModelIdentity, field
 		}
 		owners[name] = loadedReverseOwner{source: source, field: field.Name}
 	}
+	owners := builder.incoming[target]
+	if owners == nil {
+		owners = make(map[loadedReverseOwner]struct{})
+		builder.incoming[target] = owners
+	}
+	owner := loadedReverseOwner{source: source, field: field.Name}
+	if _, duplicate := owners[owner]; duplicate {
+		return fmt.Errorf("relation field %s.%s.%s has a duplicate incoming owner", source.app, source.model, field.Name)
+	}
+	owners[owner] = struct{}{}
 	builder.relationCount++
 	return nil
 }
@@ -1191,6 +1128,15 @@ func (builder *loadedStateBuilder) removeRelation(source loadedModelIdentity, fi
 		if len(owners) == 0 {
 			delete(builder.reverse, target)
 		}
+	}
+	owners := builder.incoming[target]
+	owner := loadedReverseOwner{source: source, field: field.Name}
+	if _, exists := owners[owner]; !exists {
+		return fmt.Errorf("relation field %s.%s.%s has an inconsistent incoming owner", source.app, source.model, field.Name)
+	}
+	delete(owners, owner)
+	if len(owners) == 0 {
+		delete(builder.incoming, target)
 	}
 	builder.relationCount--
 	return nil
@@ -1477,10 +1423,6 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		appLabel, modelName := operationSourceModel(operation)
 		beforeModel, beforeExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
 		changedRelationFields := operationRelationFieldViews(operation)
-		targets, err := loadedBuilderRelationTargets(builder, migration, operationIndex, step.Direction)
-		if err != nil {
-			return loadedMaterializedStep{}, err
-		}
 		if err := r.applyLoadedOperation(builder, migration, operationIndex, step.Direction); err != nil {
 			return loadedMaterializedStep{}, err
 		}
@@ -1488,8 +1430,14 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		sourceModel := afterModel
 		sourceExists := afterExists
 		if step.Direction == DirectionBackward {
-			sourceModel = beforeModel
-			sourceExists = beforeExists
+			if _, choicesOnly := operation.(AlterField); !choicesOnly {
+				sourceModel = beforeModel
+				sourceExists = beforeExists
+			}
+		}
+		targets, relatedModels, err := loadedBuilderRelationGraph(ctx, builder, migration, operationIndex, step.Direction, sourceModel)
+		if err != nil {
+			return loadedMaterializedStep{}, err
 		}
 		if len(targets) != 0 && !sourceExists {
 			return loadedMaterializedStep{}, migrationError(
@@ -1514,6 +1462,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			loadedOptionalModelView(afterModel, afterExists),
 			sourceFields,
 			targets,
+			relatedModels,
 		); err != nil {
 			return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, operationIndex, operation.Kind(), err)
 		}
@@ -1530,15 +1479,16 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		// target authority without requiring a relation Add/Remove capability.
 		requirements |= loadedRequirementsForSourceFields(kind, changedRelationFields)
 		operationViews = append(operationViews, loadedOperationView{
-			index:        operationIndex,
-			operation:    operation,
-			appLabel:     appLabel,
-			before:       beforeModel,
-			beforeExists: beforeExists,
-			after:        afterModel,
-			afterExists:  afterExists,
-			sourceFields: sourceFields,
-			targets:      targets,
+			index:         operationIndex,
+			operation:     operation,
+			appLabel:      appLabel,
+			before:        beforeModel,
+			beforeExists:  beforeExists,
+			after:         afterModel,
+			afterExists:   afterExists,
+			sourceFields:  sourceFields,
+			targets:       targets,
+			relatedModels: relatedModels,
 		})
 	}
 	if err := validateLoadedRelationMutationAuthorities(step, migration, operationViews); err != nil {
@@ -1571,6 +1521,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				before:         loadedOptionalModel(view.before, view.beforeExists),
 				after:          loadedOptionalModel(view.after, view.afterExists),
 				targets:        backendTargets,
+				relatedModels:  migrationgraph.CloneMigrationModels(view.relatedModels),
 			}
 		}
 	}
@@ -1615,90 +1566,34 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 	}, nil
 }
 
-// validateLoadedRelationMutationAuthorities closes the intentionally narrow
-// target universe that can be represented by the public AddField intent. The
-// public operation carries only the changed field's target snapshot, so core
-// authorizes a bounded ForeignKey Add, or its backward Remove, only when that
-// one immutable snapshot also identifies every relation present at the
-// relation-bearing boundary and the target snapshot contains no nested
-// relations. At most one relation Add/Remove may target a given source model
-// in one migration step, keeping every Before/After boundary unambiguous.
-// Backends must independently enforce the same closure before deriving any
-// additional target bindings.
-//
-// This check is part of materialization rather than constructor readiness so
-// both the whole-plan dry pass and the execution rematerialization re-evaluate
-// it against their exact historical builders. Its capability error deliberately
-// has NoOperation attribution: no prefix in the migration step may begin when
-// the complete relation intent cannot be sealed.
+// validateLoadedRelationMutationAuthorities validates the complete relation
+// graph in both the whole-plan dry pass and execution rematerialization. The
+// backend repeats this check against detached, sealed intent before any I/O.
 func validateLoadedRelationMutationAuthorities(
 	step PlanStep,
 	migration Migration,
 	views []loadedOperationView,
 ) error {
-	fail := func(detail string) error {
-		return loadedRelationCapabilityError(step, migration, detail)
-	}
-	counts := make(map[loadedModelIdentity]int)
-	for viewIndex := range views {
-		view := views[viewIndex]
-		var field ir.Field
-		switch value := view.operation.(type) {
-		case AddField:
-			field = value.Field
-		default:
-			continue
+	for _, view := range views {
+		kind, err := loadedBackendOperationKind(view.operation, step.Direction)
+		if err != nil {
+			return loadedRelationCapabilityError(step, migration, err.Error())
 		}
-		if !fieldContainsRelation(field) {
-			continue
-		}
-		if field.Kind != ir.FieldForeignKey || field.Relation == nil ||
-			field.Default != nil || field.PrimaryKey {
-			continue
-		}
-		// Required relation additions are deliberately limited to PROTECT. A
-		// nullable SET_NULL relation remains part of the already-supported
-		// nullable slice, but SET_NULL cannot describe a required field in
-		// normalized IR and is rejected before this authority check.
-		if !field.Nullable && field.Relation.OnDelete != ir.DeleteProtect {
-			continue
-		}
-		relationBoundary := view.after
-		if step.Direction == DirectionBackward {
-			relationBoundary = view.before
-			if !view.beforeExists || !view.afterExists ||
-				len(view.before.Fields) != len(view.after.Fields)+1 ||
-				!reflect.DeepEqual(view.after.Fields, view.before.Fields[:len(view.after.Fields)]) ||
-				!reflect.DeepEqual(view.before.Fields[len(view.before.Fields)-1], field) {
-				return fail("ForeignKey Remove requires the exact reverse of one appended relation field")
+		targets := make([]migrationgraph.MigrationTarget, len(view.targets))
+		for index, target := range view.targets {
+			targets[index] = migrationgraph.MigrationTarget{
+				SourceField: view.sourceFields[index], TargetModel: target.targetModel,
+				TargetKey: target.targetPrimaryKey,
 			}
 		}
-		source := loadedModelIdentity{app: view.appLabel, model: relationBoundary.Name}
-		counts[source]++
-		if counts[source] > 1 {
-			if step.Direction == DirectionForward {
-				return fail("ForeignKey Add permits at most one relation Add per source model in a migration step")
-			}
-			return fail("ForeignKey Remove permits at most one relation Remove per source model in a migration step")
-		}
-		if !view.beforeExists || !view.afterExists {
-			return fail("ForeignKey Add/Remove source model is not present in the sealed historical state")
-		}
-		if len(view.targets) != 1 || view.targets[0].sourceFieldName != field.Name {
-			return fail("ForeignKey Add/Remove requires exactly one changed-field target snapshot")
-		}
-		if modelContainsRelation(view.targets[0].targetModel) {
-			return fail("ForeignKey Add/Remove target model contains nested relation fields outside the sealed target universe")
-		}
-		want := field.Relation.Target
-		for index := range relationBoundary.Fields {
-			existing := relationBoundary.Fields[index]
-			if !fieldContainsRelation(existing) {
-				continue
-			}
-			if existing.Kind != ir.FieldForeignKey || existing.Relation == nil || existing.Relation.Target != want {
-				return fail("ForeignKey Add/Remove source contains a relation with a different symbolic target")
-			}
+		_, err = migrationgraph.ResolveMigrationGraph(view.appLabel, migrationgraph.MigrationOperation{
+			OperationIndex: view.index, Kind: migrationgraph.MigrationOperationKind(kind),
+			Before:  loadedOptionalModelView(view.before, view.beforeExists),
+			After:   loadedOptionalModelView(view.after, view.afterExists),
+			Targets: targets, RelatedModels: view.relatedModels,
+		})
+		if err != nil {
+			return loadedRelationCapabilityError(step, migration, err.Error())
 		}
 	}
 	return nil
@@ -1712,60 +1607,113 @@ func loadedBuilderModelView(builder *loadedStateBuilder, identity loadedModelIde
 	return model.value, true
 }
 
-func loadedBuilderRelationTargets(
+// loadedBuilderRelationGraph borrows an operation's exact source boundary
+// and the visible historical target closure. The source override is essential
+// for self creation and backward removal, where the mutable builder is already
+// at the opposite side of that operation. All other vertices are unchanged by
+// the single-model operation and must actually exist in the builder.
+func loadedBuilderRelationGraph(
+	ctx context.Context,
 	builder *loadedStateBuilder,
 	migration Migration,
 	operationIndex int,
 	direction Direction,
-) ([]loadedRelationTargetView, error) {
+	source ir.Model,
+) ([]loadedRelationTargetView, []migrationgraph.MigrationModel, error) {
 	operation := migration.Operations[operationIndex]
-	fields := operationRelationFieldViews(operation)
-	if len(fields) == 0 {
-		appLabel, modelName := operationSourceModel(operation)
-		if source, exists := builder.model(loadedModelIdentity{app: appLabel, model: modelName}); exists {
-			for index := range source.value.Fields {
-				if fieldContainsRelation(source.value.Fields[index]) {
-					fields = append(fields, source.value.Fields[index])
-				}
-			}
+	fail := func(err error) ([]loadedRelationTargetView, []migrationgraph.MigrationModel, error) {
+		return nil, nil, migrationError(CategoryState, CodeInvalidState, direction, migration,
+			operationIndex, operation.Kind(), err)
+	}
+	app, _ := operationSourceModel(operation)
+	sourceIdentity := ir.ModelIdentity{AppLabel: app, ModelName: source.Name}
+	direct := map[ir.ModelIdentity]bool{sourceIdentity: true}
+	fields := make([]ir.Field, 0)
+	for _, field := range source.Fields {
+		if !fieldContainsRelation(field) {
+			continue
 		}
+		if field.Relation == nil || field.Kind != ir.FieldForeignKey {
+			return fail(fmt.Errorf("relation field %q has invalid metadata", field.Name))
+		}
+		fields = append(fields, field)
+		direct[field.Relation.Target] = true
 	}
 	if len(fields) == 0 {
-		return nil, nil
+		return nil, nil, nil
+	}
+	budget := irresource.New(irresource.Limits{
+		Fields: loadedDerivedIntentMaxFields, StringBytes: loadedDerivedIntentMaxStringBytes,
+		Nodes: loadedDerivedIntentMaxNodes, Bytes: loadedDerivedIntentMaxAggregateBytes,
+	})
+	scan := func(identity ir.ModelIdentity, model ir.Model) error {
+		if err := budget.ConsumeString("relation_graph.app", identity.AppLabel); err != nil {
+			return err
+		}
+		return budget.ScanModel("relation_graph.model", model)
+	}
+	if err := scan(sourceIdentity, source); err != nil {
+		return fail(err)
+	}
+	models := map[ir.ModelIdentity]ir.Model{sourceIdentity: source}
+	queue := []ir.ModelIdentity{sourceIdentity}
+	for position := 0; position < len(queue); position++ {
+		if err := ctx.Err(); err != nil {
+			return fail(err)
+		}
+		model := models[queue[position]]
+		for _, field := range model.Fields {
+			if field.Kind != ir.FieldForeignKey {
+				continue
+			}
+			if field.Relation == nil {
+				return fail(fmt.Errorf("relation field %q has no metadata", field.Name))
+			}
+			identity := field.Relation.Target
+			if _, exists := models[identity]; exists {
+				continue
+			}
+			if len(models) >= loadedDerivedIntentMaxTargets {
+				return fail(fmt.Errorf("historical relation graph exceeds %d models", loadedDerivedIntentMaxTargets))
+			}
+			target, exists := loadedBuilderModelView(builder, loadedModelIdentity{app: identity.AppLabel, model: identity.ModelName})
+			if !exists {
+				return fail(fmt.Errorf("historical target model %s.%s is not visible", identity.AppLabel, identity.ModelName))
+			}
+			if err := scan(identity, target); err != nil {
+				return fail(err)
+			}
+			if _, err := exactAutoPrimaryKeyView(target); err != nil {
+				return fail(err)
+			}
+			models[identity] = target
+			queue = append(queue, identity)
+		}
 	}
 	targets := make([]loadedRelationTargetView, 0, len(fields))
 	for _, field := range fields {
-		if field.Relation == nil {
-			return nil, migrationError(
-				CategoryState, CodeInvalidState, direction, migration,
-				operationIndex, operation.Kind(), fmt.Errorf("relation field %q has no relation metadata", field.Name),
-			)
-		}
-		targetIdentity := loadedModelIdentity{
-			app:   field.Relation.Target.AppLabel,
-			model: field.Relation.Target.ModelName,
-		}
-		targetModel, exists := loadedBuilderModelView(builder, targetIdentity)
-		if !exists {
-			return nil, migrationError(
-				CategoryState, CodeInvalidState, direction, migration,
-				operationIndex, operation.Kind(), fmt.Errorf("historical target model %s.%s is not visible", targetIdentity.app, targetIdentity.model),
-			)
-		}
-		primaryKey, err := exactAutoPrimaryKeyView(targetModel)
+		target := models[field.Relation.Target]
+		key, err := exactAutoPrimaryKeyView(target)
 		if err != nil {
-			return nil, migrationError(
-				CategoryState, CodeInvalidState, direction, migration,
-				operationIndex, operation.Kind(), err,
-			)
+			return fail(err)
 		}
 		targets = append(targets, loadedRelationTargetView{
-			sourceFieldName:  field.Name,
-			targetModel:      targetModel,
-			targetPrimaryKey: primaryKey,
+			sourceFieldName: field.Name, targetModel: target, targetPrimaryKey: key,
 		})
 	}
-	return targets, nil
+	related := make([]migrationgraph.MigrationModel, 0)
+	for identity, model := range models {
+		if !direct[identity] {
+			related = append(related, migrationgraph.MigrationModel{AppLabel: identity.AppLabel, Model: model})
+		}
+	}
+	sort.Slice(related, func(left, right int) bool {
+		if related[left].AppLabel != related[right].AppLabel {
+			return related[left].AppLabel < related[right].AppLabel
+		}
+		return related[left].Model.Name < related[right].Model.Name
+	})
+	return targets, related, nil
 }
 
 func loadedModelFieldView(model ir.Model, name string) (ir.Field, bool) {
@@ -1808,6 +1756,7 @@ func (budget *loadedDerivedIntentBudget) scanOperation(
 	after ir.Model,
 	sourceFields []ir.Field,
 	targets []loadedRelationTargetView,
+	relatedModels []migrationgraph.MigrationModel,
 ) error {
 	prefix := fmt.Sprintf("operations[%d]", operationIndex)
 	if err := budget.ScanModel(prefix+".before", before); err != nil {
@@ -1834,6 +1783,18 @@ func (budget *loadedDerivedIntentBudget) scanOperation(
 			return err
 		}
 		if err := budget.ScanField(targetPrefix+".target_key", targets[targetIndex].targetPrimaryKey); err != nil {
+			return err
+		}
+	}
+	if err := budget.ConsumeNodes(prefix+".related_models", len(relatedModels)); err != nil {
+		return err
+	}
+	for index, model := range relatedModels {
+		path := fmt.Sprintf("%s.related_models[%d]", prefix, index)
+		if err := budget.ConsumeString(path+".app", model.AppLabel); err != nil {
+			return err
+		}
+		if err := budget.ScanModel(path+".model", model.Model); err != nil {
 			return err
 		}
 	}
@@ -1923,6 +1884,7 @@ func loadedRelationSealOperations(intent loadedRelationIntent) []loadedRelationO
 			Before:         operation.before.Clone(),
 			After:          operation.after.Clone(),
 			Targets:        targets,
+			RelatedModels:  migrationgraph.CloneMigrationModels(operation.relatedModels),
 		}
 	}
 	return operations

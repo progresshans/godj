@@ -549,6 +549,7 @@ func loadedBackendRelationIntent(value loadedRelationIntent) backend.MigrationIn
 			Before:         operation.before.Clone(),
 			After:          operation.after.Clone(),
 			Targets:        targets,
+			RelatedModels:  backend.CloneMigrationModels(operation.relatedModels),
 		}
 	}
 	return intent

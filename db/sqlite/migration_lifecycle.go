@@ -236,19 +236,21 @@ func (session *sqliteRevisionFencedSession) finishTransaction(
 }
 
 type sqliteRevisionFencedTransaction struct {
-	mu               sync.Mutex
-	connection       migrationPinnedConnection
-	session          *sqliteRevisionFencedSession
-	transition       migrationbackend.HistoryTransition
-	expectedRecords  []migrationbackend.AppliedMigration
-	successorRecords []migrationbackend.AppliedMigration
-	expectedToken    migrationRevisionToken
-	successorToken   migrationRevisionToken
-	bootstrap        bool
-	recorderCalled   bool
-	relation         *sqliteRelationFencedState
-	failure          error
-	done             bool
+	mu                 sync.Mutex
+	connection         migrationPinnedConnection
+	session            *sqliteRevisionFencedSession
+	transition         migrationbackend.HistoryTransition
+	expectedRecords    []migrationbackend.AppliedMigration
+	successorRecords   []migrationbackend.AppliedMigration
+	expectedToken      migrationRevisionToken
+	successorToken     migrationRevisionToken
+	bootstrap          bool
+	recorderCalled     bool
+	relation           *sqliteRelationFencedState
+	restoreForeignKeys bool
+	admission          *relationTransactionAdmission
+	failure            error
+	done               bool
 }
 
 func (transaction *sqliteRevisionFencedTransaction) claimRevision(ctx context.Context) error {
@@ -490,7 +492,7 @@ func (transaction *sqliteRevisionFencedTransaction) CommitFenced(ctx context.Con
 	_, commitErr := transaction.connection.ExecContext(ctx, "COMMIT")
 	if commitErr == nil {
 		transaction.done = true
-		closeErr := closeOrDiscardMigrationConnection(transaction.connection)
+		closeErr := releaseFencedMigrationConnection(ctx, transaction.connection, transaction.restoreForeignKeys, transaction.admission)
 		transaction.connection = nil
 		transaction.mu.Unlock()
 		transaction.session.finishTransaction(
@@ -591,11 +593,11 @@ func (transaction *sqliteRevisionFencedTransaction) rollbackLocked(ctx context.C
 	_, rollbackErr := transaction.connection.ExecContext(cleanupCtx, "ROLLBACK")
 	transaction.done = true
 	if rollbackErr == nil {
-		closeErr := closeOrDiscardMigrationConnection(transaction.connection)
+		closeErr := releaseFencedMigrationConnection(cleanupCtx, transaction.connection, transaction.restoreForeignKeys, transaction.admission)
 		transaction.connection = nil
 		return closeErr
 	}
-	discardErr := discardMigrationConnection(transaction.connection)
+	discardErr := discardOrRetainMigrationConnection(transaction.connection, transaction.admission)
 	transaction.connection = nil
 	return errors.Join(
 		classifyRevisionIO("rollback fenced migration transaction", rollbackErr),
@@ -609,11 +611,11 @@ func (transaction *sqliteRevisionFencedTransaction) rollbackAfterCommitFailureLo
 	_, rollbackErr := transaction.connection.ExecContext(cleanupCtx, "ROLLBACK")
 	transaction.done = true
 	if rollbackErr == nil {
-		closeErr := closeOrDiscardMigrationConnection(transaction.connection)
+		closeErr := releaseFencedMigrationConnection(cleanupCtx, transaction.connection, transaction.restoreForeignKeys, transaction.admission)
 		transaction.connection = nil
 		return true, closeErr
 	}
-	discardErr := discardMigrationConnection(transaction.connection)
+	discardErr := discardOrRetainMigrationConnection(transaction.connection, transaction.admission)
 	transaction.connection = nil
 	return false, errors.Join(
 		classifyRevisionIO("rollback after fenced migration commit failure", rollbackErr),

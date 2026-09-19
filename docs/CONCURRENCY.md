@@ -92,7 +92,7 @@ Cleanup은 취소된 caller context와 분리된 bounded context로 시도한다
 confirmed physical discard는 pool 재사용을 막는다. `Conn.Raw`가 nil을 반환했다는 사실만으로 discard를 확인했다고 하지 않는다.
 
 Rollback과 discard를 모두 확인할 수 없으면 connection을 pool로 돌려주지 않는다. 같은 Backend의 retention-producing
-`AtomicRelation`/`CoordinatedAtomic`은 하나의 context-aware admission을 공유하며, 첫 retain은 terminal quarantine을 게시한다.
+`AtomicRelation`/`CoordinatedAtomic`과 FK suspension이 필요한 migration은 하나의 context-aware admission을 공유하며, 첫 retain은 terminal quarantine을 게시한다.
 Retained physical connection은 최대 하나이며 이후 새 DB I/O는 connection acquire/callback/SQL 전에
 `backend_error/backend_recovery_required`로 실패한다. 이미 admission된 작업을 소급 취소하지 않는다.
 

@@ -47,7 +47,8 @@ FK enforcement는 connection별 설정이다. GoDj가 사용하는 raw relation/
 확인한다. FK-off 또는 out-of-band writer를 포함한 모든 process가 자동 보호된다고 주장하지 않는다.
 
 Migration remake는 허용된 schema에서 row/null/default/PK/sequence 의미를 보존해야 한다. Preflight가 확인하지 않은
-index/trigger/inbound/cyclic shape는 mutation 전에 거부한다. Migration revision metadata는 cooperating writer 사이의
+index/trigger/물리 shape는 mutation 전에 거부한다. Closed historical self/cyclic graph와 검증한 inbound FK는 지원하며,
+필요한 remake/self Delete의 FK suspension·복원·quarantine은 [ADR-0064](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)를 따른다. Migration revision metadata는 cooperating writer 사이의
 freshness를 검증하며 임의 schema drift나 cutover 이전 non-cooperating ABA를 복원하지 않는다.
 
 Raw transaction의 rollback/discard를 확인하지 못하면 Backend는 connection 하나를 보관하고 새 I/O를 terminal quarantine으로

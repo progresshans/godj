@@ -264,12 +264,12 @@ func TestPostgresMigrationForeignKeyRemoveKeepsBeforeTargetAuthority(t *testing.
 	if err != nil {
 		t.Fatalf("newPostgresMigrationSchema() error = %v", err)
 	}
-	initialTargets := schema.initial.targets[before.Name]
+	initialTargets := schema.initial.targets[before.DBTable]
 	if len(initialTargets) != 1 || !migrationFieldsEqual(initialTargets[0].SourceField, removed) ||
 		!reflect.DeepEqual(initialTargets[0].TargetModel, author) {
 		t.Fatalf("ForeignKey RemoveField initial targets = %+v, want sealed before relation", initialTargets)
 	}
-	if finalTargets := schema.final.targets[after.Name]; len(finalTargets) != 0 {
+	if finalTargets := schema.final.targets[after.DBTable]; len(finalTargets) != 0 {
 		t.Fatalf("ForeignKey RemoveField final targets = %+v, want none", finalTargets)
 	}
 }
@@ -306,7 +306,7 @@ func TestPostgresMigrationCreateThenAddKeepsInitialTableAbsent(t *testing.T) {
 	if len(schema.initial.models) != 0 {
 		t.Fatalf("CreateModel followed by AddField initial models = %+v, want absent", schema.initial.models)
 	}
-	final, exists := schema.final.models[complete.Name]
+	final, exists := schema.final.models[complete.DBTable]
 	if !exists || !reflect.DeepEqual(final, complete) {
 		t.Fatalf("CreateModel followed by AddField final model = %+v, exists=%t, want %+v", final, exists, complete)
 	}

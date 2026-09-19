@@ -51,15 +51,6 @@ func TestSQLiteRelationRemakeRejectsClosedShapeHazardsBeforeClaim(t *testing.T) 
 		detail  string
 	}{
 		{
-			name: "any inbound foreign key",
-			prepare: func(t *testing.T, fixture sqliteRelationRemakeFixture) {
-				mustSQLiteRelationRemakeExec(t, fixture.backend,
-					`CREATE TABLE "outside_child" ("id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, `+
-						`"article_id" INTEGER NOT NULL, FOREIGN KEY ("article_id") REFERENCES "news_article" ("id") ON DELETE NO ACTION)`)
-			},
-			detail: "inbound foreign key",
-		},
-		{
 			name: "user index",
 			prepare: func(t *testing.T, fixture sqliteRelationRemakeFixture) {
 				mustSQLiteRelationRemakeExec(t, fixture.backend, `CREATE INDEX "article_title_idx" ON "news_article" ("title")`)
@@ -176,6 +167,11 @@ func TestSQLiteRelationRemakeRejectsClosedShapeHazardsBeforeClaim(t *testing.T) 
 func TestSQLiteRelationRemakePreservesRowsHighWaterAndRemainingForeignKey(t *testing.T) {
 	fixture := prepareSQLiteRelationRemakeFixture(t)
 	ctx := context.Background()
+	for _, action := range []string{"NO ACTION", "SET NULL"} {
+		name := "outside_" + strings.ReplaceAll(action, " ", "_")
+		mustSQLiteRelationRemakeExec(t, fixture.backend, `CREATE TABLE "`+name+`" ("id" INTEGER PRIMARY KEY, "article_id" INTEGER REFERENCES "news_article"("id") ON DELETE `+action+`)`)
+		mustSQLiteRelationRemakeExec(t, fixture.backend, `INSERT INTO "`+name+`" VALUES (1, 3)`)
+	}
 	session := openSQLiteRelationSession(t, fixture.backend)
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatalf("ReadAppliedMigrations(success): %v", err)
@@ -200,6 +196,13 @@ func TestSQLiteRelationRemakePreservesRowsHighWaterAndRemainingForeignKey(t *tes
 	}
 	if err := session.Close(ctx); err != nil {
 		t.Fatalf("Close(success): %v", err)
+	}
+
+	for _, name := range []string{"outside_NO_ACTION", "outside_SET_NULL"} {
+		var article sql.NullInt64
+		if err := fixture.backend.database.QueryRowContext(ctx, `SELECT "article_id" FROM "`+name+`" WHERE "id"=1`).Scan(&article); err != nil || !article.Valid || article.Int64 != 3 {
+			t.Fatalf("remake changed inbound relation %s: %+v, %v", name, article, err)
+		}
 	}
 
 	rows, err := fixture.backend.database.QueryContext(
@@ -428,6 +431,7 @@ func TestSQLiteLoadedRelationRemakeBusyFaultsStayOwnedByOriginalAddField(t *test
 			wantCheckpoints := []sqliteRelationBeginCheckpoint{
 				sqliteRelationCheckpointForeignKeysSet,
 				sqliteRelationCheckpointForeignKeysRead,
+				sqliteRelationCheckpointForeignKeysSuspended,
 				sqliteRelationCheckpointTransactionBegun,
 				sqliteRelationCheckpointPhysicalPreflightComplete,
 				sqliteRelationCheckpointRevisionClaimStarting,
@@ -517,11 +521,11 @@ func prepareSQLiteRelationRemakeFixture(t *testing.T) sqliteRelationRemakeFixtur
 		Kind:           migrationbackend.MigrationAddField,
 		Before:         before,
 		After:          after,
-		Targets: []migrationbackend.MigrationTarget{{
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 			SourceField: removed,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
-		}},
+		}),
 	}}}
 	session := openSQLiteRelationSession(t, database)
 	if records, err := session.ReadAppliedMigrations(ctx); err != nil ||
@@ -561,11 +565,11 @@ func prepareSQLiteRelationRemakeFixture(t *testing.T) sqliteRelationRemakeFixtur
 				Kind:           migrationbackend.MigrationRemoveField,
 				Before:         after,
 				After:          before,
-				Targets: []migrationbackend.MigrationTarget{{
+				Targets: sqliteRelationTestMutationTargets(after, before, migrationbackend.MigrationRemoveField, migrationbackend.MigrationTarget{
 					SourceField: removed,
 					TargetModel: target,
 					TargetKey:   target.Fields[0],
-				}},
+				}),
 			}},
 		},
 	}

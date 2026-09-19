@@ -57,11 +57,11 @@ func TestSQLiteRelationTargetAuthorityIndexSelectsExactSameTableSnapshot(t *test
 			Kind:           migrationbackend.MigrationAddField,
 			Before:         created,
 			After:          after,
-			Targets: []migrationbackend.MigrationTarget{{
+			Targets: sqliteRelationTestMutationTargets(created, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 				SourceField: editor,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
-			}},
+			}),
 		},
 	}}
 	seal, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
@@ -71,12 +71,11 @@ func TestSQLiteRelationTargetAuthorityIndexSelectsExactSameTableSnapshot(t *test
 	if err != nil {
 		t.Fatalf("validate same-table Create/Add target authority: %v", err)
 	}
-	candidates := seal.targetOperationByTable[sqliteRelationIdentifierKey(created.DBTable)]
-	targets, known := sqliteRelationTargetsForModel(&seal, after)
-	if len(candidates) != 2 || !known || len(targets) != 2 ||
+	targets, known := sqliteRelationTargetsForModel(&seal, after, true)
+	if !known || len(targets) != 2 ||
 		!reflect.DeepEqual(targets[0].SourceField, author) ||
 		!reflect.DeepEqual(targets[1].SourceField, editor) {
-		t.Fatalf("same-table target candidate selection = candidates:%v known:%t targets:%#v", candidates, known, targets)
+		t.Fatalf("same-table final target selection = known:%t targets:%#v", known, targets)
 	}
 }
 
@@ -250,14 +249,13 @@ func TestSQLiteNullableRelationDerivedTargetExpansionIsBoundedBeforeAllocation(t
 	after.Fields = append(after.Fields, added)
 	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.MigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}),
 	}}}
 	_, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
-	if err == nil || !strings.Contains(err.Error(), "derived relation targets") ||
-		!strings.Contains(err.Error(), "aggregate relation intent node limit") {
+	if err == nil || !strings.Contains(err.Error(), "aggregate relation intent node limit") {
 		t.Fatalf("derived expansion resource error = %v", err)
 	}
 }
@@ -299,14 +297,13 @@ func TestSQLiteNullableRelationDerivedTargetExpansionBytesAreBoundedBeforeAlloca
 	after.Fields = append(after.Fields, added)
 	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.MigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}),
 	}}}
 	_, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest_bytes"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
-	if err == nil || !strings.Contains(err.Error(), "derived relation targets") ||
-		!strings.Contains(err.Error(), "aggregate relation intent byte limit") ||
+	if err == nil || !strings.Contains(err.Error(), "aggregate relation intent byte limit") ||
 		strings.Contains(err.Error(), "node limit") {
 		t.Fatalf("derived expansion byte resource error = %v", err)
 	}
@@ -321,7 +318,7 @@ func TestSQLiteNullableRelationDerivedTargetsDoNotRetainCallerAliases(t *testing
 	after.Fields = append(after.Fields, editor)
 	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.MigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}),
 	}}}
 	seal, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
@@ -552,11 +549,11 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 		Kind:           migrationbackend.MigrationAddField,
 		Before:         before,
 		After:          after,
-		Targets: []migrationbackend.MigrationTarget{{
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
-		}},
+		}),
 	}}}
 	transition := migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
@@ -570,9 +567,8 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	if err != nil {
 		t.Fatalf("BeginMigration(nullable Add): %v", err)
 	}
-	// The caller-visible contract remains the changed-field target only. The
-	// backend derives its full private source target list without retaining
-	// these aliases.
+	// The complete caller-visible source target list is detached by the
+	// backend before any DDL, including all retained relation bindings.
 	intent.Operations[0].Targets[0].TargetModel.DBTable = "mutated_target"
 	intent.Operations[0].After.Fields[len(intent.Operations[0].After.Fields)-1].Column = "mutated_editor_id"
 	if err := transaction.AddField(ctx, before.Clone(), editor.Clone()); err != nil {
@@ -657,7 +653,7 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	}
 
 	// A fresh session revalidates the durable history. Reverse Remove receives
-	// only the changed-field public target and uses its sealed private authority.
+	// every pre-remove target and uses the same sealed historical authority.
 	session = openSQLiteRelationSession(t, backend)
 	if records, err := session.ReadAppliedMigrations(ctx); err != nil || !reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial, transition.Migration}) {
 		t.Fatalf("reopened Add history = (%v, %v)", records, err)
@@ -675,11 +671,11 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 		Kind:           migrationbackend.MigrationRemoveField,
 		Before:         removeBefore,
 		After:          before,
-		Targets: []migrationbackend.MigrationTarget{{
+		Targets: sqliteRelationTestMutationTargets(removeBefore, before, migrationbackend.MigrationRemoveField, migrationbackend.MigrationTarget{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
-		}},
+		}),
 	}}}
 	removeTransition := transition
 	removeTransition.Kind = migrationbackend.HistoryTransitionUnapply
@@ -747,9 +743,9 @@ func TestSQLiteRequiredRelationAddToEmptyTableUsesNativeNotNullForeignKey(t *tes
 	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0, Kind: migrationbackend.MigrationAddField,
 		Before: before, After: after,
-		Targets: []migrationbackend.MigrationTarget{{
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 			SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0],
-		}},
+		}),
 	}}}
 	transition := migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_reviewer"},
@@ -884,7 +880,7 @@ func TestSQLiteRequiredRelationAddRejectsPopulatedSourceBeforeRevisionClaim(t *t
 	after.Fields = append(after.Fields, reviewer)
 	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.MigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}),
 	}}}
 	session := openSQLiteRelationSession(t, database)
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
@@ -952,7 +948,7 @@ func TestSQLiteRequiredRelationAddTreatsSameIntentCreatedSourceAsStaticallyEmpty
 		{OperationIndex: 1, Kind: migrationbackend.MigrationCreateModel, After: before},
 		{
 			OperationIndex: 2, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
-			Targets: []migrationbackend.MigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+			Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}),
 		},
 	}}
 	transition := migrationbackend.HistoryTransition{
@@ -1086,11 +1082,11 @@ func TestSQLiteNullableRelationAddFaultsRollbackExactDurableSnapshot(t *testing.
 				Kind:           migrationbackend.MigrationAddField,
 				Before:         before,
 				After:          after,
-				Targets: []migrationbackend.MigrationTarget{{
+				Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 					SourceField: editor,
 					TargetModel: target,
 					TargetKey:   target.Fields[0],
-				}},
+				}),
 			}}}
 			transition := migrationbackend.HistoryTransition{
 				Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
@@ -1529,11 +1525,11 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 			Kind:           migrationbackend.MigrationAddField,
 			Before:         before,
 			After:          after,
-			Targets: []migrationbackend.MigrationTarget{{
+			Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 				SourceField: field,
 				TargetModel: targetModel,
 				TargetKey:   targetKey,
-			}},
+			}),
 		}}}
 	}
 
@@ -1572,7 +1568,7 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 	selfAfter.Fields = append(selfAfter.Fields, selfField)
 	selfIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: selfBefore, After: selfAfter,
-		Targets: []migrationbackend.MigrationTarget{{SourceField: selfField, TargetModel: selfBefore, TargetKey: selfBefore.Fields[0]}},
+		Targets: sqliteRelationTestMutationTargets(selfBefore, selfAfter, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: selfField, TargetModel: selfBefore, TargetKey: selfBefore.Fields[0]}),
 	}}}
 	firstAfter := before.Clone()
 	firstAfter.Fields = append(firstAfter.Fields, baseEditor)
@@ -1588,26 +1584,32 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 		{
 			OperationIndex: 0, Kind: migrationbackend.MigrationAddField,
 			Before: before, After: firstAfter,
-			Targets: []migrationbackend.MigrationTarget{{SourceField: baseEditor, TargetModel: target, TargetKey: target.Fields[0]}},
+			Targets: sqliteRelationTestMutationTargets(before, firstAfter, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: baseEditor, TargetModel: target, TargetKey: target.Fields[0]}),
 		},
 		{
 			OperationIndex: 1, Kind: migrationbackend.MigrationAddField,
 			Before: firstAfter, After: secondAfter,
-			Targets: []migrationbackend.MigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+			Targets: sqliteRelationTestMutationTargets(firstAfter, secondAfter, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}),
 		},
 	}}
+	t.Run("multiple Adds carry complete authority", func(t *testing.T) {
+		if _, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
+			Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_multiple"}, Kind: migrationbackend.HistoryTransitionApply,
+		}, multiple); err != nil {
+			t.Fatalf("complete multiple Add graph: %v", err)
+		}
+	})
 	tests := []struct {
 		name   string
 		intent migrationbackend.MigrationIntent
 		detail string
 	}{
 		{name: "defaulted required", intent: addIntent(defaultedRequired, target, target.Fields[0]), detail: "ForeignKey defaults are not supported"},
-		{name: "different target", intent: addIntent(different, differentTarget, differentTarget.Fields[0]), detail: "different symbolic target"},
-		{name: "nested target", intent: addIntent(baseEditor, nestedTarget, nestedTarget.Fields[0]), detail: "nested relation fields"},
-		{name: "reverse conflict", intent: addIntent(reverseConflict, target, target.Fields[0]), detail: "duplicated by"},
-		{name: "self relation", intent: selfIntent, detail: "self relation"},
-		{name: "forged source", intent: forged, detail: "changed-field target snapshot"},
-		{name: "multiple Adds", intent: multiple, detail: "at most one relation mutation"},
+		{name: "wrong retained target identity", intent: addIntent(different, differentTarget, differentTarget.Fields[0]), detail: "differs from its source field"},
+		{name: "missing transitive target", intent: addIntent(baseEditor, nestedTarget, nestedTarget.Fields[0]), detail: "missing target"},
+		{name: "reverse conflict", intent: addIntent(reverseConflict, target, target.Fields[0]), detail: "owned by both"},
+		{name: "stale self target", intent: selfIntent, detail: "conflicting snapshots"},
+		{name: "forged source", intent: forged, detail: "differs from its source field"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1680,7 +1682,7 @@ func TestSQLiteNullableRelationAddCanonicalDriftFailsBeforeRevisionClaim(t *test
 	after.Fields = append(after.Fields, editor)
 	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.MigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
+		Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}),
 	}}}
 	beforeSnapshot, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
 	if err != nil {
@@ -2170,11 +2172,11 @@ func TestSQLiteRelationMixedScalarFieldRoundTripAndReapply(t *testing.T) {
 			Kind:           migrationbackend.MigrationAddField,
 			Before:         source,
 			After:          sourceAfterAdd,
-			Targets: []migrationbackend.MigrationTarget{{
+			Targets: sqliteRelationTestMutationTargets(source, sourceAfterAdd, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
-			}},
+			}),
 		},
 	}}
 	unapplyIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
@@ -2183,11 +2185,11 @@ func TestSQLiteRelationMixedScalarFieldRoundTripAndReapply(t *testing.T) {
 			Kind:           migrationbackend.MigrationRemoveField,
 			Before:         sourceAfterAdd,
 			After:          source,
-			Targets: []migrationbackend.MigrationTarget{{
+			Targets: sqliteRelationTestMutationTargets(sourceAfterAdd, source, migrationbackend.MigrationRemoveField, migrationbackend.MigrationTarget{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
-			}},
+			}),
 		},
 		{
 			OperationIndex: 1,
@@ -2306,7 +2308,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		}
 	})
 
-	t.Run("self_target_bearing_add_is_integrity", func(t *testing.T) {
+	t.Run("stale_self_target_snapshot_is_integrity", func(t *testing.T) {
 		before := target.Clone()
 		relationField := sourceField.Clone()
 		relationField.Relation.Target.ModelName = target.Name
@@ -2317,13 +2319,13 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 			Kind:           migrationbackend.MigrationAddField,
 			Before:         before,
 			After:          after,
-			Targets: []migrationbackend.MigrationTarget{{
+			Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 				SourceField: relationField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
-			}},
+			}),
 		}}})
-		if err == nil || migrationbackend.IsCapabilityError(err) || !strings.Contains(err.Error(), "self relation") {
+		if err == nil || migrationbackend.IsCapabilityError(err) || !strings.Contains(err.Error(), "conflicting snapshots") {
 			t.Fatalf("self relation Add validation error = %v", err)
 		}
 	})
@@ -2343,7 +2345,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		forged := valid.Clone()
 		forged.Operations[1].Targets = append(forged.Operations[1].Targets, forged.Operations[1].Targets[0])
 		_, err := validateAndSealSQLiteRelationIntent(transition, forged)
-		if err == nil || !strings.Contains(err.Error(), "exact field order") {
+		if err == nil || !strings.Contains(err.Error(), "targets without matching source fields") {
 			t.Fatalf("duplicate target validation error = %v", err)
 		}
 	})
@@ -2369,11 +2371,11 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 			Kind:           migrationbackend.MigrationAddField,
 			Before:         before,
 			After:          after,
-			Targets: []migrationbackend.MigrationTarget{{
+			Targets: sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
-			}},
+			}),
 		})
 		_, err := validateAndSealSQLiteRelationIntent(transition, forged)
 		if err == nil || !strings.Contains(err.Error(), "discontinuous") {
@@ -2402,7 +2404,9 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 				TargetKey:   external.Fields[0],
 			}},
 		}}})
-		assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
+		if err == nil || migrationbackend.IsCapabilityError(err) || !strings.Contains(err.Error(), "missing target news.author") {
+			t.Fatalf("missing transitive authority = %v, want integrity error", err)
+		}
 	})
 
 	t.Run("cross_app_same_model_name_uses_full_identity", func(t *testing.T) {
@@ -2433,7 +2437,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		externalTarget.DBTable = localTarget.DBTable
 		intent.Operations[1].Targets[0].TargetModel = externalTarget
 		_, err := validateAndSealSQLiteRelationIntent(transition, intent)
-		if err == nil || !strings.Contains(err.Error(), "collides with local model") {
+		if err == nil || !strings.Contains(err.Error(), "share table") {
 			t.Fatalf("cross-app table alias validation error = %v", err)
 		}
 	})
@@ -2480,7 +2484,7 @@ func TestSQLiteRelationLaterTargetFieldCannotCollideWithRegisteredReverseBeforeC
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_reverse_collision"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
-	if transaction != nil || err == nil || !strings.Contains(err.Error(), "collides with reverse name") {
+	if transaction != nil || err == nil || !(strings.Contains(err.Error(), "reverse name") && strings.Contains(err.Error(), "collides with")) {
 		t.Fatalf("BeginMigration() = (%v, %v), want ordered reverse collision", transaction, err)
 	}
 	if len(checkpoints) != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
@@ -2548,7 +2552,7 @@ func TestSQLiteRelationInitialReverseCollisionCannotBeRemovedBeforeDelete(t *tes
 		Migration: migration,
 		Kind:      migrationbackend.HistoryTransitionUnapply,
 	}, intent)
-	if transaction != nil || err == nil || !strings.Contains(err.Error(), "collides with reverse name") {
+	if transaction != nil || err == nil || !(strings.Contains(err.Error(), "reverse name") && strings.Contains(err.Error(), "collides with")) {
 		t.Fatalf("BeginMigration() = (%v, %v), want initial reverse collision", transaction, err)
 	}
 	if connectionCalls != 0 || len(checkpoints) != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
@@ -2642,11 +2646,11 @@ func TestSQLiteRelationUnrelatedLegacyForeignKeyCycleDoesNotBlock(t *testing.T) 
 		Kind:           migrationbackend.MigrationAddField,
 		Before:         source,
 		After:          after,
-		Targets: []migrationbackend.MigrationTarget{{
+		Targets: sqliteRelationTestMutationTargets(source, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
-		}},
+		}),
 	}}}
 	session := openSQLiteRelationSession(t, backend)
 	if records, err := session.ReadAppliedMigrations(ctx); err != nil ||
@@ -2699,11 +2703,11 @@ func TestSQLiteNullableRelationAddTargetOutgoingCycleFailsBeforeClaim(t *testing
 		Kind:           migrationbackend.MigrationAddField,
 		Before:         source,
 		After:          after,
-		Targets: []migrationbackend.MigrationTarget{{
+		Targets: sqliteRelationTestMutationTargets(source, after, migrationbackend.MigrationAddField, migrationbackend.MigrationTarget{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
-		}},
+		}),
 	}}}
 	session := openSQLiteRelationSession(t, backend)
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
@@ -2900,7 +2904,7 @@ func TestSQLiteMigrationStaticInvalidDoesNotConsumeReadySession(t *testing.T) {
 	if transaction != nil {
 		t.Fatalf("invalid Begin returned transaction %v", transaction)
 	}
-	if err == nil || !strings.Contains(err.Error(), "has 1 targets, want 0") {
+	if err == nil || !strings.Contains(err.Error(), "targets without matching source fields") {
 		t.Fatalf("invalid Begin error = %v", err)
 	}
 	if len(checkpoints) != 0 || concrete.state != revisionSessionReady || concrete.active != nil {
@@ -3678,11 +3682,11 @@ func TestSQLiteRelationTargetLookupUsesSealedTableIndexAtOperationLimit(t *testi
 	if err != nil {
 		t.Fatalf("validateAndSealSQLiteRelationIntent(max operations): %v", err)
 	}
-	if len(seal.targetOperationByTable) != sqliteRelationMaxOperations {
-		t.Fatalf("sealed target table index size = %d, want %d", len(seal.targetOperationByTable), sqliteRelationMaxOperations)
+	if models := seal.graphPlan.FinalModels(); len(models) != sqliteRelationMaxOperations+1 {
+		t.Fatalf("sealed final model inventory = %d, want %d including the shared target", len(models), sqliteRelationMaxOperations+1)
 	}
 	for index := range models {
-		targets, known := sqliteRelationTargetsForModel(&seal, models[index])
+		targets, known := sqliteRelationTargetsForModel(&seal, models[index], true)
 		if !known || len(targets) != 1 || !reflect.DeepEqual(targets[0].TargetModel, target) {
 			t.Fatalf("indexed targets[%d] = (%#v, %t)", index, targets, known)
 		}
@@ -3706,22 +3710,6 @@ func TestSQLiteRelationReverseCollisionCheckBoundsLongModelNameAtFieldLimit(t *t
 		DBTable: "wide_model",
 		Fields:  fields,
 	}
-	reverseIndex := newSQLiteRelationReverseOwnerIndex()
-	reverseApp := reverseIndex.app("news")
-	if _, exists := reverseApp.register(
-		wide.Name,
-		"reserved_reverse",
-		sqliteRelationReverseOwner{model: "source", field: "field"},
-	); exists {
-		t.Fatal("fresh reverse owner index reported duplicate registration")
-	}
-	reverseApp.modelLookups = 0
-	if field, owner, collision := reverseApp.firstFieldCollision(wide.Name, wide.Fields); collision {
-		t.Fatalf("unexpected long-model reverse collision = field:%#v owner:%#v", field, owner)
-	}
-	if reverseApp.modelLookups != 1 {
-		t.Fatalf("long model reverse outer-map lookups = %d, want exactly 1 for all %d fields", reverseApp.modelLookups, len(wide.Fields))
-	}
 	target, source, sourceField := sqliteRelationTestModels()
 	intent := sqliteRelationApplyIntent(target, source, sourceField)
 	intent.Operations = append([]migrationbackend.MigrationOperation{{
@@ -3743,23 +3731,8 @@ func TestSQLiteRelationReverseCollisionCheckBoundsLongModelNameAtFieldLimit(t *t
 	}
 }
 
-func TestSQLiteRelationReverseCollisionIndexSelectsLongTransitionAppOnce(t *testing.T) {
+func TestSQLiteRelationGraphSharesLongTransitionAppAtOperationLimit(t *testing.T) {
 	longApp := strings.Repeat("a", sqliteRelationMaxStringBytes-1)
-	reverseIndex := newSQLiteRelationReverseOwnerIndex()
-	transitionOwners := reverseIndex.app(longApp)
-	for index := 0; index < sqliteRelationMaxOperations; index++ {
-		model := fmt.Sprintf("model_%04d", index)
-		if _, _, collision := transitionOwners.firstFieldCollision(model, nil); collision {
-			t.Fatalf("unexpected reverse collision for %q", model)
-		}
-	}
-	if reverseIndex.appLookups != 1 {
-		t.Fatalf("long transition app outer-map lookups = %d, want exactly 1 for %d operations", reverseIndex.appLookups, sqliteRelationMaxOperations)
-	}
-	if transitionOwners.modelLookups != sqliteRelationMaxOperations {
-		t.Fatalf("short model lookups = %d, want %d", transitionOwners.modelLookups, sqliteRelationMaxOperations)
-	}
-
 	operations := make([]migrationbackend.MigrationOperation, sqliteRelationMaxOperations)
 	for index := 0; index < len(operations)-2; index++ {
 		operations[index] = migrationbackend.MigrationOperation{
@@ -4521,9 +4494,12 @@ func assertSQLiteLoadedNullableRelationAddIntent(
 		operation.Before.DBTable != "news_article" || len(operation.Before.Fields) != 3 ||
 		operation.After.DBTable != "news_article" || len(operation.After.Fields) != 4 ||
 		operation.After.Fields[3].Name != "editor" || !operation.After.Fields[3].Nullable ||
-		len(operation.Targets) != 1 || !reflect.DeepEqual(operation.Targets[0].SourceField, operation.After.Fields[3]) ||
-		operation.Targets[0].TargetModel.DBTable != "news_author" ||
-		len(operation.Targets[0].TargetModel.Fields) != 2 || operation.Targets[0].TargetKey.Column != "id" {
+		len(operation.Targets) != 2 || !reflect.DeepEqual(operation.Targets[0].SourceField, operation.After.Fields[2]) ||
+		!reflect.DeepEqual(operation.Targets[1].SourceField, operation.After.Fields[3]) ||
+		!reflect.DeepEqual(operation.Targets[0].TargetModel, operation.Targets[1].TargetModel) ||
+		!reflect.DeepEqual(operation.Targets[0].TargetKey, operation.Targets[1].TargetKey) ||
+		operation.Targets[1].TargetModel.DBTable != "news_author" ||
+		len(operation.Targets[1].TargetModel.Fields) != 2 || operation.Targets[1].TargetKey.Column != "id" {
 		t.Fatalf("%s loaded nullable Add operation payload = %+v", label, operation)
 	}
 }
@@ -4548,9 +4524,12 @@ func assertSQLiteLoadedRequiredRelationAddIntent(
 		operation.After.Fields[3].Name != "editor" || operation.After.Fields[3].Nullable ||
 		operation.After.Fields[3].Default != nil || operation.After.Fields[3].Relation == nil ||
 		operation.After.Fields[3].Relation.OnDelete != ir.DeleteProtect ||
-		len(operation.Targets) != 1 || !reflect.DeepEqual(operation.Targets[0].SourceField, operation.After.Fields[3]) ||
-		operation.Targets[0].TargetModel.DBTable != "news_author" ||
-		len(operation.Targets[0].TargetModel.Fields) != 2 || operation.Targets[0].TargetKey.Column != "id" {
+		len(operation.Targets) != 2 || !reflect.DeepEqual(operation.Targets[0].SourceField, operation.After.Fields[2]) ||
+		!reflect.DeepEqual(operation.Targets[1].SourceField, operation.After.Fields[3]) ||
+		!reflect.DeepEqual(operation.Targets[0].TargetModel, operation.Targets[1].TargetModel) ||
+		!reflect.DeepEqual(operation.Targets[0].TargetKey, operation.Targets[1].TargetKey) ||
+		operation.Targets[1].TargetModel.DBTable != "news_author" ||
+		len(operation.Targets[1].TargetModel.Fields) != 2 || operation.Targets[1].TargetKey.Column != "id" {
 		t.Fatalf("%s loaded required Add operation payload = %+v", label, operation)
 	}
 }

@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-09-19
+- 갱신: 2026-09-20
 - 활성 구현: [GDJ-0084 historical relation graph와 순환 migration](../../work/0084-relation-migration-graphs.md)
 - 최근 완료: [GDJ-0083 중첩 forward eager 조회와 cache](../../work/0083-nested-forward-eager-graphs.md)
 - 최근 Hosted 기능 검증: source `a49b592be1896d02d73a9657fe360623ffa296d8`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35425015186)
@@ -25,7 +25,8 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 GDJ-0083의 typed/dynamic 중첩 선택과 생성 소비자·하위 cache를 구현하고 로컬 normal/race/CGO0와 Hosted ORM 검증을 완료했다.
 GDJ-0084에서 historical target graph를 확장해 자기참조·순환 관계의 생성·변경·되돌리기를 실제 migration으로 연결한다.
-공통 metadata 검증과 SQLite·PostgreSQL의 FK·행 보존·실패 복구를 함께 구현한다. 새 작업의 runtime 검증은 아직 진행 전이다.
+공통 graph authority와 양 DB의 FK·행 보존·실패 복구, 실제 lifecycle·생성 소비자의 로컬 normal/race/CGO0를 완료했다.
+Django 독립 관찰과 sequence 보존 차이를 분리해 기록했다. 기존 Draft PR에 통합하고 해당 source의 Hosted ORM 검증을 확인한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거

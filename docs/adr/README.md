@@ -70,6 +70,7 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 
 | [0062](0062-scalar-membership-and-empty-query-execution.md) | Accepted | Scalar IN의 NULL·empty 의미와 검증 뒤 SQL 생략 |
 | [0063](0063-model-choices-and-metadata-only-migrations.md) | Accepted | 모델 선택값을 입력·표시와 연결하고 metadata-only 변경 이력을 보존 |
+| [0064](0064-historical-relation-graphs-and-sqlite-remakes.md) | Accepted | Historical relation graph와 SQLite remake의 연결 소유권 |
 
 ## 대체된 결정
 

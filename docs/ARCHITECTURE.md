@@ -136,9 +136,10 @@ fresh plan을 만든다. Each-step fence는 DDL/recorder 첫 mutation 전에 검
 transaction에 묶는다. 전체 migration 목록을 하나의 outer transaction으로 감싸지 않아 성공한 앞부분은 뒤 실패 후에도 남는다.
 
 SQLite FK DDL은 같은 pinned connection의 FK 설정·물리 schema를 검증하고, 허용한 경우에만 remake한다. 기존 rows,
-NULL/default 의미, PK/sequence와 FK constraint를 보존해야 한다. 검증하지 않은 index·trigger·inbound/self/cyclic schema를
-조용히 재작성하지 않는다. 지원하지 않는 작업은 mutation 전에 capability error로 끝낸다.
-IR intent의 resource 순회는 `internal/irresource`, detached intent 복사는 migration backend 값이 소유한다. 각 backend의
+NULL/default 의미, PK/sequence와 FK constraint를 보존해야 한다. Self/cyclic graph와 검증된 inbound FK는 historical Create/Add 순서로 지원하며, 검증하지 않은 index·trigger·물리 구조를
+조용히 재작성하지 않는다. FK Remove remake와 self Delete는 BEGIN 전 private FK suspension, 최종 FK 검사와
+terminal 뒤 설정 복원/폐기를 하나의 owner가 책임진다. [ADR-0064](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)를 따른다. 지원하지 않는 작업은 mutation 전에 capability error로 끝낸다.
+IR intent의 resource 순회는 `internal/irresource`, graph·detached intent 복사는 DB와 무관한 `internal/migrationgraph`가 소유한다. 각 backend의
 limit·오류·DDL 의미는 그대로 분리한다. History의 정렬·canonical hash는 두 backend가 같은 순수 구현을 사용한다.
 PostgreSQL은 detached intent 전체를 preflight와 완료 시 검증하고, SQL 직전에는 transition과 현재 operation 전체의 seal을
 검증한다. 최종 physical 검사와 전체 seal 검증이 끝나기 전에는 recorder 성공을 기록하지 않는다.

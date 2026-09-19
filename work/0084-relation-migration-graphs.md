@@ -1,7 +1,7 @@
 ---
 id: GDJ-0084
 status: active
-updated: 2026-09-19
+updated: 2026-09-20
 baseline_commit: "9b3e8b53f8ef7cf6b5d60990b76c20c459309243"
 integration_owner: "root"
 ---
@@ -33,9 +33,11 @@ GDJ-0082/0083의 query 소비자에서 사용한 FK-enforced DDL을 실제 migra
 
 ## 현재와 다음
 
-GDJ-0083 Hosted ORM 검증을 완료했다. 별도 작업 사본에서 제약과 SQLite 물리 동작을 조사하고 공통 graph authority 구현을 시작했다.
-현재 제품은 self Create/Add와 관계 cycle을 constructor에서 거부하며 Add/Remove intent는 한 개의 scalar-only target만 허용한다.
-Graph authority와 backend 검증을 함께 정리한 뒤 독립 관찰·통합 검증을 수행한다. 아직 새 기능의 runtime PASS 주장은 없다.
+공통 순수 graph authority, loaded lifecycle과 양 DB의 전체 metadata/physical 검사, SQLite FK suspension·복원·quarantine을 구현했다.
+자기참조·순환·cross-app lifecycle와 실패 주입, 실제 generated 소비자의 로컬 normal/race/CGO0를 완료했다.
+Django 6.1의 독립 10단계 관찰을 얻었으며 기존 sequence 상한 보존 차이를 DEV-0013으로 한정했다.
+전체 compile-only·affected vet·독립 관찰 재생과 CI 도구 검증을 완료했다. 기존 Draft PR에 통합한 source의 Hosted ORM 검증이 남았다.
+장기 의미는 [ADR-0064](../docs/adr/0064-historical-relation-graphs-and-sqlite-remakes.md), 실행은 TEST_EVIDENCE에 기록한다.
 
 설계 근거: SQLite [FK와 DROP 동작](https://www.sqlite.org/foreignkeys.html#fk_schemacommands),
 [table 재구성 절차](https://www.sqlite.org/lang_altertable.html#otheralter),

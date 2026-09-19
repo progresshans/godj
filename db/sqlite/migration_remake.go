@@ -109,9 +109,6 @@ func preflightSQLiteRelationRemakes(
 		}
 		block(model.DBTable, fmt.Sprintf("operation %d", operation.OperationIndex))
 	}
-	for _, target := range seal.externalTargets {
-		block(target.snapshot.DBTable, "external relation target")
-	}
 
 	for position := range seal.intent.Operations {
 		operation := seal.intent.Operations[position]

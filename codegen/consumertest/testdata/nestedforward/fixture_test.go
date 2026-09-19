@@ -7,6 +7,8 @@ import (
 	"example.com/godj-nested-forward/project"
 	"github.com/progresshans/godj/conformance/nullableforwardproduct"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/orm"
 	"testing"
 	"time"
@@ -24,20 +26,36 @@ func fixture(t *testing.T) (*sqlite.Backend, project.Models) {
 			t.Error(err)
 		}
 	})
-	// Query traversal supports finite self paths. The migration lifecycle's
-	// general cyclic schema support remains separate, so this query consumer
-	// provisions an explicit FK-enforced physical fixture, then uses generated
-	// create/save APIs for all data. It is not migration conformance evidence.
-	for _, statement := range []string{
-		`CREATE TABLE nested_reference_organization(id INTEGER PRIMARY KEY,name TEXT NULL,active BOOLEAN NOT NULL,updated DATETIME NULL)`,
-		`CREATE TABLE nested_reference_team(id INTEGER PRIMARY KEY,label TEXT NOT NULL,organization_id INTEGER NOT NULL REFERENCES nested_reference_organization(id),parent_id INTEGER NULL REFERENCES nested_reference_team(id))`,
-		`CREATE TABLE nested_reference_person(id INTEGER PRIMARY KEY,name TEXT NOT NULL,points BIGINT NULL,team_id INTEGER NOT NULL REFERENCES nested_reference_team(id),backup_id INTEGER NULL REFERENCES nested_reference_team(id),manager_id INTEGER NULL REFERENCES nested_reference_person(id))`,
-		`CREATE TABLE nested_reference_post(id INTEGER PRIMARY KEY,title TEXT NOT NULL,author_id INTEGER NOT NULL REFERENCES nested_reference_person(id),reviewer_id INTEGER NULL REFERENCES nested_reference_person(id))`,
-		`CREATE TABLE nested_reference_comment(id INTEGER PRIMARY KEY,post_id INTEGER NOT NULL REFERENCES nested_reference_post(id),body TEXT NOT NULL)`,
-	} {
-		if _, err := backend.ExecContext(ctx, statement); err != nil {
+	// Use the generated models' exact Schema IR as historical definitions.
+	// Cross-app targets precede their consumers; self references are visible
+	// within CreateModel. Every table and FK is owned by the real lifecycle.
+	schemas, err := nullableforwardproduct.NestedSchemas()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := make([]definition.Source, len(schemas))
+	var previous migrations.MigrationKey
+	for index, schema := range schemas {
+		migration := migrations.Migration{App: schema.AppLabel, Name: "0001_initial"}
+		if index > 0 {
+			migration.Dependencies = []migrations.MigrationKey{previous}
+		}
+		for _, model := range schema.Models {
+			migration.Operations = append(migration.Operations, migrations.CreateModel{AppLabel: schema.AppLabel, Model: model})
+		}
+		encoded, err := definition.Encode(definition.Producer{Name: "nested-generated-consumer", Version: "1"}, migration)
+		if err != nil {
 			t.Fatal(err)
 		}
+		sources[index] = definition.Source{SourceID: schema.AppLabel + "/0001_initial.json", Document: encoded}
+		previous = migration.Key()
+	}
+	loaded, _, err := definition.Load(sources...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
 	}
 
 	for _, input := range []directory.OrganizationCreate{directory.NewOrganizationCreate(true).WithName("North").WithUpdated(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)), directory.NewOrganizationCreate(false).WithName("South").WithUpdated(time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)), directory.NewOrganizationCreate(true)} {

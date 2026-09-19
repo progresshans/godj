@@ -624,8 +624,9 @@ func TestExecutorMigrateLoadedNullableRelationAddSealsRetainedAndChangedTargets(
 	if len(addIntent.Operations) != 2 || addIntent.Operations[0].Kind != backend.MigrationAddField ||
 		len(addIntent.Operations[0].Targets) != 1 || addIntent.Operations[0].Targets[0].SourceField.Name != "author" ||
 		addIntent.Operations[1].Kind != backend.MigrationAddField ||
-		len(addIntent.Operations[1].Targets) != 1 || addIntent.Operations[1].Targets[0].SourceField.Name != "editor" ||
-		addIntent.Operations[1].Targets[0].TargetModel.Name != "author" {
+		len(addIntent.Operations[1].Targets) != 2 || addIntent.Operations[1].Targets[0].SourceField.Name != "author" ||
+		addIntent.Operations[1].Targets[1].SourceField.Name != "editor" ||
+		addIntent.Operations[1].Targets[1].TargetModel.Name != "author" {
 		t.Fatalf("nullable Add public backend intent = %#v", addIntent)
 	}
 }
@@ -698,58 +699,54 @@ func TestExecutorMigrateLoadedRelationRemakeRecorderFailureIsNoOperation(t *test
 	}
 }
 
-func TestExecutorMigrateLoadedNullableRelationAuthorityRejectsWholePlanBeforeCapabilityAndBegins(t *testing.T) {
-	tests := []struct {
-		name   string
-		defs   []Migration
-		detail string
+func TestExecutorMigrateLoadedRelationGraphsKeepWholePlanCapabilityGate(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		defs []Migration
 	}{
-		{
-			name:   "different pre-existing target",
-			defs:   lifecycleLoadedNullableDifferentTargetDefinitions(),
-			detail: "different symbolic target",
-		},
-		{
-			name:   "nested target",
-			defs:   lifecycleLoadedNullableNestedTargetDefinitions(),
-			detail: "nested relation fields",
-		},
-		{
-			name:   "nullable and required Adds on one source",
-			defs:   lifecycleLoadedMixedMultipleAddDefinitions(),
-			detail: "at most one relation Add per source model",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(len(test.defs)))
-			fake := newLifecycleTestBackend(session)
-			fake.capabilities = backend.MigrationCapabilities{
-				CreateModelForeignKeys: true,
-				AddNullableForeignKey:  true,
+		{"different existing target", lifecycleLoadedNullableDifferentTargetDefinitions()},
+		{"nested target", lifecycleLoadedNullableNestedTargetDefinitions()},
+		{"nullable and required Adds", lifecycleLoadedMixedMultipleAddDefinitions()},
+	} {
+		for _, reverse := range []bool{false, true} {
+			for _, capable := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/reverse=%t/capable=%t", test.name, reverse, capable), func(t *testing.T) {
+					var records []backend.AppliedMigration
+					request := LatestLifecycleRequest()
+					if reverse {
+						for _, definition := range test.defs {
+							records = append(records, backend.AppliedMigration{App: definition.App, Name: definition.Name})
+						}
+						request = TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"}))
+					}
+					session := newLifecycleTestSession(records, lifecycleCommittedTransactions(len(test.defs)))
+					fake := newLifecycleTestBackend(session)
+					fake.capabilities = lifecycleAllRelationCapabilities()
+					if !capable {
+						fake.capabilities.AddNullableForeignKey = false
+						fake.capabilities.AddRequiredForeignKeyToEmptyTable = false
+						fake.capabilities.RemoveForeignKey = false
+					}
+					state, err := (Executor{Backend: fake}).Migrate(lifecycleLoadedContext(t, test.defs),
+						testLoadedDefinitionSet(t, test.defs), request)
+					if capable {
+						if err != nil || session.beginCount == 0 || len(lifecycleRelationBearingIntents(session.intents)) == 0 {
+							t.Fatalf("closed graph was not executed: err=%v begins=%d", err, session.beginCount)
+						}
+					} else {
+						assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+						var capability *backend.CapabilityError
+						if !errors.As(err, &capability) || !strings.Contains(capability.Detail, "required relation capability is false") ||
+							session.beginCount != 0 || len(session.intents) != 0 {
+							t.Fatalf("capability gate crossed transaction boundary: err=%v begins=%d", err, session.beginCount)
+						}
+					}
+					if fake.capabilityCount != 1 || session.readCount != 1 || state.FormatVersion() != StateFormatVersion {
+						t.Fatalf("graph lifecycle counters/returned state: cap=%d read=%d format=%d", fake.capabilityCount, session.readCount, state.FormatVersion())
+					}
+				})
 			}
-			state, err := (Executor{Backend: fake}).Migrate(
-				lifecycleLoadedContext(t, test.defs), testLoadedDefinitionSet(t,
-
-					test.defs),
-
-				LatestLifecycleRequest())
-
-			assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
-			var capability *backend.CapabilityError
-			if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
-				!strings.Contains(capability.Detail, test.detail) {
-				t.Fatalf("authority closure error = %#v capability=%#v", err, capability)
-			}
-			if len(state.Apps()) != 0 || fake.capabilityCount != 0 || session.readCount != 1 ||
-				session.beginCount != 0 || len(session.transitions) != 0 || len(session.intents) != 0 {
-				t.Fatalf(
-					"authority rejection touched lifecycle: apps=%v capability=%d read=%d begin=%d transitions=%v intents=%v",
-					state.Apps(), fake.capabilityCount, session.readCount,
-					session.beginCount, session.transitions, session.intents,
-				)
-			}
-		})
+		}
 	}
 }
 

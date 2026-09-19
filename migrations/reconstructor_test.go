@@ -7,13 +7,10 @@ import (
 	"math/rand"
 	"reflect"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -591,7 +588,7 @@ func TestLoadedStateReconstructorAcceptsEarlierSameMigrationCreators(t *testing.
 	}
 }
 
-func TestLoadedStateReconstructorRejectsLaterAndSelfCreatorsAtRelationOperation(t *testing.T) {
+func TestLoadedStateReconstructorRejectsLaterCreatorsAtRelationOperation(t *testing.T) {
 	model := func(app, name, goName string, fields ...ir.Field) ir.Model {
 		if len(fields) == 0 {
 			fields = []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}}
@@ -637,17 +634,6 @@ func TestLoadedStateReconstructorRejectsLaterAndSelfCreatorsAtRelationOperation(
 			relationKey:   MigrationKey{App: "blog", Name: "0001_later_source"},
 			wantSubstring: "created later in the same migration",
 		},
-		{
-			name: "self relation",
-			definitions: []Migration{{App: "blog", Name: "0001_self", Operations: []Operation{CreateModel{
-				AppLabel: "blog", Model: model("blog", "post", "Post",
-					ir.Field{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
-					relation("blog", "post", "children"),
-				),
-			}}}},
-			relationKey:   MigrationKey{App: "blog", Name: "0001_self"},
-			wantSubstring: "self-referential",
-		},
 	}
 	for _, test := range tests {
 		test := test
@@ -661,7 +647,7 @@ func TestLoadedStateReconstructorRejectsLaterAndSelfCreatorsAtRelationOperation(
 	}
 }
 
-func TestStateReconstructorCoreRelationCycleErrorIsCanonicalAcrossDefinitionAndFieldOrder(t *testing.T) {
+func TestStateReconstructorMissingCreatorAncestryIsCanonicalAcrossDefinitionAndFieldOrder(t *testing.T) {
 	relationModel := func(name, goName, target, reverse string, relationFirst bool) ir.Model {
 		primary := ir.Field{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}
 		relation := ir.Field{
@@ -690,7 +676,7 @@ func TestStateReconstructorCoreRelationCycleErrorIsCanonicalAcrossDefinitionAndF
 		}
 		err := sharedStateReconstructorConstructorError(t, definitions)
 		migrationError := assertStateReconstructionError(t, err, first.Key(), 0, "CreateModel")
-		if !strings.Contains(migrationError.Cause.Error(), "relation cycle") {
+		if !strings.Contains(migrationError.Cause.Error(), "not dependency ancestry") {
 			t.Fatalf("iteration %d cycle cause = %v", iteration, migrationError.Cause)
 		}
 	}
@@ -921,72 +907,6 @@ func TestLoadedStateDuplicateCreatorSelectionIsDeterministicAcrossInputOrder(t *
 		if !strings.Contains(migrationError.Cause.Error(), "model alpha.shared has multiple historical creators") {
 			t.Fatalf("iteration %d duplicate cause = %v", iteration, migrationError.Cause)
 		}
-	}
-}
-
-func TestLoadedRelationCycleScanIsBoundedOnBranchingAcyclicGraph(t *testing.T) {
-	t.Parallel()
-
-	const nodes = 512
-	declarations := make([]loadedRelationDeclaration, 0, nodes*2)
-	for index := 0; index < nodes; index++ {
-		for _, target := range []int{index + 1, index + 2} {
-			if target >= nodes {
-				continue
-			}
-			declarations = append(declarations, loadedRelationDeclaration{
-				source: loadedModelIdentity{app: "graph", model: fmt.Sprintf("m%04d", index)},
-				field: ir.Field{Name: fmt.Sprintf("to_%04d", target), Kind: ir.FieldForeignKey, Relation: &ir.ForeignKeyRelation{
-					Target: ir.ModelIdentity{AppLabel: "graph", ModelName: fmt.Sprintf("m%04d", target)},
-				}},
-			})
-		}
-	}
-	done := make(chan []loadedModelIdentity, 1)
-	go func() { done <- firstLoadedRelationCycle(declarations) }()
-	select {
-	case cycle := <-done:
-		if len(cycle) != 0 {
-			t.Fatalf("acyclic branching graph cycle = %v", cycle)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("branching acyclic relation graph scan exceeded bounded time")
-	}
-}
-
-func TestLoadedRelationCycleErrorSelectionIsLinearAfterLargeAcyclicPrefix(t *testing.T) {
-	const prefix = 4_096
-	const cycleSize = 2_048
-	declarations := make([]loadedRelationDeclaration, 0, prefix+cycleSize)
-	definitions := make(map[MigrationKey]Migration, prefix+cycleSize)
-	for index := 0; index < prefix; index++ {
-		key := MigrationKey{App: "a_prefix", Name: fmt.Sprintf("%04d", index)}
-		declarations = append(declarations, loadedRelationDeclaration{
-			key: key, operationIndex: 0, operationKind: "CreateModel",
-			source: loadedModelIdentity{app: "prefix", model: fmt.Sprintf("source_%04d", index)},
-			field: ir.Field{Name: "next", Kind: ir.FieldForeignKey, Relation: &ir.ForeignKeyRelation{
-				Target: ir.ModelIdentity{AppLabel: "prefix", ModelName: fmt.Sprintf("target_%04d", index)},
-			}},
-		})
-		definitions[key] = Migration{App: key.App, Name: key.Name}
-	}
-	for index := 0; index < cycleSize; index++ {
-		key := MigrationKey{App: "z_cycle", Name: fmt.Sprintf("%04d", index)}
-		target := (index + 1) % cycleSize
-		declarations = append(declarations, loadedRelationDeclaration{
-			key: key, operationIndex: 0, operationKind: "CreateModel",
-			source: loadedModelIdentity{app: "cycle", model: fmt.Sprintf("node_%04d", index)},
-			field: ir.Field{Name: "next", Kind: ir.FieldForeignKey, Relation: &ir.ForeignKeyRelation{
-				Target: ir.ModelIdentity{AppLabel: "cycle", ModelName: fmt.Sprintf("node_%04d", target)},
-			}},
-		})
-		definitions[key] = Migration{App: key.App, Name: key.Name}
-	}
-	sort.Slice(declarations, func(left, right int) bool { return loadedDeclarationLess(declarations[left], declarations[right]) })
-	err := (loadedStateReconstructor{definitions: definitions, declarations: declarations}).validateChronology()
-	migrationError := assertStateReconstructionError(t, err, MigrationKey{App: "z_cycle", Name: "0000"}, 0, "CreateModel")
-	if !strings.Contains(migrationError.Cause.Error(), "relation cycle") {
-		t.Fatalf("large-prefix cycle cause = %v", migrationError.Cause)
 	}
 }
 
@@ -1235,8 +1155,9 @@ func TestLoadedNullableRelationAddAuthorityRunsInDryAndRematerializationAfterSta
 	if materialized.requirements != loadedRequiresAddNullableForeignKey ||
 		len(materialized.intent.operations) != 2 || len(materialized.intent.operations[0].targets) != 1 ||
 		materialized.intent.operations[0].targets[0].sourceField.Name != "author" ||
-		len(materialized.intent.operations[1].targets) != 1 ||
-		materialized.intent.operations[1].targets[0].sourceField.Name != "editor" {
+		len(materialized.intent.operations[1].targets) != 2 ||
+		materialized.intent.operations[1].targets[0].sourceField.Name != "author" ||
+		materialized.intent.operations[1].targets[1].sourceField.Name != "editor" {
 		t.Fatalf("materialized nullable Add intent = %+v", materialized.intent)
 	}
 
@@ -1335,54 +1256,6 @@ func TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes(t
 	}
 	if counts != want {
 		t.Fatalf("shared-alias loaded scan counts = %+v, want %+v", counts, want)
-	}
-}
-
-func TestLoadedRelationBackwardRemoveAuthorityRejectsUnsealedUniversesBeforeCapability(t *testing.T) {
-	tests := []struct {
-		name   string
-		defs   []Migration
-		detail string
-	}{
-		{name: "different symbolic target", defs: lifecycleLoadedNullableDifferentTargetDefinitions(), detail: "different symbolic target"},
-		{name: "nested target", defs: lifecycleLoadedNullableNestedTargetDefinitions(), detail: "nested relation fields"},
-		{name: "multiple removes on source", defs: lifecycleLoadedMixedMultipleAddDefinitions(), detail: "at most one relation Remove"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			records := make([]backend.AppliedMigration, len(test.defs))
-			for index := range test.defs {
-				records[index] = backend.AppliedMigration{App: test.defs[index].App, Name: test.defs[index].Name}
-			}
-			session := newLifecycleTestSession(records, nil)
-			fake := newLifecycleTestBackend(session)
-			fake.capabilities = lifecycleAllRelationCapabilities()
-			state, err := (Executor{Backend: fake}).Migrate(
-				lifecycleLoadedContext(t, test.defs), testLoadedDefinitionSet(t,
-
-					test.defs),
-
-				TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"})))
-
-			assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
-			var capability *backend.CapabilityError
-			if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
-				!strings.Contains(capability.Detail, test.detail) || session.readCount != 1 ||
-				fake.capabilityCount != 0 || session.beginCount != 0 ||
-				len(lifecycleRelationBearingIntents(session.intents)) != 0 ||
-				state.FormatVersion() != StateFormatVersion {
-				t.Fatalf(
-					"backward authority rejection = err:%v capability:%#v read:%d cap:%d begin:%d relation-bearing:%d format:%d",
-					err,
-					capability,
-					session.readCount,
-					fake.capabilityCount,
-					session.beginCount,
-					len(lifecycleRelationBearingIntents(session.intents)),
-					state.FormatVersion(),
-				)
-			}
-		})
 	}
 }
 

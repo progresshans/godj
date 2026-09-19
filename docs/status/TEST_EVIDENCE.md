@@ -3,6 +3,72 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0084 — Historical relation graph와 순환 migration
+
+- 작업: [GDJ-0084](../../work/0084-relation-migration-graphs.md), 의미: [ADR-0064](../adr/0064-historical-relation-graphs-and-sqlite-remakes.md).
+- Baseline `af49707c1530b454a06b4aefa57534a3774517f7`의 별도 `feature/relation-migration-graphs`에서 구현했다.
+  Markdown을 제외한 35개 변경 파일의 정렬된 `<sha256>  <relative-path>\n` manifest SHA256은
+  `c568dfdb26ab7be34978fa123f288c2c061acb5e0ac454c3407c35b968c25cb8`이다.
+  Go·fixture·CI 33개는 아래 세 Go lane과 동일 bytes다. Python runner/test 두 파일의 portable runtime fingerprint 처리는
+  별도 최종 4-version 재생으로 검증했다.
+
+### 독립 관찰과 의도적 차이
+
+고정 Django 6.1 / asgiref 3.12.1 / sqlparse 0.5.5, Python 3.14.7의 fresh process에서
+[runner](../../conformance/runners/django/migration_graph_reference.py)의 실제 SQLite migration executor/loader/schema editor로
+10단계의 전체 historical field/choices, 실제 행·FK와 recorder를 수집했다. File discovery만 fixture seam으로 교체했다.
+[Raw fixture](../../internal/migrationgraphtest/testdata/django61.json) SHA256은
+`6a6d21dead891f1e3f9c2e9967eb87bdfcc449124c54c627ef974736d767983f`다.
+
+Self Create → 관계 두 개 Add → self Add → choices → close/reopen → self/choices 역방향 → 두 관계 역방향 → zero →
+reapply → zero를 비교한다. SQLite remake 뒤 Django의 다음 ID는 3, GoDj의 다음 ID는 101이다. 기존 sequence 상한 보존을
+[DEV-0013](../DEVIATIONS.md#dev-0013--sqlite-migration-remake에서-삭제된-id의-sequence-상한을-보존) 하나로 명시하며,
+나머지 모든 관찰은 동일하게 대조한다. Raw oracle의 값을 바꾸거나 전체 exact parity로 표현하지 않는다.
+
+`uv run --no-project --isolated --python <version> --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5
+python -m unittest conformance.runners.django.tests.test_migration_graph_reference`를 Python
+**3.12.13 / 3.13.15 / 3.14.3 / 3.14.7 각각 1 test PASS, skip 0**으로 재생했다. Python fingerprint는 실행 버전과 대조하고
+관찰 본문은 raw artifact와 일치해야 한다. Django PostgreSQL의 독립 reference 실행을 뜻하지 않는다.
+
+### 로컬 실행과 source
+
+Go 1.26.5 darwin/arm64, SQLite 3.53.3과 전용 PostgreSQL 17.5(Homebrew)를 사용했다.
+실행 목록은 `./migrations/... ./internal/migrationgraph ./db/sqlite ./db/postgres ./internal/migrationautodetect ./internal/migrationgraphtest`다.
+
+| 범위 | 결과 |
+|---|---|
+| affected normal / race / CGO_ENABLED=0 | 각 **7 test packages, 5,283 PASS events**, 2 no-test packages; 세 test roster 동일 |
+| generated nested forward/eager 소비자 | normal/race/CGO0 각각 **2 top-level PASS**, 실제 생성 module과 strict child harness |
+| 전체 compile-only | **136 packages PASS**, `go test -exec /usr/bin/true ./...`; 전체 runtime PASS는 아님 |
+| affected vet | PASS |
+| Python CI 도구 | **37 tests PASS, skip 0** |
+| 문서·format·diff | 116개 문서의 로컬 링크, 변경 Go gofmt와 `git diff --check` PASS |
+
+모든 Go JSON의 test 시작/종료, package terminal, 새 필수 receipt와 stderr를 대조했다. 유일한 직접 test skip은 기존
+`TestPostgresRevisionFenceHelperProcess`이며 실제 child는 해당 parent process integration이 실행한다. Helper skip을
+기능 PASS로 세지 않는다. Test event 수는 제품 기능 수가 아니다. Generator/생성 ABI의 변경은 없으며 기존 generated 파일에
+drift가 없다. 두 소비자는 이제 수작업 DDL 대신 정확한 Schema IR을 serialized definition으로 load하여 실제 migrate한다.
+
+### 보존·거부·실패 경계
+
+- Self와 3-model cycle, 같은 source의 여러 Add/Remove, cross-app 같은 model 이름의 back edge를 실제 양 DB에서
+  apply/unapply/reopen한다. 기존 inbound/self 참조 값, NULL, 전체 행과 sequence 상한을 보존한다.
+- Direct target의 PK뿐 아니라 transitive target의 전체 physical schema를 확인한다. Target에 미기록 column을 주입하면
+  다음 step의 schema/recorder successor를 남기지 않고 거부하며, 외부 drift를 제거한 fresh 호출은 성공한다.
+- Transitive metadata의 누락·reserved table·caller alias와 seal 이후 변조, graph의 불연속·미래 target·reverse collision,
+  깊이 2,048 cycle과 큰 field/app 이름·aggregate resource 한도를 검사한다. DB 밖의 planner/reconstructor import 경계를 유지한다.
+- SQLite의 FK suspension 전후/readback, BEGIN, 첫째/둘째 copy, drop/rename, 마지막 FK 검사, recorder, COMMIT 전후,
+  복원 write/read와 취소를 주입한다. 물리 discard 실패 3개를 포함한 **19개 case**에서 rollback/committed/unknown과
+  row/FK·pool readback·terminal quarantine·명시적 Close 뒤 file reopen의 실제 durable 결과를 대조한다.
+- 기존 contention/stale/fork/rollback/process와 recorder 회귀도 위 DB package 실행에 포함한다. 폐기한 flat-target 전용 제한
+  검사는 closed graph의 양방향 실행과 whole-plan capability gate로 대체했다. Reverse ownership/resource 보장은 공통 graph와
+  실제 큰 boundary fixture가 계속 검증한다.
+
+초기 checkpoint의 기존 flat-target 기대값 실패, shared app의 중복 byte 계산, 순수 core의 backend import, Django sequence
+차이와 cross-app target 선택 fixture 오류는 PASS로 세지 않았다. 최종 위 source의 완료 결과만 채택했다.
+Hosted ORM 검증은 통합 commit을 push한 뒤 별도 기록한다. 새 full/platform·Windows runtime·배포와 전체 프레임워크 완성은
+이 로컬 기록의 범위가 아니다. 새 self/cyclic 선언의 자동 `makemigrations` 계획은 후속 요구다.
+
 ## GDJ-0083 — Nested eager graph와 하위 cache
 
 - 작업: [GDJ-0083](../../work/0083-nested-forward-eager-graphs.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위).

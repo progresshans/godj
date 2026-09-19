@@ -44,6 +44,26 @@
 
 ## 원장
 
+## DEV-0013 — SQLite migration remake에서 삭제된 ID의 sequence 상한을 보존
+
+- Status: Verified
+- Date: 2026-09-20
+- Scope: GDJ-0084 독립 graph 관찰의 `reverse_links.rows.a[2][0]` 하나. 기존 등록 MIG 계약의 상태·집계는 변경하지 않는다.
+- Reference: 고정 Django 6.1 / Python 3.14.7 SQLite, [raw 관찰](../internal/migrationgraphtest/testdata/django61.json)
+- Related: [ADR-0064](adr/0064-historical-relation-graphs-and-sqlite-remakes.md), [GDJ-0084](../work/0084-relation-migration-graphs.md)
+
+Django 관찰은 ID 1..100 생성 뒤 3..100을 삭제하고 FK 필드를 추가·제거하면 다음 ID가 3이다. GoDj는 remake 이전
+sequence 상한 100을 보존해 다음 ID가 101이다. 이는 새 호환성 완화가 아니라 기존 PK/sequence 보존 정책을 새 독립 관찰과
+대조해 드러낸 차이다. 관찰과 같은 재사용을 구현하는 대안은 기존 데이터 무결성 보장을 약화시키므로 채택하지 않는다.
+
+SQLite의 table 교체로 과거 ID가 재사용되는 것을 막으며, PostgreSQL도 기존 sequence를 유지한다. 이미 저장된 ID나 FK는
+바뀌지 않고 API/definition 형식의 변환도 필요하지 않다. 양 DB의 실제 lifecycle에서 101을 별도로 확인한다. Django PostgreSQL의
+독립 실행 증거라고 주장하지 않는다. Connection/FK/transaction 보안 조건은 완화하지 않는다.
+
+비교기는 raw Django 값이 정확히 3인 지정된 한 셀만 GoDj expected 101로 대조하며 나머지 모든 값은 그대로 비교한다.
+Reference selector가 달라지면 실패하고 재검토한다. Raw oracle은 3을 보존하며 fresh-process 재생에서도 이를 확인한다.
+양 DB의 normal/race/CGO0에서 이 차이와 나머지 관찰을 확인했다. 실제 source별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다. 향후 ID 재사용 정책을 바꿀 때 이 결정을 supersede한다.
+
 ## DEV-0001 — 역방향 migration의 schema와 recorder를 같은 transaction으로 처리
 
 - Status: Verified

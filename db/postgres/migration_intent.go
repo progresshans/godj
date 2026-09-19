@@ -242,140 +242,52 @@ func validatePostgresMigrationIntent(
 	transition migrationbackend.HistoryTransition,
 	intent *migrationbackend.MigrationIntent,
 ) (postgresMigrationBoundary, postgresMigrationBoundary, error) {
-	initial := postgresMigrationBoundary{
-		models:  make(map[string]ir.Model),
-		targets: make(map[string][]migrationbackend.MigrationTarget),
+	graphPlan, err := migrationbackend.ResolveMigrationGraphPlan(transition, *intent)
+	if err != nil {
+		return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("invalid historical relation graph", err)
 	}
-	current := postgresMigrationBoundary{
-		models:  make(map[string]ir.Model),
-		targets: make(map[string][]migrationbackend.MigrationTarget),
-	}
-	initialSeen := make(map[string]struct{})
-	tableOwners := make(map[string]string)
-	// A relation target may change choices earlier in this same step. Keep
-	// exact chronological metadata separate from physical preflight's initial
-	// catalog projection, so accepting that transition never accepts a forged
-	// target snapshot with merely the same storage shape.
-	scheduled := make(map[string]bool)
-	visible := make(map[string]ir.Model)
-	for _, operation := range intent.Operations {
-		name := operation.Before.Name
-		if name == "" {
-			name = operation.After.Name
-		}
-		if !scheduled[name] {
-			scheduled[name] = true
-			if operation.Before.Name != "" {
-				visible[name] = operation.Before
-			}
-		}
-	}
-
-	for position := range intent.Operations {
-		operation := &intent.Operations[position]
-		wantIndex := position
-		if transition.Kind == migrationbackend.HistoryTransitionUnapply {
-			wantIndex = len(intent.Operations) - 1 - position
-		}
-		if operation.OperationIndex != wantIndex {
-			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity(
-				fmt.Sprintf("operation position %d has original index %d, want %d", position, operation.OperationIndex, wantIndex), nil,
-			)
-		}
+	for position, operation := range intent.Operations {
 		if transition.Kind == migrationbackend.HistoryTransitionApply &&
 			(operation.Kind == migrationbackend.MigrationDeleteModel || operation.Kind == migrationbackend.MigrationRemoveField) ||
 			transition.Kind == migrationbackend.HistoryTransitionUnapply &&
 				(operation.Kind == migrationbackend.MigrationCreateModel || operation.Kind == migrationbackend.MigrationAddField) {
-			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity(
-				fmt.Sprintf("operation %d kind %d does not match history transition %d", operation.OperationIndex, operation.Kind, transition.Kind), nil,
-			)
+			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("operation kind does not match history transition", nil)
 		}
-
-		before, after, changed, err := validatePostgresMigrationOperation(*operation)
-		if err != nil {
+		if _, _, _, err := validatePostgresMigrationOperation(operation); err != nil {
 			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
 		}
-		boundary := after
-		// DeleteModel and RemoveField must validate relation authority against
-		// the physical source shape that exists before the operation. In
-		// particular, a ForeignKey RemoveField's After snapshot no longer
-		// contains the relation whose constraint preflight must accept and whose
-		// target metadata must remain sealed through the DROP.
-		if operation.Kind == migrationbackend.MigrationDeleteModel ||
-			operation.Kind == migrationbackend.MigrationRemoveField {
-			boundary = before
+		graph, exists := graphPlan.Operation(position)
+		if !exists {
+			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("operation graph is missing", nil)
 		}
-		if postgresMigrationReservedTable(boundary.DBTable) {
-			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity(
-				fmt.Sprintf("operation %d uses reserved migration table %q", operation.OperationIndex, boundary.DBTable), nil,
-			)
-		}
-		identity := boundary.Name
-		if previous, exists := tableOwners[boundary.DBTable]; exists && previous != identity {
-			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity(
-				fmt.Sprintf("models %q and %q collide on PostgreSQL table %q", previous, identity, boundary.DBTable), nil,
-			)
-		}
-		tableOwners[boundary.DBTable] = identity
-
-		actual, exists := current.models[identity]
-		_, initialAlreadySeen := initialSeen[identity]
-		firstIdentityOperation := !initialAlreadySeen
-		if firstIdentityOperation {
-			initialSeen[identity] = struct{}{}
-		}
-		if firstIdentityOperation && !reflect.DeepEqual(before, ir.Model{}) {
-			initial.models[identity] = before.Clone()
-		}
-		if reflect.DeepEqual(before, ir.Model{}) {
-			if exists {
-				return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity(
-					fmt.Sprintf("CreateModel operation %d source already exists", operation.OperationIndex), nil,
-				)
+		for _, snapshot := range graph.Models() {
+			if postgresMigrationReservedTable(snapshot.Model.DBTable) {
+				return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("relation graph uses a reserved PostgreSQL table", nil)
 			}
-		} else if exists && !reflect.DeepEqual(actual, before) {
-			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity(
-				fmt.Sprintf("operation %d Before model is discontinuous", operation.OperationIndex), nil,
-			)
-		} else if !exists {
-			current.models[identity] = before.Clone()
-		}
-
-		expanded, err := validateAndExpandPostgresMigrationTargets(transition, *operation, boundary, changed)
-		if err != nil {
-			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
-		}
-		for _, target := range expanded {
-			if target.SourceField.Relation.Target.AppLabel == transition.Migration.App && scheduled[target.TargetModel.Name] {
-				currentTarget, exists := visible[target.TargetModel.Name]
-				if !exists || !reflect.DeepEqual(currentTarget, target.TargetModel) {
-					return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("relation target differs from its exact scheduled metadata", nil)
-				}
+			if err := validateExactPostgresMigrationModel(snapshot.Model); err != nil {
+				return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
 			}
-		}
-		operation.Targets = expanded
-		if firstIdentityOperation && reflect.DeepEqual(before, ir.Model{}) {
-			initial.targets[identity] = nil
-		} else if firstIdentityOperation {
-			initial.targets[identity] = targetsForPostgresBoundary(before, expanded)
-		}
-		if reflect.DeepEqual(after, ir.Model{}) {
-			delete(current.models, identity)
-			delete(current.targets, identity)
-			delete(visible, identity)
-		} else {
-			current.models[identity] = after.Clone()
-			current.targets[identity] = targetsForPostgresBoundary(after, expanded)
-			visible[identity] = after
 		}
 	}
-
-	final := clonePostgresMigrationBoundary(current)
-	for identity, model := range initial.models {
-		if _, exists := final.models[identity]; !exists && !postgresBoundaryDeleted(intent.Operations, identity) {
-			final.models[identity] = model.Clone()
-			final.targets[identity] = migrationbackend.CloneMigrationTargets(initial.targets[identity])
+	boundary := func(models []migrationbackend.MigrationModel, final bool) (postgresMigrationBoundary, error) {
+		result := postgresMigrationBoundary{models: make(map[string]ir.Model, len(models)), targets: make(map[string][]migrationbackend.MigrationTarget, len(models))}
+		for _, snapshot := range models {
+			targets, err := graphPlan.BoundaryTargets(snapshot.Model, final)
+			if err != nil {
+				return postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("relation graph boundary lacks exact targets", err)
+			}
+			result.models[snapshot.Model.DBTable] = snapshot.Model
+			result.targets[snapshot.Model.DBTable] = targets
 		}
+		return result, nil
+	}
+	initial, err := boundary(graphPlan.InitialModels(), false)
+	if err != nil {
+		return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
+	}
+	final, err := boundary(graphPlan.FinalModels(), true)
+	if err != nil {
+		return postgresMigrationBoundary{}, postgresMigrationBoundary{}, err
 	}
 	return initial, final, nil
 }
@@ -451,85 +363,6 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 	return before, after, changed, nil
 }
 
-func validateAndExpandPostgresMigrationTargets(
-	transition migrationbackend.HistoryTransition,
-	operation migrationbackend.MigrationOperation,
-	boundary ir.Model,
-	changed ir.Field,
-) ([]migrationbackend.MigrationTarget, error) {
-	relationFields := postgresMigrationRelationFields(boundary)
-	if changed.Kind == ir.FieldForeignKey {
-		if len(operation.Targets) != 1 || !migrationFieldsEqual(operation.Targets[0].SourceField, changed) {
-			return nil, postgresMigrationIntentIntegrity(
-				fmt.Sprintf("ForeignKey operation %d requires exactly its changed-field target", operation.OperationIndex), nil,
-			)
-		}
-		changedTarget := operation.Targets[0]
-		if err := validatePostgresMigrationTarget(changed, changedTarget); err != nil {
-			return nil, err
-		}
-		if len(postgresMigrationRelationFields(changedTarget.TargetModel)) != 0 {
-			return nil, postgresMigrationIntentIntegrity("ForeignKey Add/Remove target contains nested relation fields", nil)
-		}
-		expanded := make([]migrationbackend.MigrationTarget, len(relationFields))
-		for index := range relationFields {
-			field := relationFields[index]
-			if field.Relation == nil || changed.Relation == nil || field.Relation.Target != changed.Relation.Target {
-				return nil, postgresMigrationIntentIntegrity("ForeignKey Add/Remove source contains a different symbolic target", nil)
-			}
-			expanded[index] = migrationbackend.MigrationTarget{
-				SourceField: field.Clone(),
-				TargetModel: changedTarget.TargetModel,
-				TargetKey:   changedTarget.TargetKey,
-			}
-		}
-		return expanded, nil
-	}
-	if len(operation.Targets) != len(relationFields) {
-		return nil, postgresMigrationIntentIntegrity(
-			fmt.Sprintf("operation %d has %d relation targets, want %d", operation.OperationIndex, len(operation.Targets), len(relationFields)), nil,
-		)
-	}
-	result := migrationbackend.CloneMigrationTargets(operation.Targets)
-	for index := range result {
-		if !migrationFieldsEqual(result[index].SourceField, relationFields[index]) {
-			return nil, postgresMigrationIntentIntegrity("relation targets are not in exact source field order", nil)
-		}
-		if err := validatePostgresMigrationTarget(relationFields[index], result[index]); err != nil {
-			return nil, err
-		}
-		if result[index].SourceField.Relation != nil &&
-			result[index].SourceField.Relation.Target.AppLabel != transition.Migration.App &&
-			len(postgresMigrationRelationFields(result[index].TargetModel)) != 0 {
-			return nil, postgresMigrationIntentIntegrity("external relation target contains nested relation fields outside the sealed intent", nil)
-		}
-	}
-	return result, nil
-}
-
-func validatePostgresMigrationTarget(field ir.Field, target migrationbackend.MigrationTarget) error {
-	if field.Kind != ir.FieldForeignKey || field.Relation == nil || !migrationFieldsEqual(field, target.SourceField) {
-		return postgresMigrationIntentIntegrity("relation target source field is not exact", nil)
-	}
-	if err := validateExactPostgresMigrationModel(target.TargetModel); err != nil {
-		return err
-	}
-	if postgresMigrationReservedTable(target.TargetModel.DBTable) {
-		return postgresMigrationIntentIntegrity("relation target uses a reserved PostgreSQL migration table", nil)
-	}
-	if target.TargetModel.Name != field.Relation.Target.ModelName {
-		return postgresMigrationIntentIntegrity("relation target model does not match the symbolic declaration", nil)
-	}
-	primaryKey, err := postgresMigrationPrimaryKey(target.TargetModel)
-	if err != nil {
-		return postgresMigrationIntentIntegrity("relation target primary key is invalid", err)
-	}
-	if !migrationFieldsEqual(primaryKey, target.TargetKey) {
-		return postgresMigrationIntentIntegrity("relation target key is not the exact historical AutoField", nil)
-	}
-	return nil
-}
-
 func validateExactPostgresMigrationModel(model ir.Model) error {
 	if reflect.DeepEqual(model, ir.Model{}) {
 		return postgresMigrationIntentIntegrity("migration model is zero", nil)
@@ -587,27 +420,32 @@ func validatePostgresConstraintNames(intent migrationbackend.MigrationIntent) er
 		postgresMigrationRecorderPrimaryKey: "migration recorder primary index",
 		postgresMigrationRevisionPrimaryKey: "migration revision primary index",
 	}
-	for index := range intent.Operations {
-		operation := intent.Operations[index]
-		model := operation.After
-		if reflect.DeepEqual(model, ir.Model{}) {
-			model = operation.Before
+	for _, operation := range intent.Operations {
+		models := []ir.Model{operation.Before, operation.After}
+		for _, target := range operation.Targets {
+			models = append(models, target.TargetModel)
 		}
-		if err := registerPostgresModelDerivedNames(constraintOwners, relationOwners, model); err != nil {
-			return err
+		for _, related := range operation.RelatedModels {
+			models = append(models, related.Model)
 		}
-		for targetIndex := range operation.Targets {
-			target := operation.Targets[targetIndex]
-			if err := registerPostgresModelDerivedNames(constraintOwners, relationOwners, target.TargetModel); err != nil {
+		for _, model := range models {
+			if reflect.DeepEqual(model, ir.Model{}) {
+				continue
+			}
+			if err := registerPostgresModelDerivedNames(constraintOwners, relationOwners, model); err != nil {
 				return err
 			}
-			name, err := postgresForeignKeyConstraintName(model.DBTable, target.SourceField.Column)
-			if err != nil {
-				return postgresMigrationIntentIntegrity("derive PostgreSQL foreign key constraint", err)
-			}
-			owner := model.DBTable + "." + target.SourceField.Column
-			if err := registerPostgresConstraintName(constraintOwners, name, owner); err != nil {
-				return err
+			for _, field := range model.Fields {
+				if field.Kind != ir.FieldForeignKey {
+					continue
+				}
+				name, err := postgresForeignKeyConstraintName(model.DBTable, field.Column)
+				if err != nil {
+					return postgresMigrationIntentIntegrity("derive PostgreSQL foreign key constraint", err)
+				}
+				if err := registerPostgresConstraintName(constraintOwners, name, model.DBTable+"."+field.Column); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -724,20 +562,23 @@ func scanPostgresMigrationResources(
 				return err
 			}
 		}
+		if len(operation.RelatedModels) > postgresMigrationMaxTargets {
+			return fmt.Errorf("%s has too many transitive relation models", prefix)
+		}
+		if err := budget.ConsumeNodes(prefix+".related_models", len(operation.RelatedModels)); err != nil {
+			return err
+		}
+		for index, model := range operation.RelatedModels {
+			path := fmt.Sprintf("%s.related_models[%d]", prefix, index)
+			if err := budget.ConsumeString(path+".app", model.AppLabel); err != nil {
+				return err
+			}
+			if err := budget.ScanModel(path+".model", model.Model); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
-}
-
-func clonePostgresMigrationBoundary(boundary postgresMigrationBoundary) postgresMigrationBoundary {
-	cloned := postgresMigrationBoundary{
-		models:  make(map[string]ir.Model, len(boundary.models)),
-		targets: make(map[string][]migrationbackend.MigrationTarget, len(boundary.targets)),
-	}
-	for identity, model := range boundary.models {
-		cloned.models[identity] = model.Clone()
-		cloned.targets[identity] = migrationbackend.CloneMigrationTargets(boundary.targets[identity])
-	}
-	return cloned
 }
 
 func hashPostgresMigrationIntent(
@@ -773,36 +614,6 @@ func postgresMigrationRelationFields(model ir.Model) []ir.Field {
 		}
 	}
 	return fields
-}
-
-func targetsForPostgresBoundary(
-	model ir.Model,
-	candidates []migrationbackend.MigrationTarget,
-) []migrationbackend.MigrationTarget {
-	fields := postgresMigrationRelationFields(model)
-	result := make([]migrationbackend.MigrationTarget, 0, len(fields))
-	for index := range fields {
-		for targetIndex := range candidates {
-			if migrationFieldsEqual(fields[index], candidates[targetIndex].SourceField) {
-				result = append(result, migrationbackend.MigrationTarget{
-					SourceField: fields[index].Clone(),
-					TargetModel: candidates[targetIndex].TargetModel.Clone(),
-					TargetKey:   candidates[targetIndex].TargetKey.Clone(),
-				})
-				break
-			}
-		}
-	}
-	return result
-}
-
-func postgresBoundaryDeleted(operations []migrationbackend.MigrationOperation, identity string) bool {
-	for index := range operations {
-		if operations[index].Kind == migrationbackend.MigrationDeleteModel && operations[index].Before.Name == identity {
-			return true
-		}
-	}
-	return false
 }
 
 func postgresMigrationSameModel(left, right ir.Model) bool {

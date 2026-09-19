@@ -132,7 +132,7 @@ func TestSQLiteMigrationSQLRendererRejectsDestructiveOperation(t *testing.T) {
 	}
 }
 
-func TestSQLiteMigrationSQLRendererExpandsChangedOnlyForeignKeyTarget(t *testing.T) {
+func TestSQLiteMigrationSQLRendererPreservesCompleteForeignKeyAuthority(t *testing.T) {
 	t.Parallel()
 
 	target, before, existing := sqliteRelationTestModels()
@@ -154,8 +154,9 @@ func TestSQLiteMigrationSQLRendererExpandsChangedOnlyForeignKeyTarget(t *testing
 		Kind:           migrationbackend.MigrationAddField,
 		Before:         before,
 		After:          after,
-		Targets:        []migrationbackend.MigrationTarget{changedTarget},
+		Targets:        sqliteRelationTestMutationTargets(before, after, migrationbackend.MigrationAddField, changedTarget),
 	}}}
+	original := intent.Clone()
 	statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(
 		context.Background(),
 		migrationbackend.ForwardMigrationSQLRequest{App: "news", Name: "0002_editor", Intent: intent},
@@ -173,8 +174,8 @@ func TestSQLiteMigrationSQLRendererExpandsChangedOnlyForeignKeyTarget(t *testing
 	if !reflect.DeepEqual(statements, []string{want}) {
 		t.Fatalf("ForeignKey Add SQL = %#v, want %q", statements, want)
 	}
-	if len(intent.Operations[0].Targets) != 1 || !reflect.DeepEqual(intent.Operations[0].Targets[0], changedTarget) {
-		t.Fatal("renderer leaked sealed target expansion into caller input")
+	if !reflect.DeepEqual(intent, original) {
+		t.Fatal("renderer mutated caller authority")
 	}
 }
 

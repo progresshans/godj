@@ -14,7 +14,6 @@ import (
 type postgresMigrationPreflightTable struct {
 	model   ir.Model
 	targets []migrationbackend.MigrationTarget
-	target  *ir.Field
 	oid     int64
 }
 
@@ -114,15 +113,7 @@ func (schema *postgresMigrationSchema) Preflight(
 		if err := validatePostgresMigrationAttributeCapacity(table, catalog.attributeSlots, pendingAdds[table]); err != nil {
 			return err
 		}
-		if entry.target == nil {
-			if err := assertPostgresMigrationModelCatalog(catalog, namespace, entry.model, entry.targets); err != nil {
-				return err
-			}
-		} else if len(postgresMigrationRelationFields(entry.model)) == 0 {
-			if err := assertPostgresMigrationModelCatalog(catalog, namespace, entry.model, nil); err != nil {
-				return err
-			}
-		} else if err := assertPostgresMigrationTargetCatalog(catalog, namespace, entry.model, *entry.target); err != nil {
+		if err := assertPostgresMigrationModelCatalog(catalog, namespace, entry.model, entry.targets); err != nil {
 			return err
 		}
 	}
@@ -319,9 +310,6 @@ func (schema *postgresMigrationSchema) VerifyComplete(
 			return postgresMigrationCatalogDrift(model.DBTable, "still exists after its sealed DeleteModel")
 		}
 	}
-	if err := schema.verifyPostgresMigrationTargets(ctx, executor, finalByTable); err != nil {
-		return err
-	}
 	schema.verified = true
 	return nil
 }
@@ -358,47 +346,25 @@ func (schema *postgresMigrationSchema) postgresMigrationPreflightTables() (
 	map[string]ir.Model,
 	error,
 ) {
-	existing := make(map[string]postgresMigrationPreflightTable)
+	existing := make(map[string]postgresMigrationPreflightTable, len(schema.initial.models))
 	absent := make(map[string]ir.Model)
-	for identity, model := range schema.initial.models {
-		existing[model.DBTable] = postgresMigrationPreflightTable{
-			model:   model.Clone(),
-			targets: migrationbackend.CloneMigrationTargets(schema.initial.targets[identity]),
+	for table, model := range schema.initial.models {
+		existing[table] = postgresMigrationPreflightTable{
+			model: model.Clone(), targets: migrationbackend.CloneMigrationTargets(schema.initial.targets[table]),
 		}
 	}
-	for index := range schema.intent.Operations {
-		operation := schema.intent.Operations[index]
-		if operation.Kind == migrationbackend.MigrationCreateModel {
-			if previous, exists := absent[operation.After.DBTable]; exists && !reflect.DeepEqual(previous, operation.After) {
-				return nil, nil, postgresMigrationIntentIntegrity("different sealed CreateModel snapshots share a PostgreSQL table", nil)
-			}
-			absent[operation.After.DBTable] = operation.After.Clone()
+	for _, operation := range schema.intent.Operations {
+		if operation.Kind != migrationbackend.MigrationCreateModel {
+			continue
 		}
-		for targetIndex := range operation.Targets {
-			target := operation.Targets[targetIndex]
-			if _, created := absent[target.TargetModel.DBTable]; created {
-				continue
-			}
-			if entry, exists := existing[target.TargetModel.DBTable]; exists {
-				if !reflect.DeepEqual(entry.model, target.TargetModel) {
-					_, scheduled := schema.initial.models[target.TargetModel.Name]
-					if !scheduled || target.SourceField.Relation.Target.AppLabel != schema.transition.Migration.App || !postgresChoiceStorageEqual(entry.model, target.TargetModel) {
-						return nil, nil, postgresMigrationIntentIntegrity("sealed source and target snapshots disagree for one PostgreSQL table", nil)
-					}
-				}
-				continue
-			}
-			targetKey := target.TargetKey.Clone()
-			existing[target.TargetModel.DBTable] = postgresMigrationPreflightTable{
-				model:  target.TargetModel.Clone(),
-				target: &targetKey,
-			}
-		}
-	}
-	for table := range absent {
+		table := operation.After.DBTable
 		if _, exists := existing[table]; exists {
-			return nil, nil, postgresMigrationIntentIntegrity("sealed PostgreSQL table is both initially present and created", nil)
+			return nil, nil, postgresMigrationIntentIntegrity("sealed PostgreSQL table is initially present and created", nil)
 		}
+		if _, exists := absent[table]; exists {
+			return nil, nil, postgresMigrationIntentIntegrity("sealed PostgreSQL table is created twice", nil)
+		}
+		absent[table] = operation.After.Clone()
 	}
 	return existing, absent, nil
 }
@@ -451,52 +417,6 @@ func (schema *postgresMigrationSchema) preflightPostgresRequiredAdds(
 
 func postgresMigrationAddRequiresEmptyTable(field ir.Field) bool {
 	return field.Default != nil || !field.Nullable
-}
-
-func (schema *postgresMigrationSchema) verifyPostgresMigrationTargets(
-	ctx context.Context,
-	executor migrationSQLExecutor,
-	finalByTable map[string]postgresMigrationPreflightTable,
-) error {
-	deleted := make(map[string]struct{})
-	for identity, model := range schema.initial.models {
-		if _, remains := schema.final.models[identity]; !remains {
-			deleted[model.DBTable] = struct{}{}
-		}
-	}
-	verified := make(map[string]struct{}, len(finalByTable))
-	for table := range finalByTable {
-		verified[table] = struct{}{}
-	}
-	for operationIndex := range schema.intent.Operations {
-		operation := schema.intent.Operations[operationIndex]
-		for targetIndex := range operation.Targets {
-			target := operation.Targets[targetIndex]
-			table := target.TargetModel.DBTable
-			if _, removed := deleted[table]; removed {
-				continue
-			}
-			if _, done := verified[table]; done {
-				continue
-			}
-			catalog, present, err := loadPostgresMigrationTableCatalog(ctx, executor, schema.namespace, table)
-			if err != nil {
-				return err
-			}
-			if !present {
-				return postgresMigrationCatalogDrift(table, "is missing as a sealed relation target after migration")
-			}
-			if len(postgresMigrationRelationFields(target.TargetModel)) == 0 {
-				if err := assertPostgresMigrationModelCatalog(catalog, schema.namespace, target.TargetModel, nil); err != nil {
-					return err
-				}
-			} else if err := assertPostgresMigrationTargetCatalog(catalog, schema.namespace, target.TargetModel, target.TargetKey); err != nil {
-				return err
-			}
-			verified[table] = struct{}{}
-		}
-	}
-	return nil
 }
 
 func sortedPostgresMigrationModelNames(models map[string]ir.Model) []string {

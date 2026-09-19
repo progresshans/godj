@@ -34,6 +34,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		reflect.TypeOf(ir.Model{}),
 		reflect.TypeOf(ir.Model{}),
 		reflect.TypeOf([]MigrationTarget(nil)),
+		reflect.TypeOf([]MigrationModel(nil)),
 	}
 	if operation.NumField() != len(wantOperation) {
 		t.Fatalf("MigrationOperation fields = %d", operation.NumField())
@@ -54,7 +55,8 @@ func TestMigrationIntentClonePreservesShapeAndDetachesNestedIR(t *testing.T) {
 	model := ir.Model{Name: "entry", Fields: []ir.Field{field}}
 	intent := MigrationIntent{Operations: []MigrationOperation{{
 		Before: model, After: model,
-		Targets: []MigrationTarget{{SourceField: field, TargetModel: model, TargetKey: field}},
+		Targets:       []MigrationTarget{{SourceField: field, TargetModel: model, TargetKey: field}},
+		RelatedModels: []MigrationModel{{AppLabel: "owners", Model: model}},
 	}}}
 	cloned := intent.Clone()
 	cloned.Operations[0].Before.Fields[0].Default.String = "changed before"
@@ -63,13 +65,15 @@ func TestMigrationIntentClonePreservesShapeAndDetachesNestedIR(t *testing.T) {
 	cloned.Operations[0].Targets[0].TargetModel.Fields[0].Default.String = "changed model"
 	cloned.Operations[0].Targets[0].TargetKey.Relation.Target.ModelName = "changed key"
 	cloned.Operations[0].Before.Fields[0].Choices[0].Label = "changed label"
+	cloned.Operations[0].RelatedModels[0].Model.Fields[0].Default.String = "changed transitive default"
+	cloned.Operations[0].RelatedModels[0].Model.Fields[0].Relation.Target.ModelName = "changed transitive relation"
 	cloned.Operations[0].Targets[0].TargetModel.Fields[0].Choices[0].Value.String = "changed choice"
 	if !reflect.DeepEqual(intent.Operations[0].Before, model) || field.Default.String != "before" || field.Choices[0].Label != "Before" || field.Choices[0].Value.String != "before" || field.Relation.Target != (ir.ModelIdentity{AppLabel: "owners", ModelName: "owner"}) {
 		t.Fatal("intent clone retained a nested caller alias")
 	}
 	for _, value := range []MigrationIntent{
 		{}, {Operations: []MigrationOperation{}},
-		{Operations: []MigrationOperation{{Before: ir.Model{Fields: []ir.Field{}}, Targets: []MigrationTarget{}}}},
+		{Operations: []MigrationOperation{{Before: ir.Model{Fields: []ir.Field{}}, Targets: []MigrationTarget{}, RelatedModels: []MigrationModel{}}}},
 		{Operations: []MigrationOperation{{Targets: []MigrationTarget{{TargetModel: ir.Model{Fields: []ir.Field{}}}}}}},
 	} {
 		if !reflect.DeepEqual(value.Clone(), value) {
