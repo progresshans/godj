@@ -48,16 +48,54 @@ func assertGeneratedConsumerTests(t *testing.T, output []byte, names ...string) 
 	}
 }
 
+// Full generated test events need more room than a compiler diagnostic prefix.
+// Keep a bounded result capture, drain excess output, and reject any truncation.
+const generatedTestOutputLimit = 4 << 20
+
+type generatedTestCapture struct {
+	data  []byte
+	total int
+}
+
+func (capture *generatedTestCapture) Write(payload []byte) (int, error) {
+	capture.total += len(payload)
+	if remaining := generatedTestOutputLimit - len(capture.data); remaining > 0 {
+		capture.data = append(capture.data, payload[:min(remaining, len(payload))]...)
+	}
+	return len(payload), nil
+}
+func (capture *generatedTestCapture) Bytes() []byte { return capture.data }
+func (capture *generatedTestCapture) Len() int      { return capture.total }
+
+func TestGeneratedResultCaptureRetainsCompleteEventsAndDetectsOverflow(t *testing.T) {
+	var capture generatedTestCapture
+	record := []byte("{\"Action\":\"output\"}\n")
+	for capture.Len() < 128<<10 {
+		if _, err := capture.Write(record); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if capture.Len() != len(capture.Bytes()) {
+		t.Fatal("valid event stream truncated at diagnostic limit")
+	}
+	tail := make([]byte, generatedTestOutputLimit)
+	written, err := capture.Write(tail)
+	if err != nil || written != len(tail) || len(capture.Bytes()) != generatedTestOutputLimit || capture.Len() <= len(capture.Bytes()) {
+		t.Fatal("oversized result was not drained and marked incomplete")
+	}
+}
+
 func runStrictGeneratedCommand(t *testing.T, command *exec.Cmd) []byte {
 	t.Helper()
-	var stdout, stderr gobuild.Capture
+	var stdout generatedTestCapture
+	var stderr gobuild.Capture
 	command.Stdout, command.Stderr = &stdout, &stderr
 	command.WaitDelay = 5 * time.Second
 	if err := command.Run(); err != nil {
 		t.Fatalf("generated consumer: %v: %s", err, gobuild.Summary(stdout.Bytes(), stderr.Bytes(), command.Env))
 	}
 	if stdout.Len() != len(stdout.Bytes()) || stderr.Len() != len(stderr.Bytes()) || stderr.Len() != 0 {
-		t.Fatal("generated consumer output was truncated or contained diagnostics")
+		t.Fatalf("generated consumer output was incomplete: stdout %d/%d bytes, stderr %d/%d bytes", len(stdout.Bytes()), stdout.Len(), len(stderr.Bytes()), stderr.Len())
 	}
 	return stdout.Bytes()
 }

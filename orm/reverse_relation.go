@@ -167,7 +167,7 @@ func (r ReverseRelation[Owner, Source]) Integer(
 	if err := validateReverseRelationState(r.state); err != nil {
 		return RelatedIntegerField[Owner]{}, err
 	}
-	metadata, err := relatedIntegerMetadata(r.state.forward.sourceModel, field)
+	metadata, err := relatedScalarMetadata(r.state.forward.sourceModel, field, false, ir.FieldAuto, ir.FieldInteger)
 	if err != nil {
 		return RelatedIntegerField[Owner]{}, err
 	}

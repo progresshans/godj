@@ -213,10 +213,10 @@ func relationQuerySelector(field ir.Field) (string, error) {
 }
 
 func supportedProjectRelationQueryTerminal(field ir.Field) bool {
-	if field.Relation != nil || field.Nullable {
+	if field.Relation != nil {
 		return false
 	}
-	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime
+	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldBoolean
 }
 
 func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelationQuerySource) {
@@ -234,6 +234,8 @@ func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelatio
 				)
 			case ir.FieldDateTime:
 				fmt.Fprintf(output, "\t%s orm.RelatedDateTimeField[%s.%s]\n", terminal.field.GoName, source.model.app.alias, source.model.model.GoName)
+			case ir.FieldBoolean:
+				fmt.Fprintf(output, "\t%s orm.RelatedBooleanField[%s.%s]\n", terminal.field.GoName, source.model.app.alias, source.model.model.GoName)
 			case ir.FieldChar, ir.FieldText:
 				fmt.Fprintf(
 					output,
@@ -313,6 +315,9 @@ func renderBindRelations(
 				method := "String"
 				if terminal.kind == ir.FieldDateTime {
 					method = "DateTime"
+				}
+				if terminal.kind == ir.FieldBoolean {
+					method = "Boolean"
 				}
 				if terminal.kind == ir.FieldAuto || terminal.kind == ir.FieldInteger {
 					method = "Integer"

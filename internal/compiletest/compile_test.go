@@ -690,7 +690,7 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			fixture: "relation_query/target_field_mismatch.go.txt",
 			wantFragments: []string{
 				"blog.PostFields.Title",
-				"orm.StringField[authors.Author]",
+				"orm.ReferenceField[authors.Author, string]",
 			},
 		},
 		{

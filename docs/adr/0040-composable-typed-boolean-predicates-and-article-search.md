@@ -9,6 +9,27 @@
 - 관련 work/contract: GDJ-0040, QRY-034..043, Q-011, M4/M5
 - 대체하는 ADR: 없음
 
+## 직접 forward 대상의 scalar lookup
+
+2026-09-19 GDJ-0079는 아래 GDJ-0078의 exact/non-null target 제한을 다음 범위에서 확장한다.
+
+- Typed 대상은 Integer·Char/Text·DateTime의 nullable/non-null field와 현재 non-null Boolean이다. 비교 입력은 기존 root scalar와
+  같은 Go 값 타입을 쓴다. Nullable 저장 pointer를 비교 입력에 요구하지 않으며, sealed `ReferenceField`가 target model과 값 타입을 검사한다.
+- Exact·ordered comparison·icontains·isnull·IN을 기존 scalar kind별 capability에 맞춘다. Boolean의 ordered comparison은 지원하지 않는다.
+  Typed `.In(...)`은 concrete scalar를 받으며 explicit NULL member는 dynamic `[]any`의 nil로 표현한다.
+- Dynamic forward는 `relation__field` 또는 `relation__field__lookup`을 받는다. Lookup policy는 복사된 선언 field와 실제 lookup을
+  값 parsing 전에 받으며, 실패한 batch는 부분 predicate를 반환하지 않는다. Relation-level source-key isnull은 기존 object parser가 소유한다.
+- `Condition.OperandNullable`은 field 선언과 optional forward hop을 함께 본다. 모델 metadata 자체를 nullable로 바꾸지 않는다.
+  Compiler의 부정 보정과 empty-result 분석은 같은 판단을 사용한다. Isnull은 그 Boolean 결과 자체가 NULL인 조건이 아니다.
+- Target isnull false와 NOT isnull true는 대상 존재를 요구한다. Positive comparison·icontains·IN도 대상이 필요하며,
+  nullable edge를 INNER/LEFT로 고르는 기존 Boolean 규칙에 참여한다. NULL member가 있는 IN의 홀수 부정은
+  [ADR-0062](0062-scalar-membership-and-empty-query-execution.md)의 OR IS NULL 보정으로 absent target까지 구분한다.
+- `NewRelatedInCondition`은 같은 list RHS를 소유하면서 직접 forward 경로를 보존한다. Source-key/reverse membership,
+  relation F, nested traversal와 reverse non-exact/OR/NOT은 계속 명시적 미지원이다. Reverse 생성기는 forward의 새 field 폭을 상속하지 않는다.
+- [Django 6.1 독립 관찰](../../conformance/runners/django/forward_lookup_reference.py)은 748개다. Typed로 표현하는 628개와
+  explicit NULL member를 사용하는 dynamic 사례를 구분한다. 출처는 Django의 공개 QuerySet/Q/lookup 동작(BSD-3-Clause)이며
+  private Python 구조를 복제하지 않는다. 환경별 실행 상태는 [GDJ-0079](../../work/0079-forward-scalar-lookups.md)와 TEST_EVIDENCE를 따른다.
+
 ## 직접 forward 관계의 Boolean 확장
 
 2026-09-19 GDJ-0078에서 required/nullable direct forward 관계의 기존 지원 scalar exact predicate를 AND/OR/NOT에 허용한다.

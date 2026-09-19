@@ -23,14 +23,13 @@ type sqliteWhereAnalysis struct {
 }
 
 type sqliteWhereNode struct {
-	kind             query.ExpressionKind
-	condition        query.Condition
-	children         []*sqliteWhereNode
-	fieldSQL         string
-	rhsFieldSQL      string
-	inValues         []query.Value
-	inHasNull        bool
-	nullableRelation bool
+	kind        query.ExpressionKind
+	condition   query.Condition
+	children    []*sqliteWhereNode
+	fieldSQL    string
+	rhsFieldSQL string
+	inValues    []query.Value
+	inHasNull   bool
 }
 
 func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
@@ -273,7 +272,7 @@ func nullableNegationGuards(node *sqliteWhereNode, oddNegation bool) []string {
 	}
 	guards := make([]string, 0, 2)
 	left := node.condition.Field()
-	if left.Nullable() || node.nullableRelation {
+	if node.condition.OperandNullable() {
 		guards = append(guards, node.fieldSQL)
 	}
 	if right, ok := node.condition.RHSField(); ok && right.Nullable() && !right.Equal(left) {

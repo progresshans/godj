@@ -25,7 +25,7 @@ API 확장에서는 typed 입력/출력·endpoint·OpenAPI·client 연결을 함
 작은 실제 소비자 흐름으로 선택한다. [비교 조사](research/2026-09-12-framework-developer-experience.md)의 권고는
 새 전체 리팩토링이나 모든 후보 구현을 기능 개발의 선행 조건으로 만들지 않는다.
 
-- ORM/관계: eager Count와 다중 관계 탐색은 joined row·cardinality·cache 의미를 먼저 정한다.
+- ORM/관계: 관계 대상의 scalar lookup과 다중 관계 탐색은 joined row·null·cardinality·cache 의미를 먼저 정한다.
 - 앱 성장: 새로운 모델·필드·관계가 요구하는 migration과 기존 데이터의 처리를 함께 검증한다.
 - 모델 연결: 현재 allowlist·typed reader로 표현할 수 없는 실제 Form/Admin/API 흐름이 있는지 확인한다.
 - Identity: 명시적 operator 권한 갱신 다음의 다중 사용자·credential/session 요구를 구체화한다.

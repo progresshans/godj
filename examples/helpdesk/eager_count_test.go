@@ -6,6 +6,7 @@ import (
 
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
+	"github.com/progresshans/godj/orm"
 )
 
 // Called by the actual SQLite and PostgreSQL Helpdesk consumers after reopen.
@@ -26,6 +27,25 @@ func verifyHelpdeskEagerCount(t *testing.T, ctx context.Context, backend *helpde
 	relations, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Category-name search composes through the same public relation API as
+	// scalar fields and preserves the selected category cache after reopen.
+	named := base.Filter(relations.ModelsTicket.Category.Name.IContains("HARDWARE"), relations.ModelsTicket.Category.Name.In(category.Name, "missing"))
+	if got, err := named.Count(ctx); err != nil || got != 1 {
+		t.Fatalf("category-name Count=%d,%v", got, err)
+	}
+	matching, err := named.All(ctx)
+	if err != nil || len(matching) != 1 || matching[0].ID != seed.ID {
+		t.Fatalf("category-name All=%v,%v", matching, err)
+	}
+	predicates, err := relations.ModelsTicket.ParseDynamic(nil, []orm.LookupInput{
+		{Key: "category__name__icontains", Value: "HARDWARE"}, {Key: "category__name__in", Value: []string{category.Name, "missing"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := base.Filter(predicates...).Count(ctx); err != nil || got != 1 {
+		t.Fatalf("dynamic category-name Count=%d,%v", got, err)
 	}
 	filtered := base.Filter(relations.ModelsTicket.Category.ID.Exact(category.ID))
 	if got, err := filtered.Count(ctx); err != nil || got != 1 {

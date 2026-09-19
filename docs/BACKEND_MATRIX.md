@@ -26,10 +26,11 @@ String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterF
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 세며 eager projection이나 일반 관계 집계를 허용하지 않는다.
-직접 forward FK는 required/nullable source의 대상 exact와 AND/OR/NOT을 같은 AST로 처리한다. Nullable JOIN은
-필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
-Root FK isnull은 JOIN 없이 참여한다. Typed/dynamic 대상은 현재 non-null Integer·Char/Text·DateTime이고, reverse OR/NOT,
-다른 relation lookup과 다중/중첩 eager materialization은 미지원이다. [Boolean 관계 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md)를 따른다.
+직접 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
+Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
+선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 기존대로 JOIN 없이 참여한다.
+Typed/dynamic 대상은 Integer·Char/Text·DateTime의 nullable/non-null과 Boolean이다. Reverse non-exact/OR/NOT,
+관계를 넘는 F·nested traversal·다중/중첩 eager materialization은 미지원이다. [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
 
 ## SQLite 경계

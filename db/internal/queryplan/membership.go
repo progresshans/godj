@@ -8,7 +8,7 @@ import "github.com/progresshans/godj/query"
 func MembershipValues(condition query.Condition) ([]query.Value, bool, error) {
 	values, ok := condition.Values()
 	if !ok {
-		return nil, false, invalidPlan("IN requires a valid root-table list-backed condition")
+		return nil, false, invalidPlan("IN requires a valid scalar list-backed condition")
 	}
 	filtered := values[:0]
 	hasNull := false

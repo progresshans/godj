@@ -36,7 +36,7 @@ func predicateTruth(expression Expression, negated bool) knownTruth {
 		}
 		// Under odd negation a NULL-containing nullable membership adds
 		// OR field IS NULL, which cannot be decided without reading the row.
-		if negated && hasNull && condition.field.Nullable() {
+		if negated && hasNull && condition.OperandNullable() {
 			return truthUnknown
 		}
 		return truthFalse

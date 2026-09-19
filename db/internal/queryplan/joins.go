@@ -115,10 +115,24 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 			}
 			return nil
 		}
-		if path.TerminalScope() != query.RelationTerminalRelatedField || negated || condition.Lookup() != query.LookupExact {
+		if path.TerminalScope() != query.RelationTerminalRelatedField {
 			return nil
 		}
-		return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+		if condition.Lookup() == query.LookupIsNull {
+			isNull, valid := condition.Value().Boolean()
+			if valid && isNull == negated {
+				return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+			}
+			return nil
+		}
+		if !negated {
+			switch condition.Lookup() {
+			case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
+				query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn:
+				return map[RelationKey]bool{KeyForRelation(hops[0]): true}
+			}
+		}
+		return nil
 	case query.ExpressionNot:
 		children := expression.Children()
 		if len(children) != 1 {

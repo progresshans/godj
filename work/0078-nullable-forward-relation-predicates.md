@@ -1,6 +1,6 @@
 ---
 id: GDJ-0078
-status: active
+status: complete
 updated: 2026-09-19
 baseline_commit: "6eb40412501b8945dad06a75f95e3b39510e2fe0"
 integration_owner: "root"
@@ -28,8 +28,8 @@ nullable 대상 scalar 자체·다른 lookup의 확장은 이 작업의 구체�
 
 제품·생성기·독립 소비자와 실패 경로를 먼저 한 묶음으로 구현한다. 편집 중에는 필요한 compile만 확인한다.
 완성된 묶음의 related normal·race·CGO0·actual SQLite/PostgreSQL·Django reference와 generated drift를 통합한다.
-GDJ-0077 eager Count와 이 관계 query 확장을 합친 source에서 Hosted ORM checkpoint를 실행한다.
-이전 source의 Hosted 결과와 새 코드를 합쳐 PASS로 표시하지 않는다. 독립 설계 관찰과 제품·생성기 구현, 실제 DB/소비자의 최종 로컬 checkpoint를 완료했다. Hosted ORM 통합 검증이 남아 있다.
+GDJ-0077 eager Count와 이 관계 query 확장을 합친 source에서 Hosted ORM checkpoint를 완료했다.
+이전 source의 Hosted 결과와 새 코드를 합쳐 PASS로 표시하지 않는다. 독립 설계 관찰과 제품·생성기 구현, 실제 DB/소비자의 최종 로컬 checkpoint를 완료했다. 통합 source와 Hosted의 정확한 scope·결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
 
 ## 독립 관찰과 채택할 실행 의미
 

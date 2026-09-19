@@ -1172,16 +1172,18 @@ func TestCompileRelationRejectsRootMismatchAndConflictingRepeatedEdge(t *testing
 	assertQueryCode(t, err, query.CodeInvalidPlan)
 }
 
-func TestCompileRelationRejectsNonExactAndWrongValueKind(t *testing.T) {
+func TestCompileForwardIContainsAndWrongValueKind(t *testing.T) {
 	t.Parallel()
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	path := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
-	_, _, err := compileConditions(
+	statement, arguments, err := compileConditions(
 		query.NewPlan("blog_post", []query.FieldRef{id, query.NewFieldRef("author", "author_id", query.FieldInteger, false)}),
 		query.NewRelatedCondition(path, query.LookupIContains, query.String("Ada")),
 	)
-	assertQueryCode(t, err, query.CodeUnsupported)
+	if err != nil || !strings.Contains(statement, `"t1"."name" LIKE ?`) || !reflect.DeepEqual(arguments, []any{"%Ada%"}) {
+		t.Fatalf("related icontains = %s %#v, %v", statement, arguments, err)
+	}
 
 	_, _, err = compileConditions(
 		query.NewPlan("blog_post", []query.FieldRef{id, query.NewFieldRef("author", "author_id", query.FieldInteger, false)}),
