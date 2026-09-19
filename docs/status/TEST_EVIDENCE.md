@@ -5,7 +5,7 @@
 
 ## GDJ-0088 — Clock Time의 모델·소비자 연결
 
-- 활성 작업: [GDJ-0088](../../work/0088-clock-time-models.md), branch `feature/clock-time-models`.
+- 완료 작업: [GDJ-0088](../../work/0088-clock-time-models.md), branch `feature/clock-time-models`.
 - Time 값·IR/AST/default·generator·양 DB TIME·Form/Admin·Helpdesk `0009_ticket_service_at`·OpenAPI/client를 연결했다.
   의미와 명시적 Python/Form 경계는 [ADR-0066](../adr/0066-clock-time-field-and-precision-boundaries.md)에 있다.
 - 제품·검증 source: `9f0ffa8aeea143dd0da48789761235004dd4fa59`. 기존 Draft PR #1에 통합하고 push했다.
@@ -61,11 +61,20 @@ Python/SQLite fingerprint는 실행 runtime과 대조하며 구버전의 model 1
 
 현재 로컬 결과는 위 source·환경·범위에 적용한다. Hosted ORM과 전체 platform/cold-build 증거를 대신하지 않는다.
 
-### Hosted ORM 진행 중
+### Hosted ORM 완료
 
-Source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, attempt 1의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35475136652)을 실행했다.
-아직 terminal 결과가 없으며 현재 source의 Hosted PASS로 표시하지 않는다. 최근 완료된 Date ORM과 과거 전체 platform 검증은
-각각의 source에 적용한다. 최종 summary의 실제 scope와 모든 job의 source·attempt·terminal 상태를 확인한다.
+Source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, attempt 1의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35475136652)이 terminal **success**다.
+Run의 head SHA·attempt와 전체 **48개 고유 job / success 44 / scope skip 4**를 확인했다. 필수 job의 실패·누락은 없다.
+최종 `CI result (orm)`의 실제 출력은 다음과 같다.
+
+```json
+{"full_platform_verified":false,"scope":"orm","verified_jobs":["command-product-matrix","portable-go-matrix","postgresql-product","relation-product-matrix"]}
+```
+
+Portable Go, Linux/macOS의 command·relation 제품 normal/race/CGO0, PostgreSQL 17.10 실제 제품을 포함한다.
+Python compatibility, exact darwin/arm64 profile, product project check, references/current captures의 네 job은 ORM 범위 밖으로 skip했다.
+고정 Python reference의 별도 로컬 결과는 위와 같다. 이 ORM success를 새 전체 platform/cold-build 완료로 확장하지 않는다.
+후속 Markdown만 바뀐 commit은 제품 source를 바꾸지 않으며, Duration 작업 사본의 준비 코드는 이 실행에 포함하지 않는다.
 
 ## GDJ-0087 — Calendar Date의 모델·소비자 연결
 

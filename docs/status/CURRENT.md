@@ -1,11 +1,9 @@
 # 현재 상태
 
 - 갱신: 2026-09-20
-- 활성 구현: [GDJ-0088 시간 전용 값의 모델·소비자 연결](../../work/0088-clock-time-models.md)
-- 검증 중: source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, [Time Hosted ORM](https://github.com/progresshans/godj/actions/runs/35475136652)
-- 첫 Hosted 실패와 보완: [TEST_EVIDENCE](TEST_EVIDENCE.md#hosted에서-발견한-dependency-closure와-guard-보완)
-- 최근 완료: [GDJ-0087 Calendar Date의 모델·소비자 연결](../../work/0087-calendar-date-models.md)
-- 최근 Hosted 기능 검증: source `8aa3c477e9ef5cfa733d0a2dea1d33c6d402d3b0`, [Date Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35472148411)
+- 활성 구현: [GDJ-0089 작업 소요 기간의 모델·소비자 연결](../../work/0089-duration-models.md)
+- 최근 완료: [GDJ-0088 시간 전용 값의 모델·소비자 연결](../../work/0088-clock-time-models.md)
+- 최근 Hosted 기능 검증: source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, [Time Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35475136652)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
 - 최신 전체 검증: [Text+DateTime Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35384697050)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -13,10 +11,11 @@
 ## 현재 구현
 
 Schema/Codegen/ORM/Migration, SQLite·PostgreSQL과 Article·Helpdesk의 Web/Form/Admin/API·영속 인증 흐름이 있다.
-일반 signed integer·Text·Date·DateTime을 모델부터 실제 소비자까지 연결했다. DateTime은 UTC microsecond와 명시적 null을 사용하며
+일반 signed integer·Text·Date·Time·DateTime을 모델부터 실제 소비자까지 연결했다. DateTime은 UTC microsecond와 명시적 null을 사용하며
 Form/Admin·RFC3339 JSON/OpenAPI·독립 client까지 구현했다. Scalar typed/dynamic IN과 검증 뒤 빈 조회 SQL 생략도 구현했다.
 Nullable Boolean의 세 상태를 generated pointer·양 DB·Form/Admin·Helpdesk PUT/PATCH·OpenAPI/client까지 연결했다.
 Calendar Date를 별도 Go 값·양 DB DATE·Form/Admin·Helpdesk service_on·PUT/PATCH·OpenAPI/client까지 연결했다.
+Clock Time을 별도 Go 값·양 DB TIME·Form/Admin·Helpdesk service_at·PUT/PATCH·OpenAPI/client까지 연결했다.
 환경별 검증 상태는 아래 현재 작업과 TEST_EVIDENCE를 따른다.
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
@@ -32,11 +31,9 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0087의 Calendar Date·IR·generator·양 DB·Form/Admin·Helpdesk·OpenAPI/client와 해당 로컬·Hosted ORM 검증을 완료했다.
-별도 `feature/clock-time-models`에서 GDJ-0088의 TimeField를 구현한다. 먼저 midnight와 NULL·microsecond·offset 입력 경계를
-독립 Django/DRF 관찰로 고정하고 IR/default·generator·ORM·양 DB TIME·소비자까지 함께 연결한다.
-TimeField의 값·IR·generator·양 DB·소비자 연결과 로컬 affected 일반/race·CGO0·독립 reference/client 검증을 완료했다.
-제품 source를 기존 Draft PR에 통합하고 위 Hosted ORM을 실행했다. 해당 source의 terminal 결과와 실제 범위를 확인한다.
+GDJ-0088의 Time 값·IR·generator·양 DB·소비자 연결과 로컬 affected·Hosted ORM 검증을 완료했다.
+별도 `feature/duration-models`에서 GDJ-0089를 이어간다. 독립 Django/DRF 관찰을 바탕으로 전체 모델 범위와
+각 DB 저장 한도를 구분하고 Duration 값·입력·IR·생성·소비자를 함께 연결한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거
