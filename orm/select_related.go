@@ -110,9 +110,11 @@ func ResolveForwardSelectPath[S any](source BoundModel[S], path string) (Forward
 // forward object handle. It reuses that handle's project snapshot, relation
 // storage, target descriptor, and backend affinity rules.
 type ForwardSelect[S, T any] struct {
-	state        forwardSelectState[S, T]
-	sourceMarker [0]func(S)
-	targetMarker [0]func(T)
+	state            forwardSelectState[S, T]
+	children         []ForwardSelection[T]
+	configurationErr error
+	sourceMarker     [0]func(S)
+	targetMarker     [0]func(T)
 }
 
 type forwardSelectState[S, T any] struct {

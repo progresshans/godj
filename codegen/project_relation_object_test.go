@@ -36,7 +36,7 @@ func TestGenerateProjectRelationObjectIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("project relation object bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"`),
+		[]byte(`const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"`),
 		[]byte(`context "context"`),
 		[]byte(`db "github.com/progresshans/godj/db"`),
 		[]byte(`orm "github.com/progresshans/godj/orm"`),
@@ -45,11 +45,11 @@ func TestGenerateProjectRelationObjectIsCanonicalAndByteLocked(t *testing.T) {
 		[]byte("type BlogPostReviewerObjectRelation struct"),
 		[]byte("func (_relation BlogPostReviewerObjectRelation) IsNull(_value bool) orm.Predicate[blog.Post]"),
 		[]byte("type BlogPostObjectFactory struct"),
-		[]byte("Reviewer BlogPostReviewerObjectRelation"),
+		[]byte("Reviewer           BlogPostReviewerObjectRelation"),
 		[]byte("func (_factory BlogPostObjectFactory) ParseDynamic("),
 		[]byte("func (_factory BlogPostObjectFactory) From(_backend db.Queryer, _value blog.Post) (*BlogPostObject, error)"),
 		[]byte("type BlogPostObject struct"),
-		[]byte("_self    *BlogPostObject"),
+		[]byte("_selectedGraph *orm.ForwardSelected[blog.Post]"),
 		[]byte("func (_object *BlogPostObject) _validate() error"),
 		[]byte("func (_object *BlogPostObject) Model() (blog.Post, error)"),
 		[]byte("func (_object *BlogPostObject) Author(_ctx context.Context) (authors.Author, error)"),

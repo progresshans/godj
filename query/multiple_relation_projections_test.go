@@ -46,7 +46,7 @@ func TestMultipleRelationProjectionsCanonicalizeWithoutAliasing(t *testing.T) {
 	inputs[0] = query.RelationProjection{}
 	columns[0] = name
 	returned := selected.RelationProjections()
-	if len(returned) != 2 || returned[0].Hop().Field() != "author" || returned[1].Hop().Field() != "reviewer" {
+	if len(returned) != 2 || returned[0].TerminalHop().Field() != "author" || returned[1].TerminalHop().Field() != "reviewer" {
 		t.Fatal("canonical ordering lost")
 	}
 	returned[0] = query.RelationProjection{}

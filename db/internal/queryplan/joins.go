@@ -27,6 +27,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		hop       query.RelationHop
 		parent    RelationKey
 		hasParent bool
+		filter    bool
 	}
 	edges := make(map[RelationKey]edge)
 	type declarationKey struct {
@@ -70,7 +71,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		declarations[key] = hop
 		return nil
 	}
-	addPath := func(path query.RelationPath) error {
+	addPath := func(path query.RelationPath, filter bool) error {
 		if err := path.Validate(); err != nil {
 			return err
 		}
@@ -97,7 +98,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			if previous, exists := edges[key]; exists && !previous.hop.Equal(hop) {
 				return invalidPlan("one relation route has conflicting hop metadata")
 			}
-			item := edge{hop: hop, hasParent: index > 0}
+			item := edge{hop: hop, hasParent: index > 0, filter: filter || edges[key].filter}
 			if index > 0 {
 				item.parent = KeyForPath(hops[:index])
 			}
@@ -110,7 +111,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			if err := RelationCondition(plan, condition, path, backendName); err != nil {
 				return Joins{}, err
 			}
-			if err := addPath(path); err != nil {
+			if err := addPath(path, true); err != nil {
 				return Joins{}, err
 			}
 		}
@@ -119,11 +120,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		if _, err := RelationProjection(plan, projection, backendName); err != nil {
 			return Joins{}, err
 		}
-		path, err := query.NewForwardRelationChain([]query.RelationHop{projection.Hop()}, projection.TargetColumns()[0], query.RelationTerminalRelatedField)
-		if err != nil {
-			return Joins{}, err
-		}
-		if err = addPath(path); err != nil {
+		if err := addPath(projection.Path(), false); err != nil {
 			return Joins{}, err
 		}
 	}
@@ -154,7 +151,13 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			}
 			fromAlias = parent.Alias
 			parentOuter = parent.LeftOuter
-			optional = optional || optionalRoutes[item.parent]
+			// Filter branches retain their declared optional ancestry under OR.
+			// A selection-only edge is introduced after filtering: a required
+			// child of a proven-present parent can use an INNER JOIN. The
+			// final parentOuter check still propagates an absent ancestor.
+			if item.filter {
+				optional = optional || optionalRoutes[item.parent]
+			}
 		}
 		optionalRoutes[key] = optional
 		joined := Join{Table: hop.TargetTable(), FromAlias: fromAlias, FromColumn: hop.SourceColumn(), Column: hop.TargetPrimaryKeyColumn(), Alias: fmt.Sprintf("t%d", index+1), LeftOuter: hop.Direction() == query.RelationForward && (parentOuter || optional && !required[key])}

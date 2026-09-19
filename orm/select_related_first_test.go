@@ -42,7 +42,7 @@ func TestForwardSelectFirstBoundsScanPreservesPlanAndAllCache(t *testing.T) {
 	if projected {
 		projection = projectionProjections[0]
 	}
-	if limit != 1 || offset != 2 || !plan.Distinct() || !projected || projection.Hop().Field() != "author" || len(plan.Orderings()) != 1 {
+	if limit != 1 || offset != 2 || !plan.Distinct() || !projected || projection.TerminalHop().Field() != "author" || len(plan.Orderings()) != 1 {
 		t.Fatalf("First lost source plan: %+v", plan)
 	}
 	if _, ready := eager.evaluation.cachedValues(); ready {

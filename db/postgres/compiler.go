@@ -641,7 +641,7 @@ func compileRelation(
 		statement.WriteString(qualified)
 	}
 	for _, projection := range plan.RelationProjections() {
-		alias := joins[queryplan.KeyForRelation(projection.Hop())].Alias
+		alias := joins[queryplan.KeyForPath(projection.Path().Hops())].Alias
 		for _, column := range projection.TargetColumns() {
 			statement.WriteString(", ")
 			qualified, err := quoteQualified(alias, column.Column())

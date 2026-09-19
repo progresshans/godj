@@ -345,7 +345,7 @@ func validateEagerTrace(records, accessRecords []recordedQuery, field string, nu
 	if ok {
 		projection = projectionProjections[0]
 	}
-	if !ok || projection.Hop().Field() != field || projection.Hop().Nullable() != nullable {
+	if !ok || projection.TerminalHop().Field() != field || projection.TerminalHop().Nullable() != nullable {
 		return fmt.Errorf("select-related %s trace has wrong or missing canonical projection", field)
 	}
 	wantJoin := " INNER JOIN "

@@ -118,7 +118,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 			if ok {
 				projection = projectionProjections[0]
 			}
-			if !ok || projection.Hop().Field() != "author" || projection.Hop().Nullable() {
+			if !ok || projection.TerminalHop().Field() != "author" || projection.TerminalHop().Nullable() {
 				t.Fatalf("eager plan projection = (%#v, %v)", projection, ok)
 			}
 			return &selectRelatedRows{values: []selectRelatedJoinedValue{
@@ -243,7 +243,7 @@ func TestForwardSelectNullablePublishesAbsentAndPresentReadyObjects(t *testing.T
 		if ok {
 			projection = projectionProjections[0]
 		}
-		if !ok || !projection.Hop().Nullable() || projection.Hop().Field() != "reviewer" {
+		if !ok || !projection.TerminalHop().Nullable() || projection.TerminalHop().Field() != "reviewer" {
 			t.Fatalf("nullable projection = (%#v, %v)", projection, ok)
 		}
 		return rows, nil

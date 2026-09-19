@@ -20,6 +20,35 @@
 ## 상태와 범위
 
 
+2026-09-19 GDJ-0083은 명시적 nested forward selection을 같은 runtime으로 확장한다. 설계와 구현의 검증 상태는
+[작업](../../work/0083-nested-forward-eager-graphs.md)과 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.
+
+- Projection identity는 root부터의 전체 FK 경로다. 모든 parent prefix를 포함하며, 같은 prefix는 metadata 일치 후 합친다.
+  Parent 먼저, 같은 부모 아래는 FK 이름 순서로 정렬한다. 같은 model·물리 FK를 다시 지나는 유한 self 경로도 occurrence마다 구분한다.
+- `ForwardSelect[S,T].WithChildren(...ForwardSelection[T])`는 중간 Go type을 고정한다. 준비 시 sealed project snapshot과
+  descriptor까지 대조한다. 깊이는 64, 중복을 포함한 입력 node 수는 1024이며 병합 전에 한계를 검사한다.
+- Typed scan은 한 행의 source·전체 descendant destinations를 합쳐 한 번만 `Rows.Scan`한다. 부모 FK와 자식 PK,
+  nullable absence와 모든 필수 열을 확인한다. 없는 ancestor 아래 present/partial descendant는 오류다. Close·취소·전체
+  무결성 검사 전에는 행이나 cache를 반환하지 않는다.
+- Generated facade는 `Related.Author.WithChildren(...)`와 `SelectRelatedPaths("author__team__organization")`를 제공한다.
+  Object builder의 `WithAuthor(children...)`·`WithSelections(...)`·`ParseDynamic(paths...)`도 같은 factory selector와 core를 사용한다.
+  `AuthorObject(ctx)`처럼 target object를 반환하는 경로는 이미 선택한 descendant graph를 넘긴다. 경로 조합마다 Go type을 만들지 않는다.
+- `RelatedObject.SelectedGraph(ctx)`는 이미 읽은 하위 선택의 독립 복제만 반환하며 lazy SQL을 실행하지 않는다.
+  `FromSelected`는 source binding과 backend affinity를 검사한다. Factory의 recursive dispatch는 원래 sealed aggregate를
+  사용하므로 반환된 aggregate 필드를 바꿔 이미 만들어진 다른 factory의 의미를 교체할 수 없다. Facade selector는 정확한
+  facade origin도 대조하여 동일 backend를 쓰는 다른 `Using` 결과를 혼합하지 않는다.
+- 서로 다른 행·terminal 반환의 전체 tree는 독립 소유한다. 한 facade 객체 안의 반복 관계 접근은 기존 target pointer identity를
+  유지한다. Facade 반환 전에 선택한 하위 cache도 준비하여, FK를 바꿀 때 아직 접근하지 않은 형제의 선택을 잃지 않는다.
+  `Fresh`는 해당 cache를 버리고 FK 변경은 바뀐 관계의 하위 cache도 무효화한다. 임의 순환 object identity 공유는 하지 않는다.
+- Filter와 selection은 같은 JOIN inventory를 쓴다. OR filter 경로의 nullable ancestry는 유지한다. Filter에 없던 selected edge는
+  필터 적용 뒤 부모의 최종 presence를 따르므로, 부모가 INNER로 확정된 뒤의 필수 child는 INNER로 연결한다.
+- Count는 전체 selection의 구조·binding을 검증한 뒤 projection을 제거한다. 실제 scan 무결성이나 projection 전용 JOIN의 DB 물리
+  한계를 검사하는 terminal은 아니다. 예를 들어 깊이 64의 유효한 선택도 SQLite All의 63 JOIN 한계에는 걸릴 수 있다.
+- 독립 Django 6.1의 [440개 관찰](../../conformance/runners/django/nested_eager_reference.py)은 8개 경로 집합의 전체 prefix 값,
+  Boolean/filter JOIN·reverse 중복·Distinct/slice와 cold/warm Count·First·All을 비교한다. Reverse/ManyToMany eager,
+  무인자 자동 선택과 일반 self/cyclic migration은 후속 범위다.
+
+
 2026-09-19 GDJ-0081은 여러 direct forward target의 동시 선택으로 확장한다. 단일 target도 같은 실행 경로를 사용한다.
 
 - Plan은 FK 선언 이름으로 정렬한 immutable `RelationProjections`를 보관한다. 동일 선택의 반복은 모든 metadata를 대조한 뒤

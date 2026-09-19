@@ -47,8 +47,11 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 - Eager First는 cold query에서 최대 한 row를 읽고 All cache를 채우지 않는다. Warm All cache의 첫 결과도 독립 복제하며,
   관계 검증과 row close가 끝나기 전에는 결과를 반환하지 않는다. 기존 QuerySet.First처럼 명시적 정렬을 요구한다.
 - Relation assignment는 FK 값과 cache를 함께 reconcile한다. Application memory를 DB rollback으로 자동 되돌리지 않는다.
-- 복수 selection의 immutable 목록은 caller slice와 분리한다. 각 target adapter는 구체 Go type을 유지하고 모든 target 검증 뒤 함께 게시한다.
-  같은 target PK를 가리키는 서로 다른 FK의 ready cache도 독립 소유한다.
+- 복수·중첩 selection의 immutable tree는 caller slice와 분리한다. 각 target adapter는 구체 Go type을 유지하고 source와 모든
+  descendant를 한 번에 scan한다. 없는 ancestor 아래의 present/partial child도 오류로 처리하며 전체 검증 뒤 함께 게시한다.
+  같은 target PK를 가리키는 다른 FK·행·terminal 반환의 하위 cache는 독립 소유한다. 한 facade 객체 안의 반복 접근은 기존
+  relation target identity를 유지한다. `SelectedGraph`는 보유한 subtree의 독립 복제만 반환하고 lazy I/O를 일으키지 않는다.
+  관련 작업의 검증 상태는 [GDJ-0083](../work/0083-nested-forward-eager-graphs.md)을 따른다.
 - Eager materialization의 각 target source plan은 한 번 준비해 공유한다. 각 행의 key predicate와 ready cache는 독립적으로 만든다.
 - Lazy/reverse 기본 plan도 project binding이 준비한다. Prefetch의 함수 내부 그룹은 `All`의 소유 model을 빌리고,
   storage callback 입력과 각 owner의 cache를 각각 복제한다. 중복 owner 사이에도 mutable model을 공유하지 않는다.

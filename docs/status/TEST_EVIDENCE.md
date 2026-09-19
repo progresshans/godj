@@ -3,6 +3,70 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0083 — Nested eager graph와 하위 cache
+
+- 작업: [GDJ-0083](../../work/0083-nested-forward-eager-graphs.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위).
+- Baseline은 GDJ-0082 통합 source `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`다.
+  별도 `feature/nested-forward-eager` 작업 사본에서 구현·로컬 검증을 마쳤고 기존 Draft PR 통합과 Hosted ORM 검증을 이어간다.
+- Python 3.14.7, Django 6.1, asgiref 3.12.1, sqlparse 0.5.5의 fresh process로
+  [runner](../../conformance/runners/django/nested_eager_reference.py)의 **440개 관찰**을 수집했다.
+  [fixture](../../orm/testdata/nested-eager-django61.json) SHA256:
+  `eb638880bfaeffd4c51d1e2a57bb0270e12d5d57e2068efa648f26745b96a782`.
+- `uv run --no-project --isolated --python 3.14.7 --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5
+  python -m unittest conformance.runners.django.tests.test_nested_eager_reference`: 최종 재생 **1 test PASS, skip 0**.
+  이름 440개·selection 집합 8개, 모든 selected prefix의 전체 scalar 값, cold/warm Count/First/All·warm SQL 0을 대조한다.
+  독립 reference는 Django SQLite이며 Django PostgreSQL 실행 증거로 확대하지 않는다.
+
+### 로컬 실행과 source
+
+Go 1.26.5 darwin/arm64, 실제 SQLite와 전용 PostgreSQL 17.5(Homebrew)에서 같은 43 package 목록을 실행했다.
+패키지 이름 목록, 전체 JSON의 시작·종료·실패·skip과 필수 case를 대조했다. Test completion event 수는 제품 기능 수가 아니다.
+
+| 범위 | 결과 |
+|---|---|
+| affected normal | **28 test packages, 6,032 PASS events**, 15 no-test packages |
+| affected CGO_ENABLED=0 | **28 test packages, 6,032 PASS events**, normal과 같은 test roster |
+| affected race | **28 test packages, 5,982 PASS events**, 나머지 roster는 normal과 동일 |
+| 전체 compile-only | **134 packages PASS** (`go test -exec /usr/bin/true ./...`); 전체 runtime 실행을 뜻하지 않음 |
+| affected vet / generated drift | PASS / Helpdesk·Article·relationfixture 세 프로젝트 PASS |
+| Python CI 도구 | **37 tests PASS, skip 0**; 새 필수 receipt 7개를 실제 normal 완료 event와 대조 |
+| 문서·format·diff | 로컬 링크 114개 문서 검사, 변경 Go gofmt drift 없음, `git diff --check` PASS |
+
+세 Go lane은 **89개 변경 제품·검증 파일의 동일 SHA256 manifest**로 묶었다. Manifest SHA256:
+`0d1406ef181fe092a655b821369eb783c83b3df06a3e3b9ecddd8ff01a0c700a`.
+이후 CI 필수 receipt 등록 두 파일은 별도로 검증했다. 현재 non-document 변경은 이 89개와 CI 두 파일뿐이며 각각 현재 bytes를 대조했다.
+Race에서 제외된 50 events는 기존 `internal/compiletest`의 `!race` 7개 top-level test와 하위 case로, normal·CGO0가 실행한다.
+세 lane의 유일한 직접 skip은 `TestPostgresRevisionFenceHelperProcess`다. 실제 자식 process는 해당 parent integration tests가 실행하며
+이 helper skip 자체를 기능 PASS로 세지 않는다. 생성 소비자의 child race 모드·전체 종료·필수 흐름·출력 잘림도 기존 strict harness가 검사한다.
+전용 `godj_0083_normal`·`godj_0083_cgo0` DB는 검증 후 제거했다.
+
+### 기능과 실패 검증
+
+- 양 DB에서 440개 관찰의 전체 source·target 값, Count/First/All, 실제 조회 수와 LEFT JOIN 수를 비교했다.
+  별도 generated SQLite module은 같은 440개를 facade typed/dynamic와 object-builder typed/dynamic 네 경로로 실행하고
+  전체 하위 graph 접근의 추가 SQL 0·warm 반복·취소를 검사한다. Filter 입력의 별도 typed parity는 기존 GDJ-0082 회귀가 소유한다.
+- 공통 prefix의 병합·부모 우선 정렬·불변 복사·유한 self-cycle occurrence를 확인했다. Raw AST source/filter metadata 충돌
+  **12개씩**을 양 DB에서 일반·LIMIT 0 입력으로 pre-I/O 거부한다. SQLite의 63 selected JOIN은 실제 scan하고 64 JOIN은
+  일반·빈 조회에서 SQL 전에 거부한다. Typed tree의 깊이 64/65와 입력 node 1024/1025 경계도 검사한다.
+- 실제 generated scanner와 DB Rows에 scan/iteration/close 오류·취소·child PK 불일치·필수 child absence·partial child·
+  없는 ancestor 아래 present/partial child를 주입한다. All/First가 부분 결과를 반환하지 않고 rowset을 한 번 닫으며,
+  같은 query의 재시도와 이후 warm graph 접근이 성공함을 확인했다.
+- 서로 다른 행·반환·동시 caller의 전체 graph 복제, 12개 동시 All의 SQL 1회, snapshot/Fresh/파생 query,
+  선택하지 않은 하위 관계의 lazy cache·backend affinity, NULL/FK assignment와 바뀌지 않은 형제 cache를 확인했다.
+  FK 직접 변경과 `With...ID` 모두에서 아직 접근하지 않은 형제 선택도 보존한다.
+- `SelectedGraph`의 no-I/O·context·Fresh·absent 의미, `FromSelected`의 복사 객체·foreign binding 거부,
+  다른 facade origin의 root/child selector 거부, 잘못된 중간 Go type의 compile 실패와 최초 configuration cause 보존을 검사했다.
+  기존 stale generated handle·forged selector 음성 검증도 새 공통 factory selector 경로에 맞춰 유지했다.
+
+초기 checkpoint는 통과로 세지 않았다. Selection-only 필수 child가 proven-present parent 아래에서 불필요하게 LEFT JOIN을 유지하던
+경로를 수정했고, filter OR 경로의 기존 optional ancestry는 보존했다. 생성물·golden·폐쇄 selector 음성 fixture와 저장용 모델의
+PK-presence를 잃던 테스트도 정리했다. 추가 검토에서 찾은 미접근 형제 cache 유실은 수정 전 생성 코드에서 두 assignment 방식의
+실패를 재현한 뒤, 반환 전 하위 facade cache 준비로 해결했다. 정상 결과만으로 완료 처리하지 않고 최종 source의 세 lane을 대조했다.
+
+현재 source의 Hosted ORM은 아직 pending이다. 새 full/platform·Windows runtime·배포 검증과 전체 프레임워크 완성은 이 기록에 포함하지 않는다.
+Reverse/ManyToMany eager·무인자 자동 선택·일반 self/cyclic migration과 임의 cycle identity 공유는 후속 요구다.
+Query 소비자는 명시적 FK-enforced DDL 뒤 generated Create/Save를 사용하며 cyclic migration 지원 증거로 확대하지 않는다.
+
 ## GDJ-0082 — Nested forward 경로의 독립 관찰
 
 - 작업: [GDJ-0082](../../work/0082-nested-forward-relation-paths.md), 의미: [ADR-0023](../adr/0023-symbolic-relation-binding-and-shared-relation-ast.md#상태와-범위).
@@ -34,7 +98,7 @@
   terminal을 대조했다. 유일한 testcase skip은 부모가 별도 프로세스로 실행하는 `TestPostgresRevisionFenceHelperProcess`다.
 - Race도 **28 test packages, 5,068 test 완료 event PASS**다. Normal/CGO0가 실행한 `internal/compiletest`의
   `!race` 최상위 7개·하위 포함 50개 event를 제외한 test roster가 일치한다. 세 lane의 제품 source manifest가 같다.
-  이 source의 Hosted ORM은 다음 통합 단계이며 현재 결과를 Hosted/전체 platform PASS로 표시하지 않는다.
+  이 source의 Hosted ORM 완료는 아래 통합 checkpoint에 별도로 기록한다. 전체 platform PASS로 확대하지 않는다.
 - 양 DB에서 **146개 독립 관찰**의 All·First·Count·selected target field 값·SELECT 수·LEFT JOIN 수를 대조했다.
   Nullable ancestor 아래 required tail, self-cycle·공유 prefix·서로 다른 route, DateTime/정수/문자열/Boolean·IN·AND/OR/NOT,
   reverse 중복·Distinct·slice·direct eager 조합을 포함한다.
@@ -63,7 +127,16 @@ structured error 기대값을 바로잡았다. 없어진 per-edge query 타입�
 Feature `3cfecb9`를 기존 Draft PR #1에 통합한 source는 `3ab0a7dd97d6a29c56b7f75f07b7533a44e9bfc0`다.
 제품 91개 파일이 로컬 검증 manifest와 일치함을 확인했다. 두 문서 충돌은 이미 반영한 GDJ-0081 Hosted 완료와
 새 구현 상태를 유지하여 해결했다. [Hosted ORM run 35421304637](https://github.com/progresshans/godj/actions/runs/35421304637)의
-`headSha`가 이 source와 같음을 확인했으며 현재 queued다. 완료·전체 platform PASS로 표시하지 않는다.
+48개 unique job의 `head_sha`·run ID·attempt 1·terminal 상태를 대조했다. **44 success, 4 expected scope skip**으로 완료했으며
+최종 `CI result (orm)` job `105841846273`의 보고서는 다음과 같다.
+
+```json
+{"full_platform_verified":false,"scope":"orm","verified_jobs":["command-product-matrix","portable-go-matrix","postgresql-product","relation-product-matrix"]}
+```
+
+PostgreSQL 17.10 여섯 mode/shard와 선택된 Linux/macOS를 검증했다. 제외 항목은 product project check,
+exact Darwin profile, Python compatibility, reference/current capture다. 최신 full은 별도 source `8fd8936d`의
+run `35384697050`이며, 이 source의 full·Windows runtime·배포 결과로 사용하지 않는다.
 
 ## GDJ-0081 — 여러 direct forward target 동시 선택
 

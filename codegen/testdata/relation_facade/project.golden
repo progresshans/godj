@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v6"
-const GoDjProjectRelationFacadeInputSHA256 = "83519eca96cbc3954418f7d0c4e78a5d6d1a97c9125a63f02b60158e578fe122"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v7"
+const GoDjProjectRelationFacadeInputSHA256 = "3040114479a988db838718f4469b7b752f6ebd6838cea9f82eaaf86181edb04d"
 
 type Backend interface {
 	db.Queryer
@@ -68,6 +68,37 @@ func relationFacadePrimaryKeyUpdate(_field string) error {
 	return &query.Error{Category: query.CategoryModelState, Code: query.CodePrimaryKeyUpdateField, Field: _field, Detail: "promoted primary key changed after generated wrapper construction"}
 }
 
+type relationFacadeSelectionInput[S any] interface {
+	relationFacadeSelectionOwner() *relationFacadeState
+	relationFacadeSelectionValue() orm.ForwardSelection[S]
+}
+type relationFacadeSelection[S, T any] struct {
+	state     *relationFacadeState
+	selection orm.ForwardSelect[S, T]
+}
+
+func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionOwner() *relationFacadeState {
+	return _selector.state
+}
+func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionValue() orm.ForwardSelection[S] {
+	return _selector.selection
+}
+func (_selector relationFacadeSelection[S, T]) WithChildren(_children ...relationFacadeSelectionInput[T]) relationFacadeSelection[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.ForwardSelection[T], 0, len(_children))
+	for _, _child := range _children {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs = append(_inputs, _child.relationFacadeSelectionValue())
+	}
+	_selector.selection = _selector.selection.WithChildren(_inputs...)
+	return _selector
+}
 func relationFacadeUnsavedRelated(_field string) error {
 	return &query.Error{Category: query.CategoryModelState, Code: query.CodeUnsavedRelatedObject, Field: _field, Detail: "save prohibited because the assigned related object has no primary key"}
 }
@@ -303,8 +334,12 @@ type BlogPostQuery struct {
 func newBlogPostQuery(_state *relationFacadeState, _query orm.QuerySet[blog.Post]) BlogPostQuery {
 	_result := BlogPostQuery{state: _state, query: _query}
 	_result.Related = BlogPostRelationSelectors{
-		Author:   blogPostRelationSelector{state: _state, kind: 1},
-		Reviewer: blogPostRelationSelector{state: _state, kind: 2},
+		Author:   relationFacadeSelection[blog.Post, authors.Author]{state: _state},
+		Reviewer: relationFacadeSelection[blog.Post, authors.Author]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Author.selection = _state.objects.BlogPost.SelectAuthor()
+		_result.Related.Reviewer.selection = _state.objects.BlogPost.SelectReviewer()
 	}
 	return _result
 }
@@ -1004,82 +1039,64 @@ func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, er
 	return _wrapped, true, nil
 }
 
-type BlogPostRelationSelector interface {
-	godjBlogPostRelationSelector()
-}
-
-type blogPostRelationSelector struct {
-	state *relationFacadeState
-	kind  int
-}
-
-func (blogPostRelationSelector) godjBlogPostRelationSelector() {}
-
+type BlogPostRelationSelector = relationFacadeSelectionInput[blog.Post]
 type BlogPostRelationSelectors struct {
-	Author   BlogPostRelationSelector
-	Reviewer BlogPostRelationSelector
+	Author   relationFacadeSelection[blog.Post, authors.Author]
+	Reviewer relationFacadeSelection[blog.Post, authors.Author]
 }
 
 func (_query BlogPostQuery) SelectRelated(_selectors ...BlogPostRelationSelector) BlogPostEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	if len(_selectors) == 0 {
-		return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("select-related requires at least one selector")}
-	}
-	_kinds := make([]int, 0, len(_selectors))
-	for _, _candidate := range _selectors {
-		if relationFacadeNil(_candidate) {
-			return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector is nil")}
-		}
-		_selector, _ok := _candidate.(blogPostRelationSelector)
-		if !_ok || _selector.state != _query.state {
+	_inputs := make([]orm.ForwardSelection[blog.Post], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
 			return BlogPostEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
 		}
-		_kinds = append(_kinds, _selector.kind)
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
 	}
-	return _query.state.newBlogPostEagerQuery(_query.query, _kinds)
+	return _query.state.newBlogPostEagerQuery(_query.query, _inputs)
+}
+func (_query BlogPostQuery) SelectRelatedPaths(_paths ...string) (BlogPostEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.BlogPost.selectionInputs(_paths)
+	if _err != nil {
+		return BlogPostEagerQuery{}, _err
+	}
+	_result := _query.state.newBlogPostEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return BlogPostEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
 }
 
 type BlogPostEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[blog.Post]
-	kinds            []int
+	selections       []orm.ForwardSelection[blog.Post]
 	projection       relationSelectQuery[BlogPostObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newBlogPostEagerQuery(_source orm.QuerySet[blog.Post], _kinds []int) BlogPostEagerQuery {
+func (_state *relationFacadeState) newBlogPostEagerQuery(_source orm.QuerySet[blog.Post], _selections []orm.ForwardSelection[blog.Post]) BlogPostEagerQuery {
 	_result := BlogPostEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
 		return _result
 	}
-	_requested := make(map[int]bool, len(_kinds))
-	for _, _kind := range _kinds {
-		if _kind < 1 || _kind > 2 {
-			_result.configurationErr = relationFacadeQueryInvalid("relation selector is zero or corrupt")
-			return _result
-		}
-		_requested[_kind] = true
-	}
-	if len(_requested) == 0 {
+	if len(_selections) == 0 {
 		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
 		return _result
 	}
-	_projection := _state.objects.BlogPost.SelectRelated(_source)
-	if _requested[1] {
-		_result.kinds = append(_result.kinds, 1)
-		_projection = _projection.WithAuthor()
-	}
-	if _requested[2] {
-		_result.kinds = append(_result.kinds, 2)
-		_projection = _projection.WithReviewer()
-	}
+	_result.selections = append([]orm.ForwardSelection[blog.Post](nil), _selections...)
+	_projection := _state.objects.BlogPost.SelectRelated(_source).WithSelections(_result.selections...)
 	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
 	return _result
 }
-
 func (_query BlogPostEagerQuery) validate() error {
 	if _query.configurationErr != nil {
 		return _query.configurationErr
@@ -1087,73 +1104,59 @@ func (_query BlogPostEagerQuery) validate() error {
 	if _err := _query.state.validate(); _err != nil {
 		return _err
 	}
-	if len(_query.kinds) == 0 || _query.projection == nil {
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
 		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
-	}
-	_previous := 0
-	for _, _kind := range _query.kinds {
-		if _kind <= _previous || _kind > 2 {
-			return relationFacadeQueryInvalid("selected relation inventory is zero or corrupt")
-		}
-		_previous = _kind
 	}
 	return nil
 }
-
-func (_query BlogPostEagerQuery) Filter(_predicates ...orm.Predicate[blog.Post]) BlogPostEagerQuery {
+func (_query BlogPostEagerQuery) Filter(_values ...orm.Predicate[blog.Post]) BlogPostEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.Filter(_predicates...), _query.kinds)
+	return _query.state.newBlogPostEagerQuery(_query.source.Filter(_values...), _query.selections)
 }
-
-func (_query BlogPostEagerQuery) OrderBy(_orderings ...orm.Ordering[blog.Post]) BlogPostEagerQuery {
+func (_query BlogPostEagerQuery) OrderBy(_values ...orm.Ordering[blog.Post]) BlogPostEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.OrderBy(_orderings...), _query.kinds)
+	return _query.state.newBlogPostEagerQuery(_query.source.OrderBy(_values...), _query.selections)
 }
-
 func (_query BlogPostEagerQuery) Distinct() BlogPostEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.Distinct(), _query.kinds)
+	return _query.state.newBlogPostEagerQuery(_query.source.Distinct(), _query.selections)
 }
-
 func (_query BlogPostEagerQuery) Fresh() BlogPostEagerQuery {
 	if _err := _query.validate(); _err != nil {
 		_query.configurationErr = _err
 		return _query
 	}
-	return _query.state.newBlogPostEagerQuery(_query.source.Fresh(), _query.kinds)
+	return _query.state.newBlogPostEagerQuery(_query.source.Fresh(), _query.selections)
 }
-
-func (_query BlogPostEagerQuery) Limit(_limit int) (BlogPostEagerQuery, error) {
+func (_query BlogPostEagerQuery) Limit(_value int) (BlogPostEagerQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return BlogPostEagerQuery{}, _err
 	}
-	_derived, _err := _query.source.Limit(_limit)
+	_source, _err := _query.source.Limit(_value)
 	if _err != nil {
 		return BlogPostEagerQuery{}, _err
 	}
-	return _query.state.newBlogPostEagerQuery(_derived, _query.kinds), nil
+	return _query.state.newBlogPostEagerQuery(_source, _query.selections), nil
 }
-
-func (_query BlogPostEagerQuery) Offset(_offset int) (BlogPostEagerQuery, error) {
+func (_query BlogPostEagerQuery) Offset(_value int) (BlogPostEagerQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return BlogPostEagerQuery{}, _err
 	}
-	_derived, _err := _query.source.Offset(_offset)
+	_source, _err := _query.source.Offset(_value)
 	if _err != nil {
 		return BlogPostEagerQuery{}, _err
 	}
-	return _query.state.newBlogPostEagerQuery(_derived, _query.kinds), nil
+	return _query.state.newBlogPostEagerQuery(_source, _query.selections), nil
 }
-
 func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, _err
@@ -1163,15 +1166,17 @@ func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error) 
 		return nil, _err
 	}
 	_results := make([]*BlogPost, len(_objects))
-	for _index := range _objects {
-		_results[_index], _err = _query.wrap(_ctx, _objects[_index])
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedBlogPostObject(_ctx, _object)
 		if _err != nil {
 			return nil, _err
 		}
 	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
 	return _results, nil
 }
-
 func (_query BlogPostEagerQuery) First(_ctx context.Context) (*BlogPost, bool, error) {
 	if _err := _query.validate(); _err != nil {
 		return nil, false, _err
@@ -1180,15 +1185,11 @@ func (_query BlogPostEagerQuery) First(_ctx context.Context) (*BlogPost, bool, e
 	if _err != nil || !_found {
 		return nil, false, _err
 	}
-	_wrapped, _err := _query.wrap(_ctx, _object)
+	_wrapped, _err := _query.state.wrapSelectedBlogPostObject(_ctx, _object)
 	return _wrapped, _err == nil, _err
 }
-
 func (_query BlogPostEagerQuery) Count(_ctx context.Context) (int64, error) {
-	if relationFacadeNil(_ctx) {
-		return 0, relationFacadeQueryInvalid("context is nil")
-	}
-	if _err := _ctx.Err(); _err != nil {
+	if _err := relationFacadeContext(_ctx); _err != nil {
 		return 0, _err
 	}
 	if _err := _query.validate(); _err != nil {
@@ -1196,22 +1197,32 @@ func (_query BlogPostEagerQuery) Count(_ctx context.Context) (int64, error) {
 	}
 	return _query.projection.Count(_ctx)
 }
-
-func (_query BlogPostEagerQuery) wrap(_ctx context.Context, _object *BlogPostObject) (*BlogPost, error) {
-	_wrapped, _err := _query.state.wrapBlogPostObject(_object)
+func (_state *relationFacadeState) wrapSelectedBlogPostObject(_ctx context.Context, _object *BlogPostObject) (*BlogPost, error) {
+	_wrapped, _err := _state.wrapBlogPostObject(_object)
 	if _err != nil {
 		return nil, _err
 	}
-	for _, _kind := range _query.kinds {
-		switch _kind {
-		case 1:
-			_, _err = _wrapped.Author(_ctx)
-		case 2:
-			_, _, _err = _wrapped.Reviewer(_ctx)
-		}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("author"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _err = _wrapped.Author(_ctx)
 		if _err != nil {
 			return nil, _err
 		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("reviewer"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Reviewer(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
 	}
 	return _wrapped, nil
 }

@@ -20,3 +20,8 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedEagerJoinConsumer
 github.com/progresshans/godj/db/sqlite|TestSQLiteEagerFilterJoinCompositionMatchDjango
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedMultipleEagerConsumer
 github.com/progresshans/godj/db/sqlite|TestSQLiteMultipleEagerSelectionsMatchDjango
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedNestedForwardConsumer
+github.com/progresshans/godj/db/sqlite|TestSQLiteNestedForwardPathsMatchDjango
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedNestedEagerConsumer
+github.com/progresshans/godj/db/sqlite|TestSQLiteNestedEagerGraphsMatchDjango
+github.com/progresshans/godj/db/sqlite|TestSQLiteNestedEagerProjectionJoinBudget

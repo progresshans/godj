@@ -324,7 +324,7 @@ func nestedRows(ctx context.Context, backend db.Queryer, plan query.Plan) ([]Nes
 		}
 		row := NestedRow{ID: id, Targets: make(map[string]*NestedTarget, len(cells))}
 		for i, c := range cells {
-			name := projections[i].Hop().Field()
+			name := projections[i].TerminalHop().Field()
 			if !c.id.Valid {
 				if c.name.Valid || c.points.Valid || c.team.Valid || c.backup.Valid || c.manager.Valid {
 					err = fmt.Errorf("partial absent target %s", name)

@@ -1069,7 +1069,7 @@ func TestProjectRelationFacadeEagerDerivationPreservesSourceAndCache(t *testing.
 	hasProjection := len(projectionProjections) == 1
 	var projection query.RelationProjection
 	if hasProjection { projection = projectionProjections[0] }
-	if !hasOffset || offset != 1 || !hasLimit || limit != 2 || !backend.plan.Distinct() || !hasProjection || projection.Hop().Field() != "reviewer" {
+	if !hasOffset || offset != 1 || !hasLimit || limit != 2 || !backend.plan.Distinct() || !hasProjection || projection.TerminalHop().Field() != "reviewer" {
 		t.Fatalf("derived eager plan lost pagination/distinct/relation: %%#v", backend.plan)
 	}
 	if _, err := source.All(ctx); err != nil || backend.queries != 2 { t.Fatalf("source cache changed: %%v queries=%%d", err, backend.queries) }
@@ -1177,13 +1177,13 @@ func TestGeneratedFacadeInvalidStates(t *testing.T) {
 	var nilSelector BlogPostRelationSelector
 	_, err = models.BlogPost.SelectRelated(nilSelector).All(context.Background())
 	assertFacadeError(t, err, query.CategoryQuery)
-	var typedNilSelector *blogPostRelationSelector
+	var typedNilSelector *relationFacadeSelection[blog.Post, authors.Author]
 	_, err = models.BlogPost.SelectRelated(typedNilSelector).All(context.Background())
 	assertFacadeError(t, err, query.CategoryQuery)
-	zeroSelector := blogPostRelationSelector{}
+	zeroSelector := relationFacadeSelection[blog.Post, authors.Author]{}
 	_, err = models.BlogPost.SelectRelated(zeroSelector).All(context.Background())
 	assertFacadeError(t, err, query.CategoryQuery)
-	corruptSelector := blogPostRelationSelector{state: models.BlogPost.state}
+	corruptSelector := relationFacadeSelection[blog.Post, authors.Author]{state: models.BlogPost.state}
 	_, err = models.BlogPost.SelectRelated(corruptSelector).All(context.Background())
 	assertFacadeError(t, err, query.CategoryQuery)
 

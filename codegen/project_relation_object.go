@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"
+const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
 
 type RelationObjectPackage struct {
 	Alias      string
@@ -223,6 +223,7 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	}
 
 	fmt.Fprintf(output, "type %s struct {\n", source.factoryType)
+	fmt.Fprintln(output, "\t_projectSelections *Objects")
 	for _, relation := range source.relations {
 		if relation.field.Nullable {
 			fmt.Fprintf(output, "\t%s %s\n", relation.selector, relation.typeName)
@@ -268,6 +269,7 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	fmt.Fprintln(output)
 
 	fmt.Fprintf(output, "type %s struct {\n", source.objectType)
+	fmt.Fprintf(output, "\t_selectedGraph *orm.ForwardSelected[%s]\n", sourceType)
 	fmt.Fprintf(output, "\tmodel %s\n", sourceType)
 	fmt.Fprintf(output, "\tfactory %s\n", source.factoryType)
 	fmt.Fprintln(output, "\tbackend db.Queryer")
@@ -384,7 +386,7 @@ func renderBindObjects(
 		fmt.Fprintln(output, "}")
 		return
 	}
-	fmt.Fprintln(output, "\treturn Objects{")
+	fmt.Fprintln(output, "\t_objects:=Objects{")
 	for _, source := range sources {
 		fmt.Fprintf(output, "\t\t%s: %s{\n", source.surface, source.factoryType)
 		for _, relation := range source.relations {
@@ -398,6 +400,10 @@ func renderBindObjects(
 		}
 		fmt.Fprintln(output, "\t\t},")
 	}
-	fmt.Fprintln(output, "\t}, nil")
+	fmt.Fprintln(output, "\t}")
+	for _, source := range sources {
+		fmt.Fprintf(output, "\t_objects.%s._projectSelections=&_objects\n", source.surface)
+	}
+	fmt.Fprintln(output, "\treturn _objects,nil")
 	fmt.Fprintln(output, "}")
 }

@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v2"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
 
 type BlogPostReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[blog.Post, authors.Author]
@@ -23,10 +23,11 @@ func (_relation BlogPostReviewerObjectRelation) IsNull(_value bool) orm.Predicat
 }
 
 type BlogPostObjectFactory struct {
-	Reviewer BlogPostReviewerObjectRelation
-	model    orm.BoundModel[blog.Post]
-	author   orm.RequiredForwardObject[blog.Post, authors.Author]
-	reviewer orm.NullableForwardObject[blog.Post, authors.Author]
+	_projectSelections *Objects
+	Reviewer           BlogPostReviewerObjectRelation
+	model              orm.BoundModel[blog.Post]
+	author             orm.RequiredForwardObject[blog.Post, authors.Author]
+	reviewer           orm.NullableForwardObject[blog.Post, authors.Author]
 }
 
 func (_factory BlogPostObjectFactory) ParseDynamic(
@@ -58,12 +59,13 @@ func (_factory BlogPostObjectFactory) From(_backend db.Queryer, _value blog.Post
 }
 
 type BlogPostObject struct {
-	model    blog.Post
-	factory  BlogPostObjectFactory
-	backend  db.Queryer
-	author   *orm.RelatedObject[authors.Author]
-	reviewer *orm.RelatedObject[authors.Author]
-	_self    *BlogPostObject
+	_selectedGraph *orm.ForwardSelected[blog.Post]
+	model          blog.Post
+	factory        BlogPostObjectFactory
+	backend        db.Queryer
+	author         *orm.RelatedObject[authors.Author]
+	reviewer       *orm.RelatedObject[authors.Author]
+	_self          *BlogPostObject
 }
 
 func (_object *BlogPostObject) _validate() error {
@@ -149,14 +151,16 @@ func BindObjects() (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	return Objects{
+	_objects := Objects{
 		BlogPost: BlogPostObjectFactory{
 			Reviewer: BlogPostReviewerObjectRelation{relation: _relation1},
 			model:    _model1,
 			author:   _relation0,
 			reviewer: _relation1,
 		},
-	}, nil
+	}
+	_objects.BlogPost._projectSelections = &_objects
+	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_941123045dfa41c2b2ec155f9b5d290764f2f30fc6d4a3a7cbd057abd08097b9
+var _ goDjProjectSnapshot_c033072161bf2df13c83bd1ac9ed973596ac1123e05f97521e20ea608bba743e

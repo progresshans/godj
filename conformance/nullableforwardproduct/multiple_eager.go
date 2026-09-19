@@ -122,7 +122,7 @@ func multipleEagerRows(ctx context.Context, backend db.Queryer, plan query.Plan)
 		destinations := []any{&id, &title, &author, &reviewer, &team}
 		for i, projection := range projections {
 			cell := &cells[i]
-			if projection.Hop().Field() == "team" {
+			if projection.TerminalHop().Field() == "team" {
 				destinations = append(destinations, &cell.id, &cell.label)
 			} else {
 				destinations = append(destinations, &cell.id, &cell.name, &cell.nickname, &cell.active)
@@ -134,7 +134,7 @@ func multipleEagerRows(ctx context.Context, backend db.Queryer, plan query.Plan)
 		row := MultipleEagerRow{ID: id, Targets: make(map[string]*MultipleEagerTarget, len(cells))}
 		for i, projection := range projections {
 			cell := cells[i]
-			name := projection.Hop().Field()
+			name := projection.TerminalHop().Field()
 			if !cell.id.Valid {
 				if cell.name.Valid || cell.nickname.Valid || cell.label.Valid || cell.active.Valid {
 					err = fmt.Errorf("partial absent %s", name)

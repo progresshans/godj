@@ -7,9 +7,10 @@ import (
 	models "github.com/progresshans/godj/examples/helpdesk/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v3"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v4"
 
 var _ orm.ProjectionDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
@@ -26,57 +27,75 @@ type ModelsTicketSelectRelatedQuery struct {
 	query            orm.ForwardSelectQuery[models.Ticket]
 	selections       []orm.ForwardSelection[models.Ticket]
 	configurationErr error
-	_selectCategory  orm.ForwardSelect[models.Ticket, models.Category]
 }
 
 func (_factory ModelsTicketObjectFactory) SelectRelated(_source orm.QuerySet[models.Ticket]) ModelsTicketSelectRelatedQuery {
 	return ModelsTicketSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectForward(_source)}
 }
-func (_query ModelsTicketSelectRelatedQuery) WithCategory() ModelsTicketSelectRelatedQuery {
+func (_query ModelsTicketSelectRelatedQuery) WithSelections(_selections ...orm.ForwardSelection[models.Ticket]) ModelsTicketSelectRelatedQuery {
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_path, _err := orm.ResolveForwardSelectPath(_query.factory.model, "category")
-	if _err != nil {
-		_query.configurationErr = _err
-		return _query
+	_owned := append([]orm.ForwardSelection[models.Ticket](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory ModelsTicketObjectFactory) SelectCategory(_children ...orm.ForwardSelection[models.Category]) orm.ForwardSelect[models.Ticket, models.Category] {
+	return orm.SelectRequiredForward(_factory.category).WithChildren(_children...)
+}
+func (_query ModelsTicketSelectRelatedQuery) WithCategory(_children ...orm.ForwardSelection[models.Category]) ModelsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectCategory(_children...))
+}
+func (_factory ModelsTicketObjectFactory) selectionInputs(_paths []string) ([]orm.ForwardSelection[models.Ticket], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumForwardSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
 	}
-	_selection, _err := orm.BindRequiredForwardSelect(_path, _query.factory.category)
-	if _err != nil {
-		_query.configurationErr = _err
-		return _query
+	_result := make([]orm.ForwardSelection[models.Ticket], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "category":
+			_selection := _factory.SelectCategory()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+		}
 	}
-	_query._selectCategory = _selection
-	_targets := append([]orm.ForwardSelection[models.Ticket](nil), _query.selections...)
-	_query.selections = append(_targets, _selection)
-	_query.query = orm.SelectForward(_query.source, _query.selections...)
-	return _query
+	return _result, nil
 }
 func (_query ModelsTicketSelectRelatedQuery) ParseDynamic(_paths ...string) (ModelsTicketSelectRelatedQuery, error) {
-	if len(_paths) == 0 {
-		return ModelsTicketSelectRelatedQuery{}, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "select-related requires at least one direct relation name"}
-	}
 	if _query.configurationErr != nil {
 		return ModelsTicketSelectRelatedQuery{}, _query.configurationErr
 	}
-	for _, _path := range _paths {
-		switch _path {
-		case "category":
-			_query = _query.WithCategory()
-		default:
-			if _, _err := orm.ResolveForwardSelectPath(_query.factory.model, _path); _err != nil {
-				return ModelsTicketSelectRelatedQuery{}, _err
-			}
-			return ModelsTicketSelectRelatedQuery{}, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "resolved forward selection is missing generated dispatch"}
-		}
-		if _query.configurationErr != nil {
-			return ModelsTicketSelectRelatedQuery{}, _query.configurationErr
-		}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return ModelsTicketSelectRelatedQuery{}, _err
 	}
-	return _query, nil
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return ModelsTicketSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
 }
 func (_query ModelsTicketSelectRelatedQuery) rebuild() ModelsTicketSelectRelatedQuery {
-	_query.query = orm.SelectForward(_query.source, _query.selections...)
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectForward(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
 	return _query
 }
 func (_query ModelsTicketSelectRelatedQuery) Filter(_values ...orm.Predicate[models.Ticket]) ModelsTicketSelectRelatedQuery {
@@ -143,24 +162,35 @@ func (_query ModelsTicketSelectRelatedQuery) Count(_ctx context.Context) (int64,
 	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
 func (_query ModelsTicketSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[models.Ticket]) (*ModelsTicketObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory ModelsTicketObjectFactory) FromSelected(_selected *orm.ForwardSelected[models.Ticket]) (*ModelsTicketObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
 	_source, _err := _selected.Source()
 	if _err != nil {
 		return nil, _err
 	}
-	_object, _err := _query.factory.From(_query.query.Backend(), _source)
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
 	if _err != nil {
 		return nil, _err
 	}
 	if _has, _err := _selected.HasSelection("category"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_related, _err := _query._selectCategory.Related(_selected)
+		_related, _err := _factory.SelectCategory().Related(_selected)
 		if _err != nil {
 			return nil, _err
 		}
 		_object.category = _related
 	}
+	_object._selectedGraph = _selected
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_41fb8043313deb900f92e07e6f03c44e279b95f5fce5533200ee8a06765e2cb1
+var _ goDjProjectSnapshot_1affef96d96e36d1a083b8c091c2356b0ceae37e90cc6784a76ea0a0fc4b1b6b

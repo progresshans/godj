@@ -31,8 +31,10 @@ integration_owner: "root"
 
 ## 현재와 다음
 
-GDJ-0082의 normal/race/CGO0 양 DB·생성 소비자 검증을 완료했고 baseline의 Hosted ORM은 별도 진행 중이다.
-Django 6.1 fresh process에서 명시적 path 집합 8개의 독립 관찰 440개를 준비했다. 현재는 scratch 연구이며 제품/회귀
-fixture로 게시하지 않았다. 각 selected prefix 접근은 원래 First/All SQL 안에 끝나고 warm 접근의 SQL은 0이었다.
-이 입력을 재현 가능한 reference로 정리한 뒤 projection·runtime·generator·consumer를 한 변경 묶음으로 구현한다.
-실제 검증 전에는 구현 완료나 환경별 PASS를 주장하지 않는다.
+전체 경로 projection·공통 prefix 정규화·typed child scan/cache와 generated object/facade를 연결했다.
+440개 독립 Django 관찰을 양 DB와 네 generated selection 경로에서 비교했고, 실패·취소·재시도·동시 평가·assignment를 검증했다.
+Normal/race/CGO0·generated drift·compile/vet와 필수 실행 목록 대조를 마쳤다. Source manifest와 세부 범위는
+[TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0083--nested-eager-graph와-하위-cache)가 소유한다.
+
+기존 Draft PR에 통합하고 같은 제품 source의 Hosted ORM 검증을 완료한 뒤 다음 기능을 선택한다.
+현재 새 Hosted/full/platform 완료 주장은 없다. 장기 목표는 헌장·기능 카탈로그의 완성이며 이 작업의 완료로 축소하지 않는다.
