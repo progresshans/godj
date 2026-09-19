@@ -75,6 +75,8 @@ synthetic cursor는 query와 transaction lifetime에 묶인다. [목록 조회�
 DB 독립 projection·ordering·relation key·scalar 의미 검사는 `db/internal/queryplan`이 공유한다. 각 compiler는
 물리 identifier 제한과 quoting, schema qualification, parameter 형식과 SQL 배치를 소유한다.
 관계 projection의 provenance·edge 충돌, 정렬된 alias와 JOIN 방향·nullable outer join도 공통 계획에서 결정한다.
+하나의 selected forward projection과 다른 forward/reverse filter JOIN을 조합하며, scanner는 root와 selected target의 열만 읽는다.
+Reverse filter의 중복 행은 Distinct가 없는 한 유지하고 반환 객체·관계 cache는 각각 독립 복제한다.
 
 `NewManager`는 descriptor metadata를 생성 시점에 한 번 deep copy하고 기본 plan을 준비한다. 같은 Manager의 읽기·쓰기는
 이 스냅샷을 사용한다. Metadata 변경을 반영하려면 새 Manager를 만든다. `Using`은 준비된 불변 plan을 공유하되 매번 독립
@@ -85,7 +87,8 @@ descriptor 구현자가 소유한다. Project-bound lazy/reverse 객체도 검�
 Nullable read와 write의 omitted/null/value는 구분한다. Save의 update field 선택·force mode·PK 유무는 명시적 입력이다.
 DB rollback이 application memory를 자동 복원하지는 않는다. Query plan과 평가 cache도 별개의 수명이다.
 Scalar 집계는 COUNT/MIN/MAX를 지원한다. 현재 관계 filter의 cold Count는 JOIN 결과에 Distinct·정렬·슬라이스를 적용한
-SELECT를 감싸 DB에서 COUNT(*)를 실행한다. 관계 일반 projection·MIN/MAX 집계와 eager Count는 별도 범위다.
+SELECT를 감싸 DB에서 COUNT(*)를 실행한다. Eager Count는 selected target projection만 제외하고 같은 필터·슬라이스를 센다.
+성공한 eager All cache가 있으면 그 길이를 재사용한다. 관계 일반 projection·MIN/MAX 집계는 별도 범위다.
 
 관계 상태는 project가 연결하고 model 객체의 소유권에 따라 관리한다. 같은 객체의 cache 공유, 복사·Fresh 이후 독립성,
 eager/prefetch의 성공 후 일괄 publication과 assignment 뒤 FK/cache reconciliation을 구분한다.

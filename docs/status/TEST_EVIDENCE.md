@@ -3,6 +3,57 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0080 — Eager materialization과 filter JOIN 조합
+
+- 작업: [GDJ-0080](../../work/0080-eager-filter-join-composition.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위), [빈 조회 경계](../adr/0062-scalar-membership-and-empty-query-execution.md).
+- Source: `408c4179d52c5ea8925f503a000ef69d9f892289` 기반 작업 사본. Markdown을 제외한 변경·새 파일 21개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은 `99f8347dee452fe54b4fc796130a3b2dbb7ed1b1bc32e1837d21d63667556af2`다.
+- Go 1.26.5 darwin/arm64, modernc SQLite와 PostgreSQL 17.5(Homebrew)의 전용 DB·개별 schema에서 실행했다.
+  최종 lane 종료 뒤 이번 작업의 전용 PostgreSQL DB만 제거했다.
+
+### 로컬 실행
+
+`GODJ_REQUIRE_POSTGRES=1`, `go test -json -count=1 -timeout=15m`과 같은 범위의 `-race`, `CGO_ENABLED=0` 실행을 완료했다.
+
+```text
+./query ./orm ./db/... ./codegen/consumertest ./conformance/nullableforwardproduct
+./conformance/relationselectproduct ./conformance/relationobjectproduct
+./conformance/relationqueryproduct ./conformance/relationreverseproduct ./examples/...
+```
+
+Normal·race·CGO0 각각 **22 packages, 3,806 test 완료 event PASS**, no-test package 11개다.
+모든 test의 시작/종료·package 완료와 필수 sentinel을 대조했다. 각 lane의 직접 진입 skip은 부모가 자식 프로세스로
+실행하는 `TestPostgresRevisionFenceHelperProcess` 한 개이며 이를 기능 PASS로 세지 않았다.
+초기 실행은 LIMIT 0의 불필요한 SQL과 새 무결성 테스트의 오류 code 기대값을 보정하기 전 실패했다.
+위 최종 결과는 보정된 전체 영향 범위를 다시 실행한 결과다. 별도 생성 모듈의 컴파일·실행으로 초기 소비자 실패 원인도 확인했다.
+
+### 확인한 의미
+
+- 하나의 required/nullable selected edge와 다른 forward/reverse filter JOIN을 함께 compile·materialize한다.
+  선택한 alias의 target columns만 root columns 뒤에 붙이며 reverse filter의 중복 행을 유지한다.
+- 고정 Django 6.1의 **88개 독립 관찰**에서 양 DB의 All·First·Count, Distinct·Offset·Limit, nullable target와
+  실제 SELECT 수·LEFT JOIN 수를 비교했다. PostgreSQL tracer는 production physical-session 검증을 유지했다.
+  알려진 빈 결과는 PostgreSQL 전체 connection query 수와 SQLite query counter가 늘지 않음을 확인했다.
+- Generated model·migration·typed/dynamic selector·facade를 별도 module의 실제 SQLite에서 실행했다.
+  Dynamic/facade는 88개, typed는 explicit NULL-only member의 두 경우를 제외한 86개를 검사했다.
+  Cold/warm All·First·Count, selected relation 접근의 추가 I/O 없음, 취소 우선순위와 typed/dynamic AST 일치를 대조했다.
+- 중복 source object·FK pointer·selected target cache의 수정이 다른 반환 객체나 query cache에 전파되지 않음을 검사했다.
+  여러 JOIN의 scan/Rows.Err/Rows.Close/취소/행 무결성 실패 후 부분 cache를 게시하지 않고 retry가 성공함을 확인했다.
+- 다른 root identity, 같은 FK의 conflicting target/table/PK, nonselected FK·source-key proof 충돌을 포함한 **18개 잘못된 plan**을
+  양 DB에서 pre-I/O 거부했다. LIMIT 0으로 감싸도 검증을 생략하지 않는다. 공유 plan의 concurrent compile과 detached arguments도 확인했다.
+- `LIMIT 0`을 공통 empty-source 분석에 포함했다. Backend/session은 전체 compile·context/lifetime 검증을 먼저 실행하고
+  model은 빈 결과, COUNT는 0을 반환한다. 조기 반환으로 metadata/capability 검사를 건너뛰지 않는다.
+- 기존 generated Count 22개·nullable-forward 73개·scalar-lookup 748개 관찰에서도 서로 다른 eager/filter edge의 All을
+  미지원 기대값 대신 실제 rows와 warmed relation/cache 결과로 검증했다.
+- Python 3.12.13·3.13.15·3.14.3·3.14.7에서 독립 eager/filter runner를 다시 실행해 각각 **1 test PASS, skip 0**을 확인했다.
+  Django reference는 SQLite profile이며 PostgreSQL 결과는 위 GoDj actual DB 검증이 소유한다.
+- 전체 compile, affected vet, 최종 generated drift, CI script unittest 37개, format·docs·diff 검사 PASS.
+
+### 통합 checkpoint
+
+GDJ-0079와 이 작업을 합친 정확한 source의 Hosted ORM은 다음 단계다. 아직 이번 source의 Hosted 완료를 주장하지 않는다.
+여러 selected projection·nested traversal·reverse OR/NOT·새 full/platform·배포·전체 ORM 완료는 이 결과에 포함하지 않는다.
+
 ## GDJ-0079 — Direct forward scalar lookup
 
 - 작업: [GDJ-0079](../../work/0079-forward-scalar-lookups.md), 의미: [ADR-0040 추가 결정](../adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup), [IN 의미](../adr/0062-scalar-membership-and-empty-query-execution.md).

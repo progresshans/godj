@@ -3,9 +3,7 @@ package consumer_test
 import (
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +14,6 @@ import (
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -199,13 +196,6 @@ func TestGeneratedNullableForwardReference(t *testing.T) {
 			}
 			before = backend.QueryCount()
 			selected, err := eager.All(ctx)
-			if usesRequiredAuthor(reference.Leaves, observation.Expression) {
-				var typed *query.Error
-				if !errors.As(err, &typed) || typed.Code != query.CodeInvalidPlan || backend.QueryCount() != before {
-					t.Fatalf("unrelated eager edge=%v", err)
-				}
-				return
-			}
 			if err != nil || len(selected) != len(ids) {
 				t.Fatalf("eager All=%d,%v", len(selected), err)
 			}
@@ -255,16 +245,4 @@ func fold(t *testing.T, leaves map[string]orm.Predicate[models.Post], node nulla
 	}
 	t.Fatal("invalid reference tree")
 	return orm.Predicate[models.Post]{}
-}
-
-func usesRequiredAuthor(leaves map[string]nullableforwardproduct.Leaf, node nullableforwardproduct.Node) bool {
-	if node.Name != "" {
-		return strings.HasPrefix(leaves[node.Name].Path, "author__")
-	}
-	for _, child := range node.Children {
-		if usesRequiredAuthor(leaves, child) {
-			return true
-		}
-	}
-	return false
 }

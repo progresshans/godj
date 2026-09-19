@@ -194,18 +194,6 @@ func TestGeneratedEagerCountReference(t *testing.T) {
 			}
 			before := r.QueryCount()
 			all, err := q.All(t.Context())
-			if strings.HasPrefix(variant, "reverse_") {
-				// Count needs only the filter JOIN. Materializing a different
-				// eager edge remains an explicit, unimplemented combination.
-				var typed *query.Error
-				if !errors.As(err, &typed) || typed.Code != query.CodeInvalidPlan || r.QueryCount() != before {
-					t.Fatalf("unrelated eager/filter joins=%v", err)
-				}
-				if got, err := q.Count(t.Context()); err != nil || got != observation.Count || r.QueryCount() != before+1 {
-					t.Fatalf("failed All affected Count=%d,%v", got, err)
-				}
-				return
-			}
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -1339,7 +1339,7 @@ func TestCompileNullableForwardProjectionUsesLeftOuterJoinAndPreservesRootPlan(t
 	}
 }
 
-func TestCompileForwardProjectionRejectsUnrelatedRelationPredicate(t *testing.T) {
+func TestCompileForwardProjectionCombinesAnotherForwardPredicate(t *testing.T) {
 	t.Parallel()
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
@@ -1365,8 +1365,14 @@ func TestCompileForwardProjectionRejectsUnrelatedRelationPredicate(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = sqlite.Compile(plan)
-	assertQueryCode(t, err, query.CodeInvalidPlan)
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `SELECT "t0"."id", "t0"."author_id", "t0"."editor_id", "t1"."id", "t1"."name" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" INNER JOIN "authors_author" AS "t2" ON "t0"."editor_id" = "t2"."id" WHERE "t2"."name" = ?`
+	if statement != want || !reflect.DeepEqual(arguments, []any{"Ada"}) {
+		t.Fatalf("Compile = %s %v", statement, arguments)
+	}
 }
 
 func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T) {

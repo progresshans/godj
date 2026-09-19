@@ -1000,6 +1000,7 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration"
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLNullableForwardBooleanPredicatesMatchDjango"
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLForwardScalarLookupsMatchDjango"
+            "github.com/progresshans/godj/db/postgres|TestPostgreSQLEagerFilterJoinCompositionMatchDjango"
             "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration"
             "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration"
             "github.com/progresshans/godj/db/postgres|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration"

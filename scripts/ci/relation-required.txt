@@ -16,3 +16,5 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedEagerCountConsume
 github.com/progresshans/godj/db/sqlite|TestSQLiteNullableForwardBooleanPredicatesMatchDjango
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedForwardLookupConsumer
 github.com/progresshans/godj/db/sqlite|TestSQLiteForwardScalarLookupsMatchDjango
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedEagerJoinConsumer
+github.com/progresshans/godj/db/sqlite|TestSQLiteEagerFilterJoinCompositionMatchDjango

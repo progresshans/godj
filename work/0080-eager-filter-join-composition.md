@@ -2,7 +2,7 @@
 id: GDJ-0080
 status: active
 updated: 2026-09-19
-baseline_commit: "85347fa98fe8d205b47a7cbbe587982c3d5366f2"
+baseline_commit: "408c4179d52c5ea8925f503a000ef69d9f892289"
 integration_owner: "root"
 ---
 
@@ -11,7 +11,7 @@ integration_owner: "root"
 ## 목표
 
 한 관계를 select-related로 읽으면서 다른 forward/reverse 관계의 조건으로 조회하는 흐름을 지원한다.
-현재 Count는 projection을 제외해 실행할 수 있지만 같은 조건의 All은 서로 다른 eager/filter edge를 거부한다.
+작업 시작 시 Count는 projection을 제외해 실행할 수 있지만 같은 조건의 All은 서로 다른 eager/filter edge를 거부했다.
 이를 source row·multiplicity·projection alias·nullable cache의 의미를 보존하면서 실제 materialization까지 연결한다.
 헌장·기능 카탈로그의 전체 구현을 이어가는 관계 기반 작업이며 전체 관계 탐색 완료를 뜻하지 않는다.
 
@@ -31,3 +31,9 @@ source FK/target identity·nullability·row integrity, 반환 객체의 cache �
 완성 뒤 affected normal·race·CGO0, Django reference와 generated drift를 확인한다.
 GDJ-0079 scalar lookup과 이번 materialization 조합을 통합한 정확한 source에서 Hosted ORM checkpoint를 실행한다.
 이전 GDJ-0078 Hosted 또는 다른 source의 full을 이번 변경의 PASS로 재사용하지 않는다. 실행 상세는 TEST_EVIDENCE 한 곳에 기록한다.
+
+## 진행
+
+공통 JOIN inventory의 조합·provenance 검증, LIMIT 0의 empty-source 처리, 실제 양 DB·독립 generated consumer를 구현했다.
+필수 로컬 normal·race·CGO0·Django reference·drift 검증을 완료했다. 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 둔다.
+GDJ-0079와 통합한 source의 Hosted ORM checkpoint가 남아 있다.

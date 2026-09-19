@@ -72,6 +72,23 @@ func TestNullableForwardJoinCompilationOwnsItsWorkingState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Selecting a different edge must retain deterministic aliases and private
+	// compilation state while the nullable filter still chooses an outer join.
+	author := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	plan, err = query.NewPlan("blog_post", []query.FieldRef{id, title, author, reviewer}).WithWhere(where)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
+	projection, err := query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", author, ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", targetID, []query.FieldRef{targetID, targetName})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = plan.WithRelationProjection(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
 	compile := sqlite.Compile
 	t.Run("sqlite", func(t *testing.T) {
 		statement, args, err := compile(plan)

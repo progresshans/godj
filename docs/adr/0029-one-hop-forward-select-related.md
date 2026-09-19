@@ -19,6 +19,25 @@
 
 ## 상태와 범위
 
+2026-09-19 GDJ-0080은 하나의 selected forward relation과 다른 direct forward/reverse filter JOIN의 조합을 허용한다.
+아래 과거 기록의 서로 다른 eager/filter edge All 미지원은 이 범위에서 대체된다.
+
+- Alias는 공통 edge inventory의 정렬 순서로 결정한다. Projection은 자기 edge의 alias를 찾고 root columns 뒤에
+  descriptor 순서의 selected target columns만 붙인다. Filter-only JOIN의 열은 scanner에 추가하지 않는다.
+- Reverse filter의 중복 root row를 그대로 materialize한다. Distinct·Offset·Limit은 SQL이 소유하며 Count와 First도
+  같은 multiplicity/slice를 따른다. 각 반환 객체·related cache와 원본 query cache는 독립 복제한다.
+- Projection의 source identity를 root 기준으로 사용한다. Forward/source-key predicate의 source와 reverse predicate의 target이
+  같은 root여야 한다. 하나의 forward FK 선언은 projection·filter·source-key proof에서 동일한 target/table/PK/nullability를 가져야 한다.
+  Target identity가 다른 RelationKey라고 해서 같은 FK의 충돌을 별개의 JOIN으로 허용하지 않는다. 빈 결과도 이 검증을 생략하지 않는다.
+- Optional selected target은 필터의 존재 증명에 따라 INNER/LEFT를 유지한다. Source FK와 selected target row의 무결성,
+  cancellation·Rows.Close·전체 성공 뒤 cache publication은 기존 공통 eager runtime이 소유한다.
+- 고정 Django 6.1의 [88개 독립 관찰](../../conformance/runners/django/eager_join_reference.py)은 required/nullable selection,
+  다른 forward Boolean/scalar 필터, reverse 중복, Distinct/slice, nullable target, cold/warm Count·First·All을 포함한다.
+  Django 6.1의 공개 QuerySet/Q/select_related 결과를 참조했다(BSD-3-Clause). Python 객체 identity 공유는 복제하지 않는다.
+- 여러 selected target projection·nested traversal·reverse OR/NOT은 별도 범위다. 제품·환경별 실행은
+  [GDJ-0080](../../work/0080-eager-filter-join-composition.md)과 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.
+
+
 2026-09-19 GDJ-0078에서 required/nullable forward 대상 필터와 Boolean 조합을 추가한다. 아래 GDJ-0077의
 nullable target-field 미지원 1개는 이 후속 구현에서 지원되어 독립 Count 관찰 22개를 모두 실행한다. 서로 다른 eager/filter edge의
 All 6개는 계속 미지원이다. Nullable eager JOIN도 필터의 대상 존재 조건에 따라 INNER/LEFT를 결정하며,
