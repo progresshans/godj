@@ -20,6 +20,21 @@
 
 ## 상태와 범위
 
+2026-09-19 GDJ-0082는 유한한 여러 단계의 forward 조회를 같은 Query AST에 연결한다. 구현 사본의 결정은 다음과 같다.
+검증 상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md#gdj-0082--nested-forward-경로의-독립-관찰)를 따른다.
+
+- `NewForwardRelationChain`은 ordered hop을 소유하며 인접 model/table과 terminal scope를 검증한다. Declaration identity와
+  root부터의 route identity는 다르다. 공유 prefix만 JOIN을 합치고 다른 경로와 유한한 self-cycle은 별도 alias를 갖는다.
+- `orm.ChainForward`는 중간 Go type·동일 project snapshot·model identity를 함께 확인한다. Generated target model별
+  `RelatedFields[S]`와 lazy method는 root type을 유지한다. `Author.Team().Organization().Name`처럼 탐색하며
+  depth나 경로 조합마다 타입을 만들지 않는다. 생성 app 사이 import cycle도 추가하지 않는다.
+- Required tail도 optional ancestor 뒤에서는 NULL일 수 있다. FK `isnull`은 마지막 target JOIN만 생략한다.
+  Forward query/object dynamic parser를 하나로 합치고 required FK presence도 허용한다. 미지원 reverse 범위는 유지한다.
+- Route/group binding의 최초 오류와 cause는 scalar·IN·추가 traversal까지 유지한다. Dynamic batch는 실패하면 부분 predicate를
+  반환하지 않는다. Schema/lookup policy에는 복사본을 전달한다.
+- 경로는 최대 64 hop이다. SQLite compiler는 실제 JOIN 63개와 root 1개를 넘으면 SQL/I/O 전에 거부한다.
+  LIMIT 0이나 빈 IN도 metadata·환경 capability 검증을 생략하지 않는다. Nested eager materialization은 후속 범위다.
+
 2026-09-19 GDJ-0079는 직접 forward의 nullable target scalar·Boolean·기존 scalar lookup을 추가한다.
 입력 타입·path nullability·IN 소유권·reverse 경계는 [ADR-0040 추가 결정](0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)을 따른다.
 

@@ -37,15 +37,15 @@ func TestGenerateProjectRelationQueryIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("project relation query bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v1"`),
+		[]byte(`const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"`),
 		[]byte(`authors "example.com/godj-relation-query-project/authors"`),
 		[]byte(`blog "example.com/godj-relation-query-project/blog"`),
-		[]byte("type BlogPostAuthorRelation struct"),
-		[]byte("ID   orm.RelatedIntegerField[blog.Post]"),
-		[]byte("Name orm.RelatedStringField[blog.Post]"),
+		[]byte("type AuthorsAuthorRelatedFields[S any] struct"),
+		[]byte("ID               orm.RelatedIntegerField[S]"),
+		[]byte("Name             orm.RelatedStringField[S]"),
 		[]byte("type BlogPostRelations struct"),
-		[]byte("Author   BlogPostAuthorRelation"),
-		[]byte("Reviewer BlogPostReviewerRelation"),
+		[]byte("Author   AuthorsAuthorRelatedFields[blog.Post]"),
+		[]byte("Reviewer AuthorsAuthorRelatedFields[blog.Post]"),
 		[]byte("model    orm.BoundModel[blog.Post]"),
 		[]byte("func (_relations BlogPostRelations) ParseDynamic("),
 		[]byte("type Relations struct"),
@@ -54,8 +54,8 @@ func TestGenerateProjectRelationQueryIsCanonicalAndByteLocked(t *testing.T) {
 		[]byte(`ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}`),
 		[]byte(`ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}`),
 		[]byte(`orm.BindForward(_model1, "author", _model0)`),
-		[]byte("_relation0.Integer(authors.AuthorFields.ID)"),
-		[]byte("_relation0.String(authors.AuthorFields.Name)"),
+		[]byte("_route.Integer(authors.AuthorFields.ID)"),
+		[]byte("_route.String(authors.AuthorFields.Name)"),
 	} {
 		if !bytes.Contains(first, fragment) {
 			t.Fatalf("project relation query source does not contain %q:\n%s", fragment, first)
@@ -101,6 +101,8 @@ func TestGenerateProjectRelationQueryRejectsInvalidInputsAndNamespaces(t *testin
 		{name: "reserved orm alias", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "orm", ImportPath: "example.com/blog", Schema: blog}}},
 		{name: "reserved ir alias", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "ir", ImportPath: "example.com/blog", Schema: blog}}},
 		{name: "predeclared error alias", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "error", ImportPath: "example.com/blog", Schema: blog}}},
+		{name: "predeclared any alias", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "any", ImportPath: "example.com/blog", Schema: blog}}},
+		{name: "predeclared bool alias", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "bool", ImportPath: "example.com/blog", Schema: blog}}},
 		{name: "predeclared nil alias", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "nil", ImportPath: "example.com/blog", Schema: blog}}},
 		{name: "invalid import path", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "blog", ImportPath: "example.com/bad path", Schema: blog}}},
 		{name: "reserved orm import path", pkg: "project", packages: []codegen.RelationQueryPackage{{Alias: "blog", ImportPath: "github.com/progresshans/godj/orm", Schema: blog}}},
@@ -209,5 +211,13 @@ func collidingRelationQuerySurfaces() []codegen.RelationQueryPackage {
 		{Alias: "a", ImportPath: "example.com/a", Schema: source("one", "bc", "BC", "from_one")},
 		{Alias: "aB", ImportPath: "example.com/ab", Schema: source("two", "c", "C", "from_two")},
 		{Alias: "target", ImportPath: "example.com/target", Schema: target},
+	}
+}
+
+func TestRelationQueryGenericGroupRejectsMethodFieldCollision(t *testing.T) {
+	authors, blog := testschema.QueryRelation()
+	authors.Models[0].Fields[1].GoName = "IsNull"
+	if bytes, err := codegen.GenerateProjectRelationQuery("project", testfixture.QueryPackages(authors, blog)); err == nil || bytes != nil {
+		t.Fatal("generic group field shadows IsNull method")
 	}
 }

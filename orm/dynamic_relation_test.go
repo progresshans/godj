@@ -62,9 +62,7 @@ func TestDynamicRelationErrorsFollowFrozenPrecedence(t *testing.T) {
 		{name: "one segment", input: orm.LookupInput{Key: "author", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "relation exact suffix", input: orm.LookupInput{Key: "author__exact", Value: int64(1)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "relation icontains suffix", input: orm.LookupInput{Key: "author__icontains", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "relation isnull suffix", input: orm.LookupInput{Key: "author__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "nullable relation isnull suffix", input: orm.LookupInput{Key: "reviewer__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "lookup shape precedes unknown relation", input: orm.LookupInput{Key: "missing__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "unknown presence relation", input: orm.LookupInput{Key: "missing__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnknownRelation},
 		{name: "leading empty", input: orm.LookupInput{Key: "__name", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "middle empty", input: orm.LookupInput{Key: "author____name", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "trailing empty", input: orm.LookupInput{Key: "author__", Value: "Ada"}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
@@ -112,12 +110,32 @@ func TestDynamicRelationErrorsFollowFrozenPrecedence(t *testing.T) {
 	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
 }
 
+func TestDynamicForwardPresenceSupportsRequiredAndOptionalKeys(t *testing.T) {
+	fixture := newRelationQueryFixture(t)
+	for _, name := range []string{"author", "reviewer"} {
+		relation, err := orm.BindForward(fixture.postModel, name, fixture.authorModel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, value := range []bool{true, false} {
+			predicates, err := orm.ParseDynamicRelations(fixture.postModel, nil, []orm.LookupInput{{Key: name + "__isnull", Value: value}})
+			if err != nil || len(predicates) != 1 {
+				t.Fatalf("presence %s=%v: %v", name, value, err)
+			}
+			base := orm.NewManager[relationQueryPost](fixture.postDescriptor).Using(nil)
+			if !base.Filter(relation.IsNull(value)).Plan().Equal(base.Filter(predicates...).Plan()) {
+				t.Fatal("typed/dynamic presence diverged")
+			}
+		}
+	}
+}
+
 func TestDynamicRelationObjectsSupportsNullableIsNullAndIsAtomic(t *testing.T) {
 	t.Parallel()
 
 	fixture := newRelationQueryFixture(t)
 	seenPolicy := false
-	predicates, err := orm.ParseDynamicRelationObjects(fixture.postModel, func(field ir.Field, lookup query.Lookup) bool {
+	predicates, err := orm.ParseDynamicRelations(fixture.postModel, func(field ir.Field, lookup query.Lookup) bool {
 		seenPolicy = field.Name == "reviewer" && field.Column == "reviewer_id" &&
 			field.Kind == ir.FieldForeignKey && field.Nullable && field.Relation != nil &&
 			field.Relation.Target == (ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}) &&
@@ -127,7 +145,7 @@ func TestDynamicRelationObjectsSupportsNullableIsNullAndIsAtomic(t *testing.T) {
 		return true
 	}, []orm.LookupInput{{Key: "reviewer__isnull", Value: true}})
 	if err != nil || !seenPolicy || len(predicates) != 1 {
-		t.Fatalf("ParseDynamicRelationObjects() = (%#v, %v), policy=%v", predicates, err, seenPolicy)
+		t.Fatalf("ParseDynamicRelations() = (%#v, %v), policy=%v", predicates, err, seenPolicy)
 	}
 	plan := orm.NewManager[relationQueryPost](fixture.postDescriptor).Using(nil).Filter(predicates...).Plan()
 	conditions := plan.Conditions()
@@ -151,14 +169,13 @@ func TestDynamicRelationObjectsSupportsNullableIsNullAndIsAtomic(t *testing.T) {
 		category string
 		code     string
 	}{
-		{name: "required isnull", inputs: []orm.LookupInput{{Key: "author__isnull", Value: true}}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "invalid bool", inputs: []orm.LookupInput{{Key: "reviewer__isnull", Value: "true"}}, category: query.CategoryField, code: query.CodeInvalidValue},
 		{name: "policy before value", inputs: []orm.LookupInput{{Key: "reviewer__isnull", Value: "true"}}, policy: func(ir.Field, query.Lookup) bool { return false }, category: query.CategoryField, code: query.CodeDisallowedLookup},
 		{name: "mixed no partial", inputs: []orm.LookupInput{{Key: "author__name", Value: "Ada"}, {Key: "reviewer__isnull", Value: "true"}}, category: query.CategoryField, code: query.CodeInvalidValue},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := orm.ParseDynamicRelationObjects(fixture.postModel, test.policy, test.inputs)
+			got, err := orm.ParseDynamicRelations(fixture.postModel, test.policy, test.inputs)
 			if got != nil {
 				t.Fatalf("predicates = %#v, want nil", got)
 			}

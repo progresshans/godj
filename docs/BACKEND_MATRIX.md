@@ -22,20 +22,24 @@ Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string defa
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
 nullable/time default·comparison/F·projection/Min/Max를 지원한다. [시간 값과 남은 범위](adr/0061-datetime-field-and-canonical-instant-values.md)를 따른다.
 String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterField는 양 DB의 revision-fenced lifecycle에서 DDL 없이 상태·recorder를 갱신하며 물리 catalog 검증은 수행한다. [선택값 의미](adr/0063-model-choices-and-metadata-only-migrations.md)를 따른다.
-모든 Django Field, OneToOne/ManyToMany, arbitrary `to_field`, self/cyclic relation이나 범용 constraint/index migration을 지원하지 않는다.
+모든 Django Field, OneToOne/ManyToMany, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다. 일반 관계 집계는 미지원이다.
-직접 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
+유한한 여러 단계의 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
-선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 기존대로 JOIN 없이 참여한다.
+선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
 Typed/dynamic 대상은 Integer·Char/Text·DateTime의 nullable/non-null과 Boolean이다.
 여러 selected direct forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
-Reverse non-exact/OR/NOT, 관계를 넘는 F·nested traversal·중첩/reverse eager materialization은 미지원이다.
+Reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse traversal·중첩/reverse eager materialization은 미지원이다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
+유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 mutation·eager graph 전체를 지원한다는 뜻은 아니다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.
 
 ## SQLite 경계
+
+경로 최대 길이는 공통 AST의 64 hop이다. SQLite는 [물리 JOIN 제한](https://www.sqlite.org/limits.html#max_join)에 따라
+root를 포함해 64 table까지만 허용한다. 실제 JOIN 수를 compiler가 계산하여 초과를 빈 조회의 생략 전에 거부한다.
 
 FK enforcement는 connection별 설정이다. GoDj가 사용하는 raw relation/migration path는 필요한 FK 상태와 physical schema를
 확인한다. FK-off 또는 out-of-band writer를 포함한 모든 process가 자동 보호된다고 주장하지 않는다.

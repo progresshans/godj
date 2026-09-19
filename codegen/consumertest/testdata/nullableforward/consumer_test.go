@@ -152,7 +152,7 @@ func TestGeneratedNullableForwardReference(t *testing.T) {
 		if leaf.Path == "title" {
 			predicates, err = orm.ParseDynamic[models.Post](models.PostDescriptor{}, nil, input)
 		} else {
-			predicates, err = orm.ParseDynamicRelationObjects(post, nil, input)
+			predicates, err = orm.ParseDynamicRelations(post, nil, input)
 		}
 		if err != nil || len(predicates) != 1 {
 			t.Fatalf("dynamic %s = %v", name, err)

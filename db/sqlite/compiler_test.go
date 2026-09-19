@@ -1421,7 +1421,7 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 		{name: "target primary key mismatch", source: validSource, target: validTarget, targetTable: "authors_author", targetPK: "uuid"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			path, err := query.NewNullableForwardRelationIsNullPath(
+			path, err := query.NewForwardRelationIsNullPath(
 				test.source,
 				"blog_post",
 				reviewerID,
@@ -1561,7 +1561,7 @@ func TestCompileNullableForwardSourceKeyRejectsMutationBeforeIO(t *testing.T) {
 		})
 	}
 
-	wrongRoot, err := query.NewNullableForwardRelationIsNullPath(
+	wrongRoot, err := query.NewForwardRelationIsNullPath(
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"other_post", reviewerID,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
@@ -1631,7 +1631,7 @@ func nullableReviewerPathWithIdentity(
 	source ir.ModelIdentity,
 ) query.RelationPath {
 	t.Helper()
-	path, err := query.NewNullableForwardRelationIsNullPath(
+	path, err := query.NewForwardRelationIsNullPath(
 		source,
 		"blog_post",
 		sourceKey,

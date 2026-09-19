@@ -211,6 +211,9 @@ func validateExpressionCondition(condition Condition) error {
 
 	if condition.relationPath != nil {
 		path := condition.relationPath
+		if err := path.Validate(); err != nil {
+			return err
+		}
 		if len(path.hops) == 0 || !path.terminal.Equal(field) {
 			return invalidPlanError("query expression relation condition has a malformed path")
 		}

@@ -3,6 +3,61 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0082 — Nested forward 경로의 독립 관찰
+
+- 작업: [GDJ-0082](../../work/0082-nested-forward-relation-paths.md), 의미: [ADR-0023](../adr/0023-symbolic-relation-binding-and-shared-relation-ast.md#상태와-범위).
+- 제품 baseline `7e5a933db69435154842162287ef86ef7172bc17`의 별도 작업 사본이다. Markdown을 제외한 변경·새 파일 91개의
+  `<sha256>  <relative-path>\n` 정렬 manifest SHA256은
+  `6c6b09512a07bb5506c199d39ff7633ef61f297816b6a3502de5bd7db1e57f25`다.
+- Go 1.26.5 darwin/arm64, modernc SQLite와 PostgreSQL 17.5(Homebrew)의 전용 DB·개별 schema를 사용했다. 완료 뒤 이번 작업이 만든 두 전용 DB를 제거했다.
+
+### 독립 reference
+
+- Python 3.14.7, Django 6.1, asgiref 3.12.1, sqlparse 0.5.5의 fresh process에서
+  [runner](../../conformance/runners/django/nested_forward_reference.py)를 실행해 **146개 관찰**을 수집했다.
+  [fixture](../../orm/testdata/nested-forward-django61.json)의 SHA256은 `2a7164ce3079f51227fbd60b134d2ba034ef42a9fb591b698ad45ce68741b53a`다.
+- `uv run --no-project --isolated --python 3.14.7 --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5
+  python -m unittest conformance.runners.django.tests.test_nested_forward_reference`는 **1 test PASS, skip 0**다.
+  전체 JSON 일치, unique case 이름, count/ids·cold/warm First·warm cache의 추가 SQL 없음과 실행 수를 확인했다.
+- 동일 Django 설치의 `django.db.models.sql.query`에서 `Query.setup_joins`(1890–2005), `trim_joins`(2007–2037),
+  `build_filter`(1487–1657), `JoinPromoter.update_join_types`(2842–2897) source를 확보했다(BSD-3-Clause).
+
+이 결과는 Django SQLite 관찰이다. 아래 PostgreSQL 증거는 GoDj를 실제 DB에서 실행한 결과이며 Django PostgreSQL 관찰로 세지 않는다.
+
+### 구현과 실제 검증
+
+`GODJ_REQUIRE_POSTGRES=1`, `go test -json -count=1 -timeout=10m`과 같은 패키지의 `CGO_ENABLED=0` 실행을 완료했다.
+범위는 GDJ-0081과 같은 43 packages다. `query`, `orm`, `db/...`, `codegen`·외부 생성 소비자, compile-only typed 소비자,
+관련 conformance/relationfixture·query·object·select·reverse·prefetch·delete·product와 examples를 포함한다.
+
+- Normal·CGO0 각각 **28 test packages, 5,118 test 완료 event PASS**, no-test package 15개다. 시작/종료와 package
+  terminal을 대조했다. 유일한 testcase skip은 부모가 별도 프로세스로 실행하는 `TestPostgresRevisionFenceHelperProcess`다.
+- Race도 **28 test packages, 5,068 test 완료 event PASS**다. Normal/CGO0가 실행한 `internal/compiletest`의
+  `!race` 최상위 7개·하위 포함 50개 event를 제외한 test roster가 일치한다. 세 lane의 제품 source manifest가 같다.
+  이 source의 Hosted ORM은 다음 통합 단계이며 현재 결과를 Hosted/전체 platform PASS로 표시하지 않는다.
+- 양 DB에서 **146개 독립 관찰**의 All·First·Count·selected target field 값·SELECT 수·LEFT JOIN 수를 대조했다.
+  Nullable ancestor 아래 required tail, self-cycle·공유 prefix·서로 다른 route, DateTime/정수/문자열/Boolean·IN·AND/OR/NOT,
+  reverse 중복·Distinct·slice·direct eager 조합을 포함한다.
+- 세 app의 외부 생성 모듈에서 generated Create/Save·typed/dynamic query·object builder·facade와 실제 SQLite를 실행했다.
+  Dynamic/facade는 146개, typed는 명시적 NULL list member를 표현하지 않는 8개를 제외한 **138개**다.
+  Selected 73개에서는 object builder도 대조하며, typed가 가능한 69개는 같은 AST를 비교한다.
+  Cold/warm terminals·관계 접근의 추가 SQL 없음, 취소, cache 복제·Fresh·파생 query의 새 평가를 검사했다.
+- Generated consumer의 physical fixture에는 실제 FK 제약이 있다. 기존 migration lifecycle은 self-reference CreateModel을
+  거부하므로 이 fixture는 명시적 DDL로 준비했다. 이번 결과를 self/cyclic migration 지원·검증으로 확대하지 않는다.
+- 두 DB에서 route 사이 FK column/nullability/target PK/table/root identity 충돌과 각 LIMIT 0 변형 **10개 plan**을 I/O 전에 거부했다.
+  SQLite는 63 JOIN과 64-hop source-key trim을 실제 실행하고, 64 JOIN 초과와 LIMIT 0 초과도 I/O 전에 거부했다.
+- Foreign snapshot composition, 잘못된 intermediate Go type, zero/과도한 깊이, policy 복제·오류 우선순위와 부분 batch 거부,
+  초기/지연 generated group binding 실패의 원래 오류, private metadata 위조, concurrent compiler의 SQL 인자 분리를 검사했다.
+- 최종 source의 전체 134 package compile-only, affected vet, 세 프로젝트 generated drift, format·113개 문서 local links·diff 검사 PASS.
+
+### 첫 실행에서 수정한 사항
+
+OR의 공통 nullable parent가 INNER로 바뀔 때 아래 다른 분기의 required JOIN까지 잘못 INNER로 바꾸던 계획을 수정했다.
+선언상 optional ancestry와 최종 JOIN 종류를 별도로 보존하며 독립 SQL 관찰을 다시 통과했다.
+Raw 관찰 helper의 빈 projection 처리, PostgreSQL fixture 관리 connection의 UTC timezone, 생성 소비자의 명시적 정렬과
+structured error 기대값을 바로잡았다. 없어진 per-edge query 타입과 충돌하던 옛 schema는 이제 허용하는 양성 검증으로
+전환했고, 실제 generic member/type namespace 충돌과 원자적 실패 검증은 유지한다.
+
 ## GDJ-0081 — 여러 direct forward target 동시 선택
 
 - 작업: [GDJ-0081](../../work/0081-multiple-forward-eager-selections.md), 의미: [ADR-0029](../adr/0029-one-hop-forward-select-related.md#상태와-범위).

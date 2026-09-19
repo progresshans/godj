@@ -19,7 +19,7 @@ const (
 // RelationTerminalScope identifies whether a relation condition ends on a
 // scalar field of the related model or on the source model's local key. The
 // latter retains relation provenance while allowing a backend to trim a
-// nullable isnull traversal to the root table.
+// isnull traversal to its owning row.
 type RelationTerminalScope string
 
 const (
@@ -152,11 +152,9 @@ func NewForwardRelationPath(
 	}, nil
 }
 
-// NewNullableForwardRelationIsNullPath constructs the nullable one-hop
-// source-key path used by relation-level isnull predicates. The terminal is
-// deliberately the canonical local ForeignKey field so compilers can verify
-// it against the selected root-model columns before trimming the join.
-func NewNullableForwardRelationIsNullPath(
+// NewForwardRelationIsNullPath retains the local FK terminal and provenance.
+// A required FK can still be NULL after an optional ancestor join in a chain.
+func NewForwardRelationIsNullPath(
 	source ir.ModelIdentity,
 	sourceTable string,
 	sourceKey FieldRef,
@@ -170,15 +168,15 @@ func NewNullableForwardRelationIsNullPath(
 			Category: CategoryQuery,
 			Code:     CodeInvalidPlan,
 			Field:    sourceKey.Name(),
-			Detail:   "nullable forward relation source-key path contains blank or invalid metadata",
+			Detail:   "forward relation source-key path contains blank or invalid metadata",
 		}
 	}
-	if sourceKey.Kind() != FieldInteger || !sourceKey.Nullable() {
+	if sourceKey.Kind() != FieldInteger {
 		return RelationPath{}, &Error{
 			Category: CategoryQuery,
 			Code:     CodeInvalidPlan,
 			Field:    sourceKey.Name(),
-			Detail:   "nullable forward relation source key must be a nullable integer field",
+			Detail:   "forward relation source key must be an integer field",
 		}
 	}
 	hop := RelationHop{
@@ -191,7 +189,7 @@ func NewNullableForwardRelationIsNullPath(
 		targetPrimaryKeyColumn: targetPKColumn,
 		direction:              RelationForward,
 		cardinality:            ir.RelationManyToOne,
-		nullable:               true,
+		nullable:               sourceKey.Nullable(),
 	}
 	return RelationPath{
 		hops:     []RelationHop{hop},
@@ -253,4 +251,61 @@ func validFieldRef(field FieldRef) bool {
 
 func blank(value string) bool {
 	return strings.TrimSpace(value) == ""
+}
+
+// MaximumRelationHops bounds path construction, including self-references.
+// Backend join limits may impose a smaller effective query-wide bound.
+const MaximumRelationHops = 64
+
+// NewForwardRelationChain copies an ordered route. Repeated declarations in a
+// self-reference remain distinct occurrences, while adjacent models must agree.
+func NewForwardRelationChain(hops []RelationHop, terminal FieldRef, scope RelationTerminalScope) (RelationPath, error) {
+	path := RelationPath{hops: hops, terminal: terminal, scope: scope}
+	if err := path.validateForward(); err != nil {
+		return RelationPath{}, err
+	}
+	path.hops = append([]RelationHop(nil), hops...)
+	return path, nil
+}
+
+// Validate checks a complete route independently of a backend or query root.
+func (p RelationPath) Validate() error {
+	if len(p.hops) == 1 && p.hops[0].direction == RelationReverse {
+		hop := p.hops[0]
+		if p.scope != RelationTerminalRelatedField || hop.cardinality != ir.RelationOneToMany {
+			return invalidPlanError("reverse relation path has an invalid scope or cardinality")
+		}
+		_, err := NewReverseRelationPath(hop.source, hop.sourceTable, hop.field, hop.sourceColumn, hop.target, hop.targetTable, hop.targetPrimaryKeyColumn, hop.reverseName, hop.nullable, p.terminal)
+		return err
+	}
+	return p.validateForward()
+}
+func (p RelationPath) validateForward() error {
+	if len(p.hops) == 0 || len(p.hops) > MaximumRelationHops {
+		return invalidPlanError("forward relation path requires between 1 and 64 hops")
+	}
+	if !validFieldRef(p.terminal) {
+		return invalidPlanError("forward relation terminal is invalid")
+	}
+	if p.scope != RelationTerminalRelatedField && p.scope != RelationTerminalSourceKey {
+		return invalidPlanError("forward relation terminal scope is invalid")
+	}
+	for index, hop := range p.hops {
+		if hop.direction != RelationForward || hop.cardinality != ir.RelationManyToOne || hop.reverseName != "" || !validModelIdentity(hop.source) || !validModelIdentity(hop.target) || blank(hop.sourceTable) || blank(hop.field) || blank(hop.sourceColumn) || blank(hop.targetTable) || blank(hop.targetPrimaryKeyColumn) {
+			return invalidPlanError("forward relation path has an invalid hop")
+		}
+		if index > 0 {
+			previous := p.hops[index-1]
+			if previous.target != hop.source || previous.targetTable != hop.sourceTable {
+				return invalidPlanError("forward relation path has disconnected model or table metadata")
+			}
+		}
+	}
+	if p.scope == RelationTerminalSourceKey {
+		hop := p.hops[len(p.hops)-1]
+		if !p.terminal.Equal(NewFieldRef(hop.field, hop.sourceColumn, FieldInteger, hop.nullable)) {
+			return invalidPlanError("forward relation source-key terminal disagrees with its final declaration")
+		}
+	}
+	return nil
 }

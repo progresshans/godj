@@ -25,7 +25,8 @@ Nullable/required forward FK의 scalar 비교·문자열·isnull·IN과 AND/OR/N
 
 GDJ-0081의 복수 projection·공통 typed scan/cache·생성 selector를 구현했고 normal·race·CGO0와 독립 reference를 완료했다.
 기존 Draft PR #1에 통합한 source의 Hosted ORM도 완료했다.
-별도 작업 사본의 GDJ-0082에서 여러 단계의 forward 경로·NULL·alias 의미를 독립 관찰하고 공통 Query AST와 typed/dynamic 탐색을 설계·구현한다.
+GDJ-0082의 여러 단계 forward 경로·typed/dynamic 탐색을 구현하고 normal/race/CGO0의 양 DB·생성 소비자 검증을 완료했다.
+기존 Draft PR의 Hosted ORM 통합을 이어간다. 이후 같은 경로를 nested eager materialization/cache에 연결한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거

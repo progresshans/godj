@@ -33,6 +33,10 @@ Cold At는 표현 가능한 기존 offset과 index를 합친 OFFSET/LIMIT 1로 �
 이 경계의 이유는 [ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에 있다. QuerySet 자체의 안전성을 backend
 session·사용자 callback·반환된 mutable model의 임의 공유 안전성으로 확대하지 않는다.
 
+Forward query route는 동일 project snapshot의 declaration slice를 복사해 소유한다. Typed composition은 prefix를 바꾸지 않으며,
+각 compilation이 route occurrence·alias·JOIN presence map을 따로 만든다. Generated generic field group은 immutable route와
+project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. Lookup policy는 복사한 field만 받는다.
+
 ## 관계 객체
 
 - 같은 relation owner의 cache와 새 materialization/Fresh의 cache를 구분한다. 전역 identity map을 가정하지 않는다.

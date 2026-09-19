@@ -13,7 +13,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v1"
+const ProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
 
 type RelationQueryPackage struct {
 	Alias      string
@@ -21,19 +21,11 @@ type RelationQueryPackage struct {
 	Schema     ir.Schema
 }
 
-type projectRelationQueryTerminal struct {
-	field ir.Field
-	kind  ir.FieldKind
-	bind  int
-}
-
 type projectRelationQueryEdge struct {
-	field     ir.Field
-	selector  string
-	typeName  string
-	target    *projectRelationModel
-	terminals []projectRelationQueryTerminal
-	bind      int
+	field    ir.Field
+	selector string
+	target   *projectRelationModel
+	bind     int
 }
 
 type projectRelationQuerySource struct {
@@ -70,8 +62,8 @@ func generateProjectRelationQuery(packageName string, plan *relationProjectPlan)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	if len(sources) > 0 {
 		fmt.Fprintln(&output, "import (")
-		fmt.Fprintln(&output, "\torm \"github.com/progresshans/godj/orm\"")
-		fmt.Fprintln(&output, "\tir \"github.com/progresshans/godj/schema/ir\"")
+		fmt.Fprintf(&output, "\torm %s\n", strconv.Quote("github.com/progresshans/godj/orm"))
+		fmt.Fprintf(&output, "\tir %s\n", strconv.Quote("github.com/progresshans/godj/schema/ir"))
 		for _, app := range canonical {
 			fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
 		}
@@ -84,6 +76,7 @@ func generateProjectRelationQuery(packageName string, plan *relationProjectPlan)
 		strconv.Quote(ProjectRelationQueryGeneratorVersion),
 	)
 
+	renderProjectRelationQueryGroups(&output, models, sources)
 	for _, source := range sources {
 		renderProjectRelationQueryTypes(&output, source)
 	}
@@ -110,7 +103,7 @@ func canonicalRelationQueryPackages(packages []RelationQueryPackage) ([]normaliz
 }
 
 func validRelationQueryAlias(alias string) bool {
-	return validRelationAlias(alias, "orm", "ir", "error", "nil")
+	return validRelationAlias(alias, "orm", "ir", "error", "nil", "any", "bool")
 }
 
 func exportedRelationQueryPrefix(alias string) string {
@@ -125,7 +118,6 @@ func buildProjectRelationQuerySurface(
 
 	sources := make([]projectRelationQuerySource, 0)
 	nextEdgeBind := 0
-	nextTerminalBind := 0
 	for _, sourceModel := range models {
 		relations := make([]projectRelationQueryEdge, 0)
 		for _, field := range sourceModel.model.Fields {
@@ -151,27 +143,7 @@ func buildProjectRelationQuerySurface(
 					field.Name,
 				)
 			}
-			terminals := make([]projectRelationQueryTerminal, 0)
-			for _, terminal := range target.model.Fields {
-				if !supportedProjectRelationQueryTerminal(terminal) {
-					continue
-				}
-				terminals = append(terminals, projectRelationQueryTerminal{
-					field: terminal.Clone(),
-					kind:  terminal.Kind,
-					bind:  nextTerminalBind,
-				})
-				nextTerminalBind++
-			}
-			surface := sourceModel.app.prefix + sourceModel.model.GoName
-			relations = append(relations, projectRelationQueryEdge{
-				field:     field.Clone(),
-				selector:  selector,
-				typeName:  surface + selector + "Relation",
-				target:    target,
-				terminals: terminals,
-				bind:      nextEdgeBind,
-			})
+			relations = append(relations, projectRelationQueryEdge{field: field.Clone(), selector: selector, target: target, bind: nextEdgeBind})
 			nextEdgeBind++
 		}
 		if len(relations) == 0 {
@@ -219,144 +191,121 @@ func supportedProjectRelationQueryTerminal(field ir.Field) bool {
 	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldBoolean
 }
 
-func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelationQuerySource) {
-	for _, relation := range source.relations {
-		fmt.Fprintf(output, "type %s struct {\n", relation.typeName)
-		for _, terminal := range relation.terminals {
-			switch terminal.kind {
-			case ir.FieldAuto, ir.FieldInteger:
-				fmt.Fprintf(
-					output,
-					"\t%s orm.RelatedIntegerField[%s.%s]\n",
-					terminal.field.GoName,
-					source.model.app.alias,
-					source.model.model.GoName,
-				)
-			case ir.FieldDateTime:
-				fmt.Fprintf(output, "\t%s orm.RelatedDateTimeField[%s.%s]\n", terminal.field.GoName, source.model.app.alias, source.model.model.GoName)
-			case ir.FieldBoolean:
-				fmt.Fprintf(output, "\t%s orm.RelatedBooleanField[%s.%s]\n", terminal.field.GoName, source.model.app.alias, source.model.model.GoName)
-			case ir.FieldChar, ir.FieldText:
-				fmt.Fprintf(
-					output,
-					"\t%s orm.RelatedStringField[%s.%s]\n",
-					terminal.field.GoName,
-					source.model.app.alias,
-					source.model.model.GoName,
-				)
-			}
-		}
-		fmt.Fprintln(output, "}")
-		fmt.Fprintln(output)
-	}
-
-	fmt.Fprintf(output, "type %s struct {\n", source.relationsType)
-	for _, relation := range source.relations {
-		fmt.Fprintf(output, "\t%s %s\n", relation.selector, relation.typeName)
-	}
-	fmt.Fprintf(
-		output,
-		"\tmodel orm.BoundModel[%s.%s]\n",
-		source.model.app.alias,
-		source.model.model.GoName,
-	)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_relations %s) ParseDynamic(\n", source.relationsType)
-	fmt.Fprintln(output, "\t_policy orm.LookupPolicy,")
-	fmt.Fprintln(output, "\t_inputs []orm.LookupInput,")
-	fmt.Fprintf(
-		output,
-		") ([]orm.Predicate[%s.%s], error) {\n",
-		source.model.app.alias,
-		source.model.model.GoName,
-	)
-	fmt.Fprintln(output, "\treturn orm.ParseDynamicRelations(_relations.model, _policy, _inputs)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
+func projectRelationQueryGroupName(model *projectRelationModel) string {
+	return model.app.prefix + model.model.GoName + "RelatedFields"
+}
+func projectRelationRawType(model *projectRelationModel) string {
+	return model.app.alias + "." + model.model.GoName
 }
 
-func renderBindRelations(
-	output *bytes.Buffer,
-	models []*projectRelationModel,
-	sources []projectRelationQuerySource,
-) {
-	fmt.Fprintln(output, "func BindRelations() (Relations, error) {")
-	if len(models) == 0 || len(sources) == 0 {
-		fmt.Fprintln(output, "\tif _, _err := Bind(); _err != nil {")
-		fmt.Fprintln(output, "\t\treturn Relations{}, _err")
-		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "\treturn Relations{}, nil")
-		fmt.Fprintln(output, "}")
-		return
-	}
-	usedModels := make(map[int]struct{}, len(models))
-	for _, source := range sources {
-		usedModels[source.model.bind] = struct{}{}
-		for _, relation := range source.relations {
-			usedModels[relation.target.bind] = struct{}{}
-		}
-	}
-	renderProjectModelBindings(output, models, "Relations", usedModels)
-	for _, source := range sources {
-		for _, relation := range source.relations {
-			fmt.Fprintf(
-				output,
-				"\t_relation%d, _err := orm.BindForward(_model%d, %s, _model%d)\n",
-				relation.bind,
-				source.model.bind,
-				strconv.Quote(relation.field.Name),
-				relation.target.bind,
-			)
-			fmt.Fprintln(output, "\tif _err != nil {")
-			fmt.Fprintln(output, "\t\treturn Relations{}, _err")
-			fmt.Fprintln(output, "\t}")
-			for _, terminal := range relation.terminals {
-				method := "String"
-				if terminal.kind == ir.FieldDateTime {
-					method = "DateTime"
-				}
-				if terminal.kind == ir.FieldBoolean {
-					method = "Boolean"
-				}
-				if terminal.kind == ir.FieldAuto || terminal.kind == ir.FieldInteger {
-					method = "Integer"
-				}
-				fmt.Fprintf(
-					output,
-					"\t_terminal%d, _err := _relation%d.%s(%s.%sFields.%s)\n",
-					terminal.bind,
-					relation.bind,
-					method,
-					relation.target.app.alias,
-					relation.target.model.GoName,
-					terminal.field.GoName,
-				)
-				fmt.Fprintln(output, "\tif _err != nil {")
-				fmt.Fprintln(output, "\t\treturn Relations{}, _err")
-				fmt.Fprintln(output, "\t}")
-			}
-		}
-	}
-
+func renderProjectRelationQueryGroups(output *bytes.Buffer, models []*projectRelationModel, sources []projectRelationQuerySource) {
 	if len(sources) == 0 {
-		fmt.Fprintln(output, "\treturn Relations{}, nil")
-		fmt.Fprintln(output, "}")
 		return
+	}
+	bySource := make(map[*projectRelationModel][]projectRelationQueryEdge)
+	used := make(map[*projectRelationModel]bool)
+	fmt.Fprintln(output, "type relationQueryBindings struct {")
+	for _, source := range sources {
+		bySource[source.model] = source.relations
+		for _, relation := range source.relations {
+			used[relation.target] = true
+			fmt.Fprintf(output, "\tedge%d orm.ForwardRelation[%s,%s]\n", relation.bind, projectRelationRawType(source.model), projectRelationRawType(relation.target))
+		}
+	}
+	fmt.Fprintln(output, "}")
+	for _, model := range models {
+		if !used[model] {
+			continue
+		}
+		group := projectRelationQueryGroupName(model)
+		target := projectRelationRawType(model)
+		var terminals []ir.Field
+		fmt.Fprintf(output, "type %s[S any] struct {\n\tbindings *relationQueryBindings\n\troute orm.ForwardRelation[S,%s]\n\tconfigurationErr error\n", group, target)
+		for _, field := range model.model.Fields {
+			if !supportedProjectRelationQueryTerminal(field) {
+				continue
+			}
+			terminals = append(terminals, field)
+			fmt.Fprintf(output, "\t%s orm.Related%sField[S]\n", field.GoName, projectRelationQueryScalarKind(field))
+		}
+		fmt.Fprintln(output, "}")
+		fmt.Fprintf(output, "func new%s[S any](_bindings *relationQueryBindings,_route orm.ForwardRelation[S,%s]) %s[S] {\n", group, target, group)
+		fmt.Fprintf(output, "\t_result:=%s[S]{bindings:_bindings,route:_route}\n", group)
+		for index, field := range terminals {
+			kind := projectRelationQueryScalarKind(field)
+			fmt.Fprintf(output, "\t_field%d,_err:=_route.%s(%s.%sFields.%s)\n", index, kind, model.app.alias, model.model.GoName, field.GoName)
+			fmt.Fprintln(output, "\tif _result.configurationErr==nil{_result.configurationErr=_err}")
+		}
+		for index, field := range terminals {
+			fmt.Fprintf(output, "\t_result.%s=_field%d.WithConfigurationError(_result.configurationErr)\n", field.GoName, index)
+		}
+		fmt.Fprintln(output, "\t_result.route=_route.WithConfigurationError(_result.configurationErr)\n\treturn _result\n}")
+		fmt.Fprintf(output, "func (_fields %s[S]) IsNull(_value bool) orm.Predicate[S] {return _fields.route.IsNull(_value)}\n", group)
+		for _, relation := range bySource[model] {
+			next := projectRelationQueryGroupName(relation.target)
+			fmt.Fprintf(output, "func (_fields %s[S]) %s() %s[S] {\n", group, relation.selector, next)
+			fmt.Fprintf(output, "\tvar _next orm.ForwardRelation[%s,%s]\n", target, projectRelationRawType(relation.target))
+			fmt.Fprintf(output, "\tif _fields.bindings!=nil{_next=_fields.bindings.edge%d}\n", relation.bind)
+			fmt.Fprintf(output, "\treturn new%s[S](_fields.bindings,orm.ChainForward(_fields.route,_next))\n}\n", next)
+		}
+	}
+}
+func projectRelationQueryScalarKind(field ir.Field) string {
+	switch field.Kind {
+	case ir.FieldAuto, ir.FieldInteger:
+		return "Integer"
+	case ir.FieldBoolean:
+		return "Boolean"
+	case ir.FieldDateTime:
+		return "DateTime"
+	default:
+		return "String"
+	}
+}
+func renderProjectRelationQueryTypes(output *bytes.Buffer, source projectRelationQuerySource) {
+	root := projectRelationRawType(source.model)
+	fmt.Fprintf(output, "type %s struct {\n", source.relationsType)
+	for _, relation := range source.relations {
+		fmt.Fprintf(output, "\t%s %s[%s]\n", relation.selector, projectRelationQueryGroupName(relation.target), root)
+	}
+	fmt.Fprintf(output, "\tmodel orm.BoundModel[%s]\n}\n", root)
+	fmt.Fprintf(output, "func (_relations %s) ParseDynamic(_policy orm.LookupPolicy,_inputs []orm.LookupInput)([]orm.Predicate[%s],error){\n\treturn orm.ParseDynamicRelations(_relations.model,_policy,_inputs)\n}\n", source.relationsType, root)
+}
+func renderBindRelations(output *bytes.Buffer, models []*projectRelationModel, sources []projectRelationQuerySource) {
+	fmt.Fprintln(output, "func BindRelations()(Relations,error){")
+	if len(models) == 0 || len(sources) == 0 {
+		fmt.Fprintln(output, "\tif _,_err:=Bind();_err!=nil{return Relations{},_err}\n\treturn Relations{},nil\n}")
+		return
+	}
+	used := make(map[int]struct{})
+	for _, source := range sources {
+		used[source.model.bind] = struct{}{}
+		for _, relation := range source.relations {
+			used[relation.target.bind] = struct{}{}
+		}
+	}
+	renderProjectModelBindings(output, models, "Relations", used)
+	fmt.Fprintln(output, "\t_routes:=&relationQueryBindings{}")
+	for _, source := range sources {
+		for _, relation := range source.relations {
+			fmt.Fprintf(output, "\t_relation%d,_err:=orm.BindForward(_model%d,%s,_model%d)\n", relation.bind, source.model.bind, strconv.Quote(relation.field.Name), relation.target.bind)
+			fmt.Fprintln(output, "\tif _err!=nil{return Relations{},_err}")
+			fmt.Fprintf(output, "\t_routes.edge%d=_relation%d\n", relation.bind, relation.bind)
+		}
+	}
+	for _, source := range sources {
+		for _, relation := range source.relations {
+			fmt.Fprintf(output, "\t_group%d:=new%s[%s](_routes,_routes.edge%d)\n", relation.bind, projectRelationQueryGroupName(relation.target), projectRelationRawType(source.model), relation.bind)
+			fmt.Fprintf(output, "\tif _group%d.configurationErr!=nil{return Relations{},_group%d.configurationErr}\n", relation.bind, relation.bind)
+		}
 	}
 	fmt.Fprintln(output, "\treturn Relations{")
 	for _, source := range sources {
-		fmt.Fprintf(output, "\t\t%s: %s{\n", source.surface, source.relationsType)
+		fmt.Fprintf(output, "\t\t%s: %s{model:_model%d,\n", source.surface, source.relationsType, source.model.bind)
 		for _, relation := range source.relations {
-			fmt.Fprintf(output, "\t\t\t%s: %s{\n", relation.selector, relation.typeName)
-			for _, terminal := range relation.terminals {
-				fmt.Fprintf(output, "\t\t\t\t%s: _terminal%d,\n", terminal.field.GoName, terminal.bind)
-			}
-			fmt.Fprintln(output, "\t\t\t},")
+			fmt.Fprintf(output, "\t\t\t%s:_group%d,\n", relation.selector, relation.bind)
 		}
-		fmt.Fprintf(output, "\t\t\tmodel: _model%d,\n", source.model.bind)
 		fmt.Fprintln(output, "\t\t},")
 	}
-	fmt.Fprintln(output, "\t}, nil")
-	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output, "\t},nil\n}")
 }

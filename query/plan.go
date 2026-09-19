@@ -103,7 +103,7 @@ func NewInCondition(field FieldRef, values []Value) (Condition, error) {
 // supported; nullable source-key isnull remains a separate path scope.
 func NewRelatedInCondition(path RelationPath, values []Value) (Condition, error) {
 	if !forwardMembershipPath(path) {
-		return Condition{}, invalidPlanError("related IN requires one direct forward target-field path")
+		return Condition{}, invalidPlanError("related IN requires a valid forward target-field path")
 	}
 	condition, err := NewInCondition(path.Terminal(), values)
 	if err != nil {
@@ -114,8 +114,7 @@ func NewRelatedInCondition(path RelationPath, values []Value) (Condition, error)
 }
 
 func forwardMembershipPath(path RelationPath) bool {
-	return path.scope == RelationTerminalRelatedField && len(path.hops) == 1 &&
-		path.hops[0].direction == RelationForward && validFieldRef(path.terminal)
+	return path.scope == RelationTerminalRelatedField && path.validateForward() == nil
 }
 
 // NewFieldCondition constructs one scalar comparison whose right-hand side is
@@ -155,8 +154,14 @@ func (c Condition) OperandNullable() bool {
 		return true
 	}
 	path := c.relationPath
-	return path != nil && path.scope == RelationTerminalRelatedField && len(path.hops) == 1 &&
-		path.hops[0].direction == RelationForward && path.hops[0].nullable
+	if path != nil {
+		for _, hop := range path.hops {
+			if hop.direction == RelationForward && hop.nullable {
+				return true
+			}
+		}
+	}
+	return false
 }
 func (c Condition) Value() Value {
 	if c.lookup == LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSLiteral {
@@ -441,40 +446,25 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 			}
 			return nil
 		}
-		if len(path.hops) != 1 {
-			return invalidPlanError("query expression relation path must contain exactly one hop")
+		if err := path.Validate(); err != nil {
+			return err
 		}
 		hop := path.hops[0]
-		if !relationAtRootConjunction && hop.direction != RelationForward {
-			return &Error{
-				Category: CategoryQuery,
-				Code:     CodeUnsupported,
-				Field:    condition.field.name,
-				Lookup:   string(condition.lookup),
-				Detail:   "reverse relation predicates under OR or NOT are not supported",
+		if hop.direction == RelationReverse {
+			if !relationAtRootConjunction {
+				return &Error{Category: CategoryQuery, Code: CodeUnsupported, Field: condition.field.name, Lookup: string(condition.lookup), Detail: "reverse relation predicates under OR or NOT are not supported"}
+			}
+			if hop.targetTable != p.table || !containsPlanIntegerColumn(p.sourceFields, hop.targetPrimaryKeyColumn) {
+				return invalidPlanError("query expression reverse relation root key is not part of the plan source metadata")
+			}
+		} else {
+			sourceKey := NewFieldRef(hop.field, hop.sourceColumn, FieldInteger, hop.nullable)
+			if hop.sourceTable != p.table || !slices.Contains(p.sourceFields, sourceKey) {
+				return invalidPlanError("query expression forward relation source key is not part of the plan source metadata")
 			}
 		}
-		switch path.scope {
-		case RelationTerminalSourceKey:
-			if !slices.Contains(p.sourceFields, condition.field) {
-				return invalidPlanError("query expression relation source key is not part of the plan source metadata")
-			}
-		case RelationTerminalRelatedField:
-			switch hop.direction {
-			case RelationForward:
-				sourceKey := NewFieldRef(hop.field, hop.sourceColumn, FieldInteger, hop.nullable)
-				if hop.sourceTable != p.table || !slices.Contains(p.sourceFields, sourceKey) {
-					return invalidPlanError("query expression forward relation source key is not part of the plan source metadata")
-				}
-			case RelationReverse:
-				if hop.targetTable != p.table || !containsPlanIntegerColumn(p.sourceFields, hop.targetPrimaryKeyColumn) {
-					return invalidPlanError("query expression reverse relation root key is not part of the plan source metadata")
-				}
-			default:
-				return invalidPlanError("query expression relation direction is invalid")
-			}
-		default:
-			return invalidPlanError("query expression relation terminal scope is invalid")
+		if path.scope == RelationTerminalSourceKey && condition.lookup != LookupIsNull {
+			return invalidPlanError("relation source-key terminals support isnull only")
 		}
 		return nil
 	}

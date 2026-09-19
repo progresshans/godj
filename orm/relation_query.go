@@ -66,10 +66,10 @@ func BindModel[M any](
 	}, nil
 }
 
-// ForwardRelation is a direct many-to-one relation with a required or nullable
-// source key. Both descriptors have been checked against one project snapshot.
+// ForwardRelation retains the root and terminal Go types of a forward route.
+// Each declaration belongs to the same immutable project snapshot.
 type ForwardRelation[S, T any] struct {
-	state        forwardRelationState
+	route        forwardQueryRoute
 	sourceMarker [0]func(S)
 	targetMarker [0]func(T)
 }
@@ -107,32 +107,34 @@ func BindForward[S, T any](
 	if state.metadata.Target != target.identity || !reflect.DeepEqual(state.targetModel, target.model) {
 		return ForwardRelation[S, T]{}, relationInvalidPlan("forward relation target does not match bound target model")
 	}
-	return ForwardRelation[S, T]{state: state}, nil
+	return ForwardRelation[S, T]{route: forwardQueryRoute{steps: []forwardRelationState{state}}}, nil
 }
 
 // RelatedIntegerField and RelatedStringField carry the source model type after
 // the target model and terminal field have been validated.
 type RelatedIntegerField[M any] struct {
-	path   query.RelationPath
-	valid  bool
-	marker [0]func(M)
+	configurationErr error
+	path             query.RelationPath
+	valid            bool
+	marker           [0]func(M)
 }
 
 type RelatedStringField[M any] struct {
-	path   query.RelationPath
-	valid  bool
-	marker [0]func(M)
+	configurationErr error
+	path             query.RelationPath
+	valid            bool
+	marker           [0]func(M)
 }
 
 func (r ForwardRelation[S, T]) Integer(field ReferenceField[T, int64]) (RelatedIntegerField[S], error) {
-	if err := validateForwardState(r.state); err != nil {
+	if err := r.route.validate(); err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
-	metadata, err := relatedScalarMetadata(r.state.targetModel, field, true, ir.FieldAuto, ir.FieldInteger)
+	metadata, err := relatedScalarMetadata(r.route.last().targetModel, field, true, ir.FieldAuto, ir.FieldInteger)
 	if err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
-	path, err := r.state.path(fieldReference(metadata))
+	path, err := r.route.path(fieldReference(metadata), query.RelationTerminalRelatedField)
 	if err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
@@ -161,14 +163,14 @@ func relatedScalarMetadata[M, V any](model ir.Model, field ReferenceField[M, V],
 }
 
 func (r ForwardRelation[S, T]) String(field ReferenceField[T, string]) (RelatedStringField[S], error) {
-	if err := validateForwardState(r.state); err != nil {
+	if err := r.route.validate(); err != nil {
 		return RelatedStringField[S]{}, err
 	}
-	metadata, err := relatedScalarMetadata(r.state.targetModel, field, true, ir.FieldChar, ir.FieldText)
+	metadata, err := relatedScalarMetadata(r.route.last().targetModel, field, true, ir.FieldChar, ir.FieldText)
 	if err != nil {
 		return RelatedStringField[S]{}, err
 	}
-	path, err := r.state.path(fieldReference(metadata))
+	path, err := r.route.path(fieldReference(metadata), query.RelationTerminalRelatedField)
 	if err != nil {
 		return RelatedStringField[S]{}, err
 	}
@@ -185,6 +187,9 @@ func matchingStringTerminalField(model ir.Model, reference query.FieldRef) (ir.F
 }
 
 func (f RelatedIntegerField[M]) Exact(value int64) Predicate[M] {
+	if f.configurationErr != nil {
+		return Predicate[M]{err: f.configurationErr}
+	}
 	if !f.valid {
 		return Predicate[M]{err: relationInvalidPlan("related integer field is unbound")}
 	}
@@ -192,6 +197,9 @@ func (f RelatedIntegerField[M]) Exact(value int64) Predicate[M] {
 }
 
 func (f RelatedStringField[M]) Exact(value string) Predicate[M] {
+	if f.configurationErr != nil {
+		return Predicate[M]{err: f.configurationErr}
+	}
 	if !f.valid {
 		return Predicate[M]{err: relationInvalidPlan("related string field is unbound")}
 	}

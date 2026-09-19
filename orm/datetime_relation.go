@@ -7,20 +7,21 @@ import (
 )
 
 type RelatedDateTimeField[M any] struct {
-	path   query.RelationPath
-	valid  bool
-	marker [0]func(M)
+	configurationErr error
+	path             query.RelationPath
+	valid            bool
+	marker           [0]func(M)
 }
 
 func (relation ForwardRelation[S, T]) DateTime(field ReferenceField[T, time.Time]) (RelatedDateTimeField[S], error) {
-	if err := validateForwardState(relation.state); err != nil {
+	if err := relation.route.validate(); err != nil {
 		return RelatedDateTimeField[S]{}, err
 	}
-	metadata, err := relatedScalarMetadata(relation.state.targetModel, field, true, ir.FieldDateTime)
+	metadata, err := relatedScalarMetadata(relation.route.last().targetModel, field, true, ir.FieldDateTime)
 	if err != nil {
 		return RelatedDateTimeField[S]{}, err
 	}
-	path, err := relation.state.path(fieldReference(metadata))
+	path, err := relation.route.path(fieldReference(metadata), query.RelationTerminalRelatedField)
 	if err != nil {
 		return RelatedDateTimeField[S]{}, err
 	}
@@ -44,6 +45,9 @@ func (relation ReverseRelation[Owner, Source]) DateTime(field DateTimeField[Sour
 	return RelatedDateTimeField[Owner]{path: path, valid: true}, nil
 }
 func (field RelatedDateTimeField[M]) Exact(value time.Time) Predicate[M] {
+	if field.configurationErr != nil {
+		return Predicate[M]{err: field.configurationErr}
+	}
 	if !field.valid {
 		return Predicate[M]{err: relationInvalidPlan("related datetime field is unbound")}
 	}

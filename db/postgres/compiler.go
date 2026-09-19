@@ -226,8 +226,6 @@ type whereLeaf struct {
 	inValues  []query.Value
 	inHasNull bool
 	related   bool
-	hop       query.RelationHop
-	usesJoin  bool
 }
 
 type whereAnalysis struct {
@@ -350,50 +348,15 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		}
 		return whereLeaf{inValues: values}, nil
 	}
-	hops := path.Hops()
-	if len(hops) != 1 {
-		return whereLeaf{}, invalidPlan("PostgreSQL relation compiler requires exactly one relation hop")
+	if err := queryplan.RelationCondition(a.plan, condition, path, "PostgreSQL"); err != nil {
+		return whereLeaf{}, err
 	}
-	hop := hops[0]
-	if !relationAtRootConjunction && hop.Direction() != query.RelationForward {
+	hops := path.Hops()
+	if !relationAtRootConjunction && hops[0].Direction() != query.RelationForward {
 		return whereLeaf{}, unsupportedBooleanRelation(condition)
 	}
-	if hop.Direction() == query.RelationForward && hop.SourceTable() != a.plan.Table() {
-		return whereLeaf{}, invalidPlan(fmt.Sprintf("relation source table %q does not match plan root table %q", hop.SourceTable(), a.plan.Table()))
-	}
-	if hop.Direction() == query.RelationReverse && hop.TargetTable() != a.plan.Table() {
-		return whereLeaf{}, invalidPlan(fmt.Sprintf("relation target table %q does not match reverse plan root table %q", hop.TargetTable(), a.plan.Table()))
-	}
-	if !condition.Field().Equal(path.Terminal()) {
-		return whereLeaf{}, invalidPlan("related condition field does not match relation path terminal")
-	}
+	leaf := whereLeaf{related: true}
 
-	leaf := whereLeaf{related: true, hop: hop}
-	switch path.TerminalScope() {
-	case query.RelationTerminalRelatedField:
-		switch hop.Direction() {
-		case query.RelationForward:
-			if err := queryplan.ForwardCondition(a.sourceFields, condition, hop, "PostgreSQL"); err != nil {
-				return whereLeaf{}, err
-			}
-		case query.RelationReverse:
-			if err := queryplan.ReverseCondition(condition, hop, "PostgreSQL"); err != nil {
-				return whereLeaf{}, err
-			}
-		default:
-			return whereLeaf{}, invalidPlan("relation path has an unknown direction")
-		}
-		if hop.Direction() == query.RelationReverse && condition.Lookup() != query.LookupExact {
-			return whereLeaf{}, unsupportedRelatedCondition(condition, "PostgreSQL reverse relation compiler supports exact related lookups only")
-		}
-		leaf.usesJoin = true
-	case query.RelationTerminalSourceKey:
-		if err := queryplan.NullableSourceKey(a.sourceFields, condition, hop, "PostgreSQL"); err != nil {
-			return whereLeaf{}, err
-		}
-	default:
-		return whereLeaf{}, invalidPlan("relation path has an unknown terminal scope")
-	}
 	if condition.Lookup() == query.LookupIn {
 		leaf.inValues, leaf.inHasNull, err = queryplan.MembershipValues(condition)
 		if err != nil {
@@ -654,27 +617,11 @@ func compileRelation(
 	columns []query.FieldRef,
 	where whereAnalysis,
 ) (string, []any, error) {
-	joinsByKey := make(map[queryplan.RelationKey]query.RelationHop)
-	sourceKeyHops := make([]query.RelationHop, 0, len(where.leaves))
-	for _, leaf := range where.leaves {
-		if !leaf.related {
-			continue
-		}
-		if !leaf.usesJoin {
-			sourceKeyHops = append(sourceKeyHops, leaf.hop)
-			continue
-		}
-		key := queryplan.KeyForRelation(leaf.hop)
-		if previous, exists := joinsByKey[key]; exists && !previous.Equal(leaf.hop) {
-			return "", nil, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent metadata", key.SourceApp, key.SourceModel, key.Field))
-		}
-		joinsByKey[key] = leaf.hop
-	}
-
-	prepared, err := queryplan.PrepareJoins(plan, joinsByKey, sourceKeyHops, "PostgreSQL")
+	prepared, err := queryplan.PrepareJoins(plan, "PostgreSQL")
 	if err != nil {
 		return "", nil, err
 	}
+
 	keys, joins := prepared.Keys, prepared.ByKey
 
 	const rootAlias = "t0"
@@ -720,7 +667,7 @@ func compileRelation(
 			return "", nil, err
 		}
 		alias, _ := quoteIdentifier(join.Alias)
-		rootColumn, err := quoteQualified(rootAlias, join.RootColumn)
+		rootColumn, err := quoteQualified(join.FromAlias, join.FromColumn)
 		if err != nil {
 			return "", nil, err
 		}
@@ -744,13 +691,14 @@ func compileRelation(
 
 	resolveField := func(condition query.Condition) (string, error) {
 		alias := rootAlias
-		if path, related := condition.RelationPath(); related && path.TerminalScope() == query.RelationTerminalRelatedField {
-			hops := path.Hops()
-			join, ok := joins[queryplan.KeyForRelation(hops[0])]
-			if !ok {
-				return "", invalidPlan("relation predicate join metadata is missing")
+		if path, related := condition.RelationPath(); related {
+			if key, joined := queryplan.ConditionJoinKey(path); joined {
+				relation, found := joins[key]
+				if !found {
+					return "", invalidPlan("relation predicate join metadata is missing")
+				}
+				alias = relation.Alias
 			}
-			alias = join.Alias
 		}
 		return quoteQualified(alias, condition.Field().Column())
 	}

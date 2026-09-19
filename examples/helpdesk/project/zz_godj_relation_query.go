@@ -8,22 +8,44 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v1"
+const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
 
-type ModelsTicketCategoryRelation struct {
-	ID   orm.RelatedIntegerField[models.Ticket]
-	Name orm.RelatedStringField[models.Ticket]
+type relationQueryBindings struct {
+	edge0 orm.ForwardRelation[models.Ticket, models.Category]
+}
+type ModelsCategoryRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.ForwardRelation[S, models.Category]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Name             orm.RelatedStringField[S]
+}
+
+func newModelsCategoryRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, models.Category]) ModelsCategoryRelatedFields[S] {
+	_result := ModelsCategoryRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(models.CategoryFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(models.CategoryFields.Name)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Name = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields ModelsCategoryRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
 }
 
 type ModelsTicketRelations struct {
-	Category ModelsTicketCategoryRelation
+	Category ModelsCategoryRelatedFields[models.Ticket]
 	model    orm.BoundModel[models.Ticket]
 }
 
-func (_relations ModelsTicketRelations) ParseDynamic(
-	_policy orm.LookupPolicy,
-	_inputs []orm.LookupInput,
-) ([]orm.Predicate[models.Ticket], error) {
+func (_relations ModelsTicketRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[models.Ticket], error) {
 	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
@@ -52,27 +74,21 @@ func BindRelations() (Relations, error) {
 	if _err != nil {
 		return Relations{}, _err
 	}
+	_routes := &relationQueryBindings{}
 	_relation0, _err := orm.BindForward(_model1, "category", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_terminal0, _err := _relation0.Integer(models.CategoryFields.ID)
-	if _err != nil {
-		return Relations{}, _err
-	}
-	_terminal1, _err := _relation0.String(models.CategoryFields.Name)
-	if _err != nil {
-		return Relations{}, _err
+	_routes.edge0 = _relation0
+	_group0 := newModelsCategoryRelatedFields[models.Ticket](_routes, _routes.edge0)
+	if _group0.configurationErr != nil {
+		return Relations{}, _group0.configurationErr
 	}
 	return Relations{
-		ModelsTicket: ModelsTicketRelations{
-			Category: ModelsTicketCategoryRelation{
-				ID:   _terminal0,
-				Name: _terminal1,
-			},
-			model: _model1,
+		ModelsTicket: ModelsTicketRelations{model: _model1,
+			Category: _group0,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_7777d450cd208876f933fd6fe0b231637ebe17d04d81de8ca78baf5ea7709d97
+var _ goDjProjectSnapshot_41fb8043313deb900f92e07e6f03c44e279b95f5fce5533200ee8a06765e2cb1

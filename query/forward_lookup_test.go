@@ -31,7 +31,7 @@ func TestForwardMembershipOwnsValuesAndRetainsOptionalOperand(t *testing.T) {
 		t.Fatal("optional operand or detached values changed")
 	}
 	sourceKey := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
-	nullPath, err := query.NewNullableForwardRelationIsNullPath(source, "blog_post", sourceKey, target, "authors_author", "id")
+	nullPath, err := query.NewForwardRelationIsNullPath(source, "blog_post", sourceKey, target, "authors_author", "id")
 	if err != nil {
 		t.Fatal(err)
 	}

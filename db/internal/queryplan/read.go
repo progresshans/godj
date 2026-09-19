@@ -15,6 +15,8 @@ import (
 type RelationKey struct {
 	SourceApp, SourceModel, Field, TargetApp, TargetModel string
 	Direction                                             query.RelationDirection
+	Parent                                                string
+	Depth                                                 int
 }
 
 func KeyForRelation(hop query.RelationHop) RelationKey {
@@ -82,51 +84,48 @@ func RelationProjection(plan query.Plan, projection query.RelationProjection, ba
 	return KeyForRelation(hop), nil
 }
 
-func NullableSourceKey(
-	columns []query.FieldRef,
-	condition query.Condition,
-	hop query.RelationHop,
-	backendName string,
-) error {
-	field := condition.Field()
-	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || !hop.Nullable() {
-		return unsupportedRelatedCondition(condition, backendName+" source-key isnull requires a nullable forward many-to-one path")
+// RelationCondition validates a whole route against its root and terminal.
+// Structural path validation is shared with the AST; physical identifier/value
+// handling remains owned by the dialect compiler.
+func RelationCondition(plan query.Plan, condition query.Condition, path query.RelationPath, backendName string) error {
+	if err := path.Validate(); err != nil {
+		return err
 	}
-	if !canonicalIdentity(hop.Source()) || !canonicalIdentity(hop.Target()) ||
-		!CanonicalIdentifier(hop.SourceTable()) || !CanonicalIdentifier(hop.Field()) ||
-		!CanonicalIdentifier(hop.SourceColumn()) || !CanonicalIdentifier(hop.TargetTable()) ||
-		!CanonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
-		return invalidPlan("nullable source-key relation path contains non-canonical metadata")
+	if !condition.Field().Equal(path.Terminal()) {
+		return invalidPlan("related condition field does not match relation path terminal")
 	}
-	if field.Kind() != query.FieldInteger || !field.Nullable() ||
-		field.Name() != hop.Field() || field.Column() != hop.SourceColumn() {
-		return invalidPlan("nullable source-key relation terminal does not match the hop source key")
+	if _, ok := condition.RHSField(); ok {
+		return invalidPlan(backendName + " relation conditions cannot use a field-reference right-hand side")
 	}
-	if !ContainsField(columns, field) {
-		return invalidPlan(fmt.Sprintf("relation source key %q is not selected model metadata", field.Name()))
+	hops := path.Hops()
+	root := hops[0]
+	if root.Direction() == query.RelationReverse {
+		if root.TargetTable() != plan.Table() {
+			return invalidPlan("reverse relation root table does not match plan source")
+		}
+		if err := ReverseCondition(condition, root, backendName); err != nil {
+			return err
+		}
+		if condition.Lookup() != query.LookupExact {
+			return unsupportedRelatedCondition(condition, backendName+" reverse relation compiler supports exact related lookups only")
+		}
+		return nil
 	}
-	if condition.Lookup() != query.LookupIsNull {
-		return unsupportedRelatedCondition(condition, backendName+" source-key relation paths support isnull only")
-	}
-	if _, ok := condition.Value().Boolean(); !ok {
-		return invalidPlan(backendName + " source-key isnull requires a Boolean value")
-	}
-	return nil
-}
-
-// ForwardCondition validates edge provenance. The AST constructor owns the
-// terminal metadata domain; each backend owns identifiers and scalar values.
-// In particular, a direct AST path may use Boolean or nullable target fields
-// even when a higher-level relation adapter does not yet expose them.
-func ForwardCondition(columns []query.FieldRef, condition query.Condition, hop query.RelationHop, backendName string) error {
-	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne {
-		return unsupportedRelatedCondition(condition, backendName+" forward related-field paths require many-to-one traversal")
-	}
-	if hop.ReverseName() != "" {
-		return invalidPlan("forward relation path contains a reverse name")
-	}
-	if !ContainsField(columns, query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())) {
+	if root.SourceTable() != plan.Table() || !ContainsField(plan.SourceFields(), query.NewFieldRef(root.Field(), root.SourceColumn(), query.FieldInteger, root.Nullable())) {
 		return invalidPlan("forward relation source key is not selected model metadata")
+	}
+	if path.TerminalScope() == query.RelationTerminalSourceKey {
+		if condition.Lookup() != query.LookupIsNull {
+			return unsupportedRelatedCondition(condition, backendName+" source-key relation paths support isnull only")
+		}
+		if _, ok := condition.Value().Boolean(); !ok {
+			return invalidPlan("source-key isnull requires a Boolean value")
+		}
+		for _, hop := range hops {
+			if !canonicalIdentity(hop.Source()) || !canonicalIdentity(hop.Target()) || !CanonicalIdentifier(hop.SourceTable()) || !CanonicalIdentifier(hop.Field()) || !CanonicalIdentifier(hop.SourceColumn()) || !CanonicalIdentifier(hop.TargetTable()) || !CanonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
+				return invalidPlan("source-key relation path contains non-canonical metadata")
+			}
+		}
 	}
 	return nil
 }
@@ -167,6 +166,15 @@ func CanonicalIdentifier(value string) bool {
 }
 
 func CompareRelationKey(left, right RelationKey) int {
+	if left.Depth < right.Depth {
+		return -1
+	}
+	if left.Depth > right.Depth {
+		return 1
+	}
+	if order := strings.Compare(left.Parent, right.Parent); order != 0 {
+		return order
+	}
 	leftParts := [...]string{left.SourceApp, left.SourceModel, left.Field, left.TargetApp, left.TargetModel, string(left.Direction)}
 	rightParts := [...]string{right.SourceApp, right.SourceModel, right.Field, right.TargetApp, right.TargetModel, string(right.Direction)}
 	for index := range leftParts {
@@ -280,4 +288,40 @@ func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression
 		}
 	}
 	return nil
+}
+
+// KeyForPath distinguishes occurrences of the same declaration reached by
+// different root routes. Length-prefixed tokens cannot collide for raw AST
+// identifiers containing separators. Direct paths retain their existing keys.
+func KeyForPath(hops []query.RelationHop) RelationKey {
+	if len(hops) == 0 {
+		return RelationKey{}
+	}
+	key := KeyForRelation(hops[len(hops)-1])
+	key.Depth = len(hops) - 1
+	var prefix strings.Builder
+	for _, hop := range hops[:len(hops)-1] {
+		edge := KeyForRelation(hop)
+		for _, part := range []string{edge.SourceApp, edge.SourceModel, edge.Field, edge.TargetApp, edge.TargetModel, string(edge.Direction)} {
+			fmt.Fprintf(&prefix, "%d:%s", len(part), part)
+		}
+	}
+	key.Parent = prefix.String()
+	return key
+}
+
+// ConditionJoinKey names the row holding the terminal column. A source-key
+// predicate trims only its final target JOIN, never the ancestors' JOINs.
+func ConditionJoinKey(path query.RelationPath) (RelationKey, bool) {
+	hops := path.Hops()
+	if len(hops) == 0 {
+		return RelationKey{}, false
+	}
+	if path.TerminalScope() == query.RelationTerminalSourceKey {
+		hops = hops[:len(hops)-1]
+	}
+	if len(hops) == 0 {
+		return RelationKey{}, false
+	}
+	return KeyForPath(hops), true
 }

@@ -226,82 +226,27 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		return "", nil, err
 	}
 
-	joinsByKey := make(map[queryplan.RelationKey]query.RelationHop)
-	conditionKeys := make([]queryplan.RelationKey, len(where.leaves))
-	relatedConditions := make([]bool, len(where.leaves))
-	sourceKeyHops := make([]query.RelationHop, 0, len(where.leaves))
-	for index, leaf := range where.leaves {
+	for _, leaf := range where.leaves {
 		condition := leaf.condition
-		path, related := condition.RelationPath()
-		if !related {
+		if _, related := condition.RelationPath(); !related {
 			if !queryplan.ContainsField(columns, condition.Field()) {
-				return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
+				return "", nil, invalidPlan("condition field is not selected model metadata")
 			}
 			if right, ok := condition.RHSField(); ok && !queryplan.ContainsField(columns, right) {
-				return "", nil, invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
+				return "", nil, invalidPlan("condition right-hand-side field is not selected model metadata")
 			}
-			continue
 		}
-		if _, ok := condition.RHSField(); ok {
-			return "", nil, invalidPlan("SQLite relation conditions cannot use a field-reference right-hand side")
-		}
-		hops := path.Hops()
-		if len(hops) != 1 {
-			return "", nil, invalidPlan("SQLite relation compiler requires exactly one relation hop")
-		}
-		hop := hops[0]
-		if hop.Direction() == query.RelationForward && hop.SourceTable() != plan.Table() {
-			return "", nil, invalidPlan(fmt.Sprintf("relation source table %q does not match plan root table %q", hop.SourceTable(), plan.Table()))
-		}
-		if hop.Direction() == query.RelationReverse && hop.TargetTable() != plan.Table() {
-			return "", nil, invalidPlan(fmt.Sprintf("relation target table %q does not match reverse plan root table %q", hop.TargetTable(), plan.Table()))
-		}
-		if !condition.Field().Equal(path.Terminal()) {
-			return "", nil, invalidPlan("related condition field does not match relation path terminal")
-		}
-
-		switch path.TerminalScope() {
-		case query.RelationTerminalRelatedField:
-			switch hop.Direction() {
-			case query.RelationForward:
-				if err := queryplan.ForwardCondition(columns, condition, hop, "SQLite"); err != nil {
-					return "", nil, err
-				}
-			case query.RelationReverse:
-				if err := queryplan.ReverseCondition(condition, hop, "SQLite"); err != nil {
-					return "", nil, err
-				}
-			default:
-				return "", nil, invalidPlan("relation path has an unknown direction")
-			}
-			if hop.Direction() == query.RelationReverse && condition.Lookup() != query.LookupExact {
-				return "", nil, unsupportedRelatedCondition(condition, "SQLite reverse relation compiler supports exact related lookups only")
-			}
-			relatedConditions[index] = true
-		case query.RelationTerminalSourceKey:
-			if err := queryplan.NullableSourceKey(columns, condition, hop, "SQLite"); err != nil {
-				return "", nil, err
-			}
-			sourceKeyHops = append(sourceKeyHops, hop)
-			// A nullable source-key path retains relation provenance in the
-			// plan, but compiles against the root alias without allocating a
-			// JOIN. Its condition key intentionally remains the zero value.
-			continue
-		default:
-			return "", nil, invalidPlan("relation path has an unknown terminal scope")
-		}
-		key := queryplan.KeyForRelation(hop)
-		if previous, exists := joinsByKey[key]; exists && !previous.Equal(hop) {
-			return "", nil, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent metadata", key.SourceApp, key.SourceModel, key.Field))
-		}
-		joinsByKey[key] = hop
-		conditionKeys[index] = key
 	}
-
-	prepared, err := queryplan.PrepareJoins(plan, joinsByKey, sourceKeyHops, "SQLite")
+	prepared, err := queryplan.PrepareJoins(plan, "SQLite")
 	if err != nil {
 		return "", nil, err
 	}
+	// SQLite's optimizer has one bit per joined table; the root counts too.
+	// https://www.sqlite.org/limits.html#max_join
+	if len(prepared.Keys) > 63 {
+		return "", nil, unsupportedResult("SQLite supports at most 64 joined tables including the root")
+	}
+
 	keys, joins := prepared.Keys, prepared.ByKey
 
 	const rootAlias = "t0"
@@ -353,7 +298,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		if err != nil {
 			return "", nil, err
 		}
-		rootColumn, err := quoteQualified(rootAlias, join.RootColumn)
+		rootColumn, err := quoteQualified(join.FromAlias, join.FromColumn)
 		if err != nil {
 			return "", nil, err
 		}
@@ -375,10 +320,16 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		sql.WriteString(joinedColumn)
 	}
 
-	for index, leaf := range where.leaves {
+	for _, leaf := range where.leaves {
 		alias := rootAlias
-		if relatedConditions[index] {
-			alias = joins[conditionKeys[index]].Alias
+		if path, related := leaf.condition.RelationPath(); related {
+			if key, joined := queryplan.ConditionJoinKey(path); joined {
+				relation, found := joins[key]
+				if !found {
+					return "", nil, invalidPlan("relation predicate join metadata is missing")
+				}
+				alias = relation.Alias
+			}
 		}
 		field, err := quoteQualified(alias, leaf.condition.Field().Column())
 		if err != nil {
