@@ -10,6 +10,8 @@ import (
 
 // This catalog is copied from the existing independent expected byte locks.
 // Do not derive expected hashes from the current artifact contents.
+// GDJ-0085 updates only the reviewed MIG-107 decision, its manifest/deviation
+// entries and enclosing checksum list; all Django-owned observations stay fixed.
 func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 	t.Parallel()
 	root := conformanceRepositoryRoot(t)
@@ -36,7 +38,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/contracts/migration-restart-manifest.json":                                         {-1, "79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290"},
 		"conformance/contracts/migration-state-reconstruction-manifest.json":                            {-1, "85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c"},
 		"conformance/contracts/migration-status-manifest.json":                                          {5263, "dcb86295e683ea083cc57dca155284f9b26018d5d5a30c9606141bee8946fcc6"},
-		"conformance/contracts/migration-writer-manifest.json":                                          {9227, "90bce609ffb4f771007379495629a31efbf00594dca16f9efe875005e97f1c72"},
+		"conformance/contracts/migration-writer-manifest.json":                                          {9219, "b74863e81417fbf142d7c50685a5b84f86f0534fefd400e9bf2e970d724f3eef"},
 		"conformance/contracts/parameter-routing-manifest.json":                                         {4689, "85365b3670df5fa5a0d51241dd958d25816d9a285a5070e416120423793a264e"},
 		"conformance/contracts/query-breadth-manifest.json":                                             {11282, "04665808db8f775096c07ac1705e6e10f139ac233f71a10c2892403005245167"},
 		"conformance/contracts/query-cache-manifest.json":                                               {-1, "35f808e361d85228fe3048ae2510cf296f3127bee5572ce3ed9e66c6fd3eb3e2"},
@@ -66,7 +68,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/fixtures/godj-migration-restart-not-implemented.json":                              {-1, "31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55"},
 		"conformance/fixtures/godj-migration-state-reconstruction-not-implemented.json":                 {-1, "9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1"},
 		"conformance/fixtures/godj-migration-status-not-implemented.json":                               {1566, "0dd4dd08b13b9497ea541b7de4a85448cf6e0358b899c095c6eaafaf290f6cc6"},
-		"conformance/fixtures/godj-migration-writer-deviation-expected.json":                            {7242, "74617f20f72ecd5b26284ae8cffb7a1c408cdef03e0933d457beeb82f9f4718e"},
+		"conformance/fixtures/godj-migration-writer-deviation-expected.json":                            {7247, "f0d8f5f4b0ad9ee56d49808efbfcc337f8e848a0603c0260680d020b2e0a8fa3"},
 		"conformance/fixtures/godj-migration-writer-not-implemented.json":                               {1876, "b27563a864fe417df53a20092c44f169829e9798cb2e40348c8dbbdcf4715502"},
 		"conformance/fixtures/godj-not-implemented.json":                                                {-1, "f02ea4e01e0ffcc9195d56d69129c5def0591cbcdcb5b07a62d2ec7395fa7874"},
 		"conformance/fixtures/godj-parameter-routing-deviation-expected.json":                           {2174, "f9d084d178cccdf5928830813810f4d28c930d4414c73091a06dcd825ed38f60"},
@@ -81,7 +83,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/fixtures/godj-template-form-deviation-expected.json":                               {1472, "0f9b10539677c07aa18c058f0e78925b3388299be853506324325c2af11d2ff3"},
 		"conformance/fixtures/godj-template-form-not-implemented.json":                                  {1863, "b1e426264c53dc4885f70aa0f6d2f2231ade201da0fa9fd980d11400960cc1f5"},
 		"conformance/fixtures/godj-write-migration-not-implemented.json":                                {-1, "c565c877278032637b75f99c9490c5e7e02169c8730628069533f16da6d8e707"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "b28323ed83769db590e169d35cf7afb09044cea4f1e13fb1b742f8bcd5547afe"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json":                  {17645, "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json":                   {6916, "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json":              {12690, "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee"},
@@ -94,7 +96,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json":              {-1, "90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json": {-1, "bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json":               {39478, "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json":               {25980, "9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json":               {25991, "b5c800ce23b238f4532b3f99b7a1466eb38e4b8884948f6a8376d0aca7bfa1a6"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json":                                {-1, "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json":                  {41943, "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json":                    {-1, "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682"},

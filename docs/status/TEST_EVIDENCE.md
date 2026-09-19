@@ -64,6 +64,14 @@ Django profile은 canonical bytes가 동일하며, 현재 Go-owned 다섯 decisi
 Pool growth·replacement·reopen, DSN의 OFF 옵션, 초기화/rows/close 오류와 취소를 검사했다. 이전 slice alias, fixture의 무정렬
 First·SQLite double-quoted string fallback·Django in-memory 연결 재사용 실패는 PASS로 세지 않았다.
 
+첫 통합 source `b7269d98c6d838fca2fda532d6d8a699dfe0a963`의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35463368487)에서
+일반 artifact byte-lock 검사가 갱신되지 않은 MIG-107의 manifest/deviation/oracle size·hash와 SHA256SUMS를 검출했다.
+로컬의 이름 기반 writer 검사는 이 공통 검사를 포함하지 않았으므로 Hosted 성공으로 처리하지 않는다.
+독립 decision 재생과 나머지 11개 관찰 보존을 다시 확인하고 checksum catalog의 정확한 변경분만 갱신했다.
+제품 코드는 바뀌지 않았다. 수정한 protocol **전체 package 904 PASS, skip 0**을 실제 실행했다.
+수정 후 Markdown을 제외한 54개 파일의 manifest SHA256은
+`7bd95d43b576066e32622c8880f475634cd728411c49dc3cc425f99341dad020`다. 관련 catalog 수정 외의 로컬 runtime 검증 bytes는 그대로다.
+
 전체 로그·source manifest·event audit는 `/tmp/godj-0085-position-path`가 가리키는 로컬 scratch에 있다.
 현재 로컬 결과이며 통합 커밋의 Hosted ORM 검증을 이어간다. Full-platform·배포·전체 프레임워크 완성의 증거는 아니다.
 

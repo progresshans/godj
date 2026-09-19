@@ -30,7 +30,7 @@ func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	const definitionSource = "61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410  migration-definition-source-oracle.json\n"
 	const projectCheck = "8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa  migration-project-check-oracle.json\n"
 	const migrationCommand = "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee  migration-command-oracle.json\n"
-	const migrationWriter = "9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41  migration-writer-oracle.json\n"
+	const migrationWriter = "b5c800ce23b238f4532b3f99b7a1466eb38e4b8884948f6a8376d0aca7bfa1a6  migration-writer-oracle.json\n"
 	const migrationStatus = "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f  migration-status-oracle.json\n"
 	const migrationTargetPlan = "dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f  migration-target-plan-oracle.json\n"
 	const migrationSQLRendering = "0d51318daf8c26aa58d8f10b49234f032fcc90c147743a41ca6e0d053c2921df  migration-sql-rendering-oracle.json\n"

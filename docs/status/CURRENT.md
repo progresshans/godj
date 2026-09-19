@@ -28,7 +28,7 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 ## 다음 행동
 
 GDJ-0085의 자동 계획·CLI 게시·실제 SQLite/PG migration과 생성 ORM 소비자를 연결하고 로컬 통합 검증을 완료했다.
-기존 Draft PR에 통합하고 해당 source의 Hosted ORM 검증을 이어간다. 현재 새 Hosted 결과는 아직 없으며
+기존 Draft PR에 통합했다. 첫 Hosted에서 누락된 artifact checksum 갱신을 확인·수정했으며 새 source의 Hosted ORM을 이어간다.
 검증 범위는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에서 구분한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 

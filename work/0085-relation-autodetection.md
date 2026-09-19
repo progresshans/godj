@@ -54,4 +54,5 @@ Go-owned MIG-107만 현재 독립 decision 실행으로 갱신하고 나머지 �
 
 로컬 normal/race/CGO0의 affected runtime, 현재 writer conformance, 네 Python 버전의 독립 Django 관찰,
 전체 compile-only·affected vet·generated drift 검사를 완료했다. 상세 source·명령·범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 있다.
-기존 Draft PR의 제품 통합과 통합 source의 Hosted ORM 검증을 마무리한다. GDJ-0085의 완료는 전체 프레임워크 완성을 뜻하지 않는다.
+기존 Draft PR에 제품을 통합했다. 첫 Hosted에서 발견한 공통 artifact checksum 갱신 누락을 수정하고 전체 protocol 검사를 통과했다.
+수정 source의 Hosted ORM 검증을 마무리한다. GDJ-0085의 완료는 전체 프레임워크 완성을 뜻하지 않는다.
