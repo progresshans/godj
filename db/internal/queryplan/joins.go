@@ -33,19 +33,12 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 			return Joins{}, err
 		}
 		hop := projection.Hop()
-		for _, sourceKey := range sourceKeys {
-			if SameSourceEdge(sourceKey, hop) && !sourceKey.Equal(hop) {
-				return Joins{}, invalidPlan("relation projection source-key provenance does not match the selected edge")
-			}
-		}
 		if previous, exists := edges[projectionKey]; exists && !previous.Equal(hop) {
 			return Joins{}, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent predicate and projection metadata", projectionKey.SourceApp, projectionKey.SourceModel, projectionKey.Field))
 		}
 		edges[projectionKey] = hop
-		for key := range edges {
-			if key != projectionKey {
-				return Joins{}, invalidPlan(backendName + " relation projection cannot combine unrelated relation joins")
-			}
+		if err := projectionJoinProvenance(hop, edges, sourceKeys); err != nil {
+			return Joins{}, err
 		}
 	}
 
@@ -85,6 +78,41 @@ func PrepareJoins(plan query.Plan, edges map[RelationKey]query.RelationHop, sour
 		joins[key] = join
 	}
 	return Joins{Keys: keys, ByKey: joins, ProjectionKey: projectionKey}, nil
+}
+
+// A projection anchors the logical root identity. Other filter joins may use
+// different edges, but a forward FK declaration must still describe exactly
+// one target. RelationKey alone cannot establish this: its target identity
+// differs when two paths forge different targets for the same source field.
+func projectionJoinProvenance(selected query.RelationHop, edges map[RelationKey]query.RelationHop, sourceKeys []query.RelationHop) error {
+	forward := make(map[string]query.RelationHop, len(edges)+len(sourceKeys))
+	check := func(hop query.RelationHop) error {
+		if hop.Direction() == query.RelationReverse {
+			if hop.Target() != selected.Source() {
+				return invalidPlan("reverse filter root identity does not match the relation projection")
+			}
+			return nil
+		}
+		if hop.Source() != selected.Source() {
+			return invalidPlan("forward filter root identity does not match the relation projection")
+		}
+		if previous, exists := forward[hop.Field()]; exists && !previous.Equal(hop) {
+			return invalidPlan("forward source-key provenance conflicts across projection and filter edges")
+		}
+		forward[hop.Field()] = hop
+		return nil
+	}
+	for _, hop := range edges {
+		if err := check(hop); err != nil {
+			return err
+		}
+	}
+	for _, hop := range sourceKeys {
+		if err := check(hop); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // requiredForwardJoins finds edges whose joined row must exist for the

@@ -96,3 +96,45 @@ func TestMembershipListsKeepEmptyAndNullIdentityWithoutCallerAliases(t *testing.
 		t.Fatal("empty list concealed invalid field metadata")
 	}
 }
+
+func TestZeroLimitProvesEmptyWithoutChangingPredicateOrSourcePlan(t *testing.T) {
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	base := query.NewPlan("entries", []query.FieldRef{id})
+	empty, err := base.WithLimit(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !empty.EmptyResult() || base.EmptyResult() {
+		t.Fatal("zero limit did not create an independent empty slice")
+	}
+	shifted, err := empty.WithOffset(9)
+	if err != nil || !shifted.EmptyResult() {
+		t.Fatal("offset hid zero limit")
+	}
+	for _, limit := range []int{1, 2} {
+		nonempty, err := empty.WithLimit(limit)
+		if err != nil || nonempty.EmptyResult() {
+			t.Fatalf("positive limit incorrectly proven empty: %v", err)
+		}
+	}
+	condition, err := query.NewInCondition(id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filtered, err := base.WithConditions(condition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filtered, err = filtered.WithLimit(1)
+	if err != nil || !filtered.EmptyResult() {
+		t.Fatal("positive limit hid empty predicate")
+	}
+	shape, err := query.NewAggregateResult(query.CountAllResult())
+	if err != nil {
+		t.Fatal(err)
+	}
+	count, err := shifted.WithResultShape(shape)
+	if err != nil || !count.EmptyResult() {
+		t.Fatal("aggregate lost empty source slice")
+	}
+}

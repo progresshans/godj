@@ -38,6 +38,8 @@ row 값 없이 결정하지 않는다. 일반 expression optimizer나 SQL three-
 ## 검증 뒤에 실행을 생략한다
 
 Backend와 session은 context·활성 상태·SQLite quarantine을 확인하고 전체 plan을 compile한 뒤에만 empty source를 처리한다.
+GDJ-0080은 `LIMIT 0`도 같은 empty source 분석에 포함한다. Predicate가 없거나 Offset이 있어도 입력 행은 없으며,
+Count는 0, model/projection은 빈 결과다. 이 경우에도 invalid metadata/capability와 취소·session 검증이 먼저 실행된다.
 잘못된 field/order/result shape나 미지원 relation 표현은 빈 조건과 결합돼도 오류다. ORM의 조기 반환으로 backend 검증을 건너뛰지 않는다.
 Model/projection은 zero rows, COUNT는 0, MIN/MAX는 NULL이다. 공통 synthetic rows는 이 좁은 aggregate의 scanner·cursor·취소 의미를
 소유하며 실제 `database/sql`의 0/NULL scan과 대조한다. SQL 연결을 만들어 알려진 결과를 다시 읽지 않는다.

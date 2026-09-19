@@ -44,7 +44,7 @@ Reverse one-to-many의 OR/NOT은 row multiplicity와 correlated existence 의미
   홀수 부정에서는 비교와 함께 **joined 대상 column의 IS NOT NULL**을 괄호 안에 넣는다. Root FK 값만 검사하는 보정으로 대체하지 않는다.
 - Root source-key isnull은 JOIN 없이 같은 Boolean 식에 참여한다. FK가 존재해야 하는 isnull 조건은 선언한 FK 무결성 아래에서
   같은 edge를 INNER JOIN으로 내릴 근거가 된다. Nullable 대상 scalar 자체, relation lookup 확장과
-  다중/중첩 eager materialization은 포함하지 않는다. 다른 eager/filter edge의 All은 여전히 미지원이며 Count는 projection을 생략할 수 있다.
+  다중/중첩 eager materialization은 포함하지 않는다. 당시 다른 eager/filter edge의 All은 미지원이었다. GDJ-0080은 [ADR-0029](0029-one-hop-forward-select-related.md)의 범위에서 한 selected projection과 여러 filter JOIN의 All/First를 연결한다.
 - 고정 Django 6.1/SQLite의 [독립 관찰](../../conformance/runners/django/nullable_forward_reference.py)은
   Char·Text·int64·DateTime·PK와 root 조건·isnull을 조합한 73개 case다.
   `QuerySet`, `Q`, `JoinPromoter`의 외부 행·Count·JOIN/NULL 결과를 참조했다(Django, BSD-3-Clause).

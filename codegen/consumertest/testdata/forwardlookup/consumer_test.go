@@ -192,12 +192,6 @@ func TestGeneratedForwardLookupReference(t *testing.T) {
 			}
 			before = backend.QueryCount()
 			selected, err := eager.All(ctx)
-			if usesAuthor(reference.Leaves, observation.Expression) {
-				if !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) || backend.QueryCount() != before {
-					t.Fatalf("unrelated projection=%v", err)
-				}
-				return
-			}
 			if err != nil || len(selected) != len(ids) || backend.QueryCount() != before+uint64(len(observation.SQL)) {
 				t.Fatalf("eager All=%d,%v", len(selected), err)
 			}
@@ -337,15 +331,4 @@ func fold(t *testing.T, leaves map[string]orm.Predicate[models.Post], node nulla
 	}
 	t.Fatal("invalid input tree")
 	return orm.Predicate[models.Post]{}, false
-}
-func usesAuthor(leaves map[string]nullableforwardproduct.Leaf, node nullableforwardproduct.Node) bool {
-	if node.Name != "" {
-		return strings.HasPrefix(leaves[node.Name].Path, "author__")
-	}
-	for _, child := range node.Children {
-		if usesAuthor(leaves, child) {
-			return true
-		}
-	}
-	return false
 }

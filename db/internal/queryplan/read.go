@@ -82,11 +82,6 @@ func RelationProjection(plan query.Plan, projection query.RelationProjection, ba
 	return KeyForRelation(hop), nil
 }
 
-func SameSourceEdge(left, right query.RelationHop) bool {
-	return left.Field() == right.Field() &&
-		left.SourceColumn() == right.SourceColumn()
-}
-
 func NullableSourceKey(
 	columns []query.FieldRef,
 	condition query.Condition,

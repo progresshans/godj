@@ -1,10 +1,13 @@
 package query
 
-// EmptyResult reports whether the predicate proves that its source has no
-// rows. Backends must still validate the whole plan before skipping I/O; this
-// is a value analysis, not a metadata or capability validation shortcut.
+// EmptyResult reports whether the source slice or predicate proves that its
+// source has no rows. Backends must still validate the whole plan before
+// skipping I/O; this is not a metadata or capability validation shortcut.
 // An aggregate over this source still returns its COUNT 0 / MIN or MAX NULL row.
 func (plan Plan) EmptyResult() bool {
+	if limit, set := plan.Limit(); set && limit == 0 {
+		return true
+	}
 	return predicateTruth(plan.where, false) == truthFalse
 }
 
