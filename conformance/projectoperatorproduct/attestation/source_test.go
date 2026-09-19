@@ -34,6 +34,10 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"calendar/date.go",
+		"internal/dateinput/date.go",
+		"internal/temporal/datetime.go",
+		"internal/booleaninput/select.go",
 		"scripts/ci/python_tests.py",
 		"scripts/ci/relation-required.txt",
 		"scripts/ci/compile-required.txt",

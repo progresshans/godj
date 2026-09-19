@@ -117,6 +117,9 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 					if err := validateString(fieldPath+".default.string", field.Default.String); err != nil {
 						return budget, err
 					}
+					if err := validateString(fieldPath+".default.date", field.Default.Date); err != nil {
+						return budget, err
+					}
 					if err := validateString(fieldPath+".default.datetime", field.Default.DateTime); err != nil {
 						return budget, err
 					}
@@ -130,6 +133,7 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 						{choicePath + ".label", choice.Label},
 						{choicePath + ".value.kind", string(choice.Value.Kind)},
 						{choicePath + ".value.string", choice.Value.String},
+						{choicePath + ".value.date", choice.Value.Date},
 						{choicePath + ".value.datetime", choice.Value.DateTime},
 					} {
 						if err := validateString(item.path, item.value); err != nil {

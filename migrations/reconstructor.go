@@ -2176,6 +2176,7 @@ func loadedScanFieldResource(budget *loadedResourceBudget, migration Migration, 
 		}
 		loadedConsumeString(budget, migration, operationIndex, kind, path+".default.kind", string(field.Default.Kind), false)
 		loadedConsumeString(budget, migration, operationIndex, kind, path+".default.string", field.Default.String, true)
+		loadedConsumeString(budget, migration, operationIndex, kind, path+".default.date", field.Default.Date, true)
 		loadedConsumeString(budget, migration, operationIndex, kind, path+".default.datetime", field.Default.DateTime, true)
 	}
 	loadedConsumeNodes(budget, uint64(len(field.Choices))*2)
@@ -2187,6 +2188,7 @@ func loadedScanFieldResource(budget *loadedResourceBudget, migration Migration, 
 		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".label", choice.Label, true)
 		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".value.kind", string(choice.Value.Kind), false)
 		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".value.string", choice.Value.String, true)
+		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".value.date", choice.Value.Date, true)
 		loadedConsumeString(budget, migration, operationIndex, kind, prefix+".value.datetime", choice.Value.DateTime, true)
 	}
 	if field.Relation != nil {

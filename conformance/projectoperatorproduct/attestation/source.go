@@ -38,6 +38,10 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"calendar/",
+	"internal/dateinput/",
+	"internal/temporal/",
+	"internal/booleaninput/",
 	"internal/identifiers/",
 	"internal/relationpolicy/",
 	"internal/irresource/",

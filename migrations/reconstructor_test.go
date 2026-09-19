@@ -1489,3 +1489,22 @@ func assertStateReconstructionError(t *testing.T, err error, key MigrationKey, o
 	}
 	return migrationError
 }
+
+func TestLoadedDefinitionDatePayloadIsBudgetedBeforeClone(t *testing.T) {
+	for _, choice := range []bool{false, true} {
+		for _, kind := range []ir.ScalarKind{ir.ScalarDate, ir.ScalarString} {
+			scalar := ir.Scalar{Kind: kind, Date: strings.Repeat("x", maxLoadedDefinitionBytes+1)}
+			field := ir.Field{Name: "day", GoName: "Day", Column: "day", Kind: ir.FieldDate}
+			if choice {
+				field.Choices = []ir.Choice{{Value: scalar}}
+			} else {
+				field.Default = &scalar
+			}
+			migration := Migration{App: "dates", Name: "0002_day", Operations: []Operation{AddField{AppLabel: "dates", ModelName: "entry", Field: field}}}
+			err := validateLoadedDefinitionResources([]Migration{migration})
+			if err == nil || !strings.Contains(err.Error(), "resource limit exceeded") || !strings.Contains(err.Error(), "definition_bytes") {
+				t.Fatalf("oversized date bypassed loaded-definition budget: %v", err)
+			}
+		}
+	}
+}

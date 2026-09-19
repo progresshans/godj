@@ -90,6 +90,7 @@ func TestChoiceResourceScanIncludesLabelsValuesAndInactivePayloads(t *testing.T)
 	for _, mutate := range []func(*ir.Choice){
 		func(choice *ir.Choice) { choice.Label = strings.Repeat("x", MaxSchemaStringBytes+1) },
 		func(choice *ir.Choice) { choice.Value.String = strings.Repeat("x", MaxSchemaStringBytes+1) },
+		func(choice *ir.Choice) { choice.Value.Date = strings.Repeat("x", MaxSchemaStringBytes+1) },
 		func(choice *ir.Choice) { choice.Value.DateTime = strings.Repeat("x", MaxSchemaStringBytes+1) },
 	} {
 		choice := ir.Choice{Value: ir.Scalar{Kind: ir.ScalarInteger}}
@@ -100,4 +101,18 @@ func TestChoiceResourceScanIncludesLabelsValuesAndInactivePayloads(t *testing.T)
 	schema := ir.Schema{AppLabel: "app", Models: []ir.Model{{Fields: []ir.Field{{Choices: []ir.Choice{{Value: ir.Scalar{Kind: ir.ScalarInteger}}}}}}}}
 	_, err := validateSchemas([]ir.Schema{schema}, resourceBudget{nodes: MaxAggregateNodes - 4})
 	assertResourceLimit(t, err, "aggregate_schema_nodes")
+}
+
+func TestDateDefaultResourceCapsApplyBeforeSemanticValidation(t *testing.T) {
+	for _, kind := range []ir.ScalarKind{ir.ScalarDate, ir.ScalarString} {
+		scalar := &ir.Scalar{Kind: kind, Date: strings.Repeat("x", MaxSchemaStringBytes)}
+		schema := ir.Schema{AppLabel: "dates", Models: []ir.Model{{Fields: []ir.Field{{Default: scalar}}}}}
+		if err := ValidateSchemas([]ir.Schema{schema}); err != nil {
+			t.Fatal("exact date resource cap rejected", err)
+		}
+		scalar.Date += "x"
+		assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_bytes")
+		scalar.Date = string([]byte{0xff})
+		assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_utf8")
+	}
 }

@@ -59,10 +59,35 @@ Go Form은 120개 cleaned/error/changed 관찰, serializer는 268개 field 결�
 같은 checkpoint의 serializer NUL 4개는 테스트가 global JSON 거부 전에 field binding을 기대해서 실패했다. 보안 규칙을 바꾸지 않고
 reference 대조와 document-boundary assertion을 구분했다. 수정 후 focused 실행과 위 일반 checkpoint가 통과했다.
 
-같은 날짜 source의 [Hosted ORM 실행](https://github.com/progresshans/godj/actions/runs/35471559786)을 dispatch했다. 아직 terminal 결과가 없으며 PASS로 세지 않는다.
-과거 GDJ-0086 ORM / GDJ-0074 full 결과를 Date의 PASS로 사용하지 않는다.
-전체 platform/cold-build 검증도 위 로컬 범위에 포함되지 않는다. 문서 link·status·diff 검사는 **120 documents PASS**다.
-전용 로컬 PostgreSQL DB는 모든 실행을 마친 뒤 삭제했다. PostgreSQL service 자체는 유지했다.
+### Hosted에서 발견한 dependency closure와 guard 보완
+
+첫 [Hosted ORM 실행](https://github.com/progresshans/godj/actions/runs/35471559786)은 source `b2b01f80f9a8b04c1893f8dc5d24e9b19ba4b087`다.
+Portable normal/CGO0 integration의 namespace/publication-recovery test가 격리 module에 새 `calendar` dependency를 연결하지 않아,
+의도한 recovery 단계 전에 readonly compile이 실패했다. 격리 fixture의 dependency 목록에 calendar를 추가했다. Candidate compile나
+namespace/recovery 조건은 완화하지 않았다. 같은 run의 macOS Intel race 작업 하나는 `raw.githubusercontent.com`와 `go.dev`의
+DNS ENOTFOUND로 Go 도구 준비 전에 실패했다. 이 환경 실패를 제품 PASS나 제품 원인으로 세지 않는다. 첫 run은 **cancelled**로 종료했다.
+
+새 scalar가 통과하는 다른 경계도 확인해 `internal/irresource`, project spec, loaded migration의 Date default/choice payload를
+문자열·aggregate 바이트 한도에 포함했다. System-state/operator source binding은 `calendar`, date input과 기존 temporal/Boolean
+input helper를 포함하도록 보완했다. 해당 파일이 바뀌면 실행 증거의 source binding이 달라지는 negative control을 추가했다.
+
+위 guard/fixture 보완은 별도 **11 files**이며 정렬된 파일 manifest SHA256은
+`bce9fbb16b7df441b607c9661536bb649b02685fe5aa5c62d7f52c4f83399d06`이다. 이 추가 source에서:
+
+- Namespace/publication-recovery의 실제 실패 test는 normal/race/CGO0 각각 **1 package / 3 pass events**, skip 0으로 확인했다.
+- Project generation·project spec·IR resource·migration·두 attestation package의 전체 affected normal/race는 각각
+  **6 packages / 775 pass events**다. Helper-only skip 1개는 `TestPublicationCrashHelper`이며 실제 crash parent
+  `TestPublishRecoversAfterProcessCrashAtPrecommitAndPostcommitBoundaries`는 양 모드에서 PASS다.
+- Date generated consumer·Helpdesk SQLite/PG·독립 client를 재실행했다. Normal/race/CGO0 각각 **3 packages / 4 root tests PASS**, skip 0이다.
+  PG required 환경을 적용했고 이 재검증에 만든 두 번째 전용 DB도 실행 후 삭제했다.
+- 추가 6 package의 vet와 문서·diff 검사도 통과했다. 앞의 21 package 결과는 원래 b2b01f8 source의 결과이며 이 보완을 포함한
+  모든 패키지를 다시 실행했다고 표시하지 않는다.
+
+Loaded migration의 oversized Date 테스트는 최초에 개별 payload path를 기대해 실패했다. 기존 오류 우선순위에서는 enclosing
+`definition_bytes`가 먼저 반환된다. 그 우선순위를 유지하고 실제 resource 거부를 assert하도록 테스트를 수정한 뒤 위 checkpoint가 통과했다.
+
+보완 source를 통합해 Hosted ORM을 다시 실행한다. 아직 이 날짜 작업의 Hosted PASS는 없다. 과거 GDJ-0086 ORM / GDJ-0074 full
+결과를 Date의 PASS로 사용하지 않는다. 전체 platform/cold-build 검증도 위 로컬 범위에 포함되지 않는다.
 
 ## GDJ-0086 — Nullable Boolean의 모델·Form/Admin/API 연결
 
