@@ -56,7 +56,8 @@ File discovery만 fixture seam이다. 두 DB의 이름별 field/constraint graph
 `uv run --no-project --isolated --python <version> --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5
 python -m unittest conformance.runners.django.tests.test_migration_autodetect_reference
 conformance.runners.django.tests.test_migration_writer_decisions`를 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 실행했다.
-각 **6 tests PASS, skip 0**, ResourceWarning 오류 처리를 적용했다. Runtime fingerprint는 실행 환경과, 관찰 본문은 raw와 대조한다.
+각 **6 tests PASS, skip 0**을 확인했으며, 아래 연결 종료 수정 뒤 네 환경에서 경고·exception 없는 완료를 다시 확인했다.
+Runtime fingerprint는 실행 환경과, 관찰 본문은 raw와 대조한다.
 MIG-107의 Go-owned 거부 case는 독립 Python decision의 현재 실행으로만 갱신했다. 같은 writer oracle의 나머지 11개 관찰과
 Django profile은 canonical bytes가 동일하며, 현재 Go-owned 다섯 decision의 재생 일치를 검사한다.
 
@@ -72,8 +73,29 @@ First·SQLite double-quoted string fallback·Django in-memory 연결 재사용 �
 수정 후 Markdown을 제외한 54개 파일의 manifest SHA256은
 `7bd95d43b576066e32622c8880f475634cd728411c49dc3cc425f99341dad020`다. 관련 catalog 수정 외의 로컬 runtime 검증 bytes는 그대로다.
 
+후속 로그 검토에서 Python 3.13/3.14의 종료 시 `ResourceWarning`을 발견했다. `sqlite3.Connection`의 context manager는
+transaction을 종료하지만 연결을 닫지 않으므로, fingerprint 보조 연결을 `contextlib.closing`으로 명시적으로 닫았다.
+종료 코드 0과 unittest OK만으로 경고 없는 완료를 판단했던 최초 Python 결과는 최종 증거로 사용하지 않는다.
+같은 네 버전에서 6 tests씩 다시 실행해 stderr의 warning/exception 부재까지 확인했다. 수정한 Python test SHA256은
+`839739b5a0c7ab1626502b9c5008fbc08b34071117e988066647a74530151e87`이며, Hosted ORM 대상 Go·fixture·workflow source는 변경하지 않았다.
+
 전체 로그·source manifest·event audit는 `/tmp/godj-0085-position-path`가 가리키는 로컬 scratch에 있다.
-현재 로컬 결과이며 통합 커밋의 Hosted ORM 검증을 이어간다. Full-platform·배포·전체 프레임워크 완성의 증거는 아니다.
+통합 source `4320eba32a0dcb3a1e21b6244c87e32a89dad5b6`의
+[Hosted ORM run 35463646580](https://github.com/progresshans/godj/actions/runs/35463646580)은 **attempt 2에서 완료**했다.
+Attempt 1의 macOS-26 race command가 `go mod tidy`의 sumdb TLS handshake timeout으로 실제 제품 실행 전에 실패했고,
+source 변경 없이 실패 job만 재실행했다. 최종 API에서 같은 run ID/head SHA의 48개 unique job을 대조하여
+**44 success, 4 expected scope skip**과 모든 selected coordinate의 완료를 확인했다. 최종 `CI result (orm)` job은
+`105956145302`이며 실제 보고서는 다음과 같다.
+
+```json
+{"full_platform_verified":false,"scope":"orm","verified_jobs":["command-product-matrix","portable-go-matrix","postgresql-product","relation-product-matrix"]}
+```
+
+PostgreSQL 17.10의 normal/race/CGO0·core/operator-target 여섯 조합과 선택한 Linux/macOS의 관계·명령·portable 검증을 완료했다.
+예를 들어 PG normal core는 12 packages·1,863 runs/pass·skip 0, Linux arm64 CGO0 relation은
+27 packages·4,910 runs/pass·skip 0을 실제 job log에서 대조했다. 이후 Python fingerprint 보조 연결 종료 수정은 위 네 버전의
+로컬 Python 재생으로 검증한 별도 source다. 이를 Hosted 실행 파일로 표시하지 않는다.
+Full-platform·배포·전체 프레임워크 완성의 증거는 아니다.
 
 ## GDJ-0085 — 자동 relation 계획의 field insertion 기반 checkpoint
 

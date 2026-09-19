@@ -1,6 +1,6 @@
 ---
 id: GDJ-0085
-status: active
+status: completed
 updated: 2026-09-20
 baseline_commit: "d6db513aba479ebec6a5f256bebac9348a0a32ce"
 integration_owner: "root"
@@ -55,4 +55,5 @@ Go-owned MIG-107만 현재 독립 decision 실행으로 갱신하고 나머지 �
 로컬 normal/race/CGO0의 affected runtime, 현재 writer conformance, 네 Python 버전의 독립 Django 관찰,
 전체 compile-only·affected vet·generated drift 검사를 완료했다. 상세 source·명령·범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 있다.
 기존 Draft PR에 제품을 통합했다. 첫 Hosted에서 발견한 공통 artifact checksum 갱신 누락을 수정하고 전체 protocol 검사를 통과했다.
-수정 source의 Hosted ORM 검증을 마무리한다. GDJ-0085의 완료는 전체 프레임워크 완성을 뜻하지 않는다.
+수정 source의 Hosted ORM은 같은 source의 네트워크 실패 job 재실행 후 완료했다. Python fingerprint 보조 연결 종료 수정도
+별도 재생으로 검증했다. Source·실행 범위와 의도적 차이는 TEST_EVIDENCE에서 구분한다. GDJ-0085의 완료는 전체 프레임워크 완성을 뜻하지 않는다.

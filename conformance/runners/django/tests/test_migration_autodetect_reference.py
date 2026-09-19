@@ -4,6 +4,7 @@ import sqlite3
 import subprocess
 import sys
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 
@@ -20,7 +21,7 @@ class MigrationAutodetectReferenceTests(unittest.TestCase):
         expected.pop("python")
         runtime_sqlite = actual.pop("sqlite")
         expected.pop("sqlite")
-        with sqlite3.connect(":memory:") as connection:
+        with closing(sqlite3.connect(":memory:")) as connection:
             source_id = connection.execute("SELECT sqlite_source_id()").fetchone()[0]
         self.assertEqual(runtime_sqlite, {"version": sqlite3.sqlite_version, "source_id": source_id})
         self.assertEqual(actual, expected)

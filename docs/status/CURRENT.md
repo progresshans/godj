@@ -1,9 +1,9 @@
 # 현재 상태
 
 - 갱신: 2026-09-20
-- 활성 구현: [GDJ-0085 self/cyclic 자동 migration 계획](../../work/0085-relation-autodetection.md)
-- 최근 완료: [GDJ-0084 historical relation graph와 순환 migration](../../work/0084-relation-migration-graphs.md)
-- 최근 Hosted 기능 검증: source `d6db513aba479ebec6a5f256bebac9348a0a32ce`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35456370913)
+- 활성 구현: [GDJ-0086 nullable Boolean의 모델·Form/Admin/API 연결](../../work/0086-nullable-boolean-models.md)
+- 최근 완료: [GDJ-0085 self/cyclic 자동 migration 계획](../../work/0085-relation-autodetection.md)
+- 최근 Hosted 기능 검증: source `4320eba32a0dcb3a1e21b6244c87e32a89dad5b6`, [Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35463646580)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
 - 최신 전체 검증: [Text+DateTime Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35384697050)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -27,9 +27,10 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0085의 자동 계획·CLI 게시·실제 SQLite/PG migration과 생성 ORM 소비자를 연결하고 로컬 통합 검증을 완료했다.
-기존 Draft PR에 통합했다. 첫 Hosted에서 누락된 artifact checksum 갱신을 확인·수정했으며 새 source의 Hosted ORM을 이어간다.
-검증 범위는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에서 구분한다.
+GDJ-0085의 자동 계획·CLI 게시·실제 SQLite/PG migration과 생성 ORM 소비자를 연결하고 로컬·Hosted ORM 검증을 완료했다.
+별도 `feature/nullable-boolean-models`에서 GDJ-0086을 시작했다. 독립 Django/DRF의 세 상태 관찰을 준비하고 IR·nullable typed
+field·generator·DB schema/catalog·definition의 기본 연결을 작성했다. Compile-only 확인 상태이며 Go runtime PASS는 아직 없다.
+Form/Admin·실제 생성 소비자·JSON/OpenAPI/client 연결과 관련 검증을 이어간다. GDJ-0086 제품 변경은 아직 기존 Draft PR에 통합하지 않았다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 계속 구현한다.
 
 ## 근거
