@@ -6,6 +6,7 @@ import (
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/uuid"
 	"strings"
 	"time"
 
@@ -112,11 +113,11 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	lookup := query.Lookup(name)
 	switch lookup {
 	case query.LookupIn:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal)
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID)
 	case query.LookupExact:
 		return lookup, true
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal) || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID) || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:
@@ -153,6 +154,12 @@ func dynamicValue(field ir.Field, lookup query.Lookup, raw any) (query.Value, er
 		default:
 			return invalid("int or int64")
 		}
+	case ir.FieldUUID:
+		value, ok := raw.(uuid.UUID)
+		if !ok {
+			return invalid("uuid.UUID")
+		}
+		return query.UUID(value), nil
 	case ir.FieldDecimal:
 		value, ok := raw.(decimal.Decimal)
 		if !ok || !value.Valid() {

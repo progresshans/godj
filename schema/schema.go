@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uuid"
 	"time"
 )
 
@@ -66,7 +67,7 @@ func Column(name string) FieldOption {
 // types keep defaults explicit while preserving zero, false and empty string
 // as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal
+	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal | uuid.UUID
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
@@ -76,6 +77,8 @@ func Default[T DefaultScalar](value T) FieldOption {
 			field.Default = &ir.Scalar{Kind: ir.ScalarString, String: typed}
 		case bool:
 			field.Default = &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: typed}
+		case uuid.UUID:
+			field.Default = &ir.Scalar{Kind: ir.ScalarUUID, UUID: typed.String()}
 		case decimal.Decimal:
 			field.Default = &ir.Scalar{Kind: ir.ScalarDecimal}
 			if typed.Valid() {
@@ -129,6 +132,11 @@ func DecimalField(name, goName string, maxDigits, decimalPlaces int, options ...
 		}
 	}
 	return field
+}
+
+// UUIDField stores one exact 128-bit UUID; the zero UUID is a present value.
+func UUIDField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldUUID, 0, options)
 }
 
 // FloatField stores a binary64 value. Each backend owns its storage limits.

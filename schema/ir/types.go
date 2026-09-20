@@ -9,8 +9,8 @@ import (
 	"slices"
 )
 
-// CurrentFormatVersion is the only Schema IR format accepted before GoDj's
-// first external release. Scalar and relation-bearing schemas use the same
+// CurrentFormatVersion is the only accepted format in current development.
+// Scalar and relation-bearing schemas use the same
 // normalized representation; relation presence is a field property, not a
 // format generation.
 const CurrentFormatVersion = 1
@@ -35,6 +35,7 @@ const (
 	FieldInteger    FieldKind = "integer"
 	FieldFloat      FieldKind = "float"
 	FieldDecimal    FieldKind = "decimal"
+	FieldUUID       FieldKind = "uuid"
 	FieldChar       FieldKind = "char"
 	FieldText       FieldKind = "text"
 	FieldDuration   FieldKind = "duration"
@@ -86,6 +87,7 @@ const (
 	ScalarInteger  ScalarKind = "integer"
 	ScalarFloat    ScalarKind = "float"
 	ScalarDecimal  ScalarKind = "decimal"
+	ScalarUUID     ScalarKind = "uuid"
 	ScalarDuration ScalarKind = "duration"
 	ScalarTime     ScalarKind = "time"
 	ScalarDate     ScalarKind = "date"
@@ -103,6 +105,7 @@ type Scalar struct {
 	Integer   int64      `json:"integer,omitempty"`
 	FloatBits string     `json:"float_bits,omitempty"`
 	Decimal   string     `json:"decimal,omitempty"`
+	UUID      string     `json:"uuid,omitempty"`
 }
 
 // Choice pairs a stored scalar with its presentation label. Declaration order

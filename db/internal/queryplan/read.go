@@ -100,7 +100,7 @@ func ReverseCondition(condition query.Condition, hop query.RelationHop, backendN
 	}
 	field := condition.Field()
 	if !field.ValidType() || !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) || field.Nullable() ||
-		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
 	}
 	return nil
@@ -153,13 +153,13 @@ func ContainsField(columns []query.FieldRef, candidate query.FieldRef) bool {
 }
 
 func ValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
+	return (value == query.ValueUUID && field == query.FieldUUID) || (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
 		(value == query.ValueString && field == query.FieldString) ||
 		(value == query.ValueBoolean && field == query.FieldBoolean)
 }
 
 func OrderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
+	return (value == query.ValueUUID && field == query.FieldUUID) || (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
 		(value == query.ValueString && field == query.FieldString)
 }
 
@@ -211,9 +211,9 @@ func unsupportedRelatedCondition(condition query.Condition, detail string) error
 }
 
 // AppendAggregates validates the closed scalar aggregate grammar before each
-// field reaches backend quoting. COUNT, MIN and MAX syntax is shared; quoting and
-// schema/alias qualification are supplied by the actual compiler.
-func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, quoteField func(query.FieldRef) (string, error)) error {
+// field reaches the backend. The backend renders MIN/MAX with its physical type
+// rules; the AST and source-field validation stay independent of SQL dialects.
+func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, renderAggregate func(string, query.FieldRef) (string, error)) error {
 	for index, expression := range expressions {
 		if index > 0 {
 			sql.WriteString(", ")
@@ -227,20 +227,18 @@ func AppendAggregates(sql *strings.Builder, expressions []query.ResultExpression
 		case query.ResultMin, query.ResultMax:
 			field, ok := expression.Field()
 			if !ok || !ContainsField(sourceFields, field) ||
-				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 				return invalidPlan("MIN/MAX result requires an ordered scalar source field")
 			}
-			quoted, err := quoteField(field)
+			function := "MAX"
+			if expression.Kind() == query.ResultMin {
+				function = "MIN"
+			}
+			rendered, err := renderAggregate(function, field)
 			if err != nil {
 				return err
 			}
-			if expression.Kind() == query.ResultMin {
-				sql.WriteString("MIN(")
-			} else {
-				sql.WriteString("MAX(")
-			}
-			sql.WriteString(quoted)
-			sql.WriteByte(')')
+			sql.WriteString(rendered)
 		default:
 			return invalidPlan("aggregate result contains an unsupported expression")
 		}

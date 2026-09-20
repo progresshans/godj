@@ -67,7 +67,7 @@ func (budget *Budget) ScanField(path string, field ir.Field) error {
 		if err := budget.ConsumeNodes(path+".default", 1); err != nil {
 			return err
 		}
-		for _, value := range []string{string(field.Default.Kind), field.Default.String, field.Default.Time, field.Default.Duration, field.Default.Date, field.Default.DateTime, field.Default.FloatBits, field.Default.Decimal} {
+		for _, value := range []string{string(field.Default.Kind), field.Default.String, field.Default.Time, field.Default.Duration, field.Default.Date, field.Default.DateTime, field.Default.FloatBits, field.Default.Decimal, field.Default.UUID} {
 			if err := budget.ConsumeString(path+".default", value); err != nil {
 				return err
 			}
@@ -80,7 +80,7 @@ func (budget *Budget) ScanField(path string, field ir.Field) error {
 		return err
 	}
 	for _, choice := range field.Choices {
-		for _, value := range []string{choice.Label, string(choice.Value.Kind), choice.Value.String, choice.Value.Time, choice.Value.Duration, choice.Value.Date, choice.Value.DateTime, choice.Value.FloatBits, choice.Value.Decimal} {
+		for _, value := range []string{choice.Label, string(choice.Value.Kind), choice.Value.String, choice.Value.Time, choice.Value.Duration, choice.Value.Date, choice.Value.DateTime, choice.Value.FloatBits, choice.Value.Decimal, choice.Value.UUID} {
 			if err := budget.ConsumeString(path+".choices", value); err != nil {
 				return err
 			}

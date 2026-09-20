@@ -45,3 +45,12 @@ Go의 값 설계는 Python 객체의 내부 표현을 복제하는 목표가 아
 UUID 값의 생성 전략·callable default, UUID primary/foreign key와 uniqueness는 각각 별도 모델/제약 의미가 필요하다.
 이 연결만으로 해당 기능이나 나머지 field/ORM/API 범위를 완료로 표시하지 않는다.
 제품·생성기·테스트 묶음이 정리된 뒤 영향 범위의 실행 checkpoint를 선택한다.
+
+## 진행과 통합 checkpoint
+
+값·IR·query·양 DB·historical create/add/reverse·생성 외부 소비자의 기반 연결과 관련 일반/race/CGO=0 로컬 checkpoint를 완료했다.
+[ADR-0070](../docs/adr/0070-uuid-model-values-and-storage.md)에 모델 값·storage·입력 계층의 책임을 기록했다.
+현재 Form/Admin·serializer·OpenAPI·Helpdesk/client의 입력·소비자 연결을 진행한다. 실제 실행 상세는 TEST_EVIDENCE만 소유한다.
+
+최종 UUID 수직 단면의 Hosted 통합은 ORM scope가 소유한다. 지원 플랫폼의 관계·portable·PostgreSQL owner와 reference를 함께 확인한다.
+필수 PostgreSQL 선택에는 UUID adapter와 generated consumer를 포함한다. 기존 Decimal 전체 검증을 새 UUID source의 전체 platform PASS로 옮기지 않는다.

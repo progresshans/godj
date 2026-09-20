@@ -18,6 +18,35 @@
   `MIN/MAX(value::text COLLATE "C")::uuid`는 같은 경계값 순서를 보존했다. Native raw SHA256은 `971248f41cc1da5c3491f6438819db2e1e9603ed9f4f82b23151c42871dffb78`다.
   이 사전 실험은 Django PostgreSQL 또는 GoDj 제품 PASS가 아니다. 해당 probe 전용 DB는 잔여 연결 0 확인 뒤 삭제했다.
 
+### UUID 모델·DB·생성 소비자 로컬 checkpoint
+
+- 기준 source `153bf08531d7ff59a795386a8f2e643d250efe4c` 위 reference 세 파일과 제품/테스트 55개, non-Markdown **58개 파일**의
+  정렬 manifest SHA256은 `a6e04f228b5b6e546d7be843dc05381d89ec9cf194f57f1409f28ae7064334ee`다. 일반/race/CGO=0 종료 뒤 같은 바이트를 확인했다.
+  Reference 세 파일은 `0290baca8de347cd51593f9249249c041d64c505`에도 별도로 게시했다. 뒤의 CI 선택 보강·문서와 아직 연결 중인 입력 코드는 이 manifest와 구분한다.
+- UUID `[16]byte` 값·정규 IR/default·strict wire/resource/digest·typed/dynamic AST/ORM·생성 model/write/root/eager scan과
+  SQLite CHAR(32)·PostgreSQL native UUID parameter/catalog/row adapter를 연결했다. 고정 128-bit 전체 범위와 zero/NULL을 구분한다.
+- Generated 실제 외부 소비자는 양 DB에서 기존 행의 nullable AddField·literal default·reopen·typed/dynamic root/forward 조회·IN/F·
+  projection/cache ownership·unsigned 정렬·direct/DISTINCT/sliced Min/Max·empty/all-NULL 집계를 확인한다. PostgreSQL의 NULL 정렬 위치는 native 의미로 별도 확인한다.
+  Reverse exact UUID terminal·eager snapshot 격리·transaction rollback·실패한 Save/선택 update mask·취소-before-I/O·reverse/reapply와
+  실제 생성 코드의 string/integer/다른 field type compile 거부도 포함한다. Parent 수에 generated child test 수를 더하지 않는다.
+- SQLite 외부 noncanonical TEXT·BLOB·integer/float 입력의 scan 오류와 이전 scanner 값 제거, PostgreSQL UUID native parameter·driver text·catalog drift 거부를 확인했다.
+  PostgreSQL backend의 `search_path=pg_catalog` 계약 위에서 UUID 집계의 C collation과 native UUID 반환 type을 유지한다.
+- Go **1.26.5 darwin/arm64**, modernc SQLite **v1.56.0**, pgx **v5.10.0**, PostgreSQL **17.5 (Homebrew)** 전용 DB,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 affected **16 package**를 fresh 일반·race로 실행했다.
+  각각 **6,558 test·subtest PASS (root 1,088)**, run/terminal roster 동일·실패 0·stderr 0 bytes다.
+  유일한 helper-only skip `TestPostgresRevisionFenceHelperProcess`의 실제 process 부모는 양 mode 모두 PASS다.
+
+```text
+./uuid ./schema ./schema/ir ./query ./orm ./db/internal/queryplan ./db/sqlite ./db/postgres
+./codegen ./codegen/consumertest ./internal/irresource ./internal/projectspec ./internal/projectwire
+./migrations ./migrations/definition ./internal/migrationautodetect
+```
+
+- CGO=0 UUID 선택은 **4 package / 9 test·subtest PASS (root 6)**, skip 0·stderr 0 bytes다. 실제 generated SQLite/PG 소비자와 세 compile 거부를 포함한다.
+- Affected vet 출력 0 bytes, gofmt/diff, `make generate-check`의 Helpdesk/Article/relationfixture와 checked-in generated test를 확인했다.
+  PostgreSQL Hosted 필수 목록에 UUID native adapter와 generated consumer를 추가했으며 CI tooling **37 PASS**다. 새 UUID source의 Hosted 완료는 아직 없다.
+- Form/Admin·serializer·OpenAPI·실제 Helpdesk/client 연결은 다음 단계다. 입력 전용 새 parser의 compile 확인을 위 제품 runtime PASS에 합치지 않는다.
+
 ## GDJ-0092 — Decimal 정밀도 변경의 독립 기준 준비
 
 - Baseline은 GDJ-0091 제품 source `d106e73d5338cff107623351c48ac4f5778fff8c`다. 현재 GoDj의 precision AlterField 구현 완료를 뜻하지 않는다.

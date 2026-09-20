@@ -277,6 +277,9 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 }
 
 func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) error {
+	if err := scanner.addString(path+".uuid", value.UUID); err != nil {
+		return err
+	}
 	if err := scanner.addString(path+".decimal", value.Decimal); err != nil {
 		return err
 	}
@@ -297,6 +300,8 @@ func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) er
 	}
 	structural := uint64(0)
 	switch value.Kind {
+	case ir.ScalarUUID:
+		structural = uint64(len(`{"kind":"","uuid":""}`))
 	case ir.ScalarDecimal:
 		structural = uint64(len(`{"kind":"","decimal":""}`))
 	case ir.ScalarFloat:

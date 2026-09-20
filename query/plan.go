@@ -16,6 +16,7 @@ const (
 	FieldInteger  FieldKind = "integer"
 	FieldFloat    FieldKind = "float"
 	FieldDecimal  FieldKind = "decimal"
+	FieldUUID     FieldKind = "uuid"
 	FieldString   FieldKind = "string"
 	FieldBoolean  FieldKind = "boolean"
 	FieldDuration FieldKind = "duration"
@@ -55,7 +56,7 @@ func (f FieldRef) ValidType() bool {
 		return false
 	}
 	switch f.kind {
-	case FieldInteger, FieldFloat, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	case FieldInteger, FieldFloat, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldUUID:
 		return true
 	}
 	return false
@@ -252,6 +253,8 @@ func validInValues(field FieldRef, values []Value) bool {
 
 	var expected ValueKind
 	switch field.kind {
+	case FieldUUID:
+		expected = ValueUUID
 	case FieldDecimal:
 		expected = ValueDecimal
 	case FieldFloat:

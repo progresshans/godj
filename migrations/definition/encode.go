@@ -267,6 +267,11 @@ type choiceDocument struct {
 	Label string `json:"label"`
 }
 
+type uuidDefaultDocument struct {
+	Kind ir.ScalarKind `json:"kind"`
+	UUID string        `json:"uuid"`
+}
+
 type decimalDefaultDocument struct {
 	Kind    ir.ScalarKind `json:"kind"`
 	Decimal string        `json:"decimal"`
@@ -385,6 +390,8 @@ func encodeDefault(value *ir.Scalar) any {
 		return nil
 	}
 	switch value.Kind {
+	case ir.ScalarUUID:
+		return uuidDefaultDocument{Kind: value.Kind, UUID: value.UUID}
 	case ir.ScalarDecimal:
 		return decimalDefaultDocument{Kind: value.Kind, Decimal: value.Decimal}
 	case ir.ScalarFloat:

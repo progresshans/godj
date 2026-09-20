@@ -171,3 +171,10 @@ func (field RelatedDecimalField[M]) WithConfigurationError(err error) RelatedDec
 	}
 	return field
 }
+
+func (field RelatedUUIDField[M]) WithConfigurationError(err error) RelatedUUIDField[M] {
+	if field.configurationErr == nil {
+		field.configurationErr = err
+	}
+	return field
+}

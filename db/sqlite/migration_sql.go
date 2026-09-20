@@ -118,6 +118,14 @@ func compileMigrationColumn(field ir.Field) (string, error) {
 		if field.Nullable {
 			declaration = "BOOLEAN NULL"
 		}
+	case ir.FieldUUID:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil || field.Default != nil && field.Default.Kind != ir.ScalarUUID {
+			return "", fmt.Errorf("UUIDField has an invalid migration shape")
+		}
+		declaration = "CHAR(32) NOT NULL"
+		if field.Nullable {
+			declaration = "CHAR(32) NULL"
+		}
 	case ir.FieldDecimal:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal == nil || !field.Decimal.Valid() || field.Default != nil && field.Default.Kind != ir.ScalarDecimal {
 			return "", fmt.Errorf("DecimalField has an invalid migration shape")

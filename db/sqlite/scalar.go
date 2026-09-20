@@ -8,6 +8,9 @@ import (
 )
 
 func sqliteValue(value query.Value) (any, error) {
+	if identifier, ok := value.UUID(); ok {
+		return identifier.Hex(), nil
+	}
 	if number, ok := value.Decimal(); ok {
 		return decimalstorage.Encode(number)
 	}

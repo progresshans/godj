@@ -13,12 +13,13 @@ Decimal 모델·Form/Admin·JSON/OpenAPI·Helpdesk 비용의 연결과 기존 �
 현재 구현 폭과 미지원 기능은 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
 UUID는 고정 Django/DRF의 값·Form/serializer·실제 SQLite migration/query 관찰과 별도 native PostgreSQL probe를 준비했다.
-독립 기준의 Python 네 버전 비교를 완료했으며 값·IR·query·DB·생성기 연결을 진행한다. 제품 runtime 검증과 입력/소비자 연결은 남아 있다.
+독립 기준의 Python 네 버전 비교와 값·IR·query·양 DB·생성기 연결의 로컬 DB/race checkpoint를 완료했다.
+Form/Admin·serializer·OpenAPI와 실제 Helpdesk/client 연결을 진행한다. 새 UUID source의 Hosted 검증은 남아 있다.
 
 ## 다음 행동
 
-UUID의 생성된 외부 소비자로 기존 DB의 nullable 추가·기본값·조회/집계·관계·rollback·reopen을 확인한다.
-이후 Form/Admin·serializer·OpenAPI·Helpdesk external_reference와 독립 client까지 이어간다.
+UUID의 Form 원문 검증·canonical 초기값·값 기준 변경 감지와 serializer의 정확한 JSON integer/token 의미를 연결한다.
+OpenAPI·Helpdesk external_reference와 실제 마이그레이션·독립 client까지 이어간다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 현재 ORM 결과를 전체 플랫폼 PASS로 합치지 않는다.

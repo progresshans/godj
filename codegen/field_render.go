@@ -36,6 +36,8 @@ func fieldRenderKind(kind ir.FieldKind) fieldRenderSpec {
 		return fieldRenderSpec{"int64", "Integer", "IntegerField", "NullableIntegerField", "sql.NullInt64", "Int64", "ir.FieldInteger"}
 	case ir.FieldChar:
 		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldChar"}
+	case ir.FieldUUID:
+		return fieldRenderSpec{"_godjuuid.UUID", "UUID", "UUIDField", "NullableUUIDField", "orm.NullableUUIDScanner", "UUID", "ir.FieldUUID"}
 	case ir.FieldDecimal:
 		return fieldRenderSpec{"_godjdecimal.Decimal", "Decimal", "DecimalField", "NullableDecimalField", "orm.NullableDecimalScanner", "Decimal", "ir.FieldDecimal"}
 	case ir.FieldFloat:

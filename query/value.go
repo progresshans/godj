@@ -7,6 +7,7 @@ import (
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/uuid"
 	"math"
 	"time"
 )
@@ -18,6 +19,7 @@ const (
 	ValueInteger  ValueKind = "integer"
 	ValueFloat    ValueKind = "float"
 	ValueDecimal  ValueKind = "decimal"
+	ValueUUID     ValueKind = "uuid"
 	ValueString   ValueKind = "string"
 	ValueBoolean  ValueKind = "boolean"
 	ValueDuration ValueKind = "duration"
@@ -42,6 +44,16 @@ func Null() Value {
 
 func Integer(value int64) Value {
 	return Value{kind: ValueInteger, integer: value}
+}
+
+// UUID snapshots the canonical value without retaining caller-owned bytes.
+func UUID(value uuid.UUID) Value { return Value{kind: ValueUUID, text: value.String()} }
+func (v Value) UUID() (uuid.UUID, bool) {
+	if v.kind != ValueUUID {
+		return uuid.UUID{}, false
+	}
+	value, err := uuid.Parse(v.text)
+	return value, err == nil
 }
 
 // Decimal snapshots a canonical finite value. Invalid literals stay invalid
@@ -177,6 +189,12 @@ func (v Value) DatabaseValue() (any, error) {
 		return v.text, nil
 	case ValueDateTime:
 		value, _ := v.DateTime()
+		return value, nil
+	case ValueUUID:
+		value, ok := v.UUID()
+		if !ok {
+			return nil, &Error{Category: CategoryField, Code: CodeInvalidValue, Detail: "invalid UUID value"}
+		}
 		return value, nil
 	case ValueDecimal:
 		value, ok := v.Decimal()

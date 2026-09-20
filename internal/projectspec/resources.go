@@ -122,6 +122,9 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 					if err := validateString(fieldPath+".default.string", field.Default.String); err != nil {
 						return budget, err
 					}
+					if err := validateString(fieldPath+".default.uuid", field.Default.UUID); err != nil {
+						return budget, err
+					}
 					if err := validateString(fieldPath+".default.decimal", field.Default.Decimal); err != nil {
 						return budget, err
 					}
@@ -154,6 +157,7 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 						{choicePath + ".value.duration", choice.Value.Duration},
 						{choicePath + ".value.float_bits", choice.Value.FloatBits},
 						{choicePath + ".value.decimal", choice.Value.Decimal},
+						{choicePath + ".value.uuid", choice.Value.UUID},
 						{choicePath + ".value.date", choice.Value.Date},
 						{choicePath + ".value.datetime", choice.Value.DateTime},
 					} {

@@ -111,6 +111,9 @@ func measureDefault(sizer *wirejson.Sizer, value ir.Scalar) bool {
 	if value.String != "" && (!sizer.Literal(`,"string":`) || !sizer.String(value.String)) {
 		return false
 	}
+	if value.UUID != "" && (!sizer.Literal(`,"uuid":`) || !sizer.String(value.UUID)) {
+		return false
+	}
 	if value.Decimal != "" && (!sizer.Literal(`,"decimal":`) || !sizer.String(value.Decimal)) {
 		return false
 	}

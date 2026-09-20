@@ -7,13 +7,15 @@ import (
 	"testing"
 )
 
-func TestNumericPayloadBudgetsIncludeActiveAndInactiveArms(t *testing.T) {
-	for _, kind := range []ir.ScalarKind{ir.ScalarDecimal, ir.ScalarFloat, ir.ScalarString} {
-		for _, arm := range []string{"decimal", "float"} {
+func TestScalarPayloadBudgetsIncludeActiveAndInactiveArms(t *testing.T) {
+	for _, kind := range []ir.ScalarKind{ir.ScalarDecimal, ir.ScalarFloat, ir.ScalarUUID, ir.ScalarString} {
+		for _, arm := range []string{"decimal", "float", "uuid"} {
 			for _, choice := range []bool{false, true} {
 				scalar := ir.Scalar{Kind: kind}
 				if arm == "decimal" {
 					scalar.Decimal = strings.Repeat("1", 16)
+				} else if arm == "uuid" {
+					scalar.UUID = strings.Repeat("1", 16)
 				} else {
 					scalar.FloatBits = strings.Repeat("1", 16)
 				}
@@ -30,12 +32,12 @@ func TestNumericPayloadBudgetsIncludeActiveAndInactiveArms(t *testing.T) {
 				}
 				_, charged := base.Counts()
 				if charged < 16 {
-					t.Fatal("numeric payload not charged")
+					t.Fatal("scalar payload not charged")
 				}
 				limits.Bytes = charged - 1
 				limited := irresource.New(limits)
 				if err := limited.ScanField("field", field); err == nil {
-					t.Fatal("numeric payload escaped aggregate budget")
+					t.Fatal("scalar payload escaped aggregate budget")
 				}
 				limits.Bytes = charged
 				exact := irresource.New(limits)
@@ -45,7 +47,7 @@ func TestNumericPayloadBudgetsIncludeActiveAndInactiveArms(t *testing.T) {
 				limits.StringBytes = 15
 				short := irresource.New(limits)
 				if err := short.ScanField("field", field); err == nil {
-					t.Fatal("numeric payload escaped per-string budget")
+					t.Fatal("scalar payload escaped per-string budget")
 				}
 			}
 		}

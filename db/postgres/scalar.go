@@ -12,6 +12,9 @@ import (
 )
 
 func postgresValue(value query.Value) (any, error) {
+	if identifier, ok := value.UUID(); ok {
+		return pgtype.UUID{Bytes: identifier.Bytes(), Valid: true}, nil
+	}
 	if number, ok := value.Decimal(); ok {
 		coefficient := number.Coefficient
 		if coefficient == "" {
@@ -34,13 +37,13 @@ type scalarRows struct {
 	kinds []query.FieldKind
 }
 
-// database/sql exposes native INTERVAL and NUMERIC as driver text. Convert
+// database/sql exposes native INTERVAL, NUMERIC and UUID as driver text. Convert
 // only columns of those database types, including scalar results and joins.
 func adaptScalarRows(rows *sql.Rows, plan query.Plan) (db.Rows, error) {
 	needed := false
 	visit := func(fields []query.FieldRef) {
 		for _, field := range fields {
-			needed = needed || field.Kind() == query.FieldDuration || field.Kind() == query.FieldDecimal
+			needed = needed || field.Kind() == query.FieldDuration || field.Kind() == query.FieldDecimal || field.Kind() == query.FieldUUID
 		}
 	}
 	visit(plan.SourceFields())
@@ -60,6 +63,8 @@ func adaptScalarRows(rows *sql.Rows, plan query.Plan) (db.Rows, error) {
 		switch column.DatabaseTypeName() {
 		case "INTERVAL":
 			kinds[index] = query.FieldDuration
+		case "UUID":
+			kinds[index] = query.FieldUUID
 		case "NUMERIC":
 			kinds[index] = query.FieldDecimal
 		}
@@ -80,6 +85,8 @@ func (rows *scalarRows) Scan(destinations ...any) error {
 		switch kind {
 		case query.FieldDuration:
 			adapted[index] = durationDestination{destination: destinations[index]}
+		case query.FieldUUID:
+			adapted[index] = uuidDestination{destination: destinations[index]}
 		case query.FieldDecimal:
 			adapted[index] = decimalDestination{destination: destinations[index]}
 		}

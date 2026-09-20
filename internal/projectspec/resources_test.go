@@ -181,3 +181,21 @@ func TestDecimalPayloadAndFacetResourceCapsBeforeSemantics(t *testing.T) {
 	_, err = validateSchemas([]ir.Schema{schema}, resourceBudget{nodes: MaxAggregateNodes - base.nodes + 1})
 	assertResourceLimit(t, err, "aggregate_schema_nodes")
 }
+
+func TestUUIDPayloadResourceCapsApplyBeforeSemantics(t *testing.T) {
+	for _, kind := range []ir.ScalarKind{ir.ScalarUUID, ir.ScalarString} {
+		for _, choice := range []bool{false, true} {
+			for _, bad := range []struct{ value, code string }{{strings.Repeat("x", MaxSchemaStringBytes+1), "schema_string_bytes"}, {string([]byte{0xff}), "schema_string_utf8"}} {
+				scalar := ir.Scalar{Kind: kind, UUID: bad.value}
+				field := ir.Field{}
+				if choice {
+					field.Choices = []ir.Choice{{Value: scalar}}
+				} else {
+					field.Default = &scalar
+				}
+				definition := ir.Schema{Models: []ir.Model{{Fields: []ir.Field{field}}}}
+				assertResourceLimit(t, ValidateSchemas([]ir.Schema{definition}), bad.code)
+			}
+		}
+	}
+}

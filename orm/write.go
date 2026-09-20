@@ -248,6 +248,9 @@ func mutationValueMatches(field ir.Field, value query.Value) bool {
 	switch field.Kind {
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
 		return value.Kind() == query.ValueInteger
+	case ir.FieldUUID:
+		_, ok := value.UUID()
+		return ok
 	case ir.FieldDecimal:
 		number, ok := value.Decimal()
 		return ok && field.Decimal != nil && number.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)

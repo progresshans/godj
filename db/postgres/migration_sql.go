@@ -208,6 +208,14 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 		if field.Nullable {
 			declaration = "BOOLEAN NULL"
 		}
+	case ir.FieldUUID:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil || field.Default != nil && field.Default.Kind != ir.ScalarUUID {
+			return "", errors.New("UUIDField has an invalid migration shape")
+		}
+		declaration = "UUID NOT NULL"
+		if field.Nullable {
+			declaration = "UUID NULL"
+		}
 	case ir.FieldDecimal:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal == nil || !field.Decimal.Valid() || field.Default != nil && field.Default.Kind != ir.ScalarDecimal {
 			return "", fmt.Errorf("DecimalField has an invalid migration shape")

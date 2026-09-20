@@ -379,7 +379,7 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		return nil, invalidPlan("condition field column " + err.Error())
 	}
 	switch field.Kind() {
-	case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+	case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 	default:
 		return nil, invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
 	}
@@ -393,7 +393,7 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		if err := validateIdentifier(right.Column()); err != nil {
 			return nil, invalidPlan("condition right-hand-side field column " + err.Error())
 		}
-		if !right.ValidType() || right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+		if !right.ValidType() || right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 			return nil, invalidPlan("PostgreSQL field comparison requires same-kind ordered scalar fields")
 		}
 		if condition.Lookup() != query.LookupExact && !orderedComparisonLookup(condition.Lookup()) {
@@ -564,11 +564,24 @@ func nullableNegationGuard(lookup query.Lookup) bool {
 }
 
 func appendAggregateExpressions(statement *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string) error {
-	return queryplan.AppendAggregates(statement, expressions, sourceFields, func(field query.FieldRef) (string, error) {
+	return queryplan.AppendAggregates(statement, expressions, sourceFields, func(function string, field query.FieldRef) (string, error) {
+		var column string
+		var err error
 		if sourceAlias != "" {
-			return quoteQualified(sourceAlias, field.Column())
+			column, err = quoteQualified(sourceAlias, field.Column())
+		} else {
+			column, err = quoteIdentifier(field.Column())
 		}
-		return quoteIdentifier(field.Column())
+		if err != nil {
+			return "", err
+		}
+		if field.Kind() == query.FieldUUID {
+			// PostgreSQL 17 has native UUID ordering but no MIN/MAX(uuid).
+			// Fixed-width canonical text under C collation has the same unsigned
+			// order. Cast the result back so UUID row adaptation remains typed.
+			return function + "(" + column + "::text COLLATE \"C\")::uuid", nil
+		}
+		return function + "(" + column + ")", nil
 	})
 }
 
@@ -589,7 +602,7 @@ func validateReadSourceFields(fields []query.FieldRef) ([]query.FieldRef, error)
 			return nil, invalidPlan("field column " + err.Error())
 		}
 		switch field.Kind() {
-		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldUUID, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 		default:
 			return nil, invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
 		}

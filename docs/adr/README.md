@@ -79,6 +79,7 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 
 | [0068](0068-binary64-field-and-finite-json-boundaries.md) | Accepted | Binary64 모델과 finite Form/JSON·backend 특수값 경계 |
 | [0069](0069-exact-decimal-values-and-storage.md) | Accepted | 정확한 Decimal 값·precision·SQLite numeric order key와 native NUMERIC |
+| [0070](0070-uuid-model-values-and-storage.md) | Accepted | 128-bit UUID 값과 NULL·canonical 저장·typed query·입력 경계 |
 
 ## 대체된 결정
 

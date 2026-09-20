@@ -5,6 +5,7 @@ import (
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/uuid"
 	"time"
 
 	"github.com/progresshans/godj/query"
@@ -66,6 +67,11 @@ func dynamicMembership(field ir.Field, raw any) ([]query.Value, error) {
 		return dynamicMembershipValues(field, values)
 	case []bool:
 		if field.Kind != ir.FieldBoolean {
+			break
+		}
+		return dynamicMembershipValues(field, values)
+	case []uuid.UUID:
+		if field.Kind != ir.FieldUUID {
 			break
 		}
 		return dynamicMembershipValues(field, values)

@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/uuid"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/internal/identifiers"
@@ -171,6 +172,13 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
+	case FieldUUID:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "UUIDField cannot currently be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarUUID {
+			return validation(path+".default", "type_mismatch", "UUIDField default must be a uuid.UUID")
+		}
 	case FieldDecimal:
 		if field.PrimaryKey || field.MaxLength != 0 {
 			return validation(path, "unsupported", "DecimalField cannot be a primary key or have a max length")
@@ -311,6 +319,9 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 }
 
 func validateScalar(value Scalar, path string) error {
+	if value.Kind != ScalarUUID && value.UUID != "" {
+		return validation(path, "invalid_scalar", "non-UUID scalar carries a UUID payload")
+	}
 	if value.Kind != ScalarDecimal && value.Decimal != "" {
 		return validation(path, "invalid_scalar", "non-decimal scalar carries a decimal payload")
 	}
@@ -318,6 +329,14 @@ func validateScalar(value Scalar, path string) error {
 		return validation(path, "invalid_scalar", "non-float scalar carries a float payload")
 	}
 	switch value.Kind {
+	case ScalarUUID:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "UUID scalar carries another scalar payload")
+		}
+		parsed, err := uuid.Parse(value.UUID)
+		if err != nil || parsed.String() != value.UUID {
+			return validation(path, "invalid_uuid", "UUID scalar must use canonical lowercase hyphenated text")
+		}
 	case ScalarDecimal:
 		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "decimal scalar carries another scalar payload")
