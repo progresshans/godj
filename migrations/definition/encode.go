@@ -178,7 +178,7 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			}
 		case migrations.AlterField:
 			if value.AppLabel != migration.App || !validAlterFieldDefinition(value) {
-				return encodeFailure(path, "AlterField requires exact normalized fields with a choices-only change")
+				return encodeFailure(path, "AlterField requires exact normalized fields with a supported single-facet change")
 			}
 			if err := validateFieldWireRange(value.Before, path+".before"); err != nil {
 				return err

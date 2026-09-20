@@ -64,22 +64,3 @@ func (field Field) ChoiceLabel(value Scalar) (string, bool) {
 	}
 	return "", false
 }
-
-// ValidateChoiceChange permits only a real change to the ordered choice data.
-// Physical storage, identity, defaults and relation ownership stay identical.
-func ValidateChoiceChange(before, after Field) error {
-	if err := ValidateChoices(before); err != nil {
-		return err
-	}
-	if err := ValidateChoices(after); err != nil {
-		return err
-	}
-	if before.Equal(after) {
-		return validation("field.choices", "unchanged", "AlterField requires changed choices")
-	}
-	before.Choices, after.Choices = nil, nil
-	if !before.Equal(after) {
-		return validation("field", "unsupported_change", "AlterField currently supports choices metadata only")
-	}
-	return nil
-}

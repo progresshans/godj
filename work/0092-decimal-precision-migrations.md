@@ -23,7 +23,7 @@ SQLite는 precision 변경 때 table을 remake하지만 물리 숫자 값은 유
 GoDj는 [ADR-0069](../docs/adr/0069-exact-decimal-values-and-storage.md)의 정확한 값과 반올림 거부를 precision 변경에도 적용한다.
 저장된 값이 변경 전후 field에 모두 정확히 맞는지 검사해야 하며, 오류·취소는 값과 schema/history/revision을 보존해야 한다.
 
-## 구현할 연결
+## 구현 연결
 
 1. Choices-only AlterField의 기존 책임을 유지하면서 Decimal precision-only delta를 구분한다.
    Before/After의 정규화·default 유효성·copy·definition·state·graph·autodetect·capability를 함께 처리한다.
@@ -39,4 +39,11 @@ GoDj는 [ADR-0069](../docs/adr/0069-exact-decimal-values-and-storage.md)의 정�
    Generated 양 DB 소비자에서 scale 변경·큰 새 값 뒤 reverse 실패와 복구·rollback·재접속·잠금/취소를 검증한다.
 
 제품·생성기·테스트 묶음을 정리한 뒤 affected test와 필요한 DB/race checkpoint를 실행한다.
-현재 완료한 것은 독립 기준 준비이며 GoDj precision AlterField 제품 구현이나 Hosted 검증을 완료로 표시하지 않는다.
+제품·historical definition·양 DB·SQL projection·Helpdesk 0013·독립 client를 연결했다. 관련 일반·race·선택 CGO=0 로컬 통합 checkpoint를 완료했으며 Hosted full milestone은 별도로 확인한다.
+SQL renderer는 operation별 string slot을 유지하여 SQLite의 metadata-only와 PostgreSQL의 physical ALTER를 구분한다. 상세 설계는 ADR-0069와 ADR-0055의 현행 절에 반영했다.
+
+## 통합 milestone
+
+이번 변경은 historical lifecycle·backend SQL renderer 계약·PostgreSQL prepared result cache와 실제 web 소비자를 함께 바꾼다.
+로컬은 affected 21 package와 필요한 race/CGO=0만 실행한다. 최종 동일 source의 Hosted full을 한 번 통합 milestone으로 사용하여
+ORM·CLI를 별도 중복 실행하지 않고 지원 플랫폼과 Linux 전용 process 회귀를 확인한다. 로컬 전체/cold-build는 반복하지 않는다.

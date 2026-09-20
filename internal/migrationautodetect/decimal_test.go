@@ -27,9 +27,26 @@ func TestDetectDecimalAdditionNoOpAndPrecisionChange(t *testing.T) {
 	if !repeat.Empty() {
 		t.Fatal("decimal no-op generated migration")
 	}
+	old := field.Clone()
 	field.Decimal.MaxDigits = 13
+	field.Decimal.DecimalPlaces = 3
 	changed := mustProjectState(t, testSchema("content", testModel("article", testChar("title", false, nil), field)))
-	if _, err := Detect(Request{Definitions: reloaded, Desired: changed, ManagedApps: []string{"content"}}); err == nil {
-		t.Fatal("unsupported precision alteration silently accepted")
+	precision := mustDetect(t, Request{Definitions: reloaded, Desired: changed, ManagedApps: []string{"content"}}).Migrations()
+	if len(precision) != 1 || len(precision[0].Operations) != 1 {
+		t.Fatal("precision change lost operation")
+	}
+	alter, ok := precision[0].Operations[0].(migrations.AlterField)
+	if !ok || !alter.Before.Equal(old) || !alter.After.Equal(field) {
+		t.Fatal("precision change lost exact preimage or target")
+	}
+	assertGeneratedState(t, reloaded, precision, changed)
+	updated := mustLoadDefinitions(t, append(all, precision...)...)
+	if !mustDetect(t, Request{Definitions: updated, Desired: changed, ManagedApps: []string{"content"}}).Empty() {
+		t.Fatal("repeated precision generated a migration")
+	}
+	field.Nullable = false
+	mixed := mustProjectState(t, testSchema("content", testModel("article", testChar("title", false, nil), field)))
+	if _, err := Detect(Request{Definitions: reloaded, Desired: mixed, ManagedApps: []string{"content"}}); err == nil {
+		t.Fatal("precision change admitted simultaneous nullability change")
 	}
 }

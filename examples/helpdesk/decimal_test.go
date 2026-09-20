@@ -16,8 +16,80 @@ import (
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/systemstate"
 )
+
+func verifyHistoricalExpectedCostGrowth(t *testing.T, ctx context.Context, backend helpdeskBackend, open func(context.Context) (helpdeskBackend, error), loaded migrations.LoadedDefinitionSet, id int64) {
+	t.Helper()
+	executor := migrations.Executor{Backend: backend}
+	oldTarget := migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "helpdesk", Name: "0012_ticket_expected_cost"}))
+	state, err := executor.Migrate(ctx, loaded, oldTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, found := state.Model("helpdesk", "ticket")
+	if !found {
+		t.Fatal("historical ticket disappeared")
+	}
+	var field ir.Field
+	for _, item := range model.Fields {
+		if item.Name == "expected_cost" {
+			field = item
+		}
+	}
+	if field.Decimal == nil || field.Decimal.MaxDigits != 12 || field.Decimal.DecimalPlaces != 2 {
+		t.Fatal("historical cost precision differs")
+	}
+	small := decimal.Decimal{Coefficient: "15", Exponent: -1}
+	key := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	if count, err := backend.Update(ctx, query.NewUpdatePlan(model.DBTable, []query.Assignment{orm.NewAssignment(field, query.Decimal(small))}, key, query.Integer(id))); err != nil || count != 1 {
+		t.Fatal("historical cost write failed", err)
+	}
+	if _, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
+	}
+	row, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+	if err != nil || !found || row.ExpectedCost == nil || !row.ExpectedCost.Equal(small) {
+		t.Fatal("cost growth lost existing value", err)
+	}
+	large := decimal.Decimal{Coefficient: "99999999999999", Exponent: -2}
+	row, err = models.TicketObjects.Update(ctx, backend, row, models.TicketPatch{}.WithExpectedCost(large))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := executor.Migrate(ctx, loaded, oldTarget); err == nil {
+		t.Fatal("reverse cost precision silently lost a larger value")
+	}
+	second, err := open(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, found, err := models.TicketObjects.Using(second).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+	closeErr := second.Close()
+	if err != nil || closeErr != nil || !found || stored.ExpectedCost == nil || !stored.ExpectedCost.Equal(large) {
+		t.Fatal("failed precision reverse lost durable cost", err, closeErr)
+	}
+	if _, err := models.TicketObjects.Update(ctx, backend, stored, models.TicketPatch{}.WithExpectedCost(small)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := executor.Migrate(ctx, loaded, oldTarget); err != nil {
+		t.Fatal("precision reverse did not recover after explicit value repair", err)
+	}
+	if _, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
+	}
+	row, found, err = models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+	if err != nil || !found || row.ExpectedCost == nil || !row.ExpectedCost.Equal(small) {
+		t.Fatal("precision reverse/reapply changed exact value", err)
+	}
+	if _, err := models.TicketObjects.Update(ctx, backend, row, models.TicketPatch{}.WithExpectedCostNull()); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func verifyHelpdeskDecimal(t *testing.T, ctx context.Context, runtime *systemstate.Runtime, open func(context.Context) (helpdeskBackend, error), authenticated *helpdeskClient, categoryID, id, outsideID int64) {
 	t.Helper()
@@ -116,14 +188,14 @@ func verifyHelpdeskDecimal(t *testing.T, ctx context.Context, runtime *systemsta
 		t.Fatal("Decimal equivalent zero or omission caused update")
 	}
 	write("PUT", `{"subject":"Decimal visit"}`, new("0.00"))
-	for _, value := range []string{"-9999999999.99", "9999999999.99", "-0.01", "0.01", "0.10", "1.50"} {
+	for _, value := range []string{"-999999999999.99", "999999999999.99", "-0.01", "0.01", "0.10", "1.50"} {
 		body, _ := json.Marshal(map[string]string{"expected_cost": value})
 		write("PATCH", string(body), &value)
 	}
 	write("PATCH", `{"expected_cost":null}`, nil)
 	write("PUT", `{"subject":"Decimal visit","expected_cost":1.5}`, new("1.50"))
 	baseline = read()
-	for _, body := range []string{`{"expected_cost":"1.230"}`, `{"expected_cost":1.230}`, `{"expected_cost":10000000000}`, `{"expected_cost":123456789012345678.12}`, `{"expected_cost":"NaN"}`, `{"expected_cost":"Infinity"}`, `{"expected_cost":1e309}`, `{"expected_cost":1e-9999}`, `{"expected_cost":true}`, `{"expected_cost":[]}`, `{"expected_cost":{}}`, `{"expected_cost":"1","expected_cost":null}`, `{"expected_cost":"` + strings.Repeat("1", 1001) + `"}`} {
+	for _, body := range []string{`{"expected_cost":"1.230"}`, `{"expected_cost":1.230}`, `{"expected_cost":1000000000000}`, `{"expected_cost":123456789012345678.12}`, `{"expected_cost":"NaN"}`, `{"expected_cost":"Infinity"}`, `{"expected_cost":1e309}`, `{"expected_cost":1e-9999}`, `{"expected_cost":true}`, `{"expected_cost":[]}`, `{"expected_cost":{}}`, `{"expected_cost":"1","expected_cost":null}`, `{"expected_cost":"` + strings.Repeat("1", 1001) + `"}`} {
 		before := backend.transactions
 		response := client.request("PATCH", path, body, true)
 		if response.Code != http.StatusBadRequest || backend.transactions != before || !reflect.DeepEqual(baseline, read()) {

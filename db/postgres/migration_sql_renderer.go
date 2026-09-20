@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 // MigrationSQLConfig is the complete immutable PostgreSQL SQL projection
@@ -56,7 +57,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField {
 			return nil, migrationbackend.NewCapabilityError(
 				"postgres_migration_sql",
-				"current SQL projection supports forward CreateModel, AddField and choices-only AlterField",
+				"current SQL projection supports forward CreateModel, AddField and supported AlterField deltas",
 				nil,
 			)
 		}
@@ -76,7 +77,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	statements := make([]string, 0, len(prepared.intent.Operations))
+	statements := make([]string, len(prepared.intent.Operations))
 	for index := range prepared.intent.Operations {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -85,7 +86,14 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		var statement string
 		switch operation.Kind {
 		case migrationbackend.MigrationAlterField:
-			continue
+			_, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid AlterField delta", deltaErr)
+			}
+			if kind == ir.ChangeChoices {
+				continue
+			}
+			statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)
 		case migrationbackend.MigrationCreateModel:
 			statement, err = compilePostgresMigrationCreateModel(
 				renderer.schema,
@@ -117,7 +125,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		if err != nil {
 			return nil, err
 		}
-		statements = append(statements, statement)
+		statements[index] = statement
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

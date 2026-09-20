@@ -16,7 +16,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "e63860b08399eae8202238e1c9a030a848bfffbda057a4f94393314a5b04f248"
+const GoDjSchemaSHA256 = "aa9406e8e8095dd7b8d17b9279aac851982ded9e2a289fd91a28800875d11612"
 
 type Category struct {
 	ID                    int64
@@ -226,7 +226,7 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanServiceAt orm.NullableTimeScanner
 	var scanElapsed orm.NullableDurationScanner
 	var scanEffort orm.NullableFloatScanner
-	scanExpectedCost := orm.NewNullableDecimalScanner(12, 2)
+	scanExpectedCost := orm.NewNullableDecimalScanner(14, 2)
 	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort, &scanExpectedCost); err != nil {
 		return Ticket{}, err
 	}
@@ -826,19 +826,19 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	switch changedExpectedCostState {
 	case orm.NullableChangeUnset:
 		value.ExpectedCost = nil
-		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 14, 2), query.Null()))
 	case orm.NullableChangeValue:
 		changedExpectedCostCanonical, changedExpectedCostError := changedExpectedCost.Canonical()
-		if changedExpectedCostError != nil || !changedExpectedCostCanonical.Fits(12, 2) {
+		if changedExpectedCostError != nil || !changedExpectedCostCanonical.Fits(14, 2) {
 			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "expected_cost", Detail: "decimal exceeds field precision or scale"})
 		}
 		changedExpectedCost = changedExpectedCostCanonical
 		storedExpectedCost := changedExpectedCost
 		value.ExpectedCost = &storedExpectedCost
-		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Decimal(changedExpectedCost)))
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 14, 2), query.Decimal(changedExpectedCost)))
 	case orm.NullableChangeNull:
 		value.ExpectedCost = nil
-		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 14, 2), query.Null()))
 	default:
 		return orm.InvalidMutation[Ticket](&query.Error{
 			Category: query.CategoryQuery,
@@ -1177,16 +1177,16 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	case orm.NullableChangeUnset:
 	case orm.NullableChangeValue:
 		changedExpectedCostCanonical, changedExpectedCostError := changedExpectedCost.Canonical()
-		if changedExpectedCostError != nil || !changedExpectedCostCanonical.Fits(12, 2) {
+		if changedExpectedCostError != nil || !changedExpectedCostCanonical.Fits(14, 2) {
 			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "expected_cost", Detail: "decimal exceeds field precision or scale"})
 		}
 		changedExpectedCost = changedExpectedCostCanonical
 		storedExpectedCost := changedExpectedCost
 		value.ExpectedCost = &storedExpectedCost
-		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Decimal(changedExpectedCost)))
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 14, 2), query.Decimal(changedExpectedCost)))
 	case orm.NullableChangeNull:
 		value.ExpectedCost = nil
-		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Null()))
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 14, 2), query.Null()))
 	default:
 		return orm.InvalidMutation[Ticket](&query.Error{
 			Category: query.CategoryQuery,
@@ -1312,10 +1312,10 @@ func ticketMetadata() ir.Model {
 				Column:   "expected_cost",
 				Kind:     ir.FieldDecimal,
 				Nullable: true,
-				Decimal:  &ir.DecimalSpec{MaxDigits: 12, DecimalPlaces: 2},
+				Decimal:  &ir.DecimalSpec{MaxDigits: 14, DecimalPlaces: 2},
 			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_6ad6381f2a945937c68148b849541ffad796a9dcf14309c535916accad7d63ae struct{}
+type GoDjProjectSnapshot_657583a6de60ec7015e359bad729ead12ac8065f4ca6b65900645d4981761807 struct{}

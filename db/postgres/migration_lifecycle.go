@@ -80,6 +80,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
+		AlterFieldDecimalPrecision:        true,
 	}
 }
 

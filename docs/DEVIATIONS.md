@@ -49,7 +49,8 @@
 - Status: Accepted; model/storage and Form/API consumers verified locally
 - Date: 2026-09-20
 - Scope: [Decimal raw](../internal/decimaltest/testdata/django61.json)의 기본/lexical JSON number profile, SQLite storage probes,
-  Form `input.cost=sNaN`의 세 non-null 초기값 changed exception.
+  Form `input.cost=sNaN`의 세 non-null 초기값 changed exception,
+  [precision migration raw](../internal/decimaltest/testdata/precision-changes-django61.json)의 아래 다섯 전환 profile.
 - Related: [ADR-0069](adr/0069-exact-decimal-values-and-storage.md), [GDJ-0091](../work/0091-decimal-cost-models.md), [실행 증거](status/TEST_EVIDENCE.md)
 
 기본 Python JSON parser는 decimal/exponent token을 float로 바꾼다. DecimalField에 도달하기 전에 큰 소수의 자릿수가 사라지거나,
@@ -68,6 +69,12 @@ SQLite는 Decimal NUMERIC 값을 정수/REAL로 바꾸므로 큰 값의 정확�
 
 Django Form의 sNaN input은 invalid이지만 초기 zero/negative_zero/1.5와의 changed 계산은 InvalidOperation이다. GoDj는 다른 invalid
 입력처럼 검증 오류와 변경 상태를 반환하며 panic이나 부분 persistence를 만들지 않는다. 원래 예외 2×3개는 raw에 보존한다.
+
+Precision 변경의 `reduce_scale_rounding`, `reduce_whole_overflow`, `scale_uses_existing_whole_capacity`,
+`zero_whole_digits`, `zero_scale_rounding`은 고정 Django SQLite에서 DDL이 성공해도 조회 반올림 또는 InvalidOperation을 만든다.
+GoDj는 기존 값이 변경 전후 precision에 정확히 맞지 않으면 migration을 거부한다. 나머지 일곱 profile은 값과 null을 보존한다.
+Reverse도 같은 정책을 적용하며 큰 새 값이 있으면 이력과 schema를 보존한 채 실패한다. Native PostgreSQL probe의 scale 반올림도
+채택하지 않는다. 독립 raw는 바꾸지 않고 구현·검증 source와 환경은 GDJ-0092의 실행 증거에서 별도로 기록한다.
 
 모델·저장·typed/dynamic 비교·rollback과 원문 입력·Form/Admin·실제 비용 API·독립 client의 로컬 checkpoint를 완료했다.
 환경별로 전체 경로를 검증한 source만 완료로 기록한다. Native SQLite NUMERIC 채택이나 반올림 API를 추가할 때 이 정책과 migration 의미를 다시 검토한다.

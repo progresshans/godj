@@ -159,6 +159,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		assertHistoricalPriority(t, ctx, backend, seedID, &value)
 	}
 	setHistoricalPriority(t, ctx, backend, seedID, query.Null())
+	verifyHistoricalExpectedCostGrowth(t, ctx, backend, open, loaded, seedID)
 
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal(err)

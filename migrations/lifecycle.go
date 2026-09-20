@@ -396,6 +396,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAddRequiredForeignKeyToEmptyTable, capabilities.AddRequiredForeignKeyToEmptyTable, "AddRequiredForeignKeyToEmptyTable"},
 		{loadedRequiresRemoveForeignKey, capabilities.RemoveForeignKey, "RemoveForeignKey"},
 		{loadedRequiresAlterFieldChoices, capabilities.AlterFieldChoices, "AlterFieldChoices"},
+		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 	}
 	for _, check := range checks {
 		if requirements&check.bit != 0 && !check.supported {

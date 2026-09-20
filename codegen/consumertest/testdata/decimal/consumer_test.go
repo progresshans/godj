@@ -137,9 +137,14 @@ func (b *countedMutator) Update(ctx context.Context, plan query.UpdatePlan) (int
 }
 
 func TestDecimalStorageQueryAndOwnership(t *testing.T) {
+	forEachDecimalBackend(t, runStorage)
+}
+
+func forEachDecimalBackend(t *testing.T, run func(*testing.T, func(context.Context) (decimalBackend, error))) {
+	t.Helper()
 	t.Run("sqlite", func(t *testing.T) {
 		dsn := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "decimal.sqlite3")) + "?mode=rwc"
-		runStorage(t, func(ctx context.Context) (decimalBackend, error) { return sqlite.Open(ctx, dsn) })
+		run(t, func(ctx context.Context) (decimalBackend, error) { return sqlite.Open(ctx, dsn) })
 	})
 	databaseURL := strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL"))
 	if databaseURL == "" {
@@ -169,7 +174,7 @@ func TestDecimalStorageQueryAndOwnership(t *testing.T) {
 				t.Error(err)
 			}
 		})
-		runStorage(t, func(ctx context.Context) (decimalBackend, error) {
+		run(t, func(ctx context.Context) (decimalBackend, error) {
 			return postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: name})
 		})
 	})

@@ -45,6 +45,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
+		AlterFieldDecimalPrecision:        true,
 	}
 }
 
@@ -666,8 +667,8 @@ func validateSQLiteRelationIntent(
 				return relationIntentIntegrity("relation RemoveField operation %d: %v", operation.OperationIndex, err)
 			}
 		case migrationbackend.MigrationAlterField:
-			if err := validateSQLiteChoiceDelta(before, after); err != nil {
-				return relationIntentIntegrity("AlterField operation %d has an invalid choices delta: %v", operation.OperationIndex, err)
+			if err := validateSQLiteFieldDelta(before, after); err != nil {
+				return relationIntentIntegrity("AlterField operation %d has an invalid field delta: %v", operation.OperationIndex, err)
 			}
 		default:
 			return relationIntentIntegrity("relation operation %d has invalid kind %d", operation.OperationIndex, operation.Kind)

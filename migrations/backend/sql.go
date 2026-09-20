@@ -4,9 +4,12 @@ import "context"
 
 // ForwardMigrationSQLRequest carries one complete, ordered forward migration
 // intent together with its loader-owned identity. Renderers must treat the
-// request as immutable and return ordered semicolon-free statement bodies.
-// Current CreateModel/AddField each produce one body; choices-only AlterField
-// produces none while remaining part of the complete validated intent.
+// request as immutable. The result has exactly one slot per operation, in the
+// same order. A slot contains one semicolon-free statement body, or is empty
+// when that operation has no physical SQL on this backend. CreateModel/AddField
+// require a body, choices-only AlterField requires an empty slot, and Decimal
+// precision changes use an empty SQLite slot or a PostgreSQL ALTER statement.
+// Keeping empty slots preserves operation identity in mixed migration plans.
 type ForwardMigrationSQLRequest struct {
 	App    string
 	Name   string

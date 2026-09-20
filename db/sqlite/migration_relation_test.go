@@ -27,6 +27,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
+		AlterFieldDecimalPrecision:        true,
 	}
 	if got != want {
 		t.Fatalf("MigrationCapabilities() = %+v, want %+v", got, want)

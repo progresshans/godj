@@ -47,20 +47,56 @@ func TestGeneratedDecimalConsumer(t *testing.T) {
 	for _, file := range bundle.Files() {
 		writeGeneratedTestFile(t, root, file.Path, file.Source())
 	}
+	nextDefinition := definition.Clone()
+	for modelIndex := range nextDefinition.Models {
+		for fieldIndex := range nextDefinition.Models[modelIndex].Fields {
+			field := &nextDefinition.Models[modelIndex].Fields[fieldIndex]
+			if nextDefinition.Models[modelIndex].Name == "record" && field.Name == "cost" {
+				field.Decimal.MaxDigits = 14
+			}
+		}
+	}
+	nextBundle, err := codegen.GenerateProject(codegen.ProjectSpec{Project: codegen.PackageSpec{PackageName: "nextproject", ImportPath: module + "/nextproject", Directory: "nextproject"}, Apps: []codegen.AppSpec{{Alias: "models", Package: codegen.PackageSpec{PackageName: "nextmodels", ImportPath: module + "/nextmodels", Directory: "nextmodels"}, Schema: nextDefinition}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range nextBundle.Files() {
+		writeGeneratedTestFile(t, root, file.Path, file.Source())
+	}
 	consumer, err := os.ReadFile("testdata/decimal/consumer_test.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/consumer_test.go", consumer)
+	precisionConsumer, err := os.ReadFile("testdata/decimal/precision_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/precision_test.go", precisionConsumer)
 	reference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/decimaltest/testdata/django61.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
+	precisionReference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/decimaltest/testdata/precision-changes-django61.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/precision_reference.json", precisionReference)
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	required := []string{"TestDecimalGeneratedDefaults", "TestDecimalStorageQueryAndOwnership", "TestDecimalStorageQueryAndOwnership/sqlite"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestDecimalStorageQueryAndOwnership/postgres")
+	}
+	required = append(required, "TestDecimalPrecisionMigration", "TestDecimalPrecisionIncomingRelation", "TestDecimalPrecisionIncomingRelation/sqlite", "TestDecimalGeneratedPrecisionEvolution", "TestDecimalGeneratedPrecisionEvolution/sqlite")
+	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
+		required = append(required, "TestDecimalGeneratedPrecisionEvolution/postgres", "TestDecimalPrecisionIncomingRelation/postgres")
+	}
+	for _, name := range []string{"widen_whole", "widen_scale_and_precision", "reduce_scale_exact", "reduce_scale_rounding", "reduce_whole_safe", "reduce_whole_overflow", "scale_uses_existing_whole_capacity", "zero_whole_digits", "zero_scale_exact", "zero_scale_rounding", "empty_tightening", "identity"} {
+		required = append(required, "TestDecimalPrecisionMigration/"+name+"/sqlite")
+		if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
+			required = append(required, "TestDecimalPrecisionMigration/"+name+"/postgres")
+		}
 	}
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 	for _, test := range []struct{ name, source, fragment string }{

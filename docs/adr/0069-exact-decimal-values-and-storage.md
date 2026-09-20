@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-09-20
-- 관련 작업: [GDJ-0091](../../work/0091-decimal-cost-models.md)
+- 관련 작업: [GDJ-0091](../../work/0091-decimal-cost-models.md), [GDJ-0092](../../work/0092-decimal-precision-migrations.md)
 
 설계 채택과 제품 구현·환경별 검증의 완료는 구분한다. 현재 진행과 실제 실행은 CURRENT·TEST_EVIDENCE가 소유한다.
 
@@ -38,7 +38,35 @@ Raw NUMERIC NaN·Infinity, SQLite의 다른 storage class/잘못된 key와 선�
 
 SQLite의 물리 표현은 Django NUMERIC table과 호환된다고 주장하지 않는다. Physical preflight는 GoDj의 BLOB shape를 확인한다.
 기존 Django Decimal table의 채택에는 별도의 명시적 변환이 필요하며, 이미 소실된 값은 복원했다고 주장할 수 없다.
-Historical migration은 precision과 physical column 의미를 함께 유지한다. 넓은 precision AlterField/backfill은 별도 작업이다.
+Historical migration은 precision과 physical column 의미를 함께 유지한다. 일반 type/nullability/default 변경과 backfill은 별도 범위다.
+
+## 기존 값의 precision 변경
+
+Precision-only AlterField는 max_digits·decimal_places만 변경한다. Before/After는 각각 완전히 정규화되어야 하며
+같은 default도 새 정밀도에서 유효해야 한다. 이름·타입·nullability·default·관계 등 다른 facet을 동시에 바꾸지 않는다.
+같은 공통 delta 분류를 historical definition·state·autodetect·backend가 사용하고, choices와 Decimal precision은 서로 다른 capability다.
+
+현재 revision-fenced migration transaction의 잠금을 재사용한다. SQLite는 BEGIN IMMEDIATE, PostgreSQL은 정렬된
+ACCESS EXCLUSIVE NOWAIT와 잠금 뒤 OID/catalog 재검증이 기존 값 검사부터 physical 변경·history/revision publication까지 보호한다.
+모든 non-null 값을 순차 조회하여 정확한 저장 표현 및 변경 전후 precision에 모두 맞는지 검사한다. SQLite의 외부 TEXT/REAL·잘못된
+BLOB·과거 범위 밖 값, PostgreSQL의 NaN 및 선언에 맞지 않는 값을 넓어진 field에 조용히 편입하지 않는다.
+Query/iteration/close 오류와 context 취소는 성공으로 처리하지 않는다. Transaction 실패는 기존 값·schema·history·revision을 보존한다.
+
+SQLite BLOB은 field scale과 무관하므로 precision 변경에 DDL·table remake·data rewrite가 필요 없다. PostgreSQL은 값 검증 뒤
+NUMERIC(p,s) typmod를 변경하고 최종 catalog를 확인한다. Reverse에도 같은 검증을 적용한다. 확장 뒤 큰 값을 썼다면 축소는
+명시적 data migration이 필요하다는 오류로 실패하며 반올림하지 않는다. 사용자가 값을 새 범위에 맞게 변경한 뒤 다시 시도할 수 있다.
+
+고정 Django SQLite의 성공한 precision migration에서 조회 반올림·InvalidOperation이 발생하는 profile은 독립 raw에 보존한다.
+GoDj의 거부 selector는 DEV-0016에 명시한다. Native PostgreSQL scale 축소의 반올림 관찰은 Django PostgreSQL 증거와 구분한다.
+DB-free SQL projection은 SQLite의 빈 operation slot과 PostgreSQL ALTER body를 구분한다. 현재 데이터 검사·잠금·transaction을
+실행하지 않으므로 그 SQL 출력 자체를 live migration의 성공 또는 정확한 값 보존 증거로 취급하지 않는다.
+
+PostgreSQL prepared statement의 반환 descriptor에는 NUMERIC typmod가 포함된다. 같은 column을 새 precision으로 조회하면서
+이전 SQL cache key를 재사용하면 `cached plan must not change result type` 오류가 발생한다. Backend compiler는 선택된 Decimal
+column의 검증된 precision 정수를 SQL comment에 포함해 선언별 cache identity를 구분한다. Root·projection·eager target과
+transaction 조회가 같은 compiler를 사용한다. 값·CAST·숫자 정렬은 바꾸지 않고 cache를 전역으로 끄거나 실패한 transaction을 자동 재시도하지 않는다.
+다른 backend pool도 같은 IR로 새 key를 만들며 reverse는 원래 precision의 key로 돌아간다. 현재 모델과 physical schema가 맞는 조회의 계약이며
+아직 migration하지 않은 새 모델이나 이미 교체한 옛 모델의 임의 혼용을 지원한 것으로 넓히지 않는다.
 
 ## Form·JSON·실제 비용 소비자
 

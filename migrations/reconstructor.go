@@ -331,6 +331,7 @@ const (
 	loadedRequiresAddRequiredForeignKeyToEmptyTable
 	loadedRequiresRemoveForeignKey
 	loadedRequiresAlterFieldChoices
+	loadedRequiresAlterFieldDecimalPrecision
 )
 
 const (
@@ -1448,7 +1449,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		sourceModel := afterModel
 		sourceExists := afterExists
 		if step.Direction == DirectionBackward {
-			if _, choicesOnly := operation.(AlterField); !choicesOnly {
+			if _, altersField := operation.(AlterField); !altersField {
 				sourceModel = beforeModel
 				sourceExists = beforeExists
 			}
@@ -1495,7 +1496,23 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		// relations that are carried only to seal the complete model boundary.
 		// A scalar Add/Remove on a relation-bearing model therefore transports
 		// target authority without requiring a relation Add/Remove capability.
-		requirements |= loadedRequirementsForSourceFields(kind, changedRelationFields)
+		if alteration, ok := operation.(AlterField); ok {
+			alteration, err = alteration.normalized()
+			if err != nil {
+				return loadedMaterializedStep{}, migrationError(CategoryState, CodeInvalidState, step.Direction, migration, operationIndex, operation.Kind(), err)
+			}
+			change, err := ir.ClassifyFieldChange(alteration.Before, alteration.After)
+			if err != nil {
+				return loadedMaterializedStep{}, migrationError(CategoryState, CodeInvalidState, step.Direction, migration, operationIndex, operation.Kind(), err)
+			}
+			if change == ir.ChangeDecimalPrecision {
+				requirements |= loadedRequiresAlterFieldDecimalPrecision
+			} else {
+				requirements |= loadedRequiresAlterFieldChoices
+			}
+		} else {
+			requirements |= loadedRequirementsForSourceFields(kind, changedRelationFields)
+		}
 		operationViews = append(operationViews, loadedOperationView{
 			index:         operationIndex,
 			operation:     operation,
@@ -1842,9 +1859,6 @@ func loadedRequirementsForSourceFields(
 	kind loadedRelationOperationKind,
 	fields []ir.Field,
 ) loadedRelationRequirements {
-	if kind == loadedRelationAlterField {
-		return loadedRequiresAlterFieldChoices
-	}
 	if len(fields) == 0 {
 		return 0
 	}

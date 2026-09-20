@@ -41,7 +41,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField {
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",
-				"current SQL projection supports forward CreateModel, AddField and choices-only AlterField",
+				"current SQL projection supports forward CreateModel, AddField and supported AlterField deltas",
 				nil,
 			)
 		}
@@ -61,7 +61,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	statements := make([]string, 0, len(seal.intent.Operations))
+	statements := make([]string, len(seal.intent.Operations))
 	for index := range seal.intent.Operations {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -93,7 +93,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		if err != nil {
 			return nil, err
 		}
-		statements = append(statements, statement)
+		statements[index] = statement
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

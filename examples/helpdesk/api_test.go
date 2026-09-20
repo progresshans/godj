@@ -52,7 +52,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	update := decoded.Components.Schemas["TicketUpdate"]
 	patch := decoded.Components.Schemas["TicketPatch"]
 	for _, field := range []helpdeskDocumentSchema{ticket.Properties["expected_cost"], input.Properties["expected_cost"], update.Properties["expected_cost"], patch.Properties["expected_cost"]} {
-		if len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].MinLength != 4 || field.AnyOf[0].MaxLength != 14 || field.AnyOf[0].Pattern != `^-?(0|[1-9][0-9]{0,9})\.[0-9]{2}$` || !field.allowsType("null") {
+		if len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].MinLength != 4 || field.AnyOf[0].MaxLength != 16 || field.AnyOf[0].Pattern != `^-?(0|[1-9][0-9]{0,11})\.[0-9]{2}$` || !field.allowsType("null") {
 			t.Fatal("Decimal OpenAPI precision/scale/nullable domain changed")
 		}
 	}

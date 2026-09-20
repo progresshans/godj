@@ -352,9 +352,9 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 		if err := validateExactPostgresMigrationModel(after); err != nil {
 			return before, after, changed, err
 		}
-		_, field, err := migrationbackend.ChangedChoiceField(before, after)
+		_, field, _, err := migrationbackend.ChangedField(before, after)
 		if err != nil {
-			return before, after, changed, postgresMigrationIntentIntegrity("AlterField requires an exact choices-only delta", err)
+			return before, after, changed, postgresMigrationIntentIntegrity("AlterField requires an exact supported field delta", err)
 		}
 		changed = field
 	default:

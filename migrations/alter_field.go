@@ -11,7 +11,7 @@ import (
 
 // AlterField carries both historical values so forward and backward execution
 // reject stale metadata instead of guessing a previous definition. The current
-// operation supports choices changes; physical alterations fail explicitly.
+// operation supports choices-only and exact Decimal precision-only changes.
 type AlterField struct {
 	AppLabel  string
 	ModelName string
@@ -32,7 +32,7 @@ func (op AlterField) normalized() (AlterField, error) {
 	if err != nil {
 		return AlterField{}, fmt.Errorf("normalize changed field: %w", err)
 	}
-	if err := ir.ValidateChoiceChange(before, after); err != nil {
+	if _, err := ir.ClassifyFieldChange(before, after); err != nil {
 		return AlterField{}, err
 	}
 	op.Before, op.After = before, after

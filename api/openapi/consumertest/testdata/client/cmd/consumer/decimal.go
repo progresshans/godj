@@ -42,13 +42,13 @@ func checkHelpdeskDecimalUpdates(ctx context.Context, client *hs.Client, transpo
 	if err := patch(hs.TicketPatch{ExpectedCost: clear}); err != nil {
 		return hs.Ticket{}, err
 	}
-	for _, value := range []string{"-9999999999.99", "9999999999.99", "-0.01", "0.01", "0.10", "1.50"} {
+	for _, value := range []string{"-999999999999.99", "999999999999.99", "-0.01", "0.01", "0.10", "1.50"} {
 		expected.ExpectedCost = hs.NewNilString(value)
 		if err := patch(hs.TicketPatch{ExpectedCost: hs.NewOptNilString(value)}); err != nil {
 			return hs.Ticket{}, err
 		}
 	}
-	for _, test := range []struct{ value, code string }{{"1.500", "max_decimal_places"}, {"10000000000", "max_whole_digits"}, {"NaN", "invalid"}} {
+	for _, test := range []struct{ value, code string }{{"1.500", "max_decimal_places"}, {"1000000000000", "max_whole_digits"}, {"NaN", "invalid"}} {
 		bad, err := client.HelpdeskTicketPatch(ctx, &hs.TicketPatch{ExpectedCost: hs.NewOptNilString(test.value)}, params)
 		rejected, ok := bad.(*hs.HelpdeskTicketPatchBadRequest)
 		if err != nil || !ok || len(rejected.Errors) != 1 || rejected.Errors[0].Field != "expected_cost" || rejected.Errors[0].Code != test.code {
@@ -72,7 +72,7 @@ func checkGeneratedDecimalWire(ctx context.Context) error {
 	}{
 		{hs.TicketPatch{}, "null", "", false, true}, {hs.TicketPatch{ExpectedCost: clear}, "null", "", true, true},
 	}
-	for _, value := range []string{"0.00", "-0.00", "0.10", "9999999999.99", "-9999999999.99"} {
+	for _, value := range []string{"0.00", "-0.00", "0.10", "999999999999.99", "-999999999999.99"} {
 		raw, _ := json.Marshal(value)
 		cases = append(cases, struct {
 			request       hs.TicketPatch
@@ -115,7 +115,7 @@ func checkGeneratedDecimalWire(ctx context.Context) error {
 			return fail("decimal generated response precision/presence")
 		}
 	}
-	for _, suffix := range []string{`}`, `,"expected_cost":0.1}`, `,"expected_cost":true}`, `,"expected_cost":"1.5"}`, `,"expected_cost":"1.500"}`, `,"expected_cost":"01.50"}`, `,"expected_cost":"NaN"}`, `,"expected_cost":"10000000000.00"}`} {
+	for _, suffix := range []string{`}`, `,"expected_cost":0.1}`, `,"expected_cost":true}`, `,"expected_cost":"1.5"}`, `,"expected_cost":"1.500"}`, `,"expected_cost":"01.50"}`, `,"expected_cost":"NaN"}`, `,"expected_cost":"1000000000000.00"}`} {
 		calls := 0
 		client, err := nullableBooleanWireClient(base+suffix, `{}`, &calls)
 		if err != nil {
@@ -125,7 +125,7 @@ func checkGeneratedDecimalWire(ctx context.Context) error {
 			return fail("decimal generated decoder admitted invalid response")
 		}
 	}
-	for _, value := range []string{"1.5", "1.500", "NaN", "10000000000.00"} {
+	for _, value := range []string{"1.5", "1.500", "NaN", "1000000000000.00"} {
 		request := hs.TicketPatch{ExpectedCost: hs.NewOptNilString(value)}
 		if request.Validate() == nil {
 			return fail("explicit generated decimal request validation")

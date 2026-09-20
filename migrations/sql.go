@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 const (
@@ -136,10 +137,18 @@ func RenderMigrationSQL(
 		return nil, err
 	}
 	intent := loadedBackendRelationIntent(materialized.intent)
-	wantStatements := len(intent.Operations)
-	for _, operation := range intent.Operations {
+	rules := make([]migrationSQLSlotRule, len(intent.Operations))
+	for index, operation := range intent.Operations {
 		if operation.Kind == backend.MigrationAlterField {
-			wantStatements--
+			_, _, kind, err := backend.ChangedField(operation.Before, operation.After)
+			if err != nil {
+				return nil, invalidLoadedState(Migration{App: target.App, Name: target.Name}, operation.OperationIndex, "AlterField", err)
+			}
+			if kind == ir.ChangeChoices {
+				rules[index] = migrationSQLMetadataOnly
+			} else {
+				rules[index] = migrationSQLBackendSpecific
+			}
 		}
 	}
 	request := backend.ForwardMigrationSQLRequest{
@@ -167,14 +176,22 @@ func RenderMigrationSQL(
 		return nil, newMigrationSQLError(CategorySQLRender, CodeRenderFailed)
 	}
 
-	return validateRenderedMigrationSQL(ctx, step, statements, wantStatements)
+	return validateRenderedMigrationSQL(ctx, step, statements, rules)
 }
+
+type migrationSQLSlotRule uint8
+
+const (
+	migrationSQLStatementRequired migrationSQLSlotRule = iota
+	migrationSQLMetadataOnly
+	migrationSQLBackendSpecific
+)
 
 func validateRenderedMigrationSQL(
 	ctx context.Context,
 	step PlanStep,
 	statements []string,
-	wantStatements int,
+	rules []migrationSQLSlotRule,
 ) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, executionContextError(step, err)
@@ -196,19 +213,33 @@ func validateRenderedMigrationSQL(
 		total += bodyBytes
 	}
 
-	if len(statements) != wantStatements {
+	if len(statements) != len(rules) {
 		return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
 	}
-	result := make([]string, len(statements))
+	result := make([]string, 0, len(statements))
 	for index := range statements {
 		if err := ctx.Err(); err != nil {
 			return nil, executionContextError(step, err)
 		}
 		body := statements[index]
+		switch rules[index] {
+		case migrationSQLStatementRequired:
+		case migrationSQLMetadataOnly:
+			if body != "" {
+				return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
+			}
+			continue
+		case migrationSQLBackendSpecific:
+			if body == "" {
+				continue
+			}
+		default:
+			return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
+		}
 		if !validMigrationSQLBody(body) {
 			return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
 		}
-		result[index] = strings.Clone(body)
+		result = append(result, strings.Clone(body))
 	}
 	return result, nil
 }

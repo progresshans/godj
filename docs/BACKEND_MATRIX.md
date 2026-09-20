@@ -9,7 +9,7 @@
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
 | Relation delete | supported physical FK의 PROTECT/SET_NULL | declared current backend capability 기준 |
-| Migration | revision session, current Create/Delete/Add/Remove와 choices-only AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
+| Migration | revision session, current Create/Delete/Add/Remove와 choices-only·Decimal precision-only AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
 | CGO | pure Go 경로 | pure Go 경로 |
@@ -31,7 +31,8 @@ Decimal은 immutable coefficient/exponent와 명시적 max_digits 1..1000·decim
 SQLite BLOB numeric order key와 PostgreSQL NUMERIC(p,s)는 초과 scale을 반올림하지 않는 공통 write 검증을 거친다.
 Typed/dynamic comparison·IN·F·projection·Min/Max와 generated root/eager scan, historical create/add/remove를 연결했다.
 Form/Admin의 원문 precision 검증과 Helpdesk 예상 비용의 fixed-scale JSON/OpenAPI·독립 client까지 연결했다.
-SQLite의 Django NUMERIC 물리 형식 채택·precision AlterField·unbounded NUMERIC은 미지원이다.
+Precision-only AlterField는 기존 값을 변경 전후 범위로 검사하고, SQLite에서는 metadata만, PostgreSQL에서는 NUMERIC typmod를 변경한다.
+Reverse의 범위 초과는 값을 반올림하지 않고 실패한다. SQLite의 Django NUMERIC 물리 형식 채택·unbounded NUMERIC·일반 type/default/nullability 변경은 미지원이다.
 [정확한 값·물리 저장 경계](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 

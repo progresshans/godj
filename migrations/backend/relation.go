@@ -10,6 +10,7 @@ type MigrationCapabilities struct {
 	AddRequiredForeignKeyToEmptyTable bool
 	RemoveForeignKey                  bool
 	AlterFieldChoices                 bool
+	AlterFieldDecimalPrecision        bool
 }
 
 // The public backend contract shares the pure historical metadata types with

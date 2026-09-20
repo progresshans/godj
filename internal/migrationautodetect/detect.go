@@ -337,7 +337,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 				}
 				before := oldModel.Fields[oldIndex]
 				if !reflect.DeepEqual(before, field) {
-					if err := ir.ValidateChoiceChange(before, field); err != nil {
+					if _, err := ir.ClassifyFieldChange(before, field); err != nil {
 						return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, err)
 					}
 					addedFields = append(addedFields, migrations.AlterField{AppLabel: app, ModelName: newModel.Name, Before: before.Clone(), After: field.Clone()})

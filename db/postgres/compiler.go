@@ -94,6 +94,7 @@ func compileScalarSelect(
 			return "", nil, err
 		}
 		statement.WriteString(quoted)
+		appendDecimalResultPrecision(&statement, field)
 	}
 	statement.WriteString(" FROM ")
 	table, err := quoteTable(schema, plan.Table())
@@ -645,6 +646,7 @@ func compileRelation(
 			return "", nil, err
 		}
 		statement.WriteString(qualified)
+		appendDecimalResultPrecision(&statement, column)
 	}
 	for _, projection := range plan.RelationProjections() {
 		alias := joins[queryplan.KeyForPath(projection.Path().Hops())].Alias
@@ -655,6 +657,7 @@ func compileRelation(
 				return "", nil, err
 			}
 			statement.WriteString(qualified)
+			appendDecimalResultPrecision(&statement, column)
 		}
 	}
 	rootTable, err := quoteTable(schema, plan.Table())
@@ -743,6 +746,21 @@ func compileRelation(
 	}
 	appendPagination(&statement, &arguments, plan)
 	return statement.String(), arguments, nil
+}
+
+// PostgreSQL's prepared result descriptor includes NUMERIC typmod. The same
+// column selection at a different declared precision must therefore have a
+// different statement-cache identity, including on other pooled connections.
+// Only validated IR integers enter this comment; values and numeric SQL
+// expressions remain unchanged. Reverting precision reuses its original key.
+func appendDecimalResultPrecision(statement *strings.Builder, field query.FieldRef) {
+	if digits, places, ok := field.DecimalPrecision(); ok {
+		statement.WriteString(" /* godj:decimal(")
+		statement.WriteString(strconv.Itoa(digits))
+		statement.WriteByte(',')
+		statement.WriteString(strconv.Itoa(places))
+		statement.WriteString(") */")
+	}
 }
 
 func compileCondition(statement *strings.Builder, condition query.Condition, rightField string, inValues []query.Value, firstArgument int) ([]any, error) {

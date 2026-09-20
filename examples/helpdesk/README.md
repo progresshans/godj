@@ -32,8 +32,8 @@ elapsed는 nullable 작업 시간이다. API는 `[days ]HH:MM:SS[.ffffff]` 문�
 [Duration 경계](../../docs/adr/0067-duration-model-range-and-number-input.md)를 따른다. effort는 nullable binary64 작업량이다.
 Form/API는 finite 값만 받고, API는 JSON 숫자를 반환한다. ORM에 직접 저장한 non-finite 값의 API/Admin 출력은 오류다.
 [Float 경계](../../docs/adr/0068-binary64-field-and-finite-json-boundaries.md)를 따른다.
-expected_cost는 nullable Decimal(12, 2) 예상 비용이다. 정확한 JSON 숫자 또는 소수 문자열을 받아 두 자리 문자열로 반환한다.
-예를 들어 `0.1`은 `"0.10"`이 된다. `1.230`은 반올림하지 않고 거부하며 허용 범위는 -9999999999.99..9999999999.99다.
+expected_cost는 nullable Decimal(14, 2) 예상 비용이다. 정확한 JSON 숫자 또는 소수 문자열을 받아 두 자리 문자열로 반환한다.
+예를 들어 `0.1`은 `"0.10"`이 된다. `1.230`은 반올림하지 않고 거부하며 허용 범위는 -999999999999.99..999999999999.99다.
 Admin은 step=0.01과 두 자리 초기값을 사용하고 빈 제출은 null로 저장한다. ±0의 부호만 바꾸면 UPDATE하지 않는다.
 [Decimal의 입력·저장 경계](../../docs/adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 `PUT /api/tickets/<id>/`는 subject가 필수이고 생략한 closed는 false다. `PATCH`는 제출한 필드만 수정하며 default를 넣지 않는다.
@@ -54,7 +54,7 @@ go run ./cmd/godj generate --check --project examples/helpdesk/godj.toml
 
 선언 runner는 생성·makemigrations 명령을 제공한다. `modeldef` 변경 후 같은 생성 명령에서 `--check`를 빼면 생성물을 갱신한다.
 `go run ./cmd/godj makemigrations --project examples/helpdesk/godj.toml`은 선언과 `migrations/`의 차이를 작성한다.
-`0001_initial`부터 `0004_ticket_due_at`까지 보존한다. `0005_alter_ticket_priority`는 선택값을 추가하고 `0006_alter_ticket_priority`는 표시명·순서를 변경한다. 두 metadata 변경은 DDL을 만들지 않는다. `0007_ticket_reviewed`와 `0008_ticket_service_on`은 각각 nullable Boolean과 Date를 추가하고 기존 행은 null로 유지한다. `0009_ticket_service_at`, `0010_ticket_elapsed`, `0011_ticket_effort`, `0012_ticket_expected_cost`는 Time·Duration·Float·Decimal을 추가하며 기존 행은 null이다. `MigrationSources()`의 전체 source를 loader에 전달한다.
+`0001_initial`부터 `0004_ticket_due_at`까지 보존한다. `0005_alter_ticket_priority`는 선택값을 추가하고 `0006_alter_ticket_priority`는 표시명·순서를 변경한다. 두 metadata 변경은 DDL을 만들지 않는다. `0007_ticket_reviewed`와 `0008_ticket_service_on`은 각각 nullable Boolean과 Date를 추가하고 기존 행은 null로 유지한다. `0009_ticket_service_at`, `0010_ticket_elapsed`, `0011_ticket_effort`, `0012_ticket_expected_cost`는 Time·Duration·Float·Decimal을 추가하며 기존 행은 null이다. `0013_alter_ticket_expected_cost`는 기존 비용을 보존하면서 Decimal(12, 2)를 Decimal(14, 2)로 늘린다. 새 한도에만 맞는 값이 남아 있으면 역방향 변경은 반올림 없이 실패하고, 명시적으로 값을 수정한 뒤 다시 시도할 수 있다. `MigrationSources()`의 전체 source를 loader에 전달한다.
 테스트는 0001의 기존 행, 필드 추가/역방향, 0004의 범위 밖 priority 값에 0005·0006 적용/역방향/재적용, Form/Admin/API의 선택값 검증과 기존 값 보존을 다룬다.
 PostgreSQL 검증은 `GODJ_TEST_POSTGRES_URL`과 명시적인 `GODJ_REQUIRE_POSTGRES=1`로 실행하며, CI의 pinned service가 소유한다.
 

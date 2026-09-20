@@ -15,8 +15,9 @@ type alterFieldDocument struct {
 }
 
 func validAlterFieldDefinition(value migrations.AlterField) bool {
+	_, err := ir.ClassifyFieldChange(value.Before, value.After)
 	return identifiers.SQL(value.ModelName) && fullyNormalizedAddField(value.AppLabel, value.Before) &&
-		fullyNormalizedAddField(value.AppLabel, value.After) && ir.ValidateChoiceChange(value.Before, value.After) == nil
+		fullyNormalizedAddField(value.AppLabel, value.After) && err == nil
 }
 
 func materializeAlterField(value jsonValue, app string) (migrations.Operation, bool) {

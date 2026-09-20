@@ -177,4 +177,4 @@ func BindReverseObjects() (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_6ad6381f2a945937c68148b849541ffad796a9dcf14309c535916accad7d63ae
+var _ goDjProjectSnapshot_657583a6de60ec7015e359bad729ead12ac8065f4ca6b65900645d4981761807

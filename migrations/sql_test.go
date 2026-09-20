@@ -241,7 +241,7 @@ func TestValidateRenderedMigrationSQLChecksCancellationDuringScan(t *testing.T) 
 
 	step := PlanStep{Key: MigrationKey{App: "blog", Name: "0002_render_sql"}, Direction: DirectionForward}
 	ctx := newMigrationSQLCheckpointContext(2)
-	statements, err := validateRenderedMigrationSQL(ctx, step, []string{"SELECT 1", "SELECT 2"}, 2)
+	statements, err := validateRenderedMigrationSQL(ctx, step, []string{"SELECT 1", "SELECT 2"}, make([]migrationSQLSlotRule, 2))
 	if statements != nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("scan cancellation = %#v, %v; want nil/context.Canceled", statements, err)
 	}
@@ -255,19 +255,19 @@ func TestValidateRenderedMigrationSQLResourceBeforeSemanticAndExactLimits(t *tes
 	for index := range exactCount {
 		exactCount[index] = "X"
 	}
-	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactCount, len(exactCount)); err != nil || len(got) != len(exactCount) {
+	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactCount, make([]migrationSQLSlotRule, len(exactCount))); err != nil || len(got) != len(exactCount) {
 		t.Fatalf("exact statement limit = (%d, %v), want success", len(got), err)
 	}
 	oneOverCount := append(exactCount, "") // also semantically invalid; resource must win.
-	_, err := validateRenderedMigrationSQL(context.Background(), step, oneOverCount, len(oneOverCount))
+	_, err := validateRenderedMigrationSQL(context.Background(), step, oneOverCount, make([]migrationSQLSlotRule, len(oneOverCount)))
 	assertMigrationSQLError(t, err, CategorySQLResource, CodeRenderedSQLResourceLimit, step.Key)
 
 	exactBytes := []string{strings.Repeat("X", migrationSQLMaxAggregateBodyBytes)}
-	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactBytes, 1); err != nil || len(got) != 1 {
+	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactBytes, make([]migrationSQLSlotRule, 1)); err != nil || len(got) != 1 {
 		t.Fatalf("exact aggregate byte limit = (%d, %v), want success", len(got), err)
 	}
 	oneOverBytes := []string{strings.Repeat("X", migrationSQLMaxAggregateBodyBytes) + ";"}
-	_, err = validateRenderedMigrationSQL(context.Background(), step, oneOverBytes, 1)
+	_, err = validateRenderedMigrationSQL(context.Background(), step, oneOverBytes, make([]migrationSQLSlotRule, 1))
 	assertMigrationSQLError(t, err, CategorySQLResource, CodeRenderedSQLResourceLimit, step.Key)
 }
 
@@ -292,17 +292,17 @@ func TestValidateRenderedMigrationSQLRejectsMalformedBodiesAndCardinality(t *tes
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := validateRenderedMigrationSQL(context.Background(), step, test.statements, test.want)
+			_, err := validateRenderedMigrationSQL(context.Background(), step, test.statements, make([]migrationSQLSlotRule, test.want))
 			assertMigrationSQLError(t, err, CategorySQLRender, CodeInvalidRenderedSQL, step.Key)
 		})
 	}
 	for _, whitespace := range []byte{' ', '\t', '\n', '\v', '\f', '\r'} {
 		for _, body := range []string{string(whitespace) + "SELECT 1", "SELECT 1" + string(whitespace)} {
-			_, err := validateRenderedMigrationSQL(context.Background(), step, []string{body}, 1)
+			_, err := validateRenderedMigrationSQL(context.Background(), step, []string{body}, make([]migrationSQLSlotRule, 1))
 			assertMigrationSQLError(t, err, CategorySQLRender, CodeInvalidRenderedSQL, step.Key)
 		}
 	}
-	if got, err := validateRenderedMigrationSQL(context.Background(), step, []string{"SELECT\n1"}, 1); err != nil ||
+	if got, err := validateRenderedMigrationSQL(context.Background(), step, []string{"SELECT\n1"}, make([]migrationSQLSlotRule, 1)); err != nil ||
 		!reflect.DeepEqual(got, []string{"SELECT\n1"}) {
 		t.Fatalf("internal LF = %#v, %v; want accepted", got, err)
 	}

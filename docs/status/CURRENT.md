@@ -15,13 +15,12 @@ Decimal의 exact 값·precision IR·query·생성·양 DB·historical migration�
 
 GDJ-0092는 기존 비용이 있는 상태에서 모델의 precision·scale을 변경하는 흐름이다. 고정 Django의 12개 migration profile과
 별도 native PostgreSQL 사전 실험을 준비했다. 기존 값의 반올림·조회 실패와 역방향 복구의 차이를 구분했다.
-현재 precision AlterField 제품 구현은 아직 미완료다.
+Precision-only AlterField와 Helpdesk 한도 확장·독립 client를 연결했고 관련 21 package의 일반·race 및 선택 CGO=0 로컬 통합 checkpoint를 완료했다.
 
 ## 다음 행동
 
-Precision-only AlterField의 정규화·historical state·autodetect·capability를 연결한다. 기존 migration 잠금과 transaction 안에서
-기존 값이 변경 전후 정밀도에 정확히 맞는지 검사하고 SQLite의 metadata 변경과 PostgreSQL NUMERIC 변경을 수행한다.
-Backend별 SQL 수가 다른 경우에도 operation 누락을 잡는 SQL projection을 정리하고, 실제 Helpdesk 성장·역방향·실패 경로를 함께 검증한다.
+검증한 변경을 기존 Draft PR에 통합하고 같은 제품 source로 Hosted full milestone을 실행한다.
+지원 플랫폼과 Linux 전용 process 회귀를 확인한 뒤 환경별 결과와 남은 완성 범위를 갱신한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 현재 ORM 결과를 전체 플랫폼 PASS로 합치지 않는다.

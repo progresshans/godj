@@ -21,6 +21,46 @@
   reverse는 사라진 자릿수를 복구하지 못한다. Native raw SHA256은 `03b5e001049a05df891719de5b7780da300f953b87cf423cebb2c9be8e3f1d6b`다.
   이 native scratch 관찰은 설계 판단 자료이며 GoDj 제품/Hosted PASS나 Django 관찰의 대용이 아니다. 전용 DB는 연결 0 확인 뒤 삭제했다.
 
+### 정밀도 변경 제품·로컬 통합 checkpoint
+
+- 제품·생성물·테스트 후보는 baseline `9ed86fe4a91d646da375d175fa4c6c2758111d72` 위 변경된 non-Markdown **59개 현재 파일**이다.
+  정렬된 SHA256 manifest는 `c4def02ecfd86a341fbaa0a809ef193c4db388c8b1a491dbc089634fcdbab615`다.
+  Choices 전용 이름의 backend helper 세 파일은 일반 field-change 구현으로 교체했다. 새 테스트·제품 바이트는 최종 실행 전후 같은 manifest로 확인한다.
+- IR delta 분류·historical definition/default·autodetect·독립 Decimal capability와 실제 양 DB precision AlterField를 연결했다.
+  기존 transaction/잠금에서 before/after precision을 검사한다. SQLite는 BLOB·schema_version을 보존하고 PostgreSQL은 검증 뒤 NUMERIC typmod를 바꾼다.
+  반올림/whole overflow, 잘못된 외부 storage 및 NaN을 거부하고 실패 시 값·physical schema·history·private revision을 유지한다.
+- Generated 실제 소비자는 독립 12 profile을 양 DB에서 실행하며, 다섯 명시적 lossless 거부 profile과 일곱 보존 profile을 구분한다.
+  기존/새 generated model·새 큰 값 뒤 reverse 거부·명시적 값 수정 뒤 복원·fresh reopen, capability 거부·schema edit 직후 실패,
+  incoming FK와 기존 eager query cache 보존을 포함한다. DB row-query/iteration/close/cancellation driver fault는 별도 simulated I/O 경계다.
+- 초기 실행은 새 reference query가 ID를 정렬하면서 selected metadata에 빠뜨린 fixture 오류로 실패했다. ID를 포함해 올바른 Query AST로 고쳤다.
+  이어 실제 PostgreSQL에서 NUMERIC precision을 바꾼 뒤 cached result descriptor가 SQLSTATE 0A000으로 실패했다.
+  반환 Decimal 열의 선언 precision을 SQL cache identity에 포함해 해결했으며, cast/값 변환이나 전역 cache 비활성화·자동 retry를 추가하지 않았다.
+  별도 reader pool의 **같은 physical PID**를 유지한 root·DISTINCT projection·transaction 조회의 expand/reverse/reapply가 회귀 owner다.
+- Helpdesk 선언을 Decimal(12,2)→(14,2)로 변경하여 실제 generate와 makemigrations로 `0013_alter_ticket_expected_cost`를 만들었다.
+  기존 비용·관계·이력이 있는 DB의 확장·큰 값 뒤 reverse 실패/복구와 전체 Form/Admin/API 흐름을 실행했다. 실제 세 OpenAPI 문서와
+  고정 ogen v1.24.0 client를 재생성했으며 Article 문서/생성물과 module/tool locks는 동일하다. 독립 client의 30개 필수 receipt를 유지한다.
+- Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5(Homebrew) 전용 DB, `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`이다.
+  최종 일반 실행 `go test -count=1 -json -p=4 -timeout=20m`은 **21 package / 6,433 test·subtest PASS (root 1,090)**, 실패 0이다.
+  같은 범위 `-race -p=4 -timeout=25m`도 **21 package / 6,433 test·subtest PASS (root 1,090)**다.
+  두 mode의 정확한 run/terminal roster와 skip 집합이 같고 필수 process/recovery·DB/cache·generated/API 부모, package 완료, stderr 0 bytes를 확인했다.
+
+```text
+./schema/ir ./migrations ./migrations/backend ./migrations/definition ./internal/migrationautodetect
+./db/sqlite ./db/postgres ./codegen/consumertest ./examples/helpdesk ./api/openapi ./api/openapi/consumertest
+./conformance/choicesproduct ./internal/projectcheck ./internal/projectcheck/linked ./internal/projectcheck/sqlmigrateprotocol
+./cmd/godj ./conformance/projectsqlmigrateproduct ./conformance/migrationrelationproduct
+./conformance/projectmigratetargetproduct ./conformance/definitionload ./conformance/postgresproduct
+```
+
+- 일반 실행의 skip 7개는 subprocess helper 4개와 명시적 Linux-only deleted-cwd 회귀 3개다. Helper의 실제 process/recovery 부모가 실행되었고,
+  Linux-only 세 회귀는 macOS의 PASS로 세지 않는다. 해당 플랫폼 실행은 Hosted full 통합 milestone이 소유한다.
+- CGO=0 Decimal/precision·실제 Helpdesk·독립 client 선택 범위는 **5 package / 28 test·subtest PASS (root 15)**, skip 0·stderr 0 bytes다.
+  Parent 결과에 generated child test 수를 더해 부풀리지 않는다.
+- Affected vet, gofmt/diff, Helpdesk/Article/relationfixture generated drift, Helpdesk makemigrations candidate 0을 확인했다.
+  실제 OpenAPI 세 문서는 고정 openapi-spec-validator 0.9.0 / jsonschema 4.26.0 / referencing 0.37.0의 표준 검사도 통과했다.
+- 전용 precision PostgreSQL DB는 잔여 연결 0 확인 뒤 삭제했고 기존 service는 유지했다.
+- 현재 Hosted precision 결과는 아직 없다. 기존 Decimal Hosted ORM source `d106e73` 또는 Duration Hosted full을 이 구현의 검증으로 옮기지 않는다.
+
 ## GDJ-0091 — Decimal의 독립 정밀도·저장 기준 준비
 
 - 초기 기준 준비 source `885590259b464a448df2ff3b825ad93a244ed283`: [GDJ-0091](../../work/0091-decimal-cost-models.md), branch `feature/decimal-models`. 아래 원본 hash는 이 초기 source의 관찰이다. 현재 제품 진행은 별도 checkpoint에 기록한다.
