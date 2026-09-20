@@ -61,16 +61,8 @@ func (p RelationProjection) Equal(other RelationProjection) bool {
 // Validate is shared by plan construction and backend compilation, including
 // empty-result queries that must fail before any SQL can be skipped.
 func (p RelationProjection) Validate() error {
-	if err := p.path.validateForward(); err != nil {
+	if err := p.path.validateForwardSelection(); err != nil {
 		return err
-	}
-	if p.path.scope != RelationTerminalRelatedField {
-		return invalidPlanError("projection requires a target-field route")
-	}
-	for _, hop := range p.path.hops {
-		if !validProjectionIdentity(hop.Source()) || !validProjectionIdentity(hop.Target()) || !canonicalIdentifier(hop.SourceTable()) || !canonicalIdentifier(hop.Field()) || !canonicalIdentifier(hop.SourceColumn()) || !canonicalIdentifier(hop.TargetTable()) || !canonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
-			return invalidPlanError("forward relation projection contains non-canonical route metadata")
-		}
 	}
 	targetKey := p.path.terminal
 	if !validProjectionField(targetKey) || targetKey.Kind() != FieldInteger || targetKey.Nullable() || targetKey.Column() != p.TerminalHop().TargetPrimaryKeyColumn() {
@@ -96,6 +88,23 @@ func (p RelationProjection) Validate() error {
 	}
 	if keys != 1 {
 		return invalidPlanError("forward relation projection must contain its non-null integer target key exactly once")
+	}
+	return nil
+}
+
+// Object hydration and scalar selection retain the same canonical route and
+// source-key provenance. Their terminal shape/decoder remains separate.
+func (p RelationPath) validateForwardSelection() error {
+	if err := p.validateForward(); err != nil {
+		return err
+	}
+	if p.scope != RelationTerminalRelatedField || !validProjectionField(p.terminal) {
+		return invalidPlanError("projection requires a canonical target-field route")
+	}
+	for _, hop := range p.hops {
+		if !validProjectionIdentity(hop.Source()) || !validProjectionIdentity(hop.Target()) || !canonicalIdentifier(hop.SourceTable()) || !canonicalIdentifier(hop.Field()) || !canonicalIdentifier(hop.SourceColumn()) || !canonicalIdentifier(hop.TargetTable()) || !canonicalIdentifier(hop.TargetPrimaryKeyColumn()) {
+			return invalidPlanError("forward relation projection contains non-canonical route metadata")
+		}
 	}
 	return nil
 }

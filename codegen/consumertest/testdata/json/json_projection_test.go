@@ -297,13 +297,13 @@ func verifyJSONProjectionExecution(t *testing.T, backend jsonBackend, native boo
 	if !native && backend.(*sqlite.Backend).QueryCount() != before {
 		t.Fatal("invalid/empty/canceled projection performed I/O")
 	}
-	relations, err := project.BindRelations()
+	relations, err := project.BindReverseRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
-	relatedProjection := orm.Project1(relations.ModelsLink.Record.Payload.At(query.JSONKey("a")), func(v *jsonvalue.Value) *jsonvalue.Value { return v })
-	if _, err := orm.SelectInto(t.Context(), models.LinkObjects.Using(backend), relatedProjection); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-		t.Fatal("related projection widened silently", err)
+	relatedProjection := orm.Project1(relations.ModelsRecord.Links.Token.At(query.JSONKey("a")), func(v *jsonvalue.Value) *jsonvalue.Value { return v })
+	if _, err := orm.SelectInto(t.Context(), models.RecordObjects.Using(backend), relatedProjection); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
+		t.Fatal("reverse path projection widened silently", err)
 	}
 	if !native {
 		verifyJSONProjectionFailure(t, backend.(*sqlite.Backend))

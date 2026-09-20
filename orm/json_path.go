@@ -66,7 +66,8 @@ func (f JSONPathField[M]) scalarResultField(M, *jsonvalue.Value) (query.ResultEx
 		return query.ResultExpression{}, nil, f.err
 	}
 	if f.relation != nil {
-		return query.ResultExpression{}, nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "scalar projection of related JSON paths is not supported"}
+		expression, err := query.RelatedJSONPathResult(*f.relation, f.path)
+		return expression, nullableJSONResultCell, err
 	}
 	expression, err := query.JSONPathResult(f.field, f.path)
 	return expression, nullableJSONResultCell, err

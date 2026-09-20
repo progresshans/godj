@@ -124,6 +124,13 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			return Joins{}, err
 		}
 	}
+	for _, expression := range plan.ResultShape().Expressions() {
+		if path, related := expression.RelationPath(); related {
+			if err := addPath(path, false); err != nil {
+				return Joins{}, err
+			}
+		}
+	}
 	keys := make([]RelationKey, 0, len(edges))
 	for key := range edges {
 		keys = append(keys, key)

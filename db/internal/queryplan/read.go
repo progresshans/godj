@@ -170,7 +170,8 @@ func ProjectionExpressions(result query.ResultShape, sourceFields []query.FieldR
 	}
 	for _, expression := range expressions {
 		field, ok := expression.Field()
-		if !ok || !ContainsField(sourceFields, field) {
+		_, related := expression.RelationPath()
+		if !ok || !related && !ContainsField(sourceFields, field) {
 			return nil, invalidPlan("projection result contains a field outside the plan source metadata")
 		}
 		switch expression.Kind() {

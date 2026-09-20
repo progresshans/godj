@@ -362,6 +362,44 @@
   해당 테스트 파일만 서식을 정리하고 go/parser로 주석을 포함한 AST가 검증본과 같음을 확인했다. 제품 코드 바이트는 동일하며 기능 테스트를 중복 실행하지 않았다.
   최종 18경로 manifest는 `34fa0335d39d45d6fec90d5363ee713177cdadfc325f8517057bc023dc1cc298`이고 format/docs/diff를 다시 통과했다.
 
+### Forward 대상 JSON 경로 선택의 로컬 통합 checkpoint
+
+- 기준 `9b802e904056bfa26351ee7bf68aa4677e687a6d` 위 제품·테스트·독립 reference·Go/Python lock의
+  **24 non-Markdown 경로** manifest SHA256은 `c811742039a173a82e0bffc041c232bdda5f6da9a13226b3b9dab84f17bfbace`다.
+  Go **1.26.5 darwin/arm64**, repository-pinned modernc SQLite·native PostgreSQL **17.5 Homebrew**,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 실행 전후 같은 바이트를 확인했다.
+- Normal `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest ./examples/article ./examples/helpdesk`는
+  **10 package / 727 root / 5576 test·subtest PASS**다. 예제를 제외한 같은 범위의 `-race`는
+  **8 package / 710 root / 5557 PASS**이며 같은 package의 normal run/pass/skip roster와 일치한다.
+  둘 다 fail 0·stderr 0 bytes다. 단독 PostgreSQL process helper만 skip 1, 실제 양 DB process parent는 필수 PASS다.
+- CGO=0의 새 query AST·공통 JOIN 소유권과 JSON/nested 생성 소비자 선택은 **3 package / 4 root / 10 PASS**,
+  skip/fail 0·stderr 0 bytes다. 모든 모드의 generated parent가 기존 root/path·containment·keys·projection·related_projection과
+  새 양 DB `forward_projection` child를 필수 검사한다. No-test package event를 기능 skip과 구분한다.
+- [독립 public runner](../../conformance/runners/django/forward_json_projection_reference.py)는 Django **6.1**의
+  document **7개**·shelf **5개**·entry **8개**에서 required/nullable parent·child의 네 경로를 관찰했다.
+  조건 없음·AND/OR/NOT·선택값 DISTINCT·slice **144관찰씩**과 대상 부재·원본 SQL NULL·missing의 별도 inventory를 보존한다.
+  SQLite raw SHA256 `0bc0c48a3ee94cdca5954d070b836f3c10b9dd5a4e0ae640a0edff0088ca7591`,
+  PostgreSQL raw `7287660c6952d85ca18fa3269474e776cde232dd1aa3a6106854d7f50c772034`다.
+  Python **3.14.3**/SQLite **3.50.4**, PostgreSQL **17.5**/psycopg **3.3.6**에서 직접 관찰했다.
+  양 DB의 144개 관찰과 absence 목록은 일치하며, SQLite fresh 비교는 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **1 PASS**, skip/warning 0이다.
+- Generated direct selector와 `ChainForward`를 실제 양 DB에서 사용했다. Typed/dynamic predicate의 같은 AST,
+  filter 없이 selection으로 생기는 JOIN·여러 alias에서 같은 target field 선택·JSON null과 nil·정렬/slice·선택값 DISTINCT를 대조했다.
+  Query의 route 구조 비교·caller/getter 복사·root FK nullability와 table 검증, filter와 selection의 root/table 선언 충돌을 검사한다.
+  공통 JOIN 준비의 동시 실행·작업 map/배열 소유권과 SQLite의 selection-only 64-hop JOIN 한도 거부도 포함한다.
+- 원본 모델에 JSON 필드가 없는 실제 entry/shelf에서 JSONB를 선택하여 native adapter를 확인했다.
+  트랜잭션 안의 target 수정·projection read·rollback 원복·만료된 session 거부, target 변경 뒤 최신 projection과 원본 모델 cache 분리,
+  row pointer 소유권·empty/invalid/canceled SQLite I/O 0·native NUL의 empty source 포함 preflight가 PASS다.
+  SQLite 외부 duplicate-key write의 부분 결과 폐기와 수정 후 재시도도 확인했다. Reverse path 선택은 기존 unsupported 경계를 유지한다.
+- 첫 checkpoint는 테스트가 root label을 관계 전용 dynamic parser에 전달하여 실패했다. 일반 field parser로 수정했다.
+  다음 checkpoint는 PostgreSQL의 native row adapter가 root/eager 필드만 보고 target JSONB 선택의 변환을 생략해 실패했다.
+  선택 결과 표현도 adapter 필요 여부에 포함했다. SQL NULL/JSON null과 SQLite BLOB 거부 규칙을 약화하지 않았고,
+  세 번째 고정 source에서 normal/race/CGO=0을 완료했다. 실패 로그와 외부 생성 모듈의 직접 재현은 성공에 합치지 않는다.
+- Affected vet·gofmt·docs/diff와 생성 결과 검사를 확인했다. Helpdesk **12**, Article **12**, relationfixture **16파일 clean** 및
+  checked-in 관계 생성물 회귀가 PASS다. Generator/예제 선언 바이트가 같은 범위의 drift 검사이며 fresh JSON 소비자는 최종 source로 매번 생성했다.
+  전용 PostgreSQL DB는 잔여 연결 0 뒤 삭제했고 service는 유지했다.
+- 앞선 root 관계 DTO와 이번 forward target 경로·native row adapter를 묶은 조회 통합 milestone에서 고정 source의 Hosted `orm`을 실행한다.
+  이 로컬 결과와 앞선 `06c8302` Hosted를 현재 source의 platform PASS로 합치지 않는다.
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

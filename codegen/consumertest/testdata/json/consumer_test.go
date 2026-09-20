@@ -175,6 +175,9 @@ func runStorage(t *testing.T, open func(context.Context) (jsonBackend, error)) {
 		{App: "jsonref", Name: "0002_payload", Dependencies: []migrations.MigrationKey{{App: "jsonref", Name: "0001_initial"}}, Operations: []migrations.Operation{
 			migrations.AddField{AppLabel: "jsonref", ModelName: "record", Field: current.Fields[2], BeforeField: "required"},
 			migrations.CreateModel{AppLabel: "jsonref", Model: (models.LinkDescriptor{}).Metadata()},
+			migrations.CreateModel{AppLabel: "jsonref", Model: (models.DocumentDescriptor{}).Metadata()},
+			migrations.CreateModel{AppLabel: "jsonref", Model: (models.ShelfDescriptor{}).Metadata()},
+			migrations.CreateModel{AppLabel: "jsonref", Model: (models.EntryDescriptor{}).Metadata()},
 		}},
 	} {
 		wire, err := definition.Encode(definition.Producer{Name: "json-consumer", Version: "1"}, migration)
@@ -441,6 +444,7 @@ func runStorage(t *testing.T, open func(context.Context) (jsonBackend, error)) {
 	t.Run("keys", func(t *testing.T) { verifyJSONKeys(t, backend, native) })
 	t.Run("projection", func(t *testing.T) { verifyJSONProjection(t, backend, native) })
 	t.Run("related_projection", func(t *testing.T) { verifyRelatedProjection(t, backend, native) })
+	t.Run("forward_projection", func(t *testing.T) { verifyForwardJSONProjection(t, backend, native) })
 }
 
 func verifyRelations(t *testing.T, backend jsonBackend, records []models.Record, sample, changed jsonvalue.Value) {

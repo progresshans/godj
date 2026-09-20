@@ -32,9 +32,10 @@ const (
 // COUNT(*) has no field; other expressions retain the exact source field
 // identity. A JSON path result can be NULL even when that source is required.
 type ResultExpression struct {
-	kind  ResultExpressionKind
-	field FieldRef
-	path  JSONPath
+	kind     ResultExpressionKind
+	field    FieldRef
+	path     JSONPath
+	relation *RelationPath
 }
 
 func FieldResult(field FieldRef) ResultExpression {
@@ -46,6 +47,34 @@ func JSONPathResult(field FieldRef, path JSONPath) (ResultExpression, error) {
 		return ResultExpression{}, invalidPlanError("JSON path result requires a JSON source field and a valid path")
 	}
 	return ResultExpression{kind: ResultJSONPath, field: field, path: path}, nil
+}
+
+// RelatedJSONPathResult selects a nullable JSON value at a finite forward
+// target. Source-field identity remains the target's exact metadata; optional
+// ancestors never rewrite that metadata to manufacture a root field.
+func RelatedJSONPathResult(relation RelationPath, path JSONPath) (ResultExpression, error) {
+	if err := relation.Validate(); err != nil {
+		return ResultExpression{}, err
+	}
+	if relation.hops[0].direction != RelationForward {
+		return ResultExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "JSON result paths require a forward relation"}
+	}
+	if err := relation.validateForwardSelection(); err != nil {
+		return ResultExpression{}, err
+	}
+	expression, err := JSONPathResult(relation.Terminal(), path)
+	if err != nil {
+		return ResultExpression{}, err
+	}
+	expression.relation = &relation
+	return expression, nil
+}
+
+func (e ResultExpression) RelationPath() (RelationPath, bool) {
+	if e.relation == nil {
+		return RelationPath{}, false
+	}
+	return *e.relation, true
 }
 
 func (e ResultExpression) JSONPath() (JSONPath, bool) {
@@ -76,7 +105,10 @@ func (e ResultExpression) Field() (FieldRef, bool) {
 }
 
 func (e ResultExpression) Equal(other ResultExpression) bool {
-	return e.kind == other.kind && e.field.Equal(other.field) && e.path.Equal(other.path)
+	if e.kind != other.kind || !e.field.Equal(other.field) || !e.path.Equal(other.path) || (e.relation == nil) != (other.relation == nil) {
+		return false
+	}
+	return e.relation == nil || e.relation.Equal(*other.relation)
 }
 
 // ResultShape is sealed by constructors and shares immutable private storage.
@@ -121,6 +153,16 @@ func (s ResultShape) IsCountAll() bool {
 	return s.kind == ResultAggregate && len(s.expressions) == 1 && s.expressions[0].kind == ResultCountAll
 }
 
+// HasRelations reports selection routes independently of predicate routes.
+func (s ResultShape) HasRelations() bool {
+	for _, expression := range s.expressions {
+		if expression.relation != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (s ResultShape) Expressions() []ResultExpression {
 	return append([]ResultExpression(nil), s.expressions...)
 }
@@ -141,8 +183,9 @@ func (s ResultShape) validate() error {
 			return invalidPlanError("projection requires between one and 2048 expressions")
 		}
 		type selectionKey struct {
-			field FieldRef
-			path  string
+			field    FieldRef
+			path     string
+			relation string
 		}
 		seen := make(map[selectionKey]struct{}, len(s.expressions))
 		for _, expression := range s.expressions {
@@ -151,6 +194,15 @@ func (s ResultShape) validate() error {
 				return invalidPlanError("projection result contains an invalid field expression")
 			}
 			key := selectionKey{field: field}
+			if expression.relation != nil {
+				if expression.kind != ResultJSONPath || !expression.relation.Terminal().Equal(field) {
+					return invalidPlanError("related result requires its exact JSON terminal")
+				}
+				if err := expression.relation.validateForwardSelection(); err != nil {
+					return err
+				}
+				key.relation = projectionRouteKey(expression.relation.hops)
+			}
 			switch expression.kind {
 			case ResultField:
 				if expression.path.Valid() {
@@ -185,7 +237,7 @@ func (s ResultShape) validate() error {
 			return invalidPlanError("aggregate result requires between one and four expressions")
 		}
 		for _, expression := range s.expressions {
-			if expression.path.Valid() {
+			if expression.path.Valid() || expression.relation != nil {
 				return invalidPlanError("aggregate result cannot contain a JSON path")
 			}
 			switch expression.Kind() {

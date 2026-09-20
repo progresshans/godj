@@ -53,6 +53,13 @@ func adaptScalarRows(rows *sql.Rows, plan query.Plan) (db.Rows, error) {
 	for _, projection := range plan.RelationProjections() {
 		visit(projection.TargetColumns())
 	}
+	// DTO expressions can select native values from a related model even
+	// when none of the root model's fields require adaptation.
+	for _, expression := range plan.ResultShape().Expressions() {
+		if field, ok := expression.Field(); ok {
+			visit([]query.FieldRef{field})
+		}
+	}
 	if !needed {
 		return rows, nil
 	}

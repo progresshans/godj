@@ -599,6 +599,13 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
 	for _, expression := range result.Expressions() {
+		if path, related := expression.RelationPath(); related {
+			root := path.hops[0]
+			if root.SourceTable() != p.table || !slices.Contains(p.sourceFields, NewFieldRef(root.Field(), root.SourceColumn(), FieldInteger, root.Nullable())) {
+				return Plan{}, invalidPlanError("result relation source key is not part of the plan source metadata")
+			}
+			continue
+		}
 		if field, ok := expression.Field(); ok && !slices.Contains(p.sourceFields, field) {
 			return Plan{}, invalidPlanError("result field is not part of the plan source metadata")
 		}

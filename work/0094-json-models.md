@@ -63,5 +63,7 @@ SQLite의 literal empty/NUL key 보정과 빈 목록 확장은 ADR-0071/DEV-0017
 Public Django 값·missing/root NULL 관찰을 보존하고 scalar·생성 소비자·예제의 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
 Key-presence·projection과 공통 선택 표현을 묶은 조회 통합 milestone의 Hosted `orm` scope를 완료했다.
 관계 filter source에서 root scalar/JSON 경로 DTO를 선택하도록 확장하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-다음은 forward 관계 대상의 JSON 경로 선택이며 optional JOIN·값의 nullability·source metadata 경계를 독립 관찰한다.
+Forward 관계 대상의 JSON 경로 선택에 필요한 optional JOIN·값의 nullability·source metadata 경계를 독립 관찰했다.
+공통 선택 표현·양 DB·생성 소비자·native 결과 변환을 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
+Root 관계 DTO와 forward 경로 선택을 묶은 Hosted ORM 통합 milestone과 문서 전체/일반 관계 값 선택 기반을 이어간다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

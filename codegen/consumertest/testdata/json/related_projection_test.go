@@ -149,7 +149,7 @@ func verifyRelatedProjection(t *testing.T, backend jsonBackend, native bool) {
 				t.Fatal("forward projection predicate AST diverged")
 			}
 			for _, source := range []orm.QuerySet[models.Link]{typed, dynamic} {
-				compareRelatedProjection(t, source, models.LinkFields.ID, models.LinkFields.Label, models.LinkFields.Token.At(query.JSONKey("a")), linkNumbers, tc)
+				compareRelatedProjection(t, source, models.LinkFields.ID, models.LinkFields.Label, models.LinkFields.Token.At(query.JSONKey("a")), linkNumbers, 2, tc)
 			}
 		} else if predicate, ok := backward[tc.Name]; ok {
 			typed, dynamic := recordSource.Filter(predicate), recordSource.Filter(dynamicBackward[tc.Name])
@@ -157,7 +157,7 @@ func verifyRelatedProjection(t *testing.T, backend jsonBackend, native bool) {
 				t.Fatal("reverse projection predicate AST diverged")
 			}
 			for _, source := range []orm.QuerySet[models.Record]{typed, dynamic} {
-				compareRelatedProjection(t, source, models.RecordFields.ID, models.RecordFields.Label, models.RecordFields.Required.At(query.JSONKey("a")), recordNumbers, tc)
+				compareRelatedProjection(t, source, models.RecordFields.ID, models.RecordFields.Label, models.RecordFields.Required.At(query.JSONKey("a")), recordNumbers, 2, tc)
 			}
 		} else {
 			t.Fatal("unknown reference predicate", tc.Name)
@@ -196,7 +196,7 @@ func verifyRelatedProjection(t *testing.T, backend jsonBackend, native bool) {
 	verifyRelatedProjectionPreflight(t, backend, native, links.Filter(forward["forward_or_absent"]))
 }
 
-func compareRelatedProjection[M any](t *testing.T, source orm.QuerySet[M], id orm.AutoField[M], label orm.ScalarField[M, string], path orm.JSONPathField[M], numbers map[int64]int64, tc relatedProjectionCase) {
+func compareRelatedProjection[M any](t *testing.T, source orm.QuerySet[M], id orm.AutoField[M], label orm.ScalarField[M, string], path orm.JSONPathField[M], numbers map[int64]int64, sliceLimit int, tc relatedProjectionCase) {
 	t.Helper()
 	if tc.Distinct {
 		source = source.Distinct()
@@ -236,7 +236,7 @@ func compareRelatedProjection[M any](t *testing.T, source orm.QuerySet[M], id or
 		if err != nil {
 			t.Fatal(err)
 		}
-		source, err = source.Limit(2)
+		source, err = source.Limit(sliceLimit)
 		if err != nil {
 			t.Fatal(err)
 		}

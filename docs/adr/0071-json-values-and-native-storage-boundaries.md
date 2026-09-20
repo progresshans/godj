@@ -151,7 +151,7 @@ Projection DISTINCT는 선택한 값의 DB 의미를 따른다. SQLite canonical
 Partial scan/rows/context 실패 시 결과 일부를 반환하지 않고 cursor를 닫는다. 새 실행으로 재시도할 수 있으며 잘못된 값의
 오류를 숨기거나 모델 cache에서 대체하지 않는다. 관계 filter가 있는 source에서도 root scalar와 JSON 경로를 DTO로
 선택할 수 있다. JOIN의 중복·nullable Boolean 의미를 유지하고 DISTINCT는 실제 선택한 값에 적용한다.
-Related-column 선택이나 related-object hydration과 DTO의 결합은 별도 범위다. [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)를 따른다.
+Forward 대상의 JSON 경로도 같은 nullable DTO 값으로 선택한다. 일반 related scalar-column 선택과 related-object hydration의 DTO 결합은 별도 범위다. [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)를 따른다.
 
 [독립 projection runner](../../conformance/runners/django/json_projection_reference.py)는 SQLite 32개/PostgreSQL 30개 문서에서
 각각 8개 경로를 관찰한다. Public ORM의 값·missing·root SQL NULL을 별도 기록하여 Python None만으로 JSON null을 판정하지 않는다.
@@ -198,3 +198,20 @@ GoDj의 객체 key 정규화 때문에 SQLite에서 GoDj로 저장한 reordered 
 독립 raw를 수정하거나 모든 JSON 결과를 같은 값으로 뭉쳐 mismatch를 제거하지 않는다.
 
 각 표면의 omission·SQL NULL·JSON null 정책과 OpenAPI/client 범위는 서로 구분해 검증한다.
+
+### Forward 대상의 JSON 경로 선택
+
+`RelatedJSONField.At(...)`도 `Project1..4`의 JSON 값 선택에 사용할 수 있다. Generated direct selector와
+`ChainForward`의 유한한 forward 경로를 함께 지원한다. Root·target field의 실제 nullability는 변경하지 않으며
+결과는 항상 `*jsonvalue.Value`다. 대상 부재·원본 SQL NULL·없는 JSON 경로는 nil, 존재하는 JSON null은 non-nil 값이다.
+
+선택 표현이 exact terminal field·JSON path와 별도의 immutable RelationPath를 보존한다. 서로 다른 관계를 거쳐
+같은 target column/key를 선택해도 다른 표현이며 root 선택과 충돌하지 않는다. Plan은 root FK metadata를,
+공통 JOIN 준비는 filter·selected route의 논리 root·FK/table 선언 충돌과 alias를 검사한다. Nullable ancestry와
+전체 Boolean predicate에 따른 JOIN 선택을 재사용하고 별도의 related-object hydration은 만들지 않는다.
+조회가 비어도 source/binding·중복 표현·native NUL·backend JOIN 한도를 먼저 검사한다.
+
+[독립 public runner](../../conformance/runners/django/forward_json_projection_reference.py)는 필수/선택 parent와
+child의 네 경로에서 filter 없음·AND/OR/NOT·선택값 DISTINCT·slice를 관찰한다. 대상 부재·SQL NULL·missing을
+별도 public 조회로 기록하며 Go의 JSON null 표현과 구분한다. Runtime 검증 여부는 TEST_EVIDENCE가 소유한다.
+Reverse selected path·JSON F/order·일반 관계 aggregate는 이 확장에 포함하지 않는다.

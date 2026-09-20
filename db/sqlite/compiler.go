@@ -15,7 +15,7 @@ func Compile(plan query.Plan) (string, []any, error) {
 		return "", nil, err
 	}
 	selected := len(plan.RelationProjections()) != 0
-	related := where.hasRelations
+	related := where.hasRelations || plan.ResultShape().HasRelations()
 	if related && !selected && plan.ResultShape().IsCountAll() {
 		inner, arguments, err := compileRelation(plan, where)
 		if err != nil {
@@ -83,7 +83,7 @@ func compileScalarRows(plan query.Plan, selected []query.ResultExpression, sourc
 	if plan.Distinct() {
 		sql.WriteString("DISTINCT ")
 	}
-	arguments, err := appendSelectedExpressions(&sql, selected, "")
+	arguments, err := appendSelectedExpressions(&sql, selected, "", nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -269,7 +269,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 			return "", nil, err
 		}
 	}
-	arguments, err := appendSelectedExpressions(&sql, selected, rootAlias)
+	arguments, err := appendSelectedExpressions(&sql, selected, rootAlias, joins)
 	if err != nil {
 		return "", nil, err
 	}
@@ -621,19 +621,27 @@ func unsupportedDistinctOrdering(field query.FieldRef) error {
 
 // Every scalar cell, including a root cell selected after relationship filters,
 // uses the same rendering and parameter order. Joins only supply qualification.
-func appendSelectedExpressions(sql *strings.Builder, selected []query.ResultExpression, alias string) ([]any, error) {
+func appendSelectedExpressions(sql *strings.Builder, selected []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join) ([]any, error) {
 	arguments := make([]any, 0)
 	for index, expression := range selected {
 		if index > 0 {
 			sql.WriteString(", ")
 		}
 		field, _ := expression.Field()
+		selectedAlias := alias
+		if path, related := expression.RelationPath(); related {
+			joined, ok := joins[queryplan.KeyForPath(path.Hops())]
+			if !ok {
+				return nil, invalidPlan("selected relation was not materialized")
+			}
+			selectedAlias = joined.Alias
+		}
 		var column string
 		var err error
-		if alias == "" {
+		if selectedAlias == "" {
 			column, err = quoteIdentifier(field.Column())
 		} else {
-			column, err = quoteQualified(alias, field.Column())
+			column, err = quoteQualified(selectedAlias, field.Column())
 		}
 		if err != nil {
 			return nil, err

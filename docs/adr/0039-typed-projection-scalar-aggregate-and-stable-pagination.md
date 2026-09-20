@@ -37,7 +37,7 @@ Go method는 receiver에 없는 새 type parameter를 선언할 수 없으므로
 - relation projection과 DTO projection/aggregate는 같은 plan에서 결합하지 않고 structured unsupported로
   fail-closed합니다.
 - 관계 filter source에서 root scalar/JSON 경로 DTO를 선택할 수 있습니다. 기존 JOIN의 중복 행·nullable Boolean 의미와
-  선택값 기준 DISTINCT·정렬·slice를 유지합니다. Related-column DTO와 일반 관계 MIN/MAX는 별도 범위입니다.
+  선택값 기준 DISTINCT·정렬·slice를 유지합니다. Forward 대상의 JSON 경로도 nullable DTO로 선택합니다. 일반 related scalar-column DTO와 관계 MIN/MAX는 별도 범위입니다.
 - 관계 filter의 단일 COUNT(*)는 기존 JOIN row source를 집계합니다. Eager Count는 binding 검증 뒤 관련 객체 선택을 제외합니다.
 - 기존 `db.Queryer.Query(context.Context, query.Plan)` port는 바꾸지 않습니다.
 

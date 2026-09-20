@@ -28,7 +28,7 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 		return "", nil, err
 	}
 	relationProjection := len(plan.RelationProjections()) != 0
-	hasRelation := relationProjection || where.hasRelations
+	hasRelation := relationProjection || where.hasRelations || plan.ResultShape().HasRelations()
 
 	if where.hasRelations && !relationProjection && plan.ResultShape().IsCountAll() {
 		inner, arguments, err := compileRelation(schema, plan, sourceFields, where)
@@ -86,7 +86,7 @@ func compileScalarSelect(
 	if plan.Distinct() {
 		statement.WriteString("DISTINCT ")
 	}
-	arguments, err := appendSelectedExpressions(&statement, selected, "")
+	arguments, err := appendSelectedExpressions(&statement, selected, "", nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -682,7 +682,7 @@ func compileRelation(
 			return "", nil, err
 		}
 	}
-	arguments, err := appendSelectedExpressions(&statement, selected, rootAlias)
+	arguments, err := appendSelectedExpressions(&statement, selected, rootAlias, joins)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1037,19 +1037,27 @@ func unsupportedDistinctOrdering(field query.FieldRef) error {
 
 // Model and DTO selections share JSON parameter and native scalar result rules;
 // relationship filters change qualification, never the selected value domain.
-func appendSelectedExpressions(statement *strings.Builder, selected []query.ResultExpression, alias string) ([]any, error) {
+func appendSelectedExpressions(statement *strings.Builder, selected []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join) ([]any, error) {
 	arguments := make([]any, 0)
 	for index, expression := range selected {
 		if index > 0 {
 			statement.WriteString(", ")
 		}
 		field, _ := expression.Field()
+		selectedAlias := alias
+		if path, related := expression.RelationPath(); related {
+			joined, ok := joins[queryplan.KeyForPath(path.Hops())]
+			if !ok {
+				return nil, invalidPlan("selected relation was not materialized")
+			}
+			selectedAlias = joined.Alias
+		}
 		var column string
 		var err error
-		if alias == "" {
+		if selectedAlias == "" {
 			column, err = quoteIdentifier(field.Column())
 		} else {
-			column, err = quoteQualified(alias, field.Column())
+			column, err = quoteQualified(selectedAlias, field.Column())
 		}
 		if err != nil {
 			return nil, err
