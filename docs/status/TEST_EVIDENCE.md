@@ -5,8 +5,8 @@
 
 ## GDJ-0090 — Float의 독립 기준 준비
 
-- 계획 작업: [GDJ-0090](../../work/0090-floating-point-models.md), branch `feature/floating-point-models`.
-- [ADR-0068](../adr/0068-binary64-field-and-finite-json-boundaries.md)는 Proposed이며 GoDj Float 제품 구현·runtime 검증의 완료를 뜻하지 않는다.
+- 활성 구현의 독립 기준: [GDJ-0090](../../work/0090-floating-point-models.md), branch `feature/floating-point-models`.
+- [ADR-0068](../adr/0068-binary64-field-and-finite-json-boundaries.md)는 설계를 채택했으며 GoDj Float 제품 구현·runtime 검증의 완료를 뜻하지 않는다.
 - Runner·reference test·raw JSON 세 파일의 정렬된 SHA256 manifest는 `e31576a2e07038176618272c40a6c0eba57b7474e0441f6c3f178f64ca0217ba`다.
   [Raw 관찰](../../internal/floattest/testdata/django61.json)의 SHA256은 `43b1abf4b53b8d81fb89f55d80b5325998895150a0762c770b287e56844ccfd4`다.
 - 고정 Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5의 public API를 실행했다. Model 89·Form 136·serializer 360·
@@ -21,7 +21,7 @@
 
 ## GDJ-0089 — Duration의 모델·DB 범위와 소비자 연결
 
-- 활성 작업: [GDJ-0089](../../work/0089-duration-models.md), branch `feature/duration-models`, baseline `1e04a854f1d9439e87d62e274ece93901684d888`.
+- 완료 작업: [GDJ-0089](../../work/0089-duration-models.md), branch `feature/duration-models`, baseline `1e04a854f1d9439e87d62e274ece93901684d888`.
 - Duration 값·IR/default·typed/dynamic AST·generator·SQLite BIGINT/PG INTERVAL·Form/Admin·Helpdesk elapsed·OpenAPI/client를 연결했다.
   [ADR-0067](../adr/0067-duration-model-range-and-number-input.md)은 모델 범위·저장 한도·exact JSON number와 pinned numeric coercion을 구분한다.
 - 로컬 runtime 검증 source는 Markdown 제외 **127개** 변경 파일이다. 정렬된 `<sha256>  <relative-path>\n` manifest의 SHA256은
@@ -97,7 +97,15 @@ SHA256 `92bd2eb410e09ca3d046b0ca048c723376c3bfa55a9eb82f25276adc88be3450` PASS**
 
 대체 실행은 source `79637ef3f5943c9490027723527fb5074b01411f`, attempt 1의
 [Hosted full](https://github.com/progresshans/godj/actions/runs/35479740366)이다. 첫 실행 source와의 차이는 위 CI 기준 두 값과 Markdown이다.
-아직 terminal 결과가 없으며 전체 PASS로 표시하지 않는다.
+대체 실행은 **terminal success**, **62개 unique job 전부 success**, cancelled/skipped job 0이다.
+Run API의 source/attempt/status와 attempt 1의 전체 jobs API를 대조했고 모든 job의 head SHA와 run attempt가 일치했다.
+최종 `CI result (full)`은 `full_platform_verified:true`, `scope:full`과 다음 8개 owner의 완료를 출력했다.
+`command-product-matrix`, `conformance-validation`, `exact-darwin-validation`, `portable-go-matrix`, `postgresql-product`,
+`product-project-check-matrix`, `python-compatibility-matrix`, `relation-product-matrix`다.
+
+이 결과는 Date·Time·Duration과 exact JSON number를 포함하는 **79637ef** 통합 source에 적용한다.
+후속 Float 독립 reference 준비 `e5104dc`와 별도 worktree의 Float 제품 구현은 이 Hosted source에 포함되지 않는다.
+Duration 작업을 완료하고 Float 모델·소비자 구현과 해당 source의 검증을 이어간다.
 
 ## GDJ-0088 — Clock Time의 모델·소비자 연결
 

@@ -1,10 +1,10 @@
 # ADR-0068: Binary64 모델과 finite JSON 경계
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-09-20
 - 관련 작업: [GDJ-0090](../../work/0090-floating-point-models.md)
 
-이 결정은 독립 관찰을 바탕으로 한 구현 준비다. 제품 코드의 채택·실행 완료는 CURRENT와 TEST_EVIDENCE에서 별도로 확인한다.
+독립 관찰을 바탕으로 이 경계를 채택해 구현한다. 제품 코드의 연결·실행 완료는 CURRENT와 TEST_EVIDENCE에서 별도로 확인한다.
 
 ## 값과 저장의 경계
 

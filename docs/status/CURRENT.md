@@ -1,12 +1,10 @@
 # 현재 상태
 
 - 갱신: 2026-09-20
-- 활성 구현: [GDJ-0089 작업 소요 기간의 모델·소비자 연결](../../work/0089-duration-models.md)
-- 검증 중: source `79637ef3f5943c9490027723527fb5074b01411f`, [수정된 Duration Hosted full](https://github.com/progresshans/godj/actions/runs/35479740366)
-- 최근 완료: [GDJ-0088 시간 전용 값의 모델·소비자 연결](../../work/0088-clock-time-models.md)
-- 최근 Hosted 기능 검증: source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, [Time Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35475136652)
-- 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
-- 최신 전체 검증: [Text+DateTime Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35384697050)
+- 활성 구현: [GDJ-0090 작업량 수치의 Float 모델·소비자 연결](../../work/0090-floating-point-models.md)
+- 최근 완료: [GDJ-0089 작업 소요 기간의 모델·소비자 연결](../../work/0089-duration-models.md)
+- 최근 전체 검증 source: `79637ef3f5943c9490027723527fb5074b01411f`
+- 최신 전체 검증: [Date·Time·Duration·JSON number Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35479740366)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재 구현
@@ -33,10 +31,11 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0088의 Time 값·IR·generator·양 DB·소비자 연결과 로컬 affected·Hosted ORM 검증을 완료했다.
-GDJ-0089의 값·양 DB·Form/Admin·Helpdesk·독립 client 구현과 로컬 affected 일반/race·CGO0 검증을 완료했다.
-제품 source를 기존 Draft PR에 통합했다. 첫 Hosted full에서 발견한 이전 migration 시나리오의 고정 digest 누락을 수정하고
-Python 네 버전에서 재검증했다. 위 수정 source의 full에서 필수 job의 terminal 결과와 실제 source·scope를 확인한다.
+GDJ-0089의 Duration 값·양 DB·Form/Admin·Helpdesk·독립 client와 local affected 일반/race·CGO0를 완료했다.
+수정 source의 Hosted full은 62개 job 모두 성공했고 source·attempt·최종 full_platform_verified=true를 확인했다.
+GDJ-0090의 독립 Django/DRF 기준을 통합했다. Float 제품은 `feature/floating-point-models` worktree에서 모델·IR·query·생성기·양 DB·
+Form/Admin·API·Helpdesk effort를 연결 중이며 compile-only 확인 뒤 실제 소비자·실패 경로·독립 client와 affected 검증을 보강한다.
+Float 제품 구현은 현재 통합 branch와 위 Hosted full source에 포함되지 않는다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

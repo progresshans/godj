@@ -1,6 +1,6 @@
 ---
 id: GDJ-0090
-status: planned
+status: active
 updated: 2026-09-20
 baseline_commit: "94f2743e0f47b1f0f7a4c514e7a2f09fa9991935"
 integration_owner: "root"
@@ -10,7 +10,8 @@ integration_owner: "root"
 
 Helpdesk에서 소수와 지수 표기를 포함한 작업량 수치를 선언하고 저장·조회·편집한다.
 FloatField의 IR/default·typed/dynamic ORM·양 DB·Form/Admin·JSON/OpenAPI와 독립 client를 함께 연결한다.
-구현 순서는 Duration의 Hosted full 검증을 마친 후 확정한다. 현재는 별도 worktree의 독립 조사 단계다.
+Duration의 수정된 Hosted full은 별도 source에서 진행 중이다. 독립 worktree에서 Float의 공통 값·입력과 IR/query 연결부터 구현하며,
+그 통합 검증에서 문제가 확인되면 먼저 보완한다. Float 제품을 PR에 통합하기 전에는 전체 소비자와 실패 경로를 함께 검증한다.
 
 ## 먼저 확인한 경계
 
@@ -34,7 +35,7 @@ Python 네 버전의 fresh 실행에서 같은 의미를 확인했다. PostgreSQ
 
 모델은 binary64와 NULL을 구분하고 DB 저장 제약은 backend가 검사하는 방향이다. Form/JSON은 finite 값만 받으며 serializer의
 non-finite 선제 거부는 위 DRF 관찰과 구분해 명시해야 한다. IR/default와 query/cache의 NaN canonicalization, ±0 및 no-op 의미는
-[제안 ADR-0068](../docs/adr/0068-binary64-field-and-finite-json-boundaries.md)에 정리했다. SQLite NaN은 NULL로 바꾸기 전에 명시적으로 거부해야 한다.
+[ADR-0068](../docs/adr/0068-binary64-field-and-finite-json-boundaries.md)에 정리했다. SQLite NaN은 NULL로 바꾸기 전에 명시적으로 거부해야 한다.
 
 ## 다음 행동
 
@@ -42,4 +43,4 @@ non-finite 선제 거부는 위 DRF 관찰과 구분해 명시해야 한다. IR/
 2. SQLite와 PostgreSQL의 finite/subnormal/non-finite·zero sign 저장·비교와 unsupported 경계를 분리한다.
 3. 필요한 장기 의미를 정하고 값·생성·DB·소비자·실패 경로를 한 묶음으로 구현한다.
 
-Go 제품 구현이나 runtime 검증을 완료한 상태가 아니다. 현재 활성 작업은 GDJ-0089다.
+이 worktree의 활성 구현은 GDJ-0090다. Float 제품의 전체 구현이나 runtime 검증은 아직 완료하지 않았다. GDJ-0089의 Hosted full은 그 source에서 별도로 추적한다.
