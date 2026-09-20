@@ -65,5 +65,8 @@ Key-presence·projection과 공통 선택 표현을 묶은 조회 통합 milesto
 관계 filter source에서 root scalar/JSON 경로 DTO를 선택하도록 확장하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
 Forward 관계 대상의 JSON 경로 선택에 필요한 optional JOIN·값의 nullability·source metadata 경계를 독립 관찰했다.
 공통 선택 표현·양 DB·생성 소비자·native 결과 변환을 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-Root 관계 DTO와 forward 경로 선택을 묶은 Hosted ORM 통합 milestone과 문서 전체/일반 관계 값 선택 기반을 이어간다.
+Root 관계 DTO와 forward 경로 선택을 묶은 Hosted ORM 통합 milestone을 완료했다.
+11종 필수·nullable forward scalar/whole JSON의 독립 Django 관찰을 보존하고 공통 선택 표현·typed scanner를 연결했다.
+실제 양 DB의 normal/race/CGO=0 checkpoint를 마쳤으며, 앞선 Hosted source의 결과를 새 구현의 검증으로 사용하지 않는다.
+다음은 JSON root/path 비교·정렬의 DB별 결과와 타입·NULL·정밀도 의미를 독립 관찰해 후속 query 설계를 결정하는 작업이다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

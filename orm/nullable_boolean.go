@@ -49,17 +49,19 @@ func (f BooleanField[M]) booleanLookupField(M) (query.FieldRef, error) {
 }
 
 func (f NullableBooleanField[M]) scalarResultField(M, *bool) (query.ResultExpression, func() scalarCell[*bool], error) {
-	return query.FieldResult(f.reference), func() scalarCell[*bool] {
-		var value sql.NullBool
-		return scalarCell[*bool]{
-			destination: &value,
-			value: func() *bool {
-				if !value.Valid {
-					return nil
-				}
-				copy := value.Bool
-				return &copy
-			},
-		}
-	}, f.err
+	return query.FieldResult(f.reference), nullableBooleanResultCell, f.err
+}
+
+func nullableBooleanResultCell() scalarCell[*bool] {
+	var value sql.NullBool
+	return scalarCell[*bool]{
+		destination: &value,
+		value: func() *bool {
+			if !value.Valid {
+				return nil
+			}
+			copy := value.Bool
+			return &copy
+		},
+	}
 }

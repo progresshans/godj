@@ -130,16 +130,18 @@ func (f TimeField[M]) scalarResultField(M, clock.Time) (query.ResultExpression, 
 	}, f.err
 }
 func (f NullableTimeField[M]) scalarResultField(M, *clock.Time) (query.ResultExpression, func() scalarCell[*clock.Time], error) {
-	return query.FieldResult(f.reference), func() scalarCell[*clock.Time] {
-		var value NullableTimeScanner
-		return scalarCell[*clock.Time]{destination: &value, value: func() *clock.Time {
-			if !value.Valid {
-				return nil
-			}
-			copy := value.Time
-			return &copy
-		}}
-	}, f.err
+	return query.FieldResult(f.reference), nullableTimeResultCell, f.err
+}
+
+func nullableTimeResultCell() scalarCell[*clock.Time] {
+	var value NullableTimeScanner
+	return scalarCell[*clock.Time]{destination: &value, value: func() *clock.Time {
+		if !value.Valid {
+			return nil
+		}
+		copy := value.Time
+		return &copy
+	}}
 }
 func (f timeField[M]) scalarOrderedField(M, clock.Time) (query.FieldRef, func() scalarCell[Optional[clock.Time]], error) {
 	return f.reference, func() scalarCell[Optional[clock.Time]] {

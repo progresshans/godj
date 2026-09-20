@@ -110,16 +110,18 @@ func (f UUIDField[M]) scalarResultField(M, uuid.UUID) (query.ResultExpression, f
 	}, f.err
 }
 func (f NullableUUIDField[M]) scalarResultField(M, *uuid.UUID) (query.ResultExpression, func() scalarCell[*uuid.UUID], error) {
-	return query.FieldResult(f.reference), func() scalarCell[*uuid.UUID] {
-		var value NullableUUIDScanner
-		return scalarCell[*uuid.UUID]{destination: &value, value: func() *uuid.UUID {
-			if !value.Valid {
-				return nil
-			}
-			copy := value.UUID
-			return &copy
-		}}
-	}, f.err
+	return query.FieldResult(f.reference), nullableUUIDResultCell, f.err
+}
+
+func nullableUUIDResultCell() scalarCell[*uuid.UUID] {
+	var value NullableUUIDScanner
+	return scalarCell[*uuid.UUID]{destination: &value, value: func() *uuid.UUID {
+		if !value.Valid {
+			return nil
+		}
+		copy := value.UUID
+		return &copy
+	}}
 }
 func (f uuidField[M]) scalarOrderedField(M, uuid.UUID) (query.FieldRef, func() scalarCell[Optional[uuid.UUID]], error) {
 	return f.reference, func() scalarCell[Optional[uuid.UUID]] {

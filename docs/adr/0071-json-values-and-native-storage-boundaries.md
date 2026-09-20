@@ -151,7 +151,7 @@ Projection DISTINCT는 선택한 값의 DB 의미를 따른다. SQLite canonical
 Partial scan/rows/context 실패 시 결과 일부를 반환하지 않고 cursor를 닫는다. 새 실행으로 재시도할 수 있으며 잘못된 값의
 오류를 숨기거나 모델 cache에서 대체하지 않는다. 관계 filter가 있는 source에서도 root scalar와 JSON 경로를 DTO로
 선택할 수 있다. JOIN의 중복·nullable Boolean 의미를 유지하고 DISTINCT는 실제 선택한 값에 적용한다.
-Forward 대상의 JSON 경로도 같은 nullable DTO 값으로 선택한다. 일반 related scalar-column 선택과 related-object hydration의 DTO 결합은 별도 범위다. [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)를 따른다.
+Forward 대상의 JSON 문서 전체와 경로도 같은 nullable DTO 값으로 선택한다. 일반 forward scalar-column도 지원하며 related-object hydration의 DTO 결합은 별도 범위다. [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)를 따른다.
 
 [독립 projection runner](../../conformance/runners/django/json_projection_reference.py)는 SQLite 32개/PostgreSQL 30개 문서에서
 각각 8개 경로를 관찰한다. Public ORM의 값·missing·root SQL NULL을 별도 기록하여 Python None만으로 JSON null을 판정하지 않는다.
@@ -215,3 +215,8 @@ GoDj의 객체 key 정규화 때문에 SQLite에서 GoDj로 저장한 reordered 
 child의 네 경로에서 filter 없음·AND/OR/NOT·선택값 DISTINCT·slice를 관찰한다. 대상 부재·SQL NULL·missing을
 별도 public 조회로 기록하며 Go의 JSON null 표현과 구분한다. Runtime 검증 여부는 TEST_EVIDENCE가 소유한다.
 Reverse selected path·JSON F/order·일반 관계 aggregate는 이 확장에 포함하지 않는다.
+
+Whole `RelatedJSONField`도 같은 `Project1..4`에 전달할 수 있다. Forward scalar와 공유하는 결과 경계는
+[ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md#forward-scalar-결과)를 따른다.
+대상 부재와 SQL NULL은 nil, 저장된 JSON null은 non-nil이며 native adapter는 root에 JSON field가 없어도
+selected target field의 kind를 확인한다. Whole document와 그 안의 path를 함께 선택해도 서로 다른 표현이다.

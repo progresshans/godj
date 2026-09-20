@@ -22,12 +22,14 @@ JSON 경로 projection의 공통 표현·nullable DTO와 양 DB compiler를 연�
 Key-presence·root JSON 경로 projection의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35522171383)을 완료했다.
 관계 filter source의 root scalar/JSON 경로 DTO 선택을 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
 Forward 대상 JSON 경로의 공통 선택 표현·JOIN·생성 소비자와 native JSONB 변환을 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
+Root 관계 DTO·forward JSON 경로 선택·native 변환의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35526500195)을 완료했다.
+일반 forward scalar·whole JSON 선택의 typed nullable 결과와 공통 scanner를 연결하고 양 DB의 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
 Source별 실행 범위와 결과는 TEST_EVIDENCE가 소유한다.
 
 ## 다음 행동
 
-Root 관계 DTO·forward JSON 경로 선택·native 결과 변환을 묶은 Hosted `orm` 통합 milestone을 검증한다.
-경로 선택에서 JSON 문서 전체와 일반 관계 scalar 선택으로 이어지는 공통 결과 표현·타입·NULL 의미를 검토한다.
+JSON 비교·정렬의 root/path 결과와 타입·NULL·정밀도 의미를 고정 Django의 실제 양 DB에서 독립 관찰한다.
+DB별 차이와 기존 exact-number 정책을 확인해 후속 query 표현을 정하고, 조회 확장 묶음의 다음 통합 milestone을 이어간다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

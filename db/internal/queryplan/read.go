@@ -197,6 +197,9 @@ func FieldExpressions(fields []query.FieldRef) []query.ResultExpression {
 
 func ProjectsWholeField(expressions []query.ResultExpression, field query.FieldRef) bool {
 	for _, expression := range expressions {
+		if _, related := expression.RelationPath(); related {
+			continue
+		}
 		if candidate, ok := expression.Field(); ok && expression.Kind() == query.ResultField && candidate.Equal(field) {
 			return true
 		}

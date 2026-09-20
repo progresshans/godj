@@ -1030,6 +1030,7 @@ jobs:
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedDecimalConsumer"
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedUUIDConsumer"
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedJSONConsumer"
+            "github.com/progresshans/godj/codegen/consumertest|TestGeneratedForwardScalarConsumer"
             "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow"

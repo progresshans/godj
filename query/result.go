@@ -30,7 +30,8 @@ const (
 
 // ResultExpression is an immutable, backend-independent selected value.
 // COUNT(*) has no field; other expressions retain the exact source field
-// identity. A JSON path result can be NULL even when that source is required.
+// identity. A related or JSON path result can be NULL even when that source is
+// required.
 type ResultExpression struct {
 	kind     ResultExpressionKind
 	field    FieldRef
@@ -53,21 +54,30 @@ func JSONPathResult(field FieldRef, path JSONPath) (ResultExpression, error) {
 // target. Source-field identity remains the target's exact metadata; optional
 // ancestors never rewrite that metadata to manufacture a root field.
 func RelatedJSONPathResult(relation RelationPath, path JSONPath) (ResultExpression, error) {
+	expression, err := RelatedFieldResult(relation)
+	if err != nil {
+		return ResultExpression{}, err
+	}
+	if expression.field.Kind() != FieldJSON || !path.Valid() {
+		return ResultExpression{}, invalidPlanError("JSON path result requires a JSON source field and a valid path")
+	}
+	expression.kind, expression.path = ResultJSONPath, path
+	return expression, nil
+}
+
+// RelatedFieldResult preserves the selected target's field and route without
+// adding it to the root model metadata or changing declared nullability.
+func RelatedFieldResult(relation RelationPath) (ResultExpression, error) {
 	if err := relation.Validate(); err != nil {
 		return ResultExpression{}, err
 	}
 	if relation.hops[0].direction != RelationForward {
-		return ResultExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "JSON result paths require a forward relation"}
+		return ResultExpression{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "scalar results require a forward relation"}
 	}
 	if err := relation.validateForwardSelection(); err != nil {
 		return ResultExpression{}, err
 	}
-	expression, err := JSONPathResult(relation.Terminal(), path)
-	if err != nil {
-		return ResultExpression{}, err
-	}
-	expression.relation = &relation
-	return expression, nil
+	return ResultExpression{kind: ResultField, field: relation.Terminal(), relation: &relation}, nil
 }
 
 func (e ResultExpression) RelationPath() (RelationPath, bool) {
@@ -195,8 +205,8 @@ func (s ResultShape) validate() error {
 			}
 			key := selectionKey{field: field}
 			if expression.relation != nil {
-				if expression.kind != ResultJSONPath || !expression.relation.Terminal().Equal(field) {
-					return invalidPlanError("related result requires its exact JSON terminal")
+				if (expression.kind != ResultField && expression.kind != ResultJSONPath) || !expression.relation.Terminal().Equal(field) {
+					return invalidPlanError("related result requires its exact terminal field")
 				}
 				if err := expression.relation.validateForwardSelection(); err != nil {
 					return err
@@ -238,7 +248,7 @@ func (s ResultShape) validate() error {
 		}
 		for _, expression := range s.expressions {
 			if expression.path.Valid() || expression.relation != nil {
-				return invalidPlanError("aggregate result cannot contain a JSON path")
+				return invalidPlanError("aggregate result cannot contain a JSON path or related value")
 			}
 			switch expression.Kind() {
 			case ResultCountAll:

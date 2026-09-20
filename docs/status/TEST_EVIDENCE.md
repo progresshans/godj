@@ -400,6 +400,58 @@
 - 앞선 root 관계 DTO와 이번 forward target 경로·native row adapter를 묶은 조회 통합 milestone에서 고정 source의 Hosted `orm`을 실행한다.
   이 로컬 결과와 앞선 `06c8302` Hosted를 현재 source의 platform PASS로 합치지 않는다.
 
+### Root 관계 DTO·forward JSON 경로 Hosted ORM 통합
+
+- [Run 35526500195](https://github.com/progresshans/godj/actions/runs/35526500195), attempt **1**, source
+  `fb9651919c0169bc8f0cb3f094b6b43a8f9065fd`의 `orm` scope는 **실행 44 job success / 범위 밖 4 owner skip**으로 완료됐다.
+  완전한 job logs 44개의 checkout SHA와 종료 상태를 대조했다. Gate는 `full_platform_verified:false`이며
+  `command-product-matrix`, `portable-go-matrix`, `postgresql-product`, `relation-product-matrix` 네 owner가 성공했다.
+- PostgreSQL **17.10** core normal/race/CGO=0 각각 **13 package / 1887 run·PASS / skip 0**, operator-target 각각
+  **2 package / 12 run·PASS / skip 0**이다. 모든 core 실행은 generated JSON parent를 필수로 선택한다.
+  해당 source의 parent는 SQLite/PostgreSQL path·containment·keys·projection·related_projection·forward_projection child를 필수 검사한다.
+- Linux amd64/arm64와 macOS arm64/amd64의 relation·command 및 portable matrix가 성공했다.
+  Relation normal/CGO=0은 Linux amd64 **26 package / 4960 PASS**, 나머지 세 환경 **27 package / 5008 PASS**이고,
+  race는 각각 **4895 / 4943 PASS**이며 모두 test skip 0이다. Scope 밖인 Python compatibility·exact Darwin profile·
+  SQLite lifecycle·project check·reference/current capture는 이 실행에 포함하지 않는다.
+- 이 결과는 root 관계 DTO와 forward JSON 경로·native adapter의 통합 증거다. 후속 whole JSON/일반 scalar 선택의
+  소스나 프레임워크 전체 완료로 합치지 않는다. 동일 source의 local/platform 전체 matrix를 중복 실행하지 않았다.
+
+### Forward scalar·whole JSON 선택의 로컬 통합 checkpoint
+
+- 기준 `fb9651919c0169bc8f0cb3f094b6b43a8f9065fd` 위 제품·generated 소비자·독립 raw·CI 필수 목록·Go/Python lock의
+  **26 non-Markdown 경로** manifest SHA256은 `c83f7226b4c75b9f6a821df71549ba7ef2d3b1cbee4d5161083581b7c5ad8c2c`다.
+  Go **1.26.5 darwin/arm64**, repository-pinned SQLite·native PostgreSQL **17.5 Homebrew**,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 실행 전후 같은 바이트를 확인했다.
+- Normal `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest ./examples/article ./examples/helpdesk`는
+  **10 package / 729 root 실행 / 5580 test·subtest PASS**다. 예제를 제외한 같은 명령의 `-race`는
+  **8 package / 712 root 실행 / 5561 PASS**이며 동일 package의 normal run/pass/skip 전체 목록과 일치한다.
+  두 실행 모두 fail 0·stderr 0 bytes이며 단독 PostgreSQL helper guard만 skip 1이다. 실제 양 DB cross-process parent는 필수 PASS다.
+- CGO=0은 새 scalar AST·기존 JSON route 및 JOIN 소유권·scalar/JSON/nested 생성 소비자를 선택해
+  **3 package / 6 root / 14 PASS**, skip/fail 0·stderr 0 bytes다. 새 generated parent는 실제 SQLite/PostgreSQL child를
+  모두 필수 검사하며 기존 JSON child의 path·containment·keys·projection·related_projection·forward_projection도 유지한다.
+- [독립 public runner](../../conformance/runners/django/forward_scalar_projection_reference.py)는 Django **6.1**, Python **3.14.3**,
+  SQLite **3.50.4**·PostgreSQL **17.5**/psycopg **3.3.6**에서 11종 필수·nullable 필드, datum 3개·holder 4개·entry 6개를 사용한다.
+  네 required/optional 2-hop route의 **96개 조회·88개 DISTINCT 결과·8개 JSON SQL NULL/대상 부재 목록씩**을 보존했다.
+  SQLite raw SHA256 `0e79df53cbf535bed9ee3a591f449c3c94eb0570f7c64bf76b0b7a459e474fc0`,
+  PostgreSQL raw `a33d78d346cc29fb582903aa6512a2489ed9eb503a379b7c1848133c34633ce5`다.
+  관찰 목록은 양 DB에서 일치한다. SQLite fresh 비교는 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **1 PASS**, skip/warning 0이다.
+- Generated direct 및 chained selection은 typed/dynamic 동일 source AST, filter 없음·NOT/OR·정렬·DISTINCT·slice에서
+  22개 필드의 실제 결과를 raw와 비교한다. 큰 정수·binary64 bits·Decimal scale·UTC/microsecond·UUID와 whole JSON을 확인한다.
+  Nullable target·optional ancestry는 모두 pointer 결과로 표현하고 원본 field metadata 및 Decimal precision은 유지한다.
+  SQL NULL/대상 부재는 nil, 존재하는 JSON null은 non-nil로 별도 검사한다.
+- Root에 native scalar가 없는 entry에서 Decimal·Duration·UUID·JSON target을 혼합 선택한다. Root/target 열의 qualification,
+  서로 다른 행의 pointer 소유권, model cache 분리와 transaction read·rollback·만료 session 거부를 확인했다.
+  GoDj의 별도 exact Decimal 저장 정책은 `9007199254740993.125000`의 실제 target read/rollback으로 검증하며
+  Django SQLite NUMERIC의 정밀도 관찰과 혼동하지 않는다.
+- 같은 이름의 target ID가 DISTINCT의 root ordering 요구를 만족하지 않게 한다. LIMIT 0·empty IN에도 명시적인
+  capability 오류를 유지하며 duplicate/unbound/configuration 오류·취소는 SQLite I/O 0이다. Reverse 선택은 unsupported다.
+  Non-null callback 오용과 다른 모델 필드 혼합은 실제 generated module의 compile 실패로 검사했다.
+- Affected vet·gofmt/docs/diff·CI 도구 **37개**, Actionlint **v1.7.12**를 통과했다. Actionlint의 ShellCheck/Pyflakes는 비활성이다.
+  `make generate-check`에서 Helpdesk **12**, Article **12**, relationfixture **16파일 clean** 및 checked-in 관계 소비자 PASS다.
+  새 parent를 PostgreSQL/관계 CI 필수 목록에 추가했지만 새 source의 Hosted 실행 증거로 기록하지 않는다.
+  전용 PostgreSQL DB의 잔여 연결·사용자 table 0을 확인해 삭제했고 기존 service는 유지했다.
+  앞선 Hosted ORM 결과는 이전 source의 증거이며, 새 query 확장의 platform 검증은 다음 통합 milestone이 소유한다.
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

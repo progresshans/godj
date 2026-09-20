@@ -111,16 +111,18 @@ func (f DurationField[M]) scalarResultField(M, duration.Duration) (query.ResultE
 	}, f.err
 }
 func (f NullableDurationField[M]) scalarResultField(M, *duration.Duration) (query.ResultExpression, func() scalarCell[*duration.Duration], error) {
-	return query.FieldResult(f.reference), func() scalarCell[*duration.Duration] {
-		var value NullableDurationScanner
-		return scalarCell[*duration.Duration]{destination: &value, value: func() *duration.Duration {
-			if !value.Valid {
-				return nil
-			}
-			copy := value.Duration
-			return &copy
-		}}
-	}, f.err
+	return query.FieldResult(f.reference), nullableDurationResultCell, f.err
+}
+
+func nullableDurationResultCell() scalarCell[*duration.Duration] {
+	var value NullableDurationScanner
+	return scalarCell[*duration.Duration]{destination: &value, value: func() *duration.Duration {
+		if !value.Valid {
+			return nil
+		}
+		copy := value.Duration
+		return &copy
+	}}
 }
 func (f durationField[M]) scalarOrderedField(M, duration.Duration) (query.FieldRef, func() scalarCell[Optional[duration.Duration]], error) {
 	return f.reference, func() scalarCell[Optional[duration.Duration]] {

@@ -116,16 +116,18 @@ func (f FloatField[M]) scalarResultField(M, float64) (query.ResultExpression, fu
 	}, f.err
 }
 func (f NullableFloatField[M]) scalarResultField(M, *float64) (query.ResultExpression, func() scalarCell[*float64], error) {
-	return query.FieldResult(f.reference), func() scalarCell[*float64] {
-		var value NullableFloatScanner
-		return scalarCell[*float64]{destination: &value, value: func() *float64 {
-			if !value.Valid {
-				return nil
-			}
-			copy := value.Float
-			return &copy
-		}}
-	}, f.err
+	return query.FieldResult(f.reference), nullableFloatResultCell, f.err
+}
+
+func nullableFloatResultCell() scalarCell[*float64] {
+	var value NullableFloatScanner
+	return scalarCell[*float64]{destination: &value, value: func() *float64 {
+		if !value.Valid {
+			return nil
+		}
+		copy := value.Float
+		return &copy
+	}}
 }
 func (f floatField[M]) scalarOrderedField(M, float64) (query.FieldRef, func() scalarCell[Optional[float64]], error) {
 	return f.reference, func() scalarCell[Optional[float64]] {

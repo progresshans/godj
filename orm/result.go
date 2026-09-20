@@ -55,19 +55,21 @@ func (f integerField[M]) scalarOrderedField(M, int64) (query.FieldRef, func() sc
 }
 
 func (f NullableIntegerField[M]) scalarResultField(M, *int64) (query.ResultExpression, func() scalarCell[*int64], error) {
-	return query.FieldResult(f.reference), func() scalarCell[*int64] {
-		var value sql.NullInt64
-		return scalarCell[*int64]{
-			destination: &value,
-			value: func() *int64 {
-				if !value.Valid {
-					return nil
-				}
-				copy := value.Int64
-				return &copy
-			},
-		}
-	}, f.err
+	return query.FieldResult(f.reference), nullableIntegerResultCell, f.err
+}
+
+func nullableIntegerResultCell() scalarCell[*int64] {
+	var value sql.NullInt64
+	return scalarCell[*int64]{
+		destination: &value,
+		value: func() *int64 {
+			if !value.Valid {
+				return nil
+			}
+			copy := value.Int64
+			return &copy
+		},
+	}
 }
 
 func (f StringField[M]) scalarResultField(M, string) (query.ResultExpression, func() scalarCell[string], error) {
@@ -90,19 +92,21 @@ func (f StringField[M]) scalarOrderedField(M, string) (query.FieldRef, func() sc
 }
 
 func (f NullableStringField[M]) scalarResultField(M, *string) (query.ResultExpression, func() scalarCell[*string], error) {
-	return query.FieldResult(f.reference), func() scalarCell[*string] {
-		var value sql.NullString
-		return scalarCell[*string]{
-			destination: &value,
-			value: func() *string {
-				if !value.Valid {
-					return nil
-				}
-				copy := value.String
-				return &copy
-			},
-		}
-	}, f.err
+	return query.FieldResult(f.reference), nullableStringResultCell, f.err
+}
+
+func nullableStringResultCell() scalarCell[*string] {
+	var value sql.NullString
+	return scalarCell[*string]{
+		destination: &value,
+		value: func() *string {
+			if !value.Valid {
+				return nil
+			}
+			copy := value.String
+			return &copy
+		},
+	}
 }
 
 func (f NullableStringField[M]) scalarOrderedField(M, string) (query.FieldRef, func() scalarCell[Optional[string]], error) {
