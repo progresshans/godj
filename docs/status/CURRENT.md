@@ -2,6 +2,7 @@
 
 - 갱신: 2026-09-20
 - 활성 구현: [GDJ-0089 작업 소요 기간의 모델·소비자 연결](../../work/0089-duration-models.md)
+- 검증 중: source `7e338bf28d27d12516d6732e7ae5f38f7b19bda5`, [Duration Hosted full](https://github.com/progresshans/godj/actions/runs/35478903468)
 - 최근 완료: [GDJ-0088 시간 전용 값의 모델·소비자 연결](../../work/0088-clock-time-models.md)
 - 최근 Hosted 기능 검증: source `9f0ffa8aeea143dd0da48789761235004dd4fa59`, [Time Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35475136652)
 - 최근 전체 검증 source: `8fd8936d634b5038a534936c15a2b1cfac4b853b`
@@ -34,7 +35,7 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 GDJ-0088의 Time 값·IR·generator·양 DB·소비자 연결과 로컬 affected·Hosted ORM 검증을 완료했다.
 GDJ-0089의 값·양 DB·Form/Admin·Helpdesk·독립 client 구현과 로컬 affected 일반/race·CGO0 검증을 완료했다.
-제품 source를 기존 Draft PR에 통합하고 Date·Time·Duration·JSON number의 Hosted full milestone을 실행한다.
+제품 source를 기존 Draft PR에 통합하고 위 Hosted full을 실행했다. 필수 job의 terminal 결과와 실제 source·scope를 확인한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

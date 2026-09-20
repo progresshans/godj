@@ -60,8 +60,10 @@ Required 실행이나 비교 기준을 제거하지 않았으며 아래 최종 s
 
 ### Hosted 통합 milestone
 
-Date·Time·Duration과 JSON number 기반의 통합 milestone으로 Hosted **full**을 선택했다. 제품 source를 기존 Draft PR #1에 통합한 뒤 실행한다.
-아직 이 변경의 Hosted terminal 결과는 없다. 이전 Time ORM과 Text/DateTime full은 각각의 source에만 적용한다.
+Date·Time·Duration과 JSON number 기반의 통합 milestone으로 Hosted **full**을 선택했다. 기존 Draft PR #1에 통합한
+source `7e338bf28d27d12516d6732e7ae5f38f7b19bda5`, attempt 1에서 [Hosted full](https://github.com/progresshans/godj/actions/runs/35478903468)을 실행했다.
+로컬 runtime source `f06bc7a01060b014a129631f60f5d677978adcef`와의 차이는 위 GoDoc 주석·Markdown이다.
+아직 terminal 결과가 없으며 현재 source의 Hosted PASS로 표시하지 않는다. 이전 Time ORM과 Text/DateTime full은 각각의 source에 적용한다.
 
 ## GDJ-0088 — Clock Time의 모델·소비자 연결
 

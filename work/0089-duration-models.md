@@ -33,7 +33,7 @@ JSON numeric 관찰을 추가한 raw SHA256은 `e5cda610c3b48c31c2c9e788db77acaa
 Fresh Python 3.12.13/3.13.15/3.14.3/3.14.7에서 실제 runtime fingerprint와 전체 관찰을 대조했다.
 
 첫 통합 실행에서 발견한 공통 DB value-kind와 migration loader의 Duration 등록 누락을 수정했다.
-생성 relation의 configuration error 전달도 연결했다. 제품 `f06bc7a01060b014a129631f60f5d677978adcef`의 affected 일반/race·양 DB·CGO0·생성물·독립 client·정적 검증을 통과했다. Hosted full은 아직 실행 전이며 작업은 active다.
+생성 relation의 configuration error 전달도 연결했다. 제품 `f06bc7a01060b014a129631f60f5d677978adcef`의 affected 일반/race·양 DB·CGO0·생성물·독립 client·정적 검증을 통과했다. source `7e338bf28d27d12516d6732e7ae5f38f7b19bda5`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/35478903468)을 실행했으며 terminal 결과를 기다린다. 작업은 active다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
 
 ## 다음 행동
