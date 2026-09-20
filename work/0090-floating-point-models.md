@@ -1,6 +1,6 @@
 ---
 id: GDJ-0090
-status: active
+status: complete
 updated: 2026-09-20
 baseline_commit: "94f2743e0f47b1f0f7a4c514e7a2f09fa9991935"
 integration_owner: "root"
@@ -11,7 +11,7 @@ integration_owner: "root"
 Helpdesk에서 소수와 지수 표기를 포함한 작업량 수치를 선언하고 저장·조회·편집한다.
 FloatField의 IR/default·typed/dynamic ORM·양 DB·Form/Admin·JSON/OpenAPI와 독립 client를 함께 연결한다.
 Duration의 Hosted full은 source `79637ef3f5943c9490027723527fb5074b01411f`에서 완료했다.
-Float는 별도 worktree에서 구현하며 제품·생성기·소비자·실패 경로를 묶어 검증한 뒤 기존 Draft PR에 통합한다.
+Float 제품·생성기·소비자·실패 경로를 함께 구현하고 로컬 및 Hosted ORM checkpoint를 통과해 기존 Draft PR에 통합했다.
 
 ## 먼저 확인한 경계
 
@@ -47,10 +47,11 @@ Form/Admin·finite JSON/OpenAPI와 Helpdesk nullable effort, 실제 별도 ogen 
 그 runtime에서 먼저 발급받도록 테스트 설정도 바로잡았다. 수정 source를 고정해 affected 일반/race·필수 PostgreSQL·CGO0,
 생성 drift·독립 client·물리 storage와 출력 실패의 로컬 checkpoint를 완료했다. 명령과 실제 source·결과는 TEST_EVIDENCE 한 곳에서 기록한다.
 
-## 다음 행동
+## 완료와 후속
 
-로컬 checkpoint를 통과한 Float source를 기존 Draft PR에 통합하고 Hosted `orm` scope를 실행한다. 이 scope의 portable Go·relation·
-targeted command·PostgreSQL owner가 관련 OS/architecture/mode 회귀를 소유한다. Django/DRF의 네 Python 버전 기준은 위 fresh local 관찰로
-확인하며 전체 platform PASS로 합치지 않는다. 최근 Hosted full은 Duration source의 결과다.
+제품 source `784dbf644f71c2d3507371c2afcc117d0f746ffb`의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35484302381),
+attempt 1에서 관련 portable Go·relation·targeted command·PostgreSQL owner를 검증했다. 전체 platform 검증은 요청하지 않았으며
+최근 Hosted full은 Duration source의 결과다. 실제 job 목록과 source·환경별 범위는 TEST_EVIDENCE를 따른다.
 
-이 worktree의 활성 구현은 GDJ-0090다. 로컬·Hosted의 최종 완료 여부는 CURRENT와 TEST_EVIDENCE를 따른다.
+이 작업을 완료하고 [GDJ-0091 Decimal](0091-decimal-cost-models.md)의 정확한 값·저장·입력과 실제 예상 비용 흐름으로 이어간다.
+Float 산술이나 넓은 expression·나머지 모델 기능을 모두 구현했다는 뜻은 아니다.

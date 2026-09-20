@@ -1,6 +1,6 @@
 ---
 id: GDJ-0091
-status: proposed
+status: active
 updated: 2026-09-20
 baseline_commit: "09307794071874900f317a01e7b413f11d784e60"
 integration_owner: "root"
@@ -10,7 +10,8 @@ integration_owner: "root"
 
 Helpdesk의 예상 비용을 DecimalField로 선언하고 저장·조회·편집하는 흐름을 다음 수직 단면으로 준비한다.
 소수 자릿수와 정밀도가 모델 의미이며 binary64로 바꾸어 저장 정확도를 잃지 않도록 값·IR/default·DB·Form/Admin·JSON/OpenAPI를 함께 설계한다.
-현재 활성 GDJ-0090의 Hosted ORM은 별도 source에서 검증 중이다. 이 준비는 Decimal 제품 구현이나 지원 범위의 완료가 아니다.
+GDJ-0090의 Hosted ORM은 Float source에서 완료했다. 이 작업은 독립 관찰과 사전 실험을 바탕으로 Decimal의 값·저장 경계를 정하고 구현한다.
+독립 기준 준비만으로 Decimal 제품 구현이나 지원 범위의 완료를 뜻하지 않는다.
 
 ## 먼저 확인한 동작
 
@@ -28,6 +29,14 @@ Django SQLite의 NUMERIC 경로는 30자리 Decimal을 다른 정수로 저장�
 초과 소수 자릿수의 반올림은 SQLite/Django 읽기의 half-even과 PostgreSQL NUMERIC 저장의 half-away-from-zero가 다르다.
 이 차이를 감춘 공통 round-trip이나 다른 backend 결과의 대용 검증을 채택하지 않는다. 양 DB의 ±0 저장은 양수 zero로 돌아온다.
 
+## 저장 방식의 사전 실험
+
+SQLite NUMERIC의 손실을 재현한 뒤 field별 scale과 무관한 canonical binary key를 별도로 시험했다.
+부호·adjusted exponent·coefficient 순서로 모든 field가 같은 값 공간을 사용하면 SQLite의 기본 BLOB 비교로 정확한 숫자 순서를 유지할 수 있었다.
+두 prototype test에서 2,005개 값과 실제 SQLite 비교·정렬·Min/Max를 확인했다. Custom collation이나 process-global 등록은 사용하지 않았다.
+채택 전에는 물리 column 형식, historical metadata·외부 DB 값의 거부, PostgreSQL native numeric와의 대응을 함께 확정해야 한다.
+이 실험 자체를 제품 구현이나 Django의 NUMERIC 저장 형식과의 호환으로 표시하지 않는다.
+
 ## 다음 판단과 구현
 
 1. Finite Decimal의 coefficient/exponent·signed zero·scale 보존과 자원 한도를 정한다. 자릿수 검증과 canonical identity를 혼동하지 않는다.
@@ -36,4 +45,4 @@ Django SQLite의 NUMERIC 경로는 30자리 Decimal을 다른 정수로 저장�
 4. Form/Admin과 Helpdesk nullable 예상 비용, JSON 문자열 표현·OpenAPI·별도 client까지 연결하고 실제 DB의 실패·rollback·reopen을 검증한다.
 
 기준 실행·환경·hash는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0091--decimal의-독립-정밀도저장-기준-준비)가 소유한다.
-GDJ-0090 Hosted에서 문제가 확인되면 해당 통합을 우선 보완한다.
+기존 transaction·권한·자원 한도·생성 실패 보존 경계를 유지하며 실제 소비자와 검증을 한 묶음으로 연결한다.

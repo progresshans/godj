@@ -1,8 +1,9 @@
 # 현재 상태
 
 - 갱신: 2026-09-20
-- 활성 구현: [GDJ-0090 작업량 수치의 Float 모델·소비자 연결](../../work/0090-floating-point-models.md)
-- 최근 완료: [GDJ-0089 작업 소요 기간의 모델·소비자 연결](../../work/0089-duration-models.md)
+- 활성 구현: [GDJ-0091 소수점 비용의 Decimal 모델·소비자 연결](../../work/0091-decimal-cost-models.md)
+- 최근 완료: [GDJ-0090 작업량 수치의 Float 모델·소비자 연결](../../work/0090-floating-point-models.md)
+- 최근 관련 검증: [Float Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35484302381), source `784dbf644f71c2d3507371c2afcc117d0f746ffb`
 - 최근 전체 검증 source: `79637ef3f5943c9490027723527fb5074b01411f`
 - 최신 전체 검증: [Date·Time·Duration·JSON number Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35479740366)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)
@@ -32,12 +33,10 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0090 Float 제품의 affected 일반/race, 필수 PostgreSQL·CGO0·독립 client·생성 drift checkpoint를 완료했다.
-Float source `784dbf644f71c2d3507371c2afcc117d0f746ffb`를 기존 Draft PR에 통합했다.
-[Hosted ORM](https://github.com/progresshans/godj/actions/runs/35484302381)에서 관련 OS/architecture/mode 검증을 진행한다.
-최근 Hosted full은 GDJ-0089의 source이며 Float 제품은 포함하지 않는다. 정확한 source·실행 상태는 TEST_EVIDENCE를 따른다.
-[GDJ-0091 Decimal 준비](../../work/0091-decimal-cost-models.md)는 독립 reference와 저장 정밀도 조사를 진행했다.
-Float Hosted 완료 뒤 Decimal의 정확한 값·저장 경계를 정하고 실제 예상 비용 흐름으로 이어간다.
+GDJ-0091의 독립 Django/DRF 기준과 SQLite·PostgreSQL 저장 차이를 확인했다.
+Decimal의 coefficient/exponent·precision·scale와 정확한 저장 방식을 결정하고 값·IR·typed/dynamic query·생성·migration부터 연결한다.
+그 위에 Helpdesk 예상 비용의 Form/Admin·JSON/OpenAPI·독립 client와 실패 경로를 구현한다.
+GDJ-0090은 로컬 affected·DB·race·CGO0와 Hosted ORM을 완료했다. 최근 Hosted full은 Duration source이며 Float까지의 전체 플랫폼 PASS로 합치지 않는다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

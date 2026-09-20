@@ -20,6 +20,10 @@
   NUMERIC(30,12)는 위 두 30자리 값을 정확히 보존했다. NUMERIC(12,2)의 ±1.225는 ±1.23이었고 SQLite/Django 읽기는 ±1.22였다.
   자릿수 overflow는 SQLSTATE 22003, signed zero는 양수 zero였다. Native NaN 허용을 Django Decimal 모델 허용으로 채택하지 않는다.
   임시 table의 transaction rollback과 잔존 table 없음을 확인했으며 기존 service는 유지했다.
+- 별도 storage prototype의 두 Go test는 **2,005개** 유한한 Decimal을 coefficient/exponent로 보존했다. 부호·adjusted exponent·정규화 digit의
+  field 독립 binary key 순서와 big.Rat 숫자 순서를 대조하고, 실제 SQLite BLOB의 정렬·비교 150조합·column equality·Min/Max를 확인했다.
+  형식의 strict decode와 canonical round-trip도 PASS다. 제품 package·migration 또는 다른 OS/driver의 검증은 아니다.
+  Prototype 두 source의 정렬 SHA256 manifest는 `63d3dfba9776b26d44dfaa014e2a9c2ef4f1f6edc3f314ef20f0bc1eca8cccb8`다.
 - 이 준비는 제품 설계 채택이나 GoDj Decimal의 runtime·Hosted 지원 증거가 아니다. Float Hosted source에도 포함되지 않는다.
 
 ## GDJ-0090 — Float 모델과 finite 소비자 연결
@@ -96,8 +100,12 @@ historical 복원 수정으로 실제 SQLite/PG child 실행도 통과했다. Pa
 ### Hosted 검증 소유권
 
 Float의 관련 통합은 Hosted **orm** scope로 실행한다. Portable Go·relation·targeted command·PostgreSQL owner가 선택된 OS/architecture/mode를 담당한다.
-source `784dbf644f71c2d3507371c2afcc117d0f746ffb`, attempt 1의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35484302381)을 시작했다.
-아직 최종 결과가 없으므로 PASS로 기록하지 않는다. 이후 이 실행을 연결하는 변경은 Markdown뿐이다.
+source `784dbf644f71c2d3507371c2afcc117d0f746ffb`, attempt 1의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35484302381)은 terminal success다.
+Run API와 attempt 1 jobs API의 전체 **48개** 고유 id/name, source·attempt·terminal을 대조했다. **44개 success**, scope에서 제외한 **4개 skipped**이며 실패·취소는 없다.
+제외 항목은 Python compatibility·exact Darwin·product project-check·conformance reference/capture owner다. 테스트 실행 성공으로 합산하지 않는다.
+최종 result log는 `scope:orm`, `full_platform_verified:false`와 `command-product-matrix`, `portable-go-matrix`, `postgresql-product`,
+`relation-product-matrix` 네 owner 완료를 확인했다. 선택한 Linux/macOS amd64·arm64·normal/race/CGO0와 고정 PostgreSQL 17.10 제품의 관련 회귀다.
+후속 `0930779`는 실행 링크를 기록한 Markdown이며, `8855902`는 별도로 검증한 Decimal reference 준비다. 어느 것도 위 Hosted source에 포함된 것으로 표시하지 않는다.
 최근 full source `79637ef3f5943c9490027723527fb5074b01411f`는 Duration까지이며 Float를 포함하지 않는다.
 
 ## GDJ-0089 — Duration의 모델·DB 범위와 소비자 연결
