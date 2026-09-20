@@ -38,3 +38,6 @@ Django 6.1의 명시적 JSONNull()과 deprecated exact None 경고도 따로 기
 
 다음은 이 차이를 고려한 값·숫자 정밀도·소유권과 DB별 capability 설계다. 공통 AST가 있다는 이유로 모든 backend의 JSON 비교를 같다고 가정하지 않는다.
 이 관찰만으로 GoDj JSON 제품 구현이나 Django PostgreSQL 비교를 완료 처리하지 않는다.
+
+UUID의 Hosted 통합을 완료한 뒤 이 작업을 활성 구현으로 이어간다. 현재 JSON 값 패키지와 any-root bounded decode를 구현 중이다.
+Canonical object key/공백 정리와 정확한 숫자 token, 명시적 JSON null·invalid zero, 입력/decoded container의 소유권부터 연결하며 runtime 검증은 아직 전이다.

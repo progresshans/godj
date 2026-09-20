@@ -139,6 +139,28 @@
 - UUID 로컬 전용 DB는 잔여 연결 0을 확인한 뒤 삭제했으며 기존 PostgreSQL service는 유지했다.
   수정 source의 Hosted full을 별도 실행한다. 현재 UUID 전체 플랫폼 완료는 아직 아니다.
 
+### UUID Hosted full 완료
+
+- 최종 [Hosted full run 35503256679](https://github.com/progresshans/godj/actions/runs/35503256679), attempt **1**, source
+  **`7da91ad5fbd6284622fb372e7d8051120584424e`**가 terminal success로 완료됐다. **62개 고유 job 모두 success**이며 job skip/failure/cancel 0이다.
+  각 job의 전체 로그와 SHA256·고유 name/ID·실제 첫 checkout SHA를 대조했다. 로그의 git 경로를 OS별로 고정하지 않았다.
+- Gate job **106063201144**의 실제 출력은 `scope: full`, `full_platform_verified: true`이며
+  command-product·conformance·exact-Darwin·portable·PostgreSQL·project-check·Python-compatibility·relation **8개 owner**를 확인했다.
+  Portable **12**, relation **12**, project-check **12**, command-product **12**의 선언된 좌표가 모두 있다.
+  `Product project check (ubuntu-24.04, normal)`의 **Cold external CLI build milestone**도 실제 success다.
+  다른 11개 좌표의 같은 cold step·비소유 capture publication·portable owner로 대체되는 exact job의 focused Go step은 조건에 따른 중복 실행 제외다.
+- Exact Darwin/arm64 Python은 **297 tests, skips 0**이다. Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**은 각각
+  **297 tests, 선언된 exact 전용 skips 4**와 semantic digest를 완료했다. UUID Unicode 16/구버전 Unicode 차이도 이 source에 포함된다.
+- PostgreSQL **17.10** core normal/race/CGO=0은 각각 **13 package / 1,880 PASS**, run=pass·skip 0이다.
+  operator-target normal/race/CGO=0은 각각 **2 package / 12 PASS**, skip 0이다. 필수 UUID native adapter·generated consumer와
+  실제 Helpdesk 부모, 기존 Decimal cached-reader/NaN/lock 회귀가 required inventory를 통과했다.
+- 실제 portable integration의 외부 복구 fixture normal/race/CGO=0도 모두 success다.
+  첫 source의 run **35502966024**는 세 integration 실패 뒤 후속 실행으로 대체되어 terminal **cancelled**다.
+  그 실행의 최종 job 집계는 success 30 / failure 4(세 integration과 결과 gate) / cancelled 28이며 완료 증거로 사용하지 않는다.
+- 후속 게시 source `9814af2ab443e240d59f631807965b1c685c78e5`는 Markdown과 JSON 독립 runner/test/raw만 추가했다.
+  UUID Go 제품·생성물·고정 client·CI 설정은 검증 source와 동일하다. 새 JSON reference의 실행과 앞으로의 제품 변경은 위 GDJ-0094 절에서 따로 관리한다.
+  이 결과로 GDJ-0093의 현재 연결을 완료하며 전체 프레임워크·남은 UUID PK/FK/uniqueness/generation까지 완료 처리하지 않는다.
+
 ## GDJ-0092 — Decimal 정밀도 변경의 독립 기준 준비
 
 - Baseline은 GDJ-0091 제품 source `d106e73d5338cff107623351c48ac4f5778fff8c`다. 현재 GoDj의 precision AlterField 구현 완료를 뜻하지 않는다.

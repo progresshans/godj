@@ -1,6 +1,6 @@
 ---
 id: GDJ-0093
-status: active
+status: complete
 updated: 2026-09-20
 baseline_commit: "06f601ed4d939d4f60b2313b4c70b33eaf4a5939"
 integration_owner: "root"
@@ -52,7 +52,10 @@ UUID 값의 생성 전략·callable default, UUID primary/foreign key와 uniquen
 [ADR-0070](../docs/adr/0070-uuid-model-values-and-storage.md)에 모델 값·storage·입력 계층의 책임을 기록했다.
 Form/Admin·serializer·OpenAPI·Helpdesk/client의 입력·소비자 연결을 구현했다. 고정 Python Unicode 16의 숫자 입력과 구버전 Python 차이도 독립 관찰에 추가했다. 실제 실행 상세는 TEST_EVIDENCE만 소유한다.
 
-최종 UUID 수직 단면은 Hosted full 통합 checkpoint를 사용한다. 입력 작업에서 Python Unicode profile의 차이를 추가로 확인했으므로
+최종 UUID 수직 단면의 Hosted full 통합 checkpoint를 완료했다. 입력 작업에서 Python Unicode profile의 차이를 추가로 확인했으므로
 기존 ORM-only 계획을 넓혀 exact/compatibility reference와 지원 플랫폼의 관계·portable·PostgreSQL·명령 소비자를 같은 source에서 확인한다.
 로컬 전체는 중복 실행하지 않고 영향 패키지·실제 Helpdesk/client checkpoint를 실행한다.
 필수 PostgreSQL 선택에는 UUID adapter와 generated consumer를 포함한다. 기존 Decimal 전체 검증을 새 UUID source의 전체 platform PASS로 옮기지 않는다.
+
+Source `7da91ad5fbd6284622fb372e7d8051120584424e`의 Hosted full 62개 작업·실제 checkout·필수 owner와 cold-build를 확인했다.
+이 작업의 모델·입력·Helpdesk/client 연결을 완료하며, UUID PK/FK·uniqueness·generation/callable default와 다른 카탈로그 요구는 계속 남아 있다.
