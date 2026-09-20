@@ -52,7 +52,7 @@ func TestCompileScalarProjectionUsesExpressionOrderAndSourceMetadata(t *testing.
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
-	result, err := query.NewProjectionResult(title, id)
+	result, err := query.NewProjectionResult(query.FieldResult(title), query.FieldResult(id))
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
@@ -86,7 +86,7 @@ func TestCompileDistinctProjectionLimitOffsetPreservesArgumentOrder(t *testing.T
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
-	result, err := query.NewProjectionResult(title, id)
+	result, err := query.NewProjectionResult(query.FieldResult(title), query.FieldResult(id))
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
@@ -151,7 +151,7 @@ func TestCompileDistinctProjectionRejectsOrderingOutsideResult(t *testing.T) {
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
-	result, err := query.NewProjectionResult(title)
+	result, err := query.NewProjectionResult(query.FieldResult(title))
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
@@ -642,7 +642,7 @@ func TestCompileProjectionAndAggregateRejectRelationPaths(t *testing.T) {
 		query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}),
 		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
 	)
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
@@ -720,7 +720,7 @@ func TestCompiledProjectionAndAggregateExecuteWithSQLiteSemantics(t *testing.T) 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
-	projection, err := query.NewProjectionResult(title)
+	projection, err := query.NewProjectionResult(query.FieldResult(title))
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}

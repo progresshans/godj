@@ -94,6 +94,13 @@ GoDj는 이 8조건에 PostgreSQL의 의미를 채택한다. 존재하는 JSON �
 unknown이며 기존 root SQL NULL·optional JOIN의 NOT 보정은 유지한다. 이 확장을 Django parity로 세지 않는다.
 PostgreSQL의 NUL key는 양 scope·세 lookup·filter/exclude 12조건의 DataError를 DB 호출 전 invalid-value로 거부한다.
 그 밖의 key-presence raw 결과를 blanket normalization하거나 누락하지 않는다.
+Projection도 같은 정확한 타입·숫자와 literal path 정책을 적용한다. 별도 projection raw의 SQLite `name=a`에서
+key_string_null/false/true/one/object/array 6행은 문자열 재해석을 막고, huge 1행은 정확한 정수를 반환한다.
+`name=numeric_key`의 numeric_key/root_array 2행은 명시적인 객체 key를 선택한다. SQLite의 (empty_key, nul_key),
+(nul_key, empty_key), (nul_key, empty_and_nul) 세 (path name, label)은 prefix 충돌을 보정한다. 총 12개 셀 차이를 명시적으로 검사한다.
+PostgreSQL numeric_key의 2행과 index_zero/numeric_key에서 json_null/scalar_string/scalar_one/scalar_false의 8행은
+객체 key/index 구분·strict container 의미를 적용한다. NUL projection 전체의 DataError는 GoDj의 사전 거부로 검사한다.
+Missing과 stored JSON null을 값과 함께 별도 관찰하며, Python None을 Go의 두 상태를 합치는 근거로 사용하지 않는다.
 JSON PK/FK·index·추가 transform·타입 변경/backfill은 별도 구현과 검증을 요구한다.
 반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
 

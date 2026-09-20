@@ -64,7 +64,11 @@ func BenchmarkPlanDerivation(b *testing.B) {
 			name := fmt.Sprintf("field_%d", index)
 			fields[index] = query.NewFieldRef(name, name, query.FieldInteger, false)
 		}
-		shape, err := query.NewProjectionResult(fields...)
+		expressions := make([]query.ResultExpression, len(fields))
+		for i, field := range fields {
+			expressions[i] = query.FieldResult(field)
+		}
+		shape, err := query.NewProjectionResult(expressions...)
 		if err != nil {
 			b.Fatal(err)
 		}

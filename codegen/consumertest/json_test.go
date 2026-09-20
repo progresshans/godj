@@ -81,10 +81,24 @@ func TestGeneratedJSONConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/keys_sqlite_reference.json", sqliteRaw)
+	projection, err := os.ReadFile("testdata/json/json_projection_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/json_projection_test.go", projection)
+	for _, backend := range []string{"sqlite", "postgres"} {
+		raw, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/jsontest/testdata/django61-projection-"+backend+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeGeneratedTestFile(t, root, "consumer/projection_"+backend+"_reference.json", raw)
+	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	required := []string{"TestJSONGeneratedDefaults", "TestJSONStorageQueryAndOwnership", "TestJSONStorageQueryAndOwnership/sqlite", "TestJSONStorageQueryAndOwnership/sqlite/paths", "TestJSONStorageQueryAndOwnership/sqlite/containment", "TestJSONStorageQueryAndOwnership/sqlite/keys"}
+	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/projection")
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres", "TestJSONStorageQueryAndOwnership/postgres/paths", "TestJSONStorageQueryAndOwnership/postgres/containment", "TestJSONStorageQueryAndOwnership/postgres/keys")
+		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/projection")
 	}
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 	for _, test := range []struct{ name, source, fragment string }{
@@ -112,4 +126,11 @@ func TestGeneratedJSONConsumer(t *testing.T) {
 			t.Fatalf("invalid JSON key type compiled: %v\n%s", err, output)
 		}
 	}
+	t.Run("path projection remains nullable", func(t *testing.T) {
+		writeGeneratedTestFile(t, root, "wrong/wrong.go", []byte(`package wrong; import "example.com/godj-json/models"; import "github.com/progresshans/godj/orm"; import "github.com/progresshans/godj/query"; import "github.com/progresshans/godj/jsonvalue"; var _ = orm.Project1(models.RecordFields.Required.At(query.JSONKey("a")),func(v jsonvalue.Value) string {return v.Text})`))
+		output, err := generatedGoCommand(t.Context(), root, "build", "-mod=mod", "./wrong").CombinedOutput()
+		if err == nil || !strings.Contains(string(output), "*jsonvalue.Value") {
+			t.Fatalf("path projection lost nullable type boundary: %v\n%s", err, output)
+		}
+	})
 }

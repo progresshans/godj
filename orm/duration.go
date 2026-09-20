@@ -104,14 +104,14 @@ func scanDuration(raw any) (duration.Duration, error) {
 	}
 }
 
-func (f DurationField[M]) scalarResultField(M, duration.Duration) (query.FieldRef, func() scalarCell[duration.Duration], error) {
-	return f.reference, func() scalarCell[duration.Duration] {
+func (f DurationField[M]) scalarResultField(M, duration.Duration) (query.ResultExpression, func() scalarCell[duration.Duration], error) {
+	return query.FieldResult(f.reference), func() scalarCell[duration.Duration] {
 		var value DurationScanner
 		return scalarCell[duration.Duration]{destination: &value, value: func() duration.Duration { return value.Duration }}
 	}, f.err
 }
-func (f NullableDurationField[M]) scalarResultField(M, *duration.Duration) (query.FieldRef, func() scalarCell[*duration.Duration], error) {
-	return f.reference, func() scalarCell[*duration.Duration] {
+func (f NullableDurationField[M]) scalarResultField(M, *duration.Duration) (query.ResultExpression, func() scalarCell[*duration.Duration], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*duration.Duration] {
 		var value NullableDurationScanner
 		return scalarCell[*duration.Duration]{destination: &value, value: func() *duration.Duration {
 			if !value.Valid {

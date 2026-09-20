@@ -108,7 +108,7 @@ func TestCompileFieldComparisonIsSharedByResultShapes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatal(err)
 	}

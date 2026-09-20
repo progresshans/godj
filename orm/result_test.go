@@ -237,7 +237,7 @@ func TestResultTerminalsDerivePlanWithoutReadingOrPopulatingSourceCache(t *testi
 	if len(backend.plans) != 4 {
 		t.Fatalf("backend calls = %d, want projection + model + projection + aggregate = 4", len(backend.plans))
 	}
-	projectionShape, shapeErr := query.NewProjectionResult(fields.Title.reference)
+	projectionShape, shapeErr := query.NewProjectionResult(query.FieldResult(fields.Title.reference))
 	if shapeErr != nil {
 		t.Fatalf("NewProjectionResult() error = %v", shapeErr)
 	}

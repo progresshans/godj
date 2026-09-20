@@ -243,7 +243,7 @@ func TestCompileBooleanWhereIsSharedByEveryResultShape(t *testing.T) {
 	wantWhere := ` WHERE ((("title" ILIKE $1 ESCAPE '\') OR ("title" = $2)) AND ("id" IN ($3, $4)) AND ("published" IS NOT NULL) AND (NOT ("title" IN ($5, $6))) AND ("id" IN ($7, $8)))`
 	wantArguments := []any{"%django%", "Other", int64(3), int64(8), "ORM", "Go", int64(3), int64(8)}
 
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatal(err)
 	}

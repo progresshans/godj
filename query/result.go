@@ -1,6 +1,10 @@
 package query
 
-import "slices"
+import (
+	"slices"
+	"strconv"
+	"strings"
+)
 
 // ResultKind identifies the row shape returned by a query plan. The source
 // field universe remains independent so predicates and ordering do not become
@@ -18,21 +22,34 @@ type ResultExpressionKind string
 
 const (
 	ResultField    ResultExpressionKind = "field"
+	ResultJSONPath ResultExpressionKind = "json_path"
 	ResultCountAll ResultExpressionKind = "count_all"
 	ResultMax      ResultExpressionKind = "max"
 	ResultMin      ResultExpressionKind = "min"
 )
 
 // ResultExpression is an immutable, backend-independent selected value.
-// COUNT(*) has no field; field projection, MIN and MAX require one exact source
-// field reference.
+// COUNT(*) has no field; other expressions retain the exact source field
+// identity. A JSON path result can be NULL even when that source is required.
 type ResultExpression struct {
 	kind  ResultExpressionKind
 	field FieldRef
+	path  JSONPath
 }
 
 func FieldResult(field FieldRef) ResultExpression {
 	return ResultExpression{kind: ResultField, field: field}
+}
+
+func JSONPathResult(field FieldRef, path JSONPath) (ResultExpression, error) {
+	if !validResultField(field) || field.Kind() != FieldJSON || !path.Valid() {
+		return ResultExpression{}, invalidPlanError("JSON path result requires a JSON source field and a valid path")
+	}
+	return ResultExpression{kind: ResultJSONPath, field: field, path: path}, nil
+}
+
+func (e ResultExpression) JSONPath() (JSONPath, bool) {
+	return e.path, e.kind == ResultJSONPath && e.path.Valid()
 }
 
 func CountAllResult() ResultExpression {
@@ -51,7 +68,7 @@ func (e ResultExpression) Kind() ResultExpressionKind { return e.kind }
 
 func (e ResultExpression) Field() (FieldRef, bool) {
 	switch e.kind {
-	case ResultField, ResultMax, ResultMin:
+	case ResultField, ResultJSONPath, ResultMax, ResultMin:
 		return e.field, true
 	default:
 		return FieldRef{}, false
@@ -59,7 +76,7 @@ func (e ResultExpression) Field() (FieldRef, bool) {
 }
 
 func (e ResultExpression) Equal(other ResultExpression) bool {
-	return e == other
+	return e.kind == other.kind && e.field.Equal(other.field) && e.path.Equal(other.path)
 }
 
 // ResultShape is sealed by constructors and shares immutable private storage.
@@ -69,15 +86,15 @@ type ResultShape struct {
 	expressions []ResultExpression
 }
 
-func NewProjectionResult(fields ...FieldRef) (ResultShape, error) {
-	if len(fields) == 0 {
-		return ResultShape{}, invalidPlanError("projection result is empty")
+// MaxProjectionExpressions bounds the selected cells independently of the
+// model's source fields, since many JSON paths may use the same source column.
+const MaxProjectionExpressions = 2048
+
+func NewProjectionResult(expressions ...ResultExpression) (ResultShape, error) {
+	if len(expressions) == 0 || len(expressions) > MaxProjectionExpressions {
+		return ResultShape{}, invalidPlanError("projection requires between one and 2048 expressions")
 	}
-	expressions := make([]ResultExpression, len(fields))
-	for index, field := range fields {
-		expressions[index] = FieldResult(field)
-	}
-	shape := ResultShape{kind: ResultProjection, expressions: expressions}
+	shape := ResultShape{kind: ResultProjection, expressions: slices.Clone(expressions)}
 	if err := shape.validate(); err != nil {
 		return ResultShape{}, err
 	}
@@ -109,7 +126,7 @@ func (s ResultShape) Expressions() []ResultExpression {
 }
 
 func (s ResultShape) Equal(other ResultShape) bool {
-	return s.kind == other.kind && slices.Equal(s.expressions, other.expressions)
+	return s.kind == other.kind && slices.EqualFunc(s.expressions, other.expressions, ResultExpression.Equal)
 }
 
 func (s ResultShape) validate() error {
@@ -120,19 +137,47 @@ func (s ResultShape) validate() error {
 		}
 		return nil
 	case ResultProjection:
-		if len(s.expressions) == 0 {
-			return invalidPlanError("projection result is empty")
+		if len(s.expressions) == 0 || len(s.expressions) > MaxProjectionExpressions {
+			return invalidPlanError("projection requires between one and 2048 expressions")
 		}
-		seen := make(map[FieldRef]struct{}, len(s.expressions))
+		type selectionKey struct {
+			field FieldRef
+			path  string
+		}
+		seen := make(map[selectionKey]struct{}, len(s.expressions))
 		for _, expression := range s.expressions {
 			field, ok := expression.Field()
-			if expression.Kind() != ResultField || !ok || !validResultField(field) {
+			if !ok || !validResultField(field) {
 				return invalidPlanError("projection result contains an invalid field expression")
 			}
-			if _, duplicate := seen[field]; duplicate {
-				return invalidPlanError("projection result contains a duplicate field")
+			key := selectionKey{field: field}
+			switch expression.kind {
+			case ResultField:
+				if expression.path.Valid() {
+					return invalidPlanError("field result contains an unexpected JSON path")
+				}
+			case ResultJSONPath:
+				if field.Kind() != FieldJSON || !expression.path.Valid() {
+					return invalidPlanError("JSON path result is invalid")
+				}
+				// Typed, length-prefixed tokens distinguish numeric keys, indices,
+				// embedded delimiters and an empty key without pointer identity.
+				var identity strings.Builder
+				for _, segment := range expression.path.data.segments {
+					if segment.kind == 1 {
+						identity.WriteString("k" + strconv.Itoa(len(segment.key)) + ":" + segment.key)
+					} else {
+						identity.WriteString("i" + strconv.Itoa(segment.index) + ";")
+					}
+				}
+				key.path = identity.String()
+			default:
+				return invalidPlanError("projection result contains an unsupported expression")
 			}
-			seen[field] = struct{}{}
+			if _, duplicate := seen[key]; duplicate {
+				return invalidPlanError("projection result contains a duplicate expression")
+			}
+			seen[key] = struct{}{}
 		}
 		return nil
 	case ResultAggregate:
@@ -140,6 +185,9 @@ func (s ResultShape) validate() error {
 			return invalidPlanError("aggregate result requires between one and four expressions")
 		}
 		for _, expression := range s.expressions {
+			if expression.path.Valid() {
+				return invalidPlanError("aggregate result cannot contain a JSON path")
+			}
 			switch expression.Kind() {
 			case ResultCountAll:
 				if _, hasField := expression.Field(); hasField {

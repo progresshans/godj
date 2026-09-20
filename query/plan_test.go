@@ -48,7 +48,7 @@ func TestPlanDerivationsPreserveCompositeOwnership(t *testing.T) {
 			var err error
 			switch kind {
 			case "projection":
-				shape, shapeErr := query.NewProjectionResult(id, title)
+				shape, shapeErr := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 				if shapeErr != nil {
 					t.Fatal(shapeErr)
 				}

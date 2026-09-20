@@ -62,22 +62,22 @@ func compileScalar(
 	sourceFields []query.FieldRef,
 	where whereAnalysis,
 ) (string, []any, error) {
-	selectedFields := sourceFields
+	selected := queryplan.FieldExpressions(sourceFields)
 	if plan.ResultShape().Kind() == query.ResultProjection {
 		var err error
-		selectedFields, err = queryplan.ProjectionFields(plan.ResultShape(), sourceFields)
+		selected, err = queryplan.ProjectionExpressions(plan.ResultShape(), sourceFields)
 		if err != nil {
 			return "", nil, err
 		}
 	}
-	return compileScalarSelect(schema, plan, sourceFields, selectedFields, where)
+	return compileScalarSelect(schema, plan, sourceFields, selected, where)
 }
 
 func compileScalarSelect(
 	schema string,
 	plan query.Plan,
-	sourceFields,
-	selectedFields []query.FieldRef,
+	sourceFields []query.FieldRef,
+	selected []query.ResultExpression,
 	where whereAnalysis,
 ) (string, []any, error) {
 	var statement strings.Builder
@@ -85,16 +85,25 @@ func compileScalarSelect(
 	if plan.Distinct() {
 		statement.WriteString("DISTINCT ")
 	}
-	for index, field := range selectedFields {
+	arguments := make([]any, 0)
+	for index, expression := range selected {
 		if index > 0 {
 			statement.WriteString(", ")
 		}
+		field, _ := expression.Field()
 		quoted, err := quoteIdentifier(field.Column())
 		if err != nil {
 			return "", nil, err
 		}
-		statement.WriteString(quoted)
-		appendDecimalResultPrecision(&statement, field)
+		if path, ok := expression.JSONPath(); ok {
+			if err := validateJSONPath(field, path); err != nil {
+				return "", nil, err
+			}
+			appendJSONPath(&statement, quoted, path, &arguments)
+		} else {
+			statement.WriteString(quoted)
+			appendDecimalResultPrecision(&statement, field)
+		}
 	}
 	statement.WriteString(" FROM ")
 	table, err := quoteTable(schema, plan.Table())
@@ -103,7 +112,7 @@ func compileScalarSelect(
 	}
 	statement.WriteString(table)
 
-	arguments, err := appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField)
+	arguments, err = appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField, arguments)
 	if err != nil {
 		return "", nil, err
 	}
@@ -123,7 +132,7 @@ func compileScalarSelect(
 			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
 		}
 		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection &&
-			!queryplan.ContainsField(selectedFields, ordering.Field()) {
+			!queryplan.ProjectsWholeField(selected, ordering.Field()) {
 			return "", nil, unsupportedDistinctOrdering(ordering.Field())
 		}
 		field, err := quoteIdentifier(ordering.Field().Column())
@@ -176,7 +185,7 @@ func compileDerivedAggregate(
 		return "", nil, err
 	}
 
-	inner, arguments, err := compileScalarSelect(schema, plan, sourceFields, sourceFields, where)
+	inner, arguments, err := compileScalarSelect(schema, plan, sourceFields, queryplan.FieldExpressions(sourceFields), where)
 	if err != nil {
 		return "", nil, err
 	}
@@ -211,7 +220,7 @@ func compileDirectAggregate(
 	statement.WriteString(" FROM ")
 	statement.WriteString(table)
 
-	arguments, err := appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField)
+	arguments, err := appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -379,10 +388,8 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		}
 	}
 	if path, ok := condition.JSONPath(); ok {
-		for _, segment := range path.Segments() {
-			if key, _ := segment.Key(); strings.ContainsRune(key, 0) {
-				return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidValue, Field: condition.Field().Name(), Detail: "PostgreSQL JSON paths cannot contain NUL"}
-			}
+		if err := validateJSONPath(condition.Field(), path); err != nil {
+			return nil, err
 		}
 	}
 	field := condition.Field()
@@ -472,8 +479,11 @@ func appendWhere(
 	where whereAnalysis,
 	resolveField whereFieldResolver,
 	resolveRHSField whereRHSFieldResolver,
+	arguments []any,
 ) ([]any, error) {
-	arguments := make([]any, 0, len(where.leaves))
+	if arguments == nil {
+		arguments = make([]any, 0, len(where.leaves))
+	}
 	if !where.present {
 		return arguments, nil
 	}
@@ -527,15 +537,7 @@ func appendWhereExpression(
 			statement.WriteString("0 = 1")
 		} else {
 			if path, ok := condition.JSONPath(); ok {
-				// Strict paths avoid PostgreSQL -> integer treating a scalar as
-				// a one-element array. Silent handles missing/type mismatch only;
-				// our literal grammar contains no arithmetic or filter expressions.
-				statement.WriteString("jsonb_path_query_first(")
-				statement.WriteString(field)
-				statement.WriteString(", ")
-				statement.WriteString(placeholder(len(*arguments) + 1))
-				statement.WriteString("::jsonpath, '{}'::jsonb, true)")
-				*arguments = append(*arguments, "strict "+jsonPathArgument(path))
+				appendJSONPath(statement, field, path, arguments)
 			} else {
 				statement.WriteString(field)
 			}
@@ -765,7 +767,7 @@ func compileRelation(
 	resolveRHSField := func(field query.FieldRef) (string, error) {
 		return quoteQualified(rootAlias, field.Column())
 	}
-	arguments, err := appendWhere(&statement, where, resolveField, resolveRHSField)
+	arguments, err := appendWhere(&statement, where, resolveField, resolveRHSField, nil)
 	if err != nil {
 		return "", nil, err
 	}

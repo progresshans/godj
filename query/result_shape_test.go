@@ -17,13 +17,13 @@ func TestResultShapeProjectionIsImmutableDetachedAndOrdered(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
-	fields := []query.FieldRef{title, id}
+	fields := []query.ResultExpression{query.FieldResult(title), query.FieldResult(id)}
 
 	shape, err := query.NewProjectionResult(fields...)
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
-	fields[0] = published
+	fields[0] = query.FieldResult(published)
 	if shape.Kind() != query.ResultProjection {
 		t.Fatalf("projection kind = %q, want %q", shape.Kind(), query.ResultProjection)
 	}
@@ -33,11 +33,11 @@ func TestResultShapeProjectionIsImmutableDetachedAndOrdered(t *testing.T) {
 	returned[0] = query.FieldResult(published)
 	assertResultExpressionFields(t, shape.Expressions(), []query.FieldRef{title, id})
 
-	equal, err := query.NewProjectionResult(title, id)
+	equal, err := query.NewProjectionResult(query.FieldResult(title), query.FieldResult(id))
 	if err != nil {
 		t.Fatalf("equal NewProjectionResult() error = %v", err)
 	}
-	reordered, err := query.NewProjectionResult(id, title)
+	reordered, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatalf("reordered NewProjectionResult() error = %v", err)
 	}
@@ -81,7 +81,7 @@ func TestPlanResultShapeDerivationRetainsDetachedSourceMetadata(t *testing.T) {
 		t.Fatal("SourceFields() exposed plan storage")
 	}
 
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}
@@ -132,7 +132,11 @@ func TestProjectionResultRejectsInvalidDuplicateAndForeignFields(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			shape, err := query.NewProjectionResult(test.fields...)
+			expressions := make([]query.ResultExpression, len(test.fields))
+			for i, field := range test.fields {
+				expressions[i] = query.FieldResult(field)
+			}
+			shape, err := query.NewProjectionResult(expressions...)
 			assertInvalidResultPlan(t, err)
 			if !shape.Equal(query.ResultShape{}) {
 				t.Fatalf("failed projection = %#v, want zero", shape)
@@ -141,7 +145,7 @@ func TestProjectionResultRejectsInvalidDuplicateAndForeignFields(t *testing.T) {
 	}
 
 	foreign := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
-	shape, err := query.NewProjectionResult(foreign)
+	shape, err := query.NewProjectionResult(query.FieldResult(foreign))
 	if err != nil {
 		t.Fatalf("foreign shape construction error = %v", err)
 	}
@@ -310,7 +314,7 @@ func TestResultShapeAndRelationProjectionAreMutuallyExclusive(t *testing.T) {
 	base := query.NewPlan("blog_post", []query.FieldRef{id, title, author})
 	relation := resultShapeRelationProjection(t, author)
 
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatalf("NewProjectionResult() error = %v", err)
 	}

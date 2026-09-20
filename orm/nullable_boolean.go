@@ -48,8 +48,8 @@ func (f BooleanField[M]) booleanLookupField(M) (query.FieldRef, error) {
 	return f.reference, f.err
 }
 
-func (f NullableBooleanField[M]) scalarResultField(M, *bool) (query.FieldRef, func() scalarCell[*bool], error) {
-	return f.reference, func() scalarCell[*bool] {
+func (f NullableBooleanField[M]) scalarResultField(M, *bool) (query.ResultExpression, func() scalarCell[*bool], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*bool] {
 		var value sql.NullBool
 		return scalarCell[*bool]{
 			destination: &value,

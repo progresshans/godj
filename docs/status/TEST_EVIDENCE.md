@@ -275,8 +275,40 @@
   다음 checkpoint는 reverse JSON path key 조회가 `unsupported_lookup` 대신 `invalid_plan`을 반환하여 실패했다.
   기존 relation lookup guard를 path key 생성에도 적용한 최종 source로 normal/race/CGO=0을 통과했다. 초기 실패를 PASS에 합치지 않는다.
 - Affected vet·Helpdesk generated **12파일 clean**·gofmt·docs/diff를 확인했다. 생성 grammar는 변경하지 않았고 새 generic API는 fresh 외부 모듈에서 검증했다.
-  전용 DB는 잔여 연결 0 뒤 삭제하고 기존 service를 유지했다. 이 key-presence source의 Hosted는 아직 실행하지 않았다.
+  전용 DB는 잔여 연결 0 뒤 삭제하고 기존 service를 유지했다. 이 key-presence source의 Hosted 통합은 아직 실행하지 않았다.
   앞선 `e7bc29d` ORM Hosted는 path·containment 증거이며 이번 key-presence의 platform PASS로 사용하지 않는다.
+
+### JSON 경로 projection의 로컬 통합 checkpoint
+
+- 기준 `bbf78c2331324277c7564f56d0d11be23b7ff9ca` 위 제품·테스트·reference·Go/Python lock **44 non-Markdown 경로**의
+  manifest SHA256은 `ef5f07718bf49e0339d0280b42fb18369e0acdf8152d62b531d869c96acb0c81`이다. Go **1.26.5 darwin/arm64**,
+  repository-pinned modernc SQLite·PostgreSQL **17.5 Homebrew**, `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서
+  normal/race/CGO=0 실행 전후 같은 바이트를 확인했다.
+- Normal `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest ./examples/article ./examples/helpdesk`는
+  **10 package / 724 root / 5574 test·subtest PASS**다. 공통 query/ORM/DB/생성 소비자의 race는
+  `./query ./orm ./db/... ./codegen/consumertest` **8 package / 707 root / 5555 PASS**이며 같은 범위의 normal run/pass/skip roster와 동일하다.
+  두 실행 모두 fail 0·stderr 0 bytes다. 단독 PostgreSQL process helper만 skip 1, 실제 양 DB process parent는 필수 PASS다.
+- CGO=0의 새 projection AST·generated JSON consumer와 Article의 projection/report/search HTTP 회귀는
+  **3 package / 4 root / 10 PASS**, skip/fail 0·stderr 0 bytes다. 모든 모드에서 generated parent가 양 DB의
+  path·containment·keys·projection child를 각각 필수 검사한다. Required JSON field의 path에도 nullable DTO 인자가 필요하다는 compile-negative를 확인했다.
+- [독립 projection runner](../../conformance/runners/django/json_projection_reference.py)는 고정 Django **6.1**의 public ORM에서
+  값·missing·root SQL NULL을 따로 관찰한다. SQLite **32개 문서 / 8개 경로 / 256개 행 관찰**, PostgreSQL **30개 문서 / 8개 경로** 중
+  NUL 경로 1개는 DataError이고 나머지 **210개 행 관찰**이다. SQLite의 12개 셀·PostgreSQL의 10개 셀 차이는 DEV-0017의 정확한 selector로 검사한다.
+  SQLite raw SHA256 `78283942c850b59cbbcd137232f6172f50f43526277b9e33ce87bb373593fed6`,
+  PostgreSQL raw `a8476c9a59f4c8fb4c2a732fbdedad852077deea77fb107cebe65685a8cda27f`다.
+  Python **3.14.3**/SQLite **3.50.4**, PostgreSQL **17.5**/psycopg **3.3.6**의 독립 probe와 formal runner가 같은 raw를 반환했다.
+  SQLite fresh 비교는 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **1 PASS**, skip/warning 0이다.
+- 실제 생성 모델에서 whole field와 여러 path를 함께 선택하고 required/nullable source·JSON null·missing·문자열 타입·큰 정수·numeric key/index를 확인했다.
+  SELECT path→WHERE path/value→LIMIT/OFFSET의 매개변수 순서, DB별 DISTINCT의 SQL/JSON null·1/1.0 의미,
+  source model cache가 있어도 갱신된 DB projection을 읽고 cache를 교체하지 않는 동작, 행/셀별 pointer 소유권을 검사했다.
+  잘못된/중복/빈/canceled projection의 I/O 생략과 PostgreSQL NUL preflight, 미지원 relation projection의 오류를 확인했다.
+  SQLite 외부 duplicate-key write로 projection을 실패시켜 부분 결과를 버리고 수정 후 재시도하는 경로도 PASS다.
+- 저수준 projection constructor를 공통 ResultExpression 목록으로 옮긴 기존 scalar 호출부·회귀를 유지했다. Source field nullability를 위조하지 않으며
+  selected path 구조 비교·caller/getter 복사·2048-expression 경계·같은 source의 서로 다른 경로를 검사했다.
+  Affected vet·gofmt·docs/diff와 `make generate-check`를 통과했다. Helpdesk **12**, Article **12**, relationfixture **16파일 clean** 및
+  checked-in relation 생성물 회귀가 PASS다. 전용 DB는 연결 0 뒤 삭제하고 service는 유지했다.
+- Key-presence와 projection, 공통 scalar 선택 표현 변경을 묶은 JSON 조회 통합 milestone에서 고정 source의 Hosted `orm` scope를 실행한다.
+  이 로컬 checkpoint나 앞선 `e7bc29d` Hosted 결과를 새 source의 platform PASS로 합치지 않는다.
 
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 

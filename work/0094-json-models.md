@@ -59,5 +59,7 @@ PostgreSQL root/path·forward contains/contained_by를 추가하고 같은 식�
 별도 33개 문서·168개 조건의 독립 관찰을 소비하는 로컬 checkpoint와 JSON 조회 통합 milestone의 `orm` scope Hosted를 완료했다.
 Key-presence의 별도 양 DB 96조건 관찰을 보존하고 공통 AST·typed/dynamic·root/path·forward 연결의 로컬 normal/race/CGO=0 검증을 마쳤다.
 SQLite의 literal empty/NUL key 보정과 빈 목록 확장은 ADR-0071/DEV-0017에 명시한다.
-앞선 source의 platform 결과를 새 key-presence 구현의 검증으로 사용하지 않는다. 다음은 JSON 경로 projection의 표현과 nullable 결과 경계다.
+앞선 source의 platform 결과를 새 key-presence 구현의 검증으로 사용하지 않는다. JSON 경로 projection의 공통 선택 표현·nullable DTO와 양 DB compiler도 연결했다.
+Public Django 값·missing/root NULL 관찰을 보존하고 scalar·생성 소비자·예제의 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
+Key-presence·projection과 공통 선택 표현을 묶은 조회 통합 milestone의 Hosted `orm` scope를 검증한다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

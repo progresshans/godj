@@ -22,7 +22,7 @@ func (o Optional[V]) Valid() bool    { return o.valid }
 // builders. The private methods prevent cross-model or arbitrary external
 // implementations while retaining compile-time result value types.
 type ScalarField[M, V any] interface {
-	scalarResultField(M, V) (query.FieldRef, func() scalarCell[V], error)
+	scalarResultField(M, V) (query.ResultExpression, func() scalarCell[V], error)
 }
 
 // OrderedField is the sealed scalar subset with nullable MIN/MAX results.
@@ -35,8 +35,8 @@ type scalarCell[V any] struct {
 	value       func() V
 }
 
-func (f integerField[M]) scalarResultField(M, int64) (query.FieldRef, func() scalarCell[int64], error) {
-	return f.reference, func() scalarCell[int64] {
+func (f integerField[M]) scalarResultField(M, int64) (query.ResultExpression, func() scalarCell[int64], error) {
+	return query.FieldResult(f.reference), func() scalarCell[int64] {
 		var value int64
 		return scalarCell[int64]{destination: &value, value: func() int64 { return value }}
 	}, f.err
@@ -54,8 +54,8 @@ func (f integerField[M]) scalarOrderedField(M, int64) (query.FieldRef, func() sc
 	}, f.err
 }
 
-func (f NullableIntegerField[M]) scalarResultField(M, *int64) (query.FieldRef, func() scalarCell[*int64], error) {
-	return f.reference, func() scalarCell[*int64] {
+func (f NullableIntegerField[M]) scalarResultField(M, *int64) (query.ResultExpression, func() scalarCell[*int64], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*int64] {
 		var value sql.NullInt64
 		return scalarCell[*int64]{
 			destination: &value,
@@ -70,8 +70,8 @@ func (f NullableIntegerField[M]) scalarResultField(M, *int64) (query.FieldRef, f
 	}, f.err
 }
 
-func (f StringField[M]) scalarResultField(M, string) (query.FieldRef, func() scalarCell[string], error) {
-	return f.reference, func() scalarCell[string] {
+func (f StringField[M]) scalarResultField(M, string) (query.ResultExpression, func() scalarCell[string], error) {
+	return query.FieldResult(f.reference), func() scalarCell[string] {
 		var value string
 		return scalarCell[string]{destination: &value, value: func() string { return value }}
 	}, f.err
@@ -89,8 +89,8 @@ func (f StringField[M]) scalarOrderedField(M, string) (query.FieldRef, func() sc
 	}, f.err
 }
 
-func (f NullableStringField[M]) scalarResultField(M, *string) (query.FieldRef, func() scalarCell[*string], error) {
-	return f.reference, func() scalarCell[*string] {
+func (f NullableStringField[M]) scalarResultField(M, *string) (query.ResultExpression, func() scalarCell[*string], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*string] {
 		var value sql.NullString
 		return scalarCell[*string]{
 			destination: &value,
@@ -120,8 +120,8 @@ func (f NullableStringField[M]) scalarOrderedField(M, string) (query.FieldRef, f
 	}, f.err
 }
 
-func (f BooleanField[M]) scalarResultField(M, bool) (query.FieldRef, func() scalarCell[bool], error) {
-	return f.reference, func() scalarCell[bool] {
+func (f BooleanField[M]) scalarResultField(M, bool) (query.ResultExpression, func() scalarCell[bool], error) {
+	return query.FieldResult(f.reference), func() scalarCell[bool] {
 		var value bool
 		return scalarCell[bool]{destination: &value, value: func() bool { return value }}
 	}, f.err
@@ -134,15 +134,15 @@ type resultDecoder[R any] struct {
 
 // Projection describes an ordered scalar row and a pure typed DTO builder.
 type Projection[M, R any] struct {
-	fields     []query.FieldRef
-	newDecoder func() resultDecoder[R]
-	err        error
-	marker     [0]func(M)
+	expressions []query.ResultExpression
+	newDecoder  func() resultDecoder[R]
+	err         error
+	marker      [0]func(M)
 }
 
 func Project1[M, A, R any](first ScalarField[M, A], build func(A) R) Projection[M, R] {
 	firstField, firstCell, err := scalarResult(first)
-	result := Projection[M, R]{fields: []query.FieldRef{firstField}, err: err}
+	result := Projection[M, R]{expressions: []query.ResultExpression{firstField}, err: err}
 	if build == nil && result.err == nil {
 		result.err = invalidResultBuilder("projection builder is nil")
 	}
@@ -159,7 +159,7 @@ func Project1[M, A, R any](first ScalarField[M, A], build func(A) R) Projection[
 func Project2[M, A, B, R any](first ScalarField[M, A], second ScalarField[M, B], build func(A, B) R) Projection[M, R] {
 	firstField, firstCell, err := scalarResult(first)
 	secondField, secondCell, secondErr := scalarResult(second)
-	result := Projection[M, R]{fields: []query.FieldRef{firstField, secondField}, err: firstError(err, secondErr)}
+	result := Projection[M, R]{expressions: []query.ResultExpression{firstField, secondField}, err: firstError(err, secondErr)}
 	if build == nil && result.err == nil {
 		result.err = invalidResultBuilder("projection builder is nil")
 	}
@@ -178,8 +178,8 @@ func Project3[M, A, B, C, R any](first ScalarField[M, A], second ScalarField[M, 
 	secondField, secondCell, secondErr := scalarResult(second)
 	thirdField, thirdCell, thirdErr := scalarResult(third)
 	result := Projection[M, R]{
-		fields: []query.FieldRef{firstField, secondField, thirdField},
-		err:    firstError(err, secondErr, thirdErr),
+		expressions: []query.ResultExpression{firstField, secondField, thirdField},
+		err:         firstError(err, secondErr, thirdErr),
 	}
 	if build == nil && result.err == nil {
 		result.err = invalidResultBuilder("projection builder is nil")
@@ -200,8 +200,8 @@ func Project4[M, A, B, C, D, R any](first ScalarField[M, A], second ScalarField[
 	thirdField, thirdCell, thirdErr := scalarResult(third)
 	fourthField, fourthCell, fourthErr := scalarResult(fourth)
 	result := Projection[M, R]{
-		fields: []query.FieldRef{firstField, secondField, thirdField, fourthField},
-		err:    firstError(err, secondErr, thirdErr, fourthErr),
+		expressions: []query.ResultExpression{firstField, secondField, thirdField, fourthField},
+		err:         firstError(err, secondErr, thirdErr, fourthErr),
 	}
 	if build == nil && result.err == nil {
 		result.err = invalidResultBuilder("projection builder is nil")
@@ -348,7 +348,7 @@ func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Pr
 	if err := validateScalarResultSource(source.plan); err != nil {
 		return nil, err
 	}
-	shape, err := query.NewProjectionResult(projection.fields...)
+	shape, err := query.NewProjectionResult(projection.expressions...)
 	if err != nil {
 		return nil, err
 	}
@@ -427,9 +427,9 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	return decoder.decode(), nil
 }
 
-func scalarResult[M, V any](field ScalarField[M, V]) (query.FieldRef, func() scalarCell[V], error) {
+func scalarResult[M, V any](field ScalarField[M, V]) (query.ResultExpression, func() scalarCell[V], error) {
 	if interfaceIsNil(field) {
-		return query.FieldRef{}, nil, invalidResultBuilder("scalar result field is nil")
+		return query.ResultExpression{}, nil, invalidResultBuilder("scalar result field is nil")
 	}
 	return field.scalarResultField(*new(M), *new(V))
 }

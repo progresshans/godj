@@ -97,7 +97,7 @@ func TestSQLiteFieldReferenceCompilerPreservesMixedDFSArgumentsAcrossResultShape
 	wantWhere := `WHERE ("low_value" > ? AND "high_value" >= "low_value" AND ("title" = "peer_title" OR "id" <= ?) AND "title" < ?)`
 	wantArguments := []any{int64(1), int64(9), "z"}
 
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatal(err)
 	}

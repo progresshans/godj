@@ -395,7 +395,7 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		projection, err := query.NewProjectionResult(fields.id, fields.title)
+		projection, err := query.NewProjectionResult(query.FieldResult(fields.id), query.FieldResult(fields.title))
 		if err != nil {
 			t.Fatal(err)
 		}

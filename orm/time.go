@@ -123,14 +123,14 @@ func scanTime(raw any) (clock.Time, error) {
 	}
 	return clock.Parse(text)
 }
-func (f TimeField[M]) scalarResultField(M, clock.Time) (query.FieldRef, func() scalarCell[clock.Time], error) {
-	return f.reference, func() scalarCell[clock.Time] {
+func (f TimeField[M]) scalarResultField(M, clock.Time) (query.ResultExpression, func() scalarCell[clock.Time], error) {
+	return query.FieldResult(f.reference), func() scalarCell[clock.Time] {
 		var value TimeScanner
 		return scalarCell[clock.Time]{destination: &value, value: func() clock.Time { return value.Time }}
 	}, f.err
 }
-func (f NullableTimeField[M]) scalarResultField(M, *clock.Time) (query.FieldRef, func() scalarCell[*clock.Time], error) {
-	return f.reference, func() scalarCell[*clock.Time] {
+func (f NullableTimeField[M]) scalarResultField(M, *clock.Time) (query.ResultExpression, func() scalarCell[*clock.Time], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*clock.Time] {
 		var value NullableTimeScanner
 		return scalarCell[*clock.Time]{destination: &value, value: func() *clock.Time {
 			if !value.Valid {

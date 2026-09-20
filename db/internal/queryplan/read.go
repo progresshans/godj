@@ -163,20 +163,44 @@ func OrderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool
 		(value == query.ValueString && field == query.FieldString)
 }
 
-func ProjectionFields(result query.ResultShape, sourceFields []query.FieldRef) ([]query.FieldRef, error) {
+func ProjectionExpressions(result query.ResultShape, sourceFields []query.FieldRef) ([]query.ResultExpression, error) {
 	expressions := result.Expressions()
 	if len(expressions) == 0 {
 		return nil, invalidPlan("projection result is empty")
 	}
-	fields := make([]query.FieldRef, len(expressions))
-	for index, expression := range expressions {
+	for _, expression := range expressions {
 		field, ok := expression.Field()
-		if expression.Kind() != query.ResultField || !ok || !ContainsField(sourceFields, field) {
+		if !ok || !ContainsField(sourceFields, field) {
 			return nil, invalidPlan("projection result contains a field outside the plan source metadata")
 		}
-		fields[index] = field
+		switch expression.Kind() {
+		case query.ResultField:
+		case query.ResultJSONPath:
+			if _, ok := expression.JSONPath(); !ok || field.Kind() != query.FieldJSON {
+				return nil, invalidPlan("projection has an invalid JSON path")
+			}
+		default:
+			return nil, invalidPlan("projection has an unsupported expression")
+		}
 	}
-	return fields, nil
+	return expressions, nil
+}
+
+func FieldExpressions(fields []query.FieldRef) []query.ResultExpression {
+	expressions := make([]query.ResultExpression, len(fields))
+	for i, field := range fields {
+		expressions[i] = query.FieldResult(field)
+	}
+	return expressions
+}
+
+func ProjectsWholeField(expressions []query.ResultExpression, field query.FieldRef) bool {
+	for _, expression := range expressions {
+		if candidate, ok := expression.Field(); ok && expression.Kind() == query.ResultField && candidate.Equal(field) {
+			return true
+		}
+	}
+	return false
 }
 
 func OmittedOrderings(orderings []query.Ordering, sourceFields []query.FieldRef, quoteIdentifier func(string) (string, error)) error {

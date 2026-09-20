@@ -92,14 +92,14 @@ func (scanner *NullableDateTimeScanner) Scan(raw any) error {
 	scanner.Time, scanner.Valid = value, true
 	return nil
 }
-func (f DateTimeField[M]) scalarResultField(M, time.Time) (query.FieldRef, func() scalarCell[time.Time], error) {
-	return f.reference, func() scalarCell[time.Time] {
+func (f DateTimeField[M]) scalarResultField(M, time.Time) (query.ResultExpression, func() scalarCell[time.Time], error) {
+	return query.FieldResult(f.reference), func() scalarCell[time.Time] {
 		var value DateTimeScanner
 		return scalarCell[time.Time]{destination: &value, value: func() time.Time { return value.Time }}
 	}, f.err
 }
-func (f NullableDateTimeField[M]) scalarResultField(M, *time.Time) (query.FieldRef, func() scalarCell[*time.Time], error) {
-	return f.reference, func() scalarCell[*time.Time] {
+func (f NullableDateTimeField[M]) scalarResultField(M, *time.Time) (query.ResultExpression, func() scalarCell[*time.Time], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*time.Time] {
 		var value NullableDateTimeScanner
 		return scalarCell[*time.Time]{destination: &value, value: func() *time.Time {
 			if !value.Valid {

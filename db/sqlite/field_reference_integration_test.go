@@ -46,7 +46,7 @@ func TestSQLiteFieldReferenceComparisonsExecuteWithLiteralParity(t *testing.T) {
 	left := query.NewFieldRef("left", "left_value", query.FieldInteger, true)
 	right := query.NewFieldRef("right", "right_value", query.FieldInteger, true)
 	source := []query.FieldRef{id, left, right}
-	projection, err := query.NewProjectionResult(id)
+	projection, err := query.NewProjectionResult(query.FieldResult(id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestSQLiteFieldReferenceNullableNegationParityExecutes(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	left := query.NewFieldRef("left", "left_value", query.FieldInteger, true)
 	right := query.NewFieldRef("right", "right_value", query.FieldInteger, true)
-	projection, err := query.NewProjectionResult(id)
+	projection, err := query.NewProjectionResult(query.FieldResult(id))
 	if err != nil {
 		t.Fatal(err)
 	}

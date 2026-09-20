@@ -103,14 +103,14 @@ func scanUUID(raw any) (uuid.UUID, error) {
 	return uuid.UUID{}, uuid.ErrInvalid
 }
 
-func (f UUIDField[M]) scalarResultField(M, uuid.UUID) (query.FieldRef, func() scalarCell[uuid.UUID], error) {
-	return f.reference, func() scalarCell[uuid.UUID] {
+func (f UUIDField[M]) scalarResultField(M, uuid.UUID) (query.ResultExpression, func() scalarCell[uuid.UUID], error) {
+	return query.FieldResult(f.reference), func() scalarCell[uuid.UUID] {
 		var value UUIDScanner
 		return scalarCell[uuid.UUID]{destination: &value, value: func() uuid.UUID { return value.UUID }}
 	}, f.err
 }
-func (f NullableUUIDField[M]) scalarResultField(M, *uuid.UUID) (query.FieldRef, func() scalarCell[*uuid.UUID], error) {
-	return f.reference, func() scalarCell[*uuid.UUID] {
+func (f NullableUUIDField[M]) scalarResultField(M, *uuid.UUID) (query.ResultExpression, func() scalarCell[*uuid.UUID], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*uuid.UUID] {
 		var value NullableUUIDScanner
 		return scalarCell[*uuid.UUID]{destination: &value, value: func() *uuid.UUID {
 			if !value.Valid {

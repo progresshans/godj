@@ -48,7 +48,7 @@ func TestPostgresDecimalPrecisionKeepsCachedReadersUsable(t *testing.T) {
 		cost := query.NewDecimalFieldRef("value", "value", true, digits, places)
 		plan := query.NewPlan(before.DBTable, []query.FieldRef{id, cost}).WithOrderings(query.NewOrdering(cost, query.Ascending))
 		if projection {
-			shape, err := query.NewProjectionResult(cost)
+			shape, err := query.NewProjectionResult(query.FieldResult(cost))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -55,7 +55,7 @@ Typed `Payload.At(query.JSONKey("items"), query.JSONIndex(0))`와 dynamic `Looku
 Dynamic `Key`는 기존 model/relation field·lookup만 선택하며 arbitrary JSON key를 `__` 문법에 끼워 넣지 않는다.
 오타 lookup을 JSON key로 암묵 수용하지 않고 기존 allowlist policy를 적용한다. Nil JSONPath는 whole field,
 non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull·key presence와 backend가 지원하는 contains/contained_by를 제공하고
-F·projection·ordering·write field로 노출하지 않는다.
+Root path의 typed projection은 아래 결과 경계를 따른다. F·ordering·write field로 노출하지 않는다.
 
 없는 key, 범위 밖 index, 맞지 않는 container는 SQL NULL이다. `IsNull(true)`가 이를 조회하고,
 `Exact(jsonvalue.Null())`는 실제 존재하는 JSON null만 조회한다. 부정 조건의 기존 root SQL NULL 보정과 missing path는
@@ -129,6 +129,32 @@ SQL NULL/missing path는 unknown이다. 이는 SQLite nonempty lookup의 Boolean
 96개 root/path·single/all/any·filter/exclude를 관찰한다. 이전 path·containment raw는 보존한다. Generated 소비자는 DB별 raw를
 직접 비교하고 SQLite empty-list 8조건, root empty/NUL key 12조건만 명시한 차이로 검사한다. PostgreSQL NUL 12조건은
 reference의 DataError와 GoDj의 preflight invalid-value를 구분한다. 환경별 실행 완료는 TEST_EVIDENCE가 소유한다.
+
+## JSON 경로 projection
+
+`orm.Project1..4`와 `SelectInto`는 root JSON 경로를 선택해 DTO로 반환한다. 예를 들어
+`orm.Project2(RecordFields.Label, RecordFields.Payload.At(query.JSONKey("a")), build)`에서 build의 두 번째 인자는
+`*jsonvalue.Value`다. 원본 필드가 required여도 missing/type mismatch/root SQL NULL은 nil, 존재하는 JSON null은
+non-nil `jsonvalue.Null()`로 구분한다. Whole field와 여러 서로 다른 path를 한 행에 함께 선택할 수 있다.
+각 행/셀의 nullable pointer는 독립적이며 source model cache를 읽거나 교체하지 않고 실제 SELECT를 실행한다.
+
+공통 `ResultExpression`에 JSON path를 담되 원본 `FieldRef`의 nullability·identity를 바꾸지 않는다.
+`NewProjectionResult`는 FieldResult 또는 JSONPathResult의 표현 목록을 받는다. 기존 field-only 저수준 호출도 이 표현으로
+옮기며 별도 호환 계층을 추가하지 않는다. 선택 목록은 1..2048개로 제한하고 같은 source/path의 중복을 거부한다.
+Path 비교는 포인터 identity가 아니라 literal key/index 순서로 판단한다. 동일한 source의 다른 path와 whole-field 선택은 다르다.
+Typed projection의 model·값 타입은 sealed capability를 유지하며 path에 ordered/write/F capability를 추가하지 않는다.
+
+SQLite는 기존 bounded `godj_json_at`, PostgreSQL은 strict JSON path를 SELECT에서 평가한다. 선택 path 매개변수는
+WHERE·LIMIT/OFFSET보다 앞에 배치한다. Native NUL path는 LIMIT 0·empty source에서도 preflight 오류다.
+Projection DISTINCT는 선택한 값의 DB 의미를 따른다. SQLite canonical JSON text의 `1`/`1.0`은 다르며 native JSONB는
+동등하게 취급한다. ORDER BY field는 DISTINCT에서 해당 whole field도 선택되어 있어야 한다. JSON ordering 자체는 계속 미지원이다.
+Partial scan/rows/context 실패 시 결과 일부를 반환하지 않고 cursor를 닫는다. 새 실행으로 재시도할 수 있으며 잘못된 값의
+오류를 숨기거나 모델 cache에서 대체하지 않는다. Relation projection/traversal과 scalar projection 결합은 기존 미지원 경계를 유지한다.
+
+[독립 projection runner](../../conformance/runners/django/json_projection_reference.py)는 SQLite 32개/PostgreSQL 30개 문서에서
+각각 8개 경로를 관찰한다. Public ORM의 값·missing·root SQL NULL을 별도 기록하여 Python None만으로 JSON null을 판정하지 않는다.
+SQLite의 문자열 재해석·큰 정수 반올림·empty/NUL 오조회와 numeric key/index 및 native scalar-index의 차이는 DEV-0017에
+정확한 selector로 기록한다. 이 raw 및 타입 비교는 일반 relation projection이나 JSON transform 전체 지원을 뜻하지 않는다.
 
 ## Form/Admin과 JSON API
 

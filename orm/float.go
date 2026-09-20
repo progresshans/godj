@@ -109,14 +109,14 @@ func scanFloat(raw any) (float64, error) {
 	return math.Float64frombits(floatvalue.CanonicalBits(value)), nil
 }
 
-func (f FloatField[M]) scalarResultField(M, float64) (query.FieldRef, func() scalarCell[float64], error) {
-	return f.reference, func() scalarCell[float64] {
+func (f FloatField[M]) scalarResultField(M, float64) (query.ResultExpression, func() scalarCell[float64], error) {
+	return query.FieldResult(f.reference), func() scalarCell[float64] {
 		var value FloatScanner
 		return scalarCell[float64]{destination: &value, value: func() float64 { return value.Float }}
 	}, f.err
 }
-func (f NullableFloatField[M]) scalarResultField(M, *float64) (query.FieldRef, func() scalarCell[*float64], error) {
-	return f.reference, func() scalarCell[*float64] {
+func (f NullableFloatField[M]) scalarResultField(M, *float64) (query.ResultExpression, func() scalarCell[*float64], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*float64] {
 		var value NullableFloatScanner
 		return scalarCell[*float64]{destination: &value, value: func() *float64 {
 			if !value.Valid {

@@ -6,8 +6,8 @@ import (
 )
 
 // JSONPathField exposes predicates on one literal JSON path. It deliberately
-// has no write, order, F-reference or projection methods: missing paths have
-// a different result domain from a whole model field.
+// has no write, order or F-reference capability. Its projected result is
+// nullable independently of the whole source field's nullability.
 type JSONPathField[M any] struct {
 	field    query.FieldRef
 	relation *query.RelationPath
@@ -59,6 +59,17 @@ func (f JSONPathField[M]) In(values ...jsonvalue.Value) Predicate[M] {
 		items[i] = query.JSON(value)
 	}
 	return f.predicate(query.LookupIn, query.Value{}, items)
+}
+
+func (f JSONPathField[M]) scalarResultField(M, *jsonvalue.Value) (query.ResultExpression, func() scalarCell[*jsonvalue.Value], error) {
+	if f.err != nil {
+		return query.ResultExpression{}, nil, f.err
+	}
+	if f.relation != nil {
+		return query.ResultExpression{}, nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "scalar projection of related JSON paths is not supported"}
+	}
+	expression, err := query.JSONPathResult(f.field, f.path)
+	return expression, nullableJSONResultCell, err
 }
 
 func (f JSONPathField[M]) predicate(lookup query.Lookup, value query.Value, values []query.Value) Predicate[M] {

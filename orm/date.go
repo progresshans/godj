@@ -109,14 +109,14 @@ func scanDate(raw any) (calendar.Date, error) {
 		return calendar.Date{}, calendar.ErrInvalid
 	}
 }
-func (f DateField[M]) scalarResultField(M, calendar.Date) (query.FieldRef, func() scalarCell[calendar.Date], error) {
-	return f.reference, func() scalarCell[calendar.Date] {
+func (f DateField[M]) scalarResultField(M, calendar.Date) (query.ResultExpression, func() scalarCell[calendar.Date], error) {
+	return query.FieldResult(f.reference), func() scalarCell[calendar.Date] {
 		var value DateScanner
 		return scalarCell[calendar.Date]{destination: &value, value: func() calendar.Date { return value.Date }}
 	}, f.err
 }
-func (f NullableDateField[M]) scalarResultField(M, *calendar.Date) (query.FieldRef, func() scalarCell[*calendar.Date], error) {
-	return f.reference, func() scalarCell[*calendar.Date] {
+func (f NullableDateField[M]) scalarResultField(M, *calendar.Date) (query.ResultExpression, func() scalarCell[*calendar.Date], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*calendar.Date] {
 		var value NullableDateScanner
 		return scalarCell[*calendar.Date]{destination: &value, value: func() *calendar.Date {
 			if !value.Valid {

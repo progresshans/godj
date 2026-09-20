@@ -73,7 +73,7 @@ func TestJSONPredicatesValidateKindWithoutInventingOrderedComparisons(t *testing
 	if _, err := query.NewExpression(member); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := query.NewProjectionResult(field, other); err != nil {
+	if _, err := query.NewProjectionResult(query.FieldResult(field), query.FieldResult(other)); err != nil {
 		t.Fatal(err)
 	}
 	for _, condition := range []query.Condition{

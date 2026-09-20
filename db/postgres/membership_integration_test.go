@@ -115,7 +115,7 @@ func TestPostgreSQLScalarMembershipMatchesReferenceAndSkipsEmptyIO(t *testing.T)
 	for _, field := range fields {
 		byName[field.Name()] = field
 	}
-	projection, err := query.NewProjectionResult(fields[0])
+	projection, err := query.NewProjectionResult(query.FieldResult(fields[0]))
 	if err != nil {
 		t.Fatal(err)
 	}

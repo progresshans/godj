@@ -18,7 +18,7 @@ func TestCompileScalarProjectionUsesResultOrderAndSourceValidation(t *testing.T)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
 	summary := query.NewFieldRef("summary", "summary", query.FieldString, true)
-	shape, err := query.NewProjectionResult(title, id)
+	shape, err := query.NewProjectionResult(query.FieldResult(title), query.FieldResult(id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestCompileDistinctProjectionAndPaginationPreservePlaceholderOrder(t *testi
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
-	shape, err := query.NewProjectionResult(title, id)
+	shape, err := query.NewProjectionResult(query.FieldResult(title), query.FieldResult(id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +349,7 @@ func TestCompilerRejectsDistinctProjectionOrderingOutsideResult(t *testing.T) {
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
-	shape, err := query.NewProjectionResult(title)
+	shape, err := query.NewProjectionResult(query.FieldResult(title))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +386,7 @@ func TestCompilerRejectsNonModelRelationResults(t *testing.T) {
 		query.NewPlan("blog_post", []query.FieldRef{id, title, authorKey}),
 		query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")),
 	)
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatal(err)
 	}

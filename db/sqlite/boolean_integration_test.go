@@ -102,7 +102,7 @@ func TestSQLiteBooleanPredicatesExecuteNullableNegationAndReuseResultShapes(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := query.NewProjectionResult(id)
+	projection, err := query.NewProjectionResult(query.FieldResult(id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestSQLiteNullableNegationParityExecutesAcrossLookups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection, err := query.NewProjectionResult(id)
+	projection, err := query.NewProjectionResult(query.FieldResult(id))
 	if err != nil {
 		t.Fatal(err)
 	}

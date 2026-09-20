@@ -131,15 +131,15 @@ func scanDecimal(raw any, precision ir.DecimalSpec) (decimal.Decimal, error) {
 	return value, nil
 }
 
-func (f DecimalField[M]) scalarResultField(M, decimal.Decimal) (query.FieldRef, func() scalarCell[decimal.Decimal], error) {
-	return f.reference, func() scalarCell[decimal.Decimal] {
+func (f DecimalField[M]) scalarResultField(M, decimal.Decimal) (query.ResultExpression, func() scalarCell[decimal.Decimal], error) {
+	return query.FieldResult(f.reference), func() scalarCell[decimal.Decimal] {
 		digits, places, _ := f.reference.DecimalPrecision()
 		value := NewDecimalScanner(digits, places)
 		return scalarCell[decimal.Decimal]{destination: &value, value: func() decimal.Decimal { return value.Decimal }}
 	}, f.err
 }
-func (f NullableDecimalField[M]) scalarResultField(M, *decimal.Decimal) (query.FieldRef, func() scalarCell[*decimal.Decimal], error) {
-	return f.reference, func() scalarCell[*decimal.Decimal] {
+func (f NullableDecimalField[M]) scalarResultField(M, *decimal.Decimal) (query.ResultExpression, func() scalarCell[*decimal.Decimal], error) {
+	return query.FieldResult(f.reference), func() scalarCell[*decimal.Decimal] {
 		digits, places, _ := f.reference.DecimalPrecision()
 		value := NewNullableDecimalScanner(digits, places)
 		return scalarCell[*decimal.Decimal]{destination: &value, value: func() *decimal.Decimal {

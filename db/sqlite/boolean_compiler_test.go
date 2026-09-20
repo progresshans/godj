@@ -36,7 +36,7 @@ func TestSQLiteBooleanCompilerPreservesPrecedenceAndDFSArgumentsAcrossResultShap
 	wantWhere := `WHERE (("title" LIKE ? ESCAPE '\' OR "summary" LIKE ? ESCAPE '\') AND "published" = ? AND NOT ("title" LIKE ? ESCAPE '\'))`
 	wantArguments := []any{`%50\%\_Go%`, "%orm%", true, "%draft%"}
 
-	projection, err := query.NewProjectionResult(id, title)
+	projection, err := query.NewProjectionResult(query.FieldResult(id), query.FieldResult(title))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -55,13 +55,13 @@ func compileScalar(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, 
 		if len(result.Expressions()) != 0 {
 			return "", nil, invalidPlan("model result contains explicit expressions")
 		}
-		return compileScalarRows(plan, sourceFields, sourceFields, where)
+		return compileScalarRows(plan, queryplan.FieldExpressions(sourceFields), sourceFields, where)
 	case query.ResultProjection:
-		projectionFields, err := queryplan.ProjectionFields(result, sourceFields)
+		projection, err := queryplan.ProjectionExpressions(result, sourceFields)
 		if err != nil {
 			return "", nil, err
 		}
-		return compileScalarRows(plan, projectionFields, sourceFields, where)
+		return compileScalarRows(plan, projection, sourceFields, where)
 	case query.ResultAggregate:
 		return compileScalarAggregate(plan, result, sourceFields, where)
 	default:
@@ -69,8 +69,8 @@ func compileScalar(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, 
 	}
 }
 
-func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.FieldRef, where *sqliteWhereAnalysis) (string, []any, error) {
-	if len(selectedFields) == 0 {
+func compileScalarRows(plan query.Plan, selected []query.ResultExpression, sourceFields []query.FieldRef, where *sqliteWhereAnalysis) (string, []any, error) {
+	if len(selected) == 0 {
 		return "", nil, invalidPlan("select columns are empty")
 	}
 
@@ -79,15 +79,22 @@ func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.Fie
 	if plan.Distinct() {
 		sql.WriteString("DISTINCT ")
 	}
-	for index, column := range selectedFields {
+	arguments := make([]any, 0)
+	for index, expression := range selected {
 		if index > 0 {
 			sql.WriteString(", ")
 		}
+		column, _ := expression.Field()
 		quoted, err := quoteIdentifier(column.Column())
 		if err != nil {
 			return "", nil, err
 		}
-		sql.WriteString(quoted)
+		if path, ok := expression.JSONPath(); ok {
+			sql.WriteString("godj_json_at(" + quoted + ", ?)")
+			arguments = append(arguments, sqliteJSONPathArgument(path))
+		} else {
+			sql.WriteString(quoted)
+		}
 	}
 	sql.WriteString(" FROM ")
 	table, err := quoteIdentifier(plan.Table())
@@ -96,10 +103,11 @@ func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.Fie
 	}
 	sql.WriteString(table)
 
-	arguments, err := appendWhere(&sql, where)
+	whereArguments, err := appendWhere(&sql, where)
 	if err != nil {
 		return "", nil, err
 	}
+	arguments = append(arguments, whereArguments...)
 
 	orderings := plan.Orderings()
 	if len(orderings) > 0 {
@@ -129,7 +137,7 @@ func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.Fie
 			return "", nil, invalidPlan("unknown ordering direction")
 		}
 		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection &&
-			!queryplan.ContainsField(selectedFields, ordering.Field()) {
+			!queryplan.ProjectsWholeField(selected, ordering.Field()) {
 			return "", nil, unsupportedDistinctOrdering(ordering.Field())
 		}
 	}
@@ -147,7 +155,7 @@ func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFie
 	if !plan.Distinct() && !limited && !offset {
 		return compileDirectScalarAggregate(plan, expressions, sourceFields, where)
 	}
-	innerSQL, arguments, err := compileScalarRows(plan, sourceFields, sourceFields, where)
+	innerSQL, arguments, err := compileScalarRows(plan, queryplan.FieldExpressions(sourceFields), sourceFields, where)
 	if err != nil {
 		return "", nil, err
 	}

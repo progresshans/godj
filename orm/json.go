@@ -84,23 +84,25 @@ func scanJSON(raw any) (jsonvalue.Value, error) {
 	}
 }
 
-func (f JSONField[M]) scalarResultField(M, jsonvalue.Value) (query.FieldRef, func() scalarCell[jsonvalue.Value], error) {
-	return f.reference, func() scalarCell[jsonvalue.Value] {
+func (f JSONField[M]) scalarResultField(M, jsonvalue.Value) (query.ResultExpression, func() scalarCell[jsonvalue.Value], error) {
+	return query.FieldResult(f.reference), func() scalarCell[jsonvalue.Value] {
 		var value JSONScanner
 		return scalarCell[jsonvalue.Value]{destination: &value, value: func() jsonvalue.Value { return value.JSON }}
 	}, f.err
 }
-func (f NullableJSONField[M]) scalarResultField(M, *jsonvalue.Value) (query.FieldRef, func() scalarCell[*jsonvalue.Value], error) {
-	return f.reference, func() scalarCell[*jsonvalue.Value] {
-		var value NullableJSONScanner
-		return scalarCell[*jsonvalue.Value]{destination: &value, value: func() *jsonvalue.Value {
-			if !value.Valid {
-				return nil
-			}
-			copy := value.JSON
-			return &copy
-		}}
-	}, f.err
+func (f NullableJSONField[M]) scalarResultField(M, *jsonvalue.Value) (query.ResultExpression, func() scalarCell[*jsonvalue.Value], error) {
+	return query.FieldResult(f.reference), nullableJSONResultCell, f.err
+}
+
+func nullableJSONResultCell() scalarCell[*jsonvalue.Value] {
+	var value NullableJSONScanner
+	return scalarCell[*jsonvalue.Value]{destination: &value, value: func() *jsonvalue.Value {
+		if !value.Valid {
+			return nil
+		}
+		copy := value.JSON
+		return &copy
+	}}
 }
 
 func (f jsonField[M]) In(values ...jsonvalue.Value) Predicate[M] {
