@@ -1,6 +1,6 @@
 ---
 id: GDJ-0092
-status: active
+status: complete
 updated: 2026-09-20
 baseline_commit: "d106e73d5338cff107623351c48ac4f5778fff8c"
 integration_owner: "root"
@@ -49,5 +49,5 @@ SQL renderer는 operation별 string slot을 유지하여 SQLite의 metadata-only
 ORM·CLI를 별도 중복 실행하지 않고 지원 플랫폼과 Linux 전용 process 회귀를 확인한다. 로컬 전체/cold-build는 반복하지 않는다.
 
 Hosted full은 제품 source 06f601e에서 62개 job을 모두 완료했다. 후속 목록 감사에서 빠진 직접 PostgreSQL 회귀 세 root를
-필수 선택에 보강한다. 제품 변경 없는 CI-only 후속 source는 PostgreSQL owner가 포함된 reference scope로 검증하여
-full의 나머지 플랫폼을 다시 반복하지 않는다. 정확한 source와 완료 여부는 TEST_EVIDENCE가 소유한다.
+필수 선택에 보강했고, 제품 바이트가 같은 CI-only source 153bf08의 reference scope에서 PostgreSQL 세 mode와 관련 owner의 검증을 완료했다.
+전체 플랫폼 실행과 후속 선택 보강의 범위를 구분한다. 정확한 source·job·실행 수는 TEST_EVIDENCE가 소유한다.

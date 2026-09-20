@@ -3,6 +3,21 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0093 — UUID 독립 기준과 모델 연결 준비
+
+- [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.
+  아래 결과는 독립 기준 준비이며 UUID Go 제품의 runtime 또는 Form/Admin/API 완료를 뜻하지 않는다.
+- [Runner](../../conformance/runners/django/uuid_reference.py)는 고정 Django 6.1·DRF 3.18.0 public model/Form/serializer와 SQLite schema editor·ORM을 실행한다.
+  GoDj 구현/expected fixture를 import하지 않는다. [Raw](../../internal/uuidtest/testdata/django61.json)는 model **62**, Form **86**, serializer **252**,
+  실제 JSON token **13**, representation 네 종류, 기존 행의 nullable add·zero literal default·root/forward/F query·Min/Max·rollback·reopen·reverse를 포함한다.
+- Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 fresh 비교 각각 **1 PASS**, skip/warning 0이다. 실제 Python/SQLite version/source_id를 별도로 확인했다.
+  최초 raw는 Python 3.14.3 / SQLite 3.50.4다. Python `UUID(int=bool)`의 public `.int`가 bool을 유지하는 관찰과 기본 wire의 0/1 정규화를 그대로 보존했다.
+- Runner·fresh test·raw 세 파일의 정렬 manifest SHA256은 `219e48ca8ea8407bb2805a2fd41d1bc01e8b184dead48c49dfa793b75ffb3c65`,
+  raw SHA256은 `2007304fa9f7828ffd8198fa87c4ba4d5f88372033cd3c90001ed327867ca02b`다.
+- 별도 native PostgreSQL **17.5 (Homebrew)** 전용 DB probe에서 UUID canonical 출력·unsigned 순서를 확인했다. Native MIN/MAX(uuid)는 SQLSTATE 42883이며
+  `MIN/MAX(value::text COLLATE "C")::uuid`는 같은 경계값 순서를 보존했다. Native raw SHA256은 `971248f41cc1da5c3491f6438819db2e1e9603ed9f4f82b23151c42871dffb78`다.
+  이 사전 실험은 Django PostgreSQL 또는 GoDj 제품 PASS가 아니다. 해당 probe 전용 DB는 잔여 연결 0 확인 뒤 삭제했다.
+
 ## GDJ-0092 — Decimal 정밀도 변경의 독립 기준 준비
 
 - Baseline은 GDJ-0091 제품 source `d106e73d5338cff107623351c48ac4f5778fff8c`다. 현재 GoDj의 precision AlterField 구현 완료를 뜻하지 않는다.
@@ -65,8 +80,12 @@
   PostgreSQL 17.10 normal/race/CGO=0 × core/operator-target 6개의 완전한 inventory·필수 선택을 재확인했다.
 - 추가 감사에서 PostgreSQL의 명시적 required-test 선택에 직접적인 foreign NUMERIC adapter·precision cached reader·NaN/lock 회귀 세 root가 없음을 확인했다.
   Generated Decimal 소비자의 12 profile/실패/관계 경로는 같은 Hosted source에서 실행됐지만 이 세 직접 DB root의 실행과는 구분한다.
-  필수 목록을 보강한 후속 CI-only source에서 PostgreSQL을 포함하는 reference scope를 추가 실행한다. 제품 바이트는 위 source와 동일하게 유지한다.
-  새 직접 DB root의 Hosted 완료는 아직 기록하지 않는다.
+  필수 목록을 보강한 CI-only source `153bf08531d7ff59a795386a8f2e643d250efe4c`의 [후속 reference scope](https://github.com/progresshans/godj/actions/runs/35499184070),
+  attempt 1은 **14개 필수 job success**다. 범위 밖 matrix owner 네 개는 계획대로 skip이며 full PASS에 합치지 않는다.
+  모든 성공 job의 checkout SHA/name/ID와 완전한 로그를 대조했다. PostgreSQL core normal/race/CGO=0 각각 **13 package / 1,875 test·subtest PASS**,
+  operator-target 각각 **2 package / 12 PASS**, test skip 0이다. Strict event auditor는 보강한 세 root의 실제 terminal PASS를 필수로 확인한다.
+  Python 네 버전·exact darwin/arm64·same-run capture conformance도 완료했다. Gate는 `scope:reference`, `full_platform_verified:false`, 필수 owner 4개다.
+  위 59개 제품 manifest가 06f601e와 153bf08에서 동일함을 확인했다. 제품 전체 검증 62개 job과 CI 선택 보강의 추가 실행을 구분한다.
 
 ## GDJ-0091 — Decimal의 독립 정밀도·저장 기준 준비
 
