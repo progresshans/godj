@@ -92,6 +92,20 @@
 - Unicode runtime 차이를 포함한 최종 UUID 통합은 Hosted **full** checkpoint를 명시적으로 선택한다. 로컬 전체는 중복 실행하지 않는다.
   Hosted의 exact/compatibility reference와 플랫폼별 필수 실행이 끝나기 전까지 이 work는 active다.
 
+### Hosted 통합에서 발견한 외부 복구 fixture 의존성 보완
+
+- UUID 제품 source `4e5d1b910b73f59991fb6f002c517c40d76525e2`의 [첫 Hosted full](https://github.com/progresshans/godj/actions/runs/35502966024), attempt 1에서
+  Portable integration normal/race/CGO=0 job `106057905862` / `106057905785` / `106057905780`이 같은 원인으로 실패했다.
+  `TestRelationDeleteProductNamespaceCollisionAndRecoveryPreserveGeneratedTargets/mandatory_recovery_precedes_publication_rejection`이
+  repository 밖 fixture에 현재 제품의 `uuid` source를 복사하지 않아 `-mod=readonly` candidate compile에서 실패했다.
+  따라서 해당 실행을 전체 통합 성공으로 기록하지 않는다.
+- 실제 복사 목록에 `uuid`를 포함했다. 제품 코드·잠금·publication/recovery assertion을 바꾸거나 skip하지 않았다.
+  수정 fixture SHA256은 `7b4c0c4d5bc63dd8d6f2c87c356fbce5347930cb3c622e705d9f413fd6b45871`이다.
+  같은 parent의 일반/race/CGO=0 로컬 재실행은 각각 **1 package / 3 test·subtest PASS (root 1)**, skip 0·stderr 0 bytes이며
+  injected cleanup interruption 뒤 mandatory recovery가 namespace rejection보다 먼저 실행되고 기존 generated target이 유지됨을 확인했다.
+- UUID 로컬 전용 DB는 잔여 연결 0을 확인한 뒤 삭제했으며 기존 PostgreSQL service는 유지했다.
+  수정 source의 Hosted full을 별도 실행한다. 현재 UUID 전체 플랫폼 완료는 아직 아니다.
+
 ## GDJ-0092 — Decimal 정밀도 변경의 독립 기준 준비
 
 - Baseline은 GDJ-0091 제품 source `d106e73d5338cff107623351c48ac4f5778fff8c`다. 현재 GoDj의 precision AlterField 구현 완료를 뜻하지 않는다.

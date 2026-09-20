@@ -15,7 +15,7 @@ Decimal 모델·Form/Admin·JSON/OpenAPI·Helpdesk 비용의 연결과 기존 �
 UUID는 고정 Django/DRF의 값·Form/serializer·실제 SQLite migration/query 관찰과 별도 native PostgreSQL probe를 준비했다.
 독립 기준의 Python 네 버전 비교와 값·IR·query·양 DB·생성기 연결의 로컬 DB/race checkpoint를 완료했다.
 Form/Admin·serializer·OpenAPI와 실제 Helpdesk/client까지 연결했다. 입력 Unicode profile 차이를 보완하고 로컬 통합 검증을 완료했다.
-새 UUID source의 Hosted full 통합 검증은 남아 있다.
+첫 Hosted full에서 외부 복구 fixture의 UUID source 복사 누락을 발견해 보완했다. 수정 source의 Hosted full 통합 검증은 남아 있다.
 
 ## 다음 행동
 
