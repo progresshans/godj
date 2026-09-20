@@ -82,3 +82,7 @@ SQL driver 경계는 [pgx v5.10.0 TimeCodec](https://github.com/jackc/pgx/blob/v
 
 Duration의 값·입력·DB 범위와 exact JSON number는 [ADR-0067](adr/0067-duration-model-range-and-number-input.md)에 정리한다.
 고정 Django/DRF의 실제 public API 관찰과 JSON numeric ingress는 [Duration runner](../conformance/runners/django/duration_reference.py)가 소유한다.
+
+FloatField의 구현 준비는 같은 pinned Django/DRF의 model/form FloatField·JSONRenderer를 독립 관찰한다(BSD-3-Clause).
+[제안 ADR-0068](adr/0068-binary64-field-and-finite-json-boundaries.md), [runner](../conformance/runners/django/float_reference.py),
+[실제 관찰과 범위](status/TEST_EVIDENCE.md#gdj-0090--float의-독립-기준-준비)를 따른다.

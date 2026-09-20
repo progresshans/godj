@@ -3,6 +3,22 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0090 — Float의 독립 기준 준비
+
+- 계획 작업: [GDJ-0090](../../work/0090-floating-point-models.md), branch `feature/floating-point-models`.
+- [ADR-0068](../adr/0068-binary64-field-and-finite-json-boundaries.md)는 Proposed이며 GoDj Float 제품 구현·runtime 검증의 완료를 뜻하지 않는다.
+- Runner·reference test·raw JSON 세 파일의 정렬된 SHA256 manifest는 `e31576a2e07038176618272c40a6c0eba57b7474e0441f6c3f178f64ca0217ba`다.
+  [Raw 관찰](../../internal/floattest/testdata/django61.json)의 SHA256은 `43b1abf4b53b8d81fb89f55d80b5325998895150a0762c770b287e56844ccfd4`다.
+- 고정 Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5의 public API를 실행했다. Model 89·Form 136·serializer 360·
+  실제 JSON number 16, SQLite add/reopen/update/rollback/reverse·root/relation query 각 9를 보존했다.
+- Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 fresh reference test를 각각 **1 test PASS**, skip/warning/exception 0으로 확인했다.
+  Python과 SQLite source fingerprint는 실제 runtime과 대조하고 나머지 관찰을 모두 비교했다.
+- SQLite는 NaN을 NULL로, -0을 +0으로 저장했다. DRF의 non-finite 입력은 field validation을 통과한 뒤 JSONRenderer에서 ValueError가 났다.
+  해당 관찰을 정상적인 GoDj 입력·저장 성공으로 채택하지 않는다.
+- 별도 **Go 1.26.5 / pgx v5.10.0 / PostgreSQL 17.5(Homebrew)** probe는 transaction의 임시 table에 finite 극값·최소 subnormal·
+  ±0·NaN·±Infinity를 binary parameter로 넣었다. 반환된 float64 bits와 native float8send bits가 같았으며 NaN=NaN·NaN>Infinity·-0=0을 확인했다.
+  Probe transaction은 rollback했고 임시 table은 남기지 않았다. 고정 Hosted PG나 GoDj FloatField의 실행 증거로 표시하지 않는다.
+
 ## GDJ-0089 — Duration의 모델·DB 범위와 소비자 연결
 
 - 활성 작업: [GDJ-0089](../../work/0089-duration-models.md), branch `feature/duration-models`, baseline `1e04a854f1d9439e87d62e274ece93901684d888`.
