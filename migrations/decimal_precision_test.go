@@ -28,34 +28,39 @@ func decimalPrecisionDefinitions() []Migration {
 	}
 }
 
-func TestSQLProjectionRetainsMetadataSlotsAndRejectsMissingPhysicalOperations(t *testing.T) {
+func TestSQLProjectionRetainsMetadataGroupsAndRejectsMissingPhysicalOperations(t *testing.T) {
 	loaded := testLoadedDefinitionSet(t, decimalPrecisionDefinitions())
 	target := MigrationKey{App: "costs", Name: "0002_mixed"}
 	for _, test := range []struct {
-		name        string
-		slots, want []string
+		name   string
+		groups [][]string
+		want   []string
 	}{
-		{"sqlite", []string{"", "ALTER TABLE costs_cost ADD COLUMN note TEXT", ""}, []string{"ALTER TABLE costs_cost ADD COLUMN note TEXT"}},
-		{"postgres", []string{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)", "ALTER TABLE costs_cost ADD COLUMN note TEXT", ""}, []string{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)", "ALTER TABLE costs_cost ADD COLUMN note TEXT"}},
+		{"sqlite", [][]string{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}, nil}, []string{"ALTER TABLE costs_cost ADD COLUMN note TEXT"}},
+		{"postgres", [][]string{{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)"}, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}, nil}, []string{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)", "ALTER TABLE costs_cost ADD COLUMN note TEXT"}},
+		{"multiple statements", [][]string{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT", "CREATE INDEX costs_note ON costs_cost (note)"}, {}}, []string{"ALTER TABLE costs_cost ADD COLUMN note TEXT", "CREATE INDEX costs_note ON costs_cost (note)"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			renderer := &migrationSQLRendererSpy{statements: test.slots}
+			renderer := &migrationSQLRendererSpy{groups: test.groups}
 			statements, err := RenderMigrationSQL(context.Background(), loaded, target, renderer)
 			if err != nil || !reflect.DeepEqual(statements, test.want) || renderer.calls != 1 {
 				t.Fatalf("ordered SQL projection: %v %v", statements, err)
 			}
 		})
 	}
-	for _, slots := range [][]string{
-		{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)", "", ""},
-		{"", "ALTER TABLE costs_cost ADD COLUMN note TEXT", "UNEXPECTED SQL FOR CHOICES"},
-		{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)", "ALTER TABLE costs_cost ADD COLUMN note TEXT"},
-		{"", "ALTER TABLE costs_cost ADD COLUMN note TEXT"},
-		{"", "ALTER TABLE costs_cost ADD COLUMN note TEXT", "", "EXTRA"},
+	for _, groups := range [][][]string{
+		{{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)"}, nil, nil},
+		{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}, {"UNEXPECTED SQL FOR CHOICES"}},
+		{{"ALTER TABLE costs_cost ALTER COLUMN value TYPE NUMERIC(7,3)"}, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}},
+		{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}},
+		{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}, nil, {"EXTRA"}},
+		{{""}, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}, nil},
+		{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT"}, {""}},
+		{nil, {"ALTER TABLE costs_cost ADD COLUMN note TEXT", ""}, nil},
 	} {
-		result, err := RenderMigrationSQL(context.Background(), loaded, target, &migrationSQLRendererSpy{statements: slots})
+		result, err := RenderMigrationSQL(context.Background(), loaded, target, &migrationSQLRendererSpy{groups: groups})
 		if result != nil || err == nil {
-			t.Fatal("missing, shifted or extra operation slot was published")
+			t.Fatal("missing, shifted, extra or malformed operation group was published")
 		}
 		assertMigrationSQLError(t, err, CategorySQLRender, CodeInvalidRenderedSQL, target)
 	}

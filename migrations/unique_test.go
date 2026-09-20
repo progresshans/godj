@@ -39,17 +39,14 @@ func TestUniqueHistoryRetainsExactForwardAndReversePreimages(t *testing.T) {
 	initial := Migration{App: "unique", Name: "0001_initial", Operations: []Operation{CreateModel{AppLabel: "unique", Model: s.Models[0]}}}
 	change := Migration{App: "unique", Name: "0002_unique", Dependencies: []MigrationKey{initial.Key()}, Operations: []Operation{op}}
 	loaded := testLoadedDefinitionSet(t, []Migration{initial, change})
-	for _, empty := range []bool{false, true} {
-		body := "CREATE UNIQUE INDEX reference_unique ON unique_entry (reference)"
-		if empty {
-			body = ""
-		}
-		renderer := &migrationSQLRendererSpy{statements: []string{body}}
+	body := "CREATE UNIQUE INDEX reference_unique ON unique_entry (reference)"
+	for _, group := range [][]string{{body}, nil, {""}} {
+		renderer := &migrationSQLRendererSpy{groups: [][]string{group}}
 		sql, err := RenderMigrationSQL(t.Context(), loaded, change.Key(), renderer)
 		if renderer.calls != 1 || renderer.request.Intent.Operations[0].Before.Fields[1].Unique || !renderer.request.Intent.Operations[0].After.Fields[1].Unique {
 			t.Fatal("renderer lost the unique transition")
 		}
-		if empty {
+		if len(group) == 0 || group[0] == "" {
 			assertMigrationSQLError(t, err, CategorySQLRender, CodeInvalidRenderedSQL, change.Key())
 			if sql != nil {
 				t.Fatal("empty unique SQL leaked partial output")

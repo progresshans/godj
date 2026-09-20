@@ -40,14 +40,15 @@ func TestPostgresMigrationSQLRendererMatchesExecutionCompilers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{create, add}
+	want := [][]string{{create}, {add}}
 	if !reflect.DeepEqual(statements, want) {
 		t.Fatalf("rendered SQL = %#v, want compiler SQL %#v", statements, want)
 	}
 	if !reflect.DeepEqual(request.Intent, intent) {
 		t.Fatal("renderer mutated caller-owned migration intent")
 	}
-	for _, statement := range statements {
+	for _, group := range statements {
+		statement := group[0]
 		if !strings.Contains(statement, `"product_schema".`) {
 			t.Fatalf("statement is not explicitly schema-qualified: %q", statement)
 		}
@@ -98,7 +99,7 @@ func TestPostgresMigrationSQLRendererProjectsLogicalDefaultWithoutDDLDefault(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(statements, []string{want}) || strings.Contains(strings.ToUpper(statements[0]), " DEFAULT ") {
+	if !reflect.DeepEqual(statements, [][]string{{want}}) || strings.Contains(strings.ToUpper(statements[0][0]), " DEFAULT ") {
 		t.Fatalf("logical-default AddField SQL = %#v, want compiler projection without DDL DEFAULT", statements)
 	}
 }
@@ -211,13 +212,13 @@ func TestPostgresMigrationSQLRendererForeignKeyAddIsOneDeterministicStatement(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(want, []string{compilerSQL}) ||
-		!strings.Contains(want[0], "ADD COLUMN") || !strings.Contains(want[0], ", ADD CONSTRAINT") {
+	if !reflect.DeepEqual(want, [][]string{{compilerSQL}}) ||
+		!strings.Contains(want[0][0], "ADD COLUMN") || !strings.Contains(want[0][0], ", ADD CONSTRAINT") {
 		t.Fatalf("ForeignKey Add SQL = %#v, want one compiler statement %q", want, compilerSQL)
 	}
 
 	const parallel = 16
-	results := make(chan []string, parallel)
+	results := make(chan [][]string, parallel)
 	errors := make(chan error, parallel)
 	var group sync.WaitGroup
 	for index := 0; index < parallel; index++ {
@@ -242,9 +243,9 @@ func TestPostgresMigrationSQLRendererForeignKeyAddIsOneDeterministicStatement(t 
 			t.Fatalf("parallel render = %#v, want %#v", got, want)
 		}
 	}
-	want[0] = "mutated"
+	want[0][0] = "mutated"
 	again, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
-	if err != nil || again[0] == "mutated" {
+	if err != nil || again[0][0] == "mutated" {
 		t.Fatalf("repeat render retained returned-slice mutation: %#v, %v", again, err)
 	}
 }

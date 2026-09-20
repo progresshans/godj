@@ -846,10 +846,10 @@ type publicSQLRenderer struct {
 func (renderer *publicSQLRenderer) RenderForwardMigrationSQL(
 	ctx context.Context,
 	_ backend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.calls++
 	renderer.sawOwnedContext = ctx.Value(renderer.contextKey) == renderer.marker
-	return []string{}, nil
+	return [][]string{}, nil
 }
 
 func enterProjectRoot(t *testing.T) string {

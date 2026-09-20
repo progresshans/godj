@@ -11,11 +11,15 @@
 
 ## 현행 operation별 출력 (GDJ-0095)
 
-Choices-only AlterField와 Decimal precision-only AlterField가 추가되어 backend 결과는 ordered operation당 하나의 string slot을 유지한다.
-Create/Add는 nonempty body, choices 변경은 빈 문자열, Decimal 변경은 SQLite의 빈 문자열 또는 PostgreSQL의 NUMERIC ALTER body다.
-Root는 callback 전에 고정한 slot 규칙으로 수·위치를 검사한 다음 metadata slot을 제거해 기존 public SQL body 목록을 반환한다.
-혼합 Alter/Add/Alter에서 물리 Add가 빠지거나 metadata 위치로 옮겨진 결과는 거절한다. 임의 statement 수를 허용하지 않는다.
-후술한 최초 one-body 계약을 이 의미로 확장하며, semicolon-free/canonical 검증·2048 slot/16 MiB 한도·deep copy·redaction·한 번의 출력은 유지한다.
+Backend renderer의 결과는 `[][]string`이며 ordered operation당 정확히 하나의 ordered SQL group을 유지한다.
+테이블 변경과 별도 index 생성처럼 한 operation이 여러 SQL을 필요로 할 수 있다. 각 body는 nonempty·semicolon-free다.
+Create/Add와 unique 변경은 하나 이상의 body를 요구한다. Choices 변경은 빈 group, Decimal 변경은 SQLite의 빈 group 또는
+PostgreSQL NUMERIC ALTER group이다. 빈 문자열을 no-op placeholder로 사용하지 않는다.
+Root는 callback 전에 고정한 group 규칙으로 수·위치를 검사한 다음 operation 순서와 group 내부 순서대로 public `[]string`을 반환한다.
+혼합 Alter/Add/Alter에서 물리 Add가 빠지거나 metadata 위치로 옮겨진 결과는 거절한다. Group은 최대 2,048개이고,
+모든 group을 합친 실제 statement도 최대 2,048개, body는 총 16 MiB다. Resource 검사는 의미 검사보다 먼저 수행한다.
+취소 checkpoint는 group과 body 각각에 적용하고 각 body를 복사한다. 후반 body 오류나 취소도 부분 SQL을 게시하지 않는다.
+기존 `[]string` backend 반환형의 호환 adapter를 두지 않는다. Public root/CLI의 flat SQL·private wire·한 번의 출력·redaction은 유지한다.
 정밀도 변경의 순수 SQL 출력은 실제 데이터 적합성 검사나 migration transaction을 실행하지 않는다.
 Uniqueness-only AlterField는 빈 body를 허용하지 않는다. PostgreSQL은 ADD/DROP CONSTRAINT body를 생성하고,
 SQLite는 아직 해당 선언을 capability 오류로 거부한다. 속성만 바꾸고 DB 제약이 빠진 SQL을 성공으로 출력하지 않는다.
@@ -83,8 +87,8 @@ support와 shared compiler를 통해 statement body만 반환합니다. Global o
    opener/renderer를 파생하지만 custom coherence를 framework가 증명한다고 주장하지 않습니다.
    Article configuration도 environment/profile을 한 번 snapshot한 같은 immutable selection에서 둘을 파생하고 `sqlmigrate`는
    opener나 저장된 opener error를 관찰하지 않습니다.
-8. Renderer는 operation당 exact one semicolon-free body를 반환합니다. Root는 2,048 statements/16 MiB candidate cap,
-   valid UTF-8, nonempty, whitespace/control/canonical body와 exact cardinality를 검증하고 각 body를 복사합니다.
+8. Renderer는 operation당 exact one ordered statement group을 반환합니다. Root는 group/statement 각각 2,048개와
+   aggregate body 16 MiB cap, valid UTF-8, nonempty, whitespace/control/canonical body와 operation별 cardinality를 검증하고 각 body를 복사합니다.
 9. Global layer만 `;\n`을 붙여 전체 bytes를 buffer한 뒤 stdout에 한 번 write를 시도합니다. Empty는 write zero입니다.
    Short/error는 prefix를 노출할 수 있고 retry나 두 번째 stderr publication을 하지 않으므로 OS-atomic이라고 부르지 않습니다.
 10. Logical failure는 SQL zero bytes와 stable SQL category/code만 반환합니다. Raw renderer error, partial SQL, definition/source,

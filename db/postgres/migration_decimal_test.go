@@ -107,11 +107,11 @@ func TestPostgresDecimalPrecisionKeepsCachedReadersUsable(t *testing.T) {
 	}
 }
 
-func TestPostgresDecimalPrecisionSQLKeepsMixedOperationSlots(t *testing.T) {
+func TestPostgresDecimalPrecisionSQLKeepsMixedOperationGroups(t *testing.T) {
 	statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "product_schema"}).RenderForwardMigrationSQL(t.Context(), decimaltest.MixedPrecisionSQLRequest(t))
-	want := []string{`ALTER TABLE "product_schema"."decimalref_cost" ALTER COLUMN "value" TYPE NUMERIC(7,3)`, `ALTER TABLE "product_schema"."decimalref_cost" ADD COLUMN "note" TEXT NULL`, ""}
+	want := [][]string{{`ALTER TABLE "product_schema"."decimalref_cost" ALTER COLUMN "value" TYPE NUMERIC(7,3)`}, {`ALTER TABLE "product_schema"."decimalref_cost" ADD COLUMN "note" TEXT NULL`}, nil}
 	if err != nil || !reflect.DeepEqual(statements, want) {
-		t.Fatalf("mixed SQL slots: %v %v", statements, err)
+		t.Fatalf("mixed SQL groups: %v %v", statements, err)
 	}
 }
 

@@ -138,7 +138,7 @@ type observedRenderer struct {
 func (renderer observedRenderer) RenderForwardMigrationSQL(
 	ctx context.Context,
 	request backend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	if err := appendMarker(os.Getenv(rendererMarkerEnvironment), "render"); err != nil {
 		return nil, err
 	}
@@ -150,12 +150,12 @@ type failingRenderer struct{}
 func (failingRenderer) RenderForwardMigrationSQL(
 	context.Context,
 	backend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	if err := appendMarker(os.Getenv(rendererMarkerEnvironment), "render"); err != nil {
 		return nil, err
 	}
 	partial := partialSQLCanary + " " + os.Getenv(secretEnvironment) + " " + os.Getenv(databaseEnvironment)
-	return []string{partial}, fmt.Errorf("injected renderer failure: %s %s", os.Getenv(secretEnvironment), os.Getenv(databaseEnvironment))
+	return [][]string{{partial}}, fmt.Errorf("injected renderer failure: %s %s", os.Getenv(secretEnvironment), os.Getenv(databaseEnvironment))
 }
 
 type waitCancellationRenderer struct{}
@@ -163,7 +163,7 @@ type waitCancellationRenderer struct{}
 func (waitCancellationRenderer) RenderForwardMigrationSQL(
 	ctx context.Context,
 	_ backend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	if ctx == nil {
 		return nil, errors.New("wait cancellation renderer context is nil")
 	}

@@ -36,7 +36,7 @@ func NewMigrationSQLRenderer(config MigrationSQLConfig) migrationbackend.Migrati
 func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	ctx context.Context,
 	request migrationbackend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	if ctx == nil {
 		return nil, errors.New("render PostgreSQL migration SQL: context is nil")
 	}
@@ -77,7 +77,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	statements := make([]string, len(prepared.intent.Operations))
+	groups := make([][]string, len(prepared.intent.Operations))
 	for index := range prepared.intent.Operations {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -129,12 +129,12 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		if err != nil {
 			return nil, err
 		}
-		statements[index] = statement
+		groups[index] = []string{statement}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return statements, nil
+	return groups, nil
 }
 
 func validPostgresMigrationSQLApp(value string) bool {

@@ -17,7 +17,10 @@ func TestRenderMigrationSQLMaterializesExactlyOneDetachedForwardTarget(t *testin
 
 	target := lifecycleAlpha2
 	loaded := testLoadedDefinitionSet(t, lifecycleTestDefinitions())
-	renderer := &migrationSQLRendererSpy{statements: []string{`ALTER TABLE "alpha_article" ADD COLUMN "published" BOOLEAN NOT NULL`}}
+	renderer := &migrationSQLRendererSpy{groups: [][]string{{
+		`ALTER TABLE "alpha_article" ADD COLUMN "published" BOOLEAN NOT NULL`,
+		`CREATE INDEX "article_published" ON "alpha_article" ("published")`,
+	}}}
 
 	statements, err := RenderMigrationSQL(context.Background(), loaded, target, renderer)
 	if err != nil {
@@ -38,7 +41,10 @@ func TestRenderMigrationSQLMaterializesExactlyOneDetachedForwardTarget(t *testin
 		operation.Before.Fields[0].Name != "id" || operation.After.Fields[1].Name != "published" {
 		t.Fatalf("renderer operation = %#v, want target dependency-before AddField", operation)
 	}
-	want := []string{`ALTER TABLE "alpha_article" ADD COLUMN "published" BOOLEAN NOT NULL`}
+	want := []string{
+		`ALTER TABLE "alpha_article" ADD COLUMN "published" BOOLEAN NOT NULL`,
+		`CREATE INDEX "article_published" ON "alpha_article" ("published")`,
+	}
 	if !reflect.DeepEqual(statements, want) {
 		t.Fatalf("statements = %#v, want %#v", statements, want)
 	}
@@ -47,11 +53,12 @@ func TestRenderMigrationSQLMaterializesExactlyOneDetachedForwardTarget(t *testin
 	// retained request or return slice cannot affect a later materialization or
 	// the already-published result.
 	renderer.request.Intent.Operations[0].After.Fields[1].Name = "mutated"
-	renderer.statements[0] = "mutated"
+	renderer.groups[0][0] = "mutated"
+	renderer.groups[0] = []string{"replaced"}
 	if !reflect.DeepEqual(statements, want) {
 		t.Fatalf("published statements changed through renderer alias: %#v", statements)
 	}
-	second := &migrationSQLRendererSpy{statements: append([]string(nil), want...)}
+	second := &migrationSQLRendererSpy{groups: [][]string{append([]string(nil), want...)}}
 	if _, err := RenderMigrationSQL(context.Background(), loaded, target, second); err != nil {
 		t.Fatalf("second RenderMigrationSQL() error = %v", err)
 	}
@@ -64,11 +71,7 @@ func TestRenderMigrationSQLMaterializesCompoundCrossAppTargetInDefinitionOrder(t
 	t.Parallel()
 
 	target := MigrationKey{App: "blog", Name: "0001_post"}
-	renderer := &migrationSQLRendererSpy{statements: []string{
-		"CREATE TABLE blog_post",
-		"ALTER TABLE blog_post ADD COLUMN published",
-		"ALTER TABLE blog_post ADD COLUMN author_id",
-	}}
+	renderer := &migrationSQLRendererSpy{groups: [][]string{{"CREATE TABLE blog_post"}, {"ALTER TABLE blog_post ADD COLUMN published"}, {"ALTER TABLE blog_post ADD COLUMN author_id"}}}
 	statements, err := RenderMigrationSQL(
 		context.Background(),
 		testLoadedDefinitionSet(t, lifecycleLoadedCompleteIntentDefinitions()),
@@ -78,7 +81,7 @@ func TestRenderMigrationSQLMaterializesCompoundCrossAppTargetInDefinitionOrder(t
 	if err != nil {
 		t.Fatalf("RenderMigrationSQL() error = %v", err)
 	}
-	if !reflect.DeepEqual(statements, renderer.statements) || renderer.calls != 1 {
+	if !reflect.DeepEqual(statements, []string{"CREATE TABLE blog_post", "ALTER TABLE blog_post ADD COLUMN published", "ALTER TABLE blog_post ADD COLUMN author_id"}) || renderer.calls != 1 {
 		t.Fatalf("rendered compound SQL = %#v, calls=%d", statements, renderer.calls)
 	}
 	operations := renderer.request.Intent.Operations
@@ -104,7 +107,7 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 			Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 64,
 		}}},
 	})
-	spy := &migrationSQLRendererSpy{statements: []string{"SHOULD NOT RUN"}}
+	spy := &migrationSQLRendererSpy{groups: [][]string{{"SHOULD NOT RUN"}}}
 	if _, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, invalidUnrelated), validTarget, spy); err == nil {
 		t.Fatal("invalid unrelated definition unexpectedly rendered")
 	}
@@ -112,7 +115,7 @@ func TestRenderMigrationSQLFailurePrecedenceAndRendererValidation(t *testing.T) 
 		t.Fatalf("invalid complete catalog called renderer %d time(s)", spy.calls)
 	}
 
-	spy = &migrationSQLRendererSpy{statements: []string{"SHOULD NOT RUN"}}
+	spy = &migrationSQLRendererSpy{groups: [][]string{{"SHOULD NOT RUN"}}}
 	missing := MigrationKey{App: validTarget.App, Name: "0002"}
 	_, err := RenderMigrationSQL(context.Background(), testLoadedDefinitionSet(t, lifecycleTestDefinitions()), missing, spy)
 	var planning *PlanningError
@@ -135,7 +138,7 @@ func TestRenderMigrationSQLRejectsContextAndZeroPublicationBeforeRenderer(t *tes
 	t.Parallel()
 
 	target := lifecycleAlpha2
-	spy := &migrationSQLRendererSpy{statements: []string{"SHOULD NOT RUN"}}
+	spy := &migrationSQLRendererSpy{groups: [][]string{{"SHOULD NOT RUN"}}}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	statements, err := RenderMigrationSQL(canceled, LoadedDefinitionSet{}, target, spy)
@@ -163,8 +166,8 @@ func TestRenderMigrationSQLRedactsRendererFailuresAndPartialSQL(t *testing.T) {
 	target := lifecycleAlpha2
 	secret := "postgres://operator:top-secret@example.invalid/database"
 	renderer := &migrationSQLRendererSpy{
-		statements: []string{"SELECT 'partial-secret'"},
-		err:        errors.New(secret),
+		groups: [][]string{{"SELECT 'partial-secret'"}},
+		err:    errors.New(secret),
 	}
 	statements, err := RenderMigrationSQL(
 		context.Background(),
@@ -240,10 +243,14 @@ func TestValidateRenderedMigrationSQLChecksCancellationDuringScan(t *testing.T) 
 	t.Parallel()
 
 	step := PlanStep{Key: MigrationKey{App: "blog", Name: "0002_render_sql"}, Direction: DirectionForward}
-	ctx := newMigrationSQLCheckpointContext(2)
-	statements, err := validateRenderedMigrationSQL(ctx, step, []string{"SELECT 1", "SELECT 2"}, make([]migrationSQLSlotRule, 2))
-	if statements != nil || !errors.Is(err, context.Canceled) {
-		t.Fatalf("scan cancellation = %#v, %v; want nil/context.Canceled", statements, err)
+	// Cancel in resource scanning and after one statement has been cloned.
+	// Neither cancellation may publish a prefix of the operation's SQL group.
+	for _, cancelAt := range []int{2, 4, 7} {
+		ctx := newMigrationSQLCheckpointContext(cancelAt)
+		statements, err := validateRenderedMigrationSQL(ctx, step, [][]string{{"SELECT 1", "SELECT 2"}}, make([]migrationSQLGroupRule, 1))
+		if statements != nil || !errors.Is(err, context.Canceled) {
+			t.Fatalf("scan cancellation at %d = %#v, %v; want nil/context.Canceled", cancelAt, statements, err)
+		}
 	}
 }
 
@@ -251,24 +258,48 @@ func TestValidateRenderedMigrationSQLResourceBeforeSemanticAndExactLimits(t *tes
 	t.Parallel()
 
 	step := PlanStep{Key: MigrationKey{App: "blog", Name: "0002_render_sql"}, Direction: DirectionForward}
-	exactCount := make([]string, migrationSQLMaxStatements)
+	exactCount := make([][]string, migrationSQLMaxStatements)
 	for index := range exactCount {
-		exactCount[index] = "X"
+		exactCount[index] = []string{"X"}
 	}
-	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactCount, make([]migrationSQLSlotRule, len(exactCount))); err != nil || len(got) != len(exactCount) {
+	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactCount, make([]migrationSQLGroupRule, len(exactCount))); err != nil || len(got) != len(exactCount) {
 		t.Fatalf("exact statement limit = (%d, %v), want success", len(got), err)
 	}
-	oneOverCount := append(exactCount, "") // also semantically invalid; resource must win.
-	_, err := validateRenderedMigrationSQL(context.Background(), step, oneOverCount, make([]migrationSQLSlotRule, len(oneOverCount)))
+	oneOverCount := append(exactCount, []string{""}) // also semantically invalid; resource must win.
+	_, err := validateRenderedMigrationSQL(context.Background(), step, oneOverCount, make([]migrationSQLGroupRule, len(oneOverCount)))
 	assertMigrationSQLError(t, err, CategorySQLResource, CodeRenderedSQLResourceLimit, step.Key)
+	// Operation count and physical statement count are independent limits.
+	// A single operation may own all statements, and zero-SQL groups still count.
+	oneGroup := make([]string, migrationSQLMaxStatements)
+	for index := range oneGroup {
+		oneGroup[index] = "X"
+	}
+	if got, err := validateRenderedMigrationSQL(context.Background(), step, [][]string{oneGroup}, make([]migrationSQLGroupRule, 1)); err != nil || len(got) != len(oneGroup) {
+		t.Fatalf("exact nested statement limit = (%d, %v), want success", len(got), err)
+	}
+	for _, groups := range [][][]string{
+		{append(oneGroup, ";")},
+		{oneGroup, {";"}},
+		make([][]string, migrationSQLMaxOperationGroups+1),
+	} {
+		got, err := validateRenderedMigrationSQL(context.Background(), step, groups, nil)
+		assertMigrationSQLError(t, err, CategorySQLResource, CodeRenderedSQLResourceLimit, step.Key)
+		if got != nil {
+			t.Fatal("oversized groups published partial SQL")
+		}
+	}
 
-	exactBytes := []string{strings.Repeat("X", migrationSQLMaxAggregateBodyBytes)}
-	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactBytes, make([]migrationSQLSlotRule, 1)); err != nil || len(got) != 1 {
+	exactBytes := [][]string{{strings.Repeat("X", migrationSQLMaxAggregateBodyBytes)}}
+	if got, err := validateRenderedMigrationSQL(context.Background(), step, exactBytes, make([]migrationSQLGroupRule, 1)); err != nil || len(got) != 1 {
 		t.Fatalf("exact aggregate byte limit = (%d, %v), want success", len(got), err)
 	}
-	oneOverBytes := []string{strings.Repeat("X", migrationSQLMaxAggregateBodyBytes) + ";"}
-	_, err = validateRenderedMigrationSQL(context.Background(), step, oneOverBytes, make([]migrationSQLSlotRule, 1))
-	assertMigrationSQLError(t, err, CategorySQLResource, CodeRenderedSQLResourceLimit, step.Key)
+	for _, oneOverBytes := range [][][]string{
+		{exactBytes[0], {";"}},
+		{{exactBytes[0][0], ";"}},
+	} {
+		_, err = validateRenderedMigrationSQL(context.Background(), step, oneOverBytes, nil)
+		assertMigrationSQLError(t, err, CategorySQLResource, CodeRenderedSQLResourceLimit, step.Key)
+	}
 }
 
 func TestValidateRenderedMigrationSQLRejectsMalformedBodiesAndCardinality(t *testing.T) {
@@ -276,33 +307,35 @@ func TestValidateRenderedMigrationSQLRejectsMalformedBodiesAndCardinality(t *tes
 
 	step := PlanStep{Key: MigrationKey{App: "blog", Name: "0002_render_sql"}, Direction: DirectionForward}
 	tests := []struct {
-		name       string
-		statements []string
-		want       int
+		name   string
+		groups [][]string
+		want   int
 	}{
-		{name: "empty", statements: []string{""}, want: 1},
-		{name: "invalid UTF-8", statements: []string{string([]byte{0xff})}, want: 1},
-		{name: "leading ASCII whitespace", statements: []string{" SELECT 1"}, want: 1},
-		{name: "trailing ASCII whitespace", statements: []string{"SELECT 1\n"}, want: 1},
-		{name: "semicolon", statements: []string{"SELECT 1;"}, want: 1},
-		{name: "control rune", statements: []string{"SELECT\t1"}, want: 1},
-		{name: "cardinality", statements: []string{"SELECT 1"}, want: 2},
+		{name: "missing required group body", groups: [][]string{nil}, want: 1},
+		{name: "empty", groups: [][]string{{""}}, want: 1},
+		{name: "malformed later group body", groups: [][]string{{"SELECT 1", "SELECT 2;"}}, want: 1},
+		{name: "invalid UTF-8", groups: [][]string{{string([]byte{0xff})}}, want: 1},
+		{name: "leading ASCII whitespace", groups: [][]string{{" SELECT 1"}}, want: 1},
+		{name: "trailing ASCII whitespace", groups: [][]string{{"SELECT 1\n"}}, want: 1},
+		{name: "semicolon", groups: [][]string{{"SELECT 1;"}}, want: 1},
+		{name: "control rune", groups: [][]string{{"SELECT\t1"}}, want: 1},
+		{name: "cardinality", groups: [][]string{{"SELECT 1"}}, want: 2},
 	}
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := validateRenderedMigrationSQL(context.Background(), step, test.statements, make([]migrationSQLSlotRule, test.want))
+			_, err := validateRenderedMigrationSQL(context.Background(), step, test.groups, make([]migrationSQLGroupRule, test.want))
 			assertMigrationSQLError(t, err, CategorySQLRender, CodeInvalidRenderedSQL, step.Key)
 		})
 	}
 	for _, whitespace := range []byte{' ', '\t', '\n', '\v', '\f', '\r'} {
 		for _, body := range []string{string(whitespace) + "SELECT 1", "SELECT 1" + string(whitespace)} {
-			_, err := validateRenderedMigrationSQL(context.Background(), step, []string{body}, make([]migrationSQLSlotRule, 1))
+			_, err := validateRenderedMigrationSQL(context.Background(), step, [][]string{{body}}, make([]migrationSQLGroupRule, 1))
 			assertMigrationSQLError(t, err, CategorySQLRender, CodeInvalidRenderedSQL, step.Key)
 		}
 	}
-	if got, err := validateRenderedMigrationSQL(context.Background(), step, []string{"SELECT\n1"}, make([]migrationSQLSlotRule, 1)); err != nil ||
+	if got, err := validateRenderedMigrationSQL(context.Background(), step, [][]string{{"SELECT\n1"}}, make([]migrationSQLGroupRule, 1)); err != nil ||
 		!reflect.DeepEqual(got, []string{"SELECT\n1"}) {
 		t.Fatalf("internal LF = %#v, %v; want accepted", got, err)
 	}
@@ -312,7 +345,7 @@ func TestRenderMigrationSQLEmptyIntentReturnsNonNilEmptyResult(t *testing.T) {
 	t.Parallel()
 
 	target := MigrationKey{App: "empty", Name: "0001_noop"}
-	renderer := &migrationSQLRendererSpy{statements: []string{}}
+	renderer := &migrationSQLRendererSpy{groups: [][]string{}}
 	statements, err := RenderMigrationSQL(
 		context.Background(),
 		testLoadedDefinitionSet(t, []Migration{{App: target.App, Name: target.Name}}),
@@ -328,10 +361,10 @@ func TestRenderMigrationSQLEmptyIntentReturnsNonNilEmptyResult(t *testing.T) {
 }
 
 type migrationSQLRendererSpy struct {
-	calls      int
-	request    backend.ForwardMigrationSQLRequest
-	statements []string
-	err        error
+	calls   int
+	request backend.ForwardMigrationSQLRequest
+	groups  [][]string
+	err     error
 }
 
 type migrationSQLCancelingRenderer struct {
@@ -342,10 +375,10 @@ type migrationSQLCancelingRenderer struct {
 func (renderer *migrationSQLCancelingRenderer) RenderForwardMigrationSQL(
 	_ context.Context,
 	_ backend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.calls++
 	renderer.cancel()
-	return []string{"SELECT 1"}, nil
+	return [][]string{{"SELECT 1"}}, nil
 }
 
 type migrationSQLCheckpointContext struct {
@@ -371,10 +404,10 @@ func (ctx *migrationSQLCheckpointContext) Err() error {
 func (renderer *migrationSQLRendererSpy) RenderForwardMigrationSQL(
 	_ context.Context,
 	request backend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.calls++
 	renderer.request = request
-	return renderer.statements, renderer.err
+	return renderer.groups, renderer.err
 }
 
 func assertMigrationSQLError(

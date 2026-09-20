@@ -20,7 +20,7 @@ import (
 
 func TestRunSQLMigrateLoadsCompleteCatalogThenRendersExactlyOnce(t *testing.T) {
 	t.Parallel()
-	renderer := &linkedSQLRenderer{statements: []string{"CREATE TABLE article (id integer)", "ALTER TABLE article\nADD COLUMN title text"}}
+	renderer := &linkedSQLRenderer{groups: [][]string{{"ALTER TABLE article\nADD COLUMN title text", "CREATE INDEX article_title ON article (title)"}, {"ALTER TABLE article ADD COLUMN published boolean"}}}
 	sources := []definition.Source{
 		linkedSQLSource(t, migrations.Migration{
 			App:  "blog",
@@ -64,7 +64,7 @@ func TestRunSQLMigrateLoadsCompleteCatalogThenRendersExactlyOnce(t *testing.T) {
 		new(bytes.Buffer),
 		systemDependencies{},
 	)
-	if err != nil || !response.OK || !reflect.DeepEqual(response.Result.Statements, renderer.statements) {
+	if err != nil || !response.OK || !reflect.DeepEqual(response.Result.Statements, []string{"ALTER TABLE article\nADD COLUMN title text", "CREATE INDEX article_title ON article (title)", "ALTER TABLE article ADD COLUMN published boolean"}) {
 		t.Fatalf("RunSQLMigrate = response %+v report %+v wire %q err %v", response, report, document, err)
 	}
 	if renderer.calls != 1 || renderer.request.App != "blog" || renderer.request.Name != "0002_title" ||
@@ -80,7 +80,7 @@ func TestRunSQLMigrateLoadsCompleteCatalogThenRendersExactlyOnce(t *testing.T) {
 		t.Fatalf("linked SQL report = %+v", report)
 	}
 
-	renderer.statements[0] = "mutated after publication"
+	renderer.groups[0][0] = "mutated after publication"
 	if bytes.Contains(document, []byte("mutated")) {
 		t.Fatalf("wire retained renderer mutation: %q", document)
 	}
@@ -141,7 +141,7 @@ func TestRunSQLMigratePrecedenceTypedNilAndRedaction(t *testing.T) {
 			name:     "renderer cause redacted",
 			sources:  []definition.Source{target},
 			request:  sqlmigrateprotocol.Request{App: "blog", Name: "0001_article"},
-			renderer: &linkedSQLRenderer{statements: []string{"PARTIAL SECRET SQL"}, err: errors.New("postgres://user:secret@example.invalid")},
+			renderer: &linkedSQLRenderer{groups: [][]string{{"PARTIAL SECRET SQL"}}, err: errors.New("postgres://user:secret@example.invalid")},
 			category: sqlmigrateprotocol.CategorySQLRender,
 			code:     sqlmigrateprotocol.CodeRenderFailed,
 		},
@@ -176,7 +176,7 @@ func TestRunSQLMigratePrecedenceTypedNilAndRedaction(t *testing.T) {
 func TestRunSQLMigrateStrictRequestCancellationAndSingleWrite(t *testing.T) {
 	t.Parallel()
 	root := newProjectRoot(t)
-	renderer := &linkedSQLRenderer{statements: []string{"SELECT 1"}}
+	renderer := &linkedSQLRenderer{groups: [][]string{{"SELECT 1"}}}
 	config := SQLMigrateConfig{
 		ProjectRoot:                root,
 		MigrationDefinitionSources: []definition.Source{linkedSQLSource(t, migrations.Migration{App: "blog", Name: "zero"})},
@@ -308,19 +308,19 @@ func linkedSQLModel() ir.Model {
 }
 
 type linkedSQLRenderer struct {
-	calls      int
-	request    backend.ForwardMigrationSQLRequest
-	statements []string
-	err        error
+	calls   int
+	request backend.ForwardMigrationSQLRequest
+	groups  [][]string
+	err     error
 }
 
 func (renderer *linkedSQLRenderer) RenderForwardMigrationSQL(
 	_ context.Context,
 	request backend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.calls++
 	renderer.request = request
-	return renderer.statements, renderer.err
+	return renderer.groups, renderer.err
 }
 
 type linkedSQLShortWriter struct{}

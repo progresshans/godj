@@ -12,11 +12,11 @@ import (
 	"github.com/progresshans/godj/migrations"
 )
 
-func TestSQLiteDecimalPrecisionSQLKeepsMixedOperationSlots(t *testing.T) {
+func TestSQLiteDecimalPrecisionSQLKeepsMixedOperationGroups(t *testing.T) {
 	statements, err := NewMigrationSQLRenderer().RenderForwardMigrationSQL(t.Context(), decimaltest.MixedPrecisionSQLRequest(t))
-	want := []string{"", `ALTER TABLE "decimalref_cost" ADD COLUMN "note" TEXT NULL`, ""}
+	want := [][]string{nil, {`ALTER TABLE "decimalref_cost" ADD COLUMN "note" TEXT NULL`}, nil}
 	if err != nil || !reflect.DeepEqual(statements, want) {
-		t.Fatalf("mixed SQL slots: %v %v", statements, err)
+		t.Fatalf("mixed SQL groups: %v %v", statements, err)
 	}
 }
 

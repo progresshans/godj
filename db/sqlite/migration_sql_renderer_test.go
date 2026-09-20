@@ -32,7 +32,7 @@ func TestSQLiteMigrationSQLRendererMatchesExecutionCompilers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{targetSQL, sourceSQL}
+	want := [][]string{{targetSQL}, {sourceSQL}}
 	if !reflect.DeepEqual(statements, want) {
 		t.Fatalf("rendered SQL = %#v, want compiler SQL %#v", statements, want)
 	}
@@ -83,7 +83,7 @@ func TestSQLiteMigrationSQLRendererScalarAddAndEmptyIntent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(statements, []string{want}) {
+	if !reflect.DeepEqual(statements, [][]string{{want}}) {
 		t.Fatalf("scalar AddField SQL = %#v, want %q", statements, want)
 	}
 
@@ -171,7 +171,7 @@ func TestSQLiteMigrationSQLRendererPreservesCompleteForeignKeyAuthority(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(statements, []string{want}) {
+	if !reflect.DeepEqual(statements, [][]string{{want}}) {
 		t.Fatalf("ForeignKey Add SQL = %#v, want %q", statements, want)
 	}
 	if !reflect.DeepEqual(intent, original) {
@@ -213,15 +213,15 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 	if err != nil {
 		t.Fatal(err)
 	}
-	compilerSQL := []string{requiredSQL, defaultSQL}
-	if !reflect.DeepEqual(want, compilerSQL) || !strings.Contains(want[0], "NOT NULL") ||
-		strings.Contains(strings.Join(want, "\n"), "DEFAULT") {
+	compilerSQL := [][]string{{requiredSQL}, {defaultSQL}}
+	if !reflect.DeepEqual(want, compilerSQL) || !strings.Contains(want[0][0], "NOT NULL") ||
+		strings.Contains(strings.Join([]string{want[0][0], want[1][0]}, "\n"), "DEFAULT") {
 		t.Fatalf("live-preflight projection SQL = %#v, want compiler SQL %#v without DDL DEFAULT", want, compilerSQL)
 	}
 
 	// One immutable renderer value is repeatable and safe for parallel use.
 	const parallel = 16
-	results := make(chan []string, parallel)
+	results := make(chan [][]string, parallel)
 	errors := make(chan error, parallel)
 	var group sync.WaitGroup
 	for index := 0; index < parallel; index++ {
@@ -246,9 +246,9 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 			t.Fatalf("parallel render = %#v, want %#v", got, want)
 		}
 	}
-	want[0] = "mutated"
+	want[0][0] = "mutated"
 	again, err := renderer.RenderForwardMigrationSQL(context.Background(), request)
-	if err != nil || again[0] == "mutated" {
+	if err != nil || again[0][0] == "mutated" {
 		t.Fatalf("repeat render retained returned-slice mutation: %#v, %v", again, err)
 	}
 }

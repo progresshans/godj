@@ -312,22 +312,22 @@ func migrationSQLRenderingSources(definitions []migrations.Migration) ([]definit
 }
 
 type migrationSQLRenderingSpy struct {
-	mu         sync.Mutex
-	calls      int
-	requests   []migrationbackend.ForwardMigrationSQLRequest
-	statements []string
-	err        error
+	mu       sync.Mutex
+	calls    int
+	requests []migrationbackend.ForwardMigrationSQLRequest
+	groups   [][]string
+	err      error
 }
 
 func (renderer *migrationSQLRenderingSpy) RenderForwardMigrationSQL(
 	_ context.Context,
 	request migrationbackend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.mu.Lock()
 	defer renderer.mu.Unlock()
 	renderer.calls++
 	renderer.requests = append(renderer.requests, request)
-	return append([]string(nil), renderer.statements...), renderer.err
+	return append([][]string(nil), renderer.groups...), renderer.err
 }
 
 func (renderer *migrationSQLRenderingSpy) snapshot() (int, []migrationbackend.ForwardMigrationSQLRequest) {
@@ -344,7 +344,7 @@ type migrationSQLRenderingObservedRenderer struct {
 func (renderer *migrationSQLRenderingObservedRenderer) RenderForwardMigrationSQL(
 	ctx context.Context,
 	request migrationbackend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.spy.mu.Lock()
 	renderer.spy.calls++
 	renderer.spy.requests = append(renderer.spy.requests, request)
@@ -357,7 +357,7 @@ func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contrac
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	renderer := &migrationSQLRenderingSpy{statements: []string{"CREATE TABLE category", "ALTER TABLE article ADD summary"}}
+	renderer := &migrationSQLRenderingSpy{groups: [][]string{{"CREATE TABLE category"}, {"ALTER TABLE article ADD summary"}}}
 	statements, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, renderer)
 	if err != nil || len(statements) != 2 {
 		return protocol.Observation{}, fmt.Errorf("render migration SQL request: statements=%v err=%w", statements, err)
@@ -373,7 +373,7 @@ func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contrac
 		return protocol.Observation{}, errors.New("render migration SQL request operation order changed")
 	}
 	firstRequest.Intent.Operations[1].After.Fields[len(firstRequest.Intent.Operations[1].After.Fields)-1].Name = "mutated"
-	second := &migrationSQLRenderingSpy{statements: append([]string(nil), renderer.statements...)}
+	second := &migrationSQLRenderingSpy{groups: append([][]string(nil), renderer.groups...)}
 	if _, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, second); err != nil {
 		return protocol.Observation{}, err
 	}
@@ -388,7 +388,7 @@ func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contrac
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	malformedRenderer := &migrationSQLRenderingSpy{statements: []string{"SHOULD NOT RUN", "SHOULD NOT RUN"}}
+	malformedRenderer := &migrationSQLRenderingSpy{groups: [][]string{{"SHOULD NOT RUN"}, {"SHOULD NOT RUN"}}}
 	var malformedWire bytes.Buffer
 	malformedReport, err := linked.RunSQLMigrate(
 		ctx,
@@ -407,7 +407,7 @@ func migrationSQLRenderingRequest(ctx context.Context, contract protocol.Contrac
 		malformedReport.LoadCalls != 1 || malformedReport.DefinitionSetsPublished != 0 || malformedCalls != 0 {
 		return protocol.Observation{}, fmt.Errorf("invalid unrelated SQL migration catalog = report:%+v response:%+v parse:%+v/%t calls:%d", malformedReport, malformedResponse, malformedFailure, malformedFailed, malformedCalls)
 	}
-	prefixSpy := &migrationSQLRenderingSpy{statements: []string{"SHOULD NOT RUN", "SHOULD NOT RUN"}}
+	prefixSpy := &migrationSQLRenderingSpy{groups: [][]string{{"SHOULD NOT RUN"}, {"SHOULD NOT RUN"}}}
 	_, prefixErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, migrations.MigrationKey{App: "blog", Name: "0002"}, prefixSpy)
 	var planningError *migrations.PlanningError
 	if !errors.As(prefixErr, &planningError) || planningError.Code != migrations.CodeTargetNotFound {
@@ -1555,7 +1555,7 @@ type migrationSQLRenderingTypedNilRenderer struct{ calls int }
 func (renderer *migrationSQLRenderingTypedNilRenderer) RenderForwardMigrationSQL(
 	context.Context,
 	migrationbackend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.calls++
 	return nil, errors.New("typed-nil renderer was called")
 }
@@ -1590,7 +1590,7 @@ func migrationSQLRenderingFailures(ctx context.Context, contract protocol.Contra
 		return &migrationSQLRenderingSpy{err: migrationbackend.NewCapabilityError(feature, migrationSQLRenderingSecret, errors.New(migrationSQLRenderingSecret))}
 	}
 	partialFailure := &migrationSQLRenderingSpy{
-		statements: []string{"SELECT 'partial-secret'", "SELECT 2"}, err: errors.New(migrationSQLRenderingSecret),
+		groups: [][]string{{"SELECT 'partial-secret'"}, {"SELECT 2"}}, err: errors.New(migrationSQLRenderingSecret),
 	}
 	cases := []migrationSQLRenderingFailureCase{
 		{name: "nil_renderer", renderer: nil, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeRendererUnavailable},
@@ -1598,13 +1598,13 @@ func migrationSQLRenderingFailures(ctx context.Context, contract protocol.Contra
 		{name: "unsupported_operation", renderer: capability("unsupported_operation"), wantCategory: migrations.CategoryCapability, wantCode: migrations.CodeUnsupported, wantCalls: 1},
 		{name: "custom_data_operation", renderer: capability("custom_data_operation"), wantCategory: migrations.CategoryCapability, wantCode: migrations.CodeUnsupported, wantCalls: 1},
 		{name: "renderer_returned_error", renderer: partialFailure, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeRenderFailed, wantCalls: 1, partialRendererSQLReturned: true, rawCauseContainsSecret: true},
-		{name: "malformed_empty_body", renderer: &migrationSQLRenderingSpy{statements: []string{"", "SELECT 2"}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
-		{name: "malformed_invalid_utf8_body", renderer: &migrationSQLRenderingSpy{statements: []string{string([]byte{0xff}), "SELECT 2"}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
-		{name: "malformed_leading_ascii_whitespace_body", renderer: &migrationSQLRenderingSpy{statements: []string{" SELECT 1", "SELECT 2"}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
-		{name: "malformed_trailing_ascii_whitespace_body", renderer: &migrationSQLRenderingSpy{statements: []string{"SELECT 1 ", "SELECT 2"}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
-		{name: "malformed_semicolon_body", renderer: &migrationSQLRenderingSpy{statements: []string{"SELECT 1;", "SELECT 2"}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
-		{name: "malformed_control_rune_body", renderer: &migrationSQLRenderingSpy{statements: []string{"SELECT\t1", "SELECT 2"}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
-		{name: "malformed_cardinality", renderer: &migrationSQLRenderingSpy{statements: []string{"SELECT 1"}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
+		{name: "malformed_empty_body", renderer: &migrationSQLRenderingSpy{groups: [][]string{{""}, {"SELECT 2"}}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
+		{name: "malformed_invalid_utf8_body", renderer: &migrationSQLRenderingSpy{groups: [][]string{{string([]byte{0xff})}, {"SELECT 2"}}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
+		{name: "malformed_leading_ascii_whitespace_body", renderer: &migrationSQLRenderingSpy{groups: [][]string{{" SELECT 1"}, {"SELECT 2"}}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
+		{name: "malformed_trailing_ascii_whitespace_body", renderer: &migrationSQLRenderingSpy{groups: [][]string{{"SELECT 1 "}, {"SELECT 2"}}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
+		{name: "malformed_semicolon_body", renderer: &migrationSQLRenderingSpy{groups: [][]string{{"SELECT 1;"}, {"SELECT 2"}}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
+		{name: "malformed_control_rune_body", renderer: &migrationSQLRenderingSpy{groups: [][]string{{"SELECT\t1"}, {"SELECT 2"}}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
+		{name: "malformed_cardinality", renderer: &migrationSQLRenderingSpy{groups: [][]string{{"SELECT 1"}}}, wantCategory: migrations.CategorySQLRender, wantCode: migrations.CodeInvalidRenderedSQL, wantCalls: 1},
 	}
 	values := make([]protocol.Value, len(cases))
 	totalCalls := 0

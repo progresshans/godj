@@ -58,7 +58,7 @@ NUMERIC(p,s) typmod를 변경하고 최종 catalog를 확인한다. Reverse에�
 
 고정 Django SQLite의 성공한 precision migration에서 조회 반올림·InvalidOperation이 발생하는 profile은 독립 raw에 보존한다.
 GoDj의 거부 selector는 DEV-0016에 명시한다. Native PostgreSQL scale 축소의 반올림 관찰은 Django PostgreSQL 증거와 구분한다.
-DB-free SQL projection은 SQLite의 빈 operation slot과 PostgreSQL ALTER body를 구분한다. 현재 데이터 검사·잠금·transaction을
+DB-free SQL projection은 SQLite의 빈 operation group과 PostgreSQL ALTER body group을 구분한다. 현재 데이터 검사·잠금·transaction을
 실행하지 않으므로 그 SQL 출력 자체를 live migration의 성공 또는 정확한 값 보존 증거로 취급하지 않는다.
 
 PostgreSQL prepared statement의 반환 descriptor에는 NUMERIC typmod가 포함된다. 같은 column을 새 precision으로 조회하면서

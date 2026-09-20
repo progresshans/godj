@@ -3,6 +3,50 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — Operation별 SQL 묶음과 실제 sqlmigrate 출력
+
+2026-09-21, darwin/arm64 Go **1.26.5**, `TZ=Pacific/Chatham`. Normal은 **CGO_ENABLED=0**, race는 CGO=1이다.
+기준 `d71aa81994092f866286c66a01c508f2219d5be6` 위 최종 제품·검증 **21경로** manifest SHA256은
+`d043dba6e228a76bc0a526e437bd429bd8345784a803026995e25f81bb863f39`다.
+설계는 [ADR-0055](../adr/0055-project-linked-deterministic-migration-sql-projection.md)가 소유한다.
+
+- Backend renderer는 operation별 `[][]string`을 반환하고 root는 필수 물리 SQL과 metadata-only의 빈 group을 구분한다.
+  Operation 순서와 group 내부 순서대로 복사해 public root·private protocol·CLI에는 기존 flat SQL을 전달한다.
+  양 DB renderer·Article 설정·프로젝트 runner·repository-external runner를 같은 반환형으로 연결했다.
+- Group 최대 2,048개와 전체 statement 최대 2,048개를 별도로 검사하고 body 총 16 MiB를 유지한다.
+  한 group에 statement 한도를 모두 담는 경우, 여러 group의 합산 초과, SQL 없는 group 자체의 수 초과,
+  group 내부/전체 byte 초과가 의미 오류보다 먼저 거부된다. 빈 문자열은 no-op으로 허용하지 않는다.
+- Required Add/unique의 빈 group·metadata 위치 이동·불필요한 SQL·후반 malformed body를 거부한다.
+  Resource scan과 첫 body 복사 뒤 취소도 부분 결과를 반환하지 않는다. 반환한 중첩 slice 변경은 게시한 결과를 바꾸지 않는다.
+- 실제 repository-external project의 custom renderer가 한 operation에 table DDL과 index DDL 두 개를 반환할 때
+  global CLI의 SQL 순서와 `;\n` 출력이 정확했다. 두 번째 body의 semicolon 오류에서는 앞의 정상 SQL도 stdout에 노출하지 않았다.
+  Poison opener·DB 연결 0·init/render marker의 write-only 경계·application hash·workspace cleanup 검사를 유지했다.
+- 기존 MIG-129..138의 독립 기대값·반복 결정성·secret redaction과 실제 child 중단/reap 경로도 검사했다.
+  Statement count 초과 probe는 operation group 수를 그대로 유지하고 마지막 group에 body를 추가하여 전체 합산 검사를 검증한다.
+  관측 count는 실제 반환 후보의 중첩 body 수에서 계산한다.
+
+| 실행 | 결과 |
+|---|---|
+| `go test -json -count=1 -timeout=15m ./migrations ./migrations/backend ./project ./internal/projectcheck/linked ./examples/article/databaseconfig` | 5 package, root 270 / 전체 **587 run=PASS** |
+| `go test -json -count=1 -timeout=15m -run 'MigrationSQLRenderer\|DecimalPrecisionSQL\|^TestPostgresUniqueSQLProjectionRequiresPhysicalChanges$' ./db/sqlite ./db/postgres` | 2 package, root 20 / 전체 **34 run=PASS** |
+| `go test -json -count=1 -timeout=15m -run '^TestChoicesSQLRendersZeroStatementsAndMixedStepOnlyPhysicalSQL$' ./conformance/choicesproduct` | root 1 / 전체 **3 run=PASS** |
+| `go test -json -count=1 -timeout=15m -run '^TestMigrationSQLRendering' ./conformance/runners/godj` | root 5 / 전체 **7 run=PASS** |
+| `go test -json -count=1 -timeout=15m ./conformance/projectsqlmigrateproduct` | root 5 / 전체 **47 run=PASS** |
+| `go test -race -json -count=1 -timeout=15m -run 'RenderMigrationSQL\|RenderedMigrationSQL\|SQLProjection\|MigrationSQLRenderer\|DecimalPrecisionSQL\|PostgresUniqueSQLProjection\|RunSQLMigrate\|MigrationSQLSelection' ./migrations ./migrations/backend ./db/sqlite ./db/postgres ./internal/projectcheck/linked ./examples/article/databaseconfig` | 6 package, root 36 / 전체 **67 run=PASS** |
+
+Normal 합계는 **10 package / root 301 / 678 run=PASS**, race는 위 선택 범위의 **67 PASS**다. 최종 실행의 skip/fail·stderr는 모두 0이다.
+JSON event의 run/pass 목록과 package terminal을 대조했다. 처음 추가한 외부 CLI 테스트는 두 case가 같은 marker 경로를 재사용해
+기록 수 검사에 실패했다. Case별 경로를 분리한 뒤 위 normal과 race를 실행했다.
+
+공통 제품·검증 **19경로**의 manifest는 `0c29341511e4f873d9807f20faf6944d10a6954494e4548231bac20fb1c7a9c5`로 검사 전후 동일하다.
+마지막 conformance 관측 count·진단 문구 정리 후 해당 runner의 7개 검사를 최종 21경로 source에서 다시 실행했다.
+나머지 체크는 두 conformance 파일을 dependency로 사용하지 않음을 `go list -deps -test`와 파일 hash로 확인했다.
+Affected `go vet`, `make format-check docs-check`, `git diff --check`도 PASS다. Markdown 137개 링크를 확인했다.
+
+이번 checkpoint는 SQL projection 계약과 소비자 실행의 로컬 검증이다. Native PostgreSQL DDL을 다시 실행하거나 SQLite의 실제 unique
+제약·catalog·복구를 구현한 증거가 아니다. Hosted/full-platform·공통 입력 검증·Form/Admin/API/Helpdesk/client의 고유성 연결도 남아 있다.
+Generator 출력 변경은 없어 generated drift를 재실행하지 않았다. SQLite `UniqueConstraints`는 여전히 false이며 GDJ-0095는 계속 진행한다.
+
 ## GDJ-0095 — PostgreSQL 고유성 제약·catalog·실패 복구
 
 2026-09-21, darwin/arm64 Go **1.26.5**, native PostgreSQL **17.5 Homebrew**, `TZ=Pacific/Chatham`,

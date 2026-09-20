@@ -56,9 +56,17 @@ Insert/update의 non-PK SQLSTATE 23505는 `integrity_error/unique_constraint`로
 기존 `unique_primary_key`는 유지하고 원인 오류를 보존한다. 표시 문자열에는 native 오류의 중복 값을 넣지 않는다.
 Go context 취소는 해당 context의 오류로 반환한다. 서버 오류 문구를 파싱해 field를 추측하지 않는다.
 
+## Operation별 SQL 묶음
+
+테이블 DDL과 별도 unique index DDL을 하나의 operation에 담을 수 있도록 backend SQL renderer를 `[][]string`으로 변경했다.
+공통 root가 각 operation의 필요/metadata 규칙과 전체 자원을 확인한 뒤 순서대로 flat SQL을 게시한다.
+양 DB renderer·프로젝트 runner와 소비자는 이 계약을 사용한다. 빈 group만 no-op이며 빈 body는 오류다.
+이 pure projection 계약이 실제 DB의 DDL/rollback 소유권을 대신하지 않는다.
+구체적인 출력·제한·실패 의미는 [ADR-0055](0055-project-linked-deterministic-migration-sql-projection.md)가 소유한다.
+
 ## 남은 구현
 
-SQLite의 명시적인 unique index 소유권과 Create/Add/remake에 필요한 ordered SQL 묶음을 연결한다.
+SQLite의 명시적인 unique index 소유권과 Create/Add/remake의 실제 DDL·catalog·복구 경로를 연결한다.
 현재 SQLite는 이 capability를 제공하지 않으므로 고유성 migration과 SQL projection을 거부한다.
 Form/Admin/API의 사전 검증과 DB 충돌 오류, Helpdesk의 외부 참조, 실제 generated client까지 이어서 검증한다.
 사전 검증이 통과하더라도 DB 제약을 최종 무결성 경계로 유지한다.

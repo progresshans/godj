@@ -48,7 +48,7 @@ type migrationSQLRenderingActualResourceCase struct {
 }
 
 type migrationSQLRenderingProbeRenderer struct {
-	statements        []string
+	groups            [][]string
 	err               error
 	calls             int
 	requestOperations int
@@ -57,10 +57,10 @@ type migrationSQLRenderingProbeRenderer struct {
 func (renderer *migrationSQLRenderingProbeRenderer) RenderForwardMigrationSQL(
 	_ context.Context,
 	request migrationbackend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	renderer.calls++
 	renderer.requestOperations = len(request.Intent.Operations)
-	return append([]string(nil), renderer.statements...), renderer.err
+	return append([][]string(nil), renderer.groups...), renderer.err
 }
 
 // migrationSQLRenderingProbeRootResources exercises the exported root rather
@@ -118,11 +118,11 @@ func migrationSQLRenderingProbeRootStatementCount(ctx context.Context) ([]migrat
 		return nil, fmt.Errorf("load migration SQL statement-count fixture: %w", err)
 	}
 
-	exactStatements := make([]string, limit)
+	exactStatements := make([][]string, limit)
 	for index := range exactStatements {
-		exactStatements[index] = "X"
+		exactStatements[index] = []string{"X"}
 	}
-	exactRenderer := &migrationSQLRenderingProbeRenderer{statements: exactStatements}
+	exactRenderer := &migrationSQLRenderingProbeRenderer{groups: exactStatements}
 	exactResult, err := migrations.RenderMigrationSQL(ctx, loaded, target, exactRenderer)
 	if err != nil || len(exactResult) != limit || exactRenderer.calls != 1 || exactRenderer.requestOperations != limit {
 		return nil, fmt.Errorf(
@@ -136,14 +136,18 @@ func migrationSQLRenderingProbeRootStatementCount(ctx context.Context) ([]migrat
 		}
 	}
 
-	oneOverStatements := make([]string, limit+1)
+	oneOverStatements := make([][]string, limit)
 	for index := range oneOverStatements {
-		oneOverStatements[index] = "X"
+		oneOverStatements[index] = []string{"X"}
 	}
 	// The extra statement is also semantically malformed. A resource failure
 	// therefore proves that count scanning precedes statement-shape scanning.
-	oneOverStatements[len(oneOverStatements)-1] = ";"
-	oneOverRenderer := &migrationSQLRenderingProbeRenderer{statements: oneOverStatements}
+	oneOverStatements[len(oneOverStatements)-1] = []string{"X", ";"}
+	oneOverCount := 0
+	for _, group := range oneOverStatements {
+		oneOverCount += len(group)
+	}
+	oneOverRenderer := &migrationSQLRenderingProbeRenderer{groups: oneOverStatements}
 	oneOverResult, oneOverErr := migrations.RenderMigrationSQL(ctx, loaded, target, oneOverRenderer)
 	category, code, classifyErr := migrationSQLRenderingProbeRootFailure(oneOverErr)
 	if classifyErr != nil {
@@ -165,7 +169,7 @@ func migrationSQLRenderingProbeRootStatementCount(ctx context.Context) ([]migrat
 			RequestOperations: exactRenderer.requestOperations,
 		},
 		{
-			Case: "statement_count_one_over", Limit: limit, Observed: len(oneOverStatements),
+			Case: "statement_count_one_over", Limit: limit, Observed: oneOverCount,
 			ResourceLimitAccepted: false, Category: category, Code: code, RendererCalls: oneOverRenderer.calls,
 			RequestOperations: oneOverRenderer.requestOperations, MalformedPayload: true, ResourceBeforeSemantic: true,
 		},
@@ -185,7 +189,7 @@ func migrationSQLRenderingProbeRootAggregateBytes(ctx context.Context) ([]migrat
 	// One backing string supports both probes. The one-over call runs first and
 	// fails during resource scanning, so it cannot retain a cloned 16 MiB body.
 	aggregateBody := strings.Repeat("X", limit)
-	oneOverRenderer := &migrationSQLRenderingProbeRenderer{statements: []string{aggregateBody, ";"}}
+	oneOverRenderer := &migrationSQLRenderingProbeRenderer{groups: [][]string{{aggregateBody}, {";"}}}
 	oneOverResult, oneOverErr := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, oneOverRenderer)
 	category, code, classifyErr := migrationSQLRenderingProbeRootFailure(oneOverErr)
 	if classifyErr != nil {
@@ -193,17 +197,17 @@ func migrationSQLRenderingProbeRootAggregateBytes(ctx context.Context) ([]migrat
 	}
 	if oneOverResult != nil || category != string(migrations.CategorySQLResource) ||
 		code != string(migrations.CodeRenderedSQLResourceLimit) || oneOverRenderer.calls != 1 ||
-		oneOverRenderer.requestOperations != len(oneOverRenderer.statements) {
+		oneOverRenderer.requestOperations != len(oneOverRenderer.groups) {
 		return nil, fmt.Errorf(
 			"root one-over aggregate probe = result:%d category:%s code:%s calls:%d operations:%d",
 			len(oneOverResult), category, code, oneOverRenderer.calls, oneOverRenderer.requestOperations,
 		)
 	}
 
-	exactRenderer := &migrationSQLRenderingProbeRenderer{statements: []string{aggregateBody[:limit-1], "X"}}
+	exactRenderer := &migrationSQLRenderingProbeRenderer{groups: [][]string{{aggregateBody[:limit-1]}, {"X"}}}
 	exactResult, err := migrations.RenderMigrationSQL(ctx, fixture.loaded, fixture.target, exactRenderer)
-	if err != nil || len(exactResult) != len(exactRenderer.statements) || exactRenderer.calls != 1 ||
-		exactRenderer.requestOperations != len(exactRenderer.statements) ||
+	if err != nil || len(exactResult) != len(exactRenderer.groups) || exactRenderer.calls != 1 ||
+		exactRenderer.requestOperations != len(exactRenderer.groups) ||
 		migrationSQLRenderingProbeBodyBytes(exactResult) != limit {
 		return nil, fmt.Errorf(
 			"root exact aggregate probe = result:%d bytes:%d calls:%d operations:%d error:%w",
@@ -346,8 +350,8 @@ func migrationSQLRenderingProbeRedactionAndPublication(
 	}
 
 	renderer := &migrationSQLRenderingProbeRenderer{
-		statements: []string{migrationSQLRenderingProbePartialSQLCanary, "SELECT 2"},
-		err:        errors.New(migrationSQLRenderingProbeRendererCauseCanary),
+		groups: [][]string{{migrationSQLRenderingProbePartialSQLCanary}, {"SELECT 2"}},
+		err:    errors.New(migrationSQLRenderingProbeRendererCauseCanary),
 	}
 	rendererWriter := &migrationSQLRenderingProbeCountingWriter{}
 	rendererReport, err := linked.RunSQLMigrate(
@@ -381,7 +385,7 @@ func migrationSQLRenderingProbeRedactionAndPublication(
 		SourceID: "probe/malformed.godj.json",
 		Document: []byte(`{"` + migrationSQLRenderingProbeDefinitionCanary + `":`),
 	})
-	definitionRenderer := &migrationSQLRenderingProbeRenderer{statements: []string{"SELECT 1", "SELECT 2"}}
+	definitionRenderer := &migrationSQLRenderingProbeRenderer{groups: [][]string{{"SELECT 1"}, {"SELECT 2"}}}
 	definitionWriter := &migrationSQLRenderingProbeCountingWriter{}
 	definitionReport, err := linked.RunSQLMigrate(
 		ctx,

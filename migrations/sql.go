@@ -24,6 +24,7 @@ const (
 	CodeRenderFailed                  ErrorCode = "render_failed"
 	CodeInvalidRenderedSQL            ErrorCode = "invalid_rendered_sql"
 	CodeRenderedSQLResourceLimit      ErrorCode = "rendered_sql_resource_limit"
+	migrationSQLMaxOperationGroups              = 2_048
 	migrationSQLMaxStatements                   = 2_048
 	migrationSQLMaxAggregateBodyBytes           = 16 << 20
 )
@@ -137,7 +138,7 @@ func RenderMigrationSQL(
 		return nil, err
 	}
 	intent := loadedBackendRelationIntent(materialized.intent)
-	rules := make([]migrationSQLSlotRule, len(intent.Operations))
+	rules := make([]migrationSQLGroupRule, len(intent.Operations))
 	for index, operation := range intent.Operations {
 		if operation.Kind == backend.MigrationAlterField {
 			_, _, kind, err := backend.ChangedField(operation.Before, operation.After)
@@ -165,7 +166,7 @@ func RenderMigrationSQL(
 	if isNilInterface(renderer) {
 		return nil, newMigrationSQLError(CategorySQLRender, CodeRendererUnavailable)
 	}
-	statements, renderErr := renderer.RenderForwardMigrationSQL(ctx, request)
+	groups, renderErr := renderer.RenderForwardMigrationSQL(ctx, request)
 	if err := ctx.Err(); err != nil {
 		return nil, executionContextError(step, err)
 	}
@@ -176,13 +177,13 @@ func RenderMigrationSQL(
 		return nil, newMigrationSQLError(CategorySQLRender, CodeRenderFailed)
 	}
 
-	return validateRenderedMigrationSQL(ctx, step, statements, rules)
+	return validateRenderedMigrationSQL(ctx, step, groups, rules)
 }
 
-type migrationSQLSlotRule uint8
+type migrationSQLGroupRule uint8
 
 const (
-	migrationSQLStatementRequired migrationSQLSlotRule = iota
+	migrationSQLStatementRequired migrationSQLGroupRule = iota
 	migrationSQLMetadataOnly
 	migrationSQLBackendSpecific
 )
@@ -190,56 +191,68 @@ const (
 func validateRenderedMigrationSQL(
 	ctx context.Context,
 	step PlanStep,
-	statements []string,
-	rules []migrationSQLSlotRule,
+	groups [][]string,
+	rules []migrationSQLGroupRule,
 ) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, executionContextError(step, err)
 	}
 	// Resource bounds always precede semantic inspection. Keep the arithmetic
 	// subtraction-based so it remains safe on every supported integer width.
-	if len(statements) > migrationSQLMaxStatements {
+	if len(groups) > migrationSQLMaxOperationGroups {
 		return nil, newMigrationSQLError(CategorySQLResource, CodeRenderedSQLResourceLimit)
 	}
-	total := 0
-	for index := range statements {
+	statementCount, total := 0, 0
+	for _, group := range groups {
 		if err := ctx.Err(); err != nil {
 			return nil, executionContextError(step, err)
 		}
-		bodyBytes := len(statements[index])
-		if bodyBytes > migrationSQLMaxAggregateBodyBytes-total {
+		if len(group) > migrationSQLMaxStatements-statementCount {
 			return nil, newMigrationSQLError(CategorySQLResource, CodeRenderedSQLResourceLimit)
 		}
-		total += bodyBytes
+		statementCount += len(group)
+		for _, body := range group {
+			if err := ctx.Err(); err != nil {
+				return nil, executionContextError(step, err)
+			}
+			if len(body) > migrationSQLMaxAggregateBodyBytes-total {
+				return nil, newMigrationSQLError(CategorySQLResource, CodeRenderedSQLResourceLimit)
+			}
+			total += len(body)
+		}
 	}
 
-	if len(statements) != len(rules) {
+	if len(groups) != len(rules) {
 		return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
 	}
-	result := make([]string, 0, len(statements))
-	for index := range statements {
+	result := make([]string, 0, statementCount)
+	for index, group := range groups {
 		if err := ctx.Err(); err != nil {
 			return nil, executionContextError(step, err)
 		}
-		body := statements[index]
 		switch rules[index] {
 		case migrationSQLStatementRequired:
+			if len(group) == 0 {
+				return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
+			}
 		case migrationSQLMetadataOnly:
-			if body != "" {
+			if len(group) != 0 {
 				return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
 			}
 			continue
 		case migrationSQLBackendSpecific:
-			if body == "" {
-				continue
-			}
 		default:
 			return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
 		}
-		if !validMigrationSQLBody(body) {
-			return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
+		for _, body := range group {
+			if err := ctx.Err(); err != nil {
+				return nil, executionContextError(step, err)
+			}
+			if !validMigrationSQLBody(body) {
+				return nil, newMigrationSQLError(CategorySQLRender, CodeInvalidRenderedSQL)
+			}
+			result = append(result, strings.Clone(body))
 		}
-		result = append(result, strings.Clone(body))
 	}
 	return result, nil
 }

@@ -127,8 +127,8 @@ func TestMigrationSQLRendererDerivesCredentialFreeFrozenProfile(t *testing.T) {
 		}}},
 	}
 	statements, err := postgresConfig.MigrationSQLRenderer().RenderForwardMigrationSQL(context.Background(), request)
-	if err != nil || len(statements) != 1 || !strings.Contains(statements[0], `"frozen_schema".`) ||
-		strings.Contains(statements[0], urlSecret) {
+	if err != nil || len(statements) != 1 || len(statements[0]) != 1 || !strings.Contains(statements[0][0], `"frozen_schema".`) ||
+		strings.Contains(statements[0][0], urlSecret) {
 		t.Fatalf("PostgreSQL renderer = %#v, %v", statements, err)
 	}
 

@@ -64,7 +64,11 @@ Native PostgreSQL에서 독립 13 profile·96 insert, 자기 행/중복 update·
 기존 중복의 forward/reverse 실패·revision/recorder/행/inbound FK 보존·명시적 수정 후 재시도, nullable unique/unique FK 추가·reverse와
 고유 FK 직접 CreateModel·모델 그래프 reverse/재생성과 물리 drift 거부를 검증했다. 상세 source·전체 normal/선택 race·process 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 
-SQLite는 아직 이 capability를 제공하지 않고 schema·recorder 쓰기 전에 거부한다. 다음은 선언된 unique index와 Create/Add/remake의
-SQL 묶음을 정확한 operation 순서로 소유하도록 구현하는 것이다. 기존 revision fence·rollback·FK/sequence 보존을 유지한다.
+공통 SQL renderer는 operation별 `[][]string`을 반환하며 root는 수·필수 SQL·metadata 위치를 검증한 후 순서대로 평탄화한다.
+Group 수와 총 statement 수·byte 한도를 분리하고 묶음 내부까지 취소·소유권·오류 검사를 적용한다. 양 DB와 project runner 소비자를
+같은 계약으로 바꿨다. SQL 출력의 성공과 실제 DDL 적용은 구분한다.
+
+SQLite는 아직 이 capability를 제공하지 않고 schema·recorder 쓰기 전에 거부한다. 다음은 선언된 unique index의 Create/Add/Alter/Remove와
+remake의 실제 DDL·catalog 검증을 구현하는 것이다. 기존 revision fence·rollback·FK/sequence 보존을 유지한다.
 이어 공통 입력 검증·양 DB 저장 충돌을 Form/Admin/API·Helpdesk/generated client에 연결한다. 위 PostgreSQL checkpoint로
 양 DB 항목이나 전체 고유성 작업을 완료 처리하지 않는다.

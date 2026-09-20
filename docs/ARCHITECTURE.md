@@ -154,6 +154,9 @@ PostgreSQL은 detached intent 전체를 preflight와 완료 시 검증하고, SQ
 `sqlmigrate`는 target 직전 historical state의 forward intent를 pure renderer로 projection한다. Preview SQL을 실행 plan으로
 재사용하지 않으며 renderer가 DB opener, recorder, transaction 또는 credential을 갖지 않는다. 실제 migration 실행은 backend
 capability와 fresh history를 다시 검증한다.
+Backend renderer는 operation마다 ordered statement group을 반환한다. Root는 metadata-only의 빈 group과 필수 물리 SQL을
+구분하고 group 수·전체 statement 수·총 byte 한도를 검사한 뒤 flat SQL 목록으로 복사한다. Group의 일부가 잘못되거나 취소되면
+출력 전체가 실패한다. [SQL projection 계약](adr/0055-project-linked-deterministic-migration-sql-projection.md)을 따른다.
 
 ## CLI와 프로젝트
 

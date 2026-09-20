@@ -41,7 +41,7 @@ func TestChoicesSQLRendersZeroStatementsAndMixedStepOnlyPhysicalSQL(t *testing.T
 
 type forgedChoiceTarget struct{ backend.MigrationSQLRenderer }
 
-func (renderer forgedChoiceTarget) RenderForwardMigrationSQL(ctx context.Context, request backend.ForwardMigrationSQLRequest) ([]string, error) {
+func (renderer forgedChoiceTarget) RenderForwardMigrationSQL(ctx context.Context, request backend.ForwardMigrationSQLRequest) ([][]string, error) {
 	request.Intent.Operations[1].Targets[0].TargetModel.Fields[1].Choices[0].Label = "Forged label"
 	return renderer.MigrationSQLRenderer.RenderForwardMigrationSQL(ctx, request)
 }

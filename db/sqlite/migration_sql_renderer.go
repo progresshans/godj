@@ -23,7 +23,7 @@ func NewMigrationSQLRenderer() migrationbackend.MigrationSQLRenderer {
 func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	ctx context.Context,
 	request migrationbackend.ForwardMigrationSQLRequest,
-) ([]string, error) {
+) ([][]string, error) {
 	if ctx == nil {
 		return nil, errors.New("render SQLite migration SQL: context is nil")
 	}
@@ -61,7 +61,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	statements := make([]string, len(seal.intent.Operations))
+	groups := make([][]string, len(seal.intent.Operations))
 	for index := range seal.intent.Operations {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -93,12 +93,12 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		if err != nil {
 			return nil, err
 		}
-		statements[index] = statement
+		groups[index] = []string{statement}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return statements, nil
+	return groups, nil
 }
 
 func validMigrationSQLRequestApp(value string) bool {

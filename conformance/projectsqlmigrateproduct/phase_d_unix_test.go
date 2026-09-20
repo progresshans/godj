@@ -168,7 +168,7 @@ func TestSQLProductRunnerPipelineExecutionControls(t *testing.T) {
 		// changed-input execution must detect the discarded renderer result.
 		body := strings.TrimPrefix(strings.TrimSuffix(sqlProductAuthorOutput, ";\n"), "CREATE ")
 		stub := sqlProductMutateRunner(t, "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
-			"_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)\n\treturn []string{\"CREATE \" + "+strconv.Quote(body)+"}, nil", "")
+			"_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)\n\treturn [][]string{{\"CREATE \" + "+strconv.Quote(body)+"}}, nil", "")
 		if err := sqlProductAuditRunnerPipeline([]byte(stub)); err != nil {
 			t.Fatalf("control must reach execution after the source audit: %v", err)
 		}
@@ -193,6 +193,42 @@ func TestSQLProductRunnerPipelineExecutionControls(t *testing.T) {
 		})
 	})
 
+	sqlProductAuditApplicationSources(t, project.repository, project.root)
+	project.assertApplicationUnchanged(t)
+	project.assertWorkspaceEmpty(t)
+}
+
+func TestGlobalSQLMigrateExternalOperationGroups(t *testing.T) {
+	project := newSQLProductProject(t)
+	// A project-supplied renderer may emit multiple bodies for one operation.
+	// Exercise the built external runner, private protocol and global stdout
+	// owner; the second statement and expected terminal bytes belong to this
+	// parent test, not to a checked-in observation used as product input.
+	const extra = `CREATE INDEX "author_name" ON "authors_author" ("name")`
+	for _, malformed := range []bool{false, true} {
+		name, second := "ordered", extra
+		if malformed {
+			name, second = "malformed later body", extra+";"
+		}
+		t.Run(name, func(t *testing.T) {
+			source := sqlProductMutateRunner(t, "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
+				"groups, err := renderer.delegate.RenderForwardMigrationSQL(ctx, request)\n"+
+					"\tif err != nil { return nil, err }\n"+
+					"\tgroups[0] = append(groups[0], "+strconv.Quote(second)+")\n"+
+					"\treturn groups, nil", "")
+			project.withRunnerSource(t, source, func(variant *sqlProductProject) {
+				state := variant.state(t, "operation-group-"+name)
+				result := variant.runExplicit(t, state, variant.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite), "authors", "0001_author")
+				if malformed {
+					sqlProductAssertFailure(t, result, 3, "migration_sql_render_error/invalid_rendered_sql\n", variant.sensitive(state)...)
+				} else {
+					sqlProductAssertSuccess(t, result, sqlProductAuthorOutput+extra+";\n", variant.sensitive(state)...)
+				}
+				sqlProductAssertMarker(t, state.initMarker, "init")
+				sqlProductAssertMarker(t, state.rendererMarker, "render")
+			})
+		})
+	}
 	sqlProductAuditApplicationSources(t, project.repository, project.root)
 	project.assertApplicationUnchanged(t)
 	project.assertWorkspaceEmpty(t)
@@ -235,7 +271,7 @@ func hardcodedEncode(migrations.Migration) ([]byte, error) { return []byte("{}")
 		{
 			name: "hardcoded renderer output",
 			old:  "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
-			new:  `return []string{"CREATE TABLE hardcoded_stub"}, nil`,
+			new:  `return [][]string{{"CREATE TABLE hardcoded_stub"}}, nil`,
 		},
 		{
 			name: "source selection result decoupled",
@@ -258,7 +294,7 @@ func hardcodedEncode(migrations.Migration) ([]byte, error) { return []byte("{}")
 			name: "delegate result discarded for concatenated hardcoded SQL",
 			old:  "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)",
 			new: `_, _ = renderer.delegate.RenderForwardMigrationSQL(ctx, request)
-	return []string{"CREATE " + "TABLE hardcoded_stub"}, nil`,
+	return [][]string{{"CREATE " + "TABLE hardcoded_stub"}}, nil`,
 		},
 		{
 			name: "SQLite branch return decoupled",
@@ -277,8 +313,8 @@ func hardcodedEncode(migrations.Migration) ([]byte, error) { return []byte("{}")
 			new:  "_ = observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}\n\t\treturn hardcodedRenderer{}",
 			suffix: `
 type hardcodedRenderer struct{}
-func (hardcodedRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([]string, error) {
-	return []string{"CREATE " + "TABLE hardcoded_stub"}, nil
+func (hardcodedRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([][]string, error) {
+	return [][]string{{"CREATE " + "TABLE hardcoded_stub"}}, nil
 }
 `,
 		},
@@ -318,7 +354,7 @@ func TestSQLProductRunnerSourceBoundaries(t *testing.T) {
 		{"direct output", "fmt.Fprintln(os.Stderr,", "fmt.Fprintln(os.Stdout,", ""},
 		{"implicit output", "fmt.Fprintln(os.Stderr,", "fmt.Println(", ""},
 		{"database opener", "sqlite.NewMigrationSQLRenderer()", "sqlite.Open()", ""},
-		{"hardcoded SQL", "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)", `return []string{"CREATE TABLE fixture"}, nil`, ""},
+		{"hardcoded SQL", "return renderer.delegate.RenderForwardMigrationSQL(ctx, request)", `return [][]string{{"CREATE TABLE fixture"}}, nil`, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if err := sqlProductAuditRunnerPipeline([]byte(sqlProductMutateRunner(t, test.old, test.new, test.suffix))); err == nil {

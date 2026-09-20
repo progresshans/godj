@@ -101,14 +101,14 @@ func TestPostgresUniqueSQLProjectionRequiresPhysicalChanges(t *testing.T) {
 	} {
 		request := migrationbackend.ForwardMigrationSQLRequest{App: "blog", Name: "0002_unique", Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{operation}}}
 		statements, err := NewMigrationSQLRenderer(MigrationSQLConfig{Schema: "public"}).RenderForwardMigrationSQL(t.Context(), request)
-		if err != nil || len(statements) != 1 || statements[0] == "" {
+		if err != nil || len(statements) != 1 || len(statements[0]) != 1 || statements[0][0] == "" {
 			t.Fatalf("unique produced incomplete SQL: %v %v", statements, err)
 		}
 		if operation.Kind == migrationbackend.MigrationAlterField && !operation.After.Fields[1].Unique {
-			if !strings.Contains(statements[0], " DROP CONSTRAINT ") || !strings.HasSuffix(statements[0], " RESTRICT") {
+			if !strings.Contains(statements[0][0], " DROP CONSTRAINT ") || !strings.HasSuffix(statements[0][0], " RESTRICT") {
 				t.Fatal("unique removal lost restrictive DDL")
 			}
-		} else if !strings.Contains(statements[0], " UNIQUE (") {
+		} else if !strings.Contains(statements[0][0], " UNIQUE (") {
 			t.Fatal("unique addition lost its constraint")
 		}
 	}

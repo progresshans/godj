@@ -30,7 +30,7 @@ func TestMigrationSQLRendererCurrentPublicShape(t *testing.T) {
 
 	renderer := reflect.TypeOf((*MigrationSQLRenderer)(nil)).Elem()
 	method, ok := renderer.MethodByName("RenderForwardMigrationSQL")
-	wantMethod := reflect.TypeOf((func(context.Context, ForwardMigrationSQLRequest) ([]string, error))(nil))
+	wantMethod := reflect.TypeOf((func(context.Context, ForwardMigrationSQLRequest) ([][]string, error))(nil))
 	if !ok || method.Type != wantMethod || renderer.NumMethod() != 1 {
 		t.Fatalf("MigrationSQLRenderer method = %#v, want %s", method, wantMethod)
 	}

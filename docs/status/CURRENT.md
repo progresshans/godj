@@ -17,11 +17,12 @@ Helpdesk Admin/API의 search/source를 포함한 source `ef9b05c`의
 모델의 column uniqueness를 진행 중이다. 양 DB의 독립 기준에 이어 `schema.Unique()`를 IR·생성 metadata·historical
 definition/digest·자동 변경 계획에 연결했다. PostgreSQL의 실제 UNIQUE DDL·catalog·저장 충돌 오류와 실패/재시도를
 native DB에서 검증했다. [소유권과 구현 경계](../adr/0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
-SQLite 제약과 Form/Admin/API 소비자 연결은 아직 구현 중이며 SQLite는 해당 migration을 명시적으로 거부한다.
+Operation별 여러 SQL과 metadata-only의 빈 묶음을 구분하는 공통 renderer·root·프로젝트 runner 계약도 연결했다.
+SQLite 제약과 Form/Admin/API 소비자 연결은 아직 구현 중이며 SQLite는 고유성 migration을 명시적으로 거부한다.
 
 ## 다음 행동
 
-SQLite의 UNIQUE 제약 생성·변경·제거와 정확한 물리 catalog 검증, operation별 SQL 묶음을 구현한다.
+SQLite의 UNIQUE 제약 생성·변경·제거와 정확한 물리 catalog 검증을 구현하고 공통 SQL 묶음에 연결한다.
 이어 공통 입력 검증과 양 DB의 저장 충돌을 Form/Admin/API·Helpdesk 외부 참조·generated client까지 연결한다.
 구현과 검증 범위는 GDJ-0095와 TEST_EVIDENCE에 기록한다.
 
