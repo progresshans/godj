@@ -28,3 +28,8 @@ class ForwardScalarProjectionReferenceTests(unittest.TestCase):
         self.assertEqual(len(observed['json_nulls']), 8)
         for row in observed['observations']:
             self.assertEqual(row['count'], len(row['rows']))
+
+        for row in observed['orderings']:
+            self.assertEqual(row['count'], len(row['rows']))
+            self.assertEqual(row['rows'], row['projected'])
+        self.assertEqual(len(observed['orderings']), 704)

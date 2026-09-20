@@ -44,3 +44,8 @@ class JSONComparisonReferenceTests(unittest.TestCase):
                 self.assertEqual(changed, {'l_d15' if default['related'] else 'd15'})
         self.assertEqual(set(differences), expected_names)
         self.assertEqual(profiles[False]['compositions'], profiles[True]['compositions'])
+
+        for row in profiles[True]['ordering_cases']:
+            self.assertEqual(row['count'], len(row['rows']))
+            self.assertEqual(row['rows'], row['projected'])
+        self.assertEqual(len(profiles[True]['ordering_cases']), 32)

@@ -131,6 +131,13 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			}
 		}
 	}
+	for _, ordering := range plan.Orderings() {
+		if path, related := ordering.Expression().RelationPath(); related {
+			if err := addPath(path, false); err != nil {
+				return Joins{}, err
+			}
+		}
+	}
 	keys := make([]RelationKey, 0, len(edges))
 	for key := range edges {
 		keys = append(keys, key)

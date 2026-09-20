@@ -218,7 +218,7 @@ func TestCompileDirectAggregateValidatesOmittedOrderings(t *testing.T) {
 		{
 			name:     "field outside source metadata",
 			ordering: query.NewOrdering(outsideSource, query.Ascending),
-			detail:   `ordering field "created" is not selected model metadata`,
+			detail:   `value field is not part of the plan source metadata`,
 		},
 		{
 			name:     "unknown direction",

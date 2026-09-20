@@ -6,7 +6,7 @@ import (
 )
 
 // JSONPathField exposes predicates on one literal JSON path. It deliberately
-// has no write, order or F-reference capability. Its projected result is
+// has no write or F-reference capability. Its projected result is
 // nullable independently of the whole source field's nullability.
 type JSONPathField[M any] struct {
 	field    query.FieldRef
@@ -124,3 +124,10 @@ func (f JSONPathField[M]) LessThan(value jsonvalue.Value) Predicate[M] {
 func (f JSONPathField[M]) LessThanOrEqual(value jsonvalue.Value) Predicate[M] {
 	return f.predicate(query.LookupLessThanOrEqual, query.JSON(value), nil)
 }
+
+func (f JSONPathField[M]) ordering(direction query.Direction) Ordering[M] {
+	expression, _, err := f.scalarResultField(*new(M), nil)
+	return resultOrdering[M](expression, err, direction)
+}
+func (f JSONPathField[M]) Asc() Ordering[M]  { return f.ordering(query.Ascending) }
+func (f JSONPathField[M]) Desc() Ordering[M] { return f.ordering(query.Descending) }

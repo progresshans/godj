@@ -305,18 +305,52 @@ const (
 )
 
 type Ordering struct {
-	field     FieldRef
-	direction Direction
+	expression ResultExpression
+	direction  Direction
 }
 
 func NewOrdering(field FieldRef, direction Direction) Ordering {
-	return Ordering{field: field, direction: direction}
+	return Ordering{expression: FieldResult(field), direction: direction}
 }
 
-func (o Ordering) Field() FieldRef      { return o.field }
-func (o Ordering) Direction() Direction { return o.direction }
+// NewResultOrdering orders a field or JSON path value with its exact source
+// identity. Aggregate results are not part of this ordering grammar.
+func NewResultOrdering(expression ResultExpression, direction Direction) (Ordering, error) {
+	ordering := Ordering{expression: expression, direction: direction}
+	if err := ordering.validate(); err != nil {
+		return Ordering{}, err
+	}
+	return ordering, nil
+}
+
+func (o Ordering) Field() FieldRef              { field, _ := o.expression.Field(); return field }
+func (o Ordering) Expression() ResultExpression { return o.expression }
+func (o Ordering) Direction() Direction         { return o.direction }
 func (o Ordering) Equal(other Ordering) bool {
-	return o == other
+	return o.direction == other.direction && o.expression.Equal(other.expression)
+}
+
+func (o Ordering) validate() error {
+	if o.direction != Ascending && o.direction != Descending {
+		return invalidPlanError("unknown ordering direction")
+	}
+	shape := ResultShape{kind: ResultProjection, expressions: []ResultExpression{o.expression}}
+	return shape.validate()
+}
+
+// ValidateOrderings preserves source authority even when a compiler omits
+// ORDER BY for an aggregate or avoids I/O for a statically empty source.
+// Identifier quoting and backend path capabilities remain compiler-owned.
+func (p Plan) ValidateOrderings() error {
+	for _, ordering := range p.orderings {
+		if err := ordering.validate(); err != nil {
+			return err
+		}
+		if err := p.validateResultSource(ordering.expression); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type Plan struct {
@@ -599,20 +633,27 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
 	for _, expression := range result.Expressions() {
-		if path, related := expression.RelationPath(); related {
-			root := path.hops[0]
-			if root.SourceTable() != p.table || !slices.Contains(p.sourceFields, NewFieldRef(root.Field(), root.SourceColumn(), FieldInteger, root.Nullable())) {
-				return Plan{}, invalidPlanError("result relation source key is not part of the plan source metadata")
-			}
-			continue
-		}
-		if field, ok := expression.Field(); ok && !slices.Contains(p.sourceFields, field) {
-			return Plan{}, invalidPlanError("result field is not part of the plan source metadata")
+		if err := p.validateResultSource(expression); err != nil {
+			return Plan{}, err
 		}
 	}
 	clone := p
 	clone.result = result
 	return clone, nil
+}
+
+func (p Plan) validateResultSource(expression ResultExpression) error {
+	if path, related := expression.RelationPath(); related {
+		root := path.hops[0]
+		if root.SourceTable() != p.table || !slices.Contains(p.sourceFields, NewFieldRef(root.Field(), root.SourceColumn(), FieldInteger, root.Nullable())) {
+			return invalidPlanError("value relation source key is not part of the plan source metadata")
+		}
+		return nil
+	}
+	if field, ok := expression.Field(); ok && !slices.Contains(p.sourceFields, field) {
+		return invalidPlanError("value field is not part of the plan source metadata")
+	}
+	return nil
 }
 
 func (p Plan) Equal(other Plan) bool {

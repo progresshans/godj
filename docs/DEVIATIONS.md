@@ -117,6 +117,15 @@ Native Django SQLite의 path array/object RHS 실패 48조건은 GoDj의 pre-I/O
 JSON PK/FK·index·추가 transform·타입 변경/backfill은 별도 구현과 검증을 요구한다.
 반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
 
+정렬도 같은 저장/type/정밀도 경계를 적용한다. 기본/canonical SQLite 정렬의 차이는 `scope=root`이면서
+`sliced=false` 또는 `descending=false`인 root/forward × DISTINCT의 **12조건**이다. 나머지 20조건은 같다. JSON comparison raw의 `ordering_cases`는 root/path·forward·ASC/DESC·
+DISTINCT·slice와 model/DTO·Count를 기본 Django 및 명시적 canonical SQLite profile로 구분한다.
+GoDj의 SQLite path 정렬은 binary64 변환 대신 정확한 numeric key를 사용하므로 큰 이웃 정수·긴 소수·underflow/overflow를
+합치지 않는다. 1/1.0·signed zero의 수학적 동률은 유지하며 JSON null/Boolean의 TEXT 정렬이 projected JSON 타입을 바꾸지 않는다.
+DTO DISTINCT의 미선택 정렬은 Django의 암묵적인 선택 컬럼 확장과 달리 명시적 unsupported다.
+[정렬 설계](adr/0071-json-values-and-native-storage-boundaries.md#json과-forward-값의-정렬)의 숨은 셀은 full-model 결과의
+원래 컬럼과 DISTINCT 기준을 보존하는 내부 구현이며 DTO 선택 범위를 확장하지 않는다.
+
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부
 
 - Status: Accepted; model/storage and Form/API consumers verified locally

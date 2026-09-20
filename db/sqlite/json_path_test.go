@@ -73,6 +73,10 @@ func TestJSONFunctionsAvailableOnEveryPhysicalConnectionAndReopen(t *testing.T) 
 			if err := conn.QueryRowContext(t.Context(), "SELECT godj_json_path_cmp(godj_json_at(?, ?), ?)", `{"x":9007199254740993.000001}`, `["x"]`, `9007199254740993`).Scan(&comparison); err != nil || comparison != 1 {
 				t.Fatal("exact comparison on physical connection", comparison, err)
 			}
+			var ordered int64
+			if err := conn.QueryRowContext(t.Context(), "SELECT godj_json_sort_key(?) > godj_json_sort_key(?)", `-1.2`, `-1.201`).Scan(&ordered); err != nil || ordered != 1 {
+				t.Fatal("exact ordering on physical connection", ordered, err)
+			}
 			var presence int64
 			if err := conn.QueryRowContext(t.Context(), "SELECT godj_json_has_keys(godj_json_at(?, ?), ?, ?)", `{"a":{"\u0000":1}}`, `["a"]`, `[""]`, int64(0)).Scan(&presence); err != nil || presence != 0 {
 				t.Fatal("literal key presence on physical connection", presence, err)

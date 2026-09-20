@@ -102,8 +102,16 @@ func pointerValue[V any](value *V, normalize func(V) any) any {
 	}
 	return normalize(*value)
 }
-func selection[V any](field orm.ScalarField[models.Entry, *V], normalize func(V) any) scalarSelection {
+
+type orderedScalarField[V any] interface {
+	orm.ScalarField[models.Entry, *V]
+	Asc() orm.Ordering[models.Entry]
+	Desc() orm.Ordering[models.Entry]
+}
+
+func selection[V any](field orderedScalarField[V], normalize func(V) any) scalarSelection {
 	return scalarSelection{
+		ascending: field.Asc(), descending: field.Desc(),
 		rows: func(ctx context.Context, source orm.QuerySet[models.Entry]) ([]projectedRow, error) {
 			return orm.SelectInto(ctx, source, orm.Project2(models.EntryFields.ID, field, func(id int64, v *V) projectedRow { return projectedRow{id, pointerValue(v, normalize)} }))
 		},

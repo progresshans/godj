@@ -118,13 +118,32 @@ with tempfile.TemporaryDirectory(prefix='godj-json-comparison-reference-') as te
             for descending in (False, True):
                 qs = Document.objects.order_by(('-' if descending else '') + field, 'id')
                 orderings.append({'scope': scope, 'descending': descending, 'rows': list(qs.values_list('label', flat=True))})
+        ordering_cases = []
+        for related in (False, True):
+            model = Link if related else Document
+            for scope in ('root', 'x'):
+                field = ('record__' if related else '') + 'payload' + ('__x' if scope == 'x' else '')
+                for descending in (False, True):
+                    for distinct in (False, True):
+                        for sliced in (False, True):
+                            qs = model.objects.order_by(('-' if descending else '') + field, 'id')
+                            if distinct:
+                                qs = qs.distinct()
+                            if sliced:
+                                qs = qs[1:8]
+                            count = qs.count()
+                            rows = [row.label for row in qs]
+                            selected = qs.values_list('id', 'label', field)
+                            ordering_cases.append({'related': related, 'scope': scope, 'descending': descending,
+                                                   'distinct': distinct, 'sliced': sliced, 'count': count,
+                                                   'rows': rows, 'projected': [row[1] for row in selected]})
         with connection.cursor() as cursor:
             cursor.execute('SELECT version()' if database else 'SELECT sqlite_version()')
             version = cursor.fetchone()[0]
         result = {'django': django.get_version(), 'python': platform.python_version(), 'backend': connection.vendor,
                   'database_version': version, 'storage': 'godj_canonical' if canonical else 'django_default',
                   'samples': samples, 'operands': OPERANDS, 'observations': observations,
-                  'compositions': compositions, 'orderings': orderings}
+                  'compositions': compositions, 'orderings': orderings, 'ordering_cases': ordering_cases}
         if database:
             result['psycopg'] = importlib.metadata.version('psycopg')
         print(json.dumps(result, ensure_ascii=True, sort_keys=True, separators=(',', ':')))

@@ -123,3 +123,6 @@ func (f jsonField[M]) LessThan(value jsonvalue.Value) Predicate[M] {
 func (f jsonField[M]) LessThanOrEqual(value jsonvalue.Value) Predicate[M] {
 	return f.predicate(query.LookupLessThanOrEqual, query.JSON(value))
 }
+
+func (f jsonField[M]) Asc() Ordering[M]  { return f.ordering(query.Ascending) }
+func (f jsonField[M]) Desc() Ordering[M] { return f.ordering(query.Descending) }

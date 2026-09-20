@@ -62,6 +62,12 @@ type reference struct {
 		Count            int
 		Rows             [][]json.RawMessage
 	}
+	Orderings []struct {
+		Route, Field                 string
+		Descending, Distinct, Sliced bool
+		Count                        int64
+		Rows, Projected              []int64
+	}
 	Distinct []struct {
 		Route, Field string
 		Values       []json.RawMessage
@@ -76,8 +82,9 @@ type projectedRow struct {
 	Value any
 }
 type scalarSelection struct {
-	rows   func(context.Context, orm.QuerySet[models.Entry]) ([]projectedRow, error)
-	values func(context.Context, orm.QuerySet[models.Entry]) ([]any, error)
+	ascending, descending orm.Ordering[models.Entry]
+	rows                  func(context.Context, orm.QuerySet[models.Entry]) ([]projectedRow, error)
+	values                func(context.Context, orm.QuerySet[models.Entry]) ([]any, error)
 }
 
 func TestForwardScalarSelections(t *testing.T) {
@@ -145,7 +152,7 @@ func runResults(t *testing.T, backend resultBackend, native bool) {
 	if err := json.Unmarshal(raw, &expected); err != nil {
 		t.Fatal(err)
 	}
-	if len(expected.Kinds) != 11 || len(expected.Fields) != 22 || len(expected.Routes) != 4 || len(expected.Observations) != 96 || len(expected.Distinct) != 88 || len(expected.JSONNulls) != 8 {
+	if len(expected.Kinds) != 11 || len(expected.Fields) != 22 || len(expected.Routes) != 4 || len(expected.Observations) != 96 || len(expected.Distinct) != 88 || len(expected.JSONNulls) != 8 || len(expected.Orderings) != 704 {
 		t.Fatal("incomplete scalar reference")
 	}
 	migration := migrations.Migration{App: "scalarref", Name: "0001_initial", Operations: []migrations.Operation{
@@ -334,6 +341,53 @@ func runResults(t *testing.T, backend resultBackend, native bool) {
 		slices.Sort(want)
 		if !slices.Equal(got, want) {
 			t.Fatal("selected value DISTINCT", test.Route, test.Field, got, want)
+		}
+	}
+	for _, tc := range expected.Orderings {
+		selected := selectors[tc.Route][tc.Field]
+		ordering := selected.ascending
+		if tc.Descending {
+			ordering = selected.descending
+		}
+		candidate := source.OrderBy(ordering, models.EntryFields.ID.Asc())
+		if tc.Distinct {
+			candidate = candidate.Distinct()
+		}
+		if tc.Sliced {
+			candidate, err = candidate.Offset(1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			candidate, err = candidate.Limit(3)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		count, err := candidate.Count(ctx)
+		if err != nil || count != tc.Count {
+			t.Fatal("ordered scalar count", tc, count, err)
+		}
+		rows, err := candidate.All(ctx)
+		if err != nil {
+			t.Fatal("ordered scalar model", tc, err)
+		}
+		got := make([]int64, len(rows))
+		for i, row := range rows {
+			got[i] = numbers[row.ID]
+		}
+		if !slices.Equal(got, tc.Rows) {
+			t.Fatal("scalar ordering differs from reference", tc, got)
+		}
+		projected, err := selected.rows(ctx, candidate)
+		if err != nil {
+			t.Fatal("ordered scalar projection", tc, err)
+		}
+		got = make([]int64, len(projected))
+		for i, row := range projected {
+			got[i] = numbers[row.ID]
+		}
+		if !slices.Equal(got, tc.Projected) {
+			t.Fatal("projected scalar ordering differs from reference", tc, got)
 		}
 	}
 	verifyResultBoundaries(t, backend, native, source, routes, data, expected, numbers)

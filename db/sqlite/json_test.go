@@ -77,7 +77,7 @@ func TestSQLiteJSONStorageCheckAndCanonicalCatalog(t *testing.T) {
 	}
 }
 
-func TestSQLiteJSONParametersRemainTextAndRejectOrdering(t *testing.T) {
+func TestSQLiteJSONParametersRemainTextWithNativeOrdering(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	field := query.NewFieldRef("payload", "payload", query.FieldJSON, true)
 	for _, raw := range []string{`null`, `false`, `1.0`, `1e400`, `340282366920938463463374607431768211455`, `{"b":2,"a":1}`, `"\u0000"`} {
@@ -98,12 +98,12 @@ func TestSQLiteJSONParametersRemainTextAndRejectOrdering(t *testing.T) {
 			t.Fatal("JSON mutation was encoded as a Go object", err)
 		}
 	}
-	if _, _, err := Compile(query.NewPlan("records", []query.FieldRef{field}).WithOrderings(query.NewOrdering(field, query.Ascending))); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-		t.Fatal("JSON ordering silently inherited TEXT order", err)
+	if _, _, err := Compile(query.NewPlan("records", []query.FieldRef{field}).WithOrderings(query.NewOrdering(field, query.Ascending))); err != nil {
+		t.Fatal("JSON whole-field ordering", err)
 	}
 }
 
-func TestSQLiteJSONOrderingRejectedBeforeAggregateElision(t *testing.T) {
+func TestSQLiteJSONOrderingValidatesBeforeAggregateElision(t *testing.T) {
 	field := query.NewFieldRef("payload", "payload", query.FieldJSON, true)
 	model := query.NewPlan("records", []query.FieldRef{field}).WithOrderings(query.NewOrdering(field, query.Ascending))
 	result, err := query.NewAggregateResult(query.CountAllResult())
@@ -127,8 +127,12 @@ func TestSQLiteJSONOrderingRejectedBeforeAggregateElision(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, plan := range []query.Plan{model, count, count.WithDistinct(), limited, empty} {
-		if _, _, err := Compile(plan); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-			t.Fatal("JSON ordering escaped validation through result lowering", err)
+		if _, _, err := Compile(plan); err != nil {
+			t.Fatal("valid JSON ordering rejected", err)
+		}
+		plan = plan.WithOrderings(query.NewOrdering(field, query.Direction("sideways")))
+		if _, _, err := Compile(plan); !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+			t.Fatal("invalid ordering escaped aggregate/empty validation", err)
 		}
 	}
 }

@@ -13,6 +13,9 @@ import (
 const postgresIdentifierMaxBytes = 63
 
 func compilePlan(schema string, plan query.Plan) (string, []any, error) {
+	if err := validateOrderings(plan); err != nil {
+		return "", nil, err
+	}
 	if err := validateSchemaIdentifier(schema); err != nil {
 		return "", nil, invalidPlan(err.Error())
 	}
@@ -28,9 +31,9 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 		return "", nil, err
 	}
 	relationProjection := len(plan.RelationProjections()) != 0
-	hasRelation := relationProjection || where.hasRelations || plan.ResultShape().HasRelations()
+	hasRelation := relationProjection || where.hasRelations || plan.ResultShape().HasRelations() || queryplan.HasOrderingRelations(plan)
 
-	if where.hasRelations && !relationProjection && plan.ResultShape().IsCountAll() {
+	if hasRelation && !relationProjection && plan.ResultShape().IsCountAll() {
 		inner, arguments, err := compileRelation(schema, plan, sourceFields, where)
 		if err != nil {
 			return "", nil, err
@@ -41,7 +44,7 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 	if relationProjection && resultKind != query.ResultModel {
 		return "", nil, unsupportedResultShape("PostgreSQL scalar results cannot combine with related-object projection")
 	}
-	if where.hasRelations && resultKind != query.ResultModel && resultKind != query.ResultProjection {
+	if hasRelation && resultKind != query.ResultModel && resultKind != query.ResultProjection {
 		return "", nil, unsupportedResultShape("PostgreSQL non-count aggregates cannot combine with relation filters")
 	}
 	switch resultKind {
@@ -86,7 +89,11 @@ func compileScalarSelect(
 	if plan.Distinct() {
 		statement.WriteString("DISTINCT ")
 	}
-	arguments, err := appendSelectedExpressions(&statement, selected, "", nil)
+	hidden, err := queryplan.HiddenOrderings(plan, selected)
+	if err != nil {
+		return "", nil, err
+	}
+	arguments, err := appendRowSelection(&statement, selected, hidden, "", nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -102,40 +109,7 @@ func compileScalarSelect(
 		return "", nil, err
 	}
 
-	orderings := plan.Orderings()
-	if len(orderings) > 0 {
-		statement.WriteString(" ORDER BY ")
-	}
-	for index, ordering := range orderings {
-		if err := queryplan.ValidateOrdering(ordering.Field()); err != nil {
-			return "", nil, err
-		}
-		if index > 0 {
-			statement.WriteString(", ")
-		}
-		if !queryplan.ContainsField(sourceFields, ordering.Field()) {
-			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
-		}
-		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection &&
-			!queryplan.ProjectsWholeField(selected, ordering.Field()) {
-			return "", nil, unsupportedDistinctOrdering(ordering.Field())
-		}
-		field, err := quoteIdentifier(ordering.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		statement.WriteString(field)
-		switch ordering.Direction() {
-		case query.Ascending:
-			statement.WriteString(" ASC")
-		case query.Descending:
-			statement.WriteString(" DESC")
-		default:
-			return "", nil, invalidPlan("unknown ordering direction")
-		}
-	}
-	appendPagination(&statement, &arguments, plan)
-	return statement.String(), arguments, nil
+	return finishOrderedRows(statement.String(), plan, selected, hidden, "", nil, arguments)
 }
 
 func compileAggregate(
@@ -207,9 +181,6 @@ func compileDirectAggregate(
 
 	arguments, err := appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField, nil)
 	if err != nil {
-		return "", nil, err
-	}
-	if err := queryplan.OmittedOrderings(plan.Orderings(), sourceFields, quoteIdentifier); err != nil {
 		return "", nil, err
 	}
 	return statement.String(), arguments, nil
@@ -675,28 +646,17 @@ func compileRelation(
 	if plan.Distinct() {
 		statement.WriteString("DISTINCT ")
 	}
-	selected := queryplan.FieldExpressions(columns)
-	if plan.ResultShape().Kind() == query.ResultProjection {
-		selected, err = queryplan.ProjectionExpressions(plan.ResultShape(), columns)
-		if err != nil {
-			return "", nil, err
-		}
-	}
-	arguments, err := appendSelectedExpressions(&statement, selected, rootAlias, joins)
+	selected, err := queryplan.SelectedRows(plan)
 	if err != nil {
 		return "", nil, err
 	}
-	for _, projection := range plan.RelationProjections() {
-		alias := joins[queryplan.KeyForPath(projection.Path().Hops())].Alias
-		for _, column := range projection.TargetColumns() {
-			statement.WriteString(", ")
-			qualified, err := quoteQualified(alias, column.Column())
-			if err != nil {
-				return "", nil, err
-			}
-			statement.WriteString(qualified)
-			appendDecimalResultPrecision(&statement, column)
-		}
+	hidden, err := queryplan.HiddenOrderings(plan, selected)
+	if err != nil {
+		return "", nil, err
+	}
+	arguments, err := appendRowSelection(&statement, selected, hidden, rootAlias, joins)
+	if err != nil {
+		return "", nil, err
 	}
 	rootTable, err := quoteTable(schema, plan.Table())
 	if err != nil {
@@ -757,39 +717,7 @@ func compileRelation(
 		return "", nil, err
 	}
 
-	orderings := plan.Orderings()
-	if len(orderings) > 0 {
-		statement.WriteString(" ORDER BY ")
-	}
-	for index, ordering := range orderings {
-		if err := queryplan.ValidateOrdering(ordering.Field()); err != nil {
-			return "", nil, err
-		}
-		if index > 0 {
-			statement.WriteString(", ")
-		}
-		if !queryplan.ContainsField(columns, ordering.Field()) {
-			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
-		}
-		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection && !queryplan.ProjectsWholeField(selected, ordering.Field()) {
-			return "", nil, unsupportedDistinctOrdering(ordering.Field())
-		}
-		field, err := quoteQualified(rootAlias, ordering.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		statement.WriteString(field)
-		switch ordering.Direction() {
-		case query.Ascending:
-			statement.WriteString(" ASC")
-		case query.Descending:
-			statement.WriteString(" DESC")
-		default:
-			return "", nil, invalidPlan("unknown ordering direction")
-		}
-	}
-	appendPagination(&statement, &arguments, plan)
-	return statement.String(), arguments, nil
+	return finishOrderedRows(statement.String(), plan, selected, hidden, rootAlias, joins, arguments)
 }
 
 // PostgreSQL's prepared result descriptor includes NUMERIC typmod. The same
@@ -1024,53 +952,4 @@ func unsupportedResultShape(detail string) error {
 		Code:     query.CodeUnsupported,
 		Detail:   detail,
 	}
-}
-
-func unsupportedDistinctOrdering(field query.FieldRef) error {
-	return &query.Error{
-		Category: query.CategoryBackend,
-		Code:     query.CodeUnsupported,
-		Field:    field.Name(),
-		Detail:   fmt.Sprintf("PostgreSQL DISTINCT projection cannot order by unprojected field %q", field.Name()),
-	}
-}
-
-// Model and DTO selections share JSON parameter and native scalar result rules;
-// relationship filters change qualification, never the selected value domain.
-func appendSelectedExpressions(statement *strings.Builder, selected []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join) ([]any, error) {
-	arguments := make([]any, 0)
-	for index, expression := range selected {
-		if index > 0 {
-			statement.WriteString(", ")
-		}
-		field, _ := expression.Field()
-		selectedAlias := alias
-		if path, related := expression.RelationPath(); related {
-			joined, ok := joins[queryplan.KeyForPath(path.Hops())]
-			if !ok {
-				return nil, invalidPlan("selected relation was not materialized")
-			}
-			selectedAlias = joined.Alias
-		}
-		var column string
-		var err error
-		if selectedAlias == "" {
-			column, err = quoteIdentifier(field.Column())
-		} else {
-			column, err = quoteQualified(selectedAlias, field.Column())
-		}
-		if err != nil {
-			return nil, err
-		}
-		if path, ok := expression.JSONPath(); ok {
-			if err := validateJSONPath(field, path); err != nil {
-				return nil, err
-			}
-			appendJSONPath(statement, column, path, &arguments)
-		} else {
-			statement.WriteString(column)
-			appendDecimalResultPrecision(statement, field)
-		}
-	}
-	return arguments, nil
 }

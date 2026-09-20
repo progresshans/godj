@@ -110,33 +110,12 @@ func sqliteJSONPathCompare(_ *modernsqlite.FunctionContext, args []driver.Value)
 // magnitudes and padded coefficient digits, allocating by token size only.
 // Even an exponent with thousands of digits never expands into decimal zeros.
 func compareJSONNumbers(left, right string) (int, error) {
-	parse := func(raw string) (string, *big.Int, int, error) {
-		sign := 1
-		if strings.HasPrefix(raw, "-") {
-			sign = -1
-			raw = raw[1:]
-		}
-		mantissa := raw
-		exponent := new(big.Int)
-		if index := strings.IndexAny(raw, "eE"); index >= 0 {
-			mantissa = raw[:index]
-			if _, ok := exponent.SetString(raw[index+1:], 10); !ok {
-				return "", nil, 0, jsonvalue.ErrInvalid
-			}
-		}
-		whole, fraction, _ := strings.Cut(mantissa, ".")
-		digits := strings.TrimLeft(whole+fraction, "0")
-		if digits == "" {
-			return "", exponent, 0, nil
-		}
-		exponent.Add(exponent, big.NewInt(int64(len(digits)-len(fraction))))
-		return strings.TrimRight(digits, "0"), exponent, sign, nil
-	}
-	l, lm, ls, err := parse(left)
+
+	l, lm, ls, err := jsonNumberParts(left)
 	if err != nil {
 		return 0, err
 	}
-	r, rm, rs, err := parse(right)
+	r, rm, rs, err := jsonNumberParts(right)
 	if err != nil {
 		return 0, err
 	}
@@ -168,4 +147,27 @@ func compareJSONNumbers(left, right string) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+func jsonNumberParts(raw string) (string, *big.Int, int, error) {
+	sign := 1
+	if strings.HasPrefix(raw, "-") {
+		sign = -1
+		raw = raw[1:]
+	}
+	mantissa := raw
+	exponent := new(big.Int)
+	if index := strings.IndexAny(raw, "eE"); index >= 0 {
+		mantissa = raw[:index]
+		if _, ok := exponent.SetString(raw[index+1:], 10); !ok {
+			return "", nil, 0, jsonvalue.ErrInvalid
+		}
+	}
+	whole, fraction, _ := strings.Cut(mantissa, ".")
+	digits := strings.TrimLeft(whole+fraction, "0")
+	if digits == "" {
+		return "", exponent, 0, nil
+	}
+	exponent.Add(exponent, big.NewInt(int64(len(digits)-len(fraction))))
+	return strings.TrimRight(digits, "0"), exponent, sign, nil
 }

@@ -144,12 +144,12 @@ func TestGeneratedJSONConsumer(t *testing.T) {
 	required := []string{"TestJSONGeneratedDefaults", "TestJSONStorageQueryAndOwnership", "TestJSONStorageQueryAndOwnership/sqlite", "TestJSONStorageQueryAndOwnership/sqlite/paths", "TestJSONStorageQueryAndOwnership/sqlite/containment", "TestJSONStorageQueryAndOwnership/sqlite/keys"}
 	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/projection")
 	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/related_projection")
-	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/forward_projection", "TestJSONStorageQueryAndOwnership/sqlite/comparison")
+	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/forward_projection", "TestJSONStorageQueryAndOwnership/sqlite/comparison", "TestJSONStorageQueryAndOwnership/sqlite/comparison/ordering")
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres", "TestJSONStorageQueryAndOwnership/postgres/paths", "TestJSONStorageQueryAndOwnership/postgres/containment", "TestJSONStorageQueryAndOwnership/postgres/keys")
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/projection")
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/related_projection")
-		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/forward_projection", "TestJSONStorageQueryAndOwnership/postgres/comparison")
+		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/forward_projection", "TestJSONStorageQueryAndOwnership/postgres/comparison", "TestJSONStorageQueryAndOwnership/postgres/comparison/ordering")
 	}
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 	for _, test := range []struct{ name, source, fragment string }{

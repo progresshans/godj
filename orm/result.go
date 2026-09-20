@@ -446,6 +446,11 @@ func validateProjectionSource(plan query.Plan) error {
 }
 
 func validateNonCountAggregateSource(plan query.Plan) error {
+	for _, ordering := range plan.Orderings() {
+		if _, related := ordering.Expression().RelationPath(); related {
+			return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed non-count aggregate cannot combine with relation traversal"}
+		}
+	}
 	if err := validateProjectionSource(plan); err != nil {
 		return err
 	}

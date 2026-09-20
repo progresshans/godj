@@ -23,6 +23,19 @@ var comparisonSQLiteReference []byte
 //go:embed comparison_postgres_reference.json
 var comparisonPostgresReference []byte
 
+type orderingCase struct {
+	Scope                                 string
+	Related, Descending, Distinct, Sliced bool
+	Count                                 int64
+	Rows, Projected                       []string
+}
+
+type orderedJSONField[M any] interface {
+	orm.ScalarField[M, *jsonvalue.Value]
+	Asc() orm.Ordering[M]
+	Desc() orm.Ordering[M]
+}
+
 type comparisonCase struct {
 	Name, Scope, Lookup, RHS, Mode, Exception string
 	Related                                   bool
@@ -68,8 +81,9 @@ func verifyJSONComparisons(t *testing.T, backend jsonBackend, native bool) {
 			Label string
 			Raw   *string
 		}
-		Observations []comparisonCase
-		Compositions []comparisonCase
+		Observations  []comparisonCase
+		Compositions  []comparisonCase
+		OrderingCases []orderingCase `json:"ordering_cases"`
 	}
 	if err := json.Unmarshal(raw, &reference); err != nil {
 		t.Fatal(err)
@@ -190,6 +204,71 @@ func verifyJSONComparisons(t *testing.T, backend jsonBackend, native bool) {
 	if _, err := orm.ParseDynamic(models.RecordDescriptor{}, func(ir.Field, query.Lookup) bool { return false }, []orm.LookupInput{{Key: "payload__gt", Value: jsonvalue.Null()}}); !errors.Is(err, &query.Error{Code: query.CodeDisallowedLookup}) {
 		t.Fatal("comparison bypassed lookup policy", err)
 	}
+	t.Run("ordering", func(t *testing.T) {
+		if len(reference.OrderingCases) != 32 {
+			t.Fatal("incomplete ordering reference")
+		}
+		beforeRecords, beforeLinks := records.Plan(), links.Plan()
+		for _, tc := range reference.OrderingCases {
+			if tc.Related {
+				var field orderedJSONField[models.Link] = relations.ModelsLink.Record.Payload
+				if tc.Scope == "x" {
+					field = relations.ModelsLink.Record.Payload.At(query.JSONKey("x"))
+				}
+				ordering := field.Asc()
+				if tc.Descending {
+					ordering = field.Desc()
+				}
+				checkJSONOrdering(t, tc, links.OrderBy(ordering, models.LinkFields.ID.Asc()), models.LinkFields.ID, models.LinkFields.Label, field, func(row models.Link) string { return row.Label })
+			} else {
+				var field orderedJSONField[models.Record] = models.RecordFields.Payload
+				if tc.Scope == "x" {
+					field = models.RecordFields.Payload.At(query.JSONKey("x"))
+				}
+				ordering := field.Asc()
+				if tc.Descending {
+					ordering = field.Desc()
+				}
+				checkJSONOrdering(t, tc, records.OrderBy(ordering, models.RecordFields.ID.Asc()), models.RecordFields.ID, models.RecordFields.Label, field, func(row models.Record) string { return row.Label })
+			}
+		}
+		facade, err := project.Using(backend)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range reference.OrderingCases {
+			if !tc.Related || tc.Scope != "x" || !tc.Distinct || tc.Descending || tc.Sliced {
+				continue
+			}
+			rows, err := facade.ModelsLink.Filter(models.LinkFields.Label.In(linkNames...)).OrderBy(relations.ModelsLink.Record.Payload.At(query.JSONKey("x")).Asc(), models.LinkFields.ID.Asc()).Distinct().SelectRelated(facade.ModelsLink.Related.Record).All(t.Context())
+			if err != nil {
+				t.Fatal("eager hidden path ordering", err)
+			}
+			got := make([]string, len(rows))
+			for i, row := range rows {
+				model, err := row.Unwrap()
+				if err != nil {
+					t.Fatal(err)
+				}
+				got[i] = strings.TrimPrefix(model.Label, "comparison_")
+				record, present, err := row.Record(t.Context())
+				if err != nil || present != (model.RecordID != nil) {
+					t.Fatal("ordering changed eager presence", err)
+				}
+				if present && record.ID != *model.RecordID {
+					t.Fatal("ordering changed eager target")
+				}
+			}
+			if !slices.Equal(got, tc.Rows) {
+				t.Fatal("eager ordering differs", got, tc.Rows)
+			}
+		}
+		verifyJSONOrderingPrecision(t, backend)
+		if !records.Plan().Equal(beforeRecords) || !links.Plan().Equal(beforeLinks) {
+			t.Fatal("ordering mutated its source")
+		}
+		verifyJSONOrderingBoundaries(t, backend, native, records, links, relations.ModelsLink.Record.Payload)
+	})
 	verifyJSONComparisonBoundaries(t, backend, native)
 }
 
@@ -312,5 +391,139 @@ func verifyJSONComparisonBoundaries(t *testing.T, backend jsonBackend, native bo
 	}
 	if _, err := models.RecordObjects.Using(backend).Filter(back.ModelsRecord.Links.Token.GreaterThan(jsonvalue.Null())).All(ctx); !errors.Is(err, &query.Error{Code: query.CodeUnsupportedLookup}) {
 		t.Fatal("reverse comparison widened", err)
+	}
+}
+
+func checkJSONOrdering[M any](t *testing.T, tc orderingCase, source orm.QuerySet[M], id orm.ScalarField[M, int64], label orm.ScalarField[M, string], field orderedJSONField[M], name func(M) string) {
+	t.Helper()
+	var err error
+	if tc.Distinct {
+		source = source.Distinct()
+	}
+	if tc.Sliced {
+		source, err = source.Offset(1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		source, err = source.Limit(7)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	count, err := source.Count(t.Context())
+	if err != nil || count != tc.Count {
+		t.Fatal("ordering cold count", tc, count, err)
+	}
+	rows, err := source.All(t.Context())
+	if err != nil {
+		t.Fatal("ordered model", tc, err)
+	}
+	names := make([]string, len(rows))
+	for i, row := range rows {
+		names[i] = strings.TrimPrefix(name(row), "comparison_")
+	}
+	if !slices.Equal(names, tc.Rows) {
+		t.Fatal("model ordering differs from reference", tc, names)
+	}
+	selected, err := orm.SelectInto(t.Context(), source, orm.Project3(id, label, field, func(_ int64, label string, value *jsonvalue.Value) string {
+		if value != nil {
+			if _, err := value.Decode(); err != nil {
+				t.Fatal("ordering changed projected JSON", err)
+			}
+		}
+		return strings.TrimPrefix(label, "comparison_")
+	}))
+	if err != nil || !slices.Equal(selected, tc.Projected) {
+		t.Fatal("projected ordering differs from reference", tc, selected, err)
+	}
+}
+
+func verifyJSONOrderingBoundaries(t *testing.T, backend jsonBackend, native bool, records orm.QuerySet[models.Record], links orm.QuerySet[models.Link], related orm.RelatedJSONField[models.Link]) {
+	t.Helper()
+	// A target field with the same id metadata must not satisfy root ordering.
+	for _, source := range []orm.QuerySet[models.Record]{records, records.Distinct()} {
+		zero, err := source.OrderBy(models.RecordFields.Payload.At(query.JSONKey("x")).Desc()).Limit(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rows, err := zero.All(t.Context()); err != nil || rows == nil || len(rows) != 0 {
+			t.Fatal("valid empty JSON ordering", err)
+		}
+	}
+	strict := links.OrderBy(related.At(query.JSONKey("x")).Asc()).Distinct()
+	if rows, err := orm.SelectInto(t.Context(), strict, orm.Project1(models.LinkFields.Label, func(s string) string { return s })); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) || rows != nil {
+		t.Fatal("DISTINCT accepted unselected ordering expression", err)
+	}
+	if native {
+		invalid := records.OrderBy(models.RecordFields.Payload.At(query.JSONKey("a\x00b")).Asc())
+		zero, err := invalid.Limit(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, source := range []orm.QuerySet[models.Record]{invalid, zero, invalid.Filter(models.RecordFields.ID.In())} {
+			if _, err := source.Count(t.Context()); !errors.Is(err, &query.Error{Code: query.CodeInvalidValue}) {
+				t.Fatal("native omitted order path was not validated", err)
+			}
+			if _, err := source.All(t.Context()); !errors.Is(err, &query.Error{Code: query.CodeInvalidValue}) {
+				t.Fatal("native empty order path was not validated", err)
+			}
+		}
+	}
+	var unbound orm.RelatedJSONField[models.Link]
+	if _, err := links.OrderBy(unbound.Asc()).Count(t.Context()); err == nil {
+		t.Fatal("unbound ordering accepted")
+	}
+	cause := errors.New("ordering binding failed")
+	if _, err := links.OrderBy(related.WithConfigurationError(cause).Desc()).Count(t.Context()); !errors.Is(err, cause) {
+		t.Fatal("ordering lost configuration error", err)
+	}
+}
+
+func verifyJSONOrderingPrecision(t *testing.T, backend jsonBackend) {
+	t.Helper()
+	// These values are ordered mathematically, independently of binary64 and
+	// lexicographic JSON token spelling. Equal spellings retain the ID tie-break.
+	numbers := []string{"-1e400", "-1.201", "-1.2", "-1e-400", "-0", "0.0", "1e-400", "1", "1.0", "9007199254740993", "9007199254740993.000001", "340282366920938463463374607431768211455", "1e400"}
+	labels := make([]string, len(numbers))
+	for i, number := range numbers {
+		labels[i] = "ordered_precision_" + number
+		if _, err := models.RecordObjects.Create(t.Context(), backend, models.NewRecordCreate(labels[i], jsonvalue.Null()).WithPayload(document(t, `{"n":`+number+`}`))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	base := models.RecordObjects.Using(backend).Filter(models.RecordFields.Label.In(labels...))
+	for _, distinct := range []bool{false, true} {
+		source := base.OrderBy(models.RecordFields.Payload.At(query.JSONKey("n")).Asc(), models.RecordFields.ID.Asc())
+		if distinct {
+			source = source.Distinct()
+		}
+		if count, err := source.Count(t.Context()); err != nil || count != int64(len(labels)) {
+			t.Fatal("precision count", count, err)
+		}
+		rows, err := source.All(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := make([]string, len(rows))
+		for i, row := range rows {
+			got[i] = row.Label
+		}
+		if !slices.Equal(got, labels) {
+			t.Fatal("exact numeric ordering", got, labels)
+		}
+	}
+	// The derived source must preserve root column names for scalar aggregates.
+	source, err := base.OrderBy(models.RecordFields.Payload.At(query.JSONKey("n")).Asc(), models.RecordFields.ID.Asc()).Distinct().Limit(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := source.All(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	maximum, err := orm.AggregateInto(t.Context(), source, orm.Aggregate1(orm.Max(models.RecordFields.ID), func(v orm.Optional[int64]) orm.Optional[int64] { return v }))
+	value, valid := maximum.Get()
+	if err != nil || !valid || value != rows[2].ID {
+		t.Fatal("ordered derived aggregate", maximum, err)
 	}
 }

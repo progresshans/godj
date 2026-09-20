@@ -491,6 +491,59 @@
 - 앞선 forward scalar·whole JSON 선택과 이번 대소 비교를 묶은 고정 source의 Hosted `orm` 통합 milestone을 진행한다.
   이 로컬 checkpoint나 이전 `fb96519` Hosted 결과를 새 source의 Hosted/full-platform PASS로 합치지 않는다.
 
+### Forward scalar 선택·JSON 대소 비교 Hosted ORM 통합
+
+- [Run 35531599504](https://github.com/progresshans/godj/actions/runs/35531599504), attempt **1**, source
+  `8fe1281460d6c58cec7d09d937b69561b5831d0d`: **44 job success / 4 scope skip**.
+  API의 전체 48 job·완전한 44개 성공 로그의 checkout SHA·terminal/step 상태·실행 inventory와 최종 gate를 대조했다.
+  `scope: orm`, `full_platform_verified: false`, owner는 command-product-matrix·portable-go-matrix·postgresql-product·relation-product-matrix다.
+- PostgreSQL **17.10** core normal/race/CGO=0 각각 **13 package / 1891 run=PASS / skip 0**, operator-target 각각
+  **2 package / 12 PASS / skip 0**다. `TestGeneratedJSONConsumer`와 `TestGeneratedForwardScalarConsumer`가
+  core 필수 목록에 포함되며 generated parent는 실제 native 하위 실행을 검사한다.
+- 관계 product는 Linux amd64 normal/CGO=0 각각 **26 package / 4966 PASS**, 나머지 세 OS/arch 각각
+  **27 package / 5014 PASS**다. Race는 각각 **4901 / 4949 PASS**이며 모두 skip 0이다.
+  Command product 12개 조합은 각각 **1 package / 33 PASS / skip 0**다. Portable matrix도 같은 source에서 성공했다.
+- 이 결과는 일반 forward scalar 선택과 JSON literal 비교의 통합 증거다. 후속 정렬 변경이나 전체 platform/cold milestone의
+  성공으로 확대하지 않는다. 이전 JSON full과 이 ORM scope는 서로 다른 source·검증 범위다.
+
+
+### JSON 경로·forward scalar 정렬의 로컬 통합 checkpoint
+
+- 기준 `8fe1281460d6c58cec7d09d937b69561b5831d0d` 위 제품·generated 소비자·독립 raw 및 Go/Python lock
+  **41 non-Markdown 경로** manifest SHA256은 `deabe0b0ee1f77cf372e26d8b4eb2d4f2b416e5a440aef81017324ad8b003fa4`다.
+  Go **1.26.5 darwin/arm64**, repository-pinned SQLite·native PostgreSQL **17.5 Homebrew**,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 실행 전후 동일 바이트를 확인했다.
+- Normal `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest ./systemstate ./examples/article ./examples/helpdesk`는
+  **11 package / 795 root 실행 / 5766 test·subtest PASS**다. 예제를 제외한 같은 명령의 `-race`는
+  **9 package / 778 root 실행 / 5747 PASS**다. 공통 package의 전체 run/pass/skip roster가 동일하다.
+  Fail 0·stderr 0 bytes이며 PostgreSQL 단독 process helper guard만 skip 1이다. 실제 양 DB process parent는 필수 PASS다.
+- `CGO_ENABLED=0`은 ordering AST·SQLite numeric sort/compiler·기존 JSON AST/comparison·physical connection/reopen과
+  JSON/forward scalar/nested forward generated 소비자 **3 package / 10 root / 19 PASS**, skip/fail 0·stderr 0 bytes다.
+  JSON parent는 양 DB의 `comparison/ordering` child를 새 필수 목록으로 검사하며 기존 하위 실행도 유지한다.
+- 고정 Django **6.1**·Python **3.14.3**, SQLite **3.50.4**·PostgreSQL **17.5**/psycopg **3.3.6**에서 JSON reference의
+  root/path·forward × ASC/DESC × DISTINCT × slice **32개**, forward scalar 22 field × 네 경로 × 같은 조합 **704개**를
+  각각 관찰했다. Model/DTO의 순서와 cold Count를 함께 기록하며 기존 비교·선택·NULL·distinct bag 관찰은 모두 불변이다.
+  Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** fresh reference 각각 **2 test / 3 SQLite profile PASS**다.
+  Raw SHA256은 다음과 같으며 JSON의 canonical SQLite는 GoDj 저장 정책의 별도 관찰이다.
+
+  - JSON 기본 SQLite: `18eebf9f311e6fceba11ceb91fe87ad1c73c3bd1b306eb650d73468e2baf543e`
+  - JSON 기본 PostgreSQL: `b7b7b969ccbc107d9926b73e608cc769a4ab527abb25a8b03fedf858bcf309d7`
+  - JSON canonical SQLite: `3841edd65f918af5f5f52cace9b95a2e664c5ee859ca94de6754c3056c13adef`
+  - Forward scalar SQLite: `119ed439e85bd6c041c62bed1c8ea4fcb1314d2a031f1a0aab2b6f718bbb7649`
+  - Forward scalar PostgreSQL: `d085c274581c84ad0b4548cb1f5d93e47315ab794853bda7568e3c0614fa6ca4`
+- JSON path sort key의 **24×24=576개** numeric 쌍을 독립 `big.Rat` 연산과 비교했다. 4000자리 지수·큰 이웃 정수·긴 소수·
+  signed zero·negative coefficient prefix·NULL/TEXT·NUL suffix와 malformed 입력을 검증한다. 두 physical connection과 reopen에서
+  새 함수가 실제 SQL 정렬 비교를 수행했다. Generated 제품은 ±1e400·±1e-400·-1.201/-1.2 및 큰 정수를 실제 저장/정렬했다.
+- Root/target/path identity·소유권·source metadata·방향, WHERE/SELECT/ORDER/LIMIT parameter 순서, optional ordering-only JOIN,
+  full-model DISTINCT의 숨은 셀과 원래 row shape, selected-path DTO DISTINCT의 PostgreSQL ordinal, eager presence·native scalar
+  readback, cold Count·slice·root MAX derived column 이름과 native NUL의 Count/빈 조회 사전 거부를 확인했다.
+  테스트의 Optional 결과 접근은 compile-only 단계에서 `Get()`으로 바로잡았으며 최종 runtime checkpoint는 첫 후보에서 모두 통과했다.
+- Affected vet·gofmt·diff/docs와 `make generate-check` PASS다. Helpdesk **12**, Article **12**, relationfixture **16파일 clean**과
+  checked-in relation 소비자 PASS다. 전용 DB의 잔여 연결·사용자 table **0**을 확인해 삭제하고 기존 service는 유지했다.
+  이 로컬 checkpoint는 후속 정렬 source의 platform 검증이 아니다. 공통 ordering/result compiler·JOIN 변경의 Hosted ORM 통합을
+  다음 고정 source milestone으로 실행하며 위 `8fe1281`의 Hosted 성공을 새 변경의 검증으로 대체하지 않는다.
+
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

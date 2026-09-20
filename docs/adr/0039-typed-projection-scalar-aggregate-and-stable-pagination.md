@@ -6,7 +6,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-08-23
-- 후속 반영: 2026-09-21, 관계 filter source의 root DTO와 forward scalar/JSON 선택
+- 후속 반영: 2026-09-21, 관계 filter source의 root DTO와 forward scalar/JSON 선택·정렬
 - 관련 work/contract: GDJ-0039, QRY-022..033, Q-011, M4
 - 대체하는 ADR: 없음
 
@@ -95,9 +95,9 @@ optional ancestry를 runtime metadata로 소유하므로 선택값 타입은 모
 
 Root nullable projection과 related projection은 같은 typed scanner factory를 사용합니다. Backend가 native
 Decimal·Duration·UUID·JSON 등을 변환한 뒤 정확한 scanner가 읽고, 각 행의 pointer는 별도 값을 소유합니다.
-Whole JSON의 non-nil JSON null과 SQL NULL은 구분합니다. 이 선택 capability는 관계 ordering/F·MIN/MAX를 허용하지 않습니다.
+Whole JSON의 non-nil JSON null과 SQL NULL은 구분합니다. 선택과 별도로 Asc/Desc 정렬을 제공하며, 관계 F·MIN/MAX는 허용하지 않습니다.
 
-공통 JOIN 준비는 filter와 selected route의 동일 prefix를 합치고 nullable ancestry와 Boolean 조건을 보존합니다.
+공통 JOIN 준비는 filter·selected·ordering route의 동일 prefix를 합치고 nullable ancestry와 Boolean 조건을 보존합니다.
 Root ID와 target ID처럼 이름·column·kind가 같아도 다른 선택값입니다. DISTINCT의 root ordering 검사는 실제 root
 whole-field 선택만 인정하며 target ID로 대신 충족하지 않습니다. LIMIT 0이나 empty IN도 구조·capability 검사를 먼저 합니다.
 
@@ -108,6 +108,22 @@ whole-field 선택만 인정하며 target ID로 대신 충족하지 않습니다
 명시적으로 표현하고 JSON의 SQL NULL/대상 부재 목록을 별도로 기록합니다. SQLite의 고유 Decimal 저장 정책을
 독립 Django NUMERIC 관찰과 혼동하지 않으며 큰 정밀도는 GoDj의 별도 실제 저장 회귀가 소유합니다.
 구현과 실행 결과는 TEST_EVIDENCE에서 구분합니다.
+
+### 값 표현에 따른 정렬
+
+`Ordering`은 field 또는 JSON path의 exact source/forward route와 방향을 보존합니다. `Asc`/`Desc`는 bound forward
+11종 scalar에 제공하며 필수·nullable 2-hop의 네 경로를 포함합니다. 정렬에만 사용한 경로도 JOIN을 만들고 optional
+대상이 없는 source 행을 보존합니다. Source/FK·방향·backend path 검증은 COUNT/빈 조회의 정렬 생략보다 먼저 실행합니다.
+
+DTO DISTINCT는 같은 field/path/route의 선택을 요구합니다. Root ID와 target ID는 서로 대신할 수 없습니다.
+Full model의 DISTINCT 정렬에만 필요한 값은 내부 셀로 계산한 뒤 외부 SELECT가 원래 row shape를 반환합니다.
+Forward 값은 root FK로 결정되므로 모델의 중복 기준은 유지됩니다. Column 이름과 Decimal typmod cache identity,
+native scalar adapter·scanner 순서도 유지합니다. JSON path의 정밀 숫자·backend별 순서는
+[ADR-0071](0071-json-values-and-native-storage-boundaries.md#json과-forward-값의-정렬)을 따릅니다.
+
+같은 독립 public runner는 22개 필수/nullable field × 네 경로 × ASC/DESC × DISTINCT × slice **704개**의
+model/DTO 순서와 Count를 기록합니다. 원래 선택·distinct bag·SQL NULL 관찰은 바꾸지 않습니다.
+이 관찰과 실제 GoDj 실행 source의 통과 여부는 TEST_EVIDENCE에서 구분합니다.
 
 ### Article 사용자 흐름
 
@@ -135,5 +151,5 @@ published filter → distinct → stable ID order → offset/limit
 - bulk create/update/delete와 cache invalidation
 - `select_for_update`, transaction-bound QuerySet와 backend lock capability
 - annotation/grouping/having, dynamic values, subquery, window function
-- reverse selected value, 관계 ordering/F/aggregate 또는 existing select-related projection과 DTO projection 조합
+- reverse selected value/ordering, 관계 F/aggregate 또는 existing select-related projection과 DTO projection 조합
 - Web Core pagination abstraction, MySQL과 추가 backend

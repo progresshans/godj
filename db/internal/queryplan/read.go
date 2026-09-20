@@ -195,38 +195,6 @@ func FieldExpressions(fields []query.FieldRef) []query.ResultExpression {
 	return expressions
 }
 
-func ProjectsWholeField(expressions []query.ResultExpression, field query.FieldRef) bool {
-	for _, expression := range expressions {
-		if _, related := expression.RelationPath(); related {
-			continue
-		}
-		if candidate, ok := expression.Field(); ok && expression.Kind() == query.ResultField && candidate.Equal(field) {
-			return true
-		}
-	}
-	return false
-}
-
-func OmittedOrderings(orderings []query.Ordering, sourceFields []query.FieldRef, quoteIdentifier func(string) (string, error)) error {
-	for _, ordering := range orderings {
-		if err := ValidateOrdering(ordering.Field()); err != nil {
-			return err
-		}
-		if !ContainsField(sourceFields, ordering.Field()) {
-			return invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
-		}
-		if _, err := quoteIdentifier(ordering.Field().Column()); err != nil {
-			return err
-		}
-		switch ordering.Direction() {
-		case query.Ascending, query.Descending:
-		default:
-			return invalidPlan("unknown ordering direction")
-		}
-	}
-	return nil
-}
-
 func invalidPlan(detail string) error {
 	return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: detail}
 }
@@ -311,12 +279,4 @@ func ConditionJoinKey(path query.RelationPath) (RelationKey, bool) {
 		return RelationKey{}, false
 	}
 	return KeyForPath(hops), true
-}
-
-// ValidateOrdering does not infer a cross-backend order for structured JSON.
-func ValidateOrdering(field query.FieldRef) error {
-	if field.Kind() == query.FieldJSON {
-		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Field: field.Name(), Detail: "JSON ordering is not supported"}
-	}
-	return nil
 }

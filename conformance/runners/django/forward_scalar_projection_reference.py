@@ -154,6 +154,24 @@ with tempfile.TemporaryDirectory(prefix='godj-forward-scalar-reference-') as tem
         for field in ('v_json', 'n_json'):
             ids = list(Entry.objects.filter(**{route + '__' + field + '__isnull': True}).order_by('id').values_list('id', flat=True))
             json_nulls.append({'route': route, 'field': field, 'sql_null_or_absent': ids})
+    orderings = []
+    for route in routes:
+        for field in names:
+            for descending in (False, True):
+                for distinct in (False, True):
+                    for sliced in (False, True):
+                        term = route + '__' + field
+                        qs = Entry.objects.order_by(('-' if descending else '') + term, 'id')
+                        if distinct:
+                            qs = qs.distinct()
+                        if sliced:
+                            qs = qs[1:4]
+                        count = qs.count()
+                        rows = [row.id for row in qs]
+                        selected = qs.values_list('id', term)
+                        orderings.append({'route': route, 'field': field, 'descending': descending,
+                                          'distinct': distinct, 'sliced': sliced, 'count': count,
+                                          'rows': rows, 'projected': [row[0] for row in selected]})
     with connection.cursor() as cursor:
         cursor.execute('SELECT version()' if database else 'SELECT sqlite_version()')
         version = cursor.fetchone()[0]
@@ -164,7 +182,7 @@ with tempfile.TemporaryDirectory(prefix='godj-forward-scalar-reference-') as tem
               'database_version': version, 'kinds': KINDS, 'fields': names, 'inputs': INPUTS,
               'holders': [{'primary': a, 'secondary': b} for a, b in holder_inputs],
               'entries': [{'label': f'e{i}', 'primary': a, 'secondary': b} for i, (a, b) in enumerate(entry_inputs)],
-              'routes': routes, 'observations': observations, 'distinct': bags, 'json_nulls': json_nulls}
+              'routes': routes, 'observations': observations, 'distinct': bags, 'json_nulls': json_nulls, 'orderings': orderings}
     if database:
         result['psycopg'] = importlib.metadata.version('psycopg')
     print(json.dumps(result, ensure_ascii=True, sort_keys=True, separators=(',', ':')))

@@ -102,7 +102,7 @@ func TestPostgresJSONDriverAndCatalogKeepSQLNullSeparate(t *testing.T) {
 	}
 }
 
-func TestPostgresJSONOrderingRejectedBeforeAggregateElision(t *testing.T) {
+func TestPostgresJSONOrderingValidatesBeforeAggregateElision(t *testing.T) {
 	field := query.NewFieldRef("payload", "payload", query.FieldJSON, true)
 	model := query.NewPlan("records", []query.FieldRef{field}).WithOrderings(query.NewOrdering(field, query.Ascending))
 	result, err := query.NewAggregateResult(query.CountAllResult())
@@ -126,8 +126,12 @@ func TestPostgresJSONOrderingRejectedBeforeAggregateElision(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, plan := range []query.Plan{model, count, count.WithDistinct(), limited, empty} {
-		if _, _, err := compilePlan("jsonref", plan); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-			t.Fatal("JSON ordering escaped validation through result lowering", err)
+		if _, _, err := compilePlan("jsonref", plan); err != nil {
+			t.Fatal("valid JSON ordering rejected", err)
+		}
+		plan = plan.WithOrderings(query.NewOrdering(field, query.Direction("sideways")))
+		if _, _, err := compilePlan("jsonref", plan); !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+			t.Fatal("invalid ordering escaped aggregate/empty validation", err)
 		}
 	}
 }

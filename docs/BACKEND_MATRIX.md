@@ -43,7 +43,7 @@ JSON은 immutable 문서와 exact number token을 사용하며 nil pointer(SQL N
 SQLite TEXT/JSON_VALID CHECK와 PostgreSQL native JSONB, strict read·parameter·historical create/add/reverse를 연결했다.
 Exact/IN/F exact·isnull·projection·forward와 non-null reverse exact를 지원한다. 명시적 key/index 경로의 exact/IN/isnull을 typed/dynamic과 같은 AST로 연결했다. PostgreSQL은 root/path·forward contains/contained_by를 native JSONB 연산으로 처리하고 SQLite는 capability 오류로 거부한다.
 Root/path·forward has_key/has_keys/has_any_keys도 지원한다. PostgreSQL native JSONB membership과 SQLite object-key 의미,
-SQLite의 literal empty/NUL 보정·빈 목록 확장은 ADR-0071/DEV-0017에 명시한다. Root JSON 경로 projection도 typed nullable 결과로 연결했다. 관계 filter source의 root scalar/JSON 경로 DTO는 같은 JOIN과 선택값 기준 DISTINCT를 사용한다. Forward 대상의 JSON 문서 전체와 경로도 nullable DTO로 연결한다. Literal JSON의 gt/gte/lt/lte는 root/path·forward에서 DB별 의미로 처리한다. SQLite path의 array/object RHS는 미지원이며 whole field와 PostgreSQL path는 지원한다. JSON order/Min/Max·reverse path projection은 현재 미지원이다.
+SQLite의 literal empty/NUL 보정·빈 목록 확장은 ADR-0071/DEV-0017에 명시한다. Root JSON 경로 projection도 typed nullable 결과로 연결했다. 관계 filter source의 root scalar/JSON 경로 DTO는 같은 JOIN과 선택값 기준 DISTINCT를 사용한다. Forward 대상의 JSON 문서 전체와 경로도 nullable DTO로 연결한다. Literal JSON의 gt/gte/lt/lte는 root/path·forward에서 DB별 의미로 처리한다. SQLite path의 array/object RHS는 미지원이며 whole field와 PostgreSQL path는 지원한다. JSON root/path·forward 정렬은 backend 값 의미와 정확한 경로 숫자를 유지한다. JSON Min/Max·ordered F·reverse value/path projection·정렬은 현재 미지원이다.
 GoDj write의 object key 정규화와 native JSONB numeric equality·지수 전개를 구분하며 PostgreSQL NUL과 readback 크기 초과를 거부한다.
 Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자·독립 client를 연결했다. Helpdesk는 native readback 뒤 응답 한도 검사까지 transaction 안에서 처리한다. [JSON 값과 저장](adr/0071-json-values-and-native-storage-boundaries.md)의 범위를 따른다.
 
@@ -58,7 +58,7 @@ Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
 Typed/dynamic 대상은 Integer·Float·Decimal·UUID·Char/Text·Date·DateTime·Time·Duration의 nullable/non-null과 Boolean이다.
-Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typed DTO로 선택하며, 관련 값은 항상 nullable pointer로 반환한다.
+Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typed DTO로 선택하며, 관련 값은 항상 nullable pointer로 반환한다. 같은 forward scalar에 ASC/DESC를 제공하고 정렬에만 등장하는 optional 경로도 행을 보존한다.
 원본 field metadata는 유지하고 target 부재·SQL NULL을 표현한다. Reverse value 선택·관계 ordering/F/MIN/MAX는 미지원이다.
 여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며

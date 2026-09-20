@@ -71,5 +71,9 @@ Root 관계 DTO와 forward 경로 선택을 묶은 Hosted ORM 통합 milestone�
 JSON root/path·forward의 literal 대소 비교와 Boolean 조합을 독립 관찰하고 공통 AST·typed/dynamic·양 DB에 연결했다.
 SQLite는 기본 Django와 기존 GoDj canonical 저장 profile을 따로 보존하며 path 숫자를 반올림하지 않는 비교 함수를 사용한다.
 실제 양 DB와 소비자의 normal/race/CGO=0 checkpoint를 마쳤다.
-일반 forward scalar와 JSON 대소 비교를 묶은 Hosted ORM 통합 및 root/path 정렬과 DISTINCT·Count·선택 결과의 의미를 이어간다.
+일반 forward scalar 선택과 JSON 대소 비교를 묶은 source의 Hosted ORM 통합을 완료했다.
+Root/path·forward JSON과 11종 forward scalar의 ASC/DESC 정렬을 공통 값 표현·양 DB·generated 소비자에 연결했다.
+정렬 전용 optional JOIN·정확한 numeric key·DTO DISTINCT와 full-model 내부 정렬 셀·cold Count·slice를 유지한다.
+독립 model/DTO 순서·Count 관찰과 로컬 normal/race/CGO=0 checkpoint를 마쳤으며, 새 공통 compiler·JOIN source의
+Hosted ORM 통합 milestone 및 남은 JSON 조회·소비자 요구를 이어간다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

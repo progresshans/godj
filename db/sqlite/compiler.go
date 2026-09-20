@@ -10,12 +10,15 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
+	if err := validateOrderings(plan); err != nil {
+		return "", nil, err
+	}
 	where, err := analyzeWhere(plan)
 	if err != nil {
 		return "", nil, err
 	}
 	selected := len(plan.RelationProjections()) != 0
-	related := where.hasRelations || plan.ResultShape().HasRelations()
+	related := where.hasRelations || plan.ResultShape().HasRelations() || queryplan.HasOrderingRelations(plan)
 	if related && !selected && plan.ResultShape().IsCountAll() {
 		inner, arguments, err := compileRelation(plan, where)
 		if err != nil {
@@ -83,7 +86,11 @@ func compileScalarRows(plan query.Plan, selected []query.ResultExpression, sourc
 	if plan.Distinct() {
 		sql.WriteString("DISTINCT ")
 	}
-	arguments, err := appendSelectedExpressions(&sql, selected, "", nil)
+	hidden, err := queryplan.HiddenOrderings(plan, selected)
+	if err != nil {
+		return "", nil, err
+	}
+	arguments, err := appendRowSelection(&sql, selected, hidden, "", nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -100,40 +107,7 @@ func compileScalarRows(plan query.Plan, selected []query.ResultExpression, sourc
 	}
 	arguments = append(arguments, whereArguments...)
 
-	orderings := plan.Orderings()
-	if len(orderings) > 0 {
-		sql.WriteString(" ORDER BY ")
-	}
-	for index, ordering := range orderings {
-		if err := queryplan.ValidateOrdering(ordering.Field()); err != nil {
-			return "", nil, err
-		}
-		if index > 0 {
-			sql.WriteString(", ")
-		}
-		if !queryplan.ContainsField(sourceFields, ordering.Field()) {
-			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
-		}
-		field, err := quoteIdentifier(ordering.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		sql.WriteString(field)
-		switch ordering.Direction() {
-		case query.Ascending:
-			sql.WriteString(" ASC")
-		case query.Descending:
-			sql.WriteString(" DESC")
-		default:
-			return "", nil, invalidPlan("unknown ordering direction")
-		}
-		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection &&
-			!queryplan.ProjectsWholeField(selected, ordering.Field()) {
-			return "", nil, unsupportedDistinctOrdering(ordering.Field())
-		}
-	}
-	arguments = appendPagination(&sql, arguments, plan)
-	return sql.String(), arguments, nil
+	return finishOrderedRows(sql.String(), plan, selected, hidden, "", nil, arguments)
 }
 
 func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFields []query.FieldRef, where *sqliteWhereAnalysis) (string, []any, error) {
@@ -184,9 +158,6 @@ func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExp
 
 	arguments, err := appendWhere(&sql, where)
 	if err != nil {
-		return "", nil, err
-	}
-	if err := queryplan.OmittedOrderings(plan.Orderings(), sourceFields, quoteIdentifier); err != nil {
 		return "", nil, err
 	}
 	return sql.String(), arguments, nil
@@ -262,27 +233,17 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 	if plan.Distinct() {
 		sql.WriteString("DISTINCT ")
 	}
-	selected := queryplan.FieldExpressions(columns)
-	if plan.ResultShape().Kind() == query.ResultProjection {
-		selected, err = queryplan.ProjectionExpressions(plan.ResultShape(), columns)
-		if err != nil {
-			return "", nil, err
-		}
-	}
-	arguments, err := appendSelectedExpressions(&sql, selected, rootAlias, joins)
+	selected, err := queryplan.SelectedRows(plan)
 	if err != nil {
 		return "", nil, err
 	}
-	for _, projection := range plan.RelationProjections() {
-		alias := joins[queryplan.KeyForPath(projection.Path().Hops())].Alias
-		for _, column := range projection.TargetColumns() {
-			sql.WriteString(", ")
-			qualified, err := quoteQualified(alias, column.Column())
-			if err != nil {
-				return "", nil, err
-			}
-			sql.WriteString(qualified)
-		}
+	hidden, err := queryplan.HiddenOrderings(plan, selected)
+	if err != nil {
+		return "", nil, err
+	}
+	arguments, err := appendRowSelection(&sql, selected, hidden, rootAlias, joins)
+	if err != nil {
+		return "", nil, err
 	}
 	table, err := quoteIdentifier(plan.Table())
 	if err != nil {
@@ -359,39 +320,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 
 	arguments = append(arguments, whereArguments...)
 
-	orderings := plan.Orderings()
-	if len(orderings) > 0 {
-		sql.WriteString(" ORDER BY ")
-	}
-	for index, ordering := range orderings {
-		if err := queryplan.ValidateOrdering(ordering.Field()); err != nil {
-			return "", nil, err
-		}
-		if index > 0 {
-			sql.WriteString(", ")
-		}
-		if !queryplan.ContainsField(columns, ordering.Field()) {
-			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
-		}
-		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection && !queryplan.ProjectsWholeField(selected, ordering.Field()) {
-			return "", nil, unsupportedDistinctOrdering(ordering.Field())
-		}
-		field, err := quoteQualified(rootAlias, ordering.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		sql.WriteString(field)
-		switch ordering.Direction() {
-		case query.Ascending:
-			sql.WriteString(" ASC")
-		case query.Descending:
-			sql.WriteString(" DESC")
-		default:
-			return "", nil, invalidPlan("unknown ordering direction")
-		}
-	}
-	arguments = appendPagination(&sql, arguments, plan)
-	return sql.String(), arguments, nil
+	return finishOrderedRows(sql.String(), plan, selected, hidden, rootAlias, joins, arguments)
 }
 
 func quoteQualified(alias, column string) (string, error) {
@@ -620,50 +549,4 @@ func unsupportedResult(detail string) error {
 		Code:     query.CodeUnsupported,
 		Detail:   detail,
 	}
-}
-
-func unsupportedDistinctOrdering(field query.FieldRef) error {
-	return &query.Error{
-		Category: query.CategoryBackend,
-		Code:     query.CodeUnsupported,
-		Field:    field.Name(),
-		Detail:   "SQLite DISTINCT projection requires every ordering field in the result shape",
-	}
-}
-
-// Every scalar cell, including a root cell selected after relationship filters,
-// uses the same rendering and parameter order. Joins only supply qualification.
-func appendSelectedExpressions(sql *strings.Builder, selected []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join) ([]any, error) {
-	arguments := make([]any, 0)
-	for index, expression := range selected {
-		if index > 0 {
-			sql.WriteString(", ")
-		}
-		field, _ := expression.Field()
-		selectedAlias := alias
-		if path, related := expression.RelationPath(); related {
-			joined, ok := joins[queryplan.KeyForPath(path.Hops())]
-			if !ok {
-				return nil, invalidPlan("selected relation was not materialized")
-			}
-			selectedAlias = joined.Alias
-		}
-		var column string
-		var err error
-		if selectedAlias == "" {
-			column, err = quoteIdentifier(field.Column())
-		} else {
-			column, err = quoteQualified(selectedAlias, field.Column())
-		}
-		if err != nil {
-			return nil, err
-		}
-		if path, ok := expression.JSONPath(); ok {
-			sql.WriteString("godj_json_at(" + column + ", ?)")
-			arguments = append(arguments, sqliteJSONPathArgument(path))
-		} else {
-			sql.WriteString(column)
-		}
-	}
-	return arguments, nil
 }

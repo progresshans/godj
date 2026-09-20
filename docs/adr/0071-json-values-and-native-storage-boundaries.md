@@ -41,7 +41,7 @@ GoDj의 round-trip profile에 포함되지는 않는다. SQLite에 이 native �
 
 Common AST는 JSON exact/IN, 같은 모델의 JSON F exact, SQL isnull과 projection을 소유한다. Forward JSON 조회와
 non-null reverse exact는 기존 relation binding·cache/clone 경계를 따른다. JSON 값을 ordered scalar로 일괄 취급하지 않는다.
-Literal JSON의 gt/gte/lt/lte는 아래 backend 의미에 따라 제공한다. Ordering·MIN/MAX·ordered F는 별도 범위이며 명시적으로 거부한다.
+Literal JSON의 gt/gte/lt/lte는 아래 backend 의미에 따라 제공한다. Root/path 및 forward ORDER BY도 아래 정렬 표현을 사용한다. MIN/MAX·ordered F는 명시적으로 거부한다.
 이 범위는 JSONField의 모든 lookup을 지원한다는 뜻이 아니다.
 
 ## JSON 경로 predicate
@@ -55,7 +55,7 @@ Typed `Payload.At(query.JSONKey("items"), query.JSONIndex(0))`와 dynamic `Looku
 Dynamic `Key`는 기존 model/relation field·lookup만 선택하며 arbitrary JSON key를 `__` 문법에 끼워 넣지 않는다.
 오타 lookup을 JSON key로 암묵 수용하지 않고 기존 allowlist policy를 적용한다. Nil JSONPath는 whole field,
 non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull·gt/gte/lt/lte·key presence와 backend가 지원하는 contains/contained_by를 제공하고
-Root path의 typed projection은 아래 결과 경계를 따른다. F·ordering·write field로 노출하지 않는다.
+Root path의 typed projection은 아래 결과 경계를 따른다. 정렬을 별도 capability로 제공하며 F·write field로 노출하지 않는다.
 
 없는 key, 범위 밖 index, 맞지 않는 container는 SQL NULL이다. `IsNull(true)`가 이를 조회하고,
 `Exact(jsonvalue.Null())`는 실제 존재하는 JSON null만 조회한다. 부정 조건의 기존 root SQL NULL 보정과 missing path는
@@ -142,12 +142,12 @@ non-nil `jsonvalue.Null()`로 구분한다. Whole field와 여러 서로 다른 
 `NewProjectionResult`는 FieldResult 또는 JSONPathResult의 표현 목록을 받는다. 기존 field-only 저수준 호출도 이 표현으로
 옮기며 별도 호환 계층을 추가하지 않는다. 선택 목록은 1..2048개로 제한하고 같은 source/path의 중복을 거부한다.
 Path 비교는 포인터 identity가 아니라 literal key/index 순서로 판단한다. 동일한 source의 다른 path와 whole-field 선택은 다르다.
-Typed projection의 model·값 타입은 sealed capability를 유지하며 path에 ordered/write/F capability를 추가하지 않는다.
+Typed projection의 model·값 타입은 sealed capability를 유지하며 path의 정렬은 별도 capability이고 MIN/MAX용 OrderedField·write·F capability를 추가하지 않는다.
 
 SQLite는 기존 bounded `godj_json_at`, PostgreSQL은 strict JSON path를 SELECT에서 평가한다. 선택 path 매개변수는
 WHERE·LIMIT/OFFSET보다 앞에 배치한다. Native NUL path는 LIMIT 0·empty source에서도 preflight 오류다.
 Projection DISTINCT는 선택한 값의 DB 의미를 따른다. SQLite canonical JSON text의 `1`/`1.0`은 다르며 native JSONB는
-동등하게 취급한다. ORDER BY field는 DISTINCT에서 해당 whole field도 선택되어 있어야 한다. JSON ordering 자체는 계속 미지원이다.
+동등하게 취급한다. DTO DISTINCT의 정렬에는 정확히 같은 field/path/route 표현이 선택되어 있어야 한다. 아래 정렬 규칙을 따른다.
 Partial scan/rows/context 실패 시 결과 일부를 반환하지 않고 cursor를 닫는다. 새 실행으로 재시도할 수 있으며 잘못된 값의
 오류를 숨기거나 모델 cache에서 대체하지 않는다. 관계 filter가 있는 source에서도 root scalar와 JSON 경로를 DTO로
 선택할 수 있다. JOIN의 중복·nullable Boolean 의미를 유지하고 DISTINCT는 실제 선택한 값에 적용한다.
@@ -214,7 +214,7 @@ GoDj의 객체 key 정규화 때문에 SQLite에서 GoDj로 저장한 reordered 
 [독립 public runner](../../conformance/runners/django/forward_json_projection_reference.py)는 필수/선택 parent와
 child의 네 경로에서 filter 없음·AND/OR/NOT·선택값 DISTINCT·slice를 관찰한다. 대상 부재·SQL NULL·missing을
 별도 public 조회로 기록하며 Go의 JSON null 표현과 구분한다. Runtime 검증 여부는 TEST_EVIDENCE가 소유한다.
-Reverse selected path·JSON F/order·일반 관계 aggregate는 이 확장에 포함하지 않는다.
+Reverse selected path·JSON ordered F·일반 관계 aggregate는 이 확장에 포함하지 않는다.
 
 Whole `RelatedJSONField`도 같은 `Project1..4`에 전달할 수 있다. Forward scalar와 공유하는 결과 경계는
 [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md#forward-scalar-결과)를 따른다.
@@ -225,7 +225,7 @@ selected target field의 kind를 확인한다. Whole document와 그 안의 path
 
 `GreaterThan`/`GreaterThanOrEqual`/`LessThan`/`LessThanOrEqual` 및 dynamic `gt/gte/lt/lte`는
 whole field·명시적 JSON path·forward relation에서 같은 literal JSON AST를 사용한다. RHS는 검증된 `jsonvalue.Value`이며
-Go scalar·map·nil을 JSON으로 암묵 변환하지 않는다. JSON의 ordered F·ORDER BY·MIN/MAX나 tuple `range`를 함께 허용하지 않는다.
+Go scalar·map·nil을 JSON으로 암묵 변환하지 않는다. JSON의 ordered F·MIN/MAX나 tuple `range`를 함께 허용하지 않는다.
 Boolean 조건·optional JOIN·cold Count·DTO·empty-query 검사에는 기존 predicate 경계를 재사용한다.
 
 PostgreSQL은 whole field와 strict path의 native JSONB 대소 비교를 사용한다. [PostgreSQL 17 JSONB 비교](https://www.postgresql.org/docs/17/datatype-json.html#JSON-INDEXING)는
@@ -253,4 +253,35 @@ SQLite path number는 native INTEGER/REAL 변환 대신 정확한 coefficient와
 4개 Boolean 조합을 관찰한다. 별도 [canonical SQLite profile](../../internal/jsontest/testdata/godj-canonical-comparison-sqlite.json)은
 GoDj의 기존 key/공백/Unicode escaping 저장 정책을 public JSONField encoder로 관찰한다. Django 기본 결과를 대체하거나
 기본 Django parity로 표시하지 않는다. 두 SQLite profile의 정확한 차이와 숫자 정책은 DEV-0017이 소유한다.
-Raw의 root/path 정렬 네 개는 후속 설계용 독립 관찰이며 현재 GoDj ORDER BY 지원 또는 runtime 검증 증거가 아니다.
+Raw의 최초 root/path 정렬 네 개를 보존하고, 아래 정렬 확장에 model/DTO·forward·DISTINCT·slice·Count 관찰을 추가했다.
+
+
+## JSON과 forward 값의 정렬
+
+`Asc`/`Desc`는 root whole JSON·literal JSON path와 bound forward scalar/JSON에 제공한다.
+`query.Ordering`은 immutable `ResultExpression`과 방향을 소유한다. `NewResultOrdering`은 field/path 표현만 받고
+aggregate 표현을 거부한다. 동일한 field 이름이라도 root/target·관계 경로·JSON key/index가 다르면 다른 정렬값이다.
+Plan source/FK metadata와 방향·backend identifier/native path 검사는 Count의 정렬 생략이나 empty-query elision보다 앞선다.
+선택·필터 없이 정렬에만 등장하는 forward route도 같은 JOIN graph에 참여하며 optional ancestry의 부재 행을 보존한다.
+
+Whole JSON은 SQLite 저장 TEXT 또는 PostgreSQL native JSONB로 정렬한다. PostgreSQL path도 strict JSONB 값을 사용하며
+SQL NULL/missing의 위치는 backend 기본 ASC/DESC 의미다. SQLite path는 `godj_json_sort_key(godj_json_at(...))`의
+검증된 BLOB key로 numeric-before-text 순서를 표현한다. Number는 정확한 coefficient/scientific magnitude를 비교하고,
+string은 unquoted UTF-8, null/Boolean·array/object는 비교와 같은 TEXT 표현이다. 1/1.0과 signed zero의 같은 숫자값은
+같은 sort key를 갖지만 stored/projected JSON token·타입·exact 정책은 바꾸지 않는다. 음수 coefficient의 끝도 함께
+역순으로 인코딩해 -1.201 < -1.2를 지킨다. 지수의 크기로 메모리를 확장하지 않고 codec의 token 한도를 따른다.
+
+DTO DISTINCT는 각 정렬 표현이 정확하게 선택되어 있어야 한다. SQLite도 이 규칙을 적용하며 미선택 정렬은 pre-I/O
+unsupported다. PostgreSQL은 이미 선택한 JSON path의 ordinal로 정렬해 SELECT/ORDER BY의 별도 경로 매개변수가
+서로 다른 표현이 되는 문제를 피한다. SQLite의 selected path는 원본 JSON 값을 반환하고 정렬에만 별도 key를 사용한다.
+
+Full-model DISTINCT에서 선택하지 않은 path/forward 값은 내부 SELECT의 숨은 정렬 셀로 계산하고 외부 SELECT가
+원래 model/eager 셀과 column 이름만 반환한다. 지원하는 정렬값은 선택된 root field/FK의 함수이므로 모델 DISTINCT
+기준을 넓히지 않는다. 숨은 셀은 scanner·native result adapter로 전달하지 않는다. Count는 같은 DISTINCT·순서·slice가
+적용된 source를 집계한다. Root scalar MIN/MAX의 derived source도 원래 column 이름을 유지한다. 일반 관계 MIN/MAX와
+reverse ordering은 계속 별도 범위다. 결과가 같은 행의 안정적인 페이지 순서가 필요하면 ID를 후속 정렬 키로 지정한다.
+
+독립 JSON reference에 root/path·forward × ASC/DESC × DISTINCT × slice **32개**를 추가했다. 각 행은 model/DTO의
+순서와 cold Count를 관찰한다. 이전 비교·Boolean·정렬 관찰은 그대로 보존한다. Canonical SQLite profile은 기존 저장
+정책의 관찰이며 기본 Django 저장과 구분한다. 11종 forward scalar의 독립 관찰과 환경별 제품 검증은
+[ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)와 TEST_EVIDENCE가 소유한다.
