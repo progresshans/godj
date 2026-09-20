@@ -453,7 +453,7 @@ func TestCompilerRejectsInvalidReadFieldMetadata(t *testing.T) {
 			query.NewFieldRef("other", "id", query.FieldInteger, false),
 		}),
 		query.NewPlan("news_article", []query.FieldRef{
-			query.NewFieldRef("value", "value", query.FieldKind("decimal"), false),
+			query.NewFieldRef("value", "value", query.FieldKind("unknown"), false),
 		}),
 	}
 	for _, plan := range tests {

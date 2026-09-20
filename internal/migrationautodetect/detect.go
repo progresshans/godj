@@ -383,7 +383,7 @@ func safeExistingAddField(field ir.Field) bool {
 		// prefix; no guessed key, default, or populated-table backfill is used.
 		return field.Nullable || field.Relation.OnDelete == ir.DeleteProtect
 	}
-	return field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) || field.Kind == ir.FieldInteger || field.Kind == ir.FieldBoolean)
+	return field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal) || field.Kind == ir.FieldInteger || field.Kind == ir.FieldBoolean)
 }
 
 func validateAddedRelation(

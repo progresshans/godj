@@ -57,7 +57,13 @@ func renderRelationProjectionModel(output *bytes.Buffer, model ir.Model) {
 
 	fmt.Fprintf(output, "var _ orm.ProjectionDescriptor[%s] = %s{}\n\n", model.GoName, descriptor)
 	fmt.Fprintf(output, "func (%s) NewProjectionScan() orm.ProjectionScan[%s] {\n", descriptor, model.GoName)
-	fmt.Fprintf(output, "\treturn &%s{}\n", scanType)
+	fmt.Fprintf(output, "\treturn &%s{", scanType)
+	for _, field := range model.Fields {
+		if field.Kind == ir.FieldDecimal {
+			fmt.Fprintf(output, "%s: orm.NewNullableDecimalScanner(%d, %d),", relationProjectionScanField(field), field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+		}
+	}
+	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "type %s struct {\n", scanType)

@@ -5,7 +5,7 @@
 
 ## GDJ-0091 — Decimal의 독립 정밀도·저장 기준 준비
 
-- 다음 작업의 준비: [GDJ-0091](../../work/0091-decimal-cost-models.md), branch `feature/decimal-models`. Decimal 제품 코드는 아직 없다.
+- 초기 기준 준비 source `885590259b464a448df2ff3b825ad93a244ed283`: [GDJ-0091](../../work/0091-decimal-cost-models.md), branch `feature/decimal-models`. 아래 원본 hash는 이 초기 source의 관찰이다. 현재 제품 진행은 별도 checkpoint에 기록한다.
 - Runner·reference test·raw JSON 세 파일의 정렬된 SHA256 manifest는 `3a16077823474753f8b106a4c103d710f8da262bf5226eb83cbcd648e0e42561`다.
   [Raw 관찰](../../internal/decimaltest/testdata/django61.json)의 SHA256은 `947dde60d6d0f634a96802567a7a069ff0833ff2e130e685d546cbd21f3bdb77`다.
 - 고정 Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5의 public API로 Model **89**·Form **136**·serializer **360**·
@@ -24,7 +24,44 @@
   field 독립 binary key 순서와 big.Rat 숫자 순서를 대조하고, 실제 SQLite BLOB의 정렬·비교 150조합·column equality·Min/Max를 확인했다.
   형식의 strict decode와 canonical round-trip도 PASS다. 제품 package·migration 또는 다른 OS/driver의 검증은 아니다.
   Prototype 두 source의 정렬 SHA256 manifest는 `63d3dfba9776b26d44dfaa014e2a9c2ef4f1f6edc3f314ef20f0bc1eca8cccb8`다.
-- 이 준비는 제품 설계 채택이나 GoDj Decimal의 runtime·Hosted 지원 증거가 아니다. Float Hosted source에도 포함되지 않는다.
+- 이 초기 기준·prototype 자체는 GoDj Decimal의 runtime·Hosted 지원 증거가 아니다. Float Hosted source에도 포함되지 않는다.
+
+### Exact JSON profile 추가
+
+- 원래 관찰을 보존한 채 public `json.loads(parse_float=Decimal)` profile 19개와 NUMERIC(30,12) JSON precision 비교 4개를 추가했다.
+  최종 세 reference 파일 manifest는 `9725788c4019496373c291f4ac267e35c158d2b4d3a3e726df446e7518fdb277`,
+  raw SHA256은 `411d51330e98f2d8784ab48bc44c65df050198a06c131cabd2172ef2ff929d03`이다.
+- Python 3.12.13 / 3.13.15 / 3.14.3 / 3.14.7의 fresh reference test 각각 1 PASS, skip/warning 0이다.
+  초기 source와 비교해 두 새 JSON key를 제외한 전체 관찰이 동일함을 확인했다.
+- 기본 float profile과 lexical Decimal profile의 12/2 오류 차이는 `1.200`, ±`1e309`, ±`1e-9999`의 5개 selector다.
+  30/12에서는 큰 decimal token의 float 반올림·경계 초과와 bare integer의 정확한 보존을 분리했다.
+  [DEV-0016](../DEVIATIONS.md#dev-0016--decimal의-정확한-입력저장과-초과-scale-거부)은 이 차이와 양 DB의 exact 저장 선택을 명시한다.
+
+### 모델·DB 통합 checkpoint 완료
+
+- [ADR-0069](../adr/0069-exact-decimal-values-and-storage.md)의 값·IR·query·generator·ORM·physical migration 묶음을 구현했다.
+  Form/Admin·serializer·Helpdesk/OpenAPI/client는 아직 연결 전이며 Decimal 전체 수직 단면 완료가 아니다.
+- 초기 normal checkpoint에서 기존 두 테스트가 새 지원 타입 `decimal`을 미지원 타입으로 사용해 실패했다.
+  해당 음성 fixture를 `unknown`으로 바꾸고 미지원 kind와 Decimal precision 오류를 구분했다. 기존 테스트의 거부 위험은 유지한다.
+- 추가 1000자리 생성 소비자 테스트는 `First`에 명시적 ordering을 누락해 실패했다. 조회에 ID 정렬을 추가했으며 제품의 unordered-query 거부를 유지했다.
+  수정 후 생성 소비자와 compile-time float/string/integer 혼용 거부 3개 subtest가 통과했다.
+- 원시 migration IR budget의 FloatBits 문자열 누락도 Decimal 문자열과 함께 보강했다. Default·choice의 active/inactive arm과 aggregate/per-string cap을 검사한다.
+- 최종 모델·DB source는 baseline `47772f8d2920dba8fdd99dabef5c14c4bd4a391e` 위 제품·reference·테스트 변경 **69개 파일**로 묶었다.
+  정렬된 SHA256 manifest는 `c6cd6a19e1418b64aad9df308d2109815b8c47e74f2966e4b3f99ea96ebc0559`다. 모든 checkpoint 종료 뒤 같은 파일 바이트를 다시 대조했다.
+- Local macOS arm64, Go 1.26.5, PostgreSQL 17.5, TZ=Pacific/Chatham에서 다음 affected 17개 package를 normal·race 각각 fresh 실행했다:
+  `decimal`, `internal/decimalstorage`, `schema`, `schema/ir`, `query`, `orm`, `db/internal/queryplan`, `db/sqlite`, `db/postgres`, `codegen`,
+  `codegen/consumertest`, `internal/irresource`, `internal/projectspec`, `internal/projectwire`, `migrations`, `migrations/definition`, `internal/migrationautodetect`.
+  각각 **17 package / 6,517 test·subtest PASS**(root 1,069), 실패 0이다. 유일한 helper-only skip `TestPostgresRevisionFenceHelperProcess`의 실제
+  부모 `TestPostgresRevisionFenceCrossProcessIntegration`는 양 mode 모두 PASS다. 필수 실행을 skip으로 대체하지 않았다.
+- CGO=0은 SQLite·PostgreSQL·generated consumer의 Decimal 선택 범위 **3 package / root 5개·subtest 포함 8개 PASS**, skip 0이다.
+  Generated child의 실제 SQLite/PG lifecycle receipt와 세 compile-time 오타입 거부가 포함된다. Parent summary의 개수에 child test 개수를 더해 부풀리지 않는다.
+- Generated model의 공통 12/2 lifecycle·root/forward query 각 9개를 고정 Django SQLite reference와 대조했다. 30자리 값과 1000자리 한도,
+  cross-scale F·literal comparison, nullable/default, cache ownership, projection/Min/Max, write-before-I/O 거부, 실패·취소·rollback·재접속·reverse migration을 실제 양 DB에서 확인했다.
+  SQLite 외부 TEXT/integer/float/잘못된 BLOB·선언 범위 밖 key와 PostgreSQL NaN/Infinity·범위 밖 NUMERIC을 scanner가 거부한다.
+- Affected `go vet`, `make generate-check`(Helpdesk/Article/relationfixture clean 및 checked-in generated test), gofmt/diff 검사 PASS다.
+  Linux 386 / CGO=0의 값·IR·query·ORM·양 backend와 생성 model/project를 cross-compile했다. 해당 환경의 runtime PASS를 뜻하지 않는다.
+- 전용 Decimal PostgreSQL DB의 잔여 연결 0과 삭제 완료를 확인했고 기존 service는 유지했다.
+- Decimal Form/Admin·serializer·Helpdesk/OpenAPI/client와 Hosted 검증은 다음 단계다. 이 checkpoint를 Decimal 수직 단면 전체 또는 전체 platform PASS로 표시하지 않는다.
 
 ## GDJ-0090 — Float 모델과 finite 소비자 연결
 

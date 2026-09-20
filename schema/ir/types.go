@@ -4,7 +4,10 @@
 // other.
 package ir
 
-import "slices"
+import (
+	"github.com/progresshans/godj/decimal"
+	"slices"
+)
 
 // CurrentFormatVersion is the only Schema IR format accepted before GoDj's
 // first external release. Scalar and relation-bearing schemas use the same
@@ -31,6 +34,7 @@ const (
 	FieldAuto       FieldKind = "auto"
 	FieldInteger    FieldKind = "integer"
 	FieldFloat      FieldKind = "float"
+	FieldDecimal    FieldKind = "decimal"
 	FieldChar       FieldKind = "char"
 	FieldText       FieldKind = "text"
 	FieldDuration   FieldKind = "duration"
@@ -81,6 +85,7 @@ const (
 	ScalarBoolean  ScalarKind = "boolean"
 	ScalarInteger  ScalarKind = "integer"
 	ScalarFloat    ScalarKind = "float"
+	ScalarDecimal  ScalarKind = "decimal"
 	ScalarDuration ScalarKind = "duration"
 	ScalarTime     ScalarKind = "time"
 	ScalarDate     ScalarKind = "date"
@@ -97,6 +102,7 @@ type Scalar struct {
 	Boolean   bool       `json:"boolean,omitempty"`
 	Integer   int64      `json:"integer,omitempty"`
 	FloatBits string     `json:"float_bits,omitempty"`
+	Decimal   string     `json:"decimal,omitempty"`
 }
 
 // Choice pairs a stored scalar with its presentation label. Declaration order
@@ -104,6 +110,17 @@ type Scalar struct {
 type Choice struct {
 	Value Scalar `json:"value"`
 	Label string `json:"label"`
+}
+
+// DecimalSpec is the declared exact storage precision, independent of value
+// normalization and the transport's submitted coefficient/exponent.
+type DecimalSpec struct {
+	MaxDigits     int `json:"max_digits"`
+	DecimalPlaces int `json:"decimal_places"`
+}
+
+func (spec DecimalSpec) Valid() bool {
+	return spec.MaxDigits >= 1 && spec.MaxDigits <= decimal.MaxDigits && spec.DecimalPlaces >= 0 && spec.DecimalPlaces <= spec.MaxDigits
 }
 
 type Field struct {
@@ -114,6 +131,7 @@ type Field struct {
 	PrimaryKey bool                `json:"primary_key"`
 	Nullable   bool                `json:"nullable"`
 	MaxLength  int                 `json:"max_length,omitempty"`
+	Decimal    *DecimalSpec        `json:"decimal,omitempty"`
 	Default    *Scalar             `json:"default,omitempty"`
 	Choices    []Choice            `json:"choices,omitempty"`
 	Relation   *ForeignKeyRelation `json:"relation,omitempty"`
@@ -139,6 +157,10 @@ func (m Model) Clone() Model {
 
 func (f Field) Clone() Field {
 	clone := f
+	if f.Decimal != nil {
+		value := *f.Decimal
+		clone.Decimal = &value
+	}
 	if f.Choices != nil {
 		clone.Choices = make([]Choice, len(f.Choices))
 		copy(clone.Choices, f.Choices)
@@ -159,7 +181,7 @@ func (f Field) Clone() Field {
 func (f Field) Equal(other Field) bool {
 	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
 		f.Kind == other.Kind && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.MaxLength == other.MaxLength &&
-		equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
+		equalOptional(f.Decimal, other.Decimal) && equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
 		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
 }
 

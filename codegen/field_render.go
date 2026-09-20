@@ -8,6 +8,9 @@ import (
 )
 
 func queryFieldReferenceLiteral(field ir.Field) string {
+	if field.Kind == ir.FieldDecimal && field.Decimal != nil {
+		return fmt.Sprintf("query.NewDecimalFieldRef(%s, %s, %t, %d, %d)", strconv.Quote(field.Name), strconv.Quote(field.Column), field.Nullable, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+	}
 	return fmt.Sprintf("query.NewFieldRef(%s, %s, query.Field%s, %t)",
 		strconv.Quote(field.Name), strconv.Quote(field.Column), fieldRenderKind(field.Kind).queryValue, field.Nullable)
 }
@@ -33,6 +36,8 @@ func fieldRenderKind(kind ir.FieldKind) fieldRenderSpec {
 		return fieldRenderSpec{"int64", "Integer", "IntegerField", "NullableIntegerField", "sql.NullInt64", "Int64", "ir.FieldInteger"}
 	case ir.FieldChar:
 		return fieldRenderSpec{"string", "String", "StringField", "NullableStringField", "sql.NullString", "String", "ir.FieldChar"}
+	case ir.FieldDecimal:
+		return fieldRenderSpec{"_godjdecimal.Decimal", "Decimal", "DecimalField", "NullableDecimalField", "orm.NullableDecimalScanner", "Decimal", "ir.FieldDecimal"}
 	case ir.FieldFloat:
 		return fieldRenderSpec{"float64", "Float", "FloatField", "NullableFloatField", "orm.NullableFloatScanner", "Float", "ir.FieldFloat"}
 	case ir.FieldDuration:

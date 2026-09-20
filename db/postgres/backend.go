@@ -372,7 +372,7 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if err != nil {
 		return nil, classifyDatabaseError(ctx, "query", b.schema, plan.Table(), err)
 	}
-	return adaptDurationRows(rows, plan)
+	return adaptScalarRows(rows, plan)
 }
 
 func (b *Backend) validateContext(ctx context.Context) error {

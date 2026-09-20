@@ -16,7 +16,7 @@
 
 ## 현재 schema와 query 폭
 
-Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Boolean과 AutoField-target ForeignKey를 지원한다.
+Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Duration, Float, Decimal, Boolean과 AutoField-target ForeignKey를 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
@@ -27,6 +27,11 @@ Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지�
 Time은 자정을 포함하는 날짜·시간대 없는 clock과 별도 NULL이다. 양 DB TIME과 canonical clock parameter를 사용하며
 literal/default·typed/dynamic query·IN/F·projection/Min/Max·forward relation을 연결했다. PostgreSQL timetz와 구분하고
 SQL text scanner의 precision/24:00 경계는 [ADR-0066](adr/0066-clock-time-field-and-precision-boundaries.md)를 따른다.
+Decimal은 immutable coefficient/exponent와 명시적 max_digits 1..1000·decimal_places 0..max_digits를 사용한다.
+SQLite BLOB numeric order key와 PostgreSQL NUMERIC(p,s)는 초과 scale을 반올림하지 않는 공통 write 검증을 거친다.
+Typed/dynamic comparison·IN·F·projection·Min/Max와 generated root/eager scan, historical create/add/remove를 연결했다.
+SQLite의 Django NUMERIC 물리 형식 채택·precision AlterField·unbounded NUMERIC과 Form/API 소비자 완료를 뜻하지 않는다.
+[정확한 값·물리 저장 경계](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
 
@@ -37,7 +42,7 @@ Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한
 유한한 여러 단계의 forward FK는 required/nullable source의 scalar comparison·icontains·isnull·IN과 AND/OR/NOT을 같은 AST로 처리한다.
 Nullable JOIN은 필터가 대상 존재를 요구하면 INNER, 나머지는 LEFT OUTER이며 부정 조건은 joined 대상 column의 NULL을 보정한다.
 선언상 nullable과 optional JOIN 뒤 nullable을 같은 operand 판단에 반영한다. Source-key isnull은 마지막 target JOIN만 생략하며 상위 경로와 optional NULL을 보존한다.
-Typed/dynamic 대상은 Integer·Char/Text·Date·DateTime·Time의 nullable/non-null과 Boolean이다.
+Typed/dynamic 대상은 Integer·Float·Decimal·Char/Text·Date·DateTime·Time·Duration의 nullable/non-null과 Boolean이다.
 여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.

@@ -4,6 +4,7 @@
 package query
 
 import (
+	"github.com/progresshans/godj/decimal"
 	"math"
 	"slices"
 	"strings"
@@ -14,6 +15,7 @@ type FieldKind string
 const (
 	FieldInteger  FieldKind = "integer"
 	FieldFloat    FieldKind = "float"
+	FieldDecimal  FieldKind = "decimal"
 	FieldString   FieldKind = "string"
 	FieldBoolean  FieldKind = "boolean"
 	FieldDuration FieldKind = "duration"
@@ -23,14 +25,40 @@ const (
 )
 
 type FieldRef struct {
-	name     string
-	column   string
-	kind     FieldKind
-	nullable bool
+	name          string
+	column        string
+	kind          FieldKind
+	nullable      bool
+	decimalDigits int
+	decimalPlaces int
 }
 
 func NewFieldRef(name, column string, kind FieldKind, nullable bool) FieldRef {
 	return FieldRef{name: name, column: column, kind: kind, nullable: nullable}
+}
+
+// NewDecimalFieldRef snapshots the scalar's immutable declared precision.
+func NewDecimalFieldRef(name, column string, nullable bool, maxDigits, decimalPlaces int) FieldRef {
+	return FieldRef{name: name, column: column, kind: FieldDecimal, nullable: nullable, decimalDigits: maxDigits, decimalPlaces: decimalPlaces}
+}
+func (f FieldRef) DecimalPrecision() (int, int, bool) {
+	return f.decimalDigits, f.decimalPlaces, f.kind == FieldDecimal && f.ValidType()
+}
+
+// ValidType checks the supported scalar kind and its type parameters. SQL
+// identifier validation remains owned by the compiler.
+func (f FieldRef) ValidType() bool {
+	if f.kind == FieldDecimal {
+		return f.decimalDigits >= 1 && f.decimalDigits <= decimal.MaxDigits && f.decimalPlaces >= 0 && f.decimalPlaces <= f.decimalDigits
+	}
+	if f.decimalDigits != 0 || f.decimalPlaces != 0 {
+		return false
+	}
+	switch f.kind {
+	case FieldInteger, FieldFloat, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+		return true
+	}
+	return false
 }
 
 func (f FieldRef) Name() string              { return f.name }
@@ -214,6 +242,9 @@ func (c Condition) Equal(other Condition) bool {
 }
 
 func validInValues(field FieldRef, values []Value) bool {
+	if !field.ValidType() {
+		return false
+	}
 	if field.name == "" || field.column == "" ||
 		strings.ContainsRune(field.name, '\x00') || strings.ContainsRune(field.column, '\x00') {
 		return false
@@ -221,6 +252,8 @@ func validInValues(field FieldRef, values []Value) bool {
 
 	var expected ValueKind
 	switch field.kind {
+	case FieldDecimal:
+		expected = ValueDecimal
 	case FieldFloat:
 		expected = ValueFloat
 	case FieldInteger:

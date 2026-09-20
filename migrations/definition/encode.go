@@ -256,6 +256,7 @@ type fieldDocument struct {
 	PrimaryKey bool              `json:"primary_key"`
 	Nullable   bool              `json:"nullable"`
 	MaxLength  int               `json:"max_length"`
+	Decimal    *ir.DecimalSpec   `json:"decimal,omitempty"`
 	Default    any               `json:"default"`
 	Choices    []choiceDocument  `json:"choices,omitempty"`
 	Relation   *relationDocument `json:"relation,omitempty"`
@@ -264,6 +265,11 @@ type fieldDocument struct {
 type choiceDocument struct {
 	Value any    `json:"value"`
 	Label string `json:"label"`
+}
+
+type decimalDefaultDocument struct {
+	Kind    ir.ScalarKind `json:"kind"`
+	Decimal string        `json:"decimal"`
 }
 
 type floatDefaultDocument struct {
@@ -347,6 +353,10 @@ func encodeField(field ir.Field) fieldDocument {
 		MaxLength:  field.MaxLength,
 		Default:    encodeDefault(field.Default),
 	}
+	if field.Decimal != nil {
+		copy := *field.Decimal
+		encoded.Decimal = &copy
+	}
 	if field.Choices != nil {
 		encoded.Choices = make([]choiceDocument, len(field.Choices))
 		for index, choice := range field.Choices {
@@ -375,6 +385,8 @@ func encodeDefault(value *ir.Scalar) any {
 		return nil
 	}
 	switch value.Kind {
+	case ir.ScalarDecimal:
+		return decimalDefaultDocument{Kind: value.Kind, Decimal: value.Decimal}
 	case ir.ScalarFloat:
 		return floatDefaultDocument{Kind: value.Kind, FloatBits: value.FloatBits}
 	case ir.ScalarDuration:

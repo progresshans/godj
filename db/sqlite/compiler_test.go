@@ -365,8 +365,8 @@ func TestCompileRejectsInvalidReadSourceMetadataForScalarAndRelation(t *testing.
 		},
 		{
 			name:   "unsupported kind",
-			fields: []query.FieldRef{query.NewFieldRef("score", "score", query.FieldKind("decimal"), false)},
-			detail: `field "score" has unsupported kind "decimal"`,
+			fields: []query.FieldRef{query.NewFieldRef("score", "score", query.FieldKind("unknown"), false)},
+			detail: `field "score" has unsupported kind "unknown"`,
 		},
 	}
 

@@ -231,18 +231,18 @@ func canonicalIdentifier(value string) bool {
 }
 
 func validReverseTerminal(field FieldRef) bool {
-	if !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() {
+	if !field.ValidType() || !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() {
 		return false
 	}
-	return field.Kind() == FieldDate || (field.Kind() == FieldTime || field.Kind() == FieldDuration) || field.Kind() == FieldDateTime || field.Kind() == FieldInteger || field.Kind() == FieldFloat || field.Kind() == FieldString
+	return field.Kind() == FieldDate || (field.Kind() == FieldTime || field.Kind() == FieldDuration) || field.Kind() == FieldDateTime || field.Kind() == FieldInteger || field.Kind() == FieldFloat || field.Kind() == FieldDecimal || field.Kind() == FieldString
 }
 
 func validFieldRef(field FieldRef) bool {
-	if blank(field.Name()) || blank(field.Column()) {
+	if !field.ValidType() || blank(field.Name()) || blank(field.Column()) {
 		return false
 	}
 	switch field.Kind() {
-	case FieldInteger, FieldFloat, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	case FieldInteger, FieldFloat, FieldDecimal, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
 		return true
 	default:
 		return false

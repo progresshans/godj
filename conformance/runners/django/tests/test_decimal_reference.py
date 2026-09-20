@@ -54,6 +54,23 @@ class DecimalReferenceTests(unittest.TestCase):
         self.assertEqual(numbers["1.200"]["rendered"], '{"cost":"1.20"}')
         self.assertEqual(numbers["-0.0"]["rendered"], '{"cost":"-0.00"}')
         self.assertEqual(numbers["1e309"]["errors"], {"cost": ["invalid"]})
+        exact = {item["raw"]: item for item in actual["json_decimal_numbers"]}
+        self.assertEqual(len(exact), 19)
+        self.assertEqual({raw for raw in exact if exact[raw] != numbers[raw]},
+            {"1.200", "1e309", "-1e309", "1e-9999", "-1e-9999"})
+        self.assertEqual(exact["1.200"]["errors"], {"cost": ["max_decimal_places"]})
+        for raw in ("1e309", "-1e309", "1e-9999", "-1e-9999"):
+            self.assertEqual(exact[raw]["errors"], {"cost": ["max_digits"]})
+        wide = {item["raw"]: item for item in actual["json_precision_numbers"]}
+        self.assertEqual(len(wide), 4)
+        self.assertEqual(wide["123456789012345678.123456789012"]["default"]["rendered"],
+            '{"cost":"123456789012345680.000000000000"}')
+        self.assertEqual(wide["123456789012345678.123456789012"]["lexical_decimal"]["rendered"],
+            '{"cost":"123456789012345678.123456789012"}')
+        self.assertFalse(wide["999999999999999999.999999999999"]["default"]["valid"])
+        self.assertTrue(wide["999999999999999999.999999999999"]["lexical_decimal"]["valid"])
+        self.assertEqual(wide["9007199254740993"]["default"], wide["9007199254740993"]["lexical_decimal"])
+        self.assertNotEqual(wide["9007199254740993.0"]["default"], wide["9007199254740993.0"]["lexical_decimal"])
 
 
 if __name__ == "__main__":

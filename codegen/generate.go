@@ -6,6 +6,7 @@ package codegen
 import (
 	"bytes"
 	"fmt"
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"go/token"
 	"strconv"
@@ -42,6 +43,9 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 	if hasFloatDefault(schema) {
 		fmt.Fprintln(&output, "\t_godjmath \"math\"")
 	}
+	if hasDecimalStorage(schema) {
+		fmt.Fprintln(&output, "\t_godjdecimal \"github.com/progresshans/godj/decimal\"")
+	}
 	if hasDurationStorage(schema) {
 		fmt.Fprintln(&output, "\t_godjduration \"github.com/progresshans/godj/duration\"")
 	}
@@ -76,7 +80,7 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration && field.Kind != ir.FieldFloat) {
+			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration && field.Kind != ir.FieldFloat && field.Kind != ir.FieldDecimal) {
 				return true
 			}
 		}
@@ -95,6 +99,16 @@ func hasFloatDefault(schema ir.Schema) bool {
 	return false
 }
 
+func hasDecimalStorage(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Kind == ir.FieldDecimal {
+				return true
+			}
+		}
+	}
+	return false
+}
 func hasDurationStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
@@ -167,9 +181,15 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintf(output, "func (%s) Scan(row db.Row) (%s, error) {\n", descriptorName, model.GoName)
 	fmt.Fprintf(output, "\tvar value %s\n", model.GoName)
 	for _, field := range model.Fields {
-		if field.Nullable {
+		if field.Kind == ir.FieldDecimal {
+			constructor := "NewDecimalScanner"
+			if field.Nullable {
+				constructor = "NewNullableDecimalScanner"
+			}
+			fmt.Fprintf(output, "\tscan%s := orm.%s(%d, %d)\n", field.GoName, constructor, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+		} else if field.Nullable {
 			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal) {
 			fmt.Fprintf(output, "\tvar scan%s orm.%sScanner\n", field.GoName, fieldRenderKind(field.Kind).queryValue)
 		}
 	}
@@ -178,7 +198,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) {
+		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal) {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -191,7 +211,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal) {
 			fmt.Fprintf(output, "\tvalue.%s = scan%s.%s\n", field.GoName, field.GoName, fieldRenderKind(field.Kind).sqlValue)
 		}
 	}
@@ -410,7 +430,7 @@ func renderBuildCreate(output *bytes.Buffer, model ir.Model, typeName string, fi
 				fmt.Fprintf(output, "\t\t%s = %s\n", changedName, defaultValueExpression(*field.Default))
 				fmt.Fprintln(output, "\t}")
 			}
-			renderCanonicalTemporal(output, model.GoName, field, changedName, "\t")
+			renderCanonicalValue(output, model.GoName, field, changedName, "\t")
 			fmt.Fprintf(output, "\tvalue.%s = %s\n", field.GoName, changedName)
 			fmt.Fprintf(output, "\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
 			continue
@@ -428,7 +448,7 @@ func renderBuildCreate(output *bytes.Buffer, model ir.Model, typeName string, fi
 			fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, "default"+field.GoName))
 		}
 		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
-		renderCanonicalTemporal(output, model.GoName, field, changedName, "\t\t")
+		renderCanonicalValue(output, model.GoName, field, changedName, "\t\t")
 		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
 		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
 		fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
@@ -454,7 +474,7 @@ func renderBuildPatch(output *bytes.Buffer, model ir.Model, typeName string, fie
 		changedName := "changed" + field.GoName
 		if !field.Nullable {
 			fmt.Fprintf(output, "\tif %s, ok := input.%s.Get(); ok {\n", changedName, inputName)
-			renderCanonicalTemporal(output, model.GoName, field, changedName, "\t\t")
+			renderCanonicalValue(output, model.GoName, field, changedName, "\t\t")
 			fmt.Fprintf(output, "\t\tvalue.%s = %s\n", field.GoName, changedName)
 			fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
 			fmt.Fprintln(output, "\t}")
@@ -465,7 +485,7 @@ func renderBuildPatch(output *bytes.Buffer, model ir.Model, typeName string, fie
 		fmt.Fprintf(output, "\tswitch %sState {\n", changedName)
 		fmt.Fprintln(output, "\tcase orm.NullableChangeUnset:")
 		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
-		renderCanonicalTemporal(output, model.GoName, field, changedName, "\t\t")
+		renderCanonicalValue(output, model.GoName, field, changedName, "\t\t")
 		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
 		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
 		fmt.Fprintf(output, "\t\tassignments = append(assignments, query.NewAssignment(%s, %s))\n", reference, queryValueExpression(field, changedName))
@@ -552,6 +572,12 @@ func queryValueExpression(field ir.Field, value string) string {
 
 func defaultValueExpression(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarDecimal:
+		number, err := decimal.Parse(value.Decimal)
+		if err != nil {
+			return "_godjdecimal.Decimal{Coefficient:\"invalid\"}"
+		}
+		return fmt.Sprintf("_godjdecimal.Decimal{Coefficient:%s, Exponent:%d}", strconv.Quote(number.Coefficient), number.Exponent)
 	case ir.ScalarFloat:
 		return fmt.Sprintf("_godjmath.Float64frombits(0x%s)", value.FloatBits)
 	case ir.ScalarDuration:
@@ -593,6 +619,8 @@ func scalarLiteral(value ir.Scalar) string {
 	switch value.Kind {
 	case ir.ScalarFloat:
 		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarFloat, FloatBits: %s}", strconv.Quote(value.FloatBits))
+	case ir.ScalarDecimal:
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDecimal, Decimal: %s}", strconv.Quote(value.Decimal))
 	case ir.ScalarDuration:
 		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDuration, Duration: %s}", strconv.Quote(value.Duration))
 	case ir.ScalarTime:
@@ -642,7 +670,13 @@ func lowerFirst(value string) string {
 	return string(unicode.ToLower(first)) + value[size:]
 }
 
-func renderCanonicalTemporal(output *bytes.Buffer, model string, field ir.Field, value, indent string) {
+func renderCanonicalValue(output *bytes.Buffer, model string, field ir.Field, value, indent string) {
+	if field.Kind == ir.FieldDecimal {
+		fmt.Fprintf(output, "%s%sCanonical, %sError := %s.Canonical()\n", indent, value, value, value)
+		fmt.Fprintf(output, "%sif %sError != nil || !%sCanonical.Fits(%d, %d) { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"decimal exceeds field precision or scale\"}) }\n", indent, value, value, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces, model, strconv.Quote(field.Name))
+		fmt.Fprintf(output, "%s%s = %sCanonical\n", indent, value, value)
+		return
+	}
 	if field.Kind == ir.FieldDuration {
 		fmt.Fprintf(output, "%sif !%s.Valid() { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"duration must be normalized days and subday microseconds\"}) }\n", indent, value, model, strconv.Quote(field.Name))
 		return

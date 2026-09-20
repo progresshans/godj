@@ -200,11 +200,14 @@ func (e Expression) validate() error {
 
 func validateExpressionCondition(condition Condition) error {
 	field := condition.field
+	if field.kind == FieldDecimal && !field.ValidType() {
+		return invalidPlanError("Decimal field requires valid precision and scale")
+	}
 	if !validExpressionField(field) {
 		return invalidPlanError("query expression condition has an empty or NUL-containing field")
 	}
 	switch field.kind {
-	case FieldInteger, FieldFloat, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	case FieldInteger, FieldFloat, FieldDecimal, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
 	default:
 		return invalidPlanError("query expression condition has an unsupported field kind")
 	}
@@ -265,14 +268,14 @@ func validateExpressionCondition(condition Condition) error {
 		}
 	case conditionRHSField:
 		if condition.rhs.value != (Value{}) || len(condition.rhs.values) != 0 ||
-			!validExpressionField(condition.rhs.field) {
+			!validExpressionField(condition.rhs.field) || !condition.rhs.field.ValidType() {
 			return invalidPlanError("query expression field right-hand side is malformed")
 		}
 		if condition.lookup != LookupExact && !orderedComparisonLookup(condition.lookup) {
 			return invalidPlanError("query expression field right-hand side requires exact or ordered comparison")
 		}
 		if field.kind != condition.rhs.field.kind ||
-			(field.kind != FieldInteger && field.kind != FieldFloat && field.kind != FieldString && field.kind != FieldDateTime && field.kind != FieldDate && (field.kind != FieldTime && field.kind != FieldDuration)) {
+			(field.kind != FieldInteger && field.kind != FieldFloat && field.kind != FieldDecimal && field.kind != FieldString && field.kind != FieldDateTime && field.kind != FieldDate && (field.kind != FieldTime && field.kind != FieldDuration)) {
 			return invalidPlanError("query expression field comparison requires same-kind ordered scalar fields")
 		}
 	default:
@@ -296,11 +299,11 @@ func orderedComparisonLookup(lookup Lookup) bool {
 }
 
 func expressionOrderedValueMatchesField(value ValueKind, field FieldKind) bool {
-	return value == ValueFloat && field == FieldFloat || value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDuration && field == FieldDuration || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger || value == ValueString && field == FieldString
+	return value == ValueDecimal && field == FieldDecimal || value == ValueFloat && field == FieldFloat || value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDuration && field == FieldDuration || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger || value == ValueString && field == FieldString
 }
 
 func expressionValueMatchesField(value ValueKind, field FieldKind) bool {
-	return value == ValueFloat && field == FieldFloat || value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDuration && field == FieldDuration || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger ||
+	return value == ValueDecimal && field == FieldDecimal || value == ValueFloat && field == FieldFloat || value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDuration && field == FieldDuration || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger ||
 		value == ValueString && field == FieldString ||
 		value == ValueBoolean && field == FieldBoolean
 }

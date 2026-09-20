@@ -108,7 +108,7 @@ func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (
 	if err != nil {
 		return nil, classifyDatabaseError(ctx, "transaction query", session.backend.schema, plan.Table(), err)
 	}
-	return adaptDurationRows(rows, plan)
+	return adaptScalarRows(rows, plan)
 }
 
 func (session *transactionSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {

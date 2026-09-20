@@ -58,11 +58,20 @@ func Key(field query.FieldRef, value query.Value, validateValue func(query.Field
 }
 
 func WriteValue(field query.FieldRef, value query.Value) error {
+	if !field.ValidType() {
+		return invalidPlan("mutation field has invalid type parameters")
+	}
 	if value.IsNull() {
 		if !field.Nullable() {
 			return invalidPlan(fmt.Sprintf("non-null field %q cannot be assigned NULL", field.Name()))
 		}
 		return nil
+	}
+	if digits, places, ok := field.DecimalPrecision(); ok {
+		number, valid := value.Decimal()
+		if !valid || !number.Fits(digits, places) {
+			return invalidPlan(fmt.Sprintf("decimal value exceeds precision or scale of field %q", field.Name()))
+		}
 	}
 	if !ValueMatchesField(value.Kind(), field.Kind()) {
 		return invalidPlan(fmt.Sprintf("value kind %q does not match field %q", value.Kind(), field.Name()))

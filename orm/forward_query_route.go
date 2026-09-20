@@ -164,3 +164,10 @@ func (field RelatedFloatField[M]) WithConfigurationError(err error) RelatedFloat
 	}
 	return field
 }
+
+func (field RelatedDecimalField[M]) WithConfigurationError(err error) RelatedDecimalField[M] {
+	if field.configurationErr == nil {
+		field.configurationErr = err
+	}
+	return field
+}

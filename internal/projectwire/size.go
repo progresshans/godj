@@ -76,6 +76,9 @@ func measureField(sizer *wirejson.Sizer, field ir.Field) bool {
 	if field.MaxLength != 0 && (!sizer.Literal(`,"max_length":`) || !sizer.Integer(int64(field.MaxLength))) {
 		return false
 	}
+	if field.Decimal != nil && (!sizer.Literal(`,"decimal":{"max_digits":`) || !sizer.Integer(int64(field.Decimal.MaxDigits)) || !sizer.Literal(`,"decimal_places":`) || !sizer.Integer(int64(field.Decimal.DecimalPlaces)) || !sizer.Literal(`}`)) {
+		return false
+	}
 	if field.Default != nil && (!sizer.Literal(`,"default":`) || !measureDefault(sizer, *field.Default)) {
 		return false
 	}
@@ -106,6 +109,9 @@ func measureDefault(sizer *wirejson.Sizer, value ir.Scalar) bool {
 		return false
 	}
 	if value.String != "" && (!sizer.Literal(`,"string":`) || !sizer.String(value.String)) {
+		return false
+	}
+	if value.Decimal != "" && (!sizer.Literal(`,"decimal":`) || !sizer.String(value.Decimal)) {
 		return false
 	}
 	if value.FloatBits != "" && (!sizer.Literal(`,"float_bits":`) || !sizer.String(value.FloatBits)) {

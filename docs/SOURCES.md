@@ -87,6 +87,7 @@ FloatField는 같은 pinned Django/DRF의 model/form FloatField·JSONRenderer를
 [ADR-0068](adr/0068-binary64-field-and-finite-json-boundaries.md), [runner](../conformance/runners/django/float_reference.py),
 [실제 관찰과 범위](status/TEST_EVIDENCE.md#gdj-0090--float-모델과-finite-소비자-연결)를 따른다.
 
-DecimalField 준비는 같은 pinned Django의 model/form DecimalField·DecimalValidator·SQLite adapter와 DRF DecimalField를 참조한다(BSD-3-Clause).
+DecimalField는 같은 pinned Django의 model/form DecimalField·DecimalValidator·SQLite adapter와 DRF DecimalField를 참조한다(BSD-3-Clause).
 [독립 runner](../conformance/runners/django/decimal_reference.py)는 public 입력·precision·JSON 표현과 실제 SQLite 저장 결과를 생성하고,
-[GDJ-0091](../work/0091-decimal-cost-models.md)은 저장 정확도와 backend 반올림의 아직 채택하지 않은 경계를 구분한다.
+[ADR-0069](adr/0069-exact-decimal-values-and-storage.md)는 exact 값·SQLite BLOB·PostgreSQL NUMERIC과 JSON lexical Decimal profile을 구분한다.
+[GDJ-0091](../work/0091-decimal-cost-models.md)과 실행 증거에서 설계 채택·제품 연결·환경별 검증을 별도로 유지한다.

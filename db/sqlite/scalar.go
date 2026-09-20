@@ -1,12 +1,16 @@
 package sqlite
 
 import (
+	"github.com/progresshans/godj/internal/decimalstorage"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	"math"
 )
 
 func sqliteValue(value query.Value) (any, error) {
+	if number, ok := value.Decimal(); ok {
+		return decimalstorage.Encode(number)
+	}
 	if number, ok := value.Float(); ok && math.IsNaN(number) {
 		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Detail: "SQLite cannot store or compare NaN without losing its value"}
 	}

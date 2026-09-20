@@ -392,12 +392,18 @@ func quoteQualified(alias, column string) (string, error) {
 
 func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldSQL string, inValues []query.Value) ([]any, error) {
 	field := condition.Field()
+	if field.Kind() == query.FieldDecimal && !field.ValidType() {
+		return nil, invalidPlan("condition has invalid field type parameters")
+	}
 	if right, ok := condition.RHSField(); ok {
+		if !right.ValidType() {
+			return nil, invalidPlan("comparison has invalid right field type parameters")
+		}
 		if rhsFieldSQL == "" {
 			return nil, invalidPlan("SQLite field comparison is missing its right-hand-side binding")
 		}
 		if field.Kind() != right.Kind() ||
-			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 			return nil, invalidPlan("SQLite field comparison requires same-kind ordered scalar fields")
 		}
 		operator, ok := comparisonOperator(condition.Lookup())
@@ -514,6 +520,9 @@ func validateReadSourceFields(fields []query.FieldRef) error {
 	names := make(map[string]struct{}, len(fields))
 	columns := make(map[string]struct{}, len(fields))
 	for _, field := range fields {
+		if field.Kind() == query.FieldDecimal && !field.ValidType() {
+			return invalidPlan("field has invalid type parameters")
+		}
 		if _, err := quoteIdentifier(field.Name()); err != nil {
 			return invalidPlan(fmt.Sprintf("field name %q is empty or contains NUL", field.Name()))
 		}
@@ -521,7 +530,7 @@ func validateReadSourceFields(fields []query.FieldRef) error {
 			return invalidPlan(fmt.Sprintf("field column %q is empty or contains NUL", field.Column()))
 		}
 		switch field.Kind() {
-		case query.FieldInteger, query.FieldFloat, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 		default:
 			return invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
 		}

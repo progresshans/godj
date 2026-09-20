@@ -127,11 +127,14 @@ func validProjectionIdentity(identity ir.ModelIdentity) bool {
 	return canonicalIdentifier(identity.AppLabel) && canonicalIdentifier(identity.ModelName)
 }
 func validProjectionField(field FieldRef) bool {
+	if !field.ValidType() {
+		return false
+	}
 	if !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) {
 		return false
 	}
 	switch field.Kind() {
-	case FieldInteger, FieldFloat, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	case FieldInteger, FieldFloat, FieldDecimal, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
 		return true
 	default:
 		return false

@@ -2,22 +2,11 @@ package postgres
 
 import (
 	"database/sql"
-	"errors"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/duration"
-	"github.com/progresshans/godj/query"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
-func postgresValue(value query.Value) (any, error) {
-	if elapsed, ok := value.Duration(); ok {
-		return pgtype.Interval{Days: elapsed.Days, Microseconds: elapsed.Microseconds, Valid: true}, nil
-	}
-	return value.DatabaseValue()
-}
 
 // database/sql requests interval text from pgx. Only this backend understands
 // that driver representation; ORM scanners receive normalized duration text.
@@ -73,53 +62,6 @@ func decodePostgresDuration(raw string) (duration.Duration, error) {
 		signed = -signed
 	}
 	return duration.New(days, signed)
-}
-
-type durationRows struct {
-	*sql.Rows
-	intervals []bool
-}
-
-func adaptDurationRows(rows *sql.Rows, plan query.Plan) (db.Rows, error) {
-	needed := false
-	for _, field := range plan.SourceFields() {
-		needed = needed || field.Kind() == query.FieldDuration
-	}
-	for _, projection := range plan.RelationProjections() {
-		for _, field := range projection.TargetColumns() {
-			needed = needed || field.Kind() == query.FieldDuration
-		}
-	}
-	if !needed {
-		return rows, nil
-	}
-	columns, err := rows.ColumnTypes()
-	if err != nil {
-		closeErr := rows.Close()
-		return nil, errors.Join(err, closeErr)
-	}
-	intervals := make([]bool, len(columns))
-	found := false
-	for index, column := range columns {
-		intervals[index] = column.DatabaseTypeName() == "INTERVAL"
-		found = found || intervals[index]
-	}
-	if !found {
-		return rows, nil
-	}
-	return &durationRows{Rows: rows, intervals: intervals}, nil
-}
-func (rows *durationRows) Scan(destinations ...any) error {
-	if len(destinations) != len(rows.intervals) {
-		return rows.Rows.Scan(destinations...)
-	}
-	adapted := append([]any(nil), destinations...)
-	for index, interval := range rows.intervals {
-		if interval {
-			adapted[index] = durationDestination{destination: destinations[index]}
-		}
-	}
-	return rows.Rows.Scan(adapted...)
 }
 
 type durationDestination struct{ destination any }

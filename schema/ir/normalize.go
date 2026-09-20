@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
@@ -145,6 +146,9 @@ func normalizeModel(model *Model, path string) error {
 }
 
 func validateField(field Field, path string) error {
+	if field.Kind != FieldDecimal && field.Decimal != nil {
+		return validation(path+".decimal", "unsupported", "decimal arm requires DecimalField kind")
+	}
 	if field.Kind != FieldForeignKey && field.Relation != nil {
 		return validation(path+".relation", "unsupported", "relation arm requires ForeignKey field kind")
 	}
@@ -166,6 +170,22 @@ func validateField(field Field, path string) error {
 		}
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
+		}
+	case FieldDecimal:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DecimalField cannot be a primary key or have a max length")
+		}
+		if field.Decimal == nil || !field.Decimal.Valid() {
+			return validation(path+".decimal", "invalid_precision", "DecimalField requires supported max_digits and decimal_places")
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ScalarDecimal {
+				return validation(path+".default", "type_mismatch", "DecimalField default must be a decimal.Decimal")
+			}
+			value, err := decimal.Parse(field.Default.Decimal)
+			if err != nil || !value.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces) {
+				return validation(path+".default", "invalid_precision", "DecimalField default exceeds declared precision or scale")
+			}
 		}
 	case FieldFloat:
 		if field.PrimaryKey || field.MaxLength != 0 {
@@ -291,10 +311,21 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 }
 
 func validateScalar(value Scalar, path string) error {
+	if value.Kind != ScalarDecimal && value.Decimal != "" {
+		return validation(path, "invalid_scalar", "non-decimal scalar carries a decimal payload")
+	}
 	if value.Kind != ScalarFloat && value.FloatBits != "" {
 		return validation(path, "invalid_scalar", "non-float scalar carries a float payload")
 	}
 	switch value.Kind {
+	case ScalarDecimal:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "decimal scalar carries another scalar payload")
+		}
+		parsed, err := decimal.Parse(value.Decimal)
+		if err != nil || parsed.String() != value.Decimal {
+			return validation(path, "invalid_decimal", "decimal scalar must use canonical finite model text")
+		}
 	case ScalarFloat:
 		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "float scalar carries another scalar payload")

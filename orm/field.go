@@ -203,8 +203,8 @@ func (f BooleanField[M]) writableField(M) (query.FieldRef, error) {
 }
 
 func newField[M any](metadata ir.Field, kind query.FieldKind, expectedKind ir.FieldKind, expectedNullable bool) field[M] {
-	result := field[M]{reference: query.NewFieldRef(metadata.Name, metadata.Column, kind, metadata.Nullable)}
-	if metadata.Kind != expectedKind || metadata.Nullable != expectedNullable || metadata.Name == "" || metadata.Column == "" {
+	result := field[M]{reference: fieldReference(metadata)}
+	if metadata.Kind != expectedKind || result.reference.Kind() != kind || !result.reference.ValidType() || metadata.Nullable != expectedNullable || metadata.Name == "" || metadata.Column == "" {
 		result.err = &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,

@@ -94,6 +94,15 @@ func parseField(decoder *json.Decoder, budget *specBudget) error {
 		"primary_key": func() error { return wirejson.Bool(decoder) },
 		"nullable":    func() error { return wirejson.Bool(decoder) },
 		"max_length":  func() error { _, err := wirejson.IntToken(decoder); return err },
+		"decimal": func() error {
+			if err := budget.consumeNodes(1); err != nil {
+				return err
+			}
+			return wirejson.Object(decoder, []string{"max_digits", "decimal_places"}, map[string]func() error{
+				"max_digits":     func() error { _, err := wirejson.IntToken(decoder); return err },
+				"decimal_places": func() error { _, err := wirejson.IntToken(decoder); return err },
+			})
+		},
 		"default": func() error {
 			if err := budget.consumeNodes(1); err != nil {
 				return err
@@ -124,6 +133,7 @@ func parseScalar(decoder *json.Decoder) error {
 	return wirejson.Object(decoder, []string{"kind"}, map[string]func() error{
 		"kind":       func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"string":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"decimal":    func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"float_bits": func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"duration":   func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"time":       func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },

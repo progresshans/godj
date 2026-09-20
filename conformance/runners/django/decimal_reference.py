@@ -91,6 +91,8 @@ def observe():
             cost = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True, required=False)
         class DefaultSerializer(serializers.Serializer):
             cost = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True, default=decimal.Decimal("1.50"))
+        class PreciseSerializer(serializers.Serializer):
+            cost = serializers.DecimalField(max_digits=30, decimal_places=12, allow_null=True, required=False)
 
         def serializer_result(instance):
             valid = instance.is_valid()
@@ -110,11 +112,26 @@ def observe():
                     serializer.append(entry)
 
         json_numbers = []
+        json_decimal_numbers = []
         for raw in ("0", "-0", "-0.0", "0.1", "1.20", "1.200", "1e2", "1e-2", "1e-3", "9999999999.99", "9999999999.999",
             "9007199254740993", "9007199254740993.0", "5e-324", "1e309", "-1e309", "1e-9999", "-1e-9999", "1" * 100):
             entry = {"raw": raw}
             entry.update(serializer_result(OptionalSerializer(data=json.loads('{"cost":' + raw + '}'))))
             json_numbers.append(entry)
+            # This separately named public JSON profile retains the lexical
+            # decimal coefficient/exponent instead of passing through float.
+            # The default DRF/Python observations above remain unchanged.
+            exact_entry = {"raw": raw}
+            exact_entry.update(serializer_result(OptionalSerializer(data=json.loads(
+                '{"cost":' + raw + '}', parse_float=decimal.Decimal))))
+            json_decimal_numbers.append(exact_entry)
+
+        json_precision_numbers = []
+        for raw in ("123456789012345678.123456789012", "999999999999999999.999999999999", "9007199254740993", "9007199254740993.0"):
+            document = '{"cost":' + raw + '}'
+            json_precision_numbers.append({"raw": raw, "max_digits": 30, "decimal_places": 12,
+                "default": serializer_result(PreciseSerializer(data=json.loads(document))),
+                "lexical_decimal": serializer_result(PreciseSerializer(data=json.loads(document, parse_float=decimal.Decimal)))})
 
         precision = []
         for digits, places in ((5, 2), (4, 4), (4, 0), (30, 12), (None, None)):
@@ -226,7 +243,8 @@ def observe():
         connection.close()
         return {"django": django.get_version(), "drf": rest_framework.VERSION, "python": platform.python_version(),
             "timezone": "UTC", "language": "en-us", "sqlite": {"version": sqlite_version, "source_id": sqlite_source_id},
-            "model": model, "form": form, "serializer": serializer, "json_numbers": json_numbers, "precision": precision,
+            "model": model, "form": form, "serializer": serializer, "json_numbers": json_numbers,
+            "json_decimal_numbers": json_decimal_numbers, "json_precision_numbers": json_precision_numbers, "precision": precision,
             "database": {"after_add": after_add, "reopened": reopened, "queries": queries, "relations": relations, "aggregates": aggregates,
                 "after_update": after_update, "after_rollback": after_rollback, "after_remove": after_remove, "storage": storage}}
 

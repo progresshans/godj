@@ -107,6 +107,11 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 						return budget, err
 					}
 				}
+				if field.Decimal != nil {
+					if err := consumeNodes(&budget, fieldPath+".decimal", 1); err != nil {
+						return budget, err
+					}
+				}
 				if field.Default != nil {
 					if err := consumeNodes(&budget, fieldPath+".default", 1); err != nil {
 						return budget, err
@@ -115,6 +120,9 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 						return budget, err
 					}
 					if err := validateString(fieldPath+".default.string", field.Default.String); err != nil {
+						return budget, err
+					}
+					if err := validateString(fieldPath+".default.decimal", field.Default.Decimal); err != nil {
 						return budget, err
 					}
 					if err := validateString(fieldPath+".default.float_bits", field.Default.FloatBits); err != nil {
@@ -145,6 +153,7 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 						{choicePath + ".value.time", choice.Value.Time},
 						{choicePath + ".value.duration", choice.Value.Duration},
 						{choicePath + ".value.float_bits", choice.Value.FloatBits},
+						{choicePath + ".value.decimal", choice.Value.Decimal},
 						{choicePath + ".value.date", choice.Value.Date},
 						{choicePath + ".value.datetime", choice.Value.DateTime},
 					} {

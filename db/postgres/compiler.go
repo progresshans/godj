@@ -368,6 +368,9 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 
 func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 	field := condition.Field()
+	if field.Kind() == query.FieldDecimal && !field.ValidType() {
+		return nil, invalidPlan("condition has invalid field type parameters")
+	}
 	if err := validateIdentifier(field.Name()); err != nil {
 		return nil, invalidPlan("condition field name " + err.Error())
 	}
@@ -375,7 +378,7 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		return nil, invalidPlan("condition field column " + err.Error())
 	}
 	switch field.Kind() {
-	case query.FieldInteger, query.FieldFloat, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+	case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 	default:
 		return nil, invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
 	}
@@ -389,7 +392,7 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 		if err := validateIdentifier(right.Column()); err != nil {
 			return nil, invalidPlan("condition right-hand-side field column " + err.Error())
 		}
-		if right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+		if !right.ValidType() || right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 			return nil, invalidPlan("PostgreSQL field comparison requires same-kind ordered scalar fields")
 		}
 		if condition.Lookup() != query.LookupExact && !orderedComparisonLookup(condition.Lookup()) {
@@ -575,6 +578,9 @@ func validateReadSourceFields(fields []query.FieldRef) ([]query.FieldRef, error)
 	names := make(map[string]struct{}, len(fields))
 	columns := make(map[string]struct{}, len(fields))
 	for _, field := range fields {
+		if field.Kind() == query.FieldDecimal && !field.ValidType() {
+			return nil, invalidPlan("field has invalid type parameters")
+		}
 		if err := validateIdentifier(field.Name()); err != nil {
 			return nil, invalidPlan("field name " + err.Error())
 		}
@@ -582,7 +588,7 @@ func validateReadSourceFields(fields []query.FieldRef) ([]query.FieldRef, error)
 			return nil, invalidPlan("field column " + err.Error())
 		}
 		switch field.Kind() {
-		case query.FieldInteger, query.FieldFloat, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
+		case query.FieldInteger, query.FieldFloat, query.FieldDecimal, query.FieldString, query.FieldBoolean, query.FieldDateTime, query.FieldDate, query.FieldTime, query.FieldDuration:
 		default:
 			return nil, invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
 		}

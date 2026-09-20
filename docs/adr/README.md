@@ -77,6 +77,9 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0066](0066-clock-time-field-and-precision-boundaries.md) | Accepted | 날짜와 시간대 없는 clock Time, microsecond와 Form/JSON 경계 |
 | [0067](0067-duration-model-range-and-number-input.md) | Accepted | Duration 전체 모델 범위·backend 저장 한도·정확한 JSON number와 입력 변환 |
 
+| [0068](0068-binary64-field-and-finite-json-boundaries.md) | Accepted | Binary64 모델과 finite Form/JSON·backend 특수값 경계 |
+| [0069](0069-exact-decimal-values-and-storage.md) | Accepted | 정확한 Decimal 값·precision·SQLite numeric order key와 native NUMERIC |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

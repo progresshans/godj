@@ -158,3 +158,26 @@ func TestFloatDefaultResourceCapsApplyBeforeSemanticValidation(t *testing.T) {
 		assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_utf8")
 	}
 }
+
+func TestDecimalPayloadAndFacetResourceCapsBeforeSemantics(t *testing.T) {
+	for _, kind := range []ir.ScalarKind{ir.ScalarDecimal, ir.ScalarString} {
+		for _, choice := range []bool{false, true} {
+			field := ir.Field{Decimal: &ir.DecimalSpec{MaxDigits: 5, DecimalPlaces: 2}}
+			scalar := ir.Scalar{Kind: kind, Decimal: strings.Repeat("x", MaxSchemaStringBytes+1)}
+			if choice {
+				field.Choices = []ir.Choice{{Value: scalar}}
+			} else {
+				field.Default = &scalar
+			}
+			schema := ir.Schema{Models: []ir.Model{{Fields: []ir.Field{field}}}}
+			assertResourceLimit(t, ValidateSchemas([]ir.Schema{schema}), "schema_string_bytes")
+		}
+	}
+	schema := ir.Schema{Models: []ir.Model{{Fields: []ir.Field{{Decimal: &ir.DecimalSpec{MaxDigits: 5, DecimalPlaces: 2}}}}}}
+	base, err := validateSchemas([]ir.Schema{schema}, resourceBudget{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = validateSchemas([]ir.Schema{schema}, resourceBudget{nodes: MaxAggregateNodes - base.nodes + 1})
+	assertResourceLimit(t, err, "aggregate_schema_nodes")
+}

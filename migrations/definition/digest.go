@@ -186,6 +186,10 @@ func appendCanonicalModel(output []byte, model ir.Model) ([]byte, error) {
 func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 	var err error
 	switch value.Kind {
+	case ir.ScalarDecimal:
+		output = append(output, `{"decimal":`...)
+		output, err = appendCanonicalString(output, value.Decimal)
+		output = append(output, `,"kind":"decimal"}`...)
 	case ir.ScalarFloat:
 		output = append(output, `{"kind":"float","float_bits":`...)
 		output, err = appendCanonicalString(output, value.FloatBits)
@@ -254,6 +258,13 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	output, err = appendCanonicalString(output, field.Column)
 	if err != nil {
 		return nil, err
+	}
+	if field.Decimal != nil {
+		output = append(output, `,"decimal":{"decimal_places":`...)
+		output = strconv.AppendInt(output, int64(field.Decimal.DecimalPlaces), 10)
+		output = append(output, `,"max_digits":`...)
+		output = strconv.AppendInt(output, int64(field.Decimal.MaxDigits), 10)
+		output = append(output, '}')
 	}
 	output = append(output, `,"default":`...)
 	if field.Default == nil {

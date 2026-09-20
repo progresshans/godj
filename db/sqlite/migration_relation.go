@@ -486,6 +486,11 @@ func writeRelationField(hash sqliteRelationHashWriter, field ir.Field) {
 	writeRelationBool(hash, field.PrimaryKey)
 	writeRelationBool(hash, field.Nullable)
 	writeRelationInt(hash, field.MaxLength)
+	if field.Decimal != nil {
+		writeRelationString(hash, "decimal")
+		writeRelationInt(hash, field.Decimal.MaxDigits)
+		writeRelationInt(hash, field.Decimal.DecimalPlaces)
+	}
 	writeRelationBool(hash, field.Default != nil)
 	if field.Default != nil {
 		writeRelationScalar(hash, *field.Default)
@@ -510,6 +515,9 @@ func writeRelationScalar(hash sqliteRelationHashWriter, scalar ir.Scalar) {
 	writeRelationString(hash, string(scalar.Kind))
 	writeRelationString(hash, scalar.String)
 	writeRelationString(hash, scalar.DateTime)
+	if scalar.Kind == ir.ScalarDecimal {
+		writeRelationString(hash, scalar.Decimal)
+	}
 	if scalar.Kind == ir.ScalarFloat {
 		writeRelationString(hash, scalar.FloatBits)
 	}
@@ -2561,6 +2569,8 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return "BIGINT", nil
 	case ir.FieldChar:
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
+	case ir.FieldDecimal:
+		return "BLOB", nil
 	case ir.FieldFloat:
 		return "REAL", nil
 	case ir.FieldDuration:

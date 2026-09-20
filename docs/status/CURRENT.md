@@ -18,7 +18,8 @@ Calendar Date를 별도 Go 값·양 DB DATE·Form/Admin·Helpdesk service_on·PU
 Clock Time을 별도 Go 값·양 DB TIME·Form/Admin·Helpdesk service_at·PUT/PATCH·OpenAPI/client까지 연결했다.
 Duration의 전체 모델 범위·양 DB 저장 한도와 Form/Admin·Helpdesk elapsed·OpenAPI/client, exact JSON number 기반을 연결했다.
 Float의 binary64·nullable/default·양 DB와 finite Form/Admin·Helpdesk effort·JSON/OpenAPI/client를 연결했다.
-환경별 검증 상태는 아래 현재 작업과 TEST_EVIDENCE를 따른다.
+Decimal은 exact 값·precision IR·query·생성·양 DB·historical migration을 구현하고 모델·DB 로컬 checkpoint를 완료했다.
+Form/Admin·JSON/API와 Helpdesk의 비용 소비자 연결은 다음 작업이다. 환경별 검증 상태는 TEST_EVIDENCE를 따른다.
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
 SQLite remake의 inbound/self 참조 값·행·sequence와 실패 뒤 FK 복원/폐기·quarantine을 검증했다.
@@ -33,9 +34,8 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0091의 독립 Django/DRF 기준과 SQLite·PostgreSQL 저장 차이를 확인했다.
-Decimal의 coefficient/exponent·precision·scale와 정확한 저장 방식을 결정하고 값·IR·typed/dynamic query·생성·migration부터 연결한다.
-그 위에 Helpdesk 예상 비용의 Form/Admin·JSON/OpenAPI·독립 client와 실패 경로를 구현한다.
+GDJ-0091의 [ADR-0069](../adr/0069-exact-decimal-values-and-storage.md)에 따라 exact coefficient/exponent·precision·scale와 양 DB 저장을 구현했다.
+Form/Admin의 원문 자릿수 검증과 Helpdesk 예상 비용의 JSON/OpenAPI·독립 client를 연결한다.
 GDJ-0090은 로컬 affected·DB·race·CGO0와 Hosted ORM을 완료했다. 최근 Hosted full은 Duration source이며 Float까지의 전체 플랫폼 PASS로 합치지 않는다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 

@@ -3,6 +3,7 @@ package query
 import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
@@ -16,6 +17,7 @@ const (
 	ValueNull     ValueKind = "null"
 	ValueInteger  ValueKind = "integer"
 	ValueFloat    ValueKind = "float"
+	ValueDecimal  ValueKind = "decimal"
 	ValueString   ValueKind = "string"
 	ValueBoolean  ValueKind = "boolean"
 	ValueDuration ValueKind = "duration"
@@ -40,6 +42,23 @@ func Null() Value {
 
 func Integer(value int64) Value {
 	return Value{kind: ValueInteger, integer: value}
+}
+
+// Decimal snapshots a canonical finite value. Invalid literals stay invalid
+// and declared write precision is validated separately from comparison values.
+func Decimal(value decimal.Decimal) Value {
+	canonical, err := value.Canonical()
+	if err != nil {
+		return Value{}
+	}
+	return Value{kind: ValueDecimal, text: canonical.String()}
+}
+func (v Value) Decimal() (decimal.Decimal, bool) {
+	if v.kind != ValueDecimal {
+		return decimal.Decimal{}, false
+	}
+	value, err := decimal.Parse(v.text)
+	return value, err == nil
 }
 
 // Float preserves finite binary64 bits and signed zero, and canonicalizes NaN.
@@ -158,6 +177,12 @@ func (v Value) DatabaseValue() (any, error) {
 		return v.text, nil
 	case ValueDateTime:
 		value, _ := v.DateTime()
+		return value, nil
+	case ValueDecimal:
+		value, ok := v.Decimal()
+		if !ok {
+			return nil, &Error{Category: CategoryField, Code: CodeInvalidValue, Detail: "invalid decimal value"}
+		}
 		return value, nil
 	case ValueFloat:
 		value, _ := v.Float()

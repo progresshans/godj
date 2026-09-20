@@ -6,6 +6,7 @@ package schema
 import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
@@ -32,6 +33,7 @@ type Field struct {
 	Kind      ir.FieldKind
 	Nullable  bool
 	MaxLength int
+	Decimal   *ir.DecimalSpec
 	Default   *ir.Scalar
 	Choices   []ir.Choice
 	Relation  *ir.ForeignKeyRelation
@@ -64,7 +66,7 @@ func Column(name string) FieldOption {
 // types keep defaults explicit while preserving zero, false and empty string
 // as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration
+	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
@@ -74,6 +76,11 @@ func Default[T DefaultScalar](value T) FieldOption {
 			field.Default = &ir.Scalar{Kind: ir.ScalarString, String: typed}
 		case bool:
 			field.Default = &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: typed}
+		case decimal.Decimal:
+			field.Default = &ir.Scalar{Kind: ir.ScalarDecimal}
+			if typed.Valid() {
+				field.Default.Decimal = typed.String()
+			}
 		case duration.Duration:
 			field.Default = &ir.Scalar{Kind: ir.ScalarDuration}
 			if typed.Valid() {
@@ -111,6 +118,17 @@ func CharField(name, goName string, maxLength int, options ...FieldOption) Field
 // HTTP and form input budgets remain explicit application choices.
 func TextField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldText, 0, options)
+}
+
+// DecimalField stores finite exact values within an explicit precision/scale.
+func DecimalField(name, goName string, maxDigits, decimalPlaces int, options ...FieldOption) Field {
+	field := Field{Name: name, GoName: goName, Kind: ir.FieldDecimal, Decimal: &ir.DecimalSpec{MaxDigits: maxDigits, DecimalPlaces: decimalPlaces}}
+	for _, option := range options {
+		if option != nil {
+			option(&field)
+		}
+	}
+	return field
 }
 
 // FloatField stores a binary64 value. Each backend owns its storage limits.
@@ -224,6 +242,7 @@ func Build(definition Definition) (ir.Schema, error) {
 				PrimaryKey: field.Kind == ir.FieldAuto,
 				Nullable:   field.Nullable,
 				MaxLength:  field.MaxLength,
+				Decimal:    field.Decimal,
 				Default:    defaultValue,
 				Choices:    field.Choices,
 				Relation:   relation,

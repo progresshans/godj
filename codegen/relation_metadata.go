@@ -84,6 +84,9 @@ func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string)
 	if field.MaxLength != 0 {
 		fmt.Fprintf(output, "%sMaxLength: %d,\n", indent, field.MaxLength)
 	}
+	if field.Decimal != nil {
+		fmt.Fprintf(output, "%sDecimal: &ir.DecimalSpec{MaxDigits:%d, DecimalPlaces:%d},\n", indent, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+	}
 	if field.Default != nil {
 		fmt.Fprintf(output, "%sDefault: &%s,\n", indent, scalarLiteral(*field.Default))
 	}

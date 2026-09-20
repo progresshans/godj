@@ -44,6 +44,35 @@
 
 ## 원장
 
+## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부
+
+- Status: Accepted; model/storage verified locally, input consumers pending
+- Date: 2026-09-20
+- Scope: [Decimal raw](../internal/decimaltest/testdata/django61.json)의 기본/lexical JSON number profile, SQLite storage probes,
+  Form `input.cost=sNaN`의 세 non-null 초기값 changed exception.
+- Related: [ADR-0069](adr/0069-exact-decimal-values-and-storage.md), [GDJ-0091](../work/0091-decimal-cost-models.md), [실행 증거](status/TEST_EVIDENCE.md)
+
+기본 Python JSON parser는 decimal/exponent token을 float로 바꾼다. DecimalField에 도달하기 전에 큰 소수의 자릿수가 사라지거나,
+underflow가 zero가 되거나 overflow가 Infinity가 된다. GoDj는 보존한 token을 직접 Decimal로 해석한다. 독립 비교기는 같은 원문을
+public json.loads(parse_float=Decimal)와 고정 DRF에 전달한 별도 관찰을 사용한다. 기본 profile을 교체하거나 차이를 wildcard로 면제하지 않는다.
+
+12/2 field의 19개 숫자 중 `1.200`, `1e309`, `-1e309`, `1e-9999`, `-1e-9999` 다섯 결과가 다르다. `1.200`은 원래 scale을 검사해
+max_decimal_places이며 나머지는 zero/Infinity로 바꾸지 않고 max_digits다. 30/12 field의 별도 4개 관찰은
+`123456789012345678.123456789012`, `999999999999999999.999999999999`, `9007199254740993.0`의 차이와 bare integer
+`9007199254740993`의 동일함을 명시적으로 확인한다.
+
+SQLite는 Decimal NUMERIC 값을 정수/REAL로 바꾸므로 큰 값의 정확한 round-trip을 보장하지 않는다. GoDj의 새 SQLite Decimal은
+정확한 BLOB order key를 사용하며 native NUMERIC의 물리 형식과 호환된다고 표시하지 않는다. PostgreSQL은 native NUMERIC을 유지한다.
+양 DB의 모델 write는 초과 precision/scale을 I/O 전에 거부한다. 고정 raw에서 ±1.235·±1.225를 반올림하여 저장/조회하는 동작을
+현재 값의 성공 저장으로 취급하지 않는다. 정확히 표현되는 값과 canonical zero의 numeric equality는 유지한다.
+
+Django Form의 sNaN input은 invalid이지만 초기 zero/negative_zero/1.5와의 changed 계산은 InvalidOperation이다. GoDj는 다른 invalid
+입력처럼 검증 오류와 변경 상태를 반환하며 panic이나 부분 persistence를 만들지 않는다. 원래 예외 2×3개는 raw에 보존한다.
+
+모델·저장·typed/dynamic 비교·rollback의 로컬 checkpoint를 완료했다. 원문 입력·Form/API와 실제 비용 소비자는 아직 연결 전이다.
+전체 경로를
+검증한 source만 완료로 기록한다. Native SQLite NUMERIC 채택이나 반올림 API를 추가할 때 이 정책과 migration 의미를 다시 검토한다.
+
 ## DEV-0015 — Float non-finite 입력을 저장·JSON rendering 전에 거부
 
 - Status: Verified (local checkpoint; Hosted scope is recorded separately)

@@ -3,6 +3,7 @@ package definition
 import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
@@ -528,7 +529,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
-					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldBoolean) &&
+					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldBoolean) &&
 					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
@@ -641,7 +642,7 @@ func collectModelFieldAggregateCandidates(values []jsonValue, sourceID, pointer,
 func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"column", "default", "go_name", "kind", "max_length", "name", "nullable", "primary_key"}
 	object, objectOK, candidates := semanticObjectWithOptionalCandidates(
-		value, fields, []string{"choices", "relation"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
+		value, fields, []string{"choices", "decimal", "relation"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
 	)
 	if !objectOK {
 		return candidates
@@ -742,8 +743,11 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
 			}
-		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration, ir.FieldFloat:
+		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration, ir.FieldFloat, ir.FieldDecimal:
 			expectedDefault := ir.ScalarBoolean
+			if ir.FieldKind(kind.string) == ir.FieldDecimal {
+				expectedDefault = ir.ScalarDecimal
+			}
 			if ir.FieldKind(kind.string) == ir.FieldFloat {
 				expectedDefault = ir.ScalarFloat
 			}
@@ -794,6 +798,23 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 	if choices, exists := object.member("choices"); exists {
 		candidates = append(candidates, collectChoicesCandidates(choices, object, sourceID, pointer+"/choices", app, name, operationIndex)...)
 	}
+	decimalNode, hasDecimal := object.member("decimal")
+	decimalKind, _ := object.member("kind")
+	isDecimal := decimalKind.kind == jsonString && decimalKind.string == string(ir.FieldDecimal)
+	if hasDecimal {
+		if !isDecimal {
+			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/decimal", app, name, operationIndex, "invalid_ir"))
+		}
+		candidates = append(candidates, collectDecimalCandidates(decimalNode, sourceID, pointer+"/decimal", app, name, operationIndex)...)
+		if spec, valid := materializeDecimalSpec(decimalNode); valid && defaultValid && defaultValue != nil && defaultValue.Kind == ir.ScalarDecimal {
+			number, err := decimal.Parse(defaultValue.Decimal)
+			if err != nil || !number.Fits(spec.MaxDigits, spec.DecimalPlaces) {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
+			}
+		}
+	} else if isDecimal {
+		candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/decimal", app, name, operationIndex, "invalid_ir"))
+	}
 	relationNode, hasRelation := object.member("relation")
 	kindNode, hasKind := object.member("kind")
 	isForeignKey := hasKind && kindNode.kind == jsonString && kindNode.string == string(ir.FieldForeignKey)
@@ -809,6 +830,46 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 	}
 	candidates = append(candidates, collectRelationCandidates(relationNode, sourceID, pointer+"/relation", app, name, operationIndex, object)...)
 	return candidates
+}
+
+func collectDecimalCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
+	object, ok, candidates := semanticObjectCandidates(value, []string{"max_digits", "decimal_places"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+	if !ok {
+		return candidates
+	}
+	for _, member := range []string{"max_digits", "decimal_places"} {
+		child, present := object.member(member)
+		if !present {
+			continue
+		}
+		number, reason, valid := signedInteger(child)
+		if !valid {
+			candidates = append(candidates, semanticFailure(CodeInvalidDocument, sourceID, pointer+"/"+member, app, name, operationIndex, reason))
+		} else if number < 0 || number > decimal.MaxDigits || member == "max_digits" && number == 0 {
+			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/"+member, app, name, operationIndex, "invalid_ir"))
+		}
+	}
+	if _, valid := materializeDecimalSpec(object); !valid && len(candidates) == 0 {
+		candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir"))
+	}
+	return candidates
+}
+
+func materializeDecimalSpec(value jsonValue) (*ir.DecimalSpec, bool) {
+	if value.kind != jsonObject {
+		return nil, false
+	}
+	digits, hasDigits := value.member("max_digits")
+	places, hasPlaces := value.member("decimal_places")
+	if !hasDigits || !hasPlaces {
+		return nil, false
+	}
+	d, _, dok := signedInteger(digits)
+	p, _, pok := signedInteger(places)
+	if !dok || !pok || d < 1 || d > decimal.MaxDigits || p < 0 || p > d {
+		return nil, false
+	}
+	return &ir.DecimalSpec{MaxDigits: int(d), DecimalPlaces: int(p)}, true
 }
 
 func collectRelationCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int, field jsonValue) []failureCandidate {
@@ -871,13 +932,22 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir")}
 	}
-	commonFields := []string{"boolean", "date", "datetime", "duration", "float_bits", "integer", "kind", "string", "time"}
+	commonFields := []string{"boolean", "date", "datetime", "decimal", "duration", "float_bits", "integer", "kind", "string", "time"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_ir"))
 	}
 	switch kind.string {
+	case string(ir.ScalarDecimal):
+		object, _, faults := semanticObjectCandidates(value, []string{"decimal", "kind"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+		candidates = append(candidates, faults...)
+		if child, present := object.member("decimal"); present {
+			parsed, err := decimal.Parse(child.string)
+			if child.kind != jsonString || err != nil || parsed.String() != child.string {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/decimal", app, name, operationIndex, "invalid_ir"))
+			}
+		}
 	case string(ir.ScalarFloat):
 		object, _, faults := semanticObjectCandidates(value, []string{"float_bits", "kind"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 		candidates = append(candidates, faults...)
@@ -1128,6 +1198,13 @@ func materializeField(value jsonValue) (ir.Field, bool) {
 		MaxLength:  int(parsedMaximum),
 		Default:    decodedDefault,
 	}
+	if shape, exists := value.member("decimal"); exists {
+		parsed, valid := materializeDecimalSpec(shape)
+		if !valid {
+			return ir.Field{}, false
+		}
+		field.Decimal = parsed
+	}
 	if choices, exists := value.member("choices"); exists {
 		decoded, valid := materializeChoices(choices)
 		if !valid {
@@ -1185,6 +1262,16 @@ func materializeDefault(value jsonValue) (*ir.Scalar, bool) {
 		return nil, false
 	}
 	switch kind.string {
+	case string(ir.ScalarDecimal):
+		payload, exists := value.member("decimal")
+		if !exists || payload.kind != jsonString {
+			return nil, false
+		}
+		parsed, err := decimal.Parse(payload.string)
+		if err != nil || parsed.String() != payload.string {
+			return nil, false
+		}
+		return &ir.Scalar{Kind: ir.ScalarDecimal, Decimal: payload.string}, true
 	case string(ir.ScalarFloat):
 		payload, exists := value.member("float_bits")
 		if !exists || payload.kind != jsonString {

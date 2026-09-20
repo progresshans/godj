@@ -514,6 +514,11 @@ func fieldReference(field ir.Field) query.FieldRef {
 		kind = query.FieldInteger
 	case ir.FieldForeignKey:
 		kind = query.FieldInteger
+	case ir.FieldDecimal:
+		if field.Decimal != nil {
+			return query.NewDecimalFieldRef(field.Name, field.Column, field.Nullable, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
+		}
+		return query.NewFieldRef(field.Name, field.Column, query.FieldDecimal, field.Nullable)
 	case ir.FieldFloat:
 		return query.NewFieldRef(field.Name, field.Column, query.FieldFloat, field.Nullable)
 	case ir.FieldDuration:

@@ -34,15 +34,20 @@ Django SQLite의 NUMERIC 경로는 30자리 Decimal을 다른 정수로 저장�
 SQLite NUMERIC의 손실을 재현한 뒤 field별 scale과 무관한 canonical binary key를 별도로 시험했다.
 부호·adjusted exponent·coefficient 순서로 모든 field가 같은 값 공간을 사용하면 SQLite의 기본 BLOB 비교로 정확한 숫자 순서를 유지할 수 있었다.
 두 prototype test에서 2,005개 값과 실제 SQLite 비교·정렬·Min/Max를 확인했다. Custom collation이나 process-global 등록은 사용하지 않았다.
-채택 전에는 물리 column 형식, historical metadata·외부 DB 값의 거부, PostgreSQL native numeric와의 대응을 함께 확정해야 한다.
+[ADR-0069](../docs/adr/0069-exact-decimal-values-and-storage.md)에서 SQLite BLOB order key와 PostgreSQL native NUMERIC,
+공통 write precision 검사와 외부 값 거부를 채택했다. 제품 연결과 실행 완료는 아직 별도다.
 이 실험 자체를 제품 구현이나 Django의 NUMERIC 저장 형식과의 호환으로 표시하지 않는다.
 
-## 다음 판단과 구현
+## 현재 구현과 다음 행동
 
-1. Finite Decimal의 coefficient/exponent·signed zero·scale 보존과 자원 한도를 정한다. 자릿수 검증과 canonical identity를 혼동하지 않는다.
-2. SQLite·PostgreSQL의 정확한 저장 가능 범위, scale 초과·overflow의 오류 시점과 고정 scale 변환을 결정한다. 조용한 정밀도 손실은 허용하지 않는다.
-3. 결정한 의미를 현행 ADR과 필요한 deviation에 기록한 뒤 Schema IR·generated value·typed/dynamic Query AST·migration·scanner를 함께 구현한다.
-4. Form/Admin과 Helpdesk nullable 예상 비용, JSON 문자열 표현·OpenAPI·별도 client까지 연결하고 실제 DB의 실패·rollback·reopen을 검증한다.
+1. Exact Decimal 값과 precision arm을 Schema IR·default·clone·digest·wire/resource budget에 연결했다.
+2. Typed/dynamic exact·ordered·IN·F·projection·Min/Max와 forward/reverse 관계, generated model·scanner·create/patch/save를 연결했다.
+3. SQLite BLOB과 PostgreSQL NUMERIC의 exact parameter·scanner·physical preflight, historical create/add/remove·autodetect/no-op을 구현했다.
+   생성 모델로 실제 양 DB의 30자리/1000자리 경계·서로 다른 scale의 F 비교·null·rollback·재접속·외부 잘못된 저장값을 검증했다.
+4. 다음은 Form/Admin·serializer의 원문 precision 검증과 Helpdesk nullable 예상 비용, fixed-scale JSON/OpenAPI·별도 client 연결이다.
+   이 소비자 연결과 Hosted는 아직 실행 완료가 아니다. Precision AlterField/backfill·unbounded NUMERIC도 현재 구현 범위로 표시하지 않는다.
+
+모델·DB 묶음의 로컬 통합 checkpoint를 완료했다. 소비자를 같은 GDJ-0091에서 이어간다. 별도 release milestone을 만들지 않는다.
 
 기준 실행·환경·hash는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0091--decimal의-독립-정밀도저장-기준-준비)가 소유한다.
 기존 transaction·권한·자원 한도·생성 실패 보존 경계를 유지하며 실제 소비자와 검증을 한 묶음으로 연결한다.

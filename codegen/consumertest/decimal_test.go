@@ -1,0 +1,79 @@
+package codegen_test
+
+import (
+	"github.com/progresshans/godj/decimal"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/schema"
+)
+
+func TestGeneratedDecimalConsumer(t *testing.T) {
+	definition, err := schema.Build(schema.Definition{AppLabel: "decimalref", Models: []schema.Model{
+		{Name: "record", GoName: "Record", Fields: []schema.Field{
+			schema.TextField("label", "Label"), schema.DecimalField("cost", "Cost", 12, 2, schema.Nullable()),
+			schema.DecimalField("required", "Required", 12, 2),
+			schema.DecimalField("origin", "Origin", 12, 2, schema.Nullable(), schema.Default(decimal.Decimal{})),
+			schema.DecimalField("scheduled", "Scheduled", 12, 2, schema.Default(decimal.Decimal{Coefficient: "15", Exponent: -1})),
+		}},
+		{Name: "number", GoName: "Decimal", Fields: []schema.Field{
+			schema.DecimalField("decimal", "Decimal", 12, 2, schema.Nullable()),
+			schema.DecimalField("decimal_value", "DecimalValue", 12, 2, schema.Default(decimal.Decimal{Coefficient: "-0"})),
+		}},
+		{Name: "precise", GoName: "Precise", Fields: []schema.Field{
+			schema.DecimalField("value", "Value", 30, 12),
+			schema.DecimalField("mirror", "Mirror", 32, 14),
+		}},
+		{Name: "boundary", GoName: "Boundary", Fields: []schema.Field{
+			schema.DecimalField("large", "Large", 1000, 500),
+			schema.DecimalField("tiny", "Tiny", 1000, 1000),
+		}},
+		{Name: "link", GoName: "Link", Fields: []schema.Field{
+			schema.TextField("label", "Label"), schema.ForeignKey("record", "RecordID", schema.Target("decimalref", "record"), schema.RelatedName("links"), schema.SetNull, schema.Nullable()),
+		}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const module = "example.com/godj-decimal"
+	bundle, err := codegen.GenerateProject(codegen.ProjectSpec{Project: codegen.PackageSpec{PackageName: "project", ImportPath: module + "/project", Directory: "project"}, Apps: []codegen.AppSpec{{Alias: "models", Package: codegen.PackageSpec{PackageName: "models", ImportPath: module + "/models", Directory: "models"}, Schema: definition}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := newGeneratedModule(t, module)
+	for _, file := range bundle.Files() {
+		writeGeneratedTestFile(t, root, file.Path, file.Source())
+	}
+	consumer, err := os.ReadFile("testdata/decimal/consumer_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/consumer_test.go", consumer)
+	reference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/decimaltest/testdata/django61.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
+	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
+	required := []string{"TestDecimalGeneratedDefaults", "TestDecimalStorageQueryAndOwnership", "TestDecimalStorageQueryAndOwnership/sqlite"}
+	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
+		required = append(required, "TestDecimalStorageQueryAndOwnership/postgres")
+	}
+	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
+	for _, test := range []struct{ name, source, fragment string }{
+		{"predicate rejects float", `package wrong; import "example.com/godj-decimal/models"; var _ = models.RecordFields.Cost.Exact(float64(1))`, "float64(1)"},
+		{"write rejects string", `package wrong; import "example.com/godj-decimal/models"; var _ = models.RecordPatch{}.WithCost("1.5")`, "untyped string"},
+		{"reference rejects integer", `package wrong; import "example.com/godj-decimal/models"; import "github.com/progresshans/godj/orm"; var _ = models.RecordFields.Cost.ExactField(orm.F(models.RecordFields.ID))`, "int64"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			writeGeneratedTestFile(t, root, "wrong/wrong.go", []byte(test.source))
+			output, err := generatedGoCommand(t.Context(), root, "build", "-mod=mod", "./wrong").CombinedOutput()
+			if err == nil || !strings.Contains(string(output), test.fragment) || !strings.Contains(string(output), "decimal.Decimal") {
+				t.Fatalf("wrong scalar compilation did not fail at expected type boundary: %v\n%s", err, output)
+			}
+		})
+	}
+}
