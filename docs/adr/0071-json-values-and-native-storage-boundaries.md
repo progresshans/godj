@@ -41,7 +41,7 @@ GoDj의 round-trip profile에 포함되지는 않는다. SQLite에 이 native �
 
 Common AST는 JSON exact/IN, 같은 모델의 JSON F exact, SQL isnull과 projection을 소유한다. Forward JSON 조회와
 non-null reverse exact는 기존 relation binding·cache/clone 경계를 따른다. JSON 값을 ordered scalar로 일괄 취급하지 않는다.
-Range·ordering·MIN/MAX는 명시적으로 거부하며 contains 등 추가 연산은 별도의 의미와 backend capability 구현을 이어간다.
+Range·ordering·MIN/MAX는 명시적으로 거부하며 추가 연산은 아래 의미와 backend capability에 따라 제공한다.
 이 범위는 JSONField의 모든 lookup을 지원한다는 뜻이 아니다.
 
 ## JSON 경로 predicate
@@ -54,7 +54,8 @@ key의 UTF-8 합계 4096 byte와 index 0..2147483647로 제한한다. 음수 ind
 Typed `Payload.At(query.JSONKey("items"), query.JSONIndex(0))`와 dynamic `LookupInput.JSONPath`는 같은 AST를 사용한다.
 Dynamic `Key`는 기존 model/relation field·lookup만 선택하며 arbitrary JSON key를 `__` 문법에 끼워 넣지 않는다.
 오타 lookup을 JSON key로 암묵 수용하지 않고 기존 allowlist policy를 적용한다. Nil JSONPath는 whole field,
-non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull만 제공하고 F·projection·ordering·write field로 노출하지 않는다.
+non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull과 backend가 지원하는 contains/contained_by를 제공하고
+F·projection·ordering·write field로 노출하지 않는다.
 
 없는 key, 범위 밖 index, 맞지 않는 container는 SQL NULL이다. `IsNull(true)`가 이를 조회하고,
 `Exact(jsonvalue.Null())`는 실제 존재하는 JSON null만 조회한다. 부정 조건의 기존 root SQL NULL 보정과 missing path는
@@ -79,7 +80,27 @@ SQL 안에서 predicate를 평가하며 ORM에서 모든 model을 가져와 filt
 [SQLite raw](../../internal/jsontest/testdata/django61-lookups-sqlite.json)와
 [PostgreSQL raw](../../internal/jsontest/testdata/django61-lookups-postgres.json)는 각각 88개 filter/exclude와 3개 projection 관찰이다.
 SQLite reference는 `PYTHONHASHSEED=0`으로 Django 내부 set의 SQL 출력 순서만 고정하며 DB 결과는 정규화하지 않는다.
-GoDj의 타입·숫자 보존과 명시적 segment 문법 차이는 DEV-0017에 기록한다. Reference의 contains/projection 관찰은 해당 제품 기능의 지원 증거가 아니다.
+GoDj의 타입·숫자 보존과 명시적 segment 문법 차이는 DEV-0017에 기록한다. Reference의 관찰과 제품 구현·검증은 별개다.
+
+## JSON containment의 backend 경계
+
+`Contains`/`ContainedBy`는 부분 문자열 검색과 구분되는 JSON 문서 포함 관계다. 같은 `LookupContains`/`LookupContainedBy`
+AST를 whole field와 명시적인 path, root와 forward 관계, typed와 dynamic 경계에서 사용한다. RHS는 검증된 `jsonvalue.Value`이며
+SQL NULL·Go map/string·F 참조를 암묵 변환하지 않는다. Dynamic lookup policy와 query snapshot 소유권도 그대로 적용한다.
+
+PostgreSQL은 native JSONB `@>`/`<@`를 사용한다. 중첩 객체·배열과 scalar의 포함 관계, 배열 순서/중복과 숫자 1/1.0의
+의미는 [PostgreSQL 17 containment](https://www.postgresql.org/docs/17/datatype-json.html#JSON-CONTAINMENT)를 따른다.
+JSON null literal과 SQL NULL은 다르다. 부정 조건은 기존 containing column의 NULL을 보정하며 missing path를 자동 포함하지 않는다.
+Optional forward target의 non-null field도 JOIN 뒤에는 NULL일 수 있다. Positive containment의 INNER JOIN 승격과
+OR/NOT의 LEFT JOIN·NULL 보정은 같은 expression tree로 판단한다. Direct reverse는 기존 exact-only 지원 범위를 유지한다.
+
+SQLite는 고정 Django와 같이 contains/contained_by를 지원하지 않으며 compiler가 `backend_error/unsupported_feature`를 반환한다.
+Client-side filtering이나 string LIKE로 바꾸지 않는다. Count·LIMIT 0·empty IN으로 실행을 생략할 때도 전체 계획의 capability를
+검사한다. PostgreSQL도 native NUL/number expansion parameter 한도를 I/O 생략 전에 검사한다.
+
+독립 runner의 `containment`는 별도 table에서 33개 문서에 root/key 경로·양 연산·filter/exclude **168개 조건**을 관찰한다.
+기존 88개 lookup·3개 projection은 그대로 보존한다. Generated 소비자는 PostgreSQL raw의 실제 결과를 직접 비교하고
+SQLite의 같은 표현은 오류 category/code와 I/O 0을 검사한다. 이 테스트는 JSONField의 모든 transform·key-presence 연산을 뜻하지 않는다.
 
 ## Form/Admin과 JSON API
 

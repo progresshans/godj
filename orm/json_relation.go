@@ -58,6 +58,14 @@ func (f RelatedJSONField[M]) IsNull(value bool) Predicate[M] {
 	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupIsNull, query.Boolean(value))
 }
 
+func (f RelatedJSONField[M]) Contains(value jsonvalue.Value) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupContains, query.JSON(value))
+}
+
+func (f RelatedJSONField[M]) ContainedBy(value jsonvalue.Value) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupContainedBy, query.JSON(value))
+}
+
 func (f RelatedJSONField[M]) In(values ...jsonvalue.Value) Predicate[M] {
 	return relatedMembershipPredicate[M](f.path, f.valid, f.configurationErr, values, query.JSON)
 }

@@ -80,6 +80,8 @@ const (
 	LookupIContains          Lookup = "icontains"
 	LookupIsNull             Lookup = "isnull"
 	LookupIn                 Lookup = "in"
+	LookupContains           Lookup = "contains"
+	LookupContainedBy        Lookup = "contained_by"
 )
 
 type conditionRHSKind uint8
@@ -184,6 +186,8 @@ func (c Condition) Lookup() Lookup  { return c.lookup }
 // OperandNullable reports whether the left scalar can be NULL in the supported
 // read paths. An optional forward target can be absent even when its field is
 // declared non-null. This describes the operand, not the Boolean lookup result.
+// For a JSON path this is the containing column, not path presence. Missing
+// keys do not add a NULL compensation guard under negation.
 func (c Condition) OperandNullable() bool {
 	if c.field.Nullable() {
 		return true

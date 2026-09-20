@@ -208,6 +208,32 @@
   이 새 경로 source의 Hosted 검증은 아직 실행하지 않았다. Contains 등 다음 lookup을 연결한 JSON 조회 통합 milestone에서
   관련 Hosted 범위를 정한다. 앞선 JSON 수직 연결 full과 목록 후속 web 결과를 새 경로의 platform PASS로 사용하지 않는다.
 
+### JSON containment의 로컬 통합 checkpoint
+
+- 기준 `f02f09573282e78a0e5fdff41fe67492e5cc2d13` 위 변경과 Go/Python lock의 **23 non-Markdown 경로** manifest SHA256은
+  `28bd1a7a9ab4f6df571b02445f1e9a1c8fb9ae58095532f6030b3ce111bb73c4`다. PostgreSQL에만 쓰는 path encoder의 이동으로
+  삭제 1개와 새 경로 1개도 명시한다. 실행 전후 같은 바이트·삭제 상태를 확인했다.
+  Go **1.26.5 darwin/arm64**, repository-pinned modernc SQLite와 PostgreSQL **17.5**, `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`이다.
+- Normal `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest`:
+  **8 package / 704 root / 5551 test·subtest PASS**, fail 0·stderr 0 bytes.
+  단독 PostgreSQL process helper만 skip 1이며 실제 PostgreSQL/SQLite cross-process parent는 필수 PASS다. No-test package event와 구분했다.
+- 새 containment·path domain과 generated JSON consumer를 `./query ./codegen/consumertest`에서 선택한 race와 CGO=0은
+  각각 **2 package / 3 root / 8 PASS**, 전체 run/pass roster 동일·skip/fail 0·stderr 0 bytes다.
+  앞선 source의 8-package 전체 race와 이번 선택 race를 합쳐 같은 소스의 전체 race로 표시하지 않는다.
+  Generated parent는 양 DB의 path 및 containment child를 각각 필수로 요구하며 잘못된 typed contains 입력의 compile-negative도 실행한다.
+- 고정 Django **6.1** 독립 runner에 별도 table의 **33개 문서 / 168개 root·key path / contains·contained_by / filter·exclude 조건**을 추가했다.
+  앞선 88개 query·3개 projection과 metadata는 양 DB에서 그대로 유지됨을 확인했다.
+  SQLite raw SHA256은 `949b8c5b5716e2260f79b7f51aa971f282e9c17792978f0ab999a7fde1ef4bca`,
+  PostgreSQL raw는 `a4563abffc440d099ae73e4e39fc15d5c2858cffbc5d243b9b5c931d99dbda94`다.
+  Python **3.14.3**에서 실제 PostgreSQL **17.5**/psycopg **3.3.6**의 전 조건이 결과를 반환했고,
+  SQLite **3.50.4**는 전 조건에서 `NotSupportedError`였다. SQLite fresh 비교는 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **1 PASS**, skip/warning 0이다.
+- 실제 generated 모델의 nullable·non-null JSON, 중첩 object/array·배열 중복/순서·scalar·JSON null·큰 인접 정수·1/1.0을 독립 PostgreSQL raw와 비교했다.
+  Typed/dynamic 동일 AST·Count·allowlist·잘못된 타입과 native parameter preflight, optional forward의 nullable/non-null target·OR/NOT·eager/Count를 확인했다.
+  SQLite는 All/Count·LIMIT 0·empty IN에서도 `backend_error/unsupported_feature`와 I/O 0을 확인했다. Reverse non-exact는 기존 오류 경계를 유지한다.
+- Affected vet·Helpdesk **12파일 clean**·gofmt·docs/diff를 통과했다. 전용 DB는 연결 0 확인 뒤 삭제하고 service는 유지했다.
+  새 JSON 경로와 containment를 묶은 Hosted `orm` scope 통합은 고정 source를 게시한 뒤 실행하며 아래에 별도로 기록한다.
+  현재 로컬 결과는 새 source의 전체 platform 또는 Hosted 완료를 뜻하지 않는다.
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

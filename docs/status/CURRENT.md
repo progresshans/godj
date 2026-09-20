@@ -15,11 +15,13 @@ JSONField를 Schema IR·query·migration·생성 모델에서 Form/Admin·serial
 양 DB의 SQL NULL/JSON null·숫자 정밀도·Form no-op·권한/CSRF·rollback·재접속과 native 저장 후 응답 실패의 로컬 통합 checkpoint를 완료했다.
 JSON 수직 연결의 Hosted full과 후속 목록 응답 예산·generated JSON PostgreSQL 필수 실행의 Hosted web 검증을 완료했다.
 명시적인 JSON key/index 경로의 exact/IN/isnull을 공통 AST·양 DB·typed/dynamic·생성 관계 소비자에 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-Contains 등 추가 lookup은 남아 있다. Source별 실행 범위는 TEST_EVIDENCE가 소유한다.
+PostgreSQL의 root/path·forward contains/contained_by와 SQLite의 명시적 capability 거부를 연결하고 로컬 checkpoint를 완료했다.
+Key-presence 등 추가 lookup은 남아 있다. Source별 실행 범위는 TEST_EVIDENCE가 소유한다.
 
 ## 다음 행동
 
-Contains 등 나머지 JSON lookup을 backend capability에 따라 이어간다. JSON 조회 통합 milestone이 새 경로와 추가 lookup의 관련 Hosted 검증을 소유한다.
+JSON 조회 통합 milestone에서 `orm` scope Hosted로 새 path·containment를 검증한다.
+Key-presence 등 나머지 JSON lookup은 backend capability와 독립 관찰에 따라 이어간다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

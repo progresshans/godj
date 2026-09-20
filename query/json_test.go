@@ -96,3 +96,39 @@ func TestJSONPredicatesValidateKindWithoutInventingOrderedComparisons(t *testing
 		t.Fatal("invalid JSON IN literal accepted")
 	}
 }
+
+func TestJSONContainmentRequiresLiteralJSONAndRetainsPath(t *testing.T) {
+	field := query.NewFieldRef("payload", "payload", query.FieldJSON, true)
+	path, err := query.NewJSONPath(query.JSONKey("a"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, lookup := range []query.Lookup{query.LookupContains, query.LookupContainedBy} {
+		for _, value := range []query.Value{query.JSON(jsonvalue.Null()), query.JSON(jsonvalue.Value{Text: `{"a":[1,false,null]}`})} {
+			base := query.NewCondition(field, lookup, value)
+			if _, err := query.NewExpression(base); err != nil {
+				t.Fatal(err)
+			}
+			condition, err := base.WithJSONPath(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			retained, ok := condition.JSONPath()
+			if !ok || !retained.Equal(path) || condition.Lookup() != lookup || !condition.Value().Equal(value) {
+				t.Fatal("containment lost its document/path")
+			}
+		}
+		for _, value := range []query.Value{query.Null(), query.String("{}"), query.Boolean(false), query.Integer(1), query.JSON(jsonvalue.Value{})} {
+			if _, err := query.NewExpression(query.NewCondition(field, lookup, value)); err == nil {
+				t.Fatal("containment coerced non-JSON value")
+			}
+		}
+		text := query.NewFieldRef("text", "text", query.FieldString, false)
+		if _, err := query.NewExpression(query.NewCondition(text, lookup, query.String("x"))); err == nil {
+			t.Fatal("JSON containment used string lookup semantics")
+		}
+		if _, err := query.NewFieldCondition(field, lookup, field); err == nil {
+			t.Fatal("containment accepted unsupported F operand")
+		}
+	}
+}

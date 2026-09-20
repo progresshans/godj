@@ -20,6 +20,15 @@ func NewNullableJSONField[M any](metadata ir.Field) NullableJSONField[M] {
 func (f jsonField[M]) Exact(value jsonvalue.Value) Predicate[M] {
 	return f.predicate(query.LookupExact, query.JSON(value))
 }
+
+// Contains and ContainedBy use the backend's JSON containment capability.
+// PostgreSQL implements these predicates; SQLite rejects them explicitly.
+func (f jsonField[M]) Contains(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupContains, query.JSON(value))
+}
+func (f jsonField[M]) ContainedBy(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupContainedBy, query.JSON(value))
+}
 func (f jsonField[M]) IsNull(value bool) Predicate[M] {
 	return f.predicate(query.LookupIsNull, query.Boolean(value))
 }

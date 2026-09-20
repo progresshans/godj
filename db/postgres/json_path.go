@@ -1,4 +1,4 @@
-package queryplan
+package postgres
 
 import (
 	"encoding/json"
@@ -8,9 +8,9 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-// JSONPathText emits only literal keys and array indices. Both dialects bind
-// this as data, separately from the source column and the comparison value.
-func JSONPathText(path query.JSONPath) string {
+// jsonPathArgument emits PostgreSQL literal keys and array indices. The
+// compiler binds it separately from source columns and comparison values.
+func jsonPathArgument(path query.JSONPath) string {
 	var result strings.Builder
 	result.WriteByte('$')
 	for _, segment := range path.Segments() {

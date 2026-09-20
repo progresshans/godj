@@ -38,3 +38,8 @@ class JSONLookupReferenceTests(unittest.TestCase):
         self.assertIn('sql_null', cases['key_null', 'exclude']['rows'])
         self.assertNotIn('object_empty', cases['key_null', 'exclude']['rows'])
         self.assertIn('object_empty', cases['key_missing', 'filter']['rows'])
+
+        self.assertFalse(actual['containment']['supported'])
+        self.assertEqual(len(actual['containment']['samples']), 33)
+        self.assertEqual(len(actual['containment']['queries']), 168)
+        self.assertEqual({row.get('exception') for row in actual['containment']['queries']}, {'NotSupportedError'})

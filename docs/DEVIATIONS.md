@@ -85,7 +85,8 @@ Django의 numeric path 이름/negative index·자동 lookup 문법이나 Postgre
 없는 경로와 JSON null·root SQL NULL의 부정 조건 차이는 유지하며 NUL을 담은 PostgreSQL key는 DB 호출 전 거부한다.
 Path lookup의 실행 source와 환경은 TEST_EVIDENCE에 별도로 기록한다.
 
-JSON PK/FK·index·contains 등 추가 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
+Contains/contained_by는 PostgreSQL native 의미와 SQLite의 명시적인 미지원 경계를 따른다.
+JSON PK/FK·index·key-presence 등 추가 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
 반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
 
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부

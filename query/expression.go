@@ -243,6 +243,10 @@ func validateExpressionCondition(condition Condition) error {
 			return invalidPlanError("query expression literal right-hand side is malformed")
 		}
 		switch condition.lookup {
+		case LookupContains, LookupContainedBy:
+			if field.kind != FieldJSON || condition.rhs.value.Kind() != ValueJSON {
+				return invalidPlanError("JSON containment requires a JSON field and JSON value")
+			}
 		case LookupExact:
 			if !expressionValueMatchesField(condition.rhs.value.Kind(), field.kind) {
 				return invalidPlanError("query expression exact value does not match its field kind")

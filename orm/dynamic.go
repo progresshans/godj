@@ -119,6 +119,8 @@ func findField(fields []ir.Field, name string) (ir.Field, bool) {
 func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	lookup := query.Lookup(name)
 	switch lookup {
+	case query.LookupContains, query.LookupContainedBy:
+		return lookup, field.Kind == ir.FieldJSON
 	case query.LookupIn:
 		return lookup, field.Kind == ir.FieldJSON || field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID)
 	case query.LookupExact:

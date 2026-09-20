@@ -413,6 +413,10 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 	}
 
 	switch condition.Lookup() {
+	case query.LookupContains, query.LookupContainedBy:
+		if field.Kind() != query.FieldJSON || condition.Value().Kind() != query.ValueJSON {
+			return nil, unsupportedLookup(field, condition.Lookup())
+		}
 	case query.LookupExact:
 		if !queryplan.ValueMatchesField(condition.Value().Kind(), field.Kind()) {
 			return nil, invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", condition.Value().Kind(), field.Name()))
@@ -520,7 +524,7 @@ func appendWhereExpression(
 				statement.WriteString(", ")
 				statement.WriteString(placeholder(len(*arguments) + 1))
 				statement.WriteString("::jsonpath, '{}'::jsonb, true)")
-				*arguments = append(*arguments, "strict "+queryplan.JSONPathText(path))
+				*arguments = append(*arguments, "strict "+jsonPathArgument(path))
 			} else {
 				statement.WriteString(field)
 			}
@@ -578,7 +582,8 @@ func appendWhereExpression(
 func nullableNegationGuard(lookup query.Lookup) bool {
 	switch lookup {
 	case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
-		query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn:
+		query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn,
+		query.LookupContains, query.LookupContainedBy:
 		return true
 	default:
 		return false
@@ -806,7 +811,7 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 	value := condition.Value()
 	switch condition.Lookup() {
 	case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
-		query.LookupLessThan, query.LookupLessThanOrEqual:
+		query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupContains, query.LookupContainedBy:
 		operator := comparisonOperator(condition.Lookup())
 		if _, fieldRHS := condition.RHSField(); fieldRHS {
 			if rightField == "" {
@@ -817,7 +822,7 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 			return nil, nil
 		}
 		matches := queryplan.ValueMatchesField(value.Kind(), field.Kind())
-		if condition.Lookup() != query.LookupExact {
+		if orderedComparisonLookup(condition.Lookup()) {
 			matches = queryplan.OrderedValueMatchesField(value.Kind(), field.Kind())
 		}
 		if !matches {
@@ -887,6 +892,10 @@ func comparisonOperator(lookup query.Lookup) string {
 	switch lookup {
 	case query.LookupExact:
 		return " = "
+	case query.LookupContains:
+		return " @> "
+	case query.LookupContainedBy:
+		return " <@ "
 	case query.LookupGreaterThan:
 		return " > "
 	case query.LookupGreaterThanOrEqual:

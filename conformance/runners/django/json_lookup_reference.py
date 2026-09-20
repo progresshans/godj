@@ -75,11 +75,59 @@ with tempfile.TemporaryDirectory(prefix='godj-json-lookup-reference-') as temp:
             row['rows']=[[label,type(value).__name__,repr(value)] for label,value in Record.objects.order_by('id').values_list('label',lookup)]
         except Exception as error: row['exception']=type(error).__name__
         projections.append(row)
+    # Containment is observed on a separate table so all earlier lookup rows
+    # and SQL remain unchanged. JSONNull explicitly differs from SQL NULL.
+    class ContainmentRecord(models.Model):
+        label = models.CharField(max_length=80)
+        payload = models.JSONField(null=True)
+        class Meta:
+            app_label = 'jsoncontainref'
+            db_table = 'jsoncontainref_record'
+    with connection.schema_editor() as editor:
+        editor.create_model(ContainmentRecord)
+    documents = [
+        ('sql_null', None), ('json_null', 'null'), ('false', 'false'), ('true', 'true'),
+        ('zero', '0'), ('one', '1'), ('float_one', '1.0'), ('negative', '-1'),
+        ('string_one', '"1"'), ('string', '"needle"'), ('object_empty', '{}'), ('array_empty', '[]'),
+        ('array', '[1,2,3]'), ('array_reordered', '[3,1,2]'), ('array_duplicate', '[1,1]'),
+        ('array_nested', '[[1,2]]'), ('array_string', '["needle"]'), ('array_null', '[null,false]'),
+        ('array_objects', '[{"a":1,"b":2},{"a":3}]'), ('object', '{"a":1,"b":2}'),
+        ('object_float', '{"a":1.0,"b":2}'), ('object_two', '{"a":2}'), ('object_null', '{"a":null}'),
+        ('object_false', '{"a":false}'), ('object_string', '{"a":"1"}'), ('object_empty_value', '{"a":{}}'),
+        ('object_array', '{"a":[1,false,null]}'), ('object_nested', '{"a":{"b":1,"c":2}}'),
+        ('huge_previous', '{"a":340282366920938463463374607431768211454}'),
+        ('huge', '{"a":340282366920938463463374607431768211455}'),
+        ('huge_next', '{"a":340282366920938463463374607431768211456}'),
+        ('empty_key', '{"":null}'), ('unicode_key', '{"한글😀":{"x":1}}'),
+    ]
+    for label, raw in documents:
+        value = None if raw is None else models.JSONNull() if raw == 'null' else json.loads(raw)
+        ContainmentRecord.objects.create(label=label, payload=value)
+    containment = {'samples': [{'label': label, 'raw': raw} for label, raw in documents],
+                   'supported': connection.features.supports_json_field_contains, 'queries': []}
+    rhs_values = ['null', 'false', '1', '1.0', '"1"', '"needle"', '{}', '[]', '[1]', '[1,1]',
+                  '[[1]]', '[null]', '{"a":1}', '{"b":1}', '{"a":null}', '{"a":{}}',
+                  '{"a":[1,null]}', '{"a":340282366920938463463374607431768211455}',
+                  '340282366920938463463374607431768211455', '{"":null}', '{"한글😀":{"x":1}}']
+    for scope in ('root', 'a'):
+        for lookup in ('contains', 'contained_by'):
+            for raw in rhs_values:
+                rhs = models.JSONNull() if raw == 'null' else json.loads(raw)
+                key = 'payload__' + ('' if scope == 'root' else 'a__') + lookup
+                for mode in ('filter', 'exclude'):
+                    row = {'scope': scope, 'lookup': lookup, 'rhs': raw, 'mode': mode}
+                    try:
+                        row['rows'] = list(getattr(ContainmentRecord.objects, mode)(**{key: rhs}).order_by('id').values_list('label', flat=True))
+                    except Exception as error:
+                        row['exception'] = type(error).__name__
+                    containment['queries'].append(row)
+    with connection.schema_editor() as editor:
+        editor.delete_model(ContainmentRecord)
     with connection.cursor() as cursor:
         cursor.execute('SELECT version()' if database else 'SELECT sqlite_version()')
         version=cursor.fetchone()[0]
     result={'django':django.get_version(),'python':platform.python_version(),'backend':connection.vendor,
-            'database_version':version,'queries':queries,'projections':projections}
+            'database_version':version,'queries':queries,'projections':projections,'containment':containment}
     if database:
         result['psycopg'] = importlib.metadata.version('psycopg')
     # A failed observation is retained as an exception result; cleanup is not

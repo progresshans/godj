@@ -39,6 +39,14 @@ func (f JSONPathField[M]) Exact(value jsonvalue.Value) Predicate[M] {
 	return f.predicate(query.LookupExact, query.JSON(value), nil)
 }
 
+func (f JSONPathField[M]) Contains(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupContains, query.JSON(value), nil)
+}
+
+func (f JSONPathField[M]) ContainedBy(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupContainedBy, query.JSON(value), nil)
+}
+
 // IsNull matches a missing path (including absent/wrong-type containers), not
 // a stored JSON null. Exact(jsonvalue.Null()) matches the latter.
 func (f JSONPathField[M]) IsNull(value bool) Predicate[M] {
