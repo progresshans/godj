@@ -38,10 +38,11 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 		return `SELECT COUNT(*) FROM (` + inner + `) AS "godj_count_source"`, arguments, nil
 	}
 	resultKind := plan.ResultShape().Kind()
-	if resultKind != query.ResultModel && hasRelation {
-		return "", nil, unsupportedResultShape(
-			"PostgreSQL scalar projection and aggregate results cannot traverse or project relations",
-		)
+	if relationProjection && resultKind != query.ResultModel {
+		return "", nil, unsupportedResultShape("PostgreSQL scalar results cannot combine with related-object projection")
+	}
+	if where.hasRelations && resultKind != query.ResultModel && resultKind != query.ResultProjection {
+		return "", nil, unsupportedResultShape("PostgreSQL non-count aggregates cannot combine with relation filters")
 	}
 	switch resultKind {
 	case query.ResultModel, query.ResultProjection:
@@ -85,25 +86,9 @@ func compileScalarSelect(
 	if plan.Distinct() {
 		statement.WriteString("DISTINCT ")
 	}
-	arguments := make([]any, 0)
-	for index, expression := range selected {
-		if index > 0 {
-			statement.WriteString(", ")
-		}
-		field, _ := expression.Field()
-		quoted, err := quoteIdentifier(field.Column())
-		if err != nil {
-			return "", nil, err
-		}
-		if path, ok := expression.JSONPath(); ok {
-			if err := validateJSONPath(field, path); err != nil {
-				return "", nil, err
-			}
-			appendJSONPath(&statement, quoted, path, &arguments)
-		} else {
-			statement.WriteString(quoted)
-			appendDecimalResultPrecision(&statement, field)
-		}
+	arguments, err := appendSelectedExpressions(&statement, selected, "")
+	if err != nil {
+		return "", nil, err
 	}
 	statement.WriteString(" FROM ")
 	table, err := quoteTable(schema, plan.Table())
@@ -690,16 +675,16 @@ func compileRelation(
 	if plan.Distinct() {
 		statement.WriteString("DISTINCT ")
 	}
-	for index, column := range columns {
-		if index > 0 {
-			statement.WriteString(", ")
-		}
-		qualified, err := quoteQualified(rootAlias, column.Column())
+	selected := queryplan.FieldExpressions(columns)
+	if plan.ResultShape().Kind() == query.ResultProjection {
+		selected, err = queryplan.ProjectionExpressions(plan.ResultShape(), columns)
 		if err != nil {
 			return "", nil, err
 		}
-		statement.WriteString(qualified)
-		appendDecimalResultPrecision(&statement, column)
+	}
+	arguments, err := appendSelectedExpressions(&statement, selected, rootAlias)
+	if err != nil {
+		return "", nil, err
 	}
 	for _, projection := range plan.RelationProjections() {
 		alias := joins[queryplan.KeyForPath(projection.Path().Hops())].Alias
@@ -767,7 +752,7 @@ func compileRelation(
 	resolveRHSField := func(field query.FieldRef) (string, error) {
 		return quoteQualified(rootAlias, field.Column())
 	}
-	arguments, err := appendWhere(&statement, where, resolveField, resolveRHSField, nil)
+	arguments, err = appendWhere(&statement, where, resolveField, resolveRHSField, arguments)
 	if err != nil {
 		return "", nil, err
 	}
@@ -785,6 +770,9 @@ func compileRelation(
 		}
 		if !queryplan.ContainsField(columns, ordering.Field()) {
 			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
+		}
+		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection && !queryplan.ProjectsWholeField(selected, ordering.Field()) {
+			return "", nil, unsupportedDistinctOrdering(ordering.Field())
 		}
 		field, err := quoteQualified(rootAlias, ordering.Field().Column())
 		if err != nil {
@@ -1045,4 +1033,36 @@ func unsupportedDistinctOrdering(field query.FieldRef) error {
 		Field:    field.Name(),
 		Detail:   fmt.Sprintf("PostgreSQL DISTINCT projection cannot order by unprojected field %q", field.Name()),
 	}
+}
+
+// Model and DTO selections share JSON parameter and native scalar result rules;
+// relationship filters change qualification, never the selected value domain.
+func appendSelectedExpressions(statement *strings.Builder, selected []query.ResultExpression, alias string) ([]any, error) {
+	arguments := make([]any, 0)
+	for index, expression := range selected {
+		if index > 0 {
+			statement.WriteString(", ")
+		}
+		field, _ := expression.Field()
+		var column string
+		var err error
+		if alias == "" {
+			column, err = quoteIdentifier(field.Column())
+		} else {
+			column, err = quoteQualified(alias, field.Column())
+		}
+		if err != nil {
+			return nil, err
+		}
+		if path, ok := expression.JSONPath(); ok {
+			if err := validateJSONPath(field, path); err != nil {
+				return nil, err
+			}
+			appendJSONPath(statement, column, path, &arguments)
+		} else {
+			statement.WriteString(column)
+			appendDecimalResultPrecision(statement, field)
+		}
+	}
+	return arguments, nil
 }

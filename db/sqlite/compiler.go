@@ -23,8 +23,12 @@ func Compile(plan query.Plan) (string, []any, error) {
 		}
 		return `SELECT COUNT(*) FROM (` + inner + `) AS "godj_count_source"`, arguments, nil
 	}
-	if plan.ResultShape().Kind() != query.ResultModel && (selected || related) {
-		return "", nil, unsupportedResult("SQLite projection and aggregate results cannot combine with relation paths or relation projection")
+	kind := plan.ResultShape().Kind()
+	if selected && kind != query.ResultModel {
+		return "", nil, unsupportedResult("SQLite scalar results cannot combine with related-object projection")
+	}
+	if related && kind != query.ResultModel && kind != query.ResultProjection {
+		return "", nil, unsupportedResult("SQLite non-count aggregates cannot combine with relation filters")
 	}
 	if selected {
 		return compileRelation(plan, where)
@@ -79,22 +83,9 @@ func compileScalarRows(plan query.Plan, selected []query.ResultExpression, sourc
 	if plan.Distinct() {
 		sql.WriteString("DISTINCT ")
 	}
-	arguments := make([]any, 0)
-	for index, expression := range selected {
-		if index > 0 {
-			sql.WriteString(", ")
-		}
-		column, _ := expression.Field()
-		quoted, err := quoteIdentifier(column.Column())
-		if err != nil {
-			return "", nil, err
-		}
-		if path, ok := expression.JSONPath(); ok {
-			sql.WriteString("godj_json_at(" + quoted + ", ?)")
-			arguments = append(arguments, sqliteJSONPathArgument(path))
-		} else {
-			sql.WriteString(quoted)
-		}
+	arguments, err := appendSelectedExpressions(&sql, selected, "")
+	if err != nil {
+		return "", nil, err
 	}
 	sql.WriteString(" FROM ")
 	table, err := quoteIdentifier(plan.Table())
@@ -231,8 +222,8 @@ func appendPagination(sql *strings.Builder, arguments []any, plan query.Plan) []
 }
 
 func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, error) {
-	if plan.ResultShape().Kind() != query.ResultModel && !plan.ResultShape().IsCountAll() {
-		return "", nil, unsupportedResult("SQLite relation compilation requires a model result or COUNT(*)")
+	if plan.ResultShape().Kind() != query.ResultModel && plan.ResultShape().Kind() != query.ResultProjection && !plan.ResultShape().IsCountAll() {
+		return "", nil, unsupportedResult("SQLite relation compilation requires model rows, a root projection, or COUNT(*)")
 	}
 	if plan.Table() == "" {
 		return "", nil, invalidPlan("table is empty")
@@ -271,15 +262,16 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 	if plan.Distinct() {
 		sql.WriteString("DISTINCT ")
 	}
-	for index, column := range columns {
-		if index > 0 {
-			sql.WriteString(", ")
-		}
-		qualified, err := quoteQualified(rootAlias, column.Column())
+	selected := queryplan.FieldExpressions(columns)
+	if plan.ResultShape().Kind() == query.ResultProjection {
+		selected, err = queryplan.ProjectionExpressions(plan.ResultShape(), columns)
 		if err != nil {
 			return "", nil, err
 		}
-		sql.WriteString(qualified)
+	}
+	arguments, err := appendSelectedExpressions(&sql, selected, rootAlias)
+	if err != nil {
+		return "", nil, err
 	}
 	for _, projection := range plan.RelationProjections() {
 		alias := joins[queryplan.KeyForPath(projection.Path().Hops())].Alias
@@ -360,10 +352,12 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 			leaf.rhsFieldSQL = rhsField
 		}
 	}
-	arguments, err := appendWhere(&sql, where)
+	whereArguments, err := appendWhere(&sql, where)
 	if err != nil {
 		return "", nil, err
 	}
+
+	arguments = append(arguments, whereArguments...)
 
 	orderings := plan.Orderings()
 	if len(orderings) > 0 {
@@ -378,6 +372,9 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		}
 		if !queryplan.ContainsField(columns, ordering.Field()) {
 			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
+		}
+		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection && !queryplan.ProjectsWholeField(selected, ordering.Field()) {
+			return "", nil, unsupportedDistinctOrdering(ordering.Field())
 		}
 		field, err := quoteQualified(rootAlias, ordering.Field().Column())
 		if err != nil {
@@ -620,4 +617,33 @@ func unsupportedDistinctOrdering(field query.FieldRef) error {
 		Field:    field.Name(),
 		Detail:   "SQLite DISTINCT projection requires every ordering field in the result shape",
 	}
+}
+
+// Every scalar cell, including a root cell selected after relationship filters,
+// uses the same rendering and parameter order. Joins only supply qualification.
+func appendSelectedExpressions(sql *strings.Builder, selected []query.ResultExpression, alias string) ([]any, error) {
+	arguments := make([]any, 0)
+	for index, expression := range selected {
+		if index > 0 {
+			sql.WriteString(", ")
+		}
+		field, _ := expression.Field()
+		var column string
+		var err error
+		if alias == "" {
+			column, err = quoteIdentifier(field.Column())
+		} else {
+			column, err = quoteQualified(alias, field.Column())
+		}
+		if err != nil {
+			return nil, err
+		}
+		if path, ok := expression.JSONPath(); ok {
+			sql.WriteString("godj_json_at(" + column + ", ?)")
+			arguments = append(arguments, sqliteJSONPathArgument(path))
+		} else {
+			sql.WriteString(column)
+		}
+	}
+	return arguments, nil
 }

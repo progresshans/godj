@@ -313,6 +313,9 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 		if plan.ResultShape().IsCountAll() {
 			return &resultTestRows{values: [][]any{{int64(2)}}}, nil
 		}
+		if plan.ResultShape().Kind() == query.ResultProjection {
+			return &resultTestRows{values: [][]any{{int64(10)}, {int64(11)}}}, nil
+		}
 		return &resultTestRows{values: [][]any{
 			{int64(10), "first", int64(1), nil},
 			{int64(11), "second", int64(1), nil},
@@ -321,15 +324,6 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	source := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend)
 	source.plan = querytest.Conditions(t, source.plan, query.NewRelatedCondition(path, query.LookupExact, query.String("Ada")))
 	id := NewAutoField[relationObjectTestPost](relationObjectTestPostField("id"))
-	if _, projectionErr := SelectInto(
-		context.Background(),
-		source,
-		Project1(id, func(value int64) int64 { return value }),
-	); projectionErr == nil {
-		t.Fatal("relation-backed SelectInto() succeeded")
-	} else {
-		assertResultQueryError(t, projectionErr, query.CategoryQuery, query.CodeUnsupported)
-	}
 	if _, aggregateErr := AggregateInto(
 		context.Background(),
 		source,
@@ -360,6 +354,17 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 	}
 	if len(backend.plans) != 2 {
 		t.Fatalf("warm relation Count() performed I/O: plans = %d, want 2 total", len(backend.plans))
+	}
+
+	projected, err := SelectInto(context.Background(), source, Project1(id, func(value int64) int64 { return value }))
+	if err != nil || len(projected) != 2 || projected[0] != 10 || projected[1] != 11 {
+		t.Fatal("relation-filtered root projection", projected, err)
+	}
+	if len(backend.plans) != 3 || backend.plans[2].ResultShape().Kind() != query.ResultProjection {
+		t.Fatal("projection reused model cache or wrong row shape")
+	}
+	if count, err := source.Count(context.Background()); err != nil || count != cold || len(backend.plans) != 3 {
+		t.Fatal("projection changed cached model cardinality", err)
 	}
 }
 

@@ -345,7 +345,7 @@ func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Pr
 	if projection.newDecoder == nil {
 		return nil, invalidResultBuilder("projection decoder is nil")
 	}
-	if err := validateScalarResultSource(source.plan); err != nil {
+	if err := validateProjectionSource(source.plan); err != nil {
 		return nil, err
 	}
 	shape, err := query.NewProjectionResult(projection.expressions...)
@@ -394,7 +394,7 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 		return zero, err
 	}
 	if !shape.IsCountAll() {
-		if err := validateScalarResultSource(source.plan); err != nil {
+		if err := validateNonCountAggregateSource(source.plan); err != nil {
 			return zero, err
 		}
 	}
@@ -434,12 +434,19 @@ func scalarResult[M, V any](field ScalarField[M, V]) (query.ResultExpression, fu
 	return field.scalarResultField(*new(M), *new(V))
 }
 
-func validateScalarResultSource(plan query.Plan) error {
+func validateProjectionSource(plan query.Plan) error {
 	if len(plan.RelationProjections()) != 0 {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed scalar result cannot combine with relation projection"}
 	}
+	return nil
+}
+
+func validateNonCountAggregateSource(plan query.Plan) error {
+	if err := validateProjectionSource(plan); err != nil {
+		return err
+	}
 	if where, ok := plan.Where(); ok && where.HasRelations() {
-		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed scalar result cannot combine with relation traversal"}
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed non-count aggregate cannot combine with relation traversal"}
 	}
 	return nil
 }

@@ -365,7 +365,7 @@ func TestCompilerRejectsDistinctProjectionOrderingOutsideResult(t *testing.T) {
 	}
 }
 
-func TestCompilerRejectsNonModelRelationResults(t *testing.T) {
+func TestCompilerRelationProjectionKeepsAggregateBoundary(t *testing.T) {
 	t.Parallel()
 
 	post := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
@@ -399,7 +399,13 @@ func TestCompilerRejectsNonModelRelationResults(t *testing.T) {
 		if shapeErr != nil {
 			t.Fatal(shapeErr)
 		}
-		_, _, compileErr := compilePlan("godj_app", plan)
+		statement, arguments, compileErr := compilePlan("godj_app", plan)
+		if shape.Kind() == query.ResultProjection {
+			if compileErr != nil || !strings.HasPrefix(statement, `SELECT "t0"."id", "t0"."title" FROM `) || !strings.Contains(statement, "INNER JOIN") || !reflect.DeepEqual(arguments, []any{"Ada"}) {
+				t.Fatal("relation projection selected wrong fields/arguments", statement, arguments, compileErr)
+			}
+			continue
+		}
 		if !errors.Is(compileErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}) {
 			t.Fatalf("result %q error = %v, want backend unsupported_feature", shape.Kind(), compileErr)
 		}

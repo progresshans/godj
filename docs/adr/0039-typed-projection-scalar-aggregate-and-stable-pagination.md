@@ -6,7 +6,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-08-23
-- 후속 반영: 2026-09-10, GDJ-0066의 MIN과 관계 filter Count
+- 후속 반영: 2026-09-21, 관계 filter source의 root DTO projection과 JSON 경로 선택
 - 관련 work/contract: GDJ-0039, QRY-022..033, Q-011, M4
 - 대체하는 ADR: 없음
 
@@ -36,8 +36,9 @@ Go method는 receiver에 없는 새 type parameter를 선언할 수 없으므로
 - projection과 aggregate field는 exact source universe에 속해야 합니다.
 - relation projection과 DTO projection/aggregate는 같은 plan에서 결합하지 않고 structured unsupported로
   fail-closed합니다.
-- 관계 filter의 단일 COUNT(*)는 기존 JOIN row source를 집계할 수 있습니다. 관계의 일반 projection·MIN/MAX와
-  eager Count는 지원하지 않습니다.
+- 관계 filter source에서 root scalar/JSON 경로 DTO를 선택할 수 있습니다. 기존 JOIN의 중복 행·nullable Boolean 의미와
+  선택값 기준 DISTINCT·정렬·slice를 유지합니다. Related-column DTO와 일반 관계 MIN/MAX는 별도 범위입니다.
+- 관계 filter의 단일 COUNT(*)는 기존 JOIN row source를 집계합니다. Eager Count는 binding 검증 뒤 관련 객체 선택을 제외합니다.
 - 기존 `db.Queryer.Query(context.Context, query.Plan)` port는 바꾸지 않습니다.
 
 Full-model plan은 기존 field order와 descriptor scan 의미를 그대로 사용합니다. DTO projection은 exact selected
@@ -77,6 +78,12 @@ JOIN multiplicity와 Distinct·슬라이스를 유지하려는 선택이며 일�
 PostgreSQL에서 distinct projection의 ordering expression이 SELECT result에 없으면 암묵적으로 result를 넓히지
 않고 pre-I/O structured unsupported error를 반환합니다. SQL 문자열 동일성보다 결과, 오류, query count와 cache
 의미를 계약합니다.
+
+관계 조건 뒤 root DTO 선택에도 같은 규칙을 적용합니다. 선택하지 않은 source field로 조건을 걸 수 있으며
+JOIN alias는 root 선택값만 한정합니다. 모델 또는 related-object scanner로 DTO를 읽지 않습니다.
+고정 Django의 [독립 public 관찰](../../conformance/runners/django/related_projection_reference.py)은 direct forward/reverse의
+선택값·중복·nullable NOT/OR·DISTINCT·slice를 대조하고, 기존 nested fixture가 유한한 여러 단계의 필터를 검증합니다.
+실행 환경과 source 범위는 TEST_EVIDENCE가 소유합니다.
 
 ### Article 사용자 흐름
 

@@ -86,19 +86,31 @@ func TestGeneratedJSONConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/json_projection_test.go", projection)
+	relatedProjection, err := os.ReadFile("testdata/json/related_projection_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/related_projection_test.go", relatedProjection)
 	for _, backend := range []string{"sqlite", "postgres"} {
 		raw, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/jsontest/testdata/django61-projection-"+backend+".json"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		writeGeneratedTestFile(t, root, "consumer/projection_"+backend+"_reference.json", raw)
+		relatedRaw, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/jsontest/testdata/django61-related-projection-"+backend+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeGeneratedTestFile(t, root, "consumer/related_projection_"+backend+"_reference.json", relatedRaw)
 	}
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
 	required := []string{"TestJSONGeneratedDefaults", "TestJSONStorageQueryAndOwnership", "TestJSONStorageQueryAndOwnership/sqlite", "TestJSONStorageQueryAndOwnership/sqlite/paths", "TestJSONStorageQueryAndOwnership/sqlite/containment", "TestJSONStorageQueryAndOwnership/sqlite/keys"}
 	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/projection")
+	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/related_projection")
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres", "TestJSONStorageQueryAndOwnership/postgres/paths", "TestJSONStorageQueryAndOwnership/postgres/containment", "TestJSONStorageQueryAndOwnership/postgres/keys")
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/projection")
+		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/related_projection")
 	}
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 	for _, test := range []struct{ name, source, fragment string }{

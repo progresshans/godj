@@ -630,7 +630,7 @@ func TestCompiledDirectAggregatePreservesEmptyNullableMax(t *testing.T) {
 	}
 }
 
-func TestCompileProjectionAndAggregateRejectRelationPaths(t *testing.T) {
+func TestCompileRelationProjectionKeepsAggregateBoundary(t *testing.T) {
 	t.Parallel()
 
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
@@ -656,7 +656,13 @@ func TestCompileProjectionAndAggregateRejectRelationPaths(t *testing.T) {
 		if shapeErr != nil {
 			t.Fatalf("WithResultShape(%q) error = %v", result.Kind(), shapeErr)
 		}
-		_, _, compileErr := sqlite.Compile(plan)
+		statement, arguments, compileErr := sqlite.Compile(plan)
+		if result.Kind() == query.ResultProjection {
+			if compileErr != nil || !strings.HasPrefix(statement, `SELECT "t0"."id", "t0"."title" FROM `) || !strings.Contains(statement, "INNER JOIN") || !reflect.DeepEqual(arguments, []any{"Ada"}) {
+				t.Fatal("relation projection selected wrong fields/arguments", statement, arguments, compileErr)
+			}
+			continue
+		}
 		if !errors.Is(compileErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}) {
 			t.Fatalf("Compile(%q) error = %v, want backend unsupported_feature", result.Kind(), compileErr)
 		}

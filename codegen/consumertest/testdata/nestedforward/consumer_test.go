@@ -374,6 +374,7 @@ func TestGeneratedNestedForwardReference(t *testing.T) {
 					checkQuery(t, backend, q, observation, func(row *project.BlogPost) *nullableforwardproduct.NestedRow {
 						return observeFacade(t, row, observation.Selected)
 					})
+					checkRootProjection(t, backend, input, observation)
 				}
 				return
 			}
@@ -463,6 +464,46 @@ func TestGeneratedNestedForwardReference(t *testing.T) {
 	}
 	if typedCases != 138 {
 		t.Fatalf("typed reference roster=%d", typedCases)
+	}
+}
+
+// Scalar results retain the same bounded nested JOIN predicate, multiplicity,
+// and slice as the independently observed model source. Selecting the root PK
+// keeps DISTINCT's row identity while the JSON fixture covers value-only DISTINCT.
+func checkRootProjection(t *testing.T, backend *sqlite.Backend, input orm.Predicate[blog.Post], observation nullableforwardproduct.NestedObservation) {
+	t.Helper()
+	source := blog.PostObjects.Using(backend).Filter(input).OrderBy(blog.PostFields.ID.Asc())
+	if observation.Distinct {
+		source = source.Distinct()
+	}
+	var err error
+	source, err = source.Offset(observation.Offset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observation.Limit != nil {
+		source, err = source.Limit(*observation.Limit)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	type selectedPost struct {
+		ID    int64
+		Title string
+	}
+	projection := orm.Project2(blog.PostFields.ID, blog.PostFields.Title, func(id int64, title string) selectedPost { return selectedPost{id, title} })
+	rows, err := orm.SelectInto(t.Context(), source, projection)
+	if err != nil || len(rows) != len(observation.IDs) {
+		t.Fatalf("nested root projection: %v, rows %v want IDs %v", err, rows, observation.IDs)
+	}
+	for i, row := range rows {
+		title := "drop"
+		if observation.IDs[i]%2 == 1 {
+			title = "keep"
+		}
+		if row.ID != observation.IDs[i] || row.Title != title {
+			t.Fatalf("nested projection row %d: %+v want %d/%s", i, row, observation.IDs[i], title)
+		}
 	}
 }
 func observedPerson(person people.Person, present bool) *nullableforwardproduct.NestedTarget {

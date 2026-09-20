@@ -149,7 +149,9 @@ WHERE·LIMIT/OFFSET보다 앞에 배치한다. Native NUL path는 LIMIT 0·empty
 Projection DISTINCT는 선택한 값의 DB 의미를 따른다. SQLite canonical JSON text의 `1`/`1.0`은 다르며 native JSONB는
 동등하게 취급한다. ORDER BY field는 DISTINCT에서 해당 whole field도 선택되어 있어야 한다. JSON ordering 자체는 계속 미지원이다.
 Partial scan/rows/context 실패 시 결과 일부를 반환하지 않고 cursor를 닫는다. 새 실행으로 재시도할 수 있으며 잘못된 값의
-오류를 숨기거나 모델 cache에서 대체하지 않는다. Relation projection/traversal과 scalar projection 결합은 기존 미지원 경계를 유지한다.
+오류를 숨기거나 모델 cache에서 대체하지 않는다. 관계 filter가 있는 source에서도 root scalar와 JSON 경로를 DTO로
+선택할 수 있다. JOIN의 중복·nullable Boolean 의미를 유지하고 DISTINCT는 실제 선택한 값에 적용한다.
+Related-column 선택이나 related-object hydration과 DTO의 결합은 별도 범위다. [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)를 따른다.
 
 [독립 projection runner](../../conformance/runners/django/json_projection_reference.py)는 SQLite 32개/PostgreSQL 30개 문서에서
 각각 8개 경로를 관찰한다. Public ORM의 값·missing·root SQL NULL을 별도 기록하여 Python None만으로 JSON null을 판정하지 않는다.

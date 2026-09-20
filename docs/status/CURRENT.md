@@ -19,12 +19,14 @@ PostgreSQL의 root/path·forward contains/contained_by와 SQLite의 명시적 ca
 경로·containment source의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35517527972)을 완료했다.
 Key-presence의 공통 AST·typed/dynamic·양 DB·생성 관계 소비자와 로컬 normal/race/CGO=0 검증을 마쳤다.
 JSON 경로 projection의 공통 표현·nullable DTO와 양 DB compiler를 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-Source별 실행 범위와 key-presence의 미실행 Hosted 통합 범위는 TEST_EVIDENCE가 소유한다.
+Key-presence·root JSON 경로 projection의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35522171383)을 완료했다.
+관계 filter source의 root scalar/JSON 경로 DTO 선택을 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
+Source별 실행 범위와 결과는 TEST_EVIDENCE가 소유한다.
 
 ## 다음 행동
 
-Key-presence·JSON 경로 projection과 공통 scalar 선택 표현을 묶은 조회 통합 milestone에서 Hosted `orm` scope를 검증한다.
-관계 filter가 있는 source에서 scalar DTO를 선택하는 현재 제한과 남은 JSON 조회를 검토하며 필요한 기반을 이어간다.
+Forward 관계 대상의 JSON 경로를 DTO로 선택할 때 optional 경로·JSON null·JOIN·타입의 의미를 독립 관찰한다.
+결과 표현의 source metadata와 소유권을 유지하면서 생성 소비자까지 필요한 기반을 이어간다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.
