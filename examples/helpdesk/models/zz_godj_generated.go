@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/db"
 	_godjdecimal "github.com/progresshans/godj/decimal"
 	_godjduration "github.com/progresshans/godj/duration"
+	_godjjson "github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -17,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "01ef17b1156f01dd42d93fd8ce56cea1ba26b102e07e47ea29e5b5a3fdeec865"
+const GoDjSchemaSHA256 = "0b61bfaf0149df3a1ec92c995cfdbf68236882ac8eeae13442d4186bf475676e"
 
 type Category struct {
 	ID                    int64
@@ -204,6 +205,7 @@ type Ticket struct {
 	Effort                *float64
 	ExpectedCost          *_godjdecimal.Decimal
 	ExternalReference     *_godjuuid.UUID
+	ExternalPayload       *_godjjson.Value
 	godjPrimaryKeyPresent bool
 }
 
@@ -230,7 +232,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanEffort orm.NullableFloatScanner
 	scanExpectedCost := orm.NewNullableDecimalScanner(14, 2)
 	var scanExternalReference orm.NullableUUIDScanner
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort, &scanExpectedCost, &scanExternalReference); err != nil {
+	var scanExternalPayload orm.NullableJSONScanner
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort, &scanExpectedCost, &scanExternalReference, &scanExternalPayload); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -276,6 +279,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanExternalReference.Valid {
 		scanned := scanExternalReference.UUID
 		value.ExternalReference = &scanned
+	}
+	if scanExternalPayload.Valid {
+		scanned := scanExternalPayload.JSON
+		value.ExternalPayload = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -340,6 +347,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.ExternalReference != nil {
 		clonedExternalReference := *value.ExternalReference
 		clone.ExternalReference = &clonedExternalReference
+	}
+	if value.ExternalPayload != nil {
+		clonedExternalPayload := *value.ExternalPayload
+		clone.ExternalPayload = &clonedExternalPayload
 	}
 	return clone
 }
@@ -413,6 +424,11 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.UUID(*value.ExternalReference), true
+	case "external_payload":
+		if value.ExternalPayload == nil {
+			return query.Null(), true
+		}
+		return query.JSON(*value.ExternalPayload), true
 	default:
 		return query.Value{}, false
 	}
@@ -433,6 +449,7 @@ type TicketFieldSet struct {
 	Effort            orm.NullableFloatField[Ticket]
 	ExpectedCost      orm.NullableDecimalField[Ticket]
 	ExternalReference orm.NullableUUIDField[Ticket]
+	ExternalPayload   orm.NullableJSONField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
@@ -452,6 +469,7 @@ var TicketFields = func() TicketFieldSet {
 		Effort:            orm.NewNullableFloatField[Ticket](metadata.Fields[12]),
 		ExpectedCost:      orm.NewNullableDecimalField[Ticket](metadata.Fields[13]),
 		ExternalReference: orm.NewNullableUUIDField[Ticket](metadata.Fields[14]),
+		ExternalPayload:   orm.NewNullableJSONField[Ticket](metadata.Fields[15]),
 	}
 }()
 
@@ -492,6 +510,7 @@ type TicketCreate struct {
 	effort            orm.NullableChange[float64]
 	expectedCost      orm.NullableChange[_godjdecimal.Decimal]
 	externalReference orm.NullableChange[_godjuuid.UUID]
+	externalPayload   orm.NullableChange[_godjjson.Value]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -626,9 +645,19 @@ func (input TicketCreate) WithExternalReferenceNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithExternalPayload(value _godjjson.Value) TicketCreate {
+	input.externalPayload = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithExternalPayloadNull() TicketCreate {
+	input.externalPayload = orm.SetNull[_godjjson.Value]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 14)
+	assignments := make([]query.Assignment, 0, 15)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -896,6 +925,26 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedExternalPayload, changedExternalPayloadState := input.externalPayload.Get()
+	switch changedExternalPayloadState {
+	case orm.NullableChangeUnset:
+		value.ExternalPayload = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_payload", "external_payload", query.FieldJSON, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedExternalPayload := changedExternalPayload
+		value.ExternalPayload = &storedExternalPayload
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_payload", "external_payload", query.FieldJSON, true), query.JSON(changedExternalPayload)))
+	case orm.NullableChangeNull:
+		value.ExternalPayload = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_payload", "external_payload", query.FieldJSON, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "external_payload",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -914,6 +963,7 @@ type TicketPatch struct {
 	effort            orm.NullableChange[float64]
 	expectedCost      orm.NullableChange[_godjdecimal.Decimal]
 	externalReference orm.NullableChange[_godjuuid.UUID]
+	externalPayload   orm.NullableChange[_godjjson.Value]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -1041,9 +1091,19 @@ func (input TicketPatch) WithExternalReferenceNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithExternalPayload(value _godjjson.Value) TicketPatch {
+	input.externalPayload = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithExternalPayloadNull() TicketPatch {
+	input.externalPayload = orm.SetNull[_godjjson.Value]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 14)
+	assignments := make([]query.Assignment, 0, 15)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -1273,6 +1333,24 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedExternalPayload, changedExternalPayloadState := input.externalPayload.Get()
+	switch changedExternalPayloadState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedExternalPayload := changedExternalPayload
+		value.ExternalPayload = &storedExternalPayload
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_payload", "external_payload", query.FieldJSON, true), query.JSON(changedExternalPayload)))
+	case orm.NullableChangeNull:
+		value.ExternalPayload = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_payload", "external_payload", query.FieldJSON, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "external_payload",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -1399,8 +1477,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldUUID,
 				Nullable: true,
 			},
+			{
+				Name:     "external_payload",
+				GoName:   "ExternalPayload",
+				Column:   "external_payload",
+				Kind:     ir.FieldJSON,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_42928d3e7a9d5f616bdf7b1f2be94a84a1c745bf324c328699e310de9b979cc5 struct{}
+type GoDjProjectSnapshot_d56c6da128a3f048da0adf11f9fb91976a57c472617431c26a80bac88e354d61 struct{}

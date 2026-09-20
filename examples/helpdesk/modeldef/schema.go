@@ -30,6 +30,7 @@ func Schema() (ir.Schema, error) {
 			schema.FloatField("effort", "Effort", schema.Nullable()),
 			schema.DecimalField("expected_cost", "ExpectedCost", 14, 2, schema.Nullable()),
 			schema.UUIDField("external_reference", "ExternalReference", schema.Nullable()),
+			schema.JSONField("external_payload", "ExternalPayload", schema.Nullable()),
 		}},
 	}})
 }

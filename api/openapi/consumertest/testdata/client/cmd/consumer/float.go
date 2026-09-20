@@ -18,7 +18,7 @@ func checkHelpdeskFloatUpdates(ctx context.Context, client *hs.Client, transport
 	patch := func(request hs.TicketPatch) error {
 		response, err := client.HelpdeskTicketPatch(ctx, &request, params)
 		row, ok := response.(*hs.Ticket)
-		if err != nil || !ok || transport.lastStatus() != http.StatusOK || *row != expected {
+		if err != nil || !ok || transport.lastStatus() != http.StatusOK || !sameHelpdeskTicket(*row, expected) {
 			return fail("float PATCH/presence")
 		}
 		if !row.Effort.Null && math.Float64bits(row.Effort.Value) != math.Float64bits(expected.Effort.Value) {
@@ -39,7 +39,7 @@ func checkHelpdeskFloatUpdates(ctx context.Context, client *hs.Client, transport
 	}
 	response, err := client.HelpdeskTicketUpdate(ctx, &hs.TicketUpdate{Subject: original.Subject}, hs.HelpdeskTicketUpdateParams{ID: original.ID})
 	row, ok := response.(*hs.Ticket)
-	if err != nil || !ok || *row != expected {
+	if err != nil || !ok || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("float PUT omission")
 	}
 	clear := hs.OptNilFloat64{}
@@ -57,7 +57,7 @@ func checkHelpdeskFloatUpdates(ctx context.Context, client *hs.Client, transport
 	return expected, nil
 }
 func checkGeneratedFloatWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_reference":null,"expected_cost":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null,"elapsed":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_payload":null,"external_reference":null,"expected_cost":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null,"elapsed":null`
 	clear := hs.OptNilFloat64{}
 	clear.SetToNull()
 	cases := []struct {

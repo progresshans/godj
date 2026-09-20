@@ -28,6 +28,9 @@ func choiceAnnotations(field serializers.Field) ([]serializers.Member, error) {
 }
 
 func choiceInputSchema(field serializers.Field) (Schema, error) {
+	if field.Kind() == serializers.FieldJSON {
+		return jsonFieldSchema(field, true)
+	}
 	choices := field.Choices()
 	if choices == nil {
 		return schemaFieldType(field)
@@ -64,6 +67,9 @@ func choiceInputSchema(field serializers.Field) (Schema, error) {
 }
 
 func choiceDefaultName(field serializers.Field, value serializers.Value) string {
+	if document, ok := value.AsJSON(); ok && !field.Nullable() && document.Text == "null" {
+		return "x-godj-default"
+	}
 	choices := field.Choices()
 	if choices == nil || value.IsNull() {
 		return "default"

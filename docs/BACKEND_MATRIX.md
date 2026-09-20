@@ -43,7 +43,7 @@ JSON은 immutable 문서와 exact number token을 사용하며 nil pointer(SQL N
 SQLite TEXT/JSON_VALID CHECK와 PostgreSQL native JSONB, strict read·parameter·historical create/add/reverse를 연결했다.
 Exact/IN/F exact·isnull·projection·forward와 non-null reverse exact를 지원한다. JSON range/order/Min/Max·key/path/contains는 현재 미지원이다.
 GoDj write의 object key 정규화와 native JSONB numeric equality·지수 전개를 구분하며 PostgreSQL NUL과 readback 크기 초과를 거부한다.
-Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자는 아직 후속이다. [JSON 값과 저장](adr/0071-json-values-and-native-storage-boundaries.md)의 범위를 따른다.
+Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자·독립 client를 연결했다. Helpdesk는 native readback 뒤 응답 한도 검사까지 transaction 안에서 처리한다. [JSON 값과 저장](adr/0071-json-values-and-native-storage-boundaries.md)의 범위를 따른다.
 
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 

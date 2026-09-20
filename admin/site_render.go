@@ -321,7 +321,7 @@ func (site *Site) formContext(
 		item, err := templateObject(map[string]templates.Value{
 			"name":        templates.String(field.Name()),
 			"label":       templates.String(field.Label()),
-			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldUUID) && field.Widget() == forms.TextInput),
+			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
 			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
 			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect),
@@ -398,11 +398,18 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	}
 	initial, ok := form.Initial().Get(field.Name())
 	if !ok || initial.IsNull() {
+		if ok && field.Kind() == forms.FieldJSON {
+			return "null", false
+		}
 		return "", false
 	}
 	if field.Kind() == forms.FieldBoolean {
 		checked, _ := initial.AsBoolean()
 		return "", checked
+	}
+	if field.Kind() == forms.FieldJSON {
+		value, _ := initial.AsJSON()
+		return value.Text, false
 	}
 	if field.Kind() == forms.FieldUUID {
 		value, _ := initial.AsUUID()

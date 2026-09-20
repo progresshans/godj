@@ -59,40 +59,52 @@ func DefaultLimits() Limits {
 // members, trailing data, malformed numbers, raw invalid UTF-8, and resource
 // overflow. Numbers preserve exact tokens; fields own conversion and range.
 func DecodeObject(document []byte, limits Limits) (Object, error) {
-	resolved, err := resolveLimits(limits)
+	return decodeDeclaredObject(document, limits, nil)
+}
+
+func decodeDeclaredObject(document []byte, limits Limits, jsonFields map[string]bool) (Object, error) {
+	value, err := decodeDocument(document, limits, jsonFields, false)
 	if err != nil {
 		return Object{}, err
-	}
-	if len(document) == 0 {
-		return Object{}, invalidDocument("document", "JSON document is empty", nil)
-	}
-	if len(document) > resolved.MaxDocumentBytes {
-		return Object{}, resourceLimit("document", "JSON document exceeds the configured byte limit")
-	}
-	if !utf8.Valid(document) {
-		return Object{}, invalidDocument("document", "JSON document is not valid UTF-8", nil)
-	}
-	if err := rejectUnpairedSurrogateEscapes(document); err != nil {
-		return Object{}, err
-	}
-	decoder := json.NewDecoder(bytes.NewReader(document))
-	decoder.UseNumber()
-	budget := decodeBudget{limits: resolved}
-	value, err := decodeJSONValue(decoder, &budget, 1)
-	if err != nil {
-		return Object{}, err
-	}
-	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return Object{}, invalidDocument("document", "JSON document contains trailing data", nil)
-		}
-		return Object{}, invalidDocument("document", "JSON document contains malformed trailing data", err)
 	}
 	object, ok := value.AsObject()
 	if !ok {
 		return Object{}, invalidDocument("document", "top-level JSON value must be an object", nil)
 	}
 	return object, nil
+}
+
+func decodeDocument(document []byte, limits Limits, jsonFields map[string]bool, arbitraryNames bool) (Value, error) {
+	resolved, err := resolveLimits(limits)
+	if err != nil {
+		return Value{}, err
+	}
+	if len(document) == 0 {
+		return Value{}, invalidDocument("document", "JSON document is empty", nil)
+	}
+	if len(document) > resolved.MaxDocumentBytes {
+		return Value{}, resourceLimit("document", "JSON document exceeds the configured byte limit")
+	}
+	if !utf8.Valid(document) {
+		return Value{}, invalidDocument("document", "JSON document is not valid UTF-8", nil)
+	}
+	if err := rejectUnpairedSurrogateEscapes(document); err != nil {
+		return Value{}, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	decoder.UseNumber()
+	budget := decodeBudget{limits: resolved, jsonFields: jsonFields}
+	value, err := decodeJSONValue(decoder, &budget, 1, arbitraryNames)
+	if err != nil {
+		return Value{}, err
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return Value{}, invalidDocument("document", "JSON document contains trailing data", nil)
+		}
+		return Value{}, invalidDocument("document", "JSON document contains malformed trailing data", err)
+	}
+	return value, nil
 }
 
 func rejectUnpairedSurrogateEscapes(document []byte) error {
@@ -161,8 +173,9 @@ func jsonHexValue(value byte) (byte, bool) {
 }
 
 type decodeBudget struct {
-	limits Limits
-	values int
+	jsonFields map[string]bool
+	limits     Limits
+	values     int
 }
 
 func (b *decodeBudget) consumeValue(depth int) error {
@@ -176,7 +189,7 @@ func (b *decodeBudget) consumeValue(depth int) error {
 	return nil
 }
 
-func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int) (Value, error) {
+func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
 	if err := budget.consumeValue(depth); err != nil {
 		return Value{}, err
 	}
@@ -207,9 +220,9 @@ func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int) (Va
 	case json.Delim:
 		switch typed {
 		case '{':
-			return decodeJSONObject(decoder, budget, depth)
+			return decodeJSONObject(decoder, budget, depth, arbitraryNames)
 		case '[':
-			return decodeJSONArray(decoder, budget, depth)
+			return decodeJSONArray(decoder, budget, depth, arbitraryNames)
 		default:
 			return Value{}, invalidDocument("document", "JSON contains an unexpected closing delimiter", nil)
 		}
@@ -218,7 +231,7 @@ func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int) (Va
 	}
 }
 
-func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int) (Value, error) {
+func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
 	members := make([]Member, 0)
 	byName := make(map[string]int)
 	for decoder.More() {
@@ -240,9 +253,16 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int) (V
 			return Value{}, invalidDocument("document.object."+name, "JSON object member is duplicated", nil)
 		}
 		byName[name] = len(members)
-		value, err := decodeJSONValue(decoder, budget, depth+1)
+		jsonField := depth == 1 && budget.jsonFields[name]
+		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames || jsonField)
 		if err != nil {
 			return Value{}, err
+		}
+		if jsonField && !value.IsNull() {
+			value, err = jsonDocumentValue(value)
+			if err != nil {
+				return Value{}, invalidDocument("document.object."+name, "JSON field document is outside model limits", err)
+			}
 		}
 		members = append(members, MemberOf(name, value))
 	}
@@ -252,7 +272,7 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int) (V
 	}
 	// Keep empty-name rejection after parsing the entire object, as in
 	// NewObject. Duplicate, malformed child and budget failures precede it.
-	if _, empty := byName[""]; empty {
+	if _, empty := byName[""]; empty && !arbitraryNames {
 		return Value{}, invalidDocument("document.object", "JSON object contains an invalid member",
 			invalidValue("object.name", "object member name is empty or invalid UTF-8 text"))
 	}
@@ -261,13 +281,13 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int) (V
 	return (Object{members: members, index: byName, valid: true}).Value(), nil
 }
 
-func decodeJSONArray(decoder *json.Decoder, budget *decodeBudget, depth int) (Value, error) {
+func decodeJSONArray(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
 	values := make([]Value, 0)
 	for decoder.More() {
 		if len(values) >= budget.limits.MaxArrayItems {
 			return Value{}, resourceLimit("document.array", "JSON array item count exceeds the configured limit")
 		}
-		value, err := decodeJSONValue(decoder, budget, depth+1)
+		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames)
 		if err != nil {
 			return Value{}, err
 		}
@@ -347,6 +367,14 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
 		}
 		return s.appendBytes([]byte(text))
+	case ValueJSON:
+		node, err := decodeDocument([]byte(value.string), s.limits, nil, true)
+		if err != nil {
+			return err
+		}
+		// The opaque JSON value and its decoded root occupy the same value slot.
+		s.values--
+		return s.appendValue(node, depth)
 	case ValueUUID:
 		return s.appendString(value.string, "value.uuid")
 	case ValueDecimal:

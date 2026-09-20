@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/uuid"
 )
@@ -243,6 +244,25 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			options = append(options, forms.WithDefault(forms.Decimal(value)))
 		}
 		return forms.DecimalField(field.Name, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces, options...)
+	case ir.FieldJSON:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil {
+			return forms.Field{}, &Error{Code: "invalid_json_metadata"}
+		}
+		options = append(options, forms.WithRequired(!field.Nullable))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := jsonvalue.Parse([]byte(field.Default.JSON))
+			if field.Default.Kind != ir.ScalarJSON || err != nil || value.Text != field.Default.JSON {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.JSON(value)))
+		}
+		return forms.JSONField(field.Name, options...)
 	case ir.FieldUUID:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil {
 			return forms.Field{}, &Error{Code: "invalid_uuid_metadata"}

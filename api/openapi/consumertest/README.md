@@ -19,7 +19,7 @@ Calendar Date는 `format: date`와 별도의 nullable branch를 사용한다. Cl
 Clock Time은 timezone이 없는 string·pattern·length와 nullable branch다. RFC3339 full-time의 `format: time`과 구분한다.
 Client는 자정·최소 microsecond·마지막 microsecond·생략/null·PUT/PATCH의 HTTP 왕복과 최종 DB를 검사한다.
 Generated response decoder의 schema validation과 명시적 request.Validate를 확인한다. Request encoder가 Validate를 자동 호출한다고
-가정하지 않으며 server의 입력 검증을 유지한다. Parent와 child의 필수 receipt는 30개다.
+가정하지 않으며 server의 입력 검증을 유지한다. Parent와 child의 필수 receipt는 34개다.
 
 Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 request enum과 별도 int64 response를 확인하고,
 허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
@@ -128,3 +128,10 @@ Decimal은 모델의 precision·scale을 반영한 fixed-scale string·pattern·
 Client는 비용의 양 끝값·소수·생략/null·PUT/PATCH를 실제 HTTP·DB로 확인한다. 별도 wire에서 문자열 정확도,
 required response 누락·숫자/잘못된 문자열 거부와 명시적 request.Validate를 확인한다. 서버는 exact JSON 숫자도 받으며
 초과 scale을 반올림하지 않고 거부한다. SQLite의 zero sign 정규화와 numeric no-op도 검증한다.
+
+JSONField는 임의 JSON과 완전한 응답의 required presence를 기술한다. 고정 ogen은 `jx.Raw`를 생성하며 nil/빈 bytes는
+요청 생략, `null` bytes는 명시적 null이다. Client는 큰 정수·긴 소수·overflow/underflow exponent를 float 변환 없이 왕복하고,
+빈 key·nested object/array·JSON을 담은 문자열·PUT/PATCH 생략·null을 실제 HTTP와 SQLite DB로 확인한다.
+Duplicate key·NUL·surrogate·깊이 초과에 대한 서버 거부와 required response의 누락/문법 오류도 검사한다.
+Raw 값은 서버 validation의 대체가 아니다. 모델의 HTML escape 정규화와 HTTP JSON의 문자열 escaping 차이는 구분한다.
+새 JSON 필드 때문에 생성 Ticket이 Go-comparable이 아니므로 client는 JSON bytes를 포함한 모든 필드를 비교한다.

@@ -75,6 +75,13 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 				identifier, _ := value.AsUUID()
 				patch = patch.WithExternalReference(identifier)
 			}
+		case "external_payload":
+			if value.IsNull() {
+				patch = patch.WithExternalPayloadNull()
+			} else {
+				document, _ := value.AsJSON()
+				patch = patch.WithExternalPayload(document)
+			}
 		case "expected_cost":
 			if value.IsNull() {
 				patch = patch.WithExpectedCostNull()
@@ -121,7 +128,7 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 			return web.Response{}, errors.New("helpdesk: validated update contains an unhandled field")
 		}
 	}
-	updated, _, err := a.updatePatch(request.Context(), id, patch)
+	updated, _, err := a.updatePatch(request.Context(), id, patch, false)
 	if errors.Is(err, admin.ErrObjectNotFound) {
 		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
 	}
@@ -136,7 +143,7 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 }
 
 func (a *Application) bindInput(request *web.Request, mode serializers.Mode) (serializers.Values, web.Response, bool, error) {
-	object, err := a.parser.ParseObject(request)
+	object, err := a.parser.ParseObjectFor(request, a.input)
 	if err != nil {
 		response, handled, responseErr := api.RequestErrorResponse(err)
 		if handled {
@@ -151,6 +158,13 @@ func (a *Application) bindInput(request *web.Request, mode serializers.Mode) (se
 	if !bound.Valid() {
 		response, err := api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, bound.Errors())
 		return serializers.Values{}, response, true, err
+	}
+	if payload, present := bound.Values().Get("external_payload"); present && !payload.IsNull() {
+		document, _ := payload.AsJSON()
+		if failure := externalPayloadErrors(document); !failure.Empty() {
+			response, err := api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, failure)
+			return serializers.Values{}, response, true, err
+		}
 	}
 	return bound.Values(), web.Response{}, false, nil
 }

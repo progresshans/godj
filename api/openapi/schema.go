@@ -285,6 +285,8 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	switch field.Kind() {
 	case serializers.FieldString:
 		schema = String()
+	case serializers.FieldJSON:
+		return jsonFieldSchema(field, false)
 	case serializers.FieldUUID:
 		policy, err := serializers.NewObject(
 			serializers.MemberOf("bits", serializers.Integer(128)),

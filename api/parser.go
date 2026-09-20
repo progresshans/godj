@@ -53,6 +53,19 @@ func NewParser(config ParserConfig) (Parser, error) {
 // ParseObject accepts only application/json with no parameter other than an
 // optional UTF-8 charset. It bounds bytes before serializer allocation.
 func (p Parser) ParseObject(request *web.Request) (serializers.Object, error) {
+	return p.parseObject(request, serializers.DecodeObject)
+}
+
+// ParseObjectFor admits arbitrary JSON member names only inside explicitly
+// declared JSON fields. Body, Unicode, NUL and aggregate budgets stay shared.
+func (p Parser) ParseObjectFor(request *web.Request, spec serializers.Spec) (serializers.Object, error) {
+	if len(spec.Fields()) == 0 {
+		return serializers.Object{}, &Error{Code: FailureInvalidConfig, Field: "serializer_spec", Detail: "serializer spec is zero or invalid"}
+	}
+	return p.parseObject(request, spec.DecodeObject)
+}
+
+func (p Parser) parseObject(request *web.Request, decode func([]byte, serializers.Limits) (serializers.Object, error)) (serializers.Object, error) {
 	if !p.valid {
 		return serializers.Object{}, &Error{Code: FailureInvalidConfig, Field: "parser", Detail: "parser is zero or invalid"}
 	}
@@ -76,7 +89,7 @@ func (p Parser) ParseObject(request *web.Request) (serializers.Object, error) {
 	if int64(len(document)) > p.maxBodyBytes {
 		return serializers.Object{}, &Error{Code: FailureBodyTooLarge, Field: "body", Detail: "request body exceeds the configured limit"}
 	}
-	object, err := serializers.DecodeObject(document, p.jsonLimits)
+	object, err := decode(document, p.jsonLimits)
 	if err != nil {
 		return serializers.Object{}, &Error{Code: FailureInvalidRequest, Field: "body", Detail: "request body is not an accepted JSON object", Cause: err}
 	}

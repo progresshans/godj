@@ -154,6 +154,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			t.Fatalf("Helpdesk generated client left %d tickets, want two original and five created", len(tickets))
 		}
 		selectedCount, createdCount := 0, 0
+		wantJSON := map[string]string{"Consumer ticket": `{"":340282366920938463463374607431768211455,"nested":[null,false,"\u003cscript\u003edata\u003c/script\u003e"]}`, "Urgent priority": "", "Low priority": "", "Zero priority": "", "Null priority": ""}
 		wantPriority := map[string]*int64{
 			"Consumer ticket": nil, "Null priority": nil,
 			"Urgent priority": new(int64(1)), "Low priority": new(int64(-1)), "Zero priority": new(int64(0)),
@@ -200,6 +201,11 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if !known || (stored.Priority == nil) != (want == nil) || (want != nil && stored.Priority != nil && *stored.Priority != *want) || stored.Closed || stored.Details != nil {
 					t.Error("generated client changed an integer value, null, or default during persistence")
 				}
+				payload, known := wantJSON[stored.Subject]
+				if !known || (payload == "") != (stored.ExternalPayload == nil) || stored.ExternalPayload != nil && stored.ExternalPayload.Text != payload {
+					t.Fatal("independent client JSON final DB differs")
+				}
+				delete(wantJSON, stored.Subject)
 				cost, known := wantCost[stored.Subject]
 				if !known || (stored.ExpectedCost == nil) != (cost == nil) || (stored.ExpectedCost != nil && cost != nil && *stored.ExpectedCost != *cost) {
 					t.Fatal("independent client Decimal final DB differs")
@@ -248,7 +254,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				delete(wantResolution, stored.Subject)
 			}
 		}
-		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 || len(wantServiceOn) != 0 || len(wantServiceAt) != 0 || len(wantElapsed) != 0 || len(wantEffort) != 0 || len(wantCost) != 0 || len(wantUUID) != 0 {
+		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 || len(wantServiceOn) != 0 || len(wantServiceAt) != 0 || len(wantElapsed) != 0 || len(wantEffort) != 0 || len(wantCost) != 0 || len(wantUUID) != 0 || len(wantJSON) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
 		}
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
@@ -405,6 +411,9 @@ func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string
 }
 
 func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
+	if (left.ExternalPayload == nil) != (right.ExternalPayload == nil) || (left.ExternalPayload != nil && *left.ExternalPayload != *right.ExternalPayload) {
+		return false
+	}
 	if (left.ExternalReference == nil) != (right.ExternalReference == nil) || (left.ExternalReference != nil && *left.ExternalReference != *right.ExternalReference) {
 		return false
 	}

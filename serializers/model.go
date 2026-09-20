@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/uuid"
@@ -83,6 +84,9 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = Boolean(boolean)
+		case query.ValueJSON:
+			document, _ := scalar.JSON()
+			converted = JSON(document)
 		case query.ValueUUID:
 			identifier, _ := scalar.UUID()
 			converted = UUID(identifier)
@@ -178,6 +182,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 				options = append(options, WithDefault(String(field.Default.String)))
 			case ir.ScalarBoolean:
 				options = append(options, WithDefault(Boolean(field.Default.Boolean)))
+			case ir.ScalarJSON:
+				document, err := jsonvalue.Parse([]byte(field.Default.JSON))
+				if err != nil || document.Text != field.Default.JSON {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid JSON default")
+				}
+				options = append(options, WithDefault(JSON(document)))
 			case ir.ScalarUUID:
 				identifier, err := uuid.Parse(field.Default.UUID)
 				if err != nil || identifier.String() != field.Default.UUID {
@@ -232,6 +242,8 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		case ir.FieldChar, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			projected, err = StringField(field.Name, options...)
+		case ir.FieldJSON:
+			projected, err = JSONField(field.Name, options...)
 		case ir.FieldUUID:
 			projected, err = UUIDField(field.Name, options...)
 		case ir.FieldDecimal:

@@ -20,6 +20,7 @@ import (
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/uuid"
@@ -850,6 +851,13 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 			return forms.Values{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		switch field.Kind() {
+		case forms.FieldJSON:
+			if entry.Value().IsNull() {
+				canonicalData[field.Name()] = []string{""}
+			} else {
+				value, _ := entry.Value().AsJSON()
+				canonicalData[field.Name()] = []string{value.Text}
+			}
 		case forms.FieldUUID:
 			if entry.Value().IsNull() {
 				canonicalData[field.Name()] = []string{""}
@@ -941,6 +949,12 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 
 func validInitialValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldJSON:
+		if value.IsNull() {
+			return field.Nullable()
+		}
+		_, ok := value.AsJSON()
+		return ok
 	case forms.FieldUUID:
 		if value.IsNull() {
 			return field.Nullable()
@@ -1033,6 +1047,10 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 	switch initial.Kind() {
 	case forms.ValueNull:
 		return snapshot.IsNull()
+	case forms.ValueJSON:
+		left, leftOK := initial.AsJSON()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.Text == right
 	case forms.ValueUUID:
 		left, leftOK := initial.AsUUID()
 		right, rightOK := snapshot.AsString()
@@ -1082,6 +1100,12 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldJSON:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsJSON()
+		return ok
 	case forms.FieldUUID:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
@@ -1193,6 +1217,16 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 	case ir.FieldAuto:
 		integer, ok := value.AsInteger()
 		return ok && integer > 0 && (!field.PrimaryKey || integer == objectID)
+	case ir.FieldJSON:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		identifier, err := jsonvalue.Parse([]byte(text))
+		return err == nil && identifier.Text == text
 	case ir.FieldUUID:
 		if value.IsNull() {
 			return field.Nullable

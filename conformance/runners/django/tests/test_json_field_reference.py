@@ -25,7 +25,7 @@ class JSONFieldReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual((actual["django"], actual["drf"]), ("6.1", "3.18.0"))
         self.assertEqual({key: len(actual[key]) for key in ("model", "form", "serializer", "parsed")},
-                         {"model": 54, "form": 66, "serializer": 168, "parsed": 32})
+                         {"model": 62, "form": 88, "serializer": 192, "parsed": 43})
         database = actual["database"]
         self.assertEqual(database["type"], "text")
         self.assertIn("JSON_VALID", database["table_sql"])
@@ -60,6 +60,10 @@ class JSONFieldReferenceTests(unittest.TestCase):
         self.assertTrue(by_label["surrogate"]["valid"])
         self.assertEqual(by_label["surrogate"]["render_exception"], "UnicodeEncodeError")
         self.assertEqual(by_label["json_string"]["rendered"], '{"payload":"{\\"a\\":1}"}')
+        for label in ("empty_key", "nested_empty_key", "protocol_like_keys", "nul_key"):
+            self.assertTrue(by_label[label]["valid"])
+            self.assertNotIn("render_exception", by_label[label])
+        self.assertEqual(by_label["empty_key"]["rendered"], '{"payload":{"":"empty"}}')
         required = {(row["label"], row["partial"]): row for row in actual["serializer"] if row["serializer"] == "required"}
         self.assertEqual(required["omitted", False]["errors"], {"payload": ["required"]})
         self.assertEqual(required["null", False]["errors"], {"payload": ["null"]})

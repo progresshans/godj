@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 )
 
@@ -1432,6 +1433,7 @@ type Ticket struct {
 	Effort            NilFloat64  `json:"effort"`
 	ExpectedCost      NilString   `json:"expected_cost"`
 	ExternalReference NilUUID     `json:"external_reference"`
+	ExternalPayload   jx.Raw      `json:"external_payload"`
 }
 
 // GetID returns the value of ID.
@@ -1509,6 +1511,11 @@ func (s *Ticket) GetExternalReference() NilUUID {
 	return s.ExternalReference
 }
 
+// GetExternalPayload returns the value of ExternalPayload.
+func (s *Ticket) GetExternalPayload() jx.Raw {
+	return s.ExternalPayload
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -1584,6 +1591,11 @@ func (s *Ticket) SetExternalReference(val NilUUID) {
 	s.ExternalReference = val
 }
 
+// SetExternalPayload sets the value of ExternalPayload.
+func (s *Ticket) SetExternalPayload(val jx.Raw) {
+	s.ExternalPayload = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
@@ -1603,6 +1615,7 @@ type TicketCreate struct {
 	Effort            OptNilFloat64              `json:"effort"`
 	ExpectedCost      OptNilString               `json:"expected_cost"`
 	ExternalReference OptNilUUID                 `json:"external_reference"`
+	ExternalPayload   jx.Raw                     `json:"external_payload"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1670,6 +1683,11 @@ func (s *TicketCreate) GetExternalReference() OptNilUUID {
 	return s.ExternalReference
 }
 
+// GetExternalPayload returns the value of ExternalPayload.
+func (s *TicketCreate) GetExternalPayload() jx.Raw {
+	return s.ExternalPayload
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -1733,6 +1751,11 @@ func (s *TicketCreate) SetExpectedCost(val OptNilString) {
 // SetExternalReference sets the value of ExternalReference.
 func (s *TicketCreate) SetExternalReference(val OptNilUUID) {
 	s.ExternalReference = val
+}
+
+// SetExternalPayload sets the value of ExternalPayload.
+func (s *TicketCreate) SetExternalPayload(val jx.Raw) {
+	s.ExternalPayload = val
 }
 
 type TicketCreatePriority int64
@@ -1821,6 +1844,7 @@ type TicketPatch struct {
 	Effort            OptNilFloat64             `json:"effort"`
 	ExpectedCost      OptNilString              `json:"expected_cost"`
 	ExternalReference OptNilUUID                `json:"external_reference"`
+	ExternalPayload   jx.Raw                    `json:"external_payload"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1888,6 +1912,11 @@ func (s *TicketPatch) GetExternalReference() OptNilUUID {
 	return s.ExternalReference
 }
 
+// GetExternalPayload returns the value of ExternalPayload.
+func (s *TicketPatch) GetExternalPayload() jx.Raw {
+	return s.ExternalPayload
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketPatch) SetSubject(val OptString) {
 	s.Subject = val
@@ -1953,6 +1982,11 @@ func (s *TicketPatch) SetExternalReference(val OptNilUUID) {
 	s.ExternalReference = val
 }
 
+// SetExternalPayload sets the value of ExternalPayload.
+func (s *TicketPatch) SetExternalPayload(val jx.Raw) {
+	s.ExternalPayload = val
+}
+
 type TicketPatchPriority int64
 
 const (
@@ -1985,6 +2019,7 @@ type TicketUpdate struct {
 	Effort            OptNilFloat64              `json:"effort"`
 	ExpectedCost      OptNilString               `json:"expected_cost"`
 	ExternalReference OptNilUUID                 `json:"external_reference"`
+	ExternalPayload   jx.Raw                     `json:"external_payload"`
 }
 
 // GetSubject returns the value of Subject.
@@ -2052,6 +2087,11 @@ func (s *TicketUpdate) GetExternalReference() OptNilUUID {
 	return s.ExternalReference
 }
 
+// GetExternalPayload returns the value of ExternalPayload.
+func (s *TicketUpdate) GetExternalPayload() jx.Raw {
+	return s.ExternalPayload
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketUpdate) SetSubject(val string) {
 	s.Subject = val
@@ -2115,6 +2155,11 @@ func (s *TicketUpdate) SetExpectedCost(val OptNilString) {
 // SetExternalReference sets the value of ExternalReference.
 func (s *TicketUpdate) SetExternalReference(val OptNilUUID) {
 	s.ExternalReference = val
+}
+
+// SetExternalPayload sets the value of ExternalPayload.
+func (s *TicketUpdate) SetExternalPayload(val jx.Raw) {
+	s.ExternalPayload = val
 }
 
 type TicketUpdatePriority int64

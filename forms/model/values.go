@@ -32,6 +32,9 @@ func InitialValues[M any](model ir.Model, spec forms.Spec, value M, read func(M,
 		switch {
 		case scalar.IsNull() && field.Nullable():
 			result[field.Name()] = forms.Null()
+		case scalar.Kind() == query.ValueJSON && field.Kind() == forms.FieldJSON:
+			document, _ := scalar.JSON()
+			result[field.Name()] = forms.JSON(document)
 		case scalar.Kind() == query.ValueUUID && field.Kind() == forms.FieldUUID:
 			identifier, _ := scalar.UUID()
 			result[field.Name()] = forms.UUID(identifier)

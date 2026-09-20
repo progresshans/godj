@@ -62,7 +62,10 @@ def observe():
             ("json_string", '{"a":1}'), ("unicode", "한글😀"), ("nul", "\0"), ("surrogate", "\ud800"),
             ("object", {"a": 1, "b": [True, None, "text"]}), ("reordered", {"b": 2, "a": 1}),
             ("integer_key", {1: "integer key"}), ("tuple", (1, False)), ("bytes", b"{}"),
-            ("decimal", decimal.Decimal("0.1")), ("datetime", datetime.datetime(2026, 9, 20, tzinfo=datetime.UTC))]
+            ("decimal", decimal.Decimal("0.1")), ("datetime", datetime.datetime(2026, 9, 20, tzinfo=datetime.UTC)),
+            ("empty_key", {"": "empty"}), ("nested_empty_key", {"items": [{"": False}]}),
+            ("protocol_like_keys", {"__proto__": {"constructor": 1}, "payload__exact": None}),
+            ("nul_key", {"\0": "nul key"})]
 
         def outcome(operation, value):
             try:
@@ -84,7 +87,9 @@ def observe():
             "340282366920938463463374607431768211455", "9007199254740993.0", '""', '"null"', '"한글😀"',
             '{"a":1,"b":2}', '{"b":2,"a":1}', '{"a":1,"a":2}', '{"__proto__":{"x":1}}',
             "NaN", "Infinity", "-Infinity", '{"v":1e400}', '"\\u0000"', '"\\ud800"',
-            '"\\ud83d\\ude00"', "{bad}", "[1,]", "01", "{} []"]
+            '"\\ud83d\\ude00"', "{bad}", "[1,]", "01", "{} []", '{"":"empty"}', '{"items":[{"":false}]}',
+            '{"__proto__":{"constructor":1},"payload__exact":null}', '{"\\u0000":"nul key"}',
+            "1.00", "1e-0", "-0.0", "0.0", "  null  ", "1e-400", "9007199254740993.00"]
         form = []
         initials = {"null": None, "one": 1, "float_one": 1.0, "true": True, "object": {"a": 1, "b": 2}}
         for required in (False, True):

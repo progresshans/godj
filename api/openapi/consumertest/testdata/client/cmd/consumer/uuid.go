@@ -17,7 +17,7 @@ func checkHelpdeskUUIDUpdates(ctx context.Context, client *hs.Client, transport 
 	patch := func(request hs.TicketPatch) error {
 		response, err := client.HelpdeskTicketPatch(ctx, &request, params)
 		row, ok := response.(*hs.Ticket)
-		if err != nil || !ok || transport.lastStatus() != http.StatusOK || *row != expected {
+		if err != nil || !ok || transport.lastStatus() != http.StatusOK || !sameHelpdeskTicket(*row, expected) {
 			return fail("UUID PATCH value/null/omission")
 		}
 		return nil
@@ -31,7 +31,7 @@ func checkHelpdeskUUIDUpdates(ctx context.Context, client *hs.Client, transport 
 	}
 	response, err := client.HelpdeskTicketUpdate(ctx, &hs.TicketUpdate{Subject: original.Subject}, hs.HelpdeskTicketUpdateParams{ID: original.ID})
 	row, ok := response.(*hs.Ticket)
-	if err != nil || !ok || *row != expected {
+	if err != nil || !ok || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("UUID PUT omission")
 	}
 	clear := hs.OptNilUUID{}
@@ -54,7 +54,7 @@ func checkHelpdeskUUIDUpdates(ctx context.Context, client *hs.Client, transport 
 }
 
 func checkGeneratedUUIDWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"external_payload":null,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null`
 	clear := hs.OptNilUUID{}
 	clear.SetToNull()
 	type sample struct {

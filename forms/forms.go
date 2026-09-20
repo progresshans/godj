@@ -11,6 +11,7 @@ import (
 
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/internal/booleaninput"
+	"github.com/progresshans/godj/internal/jsoninput"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -29,6 +30,7 @@ const (
 	ValueDecimal
 	ValueTime
 	ValueUUID
+	ValueJSON
 )
 
 // Value is an immutable cleaned or initial form value.
@@ -46,6 +48,11 @@ func Integer(value int64) Value { return Value{kind: ValueInteger, integer: valu
 func (v Value) Kind() ValueKind { return v.kind }
 func (v Value) IsNull() bool    { return v.kind == ValueNull }
 func (v Value) Equal(o Value) bool {
+	if v.kind == ValueJSON && o.kind == ValueJSON {
+		left, lok := v.AsJSON()
+		right, rok := o.AsJSON()
+		return lok && rok && jsoninput.Equal(left, right)
+	}
 	if v.kind == ValueDecimal && o.kind == ValueDecimal {
 		left, lok := v.AsDecimal()
 		right, rok := o.AsDecimal()
@@ -85,6 +92,7 @@ const (
 	FieldDecimal
 	FieldTime
 	FieldUUID
+	FieldJSON
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -279,7 +287,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if kind == FieldBoolean && config.nullable && !config.hasWidget {
 		config.widget = NullBooleanSelect
 	}
-	if !(kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
+	if !(kind == FieldJSON && (config.widget == Textarea || config.widget == TextInput) || kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
@@ -322,6 +330,16 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 					return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "precision"}
 				}
 			}
+		}
+	case FieldJSON:
+		if config.maxLength != 0 {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
+		}
+		if !config.required && !config.nullable {
+			return Field{}, &ConfigError{Path: "fields." + name + ".nullable", Code: "optional_json_requires_null"}
+		}
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
+			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
 		}
 	case FieldUUID:
 		if config.maxLength != 0 {
@@ -438,6 +456,10 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 	if value.kind == ValueNull {
 		return nullable
+	}
+	if kind == FieldJSON {
+		_, ok := value.AsJSON()
+		return ok
 	}
 	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
 		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal || kind == FieldUUID && value.kind == ValueUUID
@@ -575,7 +597,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = field.defaultValue
 		case field.kind == FieldBoolean && !field.nullable:
 			value = Boolean(false)
-		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal || field.kind == FieldUUID:
+		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal || field.kind == FieldUUID || field.kind == FieldJSON:
 			value = Null()
 		case field.kind == FieldChar:
 			value = field.emptyValue
@@ -657,7 +679,13 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 		cleanedMap[field.name] = value
 		cleanedOrder = append(cleanedOrder, field.name)
 		initialValue, _ := resolvedInitial.Get(field.name)
-		if !value.Equal(initialValue) {
+		var sameInitial bool
+		if field.kind == FieldJSON {
+			sameInitial = equalJSON(value, initialValue)
+		} else {
+			sameInitial = value.Equal(initialValue)
+		}
+		if !sameInitial {
 			changed = append(changed, field.name)
 		}
 	}
@@ -739,6 +767,22 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			value, code = cleanDecimal(field, raw)
 			if code == "" && value.IsNull() && field.required {
 				code = "required"
+			}
+			if code != "" {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+			}
+		case FieldJSON:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = submitted[0]
+			}
+			var code validation.Code
+			value, code = cleanJSON(raw)
+			if code == "" && emptyJSON(value) && field.required {
+				code = "required"
+			}
+			if code == "" {
+				code = validateJSON(value)
 			}
 			if code != "" {
 				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
@@ -919,6 +963,12 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 			raw = submitted[0]
 		}
 		return changedDecimal(raw, initial)
+	case FieldJSON:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		return changedJSON(raw, initial)
 	case FieldUUID:
 		raw := ""
 		if present && len(submitted) == 1 {

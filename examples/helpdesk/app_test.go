@@ -161,6 +161,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	setHistoricalPriority(t, ctx, backend, seedID, query.Null())
 	verifyHistoricalExpectedCostGrowth(t, ctx, backend, open, loaded, seedID)
 	verifyHistoricalExternalReferenceGrowth(t, ctx, backend, open, loaded, seedID)
+	verifyHistoricalJSONGrowth(t, ctx, backend, open, loaded, seedID)
 
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal(err)
@@ -232,7 +233,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("Category should need no form/CRUD adapter")
 	}
 	ticketInfo, ok := application.Registry().Lookup("helpdesk", "ticket")
-	if !ok || len(ticketInfo.FormFields) != 13 {
+	if !ok || len(ticketInfo.FormFields) != 14 {
 		t.Fatal("Ticket scalar selection")
 	}
 	for _, field := range ticketInfo.FormFields {
@@ -287,7 +288,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
 	}
-	if len(detail) != 2 || len(detail["ticket"]) != 15 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["ticket"]["expected_cost"]) != "null" || string(detail["ticket"]["external_reference"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+	if len(detail) != 2 || len(detail["ticket"]) != 16 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["ticket"]["expected_cost"]) != "null" || string(detail["ticket"]["external_reference"]) != "null" || string(detail["ticket"]["external_payload"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
 		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
 	}
 	var categoryName string
@@ -448,6 +449,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	verifyHelpdeskFloat(t, ctx, runtime, open, client, category.ID, created.ID)
 	verifyHelpdeskDecimal(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
 	verifyHelpdeskUUID(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
+	verifyHelpdeskJSON(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
 	// Ordinary ORM writes keep the complete int64 storage range. Both API and
 	// Admin display those old/out-of-choice values without substituting labels.
 	for _, value := range []int64{math.MinInt64, math.MaxInt64} {
@@ -524,7 +526,7 @@ func assertHistoricalPriority(t *testing.T, ctx context.Context, backend db.Quer
 func readGrownTicket(t *testing.T, ctx context.Context, backend db.Queryer, id int64, subject string, category int64) models.Ticket {
 	t.Helper()
 	value, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || value.Subject != subject || value.CategoryID != category || value.Details != nil || value.Closed || value.Priority != nil || value.Resolution != nil || value.DueAt != nil || value.Reviewed != nil || value.ServiceOn != nil || value.ExternalReference != nil {
+	if err != nil || !found || value.Subject != subject || value.CategoryID != category || value.Details != nil || value.Closed || value.Priority != nil || value.Resolution != nil || value.DueAt != nil || value.Reviewed != nil || value.ServiceOn != nil || value.ExternalReference != nil || value.ExternalPayload != nil {
 		t.Fatalf("field migrations did not preserve the historical row and NULL backfill: %v", err)
 	}
 	return value

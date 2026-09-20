@@ -22,6 +22,7 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/uuid"
@@ -56,7 +57,8 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference. Every create
+// category, while clients may edit the selected ticket fields and external
+// reference/payload. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -86,13 +88,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true}, serializers.ModelField{Name: "external_payload", Optional: true})
 	if err != nil {
 		return nil, err
 	}
@@ -152,18 +154,26 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference"}
-	form, err := formmodel.NewSpecForFields(metadata, fields)
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}
+	overrides := []formmodel.Override{formmodel.OverrideField("external_payload", formmodel.WithValidators(forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
+		if value.IsNull() {
+			return validation.NewErrors()
+		}
+		document, _ := value.AsJSON()
+		return externalPayloadErrors(document)
+	})))}
+	form, err := formmodel.NewSpecForFields(metadata, fields, overrides...)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload")
 	if err != nil {
 		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference"}, SearchFields: []string{"subject"},
+		FormOverrides: overrides,
+		ListFields:    []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -232,6 +242,7 @@ type ticketInput struct {
 	effort            *float64
 	expectedCost      *decimal.Decimal
 	externalReference *uuid.UUID
+	externalPayload   *jsonvalue.Value
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
@@ -248,7 +259,8 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	effort, effortOK := values.Get("effort")
 	expectedCost, expectedCostOK := values.Get("expected_cost")
 	externalReference, externalReferenceOK := values.Get("external_reference")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || !externalReferenceOK || len(values.All()) != 13 {
+	externalPayload, externalPayloadOK := values.Get("external_payload")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || !externalReferenceOK || !externalPayloadOK || len(values.All()) != 14 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
@@ -300,6 +312,13 @@ func fromForm(values forms.Values) (ticketInput, error) {
 			return ticketInput{}, errors.New("helpdesk: invalid external_reference")
 		}
 		input.externalReference = &identifier
+	}
+	if !externalPayload.IsNull() {
+		document, ok := externalPayload.AsJSON()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid external_payload")
+		}
+		input.externalPayload = &document
 	}
 	if !expectedCost.IsNull() {
 		number, ok := expectedCost.AsDecimal()
@@ -379,6 +398,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		} else {
 			create = create.WithExternalReference(*input.externalReference)
 		}
+		if input.externalPayload == nil {
+			create = create.WithExternalPayloadNull()
+		} else {
+			create = create.WithExternalPayload(*input.externalPayload)
+		}
 		if input.expectedCost == nil {
 			create = create.WithExpectedCostNull()
 		} else {
@@ -401,6 +425,9 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		}
 		var err error
 		created, err = models.TicketObjects.Create(ctx, session, create)
+		if err == nil {
+			created, err = a.publishableTicket(ctx, session, created.ID)
+		}
 		return err
 	})
 	if err != nil {
@@ -446,6 +473,11 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 	} else {
 		patch = patch.WithExternalReference(*input.externalReference)
 	}
+	if input.externalPayload == nil {
+		patch = patch.WithExternalPayloadNull()
+	} else {
+		patch = patch.WithExternalPayload(*input.externalPayload)
+	}
 	if input.expectedCost == nil {
 		patch = patch.WithExpectedCostNull()
 	} else {
@@ -466,13 +498,13 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 	} else {
 		patch = patch.WithServiceAt(*input.serviceAt)
 	}
-	return a.updatePatch(ctx, id, patch)
+	return a.updatePatch(ctx, id, patch, true)
 }
 
 // Resolve the current row and apply explicit changes in the same transaction.
 // Comparing assignments preserves omitted fields and does not expose or mutate
 // the generated mutation's private model value.
-func (a *Application) updatePatch(ctx context.Context, id int64, patch models.TicketPatch) (models.Ticket, []string, error) {
+func (a *Application) updatePatch(ctx context.Context, id int64, patch models.TicketPatch, formInput bool) (models.Ticket, []string, error) {
 	var updated models.Ticket
 	var changed []string
 	err := a.backend.Atomic(ctx, func(session db.Session) error {
@@ -491,6 +523,39 @@ func (a *Application) updatePatch(ctx context.Context, id int64, patch models.Ti
 				return nil
 			}
 			return err
+		}
+		if formInput {
+			for _, assignment := range mutation.Assignments() {
+				if assignment.Field().Name() != "external_payload" {
+					continue
+				}
+				before, after := jsonvalue.Null(), jsonvalue.Null()
+				if current.ExternalPayload != nil {
+					before = *current.ExternalPayload
+				}
+				if !assignment.Value().IsNull() {
+					var valid bool
+					after, valid = assignment.Value().JSON()
+					if !valid {
+						return errors.New("helpdesk: invalid JSON form assignment")
+					}
+				}
+				// Form ignores object order and equivalent floating spellings,
+				// and cannot distinguish SQL NULL from a stored JSON null. Keep
+				// the original document even when another field changes. API
+				// input retains its separate explicit-null and exact-token rules.
+				if forms.JSON(before).Equal(forms.JSON(after)) {
+					if current.ExternalPayload == nil {
+						patch = patch.WithExternalPayloadNull()
+					} else {
+						patch = patch.WithExternalPayload(before)
+					}
+				}
+			}
+			mutation = patch.BuildPatch(current)
+			if err := mutation.Err(); err != nil {
+				return err
+			}
 		}
 		descriptor := models.TicketDescriptor{}
 		assignments := mutation.Assignments()
@@ -513,12 +578,51 @@ func (a *Application) updatePatch(ctx context.Context, id int64, patch models.Ti
 			return nil
 		}
 		updated, err = models.TicketObjects.Update(ctx, session, current, patch)
+		if err == nil {
+			updated, err = a.publishableTicket(ctx, session, updated.ID)
+		}
 		return err
 	})
 	if err != nil {
 		return models.Ticket{}, nil, err
 	}
 	return updated, changed, nil
+}
+
+// Native storage can normalize a JSON numeric token into a longer spelling.
+// Re-read and validate the real response inside the transaction, including the
+// detail/list wrapper, so a successful write cannot precede a renderer failure.
+func (a *Application) publishableTicket(ctx context.Context, session db.Session, id int64) (models.Ticket, error) {
+	stored, found, err := ticket(ctx, session, id)
+	if err != nil {
+		return models.Ticket{}, err
+	}
+	if !found {
+		return models.Ticket{}, admin.ErrObjectNotFound
+	}
+	value, err := a.encoder.Encode(stored)
+	if err != nil {
+		return models.Ticket{}, err
+	}
+	list, err := serializers.NewList(value)
+	if err != nil {
+		return models.Ticket{}, err
+	}
+	if _, err := serializers.Encode(list, serializers.Limits{}); err != nil {
+		return models.Ticket{}, err
+	}
+	return stored, nil
+}
+
+// This application's form and API share an input envelope small enough for a
+// ticket inside a detail/list response. Model JSON and generic forms keep their
+// own broader limits and NUL policy.
+func externalPayloadErrors(document jsonvalue.Value) validation.Errors {
+	limits := serializers.Limits{MaxDocumentBytes: maximumJSONBodyBytes, MaxDepth: serializers.DefaultMaxDepth - 2}
+	if _, err := serializers.Encode(serializers.JSON(document), limits); err != nil {
+		return validation.NewErrors(validation.New("external_payload", "invalid"))
+	}
+	return validation.NewErrors()
 }
 
 func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, error) {
@@ -598,6 +702,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 	if reference, present := values.Get("external_reference"); present && !reference.IsNull() {
 		identifier, _ := reference.AsUUID()
 		input.externalReference = &identifier
+	}
+	if payload, present := values.Get("external_payload"); present && !payload.IsNull() {
+		document, _ := payload.AsJSON()
+		input.externalPayload = &document
 	}
 	if cost, present := values.Get("expected_cost"); present && !cost.IsNull() {
 		number, _ := cost.AsDecimal()

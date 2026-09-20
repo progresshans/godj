@@ -75,8 +75,56 @@
 - Affected `go vet`, gofmt·diff/link 검사와 `make generate-check`를 확인했다. Helpdesk/Article/relationfixture의 checked-in generated 결과는 clean이다.
   Recovery fixture의 독립 runtime 복사에는 새 `jsonvalue` package도 포함한다.
   최종 검사 뒤 전용 PostgreSQL DB의 잔여 연결 0을 확인해 삭제했고 기존 service는 유지했다.
-- 이 결과는 JSON 모델·저장 기반의 로컬 checkpoint다. Form/Admin·serializer·OpenAPI·실제 Helpdesk JSON 소비자·독립 HTTP client와
-  JSON key/path/contains 등 추가 연산은 아직 후속이다. UUID source의 Hosted full을 이 새 JSON 코드의 platform PASS로 사용하지 않는다.
+- 이 결과는 JSON 모델·저장 기반의 로컬 checkpoint다. 이 checkpoint 시점의 Form/Admin·serializer·OpenAPI·실제 Helpdesk JSON 소비자·독립 HTTP client와
+  JSON key/path/contains 등 추가 연산은 후속이었다. 새 입력/소비자 checkpoint는 다음 소절에 기록한다. UUID source의 Hosted full을 이 새 JSON 코드의 platform PASS로 사용하지 않는다.
+
+### JSON Form/Admin/API·Helpdesk와 독립 client 로컬 checkpoint
+
+- 기준 source `878eecc9c6d2987df456bdddc326a931e11c75ab` 위 제품·테스트·생성물·reference·module/config lock
+  **71 non-Markdown 파일**의 정렬 SHA256 manifest는 `87ca9e2de2578ccc8c3769a9039805755337a64f4bedd7f35018695baa35d0be`다.
+  Normal/race/CGO=0 실행 전후 같은 바이트를 확인했다. Go **1.26.5 darwin/arm64**, PostgreSQL **17.5 Homebrew**,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`의 별도 전용 DB를 사용했다.
+- 독립 reference에 빈/nested 빈 key·protocol-like key·NUL key·숫자 표기/정밀도 입력을 추가했다. 새 raw는
+  **model 62 / Form 88 / serializer 192 / 실제 parser 43**개이며 SHA256은
+  `10973457faa61eb2f63dc3cdbfbaf6471c8d1cb27900f9846a019a52b2f1eaea`다. 기존 모든 행과 DB/기타 관찰이 이전 raw와 같은지 별도로 대조했다.
+  Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** fresh 비교 각각 **1 PASS**, skip/warning 0이다.
+  다른 Python을 exact frozen profile로 실행한 초기 시도는 `requires-python ==3.14.3`에서 거부됐다. 이를 성공으로 세지 않고
+  CI와 같은 isolated compatibility 환경에서 Django 6.1·DRF 3.18.0·asgiref 3.12.1·sqlparse 0.5.5를 명시해 다시 검증했다.
+- Normal `go test -count=1 -json -timeout=10m`과 동일 scope의 `-race`는 아래 **9 package, 174 root,
+  3736 test·subtest PASS**, run/pass 전체 roster 동일, skip/fail 0·stderr 0 bytes다.
+
+```text
+./internal/jsoninput ./forms ./forms/model ./admin ./serializers ./api ./api/openapi
+./examples/helpdesk ./api/openapi/consumertest
+```
+
+- `CGO_ENABLED=0`은 실제 SQLite/PostgreSQL Helpdesk 두 root와 `TestGeneratedOpenAPIClientContract`를 선택했다.
+  **2 package, 3 root/test PASS**, skip/fail 0·stderr 0 bytes이며 필수 실행 목록을 따로 검사했다.
+- Form 88개 입력과 5종 initial의 clean/error/has_changed를 독립 raw에 대조했다. Required empty, bool/number, integer/float,
+  floating signed zero·큰 숫자 정밀도·object key 순서·NUL validation을 구분한다. Serializer 192개 direct/43개 parsed 입력의
+  누락/default/full/PATCH·nullable/required·JSON-bearing string과 exact number를 검증한다. DEV-0017의 명시적 차이는 고정 selector로 확인한다.
+  Opaque JSON null의 직접 Go 입력도 non-null 제약을 우회하지 않으며 JSON null omission default와 응답의 존재는 별도로 유지한다.
+- Spec-aware JSON decoder는 JSONField 안의 임의 key만 허용한다. Root/다른 필드의 이름 규칙과 Unicode/NUL/중복 key 검증,
+  여러 JSONField와 envelope의 공유 값 수·깊이/byte 한도, caller가 만든 깊은 Value tree의 fail-closed를 확인했다.
+  Admin은 canonical snapshot/typed initial·raw 재표시·XSS escaping과 재검증을 유지한다.
+- Helpdesk의 실제 `0015_ticket_external_payload` migration은 기존 행·nullable 추가·저장·reopen·reverse/reapply를 양 DB에서 검사한다.
+  실제 Admin/API에서 create·PUT/PATCH·생략/null·빈 값·큰 정수·empty/protocol key·중첩과 JSON string을 왕복했다.
+  Form의 동등한 1.0/1e0와 stored JSON null 재제출은 UPDATE 0이며, 다른 필드 수정에도 원래 JSON 표현/tag가 남는다.
+  Invalid/oversized 입력·valid-CSRF 권한 거부·CSRF 거부·category isolation·mutation 뒤 주입 실패/rollback·새 connection을 확인했다.
+  PostgreSQL `1e2000`의 API renderer 한도와 `1e5000`의 model preflight 실패는 create/update를 commit하지 않는다.
+- 고정 ogen **v1.24.0**로 실제 세 API profile을 다시 생성했다. Article 두 profile은 변하지 않고 Helpdesk schema와 생성 파일 2개만 달라졌다.
+  독립 client의 module/config lock은 불변이며 GoDj import/replace 없이 생성 drift·build·실제 HTTP와 최종 SQLite DB를 확인했다.
+  Parent/child **34개 receipt**와 race mode 일치를 확인한다. Any-JSON `jx.Raw`는 2^128-1, 긴 소수, 1e400/1e-400,
+  null/생략과 응답 required presence를 보존한다. 새 raw field 때문에 비교 불가능해진 generated Ticket은 모든 필드를 deep 비교한다.
+- Python 3.14.3·`openapi-spec-validator 0.7.2`·`jsonschema 4.25.1`로 세 실제 OpenAPI **3.1.1** 문서와
+  JSON field의 any-value 및 입력 optional/완전 응답 required 의미를 독립 검사했다. Vendor extension을 표준 validator의 실행 보장으로 해석하지 않는다.
+- 첫 protocol checkpoint에서 발견한 Form top-level NUL 오류와 성공한 clean의 SQL/JSON null 변경 감지를 수정했다.
+  Non-finite direct Value는 Object 생성 전에 이미 거부되므로 그 실제 경계에서 실패를 검사하도록 fixture를 고쳤다.
+  첫 integration은 옛 field 개수·Textarea newline·모델 HTML escape expected에서 실패했다. 다음 실행의 permission fixture는
+  Change가 거부되는 Admin GET 대신 safe API GET의 유효 CSRF를 받고 정확한 `permission_denied`를 확인하도록 고쳤다.
+  위 최종 source로 전체 affected scope를 다시 실행했으며 초기 실패 로그를 별도로 보존했다.
+- Affected vet·Helpdesk 12파일 generated drift·format/diff/docs 검사는 PASS다. 전용 DB는 잔여 연결 0 뒤 삭제하고 기존 service는 유지했다. JSON value→양 DB→Form/Admin/API→외부 client를
+  연결한 이 milestone의 전체 platform/cold CLI 검증은 다음 Hosted full이 소유한다. 이전 UUID Hosted full을 현재 JSON의 결과로 사용하지 않는다.
 
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 

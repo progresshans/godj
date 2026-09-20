@@ -13,18 +13,18 @@ func checkHelpdeskNullableUpdates(ctx context.Context, client *hs.Client, transp
 	expected.Reviewed, expected.Closed = hs.NewNilBool(true), true
 	response, err := client.HelpdeskTicketPatch(ctx, &hs.TicketPatch{Reviewed: hs.NewOptNilBool(true), Closed: hs.NewOptBool(true)}, params)
 	row, ok := response.(*hs.Ticket)
-	if err != nil || !ok || transport.lastStatus() != http.StatusOK || *row != expected {
+	if err != nil || !ok || transport.lastStatus() != http.StatusOK || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("helpdesk PATCH true and unrelated fields")
 	}
 	response, err = client.HelpdeskTicketPatch(ctx, &hs.TicketPatch{}, params)
 	row, ok = response.(*hs.Ticket)
-	if err != nil || !ok || *row != expected {
+	if err != nil || !ok || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("helpdesk empty PATCH preserved defaults and nullable fields")
 	}
 	expected.Closed = false
 	put, err := client.HelpdeskTicketUpdate(ctx, &hs.TicketUpdate{Subject: original.Subject}, hs.HelpdeskTicketUpdateParams{ID: original.ID})
 	row, ok = put.(*hs.Ticket)
-	if err != nil || !ok || *row != expected {
+	if err != nil || !ok || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("helpdesk PUT default false and nullable omission")
 	}
 	clear := hs.OptNilBool{}
@@ -32,13 +32,13 @@ func checkHelpdeskNullableUpdates(ctx context.Context, client *hs.Client, transp
 	expected.Reviewed.SetToNull()
 	response, err = client.HelpdeskTicketPatch(ctx, &hs.TicketPatch{Reviewed: clear}, params)
 	row, ok = response.(*hs.Ticket)
-	if err != nil || !ok || *row != expected {
+	if err != nil || !ok || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("helpdesk explicit null PATCH")
 	}
 	expected.Reviewed = hs.NewNilBool(false)
 	put, err = client.HelpdeskTicketUpdate(ctx, &hs.TicketUpdate{Subject: original.Subject, Reviewed: hs.NewOptNilBool(false)}, hs.HelpdeskTicketUpdateParams{ID: original.ID})
 	row, ok = put.(*hs.Ticket)
-	if err != nil || !ok || *row != expected {
+	if err != nil || !ok || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("helpdesk explicit false PUT")
 	}
 	put, err = client.HelpdeskTicketUpdate(ctx, &hs.TicketUpdate{Reviewed: hs.NewOptNilBool(true)}, hs.HelpdeskTicketUpdateParams{ID: original.ID})
@@ -57,7 +57,7 @@ func checkHelpdeskNullableUpdates(ctx context.Context, client *hs.Client, transp
 	}
 	response, err = client.HelpdeskTicketPatch(ctx, &hs.TicketPatch{}, params)
 	row, ok = response.(*hs.Ticket)
-	if err != nil || !ok || *row != expected {
+	if err != nil || !ok || !sameHelpdeskTicket(*row, expected) {
 		return hs.Ticket{}, fail("helpdesk rejected writes changed stored state")
 	}
 	return expected, nil

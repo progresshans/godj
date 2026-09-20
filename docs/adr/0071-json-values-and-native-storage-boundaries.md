@@ -42,7 +42,34 @@ GoDj의 round-trip profile에 포함되지는 않는다. SQLite에 이 native �
 Common AST는 JSON exact/IN, 같은 모델의 JSON F exact, SQL isnull과 projection을 소유한다. Forward JSON 조회와
 non-null reverse exact는 기존 relation binding·cache/clone 경계를 따른다. JSON 값을 ordered scalar로 일괄 취급하지 않는다.
 Range·ordering·MIN/MAX는 명시적으로 거부하며 key/path/contains는 별도의 의미와 backend capability 구현을 이어간다.
-JSONField 전체 기능이나 Form/Admin/API·OpenAPI 연결이 완료됐다는 뜻은 아니다.
+이 범위는 JSONField의 모든 lookup을 지원한다는 뜻이 아니다.
+
+## Form/Admin과 JSON API
+
+Form은 JSON 문서를 Textarea로 편집하며 실패한 입력 원문을 유지한다. Optional의 빈 제출/null은 SQL NULL이며,
+빈 object/array/string은 그대로 저장한다. Required는 null·빈 object/array/string을 거부한다. Bool false와 숫자 0은 빈 값이 아니다.
+초기값과 변경 감지는 object 순서와 floating token의 동등한 표기(1.0/1e0/1.00)를 무시하되 integer/float,
+bool/number와 floating signed zero를 구분한다. 정확한 coefficient/exponent 비교로 Python float의 반올림·underflow를 재현하지 않는다.
+Form은 SQL NULL과 stored JSON null을 같은 빈 의미로 비교하지만 모델 tag를 바꾸지는 않는다. 저장 adapter는 현재 행을 같은
+transaction에서 비교해 JSON null과 원래 숫자 표기를 보존한다. Form의 Changed만으로 실제 UPDATE 생략이 보장된다고 가정하지 않는다.
+
+Generic Form의 최상위 JSON 문자열 NUL은 `null_characters_not_allowed`다. Model 문서와 generic Form의 nested NUL 수용은
+API 수용과 별개다. Serializer/parser는 기존의 NUL 거부·정상 Unicode·중복 key 거부·전체 request 예산을 유지한다.
+`Spec.DecodeObject`와 `Parser.ParseObjectFor`만 선언된 JSONField 내부의 빈 문자열 key를 허용한다.
+일반 `DecodeObject`/`NewObject`와 API 최상위 envelope의 이름 규칙은 그대로다. Opaque JSON 값으로 공개한 뒤에도 응답 전체의
+깊이·값 수·byte 예산을 다시 적용한다. Typed String에 든 JSON 문법을 두 번 decode하지 않는다.
+
+명시적인 JSON null 입력은 nullable field를 비우며 non-null field에서 거부한다. 이는 Go caller가 opaque JSON null을
+직접 넣어도 같다. Full omission은 IR default를 적용하고 PATCH omission은 아무 값도 넣지 않는다.
+IR의 JSON null default는 SQL NULL default가 아니므로 non-null 모델에도 존재할 수 있다. 응답에는 양 null 모두 JSON null이다.
+OpenAPI 입력은 any JSON과 non-null인 경우 `not: {type: null}`, 완전한 응답은 nullable과 무관하게 required any JSON이다.
+Non-null 입력이 수용하지 않는 JSON null omission default는 `x-godj-default`로 구분한다. `x-godj-json`은 런타임 정책이며
+표준 schema가 duplicate/정밀도/NUL/예산을 대신 검사하지 않는다. 고정 ogen은 raw JSON bytes를 사용하며 runtime 검증도 유지한다.
+
+Helpdesk `external_payload`는 이 공통 경계를 실제 사용하는 nullable JSON 모델이다. Form/API는 이 앱의 4096-byte·깊이 14
+payload 예산과 API 문자 정책을 공유한다. Detail/list wrapper를 포함해 응답할 수 있도록 한 입력 제한이다.
+Create/update는 실제 저장 결과를 transaction 안에서 다시 읽고 응답 encode를 확인한다. Native JSONB의 지수 전개가 API의
+숫자 token/응답 예산을 넘으면 생성·수정과 함께 rollback한다. 모델 scanner 한도와 API 응답 한도는 같다고 가정하지 않는다.
 
 ## Django 관찰과 의도적 차이
 
@@ -53,5 +80,4 @@ GoDj의 객체 key 정규화 때문에 SQLite에서 GoDj로 저장한 reordered 
 숫자 token 보존·중복 key/잘못된 surrogate 거부도 [DEV-0017](../DEVIATIONS.md#dev-0017--json-모델의-정확한-token과-엄격한-문서-경계)에 범위를 명시한다.
 독립 raw를 수정하거나 모든 JSON 결과를 같은 값으로 뭉쳐 mismatch를 제거하지 않는다.
 
-Form의 빈 값·변경 감지와 API의 입력/응답 nullability는 별도 입력 경계다. Schema IR에서 실제 소비자까지 연결하면서
-각 표면의 omission·SQL NULL·JSON null 정책과 OpenAPI/client가 표현하는 범위를 검증한다.
+각 표면의 omission·SQL NULL·JSON null 정책과 OpenAPI/client 범위는 서로 구분해 검증한다.

@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "01ef17b1156f01dd42d93fd8ce56cea1ba26b102e07e47ea29e5b5a3fdeec865"
+const GoDjRelationProjectionSchemaSHA256 = "0b61bfaf0149df3a1ec92c995cfdbf68236882ac8eeae13442d4186bf475676e"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -74,6 +74,7 @@ type ticketProjectionScan struct {
 	scanEffort            orm.NullableFloatScanner
 	scanExpectedCost      orm.NullableDecimalScanner
 	scanExternalReference orm.NullableUUIDScanner
+	scanExternalPayload   orm.NullableJSONScanner
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -96,6 +97,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanEffort,
 		&_scan.scanExpectedCost,
 		&_scan.scanExternalReference,
+		&_scan.scanExternalPayload,
 	}
 }
 
@@ -103,7 +105,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid && !_scan.scanElapsed.Valid && !_scan.scanEffort.Valid && !_scan.scanExpectedCost.Valid && !_scan.scanExternalReference.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid && !_scan.scanElapsed.Valid && !_scan.scanEffort.Valid && !_scan.scanExpectedCost.Valid && !_scan.scanExternalReference.Valid && !_scan.scanExternalPayload.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -167,8 +169,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 		_scanned := _scan.scanExternalReference.UUID
 		_value.ExternalReference = &_scanned
 	}
+	if _scan.scanExternalPayload.Valid {
+		_scanned := _scan.scanExternalPayload.JSON
+		_value.ExternalPayload = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_42928d3e7a9d5f616bdf7b1f2be94a84a1c745bf324c328699e310de9b979cc5
+var _ GoDjProjectSnapshot_d56c6da128a3f048da0adf11f9fb91976a57c472617431c26a80bac88e354d61

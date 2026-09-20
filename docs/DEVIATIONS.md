@@ -46,7 +46,7 @@
 
 ## DEV-0017 — JSON 모델의 정확한 token과 엄격한 문서 경계
 
-- Status: Accepted; model/storage verified locally (normal/race/CGO=0)
+- Status: Accepted; model/storage and Form/Admin/API consumers verified locally (normal/race/CGO=0)
 - Date: 2026-09-20
 - Scope: [JSON raw](../internal/jsontest/testdata/django61.json)의 `database.physical` object/reordered와 `database.queries.object`,
   `database.external[label=duplicate]`, `database.rejected_writes[label=surrogate]` 및 큰 decimal/exponent token의 model codec.
@@ -65,8 +65,17 @@ Django SQLite 외부 duplicate key는 whole decode에서 마지막 값, key look
 조용히 선택하지 않고 모델 read를 거부한다. SQLite가 받아들이는 unpaired surrogate와 JSON BLOB도 strict model input이 아니다.
 SQL CHECK가 보장하는 문법과 GoDj 모델 codec의 Unicode/ownership/resource 조건을 구분한다. 잘못된 값은 기존 정상 scanner 값을 지운다.
 
-이 선택은 새로운 JSON 모델의 표현과 저장 경계에 한정된다. Form/Admin/API의 기존 parser·NUL·presence 정책이나
-independent reference를 교체하지 않는다. JSON PK/FK·index·새 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
+Form은 고정 reference의 required/empty·initial·has_changed를 따르되 NaN/Infinity·duplicate key·unpaired surrogate를 invalid로
+거부한다. 9007199254740993.0/9007199254740993.00, 1e-400과 object 안 1e400은 Python float의 반올림·underflow/overflow 대신
+exact token을 유지한다. Floating spellings는 정확한 coefficient/exponent로 비교하며 integer/float·bool/number·floating signed zero는 구분한다.
+Form의 top-level string NUL 오류는 reference와 같으며 nested NUL은 모델/Form과 API의 서로 다른 정책으로 기록한다.
+
+API는 기존 전역 NUL·Unicode·duplicate/resource 거부를 JSONField 안에도 적용한다. 독립 DRF direct input의 NUL/nul_key/surrogate
+18개 observation과 parsed NUL/nul_key/surrogate/duplicate 4개 observation은 수용 정책이 다르다. Python bytes 6개는 Go 입력 domain 밖이며,
+NaN/Infinity/-Infinity 18개는 typed Value 생성 단계에서 이미 거부한다. Parsed object의 1e400 한 개는 float overflow로 invalid인 DRF와
+달리 exact JSON으로 유지한다. Reference raw를 덮어쓰거나 이 차이를 blanket skip으로 처리하지 않는다.
+
+JSON PK/FK·index·새 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
 반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
 
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부
