@@ -34,7 +34,7 @@ historical 복원 수정으로 실제 SQLite/PG child 실행도 통과했다. Pa
 ### 로컬 통합 checkpoint
 
 실행 source는 Markdown을 제외한 제품·생성물·소비자 **117개** 변경 파일이다. 정렬된 `<sha256>  <relative-path>\n` manifest의 SHA256은
-`231929f81df3256c172b7b92a0bfb841dc31ff7dd523fde6826d821fd87e42e4`다. 일반·race 실행 전후 이 바이트가 동일함을 확인했다.
+`231929f81df3256c172b7b92a0bfb841dc31ff7dd523fde6826d821fd87e42e4`다. 일반·race 실행 전후 이 바이트가 동일함을 확인했다. 제품 commit은 `784dbf644f71c2d3507371c2afcc117d0f746ffb`다.
 별도로 CI workflow와 relation required roster 두 파일에 Float·Duration 생성 소비자 sentinel을 추가했다. 제품 동작의 수정이 아니며 CI tooling으로 검증했다.
 
 환경은 **Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5(Homebrew)**, 작업 전용 DB와 각 테스트의 독립 schema다.
@@ -77,7 +77,9 @@ historical 복원 수정으로 실제 SQLite/PG child 실행도 통과했다. Pa
 ### Hosted 검증 소유권
 
 Float의 관련 통합은 Hosted **orm** scope로 실행한다. Portable Go·relation·targeted command·PostgreSQL owner가 선택된 OS/architecture/mode를 담당한다.
-현재 Float Hosted 결과는 아직 없다. 최근 full source `79637ef3f5943c9490027723527fb5074b01411f`는 Duration까지이며 Float를 포함하지 않는다.
+source `784dbf644f71c2d3507371c2afcc117d0f746ffb`, attempt 1의 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35484302381)을 시작했다.
+아직 최종 결과가 없으므로 PASS로 기록하지 않는다. 이후 이 실행을 연결하는 변경은 Markdown뿐이다.
+최근 full source `79637ef3f5943c9490027723527fb5074b01411f`는 Duration까지이며 Float를 포함하지 않는다.
 
 ## GDJ-0089 — Duration의 모델·DB 범위와 소비자 연결
 
