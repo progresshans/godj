@@ -59,7 +59,14 @@
 - Affected vet, gofmt/diff, Helpdesk/Article/relationfixture generated drift, Helpdesk makemigrations candidate 0을 확인했다.
   실제 OpenAPI 세 문서는 고정 openapi-spec-validator 0.9.0 / jsonschema 4.26.0 / referencing 0.37.0의 표준 검사도 통과했다.
 - 전용 precision PostgreSQL DB는 잔여 연결 0 확인 뒤 삭제했고 기존 service는 유지했다.
-- 현재 Hosted precision 결과는 아직 없다. 기존 Decimal Hosted ORM source `d106e73` 또는 Duration Hosted full을 이 구현의 검증으로 옮기지 않는다.
+- 제품 source는 `06f601ed4d939d4f60b2313b4c70b33eaf4a5939`다. 같은 source의 [Hosted full](https://github.com/progresshans/godj/actions/runs/35496796910),
+  attempt 1은 **62개 고유 job 모두 success**, 실패·취소·job skip 0이다. 모든 job의 source/name/ID와 checkout SHA를 대조했다.
+  Gate의 `scope:full`, `full_platform_verified:true`, 필수 owner 8개를 확인했다. Relation 12개, command 12개, project-check 12개 좌표와
+  PostgreSQL 17.10 normal/race/CGO=0 × core/operator-target 6개의 완전한 inventory·필수 선택을 재확인했다.
+- 추가 감사에서 PostgreSQL의 명시적 required-test 선택에 직접적인 foreign NUMERIC adapter·precision cached reader·NaN/lock 회귀 세 root가 없음을 확인했다.
+  Generated Decimal 소비자의 12 profile/실패/관계 경로는 같은 Hosted source에서 실행됐지만 이 세 직접 DB root의 실행과는 구분한다.
+  필수 목록을 보강한 후속 CI-only source에서 PostgreSQL을 포함하는 reference scope를 추가 실행한다. 제품 바이트는 위 source와 동일하게 유지한다.
+  새 직접 DB root의 Hosted 완료는 아직 기록하지 않는다.
 
 ## GDJ-0091 — Decimal의 독립 정밀도·저장 기준 준비
 

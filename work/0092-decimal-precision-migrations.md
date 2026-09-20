@@ -47,3 +47,7 @@ SQL renderer는 operation별 string slot을 유지하여 SQLite의 metadata-only
 이번 변경은 historical lifecycle·backend SQL renderer 계약·PostgreSQL prepared result cache와 실제 web 소비자를 함께 바꾼다.
 로컬은 affected 21 package와 필요한 race/CGO=0만 실행한다. 최종 동일 source의 Hosted full을 한 번 통합 milestone으로 사용하여
 ORM·CLI를 별도 중복 실행하지 않고 지원 플랫폼과 Linux 전용 process 회귀를 확인한다. 로컬 전체/cold-build는 반복하지 않는다.
+
+Hosted full은 제품 source 06f601e에서 62개 job을 모두 완료했다. 후속 목록 감사에서 빠진 직접 PostgreSQL 회귀 세 root를
+필수 선택에 보강한다. 제품 변경 없는 CI-only 후속 source는 PostgreSQL owner가 포함된 reference scope로 검증하여
+full의 나머지 플랫폼을 다시 반복하지 않는다. 정확한 source와 완료 여부는 TEST_EVIDENCE가 소유한다.
