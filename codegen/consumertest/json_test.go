@@ -49,19 +49,25 @@ func TestGeneratedJSONConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/consumer_test.go", consumer)
+	paths, err := os.ReadFile("testdata/json/json_path_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/json_path_test.go", paths)
 	reference, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/jsontest/testdata/django61.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
-	required := []string{"TestJSONGeneratedDefaults", "TestJSONStorageQueryAndOwnership", "TestJSONStorageQueryAndOwnership/sqlite"}
+	required := []string{"TestJSONGeneratedDefaults", "TestJSONStorageQueryAndOwnership", "TestJSONStorageQueryAndOwnership/sqlite", "TestJSONStorageQueryAndOwnership/sqlite/paths"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
-		required = append(required, "TestJSONStorageQueryAndOwnership/postgres")
+		required = append(required, "TestJSONStorageQueryAndOwnership/postgres", "TestJSONStorageQueryAndOwnership/postgres/paths")
 	}
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 	for _, test := range []struct{ name, source, fragment string }{
 		{"predicate rejects string", `package wrong; import "example.com/godj-json/models"; var _ = models.RecordFields.Payload.Exact("null")`, "untyped string"},
+		{"path rejects string", `package wrong; import "example.com/godj-json/models"; import "github.com/progresshans/godj/query"; var _ = models.RecordFields.Payload.At(query.JSONKey("a")).Exact("null")`, "untyped string"},
 		{"write rejects integer", `package wrong; import "example.com/godj-json/models"; var _ = models.RecordPatch{}.WithPayload(int64(1))`, "int64"},
 		{"F rejects text", `package wrong; import "example.com/godj-json/models"; import "github.com/progresshans/godj/orm"; var _ = models.RecordFields.Payload.ExactField(orm.F(models.RecordFields.Label))`, "string"},
 	} {

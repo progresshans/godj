@@ -41,7 +41,7 @@ Form/Admin/API와 Helpdesk 외부 참조·독립 client를 연결했다. UUID PK
 
 JSON은 immutable 문서와 exact number token을 사용하며 nil pointer(SQL NULL)와 JSON null을 구분한다.
 SQLite TEXT/JSON_VALID CHECK와 PostgreSQL native JSONB, strict read·parameter·historical create/add/reverse를 연결했다.
-Exact/IN/F exact·isnull·projection·forward와 non-null reverse exact를 지원한다. JSON range/order/Min/Max·key/path/contains는 현재 미지원이다.
+Exact/IN/F exact·isnull·projection·forward와 non-null reverse exact를 지원한다. 명시적 key/index 경로의 exact/IN/isnull을 typed/dynamic과 같은 AST로 연결했다. JSON range/order/Min/Max·path projection·contains는 현재 미지원이다.
 GoDj write의 object key 정규화와 native JSONB numeric equality·지수 전개를 구분하며 PostgreSQL NUL과 readback 크기 초과를 거부한다.
 Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자·독립 client를 연결했다. Helpdesk는 native readback 뒤 응답 한도 검사까지 transaction 안에서 처리한다. [JSON 값과 저장](adr/0071-json-values-and-native-storage-boundaries.md)의 범위를 따른다.
 

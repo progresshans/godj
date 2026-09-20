@@ -206,7 +206,14 @@ func appendWhereNode(
 		if node.condition.Lookup() == query.LookupIn && len(node.inValues) == 0 {
 			sql.WriteString("0 = 1")
 		} else {
-			sql.WriteString(node.fieldSQL)
+			if path, ok := node.condition.JSONPath(); ok {
+				sql.WriteString("godj_json_at(")
+				sql.WriteString(node.fieldSQL)
+				sql.WriteString(", ?)")
+				*arguments = append(*arguments, sqliteJSONPathArgument(path))
+			} else {
+				sql.WriteString(node.fieldSQL)
+			}
 			conditionArguments, err := compileCondition(sql, node.condition, node.rhsFieldSQL, node.inValues)
 			if err != nil {
 				return err

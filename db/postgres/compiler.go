@@ -371,6 +371,13 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 }
 
 func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
+	if path, ok := condition.JSONPath(); ok {
+		for _, segment := range path.Segments() {
+			if key, _ := segment.Key(); strings.ContainsRune(key, 0) {
+				return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidValue, Field: condition.Field().Name(), Detail: "PostgreSQL JSON paths cannot contain NUL"}
+			}
+		}
+	}
 	field := condition.Field()
 	if field.Kind() == query.FieldDecimal && !field.ValidType() {
 		return nil, invalidPlan("condition has invalid field type parameters")
@@ -504,7 +511,19 @@ func appendWhereExpression(
 		if condition.Lookup() == query.LookupIn && len(leaf.inValues) == 0 {
 			statement.WriteString("0 = 1")
 		} else {
-			statement.WriteString(field)
+			if path, ok := condition.JSONPath(); ok {
+				// Strict paths avoid PostgreSQL -> integer treating a scalar as
+				// a one-element array. Silent handles missing/type mismatch only;
+				// our literal grammar contains no arithmetic or filter expressions.
+				statement.WriteString("jsonb_path_query_first(")
+				statement.WriteString(field)
+				statement.WriteString(", ")
+				statement.WriteString(placeholder(len(*arguments) + 1))
+				statement.WriteString("::jsonpath, '{}'::jsonb, true)")
+				*arguments = append(*arguments, "strict "+queryplan.JSONPathText(path))
+			} else {
+				statement.WriteString(field)
+			}
 			conditionArguments, err := compileCondition(statement, condition, right, leaf.inValues, len(*arguments)+1)
 			if err != nil {
 				return err

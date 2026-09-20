@@ -46,7 +46,7 @@
 
 ## DEV-0017 — JSON 모델의 정확한 token과 엄격한 문서 경계
 
-- Status: Accepted; model/storage and Form/Admin/API consumers verified locally (normal/race/CGO=0)
+- Status: Accepted; model/storage, Form/Admin/API consumers and explicit path predicates verified locally (normal/race/CGO=0)
 - Date: 2026-09-20
 - Scope: [JSON raw](../internal/jsontest/testdata/django61.json)의 `database.physical` object/reordered와 `database.queries.object`,
   `database.external[label=duplicate]`, `database.rejected_writes[label=surrogate]` 및 큰 decimal/exponent token의 model codec.
@@ -75,7 +75,17 @@ API는 기존 전역 NUL·Unicode·duplicate/resource 거부를 JSONField 안에
 NaN/Infinity/-Infinity 18개는 typed Value 생성 단계에서 이미 거부한다. Parsed object의 1e400 한 개는 float overflow로 invalid인 DRF와
 달리 exact JSON으로 유지한다. Reference raw를 덮어쓰거나 이 차이를 blanket skip으로 처리하지 않는다.
 
-JSON PK/FK·index·새 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
+JSON 경로의 [SQLite 관찰](../internal/jsontest/testdata/django61-lookups-sqlite.json)에서 JSON null/false/true exact는 같은 이름의
+문자열도 선택하고, 2^128-1 exact는 이웃 정수 2^128-2와 2^128도 선택했다. GoDj는 이 type/정밀도 손실을 경로에도 적용하지 않는다.
+SQLite는 bounded codec을 호출하는 SQL 함수로 정확한 subtree를 비교하며 native 경로 함수의 NUL key prefix 충돌도 피한다.
+Path equality는 canonical subtree text이므로 외부 writer의 subtree 공백/key 순서도 정리하지만 whole-field equality는 기존 TEXT 의미다.
+PostgreSQL은 [별도 public ORM 관찰](../internal/jsontest/testdata/django61-lookups-postgres.json)처럼 native JSONB numeric equality를 유지한다.
+GoDj는 literal object key와 index를 명시하므로 `JSONKey("0")`은 numeric key를 읽고 `JSONIndex(0)`만 배열을 읽는다.
+Django의 numeric path 이름/negative index·자동 lookup 문법이나 PostgreSQL scalar의 array-index 추출을 암묵 재현하지 않는다.
+없는 경로와 JSON null·root SQL NULL의 부정 조건 차이는 유지하며 NUL을 담은 PostgreSQL key는 DB 호출 전 거부한다.
+Path lookup의 실행 source와 환경은 TEST_EVIDENCE에 별도로 기록한다.
+
+JSON PK/FK·index·contains 등 추가 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
 반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
 
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부

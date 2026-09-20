@@ -175,6 +175,39 @@
   `product-project-check-matrix`, `python-compatibility-matrix`다. 이 결과는 후속 source의 관련 범위이며 새 full-platform 결과가 아니다.
   완료 기록은 Markdown만 변경하고 제품·생성물·workflow·lock은 위 source와 동일하게 유지한다.
 
+### JSON key/index 경로의 로컬 checkpoint
+
+- 기준 `a49f3dca6e70a2e7f6ca17481a3f0569e03204f6` 위 제품·테스트·독립 reference 및 Go/Python lock **24 non-Markdown 파일**의
+  정렬 manifest SHA256은 `6a60d5d15f4a00ffc4a69c6aec1beb452e9f45174c656cd4017dcb8b3e079b91`이다. 실행 전후 같은 바이트를 확인했다.
+  Go 1.26.5 darwin/arm64, repository-pinned modernc SQLite와 PostgreSQL **17.5 (Homebrew)**,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 실행했다.
+- `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest`와 같은 범위 `-race`:
+  각각 **8 package / 703 root / 5549 test·subtest PASS**. 전체 run/pass 목록이 동일하며 fail 0·stderr 0 bytes다.
+  단독 실행의 `TestPostgresRevisionFenceHelperProcess`만 명시적으로 skip됐고 실제 cross-process parent는 필수 PASS다.
+  `db` package의 `[no test files]` event는 test skip이 아니다. 보조 감사의 이 event 분류를 고친 뒤 동일 raw를 재확인했다.
+- `CGO_ENABLED=0`의 `./query ./codegen/consumertest`에서 새 path domain과 `TestGeneratedJSONConsumer`를 선택해
+  **2 package / 2 root / 6 PASS**, skip/fail 0·stderr 0 bytes를 확인했다. Normal/race/CGO=0 모두 parent가 generated child의
+  SQLite와 PostgreSQL `TestJSONStorageQueryAndOwnership/.../paths`를 필수로 요구한다. 경로 값의 compile-negative도 포함한다.
+- 실제 generated model에서 큰 정수의 인접 값·overflow/underflow token·object/array·JSON 타입,
+  key/index 구분·빈 key·점/따옴표/역슬래시/제어문자/Unicode/SQL처럼 보이는 key, nested path·missing/SQL NULL/JSON null,
+  empty IN·NOT/double NOT/OR·Count·typed/dynamic 동일 AST·cache snapshot·policy/잘못된 입력을 확인했다.
+  Forward optional 관계·eager materialization·부정 조건과 direct reverse exact도 실행했다.
+  PostgreSQL NUL key는 empty IN의 I/O 생략 전에도 거부한다. SQLite 함수는 여러 physical connection과 reopen에서 확인했다.
+- 첫 native SQLite `->` 후보는 여러 행의 빈 key 조회가 NUL key 행까지 선택해 실패했다.
+  Parent의 redacted 실패 요약만으로 원인을 단정하지 않고 같은 generated module의 직접 실행에서 오조회 결과를 확인했다.
+  Shared bounded codec을 호출하는 deterministic SQL 함수로 바꿔 NUL/prefix key가 같은 object에 있어도 구분하고,
+  duplicate/invalid Unicode/잘못된 문서·경로를 명시적으로 거부했다. 실패 후보·직접 child 로그는 최종 PASS와 따로 보존했다.
+- [독립 lookup runner](../../conformance/runners/django/json_lookup_reference.py)의 Django **6.1**, Python **3.14.3** 관찰은
+  SQLite **3.50.4**와 PostgreSQL **17.5**/psycopg **3.3.6** 각각 **88 filter/exclude / 3 projection**이다.
+  SQLite raw SHA256은 `3766c5c9a5fd6f5b42c406cd335095f75fad7c9c90f14d48111d9cfcd7adfbb9`,
+  PostgreSQL raw는 `ddb5c51172ff079f2ff12b412ed10952e2721c63eb47a347322021dcac41bed9`다.
+  기존 독립 probe와 결과·parameter·projection이 같으며 SQLite SQL 내부 set 출력 순서만 `PYTHONHASHSEED=0`으로 고정했다.
+  SQLite fresh 비교는 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **1 PASS**, skip/warning 0이다.
+- Affected `go vet`, Helpdesk generated **12파일 clean**, 문서 링크·gofmt·diff 검사를 통과했다. 전용 DB는 잔여 연결 0 뒤 삭제하고
+  기존 service는 유지했다. 생성기 output grammar는 바꾸지 않았으며 fresh generated module이 새 generic field API를 소비한다.
+  이 새 경로 source의 Hosted 검증은 아직 실행하지 않았다. Contains 등 다음 lookup을 연결한 JSON 조회 통합 milestone에서
+  관련 Hosted 범위를 정한다. 앞선 JSON 수직 연결 full과 목록 후속 web 결과를 새 경로의 platform PASS로 사용하지 않는다.
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

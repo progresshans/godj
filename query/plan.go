@@ -102,6 +102,7 @@ type Condition struct {
 	lookup       Lookup
 	rhs          *conditionRHS
 	relationPath *RelationPath
+	jsonPath     JSONPath
 }
 
 func NewCondition(field FieldRef, lookup Lookup, value Value) Condition {
@@ -227,7 +228,7 @@ func (c Condition) RelationPath() (RelationPath, bool) {
 	return *c.relationPath, true
 }
 func (c Condition) Equal(other Condition) bool {
-	if c.field != other.field || c.lookup != other.lookup || (c.rhs == nil) != (other.rhs == nil) {
+	if c.field != other.field || c.lookup != other.lookup || !c.jsonPath.Equal(other.jsonPath) || (c.rhs == nil) != (other.rhs == nil) {
 		return false
 	}
 	if c.rhs != nil {

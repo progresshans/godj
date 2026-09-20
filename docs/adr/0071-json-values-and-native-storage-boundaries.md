@@ -41,8 +41,45 @@ GoDj의 round-trip profile에 포함되지는 않는다. SQLite에 이 native �
 
 Common AST는 JSON exact/IN, 같은 모델의 JSON F exact, SQL isnull과 projection을 소유한다. Forward JSON 조회와
 non-null reverse exact는 기존 relation binding·cache/clone 경계를 따른다. JSON 값을 ordered scalar로 일괄 취급하지 않는다.
-Range·ordering·MIN/MAX는 명시적으로 거부하며 key/path/contains는 별도의 의미와 backend capability 구현을 이어간다.
+Range·ordering·MIN/MAX는 명시적으로 거부하며 contains 등 추가 연산은 별도의 의미와 backend capability 구현을 이어간다.
 이 범위는 JSONField의 모든 lookup을 지원한다는 뜻이 아니다.
+
+## JSON 경로 predicate
+
+`query.JSONKey`와 `query.JSONIndex`는 객체 key와 배열 index를 구분한다. `JSONKey("0")`을 index로 바꾸지 않으며
+빈 key·점·따옴표·역슬래시·Unicode·lookup처럼 보이는 이름도 문자열 그대로다. 경로는 1..64 segment,
+key의 UTF-8 합계 4096 byte와 index 0..2147483647로 제한한다. 음수 index·wildcard·query-language 식은 현재 경로 문법이 아니다.
+`query.JSONPath`와 condition은 소유한 immutable snapshot이며 반환된 segment slice는 복사본이다.
+
+Typed `Payload.At(query.JSONKey("items"), query.JSONIndex(0))`와 dynamic `LookupInput.JSONPath`는 같은 AST를 사용한다.
+Dynamic `Key`는 기존 model/relation field·lookup만 선택하며 arbitrary JSON key를 `__` 문법에 끼워 넣지 않는다.
+오타 lookup을 JSON key로 암묵 수용하지 않고 기존 allowlist policy를 적용한다. Nil JSONPath는 whole field,
+non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull만 제공하고 F·projection·ordering·write field로 노출하지 않는다.
+
+없는 key, 범위 밖 index, 맞지 않는 container는 SQL NULL이다. `IsNull(true)`가 이를 조회하고,
+`Exact(jsonvalue.Null())`는 실제 존재하는 JSON null만 조회한다. 부정 조건의 기존 root SQL NULL 보정과 missing path는
+구분한다. 예를 들어 nullable field의 NOT exact는 root SQL NULL을 포함하지만, 존재하는 문서에서 missing인 path를
+자동으로 포함하지 않는다. Path IN의 SQL NULL member는 거부하며 명시적인 JSON null과 empty IN의 기존 Boolean 의미는 유지한다.
+Forward의 optional JOIN·Boolean·eager·Count와 direct reverse exact는 기존 relation provenance와 지원 경계를 따른다.
+
+PostgreSQL은 매개변수로 전달한 literal path를 `jsonb_path_query_first`의 strict mode로 읽는다. Missing/type mismatch는
+NULL이며 native JSONB equality를 유지한다. Native `-> integer`가 scalar를 1-element array처럼 읽는 경우를 피하고,
+NUL key는 query 실행 전 거부한다. Empty IN으로 I/O를 생략할 때도 이 backend 검사를 먼저 한다.
+SQL/JSON 경로와 strict mode의 문법은 [PostgreSQL 17의 공식 문서](https://www.postgresql.org/docs/17/functions-json.html)를 참조한다.
+
+SQLite는 native `json_extract`의 숫자 변환과 native `->`의 NUL-key prefix 충돌을 사용하지 않는다.
+실제 여러 행에서 빈 key lookup이 NUL key 행까지 선택했고 같은 object의 prefix/NUL key도 구분해야 했다.
+Backend의 deterministic `godj_json_at` 함수가 shared bounded JSON codec으로 key/type을 검사하고 exact number token을 보존한다.
+SQL 안에서 predicate를 평가하며 ORM에서 모든 model을 가져와 filtering하지 않는다. SQLite 경로의 반환 subtree는 canonical JSON이다.
+따라서 foreign writer의 subtree 공백·key 순서도 정리되며 duplicate key·잘못된 Unicode·한도 초과 문서는 명시적인 오류다.
+함수는 package 초기화 때 driver에 한 번 등록되고 모든 새 physical connection에서 사용할 수 있다. 실패는 Open의 error다.
+전역 문서/query cache는 없으며 호출마다 소유한 bounded tree를 사용한다. 각 경로 조건의 parsing 비용은 SQLite backend의 비용이다.
+
+[독립 lookup runner](../../conformance/runners/django/json_lookup_reference.py)는 고정 Django 6.1의 public ORM을 실행한다.
+[SQLite raw](../../internal/jsontest/testdata/django61-lookups-sqlite.json)와
+[PostgreSQL raw](../../internal/jsontest/testdata/django61-lookups-postgres.json)는 각각 88개 filter/exclude와 3개 projection 관찰이다.
+SQLite reference는 `PYTHONHASHSEED=0`으로 Django 내부 set의 SQL 출력 순서만 고정하며 DB 결과는 정규화하지 않는다.
+GoDj의 타입·숫자 보존과 명시적 segment 문법 차이는 DEV-0017에 기록한다. Reference의 contains/projection 관찰은 해당 제품 기능의 지원 증거가 아니다.
 
 ## Form/Admin과 JSON API
 

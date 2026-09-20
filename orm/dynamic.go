@@ -18,6 +18,9 @@ import (
 type LookupInput struct {
 	Key   string
 	Value any
+	// JSONPath selects literal JSON keys/indices after Key resolves the model
+	// field and lookup. Nil means the whole field; an empty non-nil path fails.
+	JSONPath []query.JSONPathSegment
 }
 
 // LookupPolicy returns whether an otherwise supported field lookup may be
@@ -83,6 +86,9 @@ func ParseDynamic[M any](descriptor ModelDescriptor[M], policy LookupPolicy, inp
 				return nil, valueErr
 			}
 			condition = query.NewCondition(fieldReference(field), lookup, value)
+		}
+		if err == nil {
+			condition, err = dynamicJSONPath(condition, input.JSONPath)
 		}
 		predicate := predicateFromCondition[M](condition, err)
 		if predicate.err != nil {

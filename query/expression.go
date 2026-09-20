@@ -199,6 +199,9 @@ func (e Expression) validate() error {
 }
 
 func validateExpressionCondition(condition Condition) error {
+	if err := validateJSONPathCondition(condition); err != nil {
+		return err
+	}
 	field := condition.field
 	if field.kind == FieldDecimal && !field.ValidType() {
 		return invalidPlanError("Decimal field requires valid precision and scale")

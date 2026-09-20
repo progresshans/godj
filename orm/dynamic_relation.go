@@ -76,7 +76,7 @@ func parseForwardRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 				if err != nil {
 					return Predicate[M]{}, err
 				}
-				return dynamicRelationPredicate[M](path, sourceKey, query.LookupIsNull, input.Value)
+				return dynamicRelationPredicate[M](path, sourceKey, query.LookupIsNull, input.Value, input.JSONPath)
 			}
 			continue
 		}
@@ -111,7 +111,7 @@ func parseForwardRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 		if err != nil {
 			return Predicate[M]{}, err
 		}
-		return dynamicRelationPredicate[M](path, field, lookup, input.Value)
+		return dynamicRelationPredicate[M](path, field, lookup, input.Value, input.JSONPath)
 	}
 	return Predicate[M]{}, relationInvalidPlan("forward lookup has no terminal")
 }
@@ -142,7 +142,7 @@ func parseReverseRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 	if err != nil {
 		return Predicate[M]{}, err
 	}
-	return dynamicRelationPredicate[M](path, field, query.LookupExact, input.Value)
+	return dynamicRelationPredicate[M](path, field, query.LookupExact, input.Value, input.JSONPath)
 }
 
 func allowRelationLookup(policy LookupPolicy, field ir.Field, lookup query.Lookup) error {
@@ -151,7 +151,7 @@ func allowRelationLookup(policy LookupPolicy, field ir.Field, lookup query.Looku
 	}
 	return nil
 }
-func dynamicRelationPredicate[M any](path query.RelationPath, terminal ir.Field, lookup query.Lookup, raw any) (Predicate[M], error) {
+func dynamicRelationPredicate[M any](path query.RelationPath, terminal ir.Field, lookup query.Lookup, raw any, segments []query.JSONPathSegment) (Predicate[M], error) {
 	var condition query.Condition
 	if lookup == query.LookupIn {
 		values, err := dynamicMembership(terminal, raw)
@@ -169,7 +169,8 @@ func dynamicRelationPredicate[M any](path query.RelationPath, terminal ir.Field,
 		}
 		condition = query.NewRelatedCondition(path, lookup, value)
 	}
-	predicate := predicateFromCondition[M](condition, nil)
+	condition, err := dynamicJSONPath(condition, segments)
+	predicate := predicateFromCondition[M](condition, err)
 	if predicate.err != nil {
 		return Predicate[M]{}, predicate.err
 	}
