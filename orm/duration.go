@@ -57,8 +57,8 @@ func (f durationField[M]) LessThanOrEqualField(right FieldReference[M, duration.
 	return f.fieldPredicate(query.LookupLessThanOrEqual, right.reference, right.err)
 }
 
-// DurationScanner accepts database TIME text with seconds and up to six
-// fractional digits. Driver text is validated without a date or UTC conversion.
+// DurationScanner accepts signed int64 microseconds or canonical duration
+// text. The backend owns conversion from any native database representation.
 type DurationScanner struct{ Duration duration.Duration }
 
 func (scanner *DurationScanner) Scan(raw any) error {

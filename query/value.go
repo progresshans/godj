@@ -43,8 +43,8 @@ func String(value string) Value {
 	return Value{kind: ValueString, text: value}
 }
 
-// Time snapshots valid clock components, including midnight. Invalid literals
-// are rejected before a query or write reaches the backend.
+// Duration snapshots a normalized elapsed value. Invalid model literals are
+// rejected before I/O; each backend validates its own storage range.
 func Duration(value duration.Duration) Value {
 	if !value.Valid() {
 		return Value{}
@@ -58,6 +58,9 @@ func (v Value) Duration() (duration.Duration, bool) {
 	value, err := duration.Parse(v.text)
 	return value, err == nil
 }
+
+// Time snapshots valid clock components, including midnight. Invalid literals
+// are rejected before a query or write reaches the backend.
 func Time(value clock.Time) Value {
 	if !value.Valid() {
 		return Value{}

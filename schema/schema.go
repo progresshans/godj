@@ -110,11 +110,12 @@ func TextField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldText, 0, options)
 }
 
-// TimeField stores microsecond clock components without a date or time zone.
+// DurationField stores a normalized elapsed value with microsecond precision.
 func DurationField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldDuration, 0, options)
 }
 
+// TimeField stores microsecond clock components without a date or time zone.
 func TimeField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldTime, 0, options)
 }

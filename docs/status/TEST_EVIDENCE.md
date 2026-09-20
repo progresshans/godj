@@ -10,7 +10,9 @@
   [ADR-0067](../adr/0067-duration-model-range-and-number-input.md)은 모델 범위·저장 한도·exact JSON number와 pinned numeric coercion을 구분한다.
 - 로컬 runtime 검증 source는 Markdown 제외 **127개** 변경 파일이다. 정렬된 `<sha256>  <relative-path>\n` manifest의 SHA256은
   `a9a368834092ca313abbcf35063588c7774806f86787f2bbe1b3d58e6ccaad75`다. 아래 실행 전후 같은 파일 바이트를 확인했다.
-  제품 commit과 Hosted source는 통합 기록에서 연결한다.
+  로컬 runtime 검증의 제품 commit은 `f06bc7a01060b014a129631f60f5d677978adcef`다.
+  이후 schema/query/ORM의 GoDoc 주석 세 곳만 바로잡았고 Go scanner의 non-comment token 열이 동일함을 대조했다.
+  이 주석 수정은 로컬 runtime 실행 source와 구분하며 Hosted는 실제 후속 commit에서 실행한다.
 
 ### 독립 기준과 초기 보완
 
