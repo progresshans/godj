@@ -137,6 +137,13 @@ func (field RelatedDateTimeField[M]) WithConfigurationError(err error) RelatedDa
 	return field
 }
 
+func (field RelatedDurationField[M]) WithConfigurationError(err error) RelatedDurationField[M] {
+	if field.configurationErr == nil {
+		field.configurationErr = err
+	}
+	return field
+}
+
 func (field RelatedTimeField[M]) WithConfigurationError(err error) RelatedTimeField[M] {
 	if field.configurationErr == nil {
 		field.configurationErr = err

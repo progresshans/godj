@@ -70,10 +70,6 @@ func TestDecodeObjectRejectsMalformedAmbiguousAndUnsupportedInput(t *testing.T) 
 		{name: "duplicate", document: []byte(`{"title":"a","title":"b"}`), code: serializers.CodeInvalidDocument},
 		{name: "trailing value", document: []byte(`{} {}`), code: serializers.CodeInvalidDocument},
 		{name: "trailing garbage", document: []byte(`{} x`), code: serializers.CodeInvalidDocument},
-		{name: "float", document: []byte(`{"value":1.5}`), code: serializers.CodeInvalidDocument},
-		{name: "exponent", document: []byte(`{"value":1e2}`), code: serializers.CodeInvalidDocument},
-		{name: "negative zero", document: []byte(`{"value":-0}`), code: serializers.CodeInvalidDocument},
-		{name: "overflow", document: []byte(`{"value":9223372036854775808}`), code: serializers.CodeInvalidDocument},
 		{name: "nul", document: []byte(`{"value":"\u0000"}`), code: serializers.CodeInvalidDocument},
 		{name: "lone high surrogate", document: []byte(`{"value":"\ud800"}`), code: serializers.CodeInvalidDocument},
 		{name: "lone low surrogate", document: []byte(`{"value":"\udc00"}`), code: serializers.CodeInvalidDocument},
@@ -114,7 +110,7 @@ func TestDecodeEmptyNameKeepsChildDuplicateAndBudgetErrorPrecedence(t *testing.T
 	}{
 		{`{"":1}`, serializers.Limits{}, "document.object", serializers.CodeInvalidDocument},
 		{`{"":1,"":2}`, serializers.Limits{}, "document.object.", serializers.CodeInvalidDocument},
-		{`{"":1.5}`, serializers.Limits{}, "document.number", serializers.CodeInvalidDocument},
+		{`{"":1.5}`, serializers.Limits{}, "document.object", serializers.CodeInvalidDocument},
 		{`{"":1,"next":2}`, serializers.Limits{MaxObjectMembers: 1}, "document.object", serializers.CodeResourceLimit},
 		{`{"nested":{"":1},"next":1.5}`, serializers.Limits{}, "document.object", serializers.CodeInvalidDocument},
 	} {
@@ -137,6 +133,7 @@ func TestDecodeEncodeObjectEnforcesEveryResourceLimit(t *testing.T) {
 		{name: "values", document: `{"a":1,"b":2}`, limits: serializers.Limits{MaxValues: 2}},
 		{name: "members", document: `{"a":1,"b":2}`, limits: serializers.Limits{MaxObjectMembers: 1}},
 		{name: "array", document: `{"a":[1,2]}`, limits: serializers.Limits{MaxArrayItems: 1}},
+		{name: "number", document: `{"a":123}`, limits: serializers.Limits{MaxNumberBytes: 2}},
 		{name: "string", document: `{"a":"ab"}`, limits: serializers.Limits{MaxStringBytes: 1}},
 	}
 	for _, test := range tests {

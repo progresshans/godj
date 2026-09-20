@@ -514,6 +514,8 @@ func fieldReference(field ir.Field) query.FieldRef {
 		kind = query.FieldInteger
 	case ir.FieldForeignKey:
 		kind = query.FieldInteger
+	case ir.FieldDuration:
+		return query.NewFieldRef(field.Name, field.Column, query.FieldDuration, field.Nullable)
 	case ir.FieldTime:
 		return query.NewFieldRef(field.Name, field.Column, query.FieldTime, field.Nullable)
 	case ir.FieldDate:

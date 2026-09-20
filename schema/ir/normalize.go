@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/temporal"
 	"unicode/utf8"
 
@@ -165,6 +166,13 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
+	case FieldDuration:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "DurationField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarDuration {
+			return validation(path+".default", "type_mismatch", "DurationField default must be a duration.Duration")
+		}
 	case FieldTime:
 		if field.PrimaryKey || field.MaxLength != 0 {
 			return validation(path, "unsupported", "TimeField cannot be a primary key or have a max length")
@@ -280,36 +288,43 @@ func validateScalar(value Scalar, path string) error {
 		if !utf8.ValidString(value.String) {
 			return validation(path, "invalid_utf8", "string scalar must contain valid UTF-8")
 		}
-		if value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" {
+		if value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "string scalar carries another scalar payload")
 		}
 	case ScalarBoolean:
-		if value.String != "" || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" {
+		if value.String != "" || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "boolean scalar carries another scalar payload")
 		}
+	case ScalarDuration:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" {
+			return validation(path, "invalid_scalar", "duration scalar carries another scalar payload")
+		}
+		if _, err := duration.Parse(value.Duration); err != nil {
+			return validation(path, "invalid_duration", "duration scalar must be a canonical normalized duration")
+		}
 	case ScalarTime:
-		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" {
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "time scalar carries another scalar payload")
 		}
 		if _, err := clock.Parse(value.Time); err != nil {
 			return validation(path, "invalid_time", "time scalar must be a canonical microsecond clock time")
 		}
 	case ScalarDate:
-		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Time != "" {
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "date scalar carries another scalar payload")
 		}
 		if _, err := calendar.Parse(value.Date); err != nil {
 			return validation(path, "invalid_date", "date scalar must be a canonical Gregorian date")
 		}
 	case ScalarDateTime:
-		if value.String != "" || value.Boolean || value.Integer != 0 || value.Date != "" || value.Time != "" {
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "datetime scalar carries another scalar payload")
 		}
 		if _, err := temporal.ParseCanonical(value.DateTime); err != nil {
 			return validation(path, "invalid_datetime", "datetime scalar must be canonical UTC microseconds")
 		}
 	case ScalarInteger:
-		if value.String != "" || value.Boolean || value.DateTime != "" || value.Date != "" || value.Time != "" {
+		if value.String != "" || value.Boolean || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "integer scalar carries another scalar payload")
 		}
 	default:

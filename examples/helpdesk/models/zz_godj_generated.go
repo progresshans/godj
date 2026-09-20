@@ -7,6 +7,7 @@ import (
 	_godjcalendar "github.com/progresshans/godj/calendar"
 	_godjclock "github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
+	_godjduration "github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -14,7 +15,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "aaa9e2604e3c124bc223445379f19c9696df71b60b4f38cbee853e571b6962f2"
+const GoDjSchemaSHA256 = "2cca9c4631559d9ce2f3515c72bf5ca118d8eb2cc2a140371b41024bf7ff3d17"
 
 type Category struct {
 	ID                    int64
@@ -197,6 +198,7 @@ type Ticket struct {
 	Reviewed              *bool
 	ServiceOn             *_godjcalendar.Date
 	ServiceAt             *_godjclock.Time
+	Elapsed               *_godjduration.Duration
 	godjPrimaryKeyPresent bool
 }
 
@@ -219,7 +221,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanReviewed sql.NullBool
 	var scanServiceOn orm.NullableDateScanner
 	var scanServiceAt orm.NullableTimeScanner
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt); err != nil {
+	var scanElapsed orm.NullableDurationScanner
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -249,6 +252,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanServiceAt.Valid {
 		scanned := scanServiceAt.Time
 		value.ServiceAt = &scanned
+	}
+	if scanElapsed.Valid {
+		scanned := scanElapsed.Duration
+		value.Elapsed = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -297,6 +304,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.ServiceAt != nil {
 		clonedServiceAt := *value.ServiceAt
 		clone.ServiceAt = &clonedServiceAt
+	}
+	if value.Elapsed != nil {
+		clonedElapsed := *value.Elapsed
+		clone.Elapsed = &clonedElapsed
 	}
 	return clone
 }
@@ -350,6 +361,11 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.Time(*value.ServiceAt), true
+	case "elapsed":
+		if value.Elapsed == nil {
+			return query.Null(), true
+		}
+		return query.Duration(*value.Elapsed), true
 	default:
 		return query.Value{}, false
 	}
@@ -366,6 +382,7 @@ type TicketFieldSet struct {
 	Reviewed   orm.NullableBooleanField[Ticket]
 	ServiceOn  orm.NullableDateField[Ticket]
 	ServiceAt  orm.NullableTimeField[Ticket]
+	Elapsed    orm.NullableDurationField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
@@ -381,6 +398,7 @@ var TicketFields = func() TicketFieldSet {
 		Reviewed:   orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
 		ServiceOn:  orm.NewNullableDateField[Ticket](metadata.Fields[9]),
 		ServiceAt:  orm.NewNullableTimeField[Ticket](metadata.Fields[10]),
+		Elapsed:    orm.NewNullableDurationField[Ticket](metadata.Fields[11]),
 	}
 }()
 
@@ -417,6 +435,7 @@ type TicketCreate struct {
 	reviewed   orm.NullableChange[bool]
 	serviceOn  orm.NullableChange[_godjcalendar.Date]
 	serviceAt  orm.NullableChange[_godjclock.Time]
+	elapsed    orm.NullableChange[_godjduration.Duration]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -511,9 +530,19 @@ func (input TicketCreate) WithServiceAtNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithElapsed(value _godjduration.Duration) TicketCreate {
+	input.elapsed = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithElapsedNull() TicketCreate {
+	input.elapsed = orm.SetNull[_godjduration.Duration]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 10)
+	assignments := make([]query.Assignment, 0, 11)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -693,6 +722,29 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedElapsed, changedElapsedState := input.elapsed.Get()
+	switch changedElapsedState {
+	case orm.NullableChangeUnset:
+		value.Elapsed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Null()))
+	case orm.NullableChangeValue:
+		if !changedElapsed.Valid() {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "elapsed", Detail: "duration must be normalized days and subday microseconds"})
+		}
+		storedElapsed := changedElapsed
+		value.Elapsed = &storedElapsed
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Duration(changedElapsed)))
+	case orm.NullableChangeNull:
+		value.Elapsed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "elapsed",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -707,6 +759,7 @@ type TicketPatch struct {
 	reviewed   orm.NullableChange[bool]
 	serviceOn  orm.NullableChange[_godjcalendar.Date]
 	serviceAt  orm.NullableChange[_godjclock.Time]
+	elapsed    orm.NullableChange[_godjduration.Duration]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -794,9 +847,19 @@ func (input TicketPatch) WithServiceAtNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithElapsed(value _godjduration.Duration) TicketPatch {
+	input.elapsed = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithElapsedNull() TicketPatch {
+	input.elapsed = orm.SetNull[_godjduration.Duration]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 10)
+	assignments := make([]query.Assignment, 0, 11)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -946,6 +1009,27 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedElapsed, changedElapsedState := input.elapsed.Get()
+	switch changedElapsedState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		if !changedElapsed.Valid() {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "elapsed", Detail: "duration must be normalized days and subday microseconds"})
+		}
+		storedElapsed := changedElapsed
+		value.Elapsed = &storedElapsed
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Duration(changedElapsed)))
+	case orm.NullableChangeNull:
+		value.Elapsed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "elapsed",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -1043,8 +1127,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldTime,
 				Nullable: true,
 			},
+			{
+				Name:     "elapsed",
+				GoName:   "Elapsed",
+				Column:   "elapsed",
+				Kind:     ir.FieldDuration,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_536c681a9e1e19bb1e360c1bc87482f9d4c63fc328a1e0782c88f8c6fd9256c0 struct{}
+type GoDjProjectSnapshot_1a4bff2f6616cc7b2194f20d340cc575097687233d6cdf45f217eea08cec3ca0 struct{}

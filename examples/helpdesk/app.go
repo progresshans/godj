@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
@@ -53,7 +54,7 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at. Every create
+// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -83,13 +84,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true})
 	if err != nil {
 		return nil, err
 	}
@@ -149,18 +150,18 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at"}
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed")
 	if err != nil {
 		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at"}, SearchFields: []string{"subject"},
+		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed"}, SearchFields: []string{"subject"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -225,6 +226,7 @@ type ticketInput struct {
 	reviewed   *bool
 	serviceOn  *calendar.Date
 	serviceAt  *clock.Time
+	elapsed    *duration.Duration
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
@@ -237,7 +239,8 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	reviewed, reviewedOK := values.Get("reviewed")
 	serviceOn, serviceOnOK := values.Get("service_on")
 	serviceAt, serviceAtOK := values.Get("service_at")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || len(values.All()) != 9 {
+	elapsed, elapsedOK := values.Get("elapsed")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || len(values.All()) != 10 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
@@ -282,6 +285,13 @@ func fromForm(values forms.Values) (ticketInput, error) {
 			return ticketInput{}, errors.New("helpdesk: invalid service_on")
 		}
 		input.serviceOn = &date
+	}
+	if !elapsed.IsNull() {
+		durationValue, ok := elapsed.AsDuration()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid elapsed")
+		}
+		input.elapsed = &durationValue
 	}
 	if !serviceAt.IsNull() {
 		clockValue, ok := serviceAt.AsTime()
@@ -335,6 +345,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		} else {
 			create = create.WithServiceOn(*input.serviceOn)
 		}
+		if input.elapsed == nil {
+			create = create.WithElapsedNull()
+		} else {
+			create = create.WithElapsed(*input.elapsed)
+		}
 		if input.serviceAt == nil {
 			create = create.WithServiceAtNull()
 		} else {
@@ -381,6 +396,11 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 		patch = patch.WithServiceOnNull()
 	} else {
 		patch = patch.WithServiceOn(*input.serviceOn)
+	}
+	if input.elapsed == nil {
+		patch = patch.WithElapsedNull()
+	} else {
+		patch = patch.WithElapsed(*input.elapsed)
 	}
 	if input.serviceAt == nil {
 		patch = patch.WithServiceAtNull()
@@ -515,6 +535,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 	if serviceOn, present := values.Get("service_on"); present && !serviceOn.IsNull() {
 		date, _ := serviceOn.AsDate()
 		input.serviceOn = &date
+	}
+	if elapsed, present := values.Get("elapsed"); present && !elapsed.IsNull() {
+		durationValue, _ := elapsed.AsDuration()
+		input.elapsed = &durationValue
 	}
 	if serviceAt, present := values.Get("service_at"); present && !serviceAt.IsNull() {
 		clockValue, _ := serviceAt.AsTime()

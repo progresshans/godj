@@ -3,6 +3,7 @@ package definition
 import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/temporal"
 	"sort"
 	"strconv"
@@ -526,7 +527,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
-					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldBoolean) &&
+					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldBoolean) &&
 					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
@@ -740,8 +741,11 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
 			}
-		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime, ir.FieldDate, ir.FieldTime:
+		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration:
 			expectedDefault := ir.ScalarBoolean
+			if ir.FieldKind(kind.string) == ir.FieldDuration {
+				expectedDefault = ir.ScalarDuration
+			}
 			if ir.FieldKind(kind.string) == ir.FieldTime {
 				expectedDefault = ir.ScalarTime
 			}
@@ -863,13 +867,22 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir")}
 	}
-	commonFields := []string{"boolean", "date", "datetime", "integer", "kind", "string", "time"}
+	commonFields := []string{"boolean", "date", "datetime", "duration", "integer", "kind", "string", "time"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_ir"))
 	}
 	switch kind.string {
+	case string(ir.ScalarDuration):
+		object, _, faults := semanticObjectCandidates(value, []string{"duration", "kind"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+		candidates = append(candidates, faults...)
+		if child, present := object.member("duration"); present {
+			_, err := duration.Parse(child.string)
+			if child.kind != jsonString || err != nil {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/duration", app, name, operationIndex, "invalid_ir"))
+			}
+		}
 	case string(ir.ScalarTime):
 		object, _, faults := semanticObjectCandidates(value, []string{"time", "kind"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 		candidates = append(candidates, faults...)
@@ -1159,6 +1172,15 @@ func materializeDefault(value jsonValue) (*ir.Scalar, bool) {
 		return nil, false
 	}
 	switch kind.string {
+	case string(ir.ScalarDuration):
+		payload, exists := value.member("duration")
+		if !exists || payload.kind != jsonString {
+			return nil, false
+		}
+		if _, err := duration.Parse(payload.string); err != nil {
+			return nil, false
+		}
+		return &ir.Scalar{Kind: ir.ScalarDuration, Duration: payload.string}, true
 	case string(ir.ScalarTime):
 		payload, exists := value.member("time")
 		if !exists || payload.kind != jsonString {

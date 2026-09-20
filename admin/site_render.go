@@ -327,6 +327,7 @@ func (site *Site) formContext(
 			"options":    templates.List(options...),
 			"datetime":   templates.Bool(field.Kind() == forms.FieldDateTime),
 			"time":       templates.Bool(field.Kind() == forms.FieldTime),
+			"duration":   templates.Bool(field.Kind() == forms.FieldDuration),
 			"date":       templates.Bool(field.Kind() == forms.FieldDate),
 			"boolean":    templates.Bool(field.Widget() == forms.Checkbox),
 			"required":   templates.Bool(field.Required() && field.Widget() != forms.NullBooleanSelect),
@@ -398,6 +399,10 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldBoolean {
 		checked, _ := initial.AsBoolean()
 		return "", checked
+	}
+	if field.Kind() == forms.FieldDuration {
+		value, _ := initial.AsDuration()
+		return value.String(), false
 	}
 	if field.Kind() == forms.FieldTime {
 		value, _ := initial.AsTime()

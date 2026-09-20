@@ -1200,6 +1200,7 @@ type Ticket struct {
 	Reviewed   NilBool     `json:"reviewed"`
 	ServiceOn  NilDate     `json:"service_on"`
 	ServiceAt  NilString   `json:"service_at"`
+	Elapsed    NilString   `json:"elapsed"`
 }
 
 // GetID returns the value of ID.
@@ -1257,6 +1258,11 @@ func (s *Ticket) GetServiceAt() NilString {
 	return s.ServiceAt
 }
 
+// GetElapsed returns the value of Elapsed.
+func (s *Ticket) GetElapsed() NilString {
+	return s.Elapsed
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -1312,6 +1318,11 @@ func (s *Ticket) SetServiceAt(val NilString) {
 	s.ServiceAt = val
 }
 
+// SetElapsed sets the value of Elapsed.
+func (s *Ticket) SetElapsed(val NilString) {
+	s.Elapsed = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
@@ -1327,6 +1338,7 @@ type TicketCreate struct {
 	Reviewed   OptNilBool                 `json:"reviewed"`
 	ServiceOn  OptNilDate                 `json:"service_on"`
 	ServiceAt  OptNilString               `json:"service_at"`
+	Elapsed    OptNilString               `json:"elapsed"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1374,6 +1386,11 @@ func (s *TicketCreate) GetServiceAt() OptNilString {
 	return s.ServiceAt
 }
 
+// GetElapsed returns the value of Elapsed.
+func (s *TicketCreate) GetElapsed() OptNilString {
+	return s.Elapsed
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -1417,6 +1434,11 @@ func (s *TicketCreate) SetServiceOn(val OptNilDate) {
 // SetServiceAt sets the value of ServiceAt.
 func (s *TicketCreate) SetServiceAt(val OptNilString) {
 	s.ServiceAt = val
+}
+
+// SetElapsed sets the value of Elapsed.
+func (s *TicketCreate) SetElapsed(val OptNilString) {
+	s.Elapsed = val
 }
 
 type TicketCreatePriority int64
@@ -1501,6 +1523,7 @@ type TicketPatch struct {
 	Reviewed   OptNilBool                `json:"reviewed"`
 	ServiceOn  OptNilDate                `json:"service_on"`
 	ServiceAt  OptNilString              `json:"service_at"`
+	Elapsed    OptNilString              `json:"elapsed"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1548,6 +1571,11 @@ func (s *TicketPatch) GetServiceAt() OptNilString {
 	return s.ServiceAt
 }
 
+// GetElapsed returns the value of Elapsed.
+func (s *TicketPatch) GetElapsed() OptNilString {
+	return s.Elapsed
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketPatch) SetSubject(val OptString) {
 	s.Subject = val
@@ -1593,6 +1621,11 @@ func (s *TicketPatch) SetServiceAt(val OptNilString) {
 	s.ServiceAt = val
 }
 
+// SetElapsed sets the value of Elapsed.
+func (s *TicketPatch) SetElapsed(val OptNilString) {
+	s.Elapsed = val
+}
+
 type TicketPatchPriority int64
 
 const (
@@ -1621,6 +1654,7 @@ type TicketUpdate struct {
 	Reviewed   OptNilBool                 `json:"reviewed"`
 	ServiceOn  OptNilDate                 `json:"service_on"`
 	ServiceAt  OptNilString               `json:"service_at"`
+	Elapsed    OptNilString               `json:"elapsed"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1668,6 +1702,11 @@ func (s *TicketUpdate) GetServiceAt() OptNilString {
 	return s.ServiceAt
 }
 
+// GetElapsed returns the value of Elapsed.
+func (s *TicketUpdate) GetElapsed() OptNilString {
+	return s.Elapsed
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketUpdate) SetSubject(val string) {
 	s.Subject = val
@@ -1711,6 +1750,11 @@ func (s *TicketUpdate) SetServiceOn(val OptNilDate) {
 // SetServiceAt sets the value of ServiceAt.
 func (s *TicketUpdate) SetServiceAt(val OptNilString) {
 	s.ServiceAt = val
+}
+
+// SetElapsed sets the value of Elapsed.
+func (s *TicketUpdate) SetElapsed(val OptNilString) {
+	s.Elapsed = val
 }
 
 type TicketUpdatePriority int64

@@ -44,6 +44,7 @@ type Config struct {
 type serverProfile struct {
 	versionNumber                int
 	timezone                     string
+	intervalStyle                string
 	searchPath                   string
 	clientEncoding               string
 	serverEncoding               string
@@ -157,6 +158,7 @@ func currentConnectionConfig(rawURL string) (*pgx.ConnConfig, error) {
 	allowedRuntimeParameters := map[string]struct{}{
 		"application_name":               {},
 		"client_encoding":                {},
+		"intervalstyle":                  {},
 		"default_transaction_deferrable": {},
 		"default_transaction_isolation":  {},
 		"default_transaction_read_only":  {},
@@ -185,6 +187,7 @@ func currentConnectionConfig(rawURL string) (*pgx.ConnConfig, error) {
 	connectionConfig.RuntimeParams["standard_conforming_strings"] = "on"
 	connectionConfig.RuntimeParams["synchronous_commit"] = "on"
 	connectionConfig.RuntimeParams["timezone"] = "UTC"
+	connectionConfig.RuntimeParams["intervalstyle"] = "postgres"
 	return connectionConfig, nil
 }
 
@@ -195,7 +198,7 @@ func validateCurrentPostgresPhysicalSession(ctx context.Context, connection *pgx
 	if connection == nil {
 		return backendInvalid("PostgreSQL physical session is nil")
 	}
-	var timezone, searchPath, clientEncoding, standardConformingStrings, synchronousCommit string
+	var timezone, searchPath, clientEncoding, standardConformingStrings, synchronousCommit, intervalStyle string
 	var defaultTransactionLevel, defaultTransactionReadOnly, defaultTransactionDeferrable string
 	var fsync, fullPageWrites, replicationRole string
 	if err := connection.QueryRow(
@@ -205,7 +208,7 @@ func validateCurrentPostgresPhysicalSession(ctx context.Context, connection *pgx
 			`current_setting('synchronous_commit'), current_setting('default_transaction_isolation'), `+
 			`current_setting('default_transaction_read_only'), current_setting('default_transaction_deferrable'), `+
 			`current_setting('fsync'), current_setting('full_page_writes'), `+
-			`current_setting('session_replication_role')`,
+			`current_setting('session_replication_role'), current_setting('IntervalStyle')`,
 	).Scan(
 		&timezone,
 		&searchPath,
@@ -218,6 +221,7 @@ func validateCurrentPostgresPhysicalSession(ctx context.Context, connection *pgx
 		&fsync,
 		&fullPageWrites,
 		&replicationRole,
+		&intervalStyle,
 	); err != nil {
 		return fmt.Errorf("validate PostgreSQL physical session: %w", err)
 	}
@@ -225,7 +229,7 @@ func validateCurrentPostgresPhysicalSession(ctx context.Context, connection *pgx
 		standardConformingStrings != "on" || synchronousCommit != "on" ||
 		defaultTransactionLevel != "read committed" || defaultTransactionReadOnly != "off" ||
 		defaultTransactionDeferrable != "off" || fsync != "on" || fullPageWrites != "on" ||
-		replicationRole != "origin" {
+		replicationRole != "origin" || intervalStyle != "postgres" {
 		return backendInvalid("PostgreSQL physical session is outside the current runtime profile")
 	}
 	return nil
@@ -249,6 +253,7 @@ func validateConfig(config Config) error {
 func readServerProfile(ctx context.Context, database *sql.DB, schema string) (serverProfile, bool, error) {
 	const statement = `SELECT
 		current_setting('server_version_num')::integer,
+ current_setting('IntervalStyle'),
 		current_setting('TimeZone'),
 		current_setting('search_path'),
 		current_setting('client_encoding'),
@@ -273,6 +278,7 @@ func readServerProfile(ctx context.Context, database *sql.DB, schema string) (se
 	var schemaExists bool
 	if err := database.QueryRowContext(ctx, statement, schema).Scan(
 		&profile.versionNumber,
+		&profile.intervalStyle,
 		&profile.timezone,
 		&profile.searchPath,
 		&profile.clientEncoding,
@@ -308,6 +314,9 @@ func validateServerProfile(profile serverProfile, schemaExists bool, schema stri
 				CurrentServerMajor,
 			),
 		}
+	}
+	if profile.intervalStyle != "postgres" {
+		return backendInvalid("PostgreSQL current profile requires IntervalStyle=postgres")
 	}
 	if profile.timezone != "UTC" || profile.searchPath != "pg_catalog" {
 		return backendInvalid("PostgreSQL connection profile is not timezone=UTC and search_path=pg_catalog")
@@ -363,7 +372,7 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if err != nil {
 		return nil, classifyDatabaseError(ctx, "query", b.schema, plan.Table(), err)
 	}
-	return rows, nil
+	return adaptDurationRows(rows, plan)
 }
 
 func (b *Backend) validateContext(ctx context.Context) error {

@@ -6,6 +6,7 @@ package schema
 import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 	"time"
@@ -62,7 +63,7 @@ func Column(name string) FieldOption {
 // types keep the declaration surface small for the M2 field subset while
 // preserving false and empty string as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64 | time.Time | calendar.Date | clock.Time
+	string | bool | int64 | time.Time | calendar.Date | clock.Time | duration.Duration
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
@@ -72,6 +73,11 @@ func Default[T DefaultScalar](value T) FieldOption {
 			field.Default = &ir.Scalar{Kind: ir.ScalarString, String: typed}
 		case bool:
 			field.Default = &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: typed}
+		case duration.Duration:
+			field.Default = &ir.Scalar{Kind: ir.ScalarDuration}
+			if typed.Valid() {
+				field.Default.Duration = typed.String()
+			}
 		case clock.Time:
 			field.Default = &ir.Scalar{Kind: ir.ScalarTime}
 			if typed.Valid() {
@@ -105,6 +111,10 @@ func TextField(name, goName string, options ...FieldOption) Field {
 }
 
 // TimeField stores microsecond clock components without a date or time zone.
+func DurationField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldDuration, 0, options)
+}
+
 func TimeField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldTime, 0, options)
 }

@@ -6,8 +6,8 @@ import (
 	"unicode/utf8"
 )
 
-// ValueKind identifies closed serialized values, including date and datetime strings. Floating-point numbers are
-// deliberately absent so application adapters never lose numeric precision.
+// ValueKind identifies closed serialized values. Non-integer JSON numbers retain
+// their exact lexical form; no floating-point conversion occurs at ingress.
 type ValueKind uint8
 
 const (
@@ -19,7 +19,9 @@ const (
 	ValueObject
 	ValueDateTime
 	ValueDate
+	ValueDuration
 	ValueTime
+	ValueNumber
 )
 
 // Value is an immutable closed JSON value. Its zero value is invalid rather
@@ -174,7 +176,7 @@ func (v Value) validValue() bool {
 		return false
 	}
 	switch v.kind {
-	case ValueNull, ValueBoolean, ValueInteger, ValueList, ValueDateTime, ValueDate, ValueTime:
+	case ValueNull, ValueBoolean, ValueInteger, ValueList, ValueDateTime, ValueDate, ValueTime, ValueDuration, ValueNumber:
 		// NewList validates and snapshots its children before publication.
 		// Opaque immutable containers never need a second descendant walk.
 		return true

@@ -79,3 +79,6 @@ SQL driver 경계는 [pgx v5.10.0 TimeCodec](https://github.com/jackc/pgx/blob/v
 [OpenAPI time registry](https://spec.openapis.org/registry/format/time)의 RFC3339 full-time 정의를 확인했다.
 [ADR-0066](adr/0066-clock-time-field-and-precision-boundaries.md)와 [독립 runner](../conformance/runners/django/clock_time_reference.py)는
 기본 Django 위젯의 초기 소수초 제거와 Go의 precision 보존, JSON NUL 거부와 Python typed aware time의 별도 관찰을 명시한다.
+
+Duration의 값·입력·DB 범위와 exact JSON number는 [ADR-0067](adr/0067-duration-model-range-and-number-input.md)에 정리한다.
+고정 Django/DRF의 실제 public API 관찰과 JSON numeric ingress는 [Duration runner](../conformance/runners/django/duration_reference.py)가 소유한다.

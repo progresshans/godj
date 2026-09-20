@@ -120,3 +120,9 @@ BSD 3-Clause terms. This notice records the implementation dependency; it is
 not the complete binary-distribution audit required before a release. GoDj's
 own distribution license and the full transitive notice set remain release
 gates.
+
+## Duration input grammar
+
+`internal/durationinput/duration.go` adapts Django 6.1 duration regular expressions (derived=true), with source, symbols, modifications and copyright recorded in
+[`internal/durationinput/NOTICE.md`](internal/durationinput/NOTICE.md). The BSD-3-Clause notice is preserved in [`LICENSE.django`](LICENSE.django).
+The Duration public-API observations remain independently written; the derived classification applies to these grammar expressions.

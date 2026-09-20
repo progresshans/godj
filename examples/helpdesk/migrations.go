@@ -30,6 +30,9 @@ var reviewedMigration []byte
 //go:embed migrations/helpdesk_0008_ticket_service_on.godj.json
 var serviceOnMigration []byte
 
+//go:embed migrations/helpdesk_0010_ticket_elapsed.godj.json
+var elapsedMigration []byte
+
 //go:embed migrations/helpdesk_0009_ticket_service_at.godj.json
 var serviceAtMigration []byte
 
@@ -47,5 +50,6 @@ func MigrationSources() []definition.Source {
 		{SourceID: "helpdesk/0007_ticket_reviewed", Document: append([]byte(nil), reviewedMigration...)},
 		{SourceID: "helpdesk/0008_ticket_service_on", Document: append([]byte(nil), serviceOnMigration...)},
 		{SourceID: "helpdesk/0009_ticket_service_at", Document: append([]byte(nil), serviceAtMigration...)},
+		{SourceID: "helpdesk/0010_ticket_elapsed", Document: append([]byte(nil), elapsedMigration...)},
 	}
 }

@@ -1776,9 +1776,13 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		e.FieldStart("service_at")
 		s.ServiceAt.Encode(e)
 	}
+	{
+		e.FieldStart("elapsed")
+		s.Elapsed.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfTicket = [11]string{
+var jsonFieldsNameOfTicket = [12]string{
 	0:  "id",
 	1:  "subject",
 	2:  "details",
@@ -1790,6 +1794,7 @@ var jsonFieldsNameOfTicket = [11]string{
 	8:  "reviewed",
 	9:  "service_on",
 	10: "service_at",
+	11: "elapsed",
 }
 
 // Decode decodes Ticket from json.
@@ -1919,6 +1924,16 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_at\"")
 			}
+		case "elapsed":
+			requiredBitSet[1] |= 1 << 3
+			if err := func() error {
+				if err := s.Elapsed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"elapsed\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -1930,7 +1945,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2037,9 +2052,15 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 			s.ServiceAt.Encode(e)
 		}
 	}
+	{
+		if s.Elapsed.Set {
+			e.FieldStart("elapsed")
+			s.Elapsed.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketCreate = [9]string{
+var jsonFieldsNameOfTicketCreate = [10]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2049,6 +2070,7 @@ var jsonFieldsNameOfTicketCreate = [9]string{
 	6: "reviewed",
 	7: "service_on",
 	8: "service_at",
+	9: "elapsed",
 }
 
 // Decode decodes TicketCreate from json.
@@ -2152,6 +2174,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_at\"")
+			}
+		case "elapsed":
+			if err := func() error {
+				s.Elapsed.Reset()
+				if err := s.Elapsed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"elapsed\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2414,9 +2446,15 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 			s.ServiceAt.Encode(e)
 		}
 	}
+	{
+		if s.Elapsed.Set {
+			e.FieldStart("elapsed")
+			s.Elapsed.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketPatch = [9]string{
+var jsonFieldsNameOfTicketPatch = [10]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2426,6 +2464,7 @@ var jsonFieldsNameOfTicketPatch = [9]string{
 	6: "reviewed",
 	7: "service_on",
 	8: "service_at",
+	9: "elapsed",
 }
 
 // Decode decodes TicketPatch from json.
@@ -2525,6 +2564,16 @@ func (s *TicketPatch) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_at\"")
+			}
+		case "elapsed":
+			if err := func() error {
+				s.Elapsed.Reset()
+				if err := s.Elapsed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"elapsed\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2643,9 +2692,15 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 			s.ServiceAt.Encode(e)
 		}
 	}
+	{
+		if s.Elapsed.Set {
+			e.FieldStart("elapsed")
+			s.Elapsed.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketUpdate = [9]string{
+var jsonFieldsNameOfTicketUpdate = [10]string{
 	0: "subject",
 	1: "details",
 	2: "closed",
@@ -2655,6 +2710,7 @@ var jsonFieldsNameOfTicketUpdate = [9]string{
 	6: "reviewed",
 	7: "service_on",
 	8: "service_at",
+	9: "elapsed",
 }
 
 // Decode decodes TicketUpdate from json.
@@ -2758,6 +2814,16 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service_at\"")
+			}
+		case "elapsed":
+			if err := func() error {
+				s.Elapsed.Reset()
+				if err := s.Elapsed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"elapsed\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

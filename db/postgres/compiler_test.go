@@ -446,6 +446,7 @@ func TestCurrentServerProfileValidation(t *testing.T) {
 
 	current := serverProfile{
 		versionNumber:                170010,
+		intervalStyle:                "postgres",
 		timezone:                     "UTC",
 		searchPath:                   "pg_catalog",
 		clientEncoding:               "UTF8",
@@ -474,6 +475,7 @@ func TestCurrentServerProfileValidation(t *testing.T) {
 		code   string
 	}{
 		{name: "wrong major", exists: true, code: query.CodeUnsupported, mutate: func(profile *serverProfile) { profile.versionNumber = 160010 }},
+		{name: "interval style", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.intervalStyle = "iso_8601" }},
 		{name: "timezone", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.timezone = "Asia/Seoul" }},
 		{name: "search path", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.searchPath = "public" }},
 		{name: "client encoding", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.clientEncoding = "LATIN1" }},

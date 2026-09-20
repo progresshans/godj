@@ -37,7 +37,8 @@ table을 사용한다. 이 비교는 명시한 입력 roster의 실제 관찰이
 required 정수의 기본 초기 화면은 빈 값이고 명시적 default가 있으면 그대로 표시한다. 제출한 빈 값을 default로 대체하지 않는다.
 Admin은 int64를 정확히 표시·재검증하며 숫자 입력은 decimal text와 `inputmode="numeric"`을 사용한다.
 
-JSON 입력은 기존 canonical integer parser를 사용한다. Form에서 허용하는 `+000.0`을 JSON에서도 허용하지 않는다.
+Integer serializer는 canonical int64 Value만 받는다. 공통 JSON parser는 [ADR-0067](0067-duration-model-range-and-number-input.md)에 따라
+다른 숫자의 원문도 보존하지만 이를 Integer 필드에 암묵적으로 변환하지 않는다. Form에서 허용하는 `+000.0`은 JSON 숫자 문법이 아니다.
 serializer의 full/partial, 생략/null/0/default와 read-only 규칙을 재사용하고 OpenAPI·ogen client도 같은 모델 필드에서 갱신한다.
 API 노출 필드는 application의 allowlist가 계속 소유한다.
 

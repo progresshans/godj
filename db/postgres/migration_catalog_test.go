@@ -195,6 +195,9 @@ func postgresMigrationTestCatalog(
 			column.typeName = "varchar"
 			column.typeModifier = field.MaxLength + 4
 			column.notNull = !field.Nullable
+		case ir.FieldDuration:
+			column.typeName = "interval"
+			column.notNull = !field.Nullable
 		case ir.FieldTime:
 			column.typeName = "time"
 			column.notNull = !field.Nullable

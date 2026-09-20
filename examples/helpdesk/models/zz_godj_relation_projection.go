@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "aaa9e2604e3c124bc223445379f19c9696df71b60b4f38cbee853e571b6962f2"
+const GoDjRelationProjectionSchemaSHA256 = "2cca9c4631559d9ce2f3515c72bf5ca118d8eb2cc2a140371b41024bf7ff3d17"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -70,6 +70,7 @@ type ticketProjectionScan struct {
 	scanReviewed   sql.NullBool
 	scanServiceOn  orm.NullableDateScanner
 	scanServiceAt  orm.NullableTimeScanner
+	scanElapsed    orm.NullableDurationScanner
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -88,6 +89,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanReviewed,
 		&_scan.scanServiceOn,
 		&_scan.scanServiceAt,
+		&_scan.scanElapsed,
 	}
 }
 
@@ -95,7 +97,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid && !_scan.scanElapsed.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -143,8 +145,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 		_scanned := _scan.scanServiceAt.Time
 		_value.ServiceAt = &_scanned
 	}
+	if _scan.scanElapsed.Valid {
+		_scanned := _scan.scanElapsed.Duration
+		_value.Elapsed = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_536c681a9e1e19bb1e360c1bc87482f9d4c63fc328a1e0782c88f8c6fd9256c0
+var _ GoDjProjectSnapshot_1a4bff2f6616cc7b2194f20d340cc575097687233d6cdf45f217eea08cec3ca0

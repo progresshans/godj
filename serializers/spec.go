@@ -1,7 +1,10 @@
 package serializers
 
 import (
+	"errors"
 	"fmt"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/durationinput"
 	"slices"
 	"sort"
 	"strings"
@@ -23,6 +26,7 @@ const (
 	FieldDateTime
 	FieldDate
 	FieldTime
+	FieldDuration
 )
 
 const (
@@ -33,6 +37,7 @@ const (
 	CodeDateTime      validation.Code = "datetime"
 	CodeDate          validation.Code = "invalid"
 	CodeTime          validation.Code = "invalid"
+	CodeDuration      validation.Code = "invalid"
 	CodeBlank         validation.Code = "blank"
 	CodeMaxLength     validation.Code = "max_length"
 	CodeUnknown       validation.Code = "unknown"
@@ -174,7 +179,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime:
+	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -203,7 +208,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration
 }
 
 func validFieldName(name string) bool {
@@ -390,6 +395,31 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 			return Null(), validation.NewErrors()
 		}
 		return Value{}, oneViolation(field.name, CodeNull)
+	}
+	if field.kind == FieldDuration {
+		if value.kind == ValueDuration {
+			return value, validation.NewErrors()
+		}
+		raw, ok := value.AsString()
+		var elapsed duration.Duration
+		var err error
+		if ok {
+			elapsed, err = durationinput.Parse(raw)
+		} else if raw, ok = value.AsNumber(); ok {
+			elapsed, err = durationinput.JSONNumber(raw)
+		} else if clock, valid := value.AsTime(); valid {
+			ok = true
+			elapsed, err = durationinput.Parse(clock.String())
+		}
+		if ok {
+			if err == nil {
+				return Duration(elapsed), validation.NewErrors()
+			}
+			if errors.Is(err, duration.ErrRange) {
+				return Value{}, oneViolation(field.name, "overflow")
+			}
+		}
+		return Value{}, oneViolation(field.name, CodeDuration)
 	}
 	if field.kind == FieldTime {
 		switch value.kind {

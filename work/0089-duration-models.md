@@ -22,23 +22,24 @@ Zero와 NULL, 음수와 microsecond, 큰 기간의 정확성·overflow와 기존
 - 현재 GoDj JSON parser는 canonical signed int64 number만 허용한다. DRF DurationField의 fractional JSON number를 지원하려면
   공통 number 값/decoder 정책을 검토해야 한다. 기간을 연결한다는 이유로 기존 전역 JSON 제한을 묵시적으로 완화하지 않는다.
 
-## 현재 준비
+## 현재 구현과 검증
 
-독립 runner의 model 67개·Form 106개·serializer 272개, 실제 SQLite add/reopen/update/reverse·root/relation query 각 9개·Min/Max와
-signed int64 microsecond 양 끝값 및 범위 밖 write 거부를 기록했다. Raw SHA256은
-`5c9eca13f8632e3f2ea79a8d0a017c5905a432da8b75073730ff4fb6cb969dba`다.
-Python 3.12.13/3.13.15/3.14.3/3.14.7의 fresh replay는 각각 1 test PASS, skip/warning/exception 0이다.
-범위 초과 시 실제 SQLite가 OverflowError를 반환하고 기존 행을 보존하는 것도 원문에 남겼다.
+`duration.Duration`의 전체 모델 범위와 canonical 값·IR/default·typed/dynamic ORM·generation·양 DB 저장·Form/Admin/JSON을 연결했다.
+Helpdesk nullable elapsed와 `0010_ticket_elapsed`, OpenAPI 및 독립 ogen client를 함께 구현했다.
+공통 JSON number는 원문과 자원 한도를 보존하고 Duration numeric coercion은 필드가 소유한다. [ADR-0067](../docs/adr/0067-duration-model-range-and-number-input.md)을 따른다.
 
-`duration.Duration{Days, Microseconds}`의 normalized day/subday 값과 canonical 표현 초안을 만들었다.
-Django 모델의 ±999999999일 범위를 유지하고 SQLite의 signed int64 microsecond 변환 한도는 별도 error로 분리한다.
-초기 int64-only 초안은 모델 범위를 DB 한도로 제한하므로 보완했다. 음수 정규화·전체 모델 경계·backend 경계와 중간 곱 overflow를 구분한다.
-`go test -exec /usr/bin/true ./duration`의 compile 확인만 했으며 Go runtime 검증과 제품 통합을 완료하지 않았다.
+독립 관찰은 model 67·Form 106·serializer 272·JSON number 15·실제 SQLite lifecycle/query와 int64 양 끝 및 overflow다.
+JSON numeric 관찰을 추가한 raw SHA256은 `e5cda610c3b48c31c2c9e788db77acaa5954d31cce61149b7c9913017596580e`다.
+Fresh Python 3.12.13/3.13.15/3.14.3/3.14.7에서 실제 runtime fingerprint와 전체 관찰을 대조했다.
+
+첫 통합 실행에서 발견한 공통 DB value-kind와 migration loader의 Duration 등록 누락을 수정했다.
+생성 relation의 configuration error 전달도 연결했다. 최종 묶음의 affected 일반/race·양 DB·CGO0·생성물·독립 client·정적 검증을 통과했다. Hosted full은 아직 실행 전이며 작업은 active다.
+실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
 
 ## 다음 행동
 
-1. Duration model/Form/DRF·실제 SQLite 저장 범위·negative/zero/overflow의 독립 관찰을 고정한다.
-2. 필요하면 공통 number 기반을 먼저 명시하고, 기간 값·양 DB representation과 canonical wire를 설계한다.
-3. 의미가 확정된 한 변경 묶음으로 생성·DB·소비자와 실패 경로를 구현하고 영향 범위의 실제 검증을 실행한다.
+1. 새 모델·input·양 DB와 실제 Helpdesk·독립 client의 실패 경로를 확인한다.
+2. 수정한 최종 묶음의 affected 일반/race·CGO0·generated drift와 필요한 정적 검사를 수행한다.
+3. Date·Time·Duration과 JSON number 기반의 통합 milestone에서 Hosted full을 실행해 전체 플랫폼·고정 PG·Python/current capture를 확인한다.
 
-Time의 Hosted ORM 완료 후 이 작업을 활성화했다. 현재는 값·입력 기반의 구현 단계다. Duration 제품 지원이나 Go runtime 검증을 완료한 상태가 아니다.
+출시 일정 없이 카탈로그의 남은 기능을 계속 구현한다. 특정 field의 완료와 전체 프레임워크 완성을 구분한다.

@@ -11,11 +11,12 @@
 ## 현재 구현
 
 Schema/Codegen/ORM/Migration, SQLite·PostgreSQL과 Article·Helpdesk의 Web/Form/Admin/API·영속 인증 흐름이 있다.
-일반 signed integer·Text·Date·Time·DateTime을 모델부터 실제 소비자까지 연결했다. DateTime은 UTC microsecond와 명시적 null을 사용하며
+일반 signed integer·Text·Date·Time·DateTime·Duration을 모델부터 실제 소비자까지 연결했다. DateTime은 UTC microsecond와 명시적 null을 사용하며
 Form/Admin·RFC3339 JSON/OpenAPI·독립 client까지 구현했다. Scalar typed/dynamic IN과 검증 뒤 빈 조회 SQL 생략도 구현했다.
 Nullable Boolean의 세 상태를 generated pointer·양 DB·Form/Admin·Helpdesk PUT/PATCH·OpenAPI/client까지 연결했다.
 Calendar Date를 별도 Go 값·양 DB DATE·Form/Admin·Helpdesk service_on·PUT/PATCH·OpenAPI/client까지 연결했다.
 Clock Time을 별도 Go 값·양 DB TIME·Form/Admin·Helpdesk service_at·PUT/PATCH·OpenAPI/client까지 연결했다.
+Duration의 전체 모델 범위·양 DB 저장 한도와 Form/Admin·Helpdesk elapsed·OpenAPI/client, exact JSON number 기반을 연결했다.
 환경별 검증 상태는 아래 현재 작업과 TEST_EVIDENCE를 따른다.
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
@@ -32,8 +33,8 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 ## 다음 행동
 
 GDJ-0088의 Time 값·IR·generator·양 DB·소비자 연결과 로컬 affected·Hosted ORM 검증을 완료했다.
-별도 `feature/duration-models`에서 GDJ-0089를 이어간다. 독립 Django/DRF 관찰을 바탕으로 전체 모델 범위와
-각 DB 저장 한도를 구분하고 Duration 값·입력·IR·생성·소비자를 함께 연결한다.
+GDJ-0089의 값·양 DB·Form/Admin·Helpdesk·독립 client 구현과 로컬 affected 일반/race·CGO0 검증을 완료했다.
+제품 source를 기존 Draft PR에 통합하고 Date·Time·Duration·JSON number의 Hosted full milestone을 실행한다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

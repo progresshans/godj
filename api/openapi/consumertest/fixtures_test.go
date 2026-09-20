@@ -19,6 +19,7 @@ import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
@@ -155,6 +156,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			"Consumer ticket": nil, "Null priority": nil,
 			"Urgent priority": new(int64(1)), "Low priority": new(int64(-1)), "Zero priority": new(int64(0)),
 		}
+		wantElapsed := map[string]*duration.Duration{"Consumer ticket": new(duration.Duration{Days: 1, Microseconds: 7384123456}), "Urgent priority": nil, "Low priority": nil, "Zero priority": nil, "Null priority": nil}
 		wantServiceAt := map[string]*clock.Time{"Consumer ticket": new(clock.Time{Hour: 12, Minute: 34, Second: 56, Microsecond: 123456}), "Urgent priority": nil, "Low priority": nil, "Zero priority": nil, "Null priority": nil}
 		wantServiceOn := map[string]*calendar.Date{"Consumer ticket": new(calendar.Date{Year: 2000, Month: 2, Day: 29}), "Urgent priority": new(calendar.Date{Year: 1, Month: 1, Day: 1}), "Low priority": new(calendar.Date{Year: 9999, Month: 12, Day: 31}), "Zero priority": nil, "Null priority": nil}
 		wantReviewed := map[string]*bool{"Consumer ticket": new(false), "Urgent priority": new(true), "Low priority": new(false), "Zero priority": nil, "Null priority": nil}
@@ -189,6 +191,11 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				if !known || (stored.Priority == nil) != (want == nil) || (want != nil && stored.Priority != nil && *stored.Priority != *want) || stored.Closed || stored.Details != nil {
 					t.Error("generated client changed an integer value, null, or default during persistence")
 				}
+				durationValue, known := wantElapsed[stored.Subject]
+				if !known || (stored.Elapsed == nil) != (durationValue == nil) || (stored.Elapsed != nil && durationValue != nil && *stored.Elapsed != *durationValue) {
+					t.Error("generated client changed persisted duration")
+				}
+				delete(wantElapsed, stored.Subject)
 				clockValue, known := wantServiceAt[stored.Subject]
 				if !known || (stored.ServiceAt == nil) != (clockValue == nil) || (stored.ServiceAt != nil && clockValue != nil && *stored.ServiceAt != *clockValue) {
 					t.Error("generated client changed persisted clock")
@@ -217,7 +224,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				delete(wantResolution, stored.Subject)
 			}
 		}
-		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 || len(wantServiceOn) != 0 || len(wantServiceAt) != 0 {
+		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 || len(wantServiceOn) != 0 || len(wantServiceAt) != 0 || len(wantElapsed) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
 		}
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
@@ -374,6 +381,9 @@ func (resolver consumerPrincipalResolver) Resolve(ctx context.Context, id string
 }
 
 func sameConsumerTicket(left, right helpdeskmodels.Ticket) bool {
+	if (left.Elapsed == nil) != (right.Elapsed == nil) || (left.Elapsed != nil && *left.Elapsed != *right.Elapsed) {
+		return false
+	}
 	if (left.ServiceAt == nil) != (right.ServiceAt == nil) || (left.ServiceAt != nil && *left.ServiceAt != *right.ServiceAt) {
 		return false
 	}

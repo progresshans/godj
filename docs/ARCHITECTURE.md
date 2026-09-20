@@ -238,3 +238,8 @@ Multi-runtime 안전성은 같은 normalized policy를 사용하고 fence에 참
 FK physical preflight와 candidate failure preservation은 위 현행 경계에 남긴다.
 대체된 ADR 원문과 실행 과정은 [고정 Git 문서](https://github.com/progresshans/godj/tree/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr)에서
 필요할 때만 확인한다.
+
+Duration은 normalized day/subday microsecond의 별도 값이며 전체 모델 범위를 각 DB의 저장 범위와 구분한다.
+SQLite의 int64 microseconds와 PostgreSQL의 native interval 변환은 backend가 소유한다. Form/JSON 입력은 canonical 모델 표현과
+별도다. 공통 JSON number는 정확한 token과 byte 한도를 유지하며 Duration의 pinned numeric coercion은 field에 한정한다.
+[ADR-0067](adr/0067-duration-model-range-and-number-input.md)을 따른다.

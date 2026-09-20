@@ -6,6 +6,7 @@ package codegen
 import (
 	"bytes"
 	"fmt"
+	"github.com/progresshans/godj/duration"
 	"go/token"
 	"strconv"
 	"unicode"
@@ -38,6 +39,9 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
+	if hasDurationStorage(schema) {
+		fmt.Fprintln(&output, "\t_godjduration \"github.com/progresshans/godj/duration\"")
+	}
 	if hasTimeStorage(schema) {
 		fmt.Fprintln(&output, "\t_godjclock \"github.com/progresshans/godj/clock\"")
 	}
@@ -69,7 +73,18 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && field.Kind != ir.FieldTime {
+			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasDurationStorage(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Kind == ir.FieldDuration {
 				return true
 			}
 		}
@@ -140,7 +155,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	for _, field := range model.Fields {
 		if field.Nullable {
 			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) {
 			fmt.Fprintf(output, "\tvar scan%s orm.%sScanner\n", field.GoName, fieldRenderKind(field.Kind).queryValue)
 		}
 	}
@@ -149,7 +164,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime {
+		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -162,7 +177,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || field.Kind == ir.FieldTime {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) {
 			fmt.Fprintf(output, "\tvalue.%s = scan%s.%s\n", field.GoName, field.GoName, fieldRenderKind(field.Kind).sqlValue)
 		}
 	}
@@ -523,6 +538,12 @@ func queryValueExpression(field ir.Field, value string) string {
 
 func defaultValueExpression(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarDuration:
+		value, err := duration.Parse(value.Duration)
+		if err != nil {
+			return "nil"
+		}
+		return fmt.Sprintf("_godjduration.Duration{Days:%d, Microseconds:%d}", value.Days, value.Microseconds)
 	case ir.ScalarTime:
 		time, err := clock.Parse(value.Time)
 		if err != nil {
@@ -554,6 +575,8 @@ func defaultValueExpression(value ir.Scalar) string {
 
 func scalarLiteral(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarDuration:
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDuration, Duration: %s}", strconv.Quote(value.Duration))
 	case ir.ScalarTime:
 		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarTime, Time: %s}", strconv.Quote(value.Time))
 	case ir.ScalarDate:
@@ -602,6 +625,10 @@ func lowerFirst(value string) string {
 }
 
 func renderCanonicalTemporal(output *bytes.Buffer, model string, field ir.Field, value, indent string) {
+	if field.Kind == ir.FieldDuration {
+		fmt.Fprintf(output, "%sif !%s.Valid() { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"duration must be normalized days and subday microseconds\"}) }\n", indent, value, model, strconv.Quote(field.Name))
+		return
+	}
 	if field.Kind == ir.FieldTime {
 		fmt.Fprintf(output, "%sif !%s.Valid() { return orm.InvalidMutation[%s](&query.Error{Category:query.CategoryField, Code:query.CodeInvalidValue, Field:%s, Detail:\"time must be a valid clock with microsecond precision\"}) }\n", indent, value, model, strconv.Quote(field.Name))
 		return

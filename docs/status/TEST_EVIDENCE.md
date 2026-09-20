@@ -3,6 +3,64 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0089 — Duration의 모델·DB 범위와 소비자 연결
+
+- 활성 작업: [GDJ-0089](../../work/0089-duration-models.md), branch `feature/duration-models`, baseline `1e04a854f1d9439e87d62e274ece93901684d888`.
+- Duration 값·IR/default·typed/dynamic AST·generator·SQLite BIGINT/PG INTERVAL·Form/Admin·Helpdesk elapsed·OpenAPI/client를 연결했다.
+  [ADR-0067](../adr/0067-duration-model-range-and-number-input.md)은 모델 범위·저장 한도·exact JSON number와 pinned numeric coercion을 구분한다.
+- 로컬 runtime 검증 source는 Markdown 제외 **127개** 변경 파일이다. 정렬된 `<sha256>  <relative-path>\n` manifest의 SHA256은
+  `a9a368834092ca313abbcf35063588c7774806f86787f2bbe1b3d58e6ccaad75`다. 아래 실행 전후 같은 파일 바이트를 확인했다.
+  제품 commit과 Hosted source는 통합 기록에서 연결한다.
+
+### 독립 기준과 초기 보완
+
+Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5, Python 3.14.3 UTC/en-us의 실제 public API와 file SQLite를 사용했다.
+[Raw 관찰](../../internal/durationtest/testdata/django61.json)의 SHA256은
+`e5cda610c3b48c31c2c9e788db77acaa5954d31cce61149b7c9913017596580e`다.
+Model **67**·Form **106**·serializer **272**·실제 JSON number **15**, DB add/reopen/update/reverse·root/relation query 각 **9**·Min/Max를 보존했다.
+SQLite signed int64 microsecond 양 끝과 한계를 1 넘는 write의 OverflowError·기존 행 보존도 실제 관찰했다.
+숫자 전용 관찰 추가 전 raw는 `5c9eca13f8632e3f2ea79a8d0a017c5905a432da8b75073730ff4fb6cb969dba`이며 현재 reference로 표시하지 않는다.
+
+위 최종 reference를 **Python 3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**의 fresh subprocess에서 각각 재생했다.
+각 **1 test PASS**, skip/warning/exception 0이며 Python/SQLite fingerprint와 전체 관찰을 대조했다.
+Go Form은 **106**개의 cleaned/errors/changed(초기 null/zero/소수초)를, serializer는 **268**개의 field 결과와 JSON number **15**개를 직접 대조한다.
+NUL **4**개는 기존 global JSON `invalid_document` 경계를 별도로 assert하며 DRF field parity나 skip으로 합치지 않는다.
+
+초기 focused 실행에서 공통 DB value-kind·migration loader의 Duration 등록, 생성 relation의 configuration error 전달 누락을 확인했다.
+또한 별도 consumer fixture의 잘못된 함수 이름, Helpdesk의 embedded migration 목록과 Admin 입력 rendering 누락을 보완했다.
+Required 실행이나 비교 기준을 제거하지 않았으며 아래 최종 source의 통합 실행을 새로 수행했다.
+
+### 로컬 통합 checkpoint 완료
+
+환경은 **Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5(Homebrew)**다. 작업 전용 DB·독립 schema를 사용하고
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`을 적용했다. 실행 종료 후 전용 DB의 연결 0개를 확인하고 삭제했으며 기존 service는 유지했다.
+
+- Affected 일반 **30 packages / 8,866 pass events**, 동일 범위 race **30 packages / 8,804 pass events**가 terminal PASS다.
+  Time 작업의 27개 범위에 Duration, API parser와 Article API를 더해 JSON number 변경의 기존 소비자도 검사했다.
+- 차이 **62 events**는 `internal/compiletest`의 명시적 `!race` source에 속한 **7 root**와 subcase다. Test event 집합과 각 source build tag를 대조했다.
+  Duration-vs-표준 time.Duration/clock.Time/calendar.Date의 predicate/write/F 컴파일 거부 3개를 일반 실행에서 확인했다.
+- 양 모드의 helper-only skip 2개는 `TestPostgresRevisionFenceHelperProcess`, `TestPublicationCrashHelper`다.
+  실제 parent `TestPostgresRevisionFenceCrossProcessIntegration`, `TestPublishRecoversAfterProcessCrashAtPrecommitAndPostcommitBoundaries`는 모두 PASS다.
+- CGO=0 focused 검증은 **4 packages / 5 root tests PASS, skip 0**이다. Generated Duration consumer·독립 OpenAPI client·Helpdesk SQLite/PG·
+  PostgreSQL 전체 모델 범위와 외부 interval 거부를 정확한 selector로 실행했다.
+- Generated model은 zero/NULL/default, 음수·microsecond·int64 양 끝, 기존 행 추가·reopen·reverse, typed/dynamic/F/IN·projection·Min/Max,
+  forward/eager 관계와 cache/Unwrap 복사, 실패 Save·선택 필드·취소를 확인했다. 별도 module의 SQLite/PG child terminal receipts를 요구한다.
+  SQLite 한계를 넘는 유효 모델 값은 거부하고 PostgreSQL은 저장·조회하며 probe transaction rollback 뒤 기존 행을 보존한다.
+- PostgreSQL은 전체 모델의 ±999999999일 경계 저장·정렬·fresh reopen·transaction query를 확인했다. Native month/infinity/모델 범위 밖 값은 오류이고,
+  nullable scanner의 이전 Valid도 해제한다. 오염된 pooled IntervalStyle은 물리 session 검증에서 교체된다.
+- Helpdesk는 실제 로그인/Admin·HTML escaping·CSRF/permission·validation-before-transaction, numeric 입력, canonical no-op PATCH·PUT 생략/null,
+  rollback·fresh reopen을 확인했다. `0010_ticket_elapsed` 이전 migration 파일은 변경하지 않았다.
+- Actual OpenAPI 문서 3개와 고정 **ogen v1.24.0** 생성물을 갱신하고 별도 module의 **26개 필수 receipt**·HTTP·최종 DB를 검사했다.
+  Module/tool lock은 유지했고 response domain validation과 명시적 request.Validate를 구분한다.
+- Affected vet, generated drift, Helpdesk migration `candidate_count:0`, **Linux 386 / CGO=0** generated model/project build PASS.
+  전체 **147 packages compile-only**도 완료했으며 이 결과를 전체 runtime PASS로 표시하지 않는다. CI Python tooling **37 tests PASS**.
+- Pinned openapi-spec-validator **0.9.0**, jsonschema **4.26.0**, referencing **0.37.0**으로 실제 문서 세 개를 검증했다. 모두 PASS다.
+
+### Hosted 통합 milestone
+
+Date·Time·Duration과 JSON number 기반의 통합 milestone으로 Hosted **full**을 선택했다. 제품 source를 기존 Draft PR #1에 통합한 뒤 실행한다.
+아직 이 변경의 Hosted terminal 결과는 없다. 이전 Time ORM과 Text/DateTime full은 각각의 source에만 적용한다.
+
 ## GDJ-0088 — Clock Time의 모델·소비자 연결
 
 - 완료 작업: [GDJ-0088](../../work/0088-clock-time-models.md), branch `feature/clock-time-models`.

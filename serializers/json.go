@@ -18,6 +18,7 @@ const (
 	DefaultMaxObjectMembers = 1024
 	DefaultMaxArrayItems    = 1024
 	DefaultMaxStringBytes   = 64 << 10
+	DefaultMaxNumberBytes   = 1024
 
 	hardMaxDocumentBytes = 8 << 20
 	hardMaxDepth         = 64
@@ -25,6 +26,7 @@ const (
 	hardMaxObjectMembers = 1 << 14
 	hardMaxArrayItems    = 1 << 14
 	hardMaxStringBytes   = 1 << 20
+	hardMaxNumberBytes   = 4096
 )
 
 // Limits bounds both decoding and deterministic encoding. Zero fields select
@@ -36,6 +38,7 @@ type Limits struct {
 	MaxObjectMembers int
 	MaxArrayItems    int
 	MaxStringBytes   int
+	MaxNumberBytes   int
 }
 
 func DefaultLimits() Limits {
@@ -46,12 +49,13 @@ func DefaultLimits() Limits {
 		MaxObjectMembers: DefaultMaxObjectMembers,
 		MaxArrayItems:    DefaultMaxArrayItems,
 		MaxStringBytes:   DefaultMaxStringBytes,
+		MaxNumberBytes:   DefaultMaxNumberBytes,
 	}
 }
 
 // DecodeObject decodes exactly one top-level JSON object. It rejects duplicate
-// members, trailing data, floating-point values, noncanonical integers, raw
-// invalid UTF-8, and every configured resource overflow.
+// members, trailing data, malformed numbers, raw invalid UTF-8, and resource
+// overflow. Numbers preserve exact tokens; fields own conversion and range.
 func DecodeObject(document []byte, limits Limits) (Object, error) {
 	resolved, err := resolveLimits(limits)
 	if err != nil {
@@ -189,11 +193,15 @@ func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int) (Va
 	case bool:
 		return Boolean(typed), nil
 	case json.Number:
-		integer, err := strconv.ParseInt(typed.String(), 10, 64)
-		if err != nil || strconv.FormatInt(integer, 10) != typed.String() {
-			return Value{}, invalidDocument("document.number", "JSON number must be a canonical signed 64-bit integer", err)
+		raw := typed.String()
+		if len(raw) > budget.limits.MaxNumberBytes {
+			return Value{}, resourceLimit("document.number", "JSON number exceeds the configured byte limit")
 		}
-		return Integer(integer), nil
+		number, err := Number(raw)
+		if err != nil {
+			return Value{}, invalidDocument("document.number", "JSON number is malformed", err)
+		}
+		return number, nil
 	case json.Delim:
 		switch typed {
 		case '{':
@@ -327,6 +335,8 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			return s.appendBytes([]byte("true"))
 		}
 		return s.appendBytes([]byte("false"))
+	case ValueDuration:
+		return s.appendString(value.string, "value.duration")
 	case ValueTime:
 		return s.appendString(value.string, "value.time")
 	case ValueDate:
@@ -334,7 +344,15 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 	case ValueDateTime:
 		instant, _ := value.AsDateTime()
 		return s.appendString(temporal.Format(instant), "value.datetime")
+	case ValueNumber:
+		if len(value.string) > s.limits.MaxNumberBytes {
+			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
+		}
+		return s.appendBytes([]byte(value.string))
 	case ValueInteger:
+		if len(strconv.FormatInt(value.integer, 10)) > s.limits.MaxNumberBytes {
+			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
+		}
 		var digits [20]byte
 		return s.appendBytes(strconv.AppendInt(digits[:0], value.integer, 10))
 	case ValueString:
@@ -475,12 +493,16 @@ func resolveLimits(limits Limits) (Limits, error) {
 	if resolved.MaxStringBytes == 0 {
 		resolved.MaxStringBytes = defaults.MaxStringBytes
 	}
+	if resolved.MaxNumberBytes == 0 {
+		resolved.MaxNumberBytes = defaults.MaxNumberBytes
+	}
 	if resolved.MaxDocumentBytes < 1 || resolved.MaxDocumentBytes > hardMaxDocumentBytes ||
 		resolved.MaxDepth < 1 || resolved.MaxDepth > hardMaxDepth ||
 		resolved.MaxValues < 1 || resolved.MaxValues > hardMaxValues ||
 		resolved.MaxObjectMembers < 1 || resolved.MaxObjectMembers > hardMaxObjectMembers ||
 		resolved.MaxArrayItems < 1 || resolved.MaxArrayItems > hardMaxArrayItems ||
-		resolved.MaxStringBytes < 1 || resolved.MaxStringBytes > hardMaxStringBytes {
+		resolved.MaxStringBytes < 1 || resolved.MaxStringBytes > hardMaxStringBytes ||
+		resolved.MaxNumberBytes < 1 || resolved.MaxNumberBytes > hardMaxNumberBytes {
 		return Limits{}, &Error{Code: CodeInvalidConfig, Field: "limits", Detail: "JSON limits are outside the supported range"}
 	}
 	return resolved, nil

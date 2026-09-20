@@ -39,6 +39,8 @@ var exactSourcePaths = map[string]struct{}{
 
 var productSourcePrefixes = []string{
 	"clock/",
+	"duration/",
+	"internal/durationinput/",
 	"internal/timeinput/",
 	"calendar/",
 	"internal/dateinput/",
