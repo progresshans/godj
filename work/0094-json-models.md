@@ -68,5 +68,8 @@ Forward 관계 대상의 JSON 경로 선택에 필요한 optional JOIN·값의 n
 Root 관계 DTO와 forward 경로 선택을 묶은 Hosted ORM 통합 milestone을 완료했다.
 11종 필수·nullable forward scalar/whole JSON의 독립 Django 관찰을 보존하고 공통 선택 표현·typed scanner를 연결했다.
 실제 양 DB의 normal/race/CGO=0 checkpoint를 마쳤으며, 앞선 Hosted source의 결과를 새 구현의 검증으로 사용하지 않는다.
-다음은 JSON root/path 비교·정렬의 DB별 결과와 타입·NULL·정밀도 의미를 독립 관찰해 후속 query 설계를 결정하는 작업이다.
+JSON root/path·forward의 literal 대소 비교와 Boolean 조합을 독립 관찰하고 공통 AST·typed/dynamic·양 DB에 연결했다.
+SQLite는 기본 Django와 기존 GoDj canonical 저장 profile을 따로 보존하며 path 숫자를 반올림하지 않는 비교 함수를 사용한다.
+실제 양 DB와 소비자의 normal/race/CGO=0 checkpoint를 마쳤다.
+일반 forward scalar와 JSON 대소 비교를 묶은 Hosted ORM 통합 및 root/path 정렬과 DISTINCT·Count·선택 결과의 의미를 이어간다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

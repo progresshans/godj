@@ -76,3 +76,18 @@ func (field RelatedJSONField[M]) WithConfigurationError(err error) RelatedJSONFi
 	}
 	return field
 }
+
+// JSON comparisons preserve the backend-specific whole-document and path
+// comparison rules; they do not grant MIN/MAX or ordered F capabilities.
+func (f RelatedJSONField[M]) GreaterThan(value jsonvalue.Value) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupGreaterThan, query.JSON(value))
+}
+func (f RelatedJSONField[M]) GreaterThanOrEqual(value jsonvalue.Value) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupGreaterThanOrEqual, query.JSON(value))
+}
+func (f RelatedJSONField[M]) LessThan(value jsonvalue.Value) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupLessThan, query.JSON(value))
+}
+func (f RelatedJSONField[M]) LessThanOrEqual(value jsonvalue.Value) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupLessThanOrEqual, query.JSON(value))
+}

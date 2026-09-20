@@ -8,28 +8,21 @@
 
 ## 현재
 
-UUID 값·IR·query·양 DB·생성기·Form/Admin·serializer·OpenAPI·Helpdesk/client를 연결하고 통합 검증을 완료했다.
-현재 구현 폭과 미지원 기능은 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
-
 JSONField를 Schema IR·query·migration·생성 모델에서 Form/Admin·serializer·OpenAPI와 실제 Helpdesk/client까지 연결했다.
-양 DB의 SQL NULL/JSON null·숫자 정밀도·Form no-op·권한/CSRF·rollback·재접속과 native 저장 후 응답 실패의 로컬 통합 checkpoint를 완료했다.
-JSON 수직 연결의 Hosted full과 후속 목록 응답 예산·generated JSON PostgreSQL 필수 실행의 Hosted web 검증을 완료했다.
-명시적인 JSON key/index 경로의 exact/IN/isnull을 공통 AST·양 DB·typed/dynamic·생성 관계 소비자에 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-PostgreSQL의 root/path·forward contains/contained_by와 SQLite의 명시적 capability 거부를 연결하고 로컬 checkpoint를 완료했다.
-경로·containment source의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35517527972)을 완료했다.
-Key-presence의 공통 AST·typed/dynamic·양 DB·생성 관계 소비자와 로컬 normal/race/CGO=0 검증을 마쳤다.
-JSON 경로 projection의 공통 표현·nullable DTO와 양 DB compiler를 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-Key-presence·root JSON 경로 projection의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35522171383)을 완료했다.
-관계 filter source의 root scalar/JSON 경로 DTO 선택을 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-Forward 대상 JSON 경로의 공통 선택 표현·JOIN·생성 소비자와 native JSONB 변환을 연결하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-Root 관계 DTO·forward JSON 경로 선택·native 변환의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35526500195)을 완료했다.
-일반 forward scalar·whole JSON 선택의 typed nullable 결과와 공통 scanner를 연결하고 양 DB의 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
-Source별 실행 범위와 결과는 TEST_EVIDENCE가 소유한다.
+정확한 JSON token·SQL NULL/JSON null 구분과 SQLite/native PostgreSQL 저장·rollback·재접속 경계를 유지한다.
+Root/path·forward 조회에 exact/IN/isnull·key presence·backend별 containment와 literal 대소 비교를 연결했다.
+Root/forward JSON 경로 및 일반 forward scalar·whole JSON의 typed nullable DTO 선택도 구현했다.
+지원하는 전체 표현과 미지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
+
+일반 forward scalar·whole JSON 선택 및 JSON literal 대소 비교의 양 DB 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
+Django 기본 결과와 GoDj canonical 저장 profile을 별도로 보존하며 숫자·타입·NULL 정책의 차이를 명시한다.
+이전 root 관계 DTO·forward JSON 경로 source의 [Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35526500195)은 완료했다.
+새 source의 환경별 검증과 이전 full 결과는 합치지 않는다. 실행 source·범위·결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
 ## 다음 행동
 
-JSON 비교·정렬의 root/path 결과와 타입·NULL·정밀도 의미를 고정 Django의 실제 양 DB에서 독립 관찰한다.
-DB별 차이와 기존 exact-number 정책을 확인해 후속 query 표현을 정하고, 조회 확장 묶음의 다음 통합 milestone을 이어간다.
+일반 forward scalar와 JSON 대소 비교를 묶은 고정 source의 Hosted `orm` 통합 milestone을 검증한다.
+JSON root/path 정렬 표현과 DISTINCT·Count·선택 결과의 의미를 연결한다. 독립 정렬 관찰은 확보했고 제품 정렬은 아직 미지원이다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

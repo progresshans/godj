@@ -74,7 +74,7 @@ func TestJSONPathOwnershipLimitsAndPredicateDomain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range []query.Condition{member, fCondition, query.NewCondition(other, query.LookupGreaterThan, query.JSON(jsonvalue.Null())), query.NewCondition(query.NewFieldRef("text", "text", query.FieldString, false), query.LookupExact, query.String("a"))} {
+	for _, c := range []query.Condition{member, fCondition, query.NewCondition(other, query.LookupIContains, query.String("x")), query.NewCondition(query.NewFieldRef("text", "text", query.FieldString, false), query.LookupExact, query.String("a"))} {
 		if _, err := c.WithJSONPath(path); err == nil {
 			t.Fatal("unsupported path predicate accepted")
 		}

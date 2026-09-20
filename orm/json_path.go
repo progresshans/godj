@@ -109,3 +109,18 @@ func dynamicJSONPath(condition query.Condition, segments []query.JSONPathSegment
 	}
 	return condition.WithJSONPath(path)
 }
+
+// JSON comparisons preserve the backend-specific whole-document and path
+// comparison rules; they do not grant MIN/MAX or ordered F capabilities.
+func (f JSONPathField[M]) GreaterThan(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupGreaterThan, query.JSON(value), nil)
+}
+func (f JSONPathField[M]) GreaterThanOrEqual(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupGreaterThanOrEqual, query.JSON(value), nil)
+}
+func (f JSONPathField[M]) LessThan(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupLessThan, query.JSON(value), nil)
+}
+func (f JSONPathField[M]) LessThanOrEqual(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupLessThanOrEqual, query.JSON(value), nil)
+}

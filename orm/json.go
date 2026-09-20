@@ -108,3 +108,18 @@ func nullableJSONResultCell() scalarCell[*jsonvalue.Value] {
 func (f jsonField[M]) In(values ...jsonvalue.Value) Predicate[M] {
 	return membershipPredicate(f.field, values, query.JSON)
 }
+
+// JSON comparisons preserve the backend-specific whole-document and path
+// comparison rules; they do not grant MIN/MAX or ordered F capabilities.
+func (f jsonField[M]) GreaterThan(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupGreaterThan, query.JSON(value))
+}
+func (f jsonField[M]) GreaterThanOrEqual(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupGreaterThanOrEqual, query.JSON(value))
+}
+func (f jsonField[M]) LessThan(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupLessThan, query.JSON(value))
+}
+func (f jsonField[M]) LessThanOrEqual(value jsonvalue.Value) Predicate[M] {
+	return f.predicate(query.LookupLessThanOrEqual, query.JSON(value))
+}

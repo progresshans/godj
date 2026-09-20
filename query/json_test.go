@@ -37,7 +37,7 @@ func TestJSONQueryValuesKeepDocumentTypeAndSnapshotOwnership(t *testing.T) {
 	}
 }
 
-func TestJSONPredicatesValidateKindWithoutInventingOrderedComparisons(t *testing.T) {
+func TestJSONPredicatesValidateKindAndLiteralComparisons(t *testing.T) {
 	field := query.NewFieldRef("payload", "payload", query.FieldJSON, true)
 	other := query.NewFieldRef("mirror", "mirror", query.FieldJSON, false)
 	value := query.JSON(jsonvalue.Value{Text: `{"a":1}`})
@@ -46,6 +46,10 @@ func TestJSONPredicatesValidateKindWithoutInventingOrderedComparisons(t *testing
 	}
 	for _, condition := range []query.Condition{
 		query.NewCondition(field, query.LookupExact, value),
+		query.NewCondition(field, query.LookupGreaterThan, value),
+		query.NewCondition(field, query.LookupGreaterThanOrEqual, value),
+		query.NewCondition(field, query.LookupLessThan, value),
+		query.NewCondition(field, query.LookupLessThanOrEqual, value),
 		query.NewCondition(field, query.LookupExact, query.JSON(jsonvalue.Null())),
 		query.NewCondition(field, query.LookupIsNull, query.Boolean(true)),
 	} {
@@ -79,7 +83,7 @@ func TestJSONPredicatesValidateKindWithoutInventingOrderedComparisons(t *testing
 	for _, condition := range []query.Condition{
 		query.NewCondition(field, query.LookupExact, query.String(`{"a":1}`)),
 		query.NewCondition(field, query.LookupExact, query.Null()),
-		query.NewCondition(field, query.LookupGreaterThan, value),
+		query.NewCondition(field, query.LookupGreaterThan, query.String("1")),
 		query.NewCondition(field, query.LookupIContains, query.String("a")),
 	} {
 		if _, err := query.NewExpression(condition); err == nil {

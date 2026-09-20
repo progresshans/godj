@@ -452,6 +452,45 @@
   전용 PostgreSQL DB의 잔여 연결·사용자 table 0을 확인해 삭제했고 기존 service는 유지했다.
   앞선 Hosted ORM 결과는 이전 source의 증거이며, 새 query 확장의 platform 검증은 다음 통합 milestone이 소유한다.
 
+### JSON literal 대소 비교의 로컬 통합 checkpoint
+
+- 기준 `d0957f214b58de3da2f15ccb12cade3f24a92d04` 위 제품·generated 소비자·독립 raw 및 Go/Python lock
+  **27 non-Markdown 경로** manifest SHA256은 `624788d1503ad8509338767839c85018f80d99432319b2dc4c834aa7e48d36b9`다.
+  Go **1.26.5 darwin/arm64**, repository-pinned SQLite·native PostgreSQL **17.5 Homebrew**,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 실행 전후 동일 바이트를 확인했다.
+- Normal `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest ./examples/article ./examples/helpdesk`는
+  **10 package / 730 root 실행 / 5582 test·subtest PASS**다. 예제를 제외한 같은 명령의 `-race`는
+  **8 package / 713 root 실행 / 5563 PASS**이며 공통 package의 run/pass/skip 전체 목록이 normal과 같다.
+  두 실행 모두 fail 0·stderr 0 bytes다. 단독 PostgreSQL helper guard만 skip 1이며 실제 양 DB cross-process parent는 필수 PASS다.
+- CGO=0의 JSON AST·정밀 비교 함수·physical connection/reopen·JSON/scalar/nested 생성 소비자는
+  **3 package / 7 root / 16 PASS**, skip/fail 0·stderr 0 bytes다. Generated JSON parent는 양 DB의 새 comparison child와
+  기존 path·containment·keys·projection·related_projection·forward_projection을 필수 검사한다.
+- [Public runner](../../conformance/runners/django/json_comparison_reference.py)는 Django **6.1**, Python **3.14.3**,
+  SQLite **3.50.4** 및 PostgreSQL **17.5**/psycopg **3.3.6**에서 37개 문서의 root/path·forward
+  **448개 대소 비교·4개 Boolean 조합**을 각각 관찰했다. 별도 canonical SQLite profile은 기존 GoDj 저장 표현을
+  public JSONField encoder로 관찰하며 기본 Django parity로 표시하지 않는다. Raw SHA256은 다음과 같다.
+
+  - 기본 SQLite: `79424207674a57184edc72d360726f44114bbeaebb2a13cfd18786483f86fa8f`
+  - 기본 PostgreSQL: `74574bd379674e151fbd8ca80e45f0949e95763d1c99ac4f1c0e7cbd2eebcd89`
+  - Canonical SQLite: `67baa67324109b2a74c45d8208d045f14874a8585866460fb5b465276931a219`
+- 두 SQLite profile의 차이는 DEV-0017의 정확한 32조건에서 Unicode `d15` 또는 `l_d15` 한 행의 포함 여부다.
+  나머지 대소 비교 및 Boolean 조합의 동일함도 검사했다. Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각
+  **1 test / 두 profile PASS**, skip/warning 0이다. Raw의 root/path 정렬 네 개는 독립 관찰이며 GoDj 정렬의 제품 PASS가 아니다.
+- Typed/dynamic 동일 AST의 실제 cold Count·All·DTO 행을 각각 해당 reference에 대조했다.
+  Nullable forward OR/NOT·원본 SQL NULL·missing/JSON null, root TEXT와 path 비교값의 DB별 차이를 유지한다.
+  SQLite path의 array/object RHS에 대한 48개 ProgrammingError 관찰은 GoDj의 pre-I/O unsupported로 검사한다.
+  Empty IN·LIMIT 0·Count·DTO에서도 같은 오류이며 SQLite query count 0이다. Root와 PostgreSQL path compound RHS는 실제로 비교한다.
+- SQLite path의 큰 정수·긴 소수·signed zero·1e400/1e-400·4,000자리 지수를 반올림/지수 확장 없이 비교한다.
+  별도 **289개 numeric 쌍**은 독립 rational 계산과 대조했다. 두 physical connection과 reopen에서도 함수를 호출하며
+  invalid/duplicate/Unicode/크기 초과 문서는 오류다. 양 DB의 실제 precision 조회, empty/NUL key 구분,
+  native NUL/number expansion의 empty-source preflight, invalid literal·lookup policy·reverse 경계도 확인했다.
+- Consumer 작성 중 FK field-set에 없는 `RecordID` accessor를 사용한 compile 오류를 확인하고 실제 generated relation의
+  `Record.IsNull` API로 수정했다. Runtime checkpoint는 위 최종 source에서 normal/race/CGO=0 모두 통과했다.
+  Affected vet·format/docs/diff 및 `make generate-check`도 PASS다. Helpdesk **12**, Article **12**, relationfixture **16파일 clean**과
+  checked-in 관계 소비자를 확인했다. 전용 PostgreSQL DB는 잔여 연결·사용자 table 0 뒤 삭제했고 기존 service는 유지했다.
+- 앞선 forward scalar·whole JSON 선택과 이번 대소 비교를 묶은 고정 source의 Hosted `orm` 통합 milestone을 진행한다.
+  이 로컬 checkpoint나 이전 `fb96519` Hosted 결과를 새 source의 Hosted/full-platform PASS로 합치지 않는다.
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

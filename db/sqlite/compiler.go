@@ -466,6 +466,18 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 		if !queryplan.OrderedValueMatchesField(value.Kind(), field.Kind()) {
 			return nil, invalidPlan(fmt.Sprintf("ordered value kind %q does not match field %q", value.Kind(), field.Name()))
 		}
+		if isJSONPathComparison(condition) {
+			value, ok := value.JSON()
+			if !ok {
+				return nil, invalidPlan("JSON path comparison requires a JSON value")
+			}
+			if _, err := jsonComparisonRight(value); err != nil {
+				return nil, unsupportedRelatedCondition(condition, "SQLite JSON path range comparisons require a scalar right-hand side")
+			}
+			operator, _ := comparisonOperator(condition.Lookup())
+			sql.WriteString(", ?) " + operator + " 0")
+			return []any{value.Text}, nil
+		}
 		argument, err := sqliteValue(value)
 		if err != nil {
 			return nil, err

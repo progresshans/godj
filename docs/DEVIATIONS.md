@@ -101,6 +101,19 @@ key_string_null/false/true/one/object/array 6행은 문자열 재해석을 막�
 PostgreSQL numeric_key의 2행과 index_zero/numeric_key에서 json_null/scalar_string/scalar_one/scalar_false의 8행은
 객체 key/index 구분·strict container 의미를 적용한다. NUL projection 전체의 DataError는 GoDj의 사전 거부로 검사한다.
 Missing과 stored JSON null을 값과 함께 별도 관찰하며, Python None을 Go의 두 상태를 합치는 근거로 사용하지 않는다.
+대소 비교에는 이 저장 정책을 별도 profile로 드러낸다. `django61-comparison-sqlite.json`은 기본 Django raw이며,
+`godj-canonical-comparison-sqlite.json`은 같은 public ORM에 기존 GoDj JSON 저장 표현의 encoder를 사용한 관찰이다.
+둘 사이에는 `scope=root`, RHS `"a"`/`"null"`, gt/gte/lt/lte·filter/exclude·root/forward의 **32조건**만 결과 차이가 있다.
+각 차이는 Unicode JSON string인 `d15` 또는 그 link `l_d15` 한 행의 포함 여부다. 기본 Django의 ASCII escape와
+GoDj UTF-8 canonical TEXT 순서가 다른 결과이며, 나머지 조건과 네 Boolean 조합의 동일함도 fresh 검사한다.
+두 profile을 합치거나 기본 Django raw를 canonical 결과로 덮어쓰지 않는다.
+
+SQLite path의 number 대소 비교는 `9007199254740993.0000000000000001`과 `9007199254740993`, 이웃 128-bit 정수,
+1e400/1e-400·긴 지수를 float 변환 없이 구분한다. 이 숫자 정책은 root TEXT 비교나 JSON exact의 저장 표현을 바꾸지 않는다.
+JSON null/Boolean과 같은 이름의 문자열이 path 대소 비교에서 같은 TEXT 비교값을 가질 수 있는 DB별 의미와,
+projection에서 JSON 타입을 보존하는 의미를 구분한다. SQL NULL/missing을 JSON null이나 문자열로 바꾸지 않는다.
+Native Django SQLite의 path array/object RHS 실패 48조건은 GoDj의 pre-I/O unsupported로 검사하며 누락/skip하지 않는다.
+
 JSON PK/FK·index·추가 transform·타입 변경/backfill은 별도 구현과 검증을 요구한다.
 반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
 

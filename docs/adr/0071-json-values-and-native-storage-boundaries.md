@@ -41,7 +41,7 @@ GoDj의 round-trip profile에 포함되지는 않는다. SQLite에 이 native �
 
 Common AST는 JSON exact/IN, 같은 모델의 JSON F exact, SQL isnull과 projection을 소유한다. Forward JSON 조회와
 non-null reverse exact는 기존 relation binding·cache/clone 경계를 따른다. JSON 값을 ordered scalar로 일괄 취급하지 않는다.
-Range·ordering·MIN/MAX는 명시적으로 거부하며 추가 연산은 아래 의미와 backend capability에 따라 제공한다.
+Literal JSON의 gt/gte/lt/lte는 아래 backend 의미에 따라 제공한다. Ordering·MIN/MAX·ordered F는 별도 범위이며 명시적으로 거부한다.
 이 범위는 JSONField의 모든 lookup을 지원한다는 뜻이 아니다.
 
 ## JSON 경로 predicate
@@ -54,7 +54,7 @@ key의 UTF-8 합계 4096 byte와 index 0..2147483647로 제한한다. 음수 ind
 Typed `Payload.At(query.JSONKey("items"), query.JSONIndex(0))`와 dynamic `LookupInput.JSONPath`는 같은 AST를 사용한다.
 Dynamic `Key`는 기존 model/relation field·lookup만 선택하며 arbitrary JSON key를 `__` 문법에 끼워 넣지 않는다.
 오타 lookup을 JSON key로 암묵 수용하지 않고 기존 allowlist policy를 적용한다. Nil JSONPath는 whole field,
-non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull·key presence와 backend가 지원하는 contains/contained_by를 제공하고
+non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull·gt/gte/lt/lte·key presence와 backend가 지원하는 contains/contained_by를 제공하고
 Root path의 typed projection은 아래 결과 경계를 따른다. F·ordering·write field로 노출하지 않는다.
 
 없는 key, 범위 밖 index, 맞지 않는 container는 SQL NULL이다. `IsNull(true)`가 이를 조회하고,
@@ -220,3 +220,37 @@ Whole `RelatedJSONField`도 같은 `Project1..4`에 전달할 수 있다. Forwar
 [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md#forward-scalar-결과)를 따른다.
 대상 부재와 SQL NULL은 nil, 저장된 JSON null은 non-nil이며 native adapter는 root에 JSON field가 없어도
 selected target field의 kind를 확인한다. Whole document와 그 안의 path를 함께 선택해도 서로 다른 표현이다.
+
+## JSON literal의 대소 비교
+
+`GreaterThan`/`GreaterThanOrEqual`/`LessThan`/`LessThanOrEqual` 및 dynamic `gt/gte/lt/lte`는
+whole field·명시적 JSON path·forward relation에서 같은 literal JSON AST를 사용한다. RHS는 검증된 `jsonvalue.Value`이며
+Go scalar·map·nil을 JSON으로 암묵 변환하지 않는다. JSON의 ordered F·ORDER BY·MIN/MAX나 tuple `range`를 함께 허용하지 않는다.
+Boolean 조건·optional JOIN·cold Count·DTO·empty-query 검사에는 기존 predicate 경계를 재사용한다.
+
+PostgreSQL은 whole field와 strict path의 native JSONB 대소 비교를 사용한다. [PostgreSQL 17 JSONB 비교](https://www.postgresql.org/docs/17/datatype-json.html#JSON-INDEXING)는
+값의 종류와 구조·숫자 및 DB 문자열 collation을 따르며 SQL NULL/missing은 unknown이다. Native NUL과 숫자 전개 한도는
+LIMIT 0·empty IN을 포함한 query preflight에서도 검사한다. SQLite에 PostgreSQL의 JSONB 순서를 덧씌우지 않는다.
+
+SQLite whole field는 실제 저장한 TEXT와 canonical JSON RHS를 비교한다. 이는 JSON 숫자만의 산술 비교가 아니다.
+Path는 [SQLite의 숫자와 TEXT 비교 순서](https://www.sqlite.org/datatype3.html#comparison_expressions)를 따르는
+`godj_json_path_cmp(godj_json_at(...), rhs)`로 평가한다. JSON number는 숫자, JSON string은 unquoted TEXT,
+JSON null/Boolean·array/object는 Django path의 비교 표현에 맞는 TEXT다. RHS Boolean은 0/1, 명시적인 JSON null은
+`"null"` 비교값이다. Path의 array/object RHS는 고정 Django에서 scalar parameter로 바인딩되지 않으므로 GoDj도
+명시적인 backend unsupported를 I/O 전에 반환한다. Whole field의 array/object RHS와 PostgreSQL path는 지원한다.
+
+이 비교 표현은 저장 값이나 projection 결과의 JSON 타입을 바꾸지 않는다. JSON null과 문자열 `"null"`처럼 같은
+비교 TEXT를 사용하는 값이 있으며, `<=`와 `>=`를 모두 만족한다고 typed JSON exact의 동일성을 뜻하지는 않는다.
+SQL NULL/없는 경로는 비교값으로 바꾸지 않는다. NOT은 원본 column 및 optional ancestor의 NULL 보정을 유지한다.
+
+SQLite path number는 native INTEGER/REAL 변환 대신 정확한 coefficient와 지수 크기를 비교한다. 서로 다른 큰 정수·
+긴 소수·overflow/underflow 값을 합치지 않으며 숫자 token byte 한도 안에서만 big integer 지수를 다룬다.
+지수만큼 0을 확장하거나 binary64로 변환하지 않는다. 함수 등록·연결·엄격한 JSON read·전역 cache 없음은 기존 path 함수와 같다.
+
+[독립 public runner](../../conformance/runners/django/json_comparison_reference.py)는
+[Django 기본 SQLite](../../internal/jsontest/testdata/django61-comparison-sqlite.json)와
+[기본 PostgreSQL](../../internal/jsontest/testdata/django61-comparison-postgres.json)의 37개 문서·448개 대소 비교 및
+4개 Boolean 조합을 관찰한다. 별도 [canonical SQLite profile](../../internal/jsontest/testdata/godj-canonical-comparison-sqlite.json)은
+GoDj의 기존 key/공백/Unicode escaping 저장 정책을 public JSONField encoder로 관찰한다. Django 기본 결과를 대체하거나
+기본 Django parity로 표시하지 않는다. 두 SQLite profile의 정확한 차이와 숫자 정책은 DEV-0017이 소유한다.
+Raw의 root/path 정렬 네 개는 후속 설계용 독립 관찰이며 현재 GoDj ORDER BY 지원 또는 runtime 검증 증거가 아니다.

@@ -159,7 +159,7 @@ func ValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
 }
 
 func OrderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return (value == query.ValueUUID && field == query.FieldUUID) || (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
+	return (value == query.ValueJSON && field == query.FieldJSON) || (value == query.ValueUUID && field == query.FieldUUID) || (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
 		(value == query.ValueString && field == query.FieldString)
 }
 

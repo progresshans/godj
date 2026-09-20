@@ -323,7 +323,7 @@ func orderedComparisonLookup(lookup Lookup) bool {
 }
 
 func expressionOrderedValueMatchesField(value ValueKind, field FieldKind) bool {
-	return value == ValueUUID && field == FieldUUID || value == ValueDecimal && field == FieldDecimal || value == ValueFloat && field == FieldFloat || value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDuration && field == FieldDuration || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger || value == ValueString && field == FieldString
+	return value == ValueJSON && field == FieldJSON || value == ValueUUID && field == FieldUUID || value == ValueDecimal && field == FieldDecimal || value == ValueFloat && field == FieldFloat || value == ValueDate && field == FieldDate || value == ValueTime && field == FieldTime || value == ValueDuration && field == FieldDuration || value == ValueDateTime && field == FieldDateTime || value == ValueInteger && field == FieldInteger || value == ValueString && field == FieldString
 }
 
 func expressionValueMatchesField(value ValueKind, field FieldKind) bool {
