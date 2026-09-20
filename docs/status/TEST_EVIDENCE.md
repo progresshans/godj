@@ -63,7 +63,21 @@ Required 실행이나 비교 기준을 제거하지 않았으며 아래 최종 s
 Date·Time·Duration과 JSON number 기반의 통합 milestone으로 Hosted **full**을 선택했다. 기존 Draft PR #1에 통합한
 source `7e338bf28d27d12516d6732e7ae5f38f7b19bda5`, attempt 1에서 [Hosted full](https://github.com/progresshans/godj/actions/runs/35478903468)을 실행했다.
 로컬 runtime source `f06bc7a01060b014a129631f60f5d677978adcef`와의 차이는 위 GoDoc 주석·Markdown이다.
-아직 terminal 결과가 없으며 현재 source의 Hosted PASS로 표시하지 않는다. 이전 Time ORM과 Text/DateTime full은 각각의 source에 적용한다.
+첫 실행의 Python compatibility 네 job은 각각 `PYTHON_SUITE_VERIFIED tests=293 skips=4`를 출력했으나 전체 scenario digest의 byte 수 검사에서 실패했다.
+기대 `1,081,058` bytes와 실제 `1,081,069` bytes의 차이는 `b7269d9`의 순환 migration 구현 때 이미 갱신한
+`godj.migration.writer.unsupported_delta_fail_closed` 하나다. 해당 관찰의 `self_or_cyclic_relation / relation_cycle`이
+`required_field_without_backfill / unsupported_delta`로 바뀌었으나 workflow의 고정 기준은 갱신하지 않았다.
+311개 관찰을 생성하고 이 시나리오만 이전 source의 함수로 치환했을 때 기존 byte 수와
+SHA256 `b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5`가 정확히 재현됐다.
+현재 시나리오의 byte 수는 3,273, 이전은 3,262이며 구조화된 결과의 차이는 위 case/code 두 값뿐이다.
+
+Workflow의 예상 byte 수와 digest 두 값만 수정했다. 수정된 workflow의 inline Python을 그대로 추출해
+고정 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 각각 **311 scenarios / 1,081,069 bytes /
+SHA256 `92bd2eb410e09ca3d046b0ca048c723376c3bfa55a9eb82f25276adc88be3450` PASS**를 확인했다.
+각 runtime와 Django/DRF/asgiref/sqlparse version을 실제 실행에서 assert했고 CI tooling **37 tests PASS**, diff 검사도 완료했다.
+첫 Hosted 실행은 terminal `cancelled`이며 62개 job 중 success 46·failure 5(Python 네 개와 scope 집계)·cancelled 11이다.
+실패 원인을 보존하고 수정 source의 full로 대체한다. 다른 job의 중간 성공이나 이전 Time ORM·Text/DateTime full을
+현재 source의 Hosted PASS로 표시하지 않는다. 대체 실행의 terminal 결과와 source를 별도로 확인한다.
 
 ## GDJ-0088 — Clock Time의 모델·소비자 연결
 
