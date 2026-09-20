@@ -3,7 +3,8 @@
 - 갱신: 2026-09-20
 - 활성 구현: [GDJ-0091 소수점 비용의 Decimal 모델·소비자 연결](../../work/0091-decimal-cost-models.md)
 - 최근 완료: [GDJ-0090 작업량 수치의 Float 모델·소비자 연결](../../work/0090-floating-point-models.md)
-- 최근 관련 검증: [Float Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35484302381), source `784dbf644f71c2d3507371c2afcc117d0f746ffb`
+- 최근 모델·DB 로컬 검증: Decimal source `49c3ebef02b43e92e50abe70b6779814f72d43b9`; [범위와 증거](TEST_EVIDENCE.md)
+- 최근 Hosted 관련 검증: [Float Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35484302381), source `784dbf644f71c2d3507371c2afcc117d0f746ffb`
 - 최근 전체 검증 source: `79637ef3f5943c9490027723527fb5074b01411f`
 - 최신 전체 검증: [Date·Time·Duration·JSON number Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35479740366)
 - 로컬·Hosted의 source와 scope: [TEST_EVIDENCE](TEST_EVIDENCE.md)

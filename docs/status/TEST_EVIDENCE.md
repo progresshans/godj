@@ -46,7 +46,7 @@
 - 추가 1000자리 생성 소비자 테스트는 `First`에 명시적 ordering을 누락해 실패했다. 조회에 ID 정렬을 추가했으며 제품의 unordered-query 거부를 유지했다.
   수정 후 생성 소비자와 compile-time float/string/integer 혼용 거부 3개 subtest가 통과했다.
 - 원시 migration IR budget의 FloatBits 문자열 누락도 Decimal 문자열과 함께 보강했다. Default·choice의 active/inactive arm과 aggregate/per-string cap을 검사한다.
-- 최종 모델·DB source는 baseline `47772f8d2920dba8fdd99dabef5c14c4bd4a391e` 위 제품·reference·테스트 변경 **69개 파일**로 묶었다.
+- 최종 모델·DB source `49c3ebef02b43e92e50abe70b6779814f72d43b9`는 baseline `47772f8d2920dba8fdd99dabef5c14c4bd4a391e` 위 제품·reference·테스트 변경 **69개 파일**로 묶었다.
   정렬된 SHA256 manifest는 `c6cd6a19e1418b64aad9df308d2109815b8c47e74f2966e4b3f99ea96ebc0559`다. 모든 checkpoint 종료 뒤 같은 파일 바이트를 다시 대조했다.
 - Local macOS arm64, Go 1.26.5, PostgreSQL 17.5, TZ=Pacific/Chatham에서 다음 affected 17개 package를 normal·race 각각 fresh 실행했다:
   `decimal`, `internal/decimalstorage`, `schema`, `schema/ir`, `query`, `orm`, `db/internal/queryplan`, `db/sqlite`, `db/postgres`, `codegen`,
