@@ -1,6 +1,6 @@
 ---
 id: GDJ-0091
-status: active
+status: complete
 updated: 2026-09-20
 baseline_commit: "09307794071874900f317a01e7b413f11d784e60"
 integration_owner: "root"
@@ -46,11 +46,11 @@ SQLite NUMERIC의 손실을 재현한 뒤 field별 scale과 무관한 canonical 
    생성 모델로 실제 양 DB의 30자리/1000자리 경계·서로 다른 scale의 F 비교·null·rollback·재접속·외부 잘못된 저장값을 검증했다.
 4. Form/Admin·serializer의 원문 precision 검증과 Helpdesk nullable 예상 비용, fixed-scale JSON/OpenAPI·별도 client를 연결했다.
    Form changed의 숫자 equality, scale 초기값·escape·null/생략, 정확한 JSON 숫자와 fixed-scale 문자열을 검증한다.
-5. 비용 소비자의 affected normal·race·CGO0 통합 checkpoint를 완료했다. 같은 source의 Hosted ORM을 이어서 검증한다.
+5. 비용 소비자의 affected normal·race·CGO0와 source `d106e73d5338cff107623351c48ac4f5778fff8c`의 Hosted ORM을 완료했다.
    Precision AlterField/backfill·unbounded NUMERIC은 현재 구현 범위로 표시하지 않는다.
 
 모델·DB와 입력·실제 소비자를 같은 GDJ-0091에서 연결했다. 현재 검증 환경과 남은 실행은 TEST_EVIDENCE가 소유한다.
-완료 뒤 헌장·기능 카탈로그의 다음 미구현 요구를 계속 구현한다. 별도 release milestone을 만들지 않는다.
+후속 [GDJ-0092](0092-decimal-precision-migrations.md)에서 기존 비용의 정밀도 변경과 데이터 보존을 이어간다. 별도 release milestone을 만들지 않는다.
 
 기준 실행·환경·hash는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#gdj-0091--decimal의-독립-정밀도저장-기준-준비)가 소유한다.
 기존 transaction·권한·자원 한도·생성 실패 보존 경계를 유지하며 실제 소비자와 검증을 한 묶음으로 연결한다.

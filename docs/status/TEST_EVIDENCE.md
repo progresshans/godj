@@ -3,6 +3,24 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0092 — Decimal 정밀도 변경의 독립 기준 준비
+
+- Baseline은 GDJ-0091 제품 source `d106e73d5338cff107623351c48ac4f5778fff8c`다. 현재 GoDj의 precision AlterField 구현 완료를 뜻하지 않는다.
+- [독립 runner](../../conformance/runners/django/decimal_precision_reference.py)는 고정 Django 6.1의 public ProjectState·CreateModel·AlterField·
+  MigrationAutodetector·schema editor를 실행한다. GoDj 코드나 expected fixture를 import하지 않는다.
+- [Raw 관찰](../../internal/decimaltest/testdata/precision-changes-django61.json)은 **12개 profile**의 정밀도 확장·정확한 축소·반올림·whole overflow·
+  scale/whole 교환·zero whole/scale·empty·identity를 기록한다. Forward/reverse의 SQL·물리 값·typed read와 재접속을 구분한다.
+  Identity만 autodetect 0이며 나머지 11개는 AlterField다. SQLite의 물리 값은 보존되지만 조회값은 반올림될 수 있고 세 profile의 6행은 InvalidOperation이다.
+- Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**에서 fresh test 각각 **1 PASS**, skip/warning 0이다.
+  Python 버전과 실제 SQLite version/source_id를 확인한 뒤 나머지 전체 관찰을 동일한 raw와 비교했다.
+  초기 raw 환경은 Python 3.14.3 / SQLite 3.50.4다.
+- Runner·fresh test·raw 세 파일의 정렬된 SHA256 manifest는 **`731a118d291c63ce151937e56bdf3eaadbf9394d1626a92f77e2c1dcfd042a25`**,
+  raw SHA256은 **`3ad2d3a4b5bdfcb627ae28db54fbf056364825928857ec3ce1b79d04fe402221`**이다.
+- 별도의 native PostgreSQL **17.5 (Homebrew)** 전용 DB 사전 실험은 같은 12개 profile을 실행했다. Django PostgreSQL 실행과 구분한다.
+  세 overflow profile은 SQLSTATE 22003으로 실패하고 값·typmod를 보존했다. Scale 축소는 1.225→1.23, 2.5→3으로 실제 값을 바꾸며
+  reverse는 사라진 자릿수를 복구하지 못한다. Native raw SHA256은 `03b5e001049a05df891719de5b7780da300f953b87cf423cebb2c9be8e3f1d6b`다.
+  이 native scratch 관찰은 설계 판단 자료이며 GoDj 제품/Hosted PASS나 Django 관찰의 대용이 아니다. 전용 DB는 연결 0 확인 뒤 삭제했다.
+
 ## GDJ-0091 — Decimal의 독립 정밀도·저장 기준 준비
 
 - 초기 기준 준비 source `885590259b464a448df2ff3b825ad93a244ed283`: [GDJ-0091](../../work/0091-decimal-cost-models.md), branch `feature/decimal-models`. 아래 원본 hash는 이 초기 source의 관찰이다. 현재 제품 진행은 별도 checkpoint에 기록한다.
@@ -65,7 +83,7 @@
 
 ### Form/Admin·Helpdesk·독립 client 통합 checkpoint 완료
 
-Baseline `58141a9f3c06b4508c1044aea2585df06c4bcde8` 위 제품·생성물·소비자·CI 변경 **62개 파일**을 검증했다.
+제품 source `d106e73d5338cff107623351c48ac4f5778fff8c`는 baseline `58141a9f3c06b4508c1044aea2585df06c4bcde8` 위 제품·생성물·소비자·CI 변경 **62개 파일**이다.
 정렬된 `<sha256>  <relative-path>\n` manifest는 `021911e0fd94374845d4c19dc55983e8409f37c2f849b0ebcd2640206174d620`이다.
 각 실행 뒤 같은 바이트를 다시 확인했다. Markdown 기록은 이 manifest와 구분한다.
 
@@ -106,7 +124,24 @@ Baseline `58141a9f3c06b4508c1044aea2585df06c4bcde8` 위 제품·생성물·소�
 - Affected vet, generated drift 세 project·checked-in generated, Helpdesk `makemigrations --check`의 candidate 0, CI tooling 37 tests,
   docs/format/diff 검사 PASS다. 새 Form/serializer/Admin/OpenAPI 및 Helpdesk 생성 model/project의 Linux/386/CGO0 cross-build도 PASS다.
   Cross-build를 386 runtime 증거로 표시하지 않는다. 전용 PostgreSQL DB는 잔여 연결 0 확인 뒤 삭제했고 기존 service를 유지했다.
-- Decimal의 Hosted ORM은 다음 실행이다. 이전 Float Hosted ORM이나 Duration Hosted full을 이 source의 검증으로 합치지 않는다.
+
+### Hosted ORM 완료
+
+- [실행 35490634932](https://github.com/progresshans/godj/actions/runs/35490634932), workflow_dispatch, attempt **1**,
+  source **`d106e73d5338cff107623351c48ac4f5778fff8c`**가 terminal success다.
+- Attempt 전용 jobs API의 전체 pagination을 검사했다. **고유 job 48개: success 44 / scope 제외 skipped 4 / 실패·취소 0**이다.
+  모든 job의 head SHA와 terminal 상태, ID·name 중복 없음을 확인했다. Product project check, exact Darwin reference,
+  Python compatibility, reference/capture 검증은 ORM scope 밖의 네 owner이며 필수 실행의 skip이 아니다.
+- 최종 `CI result (orm)` 로그는 `scope:orm`, `full_platform_verified:false`와
+  `command-product-matrix`, `portable-go-matrix`, `postgresql-product`, `relation-product-matrix` 네 owner의 완료를 확인했다.
+- Linux amd64/arm64와 macOS arm64/Intel의 relation normal·race·CGO0 **12개 job** 로그에서 complete inventory와 skip 0을 재확인했다.
+  PostgreSQL **17.10** actual core normal·race·CGO0 **3개 job**의 inventory와 Decimal 생성 소비자 필수 roster도 확인했다.
+  해당 15개 실행 및 최종 gate 로그의 checkout SHA는 위 source다.
+- 같은 제품 event head의 [Fast feedback](https://github.com/progresshans/godj/actions/runs/35490627372)도 terminal success다.
+  실제 PR merge checkout `dd2e26039fcaa849068dd80378ae68847e0e34e1`의 tree `5aa5b2e81c1911fb7ad56512fe7b51e3d2a92995`가 event head와 동일함을 확인했다.
+  이 quick 결과는 Hosted full 검증과 구분한다.
+- 이 checkpoint는 Decimal 모델·입력·실제 소비자의 관련 환경 검증이다. 최근 Hosted full은 아래 Duration source이며
+  이 결과를 전체 플랫폼 검증으로 표시하지 않는다.
 
 ## GDJ-0090 — Float 모델과 finite 소비자 연결
 
