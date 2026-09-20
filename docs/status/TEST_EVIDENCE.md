@@ -77,7 +77,11 @@ SHA256 `92bd2eb410e09ca3d046b0ca048c723376c3bfa55a9eb82f25276adc88be3450` PASS**
 각 runtime와 Django/DRF/asgiref/sqlparse version을 실제 실행에서 assert했고 CI tooling **37 tests PASS**, diff 검사도 완료했다.
 첫 Hosted 실행은 terminal `cancelled`이며 62개 job 중 success 46·failure 5(Python 네 개와 scope 집계)·cancelled 11이다.
 실패 원인을 보존하고 수정 source의 full로 대체한다. 다른 job의 중간 성공이나 이전 Time ORM·Text/DateTime full을
-현재 source의 Hosted PASS로 표시하지 않는다. 대체 실행의 terminal 결과와 source를 별도로 확인한다.
+현재 source의 Hosted PASS로 표시하지 않는다.
+
+대체 실행은 source `79637ef3f5943c9490027723527fb5074b01411f`, attempt 1의
+[Hosted full](https://github.com/progresshans/godj/actions/runs/35479740366)이다. 첫 실행 source와의 차이는 위 CI 기준 두 값과 Markdown이다.
+아직 terminal 결과가 없으며 전체 PASS로 표시하지 않는다.
 
 ## GDJ-0088 — Clock Time의 모델·소비자 연결
 

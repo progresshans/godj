@@ -33,7 +33,7 @@ JSON numeric 관찰을 추가한 raw SHA256은 `e5cda610c3b48c31c2c9e788db77acaa
 Fresh Python 3.12.13/3.13.15/3.14.3/3.14.7에서 실제 runtime fingerprint와 전체 관찰을 대조했다.
 
 첫 통합 실행에서 발견한 공통 DB value-kind와 migration loader의 Duration 등록 누락을 수정했다.
-생성 relation의 configuration error 전달도 연결했다. 제품 `f06bc7a01060b014a129631f60f5d677978adcef`의 affected 일반/race·양 DB·CGO0·생성물·독립 client·정적 검증을 통과했다. source `7e338bf28d27d12516d6732e7ae5f38f7b19bda5`의 [첫 Hosted full](https://github.com/progresshans/godj/actions/runs/35478903468)은 이전 migration 시나리오의 stale digest 때문에 Python job 네 개가 실패했다. 유일한 변경 시나리오를 추적해 기준을 수정했고 Python 네 버전의 전체 scenario digest를 다시 확인했다. 수정 source의 full로 대체하며 작업은 active다.
+생성 relation의 configuration error 전달도 연결했다. 제품 `f06bc7a01060b014a129631f60f5d677978adcef`의 affected 일반/race·양 DB·CGO0·생성물·독립 client·정적 검증을 통과했다. source `7e338bf28d27d12516d6732e7ae5f38f7b19bda5`의 [첫 Hosted full](https://github.com/progresshans/godj/actions/runs/35478903468)은 이전 migration 시나리오의 stale digest 때문에 Python job 네 개가 실패했다. 유일한 변경 시나리오를 추적해 기준을 수정했고 Python 네 버전의 전체 scenario digest를 다시 확인했다. source `79637ef3f5943c9490027723527fb5074b01411f`의 [새 Hosted full](https://github.com/progresshans/godj/actions/runs/35479740366)로 대체했으며 작업은 active다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
 
 ## 다음 행동
