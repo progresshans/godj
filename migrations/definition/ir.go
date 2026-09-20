@@ -85,7 +85,7 @@ func fullyNormalizedCreateModel(appLabel string, model ir.Model) bool {
 }
 
 func fullyNormalizedAddField(appLabel string, field ir.Field) bool {
-	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldText && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration) && field.Kind != ir.FieldBoolean && field.Kind != ir.FieldInteger && field.Kind != ir.FieldForeignKey) {
+	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldText && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration && field.Kind != ir.FieldFloat) && field.Kind != ir.FieldBoolean && field.Kind != ir.FieldInteger && field.Kind != ir.FieldForeignKey) {
 		return false
 	}
 

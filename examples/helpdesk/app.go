@@ -54,7 +54,7 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed. Every create
+// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -84,13 +84,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true})
 	if err != nil {
 		return nil, err
 	}
@@ -150,18 +150,18 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed"}
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort")
 	if err != nil {
 		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed"}, SearchFields: []string{"subject"},
+		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort"}, SearchFields: []string{"subject"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -227,6 +227,7 @@ type ticketInput struct {
 	serviceOn  *calendar.Date
 	serviceAt  *clock.Time
 	elapsed    *duration.Duration
+	effort     *float64
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
@@ -240,7 +241,8 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	serviceOn, serviceOnOK := values.Get("service_on")
 	serviceAt, serviceAtOK := values.Get("service_at")
 	elapsed, elapsedOK := values.Get("elapsed")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || len(values.All()) != 10 {
+	effort, effortOK := values.Get("effort")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || len(values.All()) != 11 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
@@ -285,6 +287,13 @@ func fromForm(values forms.Values) (ticketInput, error) {
 			return ticketInput{}, errors.New("helpdesk: invalid service_on")
 		}
 		input.serviceOn = &date
+	}
+	if !effort.IsNull() {
+		floatValue, ok := effort.AsFloat()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid effort")
+		}
+		input.effort = &floatValue
 	}
 	if !elapsed.IsNull() {
 		durationValue, ok := elapsed.AsDuration()
@@ -345,6 +354,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		} else {
 			create = create.WithServiceOn(*input.serviceOn)
 		}
+		if input.effort == nil {
+			create = create.WithEffortNull()
+		} else {
+			create = create.WithEffort(*input.effort)
+		}
 		if input.elapsed == nil {
 			create = create.WithElapsedNull()
 		} else {
@@ -397,6 +411,11 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 	} else {
 		patch = patch.WithServiceOn(*input.serviceOn)
 	}
+	if input.effort == nil {
+		patch = patch.WithEffortNull()
+	} else {
+		patch = patch.WithEffort(*input.effort)
+	}
 	if input.elapsed == nil {
 		patch = patch.WithElapsedNull()
 	} else {
@@ -444,7 +463,7 @@ func (a *Application) updatePatch(ctx context.Context, id int64, patch models.Ti
 				if !valid {
 					return errors.New("helpdesk: field cannot be read for update")
 				}
-				if !before.Equal(assignment.Value()) {
+				if !ticketValuesEqual(before, assignment.Value()) {
 					changed = append(changed, field.Name)
 				}
 			}
@@ -536,6 +555,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 		date, _ := serviceOn.AsDate()
 		input.serviceOn = &date
 	}
+	if effort, present := values.Get("effort"); present && !effort.IsNull() {
+		floatValue, _ := effort.AsFloat()
+		input.effort = &floatValue
+	}
 	if elapsed, present := values.Get("elapsed"); present && !elapsed.IsNull() {
 		durationValue, _ := elapsed.AsDuration()
 		input.elapsed = &durationValue
@@ -599,4 +622,14 @@ func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Respon
 		return web.Response{}, err
 	}
 	return api.JSON(http.StatusOK, value.Value())
+}
+
+// Business values use numeric equality for Float, so changing only zero's sign
+// does not cause a write. AST value identity continues to preserve its bits.
+func ticketValuesEqual(left, right query.Value) bool {
+	if before, ok := left.Float(); ok {
+		after, rightOK := right.Float()
+		return rightOK && before == after
+	}
+	return left.Equal(right)
 }

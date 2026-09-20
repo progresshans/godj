@@ -42,6 +42,17 @@ func Integer() Schema {
 	return Schema{value: object.Value()}
 }
 
+// Float describes finite IEEE 754 binary64 numbers, including subnormal values.
+func Float() Schema {
+	object, _ := serializers.NewObject(
+		serializers.MemberOf("type", serializers.String("number")),
+		serializers.MemberOf("format", serializers.String("double")),
+		serializers.MemberOf("minimum", serializers.Float(-math.MaxFloat64)),
+		serializers.MemberOf("maximum", serializers.Float(math.MaxFloat64)),
+	)
+	return Schema{value: object.Value()}
+}
+
 func schemaPrimitive(kind string) Schema {
 	// This helper is called only with the fixed JSON type names above and below.
 	object, _ := serializers.NewObject(serializers.MemberOf("type", serializers.String(kind)))
@@ -263,6 +274,8 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	switch field.Kind() {
 	case serializers.FieldString:
 		schema = String()
+	case serializers.FieldFloat:
+		schema = Float()
 	case serializers.FieldDuration:
 		var err error
 		schema, err = schemaAnnotate(String(),

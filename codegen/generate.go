@@ -39,6 +39,9 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
+	if hasFloatDefault(schema) {
+		fmt.Fprintln(&output, "\t_godjmath \"math\"")
+	}
 	if hasDurationStorage(schema) {
 		fmt.Fprintln(&output, "\t_godjduration \"github.com/progresshans/godj/duration\"")
 	}
@@ -73,7 +76,18 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration) {
+			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration && field.Kind != ir.FieldFloat) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasFloatDefault(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Default != nil && field.Default.Kind == ir.ScalarFloat {
 				return true
 			}
 		}
@@ -155,7 +169,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	for _, field := range model.Fields {
 		if field.Nullable {
 			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) {
 			fmt.Fprintf(output, "\tvar scan%s orm.%sScanner\n", field.GoName, fieldRenderKind(field.Kind).queryValue)
 		}
 	}
@@ -164,7 +178,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) {
+		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -177,7 +191,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) {
 			fmt.Fprintf(output, "\tvalue.%s = scan%s.%s\n", field.GoName, field.GoName, fieldRenderKind(field.Kind).sqlValue)
 		}
 	}
@@ -538,6 +552,8 @@ func queryValueExpression(field ir.Field, value string) string {
 
 func defaultValueExpression(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarFloat:
+		return fmt.Sprintf("_godjmath.Float64frombits(0x%s)", value.FloatBits)
 	case ir.ScalarDuration:
 		value, err := duration.Parse(value.Duration)
 		if err != nil {
@@ -575,6 +591,8 @@ func defaultValueExpression(value ir.Scalar) string {
 
 func scalarLiteral(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarFloat:
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarFloat, FloatBits: %s}", strconv.Quote(value.FloatBits))
 	case ir.ScalarDuration:
 		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarDuration, Duration: %s}", strconv.Quote(value.Duration))
 	case ir.ScalarTime:

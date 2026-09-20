@@ -2,6 +2,7 @@ package serializers
 
 import (
 	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/calendar"
@@ -75,6 +76,9 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = Boolean(boolean)
+		case query.ValueFloat:
+			number, _ := scalar.Float()
+			converted = Float(number)
 		case query.ValueDuration:
 			instant, _ := scalar.Duration()
 			converted = Duration(instant)
@@ -157,6 +161,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 				options = append(options, WithDefault(String(field.Default.String)))
 			case ir.ScalarBoolean:
 				options = append(options, WithDefault(Boolean(field.Default.Boolean)))
+			case ir.ScalarFloat:
+				instant, err := floatvalue.FromBits(field.Default.FloatBits)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name, "invalid float default")
+				}
+				options = append(options, WithDefault(Float(instant)))
 			case ir.ScalarDuration:
 				instant, err := duration.Parse(field.Default.Duration)
 				if err != nil {
@@ -193,6 +203,8 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		case ir.FieldChar, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			projected, err = StringField(field.Name, options...)
+		case ir.FieldFloat:
+			projected, err = FloatField(field.Name, options...)
 		case ir.FieldDuration:
 			projected, err = DurationField(field.Name, options...)
 		case ir.FieldTime:

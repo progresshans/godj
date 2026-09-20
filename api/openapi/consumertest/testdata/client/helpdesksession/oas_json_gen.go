@@ -1210,6 +1210,52 @@ func (s *NilDateTime) UnmarshalJSON(data []byte) error {
 	return s.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00"))
 }
 
+// Encode encodes float64 as json.
+func (o NilFloat64) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Float64(float64(o.Value))
+}
+
+// Decode decodes float64 from json.
+func (o *NilFloat64) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilFloat64 to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v float64
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	v, err := d.Float64()
+	if err != nil {
+		return err
+	}
+	o.Value = float64(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilFloat64) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilFloat64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes int64 as json.
 func (o NilInt64) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -1488,6 +1534,57 @@ func (s OptNilDateTime) MarshalJSON() ([]byte, error) {
 func (s *OptNilDateTime) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00"))
+}
+
+// Encode encodes float64 as json.
+func (o OptNilFloat64) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Float64(float64(o.Value))
+}
+
+// Decode decodes float64 from json.
+func (o *OptNilFloat64) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilFloat64 to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v float64
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	v, err := d.Float64()
+	if err != nil {
+		return err
+	}
+	o.Value = float64(v)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilFloat64) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilFloat64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
 }
 
 // Encode encodes string as json.
@@ -1780,9 +1877,13 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		e.FieldStart("elapsed")
 		s.Elapsed.Encode(e)
 	}
+	{
+		e.FieldStart("effort")
+		s.Effort.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfTicket = [12]string{
+var jsonFieldsNameOfTicket = [13]string{
 	0:  "id",
 	1:  "subject",
 	2:  "details",
@@ -1795,6 +1896,7 @@ var jsonFieldsNameOfTicket = [12]string{
 	9:  "service_on",
 	10: "service_at",
 	11: "elapsed",
+	12: "effort",
 }
 
 // Decode decodes Ticket from json.
@@ -1934,6 +2036,16 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"elapsed\"")
 			}
+		case "effort":
+			requiredBitSet[1] |= 1 << 4
+			if err := func() error {
+				if err := s.Effort.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"effort\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -1945,7 +2057,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2058,19 +2170,26 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 			s.Elapsed.Encode(e)
 		}
 	}
+	{
+		if s.Effort.Set {
+			e.FieldStart("effort")
+			s.Effort.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketCreate = [10]string{
-	0: "subject",
-	1: "details",
-	2: "closed",
-	3: "priority",
-	4: "resolution",
-	5: "due_at",
-	6: "reviewed",
-	7: "service_on",
-	8: "service_at",
-	9: "elapsed",
+var jsonFieldsNameOfTicketCreate = [11]string{
+	0:  "subject",
+	1:  "details",
+	2:  "closed",
+	3:  "priority",
+	4:  "resolution",
+	5:  "due_at",
+	6:  "reviewed",
+	7:  "service_on",
+	8:  "service_at",
+	9:  "elapsed",
+	10: "effort",
 }
 
 // Decode decodes TicketCreate from json.
@@ -2184,6 +2303,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"elapsed\"")
+			}
+		case "effort":
+			if err := func() error {
+				s.Effort.Reset()
+				if err := s.Effort.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"effort\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2452,19 +2581,26 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 			s.Elapsed.Encode(e)
 		}
 	}
+	{
+		if s.Effort.Set {
+			e.FieldStart("effort")
+			s.Effort.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketPatch = [10]string{
-	0: "subject",
-	1: "details",
-	2: "closed",
-	3: "priority",
-	4: "resolution",
-	5: "due_at",
-	6: "reviewed",
-	7: "service_on",
-	8: "service_at",
-	9: "elapsed",
+var jsonFieldsNameOfTicketPatch = [11]string{
+	0:  "subject",
+	1:  "details",
+	2:  "closed",
+	3:  "priority",
+	4:  "resolution",
+	5:  "due_at",
+	6:  "reviewed",
+	7:  "service_on",
+	8:  "service_at",
+	9:  "elapsed",
+	10: "effort",
 }
 
 // Decode decodes TicketPatch from json.
@@ -2574,6 +2710,16 @@ func (s *TicketPatch) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"elapsed\"")
+			}
+		case "effort":
+			if err := func() error {
+				s.Effort.Reset()
+				if err := s.Effort.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"effort\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2698,19 +2844,26 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 			s.Elapsed.Encode(e)
 		}
 	}
+	{
+		if s.Effort.Set {
+			e.FieldStart("effort")
+			s.Effort.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketUpdate = [10]string{
-	0: "subject",
-	1: "details",
-	2: "closed",
-	3: "priority",
-	4: "resolution",
-	5: "due_at",
-	6: "reviewed",
-	7: "service_on",
-	8: "service_at",
-	9: "elapsed",
+var jsonFieldsNameOfTicketUpdate = [11]string{
+	0:  "subject",
+	1:  "details",
+	2:  "closed",
+	3:  "priority",
+	4:  "resolution",
+	5:  "due_at",
+	6:  "reviewed",
+	7:  "service_on",
+	8:  "service_at",
+	9:  "elapsed",
+	10: "effort",
 }
 
 // Decode decodes TicketUpdate from json.
@@ -2824,6 +2977,16 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"elapsed\"")
+			}
+		case "effort":
+			if err := func() error {
+				s.Effort.Reset()
+				if err := s.Effort.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"effort\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

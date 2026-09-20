@@ -111,11 +111,11 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	lookup := query.Lookup(name)
 	switch lookup {
 	case query.LookupIn:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration)
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldBoolean || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat)
 	case query.LookupExact:
 		return lookup, true
 	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
-		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) || field.Kind == ir.FieldChar || field.Kind == ir.FieldText
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:
@@ -152,6 +152,12 @@ func dynamicValue(field ir.Field, lookup query.Lookup, raw any) (query.Value, er
 		default:
 			return invalid("int or int64")
 		}
+	case ir.FieldFloat:
+		value, ok := raw.(float64)
+		if !ok {
+			return invalid("float64")
+		}
+		return query.Float(value), nil
 	case ir.FieldDuration:
 		value, ok := raw.(duration.Duration)
 		if !ok || !value.Valid() {

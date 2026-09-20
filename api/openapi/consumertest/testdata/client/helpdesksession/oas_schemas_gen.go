@@ -504,6 +504,51 @@ func (o NilDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewNilFloat64 returns new NilFloat64 with value set to v.
+func NewNilFloat64(v float64) NilFloat64 {
+	return NilFloat64{
+		Value: v,
+	}
+}
+
+// NilFloat64 is nullable float64.
+type NilFloat64 struct {
+	Value float64
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFloat64) SetTo(v float64) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFloat64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFloat64) SetToNull() {
+	o.Null = true
+	var v float64
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFloat64) Get() (v float64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFloat64) Or(d float64) float64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInt64 returns new NilInt64 with value set to v.
 func NewNilInt64(v int64) NilInt64 {
 	return NilInt64{
@@ -838,6 +883,74 @@ func (o OptNilDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFloat64 returns new OptNilFloat64 with value set to v.
+func NewOptNilFloat64(v float64) OptNilFloat64 {
+	return OptNilFloat64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFloat64 is optional nullable float64.
+type OptNilFloat64 struct {
+	Value float64
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFloat64 was set.
+func (o OptNilFloat64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFloat64) Reset() {
+	var v float64
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFloat64) SetTo(v float64) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFloat64) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFloat64) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v float64
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFloat64) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFloat64) Get() (v float64, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFloat64) Or(d float64) float64 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1201,6 +1314,7 @@ type Ticket struct {
 	ServiceOn  NilDate     `json:"service_on"`
 	ServiceAt  NilString   `json:"service_at"`
 	Elapsed    NilString   `json:"elapsed"`
+	Effort     NilFloat64  `json:"effort"`
 }
 
 // GetID returns the value of ID.
@@ -1263,6 +1377,11 @@ func (s *Ticket) GetElapsed() NilString {
 	return s.Elapsed
 }
 
+// GetEffort returns the value of Effort.
+func (s *Ticket) GetEffort() NilFloat64 {
+	return s.Effort
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -1323,6 +1442,11 @@ func (s *Ticket) SetElapsed(val NilString) {
 	s.Elapsed = val
 }
 
+// SetEffort sets the value of Effort.
+func (s *Ticket) SetEffort(val NilFloat64) {
+	s.Effort = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
@@ -1339,6 +1463,7 @@ type TicketCreate struct {
 	ServiceOn  OptNilDate                 `json:"service_on"`
 	ServiceAt  OptNilString               `json:"service_at"`
 	Elapsed    OptNilString               `json:"elapsed"`
+	Effort     OptNilFloat64              `json:"effort"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1391,6 +1516,11 @@ func (s *TicketCreate) GetElapsed() OptNilString {
 	return s.Elapsed
 }
 
+// GetEffort returns the value of Effort.
+func (s *TicketCreate) GetEffort() OptNilFloat64 {
+	return s.Effort
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -1439,6 +1569,11 @@ func (s *TicketCreate) SetServiceAt(val OptNilString) {
 // SetElapsed sets the value of Elapsed.
 func (s *TicketCreate) SetElapsed(val OptNilString) {
 	s.Elapsed = val
+}
+
+// SetEffort sets the value of Effort.
+func (s *TicketCreate) SetEffort(val OptNilFloat64) {
+	s.Effort = val
 }
 
 type TicketCreatePriority int64
@@ -1524,6 +1659,7 @@ type TicketPatch struct {
 	ServiceOn  OptNilDate                `json:"service_on"`
 	ServiceAt  OptNilString              `json:"service_at"`
 	Elapsed    OptNilString              `json:"elapsed"`
+	Effort     OptNilFloat64             `json:"effort"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1576,6 +1712,11 @@ func (s *TicketPatch) GetElapsed() OptNilString {
 	return s.Elapsed
 }
 
+// GetEffort returns the value of Effort.
+func (s *TicketPatch) GetEffort() OptNilFloat64 {
+	return s.Effort
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketPatch) SetSubject(val OptString) {
 	s.Subject = val
@@ -1626,6 +1767,11 @@ func (s *TicketPatch) SetElapsed(val OptNilString) {
 	s.Elapsed = val
 }
 
+// SetEffort sets the value of Effort.
+func (s *TicketPatch) SetEffort(val OptNilFloat64) {
+	s.Effort = val
+}
+
 type TicketPatchPriority int64
 
 const (
@@ -1655,6 +1801,7 @@ type TicketUpdate struct {
 	ServiceOn  OptNilDate                 `json:"service_on"`
 	ServiceAt  OptNilString               `json:"service_at"`
 	Elapsed    OptNilString               `json:"elapsed"`
+	Effort     OptNilFloat64              `json:"effort"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1707,6 +1854,11 @@ func (s *TicketUpdate) GetElapsed() OptNilString {
 	return s.Elapsed
 }
 
+// GetEffort returns the value of Effort.
+func (s *TicketUpdate) GetEffort() OptNilFloat64 {
+	return s.Effort
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketUpdate) SetSubject(val string) {
 	s.Subject = val
@@ -1755,6 +1907,11 @@ func (s *TicketUpdate) SetServiceAt(val OptNilString) {
 // SetElapsed sets the value of Elapsed.
 func (s *TicketUpdate) SetElapsed(val OptNilString) {
 	s.Elapsed = val
+}
+
+// SetEffort sets the value of Effort.
+func (s *TicketUpdate) SetEffort(val OptNilFloat64) {
+	s.Effort = val
 }
 
 type TicketUpdatePriority int64

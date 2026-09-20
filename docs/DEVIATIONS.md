@@ -44,6 +44,33 @@
 
 ## 원장
 
+## DEV-0015 — Float non-finite 입력을 저장·JSON rendering 전에 거부
+
+- Status: Verified (local checkpoint; Hosted scope is recorded separately)
+- Date: 2026-09-20
+- Scope: [Float raw 관찰](../internal/floattest/testdata/django61.json)의 serializer 중 `render_exception=ValueError`인 non-finite 값,
+  JSON number의 `1e309`와 `-1e309`, SQLite `database.storage_special[label=nan]`.
+- Reference: 고정 Django 6.1 / DRF 3.18.0 / Python 네 버전의 독립 public API 실행.
+- Related: [ADR-0068](adr/0068-binary64-field-and-finite-json-boundaries.md), [GDJ-0090](../work/0090-floating-point-models.md),
+  [실행 범위](status/TEST_EVIDENCE.md#gdj-0090--float-모델과-finite-소비자-연결).
+
+DRF FloatField는 NaN/Infinity를 cleaned 값에 넣고 JSONRenderer에서 ValueError를 낸다. GoDj Float serializer는 해당 값을
+field validation의 invalid로 먼저 거부한다. 저장이 끝난 뒤 응답만 실패하는 경로를 막기 위한 결정이다. 모델·query의 binary64
+범위를 finite로 줄이는 결정은 아니며 PostgreSQL의 native NaN/Infinity 저장·비교는 유지한다. Form은 원래 Django처럼 finite만 받는다.
+
+고정 serializer 관찰 360개 중 직접 field 비교 332개에는 non-finite 문자열 52개가 있다. 이 52개와 별도 JSON number 관찰의
+exponent overflow 2개에서만 reference의 valid+render failure를 GoDj invalid로 대조한다. NaN을 오류 없이 NULL이나 zero로 바꾸지 않는다.
+Typed float non-finite 12개와 Decimal non-JSON 8개는 Go closed-value/JSON constructor가 먼저 거부한다. Python Decimal 0.1의 4개는
+이름을 명시한 decimal-token transport projection이며 Python 객체 호환성으로 표시하지 않는다. NUL 4개는 기존 global JSON 거부다.
+비교기는 selector·각 bucket 수·reference 오류를 확인하며 wildcard mismatch나 test skip으로 처리하지 않는다.
+
+SQLite의 native NaN write가 NULL로 바뀌는 관찰도 그대로 유지한다. GoDj SQLite compiler는 NaN parameter를 SQL 실행 전에 거부하고,
+PostgreSQL은 허용한다. 실제 query/write·기존 행 보존·rollback을 양 backend의 local normal/race/CGO0에서 확인했다. ±Infinity나 finite 극값·subnormal을
+같은 SQLite 거부 범위로 확대하지 않는다. SQLite의 -0 → +0 저장은 native 동작으로 명시하며 PostgreSQL의 zero sign 보존과 구분한다.
+
+Float는 새 제품 의미이므로 이전 Float 데이터의 migration은 필요하지 않다. 향후 transport가 non-finite를 명시적으로 표현하거나
+SQLite adapter가 별도 저장 방식을 제공할 때 이 정책과 정확한 selector를 재검토하고 supersede한다. 제품 source와 실행 환경의 범위는 연결한 TEST_EVIDENCE를 따른다.
+
 ## DEV-0014 — TimeInput의 초기 microsecond와 변경 감지를 보존
 
 - Status: Verified

@@ -208,6 +208,14 @@ func compilePostgresMigrationColumn(field ir.Field) (string, error) {
 		if field.Nullable {
 			declaration = "BOOLEAN NULL"
 		}
+	case ir.FieldFloat:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarFloat {
+			return "", fmt.Errorf("FloatField has an invalid migration shape")
+		}
+		declaration = "DOUBLE PRECISION NOT NULL"
+		if field.Nullable {
+			declaration = "DOUBLE PRECISION NULL"
+		}
 	case ir.FieldDuration:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Default != nil && field.Default.Kind != ir.ScalarDuration {
 			return "", fmt.Errorf("DurationField has an invalid migration shape")

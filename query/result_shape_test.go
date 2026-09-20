@@ -126,7 +126,7 @@ func TestProjectionResultRejectsInvalidDuplicateAndForeignFields(t *testing.T) {
 		{name: "zero field", fields: []query.FieldRef{{}}},
 		{name: "missing name", fields: []query.FieldRef{query.NewFieldRef("", "title", query.FieldString, false)}},
 		{name: "missing column", fields: []query.FieldRef{query.NewFieldRef("title", "", query.FieldString, false)}},
-		{name: "unsupported kind", fields: []query.FieldRef{query.NewFieldRef("score", "score", query.FieldKind("float"), false)}},
+		{name: "unsupported kind", fields: []query.FieldRef{query.NewFieldRef("score", "score", query.FieldKind("unsupported"), false)}},
 		{name: "duplicate field", fields: []query.FieldRef{id, id}},
 	}
 	for _, test := range tests {
@@ -225,7 +225,7 @@ func TestAggregateResultLimitsTypesAccessorsAndEquality(t *testing.T) {
 		{name: "MIN boolean", expressions: []query.ResultExpression{query.MinResult(published)}},
 		{name: "MIN zero field", expressions: []query.ResultExpression{query.MinResult(query.FieldRef{})}},
 		{name: "MAX boolean", expressions: []query.ResultExpression{query.MaxResult(published)}},
-		{name: "MAX unsupported", expressions: []query.ResultExpression{query.MaxResult(query.NewFieldRef("score", "score", query.FieldKind("float"), false))}},
+		{name: "MAX unsupported", expressions: []query.ResultExpression{query.MaxResult(query.NewFieldRef("score", "score", query.FieldKind("unsupported"), false))}},
 	}
 	for _, test := range invalid {
 		t.Run(test.name, func(t *testing.T) {

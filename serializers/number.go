@@ -1,6 +1,9 @@
 package serializers
 
-import "strconv"
+import (
+	"github.com/progresshans/godj/internal/floatvalue"
+	"strconv"
+)
 
 // Number constructs an exact JSON number. Canonical signed int64 tokens use
 // ValueInteger; other valid tokens retain their spelling as ValueNumber. This
@@ -18,11 +21,16 @@ func Number(raw string) (Value, error) {
 	return Value{kind: ValueNumber, string: raw, valid: true}, nil
 }
 
-// AsNumber returns the exact token for a JSON number, including ValueInteger.
+// AsNumber returns the exact input token or a typed number's canonical output.
 // AsInteger remains strict and performs no decimal or exponent coercion.
 func (v Value) AsNumber() (string, bool) {
 	if !v.valid {
 		return "", false
+	}
+	if v.kind == ValueFloat {
+		value, _ := v.AsFloat()
+		text, err := floatvalue.JSON(value)
+		return text, err == nil
 	}
 	if v.kind == ValueInteger {
 		return strconv.FormatInt(v.integer, 10), true

@@ -15,7 +15,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "2cca9c4631559d9ce2f3515c72bf5ca118d8eb2cc2a140371b41024bf7ff3d17"
+const GoDjSchemaSHA256 = "18230997b0c8289d9acd62a5a9124460af00895a602439531843804fcf514b76"
 
 type Category struct {
 	ID                    int64
@@ -199,6 +199,7 @@ type Ticket struct {
 	ServiceOn             *_godjcalendar.Date
 	ServiceAt             *_godjclock.Time
 	Elapsed               *_godjduration.Duration
+	Effort                *float64
 	godjPrimaryKeyPresent bool
 }
 
@@ -222,7 +223,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanServiceOn orm.NullableDateScanner
 	var scanServiceAt orm.NullableTimeScanner
 	var scanElapsed orm.NullableDurationScanner
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed); err != nil {
+	var scanEffort orm.NullableFloatScanner
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -256,6 +258,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanElapsed.Valid {
 		scanned := scanElapsed.Duration
 		value.Elapsed = &scanned
+	}
+	if scanEffort.Valid {
+		scanned := scanEffort.Float
+		value.Effort = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -308,6 +314,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.Elapsed != nil {
 		clonedElapsed := *value.Elapsed
 		clone.Elapsed = &clonedElapsed
+	}
+	if value.Effort != nil {
+		clonedEffort := *value.Effort
+		clone.Effort = &clonedEffort
 	}
 	return clone
 }
@@ -366,6 +376,11 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.Duration(*value.Elapsed), true
+	case "effort":
+		if value.Effort == nil {
+			return query.Null(), true
+		}
+		return query.Float(*value.Effort), true
 	default:
 		return query.Value{}, false
 	}
@@ -383,6 +398,7 @@ type TicketFieldSet struct {
 	ServiceOn  orm.NullableDateField[Ticket]
 	ServiceAt  orm.NullableTimeField[Ticket]
 	Elapsed    orm.NullableDurationField[Ticket]
+	Effort     orm.NullableFloatField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
@@ -399,6 +415,7 @@ var TicketFields = func() TicketFieldSet {
 		ServiceOn:  orm.NewNullableDateField[Ticket](metadata.Fields[9]),
 		ServiceAt:  orm.NewNullableTimeField[Ticket](metadata.Fields[10]),
 		Elapsed:    orm.NewNullableDurationField[Ticket](metadata.Fields[11]),
+		Effort:     orm.NewNullableFloatField[Ticket](metadata.Fields[12]),
 	}
 }()
 
@@ -436,6 +453,7 @@ type TicketCreate struct {
 	serviceOn  orm.NullableChange[_godjcalendar.Date]
 	serviceAt  orm.NullableChange[_godjclock.Time]
 	elapsed    orm.NullableChange[_godjduration.Duration]
+	effort     orm.NullableChange[float64]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -540,9 +558,19 @@ func (input TicketCreate) WithElapsedNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithEffort(value float64) TicketCreate {
+	input.effort = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithEffortNull() TicketCreate {
+	input.effort = orm.SetNull[float64]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 11)
+	assignments := make([]query.Assignment, 0, 12)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -745,6 +773,26 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedEffort, changedEffortState := input.effort.Get()
+	switch changedEffortState {
+	case orm.NullableChangeUnset:
+		value.Effort = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("effort", "effort", query.FieldFloat, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedEffort := changedEffort
+		value.Effort = &storedEffort
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("effort", "effort", query.FieldFloat, true), query.Float(changedEffort)))
+	case orm.NullableChangeNull:
+		value.Effort = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("effort", "effort", query.FieldFloat, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "effort",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -760,6 +808,7 @@ type TicketPatch struct {
 	serviceOn  orm.NullableChange[_godjcalendar.Date]
 	serviceAt  orm.NullableChange[_godjclock.Time]
 	elapsed    orm.NullableChange[_godjduration.Duration]
+	effort     orm.NullableChange[float64]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -857,9 +906,19 @@ func (input TicketPatch) WithElapsedNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithEffort(value float64) TicketPatch {
+	input.effort = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithEffortNull() TicketPatch {
+	input.effort = orm.SetNull[float64]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 11)
+	assignments := make([]query.Assignment, 0, 12)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -1030,6 +1089,24 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedEffort, changedEffortState := input.effort.Get()
+	switch changedEffortState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedEffort := changedEffort
+		value.Effort = &storedEffort
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("effort", "effort", query.FieldFloat, true), query.Float(changedEffort)))
+	case orm.NullableChangeNull:
+		value.Effort = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("effort", "effort", query.FieldFloat, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "effort",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -1134,8 +1211,15 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldDuration,
 				Nullable: true,
 			},
+			{
+				Name:     "effort",
+				GoName:   "Effort",
+				Column:   "effort",
+				Kind:     ir.FieldFloat,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_1a4bff2f6616cc7b2194f20d340cc575097687233d6cdf45f217eea08cec3ca0 struct{}
+type GoDjProjectSnapshot_292be0408ff7f68ff723171af667c0cdcb3a69e70a1b36446f488582e2abab9a struct{}

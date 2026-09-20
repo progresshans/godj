@@ -129,7 +129,7 @@ func TestForwardRelationProjectionValidationRejectsEveryUnsupportedShape(t *test
 		{name: "duplicate target name", source: validSource, sourceTable: "blog_post", sourceKey: validSourceKey, target: validTarget, targetTable: "authors_author", targetKey: validTargetKey, targetFields: []query.FieldRef{validTargetKey, query.NewFieldRef("id", "other", query.FieldInteger, false)}},
 		{name: "duplicate target column", source: validSource, sourceTable: "blog_post", sourceKey: validSourceKey, target: validTarget, targetTable: "authors_author", targetKey: validTargetKey, targetFields: []query.FieldRef{validTargetKey, query.NewFieldRef("other", "id", query.FieldInteger, false)}},
 		{name: "invalid target field", source: validSource, sourceTable: "blog_post", sourceKey: validSourceKey, target: validTarget, targetTable: "authors_author", targetKey: validTargetKey, targetFields: []query.FieldRef{validTargetKey, query.NewFieldRef("DisplayName", "name", query.FieldString, false)}},
-		{name: "unsupported target kind", source: validSource, sourceTable: "blog_post", sourceKey: validSourceKey, target: validTarget, targetTable: "authors_author", targetKey: validTargetKey, targetFields: []query.FieldRef{validTargetKey, query.NewFieldRef("score", "score", query.FieldKind("float"), false)}},
+		{name: "unsupported target kind", source: validSource, sourceTable: "blog_post", sourceKey: validSourceKey, target: validTarget, targetTable: "authors_author", targetKey: validTargetKey, targetFields: []query.FieldRef{validTargetKey, query.NewFieldRef("score", "score", query.FieldKind("unsupported"), false)}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

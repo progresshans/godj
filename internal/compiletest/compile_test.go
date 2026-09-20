@@ -515,6 +515,9 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		fixture       string
 		wantFragments []string
 	}{
+		{name: "float predicate rejects float32", fixture: "float_predicate_float32.go.txt", wantFragments: []string{"float32(1)", "float64"}},
+		{name: "float write rejects typed integer", fixture: "float_write_integer.go.txt", wantFragments: []string{"int64(1)", "float64"}},
+		{name: "float reference rejects integer field", fixture: "float_reference_integer.go.txt", wantFragments: []string{"int64", "float64"}},
 		{name: "duration rejects standard time.Duration", fixture: "duration_predicate_nanoseconds.go.txt", wantFragments: []string{"time.Second", "duration.Duration"}},
 		{name: "duration write rejects clock", fixture: "duration_write_clock.go.txt", wantFragments: []string{"clock.Time{}", "duration.Duration"}},
 		{name: "duration reference rejects date", fixture: "duration_reference_date.go.txt", wantFragments: []string{"orm.F(models.TicketFields.ServiceOn)", "duration.Duration"}},

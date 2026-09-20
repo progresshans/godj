@@ -188,7 +188,7 @@ func supportedProjectRelationQueryTerminal(field ir.Field) bool {
 	if field.Relation != nil {
 		return false
 	}
-	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration) || field.Kind == ir.FieldBoolean
+	return field.Kind == ir.FieldAuto || field.Kind == ir.FieldInteger || field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat) || field.Kind == ir.FieldBoolean
 }
 
 func projectRelationQueryGroupName(model *projectRelationModel) string {
@@ -256,6 +256,8 @@ func projectRelationQueryScalarKind(field ir.Field) string {
 		return "Integer"
 	case ir.FieldBoolean:
 		return "Boolean"
+	case ir.FieldFloat:
+		return "Float"
 	case ir.FieldDuration:
 		return "Duration"
 	case ir.FieldTime:

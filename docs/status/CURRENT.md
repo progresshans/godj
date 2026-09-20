@@ -16,6 +16,7 @@ Nullable Boolean의 세 상태를 generated pointer·양 DB·Form/Admin·Helpdes
 Calendar Date를 별도 Go 값·양 DB DATE·Form/Admin·Helpdesk service_on·PUT/PATCH·OpenAPI/client까지 연결했다.
 Clock Time을 별도 Go 값·양 DB TIME·Form/Admin·Helpdesk service_at·PUT/PATCH·OpenAPI/client까지 연결했다.
 Duration의 전체 모델 범위·양 DB 저장 한도와 Form/Admin·Helpdesk elapsed·OpenAPI/client, exact JSON number 기반을 연결했다.
+Float의 binary64·nullable/default·양 DB와 finite Form/Admin·Helpdesk effort·JSON/OpenAPI/client를 연결했다.
 환경별 검증 상태는 아래 현재 작업과 TEST_EVIDENCE를 따른다.
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
@@ -31,11 +32,9 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0089의 Duration 값·양 DB·Form/Admin·Helpdesk·독립 client와 local affected 일반/race·CGO0를 완료했다.
-수정 source의 Hosted full은 62개 job 모두 성공했고 source·attempt·최종 full_platform_verified=true를 확인했다.
-GDJ-0090의 독립 Django/DRF 기준을 통합했다. Float 제품은 `feature/floating-point-models` worktree에서 모델·IR·query·생성기·양 DB·
-Form/Admin·API·Helpdesk effort를 연결 중이며 compile-only 확인 뒤 실제 소비자·실패 경로·독립 client와 affected 검증을 보강한다.
-Float 제품 구현은 현재 통합 branch와 위 Hosted full source에 포함되지 않는다.
+GDJ-0090 Float 제품의 affected 일반/race, 필수 PostgreSQL·CGO0·독립 client·생성 drift checkpoint를 완료했다.
+이를 기존 Draft PR에 통합하고 Hosted `orm` scope로 관련 OS/architecture/mode 검증을 진행한다.
+최근 Hosted full은 GDJ-0089의 source이며 Float 제품은 포함하지 않는다. 정확한 source·실행 상태는 TEST_EVIDENCE를 따른다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

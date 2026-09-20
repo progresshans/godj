@@ -131,7 +131,7 @@ func validProjectionField(field FieldRef) bool {
 		return false
 	}
 	switch field.Kind() {
-	case FieldInteger, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	case FieldInteger, FieldFloat, FieldString, FieldBoolean, FieldDateTime, FieldDate, FieldTime, FieldDuration:
 		return true
 	default:
 		return false

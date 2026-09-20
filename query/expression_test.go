@@ -254,7 +254,7 @@ func TestExpressionRejectsZeroAndMalformedInputs(t *testing.T) {
 		{name: "empty name", condition: query.NewCondition(query.NewFieldRef("", "title", query.FieldString, false), query.LookupExact, query.String("x"))},
 		{name: "empty column", condition: query.NewCondition(query.NewFieldRef("title", "", query.FieldString, false), query.LookupExact, query.String("x"))},
 		{name: "NUL name", condition: query.NewCondition(query.NewFieldRef("title\x00", "title", query.FieldString, false), query.LookupExact, query.String("x"))},
-		{name: "unknown field kind", condition: query.NewCondition(query.NewFieldRef("score", "score", query.FieldKind("float"), false), query.LookupExact, query.Integer(1))},
+		{name: "unknown field kind", condition: query.NewCondition(query.NewFieldRef("score", "score", query.FieldKind("unsupported"), false), query.LookupExact, query.Integer(1))},
 		{name: "exact kind mismatch", condition: query.NewCondition(stringField, query.LookupExact, query.Integer(1))},
 		{name: "icontains non-string field", condition: query.NewCondition(integerField, query.LookupIContains, query.String("1"))},
 		{name: "isnull non-Boolean value", condition: query.NewCondition(stringField, query.LookupIsNull, query.String("true"))},

@@ -157,3 +157,10 @@ func (field RelatedDateField[M]) WithConfigurationError(err error) RelatedDateFi
 	}
 	return field
 }
+
+func (field RelatedFloatField[M]) WithConfigurationError(err error) RelatedFloatField[M] {
+	if field.configurationErr == nil {
+		field.configurationErr = err
+	}
+	return field
+}

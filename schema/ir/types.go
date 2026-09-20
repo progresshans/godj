@@ -30,6 +30,7 @@ type FieldKind string
 const (
 	FieldAuto       FieldKind = "auto"
 	FieldInteger    FieldKind = "integer"
+	FieldFloat      FieldKind = "float"
 	FieldChar       FieldKind = "char"
 	FieldText       FieldKind = "text"
 	FieldDuration   FieldKind = "duration"
@@ -79,6 +80,7 @@ const (
 	ScalarString   ScalarKind = "string"
 	ScalarBoolean  ScalarKind = "boolean"
 	ScalarInteger  ScalarKind = "integer"
+	ScalarFloat    ScalarKind = "float"
 	ScalarDuration ScalarKind = "duration"
 	ScalarTime     ScalarKind = "time"
 	ScalarDate     ScalarKind = "date"
@@ -86,14 +88,15 @@ const (
 )
 
 type Scalar struct {
-	Kind     ScalarKind `json:"kind"`
-	String   string     `json:"string,omitempty"`
-	Date     string     `json:"date,omitempty"`
-	Time     string     `json:"time,omitempty"`
-	Duration string     `json:"duration,omitempty"`
-	DateTime string     `json:"datetime,omitempty"`
-	Boolean  bool       `json:"boolean,omitempty"`
-	Integer  int64      `json:"integer,omitempty"`
+	Kind      ScalarKind `json:"kind"`
+	String    string     `json:"string,omitempty"`
+	Date      string     `json:"date,omitempty"`
+	Time      string     `json:"time,omitempty"`
+	Duration  string     `json:"duration,omitempty"`
+	DateTime  string     `json:"datetime,omitempty"`
+	Boolean   bool       `json:"boolean,omitempty"`
+	Integer   int64      `json:"integer,omitempty"`
+	FloatBits string     `json:"float_bits,omitempty"`
 }
 
 // Choice pairs a stored scalar with its presentation label. Declaration order

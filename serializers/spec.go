@@ -27,6 +27,7 @@ const (
 	FieldDate
 	FieldTime
 	FieldDuration
+	FieldFloat
 )
 
 const (
@@ -38,6 +39,7 @@ const (
 	CodeDate          validation.Code = "invalid"
 	CodeTime          validation.Code = "invalid"
 	CodeDuration      validation.Code = "invalid"
+	CodeFloat         validation.Code = "invalid"
 	CodeBlank         validation.Code = "blank"
 	CodeMaxLength     validation.Code = "max_length"
 	CodeUnknown       validation.Code = "unknown"
@@ -179,7 +181,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration:
+	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldFloat:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -208,7 +210,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat
 }
 
 func validFieldName(name string) bool {
@@ -395,6 +397,9 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 			return Null(), validation.NewErrors()
 		}
 		return Value{}, oneViolation(field.name, CodeNull)
+	}
+	if field.kind == FieldFloat {
+		return cleanFloatValue(field, value)
 	}
 	if field.kind == FieldDuration {
 		if value.kind == ValueDuration {

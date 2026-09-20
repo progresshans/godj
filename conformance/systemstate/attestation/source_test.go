@@ -77,6 +77,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"clock/time.go",
 		"duration/duration.go",
 		"internal/durationinput/duration.go",
+		"internal/floatvalue/floatvalue.go",
 		"internal/timeinput/time.go",
 		"calendar/date.go",
 		"internal/dateinput/date.go",

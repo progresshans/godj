@@ -243,3 +243,8 @@ Duration은 normalized day/subday microsecond의 별도 값이며 전체 모델 
 SQLite의 int64 microseconds와 PostgreSQL의 native interval 변환은 backend가 소유한다. Form/JSON 입력은 canonical 모델 표현과
 별도다. 공통 JSON number는 정확한 token과 byte 한도를 유지하며 Duration의 pinned numeric coercion은 field에 한정한다.
 [ADR-0067](adr/0067-duration-model-range-and-number-input.md)을 따른다.
+
+Float는 binary64 모델과 finite Form/JSON 입력을 구분한다. IR default는 canonical bit 문자열이며 typed/dynamic AST·생성 default·scanner가
+±0을 보존하고 NaN은 하나의 quiet bit pattern으로 정규화한다. SQLite NaN은 I/O 전에 오류이며 PostgreSQL은 native 특수값 비교를 유지한다.
+AST/cache identity는 bit 기반이고 Form·Helpdesk no-op은 숫자 equality라 ±0 변경만으로 저장하지 않는다. Float serializer가 정확한 JSON token을
+해석하며 공통 parser의 정밀도·자원 한도는 유지한다. [ADR-0068](adr/0068-binary64-field-and-finite-json-boundaries.md)을 따른다.

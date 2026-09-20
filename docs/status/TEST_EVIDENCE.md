@@ -3,10 +3,13 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
-## GDJ-0090 — Float의 독립 기준 준비
+## GDJ-0090 — Float 모델과 finite 소비자 연결
+
+### 독립 기준
 
 - 활성 구현의 독립 기준: [GDJ-0090](../../work/0090-floating-point-models.md), branch `feature/floating-point-models`.
-- [ADR-0068](../adr/0068-binary64-field-and-finite-json-boundaries.md)는 설계를 채택했으며 GoDj Float 제품 구현·runtime 검증의 완료를 뜻하지 않는다.
+- [ADR-0068](../adr/0068-binary64-field-and-finite-json-boundaries.md)는 binary64 모델과 finite Form/JSON의 경계를 구분한다.
+  설계 채택·독립 reference·아래 제품 runtime 및 Hosted 검증은 각각의 source와 환경만 증명한다.
 - Runner·reference test·raw JSON 세 파일의 정렬된 SHA256 manifest는 `e31576a2e07038176618272c40a6c0eba57b7474e0441f6c3f178f64ca0217ba`다.
   [Raw 관찰](../../internal/floattest/testdata/django61.json)의 SHA256은 `43b1abf4b53b8d81fb89f55d80b5325998895150a0762c770b287e56844ccfd4`다.
 - 고정 Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5의 public API를 실행했다. Model 89·Form 136·serializer 360·
@@ -18,6 +21,63 @@
 - 별도 **Go 1.26.5 / pgx v5.10.0 / PostgreSQL 17.5(Homebrew)** probe는 transaction의 임시 table에 finite 극값·최소 subnormal·
   ±0·NaN·±Infinity를 binary parameter로 넣었다. 반환된 float64 bits와 native float8send bits가 같았으며 NaN=NaN·NaN>Infinity·-0=0을 확인했다.
   Probe transaction은 rollback했고 임시 table은 남기지 않았다. 고정 Hosted PG나 GoDj FloatField의 실행 증거로 표시하지 않는다.
+
+
+### 초기 checkpoint와 보완
+
+첫 31-package 통합 실행은 28개 package만 성공했고 historical Float default의 materialization과 생성 소비자, Helpdesk 흐름이 실패했다.
+Historical loader의 Float arm과 Helpdesk non-null create/update 분기를 보완했다. 생성 소비자를 별도로 compile해 통과한 뒤
+historical 복원 수정으로 실제 SQLite/PG child 실행도 통과했다. Parent helper의 일반적인 “Go build failed” 진단을 독립 compiler 실패로 확정하지 않았다.
+추가한 create 회귀의 403은 새 HTTP runtime에 이전 runtime의 CSRF signing token을 사용한 테스트 설정 문제였다.
+새 서버에서 form token을 얻은 뒤 정상 인증·CSRF 경로를 실행하도록 수정했다. required 실행·입력 거부·transaction 경계는 유지했다.
+
+### 로컬 통합 checkpoint
+
+실행 source는 Markdown을 제외한 제품·생성물·소비자 **117개** 변경 파일이다. 정렬된 `<sha256>  <relative-path>\n` manifest의 SHA256은
+`231929f81df3256c172b7b92a0bfb841dc31ff7dd523fde6826d821fd87e42e4`다. 일반·race 실행 전후 이 바이트가 동일함을 확인했다.
+별도로 CI workflow와 relation required roster 두 파일에 Float·Duration 생성 소비자 sentinel을 추가했다. 제품 동작의 수정이 아니며 CI tooling으로 검증했다.
+
+환경은 **Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL 17.5(Homebrew)**, 작업 전용 DB와 각 테스트의 독립 schema다.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`, `go test -count=1 -json -timeout=20m`을 적용했다.
+
+```text
+./admin ./api ./api/openapi ./api/openapi/consumertest ./clock ./codegen ./codegen/consumertest
+./conformance/projectoperatorproduct/attestation ./conformance/systemstate/attestation
+./db/internal/queryplan ./db/postgres ./db/sqlite ./duration ./examples/article/apiapp ./examples/helpdesk
+./forms ./forms/model ./internal/compiletest ./internal/floatvalue ./internal/irresource
+./internal/migrationautodetect ./internal/projectgenerate ./internal/projectspec ./internal/projectwire
+./migrations ./migrations/definition ./orm ./query ./schema ./schema/ir ./serializers
+```
+
+- 일반 **31 packages / 9,352 test·subtest PASS**, 같은 범위 `-race` **31 packages / 9,287 test·subtest PASS**다. Package terminal은 별도 집계했다.
+  전체 event의 run/terminal·필수 부모·package completion, stderr 0 bytes를 확인했다.
+- 차이 **65 events**는 `internal/compiletest`의 `!race` 파일에 속한 7 root와 subcase다. Float-vs-float32 predicate·integer write·integer F
+  거부 3개는 일반 실행에서 완료했다. Race 실행으로 합산하지 않았다.
+- 각 실행의 helper-only skip 2개는 `TestPostgresRevisionFenceHelperProcess`, `TestPublicationCrashHelper`다.
+  해당 cross-process/recovery 부모 테스트와 generated Float/Duration·Helpdesk 양 DB·독립 client 부모가 모두 PASS다.
+- 독립 model raw 89개 중 문자열 변환 **67개**를 공통 parser와 직접 대조한다. Form **136개**는 cleaned/errors와 초기 null/±0/1.5의 changed를 비교한다.
+  Serializer **360개**는 직접 field 332·finite Decimal token projection 4·typed nonfinite constructor 거부 12·non-JSON Decimal 거부 8·global NUL 거부 4로 구분했다.
+  Direct field 중 nonfinite 52개와 별도 JSON number 16개 중 exponent overflow 2개는 [DEV-0015](../DEVIATIONS.md#dev-0015--float-non-finite-입력을-저장json-rendering-전에-거부)의 명시적 선제 거부다.
+- Generated model의 binary64 default·±0/canonical NaN·nullable·add/reopen/reverse, typed/dynamic root/relation 각 9개, F/IN·projection·Min/Max,
+  관계 cache/Unwrap 복사와 실패 Save·선택 필드·취소를 검증했다. 별도 module의 SQLite/PG child terminal을 요구한다.
+  SQLite NaN query/write 거부·기존 행 보존과 ±Infinity, PG NaN equality/order/aggregate와 rollback을 실제 DB에서 확인했다.
+- Helpdesk `0011_ticket_effort`를 실제 migration·로그인·Admin·JSON create/PUT/PATCH에 연결했다. Non-null create, 숫자 rounding·subnormal·극값,
+  ±0 no-op·생략/null·빈 form·HTML escaping·invalid-before-transaction·rollback·fresh reopen을 확인했다.
+  ORM으로 저장한 ±Infinity의 API list/detail·Admin 읽기는 500이며 NULL로 출력하거나 원본을 바꾸지 않는다.
+- 실제 OpenAPI 문서 세 개를 다시 export하고 고정 **ogen v1.24.0**으로 생성했다. Article 생성물과 module/tool lock은 그대로이며 Helpdesk만 갱신했다.
+  별도 module의 **28개 필수 receipt**, 실제 HTTP의 non-null create·Float update, 최종 DB 상태와 독립 wire의 정밀도·signed zero·required nullable·overflow를 검증했다.
+  Request.Validate 명시 호출과 response decoder를 구분하며 자동 request validation을 주장하지 않는다.
+- Affected vet·generated drift, Helpdesk migration `candidate_count:0`, CI tooling **37 tests**, docs/format·diff 검사를 통과했다.
+  고정 openapi-spec-validator **0.9.0** / jsonschema **4.26.0** / referencing **0.37.0**의 문서 세 개 검증과 generated model/project의
+  **Linux/386/CGO0 cross-compile**도 PASS다. 386 runtime 증거는 아니다. 앞선 전체 **149-package compile-only**는 runtime PASS와 구분한다.
+- `CGO_ENABLED=0`의 generated Float·독립 client·Helpdesk SQLite/PG focused checkpoint는 **3 packages / 4 root tests PASS, skip 0**다.
+  각 root의 terminal과 stderr 0 bytes, 같은 제품 117개 파일의 바이트를 다시 확인했다.
+- 모든 로컬 실행 종료 뒤 작업 전용 DB의 연결 0개를 확인하고 삭제했다. 기존 PostgreSQL service는 유지했다.
+
+### Hosted 검증 소유권
+
+Float의 관련 통합은 Hosted **orm** scope로 실행한다. Portable Go·relation·targeted command·PostgreSQL owner가 선택된 OS/architecture/mode를 담당한다.
+현재 Float Hosted 결과는 아직 없다. 최근 full source `79637ef3f5943c9490027723527fb5074b01411f`는 Duration까지이며 Float를 포함하지 않는다.
 
 ## GDJ-0089 — Duration의 모델·DB 범위와 소비자 연결
 

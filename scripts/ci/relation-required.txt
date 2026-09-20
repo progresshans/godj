@@ -15,6 +15,8 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedNullableForwardCo
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNullableBooleanConsumer
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedCalendarDateConsumer
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedClockTimeConsumer
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedDurationConsumer
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedFloatConsumer
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedEagerCountConsumer
 github.com/progresshans/godj/db/sqlite|TestSQLiteNullableForwardBooleanPredicatesMatchDjango
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedForwardLookupConsumer

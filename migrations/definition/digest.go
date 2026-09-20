@@ -186,6 +186,10 @@ func appendCanonicalModel(output []byte, model ir.Model) ([]byte, error) {
 func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 	var err error
 	switch value.Kind {
+	case ir.ScalarFloat:
+		output = append(output, `{"kind":"float","float_bits":`...)
+		output, err = appendCanonicalString(output, value.FloatBits)
+		output = append(output, '}')
 	case ir.ScalarDuration:
 		output = append(output, `{"kind":"duration","duration":`...)
 		output, err = appendCanonicalString(output, value.Duration)

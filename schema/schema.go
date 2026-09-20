@@ -7,6 +7,7 @@ import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 	"time"
@@ -60,10 +61,10 @@ func Column(name string) FieldOption {
 }
 
 // Default records an explicitly typed application default. Exact scalar
-// types keep the declaration surface small for the M2 field subset while
-// preserving false and empty string as present values in the current Schema IR.
+// types keep defaults explicit while preserving zero, false and empty string
+// as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64 | time.Time | calendar.Date | clock.Time | duration.Duration
+	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
@@ -94,6 +95,8 @@ func Default[T DefaultScalar](value T) FieldOption {
 			if err == nil {
 				field.Default.DateTime = temporal.Format(canonical)
 			}
+		case float64:
+			field.Default = &ir.Scalar{Kind: ir.ScalarFloat, FloatBits: floatvalue.Bits(typed)}
 		case int64:
 			field.Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: typed}
 		}
@@ -108,6 +111,11 @@ func CharField(name, goName string, maxLength int, options ...FieldOption) Field
 // HTTP and form input budgets remain explicit application choices.
 func TextField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldText, 0, options)
+}
+
+// FloatField stores a binary64 value. Each backend owns its storage limits.
+func FloatField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldFloat, 0, options)
 }
 
 // DurationField stores a normalized elapsed value with microsecond precision.

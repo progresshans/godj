@@ -36,6 +36,9 @@ var elapsedMigration []byte
 //go:embed migrations/helpdesk_0009_ticket_service_at.godj.json
 var serviceAtMigration []byte
 
+//go:embed migrations/helpdesk_0011_ticket_effort.godj.json
+var effortMigration []byte
+
 // MigrationSources returns detached historical definitions in declaration
 // order. Host setup loads them alongside its system-state migration. Existing
 // definitions are preserved when the current model grows.
@@ -51,5 +54,6 @@ func MigrationSources() []definition.Source {
 		{SourceID: "helpdesk/0008_ticket_service_on", Document: append([]byte(nil), serviceOnMigration...)},
 		{SourceID: "helpdesk/0009_ticket_service_at", Document: append([]byte(nil), serviceAtMigration...)},
 		{SourceID: "helpdesk/0010_ticket_elapsed", Document: append([]byte(nil), elapsedMigration...)},
+		{SourceID: "helpdesk/0011_ticket_effort", Document: append([]byte(nil), effortMigration...)},
 	}
 }

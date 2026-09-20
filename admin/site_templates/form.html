@@ -8,6 +8,8 @@
 {% if field.textarea %}<textarea name="{{ field.name }}"{% if field.required %} required{% endif %}>
 {{ field.value }}</textarea>{% endif %}
 {% if field.time %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="HH:MM:SS"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.float_number %}<input type="number" step="any" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.float_text %}<input type="text" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.duration %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="[days] HH:MM:SS"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.date %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="YYYY-MM-DD"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.datetime %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="YYYY-MM-DDTHH:MM:SSZ"{% if field.required %} required{% endif %}><span>UTC if no offset is provided.</span>{% endif %}

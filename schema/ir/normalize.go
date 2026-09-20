@@ -8,6 +8,7 @@ import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"unicode/utf8"
 
@@ -166,6 +167,13 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
+	case FieldFloat:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "FloatField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarFloat {
+			return validation(path+".default", "type_mismatch", "FloatField default must be a float64")
+		}
 	case FieldDuration:
 		if field.PrimaryKey || field.MaxLength != 0 {
 			return validation(path, "unsupported", "DurationField cannot be a primary key or have a max length")
@@ -283,7 +291,17 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 }
 
 func validateScalar(value Scalar, path string) error {
+	if value.Kind != ScalarFloat && value.FloatBits != "" {
+		return validation(path, "invalid_scalar", "non-float scalar carries a float payload")
+	}
 	switch value.Kind {
+	case ScalarFloat:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "float scalar carries another scalar payload")
+		}
+		if _, err := floatvalue.FromBits(value.FloatBits); err != nil {
+			return validation(path, "invalid_float", "float scalar must use canonical binary64 bits")
+		}
 	case ScalarString:
 		if !utf8.ValidString(value.String) {
 			return validation(path, "invalid_utf8", "string scalar must contain valid UTF-8")

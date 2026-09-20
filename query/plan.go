@@ -13,6 +13,7 @@ type FieldKind string
 
 const (
 	FieldInteger  FieldKind = "integer"
+	FieldFloat    FieldKind = "float"
 	FieldString   FieldKind = "string"
 	FieldBoolean  FieldKind = "boolean"
 	FieldDuration FieldKind = "duration"
@@ -220,6 +221,8 @@ func validInValues(field FieldRef, values []Value) bool {
 
 	var expected ValueKind
 	switch field.kind {
+	case FieldFloat:
+		expected = ValueFloat
 	case FieldInteger:
 		expected = ValueInteger
 	case FieldString:

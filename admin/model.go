@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -56,6 +57,9 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 		if !found {
 			return Object{}, &ConfigError{Path: "snapshot." + name, Code: "missing_value"}
 		}
+		if field.Kind == ir.FieldFloat && !scalar.IsNull() && scalar.Kind() != query.ValueFloat {
+			return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
+		}
 		var converted templates.Value
 		switch scalar.Kind() {
 		case query.ValueNull:
@@ -66,6 +70,13 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = templates.Bool(boolean)
+		case query.ValueFloat:
+			number, _ := scalar.Float()
+			text, err := floatvalue.JSON(number)
+			if err != nil {
+				return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
+			}
+			converted = templates.String(text)
 		case query.ValueDuration:
 			instant, _ := scalar.Duration()
 			converted = templates.String(instant.String())

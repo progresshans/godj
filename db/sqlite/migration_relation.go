@@ -510,6 +510,9 @@ func writeRelationScalar(hash sqliteRelationHashWriter, scalar ir.Scalar) {
 	writeRelationString(hash, string(scalar.Kind))
 	writeRelationString(hash, scalar.String)
 	writeRelationString(hash, scalar.DateTime)
+	if scalar.Kind == ir.ScalarFloat {
+		writeRelationString(hash, scalar.FloatBits)
+	}
 	if scalar.Kind == ir.ScalarDuration {
 		writeRelationString(hash, scalar.Duration)
 	}
@@ -2558,6 +2561,8 @@ func sqliteRelationDeclaredType(field ir.Field) (string, error) {
 		return "BIGINT", nil
 	case ir.FieldChar:
 		return fmt.Sprintf("VARCHAR(%d)", field.MaxLength), nil
+	case ir.FieldFloat:
+		return "REAL", nil
 	case ir.FieldDuration:
 		return "BIGINT", nil
 	case ir.FieldTime:

@@ -108,6 +108,9 @@ func measureDefault(sizer *wirejson.Sizer, value ir.Scalar) bool {
 	if value.String != "" && (!sizer.Literal(`,"string":`) || !sizer.String(value.String)) {
 		return false
 	}
+	if value.FloatBits != "" && (!sizer.Literal(`,"float_bits":`) || !sizer.String(value.FloatBits)) {
+		return false
+	}
 	if value.Duration != "" && (!sizer.Literal(`,"duration":`) || !sizer.String(value.Duration)) {
 		return false
 	}

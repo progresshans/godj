@@ -19,7 +19,7 @@ Calendar Date는 `format: date`와 별도의 nullable branch를 사용한다. Cl
 Clock Time은 timezone이 없는 string·pattern·length와 nullable branch다. RFC3339 full-time의 `format: time`과 구분한다.
 Client는 자정·최소 microsecond·마지막 microsecond·생략/null·PUT/PATCH의 HTTP 왕복과 최종 DB를 검사한다.
 Generated response decoder의 schema validation과 명시적 request.Validate를 확인한다. Request encoder가 Validate를 자동 호출한다고
-가정하지 않으며 server의 입력 검증을 유지한다. Parent와 child의 필수 receipt는 26개다.
+가정하지 않으며 server의 입력 검증을 유지한다. Parent와 child의 필수 receipt는 28개다.
 
 Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 request enum과 별도 int64 response를 확인하고,
 허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
@@ -119,3 +119,7 @@ CI integration target의 normal/race/CGO=0 실행도 같은 package를 포함한
 Duration은 canonical `[days ]HH:MM:SS[.ffffff]` string·pattern·length와 nullable branch를 사용한다.
 음수·SQLite int64 양 끝·소수초·생략/null의 실제 HTTP와 DB, required response와 request.Validate를 독립 client로 확인한다.
 서버의 더 넓은 duration input grammar와 생성 client의 canonical string 계약은 구분한다.
+
+Float는 finite number/double과 명시적 min/max를 사용한다. Client는 실제 HTTP에서 극값·subnormal·소수·생략/null을 왕복하고
+별도 wire에서 signed zero와 numeric bit roundtrip, 누락/잘못된 응답, 명시적 request.Validate의 non-finite 거부를 확인한다.
+실제 SQLite의 zero sign 정규화 및 숫자 equality에 따른 no-op은 별도로 검사한다.

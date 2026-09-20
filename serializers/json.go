@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"io"
 	"strconv"
@@ -335,6 +336,16 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			return s.appendBytes([]byte("true"))
 		}
 		return s.appendBytes([]byte("false"))
+	case ValueFloat:
+		number, ok := value.AsFloat()
+		text, err := floatvalue.JSON(number)
+		if !ok || err != nil {
+			return invalidValue("value.float", "float output must be finite")
+		}
+		if len(text) > s.limits.MaxNumberBytes {
+			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
+		}
+		return s.appendBytes([]byte(text))
 	case ValueDuration:
 		return s.appendString(value.string, "value.duration")
 	case ValueTime:

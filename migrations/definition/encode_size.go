@@ -272,6 +272,9 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 }
 
 func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) error {
+	if err := scanner.addString(path+".float_bits", value.FloatBits); err != nil {
+		return err
+	}
 	if err := scanner.addString(path+".duration", value.Duration); err != nil {
 		return err
 	}
@@ -286,6 +289,8 @@ func (scanner *encodingSizeScanner) scanDefault(path string, value ir.Scalar) er
 	}
 	structural := uint64(0)
 	switch value.Kind {
+	case ir.ScalarFloat:
+		structural = uint64(len(`{"kind":"","float_bits":""}`))
 	case ir.ScalarDuration:
 		structural = durationDefaultStructuralLowerBound
 	case ir.ScalarTime:

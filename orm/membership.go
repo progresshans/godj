@@ -68,6 +68,11 @@ func dynamicMembership(field ir.Field, raw any) ([]query.Value, error) {
 			break
 		}
 		return dynamicMembershipValues(field, values)
+	case []float64:
+		if field.Kind != ir.FieldFloat {
+			break
+		}
+		return dynamicMembershipValues(field, values)
 	case []duration.Duration:
 		if field.Kind != ir.FieldDuration {
 			break

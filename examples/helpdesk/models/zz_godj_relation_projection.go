@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "2cca9c4631559d9ce2f3515c72bf5ca118d8eb2cc2a140371b41024bf7ff3d17"
+const GoDjRelationProjectionSchemaSHA256 = "18230997b0c8289d9acd62a5a9124460af00895a602439531843804fcf514b76"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -71,6 +71,7 @@ type ticketProjectionScan struct {
 	scanServiceOn  orm.NullableDateScanner
 	scanServiceAt  orm.NullableTimeScanner
 	scanElapsed    orm.NullableDurationScanner
+	scanEffort     orm.NullableFloatScanner
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -90,6 +91,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanServiceOn,
 		&_scan.scanServiceAt,
 		&_scan.scanElapsed,
+		&_scan.scanEffort,
 	}
 }
 
@@ -97,7 +99,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid && !_scan.scanElapsed.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid && !_scan.scanElapsed.Valid && !_scan.scanEffort.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -149,8 +151,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 		_scanned := _scan.scanElapsed.Duration
 		_value.Elapsed = &_scanned
 	}
+	if _scan.scanEffort.Valid {
+		_scanned := _scan.scanEffort.Float
+		_value.Effort = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_1a4bff2f6616cc7b2194f20d340cc575097687233d6cdf45f217eea08cec3ca0
+var _ GoDjProjectSnapshot_292be0408ff7f68ff723171af667c0cdcb3a69e70a1b36446f488582e2abab9a

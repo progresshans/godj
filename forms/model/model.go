@@ -5,6 +5,7 @@ package model
 import (
 	"fmt"
 	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
 
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
@@ -221,6 +222,25 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		options = append(options, forms.WithValidators(override.validators...))
 	}
 	switch field.Kind {
+	case ir.FieldFloat:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
+			return forms.Field{}, &Error{Code: "invalid_float_metadata"}
+		}
+		options = append(options, forms.WithRequired(!field.Nullable))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := floatvalue.FromBits(field.Default.FloatBits)
+			if field.Default.Kind != ir.ScalarFloat || err != nil {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Float(value)))
+		}
+		return forms.FloatField(field.Name, options...)
 	case ir.FieldDuration:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_time_metadata"}

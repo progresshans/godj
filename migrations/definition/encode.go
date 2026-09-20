@@ -266,6 +266,11 @@ type choiceDocument struct {
 	Label string `json:"label"`
 }
 
+type floatDefaultDocument struct {
+	Kind      ir.ScalarKind `json:"kind"`
+	FloatBits string        `json:"float_bits"`
+}
+
 type durationDefaultDocument struct {
 	Kind     ir.ScalarKind `json:"kind"`
 	Duration string        `json:"duration"`
@@ -370,6 +375,8 @@ func encodeDefault(value *ir.Scalar) any {
 		return nil
 	}
 	switch value.Kind {
+	case ir.ScalarFloat:
+		return floatDefaultDocument{Kind: value.Kind, FloatBits: value.FloatBits}
 	case ir.ScalarDuration:
 		return durationDefaultDocument{Kind: value.Kind, Duration: value.Duration}
 	case ir.ScalarTime:

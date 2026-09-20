@@ -4,7 +4,9 @@ import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"math"
 	"time"
 )
 
@@ -13,6 +15,7 @@ type ValueKind string
 const (
 	ValueNull     ValueKind = "null"
 	ValueInteger  ValueKind = "integer"
+	ValueFloat    ValueKind = "float"
 	ValueString   ValueKind = "string"
 	ValueBoolean  ValueKind = "boolean"
 	ValueDuration ValueKind = "duration"
@@ -37,6 +40,14 @@ func Null() Value {
 
 func Integer(value int64) Value {
 	return Value{kind: ValueInteger, integer: value}
+}
+
+// Float preserves finite binary64 bits and signed zero, and canonicalizes NaN.
+func Float(value float64) Value {
+	return Value{kind: ValueFloat, integer: int64(floatvalue.CanonicalBits(value))}
+}
+func (v Value) Float() (float64, bool) {
+	return math.Float64frombits(uint64(v.integer)), v.kind == ValueFloat
 }
 
 func String(value string) Value {
@@ -147,6 +158,9 @@ func (v Value) DatabaseValue() (any, error) {
 		return v.text, nil
 	case ValueDateTime:
 		value, _ := v.DateTime()
+		return value, nil
+	case ValueFloat:
+		value, _ := v.Float()
 		return value, nil
 	case ValueInteger:
 		return v.integer, nil

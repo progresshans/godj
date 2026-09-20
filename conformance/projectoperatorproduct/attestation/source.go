@@ -41,6 +41,7 @@ var productSourcePrefixes = []string{
 	"clock/",
 	"duration/",
 	"internal/durationinput/",
+	"internal/floatvalue/",
 	"internal/timeinput/",
 	"calendar/",
 	"internal/dateinput/",

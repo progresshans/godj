@@ -10,8 +10,8 @@ integration_owner: "root"
 
 Helpdesk에서 소수와 지수 표기를 포함한 작업량 수치를 선언하고 저장·조회·편집한다.
 FloatField의 IR/default·typed/dynamic ORM·양 DB·Form/Admin·JSON/OpenAPI와 독립 client를 함께 연결한다.
-Duration의 수정된 Hosted full은 별도 source에서 진행 중이다. 독립 worktree에서 Float의 공통 값·입력과 IR/query 연결부터 구현하며,
-그 통합 검증에서 문제가 확인되면 먼저 보완한다. Float 제품을 PR에 통합하기 전에는 전체 소비자와 실패 경로를 함께 검증한다.
+Duration의 Hosted full은 source `79637ef3f5943c9490027723527fb5074b01411f`에서 완료했다.
+Float는 별도 worktree에서 구현하며 제품·생성기·소비자·실패 경로를 묶어 검증한 뒤 기존 Draft PR에 통합한다.
 
 ## 먼저 확인한 경계
 
@@ -22,7 +22,7 @@ Form은 non-finite를 invalid로 거부하지만 DRF FloatField는 허용하고 
 
 공통 JSON 계층은 Duration 작업에서 exact Number token과 숫자 byte 한도를 도입했다. Float 변환은 값의 정밀도와
 각 계층의 admission/error 의미를 명시한 뒤 연결한다. NaN을 NULL로 바꾸거나 렌더할 수 없는 값의 입력을 저장한 뒤에야
-JSON 응답이 실패하는 흐름을 정상 성공으로 취급하지 않는다. ±0·NaN의 equality/cache/no-op 의미도 결정해야 한다.
+JSON 응답이 실패하는 흐름을 정상 성공으로 취급하지 않는다. ±0·NaN의 equality/cache/no-op 의미는 ADR-0068을 따른다.
 
 ## 독립 관찰 준비
 
@@ -37,10 +37,20 @@ Python 네 버전의 fresh 실행에서 같은 의미를 확인했다. PostgreSQ
 non-finite 선제 거부는 위 DRF 관찰과 구분해 명시해야 한다. IR/default와 query/cache의 NaN canonicalization, ±0 및 no-op 의미는
 [ADR-0068](../docs/adr/0068-binary64-field-and-finite-json-boundaries.md)에 정리했다. SQLite NaN은 NULL로 바꾸기 전에 명시적으로 거부해야 한다.
 
+## 구현과 검증 경계
+
+Binary64 model/default·IR/wire·historical migration·typed/dynamic/F/IN·projection/aggregate·관계·양 DB를 연결했다.
+Form/Admin·finite JSON/OpenAPI와 Helpdesk nullable effort, 실제 별도 ogen client도 구현했다. 특수값 저장과 입력/출력 거부는
+[DEV-0015](../docs/DEVIATIONS.md#dev-0015--float-non-finite-입력을-저장json-rendering-전에-거부)에서 구분한다.
+
+초기 checkpoint에서 historical default 복원과 Helpdesk non-null create/update 분기 누락을 보완했다. 새 HTTP runtime의 CSRF token을
+그 runtime에서 먼저 발급받도록 테스트 설정도 바로잡았다. 수정 source를 고정해 affected 일반/race·필수 PostgreSQL·CGO0,
+생성 drift·독립 client·물리 storage와 출력 실패의 로컬 checkpoint를 완료했다. 명령과 실제 source·결과는 TEST_EVIDENCE 한 곳에서 기록한다.
+
 ## 다음 행동
 
-1. Model/Form/DRF의 실제 입력·오류와 JSON 숫자 변환을 독립 reference로 고정한다.
-2. SQLite와 PostgreSQL의 finite/subnormal/non-finite·zero sign 저장·비교와 unsupported 경계를 분리한다.
-3. 필요한 장기 의미를 정하고 값·생성·DB·소비자·실패 경로를 한 묶음으로 구현한다.
+로컬 checkpoint를 통과한 Float source를 기존 Draft PR에 통합하고 Hosted `orm` scope를 실행한다. 이 scope의 portable Go·relation·
+targeted command·PostgreSQL owner가 관련 OS/architecture/mode 회귀를 소유한다. Django/DRF의 네 Python 버전 기준은 위 fresh local 관찰로
+확인하며 전체 platform PASS로 합치지 않는다. 최근 Hosted full은 Duration source의 결과다.
 
-이 worktree의 활성 구현은 GDJ-0090다. Float 제품의 전체 구현이나 runtime 검증은 아직 완료하지 않았다. GDJ-0089의 Hosted full은 그 source에서 별도로 추적한다.
+이 worktree의 활성 구현은 GDJ-0090다. 로컬·Hosted의 최종 완료 여부는 CURRENT와 TEST_EVIDENCE를 따른다.

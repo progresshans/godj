@@ -68,6 +68,13 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 				instant, _ := value.AsDateTime()
 				patch = patch.WithDueAt(instant)
 			}
+		case "effort":
+			if value.IsNull() {
+				patch = patch.WithEffortNull()
+			} else {
+				floatValue, _ := value.AsFloat()
+				patch = patch.WithEffort(floatValue)
+			}
 		case "elapsed":
 			if value.IsNull() {
 				patch = patch.WithElapsedNull()
