@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/uuid"
 	"time"
@@ -67,7 +68,7 @@ func Column(name string) FieldOption {
 // types keep defaults explicit while preserving zero, false and empty string
 // as present values in the current Schema IR.
 type DefaultScalar interface {
-	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal | uuid.UUID
+	string | bool | int64 | float64 | time.Time | calendar.Date | clock.Time | duration.Duration | decimal.Decimal | uuid.UUID | jsonvalue.Value
 }
 
 func Default[T DefaultScalar](value T) FieldOption {
@@ -77,6 +78,11 @@ func Default[T DefaultScalar](value T) FieldOption {
 			field.Default = &ir.Scalar{Kind: ir.ScalarString, String: typed}
 		case bool:
 			field.Default = &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: typed}
+		case jsonvalue.Value:
+			field.Default = &ir.Scalar{Kind: ir.ScalarJSON}
+			if canonical, err := typed.Canonical(); err == nil {
+				field.Default.JSON = canonical.Text
+			}
 		case uuid.UUID:
 			field.Default = &ir.Scalar{Kind: ir.ScalarUUID, UUID: typed.String()}
 		case decimal.Decimal:
@@ -137,6 +143,12 @@ func DecimalField(name, goName string, maxDigits, decimalPlaces int, options ...
 // UUIDField stores one exact 128-bit UUID; the zero UUID is a present value.
 func UUIDField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldUUID, 0, options)
+}
+
+// JSONField stores an independently owned JSON document. JSON null is a
+// present document; Nullable permits the separate SQL NULL model state.
+func JSONField(name, goName string, options ...FieldOption) Field {
+	return newField(name, goName, ir.FieldJSON, 0, options)
 }
 
 // FloatField stores a binary64 value. Each backend owns its storage limits.

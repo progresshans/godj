@@ -36,6 +36,7 @@ const (
 	FieldFloat      FieldKind = "float"
 	FieldDecimal    FieldKind = "decimal"
 	FieldUUID       FieldKind = "uuid"
+	FieldJSON       FieldKind = "json"
 	FieldChar       FieldKind = "char"
 	FieldText       FieldKind = "text"
 	FieldDuration   FieldKind = "duration"
@@ -88,6 +89,7 @@ const (
 	ScalarFloat    ScalarKind = "float"
 	ScalarDecimal  ScalarKind = "decimal"
 	ScalarUUID     ScalarKind = "uuid"
+	ScalarJSON     ScalarKind = "json"
 	ScalarDuration ScalarKind = "duration"
 	ScalarTime     ScalarKind = "time"
 	ScalarDate     ScalarKind = "date"
@@ -106,6 +108,7 @@ type Scalar struct {
 	FloatBits string     `json:"float_bits,omitempty"`
 	Decimal   string     `json:"decimal,omitempty"`
 	UUID      string     `json:"uuid,omitempty"`
+	JSON      string     `json:"json,omitempty"`
 }
 
 // Choice pairs a stored scalar with its presentation label. Declaration order

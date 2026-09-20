@@ -9,7 +9,7 @@ integration_owner: "root"
 # JSON 모델과 외부 연동 데이터
 
 외부 UUID에 대응하는 구조화된 데이터를 모델에 저장하고 Form/Admin/API로 편집하는 흐름을 준비한다.
-현재 UUID work의 Hosted 통합과 별개로 고정 Django/DRF의 public JSONField 결과를 먼저 관찰한다.
+완료한 UUID 기반에서 고정 Django/DRF의 public JSONField 결과를 먼저 관찰하고 모델부터 소비자까지 연결한다.
 JSONField 제품 지원이나 새로운 DB/query 범위의 완료를 뜻하지 않는다.
 
 ## 먼저 확인할 의미
@@ -39,5 +39,13 @@ Django 6.1의 명시적 JSONNull()과 deprecated exact None 경고도 따로 기
 다음은 이 차이를 고려한 값·숫자 정밀도·소유권과 DB별 capability 설계다. 공통 AST가 있다는 이유로 모든 backend의 JSON 비교를 같다고 가정하지 않는다.
 이 관찰만으로 GoDj JSON 제품 구현이나 Django PostgreSQL 비교를 완료 처리하지 않는다.
 
-UUID의 Hosted 통합을 완료한 뒤 이 작업을 활성 구현으로 이어간다. 현재 JSON 값 패키지와 any-root bounded decode를 구현 중이다.
-Canonical object key/공백 정리와 정확한 숫자 token, 명시적 JSON null·invalid zero, 입력/decoded container의 소유권부터 연결하며 runtime 검증은 아직 전이다.
+[JSON 값과 저장 설계](../docs/adr/0071-json-values-and-native-storage-boundaries.md)에 따라 값·IR·strict default wire와 historical digest,
+공통 query의 exact/IN/F exact·SQL isnull·projection, typed/dynamic ORM, root/eager·forward/reverse 생성 코드를 연결했다.
+SQLite TEXT의 JSON_VALID CHECK와 native PostgreSQL JSONB parameter/adapter·numeric expansion preflight를 구현했다.
+실제 외부 generated module에서 기존 DB nullable 추가·stored null·정밀도·query/관계·cache/clone·실패·취소·rollback·reopen·reverse의
+로컬 checkpoint를 완료했다. 환경·명령·source·실행 목록과 제한은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+
+후속은 Form/Admin의 JSON 원문·빈 값·변경 감지, serializer 입력/응답 nullability·OpenAPI와 실제 Helpdesk·독립 client다.
+빈 문자열 key 같은 임의 JSON 내부 구조와 API envelope의 이름 규칙을 구분한다. 기존 parser의 NUL·Unicode·자원 한도를 일괄 완화하지 않는다.
+JSON을 ordered scalar로 일괄 허용하지 않는다. Key/path·contains 등 추가 JSON 연산도 backend capability와 실제 결과를 확인하며 이어간다.
+현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

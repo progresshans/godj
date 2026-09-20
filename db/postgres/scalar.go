@@ -12,6 +12,9 @@ import (
 )
 
 func postgresValue(value query.Value) (any, error) {
+	if document, ok := value.JSON(); ok {
+		return postgresJSONValue(document)
+	}
 	if identifier, ok := value.UUID(); ok {
 		return pgtype.UUID{Bytes: identifier.Bytes(), Valid: true}, nil
 	}
@@ -37,13 +40,13 @@ type scalarRows struct {
 	kinds []query.FieldKind
 }
 
-// database/sql exposes native INTERVAL, NUMERIC and UUID as driver text. Convert
+// database/sql exposes native INTERVAL, NUMERIC, UUID and JSONB as driver text. Convert
 // only columns of those database types, including scalar results and joins.
 func adaptScalarRows(rows *sql.Rows, plan query.Plan) (db.Rows, error) {
 	needed := false
 	visit := func(fields []query.FieldRef) {
 		for _, field := range fields {
-			needed = needed || field.Kind() == query.FieldDuration || field.Kind() == query.FieldDecimal || field.Kind() == query.FieldUUID
+			needed = needed || field.Kind() == query.FieldDuration || field.Kind() == query.FieldDecimal || field.Kind() == query.FieldUUID || field.Kind() == query.FieldJSON
 		}
 	}
 	visit(plan.SourceFields())
@@ -63,6 +66,8 @@ func adaptScalarRows(rows *sql.Rows, plan query.Plan) (db.Rows, error) {
 		switch column.DatabaseTypeName() {
 		case "INTERVAL":
 			kinds[index] = query.FieldDuration
+		case "JSONB":
+			kinds[index] = query.FieldJSON
 		case "UUID":
 			kinds[index] = query.FieldUUID
 		case "NUMERIC":
@@ -85,6 +90,8 @@ func (rows *scalarRows) Scan(destinations ...any) error {
 		switch kind {
 		case query.FieldDuration:
 			adapted[index] = durationDestination{destination: destinations[index]}
+		case query.FieldJSON:
+			adapted[index] = jsonDestination{destination: destinations[index]}
 		case query.FieldUUID:
 			adapted[index] = uuidDestination{destination: destinations[index]}
 		case query.FieldDecimal:

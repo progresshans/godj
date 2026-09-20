@@ -8,14 +8,16 @@ import (
 )
 
 func TestScalarPayloadBudgetsIncludeActiveAndInactiveArms(t *testing.T) {
-	for _, kind := range []ir.ScalarKind{ir.ScalarDecimal, ir.ScalarFloat, ir.ScalarUUID, ir.ScalarString} {
-		for _, arm := range []string{"decimal", "float", "uuid"} {
+	for _, kind := range []ir.ScalarKind{ir.ScalarDecimal, ir.ScalarFloat, ir.ScalarUUID, ir.ScalarJSON, ir.ScalarString} {
+		for _, arm := range []string{"decimal", "float", "uuid", "json"} {
 			for _, choice := range []bool{false, true} {
 				scalar := ir.Scalar{Kind: kind}
 				if arm == "decimal" {
 					scalar.Decimal = strings.Repeat("1", 16)
 				} else if arm == "uuid" {
 					scalar.UUID = strings.Repeat("1", 16)
+				} else if arm == "json" {
+					scalar.JSON = strings.Repeat("1", 16)
 				} else {
 					scalar.FloatBits = strings.Repeat("1", 16)
 				}

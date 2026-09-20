@@ -44,6 +44,9 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 	if hasFloatDefault(schema) {
 		fmt.Fprintln(&output, "\t_godjmath \"math\"")
 	}
+	if hasJSONStorage(schema) {
+		fmt.Fprintln(&output, "\t_godjjson \"github.com/progresshans/godj/jsonvalue\"")
+	}
 	if hasUUIDStorage(schema) {
 		fmt.Fprintln(&output, "\t_godjuuid \"github.com/progresshans/godj/uuid\"")
 	}
@@ -84,7 +87,7 @@ func generate(packageName string, prepared preparedSchema) ([]byte, error) {
 func hasNullableQueryStorage(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
-			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration && field.Kind != ir.FieldFloat && field.Kind != ir.FieldDecimal && field.Kind != ir.FieldUUID) {
+			if field.Nullable && field.Kind != ir.FieldDateTime && field.Kind != ir.FieldDate && (field.Kind != ir.FieldTime && field.Kind != ir.FieldDuration && field.Kind != ir.FieldFloat && field.Kind != ir.FieldDecimal && field.Kind != ir.FieldUUID && field.Kind != ir.FieldJSON) {
 				return true
 			}
 		}
@@ -96,6 +99,17 @@ func hasFloatDefault(schema ir.Schema) bool {
 	for _, model := range schema.Models {
 		for _, field := range model.Fields {
 			if field.Default != nil && field.Default.Kind == ir.ScalarFloat {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasJSONStorage(schema ir.Schema) bool {
+	for _, model := range schema.Models {
+		for _, field := range model.Fields {
+			if field.Kind == ir.FieldJSON {
 				return true
 			}
 		}
@@ -204,7 +218,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\tscan%s := orm.%s(%d, %d)\n", field.GoName, constructor, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces)
 		} else if field.Nullable {
 			fmt.Fprintf(output, "\tvar scan%s %s\n", field.GoName, fieldRenderKind(field.Kind).sqlHolder)
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID) {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) {
 			fmt.Fprintf(output, "\tvar scan%s orm.%sScanner\n", field.GoName, fieldRenderKind(field.Kind).queryValue)
 		}
 	}
@@ -213,7 +227,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if index > 0 {
 			fmt.Fprint(output, ", ")
 		}
-		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID) {
+		if field.Nullable || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) {
 			fmt.Fprintf(output, "&scan%s", field.GoName)
 		} else {
 			fmt.Fprintf(output, "&value.%s", field.GoName)
@@ -226,7 +240,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintf(output, "\t\tscanned := scan%s.%s\n", field.GoName, fieldRenderKind(field.Kind).sqlValue)
 			fmt.Fprintf(output, "\t\tvalue.%s = &scanned\n", field.GoName)
 			fmt.Fprintln(output, "\t}")
-		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID) {
+		} else if field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) {
 			fmt.Fprintf(output, "\tvalue.%s = scan%s.%s\n", field.GoName, field.GoName, fieldRenderKind(field.Kind).sqlValue)
 		}
 	}
@@ -587,6 +601,8 @@ func queryValueExpression(field ir.Field, value string) string {
 
 func defaultValueExpression(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarJSON:
+		return fmt.Sprintf("_godjjson.Value{Text:%s}", strconv.Quote(value.JSON))
 	case ir.ScalarUUID:
 		identifier, err := uuid.Parse(value.UUID)
 		if err != nil {
@@ -642,6 +658,8 @@ func defaultValueExpression(value ir.Scalar) string {
 
 func scalarLiteral(value ir.Scalar) string {
 	switch value.Kind {
+	case ir.ScalarJSON:
+		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarJSON, JSON: %s}", strconv.Quote(value.JSON))
 	case ir.ScalarUUID:
 		return fmt.Sprintf("ir.Scalar{Kind: ir.ScalarUUID, UUID: %s}", strconv.Quote(value.UUID))
 	case ir.ScalarFloat:

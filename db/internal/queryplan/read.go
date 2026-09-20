@@ -100,7 +100,7 @@ func ReverseCondition(condition query.Condition, hop query.RelationHop, backendN
 	}
 	field := condition.Field()
 	if !field.ValidType() || !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) || field.Nullable() ||
-		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
+		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldJSON && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
 	}
 	return nil
@@ -153,7 +153,7 @@ func ContainsField(columns []query.FieldRef, candidate query.FieldRef) bool {
 }
 
 func ValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
-	return (value == query.ValueUUID && field == query.FieldUUID) || (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
+	return (value == query.ValueJSON && field == query.FieldJSON) || (value == query.ValueUUID && field == query.FieldUUID) || (value == query.ValueDecimal && field == query.FieldDecimal) || (value == query.ValueFloat && field == query.FieldFloat) || (value == query.ValueDate && field == query.FieldDate || value == query.ValueTime && field == query.FieldTime || value == query.ValueDuration && field == query.FieldDuration) || (value == query.ValueDateTime && field == query.FieldDateTime) || (value == query.ValueInteger && field == query.FieldInteger) ||
 		(value == query.ValueString && field == query.FieldString) ||
 		(value == query.ValueBoolean && field == query.FieldBoolean)
 }
@@ -181,6 +181,9 @@ func ProjectionFields(result query.ResultShape, sourceFields []query.FieldRef) (
 
 func OmittedOrderings(orderings []query.Ordering, sourceFields []query.FieldRef, quoteIdentifier func(string) (string, error)) error {
 	for _, ordering := range orderings {
+		if err := ValidateOrdering(ordering.Field()); err != nil {
+			return err
+		}
 		if !ContainsField(sourceFields, ordering.Field()) {
 			return invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
 		}
@@ -280,4 +283,12 @@ func ConditionJoinKey(path query.RelationPath) (RelationKey, bool) {
 		return RelationKey{}, false
 	}
 	return KeyForPath(hops), true
+}
+
+// ValidateOrdering does not infer a cross-backend order for structured JSON.
+func ValidateOrdering(field query.FieldRef) error {
+	if field.Kind() == query.FieldJSON {
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Field: field.Name(), Detail: "JSON ordering is not supported"}
+	}
+	return nil
 }

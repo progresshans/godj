@@ -48,7 +48,7 @@ func (limits Limits) valid() bool {
 // DecodeObject retains one bounded object. It rejects duplicate keys, trailing
 // values, invalid UTF-8 and lossy Unicode escapes before publishing any result.
 func DecodeObject(document []byte, limits Limits) (map[string]any, error) {
-	value, err := decode(document, limits, true)
+	value, err := DecodeValue(document, limits)
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +57,13 @@ func DecodeObject(document []byte, limits Limits) (map[string]any, error) {
 		return nil, errors.New("JSON wire root is not an object")
 	}
 	return object, nil
+}
+
+// DecodeValue retains an independently owned JSON value of any root kind.
+// Numbers keep their exact tokens; null is a nil value with a nil error.
+// It uses the same framing and resource checks as DecodeObject and Scan.
+func DecodeValue(document []byte, limits Limits) (any, error) {
+	return decode(document, limits, true)
 }
 
 // Scan checks the same framing and traversal bounds without retaining the

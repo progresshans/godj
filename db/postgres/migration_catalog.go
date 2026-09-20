@@ -592,6 +592,10 @@ func assertPostgresMigrationColumnCatalog(
 		if actual.typeName != "bool" || actual.typeModifier != -1 || actual.notNull == field.Nullable || actual.identity != "" {
 			return fmt.Errorf("BooleanField column %q has an unsupported physical shape", field.Column)
 		}
+	case ir.FieldJSON:
+		if actual.typeName != "jsonb" || actual.typeModifier != -1 || actual.notNull == field.Nullable || actual.identity != "" {
+			return fmt.Errorf("JSONField column %q has an unsupported physical shape", field.Column)
+		}
 	case ir.FieldUUID:
 		if actual.typeName != "uuid" || actual.typeModifier != -1 || actual.notNull == field.Nullable || actual.identity != "" {
 			return fmt.Errorf("UUIDField column %q has an unsupported physical shape", field.Column)

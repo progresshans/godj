@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/uuid"
 	"unicode/utf8"
 
@@ -172,6 +173,13 @@ func validateField(field Field, path string) error {
 		if field.Default != nil {
 			return validation(path+".default", "unsupported", "AutoField default is database generated")
 		}
+	case FieldJSON:
+		if field.PrimaryKey || field.MaxLength != 0 {
+			return validation(path, "unsupported", "JSONField cannot be a primary key or have a max length")
+		}
+		if field.Default != nil && field.Default.Kind != ScalarJSON {
+			return validation(path+".default", "type_mismatch", "JSONField default must be a jsonvalue.Value")
+		}
 	case FieldUUID:
 		if field.PrimaryKey || field.MaxLength != 0 {
 			return validation(path, "unsupported", "UUIDField cannot currently be a primary key or have a max length")
@@ -319,6 +327,9 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 }
 
 func validateScalar(value Scalar, path string) error {
+	if value.Kind != ScalarJSON && value.JSON != "" {
+		return validation(path, "invalid_scalar", "non-JSON scalar carries a JSON payload")
+	}
 	if value.Kind != ScalarUUID && value.UUID != "" {
 		return validation(path, "invalid_scalar", "non-UUID scalar carries a UUID payload")
 	}
@@ -329,6 +340,14 @@ func validateScalar(value Scalar, path string) error {
 		return validation(path, "invalid_scalar", "non-float scalar carries a float payload")
 	}
 	switch value.Kind {
+	case ScalarJSON:
+		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
+			return validation(path, "invalid_scalar", "JSON scalar carries another scalar payload")
+		}
+		parsed, err := jsonvalue.Parse([]byte(value.JSON))
+		if err != nil || parsed.Text != value.JSON {
+			return validation(path, "invalid_json", "JSON scalar must use a canonical bounded document")
+		}
 	case ScalarUUID:
 		if value.String != "" || value.Boolean || value.Integer != 0 || value.DateTime != "" || value.Date != "" || value.Time != "" || value.Duration != "" {
 			return validation(path, "invalid_scalar", "UUID scalar carries another scalar payload")

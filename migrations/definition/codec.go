@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/internal/identifiers"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/uuid"
@@ -530,7 +531,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
-					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldBoolean) &&
+					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldText) && fieldKind.string != string(ir.FieldDateTime) && fieldKind.string != string(ir.FieldDate) && fieldKind.string != string(ir.FieldTime) && fieldKind.string != string(ir.FieldDuration) && fieldKind.string != string(ir.FieldFloat) && fieldKind.string != string(ir.FieldDecimal) && fieldKind.string != string(ir.FieldUUID) && fieldKind.string != string(ir.FieldJSON) && fieldKind.string != string(ir.FieldBoolean) &&
 					fieldKind.string != string(ir.FieldInteger) && fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
@@ -744,8 +745,11 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/primary_key", app, name, operationIndex, "invalid_ir"))
 				}
 			}
-		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID:
+		case ir.FieldBoolean, ir.FieldInteger, ir.FieldDateTime, ir.FieldDate, ir.FieldTime, ir.FieldDuration, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldJSON:
 			expectedDefault := ir.ScalarBoolean
+			if ir.FieldKind(kind.string) == ir.FieldJSON {
+				expectedDefault = ir.ScalarJSON
+			}
 			if ir.FieldKind(kind.string) == ir.FieldUUID {
 				expectedDefault = ir.ScalarUUID
 			}
@@ -936,13 +940,22 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir")}
 	}
-	commonFields := []string{"boolean", "date", "datetime", "decimal", "duration", "float_bits", "integer", "kind", "string", "time", "uuid"}
+	commonFields := []string{"boolean", "date", "datetime", "decimal", "duration", "float_bits", "integer", "json", "kind", "string", "time", "uuid"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_ir"))
 	}
 	switch kind.string {
+	case string(ir.ScalarJSON):
+		object, _, faults := semanticObjectCandidates(value, []string{"json", "kind"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+		candidates = append(candidates, faults...)
+		if child, present := object.member("json"); present {
+			parsed, err := jsonvalue.Parse([]byte(child.string))
+			if child.kind != jsonString || err != nil || parsed.Text != child.string {
+				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/json", app, name, operationIndex, "invalid_ir"))
+			}
+		}
 	case string(ir.ScalarUUID):
 		object, _, faults := semanticObjectCandidates(value, []string{"kind", "uuid"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 		candidates = append(candidates, faults...)
@@ -1275,6 +1288,16 @@ func materializeDefault(value jsonValue) (*ir.Scalar, bool) {
 		return nil, false
 	}
 	switch kind.string {
+	case string(ir.ScalarJSON):
+		payload, exists := value.member("json")
+		if !exists || payload.kind != jsonString {
+			return nil, false
+		}
+		parsed, err := jsonvalue.Parse([]byte(payload.string))
+		if err != nil || parsed.Text != payload.string {
+			return nil, false
+		}
+		return &ir.Scalar{Kind: ir.ScalarJSON, JSON: payload.string}, true
 	case string(ir.ScalarUUID):
 		payload, exists := value.member("uuid")
 		if !exists || payload.kind != jsonString {

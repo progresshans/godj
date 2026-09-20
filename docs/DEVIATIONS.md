@@ -44,6 +44,31 @@
 
 ## 원장
 
+## DEV-0017 — JSON 모델의 정확한 token과 엄격한 문서 경계
+
+- Status: Accepted; model/storage verified locally (normal/race/CGO=0)
+- Date: 2026-09-20
+- Scope: [JSON raw](../internal/jsontest/testdata/django61.json)의 `database.physical` object/reordered와 `database.queries.object`,
+  `database.external[label=duplicate]`, `database.rejected_writes[label=surrogate]` 및 큰 decimal/exponent token의 model codec.
+- Related: [ADR-0071](adr/0071-json-values-and-native-storage-boundaries.md), [GDJ-0094](../work/0094-json-models.md), [실행 증거](status/TEST_EVIDENCE.md)
+
+Django SQLite JSONField는 객체 key 순서/공백이 담긴 TEXT를 저장하며 whole-document exact는 그 표현에 영향을 받는다.
+GoDj 모델 codec은 key·공백을 결정적으로 정리한다. 따라서 GoDj write로 저장한 object/reordered는 모두 canonical object
+exact에 일치한다. 외부 writer의 비정규 TEXT query를 재작성하거나 전체 scan으로 보정하지 않는다. PostgreSQL은 native JSONB
+구조/numeric equality를 유지하며 SQLite의 `1`/`1.0` 구분을 PostgreSQL에 덧씌우지 않는다.
+
+기본 Python JSON float 변환은 decimal/exponent token의 자릿수를 잃거나 overflow/underflow를 만든다. GoDj는 정확한 token을
+보존하고 명시한 자원 한도를 적용한다. Native JSONB 저장의 지수 전개·숫자 표기 변화는 backend의 실제 readback으로 검증한다.
+DB가 성공적으로 저장했지만 공통 scanner가 읽지 못할 크기는 PostgreSQL parameter preflight에서 오류다.
+
+Django SQLite 외부 duplicate key는 whole decode에서 마지막 값, key lookup에서 첫 값을 관찰했다. GoDj는 어느 하나를
+조용히 선택하지 않고 모델 read를 거부한다. SQLite가 받아들이는 unpaired surrogate와 JSON BLOB도 strict model input이 아니다.
+SQL CHECK가 보장하는 문법과 GoDj 모델 codec의 Unicode/ownership/resource 조건을 구분한다. 잘못된 값은 기존 정상 scanner 값을 지운다.
+
+이 선택은 새로운 JSON 모델의 표현과 저장 경계에 한정된다. Form/Admin/API의 기존 parser·NUL·presence 정책이나
+independent reference를 교체하지 않는다. JSON PK/FK·index·새 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
+반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
+
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부
 
 - Status: Accepted; model/storage and Form/API consumers verified locally

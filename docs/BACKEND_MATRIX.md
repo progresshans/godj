@@ -16,7 +16,7 @@
 
 ## 현재 schema와 query 폭
 
-Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, Boolean과 AutoField-target ForeignKey를 지원한다.
+Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, JSON, Boolean과 AutoField-target ForeignKey를 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
@@ -38,6 +38,13 @@ UUID는 모든 128-bit pattern의 복사 가능한 값과 별도 NULL을 사용�
 Typed/dynamic comparison·IN/F·projection·Min/Max·forward 및 현재 reverse exact scalar, historical create/nullable add와 reverse를 지원한다.
 PostgreSQL 17의 UUID Min/Max는 canonical text의 C collation 집계 뒤 native UUID로 반환하며, NULL 정렬 위치는 DB별 기존 의미를 유지한다.
 Form/Admin/API와 Helpdesk 외부 참조·독립 client를 연결했다. UUID PK/FK·uniqueness·generation/callable default는 별도 범위다. [UUID 값과 저장](adr/0070-uuid-model-values-and-storage.md)을 따른다.
+
+JSON은 immutable 문서와 exact number token을 사용하며 nil pointer(SQL NULL)와 JSON null을 구분한다.
+SQLite TEXT/JSON_VALID CHECK와 PostgreSQL native JSONB, strict read·parameter·historical create/add/reverse를 연결했다.
+Exact/IN/F exact·isnull·projection·forward와 non-null reverse exact를 지원한다. JSON range/order/Min/Max·key/path/contains는 현재 미지원이다.
+GoDj write의 object key 정규화와 native JSONB numeric equality·지수 전개를 구분하며 PostgreSQL NUL과 readback 크기 초과를 거부한다.
+Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자는 아직 후속이다. [JSON 값과 저장](adr/0071-json-values-and-native-storage-boundaries.md)의 범위를 따른다.
+
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
 

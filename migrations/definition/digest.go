@@ -186,6 +186,10 @@ func appendCanonicalModel(output []byte, model ir.Model) ([]byte, error) {
 func appendCanonicalScalar(output []byte, value ir.Scalar) ([]byte, error) {
 	var err error
 	switch value.Kind {
+	case ir.ScalarJSON:
+		output = append(output, `{"json":`...)
+		output, err = appendCanonicalString(output, value.JSON)
+		output = append(output, `,"kind":"json"}`...)
 	case ir.ScalarUUID:
 		output = append(output, `{"kind":"uuid","uuid":`...)
 		output, err = appendCanonicalString(output, value.UUID)

@@ -248,6 +248,9 @@ func mutationValueMatches(field ir.Field, value query.Value) bool {
 	switch field.Kind {
 	case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
 		return value.Kind() == query.ValueInteger
+	case ir.FieldJSON:
+		_, ok := value.JSON()
+		return ok
 	case ir.FieldUUID:
 		_, ok := value.UUID()
 		return ok

@@ -8,6 +8,9 @@ import (
 )
 
 func sqliteValue(value query.Value) (any, error) {
+	if document, ok := value.JSON(); ok {
+		return document.Text, nil
+	}
 	if identifier, ok := value.UUID(); ok {
 		return identifier.Hex(), nil
 	}

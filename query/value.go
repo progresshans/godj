@@ -7,6 +7,7 @@ import (
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
+	"github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/uuid"
 	"math"
 	"time"
@@ -20,6 +21,7 @@ const (
 	ValueFloat    ValueKind = "float"
 	ValueDecimal  ValueKind = "decimal"
 	ValueUUID     ValueKind = "uuid"
+	ValueJSON     ValueKind = "json"
 	ValueString   ValueKind = "string"
 	ValueBoolean  ValueKind = "boolean"
 	ValueDuration ValueKind = "duration"
@@ -48,6 +50,24 @@ func Integer(value int64) Value {
 
 // UUID snapshots the canonical value without retaining caller-owned bytes.
 func UUID(value uuid.UUID) Value { return Value{kind: ValueUUID, text: value.String()} }
+
+// JSON snapshots a validated document. It does not convert SQL NULL into JSON
+// null, or a JSON document into a string-typed query value.
+func JSON(value jsonvalue.Value) Value {
+	canonical, err := value.Canonical()
+	if err != nil {
+		return Value{}
+	}
+	return Value{kind: ValueJSON, text: canonical.Text}
+}
+
+func (v Value) JSON() (jsonvalue.Value, bool) {
+	if v.kind != ValueJSON {
+		return jsonvalue.Value{}, false
+	}
+	value, err := jsonvalue.Parse([]byte(v.text))
+	return value, err == nil
+}
 func (v Value) UUID() (uuid.UUID, bool) {
 	if v.kind != ValueUUID {
 		return uuid.UUID{}, false
@@ -189,6 +209,12 @@ func (v Value) DatabaseValue() (any, error) {
 		return v.text, nil
 	case ValueDateTime:
 		value, _ := v.DateTime()
+		return value, nil
+	case ValueJSON:
+		value, ok := v.JSON()
+		if !ok {
+			return nil, &Error{Category: CategoryField, Code: CodeInvalidValue, Detail: "invalid JSON value"}
+		}
 		return value, nil
 	case ValueUUID:
 		value, ok := v.UUID()

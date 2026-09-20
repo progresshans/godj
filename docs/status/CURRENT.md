@@ -11,14 +11,14 @@
 UUID 값·IR·query·양 DB·생성기·Form/Admin·serializer·OpenAPI·Helpdesk/client를 연결하고 통합 검증을 완료했다.
 현재 구현 폭과 미지원 기능은 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
-JSONField의 고정 Django/DRF·SQLite와 별도 native PostgreSQL·client 표현 관찰을 준비했다.
-SQL NULL/JSON null, 숫자·객체 순서·중복 key·Unicode 및 입력/응답 nullability 차이를 확인했다.
-현재 변경 가능한 자료구조를 공유하지 않는 JSON 값과 bounded parser 연결을 구현 중이다.
-이 새 JSON 구현은 아직 runtime 검증 전이며 UUID source의 PASS에 포함하지 않는다.
+JSONField의 값·Schema IR·공통 query·historical migration·ORM과 생성 모델을 SQLite/PostgreSQL 저장 경로에 연결했다.
+SQL NULL/JSON null과 숫자 정밀도, native JSONB 확장 한도·값 소유권의 로컬 통합 checkpoint를 완료했다.
+Form/Admin/API·OpenAPI·Helpdesk 소비자와 추가 JSON lookup은 후속 구현이다. 새 JSON 코드의 실행 범위는 TEST_EVIDENCE에 따로 기록한다.
 
 ## 다음 행동
 
-JSON 값·숫자 정밀도·소유권을 Schema IR과 공통 query에 연결한다. DB별 JSON capability와 실제 저장·조회·migration을 함께 구현한다.
+Form의 JSON 원문·빈 값·값 기준 변경 감지와 serializer의 입력/응답 nullability를 연결한다.
+JSON 내부 key와 API envelope의 이름/보안 규칙, 기존 NUL·resource 한도를 구분해 검증한다.
 같은 모델에서 Form/Admin·serializer·OpenAPI와 실제 Helpdesk 외부 데이터 소비자까지 이어가며 실패·취소·rollback·재접속을 검증한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.

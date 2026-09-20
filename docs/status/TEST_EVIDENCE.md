@@ -3,10 +3,10 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
-## GDJ-0094 — JSON 모델 독립 기준 준비
+## GDJ-0094 — JSON 모델 독립 기준과 저장 기반
 
 - UUID source `7da91ad5fbd6284622fb372e7d8051120584424e` 위에서 다음 모델 연결의 독립 기준만 준비했다.
-  이 절은 JSONField Go 제품 구현·지원 또는 UUID Hosted 완료의 증거가 아니다.
+  다음 독립 관찰은 JSONField Go 제품 구현·지원 또는 UUID Hosted 완료의 증거가 아니다. 제품 checkpoint는 뒤 소절에서 구분한다.
 - [Runner](../../conformance/runners/django/json_field_reference.py)는 고정 Django **6.1**·DRF **3.18.0**의 public model **54**,
   Form **66**, serializer **168**, 실제 JSON parser **32**개 입력과 SQLite schema editor·query·rollback·reopen·reverse를 관찰한다.
   GoDj 코드·expected raw를 import하지 않는다. Python int/float/bool·문자열·object/array·SQL NULL/JSON null과 validation/render 실패를 구분한다.
@@ -35,6 +35,48 @@
   OpenAPI 3.1.1 표준 검증과 요청/응답 nullability도 PASS다. Tool/input/generated/probe source **12파일** manifest는
   `99cbace2049e405862918b1376bcc0b3728852a2dd2815f76ccc43583180783c`이며 module/config lock은 기존 consumer와 동일하다.
   이 mock/tool 관찰은 실제 GoDj JSON API/client 구현 또는 DB 통합 PASS가 아니다.
+
+### JSON 값 codec의 로컬 checkpoint
+
+- UUID 완료 기록 source `97688f58d2370809aa3ec457ae9342b51d5def81` 위 `jsonvalue/value.go`·`jsonvalue/value_test.go`·
+  `internal/wirejson/decode.go` 세 파일의 manifest SHA256은 `730d5f49f25a93c08e28582528d303cccde24bfdf4f08c4041bd077ffb04c817`이다.
+  `jsonvalue.Value`는 문자열만 소유하는 값이며 명시적 JSON null과 invalid zero를 구분한다. Decode의 object/array는 매번 caller가 소유한다.
+  Canonical object key/공백·escape 정리와 정확한 numeric token을 유지하고 중복 key·잘못된 UTF-8/surrogate·크기/깊이 초과를 거부한다.
+  JSON 자체에서 유효한 escaped NUL은 codec이 보존하며 backend와 Form/API의 별도 수용 정책은 아직 연결 전이다.
+- Go **1.26.5 darwin/arm64**에서 `./jsonvalue ./internal/wirejson`을 fresh 일반·race로 실행했다.
+  각각 **2 package / 45 test·subtest PASS**, run/terminal roster 동일·skip/fail 0·stderr 0 bytes다. 검증 전후 같은 세 파일을 확인했다.
+  이 결과는 값 codec과 공유 decoder의 범위다. 뒤에 편집 중인 Schema IR·query·DB·생성기 또는 JSONField 전체의 runtime PASS가 아니다.
+
+
+### JSON 모델·DB·생성 소비자 로컬 checkpoint
+
+- 기준 source `97688f58d2370809aa3ec457ae9342b51d5def81` 위 제품·테스트·module lock·독립 raw **59개 non-Markdown 파일**의
+  정렬 manifest SHA256은 `ee16383282a9f18817259fbe3a860fc8bc12376402d960dc6e32517646e6ea4f`다. Normal/race/CGO=0·vet 실행 전후 같은 바이트를 확인했다.
+  Go **1.26.5 darwin/arm64**, native PostgreSQL **17.5 Homebrew**, `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 검사했다.
+- Normal은 `go test -count=1 -timeout=20m -json`, race는 같은 명령의 `-race`로 값/decoder·schema/IR/resource/wire·query·migration/definition/autodetect·ORM·
+  공통 queryplan·SQLite/PostgreSQL·codegen/consumer·projectgenerate 각각 **17 package, 1170 root, 6785 test·subtest PASS**다.
+  Normal/race의 전체 run/pass/skip roster가 동일하다.
+  Stderr 0 bytes이며 두 skip은 `TestPostgresRevisionFenceHelperProcess`, `TestPublicationCrashHelper`의 parent-mode guard다.
+  실제 process를 실행하는 `TestPostgresRevisionFenceCrossProcessIntegration`과
+  `TestPublishRecoversAfterProcessCrashAtPrecommitAndPostcommitBoundaries`는 PASS다. 필수 test 누락이나 기능 skip이 아니다.
+- `CGO_ENABLED=0`의 새 JSON SQLite/PostgreSQL·외부 generated consumer와 독립 source namespace/recovery fixture 선택은
+  **4 package, 8 root, 13 test·subtest PASS**, skip/fail 0·stderr 0 bytes다. Generated consumer의 SQLite와 native PostgreSQL 하위 실행을 필수로 확인했다.
+- 외부 generated module은 SQL NULL/JSON null·literal default·required/nullable·큰 정수/decimal/exponent와 SQLite/native JSONB 저장,
+  typed/dynamic exact/IN/F/isnull·projection·forward/reverse·eager snapshot/캐시 소유권을 실제 두 DB에서 확인한다.
+  Existing table의 nullable 추가·재접속·실패한 Save·Save field mask·invalid/canceled write·transaction read/rollback·reverse/re-add도 포함한다.
+  문자열·정수·text F를 JSON API에 전달하는 별도 compile 실패를 확인하며 user model/member의 JSON 이름도 import/default를 가리지 않는다.
+- Native JSONB `1e400`, `1e4095`, `1e-4094`, `-0.0`, `1.2300e2`를 실제 다시 읽어 정밀도/scale·표기 변화를 검사했다.
+  전개 후 numeric 4096 byte 초과·문서 전체 확장·U+0000은 native parameter 단계에서 거부한다. SQLite에는 native 한도를 전파하지 않는다.
+  SQLite의 malformed 문서는 CHECK에서 거부되며 syntax-valid BLOB/duplicate/surrogate의 strict read는 이전 scanner 값을 남기지 않는다.
+  두 backend의 JSON ordering은 일반 SELECT뿐 아니라 direct/distinct/sliced/empty COUNT의 정렬 생략 경로에서도 명시적으로 거부한다.
+- 처음 normal 실행은 전용 DB URL에 host가 빠져 PostgreSQL 제품 URL 검증과 해당 consumer가 실패했다. 이를 PASS로 사용하지 않는다.
+  Host를 명시한 같은 전용 DB에서 normal을 재실행해 통과했고, 이후 Count의 omitted-ordering 검사를 보강한 최종 source로 normal을 다시 확인했다.
+  실패/중간/최종 로그는 별도로 보존했다. Native JSONB 수용 범위나 strict codec 규칙을 낮춰 실패를 없애지 않았다.
+- Affected `go vet`, gofmt·diff/link 검사와 `make generate-check`를 확인했다. Helpdesk/Article/relationfixture의 checked-in generated 결과는 clean이다.
+  Recovery fixture의 독립 runtime 복사에는 새 `jsonvalue` package도 포함한다.
+  최종 검사 뒤 전용 PostgreSQL DB의 잔여 연결 0을 확인해 삭제했고 기존 service는 유지했다.
+- 이 결과는 JSON 모델·저장 기반의 로컬 checkpoint다. Form/Admin·serializer·OpenAPI·실제 Helpdesk JSON 소비자·독립 HTTP client와
+  JSON key/path/contains 등 추가 연산은 아직 후속이다. UUID source의 Hosted full을 이 새 JSON 코드의 platform PASS로 사용하지 않는다.
 
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
