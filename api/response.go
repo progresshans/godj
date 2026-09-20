@@ -13,7 +13,14 @@ const JSONContentType = "application/json"
 
 // JSON creates one deterministic JSON response from a closed Value.
 func JSON(status int, value serializers.Value) (web.Response, error) {
-	body, err := serializers.Encode(value, serializers.Limits{})
+	return JSONWithLimits(status, value, serializers.Limits{})
+}
+
+// JSONWithLimits encodes one complete response with an explicit shared budget.
+// Zero fields retain serializer defaults, and all hard caps still apply. This
+// lets a bounded collection have a different value budget from one input row.
+func JSONWithLimits(status int, value serializers.Value, limits serializers.Limits) (web.Response, error) {
+	body, err := serializers.Encode(value, limits)
 	if err != nil {
 		return web.Response{}, &Error{Code: FailureInvalidResponse, Field: "body", Detail: "JSON response value is invalid", Cause: err}
 	}

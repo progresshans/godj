@@ -70,6 +70,9 @@ Helpdesk `external_payload`는 이 공통 경계를 실제 사용하는 nullable
 payload 예산과 API 문자 정책을 공유한다. Detail/list wrapper를 포함해 응답할 수 있도록 한 입력 제한이다.
 Create/update는 실제 저장 결과를 transaction 안에서 다시 읽고 응답 encode를 확인한다. Native JSONB의 지수 전개가 API의
 숫자 token/응답 예산을 넘으면 생성·수정과 함께 rollback한다. 모델 scanner 한도와 API 응답 한도는 같다고 가정하지 않는다.
+개별 응답과 여러 행의 목록도 예산을 구분한다. `api.JSONWithLimits`는 한 응답 전체에 caller가 지정한 bounded limits를 적용한다.
+Helpdesk의 최대 20행 목록은 65536개 값의 예산을 사용하며 기존 1 MiB·깊이 16·container 한도는 유지한다.
+각각 허용한 JSON 배열 네 개를 목록으로 묶을 때 기본 4096개 값 한도를 넘던 경우를 별도 회귀로 검증한다.
 
 ## Django 관찰과 의도적 차이
 

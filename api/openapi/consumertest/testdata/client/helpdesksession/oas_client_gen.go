@@ -41,7 +41,8 @@ type Invoker interface {
 	// HelpdeskTicketList invokes helpdesk:ticket-list operation.
 	//
 	// Returns at most 20 tickets in the application's selected category, ordered by ascending identifier.
-	// The response is a bare array. Query parameters are ignored.
+	// The response is a bare array with a shared 65536-value budget; the 1 MiB byte, depth 16 and
+	// per-container limits still apply. Query parameters are ignored.
 	//
 	// GET /api/tickets/
 	HelpdeskTicketList(ctx context.Context) (HelpdeskTicketListRes, error)
@@ -317,7 +318,8 @@ func (c *Client) sendHelpdeskTicketDetail(ctx context.Context, params HelpdeskTi
 // HelpdeskTicketList invokes helpdesk:ticket-list operation.
 //
 // Returns at most 20 tickets in the application's selected category, ordered by ascending identifier.
-// The response is a bare array. Query parameters are ignored.
+// The response is a bare array with a shared 65536-value budget; the 1 MiB byte, depth 16 and
+// per-container limits still apply. Query parameters are ignored.
 //
 // GET /api/tickets/
 func (c *Client) HelpdeskTicketList(ctx context.Context) (HelpdeskTicketListRes, error) {

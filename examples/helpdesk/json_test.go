@@ -120,6 +120,53 @@ func verifyHelpdeskJSON(t *testing.T, ctx context.Context, runtime *systemstate.
 	if _, err := models.TicketObjects.Delete(ctx, runtime, &createdRow); err != nil {
 		t.Fatal(err)
 	}
+	// Each accepted payload fits a ticket response; the complete page must
+	// also fit the response's aggregate node budget.
+	largePayload := "[" + strings.Repeat("0,", 1023) + "0]"
+	largeRows := make([]models.Ticket, 0, 4)
+	for index := 0; index < 4; index++ {
+		response := client.request("POST", "/api/tickets/", `{"subject":"JSON page probe","external_payload":`+largePayload+`}`, true)
+		var row struct{ ID int64 }
+		if json.Unmarshal(response.Body.Bytes(), &row) != nil || response.Code != http.StatusCreated || row.ID <= 0 {
+			t.Fatal("accepted page payload did not create", response.Code)
+		}
+		stored, found, err := models.TicketObjects.Using(runtime).Filter(models.TicketFields.ID.Exact(row.ID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+		if err != nil || !found {
+			t.Fatal("page probe row missing", err)
+		}
+		largeRows = append(largeRows, stored)
+	}
+	page := client.request("GET", "/api/tickets/", "", false)
+	for index := range largeRows {
+		removed := largeRows[index]
+		if _, err := models.TicketObjects.Delete(ctx, runtime, &removed); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if page.Code != http.StatusOK {
+		t.Fatal("individually accepted JSON rows cannot render as a page", page.Code)
+	}
+	var pageRows []struct {
+		ID      int64
+		Payload json.RawMessage `json:"external_payload"`
+	}
+	if err := json.Unmarshal(page.Body.Bytes(), &pageRows); err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[int64]bool)
+	for _, row := range pageRows {
+		for _, created := range largeRows {
+			if row.ID == created.ID {
+				if string(row.Payload) != largePayload || seen[row.ID] {
+					t.Fatal("page JSON changed or repeated")
+				}
+				seen[row.ID] = true
+			}
+		}
+	}
+	if len(seen) != len(largeRows) {
+		t.Fatal("JSON page dropped accepted rows")
+	}
 	form := url.Values{"subject": {baseline.Subject}, "csrfmiddlewaretoken": {client.csrf}}
 	for _, raw := range []string{`{"broken":`, `{"a":1,"a":2}`, `NaN`, `"\ud800"`, `"\u0000"`, `{"nested":"\u0000"}`, `{"\u0000":1}`, strings.Repeat("[", 14) + "0" + strings.Repeat("]", 14), `</textarea><script>bad</script>`} {
 		form.Set("external_payload", raw)

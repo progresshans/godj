@@ -11,7 +11,10 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-const maximumJSONBodyBytes = 4096
+const (
+	maximumJSONBodyBytes  = 4096
+	maximumJSONListValues = 1 << 16
+)
 
 // API owns one authenticated set of Helpdesk operations. It performs no I/O
 // during construction and borrows the Application's backend through handlers.
@@ -111,7 +114,7 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	list, err := protect(openapi.Operation{
 		Route:       web.Route{Name: "helpdesk:ticket-list", Method: http.MethodGet, Path: "/api/tickets/"},
 		Summary:     "List tickets",
-		Description: "Returns at most 20 tickets in the application's selected category, ordered by ascending identifier. The response is a bare array. Query parameters are ignored.",
+		Description: "Returns at most 20 tickets in the application's selected category, ordered by ascending identifier. The response is a bare array with a shared 65536-value budget; the 1 MiB byte, depth 16 and per-container limits still apply. Query parameters are ignored.",
 		Permission:  ViewTicket,
 		Responses:   []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The selected category's tickets.", items)},
 	}, a.apiList)

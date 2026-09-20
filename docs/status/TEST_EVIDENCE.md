@@ -126,6 +126,40 @@
 - Affected vet·Helpdesk 12파일 generated drift·format/diff/docs 검사는 PASS다. 전용 DB는 잔여 연결 0 뒤 삭제하고 기존 service는 유지했다. JSON value→양 DB→Form/Admin/API→외부 client를
   연결한 이 milestone의 전체 platform/cold CLI 검증은 다음 Hosted full이 소유한다. 이전 UUID Hosted full을 현재 JSON의 결과로 사용하지 않는다.
 
+### JSON 수직 연결 Hosted full
+
+- [Run 35511311272](https://github.com/progresshans/godj/actions/runs/35511311272), attempt **1**, source
+  `d1a0570b87791378bc24a2cd90ce4afa8326a653`: **62/62 job success**. 전체 job의 checkout SHA와 종료 상태를 완전한 로그/metadata로 대조했다.
+  최종 gate는 `scope: full`, `full_platform_verified: true`, 선언된 owner **8개**다.
+- Ubuntu amd64/arm64·macOS arm64/amd64와 normal/race/CGO=0의 선언된 matrix, 실제 Ubuntu cold external CLI milestone이 통과했다.
+  Exact Darwin Python은 **298 PASS/skip 0**, 네 compatibility Python은 각각 **298 tests / 선언된 skip 4**다.
+  PostgreSQL 17.10 core normal/race/CGO=0 각각 **13 package / 1880 PASS / skip 0**, operator-target 각각 **2 package / 12 PASS / skip 0**다.
+- 실제 실행 목록 대조에서 `TestGeneratedJSONConsumer`가 PostgreSQL owner의 `-run` 선택 목록에 없는 것을 확인했다.
+  이 run은 기존 Helpdesk parent 안의 새 JSON PostgreSQL 흐름과 SQLite/portable generated JSON은 실행했지만,
+  독립 generated JSON consumer의 PostgreSQL 하위 실행 증거는 아니다. 로컬 17.5 결과로 이 누락을 대체하지 않는다.
+  후속에서 PostgreSQL 선택/필수 목록과 relation 필수 목록에 해당 parent를 추가했다. PostgreSQL DSN이 있는 parent는 child의
+  PostgreSQL 하위 실행도 필수로 검증한다. 아래 목록 예산 보강과 함께 `web` scope Hosted에서 확인한다.
+
+### JSON 목록 응답 예산 후속 보강
+
+- 수직 연결 source `d1a0570b87791378bc24a2cd90ce4afa8326a653`의 Hosted 실행 중, 실제 Helpdesk HTTP에서 각각 허용되는
+  1024-item 배열 네 개를 저장한 뒤 목록을 읽으면 기본 4096-value 예산 때문에 500이 되는 회귀를 재현했다.
+  `api.JSONWithLimits`로 response 전체 예산을 명시할 수 있게 하고 Helpdesk 최대 20행 목록의 value 한도를 65536으로 설정했다.
+  요청과 다른 응답의 기본 한도·1 MiB·깊이 16·container hard cap은 유지한다. 큰 행의 누락이나 값 변경도 실패로 검사한다.
+- 이 후속은 위 Hosted source에 포함되지 않는다. 기준 source 위 변경·module/config lock **12 non-Markdown 파일** manifest는
+  `5205311de14009bcc68068bf448b7c88b168ba84654f5488cf0f6749de7f8448`이다. 변경 전후 같은 바이트를 확인했다.
+  Go 1.26.5 darwin/arm64, SQLite와 PostgreSQL 17.5, `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서
+  `./api/... ./examples/article/apiapp ./examples/helpdesk` **7 package / 76 root / 257 test·subtest**를 normal/race 각각 실행했다.
+  전체 run/pass roster 동일·skip/fail 0·stderr 0 bytes다. CGO=0의 새 response budget과 실제 양 DB Helpdesk·생성 client는
+  **3 package / 4 root PASS**, skip/fail 0·stderr 0 bytes다.
+- 기본 예산의 거부, 정확한 aggregate node 경계, byte/depth/container/hard-cap 초과 때 부분 응답이 나오지 않는 것을 확인했다.
+  수정 후 첫 HTTP fixture는 정리 과정의 ORM Delete가 모델 ID를 비우는 의미를 놓쳐 비교 ID가 사라졌다.
+  삭제할 복사본을 사용해 기대 ID를 보존한 뒤 위 전체 affected scope를 재실행했다. 최초 500 재현과 fixture 실패 로그도 보존했다.
+- 세 OpenAPI profile을 같은 locked ogen으로 다시 생성했고 Helpdesk 목록 설명과 generated client 설명 한 파일만 달라졌다.
+  Module/config lock은 불변이며 독립 client의 34개 receipt도 통과했다. Affected vet와 실제 문서의 표준 검증도 PASS다.
+  새 전용 DB는 잔여 연결 0 뒤 삭제했다. CI 필수 실행 목록의 2파일 보강은 별도이며 기존 scope/gate 테스트 4개를 통과했다.
+  실제 새 PostgreSQL 선택과 목록 보강은 `web` scope Hosted에서 확인한다. 수직 연결 source의 full 결과와 합치거나 전체 platform을 중복하지 않는다.
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

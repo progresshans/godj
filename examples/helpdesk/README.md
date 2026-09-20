@@ -12,6 +12,7 @@ Category–Ticket 관계 모델에 선택형 Form/Admin, 읽기 전용 Category 
 Ticket 응답과 생성 입력은 실제 ModelEncoder와 Bind가 사용하는 serializer spec에서 파생하며,
 CategorySummary는 직접 출력하는 id/name 구조를 기술한다.
 `GET /api/tickets/`는 선택 Category의 티켓을 ID 오름차순으로 최대 20개 담은 배열이며 query parameter를 무시한다.
+목록 응답은 전체 65536개 값 예산을 사용하며 1 MiB·깊이 16·container 한도는 유지한다. 개별 입력의 예산을 목록 전체에 적용하지 않는다.
 `POST /api/tickets/`는 subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference/external_payload를 받아 Ticket과 201을 반환하고 Location header를 추가하지 않는다.
 subject는 필수이며 생략한 closed는 false, 생략하거나 null로 지정한 details는 null이다. 빈 details 문자열은 null과 구별한다.
 priority 입력은 1(Urgent), 0(Normal), -1(Low)과 null이다. 생략/null은 null이며 0은 실제 값이다. Form/Admin은 같은 모델에서 Select와 표시명을 만든다.

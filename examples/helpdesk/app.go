@@ -662,7 +662,9 @@ func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Respo
 	if err != nil {
 		return web.Response{}, err
 	}
-	return api.JSON(http.StatusOK, value)
+	// A page can contain many individually bounded JSON documents. Keep its
+	// aggregate budget explicit without weakening request or other responses.
+	return api.JSONWithLimits(http.StatusOK, value, serializers.Limits{MaxValues: maximumJSONListValues})
 }
 
 func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
