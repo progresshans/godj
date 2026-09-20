@@ -81,6 +81,9 @@ func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string)
 	if field.Nullable {
 		fmt.Fprintf(output, "%sNullable: true,\n", indent)
 	}
+	if field.Unique {
+		fmt.Fprintf(output, "%sUnique: true,\n", indent)
+	}
 	if field.MaxLength != 0 {
 		fmt.Fprintf(output, "%sMaxLength: %d,\n", indent, field.MaxLength)
 	}

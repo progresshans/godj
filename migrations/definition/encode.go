@@ -255,6 +255,7 @@ type fieldDocument struct {
 	Kind       ir.FieldKind      `json:"kind"`
 	PrimaryKey bool              `json:"primary_key"`
 	Nullable   bool              `json:"nullable"`
+	Unique     bool              `json:"unique,omitempty"`
 	MaxLength  int               `json:"max_length"`
 	Decimal    *ir.DecimalSpec   `json:"decimal,omitempty"`
 	Default    any               `json:"default"`
@@ -360,6 +361,7 @@ func encodeField(field ir.Field) fieldDocument {
 		Kind:       field.Kind,
 		PrimaryKey: field.PrimaryKey,
 		Nullable:   field.Nullable,
+		Unique:     field.Unique,
 		MaxLength:  field.MaxLength,
 		Default:    encodeDefault(field.Default),
 	}

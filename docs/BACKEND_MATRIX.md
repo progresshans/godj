@@ -22,6 +22,10 @@ Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string defa
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
 nullable/time default·comparison/F·projection/Min/Max를 지원한다. [시간 값과 남은 범위](adr/0061-datetime-field-and-canonical-instant-values.md)를 따른다.
 String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterField는 양 DB의 revision-fenced lifecycle에서 DDL 없이 상태·recorder를 갱신하며 물리 catalog 검증은 수행한다. [선택값 의미](adr/0063-model-choices-and-metadata-only-migrations.md)를 따른다.
+Column uniqueness는 `schema.Unique()`·IR·생성 metadata·historical definition/digest·자동 변경 계획까지 연결했다.
+PK는 이미 고유하므로 별도 Unique flag를 정규화하며, Unique FK는 many-to-one/reverse collection을 유지한다.
+현재 양 DB의 `UniqueConstraints` capability는 false다. 실제 UNIQUE DDL·catalog·저장 충돌과 입력 검증을 구현하기 전까지
+migration/SQL projection은 이 선언을 명시적으로 거부한다. [활성 작업](../work/0095-model-uniqueness.md)에서 이어간다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.
 Time은 자정을 포함하는 날짜·시간대 없는 clock과 별도 NULL이다. 양 DB TIME과 canonical clock parameter를 사용하며

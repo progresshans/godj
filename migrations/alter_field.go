@@ -11,7 +11,8 @@ import (
 
 // AlterField carries both historical values so forward and backward execution
 // reject stale metadata instead of guessing a previous definition. The current
-// operation supports choices-only and exact Decimal precision-only changes.
+// operation supports choices-only, uniqueness-only and exact Decimal
+// precision-only changes, with separate backend capability requirements.
 type AlterField struct {
 	AppLabel  string
 	ModelName string

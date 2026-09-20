@@ -486,6 +486,7 @@ func writeRelationField(hash sqliteRelationHashWriter, field ir.Field) {
 	writeRelationString(hash, string(field.Kind))
 	writeRelationBool(hash, field.PrimaryKey)
 	writeRelationBool(hash, field.Nullable)
+	writeRelationBool(hash, field.Unique)
 	writeRelationInt(hash, field.MaxLength)
 	if field.Decimal != nil {
 		writeRelationString(hash, "decimal")
@@ -619,6 +620,9 @@ func validateSQLiteRelationIntent(
 		modelNames[modelKey] = identity
 		columns := make(map[string]bool, len(model.Fields))
 		for _, field := range model.Fields {
+			if field.Unique {
+				return relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
+			}
 			column := sqliteRelationIdentifierKey(field.Column)
 			if columns[column] {
 				return relationIntentIntegrity("relation model %q repeats SQLite column %q", model.Name, field.Column)
@@ -1069,6 +1073,9 @@ func compileSQLiteRelationCreateModel(
 	targetIndex := 0
 	for fieldIndex := range model.Fields {
 		field := model.Fields[fieldIndex]
+		if field.Unique {
+			return "", relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
+		}
 		if field.Kind != ir.FieldForeignKey {
 			column, err := compileMigrationColumn(field)
 			if err != nil {
@@ -1120,6 +1127,9 @@ func compileSQLiteRelationAddField(
 	field ir.Field,
 	targets []migrationbackend.MigrationTarget,
 ) (string, error) {
+	if field.Unique {
+		return "", relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
+	}
 	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey || field.Default != nil ||
 		(!field.Nullable && field.Relation.OnDelete != ir.DeleteProtect) {
 		return "", errors.New("relation AddField requires a non-primary-key ForeignKey with no migration default; required fields must use PROTECT")

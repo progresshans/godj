@@ -76,6 +76,9 @@ func compileMigrationRemoveField(model ir.Model, field ir.Field) (string, error)
 }
 
 func compileMigrationColumn(field ir.Field) (string, error) {
+	if field.Unique {
+		return "", relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
+	}
 	column, err := quoteIdentifier(field.Column)
 	if err != nil {
 		return "", fmt.Errorf("column identifier: %w", err)

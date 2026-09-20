@@ -168,6 +168,9 @@ func compilePostgresMigrationRemoveField(
 }
 
 func compilePostgresMigrationColumn(field ir.Field) (string, error) {
+	if field.Unique {
+		return "", postgresMigrationCapability("UniqueConstraints is not implemented by the PostgreSQL migration backend", nil)
+	}
 	column, err := quoteIdentifier(field.Column)
 	if err != nil {
 		return "", err

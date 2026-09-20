@@ -7,6 +7,7 @@ type FieldChangeKind uint8
 const (
 	ChangeChoices FieldChangeKind = iota + 1
 	ChangeDecimalPrecision
+	ChangeUnique
 )
 
 // ClassifyFieldChange requires a real change to exactly one supported facet.
@@ -27,6 +28,11 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	if previous.Equal(next) {
 		return ChangeChoices, nil
 	}
+	previous, next = before, after
+	previous.Unique, next.Unique = false, false
+	if !before.PrimaryKey && previous.Equal(next) {
+		return ChangeUnique, nil
+	}
 	if before.Kind == FieldDecimal && after.Kind == FieldDecimal &&
 		before.Decimal != nil && after.Decimal != nil && before.Decimal.Valid() && after.Decimal.Valid() {
 		previous, next = before, after
@@ -35,5 +41,5 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices-only or Decimal precision-only changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices-only, uniqueness-only or Decimal precision-only changes")
 }

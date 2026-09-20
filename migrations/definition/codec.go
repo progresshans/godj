@@ -644,7 +644,7 @@ func collectModelFieldAggregateCandidates(values []jsonValue, sourceID, pointer,
 func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"column", "default", "go_name", "kind", "max_length", "name", "nullable", "primary_key"}
 	object, objectOK, candidates := semanticObjectWithOptionalCandidates(
-		value, fields, []string{"choices", "decimal", "relation"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
+		value, fields, []string{"choices", "decimal", "relation", "unique"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
 	)
 	if !objectOK {
 		return candidates
@@ -671,8 +671,8 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/"+field, app, name, operationIndex, "invalid_ir"))
 		}
 	}
-	booleanValid := make(map[string]bool, 2)
-	for _, field := range []string{"nullable", "primary_key"} {
+	booleanValid := make(map[string]bool, 3)
+	for _, field := range []string{"nullable", "primary_key", "unique"} {
 		child, exists := object.member(field)
 		if !exists {
 			continue
@@ -680,6 +680,12 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 		booleanValid[field] = child.kind == jsonBoolean
 		if !booleanValid[field] {
 			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/"+field, app, name, operationIndex, "invalid_ir"))
+		}
+	}
+
+	if unique, exists := object.member("unique"); exists && unique.kind == jsonBoolean && unique.boolean {
+		if primary, exists := object.member("primary_key"); exists && primary.kind == jsonBoolean && primary.boolean {
+			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/unique", app, name, operationIndex, "invalid_ir"))
 		}
 	}
 
@@ -1224,6 +1230,13 @@ func materializeField(value jsonValue) (ir.Field, bool) {
 		MaxLength:  int(parsedMaximum),
 		Default:    decodedDefault,
 	}
+	if unique, exists := value.member("unique"); exists {
+		if unique.kind != jsonBoolean {
+			return ir.Field{}, false
+		}
+		field.Unique = unique.boolean
+	}
+
 	if shape, exists := value.member("decimal"); exists {
 		parsed, valid := materializeDecimalSpec(shape)
 		if !valid {

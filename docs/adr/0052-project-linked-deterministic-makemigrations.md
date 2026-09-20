@@ -81,14 +81,16 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    app의 합집합만 managed app으로 비교하고 programmatic-only app은 현재 historical state 그대로 보존합니다.
 3. 현재 delta domain은 다음과 같습니다.
    - history가 없는 managed app/model의 `CreateModel`
-   - existing model의 nullable/no-default Char/Text/DateTime/Integer와 ForeignKey `AddField`
-   - 기존 field 순서를 유지하는 중간 삽입과 choices-only `AlterField`([ADR-0063](0063-model-choices-and-metadata-only-migrations.md))
+   - existing model의 지원되는 nullable/no-default scalar와 ForeignKey `AddField`
+   - 기존 field 순서를 유지하는 중간 삽입과 choices-only·Decimal precision-only·uniqueness-only `AlterField`
    - new model의 current scalar/ForeignKey field shape
    - self/later target·순환 관계의 same-app operation 순서와 cross-app migration dependency
    Required/no-default `PROTECT` FK는 실제 실행 시 backend가 source table이 비었음을 확인한 경우만 추가합니다. 이는 순환 생성의
    부분 게시 뒤 남은 required FK를 재개하는 경로에도 적용합니다. Detector는 DB를 열지 않으며 populated row를 추측한 key나
    default로 채우지 않습니다. Required scalar/default-bearing addition과 일반 backfill은 계속 unsupported입니다.
-4. Existing model order는 desired state의 exact prefix이고, 유지하는 field의 상대 순서와 metadata는 같아야 합니다(choices-only
+   각 AlterField는 하나의 facet만 변경하며 공통 IR 분류를 따른다. 고유성 선언·계획과 실제 backend 제약 지원은 구분한다.
+   현재 실행 가능 범위는 [Backend Matrix](../BACKEND_MATRIX.md)가 소유한다.
+4. Existing model order는 desired state의 exact prefix이고, 유지하는 field의 상대 순서와 metadata는 같아야 합니다(지원되는 단일 facet
    변경 제외). App/model/field removal, retained reorder, rename, 일반 alter, missing relation target, multiple same-app leaves와 operation/resource limit 초과는 structured
    unsupported/invalid result이며 candidate publication은 0입니다. Desired와 historical state가 같은 clean no-op은 successor name이
    필요하지 않으므로 noncanonical single leaf를 이유로 실패하지 않습니다. 실제 delta가 있어 successor를 만들어야 할 때만

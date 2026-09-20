@@ -146,7 +146,7 @@ func RenderMigrationSQL(
 			}
 			if kind == ir.ChangeChoices {
 				rules[index] = migrationSQLMetadataOnly
-			} else {
+			} else if kind == ir.ChangeDecimalPrecision {
 				rules[index] = migrationSQLBackendSpecific
 			}
 		}

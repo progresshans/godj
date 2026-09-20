@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — 고유성 선언과 미지원 실행 경계
+
+2026-09-21, darwin/arm64 Go **1.26.5**. 기준 `2050464148d472d4e43dd15b8802d895fb42e743` 위
+제품·테스트 **35경로** manifest SHA256은 `2878a45b292da36570744ad8d94cca590fa922531d4c08735a4b3f860f3a4fbe`다.
+검사 전후 해당 파일 hash가 같음을 확인했다. 아래는 선언·이력 기반의 로컬 checkpoint이며 실제 UNIQUE 제약 지원의 완료가 아니다.
+
+- `schema.Unique()`가 12종 scalar와 현재 FK의 IR·snapshot/equality/hash·생성 descriptor/schema에 전달된다.
+  PK의 고유성은 PK가 소유하고 독립 Unique flag는 정규화한다. Unique FK의 many-to-one/reverse collection은 유지한다.
+- Strict project wire의 정확한 byte 한도와 bool shape, historical Create/Add/Alter의 왕복·소유권·digest를 검사했다.
+  잘못된 타입·중복 key·PK의 비정규 Unique wire를 거부한다. 생략과 명시적 false는 같은 의미·canonical digest를 갖는다.
+  고유성 추가/제거의 자동 계획은 정확한 before/after와 재실행 no-op을 유지하고 다른 facet과 섞인 변경을 거부한다.
+- Loaded lifecycle의 Create/Add/Alter 추가·제거/retained/target/transitive **7경로 × 양 방향**이
+  `UniqueConstraints` 미지원 시 transaction 전에 중단됨을 검증했다. SQLite 실제 memory DB에서도 schema/recorder
+  객체가 0으로 유지됐다. 양 DB의 직접 compiler·순수 SQL renderer가 고유성 선언을 버리고 성공하지 않으며,
+  내부 seal이 Unique 변조를 탐지한다. Core SQL projection은 unique 변경의 빈 SQL을 거부한다.
+
+| 실행 | 결과 |
+|---|---|
+| `go test -json -count=1 -timeout=12m ./schema/... ./internal/projectwire ./internal/migrationautodetect ./migrations/... ./codegen` | 테스트 소유 8 package, root 400 / 전체 run=PASS **1,065**, test skip 0 |
+| `go test -json -count=1 -timeout=8m -run 'Unique\|IntentSeal\|MigrationSQLRenderer\|MigrationCapabilities' ./db/sqlite ./db/postgres` | 2 package, root 27 / 전체 run=PASS **43**, skip 0 |
+| `go test -json -count=1 -timeout=12m -run '^TestGeneratedUniqueMetadataConsumer$' ./codegen/consumertest` | host 1 PASS, 실제 별도 module의 생성 코드 compile·consumer 1 PASS |
+| 해당 schema/wire/autodetect/migration/codegen/backend의 `go vet` | PASS, 출력·stderr 0 |
+| `make generate-check` | Helpdesk/Article/relationfixture 각각 12/12/16개 clean, checked-in relation consumer PASS |
+| `make format-check docs-check`, `git diff --check` | PASS, Markdown 136개 링크 검사 |
+
+JSON event의 run/pass 전체 목록과 package terminal 상태를 대조했다. 세 실행의 테스트 **1,109 PASS**, test skip 0, stderr 0이다.
+테스트가 없는 `migrations/internal/loadeddefinition`의 package-only `[no test files]`는 실제 테스트 PASS 수에 포함하지 않는다.
+최초 core 실행은 새 autodetect 테스트의 기대값이 정규화 전 빈 column을 사용해 1건 실패했다.
+정규화된 ProjectState를 기대값으로 수정한 후 전체 위 범위를 다시 실행했으며 before/after·재구성·no-op 검사는 유지했다.
+
+양 backend의 `UniqueConstraints`는 아직 false다. 실제 UNIQUE DDL/catalog, native PostgreSQL의 고유성 실행,
+저장 충돌/경쟁·rollback/retry·Form/Admin/API/Helpdesk 연결, 관련 race/process/Hosted 통합은 후속 구현 checkpoint가 소유한다.
+이 결과를 기존 JSON의 Hosted web/full source나 전체 프레임워크 완료와 합치지 않는다.
+
 ## GDJ-0095 — 모델 고유성의 독립 기준
 
 - 제품 기준 source `ef9b05c0ec829d5cb38c0944507a70f0a5e1f483` 위 독립 runner·test·양 DB raw와 Python lock
@@ -32,7 +66,7 @@
   Raw SHA256: SQLite `e5ace05ba1b6370159f600504cdc320351359dcbfba89e094505a90aefa943b7`,
   PostgreSQL `0b240dea9b81f35e1876998c5b88bc7c46e5c95ec6d4581ca89520d413d65733`.
   전용 DB는 잔여 연결·사용자 table 0 뒤 삭제했다. 기존 PostgreSQL service는 유지했다.
-- 현재 GoDj의 IR·definition·generator에 Unique 속성이 없으며 migration catalog는 추가 unique index/constraint를 거부한다.
+- 이 독립 기준 source에는 GoDj의 IR·definition·generator에 Unique 속성이 없었고 migration catalog는 추가 unique index/constraint를 거부했다.
   이 거부를 제거하는 것으로 구현 완료 처리하지 않는다. [GDJ-0095](../../work/0095-model-uniqueness.md)의
   정확한 선언/물리 소유권·무결성 오류·소비자 연결과 실제 제품 검증을 이어간다.
 

@@ -136,6 +136,9 @@ func normalizeModel(model *Model, path string) error {
 		}
 		if field.PrimaryKey {
 			primaryKeys++
+			// The primary key already owns its uniqueness. Canonical metadata
+			// must not request a duplicate independent unique constraint.
+			field.Unique = false
 		}
 		if err := validateField(*field, fieldPath); err != nil {
 			return err

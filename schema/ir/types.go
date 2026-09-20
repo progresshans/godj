@@ -136,6 +136,7 @@ type Field struct {
 	Kind       FieldKind           `json:"kind"`
 	PrimaryKey bool                `json:"primary_key"`
 	Nullable   bool                `json:"nullable"`
+	Unique     bool                `json:"unique,omitempty"`
 	MaxLength  int                 `json:"max_length,omitempty"`
 	Decimal    *DecimalSpec        `json:"decimal,omitempty"`
 	Default    *Scalar             `json:"default,omitempty"`
@@ -186,7 +187,7 @@ func (f Field) Clone() Field {
 // treating independently owned default/relation pointers as different fields.
 func (f Field) Equal(other Field) bool {
 	return f.Name == other.Name && f.GoName == other.GoName && f.Column == other.Column &&
-		f.Kind == other.Kind && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.MaxLength == other.MaxLength &&
+		f.Kind == other.Kind && f.PrimaryKey == other.PrimaryKey && f.Nullable == other.Nullable && f.Unique == other.Unique && f.MaxLength == other.MaxLength &&
 		equalOptional(f.Decimal, other.Decimal) && equalOptional(f.Default, other.Default) && equalOptional(f.Relation, other.Relation) &&
 		(f.Choices == nil) == (other.Choices == nil) && slices.Equal(f.Choices, other.Choices)
 }

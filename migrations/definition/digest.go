@@ -334,6 +334,10 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 		}
 		output = append(output, `}}`...)
 	}
+	if field.Unique {
+		output = append(output, `,"unique":true`...)
+	}
+
 	return append(output, '}'), nil
 }
 

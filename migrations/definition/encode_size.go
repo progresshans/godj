@@ -224,6 +224,11 @@ func (scanner *encodingSizeScanner) scanField(path string, field ir.Field) error
 	if err := scanner.addStructural(path, fieldStructuralLowerBound); err != nil {
 		return err
 	}
+	if field.Unique {
+		if err := scanner.addStructural(path+".unique", uint64(len(`,"unique":true`))); err != nil {
+			return err
+		}
+	}
 	for _, value := range []struct {
 		name  string
 		value string

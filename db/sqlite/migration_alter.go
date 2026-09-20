@@ -25,6 +25,9 @@ func (transaction *sqliteRevisionFencedTransaction) AlterField(ctx context.Conte
 		if err != nil || !before.Equal(wantBefore) || !after.Equal(wantAfter) {
 			return relationIntentIntegrity("AlterField differs from the sealed field transition at cursor %d", state.cursor)
 		}
+		if kind == ir.ChangeUnique {
+			return relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
+		}
 		if kind == ir.ChangeDecimalPrecision {
 			if err := validateSQLiteDecimalValues(ctx, executor, model, wantBefore, wantAfter); err != nil {
 				return err

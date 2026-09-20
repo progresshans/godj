@@ -11,6 +11,9 @@ type MigrationCapabilities struct {
 	RemoveForeignKey                  bool
 	AlterFieldChoices                 bool
 	AlterFieldDecimalPrecision        bool
+	// UniqueConstraints covers mutation and physical verification of declared
+	// column uniqueness, including retained target and transitive models.
+	UniqueConstraints bool
 }
 
 // The public backend contract shares the pure historical metadata types with

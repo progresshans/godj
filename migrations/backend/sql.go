@@ -9,6 +9,7 @@ import "context"
 // when that operation has no physical SQL on this backend. CreateModel/AddField
 // require a body, choices-only AlterField requires an empty slot, and Decimal
 // precision changes use an empty SQLite slot or a PostgreSQL ALTER statement.
+// Uniqueness changes always require physical SQL when supported.
 // Keeping empty slots preserves operation identity in mixed migration plans.
 type ForwardMigrationSQLRequest struct {
 	App    string

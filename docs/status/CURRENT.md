@@ -14,13 +14,13 @@ Helpdesk Admin/API의 search/source를 포함한 source `ef9b05c`의
 [Hosted web 통합](https://github.com/progresshans/godj/actions/runs/35537035733)을 완료했다.
 지원 표현과 미지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
-다음 기반은 모델의 column uniqueness다. 양 DB의 scalar·unique FK·ModelForm·기존 데이터 migration·실패/재시도·동시 쓰기를
-독립 관찰했고, Python 네 버전의 fresh 기준 비교를 마쳤다. 아직 GoDj 제품에 unique 선언이나 제약 생성 기능은 없다.
-기존 JSON/Float/Decimal 저장 정책과 backend 차이를 유지하며 사전 조회와 DB 무결성 보장을 구분한다.
+모델의 column uniqueness를 진행 중이다. 양 DB의 독립 기준에 이어 `schema.Unique()`를 IR·생성 metadata·historical
+definition/digest·자동 변경 계획에 연결했다. 지원하지 않는 DB 경로는 실행 전에 명시적으로 거부한다.
+선언과 이력의 로컬 검증을 완료했으며 실제 UNIQUE 제약 생성·저장 충돌·Form/Admin/API 검증은 아직 구현 중이다.
 
 ## 다음 행동
 
-Schema IR·historical definition/digest·생성 metadata에 고유성을 연결하고 양 DB의 선언·물리 catalog·migration 경계를 구현한다.
+SQLite와 PostgreSQL의 UNIQUE 제약 생성·변경·제거와 정확한 물리 catalog 검증, operation별 SQL 출력을 구현한다.
 그 뒤 실제 insert/update 충돌·경쟁·실패/rollback을 Form/Admin/API와 Helpdesk 외부 참조의 중복 방지까지 연결한다.
 구현과 검증 범위는 GDJ-0095와 TEST_EVIDENCE에 기록한다.
 

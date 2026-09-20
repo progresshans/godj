@@ -34,6 +34,7 @@ type Field struct {
 	Column    string
 	Kind      ir.FieldKind
 	Nullable  bool
+	Unique    bool
 	MaxLength int
 	Decimal   *ir.DecimalSpec
 	Default   *ir.Scalar
@@ -55,6 +56,15 @@ type FieldOption func(*Field)
 func Nullable() FieldOption {
 	return func(field *Field) {
 		field.Nullable = true
+	}
+}
+
+// Unique requires table-wide uniqueness for non-NULL stored values. A primary
+// key already has this property and does not receive a second constraint.
+// Migration execution requires the backend's UniqueConstraints capability.
+func Unique() FieldOption {
+	return func(field *Field) {
+		field.Unique = true
 	}
 }
 
@@ -261,6 +271,7 @@ func Build(definition Definition) (ir.Schema, error) {
 				Kind:       field.Kind,
 				PrimaryKey: field.Kind == ir.FieldAuto,
 				Nullable:   field.Nullable,
+				Unique:     field.Unique,
 				MaxLength:  field.MaxLength,
 				Decimal:    field.Decimal,
 				Default:    defaultValue,

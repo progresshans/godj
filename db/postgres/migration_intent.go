@@ -394,6 +394,9 @@ func validateExactPostgresMigrationModel(model ir.Model) error {
 	}
 	for index := range model.Fields {
 		field := model.Fields[index]
+		if field.Unique {
+			return postgresMigrationCapability("UniqueConstraints is not implemented by the PostgreSQL migration backend", nil)
+		}
 		if err := validateIdentifier(field.Column); err != nil {
 			return postgresMigrationIntentIntegrity(fmt.Sprintf("field %q column is invalid for PostgreSQL", field.Name), err)
 		}

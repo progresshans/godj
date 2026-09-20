@@ -332,6 +332,7 @@ const (
 	loadedRequiresRemoveForeignKey
 	loadedRequiresAlterFieldChoices
 	loadedRequiresAlterFieldDecimalPrecision
+	loadedRequiresUniqueConstraints
 )
 
 const (
@@ -1496,6 +1497,8 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		// relations that are carried only to seal the complete model boundary.
 		// A scalar Add/Remove on a relation-bearing model therefore transports
 		// target authority without requiring a relation Add/Remove capability.
+		// UniqueConstraints additionally requires validating retained constraints
+		// on the complete physical model boundary; those bits are collected below.
 		if alteration, ok := operation.(AlterField); ok {
 			alteration, err = alteration.normalized()
 			if err != nil {
@@ -1505,7 +1508,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			if err != nil {
 				return loadedMaterializedStep{}, migrationError(CategoryState, CodeInvalidState, step.Direction, migration, operationIndex, operation.Kind(), err)
 			}
-			if change == ir.ChangeDecimalPrecision {
+			if change == ir.ChangeUnique {
+				requirements |= loadedRequiresUniqueConstraints
+			} else if change == ir.ChangeDecimalPrecision {
 				requirements |= loadedRequiresAlterFieldDecimalPrecision
 			} else {
 				requirements |= loadedRequiresAlterFieldChoices
@@ -1535,6 +1540,14 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		intent.operations = make([]loadedRelationOperation, len(operationViews))
 		for viewIndex := range operationViews {
 			view := operationViews[viewIndex]
+			if modelHasUniqueFields(view.before) || modelHasUniqueFields(view.after) {
+				requirements |= loadedRequiresUniqueConstraints
+			}
+			for _, related := range view.relatedModels {
+				if modelHasUniqueFields(related.Model) {
+					requirements |= loadedRequiresUniqueConstraints
+				}
+			}
 			kind, err := loadedBackendOperationKind(view.operation, step.Direction)
 			if err != nil {
 				return loadedMaterializedStep{}, migrationError(
@@ -1544,6 +1557,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			}
 			backendTargets := make([]loadedRelationBackendTarget, len(view.targets))
 			for targetIndex := range view.targets {
+				if modelHasUniqueFields(view.targets[targetIndex].targetModel) {
+					requirements |= loadedRequiresUniqueConstraints
+				}
 				backendTargets[targetIndex] = loadedRelationBackendTarget{
 					sourceField: view.sourceFields[targetIndex].Clone(),
 					targetModel: view.targets[targetIndex].targetModel.Clone(),
