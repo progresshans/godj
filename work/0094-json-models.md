@@ -28,7 +28,7 @@ Schema IR에서 생성 model·query·migration·Form/Admin/API로 이어지는 �
 ## 현재
 
 [독립 runner](../conformance/runners/django/json_field_reference.py)와 [raw](../internal/jsontest/testdata/django61.json)에
-model 54·Form 66·serializer 112·실제 JSON parser 32개 입력과 SQLite schema editor·ORM·실패/복구 관찰을 보존했다.
+model 54·Form 66·serializer 168·실제 JSON parser 32개 입력과 SQLite schema editor·ORM·실패/복구 관찰을 보존했다.
 Python 네 버전의 fresh 비교를 완료했다. UUID의 검증 source·완료 여부는 GDJ-0093과 TEST_EVIDENCE가 소유한다.
 
 SQLite의 whole JSON equality는 객체 키 순서와 1/1.0 표기에 영향을 받지만 native PostgreSQL jsonb equality는 이를 같은 값으로 비교했다.

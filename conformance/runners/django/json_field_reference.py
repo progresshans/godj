@@ -102,6 +102,9 @@ def observe():
         class DefaultSerializer(serializers.Serializer):
             payload = serializers.JSONField(allow_null=True, default=dict)
 
+        class RequiredSerializer(serializers.Serializer):
+            payload = serializers.JSONField()
+
         def serializer_result(instance):
             valid = instance.is_valid()
             result = {"valid": valid, "validated": rendered(instance.validated_data),
@@ -109,18 +112,23 @@ def observe():
             if valid:
                 try:
                     result["rendered"] = JSONRenderer().render(instance.data).decode()
-                except (TypeError, ValueError, OverflowError, UnicodeError) as error:
+                except (TypeError, ValueError, OverflowError, UnicodeError, KeyError) as error:
                     result["render_exception"] = type(error).__name__
             return result
 
         serializer = []
-        for name, cls in (("optional", OptionalSerializer), ("default", DefaultSerializer)):
+        for name, cls in (("optional", OptionalSerializer), ("default", DefaultSerializer), ("required", RequiredSerializer)):
             for partial in (False, True):
                 serializer.append({"serializer": name, "partial": partial, "label": "omitted",
                     **serializer_result(cls(data={}, partial=partial))})
                 for label, value in values:
                     serializer.append({"serializer": name, "partial": partial, "label": label,
                         **serializer_result(cls(data={"payload": value}, partial=partial))})
+        representations = {}
+        for name, cls in (("optional", OptionalSerializer), ("required", RequiredSerializer)):
+            representations[name] = {label: JSONRenderer().render(cls(instance={"payload": value}).data).decode()
+                for label, value in (("null", None), ("false", False), ("zero", 0), ("empty_string", ""),
+                                     ("object", {}), ("array", []))}
         parsed = []
         for text in texts[1:]:
             try:
@@ -216,7 +224,7 @@ def observe():
         after_remove = list(Legacy.objects.order_by("id").values_list("label", flat=True))
         return {"django": django.get_version(), "drf": rest_framework.VERSION, "python": platform.python_version(),
             "sqlite": {"version": sqlite_version, "source_id": source_id}, "model": model, "form": form,
-            "serializer": serializer, "parsed": parsed,
+            "serializer": serializer, "parsed": parsed, "representations": representations,
             "database": {"type": field.db_type(connection), "after_add": after_add, "queries": queries, "deprecated_none": deprecated,
                 "rejected_writes": rejected_writes, "external": external,
                 "physical": physical, "table_sql": table_sql, "before_rollback": before_rollback, "after_rollback": after_rollback,

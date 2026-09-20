@@ -8,12 +8,14 @@
 - UUID source `7da91ad5fbd6284622fb372e7d8051120584424e` 위에서 다음 모델 연결의 독립 기준만 준비했다.
   이 절은 JSONField Go 제품 구현·지원 또는 UUID Hosted 완료의 증거가 아니다.
 - [Runner](../../conformance/runners/django/json_field_reference.py)는 고정 Django **6.1**·DRF **3.18.0**의 public model **54**,
-  Form **66**, serializer **112**, 실제 JSON parser **32**개 입력과 SQLite schema editor·query·rollback·reopen·reverse를 관찰한다.
+  Form **66**, serializer **168**, 실제 JSON parser **32**개 입력과 SQLite schema editor·query·rollback·reopen·reverse를 관찰한다.
   GoDj 코드·expected raw를 import하지 않는다. Python int/float/bool·문자열·object/array·SQL NULL/JSON null과 validation/render 실패를 구분한다.
+  Required/non-null 요청은 null을 거부하지만 완전한 instance의 null 응답은 출력한다. Instance 없는 required partial omission은 검증에 성공해도
+  `.data`에서 KeyError인 관찰을 보존했다. 입력 검증 결과를 완전한 모델 응답으로 취급하지 않는다.
 - Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**의 fresh 비교 각각 **1 PASS**, skip 0, 실행 stderr warning 0이다.
   고정된 `exact None`의 `RemovedInDjango70Warning` 한 개만 별도 capture하여 raw와 비교한다. 그 밖의 실행은 `-W error`로 확인했다.
-  Raw SHA256은 `13139fb7b8d117f0b8a93f0b8184049d3e801e756f4942483950bbbb6fc1fc86`, runner·test·raw 세 파일 manifest는
-  `d9fcd723d782f18fca7ef7f378011557aa87c776727ec987d7025cd6eea00ec4`다.
+  Raw SHA256은 `16753a3626f5a07bdbe24a8fa5e6841eb5426d65e28f88312671198eb31aab3a`, runner·test·raw 세 파일 manifest는
+  `10c875513c0c9a2704f1aa32502a505d9b8bd6c0ed203a5697884a099077ce85`다.
 - SQLite TEXT + JSON_VALID check, 기존 행의 nullable add, NULL/JSON null query와 physical storage, integer/float·객체 순서별 whole equality를 확인했다.
   외부 duplicate key는 Python whole-document decode에서 마지막 값, SQLite key lookup에서 첫 값을 반환했다.
   NaN/Infinity write·malformed 외부 text는 거부됐으며 surrogate/NUL의 SQLite 수용과 DRF render 실패도 별도 관찰이다.
@@ -23,6 +25,16 @@
   1e400은 native numeric으로 보존되지만 1e1000000은 SQLSTATE **22003**, NUL은 **22P05**, lone surrogate/NaN/Infinity/malformed는 **22P02**다.
   Native MIN(jsonb)는 **42883**이다. Native raw SHA256은 `fb86d5e58d8d36995026ec093f22879ec549dd5d3fe27484838660b7960ee998`다.
   이는 Django PostgreSQL 또는 GoDj 제품 PASS가 아니다. 전용 probe DB는 잔여 연결 0 뒤 삭제했고 기존 service는 유지했다.
+
+- 별도 OpenAPI/tooling 사전 실험은 non-null 입력의 `not: {type: null}`과 임의 JSON/null 응답을 구분했다.
+  pinned ogen **v1.24.0**은 양쪽을 `jx.Raw`로 생성했다. 독립 모듈의 mock HTTP wire **2 root / 15 test·subtest PASS**, 실제 test skip 0·stderr 0 bytes다.
+  2^128-1·1e400·긴 소수·중첩 object/array·JSON string/null을 float 경유 없이 유지하고 누락/잘못된 응답 envelope를 거부했다.
+  생성된 library package에는 별도 test가 없으며 이를 실행한 테스트 수에 넣지 않았다. 첫 임시 audit의 package-level no-test 분류를
+  실제 test skip과 구분한 후 전체 terminal inventory를 확인했다. 재실행이나 assertion 삭제로 결과를 바꾸지 않았다.
+  Generator는 `not`의 입력 validator를 만들지 않아 raw null 요청을 전송할 수 있다. 표준 schema validator는 같은 요청을 거부하므로 runtime 검증이 필요하다.
+  OpenAPI 3.1.1 표준 검증과 요청/응답 nullability도 PASS다. Tool/input/generated/probe source **12파일** manifest는
+  `99cbace2049e405862918b1376bcc0b3728852a2dd2815f76ccc43583180783c`이며 module/config lock은 기존 consumer와 동일하다.
+  이 mock/tool 관찰은 실제 GoDj JSON API/client 구현 또는 DB 통합 PASS가 아니다.
 
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
