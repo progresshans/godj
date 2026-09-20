@@ -42,10 +42,14 @@ type Invoker interface {
 	//
 	// Returns at most 20 tickets in the application's selected category, ordered by ascending identifier.
 	// The response is a bare array with a shared 65536-value budget; the 1 MiB byte, depth 16 and
-	// per-container limits still apply. Query parameters are ignored.
+	// per-container limits still apply. Search matches the subject or stored external JSON text; source
+	// matches the value at external_payload.source. Nonempty filters combine with AND. Empty values omit
+	// the filter. Case and non-string JSON text conversion follow the selected database. Unknown or
+	// duplicate parameters, malformed encoding, invalid UTF-8, NUL, values over 64 UTF-8 bytes, and query
+	// strings over 2048 bytes return 400. Authentication and view permission checks run before parsing.
 	//
 	// GET /api/tickets/
-	HelpdeskTicketList(ctx context.Context) (HelpdeskTicketListRes, error)
+	HelpdeskTicketList(ctx context.Context, params HelpdeskTicketListParams) (HelpdeskTicketListRes, error)
 	// HelpdeskTicketPatch invokes helpdesk:ticket-patch operation.
 	//
 	// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
@@ -319,20 +323,61 @@ func (c *Client) sendHelpdeskTicketDetail(ctx context.Context, params HelpdeskTi
 //
 // Returns at most 20 tickets in the application's selected category, ordered by ascending identifier.
 // The response is a bare array with a shared 65536-value budget; the 1 MiB byte, depth 16 and
-// per-container limits still apply. Query parameters are ignored.
+// per-container limits still apply. Search matches the subject or stored external JSON text; source
+// matches the value at external_payload.source. Nonempty filters combine with AND. Empty values omit
+// the filter. Case and non-string JSON text conversion follow the selected database. Unknown or
+// duplicate parameters, malformed encoding, invalid UTF-8, NUL, values over 64 UTF-8 bytes, and query
+// strings over 2048 bytes return 400. Authentication and view permission checks run before parsing.
 //
 // GET /api/tickets/
-func (c *Client) HelpdeskTicketList(ctx context.Context) (HelpdeskTicketListRes, error) {
-	res, err := c.sendHelpdeskTicketList(ctx)
+func (c *Client) HelpdeskTicketList(ctx context.Context, params HelpdeskTicketListParams) (HelpdeskTicketListRes, error) {
+	res, err := c.sendHelpdeskTicketList(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendHelpdeskTicketList(ctx context.Context) (res HelpdeskTicketListRes, err error) {
+func (c *Client) sendHelpdeskTicketList(ctx context.Context, params HelpdeskTicketListParams) (res HelpdeskTicketListRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [1]string
 	pathParts[0] = "/api/tickets/"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "search" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "search",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Search.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "source" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "source",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Source.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {

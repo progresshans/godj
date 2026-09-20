@@ -1,6 +1,11 @@
 package query
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+
+	"github.com/progresshans/godj/jsonvalue"
+)
 
 // ExpressionKind identifies one node in an immutable Boolean query
 // expression. The zero value is invalid so a zero Expression fails closed when
@@ -267,8 +272,11 @@ func validateExpressionCondition(condition Condition) error {
 				return invalidPlanError("query expression ordered comparison requires a same-kind ordered scalar value")
 			}
 		case LookupIContains:
-			if field.kind != FieldString || condition.rhs.value.Kind() != ValueString {
-				return invalidPlanError("query expression icontains requires a string field and value")
+			if (field.kind != FieldString && field.kind != FieldJSON) || condition.rhs.value.Kind() != ValueString {
+				return invalidPlanError("query expression icontains requires a string or JSON field and a string value")
+			}
+			if text, _ := condition.rhs.value.String(); field.kind == FieldJSON && (!utf8.ValidString(text) || len(text) > jsonvalue.MaxStringBytes) {
+				return &Error{Category: CategoryField, Code: CodeInvalidValue, Field: field.Name(), Lookup: string(condition.lookup), Detail: "JSON text lookup requires valid UTF-8 within the JSON string byte limit"}
 			}
 		case LookupIsNull:
 			if condition.rhs.value.Kind() != ValueBoolean {

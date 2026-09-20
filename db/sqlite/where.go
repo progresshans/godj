@@ -206,6 +206,9 @@ func appendWhereNode(
 		if node.condition.Lookup() == query.LookupIn && len(node.inValues) == 0 {
 			sql.WriteString("0 = 1")
 		} else {
+			if node.condition.Field().Kind() == query.FieldJSON && node.condition.Lookup() == query.LookupIContains {
+				sql.WriteString("godj_json_icontains(")
+			}
 			if isJSONPathComparison(node.condition) {
 				sql.WriteString("godj_json_path_cmp(")
 			}

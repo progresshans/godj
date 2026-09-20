@@ -418,8 +418,18 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 		return []any{argument}, nil
 	case query.LookupIContains:
 		text, ok := value.String()
-		if field.Kind() != query.FieldString || !ok {
+		if (field.Kind() != query.FieldString && field.Kind() != query.FieldJSON) || !ok {
 			return nil, unsupportedLookup(field, condition.Lookup())
+		}
+		if field.Kind() == query.FieldJSON {
+			mode := int64(0)
+			if _, path := condition.JSONPath(); path {
+				mode = 1
+			}
+			sql.WriteString(", ?, ?)")
+			// The driver passes SQL TEXT function arguments through a NUL-ended
+			// string conversion. BLOB preserves the complete literal needle.
+			return []any{[]byte(text), mode}, nil
 		}
 		sql.WriteString(" LIKE ? ESCAPE '\\'")
 		return []any{"%" + queryplan.EscapeLike(text) + "%"}, nil

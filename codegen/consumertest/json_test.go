@@ -125,6 +125,18 @@ func TestGeneratedJSONConsumer(t *testing.T) {
 		}
 		writeGeneratedTestFile(t, root, "consumer/forward_projection_"+backend+"_reference.json", forwardRaw)
 	}
+	textLookup, err := os.ReadFile("testdata/json/json_text_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/json_text_test.go", textLookup)
+	for _, item := range []struct{ source, target string }{{"godj-canonical-text-sqlite.json", "text_sqlite_reference.json"}, {"django61-text-postgres.json", "text_postgres_reference.json"}, {"godj-text-sqlite-deviations.json", "text_sqlite_policy_reference.json"}} {
+		raw, err := os.ReadFile(filepath.Join(codegenRepositoryRoot(t), "internal/jsontest/testdata", item.source))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeGeneratedTestFile(t, root, "consumer/"+item.target, raw)
+	}
 	comparison, err := os.ReadFile("testdata/json/json_comparison_test.go")
 	if err != nil {
 		t.Fatal(err)
@@ -144,18 +156,19 @@ func TestGeneratedJSONConsumer(t *testing.T) {
 	required := []string{"TestJSONGeneratedDefaults", "TestJSONStorageQueryAndOwnership", "TestJSONStorageQueryAndOwnership/sqlite", "TestJSONStorageQueryAndOwnership/sqlite/paths", "TestJSONStorageQueryAndOwnership/sqlite/containment", "TestJSONStorageQueryAndOwnership/sqlite/keys"}
 	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/projection")
 	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/related_projection")
-	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/forward_projection", "TestJSONStorageQueryAndOwnership/sqlite/comparison", "TestJSONStorageQueryAndOwnership/sqlite/comparison/ordering")
+	required = append(required, "TestJSONStorageQueryAndOwnership/sqlite/forward_projection", "TestJSONStorageQueryAndOwnership/sqlite/comparison", "TestJSONStorageQueryAndOwnership/sqlite/comparison/ordering", "TestJSONStorageQueryAndOwnership/sqlite/text")
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" {
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres", "TestJSONStorageQueryAndOwnership/postgres/paths", "TestJSONStorageQueryAndOwnership/postgres/containment", "TestJSONStorageQueryAndOwnership/postgres/keys")
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/projection")
 		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/related_projection")
-		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/forward_projection", "TestJSONStorageQueryAndOwnership/postgres/comparison", "TestJSONStorageQueryAndOwnership/postgres/comparison/ordering")
+		required = append(required, "TestJSONStorageQueryAndOwnership/postgres/forward_projection", "TestJSONStorageQueryAndOwnership/postgres/comparison", "TestJSONStorageQueryAndOwnership/postgres/comparison/ordering", "TestJSONStorageQueryAndOwnership/postgres/text")
 	}
 	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), required...)
 	for _, test := range []struct{ name, source, fragment string }{
 		{"predicate rejects string", `package wrong; import "example.com/godj-json/models"; var _ = models.RecordFields.Payload.Exact("null")`, "untyped string"},
 		{"path rejects string", `package wrong; import "example.com/godj-json/models"; import "github.com/progresshans/godj/query"; var _ = models.RecordFields.Payload.At(query.JSONKey("a")).Exact("null")`, "untyped string"},
 		{"contains rejects string", `package wrong; import "example.com/godj-json/models"; var _ = models.RecordFields.Payload.Contains("{}")`, "untyped string"},
+		{"text lookup rejects JSON", `package wrong; import "example.com/godj-json/models"; import "github.com/progresshans/godj/jsonvalue"; var _ = models.RecordFields.Payload.IContains(jsonvalue.Null())`, "jsonvalue.Value"},
 		{"comparison rejects string", `package wrong; import "example.com/godj-json/models"; var _ = models.RecordFields.Payload.GreaterThan("1")`, "untyped string"},
 		{"write rejects integer", `package wrong; import "example.com/godj-json/models"; var _ = models.RecordPatch{}.WithPayload(int64(1))`, "int64"},
 		{"F rejects text", `package wrong; import "example.com/godj-json/models"; import "github.com/progresshans/godj/orm"; var _ = models.RecordFields.Payload.ExactField(orm.F(models.RecordFields.Label))`, "string"},

@@ -126,6 +126,19 @@ DTO DISTINCT의 미선택 정렬은 Django의 암묵적인 선택 컬럼 확장�
 [정렬 설계](adr/0071-json-values-and-native-storage-boundaries.md#json과-forward-값의-정렬)의 숨은 셀은 full-model 결과의
 원래 컬럼과 DISTINCT 기준을 보존하는 내부 구현이며 DTO 선택 범위를 확장하지 않는다.
 
+JSON `IContains`의 기본 Django SQLite/PostgreSQL과 canonical SQLite 관찰은 `django61-text-*.json` 및
+`godj-canonical-text-sqlite.json`에 별도로 보존한다. Whole field의 공백/key/Unicode·숫자 표현은 기존 저장 정책을 따른다.
+SQLite path의 숫자를 반올림하거나 NUL 뒤 문자열을 자르는 native LIKE 동작을 재현하지 않는다.
+[독립 SQLite instr/lower probe](../conformance/runners/django/json_text_policy_reference.py)가 관찰한
+[차이 raw](../internal/jsontest/testdata/godj-text-sqlite-deviations.json)는 root/forward × filter/exclude × 아래 7쌍의
+**28조건**이다. `(scope, needle)`은 `(root, "1e-8")`, `(root, NUL)`, `(x, "1.0")`, `(x, "1e-8")`,
+`(x, "768211455")`, `(x, "after")`, `(x, NUL)`이다. 큰 정수의 정확한 suffix, 원래 exponent token,
+literal NUL과 그 뒤 문자열의 포함 여부가 달라진다. 각 차이는 원래 Django 행 목록까지 함께 검사한다.
+기본 Django와 canonical 저장의 관찰을 합치지 않으며 Python 네 버전에서도 두 raw와 정책 차이를 fresh 비교한다.
+PostgreSQL의 NUL 검색어 16조건은 reference 오류를 GoDj의 pre-I/O invalid-value로 검사한다.
+기존 데이터 migration은 없으며 SQLite 숫자 token·NUL이 있는 검색 결과만 위 명시한 정책의 영향을 받는다.
+ASCII 대소문자 범위·backend별 JSON null/missing·NOT은 보존한다. 기본 parity로 집계하거나 blanket skip하지 않는다.
+
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부
 
 - Status: Accepted; model/storage and Form/API consumers verified locally

@@ -91,3 +91,9 @@ func (f RelatedJSONField[M]) LessThan(value jsonvalue.Value) Predicate[M] {
 func (f RelatedJSONField[M]) LessThanOrEqual(value jsonvalue.Value) Predicate[M] {
 	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupLessThanOrEqual, query.JSON(value))
 }
+
+// IContains searches the backend's text representation with a literal string.
+// JSON containment remains the separate Contains(jsonvalue.Value) operation.
+func (f RelatedJSONField[M]) IContains(value string) Predicate[M] {
+	return relatedScalarPredicate[M](f.path, f.valid, f.configurationErr, query.LookupIContains, query.String(value))
+}

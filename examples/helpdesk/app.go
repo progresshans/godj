@@ -23,6 +23,7 @@ import (
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/jsonvalue"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/uuid"
@@ -173,7 +174,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
 		FormOverrides: overrides,
-		ListFields:    []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject"},
+		ListFields:    []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject", "external_payload"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -208,23 +209,30 @@ func (a *Application) register(builder *admin.Builder) error {
 }
 
 func (a *Application) list(ctx context.Context, request admin.ListRequest) (admin.Page[models.Ticket], error) {
-	query := models.TicketObjects.Using(a.backend).Filter(a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc())
+	return a.listMatching(ctx, request, "")
+}
+
+func (a *Application) listMatching(ctx context.Context, request admin.ListRequest, source string) (admin.Page[models.Ticket], error) {
+	rows := models.TicketObjects.Using(a.backend).Filter(a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc())
 	if request.Search != "" {
-		query = query.Filter(models.TicketFields.Subject.IContains(request.Search))
+		rows = rows.Filter(orm.Or(models.TicketFields.Subject.IContains(request.Search), models.TicketFields.ExternalPayload.IContains(request.Search)))
 	}
-	total, err := query.Count(ctx)
+	if source != "" {
+		rows = rows.Filter(models.TicketFields.ExternalPayload.At(query.JSONKey("source")).IContains(source))
+	}
+	total, err := rows.Count(ctx)
 	if err != nil {
 		return admin.Page[models.Ticket]{}, err
 	}
-	query, err = query.Offset(request.Offset)
+	rows, err = rows.Offset(request.Offset)
 	if err != nil {
 		return admin.Page[models.Ticket]{}, err
 	}
-	query, err = query.Limit(request.Limit)
+	rows, err = rows.Limit(request.Limit)
 	if err != nil {
 		return admin.Page[models.Ticket]{}, err
 	}
-	items, err := query.All(ctx)
+	items, err := rows.All(ctx)
 	return admin.Page[models.Ticket]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, err
 }
 
@@ -646,7 +654,11 @@ func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, erro
 }
 
 func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Response, error) {
-	page, err := a.list(request.Context(), admin.ListRequest{Limit: 20})
+	filters, diagnostics := parseTicketListQuery(request.HTTP().URL.RawQuery)
+	if !diagnostics.Empty() {
+		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, diagnostics)
+	}
+	page, err := a.listMatching(request.Context(), admin.ListRequest{Limit: 20, Search: filters.search}, filters.source)
 	if err != nil {
 		return web.Response{}, err
 	}

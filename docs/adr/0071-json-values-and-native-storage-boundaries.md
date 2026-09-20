@@ -285,3 +285,38 @@ reverse ordering은 계속 별도 범위다. 결과가 같은 행의 안정적�
 순서와 cold Count를 관찰한다. 이전 비교·Boolean·정렬 관찰은 그대로 보존한다. Canonical SQLite profile은 기존 저장
 정책의 관찰이며 기본 Django 저장과 구분한다. 11종 forward scalar의 독립 관찰과 환경별 제품 검증은
 [ADR-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)와 TEST_EVIDENCE가 소유한다.
+
+## JSON의 literal 문자열 검색
+
+`IContains(string)`은 whole JSON·명시적 key/index path·bound forward 관계에 제공한다. Dynamic lookup은
+`payload__icontains` 또는 `record__payload__icontains`와 `LookupInput.JSONPath`를 사용한다. 문자열 RHS는
+JSON으로 암묵 변환하지 않으며 `Contains(jsonvalue.Value)`의 구조 포함 연산과 구분한다. `%`, `_`, 역슬래시는
+패턴 연산자가 아닌 문자다. 빈 문자열은 존재하는 검색 TEXT에 일치한다. Invalid UTF-8·JSON string byte 한도
+초과는 AST에서 거부하고 backend 검사도 LIMIT 0·empty IN에 의한 I/O 생략보다 먼저 수행한다.
+
+PostgreSQL은 whole JSONB를 TEXT로 cast하고, strict path는 `#>> '{}'`로 문자열을 unquote한 뒤
+`UPPER(lhs) LIKE UPPER(parameter) ESCAPE '\'`로 검색한다. DB의 문자 변환·collation·native 숫자 표현을 유지한다.
+NUL 검색어/경로는 I/O 전에 invalid-value다. Path의 JSON null은 SQL NULL이므로 문자열 `"null"`과 다르다.
+기존 StringField의 ILIKE를 바꾸거나 JSON ordered F·reverse non-exact까지 허용하지 않는다.
+
+SQLite whole field는 실제 저장 TEXT, path string은 unquoted 문자열, 다른 path 값은 정확한 subtree JSON TEXT를
+검색한다. `godj_json_icontains`는 bounded codec과 literal substring 연산을 사용하며
+[SQLite 기본 LIKE의 ASCII 대소문자 범위](https://www.sqlite.org/lang_expr.html#the_like_glob_regexp_match_and_extract_operators)를
+따른다. 큰 정수·지수 token을 INTEGER/REAL로 바꾸지 않고 NUL 뒤의 suffix도 검색한다. SQL NULL/missing을 TEXT로
+바꾸지 않으며 NOT은 원본 column과 optional ancestor의 NULL 보정을 유지한다. SQLite path의 JSON null은
+`null` TEXT이므로 PostgreSQL과 같은 결과로 강제하지 않는다. 함수는 모든 physical connection과 reopen에 등록한다.
+검색어는 BLOB parameter로 전달해 driver의 TEXT 함수 인자 변환이 NUL에서 문자열을 자르지 않게 한다.
+UDF는 이 bytes의 UTF-8·길이를 검사한다. 저장 JSON과 조회 결과의 타입을 BLOB으로 바꾸는 것은 아니다.
+
+[독립 Django runner](../../conformance/runners/django/json_text_reference.py)는 53개 입력·184개 root/path ×
+filter/exclude × root/forward 조건과 3개 Boolean 조합을 보존한다. 기본 SQLite·PostgreSQL과 GoDj canonical 저장
+profile은 별도 raw다. PostgreSQL의 NUL 문서 3개와 검색 조건 16개의 오류도 실행 목록에 포함한다.
+GoDj의 정확한 숫자/NUL 검색 차이는 [별도 SQL probe](../../conformance/runners/django/json_text_policy_reference.py)가
+표준 JSON token decoder와 SQLite instr/lower로 관찰한다. 제품 코드나 GoDj SQL 함수를 사용하지 않는다.
+DEV-0017의 정확한 28조건만 별도 기대값을 적용하며 원래 Django 결과가 달라지면 실패한다.
+
+Admin의 SearchFields는 Char/Text와 JSON을 허용한다. Helpdesk는 subject/whole external_payload의 OR 검색과
+`external_payload.source`의 별도 API 검색을 같은 category 제한·Count·정렬에 연결한다. 비어 있지 않은 search/source는
+AND로 결합한다. API는 인증/권한 뒤 query를 검증하며, UTF-8 64 byte·전체 query 2048 byte 한도와 unknown/duplicate·
+잘못된 escape·NUL 거부를 적용한다. 실제 양 DB HTTP 소비자와 고정 OpenAPI client가 이 규칙을 검증한다.
+Admin의 기존 검색 입력 정책과 API의 명시적 query 정책은 각각의 경계가 소유한다.

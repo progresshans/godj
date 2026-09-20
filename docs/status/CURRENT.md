@@ -15,16 +15,16 @@ Root/forward JSON 경로 및 일반 forward scalar·whole JSON의 typed nullable
 정렬 전용 optional JOIN·정확한 경로 숫자·DISTINCT 결과 컬럼·cold Count·페이지네이션을 같은 조회 표현으로 처리한다.
 지원하는 전체 표현과 미지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
-일반 forward scalar 선택과 JSON literal 대소 비교의 고정 source `8fe1281`은
-[Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35531599504)을 완료했다.
-후속 JSON/forward 값 정렬은 양 DB 로컬 normal/race/CGO=0 checkpoint와 독립 Django 관찰을 마쳤다.
-기본 Django와 GoDj canonical 저장 profile을 별도로 보존하며 새 source의 환경별 검증을 이전 결과와 합치지 않는다.
+JSON/forward 정렬의 고정 source `d504cf9`는
+[Hosted ORM 통합](https://github.com/progresshans/godj/actions/runs/35533945489)을 완료했다.
+후속으로 whole/path·forward JSON의 literal 문자열 검색과 Helpdesk Admin/API의 search/source를 연결했다.
+기본 Django와 GoDj canonical 저장 profile·숫자/NUL의 명시적 차이를 구분해 실제 양 DB와 독립 client의 로컬 checkpoint를 마쳤다.
 실행 source·범위·결과는 [TEST_EVIDENCE](TEST_EVIDENCE.md)가 소유한다.
 
 ## 다음 행동
 
-JSON/forward 정렬의 공통 결과 compiler·JOIN 변경을 묶은 고정 source의 Hosted `orm` 통합 milestone을 검증한다.
-이어 JSON 조회와 실제 소비자에 남은 요구를 점검하고 기능 카탈로그의 다음 모델·query 확장을 연결한다.
+JSON 문자열 검색·실제 소비자의 고정 source에 대한 Hosted `web` 통합을 검증한다.
+이어 외부 참조 중복 방지에 필요한 모델 고유성 제약과 기존 DB migration 의미를 다음 기반으로 점검한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

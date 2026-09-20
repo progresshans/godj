@@ -75,5 +75,8 @@ SQLite는 기본 Django와 기존 GoDj canonical 저장 profile을 따로 보존
 Root/path·forward JSON과 11종 forward scalar의 ASC/DESC 정렬을 공통 값 표현·양 DB·generated 소비자에 연결했다.
 정렬 전용 optional JOIN·정확한 numeric key·DTO DISTINCT와 full-model 내부 정렬 셀·cold Count·slice를 유지한다.
 독립 model/DTO 순서·Count 관찰과 로컬 normal/race/CGO=0 checkpoint를 마쳤으며, 새 공통 compiler·JOIN source의
-Hosted ORM 통합 milestone 및 남은 JSON 조회·소비자 요구를 이어간다.
+Hosted ORM 통합 milestone도 완료했다.
+Whole/path·forward JSON의 literal IContains와 Helpdesk Admin/API search/source·독립 생성 client를 연결했다.
+숫자 token·NUL 검색의 명시적 차이는 독립 SQL probe와 DEV-0017로 기록하고 양 DB의 normal/race/CGO=0 checkpoint를 마쳤다.
+같은 고정 source의 Hosted web 통합을 검증한 뒤 다음 모델 무결성 요구를 이어간다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

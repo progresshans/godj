@@ -126,3 +126,9 @@ func (f jsonField[M]) LessThanOrEqual(value jsonvalue.Value) Predicate[M] {
 
 func (f jsonField[M]) Asc() Ordering[M]  { return f.ordering(query.Ascending) }
 func (f jsonField[M]) Desc() Ordering[M] { return f.ordering(query.Descending) }
+
+// IContains searches the backend's text representation with a literal string.
+// JSON containment remains the separate Contains(jsonvalue.Value) operation.
+func (f jsonField[M]) IContains(value string) Predicate[M] {
+	return f.predicate(query.LookupIContains, query.String(value))
+}

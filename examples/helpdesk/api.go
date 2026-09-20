@@ -114,9 +114,13 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	list, err := protect(openapi.Operation{
 		Route:       web.Route{Name: "helpdesk:ticket-list", Method: http.MethodGet, Path: "/api/tickets/"},
 		Summary:     "List tickets",
-		Description: "Returns at most 20 tickets in the application's selected category, ordered by ascending identifier. The response is a bare array with a shared 65536-value budget; the 1 MiB byte, depth 16 and per-container limits still apply. Query parameters are ignored.",
+		Description: "Returns at most 20 tickets in the application's selected category, ordered by ascending identifier. The response is a bare array with a shared 65536-value budget; the 1 MiB byte, depth 16 and per-container limits still apply. Search matches the subject or stored external JSON text; source matches the value at external_payload.source. Nonempty filters combine with AND. Empty values omit the filter. Case and non-string JSON text conversion follow the selected database. Unknown or duplicate parameters, malformed encoding, invalid UTF-8, NUL, values over 64 UTF-8 bytes, and query strings over 2048 bytes return 400. Authentication and view permission checks run before parsing.",
 		Permission:  ViewTicket,
-		Responses:   []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The selected category's tickets.", items)},
+		Parameters: []openapi.Parameter{
+			{Name: "search", In: "query", Schema: openapi.String(), AllowEmptyValue: true, Description: "Literal case-insensitive subject or whole external JSON substring, at most 64 UTF-8 bytes. Empty means no filter. JSON containment is a separate operation."},
+			{Name: "source", In: "query", Schema: openapi.String(), AllowEmptyValue: true, Description: "Literal case-insensitive text substring at external_payload.source, at most 64 UTF-8 bytes. Empty means no filter. A missing source does not match a nonempty filter."},
+		},
+		Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The selected category's tickets.", items), helpdeskJSONResponse(http.StatusBadRequest, "The query parameters are invalid.", errorSchema)},
 	}, a.apiList)
 	if err != nil {
 		return nil, err

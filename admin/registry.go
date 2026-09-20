@@ -733,7 +733,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 	}
 }
 
-func validateFieldSelection(path string, fields []string, known map[string]ir.Field, charOnly bool) ([]string, error) {
+func validateFieldSelection(path string, fields []string, known map[string]ir.Field, textSearchOnly bool) ([]string, error) {
 	if len(fields) == 0 {
 		return nil, &ConfigError{Path: path, Code: "empty"}
 	}
@@ -748,7 +748,7 @@ func validateFieldSelection(path string, fields []string, known map[string]ir.Fi
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "duplicate"}
 		}
 		seen[name] = struct{}{}
-		if charOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldText {
+		if textSearchOnly && field.Kind != ir.FieldChar && field.Kind != ir.FieldText && field.Kind != ir.FieldJSON {
 			return nil, &ConfigError{Path: fmt.Sprintf("%s[%d]", path, index), Code: "not_searchable"}
 		}
 	}

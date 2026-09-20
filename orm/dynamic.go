@@ -136,7 +136,7 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:
-		return lookup, field.Kind == ir.FieldChar || field.Kind == ir.FieldText
+		return lookup, field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldJSON
 	default:
 		return "", false
 	}
@@ -151,6 +151,13 @@ func dynamicValue(field ir.Field, lookup query.Lookup, raw any) (query.Value, er
 			Lookup:   string(lookup),
 			Detail:   fmt.Sprintf("expected %s, got %T", expected, raw),
 		}
+	}
+	if field.Kind == ir.FieldJSON && lookup == query.LookupIContains {
+		value, ok := raw.(string)
+		if !ok {
+			return invalid("string")
+		}
+		return query.String(value), nil
 	}
 	if lookup == query.LookupIsNull {
 		value, ok := raw.(bool)

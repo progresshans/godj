@@ -99,6 +99,7 @@ func verifyHelpdeskJSON(t *testing.T, ctx context.Context, runtime *systemstate.
 		}
 		return row
 	}
+	verifyHelpdeskJSONSearch(t, ctx, runtime, client, categoryID, outsideID)
 	baseline := read()
 	response := client.request("GET", changePath, "", false)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "<textarea name=\"external_payload\">\nnull</textarea>") || baseline.ExternalPayload != nil {

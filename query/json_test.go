@@ -84,7 +84,7 @@ func TestJSONPredicatesValidateKindAndLiteralComparisons(t *testing.T) {
 		query.NewCondition(field, query.LookupExact, query.String(`{"a":1}`)),
 		query.NewCondition(field, query.LookupExact, query.Null()),
 		query.NewCondition(field, query.LookupGreaterThan, query.String("1")),
-		query.NewCondition(field, query.LookupIContains, query.String("a")),
+		query.NewCondition(field, query.LookupIContains, query.JSON(jsonvalue.Null())),
 	} {
 		if _, err := query.NewExpression(condition); err == nil {
 			t.Fatal("unsupported or untyped JSON comparison accepted")

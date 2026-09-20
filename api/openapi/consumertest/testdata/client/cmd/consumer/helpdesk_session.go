@@ -54,6 +54,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if created.ExternalReference.Null || created.ExternalReference.Value != reference || string(created.ExternalPayload) != `{"":340282366920938463463374607431768211455}` {
 		return fail("helpdesk UUID create value")
 	}
+	if err := checkHelpdeskJSONSearch(ctx, client, transport, state, *created); err != nil {
+		return err
+	}
 	expected := []hs.Ticket{seed, *created}
 	for _, test := range []struct {
 		subject string
@@ -198,7 +201,7 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 }
 
 func helpdeskList(ctx context.Context, client *hs.Client, transport *observedTransport, state *sessionState) ([]hs.Ticket, error) {
-	response, err := client.HelpdeskTicketList(ctx)
+	response, err := client.HelpdeskTicketList(ctx, hs.HelpdeskTicketListParams{})
 	list, ok := response.(*hs.HelpdeskTicketListOKHeaders)
 	if err != nil || !ok || transport.lastStatus() != http.StatusOK || !list.XGodjCsrftoken.Set || !transport.capturedCSRF() || !state.ready(list.XGodjCsrftoken.Value) {
 		return nil, fail("helpdesk safe bare list")

@@ -324,7 +324,7 @@ func runStorage(t *testing.T, open func(context.Context) (jsonBackend, error)) {
 			}
 		}
 	}
-	for _, input := range []orm.LookupInput{{Key: "payload", Value: nil}, {Key: "payload", Value: "null"}, {Key: "payload", Value: map[string]any{"a": 1}}, {Key: "payload", Value: jsonvalue.Value{}}, {Key: "payload__range", Value: sample}, {Key: "payload__icontains", Value: "a"}} {
+	for _, input := range []orm.LookupInput{{Key: "payload", Value: nil}, {Key: "payload", Value: "null"}, {Key: "payload", Value: map[string]any{"a": 1}}, {Key: "payload", Value: jsonvalue.Value{}}, {Key: "payload__range", Value: sample}, {Key: "payload__icontains", Value: sample}} {
 		if _, err := orm.ParseDynamic(models.RecordDescriptor{}, nil, []orm.LookupInput{input}); err == nil {
 			t.Fatal("JSON dynamic lookup coerced an unsupported value or operation")
 		}
@@ -446,6 +446,7 @@ func runStorage(t *testing.T, open func(context.Context) (jsonBackend, error)) {
 	t.Run("related_projection", func(t *testing.T) { verifyRelatedProjection(t, backend, native) })
 	t.Run("forward_projection", func(t *testing.T) { verifyForwardJSONProjection(t, backend, native) })
 	t.Run("comparison", func(t *testing.T) { verifyJSONComparisons(t, backend, native) })
+	t.Run("text", func(t *testing.T) { verifyJSONText(t, backend, native) })
 }
 
 func verifyRelations(t *testing.T, backend jsonBackend, records []models.Record, sample, changed jsonvalue.Value) {

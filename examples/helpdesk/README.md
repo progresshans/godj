@@ -11,7 +11,14 @@ Category–Ticket 관계 모델에 선택형 Form/Admin, 읽기 전용 Category 
 문서의 `Ticket`, `TicketCreate`, `TicketDetail`, `CategorySummary`는 명시적인 component 이름이다.
 Ticket 응답과 생성 입력은 실제 ModelEncoder와 Bind가 사용하는 serializer spec에서 파생하며,
 CategorySummary는 직접 출력하는 id/name 구조를 기술한다.
-`GET /api/tickets/`는 선택 Category의 티켓을 ID 오름차순으로 최대 20개 담은 배열이며 query parameter를 무시한다.
+`GET /api/tickets/`는 선택 Category의 티켓을 ID 오름차순으로 최대 20개 담은 배열이다.
+선택 query `search`는 subject 또는 전체 external_payload의 literal 부분 문자열을 검색하고,
+`source`는 external_payload.source의 TEXT를 검색한다. 비어 있지 않은 두 조건은 AND, 빈 값은 필터 생략이다.
+예를 들어 `?search=vendor&source=partner`는 subject/JSON에 vendor가 있고 source에 partner가 있는 티켓을 찾는다.
+대소문자 처리·JSON의 TEXT 표현은 backend 의미를 따른다. `%`, `_`, 역슬래시도 문자로 검색한다.
+각 값은 UTF-8 64 byte, 전체 raw query는 2048 byte까지이며 unknown/duplicate parameter·잘못된 escape·UTF-8·NUL은
+400 validation_error다. 인증·ViewTicket 권한을 먼저 확인하며 잘못된 query로 제품 데이터를 조회하지 않는다.
+Admin의 기본 검색도 subject와 전체 external_payload를 함께 검색한다. 모든 경로에서 배정한 Category 범위를 유지한다.
 목록 응답은 전체 65536개 값 예산을 사용하며 1 MiB·깊이 16·container 한도는 유지한다. 개별 입력의 예산을 목록 전체에 적용하지 않는다.
 `POST /api/tickets/`는 subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference/external_payload를 받아 Ticket과 201을 반환하고 Location header를 추가하지 않는다.
 subject는 필수이며 생략한 closed는 false, 생략하거나 null로 지정한 details는 null이다. 빈 details 문자열은 null과 구별한다.

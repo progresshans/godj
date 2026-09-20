@@ -400,8 +400,10 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 	case query.LookupIContains:
-		if _, ok := condition.Value().String(); field.Kind() != query.FieldString || !ok {
+		if text, ok := condition.Value().String(); (field.Kind() != query.FieldString && field.Kind() != query.FieldJSON) || !ok {
 			return nil, unsupportedLookup(field, condition.Lookup())
+		} else if field.Kind() == query.FieldJSON && strings.ContainsRune(text, 0) {
+			return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidValue, Field: field.Name(), Lookup: string(condition.Lookup()), Detail: "PostgreSQL JSON text operands cannot contain NUL"}
 		}
 	case query.LookupIsNull:
 		if _, ok := condition.Value().Boolean(); !ok {
@@ -492,10 +494,23 @@ func appendWhereExpression(
 		if condition.Lookup() == query.LookupIn && len(leaf.inValues) == 0 {
 			statement.WriteString("0 = 1")
 		} else {
+			textLookup := condition.Field().Kind() == query.FieldJSON && condition.Lookup() == query.LookupIContains
+			if textLookup {
+				statement.WriteString("UPPER(")
+			}
 			if path, ok := condition.JSONPath(); ok {
 				appendJSONPath(statement, field, path, arguments)
+				if textLookup {
+					statement.WriteString(" #>> '{}'::text[]")
+				}
 			} else {
 				statement.WriteString(field)
+				if textLookup {
+					statement.WriteString("::text")
+				}
+			}
+			if textLookup {
+				statement.WriteByte(')')
 			}
 			conditionArguments, err := compileCondition(statement, condition, right, leaf.inValues, len(*arguments)+1)
 			if err != nil {
@@ -785,8 +800,12 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 		return []any{argument}, nil
 	case query.LookupIContains:
 		text, ok := value.String()
-		if field.Kind() != query.FieldString || !ok {
+		if (field.Kind() != query.FieldString && field.Kind() != query.FieldJSON) || !ok {
 			return nil, unsupportedLookup(field, condition.Lookup())
+		}
+		if field.Kind() == query.FieldJSON {
+			statement.WriteString(" LIKE UPPER(" + placeholder(firstArgument) + `) ESCAPE '\'`)
+			return []any{"%" + queryplan.EscapeLike(text) + "%"}, nil
 		}
 		statement.WriteString(" ILIKE ")
 		statement.WriteString(placeholder(firstArgument))

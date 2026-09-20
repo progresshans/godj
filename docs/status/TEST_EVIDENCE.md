@@ -544,6 +544,68 @@
   다음 고정 source milestone으로 실행하며 위 `8fe1281`의 Hosted 성공을 새 변경의 검증으로 대체하지 않는다.
 
 
+
+### JSON 경로·forward scalar 정렬 Hosted ORM 통합
+
+- [Run 35533945489](https://github.com/progresshans/godj/actions/runs/35533945489), attempt **1**, source
+  `d504cf99ec27a0ed34435e14afab8697fb9b1b2d`: **44 job success / 4 scope skip**.
+  전체 48 job metadata와 완전한 44개 성공 로그의 checkout SHA·terminal/step 상태·실행 inventory를 대조했다.
+  Gate는 `scope: orm`, `full_platform_verified: false`, command-product-matrix·portable-go-matrix·postgresql-product·relation-product-matrix의 네 owner다.
+- PostgreSQL **17.10** core normal/race/CGO=0 각각 **13 package / 1891 run=PASS / skip 0**, operator-target 각각
+  **2 package / 12 PASS / skip 0**다. Generated JSON·forward scalar parent의 필수 실행과 native child 검사를 유지한다.
+- 관계 product의 Linux amd64 normal/CGO=0 각각 **26 package / 4969 PASS**, 나머지 세 OS/arch 각각
+  **27 package / 5017 PASS**다. Race는 각각 **4904 / 4952 PASS**이며 모두 skip 0이다.
+  Portable·command product matrix도 같은 source에서 성공했다. 누락되거나 잘린 로그를 PASS로 사용하지 않았다.
+- 이 결과는 JSON/forward 정렬 source의 통합 검증이다. 후속 JSON 문자열 검색이나 전체 platform 검증을 뜻하지 않는다.
+
+
+
+### JSON 문자열 검색·Helpdesk 소비자 로컬 통합 checkpoint
+
+- 기준 `d504cf99ec27a0ed34435e14afab8697fb9b1b2d` 위 제품·테스트·독립 raw·생성 client와 Go/Python/config lock
+  **51 non-Markdown 경로**의 정렬 manifest SHA256은 `2f786c98b0c9e5c43cd4ef95311803bac3a1bd65b9ca1e32b6e859824760fac3`다.
+  Go **1.26.5 darwin/arm64**, repository-pinned SQLite·native PostgreSQL **17.5 Homebrew**, `TZ=Pacific/Chatham`,
+  `GODJ_REQUIRE_POSTGRES=1`에서 normal/race/CGO=0 전후 동일 바이트를 확인했다.
+- Normal `go test -json -count=1 -timeout=12m ./query ./orm ./db/... ./admin ./codegen/consumertest ./examples/helpdesk ./api/openapi ./api/openapi/consumertest ./examples/article`은
+  **13 package / 814 root 실행 / 5810 test·subtest PASS**다. Article만 제외한 같은 범위의 `-race`는
+  **12 package / 801 root 실행 / 5795 PASS**이며 공통 package의 run/pass/skip roster가 동일하다.
+  Fail 0·stderr 0 bytes, PostgreSQL 단독 process helper guard만 skip 1이다. 실제 양 DB process parent는 필수 PASS다.
+- `CGO_ENABLED=0`은 query·SQLite·generated JSON/nested forward·양 DB Helpdesk·독립 client의 필수 root를 선택했다.
+  **5 package / 8 root / 16 PASS**, skip/fail 0·stderr 0 bytes다. Generated JSON parent는 양 DB의 새 `text` child와
+  기존 storage/path/containment/key/projection/comparison/ordering child를 모두 필수로 확인한다.
+- 고정 Django **6.1**·Python **3.14.3**, SQLite **3.50.4**·PostgreSQL **17.5**/psycopg **3.3.6**의 별도 관찰은
+  **53개 입력 / 184개 root/path·root/forward·filter/exclude 조건 / 3개 Boolean 조합**이다. Native NUL write 3개와
+  NUL 검색 조건 16개의 실패도 검사하며 query 오류는 normal/Count/DTO·LIMIT 0·empty IN 모두 I/O 전 거부한다.
+  SQLite 기본·canonical 저장은 별도 raw이며 정확한 숫자 token/NUL 검색의 **28조건** 차이는 제품 함수를 사용하지 않는
+  독립 SQLite instr/lower probe가 관찰한다. 각 차이의 원래 Django 행 목록·selector와 미사용 차이 0도 확인한다.
+  Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 fresh **1 test / 2 SQLite profile + 정책 probe PASS**, skip/warning 0이다.
+  Raw SHA256은 다음과 같다.
+
+  - 기본 SQLite: `8c8097439dfa2a81ad3a9f1db6dc38da69d425d09f8c8c02a3da5a8eaad9c990`
+  - 기본 PostgreSQL: `21dc6cfc21547c0022540559953a03e3ede5b87c47a89476cb802c6c131542f9`
+  - Canonical SQLite: `c9a6d67281788221bab29bf50b0108c863bd269a58b5f328992d94d7e6066731`
+  - 정확한 숫자/NUL 정책 차이: `abe23425bca7ceb0c96dc82e2ef985815978cf531db6421cd5dcb865dedd4327`
+- 실제 generated 모델은 typed/dynamic AST 일치·lookup policy·문자열 operand 경계·Boolean/optional JOIN·cold Count·All·DTO를
+  양 DB에서 확인한다. SQLite physical connection 두 개와 reopen에서 NUL을 포함한 검색어와 suffix가 보존되는지 검사한다.
+  큰 정수·4000자리 지수·literal %, _, 역슬래시·ASCII case·잘못된 UTF-8/한도와 SQL NULL/missing/JSON null도 구분한다.
+- Helpdesk의 실제 양 DB HTTP는 subject/whole external JSON OR 검색, source path·AND·빈 결과·Admin 검색과 category 제한을
+  검사한다. Unknown/duplicate·escape/UTF-8/NUL·64-byte 값/2048-byte query 한도를 400으로 거부하며 인증·권한이 먼저다.
+  잘못된 query와 권한 거부는 제품 DB 조회 0이다. 기존 저장·rollback·재접속·권한 유지 검증도 같은 parent에서 실행했다.
+- 실제 API 선언으로 고정 ogen **v1.24.0** client를 재생성했다. Article 두 profile은 불변이며 Helpdesk schema와 generated
+  **4파일**만 변경했다. Module/config lock은 불변이다. Parent/child **35 receipt**·race mode, 생성 drift·offline build·실제
+  HTTP·최종 DB를 검사한다. JSON 검색 fixture는 public PATCH로 준비/복원하며 각 GET의 새 CSRF 상태를 유지한다.
+  Python 3.14.3·openapi-spec-validator **0.7.2**·jsonschema **4.25.1**로 세 OpenAPI **3.1.1** 문서와 검색 매개변수를 독립 검증했다.
+- 첫 실행은 디스크 여유 135 MiB와 기존 query 무시 기대값 때문에 실패했다. 재생성 가능한 Go build cache 약 95 GiB를 정리하고,
+  기존 bare list/Accept 검증은 유지하면서 unknown query의 400·pre-I/O 회귀로 옮겼다. 옛 JSON icontains 미지원 기대값도
+  JSON value operand 거부로 바꾸고 문자열 성공은 독립 raw 전체로 검증했다. 실패/중간 로그는 최종 PASS와 구분해 보존했다.
+  실제 SQLite 함수 호출에서 driver의 TEXT 인자가 NUL에 잘려 빈 검색어가 되는 결함을 확인해 needle을 BLOB으로 전달했다.
+  Client는 검색 GET 뒤 CSRF 상태를 갱신하지 않아 복원 PATCH가 403이던 fixture를 수정했다. 독립 SQL probe의 연결도 명시적으로 닫아
+  Python 3.13+ ResourceWarning을 해결했다. 정책·권한·필수 실행을 완화하지 않고 최종 source의 전체 affected scope를 다시 검증했다.
+- Affected vet·gofmt·diff/docs·generated drift PASS다. Helpdesk **12**, Article **12**, relationfixture **16파일 clean**과
+  checked-in relation 소비자 PASS다. 전용 DB는 잔여 연결·사용자 table **0** 확인 후 삭제했고 기존 service는 유지했다.
+  이 변경의 Hosted `web` 통합은 다음 고정 source milestone이 소유하며 앞선 `d504cf9`의 ORM 성공과 합치지 않는다.
+
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

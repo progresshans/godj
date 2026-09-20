@@ -266,7 +266,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if response := client.request("POST", "/admin/login/", login.Encode(), false); response.Code != http.StatusFound {
 		t.Fatalf("login: %d %s", response.Code, response.Body)
 	}
-	listRequest := httptest.NewRequest(http.MethodGet, "http://helpdesk.test/api/tickets/?search=ignored&page=999&unknown=ignored", nil)
+	listRequest := httptest.NewRequest(http.MethodGet, "http://helpdesk.test/api/tickets/", nil)
 	listRequest.Header.Set("Accept", "text/html")
 	for _, cookie := range client.cookies {
 		listRequest.AddCookie(cookie)
@@ -279,7 +279,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		Category int64 `json:"category"`
 	}
 	if err := json.Unmarshal(listResponse.Body.Bytes(), &listed); err != nil || listResponse.Code != http.StatusOK || len(listed) != 1 || listed[0].ID != seed.ID || listed[0].Category != category.ID {
-		t.Fatalf("documented bare list, ignored query, or absent Accept policy changed: %d %s %v", listResponse.Code, listResponse.Body, err)
+		t.Fatalf("documented bare list or absent Accept policy changed: %d %s %v", listResponse.Code, listResponse.Body, err)
 	}
 	beforeDetail = reads.queries
 	detailResponse := client.request("GET", detailPath, "", false)

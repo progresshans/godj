@@ -8,6 +8,16 @@ type HelpdeskTicketDetailParams struct {
 	ID int64
 }
 
+// HelpdeskTicketListParams is parameters of helpdesk:ticket-list operation.
+type HelpdeskTicketListParams struct {
+	// Literal case-insensitive subject or whole external JSON substring, at most 64 UTF-8 bytes. Empty
+	// means no filter. JSON containment is a separate operation.
+	Search OptString `json:",omitempty,omitzero"`
+	// Literal case-insensitive text substring at external_payload.source, at most 64 UTF-8 bytes. Empty
+	// means no filter. A missing source does not match a nonempty filter.
+	Source OptString `json:",omitempty,omitzero"`
+}
+
 // HelpdeskTicketPatchParams is parameters of helpdesk:ticket-patch operation.
 type HelpdeskTicketPatchParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

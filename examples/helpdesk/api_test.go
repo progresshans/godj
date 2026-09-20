@@ -188,8 +188,8 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 	create := document.Paths["/api/tickets/"]["post"]
 	detail := document.Paths["/api/tickets/{id}/"]["get"]
 	listSchema := list.Responses["200"].Content[api.JSONContentType].Schema
-	if len(list.Parameters) != 0 || listSchema.Type != "array" || listSchema.Items == nil || listSchema.Items.Ref != "#/components/schemas/Ticket" {
-		t.Fatal("list is not a bare array of Tickets without query parameters")
+	if len(list.Parameters) != 2 || list.Parameters[0].Name != "search" || list.Parameters[1].Name != "source" || list.Parameters[0].In != "query" || list.Parameters[1].In != "query" || list.Responses["400"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+openapi.ErrorSchemaName || listSchema.Type != "array" || listSchema.Items == nil || listSchema.Items.Ref != "#/components/schemas/Ticket" {
+		t.Fatal("list lost its Ticket array or documented search/source parameters")
 	}
 	if create.RequestBody == nil || !create.RequestBody.Required || create.RequestBody.Content[api.JSONContentType].Schema.Ref != "#/components/schemas/TicketCreate" || create.Responses["201"].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/Ticket" {
 		t.Fatal("create input/output does not use the named Ticket contracts")

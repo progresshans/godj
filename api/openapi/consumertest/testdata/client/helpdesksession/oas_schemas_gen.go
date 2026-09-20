@@ -203,6 +203,7 @@ func (s *GoDjAPIErrorHeaders) SetResponse(val GoDjAPIError) {
 }
 
 func (*GoDjAPIErrorHeaders) helpdeskTicketDetailRes() {}
+func (*GoDjAPIErrorHeaders) helpdeskTicketListRes()   {}
 
 type HelpdeskTicketCreateBadRequest GoDjAPIError
 
