@@ -3,6 +3,25 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0091 — Decimal의 독립 정밀도·저장 기준 준비
+
+- 다음 작업의 준비: [GDJ-0091](../../work/0091-decimal-cost-models.md), branch `feature/decimal-models`. Decimal 제품 코드는 아직 없다.
+- Runner·reference test·raw JSON 세 파일의 정렬된 SHA256 manifest는 `3a16077823474753f8b106a4c103d710f8da262bf5226eb83cbcd648e0e42561`다.
+  [Raw 관찰](../../internal/decimaltest/testdata/django61.json)의 SHA256은 `947dde60d6d0f634a96802567a7a069ff0833ff2e130e685d546cbd21f3bdb77`다.
+- 고정 Django 6.1 / DRF 3.18.0 / asgiref 3.12.1 / sqlparse 0.5.5의 public API로 Model **89**·Form **136**·serializer **360**·
+  실제 JSON number **19**·precision 조합 **90**, SQLite add/reopen/update/rollback/reverse·root/relation query 각 **9**를 기록했다.
+- Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7**의 fresh subprocess reference를 각각 **1 test PASS**, skip/warning 0으로 확인했다.
+  Python·SQLite fingerprint는 실제 runtime과 대조하고 나머지 관찰을 전부 비교했다. 첫 assertion의 sNaN changed 범위 가정을 고쳐
+  초기 null의 true와 세 non-null 초기값의 InvalidOperation을 정확히 구분한 뒤 다시 실행했다. 실제 public API 예외는 raw에 그대로 남겼다.
+- SQLite 저장 probe 9개 중 `123456789012345678.123456789012`는 `123456789012345680.000000000000`로 조회됐고,
+  `999999999999999999.999999999999`는 정수 `1000000000000000000`으로 저장된 뒤 조회에서 InvalidOperation을 냈다.
+  추가 probe는 각 transaction을 rollback했고 reverse 뒤 기존 8개 행만 남았다.
+- 별도 **Go 1.26.5 / pgx v5.10.0 / PostgreSQL 17.5(Homebrew)**의 native NUMERIC binary probe 14개를 실행했다.
+  NUMERIC(30,12)는 위 두 30자리 값을 정확히 보존했다. NUMERIC(12,2)의 ±1.225는 ±1.23이었고 SQLite/Django 읽기는 ±1.22였다.
+  자릿수 overflow는 SQLSTATE 22003, signed zero는 양수 zero였다. Native NaN 허용을 Django Decimal 모델 허용으로 채택하지 않는다.
+  임시 table의 transaction rollback과 잔존 table 없음을 확인했으며 기존 service는 유지했다.
+- 이 준비는 제품 설계 채택이나 GoDj Decimal의 runtime·Hosted 지원 증거가 아니다. Float Hosted source에도 포함되지 않는다.
+
 ## GDJ-0090 — Float 모델과 finite 소비자 연결
 
 ### 독립 기준

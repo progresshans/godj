@@ -36,6 +36,8 @@ GDJ-0090 Float 제품의 affected 일반/race, 필수 PostgreSQL·CGO0·독립 c
 Float source `784dbf644f71c2d3507371c2afcc117d0f746ffb`를 기존 Draft PR에 통합했다.
 [Hosted ORM](https://github.com/progresshans/godj/actions/runs/35484302381)에서 관련 OS/architecture/mode 검증을 진행한다.
 최근 Hosted full은 GDJ-0089의 source이며 Float 제품은 포함하지 않는다. 정확한 source·실행 상태는 TEST_EVIDENCE를 따른다.
+[GDJ-0091 Decimal 준비](../../work/0091-decimal-cost-models.md)는 독립 reference와 저장 정밀도 조사를 진행했다.
+Float Hosted 완료 뒤 Decimal의 정확한 값·저장 경계를 정하고 실제 예상 비용 흐름으로 이어간다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 
 ## 근거

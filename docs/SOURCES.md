@@ -83,6 +83,10 @@ SQL driver 경계는 [pgx v5.10.0 TimeCodec](https://github.com/jackc/pgx/blob/v
 Duration의 값·입력·DB 범위와 exact JSON number는 [ADR-0067](adr/0067-duration-model-range-and-number-input.md)에 정리한다.
 고정 Django/DRF의 실제 public API 관찰과 JSON numeric ingress는 [Duration runner](../conformance/runners/django/duration_reference.py)가 소유한다.
 
-FloatField의 구현 준비는 같은 pinned Django/DRF의 model/form FloatField·JSONRenderer를 독립 관찰한다(BSD-3-Clause).
+FloatField는 같은 pinned Django/DRF의 model/form FloatField·JSONRenderer를 독립 관찰한다(BSD-3-Clause).
 [ADR-0068](adr/0068-binary64-field-and-finite-json-boundaries.md), [runner](../conformance/runners/django/float_reference.py),
-[실제 관찰과 범위](status/TEST_EVIDENCE.md#gdj-0090--float의-독립-기준-준비)를 따른다.
+[실제 관찰과 범위](status/TEST_EVIDENCE.md#gdj-0090--float-모델과-finite-소비자-연결)를 따른다.
+
+DecimalField 준비는 같은 pinned Django의 model/form DecimalField·DecimalValidator·SQLite adapter와 DRF DecimalField를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/decimal_reference.py)는 public 입력·precision·JSON 표현과 실제 SQLite 저장 결과를 생성하고,
+[GDJ-0091](../work/0091-decimal-cost-models.md)은 저장 정확도와 backend 반올림의 아직 채택하지 않은 경계를 구분한다.
