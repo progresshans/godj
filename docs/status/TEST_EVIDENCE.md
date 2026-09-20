@@ -138,7 +138,7 @@
   이 run은 기존 Helpdesk parent 안의 새 JSON PostgreSQL 흐름과 SQLite/portable generated JSON은 실행했지만,
   독립 generated JSON consumer의 PostgreSQL 하위 실행 증거는 아니다. 로컬 17.5 결과로 이 누락을 대체하지 않는다.
   후속에서 PostgreSQL 선택/필수 목록과 relation 필수 목록에 해당 parent를 추가했다. PostgreSQL DSN이 있는 parent는 child의
-  PostgreSQL 하위 실행도 필수로 검증한다. 아래 목록 예산 보강과 함께 `web` scope Hosted에서 확인한다.
+  PostgreSQL 하위 실행도 필수로 검증한다. 아래 목록 예산 보강과 함께 `web` scope Hosted에서 확인했다.
 
 ### JSON 목록 응답 예산 후속 보강
 
@@ -158,7 +158,22 @@
 - 세 OpenAPI profile을 같은 locked ogen으로 다시 생성했고 Helpdesk 목록 설명과 generated client 설명 한 파일만 달라졌다.
   Module/config lock은 불변이며 독립 client의 34개 receipt도 통과했다. Affected vet와 실제 문서의 표준 검증도 PASS다.
   새 전용 DB는 잔여 연결 0 뒤 삭제했다. CI 필수 실행 목록의 2파일 보강은 별도이며 기존 scope/gate 테스트 4개를 통과했다.
-  실제 새 PostgreSQL 선택과 목록 보강은 `web` scope Hosted에서 확인한다. 수직 연결 source의 full 결과와 합치거나 전체 platform을 중복하지 않는다.
+  실제 새 PostgreSQL 선택과 목록 보강의 Hosted 증거는 다음 소절이 소유한다. 수직 연결 source의 full 결과와 합치거나 전체 platform을 중복하지 않는다.
+
+### 목록 예산·generated JSON 필수 실행 Hosted 검증
+
+- [Run 35513511335](https://github.com/progresshans/godj/actions/runs/35513511335), attempt **1**, source
+  `33b310f72036259f1fda0e2d0310d43c341187fb`: 실행 **32 job success**, 범위 외 owner **5개 skip**.
+  실행한 32개 job 모두의 checkout SHA·종료 상태를 완전한 로그와 metadata로 대조했다.
+  최종 gate는 `scope: web`, `full_platform_verified: false`, owner는 `command-product-matrix`, `portable-go-matrix`, `postgresql-product`다.
+- PostgreSQL 17.10 core normal/race/CGO=0 각각 **13 package / 1884 PASS / skip 0**다.
+  세 모드 모두 `codegen/consumertest|TestGeneratedJSONConsumer`의 선택·필수 PASS를 확인했다.
+  `GODJ_REQUIRE_POSTGRES=1`의 parent가 generated child의 `TestJSONStorageQueryAndOwnership/postgres` 실행까지 요구하므로
+  앞선 full에서 누락됐던 독립 generated JSON의 실제 PostgreSQL 흐름도 검증했다.
+  Operator-target normal/race/CGO=0 각각 **2 package / 12 PASS / skip 0**다.
+- 선택하지 않은 owner는 `conformance-validation`, `exact-darwin-validation`, `relation-product-matrix`,
+  `product-project-check-matrix`, `python-compatibility-matrix`다. 이 결과는 후속 source의 관련 범위이며 새 full-platform 결과가 아니다.
+  완료 기록은 Markdown만 변경하고 제품·생성물·workflow·lock은 위 source와 동일하게 유지한다.
 
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 

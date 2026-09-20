@@ -50,6 +50,6 @@ Form/Admin의 JSON 원문·빈 값·변경 감지, serializer 입력/응답 null
 Form의 동등한 numeric spelling과 stored JSON null을 실제 UPDATE에서 보존하며, Helpdesk의 실제 DB readback과 응답 검증을
 transaction 안에서 처리해 native 확장으로 응답할 수 없는 값이 commit되지 않게 했다. 양 DB와 HTTP consumer의 normal/race/CGO=0 checkpoint를 마쳤다.
 JSON 수직 연결 source의 Hosted full을 마쳤다. 실제 목록의 aggregate JSON 예산을 보강하고 generated JSON PostgreSQL 소비자를
-CI 선택/필수 목록에 넣은 후속은 별도 `web` 범위로 검증한다. 이전 source의 full과 후속 검증을 구분한다.
+CI 선택/필수 목록에 넣은 후속도 별도 `web` 범위에서 통과했다. 이전 source의 full과 후속 검증을 구분한다.
 JSON을 ordered scalar로 일괄 허용하지 않는다. Key/path·contains 등 추가 JSON 연산도 backend capability와 실제 결과를 확인하며 이어간다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.
