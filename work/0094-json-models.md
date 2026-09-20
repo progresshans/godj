@@ -1,6 +1,6 @@
 ---
 id: GDJ-0094
-status: active
+status: completed
 updated: 2026-09-21
 baseline_commit: "7da91ad5fbd6284622fb372e7d8051120584424e"
 integration_owner: "root"
@@ -78,5 +78,5 @@ Root/path·forward JSON과 11종 forward scalar의 ASC/DESC 정렬을 공통 값
 Hosted ORM 통합 milestone도 완료했다.
 Whole/path·forward JSON의 literal IContains와 Helpdesk Admin/API search/source·독립 생성 client를 연결했다.
 숫자 token·NUL 검색의 명시적 차이는 독립 SQL probe와 DEV-0017로 기록하고 양 DB의 normal/race/CGO=0 checkpoint를 마쳤다.
-같은 고정 source의 Hosted web 통합을 검증한 뒤 다음 모델 무결성 요구를 이어간다.
+같은 고정 source의 Hosted web 통합도 완료했다. 다음 모델 무결성 요구는 [GDJ-0095](0095-model-uniqueness.md)가 소유한다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

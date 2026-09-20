@@ -3,6 +3,39 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — 모델 고유성의 독립 기준
+
+- 제품 기준 source `ef9b05c0ec829d5cb38c0944507a70f0a5e1f483` 위 독립 runner·test·양 DB raw와 Python lock
+  **6경로** manifest SHA256은 `b57fe03aa1ffcb28711c123732501b4759b224885732fdc0662274ab2b054ac1`다.
+  이 단계에는 GoDj 제품 코드 변경이 없다. 아래 관찰은 unique 선언·migration·검증 기능이 구현됐다는 증거가 아니다.
+- [Runner](../../conformance/runners/django/unique_reference.py)는 Django **6.1**·Python **3.14.3**, SQLite **3.50.4**와
+  native PostgreSQL **17.5 Homebrew**/psycopg **3.3.6**의 public ORM·ModelForm·migration state/autodetector/schema editor를 사용했다.
+  각 backend **13 profile / 96 insert 시도**, ModelForm **6개**, unique 변경 **3개 흐름 / 8회 forward·reverse·재시도**,
+  unique AddField **2개**, unique FK **5회 insert**, savepoint/outer rollback과 별도 connection **2개 경쟁 쓰기**를 관찰했다.
+  13 profile은 기존 12종 scalar와 명시적인 JSON canonical 저장 profile이다. 기본 JSON 관찰을 canonical로 덮어쓰지 않는다. Bool/int/float 관찰값에 별도 type tag를 사용해
+  Python의 True=1=1.0 비교나 signed zero가 reference 차이를 숨기지 않게 했다.
+- 양 DB에서 nullable unique의 SQL NULL 두 개는 저장되고 같은 UUID의 문자열 별칭·동일 숫자값·빈 문자열 중복은 충돌했다.
+  기본 Django SQLite JSON은 1/1.0·다른 object key 순서를 다른 TEXT로 저장하고, PostgreSQL JSONB는 같은 값으로 충돌했다.
+  SQLite JSON canonical profile은 기존 GoDj key 정규화 정책에 따라 reordered object가 충돌했다. SQLite의 NaN→SQL NULL과
+  PostgreSQL NaN의 중복 충돌도 보존한다. GoDj의 기존 NaN/정확한 JSON token 정책은 이 관찰로 완화하지 않는다.
+- 기존 중복 데이터에서 unique 추가는 IntegrityError로 실패하고 column·constraint·원래 행과 inbound FK가 유지됐다.
+  한 중복 값을 명시적으로 수정한 후 재시도는 성공했다. Unique 제거 후 새 중복을 만들면 reverse가 실패하고,
+  이를 명시적으로 고친 뒤 reverse가 성공했다. 각 시도 후 connection을 닫고 재접속해 snapshot을 다시 대조했다.
+  기존 두 행에 nullable unique column을 추가하면 둘 다 NULL이며 reverse가 원래 shape를 복원한다.
+  동일한 literal default를 채우는 unique AddField는 실패하며 column·데이터·constraint가 추가 전과 같았다.
+- Unique FK는 중복 target을 거부하고 null은 두 번 저장했다. Field는 many-to-one, reverse는 one-to-many manager이며
+  one-to-one 객체 API로 변하지 않았다. 별도 경쟁 insert 두 개는 정확히 **1 성공 / 1 IntegrityError / 저장 행 1**이다.
+  Native 오류는 PostgreSQL **23505**, SQLite **SQLITE_CONSTRAINT_UNIQUE**다. Duplicate savepoint는 outer의 정상 쓰기를
+  손상시키지 않았고 outer rollback 뒤에는 처음 행만 남았다. 이 결과는 GoDj nested transaction 지원의 증거가 아니다.
+- Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 fresh SQLite 전체 관찰 **1 PASS**, skip/warning 0이다.
+  원본 runtime/version은 확인 후 그 두 fingerprint만 제외하고 모든 행·DDL·형태·오류·재접속·경쟁 결과를 비교했다.
+  Raw SHA256: SQLite `e5ace05ba1b6370159f600504cdc320351359dcbfba89e094505a90aefa943b7`,
+  PostgreSQL `0b240dea9b81f35e1876998c5b88bc7c46e5c95ec6d4581ca89520d413d65733`.
+  전용 DB는 잔여 연결·사용자 table 0 뒤 삭제했다. 기존 PostgreSQL service는 유지했다.
+- 현재 GoDj의 IR·definition·generator에 Unique 속성이 없으며 migration catalog는 추가 unique index/constraint를 거부한다.
+  이 거부를 제거하는 것으로 구현 완료 처리하지 않는다. [GDJ-0095](../../work/0095-model-uniqueness.md)의
+  정확한 선언/물리 소유권·무결성 오류·소비자 연결과 실제 제품 검증을 이어간다.
+
 ## GDJ-0094 — JSON 모델 독립 기준과 저장 기반
 
 - UUID source `7da91ad5fbd6284622fb372e7d8051120584424e` 위에서 다음 모델 연결의 독립 기준만 준비했다.
@@ -604,6 +637,22 @@
 - Affected vet·gofmt·diff/docs·generated drift PASS다. Helpdesk **12**, Article **12**, relationfixture **16파일 clean**과
   checked-in relation 소비자 PASS다. 전용 DB는 잔여 연결·사용자 table **0** 확인 후 삭제했고 기존 service는 유지했다.
   이 변경의 Hosted `web` 통합은 다음 고정 source milestone이 소유하며 앞선 `d504cf9`의 ORM 성공과 합치지 않는다.
+
+
+
+### JSON 문자열 검색·Helpdesk Hosted web 통합
+
+- [Run 35537035733](https://github.com/progresshans/godj/actions/runs/35537035733), attempt **1**, source
+  `ef9b05c0ec829d5cb38c0944507a70f0a5e1f483`: **32 job success / 5 scope skip**.
+  전체 37 job metadata와 완전한 32개 성공 로그의 checkout SHA·terminal/step 상태·gate를 대조했다.
+  Gate는 `scope: web`, `full_platform_verified: false`, command-product-matrix·portable-go-matrix·postgresql-product의 세 owner다.
+- PostgreSQL **17.10** core normal/race/CGO=0 각각 **13 package / 1892 run=PASS / skip 0**,
+  operator-target 각각 **2 package / 12 PASS / skip 0**다. Generated JSON parent의 양 DB `text` child와
+  기존 필수 child, 실제 PostgreSQL Helpdesk의 검색·권한·migration·rollback은 해당 source에서 실행됐다.
+- Portable integration normal/race/CGO=0 각각의 완전한 package 출력에서 `api/openapi/consumertest`,
+  `codegen/consumertest`, `examples/helpdesk`의 실제 성공을 확인했다. 독립 client parent는 source에 고정된
+  **35 receipt**와 race mode·실제 schema/재생성/HTTP/최종 DB 검사를 요구한다. Command product의 선택한 operator matrix도 성공했다.
+- 이 결과는 JSON 검색 source의 web 통합이다. 이후 고유성 독립 기준이나 전체 platform/미구현 기능의 PASS로 사용하지 않는다.
 
 
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
