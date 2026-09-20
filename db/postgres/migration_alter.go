@@ -27,7 +27,13 @@ func (schema *postgresMigrationSchema) AlterField(ctx context.Context, executor 
 		return postgresMigrationIntentIntegrity("AlterField arguments differ from the sealed field transition", err)
 	}
 	if kind == ir.ChangeUnique {
-		return postgresMigrationCapability("UniqueConstraints is not implemented by the PostgreSQL migration backend", nil)
+		statement, err := compilePostgresUniqueAlter(schema.namespace, model, wantAfter)
+		if err != nil {
+			return err
+		}
+		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL unique constraint", err)
+		}
 	}
 	if kind == ir.ChangeDecimalPrecision {
 		if err := schema.validateDecimalValues(ctx, executor, model, wantBefore, wantAfter); err != nil {

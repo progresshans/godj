@@ -15,13 +15,14 @@ Helpdesk Admin/API의 search/source를 포함한 source `ef9b05c`의
 지원 표현과 미지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
 모델의 column uniqueness를 진행 중이다. 양 DB의 독립 기준에 이어 `schema.Unique()`를 IR·생성 metadata·historical
-definition/digest·자동 변경 계획에 연결했다. 지원하지 않는 DB 경로는 실행 전에 명시적으로 거부한다.
-선언과 이력의 로컬 검증을 완료했으며 실제 UNIQUE 제약 생성·저장 충돌·Form/Admin/API 검증은 아직 구현 중이다.
+definition/digest·자동 변경 계획에 연결했다. PostgreSQL의 실제 UNIQUE DDL·catalog·저장 충돌 오류와 실패/재시도를
+native DB에서 검증했다. [소유권과 구현 경계](../adr/0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
+SQLite 제약과 Form/Admin/API 소비자 연결은 아직 구현 중이며 SQLite는 해당 migration을 명시적으로 거부한다.
 
 ## 다음 행동
 
-SQLite와 PostgreSQL의 UNIQUE 제약 생성·변경·제거와 정확한 물리 catalog 검증, operation별 SQL 출력을 구현한다.
-그 뒤 실제 insert/update 충돌·경쟁·실패/rollback을 Form/Admin/API와 Helpdesk 외부 참조의 중복 방지까지 연결한다.
+SQLite의 UNIQUE 제약 생성·변경·제거와 정확한 물리 catalog 검증, operation별 SQL 묶음을 구현한다.
+이어 공통 입력 검증과 양 DB의 저장 충돌을 Form/Admin/API·Helpdesk 외부 참조·generated client까지 연결한다.
 구현과 검증 범위는 GDJ-0095와 TEST_EVIDENCE에 기록한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.

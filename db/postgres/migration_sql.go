@@ -48,6 +48,13 @@ func compilePostgresMigrationCreateModel(
 			return "", fmt.Errorf("compile PostgreSQL CreateModel %q field %d: %w", model.DBTable, fieldIndex, err)
 		}
 		parts = append(parts, column)
+		if field.Unique {
+			constraint, err := compilePostgresUniqueConstraint(model.DBTable, field)
+			if err != nil {
+				return "", err
+			}
+			parts = append(parts, constraint)
+		}
 		if field.Kind != ir.FieldForeignKey {
 			continue
 		}
@@ -107,6 +114,13 @@ func compilePostgresMigrationAddField(
 		return "", err
 	}
 	statement := "ALTER TABLE " + table + " ADD COLUMN " + column
+	if field.Unique {
+		constraint, err := compilePostgresUniqueConstraint(model.DBTable, field)
+		if err != nil {
+			return "", err
+		}
+		statement += ", ADD " + constraint
+	}
 	if field.Kind != ir.FieldForeignKey {
 		if target != nil {
 			return "", errors.New("scalar PostgreSQL AddField carries relation target metadata")
@@ -168,9 +182,6 @@ func compilePostgresMigrationRemoveField(
 }
 
 func compilePostgresMigrationColumn(field ir.Field) (string, error) {
-	if field.Unique {
-		return "", postgresMigrationCapability("UniqueConstraints is not implemented by the PostgreSQL migration backend", nil)
-	}
 	column, err := quoteIdentifier(field.Column)
 	if err != nil {
 		return "", err

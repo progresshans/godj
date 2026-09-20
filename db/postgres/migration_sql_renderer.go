@@ -93,7 +93,11 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 			if kind == ir.ChangeChoices {
 				continue
 			}
-			statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)
+			if kind == ir.ChangeUnique {
+				statement, err = compilePostgresUniqueAlter(renderer.schema, operation.After, field)
+			} else {
+				statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)
+			}
 		case migrationbackend.MigrationCreateModel:
 			statement, err = compilePostgresMigrationCreateModel(
 				renderer.schema,

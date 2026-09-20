@@ -3,6 +3,49 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — PostgreSQL 고유성 제약·catalog·실패 복구
+
+2026-09-21, darwin/arm64 Go **1.26.5**, native PostgreSQL **17.5 Homebrew**, `TZ=Pacific/Chatham`,
+`GODJ_REQUIRE_POSTGRES=1`. 기준 `2674ad0c836b08d16f42d135d4189bab3a1fd53c` 위 제품·검증 **13경로**
+manifest SHA256은 `666b3dd2e6d2e3acb9179149a256169c3e8564f7ef66aee3ab341f1b708e49a6`다.
+검사 전후 해당 파일 hash가 같음을 확인했다. 설계는 [ADR-0072](../adr/0072-column-uniqueness-and-constraint-ownership.md)가 소유한다.
+
+- Named native UNIQUE와 단일 B-tree의 Create/Add/Alter·reverse, 순수 SQL projection을 연결했다.
+  제약·소유 index의 정확한 집합/이름/OID/column·즉시 검사·NULL 정책·collation/operator class를 검사한다.
+  기존 PK index 검사도 같은 경계를 사용하고 알 수 없는 index를 허용하지 않는다.
+- 독립 Django PostgreSQL raw의 **13 profile / 96 insert** 전부를 실제 GoDj typed write에 실행했다.
+  두 SQL NULL, 빈 문자열, case, UUID 별칭의 같은 값, Float signed zero/NaN/infinity, Decimal 숫자 동등성,
+  JSONB의 numeric/object 동등성과 JSON null을 포함해 저장 성공/23505 충돌이 전부 일치했다.
+  각 profile에서 자기 행 update·다른 행의 충돌·취소·재접속 후 행 수/원래 NULL과 물리 catalog를 확인했다.
+  UUID 별칭은 기존 form/API 입력 parser를 통해 typed UUID로 바꾼다. Strict `uuid.Parse`의 수용 범위를 바꾸지 않았다.
+- 두 별도 backend/pool의 동시 insert는 **1 성공 / 1 unique_constraint / 저장 행 1**이다.
+  Atomic callback에서 정상 insert 뒤 중복 insert가 실패하면 앞선 쓰기도 rollback되고 후속 쓰기가 성공한다.
+  오류는 `integrity_error/unique_constraint`, 기존 PK 오류와 구분하며 native 원인과 context 취소를 보존한다.
+- 기존 중복에서 unique 추가와 unique 제거의 reverse가 실패할 때 실제 catalog·revision/recorder·행/inbound FK가 유지됐다.
+  실패 전 session token으로 다시 begin/rollback해 revision 보존을 확인했다. 명시적 값 수정 후 같은 변경의 재시도가 성공했다.
+  재접속 후 이력·no-op, nullable unique/unique FK AddField·중복 update·실제 FK 제약·reverse·sequence high-water도 확인했다.
+  Unique FK를 CreateModel에 바로 선언하는 경로와 모델 그래프 전체 reverse·재생성도 실행해 제약/sequence 잔여물이 없음을 확인했다.
+- Native schema를 직접 바꾼 NULLS NOT DISTINCT/deferrable/standalone unique index/INCLUDE/extra index/index options
+  **6개 drift**가 모두 revision claim 전에 거부됐다. 원래 행과 변경 전후 catalog·recorder가 유지됐다.
+  그 외 column/부분 index/expression/operator class/collation·중복 inventory 등 catalog 부정 검사를 함께 실행했다.
+
+| 실행 | 결과 |
+|---|---|
+| `go test -json -count=1 -timeout=15m ./query ./db/postgres` | 2 package PASS, root 220 run / 219 PASS, 전체 2,610 run / **2,609 PASS** / helper guard skip 1 |
+| `go test -race -json -count=1 -timeout=15m -run 'Unique\|PostgresRevisionFencedMigrationIntegration\|PostgresDecimalPrecisionKeepsCachedReadersUsable' ./db/postgres` | root 11 / 전체 **157 run=PASS**, skip 0 |
+| `go vet ./db/postgres ./query ./internal/uniquetest` | PASS, 출력·stderr 0 |
+| `make format-check docs-check`, `git diff --check` | PASS, Markdown 137개 링크 검사 |
+
+두 실행의 공통 unique roster **152개**가 같고 독립 insert **96개**의 run/pass를 각각 필수 대조했다.
+Normal의 유일한 skip은 단독 `TestPostgresRevisionFenceHelperProcess` guard다. 실제
+`TestPostgresRevisionFenceCrossProcessIntegration` 부모는 PASS다. 새 unique 경쟁은 두 pool 검사이며 별도 process 검증으로 합치지 않는다.
+두 실행 모두 fail 0, stderr 0이다. 최초 실행은 UUID braces 원문을 strict model parser에 넘긴 테스트 adapter 1건이 실패했다.
+기존 입력 parser로 고친 후 전체 normal과 관련 race를 실행했다. 제품 UUID 정책을 완화하지 않았다.
+
+전용 DB는 잔여 연결·사용자 table·test schema **각 0** 확인 후 삭제했고 기존 PostgreSQL service는 유지했다.
+이 checkpoint는 PostgreSQL 구현의 로컬 증거다. SQLite의 실제 고유성, 공통 입력 검증과 Form/Admin/API/Helpdesk/client,
+CGO-disabled·Hosted와 전체 platform은 이 실행에 포함하지 않는다. GDJ-0095 전체 완료도 아니다.
+
 ## GDJ-0095 — 고유성 선언과 미지원 실행 경계
 
 2026-09-21, darwin/arm64 Go **1.26.5**. 기준 `2050464148d472d4e43dd15b8802d895fb42e743` 위
@@ -33,7 +76,7 @@ JSON event의 run/pass 전체 목록과 package terminal 상태를 대조했다.
 최초 core 실행은 새 autodetect 테스트의 기대값이 정규화 전 빈 column을 사용해 1건 실패했다.
 정규화된 ProjectState를 기대값으로 수정한 후 전체 위 범위를 다시 실행했으며 before/after·재구성·no-op 검사는 유지했다.
 
-양 backend의 `UniqueConstraints`는 아직 false다. 실제 UNIQUE DDL/catalog, native PostgreSQL의 고유성 실행,
+위 선언 기반 source의 양 backend `UniqueConstraints`는 false였다. 실제 UNIQUE DDL/catalog, native PostgreSQL의 고유성 실행,
 저장 충돌/경쟁·rollback/retry·Form/Admin/API/Helpdesk 연결, 관련 race/process/Hosted 통합은 후속 구현 checkpoint가 소유한다.
 이 결과를 기존 JSON의 Hosted web/full source나 전체 프레임워크 완료와 합치지 않는다.
 

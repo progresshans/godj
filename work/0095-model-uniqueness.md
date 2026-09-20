@@ -56,10 +56,15 @@ Unique FK의 many-to-one/reverse collection 의미는 유지한다. Choices·Dec
 AlterField를 허용하고, 다른 속성까지 바뀌면 명시적으로 거부한다. Unique 변경의 빈 SQL도 거부한다.
 
 `UniqueConstraints` capability는 변경 대상과 유지되는 target/transitive 모델의 고유성 검증까지 포함한다.
-현재 양 DB는 이 capability를 제공하지 않는다. Loaded lifecycle과 직접 backend/SQL projection은 미지원 선언을 거부하며
-SQLite에서 schema·recorder를 쓰기 전에 거부하는 실제 경로까지 확인했다. 이는 DB 고유성 구현 완료의 증거가 아니다.
-범위별 실행과 최초 테스트 fixture 수정은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+PostgreSQL은 named UNIQUE와 종속 B-tree index의 Create/Add/Alter·reverse를 구현했다. 정확한 물리 constraint/index 집합과
+column·NULL 정책·즉시 검사·collation/operator class를 검증하고 알 수 없는 index를 거부한다. Non-PK insert/update 충돌은
+`integrity_error/unique_constraint`로 분류하며 원인과 취소 의미를 보존한다. [장기 의미](../docs/adr/0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
 
-다음은 SQLite의 선언된 unique index와 PostgreSQL의 unique constraint/index를 실제 DDL·catalog에 연결하는 것이다.
-SQLite의 Create/Add와 relation remake가 필요한 SQL 묶음을 정확한 operation 순서로 소유하도록 SQL projection 계약도 정리한다.
-기존 revision fence·rollback·FK/sequence 보존을 유지하고 알 수 없는 물리 index의 거부를 완화하지 않는다.
+Native PostgreSQL에서 독립 13 profile·96 insert, 자기 행/중복 update·취소·재접속, 경쟁 1성공/1거부·Atomic rollback,
+기존 중복의 forward/reverse 실패·revision/recorder/행/inbound FK 보존·명시적 수정 후 재시도, nullable unique/unique FK 추가·reverse와
+고유 FK 직접 CreateModel·모델 그래프 reverse/재생성과 물리 drift 거부를 검증했다. 상세 source·전체 normal/선택 race·process 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+
+SQLite는 아직 이 capability를 제공하지 않고 schema·recorder 쓰기 전에 거부한다. 다음은 선언된 unique index와 Create/Add/remake의
+SQL 묶음을 정확한 operation 순서로 소유하도록 구현하는 것이다. 기존 revision fence·rollback·FK/sequence 보존을 유지한다.
+이어 공통 입력 검증·양 DB 저장 충돌을 Form/Admin/API·Helpdesk/generated client에 연결한다. 위 PostgreSQL checkpoint로
+양 DB 항목이나 전체 고유성 작업을 완료 처리하지 않는다.

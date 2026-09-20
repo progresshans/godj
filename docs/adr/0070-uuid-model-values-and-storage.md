@@ -19,7 +19,7 @@ Typed/dynamic query에 입력한 다른 타입을 암묵 변환하지 않는다.
 Schema IR의 UUID kind와 default arm이 단일 정규화 원본이다. Default/wire는 canonical 36-byte 문자열을 사용하며
 canonical 아닌 표기·다른 scalar arm·다른 kind의 UUID payload를 거부한다. Clone·hash·historical digest·자원 한도에도 같은 값을 포함한다.
 생성 모델은 nullable/default·typed predicate·write·root/eager scanner·동적 metadata를 이 IR에서 만든다.
-현재 UUIDField는 일반 scalar다. UUID PK/FK·uniqueness·choices를 함께 지원한 것으로 넓히지 않는다.
+UUIDField는 일반 scalar다. UUID PK/FK·choices를 함께 지원한 것으로 넓히지 않는다. Column uniqueness의 후속 의미와 backend별 범위는 [ADR-0072](0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
 
 ## DB 저장과 쿼리
 

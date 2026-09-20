@@ -394,9 +394,6 @@ func validateExactPostgresMigrationModel(model ir.Model) error {
 	}
 	for index := range model.Fields {
 		field := model.Fields[index]
-		if field.Unique {
-			return postgresMigrationCapability("UniqueConstraints is not implemented by the PostgreSQL migration backend", nil)
-		}
 		if err := validateIdentifier(field.Column); err != nil {
 			return postgresMigrationIntentIntegrity(fmt.Sprintf("field %q column is invalid for PostgreSQL", field.Name), err)
 		}
@@ -477,6 +474,22 @@ func registerPostgresModelDerivedNames(
 	}
 	if err := registerPostgresRelationName(relationOwners, primaryName, primaryOwner+" index"); err != nil {
 		return err
+	}
+	for _, field := range model.Fields {
+		if !field.Unique {
+			continue
+		}
+		name, err := postgresUniqueConstraintName(model.DBTable, field.Column)
+		if err != nil {
+			return postgresMigrationIntentIntegrity("derive PostgreSQL unique constraint", err)
+		}
+		owner := model.DBTable + "." + field.Column + " unique"
+		if err := registerPostgresConstraintName(constraintOwners, name, owner); err != nil {
+			return err
+		}
+		if err := registerPostgresRelationName(relationOwners, name, owner+" index"); err != nil {
+			return err
+		}
 	}
 	sequenceName, err := postgresIdentitySequenceName(model.DBTable, primaryKey.Column)
 	if err != nil {

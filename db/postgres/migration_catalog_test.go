@@ -215,7 +215,17 @@ func postgresMigrationTestCatalog(
 			column.notNull = !field.Nullable
 		case ir.FieldBoolean:
 			column.typeName = "bool"
-			column.notNull = true
+			column.notNull = !field.Nullable
+		case ir.FieldDecimal:
+			column.typeName = "numeric"
+			column.typeModifier = ((field.Decimal.MaxDigits << 16) | field.Decimal.DecimalPlaces) + 4
+			column.notNull = !field.Nullable
+		case ir.FieldUUID:
+			column.typeName = "uuid"
+			column.notNull = !field.Nullable
+		case ir.FieldJSON:
+			column.typeName = "jsonb"
+			column.notNull = !field.Nullable
 		case ir.FieldInteger, ir.FieldForeignKey:
 			column.typeName = "int8"
 			column.notNull = !field.Nullable
@@ -249,7 +259,30 @@ func postgresMigrationTestCatalog(
 	catalog.indexes = append(catalog.indexes, postgresMigrationIndexCatalog{
 		oid: 300, name: primaryName, primary: true, unique: true, valid: true, ready: true, live: true,
 		keyCount: 1, totalCount: 1, firstAttributeNumber: primaryAttribute,
+		immediate: true, accessMethod: "btree", columnCollation: true,
+		operatorClassSchema: "pg_catalog", operatorClassName: "int8_ops", operatorClassDefault: true, operatorClassMethod: true,
 	})
+	for index, field := range model.Fields {
+		if !field.Unique {
+			continue
+		}
+		name, err := postgresUniqueConstraintName(model.DBTable, field.Column)
+		if err != nil {
+			t.Fatal(err)
+		}
+		attribute := postgresMigrationCatalogAttributeNumber(catalog, field.Column)
+		indexOID := int64(601 + index*2)
+		catalog.constraints = append(catalog.constraints, postgresMigrationConstraintCatalog{
+			oid: indexOID - 1, name: name, kind: "u", validated: true,
+			sourceKeyCount: 1, sourceAttributeNumber: attribute, indexOID: indexOID,
+		})
+		catalog.indexes = append(catalog.indexes, postgresMigrationIndexCatalog{
+			oid: indexOID, name: name, unique: true, valid: true, ready: true, live: true,
+			keyCount: 1, totalCount: 1, firstAttributeNumber: attribute, immediate: true,
+			accessMethod: "btree", columnCollation: true, operatorClassSchema: "pg_catalog",
+			operatorClassName: postgresBtreeOperatorClass(field.Kind), operatorClassDefault: true, operatorClassMethod: true,
+		})
+	}
 	for index := range targets {
 		target := targets[index]
 		name, err := postgresForeignKeyConstraintName(model.DBTable, target.SourceField.Column)

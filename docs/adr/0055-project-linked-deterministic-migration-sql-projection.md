@@ -17,8 +17,8 @@ Root는 callback 전에 고정한 slot 규칙으로 수·위치를 검사한 다
 혼합 Alter/Add/Alter에서 물리 Add가 빠지거나 metadata 위치로 옮겨진 결과는 거절한다. 임의 statement 수를 허용하지 않는다.
 후술한 최초 one-body 계약을 이 의미로 확장하며, semicolon-free/canonical 검증·2048 slot/16 MiB 한도·deep copy·redaction·한 번의 출력은 유지한다.
 정밀도 변경의 순수 SQL 출력은 실제 데이터 적합성 검사나 migration transaction을 실행하지 않는다.
-Uniqueness-only AlterField는 빈 body를 허용하지 않는다. 현재 built-in backend의 UNIQUE 제약 구현은 진행 중이므로
-해당 선언은 capability 오류로 거부한다. 속성만 바꾸고 DB 제약이 빠진 SQL을 성공으로 출력하지 않는다.
+Uniqueness-only AlterField는 빈 body를 허용하지 않는다. PostgreSQL은 ADD/DROP CONSTRAINT body를 생성하고,
+SQLite는 아직 해당 선언을 capability 오류로 거부한다. 속성만 바꾸고 DB 제약이 빠진 SQL을 성공으로 출력하지 않는다.
 
 ## 맥락
 

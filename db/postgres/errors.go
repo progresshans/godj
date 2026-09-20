@@ -99,6 +99,14 @@ func classifyDatabaseError(ctx context.Context, operation, schema, table string,
 				Cause:    err,
 			}
 		}
+		if operation == "insert" || operation == "update" {
+			return &query.Error{
+				Category: query.CategoryIntegrity,
+				Code:     query.CodeUniqueConstraint,
+				Detail:   detail,
+				Cause:    err,
+			}
+		}
 	case sqlStateQueryCanceled:
 		// A server-side cancellation without a canceled Go context remains a
 		// driver error; treating it as context.Canceled would invent ownership.

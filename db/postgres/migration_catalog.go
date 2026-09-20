@@ -106,6 +106,17 @@ type postgresMigrationIndexCatalog struct {
 	firstAttributeNumber int
 	hasPredicate         bool
 	hasExpressions       bool
+	nullsNotDistinct     bool
+	immediate            bool
+	exclusion            bool
+	accessMethod         string
+	columnOptions        int
+	columnCollation      bool
+	operatorClassSchema  string
+	operatorClassName    string
+	operatorClassDefault bool
+	operatorClassMethod  bool
+	options              int
 }
 
 func loadPostgresMigrationTableCatalog(
@@ -309,9 +320,19 @@ func readPostgresMigrationIndexes(
 				`"i"."indisvalid", "i"."indisready", "i"."indislive", `+
 				`"i"."indnkeyatts"::integer, "i"."indnatts"::integer, `+
 				`COALESCE("i"."indkey"[0]::integer, 0), `+
-				`("i"."indpred" IS NOT NULL), ("i"."indexprs" IS NOT NULL) `+
+				`("i"."indpred" IS NOT NULL), ("i"."indexprs" IS NOT NULL), `+
+				`"i"."indnullsnotdistinct", "i"."indimmediate", "i"."indisexclusion", `+
+				`COALESCE("am"."amname", ''), COALESCE("i"."indoption"[0]::integer, -1), `+
+				`COALESCE("i"."indcollation"[0] = "a"."attcollation", false), `+
+				`COALESCE("on"."nspname", ''), COALESCE("o"."opcname", ''), `+
+				`COALESCE("o"."opcdefault", false), COALESCE("o"."opcmethod" = "ic"."relam", false), `+
+				`COALESCE("pg_catalog"."array_length"("ic"."reloptions", 1), 0) `+
 				`FROM "pg_catalog"."pg_index" AS "i" `+
 				`JOIN "pg_catalog"."pg_class" AS "ic" ON "ic"."oid" = "i"."indexrelid" `+
+				`LEFT JOIN "pg_catalog"."pg_am" AS "am" ON "am"."oid" = "ic"."relam" `+
+				`LEFT JOIN "pg_catalog"."pg_attribute" AS "a" ON "a"."attrelid" = "i"."indrelid" AND "a"."attnum" = "i"."indkey"[0] `+
+				`LEFT JOIN "pg_catalog"."pg_opclass" AS "o" ON "o"."oid" = "i"."indclass"[0] `+
+				`LEFT JOIN "pg_catalog"."pg_namespace" AS "on" ON "on"."oid" = "o"."opcnamespace" `+
 				`WHERE "i"."indrelid" = $1 ORDER BY "ic"."relname" LIMIT $2`,
 			tableOID,
 			postgresMigrationMaxFields+2,
@@ -331,6 +352,17 @@ func readPostgresMigrationIndexes(
 			&index.firstAttributeNumber,
 			&index.hasPredicate,
 			&index.hasExpressions,
+			&index.nullsNotDistinct,
+			&index.immediate,
+			&index.exclusion,
+			&index.accessMethod,
+			&index.columnOptions,
+			&index.columnCollation,
+			&index.operatorClassSchema,
+			&index.operatorClassName,
+			&index.operatorClassDefault,
+			&index.operatorClassMethod,
+			&index.options,
 		)
 		return index, err
 	})
@@ -453,6 +485,21 @@ func assertPostgresMigrationModelCatalog(
 		name: primaryName, kind: "p", validated: true, sourceKeyCount: 1,
 		sourceAttributeNumber: primaryAttribute,
 	}
+	indexFields := map[string]ir.Field{primaryName: primaryKey}
+	for _, field := range model.Fields {
+		if !field.Unique {
+			continue
+		}
+		name, err := postgresUniqueConstraintName(model.DBTable, field.Column)
+		if err != nil {
+			return postgresMigrationIntentIntegrity("derive PostgreSQL catalog unique name", err)
+		}
+		expectedConstraints[name] = postgresMigrationConstraintCatalog{
+			name: name, kind: "u", validated: true, sourceKeyCount: 1,
+			sourceAttributeNumber: postgresMigrationCatalogAttributeNumber(catalog, field.Column),
+		}
+		indexFields[name] = field
+	}
 	for index := range targets {
 		target := targets[index]
 		name, err := postgresForeignKeyConstraintName(model.DBTable, target.SourceField.Column)
@@ -471,24 +518,28 @@ func assertPostgresMigrationModelCatalog(
 	if len(catalog.constraints) != len(expectedConstraints) {
 		return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("has %d constraints, want %d", len(catalog.constraints), len(expectedConstraints)))
 	}
-	var primaryConstraint postgresMigrationConstraintCatalog
+	indexConstraints := make(map[string]postgresMigrationConstraintCatalog, len(indexFields))
 	for index := range catalog.constraints {
 		actual := catalog.constraints[index]
 		expected, exists := expectedConstraints[actual.name]
 		if !exists {
 			return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("has unexpected constraint %q", actual.name))
 		}
+		delete(expectedConstraints, actual.name)
+		if actual.oid <= 0 {
+			return postgresMigrationCatalogDrift(model.DBTable, "constraint has no physical identity")
+		}
 		if actual.kind != expected.kind || actual.deferrable || actual.deferred || actual.validated != expected.validated ||
 			actual.sourceKeyCount != expected.sourceKeyCount || actual.sourceAttributeNumber != expected.sourceAttributeNumber {
 			return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("constraint %q has an unsupported source shape", actual.name))
 		}
 		switch actual.kind {
-		case "p":
+		case "p", "u":
 			if actual.targetOID != 0 || actual.targetSchema != "" || actual.targetTable != "" || actual.targetKeyCount != 0 ||
-				actual.targetAttributeNumber != 0 || actual.indexOID <= 0 || actual.internalTriggers != 0 || actual.enabledInternal != 0 {
-				return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("primary key %q has an unsupported target/index shape", actual.name))
+				actual.targetColumn != "" || actual.targetAttributeNumber != 0 || actual.indexOID <= 0 || actual.internalTriggers != 0 || actual.enabledInternal != 0 {
+				return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("unique/primary constraint %q has an unsupported target/index shape", actual.name))
 			}
-			primaryConstraint = actual
+			indexConstraints[actual.name] = actual
 		case "f":
 			if actual.targetOID <= 0 || actual.targetSchema != expected.targetSchema || actual.targetTable != expected.targetTable ||
 				actual.targetColumn != expected.targetColumn || actual.targetKeyCount != expected.targetKeyCount || actual.targetAttributeNumber <= 0 ||
@@ -501,17 +552,18 @@ func assertPostgresMigrationModelCatalog(
 			return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("constraint %q has unsupported kind %q", actual.name, actual.kind))
 		}
 	}
-	if primaryConstraint.oid == 0 {
+	if _, exists := indexConstraints[primaryName]; !exists {
 		return postgresMigrationCatalogDrift(model.DBTable, "has no exact framework primary key")
 	}
-	if len(catalog.indexes) != 1 {
-		return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("has %d indexes, want the exact primary index", len(catalog.indexes)))
+	if len(catalog.indexes) != len(indexConstraints) {
+		return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("has %d indexes, want %d declared primary/unique indexes", len(catalog.indexes), len(indexConstraints)))
 	}
-	index := catalog.indexes[0]
-	if index.oid != primaryConstraint.indexOID || index.name != primaryConstraint.name || !index.primary || !index.unique ||
-		!index.valid || !index.ready || !index.live || index.keyCount != 1 || index.totalCount != 1 ||
-		index.firstAttributeNumber != primaryAttribute || index.hasPredicate || index.hasExpressions {
-		return postgresMigrationCatalogDrift(model.DBTable, "primary index shape is outside the current profile")
+	for _, index := range catalog.indexes {
+		constraint, exists := indexConstraints[index.name]
+		if !exists || !exactPostgresConstraintIndex(index, constraint, indexFields[index.name]) {
+			return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("index %q is outside its declared constraint profile", index.name))
+		}
+		delete(indexConstraints, index.name)
 	}
 	return nil
 }
@@ -550,9 +602,7 @@ func assertPostgresMigrationTargetCatalog(
 			constraint.indexOID > 0 && constraint.internalTriggers == 0 && constraint.enabledInternal == 0 {
 			for indexIndex := range catalog.indexes {
 				candidate := catalog.indexes[indexIndex]
-				if candidate.oid == constraint.indexOID && candidate.name == primaryName && candidate.primary && candidate.unique &&
-					candidate.valid && candidate.ready && candidate.live && candidate.keyCount == 1 && candidate.totalCount == 1 &&
-					candidate.firstAttributeNumber == attributeNumber && !candidate.hasPredicate && !candidate.hasExpressions {
+				if exactPostgresConstraintIndex(candidate, constraint, targetKey) {
 					return nil
 				}
 			}

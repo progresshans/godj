@@ -81,6 +81,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
 		AlterFieldDecimalPrecision:        true,
+		UniqueConstraints:                 true,
 	}
 }
 
