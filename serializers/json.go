@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/progresshans/godj/internal/floatvalue"
-	"github.com/progresshans/godj/internal/temporal"
 	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/progresshans/godj/internal/floatvalue"
+	"github.com/progresshans/godj/internal/temporal"
 )
 
 const (
@@ -346,6 +347,8 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
 		}
 		return s.appendBytes([]byte(text))
+	case ValueDecimal:
+		return s.appendString(value.string, "value.decimal")
 	case ValueDuration:
 		return s.appendString(value.string, "value.duration")
 	case ValueTime:

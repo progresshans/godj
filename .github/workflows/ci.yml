@@ -1023,6 +1023,7 @@ jobs:
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedClockTimeConsumer"
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedDurationConsumer"
             "github.com/progresshans/godj/codegen/consumertest|TestGeneratedFloatConsumer"
+            "github.com/progresshans/godj/codegen/consumertest|TestGeneratedDecimalConsumer"
             "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow"

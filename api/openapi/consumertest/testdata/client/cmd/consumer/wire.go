@@ -95,7 +95,10 @@ func checkGeneratedWire(ctx context.Context) error {
 	if err := checkGeneratedDurationWire(ctx); err != nil {
 		return err
 	}
-	return checkGeneratedFloatWire(ctx)
+	if err := checkGeneratedFloatWire(ctx); err != nil {
+		return err
+	}
+	return checkGeneratedDecimalWire(ctx)
 }
 
 type wireHelpdeskSecurity struct{}
@@ -113,7 +116,7 @@ func (wireHelpdeskSecurity) CsrfHeader(context.Context, hs.OperationName) (hs.Cs
 func checkGeneratedChoiceResponseWire(ctx context.Context) error {
 	for _, value := range []int64{math.MinInt64, math.MaxInt64, 99} {
 		calls := 0
-		body := `{"id":1,"subject":"Legacy priority","details":null,"closed":false,"category":1,"effort":null,"elapsed":null,"priority":` + strconv.FormatInt(value, 10) + `,"resolution":null,"due_at":null,"service_on":null,"service_at":null,"reviewed":null}`
+		body := `{"id":1,"subject":"Legacy priority","details":null,"closed":false,"category":1,"expected_cost":null,"effort":null,"elapsed":null,"priority":` + strconv.FormatInt(value, 10) + `,"resolution":null,"due_at":null,"service_on":null,"service_at":null,"reviewed":null}`
 		httpClient := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 			calls++
 			wire, err := io.ReadAll(request.Body)

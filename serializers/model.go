@@ -1,12 +1,13 @@
 package serializers
 
 import (
-	"github.com/progresshans/godj/duration"
-	"github.com/progresshans/godj/internal/floatvalue"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -48,6 +49,11 @@ func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (q
 		if !found {
 			return ModelEncoder[M]{}, invalidConfig("model."+field.name, "unknown field")
 		}
+		if field.kind == FieldDecimal || metadata.Kind == ir.FieldDecimal {
+			if field.kind != FieldDecimal || metadata.Kind != ir.FieldDecimal || metadata.Decimal == nil || field.decimalDigits != metadata.Decimal.MaxDigits || field.decimalPlaces != metadata.Decimal.DecimalPlaces {
+				return ModelEncoder[M]{}, invalidConfig("model."+field.name, "decimal precision does not match model metadata")
+			}
+		}
 		fields[index] = metadata.Clone()
 	}
 	return ModelEncoder[M]{spec: spec, fields: fields, read: read}, nil
@@ -76,6 +82,13 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = Boolean(boolean)
+		case query.ValueDecimal:
+			number, _ := scalar.Decimal()
+			var err error
+			converted, err = decimalOutput(number, field.decimalDigits, field.decimalPlaces)
+			if err != nil {
+				return Value{}, invalidValue(field.name, "decimal model value exceeds field precision or scale")
+			}
 		case query.ValueFloat:
 			number, _ := scalar.Float()
 			converted = Float(number)
@@ -161,6 +174,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 				options = append(options, WithDefault(String(field.Default.String)))
 			case ir.ScalarBoolean:
 				options = append(options, WithDefault(Boolean(field.Default.Boolean)))
+			case ir.ScalarDecimal:
+				number, err := decimal.Parse(field.Default.Decimal)
+				if err != nil {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid decimal default")
+				}
+				options = append(options, WithDefault(Decimal(number)))
 			case ir.ScalarFloat:
 				instant, err := floatvalue.FromBits(field.Default.FloatBits)
 				if err != nil {
@@ -203,6 +222,11 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		case ir.FieldChar, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			projected, err = StringField(field.Name, options...)
+		case ir.FieldDecimal:
+			if field.Decimal == nil || !field.Decimal.Valid() {
+				return Spec{}, invalidConfig("model."+field.Name, "invalid decimal precision")
+			}
+			projected, err = DecimalField(field.Name, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces, options...)
 		case ir.FieldFloat:
 			projected, err = FloatField(field.Name, options...)
 		case ir.FieldDuration:

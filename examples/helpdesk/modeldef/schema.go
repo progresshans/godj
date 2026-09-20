@@ -28,6 +28,7 @@ func Schema() (ir.Schema, error) {
 			schema.TimeField("service_at", "ServiceAt", schema.Nullable()),
 			schema.DurationField("elapsed", "Elapsed", schema.Nullable()),
 			schema.FloatField("effort", "Effort", schema.Nullable()),
+			schema.DecimalField("expected_cost", "ExpectedCost", 12, 2, schema.Nullable()),
 		}},
 	}})
 }

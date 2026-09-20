@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
-const GoDjRelationObjectSchemaSHA256 = "18230997b0c8289d9acd62a5a9124460af00895a602439531843804fcf514b76"
+const GoDjRelationObjectSchemaSHA256 = "e63860b08399eae8202238e1c9a030a848bfffbda057a4f94393314a5b04f248"
 
 var _ orm.RelationObjectDescriptor[Category] = CategoryDescriptor{}
 
@@ -60,4 +60,4 @@ func (ticketCategoryIDRelationStorage) Value(value Ticket) (query.Value, bool) {
 	return query.Integer(value.CategoryID), true
 }
 
-var _ GoDjProjectSnapshot_292be0408ff7f68ff723171af667c0cdcb3a69e70a1b36446f488582e2abab9a
+var _ GoDjProjectSnapshot_6ad6381f2a945937c68148b849541ffad796a9dcf14309c535916accad7d63ae

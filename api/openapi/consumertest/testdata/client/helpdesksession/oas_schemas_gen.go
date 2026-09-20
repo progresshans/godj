@@ -1302,19 +1302,20 @@ func (s *SessionAuth) SetRoles(val []string) {
 
 // Ref: #/components/schemas/Ticket
 type Ticket struct {
-	ID         int64       `json:"id"`
-	Subject    string      `json:"subject"`
-	Details    NilString   `json:"details"`
-	Closed     bool        `json:"closed"`
-	Category   int64       `json:"category"`
-	Priority   NilInt64    `json:"priority"`
-	Resolution NilString   `json:"resolution"`
-	DueAt      NilDateTime `json:"due_at"`
-	Reviewed   NilBool     `json:"reviewed"`
-	ServiceOn  NilDate     `json:"service_on"`
-	ServiceAt  NilString   `json:"service_at"`
-	Elapsed    NilString   `json:"elapsed"`
-	Effort     NilFloat64  `json:"effort"`
+	ID           int64       `json:"id"`
+	Subject      string      `json:"subject"`
+	Details      NilString   `json:"details"`
+	Closed       bool        `json:"closed"`
+	Category     int64       `json:"category"`
+	Priority     NilInt64    `json:"priority"`
+	Resolution   NilString   `json:"resolution"`
+	DueAt        NilDateTime `json:"due_at"`
+	Reviewed     NilBool     `json:"reviewed"`
+	ServiceOn    NilDate     `json:"service_on"`
+	ServiceAt    NilString   `json:"service_at"`
+	Elapsed      NilString   `json:"elapsed"`
+	Effort       NilFloat64  `json:"effort"`
+	ExpectedCost NilString   `json:"expected_cost"`
 }
 
 // GetID returns the value of ID.
@@ -1382,6 +1383,11 @@ func (s *Ticket) GetEffort() NilFloat64 {
 	return s.Effort
 }
 
+// GetExpectedCost returns the value of ExpectedCost.
+func (s *Ticket) GetExpectedCost() NilString {
+	return s.ExpectedCost
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -1447,23 +1453,29 @@ func (s *Ticket) SetEffort(val NilFloat64) {
 	s.Effort = val
 }
 
+// SetExpectedCost sets the value of ExpectedCost.
+func (s *Ticket) SetExpectedCost(val NilString) {
+	s.ExpectedCost = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {
-	Subject    string                     `json:"subject"`
-	Details    OptNilString               `json:"details"`
-	Closed     OptBool                    `json:"closed"`
-	Priority   OptNilTicketCreatePriority `json:"priority"`
-	Resolution OptNilString               `json:"resolution"`
-	DueAt      OptNilDateTime             `json:"due_at"`
-	Reviewed   OptNilBool                 `json:"reviewed"`
-	ServiceOn  OptNilDate                 `json:"service_on"`
-	ServiceAt  OptNilString               `json:"service_at"`
-	Elapsed    OptNilString               `json:"elapsed"`
-	Effort     OptNilFloat64              `json:"effort"`
+	Subject      string                     `json:"subject"`
+	Details      OptNilString               `json:"details"`
+	Closed       OptBool                    `json:"closed"`
+	Priority     OptNilTicketCreatePriority `json:"priority"`
+	Resolution   OptNilString               `json:"resolution"`
+	DueAt        OptNilDateTime             `json:"due_at"`
+	Reviewed     OptNilBool                 `json:"reviewed"`
+	ServiceOn    OptNilDate                 `json:"service_on"`
+	ServiceAt    OptNilString               `json:"service_at"`
+	Elapsed      OptNilString               `json:"elapsed"`
+	Effort       OptNilFloat64              `json:"effort"`
+	ExpectedCost OptNilString               `json:"expected_cost"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1521,6 +1533,11 @@ func (s *TicketCreate) GetEffort() OptNilFloat64 {
 	return s.Effort
 }
 
+// GetExpectedCost returns the value of ExpectedCost.
+func (s *TicketCreate) GetExpectedCost() OptNilString {
+	return s.ExpectedCost
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -1574,6 +1591,11 @@ func (s *TicketCreate) SetElapsed(val OptNilString) {
 // SetEffort sets the value of Effort.
 func (s *TicketCreate) SetEffort(val OptNilFloat64) {
 	s.Effort = val
+}
+
+// SetExpectedCost sets the value of ExpectedCost.
+func (s *TicketCreate) SetExpectedCost(val OptNilString) {
+	s.ExpectedCost = val
 }
 
 type TicketCreatePriority int64
@@ -1649,17 +1671,18 @@ func (*TicketDetailHeaders) helpdeskTicketDetailRes() {}
 
 // Ref: #/components/schemas/TicketPatch
 type TicketPatch struct {
-	Subject    OptString                 `json:"subject"`
-	Details    OptNilString              `json:"details"`
-	Closed     OptBool                   `json:"closed"`
-	Priority   OptNilTicketPatchPriority `json:"priority"`
-	Resolution OptNilString              `json:"resolution"`
-	DueAt      OptNilDateTime            `json:"due_at"`
-	Reviewed   OptNilBool                `json:"reviewed"`
-	ServiceOn  OptNilDate                `json:"service_on"`
-	ServiceAt  OptNilString              `json:"service_at"`
-	Elapsed    OptNilString              `json:"elapsed"`
-	Effort     OptNilFloat64             `json:"effort"`
+	Subject      OptString                 `json:"subject"`
+	Details      OptNilString              `json:"details"`
+	Closed       OptBool                   `json:"closed"`
+	Priority     OptNilTicketPatchPriority `json:"priority"`
+	Resolution   OptNilString              `json:"resolution"`
+	DueAt        OptNilDateTime            `json:"due_at"`
+	Reviewed     OptNilBool                `json:"reviewed"`
+	ServiceOn    OptNilDate                `json:"service_on"`
+	ServiceAt    OptNilString              `json:"service_at"`
+	Elapsed      OptNilString              `json:"elapsed"`
+	Effort       OptNilFloat64             `json:"effort"`
+	ExpectedCost OptNilString              `json:"expected_cost"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1717,6 +1740,11 @@ func (s *TicketPatch) GetEffort() OptNilFloat64 {
 	return s.Effort
 }
 
+// GetExpectedCost returns the value of ExpectedCost.
+func (s *TicketPatch) GetExpectedCost() OptNilString {
+	return s.ExpectedCost
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketPatch) SetSubject(val OptString) {
 	s.Subject = val
@@ -1772,6 +1800,11 @@ func (s *TicketPatch) SetEffort(val OptNilFloat64) {
 	s.Effort = val
 }
 
+// SetExpectedCost sets the value of ExpectedCost.
+func (s *TicketPatch) SetExpectedCost(val OptNilString) {
+	s.ExpectedCost = val
+}
+
 type TicketPatchPriority int64
 
 const (
@@ -1791,17 +1824,18 @@ func (TicketPatchPriority) AllValues() []TicketPatchPriority {
 
 // Ref: #/components/schemas/TicketUpdate
 type TicketUpdate struct {
-	Subject    string                     `json:"subject"`
-	Details    OptNilString               `json:"details"`
-	Closed     OptBool                    `json:"closed"`
-	Priority   OptNilTicketUpdatePriority `json:"priority"`
-	Resolution OptNilString               `json:"resolution"`
-	DueAt      OptNilDateTime             `json:"due_at"`
-	Reviewed   OptNilBool                 `json:"reviewed"`
-	ServiceOn  OptNilDate                 `json:"service_on"`
-	ServiceAt  OptNilString               `json:"service_at"`
-	Elapsed    OptNilString               `json:"elapsed"`
-	Effort     OptNilFloat64              `json:"effort"`
+	Subject      string                     `json:"subject"`
+	Details      OptNilString               `json:"details"`
+	Closed       OptBool                    `json:"closed"`
+	Priority     OptNilTicketUpdatePriority `json:"priority"`
+	Resolution   OptNilString               `json:"resolution"`
+	DueAt        OptNilDateTime             `json:"due_at"`
+	Reviewed     OptNilBool                 `json:"reviewed"`
+	ServiceOn    OptNilDate                 `json:"service_on"`
+	ServiceAt    OptNilString               `json:"service_at"`
+	Elapsed      OptNilString               `json:"elapsed"`
+	Effort       OptNilFloat64              `json:"effort"`
+	ExpectedCost OptNilString               `json:"expected_cost"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1859,6 +1893,11 @@ func (s *TicketUpdate) GetEffort() OptNilFloat64 {
 	return s.Effort
 }
 
+// GetExpectedCost returns the value of ExpectedCost.
+func (s *TicketUpdate) GetExpectedCost() OptNilString {
+	return s.ExpectedCost
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketUpdate) SetSubject(val string) {
 	s.Subject = val
@@ -1912,6 +1951,11 @@ func (s *TicketUpdate) SetElapsed(val OptNilString) {
 // SetEffort sets the value of Effort.
 func (s *TicketUpdate) SetEffort(val OptNilFloat64) {
 	s.Effort = val
+}
+
+// SetExpectedCost sets the value of ExpectedCost.
+func (s *TicketUpdate) SetExpectedCost(val OptNilString) {
+	s.ExpectedCost = val
 }
 
 type TicketUpdatePriority int64

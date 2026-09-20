@@ -1881,9 +1881,13 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		e.FieldStart("effort")
 		s.Effort.Encode(e)
 	}
+	{
+		e.FieldStart("expected_cost")
+		s.ExpectedCost.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfTicket = [13]string{
+var jsonFieldsNameOfTicket = [14]string{
 	0:  "id",
 	1:  "subject",
 	2:  "details",
@@ -1897,6 +1901,7 @@ var jsonFieldsNameOfTicket = [13]string{
 	10: "service_at",
 	11: "elapsed",
 	12: "effort",
+	13: "expected_cost",
 }
 
 // Decode decodes Ticket from json.
@@ -2046,6 +2051,16 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"effort\"")
 			}
+		case "expected_cost":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				if err := s.ExpectedCost.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expected_cost\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -2057,7 +2072,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2176,9 +2191,15 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 			s.Effort.Encode(e)
 		}
 	}
+	{
+		if s.ExpectedCost.Set {
+			e.FieldStart("expected_cost")
+			s.ExpectedCost.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketCreate = [11]string{
+var jsonFieldsNameOfTicketCreate = [12]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -2190,6 +2211,7 @@ var jsonFieldsNameOfTicketCreate = [11]string{
 	8:  "service_at",
 	9:  "elapsed",
 	10: "effort",
+	11: "expected_cost",
 }
 
 // Decode decodes TicketCreate from json.
@@ -2313,6 +2335,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"effort\"")
+			}
+		case "expected_cost":
+			if err := func() error {
+				s.ExpectedCost.Reset()
+				if err := s.ExpectedCost.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expected_cost\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2587,9 +2619,15 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 			s.Effort.Encode(e)
 		}
 	}
+	{
+		if s.ExpectedCost.Set {
+			e.FieldStart("expected_cost")
+			s.ExpectedCost.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketPatch = [11]string{
+var jsonFieldsNameOfTicketPatch = [12]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -2601,6 +2639,7 @@ var jsonFieldsNameOfTicketPatch = [11]string{
 	8:  "service_at",
 	9:  "elapsed",
 	10: "effort",
+	11: "expected_cost",
 }
 
 // Decode decodes TicketPatch from json.
@@ -2720,6 +2759,16 @@ func (s *TicketPatch) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"effort\"")
+			}
+		case "expected_cost":
+			if err := func() error {
+				s.ExpectedCost.Reset()
+				if err := s.ExpectedCost.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expected_cost\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2850,9 +2899,15 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 			s.Effort.Encode(e)
 		}
 	}
+	{
+		if s.ExpectedCost.Set {
+			e.FieldStart("expected_cost")
+			s.ExpectedCost.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketUpdate = [11]string{
+var jsonFieldsNameOfTicketUpdate = [12]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -2864,6 +2919,7 @@ var jsonFieldsNameOfTicketUpdate = [11]string{
 	8:  "service_at",
 	9:  "elapsed",
 	10: "effort",
+	11: "expected_cost",
 }
 
 // Decode decodes TicketUpdate from json.
@@ -2987,6 +3043,16 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"effort\"")
+			}
+		case "expected_cost":
+			if err := func() error {
+				s.ExpectedCost.Reset()
+				if err := s.ExpectedCost.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expected_cost\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

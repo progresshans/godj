@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/progresshans/godj/duration"
-	"github.com/progresshans/godj/internal/floatvalue"
 	"math"
 	"sort"
 	"strconv"
@@ -16,8 +14,11 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
@@ -848,6 +849,18 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 			return forms.Values{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		switch field.Kind() {
+		case forms.FieldDecimal:
+			if entry.Value().IsNull() {
+				canonicalData[field.Name()] = []string{""}
+			} else {
+				value, _ := entry.Value().AsDecimal()
+				_, places, _ := field.DecimalPrecision()
+				text, err := value.Fixed(places)
+				if err != nil {
+					return forms.Values{}, &ConfigError{Path: "form.cleaned", Code: "invalid_decimal", Cause: err}
+				}
+				canonicalData[field.Name()] = []string{text}
+			}
 		case forms.FieldFloat:
 			if entry.Value().IsNull() {
 				canonicalData[field.Name()] = []string{""}
@@ -920,6 +933,13 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 
 func validInitialValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldDecimal:
+		if value.IsNull() {
+			return field.Nullable()
+		}
+		number, ok := value.AsDecimal()
+		digits, places, configured := field.DecimalPrecision()
+		return ok && configured && number.Fits(digits, places)
 	case forms.FieldFloat:
 		if value.IsNull() {
 			return field.Nullable()
@@ -999,6 +1019,11 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 	switch initial.Kind() {
 	case forms.ValueNull:
 		return snapshot.IsNull()
+	case forms.ValueDecimal:
+		left, leftOK := initial.AsDecimal()
+		text, rightOK := snapshot.AsString()
+		right, err := decimal.Parse(text)
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && err == nil && left.Equal(right)
 	case forms.ValueFloat:
 		left, leftOK := initial.AsFloat()
 		right, rightOK := snapshot.AsString()
@@ -1039,6 +1064,13 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldDecimal:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		number, ok := value.AsDecimal()
+		digits, places, configured := field.DecimalPrecision()
+		return ok && configured && number.Fits(digits, places)
 	case forms.FieldFloat:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
@@ -1137,6 +1169,20 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 	case ir.FieldAuto:
 		integer, ok := value.AsInteger()
 		return ok && integer > 0 && (!field.PrimaryKey || integer == objectID)
+	case ir.FieldDecimal:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString || field.Decimal == nil {
+			return false
+		}
+		number, err := decimal.Parse(text)
+		if err != nil || !number.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces) {
+			return false
+		}
+		fixed, err := number.Fixed(field.Decimal.DecimalPlaces)
+		return err == nil && text == fixed
 	case ir.FieldFloat:
 		if value.IsNull() {
 			return field.Nullable

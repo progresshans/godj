@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/internal/booleaninput"
 	"github.com/progresshans/godj/validation"
 )
@@ -25,6 +26,7 @@ const (
 	ValueDate
 	ValueDuration
 	ValueFloat
+	ValueDecimal
 	ValueTime
 )
 
@@ -43,6 +45,11 @@ func Integer(value int64) Value { return Value{kind: ValueInteger, integer: valu
 func (v Value) Kind() ValueKind { return v.kind }
 func (v Value) IsNull() bool    { return v.kind == ValueNull }
 func (v Value) Equal(o Value) bool {
+	if v.kind == ValueDecimal && o.kind == ValueDecimal {
+		left, lok := v.AsDecimal()
+		right, rok := o.AsDecimal()
+		return lok && rok && left.Equal(right)
+	}
 	if v.kind == ValueFloat && o.kind == ValueFloat {
 		left, _ := v.AsFloat()
 		right, _ := o.AsFloat()
@@ -74,6 +81,7 @@ const (
 	FieldDate
 	FieldDuration
 	FieldFloat
+	FieldDecimal
 	FieldTime
 )
 
@@ -177,6 +185,8 @@ type fieldConfig struct {
 	required      bool
 	nullable      bool
 	maxLength     int
+	decimalDigits int
+	decimalPlaces int
 	defaultValue  Value
 	hasDefault    bool
 	validators    []FieldValidator
@@ -184,18 +194,20 @@ type fieldConfig struct {
 
 // Field is an immutable form field definition.
 type Field struct {
-	name         string
-	label        string
-	kind         FieldKind
-	widget       Widget
-	choices      []Choice
-	emptyValue   Value
-	required     bool
-	nullable     bool
-	maxLength    int
-	defaultValue Value
-	hasDefault   bool
-	validators   []FieldValidator
+	name          string
+	label         string
+	kind          FieldKind
+	widget        Widget
+	choices       []Choice
+	emptyValue    Value
+	required      bool
+	nullable      bool
+	maxLength     int
+	decimalDigits int
+	decimalPlaces int
+	defaultValue  Value
+	hasDefault    bool
+	validators    []FieldValidator
 }
 
 // ConfigError reports a startup-time invalid form definition.
@@ -268,7 +280,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if !(kind == FieldChar && (config.widget == TextInput || config.widget == Textarea) ||
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
-		kind == FieldFloat && (config.widget == NumberInput || config.widget == TextInput) ||
+		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
 		kind == FieldDuration && config.widget == TextInput ||
 		kind == FieldDate && (config.widget == DateInput || config.widget == TextInput) ||
 		config.choices != nil && config.widget == Select) {
@@ -288,6 +300,27 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		}
 	}
 	switch kind {
+	case FieldDecimal:
+		if config.decimalDigits < 1 || config.decimalDigits > decimal.MaxDigits || config.decimalPlaces < 0 || config.decimalPlaces > config.decimalDigits {
+			return Field{}, &ConfigError{Path: "fields." + name + ".precision", Code: "invalid"}
+		}
+		if config.maxLength != 0 {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
+		}
+		if !config.required && !config.nullable {
+			return Field{}, &ConfigError{Path: "fields." + name + ".nullable", Code: "optional_decimal_requires_null"}
+		}
+		if config.hasDefault {
+			if !validValueForField(config.defaultValue, kind, config.nullable) {
+				return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
+			}
+			if !config.defaultValue.IsNull() {
+				number, ok := config.defaultValue.AsDecimal()
+				if !ok || !number.Fits(config.decimalDigits, config.decimalPlaces) {
+					return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "precision"}
+				}
+			}
+		}
 	case FieldFloat:
 		if config.maxLength != 0 {
 			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
@@ -374,15 +407,16 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".kind", Code: "unsupported"}
 	}
 	return Field{
-		name:         name,
-		label:        config.label,
-		kind:         kind,
-		widget:       config.widget,
-		choices:      append([]Choice(nil), config.choices...),
-		emptyValue:   config.emptyValue,
-		required:     config.required,
-		nullable:     config.nullable,
-		maxLength:    config.maxLength,
+		name:          name,
+		label:         config.label,
+		kind:          kind,
+		widget:        config.widget,
+		choices:       append([]Choice(nil), config.choices...),
+		emptyValue:    config.emptyValue,
+		required:      config.required,
+		nullable:      config.nullable,
+		maxLength:     config.maxLength,
+		decimalDigits: config.decimalDigits, decimalPlaces: config.decimalPlaces,
 		defaultValue: config.defaultValue,
 		hasDefault:   config.hasDefault,
 		validators:   append([]FieldValidator(nil), config.validators...),
@@ -394,7 +428,7 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 		return nullable
 	}
 	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal
 }
 
 func (f Field) Name() string              { return f.name }
@@ -529,7 +563,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = field.defaultValue
 		case field.kind == FieldBoolean && !field.nullable:
 			value = Boolean(false)
-		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat:
+		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal:
 			value = Null()
 		case field.kind == FieldChar:
 			value = field.emptyValue
@@ -645,6 +679,12 @@ func (s Spec) resolveInitial(provided map[string]Value) (Values, error) {
 		if !validValueForField(value, field.kind, field.nullable) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "type_mismatch"}
 		}
+		if field.kind == FieldDecimal && !value.IsNull() {
+			number, ok := value.AsDecimal()
+			if !ok || !number.Fits(field.decimalDigits, field.decimalPlaces) {
+				return Values{}, &ConfigError{Path: "initial." + name, Code: "precision"}
+			}
+		}
 		if value.kind == ValueString && (!utf8.ValidString(value.string) || strings.ContainsRune(value.string, 0)) {
 			return Values{}, &ConfigError{Path: "initial." + name, Code: "invalid_text"}
 		}
@@ -678,6 +718,19 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 		}
 	} else {
 		switch field.kind {
+		case FieldDecimal:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = submitted[0]
+			}
+			var code validation.Code
+			value, code = cleanDecimal(field, raw)
+			if code == "" && value.IsNull() && field.required {
+				code = "required"
+			}
+			if code != "" {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+			}
 		case FieldFloat:
 			raw := ""
 			if present && len(submitted) == 1 {
@@ -835,6 +888,12 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		return code != "" || !value.Equal(initial)
 	}
 	switch field.kind {
+	case FieldDecimal:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		return changedDecimal(raw, initial)
 	case FieldFloat:
 		raw := ""
 		if present && len(submitted) == 1 {

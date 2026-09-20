@@ -45,12 +45,16 @@ Historical migration은 precision과 physical column 의미를 함께 유지한�
 Form과 Decimal serializer는 원문의 digits/exponent를 기준으로 precision을 검증한 뒤 canonical 모델 값으로 변환한다.
 Trailing zero를 먼저 버려 max_decimal_places 오류를 숨기지 않는다. Unicode decimal digits·underscore·whitespace와 오류 code는
 고정 public API 관찰을 따른다. Non-finite는 invalid이고, sNaN의 changed 계산에서 관찰한 Python 예외를 Go panic으로 재현하지 않는다.
+Form의 changed는 precision validator를 적용하기 전의 숫자 equality를 사용한다. 따라서 초과 trailing zero는 검증 오류이면서 변경 없음일 수 있다.
 Form은 NumberInput과 scale에 맞는 step, 초기값은 선언 scale의 문자열을 사용한다. Invalid bound form은 제출한 문자열을 escape해서 보존한다.
 
 JSON 기본 표현은 선언 scale의 문자열이다. 숫자 입력은 공통 parser가 보존한 lexical token을 직접 Decimal로 해석한다.
 기본 Python json.loads의 float 변환 대신 명시적 parse_float=Decimal reference profile과 대조하며 원래 결과도 보존한다.
 이 차이는 [DEV-0016](../DEVIATIONS.md#dev-0016--decimal의-정확한-입력저장과-초과-scale-거부)에서 제한된 selector로 관리한다.
 Boolean/list/object·non-finite 입력, precision/scale·문자열/문서 자원 한도는 persistence 전에 거부한다.
+DRF 입력 문자열은 trim 뒤 1000 rune까지, lexical JSON number는 Python Decimal의 문자열 길이 기준으로 같은 guard를 적용한다.
+모델의 1000자리 precision과 이 입력 transport 한도는 별개다. 큰 fixed-scale 출력이 모든 입력 경로에서 왕복한다고 주장하지 않는다.
+명시적 Go Decimal 입력은 canonical 모델 값이며 Python Decimal 객체의 원문 scale을 보존하는 값이 아니다.
 
 Helpdesk nullable 예상 비용은 생성·생략 보존·null 비우기·정확한 변경 감지와 rollback/reopen을 실제 앱에서 검증한다.
 OpenAPI는 fixed-scale decimal string의 pattern·nullable·default를 같은 field metadata에서 만들고, 별도 고정 client는 문자열로 전달한다.

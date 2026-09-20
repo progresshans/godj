@@ -230,7 +230,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("Category should need no form/CRUD adapter")
 	}
 	ticketInfo, ok := application.Registry().Lookup("helpdesk", "ticket")
-	if !ok || len(ticketInfo.FormFields) != 11 {
+	if !ok || len(ticketInfo.FormFields) != 12 {
 		t.Fatal("Ticket scalar selection")
 	}
 	for _, field := range ticketInfo.FormFields {
@@ -285,7 +285,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil || detailResponse.Code != http.StatusOK || reads.queries != beforeDetail+1 {
 		t.Fatalf("joined detail: status=%d queries=%d body=%s err=%v", detailResponse.Code, reads.queries-beforeDetail, detailResponse.Body, err)
 	}
-	if len(detail) != 2 || len(detail["ticket"]) != 13 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
+	if len(detail) != 2 || len(detail["ticket"]) != 14 || len(detail["category"]) != 2 || string(detail["ticket"]["id"]) != strconv.FormatInt(seed.ID, 10) || string(detail["ticket"]["details"]) != "null" || string(detail["ticket"]["priority"]) != "null" || string(detail["ticket"]["resolution"]) != "null" || string(detail["ticket"]["due_at"]) != "null" || string(detail["ticket"]["reviewed"]) != "null" || string(detail["ticket"]["service_on"]) != "null" || string(detail["ticket"]["service_at"]) != "null" || string(detail["ticket"]["elapsed"]) != "null" || string(detail["ticket"]["effort"]) != "null" || string(detail["ticket"]["expected_cost"]) != "null" || string(detail["category"]["id"]) != strconv.FormatInt(category.ID, 10) {
 		t.Fatalf("detail output fields/values: %s", detailResponse.Body)
 	}
 	var categoryName string
@@ -444,6 +444,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	verifyHelpdeskClockTime(t, ctx, runtime, open, client, category.ID, created.ID)
 	verifyHelpdeskDuration(t, ctx, runtime, open, client, category.ID, created.ID)
 	verifyHelpdeskFloat(t, ctx, runtime, open, client, category.ID, created.ID)
+	verifyHelpdeskDecimal(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
 	// Ordinary ORM writes keep the complete int64 storage range. Both API and
 	// Admin display those old/out-of-choice values without substituting labels.
 	for _, value := range []int64{math.MinInt64, math.MaxInt64} {

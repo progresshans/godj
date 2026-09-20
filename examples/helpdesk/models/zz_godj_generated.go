@@ -7,6 +7,7 @@ import (
 	_godjcalendar "github.com/progresshans/godj/calendar"
 	_godjclock "github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
+	_godjdecimal "github.com/progresshans/godj/decimal"
 	_godjduration "github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
@@ -15,7 +16,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "18230997b0c8289d9acd62a5a9124460af00895a602439531843804fcf514b76"
+const GoDjSchemaSHA256 = "e63860b08399eae8202238e1c9a030a848bfffbda057a4f94393314a5b04f248"
 
 type Category struct {
 	ID                    int64
@@ -200,6 +201,7 @@ type Ticket struct {
 	ServiceAt             *_godjclock.Time
 	Elapsed               *_godjduration.Duration
 	Effort                *float64
+	ExpectedCost          *_godjdecimal.Decimal
 	godjPrimaryKeyPresent bool
 }
 
@@ -224,7 +226,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanServiceAt orm.NullableTimeScanner
 	var scanElapsed orm.NullableDurationScanner
 	var scanEffort orm.NullableFloatScanner
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort); err != nil {
+	scanExpectedCost := orm.NewNullableDecimalScanner(12, 2)
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort, &scanExpectedCost); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -262,6 +265,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanEffort.Valid {
 		scanned := scanEffort.Float
 		value.Effort = &scanned
+	}
+	if scanExpectedCost.Valid {
+		scanned := scanExpectedCost.Decimal
+		value.ExpectedCost = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -318,6 +325,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.Effort != nil {
 		clonedEffort := *value.Effort
 		clone.Effort = &clonedEffort
+	}
+	if value.ExpectedCost != nil {
+		clonedExpectedCost := *value.ExpectedCost
+		clone.ExpectedCost = &clonedExpectedCost
 	}
 	return clone
 }
@@ -381,41 +392,48 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.Float(*value.Effort), true
+	case "expected_cost":
+		if value.ExpectedCost == nil {
+			return query.Null(), true
+		}
+		return query.Decimal(*value.ExpectedCost), true
 	default:
 		return query.Value{}, false
 	}
 }
 
 type TicketFieldSet struct {
-	ID         orm.AutoField[Ticket]
-	Subject    orm.StringField[Ticket]
-	Details    orm.NullableStringField[Ticket]
-	Closed     orm.BooleanField[Ticket]
-	Priority   orm.NullableIntegerField[Ticket]
-	Resolution orm.NullableStringField[Ticket]
-	DueAt      orm.NullableDateTimeField[Ticket]
-	Reviewed   orm.NullableBooleanField[Ticket]
-	ServiceOn  orm.NullableDateField[Ticket]
-	ServiceAt  orm.NullableTimeField[Ticket]
-	Elapsed    orm.NullableDurationField[Ticket]
-	Effort     orm.NullableFloatField[Ticket]
+	ID           orm.AutoField[Ticket]
+	Subject      orm.StringField[Ticket]
+	Details      orm.NullableStringField[Ticket]
+	Closed       orm.BooleanField[Ticket]
+	Priority     orm.NullableIntegerField[Ticket]
+	Resolution   orm.NullableStringField[Ticket]
+	DueAt        orm.NullableDateTimeField[Ticket]
+	Reviewed     orm.NullableBooleanField[Ticket]
+	ServiceOn    orm.NullableDateField[Ticket]
+	ServiceAt    orm.NullableTimeField[Ticket]
+	Elapsed      orm.NullableDurationField[Ticket]
+	Effort       orm.NullableFloatField[Ticket]
+	ExpectedCost orm.NullableDecimalField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
 	metadata := ticketMetadata()
 	return TicketFieldSet{
-		ID:         orm.NewAutoField[Ticket](metadata.Fields[0]),
-		Subject:    orm.NewStringField[Ticket](metadata.Fields[1]),
-		Details:    orm.NewNullableStringField[Ticket](metadata.Fields[2]),
-		Closed:     orm.NewBooleanField[Ticket](metadata.Fields[3]),
-		Priority:   orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
-		Resolution: orm.NewNullableStringField[Ticket](metadata.Fields[6]),
-		DueAt:      orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
-		Reviewed:   orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
-		ServiceOn:  orm.NewNullableDateField[Ticket](metadata.Fields[9]),
-		ServiceAt:  orm.NewNullableTimeField[Ticket](metadata.Fields[10]),
-		Elapsed:    orm.NewNullableDurationField[Ticket](metadata.Fields[11]),
-		Effort:     orm.NewNullableFloatField[Ticket](metadata.Fields[12]),
+		ID:           orm.NewAutoField[Ticket](metadata.Fields[0]),
+		Subject:      orm.NewStringField[Ticket](metadata.Fields[1]),
+		Details:      orm.NewNullableStringField[Ticket](metadata.Fields[2]),
+		Closed:       orm.NewBooleanField[Ticket](metadata.Fields[3]),
+		Priority:     orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
+		Resolution:   orm.NewNullableStringField[Ticket](metadata.Fields[6]),
+		DueAt:        orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
+		Reviewed:     orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
+		ServiceOn:    orm.NewNullableDateField[Ticket](metadata.Fields[9]),
+		ServiceAt:    orm.NewNullableTimeField[Ticket](metadata.Fields[10]),
+		Elapsed:      orm.NewNullableDurationField[Ticket](metadata.Fields[11]),
+		Effort:       orm.NewNullableFloatField[Ticket](metadata.Fields[12]),
+		ExpectedCost: orm.NewNullableDecimalField[Ticket](metadata.Fields[13]),
 	}
 }()
 
@@ -442,18 +460,19 @@ func TicketForceUpdate() orm.SaveOption[Ticket] {
 }
 
 type TicketCreate struct {
-	subject    orm.Change[string]
-	details    orm.NullableChange[string]
-	closed     orm.Change[bool]
-	categoryID orm.Change[int64]
-	priority   orm.NullableChange[int64]
-	resolution orm.NullableChange[string]
-	dueAt      orm.NullableChange[_godjtime.Time]
-	reviewed   orm.NullableChange[bool]
-	serviceOn  orm.NullableChange[_godjcalendar.Date]
-	serviceAt  orm.NullableChange[_godjclock.Time]
-	elapsed    orm.NullableChange[_godjduration.Duration]
-	effort     orm.NullableChange[float64]
+	subject      orm.Change[string]
+	details      orm.NullableChange[string]
+	closed       orm.Change[bool]
+	categoryID   orm.Change[int64]
+	priority     orm.NullableChange[int64]
+	resolution   orm.NullableChange[string]
+	dueAt        orm.NullableChange[_godjtime.Time]
+	reviewed     orm.NullableChange[bool]
+	serviceOn    orm.NullableChange[_godjcalendar.Date]
+	serviceAt    orm.NullableChange[_godjclock.Time]
+	elapsed      orm.NullableChange[_godjduration.Duration]
+	effort       orm.NullableChange[float64]
+	expectedCost orm.NullableChange[_godjdecimal.Decimal]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -568,9 +587,19 @@ func (input TicketCreate) WithEffortNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithExpectedCost(value _godjdecimal.Decimal) TicketCreate {
+	input.expectedCost = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithExpectedCostNull() TicketCreate {
+	input.expectedCost = orm.SetNull[_godjdecimal.Decimal]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 12)
+	assignments := make([]query.Assignment, 0, 13)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -793,22 +822,48 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedExpectedCost, changedExpectedCostState := input.expectedCost.Get()
+	switch changedExpectedCostState {
+	case orm.NullableChangeUnset:
+		value.ExpectedCost = nil
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Null()))
+	case orm.NullableChangeValue:
+		changedExpectedCostCanonical, changedExpectedCostError := changedExpectedCost.Canonical()
+		if changedExpectedCostError != nil || !changedExpectedCostCanonical.Fits(12, 2) {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "expected_cost", Detail: "decimal exceeds field precision or scale"})
+		}
+		changedExpectedCost = changedExpectedCostCanonical
+		storedExpectedCost := changedExpectedCost
+		value.ExpectedCost = &storedExpectedCost
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Decimal(changedExpectedCost)))
+	case orm.NullableChangeNull:
+		value.ExpectedCost = nil
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "expected_cost",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
 type TicketPatch struct {
-	subject    orm.Change[string]
-	details    orm.NullableChange[string]
-	closed     orm.Change[bool]
-	categoryID orm.Change[int64]
-	priority   orm.NullableChange[int64]
-	resolution orm.NullableChange[string]
-	dueAt      orm.NullableChange[_godjtime.Time]
-	reviewed   orm.NullableChange[bool]
-	serviceOn  orm.NullableChange[_godjcalendar.Date]
-	serviceAt  orm.NullableChange[_godjclock.Time]
-	elapsed    orm.NullableChange[_godjduration.Duration]
-	effort     orm.NullableChange[float64]
+	subject      orm.Change[string]
+	details      orm.NullableChange[string]
+	closed       orm.Change[bool]
+	categoryID   orm.Change[int64]
+	priority     orm.NullableChange[int64]
+	resolution   orm.NullableChange[string]
+	dueAt        orm.NullableChange[_godjtime.Time]
+	reviewed     orm.NullableChange[bool]
+	serviceOn    orm.NullableChange[_godjcalendar.Date]
+	serviceAt    orm.NullableChange[_godjclock.Time]
+	elapsed      orm.NullableChange[_godjduration.Duration]
+	effort       orm.NullableChange[float64]
+	expectedCost orm.NullableChange[_godjdecimal.Decimal]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -916,9 +971,19 @@ func (input TicketPatch) WithEffortNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithExpectedCost(value _godjdecimal.Decimal) TicketPatch {
+	input.expectedCost = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithExpectedCostNull() TicketPatch {
+	input.expectedCost = orm.SetNull[_godjdecimal.Decimal]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 12)
+	assignments := make([]query.Assignment, 0, 13)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -1107,6 +1172,29 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedExpectedCost, changedExpectedCostState := input.expectedCost.Get()
+	switch changedExpectedCostState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		changedExpectedCostCanonical, changedExpectedCostError := changedExpectedCost.Canonical()
+		if changedExpectedCostError != nil || !changedExpectedCostCanonical.Fits(12, 2) {
+			return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "expected_cost", Detail: "decimal exceeds field precision or scale"})
+		}
+		changedExpectedCost = changedExpectedCostCanonical
+		storedExpectedCost := changedExpectedCost
+		value.ExpectedCost = &storedExpectedCost
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Decimal(changedExpectedCost)))
+	case orm.NullableChangeNull:
+		value.ExpectedCost = nil
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("expected_cost", "expected_cost", true, 12, 2), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "expected_cost",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -1218,8 +1306,16 @@ func ticketMetadata() ir.Model {
 				Kind:     ir.FieldFloat,
 				Nullable: true,
 			},
+			{
+				Name:     "expected_cost",
+				GoName:   "ExpectedCost",
+				Column:   "expected_cost",
+				Kind:     ir.FieldDecimal,
+				Nullable: true,
+				Decimal:  &ir.DecimalSpec{MaxDigits: 12, DecimalPlaces: 2},
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_292be0408ff7f68ff723171af667c0cdcb3a69e70a1b36446f488582e2abab9a struct{}
+type GoDjProjectSnapshot_6ad6381f2a945937c68148b849541ffad796a9dcf14309c535916accad7d63ae struct{}

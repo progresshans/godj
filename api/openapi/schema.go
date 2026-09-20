@@ -207,6 +207,14 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 		}
 		defaultValue, hasDefault := field.Default()
+		if number, ok := defaultValue.AsDecimal(); ok {
+			_, places, configured := field.DecimalPrecision()
+			text, err := number.Fixed(places)
+			if !configured || err != nil {
+				return Schema{}, schemaConfigError("field.default", "invalid decimal default scale")
+			}
+			defaultValue = serializers.String(text)
+		}
 		if time, ok := defaultValue.AsTime(); ok {
 			defaultValue = serializers.String(time.String())
 		}
@@ -274,6 +282,31 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	switch field.Kind() {
 	case serializers.FieldString:
 		schema = String()
+	case serializers.FieldDecimal:
+		digits, places, ok := field.DecimalPrecision()
+		if !ok {
+			return Schema{}, schemaConfigError("field", "decimal precision missing")
+		}
+		whole := digits - places
+		pattern := `^-?0`
+		if whole > 0 {
+			pattern = fmt.Sprintf(`^-?(0|[1-9][0-9]{0,%d})`, whole-1)
+		}
+		minimum, maximum := 1, 1+max(1, whole)
+		if places > 0 {
+			pattern += fmt.Sprintf(`\.[0-9]{%d}`, places)
+			minimum += places + 1
+			maximum += places + 1
+		}
+		pattern += `$`
+		policy, err := serializers.NewObject(serializers.MemberOf("maxDigits", serializers.Integer(int64(digits))), serializers.MemberOf("decimalPlaces", serializers.Integer(int64(places))), serializers.MemberOf("input", serializers.String("exact-decimal-token-or-string")), serializers.MemberOf("rounding", serializers.String("reject-excess-scale")))
+		if err != nil {
+			return Schema{}, err
+		}
+		schema, err = schemaAnnotate(String(), serializers.MemberOf("pattern", serializers.String(pattern)), serializers.MemberOf("minLength", serializers.Integer(int64(minimum))), serializers.MemberOf("maxLength", serializers.Integer(int64(maximum))), serializers.MemberOf("x-godj-decimal", policy.Value()))
+		if err != nil {
+			return Schema{}, err
+		}
 	case serializers.FieldFloat:
 		schema = Float()
 	case serializers.FieldDuration:

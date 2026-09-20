@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	hs "example.com/godj-openapi-client/helpdesksession"
 	"net/http"
+
+	hs "example.com/godj-openapi-client/helpdesksession"
 )
 
 func checkHelpdeskClockTimeUpdates(ctx context.Context, client *hs.Client, transport *observedTransport, original hs.Ticket) (hs.Ticket, error) {
@@ -45,7 +46,7 @@ func checkHelpdeskClockTimeUpdates(ctx context.Context, client *hs.Client, trans
 }
 
 func checkGeneratedClockTimeWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null`
 	clear := hs.OptNilString{}
 	clear.SetToNull()
 	for _, test := range []struct {

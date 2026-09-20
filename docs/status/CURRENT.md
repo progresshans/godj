@@ -3,7 +3,7 @@
 - 갱신: 2026-09-20
 - 활성 구현: [GDJ-0091 소수점 비용의 Decimal 모델·소비자 연결](../../work/0091-decimal-cost-models.md)
 - 최근 완료: [GDJ-0090 작업량 수치의 Float 모델·소비자 연결](../../work/0090-floating-point-models.md)
-- 최근 모델·DB 로컬 검증: Decimal source `49c3ebef02b43e92e50abe70b6779814f72d43b9`; [범위와 증거](TEST_EVIDENCE.md)
+- 최근 로컬 검증: Decimal 모델·DB·Form/Admin·Helpdesk API·독립 client 통합 checkpoint 완료; [source·범위와 증거](TEST_EVIDENCE.md)
 - 최근 Hosted 관련 검증: [Float Hosted ORM 완료](https://github.com/progresshans/godj/actions/runs/35484302381), source `784dbf644f71c2d3507371c2afcc117d0f746ffb`
 - 최근 전체 검증 source: `79637ef3f5943c9490027723527fb5074b01411f`
 - 최신 전체 검증: [Date·Time·Duration·JSON number Hosted full 완료](https://github.com/progresshans/godj/actions/runs/35479740366)
@@ -19,8 +19,8 @@ Calendar Date를 별도 Go 값·양 DB DATE·Form/Admin·Helpdesk service_on·PU
 Clock Time을 별도 Go 값·양 DB TIME·Form/Admin·Helpdesk service_at·PUT/PATCH·OpenAPI/client까지 연결했다.
 Duration의 전체 모델 범위·양 DB 저장 한도와 Form/Admin·Helpdesk elapsed·OpenAPI/client, exact JSON number 기반을 연결했다.
 Float의 binary64·nullable/default·양 DB와 finite Form/Admin·Helpdesk effort·JSON/OpenAPI/client를 연결했다.
-Decimal은 exact 값·precision IR·query·생성·양 DB·historical migration을 구현하고 모델·DB 로컬 checkpoint를 완료했다.
-Form/Admin·JSON/API와 Helpdesk의 비용 소비자 연결은 다음 작업이다. 환경별 검증 상태는 TEST_EVIDENCE를 따른다.
+Decimal의 exact 값·precision IR·query·생성·양 DB·historical migration을 Form/Admin·JSON/API·Helpdesk 예상 비용과 독립 client까지 연결했다.
+원문 자릿수·fixed-scale 문자열·null/생략·실패 경로의 로컬 통합 checkpoint를 완료했다. 환경별 검증 상태는 TEST_EVIDENCE를 따른다.
 String/int64 choices를 모델·Form/Admin/API에 연결하고 물리 DDL 없는 historical AlterField로 변경 이력을 보존한다.
 Loaded self/cyclic 관계 graph의 Create·다중 Add/Remove와 transitive target을 실제 양 DB migration에 연결하고,
 SQLite remake의 inbound/self 참조 값·행·sequence와 실패 뒤 FK 복원/폐기·quarantine을 검증했다.
@@ -35,8 +35,8 @@ Nullable/required forward FK의 유한한 여러 단계 경로에 scalar 비교�
 
 ## 다음 행동
 
-GDJ-0091의 [ADR-0069](../adr/0069-exact-decimal-values-and-storage.md)에 따라 exact coefficient/exponent·precision·scale와 양 DB 저장을 구현했다.
-Form/Admin의 원문 자릿수 검증과 Helpdesk 예상 비용의 JSON/OpenAPI·독립 client를 연결한다.
+GDJ-0091의 [ADR-0069](../adr/0069-exact-decimal-values-and-storage.md)에 따른 Decimal 수직 단면의 로컬 검증을 완료했다.
+같은 제품 source의 Hosted ORM을 실행해 필수 환경·부모·실행 완료를 확인한 뒤 다음 미구현 모델 요구를 이어간다.
 GDJ-0090은 로컬 affected·DB·race·CGO0와 Hosted ORM을 완료했다. 최근 Hosted full은 Duration source이며 Float까지의 전체 플랫폼 PASS로 합치지 않는다.
 장기 목표는 헌장·기능 카탈로그의 완성이며 출시 일정 없이 필요한 기반과 기능을 이어간다.
 

@@ -57,7 +57,7 @@ func checkHelpdeskFloatUpdates(ctx context.Context, client *hs.Client, transport
 	return expected, nil
 }
 func checkGeneratedFloatWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null,"elapsed":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"expected_cost":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_on":null,"service_at":null,"elapsed":null`
 	clear := hs.OptNilFloat64{}
 	clear.SetToNull()
 	cases := []struct {

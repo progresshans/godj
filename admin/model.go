@@ -57,7 +57,7 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 		if !found {
 			return Object{}, &ConfigError{Path: "snapshot." + name, Code: "missing_value"}
 		}
-		if field.Kind == ir.FieldFloat && !scalar.IsNull() && scalar.Kind() != query.ValueFloat {
+		if (field.Kind == ir.FieldFloat && scalar.Kind() != query.ValueFloat || field.Kind == ir.FieldDecimal && scalar.Kind() != query.ValueDecimal) && !scalar.IsNull() {
 			return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
 		}
 		var converted templates.Value
@@ -70,6 +70,16 @@ func (projector ModelProjector[M]) Project(value M, id int64, label string) (Obj
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = templates.Bool(boolean)
+		case query.ValueDecimal:
+			number, _ := scalar.Decimal()
+			if field.Decimal == nil || !number.Fits(field.Decimal.MaxDigits, field.Decimal.DecimalPlaces) {
+				return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
+			}
+			text, err := number.Fixed(field.Decimal.DecimalPlaces)
+			if err != nil {
+				return Object{}, &ConfigError{Path: "snapshot." + name, Code: "invalid_value"}
+			}
+			converted = templates.String(text)
 		case query.ValueFloat:
 			number, _ := scalar.Float()
 			text, err := floatvalue.JSON(number)

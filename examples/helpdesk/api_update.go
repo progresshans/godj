@@ -68,6 +68,13 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 				instant, _ := value.AsDateTime()
 				patch = patch.WithDueAt(instant)
 			}
+		case "expected_cost":
+			if value.IsNull() {
+				patch = patch.WithExpectedCostNull()
+			} else {
+				number, _ := value.AsDecimal()
+				patch = patch.WithExpectedCost(number)
+			}
 		case "effort":
 			if value.IsNull() {
 				patch = patch.WithEffortNull()

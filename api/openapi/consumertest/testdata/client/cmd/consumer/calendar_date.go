@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"errors"
-	hs "example.com/godj-openapi-client/helpdesksession"
-	"github.com/ogen-go/ogen/ogenerrors"
 	"net/http"
 	"time"
+
+	hs "example.com/godj-openapi-client/helpdesksession"
+	"github.com/ogen-go/ogen/ogenerrors"
 )
 
 func checkHelpdeskCalendarDateUpdates(ctx context.Context, client *hs.Client, transport *observedTransport, original hs.Ticket) (hs.Ticket, error) {
@@ -56,7 +57,7 @@ func checkHelpdeskCalendarDateUpdates(ctx context.Context, client *hs.Client, tr
 }
 
 func checkGeneratedCalendarDateWire(ctx context.Context) error {
-	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_at":null`
+	const base = `{"id":1,"subject":"wire","details":null,"closed":false,"category":1,"expected_cost":null,"effort":null,"elapsed":null,"priority":null,"resolution":null,"due_at":null,"reviewed":null,"service_at":null`
 	clear := hs.OptNilDate{}
 	clear.SetToNull()
 	for _, test := range []struct {

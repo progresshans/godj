@@ -3,14 +3,15 @@ package serializers
 import (
 	"errors"
 	"fmt"
-	"github.com/progresshans/godj/duration"
-	"github.com/progresshans/godj/internal/durationinput"
 	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/decimal"
+	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/internal/dateinput"
+	"github.com/progresshans/godj/internal/durationinput"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/internal/timeinput"
 	"github.com/progresshans/godj/validation"
@@ -28,6 +29,7 @@ const (
 	FieldTime
 	FieldDuration
 	FieldFloat
+	FieldDecimal
 )
 
 const (
@@ -105,6 +107,8 @@ type fieldConfig struct {
 	nullable          bool
 	readOnly          bool
 	maxLength         int
+	decimalDigits     int
+	decimalPlaces     int
 	maxLengthSet      bool
 	defaultValue      Value
 	hasDefault        bool
@@ -122,6 +126,8 @@ type Field struct {
 	nullable       bool
 	readOnly       bool
 	maxLength      int
+	decimalDigits  int
+	decimalPlaces  int
 	defaultValue   Value
 	hasDefault     bool
 	allowEmpty     bool
@@ -163,6 +169,22 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			return Field{}, invalidConfig("fields."+name+".default", "default value does not match the field")
 		}
 	}
+	if kind == FieldDecimal {
+		if config.decimalDigits < 1 || config.decimalDigits > decimal.MaxDigits || config.decimalPlaces < 0 || config.decimalPlaces > config.decimalDigits {
+			return Field{}, invalidConfig("fields."+name+".precision", "invalid decimal precision or scale")
+		}
+		if config.hasDefault && !config.defaultValue.IsNull() {
+			value, ok := config.defaultValue.AsDecimal()
+			if !ok {
+				return Field{}, invalidConfig("fields."+name+".default", "invalid decimal default")
+			}
+			normalized, err := decimalOutput(value, config.decimalDigits, config.decimalPlaces)
+			if err != nil {
+				return Field{}, invalidConfig("fields."+name+".default", "default exceeds decimal precision or scale")
+			}
+			config.defaultValue = normalized
+		}
+	}
 	switch kind {
 	case FieldString:
 		if config.maxLength < 0 {
@@ -181,7 +203,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldFloat:
+	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldFloat, FieldDecimal:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -189,13 +211,14 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 		return Field{}, invalidConfig("fields."+name, "field kind is unsupported")
 	}
 	return Field{
-		choices:        slices.Clone(config.choices),
-		name:           name,
-		kind:           kind,
-		required:       config.required,
-		nullable:       config.nullable,
-		readOnly:       config.readOnly,
-		maxLength:      config.maxLength,
+		choices:       slices.Clone(config.choices),
+		name:          name,
+		kind:          kind,
+		required:      config.required,
+		nullable:      config.nullable,
+		readOnly:      config.readOnly,
+		maxLength:     config.maxLength,
+		decimalDigits: config.decimalDigits, decimalPlaces: config.decimalPlaces,
 		defaultValue:   config.defaultValue,
 		hasDefault:     config.hasDefault,
 		allowEmpty:     config.allowEmpty,
@@ -210,7 +233,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal
 }
 
 func validFieldName(name string) bool {
@@ -397,6 +420,9 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 			return Null(), validation.NewErrors()
 		}
 		return Value{}, oneViolation(field.name, CodeNull)
+	}
+	if field.kind == FieldDecimal {
+		return cleanDecimalValue(field, value)
 	}
 	if field.kind == FieldFloat {
 		return cleanFloatValue(field, value)

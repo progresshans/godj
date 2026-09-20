@@ -63,6 +63,51 @@
 - 전용 Decimal PostgreSQL DB의 잔여 연결 0과 삭제 완료를 확인했고 기존 service는 유지했다.
 - Decimal Form/Admin·serializer·Helpdesk/OpenAPI/client와 Hosted 검증은 다음 단계다. 이 checkpoint를 Decimal 수직 단면 전체 또는 전체 platform PASS로 표시하지 않는다.
 
+### Form/Admin·Helpdesk·독립 client 통합 checkpoint 완료
+
+Baseline `58141a9f3c06b4508c1044aea2585df06c4bcde8` 위 제품·생성물·소비자·CI 변경 **62개 파일**을 검증했다.
+정렬된 `<sha256>  <relative-path>\n` manifest는 `021911e0fd94374845d4c19dc55983e8409f37c2f849b0ebcd2640206174d620`이다.
+각 실행 뒤 같은 바이트를 다시 확인했다. Markdown 기록은 이 manifest와 구분한다.
+
+환경은 Go 1.26.5 darwin/arm64, modernc SQLite, PostgreSQL **17.5 (Homebrew)**의 전용 DB와 독립 schema다.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`, `go test -count=1 -json -p=4 -timeout=20m`을 사용했다.
+
+```text
+./admin ./api ./api/openapi ./api/openapi/consumertest ./codegen ./codegen/consumertest
+./conformance/projectoperatorproduct/attestation ./conformance/systemstate/attestation
+./db/internal/queryplan ./db/postgres ./db/sqlite ./decimal ./examples/article/apiapp ./examples/helpdesk
+./forms ./forms/model ./internal/compiletest ./internal/decimalinput ./internal/decimalstorage ./internal/floatvalue ./internal/irresource
+./internal/migrationautodetect ./internal/projectgenerate ./internal/projectspec ./internal/projectwire
+./migrations ./migrations/definition ./orm ./query ./schema ./schema/ir ./serializers
+```
+
+- 일반 **32 package / 10,039 test·subtest PASS**(root 1,358), 같은 범위 race **32 package / 9,974 PASS**(root 1,351)다.
+  Run/terminal의 정확한 roster, 모든 package 완료, 필수 부모와 stderr 0 bytes를 확인했다.
+- 차이 65개는 `internal/compiletest`의 `!race` 7 root와 하위 사례다. 두 mode의 유일한 helper-only skip은
+  `TestPostgresRevisionFenceHelperProcess`, `TestPublicationCrashHelper`이며 실제 process/recovery 부모는 모두 PASS다.
+- Form reference 136개는 cleaned/errors와 null/±0/1.5 초기값의 changed를 비교한다. sNaN의 6개 Python changed 예외를 원문 그대로
+  식별하고 Go의 invalid/changed 동작은 DEV-0016으로 분리한다. Precision profile은 bounded 72개를 대조하며 unbounded 18개는 지원 밖으로 세었다.
+- Serializer 360개는 직접 field 입력 **324**, Python Decimal의 명시적 text projection **20**, non-finite Go Float constructor 거부 **12**,
+  JSON parser의 NUL 거부 **4**로 구분했다. Bounded precision 72개와 lexical JSON 19개·큰 숫자 4개를 고정 public API 결과와 대조했다.
+  기본 float JSON profile을 바꾸지 않으며 typed Go Decimal이 Python 객체의 원문 scale을 보존한다고 주장하지 않는다.
+- Admin은 원문 자릿수 검증·fixed-scale 초기값과 snapshot 비교·재검증, 잘못된 typed 값·precision·문자열 우회 거부를 검증했다.
+  실제 소비자 점검에서 빠진 Decimal 초기값/snapshot 비교를 보완했고 양 DB의 non-null 비용 편집을 다시 확인했다.
+- Helpdesk `0012_ticket_expected_cost`의 nullable Decimal(12,2)를 실제 migration·로그인·Admin·API create/PUT/PATCH에 연결했다.
+  `0.1`의 `"0.10"` 응답, ±최대값·소수·±0 no-op·생략/null·빈 form, escape·CSRF·category 격리·invalid-before-transaction,
+  실패 rollback·fresh reopen을 실제 SQLite/PG에서 확인했다. 기존 필드와 영속 권한 회귀도 같은 부모 테스트에서 실행했다.
+- 독립 ogen v1.24.0 client는 실제 앱 문서 세 개와 생성물을 재대조하고 **30개 필수 receipt**, HTTP 왕복과 최종 DB를 검증했다.
+  Decimal은 문자열이며 required nullable response·잘못된 타입/scale·누락 거부와 명시적 request.Validate를 구분한다.
+  Article 문서/생성물 및 module/tool lock은 변경하지 않았다. 표준 문서 검사는 openapi-spec-validator 0.9.0,
+  jsonschema 4.26.0, referencing 0.37.0에서 세 profile 모두 PASS다.
+- 격리된 생성물 복구 fixture에서 새 Decimal runtime package link 누락을 발견해 추가했다. Namespace 충돌·mandatory recovery·정상 생성물
+  보존 검증을 유지한 채 같은 32개 package를 다시 실행했다. 초기 실패 실행은 위 최종 PASS 수에 포함하지 않는다.
+- CGO=0의 generated Decimal·독립 client·Helpdesk SQLite/PG 선택 검증은 **3 package / root 4개·subtest 포함 7개 PASS**, skip 0이다.
+  Generated child의 실제 DB 완료와 잘못된 Go 타입 거부를 부모가 요구한다. 자식 숫자를 부모 합계에 더하지 않는다.
+- Affected vet, generated drift 세 project·checked-in generated, Helpdesk `makemigrations --check`의 candidate 0, CI tooling 37 tests,
+  docs/format/diff 검사 PASS다. 새 Form/serializer/Admin/OpenAPI 및 Helpdesk 생성 model/project의 Linux/386/CGO0 cross-build도 PASS다.
+  Cross-build를 386 runtime 증거로 표시하지 않는다. 전용 PostgreSQL DB는 잔여 연결 0 확인 뒤 삭제했고 기존 service를 유지했다.
+- Decimal의 Hosted ORM은 다음 실행이다. 이전 Float Hosted ORM이나 Duration Hosted full을 이 source의 검증으로 합치지 않는다.
+
 ## GDJ-0090 — Float 모델과 finite 소비자 연결
 
 ### 독립 기준

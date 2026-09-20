@@ -27,8 +27,8 @@ import (
 var requiredConsumerChecks = []string{
 	"article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors",
 	"article_session_csrf_crud", "article_session_invalid_csrf", "helpdesk_session_relations", "helpdesk_session_create_defaults",
-	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_read_only_denied", "generated_int64_wire", "generated_response_rejections", "pre_canceled_request",
-	"helpdesk_session_choices", "generated_choice_response_domain", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire",
+	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_read_only_denied", "generated_int64_wire", "generated_response_rejections", "pre_canceled_request",
+	"helpdesk_session_choices", "generated_choice_response_domain", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire",
 }
 
 func TestGeneratedOpenAPIClientContract(t *testing.T) {
@@ -144,7 +144,7 @@ func runConsumerCommand(command *exec.Cmd, requireQuietStderr bool) ([]byte, err
 
 func validateConsumerReceipt(output []byte, race bool) error {
 	if err := wirejson.Scan(output, wirejson.Limits{
-		Bytes: 4096, ValueDepth: 2, Values: 32, ObjectKeys: 2,
+		Bytes: 4096, ValueDepth: 2, Values: len(requiredConsumerChecks) + 3, ObjectKeys: 2,
 		ArrayValues: len(requiredConsumerChecks), StringBytes: 128, KeyBytes: 16, RejectNull: true,
 	}); err != nil {
 		return fmt.Errorf("generated client returned invalid completion framing: %w", err)

@@ -475,6 +475,36 @@ func (s *Ticket) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.ExpectedCost.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     4,
+					MinLengthSet:  true,
+					MaxLength:     14,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^-?(0|[1-9][0-9]{0,9})\\.[0-9]{2}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "expected_cost",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -590,6 +620,36 @@ func (s *TicketCreate) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "effort",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ExpectedCost.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     4,
+					MinLengthSet:  true,
+					MaxLength:     14,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^-?(0|[1-9][0-9]{0,9})\\.[0-9]{2}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "expected_cost",
 			Error: err,
 		})
 	}
@@ -781,6 +841,36 @@ func (s *TicketPatch) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.ExpectedCost.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     4,
+					MinLengthSet:  true,
+					MaxLength:     14,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^-?(0|[1-9][0-9]{0,9})\\.[0-9]{2}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "expected_cost",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -909,6 +999,36 @@ func (s *TicketUpdate) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "effort",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ExpectedCost.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     4,
+					MinLengthSet:  true,
+					MaxLength:     14,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^-?(0|[1-9][0-9]{0,9})\\.[0-9]{2}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "expected_cost",
 			Error: err,
 		})
 	}

@@ -30,7 +30,8 @@ SQL text scanner의 precision/24:00 경계는 [ADR-0066](adr/0066-clock-time-fie
 Decimal은 immutable coefficient/exponent와 명시적 max_digits 1..1000·decimal_places 0..max_digits를 사용한다.
 SQLite BLOB numeric order key와 PostgreSQL NUMERIC(p,s)는 초과 scale을 반올림하지 않는 공통 write 검증을 거친다.
 Typed/dynamic comparison·IN·F·projection·Min/Max와 generated root/eager scan, historical create/add/remove를 연결했다.
-SQLite의 Django NUMERIC 물리 형식 채택·precision AlterField·unbounded NUMERIC과 Form/API 소비자 완료를 뜻하지 않는다.
+Form/Admin의 원문 precision 검증과 Helpdesk 예상 비용의 fixed-scale JSON/OpenAPI·독립 client까지 연결했다.
+SQLite의 Django NUMERIC 물리 형식 채택·precision AlterField·unbounded NUMERIC은 미지원이다.
 [정확한 값·물리 저장 경계](adr/0069-exact-decimal-values-and-storage.md)를 따른다.
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 

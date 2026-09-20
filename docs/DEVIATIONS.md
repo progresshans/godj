@@ -46,7 +46,7 @@
 
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부
 
-- Status: Accepted; model/storage verified locally, input consumers pending
+- Status: Accepted; model/storage and Form/API consumers verified locally
 - Date: 2026-09-20
 - Scope: [Decimal raw](../internal/decimaltest/testdata/django61.json)의 기본/lexical JSON number profile, SQLite storage probes,
   Form `input.cost=sNaN`의 세 non-null 초기값 changed exception.
@@ -69,9 +69,8 @@ SQLite는 Decimal NUMERIC 값을 정수/REAL로 바꾸므로 큰 값의 정확�
 Django Form의 sNaN input은 invalid이지만 초기 zero/negative_zero/1.5와의 changed 계산은 InvalidOperation이다. GoDj는 다른 invalid
 입력처럼 검증 오류와 변경 상태를 반환하며 panic이나 부분 persistence를 만들지 않는다. 원래 예외 2×3개는 raw에 보존한다.
 
-모델·저장·typed/dynamic 비교·rollback의 로컬 checkpoint를 완료했다. 원문 입력·Form/API와 실제 비용 소비자는 아직 연결 전이다.
-전체 경로를
-검증한 source만 완료로 기록한다. Native SQLite NUMERIC 채택이나 반올림 API를 추가할 때 이 정책과 migration 의미를 다시 검토한다.
+모델·저장·typed/dynamic 비교·rollback과 원문 입력·Form/Admin·실제 비용 API·독립 client의 로컬 checkpoint를 완료했다.
+환경별로 전체 경로를 검증한 source만 완료로 기록한다. Native SQLite NUMERIC 채택이나 반올림 API를 추가할 때 이 정책과 migration 의미를 다시 검토한다.
 
 ## DEV-0015 — Float non-finite 입력을 저장·JSON rendering 전에 거부
 

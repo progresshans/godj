@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/calendar"
 	"github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
@@ -54,7 +55,7 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort. Every create
+// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -84,13 +85,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true})
 	if err != nil {
 		return nil, err
 	}
@@ -150,18 +151,18 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort"}
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost")
 	if err != nil {
 		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort"}, SearchFields: []string{"subject"},
+		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost"}, SearchFields: []string{"subject"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -217,17 +218,18 @@ func (a *Application) list(ctx context.Context, request admin.ListRequest) (admi
 }
 
 type ticketInput struct {
-	subject    string
-	details    *string
-	closed     bool
-	priority   *int64
-	resolution *string
-	dueAt      *time.Time
-	reviewed   *bool
-	serviceOn  *calendar.Date
-	serviceAt  *clock.Time
-	elapsed    *duration.Duration
-	effort     *float64
+	subject      string
+	details      *string
+	closed       bool
+	priority     *int64
+	resolution   *string
+	dueAt        *time.Time
+	reviewed     *bool
+	serviceOn    *calendar.Date
+	serviceAt    *clock.Time
+	elapsed      *duration.Duration
+	effort       *float64
+	expectedCost *decimal.Decimal
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
@@ -242,7 +244,8 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	serviceAt, serviceAtOK := values.Get("service_at")
 	elapsed, elapsedOK := values.Get("elapsed")
 	effort, effortOK := values.Get("effort")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || len(values.All()) != 11 {
+	expectedCost, expectedCostOK := values.Get("expected_cost")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || len(values.All()) != 12 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
@@ -287,6 +290,13 @@ func fromForm(values forms.Values) (ticketInput, error) {
 			return ticketInput{}, errors.New("helpdesk: invalid service_on")
 		}
 		input.serviceOn = &date
+	}
+	if !expectedCost.IsNull() {
+		number, ok := expectedCost.AsDecimal()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid expected_cost")
+		}
+		input.expectedCost = &number
 	}
 	if !effort.IsNull() {
 		floatValue, ok := effort.AsFloat()
@@ -354,6 +364,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		} else {
 			create = create.WithServiceOn(*input.serviceOn)
 		}
+		if input.expectedCost == nil {
+			create = create.WithExpectedCostNull()
+		} else {
+			create = create.WithExpectedCost(*input.expectedCost)
+		}
 		if input.effort == nil {
 			create = create.WithEffortNull()
 		} else {
@@ -410,6 +425,11 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 		patch = patch.WithServiceOnNull()
 	} else {
 		patch = patch.WithServiceOn(*input.serviceOn)
+	}
+	if input.expectedCost == nil {
+		patch = patch.WithExpectedCostNull()
+	} else {
+		patch = patch.WithExpectedCost(*input.expectedCost)
 	}
 	if input.effort == nil {
 		patch = patch.WithEffortNull()
@@ -555,6 +575,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 		date, _ := serviceOn.AsDate()
 		input.serviceOn = &date
 	}
+	if cost, present := values.Get("expected_cost"); present && !cost.IsNull() {
+		number, _ := cost.AsDecimal()
+		input.expectedCost = &number
+	}
 	if effort, present := values.Get("effort"); present && !effort.IsNull() {
 		floatValue, _ := effort.AsFloat()
 		input.effort = &floatValue
@@ -624,9 +648,13 @@ func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Respon
 	return api.JSON(http.StatusOK, value.Value())
 }
 
-// Business values use numeric equality for Float, so changing only zero's sign
-// does not cause a write. AST value identity continues to preserve its bits.
+// Business values use numeric equality for Float and Decimal, including zero's
+// sign. AST identity retains the canonical representation of each value.
 func ticketValuesEqual(left, right query.Value) bool {
+	if before, ok := left.Decimal(); ok {
+		after, rightOK := right.Decimal()
+		return rightOK && before.Equal(after)
+	}
 	if before, ok := left.Float(); ok {
 		after, rightOK := right.Float()
 		return rightOK && before == after

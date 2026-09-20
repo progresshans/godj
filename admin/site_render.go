@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"github.com/progresshans/godj/internal/floatvalue"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/internal/booleaninput"
+	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/validation"
@@ -319,25 +319,26 @@ func (site *Site) formContext(
 			return nil, err
 		}
 		item, err := templateObject(map[string]templates.Value{
-			"name":         templates.String(field.Name()),
-			"label":        templates.String(field.Label()),
-			"char":         templates.Bool(field.Kind() == forms.FieldChar && field.Widget() == forms.TextInput),
-			"textarea":     templates.Bool(field.Widget() == forms.Textarea),
-			"integer":      templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
-			"select":       templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect),
-			"options":      templates.List(options...),
-			"datetime":     templates.Bool(field.Kind() == forms.FieldDateTime),
-			"time":         templates.Bool(field.Kind() == forms.FieldTime),
-			"duration":     templates.Bool(field.Kind() == forms.FieldDuration),
-			"float_number": templates.Bool(field.Kind() == forms.FieldFloat && field.Widget() == forms.NumberInput),
-			"float_text":   templates.Bool(field.Kind() == forms.FieldFloat && field.Widget() == forms.TextInput),
-			"date":         templates.Bool(field.Kind() == forms.FieldDate),
-			"boolean":      templates.Bool(field.Widget() == forms.Checkbox),
-			"required":     templates.Bool(field.Required() && field.Widget() != forms.NullBooleanSelect),
-			"max_length":   templates.Integer(int64(field.MaxLength())),
-			"value":        templates.String(value),
-			"checked":      templates.Bool(checked),
-			"errors":       templates.List(errors...),
+			"name":        templates.String(field.Name()),
+			"label":       templates.String(field.Label()),
+			"char":        templates.Bool(field.Kind() == forms.FieldChar && field.Widget() == forms.TextInput),
+			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
+			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
+			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect),
+			"options":     templates.List(options...),
+			"datetime":    templates.Bool(field.Kind() == forms.FieldDateTime),
+			"time":        templates.Bool(field.Kind() == forms.FieldTime),
+			"duration":    templates.Bool(field.Kind() == forms.FieldDuration),
+			"number":      templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.NumberInput),
+			"number_step": templates.String(field.NumberStep()),
+			"number_text": templates.Bool((field.Kind() == forms.FieldFloat || field.Kind() == forms.FieldDecimal) && field.Widget() == forms.TextInput),
+			"date":        templates.Bool(field.Kind() == forms.FieldDate),
+			"boolean":     templates.Bool(field.Widget() == forms.Checkbox),
+			"required":    templates.Bool(field.Required() && field.Widget() != forms.NullBooleanSelect),
+			"max_length":  templates.Integer(int64(field.MaxLength())),
+			"value":       templates.String(value),
+			"checked":     templates.Bool(checked),
+			"errors":      templates.List(errors...),
 		})
 		if err != nil {
 			return nil, err
@@ -402,6 +403,12 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldBoolean {
 		checked, _ := initial.AsBoolean()
 		return "", checked
+	}
+	if field.Kind() == forms.FieldDecimal {
+		value, _ := initial.AsDecimal()
+		_, places, _ := field.DecimalPrecision()
+		text, _ := value.Fixed(places)
+		return text, false
 	}
 	if field.Kind() == forms.FieldFloat {
 		value, _ := initial.AsFloat()
