@@ -90,6 +90,7 @@ func validateJSONPathCondition(c Condition) error {
 	}
 	switch c.lookup {
 	case LookupExact, LookupIsNull, LookupIn, LookupContains, LookupContainedBy:
+	case LookupHasKey, LookupHasKeys, LookupHasAnyKeys:
 	default:
 		return invalidPlanError("JSON path lookup is not supported")
 	}

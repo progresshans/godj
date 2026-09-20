@@ -238,8 +238,19 @@ func validateExpressionCondition(condition Condition) error {
 	}
 
 	switch condition.rhs.kind {
+	case conditionRHSJSONKeys:
+		if field.kind != FieldJSON || !jsonKeysLookup(condition.lookup) || !condition.rhs.keys.Valid() ||
+			condition.rhs.value != (Value{}) || len(condition.rhs.values) != 0 || condition.rhs.field != (FieldRef{}) {
+			return invalidPlanError("JSON key presence requires a JSON field and a key-list operand")
+		}
+		if condition.lookup == LookupHasKey && len(condition.rhs.keys.data.values) != 1 {
+			return invalidPlanError("has_key requires exactly one key")
+		}
+		if condition.relationPath != nil && !forwardMembershipPath(*condition.relationPath) {
+			return invalidPlanError("related JSON key presence requires a forward target-field path")
+		}
 	case conditionRHSLiteral:
-		if len(condition.rhs.values) != 0 || condition.rhs.field != (FieldRef{}) {
+		if len(condition.rhs.values) != 0 || condition.rhs.field != (FieldRef{}) || condition.rhs.keys.Valid() {
 			return invalidPlanError("query expression literal right-hand side is malformed")
 		}
 		switch condition.lookup {
@@ -267,14 +278,14 @@ func validateExpressionCondition(condition Condition) error {
 			return invalidPlanError("query expression literal condition has an unknown lookup")
 		}
 	case conditionRHSList:
-		if condition.lookup != LookupIn || condition.rhs.value != (Value{}) || condition.rhs.field != (FieldRef{}) {
+		if condition.lookup != LookupIn || condition.rhs.value != (Value{}) || condition.rhs.field != (FieldRef{}) || condition.rhs.keys.Valid() {
 			return invalidPlanError("query expression list right-hand side is malformed")
 		}
 		if (condition.relationPath != nil && !forwardMembershipPath(*condition.relationPath)) || !validInValues(field, condition.rhs.values) {
 			return invalidPlanError("query expression IN condition is malformed")
 		}
 	case conditionRHSField:
-		if condition.rhs.value != (Value{}) || len(condition.rhs.values) != 0 ||
+		if condition.rhs.value != (Value{}) || len(condition.rhs.values) != 0 || condition.rhs.keys.Valid() ||
 			!validExpressionField(condition.rhs.field) || !condition.rhs.field.ValidType() {
 			return invalidPlanError("query expression field right-hand side is malformed")
 		}

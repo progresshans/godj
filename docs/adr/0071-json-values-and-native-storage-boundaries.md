@@ -54,7 +54,7 @@ key의 UTF-8 합계 4096 byte와 index 0..2147483647로 제한한다. 음수 ind
 Typed `Payload.At(query.JSONKey("items"), query.JSONIndex(0))`와 dynamic `LookupInput.JSONPath`는 같은 AST를 사용한다.
 Dynamic `Key`는 기존 model/relation field·lookup만 선택하며 arbitrary JSON key를 `__` 문법에 끼워 넣지 않는다.
 오타 lookup을 JSON key로 암묵 수용하지 않고 기존 allowlist policy를 적용한다. Nil JSONPath는 whole field,
-non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull과 backend가 지원하는 contains/contained_by를 제공하고
+non-nil empty JSONPath는 오류다. 경로에는 exact/IN/isnull·key presence와 backend가 지원하는 contains/contained_by를 제공하고
 F·projection·ordering·write field로 노출하지 않는다.
 
 없는 key, 범위 밖 index, 맞지 않는 container는 SQL NULL이다. `IsNull(true)`가 이를 조회하고,
@@ -100,7 +100,35 @@ Client-side filtering이나 string LIKE로 바꾸지 않는다. Count·LIMIT 0·
 
 독립 runner의 `containment`는 별도 table에서 33개 문서에 root/key 경로·양 연산·filter/exclude **168개 조건**을 관찰한다.
 기존 88개 lookup·3개 projection은 그대로 보존한다. Generated 소비자는 PostgreSQL raw의 실제 결과를 직접 비교하고
-SQLite의 같은 표현은 오류 category/code와 I/O 0을 검사한다. 이 테스트는 JSONField의 모든 transform·key-presence 연산을 뜻하지 않는다.
+SQLite의 같은 표현은 오류 category/code와 I/O 0을 검사한다. 이 테스트는 JSONField의 모든 transform을 뜻하지 않는다.
+
+## JSON key presence
+
+`HasKey(string)`, `HasKeys(...string)`(모두), `HasAnyKeys(...string)`(하나 이상)은 root·명시적 JSON path·forward에서
+같은 AST를 사용한다. RHS는 JSON 문서나 IN 값 목록과 구분되는 닫힌 `JSONKeyList`다. 키 수 1024개·UTF-8 합계
+4096 byte를 제한하고 원본/반환 slice를 복사한다. 순서·중복은 AST에 보존하며 SQL의 membership 의미와 구분한다.
+Zero list는 invalid, constructor의 빈 목록은 valid다. Dynamic은 has_key에 string, 나머지에 []string/모든 원소가 string인
+[]any만 받는다. Nil interface·숫자·JSON 문서를 문자열로 변환하지 않으며 기존 lookup policy를 적용한다.
+Typed nil slice는 빈 목록이며 nil interface와 구분한다.
+
+PostgreSQL은 매개변수로 전달한 string/text[]와 native `?`/`?&`/`?|`를 사용한다. 객체 key뿐 아니라 scalar string과
+문자열 배열의 원소도 검사한다. SQL NULL/missing path는 unknown이며 부정 조건은 root SQL NULL·optional JOIN만 보정한다.
+NUL이 포함된 key는 Count·LIMIT 0·empty IN을 포함한 전체 계획 preflight에서 거부한다.
+
+SQLite의 nonempty key 목록은 객체의 literal key만 검사한다. JSON null 값인 key도 존재하며 missing path는 false라서
+NOT에서는 포함된다. Native path의 empty/NUL prefix 충돌을 피하기 위해 deterministic `godj_json_has_keys`가 bounded codec으로
+평가한다. 등록·오류·연결·cache 소유권과 외부 malformed/duplicate/Unicode 문서의 거부는 `godj_json_at`과 같다.
+Path와 presence를 함께 쓰면 path 추출과 subtree 검사를 각각 수행하며 전역 문서 cache를 만들지 않는다.
+
+빈 목록은 PostgreSQL의 의미를 채택한다. 존재하는 JSON 값은 종류와 무관하게 HasKeys()=true, HasAnyKeys()=false이고,
+SQL NULL/missing path는 unknown이다. 이는 SQLite nonempty lookup의 Boolean missing과 구분하며 빈 IN처럼 상수로 접지 않는다.
+고정 Django SQLite의 빈 목록은 OperationalError이므로 이 확장은 DEV-0017에 명시한다. Root SQL NULL과 optional JOIN의
+부정 보정은 계속 적용한다. Reverse는 기존 exact-only 경계를 유지한다.
+
+[독립 helper](../../conformance/runners/django/json_key_presence_reference.py)는 SQLite 19개/PostgreSQL 17개 문서에서 각각
+96개 root/path·single/all/any·filter/exclude를 관찰한다. 이전 path·containment raw는 보존한다. Generated 소비자는 DB별 raw를
+직접 비교하고 SQLite empty-list 8조건, root empty/NUL key 12조건만 명시한 차이로 검사한다. PostgreSQL NUL 12조건은
+reference의 DataError와 GoDj의 preflight invalid-value를 구분한다. 환경별 실행 완료는 TEST_EVIDENCE가 소유한다.
 
 ## Form/Admin과 JSON API
 

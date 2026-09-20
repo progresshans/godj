@@ -222,7 +222,7 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 			switch condition.Lookup() {
 			case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
 				query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn,
-				query.LookupContains, query.LookupContainedBy:
+				query.LookupContains, query.LookupContainedBy, query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
 				return requiredPrefixes(hops)
 			}
 		}

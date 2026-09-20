@@ -438,6 +438,7 @@ func runStorage(t *testing.T, open func(context.Context) (jsonBackend, error)) {
 	verifyNativeLimits(t, backend, native)
 	t.Run("paths", func(t *testing.T) { verifyJSONPaths(t, backend, native) })
 	t.Run("containment", func(t *testing.T) { verifyJSONContainment(t, backend, native) })
+	t.Run("keys", func(t *testing.T) { verifyJSONKeys(t, backend, native) })
 }
 
 func verifyRelations(t *testing.T, backend jsonBackend, records []models.Record, sample, changed jsonvalue.Value) {

@@ -43,3 +43,10 @@ class JSONLookupReferenceTests(unittest.TestCase):
         self.assertEqual(len(actual['containment']['samples']), 33)
         self.assertEqual(len(actual['containment']['queries']), 168)
         self.assertEqual({row.get('exception') for row in actual['containment']['queries']}, {'NotSupportedError'})
+
+        self.assertEqual(len(actual['key_presence']['samples']), 19)
+        self.assertEqual(len(actual['key_presence']['queries']), 96)
+        keys = actual['key_presence']['queries']
+        self.assertEqual({row['exception'] for row in keys if row['keys'] == []}, {'OperationalError'})
+        empty = next(row for row in keys if row['scope'] == 'root' and row['lookup'] == 'has_key' and row['keys'] == '' and row['mode'] == 'filter')
+        self.assertEqual(empty['rows'], ['empty_key', 'nul_key', 'empty_and_nul'])

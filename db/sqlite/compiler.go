@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -431,6 +432,21 @@ func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldS
 	}
 	value := condition.Value()
 	switch condition.Lookup() {
+	case query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
+		keys, ok := condition.JSONKeys()
+		if !ok {
+			return nil, invalidPlan("JSON key presence operand is missing")
+		}
+		encoded, err := json.Marshal(keys.Values())
+		if err != nil {
+			return nil, err
+		}
+		mode := int64(0)
+		if condition.Lookup() == query.LookupHasKeys {
+			mode = 1
+		}
+		sql.WriteString(", ?, ?)")
+		return []any{string(encoded), mode}, nil
 	case query.LookupExact:
 		if !queryplan.ValueMatchesField(value.Kind(), field.Kind()) {
 			return nil, invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", value.Kind(), field.Name()))

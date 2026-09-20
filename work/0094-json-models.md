@@ -1,7 +1,7 @@
 ---
 id: GDJ-0094
 status: active
-updated: 2026-09-20
+updated: 2026-09-21
 baseline_commit: "7da91ad5fbd6284622fb372e7d8051120584424e"
 integration_owner: "root"
 ---
@@ -56,6 +56,8 @@ JSON을 ordered scalar로 일괄 허용하지 않는다. Contains 등 추가 JSO
 고정 Django의 양 DB lookup raw를 보존하고 타입·숫자 정확도와 missing/JSON null/root SQL NULL을 구분한다.
 SQLite native path의 empty/NUL key 오조회를 재현해 bounded codec을 사용하는 SQL 함수로 보정하고 로컬 normal/race/CGO=0 checkpoint를 마쳤다.
 PostgreSQL root/path·forward contains/contained_by를 추가하고 같은 식의 SQLite capability 거부를 연결했다.
-별도 33개 문서·168개 조건의 독립 관찰을 소비하는 로컬 checkpoint를 완료했다. JSON 조회 통합 milestone의 `orm` scope Hosted를 이어간다.
-앞선 source의 platform 결과를 이 새 조회의 검증으로 사용하지 않는다. Key-presence 등 추가 lookup은 다음 경계다.
+별도 33개 문서·168개 조건의 독립 관찰을 소비하는 로컬 checkpoint와 JSON 조회 통합 milestone의 `orm` scope Hosted를 완료했다.
+Key-presence의 별도 양 DB 96조건 관찰을 보존하고 공통 AST·typed/dynamic·root/path·forward 연결의 로컬 normal/race/CGO=0 검증을 마쳤다.
+SQLite의 literal empty/NUL key 보정과 빈 목록 확장은 ADR-0071/DEV-0017에 명시한다.
+앞선 source의 platform 결과를 새 key-presence 구현의 검증으로 사용하지 않는다. 다음은 JSON 경로 projection의 표현과 nullable 결과 경계다.
 현재 기반 구현과 검증은 JSONField 전체 및 프레임워크 목표의 완료가 아니다. 실행별 source·환경·실패/수정은 TEST_EVIDENCE에 기록한다.

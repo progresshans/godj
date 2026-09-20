@@ -46,7 +46,7 @@ func TestJSONPathFunctionPreservesTypePrecisionAndRejectsInvalidDocuments(t *tes
 	}
 }
 
-func TestJSONPathFunctionIsAvailableOnEveryPhysicalConnectionAndReopen(t *testing.T) {
+func TestJSONFunctionsAvailableOnEveryPhysicalConnectionAndReopen(t *testing.T) {
 	dsn := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "path.sqlite3"))
 	for attempt := 0; attempt < 2; attempt++ {
 		backend, err := Open(t.Context(), dsn)
@@ -68,6 +68,10 @@ func TestJSONPathFunctionIsAvailableOnEveryPhysicalConnectionAndReopen(t *testin
 			err := conn.QueryRowContext(t.Context(), "SELECT godj_json_at(?, ?)", `{"\u0000":"nul","":"empty"}`, `[""]`).Scan(&got)
 			if err != nil || got != `"empty"` {
 				t.Fatal(fmt.Sprintf("physical connection attempt %d", attempt), got, err)
+			}
+			var presence int64
+			if err := conn.QueryRowContext(t.Context(), "SELECT godj_json_has_keys(godj_json_at(?, ?), ?, ?)", `{"a":{"\u0000":1}}`, `["a"]`, `[""]`, int64(0)).Scan(&presence); err != nil || presence != 0 {
+				t.Fatal("literal key presence on physical connection", presence, err)
 			}
 		}
 		if err := first.Close(); err != nil {

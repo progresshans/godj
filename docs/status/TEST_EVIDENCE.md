@@ -234,6 +234,50 @@
   새 JSON 경로와 containment를 묶은 Hosted `orm` scope 통합은 고정 source를 게시한 뒤 실행하며 아래에 별도로 기록한다.
   현재 로컬 결과는 새 source의 전체 platform 또는 Hosted 완료를 뜻하지 않는다.
 
+### JSON 경로·containment Hosted ORM 통합
+
+- [Run 35517527972](https://github.com/progresshans/godj/actions/runs/35517527972), attempt **1**, source
+  `e7bc29d0288acfa633aa1078df718c1f96610e3a`의 `orm` scope가 **실행 44 job 성공 / 선언한 범위 밖 4 owner skip**으로 완료됐다.
+  완전한 job logs의 실제 checkout SHA를 모두 확인했다. Gate는 `full_platform_verified:false`이며
+  `command-product-matrix`, `portable-go-matrix`, `postgresql-product`, `relation-product-matrix` 네 owner를 검증했다.
+- PostgreSQL **17.10** core normal/race/CGO=0 각각 **13 package / 1886 run·PASS / skip 0**, operator-target 각각
+  **2 package / 12 run·PASS / skip 0**이다. 모든 core 실행의 필수 목록에 `TestGeneratedJSONConsumer`가 존재하며,
+  해당 source의 parent가 SQLite/PostgreSQL path·containment child를 각각 필수로 검사한다.
+- Linux amd64/arm64와 macOS arm64/amd64 relation·command matrix 및 portable matrix가 terminal 성공이다.
+  Relation의 normal/CGO=0과 race는 workflow가 선택한 서로 다른 inventory이며 합쳐 같은 실행 수로 표현하지 않는다.
+  Python compatibility, exact darwin/arm64 profile·SQLite lifecycle, project check, reference/current capture는 이 scope의 비대상이다.
+  전체 플랫폼·Python oracle·현재 개발 중인 key-presence의 Hosted PASS가 아니다.
+
+### JSON key presence의 로컬 통합 checkpoint
+
+- 기준 `e7bc29d0288acfa633aa1078df718c1f96610e3a` 위 제품·테스트·독립 reference·Go/Python lock의
+  **28 non-Markdown 경로** manifest SHA256은 `6e4d3dc92147a068e5c744821f78784bfd67e99dbb70916e6c4d1ec319b59d71`이다.
+  Go **1.26.5 darwin/arm64**, repository-pinned modernc SQLite·PostgreSQL **17.5**, `GODJ_REQUIRE_POSTGRES=1`,
+  `TZ=Pacific/Chatham`에서 실행 전후 같은 바이트를 확인했다.
+- Normal `go test -json -count=1 -timeout=10m ./query ./orm ./db/... ./codegen/consumertest`는
+  **8 package / 706 root / 5553 test·subtest PASS**, fail 0·stderr 0 bytes다. 단독 PostgreSQL process helper만 skip 1이며
+  PostgreSQL/SQLite cross-process parent는 필수 PASS다. No-test package event를 test skip과 구분했다.
+- 새 key AST·SQLite SQL 함수/연결과 generated consumer를 선택한 race·CGO=0은 각각
+  **3 package / 4 root / 9 PASS**, run/pass roster 동일·skip/fail 0·stderr 0 bytes다. 선택 package는
+  `./query ./db/sqlite ./codegen/consumertest`다. 모든 모드에서 generated parent가 양 DB의 path·containment·keys child를 필수 검사한다.
+- 고정 Django **6.1** public ORM의 `key_presence`는 SQLite **19개**, PostgreSQL **17개** 문서에서 각각 **96조건**이다.
+  기존 88 lookup·3 projection·containment 168조건과 metadata를 그대로 보존했다. 확장 raw SHA256은
+  SQLite `bc5068339b5e786a48028a3506de2141f8f1a9d6e94601c11742d39b31fbcb82`,
+  PostgreSQL `f213e1480f54bf1fb732306c73b3749d5f9febaee1e106ec7393fc2534097007`이다.
+  Python **3.14.3**/SQLite **3.50.4** 및 PostgreSQL **17.5**/psycopg **3.3.6**에서 직접 관찰했고,
+  SQLite fresh 비교는 Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** 각각 **1 PASS**, skip/warning 0이다.
+- Generated 소비자는 nullable/non-null 모델·root/path·typed/dynamic·Count·optional forward/eager·OR/NOT를 실제 DB에서 확인한다.
+  PostgreSQL NUL 12조건은 raw의 DataError와 GoDj의 preflight 오류를 구분하며 LIMIT 0·empty IN·Count도 거부한다.
+  SQLite empty-list 8조건과 root empty/NUL key 12조건만 DEV-0017의 명시적인 차이로 검사한다. 나머지는 해당 DB의 raw 결과를 직접 비교한다.
+  키 목록의 source/getter 복사·순서/중복·UTF-8/개수/byte 한도·policy·잘못된 typed/dynamic 입력·literal parameter·numeric key/index와
+  미지원 reverse 오류를 확인했다. SQLite의 여러 physical connection·reopen에서도 두 JSON SQL 함수를 실제 호출했다.
+- 초기 checkpoint는 생성 query facade에 없는 Plan 메서드를 테스트가 호출해 compile 실패했다. 공통 ORM에서 AST를 비교하도록 수정했다.
+  다음 checkpoint는 reverse JSON path key 조회가 `unsupported_lookup` 대신 `invalid_plan`을 반환하여 실패했다.
+  기존 relation lookup guard를 path key 생성에도 적용한 최종 source로 normal/race/CGO=0을 통과했다. 초기 실패를 PASS에 합치지 않는다.
+- Affected vet·Helpdesk generated **12파일 clean**·gofmt·docs/diff를 확인했다. 생성 grammar는 변경하지 않았고 새 generic API는 fresh 외부 모듈에서 검증했다.
+  전용 DB는 잔여 연결 0 뒤 삭제하고 기존 service를 유지했다. 이 key-presence source의 Hosted는 아직 실행하지 않았다.
+  앞선 `e7bc29d` ORM Hosted는 path·containment 증거이며 이번 key-presence의 platform PASS로 사용하지 않는다.
+
 ## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.

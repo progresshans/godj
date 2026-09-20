@@ -86,7 +86,15 @@ Django의 numeric path 이름/negative index·자동 lookup 문법이나 Postgre
 Path lookup의 실행 source와 환경은 TEST_EVIDENCE에 별도로 기록한다.
 
 Contains/contained_by는 PostgreSQL native 의미와 SQLite의 명시적인 미지원 경계를 따른다.
-JSON PK/FK·index·key-presence 등 추가 lookup·타입 변경/backfill은 별도 구현과 검증을 요구한다.
+Key presence는 DB별 object/string/array 의미를 유지한다. SQLite의 root empty/NUL key는 native prefix 충돌 때문에
+잘못된 행을 포함하는 raw를 그대로 보존하고 literal key로 보정한다. 정확한 selector는 `scope=root`, `keys=""`/`"\u0000"`
+(has_key) 또는 singleton 목록(has_keys/has_any_keys), filter/exclude의 12조건이다.
+SQLite의 빈 has_keys/has_any_keys는 root/a 경로·filter/exclude의 8조건 모두 고정 reference에서 OperationalError다.
+GoDj는 이 8조건에 PostgreSQL의 의미를 채택한다. 존재하는 JSON 문서는 빈 all=true/any=false, SQL NULL·missing path는
+unknown이며 기존 root SQL NULL·optional JOIN의 NOT 보정은 유지한다. 이 확장을 Django parity로 세지 않는다.
+PostgreSQL의 NUL key는 양 scope·세 lookup·filter/exclude 12조건의 DataError를 DB 호출 전 invalid-value로 거부한다.
+그 밖의 key-presence raw 결과를 blanket normalization하거나 누락하지 않는다.
+JSON PK/FK·index·추가 transform·타입 변경/backfill은 별도 구현과 검증을 요구한다.
 반올림/비정규 TEXT 저장을 제품 기능으로 채택하거나 backend 간 equality를 바꿀 때는 이 기록과 migration 의미를 다시 검토한다.
 
 ## DEV-0016 — Decimal의 정확한 입력·저장과 초과 scale 거부

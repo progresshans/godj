@@ -82,6 +82,9 @@ const (
 	LookupIn                 Lookup = "in"
 	LookupContains           Lookup = "contains"
 	LookupContainedBy        Lookup = "contained_by"
+	LookupHasKey             Lookup = "has_key"
+	LookupHasKeys            Lookup = "has_keys"
+	LookupHasAnyKeys         Lookup = "has_any_keys"
 )
 
 type conditionRHSKind uint8
@@ -90,6 +93,7 @@ const (
 	conditionRHSLiteral conditionRHSKind = iota + 1
 	conditionRHSList
 	conditionRHSField
+	conditionRHSJSONKeys
 )
 
 type conditionRHS struct {
@@ -97,6 +101,7 @@ type conditionRHS struct {
 	value  Value
 	values []Value
 	field  FieldRef
+	keys   JSONKeyList
 }
 
 type Condition struct {
@@ -236,7 +241,7 @@ func (c Condition) Equal(other Condition) bool {
 		return false
 	}
 	if c.rhs != nil {
-		if c.rhs.kind != other.rhs.kind || c.rhs.value != other.rhs.value || c.rhs.field != other.rhs.field ||
+		if c.rhs.kind != other.rhs.kind || c.rhs.value != other.rhs.value || c.rhs.field != other.rhs.field || !c.rhs.keys.Equal(other.rhs.keys) ||
 			!slices.EqualFunc(c.rhs.values, other.rhs.values, func(left, right Value) bool {
 				return left.Equal(right)
 			}) {

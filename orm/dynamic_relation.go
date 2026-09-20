@@ -153,7 +153,16 @@ func allowRelationLookup(policy LookupPolicy, field ir.Field, lookup query.Looku
 }
 func dynamicRelationPredicate[M any](path query.RelationPath, terminal ir.Field, lookup query.Lookup, raw any, segments []query.JSONPathSegment) (Predicate[M], error) {
 	var condition query.Condition
-	if lookup == query.LookupIn {
+	if isJSONKeysLookup(lookup) {
+		keys, err := dynamicJSONKeys(terminal, lookup, raw)
+		if err != nil {
+			return Predicate[M]{}, err
+		}
+		condition, err = query.NewRelatedJSONKeysCondition(path, lookup, keys...)
+		if err != nil {
+			return Predicate[M]{}, err
+		}
+	} else if lookup == query.LookupIn {
 		values, err := dynamicMembership(terminal, raw)
 		if err != nil {
 			return Predicate[M]{}, err

@@ -371,6 +371,13 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 }
 
 func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
+	if keys, ok := condition.JSONKeys(); ok {
+		for _, key := range keys.Values() {
+			if strings.ContainsRune(key, 0) {
+				return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidValue, Field: condition.Field().Name(), Lookup: string(condition.Lookup()), Detail: "PostgreSQL JSON keys cannot contain NUL"}
+			}
+		}
+	}
 	if path, ok := condition.JSONPath(); ok {
 		for _, segment := range path.Segments() {
 			if key, _ := segment.Key(); strings.ContainsRune(key, 0) {
@@ -413,6 +420,10 @@ func prepareWhereCondition(condition query.Condition) ([]query.Value, error) {
 	}
 
 	switch condition.Lookup() {
+	case query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
+		if _, ok := condition.JSONKeys(); !ok || field.Kind() != query.FieldJSON {
+			return nil, unsupportedLookup(field, condition.Lookup())
+		}
 	case query.LookupContains, query.LookupContainedBy:
 		if field.Kind() != query.FieldJSON || condition.Value().Kind() != query.ValueJSON {
 			return nil, unsupportedLookup(field, condition.Lookup())
@@ -583,7 +594,7 @@ func nullableNegationGuard(lookup query.Lookup) bool {
 	switch lookup {
 	case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
 		query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn,
-		query.LookupContains, query.LookupContainedBy:
+		query.LookupContains, query.LookupContainedBy, query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
 		return true
 	default:
 		return false
@@ -810,6 +821,25 @@ func compileCondition(statement *strings.Builder, condition query.Condition, rig
 	field := condition.Field()
 	value := condition.Value()
 	switch condition.Lookup() {
+	case query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
+		owned, ok := condition.JSONKeys()
+		if !ok {
+			return nil, invalidPlan("JSON key presence operand is missing")
+		}
+		keys := owned.Values()
+		if condition.Lookup() == query.LookupHasKey {
+			statement.WriteString(" ? ")
+			statement.WriteString(placeholder(firstArgument))
+			return []any{keys[0]}, nil
+		}
+		if condition.Lookup() == query.LookupHasKeys {
+			statement.WriteString(" ?& ")
+		} else {
+			statement.WriteString(" ?| ")
+		}
+		statement.WriteString(placeholder(firstArgument))
+		statement.WriteString("::text[]")
+		return []any{keys}, nil
 	case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
 		query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupContains, query.LookupContainedBy:
 		operator := comparisonOperator(condition.Lookup())

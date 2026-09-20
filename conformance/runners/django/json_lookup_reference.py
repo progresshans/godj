@@ -123,11 +123,13 @@ with tempfile.TemporaryDirectory(prefix='godj-json-lookup-reference-') as temp:
                     containment['queries'].append(row)
     with connection.schema_editor() as editor:
         editor.delete_model(ContainmentRecord)
+    from json_key_presence_reference import observe as observe_key_presence
+    key_presence = observe_key_presence(models, connection)
     with connection.cursor() as cursor:
         cursor.execute('SELECT version()' if database else 'SELECT sqlite_version()')
         version=cursor.fetchone()[0]
     result={'django':django.get_version(),'python':platform.python_version(),'backend':connection.vendor,
-            'database_version':version,'queries':queries,'projections':projections,'containment':containment}
+            'database_version':version,'queries':queries,'projections':projections,'containment':containment,'key_presence':key_presence}
     if database:
         result['psycopg'] = importlib.metadata.version('psycopg')
     # A failed observation is retained as an exception result; cleanup is not

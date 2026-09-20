@@ -206,6 +206,9 @@ func appendWhereNode(
 		if node.condition.Lookup() == query.LookupIn && len(node.inValues) == 0 {
 			sql.WriteString("0 = 1")
 		} else {
+			if _, ok := node.condition.JSONKeys(); ok {
+				sql.WriteString("godj_json_has_keys(")
+			}
 			if path, ok := node.condition.JSONPath(); ok {
 				sql.WriteString("godj_json_at(")
 				sql.WriteString(node.fieldSQL)
@@ -296,7 +299,7 @@ func nullableNegationLookup(lookup query.Lookup) bool {
 		query.LookupLessThan,
 		query.LookupLessThanOrEqual,
 		query.LookupIContains,
-		query.LookupIn:
+		query.LookupIn, query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
 		return true
 	default:
 		return false
