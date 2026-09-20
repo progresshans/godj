@@ -28,6 +28,7 @@ const (
 	ValueFloat
 	ValueDecimal
 	ValueTime
+	ValueUUID
 )
 
 // Value is an immutable cleaned or initial form value.
@@ -83,6 +84,7 @@ const (
 	FieldFloat
 	FieldDecimal
 	FieldTime
+	FieldUUID
 )
 
 // Widget selects presentation independently of the field's cleaned value type.
@@ -281,7 +283,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		kind == FieldBoolean && (config.nullable && config.widget == NullBooleanSelect || !config.nullable && config.widget == Checkbox) || kind == FieldInteger && config.widget == TextInput || kind == FieldDateTime && (config.widget == DateTimeInput || config.widget == TextInput) ||
 		kind == FieldTime && (config.widget == TimeInput || config.widget == TextInput) ||
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
-		kind == FieldDuration && config.widget == TextInput ||
+		(kind == FieldDuration || kind == FieldUUID) && config.widget == TextInput ||
 		kind == FieldDate && (config.widget == DateInput || config.widget == TextInput) ||
 		config.choices != nil && config.widget == Select) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
@@ -320,6 +322,16 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 					return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "precision"}
 				}
 			}
+		}
+	case FieldUUID:
+		if config.maxLength != 0 {
+			return Field{}, &ConfigError{Path: "fields." + name + ".max_length", Code: "unsupported"}
+		}
+		if !config.required && !config.nullable {
+			return Field{}, &ConfigError{Path: "fields." + name + ".nullable", Code: "optional_uuid_requires_null"}
+		}
+		if config.hasDefault && !validValueForField(config.defaultValue, kind, config.nullable) {
+			return Field{}, &ConfigError{Path: "fields." + name + ".default", Code: "type_mismatch"}
 		}
 	case FieldFloat:
 		if config.maxLength != 0 {
@@ -428,7 +440,7 @@ func validValueForField(value Value, kind FieldKind, nullable bool) bool {
 		return nullable
 	}
 	return kind == FieldChar && value.kind == ValueString || kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal || kind == FieldUUID && value.kind == ValueUUID
 }
 
 func (f Field) Name() string              { return f.name }
@@ -563,7 +575,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 			value = field.defaultValue
 		case field.kind == FieldBoolean && !field.nullable:
 			value = Boolean(false)
-		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal:
+		case field.kind == FieldInteger || field.kind == FieldDateTime || field.kind == FieldDate || field.kind == FieldTime || field.kind == FieldDuration || field.kind == FieldFloat || field.kind == FieldDecimal || field.kind == FieldUUID:
 			value = Null()
 		case field.kind == FieldChar:
 			value = field.emptyValue
@@ -725,6 +737,19 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 			}
 			var code validation.Code
 			value, code = cleanDecimal(field, raw)
+			if code == "" && value.IsNull() && field.required {
+				code = "required"
+			}
+			if code != "" {
+				return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
+			}
+		case FieldUUID:
+			raw := ""
+			if present && len(submitted) == 1 {
+				raw = submitted[0]
+			}
+			var code validation.Code
+			value, code = cleanUUID(raw)
 			if code == "" && value.IsNull() && field.required {
 				code = "required"
 			}
@@ -894,6 +919,13 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 			raw = submitted[0]
 		}
 		return changedDecimal(raw, initial)
+	case FieldUUID:
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		value, code := cleanUUID(raw)
+		return code != "" || !value.Equal(initial)
 	case FieldFloat:
 		raw := ""
 		if present && len(submitted) == 1 {

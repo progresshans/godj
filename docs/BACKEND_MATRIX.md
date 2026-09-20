@@ -37,7 +37,7 @@ Reverse의 범위 초과는 값을 반올림하지 않고 실패한다. SQLite�
 UUID는 모든 128-bit pattern의 복사 가능한 값과 별도 NULL을 사용한다. SQLite CHAR(32)의 canonical lowercase hex TEXT와 PostgreSQL native UUID를 연결했다.
 Typed/dynamic comparison·IN/F·projection·Min/Max·forward 및 현재 reverse exact scalar, historical create/nullable add와 reverse를 지원한다.
 PostgreSQL 17의 UUID Min/Max는 canonical text의 C collation 집계 뒤 native UUID로 반환하며, NULL 정렬 위치는 DB별 기존 의미를 유지한다.
-UUID PK/FK·uniqueness·generation/callable default와 Form/Admin/API 소비자는 별도 범위다. [UUID 값과 저장](adr/0070-uuid-model-values-and-storage.md)을 따른다.
+Form/Admin/API와 Helpdesk 외부 참조·독립 client를 연결했다. UUID PK/FK·uniqueness·generation/callable default는 별도 범위다. [UUID 값과 저장](adr/0070-uuid-model-values-and-storage.md)을 따른다.
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
 

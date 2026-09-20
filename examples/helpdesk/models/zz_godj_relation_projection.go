@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "aa9406e8e8095dd7b8d17b9279aac851982ded9e2a289fd91a28800875d11612"
+const GoDjRelationProjectionSchemaSHA256 = "01ef17b1156f01dd42d93fd8ce56cea1ba26b102e07e47ea29e5b5a3fdeec865"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -59,20 +59,21 @@ func (TicketDescriptor) NewProjectionScan() orm.ProjectionScan[Ticket] {
 }
 
 type ticketProjectionScan struct {
-	scanID           sql.NullInt64
-	scanSubject      sql.NullString
-	scanDetails      sql.NullString
-	scanClosed       sql.NullBool
-	scanCategoryID   sql.NullInt64
-	scanPriority     sql.NullInt64
-	scanResolution   sql.NullString
-	scanDueAt        orm.NullableDateTimeScanner
-	scanReviewed     sql.NullBool
-	scanServiceOn    orm.NullableDateScanner
-	scanServiceAt    orm.NullableTimeScanner
-	scanElapsed      orm.NullableDurationScanner
-	scanEffort       orm.NullableFloatScanner
-	scanExpectedCost orm.NullableDecimalScanner
+	scanID                sql.NullInt64
+	scanSubject           sql.NullString
+	scanDetails           sql.NullString
+	scanClosed            sql.NullBool
+	scanCategoryID        sql.NullInt64
+	scanPriority          sql.NullInt64
+	scanResolution        sql.NullString
+	scanDueAt             orm.NullableDateTimeScanner
+	scanReviewed          sql.NullBool
+	scanServiceOn         orm.NullableDateScanner
+	scanServiceAt         orm.NullableTimeScanner
+	scanElapsed           orm.NullableDurationScanner
+	scanEffort            orm.NullableFloatScanner
+	scanExpectedCost      orm.NullableDecimalScanner
+	scanExternalReference orm.NullableUUIDScanner
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -94,6 +95,7 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanElapsed,
 		&_scan.scanEffort,
 		&_scan.scanExpectedCost,
+		&_scan.scanExternalReference,
 	}
 }
 
@@ -101,7 +103,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid && !_scan.scanElapsed.Valid && !_scan.scanEffort.Valid && !_scan.scanExpectedCost.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanDetails.Valid && !_scan.scanClosed.Valid && !_scan.scanCategoryID.Valid && !_scan.scanPriority.Valid && !_scan.scanResolution.Valid && !_scan.scanDueAt.Valid && !_scan.scanReviewed.Valid && !_scan.scanServiceOn.Valid && !_scan.scanServiceAt.Valid && !_scan.scanElapsed.Valid && !_scan.scanEffort.Valid && !_scan.scanExpectedCost.Valid && !_scan.scanExternalReference.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -161,8 +163,12 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 		_scanned := _scan.scanExpectedCost.Decimal
 		_value.ExpectedCost = &_scanned
 	}
+	if _scan.scanExternalReference.Valid {
+		_scanned := _scan.scanExternalReference.UUID
+		_value.ExternalReference = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_657583a6de60ec7015e359bad729ead12ac8065f4ca6b65900645d4981761807
+var _ GoDjProjectSnapshot_42928d3e7a9d5f616bdf7b1f2be94a84a1c745bf324c328699e310de9b979cc5

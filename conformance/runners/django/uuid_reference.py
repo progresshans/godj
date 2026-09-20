@@ -6,6 +6,7 @@ fixture is imported. UUID values include all 128-bit patterns, not only v4.
 import json
 import platform
 import tempfile
+import unicodedata
 import uuid
 from pathlib import Path
 
@@ -113,6 +114,23 @@ def observe():
                           "maximum": rendered(serializers.UUIDField(format=kind).to_representation(maximum))}
                    for kind in ("hex_verbose", "hex", "int", "urn")}
 
+        # Observe the complete decimal-digit repertoire through the public
+        # model, Form, and serializer, independently of Go's Unicode tables.
+        unicode_ranges = []
+        for first in range(0x110000):
+            if unicodedata.decimal(chr(first), None) != 0:
+                continue
+            values = []
+            for digit in range(10):
+                text = chr(first + digit) * 32
+                if unicodedata.decimal(chr(first + digit), None) != digit:
+                    raise RuntimeError("noncontiguous Unicode decimal range")
+                converted = field.to_python(text)
+                if forms.UUIDField().clean(text) != converted or serializers.UUIDField().run_validation(text) != converted:
+                    raise RuntimeError("UUID Unicode input differs across public adapters")
+                values.append(str(converted))
+            unicode_ranges.append({"first": first, "last": first + 9, "values": values})
+
         class Legacy(models.Model):
             label = models.CharField(max_length=32)
             origin = models.UUIDField(default=zero)
@@ -176,6 +194,7 @@ def observe():
         return {"django": django.get_version(), "drf": rest_framework.VERSION, "python": platform.python_version(),
             "sqlite": {"version": sqlite_version, "source_id": source_id}, "model": model, "form": form,
             "serializer": serializer, "json_numbers": json_numbers, "formats": formats,
+            "unicode_decimal": {"version": unicodedata.unidata_version, "ranges": unicode_ranges},
             "database": {"type": field.db_type(connection), "after_add": after_add, "queries": queries, "relations": relations,
                 "aggregates": aggregates, "physical": physical, "before_rollback": before_rollback, "after_rollback": after_rollback,
                 "reopened": reopened, "after_remove": after_remove}}

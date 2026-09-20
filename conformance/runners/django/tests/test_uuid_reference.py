@@ -4,6 +4,7 @@ import sqlite3
 import subprocess
 import sys
 import unittest
+import unicodedata
 from contextlib import closing
 from pathlib import Path
 
@@ -22,6 +23,18 @@ class UUIDReferenceTests(unittest.TestCase):
             source_id = connection.execute("SELECT sqlite_source_id()").fetchone()[0]
         self.assertEqual(actual.pop("sqlite"), {"version": sqlite3.sqlite_version, "source_id": source_id})
         expected.pop("sqlite")
+
+        unicode_actual = actual.pop("unicode_decimal")
+        unicode_expected = expected.pop("unicode_decimal")
+        self.assertEqual(unicode_expected["version"], "16.0.0")
+        self.assertEqual(unicode_actual["version"], unicodedata.unidata_version)
+        self.assertIn(unicodedata.unidata_version, ("15.0.0", "15.1.0", "16.0.0"))
+        self.assertEqual(len(unicode_expected["ranges"]), 76)
+        self.assertEqual(len(unicode_actual["ranges"]), 76 if unicodedata.unidata_version == "16.0.0" else 68)
+        # Older supported Python versions use Unicode 15. These explicitly
+        # lack the eight digit ranges added by the pinned Python 3.14 profile.
+        self.assertEqual(unicode_actual["ranges"], [item for item in unicode_expected["ranges"]
+                         if unicodedata.decimal(chr(item["first"]), None) == 0])
         self.assertEqual(actual, expected)
         self.assertEqual((actual["django"], actual["drf"]), ("6.1", "3.18.0"))
         self.assertEqual({key: len(actual[key]) for key in ("model", "form", "serializer", "json_numbers")},

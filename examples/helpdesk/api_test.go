@@ -42,7 +42,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 		t.Fatal("the shared API error component is absent")
 	}
 	ticket := decoded.Components.Schemas["Ticket"]
-	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost"}) || len(ticket.Properties) != 14 || ticket.AdditionalProperties {
+	if !slices.Equal(ticket.Required, []string{"id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference"}) || len(ticket.Properties) != 15 || ticket.AdditionalProperties {
 		t.Fatalf("Ticket fields = %+v", ticket)
 	}
 	if ticket.Properties["subject"].MaxLength != 120 || !ticket.Properties["category"].ReadOnly || !ticket.Properties["details"].allowsType("null") {
@@ -51,6 +51,11 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	input := decoded.Components.Schemas["TicketCreate"]
 	update := decoded.Components.Schemas["TicketUpdate"]
 	patch := decoded.Components.Schemas["TicketPatch"]
+	for _, field := range []helpdeskDocumentSchema{ticket.Properties["external_reference"], input.Properties["external_reference"], update.Properties["external_reference"], patch.Properties["external_reference"]} {
+		if len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].Format != "uuid" || field.AnyOf[0].MinLength != 36 || field.AnyOf[0].MaxLength != 36 || !field.allowsType("null") {
+			t.Fatal("UUID OpenAPI canonical string/nullable contract changed")
+		}
+	}
 	for _, field := range []helpdeskDocumentSchema{ticket.Properties["expected_cost"], input.Properties["expected_cost"], update.Properties["expected_cost"], patch.Properties["expected_cost"]} {
 		if len(field.AnyOf) != 2 || field.AnyOf[0].Type != "string" || field.AnyOf[0].MinLength != 4 || field.AnyOf[0].MaxLength != 16 || field.AnyOf[0].Pattern != `^-?(0|[1-9][0-9]{0,11})\.[0-9]{2}$` || !field.allowsType("null") {
 			t.Fatal("Decimal OpenAPI precision/scale/nullable domain changed")
@@ -71,13 +76,13 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 			t.Fatal("nullable Boolean schema invented false or lost null")
 		}
 	}
-	if !slices.Equal(update.Required, []string{"subject"}) || string(update.Properties["closed"].Default) != "false" || len(patch.Required) != 0 || len(patch.Properties["closed"].Default) != 0 || len(patch.Properties) != 12 {
+	if !slices.Equal(update.Required, []string{"subject"}) || string(update.Properties["closed"].Default) != "false" || len(patch.Required) != 0 || len(patch.Properties["closed"].Default) != 0 || len(patch.Properties) != 13 {
 		t.Fatal("PUT/PATCH lost required/default/omission policy")
 	}
 	if len(input.Properties["priority"].AnyOf) != 2 || string(input.Properties["priority"].AnyOf[0].Enum) != "[1,0,-1]" || len(ticket.Properties["priority"].Enum) != 0 || len(ticket.Properties["priority"].AnyOf[0].Enum) != 0 {
 		t.Fatal("choices input and existing-row output domains were conflated")
 	}
-	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 12 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
+	if !slices.Equal(input.Required, []string{"subject"}) || len(input.Properties) != 13 || input.AdditionalProperties || string(input.Properties["closed"].Default) != "false" || !input.Properties["details"].allowsType("null") || !input.Properties["priority"].allowsType("null") || !ticket.Properties["priority"].allowsType("null") {
 		t.Fatalf("TicketCreate presence/defaults = %+v", input)
 	}
 	if !input.Properties["resolution"].allowsType("null") || !ticket.Properties["resolution"].allowsType("null") || ticket.Properties["resolution"].MaxLength != 0 || input.Properties["resolution"].MaxLength != 0 {

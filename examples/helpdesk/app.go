@@ -24,6 +24,7 @@ import (
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/uuid"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
@@ -55,7 +56,7 @@ type Application struct {
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
-// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost. Every create
+// category, while clients may edit subject/details/closed/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference. Every create
 // checks category existence in its transaction; it is never taken from input.
 func New(backend Backend, categoryID int64) (*Application, error) {
 	if categoryID <= 0 {
@@ -85,13 +86,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	metadata := (models.TicketDescriptor{}).Metadata()
 	a.input, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true})
 	if err != nil {
 		return nil, err
 	}
 	a.output, err = serializers.FromModel(metadata,
 		serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "subject"}, serializers.ModelField{Name: "details", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "closed"}, serializers.ModelField{Name: "category", ReadOnly: true}, serializers.ModelField{Name: "priority", Optional: true},
-		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true})
+		serializers.ModelField{Name: "resolution", Optional: true, AllowEmpty: true}, serializers.ModelField{Name: "due_at", Optional: true}, serializers.ModelField{Name: "reviewed", Optional: true}, serializers.ModelField{Name: "service_on", Optional: true}, serializers.ModelField{Name: "service_at", Optional: true}, serializers.ModelField{Name: "elapsed", Optional: true}, serializers.ModelField{Name: "effort", Optional: true}, serializers.ModelField{Name: "expected_cost", Optional: true}, serializers.ModelField{Name: "external_reference", Optional: true})
 	if err != nil {
 		return nil, err
 	}
@@ -151,18 +152,18 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost"}
+	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference"}
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
 	}
-	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost")
+	ticketProjector, err := admin.NewModelProjector(metadata, descriptor.WriteFieldValue, "id", "subject", "details", "closed", "category", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference")
 	if err != nil {
 		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
-		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost"}, SearchFields: []string{"subject"},
+		ListFields: []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference"}, SearchFields: []string{"subject"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List:        a.list,
 		Get: func(ctx context.Context, id int64) (models.Ticket, bool, error) {
@@ -218,18 +219,19 @@ func (a *Application) list(ctx context.Context, request admin.ListRequest) (admi
 }
 
 type ticketInput struct {
-	subject      string
-	details      *string
-	closed       bool
-	priority     *int64
-	resolution   *string
-	dueAt        *time.Time
-	reviewed     *bool
-	serviceOn    *calendar.Date
-	serviceAt    *clock.Time
-	elapsed      *duration.Duration
-	effort       *float64
-	expectedCost *decimal.Decimal
+	subject           string
+	details           *string
+	closed            bool
+	priority          *int64
+	resolution        *string
+	dueAt             *time.Time
+	reviewed          *bool
+	serviceOn         *calendar.Date
+	serviceAt         *clock.Time
+	elapsed           *duration.Duration
+	effort            *float64
+	expectedCost      *decimal.Decimal
+	externalReference *uuid.UUID
 }
 
 func fromForm(values forms.Values) (ticketInput, error) {
@@ -245,7 +247,8 @@ func fromForm(values forms.Values) (ticketInput, error) {
 	elapsed, elapsedOK := values.Get("elapsed")
 	effort, effortOK := values.Get("effort")
 	expectedCost, expectedCostOK := values.Get("expected_cost")
-	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || len(values.All()) != 12 {
+	externalReference, externalReferenceOK := values.Get("external_reference")
+	if !subjectOK || !closedOK || !detailsOK || !priorityOK || !resolutionOK || !dueAtOK || !reviewedOK || !serviceOnOK || !serviceAtOK || !elapsedOK || !effortOK || !expectedCostOK || !externalReferenceOK || len(values.All()) != 13 {
 		return ticketInput{}, errors.New("helpdesk: incomplete ticket form")
 	}
 	input := ticketInput{subject: subject, closed: closed}
@@ -290,6 +293,13 @@ func fromForm(values forms.Values) (ticketInput, error) {
 			return ticketInput{}, errors.New("helpdesk: invalid service_on")
 		}
 		input.serviceOn = &date
+	}
+	if !externalReference.IsNull() {
+		identifier, ok := externalReference.AsUUID()
+		if !ok {
+			return ticketInput{}, errors.New("helpdesk: invalid external_reference")
+		}
+		input.externalReference = &identifier
 	}
 	if !expectedCost.IsNull() {
 		number, ok := expectedCost.AsDecimal()
@@ -364,6 +374,11 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		} else {
 			create = create.WithServiceOn(*input.serviceOn)
 		}
+		if input.externalReference == nil {
+			create = create.WithExternalReferenceNull()
+		} else {
+			create = create.WithExternalReference(*input.externalReference)
+		}
 		if input.expectedCost == nil {
 			create = create.WithExpectedCostNull()
 		} else {
@@ -425,6 +440,11 @@ func (a *Application) update(ctx context.Context, id int64, input ticketInput) (
 		patch = patch.WithServiceOnNull()
 	} else {
 		patch = patch.WithServiceOn(*input.serviceOn)
+	}
+	if input.externalReference == nil {
+		patch = patch.WithExternalReferenceNull()
+	} else {
+		patch = patch.WithExternalReference(*input.externalReference)
 	}
 	if input.expectedCost == nil {
 		patch = patch.WithExpectedCostNull()
@@ -574,6 +594,10 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 	if serviceOn, present := values.Get("service_on"); present && !serviceOn.IsNull() {
 		date, _ := serviceOn.AsDate()
 		input.serviceOn = &date
+	}
+	if reference, present := values.Get("external_reference"); present && !reference.IsNull() {
+		identifier, _ := reference.AsUUID()
+		input.externalReference = &identifier
 	}
 	if cost, present := values.Get("expected_cost"); present && !cost.IsNull() {
 		number, _ := cost.AsDecimal()

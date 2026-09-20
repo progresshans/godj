@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uuid"
 )
 
 // ModelField explicitly selects a field for a JSON representation. Storage
@@ -82,6 +83,9 @@ func (encoder ModelEncoder[M]) Encode(value M) (Value, error) {
 		case query.ValueBoolean:
 			boolean, _ := scalar.Boolean()
 			converted = Boolean(boolean)
+		case query.ValueUUID:
+			identifier, _ := scalar.UUID()
+			converted = UUID(identifier)
 		case query.ValueDecimal:
 			number, _ := scalar.Decimal()
 			var err error
@@ -174,6 +178,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 				options = append(options, WithDefault(String(field.Default.String)))
 			case ir.ScalarBoolean:
 				options = append(options, WithDefault(Boolean(field.Default.Boolean)))
+			case ir.ScalarUUID:
+				identifier, err := uuid.Parse(field.Default.UUID)
+				if err != nil || identifier.String() != field.Default.UUID {
+					return Spec{}, invalidConfig("model."+field.Name+".default", "invalid UUID default")
+				}
+				options = append(options, WithDefault(UUID(identifier)))
 			case ir.ScalarDecimal:
 				number, err := decimal.Parse(field.Default.Decimal)
 				if err != nil {
@@ -222,6 +232,8 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		case ir.FieldChar, ir.FieldText:
 			options = append(options, WithMaxLength(field.MaxLength))
 			projected, err = StringField(field.Name, options...)
+		case ir.FieldUUID:
+			projected, err = UUIDField(field.Name, options...)
 		case ir.FieldDecimal:
 			if field.Decimal == nil || !field.Decimal.Valid() {
 				return Spec{}, invalidConfig("model."+field.Name, "invalid decimal precision")

@@ -347,6 +347,8 @@ func (s *encodeState) appendValue(value Value, depth int) error {
 			return resourceLimit("value.number", "JSON number exceeds the configured byte limit")
 		}
 		return s.appendBytes([]byte(text))
+	case ValueUUID:
+		return s.appendString(value.string, "value.uuid")
 	case ValueDecimal:
 		return s.appendString(value.string, "value.decimal")
 	case ValueDuration:

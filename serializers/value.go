@@ -24,6 +24,7 @@ const (
 	ValueNumber
 	ValueFloat
 	ValueDecimal
+	ValueUUID
 )
 
 // Value is an immutable closed JSON value. Its zero value is invalid rather
@@ -178,7 +179,7 @@ func (v Value) validValue() bool {
 		return false
 	}
 	switch v.kind {
-	case ValueNull, ValueBoolean, ValueInteger, ValueList, ValueDateTime, ValueDate, ValueTime, ValueDuration, ValueNumber, ValueFloat, ValueDecimal:
+	case ValueNull, ValueBoolean, ValueInteger, ValueList, ValueDateTime, ValueDate, ValueTime, ValueDuration, ValueNumber, ValueFloat, ValueDecimal, ValueUUID:
 		// NewList validates and snapshots its children before publication.
 		// Opaque immutable containers never need a second descendant walk.
 		return true

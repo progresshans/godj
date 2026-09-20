@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
+	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/json"
 	"github.com/ogen-go/ogen/validate"
 )
@@ -1348,6 +1349,52 @@ func (s *NilString) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes uuid.UUID as json.
+func (o NilUUID) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	json.EncodeUUID(e, o.Value)
+}
+
+// Decode decodes uuid.UUID from json.
+func (o *NilUUID) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilUUID to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v uuid.UUID
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	v, err := json.DecodeUUID(d)
+	if err != nil {
+		return err
+	}
+	o.Value = v
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilUUID) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilUUID) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes bool as json.
 func (o OptBool) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -1785,6 +1832,57 @@ func (s *OptNilTicketUpdatePriority) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes uuid.UUID as json.
+func (o OptNilUUID) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	json.EncodeUUID(e, o.Value)
+}
+
+// Decode decodes uuid.UUID from json.
+func (o *OptNilUUID) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilUUID to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v uuid.UUID
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	v, err := json.DecodeUUID(d)
+	if err != nil {
+		return err
+	}
+	o.Value = v
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilUUID) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilUUID) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes string as json.
 func (o OptString) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -1885,9 +1983,13 @@ func (s *Ticket) encodeFields(e *jx.Encoder) {
 		e.FieldStart("expected_cost")
 		s.ExpectedCost.Encode(e)
 	}
+	{
+		e.FieldStart("external_reference")
+		s.ExternalReference.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfTicket = [14]string{
+var jsonFieldsNameOfTicket = [15]string{
 	0:  "id",
 	1:  "subject",
 	2:  "details",
@@ -1902,6 +2004,7 @@ var jsonFieldsNameOfTicket = [14]string{
 	11: "elapsed",
 	12: "effort",
 	13: "expected_cost",
+	14: "external_reference",
 }
 
 // Decode decodes Ticket from json.
@@ -2061,6 +2164,16 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"expected_cost\"")
 			}
+		case "external_reference":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.ExternalReference.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_reference\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -2072,7 +2185,7 @@ func (s *Ticket) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2197,9 +2310,15 @@ func (s *TicketCreate) encodeFields(e *jx.Encoder) {
 			s.ExpectedCost.Encode(e)
 		}
 	}
+	{
+		if s.ExternalReference.Set {
+			e.FieldStart("external_reference")
+			s.ExternalReference.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketCreate = [12]string{
+var jsonFieldsNameOfTicketCreate = [13]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -2212,6 +2331,7 @@ var jsonFieldsNameOfTicketCreate = [12]string{
 	9:  "elapsed",
 	10: "effort",
 	11: "expected_cost",
+	12: "external_reference",
 }
 
 // Decode decodes TicketCreate from json.
@@ -2345,6 +2465,16 @@ func (s *TicketCreate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"expected_cost\"")
+			}
+		case "external_reference":
+			if err := func() error {
+				s.ExternalReference.Reset()
+				if err := s.ExternalReference.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_reference\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2625,9 +2755,15 @@ func (s *TicketPatch) encodeFields(e *jx.Encoder) {
 			s.ExpectedCost.Encode(e)
 		}
 	}
+	{
+		if s.ExternalReference.Set {
+			e.FieldStart("external_reference")
+			s.ExternalReference.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketPatch = [12]string{
+var jsonFieldsNameOfTicketPatch = [13]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -2640,6 +2776,7 @@ var jsonFieldsNameOfTicketPatch = [12]string{
 	9:  "elapsed",
 	10: "effort",
 	11: "expected_cost",
+	12: "external_reference",
 }
 
 // Decode decodes TicketPatch from json.
@@ -2769,6 +2906,16 @@ func (s *TicketPatch) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"expected_cost\"")
+			}
+		case "external_reference":
+			if err := func() error {
+				s.ExternalReference.Reset()
+				if err := s.ExternalReference.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_reference\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -2905,9 +3052,15 @@ func (s *TicketUpdate) encodeFields(e *jx.Encoder) {
 			s.ExpectedCost.Encode(e)
 		}
 	}
+	{
+		if s.ExternalReference.Set {
+			e.FieldStart("external_reference")
+			s.ExternalReference.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfTicketUpdate = [12]string{
+var jsonFieldsNameOfTicketUpdate = [13]string{
 	0:  "subject",
 	1:  "details",
 	2:  "closed",
@@ -2920,6 +3073,7 @@ var jsonFieldsNameOfTicketUpdate = [12]string{
 	9:  "elapsed",
 	10: "effort",
 	11: "expected_cost",
+	12: "external_reference",
 }
 
 // Decode decodes TicketUpdate from json.
@@ -3053,6 +3207,16 @@ func (s *TicketUpdate) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"expected_cost\"")
+			}
+		case "external_reference":
+			if err := func() error {
+				s.ExternalReference.Reset()
+				if err := s.ExternalReference.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"external_reference\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

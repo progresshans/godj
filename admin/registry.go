@@ -22,6 +22,7 @@ import (
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
+	"github.com/progresshans/godj/uuid"
 )
 
 const (
@@ -849,6 +850,13 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 			return forms.Values{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		switch field.Kind() {
+		case forms.FieldUUID:
+			if entry.Value().IsNull() {
+				canonicalData[field.Name()] = []string{""}
+			} else {
+				value, _ := entry.Value().AsUUID()
+				canonicalData[field.Name()] = []string{value.String()}
+			}
 		case forms.FieldDecimal:
 			if entry.Value().IsNull() {
 				canonicalData[field.Name()] = []string{""}
@@ -933,6 +941,12 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 
 func validInitialValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldUUID:
+		if value.IsNull() {
+			return field.Nullable()
+		}
+		_, ok := value.AsUUID()
+		return ok
 	case forms.FieldDecimal:
 		if value.IsNull() {
 			return field.Nullable()
@@ -1019,6 +1033,10 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 	switch initial.Kind() {
 	case forms.ValueNull:
 		return snapshot.IsNull()
+	case forms.ValueUUID:
+		left, leftOK := initial.AsUUID()
+		right, rightOK := snapshot.AsString()
+		return leftOK && rightOK && snapshot.Kind() == templates.ValueString && left.String() == right
 	case forms.ValueDecimal:
 		left, leftOK := initial.AsDecimal()
 		text, rightOK := snapshot.AsString()
@@ -1064,6 +1082,12 @@ func initialMatchesSnapshot(initial forms.Value, snapshot templates.Value) bool 
 
 func validFormValue(value forms.Value, field forms.Field) bool {
 	switch field.Kind() {
+	case forms.FieldUUID:
+		if value.IsNull() {
+			return field.Nullable() && !field.Required()
+		}
+		_, ok := value.AsUUID()
+		return ok
 	case forms.FieldDecimal:
 		if value.IsNull() {
 			return field.Nullable() && !field.Required()
@@ -1169,6 +1193,16 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 	case ir.FieldAuto:
 		integer, ok := value.AsInteger()
 		return ok && integer > 0 && (!field.PrimaryKey || integer == objectID)
+	case ir.FieldUUID:
+		if value.IsNull() {
+			return field.Nullable
+		}
+		text, ok := value.AsString()
+		if !ok || value.Kind() != templates.ValueString {
+			return false
+		}
+		identifier, err := uuid.Parse(text)
+		return err == nil && identifier.String() == text
 	case ir.FieldDecimal:
 		if value.IsNull() {
 			return field.Nullable

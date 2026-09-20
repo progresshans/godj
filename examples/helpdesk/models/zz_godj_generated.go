@@ -12,11 +12,12 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	_godjuuid "github.com/progresshans/godj/uuid"
 	_godjtime "time"
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "aa9406e8e8095dd7b8d17b9279aac851982ded9e2a289fd91a28800875d11612"
+const GoDjSchemaSHA256 = "01ef17b1156f01dd42d93fd8ce56cea1ba26b102e07e47ea29e5b5a3fdeec865"
 
 type Category struct {
 	ID                    int64
@@ -202,6 +203,7 @@ type Ticket struct {
 	Elapsed               *_godjduration.Duration
 	Effort                *float64
 	ExpectedCost          *_godjdecimal.Decimal
+	ExternalReference     *_godjuuid.UUID
 	godjPrimaryKeyPresent bool
 }
 
@@ -227,7 +229,8 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	var scanElapsed orm.NullableDurationScanner
 	var scanEffort orm.NullableFloatScanner
 	scanExpectedCost := orm.NewNullableDecimalScanner(14, 2)
-	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort, &scanExpectedCost); err != nil {
+	var scanExternalReference orm.NullableUUIDScanner
+	if err := row.Scan(&value.ID, &value.Subject, &scanDetails, &value.Closed, &value.CategoryID, &scanPriority, &scanResolution, &scanDueAt, &scanReviewed, &scanServiceOn, &scanServiceAt, &scanElapsed, &scanEffort, &scanExpectedCost, &scanExternalReference); err != nil {
 		return Ticket{}, err
 	}
 	if scanDetails.Valid {
@@ -269,6 +272,10 @@ func (TicketDescriptor) Scan(row db.Row) (Ticket, error) {
 	if scanExpectedCost.Valid {
 		scanned := scanExpectedCost.Decimal
 		value.ExpectedCost = &scanned
+	}
+	if scanExternalReference.Valid {
+		scanned := scanExternalReference.UUID
+		value.ExternalReference = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -329,6 +336,10 @@ func (TicketDescriptor) CloneModel(value Ticket) Ticket {
 	if value.ExpectedCost != nil {
 		clonedExpectedCost := *value.ExpectedCost
 		clone.ExpectedCost = &clonedExpectedCost
+	}
+	if value.ExternalReference != nil {
+		clonedExternalReference := *value.ExternalReference
+		clone.ExternalReference = &clonedExternalReference
 	}
 	return clone
 }
@@ -397,43 +408,50 @@ func (TicketDescriptor) WriteFieldValue(value Ticket, field ir.Field) (query.Val
 			return query.Null(), true
 		}
 		return query.Decimal(*value.ExpectedCost), true
+	case "external_reference":
+		if value.ExternalReference == nil {
+			return query.Null(), true
+		}
+		return query.UUID(*value.ExternalReference), true
 	default:
 		return query.Value{}, false
 	}
 }
 
 type TicketFieldSet struct {
-	ID           orm.AutoField[Ticket]
-	Subject      orm.StringField[Ticket]
-	Details      orm.NullableStringField[Ticket]
-	Closed       orm.BooleanField[Ticket]
-	Priority     orm.NullableIntegerField[Ticket]
-	Resolution   orm.NullableStringField[Ticket]
-	DueAt        orm.NullableDateTimeField[Ticket]
-	Reviewed     orm.NullableBooleanField[Ticket]
-	ServiceOn    orm.NullableDateField[Ticket]
-	ServiceAt    orm.NullableTimeField[Ticket]
-	Elapsed      orm.NullableDurationField[Ticket]
-	Effort       orm.NullableFloatField[Ticket]
-	ExpectedCost orm.NullableDecimalField[Ticket]
+	ID                orm.AutoField[Ticket]
+	Subject           orm.StringField[Ticket]
+	Details           orm.NullableStringField[Ticket]
+	Closed            orm.BooleanField[Ticket]
+	Priority          orm.NullableIntegerField[Ticket]
+	Resolution        orm.NullableStringField[Ticket]
+	DueAt             orm.NullableDateTimeField[Ticket]
+	Reviewed          orm.NullableBooleanField[Ticket]
+	ServiceOn         orm.NullableDateField[Ticket]
+	ServiceAt         orm.NullableTimeField[Ticket]
+	Elapsed           orm.NullableDurationField[Ticket]
+	Effort            orm.NullableFloatField[Ticket]
+	ExpectedCost      orm.NullableDecimalField[Ticket]
+	ExternalReference orm.NullableUUIDField[Ticket]
 }
 
 var TicketFields = func() TicketFieldSet {
 	metadata := ticketMetadata()
 	return TicketFieldSet{
-		ID:           orm.NewAutoField[Ticket](metadata.Fields[0]),
-		Subject:      orm.NewStringField[Ticket](metadata.Fields[1]),
-		Details:      orm.NewNullableStringField[Ticket](metadata.Fields[2]),
-		Closed:       orm.NewBooleanField[Ticket](metadata.Fields[3]),
-		Priority:     orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
-		Resolution:   orm.NewNullableStringField[Ticket](metadata.Fields[6]),
-		DueAt:        orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
-		Reviewed:     orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
-		ServiceOn:    orm.NewNullableDateField[Ticket](metadata.Fields[9]),
-		ServiceAt:    orm.NewNullableTimeField[Ticket](metadata.Fields[10]),
-		Elapsed:      orm.NewNullableDurationField[Ticket](metadata.Fields[11]),
-		Effort:       orm.NewNullableFloatField[Ticket](metadata.Fields[12]),
-		ExpectedCost: orm.NewNullableDecimalField[Ticket](metadata.Fields[13]),
+		ID:                orm.NewAutoField[Ticket](metadata.Fields[0]),
+		Subject:           orm.NewStringField[Ticket](metadata.Fields[1]),
+		Details:           orm.NewNullableStringField[Ticket](metadata.Fields[2]),
+		Closed:            orm.NewBooleanField[Ticket](metadata.Fields[3]),
+		Priority:          orm.NewNullableIntegerField[Ticket](metadata.Fields[5]),
+		Resolution:        orm.NewNullableStringField[Ticket](metadata.Fields[6]),
+		DueAt:             orm.NewNullableDateTimeField[Ticket](metadata.Fields[7]),
+		Reviewed:          orm.NewNullableBooleanField[Ticket](metadata.Fields[8]),
+		ServiceOn:         orm.NewNullableDateField[Ticket](metadata.Fields[9]),
+		ServiceAt:         orm.NewNullableTimeField[Ticket](metadata.Fields[10]),
+		Elapsed:           orm.NewNullableDurationField[Ticket](metadata.Fields[11]),
+		Effort:            orm.NewNullableFloatField[Ticket](metadata.Fields[12]),
+		ExpectedCost:      orm.NewNullableDecimalField[Ticket](metadata.Fields[13]),
+		ExternalReference: orm.NewNullableUUIDField[Ticket](metadata.Fields[14]),
 	}
 }()
 
@@ -460,19 +478,20 @@ func TicketForceUpdate() orm.SaveOption[Ticket] {
 }
 
 type TicketCreate struct {
-	subject      orm.Change[string]
-	details      orm.NullableChange[string]
-	closed       orm.Change[bool]
-	categoryID   orm.Change[int64]
-	priority     orm.NullableChange[int64]
-	resolution   orm.NullableChange[string]
-	dueAt        orm.NullableChange[_godjtime.Time]
-	reviewed     orm.NullableChange[bool]
-	serviceOn    orm.NullableChange[_godjcalendar.Date]
-	serviceAt    orm.NullableChange[_godjclock.Time]
-	elapsed      orm.NullableChange[_godjduration.Duration]
-	effort       orm.NullableChange[float64]
-	expectedCost orm.NullableChange[_godjdecimal.Decimal]
+	subject           orm.Change[string]
+	details           orm.NullableChange[string]
+	closed            orm.Change[bool]
+	categoryID        orm.Change[int64]
+	priority          orm.NullableChange[int64]
+	resolution        orm.NullableChange[string]
+	dueAt             orm.NullableChange[_godjtime.Time]
+	reviewed          orm.NullableChange[bool]
+	serviceOn         orm.NullableChange[_godjcalendar.Date]
+	serviceAt         orm.NullableChange[_godjclock.Time]
+	elapsed           orm.NullableChange[_godjduration.Duration]
+	effort            orm.NullableChange[float64]
+	expectedCost      orm.NullableChange[_godjdecimal.Decimal]
+	externalReference orm.NullableChange[_godjuuid.UUID]
 }
 
 func NewTicketCreate(subject string, categoryID int64) TicketCreate {
@@ -597,9 +616,19 @@ func (input TicketCreate) WithExpectedCostNull() TicketCreate {
 	return input
 }
 
+func (input TicketCreate) WithExternalReference(value _godjuuid.UUID) TicketCreate {
+	input.externalReference = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketCreate) WithExternalReferenceNull() TicketCreate {
+	input.externalReference = orm.SetNull[_godjuuid.UUID]()
+	return input
+}
+
 func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 	var value Ticket
-	assignments := make([]query.Assignment, 0, 13)
+	assignments := make([]query.Assignment, 0, 14)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Ticket](&query.Error{
@@ -847,23 +876,44 @@ func (input TicketCreate) BuildCreate() orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedExternalReference, changedExternalReferenceState := input.externalReference.Get()
+	switch changedExternalReferenceState {
+	case orm.NullableChangeUnset:
+		value.ExternalReference = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_reference", "external_reference", query.FieldUUID, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedExternalReference := changedExternalReference
+		value.ExternalReference = &storedExternalReference
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_reference", "external_reference", query.FieldUUID, true), query.UUID(changedExternalReference)))
+	case orm.NullableChangeNull:
+		value.ExternalReference = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_reference", "external_reference", query.FieldUUID, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "external_reference",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "helpdesk_ticket", assignments)
 }
 
 type TicketPatch struct {
-	subject      orm.Change[string]
-	details      orm.NullableChange[string]
-	closed       orm.Change[bool]
-	categoryID   orm.Change[int64]
-	priority     orm.NullableChange[int64]
-	resolution   orm.NullableChange[string]
-	dueAt        orm.NullableChange[_godjtime.Time]
-	reviewed     orm.NullableChange[bool]
-	serviceOn    orm.NullableChange[_godjcalendar.Date]
-	serviceAt    orm.NullableChange[_godjclock.Time]
-	elapsed      orm.NullableChange[_godjduration.Duration]
-	effort       orm.NullableChange[float64]
-	expectedCost orm.NullableChange[_godjdecimal.Decimal]
+	subject           orm.Change[string]
+	details           orm.NullableChange[string]
+	closed            orm.Change[bool]
+	categoryID        orm.Change[int64]
+	priority          orm.NullableChange[int64]
+	resolution        orm.NullableChange[string]
+	dueAt             orm.NullableChange[_godjtime.Time]
+	reviewed          orm.NullableChange[bool]
+	serviceOn         orm.NullableChange[_godjcalendar.Date]
+	serviceAt         orm.NullableChange[_godjclock.Time]
+	elapsed           orm.NullableChange[_godjduration.Duration]
+	effort            orm.NullableChange[float64]
+	expectedCost      orm.NullableChange[_godjdecimal.Decimal]
+	externalReference orm.NullableChange[_godjuuid.UUID]
 }
 
 func (input TicketPatch) WithSubject(value string) TicketPatch {
@@ -981,9 +1031,19 @@ func (input TicketPatch) WithExpectedCostNull() TicketPatch {
 	return input
 }
 
+func (input TicketPatch) WithExternalReference(value _godjuuid.UUID) TicketPatch {
+	input.externalReference = orm.SetNullable(value)
+	return input
+}
+
+func (input TicketPatch) WithExternalReferenceNull() TicketPatch {
+	input.externalReference = orm.SetNull[_godjuuid.UUID]()
+	return input
+}
+
 func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 	value := current
-	assignments := make([]query.Assignment, 0, 13)
+	assignments := make([]query.Assignment, 0, 14)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -1195,6 +1255,24 @@ func (input TicketPatch) BuildPatch(current Ticket) orm.Mutation[Ticket] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedExternalReference, changedExternalReferenceState := input.externalReference.Get()
+	switch changedExternalReferenceState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedExternalReference := changedExternalReference
+		value.ExternalReference = &storedExternalReference
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_reference", "external_reference", query.FieldUUID, true), query.UUID(changedExternalReference)))
+	case orm.NullableChangeNull:
+		value.ExternalReference = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("external_reference", "external_reference", query.FieldUUID, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Ticket](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "external_reference",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewPatchMutation(value, "helpdesk_ticket", assignments)
 }
 
@@ -1314,8 +1392,15 @@ func ticketMetadata() ir.Model {
 				Nullable: true,
 				Decimal:  &ir.DecimalSpec{MaxDigits: 14, DecimalPlaces: 2},
 			},
+			{
+				Name:     "external_reference",
+				GoName:   "ExternalReference",
+				Column:   "external_reference",
+				Kind:     ir.FieldUUID,
+				Nullable: true,
+			},
 		},
 	}
 }
 
-type GoDjProjectSnapshot_657583a6de60ec7015e359bad729ead12ac8065f4ca6b65900645d4981761807 struct{}
+type GoDjProjectSnapshot_42928d3e7a9d5f616bdf7b1f2be94a84a1c745bf324c328699e310de9b979cc5 struct{}

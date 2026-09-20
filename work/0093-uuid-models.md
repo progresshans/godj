@@ -50,7 +50,9 @@ UUID 값의 생성 전략·callable default, UUID primary/foreign key와 uniquen
 
 값·IR·query·양 DB·historical create/add/reverse·생성 외부 소비자의 기반 연결과 관련 일반/race/CGO=0 로컬 checkpoint를 완료했다.
 [ADR-0070](../docs/adr/0070-uuid-model-values-and-storage.md)에 모델 값·storage·입력 계층의 책임을 기록했다.
-현재 Form/Admin·serializer·OpenAPI·Helpdesk/client의 입력·소비자 연결을 진행한다. 실제 실행 상세는 TEST_EVIDENCE만 소유한다.
+Form/Admin·serializer·OpenAPI·Helpdesk/client의 입력·소비자 연결을 구현했다. 고정 Python Unicode 16의 숫자 입력과 구버전 Python 차이도 독립 관찰에 추가했다. 실제 실행 상세는 TEST_EVIDENCE만 소유한다.
 
-최종 UUID 수직 단면의 Hosted 통합은 ORM scope가 소유한다. 지원 플랫폼의 관계·portable·PostgreSQL owner와 reference를 함께 확인한다.
+최종 UUID 수직 단면은 Hosted full 통합 checkpoint를 사용한다. 입력 작업에서 Python Unicode profile의 차이를 추가로 확인했으므로
+기존 ORM-only 계획을 넓혀 exact/compatibility reference와 지원 플랫폼의 관계·portable·PostgreSQL·명령 소비자를 같은 source에서 확인한다.
+로컬 전체는 중복 실행하지 않고 영향 패키지·실제 Helpdesk/client checkpoint를 실행한다.
 필수 PostgreSQL 선택에는 UUID adapter와 generated consumer를 포함한다. 기존 Decimal 전체 검증을 새 UUID source의 전체 platform PASS로 옮기지 않는다.

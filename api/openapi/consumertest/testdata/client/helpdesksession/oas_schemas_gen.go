@@ -5,6 +5,8 @@ package helpdesksession
 import (
 	"io"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Ref: #/components/schemas/CategorySummary
@@ -639,6 +641,51 @@ func (o NilString) Or(d string) string {
 	return d
 }
 
+// NewNilUUID returns new NilUUID with value set to v.
+func NewNilUUID(v uuid.UUID) NilUUID {
+	return NilUUID{
+		Value: v,
+	}
+}
+
+// NilUUID is nullable uuid.UUID.
+type NilUUID struct {
+	Value uuid.UUID
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilUUID) SetTo(v uuid.UUID) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilUUID) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilUUID) SetToNull() {
+	o.Null = true
+	var v uuid.UUID
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilUUID) Get() (v uuid.UUID, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBool returns new OptBool with value set to v.
 func NewOptBool(v bool) OptBool {
 	return OptBool{
@@ -1229,6 +1276,74 @@ func (o OptNilTicketUpdatePriority) Or(d TicketUpdatePriority) TicketUpdatePrior
 	return d
 }
 
+// NewOptNilUUID returns new OptNilUUID with value set to v.
+func NewOptNilUUID(v uuid.UUID) OptNilUUID {
+	return OptNilUUID{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilUUID is optional nullable uuid.UUID.
+type OptNilUUID struct {
+	Value uuid.UUID
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilUUID was set.
+func (o OptNilUUID) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilUUID) Reset() {
+	var v uuid.UUID
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilUUID) SetTo(v uuid.UUID) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilUUID) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilUUID) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v uuid.UUID
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilUUID) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilUUID) Get() (v uuid.UUID, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -1302,20 +1417,21 @@ func (s *SessionAuth) SetRoles(val []string) {
 
 // Ref: #/components/schemas/Ticket
 type Ticket struct {
-	ID           int64       `json:"id"`
-	Subject      string      `json:"subject"`
-	Details      NilString   `json:"details"`
-	Closed       bool        `json:"closed"`
-	Category     int64       `json:"category"`
-	Priority     NilInt64    `json:"priority"`
-	Resolution   NilString   `json:"resolution"`
-	DueAt        NilDateTime `json:"due_at"`
-	Reviewed     NilBool     `json:"reviewed"`
-	ServiceOn    NilDate     `json:"service_on"`
-	ServiceAt    NilString   `json:"service_at"`
-	Elapsed      NilString   `json:"elapsed"`
-	Effort       NilFloat64  `json:"effort"`
-	ExpectedCost NilString   `json:"expected_cost"`
+	ID                int64       `json:"id"`
+	Subject           string      `json:"subject"`
+	Details           NilString   `json:"details"`
+	Closed            bool        `json:"closed"`
+	Category          int64       `json:"category"`
+	Priority          NilInt64    `json:"priority"`
+	Resolution        NilString   `json:"resolution"`
+	DueAt             NilDateTime `json:"due_at"`
+	Reviewed          NilBool     `json:"reviewed"`
+	ServiceOn         NilDate     `json:"service_on"`
+	ServiceAt         NilString   `json:"service_at"`
+	Elapsed           NilString   `json:"elapsed"`
+	Effort            NilFloat64  `json:"effort"`
+	ExpectedCost      NilString   `json:"expected_cost"`
+	ExternalReference NilUUID     `json:"external_reference"`
 }
 
 // GetID returns the value of ID.
@@ -1388,6 +1504,11 @@ func (s *Ticket) GetExpectedCost() NilString {
 	return s.ExpectedCost
 }
 
+// GetExternalReference returns the value of ExternalReference.
+func (s *Ticket) GetExternalReference() NilUUID {
+	return s.ExternalReference
+}
+
 // SetID sets the value of ID.
 func (s *Ticket) SetID(val int64) {
 	s.ID = val
@@ -1458,24 +1579,30 @@ func (s *Ticket) SetExpectedCost(val NilString) {
 	s.ExpectedCost = val
 }
 
+// SetExternalReference sets the value of ExternalReference.
+func (s *Ticket) SetExternalReference(val NilUUID) {
+	s.ExternalReference = val
+}
+
 func (*Ticket) helpdeskTicketCreateRes() {}
 func (*Ticket) helpdeskTicketPatchRes()  {}
 func (*Ticket) helpdeskTicketUpdateRes() {}
 
 // Ref: #/components/schemas/TicketCreate
 type TicketCreate struct {
-	Subject      string                     `json:"subject"`
-	Details      OptNilString               `json:"details"`
-	Closed       OptBool                    `json:"closed"`
-	Priority     OptNilTicketCreatePriority `json:"priority"`
-	Resolution   OptNilString               `json:"resolution"`
-	DueAt        OptNilDateTime             `json:"due_at"`
-	Reviewed     OptNilBool                 `json:"reviewed"`
-	ServiceOn    OptNilDate                 `json:"service_on"`
-	ServiceAt    OptNilString               `json:"service_at"`
-	Elapsed      OptNilString               `json:"elapsed"`
-	Effort       OptNilFloat64              `json:"effort"`
-	ExpectedCost OptNilString               `json:"expected_cost"`
+	Subject           string                     `json:"subject"`
+	Details           OptNilString               `json:"details"`
+	Closed            OptBool                    `json:"closed"`
+	Priority          OptNilTicketCreatePriority `json:"priority"`
+	Resolution        OptNilString               `json:"resolution"`
+	DueAt             OptNilDateTime             `json:"due_at"`
+	Reviewed          OptNilBool                 `json:"reviewed"`
+	ServiceOn         OptNilDate                 `json:"service_on"`
+	ServiceAt         OptNilString               `json:"service_at"`
+	Elapsed           OptNilString               `json:"elapsed"`
+	Effort            OptNilFloat64              `json:"effort"`
+	ExpectedCost      OptNilString               `json:"expected_cost"`
+	ExternalReference OptNilUUID                 `json:"external_reference"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1538,6 +1665,11 @@ func (s *TicketCreate) GetExpectedCost() OptNilString {
 	return s.ExpectedCost
 }
 
+// GetExternalReference returns the value of ExternalReference.
+func (s *TicketCreate) GetExternalReference() OptNilUUID {
+	return s.ExternalReference
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketCreate) SetSubject(val string) {
 	s.Subject = val
@@ -1596,6 +1728,11 @@ func (s *TicketCreate) SetEffort(val OptNilFloat64) {
 // SetExpectedCost sets the value of ExpectedCost.
 func (s *TicketCreate) SetExpectedCost(val OptNilString) {
 	s.ExpectedCost = val
+}
+
+// SetExternalReference sets the value of ExternalReference.
+func (s *TicketCreate) SetExternalReference(val OptNilUUID) {
+	s.ExternalReference = val
 }
 
 type TicketCreatePriority int64
@@ -1671,18 +1808,19 @@ func (*TicketDetailHeaders) helpdeskTicketDetailRes() {}
 
 // Ref: #/components/schemas/TicketPatch
 type TicketPatch struct {
-	Subject      OptString                 `json:"subject"`
-	Details      OptNilString              `json:"details"`
-	Closed       OptBool                   `json:"closed"`
-	Priority     OptNilTicketPatchPriority `json:"priority"`
-	Resolution   OptNilString              `json:"resolution"`
-	DueAt        OptNilDateTime            `json:"due_at"`
-	Reviewed     OptNilBool                `json:"reviewed"`
-	ServiceOn    OptNilDate                `json:"service_on"`
-	ServiceAt    OptNilString              `json:"service_at"`
-	Elapsed      OptNilString              `json:"elapsed"`
-	Effort       OptNilFloat64             `json:"effort"`
-	ExpectedCost OptNilString              `json:"expected_cost"`
+	Subject           OptString                 `json:"subject"`
+	Details           OptNilString              `json:"details"`
+	Closed            OptBool                   `json:"closed"`
+	Priority          OptNilTicketPatchPriority `json:"priority"`
+	Resolution        OptNilString              `json:"resolution"`
+	DueAt             OptNilDateTime            `json:"due_at"`
+	Reviewed          OptNilBool                `json:"reviewed"`
+	ServiceOn         OptNilDate                `json:"service_on"`
+	ServiceAt         OptNilString              `json:"service_at"`
+	Elapsed           OptNilString              `json:"elapsed"`
+	Effort            OptNilFloat64             `json:"effort"`
+	ExpectedCost      OptNilString              `json:"expected_cost"`
+	ExternalReference OptNilUUID                `json:"external_reference"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1745,6 +1883,11 @@ func (s *TicketPatch) GetExpectedCost() OptNilString {
 	return s.ExpectedCost
 }
 
+// GetExternalReference returns the value of ExternalReference.
+func (s *TicketPatch) GetExternalReference() OptNilUUID {
+	return s.ExternalReference
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketPatch) SetSubject(val OptString) {
 	s.Subject = val
@@ -1805,6 +1948,11 @@ func (s *TicketPatch) SetExpectedCost(val OptNilString) {
 	s.ExpectedCost = val
 }
 
+// SetExternalReference sets the value of ExternalReference.
+func (s *TicketPatch) SetExternalReference(val OptNilUUID) {
+	s.ExternalReference = val
+}
+
 type TicketPatchPriority int64
 
 const (
@@ -1824,18 +1972,19 @@ func (TicketPatchPriority) AllValues() []TicketPatchPriority {
 
 // Ref: #/components/schemas/TicketUpdate
 type TicketUpdate struct {
-	Subject      string                     `json:"subject"`
-	Details      OptNilString               `json:"details"`
-	Closed       OptBool                    `json:"closed"`
-	Priority     OptNilTicketUpdatePriority `json:"priority"`
-	Resolution   OptNilString               `json:"resolution"`
-	DueAt        OptNilDateTime             `json:"due_at"`
-	Reviewed     OptNilBool                 `json:"reviewed"`
-	ServiceOn    OptNilDate                 `json:"service_on"`
-	ServiceAt    OptNilString               `json:"service_at"`
-	Elapsed      OptNilString               `json:"elapsed"`
-	Effort       OptNilFloat64              `json:"effort"`
-	ExpectedCost OptNilString               `json:"expected_cost"`
+	Subject           string                     `json:"subject"`
+	Details           OptNilString               `json:"details"`
+	Closed            OptBool                    `json:"closed"`
+	Priority          OptNilTicketUpdatePriority `json:"priority"`
+	Resolution        OptNilString               `json:"resolution"`
+	DueAt             OptNilDateTime             `json:"due_at"`
+	Reviewed          OptNilBool                 `json:"reviewed"`
+	ServiceOn         OptNilDate                 `json:"service_on"`
+	ServiceAt         OptNilString               `json:"service_at"`
+	Elapsed           OptNilString               `json:"elapsed"`
+	Effort            OptNilFloat64              `json:"effort"`
+	ExpectedCost      OptNilString               `json:"expected_cost"`
+	ExternalReference OptNilUUID                 `json:"external_reference"`
 }
 
 // GetSubject returns the value of Subject.
@@ -1898,6 +2047,11 @@ func (s *TicketUpdate) GetExpectedCost() OptNilString {
 	return s.ExpectedCost
 }
 
+// GetExternalReference returns the value of ExternalReference.
+func (s *TicketUpdate) GetExternalReference() OptNilUUID {
+	return s.ExternalReference
+}
+
 // SetSubject sets the value of Subject.
 func (s *TicketUpdate) SetSubject(val string) {
 	s.Subject = val
@@ -1956,6 +2110,11 @@ func (s *TicketUpdate) SetEffort(val OptNilFloat64) {
 // SetExpectedCost sets the value of ExpectedCost.
 func (s *TicketUpdate) SetExpectedCost(val OptNilString) {
 	s.ExpectedCost = val
+}
+
+// SetExternalReference sets the value of ExternalReference.
+func (s *TicketUpdate) SetExternalReference(val OptNilUUID) {
+	s.ExternalReference = val
 }
 
 type TicketUpdatePriority int64

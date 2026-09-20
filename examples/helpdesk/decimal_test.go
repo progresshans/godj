@@ -35,32 +35,57 @@ func verifyHistoricalExpectedCostGrowth(t *testing.T, ctx context.Context, backe
 	if !found {
 		t.Fatal("historical ticket disappeared")
 	}
-	var field ir.Field
+	var oldField ir.Field
 	for _, item := range model.Fields {
 		if item.Name == "expected_cost" {
-			field = item
+			oldField = item
 		}
 	}
-	if field.Decimal == nil || field.Decimal.MaxDigits != 12 || field.Decimal.DecimalPlaces != 2 {
+	if oldField.Decimal == nil || oldField.Decimal.MaxDigits != 12 || oldField.Decimal.DecimalPlaces != 2 {
 		t.Fatal("historical cost precision differs")
 	}
 	small := decimal.Decimal{Coefficient: "15", Exponent: -1}
 	key := query.NewFieldRef("id", "id", query.FieldInteger, false)
-	if count, err := backend.Update(ctx, query.NewUpdatePlan(model.DBTable, []query.Assignment{orm.NewAssignment(field, query.Decimal(small))}, key, query.Integer(id))); err != nil || count != 1 {
-		t.Fatal("historical cost write failed", err)
+	writeCost := func(field ir.Field, value query.Value) {
+		t.Helper()
+		if count, err := backend.Update(ctx, query.NewUpdatePlan(model.DBTable, []query.Assignment{orm.NewAssignment(field, value)}, key, query.Integer(id))); err != nil || count != 1 {
+			t.Fatal("historical cost write failed", err)
+		}
 	}
-	if _, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
-		t.Fatal(err)
-	}
-	row, found, err := models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || row.ExpectedCost == nil || !row.ExpectedCost.Equal(small) {
-		t.Fatal("cost growth lost existing value", err)
-	}
-	large := decimal.Decimal{Coefficient: "99999999999999", Exponent: -2}
-	row, err = models.TicketObjects.Update(ctx, backend, row, models.TicketPatch{}.WithExpectedCost(large))
+	writeCost(oldField, query.Decimal(small))
+	grown, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if err != nil {
 		t.Fatal(err)
 	}
+	current, found := grown.Model("helpdesk", "ticket")
+	if !found {
+		t.Fatal("grown ticket disappeared")
+	}
+	var field ir.Field
+	for _, item := range current.Fields {
+		if item.Name == "expected_cost" {
+			field = item
+		}
+	}
+	// Later migrations can be durably reversed before precision shrink fails.
+	// Read only the cost under test, without asking for fields absent at that
+	// intermediate prefix. The exact cost value must survive on a fresh reader.
+	readCost := func(reader helpdeskBackend) (*decimal.Decimal, error) {
+		values, err := orm.SelectInto(ctx, models.TicketObjects.Using(reader).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()), orm.Project1(models.TicketFields.ExpectedCost, func(value *decimal.Decimal) *decimal.Decimal { return value }))
+		if err != nil {
+			return nil, err
+		}
+		if len(values) != 1 {
+			return nil, fmt.Errorf("historical cost rows=%d", len(values))
+		}
+		return values[0], nil
+	}
+	value, err := readCost(backend)
+	if err != nil || value == nil || !value.Equal(small) {
+		t.Fatal("cost growth lost existing value", err)
+	}
+	large := decimal.Decimal{Coefficient: "99999999999999", Exponent: -2}
+	writeCost(field, query.Decimal(large))
 	if _, err := executor.Migrate(ctx, loaded, oldTarget); err == nil {
 		t.Fatal("reverse cost precision silently lost a larger value")
 	}
@@ -68,27 +93,23 @@ func verifyHistoricalExpectedCostGrowth(t *testing.T, ctx context.Context, backe
 	if err != nil {
 		t.Fatal(err)
 	}
-	stored, found, err := models.TicketObjects.Using(second).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
+	stored, err := readCost(second)
 	closeErr := second.Close()
-	if err != nil || closeErr != nil || !found || stored.ExpectedCost == nil || !stored.ExpectedCost.Equal(large) {
+	if err != nil || closeErr != nil || stored == nil || !stored.Equal(large) {
 		t.Fatal("failed precision reverse lost durable cost", err, closeErr)
 	}
-	if _, err := models.TicketObjects.Update(ctx, backend, stored, models.TicketPatch{}.WithExpectedCost(small)); err != nil {
-		t.Fatal(err)
-	}
+	writeCost(field, query.Decimal(small))
 	if _, err := executor.Migrate(ctx, loaded, oldTarget); err != nil {
 		t.Fatal("precision reverse did not recover after explicit value repair", err)
 	}
 	if _, err := executor.Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal(err)
 	}
-	row, found, err = models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
-	if err != nil || !found || row.ExpectedCost == nil || !row.ExpectedCost.Equal(small) {
+	value, err = readCost(backend)
+	if err != nil || value == nil || !value.Equal(small) {
 		t.Fatal("precision reverse/reapply changed exact value", err)
 	}
-	if _, err := models.TicketObjects.Update(ctx, backend, row, models.TicketPatch{}.WithExpectedCostNull()); err != nil {
-		t.Fatal(err)
-	}
+	writeCost(field, query.Null())
 }
 
 func verifyHelpdeskDecimal(t *testing.T, ctx context.Context, runtime *systemstate.Runtime, open func(context.Context) (helpdeskBackend, error), authenticated *helpdeskClient, categoryID, id, outsideID int64) {

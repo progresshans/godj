@@ -207,6 +207,9 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			}
 		}
 		defaultValue, hasDefault := field.Default()
+		if identifier, ok := defaultValue.AsUUID(); ok {
+			defaultValue = serializers.String(identifier.String())
+		}
 		if number, ok := defaultValue.AsDecimal(); ok {
 			_, places, configured := field.DecimalPrecision()
 			text, err := number.Fixed(places)
@@ -282,6 +285,28 @@ func schemaFieldType(field serializers.Field) (Schema, error) {
 	switch field.Kind() {
 	case serializers.FieldString:
 		schema = String()
+	case serializers.FieldUUID:
+		policy, err := serializers.NewObject(
+			serializers.MemberOf("bits", serializers.Integer(128)),
+			serializers.MemberOf("representation", serializers.String("lowercase-hyphenated")),
+			serializers.MemberOf("input", serializers.String("uuid-alias-or-exact-unsigned-integer")),
+			serializers.MemberOf("integerMaximum", serializers.String("340282366920938463463374607431768211455")),
+			serializers.MemberOf("booleanInput", serializers.String("zero-or-one")),
+			serializers.MemberOf("floatingToken", serializers.String("reject")),
+		)
+		if err != nil {
+			return Schema{}, err
+		}
+		schema, err = schemaAnnotate(String(),
+			serializers.MemberOf("format", serializers.String("uuid")),
+			serializers.MemberOf("pattern", serializers.String(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)),
+			serializers.MemberOf("minLength", serializers.Integer(36)),
+			serializers.MemberOf("maxLength", serializers.Integer(36)),
+			serializers.MemberOf("x-godj-uuid", policy.Value()),
+		)
+		if err != nil {
+			return Schema{}, err
+		}
 	case serializers.FieldDecimal:
 		digits, places, ok := field.DecimalPrecision()
 		if !ok {

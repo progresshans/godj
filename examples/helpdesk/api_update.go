@@ -68,6 +68,13 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 				instant, _ := value.AsDateTime()
 				patch = patch.WithDueAt(instant)
 			}
+		case "external_reference":
+			if value.IsNull() {
+				patch = patch.WithExternalReferenceNull()
+			} else {
+				identifier, _ := value.AsUUID()
+				patch = patch.WithExternalReference(identifier)
+			}
 		case "expected_cost":
 			if value.IsNull() {
 				patch = patch.WithExpectedCostNull()

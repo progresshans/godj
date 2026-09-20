@@ -30,6 +30,7 @@ const (
 	FieldDuration
 	FieldFloat
 	FieldDecimal
+	FieldUUID
 )
 
 const (
@@ -203,7 +204,7 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 			}
 			config.defaultValue = String(cleaned)
 		}
-	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldFloat, FieldDecimal:
+	case FieldBoolean, FieldInteger, FieldDateTime, FieldDate, FieldTime, FieldDuration, FieldFloat, FieldDecimal, FieldUUID:
 		if config.maxLengthSet || config.allowEmpty || config.trimWhitespaceSet {
 			return Field{}, invalidConfig("fields."+name, "string-only option applied to a non-string field")
 		}
@@ -233,7 +234,7 @@ func valueMatchesField(value Value, kind FieldKind, nullable bool) bool {
 	}
 	return kind == FieldString && value.kind == ValueString ||
 		kind == FieldBoolean && value.kind == ValueBoolean ||
-		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal
+		kind == FieldInteger && value.kind == ValueInteger || kind == FieldDateTime && value.kind == ValueDateTime || kind == FieldDate && value.kind == ValueDate || kind == FieldTime && value.kind == ValueTime || kind == FieldDuration && value.kind == ValueDuration || kind == FieldFloat && value.kind == ValueFloat || kind == FieldDecimal && value.kind == ValueDecimal || kind == FieldUUID && value.kind == ValueUUID
 }
 
 func validFieldName(name string) bool {
@@ -420,6 +421,9 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 			return Null(), validation.NewErrors()
 		}
 		return Value{}, oneViolation(field.name, CodeNull)
+	}
+	if field.kind == FieldUUID {
+		return cleanUUIDValue(field, value)
 	}
 	if field.kind == FieldDecimal {
 		return cleanDecimalValue(field, value)

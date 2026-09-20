@@ -321,7 +321,7 @@ func (site *Site) formContext(
 		item, err := templateObject(map[string]templates.Value{
 			"name":        templates.String(field.Name()),
 			"label":       templates.String(field.Label()),
-			"char":        templates.Bool(field.Kind() == forms.FieldChar && field.Widget() == forms.TextInput),
+			"char":        templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldUUID) && field.Widget() == forms.TextInput),
 			"textarea":    templates.Bool(field.Widget() == forms.Textarea),
 			"integer":     templates.Bool(field.Kind() == forms.FieldInteger && field.Widget() != forms.Select),
 			"select":      templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect),
@@ -403,6 +403,10 @@ func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values
 	if field.Kind() == forms.FieldBoolean {
 		checked, _ := initial.AsBoolean()
 		return "", checked
+	}
+	if field.Kind() == forms.FieldUUID {
+		value, _ := initial.AsUUID()
+		return value.String(), false
 	}
 	if field.Kind() == forms.FieldDecimal {
 		value, _ := initial.AsDecimal()

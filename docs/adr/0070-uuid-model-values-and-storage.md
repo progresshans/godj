@@ -48,5 +48,16 @@ literal default는 generated write에서 적용한다. DB default/backfill·일�
 [raw](../../internal/uuidtest/testdata/django61.json)에 보존한다. Form의 whitespace 처리, serializer의 integer/float token 구분,
 braces/URN 등의 별칭은 strict model parser와 다른 입력 계층이다. Python 객체 내부 구조나 `.int`의 bool 표현을 Go 객체로 복제하지 않는다.
 
-Form/Admin·serializer·OpenAPI·Helpdesk 외부 참조 연결은 이 입력 계층의 후속 구현이다. 네 reference representation을 관찰한 것만으로
-GoDj의 모든 출력 옵션을 지원한다고 표시하지 않는다. 각 입력의 수용/거부·정규 출력과 JSON의 정확한 128-bit integer 처리는 별도로 검증한다.
+Form은 Python str.strip 경계에서 바깥 공백을 정리하고 원문을 보존하며, Admin은 canonical 초기값과 값 기준 변경 감지를 사용한다.
+Serializer는 UUID 별칭과 정확한 unsigned 128-bit JSON integer를 받는다. Bool은 0/1, `-0`은 zero UUID이며
+`1.0`·`1e0` 같은 floating token과 typed float는 정수 UUID로 바꾸지 않는다. NULL과 생략은 기존 serializer의 presence 의미를 따른다.
+모든 출력은 lowercase hyphenated UUID 문자열이다. 네 reference representation을 관찰한 것만으로 다른 출력 옵션을 지원한다고 표시하지 않는다.
+
+입력 Unicode decimal repertoire는 고정 Python 3.14의 Unicode 16.0이다. 독립 public model/Form/serializer가 관찰한 76개 범위·760개 숫자를
+입력 계층에 고정한다. Go 표준 Unicode 표의 버전에 따라 수용 범위가 달라지지 않는다. Python 3.12/3.13의 Unicode 15에는 범위 8개가 없으며
+호환성 runner는 해당 차이를 명시한다. Python bytes 객체는 closed Go JSON 값의 입력 종류가 아니고 NUL은 공통 JSON 문서 경계에서 거부한다.
+
+OpenAPI의 표준 schema는 client가 전송하고 서버가 반환하는 canonical UUID string/null을 기술한다.
+`x-godj-uuid`는 런타임 입력 별칭·정확한 integer 범위·bool·floating token 정책을 덧붙인다. 표준 schema만으로 모든 입력 별칭을 표현했다고 보지 않는다.
+고정 ogen client는 별도 UUID 타입으로 생성하며 값·null·생략과 모든 128-bit pattern의 전송을 검증한다. Generator의 `format: uuid` decoder를
+canonical 문자열 pattern 검증기로 취급하지 않는다. 실제 서버 출력의 canonical 보장과 malformed/type/필수 응답 필드 거부를 구분한다.

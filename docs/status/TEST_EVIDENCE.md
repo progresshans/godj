@@ -3,7 +3,7 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
-## GDJ-0093 — UUID 독립 기준과 모델 연결 준비
+## GDJ-0093 — UUID 모델과 외부 연동 참조
 
 - [GDJ-0093](../../work/0093-uuid-models.md)는 Decimal 완료 제품 위에 Helpdesk 외부 UUID 참조를 연결하는 다음 작업이다.
   아래 결과는 독립 기준 준비이며 UUID Go 제품의 runtime 또는 Form/Admin/API 완료를 뜻하지 않는다.
@@ -45,7 +45,52 @@
 - CGO=0 UUID 선택은 **4 package / 9 test·subtest PASS (root 6)**, skip 0·stderr 0 bytes다. 실제 generated SQLite/PG 소비자와 세 compile 거부를 포함한다.
 - Affected vet 출력 0 bytes, gofmt/diff, `make generate-check`의 Helpdesk/Article/relationfixture와 checked-in generated test를 확인했다.
   PostgreSQL Hosted 필수 목록에 UUID native adapter와 generated consumer를 추가했으며 CI tooling **37 PASS**다. 새 UUID source의 Hosted 완료는 아직 없다.
-- Form/Admin·serializer·OpenAPI·실제 Helpdesk/client 연결은 다음 단계다. 입력 전용 새 parser의 compile 확인을 위 제품 runtime PASS에 합치지 않는다.
+- 이 모델 checkpoint 뒤의 Form/Admin·serializer·OpenAPI·실제 Helpdesk/client 입력 연결은 아래 별도 checkpoint가 소유한다.
+
+### UUID 입력·Helpdesk·독립 API client 로컬 통합
+
+- 제품 기준은 UUID 모델 기반 commit `dd321af2622b878fdfa3b80910150017bdae3a8d`다. 변경된 non-Markdown **62개 파일**의
+  정렬 manifest SHA256은 `4ea151998ed4336e8d1c618c217cea882d84391f543b000f74806f6bfcb6d4ee`다. 일반/race/CGO=0/vet 전후 같은 source를 확인했다.
+  아래 로컬 결과를 아직 실행하지 않은 Hosted source의 PASS로 옮기지 않는다.
+- Form은 독립 86개 입력의 cleaned value·error·세 initial의 변경 감지를 대조한다. Canonical 초기값과 원문 오류·escaping·NULL·zero·default ownership을 확인했다.
+  Serializer 252개 중 **240개 직접 비교**, Python bytes 객체 **8개 명시적 미지원 selector**, 공통 JSON 문서 NUL 거부 **4개**를 구분했다.
+  정확한 JSON token 13개와 typed float 거부를 확인했으며 ModelEncoder가 NULL을 필수 응답 필드로 출력한다.
+- 초기 7 package 실행은 serializer 테스트가 DRF의 `.data`와 `validated_data` 생략을 같은 것으로 취급한 두 fixture assertion에서 실패했다.
+  Bind의 생략 presence와 ModelEncoder의 완전한 응답을 나누어 검증하도록 수정했으며, serializer 회복 실행과 아래 최종 전체 영향 검증은 PASS다.
+  첫 9 package 통합은 Helpdesk의 이전 Form field count 12에서 실패했다. 13개 선택으로 갱신한 뒤 양 DB의 전체 부모 흐름을 다시 실행했다.
+- 입력 검토에서 Go Unicode **15.0**과 pinned Python 3.14 Unicode **16.0**의 숫자 범위 차이를 확인했다.
+  독립 runner에 model/Form/DRF 각각의 **76범위·760문자** 관찰을 추가하고 입력 표를 Unicode 16.0으로 고정했다.
+  이전 raw의 다른 key 값은 모두 같음을 확인했다. 갱신 raw SHA256은 `56ba7762830600aef9c629966c4060178717b771ee06bb1a798c0b1cc3ccbfc9`,
+  runner·fresh test·raw 세 파일 manifest는 `2f5c87955a40364a6f873e03ac7c49fac64007cf05620d123d0dcfd786594c67`이다.
+  Python **3.12.13 / 3.13.15 / 3.14.3 / 3.14.7** fresh 비교 각각 **1 PASS**, skip/warning 0이며,
+  앞 두 runtime의 Unicode 15에는 새 범위 8개가 없다는 차이를 명시적으로 확인했다. Go 입력 검증은 pinned 760문자를 모두 대조한다.
+- 실제 Helpdesk 선언에 nullable `external_reference`를 추가하고 생성기와 `makemigrations`로 **0014_ticket_external_reference**를 만들었다.
+  기존 행 NULL 추가·128-bit 값 저장·reopen·reverse/reapply, 실제 Admin 별칭/no-op/escaping/blank clear와 API create·PUT/PATCH·omission/null/zero를 확인한다.
+  Invalid/range/float/중복 key 입력의 transaction 진입 전 거부, CSRF·category 격리·injected rollback·fresh reader 보존도 포함한다.
+  과거 Decimal precision 역방향 실패 시 뒤의 0014 reverse가 먼저 확정될 수 있어, 기존 비용 회귀는 그 historical prefix에 실제 존재하는 비용 열만 projection한다.
+  큰 비용 보존·명시적 복구·재적용 검증을 제거하지 않았다.
+- 실제 API 선언에서 Article Bearer/Session과 Helpdesk Session OpenAPI를 내보내 pinned **ogen v1.24.0**으로 세 profile을 새 디렉터리에 생성했다.
+  Helpdesk schema/생성물을 게시했으며 Article 생성물·`go.mod`·`go.sum`·`ogen.yml`은 동일하다. 독립 모듈은 GoDj import/replacement 없이 build한다.
+  실제 HTTP와 최종 DB까지 **32개 필수 완료 receipt**, canonical UUID 전송·null/생략·zero/2^64/high-bit/max, required/malformed/type 응답 거부를 검사한다.
+  기존 wire 오류 fixture에도 새 nullable 응답 필드를 넣어 UUID 누락이 다른 오류의 검증을 대신하지 않도록 했다.
+- Go **1.26.5 darwin/arm64**, modernc SQLite **v1.56.0**, pgx **v5.10.0**, PostgreSQL **17.5 Homebrew** 전용 DB,
+  `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`에서 아래 **9 package**를 fresh 일반·race로 실행했다.
+  각각 **3,398 test/subtest PASS (root 168)**, 실행·terminal roster 동일, skip/fail 0, stderr 0 bytes다.
+
+```text
+./internal/uuidinput ./forms ./forms/model ./admin ./serializers ./api ./api/openapi
+./examples/helpdesk ./api/openapi/consumertest
+```
+
+- CGO=0은 Helpdesk의 SQLite/PG 실제 부모와 독립 API client **2 package / 3 root PASS**, skip/fail 0, stderr 0 bytes다.
+  Generated child의 검증 수를 부모 테스트 수에 더하지 않는다. Affected vet 출력 0 bytes다.
+- `make generate-check`의 Helpdesk/Article/relationfixture와 checked-in generated 회귀는 PASS다.
+  Helpdesk generated snapshot은 `42928d3e7a9d5f616bdf7b1f2be94a84a1c745bf324c328699e310de9b979cc5`다.
+  별도 pinned openapi-spec-validator **0.9.0**, jsonschema **4.26.0**, referencing **0.37.0**으로 실제 3.1.1 문서 세 개와
+  Ticket/create/update/patch의 canonical UUID string/null schema를 검증했다. 처음 사용한 deprecated `validate_spec` shortcut의 경고로 중단된
+  validator harness는 현행 `validate` API로 교체했으며 `-W error` 검증은 warning 없이 PASS다.
+- Unicode runtime 차이를 포함한 최종 UUID 통합은 Hosted **full** checkpoint를 명시적으로 선택한다. 로컬 전체는 중복 실행하지 않는다.
+  Hosted의 exact/compatibility reference와 플랫폼별 필수 실행이 끝나기 전까지 이 work는 active다.
 
 ## GDJ-0092 — Decimal 정밀도 변경의 독립 기준 준비
 

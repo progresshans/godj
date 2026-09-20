@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "aa9406e8e8095dd7b8d17b9279aac851982ded9e2a289fd91a28800875d11612"
+const GoDjRelationSchemaSHA256 = "01ef17b1156f01dd42d93fd8ce56cea1ba26b102e07e47ea29e5b5a3fdeec865"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -148,10 +148,17 @@ func GoDjRelationSchema() ir.Schema {
 						Nullable: true,
 						Decimal:  &ir.DecimalSpec{MaxDigits: 14, DecimalPlaces: 2},
 					},
+					{
+						Name:     "external_reference",
+						GoName:   "ExternalReference",
+						Column:   "external_reference",
+						Kind:     ir.FieldUUID,
+						Nullable: true,
+					},
 				},
 			},
 		},
 	}
 }
 
-var _ GoDjProjectSnapshot_657583a6de60ec7015e359bad729ead12ac8065f4ca6b65900645d4981761807
+var _ GoDjProjectSnapshot_42928d3e7a9d5f616bdf7b1f2be94a84a1c745bf324c328699e310de9b979cc5

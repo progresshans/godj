@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/internal/floatvalue"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uuid"
 )
 
 // Error reports an invalid model projection at startup.
@@ -242,6 +243,25 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			options = append(options, forms.WithDefault(forms.Decimal(value)))
 		}
 		return forms.DecimalField(field.Name, field.Decimal.MaxDigits, field.Decimal.DecimalPlaces, options...)
+	case ir.FieldUUID:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal != nil {
+			return forms.Field{}, &Error{Code: "invalid_uuid_metadata"}
+		}
+		options = append(options, forms.WithRequired(!field.Nullable))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			value, err := uuid.Parse(field.Default.UUID)
+			if field.Default.Kind != ir.ScalarUUID || err != nil || value.String() != field.Default.UUID {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.UUID(value)))
+		}
+		return forms.UUIDField(field.Name, options...)
 	case ir.FieldFloat:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil {
 			return forms.Field{}, &Error{Code: "invalid_float_metadata"}
