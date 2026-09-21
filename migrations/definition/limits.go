@@ -1,16 +1,18 @@
 package definition
 
 const (
-	MaxSources                  = 2_048
-	MaxSourceIDBytes            = 1_024
-	MaxDocumentBytes            = 1 << 20
-	MaxBatchBytes               = 16 << 20
-	MaxJSONDepth                = 64
-	MaxDocumentJSONValues       = 65_536
-	MaxJSONValues               = 262_144
-	MaxDependenciesPerMigration = 2_047
-	MaxOperationsPerMigration   = 2_048
-	MaxFieldsPerCreateModel     = 2_048
+	MaxSources                   = 2_048
+	MaxSourceIDBytes             = 1_024
+	MaxDocumentBytes             = 1 << 20
+	MaxBatchBytes                = 16 << 20
+	MaxJSONDepth                 = 64
+	MaxDocumentJSONValues        = 65_536
+	MaxJSONValues                = 262_144
+	MaxDependenciesPerMigration  = 2_047
+	MaxOperationsPerMigration    = 2_048
+	MaxFieldsPerCreateModel      = 2_048
+	MaxConstraintsPerCreateModel = 2_048
+	MaxFieldsPerConstraint       = 2_048
 )
 
 const (

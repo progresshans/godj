@@ -91,6 +91,26 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 			if err := consumeNodes(&budget, modelPath+".fields", uint64(len(model.Fields))); err != nil {
 				return budget, err
 			}
+			if err := consumeNodes(&budget, modelPath+".unique_constraints", uint64(len(model.UniqueConstraints))); err != nil {
+				return budget, err
+			}
+			for constraintIndex, constraint := range model.UniqueConstraints {
+				constraintPath := fmt.Sprintf("%s.unique_constraints[%d]", modelPath, constraintIndex)
+				if err := validateString(constraintPath+".name", constraint.Name); err != nil {
+					return budget, err
+				}
+				if len(constraint.Fields) > MaxFieldsPerModel {
+					return budget, resourceError(constraintPath+".fields", "constraint_fields", MaxFieldsPerModel, len(constraint.Fields))
+				}
+				if err := consumeNodes(&budget, constraintPath+".fields", uint64(len(constraint.Fields))); err != nil {
+					return budget, err
+				}
+				for memberIndex, name := range constraint.Fields {
+					if err := validateString(fmt.Sprintf("%s.fields[%d]", constraintPath, memberIndex), name); err != nil {
+						return budget, err
+					}
+				}
+			}
 			for fieldIndex := range model.Fields {
 				fieldPath := fmt.Sprintf("%s.fields[%d]", modelPath, fieldIndex)
 				field := model.Fields[fieldIndex]

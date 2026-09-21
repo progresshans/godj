@@ -37,10 +37,13 @@ Helpdesk의 각 Category에 라벨 사전을 두고 같은 Category 안에서만
 같은/다른 앱의 순환 FK를 지연 생성할 때는 그 FK를 참조하는 복합 제약도 모든 member가 생긴 뒤에 추가한다.
 이름·member·member 순서 변경은 remove/add이고 constraint 목록 순서만 바꾸면 Django는 migration을 만들지 않는다.
 
-`Model.UniqueConstraints`의 명시적 이름·논리 field 목록과 canonical name 순서, clone/equality/hash·생성 metadata·project wire는 임시 overlay로 검토했다.
-이 선언 API는 제품 소비자와 historical/native 경로에 연결하는 단계에서 확정하며, 아직 저장소 제품 코드에 적용하지 않았다.
-다음은 선언을 historical definition·operation·autodetect와 양 DB ownership까지 함께 구현하는 일이다.
-기준 관찰과 임시안 검사를 GoDj 복합 고유성의 제품 지원으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+`Model.UniqueConstraints`의 명시적 이름·논리 field 목록과 canonical name 순서, clone/equality/hash·생성 metadata·project wire를 코드에 반영했다.
+CreateModel의 현행 definition·digest·state replay와 intent의 깊은 복사도 제약을 보존한다. 필드 변경에 숨겨진 제약 변경과
+제약이 참조하는 field의 제거는 거부하며 wire·typed loader·intent의 resource 한도도 member를 계산한다.
+SQLite/PostgreSQL의 physical ownership은 아직 구현 중이다. 선언만 받아 제약을 빠뜨린 SQL을 생성하거나 실행하지 않도록 현재는 명시적으로 거부한다.
+이 전환용 거부는 native owner가 실제 제약·catalog·rollback을 검증할 수 있게 된 뒤 정상 실행으로 교체한다.
+다음은 Add/Remove operation·autodetect와 양 DB ownership을 연결하는 일이다. 선언 API의 최종 사용성은 Label의 전체 소비자에서 확인한다.
+현재 metadata 구현·단위 검사를 복합 고유성의 전체 제품 지원으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 기존 내부 형식이나 테스트 모양을 보존하려고 별도의 호환 계층을 만들지 않는다.
 API 표면과 제약의 지원 범위는 실제 소비자·양 DB 실패 의미를 확인하면서 정하며, 사전 검사만으로 고유성을 보장하지 않는다.
 작업과 필요한 기반의 관계는 [로드맵](../docs/ROADMAP.md), 전체 완성 기준은 [헌장](../docs/CHARTER.md)이 소유한다.

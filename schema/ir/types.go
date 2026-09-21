@@ -22,10 +22,11 @@ type Schema struct {
 }
 
 type Model struct {
-	Name    string  `json:"name"`
-	GoName  string  `json:"go_name"`
-	DBTable string  `json:"db_table"`
-	Fields  []Field `json:"fields"`
+	Name              string             `json:"name"`
+	GoName            string             `json:"go_name"`
+	DBTable           string             `json:"db_table"`
+	Fields            []Field            `json:"fields"`
+	UniqueConstraints []UniqueConstraint `json:"unique_constraints,omitempty"`
 }
 
 type FieldKind string
@@ -162,11 +163,23 @@ func (s Schema) Clone() Schema {
 
 func (m Model) Clone() Model {
 	clone := m
-	clone.Fields = append([]Field(nil), m.Fields...)
+	clone.Fields = slices.Clone(m.Fields)
 	for index := range m.Fields {
 		clone.Fields[index] = m.Fields[index].Clone()
 	}
+	clone.UniqueConstraints = slices.Clone(m.UniqueConstraints)
+	for index := range m.UniqueConstraints {
+		clone.UniqueConstraints[index] = m.UniqueConstraints[index].Clone()
+	}
 	return clone
+}
+
+// Equal compares canonical model metadata, including every constraint member.
+// Normalize establishes constraint-name order before a model enters history.
+func (m Model) Equal(other Model) bool {
+	return m.Name == other.Name && m.GoName == other.GoName && m.DBTable == other.DBTable &&
+		slices.EqualFunc(m.Fields, other.Fields, Field.Equal) &&
+		slices.EqualFunc(m.UniqueConstraints, other.UniqueConstraints, UniqueConstraint.Equal)
 }
 
 func (f Field) Clone() Field {

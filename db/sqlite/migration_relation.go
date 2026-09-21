@@ -354,6 +354,20 @@ func validateAndSealSQLiteRelationIntent(
 	if err != nil {
 		return sqliteRelationIntentSeal{}, relationIntentIntegrity("%v", err)
 	}
+	// IR/history may carry the new declaration before the physical index
+	// owner is enabled. Every retained boundary must fail closed as well.
+	for _, operation := range pinned.Operations {
+		unsupported := len(operation.Before.UniqueConstraints) != 0 || len(operation.After.UniqueConstraints) != 0
+		for _, target := range operation.Targets {
+			unsupported = unsupported || len(target.TargetModel.UniqueConstraints) != 0
+		}
+		for _, related := range operation.RelatedModels {
+			unsupported = unsupported || len(related.Model.UniqueConstraints) != 0
+		}
+		if unsupported {
+			return sqliteRelationIntentSeal{}, migrationbackend.NewCapabilityError("named_unique_constraints", "named model constraints require native index ownership before migration execution", nil)
+		}
+	}
 	if err := validateSQLiteRelationIntent(transition, pinned, graphPlan); err != nil {
 		return sqliteRelationIntentSeal{}, err
 	}

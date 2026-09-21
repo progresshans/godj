@@ -155,7 +155,7 @@ func normalizeModel(model *Model, path string) error {
 	if primaryKeys != 1 {
 		return validation(path+".fields", "primary_key_count", fmt.Sprintf("got %d, want 1", primaryKeys))
 	}
-	return nil
+	return normalizeUniqueConstraints(model, path)
 }
 
 func validateField(field Field, path string) error {

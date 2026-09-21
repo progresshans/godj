@@ -90,12 +90,5 @@ func CloneMigrationTargets(targets []MigrationTarget) []MigrationTarget {
 }
 
 func cloneIntentModel(model ir.Model) ir.Model {
-	clone := model
-	if model.Fields != nil {
-		clone.Fields = make([]ir.Field, len(model.Fields))
-		for index, field := range model.Fields {
-			clone.Fields[index] = field.Clone()
-		}
-	}
-	return clone
+	return model.Clone()
 }

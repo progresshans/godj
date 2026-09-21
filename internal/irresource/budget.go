@@ -46,6 +46,26 @@ func (budget *Budget) ScanModel(path string, model ir.Model) error {
 			return err
 		}
 	}
+	if err := budget.ConsumeNodes(path+".unique_constraints", len(model.UniqueConstraints)); err != nil {
+		return err
+	}
+	for index, constraint := range model.UniqueConstraints {
+		constraintPath := fmt.Sprintf("%s.unique_constraints[%d]", path, index)
+		if err := budget.ConsumeString(constraintPath+".name", constraint.Name); err != nil {
+			return err
+		}
+		if len(constraint.Fields) > budget.limits.Fields {
+			return fmt.Errorf("%s has %d members, maximum %d", constraintPath, len(constraint.Fields), budget.limits.Fields)
+		}
+		if err := budget.ConsumeNodes(constraintPath+".fields", len(constraint.Fields)); err != nil {
+			return err
+		}
+		for _, name := range constraint.Fields {
+			if err := budget.ConsumeString(constraintPath+".fields", name); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

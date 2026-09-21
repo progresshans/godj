@@ -180,6 +180,19 @@ func appendCanonicalModel(output []byte, model ir.Model) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(model.UniqueConstraints) != 0 {
+		output = append(output, `,"unique_constraints":[`...)
+		for index, constraint := range model.UniqueConstraints {
+			if index != 0 {
+				output = append(output, ',')
+			}
+			output, err = appendCanonicalUniqueConstraint(output, constraint)
+			if err != nil {
+				return nil, err
+			}
+		}
+		output = append(output, ']')
+	}
 	return append(output, '}'), nil
 }
 

@@ -98,10 +98,7 @@ func (s ProjectState) Model(app, name string) (ir.Model, bool) {
 func (s ProjectState) Equal(other ProjectState) bool {
 	return s.FormatVersion() == other.FormatVersion() && maps.EqualFunc(s.apps, other.apps, func(left, right ir.Schema) bool {
 		return left.FormatVersion == right.FormatVersion && left.AppLabel == right.AppLabel &&
-			slices.EqualFunc(left.Models, right.Models, func(left, right ir.Model) bool {
-				return left.Name == right.Name && left.GoName == right.GoName && left.DBTable == right.DBTable &&
-					slices.EqualFunc(left.Fields, right.Fields, fieldEqual)
-			})
+			slices.EqualFunc(left.Models, right.Models, ir.Model.Equal)
 	})
 }
 

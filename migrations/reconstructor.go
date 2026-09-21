@@ -1043,6 +1043,11 @@ func (builder *loadedStateBuilder) removeField(operation AddField) error {
 	if err := validateAddedFieldPosition(model.value.Fields, index, operation.BeforeField); err != nil {
 		return err
 	}
+	for _, constraint := range model.value.UniqueConstraints {
+		if slices.Contains(constraint.Fields, actual.Name) {
+			return fmt.Errorf("field %s.%s.%s is still owned by constraint %s", identity.app, identity.model, actual.Name, constraint.Name)
+		}
+	}
 	if err := builder.removeRelation(identity, actual); err != nil {
 		return err
 	}
@@ -1547,11 +1552,11 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		intent.operations = make([]loadedRelationOperation, len(operationViews))
 		for viewIndex := range operationViews {
 			view := operationViews[viewIndex]
-			if modelHasUniqueFields(view.before) || modelHasUniqueFields(view.after) {
+			if modelHasUniqueConstraints(view.before) || modelHasUniqueConstraints(view.after) {
 				requirements |= loadedRequiresUniqueConstraints
 			}
 			for _, related := range view.relatedModels {
-				if modelHasUniqueFields(related.Model) {
+				if modelHasUniqueConstraints(related.Model) {
 					requirements |= loadedRequiresUniqueConstraints
 				}
 			}
@@ -1564,7 +1569,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			}
 			backendTargets := make([]loadedRelationBackendTarget, len(view.targets))
 			for targetIndex := range view.targets {
-				if modelHasUniqueFields(view.targets[targetIndex].targetModel) {
+				if modelHasUniqueConstraints(view.targets[targetIndex].targetModel) {
 					requirements |= loadedRequiresUniqueConstraints
 				}
 				backendTargets[targetIndex] = loadedRelationBackendTarget{
@@ -2181,6 +2186,10 @@ func loadedScanModelResource(budget *loadedResourceBudget, migration Migration, 
 	loadedConsumeString(budget, migration, operationIndex, kind, prefix+".name", model.Name, false)
 	loadedConsumeString(budget, migration, operationIndex, kind, prefix+".go_name", model.GoName, false)
 	loadedConsumeString(budget, migration, operationIndex, kind, prefix+".db_table", model.DBTable, false)
+	if len(model.UniqueConstraints) > maxLoadedConstraintsPerCreateModel {
+		loadedConsiderViolation(budget, loadedResourceViolation{migration: migration, operation: operationIndex, operationKind: kind, path: prefix + ".unique_constraints", reason: "constraint_count"})
+		return
+	}
 	if len(model.Fields) > maxLoadedFieldsPerCreateModel {
 		loadedConsiderViolation(budget, loadedResourceViolation{migration: migration, operation: operationIndex, operationKind: kind, path: prefix + ".fields", reason: "field_count"})
 		return
@@ -2194,6 +2203,32 @@ func loadedScanModelResource(budget *loadedResourceBudget, migration Migration, 
 			return
 		}
 		loadedScanFieldResource(budget, migration, operationIndex, kind, fmt.Sprintf("%s.fields[%d]", prefix, index), model.Fields[index])
+	}
+	loadedConsumeNodes(budget, uint64(len(model.UniqueConstraints)))
+	if budget.nodeOverflow {
+		return
+	}
+	for index, constraint := range model.UniqueConstraints {
+		path := fmt.Sprintf("%s.unique_constraints[%d]", prefix, index)
+		loadedScanUniqueConstraintResource(budget, migration, operationIndex, kind, path, constraint)
+		if budget.nodeOverflow {
+			return
+		}
+	}
+}
+
+func loadedScanUniqueConstraintResource(budget *loadedResourceBudget, migration Migration, operationIndex int, kind, path string, constraint ir.UniqueConstraint) {
+	loadedConsumeString(budget, migration, operationIndex, kind, path+".name", constraint.Name, false)
+	if len(constraint.Fields) > maxLoadedFieldsPerCreateModel {
+		loadedConsiderViolation(budget, loadedResourceViolation{migration: migration, operation: operationIndex, operationKind: kind, path: path + ".fields", reason: "constraint_member_count"})
+		return
+	}
+	loadedConsumeNodes(budget, uint64(len(constraint.Fields)))
+	if budget.nodeOverflow {
+		return
+	}
+	for index, name := range constraint.Fields {
+		loadedConsumeString(budget, migration, operationIndex, kind, fmt.Sprintf("%s.fields[%d]", path, index), name, false)
 	}
 }
 

@@ -145,6 +145,20 @@ OpenAPI와 독립 generated client도 같은 응답을 소비한다.
 
 ## 검증과 남은 범위
 
+### 모델 단위 제약의 선언과 이력
+
+[GDJ-0097](../../work/0097-composite-uniqueness-and-labels.md)은 `Model.UniqueConstraints`와 `schema.UniqueConstraint`를 통해
+모델 안에서 식별되는 이름과 ordered logical field 목록을 선언한다. 기존 `Field.Unique`와 관계 cardinality는 바꾸지 않는다.
+논리 field는 실제 모델에 있어야 하며 중복 member·중복 이름·빈 선언이나 relationship traversal을 허용하지 않는다.
+제약 목록 자체의 순서는 migration 의미를 바꾸지 않는다는 독립 Django 관찰에 따라 name 순서로 정규화한다.
+Member의 순서는 물리 index key의 의미이므로 보존한다. 선언 순서만 달라져도 불필요한 이력·digest 차이가 생기는 것을 방지한다.
+이 이름은 모델 내부의 제약 identity이며 DB의 raw object 이름을 직접 지정하는 API가 아니다.
+
+Schema/descriptor·project wire·CreateModel definition·historical state와 execution intent는 제약과 member slice를 소유한다.
+동등성·digest에서 제약을 생략하지 않고, 필드 변경이 제약까지 변경하는 것을 허용하지 않는다.
+선언·이력의 존재가 native enforcement를 뜻하지 않는다. Native owner·Add/Remove·ORM·Label의 연결 전에는 양 DB가 named constraint 실행을 거부한다.
+전체 제품 지원과 검증은 활성 work에서 이어가며 실행 결과는 TEST_EVIDENCE에만 기록한다.
+
 이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.
 실행 source와 환경별 결과는 TEST_EVIDENCE가 소유하며 이후 변경의 검증으로 옮겨 쓰지 않는다.
 

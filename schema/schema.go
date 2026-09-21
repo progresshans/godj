@@ -22,11 +22,17 @@ type Definition struct {
 }
 
 type Model struct {
-	Name    string
-	GoName  string
-	DBTable string
-	Fields  []Field
+	Name              string
+	GoName            string
+	DBTable           string
+	Fields            []Field
+	UniqueConstraints []UniqueConstraint
 }
+
+// UniqueConstraint names a model-level constraint over logical field names.
+// Fields retain their order; SQL NULLs remain distinct. A declaration's name
+// identifies its migration ownership within the model, not a raw SQL name.
+type UniqueConstraint = ir.UniqueConstraint
 
 type Field struct {
 	Name      string
@@ -266,10 +272,11 @@ func Build(definition Definition) (ir.Schema, error) {
 	}
 	for modelIndex, model := range definition.Models {
 		result.Models[modelIndex] = ir.Model{
-			Name:    model.Name,
-			GoName:  model.GoName,
-			DBTable: model.DBTable,
-			Fields:  make([]ir.Field, len(model.Fields)),
+			Name:              model.Name,
+			GoName:            model.GoName,
+			DBTable:           model.DBTable,
+			Fields:            make([]ir.Field, len(model.Fields)),
+			UniqueConstraints: model.UniqueConstraints,
 		}
 		for fieldIndex, field := range model.Fields {
 			var defaultValue *ir.Scalar

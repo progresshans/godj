@@ -2,6 +2,7 @@ package backend
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -10,7 +11,7 @@ import (
 // IR, identifiers, target bindings and physical catalog checks still apply.
 // Returned fields are detached from both input models.
 func ChangedField(before, after ir.Model) (ir.Field, ir.Field, ir.FieldChangeKind, error) {
-	if before.Name != after.Name || before.GoName != after.GoName || before.DBTable != after.DBTable || len(before.Fields) != len(after.Fields) {
+	if before.Name != after.Name || before.GoName != after.GoName || before.DBTable != after.DBTable || len(before.Fields) != len(after.Fields) || !slices.EqualFunc(before.UniqueConstraints, after.UniqueConstraints, ir.UniqueConstraint.Equal) {
 		return ir.Field{}, ir.Field{}, 0, fmt.Errorf("AlterField must preserve model identity and field count")
 	}
 	changed := -1

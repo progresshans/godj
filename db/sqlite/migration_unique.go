@@ -123,6 +123,9 @@ func executeSQLiteMigrationStatements(ctx context.Context, executor migrationSQL
 }
 
 func sqliteModelHasUnique(model ir.Model) bool {
+	if len(model.UniqueConstraints) != 0 {
+		return true
+	}
 	for _, field := range model.Fields {
 		if field.Unique {
 			return true

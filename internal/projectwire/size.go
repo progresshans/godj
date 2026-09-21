@@ -61,6 +61,43 @@ func measureModel(sizer *wirejson.Sizer, model ir.Model) bool {
 			return false
 		}
 	}
+	if !sizer.Literal(`]`) {
+		return false
+	}
+	if len(model.UniqueConstraints) != 0 {
+		if !sizer.Literal(`,"unique_constraints":[`) {
+			return false
+		}
+		for index, constraint := range model.UniqueConstraints {
+			if index != 0 && !sizer.Literal(`,`) {
+				return false
+			}
+			if !measureUniqueConstraint(sizer, constraint) {
+				return false
+			}
+		}
+		if !sizer.Literal(`]`) {
+			return false
+		}
+	}
+	return sizer.Literal(`}`)
+}
+
+func measureUniqueConstraint(sizer *wirejson.Sizer, constraint ir.UniqueConstraint) bool {
+	if !sizer.Literal(`{"name":`) || !sizer.String(constraint.Name) || !sizer.Literal(`,"fields":`) {
+		return false
+	}
+	if constraint.Fields == nil {
+		return sizer.Literal(`null}`)
+	}
+	if !sizer.Literal(`[`) {
+		return false
+	}
+	for index, name := range constraint.Fields {
+		if index != 0 && !sizer.Literal(`,`) || !sizer.String(name) {
+			return false
+		}
+	}
 	return sizer.Literal(`]}`)
 }
 

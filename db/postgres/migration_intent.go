@@ -364,6 +364,9 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 }
 
 func validateExactPostgresMigrationModel(model ir.Model) error {
+	if len(model.UniqueConstraints) != 0 {
+		return migrationbackend.NewCapabilityError("named_unique_constraints", "named model constraints require native constraint ownership before migration execution", nil)
+	}
 	if reflect.DeepEqual(model, ir.Model{}) {
 		return postgresMigrationIntentIntegrity("migration model is zero", nil)
 	}

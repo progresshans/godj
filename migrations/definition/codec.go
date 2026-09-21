@@ -546,7 +546,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 
 func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"db_table", "fields", "go_name", "name"}
-	object, objectOK, candidates := semanticObjectCandidates(value, fields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+	object, objectOK, candidates := semanticObjectWithOptionalCandidates(value, fields, []string{"unique_constraints"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	if !objectOK {
 		return candidates
 	}
@@ -579,6 +579,9 @@ func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string
 			}
 			candidates = append(candidates, collectModelFieldAggregateCandidates(child.array, sourceID, pointer+"/fields", app, name, operationIndex)...)
 		}
+	}
+	if constraints, exists := object.member("unique_constraints"); exists {
+		candidates = append(candidates, collectModelConstraintCandidates(constraints, object, sourceID, pointer+"/unique_constraints", app, name, operationIndex)...)
 	}
 	return candidates
 }
@@ -1192,7 +1195,21 @@ func materializeModel(value jsonValue) (ir.Model, bool) {
 		}
 		decodedFields[index] = field
 	}
-	return ir.Model{Name: name.string, GoName: goName.string, DBTable: dbTable.string, Fields: decodedFields}, true
+	model := ir.Model{Name: name.string, GoName: goName.string, DBTable: dbTable.string, Fields: decodedFields}
+	if constraints, exists := value.member("unique_constraints"); exists {
+		if constraints.kind != jsonArray || len(constraints.array) == 0 || len(constraints.array) > MaxConstraintsPerCreateModel {
+			return ir.Model{}, false
+		}
+		model.UniqueConstraints = make([]ir.UniqueConstraint, len(constraints.array))
+		for index, value := range constraints.array {
+			constraint, valid := materializeUniqueConstraint(value)
+			if !valid {
+				return ir.Model{}, false
+			}
+			model.UniqueConstraints[index] = constraint
+		}
+	}
+	return model, true
 }
 
 func materializeField(value jsonValue) (ir.Field, bool) {

@@ -242,10 +242,11 @@ type addFieldDocument struct {
 }
 
 type modelDocument struct {
-	Name    string          `json:"name"`
-	GoName  string          `json:"go_name"`
-	DBTable string          `json:"db_table"`
-	Fields  []fieldDocument `json:"fields"`
+	Name              string                `json:"name"`
+	GoName            string                `json:"go_name"`
+	DBTable           string                `json:"db_table"`
+	Fields            []fieldDocument       `json:"fields"`
+	UniqueConstraints []ir.UniqueConstraint `json:"unique_constraints,omitempty"`
 }
 
 type fieldDocument struct {
@@ -342,10 +343,11 @@ type reverseDocument struct {
 
 func encodeModel(model ir.Model) modelDocument {
 	encoded := modelDocument{
-		Name:    model.Name,
-		GoName:  model.GoName,
-		DBTable: model.DBTable,
-		Fields:  make([]fieldDocument, len(model.Fields)),
+		Name:              model.Name,
+		GoName:            model.GoName,
+		DBTable:           model.DBTable,
+		Fields:            make([]fieldDocument, len(model.Fields)),
+		UniqueConstraints: model.UniqueConstraints,
 	}
 	for index, field := range model.Fields {
 		encoded.Fields[index] = encodeField(field)

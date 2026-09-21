@@ -3,6 +3,32 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — 선언·생성·이력 metadata 연결
+
+2026-09-22, 기준 `d0f4a9a0c7ecdc4a39369bfe160b06f83f7e9c6b` 위 Go 코드·검사 **33경로**의 source map SHA256은
+`bd1b1b0d4575e8d6d7e2839edfb058ce7a43df0559f5b2ca00dd6c050c8ef026`이다. Markdown은 제외한다.
+Go 1.26.5/Darwin arm64에서 named constraint의 canonical identity·member 순서·입력/clone 소유권·생성 metadata와
+project wire의 폐쇄된 형식·정확한 byte 한도·할당 전 resource 검사를 연결했다.
+CreateModel의 현행 wire·digest·loaded state·intent도 제약을 보존하고, 필드 변경에 다른 제약 변경이 섞이거나
+남은 제약의 member를 제거하는 경로를 거부한다. Model clone은 nil/empty slice 형태와 중첩 member를 함께 보존한다.
+
+`go test -json -count=1 -timeout=5m ./schema/... ./codegen ./migrations/... ./internal/migrationgraph ./internal/irresource ./internal/projectspec ./internal/projectwire`는
+**11 package / 1,106 run=PASS / skip 0**, 새 필수 parent 15개를 확인했다. 전체 시작/종료·package·required inventory와 source 불변을 검사했다.
+네 project의 `generate --check`와 checked-in relation product, 영향 범위 `go vet`도 통과했다.
+그 뒤 추가한 파일은 intent 복사·field delta 검사용 두 Go test뿐이며 제품·생성기·선언이 같음을 `source-coverage.json`으로 확인했다.
+추가 테스트를 포함해 위 일반 checkpoint를 다시 실행했고 해당 두 package의 vet도 통과했다.
+이 checkpoint는 metadata·historical CreateModel과 공개 SQL projection 경계의 검증이며 native 복합 제약의 적용·race·전체 플랫폼 검증이 아니다.
+
+첫 SQL projection 검사는 SQLite의 CreateModel 경로가 새 제약을 생략할 수 있음을 찾았다. Common intent admission에서
+source·retained target·transitive metadata를 거부하도록 고쳤다. PostgreSQL의 공개 projection 오류는 원인을 노출하지 않으므로
+검사도 내부 문자열 대신 공개 capability category/code를 확인하도록 수정했다. 양 renderer의 제약 없는 control은 SQL을 만들고,
+named constraint 선언은 unsupported와 nil SQL을 반환한다. 이는 구현 전 제약 누락을 막는 전환 경계이며 native 구현을 대신하지 않는다.
+Add/Remove operation·자동 계획·실제 양 DB ownership·ORM 사전 검증과 Label 소비자는 계속 미완료다.
+
+Artifact root는 아래 독립 기준과 같은 `godj-composite-uniqueness-9yzkn6xp`이며 `latest-metadata-checkpoint-path`가 현재 실행을 가리킨다.
+해당 디렉터리의 `source.json`, `stdout.jsonl`, `stderr`, `packages.txt`, `required.txt`, `receipt.json`,
+`generated-drift.stdout/stderr`, `vet.stdout/stderr`, `vet-added-tests.stdout/stderr`, `source-coverage.json`에 원본과 검사 범위를 보관했다.
+
 ## GDJ-0097 — 복합 고유성의 독립 기준과 선언 임시안
 
 2026-09-22, 기준 `56c776f7a55542bdfda49e20a3b0f58ac99256bd` 위 독립 runner·raw fixture·검사를 추가했다.
@@ -28,7 +54,7 @@ Unittest의 시작/종료·필수 실행·skip을 검사했으며 이는 Django 
 생성 metadata·project wire의 폐쇄된 형식/정확한 byte·할당 전 resource 한도를 구현해 검토했다.
 Go 1.26.5/Darwin arm64에서 `./schema/... ./codegen ./internal/projectspec ./internal/projectwire`는 **472 run=PASS / skip 0**,
 필수 새 parent 7개를 확인했다. 12경로 patch SHA256은 `5a57048c03f02a705d40bc054f5b851a0af5e922bd48082e4c4d8d14ec3d8797`다.
-이 임시안은 저장소 제품 코드에 적용하지 않았으며 historical operation·native constraint·ORM/Label 소비자 구현이나
+이 임시안은 해당 검증 시점에 저장소 제품 코드에 적용하지 않았으며 historical operation·native constraint·ORM/Label 소비자 구현이나
 race/platform PASS로 계산하지 않는다. API 채택과 제품 통합은 활성 work에서 이어간다.
 
 Artifact root: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-composite-uniqueness-9yzkn6xp`.

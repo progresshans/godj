@@ -191,6 +191,9 @@ func (scanner *encodingSizeScanner) scanAddField(path string, operation migratio
 }
 
 func (scanner *encodingSizeScanner) scanModel(path string, model ir.Model) error {
+	if len(model.UniqueConstraints) > MaxConstraintsPerCreateModel {
+		return encodeFailure(path+".unique_constraints", "constraints_per_create_model resource limit exceeded: got %d, maximum %d", len(model.UniqueConstraints), MaxConstraintsPerCreateModel)
+	}
 	if err := scanner.addStructural(path, modelStructuralLowerBound); err != nil {
 		return err
 	}
@@ -215,6 +218,22 @@ func (scanner *encodingSizeScanner) scanModel(path string, model ir.Model) error
 		}
 		if err := scanner.scanField(fieldPath, field); err != nil {
 			return err
+		}
+	}
+	if len(model.UniqueConstraints) != 0 {
+		if err := scanner.addStructural(path+".unique_constraints", uint64(len(`,"unique_constraints":[]`))); err != nil {
+			return err
+		}
+		for index, constraint := range model.UniqueConstraints {
+			constraintPath := fmt.Sprintf("%s.unique_constraints[%d]", path, index)
+			if index != 0 {
+				if err := scanner.addStructural(constraintPath, 1); err != nil {
+					return err
+				}
+			}
+			if err := scanner.scanUniqueConstraint(constraintPath, constraint); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

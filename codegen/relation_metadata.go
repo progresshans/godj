@@ -68,6 +68,17 @@ func renderModelLiteralBody(output *bytes.Buffer, model ir.Model, indent string)
 		fmt.Fprintf(output, "%s\t},\n", indent)
 	}
 	fmt.Fprintf(output, "%s},\n", indent)
+	if len(model.UniqueConstraints) != 0 {
+		fmt.Fprintf(output, "%sUniqueConstraints: []ir.UniqueConstraint{\n", indent)
+		for _, constraint := range model.UniqueConstraints {
+			fmt.Fprintf(output, "%s\t{Name: %q, Fields: []string{", indent, constraint.Name)
+			for _, name := range constraint.Fields {
+				fmt.Fprintf(output, "%q,", name)
+			}
+			fmt.Fprintln(output, "}},")
+		}
+		fmt.Fprintf(output, "%s},\n", indent)
+	}
 }
 
 func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string) {

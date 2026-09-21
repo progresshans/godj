@@ -3,6 +3,7 @@ package migrationgraph
 import (
 	"errors"
 	"reflect"
+	"slices"
 
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -20,7 +21,7 @@ func (operation MigrationOperation) ChangedField() (ir.Field, error) {
 	default:
 		return ir.Field{}, errors.New("field delta requires AddField or RemoveField")
 	}
-	if smaller.Name != larger.Name || smaller.GoName != larger.GoName || smaller.DBTable != larger.DBTable || len(larger.Fields) != len(smaller.Fields)+1 {
+	if smaller.Name != larger.Name || smaller.GoName != larger.GoName || smaller.DBTable != larger.DBTable || len(larger.Fields) != len(smaller.Fields)+1 || !slices.EqualFunc(smaller.UniqueConstraints, larger.UniqueConstraints, ir.UniqueConstraint.Equal) {
 		return ir.Field{}, errors.New("field delta must change exactly one field in the same model")
 	}
 	position := 0
