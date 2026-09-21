@@ -8,20 +8,21 @@
 
 ## 현재
 
-OneToOne의 명시적 cardinality·migration·양 DB FK+UNIQUE·단일 reverse 조회/prefetch·조건·mixed eager tree와
-facade·명시적 assignment를 구현했다. Helpdesk의 ServiceReport migration·Form/Admin/API/OpenAPI와 독립 생성 client도 연결했다.
-관계 선택은 요청별 권한·Category 범위의 불변 snapshot을 사용하고 저장 transaction에서 범위를 다시 확인한다.
-보고서의 정상 부재·재할당·고유성·삭제 후 부모 보존과 티켓 PROTECT, 취소·rollback 오류의 실행 경계를 유지한다.
-Runtime의 관계 삭제도 일반 쓰기와 같은 DB coordination fence를 사용한다.
+OneToOne과 ServiceReport의 migration·Form/Admin/API/OpenAPI·독립 client 연결 및 Hosted 전체 통합 검증을 완료했다.
+관계 선택의 권한·Category 범위, 실제 FK+UNIQUE·티켓 PROTECT와 coordinated transaction의 실패 의미를 함께 검증했다.
+
+GDJ-0097의 복합 고유성은 독립 Django runner·양 DB 관찰을 연결했고 선언·생성기·project wire의 임시안을 검토했다.
+Form이 제외한 Category도 저장 시 전체 조합에 포함해야 하며 순환 FK와 제약의 생성 순서를 함께 보존해야 한다.
+모델 복합 제약의 제품 코드와 Label 소비자는 아직 미완료다.
 
 지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
-OneToOne과 위 소비자까지 포함한 source의 Hosted 전체 통합 검증을 완료했다. 아직 모델 복합 고유성이나 Label은 구현하지 않았다.
+위 Hosted 결과는 명시한 source의 OneToOne/ServiceReport 검증이며 이후 복합 고유성의 제품 검증으로 옮기지 않는다.
 
 ## 다음 행동
 
-Category별 Label 이름의 복합 고유성을 다음 소비자로 선택했다. 고정 Django의 실제 제약·진단·migration 관찰부터 확인하고,
-IR·historical wire·양 DB ownership·Form/Admin/API/client를 연결한다. 현재 확인된 외부 blocker는 없다.
+복합 제약의 선언·historical wire·operation·자동 계획과 양 DB ownership을 함께 구현하고,
+Category별 Label의 Form/Admin/API/client로 연결한다. 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

@@ -102,3 +102,9 @@ OneToOne은 같은 pinned Django의 [관계 필드](https://github.com/django/dj
 [독립 ModelChoice runner](../conformance/runners/django/model_choice_reference.py)는 실제 양 DB QuerySet의 scope·입력·initial/changed를
 관찰하고 설치된 source 파일의 SHA256을 기록한다. GoDj나 기대 fixture를 읽지 않는다. Snapshot과 int64 key를 반환하는
 Go API의 소유권 차이는 [ADR-0073](adr/0073-one-to-one-cardinality-and-reverse-objects.md#작업-보고서와-명시적-관계-선택)에 구분한다.
+
+모델 복합 고유성은 같은 pinned Django의 [UniqueConstraint](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/constraints.py),
+Model/ModelForm의 constraint 검증과 [migration autodetector](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/autodetector.py)를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/composite_unique_reference.py)는 `derived=false`인 선언 입력으로 양 DB의 오류·NULL·transaction·migration 결과와
+이름·필드 변경 및 순환 관계의 제약 배치를 관찰한다. GoDj나 기대 fixture를 읽지 않으며 설치된 upstream source SHA256을 남긴다.
+기준 관찰과 GoDj 제품 지원은 [GDJ-0097](../work/0097-composite-uniqueness-and-labels.md)에서 구분한다.

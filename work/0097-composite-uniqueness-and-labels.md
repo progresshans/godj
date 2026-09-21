@@ -22,7 +22,7 @@ Helpdesk의 각 Category에 라벨 사전을 두고 같은 Category 안에서만
 
 ## 구현 조건
 
-- [ ] 독립 Django 기준: 같은/다른 Category의 중복, required/nullable 조합, self update·changed fields, 사전 검증·native 오류와 migration 실패/복구
+- [x] 독립 Django 기준: 같은/다른 Category의 중복, required/nullable 조합, self update·changed fields, 사전 검증·native 오류와 migration 실패/복구
 - [ ] Schema IR의 모델 단위 제약과 이름·field 순서·storage column 소유권, 생성 metadata·clone/equality/digest
 - [ ] historical definition·autodetect·create/add/remove/reverse, 기존 중복 실패 시 row·catalog·recorder/revision 보존
 - [ ] SQLite/PostgreSQL native 복합 UNIQUE와 물리 ownership 검증, table remake·named index/constraint·target schema 보존
@@ -32,9 +32,15 @@ Helpdesk의 각 Category에 라벨 사전을 두고 같은 Category 안에서만
 
 ## 현재와 다음
 
-아직 새 제약이나 Label을 구현하지 않았다. 고정 Django의 public UniqueConstraint와 ModelForm/migration 독립 관찰을 임시 artifact에서 준비했다.
-현재 column uniqueness의 IR·historical wire·backend physical ownership·validation 경로를 확인했으며, 다음은 독립 runner·관찰을 현행 소스에 연결하고 선언·이력을 구현하는 일이다.
-기준 관찰의 통과를 GoDj 복합 고유성의 구현이나 검증 완료로 합치지 않는다.
+아직 새 제약이나 Label의 제품 연결을 구현하지 않았다. 고정 Django의 [독립 runner](../conformance/runners/django/composite_unique_reference.py)와 양 DB 관찰·검사를 연결했다.
+서버가 정한 Category를 Form에서 제외하면 Django의 복합 사전 검사가 생략되므로 저장 계층은 전체 candidate 조합을 검사해야 한다.
+같은/다른 앱의 순환 FK를 지연 생성할 때는 그 FK를 참조하는 복합 제약도 모든 member가 생긴 뒤에 추가한다.
+이름·member·member 순서 변경은 remove/add이고 constraint 목록 순서만 바꾸면 Django는 migration을 만들지 않는다.
+
+`Model.UniqueConstraints`의 명시적 이름·논리 field 목록과 canonical name 순서, clone/equality/hash·생성 metadata·project wire는 임시 overlay로 검토했다.
+이 선언 API는 제품 소비자와 historical/native 경로에 연결하는 단계에서 확정하며, 아직 저장소 제품 코드에 적용하지 않았다.
+다음은 선언을 historical definition·operation·autodetect와 양 DB ownership까지 함께 구현하는 일이다.
+기준 관찰과 임시안 검사를 GoDj 복합 고유성의 제품 지원으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 기존 내부 형식이나 테스트 모양을 보존하려고 별도의 호환 계층을 만들지 않는다.
 API 표면과 제약의 지원 범위는 실제 소비자·양 DB 실패 의미를 확인하면서 정하며, 사전 검사만으로 고유성을 보장하지 않는다.
 작업과 필요한 기반의 관계는 [로드맵](../docs/ROADMAP.md), 전체 완성 기준은 [헌장](../docs/CHARTER.md)이 소유한다.

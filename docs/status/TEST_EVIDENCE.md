@@ -3,6 +3,39 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — 복합 고유성의 독립 기준과 선언 임시안
+
+2026-09-22, 기준 `56c776f7a55542bdfda49e20a3b0f58ac99256bd` 위 독립 runner·raw fixture·검사를 추가했다.
+Runner SHA256은 `00a104ba68656079e4e40201e64fda2ec87558d79ac7a049b8371266df4e75ca`다.
+Django 6.1/asgiref 3.12.1/sqlparse 0.5.5와 PostgreSQL reference psycopg 3.3.6을 고정했다.
+Python 3.14.3의 SQLite 3.50.4와 PostgreSQL 17.5에서 두 hash seed(`0`, `813`)의 fresh process 결과가 일치했다.
+실제 Model/ModelForm의 단일·복합·겹치는 제약, SQL NULL 조합·self/update, 선행 쓰기 rollback,
+중복 데이터의 constraint 추가 실패·명시적 수정/재시도·제거/reverse를 관찰했다.
+기존 ordinary index의 보존도 확인했다. Autodetector의 이름/member/순서 변경·field 추가/제거와
+같은/다른 앱의 순환 관계를 포함한 10개 변경 시나리오를 추가했다.
+
+Form에서 서버 소유 Category를 제외하면 복합 constraint 검증도 제외된다. 전체 저장값을 검사하는 소비자가 필요한 근거다.
+Constraint 목록 순서만 바꾸는 경우 migration은 없지만 member 순서를 바꾸면 remove/add를 생성한다.
+순환 FK 생성에서 지연된 member가 준비되기 전에 constraint를 추가하지 않는 것도 확인했다.
+선언을 `(category, name)`에서 `(category, id)`로 바꾸는 negative control이 실제 Form·native 저장 결과를 바꾼다.
+Runner는 GoDj 코드나 기대 fixture를 읽지 않는다.
+
+저장소 경로로 옮긴 검사도 Python **3.12.13·3.13.15·3.14.3·3.14.7 각각 4 PASS / skip 0**, 총 **16 PASS**다.
+Unittest의 시작/종료·필수 실행·skip을 검사했으며 이는 Django 독립 기준 검증이고 GoDj 제품 parity가 아니다.
+새 테스트를 포함한 Hosted 전체 검증은 실행하지 않았다.
+
+별도 임시 Go overlay에서는 명시적 named constraint·논리 field 순서·canonical name 순서·clone/equality/hash와
+생성 metadata·project wire의 폐쇄된 형식/정확한 byte·할당 전 resource 한도를 구현해 검토했다.
+Go 1.26.5/Darwin arm64에서 `./schema/... ./codegen ./internal/projectspec ./internal/projectwire`는 **472 run=PASS / skip 0**,
+필수 새 parent 7개를 확인했다. 12경로 patch SHA256은 `5a57048c03f02a705d40bc054f5b851a0af5e922bd48082e4c4d8d14ec3d8797`다.
+이 임시안은 저장소 제품 코드에 적용하지 않았으며 historical operation·native constraint·ORM/Label 소비자 구현이나
+race/platform PASS로 계산하지 않는다. API 채택과 제품 통합은 활성 work에서 이어간다.
+
+Artifact root: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-composite-uniqueness-9yzkn6xp`.
+`latest-capture-path`, `latest-promoted-check-path`, `promoted-reference-source.json`, `prototype/latest-checkpoint-path`가
+원본 stdout/stderr·source manifest·완전한 이벤트 검사 receipt를 가리킨다. `reference-v1`은 확장 전 기준을 보존한다.
+Native reference의 owned DB는 잔여 connection·table·test schema 0을 확인한 뒤 제거했으며 기존 서비스는 유지했다.
+
 ## GDJ-0096 — ServiceReport 소비자와 명시적 관계 선택
 
 2026-09-22, 기준 `65563c988112543a9d9424bfbea937ec6f38cd1f` 위 코드·생성물·검사·CI **76경로**의 manifest SHA256은
