@@ -60,7 +60,9 @@ PASS로 계산하지 않았다. 이후 위 최종 source와 표의 실행에서 
 정확한 command·source·raw reference/Python/Go 로그·필수 root·실패 시도·cleanup 영수증은 `godj-one-to-one-assignment-f83hkabs` 로컬 artifact에 보존했다.
 소유 DB의 잔여 connection·table·test schema가 0인 것을 확인한 뒤 그 DB만 제거하고 기존 service는 유지했다.
 
-Hosted fast는 구현 commit 뒤 확인한다. 현재 결과는 assignment의 로컬 checkpoint이며 작업 보고서 Form/Admin/API/OpenAPI/client와
+구현 source `a79cf54755ab9ed06ffa2a29cbb6b5f01b28b765`의 [Hosted fast run 35640277837](https://github.com/progresshans/godj/actions/runs/35640277837)이 성공했다.
+Source·job/step·전체 실행 로그를 보존했다. `make quick` 범위이며 native PostgreSQL이나 full platform으로 계산하지 않는다.
+현행 문서 139개 링크·format·diff 검사도 통과했다. 현재 결과는 assignment의 checkpoint이며 작업 보고서 Form/Admin/API/OpenAPI/client와
 소비자 전체의 platform 통합은 남아 있다. 이전 Hosted full `42ae95d3b1a891e6a0692fb0399968e483f4d907`을 현재 source의 성공으로 쓰지 않는다.
 
 ## GDJ-0096 — facade reverse selection과 outgoing FK 삭제
