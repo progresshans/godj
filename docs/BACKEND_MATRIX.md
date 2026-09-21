@@ -30,7 +30,8 @@ SQLite는 별도 unique index의 BINARY ASC 단일 column과 rowid를 검사하�
 검증 대상인 모든 모델·direct/transitive target의 미선언 index는 거부한다. Legacy direct editor에는 이 capability를 확장하지 않는다.
 기존 중복으로 UNIQUE 추가/역방향 적용이 실패하면 행·catalog·revision/recorder를 보존하고 명시적 수정 후 재시도한다.
 Insert/update의 non-PK 충돌은 `integrity_error/unique_constraint`이며 native cause와 context 취소를 유지한다.
-입력 검증과 Form/Admin/API·Helpdesk/client 소비자 연결은
+공통 ORM의 생성·수정 고유성 사전 검증은 같은 typed mutation과 양 DB exact 조회를 사용하며 저장 제약을 대체하지 않는다.
+Form/Admin/API·Helpdesk/client 소비자 연결은
 [활성 작업](../work/0095-model-uniqueness.md)에서 이어간다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.

@@ -15,9 +15,11 @@ import (
 	"github.com/progresshans/godj/migrations"
 	mb "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/validation"
 	modernsqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
@@ -143,6 +145,7 @@ func TestSQLiteUniqueReferenceWrites(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "unique.sqlite")
 			backend := openMigrationHistoryFileBackend(t, path)
 			model, field := uniquetest.Model(t, profile.Name)
+			manager := orm.NewManager[uniquetest.Record](uniquetest.Descriptor{Model: model})
 			initial := migrations.Migration{App: "uniqueref", Name: "0001_initial", Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "uniqueref", Model: model}}}
 			loaded := sqliteUniqueHistory(t, initial)
 			if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
@@ -155,11 +158,12 @@ func TestSQLiteUniqueReferenceWrites(t *testing.T) {
 			for _, attempt := range profile.Attempts {
 				t.Run(fmt.Sprintf("insert_%02d", attempt.Index), func(t *testing.T) {
 					value := uniquetest.Value(t, profile.Name, attempt.Input)
+					checks, checkErr := manager.ValidateUniqueCreate(ctx, backend, uniquetest.Input{Model: model, Value: value})
 					key, err := backend.Insert(ctx, query.NewInsertPlanReturningKey(model.DBTable, []query.Assignment{query.NewAssignment(field, value)}, id))
 					if number, ok := value.Float(); ok && math.IsNaN(number) {
 						// Existing SQLite policy rejects NaN before I/O instead
 						// of silently storing the reference driver's SQL NULL.
-						if !attempt.Saved || err == nil || key != 0 {
+						if !attempt.Saved || err == nil || key != 0 || checkErr == nil || !checks.Empty() {
 							t.Fatal("NaN rejection policy changed", err)
 						}
 						var native *modernsqlite.Error
@@ -179,6 +183,9 @@ func TestSQLiteUniqueReferenceWrites(t *testing.T) {
 						if saved != attempt.Saved {
 							deviations++
 						}
+					}
+					if checkErr != nil || checks.Empty() != saved || !saved && (checks.Len() != 1 || checks.All()[0].Field() != "value" || checks.All()[0].Code() != validation.CodeUnique) {
+						t.Fatal("advisory validation differs from native uniqueness", checks.All(), checkErr)
 					}
 					if !saved {
 						assertSQLiteUniqueError(t, err)
@@ -212,6 +219,12 @@ func TestSQLiteUniqueReferenceWrites(t *testing.T) {
 			}
 			if nullID <= 0 || valueID <= 0 {
 				t.Fatal("reference lost nullable and occupied rows")
+			}
+			for _, current := range []uniquetest.Record{{ID: valueID, Present: true, Value: occupied}, {ID: nullID, Present: true, Value: query.Null()}} {
+				checks, err := manager.ValidateUniqueUpdate(ctx, backend, current, uniquetest.Input{Model: model, Value: occupied})
+				if err != nil || checks.Empty() != (current.ID == valueID) {
+					t.Fatal("update uniqueness failed to exclude only its current row", checks.All(), err)
+				}
 			}
 			update := func(key int64) (int64, error) {
 				return backend.Update(ctx, query.NewUpdatePlan(model.DBTable, []query.Assignment{query.NewAssignment(field, occupied)}, id, query.Integer(key)))
@@ -267,6 +280,15 @@ func TestSQLiteUniqueConcurrentWritesAndAtomicRollback(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	plan := func(value string) query.InsertPlan {
 		return query.NewInsertPlanReturningKey(model.DBTable, []query.Assignment{query.NewAssignment(field, query.String(value))}, id)
+	}
+	// Both advisory reads complete before either competing write starts.
+	// The native constraint still owns the winner when both checks pass.
+	manager := orm.NewManager[uniquetest.Record](uniquetest.Descriptor{Model: model})
+	for _, writer := range []*Backend{first, second} {
+		checks, err := manager.ValidateUniqueCreate(ctx, writer, uniquetest.Input{Model: model, Value: query.String("same")})
+		if err != nil || !checks.Empty() {
+			t.Fatal("empty-table advisory check", checks.All(), err)
+		}
 	}
 	type result struct {
 		key int64

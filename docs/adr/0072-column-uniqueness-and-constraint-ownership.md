@@ -1,6 +1,6 @@
 # ADR-0072: Column uniqueness and physical constraint ownership
 
-- 상태: Accepted — 공통 선언·이력과 양 DB 구현. 입력 소비자 연결은 GDJ-0095에서 진행 중.
+- 상태: Accepted — 공통 선언·이력·ORM 사전 검증과 양 DB 구현. 입력 소비자 연결은 GDJ-0095에서 진행 중.
 - 날짜: 2026-09-21
 - 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md)
 
@@ -86,6 +86,26 @@ FK RemoveField의 sealed remake는 해당 operation의 After 모델에 남는 un
 Insert/update의 구조화된 SQLite extended code 2067은 `integrity_error/unique_constraint`다.
 Insert의 1555는 기존 `unique_primary_key`를 유지한다. Native cause는 보존하고 표시 문자열은 중복 값을 노출하지 않는다.
 Context 취소를 우선하며 오류 문구만으로 충돌이나 field를 추측하지 않는다.
+
+## 공통 사전 검증
+
+`orm.Manager.ValidateUniqueCreate`/`ValidateUniqueUpdate`는 `context.Context`와 `db.Queryer`를 받고
+`(validation.Errors, error)`를 반환한다. Create/Update와 같은 mutation 준비 단계에서 metadata·필수/default·typed 값·patch의
+생략 필드 보존과 PK 소유권을 검사한다. 검증을 호출해도 저장하지 않으며 Create/Update에 묵시적 조회를 추가하지 않는다.
+기존 생성 descriptor/input을 사용하므로 field 타입별 별도 validator 생성 코드를 만들지 않는다.
+
+Create는 정규화된 기본값을 포함한다. Update는 명시적으로 지정한 필드만 검사하고 current instance의 presence-aware PK를 제외한다.
+명시적으로 존재하는 0 PK도 제외하며 PK가 없는 instance나 PK를 바꾼 patch는 거부한다. SQL NULL은 distinct 정책에 따라 조회하지 않고
+빈 문자열·false·zero UUID·JSON null은 실제 값으로 검사한다. Typed 입력 정리 이전의 원문이나 오류 메시지에서 값을 추측하지 않는다.
+
+모든 Query AST를 I/O 전에 만들고 모델 선언 순서대로 조회한다. 각 조회는 현재 backend의 exact/storage equality를 사용하며
+PK projection·LIMIT 1로 존재 여부만 확인한다. Result cache를 공유하지 않는다. 중복은 값/행 식별자를 담지 않는 field별
+`validation.CodeUnique` (`unique`)다. DB 오류·row iteration/close 오류·context 취소는 일반 error로 반환하며 앞선 부분 진단을 게시하지 않는다.
+새 field가 있는 미래 버전에서 이미 만들어진 manager의 metadata snapshot을 바꾸지 않는다.
+
+권한 검사와 current object 조회는 호출자가 먼저 수행한다. 이 검사는 advisory이며 두 검사가 모두 통과한 뒤에도 실제 제약이
+경쟁 쓰기를 거부할 수 있다. 사전 조회와 최종 insert/update 오류를 같은 의미로 사용자에게 전달하되 DB 제약을 생략하거나
+실행 장애·취소·불명확한 transaction 결과를 정상적인 입력 오류로 숨기는 것은 소비자 연결에서 허용하지 않는다.
 
 ## Operation별 SQL 묶음
 

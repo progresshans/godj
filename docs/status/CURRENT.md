@@ -19,11 +19,13 @@ definition/digest·자동 변경 계획에 연결했다. PostgreSQL의 named UNI
 실제 DDL·catalog·저장 충돌 오류에 연결했다. 실패/재시도·역방향 적용과 SQLite remake의 index·행·sequence·FK 보존을
 각 backend의 로컬 checkpoint에서 검증했다. [소유권과 구현 경계](../adr/0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
 Operation별 여러 SQL과 metadata-only의 빈 묶음을 구분하는 공통 renderer·root·프로젝트 runner도 사용한다.
-공통 입력 검증과 Form/Admin/API 소비자 연결은 아직 진행 중이다.
+공통 ORM의 생성·수정 고유성 사전 검증도 연결했다. 실제 쓰기와 같은 typed 입력 검증을 사용하고,
+수정 시 자기 행 제외·NULL/생략 구분·DB 오류/취소와 필드 진단 분리를 양 DB에서 확인했다.
+Form/Admin/API 소비자 연결은 아직 진행 중이다.
 
 ## 다음 행동
 
-공통 입력 검증과 양 DB의 저장 충돌을 Form/Admin/API·Helpdesk 외부 참조·generated client까지 연결한다.
+공통 사전 검증과 양 DB의 저장 충돌을 Form/Admin/API·Helpdesk 외부 참조·generated client까지 연결한다.
 구현과 검증 범위는 GDJ-0095와 TEST_EVIDENCE에 기록한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.

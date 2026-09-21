@@ -14,6 +14,10 @@ const NonField Field = "__all__"
 // messages intentionally do not live in this package.
 type Code string
 
+// CodeUnique identifies a value already stored by another row under a
+// declared column uniqueness constraint. Diagnostics never contain that value.
+const CodeUnique Code = "unique"
+
 // Param is one ordered, presentation-independent diagnostic parameter.
 // Its fields are private so callers cannot mutate a published violation.
 type Param struct {

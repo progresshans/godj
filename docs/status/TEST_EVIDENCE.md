@@ -3,6 +3,53 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — ORM 고유성 사전 검증과 실제 쓰기의 공통 입력
+
+2026-09-21, darwin/arm64 Go **1.26.5**, native PostgreSQL **17.5 Homebrew**, SQLite driver `modernc.org/sqlite v1.56.0`,
+`TZ=Pacific/Chatham`, `GODJ_REQUIRE_POSTGRES=1`. Normal/race/consumer는 **CGO_ENABLED=1**, 별도 CGO-disabled 검사는 **0**이다.
+기준 `000c9ea9a55d4349e8604894e05e94657eb0f244` 위 제품·검증 **7경로** manifest SHA256은
+`4f9f171a2c41b88fdff36e538292a1815379a3d40a6604bc763c08a51bb197ab`다.
+설계는 [ADR-0072](../adr/0072-column-uniqueness-and-constraint-ownership.md)가 소유한다.
+
+- `orm.Manager.ValidateUniqueCreate`/`ValidateUniqueUpdate`는 기존 생성 descriptor/input을 사용하고 실제 Create/Update와
+  mutation 준비·타입/metadata·필수값·생략 필드 보존·PK 검사를 공유한다. `validation.Errors`와 실행 error를 별도로 반환하며 저장하지 않는다.
+  Create/Update의 기존 무결성 조건을 유지하고 묵시적인 사전 조회를 추가하지 않았다.
+- 생성 입력의 default false·빈 문자열, patch의 SQL NULL·생략, 명시적으로 존재하는 0 PK와 PK 부재를 구분했다.
+  생성 Article의 metadata snapshot·필드 선언 순서·PK projection/LIMIT 1·cursor close와 값 없는 `unique` 진단을 확인했다.
+  FK는 relation 조회 없이 저장 column의 key로 검사하며 nullable FK의 NULL은 조회하지 않는다.
+- Nil context/backend/input·취소·required/empty patch·위조 PK·외부 field reference·nullable alias 변조를 I/O 전에 거부했다.
+  후반 AST가 잘못된 경우 앞선 정상 필드도 조회하지 않았다. 공유 manager의 동시 검증과 반복 호출은 metadata를 유지하고 결과 cache를 재사용하지 않는다.
+- 두 번째 조회의 실패, 오류와 함께 반환한 rows, nil/typed-nil rows, iteration/close 오류와 query/Next 중 취소를 주입했다.
+  Cursor를 한 번 닫고 원인을 보존하며 첫 번째 조회에서 찾은 중복을 부분 결과로 게시하지 않았다.
+- 양 DB의 독립 **13 profile / 각 96개 입력 시도**에 먼저 사전 검증을 실행한 뒤 기존 실제 insert를 그대로 실행하여 결과를 대조했다.
+  SQL NULL·case·UUID 별칭·Float/Decimal·시간 값·JSON의 저장 equality와 자기 행/다른 행 수정도 확인했다.
+  SQLite NaN **2개**는 검증/쓰기 모두 기존 사전 오류이고 기본 Django JSON의 object 순서 **1개** 차이는 기존 canonical profile로 구분한다.
+  새 기준 데이터를 제품 결과로 덮어쓰지 않았다.
+- 양 DB의 두 backend/pool에서 사전 검사가 모두 통과한 뒤 경쟁 insert를 시작해 **1 성공 / 1 unique_constraint**를 확인했다.
+  사전 검사 결과를 동시성 보장으로 사용하지 않는다. 기존 Atomic/AtomicRelation·rollback·재접속·migration drift 회귀도 아래 unique scope에 포함한다.
+- ORM 쓰기 준비를 공유한 영향으로 Article API CRUD·인증/CSRF/권한 거부, Helpdesk의 실제 양 DB CRUD/Admin·권한 유지,
+  generated relation product/fixture와 생성물 일치 검사를 함께 실행했다. 이는 기존 소비자 회귀이며 새 고유성 UI 연결의 완료가 아니다.
+
+| 실행 | 결과 |
+|---|---|
+| `go test -json -count=1 -timeout=15m ./orm ./validation` | 2 package, root 192 / 전체 **531 run=PASS** |
+| `go test -json -count=1 -timeout=15m -run 'Unique' ./db/sqlite ./db/postgres` | 2 package, root 28 / 전체 **303 run=PASS** |
+| `go test -json -count=1 -timeout=15m ./conformance/relationproduct ./conformance/relationfixture ./examples/article/apiapp ./examples/helpdesk` | 4 package, root 21 / 전체 **38 run=PASS** |
+| `go test -race -json -count=1 -timeout=15m -run 'ValidateUnique\|UniqueReferenceWrites\|UniqueConcurrent' ./orm ./db/sqlite ./db/postgres` | 3 package, root 11 / 전체 **250 run=PASS** |
+| `CGO_ENABLED=0 go test -json -count=1 -timeout=15m -run 'ValidateUnique\|UniqueReferenceWrites' ./orm ./db/sqlite ./db/postgres` | 3 package, root 9 / 전체 **244 run=PASS** |
+
+Normal 합계는 **8 package / root 241 / 872 run=PASS**다. 모든 최종 실행의 skip/fail·stderr는 **0**이다.
+공통 ORM 검증 roster **24개**, 양 DB reference roster **220개**와 backend별 insert subtest **96개**를 normal/race/CGO0 사이에서 대조했다.
+모든 package의 terminal·run/pass 목록과 source hash가 일치했다. 초기 성공 묶음 뒤 두 pool의 사전 검사 통과를 경쟁 테스트에 추가하고
+위 다섯 실행을 최종 source에서 다시 수행했다.
+
+Affected `go vet ./orm ./validation ./internal/uniquetest ./db/sqlite ./db/postgres`, `make format-check docs-check`, `git diff --check`도 PASS다.
+Markdown 137개 링크를 확인했다. Generator/ABI 변경은 없으며 기존 relation generated drift는 위 소비자 검사에서 실행했다.
+전용 PostgreSQL DB는 잔여 연결·사용자 table·test schema **각 0** 확인 후 삭제했다. 기존 PostgreSQL service는 유지했다.
+
+공통 API와 실제 양 DB 조회의 로컬 checkpoint다. Form/Admin의 오류 재표시·API 응답·Helpdesk 외부 참조의 unique migration과
+generated client 소비자 연결, 그 연결에 필요한 통합 milestone은 남아 있다. 이 실행은 전체 DB/process/platform 또는 Hosted 검증이 아니다.
+
 ## GDJ-0095 — SQLite 고유성·정확한 index 검증·실패 복구
 
 2026-09-21, darwin/arm64 Go **1.26.5**, `modernc.org/sqlite v1.56.0`의 실제 SQLite runtime **3.53.3**,

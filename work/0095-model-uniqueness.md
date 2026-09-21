@@ -77,5 +77,12 @@ Legacy direct editor는 unique 모델을 명시적으로 거부한다. Public sq
 
 SQLite 로컬 normal·선택 race/process·CGO-disabled와 SQL 소비자 checkpoint를 완료했다. 독립 96개 입력 시도 중 NaN의 사전 거부와
 JSON canonical 저장은 기존 GoDj 정책에 따라 별도로 대조했다. 실행 source·실패와 환경 범위는 TEST_EVIDENCE가 소유한다.
-다음은 공통 입력 검증·양 DB 저장 충돌을 Form/Admin/API·Helpdesk/generated client에 연결하는 것이다.
+공통 ORM의 `ValidateUniqueCreate`/`ValidateUniqueUpdate`는 실제 Create/Update와 같은 mutation 준비·검증을 사용한다.
+기본값이 정해진 생성 입력과 명시적으로 지정한 patch 필드를 선언 순서대로 검사하며, 수정의 presence-aware PK만 제외한다.
+SQL NULL은 조회하지 않는다. PK만 최대 한 행 조회하고 DB 오류·row 종료 오류·취소에서는 부분 진단을 버린다.
+양 DB의 독립 96개 입력·자기 행/다른 행 수정과 기존 정책 차이를 실제 저장 제약과 대조했다.
+두 writer의 사전 검사가 모두 통과해도 실제 경쟁 쓰기는 DB가 1성공/1거부를 결정하는 경계도 유지한다.
+실제 생성 모델의 기본값·부분 수정·잘못된 mutation·공유 metadata·동시 검증과 기존 소비자 회귀는 TEST_EVIDENCE에 기록한다.
+
+다음은 이 사전 검증·양 DB 저장 충돌을 Form/Admin/API·Helpdesk/generated client에 연결하는 것이다.
 Backend checkpoint를 소비자 연결이나 전체 고유성 작업의 완료로 합치지 않는다.
