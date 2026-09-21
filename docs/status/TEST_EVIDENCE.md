@@ -64,6 +64,10 @@ Object v5/selection v6/facade v9에 맞춰 네 project의 generated Go 56개와 
 `godj-one-to-one-facade-rxl9j3bm` 로컬 artifact에 보존했다. 소유 DB의 잔여 connection·table·test schema가 0인 것을 확인한 뒤
 그 DB만 삭제했고 기존 PostgreSQL service는 유지했다.
 
+구현 source `75bb34db06154c0b58b520605c2c4382e73af7a4`의 [Hosted fast run 35636450469](https://github.com/progresshans/godj/actions/runs/35636450469)이 성공했다.
+Source·job/step·실행 로그를 보존했다. `make quick` 범위이며 native PostgreSQL이나 전체 platform 검증으로 계산하지 않는다.
+현행 문서 139개의 링크·format·diff 검사도 통과했다.
+
 이번 결과는 facade와 해당 삭제 경계의 로컬 checkpoint다. OneToOne assignment 전체·작업 보고서의 실제 입력 소비자·platform 통합은 남아 있다.
 이전 Hosted full source `42ae95d3b1a891e6a0692fb0399968e483f4d907`의 성공을 이번 source에 적용하지 않는다.
 
