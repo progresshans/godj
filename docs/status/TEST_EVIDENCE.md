@@ -3,6 +3,21 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0096 — Hosted fast에서 확인한 capability 검사 누락
+
+2026-09-22, 기반 구현 source `ee0f0c7601e579c43d70befb7ffa21ac51c76c9f`의
+[빠른 CI run 35621606448](https://github.com/progresshans/godj/actions/runs/35621606448)이 실패했다.
+`TestSQLiteMigrationCapabilities`의 기존 expected struct에 새 `AlterFieldRelation=true`가 빠져 있었고,
+앞선 이름 기반 로컬 DB selector는 이 root를 포함하지 않았다. 실제 capability와 그 migration 실행은 앞선 체크에서 검증했으나
+전체 SQLite suite의 이 회귀를 놓쳤다. 이 run을 PASS로 사용하지 않는다.
+
+제품 동작을 바꾸지 않고 해당 expected capability를 추가했다. 수정한 `db/sqlite/migration_relation_test.go`의 SHA256은
+`06d710b09518a07cbc00ef1886aa7ee541e7f687c2137e1713052abfbede731c`다.
+같은 로컬 환경에서 `go test -json -count=1 -timeout=15m ./db/sqlite` 전체를 실행하여 **2,625 run=PASS / skip 0**을 확인했다.
+완전한 종료 inventory와 capability/OneToOne migration 필수 root·검사 전후 source hash를 대조했다.
+관련 ADR에는 기존 RelatedObject의 완전한 cardinality 위반 snapshot과 I/O 실패의 partial result 차이도 명시했다.
+이는 기존 runtime 의미의 설명이며 별도 cache 정책 변경이 아니다.
+
 ## GDJ-0096 — OneToOne 선언·이력·단일 reverse 기반 checkpoint
 
 2026-09-22, 기준 `0b98ea1d7fb190ef2d6de48e68d2cc7f9ca39ff6` 위 제품·생성물·테스트·CI **108경로**의 최종 manifest SHA256은

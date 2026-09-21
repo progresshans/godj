@@ -28,6 +28,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
 		AlterFieldDecimalPrecision:        true,
+		AlterFieldRelation:                true,
 		UniqueConstraints:                 true,
 	}
 	if got != want {

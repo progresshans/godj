@@ -44,6 +44,8 @@ Generated reverse factory는 OneToOne에 `RelatedObject[T]`, 일반 FK+Unique에
 각 From/Fresh와 materialization은 cache를 독립 소유한다. 같은 handle의 동시 조회는 기존 QuerySet 평가 owner를 공유한다.
 취소·query/scan/rows-close 실패는 성공 결과로 게시하지 않는다. Pointer handle의 zero/nil/dereference-copy를 거부한다.
 외부 insert가 warm missing cache를 자동 갱신하지 않으며 Fresh로 다시 읽는다.
+기존 RelatedObject처럼 온전히 읽은 cardinality 위반 snapshot은 반복 접근에서도 같은 진단을 유지하고 Fresh로 다시 평가한다.
+이는 I/O 실패의 partial result를 성공 cache로 게시하는 것과 구분한다.
 
 Reverse prefetch는 owner key를 중복 제거한 한 batch를 읽고 전체 membership/cardinality 검증 뒤 게시한다.
 반복된 owner도 각각 독립 cache를 받는다. 빈 owner 목록은 검증 뒤 I/O 없이 빈 결과를 반환하며 기존 999 distinct key 한도를 유지한다.
