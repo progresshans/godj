@@ -18,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "0b61bfaf0149df3a1ec92c995cfdbf68236882ac8eeae13442d4186bf475676e"
+const GoDjSchemaSHA256 = "55bfbd4b6da374f5cc5fc30bfef7327ba60c5379dcbafa01103f603b8e58eaac"
 
 type Category struct {
 	ID                    int64
@@ -1476,6 +1476,7 @@ func ticketMetadata() ir.Model {
 				Column:   "external_reference",
 				Kind:     ir.FieldUUID,
 				Nullable: true,
+				Unique:   true,
 			},
 			{
 				Name:     "external_payload",
@@ -1488,4 +1489,4 @@ func ticketMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_d56c6da128a3f048da0adf11f9fb91976a57c472617431c26a80bac88e354d61 struct{}
+type GoDjProjectSnapshot_9f6c990b6169cb3061a44df5bbaffb34d308c5d558c7b8ca4c85320b359cc3ee struct{}

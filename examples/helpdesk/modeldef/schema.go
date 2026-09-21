@@ -29,7 +29,7 @@ func Schema() (ir.Schema, error) {
 			schema.DurationField("elapsed", "Elapsed", schema.Nullable()),
 			schema.FloatField("effort", "Effort", schema.Nullable()),
 			schema.DecimalField("expected_cost", "ExpectedCost", 14, 2, schema.Nullable()),
-			schema.UUIDField("external_reference", "ExternalReference", schema.Nullable()),
+			schema.UUIDField("external_reference", "ExternalReference", schema.Nullable(), schema.Unique()),
 			schema.JSONField("external_payload", "ExternalPayload", schema.Nullable()),
 		}},
 	}})

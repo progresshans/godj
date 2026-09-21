@@ -31,8 +31,9 @@ SQLite는 별도 unique index의 BINARY ASC 단일 column과 rowid를 검사하�
 기존 중복으로 UNIQUE 추가/역방향 적용이 실패하면 행·catalog·revision/recorder를 보존하고 명시적 수정 후 재시도한다.
 Insert/update의 non-PK 충돌은 `integrity_error/unique_constraint`이며 native cause와 context 취소를 유지한다.
 공통 ORM의 생성·수정 고유성 사전 검증은 같은 typed mutation과 양 DB exact 조회를 사용하며 저장 제약을 대체하지 않는다.
-Form/Admin/API·Helpdesk/client 소비자 연결은
-[활성 작업](../work/0095-model-uniqueness.md)에서 이어간다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
+Form/Admin/API는 확인된 입력 거부를 field/non-field 진단으로 전달한다. Helpdesk 외부 UUID의 실제 migration·양 DB HTTP
+소비자와 SQLite 기반 generated client를 연결했다. 실행 오류·취소·rollback 실패는 입력 오류로 바꾸지 않는다.
+필요한 통합 검증은 [활성 작업](../work/0095-model-uniqueness.md)에서 이어간다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.
 Time은 자정을 포함하는 날짜·시간대 없는 clock과 별도 NULL이다. 양 DB TIME과 canonical clock parameter를 사용하며

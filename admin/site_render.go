@@ -455,6 +455,12 @@ func violationValues(errors validation.Errors) ([]templates.Value, error) {
 	result := make([]templates.Value, len(violations))
 	for index, violation := range violations {
 		message := string(violation.Code())
+		if violation.Code() == validation.CodeUnique {
+			message = "A record with this value already exists."
+			if violation.Field() == validation.NonField {
+				message = "A record with these values already exists. Review the unique fields and try again."
+			}
+		}
 		params := violation.Params()
 		if len(params) > 0 {
 			parts := make([]string, len(params))

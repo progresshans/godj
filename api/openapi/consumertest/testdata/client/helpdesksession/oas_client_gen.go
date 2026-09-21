@@ -25,8 +25,9 @@ type Invoker interface {
 	// HelpdeskTicketCreate invokes helpdesk:ticket-create operation.
 	//
 	// The application assigns the selected category and checks its existence within the create
-	// transaction. Authentication, CSRF when required, and permission checks precede body parsing; input
-	// validation precedes the category lookup.
+	// transaction. Authentication, CSRF when required, and permission checks precede body parsing.
+	// Structural input validation precedes the category lookup; uniqueness checks follow it in the same
+	// transaction.
 	//
 	// POST /api/tickets/
 	HelpdeskTicketCreate(ctx context.Context, request *TicketCreate) (HelpdeskTicketCreateRes, error)
@@ -53,26 +54,32 @@ type Invoker interface {
 	// HelpdeskTicketPatch invokes helpdesk:ticket-patch operation.
 	//
 	// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
-	// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
-	// application's selected category. The current row lookup and update share one transaction. Generated
-	// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
-	// explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-	// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
-	// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
-	// clears the clock.
+	// identifier returns 404. Structural input validation precedes the target lookup. Uniqueness checks
+	// follow the authorized target lookup and exclude the current ticket. Non-null external references are
+	// unique across all tickets; SQL null references are distinct. Duplicate input returns 400
+	// validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
+	// rolls back the update. The target must belong to the application's selected category. The current
+	// row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+	// Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
+	// only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
+	// YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when
+	// nonzero; omitted values are preserved and null clears the clock.
 	//
 	// PATCH /api/tickets/{id}/
 	HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error)
 	// HelpdeskTicketUpdate invokes helpdesk:ticket-update operation.
 	//
 	// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
-	// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
-	// application's selected category. The current row lookup and update share one transaction. Generated
-	// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
-	// explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-	// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
-	// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
-	// clears the clock.
+	// identifier returns 404. Structural input validation precedes the target lookup. Uniqueness checks
+	// follow the authorized target lookup and exclude the current ticket. Non-null external references are
+	// unique across all tickets; SQL null references are distinct. Duplicate input returns 400
+	// validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
+	// rolls back the update. The target must belong to the application's selected category. The current
+	// row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+	// Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
+	// only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
+	// YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when
+	// nonzero; omitted values are preserved and null clears the clock.
 	//
 	// PUT /api/tickets/{id}/
 	HelpdeskTicketUpdate(ctx context.Context, request *TicketUpdate, params HelpdeskTicketUpdateParams) (HelpdeskTicketUpdateRes, error)
@@ -122,8 +129,9 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 // HelpdeskTicketCreate invokes helpdesk:ticket-create operation.
 //
 // The application assigns the selected category and checks its existence within the create
-// transaction. Authentication, CSRF when required, and permission checks precede body parsing; input
-// validation precedes the category lookup.
+// transaction. Authentication, CSRF when required, and permission checks precede body parsing.
+// Structural input validation precedes the category lookup; uniqueness checks follow it in the same
+// transaction.
 //
 // POST /api/tickets/
 func (c *Client) HelpdeskTicketCreate(ctx context.Context, request *TicketCreate) (HelpdeskTicketCreateRes, error) {
@@ -441,13 +449,16 @@ func (c *Client) sendHelpdeskTicketList(ctx context.Context, params HelpdeskTick
 // HelpdeskTicketPatch invokes helpdesk:ticket-patch operation.
 //
 // Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
-// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
-// application's selected category. The current row lookup and update share one transaction. Generated
-// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
-// explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
-// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
-// clears the clock.
+// identifier returns 404. Structural input validation precedes the target lookup. Uniqueness checks
+// follow the authorized target lookup and exclude the current ticket. Non-null external references are
+// unique across all tickets; SQL null references are distinct. Duplicate input returns 400
+// validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
+// rolls back the update. The target must belong to the application's selected category. The current
+// row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+// Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
+// only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
+// YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when
+// nonzero; omitted values are preserved and null clears the clock.
 //
 // PATCH /api/tickets/{id}/
 func (c *Client) HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error) {
@@ -568,13 +579,16 @@ func (c *Client) sendHelpdeskTicketPatch(ctx context.Context, request *TicketPat
 // HelpdeskTicketUpdate invokes helpdesk:ticket-update operation.
 //
 // Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
-// identifier returns 404. Input validation precedes the target lookup. The target must belong to the
-// application's selected category. The current row lookup and update share one transaction. Generated
-// id and assigned category cannot be supplied. Omitted nullable fields preserve their stored values;
-// explicit null clears them. Reviewed accepts only JSON true, false, or null. Service_on accepts ISO
-// calendar, compact and week dates and returns YYYY-MM-DD without a clock or timezone. Service_at
-// returns HH:MM:SS with six fractional digits when nonzero; omitted values are preserved and null
-// clears the clock.
+// identifier returns 404. Structural input validation precedes the target lookup. Uniqueness checks
+// follow the authorized target lookup and exclude the current ticket. Non-null external references are
+// unique across all tickets; SQL null references are distinct. Duplicate input returns 400
+// validation_error with external_reference/unique; a concurrent storage conflict uses all/unique and
+// rolls back the update. The target must belong to the application's selected category. The current
+// row lookup and update share one transaction. Generated id and assigned category cannot be supplied.
+// Omitted nullable fields preserve their stored values; explicit null clears them. Reviewed accepts
+// only JSON true, false, or null. Service_on accepts ISO calendar, compact and week dates and returns
+// YYYY-MM-DD without a clock or timezone. Service_at returns HH:MM:SS with six fractional digits when
+// nonzero; omitted values are preserved and null clears the clock.
 //
 // PUT /api/tickets/{id}/
 func (c *Client) HelpdeskTicketUpdate(ctx context.Context, request *TicketUpdate, params HelpdeskTicketUpdateParams) (HelpdeskTicketUpdateRes, error) {

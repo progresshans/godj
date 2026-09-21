@@ -80,7 +80,7 @@ func TestAtomicRelationRollsBackCallbackErrorAndCanceledContext(t *testing.T) {
 		}
 		return callbackErr
 	})
-	if !errors.Is(err, callbackErr) || errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) {
+	if err != callbackErr {
 		t.Fatalf("callback failure error = %v", err)
 	}
 	assertRelationFixtureState(t, backend, 2, 2)

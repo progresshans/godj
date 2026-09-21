@@ -162,6 +162,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	verifyHistoricalExpectedCostGrowth(t, ctx, backend, open, loaded, seedID)
 	verifyHistoricalExternalReferenceGrowth(t, ctx, backend, open, loaded, seedID)
 	verifyHistoricalJSONGrowth(t, ctx, backend, open, loaded, seedID)
+	t.Run("historical_unique_reference", func(t *testing.T) {
+		verifyHistoricalExternalReferenceUniqueness(t, ctx, backend, open, loaded, seedID, outsideID)
+	})
 
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal(err)
@@ -449,6 +452,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	verifyHelpdeskFloat(t, ctx, runtime, open, client, category.ID, created.ID)
 	verifyHelpdeskDecimal(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
 	verifyHelpdeskUUID(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
+	t.Run("unique_reference", func(t *testing.T) {
+		verifyHelpdeskUnique(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
+	})
 	verifyHelpdeskJSON(t, ctx, runtime, open, client, category.ID, created.ID, outside.ID)
 	// Ordinary ORM writes keep the complete int64 storage range. Both API and
 	// Admin display those old/out-of-choice values without substituting labels.

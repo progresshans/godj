@@ -54,6 +54,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if created.ExternalReference.Null || created.ExternalReference.Value != reference || string(created.ExternalPayload) != `{"":340282366920938463463374607431768211455}` {
 		return fail("helpdesk UUID create value")
 	}
+	if err := checkHelpdeskUniqueness(ctx, client, transport, state, seed, *created, target.OtherTicketID); err != nil {
+		return err
+	}
 	if err := checkHelpdeskJSONSearch(ctx, client, transport, state, *created); err != nil {
 		return err
 	}

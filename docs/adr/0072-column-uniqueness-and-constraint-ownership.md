@@ -1,6 +1,6 @@
 # ADR-0072: Column uniqueness and physical constraint ownership
 
-- 상태: Accepted — 공통 선언·이력·ORM 사전 검증과 양 DB 구현. 입력 소비자 연결은 GDJ-0095에서 진행 중.
+- 상태: Accepted — 공통 선언·이력·ORM·양 DB와 Helpdesk Form/Admin/API/client 연결 구현. 통합 검증은 GDJ-0095에서 진행 중.
 - 날짜: 2026-09-21
 - 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md)
 
@@ -115,10 +115,37 @@ PK projection·LIMIT 1로 존재 여부만 확인한다. Result cache를 공유�
 이 pure projection 계약이 실제 DB의 DDL/rollback 소유권을 대신하지 않는다.
 구체적인 출력·제한·실패 의미는 [ADR-0055](0055-project-linked-deterministic-migration-sql-projection.md)가 소유한다.
 
-## 남은 구현
+## 입력 소비자와 오류 소유권
 
-Form/Admin/API의 사전 검증과 DB 충돌 오류, Helpdesk의 외부 참조, 실제 generated client까지 이어서 검증한다.
-사전 검증이 통과하더라도 DB 제약을 최종 무결성 경계로 유지한다.
+`validation.Reject`는 입력 진단과 내부 원인을 분리한다. 표시 문자열과 `unique` 진단에 중복 값이나 기존 행을 넣지 않는다.
+`validation.Rejected`는 직접 전달된 rejection만 인식한다. Wrapped/joined error를 따라가 입력 오류로 바꾸지 않으므로
+rollback 실패·connection cleanup 실패·commit/transaction outcome unknown을 정상적인 입력 거부로 숨기지 않는다.
+진단이 비어 있으면 원인 오류를 그대로 반환한다. 호출자는 저장이 commit되지 않았음을 확인한 뒤 rejection을 게시한다.
+
+SQLite의 coordinated/relation transaction은 rollback과 connection 반환이 모두 성공한 경우 callback 오류를 그대로 반환한다.
+Cleanup 실패가 추가되면 양쪽 원인을 보존하고 기존 unknown outcome·quarantine 의미를 유지한다.
+Helpdesk는 transaction 뒤 확인한 context 취소도 실행 오류로 유지한다.
+
+`Form.WithErrors`는 bound form에 post-clean 진단을 더한 새 값을 만든다. 거부된 필드만 cleaned data에서 제외하고
+initial·changed·나머지 cleaned data를 보존한다. Non-field 오류는 cleaned data를 지우지 않으며 unknown field는 설정 오류다.
+Admin의 create/update callback은 이 rejection으로 같은 화면에 안전하게 escape한 제출 원문과 field/non-field 진단을 표시한다.
+진단은 선택된 form field나 `validation.NonField`만 허용한다. 실행 오류와 취소는 오류 경로에 남긴다.
+API는 `ValidationErrorResponse`로 같은 진단을 기존 HTTP 400 `validation_error` envelope에 담는다.
+
+Helpdesk는 nullable `external_reference`에 `schema.Unique()`를 선언한다. Non-null UUID는 category를 넘어 전역 고유하며
+SQL NULL은 여러 행에 허용한다. UUID 별칭은 정규화된 값으로 비교하고 zero UUID는 실제 고유값이다.
+Create/PUT/PATCH/Admin은 인증·CSRF·권한과 대상 category/행 확인 뒤 같은 transaction 안에서 사전 검증한다.
+자기 행은 제외하며 부분 수정의 생략값과 명시적 NULL을 구분한다. 사전 중복은 `external_reference/unique`다.
+사전 조회 이후에도 native constraint가 최종 무결성을 소유한다. Callback 내부의 직접 insert/update `unique_constraint`만
+`__all__/unique`로 변환하며 오류 문구로 field를 추측하지 않는다. Transaction이 실패하면 다른 수정도 저장하지 않는다.
+OpenAPI와 독립 generated client도 같은 응답을 소비한다.
+
+실제 생성된 migration `0016_alter_ticket_external_reference`는 기존 UUID column에 고유성을 추가한다.
+기존 중복 데이터는 migration을 실패시키며 값이나 이력을 자동 삭제하지 않는다. 명시적 수정 후 재시도하고 재접속해 확인한다.
+
+## 남은 구현과 검증
+
+이 수직 연결의 필요한 통합 milestone은 활성 작업과 TEST_EVIDENCE에서 추적한다.
 
 Composite/conditional/expression constraint, OneToOneField, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.

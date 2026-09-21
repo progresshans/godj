@@ -432,13 +432,24 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 			create = create.WithServiceAt(*input.serviceAt)
 		}
 		var err error
-		created, err = models.TicketObjects.Create(ctx, session, create)
-		if err == nil {
-			created, err = a.publishableTicket(ctx, session, created.ID)
+		violations, err := models.TicketObjects.ValidateUniqueCreate(ctx, session, create)
+		if err != nil {
+			return err
 		}
+		if !violations.Empty() {
+			return validation.Reject(violations, nil)
+		}
+		created, err = models.TicketObjects.Create(ctx, session, create)
+		if err != nil {
+			return ticketWriteRejection(err)
+		}
+		created, err = a.publishableTicket(ctx, session, created.ID)
 		return err
 	})
 	if err != nil {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return models.Ticket{}, errors.Join(err, contextErr)
+		}
 		return models.Ticket{}, err
 	}
 	return created, nil
@@ -585,13 +596,24 @@ func (a *Application) updatePatch(ctx context.Context, id int64, patch models.Ti
 			updated = current
 			return nil
 		}
-		updated, err = models.TicketObjects.Update(ctx, session, current, patch)
-		if err == nil {
-			updated, err = a.publishableTicket(ctx, session, updated.ID)
+		violations, err := models.TicketObjects.ValidateUniqueUpdate(ctx, session, current, patch)
+		if err != nil {
+			return err
 		}
+		if !violations.Empty() {
+			return validation.Reject(violations, nil)
+		}
+		updated, err = models.TicketObjects.Update(ctx, session, current, patch)
+		if err != nil {
+			return ticketWriteRejection(err)
+		}
+		updated, err = a.publishableTicket(ctx, session, updated.ID)
 		return err
 	})
 	if err != nil {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return models.Ticket{}, nil, errors.Join(err, contextErr)
+		}
 		return models.Ticket{}, nil, err
 	}
 	return updated, changed, nil
@@ -742,6 +764,9 @@ func (a *Application) apiCreate(request *web.Request, _ auth.Principal) (web.Res
 		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
 	}
 	if err != nil {
+		if response, handled, responseErr := api.ValidationErrorResponse(err); handled {
+			return response, responseErr
+		}
 		return web.Response{}, err
 	}
 	value, err := a.encoder.Encode(created)

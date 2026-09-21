@@ -361,6 +361,10 @@ func finishRelationPreCommitFailure(
 	mutationPossible bool,
 ) error {
 	terminated, cleanupErr := rollbackRelationConnection(ctx, connection, admission)
+	if terminated && cleanupErr == nil {
+		// Confirmed clean rollback preserves the callback's error ownership.
+		return primary
+	}
 	cause := errors.Join(primary, cleanupErr)
 	if mutationPossible && !terminated {
 		return &query.Error{

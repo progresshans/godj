@@ -181,6 +181,10 @@ func finishCoordinatedPreCommitFailure(
 	primary error,
 ) error {
 	terminated, cleanupErr := rollbackRelationConnection(ctx, connection, admission)
+	if terminated && cleanupErr == nil {
+		// Confirmed clean rollback preserves the callback's error ownership.
+		return primary
+	}
 	cause := errors.Join(primary, cleanupErr)
 	if !terminated {
 		return &query.Error{

@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — Form/Admin/API 고유성 진단과 Helpdesk 수직 연결
+
+2026-09-21, darwin/arm64 Go **1.26.5**, PostgreSQL **17.5 Homebrew**, `modernc.org/sqlite v1.56.0`,
+`TZ=Pacific/Chatham`, `GODJ_REQUIRE_POSTGRES=1`. Normal/race는 **CGO_ENABLED=1**, CGO-disabled는 **0**이다.
+기준 `1c2452f1e3bced1c2b300facc85425c870a29d3e` 위 제품·검증·생성물 **43경로** manifest SHA256은
+`af5b3dc7cd7a16612f07fbbd560e7f624645e17c1110118de6326248e21ad16e`다.
+설계와 오류 소유권은 [ADR-0072](../adr/0072-column-uniqueness-and-constraint-ownership.md)가 소유한다.
+
+- `validation.Reject`는 안전한 표시 진단과 내부 원인을 분리하며 직접 전달된 rejection만 입력 오류로 처리한다.
+  Wrapped/joined 오류·rollback 실패·unknown outcome과 취소를 숨기지 않는다. `Form.WithErrors`는 bound form을 복사하고
+  거부된 필드만 cleaned data에서 제외한다. Initial/changed·나머지 값과 원래 form을 보존하며 unknown field는 거부한다.
+- Admin create/update는 선택된 field/non-field 오류를 같은 form에 표시하고 제출한 UUID 별칭과 HTML 원문을 안전하게 escape한다.
+  API는 HTTP 400 `validation_error`와 `unique` 진단을 반환한다. 기존 값·행 식별자·native 오류 문구는 응답에 담지 않는다.
+- Helpdesk의 `schema.Unique()` 선언에서 실제 generator로 12개 Go 파일을 갱신하고 makemigrations로 **0016**을 생성했다.
+  Migration SHA256은 `e31a0ffac6b39a2bdf25a417b1b9cd865c5d960fc2323fa6624d5720d5620bc1`이다.
+  양 DB에서 0015의 중복을 만든 뒤 0016 실패 시 정확한 행과 migration state 보존, 명시적 데이터 수정 뒤 재시도·재접속과 실제 제약을 확인했다.
+- 양 DB 실제 HTTP의 POST/PUT/PATCH와 Admin add/change에서 category를 넘어선 중복을 거부하고 다른 필드도 저장하지 않았다.
+  자기 행 제외·UUID 별칭·zero UUID·생략·NULL·재접속 후 저장값을 확인했다. 다른 category의 대상 404, 권한/CSRF 403은
+  고유성 조회·쓰기 전에 발생한다. 수정 전후 전체 모델 값을 비교했다.
+- Advisory 조회만 빈 결과로 바꾸고 실제 native insert/update를 실행하여 저장 제약의 거부를 `__all__/unique`로 표시했다.
+  이것은 **경쟁 뒤 stale read의 fault simulation**이며 이번 HTTP 검사 자체를 실제 두 writer 경쟁으로 세지 않는다.
+  실제 두 pool의 경쟁 결과는 앞선 ORM/backend checkpoint에 속한다. 조회 실패와 rollback-unknown 오류를 추가한 simulation은
+  API/Admin 500과 기존 데이터 보존을 확인하며 입력 오류로 축소하지 않는다.
+- SQLite coordinated/relation transaction은 rollback과 connection 반환이 모두 성공하면 callback 오류를 그대로 전달한다.
+  실제 파일 DB의 rollback 후 다른 backend 진입, cleanup 실패의 두 원인·unknown outcome·quarantine·취소·panic과 세션 만료 회귀를 확인했다.
+- 실제 OpenAPI를 export하고 locked/offline Ogen으로 client를 재생성했다. Article 두 profile은 불변이며 Helpdesk는 설명과
+  생성 client 주석만 달라졌다. Parent가 독립 module의 생성물 일치·compile·실제 HTTP·최종 DB를 확인했다.
+  Parent/child의 **36개 required check**와 race 계측 receipt도 일치한다. 새 check는 duplicate create/update·자기 행·권한 범위를 소비한다.
+  Generated HTTP client fixture는 **SQLite**다. PostgreSQL은 별도의 실제 Helpdesk HTTP 검사이며 둘을 같은 client 환경으로 합치지 않는다.
+
+모든 Go 명령은 `-json -count=1 -timeout=15m`을 사용했다.
+SQLite selector `S`는 `CoordinatedAtomic|AtomicRelation|RelationTransaction|RelationSession|RelationRetention|ForceDiscardRelation|Unconfirmed.*Cleanup|BackendClose`다.
+
+| 실행 | 결과 |
+|---|---|
+| Normal: `./validation ./forms/... ./admin ./api/... ./examples/helpdesk ./examples/article/apiapp ./systemstate` | 12 package, root 224 / **1,751 run=PASS** |
+| Normal: `-run S ./db/sqlite` | root 32 / **68 run=PASS** |
+| Race: `./validation ./forms/... ./admin ./api ./examples/helpdesk ./api/openapi/consumertest` | 7 package, root 110 / **1,369 run=PASS** |
+| Race: `-run S ./db/sqlite` | root 32 / **68 run=PASS** |
+| CGO=0: `-run 'Rejection\|Rejected\|WithErrors\|ValidationErrorResponse\|PublicHelpdesk\|GeneratedOpenAPIClientContract' ./validation ./forms ./admin ./api ./examples/helpdesk ./api/openapi/consumertest` | 6 package, root 9 / **17 run=PASS** |
+| CGO=0: `-run S ./db/sqlite` | root 32 / **68 run=PASS** |
+
+최종 normal **1,819**, race **1,437**, CGO=0 **85 run=PASS**이며 skip/fail·stderr는 모두 **0**이다.
+양 DB historical/HTTP unique subtest, external client, SQLite callback/cleanup 필수 sentinel·package terminal·run/pass roster와
+각 실행 전후 동일 source manifest를 대조했다.
+
+초기 첫 실행은 검사 클라이언트의 CSRF token 갱신 누락으로 양 DB HTTP와 child client가 실패했다. 기존 인증 흐름에 맞춰 수정했다.
+두 번째 실행의 SQLite 500은 정상 rollback도 `errors.Join(primary, nil)`로 감싸 입력 오류의 소유권을 잃는 제품 결함이었다.
+오류 전달을 고치고 cleanup 실패/불명확한 결과의 음성 대조를 유지했다. 최종 OpenAPI 설명의 검증 순서를 정정·재생성한 뒤
+위 여섯 실행을 같은 최종 source에서 모두 수행했다. 초기 실패를 성공 기록에서 제외했다.
+
+Affected vet, `make format-check docs-check`, `git diff --check`, Helpdesk `generate --check`·`makemigrations --check`는 PASS다.
+Generated snapshot은 `9f6c990b6169cb3061a44df5bbaffb34d308c5d558c7b8ca4c85320b359cc3ee`, 12파일이며 추가 migration 후보는 0이다.
+전용 PostgreSQL DB는 잔여 연결·사용자 table·test schema **각 0** 확인 후 삭제하고 기존 service는 유지했다.
+이는 입력 소비자와 관련 트랜잭션의 로컬 checkpoint다. 전체 platform/cold-build·DB/process의 고정 source Hosted full 통합은 다음 milestone이다.
+
 ## GDJ-0095 — ORM 고유성 사전 검증과 실제 쓰기의 공통 입력
 
 2026-09-21, darwin/arm64 Go **1.26.5**, native PostgreSQL **17.5 Homebrew**, SQLite driver `modernc.org/sqlite v1.56.0`,

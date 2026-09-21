@@ -40,7 +40,7 @@ Raw와 실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소�
 - [x] 양 DB Create/Add/Alter·reverse 실행과 현행 forward SQL projection, 선언된 unique constraint/index의 정확한 catalog 검증
 - [x] 기존 중복 데이터의 실패/rollback·recorder/revision 보존·재시도·reverse·reopen·inbound FK/sequence 보존
 - [x] 실제 insert/update 충돌의 안정적 무결성 오류·취소·경쟁 쓰기와 정상 결과 보존
-- [ ] 재사용 가능한 context/error 기반 검증과 Helpdesk Form/Admin/API·OpenAPI/client 연결
+- [x] 재사용 가능한 context/error 기반 검증과 Helpdesk Form/Admin/API·OpenAPI/client 연결
 - [ ] 관련 생성 소비자·DB/process/race checkpoint와 고정 source의 필요한 통합 milestone
 
 고유성 검사는 DB의 저장·equality·collation 의미를 따른다. SQL NULL의 기본 distinct 정책과 빈 값/JSON null/zero UUID를 구분한다.
@@ -84,5 +84,12 @@ SQL NULL은 조회하지 않는다. PK만 최대 한 행 조회하고 DB 오류�
 두 writer의 사전 검사가 모두 통과해도 실제 경쟁 쓰기는 DB가 1성공/1거부를 결정하는 경계도 유지한다.
 실제 생성 모델의 기본값·부분 수정·잘못된 mutation·공유 metadata·동시 검증과 기존 소비자 회귀는 TEST_EVIDENCE에 기록한다.
 
-다음은 이 사전 검증·양 DB 저장 충돌을 Form/Admin/API·Helpdesk/generated client에 연결하는 것이다.
-Backend checkpoint를 소비자 연결이나 전체 고유성 작업의 완료로 합치지 않는다.
+`validation.Reject`의 명시적 입력 거부와 `Form.WithErrors`를 Admin/API에 연결했다. Wrapped/joined 오류·취소·rollback
+실패와 unknown outcome은 입력 진단으로 숨기지 않는다. SQLite coordinated/relation transaction의 정상 rollback은 callback
+오류의 소유권을 그대로 전달한다. Helpdesk는 생성된 0016 migration으로 non-null 외부 UUID를 전역 고유하게 만들며,
+사전 검증 뒤에도 실제 DB 제약을 유지한다. 양 DB의 HTTP CRUD/Admin·기존 중복 migration 실패/재시도와 SQLite 기반
+generated client를 로컬 normal·race·CGO-disabled에서 확인했다. Source·정확한 범위와 초기 실패는 TEST_EVIDENCE가 소유한다.
+
+다음 통합 milestone은 이 작업의 선언·생성·migration·양 DB·ORM·Form/Admin/API/client 변경을 고정 source에서 묶는
+Hosted `full`이다. 전체 platform/cold-build·DB/process와 generated 소비자는 이 milestone에서 확인하며 로컬 전체 gate를
+중복 실행하지 않는다. 필수 job/source/실행 누락과 환경별 결과를 확인하기 전까지 전체 고유성 작업을 완료 처리하지 않는다.

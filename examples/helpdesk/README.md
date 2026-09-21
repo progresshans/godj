@@ -49,6 +49,11 @@ external_reference는 nullable 외부 UUID 참조다. API는 UUID 표기 별칭�
 Admin은 별칭을 같은 값으로 비교하고 canonical 초기값을 표시하며 빈 제출은 null이다.
 OpenAPI 표준 schema는 canonical client 문자열을 기술하고 추가 입력 정책은 x-godj-uuid에 기록한다.
 [UUID 값과 입력 경계](../../docs/adr/0070-uuid-model-values-and-storage.md)를 따른다.
+Non-null 외부 참조는 Category를 넘어 모든 티켓에서 고유하다. SQL NULL은 여러 행에 허용하지만 zero UUID는 실제 고유값이다.
+인증·CSRF·권한과 대상 확인 뒤 사전 검증하며 자기 티켓은 제외한다. 중복 API 입력은 HTTP 400 `validation_error`와
+`external_reference/unique` 진단을 반환한다. 사전 조회 후 발생한 실제 저장 충돌은 `__all__/unique`이며 같은 transaction의
+다른 필드 수정도 rollback한다. Admin은 제출 원문을 escape해 보존하고 field/non-field 오류를 표시한다.
+DB 조회·rollback·결과 불확실성 오류는 입력 오류로 바꾸지 않는다. [고유성과 오류 소유권](../../docs/adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
 external_payload는 nullable 외부 JSON 데이터다. Object/array/string/bool/number를 그대로 받고 큰 정수와 숫자 token을 보존한다.
 문자열 안의 JSON 문법은 다시 해석하지 않는다. 명시적 null은 SQL NULL로 비우며 PUT/PATCH 생략은 기존 값을 보존한다.
 빈 object/array/string은 null과 다른 값이며 JSON 내부 빈 key도 허용한다. Duplicate key·잘못된 Unicode·NUL은 거부한다.
@@ -77,6 +82,8 @@ go run ./cmd/godj generate --check --project examples/helpdesk/godj.toml
 `go run ./cmd/godj makemigrations --project examples/helpdesk/godj.toml`은 선언과 `migrations/`의 차이를 작성한다.
 `0001_initial`부터 `0004_ticket_due_at`까지 보존한다. `0005_alter_ticket_priority`는 선택값을 추가하고 `0006_alter_ticket_priority`는 표시명·순서를 변경한다. 두 metadata 변경은 DDL을 만들지 않는다. `0007_ticket_reviewed`와 `0008_ticket_service_on`은 각각 nullable Boolean과 Date를 추가하고 기존 행은 null로 유지한다. `0009_ticket_service_at`, `0010_ticket_elapsed`, `0011_ticket_effort`, `0012_ticket_expected_cost`는 Time·Duration·Float·Decimal을 추가하며 기존 행은 null이다. `0013_alter_ticket_expected_cost`는 기존 비용을 보존하면서 Decimal(12, 2)를 Decimal(14, 2)로 늘린다. 새 한도에만 맞는 값이 남아 있으면 역방향 변경은 반올림 없이 실패하고, 명시적으로 값을 수정한 뒤 다시 시도할 수 있다. `0014_ticket_external_reference`는 UUID, `0015_ticket_external_payload`는 JSON을 추가하며 기존 행은 null이다. `MigrationSources()`의 전체 source를 loader에 전달한다.
 테스트는 0001의 기존 행, 필드 추가/역방향, 0004의 범위 밖 priority 값에 0005·0006 적용/역방향/재적용, Form/Admin/API의 선택값 검증과 기존 값 보존을 다룬다.
+`0016_alter_ticket_external_reference`는 UUID 참조에 고유성을 추가한다. 기존 중복이 있으면 데이터와 적용 이력을 보존한 채
+실패하며 명시적으로 중복을 정리한 후 재시도한다. 테스트는 실제 양 DB의 실패·수정·재시도·재접속과 Admin/API 중복 거부를 확인한다.
 PostgreSQL 검증은 `GODJ_TEST_POSTGRES_URL`과 명시적인 `GODJ_REQUIRE_POSTGRES=1`로 실행하며, CI의 pinned service가 소유한다.
 
 관계와 함께 읽는 목록은 같은 query의 `Count(ctx)`로 페이지네이션할 수 있다. 예를 들어

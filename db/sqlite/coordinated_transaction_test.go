@@ -103,11 +103,28 @@ func TestExecuteCoordinatedAtomicCallbackAndTerminalContracts(t *testing.T) {
 			calls++
 			return callbackErr
 		}, connection, newRelationRetentionState(), nil)
-		if !errors.Is(err, callbackErr) || calls != 1 {
+		if err != callbackErr || calls != 1 {
 			t.Fatalf("callback failure = %v, calls = %d", err, calls)
 		}
 		if got := fmt.Sprint(connection.statementSnapshot()); got != fmt.Sprint([]string{"BEGIN IMMEDIATE", "ROLLBACK"}) {
 			t.Fatalf("statements = %s, want BEGIN/ROLLBACK", got)
+		}
+	})
+
+	t.Run("rollback_close_failure_keeps_both_error_owners", func(t *testing.T) {
+		callbackErr := errors.New("callback input rejection")
+		closeErr := errors.New("rolled-back connection return failure")
+		connection := &relationFaultConnection{closeErr: closeErr}
+		err := executeCoordinatedAtomic(context.Background(), func(db.Session) error {
+			return callbackErr
+		}, connection, newRelationRetentionState(), nil)
+		if err == callbackErr || !errors.Is(err, callbackErr) || !errors.Is(err, closeErr) ||
+			errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) {
+			t.Fatalf("cleanup failure lost ownership or reported unknown outcome: %v", err)
+		}
+		if connection.closeCalls.Load() != 1 || connection.rawCalls.Load() != 0 ||
+			fmt.Sprint(connection.statementSnapshot()) != fmt.Sprint([]string{"BEGIN IMMEDIATE", "ROLLBACK"}) {
+			t.Fatal("cleanup failure did not preserve the rollback lifecycle")
 		}
 	})
 
@@ -540,7 +557,7 @@ func TestCoordinatedAtomicRealMutationErrorRollsBackBeforeOtherBackendAcquires(t
 		t.Fatal("first coordinated mutation did not run")
 	}
 	releaseCallback()
-	if err := waitCoordinatedResult(t, firstResult); !errors.Is(err, callbackErr) {
+	if err := waitCoordinatedResult(t, firstResult); err != callbackErr {
 		t.Fatalf("first CoordinatedAtomic() error = %v, want callback error", err)
 	}
 	if firstCalls.Load() != 1 {

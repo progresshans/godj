@@ -133,6 +133,9 @@ func (a *Application) apiUpdateMode(request *web.Request, mode serializers.Mode)
 		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
 	}
 	if err != nil {
+		if response, handled, responseErr := api.ValidationErrorResponse(err); handled {
+			return response, responseErr
+		}
 		return web.Response{}, err
 	}
 	value, err := a.encoder.Encode(updated)

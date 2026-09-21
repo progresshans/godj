@@ -187,17 +187,21 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			if err != nil {
 				return web.Response{}, err
 			}
-			if !form.Valid() {
-				context, contextErr := site.formContext(model, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, values)
-				if contextErr != nil {
-					return web.Response{}, contextErr
+			if form.Valid() {
+				_, saveErr := model.create(request.Context(), principal, form)
+				if saveErr == nil {
+					return siteRedirect(site.signedNoticeLocation(model, "added", ""))
 				}
-				return site.render(request, "form.html", context)
+				form, err = formWithRejection(request.Context(), form, saveErr)
+				if err != nil {
+					return web.Response{}, err
+				}
 			}
-			if _, err := model.create(request.Context(), principal, form); err != nil {
-				return web.Response{}, err
+			context, contextErr := site.formContext(model, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, values)
+			if contextErr != nil {
+				return web.Response{}, contextErr
 			}
-			return siteRedirect(site.signedNoticeLocation(model, "added", ""))
+			return site.render(request, "form.html", context)
 		})
 	}
 }
@@ -270,20 +274,24 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			if err != nil {
 				return web.Response{}, err
 			}
-			if !form.Valid() {
-				context, contextErr := site.formContext(model, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, values)
-				if contextErr != nil {
-					return web.Response{}, contextErr
+			if form.Valid() {
+				_, _, saveErr := model.update(request.Context(), principal, id, form)
+				if saveErr == nil {
+					return siteRedirect(site.signedNoticeLocation(model, "changed", ""))
 				}
-				return site.render(request, "form.html", context)
-			}
-			if _, _, err := model.update(request.Context(), principal, id, form); err != nil {
-				if errors.Is(err, ErrObjectNotFound) {
+				if errors.Is(saveErr, ErrObjectNotFound) {
 					return siteNotFound()
 				}
-				return web.Response{}, err
+				form, err = formWithRejection(request.Context(), form, saveErr)
+				if err != nil {
+					return web.Response{}, err
+				}
 			}
-			return siteRedirect(site.signedNoticeLocation(model, "changed", ""))
+			context, contextErr := site.formContext(model, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, values)
+			if contextErr != nil {
+				return web.Response{}, contextErr
+			}
+			return site.render(request, "form.html", context)
 		})
 	}
 }

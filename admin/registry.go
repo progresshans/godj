@@ -181,9 +181,12 @@ type ModelConfig[M any] struct {
 	// declared model values are optional and validated when explicitly supplied.
 	Snapshot func(M) (Object, error)
 	Initial  func(M) (map[string]forms.Value, error)
-	Create   func(context.Context, auth.Principal, forms.Values) (M, error)
-	Update   func(context.Context, auth.Principal, int64, forms.Values) (M, []string, error)
-	Delete   func(context.Context, auth.Principal, int64) (M, error)
+	// Create/Update may return validation.Reject after confirming no mutation
+	// committed. Diagnostics must name selected form fields or validation.NonField.
+	// Preserve transaction/rollback failures as execution errors instead.
+	Create func(context.Context, auth.Principal, forms.Values) (M, error)
+	Update func(context.Context, auth.Principal, int64, forms.Values) (M, []string, error)
+	Delete func(context.Context, auth.Principal, int64) (M, error)
 	// History is optional. Its absence removes history routes and links.
 	History func(context.Context, int64, HistoryRequest) ([]AuditEntry, error)
 	Actions []ActionConfig
