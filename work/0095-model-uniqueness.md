@@ -1,6 +1,6 @@
 ---
 id: GDJ-0095
-status: active
+status: completed
 updated: 2026-09-21
 baseline_commit: "ef9b05c0ec829d5cb38c0944507a70f0a5e1f483"
 integration_owner: "root"
@@ -41,14 +41,14 @@ Raw와 실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소�
 - [x] 기존 중복 데이터의 실패/rollback·recorder/revision 보존·재시도·reverse·reopen·inbound FK/sequence 보존
 - [x] 실제 insert/update 충돌의 안정적 무결성 오류·취소·경쟁 쓰기와 정상 결과 보존
 - [x] 재사용 가능한 context/error 기반 검증과 Helpdesk Form/Admin/API·OpenAPI/client 연결
-- [ ] 관련 생성 소비자·DB/process/race checkpoint와 고정 source의 필요한 통합 milestone
+- [x] 관련 생성 소비자·DB/process/race checkpoint와 고정 source의 필요한 통합 milestone
 
 고유성 검사는 DB의 저장·equality·collation 의미를 따른다. SQL NULL의 기본 distinct 정책과 빈 값/JSON null/zero UUID를 구분한다.
 누적 history와 실제 catalog를 함께 검증하고, 알 수 없는 index/constraint를 허용하거나 데이터 삭제로 migration을 통과시키지 않는다.
 부분 수정이나 사전 조회 결과를 원자적 무결성의 대체물로 사용하지 않는다. 권한 검사는 조회·검증·쓰기보다 앞에 유지한다.
 검증용 저장소·필수 실행·skip/실패/환경 범위는 이전 작업의 성공과 합치지 않는다.
 
-## 현재 상태와 다음 행동
+## 구현 결과
 
 `schema.Unique()`·IR·생성 metadata·strict project wire·historical definition/digest와 자동 변경 계획을 연결했다.
 12종 scalar와 현재 FK에서 같은 속성을 유지하며, PK의 고유성은 PK가 소유하므로 별도 Unique flag는 정규화 과정에서 제거한다.
@@ -90,10 +90,13 @@ SQL NULL은 조회하지 않는다. PK만 최대 한 행 조회하고 DB 오류�
 사전 검증 뒤에도 실제 DB 제약을 유지한다. 양 DB의 HTTP CRUD/Admin·기존 중복 migration 실패/재시도와 SQLite 기반
 generated client를 로컬 normal·race·CGO-disabled에서 확인했다. Source·정확한 범위와 초기 실패는 TEST_EVIDENCE가 소유한다.
 
-다음 통합 milestone은 이 작업의 선언·생성·migration·양 DB·ORM·Form/Admin/API/client 변경을 고정 source에서 묶는
-Hosted `full`이다. 전체 platform/cold-build·DB/process와 generated 소비자는 이 milestone에서 확인하며 로컬 전체 gate를
-중복 실행하지 않는다. 필수 job/source/실행 누락과 환경별 결과를 확인하기 전까지 전체 고유성 작업을 완료 처리하지 않는다.
-초회 Hosted 실행에서 드러난 격리 생성기 의존성·외부 renderer fixture와 portable reference의 SQLite 차이를 수정하고
-관련 로컬 검사를 수행했다. 수정 source의 Hosted 통합 결과는 아직 완료하지 않았으며 TEST_EVIDENCE에서 별도로 추적한다.
+이 작업의 선언·생성·migration·양 DB·ORM·Form/Admin/API/client 변경을 source
+`42ae95d3b1a891e6a0692fb0399968e483f4d907`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/35607632806)로 통합 검증했다.
+전체 platform/cold-build·DB/process와 generated 소비자는 이 milestone이 소유하며 로컬 전체 gate를 중복 실행하지 않았다.
+초회 Hosted 실행에서 드러난 격리 생성기 의존성·외부 renderer fixture와 portable reference의 SQLite 차이를 수정했다.
+최종 source·필수 owner·환경별 실행과 앞선 실패는 TEST_EVIDENCE에서 구분한다.
 Native PostgreSQL core는 고유성 reference writes·경쟁/rollback·Alter 실패 복구·nullable/FK reverse·physical drift의
 다섯 integration root를 normal/race/CGO-disabled 모두 필수 실행으로 검사한다. 이 선택이 없던 이전 run은 해당 native 증거가 아니다.
+
+Column uniqueness 수직 연결을 완료했다. 다음은 [GDJ-0096 일대일 관계](0096-one-to-one-service-reports.md)이며,
+composite/conditional/expression constraint와 전체 카탈로그의 미완료 범위는 그대로 유지한다.

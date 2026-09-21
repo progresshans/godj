@@ -91,3 +91,9 @@ DecimalField는 같은 pinned Django의 model/form DecimalField·DecimalValidato
 [독립 runner](../conformance/runners/django/decimal_reference.py)는 public 입력·precision·JSON 표현과 실제 SQLite 저장 결과를 생성하고,
 [ADR-0069](adr/0069-exact-decimal-values-and-storage.md)는 exact 값·SQLite BLOB·PostgreSQL NUMERIC과 JSON lexical Decimal profile을 구분한다.
 [GDJ-0091](../work/0091-decimal-cost-models.md)과 실행 증거에서 설계 채택·제품 연결·환경별 검증을 별도로 유지한다.
+
+OneToOne은 같은 pinned Django의 [관계 필드](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related.py),
+[관계 descriptor](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_descriptors.py),
+[공개 OneToOneField 동작](https://docs.djangoproject.com/en/6.1/ref/models/fields/#onetoonefield)을 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/one_to_one_reference.py)는 `derived=false`로 작성한 public ORM·ModelForm·migration 입력이다.
+기대 fixture와 GoDj를 읽지 않으며 [활성 작업](../work/0096-one-to-one-service-reports.md)에서 기준 관찰과 제품 구현을 구분한다.

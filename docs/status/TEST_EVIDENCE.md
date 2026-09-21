@@ -3,6 +3,64 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0096 — 일대일 관계의 독립 기준 관찰
+
+2026-09-21, 기준 `42ae95d3b1a891e6a0692fb0399968e483f4d907` 위 독립 runner·검사·양 DB raw fixture **4경로**의
+manifest SHA256은 `ef22e3c9d94f0af349af81bf78a7ce93d8653042dcbb9ace66768726a756902a`다.
+Runner 자체의 SHA256은 `e5aa2df23278e4e6f65f72df2db1f576c23f8cc1569e2ef5dc2db07c7290873f`다.
+[독립 runner](../../conformance/runners/django/one_to_one_reference.py)는 GoDj·기대 fixture를 읽지 않으며
+Django **6.1**, Python **3.14.3**의 public ORM·ModelForm·historical state/autodetector/schema editor를 사용한다.
+
+- SQLite **3.50.4**와 PostgreSQL **17.5 Homebrew**/psycopg **3.3.6**에서 cross-app 관계의 **37개 동작과 2개 migration 경로**를 각각 실행했다.
+  Required/nullable·명시적/default/hidden reverse, 단일 객체/부재·warm cache/refresh·reciprocal cache, eager/prefetch,
+  filter/exclude/OR, Form의 중복/자기 행/선택 오류, 실제 중복 저장·rollback·PROTECT/SET_NULL과 assignment/save를 관찰했다.
+  FK+Unique의 reverse는 collection이며 OneToOne의 단일 객체 의미와 다르다.
+- 일반 FK에 중복 행이 있으면 OneToOne 변경이 실패하며 행과 물리 제약이 그대로다. 명시적으로 중복을 수정한 뒤
+  재시도·재접속하면 실제 UNIQUE가 생긴다. Reverse는 원래 비고유 FK를 복구한다. 기존 FK+Unique의 변경도 별도
+  AlterField로 감지하며 역방향 변경 뒤 고유성은 유지한다. 양 경우 처음/실패 후/reverse의 제약과 행을 실제로 비교했다.
+- 양 DB의 37개 결과·오류·SELECT 수는 같았다. DBAPI transaction 시작문의 execute-wrapper 포착 차이와 각 backend의
+  물리 constraint 이름/구조는 raw에 보존했다. SQLite에서 보이는 BEGIN이 PostgreSQL capture에 없다는 이유로 rollback을 추론하지 않는다.
+  실제 rollback 후 행을 다시 읽어 확인했다. 전용 PostgreSQL DB는 잔여 user table·다른 connection 각각 **0** 확인 후 삭제했고 기존 service는 유지했다.
+
+Python reference 검사는 각 환경에서 서로 다른 hash seed **0·813**의 새 subprocess 결과를 저장 fixture와 비교한다.
+CI와 같은 완전 실행 검사로 세 test가 각각 한 번 시작/종료되고 skip/failure가 없음을 확인했다.
+
+| Python | 실제 SQLite | 결과 |
+|---|---|---|
+| 3.12.13 | 3.50.4 | 3 PASS, skip 0 |
+| 3.13.15 | 3.53.1 | 3 PASS, skip 0 |
+| 3.14.3 | 3.50.4 | 3 PASS, skip 0 |
+| 3.14.7 | 3.53.1 | 3 PASS, skip 0 |
+
+총 **12 PASS**는 새 독립 reference의 재현 검사다. 문서 **138개**의 local 링크·format·diff 검사도 통과했다.
+GoDj OneToOne 제품 구현이나 그 플랫폼 검증의 PASS가 아니다.
+새 runner는 기존 Python test discovery에 포함된다. 이후 제품의 IR·migration·generated ORM·입력 소비자 연결은
+[활성 작업](../../work/0096-one-to-one-service-reports.md)에 남아 있다.
+
+## GDJ-0095 — 고정 source의 Hosted full 완료
+
+2026-09-21, source **`42ae95d3b1a891e6a0692fb0399968e483f4d907`**의
+[CI run 35607632806](https://github.com/progresshans/godj/actions/runs/35607632806), `workflow_dispatch`, `suite=full`, **attempt 1**이 완료됐다.
+페이지 전체의 job 목록과 source/run identity를 대조했으며 **62개 job 모두 success**, 실패·취소·누락·skipped job은 없다.
+최종 `CI result (full)`의 실제 출력은 `scope=full`, `full_platform_verified=true`다.
+검증한 owner 집합은 scopes.py의 선택과 일치하는 portable Go·relation product·project check·command products·
+PostgreSQL·exact Darwin·Python compatibility·conformance의 **8개**다.
+
+- PostgreSQL **17.10** native core는 normal·race·CGO-disabled 각각 **13 package, 2,014 run=PASS, skip 0**이다.
+  Exact service profile·실제 실행 inventory·clean worktree step이 모두 성공했으며 고유성의 필수 integration root 다섯 개가
+  세 모드 모두의 required/no-skip 검사에 포함되어 실행됐다. 앞선 목록 누락 상태의 결과를 대신 사용하지 않았다.
+- Exact darwin/arm64 profile은 Python suite **306 PASS, skip 0**이다. Python **3.12.13·3.13.15·3.14.3·3.14.7**
+  compatibility는 모두 native SQLite **3.45.1**, 각각 **306 tests = 302 PASS + 4 prescribed skip**이다.
+  이 네 exact-profile 전용 검사는 별도 exact job이 소유하며 compatibility의 skip을 실행 성공으로 세지 않는다.
+- Conformance job은 이 run에서 성공한 두 PostgreSQL capture producer를 해석하고 해당 artifact의 source/run/attempt를 검증한 후
+  실제 비교를 실행했다. Oracle checksum·생성물/reference 불변·32-bit compile/relation product step도 성공했다.
+  오래된 저장 capture나 다른 source의 결과를 current attestation으로 사용하지 않았다.
+
+초회 fixture/portable reference 실패와 중간 native root 선택 누락은 아래에 보존한다. 최종 run만 full 완료 근거다.
+GDJ-0095 column uniqueness의 선언부터 양 DB·ORM·Form/Admin/API·Helpdesk/client까지의 통합을 완료 처리한다.
+Composite/conditional/expression constraint·OneToOne과 전체 카탈로그의 남은 범위는 완료하지 않았다.
+이후 상태 문서와 GDJ-0096 reference 추가는 별도 변경이며 이 full 결과의 source를 새 HEAD로 바꾸지 않는다.
+
 ## GDJ-0095 — Native PostgreSQL 고유성 검사의 Hosted 실행 소유권
 
 2026-09-21, source `182543929bde8e3f7edbd954383dd643d8a02df0`의

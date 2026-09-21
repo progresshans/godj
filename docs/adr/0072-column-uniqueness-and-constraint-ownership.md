@@ -143,9 +143,10 @@ OpenAPI와 독립 generated client도 같은 응답을 소비한다.
 실제 생성된 migration `0016_alter_ticket_external_reference`는 기존 UUID column에 고유성을 추가한다.
 기존 중복 데이터는 migration을 실패시키며 값이나 이력을 자동 삭제하지 않는다. 명시적 수정 후 재시도하고 재접속해 확인한다.
 
-## 남은 구현과 검증
+## 검증과 남은 범위
 
-이 수직 연결의 필요한 통합 milestone은 활성 작업과 TEST_EVIDENCE에서 추적한다.
+이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.
+실행 source와 환경별 결과는 TEST_EVIDENCE가 소유하며 이후 변경의 검증으로 옮겨 쓰지 않는다.
 
 Composite/conditional/expression constraint, OneToOneField, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.

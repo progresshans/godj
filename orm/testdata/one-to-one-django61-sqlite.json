@@ -1,0 +1,827 @@
+{
+  "backend": "sqlite",
+  "database_version": "3.50.4",
+  "django": "6.1",
+  "django_related_field_source_sha256": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3",
+  "field_shapes": {
+    "DefaultDetail": {
+      "hidden": false,
+      "many_to_one": false,
+      "null": false,
+      "one_to_one": true,
+      "reverse_name": "defaultdetail",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "Detail": {
+      "hidden": false,
+      "many_to_one": false,
+      "null": false,
+      "one_to_one": true,
+      "reverse_name": "detail",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "HiddenDetail": {
+      "hidden": true,
+      "many_to_one": false,
+      "null": false,
+      "one_to_one": true,
+      "reverse_name": "+",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "OptionalDetail": {
+      "hidden": false,
+      "many_to_one": false,
+      "null": true,
+      "one_to_one": true,
+      "reverse_name": "optional_detail",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "UniqueChild": {
+      "hidden": false,
+      "many_to_one": true,
+      "null": false,
+      "one_to_one": false,
+      "reverse_name": "unique_children",
+      "reverse_one_to_many": true,
+      "reverse_one_to_one": false,
+      "unique": true
+    }
+  },
+  "migrations": [
+    {
+      "after": {
+        "hidden": false,
+        "many_to_one": false,
+        "null": false,
+        "one_to_one": true,
+        "reverse_name": "children",
+        "reverse_one_to_many": false,
+        "reverse_one_to_one": true,
+        "unique": true
+      },
+      "applied": false,
+      "autodetected": [
+        "AlterField"
+      ],
+      "before": {
+        "hidden": false,
+        "many_to_one": true,
+        "null": false,
+        "one_to_one": false,
+        "reverse_name": "children",
+        "reverse_one_to_many": true,
+        "reverse_one_to_one": false,
+        "unique": false
+      },
+      "constraints_after_attempt": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": true,
+          "name": "otohistory_child_owner_id_5703290d",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "exception": "IntegrityError",
+      "initial_constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": true,
+          "name": "otohistory_child_owner_id_5703290d",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "initial_rows": [
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "initially_unique": false,
+      "reopened_constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__unnamed_constraint_1__",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "reopened_rows": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reverse_duplicate_saved": true,
+      "reversed_constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": true,
+          "name": "otohistory_child_owner_id_5703290d",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "rows_after_attempt": [
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "after": {
+        "hidden": false,
+        "many_to_one": false,
+        "null": false,
+        "one_to_one": true,
+        "reverse_name": "children",
+        "reverse_one_to_many": false,
+        "reverse_one_to_one": true,
+        "unique": true
+      },
+      "applied": true,
+      "autodetected": [
+        "AlterField"
+      ],
+      "before": {
+        "hidden": false,
+        "many_to_one": true,
+        "null": false,
+        "one_to_one": false,
+        "reverse_name": "children",
+        "reverse_one_to_many": true,
+        "reverse_one_to_one": false,
+        "unique": true
+      },
+      "constraints_after_attempt": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__unnamed_constraint_1__",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "initial_constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__unnamed_constraint_1__",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "initial_rows": [
+        [
+          1,
+          1
+        ]
+      ],
+      "initially_unique": true,
+      "reopened_constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__unnamed_constraint_1__",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "reopened_rows": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reverse_duplicate_saved": false,
+      "reverse_exception": "IntegrityError",
+      "reversed_constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__primary__",
+          "primary_key": true,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "__unnamed_constraint_1__",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "fk_0",
+          "primary_key": false,
+          "unique": false
+        }
+      ],
+      "rows_after_attempt": [
+        [
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "observations": [
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "missing_reverse",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ]
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "cached_missing_reverse",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "missing_cache_after_external_insert",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "name": "reverse_after_refresh",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 1
+    },
+    {
+      "name": "cached_reverse",
+      "selects": 0,
+      "statements": [],
+      "value": 1
+    },
+    {
+      "name": "reciprocal_forward_cache",
+      "selects": 0,
+      "statements": [],
+      "value": 1
+    },
+    {
+      "name": "reverse_select_related",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        [
+          1,
+          true
+        ],
+        [
+          2,
+          false
+        ],
+        [
+          3,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "reverse_prefetch_related",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ],
+      "value": [
+        [
+          1,
+          true
+        ],
+        [
+          2,
+          false
+        ],
+        [
+          3,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "reverse_filter",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        1
+      ]
+    },
+    {
+      "name": "missing_reverse_filter",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "reverse_exclude",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "reverse_or_absent",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "required_form_duplicate",
+      "selects": 3,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ],
+      "value": {
+        "errors": {
+          "parent": [
+            "unique"
+          ]
+        },
+        "valid": false
+      }
+    },
+    {
+      "name": "required_form_self",
+      "selects": 3,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ],
+      "value": {
+        "errors": {},
+        "valid": true
+      }
+    },
+    {
+      "name": "required_form_available",
+      "selects": 3,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ],
+      "value": {
+        "errors": {},
+        "valid": true
+      }
+    },
+    {
+      "name": "required_form_missing",
+      "selects": 0,
+      "statements": [],
+      "value": {
+        "errors": {
+          "parent": [
+            "required"
+          ]
+        },
+        "valid": false
+      }
+    },
+    {
+      "name": "form_invalid_target",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": {
+        "errors": {
+          "parent": [
+            "invalid_choice"
+          ]
+        },
+        "valid": false
+      }
+    },
+    {
+      "name": "optional_form_blank",
+      "selects": 0,
+      "statements": [],
+      "value": {
+        "errors": {},
+        "valid": true
+      }
+    },
+    {
+      "exception": "IntegrityError",
+      "name": "duplicate_rolls_back",
+      "selects": 0,
+      "statements": [
+        "BEGIN",
+        "UPDATE",
+        "INSERT"
+      ]
+    },
+    {
+      "name": "state_after_duplicate",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ],
+      "value": [
+        "second",
+        1
+      ]
+    },
+    {
+      "name": "nullable_forward",
+      "selects": 0,
+      "statements": [],
+      "value": null
+    },
+    {
+      "name": "multiple_nulls",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 2
+    },
+    {
+      "name": "set_null_delete",
+      "selects": 4,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT",
+        "SELECT",
+        "BEGIN",
+        "UPDATE",
+        "DELETE"
+      ],
+      "value": 1
+    },
+    {
+      "name": "set_null_child_retained",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        null,
+        3
+      ]
+    },
+    {
+      "exception": "ProtectedError",
+      "name": "protect_delete",
+      "selects": 4,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ]
+    },
+    {
+      "name": "state_after_protect",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ],
+      "value": [
+        true,
+        1
+      ]
+    },
+    {
+      "name": "reverse_assignment_before_save",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        2,
+        1
+      ]
+    },
+    {
+      "name": "save_reassigned_detail",
+      "selects": 0,
+      "statements": [
+        "UPDATE"
+      ],
+      "value": null
+    },
+    {
+      "name": "reassigned_detail_stored",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 2
+    },
+    {
+      "exception": "ValueError",
+      "name": "unsaved_target_save",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "unsaved_owner_reverse",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "name": "unique_fk_reverse_is_manager",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": true
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "default_reverse_missing",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ]
+    },
+    {
+      "name": "hidden_reverse_absent",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": false
+    },
+    {
+      "name": "clear_required_reverse_in_memory",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        null,
+        2
+      ]
+    },
+    {
+      "exception": "IntegrityError",
+      "name": "save_cleared_required_reverse",
+      "selects": 0,
+      "statements": [
+        "UPDATE"
+      ]
+    },
+    {
+      "name": "failed_clear_preserves_storage",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 2
+    }
+  ],
+  "python": "3.14.3"
+}
