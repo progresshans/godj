@@ -65,6 +65,9 @@ test discovery/start/stop의 정확한 일치를 확인했다. PostgreSQL refere
 정확한 명령·source manifest·reference/Python/Go stdout·stderr·필수 root·완전한 inventory·generation 시도와 cleanup 영수증은
 `godj-one-to-one-eager-gw4dgolk` 로컬 artifact에 보존했다. 소유한 PostgreSQL DB의 잔여 connection·table·test schema가 0인 것을
 확인한 뒤 그 DB만 삭제했고 기존 service는 유지했다.
+구현 source `afa6936eaf0a31ffc1cfcc754547c51b3c8787ee`의 [Hosted fast run 35632382953](https://github.com/progresshans/godj/actions/runs/35632382953)이 성공했다.
+Source·job/step·실행 로그를 보존했다. `make quick` 범위이며 native PostgreSQL이나 전체 platform 검증으로 계산하지 않는다.
+
 현재 scope는 typed reverse/mixed eager의 로컬 checkpoint다. Facade reverse selector·문자열 mixed path·assignment·Helpdesk 입력 소비자와
 그 소비자를 포함한 platform milestone은 남아 있다. 기존 Hosted full source `42ae95d3b1a891e6a0692fb0399968e483f4d907`의
 성공을 이번 source로 옮기지 않는다.
