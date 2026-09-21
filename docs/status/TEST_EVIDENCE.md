@@ -3,6 +3,24 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — Native PostgreSQL 고유성 검사의 Hosted 실행 소유권
+
+2026-09-21, source `182543929bde8e3f7edbd954383dd643d8a02df0`의
+[Hosted 재검증](https://github.com/progresshans/godj/actions/runs/35606169185)을 점검하면서 실제 선택 범위의 누락을 발견했다.
+Native PostgreSQL core는 required root 목록으로 `-run`을 만들고 있었으며 새 고유성 integration root 다섯 개는 없었다.
+Portable suite의 DB 없는 실행이나 기존 Helpdesk 검사를 이 다섯 native 검사의 성공으로 사용할 수 없다.
+
+`TestPostgresUniqueReferenceWrites`, `TestPostgresUniqueConcurrentWritersAndAtomicRollback`,
+`TestPostgresUniqueAlterFailurePreservesRevisionRowsAndInboundFK`, `TestPostgresUniqueNullableAddAndForeignKeyReverse`,
+`TestPostgresUniquePhysicalDriftRejectsBeforeRevisionClaim`를 core required 목록에 추가했다.
+같은 목록을 normal·race·CGO-disabled가 사용하며 `GODJ_REQUIRE_POSTGRES=1`과 `go_test_events.py --no-skips`가
+실행 누락·skip·실패를 거부한다. 다른 기존 required root와 shard·mode 선택은 유지했다.
+
+변경한 workflow SHA256은 `b2cb8ca1017943d790b6c61f28163783b83ee52307d1e24abe314165b60a0331`이다.
+현재 integration source의 다섯 root와 실제 `go test -list` 결과·설정된 required 목록을 대조하고
+추가된 선택이 정확히 이 다섯 개이며 기존 목록이 보존됨을 확인했다. 이는 선택·compile 확인이며 새 native 실행의 PASS가 아니다.
+필요한 PostgreSQL 17.10 실제 DB·profile·동시 쓰기와 migration 검증은 이 workflow를 포함한 고정 source의 Hosted full이 소유한다.
+
 ## GDJ-0095 — Hosted 통합에서 발견한 소비자 fixture와 portable reference 수정
 
 2026-09-21, source `64e6822d4a9eb524d6f0551267911dfb8ad39be1`의

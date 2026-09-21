@@ -95,3 +95,5 @@ Hosted `full`이다. 전체 platform/cold-build·DB/process와 generated 소비�
 중복 실행하지 않는다. 필수 job/source/실행 누락과 환경별 결과를 확인하기 전까지 전체 고유성 작업을 완료 처리하지 않는다.
 초회 Hosted 실행에서 드러난 격리 생성기 의존성·외부 renderer fixture와 portable reference의 SQLite 차이를 수정하고
 관련 로컬 검사를 수행했다. 수정 source의 Hosted 통합 결과는 아직 완료하지 않았으며 TEST_EVIDENCE에서 별도로 추적한다.
+Native PostgreSQL core는 고유성 reference writes·경쟁/rollback·Alter 실패 복구·nullable/FK reverse·physical drift의
+다섯 integration root를 normal/race/CGO-disabled 모두 필수 실행으로 검사한다. 이 선택이 없던 이전 run은 해당 native 증거가 아니다.

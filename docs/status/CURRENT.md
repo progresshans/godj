@@ -31,6 +31,7 @@ SQLite의 정상 rollback은 입력 오류를 그대로 전달하며 정리 실�
 고유성의 선언·migration·양 DB·ORM·입력 소비자를 묶은 고정 source의 Hosted full 통합 검증을 이어간다.
 초회 실행에서 발견한 격리 fixture 의존성·외부 SQL renderer fixture와 portable SQLite reference 차이를 수정했다.
 관련 로컬 compile·복구·race·CGO-disabled와 독립 SQLite/Python 검사를 확인했으며 수정 source의 Hosted 재검증이 남아 있다.
+PostgreSQL 고유성의 native 통합 검사 5개도 core 필수 목록에 연결했다. Normal·race·CGO-disabled의 실제 실행을 확인한다.
 필수 platform·process·generated 소비자와 source/실행 누락을 확인하고 GDJ-0095의 완료 범위를 기록한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
