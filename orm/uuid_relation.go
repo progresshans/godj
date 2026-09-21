@@ -27,16 +27,13 @@ func (relation ForwardRelation[S, T]) UUID(field ReferenceField[T, uuid.UUID]) (
 	}
 	return RelatedUUIDField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) UUID(field UUIDField[Source]) (RelatedUUIDField[Owner], error) {
+func (relation ReverseRelation[Owner, Source]) UUID(field ReferenceField[Source, uuid.UUID]) (RelatedUUIDField[Owner], error) {
 	if err := validateReverseRelationState(relation.state); err != nil {
 		return RelatedUUIDField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedUUIDField[Owner]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(relation.state.forward.sourceModel, field.reference, ir.FieldUUID)
-	if !ok || metadata.Nullable {
-		return RelatedUUIDField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldUUID)
+	if err != nil {
+		return RelatedUUIDField[Owner]{}, err
 	}
 	path, err := relation.state.path(fieldReference(metadata))
 	if err != nil {

@@ -9,7 +9,7 @@
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
 | Relation delete | supported FK/OneToOne의 PROTECT/SET_NULL | 같은 transaction의 PROTECT/SET_NULL·AtomicRelation |
-| OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·forward eager | 동일 공통 AST/runtime과 native 제약 |
+| OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·forward eager | 동일 공통 AST/runtime과 native 제약 |
 | Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | Column uniqueness | named unique index·Create/Add/Alter와 reverse·remake 보존·정확한 catalog·insert/update 충돌 오류 | named UNIQUE·단일 B-tree·Create/Add/Alter와 reverse·정확한 catalog·insert/update 충돌 오류 |
@@ -40,7 +40,10 @@ OneToOne은 Unique FK와 별도 cardinality를 보존하며 default/named/hidden
 Unique가 그대로면 metadata-only이며 달라지면 실제 DDL이 필요하다. 기존 중복에 의한 적용 실패는 행·catalog·recorder/revision을 보존한다.
 성공한 역방향 적용은 이전 cardinality·reverse 이름·Unique 상태를 복구한다.
 Single reverse의 정상 부재·cardinality 오류·cache/prefetch와 양 DB PROTECT/SET_NULL을 연결했다.
-Reverse isnull·넓은 lookup/Boolean 조합·eager와 실제 입력 소비자는 [GDJ-0096](../work/0096-one-to-one-service-reports.md)의 남은 범위다.
+단일 reverse는 관계/field isnull과 nullable/Boolean을 포함한 현재 scalar lookup·IN·AND/OR/NOT를 지원한다.
+자식의 부재는 physical FK nullability와 별개이며, 조건이 존재를 요구하면 INNER, 나머지는 LEFT OUTER로 부모 행을 보존한다.
+일반 Unique FK의 collection reverse는 기존 direct non-null exact 범위를 유지한다. Reverse eager·혼합 traversal·실제 입력 소비자는
+[GDJ-0096](../work/0096-one-to-one-service-reports.md)의 남은 범위다.
 [일대일 의미](adr/0073-one-to-one-cardinality-and-reverse-objects.md)를 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.

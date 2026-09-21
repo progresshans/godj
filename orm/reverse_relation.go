@@ -171,7 +171,7 @@ func (r ReverseRelation[Owner, Source]) Integer(
 	if err := validateReverseRelationState(r.state); err != nil {
 		return RelatedIntegerField[Owner]{}, err
 	}
-	metadata, err := relatedScalarMetadata(r.state.forward.sourceModel, field, false, ir.FieldAuto, ir.FieldInteger)
+	metadata, err := relatedScalarMetadata(r.state.forward.sourceModel, field, r.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldAuto, ir.FieldInteger)
 	if err != nil {
 		return RelatedIntegerField[Owner]{}, err
 	}
@@ -183,21 +183,69 @@ func (r ReverseRelation[Owner, Source]) Integer(
 }
 
 func (r ReverseRelation[Owner, Source]) String(
-	field StringField[Source],
+	field ReferenceField[Source, string],
 ) (RelatedStringField[Owner], error) {
 	if err := validateReverseRelationState(r.state); err != nil {
 		return RelatedStringField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedStringField[Owner]{}, field.err
-	}
-	metadata, ok := matchingStringTerminalField(r.state.forward.sourceModel, field.reference)
-	if !ok || metadata.Nullable {
-		return RelatedStringField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(r.state.forward.sourceModel, field, r.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldChar, ir.FieldText)
+	if err != nil {
+		return RelatedStringField[Owner]{}, err
 	}
 	path, err := r.state.path(fieldReference(metadata))
 	if err != nil {
 		return RelatedStringField[Owner]{}, err
 	}
 	return RelatedStringField[Owner]{path: path, valid: true}, nil
+}
+
+// IsNull tests whether a OneToOne child exists, independently of its nullable
+// fields. Collection absence has different query semantics and is not admitted.
+func (r ReverseRelation[Owner, Source]) IsNull(value bool) Predicate[Owner] {
+	if err := validateReverseRelationState(r.state); err != nil {
+		return Predicate[Owner]{err: err}
+	}
+	_, path, err := r.state.presencePath()
+	if err != nil {
+		return Predicate[Owner]{err: err}
+	}
+	return predicateFromCondition[Owner](query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(value)), nil)
+}
+
+func (state reverseRelationState) presencePath() (ir.Field, query.RelationPath, error) {
+	if state.reverse.Cardinality != ir.RelationOneToOne {
+		return ir.Field{}, query.RelationPath{}, unsupportedRelationLookup(state.reverse.Name, query.LookupIsNull, "reverse presence requires a one-to-one edge")
+	}
+	key, ok := relationAutoPrimaryKey(state.forward.sourceModel)
+	if !ok {
+		return ir.Field{}, query.RelationPath{}, relationInvalidPlan("reverse presence requires a canonical child primary key")
+	}
+	path, err := state.path(fieldReference(key))
+	return key, path, err
+}
+
+func (r ReverseRelation[Owner, Source]) Boolean(field BooleanLookupField[Source]) (RelatedBooleanField[Owner], error) {
+	if err := validateReverseRelationState(r.state); err != nil {
+		return RelatedBooleanField[Owner]{}, err
+	}
+	if r.state.reverse.Cardinality != ir.RelationOneToOne {
+		return RelatedBooleanField[Owner]{}, unsupportedRelationLookup(r.state.reverse.Name, query.LookupExact, "reverse Boolean fields require a one-to-one edge")
+	}
+	if interfaceIsNil(field) {
+		return RelatedBooleanField[Owner]{}, relationInvalidPlan("related Boolean field is nil")
+	}
+	var source Source
+	reference, err := field.booleanLookupField(source)
+	if err != nil {
+		return RelatedBooleanField[Owner]{}, err
+	}
+	metadata, found := matchingTerminalField(r.state.forward.sourceModel, reference, ir.FieldBoolean)
+	if !found {
+		return RelatedBooleanField[Owner]{}, unknownRelatedField(reference.Name())
+	}
+	path, err := r.state.path(fieldReference(metadata))
+	if err != nil {
+		return RelatedBooleanField[Owner]{}, err
+	}
+	return RelatedBooleanField[Owner]{path: path, valid: true}, nil
 }

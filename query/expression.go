@@ -251,8 +251,8 @@ func validateExpressionCondition(condition Condition) error {
 		if condition.lookup == LookupHasKey && len(condition.rhs.keys.data.values) != 1 {
 			return invalidPlanError("has_key requires exactly one key")
 		}
-		if condition.relationPath != nil && !forwardMembershipPath(*condition.relationPath) {
-			return invalidPlanError("related JSON key presence requires a forward target-field path")
+		if condition.relationPath != nil && !singleValuedMembershipPath(*condition.relationPath) {
+			return invalidPlanError("related JSON key presence requires a single-valued target-field path")
 		}
 	case conditionRHSLiteral:
 		if len(condition.rhs.values) != 0 || condition.rhs.field != (FieldRef{}) || condition.rhs.keys.Valid() {
@@ -289,7 +289,7 @@ func validateExpressionCondition(condition Condition) error {
 		if condition.lookup != LookupIn || condition.rhs.value != (Value{}) || condition.rhs.field != (FieldRef{}) || condition.rhs.keys.Valid() {
 			return invalidPlanError("query expression list right-hand side is malformed")
 		}
-		if (condition.relationPath != nil && !forwardMembershipPath(*condition.relationPath)) || !validInValues(field, condition.rhs.values) {
+		if (condition.relationPath != nil && !singleValuedMembershipPath(*condition.relationPath)) || !validInValues(field, condition.rhs.values) {
 			return invalidPlanError("query expression IN condition is malformed")
 		}
 	case conditionRHSField:

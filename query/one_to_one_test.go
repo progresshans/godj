@@ -42,3 +42,34 @@ func TestOneToOneCardinalitySurvivesPathsChainsAndProjection(t *testing.T) {
 		}
 	}
 }
+
+func TestOneToOneReversePresencePreservesPhysicalNullability(t *testing.T) {
+	model := ir.ModelIdentity{AppLabel: "node", ModelName: "node"}
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	flag := query.NewFieldRef("flag", "flag", query.FieldBoolean, true)
+	path, err := query.NewReverseRelationPath(model, "node", "parent", "parent_id", model, "node", "id", "child", false, flag, ir.RelationOneToOne)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !path.SingleValued() || path.Hops()[0].Nullable() || !path.Hops()[0].Optional() {
+		t.Fatal("reverse optional traversal changed the physical key metadata")
+	}
+	condition := query.NewRelatedCondition(path, query.LookupExact, query.Boolean(true))
+	if !condition.OperandNullable() {
+		t.Fatal("reverse operand cannot represent an absent child")
+	}
+	leaf, err := query.NewExpression(condition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	negated, err := query.NotExpression(leaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := query.NewPlan("node", []query.FieldRef{id}).WithWhere(negated); err != nil {
+		t.Fatal("single reverse NOT rejected", err)
+	}
+	if _, err := query.NewReverseRelationPath(model, "node", "parent", "parent_id", model, "node", "id", "children", false, flag, ir.RelationOneToMany); err == nil {
+		t.Fatal("collection nullable/Boolean terminal was silently widened")
+	}
+}

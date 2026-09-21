@@ -118,31 +118,56 @@ func parseForwardRelationInput[M any](model BoundModel[M], policy LookupPolicy, 
 
 func parseReverseRelationInput[M any](model BoundModel[M], policy LookupPolicy, input LookupInput) (Predicate[M], error) {
 	parts := strings.Split(input.Key, "__")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "reverse relation lookup requires a direct target field")
+	if len(parts) < 2 || len(parts) > 3 {
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "reverse relation lookup requires a direct field and optional lookup suffix")
 	}
-	if isRelationLookupSuffix(parts[1]) {
-		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "lookup suffixes on reverse relations are not supported")
+	for _, part := range parts {
+		if part == "" {
+			return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "reverse relation lookup contains an empty segment")
+		}
 	}
 	state, err := resolveReverseRelationState(model.snapshot, model.identity, model.model, parts[0])
 	if err != nil {
 		return Predicate[M]{}, err
 	}
+	single := state.reverse.Cardinality == ir.RelationOneToOne
+	if !single && (len(parts) != 2 || isRelationLookupSuffix(parts[1])) {
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "collection reverse relations support direct exact fields only")
+	}
 	field, found := findField(state.forward.sourceModel.Fields, parts[1])
+	// A real scalar named isnull keeps precedence over relation-presence syntax.
+	if single && !found && len(parts) == 2 && parts[1] == string(query.LookupIsNull) {
+		key, path, err := state.presencePath()
+		if err != nil {
+			return Predicate[M]{}, err
+		}
+		if err := allowRelationLookup(policy, key, query.LookupIsNull); err != nil {
+			return Predicate[M]{}, err
+		}
+		return dynamicRelationPredicate[M](path, key, query.LookupIsNull, input.Value, input.JSONPath)
+	}
 	if !found {
 		return Predicate[M]{}, unknownRelatedField(parts[1])
 	}
-	if !supportedRelatedTerminal(field, true) {
+	if !supportedRelatedTerminal(field, !single) {
 		return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.LookupExact, "reverse related field kind is not supported")
 	}
-	if err := allowRelationLookup(policy, field, query.LookupExact); err != nil {
+	lookup := query.LookupExact
+	if len(parts) == 3 {
+		var supported bool
+		lookup, supported = supportedLookup(field, parts[2])
+		if !supported {
+			return Predicate[M]{}, unsupportedRelationLookup(input.Key, query.Lookup(parts[2]), "lookup is not supported for the reverse field kind")
+		}
+	}
+	if err := allowRelationLookup(policy, field, lookup); err != nil {
 		return Predicate[M]{}, err
 	}
 	path, err := state.path(fieldReference(field))
 	if err != nil {
 		return Predicate[M]{}, err
 	}
-	return dynamicRelationPredicate[M](path, field, query.LookupExact, input.Value, input.JSONPath)
+	return dynamicRelationPredicate[M](path, field, lookup, input.Value, input.JSONPath)
 }
 
 func allowRelationLookup(policy LookupPolicy, field ir.Field, lookup query.Lookup) error {

@@ -145,7 +145,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 	slices.SortFunc(keys, CompareRelationKey)
 	required := map[RelationKey]bool(nil)
 	if where, ok := plan.Where(); ok {
-		required = requiredForwardJoins(where, false)
+		required = requiredSingleJoins(where, false)
 	}
 	joins := make(map[RelationKey]Join, len(keys))
 	// Track declared optional ancestry separately from the final join type.
@@ -157,7 +157,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		hop := item.hop
 		fromAlias := "t0"
 		parentOuter := false
-		optional := hop.Nullable()
+		optional := hop.Optional()
 		if item.hasParent {
 			parent, found := joins[item.parent]
 			if !found {
@@ -174,7 +174,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			}
 		}
 		optionalRoutes[key] = optional
-		joined := Join{Table: hop.TargetTable(), FromAlias: fromAlias, FromColumn: hop.SourceColumn(), Column: hop.TargetPrimaryKeyColumn(), Alias: fmt.Sprintf("t%d", index+1), LeftOuter: hop.Direction() == query.RelationForward && (parentOuter || optional && !required[key])}
+		joined := Join{Table: hop.TargetTable(), FromAlias: fromAlias, FromColumn: hop.SourceColumn(), Column: hop.TargetPrimaryKeyColumn(), Alias: fmt.Sprintf("t%d", index+1), LeftOuter: hop.Cardinality().SingleValued() && (parentOuter || optional && !required[key])}
 		if hop.Direction() == query.RelationReverse {
 			joined.Table = hop.SourceTable()
 			joined.FromColumn = hop.TargetPrimaryKeyColumn()
@@ -185,20 +185,22 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 	return Joins{Keys: keys, ByKey: joins}, nil
 }
 
-// Direction, reverse accessor and traversal cardinality describe the view of
-// an edge; the physical FK declaration is the same from either direction.
+// Direction and reverse accessor describe the view of a declaration. A
+// OneToOne declaration must retain that cardinality in either direction;
+// ordinary many-to-one and one-to-many remain the same physical FK.
 func sameForeignKeyDeclaration(left, right query.RelationHop) bool {
 	return left.Source() == right.Source() && left.SourceTable() == right.SourceTable() &&
 		left.Field() == right.Field() && left.SourceColumn() == right.SourceColumn() &&
 		left.Target() == right.Target() && left.TargetTable() == right.TargetTable() &&
-		left.TargetPrimaryKeyColumn() == right.TargetPrimaryKeyColumn() && left.Nullable() == right.Nullable()
+		left.TargetPrimaryKeyColumn() == right.TargetPrimaryKeyColumn() && left.Nullable() == right.Nullable() &&
+		(left.Cardinality() == ir.RelationOneToOne) == (right.Cardinality() == ir.RelationOneToOne)
 }
 
-// requiredForwardJoins finds edges whose joined row must exist for the
+// requiredSingleJoins finds edges whose joined row must exist for the
 // predicate to be true. It owns only join presence, not SQL rendering. Odd
 // negation swaps AND/OR and nullable negated leaves can match an absent row.
 // Keeping an optional edge outer is conservative when no proof is available.
-func requiredForwardJoins(expression query.Expression, negated bool) map[RelationKey]bool {
+func requiredSingleJoins(expression query.Expression, negated bool) map[RelationKey]bool {
 	switch expression.Kind() {
 	case query.ExpressionLeaf:
 		condition, ok := expression.Condition()
@@ -210,7 +212,7 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 			return nil
 		}
 		hops := path.Hops()
-		if len(hops) == 0 || hops[0].Direction() != query.RelationForward {
+		if !path.SingleValued() {
 			return nil
 		}
 		if path.TerminalScope() == query.RelationTerminalSourceKey && condition.Lookup() == query.LookupIsNull {
@@ -246,12 +248,12 @@ func requiredForwardJoins(expression query.Expression, negated bool) map[Relatio
 		if len(children) != 1 {
 			return nil
 		}
-		return requiredForwardJoins(children[0], !negated)
+		return requiredSingleJoins(children[0], !negated)
 	case query.ExpressionAnd, query.ExpressionOr:
 		union := (expression.Kind() == query.ExpressionAnd) != negated
 		var required map[RelationKey]bool
 		for index, child := range expression.Children() {
-			current := requiredForwardJoins(child, negated)
+			current := requiredSingleJoins(child, negated)
 			if index == 0 {
 				required = current
 				continue

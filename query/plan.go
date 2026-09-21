@@ -141,11 +141,11 @@ func NewInCondition(field FieldRef, values []Value) (Condition, error) {
 }
 
 // NewRelatedInCondition owns the same scalar list as NewInCondition while
-// retaining a direct forward path. Reverse and source-key membership are not
+// retaining a single-valued relation path. Collection and source-key membership are not
 // supported; nullable source-key isnull remains a separate path scope.
 func NewRelatedInCondition(path RelationPath, values []Value) (Condition, error) {
-	if !forwardMembershipPath(path) {
-		return Condition{}, invalidPlanError("related IN requires a valid forward target-field path")
+	if !singleValuedMembershipPath(path) {
+		return Condition{}, invalidPlanError("related IN requires a valid single-valued target-field path")
 	}
 	condition, err := NewInCondition(path.Terminal(), values)
 	if err != nil {
@@ -155,8 +155,8 @@ func NewRelatedInCondition(path RelationPath, values []Value) (Condition, error)
 	return condition, nil
 }
 
-func forwardMembershipPath(path RelationPath) bool {
-	return path.scope == RelationTerminalRelatedField && path.validateForward() == nil
+func singleValuedMembershipPath(path RelationPath) bool {
+	return path.scope == RelationTerminalRelatedField && path.SingleValued() && path.Validate() == nil
 }
 
 // NewFieldCondition constructs one scalar comparison whose right-hand side is
@@ -189,7 +189,7 @@ func (c Condition) Field() FieldRef { return c.field }
 func (c Condition) Lookup() Lookup  { return c.lookup }
 
 // OperandNullable reports whether the left scalar can be NULL in the supported
-// read paths. An optional forward target can be absent even when its field is
+// read paths. An optional related row can be absent even when its field is
 // declared non-null. This describes the operand, not the Boolean lookup result.
 // For a JSON path this is the containing column, not path presence. Missing
 // keys do not add a NULL compensation guard under negation.
@@ -200,7 +200,7 @@ func (c Condition) OperandNullable() bool {
 	path := c.relationPath
 	if path != nil {
 		for _, hop := range path.hops {
-			if hop.direction == RelationForward && hop.nullable {
+			if hop.Optional() {
 				return true
 			}
 		}
@@ -215,7 +215,7 @@ func (c Condition) Value() Value {
 }
 func (c Condition) Values() ([]Value, bool) {
 	if c.lookup != LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSList ||
-		(c.relationPath != nil && (!forwardMembershipPath(*c.relationPath) || !c.field.Equal(c.relationPath.terminal))) ||
+		(c.relationPath != nil && (!singleValuedMembershipPath(*c.relationPath) || !c.field.Equal(c.relationPath.terminal))) ||
 		!validInValues(c.field, c.rhs.values) {
 		return nil, false
 	}
@@ -559,7 +559,7 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 		}
 		hop := path.hops[0]
 		if hop.direction == RelationReverse {
-			if !relationAtRootConjunction {
+			if !relationAtRootConjunction && !path.SingleValued() {
 				return &Error{Category: CategoryQuery, Code: CodeUnsupported, Field: condition.field.name, Lookup: string(condition.lookup), Detail: "reverse relation predicates under OR or NOT are not supported"}
 			}
 			if hop.targetTable != p.table || !containsPlanIntegerColumn(p.sourceFields, hop.targetPrimaryKeyColumn) {

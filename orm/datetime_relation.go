@@ -27,16 +27,13 @@ func (relation ForwardRelation[S, T]) DateTime(field ReferenceField[T, time.Time
 	}
 	return RelatedDateTimeField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) DateTime(field DateTimeField[Source]) (RelatedDateTimeField[Owner], error) {
+func (relation ReverseRelation[Owner, Source]) DateTime(field ReferenceField[Source, time.Time]) (RelatedDateTimeField[Owner], error) {
 	if err := validateReverseRelationState(relation.state); err != nil {
 		return RelatedDateTimeField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedDateTimeField[Owner]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(relation.state.forward.sourceModel, field.reference, ir.FieldDateTime)
-	if !ok || metadata.Nullable {
-		return RelatedDateTimeField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldDateTime)
+	if err != nil {
+		return RelatedDateTimeField[Owner]{}, err
 	}
 	path, err := relation.state.path(fieldReference(metadata))
 	if err != nil {

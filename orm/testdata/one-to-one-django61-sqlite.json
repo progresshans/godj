@@ -55,6 +55,432 @@
       "unique": true
     }
   },
+  "lookups": [
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_absent",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "report_present",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_field_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_not_equal",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_or_absent",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_exact",
+      "selects": 1
+    },
+    {
+      "ids": [
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_gt",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_gte",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_lt",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_lte",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_non_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_not_exact",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_in",
+      "selects": 1
+    },
+    {
+      "ids": [],
+      "inner_joins": 0,
+      "left_joins": 0,
+      "name": "score_empty_in",
+      "selects": 0
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_not_in",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_not_empty_in",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "approved_true",
+      "selects": 1
+    },
+    {
+      "ids": [
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "approved_false",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "approved_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "approved_not_true",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "title_contains",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "title_literal_wildcards",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "not_and",
+      "selects": 1
+    },
+    {
+      "ids": [],
+      "inner_joins": 1,
+      "left_joins": 1,
+      "name": "not_or",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "double_not",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "same_edge_or",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 2,
+      "name": "different_edge_or",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "root_or_reverse",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "optional_absent",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "optional_present",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 1,
+      "name": "mixed_collection_and",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "body_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "ratio_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "price_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "token_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "payload_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "day_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "at_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "clock_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "elapsed_null",
+      "selects": 1
+    }
+  ],
   "migrations": [
     {
       "after": {

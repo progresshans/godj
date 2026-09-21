@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "f3c9c2a389d8f5bf9be86e24ef4cac81e091f3ad49a32fb5639617be112fd802"
+const GoDjRelationProjectionSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
 
 var _ orm.ProjectionDescriptor[Report] = ReportDescriptor{}
 
@@ -152,4 +152,117 @@ func (_scan *linkProjectionScan) Decode() (Link, query.Value, orm.ProjectionPres
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c
+var _ orm.ProjectionDescriptor[Review] = ReviewDescriptor{}
+
+func (ReviewDescriptor) NewProjectionScan() orm.ProjectionScan[Review] {
+	return &reviewProjectionScan{scanPrice: orm.NewNullableDecimalScanner(8, 2)}
+}
+
+type reviewProjectionScan struct {
+	scanID       sql.NullInt64
+	scanTicketID sql.NullInt64
+	scanScore    sql.NullInt64
+	scanTitle    sql.NullString
+	scanBody     sql.NullString
+	scanApproved sql.NullBool
+	scanRatio    orm.NullableFloatScanner
+	scanPrice    orm.NullableDecimalScanner
+	scanToken    orm.NullableUUIDScanner
+	scanPayload  orm.NullableJSONScanner
+	scanDay      orm.NullableDateScanner
+	scanAt       orm.NullableDateTimeScanner
+	scanClock    orm.NullableTimeScanner
+	scanElapsed  orm.NullableDurationScanner
+}
+
+func (_scan *reviewProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanTicketID,
+		&_scan.scanScore,
+		&_scan.scanTitle,
+		&_scan.scanBody,
+		&_scan.scanApproved,
+		&_scan.scanRatio,
+		&_scan.scanPrice,
+		&_scan.scanToken,
+		&_scan.scanPayload,
+		&_scan.scanDay,
+		&_scan.scanAt,
+		&_scan.scanClock,
+		&_scan.scanElapsed,
+	}
+}
+
+func (_scan *reviewProjectionScan) Decode() (Review, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return Review{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanTicketID.Valid && !_scan.scanScore.Valid && !_scan.scanTitle.Valid && !_scan.scanBody.Valid && !_scan.scanApproved.Valid && !_scan.scanRatio.Valid && !_scan.scanPrice.Valid && !_scan.scanToken.Valid && !_scan.scanPayload.Valid && !_scan.scanDay.Valid && !_scan.scanAt.Valid && !_scan.scanClock.Valid && !_scan.scanElapsed.Valid {
+		return Review{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return Review{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanTicketID.Valid {
+		return Review{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := Review{}
+	_value.ID = _scan.scanID.Int64
+	_value.TicketID = _scan.scanTicketID.Int64
+	if _scan.scanScore.Valid {
+		_scanned := _scan.scanScore.Int64
+		_value.Score = &_scanned
+	}
+	if _scan.scanTitle.Valid {
+		_scanned := _scan.scanTitle.String
+		_value.Title = &_scanned
+	}
+	if _scan.scanBody.Valid {
+		_scanned := _scan.scanBody.String
+		_value.Body = &_scanned
+	}
+	if _scan.scanApproved.Valid {
+		_scanned := _scan.scanApproved.Bool
+		_value.Approved = &_scanned
+	}
+	if _scan.scanRatio.Valid {
+		_scanned := _scan.scanRatio.Float
+		_value.Ratio = &_scanned
+	}
+	if _scan.scanPrice.Valid {
+		_scanned := _scan.scanPrice.Decimal
+		_value.Price = &_scanned
+	}
+	if _scan.scanToken.Valid {
+		_scanned := _scan.scanToken.UUID
+		_value.Token = &_scanned
+	}
+	if _scan.scanPayload.Valid {
+		_scanned := _scan.scanPayload.JSON
+		_value.Payload = &_scanned
+	}
+	if _scan.scanDay.Valid {
+		_scanned := _scan.scanDay.Date
+		_value.Day = &_scanned
+	}
+	if _scan.scanAt.Valid {
+		_scanned := _scan.scanAt.Time
+		_value.At = &_scanned
+	}
+	if _scan.scanClock.Valid {
+		_scanned := _scan.scanClock.Time
+		_value.Clock = &_scanned
+	}
+	if _scan.scanElapsed.Valid {
+		_scanned := _scan.scanElapsed.Duration
+		_value.Elapsed = &_scanned
+	}
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
+var _ GoDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22

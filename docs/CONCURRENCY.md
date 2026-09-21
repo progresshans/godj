@@ -44,6 +44,8 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 - OneToOne의 reverse는 자식이 없을 수 있으므로 `RelatedObject.Get`의 present=false를 성공 cache로 보존한다.
   Forward의 dangling target 오류와 구분하며 외부 insert 뒤에는 Fresh로 다시 읽는다. 일반 Unique FK는 reverse collection을 유지한다.
 - OneToOne prefetch는 전체 batch의 단일 cardinality를 확인한 뒤 게시한다. 반복 owner는 독립 cache를 소유한다.
+- OneToOne reverse의 JOIN 부재 가능성은 physical FK nullability와 별개다. 각 compilation이 AND/OR/NOT의 존재 조건을
+  계산하며, 같은 FK의 forward/reverse가 OneToOne 선언 여부에 대해 충돌하면 거부한다. 다른 compile과 join map을 공유하지 않는다.
 - Prefetch/eager All은 전체 scan·row close·cancel·cardinality 검증이 끝난 뒤 한 번에 결과를 게시한다. 실패 시 partial cache를 남기지 않는다.
 - 다른 filter JOIN으로 eager 결과에 같은 root 행이 중복돼도 각 반환 객체·FK pointer·선택한 관계 cache는 독립 소유한다.
   Warm All/First는 원본 query cache에서 다시 복제하며 한 결과의 수정을 다른 결과로 전파하지 않는다.

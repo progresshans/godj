@@ -264,7 +264,7 @@ func TestDynamicReverseRelationsShareTypedASTAndPreserveNullableDeclaration(t *t
 	}
 }
 
-func TestDynamicReverseRelationErrorsFollowFrozenPrecedenceAndAreAtomic(t *testing.T) {
+func TestDynamicReverseRelationErrorsAreStructuredAndAtomic(t *testing.T) {
 	t.Parallel()
 
 	fixture := newRelationQueryFixture(t)
@@ -278,7 +278,7 @@ func TestDynamicReverseRelationErrorsFollowFrozenPrecedenceAndAreAtomic(t *testi
 		{name: "one segment", input: orm.LookupInput{Key: "posts", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "explicit suffix", input: orm.LookupInput{Key: "posts__id__exact", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "relation suffix", input: orm.LookupInput{Key: "posts__exact", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "unknown suffix precedence", input: orm.LookupInput{Key: "missing__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "unknown presence namespace", input: orm.LookupInput{Key: "missing__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnknownRelation},
 		{name: "leading empty", input: orm.LookupInput{Key: "__id", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "middle empty", input: orm.LookupInput{Key: "posts____id", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "trailing empty", input: orm.LookupInput{Key: "posts__", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},

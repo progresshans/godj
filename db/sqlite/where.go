@@ -80,8 +80,7 @@ func analyzeWhereExpression(
 		}
 		path, related := condition.RelationPath()
 		if related && !relationAtRootConjunction {
-			hops := path.Hops()
-			if len(hops) == 0 || hops[0].Direction() != query.RelationForward {
+			if !path.SingleValued() {
 				return nil, false, unsupportedRelatedCondition(condition, "SQLite reverse relation predicates under OR or NOT are not supported")
 			}
 		}

@@ -1,12 +1,16 @@
 package postgres
 
 import (
+	"context"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/progresshans/godj/internal/onetoonetest"
 	"github.com/progresshans/godj/migrations"
 	mb "github.com/progresshans/godj/migrations/backend"
@@ -18,6 +22,39 @@ func TestPostgresOneToOneGeneratedProduct(t *testing.T) {
 	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
 	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
 	onetoonetest.RunProduct(t, backend)
+}
+
+func TestPostgresOneToOneReverseLookupsMatchDjango(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	config, err := currentConnectionConfig(url)
+	if err != nil {
+		t.Fatal("prepare traced one-to-one connection")
+	}
+	table, err := quoteTable(namespace, "ototickets_ticket")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace := &membershipTrace{table: table}
+	config.Tracer = trace
+	if err := backend.database.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Observe real driver SELECTs while preserving the production session guards.
+	backend.database = stdlib.OpenDB(*config,
+		stdlib.OptionAfterConnect(validateAndCloseInvalidPostgresPhysicalSession),
+		stdlib.OptionResetSession(func(ctx context.Context, connection *pgx.Conn) error {
+			if err := validateCurrentPostgresPhysicalSession(ctx, connection); err != nil {
+				return errors.Join(driver.ErrBadConn, err)
+			}
+			return nil
+		}),
+	)
+	onetoonetest.RunReverseLookups(t, backend, "postgres", func(plan query.Plan) (string, error) {
+		statement, _, err := compilePlan(namespace, plan)
+		return statement, err
+	}, trace.reads.Load)
 }
 
 func TestPostgresOneToOneAlterFailureRetryReverseAndReopen(t *testing.T) {

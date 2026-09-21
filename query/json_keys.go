@@ -60,8 +60,8 @@ func NewJSONKeysCondition(field FieldRef, lookup Lookup, keys ...string) (Condit
 }
 
 func NewRelatedJSONKeysCondition(path RelationPath, lookup Lookup, keys ...string) (Condition, error) {
-	if !forwardMembershipPath(path) {
-		return Condition{}, invalidPlanError("JSON key presence requires a forward target-field path")
+	if !singleValuedMembershipPath(path) {
+		return Condition{}, invalidPlanError("JSON key presence requires a single-valued target-field path")
 	}
 	condition, err := NewJSONKeysCondition(path.Terminal(), lookup, keys...)
 	if err != nil {

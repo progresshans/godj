@@ -26,16 +26,13 @@ func (relation ForwardRelation[S, T]) Float(field ReferenceField[T, float64]) (R
 	}
 	return RelatedFloatField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) Float(field FloatField[Source]) (RelatedFloatField[Owner], error) {
+func (relation ReverseRelation[Owner, Source]) Float(field ReferenceField[Source, float64]) (RelatedFloatField[Owner], error) {
 	if err := validateReverseRelationState(relation.state); err != nil {
 		return RelatedFloatField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedFloatField[Owner]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(relation.state.forward.sourceModel, field.reference, ir.FieldFloat)
-	if !ok || metadata.Nullable {
-		return RelatedFloatField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldFloat)
+	if err != nil {
+		return RelatedFloatField[Owner]{}, err
 	}
 	path, err := relation.state.path(fieldReference(metadata))
 	if err != nil {

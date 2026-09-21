@@ -2,7 +2,7 @@
 
 package project
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v1"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v2"
 
 type ReverseRelations struct {
 }
@@ -24,4 +24,4 @@ func BindReverseObjects() (ReverseObjects, error) {
 	return ReverseObjects{}, nil
 }
 
-var _ goDjProjectSnapshot_67e2208435cde84a12892a5b4f28a014c8f77dbc47490a2ee90d0507f05f4373
+var _ goDjProjectSnapshot_17b9c439336539c8e4c20a0e7dfc1759f669194946507096e21d77ed401506e8

@@ -27,16 +27,13 @@ func (relation ForwardRelation[S, T]) Duration(field ReferenceField[T, duration.
 	}
 	return RelatedDurationField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) Duration(field DurationField[Source]) (RelatedDurationField[Owner], error) {
+func (relation ReverseRelation[Owner, Source]) Duration(field ReferenceField[Source, duration.Duration]) (RelatedDurationField[Owner], error) {
 	if err := validateReverseRelationState(relation.state); err != nil {
 		return RelatedDurationField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedDurationField[Owner]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(relation.state.forward.sourceModel, field.reference, ir.FieldDuration)
-	if !ok || metadata.Nullable {
-		return RelatedDurationField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldDuration)
+	if err != nil {
+		return RelatedDurationField[Owner]{}, err
 	}
 	path, err := relation.state.path(fieldReference(metadata))
 	if err != nil {

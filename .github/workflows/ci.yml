@@ -1026,6 +1026,7 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueNullableAddAndForeignKeyReverse"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniquePhysicalDriftRejectsBeforeRevisionClaim"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneGeneratedProduct"
+            "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneReverseLookupsMatchDjango"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneAlterFailureRetryReverseAndReopen"
             "github.com/progresshans/godj/db/postgres|TestPostgresDecimalRejectsForeignNumericAndAdaptsMixedRows"
             "github.com/progresshans/godj/db/postgres|TestPostgresDecimalPrecisionKeepsCachedReadersUsable"

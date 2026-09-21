@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v1"
+const ProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v2"
 
 type RelationReversePackage struct {
 	Alias      string
@@ -175,8 +175,11 @@ func buildProjectRelationReverseSurface(
 			}
 			terminals := make([]projectRelationReverseTerminal, 0)
 			for _, terminal := range source.model.Fields {
-				// Reverse adapters still expose only their non-null exact subset.
-				if !terminal.Nullable && terminal.Kind != ir.FieldBoolean && supportedProjectRelationQueryTerminal(terminal) {
+				// Collection reverse adapters retain their non-null exact subset.
+				if (field.Relation.Cardinality == ir.RelationOneToOne || !terminal.Nullable && terminal.Kind != ir.FieldBoolean) && supportedProjectRelationQueryTerminal(terminal) {
+					if field.Relation.Cardinality == ir.RelationOneToOne && terminal.GoName == "IsNull" {
+						return nil, nil, fmt.Errorf("reverse OneToOne source field %s.%s conflicts with the IsNull method", source.identity.ModelName, terminal.Name)
+					}
 					terminals = append(terminals, projectRelationReverseTerminal{field: terminal.Clone()})
 				}
 			}
@@ -303,17 +306,16 @@ func renderProjectRelationReverseTypes(output *bytes.Buffer, owner projectRelati
 	ownerType := owner.model.app.alias + "." + owner.model.model.GoName
 	for _, relation := range owner.relations {
 		fmt.Fprintf(output, "type %s struct {\n", relation.typeName)
+		if relation.cardinality == ir.RelationOneToOne {
+			fmt.Fprintf(output, "\trelation orm.ReverseRelation[%s, %s.%s]\n", ownerType, relation.source.app.alias, relation.source.model.GoName)
+		}
 		for _, terminal := range relation.terminals {
-			fieldType := "orm.RelatedStringField"
-			if terminal.field.Kind == ir.FieldDateTime || terminal.field.Kind == ir.FieldDate || (terminal.field.Kind == ir.FieldTime || terminal.field.Kind == ir.FieldDuration || terminal.field.Kind == ir.FieldFloat || terminal.field.Kind == ir.FieldDecimal || terminal.field.Kind == ir.FieldUUID || terminal.field.Kind == ir.FieldJSON) {
-				fieldType = "orm.Related" + fieldRenderKind(terminal.field.Kind).queryValue + "Field"
-			}
-			if terminal.field.Kind == ir.FieldAuto || terminal.field.Kind == ir.FieldInteger {
-				fieldType = "orm.RelatedIntegerField"
-			}
-			fmt.Fprintf(output, "\t%s %s[%s]\n", terminal.field.GoName, fieldType, ownerType)
+			fmt.Fprintf(output, "\t%s orm.Related%sField[%s]\n", terminal.field.GoName, fieldRenderKind(terminal.field.Kind).queryValue, ownerType)
 		}
 		fmt.Fprintln(output, "}")
+		if relation.cardinality == ir.RelationOneToOne {
+			fmt.Fprintf(output, "func (_relation %s) IsNull(_value bool) orm.Predicate[%s] { return _relation.relation.IsNull(_value) }\n", relation.typeName, ownerType)
+		}
 		fmt.Fprintln(output)
 	}
 	fmt.Fprintf(output, "type %s struct {\n", owner.relationsType)
@@ -384,13 +386,7 @@ func renderBindReverseRelations(
 			fmt.Fprintln(output, "\t\treturn ReverseRelations{}, _err")
 			fmt.Fprintln(output, "\t}")
 			for _, terminal := range relation.terminals {
-				method := "String"
-				if terminal.field.Kind == ir.FieldDateTime || terminal.field.Kind == ir.FieldDate || (terminal.field.Kind == ir.FieldTime || terminal.field.Kind == ir.FieldDuration || terminal.field.Kind == ir.FieldFloat || terminal.field.Kind == ir.FieldDecimal || terminal.field.Kind == ir.FieldUUID || terminal.field.Kind == ir.FieldJSON) {
-					method = fieldRenderKind(terminal.field.Kind).queryValue
-				}
-				if terminal.field.Kind == ir.FieldAuto || terminal.field.Kind == ir.FieldInteger {
-					method = "Integer"
-				}
+				method := fieldRenderKind(terminal.field.Kind).queryValue
 				fmt.Fprintf(
 					output,
 					"\t_terminal%d, _err := _relation%d.%s(%s.%sFields.%s)\n",
@@ -412,6 +408,9 @@ func renderBindReverseRelations(
 		fmt.Fprintf(output, "\t\t%s: %s{\n", owner.surface, owner.relationsType)
 		for _, relation := range owner.relations {
 			fmt.Fprintf(output, "\t\t\t%s: %s{\n", relation.selector, relation.typeName)
+			if relation.cardinality == ir.RelationOneToOne {
+				fmt.Fprintf(output, "\t\t\t\trelation: _relation%d,\n", relation.bind)
+			}
 			for _, terminal := range relation.terminals {
 				fmt.Fprintf(output, "\t\t\t\t%s: _terminal%d,\n", terminal.field.GoName, terminal.bind)
 			}

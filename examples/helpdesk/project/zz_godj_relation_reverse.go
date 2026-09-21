@@ -10,7 +10,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v1"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v2"
 
 var _ orm.RelationObjectDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[models.Category] = models.CategoryDescriptor{}
@@ -177,4 +177,4 @@ func BindReverseObjects() (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_9f6c990b6169cb3061a44df5bbaffb34d308c5d558c7b8ca4c85320b359cc3ee
+var _ goDjProjectSnapshot_39d9756d75356b5aa8822073b9d3b18873334bd31aeb3c38b5d70609a2496761

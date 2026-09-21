@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
-const GoDjRelationObjectSchemaSHA256 = "f3c9c2a389d8f5bf9be86e24ef4cac81e091f3ad49a32fb5639617be112fd802"
+const GoDjRelationObjectSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
 
 var _ orm.RelationObjectDescriptor[Report] = ReportDescriptor{}
 
@@ -133,4 +133,43 @@ func (linkTicketIDRelationStorage) Value(value Link) (query.Value, bool) {
 	return query.Integer(value.TicketID), true
 }
 
-var _ GoDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c
+var _ orm.RelationObjectDescriptor[Review] = ReviewDescriptor{}
+
+func (ReviewDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Review] {
+	return ReviewDescriptor{}
+}
+
+func (ReviewDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Review], bool) {
+	switch {
+	case reflect.DeepEqual(field, (reviewTicketIDRelationStorage{}).Field()):
+		return reviewTicketIDRelationStorage{}, true
+	default:
+		return nil, false
+	}
+}
+
+type reviewTicketIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Review] = reviewTicketIDRelationStorage{}
+
+func (reviewTicketIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:   "ticket",
+		GoName: "TicketID",
+		Column: "ticket_id",
+		Kind:   ir.FieldForeignKey,
+		Unique: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
+			Cardinality: ir.RelationOneToOne,
+			Reverse:     ir.ReverseRelation{Name: "review"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func (reviewTicketIDRelationStorage) Value(value Review) (query.Value, bool) {
+	return query.Integer(value.TicketID), true
+}
+
+var _ GoDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22

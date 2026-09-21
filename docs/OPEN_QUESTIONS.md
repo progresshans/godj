@@ -8,7 +8,7 @@
 | Q-010 | project scaffold, installed version negotiation와 첫 지원 릴리스 이후 upgrade 정책 | 현재 CLI/generate/migration command는 구현됨 |
 | Q-011 | 넓은 expression/aggregate/bulk/locking과 background 평가 소유권 | immutable AST와 cache/terminal 의미는 구현됨 |
 | Q-012 | custom/data operation, destructive/general writer, repair/crash reconciliation | loaded definition, revision-fenced lifecycle와 bounded target/reverse는 구현됨 |
-| Q-013 | OneToOne/ManyToMany, arbitrary target/depth/cycle와 relation 일반화 | AutoField-target FK와 현행 query/cache/delete 단면 구현; OneToOne 선언·migration·single reverse/prefetch 기반은 GDJ-0096에서 연결, 전체 소비자 미완료 |
+| Q-013 | OneToOne/ManyToMany, arbitrary target/depth/cycle와 relation 일반화 | AutoField-target FK와 현행 query/cache/delete 단면 구현; OneToOne 선언·migration·single reverse/prefetch와 직접 조건 조회는 GDJ-0096에서 연결, 전체 소비자 미완료 |
 | Q-016 | 넓은 API schema·docs UI·배포형/다언어 client, viewset 일반화와 wider routing | bounded serializer/JSON CRUD/auth profile, Article·Helpdesk OpenAPI와 고정 ogen Go client 흐름은 구현됨 |
 | Q-017 | 현재 generated model의 사용성·namespace와 broader relation facade | whole-project publication과 current facade는 구현됨; consumer로 다음 제약을 찾음 |
 | Q-019 | SQLite quarantine의 운영 recovery 안내 | single retained handle·새 I/O 거부는 GDJ-0057에서 통합 검증 완료; 자동 복구 미지원 |

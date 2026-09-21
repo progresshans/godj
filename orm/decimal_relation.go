@@ -27,16 +27,13 @@ func (relation ForwardRelation[S, T]) Decimal(field ReferenceField[T, decimal.De
 	}
 	return RelatedDecimalField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) Decimal(field DecimalField[Source]) (RelatedDecimalField[Owner], error) {
+func (relation ReverseRelation[Owner, Source]) Decimal(field ReferenceField[Source, decimal.Decimal]) (RelatedDecimalField[Owner], error) {
 	if err := validateReverseRelationState(relation.state); err != nil {
 		return RelatedDecimalField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedDecimalField[Owner]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(relation.state.forward.sourceModel, field.reference, ir.FieldDecimal)
-	if !ok || metadata.Nullable {
-		return RelatedDecimalField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldDecimal)
+	if err != nil {
+		return RelatedDecimalField[Owner]{}, err
 	}
 	path, err := relation.state.path(fieldReference(metadata))
 	if err != nil {

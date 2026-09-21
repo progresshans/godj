@@ -16,6 +16,7 @@ const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-selec
 var _ orm.ProjectionDescriptor[reports.Link] = reports.LinkDescriptor{}
 var _ orm.ProjectionDescriptor[reports.OptionalReport] = reports.OptionalReportDescriptor{}
 var _ orm.ProjectionDescriptor[reports.Report] = reports.ReportDescriptor{}
+var _ orm.ProjectionDescriptor[reports.Review] = reports.ReviewDescriptor{}
 var _ orm.ProjectionDescriptor[tickets.Ticket] = tickets.TicketDescriptor{}
 
 type relationSelectQuery[O any] interface {
@@ -540,4 +541,176 @@ func (_factory ReportsReportObjectFactory) FromSelected(_selected *orm.ForwardSe
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c
+type ReportsReviewSelectRelatedQuery struct {
+	factory          ReportsReviewObjectFactory
+	source           orm.QuerySet[reports.Review]
+	query            orm.ForwardSelectQuery[reports.Review]
+	selections       []orm.ForwardSelection[reports.Review]
+	configurationErr error
+}
+
+func (_factory ReportsReviewObjectFactory) SelectRelated(_source orm.QuerySet[reports.Review]) ReportsReviewSelectRelatedQuery {
+	return ReportsReviewSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectForward(_source)}
+}
+func (_query ReportsReviewSelectRelatedQuery) WithSelections(_selections ...orm.ForwardSelection[reports.Review]) ReportsReviewSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.ForwardSelection[reports.Review](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory ReportsReviewObjectFactory) SelectTicket(_children ...orm.ForwardSelection[tickets.Ticket]) orm.ForwardSelect[reports.Review, tickets.Ticket] {
+	return orm.SelectRequiredForward(_factory.ticket).WithChildren(_children...)
+}
+func (_query ReportsReviewSelectRelatedQuery) WithTicket(_children ...orm.ForwardSelection[tickets.Ticket]) ReportsReviewSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectTicket(_children...))
+}
+func (_factory ReportsReviewObjectFactory) selectionInputs(_paths []string) ([]orm.ForwardSelection[reports.Review], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumForwardSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.ForwardSelection[reports.Review], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "ticket":
+			_selection := _factory.SelectTicket()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query ReportsReviewSelectRelatedQuery) ParseDynamic(_paths ...string) (ReportsReviewSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ReportsReviewSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsReviewSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return ReportsReviewSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query ReportsReviewSelectRelatedQuery) rebuild() ReportsReviewSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectForward(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query ReportsReviewSelectRelatedQuery) Filter(_values ...orm.Predicate[reports.Review]) ReportsReviewSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query ReportsReviewSelectRelatedQuery) OrderBy(_values ...orm.Ordering[reports.Review]) ReportsReviewSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query ReportsReviewSelectRelatedQuery) Distinct() ReportsReviewSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query ReportsReviewSelectRelatedQuery) Fresh() ReportsReviewSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query ReportsReviewSelectRelatedQuery) Limit(_value int) (ReportsReviewSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ReportsReviewSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ReportsReviewSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ReportsReviewSelectRelatedQuery) Offset(_value int) (ReportsReviewSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ReportsReviewSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ReportsReviewSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ReportsReviewSelectRelatedQuery) All(_ctx context.Context) ([]*ReportsReviewObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ReportsReviewObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query ReportsReviewSelectRelatedQuery) First(_ctx context.Context) (*ReportsReviewObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query ReportsReviewSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query ReportsReviewSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[reports.Review]) (*ReportsReviewObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory ReportsReviewObjectFactory) FromSelected(_selected *orm.ForwardSelected[reports.Review]) (*ReportsReviewObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("ticket"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectTicket().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.ticket = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+
+var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22

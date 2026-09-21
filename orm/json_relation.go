@@ -27,16 +27,13 @@ func (relation ForwardRelation[S, T]) JSON(field ReferenceField[T, jsonvalue.Val
 	}
 	return RelatedJSONField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) JSON(field JSONField[Source]) (RelatedJSONField[Owner], error) {
+func (relation ReverseRelation[Owner, Source]) JSON(field ReferenceField[Source, jsonvalue.Value]) (RelatedJSONField[Owner], error) {
 	if err := validateReverseRelationState(relation.state); err != nil {
 		return RelatedJSONField[Owner]{}, err
 	}
-	if field.err != nil {
-		return RelatedJSONField[Owner]{}, field.err
-	}
-	metadata, ok := matchingTerminalField(relation.state.forward.sourceModel, field.reference, ir.FieldJSON)
-	if !ok || metadata.Nullable {
-		return RelatedJSONField[Owner]{}, unknownRelatedField(field.reference.Name())
+	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldJSON)
+	if err != nil {
+		return RelatedJSONField[Owner]{}, err
 	}
 	path, err := relation.state.path(fieldReference(metadata))
 	if err != nil {

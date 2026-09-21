@@ -98,6 +98,54 @@ def observe():
                 app_label = 'otodetails'
                 db_table = 'oto_hidden'
 
+        class LookupParent(models.Model):
+            name = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = 'otoparents'
+                db_table = 'oto_lookup_parent'
+
+        class LookupDetail(models.Model):
+            parent = models.OneToOneField(LookupParent, on_delete=models.PROTECT, related_name='detail')
+            note = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_lookup_detail'
+
+        class LookupOptional(models.Model):
+            parent = models.OneToOneField(LookupParent, on_delete=models.SET_NULL, null=True, related_name='optional_detail')
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_lookup_optional'
+
+        class LookupUnique(models.Model):
+            parent = models.ForeignKey(LookupParent, on_delete=models.PROTECT, unique=True, related_name='unique_children')
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_lookup_unique'
+
+        class Review(models.Model):
+            parent = models.OneToOneField(LookupParent, on_delete=models.PROTECT, related_name='review')
+            score = models.IntegerField(null=True)
+            title = models.CharField(max_length=80, null=True)
+            body = models.TextField(null=True)
+            approved = models.BooleanField(null=True)
+            ratio = models.FloatField(null=True)
+            price = models.DecimalField(max_digits=8, decimal_places=2, null=True)
+            token = models.UUIDField(null=True)
+            payload = models.JSONField(null=True)
+            day = models.DateField(null=True)
+            at = models.DateTimeField(null=True)
+            clock = models.TimeField(null=True)
+            elapsed = models.DurationField(null=True)
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_review'
+
         def field_shape(field):
             return {**{name: getattr(field, name) for name in ('unique', 'many_to_one', 'one_to_one', 'null')},
                     'reverse_one_to_one': field.remote_field.one_to_one,
@@ -137,7 +185,7 @@ def observe():
         created = []
         try:
             assert not connection.introspection.table_names()
-            for model in (Parent, Detail, OptionalDetail, UniqueChild, DefaultDetail, HiddenDetail):
+            for model in (Parent, Detail, OptionalDetail, UniqueChild, DefaultDetail, HiddenDetail, LookupParent, LookupDetail, LookupOptional, LookupUnique, Review):
                 with connection.schema_editor() as editor:
                     editor.create_model(model)
                 created.append(model)
@@ -162,6 +210,58 @@ def observe():
                 Parent.objects.exclude(detail__note='original').order_by('id').values_list('id', flat=True)))
             record('reverse_or_absent', lambda: list(Parent.objects.filter(
                 Q(detail__note='original') | Q(detail__isnull=True)).order_by('id').values_list('id', flat=True)))
+            def capture_lookups():
+                first, second, third, fourth = [LookupParent.objects.create(name=name) for name in ('first', 'second', 'third', 'fourth')]
+                LookupDetail.objects.create(parent=first, note='original')
+                Review.objects.create(parent=first, score=5, title='Alpha 100%_', approved=True)
+                Review.objects.create(parent=second)
+                Review.objects.create(parent=third, score=12, title='Beta', approved=False)
+                LookupOptional.objects.create(parent=second)
+                LookupOptional.objects.create()
+                LookupUnique.objects.create(parent=first)
+                predicates = [
+                    ('report_absent', Q(detail__isnull=True)), ('report_present', Q(detail__isnull=False)),
+                    ('report_field_null', Q(detail__note__isnull=True)), ('report_not_equal', ~Q(detail__note='original')),
+                    ('report_or_absent', Q(detail__note='original') | Q(detail__isnull=True)),
+                    ('score_exact', Q(review__score=5)), ('score_gt', Q(review__score__gt=5)),
+                    ('score_gte', Q(review__score__gte=5)), ('score_lt', Q(review__score__lt=12)),
+                    ('score_lte', Q(review__score__lte=12)), ('score_null', Q(review__score__isnull=True)),
+                    ('score_non_null', Q(review__score__isnull=False)), ('score_not_exact', ~Q(review__score=5)),
+                    ('score_in', Q(review__score__in=[5, 12])), ('score_empty_in', Q(review__score__in=[])),
+                    ('score_not_in', ~Q(review__score__in=[5])), ('score_not_empty_in', ~Q(review__score__in=[])),
+                    ('approved_true', Q(review__approved=True)), ('approved_false', Q(review__approved=False)),
+                    ('approved_null', Q(review__approved__isnull=True)), ('approved_not_true', ~Q(review__approved=True)),
+                    ('title_contains', Q(review__title__icontains='alpha')),
+                    ('title_literal_wildcards', Q(review__title__icontains='100%_')),
+                    ('not_and', ~(Q(review__score__gte=5) & Q(review__title__icontains='alpha'))),
+                    ('not_or', ~(Q(review__score=5) | Q(detail__isnull=True))),
+                    ('double_not', ~~Q(review__score=5)),
+                    ('same_edge_or', Q(review__score=5) | Q(review__approved=False)),
+                    ('different_edge_or', Q(detail__note='original') | Q(review__score__isnull=True)),
+                    ('root_or_reverse', Q(name='fourth') | Q(review__score=5)),
+                    ('optional_absent', Q(optional_detail__isnull=True)),
+                    ('optional_present', Q(optional_detail__isnull=False)),
+                    ('mixed_collection_and', Q(unique_children__id=1) & (Q(review__score=5) | Q(review__isnull=True))),
+                ]
+                for field in ('body', 'ratio', 'price', 'token', 'payload', 'day', 'at', 'clock', 'elapsed'):
+                    predicates.append((field + '_null', Q(**{'review__' + field + '__isnull': True})))
+                lookups = []
+                for name, predicate in predicates:
+                    statements = []
+
+                    def capture(next_execute, sql, params, many, context):
+                        statements.append(sql)
+                        return next_execute(sql, params, many, context)
+
+                    with connection.execute_wrapper(capture):
+                        identifiers = list(LookupParent.objects.filter(predicate).order_by('id').values_list('id', flat=True))
+                    lookups.append({'name': name, 'ids': identifiers,
+                                    'selects': sum(sql.lstrip().startswith('SELECT') for sql in statements),
+                                    'left_joins': sum(sql.count(' LEFT OUTER JOIN ') for sql in statements),
+                                    'inner_joins': sum(sql.count(' INNER JOIN ') for sql in statements)})
+                return lookups
+
+            lookups = capture_lookups()
             record('required_form_duplicate', lambda: forms(Detail, {'parent': first.pk}))
             record('required_form_self', lambda: forms(Detail, {'parent': first.pk}, detail))
             record('required_form_available', lambda: forms(Detail, {'parent': second.pk}))
@@ -288,7 +388,7 @@ def observe():
                 version = cursor.fetchone()[0]
             output = {'django': django.get_version(), 'python': platform.python_version(),
                       'backend': connection.vendor, 'database_version': version,
-                      'field_shapes': shapes, 'observations': observations, 'migrations': migrations,
+                      'field_shapes': shapes, 'observations': observations, 'lookups': lookups, 'migrations': migrations,
                       'django_related_field_source_sha256': hashlib.sha256(
                           Path(inspect.getsourcefile(models.OneToOneField)).read_bytes()).hexdigest()}
             if database:

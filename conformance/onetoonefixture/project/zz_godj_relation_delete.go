@@ -44,7 +44,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
 		tickets.TicketDescriptor{},
-		"9e281d40d3bfed9e2b7deec81c0d795276d41abae4cd2e202a44f040a60f4055",
+		"871f8d224ecbcaaeebe61b83be716b42e58dc567040cc88579c004389b429ad1",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -54,4 +54,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c
+var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22

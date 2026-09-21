@@ -115,6 +115,32 @@ class OneToOneReferenceTests(unittest.TestCase):
         self.assertEqual(migrations[0]['exception'], 'IntegrityError')
         self.assertEqual(migrations[1]['reverse_exception'], 'IntegrityError')
 
+    def test_single_reverse_lookups_preserve_absence_and_nullable_values(self):
+        observations = self.fresh[0]['lookups']
+        rows = {row['name']: row for row in observations}
+        self.assertEqual(len(rows), len(observations))
+        self.assertEqual(len(rows), 41)
+        expected = {
+            'report_absent': [2, 3, 4], 'report_present': [1], 'report_field_null': [2, 3, 4],
+            'report_not_equal': [2, 3, 4], 'report_or_absent': [1, 2, 3, 4],
+            'score_exact': [1], 'score_gt': [3], 'score_gte': [1, 3], 'score_lt': [1], 'score_lte': [1, 3],
+            'score_null': [2, 4], 'score_non_null': [1, 3], 'score_not_exact': [2, 3, 4],
+            'score_in': [1, 3], 'score_empty_in': [], 'score_not_in': [2, 3, 4], 'score_not_empty_in': [1, 2, 3, 4],
+            'approved_true': [1], 'approved_false': [3], 'approved_null': [2, 4], 'approved_not_true': [2, 3, 4],
+            'title_contains': [1], 'title_literal_wildcards': [1], 'not_and': [2, 3, 4], 'not_or': [],
+            'double_not': [1], 'same_edge_or': [1, 3], 'different_edge_or': [1, 2, 4], 'root_or_reverse': [1, 4],
+            'optional_absent': [1, 3, 4], 'optional_present': [2], 'mixed_collection_and': [1],
+        }
+        for field in ('body', 'ratio', 'price', 'token', 'payload', 'day', 'at', 'clock', 'elapsed'):
+            expected[field + '_null'] = [1, 2, 3, 4]
+        self.assertEqual({name: row['ids'] for name, row in rows.items()}, expected)
+        for name, row in rows.items():
+            self.assertEqual(row['selects'], 0 if name == 'score_empty_in' else 1, name)
+        for name in ('report_absent', 'score_null', 'score_not_exact', 'approved_not_true', 'optional_absent'):
+            self.assertEqual((rows[name]['left_joins'], rows[name]['inner_joins']), (1, 0), name)
+        for name in ('report_present', 'score_exact', 'same_edge_or', 'double_not', 'optional_present'):
+            self.assertEqual((rows[name]['left_joins'], rows[name]['inner_joins']), (0, 1), name)
+
 
 if __name__ == '__main__':
     unittest.main()

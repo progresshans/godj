@@ -57,6 +57,24 @@ func (h RelationHop) Cardinality() ir.RelationCardinality { return h.cardinality
 func (h RelationHop) Nullable() bool                      { return h.nullable }
 func (h RelationHop) Equal(other RelationHop) bool        { return h == other }
 
+// Optional describes traversal presence, not physical FK nullability. A
+// reverse traversal can have no child even when its forward FK is required.
+func (h RelationHop) Optional() bool { return h.nullable || h.direction == RelationReverse }
+
+// SingleValued reports whether each traversal selects at most one related row.
+// It does not replace Validate or claim that a reverse object must exist.
+func (p RelationPath) SingleValued() bool {
+	if len(p.hops) == 0 {
+		return false
+	}
+	for _, hop := range p.hops {
+		if !hop.cardinality.SingleValued() {
+			return false
+		}
+	}
+	return true
+}
+
 // RelationPath is an immutable symbolic traversal ending at either a scalar
 // target field or the source model's local key. Retaining a slice keeps
 // unsupported shapes visible to compilers as structured values rather than
@@ -84,7 +102,7 @@ func NewReverseRelationPath(
 		!canonicalIdentifier(sourceTable) || !canonicalIdentifier(sourceField) ||
 		!canonicalIdentifier(sourceColumn) || !canonicalIdentifier(targetTable) ||
 		!canonicalIdentifier(targetPKColumn) || !canonicalIdentifier(reverseName) ||
-		!validReverseTerminal(terminal) {
+		!validReverseTerminal(terminal, cardinality) {
 		return RelationPath{}, &Error{
 			Category: CategoryQuery,
 			Code:     CodeInvalidPlan,
@@ -233,7 +251,10 @@ func canonicalIdentifier(value string) bool {
 	return identifiers.SQL(value)
 }
 
-func validReverseTerminal(field FieldRef) bool {
+func validReverseTerminal(field FieldRef, cardinality ir.RelationCardinality) bool {
+	if cardinality == ir.RelationOneToOne {
+		return validFieldRef(field) && canonicalIdentifier(field.Name()) && canonicalIdentifier(field.Column())
+	}
 	if !field.ValidType() || !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() {
 		return false
 	}

@@ -5,7 +5,7 @@ package reports
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "f3c9c2a389d8f5bf9be86e24ef4cac81e091f3ad49a32fb5639617be112fd802"
+const GoDjRelationSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -115,8 +115,121 @@ func GoDjRelationSchema() ir.Schema {
 					},
 				},
 			},
+			{
+				Name:    "review",
+				GoName:  "Review",
+				DBTable: "otoreports_review",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:   "ticket",
+						GoName: "TicketID",
+						Column: "ticket_id",
+						Kind:   ir.FieldForeignKey,
+						Unique: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
+							Cardinality: ir.RelationOneToOne,
+							Reverse:     ir.ReverseRelation{Name: "review"},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
+					{
+						Name:     "score",
+						GoName:   "Score",
+						Column:   "score",
+						Kind:     ir.FieldInteger,
+						Nullable: true,
+					},
+					{
+						Name:      "title",
+						GoName:    "Title",
+						Column:    "title",
+						Kind:      ir.FieldChar,
+						Nullable:  true,
+						MaxLength: 80,
+					},
+					{
+						Name:     "body",
+						GoName:   "Body",
+						Column:   "body",
+						Kind:     ir.FieldText,
+						Nullable: true,
+					},
+					{
+						Name:     "approved",
+						GoName:   "Approved",
+						Column:   "approved",
+						Kind:     ir.FieldBoolean,
+						Nullable: true,
+					},
+					{
+						Name:     "ratio",
+						GoName:   "Ratio",
+						Column:   "ratio",
+						Kind:     ir.FieldFloat,
+						Nullable: true,
+					},
+					{
+						Name:     "price",
+						GoName:   "Price",
+						Column:   "price",
+						Kind:     ir.FieldDecimal,
+						Nullable: true,
+						Decimal:  &ir.DecimalSpec{MaxDigits: 8, DecimalPlaces: 2},
+					},
+					{
+						Name:     "token",
+						GoName:   "Token",
+						Column:   "token",
+						Kind:     ir.FieldUUID,
+						Nullable: true,
+					},
+					{
+						Name:     "payload",
+						GoName:   "Payload",
+						Column:   "payload",
+						Kind:     ir.FieldJSON,
+						Nullable: true,
+					},
+					{
+						Name:     "day",
+						GoName:   "Day",
+						Column:   "day",
+						Kind:     ir.FieldDate,
+						Nullable: true,
+					},
+					{
+						Name:     "at",
+						GoName:   "At",
+						Column:   "at",
+						Kind:     ir.FieldDateTime,
+						Nullable: true,
+					},
+					{
+						Name:     "clock",
+						GoName:   "Clock",
+						Column:   "clock",
+						Kind:     ir.FieldTime,
+						Nullable: true,
+					},
+					{
+						Name:     "elapsed",
+						GoName:   "Elapsed",
+						Column:   "elapsed",
+						Kind:     ir.FieldDuration,
+						Nullable: true,
+					},
+				},
+			},
 		},
 	}
 }
 
-var _ GoDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c
+var _ GoDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22

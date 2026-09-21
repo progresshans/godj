@@ -17,6 +17,7 @@ type TicketsTicketReversePrefetches struct {
 	links          orm.ReversePrefetch[tickets.Ticket, reports.Link]
 	optionalReport orm.ReverseOneToOnePrefetch[tickets.Ticket, reports.OptionalReport]
 	report         orm.ReverseOneToOnePrefetch[tickets.Ticket, reports.Report]
+	review         orm.ReverseOneToOnePrefetch[tickets.Ticket, reports.Review]
 }
 
 func (_prefetches TicketsTicketReversePrefetches) Links(
@@ -94,6 +95,31 @@ func (_prefetches TicketsTicketReversePrefetches) Report(
 	return _results, nil
 }
 
+func (_prefetches TicketsTicketReversePrefetches) Review(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []tickets.Ticket,
+) ([]*TicketsTicketReverseObject, error) {
+	_snapshots := make([]tickets.Ticket, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (tickets.TicketDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.review.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*TicketsTicketReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.review = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
 type ReversePrefetches struct {
 	TicketsTicket TicketsTicketReversePrefetches
 }
@@ -115,14 +141,19 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
+	_prefetch3, _err := orm.BindReverseOneToOnePrefetch(_objects.TicketsTicket.review)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
 	return ReversePrefetches{
 		TicketsTicket: TicketsTicketReversePrefetches{
 			objects:        _objects.TicketsTicket,
 			links:          _prefetch0,
 			optionalReport: _prefetch1,
 			report:         _prefetch2,
+			review:         _prefetch3,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c
+var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22

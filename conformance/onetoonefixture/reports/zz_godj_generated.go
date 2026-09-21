@@ -4,14 +4,21 @@ package reports
 
 import (
 	"database/sql"
+	_godjcalendar "github.com/progresshans/godj/calendar"
+	_godjclock "github.com/progresshans/godj/clock"
 	"github.com/progresshans/godj/db"
+	_godjdecimal "github.com/progresshans/godj/decimal"
+	_godjduration "github.com/progresshans/godj/duration"
+	_godjjson "github.com/progresshans/godj/jsonvalue"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	_godjuuid "github.com/progresshans/godj/uuid"
+	_godjtime "time"
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "f3c9c2a389d8f5bf9be86e24ef4cac81e091f3ad49a32fb5639617be112fd802"
+const GoDjSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
 
 type Report struct {
 	ID                    int64
@@ -697,4 +704,1225 @@ func linkMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c struct{}
+type Review struct {
+	ID                    int64
+	TicketID              int64
+	Score                 *int64
+	Title                 *string
+	Body                  *string
+	Approved              *bool
+	Ratio                 *float64
+	Price                 *_godjdecimal.Decimal
+	Token                 *_godjuuid.UUID
+	Payload               *_godjjson.Value
+	Day                   *_godjcalendar.Date
+	At                    *_godjtime.Time
+	Clock                 *_godjclock.Time
+	Elapsed               *_godjduration.Duration
+	godjPrimaryKeyPresent bool
+}
+
+type ReviewDescriptor struct{}
+
+var _ orm.ModelDescriptor[Review] = ReviewDescriptor{}
+
+var _ orm.WriteDescriptor[Review] = ReviewDescriptor{}
+
+func (ReviewDescriptor) Metadata() ir.Model {
+	return reviewMetadata()
+}
+
+func (ReviewDescriptor) Scan(row db.Row) (Review, error) {
+	var value Review
+	var scanScore sql.NullInt64
+	var scanTitle sql.NullString
+	var scanBody sql.NullString
+	var scanApproved sql.NullBool
+	var scanRatio orm.NullableFloatScanner
+	scanPrice := orm.NewNullableDecimalScanner(8, 2)
+	var scanToken orm.NullableUUIDScanner
+	var scanPayload orm.NullableJSONScanner
+	var scanDay orm.NullableDateScanner
+	var scanAt orm.NullableDateTimeScanner
+	var scanClock orm.NullableTimeScanner
+	var scanElapsed orm.NullableDurationScanner
+	if err := row.Scan(&value.ID, &value.TicketID, &scanScore, &scanTitle, &scanBody, &scanApproved, &scanRatio, &scanPrice, &scanToken, &scanPayload, &scanDay, &scanAt, &scanClock, &scanElapsed); err != nil {
+		return Review{}, err
+	}
+	if scanScore.Valid {
+		scanned := scanScore.Int64
+		value.Score = &scanned
+	}
+	if scanTitle.Valid {
+		scanned := scanTitle.String
+		value.Title = &scanned
+	}
+	if scanBody.Valid {
+		scanned := scanBody.String
+		value.Body = &scanned
+	}
+	if scanApproved.Valid {
+		scanned := scanApproved.Bool
+		value.Approved = &scanned
+	}
+	if scanRatio.Valid {
+		scanned := scanRatio.Float
+		value.Ratio = &scanned
+	}
+	if scanPrice.Valid {
+		scanned := scanPrice.Decimal
+		value.Price = &scanned
+	}
+	if scanToken.Valid {
+		scanned := scanToken.UUID
+		value.Token = &scanned
+	}
+	if scanPayload.Valid {
+		scanned := scanPayload.JSON
+		value.Payload = &scanned
+	}
+	if scanDay.Valid {
+		scanned := scanDay.Date
+		value.Day = &scanned
+	}
+	if scanAt.Valid {
+		scanned := scanAt.Time
+		value.At = &scanned
+	}
+	if scanClock.Valid {
+		scanned := scanClock.Time
+		value.Clock = &scanned
+	}
+	if scanElapsed.Valid {
+		scanned := scanElapsed.Duration
+		value.Elapsed = &scanned
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (ReviewDescriptor) PrimaryKey(value Review) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (ReviewDescriptor) SetPrimaryKey(value *Review, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (ReviewDescriptor) ClearPrimaryKey(value *Review) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (ReviewDescriptor) CloneModel(value Review) Review {
+	clone := value
+	if value.Score != nil {
+		clonedScore := *value.Score
+		clone.Score = &clonedScore
+	}
+	if value.Title != nil {
+		clonedTitle := *value.Title
+		clone.Title = &clonedTitle
+	}
+	if value.Body != nil {
+		clonedBody := *value.Body
+		clone.Body = &clonedBody
+	}
+	if value.Approved != nil {
+		clonedApproved := *value.Approved
+		clone.Approved = &clonedApproved
+	}
+	if value.Ratio != nil {
+		clonedRatio := *value.Ratio
+		clone.Ratio = &clonedRatio
+	}
+	if value.Price != nil {
+		clonedPrice := *value.Price
+		clone.Price = &clonedPrice
+	}
+	if value.Token != nil {
+		clonedToken := *value.Token
+		clone.Token = &clonedToken
+	}
+	if value.Payload != nil {
+		clonedPayload := *value.Payload
+		clone.Payload = &clonedPayload
+	}
+	if value.Day != nil {
+		clonedDay := *value.Day
+		clone.Day = &clonedDay
+	}
+	if value.At != nil {
+		clonedAt := *value.At
+		clone.At = &clonedAt
+	}
+	if value.Clock != nil {
+		clonedClock := *value.Clock
+		clone.Clock = &clonedClock
+	}
+	if value.Elapsed != nil {
+		clonedElapsed := *value.Elapsed
+		clone.Elapsed = &clonedElapsed
+	}
+	return clone
+}
+
+func (descriptor ReviewDescriptor) CloneWriteModel(value Review) Review {
+	return descriptor.CloneModel(value)
+}
+
+func (ReviewDescriptor) WriteFieldValue(value Review, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "ticket":
+		return query.Integer(value.TicketID), true
+	case "score":
+		if value.Score == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.Score), true
+	case "title":
+		if value.Title == nil {
+			return query.Null(), true
+		}
+		return query.String(*value.Title), true
+	case "body":
+		if value.Body == nil {
+			return query.Null(), true
+		}
+		return query.String(*value.Body), true
+	case "approved":
+		if value.Approved == nil {
+			return query.Null(), true
+		}
+		return query.Boolean(*value.Approved), true
+	case "ratio":
+		if value.Ratio == nil {
+			return query.Null(), true
+		}
+		return query.Float(*value.Ratio), true
+	case "price":
+		if value.Price == nil {
+			return query.Null(), true
+		}
+		return query.Decimal(*value.Price), true
+	case "token":
+		if value.Token == nil {
+			return query.Null(), true
+		}
+		return query.UUID(*value.Token), true
+	case "payload":
+		if value.Payload == nil {
+			return query.Null(), true
+		}
+		return query.JSON(*value.Payload), true
+	case "day":
+		if value.Day == nil {
+			return query.Null(), true
+		}
+		return query.Date(*value.Day), true
+	case "at":
+		if value.At == nil {
+			return query.Null(), true
+		}
+		return query.DateTime(*value.At), true
+	case "clock":
+		if value.Clock == nil {
+			return query.Null(), true
+		}
+		return query.Time(*value.Clock), true
+	case "elapsed":
+		if value.Elapsed == nil {
+			return query.Null(), true
+		}
+		return query.Duration(*value.Elapsed), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type ReviewFieldSet struct {
+	ID       orm.AutoField[Review]
+	Score    orm.NullableIntegerField[Review]
+	Title    orm.NullableStringField[Review]
+	Body     orm.NullableStringField[Review]
+	Approved orm.NullableBooleanField[Review]
+	Ratio    orm.NullableFloatField[Review]
+	Price    orm.NullableDecimalField[Review]
+	Token    orm.NullableUUIDField[Review]
+	Payload  orm.NullableJSONField[Review]
+	Day      orm.NullableDateField[Review]
+	At       orm.NullableDateTimeField[Review]
+	Clock    orm.NullableTimeField[Review]
+	Elapsed  orm.NullableDurationField[Review]
+}
+
+var ReviewFields = func() ReviewFieldSet {
+	metadata := reviewMetadata()
+	return ReviewFieldSet{
+		ID:       orm.NewAutoField[Review](metadata.Fields[0]),
+		Score:    orm.NewNullableIntegerField[Review](metadata.Fields[2]),
+		Title:    orm.NewNullableStringField[Review](metadata.Fields[3]),
+		Body:     orm.NewNullableStringField[Review](metadata.Fields[4]),
+		Approved: orm.NewNullableBooleanField[Review](metadata.Fields[5]),
+		Ratio:    orm.NewNullableFloatField[Review](metadata.Fields[6]),
+		Price:    orm.NewNullableDecimalField[Review](metadata.Fields[7]),
+		Token:    orm.NewNullableUUIDField[Review](metadata.Fields[8]),
+		Payload:  orm.NewNullableJSONField[Review](metadata.Fields[9]),
+		Day:      orm.NewNullableDateField[Review](metadata.Fields[10]),
+		At:       orm.NewNullableDateTimeField[Review](metadata.Fields[11]),
+		Clock:    orm.NewNullableTimeField[Review](metadata.Fields[12]),
+		Elapsed:  orm.NewNullableDurationField[Review](metadata.Fields[13]),
+	}
+}()
+
+var ReviewObjects = orm.NewManager[Review](ReviewDescriptor{})
+
+func NewReviewWithID(key int64) Review {
+	return Review{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func ReviewUpdateFields(fields ...orm.WritableField[Review]) orm.SaveOption[Review] {
+	return orm.UpdateFields(fields...)
+}
+
+func ReviewUpdateFieldNames(names ...string) orm.SaveOption[Review] {
+	return orm.UpdateFieldNames[Review](names...)
+}
+
+func ReviewForceInsert() orm.SaveOption[Review] {
+	return orm.ForceInsert[Review]()
+}
+
+func ReviewForceUpdate() orm.SaveOption[Review] {
+	return orm.ForceUpdate[Review]()
+}
+
+type ReviewCreate struct {
+	ticketID orm.Change[int64]
+	score    orm.NullableChange[int64]
+	title    orm.NullableChange[string]
+	body     orm.NullableChange[string]
+	approved orm.NullableChange[bool]
+	ratio    orm.NullableChange[float64]
+	price    orm.NullableChange[_godjdecimal.Decimal]
+	token    orm.NullableChange[_godjuuid.UUID]
+	payload  orm.NullableChange[_godjjson.Value]
+	day      orm.NullableChange[_godjcalendar.Date]
+	at       orm.NullableChange[_godjtime.Time]
+	clock    orm.NullableChange[_godjclock.Time]
+	elapsed  orm.NullableChange[_godjduration.Duration]
+}
+
+func NewReviewCreate(ticketID int64) ReviewCreate {
+	return ReviewCreate{
+		ticketID: orm.Set(ticketID),
+	}
+}
+
+func (input ReviewCreate) WithTicketID(value int64) ReviewCreate {
+	input.ticketID = orm.Set(value)
+	return input
+}
+
+func (input ReviewCreate) WithScore(value int64) ReviewCreate {
+	input.score = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithScoreNull() ReviewCreate {
+	input.score = orm.SetNull[int64]()
+	return input
+}
+
+func (input ReviewCreate) WithTitle(value string) ReviewCreate {
+	input.title = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithTitleNull() ReviewCreate {
+	input.title = orm.SetNull[string]()
+	return input
+}
+
+func (input ReviewCreate) WithBody(value string) ReviewCreate {
+	input.body = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithBodyNull() ReviewCreate {
+	input.body = orm.SetNull[string]()
+	return input
+}
+
+func (input ReviewCreate) WithApproved(value bool) ReviewCreate {
+	input.approved = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithApprovedNull() ReviewCreate {
+	input.approved = orm.SetNull[bool]()
+	return input
+}
+
+func (input ReviewCreate) WithRatio(value float64) ReviewCreate {
+	input.ratio = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithRatioNull() ReviewCreate {
+	input.ratio = orm.SetNull[float64]()
+	return input
+}
+
+func (input ReviewCreate) WithPrice(value _godjdecimal.Decimal) ReviewCreate {
+	input.price = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithPriceNull() ReviewCreate {
+	input.price = orm.SetNull[_godjdecimal.Decimal]()
+	return input
+}
+
+func (input ReviewCreate) WithToken(value _godjuuid.UUID) ReviewCreate {
+	input.token = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithTokenNull() ReviewCreate {
+	input.token = orm.SetNull[_godjuuid.UUID]()
+	return input
+}
+
+func (input ReviewCreate) WithPayload(value _godjjson.Value) ReviewCreate {
+	input.payload = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithPayloadNull() ReviewCreate {
+	input.payload = orm.SetNull[_godjjson.Value]()
+	return input
+}
+
+func (input ReviewCreate) WithDay(value _godjcalendar.Date) ReviewCreate {
+	input.day = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithDayNull() ReviewCreate {
+	input.day = orm.SetNull[_godjcalendar.Date]()
+	return input
+}
+
+func (input ReviewCreate) WithAt(value _godjtime.Time) ReviewCreate {
+	input.at = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithAtNull() ReviewCreate {
+	input.at = orm.SetNull[_godjtime.Time]()
+	return input
+}
+
+func (input ReviewCreate) WithClock(value _godjclock.Time) ReviewCreate {
+	input.clock = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithClockNull() ReviewCreate {
+	input.clock = orm.SetNull[_godjclock.Time]()
+	return input
+}
+
+func (input ReviewCreate) WithElapsed(value _godjduration.Duration) ReviewCreate {
+	input.elapsed = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewCreate) WithElapsedNull() ReviewCreate {
+	input.elapsed = orm.SetNull[_godjduration.Duration]()
+	return input
+}
+
+func (input ReviewCreate) BuildCreate() orm.Mutation[Review] {
+	var value Review
+	assignments := make([]query.Assignment, 0, 13)
+	changedTicketID, changedTicketIDSet := input.ticketID.Get()
+	if !changedTicketIDSet {
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "ticket",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.TicketID = changedTicketID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ticket", "ticket_id", query.FieldInteger, false), query.Integer(changedTicketID)))
+	changedScore, changedScoreState := input.score.Get()
+	switch changedScoreState {
+	case orm.NullableChangeUnset:
+		value.Score = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("score", "score", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedScore := changedScore
+		value.Score = &storedScore
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("score", "score", query.FieldInteger, true), query.Integer(changedScore)))
+	case orm.NullableChangeNull:
+		value.Score = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("score", "score", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "score",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedTitle, changedTitleState := input.title.Get()
+	switch changedTitleState {
+	case orm.NullableChangeUnset:
+		value.Title = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedTitle := changedTitle
+		value.Title = &storedTitle
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, true), query.String(changedTitle)))
+	case orm.NullableChangeNull:
+		value.Title = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "title",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedBody, changedBodyState := input.body.Get()
+	switch changedBodyState {
+	case orm.NullableChangeUnset:
+		value.Body = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("body", "body", query.FieldString, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedBody := changedBody
+		value.Body = &storedBody
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("body", "body", query.FieldString, true), query.String(changedBody)))
+	case orm.NullableChangeNull:
+		value.Body = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("body", "body", query.FieldString, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "body",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedApproved, changedApprovedState := input.approved.Get()
+	switch changedApprovedState {
+	case orm.NullableChangeUnset:
+		value.Approved = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("approved", "approved", query.FieldBoolean, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedApproved := changedApproved
+		value.Approved = &storedApproved
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("approved", "approved", query.FieldBoolean, true), query.Boolean(changedApproved)))
+	case orm.NullableChangeNull:
+		value.Approved = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("approved", "approved", query.FieldBoolean, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "approved",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedRatio, changedRatioState := input.ratio.Get()
+	switch changedRatioState {
+	case orm.NullableChangeUnset:
+		value.Ratio = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ratio", "ratio", query.FieldFloat, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedRatio := changedRatio
+		value.Ratio = &storedRatio
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ratio", "ratio", query.FieldFloat, true), query.Float(changedRatio)))
+	case orm.NullableChangeNull:
+		value.Ratio = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ratio", "ratio", query.FieldFloat, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "ratio",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedPrice, changedPriceState := input.price.Get()
+	switch changedPriceState {
+	case orm.NullableChangeUnset:
+		value.Price = nil
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("price", "price", true, 8, 2), query.Null()))
+	case orm.NullableChangeValue:
+		changedPriceCanonical, changedPriceError := changedPrice.Canonical()
+		if changedPriceError != nil || !changedPriceCanonical.Fits(8, 2) {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "price", Detail: "decimal exceeds field precision or scale"})
+		}
+		changedPrice = changedPriceCanonical
+		storedPrice := changedPrice
+		value.Price = &storedPrice
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("price", "price", true, 8, 2), query.Decimal(changedPrice)))
+	case orm.NullableChangeNull:
+		value.Price = nil
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("price", "price", true, 8, 2), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "price",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedToken, changedTokenState := input.token.Get()
+	switch changedTokenState {
+	case orm.NullableChangeUnset:
+		value.Token = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("token", "token", query.FieldUUID, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedToken := changedToken
+		value.Token = &storedToken
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("token", "token", query.FieldUUID, true), query.UUID(changedToken)))
+	case orm.NullableChangeNull:
+		value.Token = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("token", "token", query.FieldUUID, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "token",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedPayload, changedPayloadState := input.payload.Get()
+	switch changedPayloadState {
+	case orm.NullableChangeUnset:
+		value.Payload = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("payload", "payload", query.FieldJSON, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedPayload := changedPayload
+		value.Payload = &storedPayload
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("payload", "payload", query.FieldJSON, true), query.JSON(changedPayload)))
+	case orm.NullableChangeNull:
+		value.Payload = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("payload", "payload", query.FieldJSON, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "payload",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedDay, changedDayState := input.day.Get()
+	switch changedDayState {
+	case orm.NullableChangeUnset:
+		value.Day = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("day", "day", query.FieldDate, true), query.Null()))
+	case orm.NullableChangeValue:
+		if !changedDay.Valid() {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "day", Detail: "date must be a valid Gregorian day in years 1 through 9999"})
+		}
+		storedDay := changedDay
+		value.Day = &storedDay
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("day", "day", query.FieldDate, true), query.Date(changedDay)))
+	case orm.NullableChangeNull:
+		value.Day = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("day", "day", query.FieldDate, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "day",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedAt, changedAtState := input.at.Get()
+	switch changedAtState {
+	case orm.NullableChangeUnset:
+		value.At = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("at", "at", query.FieldDateTime, true), query.Null()))
+	case orm.NullableChangeValue:
+		changedAtCanonical, changedAtValid := query.DateTime(changedAt).DateTime()
+		if !changedAtValid {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "at", Detail: "datetime is outside the supported UTC year range"})
+		}
+		changedAt = changedAtCanonical
+		storedAt := changedAt
+		value.At = &storedAt
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("at", "at", query.FieldDateTime, true), query.DateTime(changedAt)))
+	case orm.NullableChangeNull:
+		value.At = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("at", "at", query.FieldDateTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "at",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedClock, changedClockState := input.clock.Get()
+	switch changedClockState {
+	case orm.NullableChangeUnset:
+		value.Clock = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("clock", "clock", query.FieldTime, true), query.Null()))
+	case orm.NullableChangeValue:
+		if !changedClock.Valid() {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "clock", Detail: "time must be a valid clock with microsecond precision"})
+		}
+		storedClock := changedClock
+		value.Clock = &storedClock
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("clock", "clock", query.FieldTime, true), query.Time(changedClock)))
+	case orm.NullableChangeNull:
+		value.Clock = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("clock", "clock", query.FieldTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "clock",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedElapsed, changedElapsedState := input.elapsed.Get()
+	switch changedElapsedState {
+	case orm.NullableChangeUnset:
+		value.Elapsed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Null()))
+	case orm.NullableChangeValue:
+		if !changedElapsed.Valid() {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "elapsed", Detail: "duration must be normalized days and subday microseconds"})
+		}
+		storedElapsed := changedElapsed
+		value.Elapsed = &storedElapsed
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Duration(changedElapsed)))
+	case orm.NullableChangeNull:
+		value.Elapsed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "elapsed",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewCreateMutation(value, "otoreports_review", assignments)
+}
+
+type ReviewPatch struct {
+	ticketID orm.Change[int64]
+	score    orm.NullableChange[int64]
+	title    orm.NullableChange[string]
+	body     orm.NullableChange[string]
+	approved orm.NullableChange[bool]
+	ratio    orm.NullableChange[float64]
+	price    orm.NullableChange[_godjdecimal.Decimal]
+	token    orm.NullableChange[_godjuuid.UUID]
+	payload  orm.NullableChange[_godjjson.Value]
+	day      orm.NullableChange[_godjcalendar.Date]
+	at       orm.NullableChange[_godjtime.Time]
+	clock    orm.NullableChange[_godjclock.Time]
+	elapsed  orm.NullableChange[_godjduration.Duration]
+}
+
+func (input ReviewPatch) WithTicketID(value int64) ReviewPatch {
+	input.ticketID = orm.Set(value)
+	return input
+}
+
+func (input ReviewPatch) WithScore(value int64) ReviewPatch {
+	input.score = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithScoreNull() ReviewPatch {
+	input.score = orm.SetNull[int64]()
+	return input
+}
+
+func (input ReviewPatch) WithTitle(value string) ReviewPatch {
+	input.title = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithTitleNull() ReviewPatch {
+	input.title = orm.SetNull[string]()
+	return input
+}
+
+func (input ReviewPatch) WithBody(value string) ReviewPatch {
+	input.body = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithBodyNull() ReviewPatch {
+	input.body = orm.SetNull[string]()
+	return input
+}
+
+func (input ReviewPatch) WithApproved(value bool) ReviewPatch {
+	input.approved = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithApprovedNull() ReviewPatch {
+	input.approved = orm.SetNull[bool]()
+	return input
+}
+
+func (input ReviewPatch) WithRatio(value float64) ReviewPatch {
+	input.ratio = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithRatioNull() ReviewPatch {
+	input.ratio = orm.SetNull[float64]()
+	return input
+}
+
+func (input ReviewPatch) WithPrice(value _godjdecimal.Decimal) ReviewPatch {
+	input.price = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithPriceNull() ReviewPatch {
+	input.price = orm.SetNull[_godjdecimal.Decimal]()
+	return input
+}
+
+func (input ReviewPatch) WithToken(value _godjuuid.UUID) ReviewPatch {
+	input.token = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithTokenNull() ReviewPatch {
+	input.token = orm.SetNull[_godjuuid.UUID]()
+	return input
+}
+
+func (input ReviewPatch) WithPayload(value _godjjson.Value) ReviewPatch {
+	input.payload = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithPayloadNull() ReviewPatch {
+	input.payload = orm.SetNull[_godjjson.Value]()
+	return input
+}
+
+func (input ReviewPatch) WithDay(value _godjcalendar.Date) ReviewPatch {
+	input.day = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithDayNull() ReviewPatch {
+	input.day = orm.SetNull[_godjcalendar.Date]()
+	return input
+}
+
+func (input ReviewPatch) WithAt(value _godjtime.Time) ReviewPatch {
+	input.at = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithAtNull() ReviewPatch {
+	input.at = orm.SetNull[_godjtime.Time]()
+	return input
+}
+
+func (input ReviewPatch) WithClock(value _godjclock.Time) ReviewPatch {
+	input.clock = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithClockNull() ReviewPatch {
+	input.clock = orm.SetNull[_godjclock.Time]()
+	return input
+}
+
+func (input ReviewPatch) WithElapsed(value _godjduration.Duration) ReviewPatch {
+	input.elapsed = orm.SetNullable(value)
+	return input
+}
+
+func (input ReviewPatch) WithElapsedNull() ReviewPatch {
+	input.elapsed = orm.SetNull[_godjduration.Duration]()
+	return input
+}
+
+func (input ReviewPatch) BuildPatch(current Review) orm.Mutation[Review] {
+	value := current
+	assignments := make([]query.Assignment, 0, 13)
+	if changedTicketID, ok := input.ticketID.Get(); ok {
+		value.TicketID = changedTicketID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ticket", "ticket_id", query.FieldInteger, false), query.Integer(changedTicketID)))
+	}
+	changedScore, changedScoreState := input.score.Get()
+	switch changedScoreState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedScore := changedScore
+		value.Score = &storedScore
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("score", "score", query.FieldInteger, true), query.Integer(changedScore)))
+	case orm.NullableChangeNull:
+		value.Score = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("score", "score", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "score",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedTitle, changedTitleState := input.title.Get()
+	switch changedTitleState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedTitle := changedTitle
+		value.Title = &storedTitle
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, true), query.String(changedTitle)))
+	case orm.NullableChangeNull:
+		value.Title = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "title",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedBody, changedBodyState := input.body.Get()
+	switch changedBodyState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedBody := changedBody
+		value.Body = &storedBody
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("body", "body", query.FieldString, true), query.String(changedBody)))
+	case orm.NullableChangeNull:
+		value.Body = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("body", "body", query.FieldString, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "body",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedApproved, changedApprovedState := input.approved.Get()
+	switch changedApprovedState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedApproved := changedApproved
+		value.Approved = &storedApproved
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("approved", "approved", query.FieldBoolean, true), query.Boolean(changedApproved)))
+	case orm.NullableChangeNull:
+		value.Approved = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("approved", "approved", query.FieldBoolean, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "approved",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedRatio, changedRatioState := input.ratio.Get()
+	switch changedRatioState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedRatio := changedRatio
+		value.Ratio = &storedRatio
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ratio", "ratio", query.FieldFloat, true), query.Float(changedRatio)))
+	case orm.NullableChangeNull:
+		value.Ratio = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ratio", "ratio", query.FieldFloat, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "ratio",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedPrice, changedPriceState := input.price.Get()
+	switch changedPriceState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		changedPriceCanonical, changedPriceError := changedPrice.Canonical()
+		if changedPriceError != nil || !changedPriceCanonical.Fits(8, 2) {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "price", Detail: "decimal exceeds field precision or scale"})
+		}
+		changedPrice = changedPriceCanonical
+		storedPrice := changedPrice
+		value.Price = &storedPrice
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("price", "price", true, 8, 2), query.Decimal(changedPrice)))
+	case orm.NullableChangeNull:
+		value.Price = nil
+		assignments = append(assignments, query.NewAssignment(query.NewDecimalFieldRef("price", "price", true, 8, 2), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "price",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedToken, changedTokenState := input.token.Get()
+	switch changedTokenState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedToken := changedToken
+		value.Token = &storedToken
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("token", "token", query.FieldUUID, true), query.UUID(changedToken)))
+	case orm.NullableChangeNull:
+		value.Token = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("token", "token", query.FieldUUID, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "token",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedPayload, changedPayloadState := input.payload.Get()
+	switch changedPayloadState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedPayload := changedPayload
+		value.Payload = &storedPayload
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("payload", "payload", query.FieldJSON, true), query.JSON(changedPayload)))
+	case orm.NullableChangeNull:
+		value.Payload = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("payload", "payload", query.FieldJSON, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "payload",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedDay, changedDayState := input.day.Get()
+	switch changedDayState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		if !changedDay.Valid() {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "day", Detail: "date must be a valid Gregorian day in years 1 through 9999"})
+		}
+		storedDay := changedDay
+		value.Day = &storedDay
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("day", "day", query.FieldDate, true), query.Date(changedDay)))
+	case orm.NullableChangeNull:
+		value.Day = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("day", "day", query.FieldDate, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "day",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedAt, changedAtState := input.at.Get()
+	switch changedAtState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		changedAtCanonical, changedAtValid := query.DateTime(changedAt).DateTime()
+		if !changedAtValid {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "at", Detail: "datetime is outside the supported UTC year range"})
+		}
+		changedAt = changedAtCanonical
+		storedAt := changedAt
+		value.At = &storedAt
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("at", "at", query.FieldDateTime, true), query.DateTime(changedAt)))
+	case orm.NullableChangeNull:
+		value.At = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("at", "at", query.FieldDateTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "at",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedClock, changedClockState := input.clock.Get()
+	switch changedClockState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		if !changedClock.Valid() {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "clock", Detail: "time must be a valid clock with microsecond precision"})
+		}
+		storedClock := changedClock
+		value.Clock = &storedClock
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("clock", "clock", query.FieldTime, true), query.Time(changedClock)))
+	case orm.NullableChangeNull:
+		value.Clock = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("clock", "clock", query.FieldTime, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "clock",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedElapsed, changedElapsedState := input.elapsed.Get()
+	switch changedElapsedState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		if !changedElapsed.Valid() {
+			return orm.InvalidMutation[Review](&query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: "elapsed", Detail: "duration must be normalized days and subday microseconds"})
+		}
+		storedElapsed := changedElapsed
+		value.Elapsed = &storedElapsed
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Duration(changedElapsed)))
+	case orm.NullableChangeNull:
+		value.Elapsed = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("elapsed", "elapsed", query.FieldDuration, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Review](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "elapsed",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewPatchMutation(value, "otoreports_review", assignments)
+}
+
+func reviewMetadata() ir.Model {
+	return ir.Model{
+		Name:    "review",
+		GoName:  "Review",
+		DBTable: "otoreports_review",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:   "ticket",
+				GoName: "TicketID",
+				Column: "ticket_id",
+				Kind:   ir.FieldForeignKey,
+				Unique: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
+					Cardinality: ir.RelationOneToOne,
+					Reverse:     ir.ReverseRelation{Name: "review"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+			{
+				Name:     "score",
+				GoName:   "Score",
+				Column:   "score",
+				Kind:     ir.FieldInteger,
+				Nullable: true,
+			},
+			{
+				Name:      "title",
+				GoName:    "Title",
+				Column:    "title",
+				Kind:      ir.FieldChar,
+				Nullable:  true,
+				MaxLength: 80,
+			},
+			{
+				Name:     "body",
+				GoName:   "Body",
+				Column:   "body",
+				Kind:     ir.FieldText,
+				Nullable: true,
+			},
+			{
+				Name:     "approved",
+				GoName:   "Approved",
+				Column:   "approved",
+				Kind:     ir.FieldBoolean,
+				Nullable: true,
+			},
+			{
+				Name:     "ratio",
+				GoName:   "Ratio",
+				Column:   "ratio",
+				Kind:     ir.FieldFloat,
+				Nullable: true,
+			},
+			{
+				Name:     "price",
+				GoName:   "Price",
+				Column:   "price",
+				Kind:     ir.FieldDecimal,
+				Nullable: true,
+				Decimal:  &ir.DecimalSpec{MaxDigits: 8, DecimalPlaces: 2},
+			},
+			{
+				Name:     "token",
+				GoName:   "Token",
+				Column:   "token",
+				Kind:     ir.FieldUUID,
+				Nullable: true,
+			},
+			{
+				Name:     "payload",
+				GoName:   "Payload",
+				Column:   "payload",
+				Kind:     ir.FieldJSON,
+				Nullable: true,
+			},
+			{
+				Name:     "day",
+				GoName:   "Day",
+				Column:   "day",
+				Kind:     ir.FieldDate,
+				Nullable: true,
+			},
+			{
+				Name:     "at",
+				GoName:   "At",
+				Column:   "at",
+				Kind:     ir.FieldDateTime,
+				Nullable: true,
+			},
+			{
+				Name:     "clock",
+				GoName:   "Clock",
+				Column:   "clock",
+				Kind:     ir.FieldTime,
+				Nullable: true,
+			},
+			{
+				Name:     "elapsed",
+				GoName:   "Elapsed",
+				Column:   "elapsed",
+				Kind:     ir.FieldDuration,
+				Nullable: true,
+			},
+		},
+	}
+}
+
+type GoDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22 struct{}

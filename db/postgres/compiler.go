@@ -320,8 +320,7 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 	if err := queryplan.RelationCondition(a.plan, condition, path, "PostgreSQL"); err != nil {
 		return whereLeaf{}, err
 	}
-	hops := path.Hops()
-	if !relationAtRootConjunction && hops[0].Direction() != query.RelationForward {
+	if !relationAtRootConjunction && !path.SingleValued() {
 		return whereLeaf{}, unsupportedBooleanRelation(condition)
 	}
 	leaf := whereLeaf{related: true}

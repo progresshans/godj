@@ -3,6 +3,94 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0096 — 단일 reverse 조건과 nullable JOIN
+
+2026-09-22, 기준 `9dc09d94a9aa2a60d1b481bc060588e4e2ac1cd7` 위 제품·생성물·검사·CI **97경로**의 manifest SHA256은
+`bf9076a41aef591fa11793d4efedf65b17202364aa489fe32c26b7b0e505f01b`다. 이후 현행 문서 변경은 이 집합에서 제외한다.
+Darwin 25.6.0/arm64·Go 1.26.5, modernc SQLite 3.53.3(v1.56.0), PostgreSQL 17.5 Homebrew/pgx v5.10.0에서 실행했다.
+Go 검사는 `TZ=Pacific/Chatham`, native PostgreSQL은 locale C/UTF8 소유 임시 DB와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+단일 reverse의 관계/field isnull, nullable scalar·Boolean, 비교·IN·문자열 검색과 AND/OR/NOT를 typed/dynamic 공통 AST에 연결했다.
+Required FK의 reverse도 자식이 없을 수 있으므로 physical Nullable과 traversal Optional을 구분한다.
+조건의 존재 증명에 따라 INNER/LEFT OUTER를 선택하고 nullable negation을 보정한다. 같은 FK의 반대 방향이 OneToOne 여부를
+다르게 선언하면 SQL 전에 거부한다. 일반 FK+Unique의 collection 문법을 확장한 것으로 처리하지 않는다.
+
+독립 Django runner의 조회용 모델을 기존 lifecycle 모델과 분리하여 기존 **37개 관찰·2개 migration 결과를 그대로 유지**했다.
+추가한 **41개 조건**은 양 DB에서 ID 순서·SELECT 수·INNER/LEFT OUTER 개수가 모두 일치했다. Runner SHA256은
+`77a31fd96df45a33f738c24a15b26a04a3af353f26287a6177eb62886d690815`다. 이 runner는 GoDj나 기대 파일을 읽지 않는다.
+PostgreSQL reference에는 고정 psycopg 3.3.6을 별도 uv overlay로 사용했다.
+
+생성된 Ticket–Report/Review 소비자를 양 DB에서 실행하여 41개 조건의 typed/dynamic Plan.Equal과 실제 결과를 비교했다.
+Cold Count, required/nullable FK의 reverse 부재, nullable Boolean false와 NULL, 빈 IN과 그 부정, literal `%_` 검색,
+같은/다른 reverse·root scalar·collection exact 조건의 조합을 포함한다. SQLite QueryCount와 PostgreSQL driver tracer로
+실제 SELECT를 관찰했다. PostgreSQL tracer의 connection/reset은 기존 physical-session 검사를 유지한다.
+잘못된 dynamic 값·collection OR/NOT·정책 거부·취소는 I/O나 partial predicate 없이 실패했다.
+
+Reverse generator ABI를 v2로 바꾸고 각 generator role version이 snapshot에 반영되는지 확인했다.
+네 checked-in project의 generated Go **56개**와 manifest를 재생성했으며 `make generate-check`가 모두 clean이고
+기존 relation product의 checked-in generated 검사도 성공했다. Presence method와 source field Go 이름 IsNull의 충돌을 거부한다.
+기존 generated union/mixed snapshot, 부모/자식 Go mode, 외부 facade compile와 publication recovery를 함께 확인했다.
+
+| Source/범위 | 실행 결과 |
+|---|---|
+| ABI 갱신 전 normal 공통 query/ORM/codegen/queryplan/fixture | 1,124 run=PASS, skip 0 |
+| 같은 source의 전체 SQLite | 2,625 run=PASS, skip 0 |
+| 같은 source의 native PostgreSQL parent root 전체 | 2,461 run=PASS, skip 0 |
+| 최종 97경로 source의 공통 normal | 1,137 run=PASS, skip 0 |
+| 최종 source의 query/ORM/queryplan/fixture race | 793 run=PASS, skip 0 |
+| 최종 source의 양 DB 영향 selector race | 783 run=PASS, skip 0 |
+| 최종 source의 공통·양 DB 영향 selector CGO=0 | 1,097 run=PASS, skip 0 |
+| 최종 source의 기존 generated consumer/외부 compile | 182 run=PASS, skip 0 |
+| 최종 source의 publication parent root 전체 | 169 run=PASS, skip 0 |
+
+ABI 갱신 전 **50경로** source manifest는 `bf0641a0f56b021dfc0b2e7d5162e7e01191b3e27cab1006584ddfefb81bd69f`다.
+이후 변경은 reverse ABI version·golden/ABI 검사와 네 프로젝트 재생성·generate-check 연결이다. 실행 전후 source hash와
+각 Go event의 시작/완료·package 종료·필수 root·skip을 검사했다. 각 묶음은 다음 명령과 범위를 사용한다.
+
+```sh
+go test -json -count=1 -timeout=15m ./query ./orm ./codegen ./db/internal/queryplan ./conformance/onetoonefixture/...
+go test -json -count=1 -timeout=15m ./db/sqlite
+# -list로 발견한 PostgreSQL parent root 모두를 이름의 전체 일치 정규식으로 실행
+go test -json -count=1 -timeout=15m -run '<all discovered parent roots>' ./db/postgres
+go test -race -json -count=1 -timeout=15m ./query ./orm ./db/internal/queryplan ./conformance/onetoonefixture/...
+go test -race -json -count=1 -timeout=15m -run 'OneToOne|Relation|Boolean|Membership|Compile|MigrationCapabilities' ./db/sqlite ./db/postgres
+CGO_ENABLED=0 go test -json -count=1 -timeout=15m -run 'OneToOne|Relation|Boolean|Membership|Compile|MigrationCapabilities' ./query ./orm ./db/internal/queryplan ./conformance/onetoonefixture/... ./db/sqlite ./db/postgres
+go test -json -count=1 -timeout=20m ./codegen/consumertest ./internal/compiletest ./internal/projectgenerate
+# Publication도 발견한 parent root 전체를 실행
+go test -json -count=1 -timeout=15m -run '<all discovered parent roots>' ./internal/projectgenerate
+make generate-check
+```
+
+Native process helper `TestPostgresRevisionFenceHelperProcess`와 publication helper `TestPublicationCrashHelper`는 단독 top-level
+환경에서 의도적으로 skip하며 parent가 별도 process로 호출한다. 초회 whole-package 실행에서 각각 그 skip이 잡혔으므로
+그 집계를 skip 0 PASS로 사용하지 않았다. 최종 parent 목록은 discovery에서 해당 helper 하나만 제외하고 전부 실행했다.
+발견/선택한 PostgreSQL parent root는 162개, publication parent root는 72개다.
+`TestPostgresRevisionFenceCrossProcessIntegration`과 `TestPublishRecoversAfterProcessCrashAtPrecommitAndPostcommitBoundaries`가
+helper process의 실행·종료·결과를 소유한다. 정규식 원문과 발견/선택 목록은 artifact에 보존했다.
+Combined consumer 실행의 두 기존 소비자 package는 별도로 완전한 182 PASS inventory를 확인했고,
+publication은 위 재실행의 169 PASS를 사용한다. Child helper의 skip을 feature test 성공으로 바꾸지 않았다.
+
+네 Python 환경은 고정 Django 6.1·asgiref 3.12.1·sqlparse 0.5.5로 같은 reference test 네 개를 실행했다.
+각 test discovery/start/stop가 정확히 한 번이며 hash seed 0·813의 새 process를 비교했다.
+Python 3.12.13/SQLite 3.50.4, 3.13.15/3.53.1, 3.14.3/3.50.4, 3.14.7/3.53.1이 각각 **4 PASS / skip 0**, 총 **16 PASS**다.
+CI 도구 38 PASS도 확인했다. 새 SQLite lookup root와 PostgreSQL lookup root를 각 CI owner의 required 목록에 연결했다.
+현행 문서 139개의 local 링크·format·diff 검사도 통과했다.
+
+초회 제품 비교는 공통 **1,124 run / 1,120 PASS / 4 FAIL**, DB **5,087 run / 5,084 PASS / 2 FAIL / helper skip 1**이었다.
+새로 유효해진 `missing__isnull` 문법은 unknown-relation 진단을 반환하므로 기존 unsupported-suffix 기대를 갱신했다.
+빈 IN은 실제 SQL을 생략했지만 테스트가 framework Query 호출을 SELECT로 세고 있었다. 이를 실제 SQL 관찰로 수정한 뒤
+양 DB의 0 SELECT를 확인했다. 제품의 empty-result 검증/실행 경로를 완화하지 않았다.
+기존 생성 소비자 182건은 이 첫 시도와 최종 ABI source에서도 각각 성공했다.
+
+초기 reference 확장에서는 기존 Parent에 Review를 붙여 deletion collector의 SELECT 수 두 항목이 증가했다.
+이 결과를 기대 fixture로 채택하지 않고 조회 모델을 분리하여 기존 관찰 불변을 확인한 뒤 새 결과만 추가했다.
+Psycopg overlay 준비와 uv 설치 진단도 runner 결과와 구분했다. 실패/성공 stdout·stderr, source manifest·필수 root·완전한 inventory와
+DB cleanup 영수증은 `godj-one-to-one-query-iu70zs2r` 로컬 artifact 디렉터리에 보존했다.
+모든 소유 임시 PostgreSQL DB는 잔여 connection·user table, Go checkpoint의 test schema도 0임을 확인한 뒤 삭제했다. 기존 service는 유지했다.
+
+현재 결과는 직접 단일 reverse 조건의 로컬 검증이다. Reverse eager·혼합 traversal·assignment 전체·Helpdesk 입력 소비자는
+[GDJ-0096](../../work/0096-one-to-one-service-reports.md)에 남아 있다. 기존 37개 관찰 전체의 제품 parity나 현재 source의 Hosted full을 주장하지 않는다.
+
 ## GDJ-0096 — Hosted fast에서 확인한 capability 검사 누락
 
 2026-09-22, 기반 구현 source `ee0f0c7601e579c43d70befb7ffa21ac51c76c9f`의

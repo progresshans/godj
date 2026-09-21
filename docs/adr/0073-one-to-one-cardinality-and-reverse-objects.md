@@ -36,6 +36,21 @@ Wire에 비고유 OneToOne이나 미해석 default reverse를 넣으면 거부�
 Typed/dynamic query는 cardinality를 보존하는 같은 AST를 사용한다. Forward/reverse path와 forward projection 생성자는
 cardinality를 명시적으로 받는다. OneToOne을 many-to-one으로 바꾸어 저장하거나 기존 내부 ABI를 위한 별도 경로를 두지 않는다.
 
+단일 reverse는 직접 scalar field의 현재 lookup·IN·nullable/Boolean과 AND/OR/NOT를 지원한다. Generated reverse group의
+`IsNull(bool)`과 dynamic `report__isnull`은 자식 PK를 검사한다. Field isnull은 자식 부재와 그 field의 SQL NULL을 모두 포함한다.
+실제 scalar 이름이 isnull이면 dynamic parser는 그 field를 우선하며 PK의 명시적 isnull 경로도 사용할 수 있다.
+Presence lookup도 복제한 실제 자식 PK metadata로 LookupPolicy를 거친다. 잘못된 값·미지원 collection 문법·정책 거부는 partial predicate를 반환하지 않는다.
+
+`RelationHop.Nullable`은 physical FK 속성이다. `Optional`은 traversal의 부재 가능성이며 reverse는 required FK여도 optional이다.
+공통 JOIN 분석은 양 DB에 같은 존재 증명을 제공한다. AND의 합집합·OR의 교집합과 NOT의 polarity로 필요한 단일 edge를 구하고,
+존재가 증명되면 INNER, 아니면 LEFT OUTER를 사용한다. Nullable negation은 없는 자식도 보존하도록 joined field의 NULL을 보정한다.
+같은 FK가 반대 방향의 경로에서 OneToOne 여부를 다르게 선언하면 SQL 전에 거부한다. 일반 FK+Unique의 collection은
+직접 non-null exact와 최상위 conjunction을 유지하며 단일 관계의 확장에 따라 OR/NOT를 묵시적으로 허용하지 않는다.
+
+Reverse 생성 ABI는 v2다. 새 presence method와 nullable/Boolean field surface가 snapshot에 반영되므로 같은 schema에서 만든
+이전 생성물과도 섞을 수 없다. 각 generator role의 version이 snapshot을 바꾸는지 검사하고 모든 checked-in project를 함께 재생성한다.
+Source field의 Go 이름 IsNull이 새 method와 충돌하면 생성 단계에서 명시적으로 거부한다.
+
 Generated reverse factory는 OneToOne에 `RelatedObject[T]`, 일반 FK+Unique에 `RelatedSet[T]`를 반환한다.
 단일 역방향 조회는 최대 두 행으로 cardinality를 검사한다. `Get(ctx)`의 `(value, present, error)`에서 부재는
 `zero, false, nil`이며 성공한 빈 결과도 cache한다. 두 행 이상은 integrity 오류다. Forward의 존재해야 하는 target 누락은
@@ -59,5 +74,6 @@ native cause를 구분하며 자동 재시도하지 않는다. SQLite의 기존 
 
 Cross-app 생성 소비자가 required/nullable 관계, reverse exact 조회·단일 lazy/prefetch, forward eager와 양 DB 삭제를 사용한다.
 독립 [Django runner](../../conformance/runners/django/one_to_one_reference.py)의 관찰을 기준으로 하되 전체 37개 관찰의 parity를 주장하지 않는다.
-단일 reverse의 isnull·넓은 lookup/OR/NOT·eager projection, assignment의 전체 연결과 Helpdesk Form/Admin/API/OpenAPI/client는 남아 있다.
+직접 reverse lookup은 별도 41개 Django 관찰로 결과·SELECT 수·JOIN 형태를 비교했다.
+Reverse eager projection·여러 단계의 reverse/혼합 traversal, assignment의 전체 연결과 Helpdesk Form/Admin/API/OpenAPI/client는 남아 있다.
 Relation-as-PK·arbitrary target·상속·ManyToMany도 별도 미완료 범위다. 실행 source·환경은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

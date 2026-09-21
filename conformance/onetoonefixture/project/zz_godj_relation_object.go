@@ -255,10 +255,92 @@ func (_object *ReportsReportObject) Fresh() (*ReportsReportObject, error) {
 	return _object.factory.From(_object.backend, _object.model)
 }
 
+type ReportsReviewObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[reports.Review]
+	ticket             orm.RequiredForwardObject[reports.Review, tickets.Ticket]
+}
+
+func (_factory ReportsReviewObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[reports.Review], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory ReportsReviewObjectFactory) From(_backend db.Queryer, _value reports.Review) (*ReportsReviewObject, error) {
+	_snapshot := (reports.ReviewDescriptor{}).CloneModel(_value)
+	_related3, _err := _factory.ticket.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ReportsReviewObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		ticket:  _related3,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type ReportsReviewObject struct {
+	_selectedGraph *orm.ForwardSelected[reports.Review]
+	model          reports.Review
+	factory        ReportsReviewObjectFactory
+	backend        db.Queryer
+	ticket         *orm.RelatedObject[tickets.Ticket]
+	_self          *ReportsReviewObject
+}
+
+func (_object *ReportsReviewObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *ReportsReviewObject) Model() (reports.Review, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.Review{}, _err
+	}
+	return (reports.ReviewDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *ReportsReviewObject) Ticket(_ctx context.Context) (tickets.Ticket, error) {
+	if _err := _object._validate(); _err != nil {
+		return tickets.Ticket{}, _err
+	}
+	_value, _ok, _err := _object.ticket.Get(_ctx)
+	if _err != nil {
+		return tickets.Ticket{}, _err
+	}
+	if !_ok {
+		return tickets.Ticket{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "required relation object returned an absent result",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *ReportsReviewObject) Fresh() (*ReportsReviewObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
 type Objects struct {
 	ReportsLink           ReportsLinkObjectFactory
 	ReportsOptionalReport ReportsOptionalReportObjectFactory
 	ReportsReport         ReportsReportObjectFactory
+	ReportsReview         ReportsReviewObjectFactory
 }
 
 func BindObjects() (Objects, error) {
@@ -292,21 +374,33 @@ func BindObjects() (Objects, error) {
 	}
 	_model3, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "review"},
+		reports.ReviewDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
 		tickets.TicketDescriptor{},
 	)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation0, _err := orm.BindRequiredForwardObject(_model0, "ticket", _model3)
+	_relation0, _err := orm.BindRequiredForwardObject(_model0, "ticket", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation1, _err := orm.BindNullableForwardObject(_model1, "ticket", _model3)
+	_relation1, _err := orm.BindNullableForwardObject(_model1, "ticket", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation2, _err := orm.BindRequiredForwardObject(_model2, "ticket", _model3)
+	_relation2, _err := orm.BindRequiredForwardObject(_model2, "ticket", _model4)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation3, _err := orm.BindRequiredForwardObject(_model3, "ticket", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
@@ -324,11 +418,16 @@ func BindObjects() (Objects, error) {
 			model:  _model2,
 			ticket: _relation2,
 		},
+		ReportsReview: ReportsReviewObjectFactory{
+			model:  _model3,
+			ticket: _relation3,
+		},
 	}
 	_objects.ReportsLink._projectSelections = &_objects
 	_objects.ReportsOptionalReport._projectSelections = &_objects
 	_objects.ReportsReport._projectSelections = &_objects
+	_objects.ReportsReview._projectSelections = &_objects
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_b47a9399b87c8c316792141e4066fd45b59e7e9a76cc7d1aa2c75d96d30c2b0c
+var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22

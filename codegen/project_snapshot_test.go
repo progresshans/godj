@@ -297,13 +297,17 @@ func TestProjectSnapshotChangesWithSchemaLayoutAndGeneratorABIInputs(t *testing.
 	if got := len(projectGeneratorABIRoster()); got != 13 {
 		t.Fatalf("len(projectGeneratorABIRoster()) = %d, want 13", got)
 	}
-	abi := projectGeneratorABIRoster()
-	abi[0].Version += "-next"
-	_, changedABI, err := projectSnapshotWithABI(baseline, abi)
-	if err != nil {
-		t.Fatalf("projectSnapshotWithABI() error = %v", err)
-	}
-	if changedABI == baselineSHA {
-		t.Fatal("generator ABI change did not change project snapshot")
+	for index, entry := range projectGeneratorABIRoster() {
+		t.Run(entry.Role, func(t *testing.T) {
+			abi := projectGeneratorABIRoster()
+			abi[index].Version += "-next"
+			_, changedABI, err := projectSnapshotWithABI(baseline, abi)
+			if err != nil {
+				t.Fatalf("projectSnapshotWithABI() error = %v", err)
+			}
+			if changedABI == baselineSHA {
+				t.Fatal("generator ABI change did not change project snapshot")
+			}
+		})
 	}
 }

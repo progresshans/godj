@@ -25,7 +25,8 @@ Category의 접근 범위와 명시적 읽기·쓰기 권한을 보고서의 관
 - [x] 양 DB FK+UNIQUE의 생성/변경/reverse, 기존 중복 실패·행/제약/revision 보존과 명시적 수정 후 재시도
 - [x] generated 단일 reverse 객체·exact typed/dynamic 조회·prefetch와 forward eager, 누락/중복·취소·cache 소유권·PROTECT/SET_NULL
 - [ ] forward/reverse assignment의 객체·cache·저장 의미와 unsaved/required/nullable 실패 경로
-- [ ] 단일 reverse의 isnull·넓은 lookup/OR/NOT·eager 조회, 다른 forward/collection 관계와의 조합
+- [x] 단일 reverse의 관계/필드 isnull·nullable/Boolean·비교/IN/검색·AND/OR/NOT, 다른 reverse/collection 조건과의 조합
+- [ ] 단일 reverse eager와 forward selection의 조합, 이어지는 관계 경로의 행·cache 소유권
 - [ ] 실제 작업 보고서의 migration·Form/Admin/API/OpenAPI/client, category·권한과 중복/실행 오류 구분
 - [x] 기반 cross-app 생성 소비자·양 DB·race/CGO 비활성·기존 생성 소비자/외부 compile·generated drift checkpoint
 - [ ] 위 소비자 전체를 연결한 source의 필요한 process·platform 통합 milestone
@@ -46,6 +47,7 @@ Public ORM/ModelForm/migration API로 양 DB에서 동작 37개와 FK 변경 경
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 
 [ADR-0073](../docs/adr/0073-one-to-one-cardinality-and-reverse-objects.md)에 선언·migration과 단일 reverse 소유권을 기록했다.
-독립 기준의 모든 37개 관찰을 제품 parity로 세지 않는다. 현재 reverse exact와 lazy/prefetch·forward eager 기반에서
-다음은 없는 자식의 isnull/OR/NOT와 단일 reverse eager를 같은 AST·cache에 연결하는 변경이다.
-그 뒤 assignment와 작업 보고서의 실제 입력 소비자를 이어간다. 전체 platform/cold-build 통합은 소비자 연결 milestone이 소유한다.
+기존 37개 관찰은 유지했고 조회 전용 독립 모델에서 41개 조건의 결과·SELECT 수·JOIN 형태를 양 DB와 비교했다.
+이는 기존 관찰 전체의 제품 parity가 아니다. 단일 reverse의 직접 조회를 완료했으며 다음은 reverse eager와 forward selection의
+결합이다. 물리 FK의 방향과 실제 traversal·부재·cache 소유권을 구분해 연결한다. 그 뒤 assignment와 작업 보고서의 실제 입력
+소비자를 이어간다. 전체 platform/cold-build 통합은 소비자 연결 milestone이 소유한다.

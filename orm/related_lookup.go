@@ -42,9 +42,8 @@ func relatedLookupError(path query.RelationPath, valid bool, lookup query.Lookup
 		return relationInvalidPlan("related scalar field is unbound")
 	}
 	if lookup != query.LookupExact {
-		hops := path.Hops()
-		if len(hops) == 0 || hops[0].Direction() != query.RelationForward {
-			return unsupportedRelationLookup(path.Terminal().Name(), lookup, "non-exact scalar lookups require a forward relation route")
+		if !path.SingleValued() {
+			return unsupportedRelationLookup(path.Terminal().Name(), lookup, "non-exact scalar lookups require a single-valued relation route")
 		}
 	}
 	return nil

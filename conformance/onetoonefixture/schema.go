@@ -36,6 +36,21 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 			schema.ForeignKey("ticket", "TicketID", schema.Target("ototickets", "ticket"), schema.RelatedName("links"), schema.Protect, schema.Unique()),
 			schema.CharField("label", "Label", 80),
 		}},
+		{Name: "review", GoName: "Review", Fields: []schema.Field{
+			schema.OneToOne("ticket", "TicketID", schema.Target("ototickets", "ticket"), schema.RelatedName("review"), schema.Protect),
+			schema.IntegerField("score", "Score", schema.Nullable()),
+			schema.CharField("title", "Title", 80, schema.Nullable()),
+			schema.TextField("body", "Body", schema.Nullable()),
+			schema.BooleanField("approved", "Approved", schema.Nullable()),
+			schema.FloatField("ratio", "Ratio", schema.Nullable()),
+			schema.DecimalField("price", "Price", 8, 2, schema.Nullable()),
+			schema.UUIDField("token", "Token", schema.Nullable()),
+			schema.JSONField("payload", "Payload", schema.Nullable()),
+			schema.DateField("day", "Day", schema.Nullable()),
+			schema.DateTimeField("at", "At", schema.Nullable()),
+			schema.TimeField("clock", "Clock", schema.Nullable()),
+			schema.DurationField("elapsed", "Elapsed", schema.Nullable()),
+		}},
 	}})
 	if err != nil {
 		return codegen.ProjectSpec{}, err

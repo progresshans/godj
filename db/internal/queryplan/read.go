@@ -64,7 +64,7 @@ func RelationCondition(plan query.Plan, condition query.Condition, path query.Re
 		if err := ReverseCondition(condition, root, backendName); err != nil {
 			return err
 		}
-		if condition.Lookup() != query.LookupExact {
+		if !path.SingleValued() && condition.Lookup() != query.LookupExact {
 			return unsupportedRelatedCondition(condition, backendName+" reverse relation compiler supports exact related lookups only")
 		}
 		return nil
@@ -99,6 +99,12 @@ func ReverseCondition(condition query.Condition, hop query.RelationHop, backendN
 		return invalidPlan("reverse relation path contains non-canonical metadata")
 	}
 	field := condition.Field()
+	if hop.Cardinality() == ir.RelationOneToOne {
+		if !field.ValidType() || !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) {
+			return invalidPlan("single reverse relation terminal is non-canonical")
+		}
+		return nil
+	}
 	if !field.ValidType() || !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) || field.Nullable() ||
 		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldJSON && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
