@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v8"
-const GoDjProjectRelationFacadeInputSHA256 = "82ce6db5638ebb866035a3fc42abd56fe6214bd9a9b4c2bae05e1a449c59ecb5"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v9"
+const GoDjProjectRelationFacadeInputSHA256 = "7d36fc3231f515247f89681f9186495bca0fdb9b26e37ddbe4e3fabd8aace3c4"
 
 type Backend interface {
 	db.Queryer
@@ -627,7 +627,7 @@ func (_model *ModelsTicket) relationFacadeReconcile() error {
 	_categoryCurrentKey := _model.modelsTicketModel.CategoryID
 	_categoryChanged := _categoryCurrentKey != _model.categoryScalarSnapshot
 	_categoryCurrentPresent := _model.categoryScalarPresent || _categoryChanged
-	_rebuild := _categoryChanged
+	_rebuild := false || _categoryChanged
 	if !_rebuild {
 		return nil
 	}
@@ -1014,4 +1014,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_52974095dd18631ed6c2ce21c011e16ad49ad340d5f125e154a2c5f063f723f4
+var _ goDjProjectSnapshot_f1a813b765ae689eefce29dd9a88fc061d9489d3db06bc852b9553fbf2cce579

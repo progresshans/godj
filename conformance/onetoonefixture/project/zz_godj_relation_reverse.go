@@ -13,12 +13,36 @@ import (
 
 const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"
 
+var _ orm.RelationObjectDescriptor[reports.Certificate] = reports.CertificateDescriptor{}
 var _ orm.RelationObjectDescriptor[reports.Link] = reports.LinkDescriptor{}
 var _ orm.RelationObjectDescriptor[reports.OptionalReport] = reports.OptionalReportDescriptor{}
 var _ orm.RelationObjectDescriptor[reports.Report] = reports.ReportDescriptor{}
+var _ orm.PrimaryKeyObjectDescriptor[reports.Report] = reports.ReportDescriptor{}
 var _ orm.RelationObjectDescriptor[reports.Review] = reports.ReviewDescriptor{}
 var _ orm.RelationObjectDescriptor[tickets.Ticket] = tickets.TicketDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[tickets.Ticket] = tickets.TicketDescriptor{}
+
+type ReportsReportCertificateReverseRelation struct {
+	relation orm.ReverseRelation[reports.Report, reports.Certificate]
+	ID       orm.RelatedIntegerField[reports.Report]
+	Seal     orm.RelatedStringField[reports.Report]
+}
+
+func (_relation ReportsReportCertificateReverseRelation) IsNull(_value bool) orm.Predicate[reports.Report] {
+	return _relation.relation.IsNull(_value)
+}
+
+type ReportsReportReverseRelations struct {
+	Certificate ReportsReportCertificateReverseRelation
+	model       orm.BoundModel[reports.Report]
+}
+
+func (_relations ReportsReportReverseRelations) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[reports.Report], error) {
+	return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)
+}
 
 type TicketsTicketLinksReverseRelation struct {
 	ID    orm.RelatedIntegerField[tickets.Ticket]
@@ -82,6 +106,7 @@ func (_relations TicketsTicketReverseRelations) ParseDynamic(
 }
 
 type ReverseRelations struct {
+	ReportsReport ReportsReportReverseRelations
 	TicketsTicket TicketsTicketReverseRelations
 }
 
@@ -92,13 +117,21 @@ func BindReverseRelations() (ReverseRelations, error) {
 	}
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "certificate"},
+		reports.CertificateDescriptor{},
+	)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "link"},
 		reports.LinkDescriptor{},
 	)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_model1, _err := orm.BindModel(
+	_model2, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "optional_report"},
 		reports.OptionalReportDescriptor{},
@@ -106,7 +139,7 @@ func BindReverseRelations() (ReverseRelations, error) {
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model3, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
 		reports.ReportDescriptor{},
@@ -114,7 +147,7 @@ func BindReverseRelations() (ReverseRelations, error) {
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_model3, _err := orm.BindModel(
+	_model4, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "review"},
 		reports.ReviewDescriptor{},
@@ -122,7 +155,7 @@ func BindReverseRelations() (ReverseRelations, error) {
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_model4, _err := orm.BindModel(
+	_model5, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
 		tickets.TicketDescriptor{},
@@ -130,133 +163,244 @@ func BindReverseRelations() (ReverseRelations, error) {
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_relation0, _err := orm.BindReverse(_model4, "links", _model0)
+	_relation0, _err := orm.BindReverse(_model3, "certificate", _model0)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal0, _err := _relation0.Integer(reports.LinkFields.ID)
+	_terminal0, _err := _relation0.Integer(reports.CertificateFields.ID)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal1, _err := _relation0.String(reports.LinkFields.Label)
+	_terminal1, _err := _relation0.String(reports.CertificateFields.Seal)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_relation1, _err := orm.BindReverse(_model4, "optional_report", _model1)
+	_relation1, _err := orm.BindReverse(_model5, "links", _model1)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal2, _err := _relation1.Integer(reports.OptionalReportFields.ID)
+	_terminal2, _err := _relation1.Integer(reports.LinkFields.ID)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal3, _err := _relation1.String(reports.OptionalReportFields.Note)
+	_terminal3, _err := _relation1.String(reports.LinkFields.Label)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_relation2, _err := orm.BindReverse(_model4, "report", _model2)
+	_relation2, _err := orm.BindReverse(_model5, "optional_report", _model2)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal4, _err := _relation2.Integer(reports.ReportFields.ID)
+	_terminal4, _err := _relation2.Integer(reports.OptionalReportFields.ID)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal5, _err := _relation2.String(reports.ReportFields.Note)
+	_terminal5, _err := _relation2.String(reports.OptionalReportFields.Note)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_relation3, _err := orm.BindReverse(_model4, "review", _model3)
+	_relation3, _err := orm.BindReverse(_model5, "report", _model3)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal6, _err := _relation3.Integer(reports.ReviewFields.ID)
+	_terminal6, _err := _relation3.Integer(reports.ReportFields.ID)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal7, _err := _relation3.Integer(reports.ReviewFields.Score)
+	_terminal7, _err := _relation3.String(reports.ReportFields.Note)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal8, _err := _relation3.String(reports.ReviewFields.Title)
+	_relation4, _err := orm.BindReverse(_model5, "review", _model4)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal9, _err := _relation3.String(reports.ReviewFields.Body)
+	_terminal8, _err := _relation4.Integer(reports.ReviewFields.ID)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal10, _err := _relation3.Boolean(reports.ReviewFields.Approved)
+	_terminal9, _err := _relation4.Integer(reports.ReviewFields.Score)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal11, _err := _relation3.Float(reports.ReviewFields.Ratio)
+	_terminal10, _err := _relation4.String(reports.ReviewFields.Title)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal12, _err := _relation3.Decimal(reports.ReviewFields.Price)
+	_terminal11, _err := _relation4.String(reports.ReviewFields.Body)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal13, _err := _relation3.UUID(reports.ReviewFields.Token)
+	_terminal12, _err := _relation4.Boolean(reports.ReviewFields.Approved)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal14, _err := _relation3.JSON(reports.ReviewFields.Payload)
+	_terminal13, _err := _relation4.Float(reports.ReviewFields.Ratio)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal15, _err := _relation3.Date(reports.ReviewFields.Day)
+	_terminal14, _err := _relation4.Decimal(reports.ReviewFields.Price)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal16, _err := _relation3.DateTime(reports.ReviewFields.At)
+	_terminal15, _err := _relation4.UUID(reports.ReviewFields.Token)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal17, _err := _relation3.Time(reports.ReviewFields.Clock)
+	_terminal16, _err := _relation4.JSON(reports.ReviewFields.Payload)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal18, _err := _relation3.Duration(reports.ReviewFields.Elapsed)
+	_terminal17, _err := _relation4.Date(reports.ReviewFields.Day)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal18, _err := _relation4.DateTime(reports.ReviewFields.At)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal19, _err := _relation4.Time(reports.ReviewFields.Clock)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal20, _err := _relation4.Duration(reports.ReviewFields.Elapsed)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
 	return ReverseRelations{
+		ReportsReport: ReportsReportReverseRelations{
+			Certificate: ReportsReportCertificateReverseRelation{
+				relation: _relation0,
+				ID:       _terminal0,
+				Seal:     _terminal1,
+			},
+			model: _model3,
+		},
 		TicketsTicket: TicketsTicketReverseRelations{
 			Links: TicketsTicketLinksReverseRelation{
-				ID:    _terminal0,
-				Label: _terminal1,
+				ID:    _terminal2,
+				Label: _terminal3,
 			},
 			OptionalReport: TicketsTicketOptionalReportReverseRelation{
-				relation: _relation1,
-				ID:       _terminal2,
-				Note:     _terminal3,
-			},
-			Report: TicketsTicketReportReverseRelation{
 				relation: _relation2,
 				ID:       _terminal4,
 				Note:     _terminal5,
 			},
-			Review: TicketsTicketReviewReverseRelation{
+			Report: TicketsTicketReportReverseRelation{
 				relation: _relation3,
 				ID:       _terminal6,
-				Score:    _terminal7,
-				Title:    _terminal8,
-				Body:     _terminal9,
-				Approved: _terminal10,
-				Ratio:    _terminal11,
-				Price:    _terminal12,
-				Token:    _terminal13,
-				Payload:  _terminal14,
-				Day:      _terminal15,
-				At:       _terminal16,
-				Clock:    _terminal17,
-				Elapsed:  _terminal18,
+				Note:     _terminal7,
 			},
-			model: _model4,
+			Review: TicketsTicketReviewReverseRelation{
+				relation: _relation4,
+				ID:       _terminal8,
+				Score:    _terminal9,
+				Title:    _terminal10,
+				Body:     _terminal11,
+				Approved: _terminal12,
+				Ratio:    _terminal13,
+				Price:    _terminal14,
+				Token:    _terminal15,
+				Payload:  _terminal16,
+				Day:      _terminal17,
+				At:       _terminal18,
+				Clock:    _terminal19,
+				Elapsed:  _terminal20,
+			},
+			model: _model5,
 		},
 	}, nil
+}
+
+type ReportsReportReverseObjectFactory struct {
+	model       orm.BoundModel[reports.Report]
+	certificate orm.ReverseOneToOneObject[reports.Report, reports.Certificate]
+}
+
+func (_factory ReportsReportReverseObjectFactory) From(_backend db.Queryer, _value reports.Report) (*ReportsReportReverseObject, error) {
+	_snapshot := (reports.ReportDescriptor{}).CloneModel(_value)
+	_related0, _err := _factory.certificate.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ReportsReportReverseObject{
+		model:       _snapshot,
+		factory:     _factory,
+		backend:     _backend,
+		certificate: _related0,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_factory ReportsReportReverseObjectFactory) SelectCertificate(_children ...orm.RelatedSelection[reports.Certificate]) orm.RelatedSelect[reports.Report, reports.Certificate] {
+	return orm.SelectReverseOneToOne(_factory.certificate).WithChildren(_children...)
+}
+func (_factory ReportsReportReverseObjectFactory) FromSelected(_selected *orm.RelatedSelected[reports.Report]) (*ReportsReportReverseObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("certificate"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_object.certificate, _err = _factory.SelectCertificate().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _object, nil
+}
+
+type ReportsReportReverseObject struct {
+	model       reports.Report
+	factory     ReportsReportReverseObjectFactory
+	backend     db.Queryer
+	certificate *orm.RelatedObject[reports.Certificate]
+	_self       *ReportsReportReverseObject
+}
+
+func (_object *ReportsReportReverseObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated reverse relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *ReportsReportReverseObject) Model() (reports.Report, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.Report{}, _err
+	}
+	return (reports.ReportDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *ReportsReportReverseObject) Certificate() (*orm.RelatedObject[reports.Certificate], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.certificate, nil
+}
+
+func (_object *ReportsReportReverseObject) Fresh() (*ReportsReportReverseObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
 }
 
 type TicketsTicketReverseObjectFactory struct {
@@ -269,19 +413,19 @@ type TicketsTicketReverseObjectFactory struct {
 
 func (_factory TicketsTicketReverseObjectFactory) From(_backend db.Queryer, _value tickets.Ticket) (*TicketsTicketReverseObject, error) {
 	_snapshot := (tickets.TicketDescriptor{}).CloneModel(_value)
-	_related0, _err := _factory.links.From(_backend, _snapshot)
+	_related1, _err := _factory.links.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related1, _err := _factory.optionalReport.From(_backend, _snapshot)
+	_related2, _err := _factory.optionalReport.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related2, _err := _factory.report.From(_backend, _snapshot)
+	_related3, _err := _factory.report.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related3, _err := _factory.review.From(_backend, _snapshot)
+	_related4, _err := _factory.review.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -289,10 +433,10 @@ func (_factory TicketsTicketReverseObjectFactory) From(_backend db.Queryer, _val
 		model:          _snapshot,
 		factory:        _factory,
 		backend:        _backend,
-		links:          _related0,
-		optionalReport: _related1,
-		report:         _related2,
-		review:         _related3,
+		links:          _related1,
+		optionalReport: _related2,
+		report:         _related3,
+		review:         _related4,
 	}
 	_result._self = _result
 	return _result, nil
@@ -415,6 +559,7 @@ func (_object *TicketsTicketReverseObject) Fresh() (*TicketsTicketReverseObject,
 }
 
 type ReverseObjects struct {
+	ReportsReport ReportsReportReverseObjectFactory
 	TicketsTicket TicketsTicketReverseObjectFactory
 }
 
@@ -430,13 +575,21 @@ func BindReverseObjects() (ReverseObjects, error) {
 func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "certificate"},
+		reports.CertificateDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "link"},
 		reports.LinkDescriptor{},
 	)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model1, _err := orm.BindModel(
+	_model2, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "optional_report"},
 		reports.OptionalReportDescriptor{},
@@ -444,7 +597,7 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model3, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
 		reports.ReportDescriptor{},
@@ -452,7 +605,7 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model3, _err := orm.BindModel(
+	_model4, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "review"},
 		reports.ReviewDescriptor{},
@@ -460,7 +613,7 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model4, _err := orm.BindModel(
+	_model5, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
 		tickets.TicketDescriptor{},
@@ -468,31 +621,39 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation0, _err := orm.BindReverseObject(_model4, "links", _model0)
+	_relation0, _err := orm.BindReverseOneToOneObject(_model3, "certificate", _model0)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation1, _err := orm.BindReverseOneToOneObject(_model4, "optional_report", _model1)
+	_relation1, _err := orm.BindReverseObject(_model5, "links", _model1)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation2, _err := orm.BindReverseOneToOneObject(_model4, "report", _model2)
+	_relation2, _err := orm.BindReverseOneToOneObject(_model5, "optional_report", _model2)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation3, _err := orm.BindReverseOneToOneObject(_model4, "review", _model3)
+	_relation3, _err := orm.BindReverseOneToOneObject(_model5, "report", _model3)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation4, _err := orm.BindReverseOneToOneObject(_model5, "review", _model4)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
 	return ReverseObjects{
+		ReportsReport: ReportsReportReverseObjectFactory{
+			model:       _model3,
+			certificate: _relation0,
+		},
 		TicketsTicket: TicketsTicketReverseObjectFactory{
-			model:          _model4,
-			links:          _relation0,
-			optionalReport: _relation1,
-			report:         _relation2,
-			review:         _relation3,
+			model:          _model5,
+			links:          _relation1,
+			optionalReport: _relation2,
+			report:         _relation3,
+			review:         _relation4,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ goDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

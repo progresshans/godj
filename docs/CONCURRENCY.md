@@ -51,6 +51,9 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
   같은 occurrence/owner의 서로 다른 child 또는 presence를 거부한다. 동일 owner/child의 반복 행은 독립 반환 cache를 유지한다.
   Reverse ready cache는 부재에도 owner 기준의 plan을 보존하며 Fresh에서 외부 insert·재할당·교체를 읽는다.
   BindObjectsIn/BindReverseObjectsIn으로 한 project binding을 공유하며 다른 binding의 descendant는 I/O 전에 거부한다.
+- Facade의 단일 reverse와 문자열 mixed path도 같은 selection/cache 경로를 사용한다. Unsaved owner의 reverse 접근은 I/O 전 오류이며
+  owner Save가 PK를 얻으면 handle을 재바인딩한다. 외부 child 저장은 warm missing cache를 자동 갱신하지 않는다.
+  Forward FK 변경/assignment는 선택한 reverse 형제의 cache cell·target identity·subtree를 보존한다.
 - 다른 filter JOIN으로 eager 결과에 같은 root 행이 중복돼도 각 반환 객체·FK pointer·선택한 관계 cache는 독립 소유한다.
   Warm All/First는 원본 query cache에서 다시 복제하며 한 결과의 수정을 다른 결과로 전파하지 않는다.
 - Eager First는 cold query에서 최대 한 row를 읽고 All cache를 채우지 않는다. Warm All cache의 첫 결과도 독립 복제하며,

@@ -43,7 +43,7 @@ Single reverse의 정상 부재·cardinality 오류·cache/prefetch와 양 DB PR
 단일 reverse는 관계/field isnull과 nullable/Boolean을 포함한 현재 scalar lookup·IN·AND/OR/NOT를 지원한다.
 자식의 부재는 physical FK nullability와 별개이며, 조건이 존재를 요구하면 INNER, 나머지는 LEFT OUTER로 부모 행을 보존한다.
 일반 Unique FK의 collection reverse는 기존 direct non-null exact 범위를 유지한다. Typed reverse/mixed eager tree를 구현했으며
-facade reverse selector·문자열 mixed path·assignment와 실제 입력 소비자는
+Facade의 reverse selector·문자열 mixed path도 같은 tree를 사용한다. OneToOne assignment 전체와 실제 입력 소비자는
 [GDJ-0096](../work/0096-one-to-one-service-reports.md)의 남은 범위다.
 [일대일 의미](adr/0073-one-to-one-cardinality-and-reverse-objects.md)를 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
@@ -88,7 +88,8 @@ Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typ
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.
 Collection reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse 조건은 미지원이다.
-OneToOne typed eager tree의 reverse/mixed materialization은 같은 JOIN/행 검증 경로에서 지원한다. Facade reverse selector와 문자열 mixed path는 남아 있다.
+OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
+Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
 유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 migration·mutation이나 object identity 공유까지 지원한다는 뜻은 아니다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.

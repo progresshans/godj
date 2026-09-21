@@ -5,7 +5,7 @@ package reports
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
+const GoDjRelationSchemaSHA256 = "cccfe41a52e34b8900070facbfbde9207eb92f2fbf5007cd18a21612495c902b"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -110,6 +110,40 @@ func GoDjRelationSchema() ir.Schema {
 						Name:      "label",
 						GoName:    "Label",
 						Column:    "label",
+						Kind:      ir.FieldChar,
+						MaxLength: 80,
+					},
+				},
+			},
+			{
+				Name:    "certificate",
+				GoName:  "Certificate",
+				DBTable: "otoreports_certificate",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:   "report",
+						GoName: "ReportID",
+						Column: "report_id",
+						Kind:   ir.FieldForeignKey,
+						Unique: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
+							Cardinality: ir.RelationOneToOne,
+							Reverse:     ir.ReverseRelation{Name: "certificate"},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
+					{
+						Name:      "seal",
+						GoName:    "Seal",
+						Column:    "seal",
 						Kind:      ir.FieldChar,
 						MaxLength: 80,
 					},
@@ -232,4 +266,4 @@ func GoDjRelationSchema() ir.Schema {
 	}
 }
 
-var _ GoDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ GoDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

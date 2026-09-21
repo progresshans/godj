@@ -84,3 +84,48 @@ func TestOneToOneSQLiteReverseEagerMatchesDjango(t *testing.T) {
 		return statement, err
 	}, backend.QueryCount)
 }
+
+func TestOneToOneSQLiteFacadeReverseEager(t *testing.T) {
+	backend, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), "facade.sqlite3"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	onetoonetest.RunFacade(t, backend, "sqlite", func(plan query.Plan) (string, error) {
+		statement, _, err := sqlite.Compile(plan)
+		return statement, err
+	}, backend.QueryCount)
+}
+
+func TestOneToOneFacadeReverseAccessorsRejectNamespaceConflicts(t *testing.T) {
+	for _, kind := range []string{"promoted_field", "forward_selector"} {
+		t.Run(kind, func(t *testing.T) {
+			spec, err := fixture.ProjectSpec(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			changed := false
+			for a := range spec.Apps {
+				for m := range spec.Apps[a].Schema.Models {
+					model := &spec.Apps[a].Schema.Models[m]
+					for f := range model.Fields {
+						field := &model.Fields[f]
+						if kind == "promoted_field" && model.Name == "ticket" && field.Name == "subject" {
+							field.GoName = "Report"
+							changed = true
+						}
+						if kind == "forward_selector" && model.Name == "report" && field.Name == "ticket" {
+							field.GoName = "CertificateID"
+							changed = true
+						}
+					}
+				}
+			}
+			if !changed {
+				t.Fatal("collision fixture did not change")
+			}
+			if _, err := codegen.GenerateProject(spec); err == nil {
+				t.Fatal("reverse accessor namespace conflict accepted")
+			}
+		})
+	}
+}

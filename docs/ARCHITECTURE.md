@@ -53,7 +53,8 @@ compile되지 않아도 생성기는 실행할 수 있어야 한다. [ADR-0006](
 Parent prefix를 먼저 배치하고 공통 prefix를 합친다. 닫힌 typed target tree가 구체 Go type·scanner·하위 cache 복제를 소유한다.
 생성 코드는 타입 지정·문자열 경로 선택과 객체의 하위 관계 접근을 이 runtime에 연결하며 경로 조합별 타입을 만들지 않는다.
 OneToOne reverse와 혼합 tree는 같은 `RelatedSelect`/`RelatedSelection`과 명시적 project binding을 사용한다.
-Generated reverse factory의 `Select...`/`FromSelected`를 연결했으며 facade의 reverse selector·문자열 경로는 아직 확장하지 않았다.
+Generated object factory는 모든 단일 traversal을 연결한다. Facade의 `.Related` selector와 문자열 mixed path도 같은 tree를 사용한다.
+물리 forward field 목록은 assignment·저장이 소유하고 reverse accessor는 source column인 것처럼 처리하지 않는다.
 구현·환경별 검증 범위는 [GDJ-0096](../work/0096-one-to-one-service-reports.md)을 따른다.
 Project bundle의 renderer는 같은 준비된 모델·관계 해석을 공유한다.
 App schema도 생성 호출마다 한 번 정규화하고 canonical hash를 계산해 app renderer·manifest·facade가 공유한다.

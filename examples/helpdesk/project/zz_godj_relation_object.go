@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
 
 type ModelsTicketObjectFactory struct {
 	_projectSelections *Objects
@@ -138,4 +138,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_52974095dd18631ed6c2ce21c011e16ad49ad340d5f125e154a2c5f063f723f4
+var _ goDjProjectSnapshot_f1a813b765ae689eefce29dd9a88fc061d9489d3db06bc852b9553fbf2cce579

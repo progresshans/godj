@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
-const GoDjRelationObjectSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
+const GoDjRelationObjectSchemaSHA256 = "cccfe41a52e34b8900070facbfbde9207eb92f2fbf5007cd18a21612495c902b"
 
 var _ orm.RelationObjectDescriptor[Report] = ReportDescriptor{}
 
@@ -133,6 +133,45 @@ func (linkTicketIDRelationStorage) Value(value Link) (query.Value, bool) {
 	return query.Integer(value.TicketID), true
 }
 
+var _ orm.RelationObjectDescriptor[Certificate] = CertificateDescriptor{}
+
+func (CertificateDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Certificate] {
+	return CertificateDescriptor{}
+}
+
+func (CertificateDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Certificate], bool) {
+	switch {
+	case reflect.DeepEqual(field, (certificateReportIDRelationStorage{}).Field()):
+		return certificateReportIDRelationStorage{}, true
+	default:
+		return nil, false
+	}
+}
+
+type certificateReportIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Certificate] = certificateReportIDRelationStorage{}
+
+func (certificateReportIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:   "report",
+		GoName: "ReportID",
+		Column: "report_id",
+		Kind:   ir.FieldForeignKey,
+		Unique: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
+			Cardinality: ir.RelationOneToOne,
+			Reverse:     ir.ReverseRelation{Name: "certificate"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func (certificateReportIDRelationStorage) Value(value Certificate) (query.Value, bool) {
+	return query.Integer(value.ReportID), true
+}
+
 var _ orm.RelationObjectDescriptor[Review] = ReviewDescriptor{}
 
 func (ReviewDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Review] {
@@ -172,4 +211,4 @@ func (reviewTicketIDRelationStorage) Value(value Review) (query.Value, bool) {
 	return query.Integer(value.TicketID), true
 }
 
-var _ GoDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ GoDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

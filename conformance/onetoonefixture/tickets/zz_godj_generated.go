@@ -181,4 +181,4 @@ func ticketMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0 struct{}
+type GoDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572 struct{}

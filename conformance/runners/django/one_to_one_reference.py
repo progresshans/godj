@@ -182,10 +182,30 @@ def observe():
             return [{'name': name, **{key: value[key] for key in ('columns', 'primary_key', 'unique', 'foreign_key', 'index')}}
                     for name, value in sorted(found.items())]
 
+        class DeleteOwner(models.Model):
+            class Meta:
+                app_label = 'otoparents'
+                db_table = 'oto_delete_owner'
+
+        class DeleteReport(models.Model):
+            owner = models.OneToOneField(DeleteOwner, on_delete=models.PROTECT)
+            note = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_delete_report'
+
+        class DeleteCertificate(models.Model):
+            report = models.OneToOneField(DeleteReport, on_delete=models.PROTECT)
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_delete_certificate'
+
         created = []
         try:
             assert not connection.introspection.table_names()
-            for model in (Parent, Detail, OptionalDetail, UniqueChild, DefaultDetail, HiddenDetail, LookupParent, LookupDetail, LookupOptional, LookupUnique, Review):
+            for model in (Parent, Detail, OptionalDetail, UniqueChild, DefaultDetail, HiddenDetail, LookupParent, LookupDetail, LookupOptional, LookupUnique, Review, DeleteOwner, DeleteReport, DeleteCertificate):
                 with connection.schema_editor() as editor:
                     editor.create_model(model)
                 created.append(model)
@@ -312,6 +332,26 @@ def observe():
                 return output
 
             eager = capture_eager()
+
+            def capture_outgoing_delete():
+                owner = DeleteOwner.objects.create()
+                report = DeleteReport.objects.create(owner=owner, note='preserved')
+                certificate = DeleteCertificate.objects.create(report=report)
+                result = {}
+                try:
+                    report.delete()
+                except Exception as error:
+                    result['blocked_exception'] = type(error).__name__
+                result['blocked_memory'] = [report.pk, report.owner_id, report.note]
+                result['blocked_rows'] = [DeleteOwner.objects.count(), DeleteReport.objects.count(), DeleteCertificate.objects.count()]
+                certificate.delete()
+                deleted, _ = report.delete()
+                result['deleted'] = deleted
+                result['memory'] = [report.pk, report.owner_id, report.note]
+                result['rows'] = [DeleteOwner.objects.count(), DeleteReport.objects.count(), DeleteCertificate.objects.count()]
+                return result
+
+            outgoing_delete = capture_outgoing_delete()
             record('required_form_duplicate', lambda: forms(Detail, {'parent': first.pk}))
             record('required_form_self', lambda: forms(Detail, {'parent': first.pk}, detail))
             record('required_form_available', lambda: forms(Detail, {'parent': second.pk}))
@@ -438,7 +478,7 @@ def observe():
                 version = cursor.fetchone()[0]
             output = {'django': django.get_version(), 'python': platform.python_version(),
                       'backend': connection.vendor, 'database_version': version,
-                      'field_shapes': shapes, 'observations': observations, 'lookups': lookups, 'eager': eager, 'migrations': migrations,
+                      'field_shapes': shapes, 'observations': observations, 'lookups': lookups, 'eager': eager, 'outgoing_delete': outgoing_delete, 'migrations': migrations,
                       'django_related_field_source_sha256': hashlib.sha256(
                           Path(inspect.getsourcefile(models.OneToOneField)).read_bytes()).hexdigest()}
             if database:

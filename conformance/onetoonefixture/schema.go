@@ -36,6 +36,10 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 			schema.ForeignKey("ticket", "TicketID", schema.Target("ototickets", "ticket"), schema.RelatedName("links"), schema.Protect, schema.Unique()),
 			schema.CharField("label", "Label", 80),
 		}},
+		{Name: "certificate", GoName: "Certificate", Fields: []schema.Field{
+			schema.OneToOne("report", "ReportID", schema.Target("otoreports", "report"), schema.RelatedName("certificate"), schema.Protect),
+			schema.CharField("seal", "Seal", 80),
+		}},
 		{Name: "review", GoName: "Review", Fields: []schema.Field{
 			schema.OneToOne("ticket", "TicketID", schema.Target("ototickets", "ticket"), schema.RelatedName("review"), schema.Protect),
 			schema.IntegerField("score", "Score", schema.Nullable()),

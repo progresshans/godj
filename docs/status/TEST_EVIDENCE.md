@@ -3,6 +3,70 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0096 — facade reverse selection과 outgoing FK 삭제
+
+2026-09-22, 기준 `b91f1e8299a0a2219f6b6a8bf42e2b85937cd813` 위 제품·생성물·검사·CI **82경로**의 manifest SHA256은
+`73c77e8e9477f9af63370ed458f9f6abdd8d2ad885b43ae0f0fa89750152e1b2`다. 현행 문서는 이 집합에서 제외한다.
+Darwin 25.6.0/arm64·Go 1.26.5, modernc SQLite 3.53.3(v1.56.0), PostgreSQL 17.5 Homebrew/pgx v5.10.0,
+`TZ=Pacific/Chatham`에서 실행했다. 각 native 시도는 별도 locale C/UTF8 소유 DB와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+Generated Objects가 모든 single traversal을 바인딩하며 facade의 `.Related` selector와 문자열 mixed path를 공통 eager tree에 연결한다.
+정방향 storage field와 reverse traversal 목록은 별도로 소유한다. Reverse-only 모델도 New/Save가 가능하고, unsaved owner의
+reverse 접근만 I/O 전에 실패한다. 부모 저장으로 PK가 생기면 reverse handle을 재바인딩한다. Forward assignment/raw FK 변경은
+이미 선택한 reverse 형제 cache와 subtree를 보존한다. 상세 설계와 남은 assignment 범위는 [ADR-0073](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)을 따른다.
+
+12개 독립 Django eager 관찰을 실제 facade의 typed/string 두 방식으로 각각 실행했다. Plan.Equal·row/presence·초기 SELECT·JOIN을
+대조하고 warm All/First/Count·descendant 접근은 Query 호출과 실제 data SELECT가 모두 0임을 확인했다.
+PostgreSQL tracer는 이제 fixture의 부모와 모든 자식 테이블을 관찰하며 하나의 JOIN statement는 한 번만 센다. 지연 child 접근의
+SELECT 1회 positive control도 추가했다. Physical-session connection/reset guard는 유지했다.
+같은 facade의 target identity, 서로 다른 occurrence/materialization의 mutable field 독립성, Distinct/Offset/Limit/Fresh/First,
+새 부모 저장 후 조회·기존 missing cache·새 facade의 재조회·copy/PK 변경 거부, 잘못된 origin/중간 Go type/문자열 경로·namespace,
+query/후행 scan 오류의 partial result 거부와 재시도를 검증했다. 외부 생성 module의 올바른 tree는 build되고 잘못된 중간 model은 compiler가 거부한다.
+
+Report의 reverse 형제 cache 검사를 위해 Certificate OneToOne을 생성 fixture에 추가했다. 이 과정에서 incoming 정책을 받으면서
+outgoing FK도 가진 모델의 deleter가 scalar-only 검사로 거부됨을 발견했다. Canonical 단일 FK를 허용하되 incoming fingerprint·
+descriptor 전체 metadata·PK clear의 non-PK 보존·AtomicRelation은 유지했다. FK를 읽지 못하는 descriptor는 callback 전 실패한다.
+실제 양 DB에서 PROTECT 실패 후 행/메모리 보존, 참조 child 제거 뒤 target 삭제, outgoing parent 행과 non-PK 메모리 보존을 확인했다.
+
+독립 Django runner에 별도의 Owner–Report–Certificate 그래프를 추가하여 PROTECT·삭제 후 부모/메모리를 관찰했다.
+기존 **37개 관찰·2개 migration·41개 lookup·12개 eager**는 그대로 유지했다. 최종 runner SHA256은
+`99c1bfee3e467878b4483ed6c6fbcaddb6cd1643ef21224b25c9919b7334c1ee`다. SQLite 3.50.4·PostgreSQL 17.5 결과가 같고,
+삭제 전후 행 수를 실제 GoDj 결과와 비교했다. Python의 지워진 PK `None`은 기존 Go AutoField의 값 0/부재 상태와 구분한다.
+네 Python 환경(3.12.13·3.13.15·3.14.3·3.14.7)은 고정 Django 6.1/asgiref 3.12.1/sqlparse 0.5.5로 각각 **6 PASS / skip 0**,
+총 **24 PASS**다. 두 hash seed의 새 process와 test discovery/start/stop를 확인했다. PostgreSQL reference driver는 psycopg 3.3.6이다.
+
+| 동일 82경로 source의 범위 | 실행 결과 |
+|---|---|
+| query/ORM/codegen/queryplan/생성 fixture normal | 1,187 run=PASS, skip 0 |
+| native PostgreSQL OneToOne/RelationDelete selector | 90 run=PASS, skip 0 |
+| query/ORM/queryplan/fixture race | 843 run=PASS, skip 0 |
+| 양 DB 영향 selector race | 2,327 run=PASS, skip 0 |
+| 공통·양 DB 영향 selector CGO=0 | 2,769 run=PASS, skip 0 |
+| 기존·신규 generated consumer/외부 compile normal | 183 run=PASS, skip 0 |
+| publication parent root 전체 | 169 run=PASS, skip 0 |
+
+Normal·race·CGO0은 `go test -json -count=1 -timeout=15m`, 소비자는 `-timeout=20m`다. Normal 공통 package는
+`./query ./orm ./codegen ./db/internal/queryplan ./conformance/onetoonefixture/...`, native normal은
+`-run 'OneToOne|RelationDelete' ./db/postgres`이며 실제 parent root 5개가 실행됐다. 이 native normal은 PostgreSQL 전체나 process 검증이 아니다.
+Runtime race는 공통에서 codegen을 제외한다. DB race와 CGO0 selector는
+`OneToOne|Relation|Select|Eager|Projection|Ordering|Compile|Membership|MigrationCapabilities`이고 CGO0은 runtime와 양 DB에 적용했다.
+소비자는 `./codegen/consumertest ./internal/compiletest`, publication은 발견한 parent root 72개 전부다.
+`TestPublicationCrashHelper`는 기존 crash/recovery parent가 실제 child process 실행·종료·결과를 소유하며 단독 helper skip은 집계하지 않았다.
+각 실행의 source 전후 hash, 모든 Go event의 start/terminal·package 종료·required root·skip 0을 검사했다.
+
+Object v5/selection v6/facade v9에 맞춰 네 project의 generated Go 56개와 manifest를 재생성했다. Candidate compile와
+`make generate-check`, CI 도구 38 PASS를 확인했다. 새 SQLite/PostgreSQL facade root와 외부 compile root를 CI required 목록에 연결했다.
+
+첫 normal은 공통 **1,185 run / 1,184 PASS / 1 FAIL**, native **88 run / 87 PASS / 1 FAIL**이었다. 두 DB에서 같은 scalar-only
+삭제 binding 제약을 발견했다. 이를 수정한 중간 normal은 공통 1,186/native 89 PASS였고, 최종 독립 삭제 관찰과 tracer positive control을
+추가한 뒤 위 표의 최종 source로 다시 검증했다. 실패 source를 최종 PASS로 바꾸지 않았다.
+정확한 command·source·reference/Python/Go stdout/stderr·필수 root·완전한 inventory·publication과 cleanup 영수증은
+`godj-one-to-one-facade-rxl9j3bm` 로컬 artifact에 보존했다. 소유 DB의 잔여 connection·table·test schema가 0인 것을 확인한 뒤
+그 DB만 삭제했고 기존 PostgreSQL service는 유지했다.
+
+이번 결과는 facade와 해당 삭제 경계의 로컬 checkpoint다. OneToOne assignment 전체·작업 보고서의 실제 입력 소비자·platform 통합은 남아 있다.
+이전 Hosted full source `42ae95d3b1a891e6a0692fb0399968e483f4d907`의 성공을 이번 source에 적용하지 않는다.
+
 ## GDJ-0096 — typed reverse/mixed eager tree
 
 2026-09-22, 기준 `6d4e760da554b91392634e07b911c5f7e7293683` 위 제품·생성물·검사·CI **104경로**의 manifest SHA256은

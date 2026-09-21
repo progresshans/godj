@@ -10,7 +10,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v5"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
 
 var _ orm.ProjectionDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
@@ -48,28 +48,28 @@ func (_query ModelsTicketSelectRelatedQuery) WithCategory(_children ...orm.Relat
 }
 func (_factory ModelsTicketObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[models.Ticket], error) {
 	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
-		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
 	}
 	_result := make([]orm.RelatedSelection[models.Ticket], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
 		}
 		for _, _part := range _parts {
 			if _part == "" {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
 			}
 		}
 		switch _parts[0] {
 		case "category":
 			_selection := _factory.SelectCategory()
 			if len(_parts) > 1 {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
 			}
 			_result = append(_result, _selection)
 		default:
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
 		}
 	}
 	return _result, nil
@@ -193,4 +193,4 @@ func (_factory ModelsTicketObjectFactory) FromSelected(_selected *orm.RelatedSel
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_52974095dd18631ed6c2ce21c011e16ad49ad340d5f125e154a2c5f063f723f4
+var _ goDjProjectSnapshot_f1a813b765ae689eefce29dd9a88fc061d9489d3db06bc852b9553fbf2cce579

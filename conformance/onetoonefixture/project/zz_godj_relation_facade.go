@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v8"
-const GoDjProjectRelationFacadeInputSHA256 = "39dd71735e4e18016710d9792f21f489d0f890ee5ba866cfeb60dfe99a5fc227"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v9"
+const GoDjProjectRelationFacadeInputSHA256 = "06a07429c77c09caf39bbce5f52325b2ac4a15b7cd28593a85df352ee49ebb15"
 
 type Backend interface {
 	db.Queryer
@@ -105,6 +105,689 @@ func relationFacadeUnsavedRelated(_field string) error {
 
 func relationFacadeRequiredRelated(_field string) error {
 	return &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField, Field: _field, Detail: "required relation has not been assigned"}
+}
+
+type ReportsCertificateQuery struct {
+	Related ReportsCertificateRelationSelectors
+	state   *relationFacadeState
+	query   orm.QuerySet[reports.Certificate]
+}
+
+func newReportsCertificateQuery(_state *relationFacadeState, _query orm.QuerySet[reports.Certificate]) ReportsCertificateQuery {
+	_result := ReportsCertificateQuery{state: _state, query: _query}
+	_result.Related = ReportsCertificateRelationSelectors{
+		Report: relationFacadeSelection[reports.Certificate, reports.Report]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Report.selection = _state.objects.ReportsCertificate.SelectReport()
+	}
+	return _result
+}
+
+func (_query ReportsCertificateQuery) validate() error {
+	return _query.state.validate()
+}
+
+func (_query ReportsCertificateQuery) New(_value reports.Certificate) (*ReportsCertificate, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapReportsCertificate(_value, true)
+}
+
+func (_query ReportsCertificateQuery) Filter(_predicates ...orm.Predicate[reports.Certificate]) ReportsCertificateQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+
+func (_query ReportsCertificateQuery) OrderBy(_orderings ...orm.Ordering[reports.Certificate]) ReportsCertificateQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+
+func (_query ReportsCertificateQuery) Distinct() ReportsCertificateQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query ReportsCertificateQuery) Fresh() ReportsCertificateQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+
+func (_query ReportsCertificateQuery) Limit(_limit int) (ReportsCertificateQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateQuery{}, _err
+	}
+	_limited, _err := _query.query.Limit(_limit)
+	if _err != nil {
+		return ReportsCertificateQuery{}, _err
+	}
+	_query.query = _limited
+	return _query, nil
+}
+
+func (_query ReportsCertificateQuery) Offset(_offset int) (ReportsCertificateQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return ReportsCertificateQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query ReportsCertificateQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectReportsCertificateInto[R any](_ctx context.Context, _source ReportsCertificateQuery, _projection orm.Projection[reports.Certificate, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateReportsCertificateInto[R any](_ctx context.Context, _source ReportsCertificateQuery, _aggregate orm.Aggregate[reports.Certificate, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func (_query ReportsCertificateQuery) First(_ctx context.Context) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _found, _err := _query.query.First(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	_wrapped, _err := _query.state.wrapReportsCertificate(_value, false)
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_query ReportsCertificateQuery) All(_ctx context.Context) ([]*ReportsCertificate, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ReportsCertificate, len(_values))
+	for _index := range _values {
+		_wrapped, _err := _query.state.wrapReportsCertificate(_values[_index], false)
+		if _err != nil {
+			return nil, _err
+		}
+		_results[_index] = _wrapped
+	}
+	return _results, nil
+}
+
+type reportsCertificateModel = reports.Certificate
+
+type ReportsCertificate struct {
+	reportsCertificateModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	object                    *ReportsCertificateObject
+	reportCache               *orm.RelationCache[ReportsReport]
+	reportScalarSnapshot      int64
+	reportScalarPresent       bool
+	_self                     *ReportsCertificate
+}
+
+func (_state *relationFacadeState) wrapReportsCertificate(_value reports.Certificate, _new bool) (*ReportsCertificate, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_cloned := (reports.CertificateDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.ReportsCertificate.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ReportsCertificate{state: _state, reportsCertificateModel: _cloned, object: _object}
+	_result.reportCache = orm.NewRelationCache[ReportsReport]()
+	_result.reportScalarPresent = !_new || _value.ReportID != 0
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapReportsCertificateObject(_object *ReportsCertificateObject) (*ReportsCertificate, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (reports.CertificateDescriptor{}).CloneWriteModel(_model)
+	_result := &ReportsCertificate{state: _state, reportsCertificateModel: _cloned, object: _object}
+	_result.reportCache = orm.NewRelationCache[ReportsReport]()
+	_result.reportScalarPresent = true
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ReportsCertificate) validate() error {
+	if _model == nil || _model._self != _model {
+		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
+	}
+	return _model.state.validate()
+}
+
+func (ReportsCertificate) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*ReportsCertificate) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *ReportsCertificate) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (reports.CertificateDescriptor{}).PrimaryKey(_model.reportsCertificateModel)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ReportsCertificate) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ReportsCertificate) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	_model.reportScalarSnapshot = _model.reportsCertificateModel.ReportID
+	return nil
+}
+
+func (_model *ReportsCertificate) Unwrap() (reports.Certificate, error) {
+	if _err := _model.validate(); _err != nil {
+		return reports.Certificate{}, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return reports.Certificate{}, _err
+	}
+	_, _, _reportPending, _reportErr := _model.reportCache.Snapshot()
+	if _reportErr != nil {
+		return reports.Certificate{}, _reportErr
+	}
+	if _reportPending {
+		return reports.Certificate{}, relationFacadeUnsavedRelated("report")
+	}
+	if !_model.reportScalarPresent {
+		return reports.Certificate{}, relationFacadeRequiredRelated("report")
+	}
+	return (reports.CertificateDescriptor{}).CloneModel(_model.reportsCertificateModel), nil
+}
+
+func (_model *ReportsCertificate) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	if _err := reports.CertificateObjects.Save(_ctx, _model.state.backend, &_model.reportsCertificateModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *ReportsCertificate) relationFacadeDerived(_value reports.Certificate) (*ReportsCertificate, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (reports.CertificateDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.ReportsCertificate.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ReportsCertificate{state: _model.state, reportsCertificateModel: _value, object: _object}
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.reportScalarSnapshot = _model.reportScalarSnapshot
+	_result.reportScalarPresent = _model.reportScalarPresent
+	_result.reportCache, _err = _model.reportCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *ReportsCertificate) relationFacadeReconcile() error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.reportCache.Snapshot(); _err != nil {
+		return _err
+	}
+	_reportCurrentKey := _model.reportsCertificateModel.ReportID
+	_reportChanged := _reportCurrentKey != _model.reportScalarSnapshot
+	_reportCurrentPresent := _model.reportScalarPresent || _reportChanged
+	_rebuild := false || _reportChanged
+	if !_rebuild {
+		return nil
+	}
+	_nextModel := (reports.CertificateDescriptor{}).CloneWriteModel(_model.reportsCertificateModel)
+	_nextObject, _err := _model.state.objects.ReportsCertificate.From(_model.state.backend, _nextModel)
+	if _err != nil {
+		return _err
+	}
+	_nextReportCache := _model.reportCache
+	if _reportChanged {
+		_nextReportCache = orm.NewRelationCache[ReportsReport]()
+	}
+	_model.reportsCertificateModel = _nextModel
+	_model.object = _nextObject
+	if _reportChanged {
+		_model.reportCache = _nextReportCache
+		_model.reportScalarSnapshot = _reportCurrentKey
+		_model.reportScalarPresent = _reportCurrentPresent
+	}
+	return nil
+}
+
+func (_model *ReportsCertificate) relationFacadePrepareSave() error {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_reportState, _reportTarget, _reportPending, _err := _model.reportCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _reportKey int64
+	var _reportPresent bool
+	if _reportState == orm.RelationAssignedPresent {
+		if _reportTarget == nil || _reportTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_reportKey, _reportPresent, _err = _reportTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _reportState == orm.RelationAssignedPresent && !_reportPresent {
+		return relationFacadeUnsavedRelated("report")
+	}
+	if _reportState == orm.RelationAssignedAbsent || (_reportState == orm.RelationUnassigned && !_model.reportScalarPresent) {
+		return relationFacadeRequiredRelated("report")
+	}
+	if _reportState == orm.RelationAssignedPresent && !_reportPending && !_model.reportScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	_reportReconcile := _reportState == orm.RelationAssignedPresent && _reportPending
+	_nextModel := (reports.CertificateDescriptor{}).CloneWriteModel(_model.reportsCertificateModel)
+	_rebuild := false
+	if _reportReconcile {
+		_nextModel.ReportID = _reportKey
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.ReportsCertificate.From(_model.state.backend, _nextModel)
+		if _err != nil {
+			return _err
+		}
+		_nextReportCache := _model.reportCache
+		if _reportReconcile {
+			_nextReportCache, _err = _model.reportCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextReportCache.Store(orm.RelationAssignedPresent, _reportTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_model.reportsCertificateModel = _nextModel
+		_model.object = _nextObject
+		if _reportReconcile {
+			_model.reportCache = _nextReportCache
+			_model.reportScalarSnapshot = _reportKey
+			_model.reportScalarPresent = true
+		}
+	}
+	return nil
+}
+
+func (_model *ReportsCertificate) WithReport(_target *ReportsReport) (*ReportsCertificate, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (reports.CertificateDescriptor{}).CloneWriteModel(_model.reportsCertificateModel)
+	if _present {
+		_value.ReportID = _key
+	} else {
+		_value.ReportID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.reportScalarSnapshot = _key
+	_result.reportScalarPresent = _present
+	if _err := _result.reportCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ReportsCertificate) WithReportID(_key int64) (*ReportsCertificate, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (reports.CertificateDescriptor{}).CloneWriteModel(_model.reportsCertificateModel)
+	_, _, _pending, _err := _model.reportCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.reportScalarPresent && !_pending && _value.ReportID == _key
+	_value.ReportID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.reportScalarSnapshot = int64(_key)
+	_result.reportScalarPresent = true
+	if !_same {
+		if _err := _result.reportCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *ReportsCertificate) Report(_ctx context.Context) (*ReportsReport, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.reportCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == orm.RelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.reportScalarPresent {
+		return nil, relationFacadeRequiredRelated("report")
+	}
+	_value, _err := _model.object.Report(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _wrapped *ReportsReport
+	_graph, _selected, _err := _model.object.report.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		var _object *ReportsReportObject
+		_object, _err = _model.state.objects.ReportsReport.FromSelected(_graph)
+		if _err != nil {
+			return nil, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedReportsReportObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapReportsReport(_value, false)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.reportCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
+type ReportsCertificateRelationSelector = relationFacadeSelectionInput[reports.Certificate]
+type ReportsCertificateRelationSelectors struct {
+	Report relationFacadeSelection[reports.Certificate, reports.Report]
+}
+
+func (_query ReportsCertificateQuery) SelectRelated(_selectors ...ReportsCertificateRelationSelector) ReportsCertificateEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[reports.Certificate], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return ReportsCertificateEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newReportsCertificateEagerQuery(_query.query, _inputs)
+}
+func (_query ReportsCertificateQuery) SelectRelatedPaths(_paths ...string) (ReportsCertificateEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ReportsCertificate.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	_result := _query.state.newReportsCertificateEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return ReportsCertificateEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type ReportsCertificateEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[reports.Certificate]
+	selections       []orm.RelatedSelection[reports.Certificate]
+	projection       relationSelectQuery[ReportsCertificateObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newReportsCertificateEagerQuery(_source orm.QuerySet[reports.Certificate], _selections []orm.RelatedSelection[reports.Certificate]) ReportsCertificateEagerQuery {
+	_result := ReportsCertificateEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[reports.Certificate](nil), _selections...)
+	_projection := _state.objects.ReportsCertificate.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query ReportsCertificateEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query ReportsCertificateEagerQuery) Filter(_values ...orm.Predicate[reports.Certificate]) ReportsCertificateEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsCertificateEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query ReportsCertificateEagerQuery) OrderBy(_values ...orm.Ordering[reports.Certificate]) ReportsCertificateEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsCertificateEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query ReportsCertificateEagerQuery) Distinct() ReportsCertificateEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsCertificateEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query ReportsCertificateEagerQuery) Fresh() ReportsCertificateEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newReportsCertificateEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query ReportsCertificateEagerQuery) Limit(_value int) (ReportsCertificateEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	return _query.state.newReportsCertificateEagerQuery(_source, _query.selections), nil
+}
+func (_query ReportsCertificateEagerQuery) Offset(_value int) (ReportsCertificateEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ReportsCertificateEagerQuery{}, _err
+	}
+	return _query.state.newReportsCertificateEagerQuery(_source, _query.selections), nil
+}
+func (_query ReportsCertificateEagerQuery) All(_ctx context.Context) ([]*ReportsCertificate, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ReportsCertificate, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedReportsCertificateObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query ReportsCertificateEagerQuery) First(_ctx context.Context) (*ReportsCertificate, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedReportsCertificateObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query ReportsCertificateEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedReportsCertificateObject(_ctx context.Context, _object *ReportsCertificateObject) (*ReportsCertificate, error) {
+	_wrapped, _err := _state.wrapReportsCertificateObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _err = _wrapped.Report(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
 }
 
 type ReportsLinkQuery struct {
@@ -410,7 +1093,7 @@ func (_model *ReportsLink) relationFacadeReconcile() error {
 	_ticketCurrentKey := _model.reportsLinkModel.TicketID
 	_ticketChanged := _ticketCurrentKey != _model.ticketScalarSnapshot
 	_ticketCurrentPresent := _model.ticketScalarPresent || _ticketChanged
-	_rebuild := _ticketChanged
+	_rebuild := false || _ticketChanged
 	if !_rebuild {
 		return nil
 	}
@@ -587,7 +1270,21 @@ func (_model *ReportsLink) Ticket(_ctx context.Context) (*TicketsTicket, error) 
 	if _err != nil {
 		return nil, _err
 	}
-	_wrapped, _err := _model.state.wrapTicketsTicket(_value, false)
+	var _wrapped *TicketsTicket
+	_graph, _selected, _err := _model.object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		var _object *TicketsTicketObject
+		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
+		if _err != nil {
+			return nil, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
+	}
 	if _err != nil {
 		return nil, _err
 	}
@@ -1089,7 +1786,7 @@ func (_model *ReportsOptionalReport) relationFacadeReconcile() error {
 		_ticketCurrentKey = *_model.reportsOptionalReportModel.TicketID
 	}
 	_ticketChanged := _ticketCurrentPresent != _model.ticketScalarPresent || (_ticketCurrentPresent && _ticketCurrentKey != _model.ticketScalarSnapshot)
-	_rebuild := _ticketChanged
+	_rebuild := false || _ticketChanged
 	if !_rebuild {
 		return nil
 	}
@@ -1292,7 +1989,21 @@ func (_model *ReportsOptionalReport) Ticket(_ctx context.Context) (*TicketsTicke
 		}
 		return nil, _present, _err
 	}
-	_wrapped, _err := _model.state.wrapTicketsTicket(_value, false)
+	var _wrapped *TicketsTicket
+	_graph, _selected, _err := _model.object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		var _object *TicketsTicketObject
+		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
+		if _err != nil {
+			return nil, false, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
+	}
 	if _err != nil {
 		return nil, false, _err
 	}
@@ -1490,9 +2201,11 @@ type ReportsReportQuery struct {
 func newReportsReportQuery(_state *relationFacadeState, _query orm.QuerySet[reports.Report]) ReportsReportQuery {
 	_result := ReportsReportQuery{state: _state, query: _query}
 	_result.Related = ReportsReportRelationSelectors{
-		Ticket: relationFacadeSelection[reports.Report, tickets.Ticket]{state: _state},
+		Certificate: relationFacadeSelection[reports.Report, reports.Certificate]{state: _state},
+		Ticket:      relationFacadeSelection[reports.Report, tickets.Ticket]{state: _state},
 	}
 	if _state != nil {
+		_result.Related.Certificate.selection = _state.objects.ReportsReport.SelectCertificate()
 		_result.Related.Ticket.selection = _state.objects.ReportsReport.SelectTicket()
 	}
 	return _result
@@ -1617,6 +2330,7 @@ type ReportsReport struct {
 	primaryKeySnapshot        int64
 	primaryKeySnapshotPresent bool
 	object                    *ReportsReportObject
+	certificateCache          *orm.RelationCache[ReportsCertificate]
 	ticketCache               *orm.RelationCache[TicketsTicket]
 	ticketScalarSnapshot      int64
 	ticketScalarPresent       bool
@@ -1633,6 +2347,7 @@ func (_state *relationFacadeState) wrapReportsReport(_value reports.Report, _new
 		return nil, _err
 	}
 	_result := &ReportsReport{state: _state, reportsReportModel: _cloned, object: _object}
+	_result.certificateCache = orm.NewRelationCache[ReportsCertificate]()
 	_result.ticketCache = orm.NewRelationCache[TicketsTicket]()
 	_result.ticketScalarPresent = !_new || _value.TicketID != 0
 	_result._self = _result
@@ -1655,6 +2370,7 @@ func (_state *relationFacadeState) wrapReportsReportObject(_object *ReportsRepor
 	}
 	_cloned := (reports.ReportDescriptor{}).CloneWriteModel(_model)
 	_result := &ReportsReport{state: _state, reportsReportModel: _cloned, object: _object}
+	_result.certificateCache = orm.NewRelationCache[ReportsCertificate]()
 	_result.ticketCache = orm.NewRelationCache[TicketsTicket]()
 	_result.ticketScalarPresent = true
 	_result._self = _result
@@ -1746,6 +2462,18 @@ func (_model *ReportsReport) Save(_ctx context.Context) error {
 	if _err := reports.ReportObjects.Save(_ctx, _model.state.backend, &_model.reportsReportModel); _err != nil {
 		return _err
 	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_nextObject, _err := _model.state.objects.ReportsReport.From(_model.state.backend, _model.reportsReportModel)
+		if _err != nil {
+			return _err
+		}
+		_model.object = _nextObject
+		_model.certificateCache = orm.NewRelationCache[ReportsCertificate]()
+	}
 	return _model.relationFacadeRefreshSnapshots()
 }
 
@@ -1767,6 +2495,10 @@ func (_model *ReportsReport) relationFacadeDerived(_value reports.Report) (*Repo
 	if _err != nil {
 		return nil, _err
 	}
+	_result.certificateCache, _err = _model.certificateCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
 	_result._self = _result
 	return _result, nil
 }
@@ -1778,13 +2510,16 @@ func (_model *ReportsReport) relationFacadeReconcile() error {
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
+	if _, _, _, _err := _model.certificateCache.Snapshot(); _err != nil {
+		return _err
+	}
 	if _, _, _, _err := _model.ticketCache.Snapshot(); _err != nil {
 		return _err
 	}
 	_ticketCurrentKey := _model.reportsReportModel.TicketID
 	_ticketChanged := _ticketCurrentKey != _model.ticketScalarSnapshot
 	_ticketCurrentPresent := _model.ticketScalarPresent || _ticketChanged
-	_rebuild := _ticketChanged
+	_rebuild := false || _ticketChanged
 	if !_rebuild {
 		return nil
 	}
@@ -1931,6 +2666,63 @@ func (_model *ReportsReport) WithTicketID(_key int64) (*ReportsReport, error) {
 	return _result, nil
 }
 
+func (_model *ReportsReport) Certificate(_ctx context.Context) (*ReportsCertificate, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.certificateCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Certificate(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.certificateCache.Store(orm.RelationAssignedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *ReportsCertificate
+	_graph, _selected, _err := _model.object.certificate.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		var _object *ReportsCertificateObject
+		_object, _err = _model.state.objects.ReportsCertificate.FromSelected(_graph)
+		if _err != nil {
+			return nil, false, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedReportsCertificateObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapReportsCertificate(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.certificateCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
 func (_model *ReportsReport) Ticket(_ctx context.Context) (*TicketsTicket, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
@@ -1961,7 +2753,21 @@ func (_model *ReportsReport) Ticket(_ctx context.Context) (*TicketsTicket, error
 	if _err != nil {
 		return nil, _err
 	}
-	_wrapped, _err := _model.state.wrapTicketsTicket(_value, false)
+	var _wrapped *TicketsTicket
+	_graph, _selected, _err := _model.object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		var _object *TicketsTicketObject
+		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
+		if _err != nil {
+			return nil, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
+	}
 	if _err != nil {
 		return nil, _err
 	}
@@ -1973,7 +2779,8 @@ func (_model *ReportsReport) Ticket(_ctx context.Context) (*TicketsTicket, error
 
 type ReportsReportRelationSelector = relationFacadeSelectionInput[reports.Report]
 type ReportsReportRelationSelectors struct {
-	Ticket relationFacadeSelection[reports.Report, tickets.Ticket]
+	Certificate relationFacadeSelection[reports.Report, reports.Certificate]
+	Ticket      relationFacadeSelection[reports.Report, tickets.Ticket]
 }
 
 func (_query ReportsReportQuery) SelectRelated(_selectors ...ReportsReportRelationSelector) ReportsReportEagerQuery {
@@ -2135,6 +2942,14 @@ func (_state *relationFacadeState) wrapSelectedReportsReportObject(_ctx context.
 	}
 	if _object._selectedGraph == nil {
 		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("certificate"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Certificate(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
 	}
 	if _has, _err := _object._selectedGraph.HasSelection("ticket"); _err != nil {
 		return nil, _err
@@ -2453,7 +3268,7 @@ func (_model *ReportsReview) relationFacadeReconcile() error {
 	_ticketCurrentKey := _model.reportsReviewModel.TicketID
 	_ticketChanged := _ticketCurrentKey != _model.ticketScalarSnapshot
 	_ticketCurrentPresent := _model.ticketScalarPresent || _ticketChanged
-	_rebuild := _ticketChanged
+	_rebuild := false || _ticketChanged
 	if !_rebuild {
 		return nil
 	}
@@ -2630,7 +3445,21 @@ func (_model *ReportsReview) Ticket(_ctx context.Context) (*TicketsTicket, error
 	if _err != nil {
 		return nil, _err
 	}
-	_wrapped, _err := _model.state.wrapTicketsTicket(_value, false)
+	var _wrapped *TicketsTicket
+	_graph, _selected, _err := _model.object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		var _object *TicketsTicketObject
+		_object, _err = _model.state.objects.TicketsTicket.FromSelected(_graph)
+		if _err != nil {
+			return nil, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapTicketsTicket(_value, false)
+	}
 	if _err != nil {
 		return nil, _err
 	}
@@ -2820,12 +3649,23 @@ func (_state *relationFacadeState) wrapSelectedReportsReviewObject(_ctx context.
 }
 
 type TicketsTicketQuery struct {
-	state *relationFacadeState
-	query orm.QuerySet[tickets.Ticket]
+	Related TicketsTicketRelationSelectors
+	state   *relationFacadeState
+	query   orm.QuerySet[tickets.Ticket]
 }
 
 func newTicketsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[tickets.Ticket]) TicketsTicketQuery {
 	_result := TicketsTicketQuery{state: _state, query: _query}
+	_result.Related = TicketsTicketRelationSelectors{
+		OptionalReport: relationFacadeSelection[tickets.Ticket, reports.OptionalReport]{state: _state},
+		Report:         relationFacadeSelection[tickets.Ticket, reports.Report]{state: _state},
+		Review:         relationFacadeSelection[tickets.Ticket, reports.Review]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.OptionalReport.selection = _state.objects.TicketsTicket.SelectOptionalReport()
+		_result.Related.Report.selection = _state.objects.TicketsTicket.SelectReport()
+		_result.Related.Review.selection = _state.objects.TicketsTicket.SelectReview()
+	}
 	return _result
 }
 
@@ -2947,6 +3787,10 @@ type TicketsTicket struct {
 	state                     *relationFacadeState
 	primaryKeySnapshot        int64
 	primaryKeySnapshotPresent bool
+	object                    *TicketsTicketObject
+	optionalReportCache       *orm.RelationCache[ReportsOptionalReport]
+	reportCache               *orm.RelationCache[ReportsReport]
+	reviewCache               *orm.RelationCache[ReportsReview]
 	_self                     *TicketsTicket
 }
 
@@ -2955,7 +3799,37 @@ func (_state *relationFacadeState) wrapTicketsTicket(_value tickets.Ticket, _new
 		return nil, _err
 	}
 	_cloned := (tickets.TicketDescriptor{}).CloneWriteModel(_value)
-	_result := &TicketsTicket{state: _state, ticketsTicketModel: _cloned}
+	_object, _err := _state.objects.TicketsTicket.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &TicketsTicket{state: _state, ticketsTicketModel: _cloned, object: _object}
+	_result.optionalReportCache = orm.NewRelationCache[ReportsOptionalReport]()
+	_result.reportCache = orm.NewRelationCache[ReportsReport]()
+	_result.reviewCache = orm.NewRelationCache[ReportsReview]()
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapTicketsTicketObject(_object *TicketsTicketObject) (*TicketsTicket, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (tickets.TicketDescriptor{}).CloneWriteModel(_model)
+	_result := &TicketsTicket{state: _state, ticketsTicketModel: _cloned, object: _object}
+	_result.optionalReportCache = orm.NewRelationCache[ReportsOptionalReport]()
+	_result.reportCache = orm.NewRelationCache[ReportsReport]()
+	_result.reviewCache = orm.NewRelationCache[ReportsReview]()
 	_result._self = _result
 	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
 		return nil, _err
@@ -3015,7 +3889,7 @@ func (_model *TicketsTicket) Unwrap() (tickets.Ticket, error) {
 	if _err := _model.validate(); _err != nil {
 		return tickets.Ticket{}, _err
 	}
-	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
 		return tickets.Ticket{}, _err
 	}
 	return (tickets.TicketDescriptor{}).CloneModel(_model.ticketsTicketModel), nil
@@ -3028,16 +3902,417 @@ func (_model *TicketsTicket) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
-	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
 	if _err := tickets.TicketObjects.Save(_ctx, _model.state.backend, &_model.ticketsTicketModel); _err != nil {
 		return _err
 	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_nextObject, _err := _model.state.objects.TicketsTicket.From(_model.state.backend, _model.ticketsTicketModel)
+		if _err != nil {
+			return _err
+		}
+		_model.object = _nextObject
+		_model.optionalReportCache = orm.NewRelationCache[ReportsOptionalReport]()
+		_model.reportCache = orm.NewRelationCache[ReportsReport]()
+		_model.reviewCache = orm.NewRelationCache[ReportsReview]()
+	}
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+func (_model *TicketsTicket) relationFacadeReconcile() error {
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.optionalReportCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.reportCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.reviewCache.Snapshot(); _err != nil {
+		return _err
+	}
+	return nil
+}
+func (_model *TicketsTicket) relationFacadePrepareSave() error {
+	return _model.relationFacadeReconcile()
+}
+func (_model *TicketsTicket) OptionalReport(_ctx context.Context) (*ReportsOptionalReport, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.optionalReportCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.OptionalReport(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.optionalReportCache.Store(orm.RelationAssignedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *ReportsOptionalReport
+	_graph, _selected, _err := _model.object.optionalReport.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		var _object *ReportsOptionalReportObject
+		_object, _err = _model.state.objects.ReportsOptionalReport.FromSelected(_graph)
+		if _err != nil {
+			return nil, false, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedReportsOptionalReportObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapReportsOptionalReport(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.optionalReportCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *TicketsTicket) Report(_ctx context.Context) (*ReportsReport, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.reportCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Report(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.reportCache.Store(orm.RelationAssignedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *ReportsReport
+	_graph, _selected, _err := _model.object.report.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		var _object *ReportsReportObject
+		_object, _err = _model.state.objects.ReportsReport.FromSelected(_graph)
+		if _err != nil {
+			return nil, false, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedReportsReportObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapReportsReport(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.reportCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *TicketsTicket) Review(_ctx context.Context) (*ReportsReview, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.reviewCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Review(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.reviewCache.Store(orm.RelationAssignedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *ReportsReview
+	_graph, _selected, _err := _model.object.review.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		var _object *ReportsReviewObject
+		_object, _err = _model.state.objects.ReportsReview.FromSelected(_graph)
+		if _err != nil {
+			return nil, false, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedReportsReviewObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapReportsReview(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.reviewCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+type TicketsTicketRelationSelector = relationFacadeSelectionInput[tickets.Ticket]
+type TicketsTicketRelationSelectors struct {
+	OptionalReport relationFacadeSelection[tickets.Ticket, reports.OptionalReport]
+	Report         relationFacadeSelection[tickets.Ticket, reports.Report]
+	Review         relationFacadeSelection[tickets.Ticket, reports.Review]
+}
+
+func (_query TicketsTicketQuery) SelectRelated(_selectors ...TicketsTicketRelationSelector) TicketsTicketEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[tickets.Ticket], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return TicketsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newTicketsTicketEagerQuery(_query.query, _inputs)
+}
+func (_query TicketsTicketQuery) SelectRelatedPaths(_paths ...string) (TicketsTicketEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.TicketsTicket.selectionInputs(_paths)
+	if _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	_result := _query.state.newTicketsTicketEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return TicketsTicketEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type TicketsTicketEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[tickets.Ticket]
+	selections       []orm.RelatedSelection[tickets.Ticket]
+	projection       relationSelectQuery[TicketsTicketObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newTicketsTicketEagerQuery(_source orm.QuerySet[tickets.Ticket], _selections []orm.RelatedSelection[tickets.Ticket]) TicketsTicketEagerQuery {
+	_result := TicketsTicketEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[tickets.Ticket](nil), _selections...)
+	_projection := _state.objects.TicketsTicket.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query TicketsTicketEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query TicketsTicketEagerQuery) Filter(_values ...orm.Predicate[tickets.Ticket]) TicketsTicketEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newTicketsTicketEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query TicketsTicketEagerQuery) OrderBy(_values ...orm.Ordering[tickets.Ticket]) TicketsTicketEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newTicketsTicketEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query TicketsTicketEagerQuery) Distinct() TicketsTicketEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newTicketsTicketEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query TicketsTicketEagerQuery) Fresh() TicketsTicketEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newTicketsTicketEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query TicketsTicketEagerQuery) Limit(_value int) (TicketsTicketEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	return _query.state.newTicketsTicketEagerQuery(_source, _query.selections), nil
+}
+func (_query TicketsTicketEagerQuery) Offset(_value int) (TicketsTicketEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return TicketsTicketEagerQuery{}, _err
+	}
+	return _query.state.newTicketsTicketEagerQuery(_source, _query.selections), nil
+}
+func (_query TicketsTicketEagerQuery) All(_ctx context.Context) ([]*TicketsTicket, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*TicketsTicket, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query TicketsTicketEagerQuery) First(_ctx context.Context) (*TicketsTicket, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedTicketsTicketObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query TicketsTicketEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedTicketsTicketObject(_ctx context.Context, _object *TicketsTicketObject) (*TicketsTicket, error) {
+	_wrapped, _err := _state.wrapTicketsTicketObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("optional_report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.OptionalReport(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Report(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("review"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Review(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
 type Models struct {
+	ReportsCertificate    ReportsCertificateQuery
 	ReportsLink           ReportsLinkQuery
 	ReportsOptionalReport ReportsOptionalReportQuery
 	ReportsReport         ReportsReportQuery
@@ -3056,6 +4331,7 @@ func Using(_backend Backend) (Models, error) {
 	_state := &relationFacadeState{backend: _backend, objects: _objects}
 	_state._self = _state
 	return Models{
+		ReportsCertificate:    newReportsCertificateQuery(_state, reports.CertificateObjects.Using(_backend)),
 		ReportsLink:           newReportsLinkQuery(_state, reports.LinkObjects.Using(_backend)),
 		ReportsOptionalReport: newReportsOptionalReportQuery(_state, reports.OptionalReportObjects.Using(_backend)),
 		ReportsReport:         newReportsReportQuery(_state, reports.ReportObjects.Using(_backend)),
@@ -3064,4 +4340,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ goDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

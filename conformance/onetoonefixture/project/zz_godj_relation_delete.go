@@ -3,6 +3,7 @@
 package project
 
 import (
+	reports "github.com/progresshans/godj/conformance/onetoonefixture/reports"
 	tickets "github.com/progresshans/godj/conformance/onetoonefixture/tickets"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
@@ -11,9 +12,11 @@ import (
 
 const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"
 
+var _ orm.WriteDescriptor[reports.Report] = reports.ReportDescriptor{}
 var _ orm.WriteDescriptor[tickets.Ticket] = tickets.TicketDescriptor{}
 
 type RelationDeleters struct {
+	ReportsReport orm.RelationDeleter[reports.Report]
 	TicketsTicket orm.RelationDeleter[tickets.Ticket]
 }
 
@@ -26,7 +29,14 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	for _, _relation := range _binding.ForwardRelations() {
 		_targets[_relation.Target] = struct{}{}
 	}
-	if len(_targets) != 1 {
+	if len(_targets) != 2 {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"}]; !_ok {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -42,6 +52,15 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}
 	_deleter0, _err := orm.BindRelationDeleter(
 		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
+		reports.ReportDescriptor{},
+		"b584ef2bc5e069326c1a35722691be76372f09e1ba3d65920d62736114b72449",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter1, _err := orm.BindRelationDeleter(
+		_binding,
 		ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
 		tickets.TicketDescriptor{},
 		"871f8d224ecbcaaeebe61b83be716b42e58dc567040cc88579c004389b429ad1",
@@ -50,8 +69,9 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		return RelationDeleters{}, _err
 	}
 	return RelationDeleters{
-		TicketsTicket: _deleter0,
+		ReportsReport: _deleter0,
+		TicketsTicket: _deleter1,
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ goDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

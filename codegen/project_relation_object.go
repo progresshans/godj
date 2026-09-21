@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
+const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
 
 type RelationObjectPackage struct {
 	Alias      string
@@ -18,11 +18,14 @@ type RelationObjectPackage struct {
 }
 
 type projectRelationObjectEdge struct {
-	field    ir.Field
-	selector string
-	typeName string
-	target   *projectRelationModel
-	bind     int
+	path             string
+	reverse          bool
+	targetHasObjects bool
+	field            ir.Field
+	selector         string
+	typeName         string
+	target           *projectRelationModel
+	bind             int
 }
 
 type projectRelationObjectSource struct {
@@ -30,7 +33,9 @@ type projectRelationObjectSource struct {
 	surface     string
 	factoryType string
 	objectType  string
-	relations   []projectRelationObjectEdge
+	relations   []projectRelationObjectEdge // Physical forward fields; owns mutation.
+	reverse     []projectRelationObjectEdge
+	selections  []projectRelationObjectEdge // Traversals, in canonical accessor order.
 }
 
 // GenerateProjectRelationObject renders project-owned concrete relation-object
@@ -158,34 +163,65 @@ func buildProjectRelationObjectSurface(
 				typeName = surface + selector + "ObjectRelation"
 			}
 			relations = append(relations, projectRelationObjectEdge{
+				path:     field.Name,
 				field:    field.Clone(),
 				selector: selector,
 				typeName: typeName,
 				target:   target,
 			})
 		}
-		if len(relations) == 0 {
+		reverse := make([]projectRelationObjectEdge, 0)
+		for _, child := range models {
+			for _, field := range child.model.Fields {
+				if field.Relation == nil || field.Relation.Cardinality != ir.RelationOneToOne || field.Relation.Target != sourceModel.identity || field.Relation.Reverse.Disabled {
+					continue
+				}
+				selector, err := relationReverseSelector(field.Relation.Reverse.Name)
+				if err != nil {
+					return nil, nil, err
+				}
+				if _, ok := projectRelationObjectAutoPrimaryKey(child.model); !ok {
+					return nil, nil, fmt.Errorf("reverse object target %s has no AutoField primary key", child.model.Name)
+				}
+				reverse = append(reverse, projectRelationObjectEdge{path: field.Relation.Reverse.Name, reverse: true, field: field.Clone(), selector: selector, target: child})
+			}
+		}
+		selections := append(append([]projectRelationObjectEdge(nil), relations...), reverse...)
+		if len(selections) == 0 {
 			continue
 		}
-		sort.Slice(relations, func(left, right int) bool {
-			if relations[left].field.Name != relations[right].field.Name {
-				return relations[left].field.Name < relations[right].field.Name
+		sort.Slice(selections, func(i, j int) bool {
+			if selections[i].path != selections[j].path {
+				return selections[i].path < selections[j].path
 			}
-			return relations[left].selector < relations[right].selector
+			return selections[i].selector < selections[j].selector
 		})
-		for index := range relations {
-			relations[index].bind = nextRelationBind
+		relations = nil
+		reverse = nil
+		for i := range selections {
+			selections[i].bind = nextRelationBind
 			nextRelationBind++
+			if selections[i].reverse {
+				reverse = append(reverse, selections[i])
+			} else {
+				relations = append(relations, selections[i])
+			}
 		}
 		surface := sourceModel.app.prefix + sourceModel.model.GoName
-		sources = append(sources, projectRelationObjectSource{
-			model:       sourceModel,
-			surface:     surface,
-			factoryType: surface + "ObjectFactory",
-			objectType:  surface + "Object",
-			relations:   relations,
-		})
+		sources = append(sources, projectRelationObjectSource{model: sourceModel, surface: surface, factoryType: surface + "ObjectFactory", objectType: surface + "Object", relations: relations, reverse: reverse, selections: selections})
 	}
+	hasObjects := map[ir.ModelIdentity]bool{}
+	for _, source := range sources {
+		hasObjects[source.model.identity] = true
+	}
+	for i := range sources {
+		for _, edges := range [][]projectRelationObjectEdge{sources[i].relations, sources[i].reverse, sources[i].selections} {
+			for j := range edges {
+				edges[j].targetHasObjects = hasObjects[edges[j].target.identity]
+			}
+		}
+	}
+
 	return models, sources, nil
 }
 
@@ -230,10 +266,12 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 		}
 	}
 	fmt.Fprintf(output, "\tmodel orm.BoundModel[%s]\n", sourceType)
-	for _, relation := range source.relations {
+	for _, relation := range source.selections {
 		targetType := relation.target.app.alias + "." + relation.target.model.GoName
 		handle := "orm.RequiredForwardObject"
-		if relation.field.Nullable {
+		if relation.reverse {
+			handle = "orm.ReverseOneToOneObject"
+		} else if relation.field.Nullable {
 			handle = "orm.NullableForwardObject"
 		}
 		fmt.Fprintf(output, "\t%s %s[%s, %s]\n", lowerFirst(relation.selector), handle, sourceType, targetType)
@@ -249,7 +287,19 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_factory %s) From(_backend db.Queryer, _value %s) (*%s, error) {\n", source.factoryType, sourceType, source.objectType)
 	fmt.Fprintf(output, "\t_snapshot := (%s.%sDescriptor{}).CloneModel(_value)\n", source.model.app.alias, source.model.model.GoName)
-	for _, relation := range source.relations {
+	if len(source.reverse) > 0 {
+		fmt.Fprintf(output, "_,_ownerPresent:=(%s.%sDescriptor{}).PrimaryKey(_snapshot)\n", source.model.app.alias, source.model.model.GoName)
+	}
+	for _, relation := range source.selections {
+		if relation.reverse {
+			fmt.Fprintf(output, `_related%d,_err:=_factory.%s.From(_backend,_snapshot)
+ if _err!=nil{
+  _cause,_ok:=_err.(*query.Error)
+  if _ownerPresent||!_ok||_cause.Category!=query.CategoryQuery||_cause.Code!=query.CodeMissingPrimaryKey{return nil,_err}
+ }
+`, relation.bind, lowerFirst(relation.selector))
+			continue
+		}
 		fmt.Fprintf(output, "\t_related%d, _err := _factory.%s.From(_backend, _snapshot)\n", relation.bind, lowerFirst(relation.selector))
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
@@ -259,7 +309,7 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	fmt.Fprintln(output, "\t\tmodel:   _snapshot,")
 	fmt.Fprintln(output, "\t\tfactory: _factory,")
 	fmt.Fprintln(output, "\t\tbackend: _backend,")
-	for _, relation := range source.relations {
+	for _, relation := range source.selections {
 		fmt.Fprintf(output, "\t\t%s: _related%d,\n", lowerFirst(relation.selector), relation.bind)
 	}
 	fmt.Fprintln(output, "\t}")
@@ -273,7 +323,7 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	fmt.Fprintf(output, "\tmodel %s\n", sourceType)
 	fmt.Fprintf(output, "\tfactory %s\n", source.factoryType)
 	fmt.Fprintln(output, "\tbackend db.Queryer")
-	for _, relation := range source.relations {
+	for _, relation := range source.selections {
 		targetType := relation.target.app.alias + "." + relation.target.model.GoName
 		fmt.Fprintf(output, "\t%s *orm.RelatedObject[%s]\n", lowerFirst(relation.selector), targetType)
 	}
@@ -298,14 +348,19 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	fmt.Fprintf(output, "\treturn (%s.%sDescriptor{}).CloneModel(_object.model), nil\n", source.model.app.alias, source.model.model.GoName)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
-	for _, relation := range source.relations {
+	for _, relation := range source.selections {
 		targetType := relation.target.app.alias + "." + relation.target.model.GoName
 		private := lowerFirst(relation.selector)
-		if relation.field.Nullable {
+		if relation.field.Nullable || relation.reverse {
 			fmt.Fprintf(output, "func (_object *%s) %s(_ctx context.Context) (%s, bool, error) {\n", source.objectType, relation.selector, targetType)
 			fmt.Fprintln(output, "\tif _err := _object._validate(); _err != nil {")
 			fmt.Fprintf(output, "\t\treturn %s{}, false, _err\n", targetType)
 			fmt.Fprintln(output, "\t}")
+			if relation.reverse {
+				key, _ := projectRelationObjectAutoPrimaryKey(source.model.model)
+				fmt.Fprintf(output, `if _object.%s==nil{return %s{},false,&query.Error{Category:query.CategoryQuery,Code:query.CodeMissingPrimaryKey,Field:%s,Detail:"reverse relation owner has no explicit primary key state"}}
+`, private, targetType, strconv.Quote(key.Name))
+			}
 			fmt.Fprintf(output, "\treturn _object.%s.Get(_ctx)\n", private)
 			fmt.Fprintln(output, "}")
 			fmt.Fprintln(output)
@@ -360,15 +415,17 @@ func renderBindObjects(
 	usedModels := make(map[int]struct{}, len(models))
 	for _, source := range sources {
 		usedModels[source.model.bind] = struct{}{}
-		for _, relation := range source.relations {
+		for _, relation := range source.selections {
 			usedModels[relation.target.bind] = struct{}{}
 		}
 	}
 	renderBoundProjectModelBindings(output, models, "Objects", usedModels)
 	for _, source := range sources {
-		for _, relation := range source.relations {
+		for _, relation := range source.selections {
 			binder := "orm.BindRequiredForwardObject"
-			if relation.field.Nullable {
+			if relation.reverse {
+				binder = "orm.BindReverseOneToOneObject"
+			} else if relation.field.Nullable {
 				binder = "orm.BindNullableForwardObject"
 			}
 			fmt.Fprintf(
@@ -377,7 +434,7 @@ func renderBindObjects(
 				relation.bind,
 				binder,
 				source.model.bind,
-				strconv.Quote(relation.field.Name),
+				strconv.Quote(relation.path),
 				relation.target.bind,
 			)
 			fmt.Fprintln(output, "\tif _err != nil {")
@@ -393,13 +450,13 @@ func renderBindObjects(
 	fmt.Fprintln(output, "\t_objects:=Objects{")
 	for _, source := range sources {
 		fmt.Fprintf(output, "\t\t%s: %s{\n", source.surface, source.factoryType)
-		for _, relation := range source.relations {
-			if relation.field.Nullable {
+		for _, relation := range source.selections {
+			if relation.field.Nullable && !relation.reverse {
 				fmt.Fprintf(output, "\t\t\t%s: %s{relation: _relation%d},\n", relation.selector, relation.typeName, relation.bind)
 			}
 		}
 		fmt.Fprintf(output, "\t\t\tmodel: _model%d,\n", source.model.bind)
-		for _, relation := range source.relations {
+		for _, relation := range source.selections {
 			fmt.Fprintf(output, "\t\t\t%s: _relation%d,\n", lowerFirst(relation.selector), relation.bind)
 		}
 		fmt.Fprintln(output, "\t\t},")

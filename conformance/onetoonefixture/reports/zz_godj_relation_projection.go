@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
+const GoDjRelationProjectionSchemaSHA256 = "cccfe41a52e34b8900070facbfbde9207eb92f2fbf5007cd18a21612495c902b"
 
 var _ orm.ProjectionDescriptor[Report] = ReportDescriptor{}
 
@@ -152,6 +152,53 @@ func (_scan *linkProjectionScan) Decode() (Link, query.Value, orm.ProjectionPres
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
+var _ orm.ProjectionDescriptor[Certificate] = CertificateDescriptor{}
+
+func (CertificateDescriptor) NewProjectionScan() orm.ProjectionScan[Certificate] {
+	return &certificateProjectionScan{}
+}
+
+type certificateProjectionScan struct {
+	scanID       sql.NullInt64
+	scanReportID sql.NullInt64
+	scanSeal     sql.NullString
+}
+
+func (_scan *certificateProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanReportID,
+		&_scan.scanSeal,
+	}
+}
+
+func (_scan *certificateProjectionScan) Decode() (Certificate, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return Certificate{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanReportID.Valid && !_scan.scanSeal.Valid {
+		return Certificate{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return Certificate{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanReportID.Valid {
+		return Certificate{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanSeal.Valid {
+		return Certificate{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := Certificate{}
+	_value.ID = _scan.scanID.Int64
+	_value.ReportID = _scan.scanReportID.Int64
+	_value.Seal = _scan.scanSeal.String
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
 var _ orm.ProjectionDescriptor[Review] = ReviewDescriptor{}
 
 func (ReviewDescriptor) NewProjectionScan() orm.ProjectionScan[Review] {
@@ -265,4 +312,4 @@ func (_scan *reviewProjectionScan) Decode() (Review, query.Value, orm.Projection
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ GoDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

@@ -12,7 +12,88 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
+
+type ReportsCertificateObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[reports.Certificate]
+	report             orm.RequiredForwardObject[reports.Certificate, reports.Report]
+}
+
+func (_factory ReportsCertificateObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[reports.Certificate], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory ReportsCertificateObjectFactory) From(_backend db.Queryer, _value reports.Certificate) (*ReportsCertificateObject, error) {
+	_snapshot := (reports.CertificateDescriptor{}).CloneModel(_value)
+	_related0, _err := _factory.report.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ReportsCertificateObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		report:  _related0,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type ReportsCertificateObject struct {
+	_selectedGraph *orm.RelatedSelected[reports.Certificate]
+	model          reports.Certificate
+	factory        ReportsCertificateObjectFactory
+	backend        db.Queryer
+	report         *orm.RelatedObject[reports.Report]
+	_self          *ReportsCertificateObject
+}
+
+func (_object *ReportsCertificateObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *ReportsCertificateObject) Model() (reports.Certificate, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.Certificate{}, _err
+	}
+	return (reports.CertificateDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *ReportsCertificateObject) Report(_ctx context.Context) (reports.Report, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.Report{}, _err
+	}
+	_value, _ok, _err := _object.report.Get(_ctx)
+	if _err != nil {
+		return reports.Report{}, _err
+	}
+	if !_ok {
+		return reports.Report{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "required relation object returned an absent result",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *ReportsCertificateObject) Fresh() (*ReportsCertificateObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
 
 type ReportsLinkObjectFactory struct {
 	_projectSelections *Objects
@@ -29,7 +110,7 @@ func (_factory ReportsLinkObjectFactory) ParseDynamic(
 
 func (_factory ReportsLinkObjectFactory) From(_backend db.Queryer, _value reports.Link) (*ReportsLinkObject, error) {
 	_snapshot := (reports.LinkDescriptor{}).CloneModel(_value)
-	_related0, _err := _factory.ticket.From(_backend, _snapshot)
+	_related1, _err := _factory.ticket.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -37,7 +118,7 @@ func (_factory ReportsLinkObjectFactory) From(_backend db.Queryer, _value report
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		ticket:  _related0,
+		ticket:  _related1,
 	}
 	_result._self = _result
 	return _result, nil
@@ -119,7 +200,7 @@ func (_factory ReportsOptionalReportObjectFactory) ParseDynamic(
 
 func (_factory ReportsOptionalReportObjectFactory) From(_backend db.Queryer, _value reports.OptionalReport) (*ReportsOptionalReportObject, error) {
 	_snapshot := (reports.OptionalReportDescriptor{}).CloneModel(_value)
-	_related1, _err := _factory.ticket.From(_backend, _snapshot)
+	_related2, _err := _factory.ticket.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -127,7 +208,7 @@ func (_factory ReportsOptionalReportObjectFactory) From(_backend db.Queryer, _va
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		ticket:  _related1,
+		ticket:  _related2,
 	}
 	_result._self = _result
 	return _result, nil
@@ -177,6 +258,7 @@ func (_object *ReportsOptionalReportObject) Fresh() (*ReportsOptionalReportObjec
 type ReportsReportObjectFactory struct {
 	_projectSelections *Objects
 	model              orm.BoundModel[reports.Report]
+	certificate        orm.ReverseOneToOneObject[reports.Report, reports.Certificate]
 	ticket             orm.RequiredForwardObject[reports.Report, tickets.Ticket]
 }
 
@@ -189,15 +271,24 @@ func (_factory ReportsReportObjectFactory) ParseDynamic(
 
 func (_factory ReportsReportObjectFactory) From(_backend db.Queryer, _value reports.Report) (*ReportsReportObject, error) {
 	_snapshot := (reports.ReportDescriptor{}).CloneModel(_value)
-	_related2, _err := _factory.ticket.From(_backend, _snapshot)
+	_, _ownerPresent := (reports.ReportDescriptor{}).PrimaryKey(_snapshot)
+	_related3, _err := _factory.certificate.From(_backend, _snapshot)
+	if _err != nil {
+		_cause, _ok := _err.(*query.Error)
+		if _ownerPresent || !_ok || _cause.Category != query.CategoryQuery || _cause.Code != query.CodeMissingPrimaryKey {
+			return nil, _err
+		}
+	}
+	_related4, _err := _factory.ticket.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
 	_result := &ReportsReportObject{
-		model:   _snapshot,
-		factory: _factory,
-		backend: _backend,
-		ticket:  _related2,
+		model:       _snapshot,
+		factory:     _factory,
+		backend:     _backend,
+		certificate: _related3,
+		ticket:      _related4,
 	}
 	_result._self = _result
 	return _result, nil
@@ -208,6 +299,7 @@ type ReportsReportObject struct {
 	model          reports.Report
 	factory        ReportsReportObjectFactory
 	backend        db.Queryer
+	certificate    *orm.RelatedObject[reports.Certificate]
 	ticket         *orm.RelatedObject[tickets.Ticket]
 	_self          *ReportsReportObject
 }
@@ -228,6 +320,16 @@ func (_object *ReportsReportObject) Model() (reports.Report, error) {
 		return reports.Report{}, _err
 	}
 	return (reports.ReportDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *ReportsReportObject) Certificate(_ctx context.Context) (reports.Certificate, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.Certificate{}, false, _err
+	}
+	if _object.certificate == nil {
+		return reports.Certificate{}, false, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Field: "id", Detail: "reverse relation owner has no explicit primary key state"}
+	}
+	return _object.certificate.Get(_ctx)
 }
 
 func (_object *ReportsReportObject) Ticket(_ctx context.Context) (tickets.Ticket, error) {
@@ -270,7 +372,7 @@ func (_factory ReportsReviewObjectFactory) ParseDynamic(
 
 func (_factory ReportsReviewObjectFactory) From(_backend db.Queryer, _value reports.Review) (*ReportsReviewObject, error) {
 	_snapshot := (reports.ReviewDescriptor{}).CloneModel(_value)
-	_related3, _err := _factory.ticket.From(_backend, _snapshot)
+	_related5, _err := _factory.ticket.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -278,7 +380,7 @@ func (_factory ReportsReviewObjectFactory) From(_backend db.Queryer, _value repo
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		ticket:  _related3,
+		ticket:  _related5,
 	}
 	_result._self = _result
 	return _result, nil
@@ -336,11 +438,130 @@ func (_object *ReportsReviewObject) Fresh() (*ReportsReviewObject, error) {
 	return _object.factory.From(_object.backend, _object.model)
 }
 
+type TicketsTicketObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[tickets.Ticket]
+	optionalReport     orm.ReverseOneToOneObject[tickets.Ticket, reports.OptionalReport]
+	report             orm.ReverseOneToOneObject[tickets.Ticket, reports.Report]
+	review             orm.ReverseOneToOneObject[tickets.Ticket, reports.Review]
+}
+
+func (_factory TicketsTicketObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[tickets.Ticket], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory TicketsTicketObjectFactory) From(_backend db.Queryer, _value tickets.Ticket) (*TicketsTicketObject, error) {
+	_snapshot := (tickets.TicketDescriptor{}).CloneModel(_value)
+	_, _ownerPresent := (tickets.TicketDescriptor{}).PrimaryKey(_snapshot)
+	_related6, _err := _factory.optionalReport.From(_backend, _snapshot)
+	if _err != nil {
+		_cause, _ok := _err.(*query.Error)
+		if _ownerPresent || !_ok || _cause.Category != query.CategoryQuery || _cause.Code != query.CodeMissingPrimaryKey {
+			return nil, _err
+		}
+	}
+	_related7, _err := _factory.report.From(_backend, _snapshot)
+	if _err != nil {
+		_cause, _ok := _err.(*query.Error)
+		if _ownerPresent || !_ok || _cause.Category != query.CategoryQuery || _cause.Code != query.CodeMissingPrimaryKey {
+			return nil, _err
+		}
+	}
+	_related8, _err := _factory.review.From(_backend, _snapshot)
+	if _err != nil {
+		_cause, _ok := _err.(*query.Error)
+		if _ownerPresent || !_ok || _cause.Category != query.CategoryQuery || _cause.Code != query.CodeMissingPrimaryKey {
+			return nil, _err
+		}
+	}
+	_result := &TicketsTicketObject{
+		model:          _snapshot,
+		factory:        _factory,
+		backend:        _backend,
+		optionalReport: _related6,
+		report:         _related7,
+		review:         _related8,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type TicketsTicketObject struct {
+	_selectedGraph *orm.RelatedSelected[tickets.Ticket]
+	model          tickets.Ticket
+	factory        TicketsTicketObjectFactory
+	backend        db.Queryer
+	optionalReport *orm.RelatedObject[reports.OptionalReport]
+	report         *orm.RelatedObject[reports.Report]
+	review         *orm.RelatedObject[reports.Review]
+	_self          *TicketsTicketObject
+}
+
+func (_object *TicketsTicketObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *TicketsTicketObject) Model() (tickets.Ticket, error) {
+	if _err := _object._validate(); _err != nil {
+		return tickets.Ticket{}, _err
+	}
+	return (tickets.TicketDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *TicketsTicketObject) OptionalReport(_ctx context.Context) (reports.OptionalReport, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.OptionalReport{}, false, _err
+	}
+	if _object.optionalReport == nil {
+		return reports.OptionalReport{}, false, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Field: "id", Detail: "reverse relation owner has no explicit primary key state"}
+	}
+	return _object.optionalReport.Get(_ctx)
+}
+
+func (_object *TicketsTicketObject) Report(_ctx context.Context) (reports.Report, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.Report{}, false, _err
+	}
+	if _object.report == nil {
+		return reports.Report{}, false, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Field: "id", Detail: "reverse relation owner has no explicit primary key state"}
+	}
+	return _object.report.Get(_ctx)
+}
+
+func (_object *TicketsTicketObject) Review(_ctx context.Context) (reports.Review, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return reports.Review{}, false, _err
+	}
+	if _object.review == nil {
+		return reports.Review{}, false, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Field: "id", Detail: "reverse relation owner has no explicit primary key state"}
+	}
+	return _object.review.Get(_ctx)
+}
+
+func (_object *TicketsTicketObject) Fresh() (*TicketsTicketObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
 type Objects struct {
+	ReportsCertificate    ReportsCertificateObjectFactory
 	ReportsLink           ReportsLinkObjectFactory
 	ReportsOptionalReport ReportsOptionalReportObjectFactory
 	ReportsReport         ReportsReportObjectFactory
 	ReportsReview         ReportsReviewObjectFactory
+	TicketsTicket         TicketsTicketObjectFactory
 }
 
 func BindObjects() (Objects, error) {
@@ -355,13 +576,21 @@ func BindObjects() (Objects, error) {
 func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "certificate"},
+		reports.CertificateDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "link"},
 		reports.LinkDescriptor{},
 	)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model1, _err := orm.BindModel(
+	_model2, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "optional_report"},
 		reports.OptionalReportDescriptor{},
@@ -369,7 +598,7 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model3, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
 		reports.ReportDescriptor{},
@@ -377,7 +606,7 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model3, _err := orm.BindModel(
+	_model4, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "review"},
 		reports.ReviewDescriptor{},
@@ -385,7 +614,7 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model4, _err := orm.BindModel(
+	_model5, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "ototickets", ModelName: "ticket"},
 		tickets.TicketDescriptor{},
@@ -393,46 +622,79 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation0, _err := orm.BindRequiredForwardObject(_model0, "ticket", _model4)
+	_relation0, _err := orm.BindRequiredForwardObject(_model0, "report", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation1, _err := orm.BindNullableForwardObject(_model1, "ticket", _model4)
+	_relation1, _err := orm.BindRequiredForwardObject(_model1, "ticket", _model5)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation2, _err := orm.BindRequiredForwardObject(_model2, "ticket", _model4)
+	_relation2, _err := orm.BindNullableForwardObject(_model2, "ticket", _model5)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation3, _err := orm.BindRequiredForwardObject(_model3, "ticket", _model4)
+	_relation3, _err := orm.BindReverseOneToOneObject(_model3, "certificate", _model0)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation4, _err := orm.BindRequiredForwardObject(_model3, "ticket", _model5)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation5, _err := orm.BindRequiredForwardObject(_model4, "ticket", _model5)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation6, _err := orm.BindReverseOneToOneObject(_model5, "optional_report", _model2)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation7, _err := orm.BindReverseOneToOneObject(_model5, "report", _model3)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation8, _err := orm.BindReverseOneToOneObject(_model5, "review", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
 	_objects := Objects{
-		ReportsLink: ReportsLinkObjectFactory{
+		ReportsCertificate: ReportsCertificateObjectFactory{
 			model:  _model0,
-			ticket: _relation0,
+			report: _relation0,
 		},
-		ReportsOptionalReport: ReportsOptionalReportObjectFactory{
-			Ticket: ReportsOptionalReportTicketObjectRelation{relation: _relation1},
+		ReportsLink: ReportsLinkObjectFactory{
 			model:  _model1,
 			ticket: _relation1,
 		},
-		ReportsReport: ReportsReportObjectFactory{
+		ReportsOptionalReport: ReportsOptionalReportObjectFactory{
+			Ticket: ReportsOptionalReportTicketObjectRelation{relation: _relation2},
 			model:  _model2,
 			ticket: _relation2,
 		},
+		ReportsReport: ReportsReportObjectFactory{
+			model:       _model3,
+			certificate: _relation3,
+			ticket:      _relation4,
+		},
 		ReportsReview: ReportsReviewObjectFactory{
-			model:  _model3,
-			ticket: _relation3,
+			model:  _model4,
+			ticket: _relation5,
+		},
+		TicketsTicket: TicketsTicketObjectFactory{
+			model:          _model5,
+			optionalReport: _relation6,
+			report:         _relation7,
+			review:         _relation8,
 		},
 	}
+	_objects.ReportsCertificate._projectSelections = &_objects
 	_objects.ReportsLink._projectSelections = &_objects
 	_objects.ReportsOptionalReport._projectSelections = &_objects
 	_objects.ReportsReport._projectSelections = &_objects
 	_objects.ReportsReview._projectSelections = &_objects
+	_objects.TicketsTicket._projectSelections = &_objects
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ goDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

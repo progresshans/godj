@@ -12,6 +12,36 @@ import (
 
 const GoDjProjectRelationPrefetchGeneratorVersion = "godj-codegen-rel-prefetch-project-v1"
 
+type ReportsReportReversePrefetches struct {
+	objects     ReportsReportReverseObjectFactory
+	certificate orm.ReverseOneToOnePrefetch[reports.Report, reports.Certificate]
+}
+
+func (_prefetches ReportsReportReversePrefetches) Certificate(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []reports.Report,
+) ([]*ReportsReportReverseObject, error) {
+	_snapshots := make([]reports.Report, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (reports.ReportDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.certificate.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ReportsReportReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.certificate = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
 type TicketsTicketReversePrefetches struct {
 	objects        TicketsTicketReverseObjectFactory
 	links          orm.ReversePrefetch[tickets.Ticket, reports.Link]
@@ -121,6 +151,7 @@ func (_prefetches TicketsTicketReversePrefetches) Review(
 }
 
 type ReversePrefetches struct {
+	ReportsReport ReportsReportReversePrefetches
 	TicketsTicket TicketsTicketReversePrefetches
 }
 
@@ -129,31 +160,39 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch0, _err := orm.BindReversePrefetch(_objects.TicketsTicket.links)
+	_prefetch0, _err := orm.BindReverseOneToOnePrefetch(_objects.ReportsReport.certificate)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch1, _err := orm.BindReverseOneToOnePrefetch(_objects.TicketsTicket.optionalReport)
+	_prefetch1, _err := orm.BindReversePrefetch(_objects.TicketsTicket.links)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch2, _err := orm.BindReverseOneToOnePrefetch(_objects.TicketsTicket.report)
+	_prefetch2, _err := orm.BindReverseOneToOnePrefetch(_objects.TicketsTicket.optionalReport)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch3, _err := orm.BindReverseOneToOnePrefetch(_objects.TicketsTicket.review)
+	_prefetch3, _err := orm.BindReverseOneToOnePrefetch(_objects.TicketsTicket.report)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch4, _err := orm.BindReverseOneToOnePrefetch(_objects.TicketsTicket.review)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
 	return ReversePrefetches{
+		ReportsReport: ReportsReportReversePrefetches{
+			objects:     _objects.ReportsReport,
+			certificate: _prefetch0,
+		},
 		TicketsTicket: TicketsTicketReversePrefetches{
 			objects:        _objects.TicketsTicket,
-			links:          _prefetch0,
-			optionalReport: _prefetch1,
-			report:         _prefetch2,
-			review:         _prefetch3,
+			links:          _prefetch1,
+			optionalReport: _prefetch2,
+			report:         _prefetch3,
+			review:         _prefetch4,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+var _ goDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

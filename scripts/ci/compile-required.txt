@@ -1,3 +1,4 @@
 github.com/progresshans/godj/internal/compiletest|TestExternalConsumerCompiles
 github.com/progresshans/godj/internal/compiletest|TestTypedAPIMisuseDoesNotCompile
 github.com/progresshans/godj/internal/compiletest|TestCompileEnvironmentIsOfflineAndRetainsPlatform
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedOneToOneFacadePreservesIntermediateTypes

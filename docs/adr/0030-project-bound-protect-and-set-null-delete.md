@@ -18,6 +18,10 @@
 
 ## 상태와 범위
 
+2026-09-22 GDJ-0096은 canonical outgoing FK를 가진 incoming-policy target도 허용한다. Incoming fingerprint·descriptor metadata와
+PK clear의 모든 non-PK 값 보존 검사를 유지하며, PROTECT/SET_NULL·target delete는 같은 AtomicRelation을 사용한다. 참조 부모를
+삭제하거나 relation-as-PK·cascade collector를 추가하지 않는다. 현재 의미와 검증은 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)을 따른다.
+
 이 ADR은 bounded SQLite REL-007/008 low-level delete engine에 한해 **Accepted**입니다. Exact clean activation baseline은
 `d0396c76d016c0f0335b484fbad56c70b80cf6d4`와
 [EVID-20260811-058](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/status/TEST_EVIDENCE.md#evid-20260811-058--gdj-0029-terminal-exact-head-ci-and-gdj-0030-activation-baseline)입니다.

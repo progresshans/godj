@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v8"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v9"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -96,8 +96,11 @@ func validateProjectRelationFacadeFields(models []projectRelationFacadeModel) er
 	for _, model := range models {
 		methods := map[string]bool{"Unwrap": true, "Save": true, "MarshalJSON": true, "UnmarshalJSON": true}
 		if model.source != nil {
-			for _, relation := range model.source.relations {
+			for _, relation := range model.source.selections {
 				methods[relation.selector] = true
+				if relation.reverse {
+					continue
+				}
 				methods["With"+relation.selector] = true
 				methods["With"+relation.selector+"ID"] = true
 				if relation.field.Nullable {
@@ -307,14 +310,14 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintf(output, "\t_result := %s{state: _state, query: _query}\n", model.queryType)
 	if model.source != nil {
 		fmt.Fprintf(output, "\t_result.Related = %sRelationSelectors{\n", model.surface)
-		for _, relation := range model.source.relations {
+		for _, relation := range model.source.selections {
 			targetType := relation.target.app.alias + "." + relation.target.model.GoName
 			fmt.Fprintf(output, "%s:relationFacadeSelection[%s,%s]{state:_state},\n", relation.selector, rawType, targetType)
 		}
 
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintln(output, "if _state!=nil{")
-		for _, relation := range model.source.relations {
+		for _, relation := range model.source.selections {
 			fmt.Fprintf(output, "_result.Related.%s.selection=_state.objects.%s.Select%s()\n", relation.selector, model.source.surface, relation.selector)
 		}
 		fmt.Fprintln(output, "}")
@@ -444,10 +447,13 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\tprimaryKeySnapshotPresent bool")
 	if model.source != nil {
 		fmt.Fprintf(output, "\tobject *%s\n", model.source.objectType)
-		for _, relation := range model.source.relations {
+		for _, relation := range model.source.selections {
 			name := lowerFirst(relation.selector)
 			targetSurface := relation.target.app.prefix + relation.target.model.GoName
 			fmt.Fprintf(output, "\t%sCache *orm.RelationCache[%s]\n", name, targetSurface)
+			if relation.reverse {
+				continue
+			}
 			fmt.Fprintf(output, "\t%sScalarSnapshot int64\n", name)
 			fmt.Fprintf(output, "\t%sScalarPresent bool\n", name)
 		}
@@ -628,6 +634,16 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintf(output, "\tif _err := %s.%sObjects.Save(_ctx, _model.state.backend, &_model.%s); _err != nil {\n", model.model.app.alias, model.model.model.GoName, model.rawAlias)
 	fmt.Fprintln(output, "\t\treturn _err")
 	fmt.Fprintln(output, "\t}")
+	if model.source != nil && len(model.source.reverse) > 0 {
+		fmt.Fprintln(output, "_key,_present,_err:=_model.relationFacadeCurrentPrimaryKey();if _err!=nil{return _err}")
+		fmt.Fprintln(output, "if _key!=_model.primaryKeySnapshot||_present!=_model.primaryKeySnapshotPresent{")
+		fmt.Fprintf(output, "_nextObject,_err:=_model.state.objects.%s.From(_model.state.backend,_model.%s);if _err!=nil{return _err}\n", model.source.surface, model.rawAlias)
+		fmt.Fprintln(output, "_model.object=_nextObject")
+		for _, relation := range model.source.reverse {
+			fmt.Fprintf(output, "_model.%sCache=orm.NewRelationCache[%s%s]()\n", lowerFirst(relation.selector), relation.target.app.prefix, relation.target.model.GoName)
+		}
+		fmt.Fprintln(output, "}")
+	}
 	fmt.Fprintln(output, "\treturn _model.relationFacadeRefreshSnapshots()")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -636,10 +652,10 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		return
 	}
 	renderProjectRelationFacadeSourceMutationHelpers(output, model)
-	for _, relation := range model.source.relations {
+	for _, relation := range model.source.selections {
 		name := lowerFirst(relation.selector)
 		targetSurface := relation.target.app.prefix + relation.target.model.GoName
-		if relation.field.Nullable {
+		if relation.field.Nullable || relation.reverse {
 			fmt.Fprintf(output, "func (_model *%s) %s(_ctx context.Context) (*%s, bool, error) {\n", model.surface, relation.selector, targetSurface)
 			fmt.Fprintln(output, "\tif _err := _model.validate(); _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
@@ -673,7 +689,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintln(output, "\t\t}")
 			fmt.Fprintln(output, "\t\treturn nil, _present, _err")
 			fmt.Fprintln(output, "\t}")
-			renderProjectRelationFacadeLoadedTarget(output, relation, relation.field.Nullable)
+			renderProjectRelationFacadeLoadedTarget(output, relation, relation.field.Nullable || relation.reverse)
 			fmt.Fprintln(output, "\tif _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t}")
@@ -715,7 +731,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		renderProjectRelationFacadeLoadedTarget(output, relation, relation.field.Nullable)
+		renderProjectRelationFacadeLoadedTarget(output, relation, relation.field.Nullable || relation.reverse)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
@@ -729,10 +745,13 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 }
 
 func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projectRelationFacadeModel, raw, newModel string) {
-	for _, relation := range model.source.relations {
+	for _, relation := range model.source.selections {
 		name := lowerFirst(relation.selector)
 		targetSurface := relation.target.app.prefix + relation.target.model.GoName
 		fmt.Fprintf(output, "\t_result.%sCache = orm.NewRelationCache[%s]()\n", name, targetSurface)
+		if relation.reverse {
+			continue
+		}
 		if relation.field.Nullable {
 			fmt.Fprintf(output, "\t_result.%sScalarPresent = %s.%s != nil\n", name, raw, relation.field.GoName)
 			fmt.Fprintf(output, "\tif %s.%s == nil {\n", raw, relation.field.GoName)
@@ -749,6 +768,16 @@ func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projec
 }
 
 func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, model projectRelationFacadeModel) {
+	if len(model.source.relations) == 0 {
+		fmt.Fprintf(output, "func (_model *%s) relationFacadeReconcile()error{\n", model.surface)
+		fmt.Fprintln(output, "if _,_,_err:=_model.relationFacadePrimaryKey();_err!=nil{return _err}")
+		for _, relation := range model.source.reverse {
+			fmt.Fprintf(output, "if _,_,_,_err:=_model.%sCache.Snapshot();_err!=nil{return _err}\n", lowerFirst(relation.selector))
+		}
+		fmt.Fprintln(output, "return nil\n}")
+		fmt.Fprintf(output, "func (_model *%s) relationFacadePrepareSave()error{return _model.relationFacadeReconcile()}\n", model.surface)
+		return
+	}
 	rawType := model.model.app.alias + "." + model.model.model.GoName
 	descriptor := model.model.app.alias + "." + model.model.model.GoName + "Descriptor"
 
@@ -773,6 +802,10 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
 	}
+	for _, relation := range model.source.reverse {
+		name := lowerFirst(relation.selector)
+		fmt.Fprintf(output, "_result.%sCache,_err=_model.%sCache.Clone();if _err!=nil{return nil,_err}\n", name, name)
+	}
 	fmt.Fprintln(output, "\t_result._self = _result")
 	fmt.Fprintln(output, "\treturn _result, nil")
 	fmt.Fprintln(output, "}")
@@ -787,7 +820,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	fmt.Fprintln(output, "\t}")
 	// Validate every cache tuple before staging any changed edge. A corrupt
 	// unrelated edge must not allow a partial snapshot/cache publication.
-	for _, relation := range model.source.relations {
+	for _, relation := range model.source.selections {
 		name := lowerFirst(relation.selector)
 		fmt.Fprintf(output, "\tif _, _, _, _err := _model.%sCache.Snapshot(); _err != nil {\n", name)
 		fmt.Fprintln(output, "\t\treturn _err")
@@ -808,12 +841,9 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintf(output, "\t_%sChanged := _%sCurrentKey != _model.%sScalarSnapshot\n", name, name, name)
 		fmt.Fprintf(output, "\t_%sCurrentPresent := _model.%sScalarPresent || _%sChanged\n", name, name, name)
 	}
-	fmt.Fprint(output, "\t_rebuild := ")
-	for index, relation := range model.source.relations {
-		if index > 0 {
-			fmt.Fprint(output, " || ")
-		}
-		fmt.Fprintf(output, "_%sChanged", lowerFirst(relation.selector))
+	fmt.Fprint(output, "\t_rebuild := false")
+	for _, relation := range model.source.relations {
+		fmt.Fprintf(output, " || _%sChanged", lowerFirst(relation.selector))
 	}
 	fmt.Fprintln(output)
 	fmt.Fprintln(output, "\tif !_rebuild {")
@@ -1074,7 +1104,7 @@ func renderProjectRelationFacadeSelector(output *bytes.Buffer, model projectRela
 	rawType := model.model.app.alias + "." + model.model.model.GoName
 	fmt.Fprintf(output, "type %sRelationSelector = relationFacadeSelectionInput[%s]\n", model.surface, rawType)
 	fmt.Fprintf(output, "type %sRelationSelectors struct {\n", model.surface)
-	for _, relation := range model.source.relations {
+	for _, relation := range model.source.selections {
 		fmt.Fprintf(output, "%s relationFacadeSelection[%s,%s.%s]\n", relation.selector, rawType, relation.target.app.alias, relation.target.model.GoName)
 	}
 	fmt.Fprintln(output, "}")
@@ -1162,9 +1192,9 @@ func (_state *relationFacadeState) wrapSelected%[2]sObject(_ctx context.Context,
  _wrapped,_err:=_state.wrap%[2]sObject(_object);if _err!=nil{return nil,_err}
  if _object._selectedGraph==nil{return nil,relationFacadeQueryInvalid("selected object has no graph")}
 `, eagerType, model.surface, model.source.objectType)
-	for _, relation := range model.source.relations {
-		fmt.Fprintf(output, "if _has,_err:=_object._selectedGraph.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n", strconv.Quote(relation.field.Name))
-		if relation.field.Nullable {
+	for _, relation := range model.source.selections {
+		fmt.Fprintf(output, "if _has,_err:=_object._selectedGraph.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n", strconv.Quote(relation.path))
+		if relation.field.Nullable || relation.reverse {
 			fmt.Fprintf(output, "_,_,_err=_wrapped.%s(_ctx)\n", relation.selector)
 		} else {
 			fmt.Fprintf(output, "_,_err=_wrapped.%s(_ctx)\n", relation.selector)
@@ -1211,13 +1241,7 @@ func renderProjectRelationFacadeAggregate(
 
 func renderProjectRelationFacadeLoadedTarget(output *bytes.Buffer, relation projectRelationObjectEdge, nullable bool) {
 	targetSurface := relation.target.app.prefix + relation.target.model.GoName
-	hasChildren := false
-	for _, field := range relation.target.model.Fields {
-		if field.Relation != nil {
-			hasChildren = true
-			break
-		}
-	}
+	hasChildren := relation.targetHasObjects
 	if !hasChildren {
 		fmt.Fprintf(output, "_wrapped,_err:=_model.state.wrap%s(_value,false)\n", targetSurface)
 		return

@@ -160,6 +160,12 @@ class OneToOneReferenceTests(unittest.TestCase):
         self.assertEqual((rows['present']['left_joins'], rows['present']['inner_joins']), (0, 1))
         self.assertEqual((rows['absent']['left_joins'], rows['absent']['inner_joins']), (1, 0))
 
+    def test_deleting_incoming_owner_preserves_its_outgoing_target(self):
+        self.assertEqual(self.fresh[0]['outgoing_delete'], {
+            'blocked_exception': 'ProtectedError', 'blocked_memory': [1, 1, 'preserved'],
+            'blocked_rows': [1, 1, 1], 'deleted': 1, 'memory': [None, 1, 'preserved'], 'rows': [1, 0, 0],
+        })
+
 
 if __name__ == '__main__':
     unittest.main()

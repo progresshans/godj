@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v8"
-const GoDjProjectRelationFacadeInputSHA256 = "39f76c42b7e22057a258d0f1475bb2cc3a0be2b65b633c5e8426452c79507ee1"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v9"
+const GoDjProjectRelationFacadeInputSHA256 = "ba220d3abbd2c663026d9a75dfc7f9d2c4c70b6c5e922fdb56da39e78b157a65"
 
 type Backend interface {
 	db.Queryer
@@ -670,7 +670,7 @@ func (_model *BlogPost) relationFacadeReconcile() error {
 		_reviewerCurrentKey = *_model.blogPostModel.ReviewerID
 	}
 	_reviewerChanged := _reviewerCurrentPresent != _model.reviewerScalarPresent || (_reviewerCurrentPresent && _reviewerCurrentKey != _model.reviewerScalarSnapshot)
-	_rebuild := _authorChanged || _reviewerChanged
+	_rebuild := false || _authorChanged || _reviewerChanged
 	if !_rebuild {
 		return nil
 	}
@@ -1248,4 +1248,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_7f0835a3121892f48e7623805a237bd9d905923f8e12cd9445ef471af4f17838
+var _ goDjProjectSnapshot_55d594b8060d80d35f111dc5d8983f6c3feff78f980538c20060ff1ad7e5eaf2

@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v5"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
@@ -55,34 +55,34 @@ func (_query BlogPostSelectRelatedQuery) WithReviewer(_children ...orm.RelatedSe
 }
 func (_factory BlogPostObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[blog.Post], error) {
 	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
-		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
 	}
 	_result := make([]orm.RelatedSelection[blog.Post], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
 		}
 		for _, _part := range _parts {
 			if _part == "" {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
 			}
 		}
 		switch _parts[0] {
 		case "author":
 			_selection := _factory.SelectAuthor()
 			if len(_parts) > 1 {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
 			}
 			_result = append(_result, _selection)
 		case "reviewer":
 			_selection := _factory.SelectReviewer()
 			if len(_parts) > 1 {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
 			}
 			_result = append(_result, _selection)
 		default:
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
 		}
 	}
 	return _result, nil
@@ -215,4 +215,4 @@ func (_factory BlogPostObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_7f0835a3121892f48e7623805a237bd9d905923f8e12cd9445ef471af4f17838
+var _ goDjProjectSnapshot_55d594b8060d80d35f111dc5d8983f6c3feff78f980538c20060ff1ad7e5eaf2

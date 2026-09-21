@@ -622,6 +622,19 @@ func TestBindRelationDeleterValidatesDescriptorBindingAndFingerprint(t *testing.
 	); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("outgoing-target BindRelationDeleter() error = %v", err)
 	}
+
+	fingerprint := relationDeleteTestActualFingerprint(t, outgoingBinding)
+	outgoing, err := BindRelationDeleter[relationDeleteTestAuthor](outgoingBinding, target, relationDeleteOutgoingTargetDescriptor{}, fingerprint)
+	if err != nil {
+		t.Fatalf("canonical outgoing FK prevented incoming-policy binding: %v", err)
+	}
+	// This authored descriptor intentionally cannot read the added FK. Accepting
+	// the project shape must not weaken the per-field PK-clear integrity check.
+	backend := relationDeleteConformingBackend(&relationDeleteTestSession{})
+	value := relationDeleteTestAuthorValue(1)
+	if _, err := outgoing.Delete(t.Context(), backend, &value); !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) || backend.calls != 0 {
+		t.Fatalf("outgoing FK preflight was bypassed: %v, callbacks %d", err, backend.calls)
+	}
 }
 
 func TestRelationDeleterSetNullThenDeleteSuccess(t *testing.T) {

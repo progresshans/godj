@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
 
 type BlogPostReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[blog.Post, authors.Author]

@@ -1621,5 +1621,29 @@
       "value": 2
     }
   ],
+  "outgoing_delete": {
+    "blocked_exception": "ProtectedError",
+    "blocked_memory": [
+      1,
+      1,
+      "preserved"
+    ],
+    "blocked_rows": [
+      1,
+      1,
+      1
+    ],
+    "deleted": 1,
+    "memory": [
+      null,
+      1,
+      "preserved"
+    ],
+    "rows": [
+      1,
+      0,
+      0
+    ]
+  },
   "python": "3.14.3"
 }

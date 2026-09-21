@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v5"
+const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
 
 // GenerateProjectRelationSelectRelated renders the current project-only
 // select-related companion. It attaches a composable builder to the existing
@@ -108,8 +108,8 @@ func projectRelationSelectRelatedUsedModels(
 	used := make(map[*projectRelationModel]struct{})
 	for index := range sources {
 		used[sources[index].model] = struct{}{}
-		for relationIndex := range sources[index].relations {
-			used[sources[index].relations[relationIndex].target] = struct{}{}
+		for relationIndex := range sources[index].selections {
+			used[sources[index].selections[relationIndex].target] = struct{}{}
 		}
 	}
 	result := make([]*projectRelationModel, 0, len(used))
@@ -158,10 +158,12 @@ func (_query %[1]s) WithSelections(_selections ...orm.RelatedSelection[%[3]s]) %
  return _query.rebuild()
 }
 `, queryType, source.factoryType, sourceType)
-	for _, relation := range source.relations {
+	for _, relation := range source.selections {
 		targetType := relation.target.app.alias + "." + relation.target.model.GoName
 		constructor := "orm.SelectRequiredForward"
-		if relation.field.Nullable {
+		if relation.reverse {
+			constructor = "orm.SelectReverseOneToOne"
+		} else if relation.field.Nullable {
 			constructor = "orm.SelectNullableForward"
 		}
 		fmt.Fprintf(output, `func (_factory %[1]s) Select%[2]s(_children ...orm.RelatedSelection[%[3]s])orm.RelatedSelect[%[4]s,%[3]s]{
@@ -174,31 +176,25 @@ func (_query %[1]s) WithSelections(_selections ...orm.RelatedSelection[%[3]s]) %
 `, queryType, relation.selector, targetType)
 	}
 	fmt.Fprintf(output, `func (_factory %[1]s) selectionInputs(_paths []string)([]orm.RelatedSelection[%[2]s],error){
- if len(_paths)==0||len(_paths)>orm.MaximumRelatedSelectionNodes{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Detail:"forward selection requires a bounded nonempty path list"}}
+ if len(_paths)==0||len(_paths)>orm.MaximumRelatedSelectionNodes{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Detail:"related selection requires a bounded nonempty path list"}}
  _result:=make([]orm.RelatedSelection[%[2]s],0,len(_paths))
  for _,_path:=range _paths{
   _parts:=strings.Split(_path,"__")
-  if len(_parts)>query.MaximumRelationHops{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"forward selection exceeds its path bound"}}
-  for _,_part:=range _parts{if _part==""{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"forward selection contains an empty path segment"}}}
+  if len(_parts)>query.MaximumRelationHops{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"related selection exceeds its path bound"}}
+  for _,_part:=range _parts{if _part==""{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"related selection contains an empty path segment"}}}
   switch _parts[0]{
 `, source.factoryType, sourceType)
-	for _, relation := range source.relations {
-		fmt.Fprintf(output, "case %s:\n_selection:=_factory.Select%s()\nif len(_parts)>1{\n", strconv.Quote(relation.field.Name), relation.selector)
-		hasChildren := false
-		for _, field := range relation.target.model.Fields {
-			if field.Relation != nil {
-				hasChildren = true
-				break
-			}
-		}
+	for _, relation := range source.selections {
+		fmt.Fprintf(output, "case %s:\n_selection:=_factory.Select%s()\nif len(_parts)>1{\n", strconv.Quote(relation.path), relation.selector)
+		hasChildren := relation.targetHasObjects
 		if hasChildren {
-			fmt.Fprintf(output, "if _factory._projectSelections==nil{return nil,&query.Error{Category:query.CategoryQuery,Code:query.CodeInvalidPlan,Detail:\"forward selection project is unbound\"}}\n_children,_err:=_factory._projectSelections.%s%s.selectionInputs([]string{strings.Join(_parts[1:],\"__\")})\nif _err!=nil{return nil,_err}\n_selection=_selection.WithChildren(_children...)\n", relation.target.app.prefix, relation.target.model.GoName)
+			fmt.Fprintf(output, "if _factory._projectSelections==nil{return nil,&query.Error{Category:query.CategoryQuery,Code:query.CodeInvalidPlan,Detail:\"related selection project is unbound\"}}\n_children,_err:=_factory._projectSelections.%s%s.selectionInputs([]string{strings.Join(_parts[1:],\"__\")})\nif _err!=nil{return nil,_err}\n_selection=_selection.WithChildren(_children...)\n", relation.target.app.prefix, relation.target.model.GoName)
 		} else {
-			fmt.Fprintln(output, `return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"selected target has no further forward relation"}`)
+			fmt.Fprintln(output, `return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"selected target has no further single-valued relation"}`)
 		}
 		fmt.Fprintln(output, "}\n_result=append(_result,_selection)")
 	}
-	fmt.Fprintln(output, `default:return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"unknown forward selection path"}
+	fmt.Fprintln(output, `default:return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"unknown related selection path"}
  }
  }
  return _result,nil
@@ -250,18 +246,12 @@ func (_query %[1]s) Count(_ctx context.Context)(int64,error){return _query.query
  _backend,_err:=_selected.Backend();if _err!=nil{return nil,_err}
  _object,_err:=_factory.From(_backend,_source);if _err!=nil{return nil,_err}
 `, source.factoryType, sourceType, source.objectType)
-	for _, relation := range source.relations {
-		fmt.Fprintf(output, "if _has,_err:=_selected.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n_related,_err:=_factory.Select%s().Related(_selected);if _err!=nil{return nil,_err};_object.%s=_related\n}\n", strconv.Quote(relation.field.Name), relation.selector, lowerFirst(relation.selector))
+	for _, relation := range source.selections {
+		fmt.Fprintf(output, "if _has,_err:=_selected.HasSelection(%s);_err!=nil{return nil,_err}else if _has{\n_related,_err:=_factory.Select%s().Related(_selected);if _err!=nil{return nil,_err};_object.%s=_related\n}\n", strconv.Quote(relation.path), relation.selector, lowerFirst(relation.selector))
 	}
 	fmt.Fprintln(output, "_object._selectedGraph=_selected\nreturn _object,nil\n}")
-	for _, relation := range source.relations {
-		hasChildren := false
-		for _, field := range relation.target.model.Fields {
-			if field.Relation != nil {
-				hasChildren = true
-				break
-			}
-		}
+	for _, relation := range source.selections {
+		hasChildren := relation.targetHasObjects
 		if !hasChildren {
 			continue
 		}
@@ -269,13 +259,13 @@ func (_query %[1]s) Count(_ctx context.Context)(int64,error){return _query.query
 		returns := "(*" + targetSurface + "Object,error)"
 		failure := "return nil,_err"
 		success := "return _target,nil"
-		if relation.field.Nullable {
+		if relation.field.Nullable || relation.reverse {
 			returns = "(*" + targetSurface + "Object,bool,error)"
 			failure = "return nil,false,_err"
 			success = "return _target,true,nil"
 		}
 		fmt.Fprintf(output, "func (_object *%s) %sObject(_ctx context.Context)%s{\n", source.objectType, relation.selector, returns)
-		if relation.field.Nullable {
+		if relation.field.Nullable || relation.reverse {
 			fmt.Fprintf(output, "_value,_found,_err:=_object.%s(_ctx);if _err!=nil||!_found{return nil,_found,_err}\n", relation.selector)
 		} else {
 			fmt.Fprintf(output, "_value,_err:=_object.%s(_ctx);if _err!=nil{%s}\n", relation.selector, failure)

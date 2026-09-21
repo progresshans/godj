@@ -68,7 +68,7 @@ func BindRelationDeleter[M any](
 	}
 	targetKey, ok := relationDeleteTargetKey(targetModel)
 	if !ok {
-		return RelationDeleter[M]{}, relationInvalidPlan("relation delete target must contain only scalar fields and exactly one AutoField primary key")
+		return RelationDeleter[M]{}, relationInvalidPlan("relation delete target must contain supported storage fields and exactly one AutoField primary key")
 	}
 
 	edges, err := relationDeleteIncomingEdges(binding.snapshot, identity)
@@ -410,7 +410,16 @@ func relationDeleteTargetKey(model ir.Model) (ir.Field, bool) {
 		return ir.Field{}, false
 	}
 	for _, field := range model.Fields {
-		if field.Relation != nil || field.Kind == ir.FieldForeignKey {
+		if field.Kind == ir.FieldForeignKey {
+			if field.PrimaryKey || field.Relation == nil || !field.Relation.Cardinality.SingleValued() {
+				return ir.Field{}, false
+			}
+			// The sealed project validates this outgoing declaration. Deleting its
+			// owner neither deletes nor updates the referenced target. The descriptor
+			// preflight still proves that clearing the owner PK preserves this FK.
+			continue
+		}
+		if field.Relation != nil {
 			return ir.Field{}, false
 		}
 		switch field.Kind {

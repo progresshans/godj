@@ -5,7 +5,10 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	fixture "github.com/progresshans/godj/conformance/onetoonefixture"
 	"reflect"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -25,12 +28,33 @@ func TestPostgresOneToOneGeneratedProduct(t *testing.T) {
 }
 
 func TestPostgresOneToOneReverseLookupsMatchDjango(t *testing.T) {
-	runPostgresOneToOneComparison(t, false)
+	runPostgresOneToOneComparison(t, onetoonetest.RunReverseLookups)
 }
 func TestPostgresOneToOneReverseEagerMatchesDjango(t *testing.T) {
-	runPostgresOneToOneComparison(t, true)
+	runPostgresOneToOneComparison(t, onetoonetest.RunReverseEager)
 }
-func runPostgresOneToOneComparison(t *testing.T, eager bool) {
+func TestPostgresOneToOneFacadeReverseEager(t *testing.T) {
+	runPostgresOneToOneComparison(t, onetoonetest.RunFacade)
+}
+
+type oneToOneTrace struct {
+	tables []string
+	reads  atomic.Uint64
+}
+
+func (trace *oneToOneTrace) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	if strings.HasPrefix(data.SQL, "SELECT ") {
+		for _, table := range trace.tables {
+			if strings.Contains(data.SQL, table) {
+				trace.reads.Add(1)
+				break
+			}
+		}
+	}
+	return ctx
+}
+func (*oneToOneTrace) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
+func runPostgresOneToOneComparison(t *testing.T, run func(*testing.T, onetoonetest.ProductBackend, string, func(query.Plan) (string, error), func() uint64)) {
 	t.Helper()
 	url := postgresIntegrationURL(t)
 	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
@@ -39,11 +63,20 @@ func runPostgresOneToOneComparison(t *testing.T, eager bool) {
 	if err != nil {
 		t.Fatal("prepare traced one-to-one connection")
 	}
-	table, err := quoteTable(namespace, "ototickets_ticket")
+	spec, err := fixture.ProjectSpec(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	trace := &membershipTrace{table: table}
+	trace := &oneToOneTrace{}
+	for _, app := range spec.Apps {
+		for _, model := range app.Schema.Models {
+			table, err := quoteTable(namespace, model.DBTable)
+			if err != nil {
+				t.Fatal(err)
+			}
+			trace.tables = append(trace.tables, table)
+		}
+	}
 	config.Tracer = trace
 	if err := backend.database.Close(); err != nil {
 		t.Fatal(err)
@@ -58,10 +91,6 @@ func runPostgresOneToOneComparison(t *testing.T, eager bool) {
 			return nil
 		}),
 	)
-	run := onetoonetest.RunReverseLookups
-	if eager {
-		run = onetoonetest.RunReverseEager
-	}
 	run(t, backend, "postgres", func(plan query.Plan) (string, error) {
 		statement, _, err := compilePlan(namespace, plan)
 		return statement, err

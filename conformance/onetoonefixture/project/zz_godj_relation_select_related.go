@@ -11,8 +11,9 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v5"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
 
+var _ orm.ProjectionDescriptor[reports.Certificate] = reports.CertificateDescriptor{}
 var _ orm.ProjectionDescriptor[reports.Link] = reports.LinkDescriptor{}
 var _ orm.ProjectionDescriptor[reports.OptionalReport] = reports.OptionalReportDescriptor{}
 var _ orm.ProjectionDescriptor[reports.Report] = reports.ReportDescriptor{}
@@ -23,6 +24,209 @@ type relationSelectQuery[O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
 	First(context.Context) (*O, bool, error)
+}
+
+type ReportsCertificateSelectRelatedQuery struct {
+	factory          ReportsCertificateObjectFactory
+	source           orm.QuerySet[reports.Certificate]
+	query            orm.RelatedSelectQuery[reports.Certificate]
+	selections       []orm.RelatedSelection[reports.Certificate]
+	configurationErr error
+}
+
+func (_factory ReportsCertificateObjectFactory) SelectRelated(_source orm.QuerySet[reports.Certificate]) ReportsCertificateSelectRelatedQuery {
+	return ReportsCertificateSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query ReportsCertificateSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[reports.Certificate]) ReportsCertificateSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[reports.Certificate](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory ReportsCertificateObjectFactory) SelectReport(_children ...orm.RelatedSelection[reports.Report]) orm.RelatedSelect[reports.Certificate, reports.Report] {
+	return orm.SelectRequiredForward(_factory.report).WithChildren(_children...)
+}
+func (_query ReportsCertificateSelectRelatedQuery) WithReport(_children ...orm.RelatedSelection[reports.Report]) ReportsCertificateSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectReport(_children...))
+}
+func (_factory ReportsCertificateObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.Certificate], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[reports.Certificate], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "report":
+			_selection := _factory.SelectReport()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.ReportsReport.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query ReportsCertificateSelectRelatedQuery) ParseDynamic(_paths ...string) (ReportsCertificateSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ReportsCertificateSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return ReportsCertificateSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return ReportsCertificateSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query ReportsCertificateSelectRelatedQuery) rebuild() ReportsCertificateSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query ReportsCertificateSelectRelatedQuery) Filter(_values ...orm.Predicate[reports.Certificate]) ReportsCertificateSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query ReportsCertificateSelectRelatedQuery) OrderBy(_values ...orm.Ordering[reports.Certificate]) ReportsCertificateSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query ReportsCertificateSelectRelatedQuery) Distinct() ReportsCertificateSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query ReportsCertificateSelectRelatedQuery) Fresh() ReportsCertificateSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query ReportsCertificateSelectRelatedQuery) Limit(_value int) (ReportsCertificateSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ReportsCertificateSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ReportsCertificateSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ReportsCertificateSelectRelatedQuery) Offset(_value int) (ReportsCertificateSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ReportsCertificateSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ReportsCertificateSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ReportsCertificateSelectRelatedQuery) All(_ctx context.Context) ([]*ReportsCertificateObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ReportsCertificateObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query ReportsCertificateSelectRelatedQuery) First(_ctx context.Context) (*ReportsCertificateObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query ReportsCertificateSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query ReportsCertificateSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[reports.Certificate]) (*ReportsCertificateObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory ReportsCertificateObjectFactory) FromSelected(_selected *orm.RelatedSelected[reports.Certificate]) (*ReportsCertificateObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectReport().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.report = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+func (_object *ReportsCertificateObject) ReportObject(_ctx context.Context) (*ReportsReportObject, error) {
+	_value, _err := _object.Report(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, _err
+	}
+	_graph, _selected, _err := _object.report.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _target *ReportsReportObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.ReportsReport.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.ReportsReport.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _target, nil
 }
 
 type ReportsLinkSelectRelatedQuery struct {
@@ -52,28 +256,35 @@ func (_query ReportsLinkSelectRelatedQuery) WithTicket(_children ...orm.RelatedS
 }
 func (_factory ReportsLinkObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.Link], error) {
 	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
-		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
 	}
 	_result := make([]orm.RelatedSelection[reports.Link], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
 		}
 		for _, _part := range _parts {
 			if _part == "" {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
 			}
 		}
 		switch _parts[0] {
 		case "ticket":
 			_selection := _factory.SelectTicket()
 			if len(_parts) > 1 {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.TicketsTicket.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
 			}
 			_result = append(_result, _selection)
 		default:
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
 		}
 	}
 	return _result, nil
@@ -196,6 +407,30 @@ func (_factory ReportsLinkObjectFactory) FromSelected(_selected *orm.RelatedSele
 	_object._selectedGraph = _selected
 	return _object, nil
 }
+func (_object *ReportsLinkObject) TicketObject(_ctx context.Context) (*TicketsTicketObject, error) {
+	_value, _err := _object.Ticket(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, _err
+	}
+	_graph, _selected, _err := _object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _target *TicketsTicketObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _target, nil
+}
 
 type ReportsOptionalReportSelectRelatedQuery struct {
 	factory          ReportsOptionalReportObjectFactory
@@ -224,28 +459,35 @@ func (_query ReportsOptionalReportSelectRelatedQuery) WithTicket(_children ...or
 }
 func (_factory ReportsOptionalReportObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.OptionalReport], error) {
 	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
-		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
 	}
 	_result := make([]orm.RelatedSelection[reports.OptionalReport], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
 		}
 		for _, _part := range _parts {
 			if _part == "" {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
 			}
 		}
 		switch _parts[0] {
 		case "ticket":
 			_selection := _factory.SelectTicket()
 			if len(_parts) > 1 {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.TicketsTicket.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
 			}
 			_result = append(_result, _selection)
 		default:
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
 		}
 	}
 	return _result, nil
@@ -368,6 +610,30 @@ func (_factory ReportsOptionalReportObjectFactory) FromSelected(_selected *orm.R
 	_object._selectedGraph = _selected
 	return _object, nil
 }
+func (_object *ReportsOptionalReportObject) TicketObject(_ctx context.Context) (*TicketsTicketObject, bool, error) {
+	_value, _found, _err := _object.Ticket(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *TicketsTicketObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
 
 type ReportsReportSelectRelatedQuery struct {
 	factory          ReportsReportObjectFactory
@@ -388,6 +654,12 @@ func (_query ReportsReportSelectRelatedQuery) WithSelections(_selections ...orm.
 	_query.selections = append(_owned, _selections...)
 	return _query.rebuild()
 }
+func (_factory ReportsReportObjectFactory) SelectCertificate(_children ...orm.RelatedSelection[reports.Certificate]) orm.RelatedSelect[reports.Report, reports.Certificate] {
+	return orm.SelectReverseOneToOne(_factory.certificate).WithChildren(_children...)
+}
+func (_query ReportsReportSelectRelatedQuery) WithCertificate(_children ...orm.RelatedSelection[reports.Certificate]) ReportsReportSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectCertificate(_children...))
+}
 func (_factory ReportsReportObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.Report, tickets.Ticket] {
 	return orm.SelectRequiredForward(_factory.ticket).WithChildren(_children...)
 }
@@ -396,28 +668,48 @@ func (_query ReportsReportSelectRelatedQuery) WithTicket(_children ...orm.Relate
 }
 func (_factory ReportsReportObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.Report], error) {
 	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
-		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
 	}
 	_result := make([]orm.RelatedSelection[reports.Report], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
 		}
 		for _, _part := range _parts {
 			if _part == "" {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
 			}
 		}
 		switch _parts[0] {
+		case "certificate":
+			_selection := _factory.SelectCertificate()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.ReportsCertificate.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
 		case "ticket":
 			_selection := _factory.SelectTicket()
 			if len(_parts) > 1 {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.TicketsTicket.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
 			}
 			_result = append(_result, _selection)
 		default:
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
 		}
 	}
 	return _result, nil
@@ -528,6 +820,15 @@ func (_factory ReportsReportObjectFactory) FromSelected(_selected *orm.RelatedSe
 	if _err != nil {
 		return nil, _err
 	}
+	if _has, _err := _selected.HasSelection("certificate"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectCertificate().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.certificate = _related
+	}
 	if _has, _err := _selected.HasSelection("ticket"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -539,6 +840,54 @@ func (_factory ReportsReportObjectFactory) FromSelected(_selected *orm.RelatedSe
 	}
 	_object._selectedGraph = _selected
 	return _object, nil
+}
+func (_object *ReportsReportObject) CertificateObject(_ctx context.Context) (*ReportsCertificateObject, bool, error) {
+	_value, _found, _err := _object.Certificate(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.certificate.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *ReportsCertificateObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.ReportsCertificate.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.ReportsCertificate.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *ReportsReportObject) TicketObject(_ctx context.Context) (*TicketsTicketObject, error) {
+	_value, _err := _object.Ticket(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, _err
+	}
+	_graph, _selected, _err := _object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _target *TicketsTicketObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _target, nil
 }
 
 type ReportsReviewSelectRelatedQuery struct {
@@ -568,28 +917,35 @@ func (_query ReportsReviewSelectRelatedQuery) WithTicket(_children ...orm.Relate
 }
 func (_factory ReportsReviewObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.Review], error) {
 	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
-		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
 	}
 	_result := make([]orm.RelatedSelection[reports.Review], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection exceeds its path bound"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
 		}
 		for _, _part := range _parts {
 			if _part == "" {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "forward selection contains an empty path segment"}
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
 			}
 		}
 		switch _parts[0] {
 		case "ticket":
 			_selection := _factory.SelectTicket()
 			if len(_parts) > 1 {
-				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further forward relation"}
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.TicketsTicket.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
 			}
 			_result = append(_result, _selection)
 		default:
-			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown forward selection path"}
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
 		}
 	}
 	return _result, nil
@@ -712,5 +1068,336 @@ func (_factory ReportsReviewObjectFactory) FromSelected(_selected *orm.RelatedSe
 	_object._selectedGraph = _selected
 	return _object, nil
 }
+func (_object *ReportsReviewObject) TicketObject(_ctx context.Context) (*TicketsTicketObject, error) {
+	_value, _err := _object.Ticket(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, _err
+	}
+	_graph, _selected, _err := _object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _target *TicketsTicketObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.TicketsTicket.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _target, nil
+}
 
-var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0
+type TicketsTicketSelectRelatedQuery struct {
+	factory          TicketsTicketObjectFactory
+	source           orm.QuerySet[tickets.Ticket]
+	query            orm.RelatedSelectQuery[tickets.Ticket]
+	selections       []orm.RelatedSelection[tickets.Ticket]
+	configurationErr error
+}
+
+func (_factory TicketsTicketObjectFactory) SelectRelated(_source orm.QuerySet[tickets.Ticket]) TicketsTicketSelectRelatedQuery {
+	return TicketsTicketSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query TicketsTicketSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[tickets.Ticket]) TicketsTicketSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[tickets.Ticket](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory TicketsTicketObjectFactory) SelectOptionalReport(_children ...orm.RelatedSelection[reports.OptionalReport]) orm.RelatedSelect[tickets.Ticket, reports.OptionalReport] {
+	return orm.SelectReverseOneToOne(_factory.optionalReport).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithOptionalReport(_children ...orm.RelatedSelection[reports.OptionalReport]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectOptionalReport(_children...))
+}
+func (_factory TicketsTicketObjectFactory) SelectReport(_children ...orm.RelatedSelection[reports.Report]) orm.RelatedSelect[tickets.Ticket, reports.Report] {
+	return orm.SelectReverseOneToOne(_factory.report).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithReport(_children ...orm.RelatedSelection[reports.Report]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectReport(_children...))
+}
+func (_factory TicketsTicketObjectFactory) SelectReview(_children ...orm.RelatedSelection[reports.Review]) orm.RelatedSelect[tickets.Ticket, reports.Review] {
+	return orm.SelectReverseOneToOne(_factory.review).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithReview(_children ...orm.RelatedSelection[reports.Review]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectReview(_children...))
+}
+func (_factory TicketsTicketObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[tickets.Ticket], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[tickets.Ticket], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "optional_report":
+			_selection := _factory.SelectOptionalReport()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.ReportsOptionalReport.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "report":
+			_selection := _factory.SelectReport()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.ReportsReport.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "review":
+			_selection := _factory.SelectReview()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.ReportsReview.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query TicketsTicketSelectRelatedQuery) ParseDynamic(_paths ...string) (TicketsTicketSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return TicketsTicketSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return TicketsTicketSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return TicketsTicketSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query TicketsTicketSelectRelatedQuery) rebuild() TicketsTicketSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query TicketsTicketSelectRelatedQuery) Filter(_values ...orm.Predicate[tickets.Ticket]) TicketsTicketSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query TicketsTicketSelectRelatedQuery) OrderBy(_values ...orm.Ordering[tickets.Ticket]) TicketsTicketSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query TicketsTicketSelectRelatedQuery) Distinct() TicketsTicketSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query TicketsTicketSelectRelatedQuery) Fresh() TicketsTicketSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query TicketsTicketSelectRelatedQuery) Limit(_value int) (TicketsTicketSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return TicketsTicketSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return TicketsTicketSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query TicketsTicketSelectRelatedQuery) Offset(_value int) (TicketsTicketSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return TicketsTicketSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return TicketsTicketSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query TicketsTicketSelectRelatedQuery) All(_ctx context.Context) ([]*TicketsTicketObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*TicketsTicketObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query TicketsTicketSelectRelatedQuery) First(_ctx context.Context) (*TicketsTicketObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query TicketsTicketSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query TicketsTicketSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[tickets.Ticket]) (*TicketsTicketObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory TicketsTicketObjectFactory) FromSelected(_selected *orm.RelatedSelected[tickets.Ticket]) (*TicketsTicketObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("optional_report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectOptionalReport().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.optionalReport = _related
+	}
+	if _has, _err := _selected.HasSelection("report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectReport().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.report = _related
+	}
+	if _has, _err := _selected.HasSelection("review"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectReview().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.review = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+func (_object *TicketsTicketObject) OptionalReportObject(_ctx context.Context) (*ReportsOptionalReportObject, bool, error) {
+	_value, _found, _err := _object.OptionalReport(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.optionalReport.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *ReportsOptionalReportObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.ReportsOptionalReport.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.ReportsOptionalReport.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *TicketsTicketObject) ReportObject(_ctx context.Context) (*ReportsReportObject, bool, error) {
+	_value, _found, _err := _object.Report(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.report.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *ReportsReportObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.ReportsReport.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.ReportsReport.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *TicketsTicketObject) ReviewObject(_ctx context.Context) (*ReportsReviewObject, bool, error) {
+	_value, _found, _err := _object.Review(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.review.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *ReportsReviewObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.ReportsReview.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.ReportsReview.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+
+var _ goDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572

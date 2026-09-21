@@ -18,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "7cd813e5938d21b1cfef85d40f4754aba33fb4e8c47b11c28bdf504eb85a1ae7"
+const GoDjSchemaSHA256 = "cccfe41a52e34b8900070facbfbde9207eb92f2fbf5007cd18a21612495c902b"
 
 type Report struct {
 	ID                    int64
@@ -697,6 +697,219 @@ func linkMetadata() ir.Model {
 				Name:      "label",
 				GoName:    "Label",
 				Column:    "label",
+				Kind:      ir.FieldChar,
+				MaxLength: 80,
+			},
+		},
+	}
+}
+
+type Certificate struct {
+	ID                    int64
+	ReportID              int64
+	Seal                  string
+	godjPrimaryKeyPresent bool
+}
+
+type CertificateDescriptor struct{}
+
+var _ orm.ModelDescriptor[Certificate] = CertificateDescriptor{}
+
+var _ orm.WriteDescriptor[Certificate] = CertificateDescriptor{}
+
+func (CertificateDescriptor) Metadata() ir.Model {
+	return certificateMetadata()
+}
+
+func (CertificateDescriptor) Scan(row db.Row) (Certificate, error) {
+	var value Certificate
+	if err := row.Scan(&value.ID, &value.ReportID, &value.Seal); err != nil {
+		return Certificate{}, err
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (CertificateDescriptor) PrimaryKey(value Certificate) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (CertificateDescriptor) SetPrimaryKey(value *Certificate, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (CertificateDescriptor) ClearPrimaryKey(value *Certificate) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (CertificateDescriptor) CloneModel(value Certificate) Certificate {
+	clone := value
+	return clone
+}
+
+func (descriptor CertificateDescriptor) CloneWriteModel(value Certificate) Certificate {
+	return descriptor.CloneModel(value)
+}
+
+func (CertificateDescriptor) WriteFieldValue(value Certificate, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "report":
+		return query.Integer(value.ReportID), true
+	case "seal":
+		return query.String(value.Seal), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type CertificateFieldSet struct {
+	ID   orm.AutoField[Certificate]
+	Seal orm.StringField[Certificate]
+}
+
+var CertificateFields = func() CertificateFieldSet {
+	metadata := certificateMetadata()
+	return CertificateFieldSet{
+		ID:   orm.NewAutoField[Certificate](metadata.Fields[0]),
+		Seal: orm.NewStringField[Certificate](metadata.Fields[2]),
+	}
+}()
+
+var CertificateObjects = orm.NewManager[Certificate](CertificateDescriptor{})
+
+func NewCertificateWithID(key int64) Certificate {
+	return Certificate{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func CertificateUpdateFields(fields ...orm.WritableField[Certificate]) orm.SaveOption[Certificate] {
+	return orm.UpdateFields(fields...)
+}
+
+func CertificateUpdateFieldNames(names ...string) orm.SaveOption[Certificate] {
+	return orm.UpdateFieldNames[Certificate](names...)
+}
+
+func CertificateForceInsert() orm.SaveOption[Certificate] {
+	return orm.ForceInsert[Certificate]()
+}
+
+func CertificateForceUpdate() orm.SaveOption[Certificate] {
+	return orm.ForceUpdate[Certificate]()
+}
+
+type CertificateCreate struct {
+	reportID orm.Change[int64]
+	seal     orm.Change[string]
+}
+
+func NewCertificateCreate(reportID int64, seal string) CertificateCreate {
+	return CertificateCreate{
+		reportID: orm.Set(reportID),
+		seal:     orm.Set(seal),
+	}
+}
+
+func (input CertificateCreate) WithReportID(value int64) CertificateCreate {
+	input.reportID = orm.Set(value)
+	return input
+}
+
+func (input CertificateCreate) WithSeal(value string) CertificateCreate {
+	input.seal = orm.Set(value)
+	return input
+}
+
+func (input CertificateCreate) BuildCreate() orm.Mutation[Certificate] {
+	var value Certificate
+	assignments := make([]query.Assignment, 0, 2)
+	changedReportID, changedReportIDSet := input.reportID.Get()
+	if !changedReportIDSet {
+		return orm.InvalidMutation[Certificate](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "report",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.ReportID = changedReportID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("report", "report_id", query.FieldInteger, false), query.Integer(changedReportID)))
+	changedSeal, changedSealSet := input.seal.Get()
+	if !changedSealSet {
+		return orm.InvalidMutation[Certificate](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "seal",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.Seal = changedSeal
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("seal", "seal", query.FieldString, false), query.String(changedSeal)))
+	return orm.NewCreateMutation(value, "otoreports_certificate", assignments)
+}
+
+type CertificatePatch struct {
+	reportID orm.Change[int64]
+	seal     orm.Change[string]
+}
+
+func (input CertificatePatch) WithReportID(value int64) CertificatePatch {
+	input.reportID = orm.Set(value)
+	return input
+}
+
+func (input CertificatePatch) WithSeal(value string) CertificatePatch {
+	input.seal = orm.Set(value)
+	return input
+}
+
+func (input CertificatePatch) BuildPatch(current Certificate) orm.Mutation[Certificate] {
+	value := current
+	assignments := make([]query.Assignment, 0, 2)
+	if changedReportID, ok := input.reportID.Get(); ok {
+		value.ReportID = changedReportID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("report", "report_id", query.FieldInteger, false), query.Integer(changedReportID)))
+	}
+	if changedSeal, ok := input.seal.Get(); ok {
+		value.Seal = changedSeal
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("seal", "seal", query.FieldString, false), query.String(changedSeal)))
+	}
+	return orm.NewPatchMutation(value, "otoreports_certificate", assignments)
+}
+
+func certificateMetadata() ir.Model {
+	return ir.Model{
+		Name:    "certificate",
+		GoName:  "Certificate",
+		DBTable: "otoreports_certificate",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:   "report",
+				GoName: "ReportID",
+				Column: "report_id",
+				Kind:   ir.FieldForeignKey,
+				Unique: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "otoreports", ModelName: "report"},
+					Cardinality: ir.RelationOneToOne,
+					Reverse:     ir.ReverseRelation{Name: "certificate"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+			{
+				Name:      "seal",
+				GoName:    "Seal",
+				Column:    "seal",
 				Kind:      ir.FieldChar,
 				MaxLength: 80,
 			},
@@ -1925,4 +2138,4 @@ func reviewMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0 struct{}
+type GoDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572 struct{}

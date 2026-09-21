@@ -47,7 +47,7 @@ Presence lookup도 복제한 실제 자식 PK metadata로 LookupPolicy를 거친
 같은 FK가 반대 방향의 경로에서 OneToOne 여부를 다르게 선언하면 SQL 전에 거부한다. 일반 FK+Unique의 collection은
 직접 non-null exact와 최상위 conjunction을 유지하며 단일 관계의 확장에 따라 OR/NOT를 묵시적으로 허용하지 않는다.
 
-Reverse 생성 ABI는 v3, object v4, selection v5, facade v8이다. 공통 selection 타입과 caller-owned binding·reverse selector가 snapshot에 반영되므로 같은 schema에서 만든
+Reverse 생성 ABI는 v3, object v5, selection v6, facade v9다. 공통 selection 타입과 caller-owned binding·reverse selector가 snapshot에 반영되므로 같은 schema에서 만든
 이전 생성물과도 섞을 수 없다. 각 generator role의 version이 snapshot을 바꾸는지 검사하고 모든 checked-in project를 함께 재생성한다.
 Source field의 Go 이름 IsNull이 새 method와 충돌하면 생성 단계에서 명시적으로 거부한다.
 
@@ -84,7 +84,15 @@ Reverse의 ready cache는 존재·부재 모두 owner FK 조건의 재조회 pla
 
 Generated `BindObjectsIn(binding)`/`BindReverseObjectsIn(binding)`은 하나의 명시적 project binding 안에서 typed factory를 조합한다.
 각 `BindObjects()`/`BindReverseObjects()`는 독립 binding을 만들며 서로 섞은 tree는 I/O 전에 거부한다. Reverse factory의 `SelectReport(children...)` 같은
-selector와 `FromSelected` bridge로 forward/reverse tree를 읽는다. Facade의 reverse `.Related` selector·문자열 mixed path는 후속 연결이다.
+selector와 `FromSelected` bridge로 forward/reverse tree를 읽는다. 표준 `Objects`는 이제 모든 단일 traversal을 한 binding에서 제공하며
+facade는 이 factory를 사용한다. `.Related.Report.WithChildren(...)`와 `SelectRelatedPaths("report__ticket__review")`는 같은 immutable plan으로 수렴한다.
+정방향 storage field 목록과 reverse를 포함한 traversal 목록을 구분하여 reverse를 부모의 저장 column으로 다루지 않는다.
+
+Reverse-only 모델도 facade의 New/Save를 지원한다. Unsaved owner는 객체를 만들 수 있지만 reverse 접근은 I/O 전에 missing-primary-key 오류다.
+부모 Save가 PK를 게시하면 reverse handle을 그 key에 다시 바인딩한다. 정상 missing cache를 외부 child 저장이 자동 갱신하지 않는다.
+같은 facade 객체의 반복 관계 접근은 같은 target pointer를 보존하고, 다른 materialization·경로 occurrence는 독립 소유한다.
+Forward assignment/raw FK 변경은 이미 선택한 reverse 형제 cache와 그 subtree를 유지한다. 다른 facade origin, 잘못된 중간 Go type,
+collection/blank/unknown/과도한 문자열 경로와 promoted field·selector 이름 충돌을 거부한다.
 
 Django의 12개 eager 관찰은 양 DB에서 row/presence·초기 SELECT 1회·JOIN 형태가 같다. 세 reciprocal path에서는 후속 descriptor 접근이
 각각 1·1·3회 추가 SELECT를 수행했다. GoDj의 명시적 selected subtree는 12개 모두 warm I/O 0을 유지한다.
@@ -93,12 +101,15 @@ Django의 12개 eager 관찰은 양 DB에서 row/presence·초기 SELECT 1회·J
 PostgreSQL은 `AtomicRelation`과 bulk SET_NULL을 일반 Atomic과 같은 transaction/session 수명으로 실행한다.
 PROTECT와 SET_NULL/delete는 한 transaction에 속한다. Callback 오류·확정 rollback·commit/rollback outcome unknown과
 native cause를 구분하며 자동 재시도하지 않는다. SQLite의 기존 relation transaction/quarantine 의미도 유지한다.
+Incoming policy를 갖는 모델에 canonical outgoing FK가 있어도 deleter를 바인딩할 수 있다. 삭제는 그 target의 AutoField PK만 지우며
+참조하는 부모 행을 수정·삭제하지 않는다. Incoming policy fingerprint·descriptor 전체 metadata·PK clear의 non-PK 보존 검사를 유지한다.
+FK를 읽지 못하는 descriptor는 transaction callback 전에 실패한다. 관계를 PK로 쓰는 모델이나 일반 cascade collector를 허용한 것이 아니다.
 
 ## 구현과 남은 범위
 
 Cross-app 생성 소비자가 required/nullable 관계, reverse exact 조회·단일 lazy/prefetch, forward eager와 양 DB 삭제를 사용한다.
 독립 [Django runner](../../conformance/runners/django/one_to_one_reference.py)의 관찰을 기준으로 하되 전체 37개 관찰의 parity를 주장하지 않는다.
 직접 reverse lookup은 별도 41개 Django 관찰로 결과·SELECT 수·JOIN 형태를 비교했다.
-Typed reverse/mixed eager tree는 구현했다. Facade의 reverse selector·문자열 mixed path, 여러 단계 reverse 조건 조회,
+Typed reverse/mixed eager tree와 facade의 reverse selector·문자열 mixed path를 구현했다. 여러 단계 reverse 조건 조회,
 assignment의 전체 연결과 Helpdesk Form/Admin/API/OpenAPI/client는 남아 있다.
 Relation-as-PK·arbitrary target·상속·ManyToMany도 별도 미완료 범위다. 실행 source·환경은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
