@@ -51,6 +51,13 @@ CSRF 초기화와 commit-unknown code 기대를 고쳤다. 이후 대조는 vali
 `final-code-source.json`, `source-coverage.json`, `normal-1790019582178291000`, `integration-1790019882598512000`,
 `consumers-1790019800088352000`, `drift-vet-1790019904749795000`, `reference-1790018552366731000`, `model-choice-python`에
 원본 stdout/stderr·Go events·required inventory·manifest·cleanup receipt를 남겼다.
+구현 source `63b0562a28146ca22e5b31ee7c6ce2bdb95386a6`의 첫 [Hosted full](https://github.com/progresshans/godj/actions/runs/35647579556)은
+**실패**로 남긴다. 60개 job은 success였지만 macOS Intel relation race의 생성 소비자 package가 aggregate 20분 제한으로 종료되어
+최종 CI owner 판정도 실패했다. `codegen/consumertest`의 59개 parent 중 30번째를 시작한 지 4초였으며 앞선 29개는 PASS였다.
+Data-race/검증식 실패 대신 package 전체 시간이 소진됐고 나머지 parent가 실행되지 않았으므로 현재 full PASS로 사용할 수 없다.
+해당 좌표의 package budget을 35분, job budget을 45분으로 조정한다. 기존 test/package/required inventory·race instrumentation과
+실행/종료·skip·실패 검사는 유지한다. 다른 좌표의 시간 한도는 바꾸지 않는다. 첫 실패 job의 원본 로그는
+`hosted/job-106491750057-failed.log`에 보존했다. 이 CI 조정은 제품 구현과 별도의 source 변경이며 필요한 full을 다시 실행한다.
 현재 source의 Hosted full은 아직 실행하지 않았으며 GDJ-0096의 process/platform 통합 milestone이 남아 있다.
 이 범위의 통과를 전체 프레임워크 완성이나 미지원 relation 기능의 완료로 합치지 않는다.
 

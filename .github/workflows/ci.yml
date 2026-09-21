@@ -393,7 +393,7 @@ jobs:
           - runs_on: "macos-15-intel"
             expected_goos: "darwin"
             expected_goarch: "amd64"
-            timeout_minutes: {normal: 20, race: 30, cgo0: 20}
+            timeout_minutes: {normal: 20, race: 45, cgo0: 20}
           - runs_on: "macos-26"
             expected_goos: "darwin"
             expected_goarch: "arm64"
@@ -429,7 +429,14 @@ jobs:
           mode="${{ matrix.mode }}"
           relation_godj_runner='^(TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle|TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation|TestRelationAdapterDoesNotImportDBOrReferenceArtifacts|TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle|TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift|TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity|TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut)$'
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
-          test_flags=(-timeout=20m -json -count=1)
+          # The generated-consumer package runs every isolated module in one
+          # test process. Intel race compilation needs a larger aggregate
+          # budget; keep the same package/test inventory and race propagation.
+          test_timeout=20m
+          if [ "$mode" = race ] && [ "${{ matrix.platform.expected_goos }}" = darwin ] && [ "${{ matrix.platform.expected_goarch }}" = amd64 ]; then
+            test_timeout=35m
+          fi
+          test_flags=(-timeout="$test_timeout" -json -count=1)
           case "$mode" in
             normal) ;;
             race) test_flags+=(-race) ;;
