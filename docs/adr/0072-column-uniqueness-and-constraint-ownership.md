@@ -1,8 +1,8 @@
-# ADR-0072: Column uniqueness and physical constraint ownership
+# ADR-0072: Model uniqueness and physical constraint ownership
 
-- 상태: Accepted — 공통 선언·이력·ORM·양 DB와 Helpdesk Form/Admin/API/client 연결 및 GDJ-0095 통합 검증 완료.
+- 상태: Accepted — column uniqueness의 GDJ-0095 통합 검증 완료. Named model constraint의 이력·양 DB native 적용은 구현했으며 ORM·Label 소비자는 GDJ-0097에서 진행 중.
 - 날짜: 2026-09-21
-- 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md)
+- 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md), [GDJ-0097](../../work/0097-composite-uniqueness-and-labels.md)
 
 ## 모델 의미
 
@@ -30,7 +30,7 @@ Unique AlterField에는 물리 SQL이 필요하다. Metadata-only 빈 group으�
 
 ## PostgreSQL
 
-Native UNIQUE constraint와 그에 종속된 단일 column B-tree index를 사용한다.
+Native UNIQUE constraint와 그에 종속된 선언 순서의 B-tree index를 사용한다.
 `godj/postgres/unique/v1` domain과 길이로 구분한 table/column bytes의 SHA256 앞 192-bit로 이름을 정한다.
 Constraint와 index가 같은 `godj_uq_` 이름을 사용하고, 기존 이름 소유권 검사가 table·PK·FK·sequence와 충돌을 거부한다.
 Server truncation·자동 이름 변경·기존 객체의 묵시적 채택은 사용하지 않는다.
@@ -41,10 +41,11 @@ drop에는 RESTRICT를 쓴다. AddField의 reverse는 column과 그 소유 const
 기존 중복은 DB가 거부하고 전체 migration이 rollback된다. 값을 자동 삭제·변환하지 않으며 명시적 데이터 수정 후 재시도한다.
 PostgreSQL identity의 충돌 시 sequence 할당 등 native transaction 의미를 재작성하지 않는다.
 
-Catalog는 선언한 PK/FK/Unique의 정확한 집합을 검사한다. Unique는 이름·소유 index OID·column·validated·nondeferrable
-형태여야 한다. Index는 unique/immediate/valid/ready/live, 단일 key와 include 없음, 기본 NULL distinct,
-B-tree·column collation·해당 값 타입의 pg_catalog 기본 operator class·기본 방향·storage option 없음이어야 한다.
-알 수 없는 index, standalone unique index, partial/expression/compound/include·deferrable·NULLS NOT DISTINCT와
+Catalog는 선언한 PK/FK/Unique의 정확한 집합을 검사한다. Unique는 이름·소유 index OID·ordered column·validated·nondeferrable
+형태여야 한다. Index는 unique/immediate/valid/ready/live, 정확한 key 수와 include 없음, 기본 NULL distinct,
+B-tree·모든 key의 column collation·해당 값 타입의 pg_catalog 기본 operator class·기본 방향·storage option 없음이어야 한다.
+Constraint의 conkey와 index의 indkey/indclass/indcollation/indoption 전체를 읽고 순서·길이를 검사한다. 첫 key만 읽는 축약을 사용하지 않는다.
+알 수 없는 index, standalone unique index, partial/expression/미선언 compound/include·deferrable·NULLS NOT DISTINCT와
 다른 collation/operator class는 현재 선언으로 채택하지 않는다. PK index에도 같은 검증을 적용한다.
 물리 속성은 [pg_index](https://www.postgresql.org/docs/17/catalog-pg-index.html)와
 [pg_opclass](https://www.postgresql.org/docs/17/catalog-pg-opclass.html)에서 읽는다.
@@ -66,8 +67,8 @@ Unique AlterField는 CREATE/DROP INDEX다. Scalar RemoveField는 소유 index를
 
 물리 검증은 [index_list](https://sqlite.org/pragma.html#pragma_index_list)의 이름·unique·origin·partial과
 [index_xinfo](https://sqlite.org/pragma.html#pragma_index_xinfo)의 column ordinal/name·방향·collation·key/auxiliary를 검사한다.
-정확히 선언된 단일 BINARY ASC key와 auxiliary rowid만 허용한다. 현재 INTEGER PRIMARY KEY AUTOINCREMENT는
-별도 index가 없으므로 미선언 index·자동 UNIQUE index·다른 column·compound/expression/partial·NOCASE/DESC를 거부한다.
+정확히 선언된 순서의 BINARY ASC key들과 auxiliary rowid만 허용한다. 현재 INTEGER PRIMARY KEY AUTOINCREMENT는
+별도 index가 없으므로 미선언 index·자동 UNIQUE index·다른 column·미선언 compound/expression/partial·NOCASE/DESC를 거부한다.
 직접 변경되는 모델뿐 아니라 유지되는 모든 direct/transitive target에도 같은 검사를 적용한다.
 기존에 허용하던 untouched target의 미선언 nonunique index도 이제 명시적으로 거부한다.
 
@@ -160,13 +161,21 @@ RemoveConstraint도 전체 제약을 보존하여 같은 이름의 다른 member
 동등성·digest에서 제약을 생략하지 않고, 필드 변경이 제약까지 변경하는 것을 허용하지 않는다.
 Autodetect는 이름·member·member 순서 변경을 remove/add로 만들고, 빠진 field나 지연된 FK를 먼저 추가한다. 순환 관계의 각 게시 prefix에서도
 다음 후보를 다시 계산하므로 중단·재개가 제약을 누락하거나 미완성 조합을 게시하지 않는다. 일반 forward field removal은 아직 지원하지 않는다.
-선언·이력의 존재가 native enforcement를 뜻하지 않는다. Native owner가 완성되기 전에는 양 DB가 named constraint 실행을 거부한다.
+Named 제약의 물리 이름은 table/logical constraint name에 별도 `godj/sqlite/model-unique/v1`·`godj/postgres/model-unique/v1` domain을 적용한다.
+Column Unique의 기존 이름과 혼동하지 않으며, 같은 이름의 member 교체는 같은 owner를 remove/add로 재생성한다.
+SQLite의 intent hash도 이름·member 순서·모든 중첩 경계의 제약을 포함한다. FK remake는 해당 operation의 After에 남은 named index를 복원한다.
+
+PostgreSQL은 한 CREATE TABLE 안의 같은 column UNIQUE 선언을 병합할 수 있다. 따라서 CreateModel은 table/column/PK/FK DDL 뒤
+각 named UNIQUE를 별도 ALTER TABLE로 추가하는 ordered statement group이다. 이름별 삭제·역방향에 필요한 독립 constraint/index를 유지한다.
+모든 body가 끝난 뒤에만 cursor를 전진하고, 후반 오류는 table·먼저 생성된 제약·sequence·bootstrap/recorder까지 같은 transaction에서 rollback한다.
+Catalog는 전체 ordered member와 PK·FK·column Unique·다른 named 제약의 독립 소유권을 검증한다.
+일반 미선언 index를 묵시적으로 채택하거나 제거하지 않는다. 독립 Django 기준의 ordinary-index 보존 관찰은 일반 index 선언/ownership의 후속 범위다.
 전체 제품 지원과 검증은 활성 work에서 이어가며 실행 결과는 TEST_EVIDENCE에만 기록한다.
 
 이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.
 실행 source와 환경별 결과는 TEST_EVIDENCE가 소유하며 이후 변경의 검증으로 옮겨 쓰지 않는다.
 
-Composite/conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
+Named composite의 ORM·소비자 연결, conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 명시적 OneToOne의 후속 의미와 현재 구현 범위는 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.
 이 ADR의 양 DB 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.

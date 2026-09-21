@@ -3,6 +3,42 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — 양 DB native named constraint와 전체 key ownership
+
+2026-09-22, 기준 `47a1526bba09099f68250a27510b72956a92a656` 위 Go 코드·검사 **25경로**의 source map SHA256은
+`21cb88133590911f852332ea0e024983a5551928d08dccfc6379fd69e6b599a7`이다. 환경은 Go 1.26.5/Darwin arm64, SQLite 3.53.3, PostgreSQL 17.5(Homebrew)다.
+선언된 ordered logical members를 실제 storage column으로 해석하며, field Unique와 model constraint는 별도 이름 domain을 사용한다.
+SQLite index_xinfo의 모든 key·rowid, PostgreSQL conkey/indkey 및 key별 collation·operator class·정렬 option을 검사한다.
+PostgreSQL의 catalog 자료형에서 첫 field 전용 상태를 제거하고 bounded 전체 key 조회로 바꾸었다.
+
+기본 회귀 명령은 `go test -json -count=1 -timeout=10m -skip '^TestPostgresRevisionFenceHelperProcess$' ./db/sqlite ./db/postgres ./migrations/... ./internal/migrationgraph ./internal/migrationautodetect ./internal/uniquetest`이다.
+격리된 실제 PostgreSQL DB와 `GODJ_REQUIRE_POSTGRES=1`을 사용하여 **9 package / 5,962 run=PASS / skip 0**, 필수 parent **21개**를 확인했다.
+새 named constraint와 physical projection의 집중 `-race`, `CGO_ENABLED=0`은 **각 4 package / 89 run=PASS / skip 0**, 필수 parent **20개**다.
+모든 실행의 시작·종료·package/parent inventory와 source 불변을 확인했다. 네 project generated drift·checked-in relation product와 affected vet도 통과했다.
+
+처음의 회귀 명령은 helper를 일반 프로세스에서 호출하여 5,962 PASS와 helper skip 1을 기록했고 no-skip inventory 검사에 실패했다.
+현재 명령은 독립 실행할 수 없는 helper entry만 일반 검색에서 제외한다. `TestPostgresRevisionFenceCrossProcessIntegration`을 필수 owner로 포함하고,
+그 부모가 명시적 child argv·helper 환경·READY/RELEASE pipe로 실제 별도 프로세스를 실행하고 성공 종료를 확인한다. Helper 검증을 생략한 결과가 아니다.
+
+검사에는 12 scalar 종류의 13 profile에서 같은/다른 bucket·각 SQL NULL 조합·self/update·동시 쓰기와 선행 쓰기 rollback,
+PK member·named single·column Unique의 독립 소유권, 동일 이름 member 순서 교체·rename와 역방향이 포함된다.
+기존 중복으로 AddConstraint가 실패하면 앞선 AddField까지 rollback되고 row·catalog·sequence·revision/recorder가 유지되며 명시적 data 수정 뒤 재시도한다.
+RemoveConstraint의 역방향 충돌도 같은 경계를 검증했다. 두 번째 key의 column/순서/DESC/collation/operator class와 transitive target drift는 DB 변경 전에 거부한다.
+SQLite에서는 FK 제거 전에 dependent constraint를 제거하고 remake 뒤 남은 named tuple·행·sequence high water를 복원한다.
+재생성의 늦은 실패는 앞선 constraint 제거까지 rollback하며 이후 정상 재시도가 가능하다.
+
+첫 집중 native 검사는 PostgreSQL의 column Unique와 동일 member named single이 CREATE TABLE에서 합쳐져 expected 5개 중 4개 constraint만 남는 문제를 찾았다.
+독립 SQL probe로 inline 병합과 별도 ALTER의 독립 생성을 확인한 뒤, CreateModel을 table DDL과 named ALTER들의 한 operation group으로 바꿨다.
+그 후 이름별 독립 제거가 통과했고, 마지막 constraint의 의도적 충돌은 먼저 생성한 table·index·sequence·bootstrap까지 rollback했다.
+수정 후 집중 검사 87건이 통과했으며 transitive 두 검사를 더해 위 normal/race/CGO=0 checkpoint를 완료했다.
+편집 중 compile 오류·첫 native 실패와 helper inventory 실패는 원본 로그에 보존하며 현재 PASS에 합치지 않는다.
+
+Artifact root는 `godj-composite-uniqueness-9yzkn6xp/native/`이며 `latest-normal-path`, `latest-race-path`, `latest-cgo0-path`가 현재 실행을 가리킨다.
+각 폴더에 source·command·전체 JSON events·stderr·required/package inventory·receipt를 보관하고, `verification-summary.json`·`environment.json`,
+`postgres-duplicate-inline-constraints-probe.sql/.stdout/.stderr`, `generate-check.*`, `vet.*`에 범위와 원본을 보관했다.
+이 검증은 named native 동작과 명시한 로컬 회귀 범위다. ORM 복합 사전 검증·Label 소비자·GDJ-0097 전체 통합 및 Hosted full은 미완료다.
+Django reference의 일반 ordinary index는 현재 GoDj의 미선언 index로서 drift이며, 일반 index ownership을 구현한 결과로 주장하지 않는다.
+
 ## GDJ-0097 — 제약 추가·제거 이력과 자동 계획
 
 2026-09-22, 기준 `b48ec639fa4771ba18415d6c2ed797d878be69ec` 위 Go 코드·검사 **34경로**의 source map SHA256은

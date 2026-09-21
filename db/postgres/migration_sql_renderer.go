@@ -54,10 +54,10 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField {
+		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint {
 			return nil, migrationbackend.NewCapabilityError(
 				"postgres_migration_sql",
-				"current SQL projection supports forward CreateModel, AddField and supported AlterField deltas",
+				"current SQL projection supports forward model, field and named constraint changes",
 				nil,
 			)
 		}
@@ -85,6 +85,12 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		operation := prepared.intent.Operations[index]
 		var statement string
 		switch operation.Kind {
+		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
+			constraint, deltaErr := operation.ChangedConstraint()
+			if deltaErr != nil {
+				return nil, postgresMigrationIntentIntegrity("invalid constraint delta", deltaErr)
+			}
+			statement, err = compilePostgresNamedUniqueAlter(renderer.schema, operation.Before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint)
 		case migrationbackend.MigrationAlterField:
 			before, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {
@@ -99,11 +105,15 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 				statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)
 			}
 		case migrationbackend.MigrationCreateModel:
-			statement, err = compilePostgresMigrationCreateModel(
+			groups[index], err = compilePostgresMigrationCreateModel(
 				renderer.schema,
 				operation.After,
 				operation.Targets,
 			)
+			if err != nil {
+				return nil, err
+			}
+			continue
 		case migrationbackend.MigrationAddField:
 			field, deltaErr := operation.ChangedField()
 			if deltaErr != nil {

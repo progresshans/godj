@@ -13,7 +13,8 @@ OneToOne과 ServiceReport의 migration·Form/Admin/API/OpenAPI·독립 client �
 
 GDJ-0097의 복합 고유성은 선언·생성 metadata·project wire와 CreateModel/AddConstraint/RemoveConstraint 이력에 반영했다.
 제약 교체·역방향·순환 FK 의존성과 중단 뒤 동일한 계획 재개를 연결하고 독립 Django의 해당 변경 관찰과 대조했다.
-양 DB의 named constraint 실행은 아직 명시적으로 거부한다. Native ownership·ORM과 Label 소비자는 미완료다.
+양 DB의 named constraint native 적용·모든 key의 catalog 검증·독립 이름 소유권과 실패 rollback을 연결했다.
+SQLite remake의 남은 제약·행·sequence 보존과 PostgreSQL의 중복 제약 병합 방지도 검증했다. ORM 사전 검증과 Label 소비자는 미완료다.
 Form이 제외한 Category도 저장 시 전체 조합에 포함해야 한다.
 
 지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
@@ -22,7 +23,7 @@ Form이 제외한 Category도 저장 시 전체 조합에 포함해야 한다.
 
 ## 다음 행동
 
-복합 제약의 양 DB native ownership·실행·rollback과 ORM 사전 검증을 구현하고,
+복합 제약의 ORM 사전 검증을 전체 저장 candidate와 self exclusion에 연결하고,
 Category별 Label의 Form/Admin/API/client로 연결한다. 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.

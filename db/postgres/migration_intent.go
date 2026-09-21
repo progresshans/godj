@@ -375,9 +375,6 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 }
 
 func validateExactPostgresMigrationModel(model ir.Model) error {
-	if len(model.UniqueConstraints) != 0 {
-		return migrationbackend.NewCapabilityError("named_unique_constraints", "named model constraints require native constraint ownership before migration execution", nil)
-	}
 	if reflect.DeepEqual(model, ir.Model{}) {
 		return postgresMigrationIntentIntegrity("migration model is zero", nil)
 	}
@@ -498,6 +495,19 @@ func registerPostgresModelDerivedNames(
 			return postgresMigrationIntentIntegrity("derive PostgreSQL unique constraint", err)
 		}
 		owner := model.DBTable + "." + field.Column + " unique"
+		if err := registerPostgresConstraintName(constraintOwners, name, owner); err != nil {
+			return err
+		}
+		if err := registerPostgresRelationName(relationOwners, name, owner+" index"); err != nil {
+			return err
+		}
+	}
+	for _, constraint := range model.UniqueConstraints {
+		name, err := postgresNamedUniqueConstraintName(model.DBTable, constraint.Name)
+		if err != nil {
+			return postgresMigrationIntentIntegrity("derive PostgreSQL named unique constraint", err)
+		}
+		owner := model.DBTable + ".<constraint:" + constraint.Name + ">"
 		if err := registerPostgresConstraintName(constraintOwners, name, owner); err != nil {
 			return err
 		}

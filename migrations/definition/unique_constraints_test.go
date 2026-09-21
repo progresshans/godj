@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -182,7 +181,7 @@ func TestNamedUniqueEncodingChecksConstraintResourcesBeforeClone(t *testing.T) {
 	}
 }
 
-func TestNamedUniquePhysicalProjectionCannotSilentlyDropPendingConstraints(t *testing.T) {
+func TestNamedUniquePhysicalProjectionCreatesAndRemovesExactConstraints(t *testing.T) {
 	for name, renderer := range map[string]backend.MigrationSQLRenderer{
 		"sqlite":   sqlite.NewMigrationSQLRenderer(),
 		"postgres": postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"}),
@@ -218,14 +217,29 @@ func TestNamedUniquePhysicalProjectionCannotSilentlyDropPendingConstraints(t *te
 						t.Fatal(err)
 					}
 					statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, history[len(history)-1].Key(), renderer)
-					if mode != "plain" {
-						var rejected *migrations.MigrationSQLError
-						if !errors.As(err, &rejected) || rejected.Category != migrations.CategoryCapability || rejected.Code != migrations.CodeUnsupported || statements != nil {
-							t.Fatal("pending physical ownership was omitted from projection", err)
-						}
-					} else if err != nil || len(statements) == 0 {
-						t.Fatal("plain-model control failed", err)
+					if err != nil || len(statements) == 0 {
+						t.Fatal("physical named constraint projection failed", err)
 					}
+					joined := strings.Join(statements, "\n")
+					if mode == "create" {
+						if strings.Count(joined, " UNIQUE ") != 2 || !strings.Contains(joined, `("category", "name")`) {
+							t.Fatal("CreateModel omitted or reordered named members", joined)
+						}
+					} else if mode == "add" {
+						if len(statements) != 1 || !strings.Contains(joined, `("category", "name")`) || !strings.Contains(joined, " UNIQUE ") {
+							t.Fatal("AddConstraint lost its physical tuple", joined)
+						}
+					} else if mode == "remove" {
+						if len(statements) != 1 || !strings.Contains(joined, "DROP ") || strings.Contains(joined, "DROP TABLE") || strings.Contains(joined, "DROP COLUMN") {
+							t.Fatal("RemoveConstraint changed a table or column", joined)
+						}
+						if name == "postgres" && !strings.HasSuffix(joined, " RESTRICT") {
+							t.Fatal("constraint drop lost RESTRICT")
+						}
+					} else if strings.Contains(joined, "UNIQUE") {
+						t.Fatal("plain control unexpectedly constrained")
+					}
+
 				})
 			}
 		})

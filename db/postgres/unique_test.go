@@ -38,7 +38,7 @@ func TestPostgresUniqueCatalogRequiresExactConstraintAndIndex(t *testing.T) {
 		"invalid":               func(c *postgresMigrationTableCatalog) { c.indexes[1].valid = false },
 		"not ready":             func(c *postgresMigrationTableCatalog) { c.indexes[1].ready = false },
 		"not live":              func(c *postgresMigrationTableCatalog) { c.indexes[1].live = false },
-		"other column":          func(c *postgresMigrationTableCatalog) { c.indexes[1].firstAttributeNumber = 1 },
+		"other column":          func(c *postgresMigrationTableCatalog) { c.indexes[1].keys[0].attributeNumber = 1 },
 		"compound":              func(c *postgresMigrationTableCatalog) { c.indexes[1].keyCount = 2 },
 		"included":              func(c *postgresMigrationTableCatalog) { c.indexes[1].totalCount = 2 },
 		"partial":               func(c *postgresMigrationTableCatalog) { c.indexes[1].hasPredicate = true },
@@ -46,12 +46,12 @@ func TestPostgresUniqueCatalogRequiresExactConstraintAndIndex(t *testing.T) {
 		"nulls not distinct":    func(c *postgresMigrationTableCatalog) { c.indexes[1].nullsNotDistinct = true },
 		"exclusion":             func(c *postgresMigrationTableCatalog) { c.indexes[1].exclusion = true },
 		"non btree":             func(c *postgresMigrationTableCatalog) { c.indexes[1].accessMethod = "hash" },
-		"ordering":              func(c *postgresMigrationTableCatalog) { c.indexes[1].columnOptions = 1 },
-		"collation":             func(c *postgresMigrationTableCatalog) { c.indexes[1].columnCollation = false },
-		"custom opclass schema": func(c *postgresMigrationTableCatalog) { c.indexes[1].operatorClassSchema = "public" },
-		"pattern opclass":       func(c *postgresMigrationTableCatalog) { c.indexes[1].operatorClassName = "text_pattern_ops" },
-		"nondefault opclass":    func(c *postgresMigrationTableCatalog) { c.indexes[1].operatorClassDefault = false },
-		"wrong opclass method":  func(c *postgresMigrationTableCatalog) { c.indexes[1].operatorClassMethod = false },
+		"ordering":              func(c *postgresMigrationTableCatalog) { c.indexes[1].keys[0].columnOptions = 1 },
+		"collation":             func(c *postgresMigrationTableCatalog) { c.indexes[1].keys[0].columnCollation = false },
+		"custom opclass schema": func(c *postgresMigrationTableCatalog) { c.indexes[1].keys[0].operatorClassSchema = "public" },
+		"pattern opclass":       func(c *postgresMigrationTableCatalog) { c.indexes[1].keys[0].operatorClassName = "text_pattern_ops" },
+		"nondefault opclass":    func(c *postgresMigrationTableCatalog) { c.indexes[1].keys[0].operatorClassDefault = false },
+		"wrong opclass method":  func(c *postgresMigrationTableCatalog) { c.indexes[1].keys[0].operatorClassMethod = false },
 		"storage options":       func(c *postgresMigrationTableCatalog) { c.indexes[1].options = 1 },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -112,12 +112,15 @@ func TestPostgresUniqueSQLProjectionRequiresPhysicalChanges(t *testing.T) {
 			t.Fatal("unique addition lost its constraint")
 		}
 	}
-	for _, compile := range []func() (string, error){
-		func() (string, error) { return compilePostgresMigrationCreateModel("public", unique, nil) },
-		func() (string, error) { return compilePostgresMigrationAddField("public", plain, field, nil) },
+	for _, compile := range []func() ([]string, error){
+		func() ([]string, error) { return compilePostgresMigrationCreateModel("public", unique, nil) },
+		func() ([]string, error) {
+			statement, err := compilePostgresMigrationAddField("public", plain, field, nil)
+			return []string{statement}, err
+		},
 	} {
 		statement, err := compile()
-		if err != nil || !strings.Contains(statement, " UNIQUE (") {
+		if err != nil || !strings.Contains(strings.Join(statement, "\n"), " UNIQUE (") {
 			t.Fatalf("direct compiler discarded unique: %q %v", statement, err)
 		}
 	}

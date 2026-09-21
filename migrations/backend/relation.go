@@ -13,7 +13,7 @@ type MigrationCapabilities struct {
 	AlterFieldDecimalPrecision        bool
 	AlterFieldRelation                bool
 	// UniqueConstraints covers mutation and physical verification of declared
-	// column uniqueness, including retained target and transitive models.
+	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool
 }
 

@@ -35,7 +35,7 @@ func TestPostgresMigrationCatalogLogicalOrderDoesNotChangePhysicalAuthority(t *t
 		func(c *postgresMigrationTableCatalog) { c.columns[1].attributeNumber = c.attributeSlots + 1 },
 		func(c *postgresMigrationTableCatalog) { c.columns[len(c.columns)-1].typeName = "text" },
 		func(c *postgresMigrationTableCatalog) {
-			c.constraints[1].sourceAttributeNumber = c.columns[0].attributeNumber
+			c.constraints[1].sourceAttributes[0] = c.columns[0].attributeNumber
 		},
 	} {
 		bad := clonePostgresMigrationTestCatalog(catalog)
@@ -122,7 +122,7 @@ func TestAssertPostgresMigrationModelCatalogAllowsDroppedAttributeGaps(t *testin
 	catalog.columns[2].attributeNumber = 4
 	catalog.columns[3].attributeNumber = 5
 	catalog.attributeSlots = 5
-	catalog.constraints[1].sourceAttributeNumber = 5
+	catalog.constraints[1].sourceAttributes[0] = 5
 	if err := assertPostgresMigrationModelCatalog(catalog, "product_schema", model, []migrationbackend.MigrationTarget{target}); err != nil {
 		t.Fatalf("catalog with native DROP COLUMN tombstone = %v", err)
 	}
@@ -254,13 +254,13 @@ func postgresMigrationTestCatalog(
 	})
 	catalog.constraints = append(catalog.constraints, postgresMigrationConstraintCatalog{
 		oid: 200, name: primaryName, kind: "p", validated: true,
-		sourceKeyCount: 1, sourceAttributeNumber: primaryAttribute, indexOID: 300,
+		sourceKeyCount: 1, sourceAttributes: []int{primaryAttribute}, indexOID: 300,
 	})
 	catalog.indexes = append(catalog.indexes, postgresMigrationIndexCatalog{
 		oid: 300, name: primaryName, primary: true, unique: true, valid: true, ready: true, live: true,
-		keyCount: 1, totalCount: 1, firstAttributeNumber: primaryAttribute,
-		immediate: true, accessMethod: "btree", columnCollation: true,
-		operatorClassSchema: "pg_catalog", operatorClassName: "int8_ops", operatorClassDefault: true, operatorClassMethod: true,
+		keyCount: 1, totalCount: 1, vectorsExact: true,
+		immediate: true, accessMethod: "btree", keys: []postgresMigrationIndexKey{{attributeNumber: primaryAttribute, columnCollation: true,
+			operatorClassSchema: "pg_catalog", operatorClassName: "int8_ops", operatorClassDefault: true, operatorClassMethod: true}},
 	})
 	for index, field := range model.Fields {
 		if !field.Unique {
@@ -274,14 +274,40 @@ func postgresMigrationTestCatalog(
 		indexOID := int64(601 + index*2)
 		catalog.constraints = append(catalog.constraints, postgresMigrationConstraintCatalog{
 			oid: indexOID - 1, name: name, kind: "u", validated: true,
-			sourceKeyCount: 1, sourceAttributeNumber: attribute, indexOID: indexOID,
+			sourceKeyCount: 1, sourceAttributes: []int{attribute}, indexOID: indexOID,
 		})
 		catalog.indexes = append(catalog.indexes, postgresMigrationIndexCatalog{
 			oid: indexOID, name: name, unique: true, valid: true, ready: true, live: true,
-			keyCount: 1, totalCount: 1, firstAttributeNumber: attribute, immediate: true,
-			accessMethod: "btree", columnCollation: true, operatorClassSchema: "pg_catalog",
-			operatorClassName: postgresBtreeOperatorClass(field.Kind), operatorClassDefault: true, operatorClassMethod: true,
+			keyCount: 1, totalCount: 1, vectorsExact: true, immediate: true,
+			accessMethod: "btree", keys: []postgresMigrationIndexKey{{attributeNumber: attribute, columnCollation: true, operatorClassSchema: "pg_catalog",
+				operatorClassName: postgresBtreeOperatorClass(field.Kind), operatorClassDefault: true, operatorClassMethod: true}},
 		})
+	}
+	for index, constraint := range model.UniqueConstraints {
+		name, err := postgresNamedUniqueConstraintName(model.DBTable, constraint.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var attributes []int
+		var keys []postgresMigrationIndexKey
+		for _, member := range constraint.Fields {
+			found := false
+			for _, field := range model.Fields {
+				if field.Name != member {
+					continue
+				}
+				found = true
+				attribute := postgresMigrationCatalogAttributeNumber(catalog, field.Column)
+				attributes = append(attributes, attribute)
+				keys = append(keys, postgresMigrationIndexKey{attributeNumber: attribute, columnCollation: true, operatorClassSchema: "pg_catalog", operatorClassName: postgresBtreeOperatorClass(field.Kind), operatorClassDefault: true, operatorClassMethod: true})
+			}
+			if !found {
+				t.Fatal("test constraint has unknown member")
+			}
+		}
+		indexOID := int64(100001 + index*2)
+		catalog.constraints = append(catalog.constraints, postgresMigrationConstraintCatalog{oid: indexOID - 1, name: name, kind: "u", validated: true, sourceKeyCount: len(keys), sourceAttributes: attributes, indexOID: indexOID})
+		catalog.indexes = append(catalog.indexes, postgresMigrationIndexCatalog{oid: indexOID, name: name, unique: true, valid: true, ready: true, live: true, keyCount: len(keys), totalCount: len(keys), vectorsExact: true, immediate: true, accessMethod: "btree", keys: keys})
 	}
 	for index := range targets {
 		target := targets[index]
@@ -291,7 +317,7 @@ func postgresMigrationTestCatalog(
 		}
 		catalog.constraints = append(catalog.constraints, postgresMigrationConstraintCatalog{
 			oid: int64(201 + index), name: name, kind: "f", validated: true,
-			sourceKeyCount: 1, sourceAttributeNumber: postgresMigrationFieldAttributeNumber(model, target.SourceField.Column),
+			sourceKeyCount: 1, sourceAttributes: []int{postgresMigrationFieldAttributeNumber(model, target.SourceField.Column)},
 			targetOID: 400, targetSchema: namespace, targetTable: target.TargetModel.DBTable,
 			targetColumn: target.TargetKey.Column, targetKeyCount: 1,
 			targetAttributeNumber: postgresMigrationFieldAttributeNumber(target.TargetModel, target.TargetKey.Column),
@@ -327,6 +353,12 @@ func clonePostgresMigrationTestCatalog(value postgresMigrationTableCatalog) post
 	value.columns = append([]postgresMigrationColumnCatalog(nil), value.columns...)
 	value.constraints = append([]postgresMigrationConstraintCatalog(nil), value.constraints...)
 	value.indexes = append([]postgresMigrationIndexCatalog(nil), value.indexes...)
+	for index := range value.constraints {
+		value.constraints[index].sourceAttributes = append([]int(nil), value.constraints[index].sourceAttributes...)
+	}
+	for index := range value.indexes {
+		value.indexes[index].keys = append([]postgresMigrationIndexKey(nil), value.indexes[index].keys...)
+	}
 	value.sequences = append([]postgresMigrationSequenceCatalog(nil), value.sequences...)
 	return value
 }

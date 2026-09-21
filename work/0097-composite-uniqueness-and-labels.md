@@ -23,9 +23,9 @@ Helpdesk의 각 Category에 라벨 사전을 두고 같은 Category 안에서만
 ## 구현 조건
 
 - [x] 독립 Django 기준: 같은/다른 Category의 중복, required/nullable 조합, self update·changed fields, 사전 검증·native 오류와 migration 실패/복구
-- [ ] Schema IR의 모델 단위 제약과 이름·field 순서·storage column 소유권, 생성 metadata·clone/equality/digest
-- [ ] historical definition·autodetect·create/add/remove/reverse, 기존 중복 실패 시 row·catalog·recorder/revision 보존
-- [ ] SQLite/PostgreSQL native 복합 UNIQUE와 물리 ownership 검증, table remake·named index/constraint·target schema 보존
+- [x] Schema IR의 모델 단위 제약과 이름·field 순서·storage column 소유권, 생성 metadata·clone/equality/digest
+- [x] historical definition·autodetect·create/add/remove/reverse, 기존 중복 실패 시 row·catalog·recorder/revision 보존
+- [x] SQLite/PostgreSQL native 복합 UNIQUE와 물리 ownership 검증, table remake·named index/constraint·target schema 보존
 - [ ] 공통 ORM 사전 검증과 self exclusion, 확인된 중복/실행 오류 구분·native race·취소·rollback/unknown outcome
 - [ ] Label 모델·migration·scoped Admin/API/OpenAPI/client와 명시적 permission·CSRF
 - [ ] generated drift·양 DB·관련 race/CGO/process와 필요한 통합 검증, source·환경별 증거와 제한 기록
@@ -40,13 +40,15 @@ Label의 Form/Admin/API/client 연결은 아직 구현하지 않았다. 고정 D
 `Model.UniqueConstraints`의 명시적 이름·논리 field 목록과 canonical name 순서, clone/equality/hash·생성 metadata·project wire를 코드에 반영했다.
 CreateModel의 현행 definition·digest·state replay와 intent의 깊은 복사도 제약을 보존한다. 필드 변경에 숨겨진 제약 변경과
 제약이 참조하는 field의 제거는 거부하며 wire·typed loader·intent의 resource 한도도 member를 계산한다.
-SQLite/PostgreSQL의 physical ownership은 아직 구현 중이다. 선언만 받아 제약을 빠뜨린 SQL을 생성하거나 실행하지 않도록 현재는 명시적으로 거부한다.
-이 전환용 거부는 native owner가 실제 제약·catalog·rollback을 검증할 수 있게 된 뒤 정상 실행으로 교체한다.
+SQLite/PostgreSQL의 physical ownership과 실제 제약 적용을 연결했고 전환용 거부를 정상 실행으로 교체했다.
+모든 ordered key·retained/transitive target을 검증한다. 미선언 index는 기존 정책대로 drift이며 일반 index 지원을 대신하지 않는다.
+PostgreSQL은 같은 column의 UNIQUE 선언을 CREATE TABLE에서 합칠 수 있어 named 제약을 별도 ALTER statement로 만들고 같은 operation/transaction에서 실행한다.
+단일·복합·column 제약의 독립 삭제, 순서·이름 교체와 역방향, 기존 중복의 실패/수정/재시도, 동시 쓰기, SQLite remake·늦은 실패 rollback을 검사했다.
 AddConstraint/RemoveConstraint는 논리 이름과 전체 historical member를 보존하며 wire·digest·typed loader·state·실행 인자와 SQL projection에 연결했다.
 이름·member·member 순서 변경은 remove/add, 목록 순서 변경은 no-op이며 새 field와 순환 FK를 기다리는 제약은 모든 member가 생긴 뒤에 추가한다.
 각 durable prefix를 다시 읽어도 남은 계획의 byte가 같음을 검사했다. 일반 forward field removal은 기존 미지원 범위이며 제약 제거만 부분 게시하지 않는다.
-다음은 양 DB native ownership과 실제 제약 추가·제거·remake·충돌 rollback을 연결하는 일이다. 선언 API의 최종 사용성은 Label의 전체 소비자에서 확인한다.
-현재 metadata 구현·단위 검사를 복합 고유성의 전체 제품 지원으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+다음은 ORM의 전체 candidate 사전 검증·self exclusion과 Label 소비자를 연결하는 일이다. 선언 API의 최종 사용성은 Label의 전체 소비자에서 확인한다.
+현재 선언·이력·native 구현을 복합 고유성의 전체 제품 연결이나 전체 플랫폼 검증으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 기존 내부 형식이나 테스트 모양을 보존하려고 별도의 호환 계층을 만들지 않는다.
 API 표면과 제약의 지원 범위는 실제 소비자·양 DB 실패 의미를 확인하면서 정하며, 사전 검사만으로 고유성을 보장하지 않는다.
 작업과 필요한 기반의 관계는 [로드맵](../docs/ROADMAP.md), 전체 완성 기준은 [헌장](../docs/CHARTER.md)이 소유한다.

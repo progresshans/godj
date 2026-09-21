@@ -31,13 +31,13 @@ func compilePostgresMigrationCreateModel(
 	namespace string,
 	model ir.Model,
 	targets []migrationbackend.MigrationTarget,
-) (string, error) {
+) ([]string, error) {
 	table, err := quoteTable(namespace, model.DBTable)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(model.Fields) == 0 {
-		return "", errors.New("PostgreSQL migration CreateModel fields are empty")
+		return nil, errors.New("PostgreSQL migration CreateModel fields are empty")
 	}
 	parts := make([]string, 0, len(model.Fields)+len(targets))
 	targetIndex := 0
@@ -45,13 +45,13 @@ func compilePostgresMigrationCreateModel(
 		field := model.Fields[fieldIndex]
 		column, err := compilePostgresMigrationColumnForTable(namespace, model.DBTable, field)
 		if err != nil {
-			return "", fmt.Errorf("compile PostgreSQL CreateModel %q field %d: %w", model.DBTable, fieldIndex, err)
+			return nil, fmt.Errorf("compile PostgreSQL CreateModel %q field %d: %w", model.DBTable, fieldIndex, err)
 		}
 		parts = append(parts, column)
 		if field.Unique {
 			constraint, err := compilePostgresUniqueConstraint(model.DBTable, field)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			parts = append(parts, constraint)
 		}
@@ -59,36 +59,47 @@ func compilePostgresMigrationCreateModel(
 			continue
 		}
 		if targetIndex >= len(targets) || !migrationFieldsEqual(targets[targetIndex].SourceField, field) {
-			return "", errors.New("PostgreSQL CreateModel target metadata is not in exact relation field order")
+			return nil, errors.New("PostgreSQL CreateModel target metadata is not in exact relation field order")
 		}
 		constraint, err := compilePostgresMigrationForeignKey(namespace, model.DBTable, targets[targetIndex])
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		parts = append(parts, constraint)
 		targetIndex++
 	}
 	if targetIndex != len(targets) {
-		return "", fmt.Errorf("PostgreSQL CreateModel has %d unused relation targets", len(targets)-targetIndex)
+		return nil, fmt.Errorf("PostgreSQL CreateModel has %d unused relation targets", len(targets)-targetIndex)
 	}
 	primaryKey, err := postgresMigrationPrimaryKey(model)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	primaryKeyName, err := postgresPrimaryKeyConstraintName(model.DBTable)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	quotedName, err := quoteIdentifier(primaryKeyName)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	quotedColumn, err := quoteIdentifier(primaryKey.Column)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	parts = append(parts, "CONSTRAINT "+quotedName+" PRIMARY KEY ("+quotedColumn+")")
-	return "CREATE TABLE " + table + " (" + strings.Join(parts, ", ") + ")", nil
+	statements := []string{"CREATE TABLE " + table + " (" + strings.Join(parts, ", ") + ")"}
+	// PostgreSQL merges redundant UNIQUE clauses inside CREATE TABLE, even
+	// when separately named. Separate ALTER statements preserve each logical
+	// owner's native constraint and index, atomically within this operation.
+	for _, constraint := range model.UniqueConstraints {
+		statement, err := compilePostgresNamedUniqueAlter(namespace, model, constraint, true)
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, statement)
+	}
+	return statements, nil
 }
 
 func compilePostgresMigrationDeleteModel(namespace string, model ir.Model) (string, error) {

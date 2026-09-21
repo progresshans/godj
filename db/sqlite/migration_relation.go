@@ -354,20 +354,6 @@ func validateAndSealSQLiteRelationIntent(
 	if err != nil {
 		return sqliteRelationIntentSeal{}, relationIntentIntegrity("%v", err)
 	}
-	// IR/history may carry the new declaration before the physical index
-	// owner is enabled. Every retained boundary must fail closed as well.
-	for _, operation := range pinned.Operations {
-		unsupported := len(operation.Before.UniqueConstraints) != 0 || len(operation.After.UniqueConstraints) != 0
-		for _, target := range operation.Targets {
-			unsupported = unsupported || len(target.TargetModel.UniqueConstraints) != 0
-		}
-		for _, related := range operation.RelatedModels {
-			unsupported = unsupported || len(related.Model.UniqueConstraints) != 0
-		}
-		if unsupported {
-			return sqliteRelationIntentSeal{}, migrationbackend.NewCapabilityError("named_unique_constraints", "named model constraints require native index ownership before migration execution", nil)
-		}
-	}
 	if err := validateSQLiteRelationIntent(transition, pinned, graphPlan); err != nil {
 		return sqliteRelationIntentSeal{}, err
 	}
@@ -492,6 +478,14 @@ func writeRelationModel(hash sqliteRelationHashWriter, model ir.Model) {
 	writeRelationSliceHeader(hash, model.Fields == nil, len(model.Fields))
 	for index := range model.Fields {
 		writeRelationField(hash, model.Fields[index])
+	}
+	writeRelationSliceHeader(hash, model.UniqueConstraints == nil, len(model.UniqueConstraints))
+	for _, constraint := range model.UniqueConstraints {
+		writeRelationString(hash, constraint.Name)
+		writeRelationSliceHeader(hash, constraint.Fields == nil, len(constraint.Fields))
+		for _, member := range constraint.Fields {
+			writeRelationString(hash, member)
+		}
 	}
 }
 
@@ -635,20 +629,19 @@ func validateSQLiteRelationIntent(
 			return relationIntentIntegrity("relation model names collide under SQLite identifier folding")
 		}
 		modelNames[modelKey] = identity
+		declared, err := sqliteModelUniqueIndexOwners(model)
+		if err != nil {
+			return err
+		}
+		for _, owner := range declared {
+			key := sqliteRelationIdentifierKey(owner.name)
+			if previous, exists := indexOwners[key]; exists && previous != owner {
+				return relationIntentIntegrity("unique index name has multiple declared owners")
+			}
+			indexOwners[key] = owner
+		}
 		columns := make(map[string]bool, len(model.Fields))
 		for _, field := range model.Fields {
-			if field.Unique {
-				name, err := sqliteUniqueIndexName(model.DBTable, field.Column)
-				if err != nil {
-					return err
-				}
-				key := sqliteRelationIdentifierKey(name)
-				owner := sqliteUniqueIndexOwner{name, model.DBTable, field.Column}
-				if previous, exists := indexOwners[key]; exists && previous != owner {
-					return relationIntentIntegrity("unique index name has multiple declared owners")
-				}
-				indexOwners[key] = owner
-			}
 			column := sqliteRelationIdentifierKey(field.Column)
 			if columns[column] {
 				return relationIntentIntegrity("relation model %q repeats SQLite column %q", model.Name, field.Column)
@@ -702,6 +695,16 @@ func validateSQLiteRelationIntent(
 			if _, err := validateSQLiteRelationRemoveDelta(before, after); err != nil {
 				return relationIntentIntegrity("relation RemoveField operation %d: %v", operation.OperationIndex, err)
 			}
+		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
+			if err := validateExactNormalizedRelationModel(before); err != nil {
+				return err
+			}
+			if err := validateExactNormalizedRelationModel(after); err != nil {
+				return err
+			}
+			if _, err := operation.ChangedConstraint(); err != nil {
+				return relationIntentIntegrity("invalid named constraint delta: %v", err)
+			}
 		case migrationbackend.MigrationAlterField:
 			if err := validateSQLiteFieldDelta(before, after); err != nil {
 				return relationIntentIntegrity("AlterField operation %d has an invalid field delta: %v", operation.OperationIndex, err)
@@ -747,6 +750,14 @@ func validateSQLiteRelationStaticOperation(
 	after ir.Model,
 ) error {
 	switch operation.Kind {
+	case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
+		constraint, err := operation.ChangedConstraint()
+		if err != nil {
+			return relationIntentIntegrity("invalid constraint delta: %v", err)
+		}
+		if _, err := compileSQLiteNamedUniqueAlter(before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint); err != nil {
+			return relationIntentUnsupported("named constraint cannot compile safely: %v", err)
+		}
 	case migrationbackend.MigrationCreateModel:
 		if _, err := compileSQLiteCreateModelStatements(after, operation.Targets); err != nil {
 			return relationIntentUnsupported("relation CreateModel operation %d cannot compile safely: %v", operation.OperationIndex, err)

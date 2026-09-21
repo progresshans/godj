@@ -37,10 +37,10 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField {
+		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint {
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",
-				"current SQL projection supports forward CreateModel, AddField and supported AlterField deltas",
+				"current SQL projection supports forward model, field and named constraint changes",
 				nil,
 			)
 		}
@@ -67,6 +67,14 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		}
 		operation := seal.intent.Operations[index]
 		switch operation.Kind {
+		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
+			constraint, deltaErr := operation.ChangedConstraint()
+			if deltaErr != nil {
+				return nil, relationIntentIntegrity("invalid constraint delta: %v", deltaErr)
+			}
+			var statement string
+			statement, err = compileSQLiteNamedUniqueAlter(operation.Before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint)
+			groups[index] = []string{statement}
 		case migrationbackend.MigrationAlterField:
 			before, field, _, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {

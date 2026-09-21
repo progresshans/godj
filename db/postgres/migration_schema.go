@@ -169,12 +169,14 @@ func (schema *postgresMigrationSchema) CreateModel(
 	if !reflect.DeepEqual(model, operation.After) {
 		return postgresMigrationIntentIntegrity("CreateModel arguments differ from the sealed migration operation", nil)
 	}
-	statement, err := compilePostgresMigrationCreateModel(schema.namespace, operation.After, operation.Targets)
+	statements, err := compilePostgresMigrationCreateModel(schema.namespace, operation.After, operation.Targets)
 	if err != nil {
 		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL CreateModel", err)
 	}
-	if _, err := executor.ExecContext(ctx, statement); err != nil {
-		return classifyPostgresRevisionContention(ctx, "create PostgreSQL model "+model.DBTable, err)
+	for _, statement := range statements {
+		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			return classifyPostgresRevisionContention(ctx, "create PostgreSQL model "+model.DBTable, err)
+		}
 	}
 	schema.cursor++
 	return nil

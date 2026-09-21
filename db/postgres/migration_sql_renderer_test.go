@@ -40,7 +40,7 @@ func TestPostgresMigrationSQLRendererMatchesExecutionCompilers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := [][]string{{create}, {add}}
+	want := [][]string{create, {add}}
 	if !reflect.DeepEqual(statements, want) {
 		t.Fatalf("rendered SQL = %#v, want compiler SQL %#v", statements, want)
 	}

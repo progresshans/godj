@@ -40,10 +40,10 @@ func TestCompilePostgresMigrationSQLUsesExplicitSchemaAndConstraints(t *testing.
 		`CONSTRAINT "` + foreignKeyName + `" FOREIGN KEY ("author_id") REFERENCES ` +
 		`"product_schema"."authors_author" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION NOT DEFERRABLE, ` +
 		`CONSTRAINT "` + primaryKeyName + `" PRIMARY KEY ("id"))`
-	if create != wantCreate {
+	if len(create) != 1 || create[0] != wantCreate {
 		t.Fatalf("CreateModel SQL = %q, want %q", create, wantCreate)
 	}
-	if strings.Contains(create, "search_path") || strings.Contains(create, "IF ") || strings.Contains(create, "CASCADE") {
+	if strings.Contains(strings.Join(create, "\n"), "search_path") || strings.Contains(strings.Join(create, "\n"), "IF ") || strings.Contains(strings.Join(create, "\n"), "CASCADE") {
 		t.Fatalf("CreateModel SQL contains an implicit or permissive clause: %q", create)
 	}
 

@@ -12,7 +12,7 @@
 | OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |
 | Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
-| Column uniqueness | named unique index·Create/Add/Alter와 reverse·remake 보존·정확한 catalog·insert/update 충돌 오류 | named UNIQUE·단일 B-tree·Create/Add/Alter와 reverse·정확한 catalog·insert/update 충돌 오류 |
+| Field/model uniqueness | column·named tuple unique index·Create/Add/Alter와 constraint Add/Remove·reverse·remake 보존·모든 key catalog | column·named tuple UNIQUE·독립 B-tree·Create/Add/Alter와 constraint Add/Remove·reverse·모든 key catalog |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
 | CGO | pure Go 경로 | pure Go 경로 |
 
@@ -26,10 +26,12 @@ nullable/time default·comparison/F·projection/Min/Max를 지원한다. [시간
 String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterField는 양 DB의 revision-fenced lifecycle에서 DDL 없이 상태·recorder를 갱신하며 물리 catalog 검증은 수행한다. [선택값 의미](adr/0063-model-choices-and-metadata-only-migrations.md)를 따른다.
 Column uniqueness는 `schema.Unique()`·IR·생성 metadata·historical definition/digest·자동 변경 계획까지 연결했다.
 PK는 이미 고유하므로 별도 Unique flag를 정규화하며, Unique FK는 many-to-one/reverse collection을 유지한다.
-양 DB는 column uniqueness의 `UniqueConstraints` capability를 제공하며 정확히 선언한 native constraint/index만 허용한다.
-GDJ-0097의 named model constraint는 선언·CreateModel/AddConstraint/RemoveConstraint 이력과 자동 계획에 반영했다. 양 DB의 native 실행은 아직 명시적으로 거부한다.
-이 metadata 지원을 복합 제약의 물리 검증·DDL 지원으로 합치지 않는다.
-SQLite는 별도 unique index의 BINARY ASC 단일 column과 rowid를 검사하며 FK remake에서 유지되는 index를 재생성한다.
+양 DB는 field·named model uniqueness의 `UniqueConstraints` capability를 제공하며 정확히 선언한 native constraint/index만 허용한다.
+Named model constraint의 CreateModel/AddConstraint/RemoveConstraint·역방향·자동 계획과 native 실행을 연결했다.
+SQLite는 별도 unique index의 모든 BINARY ASC key와 rowid를 검사하며 FK remake에서 유지되는 index를 재생성한다.
+PostgreSQL은 모든 conkey/indkey·방향·collation·operator class를 검사한다. CreateModel의 named 제약은 CREATE TABLE 뒤 별도 ALTER로 추가하여
+같은 field의 여러 선언도 native 이름별로 남긴다. 모든 statement는 같은 migration transaction과 operation에 속한다.
+ORM의 복합 사전 검증과 Label 소비자는 아직 구현 중이다.
 검증 대상인 모든 모델·direct/transitive target의 미선언 index는 거부한다. Legacy direct editor에는 이 capability를 확장하지 않는다.
 기존 중복으로 UNIQUE 추가/역방향 적용이 실패하면 행·catalog·revision/recorder를 보존하고 명시적 수정 후 재시도한다.
 Insert/update의 non-PK 충돌은 `integrity_error/unique_constraint`이며 native cause와 context 취소를 유지한다.

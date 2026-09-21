@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
@@ -58,7 +59,7 @@ type postgresMigrationConstraintCatalog struct {
 	deferred              bool
 	validated             bool
 	sourceKeyCount        int
-	sourceAttributeNumber int
+	sourceAttributes      []int
 	targetOID             int64
 	targetSchema          string
 	targetTable           string
@@ -94,29 +95,24 @@ type postgresMigrationSequenceCatalog struct {
 }
 
 type postgresMigrationIndexCatalog struct {
-	oid                  int64
-	name                 string
-	primary              bool
-	unique               bool
-	valid                bool
-	ready                bool
-	live                 bool
-	keyCount             int
-	totalCount           int
-	firstAttributeNumber int
-	hasPredicate         bool
-	hasExpressions       bool
-	nullsNotDistinct     bool
-	immediate            bool
-	exclusion            bool
-	accessMethod         string
-	columnOptions        int
-	columnCollation      bool
-	operatorClassSchema  string
-	operatorClassName    string
-	operatorClassDefault bool
-	operatorClassMethod  bool
-	options              int
+	oid              int64
+	name             string
+	primary          bool
+	unique           bool
+	valid            bool
+	ready            bool
+	live             bool
+	keyCount         int
+	totalCount       int
+	vectorsExact     bool
+	hasPredicate     bool
+	hasExpressions   bool
+	nullsNotDistinct bool
+	immediate        bool
+	exclusion        bool
+	accessMethod     string
+	keys             []postgresMigrationIndexKey
+	options          int
 }
 
 func loadPostgresMigrationTableCatalog(
@@ -253,13 +249,13 @@ func readPostgresMigrationConstraints(
 	executor migrationSQLExecutor,
 	tableOID int64,
 ) ([]postgresMigrationConstraintCatalog, error) {
-	return queryPostgresCatalogRows(ctx, "application constraints", postgresMigrationMaxFields+1, func() (*sql.Rows, error) {
+	constraints, err := queryPostgresCatalogRows(ctx, "application constraints", postgresMigrationMaxCatalogConstraints, func() (*sql.Rows, error) {
 		return executor.QueryContext(
 			ctx,
 			`SELECT "k"."oid"::bigint, "k"."conname", "k"."contype"::text, `+
 				`"k"."condeferrable", "k"."condeferred", "k"."convalidated", `+
 				`COALESCE("pg_catalog"."cardinality"("k"."conkey"), 0), `+
-				`COALESCE("k"."conkey"[1]::integer, 0), "k"."confrelid"::bigint, `+
+				`"k"."confrelid"::bigint, `+
 				`COALESCE("tn"."nspname", ''), COALESCE("tc"."relname", ''), `+
 				`COALESCE("ta"."attname", ''), `+
 				`COALESCE("pg_catalog"."cardinality"("k"."confkey"), 0), `+
@@ -278,7 +274,7 @@ func readPostgresMigrationConstraints(
 				`ON "ta"."attrelid" = "k"."confrelid" AND "ta"."attnum" = "k"."confkey"[1] `+
 				`WHERE "k"."conrelid" = $1 ORDER BY "k"."conname" LIMIT $2`,
 			tableOID,
-			postgresMigrationMaxFields+2,
+			postgresMigrationMaxCatalogConstraints+1,
 		)
 	}, func(rows *sql.Rows) (postgresMigrationConstraintCatalog, error) {
 		var constraint postgresMigrationConstraintCatalog
@@ -290,7 +286,6 @@ func readPostgresMigrationConstraints(
 			&constraint.deferred,
 			&constraint.validated,
 			&constraint.sourceKeyCount,
-			&constraint.sourceAttributeNumber,
 			&constraint.targetOID,
 			&constraint.targetSchema,
 			&constraint.targetTable,
@@ -306,66 +301,43 @@ func readPostgresMigrationConstraints(
 		)
 		return constraint, err
 	})
+	if err != nil {
+		return nil, err
+	}
+	if err := readPostgresMigrationConstraintKeys(ctx, executor, tableOID, constraints); err != nil {
+		return nil, err
+	}
+	return constraints, nil
 }
 
-func readPostgresMigrationIndexes(
-	ctx context.Context,
-	executor migrationSQLExecutor,
-	tableOID int64,
-) ([]postgresMigrationIndexCatalog, error) {
-	return queryPostgresCatalogRows(ctx, "application indexes", postgresMigrationMaxFields+1, func() (*sql.Rows, error) {
-		return executor.QueryContext(
-			ctx,
+func readPostgresMigrationIndexes(ctx context.Context, executor migrationSQLExecutor, tableOID int64) ([]postgresMigrationIndexCatalog, error) {
+	indexes, err := queryPostgresCatalogRows(ctx, "application indexes", postgresMigrationMaxCatalogIndexes, func() (*sql.Rows, error) {
+		return executor.QueryContext(ctx,
 			`SELECT "ic"."oid"::bigint, "ic"."relname", "i"."indisprimary", "i"."indisunique", `+
-				`"i"."indisvalid", "i"."indisready", "i"."indislive", `+
-				`"i"."indnkeyatts"::integer, "i"."indnatts"::integer, `+
-				`COALESCE("i"."indkey"[0]::integer, 0), `+
-				`("i"."indpred" IS NOT NULL), ("i"."indexprs" IS NOT NULL), `+
-				`"i"."indnullsnotdistinct", "i"."indimmediate", "i"."indisexclusion", `+
-				`COALESCE("am"."amname", ''), COALESCE("i"."indoption"[0]::integer, -1), `+
-				`COALESCE("i"."indcollation"[0] = "a"."attcollation", false), `+
-				`COALESCE("on"."nspname", ''), COALESCE("o"."opcname", ''), `+
-				`COALESCE("o"."opcdefault", false), COALESCE("o"."opcmethod" = "ic"."relam", false), `+
-				`COALESCE("pg_catalog"."array_length"("ic"."reloptions", 1), 0) `+
-				`FROM "pg_catalog"."pg_index" AS "i" `+
-				`JOIN "pg_catalog"."pg_class" AS "ic" ON "ic"."oid" = "i"."indexrelid" `+
+				`"i"."indisvalid", "i"."indisready", "i"."indislive", "i"."indnkeyatts"::integer, "i"."indnatts"::integer, `+
+				`("pg_catalog"."cardinality"("i"."indkey") = "i"."indnatts" AND `+
+				`"pg_catalog"."cardinality"("i"."indclass") = "i"."indnkeyatts" AND `+
+				`"pg_catalog"."cardinality"("i"."indoption") = "i"."indnkeyatts" AND `+
+				`"pg_catalog"."cardinality"("i"."indcollation") = "i"."indnkeyatts"), `+
+				`("i"."indpred" IS NOT NULL), ("i"."indexprs" IS NOT NULL), "i"."indnullsnotdistinct", "i"."indimmediate", "i"."indisexclusion", `+
+				`COALESCE("am"."amname", ''), COALESCE("pg_catalog"."array_length"("ic"."reloptions", 1), 0) `+
+				`FROM "pg_catalog"."pg_index" AS "i" JOIN "pg_catalog"."pg_class" AS "ic" ON "ic"."oid" = "i"."indexrelid" `+
 				`LEFT JOIN "pg_catalog"."pg_am" AS "am" ON "am"."oid" = "ic"."relam" `+
-				`LEFT JOIN "pg_catalog"."pg_attribute" AS "a" ON "a"."attrelid" = "i"."indrelid" AND "a"."attnum" = "i"."indkey"[0] `+
-				`LEFT JOIN "pg_catalog"."pg_opclass" AS "o" ON "o"."oid" = "i"."indclass"[0] `+
-				`LEFT JOIN "pg_catalog"."pg_namespace" AS "on" ON "on"."oid" = "o"."opcnamespace" `+
-				`WHERE "i"."indrelid" = $1 ORDER BY "ic"."relname" LIMIT $2`,
-			tableOID,
-			postgresMigrationMaxFields+2,
-		)
+				`WHERE "i"."indrelid" = $1 ORDER BY "ic"."relname" LIMIT $2`, tableOID, postgresMigrationMaxCatalogIndexes+1)
 	}, func(rows *sql.Rows) (postgresMigrationIndexCatalog, error) {
 		var index postgresMigrationIndexCatalog
-		err := rows.Scan(
-			&index.oid,
-			&index.name,
-			&index.primary,
-			&index.unique,
-			&index.valid,
-			&index.ready,
-			&index.live,
-			&index.keyCount,
-			&index.totalCount,
-			&index.firstAttributeNumber,
-			&index.hasPredicate,
-			&index.hasExpressions,
-			&index.nullsNotDistinct,
-			&index.immediate,
-			&index.exclusion,
-			&index.accessMethod,
-			&index.columnOptions,
-			&index.columnCollation,
-			&index.operatorClassSchema,
-			&index.operatorClassName,
-			&index.operatorClassDefault,
-			&index.operatorClassMethod,
-			&index.options,
-		)
+		err := rows.Scan(&index.oid, &index.name, &index.primary, &index.unique, &index.valid, &index.ready, &index.live,
+			&index.keyCount, &index.totalCount, &index.vectorsExact, &index.hasPredicate, &index.hasExpressions, &index.nullsNotDistinct,
+			&index.immediate, &index.exclusion, &index.accessMethod, &index.options)
 		return index, err
 	})
+	if err != nil {
+		return nil, err
+	}
+	if err := readPostgresMigrationIndexKeys(ctx, executor, tableOID, indexes); err != nil {
+		return nil, err
+	}
+	return indexes, nil
 }
 
 func readPostgresMigrationSequences(
@@ -483,9 +455,9 @@ func assertPostgresMigrationModelCatalog(
 	}
 	expectedConstraints[primaryName] = postgresMigrationConstraintCatalog{
 		name: primaryName, kind: "p", validated: true, sourceKeyCount: 1,
-		sourceAttributeNumber: primaryAttribute,
+		sourceAttributes: []int{primaryAttribute},
 	}
-	indexFields := map[string]ir.Field{primaryName: primaryKey}
+	indexFields := map[string][]ir.Field{primaryName: {primaryKey}}
 	for _, field := range model.Fields {
 		if !field.Unique {
 			continue
@@ -496,9 +468,25 @@ func assertPostgresMigrationModelCatalog(
 		}
 		expectedConstraints[name] = postgresMigrationConstraintCatalog{
 			name: name, kind: "u", validated: true, sourceKeyCount: 1,
-			sourceAttributeNumber: postgresMigrationCatalogAttributeNumber(catalog, field.Column),
+			sourceAttributes: []int{postgresMigrationCatalogAttributeNumber(catalog, field.Column)},
 		}
-		indexFields[name] = field
+		indexFields[name] = []ir.Field{field}
+	}
+	for _, constraint := range model.UniqueConstraints {
+		name, err := postgresNamedUniqueConstraintName(model.DBTable, constraint.Name)
+		if err != nil {
+			return postgresMigrationIntentIntegrity("derive PostgreSQL named unique constraint", err)
+		}
+		fields, err := migrationbackend.UniqueConstraintFields(model, constraint)
+		if err != nil {
+			return postgresMigrationIntentIntegrity("resolve PostgreSQL named unique members", err)
+		}
+		attributes := make([]int, len(fields))
+		for position, field := range fields {
+			attributes[position] = postgresMigrationCatalogAttributeNumber(catalog, field.Column)
+		}
+		expectedConstraints[name] = postgresMigrationConstraintCatalog{name: name, kind: "u", validated: true, sourceKeyCount: len(fields), sourceAttributes: attributes}
+		indexFields[name] = fields
 	}
 	for index := range targets {
 		target := targets[index]
@@ -508,8 +496,8 @@ func assertPostgresMigrationModelCatalog(
 		}
 		expectedConstraints[name] = postgresMigrationConstraintCatalog{
 			name: name, kind: "f", validated: true, sourceKeyCount: 1,
-			sourceAttributeNumber: postgresMigrationCatalogAttributeNumber(catalog, target.SourceField.Column),
-			targetSchema:          namespace, targetTable: target.TargetModel.DBTable, targetKeyCount: 1,
+			sourceAttributes: []int{postgresMigrationCatalogAttributeNumber(catalog, target.SourceField.Column)},
+			targetSchema:     namespace, targetTable: target.TargetModel.DBTable, targetKeyCount: 1,
 			targetColumn: target.TargetKey.Column,
 			updateAction: "a", deleteAction: "a", matchType: "s",
 			internalTriggers: 4, enabledInternal: 4,
@@ -530,7 +518,7 @@ func assertPostgresMigrationModelCatalog(
 			return postgresMigrationCatalogDrift(model.DBTable, "constraint has no physical identity")
 		}
 		if actual.kind != expected.kind || actual.deferrable || actual.deferred || actual.validated != expected.validated ||
-			actual.sourceKeyCount != expected.sourceKeyCount || actual.sourceAttributeNumber != expected.sourceAttributeNumber {
+			actual.sourceKeyCount != expected.sourceKeyCount || len(actual.sourceAttributes) != actual.sourceKeyCount || !slices.Equal(actual.sourceAttributes, expected.sourceAttributes) {
 			return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("constraint %q has an unsupported source shape", actual.name))
 		}
 		switch actual.kind {
@@ -598,11 +586,11 @@ func assertPostgresMigrationTargetCatalog(
 	for index := range catalog.constraints {
 		constraint := catalog.constraints[index]
 		if constraint.name == primaryName && constraint.kind == "p" && !constraint.deferrable && !constraint.deferred &&
-			constraint.validated && constraint.sourceKeyCount == 1 && constraint.sourceAttributeNumber == attributeNumber &&
+			constraint.validated && constraint.sourceKeyCount == 1 && slices.Equal(constraint.sourceAttributes, []int{attributeNumber}) &&
 			constraint.indexOID > 0 && constraint.internalTriggers == 0 && constraint.enabledInternal == 0 {
 			for indexIndex := range catalog.indexes {
 				candidate := catalog.indexes[indexIndex]
-				if exactPostgresConstraintIndex(candidate, constraint, targetKey) {
+				if exactPostgresConstraintIndex(candidate, constraint, []ir.Field{targetKey}) {
 					return nil
 				}
 			}

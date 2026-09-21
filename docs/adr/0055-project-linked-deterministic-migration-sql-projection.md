@@ -24,6 +24,9 @@ Root는 callback 전에 고정한 group 규칙으로 수·위치를 검사한 �
 Uniqueness-only AlterField는 빈 body를 허용하지 않는다. PostgreSQL은 ADD/DROP CONSTRAINT body를 생성하고,
 SQLite는 CREATE UNIQUE INDEX/DROP INDEX body를 생성한다. SQLite Create/Add는 table/column DDL 뒤 별도 index DDL을
 같은 operation의 group에 담는다. 속성만 바꾸고 DB 제약이 빠진 SQL을 성공으로 출력하지 않는다.
+Named AddConstraint/RemoveConstraint도 비어 있지 않은 물리 group이다. PostgreSQL CreateModel은 중복 UNIQUE 병합을 피하기 위해
+named 제약마다 CREATE TABLE 뒤 별도 ALTER TABLE body를 같은 group에 둔다. SQLite도 모든 named index를 같은 Create group에 담는다.
+세부 소유권은 [ADR-0072](0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
 
 ## 맥락
 
