@@ -1,6 +1,6 @@
 ---
 id: GDJ-0096
-status: active
+status: completed
 updated: 2026-09-22
 baseline_commit: "42ae95d3b1a891e6a0692fb0399968e483f4d907"
 integration_owner: "root"
@@ -15,7 +15,7 @@ Helpdesk의 각 티켓에 작업 보고서를 0..1건 연결하고 생성·조�
 Category의 접근 범위와 명시적 읽기·쓰기 권한을 보고서의 관계 선택·역방향 조회·수정에도 유지한다.
 
 [카탈로그](../docs/CAPABILITY_CATALOG.md)의 OneToOne을 GDJ-0095가 제공한 양 DB의 column uniqueness 위에 연결한다.
-선언·이력·단일 reverse 객체와 작업 보고서의 전체 소비자를 구현했으며 통합 검증 milestone은 진행 중이다. FK에 Unique를 붙인 것만으로 reverse collection을 단일 객체로 바꾸지 않는다.
+선언·이력·단일 reverse 객체와 작업 보고서의 전체 소비자를 구현했으며 통합 검증 milestone까지 완료했다. FK에 Unique를 붙인 것만으로 reverse collection을 단일 객체로 바꾸지 않는다.
 이 구분은 [고유성 ADR](../docs/adr/0072-column-uniqueness-and-constraint-ownership.md)과 독립 Django 관찰에 근거한다.
 
 ## 구현 조건
@@ -30,7 +30,7 @@ Category의 접근 범위와 명시적 읽기·쓰기 권한을 보고서의 관
 - [x] facade reverse selector·문자열 mixed path, 지연 접근과 저장/형제 cache 보존
 - [x] 실제 작업 보고서의 migration·Form/Admin/API/OpenAPI/client, category·권한과 중복/실행 오류 구분
 - [x] 기반 cross-app 생성 소비자·양 DB·race/CGO 비활성·기존 생성 소비자/외부 compile·generated drift checkpoint
-- [ ] 위 소비자 전체를 연결한 source의 필요한 process·platform 통합 milestone
+- [x] 위 소비자 전체를 연결한 source의 필요한 process·platform 통합 milestone
 
 Schema IR이 관계 의미의 정본이다. 단일 관계의 고유성은 선택적인 사전 조회에 의존하지 않는다.
 실제 DB 제약과 transaction이 저장 무결성을 보장하며 사전 검증 뒤의 native 충돌도 처리한다.
@@ -64,4 +64,6 @@ ServiceReport의 migration·Admin 관계 선택·JSON CRUD·nullable reverse 조
 선택지의 target 읽기 권한과 report 쓰기 권한을 구분하고, Category membership·고유성은 write transaction에서 다시 검사한다.
 별도 보고서 삭제는 Ticket을 보존하며 Ticket 삭제의 PROTECT는 Runtime의 coordinated relation transaction을 따른다.
 Django ModelChoice의 216개 입력/initial/changed 관찰과 양 DB의 실제 consumer에서 scope 변경·native 중복·선행 쓰기 rollback을 확인한다.
-다음은 이 소비자까지 포함한 process·platform 통합 milestone이다. 실행 상세는 TEST_EVIDENCE 한 곳에서 유지한다.
+이 소비자까지 포함한 source `4f92d68869d5491c4b56e83da40b79a4c7866bb7`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/35652494345)로 process·platform 통합 milestone을 완료했다. 실행 상세는 TEST_EVIDENCE 한 곳에서 유지한다.
+
+다음은 [GDJ-0097 모델 복합 고유성과 Category 라벨](0097-composite-uniqueness-and-labels.md)이다. 전체 기능 카탈로그의 완성 목표는 유지한다.

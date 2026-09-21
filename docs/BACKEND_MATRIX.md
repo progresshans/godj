@@ -50,7 +50,7 @@ Save/Unwrap은 I/O 전 required 오류다. Cold reverse clear는 조회 없이 �
 현재 unsupported로 거부한다. 이는 key-present target의 관계 할당과 별개이며, 없는 target의 FK 저장은 실제 제약으로 거부한다.
 ServiceReport migration·scoped ModelChoice Form/Admin·JSON CRUD/reverse·OpenAPI/client를 연결했다.
 Runtime의 관계 삭제는 양 backend의 CoordinatedAtomicRelation과 동일 transaction/fence를 사용한다.
-[GDJ-0096](../work/0096-one-to-one-service-reports.md)의 전체 통합 milestone은 아직 진행 중이다.
+[GDJ-0096](../work/0096-one-to-one-service-reports.md)의 소비자 통합 milestone을 완료했으며 source·플랫폼 범위는 TEST_EVIDENCE가 소유한다.
 [일대일 의미](adr/0073-one-to-one-cardinality-and-reverse-objects.md)를 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.

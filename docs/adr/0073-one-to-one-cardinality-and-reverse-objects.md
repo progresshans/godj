@@ -1,6 +1,6 @@
 # ADR-0073: OneToOne cardinality and reverse object ownership
 
-- 상태: Accepted — 선언·이력·양 DB·단일 reverse와 Helpdesk 전체 소비자 구현. 통합 milestone은 GDJ-0096에서 진행 중.
+- 상태: Accepted — 선언·이력·양 DB·단일 reverse와 Helpdesk 전체 소비자 구현. GDJ-0096의 process/platform 통합 검증 완료.
 - 날짜: 2026-09-22
 - 관련 작업: [GDJ-0096](../../work/0096-one-to-one-service-reports.md)
 

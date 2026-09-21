@@ -58,7 +58,17 @@ Data-race/검증식 실패 대신 package 전체 시간이 소진됐고 나머�
 해당 좌표의 package budget을 35분, job budget을 45분으로 조정한다. 기존 test/package/required inventory·race instrumentation과
 실행/종료·skip·실패 검사는 유지한다. 다른 좌표의 시간 한도는 바꾸지 않는다. 첫 실패 job의 원본 로그는
 `hosted/job-106491750057-failed.log`에 보존했다. 이 CI 조정은 제품 구현과 별도의 source 변경이며 필요한 full을 다시 실행한다.
-현재 source의 Hosted full은 아직 실행하지 않았으며 GDJ-0096의 process/platform 통합 milestone이 남아 있다.
+CI budget을 조정한 source `4f92d68869d5491c4b56e83da40b79a4c7866bb7`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/35652494345), attempt 1이 완료됐다.
+**62개 job 전부 success**, 최종 판정의 `scope=full`, `full_platform_verified=true`, 필수 owner 8개를 실제 로그에서 확인했다.
+PostgreSQL 17.10 core는 normal/race/CGO=0 각각 **2,134 run=PASS / skip 0**이며 보고서 현재/역방향 migration 소비자와
+coordinated relation adapter를 필수 inventory로 검사한다. Exact Darwin Python은 **314 PASS / skip 0**이다.
+네 compatibility 환경은 각각 314개 발견/310 PASS/지정된 skip 4개이며 그 네 검사의 실행은 exact owner가 소유한다.
+Relation·portable·project check·command product의 각 플랫폼/mode와 같은 run의 DB/process capture 검증을 함께 통과했다.
+앞서 시간 제한으로 실패했던 macOS Intel relation race도 필수 CI inventory validator에서 **31 package / 5,261 run=PASS / skip 0**을 확인했다.
+제품 source의 [Hosted fast](https://github.com/progresshans/godj/actions/runs/35647531350)도 mandatory Fast Go feedback을 실행해 success다.
+Hosted 검증은 앞의 로컬 결과와 구분하며 로컬 전체 gate를 중복 실행하지 않았다.
+`hosted-retry/final-audit.json`과 source/attempt가 일치하는 job metadata·원본 로그·hash/inventory receipt를 artifact root에 보관한다.
+GDJ-0096의 작업 보고서 소비자와 process/platform 통합 milestone을 완료했다.
 이 범위의 통과를 전체 프레임워크 완성이나 미지원 relation 기능의 완료로 합치지 않는다.
 
 ## GDJ-0096 — OneToOne assignment와 명시적 저장
