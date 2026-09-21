@@ -129,7 +129,7 @@ func LookupCondition(leaf Leaf) (query.Condition, error) {
 	relation, _, _ := strings.Cut(leaf.Path, "__")
 	path, err := query.NewForwardRelationPath(
 		ir.ModelIdentity{AppLabel: "forward_lookup", ModelName: "post"}, "forward_lookup_post", relation, relation+"_id",
-		ir.ModelIdentity{AppLabel: "forward_lookup", ModelName: "person"}, "forward_lookup_person", "id", relation == "reviewer", field,
+		ir.ModelIdentity{AppLabel: "forward_lookup", ModelName: "person"}, "forward_lookup_person", "id", relation == "reviewer", field, ir.RelationManyToOne,
 	)
 	if err != nil {
 		return query.Condition{}, err

@@ -1047,14 +1047,14 @@ func TestCompileForwardAndReverseSelfEdgesHaveDistinctJoinKeys(t *testing.T) {
 	identity := ir.ModelIdentity{AppLabel: "people", ModelName: "person"}
 	forward, err := query.NewForwardRelationPath(
 		identity, "people_person", "manager", "manager_id",
-		identity, "people_person", "id", false, name,
+		identity, "people_person", "id", false, name, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	reverse, err := query.NewReverseRelationPath(
 		identity, "people_person", "manager", "manager_id",
-		identity, "people_person", "id", "reports", false, name,
+		identity, "people_person", "id", "reports", false, name, ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1109,7 +1109,7 @@ func TestCompileRelationJoinAliasesAreCanonicalRatherThanConditionOrdered(t *tes
 		"blog_post", "editor", "editor_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author", "id", false,
-		query.NewFieldRef("name", "name", query.FieldString, false),
+		query.NewFieldRef("name", "name", query.FieldString, false), ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1149,7 +1149,7 @@ func TestCompileRelationRejectsRootMismatchAndConflictingRepeatedEdge(t *testing
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"other_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		"authors_author", "id", false, terminal,
+		"authors_author", "id", false, terminal, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1165,7 +1165,7 @@ func TestCompileRelationRejectsRootMismatchAndConflictingRepeatedEdge(t *testing
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post", "author", "writer_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		"authors_author", "id", false, terminal,
+		"authors_author", "id", false, terminal, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1357,7 +1357,7 @@ func TestCompileForwardProjectionCombinesAnotherForwardPredicate(t *testing.T) {
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post", "editor", "editor_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		"authors_author", "id", false, targetName,
+		"authors_author", "id", false, targetName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1433,7 +1433,7 @@ func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T)
 				reviewerID,
 				test.target,
 				test.targetTable,
-				test.targetPK,
+				test.targetPK, ir.RelationManyToOne,
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -1489,7 +1489,7 @@ func forwardProjection(
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author",
 		targetKey,
-		targetColumns,
+		targetColumns, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1571,7 +1571,7 @@ func TestCompileNullableForwardSourceKeyRejectsMutationBeforeIO(t *testing.T) {
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"other_post", reviewerID,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		"authors_author", "id",
+		"authors_author", "id", ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1599,7 +1599,7 @@ func requiredAuthorPath(t *testing.T, terminal query.FieldRef) query.RelationPat
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		"authors_author", "id", false, terminal,
+		"authors_author", "id", false, terminal, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1618,7 +1618,7 @@ func reversePostsPath(
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post", sourceField, sourceColumn,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		targetTable, "id", reverseName, nullable, terminal,
+		targetTable, "id", reverseName, nullable, terminal, ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1643,7 +1643,7 @@ func nullableReviewerPathWithIdentity(
 		sourceKey,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author",
-		"id",
+		"id", ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1696,7 +1696,7 @@ func TestCompileForwardASTPreservesScalarDomain(t *testing.T) {
 			author := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 			path, err := query.NewForwardRelationPath(
 				ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "author", "author_id",
-				ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", false, test.field,
+				ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", false, test.field, ir.RelationManyToOne,
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -1717,7 +1717,7 @@ func TestCompileForwardASTKeepsSQLiteIdentifierQuoting(t *testing.T) {
 	terminal := query.NewFieldRef("Alias", `display "name"`, query.FieldString, true)
 	path, err := query.NewForwardRelationPath(
 		ir.ModelIdentity{AppLabel: "Blog", ModelName: "Post"}, `blog.post`, "Author", author.Column(),
-		ir.ModelIdentity{AppLabel: "Authors", ModelName: "Author"}, `authors "table"`, "id", false, terminal,
+		ir.ModelIdentity{AppLabel: "Authors", ModelName: "Author"}, `authors "table"`, "id", false, terminal, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)

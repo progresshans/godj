@@ -1,5 +1,7 @@
 package orm
 
+import "github.com/progresshans/godj/schema/ir"
+
 import (
 	"context"
 	"errors"
@@ -62,7 +64,7 @@ func TestForwardSelectMixedJoinsFailureDoesNotPublishPartialDuplicates(t *testin
 				t.Fatal("missing selected relation")
 			}
 			hop := projection.TerminalHop()
-			path, err := query.NewForwardRelationPath(hop.Source(), hop.SourceTable(), "reviewer", "reviewer_id", hop.Target(), hop.TargetTable(), hop.TargetPrimaryKeyColumn(), true, query.NewFieldRef("name", "name", query.FieldString, false))
+			path, err := query.NewForwardRelationPath(hop.Source(), hop.SourceTable(), "reviewer", "reviewer_id", hop.Target(), hop.TargetTable(), hop.TargetPrimaryKeyColumn(), true, query.NewFieldRef("name", "name", query.FieldString, false), ir.RelationManyToOne)
 			if err != nil {
 				t.Fatal(err)
 			}

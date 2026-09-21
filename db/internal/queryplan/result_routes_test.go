@@ -18,7 +18,7 @@ func TestSelectedJSONRoutesRetainJoinProvenanceAndOwnCompilerState(t *testing.T)
 	reviewer := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
 	author := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 	payload := query.NewFieldRef("payload", "payload", query.FieldJSON, true)
-	selected, err := query.NewForwardRelationPath(root, "blog_post", "reviewer", "reviewer_id", target, "authors_author", "id", true, payload)
+	selected, err := query.NewForwardRelationPath(root, "blog_post", "reviewer", "reviewer_id", target, "authors_author", "id", true, payload, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestSelectedJSONRoutesRetainJoinProvenanceAndOwnCompilerState(t *testing.T)
 		model ir.ModelIdentity
 		table string
 	}{{root, "archived_author"}, {ir.ModelIdentity{AppLabel: "blog", ModelName: "other"}, "authors_author"}} {
-		filter, err := query.NewForwardRelationPath(foreign.model, "blog_post", "reviewer", "reviewer_id", target, foreign.table, "id", true, query.NewFieldRef("name", "name", query.FieldString, false))
+		filter, err := query.NewForwardRelationPath(foreign.model, "blog_post", "reviewer", "reviewer_id", target, foreign.table, "id", true, query.NewFieldRef("name", "name", query.FieldString, false), ir.RelationManyToOne)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func TestSelectedJSONRoutesRetainJoinProvenanceAndOwnCompilerState(t *testing.T)
 			}
 		}
 	}
-	second, err := query.NewForwardRelationPath(root, "blog_post", "author", "author_id", target, "authors_author", "id", false, payload)
+	second, err := query.NewForwardRelationPath(root, "blog_post", "author", "author_id", target, "authors_author", "id", false, payload, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestSelectedJSONRoutesRetainJoinProvenanceAndOwnCompilerState(t *testing.T)
 		t.Fatal("join preparation mutated selected source")
 	}
 	// Selection-only paths still consume SQLite's finite JOIN budget.
-	self, err := query.NewForwardRelationPath(root, "blog_post", "reviewer", "reviewer_id", root, "blog_post", "id", true, payload)
+	self, err := query.NewForwardRelationPath(root, "blog_post", "reviewer", "reviewer_id", root, "blog_post", "id", true, payload, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

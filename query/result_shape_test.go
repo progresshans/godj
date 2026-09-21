@@ -364,7 +364,7 @@ func resultShapeRelationProjection(t *testing.T, sourceKey query.FieldRef) query
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author",
 		targetID,
-		[]query.FieldRef{targetID, query.NewFieldRef("name", "name", query.FieldString, false)},
+		[]query.FieldRef{targetID, query.NewFieldRef("name", "name", query.FieldString, false)}, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationProjection() error = %v", err)

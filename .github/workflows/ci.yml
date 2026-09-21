@@ -157,6 +157,7 @@ jobs:
           ./query
           ./orm
           ./conformance/relationfixture/...
+          ./conformance/onetoonefixture/...
           ./conformance/relationproduct/...
           ./conformance/relationqueryproduct/...
           ./conformance/relationobjectproduct/...
@@ -1024,6 +1025,8 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueAlterFailurePreservesRevisionRowsAndInboundFK"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueNullableAddAndForeignKeyReverse"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniquePhysicalDriftRejectsBeforeRevisionClaim"
+            "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneGeneratedProduct"
+            "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneAlterFailureRetryReverseAndReopen"
             "github.com/progresshans/godj/db/postgres|TestPostgresDecimalRejectsForeignNumericAndAdaptsMixedRows"
             "github.com/progresshans/godj/db/postgres|TestPostgresDecimalPrecisionKeepsCachedReadersUsable"
             "github.com/progresshans/godj/db/postgres|TestPostgresDecimalPrecisionRejectsNaNAndRetainsCatalogLocks"

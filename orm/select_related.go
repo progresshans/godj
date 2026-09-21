@@ -62,7 +62,7 @@ func ResolveForwardSelectPath[S any](source BoundModel[S], path string) (Forward
 		return ForwardSelectPath[S]{}, invalidRelatedPath(path)
 	}
 	metadata, ok := ProjectBinding{snapshot: source.snapshot}.Relation(source.identity, path)
-	if !ok || metadata.Cardinality != ir.RelationManyToOne {
+	if !ok || !metadata.Cardinality.SingleValued() {
 		return ForwardSelectPath[S]{}, invalidRelatedPath(path)
 	}
 	relation, err := resolveForwardRelationState(source.snapshot, source.identity, source.model, path)
@@ -72,7 +72,7 @@ func ResolveForwardSelectPath[S any](source BoundModel[S], path string) (Forward
 	sourceKey, ok := findField(relation.sourceModel.Fields, relation.metadata.Field)
 	if !ok || sourceKey.Kind != ir.FieldForeignKey || sourceKey.Nullable != relation.metadata.Nullable ||
 		sourceKey.Relation == nil || sourceKey.Relation.Target != relation.metadata.Target ||
-		sourceKey.Relation.Cardinality != ir.RelationManyToOne {
+		!sourceKey.Relation.Cardinality.SingleValued() {
 		return ForwardSelectPath[S]{}, relationInvalidPlan("forward select source key is not canonical")
 	}
 	sourceDescriptor, err := projectionDescriptorFor(source)
@@ -90,7 +90,7 @@ func ResolveForwardSelectPath[S any](source BoundModel[S], path string) (Forward
 		relation.metadata.Target,
 		relation.targetModel.DBTable,
 		fieldReference(relation.targetPrimaryKey),
-		targetColumns,
+		targetColumns, relation.metadata.Cardinality,
 	)
 	if err != nil {
 		return ForwardSelectPath[S]{}, err
@@ -227,7 +227,7 @@ func validateForwardSelectPath[S any](state forwardSelectPathState[S]) error {
 		state.relation.metadata.Target,
 		state.relation.targetModel.DBTable,
 		fieldReference(state.relation.targetPrimaryKey),
-		modelFieldReferences(state.relation.targetModel),
+		modelFieldReferences(state.relation.targetModel), state.relation.metadata.Cardinality,
 	)
 	if err != nil || !projection.Equal(state.projection) {
 		return relationInvalidPlan("forward select projection changed after resolution")

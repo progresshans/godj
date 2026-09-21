@@ -17,6 +17,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"RemoveForeignKey",
 		"AlterFieldChoices",
 		"AlterFieldDecimalPrecision",
+		"AlterFieldRelation",
 		"UniqueConstraints",
 	}
 	if capabilities.NumField() != len(wantCapabilities) {

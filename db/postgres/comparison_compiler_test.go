@@ -179,7 +179,7 @@ func TestCompileRelationAndRootFieldComparisonUseRootAlias(t *testing.T) {
 	authorKey := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 	authorName := query.NewFieldRef("name", "name", query.FieldString, false)
 	path, err := query.NewForwardRelationPath(
-		post, "blog_post", "author", "author_id", author, "authors_author", "id", false, authorName,
+		post, "blog_post", "author", "author_id", author, "authors_author", "id", false, authorName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)

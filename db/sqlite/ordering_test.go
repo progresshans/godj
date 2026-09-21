@@ -83,7 +83,7 @@ func TestJSONOrderingCompilerBindsExactSelectedPathAndHiddenModelValues(t *testi
 	}
 	// A relation target with identical field metadata is still a different value.
 	fk := query.NewFieldRef("record", "record_id", query.FieldInteger, true)
-	route, err := query.NewForwardRelationPath(ir.ModelIdentity{AppLabel: "app", ModelName: "link"}, "links", "record", "record_id", ir.ModelIdentity{AppLabel: "app", ModelName: "record"}, "records", "id", true, id)
+	route, err := query.NewForwardRelationPath(ir.ModelIdentity{AppLabel: "app", ModelName: "link"}, "links", "record", "record_id", ir.ModelIdentity{AppLabel: "app", ModelName: "record"}, "records", "id", true, id, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

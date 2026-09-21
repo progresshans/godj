@@ -1,5 +1,7 @@
 package querytest
 
+import "github.com/progresshans/godj/schema/ir"
+
 import (
 	"encoding/json"
 	"errors"
@@ -122,7 +124,7 @@ func CheckNestedEagerInvalidPlans(t *testing.T, backend db.Queryer, compile func
 		if depth == 1 {
 			targetTable, nullable = targetTable+"_other", last.Nullable()
 		}
-		changed, err := query.NewForwardRelationPath(last.Source(), last.SourceTable(), last.Field(), last.SourceColumn(), last.Target(), targetTable, last.TargetPrimaryKeyColumn(), nullable, terminal)
+		changed, err := query.NewForwardRelationPath(last.Source(), last.SourceTable(), last.Field(), last.SourceColumn(), last.Target(), targetTable, last.TargetPrimaryKeyColumn(), nullable, terminal, ir.RelationManyToOne)
 		if err != nil {
 			t.Fatal(err)
 		}

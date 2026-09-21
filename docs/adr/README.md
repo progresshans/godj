@@ -82,6 +82,7 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0070](0070-uuid-model-values-and-storage.md) | Accepted | 128-bit UUID 값과 NULL·canonical 저장·typed query·입력 경계 |
 | [0071](0071-json-values-and-native-storage-boundaries.md) | Accepted | JSON exact token·SQL/JSON NULL·native 저장·조회와 입력 경계 |
 | [0072](0072-column-uniqueness-and-constraint-ownership.md) | Accepted | Column uniqueness 선언·historical 의미·PostgreSQL 제약/index의 정확한 소유권 |
+| [0073](0073-one-to-one-cardinality-and-reverse-objects.md) | Accepted | OneToOne cardinality·historical 변경·단일 reverse 객체와 cache 소유권 |
 
 ## 대체된 결정
 

@@ -356,7 +356,7 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 		reviewerID,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author",
-		"id",
+		"id", ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationIsNullPath() error = %v", err)
@@ -533,7 +533,7 @@ func TestSQLiteBackendExecutesRequiredAndNullableForwardProjections(t *testing.T
 		reviewerID,
 		ir.ModelIdentity{AppLabel: "people", ModelName: "person"},
 		"authors_author",
-		"id",
+		"id", ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -594,7 +594,7 @@ func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.
 		"blog_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author", "id", "posts", false,
-		query.NewFieldRef("title", "title", query.FieldString, false),
+		query.NewFieldRef("title", "title", query.FieldString, false), ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -604,7 +604,7 @@ func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.
 		"blog_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author", "id", "posts", false,
-		query.NewFieldRef("id", "id", query.FieldInteger, false),
+		query.NewFieldRef("id", "id", query.FieldInteger, false), ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -659,7 +659,7 @@ func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.
 		"blog_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"other_author", "id", "posts", false,
-		query.NewFieldRef("title", "title", query.FieldString, false),
+		query.NewFieldRef("title", "title", query.FieldString, false), ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -943,7 +943,7 @@ func integrationRelationPath(t *testing.T, sourceTable, sourceColumn string, ter
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		sourceTable, "author", sourceColumn,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		"authors_author", "id", false, terminal,
+		"authors_author", "id", false, terminal, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -107,7 +107,7 @@ func Condition(leaf Leaf) (query.Condition, error) {
 		return query.Condition{}, fmt.Errorf("invalid input path %q", leaf.Path)
 	}
 	if terminal == "isnull" && relation == "reviewer" {
-		path, err := query.NewForwardRelationIsNullPath(post, "nullable_reference_post", SourceFields()[3], author, "nullable_reference_author", "id")
+		path, err := query.NewForwardRelationIsNullPath(post, "nullable_reference_post", SourceFields()[3], author, "nullable_reference_author", "id", ir.RelationManyToOne)
 		if err != nil {
 			return query.Condition{}, err
 		}
@@ -148,7 +148,7 @@ func Condition(leaf Leaf) (query.Condition, error) {
 	default:
 		return query.Condition{}, fmt.Errorf("invalid target input %q", terminal)
 	}
-	path, err := query.NewForwardRelationPath(post, "nullable_reference_post", relation, relation+"_id", author, "nullable_reference_author", "id", relation == "reviewer", field)
+	path, err := query.NewForwardRelationPath(post, "nullable_reference_post", relation, relation+"_id", author, "nullable_reference_author", "id", relation == "reviewer", field, ir.RelationManyToOne)
 	if err != nil {
 		return query.Condition{}, err
 	}

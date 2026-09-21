@@ -333,6 +333,7 @@ const (
 	loadedRequiresAlterFieldChoices
 	loadedRequiresAlterFieldDecimalPrecision
 	loadedRequiresUniqueConstraints
+	loadedRequiresAlterFieldRelation
 )
 
 const (
@@ -1058,6 +1059,9 @@ func (builder *loadedStateBuilder) removeField(operation AddField) error {
 }
 
 func normalizeLoadedAddedField(appLabel string, value ir.Field) (ir.Field, error) {
+	if value.Relation != nil && value.Relation.Cardinality == ir.RelationOneToOne && value.Relation.Reverse == (ir.ReverseRelation{}) {
+		return ir.Field{}, fmt.Errorf("one-to-one migration fields require a reverse name resolved from the declaring model or an explicitly disabled reverse")
+	}
 	syntheticName := "_godj_loaded_pk"
 	syntheticGoName := "GodjLoadedPK"
 	syntheticColumn := "_godj_loaded_pk"
@@ -1508,11 +1512,14 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			if err != nil {
 				return loadedMaterializedStep{}, migrationError(CategoryState, CodeInvalidState, step.Direction, migration, operationIndex, operation.Kind(), err)
 			}
-			if change == ir.ChangeUnique {
+			if change == ir.ChangeRelation {
+				requirements |= loadedRequiresAlterFieldRelation
+			}
+			if alteration.Before.Unique != alteration.After.Unique {
 				requirements |= loadedRequiresUniqueConstraints
 			} else if change == ir.ChangeDecimalPrecision {
 				requirements |= loadedRequiresAlterFieldDecimalPrecision
-			} else {
+			} else if change == ir.ChangeChoices {
 				requirements |= loadedRequiresAlterFieldChoices
 			}
 		} else {

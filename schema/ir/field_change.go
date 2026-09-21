@@ -8,12 +8,20 @@ const (
 	ChangeChoices FieldChangeKind = iota + 1
 	ChangeDecimalPrecision
 	ChangeUnique
+	ChangeRelation
 )
 
 // ClassifyFieldChange requires a real change to exactly one supported facet.
-// Identity, default, nullability, relation and every other facet stay identical.
+// Relation changes may change cardinality, reverse namespace and the associated
+// uniqueness together, while preserving the physical FK target and delete policy.
+// Identity, default, nullability and every other facet stay identical.
 // The arguments and their nested metadata remain owned by their callers.
 func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
+	for _, field := range []Field{before, after} {
+		if field.Relation != nil && field.Relation.Cardinality == RelationOneToOne && !field.Unique {
+			return 0, validation("field.unique", "invalid_relation", "normalized one-to-one fields require column uniqueness")
+		}
+	}
 	if err := ValidateChoices(before); err != nil {
 		return 0, err
 	}
@@ -33,6 +41,19 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	if !before.PrimaryKey && previous.Equal(next) {
 		return ChangeUnique, nil
 	}
+	if before.Kind == FieldForeignKey && after.Kind == FieldForeignKey &&
+		before.Relation != nil && after.Relation != nil &&
+		before.Relation.Cardinality.SingleValued() && after.Relation.Cardinality.SingleValued() &&
+		(before.Relation.Cardinality != RelationOneToOne || before.Unique) &&
+		(after.Relation.Cardinality != RelationOneToOne || after.Unique) {
+		previous, next = before.Clone(), after.Clone()
+		previous.Unique, next.Unique = false, false
+		previous.Relation.Cardinality, next.Relation.Cardinality = RelationManyToOne, RelationManyToOne
+		previous.Relation.Reverse, next.Relation.Reverse = ReverseRelation{}, ReverseRelation{}
+		if previous.Equal(next) {
+			return ChangeRelation, nil
+		}
+	}
 	if before.Kind == FieldDecimal && after.Kind == FieldDecimal &&
 		before.Decimal != nil && after.Decimal != nil && before.Decimal.Valid() && after.Decimal.Valid() {
 		previous, next = before, after
@@ -41,5 +62,5 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices-only, uniqueness-only or Decimal precision-only changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace or Decimal precision changes")
 }

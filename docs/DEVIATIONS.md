@@ -44,6 +44,31 @@
 
 ## 원장
 
+## DEV-0018 — 일대일 역방향 부재와 Go 객체 소유권
+
+- Status: Accepted; single reverse object and prefetch implemented, locally verified on SQLite/PostgreSQL in normal/race/CGO-disabled modes.
+- Date: 2026-09-22
+- Scope: [SQLite raw](../orm/testdata/one-to-one-django61-sqlite.json)와 [PostgreSQL raw](../orm/testdata/one-to-one-django61-postgres.json)의
+  `observations` 중 `missing_reverse`, `cached_missing_reverse`, `missing_cache_after_external_insert`, `default_reverse_missing`,
+  `unsaved_owner_reverse`, `reciprocal_forward_cache`. 아직 전체 OneToOne differential contract의 passing 상태가 아니다.
+- Related: [ADR-0073](adr/0073-one-to-one-cardinality-and-reverse-objects.md), [GDJ-0096](../work/0096-one-to-one-service-reports.md), [증거](status/TEST_EVIDENCE.md)
+
+Django descriptor는 없는 reverse OneToOne에 `RelatedObjectDoesNotExist`를 발생시키고 그 부재를 cache한다.
+GoDj는 명시적 `Get(ctx)`의 `present=false, error=nil`로 같은 0건 결과를 나타낸다. 성공한 부재 cache와 외부 insert 뒤
+Fresh가 필요하다는 의미는 유지한다. Existing forward handle과 같은 반환형으로 존재 여부를 검사할 수 있도록 선택했으며,
+별도 exception 모방이나 부재를 나타내는 필수 오류 분기 대신 presence를 사용한다. 실제 query·취소·cardinality 오류는 error에 남긴다.
+Unsaved owner는 부재 조회와 달리 I/O 전 `missing_primary_key` 오류이며, 명시적 PK 0은 조회 가능한 값이다.
+
+Django는 reverse에서 읽은 객체의 reciprocal forward descriptor에도 cache를 연결한다. GoDj의 새 From/materialization은
+독립 소유자이므로 다른 handle에 cache를 자동 전달하지 않는다. 동일 PK의 전역 identity나 application model pointer의
+공유를 보장하지 않는다. Selected graph와 같은 명시적 eager 소유권은 기존 규칙을 따른다. 자동 상호 cache를 추가하면
+두 handle의 mutation·취소·동시성 소유권을 새로 정해야 하므로 현재의 명시적 구조를 유지한다.
+
+저장 값·schema migration·권한은 달라지지 않는다. 관련 cache 상태에 따라 SELECT 수는 달라질 수 있고, Django의
+해당 query count를 GoDj parity로 계산하지 않는다. Runtime은 부재·동시 cold load·외부 쓰기/Fresh·copy 거부·실패 재시도와
+prefetch의 독립 소유권을 검증한다. 이 범위를 넘어 lookup·assignment·소비자 미구현을 면제하지 않는다.
+향후 상호 cache를 도입한다면 명시적 소유권 API와 취소·mutation 회귀를 먼저 정하고 이 결정을 supersede한다.
+
 ## DEV-0017 — JSON 모델의 정확한 token과 엄격한 문서 경계
 
 - Status: Accepted; model/storage, Form/Admin/API consumers and explicit path predicates verified locally (normal/race/CGO=0)

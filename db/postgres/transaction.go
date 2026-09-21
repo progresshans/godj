@@ -13,7 +13,9 @@ import (
 )
 
 var _ db.Atomic = (*Backend)(nil)
+var _ db.RelationAtomic = (*Backend)(nil)
 var _ db.Session = (*transactionSession)(nil)
+var _ db.RelationSession = (*transactionSession)(nil)
 
 type transactionSession struct {
 	transaction *sql.Tx
@@ -28,6 +30,23 @@ type transactionSession struct {
 // classified as outcome-unknown and requires reconciliation rather than an
 // automatic retry.
 func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) error {
+	if callback == nil {
+		return b.atomic(ctx, nil)
+	}
+	return b.atomic(ctx, func(session *transactionSession) error { return callback(session) })
+}
+
+// AtomicRelation shares the same transaction owner, session lifetime and
+// uncertain-outcome handling as ordinary writes. It adds bulk SET_NULL to the
+// transaction-bound callback without introducing a second transaction.
+func (b *Backend) AtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	if callback == nil {
+		return b.atomic(ctx, nil)
+	}
+	return b.atomic(ctx, func(session *transactionSession) error { return callback(session) })
+}
+
+func (b *Backend) atomic(ctx context.Context, callback func(*transactionSession) error) error {
 	if err := b.validateContext(ctx); err != nil {
 		return err
 	}

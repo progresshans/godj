@@ -396,6 +396,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAddRequiredForeignKeyToEmptyTable, capabilities.AddRequiredForeignKeyToEmptyTable, "AddRequiredForeignKeyToEmptyTable"},
 		{loadedRequiresRemoveForeignKey, capabilities.RemoveForeignKey, "RemoveForeignKey"},
 		{loadedRequiresAlterFieldChoices, capabilities.AlterFieldChoices, "AlterFieldChoices"},
+		{loadedRequiresAlterFieldRelation, capabilities.AlterFieldRelation, "AlterFieldRelation"},
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
 	}

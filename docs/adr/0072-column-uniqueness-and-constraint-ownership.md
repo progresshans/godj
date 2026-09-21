@@ -1,6 +1,6 @@
 # ADR-0072: Column uniqueness and physical constraint ownership
 
-- 상태: Accepted — 공통 선언·이력·ORM·양 DB와 Helpdesk Form/Admin/API/client 연결 구현. 통합 검증은 GDJ-0095에서 진행 중.
+- 상태: Accepted — 공통 선언·이력·ORM·양 DB와 Helpdesk Form/Admin/API/client 연결 및 GDJ-0095 통합 검증 완료.
 - 날짜: 2026-09-21
 - 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md)
 
@@ -148,7 +148,8 @@ OpenAPI와 독립 generated client도 같은 응답을 소비한다.
 이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.
 실행 source와 환경별 결과는 TEST_EVIDENCE가 소유하며 이후 변경의 검증으로 옮겨 쓰지 않는다.
 
-Composite/conditional/expression constraint, OneToOneField, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
+Composite/conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
+명시적 OneToOne의 후속 의미와 현재 구현 범위는 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.
 이 ADR의 양 DB 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.
 Source·환경·실패·실행별 증거는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

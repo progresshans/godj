@@ -235,12 +235,12 @@ func resolveForwardRelationState(
 			Detail:   "relation is not present on the source model",
 		}
 	}
-	if metadata.Cardinality != ir.RelationManyToOne {
+	if !metadata.Cardinality.SingleValued() {
 		return forwardRelationState{}, &query.Error{
 			Category: query.CategoryField,
 			Code:     query.CodeUnsupportedLookup,
 			Field:    field,
-			Detail:   "only forward many-to-one relations are supported",
+			Detail:   "forward relation requires a single-valued cardinality",
 		}
 	}
 	targetModel, ok := snapshot.models[metadata.Target]
@@ -291,7 +291,7 @@ func (state forwardRelationState) path(terminal query.FieldRef) (query.RelationP
 		state.targetModel.DBTable,
 		state.targetPrimaryKey.Column,
 		state.metadata.Nullable,
-		terminal,
+		terminal, state.metadata.Cardinality,
 	)
 }
 

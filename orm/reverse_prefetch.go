@@ -29,43 +29,80 @@ type reversePrefetchState[Owner, Source any] struct {
 	sourceMarker [0]func(Source)
 }
 
+// ReverseOneToOnePrefetch loads single reverse objects with one source batch.
+// Ordinary unique ForeignKeys retain the collection-shaped ReversePrefetch API.
+type ReverseOneToOnePrefetch[Owner, Source any] struct {
+	state reversePrefetchState[Owner, Source]
+}
+
 // BindReversePrefetch adds the source ForeignKey storage capability required
 // to group one batch result to the owners of an already bound ReverseObject.
-func BindReversePrefetch[Owner, Source any](
-	reverse ReverseObject[Owner, Source],
-) (ReversePrefetch[Owner, Source], error) {
-	if err := reverse.state.validate(); err != nil {
-		return ReversePrefetch[Owner, Source]{}, err
+func BindReversePrefetch[Owner, Source any](reverse ReverseObject[Owner, Source]) (ReversePrefetch[Owner, Source], error) {
+	state, err := bindReversePrefetchState(reverse.state)
+	return ReversePrefetch[Owner, Source]{state: state}, err
+}
+
+func BindReverseOneToOnePrefetch[Owner, Source any](reverse ReverseOneToOneObject[Owner, Source]) (ReverseOneToOnePrefetch[Owner, Source], error) {
+	state, err := bindReversePrefetchState(reverse.state)
+	return ReverseOneToOnePrefetch[Owner, Source]{state: state}, err
+}
+
+func bindReversePrefetchState[Owner, Source any](reverse reverseObjectState[Owner, Source]) (reversePrefetchState[Owner, Source], error) {
+	if err := reverse.validate(); err != nil {
+		return reversePrefetchState[Owner, Source]{}, err
 	}
-	storage, ok := reverse.state.sourceDescriptor.BindRelationStorage(reverse.state.sourceForeignKey.Clone())
+	storage, ok := reverse.sourceDescriptor.BindRelationStorage(reverse.sourceForeignKey.Clone())
 	if !ok || interfaceIsNil(storage) {
-		return ReversePrefetch[Owner, Source]{}, relationInvalidPlan("reverse prefetch source ForeignKey storage is unavailable")
+		return reversePrefetchState[Owner, Source]{}, relationInvalidPlan("reverse prefetch source ForeignKey storage is unavailable")
 	}
 	if !immutableZeroStateValue(storage) {
-		return ReversePrefetch[Owner, Source]{}, relationInvalidPlan("reverse prefetch source ForeignKey storage must be a named non-pointer zero-size struct")
+		return reversePrefetchState[Owner, Source]{}, relationInvalidPlan("reverse prefetch source ForeignKey storage must be a named non-pointer zero-size struct")
 	}
-	if !reflect.DeepEqual(storage.Field(), reverse.state.sourceForeignKey) {
-		return ReversePrefetch[Owner, Source]{}, relationInvalidPlan("reverse prefetch source ForeignKey storage is not canonical")
+	if !reflect.DeepEqual(storage.Field(), reverse.sourceForeignKey) {
+		return reversePrefetchState[Owner, Source]{}, relationInvalidPlan("reverse prefetch source ForeignKey storage is not canonical")
 	}
 
 	// The reverse handle already owns immutable canonical fields. Only the
 	// field passed to the user storage callback above crosses an ownership edge.
 	state := reversePrefetchState[Owner, Source]{
-		reverse: reverse.state,
+		reverse: reverse,
 		storage: storage,
 		valid:   true,
 	}
-	return ReversePrefetch[Owner, Source]{state: state}, nil
+	return state, nil
 }
 
 // Load evaluates exactly one source batch query, validates every returned
 // source membership, and returns ready RelatedSet values only after the entire
 // operation succeeds.
-func (p ReversePrefetch[Owner, Source]) Load(
-	ctx context.Context,
-	backend db.Queryer,
-	owners []Owner,
-) ([]*RelatedSet[Source], error) {
+func (p ReversePrefetch[Owner, Source]) Load(ctx context.Context, backend db.Queryer, owners []Owner) ([]*RelatedSet[Source], error) {
+	queries, err := p.state.load(ctx, backend, owners)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*RelatedSet[Source], len(queries))
+	for i, querySet := range queries {
+		result[i] = newRelatedSet(querySet)
+	}
+	return result, nil
+}
+
+// Load publishes independent ready single-object handles after validating the
+// complete batch. A missing child is cached as an ordinary absent result.
+func (p ReverseOneToOnePrefetch[Owner, Source]) Load(ctx context.Context, backend db.Queryer, owners []Owner) ([]*RelatedObject[Source], error) {
+	queries, err := p.state.load(ctx, backend, owners)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*RelatedObject[Source], len(queries))
+	for i, querySet := range queries {
+		result[i] = newRelatedObject(querySet)
+		result[i].allowMissing = true
+	}
+	return result, nil
+}
+
+func (state reversePrefetchState[Owner, Source]) load(ctx context.Context, backend db.Queryer, owners []Owner) ([]QuerySet[Source], error) {
 	if interfaceIsNil(ctx) {
 		return nil, relationInvalidPlan("context is nil")
 	}
@@ -75,25 +112,25 @@ func (p ReversePrefetch[Owner, Source]) Load(
 	if interfaceIsNil(backend) {
 		return nil, relationBackendInvalidPlan("backend is nil")
 	}
-	if err := p.state.validate(); err != nil {
+	if err := state.validate(); err != nil {
 		return nil, err
 	}
 	if len(owners) == 0 {
-		return make([]*RelatedSet[Source], 0), nil
+		return make([]QuerySet[Source], 0), nil
 	}
 
 	ownerSnapshots := make([]Owner, len(owners))
 	for index := range owners {
-		ownerSnapshots[index] = p.state.reverse.ownerDescriptor.CloneModel(owners[index])
+		ownerSnapshots[index] = state.reverse.ownerDescriptor.CloneModel(owners[index])
 	}
 	ownerKeys := make([]int64, len(ownerSnapshots))
 	for index := range ownerSnapshots {
-		primaryKey, present := p.state.reverse.ownerDescriptor.PrimaryKey(ownerSnapshots[index])
+		primaryKey, present := state.reverse.ownerDescriptor.PrimaryKey(ownerSnapshots[index])
 		if !present {
 			return nil, &query.Error{
 				Category: query.CategoryQuery,
 				Code:     query.CodeMissingPrimaryKey,
-				Field:    p.state.reverse.ownerPrimaryKey.Name,
+				Field:    state.reverse.ownerPrimaryKey.Name,
 				Detail:   "reverse prefetch owner has no explicit primary key state",
 			}
 		}
@@ -126,12 +163,12 @@ func (p ReversePrefetch[Owner, Source]) Load(
 	for index, identifier := range batchKeys {
 		values[index] = query.Integer(identifier)
 	}
-	inCondition, err := query.NewInCondition(fieldReference(p.state.reverse.sourceForeignKey), values)
+	inCondition, err := query.NewInCondition(fieldReference(state.reverse.sourceForeignKey), values)
 	if err != nil {
 		return nil, err
 	}
-	ordering := NewAutoField[Source](p.state.reverse.sourcePrimaryKey).Asc()
-	base := newQuerySet(backend, p.state.reverse.sourceDescriptor, p.state.reverse.sourcePlan)
+	ordering := NewAutoField[Source](state.reverse.sourcePrimaryKey).Asc()
+	base := newQuerySet(backend, state.reverse.sourceDescriptor, state.reverse.sourcePlan)
 	batch := base.
 		Filter(predicateFromCondition[Source](inCondition, nil)).
 		OrderBy(ordering)
@@ -139,10 +176,10 @@ func (p ReversePrefetch[Owner, Source]) Load(
 		return nil, batch.configurationErr
 	}
 
-	coldSets := make([]*RelatedSet[Source], len(ownerKeys))
+	coldSets := make([]QuerySet[Source], len(ownerKeys))
 	for index, identifier := range ownerKeys {
 		exact := predicateFromCondition[Source](query.NewCondition(
-			fieldReference(p.state.reverse.sourceForeignKey),
+			fieldReference(state.reverse.sourceForeignKey),
 			query.LookupExact,
 			query.Integer(identifier),
 		), nil)
@@ -150,7 +187,7 @@ func (p ReversePrefetch[Owner, Source]) Load(
 		if querySet.configurationErr != nil {
 			return nil, querySet.configurationErr
 		}
-		coldSets[index] = newRelatedSet(querySet)
+		coldSets[index] = querySet
 	}
 
 	sources, err := batch.All(ctx)
@@ -162,38 +199,42 @@ func (p ReversePrefetch[Owner, Source]) Load(
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		storageInput := p.state.reverse.sourceDescriptor.CloneModel(source)
-		foreignKey, present := p.state.storage.Value(storageInput)
+		storageInput := state.reverse.sourceDescriptor.CloneModel(source)
+		foreignKey, present := state.storage.Value(storageInput)
 		if !present {
 			return nil, relationInvalidPlan("reverse prefetch source storage could not read the bound ForeignKey")
 		}
 		identifier, ok := foreignKey.Integer()
 		if !ok || foreignKey.IsNull() {
 			return nil, relatedSetMembershipError(
-				p.state.reverse.sourceForeignKey,
+				state.reverse.sourceForeignKey,
 				"reverse prefetch source returned a NULL or non-integer ForeignKey",
 			)
 		}
 		if _, exists := requested[identifier]; !exists {
 			return nil, relatedSetMembershipError(
-				p.state.reverse.sourceForeignKey,
+				state.reverse.sourceForeignKey,
 				"reverse prefetch source ForeignKey is outside the requested owner set",
 			)
 		}
 		// All returned owned models, and groups never escape this operation.
 		// Clone separately when publishing each owner's independent cache below.
+		if state.reverse.sourceForeignKey.Relation.Cardinality == ir.RelationOneToOne && len(groups[identifier]) != 0 {
+			return nil, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeRelatedObjectCardinality,
+				Field: state.reverse.sourceForeignKey.Name, Detail: "one-to-one prefetch returned multiple source rows for one owner"}
+		}
 		groups[identifier] = append(groups[identifier], source)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	result := make([]*RelatedSet[Source], len(coldSets))
+	result := make([]QuerySet[Source], len(coldSets))
 	for index, cold := range coldSets {
 		state := newEvaluationState[Source]()
-		state.values = cold.querySet.cloneModels(groups[ownerKeys[index]])
+		state.values = cold.cloneModels(groups[ownerKeys[index]])
 		state.ready = true
-		cold.querySet.evaluation = state
+		cold.evaluation = state
 		result[index] = cold
 	}
 	if err := ctx.Err(); err != nil {

@@ -89,8 +89,8 @@ func RelationCondition(plan query.Plan, condition query.Condition, path query.Re
 }
 
 func ReverseCondition(condition query.Condition, hop query.RelationHop, backendName string) error {
-	if hop.Cardinality() != ir.RelationOneToMany {
-		return unsupportedRelatedCondition(condition, backendName+" reverse related-field paths require one-to-many traversal")
+	if hop.Cardinality() != ir.RelationOneToMany && hop.Cardinality() != ir.RelationOneToOne {
+		return unsupportedRelatedCondition(condition, backendName+" reverse related-field paths require a one-to-many or one-to-one traversal")
 	}
 	if !canonicalIdentity(hop.Source()) || !canonicalIdentity(hop.Target()) ||
 		!CanonicalIdentifier(hop.SourceTable()) || !CanonicalIdentifier(hop.Field()) ||

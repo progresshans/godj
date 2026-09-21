@@ -106,7 +106,7 @@ func nestedOperand(leaf Leaf) (query.RelationPath, query.FieldRef, query.Lookup,
 	}
 	if len(parts) == 2 && parts[0] == "comments" {
 		terminal := query.NewFieldRef("body", "body", query.FieldString, false)
-		path, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "blog", ModelName: "comment"}, "nested_reference_comment", "post", "post_id", identity, model.DBTable, "id", "comments", false, terminal)
+		path, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "blog", ModelName: "comment"}, "nested_reference_comment", "post", "post_id", identity, model.DBTable, "id", "comments", false, terminal, ir.RelationOneToMany)
 		return path, terminal, lookup, err
 	}
 	var hops []query.RelationHop
@@ -135,7 +135,7 @@ func nestedOperand(leaf Leaf) (query.RelationPath, query.FieldRef, query.Lookup,
 			return path, terminal, lookup, err
 		}
 		target := models[field.Relation.Target]
-		path, err := query.NewForwardRelationPath(identity, model.DBTable, field.Name, field.Column, field.Relation.Target, target.DBTable, "id", field.Nullable, query.NewFieldRef("id", "id", query.FieldInteger, false))
+		path, err := query.NewForwardRelationPath(identity, model.DBTable, field.Name, field.Column, field.Relation.Target, target.DBTable, "id", field.Nullable, query.NewFieldRef("id", "id", query.FieldInteger, false), ir.RelationManyToOne)
 		if err != nil {
 			return query.RelationPath{}, query.FieldRef{}, "", err
 		}
@@ -284,7 +284,7 @@ func NestedPlan(leaves map[string]Leaf, input NestedInput) (query.Plan, error) {
 		default:
 			return query.Plan{}, fmt.Errorf("unknown selected input %s", name)
 		}
-		projections[i], err = query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, plan.Table(), key, target, models[target].DBTable, columns[0], columns)
+		projections[i], err = query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, plan.Table(), key, target, models[target].DBTable, columns[0], columns, ir.RelationManyToOne)
 		if err != nil {
 			return query.Plan{}, err
 		}

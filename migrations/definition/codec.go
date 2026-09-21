@@ -894,7 +894,7 @@ func collectRelationCandidates(value jsonValue, sourceID, pointer, app, name str
 		return candidates
 	}
 	cardinality, hasCardinality := object.member("cardinality")
-	if !hasCardinality || cardinality.kind != jsonString || cardinality.string != string(ir.RelationManyToOne) {
+	if !hasCardinality || cardinality.kind != jsonString || !ir.RelationCardinality(cardinality.string).SingleValued() {
 		candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/cardinality", app, name, operationIndex, "invalid_ir"))
 	}
 	onDelete, hasOnDelete := object.member("on_delete")

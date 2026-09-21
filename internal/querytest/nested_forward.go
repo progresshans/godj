@@ -150,7 +150,7 @@ func ConflictingNestedPlans(t *testing.T) map[string]query.Plan {
 					sourceTable = "other_team"
 				}
 			}
-			p, err := query.NewForwardRelationPath(source, sourceTable, hop.Field(), column, target, targetTable, pk, nullable, path.Terminal())
+			p, err := query.NewForwardRelationPath(source, sourceTable, hop.Field(), column, target, targetTable, pk, nullable, path.Terminal(), ir.RelationManyToOne)
 			if err != nil {
 				t.Fatal(err)
 			}

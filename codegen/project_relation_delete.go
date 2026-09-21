@@ -193,7 +193,7 @@ func validateProjectRelationDeleteEdge(field ir.Field) error {
 	if field.Kind != ir.FieldForeignKey || field.Relation == nil {
 		return fmt.Errorf("incoming field is not a ForeignKey")
 	}
-	if field.Relation.Cardinality != ir.RelationManyToOne {
+	if !field.Relation.Cardinality.SingleValued() {
 		return fmt.Errorf("incoming relation cardinality %q is unsupported", field.Relation.Cardinality)
 	}
 	switch field.Relation.OnDelete {

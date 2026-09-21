@@ -25,12 +25,13 @@ type projectRelationReverseTerminal struct {
 }
 
 type projectRelationReverseEdge struct {
-	name      string
-	selector  string
-	typeName  string
-	source    *projectRelationModel
-	terminals []projectRelationReverseTerminal
-	bind      int
+	name        string
+	selector    string
+	typeName    string
+	source      *projectRelationModel
+	terminals   []projectRelationReverseTerminal
+	bind        int
+	cardinality ir.RelationCardinality
 }
 
 type projectRelationReverseOwner struct {
@@ -180,10 +181,11 @@ func buildProjectRelationReverseSurface(
 				}
 			}
 			edgesByOwner[owner.identity] = append(edgesByOwner[owner.identity], projectRelationReverseEdge{
-				name:      field.Relation.Reverse.Name,
-				selector:  selector,
-				source:    source,
-				terminals: terminals,
+				name:        field.Relation.Reverse.Name,
+				selector:    selector,
+				source:      source,
+				terminals:   terminals,
+				cardinality: field.Relation.Cardinality,
 			})
 		}
 	}
@@ -426,10 +428,15 @@ func renderProjectRelationReverseObjectTypes(output *bytes.Buffer, owner project
 	ownerType := owner.model.app.alias + "." + owner.model.model.GoName
 	fmt.Fprintf(output, "type %s struct {\n", owner.factoryType)
 	for _, relation := range owner.relations {
+		objectType := "ReverseObject"
+		if relation.cardinality == ir.RelationOneToOne {
+			objectType = "ReverseOneToOneObject"
+		}
 		fmt.Fprintf(
 			output,
-			"\t%s orm.ReverseObject[%s, %s.%s]\n",
+			"\t%s orm.%s[%s, %s.%s]\n",
 			lowerFirst(relation.selector),
+			objectType,
 			ownerType,
 			relation.source.app.alias,
 			relation.source.model.GoName,
@@ -463,10 +470,15 @@ func renderProjectRelationReverseObjectTypes(output *bytes.Buffer, owner project
 	fmt.Fprintf(output, "\tfactory %s\n", owner.factoryType)
 	fmt.Fprintln(output, "\tbackend db.Queryer")
 	for _, relation := range owner.relations {
+		resultType := "RelatedSet"
+		if relation.cardinality == ir.RelationOneToOne {
+			resultType = "RelatedObject"
+		}
 		fmt.Fprintf(
 			output,
-			"\t%s *orm.RelatedSet[%s.%s]\n",
+			"\t%s *orm.%s[%s.%s]\n",
 			lowerFirst(relation.selector),
+			resultType,
 			relation.source.app.alias,
 			relation.source.model.GoName,
 		)
@@ -494,6 +506,9 @@ func renderProjectRelationReverseObjectTypes(output *bytes.Buffer, owner project
 	fmt.Fprintln(output)
 	for _, relation := range owner.relations {
 		setType := "*orm.RelatedSet[" + relation.source.app.alias + "." + relation.source.model.GoName + "]"
+		if relation.cardinality == ir.RelationOneToOne {
+			setType = "*orm.RelatedObject[" + relation.source.app.alias + "." + relation.source.model.GoName + "]"
+		}
 		fmt.Fprintf(output, "func (_object *%s) %s() (%s, error) {\n", owner.objectType, relation.selector, setType)
 		fmt.Fprintln(output, "\tif _err := _object._validate(); _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
@@ -528,10 +543,15 @@ func renderBindReverseObjects(
 	renderProjectModelBindings(output, models, "ReverseObjects", nil)
 	for _, owner := range owners {
 		for _, relation := range owner.relations {
+			binder := "BindReverseObject"
+			if relation.cardinality == ir.RelationOneToOne {
+				binder = "BindReverseOneToOneObject"
+			}
 			fmt.Fprintf(
 				output,
-				"\t_relation%d, _err := orm.BindReverseObject(_model%d, %s, _model%d)\n",
+				"\t_relation%d, _err := orm.%s(_model%d, %s, _model%d)\n",
 				relation.bind,
+				binder,
 				owner.model.bind,
 				strconv.Quote(relation.name),
 				relation.source.bind,

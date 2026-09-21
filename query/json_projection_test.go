@@ -101,11 +101,11 @@ func TestRelatedJSONProjectionOwnsRouteAndPreservesRootAuthority(t *testing.T) {
 	payload := query.NewFieldRef("payload", "payload", query.FieldJSON, false)
 	root := ir.ModelIdentity{AppLabel: "app", ModelName: "entry"}
 	target := ir.ModelIdentity{AppLabel: "app", ModelName: "document"}
-	a, err := query.NewForwardRelationPath(root, "app_entry", "primary", "primary_id", target, "app_document", "id", true, payload)
+	a, err := query.NewForwardRelationPath(root, "app_entry", "primary", "primary_id", target, "app_document", "id", true, payload, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := query.NewForwardRelationPath(root, "app_entry", "secondary", "secondary_id", target, "app_document", "id", true, payload)
+	b, err := query.NewForwardRelationPath(root, "app_entry", "secondary", "secondary_id", target, "app_document", "id", true, payload, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestRelatedJSONProjectionOwnsRouteAndPreservesRootAuthority(t *testing.T) {
 	if _, err := query.NewAggregateResult(selected); err == nil {
 		t.Fatal("related JSON result became aggregate")
 	}
-	reverse, err := query.NewReverseRelationPath(root, "app_entry", "primary", "primary_id", target, "app_document", "id", "entries", true, payload)
+	reverse, err := query.NewReverseRelationPath(root, "app_entry", "primary", "primary_id", target, "app_document", "id", "entries", true, payload, ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}

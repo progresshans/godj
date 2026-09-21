@@ -11,7 +11,7 @@ func TestOrderingExpressionOwnershipAndSourceAuthority(t *testing.T) {
 	fk := query.NewFieldRef("document", "document_id", query.FieldInteger, true)
 	root := ir.ModelIdentity{AppLabel: "app", ModelName: "entry"}
 	target := ir.ModelIdentity{AppLabel: "app", ModelName: "document"}
-	route, err := query.NewForwardRelationPath(root, "app_entry", "document", "document_id", target, "app_document", "id", true, payload)
+	route, err := query.NewForwardRelationPath(root, "app_entry", "document", "document_id", target, "app_document", "id", true, payload, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

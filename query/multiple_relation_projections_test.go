@@ -16,7 +16,7 @@ func TestMultipleRelationProjectionsCanonicalizeWithoutAliasing(t *testing.T) {
 	authorKey := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 	reviewerKey := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
 	makeProjection := func(source ir.ModelIdentity, table string, key query.FieldRef, columns []query.FieldRef) query.RelationProjection {
-		p, err := query.NewForwardRelationProjection(source, table, key, person, "authors_author", id, columns)
+		p, err := query.NewForwardRelationProjection(source, table, key, person, "authors_author", id, columns, ir.RelationManyToOne)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -376,7 +376,7 @@ func TestCompilerRelationProjectionKeepsAggregateBoundary(t *testing.T) {
 	authorName := query.NewFieldRef("name", "name", query.FieldString, false)
 	path, err := query.NewForwardRelationPath(
 		post, "blog_post", "author", "author_id",
-		author, "authors_author", "id", false, authorName,
+		author, "authors_author", "id", false, authorName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -422,7 +422,7 @@ func TestCompileRelationModelSupportsDistinctAndOffset(t *testing.T) {
 	authorName := query.NewFieldRef("name", "name", query.FieldString, false)
 	path, err := query.NewForwardRelationPath(
 		post, "blog_post", "author", "author_id",
-		author, "authors_author", "id", false, authorName,
+		author, "authors_author", "id", false, authorName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)

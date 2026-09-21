@@ -26,7 +26,7 @@ func (schema *postgresMigrationSchema) AlterField(ctx context.Context, executor 
 	if err != nil || !reflect.DeepEqual(model, operation.Before) || !before.Equal(wantBefore) || !after.Equal(wantAfter) {
 		return postgresMigrationIntentIntegrity("AlterField arguments differ from the sealed field transition", err)
 	}
-	if kind == ir.ChangeUnique {
+	if wantBefore.Unique != wantAfter.Unique {
 		statement, err := compilePostgresUniqueAlter(schema.namespace, model, wantAfter)
 		if err != nil {
 			return err

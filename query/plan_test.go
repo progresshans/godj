@@ -282,7 +282,7 @@ func TestPlanWithWhereBindsSourceFieldsAndSupportsForwardBooleanPredicates(t *te
 		"authors_author",
 		"id",
 		false,
-		authorName,
+		authorName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationPath() error = %v", err)

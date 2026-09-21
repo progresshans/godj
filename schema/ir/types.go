@@ -57,7 +57,14 @@ type RelationCardinality string
 const (
 	RelationManyToOne RelationCardinality = "many_to_one"
 	RelationOneToMany RelationCardinality = "one_to_many"
+	RelationOneToOne  RelationCardinality = "one_to_one"
 )
+
+// SingleValued reports whether following an edge can return at most one row.
+// It does not imply that the related row exists or that the source is non-null.
+func (c RelationCardinality) SingleValued() bool {
+	return c == RelationManyToOne || c == RelationOneToOne
+}
 
 type DeletePolicy string
 

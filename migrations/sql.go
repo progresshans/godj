@@ -141,11 +141,11 @@ func RenderMigrationSQL(
 	rules := make([]migrationSQLGroupRule, len(intent.Operations))
 	for index, operation := range intent.Operations {
 		if operation.Kind == backend.MigrationAlterField {
-			_, _, kind, err := backend.ChangedField(operation.Before, operation.After)
+			before, after, kind, err := backend.ChangedField(operation.Before, operation.After)
 			if err != nil {
 				return nil, invalidLoadedState(Migration{App: target.App, Name: target.Name}, operation.OperationIndex, "AlterField", err)
 			}
-			if kind == ir.ChangeChoices {
+			if kind == ir.ChangeChoices || kind == ir.ChangeRelation && before.Unique == after.Unique {
 				rules[index] = migrationSQLMetadataOnly
 			} else if kind == ir.ChangeDecimalPrecision {
 				rules[index] = migrationSQLBackendSpecific

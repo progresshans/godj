@@ -322,13 +322,13 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 	authorName := query.NewFieldRef("name", "name", query.FieldString, false)
 	categoryName := query.NewFieldRef("name", "name", query.FieldString, false)
 	authorPath, err := query.NewForwardRelationPath(
-		post, "blog_post", "author", "author_id", author, "authors_author", "id", false, authorName,
+		post, "blog_post", "author", "author_id", author, "authors_author", "id", false, authorName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	categoryPath, err := query.NewForwardRelationPath(
-		post, "blog_post", "category", "category_id", category, "catalog_category", "id", false, categoryName,
+		post, "blog_post", "category", "category_id", category, "catalog_category", "id", false, categoryName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -364,7 +364,7 @@ func TestPostgresBooleanRelationBoundaryAndAliasOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", post, "blog_post", "id", "comments", false, authorName)
+	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", post, "blog_post", "id", "comments", false, authorName, ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}

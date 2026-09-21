@@ -42,11 +42,12 @@ type forwardObjectState[S, T any] struct {
 // cache. Pointer identity is part of the ownership contract; dereference-copy
 // and zero values fail with a structured invalid-plan error.
 type RelatedObject[T any] struct {
-	querySet QuerySet[T]
-	selected *relatedSelectedState[T]
-	absent   bool
-	_self    *RelatedObject[T]
-	marker   [0]func(T)
+	querySet     QuerySet[T]
+	selected     *relatedSelectedState[T]
+	absent       bool
+	allowMissing bool
+	_self        *RelatedObject[T]
+	marker       [0]func(T)
 }
 
 func BindRequiredForwardObject[S, T any](
@@ -108,7 +109,7 @@ func bindForwardObject[S, T any](
 	sourceField, ok := findField(relation.sourceModel.Fields, relation.metadata.Field)
 	if !ok || sourceField.Kind != ir.FieldForeignKey || sourceField.Nullable != wantNullable ||
 		sourceField.Relation == nil || sourceField.Relation.Target != target.identity ||
-		sourceField.Relation.Cardinality != ir.RelationManyToOne {
+		!sourceField.Relation.Cardinality.SingleValued() {
 		return forwardObjectState[S, T]{}, relationInvalidPlan("forward relation source field is not canonical")
 	}
 	storage, ok := source.objectDescriptor.BindRelationStorage(sourceField.Clone())
@@ -137,7 +138,7 @@ func bindForwardObject[S, T any](
 			fieldReference(sourceField),
 			relation.metadata.Target,
 			relation.targetModel.DBTable,
-			relation.targetPrimaryKey.Column,
+			relation.targetPrimaryKey.Column, relation.metadata.Cardinality,
 		)
 		if err != nil {
 			return forwardObjectState[S, T]{}, err
@@ -247,6 +248,9 @@ func (r *RelatedObject[T]) Get(ctx context.Context) (T, bool, error) {
 	}
 	switch len(values) {
 	case 0:
+		if r.allowMissing {
+			return zero, false, nil
+		}
 		return zero, false, &query.Error{
 			Category: query.CategoryModelState,
 			Code:     query.CodeRelatedObjectMissing,
@@ -258,7 +262,7 @@ func (r *RelatedObject[T]) Get(ctx context.Context) (T, bool, error) {
 		return zero, false, &query.Error{
 			Category: query.CategoryIntegrity,
 			Code:     query.CodeRelatedObjectCardinality,
-			Detail:   "forward relation resolved to more than one target row",
+			Detail:   "single-object relation resolved to more than one target row",
 		}
 	}
 }
@@ -270,7 +274,9 @@ func (r *RelatedObject[T]) Fresh() (*RelatedObject[T], error) {
 	if r.absent {
 		return newAbsentRelatedObject[T](), nil
 	}
-	return newRelatedObject(r.querySet.Fresh()), nil
+	fresh := newRelatedObject(r.querySet.Fresh())
+	fresh.allowMissing = r.allowMissing
+	return fresh, nil
 }
 
 func (r *RelatedObject[T]) validate() error {

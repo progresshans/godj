@@ -45,6 +45,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
+		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
 	}

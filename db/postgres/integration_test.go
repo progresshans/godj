@@ -532,7 +532,7 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 			ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 			"blog_post", "author", "author_id",
 			ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-			"authors_author", "id", false, fields.authorName,
+			"authors_author", "id", false, fields.authorName, ir.RelationManyToOne,
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -553,7 +553,7 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 			ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 			"blog_post", "author", "author_id",
 			ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-			"authors_author", "id", "posts", false, fields.title,
+			"authors_author", "id", "posts", false, fields.title, ir.RelationOneToMany,
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -575,7 +575,7 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 			"blog_post", fields.editorKey,
 			ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 			"authors_author", fields.id,
-			[]query.FieldRef{fields.id, fields.authorName},
+			[]query.FieldRef{fields.id, fields.authorName}, ir.RelationManyToOne,
 		)
 		if err != nil {
 			t.Fatal(err)

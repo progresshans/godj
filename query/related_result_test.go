@@ -16,7 +16,7 @@ func TestRelatedFieldProjectionPreservesExactTargetAndRootAuthority(t *testing.T
 	payload := query.NewFieldRef("payload", "payload", query.FieldJSON, true)
 	selected := make([]query.ResultExpression, 0, 3)
 	for _, field := range []query.FieldRef{id, amount, payload} {
-		path, err := query.NewForwardRelationPath(root, "app_entry", "datum", "datum_id", target, "app_datum", "id", true, field)
+		path, err := query.NewForwardRelationPath(root, "app_entry", "datum", "datum_id", target, "app_datum", "id", true, field, ir.RelationManyToOne)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -86,14 +86,14 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		var statement string
 		switch operation.Kind {
 		case migrationbackend.MigrationAlterField:
-			_, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
+			before, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {
 				return nil, postgresMigrationIntentIntegrity("invalid AlterField delta", deltaErr)
 			}
-			if kind == ir.ChangeChoices {
+			if kind == ir.ChangeChoices || kind == ir.ChangeRelation && before.Unique == field.Unique {
 				continue
 			}
-			if kind == ir.ChangeUnique {
+			if before.Unique != field.Unique {
 				statement, err = compilePostgresUniqueAlter(renderer.schema, operation.After, field)
 			} else {
 				statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)

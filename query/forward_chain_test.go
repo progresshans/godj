@@ -11,11 +11,11 @@ import (
 func TestForwardChainOwnsHopsAndNullableAncestors(t *testing.T) {
 	node := ir.ModelIdentity{AppLabel: "tree", ModelName: "node"}
 	name := query.NewFieldRef("name", "name", query.FieldString, false)
-	optional, err := query.NewForwardRelationPath(node, "tree_node", "parent", "parent_id", node, "tree_node", "id", true, name)
+	optional, err := query.NewForwardRelationPath(node, "tree_node", "parent", "parent_id", node, "tree_node", "id", true, name, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
-	required, err := query.NewForwardRelationPath(node, "tree_node", "owner", "owner_id", node, "tree_node", "id", false, name)
+	required, err := query.NewForwardRelationPath(node, "tree_node", "owner", "owner_id", node, "tree_node", "id", false, name, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestForwardChainOwnsHopsAndNullableAncestors(t *testing.T) {
 	if trimmed.Equal(path) {
 		t.Fatal("terminal scope lost")
 	}
-	if _, err := query.NewForwardRelationIsNullPath(node, "tree_node", key, node, "tree_node", "id"); err != nil {
+	if _, err := query.NewForwardRelationIsNullPath(node, "tree_node", key, node, "tree_node", "id", ir.RelationManyToOne); err != nil {
 		t.Fatal("required presence rejected", err)
 	}
 	for name, input := range map[string]struct {
@@ -67,7 +67,7 @@ func TestForwardChainOwnsHopsAndNullableAncestors(t *testing.T) {
 			}
 		})
 	}
-	other, err := query.NewForwardRelationPath(ir.ModelIdentity{AppLabel: "other", ModelName: "node"}, "tree_node", "parent", "parent_id", node, "tree_node", "id", true, name)
+	other, err := query.NewForwardRelationPath(ir.ModelIdentity{AppLabel: "other", ModelName: "node"}, "tree_node", "parent", "parent_id", node, "tree_node", "id", true, name, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

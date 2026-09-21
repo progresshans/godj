@@ -304,7 +304,7 @@ func TestCountRelationTraversalKeepsColdAndWarmSemantics(t *testing.T) {
 		authorModel.DBTable,
 		authorModel.Fields[0].Column,
 		false,
-		fieldReference(authorName),
+		fieldReference(authorName), ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationPath() error = %v", err)

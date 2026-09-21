@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+
+	"github.com/progresshans/godj/schema/ir"
 )
 
 const ProjectRelationPrefetchGeneratorVersion = "godj-codegen-rel-prefetch-project-v1"
@@ -93,10 +95,15 @@ func renderProjectRelationPrefetchOwner(output *bytes.Buffer, owner projectRelat
 	fmt.Fprintf(output, "type %s struct {\n", bundleType)
 	fmt.Fprintf(output, "\tobjects %s\n", owner.factoryType)
 	for _, relation := range owner.relations {
+		prefetchType := "ReversePrefetch"
+		if relation.cardinality == ir.RelationOneToOne {
+			prefetchType = "ReverseOneToOnePrefetch"
+		}
 		fmt.Fprintf(
 			output,
-			"\t%s orm.ReversePrefetch[%s, %s.%s]\n",
+			"\t%s orm.%s[%s, %s.%s]\n",
 			lowerFirst(relation.selector),
+			prefetchType,
 			ownerType,
 			relation.source.app.alias,
 			relation.source.model.GoName,
@@ -165,10 +172,15 @@ func renderBindReversePrefetches(output *bytes.Buffer, owners []projectRelationR
 	fmt.Fprintln(output, "\t}")
 	for _, owner := range owners {
 		for _, relation := range owner.relations {
+			binder := "BindReversePrefetch"
+			if relation.cardinality == ir.RelationOneToOne {
+				binder = "BindReverseOneToOnePrefetch"
+			}
 			fmt.Fprintf(
 				output,
-				"\t_prefetch%d, _err := orm.BindReversePrefetch(_objects.%s.%s)\n",
+				"\t_prefetch%d, _err := orm.%s(_objects.%s.%s)\n",
 				relation.bind,
+				binder,
 				owner.surface,
 				lowerFirst(relation.selector),
 			)

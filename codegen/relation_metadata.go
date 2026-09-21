@@ -141,6 +141,8 @@ func relationCardinalityLiteral(cardinality ir.RelationCardinality) string {
 		return "ir.RelationManyToOne"
 	case ir.RelationOneToMany:
 		return "ir.RelationOneToMany"
+	case ir.RelationOneToOne:
+		return "ir.RelationOneToOne"
 	default:
 		return strconv.Quote(string(cardinality))
 	}

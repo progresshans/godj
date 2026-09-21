@@ -165,7 +165,7 @@ func TestExpressionTracksRelationProvenanceThroughConnectors(t *testing.T) {
 		"authors_author",
 		"id",
 		false,
-		authorName,
+		authorName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationPath() error = %v", err)

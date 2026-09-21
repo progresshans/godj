@@ -1,0 +1,61 @@
+# ADR-0073: OneToOne cardinality and reverse object ownership
+
+- 상태: Accepted — 선언·이력·양 DB·단일 reverse object/prefetch 기반 구현. 전체 소비자 연결은 GDJ-0096에서 진행 중.
+- 날짜: 2026-09-22
+- 관련 작업: [GDJ-0096](../../work/0096-one-to-one-service-reports.md)
+
+## 선언과 저장 의미
+
+티켓에는 작업 보고서가 없거나 하나 있다. 이 관계를 일반 FK의 고유성 옵션과 구분하여 선언한다.
+`schema.OneToOne`은 ForeignKey 저장 필드와 별도의 `ir.RelationOneToOne` cardinality를 갖는다.
+Schema IR 정규화는 `Unique=true`를 보장하며 비어 있는 reverse 선언을 source model 이름으로 해석한다.
+명시적 이름과 `NoReverse`도 지원한다. 기존 `ForeignKey(..., Unique())`의 reverse는 collection으로 유지한다.
+Target은 현재 AutoField이며 nullability와 PROTECT/SET_NULL은 기존 FK 규칙을 따른다.
+
+고유성은 [ADR-0072](0072-column-uniqueness-and-constraint-ownership.md)의 양 DB 물리 제약이 소유한다.
+사전 조회나 단일 객체 반환 API만으로 중복 저장을 막았다고 하지 않는다. Nullable 관계의 여러 SQL NULL은 허용한다.
+역방향에서 자식이 없는 것은 required forward FK의 무결성 위반과 다르다. Required는 존재하는 자식의 FK 값에 대한 조건이다.
+
+## 이력과 변경
+
+Historical wire·digest·autodetect·생성 metadata는 cardinality와 reverse namespace를 보존한다.
+Wire에 비고유 OneToOne이나 미해석 default reverse를 넣으면 거부한다. Standalone Add/Alter field도 declaring model에서
+이미 정규화한 reverse 이름 또는 명시적 disabled 값이 필요하다. 검사용 synthetic model 이름으로 default를 만들지 않는다.
+
+같은 target·delete policy·nullability·field identity에서 cardinality, reverse namespace와 그에 필요한 Unique를 함께
+바꾸는 AlterField를 지원한다. 다른 field 속성 변경을 이 transition에 숨기지 않는다. Reverse 이름 변경은 target field와
+다른 incoming 관계의 namespace 충돌을 검증한 뒤 한 번에 게시한다. Incoming target/count는 바뀌지 않는다.
+
+`AlterFieldRelation` capability는 이 transition의 별도 실행 조건이다. Unique 값도 바뀌면 `UniqueConstraints`가 함께 필요하다.
+고유성을 유지하는 FK+Unique → OneToOne과 reverse 이름 변경은 DDL 없는 metadata 변경이다. 비고유 FK → OneToOne은
+실제 UNIQUE를 추가하며 반대 방향은 정확히 이전 Unique 상태를 복구한다. Metadata-only도 물리 catalog와 revision 검증을 생략하지 않는다.
+기존 중복으로 실패하면 전체 migration의 행·catalog·recorder/revision을 보존한다. 자동 정리 없이 명시적 데이터 수정 뒤 재시도한다.
+
+## Query와 객체 소유권
+
+Typed/dynamic query는 cardinality를 보존하는 같은 AST를 사용한다. Forward/reverse path와 forward projection 생성자는
+cardinality를 명시적으로 받는다. OneToOne을 many-to-one으로 바꾸어 저장하거나 기존 내부 ABI를 위한 별도 경로를 두지 않는다.
+
+Generated reverse factory는 OneToOne에 `RelatedObject[T]`, 일반 FK+Unique에 `RelatedSet[T]`를 반환한다.
+단일 역방향 조회는 최대 두 행으로 cardinality를 검사한다. `Get(ctx)`의 `(value, present, error)`에서 부재는
+`zero, false, nil`이며 성공한 빈 결과도 cache한다. 두 행 이상은 integrity 오류다. Forward의 존재해야 하는 target 누락은
+기존 missing 오류를 유지한다. Unsaved owner는 I/O 전에 missing-primary-key 오류이며 명시적 PK 0과 구분한다.
+
+각 From/Fresh와 materialization은 cache를 독립 소유한다. 같은 handle의 동시 조회는 기존 QuerySet 평가 owner를 공유한다.
+취소·query/scan/rows-close 실패는 성공 결과로 게시하지 않는다. Pointer handle의 zero/nil/dereference-copy를 거부한다.
+외부 insert가 warm missing cache를 자동 갱신하지 않으며 Fresh로 다시 읽는다.
+
+Reverse prefetch는 owner key를 중복 제거한 한 batch를 읽고 전체 membership/cardinality 검증 뒤 게시한다.
+반복된 owner도 각각 독립 cache를 받는다. 빈 owner 목록은 검증 뒤 I/O 없이 빈 결과를 반환하며 기존 999 distinct key 한도를 유지한다.
+Django의 descriptor exception·상호 객체 cache와 Go handle의 표현 차이는 [DEV-0018](../DEVIATIONS.md#dev-0018--일대일-역방향-부재와-go-객체-소유권)에 기록한다.
+
+PostgreSQL은 `AtomicRelation`과 bulk SET_NULL을 일반 Atomic과 같은 transaction/session 수명으로 실행한다.
+PROTECT와 SET_NULL/delete는 한 transaction에 속한다. Callback 오류·확정 rollback·commit/rollback outcome unknown과
+native cause를 구분하며 자동 재시도하지 않는다. SQLite의 기존 relation transaction/quarantine 의미도 유지한다.
+
+## 구현과 남은 범위
+
+Cross-app 생성 소비자가 required/nullable 관계, reverse exact 조회·단일 lazy/prefetch, forward eager와 양 DB 삭제를 사용한다.
+독립 [Django runner](../../conformance/runners/django/one_to_one_reference.py)의 관찰을 기준으로 하되 전체 37개 관찰의 parity를 주장하지 않는다.
+단일 reverse의 isnull·넓은 lookup/OR/NOT·eager projection, assignment의 전체 연결과 Helpdesk Form/Admin/API/OpenAPI/client는 남아 있다.
+Relation-as-PK·arbitrary target·상속·ManyToMany도 별도 미완료 범위다. 실행 source·환경은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

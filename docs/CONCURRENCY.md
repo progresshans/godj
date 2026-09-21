@@ -41,6 +41,9 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 
 - 같은 relation owner의 cache와 새 materialization/Fresh의 cache를 구분한다. 전역 identity map을 가정하지 않는다.
 - Lazy required 관계의 missing/cardinality와 nullable absent는 서로 다른 결과다.
+- OneToOne의 reverse는 자식이 없을 수 있으므로 `RelatedObject.Get`의 present=false를 성공 cache로 보존한다.
+  Forward의 dangling target 오류와 구분하며 외부 insert 뒤에는 Fresh로 다시 읽는다. 일반 Unique FK는 reverse collection을 유지한다.
+- OneToOne prefetch는 전체 batch의 단일 cardinality를 확인한 뒤 게시한다. 반복 owner는 독립 cache를 소유한다.
 - Prefetch/eager All은 전체 scan·row close·cancel·cardinality 검증이 끝난 뒤 한 번에 결과를 게시한다. 실패 시 partial cache를 남기지 않는다.
 - 다른 filter JOIN으로 eager 결과에 같은 root 행이 중복돼도 각 반환 객체·FK pointer·선택한 관계 cache는 독립 소유한다.
   Warm All/First는 원본 query cache에서 다시 복제하며 한 결과의 수정을 다른 결과로 전파하지 않는다.
@@ -64,7 +67,8 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 
 상세 이유: [forward cache](adr/0026-forward-foreign-key-object-cache-and-nullability.md),
 [prefetch](adr/0028-reverse-foreign-key-prefetch.md), [eager](adr/0029-one-hop-forward-select-related.md),
-[assignment](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md).
+[assignment](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md),
+[일대일 관계](adr/0073-one-to-one-cardinality-and-reverse-objects.md).
 
 ## Migration의 durable 상태
 

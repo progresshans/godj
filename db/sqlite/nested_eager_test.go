@@ -39,7 +39,7 @@ func TestSQLiteNestedEagerProjectionJoinBudget(t *testing.T) {
 	parent := query.NewFieldRef("parent", "parent_id", query.FieldInteger, true)
 	name := query.NewFieldRef("name", "name", query.FieldString, false)
 	fields := []query.FieldRef{id, parent, name}
-	direct, err := query.NewForwardRelationProjection(identity, "tree_node", parent, identity, "tree_node", id, fields)
+	direct, err := query.NewForwardRelationProjection(identity, "tree_node", parent, identity, "tree_node", id, fields, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

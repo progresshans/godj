@@ -240,6 +240,24 @@ func ForeignKey(
 	return field
 }
 
+// OneToOne declares a foreign key with a distinct, single-object reverse
+// relation. A zero reverse declaration defaults to the source model name;
+// NoReverse disables it. The normalized IR always enforces column uniqueness.
+func OneToOne(
+	name, goName string,
+	target ModelTarget,
+	reverse ReverseRelation,
+	onDelete DeletePolicy,
+	options ...FieldOption,
+) Field {
+	field := ForeignKey(name, goName, target, reverse, onDelete, options...)
+	if field.Relation != nil {
+		field.Relation.Cardinality = ir.RelationOneToOne
+	}
+	field.Unique = true
+	return field
+}
+
 func Build(definition Definition) (ir.Schema, error) {
 	result := ir.Schema{
 		FormatVersion: ir.CurrentFormatVersion,

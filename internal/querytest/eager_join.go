@@ -22,7 +22,7 @@ func ConflictingEagerJoinPlans(t testing.TB) map[string]query.Plan {
 	name := query.NewFieldRef("name", "name", query.FieldString, false)
 	author := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 	reviewer := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
-	projection, err := query.NewForwardRelationProjection(root, "blog_post", author, person, "people_person", id, []query.FieldRef{id, name})
+	projection, err := query.NewForwardRelationProjection(root, "blog_post", author, person, "people_person", id, []query.FieldRef{id, name}, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,25 +31,25 @@ func ConflictingEagerJoinPlans(t testing.TB) map[string]query.Plan {
 		t.Fatal(err)
 	}
 	forward := func(source ir.ModelIdentity, field query.FieldRef, target ir.ModelIdentity, table, pk string) query.Condition {
-		path, err := query.NewForwardRelationPath(source, "blog_post", field.Name(), field.Column(), target, table, pk, field.Nullable(), name)
+		path, err := query.NewForwardRelationPath(source, "blog_post", field.Name(), field.Column(), target, table, pk, field.Nullable(), name, ir.RelationManyToOne)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return query.NewRelatedCondition(path, query.LookupExact, query.String("Ada"))
 	}
 	presence := func(source, target ir.ModelIdentity, table string) query.Condition {
-		path, err := query.NewForwardRelationIsNullPath(source, "blog_post", reviewer, target, table, "id")
+		path, err := query.NewForwardRelationIsNullPath(source, "blog_post", reviewer, target, table, "id", ir.RelationManyToOne)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(false))
 	}
-	reverse, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "blog", ModelName: "comment"}, "blog_comment", "post", "post_id", otherRoot, "blog_post", "id", "comments", false, name)
+	reverse, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "blog", ModelName: "comment"}, "blog_comment", "post", "post_id", otherRoot, "blog_post", "id", "comments", false, name, ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}
 	selfReverse := func(field query.FieldRef, table string) query.Condition {
-		path, err := query.NewReverseRelationPath(root, table, field.Name(), field.Column(), root, "blog_post", "id", "children", field.Nullable(), id)
+		path, err := query.NewReverseRelationPath(root, table, field.Name(), field.Column(), root, "blog_post", "id", "children", field.Nullable(), id, ir.RelationOneToMany)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,11 +94,11 @@ func CheckSelfReferenceEagerRows(t testing.TB, backend db.Queryer) {
 	name := query.NewFieldRef("name", "name", query.FieldString, false)
 	parent := query.NewFieldRef("parent", "parent_id", query.FieldInteger, true)
 	fields := []query.FieldRef{id, name, parent}
-	projection, err := query.NewForwardRelationProjection(root, "tree_node", parent, root, "tree_node", id, fields)
+	projection, err := query.NewForwardRelationProjection(root, "tree_node", parent, root, "tree_node", id, fields, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := query.NewReverseRelationPath(root, "tree_node", "parent", "parent_id", root, "tree_node", "id", "children", true, name)
+	reverse, err := query.NewReverseRelationPath(root, "tree_node", "parent", "parent_id", root, "tree_node", "id", "children", true, name, ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func ConflictingMultipleEagerPlans(t testing.TB) map[string]query.Plan {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	key := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
 	columns := []query.FieldRef{id, query.NewFieldRef("name", "name", query.FieldString, false)}
-	projection, err := query.NewForwardRelationProjection(root, "blog_post", key, person, "people_person", id, columns)
+	projection, err := query.NewForwardRelationProjection(root, "blog_post", key, person, "people_person", id, columns, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func ConflictingMultipleEagerPlans(t testing.TB) map[string]query.Plan {
 			t.Fatal(err)
 		}
 	}
-	missing, err := query.NewForwardRelationProjection(root, "blog_post", query.NewFieldRef("missing", "missing_id", query.FieldInteger, true), person, "people_person", id, columns)
+	missing, err := query.NewForwardRelationProjection(root, "blog_post", query.NewFieldRef("missing", "missing_id", query.FieldInteger, true), person, "people_person", id, columns, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

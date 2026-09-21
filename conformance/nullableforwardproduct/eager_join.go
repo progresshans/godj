@@ -83,7 +83,7 @@ func EagerJoinPlan(leaves map[string]Leaf, input EagerJoinInput) (query.Plan, er
 		return query.Plan{}, fmt.Errorf("unknown selected input %q", input.Selected)
 	}
 	target := []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false), query.NewFieldRef("name", "name", query.FieldString, false), query.NewFieldRef("nickname", "nickname", query.FieldString, true), query.NewFieldRef("active", "active", query.FieldBoolean, false)}
-	projection, err := query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "join_reference", ModelName: "post"}, "join_reference_post", sourceKey, ir.ModelIdentity{AppLabel: "join_reference", ModelName: "person"}, "join_reference_person", target[0], target)
+	projection, err := query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "join_reference", ModelName: "post"}, "join_reference_post", sourceKey, ir.ModelIdentity{AppLabel: "join_reference", ModelName: "person"}, "join_reference_person", target[0], target, ir.RelationManyToOne)
 	if err != nil {
 		return query.Plan{}, err
 	}
@@ -108,7 +108,7 @@ func eagerJoinCondition(leaf Leaf) (query.Condition, error) {
 		return query.NewCondition(SourceFields()[1], query.LookupExact, query.String(value)), nil
 	}
 	if leaf.Path == "comments__body" {
-		path, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "join_reference", ModelName: "comment"}, "join_reference_comment", "post", "post_id", post, "join_reference_post", "id", "comments", false, query.NewFieldRef("body", "body", query.FieldString, false))
+		path, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "join_reference", ModelName: "comment"}, "join_reference_comment", "post", "post_id", post, "join_reference_post", "id", "comments", false, query.NewFieldRef("body", "body", query.FieldString, false), ir.RelationOneToMany)
 		if err != nil {
 			return query.Condition{}, err
 		}
@@ -119,7 +119,7 @@ func eagerJoinCondition(leaf Leaf) (query.Condition, error) {
 		return query.NewRelatedCondition(path, query.LookupExact, query.String(value)), nil
 	}
 	if leaf.Path == "reviewer__isnull" {
-		path, err := query.NewForwardRelationIsNullPath(post, "join_reference_post", SourceFields()[3], person, "join_reference_person", "id")
+		path, err := query.NewForwardRelationIsNullPath(post, "join_reference_post", SourceFields()[3], person, "join_reference_person", "id", ir.RelationManyToOne)
 		if err != nil {
 			return query.Condition{}, err
 		}
@@ -138,7 +138,7 @@ func eagerJoinCondition(leaf Leaf) (query.Condition, error) {
 		return query.Condition{}, err
 	}
 	relation, _, _ := strings.Cut(leaf.Path, "__")
-	path, err := query.NewForwardRelationPath(post, "join_reference_post", relation, relation+"_id", person, "join_reference_person", "id", relation == "reviewer", field)
+	path, err := query.NewForwardRelationPath(post, "join_reference_post", relation, relation+"_id", person, "join_reference_person", "id", relation == "reviewer", field, ir.RelationManyToOne)
 	if err != nil {
 		return query.Condition{}, err
 	}

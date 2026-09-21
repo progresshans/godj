@@ -8,8 +8,9 @@
 | Driver | modernc.org/sqlite, database/sql | pgx database/sql adapter |
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
-| Relation delete | supported physical FK의 PROTECT/SET_NULL | declared current backend capability 기준 |
-| Migration | revision session, current Create/Delete/Add/Remove와 choices-only·Decimal precision-only AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
+| Relation delete | supported FK/OneToOne의 PROTECT/SET_NULL | 같은 transaction의 PROTECT/SET_NULL·AtomicRelation |
+| OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·forward eager | 동일 공통 AST/runtime과 native 제약 |
+| Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | Column uniqueness | named unique index·Create/Add/Alter와 reverse·remake 보존·정확한 catalog·insert/update 충돌 오류 | named UNIQUE·단일 B-tree·Create/Add/Alter와 reverse·정확한 catalog·insert/update 충돌 오류 |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
@@ -17,7 +18,7 @@
 
 ## 현재 schema와 query 폭
 
-Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, JSON, Boolean과 AutoField-target ForeignKey를 지원한다.
+Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.
 Text는 양 DB에서 저장 길이 제약 없는 TEXT이며 nullable/string default를 지원한다. [Form widget·빈 입력 의미](adr/0060-text-field-and-form-widget-semantics.md)는 저장 nullability와 구분한다.
 DateTime은 UTC 연도 1..9999·microsecond 정밀도다. SQLite DATETIME의 고정 여섯 자리 UTC text와 PostgreSQL TIMESTAMP WITH TIME ZONE을 사용하며
@@ -33,7 +34,14 @@ Insert/update의 non-PK 충돌은 `integrity_error/unique_constraint`이며 nati
 공통 ORM의 생성·수정 고유성 사전 검증은 같은 typed mutation과 양 DB exact 조회를 사용하며 저장 제약을 대체하지 않는다.
 Form/Admin/API는 확인된 입력 거부를 field/non-field 진단으로 전달한다. Helpdesk 외부 UUID의 실제 migration·양 DB HTTP
 소비자와 SQLite 기반 generated client를 연결했다. 실행 오류·취소·rollback 실패는 입력 오류로 바꾸지 않는다.
-필요한 통합 검증은 [활성 작업](../work/0095-model-uniqueness.md)에서 이어간다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
+Column uniqueness 통합은 [GDJ-0095](../work/0095-model-uniqueness.md)에서 완료했다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
+OneToOne은 Unique FK와 별도 cardinality를 보존하며 default/named/hidden reverse와 required/nullable 선언을 지원한다.
+`AlterFieldRelation` capability는 같은 target/delete policy에서 cardinality·reverse 이름과 관련 Unique 변경을 실행한다.
+Unique가 그대로면 metadata-only이며 달라지면 실제 DDL이 필요하다. 기존 중복에 의한 적용 실패는 행·catalog·recorder/revision을 보존한다.
+성공한 역방향 적용은 이전 cardinality·reverse 이름·Unique 상태를 복구한다.
+Single reverse의 정상 부재·cardinality 오류·cache/prefetch와 양 DB PROTECT/SET_NULL을 연결했다.
+Reverse isnull·넓은 lookup/Boolean 조합·eager와 실제 입력 소비자는 [GDJ-0096](../work/0096-one-to-one-service-reports.md)의 남은 범위다.
+[일대일 의미](adr/0073-one-to-one-cardinality-and-reverse-objects.md)를 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.
 Time은 자정을 포함하는 날짜·시간대 없는 clock과 별도 NULL이다. 양 DB TIME과 canonical clock parameter를 사용하며
@@ -62,7 +70,7 @@ Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자·독립 client를 연결했�
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
 
-모든 Django Field, OneToOne/ManyToMany, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
+모든 Django Field, relation-as-PK·ManyToMany, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다. 일반 관계 집계는 미지원이다.

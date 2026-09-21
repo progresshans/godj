@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-09-21
+- 갱신: 2026-09-22
 - 활성 구현: [GDJ-0096 일대일 관계와 티켓 작업 보고서](../../work/0096-one-to-one-service-reports.md)
 - 최근 완료: [GDJ-0095 모델 고유성과 외부 참조 중복 방지](../../work/0095-model-uniqueness.md)
 - 최근 전체 검증: [고유성 수직 연결 Hosted full](https://github.com/progresshans/godj/actions/runs/35607632806), source `42ae95d3b1a891e6a0692fb0399968e483f4d907`
@@ -12,15 +12,16 @@ Column uniqueness를 Schema IR·생성 모델·migration·SQLite/PostgreSQL·ORM
 실제 Helpdesk/client까지 연결하고 통합 검증했다. 지원 범위와 제약은
 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md), [고유성 소유권](../adr/0072-column-uniqueness-and-constraint-ownership.md)이 소유한다.
 
-다음 모델 기능은 명시적 일대일 관계다. 티켓별 작업 보고서를 0..1건 연결하는 실제 흐름을 선택했다.
-양 DB의 독립 Django 관찰에서 단일 역방향 객체·없는 관계·cache·unique FK와의 차이·입력 검증·저장 실패·FK 변경을 확인했다.
-현재는 기준 관찰을 고정한 단계이며 GoDj의 OneToOne 선언·생성 ORM·소비자는 아직 구현되지 않았다.
+명시적 OneToOne을 IR·생성 metadata·historical migration과 양 DB의 FK+UNIQUE에 연결했다.
+Cross-app 생성 소비자가 단일 reverse 조회/prefetch·forward eager·중복 저장 rollback·PROTECT/SET_NULL을 사용한다.
+일반·race·CGO 비활성 로컬 checkpoint를 통과했다. 설계와 Go 부재/cache 표현은
+[일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다. 현재 변경의 Hosted 전체 검증은 아직 실행하지 않았다.
 
 ## 다음 행동
 
-일대일 cardinality를 IR·historical state·migration과 생성 metadata에 연결하고 양 DB가 실제 FK와 고유성을 함께 보장하게 한다.
-단일 역방향 조회·eager/prefetch·cache·assignment/delete를 typed/dynamic 경로에 일관되게 연결한다.
-이를 작업 보고서의 Form/Admin/API·권한·실패 복구까지 이어간다. 구체적인 완료 조건은 활성 work가 소유한다.
+단일 reverse의 없는 행/isnull·넓은 lookup/OR/NOT와 eager 조회를 typed/dynamic 경로에 연결한다.
+Assignment의 객체·cache·저장 의미를 검증하고 작업 보고서의 Form/Admin/API/OpenAPI/client·권한·실패 복구까지 이어간다.
+구체적인 완료 조건은 활성 work가 소유하며 일대일 관계 전체를 완료 처리하지 않았다.
 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.

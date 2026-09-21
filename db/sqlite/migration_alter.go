@@ -25,7 +25,7 @@ func (transaction *sqliteRevisionFencedTransaction) AlterField(ctx context.Conte
 		if err != nil || !before.Equal(wantBefore) || !after.Equal(wantAfter) {
 			return relationIntentIntegrity("AlterField differs from the sealed field transition at cursor %d", state.cursor)
 		}
-		if kind == ir.ChangeUnique {
+		if wantBefore.Unique != wantAfter.Unique {
 			statement, err := compileSQLiteUniqueAlter(operation.After, wantAfter)
 			if err != nil {
 				return err

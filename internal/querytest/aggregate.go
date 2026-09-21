@@ -32,15 +32,15 @@ func CheckAggregateSemantics(t *testing.T, ctx context.Context, backend db.Query
 	reviewerKey := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
 	post := ir.ModelIdentity{AppLabel: "aggregate", ModelName: "post"}
 	author := ir.ModelIdentity{AppLabel: "aggregate", ModelName: "author"}
-	forward, err := query.NewForwardRelationPath(post, "aggregate_post", "author", "author_id", author, "aggregate_author", "id", false, name)
+	forward, err := query.NewForwardRelationPath(post, "aggregate_post", "author", "author_id", author, "aggregate_author", "id", false, name, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := query.NewReverseRelationPath(post, "aggregate_post", "author", "author_id", author, "aggregate_author", "id", "posts", false, title)
+	reverse, err := query.NewReverseRelationPath(post, "aggregate_post", "author", "author_id", author, "aggregate_author", "id", "posts", false, title, ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}
-	nullable, err := query.NewForwardRelationIsNullPath(post, "aggregate_post", reviewerKey, author, "aggregate_author", "id")
+	nullable, err := query.NewForwardRelationIsNullPath(post, "aggregate_post", reviewerKey, author, "aggregate_author", "id", ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -39,7 +39,7 @@ func TestSQLiteNestedForwardJoinBudgetAndConcurrentCompilation(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	parent := query.NewFieldRef("parent", "parent_id", query.FieldInteger, true)
 	name := query.NewFieldRef("name", "name", query.FieldString, false)
-	direct, err := query.NewForwardRelationPath(identity, "tree_node", "parent", "parent_id", identity, "tree_node", "id", true, name)
+	direct, err := query.NewForwardRelationPath(identity, "tree_node", "parent", "parent_id", identity, "tree_node", "id", true, name, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

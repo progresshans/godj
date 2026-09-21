@@ -38,24 +38,36 @@ type RelatedSet[M any] struct {
 	marker   [0]func(M)
 }
 
-func BindReverseObject[Owner, Source any](
-	owner BoundModel[Owner],
-	reverseName string,
-	source BoundModel[Source],
-) (ReverseObject[Owner, Source], error) {
+// ReverseOneToOneObject binds a single reverse object independently of an
+// ordinary unique ForeignKey's collection API. Every From call owns its cache.
+type ReverseOneToOneObject[Owner, Source any] struct {
+	state reverseObjectState[Owner, Source]
+}
+
+func BindReverseObject[Owner, Source any](owner BoundModel[Owner], reverseName string, source BoundModel[Source]) (ReverseObject[Owner, Source], error) {
+	state, err := bindReverseObjectState(owner, reverseName, source, ir.RelationManyToOne)
+	return ReverseObject[Owner, Source]{state: state}, err
+}
+
+func BindReverseOneToOneObject[Owner, Source any](owner BoundModel[Owner], reverseName string, source BoundModel[Source]) (ReverseOneToOneObject[Owner, Source], error) {
+	state, err := bindReverseObjectState(owner, reverseName, source, ir.RelationOneToOne)
+	return ReverseOneToOneObject[Owner, Source]{state: state}, err
+}
+
+func bindReverseObjectState[Owner, Source any](owner BoundModel[Owner], reverseName string, source BoundModel[Source], cardinality ir.RelationCardinality) (reverseObjectState[Owner, Source], error) {
 	if err := validateObjectBoundModel(owner); err != nil {
-		return ReverseObject[Owner, Source]{}, err
+		return reverseObjectState[Owner, Source]{}, err
 	}
 	if err := validateObjectBoundModel(source); err != nil {
-		return ReverseObject[Owner, Source]{}, err
+		return reverseObjectState[Owner, Source]{}, err
 	}
 	relation, err := bindReverseRelationState(owner, reverseName, source)
 	if err != nil {
-		return ReverseObject[Owner, Source]{}, err
+		return reverseObjectState[Owner, Source]{}, err
 	}
 	ownerDescriptor, ok := owner.objectDescriptor.(PrimaryKeyObjectDescriptor[Owner])
 	if !ok || interfaceIsNil(ownerDescriptor) || !immutableZeroStateValue(ownerDescriptor) {
-		return ReverseObject[Owner, Source]{}, relationInvalidPlan("reverse relation owner does not provide a sealed primary-key object descriptor")
+		return reverseObjectState[Owner, Source]{}, relationInvalidPlan("reverse relation owner does not provide a sealed primary-key object descriptor")
 	}
 
 	sourceForeignKey, ok := findField(relation.forward.sourceModel.Fields, relation.forward.metadata.Field)
@@ -64,18 +76,18 @@ func BindReverseObject[Owner, Source any](
 		sourceForeignKey.Nullable != relation.forward.metadata.Nullable ||
 		sourceForeignKey.Relation == nil ||
 		sourceForeignKey.Relation.Target != owner.identity ||
-		sourceForeignKey.Relation.Cardinality != ir.RelationManyToOne ||
+		sourceForeignKey.Relation.Cardinality != cardinality ||
 		sourceForeignKey.Relation.Reverse.Disabled ||
 		sourceForeignKey.Relation.Reverse.Name != reverseName {
-		return ReverseObject[Owner, Source]{}, relationInvalidPlan("reverse relation source ForeignKey is not canonical")
+		return reverseObjectState[Owner, Source]{}, relationInvalidPlan("reverse relation source ForeignKey is not canonical")
 	}
 	sourcePrimaryKey, ok := relationAutoPrimaryKey(relation.forward.sourceModel)
 	if !ok {
-		return ReverseObject[Owner, Source]{}, relationInvalidPlan("reverse relation source does not have one AutoField primary key")
+		return reverseObjectState[Owner, Source]{}, relationInvalidPlan("reverse relation source does not have one AutoField primary key")
 	}
 	ownerPrimaryKey, ok := relationAutoPrimaryKey(owner.model)
 	if !ok || !reflect.DeepEqual(relation.forward.targetPrimaryKey, ownerPrimaryKey) {
-		return ReverseObject[Owner, Source]{}, relationInvalidPlan("reverse relation owner primary key is not canonical")
+		return reverseObjectState[Owner, Source]{}, relationInvalidPlan("reverse relation owner primary key is not canonical")
 	}
 
 	state := reverseObjectState[Owner, Source]{
@@ -87,48 +99,67 @@ func BindReverseObject[Owner, Source any](
 		sourcePrimaryKey: sourcePrimaryKey.Clone(),
 		valid:            true,
 	}
-	return ReverseObject[Owner, Source]{state: state}, nil
+	return state, nil
 }
 
-func (r ReverseObject[Owner, Source]) From(
-	backend db.Queryer,
-	owner Owner,
-) (*RelatedSet[Source], error) {
-	if interfaceIsNil(backend) {
-		return nil, relationBackendInvalidPlan("backend is nil")
-	}
-	if err := r.state.validate(); err != nil {
+func (r ReverseObject[Owner, Source]) From(backend db.Queryer, owner Owner) (*RelatedSet[Source], error) {
+	querySet, err := r.state.from(backend, owner)
+	if err != nil {
 		return nil, err
 	}
+	return newRelatedSet(querySet), nil
+}
 
-	ownerSnapshot := r.state.ownerDescriptor.CloneModel(owner)
-	primaryKey, present := r.state.ownerDescriptor.PrimaryKey(ownerSnapshot)
+func (r ReverseOneToOneObject[Owner, Source]) From(backend db.Queryer, owner Owner) (*RelatedObject[Source], error) {
+	querySet, err := r.state.from(backend, owner)
+	if err != nil {
+		return nil, err
+	}
+	limited, err := querySet.Limit(2)
+	if err != nil {
+		return nil, err
+	}
+	result := newRelatedObject(limited)
+	result.allowMissing = true
+	return result, nil
+}
+
+func (state reverseObjectState[Owner, Source]) from(backend db.Queryer, owner Owner) (QuerySet[Source], error) {
+	if interfaceIsNil(backend) {
+		return QuerySet[Source]{}, relationBackendInvalidPlan("backend is nil")
+	}
+	if err := state.validate(); err != nil {
+		return QuerySet[Source]{}, err
+	}
+
+	ownerSnapshot := state.ownerDescriptor.CloneModel(owner)
+	primaryKey, present := state.ownerDescriptor.PrimaryKey(ownerSnapshot)
 	if !present {
-		return nil, &query.Error{
+		return QuerySet[Source]{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeMissingPrimaryKey,
-			Field:    r.state.ownerPrimaryKey.Name,
+			Field:    state.ownerPrimaryKey.Name,
 			Detail:   "reverse relation owner has no explicit primary key state",
 		}
 	}
 	identifier, ok := primaryKey.Integer()
 	if !ok || primaryKey.IsNull() {
-		return nil, relationInvalidPlan("reverse relation owner descriptor returned an invalid primary key value")
+		return QuerySet[Source]{}, relationInvalidPlan("reverse relation owner descriptor returned an invalid primary key value")
 	}
 
 	predicate := predicateFromCondition[Source](query.NewCondition(
-		fieldReference(r.state.sourceForeignKey),
+		fieldReference(state.sourceForeignKey),
 		query.LookupExact,
 		query.Integer(identifier),
 	), nil)
-	ordering := NewAutoField[Source](r.state.sourcePrimaryKey).Asc()
-	querySet := newQuerySet(backend, r.state.sourceDescriptor, r.state.sourcePlan).
+	ordering := NewAutoField[Source](state.sourcePrimaryKey).Asc()
+	querySet := newQuerySet(backend, state.sourceDescriptor, state.sourcePlan).
 		Filter(predicate).
 		OrderBy(ordering)
 	if querySet.configurationErr != nil {
-		return nil, querySet.configurationErr
+		return QuerySet[Source]{}, querySet.configurationErr
 	}
-	return newRelatedSet(querySet), nil
+	return querySet, nil
 }
 
 func (state reverseObjectState[Owner, Source]) validate() error {

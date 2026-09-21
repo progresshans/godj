@@ -3,6 +3,93 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0096 — OneToOne 선언·이력·단일 reverse 기반 checkpoint
+
+2026-09-22, 기준 `0b98ea1d7fb190ef2d6de48e68d2cc7f9ca39ff6` 위 제품·생성물·테스트·CI **108경로**의 최종 manifest SHA256은
+`9c558328985c2f370638202a44cf1851b0ace696cf83544fa12ca0ec63d56eaa`다. 문서는 이 source 집합에서 제외했다.
+Darwin **25.6.0/arm64**, Go **1.26.5**, modernc SQLite **3.53.3**(module **v1.56.0**),
+PostgreSQL **17.5 Homebrew**/pgx **v5.10.0**, `TZ=Pacific/Chatham`에서 실행했다.
+PostgreSQL은 시도별로 소유한 UTF8/locale C 임시 DB와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+구현 범위는 [ADR-0073](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이다.
+`schema.OneToOne`·Unique와 구분되는 cardinality·default/named/hidden reverse·historical wire/digest·autodetect를 연결했다.
+FK→OneToOne과 FK+Unique→OneToOne, reverse 이름 변경/숨김, 역방향 복구를 검증했다.
+양 DB의 실제 중복으로 UNIQUE 추가가 실패하면 행·물리 catalog·recorder/revision이 유지되며 명시적 수정 후 재시도·재접속했다.
+SQLite에서는 sequence/FK 상태도 비교했고 미지원 `AlterFieldRelation` capability의 실행 전 거부를 확인했다.
+
+새 [cross-app fixture](../../conformance/onetoonefixture/schema.go)의 실제 생성 타입과 공통 소비자는 양 DB에서 다음을 검증한다.
+
+- Required/nullable OneToOne과 일반 Unique FK의 single/collection API 구분, 정상 부재의 warm cache·외부 insert/Fresh,
+  16개 동시 Get의 단일 평가, pointer-copy 거부, unsaved owner와 명시적 PK 0 구분.
+- Reverse exact의 typed/dynamic 결과, forward eager의 한 SELECT와 warm 접근, reverse prefetch의 한 batch·빈 입력 no-I/O·반복 owner 독립 cache.
+- 주입한 두 자식 행의 cardinality 오류, batch 전체 실패의 partial publication 방지, rows Close 실패 후 재시도,
+  취소 전 I/O 거부와 query 실패 후 재시도.
+- 실제 중복 insert와 선행 update의 transaction rollback, 여러 SQL NULL, PROTECT와 SET_NULL 뒤 자식 행 보존.
+  PostgreSQL에 추가한 AtomicRelation은 일반 Atomic의 callback/session/rollback/unknown-outcome 엔진을 공유한다.
+  별도 driver control은 callback 횟수·종료된 session 거부·commit/rollback 원인 보존과 SET_NULL parameterization을 검사한다.
+
+| 실행 묶음 | 테스트가 실행된 package | run=PASS | skip |
+|---|---:|---:|---:|
+| 공통 schema/query/ORM/codegen/migration/autodetect·새 generated fixture, normal | 10 | 1,808 | 0 |
+| 양 DB OneToOne/Unique/Relation/Atomic, normal | 2 | 642 | 0 |
+| Query/queryplan/ORM·새 generated fixture, race | 4 | 748 | 0 |
+| 양 DB 같은 selector, race | 2 | 642 | 0 |
+| 공통·양 DB 영향 selector, CGO=0 | 12 | 1,087 | 0 |
+| 기존 생성 소비자·외부 compile 회귀, normal | 2 | 182 | 0 |
+
+실제 명령은 다음과 같다. 모두 `-json -count=1`이며 공통/DB는 `-timeout=15m`, 기존 생성 소비자는 `-timeout=20m`다.
+
+```sh
+go test -json -count=1 -timeout=15m ./schema/... ./query ./orm ./codegen ./migrations/... ./internal/migrationautodetect ./conformance/onetoonefixture/...
+go test -json -count=1 -timeout=15m -run 'OneToOne|Unique|Relation|Atomic' ./db/sqlite ./db/postgres
+go test -race -json -count=1 -timeout=15m ./query ./db/internal/queryplan ./orm ./conformance/onetoonefixture/...
+go test -race -json -count=1 -timeout=15m -run 'OneToOne|Unique|Relation|Atomic' ./db/sqlite ./db/postgres
+CGO_ENABLED=0 go test -json -count=1 -timeout=15m -run 'OneToOne|FieldChange|AlterField|Relation|Atomic|Unique' ./schema/... ./query ./db/internal/queryplan ./orm ./migrations/... ./internal/migrationautodetect ./conformance/onetoonefixture/... ./db/sqlite ./db/postgres
+go test -json -count=1 -timeout=20m ./codegen/consumertest ./internal/compiletest
+```
+
+첫 normal 성공 source의 **107경로** manifest는 `e439ebcc229485b11a478286206c831a8281ec1076aa016b737495e8b3d5899a`다.
+그 뒤 prefetch GoDoc과 CI package 소유권 검사만 바꾼 race/CGO0/소비자 source **108경로**는
+`bafbf35c68b0ba6e8de4bf0624f567210fb8830018638213ab58f641b92f5c03`다.
+각 시도의 시작/종료 source hash, Go event의 package 종료·test run/pass 집합·필수 root와 skip 0을 검사했다.
+새 generated drift·SQLite product, PostgreSQL product/alter/AtomicRelation, SQLite alter와 기존 generated union/mode/외부 facade
+필수 root가 실제 실행됐음을 확인했다. 단순 명령 종료값이나 이름 목록만을 실행 증거로 삼지 않았다.
+
+이후 [DEV-0018](../DEVIATIONS.md#dev-0018--일대일-역방향-부재와-go-객체-소유권)의 reciprocal cache 차이에 명시적 소비자 검사를 추가했다.
+Reverse에서 얻은 같은 모델로 만든 두 forward handle이 각각 한 번 읽고 각 handle의 반복 접근은 warm임을 확인했다.
+제품 코드는 동일하며 변경한 소비자와 drift를 아래 명령으로 normal·race·CGO=0 각각 **3 run=PASS / skip 0** 재검증했다.
+이 시점의 문서를 포함한 **113경로** manifest는 `7fcad69b9815ebf1a847ab3e7841205e5fb60f0b6939a6c6a4f34b071c32c962`이고,
+문서를 제외한 최종 108경로가 이 절 첫 manifest와 같다.
+
+```sh
+go test -json -count=1 -timeout=5m -run 'OneToOne.*(GeneratedProduct|FixtureMatchesDeclaration)' ./conformance/onetoonefixture/... ./db/postgres
+go test -race -json -count=1 -timeout=5m -run 'OneToOne.*(GeneratedProduct|FixtureMatchesDeclaration)' ./conformance/onetoonefixture/... ./db/postgres
+CGO_ENABLED=0 go test -json -count=1 -timeout=5m -run 'OneToOne.*(GeneratedProduct|FixtureMatchesDeclaration)' ./conformance/onetoonefixture/... ./db/postgres
+```
+
+CI 도구 **38 tests PASS**에서 새 fixture와 하위 package가 관계 owner가 있을 때 중복되지 않고, 없을 때 portable owner에
+포함되며 비슷한 이름의 이웃 package를 숨기지 않음을 확인했다. Relation required 목록에 새 fixture/SQLite root를,
+PostgreSQL core required 목록에 새 native product/alter root를 추가했다. 32-bit relation package 목록에도 fixture를 넣었다.
+실제 `go list`의 fixture 5개 package가 같은 owner 선택에 포함되고, 기존 PostgreSQL required root는 모두 유지되며
+추가한 두 root가 해당 normal/race/CGO0 inventory에 존재함을 최종 source와 대조했다.
+이는 Hosted 설정 변경이며 새 Hosted 실행 성공을 뜻하지 않는다.
+16개 generated 파일과 manifest의 drift 검사를 통과했다. 앞선 저장소 전체 compile-only는 166 package 결과로 종료했으며
+전체 runtime/platform 검사로 계산하지 않는다.
+
+초기 normal 시도는 성공으로 사용하지 않았다. 첫 시도는 공통 **1,807 run / 1,804 PASS / 3 FAIL**, DB **642 run / 641 PASS / 1 FAIL**이었다.
+Negative wire control의 치환이 실제 문서를 바꾸지 않은 문제, 새 capability field 개수, 새 소비자의 정렬 없는 First 사용을 수정했다.
+둘째 시도는 공통 **1,807 PASS**였으나 SQLite capability 거부 검사가 `migrations.Error`에 없는 Is 동작을 기대하여
+DB **642 run / 639 PASS / 3 FAIL**이었다. 실제 오류의 Category/Code를 `errors.As`로 검사하도록 고쳤다.
+새 AST cardinality 검사까지 포함한 최종 결과가 위 표다. 기대 제품 의미를 완화하거나 실패 기록을 덮어쓰지 않았다.
+
+로컬 artifact 디렉터리 `godj-one-to-one-foundation-9n3m837g`에 source manifest·환경·전체 JSON log/stderr·필수 root·종료 inventory와
+시도별 cleanup 영수증을 보존했다. 모든 소유 임시 PostgreSQL DB는 다른 connection·user table·test schema 각각 **0** 확인 후 삭제했다.
+기존 PostgreSQL service는 유지했다. 현행 문서 **139개**의 local 링크·format·diff 검사도 통과했다.
+
+현재 변경은 로컬 영향 범위의 검증이며 Hosted full이나 양 DB의 모든 Django 관찰 parity가 아니다.
+Reverse isnull·OR/NOT·넓은 lookup/eager, assignment 전체와 Helpdesk Form/Admin/API/OpenAPI/client는
+[활성 작업](../../work/0096-one-to-one-service-reports.md)에 남아 있다. 마지막 Hosted full의 source는 아래 `42ae95d3`이며 이 변경의 PASS로 옮기지 않는다.
+
 ## GDJ-0096 — 일대일 관계의 독립 기준 관찰
 
 2026-09-21, 기준 `42ae95d3b1a891e6a0692fb0399968e483f4d907` 위 독립 runner·검사·양 DB raw fixture **4경로**의

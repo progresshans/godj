@@ -68,7 +68,7 @@ type RelationPath struct {
 }
 
 // NewReverseRelationPath constructs one declaration-centric reverse
-// one-to-many path. Source remains the model that owns the physical
+// one-to-many or one-to-one path. Source remains the model that owns the physical
 // ForeignKey declaration; Target is the model whose namespace owns the
 // reverse name and whose table is the query root.
 func NewReverseRelationPath(
@@ -78,8 +78,9 @@ func NewReverseRelationPath(
 	targetTable, targetPKColumn, reverseName string,
 	nullable bool,
 	terminal FieldRef,
+	cardinality ir.RelationCardinality,
 ) (RelationPath, error) {
-	if !canonicalModelIdentity(source) || !canonicalModelIdentity(target) ||
+	if (cardinality != ir.RelationOneToMany && cardinality != ir.RelationOneToOne) || !canonicalModelIdentity(source) || !canonicalModelIdentity(target) ||
 		!canonicalIdentifier(sourceTable) || !canonicalIdentifier(sourceField) ||
 		!canonicalIdentifier(sourceColumn) || !canonicalIdentifier(targetTable) ||
 		!canonicalIdentifier(targetPKColumn) || !canonicalIdentifier(reverseName) ||
@@ -102,7 +103,7 @@ func NewReverseRelationPath(
 		targetPrimaryKeyColumn: targetPKColumn,
 		reverseName:            reverseName,
 		direction:              RelationReverse,
-		cardinality:            ir.RelationOneToMany,
+		cardinality:            cardinality,
 		nullable:               nullable,
 	}
 	return RelationPath{
@@ -112,7 +113,7 @@ func NewReverseRelationPath(
 	}, nil
 }
 
-// NewForwardRelationPath constructs one direct many-to-one path, retaining
+// NewForwardRelationPath constructs one direct single-valued path, retaining
 // whether the source key is nullable. AutoField target validation remains in
 // the ORM binder, which owns the complete normalized project snapshot.
 func NewForwardRelationPath(
@@ -122,8 +123,9 @@ func NewForwardRelationPath(
 	targetTable, targetPKColumn string,
 	nullable bool,
 	terminal FieldRef,
+	cardinality ir.RelationCardinality,
 ) (RelationPath, error) {
-	if !validModelIdentity(source) || !validModelIdentity(target) ||
+	if !cardinality.SingleValued() || !validModelIdentity(source) || !validModelIdentity(target) ||
 		blank(sourceTable) || blank(field) || blank(sourceColumn) ||
 		blank(targetTable) || blank(targetPKColumn) || !validFieldRef(terminal) {
 		return RelationPath{}, &Error{
@@ -142,7 +144,7 @@ func NewForwardRelationPath(
 		targetTable:            targetTable,
 		targetPrimaryKeyColumn: targetPKColumn,
 		direction:              RelationForward,
-		cardinality:            ir.RelationManyToOne,
+		cardinality:            cardinality,
 		nullable:               nullable,
 	}
 	return RelationPath{
@@ -160,8 +162,9 @@ func NewForwardRelationIsNullPath(
 	sourceKey FieldRef,
 	target ir.ModelIdentity,
 	targetTable, targetPKColumn string,
+	cardinality ir.RelationCardinality,
 ) (RelationPath, error) {
-	if !validModelIdentity(source) || !validModelIdentity(target) ||
+	if !cardinality.SingleValued() || !validModelIdentity(source) || !validModelIdentity(target) ||
 		blank(sourceTable) || !validFieldRef(sourceKey) ||
 		blank(targetTable) || blank(targetPKColumn) {
 		return RelationPath{}, &Error{
@@ -188,7 +191,7 @@ func NewForwardRelationIsNullPath(
 		targetTable:            targetTable,
 		targetPrimaryKeyColumn: targetPKColumn,
 		direction:              RelationForward,
-		cardinality:            ir.RelationManyToOne,
+		cardinality:            cardinality,
 		nullable:               sourceKey.Nullable(),
 	}
 	return RelationPath{
@@ -272,10 +275,10 @@ func NewForwardRelationChain(hops []RelationHop, terminal FieldRef, scope Relati
 func (p RelationPath) Validate() error {
 	if len(p.hops) == 1 && p.hops[0].direction == RelationReverse {
 		hop := p.hops[0]
-		if p.scope != RelationTerminalRelatedField || hop.cardinality != ir.RelationOneToMany {
+		if p.scope != RelationTerminalRelatedField || (hop.cardinality != ir.RelationOneToMany && hop.cardinality != ir.RelationOneToOne) {
 			return invalidPlanError("reverse relation path has an invalid scope or cardinality")
 		}
-		_, err := NewReverseRelationPath(hop.source, hop.sourceTable, hop.field, hop.sourceColumn, hop.target, hop.targetTable, hop.targetPrimaryKeyColumn, hop.reverseName, hop.nullable, p.terminal)
+		_, err := NewReverseRelationPath(hop.source, hop.sourceTable, hop.field, hop.sourceColumn, hop.target, hop.targetTable, hop.targetPrimaryKeyColumn, hop.reverseName, hop.nullable, p.terminal, hop.cardinality)
 		return err
 	}
 	return p.validateForward()
@@ -291,7 +294,7 @@ func (p RelationPath) validateForward() error {
 		return invalidPlanError("forward relation terminal scope is invalid")
 	}
 	for index, hop := range p.hops {
-		if hop.direction != RelationForward || hop.cardinality != ir.RelationManyToOne || hop.reverseName != "" || !validModelIdentity(hop.source) || !validModelIdentity(hop.target) || blank(hop.sourceTable) || blank(hop.field) || blank(hop.sourceColumn) || blank(hop.targetTable) || blank(hop.targetPrimaryKeyColumn) {
+		if hop.direction != RelationForward || !hop.cardinality.SingleValued() || hop.reverseName != "" || !validModelIdentity(hop.source) || !validModelIdentity(hop.target) || blank(hop.sourceTable) || blank(hop.field) || blank(hop.sourceColumn) || blank(hop.targetTable) || blank(hop.targetPrimaryKeyColumn) {
 			return invalidPlanError("forward relation path has an invalid hop")
 		}
 		if index > 0 {

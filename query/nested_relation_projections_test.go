@@ -15,7 +15,7 @@ func TestNestedRelationProjectionRoutesOwnPrefixesAndRepeatedModelOccurrences(t 
 	manager := query.NewFieldRef("manager", "manager_id", query.FieldInteger, true)
 	name := query.NewFieldRef("name", "name", query.FieldString, false)
 	makeDirect := func(source ir.ModelIdentity, table string, key query.FieldRef, columns []query.FieldRef) query.RelationProjection {
-		p, err := query.NewForwardRelationProjection(source, table, key, person, "people_person", id, columns)
+		p, err := query.NewForwardRelationProjection(source, table, key, person, "people_person", id, columns, ir.RelationManyToOne)
 		if err != nil {
 			t.Fatal(err)
 		}

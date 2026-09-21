@@ -440,7 +440,7 @@ func relationDeleteIncomingEdges(snapshot *projectBindingSnapshot, target ir.Mod
 		if metadata.Target != target {
 			continue
 		}
-		if metadata.Cardinality != ir.RelationManyToOne ||
+		if !metadata.Cardinality.SingleValued() ||
 			(metadata.OnDelete != ir.DeleteProtect && metadata.OnDelete != ir.DeleteSetNull) ||
 			(metadata.OnDelete == ir.DeleteSetNull && !metadata.Nullable) {
 			return nil, relationInvalidPlan("incoming relation uses an unsupported cardinality, policy, or nullability")

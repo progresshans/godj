@@ -109,6 +109,14 @@ func normalizeModel(model *Model, path string) error {
 	for index := range model.Fields {
 		fieldPath := fmt.Sprintf("%s.fields[%d]", path, index)
 		field := &model.Fields[index]
+		if field.Kind == FieldForeignKey && field.Relation != nil && field.Relation.Cardinality == RelationOneToOne {
+			// A one-to-one edge owns column uniqueness regardless of whether
+			// the declaration redundantly specified the Unique option.
+			field.Unique = true
+			if field.Relation.Reverse == (ReverseRelation{}) {
+				field.Relation.Reverse.Name = model.Name
+			}
+		}
 		if field.Column == "" {
 			if field.Kind == FieldForeignKey {
 				field.Column = field.Name + "_id"
@@ -308,7 +316,7 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 	if !identifiers.SQL(relation.Target.ModelName) {
 		return validation(path+".target.model_name", "invalid_identifier", relation.Target.ModelName)
 	}
-	if relation.Cardinality != RelationManyToOne {
+	if !relation.Cardinality.SingleValued() {
 		return validation(path+".cardinality", "unsupported", string(relation.Cardinality))
 	}
 	if relation.Reverse.Disabled == (relation.Reverse.Name != "") {

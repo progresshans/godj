@@ -140,7 +140,7 @@ func TestForwardRelationProjectionValidationRejectsEveryUnsupportedShape(t *test
 				test.target,
 				test.targetTable,
 				test.targetKey,
-				test.targetFields,
+				test.targetFields, ir.RelationManyToOne,
 			)
 			if err == nil || !projection.Equal(query.RelationProjection{}) {
 				t.Fatalf("NewForwardRelationProjection() = (%#v, %v), want zero/error", projection, err)
@@ -174,7 +174,7 @@ func newTestRelationProjection(t *testing.T, nullable bool) query.RelationProjec
 		[]query.FieldRef{
 			query.NewFieldRef("id", "id", query.FieldInteger, false),
 			query.NewFieldRef("name", "name", query.FieldString, false),
-		},
+		}, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationProjection() error = %v", err)

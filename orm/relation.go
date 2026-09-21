@@ -165,12 +165,16 @@ func BindProject(schemas ...ir.Schema) (ProjectBinding, error) {
 				return ProjectBinding{}, bindingFailure(RelationBindingReverseNameCollision, relation)
 			}
 			reverseNamespaces[namespace] = struct{}{}
+			reverseCardinality := ir.RelationOneToMany
+			if relation.Cardinality == ir.RelationOneToOne {
+				reverseCardinality = ir.RelationOneToOne
+			}
 			reverse = append(reverse, ReverseRelationMetadata{
 				Owner:       relation.Target,
 				Name:        relation.Reverse.Name,
 				Target:      relation.Source,
 				SourceField: relation.Field,
-				Cardinality: ir.RelationOneToMany,
+				Cardinality: reverseCardinality,
 			})
 		}
 		forward = append(forward, relation)

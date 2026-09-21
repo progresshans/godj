@@ -209,7 +209,7 @@ func TestSQLiteBooleanCompilerKeepsRelationJoinsRootConjunctive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "id", "comments", false, query.NewFieldRef("name", "name", query.FieldString, false))
+	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "id", "comments", false, query.NewFieldRef("name", "name", query.FieldString, false), ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}

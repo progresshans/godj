@@ -11,7 +11,7 @@ func TestForwardMembershipOwnsValuesAndRetainsOptionalOperand(t *testing.T) {
 	source := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
 	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
 	field := query.NewFieldRef("active", "active", query.FieldBoolean, false)
-	path, err := query.NewForwardRelationPath(source, "blog_post", "reviewer", "reviewer_id", target, "authors_author", "id", true, field)
+	path, err := query.NewForwardRelationPath(source, "blog_post", "reviewer", "reviewer_id", target, "authors_author", "id", true, field, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,11 +31,11 @@ func TestForwardMembershipOwnsValuesAndRetainsOptionalOperand(t *testing.T) {
 		t.Fatal("optional operand or detached values changed")
 	}
 	sourceKey := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
-	nullPath, err := query.NewForwardRelationIsNullPath(source, "blog_post", sourceKey, target, "authors_author", "id")
+	nullPath, err := query.NewForwardRelationIsNullPath(source, "blog_post", sourceKey, target, "authors_author", "id", ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := query.NewReverseRelationPath(source, "blog_post", "reviewer", "reviewer_id", target, "authors_author", "id", "reviews", true, query.NewFieldRef("title", "title", query.FieldString, false))
+	reverse, err := query.NewReverseRelationPath(source, "blog_post", "reviewer", "reviewer_id", target, "authors_author", "id", "reviews", true, query.NewFieldRef("title", "title", query.FieldString, false), ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}

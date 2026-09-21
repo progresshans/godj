@@ -11,8 +11,8 @@ import (
 
 // AlterField carries both historical values so forward and backward execution
 // reject stale metadata instead of guessing a previous definition. The current
-// operation supports choices-only, uniqueness-only and exact Decimal
-// precision-only changes, with separate backend capability requirements.
+// operation supports choices, uniqueness, relation cardinality/reverse namespace
+// and exact Decimal precision changes, with separate backend capabilities.
 type AlterField struct {
 	AppLabel  string
 	ModelName string
@@ -120,10 +120,58 @@ func (builder *loadedStateBuilder) alterField(operation AlterField, reverse bool
 	if !exists || !model.value.Fields[index].Equal(before) {
 		return fmt.Errorf("AlterField source field %s.%s.%s is missing or changed", operation.AppLabel, operation.ModelName, before.Name)
 	}
+	if before.Relation != nil && after.Relation != nil && before.Relation.Reverse != after.Relation.Reverse {
+		if err := builder.alterReverseNamespace(loadedModelIdentity{app: operation.AppLabel, model: operation.ModelName}, before, after); err != nil {
+			return err
+		}
+	}
 	// Materialized operation views borrow the previous immutable field slice.
 	// Replacing an element must detach that slice before publishing the new
 	// field, or the sealed before-state would become the after-state as well.
 	model.value.Fields = slices.Clone(model.value.Fields)
 	model.value.Fields[index] = after.Clone()
+	return nil
+}
+
+// The classifier preserves target, delete policy and source identity. Only
+// the reverse namespace changes here; incoming ownership and counts do not.
+// Validate the complete replacement before publishing any map mutation.
+func (builder *loadedStateBuilder) alterReverseNamespace(source loadedModelIdentity, before, after ir.Field) error {
+	target := loadedModelIdentity{app: before.Relation.Target.AppLabel, model: before.Relation.Target.ModelName}
+	model, exists := builder.model(target)
+	if !exists {
+		return fmt.Errorf("AlterField relation target is missing")
+	}
+	owner := loadedReverseOwner{source: source, field: before.Name}
+	if _, exists := builder.incoming[target][owner]; !exists {
+		return fmt.Errorf("AlterField incoming relation owner is inconsistent")
+	}
+	owners := builder.reverse[target]
+	oldName, newName := before.Relation.Reverse.Name, after.Relation.Reverse.Name
+	if oldName != "" && owners[oldName] != owner {
+		return fmt.Errorf("AlterField reverse relation owner is inconsistent")
+	}
+	if newName != "" {
+		if _, collision := model.fieldNames[newName]; collision {
+			return fmt.Errorf("AlterField reverse name collides with target field %s", newName)
+		}
+		if _, collision := owners[newName]; collision {
+			return fmt.Errorf("AlterField reverse name collides with relation %s", newName)
+		}
+	}
+	updated := make(map[string]loadedReverseOwner, len(owners)+1)
+	for name, value := range owners {
+		if name != oldName {
+			updated[name] = value
+		}
+	}
+	if newName != "" {
+		updated[newName] = owner
+	}
+	if len(updated) == 0 {
+		delete(builder.reverse, target)
+	} else {
+		builder.reverse[target] = updated
+	}
 	return nil
 }

@@ -24,7 +24,7 @@ func TestForwardRelationPathAccessorsAndPlanCopies(t *testing.T) {
 		"authors_author",
 		"id",
 		false,
-		name,
+		name, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationPath() error = %v", err)
@@ -115,7 +115,7 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 		sourceKey,
 		target,
 		"authors_author",
-		"id",
+		"id", ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationIsNullPath() error = %v", err)
@@ -156,7 +156,7 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 		t.Fatal("limited and unlimited plans compared equal")
 	}
 	identical, err := query.NewForwardRelationIsNullPath(
-		source, "blog_post", sourceKey, target, "authors_author", "id",
+		source, "blog_post", sourceKey, target, "authors_author", "id", ir.RelationManyToOne,
 	)
 	if err != nil || !path.Equal(identical) {
 		t.Fatalf("identical nullable path = (%#v, %v)", identical, err)
@@ -189,7 +189,7 @@ func TestNullableForwardRelationSourceKeyValidationIsStructured(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := query.NewForwardRelationIsNullPath(
-				test.source, test.table, test.sourceKey, test.target, test.targetTable, test.targetPK,
+				test.source, test.table, test.sourceKey, test.target, test.targetTable, test.targetPK, ir.RelationManyToOne,
 			)
 			var queryError *query.Error
 			if !errors.As(err, &queryError) || queryError.Category != query.CategoryQuery || queryError.Code != query.CodeInvalidPlan {
@@ -240,7 +240,7 @@ func TestForwardRelationPathValidationIsStructured(t *testing.T) {
 				test.targetTable,
 				test.targetPK,
 				test.nullable,
-				test.terminal,
+				test.terminal, ir.RelationManyToOne,
 			)
 			var queryError *query.Error
 			if !errors.As(err, &queryError) || queryError.Code != test.code {
@@ -266,7 +266,7 @@ func TestReverseRelationPathIsDeclarationCentricAndImmutable(t *testing.T) {
 		"id",
 		"posts",
 		true,
-		title,
+		title, ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatalf("NewReverseRelationPath() error = %v", err)
@@ -304,7 +304,7 @@ func TestReverseRelationPathIsDeclarationCentricAndImmutable(t *testing.T) {
 	}
 
 	otherName, err := query.NewReverseRelationPath(
-		source, "blog_post", "author", "author_id", target, "authors_author", "id", "articles", true, title,
+		source, "blog_post", "author", "author_id", target, "authors_author", "id", "articles", true, title, ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatalf("second NewReverseRelationPath() error = %v", err)
@@ -314,7 +314,7 @@ func TestReverseRelationPathIsDeclarationCentricAndImmutable(t *testing.T) {
 	}
 
 	forward, err := query.NewForwardRelationPath(
-		source, "blog_post", "author", "author_id", target, "authors_author", "id", false, title,
+		source, "blog_post", "author", "author_id", target, "authors_author", "id", false, title, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationPath() error = %v", err)
@@ -366,7 +366,7 @@ func TestReverseRelationPathRejectsNonCanonicalAndUnsupportedMetadata(t *testing
 				test.targetPK,
 				test.reverseName,
 				false,
-				test.terminal,
+				test.terminal, ir.RelationOneToMany,
 			)
 			var queryError *query.Error
 			if !errors.As(err, &queryError) || queryError.Category != query.CategoryQuery || queryError.Code != query.CodeInvalidPlan {

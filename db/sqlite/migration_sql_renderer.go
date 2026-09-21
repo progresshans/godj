@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
-	"github.com/progresshans/godj/schema/ir"
 )
 
 type migrationSQLRenderer struct{}
@@ -69,11 +68,11 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		operation := seal.intent.Operations[index]
 		switch operation.Kind {
 		case migrationbackend.MigrationAlterField:
-			_, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
+			before, field, _, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
 			if deltaErr != nil {
 				return nil, relationIntentIntegrity("invalid AlterField delta: %v", deltaErr)
 			}
-			if kind == ir.ChangeUnique {
+			if before.Unique != field.Unique {
 				var statement string
 				statement, err = compileSQLiteUniqueAlter(operation.After, field)
 				groups[index] = []string{statement}

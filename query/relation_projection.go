@@ -18,11 +18,11 @@ type RelationProjection struct {
 
 // NewForwardRelationProjection constructs a direct projection. Deeper targets
 // use NewForwardChainProjection and the same immutable route as query filters.
-func NewForwardRelationProjection(source ir.ModelIdentity, sourceTable string, sourceKey FieldRef, target ir.ModelIdentity, targetTable string, targetKey FieldRef, orderedTargetColumns []FieldRef) (RelationProjection, error) {
-	if !validProjectionField(sourceKey) || sourceKey.Kind() != FieldInteger {
+func NewForwardRelationProjection(source ir.ModelIdentity, sourceTable string, sourceKey FieldRef, target ir.ModelIdentity, targetTable string, targetKey FieldRef, orderedTargetColumns []FieldRef, cardinality ir.RelationCardinality) (RelationProjection, error) {
+	if !cardinality.SingleValued() || !validProjectionField(sourceKey) || sourceKey.Kind() != FieldInteger {
 		return RelationProjection{}, invalidPlanError("forward relation projection contains an invalid source key")
 	}
-	hop := RelationHop{source: source, sourceTable: sourceTable, field: sourceKey.Name(), sourceColumn: sourceKey.Column(), target: target, targetTable: targetTable, targetPrimaryKeyColumn: targetKey.Column(), direction: RelationForward, cardinality: ir.RelationManyToOne, nullable: sourceKey.Nullable()}
+	hop := RelationHop{source: source, sourceTable: sourceTable, field: sourceKey.Name(), sourceColumn: sourceKey.Column(), target: target, targetTable: targetTable, targetPrimaryKeyColumn: targetKey.Column(), direction: RelationForward, cardinality: cardinality, nullable: sourceKey.Nullable()}
 	return NewForwardChainProjection([]RelationHop{hop}, targetKey, orderedTargetColumns)
 }
 

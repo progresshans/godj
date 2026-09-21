@@ -87,7 +87,7 @@ func MultipleEagerPlan(leaves map[string]Leaf, input MultipleEagerInput) (query.
 		default:
 			return query.Plan{}, fmt.Errorf("unknown selected input %q", name)
 		}
-		projection, err := query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "join_reference", ModelName: "post"}, "join_reference_post", key, ir.ModelIdentity{AppLabel: "join_reference", ModelName: model}, "join_reference_"+model, fields[0], columns)
+		projection, err := query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "join_reference", ModelName: "post"}, "join_reference_post", key, ir.ModelIdentity{AppLabel: "join_reference", ModelName: model}, "join_reference_"+model, fields[0], columns, ir.RelationManyToOne)
 		if err != nil {
 			return query.Plan{}, err
 		}

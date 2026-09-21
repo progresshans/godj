@@ -294,7 +294,7 @@ func TestSQLiteBooleanInvalidTreesAndRelationCompositionRemainPreIO(t *testing.T
 
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
-	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "id", "comments", false, query.NewFieldRef("name", "name", query.FieldString, false))
+	reversePath, err := query.NewReverseRelationPath(ir.ModelIdentity{AppLabel: "comments", ModelName: "comment"}, "comments_comment", "post", "post_id", ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "id", "comments", false, query.NewFieldRef("name", "name", query.FieldString, false), ir.RelationOneToMany)
 	if err != nil {
 		t.Fatal(err)
 	}

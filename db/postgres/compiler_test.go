@@ -65,7 +65,7 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 
 	forward, err := query.NewForwardRelationPath(
 		postIdentity, "blog_post", "author", "author_id",
-		authorIdentity, "authors_author", "id", false, authorName,
+		authorIdentity, "authors_author", "id", false, authorName, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 
 	reverse, err := query.NewReverseRelationPath(
 		postIdentity, "blog_post", "author", "author_id",
-		authorIdentity, "authors_author", "id", "posts", false, title,
+		authorIdentity, "authors_author", "id", "posts", false, title, ir.RelationOneToMany,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +109,7 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 	projection, err := query.NewForwardRelationProjection(
 		postIdentity, "blog_post", nullableAuthor,
 		authorIdentity, "authors_author", authorID,
-		[]query.FieldRef{authorID, authorName},
+		[]query.FieldRef{authorID, authorName}, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -136,7 +136,7 @@ func TestCompileNullableRelationIsNullTrimsJoin(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	authorKey := query.NewFieldRef("author", "author_id", query.FieldInteger, true)
 	path, err := query.NewForwardRelationIsNullPath(
-		post, "blog_post", authorKey, author, "authors_author", "id",
+		post, "blog_post", authorKey, author, "authors_author", "id", ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -553,7 +553,7 @@ func TestCompileForwardASTPreservesScalarDomain(t *testing.T) {
 			author := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
 			path, err := query.NewForwardRelationPath(
 				ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "author", "author_id",
-				ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", false, test.field,
+				ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", false, test.field, ir.RelationManyToOne,
 			)
 			if err != nil {
 				t.Fatal(err)

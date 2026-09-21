@@ -15,11 +15,11 @@ func TestNullableForwardJoinRejectsConflictingPresenceProof(t *testing.T) {
 	post := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
 	author := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
 	reviewer := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
-	path, err := query.NewForwardRelationPath(post, "blog_post", "reviewer", "reviewer_id", author, "authors_author", "id", true, query.NewFieldRef("name", "name", query.FieldString, false))
+	path, err := query.NewForwardRelationPath(post, "blog_post", "reviewer", "reviewer_id", author, "authors_author", "id", true, query.NewFieldRef("name", "name", query.FieldString, false), ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
-	presencePath, err := query.NewForwardRelationIsNullPath(post, "blog_post", reviewer, author, "archived_author", "id")
+	presencePath, err := query.NewForwardRelationIsNullPath(post, "blog_post", reviewer, author, "archived_author", "id", ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestNullableForwardJoinCompilationOwnsItsWorkingState(t *testing.T) {
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	title := query.NewFieldRef("title", "title", query.FieldString, false)
 	reviewer := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
-	path, err := query.NewForwardRelationPath(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "reviewer", "reviewer_id", ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", true, query.NewFieldRef("name", "name", query.FieldString, false))
+	path, err := query.NewForwardRelationPath(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", "reviewer", "reviewer_id", ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", "id", true, query.NewFieldRef("name", "name", query.FieldString, false), ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestNullableForwardJoinCompilationOwnsItsWorkingState(t *testing.T) {
 	}
 	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
-	projection, err := query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", author, ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", targetID, []query.FieldRef{targetID, targetName})
+	projection, err := query.NewForwardRelationProjection(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "blog_post", author, ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, "authors_author", targetID, []query.FieldRef{targetID, targetName}, ir.RelationManyToOne)
 	if err != nil {
 		t.Fatal(err)
 	}

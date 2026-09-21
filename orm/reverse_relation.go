@@ -80,12 +80,12 @@ func resolveReverseRelationState(
 			Detail:   "reverse relation is not present on the owner model",
 		}
 	}
-	if reverse.Cardinality != ir.RelationOneToMany || reverse.Owner != owner {
+	if (reverse.Cardinality != ir.RelationOneToMany && reverse.Cardinality != ir.RelationOneToOne) || reverse.Owner != owner {
 		return reverseRelationState{}, &query.Error{
 			Category: query.CategoryField,
 			Code:     query.CodeUnsupportedLookup,
 			Field:    reverseName,
-			Detail:   "only named reverse one-to-many relations are supported",
+			Detail:   "reverse relation requires a named one-to-many or one-to-one edge",
 		}
 	}
 	sourceModel, ok := snapshot.models[reverse.Target]
@@ -96,8 +96,12 @@ func resolveReverseRelationState(
 	if err != nil {
 		return reverseRelationState{}, relationInvalidPlan("reverse relation declaration cannot be reconstructed")
 	}
+	wantForward := ir.RelationManyToOne
+	if reverse.Cardinality == ir.RelationOneToOne {
+		wantForward = ir.RelationOneToOne
+	}
 	if forward.metadata.Target != owner ||
-		forward.metadata.Cardinality != ir.RelationManyToOne ||
+		forward.metadata.Cardinality != wantForward ||
 		forward.metadata.Reverse.Disabled ||
 		forward.metadata.Reverse.Name != reverseName ||
 		!reflect.DeepEqual(forward.targetModel, ownerModel) {
@@ -157,7 +161,7 @@ func (state reverseRelationState) path(terminal query.FieldRef) (query.RelationP
 		state.forward.targetPrimaryKey.Column,
 		state.reverse.Name,
 		state.forward.metadata.Nullable,
-		terminal,
+		terminal, state.reverse.Cardinality,
 	)
 }
 

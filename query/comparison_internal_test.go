@@ -29,7 +29,7 @@ func TestComparisonRHSUnionRejectsMalformedAndRelationShapes(t *testing.T) {
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
-		"authors_author", "id", false, summary,
+		"authors_author", "id", false, summary, ir.RelationManyToOne,
 	)
 	if err != nil {
 		t.Fatalf("NewForwardRelationPath() error = %v", err)
