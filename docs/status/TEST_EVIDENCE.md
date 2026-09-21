@@ -18,6 +18,11 @@
 관련 ADR에는 기존 RelatedObject의 완전한 cardinality 위반 snapshot과 I/O 실패의 partial result 차이도 명시했다.
 이는 기존 runtime 의미의 설명이며 별도 cache 정책 변경이 아니다.
 
+수정 source **`51fff1f4447e5f83936f9864d7252c230ac0d0ce`**의
+[Hosted fast run 35622125004](https://github.com/progresshans/godj/actions/runs/35622125004)이 성공했다.
+Source·job/step 결과·실제 SQLite package 성공 출력을 대조했다. `make quick`의 빠른 Go 검증이며
+문서-only 분기는 해당하지 않아 선택되지 않았다. Native PostgreSQL·전체 platform 검증으로 계산하지 않는다.
+
 ## GDJ-0096 — OneToOne 선언·이력·단일 reverse 기반 checkpoint
 
 2026-09-22, 기준 `0b98ea1d7fb190ef2d6de48e68d2cc7f9ca39ff6` 위 제품·생성물·테스트·CI **108경로**의 최종 manifest SHA256은
