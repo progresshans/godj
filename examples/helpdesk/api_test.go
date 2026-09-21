@@ -35,7 +35,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	}
 	decoded := decodeHelpdeskDocument(t, document.Bytes())
 	assertHelpdeskOperationContracts(t, decoded, adapter.Routes())
-	if !slices.Equal(recording.permissions, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket}) {
+	if !slices.Equal(recording.permissions, []auth.Permission{helpdesk.ViewTicket, helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport}) {
 		t.Fatalf("authentication composition = %v", recording.permissions)
 	}
 	if _, found := decoded.Components.Schemas[openapi.ErrorSchemaName]; !found {
@@ -127,7 +127,7 @@ func TestHelpdeskAPICompositionAndNamedContractsWithoutIO(t *testing.T) {
 	encoded := document.Bytes()
 	encoded[0] = '!'
 	again, err := adapter.OpenAPI()
-	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != 5 {
+	if err != nil || !bytes.Equal(again.Bytes(), document.Bytes()) || adapter.Routes()[0].Path != "/api/tickets/" || adapter.Routes()[0].Handler == nil || len(recording.permissions) != 12 {
 		t.Fatalf("reading or mutating snapshots changed the API or repeated authentication: %v", err)
 	}
 }
@@ -143,7 +143,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 	if result, err := (*helpdesk.Application)(nil).API(&helpdeskRecordingAuthentication{}); result != nil || err == nil {
 		t.Fatal("accepted nil application")
 	}
-	for index := 1; index <= 5; index++ {
+	for index := 1; index <= 12; index++ {
 		for _, recording := range []*helpdeskRecordingAuthentication{{failAt: index}, {nilAt: index}} {
 			if result, err := application.API(recording); result != nil || err == nil || len(recording.permissions) != index {
 				t.Fatalf("published a partial authentication composition at operation %d", index)
@@ -151,7 +151,7 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 		}
 	}
 	adapter, err := application.API(&helpdeskRecordingAuthentication{})
-	if err != nil || len(adapter.Routes()) != 5 {
+	if err != nil || len(adapter.Routes()) != 12 {
 		t.Fatalf("custom authentication cannot serve routes: %v", err)
 	}
 	if _, err := adapter.OpenAPI(); err == nil {
@@ -167,15 +167,22 @@ func TestHelpdeskAPIConstructionRejectsIncompleteAuthentication(t *testing.T) {
 
 func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, routes []web.Route) {
 	t.Helper()
-	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 2 || len(routes) != 5 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 3 {
-		t.Fatal("Helpdesk document changed the five-operation surface")
+	if !strings.HasPrefix(document.OpenAPI, "3.1.") || len(document.Paths) != 5 || len(routes) != 12 || len(document.Paths["/api/tickets/"]) != 2 || len(document.Paths["/api/tickets/{id}/"]) != 3 || len(document.Paths["/api/service-reports/"]) != 2 || len(document.Paths["/api/service-reports/{id}/"]) != 4 || len(document.Paths["/api/tickets/{id}/service-report/"]) != 1 {
+		t.Fatal("Helpdesk document changed the twelve-operation surface")
 	}
-	for index, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ViewTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket} {
+	for index, permission := range []auth.Permission{helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ViewTicket, helpdesk.ChangeTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ViewServiceReport, helpdesk.ChangeServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewServiceReport} {
 		route := routes[index]
 		path := strings.ReplaceAll(route.Path, "<int64:id>", "{id}")
 		operation := document.Paths[path][strings.ToLower(route.Method)]
 		if operation.OperationID != route.Name || operation.Permission != string(permission) || route.Handler == nil || len(operation.Security) != 1 {
 			t.Fatalf("route %s %s differs from its documented operation", route.Method, path)
+		}
+		securityCount := 1
+		if route.Method != http.MethodGet {
+			securityCount = 3
+		}
+		if len(operation.Security[0]) != securityCount {
+			t.Fatalf("operation %s lost its authentication/CSRF requirements", route.Name)
 		}
 		if _, advertised := operation.Responses["406"]; advertised {
 			t.Fatal("Helpdesk advertises Accept negotiation that it does not install")
@@ -184,6 +191,7 @@ func assertHelpdeskOperationContracts(t *testing.T, document helpdeskDocument, r
 			t.Fatal("authentication denial is undocumented")
 		}
 	}
+	assertServiceReportContracts(t, document)
 	list := document.Paths["/api/tickets/"]["get"]
 	create := document.Paths["/api/tickets/"]["post"]
 	detail := document.Paths["/api/tickets/{id}/"]["get"]
@@ -245,6 +253,12 @@ func assertHelpdeskResponseDocumented(t *testing.T, document helpdeskDocument, m
 	declared, ok := document.Paths[path][strings.ToLower(method)].Responses[strconv.Itoa(response.Code)]
 	if !ok {
 		t.Fatalf("%s %s returned undocumented status %s", method, path, status)
+	}
+	if response.Code == http.StatusNoContent {
+		if len(declared.Content) != 0 || response.Body.Len() != 0 || response.Header().Get("Content-Type") != "" {
+			t.Fatal("no-content response declared or emitted a body")
+		}
+		return
 	}
 	if _, ok := declared.Content[response.Header().Get("Content-Type")]; !ok {
 		t.Fatalf("%s %s returned undocumented content type %q", method, path, response.Header().Get("Content-Type"))
@@ -369,4 +383,54 @@ func (backend helpdeskConstructionBackend) Delete(context.Context, query.DeleteP
 func (backend helpdeskConstructionBackend) Atomic(context.Context, func(db.Session) error) error {
 	backend.t.Fatal("API construction opened a transaction")
 	return nil
+}
+
+func (backend helpdeskConstructionBackend) AtomicRelation(context.Context, func(db.RelationSession) error) error {
+	backend.t.Fatal("API construction performed a relation transaction")
+	return nil
+}
+
+func assertServiceReportContracts(t *testing.T, document helpdeskDocument) {
+	t.Helper()
+	report := document.Components.Schemas["ServiceReport"]
+	if !slices.Equal(report.Required, []string{"id", "ticket", "summary", "completed"}) || len(report.Properties) != 4 || report.AdditionalProperties || !report.Properties["id"].ReadOnly || !report.Properties["ticket"].ReadOnly || report.Properties["ticket"].Type != "integer" {
+		t.Fatal("report response contract lost exact presence or relation key")
+	}
+	for _, name := range []string{"ServiceReportCreate", "ServiceReportUpdate", "ServiceReportPatch"} {
+		schema := document.Components.Schemas[name]
+		if len(schema.Properties) != 3 || schema.AdditionalProperties || schema.Properties["ticket"].Type != "integer" || schema.Properties["summary"].Type != "string" {
+			t.Fatal("report input shape", name)
+		}
+		if name == "ServiceReportPatch" {
+			if len(schema.Required) != 0 || len(schema.Properties["completed"].Default) != 0 {
+				t.Fatal("partial update imposes defaults")
+			}
+		} else if !slices.Equal(schema.Required, []string{"ticket", "summary"}) || string(schema.Properties["completed"].Default) != "false" {
+			t.Fatal("full report input lost required/default semantics", name)
+		}
+	}
+	list := document.Paths["/api/service-reports/"]["get"]
+	if len(list.Parameters) != 0 || list.Responses["200"].Content[api.JSONContentType].Schema.Items.Ref != "#/components/schemas/ServiceReport" {
+		t.Fatal("report list contract")
+	}
+	nullable := document.Paths["/api/tickets/{id}/service-report/"]["get"].Responses["200"].Content[api.JSONContentType].Schema
+	if len(nullable.AnyOf) != 2 || nullable.AnyOf[0].Ref != "#/components/schemas/ServiceReport" || !nullable.allowsType("null") {
+		t.Fatal("reverse report lost normal absence")
+	}
+	for _, entry := range []struct{ path, method, schema, status string }{{"/api/service-reports/", "post", "ServiceReportCreate", "201"}, {"/api/service-reports/{id}/", "put", "ServiceReportUpdate", "200"}, {"/api/service-reports/{id}/", "patch", "ServiceReportPatch", "200"}} {
+		op := document.Paths[entry.path][entry.method]
+		if op.RequestBody == nil || !op.RequestBody.Required || op.RequestBody.Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+entry.schema || op.Responses[entry.status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/ServiceReport" {
+			t.Fatal("report write contract", entry)
+		}
+		for _, status := range []string{"400", "403", "404", "413", "415"} {
+			if op.Responses[status].Content[api.JSONContentType].Schema.Ref != "#/components/schemas/"+openapi.ErrorSchemaName {
+				t.Fatal("missing report failure", entry, status)
+			}
+		}
+	}
+	removal := document.Paths["/api/service-reports/{id}/"]["delete"]
+	response, found := removal.Responses["204"]
+	if !found || len(response.Content) != 0 || removal.RequestBody != nil {
+		t.Fatal("report deletion not represented as no content")
+	}
 }

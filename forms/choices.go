@@ -31,16 +31,20 @@ func WithChoices(choices ...Choice) FieldOption {
 	return fieldOption(func(config *fieldConfig) { config.choices = slices.Clone(owned) })
 }
 
-// Choices returns a detached copy in declaration order, or nil if unrestricted.
+// Choices returns a detached copy in declaration order. An empty ModelChoice
+// list permits no nonempty input; ordinary fields with nil choices are unrestricted.
 func (field Field) Choices() []Choice { return slices.Clone(field.choices) }
 
 func validateChoices(name string, kind FieldKind, config fieldConfig) error {
-	if config.choices == nil {
+	if config.choices == nil && !config.modelChoice {
 		return nil
 	}
 	invalid := func(code string) error { return &ConfigError{Path: "fields." + name + ".choices", Code: code} }
-	if len(config.choices) == 0 || (kind != FieldChar && kind != FieldInteger) {
+	if len(config.choices) == 0 && !config.modelChoice || (kind != FieldChar && kind != FieldInteger) {
 		return invalid("unsupported")
+	}
+	if config.modelChoice && (kind != FieldInteger || config.widget != Select) {
+		return invalid("unsupported_model_choice")
 	}
 	seen := make(map[Value]struct{}, len(config.choices))
 	for _, choice := range config.choices {

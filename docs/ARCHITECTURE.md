@@ -208,6 +208,10 @@ Boolean으로 강제 변환하지 않는다. Helpdesk PUT은 required/default를
 Form Spec은 field index와 기본 초기값을 준비하고 요청의 초기값이 있을 때만 값을 분리해 겹친다. Bind는 소유한 cleaned 값과
 오류를 불변 결과로 게시한다. Validation 오류는 field/cross/unknown 순서를 유지해 한 번 합치며 mutable slice/map getter는
 복사한다. API Page도 생성 시 검증한 불변 result list를 응답 사이에 공유한다.
+ModelChoice는 명시적인 int64 관계 key/label snapshot이며 Forms 자체는 DB를 조회하지 않는다. 빈 선택지는 fail-closed다.
+Admin은 target 읽기 권한을 확인한 뒤 요청별 snapshot을 만들고 저장 전 다시 확인한다. Application의 write transaction이
+현재 Category membership·고유성과 native 실패를 소유한다. Report의 JSON CRUD·nullable reverse와 Admin PROTECT는
+[일대일 ADR](adr/0073-one-to-one-cardinality-and-reverse-objects.md#작업-보고서와-명시적-관계-선택)을 따른다.
 명시적으로 제공한 snapshot 값은 known field/type 검사를 받는다. Serializer가 임의 model memory나 credential을 reflection으로 노출하지 않는다.
 `ModelEncoder`와 `ModelProjector`는 시작 시 선택 metadata를 복사해 준비하고 각 객체의 reader 결과를 계속 검증한다.
 Article Service는 공통 article repository를 직접 사용하며 Admin의 not-found 변환은 등록 callback 경계가 소유한다.

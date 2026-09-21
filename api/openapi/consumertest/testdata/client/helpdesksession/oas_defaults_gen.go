@@ -3,6 +3,22 @@
 package helpdesksession
 
 // setDefaults set default value of fields.
+func (s *ServiceReportCreate) setDefaults() {
+	{
+		val := bool(false)
+		s.Completed.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *ServiceReportUpdate) setDefaults() {
+	{
+		val := bool(false)
+		s.Completed.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *TicketCreate) setDefaults() {
 	{
 		val := bool(false)

@@ -12,7 +12,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"
-const GoDjProjectRelationFacadeInputSHA256 = "ee7b24592e21f7906ebd38ad507222731eb6e41be7232ae23657c1e7b3b95969"
+const GoDjProjectRelationFacadeInputSHA256 = "5064cb27a251b742446bb6f7f0ba1a46dcc76eb9f231dcf1909c676340eb34cc"
 
 type Backend interface {
 	db.Queryer
@@ -324,6 +324,710 @@ func (_model *ModelsCategory) Save(_ctx context.Context) error {
 	return _model.relationFacadeRefreshSnapshots()
 }
 
+type ModelsServiceReportQuery struct {
+	Related ModelsServiceReportRelationSelectors
+	state   *relationFacadeState
+	query   orm.QuerySet[models.ServiceReport]
+}
+
+func newModelsServiceReportQuery(_state *relationFacadeState, _query orm.QuerySet[models.ServiceReport]) ModelsServiceReportQuery {
+	_result := ModelsServiceReportQuery{state: _state, query: _query}
+	_result.Related = ModelsServiceReportRelationSelectors{
+		Ticket: relationFacadeSelection[models.ServiceReport, models.Ticket]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Ticket.selection = _state.objects.ModelsServiceReport.SelectTicket()
+	}
+	return _result
+}
+
+func (_query ModelsServiceReportQuery) validate() error {
+	return _query.state.validate()
+}
+
+func (_query ModelsServiceReportQuery) New(_value models.ServiceReport) (*ModelsServiceReport, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapModelsServiceReport(_value, true)
+}
+
+func (_query ModelsServiceReportQuery) Filter(_predicates ...orm.Predicate[models.ServiceReport]) ModelsServiceReportQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+
+func (_query ModelsServiceReportQuery) OrderBy(_orderings ...orm.Ordering[models.ServiceReport]) ModelsServiceReportQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+
+func (_query ModelsServiceReportQuery) Distinct() ModelsServiceReportQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query ModelsServiceReportQuery) Fresh() ModelsServiceReportQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+
+func (_query ModelsServiceReportQuery) Limit(_limit int) (ModelsServiceReportQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsServiceReportQuery{}, _err
+	}
+	_limited, _err := _query.query.Limit(_limit)
+	if _err != nil {
+		return ModelsServiceReportQuery{}, _err
+	}
+	_query.query = _limited
+	return _query, nil
+}
+
+func (_query ModelsServiceReportQuery) Offset(_offset int) (ModelsServiceReportQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsServiceReportQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return ModelsServiceReportQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query ModelsServiceReportQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectModelsServiceReportInto[R any](_ctx context.Context, _source ModelsServiceReportQuery, _projection orm.Projection[models.ServiceReport, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateModelsServiceReportInto[R any](_ctx context.Context, _source ModelsServiceReportQuery, _aggregate orm.Aggregate[models.ServiceReport, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func (_query ModelsServiceReportQuery) First(_ctx context.Context) (*ModelsServiceReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _found, _err := _query.query.First(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	_wrapped, _err := _query.state.wrapModelsServiceReport(_value, false)
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_query ModelsServiceReportQuery) All(_ctx context.Context) ([]*ModelsServiceReport, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsServiceReport, len(_values))
+	for _index := range _values {
+		_wrapped, _err := _query.state.wrapModelsServiceReport(_values[_index], false)
+		if _err != nil {
+			return nil, _err
+		}
+		_results[_index] = _wrapped
+	}
+	return _results, nil
+}
+
+type modelsServiceReportModel = models.ServiceReport
+
+type ModelsServiceReport struct {
+	modelsServiceReportModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	object                    *ModelsServiceReportObject
+	ticketCache               *orm.RelationCache[ModelsTicket]
+	ticketScalarSnapshot      int64
+	ticketScalarPresent       bool
+	_self                     *ModelsServiceReport
+}
+
+func (_state *relationFacadeState) wrapModelsServiceReport(_value models.ServiceReport, _new bool) (*ModelsServiceReport, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_cloned := (models.ServiceReportDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.ModelsServiceReport.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsServiceReport{state: _state, modelsServiceReportModel: _cloned, object: _object}
+	_result.ticketCache = orm.NewRelationCache[ModelsTicket]()
+	_result.ticketScalarPresent = !_new || _value.TicketID != 0
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapModelsServiceReportObject(_object *ModelsServiceReportObject) (*ModelsServiceReport, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (models.ServiceReportDescriptor{}).CloneWriteModel(_model)
+	_result := &ModelsServiceReport{state: _state, modelsServiceReportModel: _cloned, object: _object}
+	_result.ticketCache = orm.NewRelationCache[ModelsTicket]()
+	_result.ticketScalarPresent = true
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsServiceReport) validate() error {
+	if _model == nil || _model._self != _model {
+		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
+	}
+	return _model.state.validate()
+}
+
+func (ModelsServiceReport) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*ModelsServiceReport) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *ModelsServiceReport) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (models.ServiceReportDescriptor{}).PrimaryKey(_model.modelsServiceReportModel)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ModelsServiceReport) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ModelsServiceReport) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	_model.ticketScalarSnapshot = _model.modelsServiceReportModel.TicketID
+	return nil
+}
+
+func (_model *ModelsServiceReport) Unwrap() (models.ServiceReport, error) {
+	if _err := _model.validate(); _err != nil {
+		return models.ServiceReport{}, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return models.ServiceReport{}, _err
+	}
+	_, _, _ticketPending, _ticketErr := _model.ticketCache.Snapshot()
+	if _ticketErr != nil {
+		return models.ServiceReport{}, _ticketErr
+	}
+	if _ticketPending {
+		return models.ServiceReport{}, relationFacadeUnsavedRelated("ticket")
+	}
+	if !_model.ticketScalarPresent {
+		return models.ServiceReport{}, relationFacadeRequiredRelated("ticket")
+	}
+	return (models.ServiceReportDescriptor{}).CloneModel(_model.modelsServiceReportModel), nil
+}
+
+func (_model *ModelsServiceReport) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	if _err := models.ServiceReportObjects.Save(_ctx, _model.state.backend, &_model.modelsServiceReportModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *ModelsServiceReport) relationFacadeDerived(_value models.ServiceReport) (*ModelsServiceReport, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (models.ServiceReportDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.ModelsServiceReport.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsServiceReport{state: _model.state, modelsServiceReportModel: _value, object: _object}
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.ticketScalarSnapshot = _model.ticketScalarSnapshot
+	_result.ticketScalarPresent = _model.ticketScalarPresent
+	_result.ticketCache, _err = _model.ticketCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *ModelsServiceReport) relationFacadeReconcile() error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.ticketCache.Snapshot(); _err != nil {
+		return _err
+	}
+	_ticketCurrentKey := _model.modelsServiceReportModel.TicketID
+	_ticketChanged := _ticketCurrentKey != _model.ticketScalarSnapshot
+	_ticketCurrentPresent := _model.ticketScalarPresent || _ticketChanged
+	_rebuild := false || _ticketChanged
+	if !_rebuild {
+		return nil
+	}
+	_nextModel := (models.ServiceReportDescriptor{}).CloneWriteModel(_model.modelsServiceReportModel)
+	_nextObject, _err := _model.state.objects.ModelsServiceReport.From(_model.state.backend, _nextModel)
+	if _err != nil {
+		return _err
+	}
+	_nextTicketCache := _model.ticketCache
+	if _ticketChanged {
+		_nextTicketCache = orm.NewRelationCache[ModelsTicket]()
+	}
+	_model.modelsServiceReportModel = _nextModel
+	_model.object = _nextObject
+	if _ticketChanged {
+		_model.ticketCache = _nextTicketCache
+		_model.ticketScalarSnapshot = _ticketCurrentKey
+		_model.ticketScalarPresent = _ticketCurrentPresent
+	}
+	return nil
+}
+
+func (_model *ModelsServiceReport) relationFacadePrepareSave() error {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_ticketState, _ticketTarget, _ticketPending, _err := _model.ticketCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _ticketKey int64
+	var _ticketPresent bool
+	if _ticketState == orm.RelationAssignedPresent {
+		if _ticketTarget == nil || _ticketTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_ticketKey, _ticketPresent, _err = _ticketTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _ticketState == orm.RelationAssignedPresent && !_ticketPresent {
+		return relationFacadeUnsavedRelated("ticket")
+	}
+	if _ticketState == orm.RelationAssignedAbsent || (_ticketState == orm.RelationUnassigned && !_model.ticketScalarPresent) {
+		return relationFacadeRequiredRelated("ticket")
+	}
+	if _ticketState == orm.RelationAssignedPresent && !_ticketPending && !_model.ticketScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	_ticketReconcile := _ticketState == orm.RelationAssignedPresent && _ticketPending
+	_nextModel := (models.ServiceReportDescriptor{}).CloneWriteModel(_model.modelsServiceReportModel)
+	_rebuild := false
+	if _ticketReconcile {
+		_nextModel.TicketID = _ticketKey
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.ModelsServiceReport.From(_model.state.backend, _nextModel)
+		if _err != nil {
+			return _err
+		}
+		_nextTicketCache := _model.ticketCache
+		if _ticketReconcile {
+			_nextTicketCache, _err = _model.ticketCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextTicketCache.Store(orm.RelationAssignedPresent, _ticketTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_model.modelsServiceReportModel = _nextModel
+		_model.object = _nextObject
+		if _ticketReconcile {
+			_model.ticketCache = _nextTicketCache
+			_model.ticketScalarSnapshot = _ticketKey
+			_model.ticketScalarPresent = true
+		}
+	}
+	return nil
+}
+
+func (_model *ModelsServiceReport) WithTicket(_target *ModelsTicket) (*ModelsServiceReport, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (models.ServiceReportDescriptor{}).CloneWriteModel(_model.modelsServiceReportModel)
+	if _present {
+		_value.TicketID = _key
+	} else {
+		_value.TicketID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = _key
+	_result.ticketScalarPresent = _present
+	if _err := _result.ticketCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsServiceReport) WithTicketID(_key int64) (*ModelsServiceReport, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (models.ServiceReportDescriptor{}).CloneWriteModel(_model.modelsServiceReportModel)
+	_, _, _pending, _err := _model.ticketCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.ticketScalarPresent && !_pending && _value.TicketID == _key
+	_value.TicketID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = int64(_key)
+	_result.ticketScalarPresent = true
+	if !_same {
+		if _err := _result.ticketCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *ModelsServiceReport) ClearTicket() (*ModelsServiceReport, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (models.ServiceReportDescriptor{}).CloneWriteModel(_model.modelsServiceReportModel)
+	_value.TicketID = 0
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = 0
+	_result.ticketScalarPresent = false
+	if _err := _result.ticketCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsServiceReport) Ticket(_ctx context.Context) (*ModelsTicket, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.ticketCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == orm.RelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.ticketScalarPresent {
+		return nil, relationFacadeRequiredRelated("ticket")
+	}
+	_value, _err := _model.object.Ticket(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _wrapped *ModelsTicket
+	_graph, _selected, _err := _model.object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		var _object *ModelsTicketObject
+		_object, _err = _model.state.objects.ModelsTicket.FromSelected(_graph)
+		if _err != nil {
+			return nil, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedModelsTicketObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapModelsTicket(_value, false)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.ticketCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
+type ModelsServiceReportRelationSelector = relationFacadeSelectionInput[models.ServiceReport]
+type ModelsServiceReportRelationSelectors struct {
+	Ticket relationFacadeSelection[models.ServiceReport, models.Ticket]
+}
+
+func (_query ModelsServiceReportQuery) SelectRelated(_selectors ...ModelsServiceReportRelationSelector) ModelsServiceReportEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return ModelsServiceReportEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[models.ServiceReport], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return ModelsServiceReportEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newModelsServiceReportEagerQuery(_query.query, _inputs)
+}
+func (_query ModelsServiceReportQuery) SelectRelatedPaths(_paths ...string) (ModelsServiceReportEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsServiceReportEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ModelsServiceReport.selectionInputs(_paths)
+	if _err != nil {
+		return ModelsServiceReportEagerQuery{}, _err
+	}
+	_result := _query.state.newModelsServiceReportEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return ModelsServiceReportEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type ModelsServiceReportEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[models.ServiceReport]
+	selections       []orm.RelatedSelection[models.ServiceReport]
+	projection       relationSelectQuery[ModelsServiceReportObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newModelsServiceReportEagerQuery(_source orm.QuerySet[models.ServiceReport], _selections []orm.RelatedSelection[models.ServiceReport]) ModelsServiceReportEagerQuery {
+	_result := ModelsServiceReportEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[models.ServiceReport](nil), _selections...)
+	_projection := _state.objects.ModelsServiceReport.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query ModelsServiceReportEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query ModelsServiceReportEagerQuery) Filter(_values ...orm.Predicate[models.ServiceReport]) ModelsServiceReportEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsServiceReportEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query ModelsServiceReportEagerQuery) OrderBy(_values ...orm.Ordering[models.ServiceReport]) ModelsServiceReportEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsServiceReportEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query ModelsServiceReportEagerQuery) Distinct() ModelsServiceReportEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsServiceReportEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query ModelsServiceReportEagerQuery) Fresh() ModelsServiceReportEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsServiceReportEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query ModelsServiceReportEagerQuery) Limit(_value int) (ModelsServiceReportEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsServiceReportEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ModelsServiceReportEagerQuery{}, _err
+	}
+	return _query.state.newModelsServiceReportEagerQuery(_source, _query.selections), nil
+}
+func (_query ModelsServiceReportEagerQuery) Offset(_value int) (ModelsServiceReportEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsServiceReportEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ModelsServiceReportEagerQuery{}, _err
+	}
+	return _query.state.newModelsServiceReportEagerQuery(_source, _query.selections), nil
+}
+func (_query ModelsServiceReportEagerQuery) All(_ctx context.Context) ([]*ModelsServiceReport, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsServiceReport, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedModelsServiceReportObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query ModelsServiceReportEagerQuery) First(_ctx context.Context) (*ModelsServiceReport, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedModelsServiceReportObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query ModelsServiceReportEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedModelsServiceReportObject(_ctx context.Context, _object *ModelsServiceReportObject) (*ModelsServiceReport, error) {
+	_wrapped, _err := _state.wrapModelsServiceReportObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("ticket"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _err = _wrapped.Ticket(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
 type ModelsTicketQuery struct {
 	Related ModelsTicketRelationSelectors
 	state   *relationFacadeState
@@ -333,10 +1037,12 @@ type ModelsTicketQuery struct {
 func newModelsTicketQuery(_state *relationFacadeState, _query orm.QuerySet[models.Ticket]) ModelsTicketQuery {
 	_result := ModelsTicketQuery{state: _state, query: _query}
 	_result.Related = ModelsTicketRelationSelectors{
-		Category: relationFacadeSelection[models.Ticket, models.Category]{state: _state},
+		Category:      relationFacadeSelection[models.Ticket, models.Category]{state: _state},
+		ServiceReport: relationFacadeSelection[models.Ticket, models.ServiceReport]{state: _state},
 	}
 	if _state != nil {
 		_result.Related.Category.selection = _state.objects.ModelsTicket.SelectCategory()
+		_result.Related.ServiceReport.selection = _state.objects.ModelsTicket.SelectServiceReport()
 	}
 	return _result
 }
@@ -463,6 +1169,7 @@ type ModelsTicket struct {
 	categoryCache             *orm.RelationCache[ModelsCategory]
 	categoryScalarSnapshot    int64
 	categoryScalarPresent     bool
+	serviceReportCache        *orm.RelationCache[ModelsServiceReport]
 	_self                     *ModelsTicket
 }
 
@@ -478,6 +1185,7 @@ func (_state *relationFacadeState) wrapModelsTicket(_value models.Ticket, _new b
 	_result := &ModelsTicket{state: _state, modelsTicketModel: _cloned, object: _object}
 	_result.categoryCache = orm.NewRelationCache[ModelsCategory]()
 	_result.categoryScalarPresent = !_new || _value.CategoryID != 0
+	_result.serviceReportCache = orm.NewRelationCache[ModelsServiceReport]()
 	_result._self = _result
 	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
 		return nil, _err
@@ -500,6 +1208,7 @@ func (_state *relationFacadeState) wrapModelsTicketObject(_object *ModelsTicketO
 	_result := &ModelsTicket{state: _state, modelsTicketModel: _cloned, object: _object}
 	_result.categoryCache = orm.NewRelationCache[ModelsCategory]()
 	_result.categoryScalarPresent = true
+	_result.serviceReportCache = orm.NewRelationCache[ModelsServiceReport]()
 	_result._self = _result
 	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
 		return nil, _err
@@ -589,6 +1298,17 @@ func (_model *ModelsTicket) Save(_ctx context.Context) error {
 	if _err := models.TicketObjects.Save(_ctx, _model.state.backend, &_model.modelsTicketModel); _err != nil {
 		return _err
 	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_nextObject, _err := _model.state.objects.ModelsTicket.From(_model.state.backend, _model.modelsTicketModel)
+		if _err != nil {
+			return _err
+		}
+		_model.object = _nextObject
+	}
 	return _model.relationFacadeRefreshSnapshots()
 }
 
@@ -610,6 +1330,10 @@ func (_model *ModelsTicket) relationFacadeDerived(_value models.Ticket) (*Models
 	if _err != nil {
 		return nil, _err
 	}
+	_result.serviceReportCache, _err = _model.serviceReportCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
 	_result._self = _result
 	return _result, nil
 }
@@ -622,6 +1346,9 @@ func (_model *ModelsTicket) relationFacadeReconcile() error {
 		return _err
 	}
 	if _, _, _, _err := _model.categoryCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.serviceReportCache.Snapshot(); _err != nil {
 		return _err
 	}
 	_categoryCurrentKey := _model.modelsTicketModel.CategoryID
@@ -774,6 +1501,71 @@ func (_model *ModelsTicket) WithCategoryID(_key int64) (*ModelsTicket, error) {
 	return _result, nil
 }
 
+// SetServiceReport assigns a reverse one-to-one relation without database I/O.
+// It changes this wrapper and the supplied child's forward relation in place.
+// A nil target clears only an already cached child; an unloaded relation is unchanged.
+// Save the affected child explicitly to persist its foreign key.
+func (_model *ModelsTicket) SetServiceReport(_target *ModelsServiceReport) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	_nextOwner, _err := _model.relationFacadeDerived(_model.modelsTicketModel)
+	if _err != nil {
+		return _err
+	}
+	if _err = _nextOwner.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_changedTarget := _target
+	if _target == nil {
+		_state, _cached, _, _err := _nextOwner.serviceReportCache.Snapshot()
+		if _err != nil {
+			return _err
+		}
+		if _state != orm.RelationAssignedPresent {
+			return nil
+		}
+		_changedTarget = _cached
+	}
+	var _nextTarget *ModelsServiceReport
+	if _changedTarget != nil {
+		if _err = _changedTarget.validate(); _err != nil {
+			return _err
+		}
+		if _changedTarget.state != _model.state {
+			return relationFacadeQueryInvalid("relation target belongs to another facade origin")
+		}
+		_candidate, _err := _changedTarget.relationFacadeDerived(_changedTarget.modelsServiceReportModel)
+		if _err != nil {
+			return _err
+		}
+
+		if _target == nil {
+			_nextTarget, _err = _candidate.ClearTicket()
+		} else {
+			_nextTarget, _err = _candidate.WithTicket(_model)
+		}
+		if _err != nil {
+			return _err
+		}
+	}
+
+	if _target == nil {
+		_err = _nextOwner.serviceReportCache.Store(orm.RelationAssignedAbsent, nil, false)
+	} else {
+		_err = _nextOwner.serviceReportCache.Store(orm.RelationAssignedPresent, _target, false)
+	}
+	if _err != nil {
+		return _err
+	}
+	if _changedTarget != nil {
+		*_changedTarget = *_nextTarget
+		_changedTarget._self = _changedTarget
+	}
+	*_model = *_nextOwner
+	_model._self = _model
+	return nil
+}
 func (_model *ModelsTicket) Category(_ctx context.Context) (*ModelsCategory, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
@@ -814,9 +1606,67 @@ func (_model *ModelsTicket) Category(_ctx context.Context) (*ModelsCategory, err
 	return _wrapped, nil
 }
 
+func (_model *ModelsTicket) ServiceReport(_ctx context.Context) (*ModelsServiceReport, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.serviceReportCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.ServiceReport(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.serviceReportCache.Store(orm.RelationAssignedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *ModelsServiceReport
+	_graph, _selected, _err := _model.object.serviceReport.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		var _object *ModelsServiceReportObject
+		_object, _err = _model.state.objects.ModelsServiceReport.FromSelected(_graph)
+		if _err != nil {
+			return nil, false, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedModelsServiceReportObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapModelsServiceReport(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.serviceReportCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
 type ModelsTicketRelationSelector = relationFacadeSelectionInput[models.Ticket]
 type ModelsTicketRelationSelectors struct {
-	Category relationFacadeSelection[models.Ticket, models.Category]
+	Category      relationFacadeSelection[models.Ticket, models.Category]
+	ServiceReport relationFacadeSelection[models.Ticket, models.ServiceReport]
 }
 
 func (_query ModelsTicketQuery) SelectRelated(_selectors ...ModelsTicketRelationSelector) ModelsTicketEagerQuery {
@@ -987,6 +1837,14 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.C
 			return nil, _err
 		}
 	}
+	if _has, _err := _object._selectedGraph.HasSelection("service_report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.ServiceReport(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _err := _ctx.Err(); _err != nil {
 		return nil, _err
 	}
@@ -994,8 +1852,9 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.C
 }
 
 type Models struct {
-	ModelsCategory ModelsCategoryQuery
-	ModelsTicket   ModelsTicketQuery
+	ModelsCategory      ModelsCategoryQuery
+	ModelsServiceReport ModelsServiceReportQuery
+	ModelsTicket        ModelsTicketQuery
 }
 
 func Using(_backend Backend) (Models, error) {
@@ -1009,9 +1868,10 @@ func Using(_backend Backend) (Models, error) {
 	_state := &relationFacadeState{backend: _backend, objects: _objects}
 	_state._self = _state
 	return Models{
-		ModelsCategory: newModelsCategoryQuery(_state, models.CategoryObjects.Using(_backend)),
-		ModelsTicket:   newModelsTicketQuery(_state, models.TicketObjects.Using(_backend)),
+		ModelsCategory:      newModelsCategoryQuery(_state, models.CategoryObjects.Using(_backend)),
+		ModelsServiceReport: newModelsServiceReportQuery(_state, models.ServiceReportObjects.Using(_backend)),
+		ModelsTicket:        newModelsTicketQuery(_state, models.TicketObjects.Using(_backend)),
 	}, nil
 }
 
-var _ goDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba
+var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28

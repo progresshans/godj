@@ -83,6 +83,12 @@ reverse를 읽으면 부재이고, child Save가 성공하면 다시 reciprocal 
 Django의 자동 상호 invalidation을 도입하는 대신 기존 caller-owned wrapper와 실패 시 부분 게시 금지 경계를 유지한다.
 이 두 차이를 runtime 비교에서 별도 분기로 검증하며 동일 관찰 PASS나 동일 I/O 횟수로 합치지 않는다.
 
+관계 선택 Form은 Django ModelChoiceField의 216개 관찰을 별도 [SQLite](../forms/testdata/model-choice-django61-sqlite.json)·
+[PostgreSQL](../forms/testdata/model-choice-django61-postgres.json) fixture로 비교한다. GoDj는 QuerySet을 내부 보관하거나 model instance를
+반환하지 않고 caller가 제공한 key/label snapshot과 int64 cleaned key를 사용한다. Forms Bind의 자동 I/O를 피하고 context/error·
+권한·transaction의 소유자를 명시하기 위한 API 차이다. Admin provider와 저장 transaction이 scope를 재검증하며 required/empty·
+integer 별칭·NUL·invalid_choice·raw-input 변경 감지는 비교 범위에서 유지한다.
+
 저장 값·schema migration·권한은 달라지지 않는다. 관련 cache 상태에 따라 SELECT 수는 달라질 수 있고, Django의
 해당 query count를 GoDj parity로 계산하지 않는다. Runtime은 부재·동시 cold load·외부 쓰기/Fresh·copy 거부·실패 재시도와
 prefetch와 assignment의 독립 소유권을 검증한다. 이 범위를 넘어 남은 관계 기능·소비자 미구현을 면제하지 않는다.

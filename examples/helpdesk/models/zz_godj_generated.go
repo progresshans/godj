@@ -18,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "55bfbd4b6da374f5cc5fc30bfef7327ba60c5379dcbafa01103f603b8e58eaac"
+const GoDjSchemaSHA256 = "9ec43e08fc115a134ba2aba58da8c0077df646f15095fcdc09404df02a97a9d4"
 
 type Category struct {
 	ID                    int64
@@ -1489,4 +1489,250 @@ func ticketMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba struct{}
+type ServiceReport struct {
+	ID                    int64
+	TicketID              int64
+	Summary               string
+	Completed             bool
+	godjPrimaryKeyPresent bool
+}
+
+type ServiceReportDescriptor struct{}
+
+var _ orm.ModelDescriptor[ServiceReport] = ServiceReportDescriptor{}
+
+var _ orm.WriteDescriptor[ServiceReport] = ServiceReportDescriptor{}
+
+func (ServiceReportDescriptor) Metadata() ir.Model {
+	return serviceReportMetadata()
+}
+
+func (ServiceReportDescriptor) Scan(row db.Row) (ServiceReport, error) {
+	var value ServiceReport
+	if err := row.Scan(&value.ID, &value.TicketID, &value.Summary, &value.Completed); err != nil {
+		return ServiceReport{}, err
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (ServiceReportDescriptor) PrimaryKey(value ServiceReport) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (ServiceReportDescriptor) SetPrimaryKey(value *ServiceReport, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (ServiceReportDescriptor) ClearPrimaryKey(value *ServiceReport) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (ServiceReportDescriptor) CloneModel(value ServiceReport) ServiceReport {
+	clone := value
+	return clone
+}
+
+func (descriptor ServiceReportDescriptor) CloneWriteModel(value ServiceReport) ServiceReport {
+	return descriptor.CloneModel(value)
+}
+
+func (ServiceReportDescriptor) WriteFieldValue(value ServiceReport, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "ticket":
+		return query.Integer(value.TicketID), true
+	case "summary":
+		return query.String(value.Summary), true
+	case "completed":
+		return query.Boolean(value.Completed), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type ServiceReportFieldSet struct {
+	ID        orm.AutoField[ServiceReport]
+	Summary   orm.StringField[ServiceReport]
+	Completed orm.BooleanField[ServiceReport]
+}
+
+var ServiceReportFields = func() ServiceReportFieldSet {
+	metadata := serviceReportMetadata()
+	return ServiceReportFieldSet{
+		ID:        orm.NewAutoField[ServiceReport](metadata.Fields[0]),
+		Summary:   orm.NewStringField[ServiceReport](metadata.Fields[2]),
+		Completed: orm.NewBooleanField[ServiceReport](metadata.Fields[3]),
+	}
+}()
+
+var ServiceReportObjects = orm.NewManager[ServiceReport](ServiceReportDescriptor{})
+
+func NewServiceReportWithID(key int64) ServiceReport {
+	return ServiceReport{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func ServiceReportUpdateFields(fields ...orm.WritableField[ServiceReport]) orm.SaveOption[ServiceReport] {
+	return orm.UpdateFields(fields...)
+}
+
+func ServiceReportUpdateFieldNames(names ...string) orm.SaveOption[ServiceReport] {
+	return orm.UpdateFieldNames[ServiceReport](names...)
+}
+
+func ServiceReportForceInsert() orm.SaveOption[ServiceReport] {
+	return orm.ForceInsert[ServiceReport]()
+}
+
+func ServiceReportForceUpdate() orm.SaveOption[ServiceReport] {
+	return orm.ForceUpdate[ServiceReport]()
+}
+
+type ServiceReportCreate struct {
+	ticketID  orm.Change[int64]
+	summary   orm.Change[string]
+	completed orm.Change[bool]
+}
+
+func NewServiceReportCreate(ticketID int64, summary string) ServiceReportCreate {
+	return ServiceReportCreate{
+		ticketID: orm.Set(ticketID),
+		summary:  orm.Set(summary),
+	}
+}
+
+func (input ServiceReportCreate) WithTicketID(value int64) ServiceReportCreate {
+	input.ticketID = orm.Set(value)
+	return input
+}
+
+func (input ServiceReportCreate) WithSummary(value string) ServiceReportCreate {
+	input.summary = orm.Set(value)
+	return input
+}
+
+func (input ServiceReportCreate) WithCompleted(value bool) ServiceReportCreate {
+	input.completed = orm.Set(value)
+	return input
+}
+
+func (input ServiceReportCreate) BuildCreate() orm.Mutation[ServiceReport] {
+	var value ServiceReport
+	assignments := make([]query.Assignment, 0, 3)
+	changedTicketID, changedTicketIDSet := input.ticketID.Get()
+	if !changedTicketIDSet {
+		return orm.InvalidMutation[ServiceReport](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "ticket",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.TicketID = changedTicketID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ticket", "ticket_id", query.FieldInteger, false), query.Integer(changedTicketID)))
+	changedSummary, changedSummarySet := input.summary.Get()
+	if !changedSummarySet {
+		return orm.InvalidMutation[ServiceReport](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "summary",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.Summary = changedSummary
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, false), query.String(changedSummary)))
+	changedCompleted, changedCompletedSet := input.completed.Get()
+	if !changedCompletedSet {
+		changedCompleted = false
+	}
+	value.Completed = changedCompleted
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("completed", "completed", query.FieldBoolean, false), query.Boolean(changedCompleted)))
+	return orm.NewCreateMutation(value, "helpdesk_service_report", assignments)
+}
+
+type ServiceReportPatch struct {
+	ticketID  orm.Change[int64]
+	summary   orm.Change[string]
+	completed orm.Change[bool]
+}
+
+func (input ServiceReportPatch) WithTicketID(value int64) ServiceReportPatch {
+	input.ticketID = orm.Set(value)
+	return input
+}
+
+func (input ServiceReportPatch) WithSummary(value string) ServiceReportPatch {
+	input.summary = orm.Set(value)
+	return input
+}
+
+func (input ServiceReportPatch) WithCompleted(value bool) ServiceReportPatch {
+	input.completed = orm.Set(value)
+	return input
+}
+
+func (input ServiceReportPatch) BuildPatch(current ServiceReport) orm.Mutation[ServiceReport] {
+	value := current
+	assignments := make([]query.Assignment, 0, 3)
+	if changedTicketID, ok := input.ticketID.Get(); ok {
+		value.TicketID = changedTicketID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ticket", "ticket_id", query.FieldInteger, false), query.Integer(changedTicketID)))
+	}
+	if changedSummary, ok := input.summary.Get(); ok {
+		value.Summary = changedSummary
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, false), query.String(changedSummary)))
+	}
+	if changedCompleted, ok := input.completed.Get(); ok {
+		value.Completed = changedCompleted
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("completed", "completed", query.FieldBoolean, false), query.Boolean(changedCompleted)))
+	}
+	return orm.NewPatchMutation(value, "helpdesk_service_report", assignments)
+}
+
+func serviceReportMetadata() ir.Model {
+	return ir.Model{
+		Name:    "service_report",
+		GoName:  "ServiceReport",
+		DBTable: "helpdesk_service_report",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:   "ticket",
+				GoName: "TicketID",
+				Column: "ticket_id",
+				Kind:   ir.FieldForeignKey,
+				Unique: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+					Cardinality: ir.RelationOneToOne,
+					Reverse:     ir.ReverseRelation{Name: "service_report"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+			{
+				Name:   "summary",
+				GoName: "Summary",
+				Column: "summary",
+				Kind:   ir.FieldText,
+			},
+			{
+				Name:    "completed",
+				GoName:  "Completed",
+				Column:  "completed",
+				Kind:    ir.FieldBoolean,
+				Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false},
+			},
+		},
+	}
+}
+
+type GoDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28 struct{}

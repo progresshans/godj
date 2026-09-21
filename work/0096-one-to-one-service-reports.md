@@ -15,7 +15,7 @@ Helpdesk의 각 티켓에 작업 보고서를 0..1건 연결하고 생성·조�
 Category의 접근 범위와 명시적 읽기·쓰기 권한을 보고서의 관계 선택·역방향 조회·수정에도 유지한다.
 
 [카탈로그](../docs/CAPABILITY_CATALOG.md)의 OneToOne을 GDJ-0095가 제공한 양 DB의 column uniqueness 위에 연결한다.
-선언·이력·단일 reverse 객체의 기반 구현을 마쳤으며 작업 보고서의 전체 소비자 연결은 진행 중이다. FK에 Unique를 붙인 것만으로 reverse collection을 단일 객체로 바꾸지 않는다.
+선언·이력·단일 reverse 객체와 작업 보고서의 전체 소비자를 구현했으며 통합 검증 milestone은 진행 중이다. FK에 Unique를 붙인 것만으로 reverse collection을 단일 객체로 바꾸지 않는다.
 이 구분은 [고유성 ADR](../docs/adr/0072-column-uniqueness-and-constraint-ownership.md)과 독립 Django 관찰에 근거한다.
 
 ## 구현 조건
@@ -28,7 +28,7 @@ Category의 접근 범위와 명시적 읽기·쓰기 권한을 보고서의 관
 - [x] 단일 reverse의 관계/필드 isnull·nullable/Boolean·비교/IN/검색·AND/OR/NOT, 다른 reverse/collection 조건과의 조합
 - [x] 단일 reverse와 forward typed eager tree의 조합, 이어지는 관계 경로의 행·cache 소유권
 - [x] facade reverse selector·문자열 mixed path, 지연 접근과 저장/형제 cache 보존
-- [ ] 실제 작업 보고서의 migration·Form/Admin/API/OpenAPI/client, category·권한과 중복/실행 오류 구분
+- [x] 실제 작업 보고서의 migration·Form/Admin/API/OpenAPI/client, category·권한과 중복/실행 오류 구분
 - [x] 기반 cross-app 생성 소비자·양 DB·race/CGO 비활성·기존 생성 소비자/외부 compile·generated drift checkpoint
 - [ ] 위 소비자 전체를 연결한 source의 필요한 process·platform 통합 milestone
 
@@ -60,5 +60,8 @@ Incoming 관계가 있으면서 outgoing FK를 갖는 모델도 삭제할 수 �
 Generated reverse `Set*`는 지정한 두 wrapper를 메모리에서 함께 갱신하고 자식의 명시적 Save가 FK를 저장한다.
 필수/선택 관계의 할당·해제·재할당·unsaved 부모→자식 저장·실패 복구를 독립 Django 14개 관찰과 양 DB에서 대조했다.
 필수 해제의 I/O 전 거부와 unsaved Save 실패 후 다른 wrapper의 cache 보존은 DEV-0018에 구분해 기록했다.
-다음은 작업 보고서의 실제 입력 소비자다.
-전체 platform/cold-build 통합은 소비자 연결 milestone이 소유한다.
+ServiceReport의 migration·Admin 관계 선택·JSON CRUD·nullable reverse 조회와 독립 ogen client를 연결했다.
+선택지의 target 읽기 권한과 report 쓰기 권한을 구분하고, Category membership·고유성은 write transaction에서 다시 검사한다.
+별도 보고서 삭제는 Ticket을 보존하며 Ticket 삭제의 PROTECT는 Runtime의 coordinated relation transaction을 따른다.
+Django ModelChoice의 216개 입력/initial/changed 관찰과 양 DB의 실제 consumer에서 scope 변경·native 중복·선행 쓰기 rollback을 확인한다.
+다음은 이 소비자까지 포함한 process·platform 통합 milestone이다. 실행 상세는 TEST_EVIDENCE 한 곳에서 유지한다.

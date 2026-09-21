@@ -8,26 +8,20 @@
 
 ## 현재
 
-Column uniqueness를 Schema IR·생성 모델·migration·SQLite/PostgreSQL·ORM 사전 검증에서 Form/Admin/API와
-실제 Helpdesk/client까지 연결하고 통합 검증했다. 지원 범위와 제약은
-[구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md), [고유성 소유권](../adr/0072-column-uniqueness-and-constraint-ownership.md)이 소유한다.
+OneToOne의 명시적 cardinality·migration·양 DB FK+UNIQUE·단일 reverse 조회/prefetch·조건·mixed eager tree와
+facade·명시적 assignment를 구현했다. Helpdesk의 ServiceReport migration·Form/Admin/API/OpenAPI와 독립 생성 client도 연결했다.
+관계 선택은 요청별 권한·Category 범위의 불변 snapshot을 사용하고 저장 transaction에서 범위를 다시 확인한다.
+보고서의 정상 부재·재할당·고유성·삭제 후 부모 보존과 티켓 PROTECT, 취소·rollback 오류의 실행 경계를 유지한다.
+Runtime의 관계 삭제도 일반 쓰기와 같은 DB coordination fence를 사용한다.
 
-명시적 OneToOne을 IR·생성 metadata·historical migration과 양 DB의 FK+UNIQUE에 연결했다.
-Cross-app 생성 소비자가 단일 reverse 조회/prefetch·forward eager·중복 저장 rollback·PROTECT/SET_NULL을 사용한다.
-단일 reverse의 관계/필드 isnull·nullable/Boolean·비교/IN/검색과 AND/OR/NOT를 typed/dynamic 공통 AST에 연결했다.
-양 DB에서 독립 Django의 결과·실제 SELECT 수·JOIN 형태를 비교하고 일반·race·CGO 비활성 checkpoint를 통과했다.
-Typed reverse/mixed eager tree도 기존 scanner·evaluation·cache에 연결했다. 생성 selector/FromSelected bridge,
-부재와 자식 교체의 owner 기준 Fresh, 잘못된 FK·중복·부분 행·실패 재시도를 양 DB에서 확인했다.
-Facade의 reverse selector·문자열 mixed path와 지연 접근·새 부모 저장·선택한 형제 cache 보존도 연결했다.
-Outgoing FK가 있는 모델의 incoming PROTECT/SET_NULL 삭제 바인딩을 정리했다. OneToOne의 명시적 reverse Set과 required/nullable Clear,
-저장 전 객체의 할당·재할당·실패 뒤 cache/행 보존도 양 DB와 독립 Django 관찰에 연결했다. 관련 생성 ABI와 네 프로젝트의 생성물을 갱신했다. 설계는
-[일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다. 현재 변경의 Hosted 전체 검증은 아직 실행하지 않았다.
+지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
+[일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
+위 Hosted 전체 결과는 OneToOne 이전 source이며 현재 변경의 전체 platform 검증으로 재사용하지 않는다.
 
 ## 다음 행동
 
-작업 보고서의 migration·Form/Admin/API/OpenAPI/client와 category·읽기/쓰기 권한, native 중복·실행 오류와 실패 복구를 연결한다.
-구체적인 완료 조건은 활성 work가 소유하며 일대일 관계 전체를 완료 처리하지 않았다.
-현재 확인된 외부 blocker는 없다.
+보고서까지 연결한 source의 필요한 process·platform 통합 milestone을 마무리한다.
+구체적인 완료 조건은 활성 work가 소유하며 GDJ-0096은 아직 active다. 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

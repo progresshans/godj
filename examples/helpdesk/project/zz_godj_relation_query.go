@@ -11,7 +11,8 @@ import (
 const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
 
 type relationQueryBindings struct {
-	edge0 orm.ForwardRelation[models.Ticket, models.Category]
+	edge0 orm.ForwardRelation[models.ServiceReport, models.Ticket]
+	edge1 orm.ForwardRelation[models.Ticket, models.Category]
 }
 type ModelsCategoryRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
@@ -40,6 +41,127 @@ func (_fields ModelsCategoryRelatedFields[S]) IsNull(_value bool) orm.Predicate[
 	return _fields.route.IsNull(_value)
 }
 
+type ModelsTicketRelatedFields[S any] struct {
+	bindings          *relationQueryBindings
+	route             orm.ForwardRelation[S, models.Ticket]
+	configurationErr  error
+	ID                orm.RelatedIntegerField[S]
+	Subject           orm.RelatedStringField[S]
+	Details           orm.RelatedStringField[S]
+	Closed            orm.RelatedBooleanField[S]
+	Priority          orm.RelatedIntegerField[S]
+	Resolution        orm.RelatedStringField[S]
+	DueAt             orm.RelatedDateTimeField[S]
+	Reviewed          orm.RelatedBooleanField[S]
+	ServiceOn         orm.RelatedDateField[S]
+	ServiceAt         orm.RelatedTimeField[S]
+	Elapsed           orm.RelatedDurationField[S]
+	Effort            orm.RelatedFloatField[S]
+	ExpectedCost      orm.RelatedDecimalField[S]
+	ExternalReference orm.RelatedUUIDField[S]
+	ExternalPayload   orm.RelatedJSONField[S]
+}
+
+func newModelsTicketRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, models.Ticket]) ModelsTicketRelatedFields[S] {
+	_result := ModelsTicketRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(models.TicketFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(models.TicketFields.Subject)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field2, _err := _route.String(models.TicketFields.Details)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field3, _err := _route.Boolean(models.TicketFields.Closed)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field4, _err := _route.Integer(models.TicketFields.Priority)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field5, _err := _route.String(models.TicketFields.Resolution)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field6, _err := _route.DateTime(models.TicketFields.DueAt)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field7, _err := _route.Boolean(models.TicketFields.Reviewed)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field8, _err := _route.Date(models.TicketFields.ServiceOn)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field9, _err := _route.Time(models.TicketFields.ServiceAt)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field10, _err := _route.Duration(models.TicketFields.Elapsed)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field11, _err := _route.Float(models.TicketFields.Effort)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field12, _err := _route.Decimal(models.TicketFields.ExpectedCost)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field13, _err := _route.UUID(models.TicketFields.ExternalReference)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field14, _err := _route.JSON(models.TicketFields.ExternalPayload)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Subject = _field1.WithConfigurationError(_result.configurationErr)
+	_result.Details = _field2.WithConfigurationError(_result.configurationErr)
+	_result.Closed = _field3.WithConfigurationError(_result.configurationErr)
+	_result.Priority = _field4.WithConfigurationError(_result.configurationErr)
+	_result.Resolution = _field5.WithConfigurationError(_result.configurationErr)
+	_result.DueAt = _field6.WithConfigurationError(_result.configurationErr)
+	_result.Reviewed = _field7.WithConfigurationError(_result.configurationErr)
+	_result.ServiceOn = _field8.WithConfigurationError(_result.configurationErr)
+	_result.ServiceAt = _field9.WithConfigurationError(_result.configurationErr)
+	_result.Elapsed = _field10.WithConfigurationError(_result.configurationErr)
+	_result.Effort = _field11.WithConfigurationError(_result.configurationErr)
+	_result.ExpectedCost = _field12.WithConfigurationError(_result.configurationErr)
+	_result.ExternalReference = _field13.WithConfigurationError(_result.configurationErr)
+	_result.ExternalPayload = _field14.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields ModelsTicketRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields ModelsTicketRelatedFields[S]) Category() ModelsCategoryRelatedFields[S] {
+	var _next orm.ForwardRelation[models.Ticket, models.Category]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newModelsCategoryRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+}
+
+type ModelsServiceReportRelations struct {
+	Ticket ModelsTicketRelatedFields[models.ServiceReport]
+	model  orm.BoundModel[models.ServiceReport]
+}
+
+func (_relations ModelsServiceReportRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[models.ServiceReport], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
 type ModelsTicketRelations struct {
 	Category ModelsCategoryRelatedFields[models.Ticket]
 	model    orm.BoundModel[models.Ticket]
@@ -50,7 +172,8 @@ func (_relations ModelsTicketRelations) ParseDynamic(_policy orm.LookupPolicy, _
 }
 
 type Relations struct {
-	ModelsTicket ModelsTicketRelations
+	ModelsServiceReport ModelsServiceReportRelations
+	ModelsTicket        ModelsTicketRelations
 }
 
 func BindRelations() (Relations, error) {
@@ -68,6 +191,14 @@ func BindRelations() (Relations, error) {
 	}
 	_model1, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
+		models.ServiceReportDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
 	)
@@ -75,20 +206,32 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindForward(_model1, "category", _model0)
+	_relation0, _err := orm.BindForward(_model1, "ticket", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_group0 := newModelsCategoryRelatedFields[models.Ticket](_routes, _routes.edge0)
+	_relation1, _err := orm.BindForward(_model2, "category", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge1 = _relation1
+	_group0 := newModelsTicketRelatedFields[models.ServiceReport](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
+	_group1 := newModelsCategoryRelatedFields[models.Ticket](_routes, _routes.edge1)
+	if _group1.configurationErr != nil {
+		return Relations{}, _group1.configurationErr
+	}
 	return Relations{
-		ModelsTicket: ModelsTicketRelations{model: _model1,
-			Category: _group0,
+		ModelsServiceReport: ModelsServiceReportRelations{model: _model1,
+			Ticket: _group0,
+		},
+		ModelsTicket: ModelsTicketRelations{model: _model2,
+			Category: _group1,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba
+var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28

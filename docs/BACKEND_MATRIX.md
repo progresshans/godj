@@ -48,7 +48,9 @@ required/nullable·unsaved·재할당·native 중복 실패의 메모리/저장 
 Save/Unwrap은 I/O 전 required 오류다. Cold reverse clear는 조회 없이 아무 자식도 바꾸지 않는다.
 명시적 PK 0의 관계 presence와 absence를 구분한다. PostgreSQL은 새 AutoField 행의 수동 PK INSERT/identity sequence 조정을
 현재 unsupported로 거부한다. 이는 key-present target의 관계 할당과 별개이며, 없는 target의 FK 저장은 실제 제약으로 거부한다.
-작업 보고서의 실제 입력 소비자는 [GDJ-0096](../work/0096-one-to-one-service-reports.md)의 남은 범위다.
+ServiceReport migration·scoped ModelChoice Form/Admin·JSON CRUD/reverse·OpenAPI/client를 연결했다.
+Runtime의 관계 삭제는 양 backend의 CoordinatedAtomicRelation과 동일 transaction/fence를 사용한다.
+[GDJ-0096](../work/0096-one-to-one-service-reports.md)의 전체 통합 milestone은 아직 진행 중이다.
 [일대일 의미](adr/0073-one-to-one-cardinality-and-reverse-objects.md)를 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.

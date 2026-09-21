@@ -3,6 +3,57 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0096 — ServiceReport 소비자와 명시적 관계 선택
+
+2026-09-22, 기준 `65563c988112543a9d9424bfbea937ec6f38cd1f` 위 코드·생성물·검사·CI **76경로**의 manifest SHA256은
+`41645cb6dd5592c0b3c599fd4d504470da035d003fc9b8b24d0ff2bf39ef1753`이다. Markdown은 제외한다.
+Darwin 25.6.0/arm64·Go 1.26.5·modernc SQLite 3.53.3(v1.56.0)·PostgreSQL 17.5 Homebrew/pgx v5.10.0,
+`TZ=Pacific/Chatham`에서 실행했다. Native 시도마다 locale C/UTF8의 별도 owned DB와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+ServiceReport의 migration·Form/Admin·JSON CRUD/reverse·OpenAPI/client를 연결했다. 선택 범위가 표시 후 바뀌는 경우,
+권한·CSRF 전 제품 I/O 금지, 실제 FK/UNIQUE 충돌, 선행 mutation rollback, self update·no-op·재할당과 삭제 후 Ticket 보존을
+양 DB에서 실행했다. Ticket PROTECT는 Runtime의 coordinated relation transaction을 사용한다. Query/driver/cancellation과
+rollback 불확실성은 validation·404·정상 PROTECT 응답으로 축소하지 않는다. SQLite FK-off와 borrowed session 만료,
+일반/관계 쓰기의 동일 gate·DB fence, PostgreSQL acquire/rollback/commit 실패의 소유권도 검사했다.
+
+고정 Django 6.1/asgiref 3.12.1/sqlparse 0.5.5의 독립 ModelChoice runner는 실제 scoped QuerySet에서
+required/optional × initial 4개 × raw 27개, **216개 관찰**을 양 DB에서 얻는다. Runner SHA256은
+`f3f776f57723562563b0c0a0719d8ddfc06601f08f6ff2f968f3e48a7efd9819`다. Django source hash도 raw fixture에 남긴다.
+Reference SQLite는 Python 3.14.3의 3.50.4, PostgreSQL은 17.5/psycopg 3.3.6이다. GoDj는 양 fixture의 cleaned key/null,
+오류 code·raw-input 변경 감지를 대조했다. QuerySet/model instance 대신 순수 snapshot/int64 key를 사용하는 API 차이는 ADR/DEV-0018에 기록한다.
+Python 3.12.13·3.13.15·3.14.3·3.14.7에서 각각 **1 PASS / skip 0**, 총 **4 PASS**이고 각 테스트가 두 hash seed의 fresh process를 실행한다.
+
+| 검증 | 결과 | 범위 |
+| --- | --- | --- |
+| 일반 영향 범위 | 4,145 PASS / skip 0 | Forms/model·Admin·systemstate·SQLite 전체와 실제 Helpdesk SQLite/PostgreSQL; 필수 parent 438개 |
+| PostgreSQL coordinated adapter | 20 PASS / skip 0 | 실제 driver 경계 fault/lifetime 검사; 필수 parent 8개 |
+| Runtime/입력/소비자 race | 1,514 PASS / skip 0 | Forms/model·Admin·systemstate·Helpdesk 양 DB; 필수 parent 153개 |
+| Backend coordination race | 47 PASS / skip 0 | SQLite/PostgreSQL coordinated 경로; 필수 parent 18개 |
+| CGO=0 영향 범위 | 82 PASS / skip 0 | ModelChoice·Admin source·Runtime/DB coordination·Helpdesk 양 DB; 필수 parent 30개 |
+| 독립 OpenAPI client | 일반 10, race 10 PASS / skip 0 | locked ogen 재생성 byte 일치·독립 module build·실제 HTTP/auth/CSRF·완전한 receipt·DB 결과 |
+| Generated consumer/외부 compile | 184 PASS / skip 0 | 생성 package·cross-app·facade ABI와 compile negative controls; 필수 parent 69개 |
+| Generated drift·affected vet | PASS | 네 project의 generate --check와 checked-in relation product; 변경 영역 vet |
+| CI 도구·format·문서·diff | 38 PASS / 검사 통과 | 새 required inventory 포함, 문서 139개의 링크 검사 |
+
+전체 Go 이벤트의 시작/종료·필수 root·skip·failure를 검사했고 source 불변을 확인했다. 통합 실행 후 코드 차이는
+CI required inventory 두 경로뿐이며 위 CI 도구 검사를 적용했다. Child process helper는 기존 parent 검사가 실행/종료/결과를 소유한다.
+Ogen v1.24.0의 Helpdesk 생성 파일 12개와 schema만 바뀌고 Article 두 profile 및 go.mod/go.sum/ogen.yml은 byte 그대로다.
+안전한 GET 오류 응답의 CSRF header도 client에 반영하며 generated DELETE는 실제 cookie/header를 보낸다.
+Client 진단은 checked-in 고정 실패 문자열만 정확히 일치할 때 공개하고 실행 입력·URL·token이나 알 수 없는 stderr는 숨긴다.
+
+첫 실행 실패도 보존했다. 초기 fixture adapter의 필수 field nil initial 전달, migration target 이름, 테스트용 별도 auth runtime의
+CSRF 초기화와 commit-unknown code 기대를 고쳤다. 이후 대조는 valid ModelChoice의 변경 감지가 cleaned 숫자 equality를 따르는
+제품 결함을 찾았다. `-0`, `+7` 같은 입력도 raw 기준으로 비교하도록 수정해 216개 관찰을 통과했다.
+외부 client는 안전한 404 응답의 갱신된 CSRF header를 반영하지 않아 생성이 거부된 점을 수정한 뒤 정상/race를 통과했다.
+실패 시도는 최종 PASS로 재분류하지 않았다. 각 owned DB는 실행 후 잔여 connection·table·test schema 0을 확인하고 삭제했으며 기존 서비스는 유지했다.
+
+로컬 artifact root: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-service-reports-v29csxf7`.
+`final-code-source.json`, `source-coverage.json`, `normal-1790019582178291000`, `integration-1790019882598512000`,
+`consumers-1790019800088352000`, `drift-vet-1790019904749795000`, `reference-1790018552366731000`, `model-choice-python`에
+원본 stdout/stderr·Go events·required inventory·manifest·cleanup receipt를 남겼다.
+현재 source의 Hosted full은 아직 실행하지 않았으며 GDJ-0096의 process/platform 통합 milestone이 남아 있다.
+이 범위의 통과를 전체 프레임워크 완성이나 미지원 relation 기능의 완료로 합치지 않는다.
+
 ## GDJ-0096 — OneToOne assignment와 명시적 저장
 
 2026-09-22, 기준 `557095bea09529ef584fdd0a07e69767748c376c` 위 코드·생성물·검사·CI **74경로**의 manifest SHA256은

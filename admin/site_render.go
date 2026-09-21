@@ -484,6 +484,7 @@ func violationValues(errors validation.Errors) ([]templates.Value, error) {
 func (site *Site) deleteContext(model registeredModel, object Object) (map[string]templates.Value, error) {
 	return map[string]templates.Value{
 		"model_name": templates.String(model.model.GoName),
+		"protected":  templates.Bool(false),
 		"label":      templates.String(object.label),
 		"action":     templates.String(site.modelPath(model) + "delete/?id=" + strconv.FormatInt(object.id, 10)),
 		"list_path":  templates.String(site.modelPath(model)),

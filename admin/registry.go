@@ -169,6 +169,9 @@ type ModelConfig[M any] struct {
 	// FormFields selects editable fields in model declaration order. nil means
 	// all supported editable fields. Omitted fields never enter cleaned input.
 	FormFields []string
+	// RelatedChoices supplies each selected relation field's scoped choices.
+	// The Site checks these permissions before any choice or object query.
+	RelatedChoices []RelatedChoices
 	// ReadOnly publishes list/history views without mutation routes or callbacks.
 	ReadOnly     bool
 	ListFields   []string
@@ -309,17 +312,19 @@ func (registry Registry) Lookup(appLabel, modelName string) (ModelDescriptor, bo
 }
 
 type registeredModel struct {
-	readOnly     bool
-	hasHistory   bool
-	appLabel     string
-	slug         string
-	model        ir.Model
-	form         forms.Spec
-	listFields   []string
-	choiceLabels map[string]map[ir.Scalar]string
-	searchFields []string
-	permissions  Permissions
-	actions      []registeredAction
+	readOnly          bool
+	hasHistory        bool
+	appLabel          string
+	slug              string
+	model             ir.Model
+	form              forms.Spec
+	formFor           func(context.Context, auth.Principal) (forms.Spec, error)
+	choicePermissions []auth.Permission
+	listFields        []string
+	choiceLabels      map[string]map[ir.Scalar]string
+	searchFields      []string
+	permissions       Permissions
+	actions           []registeredAction
 
 	list    func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
 	get     func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
@@ -370,7 +375,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredModel{}, &ConfigError{Path: "model.form", Code: "invalid", Cause: err}
 		}
-	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.Actions) != 0 || config.Create != nil || config.Update != nil || config.Delete != nil {
+	} else if len(config.FormFields) != 0 || len(config.FormOverrides) != 0 || len(config.RelatedChoices) != 0 || len(config.Actions) != 0 || config.Create != nil || config.Update != nil || config.Delete != nil {
 		return registeredModel{}, &ConfigError{Path: "model.read_only", Code: "mutation_configuration"}
 	}
 	fieldByName := make(map[string]ir.Field, len(model.Fields))
@@ -403,6 +408,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	formFields := form.Fields()
+	formFor, choicePermissions, err := prepareRelatedChoices(form, config.RelatedChoices)
+	if err != nil {
+		return registeredModel{}, err
+	}
 	// A complete model POST carries one scalar value per editable field plus
 	// the CSRF token. Reject definitions that cannot fit through the Site's
 	// global input-count bound instead of publishing an unusable registry.
@@ -442,17 +451,19 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	}
 
 	registered := registeredModel{
-		readOnly:     config.ReadOnly,
-		hasHistory:   config.History != nil,
-		appLabel:     config.AppLabel,
-		slug:         config.Slug,
-		model:        model.Clone(),
-		form:         form,
-		listFields:   listFields,
-		choiceLabels: modelChoiceLabels(model, listFields),
-		searchFields: searchFields,
-		permissions:  permissions,
-		actions:      actions,
+		readOnly:          config.ReadOnly,
+		hasHistory:        config.History != nil,
+		appLabel:          config.AppLabel,
+		slug:              config.Slug,
+		model:             model.Clone(),
+		form:              form,
+		formFor:           formFor,
+		choicePermissions: choicePermissions,
+		listFields:        listFields,
+		choiceLabels:      modelChoiceLabels(model, listFields),
+		searchFields:      searchFields,
+		permissions:       permissions,
+		actions:           actions,
 	}
 	registered.list = func(ctx context.Context, principal auth.Principal, request ListRequest) (registeredPage, error) {
 		if err := validatePrincipalPermission(ctx, principal, permissions.View); err != nil {
@@ -545,7 +556,15 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err := validatePrincipalPermission(ctx, principal, permissions.Add); err != nil {
 			return Object{}, err
 		}
-		values, err := validateBoundForm(submitted, form, formFields)
+		data, err := canonicalFormData(submitted, formFields)
+		if err != nil {
+			return Object{}, err
+		}
+		currentForm, err := formFor(ctx, principal)
+		if err != nil {
+			return Object{}, err
+		}
+		values, err := validateBoundData(data, currentForm, currentForm.Fields())
 		if err != nil {
 			return Object{}, err
 		}
@@ -572,7 +591,15 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if id <= 0 {
 			return Object{}, nil, &ConfigError{Path: "update.id", Code: "invalid"}
 		}
-		values, err := validateBoundForm(submitted, form, formFields)
+		data, err := canonicalFormData(submitted, formFields)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		currentForm, err := formFor(ctx, principal)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		values, err := validateBoundData(data, currentForm, currentForm.Fields())
 		if err != nil {
 			return Object{}, nil, err
 		}
@@ -836,22 +863,30 @@ func validatePrincipalPermission(ctx context.Context, principal auth.Principal, 
 }
 
 func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
+	data, err := canonicalFormData(submitted, fields)
+	if err != nil {
+		return forms.Values{}, err
+	}
+	return validateBoundData(data, spec, fields)
+}
+
+func canonicalFormData(submitted forms.Form, fields []forms.Field) (forms.Data, error) {
 	if !submitted.Bound() || !submitted.Valid() || !submitted.Errors().Empty() {
-		return forms.Values{}, &ConfigError{Path: "form", Code: "not_bound_valid"}
+		return forms.Data{}, &ConfigError{Path: "form", Code: "not_bound_valid"}
 	}
 	values := submitted.Cleaned()
 	entries := values.All()
 	if len(entries) != len(fields) {
-		return forms.Values{}, &ConfigError{Path: "form.cleaned", Code: "field_count_mismatch"}
+		return forms.Data{}, &ConfigError{Path: "form.cleaned", Code: "field_count_mismatch"}
 	}
 	canonicalData := make(map[string][]string, len(fields))
 	for index, field := range fields {
 		entry := entries[index]
 		if entry.Name() != field.Name() {
-			return forms.Values{}, &ConfigError{Path: fmt.Sprintf("form.cleaned[%d]", index), Code: "field_order_mismatch"}
+			return forms.Data{}, &ConfigError{Path: fmt.Sprintf("form.cleaned[%d]", index), Code: "field_order_mismatch"}
 		}
 		if !validFormValue(entry.Value(), field) {
-			return forms.Values{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
+			return forms.Data{}, &ConfigError{Path: "form.cleaned." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		switch field.Kind() {
 		case forms.FieldJSON:
@@ -876,7 +911,7 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 				_, places, _ := field.DecimalPrecision()
 				text, err := value.Fixed(places)
 				if err != nil {
-					return forms.Values{}, &ConfigError{Path: "form.cleaned", Code: "invalid_decimal", Cause: err}
+					return forms.Data{}, &ConfigError{Path: "form.cleaned", Code: "invalid_decimal", Cause: err}
 				}
 				canonicalData[field.Name()] = []string{text}
 			}
@@ -943,8 +978,17 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 			}
 		}
 	}
-	revalidated, err := spec.Bind(forms.NewData(canonicalData), nil)
+	return forms.NewData(canonicalData), nil
+}
+
+func validateBoundData(data forms.Data, spec forms.Spec, fields []forms.Field) (forms.Values, error) {
+	revalidated, err := spec.Bind(data, nil)
 	if err != nil || !revalidated.Valid() || !revalidated.Errors().Empty() {
+		if err == nil {
+			if rejection := relatedChoiceRejection(revalidated, fields); rejection != nil {
+				return forms.Values{}, rejection
+			}
+		}
 		return forms.Values{}, &ConfigError{Path: "form.cleaned", Code: "spec_validation_failed", Cause: err}
 	}
 	return revalidated.Cleaned(), nil

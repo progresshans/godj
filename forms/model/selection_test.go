@@ -14,8 +14,8 @@ func TestSelectedScalarsDoNotExposeRelationOrNewFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	model := schema.Models[1]
-	if _, err := formmodel.NewSpec(model); err == nil {
-		t.Fatal("unselected relation silently accepted")
+	if _, err := formmodel.NewSpec(model); err != nil {
+		t.Fatal("canonical relation projection rejected", err)
 	}
 	spec, err := formmodel.NewSpecForFields(model, []string{"details", "subject"})
 	if err != nil {
@@ -32,7 +32,7 @@ func TestSelectedScalarsDoNotExposeRelationOrNewFields(t *testing.T) {
 	if _, ok := valid.Cleaned().Get("category"); ok {
 		t.Fatal("omitted relationship entered cleaned input")
 	}
-	for _, names := range [][]string{{}, {"unknown"}, {"subject", "subject"}, {"category"}, {"id"}, {"id", "subject"}} {
+	for _, names := range [][]string{{}, {"unknown"}, {"subject", "subject"}, {"id"}, {"id", "subject"}} {
 		if _, err := formmodel.NewSpecForFields(model, names); err == nil {
 			t.Fatalf("accepted invalid selection %v", names)
 		}

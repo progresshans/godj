@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "55bfbd4b6da374f5cc5fc30bfef7327ba60c5379dcbafa01103f603b8e58eaac"
+const GoDjRelationProjectionSchemaSHA256 = "9ec43e08fc115a134ba2aba58da8c0077df646f15095fcdc09404df02a97a9d4"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -177,4 +177,57 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba
+var _ orm.ProjectionDescriptor[ServiceReport] = ServiceReportDescriptor{}
+
+func (ServiceReportDescriptor) NewProjectionScan() orm.ProjectionScan[ServiceReport] {
+	return &serviceReportProjectionScan{}
+}
+
+type serviceReportProjectionScan struct {
+	scanID        sql.NullInt64
+	scanTicketID  sql.NullInt64
+	scanSummary   sql.NullString
+	scanCompleted sql.NullBool
+}
+
+func (_scan *serviceReportProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanTicketID,
+		&_scan.scanSummary,
+		&_scan.scanCompleted,
+	}
+}
+
+func (_scan *serviceReportProjectionScan) Decode() (ServiceReport, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return ServiceReport{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanTicketID.Valid && !_scan.scanSummary.Valid && !_scan.scanCompleted.Valid {
+		return ServiceReport{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return ServiceReport{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanTicketID.Valid {
+		return ServiceReport{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanSummary.Valid {
+		return ServiceReport{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanCompleted.Valid {
+		return ServiceReport{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := ServiceReport{}
+	_value.ID = _scan.scanID.Int64
+	_value.TicketID = _scan.scanTicketID.Int64
+	_value.Summary = _scan.scanSummary.String
+	_value.Completed = _scan.scanCompleted.Bool
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
+var _ GoDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28

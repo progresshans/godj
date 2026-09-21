@@ -28,3 +28,10 @@ type RelationSession interface {
 type RelationAtomic interface {
 	AtomicRelation(context.Context, func(RelationSession) error) error
 }
+
+// CoordinatedRelationAtomic has the same database/schema fence and ownership
+// contract as CoordinatedAtomic, with a relation-capable borrowed session.
+// Implementations must not substitute an uncoordinated relation transaction.
+type CoordinatedRelationAtomic interface {
+	CoordinatedAtomicRelation(context.Context, func(RelationSession) error) error
+}

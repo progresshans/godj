@@ -122,6 +122,12 @@ Callback panic은 cleanup 뒤 같은 panic value로 다시 발생시킨다. Unkn
 설계 이유는 [ADR-0057](adr/0057-sqlite-retained-connection-terminal-quarantine.md), 검증된 환경은 [Evidence](status/TEST_EVIDENCE.md)에서
 각각 확인한다.
 
+Runtime의 `AtomicRelation`도 동일한 process-local gate와 DB/schema coordination domain을 사용한다.
+Backend의 `CoordinatedAtomicRelation`이 relation-capable session을 빌려주며 일반 `AtomicRelation`로 fallback하지 않는다.
+SQLite는 pinned connection의 FK 상태를 BEGIN 전 확인하고 기존 cleanup/retention을 사용한다. PostgreSQL은 같은 advisory key를 쓴다.
+Form의 관계 선택지는 request-local snapshot이며 provider의 반환값·getter slice를 복사한다. 여러 principal의 조회 결과를
+공유 Spec에 게시하지 않는다. 저장 callback의 transaction 안에서 관계 membership을 다시 검사해야 하며 snapshot은 영구적인 인가가 아니다.
+
 ## 프로세스와 서비스
 
 Principal·Session Record·Form/Serializer 결과·Validation 오류의 private 값은 불변이며 전달 시 공유한다. 외부 slice/map 입력과

@@ -58,7 +58,7 @@ func TestNewSpecRejectsUnsupportedAndUnknownOverrides(t *testing.T) {
 		overrides []formmodel.Override
 	}{
 		{
-			name: "foreign key",
+			name: "incomplete foreign key metadata",
 			mutate: func(model *ir.Model) {
 				model.Fields = append(model.Fields, ir.Field{Name: "author", GoName: "Author", Kind: ir.FieldForeignKey})
 			},

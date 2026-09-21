@@ -88,6 +88,7 @@ type Runtime struct {
 var _ db.Queryer = (*Runtime)(nil)
 var _ db.Mutator = (*Runtime)(nil)
 var _ db.Atomic = (*Runtime)(nil)
+var _ db.RelationAtomic = (*Runtime)(nil)
 
 func (*Runtime) String() string   { return "systemstate.Runtime{redacted}" }
 func (*Runtime) GoString() string { return "systemstate.Runtime{redacted}" }
@@ -416,6 +417,28 @@ func (runtime *Runtime) Delete(ctx context.Context, plan query.DeletePlan) (int6
 // backend coordination domain recursively.
 func (runtime *Runtime) Atomic(ctx context.Context, callback func(db.Session) error) error {
 	return runtime.withAtomic(ctx, callback)
+}
+
+// AtomicRelation participates in the same local gate and database coordination
+// domain as permission, session and audit changes. A backend without the wider
+// coordinated capability is rejected before any transaction or callback.
+func (runtime *Runtime) AtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	if err := runtime.validBackendCall(ctx); err != nil {
+		return err
+	}
+	if callback == nil {
+		return &Error{Code: CodeInvalidInput, Field: "callback", Detail: "relation callback is nil"}
+	}
+	backend, ok := runtime.backend.(db.CoordinatedRelationAtomic)
+	if !ok || isNilInterface(backend) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "system state backend does not support coordinated relation transactions"}
+	}
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return backend.CoordinatedAtomicRelation(ctx, callback)
 }
 
 // withAtomic is the one cooperative gate shared by the durable session and

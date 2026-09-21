@@ -32,29 +32,38 @@ import (
 )
 
 const (
-	ViewCategory auth.Permission = "helpdesk.view_category"
-	ViewTicket   auth.Permission = "helpdesk.view_ticket"
-	AddTicket    auth.Permission = "helpdesk.add_ticket"
-	ChangeTicket auth.Permission = "helpdesk.change_ticket"
-	DeleteTicket auth.Permission = "helpdesk.delete_ticket"
+	ViewCategory        auth.Permission = "helpdesk.view_category"
+	ViewTicket          auth.Permission = "helpdesk.view_ticket"
+	AddTicket           auth.Permission = "helpdesk.add_ticket"
+	ChangeTicket        auth.Permission = "helpdesk.change_ticket"
+	DeleteTicket        auth.Permission = "helpdesk.delete_ticket"
+	ViewServiceReport   auth.Permission = "helpdesk.view_service_report"
+	AddServiceReport    auth.Permission = "helpdesk.add_service_report"
+	ChangeServiceReport auth.Permission = "helpdesk.change_service_report"
+	DeleteServiceReport auth.Permission = "helpdesk.delete_service_report"
 )
 
 type Backend interface {
 	db.Queryer
 	db.Mutator
 	db.Atomic
+	db.RelationAtomic
 }
 
 type Application struct {
-	backend    Backend
-	categoryID int64
-	registry   admin.Registry
-	input      serializers.Spec
-	output     serializers.Spec
-	encoder    serializers.ModelEncoder[models.Ticket]
-	parser     api.Parser
-	relations  project.Relations
-	objects    project.Models
+	backend       Backend
+	categoryID    int64
+	registry      admin.Registry
+	input         serializers.Spec
+	output        serializers.Spec
+	encoder       serializers.ModelEncoder[models.Ticket]
+	parser        api.Parser
+	relations     project.Relations
+	objects       project.Models
+	deleters      project.RelationDeleters
+	reportInput   serializers.Spec
+	reportOutput  serializers.Spec
+	reportEncoder serializers.ModelEncoder[models.ServiceReport]
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
@@ -77,6 +86,13 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	a := &Application{backend: backend, categoryID: categoryID, objects: objects}
 	a.relations, err = project.BindRelations()
 	if err != nil {
+		return nil, err
+	}
+	a.deleters, err = project.BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	if err = a.initReports(); err != nil {
 		return nil, err
 	}
 	if err := a.register(builder); err != nil {
@@ -114,7 +130,7 @@ func InstalledApps() []apps.Config {
 	return []apps.Config{{Name: "github.com/progresshans/godj/examples/helpdesk/models", Label: "helpdesk"}}
 }
 func Permissions() []auth.Permission {
-	return []auth.Permission{ViewCategory, ViewTicket, AddTicket, ChangeTicket, DeleteTicket}
+	return []auth.Permission{ViewCategory, ViewTicket, AddTicket, ChangeTicket, DeleteTicket, ViewServiceReport, AddServiceReport, ChangeServiceReport, DeleteServiceReport}
 }
 func (a *Application) Registry() admin.Registry { return a.registry }
 
@@ -171,7 +187,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
-	return admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
+	if err := admin.RegisterModel(builder, admin.ModelConfig[models.Ticket]{
 		AppLabel: "helpdesk", Slug: "tickets", Model: metadata, FormFields: fields,
 		FormOverrides: overrides,
 		ListFields:    []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload"}, SearchFields: []string{"subject", "external_payload"},
@@ -205,7 +221,10 @@ func (a *Application) register(builder *admin.Builder) error {
 			return a.update(ctx, id, input)
 		},
 		Delete: func(ctx context.Context, _ auth.Principal, id int64) (models.Ticket, error) { return a.delete(ctx, id) },
-	})
+	}); err != nil {
+		return err
+	}
+	return a.registerReports(builder)
 }
 
 func (a *Application) list(ctx context.Context, request admin.ListRequest) (admin.Page[models.Ticket], error) {
@@ -441,7 +460,7 @@ func (a *Application) create(ctx context.Context, input ticketInput) (models.Tic
 		}
 		created, err = models.TicketObjects.Create(ctx, session, create)
 		if err != nil {
-			return ticketWriteRejection(err)
+			return writeRejection(err)
 		}
 		created, err = a.publishableTicket(ctx, session, created.ID)
 		return err
@@ -605,7 +624,7 @@ func (a *Application) updatePatch(ctx context.Context, id int64, patch models.Ti
 		}
 		updated, err = models.TicketObjects.Update(ctx, session, current, patch)
 		if err != nil {
-			return ticketWriteRejection(err)
+			return writeRejection(err)
 		}
 		updated, err = a.publishableTicket(ctx, session, updated.ID)
 		return err
@@ -657,7 +676,8 @@ func externalPayloadErrors(document jsonvalue.Value) validation.Errors {
 
 func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, error) {
 	var removed models.Ticket
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
+	target := models.NewTicketWithID(id)
+	scoped := scopedTicketDelete{backend: a.backend, check: func(session db.RelationSession) error {
 		current, found, err := ticket(ctx, session, id)
 		if err != nil {
 			return err
@@ -666,13 +686,28 @@ func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, erro
 			return admin.ErrObjectNotFound
 		}
 		removed = current
-		_, err = models.TicketObjects.Delete(ctx, session, &current)
-		return err
-	})
-	if err != nil {
+		return nil
+	}}
+	if _, err := a.deleters.ModelsTicket.Delete(ctx, scoped, &target); err != nil {
 		return models.Ticket{}, err
 	}
 	return removed, nil
+}
+
+// The category check and complete incoming PROTECT policy share the same
+// transaction. A failed check is an AtomicRelation precondition failure.
+type scopedTicketDelete struct {
+	backend db.RelationAtomic
+	check   func(db.RelationSession) error
+}
+
+func (scoped scopedTicketDelete) AtomicRelation(ctx context.Context, fn func(db.RelationSession) error) error {
+	return scoped.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+		if err := scoped.check(session); err != nil {
+			return err
+		}
+		return fn(session)
+	})
 }
 
 func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Response, error) {

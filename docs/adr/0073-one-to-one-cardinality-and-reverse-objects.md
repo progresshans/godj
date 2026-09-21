@@ -1,6 +1,6 @@
 # ADR-0073: OneToOne cardinality and reverse object ownership
 
-- 상태: Accepted — 선언·이력·양 DB·단일 reverse object/prefetch 기반 구현. 전체 소비자 연결은 GDJ-0096에서 진행 중.
+- 상태: Accepted — 선언·이력·양 DB·단일 reverse와 Helpdesk 전체 소비자 구현. 통합 milestone은 GDJ-0096에서 진행 중.
 - 날짜: 2026-09-22
 - 관련 작업: [GDJ-0096](../../work/0096-one-to-one-service-reports.md)
 
@@ -138,6 +138,36 @@ Incoming policy를 갖는 모델에 canonical outgoing FK가 있어도 deleter�
 참조하는 부모 행을 수정·삭제하지 않는다. Incoming policy fingerprint·descriptor 전체 metadata·PK clear의 non-PK 보존 검사를 유지한다.
 FK를 읽지 못하는 descriptor는 transaction callback 전에 실패한다. 관계를 PK로 쓰는 모델이나 일반 cascade collector를 허용한 것이 아니다.
 
+## 작업 보고서와 명시적 관계 선택
+
+Helpdesk ServiceReport는 필수 OneToOne `ticket`, 필수 Text `summary`, Boolean `completed`를 가진다.
+Ticket의 수명·기존 필드는 그대로 유지하며 보고서의 reverse 부재는 정상적인 `null` 응답이다.
+`helpdesk_0017_service_report`는 기존 Category/Ticket 행을 보존하고 보고서 table을 별도로 만든다.
+보고서를 삭제하면 티켓은 남고 보고서가 참조하는 티켓의 삭제는 PROTECT로 거부된다.
+
+`forms.ModelChoiceField`는 int64 key와 표시명의 명시적 snapshot이다. Bind는 I/O를 하지 않고 목록이 없으면
+모든 nonempty 입력을 거부한다. `Spec.WithModelChoices`는 구조·validator를 유지하는 독립 snapshot을 반환한다.
+`forms/model`은 AutoField 대상의 정규화된 ForeignKey/OneToOne을 이 필드로 투영한다. 이는 Django의 QuerySet/model-instance
+소유권을 모방한 것이 아니다. 같은 pinned Django ModelChoiceField의 required/empty·integer 별칭·NUL·membership·raw-input
+변경 감지를 독립 [runner](../../conformance/runners/django/model_choice_reference.py)로 비교한다. 임의 target/to_field는 미지원이다.
+
+Admin은 선택한 relation마다 `RelatedChoices` source를 요구한다. 등록은 I/O가 없으며 모든 target 읽기 권한을 확인한 뒤
+요청별 source를 호출한다. 실제 Authorizer와 Principal snapshot을 둘 다 검사한다. 잘못된 내부 Form은 source 조회 전에 거부한다.
+Bind용 선택지를 요청 간 공유하지 않고 write callback 직전에도 목록을 다시 확인한다. 이것만으로 race를 닫았다고 하지 않는다.
+Application은 같은 transaction에서 현재 보고서·선택 티켓의 Category 범위와 고유성을 검사하고, 실제 native 제약이 최종 무결성을 소유한다.
+변경된 선택 범위는 `ticket/invalid_choice`, 사전 고유성은 `ticket/unique`, native 중복은 `__all__/unique`로 반환한다.
+취소·조회·driver·rollback/commit 불확실성은 실행 오류다. 오류가 합쳐진 not-found/PROTECT를 정상 404/삭제 차단으로 축소하지 않는다.
+
+Report CRUD는 각각 명시적인 view/add/change/delete 권한을 요구한다. Admin 선택지는 티켓 subject를 열거하므로
+추가로 ViewTicket이 필요하다. API의 명시적 key 입력과 reverse 부재 조회는 report 권한·Category 범위 안에서 수행하며
+티켓 subject를 노출하지 않는다. GET collection/detail/reverse, POST, PUT, PATCH, DELETE를 같은 operation 선언에서
+실제 handler와 OpenAPI에 연결한다. 삭제 응답은 body 없는 204다. 고정 ogen client가 실제 HTTP·cookie/CSRF로 이 계약을 소비한다.
+
+`systemstate.Runtime.AtomicRelation`은 backend의 명시적인 `CoordinatedAtomicRelation`을 요구한다.
+SQLite의 BEGIN IMMEDIATE/admission·FK readback·quarantine과 PostgreSQL의 schema advisory lock을 일반 cooperative write와 공유한다.
+같은 borrowed session이 ordinary mutation과 SET_NULL을 소유하며 callback은 한 번만 실행한다. 일반 AtomicRelation로 우회하거나
+중첩 transaction을 시작하지 않는다. 미지원 backend는 I/O 전에 명시적 오류다.
+
 ## 구현과 남은 범위
 
 Cross-app 생성 소비자가 required/nullable 관계, reverse exact 조회·단일 lazy/prefetch, forward eager와 양 DB 삭제를 사용한다.
@@ -145,5 +175,5 @@ Cross-app 생성 소비자가 required/nullable 관계, reverse exact 조회·�
 직접 reverse lookup은 별도 41개 Django 관찰로 결과·SELECT 수·JOIN 형태를 비교했다.
 Typed reverse/mixed eager tree와 facade의 reverse selector·문자열 mixed path, forward/reverse assignment를 구현했다.
 14개 독립 Django assignment 관찰과 실제 양 DB의 저장/rollback을 비교하고 표현·cache 차이는 별도로 기록했다.
-여러 단계 reverse 조건 조회와 Helpdesk Form/Admin/API/OpenAPI/client는 남아 있다.
+Helpdesk Form/Admin/API/OpenAPI/client는 구현했다. 여러 단계 reverse 조건 조회는 남아 있다.
 Relation-as-PK·arbitrary target·상속·ManyToMany도 별도 미완료 범위다. 실행 source·환경은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

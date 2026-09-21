@@ -10,6 +10,48 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 )
 
+func encodeHelpdeskServiceReportCreateRequest(
+	req *ServiceReportCreate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeHelpdeskServiceReportPatchRequest(
+	req *ServiceReportPatch,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeHelpdeskServiceReportUpdateRequest(
+	req *ServiceReportUpdate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeHelpdeskTicketCreateRequest(
 	req *TicketCreate,
 	r *http.Request,

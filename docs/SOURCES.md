@@ -97,3 +97,8 @@ OneToOne은 같은 pinned Django의 [관계 필드](https://github.com/django/dj
 [공개 OneToOneField 동작](https://docs.djangoproject.com/en/6.1/ref/models/fields/#onetoonefield)을 참조한다(BSD-3-Clause).
 [독립 runner](../conformance/runners/django/one_to_one_reference.py)는 `derived=false`로 작성한 public ORM·ModelForm·migration 입력이다.
 기대 fixture와 GoDj를 읽지 않으며 [활성 작업](../work/0096-one-to-one-service-reports.md)에서 기준 관찰과 제품 구현을 구분한다.
+
+관계 선택 Form은 같은 pinned Django의 `django/forms/models.py` ModelChoiceField와 AutoField key lookup을 참조한다(BSD-3-Clause).
+[독립 ModelChoice runner](../conformance/runners/django/model_choice_reference.py)는 실제 양 DB QuerySet의 scope·입력·initial/changed를
+관찰하고 설치된 source 파일의 SHA256을 기록한다. GoDj나 기대 fixture를 읽지 않는다. Snapshot과 int64 key를 반환하는
+Go API의 소유권 차이는 [ADR-0073](adr/0073-one-to-one-cardinality-and-reverse-objects.md#작업-보고서와-명시적-관계-선택)에 구분한다.

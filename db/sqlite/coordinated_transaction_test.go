@@ -363,12 +363,24 @@ func TestExecuteCoordinatedAtomicRetainsUncertainConnections(t *testing.T) {
 }
 
 func TestCoordinatedAtomicSerializesTwoBackendsOnRealFile(t *testing.T) {
+	for _, relation := range []bool{false, true} {
+		t.Run(fmt.Sprintf("relation=%v", relation), func(t *testing.T) { verifyCoordinatedTransactionSerialization(t, relation) })
+	}
+}
+
+func verifyCoordinatedTransactionSerialization(t *testing.T, relation bool) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "coordinated.sqlite")
 	left := openCoordinatedFileBackend(t, ctx, path, 5000)
 	right := openCoordinatedFileBackend(t, ctx, path, 5000)
 	if _, err := left.ExecContext(ctx, `CREATE TABLE "events" ("id" INTEGER NOT NULL PRIMARY KEY)`); err != nil {
 		t.Fatal(err)
+	}
+	leftAtomic := left.CoordinatedAtomic
+	if relation {
+		leftAtomic = func(ctx context.Context, fn func(db.Session) error) error {
+			return left.CoordinatedAtomicRelation(ctx, func(session db.RelationSession) error { return fn(session) })
+		}
 	}
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 
@@ -380,7 +392,7 @@ func TestCoordinatedAtomicSerializesTwoBackendsOnRealFile(t *testing.T) {
 	rightResult := make(chan error, 1)
 	var calls atomic.Int32
 	go func() {
-		leftResult <- left.CoordinatedAtomic(ctx, func(session db.Session) error {
+		leftResult <- leftAtomic(ctx, func(session db.Session) error {
 			calls.Add(1)
 			if _, err := session.Insert(ctx, query.NewInsertPlan("events", []query.Assignment{query.NewAssignment(id, query.Integer(1))})); err != nil {
 				return err

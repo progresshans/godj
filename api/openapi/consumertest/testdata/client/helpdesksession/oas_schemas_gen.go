@@ -112,8 +112,11 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 	s.Errors = val
 }
 
-func (*GoDjAPIError) helpdeskTicketDetailRes() {}
-func (*GoDjAPIError) helpdeskTicketListRes()   {}
+func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
+func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
+func (*GoDjAPIError) helpdeskTicketDetailRes()        {}
+func (*GoDjAPIError) helpdeskTicketListRes()          {}
+func (*GoDjAPIError) helpdeskTicketServiceReportRes() {}
 
 type GoDjAPIErrorErrorsItem struct {
 	Field  string                             `json:"field"`
@@ -202,8 +205,208 @@ func (s *GoDjAPIErrorHeaders) SetResponse(val GoDjAPIError) {
 	s.Response = val
 }
 
-func (*GoDjAPIErrorHeaders) helpdeskTicketDetailRes() {}
-func (*GoDjAPIErrorHeaders) helpdeskTicketListRes()   {}
+func (*GoDjAPIErrorHeaders) helpdeskServiceReportDetailRes() {}
+func (*GoDjAPIErrorHeaders) helpdeskServiceReportListRes()   {}
+func (*GoDjAPIErrorHeaders) helpdeskTicketDetailRes()        {}
+func (*GoDjAPIErrorHeaders) helpdeskTicketListRes()          {}
+func (*GoDjAPIErrorHeaders) helpdeskTicketServiceReportRes() {}
+
+type HelpdeskServiceReportCreateBadRequest GoDjAPIError
+
+func (*HelpdeskServiceReportCreateBadRequest) helpdeskServiceReportCreateRes() {}
+
+type HelpdeskServiceReportCreateForbidden GoDjAPIError
+
+func (*HelpdeskServiceReportCreateForbidden) helpdeskServiceReportCreateRes() {}
+
+type HelpdeskServiceReportCreateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServiceReportCreateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServiceReportCreateInternalServerError) helpdeskServiceReportCreateRes() {}
+
+type HelpdeskServiceReportCreateNotFound GoDjAPIError
+
+func (*HelpdeskServiceReportCreateNotFound) helpdeskServiceReportCreateRes() {}
+
+type HelpdeskServiceReportCreateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskServiceReportCreateRequestEntityTooLarge) helpdeskServiceReportCreateRes() {}
+
+type HelpdeskServiceReportCreateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskServiceReportCreateUnsupportedMediaType) helpdeskServiceReportCreateRes() {}
+
+type HelpdeskServiceReportDeleteForbidden GoDjAPIError
+
+func (*HelpdeskServiceReportDeleteForbidden) helpdeskServiceReportDeleteRes() {}
+
+type HelpdeskServiceReportDeleteInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServiceReportDeleteInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServiceReportDeleteInternalServerError) helpdeskServiceReportDeleteRes() {}
+
+// HelpdeskServiceReportDeleteNoContent is response for HelpdeskServiceReportDelete operation.
+type HelpdeskServiceReportDeleteNoContent struct{}
+
+func (*HelpdeskServiceReportDeleteNoContent) helpdeskServiceReportDeleteRes() {}
+
+type HelpdeskServiceReportDeleteNotFound GoDjAPIError
+
+func (*HelpdeskServiceReportDeleteNotFound) helpdeskServiceReportDeleteRes() {}
+
+type HelpdeskServiceReportDetailInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServiceReportDetailInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServiceReportDetailInternalServerError) helpdeskServiceReportDetailRes() {}
+
+type HelpdeskServiceReportListInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServiceReportListInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServiceReportListInternalServerError) helpdeskServiceReportListRes() {}
+
+// HelpdeskServiceReportListOKHeaders wraps []ServiceReport with response headers.
+type HelpdeskServiceReportListOKHeaders struct {
+	XGodjCsrftoken OptString
+	Response       []ServiceReport
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *HelpdeskServiceReportListOKHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *HelpdeskServiceReportListOKHeaders) GetResponse() []ServiceReport {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *HelpdeskServiceReportListOKHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *HelpdeskServiceReportListOKHeaders) SetResponse(val []ServiceReport) {
+	s.Response = val
+}
+
+func (*HelpdeskServiceReportListOKHeaders) helpdeskServiceReportListRes() {}
+
+type HelpdeskServiceReportPatchBadRequest GoDjAPIError
+
+func (*HelpdeskServiceReportPatchBadRequest) helpdeskServiceReportPatchRes() {}
+
+type HelpdeskServiceReportPatchForbidden GoDjAPIError
+
+func (*HelpdeskServiceReportPatchForbidden) helpdeskServiceReportPatchRes() {}
+
+type HelpdeskServiceReportPatchInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServiceReportPatchInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServiceReportPatchInternalServerError) helpdeskServiceReportPatchRes() {}
+
+type HelpdeskServiceReportPatchNotFound GoDjAPIError
+
+func (*HelpdeskServiceReportPatchNotFound) helpdeskServiceReportPatchRes() {}
+
+type HelpdeskServiceReportPatchRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskServiceReportPatchRequestEntityTooLarge) helpdeskServiceReportPatchRes() {}
+
+type HelpdeskServiceReportPatchUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskServiceReportPatchUnsupportedMediaType) helpdeskServiceReportPatchRes() {}
+
+type HelpdeskServiceReportUpdateBadRequest GoDjAPIError
+
+func (*HelpdeskServiceReportUpdateBadRequest) helpdeskServiceReportUpdateRes() {}
+
+type HelpdeskServiceReportUpdateForbidden GoDjAPIError
+
+func (*HelpdeskServiceReportUpdateForbidden) helpdeskServiceReportUpdateRes() {}
+
+type HelpdeskServiceReportUpdateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskServiceReportUpdateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskServiceReportUpdateInternalServerError) helpdeskServiceReportUpdateRes() {}
+
+type HelpdeskServiceReportUpdateNotFound GoDjAPIError
+
+func (*HelpdeskServiceReportUpdateNotFound) helpdeskServiceReportUpdateRes() {}
+
+type HelpdeskServiceReportUpdateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskServiceReportUpdateRequestEntityTooLarge) helpdeskServiceReportUpdateRes() {}
+
+type HelpdeskServiceReportUpdateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskServiceReportUpdateUnsupportedMediaType) helpdeskServiceReportUpdateRes() {}
 
 type HelpdeskTicketCreateBadRequest GoDjAPIError
 
@@ -336,6 +539,22 @@ func (*HelpdeskTicketPatchRequestEntityTooLarge) helpdeskTicketPatchRes() {}
 type HelpdeskTicketPatchUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskTicketPatchUnsupportedMediaType) helpdeskTicketPatchRes() {}
+
+type HelpdeskTicketServiceReportInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketServiceReportInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketServiceReportInternalServerError) helpdeskTicketServiceReportRes() {}
 
 type HelpdeskTicketUpdateBadRequest GoDjAPIError
 
@@ -598,6 +817,79 @@ func (o NilInt64) Or(d int64) int64 {
 	return d
 }
 
+// NewNilServiceReport returns new NilServiceReport with value set to v.
+func NewNilServiceReport(v ServiceReport) NilServiceReport {
+	return NilServiceReport{
+		Value: v,
+	}
+}
+
+// NilServiceReport is nullable ServiceReport.
+type NilServiceReport struct {
+	Value ServiceReport
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilServiceReport) SetTo(v ServiceReport) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilServiceReport) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilServiceReport) SetToNull() {
+	o.Null = true
+	var v ServiceReport
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilServiceReport) Get() (v ServiceReport, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilServiceReport) Or(d ServiceReport) ServiceReport {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NilServiceReportHeaders wraps NilServiceReport with response headers.
+type NilServiceReportHeaders struct {
+	XGodjCsrftoken OptString
+	Response       NilServiceReport
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *NilServiceReportHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *NilServiceReportHeaders) GetResponse() NilServiceReport {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *NilServiceReportHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *NilServiceReportHeaders) SetResponse(val NilServiceReport) {
+	s.Response = val
+}
+
+func (*NilServiceReportHeaders) helpdeskTicketServiceReportRes() {}
+
 // NewNilString returns new NilString with value set to v.
 func NewNilString(v string) NilString {
 	return NilString{
@@ -728,6 +1020,52 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInt64 returns new OptInt64 with value set to v.
+func NewOptInt64(v int64) OptInt64 {
+	return OptInt64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt64 is optional int64.
+type OptInt64 struct {
+	Value int64
+	Set   bool
+}
+
+// IsSet returns true if OptInt64 was set.
+func (o OptInt64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt64) Reset() {
+	var v int64
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt64) SetTo(v int64) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt64) Get() (v int64, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt64) Or(d int64) int64 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -1390,6 +1728,197 @@ func (o OptString) Or(d string) string {
 		return v
 	}
 	return d
+}
+
+// Ref: #/components/schemas/ServiceReport
+type ServiceReport struct {
+	ID        int64  `json:"id"`
+	Ticket    int64  `json:"ticket"`
+	Summary   string `json:"summary"`
+	Completed bool   `json:"completed"`
+}
+
+// GetID returns the value of ID.
+func (s *ServiceReport) GetID() int64 {
+	return s.ID
+}
+
+// GetTicket returns the value of Ticket.
+func (s *ServiceReport) GetTicket() int64 {
+	return s.Ticket
+}
+
+// GetSummary returns the value of Summary.
+func (s *ServiceReport) GetSummary() string {
+	return s.Summary
+}
+
+// GetCompleted returns the value of Completed.
+func (s *ServiceReport) GetCompleted() bool {
+	return s.Completed
+}
+
+// SetID sets the value of ID.
+func (s *ServiceReport) SetID(val int64) {
+	s.ID = val
+}
+
+// SetTicket sets the value of Ticket.
+func (s *ServiceReport) SetTicket(val int64) {
+	s.Ticket = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ServiceReport) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetCompleted sets the value of Completed.
+func (s *ServiceReport) SetCompleted(val bool) {
+	s.Completed = val
+}
+
+func (*ServiceReport) helpdeskServiceReportCreateRes() {}
+func (*ServiceReport) helpdeskServiceReportPatchRes()  {}
+func (*ServiceReport) helpdeskServiceReportUpdateRes() {}
+
+// Ref: #/components/schemas/ServiceReportCreate
+type ServiceReportCreate struct {
+	Ticket    int64   `json:"ticket"`
+	Summary   string  `json:"summary"`
+	Completed OptBool `json:"completed"`
+}
+
+// GetTicket returns the value of Ticket.
+func (s *ServiceReportCreate) GetTicket() int64 {
+	return s.Ticket
+}
+
+// GetSummary returns the value of Summary.
+func (s *ServiceReportCreate) GetSummary() string {
+	return s.Summary
+}
+
+// GetCompleted returns the value of Completed.
+func (s *ServiceReportCreate) GetCompleted() OptBool {
+	return s.Completed
+}
+
+// SetTicket sets the value of Ticket.
+func (s *ServiceReportCreate) SetTicket(val int64) {
+	s.Ticket = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ServiceReportCreate) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetCompleted sets the value of Completed.
+func (s *ServiceReportCreate) SetCompleted(val OptBool) {
+	s.Completed = val
+}
+
+// ServiceReportHeaders wraps ServiceReport with response headers.
+type ServiceReportHeaders struct {
+	XGodjCsrftoken OptString
+	Response       ServiceReport
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *ServiceReportHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *ServiceReportHeaders) GetResponse() ServiceReport {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *ServiceReportHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *ServiceReportHeaders) SetResponse(val ServiceReport) {
+	s.Response = val
+}
+
+func (*ServiceReportHeaders) helpdeskServiceReportDetailRes() {}
+
+// Ref: #/components/schemas/ServiceReportPatch
+type ServiceReportPatch struct {
+	Ticket    OptInt64  `json:"ticket"`
+	Summary   OptString `json:"summary"`
+	Completed OptBool   `json:"completed"`
+}
+
+// GetTicket returns the value of Ticket.
+func (s *ServiceReportPatch) GetTicket() OptInt64 {
+	return s.Ticket
+}
+
+// GetSummary returns the value of Summary.
+func (s *ServiceReportPatch) GetSummary() OptString {
+	return s.Summary
+}
+
+// GetCompleted returns the value of Completed.
+func (s *ServiceReportPatch) GetCompleted() OptBool {
+	return s.Completed
+}
+
+// SetTicket sets the value of Ticket.
+func (s *ServiceReportPatch) SetTicket(val OptInt64) {
+	s.Ticket = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ServiceReportPatch) SetSummary(val OptString) {
+	s.Summary = val
+}
+
+// SetCompleted sets the value of Completed.
+func (s *ServiceReportPatch) SetCompleted(val OptBool) {
+	s.Completed = val
+}
+
+// Ref: #/components/schemas/ServiceReportUpdate
+type ServiceReportUpdate struct {
+	Ticket    int64   `json:"ticket"`
+	Summary   string  `json:"summary"`
+	Completed OptBool `json:"completed"`
+}
+
+// GetTicket returns the value of Ticket.
+func (s *ServiceReportUpdate) GetTicket() int64 {
+	return s.Ticket
+}
+
+// GetSummary returns the value of Summary.
+func (s *ServiceReportUpdate) GetSummary() string {
+	return s.Summary
+}
+
+// GetCompleted returns the value of Completed.
+func (s *ServiceReportUpdate) GetCompleted() OptBool {
+	return s.Completed
+}
+
+// SetTicket sets the value of Ticket.
+func (s *ServiceReportUpdate) SetTicket(val int64) {
+	s.Ticket = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ServiceReportUpdate) SetSummary(val string) {
+	s.Summary = val
+}
+
+// SetCompleted sets the value of Completed.
+func (s *ServiceReportUpdate) SetCompleted(val OptBool) {
+	s.Completed = val
 }
 
 type SessionAuth struct {

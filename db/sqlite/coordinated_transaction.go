@@ -12,6 +12,7 @@ import (
 )
 
 var _ db.CoordinatedAtomic = (*Backend)(nil)
+var _ db.CoordinatedRelationAtomic = (*Backend)(nil)
 var _ db.Session = (*coordinatedSession)(nil)
 
 // coordinatedSession deliberately exposes only db.Session. The wrapped raw
@@ -62,6 +63,26 @@ func inactiveCoordinatedSessionError() error {
 // LOCKED results; any configured driver busy timeout is the only acquisition
 // wait.
 func (b *Backend) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
+	return b.coordinatedAtomic(ctx, callback, false)
+}
+
+// CoordinatedAtomicRelation keeps BEGIN IMMEDIATE, retention, cleanup and
+// lifetime ownership in the shared coordinated transaction engine. It verifies
+// the pinned connection's FK enforcement before exposing relation mutations.
+func (b *Backend) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	if callback == nil {
+		return b.coordinatedAtomic(ctx, nil, true)
+	}
+	return b.coordinatedAtomic(ctx, func(session db.Session) error {
+		coordinated, ok := session.(*coordinatedSession)
+		if !ok || coordinated == nil || coordinated.session == nil {
+			return inactiveCoordinatedSessionError()
+		}
+		return callback(coordinated.session)
+	}, true)
+}
+
+func (b *Backend) coordinatedAtomic(ctx context.Context, callback func(db.Session) error, requireRelations bool) error {
 	if err := b.validateWriteContext(ctx); err != nil {
 		return err
 	}
@@ -80,6 +101,11 @@ func (b *Backend) CoordinatedAtomic(ctx context.Context, callback func(db.Sessio
 	connection, err := b.database.Conn(ctx)
 	if err != nil {
 		return fmt.Errorf("acquire pinned SQLite coordinated connection: %w", err)
+	}
+	if requireRelations {
+		if err := verifyRelationForeignKeys(ctx, connection); err != nil {
+			return errors.Join(err, closeUnusedRelationConnection(connection))
+		}
 	}
 	return executeAdmittedCoordinatedAtomic(ctx, callback, connection, admission, &b.queryCount)
 }

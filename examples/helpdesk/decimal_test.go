@@ -151,7 +151,7 @@ func verifyHelpdeskDecimal(t *testing.T, ctx context.Context, runtime *systemsta
 	if err != nil || !found || createdRow.ExpectedCost == nil || createdRow.ExpectedCost.String() != "0.1" {
 		t.Fatal("created Decimal missing from DB")
 	}
-	if _, err := models.TicketObjects.Delete(ctx, runtime, &createdRow); err != nil {
+	if _, err := deleteHelpdeskTicket(ctx, runtime, &createdRow); err != nil {
 		t.Fatal(err)
 	}
 	form := url.Values{"subject": {baseline.Subject}, "expected_cost": {"1.230"}, "csrfmiddlewaretoken": {client.csrf}}

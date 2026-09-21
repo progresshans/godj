@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/web"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -158,11 +160,22 @@ func (site *Site) modelAddGet(model registeredModel) sessionauth.AuthenticatedHa
 		if _, err := parseSiteQuery(request, inputRules{}); err != nil {
 			return siteBadRequest()
 		}
-		form, err := model.form.Unbound(nil)
+		if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
+			return web.Response{}, err
+		} else if !allowed {
+			return siteForbidden()
+		}
+		requestModel := model
+		var err error
+		requestModel.form, err = model.formFor(request.Context(), principal)
 		if err != nil {
 			return web.Response{}, err
 		}
-		context, err := site.formContext(model, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, nil)
+		form, err := requestModel.form.Unbound(nil)
+		if err != nil {
+			return web.Response{}, err
+		}
+		context, err := site.formContext(requestModel, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, nil)
 		if err != nil {
 			return web.Response{}, err
 		}
@@ -183,7 +196,17 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 			return response, err
 		}
 		return site.adminAuthorize(request, model.permissions.Add, func(principal auth.Principal) (web.Response, error) {
-			form, err := model.form.Bind(modelData(model, values), nil)
+			if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
+				return web.Response{}, err
+			} else if !allowed {
+				return siteForbidden()
+			}
+			requestModel := model
+			requestModel.form, err = model.formFor(request.Context(), principal)
+			if err != nil {
+				return web.Response{}, err
+			}
+			form, err := requestModel.form.Bind(modelData(model, values), nil)
 			if err != nil {
 				return web.Response{}, err
 			}
@@ -197,7 +220,7 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 					return web.Response{}, err
 				}
 			}
-			context, contextErr := site.formContext(model, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, values)
+			context, contextErr := site.formContext(requestModel, "Add "+model.model.GoName, site.modelPath(model)+"add/", "Add", form, values)
 			if contextErr != nil {
 				return web.Response{}, contextErr
 			}
@@ -221,6 +244,11 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 		if err != nil {
 			return siteBadRequest()
 		}
+		if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
+			return web.Response{}, err
+		} else if !allowed {
+			return siteForbidden()
+		}
 		record, found, err := model.get(request.Context(), principal, id)
 		if err != nil {
 			return web.Response{}, err
@@ -228,11 +256,16 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 		if !found {
 			return siteNotFound()
 		}
-		form, err := model.form.Unbound(record.initial)
+		requestModel := model
+		requestModel.form, err = model.formFor(request.Context(), principal)
 		if err != nil {
 			return web.Response{}, err
 		}
-		context, err := site.formContext(model, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, nil)
+		form, err := requestModel.form.Unbound(record.initial)
+		if err != nil {
+			return web.Response{}, err
+		}
+		context, err := site.formContext(requestModel, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, nil)
 		if err != nil {
 			return web.Response{}, err
 		}
@@ -263,6 +296,11 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			} else if !allowed {
 				return siteForbidden()
 			}
+			if allowed, err := site.relatedChoicesAllowed(request, principal, model); err != nil {
+				return web.Response{}, err
+			} else if !allowed {
+				return siteForbidden()
+			}
 			record, found, err := model.get(request.Context(), principal, id)
 			if err != nil {
 				return web.Response{}, err
@@ -270,7 +308,12 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 			if !found {
 				return siteNotFound()
 			}
-			form, err := model.form.Bind(modelData(model, values), record.initial)
+			requestModel := model
+			requestModel.form, err = model.formFor(request.Context(), principal)
+			if err != nil {
+				return web.Response{}, err
+			}
+			form, err := requestModel.form.Bind(modelData(model, values), record.initial)
 			if err != nil {
 				return web.Response{}, err
 			}
@@ -279,7 +322,7 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 				if saveErr == nil {
 					return siteRedirect(site.signedNoticeLocation(model, "changed", ""))
 				}
-				if errors.Is(saveErr, ErrObjectNotFound) {
+				if saveErr == ErrObjectNotFound {
 					return siteNotFound()
 				}
 				form, err = formWithRejection(request.Context(), form, saveErr)
@@ -287,7 +330,7 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 					return web.Response{}, err
 				}
 			}
-			context, contextErr := site.formContext(model, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, values)
+			context, contextErr := site.formContext(requestModel, "Change "+record.object.label, site.modelPath(model)+"change/?id="+strconv.FormatInt(id, 10), "Save", form, values)
 			if contextErr != nil {
 				return web.Response{}, contextErr
 			}
@@ -328,11 +371,11 @@ func (site *Site) modelDeleteGet(model registeredModel) sessionauth.Authenticate
 
 func (site *Site) modelDeletePost(model registeredModel) web.Handler {
 	return func(request *web.Request) (web.Response, error) {
-		query, err := parseSiteQuery(request, inputRules{"id": 1})
+		parameters, err := parseSiteQuery(request, inputRules{"id": 1})
 		if err != nil {
 			return siteBadRequest()
 		}
-		id, err := positiveID(query, "id")
+		id, err := positiveID(parameters, "id")
 		if err != nil {
 			return siteBadRequest()
 		}
@@ -352,14 +395,26 @@ func (site *Site) modelDeletePost(model registeredModel) web.Handler {
 			} else if !allowed {
 				return siteForbidden()
 			}
-			if _, found, err := model.get(request.Context(), principal, id); err != nil {
+			record, found, err := model.get(request.Context(), principal, id)
+			if err != nil {
 				return web.Response{}, err
-			} else if !found {
+			}
+			if !found {
 				return siteNotFound()
 			}
 			if _, err := model.delete(request.Context(), principal, id); err != nil {
-				if errors.Is(err, ErrObjectNotFound) {
+				if err == ErrObjectNotFound {
 					return siteNotFound()
+				}
+				// Only an exact, confirmed PROTECT result is a normal blocked
+				// delete. Joined rollback/cancellation errors remain failures.
+				if protected, ok := err.(*query.ProtectedForeignKeyError); ok && protected.ProtectedSourceRows() > 0 && request.Context().Err() == nil {
+					values, contextErr := site.deleteContext(model, record.object)
+					if contextErr != nil {
+						return web.Response{}, contextErr
+					}
+					values["protected"] = templates.Bool(true)
+					return site.render(request, "delete.html", values)
 				}
 				return web.Response{}, err
 			}

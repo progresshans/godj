@@ -170,17 +170,21 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
+	reportOperations, reportSchemas, err := a.reportOperations(protect)
+	if err != nil {
+		return nil, err
+	}
 	return &API{
 		authentication: authentication,
-		operations:     []openapi.Operation{list, create, detail, update, patch},
-		schemas: []openapi.NamedSchema{
+		operations:     append([]openapi.Operation{list, create, detail, update, patch}, reportOperations...),
+		schemas: append([]openapi.NamedSchema{
 			{Name: "Ticket", Schema: ticket},
 			{Name: "TicketCreate", Schema: input},
 			{Name: "TicketUpdate", Schema: input},
 			{Name: "TicketPatch", Schema: partial},
 			{Name: "TicketDetail", Schema: detailSchema},
 			{Name: "CategorySummary", Schema: category},
-		},
+		}, reportSchemas...),
 	}, nil
 }
 

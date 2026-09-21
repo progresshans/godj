@@ -12,9 +12,11 @@ import (
 const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"
 
 var _ orm.WriteDescriptor[models.Category] = models.CategoryDescriptor{}
+var _ orm.WriteDescriptor[models.Ticket] = models.TicketDescriptor{}
 
 type RelationDeleters struct {
 	ModelsCategory orm.RelationDeleter[models.Category]
+	ModelsTicket   orm.RelationDeleter[models.Ticket]
 }
 
 func BindRelationDeleters() (RelationDeleters, error) {
@@ -26,7 +28,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	for _, _relation := range _binding.ForwardRelations() {
 		_targets[_relation.Target] = struct{}{}
 	}
-	if len(_targets) != 1 {
+	if len(_targets) != 2 {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -34,6 +36,13 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		}
 	}
 	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"}]; !_ok {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -49,9 +58,19 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	if _err != nil {
 		return RelationDeleters{}, _err
 	}
+	_deleter1, _err := orm.BindRelationDeleter(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+		models.TicketDescriptor{},
+		"6ef758ff516b3a2d38b7547283593c0921cc39d75dea9cf2b69e61e46c866ed2",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
 	return RelationDeleters{
 		ModelsCategory: _deleter0,
+		ModelsTicket:   _deleter1,
 	}, nil
 }
 
-var _ goDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba
+var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28

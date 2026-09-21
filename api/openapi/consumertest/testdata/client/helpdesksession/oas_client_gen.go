@@ -22,6 +22,62 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// HelpdeskServiceReportCreate invokes helpdesk:service-report-create operation.
+	//
+	// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
+	// the selected category. Existence/scope and uniqueness are rechecked inside the write transaction;
+	// self updates exclude their own report. A duplicate rejects the whole write. Summary is required
+	// trimmed multiline text. Completed defaults to false for full input; PATCH changes only supplied
+	// fields. ID cannot be supplied. PUT requires ticket and summary; PATCH may reassign a ticket. Reading
+	// ticket labels in the Admin chooser additionally requires ViewTicket; the API accepts an explicit
+	// scoped ticket identifier without exposing the ticket's subject.
+	//
+	// POST /api/service-reports/
+	HelpdeskServiceReportCreate(ctx context.Context, request *ServiceReportCreate) (HelpdeskServiceReportCreateRes, error)
+	// HelpdeskServiceReportDelete invokes helpdesk:service-report-delete operation.
+	//
+	// Delete the scoped report in one transaction, retaining its ticket. Authentication, CSRF and
+	// permission checks precede the object query.
+	//
+	// DELETE /api/service-reports/{id}/
+	HelpdeskServiceReportDelete(ctx context.Context, params HelpdeskServiceReportDeleteParams) (HelpdeskServiceReportDeleteRes, error)
+	// HelpdeskServiceReportDetail invokes helpdesk:service-report-detail operation.
+	//
+	// Read a service report.
+	//
+	// GET /api/service-reports/{id}/
+	HelpdeskServiceReportDetail(ctx context.Context, params HelpdeskServiceReportDetailParams) (HelpdeskServiceReportDetailRes, error)
+	// HelpdeskServiceReportList invokes helpdesk:service-report-list operation.
+	//
+	// Return at most 20 reports in ID order within the selected category. No query parameters are
+	// supported.
+	//
+	// GET /api/service-reports/
+	HelpdeskServiceReportList(ctx context.Context) (HelpdeskServiceReportListRes, error)
+	// HelpdeskServiceReportPatch invokes helpdesk:service-report-patch operation.
+	//
+	// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
+	// the selected category. Existence/scope and uniqueness are rechecked inside the write transaction;
+	// self updates exclude their own report. A duplicate rejects the whole write. Summary is required
+	// trimmed multiline text. Completed defaults to false for full input; PATCH changes only supplied
+	// fields. ID cannot be supplied. PUT requires ticket and summary; PATCH may reassign a ticket. Reading
+	// ticket labels in the Admin chooser additionally requires ViewTicket; the API accepts an explicit
+	// scoped ticket identifier without exposing the ticket's subject.
+	//
+	// PATCH /api/service-reports/{id}/
+	HelpdeskServiceReportPatch(ctx context.Context, request *ServiceReportPatch, params HelpdeskServiceReportPatchParams) (HelpdeskServiceReportPatchRes, error)
+	// HelpdeskServiceReportUpdate invokes helpdesk:service-report-update operation.
+	//
+	// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
+	// the selected category. Existence/scope and uniqueness are rechecked inside the write transaction;
+	// self updates exclude their own report. A duplicate rejects the whole write. Summary is required
+	// trimmed multiline text. Completed defaults to false for full input; PATCH changes only supplied
+	// fields. ID cannot be supplied. PUT requires ticket and summary; PATCH may reassign a ticket. Reading
+	// ticket labels in the Admin chooser additionally requires ViewTicket; the API accepts an explicit
+	// scoped ticket identifier without exposing the ticket's subject.
+	//
+	// PUT /api/service-reports/{id}/
+	HelpdeskServiceReportUpdate(ctx context.Context, request *ServiceReportUpdate, params HelpdeskServiceReportUpdateParams) (HelpdeskServiceReportUpdateRes, error)
 	// HelpdeskTicketCreate invokes helpdesk:ticket-create operation.
 	//
 	// The application assigns the selected category and checks its existence within the create
@@ -67,6 +123,14 @@ type Invoker interface {
 	//
 	// PATCH /api/tickets/{id}/
 	HelpdeskTicketPatch(ctx context.Context, request *TicketPatch, params HelpdeskTicketPatchParams) (HelpdeskTicketPatchRes, error)
+	// HelpdeskTicketServiceReport invokes helpdesk:ticket-service-report operation.
+	//
+	// An existing scoped ticket with no report returns JSON null. A missing or out-of-category ticket
+	// returns 404. Report view permission covers this relation key and absence; the ticket subject is not
+	// exposed.
+	//
+	// GET /api/tickets/{id}/service-report/
+	HelpdeskTicketServiceReport(ctx context.Context, params HelpdeskTicketServiceReportParams) (HelpdeskTicketServiceReportRes, error)
 	// HelpdeskTicketUpdate invokes helpdesk:ticket-update operation.
 	//
 	// Authentication, CSRF when required, and change permission checks precede body parsing. A nonpositive
@@ -124,6 +188,655 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 		return c.serverURL
 	}
 	return u
+}
+
+// HelpdeskServiceReportCreate invokes helpdesk:service-report-create operation.
+//
+// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
+// the selected category. Existence/scope and uniqueness are rechecked inside the write transaction;
+// self updates exclude their own report. A duplicate rejects the whole write. Summary is required
+// trimmed multiline text. Completed defaults to false for full input; PATCH changes only supplied
+// fields. ID cannot be supplied. PUT requires ticket and summary; PATCH may reassign a ticket. Reading
+// ticket labels in the Admin chooser additionally requires ViewTicket; the API accepts an explicit
+// scoped ticket identifier without exposing the ticket's subject.
+//
+// POST /api/service-reports/
+func (c *Client) HelpdeskServiceReportCreate(ctx context.Context, request *ServiceReportCreate) (HelpdeskServiceReportCreateRes, error) {
+	res, err := c.sendHelpdeskServiceReportCreate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServiceReportCreate(ctx context.Context, request *ServiceReportCreate) (res HelpdeskServiceReportCreateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/service-reports/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskServiceReportCreateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskServiceReportCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskServiceReportCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServiceReportCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServiceReportCreateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskServiceReportDelete invokes helpdesk:service-report-delete operation.
+//
+// Delete the scoped report in one transaction, retaining its ticket. Authentication, CSRF and
+// permission checks precede the object query.
+//
+// DELETE /api/service-reports/{id}/
+func (c *Client) HelpdeskServiceReportDelete(ctx context.Context, params HelpdeskServiceReportDeleteParams) (HelpdeskServiceReportDeleteRes, error) {
+	res, err := c.sendHelpdeskServiceReportDelete(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServiceReportDelete(ctx context.Context, params HelpdeskServiceReportDeleteParams) (res HelpdeskServiceReportDeleteRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/service-reports/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskServiceReportDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskServiceReportDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServiceReportDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServiceReportDeleteResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskServiceReportDetail invokes helpdesk:service-report-detail operation.
+//
+// Read a service report.
+//
+// GET /api/service-reports/{id}/
+func (c *Client) HelpdeskServiceReportDetail(ctx context.Context, params HelpdeskServiceReportDetailParams) (HelpdeskServiceReportDetailRes, error) {
+	res, err := c.sendHelpdeskServiceReportDetail(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServiceReportDetail(ctx context.Context, params HelpdeskServiceReportDetailParams) (res HelpdeskServiceReportDetailRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/service-reports/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServiceReportDetailOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServiceReportDetailResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskServiceReportList invokes helpdesk:service-report-list operation.
+//
+// Return at most 20 reports in ID order within the selected category. No query parameters are
+// supported.
+//
+// GET /api/service-reports/
+func (c *Client) HelpdeskServiceReportList(ctx context.Context) (HelpdeskServiceReportListRes, error) {
+	res, err := c.sendHelpdeskServiceReportList(ctx)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServiceReportList(ctx context.Context) (res HelpdeskServiceReportListRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/service-reports/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServiceReportListOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServiceReportListResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskServiceReportPatch invokes helpdesk:service-report-patch operation.
+//
+// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
+// the selected category. Existence/scope and uniqueness are rechecked inside the write transaction;
+// self updates exclude their own report. A duplicate rejects the whole write. Summary is required
+// trimmed multiline text. Completed defaults to false for full input; PATCH changes only supplied
+// fields. ID cannot be supplied. PUT requires ticket and summary; PATCH may reassign a ticket. Reading
+// ticket labels in the Admin chooser additionally requires ViewTicket; the API accepts an explicit
+// scoped ticket identifier without exposing the ticket's subject.
+//
+// PATCH /api/service-reports/{id}/
+func (c *Client) HelpdeskServiceReportPatch(ctx context.Context, request *ServiceReportPatch, params HelpdeskServiceReportPatchParams) (HelpdeskServiceReportPatchRes, error) {
+	res, err := c.sendHelpdeskServiceReportPatch(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServiceReportPatch(ctx context.Context, request *ServiceReportPatch, params HelpdeskServiceReportPatchParams) (res HelpdeskServiceReportPatchRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/service-reports/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PATCH", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskServiceReportPatchRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskServiceReportPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskServiceReportPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServiceReportPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServiceReportPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskServiceReportUpdate invokes helpdesk:service-report-update operation.
+//
+// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
+// the selected category. Existence/scope and uniqueness are rechecked inside the write transaction;
+// self updates exclude their own report. A duplicate rejects the whole write. Summary is required
+// trimmed multiline text. Completed defaults to false for full input; PATCH changes only supplied
+// fields. ID cannot be supplied. PUT requires ticket and summary; PATCH may reassign a ticket. Reading
+// ticket labels in the Admin chooser additionally requires ViewTicket; the API accepts an explicit
+// scoped ticket identifier without exposing the ticket's subject.
+//
+// PUT /api/service-reports/{id}/
+func (c *Client) HelpdeskServiceReportUpdate(ctx context.Context, request *ServiceReportUpdate, params HelpdeskServiceReportUpdateParams) (HelpdeskServiceReportUpdateRes, error) {
+	res, err := c.sendHelpdeskServiceReportUpdate(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskServiceReportUpdate(ctx context.Context, request *ServiceReportUpdate, params HelpdeskServiceReportUpdateParams) (res HelpdeskServiceReportUpdateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/service-reports/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskServiceReportUpdateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskServiceReportUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskServiceReportUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskServiceReportUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskServiceReportUpdateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
 }
 
 // HelpdeskTicketCreate invokes helpdesk:ticket-create operation.
@@ -569,6 +1282,103 @@ func (c *Client) sendHelpdeskTicketPatch(ctx context.Context, request *TicketPat
 	}()
 
 	result, err := decodeHelpdeskTicketPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketServiceReport invokes helpdesk:ticket-service-report operation.
+//
+// An existing scoped ticket with no report returns JSON null. A missing or out-of-category ticket
+// returns 404. Report view permission covers this relation key and absence; the ticket subject is not
+// exposed.
+//
+// GET /api/tickets/{id}/service-report/
+func (c *Client) HelpdeskTicketServiceReport(ctx context.Context, params HelpdeskTicketServiceReportParams) (HelpdeskTicketServiceReportRes, error) {
+	res, err := c.sendHelpdeskTicketServiceReport(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketServiceReport(ctx context.Context, params HelpdeskTicketServiceReportParams) (res HelpdeskTicketServiceReportRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/tickets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/service-report/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketServiceReportOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketServiceReportResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

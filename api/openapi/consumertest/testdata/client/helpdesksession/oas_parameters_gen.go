@@ -2,6 +2,30 @@
 
 package helpdesksession
 
+// HelpdeskServiceReportDeleteParams is parameters of helpdesk:service-report-delete operation.
+type HelpdeskServiceReportDeleteParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskServiceReportDetailParams is parameters of helpdesk:service-report-detail operation.
+type HelpdeskServiceReportDetailParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskServiceReportPatchParams is parameters of helpdesk:service-report-patch operation.
+type HelpdeskServiceReportPatchParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskServiceReportUpdateParams is parameters of helpdesk:service-report-update operation.
+type HelpdeskServiceReportUpdateParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
 // HelpdeskTicketDetailParams is parameters of helpdesk:ticket-detail operation.
 type HelpdeskTicketDetailParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
@@ -20,6 +44,12 @@ type HelpdeskTicketListParams struct {
 
 // HelpdeskTicketPatchParams is parameters of helpdesk:ticket-patch operation.
 type HelpdeskTicketPatchParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskTicketServiceReportParams is parameters of helpdesk:ticket-service-report operation.
+type HelpdeskTicketServiceReportParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
 	ID int64
 }

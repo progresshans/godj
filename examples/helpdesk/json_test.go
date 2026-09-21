@@ -118,7 +118,7 @@ func verifyHelpdeskJSON(t *testing.T, ctx context.Context, runtime *systemstate.
 	if err != nil || !found || createdRow.ExternalPayload == nil || createdRow.ExternalPayload.Text != string(created.Payload) {
 		t.Fatal("JSON create did not persist exact content", err)
 	}
-	if _, err := models.TicketObjects.Delete(ctx, runtime, &createdRow); err != nil {
+	if _, err := deleteHelpdeskTicket(ctx, runtime, &createdRow); err != nil {
 		t.Fatal(err)
 	}
 	// Each accepted payload fits a ticket response; the complete page must
@@ -140,7 +140,7 @@ func verifyHelpdeskJSON(t *testing.T, ctx context.Context, runtime *systemstate.
 	page := client.request("GET", "/api/tickets/", "", false)
 	for index := range largeRows {
 		removed := largeRows[index]
-		if _, err := models.TicketObjects.Delete(ctx, runtime, &removed); err != nil {
+		if _, err := deleteHelpdeskTicket(ctx, runtime, &removed); err != nil {
 			t.Fatal(err)
 		}
 	}

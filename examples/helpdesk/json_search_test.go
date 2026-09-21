@@ -41,7 +41,7 @@ func verifyHelpdeskJSONSearch(t *testing.T, ctx context.Context, runtime *system
 	var owned []models.Ticket
 	defer func() {
 		for _, row := range owned {
-			if _, err := models.TicketObjects.Delete(ctx, runtime, &row); err != nil {
+			if _, err := deleteHelpdeskTicket(ctx, runtime, &row); err != nil {
 				t.Error(err)
 			}
 		}

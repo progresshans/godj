@@ -41,8 +41,39 @@ func (_prefetches ModelsCategoryReversePrefetches) Tickets(
 	return _results, nil
 }
 
+type ModelsTicketReversePrefetches struct {
+	objects       ModelsTicketReverseObjectFactory
+	serviceReport orm.ReverseOneToOnePrefetch[models.Ticket, models.ServiceReport]
+}
+
+func (_prefetches ModelsTicketReversePrefetches) ServiceReport(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []models.Ticket,
+) ([]*ModelsTicketReverseObject, error) {
+	_snapshots := make([]models.Ticket, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (models.TicketDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.serviceReport.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsTicketReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.serviceReport = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
 type ReversePrefetches struct {
 	ModelsCategory ModelsCategoryReversePrefetches
+	ModelsTicket   ModelsTicketReversePrefetches
 }
 
 func BindReversePrefetches() (ReversePrefetches, error) {
@@ -54,12 +85,20 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
+	_prefetch1, _err := orm.BindReverseOneToOnePrefetch(_objects.ModelsTicket.serviceReport)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
 	return ReversePrefetches{
 		ModelsCategory: ModelsCategoryReversePrefetches{
 			objects: _objects.ModelsCategory,
 			tickets: _prefetch0,
 		},
+		ModelsTicket: ModelsTicketReversePrefetches{
+			objects:       _objects.ModelsTicket,
+			serviceReport: _prefetch1,
+		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba
+var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28

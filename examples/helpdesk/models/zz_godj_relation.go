@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "55bfbd4b6da374f5cc5fc30bfef7327ba60c5379dcbafa01103f603b8e58eaac"
+const GoDjRelationSchemaSHA256 = "9ec43e08fc115a134ba2aba58da8c0077df646f15095fcdc09404df02a97a9d4"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -165,8 +165,48 @@ func GoDjRelationSchema() ir.Schema {
 					},
 				},
 			},
+			{
+				Name:    "service_report",
+				GoName:  "ServiceReport",
+				DBTable: "helpdesk_service_report",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:   "ticket",
+						GoName: "TicketID",
+						Column: "ticket_id",
+						Kind:   ir.FieldForeignKey,
+						Unique: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+							Cardinality: ir.RelationOneToOne,
+							Reverse:     ir.ReverseRelation{Name: "service_report"},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
+					{
+						Name:   "summary",
+						GoName: "Summary",
+						Column: "summary",
+						Kind:   ir.FieldText,
+					},
+					{
+						Name:    "completed",
+						GoName:  "Completed",
+						Column:  "completed",
+						Kind:    ir.FieldBoolean,
+						Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false},
+					},
+				},
+			},
 		},
 	}
 }
 
-var _ GoDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba
+var _ GoDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28

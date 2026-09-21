@@ -1,6 +1,6 @@
 # Helpdesk 소비자
 
-Category–Ticket 관계 모델에 선택형 Form/Admin, 읽기 전용 Category Admin, 인증·CSRF API를 연결한다.
+Category–Ticket–ServiceReport 관계 모델에 선택형 Form/Admin, 읽기 전용 Category Admin, 인증·CSRF API를 연결한다.
 `Application`은 caller가 제공한 backend를 사용한다. 테스트는 실제 migration, HTTP CRUD, 재시작과 권한 교체를 검증한다.
 
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
@@ -72,6 +72,32 @@ Form/API payload는 4096 byte·깊이 14로 제한한다. Native JSONB의 숫자
 하나의 JOIN 조회로 반환한다. 응답의 `ticket`은 id/subject/details/closed/category/priority/resolution/due_at/reviewed/service_on/service_at/elapsed/effort/expected_cost/external_reference/external_payload, `category`는 id/name만 포함한다.
 티켓 조회 권한에는 그 티켓의 Category 이름 조회가 포함된다. 별도 Category Admin은 `ViewCategory` 권한을 요구한다.
 없는 티켓과 다른 Category의 티켓은 모두 404이며, 인증·권한 거부 시 제품 데이터 조회를 실행하지 않는다.
+
+ServiceReport는 티켓별 선택적인 작업 보고서다. `ticket`은 필수 OneToOne(PROTECT), `summary`는 필수 여러 줄 Text,
+`completed`는 기본 false다. `0017_service_report` migration은 기존 Category/Ticket과 별도 table을 만든다.
+보고서를 삭제해도 티켓은 남으며 보고서가 남아 있는 티켓의 Admin 삭제는 보호 메시지로 거부된다.
+Backend는 Queryer/Mutator/Atomic과 RelationAtomic을 제공한다. Runtime을 사용하면 relation 삭제도 일반 cooperative 쓰기와 같은 fence를 따른다.
+
+| 경로 | 동작 | 권한 |
+| --- | --- | --- |
+| GET `/api/service-reports/` | 선택 Category의 보고서를 ID 순서로 최대 20개, query parameter 미지원 | ViewServiceReport |
+| POST `/api/service-reports/` | ticket/summary/completed 생성, 201 | AddServiceReport |
+| GET `/api/service-reports/<id>/` | 보고서 상세 | ViewServiceReport |
+| PUT/PATCH `/api/service-reports/<id>/` | 전체/부분 수정과 ticket 재할당 | ChangeServiceReport |
+| DELETE `/api/service-reports/<id>/` | 티켓을 보존하고 보고서 삭제, body 없는 204 | DeleteServiceReport |
+| GET `/api/tickets/<id>/service-report/` | 보고서 또는 정상 부재 `null` | ViewServiceReport |
+
+쓰기에는 CSRF가 필요하고 body는 4096 byte까지다. PUT은 ticket/summary가 필수이고 생략한 completed는 false다.
+PATCH는 제공한 필드만 바꾼다. `id`는 입력할 수 없고 summary는 앞뒤 공백을 제거한다.
+모든 보고서 경로는 티켓을 통해 배정한 Category 범위를 검사한다. 없는/다른 Category의 객체 조회는 404,
+선택할 수 없는 ticket 입력은 `ticket/invalid_choice`다. 기존 scoped 티켓에 보고서가 없으면 200/null이다.
+사전 중복은 `ticket/unique`, native 제약 충돌은 `__all__/unique`이며 rollback 실패·취소·조회 오류를 입력 오류로 바꾸지 않는다.
+
+Admin은 `/admin/service-reports/`에서 같은 CRUD를 제공한다. 티켓 선택지는 같은 Category의 subject를 표시하므로
+보고서 쓰기 권한에 ViewTicket이 추가로 필요하다. 요청마다 권한을 확인한 선택지를 만들며 전역 Form Spec에 결과를 저장하지 않는다.
+저장 전 선택지를 다시 읽고 transaction 안에서도 현재 membership·고유성을 확인한다.
+API는 scoped ticket key를 직접 받으며 티켓 subject를 열거하지 않는다. 보고서 view 권한에는 그 관계 key와 부재 조회가 포함된다.
+명시적 component `ServiceReport`, `ServiceReportCreate`, `ServiceReportUpdate`, `ServiceReportPatch`와 독립 ogen client가 같은 계약을 소비한다.
 
 ```sh
 go test ./examples/helpdesk -count=1

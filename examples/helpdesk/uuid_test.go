@@ -114,7 +114,7 @@ func verifyHelpdeskUUID(t *testing.T, ctx context.Context, runtime *systemstate.
 	if err != nil || !found || createdRow.ExternalReference == nil || createdRow.ExternalReference.String() != *created.Reference {
 		t.Fatal("UUID integer create lost stored bits", err)
 	}
-	if _, err := models.TicketObjects.Delete(ctx, runtime, &createdRow); err != nil {
+	if _, err := deleteHelpdeskTicket(ctx, runtime, &createdRow); err != nil {
 		t.Fatal(err)
 	}
 	form := url.Values{"subject": {baseline.Subject}, "external_reference": {"not-a-uuid"}, "csrfmiddlewaretoken": {client.csrf}}

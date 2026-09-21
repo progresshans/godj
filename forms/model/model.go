@@ -96,7 +96,7 @@ func OverrideField(name string, options ...OverrideOption) Override {
 	return Override{name: name, config: config}
 }
 
-// NewSpec projects editable scalar fields in exact IR declaration
+// NewSpec projects editable scalar and relation fields in exact IR declaration
 // order. An Auto primary key is non-editable; every other unsupported kind is
 // rejected rather than silently omitted.
 func NewSpec(model ir.Model, overrides ...Override) (forms.Spec, error) {
@@ -225,6 +225,27 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 		options = append(options, forms.WithValidators(override.validators...))
 	}
 	switch field.Kind {
+	case ir.FieldForeignKey:
+		if field.PrimaryKey || field.MaxLength != 0 || field.Decimal != nil || field.Relation == nil ||
+			(field.Relation.Cardinality != ir.RelationManyToOne && field.Relation.Cardinality != ir.RelationOneToOne) ||
+			field.Relation.Target.AppLabel == "" || field.Relation.Target.ModelName == "" ||
+			(field.Relation.Cardinality == ir.RelationOneToOne && !field.Unique) {
+			return forms.Field{}, &Error{Code: "invalid_relation_metadata"}
+		}
+		options = append(options, forms.WithRequired(!field.Nullable))
+		if override.hasRequired {
+			options = append(options, forms.WithRequired(override.required))
+		}
+		if field.Nullable {
+			options = append(options, forms.WithNullable())
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ir.ScalarInteger {
+				return forms.Field{}, &Error{Code: "default_type_mismatch"}
+			}
+			options = append(options, forms.WithDefault(forms.Integer(field.Default.Integer)))
+		}
+		return forms.ModelChoiceField(field.Name, options...)
 	case ir.FieldDecimal:
 		if field.PrimaryKey || field.MaxLength != 0 || field.Relation != nil || field.Decimal == nil || !field.Decimal.Valid() {
 			return forms.Field{}, &Error{Code: "invalid_decimal_metadata"}

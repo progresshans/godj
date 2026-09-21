@@ -139,3 +139,8 @@ JSONField는 임의 JSON과 완전한 응답의 required presence를 기술한�
 Duplicate key·NUL·surrogate·깊이 초과에 대한 서버 거부와 required response의 누락/문법 오류도 검사한다.
 Raw 값은 서버 validation의 대체가 아니다. 모델의 HTML escape 정규화와 HTTP JSON의 문자열 escaping 차이는 구분한다.
 새 JSON 필드 때문에 생성 Ticket이 Go-comparable이 아니므로 client는 JSON bytes를 포함한 모든 필드를 비교한다.
+
+ServiceReport client는 별도 model component와 7개 operation을 실제 HTTP로 소비한다. 200/null reverse 부재와 404 Category scope,
+생성 기본값·중복/invalid_choice 진단·self update·PUT 재할당·PATCH omission·읽기 전용 principal·DELETE CSRF/204를 검사한다.
+종료 시 보고서 행은 없고 기존 Ticket/Category 값은 그대로인지 parent process가 확인한다. Client의 고정 실패 단계만
+checked-in `fail("stage")` literal과 정확히 일치할 때 진단에 표시하며 그 외 stderr/transport/input 값은 계속 숨긴다.

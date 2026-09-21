@@ -105,8 +105,8 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	}
 	// Ticket viewing includes the category summary. Neither principal receives
 	// ViewCategory, which protects the separate Category Admin surface.
-	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket)
-	helpdeskView := consumerPrincipal(t, "helpdesk-client-view", helpdesk.ViewTicket)
+	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport)
+	helpdeskView := consumerPrincipal(t, "helpdesk-client-view", helpdesk.ViewTicket, helpdesk.ViewServiceReport)
 	helpdeskAuth, helpdeskSession, helpdeskViewSession := newConsumerSessionAuthentication(t, helpdeskAll, helpdeskView, "/api/tickets/")
 	helpdeskApplication, err := helpdesk.New(helpdeskBackend, category.ID)
 	if err != nil {
@@ -256,6 +256,9 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		}
 		if selectedCount != 6 || createdCount != 5 || len(wantPriority) != 0 || len(wantResolution) != 0 || len(wantDueAt) != 0 || len(wantReviewed) != 0 || len(wantServiceOn) != 0 || len(wantServiceAt) != 0 || len(wantElapsed) != 0 || len(wantEffort) != 0 || len(wantCost) != 0 || len(wantUUID) != 0 || len(wantJSON) != 0 {
 			t.Errorf("Helpdesk final selection contains %d selected and %d newly created tickets", selectedCount, createdCount)
+		}
+		if count, err := helpdeskmodels.ServiceReportObjects.Using(helpdeskBackend).Count(t.Context()); err != nil || count != 0 {
+			t.Errorf("generated report lifecycle left rows: %d %v", count, err)
 		}
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
 		if err != nil || len(categories) != 2 || categories[0].ID != category.ID || categories[0].Name != category.Name || categories[1].ID != otherCategory.ID || categories[1].Name != otherCategory.Name {

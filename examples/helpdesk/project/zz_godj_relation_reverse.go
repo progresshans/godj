@@ -14,7 +14,9 @@ const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-pro
 
 var _ orm.RelationObjectDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[models.Category] = models.CategoryDescriptor{}
+var _ orm.RelationObjectDescriptor[models.ServiceReport] = models.ServiceReportDescriptor{}
 var _ orm.RelationObjectDescriptor[models.Ticket] = models.TicketDescriptor{}
+var _ orm.PrimaryKeyObjectDescriptor[models.Ticket] = models.TicketDescriptor{}
 
 type ModelsCategoryTicketsReverseRelation struct {
 	ID      orm.RelatedIntegerField[models.Category]
@@ -33,8 +35,32 @@ func (_relations ModelsCategoryReverseRelations) ParseDynamic(
 	return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)
 }
 
+type ModelsTicketServiceReportReverseRelation struct {
+	relation  orm.ReverseRelation[models.Ticket, models.ServiceReport]
+	ID        orm.RelatedIntegerField[models.Ticket]
+	Summary   orm.RelatedStringField[models.Ticket]
+	Completed orm.RelatedBooleanField[models.Ticket]
+}
+
+func (_relation ModelsTicketServiceReportReverseRelation) IsNull(_value bool) orm.Predicate[models.Ticket] {
+	return _relation.relation.IsNull(_value)
+}
+
+type ModelsTicketReverseRelations struct {
+	ServiceReport ModelsTicketServiceReportReverseRelation
+	model         orm.BoundModel[models.Ticket]
+}
+
+func (_relations ModelsTicketReverseRelations) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[models.Ticket], error) {
+	return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)
+}
+
 type ReverseRelations struct {
 	ModelsCategory ModelsCategoryReverseRelations
+	ModelsTicket   ModelsTicketReverseRelations
 }
 
 func BindReverseRelations() (ReverseRelations, error) {
@@ -52,13 +78,21 @@ func BindReverseRelations() (ReverseRelations, error) {
 	}
 	_model1, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
+		models.ServiceReportDescriptor{},
+	)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
 	)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_relation0, _err := orm.BindReverse(_model0, "tickets", _model1)
+	_relation0, _err := orm.BindReverse(_model0, "tickets", _model2)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
@@ -70,6 +104,22 @@ func BindReverseRelations() (ReverseRelations, error) {
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
+	_relation1, _err := orm.BindReverse(_model2, "service_report", _model1)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal2, _err := _relation1.Integer(models.ServiceReportFields.ID)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal3, _err := _relation1.String(models.ServiceReportFields.Summary)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal4, _err := _relation1.Boolean(models.ServiceReportFields.Completed)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
 	return ReverseRelations{
 		ModelsCategory: ModelsCategoryReverseRelations{
 			Tickets: ModelsCategoryTicketsReverseRelation{
@@ -77,6 +127,15 @@ func BindReverseRelations() (ReverseRelations, error) {
 				Subject: _terminal1,
 			},
 			model: _model0,
+		},
+		ModelsTicket: ModelsTicketReverseRelations{
+			ServiceReport: ModelsTicketServiceReportReverseRelation{
+				relation:  _relation1,
+				ID:        _terminal2,
+				Summary:   _terminal3,
+				Completed: _terminal4,
+			},
+			model: _model2,
 		},
 	}, nil
 }
@@ -142,8 +201,100 @@ func (_object *ModelsCategoryReverseObject) Fresh() (*ModelsCategoryReverseObjec
 	return _object.factory.From(_object.backend, _object.model)
 }
 
+type ModelsTicketReverseObjectFactory struct {
+	model         orm.BoundModel[models.Ticket]
+	serviceReport orm.ReverseOneToOneObject[models.Ticket, models.ServiceReport]
+}
+
+func (_factory ModelsTicketReverseObjectFactory) From(_backend db.Queryer, _value models.Ticket) (*ModelsTicketReverseObject, error) {
+	_snapshot := (models.TicketDescriptor{}).CloneModel(_value)
+	_related1, _err := _factory.serviceReport.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsTicketReverseObject{
+		model:         _snapshot,
+		factory:       _factory,
+		backend:       _backend,
+		serviceReport: _related1,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_factory ModelsTicketReverseObjectFactory) SelectServiceReport(_children ...orm.RelatedSelection[models.ServiceReport]) orm.RelatedSelect[models.Ticket, models.ServiceReport] {
+	return orm.SelectReverseOneToOne(_factory.serviceReport).WithChildren(_children...)
+}
+func (_factory ModelsTicketReverseObjectFactory) FromSelected(_selected *orm.RelatedSelected[models.Ticket]) (*ModelsTicketReverseObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("service_report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_object.serviceReport, _err = _factory.SelectServiceReport().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _object, nil
+}
+
+type ModelsTicketReverseObject struct {
+	model         models.Ticket
+	factory       ModelsTicketReverseObjectFactory
+	backend       db.Queryer
+	serviceReport *orm.RelatedObject[models.ServiceReport]
+	_self         *ModelsTicketReverseObject
+}
+
+func (_object *ModelsTicketReverseObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated reverse relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *ModelsTicketReverseObject) Model() (models.Ticket, error) {
+	if _err := _object._validate(); _err != nil {
+		return models.Ticket{}, _err
+	}
+	return (models.TicketDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *ModelsTicketReverseObject) ServiceReport() (*orm.RelatedObject[models.ServiceReport], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.serviceReport, nil
+}
+
+func (_object *ModelsTicketReverseObject) Fresh() (*ModelsTicketReverseObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
 type ReverseObjects struct {
 	ModelsCategory ModelsCategoryReverseObjectFactory
+	ModelsTicket   ModelsTicketReverseObjectFactory
 }
 
 func BindReverseObjects() (ReverseObjects, error) {
@@ -166,13 +317,25 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	}
 	_model1, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
+		models.ServiceReportDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
 	)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation0, _err := orm.BindReverseObject(_model0, "tickets", _model1)
+	_relation0, _err := orm.BindReverseObject(_model0, "tickets", _model2)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation1, _err := orm.BindReverseOneToOneObject(_model2, "service_report", _model1)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
@@ -181,7 +344,11 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 			model:   _model0,
 			tickets: _relation0,
 		},
+		ModelsTicket: ModelsTicketReverseObjectFactory{
+			model:         _model2,
+			serviceReport: _relation1,
+		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_64960de6e47bbc01b6f1e9df284a377459487a685da4fd56ab8660537aac85ba
+var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28

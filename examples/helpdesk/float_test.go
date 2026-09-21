@@ -58,7 +58,7 @@ func verifyHelpdeskFloat(t *testing.T, ctx context.Context, runtime *systemstate
 	if err != nil || !found || createdRow.Effort == nil || *createdRow.Effort != 0.1 {
 		t.Fatal("created Float missing from DB")
 	}
-	if _, err := models.TicketObjects.Delete(ctx, runtime, &createdRow); err != nil {
+	if _, err := deleteHelpdeskTicket(ctx, runtime, &createdRow); err != nil {
 		t.Fatal(err)
 	}
 	form := url.Values{"subject": {baseline.Subject}, "effort": {"NaN"}, "csrfmiddlewaretoken": {client.csrf}}

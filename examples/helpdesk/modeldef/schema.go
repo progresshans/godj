@@ -1,4 +1,4 @@
-// Package modeldef declares a small two-model consumer independent of Article.
+// Package modeldef declares the Helpdesk consumer independently of Article.
 package modeldef
 
 import (
@@ -31,6 +31,11 @@ func Schema() (ir.Schema, error) {
 			schema.DecimalField("expected_cost", "ExpectedCost", 14, 2, schema.Nullable()),
 			schema.UUIDField("external_reference", "ExternalReference", schema.Nullable(), schema.Unique()),
 			schema.JSONField("external_payload", "ExternalPayload", schema.Nullable()),
+		}},
+		{Name: "service_report", GoName: "ServiceReport", Fields: []schema.Field{
+			schema.OneToOne("ticket", "TicketID", schema.Target("helpdesk", "ticket"), schema.RelatedName("service_report"), schema.Protect),
+			schema.TextField("summary", "Summary"),
+			schema.BooleanField("completed", "Completed", schema.Default(false)),
 		}},
 	}})
 }

@@ -6,9 +6,16 @@ package helpdesksession
 type OperationName = string
 
 const (
-	HelpdeskTicketCreateOperation OperationName = "HelpdeskTicketCreate"
-	HelpdeskTicketDetailOperation OperationName = "HelpdeskTicketDetail"
-	HelpdeskTicketListOperation   OperationName = "HelpdeskTicketList"
-	HelpdeskTicketPatchOperation  OperationName = "HelpdeskTicketPatch"
-	HelpdeskTicketUpdateOperation OperationName = "HelpdeskTicketUpdate"
+	HelpdeskServiceReportCreateOperation OperationName = "HelpdeskServiceReportCreate"
+	HelpdeskServiceReportDeleteOperation OperationName = "HelpdeskServiceReportDelete"
+	HelpdeskServiceReportDetailOperation OperationName = "HelpdeskServiceReportDetail"
+	HelpdeskServiceReportListOperation   OperationName = "HelpdeskServiceReportList"
+	HelpdeskServiceReportPatchOperation  OperationName = "HelpdeskServiceReportPatch"
+	HelpdeskServiceReportUpdateOperation OperationName = "HelpdeskServiceReportUpdate"
+	HelpdeskTicketCreateOperation        OperationName = "HelpdeskTicketCreate"
+	HelpdeskTicketDetailOperation        OperationName = "HelpdeskTicketDetail"
+	HelpdeskTicketListOperation          OperationName = "HelpdeskTicketList"
+	HelpdeskTicketPatchOperation         OperationName = "HelpdeskTicketPatch"
+	HelpdeskTicketServiceReportOperation OperationName = "HelpdeskTicketServiceReport"
+	HelpdeskTicketUpdateOperation        OperationName = "HelpdeskTicketUpdate"
 )

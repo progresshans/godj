@@ -190,6 +190,7 @@ type fieldConfig struct {
 	widget        Widget
 	hasWidget     bool
 	choices       []Choice
+	modelChoice   bool
 	emptyValue    Value
 	hasEmptyValue bool
 	required      bool
@@ -209,6 +210,7 @@ type Field struct {
 	kind          FieldKind
 	widget        Widget
 	choices       []Choice
+	modelChoice   bool
 	emptyValue    Value
 	required      bool
 	nullable      bool
@@ -293,7 +295,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		(kind == FieldFloat || kind == FieldDecimal) && (config.widget == NumberInput || config.widget == TextInput) ||
 		(kind == FieldDuration || kind == FieldUUID) && config.widget == TextInput ||
 		kind == FieldDate && (config.widget == DateInput || config.widget == TextInput) ||
-		config.choices != nil && config.widget == Select) {
+		(config.modelChoice || config.choices != nil) && config.widget == Select) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
 	}
 	if config.hasEmptyValue {
@@ -442,6 +444,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		kind:          kind,
 		widget:        config.widget,
 		choices:       append([]Choice(nil), config.choices...),
+		modelChoice:   config.modelChoice,
 		emptyValue:    config.emptyValue,
 		required:      config.required,
 		nullable:      config.nullable,
@@ -680,7 +683,9 @@ func (s Spec) Bind(data Data, initial map[string]Value) (Form, error) {
 		cleanedOrder = append(cleanedOrder, field.name)
 		initialValue, _ := resolvedInitial.Get(field.name)
 		var sameInitial bool
-		if field.kind == FieldJSON {
+		if field.modelChoice {
+			sameInitial = !fieldChanged(field, data, initialValue)
+		} else if field.kind == FieldJSON {
 			sameInitial = equalJSON(value, initialValue)
 		} else {
 			sameInitial = value.Equal(initialValue)
@@ -746,13 +751,17 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 	}
 	var value Value
 	var failures []validation.Errors
-	if field.choices != nil {
+	if field.modelChoice || field.choices != nil {
 		raw := ""
 		if present && len(submitted) == 1 {
 			raw = submitted[0]
 		}
 		var code validation.Code
-		value, code = cleanChoice(field, raw)
+		if field.modelChoice {
+			value, code = cleanModelChoice(field, raw)
+		} else {
+			value, code = cleanChoice(field, raw)
+		}
 		if code != "" {
 			return Null(), validation.NewErrors(validation.New(validation.Field(field.name), code))
 		}
@@ -947,6 +956,13 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 	submitted, present := data.values[field.name]
 	if len(submitted) > 1 {
 		return true
+	}
+	if field.modelChoice {
+		raw := ""
+		if present && len(submitted) == 1 {
+			raw = submitted[0]
+		}
+		return raw != modelChoiceInitial(initial)
 	}
 	if field.choices != nil {
 		raw := ""

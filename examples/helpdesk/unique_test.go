@@ -153,7 +153,7 @@ func verifyHelpdeskUnique(t *testing.T, ctx context.Context, runtime *systemstat
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := models.TicketObjects.Delete(ctx, runtime, &owner); err != nil {
+		if _, err := deleteHelpdeskTicket(ctx, runtime, &owner); err != nil {
 			t.Error(err)
 		}
 		if err := models.TicketObjects.Save(ctx, runtime, &baseline); err != nil {

@@ -25,6 +25,7 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
@@ -48,6 +49,7 @@ func TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFi
 type helpdeskBackend interface {
 	systemstate.Backend
 	db.Atomic
+	db.RelationAtomic
 	migrationbackend.RevisionFencedBackend
 	Close() error
 }
@@ -190,6 +192,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	}
 	readGrownTicket(t, ctx, backend, seedID, "Existing ticket", category.ID)
 	readGrownTicket(t, ctx, backend, outsideID, "Other category ticket", other.ID)
+	t.Run("historical_service_report", func(t *testing.T) { verifyHistoricalServiceReportLifecycle(t, ctx, backend, open, loaded, seedID) })
 	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {
 		t.Fatal(err)
@@ -474,6 +477,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 			t.Fatal("old priority silently selected another choice")
 		}
 	}
+	t.Run("service_reports", func(t *testing.T) { verifyHelpdeskReports(t, ctx, runtime, open, client, category.ID, outside.ID) })
 }
 
 // Seed through the historical column set before the new generated model can be
@@ -650,7 +654,7 @@ func (c *helpdeskClient) request(method, path, body string, jsonBody bool) *http
 	for _, cookie := range c.cookies {
 		request.AddCookie(cookie)
 	}
-	if method == "POST" || method == "PUT" || method == "PATCH" {
+	if method == "POST" || method == "PUT" || method == "PATCH" || method == "DELETE" {
 		if jsonBody {
 			request.Header.Set("Content-Type", "application/json")
 			request.Header.Set(websessionauth.DefaultCSRFHeader, c.csrf)
@@ -671,4 +675,12 @@ func (c *helpdeskClient) request(method, path, body string, jsonBody bool) *http
 		c.csrf = match[1]
 	}
 	return recorder
+}
+
+func deleteHelpdeskTicket(ctx context.Context, backend db.RelationAtomic, row *models.Ticket) (int64, error) {
+	deleters, err := project.BindRelationDeleters()
+	if err != nil {
+		return 0, err
+	}
+	return deleters.ModelsTicket.Delete(ctx, backend, row)
 }
