@@ -33,6 +33,9 @@ CI와 같은 완전 실행 검사로 세 test가 각각 한 번 시작/종료되
 | 3.14.7 | 3.53.1 | 3 PASS, skip 0 |
 
 총 **12 PASS**는 새 독립 reference의 재현 검사다. 문서 **138개**의 local 링크·format·diff 검사도 통과했다.
+Source `f2dbbc0411241d643e05edb79ab7787d94006333`에서 CI의 이전 native SQLite 버전도 추가 확인했다.
+아래 JSON portability 검사에서 공식 source hash를 검증해 빌드한 **SQLite 3.45.1**을 Homebrew Python **3.13.3**의
+subprocess에만 연결해 같은 세 검사 **3 PASS / skip 0**을 확인했다. 실제 runtime fingerprint를 먼저 검사했으며 기대값 수정은 없었다.
 GoDj OneToOne 제품 구현이나 그 플랫폼 검증의 PASS가 아니다.
 새 runner는 기존 Python test discovery에 포함된다. 이후 제품의 IR·migration·generated ORM·입력 소비자 연결은
 [활성 작업](../../work/0096-one-to-one-service-reports.md)에 남아 있다.
