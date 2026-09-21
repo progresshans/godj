@@ -5,6 +5,7 @@ import sqlite3
 import subprocess
 import sys
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 
@@ -23,7 +24,23 @@ class JSONLookupReferenceTests(unittest.TestCase):
         expected.pop('python')
         self.assertEqual(actual.pop('database_version'), sqlite3.sqlite_version)
         expected.pop('database_version')
-        self.assertEqual(actual, expected)
+        # Portable CPython builds can link pre-3.47 SQLite, whose quoted-path
+        # parser cannot resolve an escaped double quote in an object key.
+        # Independently observed with SQLite 3.45.1/3.46.1 and fixed in 3.47.0.
+        # Keep the pinned 3.50.4 product oracle unchanged; only these three
+        # portable reference expectations differ, including NOT semantics.
+        quoted_paths = sqlite3.sqlite_version_info >= (3, 47, 0)
+        payload, path = json.dumps({'a"b': 'quote'}), '$.' + json.dumps('a"b')
+        with closing(sqlite3.connect(':memory:')) as native:
+            control = native.execute('SELECT JSON_EXTRACT(?, ?), JSON_TYPE(?, ?)',
+                                     (payload, path, payload, path)).fetchone()
+        self.assertEqual(control, ('quote', 'text') if quoted_paths else (None, None))
+        if not quoted_paths:
+            legacy = {(row['name'], row['mode']): row for row in expected['queries']}
+            legacy['quote_key', 'filter']['rows'] = []
+            legacy['has_quote_key', 'filter']['rows'] = []
+            legacy['has_quote_key', 'exclude']['rows'] = [row[0] for row in expected['projections'][0]['rows']]
+        self.assertEqual(actual, expected, f'Django JSON lookup observations on SQLite {sqlite3.sqlite_version}')
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
         self.assertEqual(len(actual['queries']), 88)

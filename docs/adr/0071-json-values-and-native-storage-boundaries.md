@@ -80,6 +80,11 @@ SQL 안에서 predicate를 평가하며 ORM에서 모든 model을 가져와 filt
 [SQLite raw](../../internal/jsontest/testdata/django61-lookups-sqlite.json)와
 [PostgreSQL raw](../../internal/jsontest/testdata/django61-lookups-postgres.json)는 각각 88개 filter/exclude와 3개 projection 관찰이다.
 SQLite reference는 `PYTHONHASHSEED=0`으로 Django 내부 set의 SQL 출력 순서만 고정하며 DB 결과는 정규화하지 않는다.
+Portable Python 검사는 연결된 SQLite 버전도 확인한다. 독립 Django runner를 실제 SQLite 3.45.1·3.46.1·3.47.0에서
+실행한 결과, 3.47 이전에는 escaped quote를 포함한 key의 `quote_key/filter`, `has_quote_key/filter`,
+`has_quote_key/exclude` 세 rows만 현재 기준과 달랐다. 이 세 portable 기대값과 native JSON path 대조를 버전별로 구분한다.
+SQL·매개변수·다른 결과는 계속 전체 비교하며 3.50.4의 고정 product oracle과 GoDj 의미를 바꾸지 않는다.
+출처·source hash·실행 범위는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
 GoDj의 타입·숫자 보존과 명시적 segment 문법 차이는 DEV-0017에 기록한다. Reference의 관찰과 제품 구현·검증은 별개다.
 
 ## JSON containment의 backend 경계

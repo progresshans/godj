@@ -3,6 +3,51 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — Hosted 통합에서 발견한 소비자 fixture와 portable reference 수정
+
+2026-09-21, source `64e6822d4a9eb524d6f0551267911dfb8ad39be1`의
+[첫 Hosted full 실행](https://github.com/progresshans/godj/actions/runs/35603550365)에서 아래 통합 누락을 확인했다.
+이 실행의 일부 job 성공을 full PASS로 간주하지 않는다. 후속 검증/환경 변경 **5경로**의 manifest SHA256은
+`3b8c886e9e1507b1c4096b2f9a8c4acd8ce462f3d8aa2a315f7e10bbf05942b8`이며 제품 구현은 앞선 checkpoint와 같다.
+
+- `internal/projectgenerate`의 외부 module fixture가 ORM의 새 `validation` 의존성을 연결하지 않았다.
+  정상 candidate compile 전에 실패해 cleanup interruption·mandatory recovery 검사의 실제 실패 지점에 도달하지 못했다.
+  의존성만 추가하고 실제 publication/복구·namespace 거부·기존 생성물 보존 검사를 유지했다.
+- `internal/compiletest`의 migration/project 외부 consumer 두 fixture가 이전 `[]string` renderer ABI를 구현하고 있었다.
+  현행 operation별 `[][]string` API로 갱신했으며 호환 adapter나 compile 검사의 면제는 추가하지 않았다.
+- Portable Python reference는 native SQLite 버전을 무시하고 3.50.4의 quoted JSON path 결과를 모든 환경에 기대했다.
+  고정 Django 6.1의 독립 runner를 공식 SQLite source로 직접 재실행해 차이가 나는 조건을 확인했다.
+  3.45.1·3.46.1은 `quote_key/filter`, `has_quote_key/filter`, `has_quote_key/exclude`의 rows만 다르고 3.47.0부터는
+  현재 기준과 같다. Version fingerprint 외의 SQL·매개변수·나머지 lookup/projection·containment·key-presence 결과는 동일했다.
+  Portable 기대값은 이 세 조건만 버전별로 구분하고 별도 native JSON_EXTRACT/JSON_TYPE control도 검사한다.
+  Runner의 raw 결과나 고정 product oracle을 덮어쓰지 않는다. CI는 연결된 SQLite runtime도 출력한다.
+
+SQLite source는 공식 release에 게시된 sqlite3.c SHA3-256을 먼저 대조한 뒤 임시 dynamic library로 빌드했다.
+Homebrew Python **3.13.3**의 subprocess에만 연결했으며 기존 SQLite/Python 설치는 변경하지 않았다.
+
+| 독립 runtime | 공식 sqlite3.c SHA3-256 | 관찰 |
+|---|---|---|
+| [SQLite 3.45.1](https://sqlite.org/releaselog/3_45_1.html) | `0474604df9e1b69a5544295dd046aad954749279780d557da80f44b958100295` | 세 rows 차이 |
+| [SQLite 3.46.1](https://sqlite.org/releaselog/3_46_1.html) | `186a1baa476b6d546de155160ca6d30ff7b7e6ee375f0bb6445e1a3d180a7dad` | 같은 세 rows 차이 |
+| [SQLite 3.47.0](https://sqlite.org/releaselog/3_47_0.html) | `bcec3a4fbc97e973547924677332996ef64e06a6d10d22e2c2344f447536cc29` | 현재 기준과 일치 |
+
+Go 검사는 darwin/arm64 Go 1.26.5, `TZ=Pacific/Chatham`, `-json -count=1 -timeout=15m`이다.
+위 3개 Go fixture의 manifest는 `0e0d643ffd98d50ca24eae85a78b7b13aa41b32ed145a16fc5a92ce97f6a7db8`다.
+
+| 실행 | 결과 |
+|---|---|
+| CGO=1 normal, `./internal/projectgenerate ./internal/compiletest` | 2 package, root 83 / 238 run, **237 PASS·helper 1 skip** |
+| CGO=1 race, `./internal/projectgenerate` | root 73 / 170 run, **169 PASS·helper 1 skip** |
+| CGO=0 normal, `./internal/projectgenerate ./internal/compiletest` | 2 package, root 83 / 238 run, **237 PASS·helper 1 skip** |
+
+Skip은 직접 호출 시 빠지는 `TestPublicationCrashHelper` 하나뿐이며, 실제 subprocess crash/복구를 소유한 parent와
+mandatory recovery·두 외부 consumer의 필수 실행을 따로 확인했다. 나머지 skip/fail·stderr는 0이고 run/pass/skip·terminal과 source가 일치한다.
+Compile fixture는 `!race`이므로 race 검증으로 가장하지 않는다.
+변경한 JSON reference 테스트는 위 native SQLite 세 환경 및 Python **3.12.13·3.13.15·3.14.3·3.14.7**에서 각각 fresh 실행해
+총 **7 PASS / skip·failure 0**이다. 네 Python의 실제 SQLite는 각각 **3.50.4·3.53.1·3.50.4·3.53.1**이다.
+CI 선택·수집 스크립트의 unittest **37 PASS**, affected Go vet·format·문서 링크·diff 검사도 통과했다.
+새 전체 플랫폼 검증은 수정 source의 Hosted full 재실행이 소유한다.
+
 ## GDJ-0095 — Form/Admin/API 고유성 진단과 Helpdesk 수직 연결
 
 2026-09-21, darwin/arm64 Go **1.26.5**, PostgreSQL **17.5 Homebrew**, `modernc.org/sqlite v1.56.0`,

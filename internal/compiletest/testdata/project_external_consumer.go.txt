@@ -16,8 +16,8 @@ type migrationBackend struct{}
 
 type migrationSQLRenderer struct{}
 
-func (migrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([]string, error) {
-	return []string{"SELECT 1"}, nil
+func (migrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([][]string, error) {
+	return [][]string{{"SELECT 1"}}, nil
 }
 
 func (*migrationBackend) MigrationCapabilities() backend.MigrationCapabilities {

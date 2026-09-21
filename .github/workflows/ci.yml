@@ -857,6 +857,7 @@ jobs:
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python - <<'PY'
           import platform
+          import sqlite3
           import asgiref
           import django
           import rest_framework
@@ -868,6 +869,7 @@ jobs:
           assert rest_framework.VERSION == "3.18.0", rest_framework.VERSION
           assert asgiref.__version__ == "3.12.1", asgiref.__version__
           assert sqlparse.__version__ == "0.5.5", sqlparse.__version__
+          print("Compatibility runtime:", platform.python_version(), "SQLite", sqlite3.sqlite_version)
           PY
 
       - name: Run exact portable Python suite

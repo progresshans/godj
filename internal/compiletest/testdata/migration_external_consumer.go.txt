@@ -112,8 +112,8 @@ var (
 
 type externalMigrationSQLRenderer struct{}
 
-func (externalMigrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([]string, error) {
-	return []string{"SELECT 1"}, nil
+func (externalMigrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([][]string, error) {
+	return [][]string{{"SELECT 1"}}, nil
 }
 
 type externalLifecyclePort struct{}

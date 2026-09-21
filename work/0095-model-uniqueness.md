@@ -93,3 +93,5 @@ generated client를 로컬 normal·race·CGO-disabled에서 확인했다. Source
 다음 통합 milestone은 이 작업의 선언·생성·migration·양 DB·ORM·Form/Admin/API/client 변경을 고정 source에서 묶는
 Hosted `full`이다. 전체 platform/cold-build·DB/process와 generated 소비자는 이 milestone에서 확인하며 로컬 전체 gate를
 중복 실행하지 않는다. 필수 job/source/실행 누락과 환경별 결과를 확인하기 전까지 전체 고유성 작업을 완료 처리하지 않는다.
+초회 Hosted 실행에서 드러난 격리 생성기 의존성·외부 renderer fixture와 portable reference의 SQLite 차이를 수정하고
+관련 로컬 검사를 수행했다. 수정 source의 Hosted 통합 결과는 아직 완료하지 않았으며 TEST_EVIDENCE에서 별도로 추적한다.
