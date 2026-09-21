@@ -202,10 +202,139 @@ def observe():
                 app_label = 'otodetails'
                 db_table = 'oto_delete_certificate'
 
+        class AssignmentOwner(models.Model):
+            name = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = 'otoparents'
+                db_table = 'oto_assignment_owner'
+
+        class AssignmentRequired(models.Model):
+            owner = models.OneToOneField(AssignmentOwner, on_delete=models.PROTECT, related_name='required')
+            note = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_assignment_required'
+
+        class AssignmentOptional(models.Model):
+            owner = models.OneToOneField(AssignmentOwner, on_delete=models.SET_NULL, null=True, related_name='optional')
+            note = models.CharField(max_length=50)
+
+            class Meta:
+                app_label = 'otodetails'
+                db_table = 'oto_assignment_optional'
+
+        def capture_assignment():
+            output = []
+            for kind, Child in (('required', AssignmentRequired), ('optional', AssignmentOptional)):
+                def fresh():
+                    return AssignmentOwner.objects.create(name='first'), AssignmentOwner.objects.create(name='second')
+
+                def case(name):
+                    result = {'name': name + '_' + kind, 'states': {}, 'steps': {}}
+                    output.append(result)
+                    return result
+
+                def step(result, name, operation):
+                    statements = []
+
+                    def execute(next_execute, sql, params, many, context):
+                        statements.append(sql.lstrip().split(' ', 1)[0].upper())
+                        return next_execute(sql, params, many, context)
+
+                    error_name = ''
+                    with connection.execute_wrapper(execute):
+                        try:
+                            operation()
+                        except Exception as error:
+                            error_name = type(error).__name__
+                    result['steps'][name] = {'error': error_name, 'selects': statements.count('SELECT'),
+                                              'writes': sum(statements.count(verb) for verb in ('INSERT', 'UPDATE', 'DELETE'))}
+
+                first, second = fresh()
+                child = Child.objects.create(owner=first, note='original')
+                result = case('reverse_saved')
+                step(result, 'assign', lambda: setattr(second, kind, child))
+                result['states']['assigned'] = [child.owner_id == second.pk, getattr(second, kind) is child, child.owner is second]
+                result['states']['before_save'] = [Child.objects.get(pk=child.pk).owner_id == first.pk]
+                second.save()
+                result['states']['after_owner_save'] = [Child.objects.get(pk=child.pk).owner_id == first.pk]
+                child.save()
+                result['states']['after_child_save'] = [Child.objects.get(pk=child.pk).owner_id == second.pk]
+                step(result, 'clear', lambda: setattr(second, kind, None))
+                result['states']['cleared'] = [child.owner_id is None, not hasattr(second, kind)]
+                step(result, 'save_clear', child.save)
+                result['states']['after_clear_save'] = [Child.objects.get(pk=child.pk).owner_id == (None if kind == 'optional' else second.pk)]
+
+                result = case('unsaved_reverse')
+                owner, child = AssignmentOwner(name='pending'), Child(note='pending')
+                step(result, 'assign', lambda: setattr(owner, kind, child))
+                result['states']['assigned'] = [child.owner_id is None, getattr(owner, kind, None) is child, child.owner is owner]
+                step(result, 'save_unsaved', child.save)
+                owner.save()
+                result['states']['owner_saved'] = [getattr(owner, kind, None) is child, child.owner_id is None]
+                child.save()
+                result['states']['child_saved'] = [child.owner_id == owner.pk, Child.objects.get(pk=child.pk).owner_id == owner.pk,
+                                                   getattr(owner, kind, None) is child, child.owner is owner]
+
+                result = case('unsaved_reverse_success')
+                owner, child = AssignmentOwner(name='owner-first'), Child(note='owner-first')
+                step(result, 'assign', lambda: setattr(owner, kind, child))
+                owner.save()
+                result['states']['owner_saved'] = [getattr(owner, kind) is child, child.owner_id is None]
+                child.save()
+                result['states']['child_saved'] = [child.owner_id == owner.pk, Child.objects.get(pk=child.pk).owner_id == owner.pk,
+                                                   getattr(owner, kind) is child, child.owner is owner]
+
+                first, second = fresh()
+                child = Child.objects.create(owner=first, note='cold')
+                owner = AssignmentOwner.objects.get(pk=first.pk)
+                result = case('cold_clear')
+                step(result, 'clear', lambda: setattr(owner, kind, None))
+                step(result, 'read_after_clear', lambda: result['states'].update(cleared=[not hasattr(owner, kind), child.owner_id == first.pk]))
+                owner.save()
+                result['states']['stored'] = [Child.objects.get(pk=child.pk).owner_id == first.pk]
+
+                first, second = fresh()
+                child = Child.objects.create(owner=first, note='existing')
+                replacement = Child(note='replacement')
+                result = case('replacement')
+                step(result, 'assign', lambda: setattr(first, kind, replacement))
+                result['states']['assigned'] = [getattr(first, kind) is replacement, replacement.owner is first,
+                                                 child.owner_id == first.pk, replacement.owner_id == first.pk]
+                step(result, 'save_duplicate', replacement.save)
+                result['states']['failure_preserved'] = [replacement.pk is None, replacement.owner_id == first.pk,
+                                                          getattr(first, kind) is replacement, Child.objects.filter(owner=first).count() == 1]
+                step(result, 'reassign', lambda: setattr(second, kind, replacement))
+                replacement.save()
+                result['states']['reassigned'] = [getattr(first, kind) is replacement, getattr(second, kind) is replacement,
+                                                   child.owner_id == first.pk, Child.objects.get(pk=child.pk).owner_id == first.pk,
+                                                   Child.objects.get(pk=replacement.pk).owner_id == second.pk]
+
+                result = case('unsaved_forward')
+                owner, child = AssignmentOwner(name='pending-forward'), Child(note='forward')
+                step(result, 'assign', lambda: setattr(child, 'owner', owner))
+                result['states']['assigned'] = [child.owner_id is None, child.owner is owner]
+                step(result, 'save_unsaved', child.save)
+                owner.save()
+                child.save()
+                result['states']['saved'] = [child.owner_id == owner.pk, child.owner is owner,
+                                              Child.objects.get(pk=child.pk).owner_id == owner.pk]
+
+                first, second = fresh()
+                child = Child.objects.create(owner=first, note='forward-clear')
+                result = case('forward_clear')
+                step(result, 'clear', lambda: setattr(child, 'owner', None))
+                result['states']['cleared'] = [child.owner_id is None]
+                step(result, 'save_clear', child.save)
+                result['states']['stored'] = [Child.objects.get(pk=child.pk).owner_id == (None if kind == 'optional' else first.pk)]
+            return output
+
         created = []
         try:
             assert not connection.introspection.table_names()
-            for model in (Parent, Detail, OptionalDetail, UniqueChild, DefaultDetail, HiddenDetail, LookupParent, LookupDetail, LookupOptional, LookupUnique, Review, DeleteOwner, DeleteReport, DeleteCertificate):
+            for model in (Parent, Detail, OptionalDetail, UniqueChild, DefaultDetail, HiddenDetail, LookupParent, LookupDetail, LookupOptional, LookupUnique, Review, DeleteOwner, DeleteReport, DeleteCertificate, AssignmentOwner, AssignmentRequired, AssignmentOptional):
                 with connection.schema_editor() as editor:
                     editor.create_model(model)
                 created.append(model)
@@ -352,6 +481,7 @@ def observe():
                 return result
 
             outgoing_delete = capture_outgoing_delete()
+            assignment = capture_assignment()
             record('required_form_duplicate', lambda: forms(Detail, {'parent': first.pk}))
             record('required_form_self', lambda: forms(Detail, {'parent': first.pk}, detail))
             record('required_form_available', lambda: forms(Detail, {'parent': second.pk}))
@@ -478,7 +608,7 @@ def observe():
                 version = cursor.fetchone()[0]
             output = {'django': django.get_version(), 'python': platform.python_version(),
                       'backend': connection.vendor, 'database_version': version,
-                      'field_shapes': shapes, 'observations': observations, 'lookups': lookups, 'eager': eager, 'outgoing_delete': outgoing_delete, 'migrations': migrations,
+                      'field_shapes': shapes, 'observations': observations, 'lookups': lookups, 'eager': eager, 'outgoing_delete': outgoing_delete, 'assignment': assignment, 'migrations': migrations,
                       'django_related_field_source_sha256': hashlib.sha256(
                           Path(inspect.getsourcefile(models.OneToOneField)).read_bytes()).hexdigest()}
             if database:

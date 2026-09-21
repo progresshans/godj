@@ -55,6 +55,8 @@ Parent prefix를 먼저 배치하고 공통 prefix를 합친다. 닫힌 typed ta
 OneToOne reverse와 혼합 tree는 같은 `RelatedSelect`/`RelatedSelection`과 명시적 project binding을 사용한다.
 Generated object factory는 모든 단일 traversal을 연결한다. Facade의 `.Related` selector와 문자열 mixed path도 같은 tree를 사용한다.
 물리 forward field 목록은 assignment·저장이 소유하고 reverse accessor는 source column인 것처럼 처리하지 않는다.
+명시적 reverse `Set*`는 두 wrapper의 전체 candidate를 준비한 뒤 함께 게시한다. 실제 FK는 자식 Save가 저장하며
+부모 Save는 reverse 자식을 자동 저장하지 않는다. Forward With/Clear는 기존처럼 독립 wrapper를 반환한다.
 구현·환경별 검증 범위는 [GDJ-0096](../work/0096-one-to-one-service-reports.md)을 따른다.
 Project bundle의 renderer는 같은 준비된 모델·관계 해석을 공유한다.
 App schema도 생성 호출마다 한 번 정규화하고 canonical hash를 계산해 app renderer·manifest·facade가 공유한다.

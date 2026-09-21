@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v9"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -99,11 +99,12 @@ func validateProjectRelationFacadeFields(models []projectRelationFacadeModel) er
 			for _, relation := range model.source.selections {
 				methods[relation.selector] = true
 				if relation.reverse {
+					methods["Set"+relation.selector] = true
 					continue
 				}
 				methods["With"+relation.selector] = true
 				methods["With"+relation.selector+"ID"] = true
-				if relation.field.Nullable {
+				if relation.field.Nullable || relation.field.Relation.Cardinality == ir.RelationOneToOne {
 					methods["Clear"+relation.selector] = true
 				}
 			}
@@ -639,9 +640,6 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "if _key!=_model.primaryKeySnapshot||_present!=_model.primaryKeySnapshotPresent{")
 		fmt.Fprintf(output, "_nextObject,_err:=_model.state.objects.%s.From(_model.state.backend,_model.%s);if _err!=nil{return _err}\n", model.source.surface, model.rawAlias)
 		fmt.Fprintln(output, "_model.object=_nextObject")
-		for _, relation := range model.source.reverse {
-			fmt.Fprintf(output, "_model.%sCache=orm.NewRelationCache[%s%s]()\n", lowerFirst(relation.selector), relation.target.app.prefix, relation.target.model.GoName)
-		}
 		fmt.Fprintln(output, "}")
 	}
 	fmt.Fprintln(output, "\treturn _model.relationFacadeRefreshSnapshots()")
@@ -652,6 +650,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		return
 	}
 	renderProjectRelationFacadeSourceMutationHelpers(output, model)
+	renderProjectRelationFacadeReverseSetters(output, model)
 	for _, relation := range model.source.selections {
 		name := lowerFirst(relation.selector)
 		targetSurface := relation.target.app.prefix + relation.target.model.GoName
@@ -768,16 +767,6 @@ func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projec
 }
 
 func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, model projectRelationFacadeModel) {
-	if len(model.source.relations) == 0 {
-		fmt.Fprintf(output, "func (_model *%s) relationFacadeReconcile()error{\n", model.surface)
-		fmt.Fprintln(output, "if _,_,_err:=_model.relationFacadePrimaryKey();_err!=nil{return _err}")
-		for _, relation := range model.source.reverse {
-			fmt.Fprintf(output, "if _,_,_,_err:=_model.%sCache.Snapshot();_err!=nil{return _err}\n", lowerFirst(relation.selector))
-		}
-		fmt.Fprintln(output, "return nil\n}")
-		fmt.Fprintf(output, "func (_model *%s) relationFacadePrepareSave()error{return _model.relationFacadeReconcile()}\n", model.surface)
-		return
-	}
 	rawType := model.model.app.alias + "." + model.model.model.GoName
 	descriptor := model.model.app.alias + "." + model.model.model.GoName + "Descriptor"
 
@@ -810,6 +799,17 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	fmt.Fprintln(output, "\treturn _result, nil")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+
+	if len(model.source.relations) == 0 {
+		fmt.Fprintf(output, "func (_model *%s) relationFacadeReconcile()error{\n", model.surface)
+		fmt.Fprintln(output, "if _,_,_err:=_model.relationFacadePrimaryKey();_err!=nil{return _err}")
+		for _, relation := range model.source.reverse {
+			fmt.Fprintf(output, "if _,_,_,_err:=_model.%sCache.Snapshot();_err!=nil{return _err}\n", lowerFirst(relation.selector))
+		}
+		fmt.Fprintln(output, "return nil\n}")
+		fmt.Fprintf(output, "func (_model *%s) relationFacadePrepareSave()error{return _model.relationFacadeReconcile()}\n", model.surface)
+		return
+	}
 
 	fmt.Fprintf(output, "func (_model *%s) relationFacadeReconcile() error {\n", model.surface)
 	fmt.Fprintln(output, "\tif _err := _model.validate(); _err != nil {")
@@ -1050,7 +1050,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintln(output, "}")
 		fmt.Fprintln(output)
 
-		if relation.field.Nullable {
+		if relation.field.Nullable || relation.field.Relation.Cardinality == ir.RelationOneToOne {
 			fmt.Fprintf(output, "func (_model *%s) Clear%s() (*%s, error) {\n", model.surface, relation.selector, model.surface)
 			fmt.Fprintln(output, "\tif _err := _model.validate(); _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, _err")
@@ -1059,7 +1059,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 			fmt.Fprintln(output, "\t\treturn nil, _err")
 			fmt.Fprintln(output, "\t}")
 			fmt.Fprintf(output, "\t_value := (%s{}).CloneWriteModel(_model.%s)\n", descriptor, model.rawAlias)
-			fmt.Fprintf(output, "\t_value.%s = nil\n", relation.field.GoName)
+			renderProjectRelationFacadeClearRawKey(output, relation.field, "_value."+relation.field.GoName, "\t")
 			fmt.Fprintln(output, "\t_result, _err := _model.relationFacadeDerived(_value)")
 			fmt.Fprintln(output, "\tif _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, _err")
@@ -1073,6 +1073,58 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 			fmt.Fprintln(output, "}")
 			fmt.Fprintln(output)
 		}
+	}
+}
+
+// A reverse setter changes the two explicitly supplied wrappers in memory.
+// Stage both sides, including raw-field reconciliation, before publishing either
+// side. Ordinary forward With/Clear methods retain their value-derivation API.
+func renderProjectRelationFacadeReverseSetters(output *bytes.Buffer, model projectRelationFacadeModel) {
+	for _, relation := range model.source.reverse {
+		targetSurface := relation.target.app.prefix + relation.target.model.GoName
+		targetRaw := lowerFirst(targetSurface) + "Model"
+		forward, _ := relationQuerySelector(relation.field) // Validated by the forward object surface.
+		name := lowerFirst(relation.selector)
+		fmt.Fprintf(output, `// Set%[1]s assigns a reverse one-to-one relation without database I/O.
+// It changes this wrapper and the supplied child's forward relation in place.
+// A nil target clears only an already cached child; an unloaded relation is unchanged.
+// Save the affected child explicitly to persist its foreign key.
+func (_model *%[2]s) Set%[1]s(_target *%[3]s) error {
+ if _err:=_model.validate();_err!=nil{return _err}
+ _nextOwner,_err:=_model.relationFacadeDerived(_model.%[4]s);if _err!=nil{return _err}
+ if _err=_nextOwner.relationFacadeReconcile();_err!=nil{return _err}
+ _changedTarget:=_target
+ if _target==nil{
+  _state,_cached,_,_err:=_nextOwner.%[5]sCache.Snapshot();if _err!=nil{return _err}
+  if _state!=orm.RelationAssignedPresent{return nil}
+  _changedTarget=_cached
+ }
+ var _nextTarget *%[3]s
+ if _changedTarget!=nil{
+  if _err=_changedTarget.validate();_err!=nil{return _err}
+  if _changedTarget.state!=_model.state{return relationFacadeQueryInvalid("relation target belongs to another facade origin")}
+  _candidate,_err:=_changedTarget.relationFacadeDerived(_changedTarget.%[6]s);if _err!=nil{return _err}
+`, relation.selector, model.surface, targetSurface, model.rawAlias, name, targetRaw)
+		if relation.target.identity == model.model.identity {
+			fmt.Fprintln(output, "if _changedTarget==_model{_candidate=_nextOwner}")
+		}
+		fmt.Fprintf(output, `
+  if _target==nil{_nextTarget,_err=_candidate.Clear%[1]s()}else{_nextTarget,_err=_candidate.With%[1]s(_model)}
+  if _err!=nil{return _err}
+ }
+`, forward)
+		if relation.target.identity == model.model.identity {
+			fmt.Fprintln(output, "if _changedTarget==_model{_nextOwner=_nextTarget;_changedTarget=nil}")
+		}
+		fmt.Fprintf(output, `
+ if _target==nil{_err=_nextOwner.%[1]sCache.Store(orm.RelationAssignedAbsent,nil,false)}else{_err=_nextOwner.%[1]sCache.Store(orm.RelationAssignedPresent,_target,false)}
+ if _err!=nil{return _err}
+ if _changedTarget!=nil{*_changedTarget=*_nextTarget;_changedTarget._self=_changedTarget}
+ *_model=*_nextOwner
+ _model._self=_model
+ return nil
+}
+`, name)
 	}
 }
 

@@ -51,14 +51,18 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
   같은 occurrence/owner의 서로 다른 child 또는 presence를 거부한다. 동일 owner/child의 반복 행은 독립 반환 cache를 유지한다.
   Reverse ready cache는 부재에도 owner 기준의 plan을 보존하며 Fresh에서 외부 insert·재할당·교체를 읽는다.
   BindObjectsIn/BindReverseObjectsIn으로 한 project binding을 공유하며 다른 binding의 descendant는 I/O 전에 거부한다.
-- Facade의 단일 reverse와 문자열 mixed path도 같은 selection/cache 경로를 사용한다. Unsaved owner의 reverse 접근은 I/O 전 오류이며
-  owner Save가 PK를 얻으면 handle을 재바인딩한다. 외부 child 저장은 warm missing cache를 자동 갱신하지 않는다.
+- Facade의 단일 reverse와 문자열 mixed path도 같은 selection/cache 경로를 사용한다. Unsaved owner의 cache 없는 reverse 접근은 I/O 전 오류이며
+  명시적으로 할당한 child는 cache에서 읽는다. Owner Save가 PK를 얻으면 handle을 재바인딩하고 명시적 reverse cache를 유지한다.
+  외부 child 저장은 warm missing cache를 자동 갱신하지 않는다.
   Forward FK 변경/assignment는 선택한 reverse 형제의 cache cell·target identity·subtree를 보존한다.
 - 다른 filter JOIN으로 eager 결과에 같은 root 행이 중복돼도 각 반환 객체·FK pointer·선택한 관계 cache는 독립 소유한다.
   Warm All/First는 원본 query cache에서 다시 복제하며 한 결과의 수정을 다른 결과로 전파하지 않는다.
 - Eager First는 cold query에서 최대 한 row를 읽고 All cache를 채우지 않는다. Warm All cache의 첫 결과도 독립 복제하며,
   관계 검증과 row close가 끝나기 전에는 결과를 반환하지 않는다. 기존 QuerySet.First처럼 명시적 정렬을 요구한다.
 - Relation assignment는 FK 값과 cache를 함께 reconcile한다. Application memory를 DB rollback으로 자동 되돌리지 않는다.
+  OneToOne reverse Set은 지정한 owner/child의 raw-field reconciliation·origin·self·PK·cache를 별도 candidate에 준비한 뒤 함께 게시한다.
+  실패 시 두 wrapper에 부분 변경을 게시하지 않는다. Child Save 실패가 다른 wrapper의 cache를 자동 변경하지 않는다.
+  Set(nil)은 warm child의 forward FK/cache만 지우며 cold 관계에서는 no-op이다. 두 wrapper의 mutation/access는 caller가 함께 serialize한다.
 - 복수·중첩 selection의 immutable tree는 caller slice와 분리한다. 각 target adapter는 구체 Go type을 유지하고 source와 모든
   descendant를 한 번에 scan한다. 없는 ancestor 아래의 present/partial child도 오류로 처리하며 전체 검증 뒤 함께 게시한다.
   같은 target PK를 가리키는 다른 FK·행·terminal 반환의 하위 cache는 독립 소유한다. 한 facade 객체 안의 반복 접근은 기존

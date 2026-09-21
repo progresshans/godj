@@ -96,6 +96,33 @@ class OneToOneReferenceTests(unittest.TestCase):
         self.assertTrue(shapes['HiddenDetail']['hidden'])
         self.assertFalse(rows['hidden_reverse_absent']['value'])
 
+    def test_assignment_memory_write_boundaries_and_durable_results(self):
+        cases = self.fresh[0]['assignment']
+        self.assertEqual(len(cases), 14)
+        self.assertEqual(len({case['name'] for case in cases}), 14)
+        failures = {}
+        for case in cases:
+            for label, state in case['states'].items():
+                if (case['name'].startswith('unsaved_reverse_') and not case['name'].startswith('unsaved_reverse_success_') and label == 'owner_saved') or (case['name'].startswith('cold_clear_') and label == 'cleared'):
+                    self.assertEqual(state, [False, True], (case['name'], label))
+                else:
+                    self.assertTrue(state and all(state), (case['name'], label, state))
+            for label, step in case['steps'].items():
+                self.assertEqual(step['selects'], int(label == 'read_after_clear'), (case['name'], label))
+                self.assertEqual(step['writes'], int(label in ('save_clear', 'save_duplicate')), (case['name'], label))
+                if step['error']:
+                    failures[case['name'] + '/' + label] = step['error']
+        self.assertEqual(failures, {
+            'reverse_saved_required/save_clear': 'IntegrityError',
+            'forward_clear_required/save_clear': 'IntegrityError',
+            'replacement_required/save_duplicate': 'IntegrityError',
+            'replacement_optional/save_duplicate': 'IntegrityError',
+            'unsaved_reverse_required/save_unsaved': 'ValueError',
+            'unsaved_reverse_optional/save_unsaved': 'ValueError',
+            'unsaved_forward_required/save_unsaved': 'ValueError',
+            'unsaved_forward_optional/save_unsaved': 'ValueError',
+        })
+
     def test_fk_conversion_preserves_failed_data_and_reverses_constraints(self):
         migrations = self.fresh[0]['migrations']
         self.assertEqual([item['initially_unique'] for item in migrations], [False, True])

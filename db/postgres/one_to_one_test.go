@@ -36,6 +36,9 @@ func TestPostgresOneToOneReverseEagerMatchesDjango(t *testing.T) {
 func TestPostgresOneToOneFacadeReverseEager(t *testing.T) {
 	runPostgresOneToOneComparison(t, onetoonetest.RunFacade)
 }
+func TestPostgresOneToOneAssignmentMatchesDjango(t *testing.T) {
+	runPostgresOneToOneComparison(t, onetoonetest.RunAssignment)
+}
 
 type oneToOneTrace struct {
 	tables []string

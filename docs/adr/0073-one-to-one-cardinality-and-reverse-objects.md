@@ -47,14 +47,14 @@ Presence lookup도 복제한 실제 자식 PK metadata로 LookupPolicy를 거친
 같은 FK가 반대 방향의 경로에서 OneToOne 여부를 다르게 선언하면 SQL 전에 거부한다. 일반 FK+Unique의 collection은
 직접 non-null exact와 최상위 conjunction을 유지하며 단일 관계의 확장에 따라 OR/NOT를 묵시적으로 허용하지 않는다.
 
-Reverse 생성 ABI는 v3, object v5, selection v6, facade v9다. 공통 selection 타입과 caller-owned binding·reverse selector가 snapshot에 반영되므로 같은 schema에서 만든
+Reverse 생성 ABI는 v3, object v5, selection v6, facade v10다. 공통 selection 타입과 caller-owned binding·reverse selector가 snapshot에 반영되므로 같은 schema에서 만든
 이전 생성물과도 섞을 수 없다. 각 generator role의 version이 snapshot을 바꾸는지 검사하고 모든 checked-in project를 함께 재생성한다.
 Source field의 Go 이름 IsNull이 새 method와 충돌하면 생성 단계에서 명시적으로 거부한다.
 
 Generated reverse factory는 OneToOne에 `RelatedObject[T]`, 일반 FK+Unique에 `RelatedSet[T]`를 반환한다.
 단일 역방향 조회는 최대 두 행으로 cardinality를 검사한다. `Get(ctx)`의 `(value, present, error)`에서 부재는
 `zero, false, nil`이며 성공한 빈 결과도 cache한다. 두 행 이상은 integrity 오류다. Forward의 존재해야 하는 target 누락은
-기존 missing 오류를 유지한다. Unsaved owner는 I/O 전에 missing-primary-key 오류이며 명시적 PK 0과 구분한다.
+기존 missing 오류를 유지한다. Cache 없는 unsaved owner 조회는 I/O 전에 missing-primary-key 오류이며 명시적 PK 0과 구분한다.
 
 각 From/Fresh와 materialization은 cache를 독립 소유한다. 같은 handle의 동시 조회는 기존 QuerySet 평가 owner를 공유한다.
 취소·query/scan/rows-close 실패는 성공 결과로 게시하지 않는다. Pointer handle의 zero/nil/dereference-copy를 거부한다.
@@ -88,8 +88,8 @@ selector와 `FromSelected` bridge로 forward/reverse tree를 읽는다. 표준 `
 facade는 이 factory를 사용한다. `.Related.Report.WithChildren(...)`와 `SelectRelatedPaths("report__ticket__review")`는 같은 immutable plan으로 수렴한다.
 정방향 storage field 목록과 reverse를 포함한 traversal 목록을 구분하여 reverse를 부모의 저장 column으로 다루지 않는다.
 
-Reverse-only 모델도 facade의 New/Save를 지원한다. Unsaved owner는 객체를 만들 수 있지만 reverse 접근은 I/O 전에 missing-primary-key 오류다.
-부모 Save가 PK를 게시하면 reverse handle을 그 key에 다시 바인딩한다. 정상 missing cache를 외부 child 저장이 자동 갱신하지 않는다.
+Reverse-only 모델도 facade의 New/Save를 지원한다. Unsaved owner는 객체를 만들 수 있지만 cache 없는 reverse 접근은 I/O 전에 missing-primary-key 오류다.
+부모 Save가 PK를 게시하면 reverse handle을 그 key에 다시 바인딩하고 명시적으로 할당한 child cache를 유지한다. 정상 missing cache를 외부 child 저장이 자동 갱신하지 않는다.
 같은 facade 객체의 반복 관계 접근은 같은 target pointer를 보존하고, 다른 materialization·경로 occurrence는 독립 소유한다.
 Forward assignment/raw FK 변경은 이미 선택한 reverse 형제 cache와 그 subtree를 유지한다. 다른 facade origin, 잘못된 중간 Go type,
 collection/blank/unknown/과도한 문자열 경로와 promoted field·selector 이름 충돌을 거부한다.
@@ -97,6 +97,39 @@ collection/blank/unknown/과도한 문자열 경로와 promoted field·selector 
 Django의 12개 eager 관찰은 양 DB에서 row/presence·초기 SELECT 1회·JOIN 형태가 같다. 세 reciprocal path에서는 후속 descriptor 접근이
 각각 1·1·3회 추가 SELECT를 수행했다. GoDj의 명시적 selected subtree는 12개 모두 warm I/O 0을 유지한다.
 이는 cache 소유권 차이인 [DEV-0018](../DEVIATIONS.md#dev-0018--일대일-역방향-부재와-go-객체-소유권)에 기록하며 조회 횟수 전체의 parity로 계산하지 않는다.
+
+## 할당과 저장
+
+Forward `WithTicket`/`WithTicketID`와 `ClearTicket`는 원본을 보존한 새 wrapper를 반환한다. 명시적 OneToOne은 required여도
+Clear를 제공한다. Required FK의 raw int64 0과 별도 scalar-presence/assigned-absent 상태를 함께 두며, getter·Unwrap·Save는
+이 부재를 required 오류로 I/O 전에 거부한다. `WithTicketID(0)` 또는 key-present target의 PK 0은 별도의 정상 값이다.
+Nullable Clear는 SQL NULL로 저장할 수 있다. 일반 required ForeignKey에 새로운 Clear를 추가하지 않는다.
+
+Reverse `SetReport(child) error`는 DB I/O 없이 지정한 owner와 child를 제자리에서 변경한다. Owner의 reverse cache는 정확한
+child pointer를, child의 forward cache는 정확한 owner pointer를 보존한다. 두 wrapper를 복제한 candidate에 raw FK reconciliation,
+cache tuple·self·origin·PK 검증과 모든 fallible rebuild를 마친 뒤 두 결과를 게시한다. 검증 실패는 두 원본의 snapshot/cache를
+부분 갱신하지 않는다. 자기 자신을 지정한 경우도 forward/reverse 양 edge를 한 candidate에 반영한다. Thread-safe mutable graph는
+아니므로 caller가 관련 wrapper의 접근과 변경을 함께 serialize한다.
+
+`SetReport(nil)`은 이미 cache한 자식이 있으면 그 자식의 forward FK/cache와 owner의 reverse cache를 해제한다.
+Cold 또는 known-absent cache면 I/O 없이 no-op이며 아직 읽지 않은 DB 자식을 찾아서 바꾸지 않는다. Cold clear 뒤 첫 getter는
+DB를 읽어 기존 자식을 반환할 수 있다. 다른 자식으로 교체해도 이전 자식의 FK를 자동으로 지우거나 저장하지 않는다.
+양 DB의 UNIQUE가 충돌을 거부하며 caller가 실제 자식 저장 순서와 transaction을 정한다.
+
+Unsaved owner도 child를 명시적으로 할당할 수 있고 warm getter는 두 exact pointer를 반환한다. Child Save는 owner의 PK가 없으면
+I/O 전에 unsaved-related 오류다. Owner를 먼저 Save하면 새 PK를 게시하면서 reverse assignment cache를 보존한다.
+이후 child Save가 pending forward FK를 owner의 PK로 reconcile한다. Owner Save는 reverse child를 자동 저장하지 않는다.
+직접 FK 변경은 기존 규칙대로 pending assignment를 대체하며, 같은 명시적 scalar tuple은 warm target identity를 유지한다.
+
+저장 실패는 사용자가 지정한 메모리 값을 자동 복구하거나 다른 wrapper의 cache를 바꾸지 않는다. 명시적 retry/reassignment를
+통해 복구한다. Transaction은 DB의 선행 쓰기까지 rollback하지만 heap은 되감지 않는다. 다른 owner의 stale cache는 자동 invalidation하지 않는다.
+필수 Clear의 사전 거부와 실패한 unsaved child Save 뒤 reciprocal cache 보존은 Django와 다른 경계이므로
+[DEV-0018](../DEVIATIONS.md#dev-0018--일대일-역방향-부재와-go-객체-소유권)에 기록한다.
+
+명시적 target PK는 DB row 존재를 보장하지 않으며 native FK가 이를 검사한다. SQLite의 수동 PK INSERT와 달리 PostgreSQL의
+수동 identity INSERT/sequence 조정은 현재 unsupported다. 관계의 PK presence를 값 0이나 해당 backend 지원 여부와 혼동하지 않는다.
+
+## 삭제
 
 PostgreSQL은 `AtomicRelation`과 bulk SET_NULL을 일반 Atomic과 같은 transaction/session 수명으로 실행한다.
 PROTECT와 SET_NULL/delete는 한 transaction에 속한다. Callback 오류·확정 rollback·commit/rollback outcome unknown과
@@ -110,6 +143,7 @@ FK를 읽지 못하는 descriptor는 transaction callback 전에 실패한다. �
 Cross-app 생성 소비자가 required/nullable 관계, reverse exact 조회·단일 lazy/prefetch, forward eager와 양 DB 삭제를 사용한다.
 독립 [Django runner](../../conformance/runners/django/one_to_one_reference.py)의 관찰을 기준으로 하되 전체 37개 관찰의 parity를 주장하지 않는다.
 직접 reverse lookup은 별도 41개 Django 관찰로 결과·SELECT 수·JOIN 형태를 비교했다.
-Typed reverse/mixed eager tree와 facade의 reverse selector·문자열 mixed path를 구현했다. 여러 단계 reverse 조건 조회,
-assignment의 전체 연결과 Helpdesk Form/Admin/API/OpenAPI/client는 남아 있다.
+Typed reverse/mixed eager tree와 facade의 reverse selector·문자열 mixed path, forward/reverse assignment를 구현했다.
+14개 독립 Django assignment 관찰과 실제 양 DB의 저장/rollback을 비교하고 표현·cache 차이는 별도로 기록했다.
+여러 단계 reverse 조건 조회와 Helpdesk Form/Admin/API/OpenAPI/client는 남아 있다.
 Relation-as-PK·arbitrary target·상속·ManyToMany도 별도 미완료 범위다. 실행 source·환경은 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

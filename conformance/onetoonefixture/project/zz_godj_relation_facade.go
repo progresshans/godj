@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v9"
-const GoDjProjectRelationFacadeInputSHA256 = "06a07429c77c09caf39bbce5f52325b2ac4a15b7cd28593a85df352ee49ebb15"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"
+const GoDjProjectRelationFacadeInputSHA256 = "936771cec5bcfa3a327ff18ac24650035441848ac557abcfe1a25d4a72f3fe8f"
 
 type Backend interface {
 	db.Queryer
@@ -553,6 +553,27 @@ func (_model *ReportsCertificate) WithReportID(_key int64) (*ReportsCertificate,
 		if _err := _result.reportCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
 			return nil, _err
 		}
+	}
+	return _result, nil
+}
+
+func (_model *ReportsCertificate) ClearReport() (*ReportsCertificate, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (reports.CertificateDescriptor{}).CloneWriteModel(_model.reportsCertificateModel)
+	_value.ReportID = 0
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.reportScalarSnapshot = 0
+	_result.reportScalarPresent = false
+	if _err := _result.reportCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
 	}
 	return _result, nil
 }
@@ -2472,7 +2493,6 @@ func (_model *ReportsReport) Save(_ctx context.Context) error {
 			return _err
 		}
 		_model.object = _nextObject
-		_model.certificateCache = orm.NewRelationCache[ReportsCertificate]()
 	}
 	return _model.relationFacadeRefreshSnapshots()
 }
@@ -2666,6 +2686,92 @@ func (_model *ReportsReport) WithTicketID(_key int64) (*ReportsReport, error) {
 	return _result, nil
 }
 
+func (_model *ReportsReport) ClearTicket() (*ReportsReport, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (reports.ReportDescriptor{}).CloneWriteModel(_model.reportsReportModel)
+	_value.TicketID = 0
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = 0
+	_result.ticketScalarPresent = false
+	if _err := _result.ticketCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+// SetCertificate assigns a reverse one-to-one relation without database I/O.
+// It changes this wrapper and the supplied child's forward relation in place.
+// A nil target clears only an already cached child; an unloaded relation is unchanged.
+// Save the affected child explicitly to persist its foreign key.
+func (_model *ReportsReport) SetCertificate(_target *ReportsCertificate) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	_nextOwner, _err := _model.relationFacadeDerived(_model.reportsReportModel)
+	if _err != nil {
+		return _err
+	}
+	if _err = _nextOwner.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_changedTarget := _target
+	if _target == nil {
+		_state, _cached, _, _err := _nextOwner.certificateCache.Snapshot()
+		if _err != nil {
+			return _err
+		}
+		if _state != orm.RelationAssignedPresent {
+			return nil
+		}
+		_changedTarget = _cached
+	}
+	var _nextTarget *ReportsCertificate
+	if _changedTarget != nil {
+		if _err = _changedTarget.validate(); _err != nil {
+			return _err
+		}
+		if _changedTarget.state != _model.state {
+			return relationFacadeQueryInvalid("relation target belongs to another facade origin")
+		}
+		_candidate, _err := _changedTarget.relationFacadeDerived(_changedTarget.reportsCertificateModel)
+		if _err != nil {
+			return _err
+		}
+
+		if _target == nil {
+			_nextTarget, _err = _candidate.ClearReport()
+		} else {
+			_nextTarget, _err = _candidate.WithReport(_model)
+		}
+		if _err != nil {
+			return _err
+		}
+	}
+
+	if _target == nil {
+		_err = _nextOwner.certificateCache.Store(orm.RelationAssignedAbsent, nil, false)
+	} else {
+		_err = _nextOwner.certificateCache.Store(orm.RelationAssignedPresent, _target, false)
+	}
+	if _err != nil {
+		return _err
+	}
+	if _changedTarget != nil {
+		*_changedTarget = *_nextTarget
+		_changedTarget._self = _changedTarget
+	}
+	*_model = *_nextOwner
+	_model._self = _model
+	return nil
+}
 func (_model *ReportsReport) Certificate(_ctx context.Context) (*ReportsCertificate, bool, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, false, _err
@@ -3415,6 +3521,27 @@ func (_model *ReportsReview) WithTicketID(_key int64) (*ReportsReview, error) {
 	return _result, nil
 }
 
+func (_model *ReportsReview) ClearTicket() (*ReportsReview, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (reports.ReviewDescriptor{}).CloneWriteModel(_model.reportsReviewModel)
+	_value.TicketID = 0
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = 0
+	_result.ticketScalarPresent = false
+	if _err := _result.ticketCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
 func (_model *ReportsReview) Ticket(_ctx context.Context) (*TicketsTicket, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
@@ -3918,11 +4045,36 @@ func (_model *TicketsTicket) Save(_ctx context.Context) error {
 			return _err
 		}
 		_model.object = _nextObject
-		_model.optionalReportCache = orm.NewRelationCache[ReportsOptionalReport]()
-		_model.reportCache = orm.NewRelationCache[ReportsReport]()
-		_model.reviewCache = orm.NewRelationCache[ReportsReview]()
 	}
 	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *TicketsTicket) relationFacadeDerived(_value tickets.Ticket) (*TicketsTicket, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (tickets.TicketDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.TicketsTicket.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &TicketsTicket{state: _model.state, ticketsTicketModel: _value, object: _object}
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.optionalReportCache, _err = _model.optionalReportCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.reportCache, _err = _model.reportCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.reviewCache, _err = _model.reviewCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
 }
 
 func (_model *TicketsTicket) relationFacadeReconcile() error {
@@ -3942,6 +4094,204 @@ func (_model *TicketsTicket) relationFacadeReconcile() error {
 }
 func (_model *TicketsTicket) relationFacadePrepareSave() error {
 	return _model.relationFacadeReconcile()
+}
+
+// SetOptionalReport assigns a reverse one-to-one relation without database I/O.
+// It changes this wrapper and the supplied child's forward relation in place.
+// A nil target clears only an already cached child; an unloaded relation is unchanged.
+// Save the affected child explicitly to persist its foreign key.
+func (_model *TicketsTicket) SetOptionalReport(_target *ReportsOptionalReport) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	_nextOwner, _err := _model.relationFacadeDerived(_model.ticketsTicketModel)
+	if _err != nil {
+		return _err
+	}
+	if _err = _nextOwner.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_changedTarget := _target
+	if _target == nil {
+		_state, _cached, _, _err := _nextOwner.optionalReportCache.Snapshot()
+		if _err != nil {
+			return _err
+		}
+		if _state != orm.RelationAssignedPresent {
+			return nil
+		}
+		_changedTarget = _cached
+	}
+	var _nextTarget *ReportsOptionalReport
+	if _changedTarget != nil {
+		if _err = _changedTarget.validate(); _err != nil {
+			return _err
+		}
+		if _changedTarget.state != _model.state {
+			return relationFacadeQueryInvalid("relation target belongs to another facade origin")
+		}
+		_candidate, _err := _changedTarget.relationFacadeDerived(_changedTarget.reportsOptionalReportModel)
+		if _err != nil {
+			return _err
+		}
+
+		if _target == nil {
+			_nextTarget, _err = _candidate.ClearTicket()
+		} else {
+			_nextTarget, _err = _candidate.WithTicket(_model)
+		}
+		if _err != nil {
+			return _err
+		}
+	}
+
+	if _target == nil {
+		_err = _nextOwner.optionalReportCache.Store(orm.RelationAssignedAbsent, nil, false)
+	} else {
+		_err = _nextOwner.optionalReportCache.Store(orm.RelationAssignedPresent, _target, false)
+	}
+	if _err != nil {
+		return _err
+	}
+	if _changedTarget != nil {
+		*_changedTarget = *_nextTarget
+		_changedTarget._self = _changedTarget
+	}
+	*_model = *_nextOwner
+	_model._self = _model
+	return nil
+}
+
+// SetReport assigns a reverse one-to-one relation without database I/O.
+// It changes this wrapper and the supplied child's forward relation in place.
+// A nil target clears only an already cached child; an unloaded relation is unchanged.
+// Save the affected child explicitly to persist its foreign key.
+func (_model *TicketsTicket) SetReport(_target *ReportsReport) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	_nextOwner, _err := _model.relationFacadeDerived(_model.ticketsTicketModel)
+	if _err != nil {
+		return _err
+	}
+	if _err = _nextOwner.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_changedTarget := _target
+	if _target == nil {
+		_state, _cached, _, _err := _nextOwner.reportCache.Snapshot()
+		if _err != nil {
+			return _err
+		}
+		if _state != orm.RelationAssignedPresent {
+			return nil
+		}
+		_changedTarget = _cached
+	}
+	var _nextTarget *ReportsReport
+	if _changedTarget != nil {
+		if _err = _changedTarget.validate(); _err != nil {
+			return _err
+		}
+		if _changedTarget.state != _model.state {
+			return relationFacadeQueryInvalid("relation target belongs to another facade origin")
+		}
+		_candidate, _err := _changedTarget.relationFacadeDerived(_changedTarget.reportsReportModel)
+		if _err != nil {
+			return _err
+		}
+
+		if _target == nil {
+			_nextTarget, _err = _candidate.ClearTicket()
+		} else {
+			_nextTarget, _err = _candidate.WithTicket(_model)
+		}
+		if _err != nil {
+			return _err
+		}
+	}
+
+	if _target == nil {
+		_err = _nextOwner.reportCache.Store(orm.RelationAssignedAbsent, nil, false)
+	} else {
+		_err = _nextOwner.reportCache.Store(orm.RelationAssignedPresent, _target, false)
+	}
+	if _err != nil {
+		return _err
+	}
+	if _changedTarget != nil {
+		*_changedTarget = *_nextTarget
+		_changedTarget._self = _changedTarget
+	}
+	*_model = *_nextOwner
+	_model._self = _model
+	return nil
+}
+
+// SetReview assigns a reverse one-to-one relation without database I/O.
+// It changes this wrapper and the supplied child's forward relation in place.
+// A nil target clears only an already cached child; an unloaded relation is unchanged.
+// Save the affected child explicitly to persist its foreign key.
+func (_model *TicketsTicket) SetReview(_target *ReportsReview) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	_nextOwner, _err := _model.relationFacadeDerived(_model.ticketsTicketModel)
+	if _err != nil {
+		return _err
+	}
+	if _err = _nextOwner.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_changedTarget := _target
+	if _target == nil {
+		_state, _cached, _, _err := _nextOwner.reviewCache.Snapshot()
+		if _err != nil {
+			return _err
+		}
+		if _state != orm.RelationAssignedPresent {
+			return nil
+		}
+		_changedTarget = _cached
+	}
+	var _nextTarget *ReportsReview
+	if _changedTarget != nil {
+		if _err = _changedTarget.validate(); _err != nil {
+			return _err
+		}
+		if _changedTarget.state != _model.state {
+			return relationFacadeQueryInvalid("relation target belongs to another facade origin")
+		}
+		_candidate, _err := _changedTarget.relationFacadeDerived(_changedTarget.reportsReviewModel)
+		if _err != nil {
+			return _err
+		}
+
+		if _target == nil {
+			_nextTarget, _err = _candidate.ClearTicket()
+		} else {
+			_nextTarget, _err = _candidate.WithTicket(_model)
+		}
+		if _err != nil {
+			return _err
+		}
+	}
+
+	if _target == nil {
+		_err = _nextOwner.reviewCache.Store(orm.RelationAssignedAbsent, nil, false)
+	} else {
+		_err = _nextOwner.reviewCache.Store(orm.RelationAssignedPresent, _target, false)
+	}
+	if _err != nil {
+		return _err
+	}
+	if _changedTarget != nil {
+		*_changedTarget = *_nextTarget
+		_changedTarget._self = _changedTarget
+	}
+	*_model = *_nextOwner
+	_model._self = _model
+	return nil
 }
 func (_model *TicketsTicket) OptionalReport(_ctx context.Context) (*ReportsOptionalReport, bool, error) {
 	if _err := _model.validate(); _err != nil {
@@ -4340,4 +4690,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_4fae12ee1f6f22900fccf27c616efab3658a0c5cd667e55ce51c13b7f5f08572
+var _ goDjProjectSnapshot_1d7373d56dcd7957bd72fbe7cb31983cbaacbb5b02405fc09c848b299d61a01d

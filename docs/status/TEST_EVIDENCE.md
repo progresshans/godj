@@ -3,6 +3,66 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0096 — OneToOne assignment와 명시적 저장
+
+2026-09-22, 기준 `557095bea09529ef584fdd0a07e69767748c376c` 위 코드·생성물·검사·CI **74경로**의 manifest SHA256은
+`af1232c26624afc5f5a762b48cab74e925b499cc96f90450fedf74d1369580b7`다. 현행 문서는 이 집합에서 제외한다. Darwin 25.6.0/arm64·Go 1.26.5,
+modernc SQLite 3.53.3(v1.56.0)·PostgreSQL 17.5 Homebrew/pgx v5.10.0·`TZ=Pacific/Chatham`에서 실행했다.
+Native 시도마다 별도 locale C/UTF8 DB와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+Generated reverse Set은 지정한 두 wrapper의 candidate를 준비한 뒤 함께 게시한다. Required OneToOne도 Clear할 수 있으나
+getter/Unwrap/Save는 I/O 전 required 오류다. Owner Save가 새 PK를 얻으면 low-level handle을 재바인딩하면서 명시적 child cache를 유지한다.
+상세 의미와 지원 경계는 [ADR-0073](../adr/0073-one-to-one-cardinality-and-reverse-objects.md), Django 차이는 [DEV-0018](../DEVIATIONS.md#dev-0018--일대일-역방향-부재와-go-객체-소유권)을 따른다.
+
+독립 Django runner에 별도 required/nullable assignment 모델과 **14개 관찰**을 추가했다. 기존 37개 동작·2개 migration·41개 lookup·
+12개 eager·outgoing-delete 관찰은 그대로 유지했다. Runner SHA256은 `174cecc7a60a4ae1eddad4c9d749a393c84201cb0841509bd8125f1221706fbd`다.
+양 reference backend 결과가 같으며 실제 generated facade에서 필수/선택 reverse 할당·해제·교체·재할당, unsaved forward/reverse와
+부모→자식 저장, cold clear 뒤 실제 SELECT, 실패 뒤 명시적 복구를 대조했다. 두 required clear의 오류/I/O 경계와 두 unsaved reverse
+실패의 중간 reciprocal cache 차이는 별도로 검증하며 전체 관찰 parity로 계산하지 않는다.
+네 Python(3.12.13·3.13.15·3.14.3·3.14.7) 각각 **7 PASS / skip 0**, 총 **28 PASS**다. Django 6.1/asgiref 3.12.1/sqlparse 0.5.5,
+PostgreSQL reference psycopg 3.3.6을 고정하고 두 hash seed의 fresh process 및 unittest start/stop inventory를 검사했다.
+
+양 DB에서 native uniqueness cause·선행 mutation rollback·실패 시 child PK 미게시·입력 메모리 보존과 retry를 확인했다.
+Forward derivation의 원본 보존, 같은 key의 warm identity, raw FK의 pending override, nil/copy/origin/PK mutation 거부,
+실패한 쓰기의 원인 보존·자동 재시도 없음도 검증했다. 수동 PK 0의 presence·required absence는 구분된다. SQLite는 실제 PK 0 행을 저장·재조회했고,
+PostgreSQL은 기존 manual identity INSERT 제한에 따른 명시적 unsupported·무게시를 검사했다. 없는 key-present target의 FK와 nullable 0 FK는
+실제 native 제약이 거부하며 unsaved-target 오류로 바꾸지 않는다. PostgreSQL 수동 identity INSERT 지원을 추가한 결과는 아니다.
+
+외부 생성 module은 다른 중간 model의 selection을 compiler가 거부하며, 새 runtime test가 reverse Set의 self-edge·두 wrapper identity와
+손상된 child cache 때문에 실패한 setter의 owner reconciliation 미게시를 확인한다. 취소·required Clear의 no-I/O와 namespace 충돌도 검사했다.
+
+| 동일 source의 범위 | 실행 결과 |
+|---|---|
+| query/ORM/codegen/queryplan/생성 fixture normal | 1,211 run=PASS, skip 0 |
+| native PostgreSQL OneToOne/RelationDelete selector | 112 run=PASS, skip 0 |
+| query/ORM/queryplan/fixture race | 867 run=PASS, skip 0 |
+| 양 DB 영향 selector race | 2,349 run=PASS, skip 0 |
+| 공통·양 DB 영향 selector CGO=0 | 2,815 run=PASS, skip 0 |
+| generated consumer/외부 compile normal | 184 run=PASS, skip 0 |
+| publication parent root 전체 | 169 run=PASS, skip 0 |
+
+`go test -json -count=1 -timeout=15m`을 사용했고 consumer는 20m다. Normal 공통은
+`./query ./orm ./codegen ./db/internal/queryplan ./conformance/onetoonefixture/...`, native normal은 `-run 'OneToOne|RelationDelete' ./db/postgres`다.
+Runtime race는 codegen을 제외한다. DB race/CGO0 selector는 `OneToOne|Relation|Select|Eager|Projection|Ordering|Compile|Membership|MigrationCapabilities`이며
+CGO0은 runtime와 양 DB를 함께 실행했다. Consumer는 `./codegen/consumertest ./internal/compiletest`, publication은 발견한 parent root 72개 전부다.
+Child-only crash helper는 기존 parent가 실제 process 실행·종료·결과를 소유한다. 각 command의 필수 root·전체 start/terminal·package 종료·skip 0과
+source 전후 불변을 검사했다. 이 native normal은 PostgreSQL 전체나 native process 검증이 아니다.
+
+Facade ABI v10으로 네 프로젝트의 generated Go 56개·manifest를 재생성했다. Candidate compile·`make generate-check`, CI 도구 **38 PASS**를 확인했다.
+SQLite/PostgreSQL assignment root와 외부 generated runtime root를 CI required inventory에 추가했다.
+
+첫 normal은 공통 1,210 run/1,209 PASS/1 FAIL, native 111 PASS였다. Facade v10 변경 후 v9 golden/provenance 검사 갱신 누락을 수정했다.
+다음 normal은 공통 1,211 PASS, native 112 run/110 PASS/2 FAIL이었다. 추가 manual PK 0 시나리오가 PostgreSQL의 기존 unsupported identity INSERT를
+성공으로 가정했으며, 해당 capability 경계를 명시적 오류·행 미게시 검사로 수정했다. 그 사이의 compile 오류로 test discovery가 시작되지 않은 시도도
+PASS로 계산하지 않았다. 이후 위 최종 source와 표의 실행에서 모든 필수 검사가 통과했다.
+초기 reference 작성 중 Django의 unsaved failure reciprocal cache invalidation을 관찰했고, Go 기대값으로 원본 관찰을 덮어쓰지 않았다.
+
+정확한 command·source·raw reference/Python/Go 로그·필수 root·실패 시도·cleanup 영수증은 `godj-one-to-one-assignment-f83hkabs` 로컬 artifact에 보존했다.
+소유 DB의 잔여 connection·table·test schema가 0인 것을 확인한 뒤 그 DB만 제거하고 기존 service는 유지했다.
+
+Hosted fast는 구현 commit 뒤 확인한다. 현재 결과는 assignment의 로컬 checkpoint이며 작업 보고서 Form/Admin/API/OpenAPI/client와
+소비자 전체의 platform 통합은 남아 있다. 이전 Hosted full `42ae95d3b1a891e6a0692fb0399968e483f4d907`을 현재 source의 성공으로 쓰지 않는다.
+
 ## GDJ-0096 — facade reverse selection과 outgoing FK 삭제
 
 2026-09-22, 기준 `b91f1e8299a0a2219f6b6a8bf42e2b85937cd813` 위 제품·생성물·검사·CI **82경로**의 manifest SHA256은

@@ -1,4 +1,428 @@
 {
+  "assignment": [
+    {
+      "name": "reverse_saved_required",
+      "states": {
+        "after_child_save": [
+          true
+        ],
+        "after_clear_save": [
+          true
+        ],
+        "after_owner_save": [
+          true
+        ],
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "before_save": [
+          true
+        ],
+        "cleared": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_required",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          false,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_success_required",
+      "states": {
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "cold_clear_required",
+      "states": {
+        "cleared": [
+          false,
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "read_after_clear": {
+          "error": "",
+          "selects": 1,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "replacement_required",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "failure_preserved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "reassigned": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "reassign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_duplicate": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_forward_required",
+      "states": {
+        "assigned": [
+          true,
+          true
+        ],
+        "saved": [
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "forward_clear_required",
+      "states": {
+        "cleared": [
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "reverse_saved_optional",
+      "states": {
+        "after_child_save": [
+          true
+        ],
+        "after_clear_save": [
+          true
+        ],
+        "after_owner_save": [
+          true
+        ],
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "before_save": [
+          true
+        ],
+        "cleared": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_optional",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          false,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_success_optional",
+      "states": {
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "cold_clear_optional",
+      "states": {
+        "cleared": [
+          false,
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "read_after_clear": {
+          "error": "",
+          "selects": 1,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "replacement_optional",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "failure_preserved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "reassigned": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "reassign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_duplicate": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_forward_optional",
+      "states": {
+        "assigned": [
+          true,
+          true
+        ],
+        "saved": [
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "forward_clear_optional",
+      "states": {
+        "cleared": [
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    }
+  ],
   "backend": "postgresql",
   "database_version": "170005",
   "django": "6.1",

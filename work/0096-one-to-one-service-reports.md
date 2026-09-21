@@ -24,7 +24,7 @@ Category의 접근 범위와 명시적 읽기·쓰기 권한을 보고서의 관
 - [x] 명시적 선언과 IR cardinality, 생성 metadata·historical wire/digest·autodetect, unique FK와의 구분
 - [x] 양 DB FK+UNIQUE의 생성/변경/reverse, 기존 중복 실패·행/제약/revision 보존과 명시적 수정 후 재시도
 - [x] generated 단일 reverse 객체·exact typed/dynamic 조회·prefetch와 forward eager, 누락/중복·취소·cache 소유권·PROTECT/SET_NULL
-- [ ] forward/reverse assignment의 객체·cache·저장 의미와 unsaved/required/nullable 실패 경로
+- [x] forward/reverse assignment의 객체·cache·저장 의미와 unsaved/required/nullable 실패 경로
 - [x] 단일 reverse의 관계/필드 isnull·nullable/Boolean·비교/IN/검색·AND/OR/NOT, 다른 reverse/collection 조건과의 조합
 - [x] 단일 reverse와 forward typed eager tree의 조합, 이어지는 관계 경로의 행·cache 소유권
 - [x] facade reverse selector·문자열 mixed path, 지연 접근과 저장/형제 cache 보존
@@ -57,5 +57,8 @@ GoDj warm cache 0 I/O 차이는 DEV-0018에 기록했다.
 Facade의 `.Related` selector·문자열 mixed path도 같은 tree와 generated object factory에 연결했다.
 부모 저장 후 reverse 조회, 지연 child SELECT 관찰, 정방향 FK 변경 후 reverse 형제 cache 보존, namespace·origin·외부 Go 타입 거부를 검증했다.
 Incoming 관계가 있으면서 outgoing FK를 갖는 모델도 삭제할 수 있도록 binding을 정리하고, 독립 Django와 양 DB에서 PROTECT·삭제 후 부모 보존을 확인했다.
-다음은 OneToOne assignment의 전체 의미와 작업 보고서의 실제 입력 소비자다.
+Generated reverse `Set*`는 지정한 두 wrapper를 메모리에서 함께 갱신하고 자식의 명시적 Save가 FK를 저장한다.
+필수/선택 관계의 할당·해제·재할당·unsaved 부모→자식 저장·실패 복구를 독립 Django 14개 관찰과 양 DB에서 대조했다.
+필수 해제의 I/O 전 거부와 unsaved Save 실패 후 다른 wrapper의 cache 보존은 DEV-0018에 구분해 기록했다.
+다음은 작업 보고서의 실제 입력 소비자다.
 전체 platform/cold-build 통합은 소비자 연결 milestone이 소유한다.

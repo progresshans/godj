@@ -50,7 +50,7 @@
 - Date: 2026-09-22
 - Scope: [SQLite raw](../orm/testdata/one-to-one-django61-sqlite.json)와 [PostgreSQL raw](../orm/testdata/one-to-one-django61-postgres.json)의
   `observations` 중 `missing_reverse`, `cached_missing_reverse`, `missing_cache_after_external_insert`, `default_reverse_missing`,
-  `unsaved_owner_reverse`, `reciprocal_forward_cache`. 아직 전체 OneToOne differential contract의 passing 상태가 아니다.
+  `unsaved_owner_reverse`, `reciprocal_forward_cache`, `eager`의 reciprocal 경로, `assignment`의 required clear·unsaved reverse 실패 cache. 아직 전체 OneToOne differential contract의 passing 상태가 아니다.
 - Related: [ADR-0073](adr/0073-one-to-one-cardinality-and-reverse-objects.md), [GDJ-0096](../work/0096-one-to-one-service-reports.md), [증거](status/TEST_EVIDENCE.md)
 
 Django descriptor는 없는 reverse OneToOne에 `RelatedObjectDoesNotExist`를 발생시키고 그 부재를 cache한다.
@@ -69,9 +69,23 @@ Raw `eager`의 `reverse_forward_reverse`·`optional_forward_reverse`·`review_fo
 각 occurrence의 subtree를 독립 보존하여 후속 SELECT 0회를 보장한다. 다른 handle이나 reciprocal descriptor의 전역 identity를 공유하지 않는다.
 Reverse eager의 Fresh는 정상 부재도 owner 기준으로 다시 읽고, 이전 child가 이동·교체돼도 그 PK에 고정하지 않는다.
 
+14개 `assignment` 관찰에서 저장 결과와 명시적 reverse 할당의 두 객체 identity를 비교한다. Forward With/Clear는 기존
+Go API처럼 원본을 보존한 새 wrapper를 반환하고, reverse Set은 caller가 지정한 두 wrapper만 메모리에서 함께 바꾼다.
+Cold reverse clear는 Django처럼 I/O 없는 no-op이며 후속 getter가 기존 DB 자식을 다시 읽는다.
+
+Required Clear의 raw FK는 Python의 None 대신 Go int64 0과 별도 부재 상태로 표현한다. Django는 NULL UPDATE 후
+IntegrityError이고 GoDj는 getter/Unwrap/Save에서 required 오류를 I/O 전에 반환한다. 두 구현 모두 DB의 기존 FK를 보존한다.
+이는 required Save에 의미 없는 0을 보내거나 DB 오류를 흉내 내는 것보다 상태 오류를 명확히 드러내는 기존 Go preflight 규칙이다.
+
+Django는 unsaved owner 때문에 child Save를 거부할 때 owner의 reciprocal cache를 먼저 지운다. 이어 owner만 Save한 뒤
+reverse를 읽으면 부재이고, child Save가 성공하면 다시 reciprocal cache가 연결된다. GoDj는 실패한 Save가 다른 wrapper의
+명시적 cache를 바꾸지 않으므로 중간에도 할당한 child pointer를 유지한다. Owner→child 순서의 성공 저장과 durable FK는 같다.
+Django의 자동 상호 invalidation을 도입하는 대신 기존 caller-owned wrapper와 실패 시 부분 게시 금지 경계를 유지한다.
+이 두 차이를 runtime 비교에서 별도 분기로 검증하며 동일 관찰 PASS나 동일 I/O 횟수로 합치지 않는다.
+
 저장 값·schema migration·권한은 달라지지 않는다. 관련 cache 상태에 따라 SELECT 수는 달라질 수 있고, Django의
 해당 query count를 GoDj parity로 계산하지 않는다. Runtime은 부재·동시 cold load·외부 쓰기/Fresh·copy 거부·실패 재시도와
-prefetch의 독립 소유권을 검증한다. 이 범위를 넘어 lookup·assignment·소비자 미구현을 면제하지 않는다.
+prefetch와 assignment의 독립 소유권을 검증한다. 이 범위를 넘어 남은 관계 기능·소비자 미구현을 면제하지 않는다.
 향후 상호 cache를 도입한다면 명시적 소유권 API와 취소·mutation 회귀를 먼저 정하고 이 결정을 supersede한다.
 
 ## DEV-0017 — JSON 모델의 정확한 token과 엄격한 문서 경계

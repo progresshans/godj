@@ -1029,6 +1029,7 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneReverseLookupsMatchDjango"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneReverseEagerMatchesDjango"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneFacadeReverseEager"
+            "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneAssignmentMatchesDjango"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneAlterFailureRetryReverseAndReopen"
             "github.com/progresshans/godj/db/postgres|TestPostgresDecimalRejectsForeignNumericAndAdaptsMixedRows"
             "github.com/progresshans/godj/db/postgres|TestPostgresDecimalPrecisionKeepsCachedReadersUsable"

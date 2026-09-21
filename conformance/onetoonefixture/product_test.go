@@ -97,7 +97,7 @@ func TestOneToOneSQLiteFacadeReverseEager(t *testing.T) {
 }
 
 func TestOneToOneFacadeReverseAccessorsRejectNamespaceConflicts(t *testing.T) {
-	for _, kind := range []string{"promoted_field", "forward_selector"} {
+	for _, kind := range []string{"promoted_field", "forward_selector", "reverse_setter", "required_clear"} {
 		t.Run(kind, func(t *testing.T) {
 			spec, err := fixture.ProjectSpec(t.Context())
 			if err != nil {
@@ -117,6 +117,14 @@ func TestOneToOneFacadeReverseAccessorsRejectNamespaceConflicts(t *testing.T) {
 							field.GoName = "CertificateID"
 							changed = true
 						}
+						if kind == "reverse_setter" && model.Name == "ticket" && field.Name == "subject" {
+							field.GoName = "SetReport"
+							changed = true
+						}
+						if kind == "required_clear" && model.Name == "report" && field.Name == "note" {
+							field.GoName = "ClearTicket"
+							changed = true
+						}
 					}
 				}
 			}
@@ -128,4 +136,12 @@ func TestOneToOneFacadeReverseAccessorsRejectNamespaceConflicts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOneToOneSQLiteAssignmentMatchesDjango(t *testing.T) {
+	backend, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), "assignment.sqlite3"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	onetoonetest.RunAssignment(t, backend, "sqlite", nil, backend.QueryCount)
 }
