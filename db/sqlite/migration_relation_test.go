@@ -28,6 +28,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
 		AlterFieldDecimalPrecision:        true,
+		UniqueConstraints:                 true,
 	}
 	if got != want {
 		t.Fatalf("MigrationCapabilities() = %+v, want %+v", got, want)
@@ -2744,7 +2745,7 @@ func TestSQLiteNullableRelationAddTargetOutgoingCycleFailsBeforeClaim(t *testing
 	}
 }
 
-func TestSQLiteRelationExternalTargetWithHarmlessSchemaObjects(t *testing.T) {
+func TestSQLiteRelationExternalTargetRejectsUndeclaredIndexAndPreservesHarmlessObjects(t *testing.T) {
 	ctx := context.Background()
 	backend, err := OpenMemory(ctx, "relation-external-target")
 	if err != nil {
@@ -2784,6 +2785,25 @@ func TestSQLiteRelationExternalTargetWithHarmlessSchemaObjects(t *testing.T) {
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_external_relation"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
+	// External targets use the same declared index inventory as touched models.
+	// Reject the unowned index without adopting it or mutating surrounding objects.
+	before := sqliteUniqueReadSnapshot(t, backend, target)
+	rejected := openSQLiteRelationSession(t, backend)
+	if _, err := rejected.ReadAppliedMigrations(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if transaction, err := rejected.BeginMigration(ctx, transition, intent); transaction != nil || !errors.Is(err, errSQLiteRelationPhysicalDrift) {
+		t.Fatal("external target index was silently accepted", err)
+	}
+	if err := rejected.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if after := sqliteUniqueReadSnapshot(t, backend, target); !reflect.DeepEqual(before, after) {
+		t.Fatal("external index rejection changed catalog or history")
+	}
+	if _, err := backend.ExecContext(ctx, `DROP INDEX "external_author_name"`); err != nil {
+		t.Fatal(err)
+	}
 	session := openSQLiteRelationSession(t, backend)
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatal(err)
@@ -2804,6 +2824,9 @@ func TestSQLiteRelationExternalTargetWithHarmlessSchemaObjects(t *testing.T) {
 	}
 	if err := session.Close(ctx); err != nil {
 		t.Fatal(err)
+	}
+	if count := sqliteUniqueCount(t, backend, `SELECT COUNT(*) FROM sqlite_schema WHERE (type='table' AND name='external_audit') OR (type='trigger' AND name='news_article')`); count != 2 {
+		t.Fatal("migration removed harmless surrounding objects")
 	}
 }
 

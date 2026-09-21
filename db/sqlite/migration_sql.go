@@ -76,9 +76,8 @@ func compileMigrationRemoveField(model ir.Model, field ir.Field) (string, error)
 }
 
 func compileMigrationColumn(field ir.Field) (string, error) {
-	if field.Unique {
-		return "", relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
-	}
+	// This is the column body only. The fenced statement compiler emits each
+	// declared unique index separately, after CREATE TABLE or ADD COLUMN.
 	column, err := quoteIdentifier(field.Column)
 	if err != nil {
 		return "", fmt.Errorf("column identifier: %w", err)

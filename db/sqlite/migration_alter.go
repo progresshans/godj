@@ -26,14 +26,20 @@ func (transaction *sqliteRevisionFencedTransaction) AlterField(ctx context.Conte
 			return relationIntentIntegrity("AlterField differs from the sealed field transition at cursor %d", state.cursor)
 		}
 		if kind == ir.ChangeUnique {
-			return relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
+			statement, err := compileSQLiteUniqueAlter(operation.After, wantAfter)
+			if err != nil {
+				return err
+			}
+			if _, err := executor.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("alter SQLite column uniqueness: %w", err)
+			}
 		}
 		if kind == ir.ChangeDecimalPrecision {
 			if err := validateSQLiteDecimalValues(ctx, executor, model, wantBefore, wantAfter); err != nil {
 				return err
 			}
 		}
-		// Both supported changes retain the physical column representation.
+		// All supported changes retain the physical column representation.
 		// Decimal BLOB keys have no field-scale dependency. BEGIN IMMEDIATE is
 		// held through this scan and the catalog/revision/history publication.
 		state.cursor++

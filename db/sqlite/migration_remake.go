@@ -53,34 +53,32 @@ type sqliteRelationRemakeSealSequence struct {
 	Value   int64  `json:"value"`
 }
 
-// sqliteRelationRemakeExecutionError deliberately preserves errors.Is without
+// sqliteMigrationDDLExecutionError deliberately preserves errors.Is without
 // exposing backend capability/revision/sqlite classification through
-// errors.As. Once the remake stream starts, the public owner is the original
-// AddField operation; a late SQLITE_BUSY or defensive final-shape failure must
+// errors.As. Once a DDL stream starts, the public owner is its migration
+// operation; a late SQLITE_BUSY or defensive final-shape failure must
 // not be reclassified as a preclaim capability/fence error.
-type sqliteRelationRemakeExecutionError struct {
+type sqliteMigrationDDLExecutionError struct {
 	stage string
 	cause error
 }
 
-func (e sqliteRelationRemakeExecutionError) Error() string {
+func (e sqliteMigrationDDLExecutionError) Error() string {
 	return e.stage + ": " + e.cause.Error()
 }
 
-func (e sqliteRelationRemakeExecutionError) Is(target error) bool {
+func (e sqliteMigrationDDLExecutionError) Is(target error) bool {
 	return errors.Is(e.cause, target)
 }
 
-func newSQLiteRelationRemakeExecutionError(stage string, cause error) error {
+func newSQLiteMigrationDDLExecutionError(stage string, cause error) error {
 	if cause == nil {
 		return nil
 	}
-	return sqliteRelationRemakeExecutionError{stage: stage, cause: cause}
+	return sqliteMigrationDDLExecutionError{stage: stage, cause: cause}
 }
 
 func preflightSQLiteRelationRemakes(
-	ctx context.Context,
-	executor migrationSQLExecutor,
 	transition migrationbackend.HistoryTransition,
 	seal *sqliteRelationIntentSeal,
 	catalog sqliteRelationCatalog,
@@ -139,9 +137,9 @@ func preflightSQLiteRelationRemakes(
 				err,
 			)
 		}
-		if err := rejectSQLiteRelationRemakeIndexes(ctx, executor, operation.Before.DBTable); err != nil {
-			return nil, [sha256.Size]byte{}, err
-		}
+		// Initial model validation owns the complete index inventory. Earlier
+		// operations may change uniqueness before this remake; its sealed After
+		// model owns the indexes that must be restored.
 		sequence := catalog.sequences[sqliteRelationIdentifierKey(operation.Before.DBTable)]
 		if sequence.present && sequence.name != operation.Before.DBTable {
 			return nil, [sha256.Size]byte{}, relationIntentUnsupported(
@@ -188,39 +186,6 @@ func preflightSQLiteRelationRemakes(
 		return nil, [sha256.Size]byte{}, relationIntentIntegrity("seal relation remake plans: %v", err)
 	}
 	return plans, digest, nil
-}
-
-func rejectSQLiteRelationRemakeIndexes(
-	ctx context.Context,
-	executor migrationSQLExecutor,
-	tableName string,
-) (resultErr error) {
-	table, err := quoteIdentifier(tableName)
-	if err != nil {
-		return relationIntentUnsupported("bounded relation remake table identifier %q is invalid", tableName)
-	}
-	rows, err := executor.QueryContext(ctx, `PRAGMA main.index_list(`+table+`)`)
-	if err != nil {
-		return classifyRevisionIO("list relation remake indexes "+tableName, err)
-	}
-	defer func() {
-		resultErr = errors.Join(resultErr, classifyRevisionIO("close relation remake indexes "+tableName, rows.Close()))
-	}()
-	for rows.Next() {
-		var sequence, unique, partial int
-		var name, origin string
-		if err := rows.Scan(&sequence, &name, &unique, &origin, &partial); err != nil {
-			return classifyRevisionIO("scan relation remake index "+tableName, err)
-		}
-		if origin != "pk" {
-			return relationIntentUnsupported(
-				"bounded relation remake rejects index %q on table %q",
-				name,
-				tableName,
-			)
-		}
-	}
-	return classifyRevisionIO("iterate relation remake indexes "+tableName, rows.Err())
 }
 
 func sqliteRelationRemakeTemporary(
@@ -321,6 +286,10 @@ func executeSQLiteRelationRemake(
 	executor migrationSQLExecutor,
 	plan sqliteRelationRemakePlan,
 ) error {
+	indexes, err := compileSQLiteUniqueIndexes(plan.after)
+	if err != nil {
+		return err
+	}
 	var beforeRows int64
 	if err := executor.QueryRowContext(
 		ctx,
@@ -407,7 +376,7 @@ func executeSQLiteRelationRemake(
 	if err := verifySQLiteRelationRemakeSequence(ctx, executor, plan.after.DBTable, plan.sequence); err != nil {
 		return err
 	}
-	return nil
+	return executeSQLiteMigrationStatements(ctx, executor, indexes)
 }
 
 func qualifiedSQLiteRelationMain(identifier string) string {

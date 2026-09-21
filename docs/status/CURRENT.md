@@ -15,15 +15,15 @@ Helpdesk Admin/API의 search/source를 포함한 source `ef9b05c`의
 지원 표현과 미지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
 모델의 column uniqueness를 진행 중이다. 양 DB의 독립 기준에 이어 `schema.Unique()`를 IR·생성 metadata·historical
-definition/digest·자동 변경 계획에 연결했다. PostgreSQL의 실제 UNIQUE DDL·catalog·저장 충돌 오류와 실패/재시도를
-native DB에서 검증했다. [소유권과 구현 경계](../adr/0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
-Operation별 여러 SQL과 metadata-only의 빈 묶음을 구분하는 공통 renderer·root·프로젝트 runner 계약도 연결했다.
-SQLite 제약과 Form/Admin/API 소비자 연결은 아직 구현 중이며 SQLite는 고유성 migration을 명시적으로 거부한다.
+definition/digest·자동 변경 계획에 연결했다. PostgreSQL의 named UNIQUE와 SQLite의 선언된 unique index를
+실제 DDL·catalog·저장 충돌 오류에 연결했다. 실패/재시도·역방향 적용과 SQLite remake의 index·행·sequence·FK 보존을
+각 backend의 로컬 checkpoint에서 검증했다. [소유권과 구현 경계](../adr/0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
+Operation별 여러 SQL과 metadata-only의 빈 묶음을 구분하는 공통 renderer·root·프로젝트 runner도 사용한다.
+공통 입력 검증과 Form/Admin/API 소비자 연결은 아직 진행 중이다.
 
 ## 다음 행동
 
-SQLite의 UNIQUE 제약 생성·변경·제거와 정확한 물리 catalog 검증을 구현하고 공통 SQL 묶음에 연결한다.
-이어 공통 입력 검증과 양 DB의 저장 충돌을 Form/Admin/API·Helpdesk 외부 참조·generated client까지 연결한다.
+공통 입력 검증과 양 DB의 저장 충돌을 Form/Admin/API·Helpdesk 외부 참조·generated client까지 연결한다.
 구현과 검증 범위는 GDJ-0095와 TEST_EVIDENCE에 기록한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.

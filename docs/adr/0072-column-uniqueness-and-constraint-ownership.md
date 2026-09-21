@@ -1,6 +1,6 @@
 # ADR-0072: Column uniqueness and physical constraint ownership
 
-- 상태: Accepted — 공통 선언·이력과 PostgreSQL 구현. SQLite·입력 소비자 연결은 GDJ-0095에서 진행 중.
+- 상태: Accepted — 공통 선언·이력과 양 DB 구현. 입력 소비자 연결은 GDJ-0095에서 진행 중.
 - 날짜: 2026-09-21
 - 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md)
 
@@ -26,7 +26,7 @@ Unique 추가/제거는 전체 before/after field를 가진 단일 facet의 Alte
 
 `UniqueConstraints` capability는 제약의 생성·변경·제거와 유지되는 target/transitive 모델의 물리 검증을 함께 뜻한다.
 지원하지 않는 backend는 transaction 전에 거부하며 순수 SQL projection도 선언을 버리지 않는다.
-Unique AlterField에는 물리 SQL이 필요하다. Metadata-only 빈 slot으로 성공할 수 없다.
+Unique AlterField에는 물리 SQL이 필요하다. Metadata-only 빈 group으로 성공할 수 없다.
 
 ## PostgreSQL
 
@@ -56,6 +56,37 @@ Insert/update의 non-PK SQLSTATE 23505는 `integrity_error/unique_constraint`로
 기존 `unique_primary_key`는 유지하고 원인 오류를 보존한다. 표시 문자열에는 native 오류의 중복 값을 넣지 않는다.
 Go context 취소는 해당 context의 오류로 반환한다. 서버 오류 문구를 파싱해 field를 추측하지 않는다.
 
+## SQLite
+
+Table/column 선언과 별도의 `CREATE UNIQUE INDEX`를 한 operation에서 순서대로 실행한다.
+`godj/sqlite/unique/v1` domain과 길이로 구분한 table/column bytes의 SHA256 앞 192-bit를 사용해
+56자 `godj_uq_` 이름을 결정한다. Index schema는 명시적 `main`이며 기본 BINARY ASC와 distinct SQL NULL을 사용한다.
+Unique AlterField는 CREATE/DROP INDEX다. Scalar RemoveField는 소유 index를 먼저 제거한 뒤 column을 제거한다.
+기존 이름의 객체를 `IF NOT EXISTS`로 묵시적으로 채택하지 않는다. [SQLite unique index](https://sqlite.org/lang_createindex.html)를 따른다.
+
+물리 검증은 [index_list](https://sqlite.org/pragma.html#pragma_index_list)의 이름·unique·origin·partial과
+[index_xinfo](https://sqlite.org/pragma.html#pragma_index_xinfo)의 column ordinal/name·방향·collation·key/auxiliary를 검사한다.
+정확히 선언된 단일 BINARY ASC key와 auxiliary rowid만 허용한다. 현재 INTEGER PRIMARY KEY AUTOINCREMENT는
+별도 index가 없으므로 미선언 index·자동 UNIQUE index·다른 column·compound/expression/partial·NOCASE/DESC를 거부한다.
+직접 변경되는 모델뿐 아니라 유지되는 모든 direct/transitive target에도 같은 검사를 적용한다.
+기존에 허용하던 untouched target의 미선언 nonunique index도 이제 명시적으로 거부한다.
+
+Initial/final 상태와 중간 operation의 이름을 함께 예약한다. Main/TEMP의 table/view/index가 선언된 index 이름이나 소유권과
+충돌하면 revision claim 전에 거부한다. Trigger 이름은 SQLite의 별도 namespace이므로 이름만으로 충돌시키지 않으며,
+변경 table이나 control을 참조하는 기존 trigger 위험 검사는 유지한다. 무관한 table/trigger는 보존한다.
+Catalog 객체의 소유 table과 INTEGER PRIMARY KEY의 물리 의미는 [sqlite_schema](https://sqlite.org/schematab.html)를 따른다.
+
+FK RemoveField의 sealed remake는 해당 operation의 After 모델에 남는 unique index를 재생성한다.
+기존 table의 index 이름은 DROP TABLE 뒤 해제되므로 row copy·table 교체·sequence 복원 뒤 index를 생성한다.
+같은 step에서 앞선 operation이 uniqueness를 바꿨더라도 초기 물리 상태로 되돌리지 않는다.
+모든 DDL과 최종 검증은 pinned transaction 안에서 실행하며 중간/최종 실패는 원래 operation이 소유한다.
+실패 상태에서 recorder 기록과 commit을 거부하고 원래 행·index·sequence·revision/recorder·FK 설정을 복구한다.
+제약을 정확히 검증하지 않는 legacy direct editor는 unique 모델/필드를 명시적으로 거부한다.
+
+Insert/update의 구조화된 SQLite extended code 2067은 `integrity_error/unique_constraint`다.
+Insert의 1555는 기존 `unique_primary_key`를 유지한다. Native cause는 보존하고 표시 문자열은 중복 값을 노출하지 않는다.
+Context 취소를 우선하며 오류 문구만으로 충돌이나 field를 추측하지 않는다.
+
 ## Operation별 SQL 묶음
 
 테이블 DDL과 별도 unique index DDL을 하나의 operation에 담을 수 있도록 backend SQL renderer를 `[][]string`으로 변경했다.
@@ -66,12 +97,10 @@ Go context 취소는 해당 context의 오류로 반환한다. 서버 오류 문
 
 ## 남은 구현
 
-SQLite의 명시적인 unique index 소유권과 Create/Add/remake의 실제 DDL·catalog·복구 경로를 연결한다.
-현재 SQLite는 이 capability를 제공하지 않으므로 고유성 migration과 SQL projection을 거부한다.
 Form/Admin/API의 사전 검증과 DB 충돌 오류, Helpdesk의 외부 참조, 실제 generated client까지 이어서 검증한다.
 사전 검증이 통과하더라도 DB 제약을 최종 무결성 경계로 유지한다.
 
 Composite/conditional/expression constraint, OneToOneField, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.
-이 ADR의 PostgreSQL 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.
+이 ADR의 양 DB 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.
 Source·환경·실패·실행별 증거는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

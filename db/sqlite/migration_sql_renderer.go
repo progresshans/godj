@@ -67,22 +67,25 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 			return nil, err
 		}
 		operation := seal.intent.Operations[index]
-		var statement string
 		switch operation.Kind {
 		case migrationbackend.MigrationAlterField:
-			continue
+			_, field, kind, deltaErr := migrationbackend.ChangedField(operation.Before, operation.After)
+			if deltaErr != nil {
+				return nil, relationIntentIntegrity("invalid AlterField delta: %v", deltaErr)
+			}
+			if kind == ir.ChangeUnique {
+				var statement string
+				statement, err = compileSQLiteUniqueAlter(operation.After, field)
+				groups[index] = []string{statement}
+			}
 		case migrationbackend.MigrationCreateModel:
-			statement, err = compileSQLiteRelationCreateModel(operation.After, operation.Targets)
+			groups[index], err = compileSQLiteCreateModelStatements(operation.After, operation.Targets)
 		case migrationbackend.MigrationAddField:
 			field, deltaErr := operation.ChangedField()
 			if deltaErr != nil {
 				return nil, relationIntentIntegrity("invalid AddField delta: %v", deltaErr)
 			}
-			if field.Kind == ir.FieldForeignKey {
-				statement, err = compileSQLiteRelationAddField(operation.Before, field, operation.Targets)
-			} else {
-				statement, err = compileMigrationAddField(operation.Before, field)
-			}
+			groups[index], err = compileSQLiteAddFieldStatements(operation.Before, field, operation.Targets)
 		default:
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",
@@ -93,7 +96,6 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		if err != nil {
 			return nil, err
 		}
-		groups[index] = []string{statement}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

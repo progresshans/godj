@@ -485,7 +485,7 @@ func (session *relationSession) Insert(ctx context.Context, plan query.InsertPla
 	session.mutationPossible = true
 	result, err := session.connection.ExecContext(ctx, statement, arguments...)
 	if err != nil {
-		return 0, classifyInsertError(err)
+		return 0, classifySQLiteWriteError(ctx, "insert", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
@@ -521,7 +521,7 @@ func (session *relationSession) Update(ctx context.Context, plan query.UpdatePla
 	session.mutationPossible = true
 	result, err := session.connection.ExecContext(ctx, statement, arguments...)
 	if err != nil {
-		return 0, fmt.Errorf("execute SQLite relation transaction update: %w", err)
+		return 0, classifySQLiteWriteError(ctx, "update", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {

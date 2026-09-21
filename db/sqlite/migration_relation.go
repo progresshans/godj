@@ -46,6 +46,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		RemoveForeignKey:                  true,
 		AlterFieldChoices:                 true,
 		AlterFieldDecimalPrecision:        true,
+		UniqueConstraints:                 true,
 	}
 }
 
@@ -597,6 +598,7 @@ func validateSQLiteRelationIntent(
 	// semantic app/model identities exact; this backend additionally rejects
 	// physical table/column aliases and reverse-name collisions.
 	tableOwners := make(map[string]ir.ModelIdentity)
+	indexOwners := make(map[string]sqliteUniqueIndexOwner)
 	modelNames := make(map[struct{ app, name string }]ir.ModelIdentity)
 	reverseOwners := make(map[ir.ModelIdentity]map[string]struct {
 		source ir.ModelIdentity
@@ -621,7 +623,16 @@ func validateSQLiteRelationIntent(
 		columns := make(map[string]bool, len(model.Fields))
 		for _, field := range model.Fields {
 			if field.Unique {
-				return relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
+				name, err := sqliteUniqueIndexName(model.DBTable, field.Column)
+				if err != nil {
+					return err
+				}
+				key := sqliteRelationIdentifierKey(name)
+				owner := sqliteUniqueIndexOwner{name, model.DBTable, field.Column}
+				if previous, exists := indexOwners[key]; exists && previous != owner {
+					return relationIntentIntegrity("unique index name has multiple declared owners")
+				}
+				indexOwners[key] = owner
 			}
 			column := sqliteRelationIdentifierKey(field.Column)
 			if columns[column] {
@@ -707,6 +718,11 @@ func validateSQLiteRelationIntent(
 			}
 		}
 	}
+	for name := range indexOwners {
+		if _, exists := tableOwners[name]; exists {
+			return relationIntentIntegrity("unique index name collides with a declared SQLite table")
+		}
+	}
 	return nil
 }
 
@@ -717,7 +733,7 @@ func validateSQLiteRelationStaticOperation(
 ) error {
 	switch operation.Kind {
 	case migrationbackend.MigrationCreateModel:
-		if _, err := compileSQLiteRelationCreateModel(after, operation.Targets); err != nil {
+		if _, err := compileSQLiteCreateModelStatements(after, operation.Targets); err != nil {
 			return relationIntentUnsupported("relation CreateModel operation %d cannot compile safely: %v", operation.OperationIndex, err)
 		}
 	case migrationbackend.MigrationDeleteModel:
@@ -729,17 +745,11 @@ func validateSQLiteRelationStaticOperation(
 		if err != nil {
 			return relationIntentIntegrity("invalid AddField delta: %v", err)
 		}
-		if field.Kind == ir.FieldForeignKey {
-			if _, err := compileSQLiteRelationAddField(before, field, operation.Targets); err != nil {
-				return relationIntentUnsupported("relation AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
-			}
-		} else {
-			if field.PrimaryKey {
-				return relationIntentUnsupported("relation-step AddField operation %d must be non-primary-key", operation.OperationIndex)
-			}
-			if _, err := compileMigrationAddField(before, field); err != nil {
-				return relationIntentUnsupported("relation-step AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
-			}
+		if field.PrimaryKey {
+			return relationIntentUnsupported("relation-step AddField operation %d must be non-primary-key", operation.OperationIndex)
+		}
+		if _, err := compileSQLiteAddFieldStatements(before, field, operation.Targets); err != nil {
+			return relationIntentUnsupported("relation AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
 		}
 	case migrationbackend.MigrationRemoveField:
 		field, err := operation.ChangedField()
@@ -867,15 +877,19 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationCreateModel(c
 		if operation.Kind != migrationbackend.MigrationCreateModel || !reflect.DeepEqual(model, operation.After) {
 			return relationIntentIntegrity("relation CreateModel does not match sealed operation at cursor %d", state.cursor)
 		}
-		statement, err := compileSQLiteRelationCreateModel(operation.After, operation.Targets)
+		statements, err := compileSQLiteCreateModelStatements(operation.After, operation.Targets)
 		if err != nil {
 			return err
 		}
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
+		if err := executeSQLiteMigrationStatements(ctx, executor, statements); err != nil {
 			return fmt.Errorf("create SQLite relation model %q: %w", operation.After.DBTable, err)
 		}
 		state.cursor++
-		return transaction.completeRelationOperationIfLast(ctx, executor)
+		err = transaction.completeRelationOperationIfLast(ctx, executor)
+		if err != nil && len(statements) > 1 {
+			return newSQLiteMigrationDDLExecutionError("verify SQLite migration SQL group", err)
+		}
+		return err
 	})
 }
 
@@ -922,16 +936,10 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 		if !reflect.DeepEqual(model, operation.Before) || !reflect.DeepEqual(field, wantField) {
 			return relationIntentIntegrity("relation-step AddField does not match sealed model/field at cursor %d", state.cursor)
 		}
-		var statement string
-		var err error
-		if field.Kind == ir.FieldForeignKey {
-			statement, err = compileSQLiteRelationAddField(operation.Before, wantField, operation.Targets)
-		} else {
-			if field.PrimaryKey {
-				return relationIntentUnsupported("SQLite relation-step AddField must be non-primary-key")
-			}
-			statement, err = compileMigrationAddField(operation.Before, wantField)
+		if field.PrimaryKey {
+			return relationIntentUnsupported("SQLite relation-step AddField must be non-primary-key")
 		}
+		statements, err := compileSQLiteAddFieldStatements(operation.Before, wantField, operation.Targets)
 		if err != nil {
 			return err
 		}
@@ -955,11 +963,15 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 				)
 			}
 		}
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
+		if err := executeSQLiteMigrationStatements(ctx, executor, statements); err != nil {
 			return fmt.Errorf("add SQLite field %s.%s in relation step: %w", operation.Before.DBTable, field.Column, err)
 		}
 		state.cursor++
-		return transaction.completeRelationOperationIfLast(ctx, executor)
+		err = transaction.completeRelationOperationIfLast(ctx, executor)
+		if err != nil && len(statements) > 1 {
+			return newSQLiteMigrationDDLExecutionError("verify SQLite migration SQL group", err)
+		}
+		return err
 	})
 }
 
@@ -1007,7 +1019,7 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationRemoveField(
 				state.cursor++
 				return transaction.completeRelationOperationIfLast(ctx, executor)
 			}(); err != nil {
-				return newSQLiteRelationRemakeExecutionError(
+				return newSQLiteMigrationDDLExecutionError(
 					fmt.Sprintf("remove SQLite relation field %s.%s by bounded remake", operation.Before.DBTable, field.Column),
 					err,
 				)
@@ -1018,7 +1030,21 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationRemoveField(
 		if err != nil {
 			return err
 		}
+		if wantField.Unique {
+			removed := wantField.Clone()
+			removed.Unique = false
+			drop, err := compileSQLiteUniqueAlter(operation.Before, removed)
+			if err != nil {
+				return err
+			}
+			if _, err := executor.ExecContext(ctx, drop); err != nil {
+				return fmt.Errorf("drop unique index before removing SQLite field: %w", err)
+			}
+		}
 		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			if wantField.Unique {
+				return newSQLiteMigrationDDLExecutionError("remove SQLite column after its unique index", err)
+			}
 			if sqliteDropColumnCapabilityFailure(err) {
 				return migrationbackend.NewCapabilityError(
 					"sqlite_drop_column",
@@ -1029,7 +1055,11 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationRemoveField(
 			return fmt.Errorf("remove SQLite scalar field %s.%s in relation step: %w", operation.Before.DBTable, field.Column, err)
 		}
 		state.cursor++
-		return transaction.completeRelationOperationIfLast(ctx, executor)
+		err = transaction.completeRelationOperationIfLast(ctx, executor)
+		if err != nil && wantField.Unique {
+			return newSQLiteMigrationDDLExecutionError("verify SQLite unique column removal", err)
+		}
+		return err
 	})
 }
 
@@ -1073,9 +1103,6 @@ func compileSQLiteRelationCreateModel(
 	targetIndex := 0
 	for fieldIndex := range model.Fields {
 		field := model.Fields[fieldIndex]
-		if field.Unique {
-			return "", relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
-		}
 		if field.Kind != ir.FieldForeignKey {
 			column, err := compileMigrationColumn(field)
 			if err != nil {
@@ -1127,9 +1154,6 @@ func compileSQLiteRelationAddField(
 	field ir.Field,
 	targets []migrationbackend.MigrationTarget,
 ) (string, error) {
-	if field.Unique {
-		return "", relationIntentUnsupported("UniqueConstraints is not implemented by the SQLite migration backend")
-	}
 	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey || field.Default != nil ||
 		(!field.Nullable && field.Relation.OnDelete != ir.DeleteProtect) {
 		return "", errors.New("relation AddField requires a non-primary-key ForeignKey with no migration default; required fields must use PROTECT")
@@ -1190,7 +1214,7 @@ func preflightSQLiteRelationIntent(
 	if err := preflightSQLiteRelationModels(ctx, executor, transition, seal, catalog); err != nil {
 		return nil, [sha256.Size]byte{}, err
 	}
-	return preflightSQLiteRelationRemakes(ctx, executor, transition, seal, catalog)
+	return preflightSQLiteRelationRemakes(transition, seal, catalog)
 }
 
 func loadSQLiteRelationCatalog(ctx context.Context, executor migrationSQLExecutor) (sqliteRelationCatalog, error) {
@@ -1373,6 +1397,10 @@ func loadSQLiteRelationCatalog(ctx context.Context, executor migrationSQLExecuto
 }
 
 func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *sqliteRelationIntentSeal) error {
+	indexes, err := sqliteUniqueIndexOwners(seal)
+	if err != nil {
+		return err
+	}
 	controls := map[string]struct{}{
 		sqliteRelationIdentifierKey(migrationRevisionTable): {},
 		sqliteRelationIdentifierKey(migrationRecorderTable): {},
@@ -1398,6 +1426,9 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 	for _, snapshot := range append(seal.graphPlan.InitialModels(), seal.graphPlan.FinalModels()...) {
 		relevant[sqliteRelationIdentifierKey(snapshot.Model.DBTable)] = struct{}{}
 	}
+	for name := range indexes {
+		relevant[name] = struct{}{}
+	}
 
 	for _, object := range catalog.objects {
 		nameKey := object.nameKey
@@ -1406,6 +1437,10 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 		_, ownerTouched := touched[ownerKey]
 		_, ownerControl := controls[ownerKey]
 		_, nameControl := controls[nameKey]
+		index, declaredIndex := indexes[nameKey]
+		if declaredIndex && object.kind != "trigger" && (object.schema != "main" || object.kind != "index" || object.name != index.name || object.owner != index.table) {
+			return relationPhysicalDrift("SQLite %s %s %q conflicts with declared unique index ownership", object.schema, object.kind, object.name)
+		}
 		if object.schema == "temp" && object.kind != "trigger" && nameRelevant {
 			return relationPhysicalDrift("SQLite TEMP %s %q shadows a relation/control identifier", object.kind, object.name)
 		}
@@ -1422,7 +1457,7 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 				return relationPhysicalDrift("SQLite migration control table %q differs from its canonical schema", object.name)
 			}
 		}
-		if object.kind == "index" && object.sql != "" && (ownerTouched || ownerControl) {
+		if object.kind == "index" && object.sql != "" && (ownerTouched || ownerControl) && !declaredIndex {
 			return relationPhysicalDrift("SQLite index %s.%q is undeclared on touched/control table %q", object.schema, object.name, object.owner)
 		}
 		if object.kind == "trigger" {
@@ -2342,6 +2377,9 @@ func assertSQLiteRelationModelShape(
 		if err := cache.assertAutoKey(ctx, executor, foreignKey.table, foreignKey.to); err != nil {
 			return fmt.Errorf("table %q foreign key %q target: %w", model.DBTable, field.Column, err)
 		}
+	}
+	if err := assertSQLiteUniqueIndexes(ctx, executor, model, layout); err != nil {
+		return err
 	}
 	cache.layouts[model.DBTable] = layout
 	return nil

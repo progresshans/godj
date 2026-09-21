@@ -37,9 +37,9 @@ Raw와 실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소�
 
 - [x] 양 DB 독립 관찰과 네 Python 버전의 fresh reference 검증
 - [x] Schema IR/선언·정규화·소유권·생성 metadata·historical wire/digest·unique-only 변경 분류
-- [ ] 양 DB create/add/remove/alter와 sqlmigrate, 선언된 unique constraint/index의 정확한 catalog 검증
-- [ ] 기존 중복 데이터의 실패/rollback·recorder/revision 보존·재시도·reverse·reopen·inbound FK/sequence 보존
-- [ ] 실제 insert/update 충돌의 안정적 무결성 오류·취소·경쟁 쓰기와 정상 결과 보존
+- [x] 양 DB Create/Add/Alter·reverse 실행과 현행 forward SQL projection, 선언된 unique constraint/index의 정확한 catalog 검증
+- [x] 기존 중복 데이터의 실패/rollback·recorder/revision 보존·재시도·reverse·reopen·inbound FK/sequence 보존
+- [x] 실제 insert/update 충돌의 안정적 무결성 오류·취소·경쟁 쓰기와 정상 결과 보존
 - [ ] 재사용 가능한 context/error 기반 검증과 Helpdesk Form/Admin/API·OpenAPI/client 연결
 - [ ] 관련 생성 소비자·DB/process/race checkpoint와 고정 source의 필요한 통합 milestone
 
@@ -68,7 +68,14 @@ Native PostgreSQL에서 독립 13 profile·96 insert, 자기 행/중복 update·
 Group 수와 총 statement 수·byte 한도를 분리하고 묶음 내부까지 취소·소유권·오류 검사를 적용한다. 양 DB와 project runner 소비자를
 같은 계약으로 바꿨다. SQL 출력의 성공과 실제 DDL 적용은 구분한다.
 
-SQLite는 아직 이 capability를 제공하지 않고 schema·recorder 쓰기 전에 거부한다. 다음은 선언된 unique index의 Create/Add/Alter/Remove와
-remake의 실제 DDL·catalog 검증을 구현하는 것이다. 기존 revision fence·rollback·FK/sequence 보존을 유지한다.
-이어 공통 입력 검증·양 DB 저장 충돌을 Form/Admin/API·Helpdesk/generated client에 연결한다. 위 PostgreSQL checkpoint로
-양 DB 항목이나 전체 고유성 작업을 완료 처리하지 않는다.
+SQLite도 capability를 제공하며 deterministic named unique index를 Create/Add/Alter·reverse 실행과 SQL 묶음에 연결했다.
+선언된 모든 모델과 target/transitive 모델의 index 집합·소유자·column·BINARY ASC·rowid를 정확히 검사한다.
+FK 제거를 위한 remake는 남는 unique index를 복원하며 실패하면 행·index·sequence·FK 설정과 recorder/revision을 함께 rollback한다.
+여러 DDL 중간과 최종 검증의 실패는 해당 operation이 소유하며 recorder/commit으로 성공을 게시하지 않는다.
+Legacy direct editor는 unique 모델을 명시적으로 거부한다. Public sqlmigrate는 기존 Create/Add/Alter forward 범위를 유지하고
+실제 reverse Remove/Delete 실행 지원을 destructive SQL preview 지원으로 확대하지 않는다.
+
+SQLite 로컬 normal·선택 race/process·CGO-disabled와 SQL 소비자 checkpoint를 완료했다. 독립 96개 입력 시도 중 NaN의 사전 거부와
+JSON canonical 저장은 기존 GoDj 정책에 따라 별도로 대조했다. 실행 source·실패와 환경 범위는 TEST_EVIDENCE가 소유한다.
+다음은 공통 입력 검증·양 DB 저장 충돌을 Form/Admin/API·Helpdesk/generated client에 연결하는 것이다.
+Backend checkpoint를 소비자 연결이나 전체 고유성 작업의 완료로 합치지 않는다.

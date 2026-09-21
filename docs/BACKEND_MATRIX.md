@@ -11,7 +11,7 @@
 | Relation delete | supported physical FK의 PROTECT/SET_NULL | declared current backend capability 기준 |
 | Migration | revision session, current Create/Delete/Add/Remove와 choices-only·Decimal precision-only AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
-| Column uniqueness | 선언·이력만 지원; 실제 migration/SQL은 capability 오류 | named UNIQUE·단일 B-tree·Create/Add/Alter와 reverse·정확한 catalog·insert/update 충돌 오류 |
+| Column uniqueness | named unique index·Create/Add/Alter와 reverse·remake 보존·정확한 catalog·insert/update 충돌 오류 | named UNIQUE·단일 B-tree·Create/Add/Alter와 reverse·정확한 catalog·insert/update 충돌 오류 |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
 | CGO | pure Go 경로 | pure Go 경로 |
 
@@ -25,10 +25,12 @@ nullable/time default·comparison/F·projection/Min/Max를 지원한다. [시간
 String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterField는 양 DB의 revision-fenced lifecycle에서 DDL 없이 상태·recorder를 갱신하며 물리 catalog 검증은 수행한다. [선택값 의미](adr/0063-model-choices-and-metadata-only-migrations.md)를 따른다.
 Column uniqueness는 `schema.Unique()`·IR·생성 metadata·historical definition/digest·자동 변경 계획까지 연결했다.
 PK는 이미 고유하므로 별도 Unique flag를 정규화하며, Unique FK는 many-to-one/reverse collection을 유지한다.
-PostgreSQL은 `UniqueConstraints` capability를 제공하며 정확히 선언한 native constraint/index만 허용한다.
+양 DB는 `UniqueConstraints` capability를 제공하며 정확히 선언한 native constraint/index만 허용한다.
+SQLite는 별도 unique index의 BINARY ASC 단일 column과 rowid를 검사하며 FK remake에서 유지되는 index를 재생성한다.
+검증 대상인 모든 모델·direct/transitive target의 미선언 index는 거부한다. Legacy direct editor에는 이 capability를 확장하지 않는다.
 기존 중복으로 UNIQUE 추가/역방향 적용이 실패하면 행·catalog·revision/recorder를 보존하고 명시적 수정 후 재시도한다.
 Insert/update의 non-PK 충돌은 `integrity_error/unique_constraint`이며 native cause와 context 취소를 유지한다.
-SQLite의 capability는 false로 migration/SQL projection을 명시적으로 거부한다. SQLite와 입력 검증·소비자는
+입력 검증과 Form/Admin/API·Helpdesk/client 소비자 연결은
 [활성 작업](../work/0095-model-uniqueness.md)에서 이어간다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
 Nullable/default·comparison/IN/F·projection/Min/Max·forward relation을 지원하며 [날짜 경계](adr/0065-calendar-date-field-and-input-boundaries.md)를 따른다.

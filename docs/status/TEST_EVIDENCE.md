@@ -3,6 +3,60 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0095 — SQLite 고유성·정확한 index 검증·실패 복구
+
+2026-09-21, darwin/arm64 Go **1.26.5**, `modernc.org/sqlite v1.56.0`의 실제 SQLite runtime **3.53.3**,
+`TZ=Pacific/Chatham`. Normal/race/SQL consumer는 **CGO_ENABLED=1**, 별도 CGO-disabled 검사는 **0**이다.
+기준 `a11f07f0fb4673e5660a9f3108c5b5f794905b3b` 위 제품·검증 **13경로** manifest SHA256은
+`0088d21093a5fa5a5dbd82431bf4355dc12db6c70b45332eea2801143aa8b32a`다.
+검사 전후 source hash와 최종 run/pass 목록을 대조했다. 설계는 [ADR-0072](../adr/0072-column-uniqueness-and-constraint-ownership.md)가 소유한다.
+
+- `UniqueConstraints`를 제공하고 Create/Add의 table/column DDL 뒤 선언된 unique index를 같은 operation에서 생성한다.
+  Unique Alter는 CREATE/DROP INDEX이며 scalar reverse는 index와 column을 순서대로 제거한다.
+  순수 renderer/root의 실제 다중 SQL 순서·Choices의 빈 group·unique 제거 body를 확인했다.
+  검증 없는 legacy direct editor의 네 unique mutation은 명시적으로 거부하고 schema/recorder를 쓰지 않는다.
+- 독립 Django SQLite raw **13 profile / 96개 입력 시도**를 GoDj typed write에 대조했다.
+  **NaN 2개는 기존 GoDj 정책으로 I/O 전에 거부**한다. Django 기본 JSON의 object key 순서에 따른 **1개 결과 차이**는
+  기존 canonical 저장 profile에 따라 구분한다. 96개가 모두 실제 DB insert이거나 Django 기본 결과와 일치했다고 합치지 않는다.
+  SQL NULL·빈 문자열·case·UUID 별칭·numeric 동등성·JSON null, 자기 행/중복 update·취소·재접속 후 행/NULL/catalog를 확인했다.
+- File DB의 별도 두 backend/pool에서 `busy_timeout(5000)` readback 뒤 경쟁 insert는 **1 성공 / 1 unique_constraint / 저장 행 1**이다.
+  Atomic과 AtomicRelation의 insert/update 충돌은 앞선 변경까지 rollback하고 후속 쓰기가 정상 동작한다.
+  구조화된 extended code 2067·native cause·값을 숨긴 진단·context 취소와 기존 PK 1555를 구분하며 문구-only 분류를 거부한다.
+- 기존 중복으로 unique 추가/역방향 적용이 실패하면 정확한 catalog·revision/recorder·행·inbound FK가 유지된다.
+  실패 전 revision으로 재진입하고 명시적 데이터 수정 후 재시도·reopen을 확인했다.
+  Nullable UUID/FK unique 추가·reverse, unique FK 변경, 모델 그래프 전체 reverse/재생성도 실행했다.
+- FK Remove remake에서 scalar와 FK의 유지되는 unique index를 재생성한다. Row/NULL·FK 제약과 삭제된 행의 sequence high-water를
+  보존해 다음 ID가 **91/71**이었다. 같은 step에서 uniqueness 변경 뒤 remake가 실행되는 두 방향도 operation의 After 상태를 따른다.
+  Index 재생성 실패를 table 교체·sequence 복원 뒤에 주입해 원래 schema/index/행/sequence/FK 설정/이력으로 정확히 rollback됨을 확인했다.
+- Missing/nonunique/wrong column/DESC/NOCASE/compound/expression/partial/extra index/이름 spelling/wrong owner의 **11개 native drift**는
+  revision claim 전에 거부됐다. Future index 이름의 main/TEMP 충돌과 transitive target의 빠진 unique index도 변경 없이 거부한다.
+  같은 이름의 무관한 trigger는 별도 namespace로 보존했다. Untouched target의 미선언 nonunique index는 명시적으로 거부한다.
+- Table 생성 뒤 index 생성 실패, unique scalar 제거 중 DROP COLUMN의 busy, 제거 완료 뒤 catalog의 busy/physical drift를 주입했다.
+  실제 중간 DDL까지 관찰하고 오류의 operation 소유권·cause를 확인했다. Recorder/commit은 실패 상태를 유지하고 전체 rollback과 재시도가 성공했다.
+  여러 SQL 중 뒤 body의 busy를 revision claim 실패로 재분류하지 않는 검사도 포함했다.
+
+| 실행 | 결과 |
+|---|---|
+| `go test -json -count=1 -timeout=15m ./db/sqlite ./migrations ./migrations/backend` | 3 package, root 469 / 전체 **3,035 run=PASS** |
+| `go test -race -json -count=1 -timeout=15m -run 'Unique\|SQLiteRevisionFenceTwoProcessSingleWinnerAndReopen\|SQLite(RelationRemake\|LoadedRelationRemake)' ./db/sqlite` | root 25 / 전체 **179 run=PASS** |
+| `CGO_ENABLED=0 go test -json -count=1 -timeout=15m -run 'Unique\|SQLite(RelationRemake\|LoadedRelationRemake)' ./db/sqlite` | root 24 / 전체 **178 run=PASS** |
+| `go test -json -count=1 -timeout=15m -run 'ChoicesSQL\|MigrationSQLRendering\|MigrationRelation' ./conformance/choicesproduct ./conformance/runners/godj` | 2 package, root 10 / 전체 **17 run=PASS** |
+
+모든 최종 실행은 skip/fail·stderr **0**이고 package terminal과 run/pass roster가 일치한다. Normal/race/CGO0의 공통 unique roster
+**148개**와 독립 입력 subtest **96개**를 각각 대조했다. 실제 two-process revision fence 부모도 race에서 PASS다.
+새 unique 쓰기 경쟁은 두 pool 검사이며 별도 process 경쟁으로 표현하지 않는다.
+
+초기 focused 실행은 quoted identifier의 하이픈을 잘못 invalid로 둔 테스트 1건이 실패했다. NUL 입력으로 고쳤으며 제품의 quoting은 제한하지 않았다.
+첫 normal 실행은 untouched target의 미선언 index를 허용하던 기존 기대 1건이 실패했다. 정확한 선언 inventory에 따라 preclaim 거부와
+snapshot 보존을 검사하고 명시적 DROP 뒤 성공·무관한 table/trigger 보존을 이어서 확인하도록 변경했다. 위험 검사를 삭제하지 않았다.
+중단 전 소스 `237224989e1f1bc1fcdbe2c900f3985c06cafa70c2fefc99d980d559a4c7ac1a`의 terminal 성공과 현재 파일 일치를 복구 시 확인했다.
+추가 검토에서 unique scalar 제거의 최종 검증 오류 분류를 보강하고 세 실패 회귀를 넣은 뒤 위 네 실행을 최종 source에서 다시 수행했다.
+
+Affected `go vet ./db/sqlite ./migrations ./migrations/backend`, `make format-check docs-check`, `git diff --check`도 PASS다.
+Markdown 137개 링크를 확인했다. Generator 출력 변경은 없어 generated drift 대상이 아니다.
+이 checkpoint는 SQLite 구현과 현행 SQL 소비자의 로컬 증거다. 이전 PostgreSQL native 결과는 위 baseline의 별도 증거이며 다시 실행하지 않았다.
+공통 입력 검증·Form/Admin/API/Helpdesk/client의 고유성 소비자, Hosted/full-platform과 GDJ-0095 전체 완료는 남아 있다.
+
 ## GDJ-0095 — Operation별 SQL 묶음과 실제 sqlmigrate 출력
 
 2026-09-21, darwin/arm64 Go **1.26.5**, `TZ=Pacific/Chatham`. Normal은 **CGO_ENABLED=0**, race는 CGO=1이다.

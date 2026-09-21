@@ -114,7 +114,7 @@ func executeInsert(ctx context.Context, executor writeExecutor, plan query.Inser
 	}
 	result, err := executor.ExecContext(ctx, statement, arguments...)
 	if err != nil {
-		return 0, classifyInsertError(err)
+		return 0, classifySQLiteWriteError(ctx, "insert", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
@@ -134,17 +134,37 @@ func executeInsert(ctx context.Context, executor writeExecutor, plan query.Inser
 	return lastInsertID, nil
 }
 
-func classifyInsertError(err error) error {
-	var sqliteError *modernsqlite.Error
-	if errors.As(err, &sqliteError) && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
-		return &query.Error{
-			Category: query.CategoryIntegrity,
-			Code:     query.CodeUniquePrimaryKey,
-			Detail:   "SQLite primary-key constraint rejected the insert",
-			Cause:    err,
+func classifySQLiteWriteError(ctx context.Context, operation string, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctx != nil {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return contextErr
 		}
 	}
-	return fmt.Errorf("execute SQLite insert: %w", err)
+	var sqliteError *modernsqlite.Error
+	if errors.As(err, &sqliteError) {
+		code := ""
+		if operation == "insert" && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+			code = query.CodeUniquePrimaryKey
+		} else if (operation == "insert" || operation == "update") && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE {
+			code = query.CodeUniqueConstraint
+		}
+		if code != "" {
+			detail := "SQLite unique constraint rejected the " + operation
+			if code == query.CodeUniquePrimaryKey {
+				detail = "SQLite primary-key constraint rejected the insert"
+			}
+			return &query.Error{
+				Category: query.CategoryIntegrity,
+				Code:     code,
+				Detail:   detail,
+				Cause:    err,
+			}
+		}
+	}
+	return fmt.Errorf("execute SQLite %s: %w", operation, err)
 }
 
 func executeUpdate(ctx context.Context, executor writeExecutor, plan query.UpdatePlan) (int64, error) {
@@ -154,7 +174,7 @@ func executeUpdate(ctx context.Context, executor writeExecutor, plan query.Updat
 	}
 	result, err := executor.ExecContext(ctx, statement, arguments...)
 	if err != nil {
-		return 0, fmt.Errorf("execute SQLite update: %w", err)
+		return 0, classifySQLiteWriteError(ctx, "update", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {

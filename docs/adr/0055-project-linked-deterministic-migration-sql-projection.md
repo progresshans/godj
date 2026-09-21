@@ -22,7 +22,8 @@ Root는 callback 전에 고정한 group 규칙으로 수·위치를 검사한 �
 기존 `[]string` backend 반환형의 호환 adapter를 두지 않는다. Public root/CLI의 flat SQL·private wire·한 번의 출력·redaction은 유지한다.
 정밀도 변경의 순수 SQL 출력은 실제 데이터 적합성 검사나 migration transaction을 실행하지 않는다.
 Uniqueness-only AlterField는 빈 body를 허용하지 않는다. PostgreSQL은 ADD/DROP CONSTRAINT body를 생성하고,
-SQLite는 아직 해당 선언을 capability 오류로 거부한다. 속성만 바꾸고 DB 제약이 빠진 SQL을 성공으로 출력하지 않는다.
+SQLite는 CREATE UNIQUE INDEX/DROP INDEX body를 생성한다. SQLite Create/Add는 table/column DDL 뒤 별도 index DDL을
+같은 operation의 group에 담는다. 속성만 바꾸고 DB 제약이 빠진 SQL을 성공으로 출력하지 않는다.
 
 ## 맥락
 
