@@ -661,3 +661,11 @@ func assertCalls(t *testing.T, got []string, want ...string) {
 func (t *fakeTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
 	return t.call("alter_field")
 }
+
+func (t *fakeTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return t.call("add_constraint")
+}
+
+func (t *fakeTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return t.call("remove_constraint")
+}

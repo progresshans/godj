@@ -26,11 +26,13 @@ type MigrationTarget = migrationgraph.MigrationTarget
 type MigrationModel = migrationgraph.MigrationModel
 
 const (
-	MigrationCreateModel = migrationgraph.MigrationCreateModel
-	MigrationDeleteModel = migrationgraph.MigrationDeleteModel
-	MigrationAddField    = migrationgraph.MigrationAddField
-	MigrationRemoveField = migrationgraph.MigrationRemoveField
-	MigrationAlterField  = migrationgraph.MigrationAlterField
+	MigrationCreateModel      = migrationgraph.MigrationCreateModel
+	MigrationDeleteModel      = migrationgraph.MigrationDeleteModel
+	MigrationAddField         = migrationgraph.MigrationAddField
+	MigrationRemoveField      = migrationgraph.MigrationRemoveField
+	MigrationAlterField       = migrationgraph.MigrationAlterField
+	MigrationAddConstraint    = migrationgraph.MigrationAddConstraint
+	MigrationRemoveConstraint = migrationgraph.MigrationRemoveConstraint
 )
 
 func CloneMigrationModels(models []MigrationModel) []MigrationModel {

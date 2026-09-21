@@ -141,7 +141,8 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	unresolvedCross := func(field ir.Field) bool {
 		return field.Relation != nil && field.Relation.Target.AppLabel != app && !known[field.Relation.Target]
 	}
-	var creates, sameAppAdds, existing []migrations.Operation
+	var creates, sameAppAdds, existing, removals []migrations.Operation
+	var constraintAdds []migrations.AddConstraint
 	for index, operation := range change.operations {
 		switch value := operation.(type) {
 		case migrations.CreateModel:
@@ -159,12 +160,28 @@ func candidateOperations(app string, change appChange, current, desired migratio
 				}
 				model.Fields = append(model.Fields, field.Clone())
 			}
+			// A deferred FK also defers each constraint that uses it. Retained
+			// fields may own inline constraints; missing members are added only
+			// after this candidate has created every referenced local column.
+			model.UniqueConstraints = nil
+			available := fieldNameSet(model.Fields)
+			for _, constraint := range value.Model.UniqueConstraints {
+				if constraintMembersPresent(constraint, available) {
+					model.UniqueConstraints = append(model.UniqueConstraints, constraint.Clone())
+				} else {
+					constraintAdds = append(constraintAdds, migrations.AddConstraint{AppLabel: app, ModelName: model.Name, Constraint: constraint.Clone()})
+				}
+			}
 			creates = append(creates, migrations.CreateModel{AppLabel: app, Model: model})
 		case migrations.AddField:
 			if breakCycle && unresolvedCross(value.Field) {
 				continue
 			}
 			existing = append(existing, value)
+		case migrations.AddConstraint:
+			constraintAdds = append(constraintAdds, value)
+		case migrations.RemoveConstraint:
+			removals = append(removals, value)
 		case migrations.AlterField:
 			existing = append(existing, value)
 		default:
@@ -174,7 +191,9 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	if breakCycle && len(creates) == 0 {
 		return nil, detectionError(CodeInvalidGeneratedPlan, app, "", "", fmt.Errorf("cycle has no model creator"))
 	}
-	operations := append(append(creates, sameAppAdds...), existing...)
+	operations := append(creates, removals...)
+	operations = append(operations, sameAppAdds...)
+	operations = append(operations, existing...)
 	// Anchors refer only to fields already present at this exact operation.
 	// Deferring an earlier FK therefore cannot move a following scalar field.
 	available := make(map[string]map[string]bool)
@@ -213,6 +232,15 @@ func candidateOperations(app string, change appChange, current, desired migratio
 			fields[value.Field.Name] = true
 			operations[index] = value
 		}
+	}
+	for _, operation := range constraintAdds {
+		if constraintMembersPresent(operation.Constraint, available[operation.ModelName]) {
+			operations = append(operations, operation)
+		} else if !breakCycle {
+			return nil, detectionError(CodeInvalidGeneratedPlan, app, operation.ModelName, "", fmt.Errorf("constraint members are not yet available"))
+		}
+		// An unresolved cross-app FK and its constraints are rediscovered
+		// from the next durable prefix, retaining deterministic recovery.
 	}
 	return operations, nil
 }

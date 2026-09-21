@@ -2406,3 +2406,17 @@ func (transaction *migrationTargetPlanTransaction) AlterField(context.Context, i
 	transaction.backend.mu.Unlock()
 	return nil
 }
+
+func (transaction *migrationTargetPlanTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	transaction.backend.mu.Lock()
+	transaction.backend.schemaMutations++
+	transaction.backend.mu.Unlock()
+	return nil
+}
+
+func (transaction *migrationTargetPlanTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	transaction.backend.mu.Lock()
+	transaction.backend.schemaMutations++
+	transaction.backend.mu.Unlock()
+	return nil
+}

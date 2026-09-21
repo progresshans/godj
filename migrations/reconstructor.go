@@ -214,7 +214,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, AddField, AlterField:
+	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -357,6 +357,8 @@ const (
 	loadedRelationAddField
 	loadedRelationRemoveField
 	loadedRelationAlterField
+	loadedRelationAddConstraint
+	loadedRelationRemoveConstraint
 )
 
 type loadedRelationIntent struct {
@@ -868,6 +870,10 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 		} else {
 			err = builder.removeField(value)
 		}
+	case AddConstraint:
+		err = builder.changeConstraint(value.AppLabel, value.ModelName, value.Constraint, direction == DirectionForward)
+	case RemoveConstraint:
+		err = builder.changeConstraint(value.AppLabel, value.ModelName, value.Constraint, direction == DirectionBackward)
 	case AlterField:
 		err = builder.alterField(value, direction == DirectionBackward)
 	default:
@@ -1459,7 +1465,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		sourceModel := afterModel
 		sourceExists := afterExists
 		if step.Direction == DirectionBackward {
-			if _, altersField := operation.(AlterField); !altersField {
+			switch operation.(type) {
+			case AlterField, AddConstraint, RemoveConstraint:
+			default:
 				sourceModel = beforeModel
 				sourceExists = beforeExists
 			}
@@ -1876,6 +1884,16 @@ func loadedBackendOperationKind(operation Operation, direction Direction) (loade
 			return loadedRelationAddField, nil
 		}
 		return loadedRelationRemoveField, nil
+	case AddConstraint:
+		if direction == DirectionForward {
+			return loadedRelationAddConstraint, nil
+		}
+		return loadedRelationRemoveConstraint, nil
+	case RemoveConstraint:
+		if direction == DirectionForward {
+			return loadedRelationRemoveConstraint, nil
+		}
+		return loadedRelationAddConstraint, nil
 	case AlterField:
 		return loadedRelationAlterField, nil
 	default:
@@ -1963,6 +1981,10 @@ func operationSourceModel(operation Operation) (string, string) {
 	case CreateModel:
 		return value.AppLabel, value.Model.Name
 	case AddField:
+		return value.AppLabel, value.ModelName
+	case AddConstraint:
+		return value.AppLabel, value.ModelName
+	case RemoveConstraint:
 		return value.AppLabel, value.ModelName
 	case AlterField:
 		return value.AppLabel, value.ModelName
@@ -2131,7 +2153,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, AddField, AlterField:
+	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint:
 	default:
 		return
 	}
@@ -2150,6 +2172,10 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 			return
 		}
 		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].field", index), value.Field)
+	case AddConstraint:
+		loadedScanConstraintOperationResource(budget, migration, index, kind, value.ModelName, value.Constraint)
+	case RemoveConstraint:
+		loadedScanConstraintOperationResource(budget, migration, index, kind, value.ModelName, value.Constraint)
 	case AlterField:
 		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
 		loadedConsumeNodes(budget, 2)
@@ -2167,10 +2193,22 @@ func loadedOperationWireKind(operation Operation) string {
 		return "create_model"
 	case AddField, *AddField:
 		return "add_field"
+	case AddConstraint, *AddConstraint:
+		return "add_constraint"
+	case RemoveConstraint, *RemoveConstraint:
+		return "remove_constraint"
 	case AlterField, *AlterField:
 		return "alter_field"
 	default:
 		return ""
+	}
+}
+
+func loadedScanConstraintOperationResource(budget *loadedResourceBudget, migration Migration, index int, kind, model string, constraint ir.UniqueConstraint) {
+	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), model, false)
+	loadedConsumeNodes(budget, 1)
+	if !budget.nodeOverflow {
+		loadedScanUniqueConstraintResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].constraint", index), constraint)
 	}
 }
 

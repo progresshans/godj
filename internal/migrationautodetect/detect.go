@@ -120,7 +120,7 @@ type relationReference struct {
 	targetModel string
 }
 
-// Detect computes the additive-only migration plan required to make every
+// Detect computes supported field and named-constraint changes to make every
 // managed historical app exactly equal Desired. Existing model order and the
 // relative order of retained fields are preserved. Deferred relations may be
 // inserted between retained fields without changing their metadata.
@@ -316,6 +316,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 
 	change := appChange{}
 	addedFields := make([]migrations.Operation, 0)
+	var removedConstraints, addedConstraints []migrations.Operation
 	for index := range before.Models {
 		oldModel := before.Models[index]
 		newModel := after.Models[index]
@@ -325,6 +326,9 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 		if len(newModel.Fields) < len(oldModel.Fields) {
 			return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, "", fmt.Errorf("field removal is unsupported"))
 		}
+		removed, added := constraintChanges(app, oldModel, newModel)
+		removedConstraints = append(removedConstraints, removed...)
+		addedConstraints = append(addedConstraints, added...)
 		oldNames := make(map[string]int, len(oldModel.Fields))
 		for index, field := range oldModel.Fields {
 			oldNames[field.Name] = index
@@ -369,7 +373,9 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 		}
 		change.operations = append(change.operations, migrations.CreateModel{AppLabel: app, Model: model})
 	}
+	change.operations = append(removedConstraints, change.operations...)
 	change.operations = append(change.operations, addedFields...)
+	change.operations = append(change.operations, addedConstraints...)
 	return change, len(change.operations) != 0, nil
 }
 
@@ -479,6 +485,10 @@ func operationSlug(operations []migrations.Operation) string {
 			}
 		case migrations.AddField:
 			return operation.ModelName + "_" + operation.Field.Name
+		case migrations.AddConstraint:
+			return "add_" + operation.ModelName + "_" + operation.Constraint.Name
+		case migrations.RemoveConstraint:
+			return "remove_" + operation.ModelName + "_" + operation.Constraint.Name
 		case migrations.AlterField:
 			return "alter_" + operation.ModelName + "_" + operation.After.Name
 		case *migrations.AlterField:
@@ -492,14 +502,15 @@ func operationSlug(operations []migrations.Operation) string {
 		}
 	}
 	type change struct {
-		Kind        string    `json:"kind"`
-		App         string    `json:"app"`
-		Model       string    `json:"model"`
-		Value       *ir.Model `json:"value,omitempty"`
-		Field       *ir.Field `json:"field,omitempty"`
-		Before      *ir.Field `json:"before,omitempty"`
-		After       *ir.Field `json:"after,omitempty"`
-		BeforeField string    `json:"before_field,omitempty"`
+		Kind        string               `json:"kind"`
+		App         string               `json:"app"`
+		Model       string               `json:"model"`
+		Value       *ir.Model            `json:"value,omitempty"`
+		Field       *ir.Field            `json:"field,omitempty"`
+		Before      *ir.Field            `json:"before,omitempty"`
+		After       *ir.Field            `json:"after,omitempty"`
+		BeforeField string               `json:"before_field,omitempty"`
+		Constraint  *ir.UniqueConstraint `json:"constraint,omitempty"`
 	}
 	values := make([]change, 0, len(operations))
 	for _, operation := range operations {
@@ -510,6 +521,12 @@ func operationSlug(operations []migrations.Operation) string {
 		case migrations.AddField:
 			field := value.Field.Clone()
 			values = append(values, change{Kind: "add_field", App: value.AppLabel, Model: value.ModelName, Field: &field, BeforeField: value.BeforeField})
+		case migrations.AddConstraint:
+			constraint := value.Constraint.Clone()
+			values = append(values, change{Kind: "add_constraint", App: value.AppLabel, Model: value.ModelName, Constraint: &constraint})
+		case migrations.RemoveConstraint:
+			constraint := value.Constraint.Clone()
+			values = append(values, change{Kind: "remove_constraint", App: value.AppLabel, Model: value.ModelName, Constraint: &constraint})
 		case migrations.AlterField:
 			before, after := value.Before.Clone(), value.After.Clone()
 			values = append(values, change{Kind: "alter_field", App: value.AppLabel, Model: value.ModelName, Before: &before, After: &after})
@@ -570,6 +587,24 @@ func cloneOperations(input []migrations.Operation) []migrations.Operation {
 			if value != nil {
 				copy := *value
 				copy.Field = value.Field.Clone()
+				result[index] = &copy
+			}
+		case migrations.AddConstraint:
+			value.Constraint = value.Constraint.Clone()
+			result[index] = value
+		case *migrations.AddConstraint:
+			if value != nil {
+				copy := *value
+				copy.Constraint = value.Constraint.Clone()
+				result[index] = &copy
+			}
+		case migrations.RemoveConstraint:
+			value.Constraint = value.Constraint.Clone()
+			result[index] = value
+		case *migrations.RemoveConstraint:
+			if value != nil {
+				copy := *value
+				copy.Constraint = value.Constraint.Clone()
 				result[index] = &copy
 			}
 		case migrations.AlterField:

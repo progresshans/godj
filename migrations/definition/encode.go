@@ -64,6 +64,10 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 				Field:       encodeField(value.Field),
 				BeforeField: value.BeforeField,
 			}
+		case migrations.AddConstraint:
+			document.Migration.Operations[index] = constraintDocument{Kind: "add_constraint", AppLabel: value.AppLabel, ModelName: value.ModelName, Constraint: value.Constraint}
+		case migrations.RemoveConstraint:
+			document.Migration.Operations[index] = constraintDocument{Kind: "remove_constraint", AppLabel: value.AppLabel, ModelName: value.ModelName, Constraint: value.Constraint}
 		case migrations.AlterField:
 			document.Migration.Operations[index] = alterFieldDocument{
 				Kind: "alter_field", AppLabel: value.AppLabel, ModelName: value.ModelName,
@@ -175,6 +179,14 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			}
 			if err := validateFieldWireRange(value.Field, path+".field"); err != nil {
 				return err
+			}
+		case migrations.AddConstraint:
+			if value.AppLabel != migration.App || !validConstraintDefinition(value.ModelName, value.Constraint) {
+				return encodeFailure(path, "AddConstraint requires a model and named unique logical fields")
+			}
+		case migrations.RemoveConstraint:
+			if value.AppLabel != migration.App || !validConstraintDefinition(value.ModelName, value.Constraint) {
+				return encodeFailure(path, "RemoveConstraint requires the complete historical unique constraint")
 			}
 		case migrations.AlterField:
 			if value.AppLabel != migration.App || !validAlterFieldDefinition(value) {

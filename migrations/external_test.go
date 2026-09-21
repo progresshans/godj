@@ -631,3 +631,11 @@ func (*externalTransaction) Rollback(context.Context) error                     
 func (*externalTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
 	return nil
 }
+
+func (*externalTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}
+
+func (*externalTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}

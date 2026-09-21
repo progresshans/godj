@@ -758,3 +758,11 @@ var _ backend.RevisionFencedTransaction = (*migrationTestTransaction)(nil)
 func (*migrationTestTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
 	return nil
 }
+
+func (*migrationTestTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}
+
+func (*migrationTestTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}

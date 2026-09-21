@@ -2509,3 +2509,11 @@ func (t *lifecycleTestTransaction) call(name string) error {
 func (t *lifecycleTestTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
 	return t.call("alter_field")
 }
+
+func (t *lifecycleTestTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return t.call("add_constraint")
+}
+
+func (t *lifecycleTestTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return t.call("remove_constraint")
+}

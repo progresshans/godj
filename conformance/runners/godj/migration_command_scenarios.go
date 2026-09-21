@@ -1789,3 +1789,17 @@ func (transaction *migrationCommandSyntheticTransaction) AlterField(context.Cont
 	transaction.backend.mu.Unlock()
 	return nil
 }
+
+func (transaction *migrationCommandSyntheticTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	transaction.backend.mu.Lock()
+	transaction.backend.schemaMutations++
+	transaction.backend.mu.Unlock()
+	return nil
+}
+
+func (transaction *migrationCommandSyntheticTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	transaction.backend.mu.Lock()
+	transaction.backend.schemaMutations++
+	transaction.backend.mu.Unlock()
+	return nil
+}

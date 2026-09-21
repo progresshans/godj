@@ -11,9 +11,10 @@
 OneToOne과 ServiceReport의 migration·Form/Admin/API/OpenAPI·독립 client 연결 및 Hosted 전체 통합 검증을 완료했다.
 관계 선택의 권한·Category 범위, 실제 FK+UNIQUE·티켓 PROTECT와 coordinated transaction의 실패 의미를 함께 검증했다.
 
-GDJ-0097의 복합 고유성은 독립 Django runner·양 DB 관찰을 연결하고 선언·생성 metadata·project wire와 CreateModel 이력에 반영했다.
-Form이 제외한 Category도 저장 시 전체 조합에 포함해야 하며 순환 FK와 제약의 생성 순서를 함께 보존해야 한다.
-아직 양 DB의 named constraint 실행은 명시적으로 거부한다. Add/Remove operation·자동 계획·native ownership·ORM과 Label 소비자는 미완료다.
+GDJ-0097의 복합 고유성은 선언·생성 metadata·project wire와 CreateModel/AddConstraint/RemoveConstraint 이력에 반영했다.
+제약 교체·역방향·순환 FK 의존성과 중단 뒤 동일한 계획 재개를 연결하고 독립 Django의 해당 변경 관찰과 대조했다.
+양 DB의 named constraint 실행은 아직 명시적으로 거부한다. Native ownership·ORM과 Label 소비자는 미완료다.
+Form이 제외한 Category도 저장 시 전체 조합에 포함해야 한다.
 
 지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
@@ -21,7 +22,7 @@ Form이 제외한 Category도 저장 시 전체 조합에 포함해야 하며 �
 
 ## 다음 행동
 
-복합 제약의 Add/Remove operation·자동 계획과 양 DB ownership을 구현하고,
+복합 제약의 양 DB native ownership·실행·rollback과 ORM 사전 검증을 구현하고,
 Category별 Label의 Form/Admin/API/client로 연결한다. 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.

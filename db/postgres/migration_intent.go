@@ -344,6 +344,17 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 		if changed.PrimaryKey {
 			return before, after, changed, postgresMigrationIntentIntegrity("RemoveField cannot remove a primary key", nil)
 		}
+	case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
+		before, after = operation.Before, operation.After
+		if err := validateExactPostgresMigrationModel(before); err != nil {
+			return before, after, changed, err
+		}
+		if err := validateExactPostgresMigrationModel(after); err != nil {
+			return before, after, changed, err
+		}
+		if _, err := operation.ChangedConstraint(); err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("invalid named constraint delta", err)
+		}
 	case migrationbackend.MigrationAlterField:
 		before, after = operation.Before, operation.After
 		if err := validateExactPostgresMigrationModel(before); err != nil {

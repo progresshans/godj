@@ -188,30 +188,45 @@ func TestNamedUniquePhysicalProjectionCannotSilentlyDropPendingConstraints(t *te
 		"postgres": postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"}),
 	} {
 		t.Run(name, func(t *testing.T) {
-			for _, constrained := range []bool{false, true} {
-				migration := namedConstraintMigration(t)
-				if !constrained {
-					operation := migration.Operations[0].(migrations.CreateModel)
-					operation.Model.UniqueConstraints = nil
-					migration.Operations[0] = operation
-				}
-				wire, err := definition.Encode(definition.Producer{Name: "test", Version: "1"}, migration)
-				if err != nil {
-					t.Fatal(err)
-				}
-				loaded, _, err := definition.Load(definition.Source{SourceID: "physical-boundary", Document: wire})
-				if err != nil {
-					t.Fatal(err)
-				}
-				statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, migration.Key(), renderer)
-				if constrained {
-					var rejected *migrations.MigrationSQLError
-					if !errors.As(err, &rejected) || rejected.Category != migrations.CategoryCapability || rejected.Code != migrations.CodeUnsupported || statements != nil {
-						t.Fatal("pending physical ownership was omitted from projection", err)
+			for _, mode := range []string{"plain", "create", "add", "remove"} {
+				t.Run(mode, func(t *testing.T) {
+					initial := namedConstraintMigration(t)
+					operation := initial.Operations[0].(migrations.CreateModel)
+					constraint := operation.Model.UniqueConstraints[1].Clone()
+					if mode != "create" && mode != "remove" {
+						operation.Model.UniqueConstraints = nil
 					}
-				} else if err != nil || len(statements) == 0 {
-					t.Fatal("plain-model control failed", err)
-				}
+					initial.Operations[0] = operation
+					history := []migrations.Migration{initial}
+					if mode == "add" || mode == "remove" {
+						var change migrations.Operation = migrations.AddConstraint{AppLabel: "scoped", ModelName: "label", Constraint: constraint}
+						if mode == "remove" {
+							change = migrations.RemoveConstraint{AppLabel: "scoped", ModelName: "label", Constraint: constraint}
+						}
+						history = append(history, migrations.Migration{App: "scoped", Name: "0002_constraint", Dependencies: []migrations.MigrationKey{initial.Key()}, Operations: []migrations.Operation{change}})
+					}
+					var sources []definition.Source
+					for _, migration := range history {
+						wire, err := definition.Encode(definition.Producer{Name: "test", Version: "1"}, migration)
+						if err != nil {
+							t.Fatal(err)
+						}
+						sources = append(sources, definition.Source{SourceID: migration.Name, Document: wire})
+					}
+					loaded, _, err := definition.Load(sources...)
+					if err != nil {
+						t.Fatal(err)
+					}
+					statements, err := migrations.RenderMigrationSQL(t.Context(), loaded, history[len(history)-1].Key(), renderer)
+					if mode != "plain" {
+						var rejected *migrations.MigrationSQLError
+						if !errors.As(err, &rejected) || rejected.Category != migrations.CategoryCapability || rejected.Code != migrations.CodeUnsupported || statements != nil {
+							t.Fatal("pending physical ownership was omitted from projection", err)
+						}
+					} else if err != nil || len(statements) == 0 {
+						t.Fatal("plain-model control failed", err)
+					}
+				})
 			}
 		})
 	}

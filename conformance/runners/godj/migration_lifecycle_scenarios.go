@@ -1148,3 +1148,13 @@ func (transaction *migrationLifecycleTraceTransaction) AlterField(ctx context.Co
 	transaction.step.schemaStarted = true
 	return transaction.delegate.AlterField(ctx, model, before, after)
 }
+
+func (transaction *migrationLifecycleTraceTransaction) AddConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	transaction.step.schemaStarted = true
+	return transaction.delegate.AddConstraint(ctx, model, constraint)
+}
+
+func (transaction *migrationLifecycleTraceTransaction) RemoveConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	transaction.step.schemaStarted = true
+	return transaction.delegate.RemoveConstraint(ctx, model, constraint)
+}

@@ -3,6 +3,37 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — 제약 추가·제거 이력과 자동 계획
+
+2026-09-22, 기준 `b48ec639fa4771ba18415d6c2ed797d878be69ec` 위 Go 코드·검사 **34경로**의 source map SHA256은
+`86f05c3b6f749c5950487560c218749ead9013332ba05f4323f4c598dee6c914`이다. Markdown은 제외한다.
+Go 1.26.5/Darwin arm64에서 AddConstraint/RemoveConstraint의 전체 member preimage·역방향·closed wire·digest·할당 전 resource 제한과
+historical replay·sealed intent·SchemaEditor 인자를 연결했다. 같은 단계의 remove/add 교체도 이전 상태를 보존한다.
+Backend에 전달한 모델·제약 인자를 일부러 변경해도 다음 operation·반환 state·재구성한 이력에 영향을 주지 않는 대조를 포함했다.
+
+`go test -json -count=1 -timeout=10m ./migrations/... ./internal/migrationgraph ./internal/migrationautodetect`와
+같은 범위의 `-race`, `CGO_ENABLED=0`은 **각 6 package / 719 run=PASS / skip 0**이다. 필수 parent **11개**의 실행·종료와 전체 inventory를 검사했다.
+`internal/projectcheck/linked`·`conformance/migrationrelationproduct`는 **168 PASS / skip 0**,
+`conformance/runners/godj`의 Migration Command/Execution/Lifecycle/TargetPlan·GenerateMigrationLifecycle 영향 검사들은 **104 PASS / skip 0**이다.
+네 project `generate --check`와 checked-in relation product·영향 범위 `go vet`도 통과했다.
+그 뒤 두 기존 test 파일의 backend 인자 변조 대조와 unsupported 오류 분류를 강화했고 공통 normal/race/CGO=0·해당 test vet를 다시 실행했다.
+제품·생성기·선언·어댑터 source가 같음을 `source-coverage.json`으로 확인하여 앞선 어댑터·generated 검증의 범위를 보존했다.
+
+독립 Django SQLite/PostgreSQL fixture의 add/remove/rename/member 교체/member 순서/목록 재정렬/field 동시 추가 **7종 × 2 DB 관찰**과
+GoDj의 operation 의미·순서를 대조했다. 같은 앱·다른 앱 순환 FK에서는 제약의 모든 member가 먼저 생기며, 독립 inline 제약은 유지된다.
+모든 게시 prefix를 역순 source 목록으로 재입력해도 남은 migration byte가 같음을 확인했다.
+Django 기준의 일반 forward RemoveField까지 구현한 결과는 아니다. 해당 변경은 명시적으로 unsupported이며 RemoveConstraint만 부분 게시하지 않는다.
+
+CreateModel/AddConstraint/RemoveConstraint의 양 built-in SQL renderer는 아직 native ownership 미완료를 capability/unsupported와 nil SQL로 거부한다.
+제약 없는 control은 실제 SQL을 반환하고, 공통 renderer 계약은 제약 추가·제거에 빈 SQL을 허용하지 않는다.
+Capability 부족은 transaction 전에 중단하며 가짜 backend의 제약 실행 실패는 recorder/commit 없이 rollback한다.
+이 검증을 SQLite/PostgreSQL native 복합 제약 적용·catalog·실제 충돌 rollback이나 전체 플랫폼 PASS로 합치지 않는다. Native·ORM·Label은 계속 미완료다.
+
+원본은 `godj-composite-uniqueness-9yzkn6xp/constraint-operations/`의 `final-source.json`, `final-*-receipt.json`,
+`final-*.jsonl/.stderr`, `required.txt`, `*-packages.txt`, `adapters*`, `runner-adapters*`, `generate-check.*`, `vet*`, `source-coverage.json`에 있다.
+직전 metadata commit `b48ec639`의 [Hosted PR feedback](https://github.com/progresshans/godj/actions/runs/35661997055)은 필수 Fast Go step을 통과했다.
+그 실행은 이번 operation source의 Hosted 결과가 아니다. 전체 플랫폼 증거는 여전히 명시된 `4f92d688`의 ServiceReport milestone이 소유한다.
+
 ## GDJ-0097 — 선언·생성·이력 metadata 연결
 
 2026-09-22, 기준 `d0f4a9a0c7ecdc4a39369bfe160b06f83f7e9c6b` 위 Go 코드·검사 **33경로**의 source map SHA256은
@@ -23,7 +54,7 @@ CreateModel의 현행 wire·digest·loaded state·intent도 제약을 보존하�
 source·retained target·transitive metadata를 거부하도록 고쳤다. PostgreSQL의 공개 projection 오류는 원인을 노출하지 않으므로
 검사도 내부 문자열 대신 공개 capability category/code를 확인하도록 수정했다. 양 renderer의 제약 없는 control은 SQL을 만들고,
 named constraint 선언은 unsupported와 nil SQL을 반환한다. 이는 구현 전 제약 누락을 막는 전환 경계이며 native 구현을 대신하지 않는다.
-Add/Remove operation·자동 계획·실제 양 DB ownership·ORM 사전 검증과 Label 소비자는 계속 미완료다.
+이 시점의 Add/Remove operation·자동 계획·실제 양 DB ownership·ORM 사전 검증과 Label 소비자는 미완료였다.
 
 Artifact root는 아래 독립 기준과 같은 `godj-composite-uniqueness-9yzkn6xp`이며 `latest-metadata-checkpoint-path`가 현재 실행을 가리킨다.
 해당 디렉터리의 `source.json`, `stdout.jsonl`, `stderr`, `packages.txt`, `required.txt`, `receipt.json`,

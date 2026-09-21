@@ -104,6 +104,10 @@ func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]
 		return appendCanonicalCreateModel(output, value)
 	case migrations.AddField:
 		return appendCanonicalAddField(output, value)
+	case migrations.AddConstraint:
+		return appendCanonicalConstraintOperation(output, "add_constraint", value.AppLabel, value.ModelName, value.Constraint)
+	case migrations.RemoveConstraint:
+		return appendCanonicalConstraintOperation(output, "remove_constraint", value.AppLabel, value.ModelName, value.Constraint)
 	case migrations.AlterField:
 		return appendCanonicalAlterField(output, value)
 	default:

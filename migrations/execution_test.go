@@ -686,3 +686,11 @@ func assertPlanTransactionCalls(t *testing.T, transaction *planTestTransaction, 
 func (t *planTestTransaction) AlterField(ctx context.Context, _ ir.Model, _, _ ir.Field) error {
 	return t.call(ctx, "alter_field")
 }
+
+func (t *planTestTransaction) AddConstraint(ctx context.Context, _ ir.Model, _ ir.UniqueConstraint) error {
+	return t.call(ctx, "add_constraint")
+}
+
+func (t *planTestTransaction) RemoveConstraint(ctx context.Context, _ ir.Model, _ ir.UniqueConstraint) error {
+	return t.call(ctx, "remove_constraint")
+}

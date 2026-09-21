@@ -83,6 +83,7 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    - history가 없는 managed app/model의 `CreateModel`
    - existing model의 지원되는 nullable/no-default scalar와 ForeignKey `AddField`
    - 기존 field 순서를 유지하는 중간 삽입과 choices-only·Decimal precision-only·uniqueness-only `AlterField`
+   - named unique constraint의 `AddConstraint`/`RemoveConstraint`; 이름·member·member 순서 변경은 remove/add이며 constraint 목록 재정렬은 no-op
    - new model의 current scalar/ForeignKey field shape
    - self/later target·순환 관계의 same-app operation 순서와 cross-app migration dependency
    Required/no-default `PROTECT` FK는 실제 실행 시 backend가 source table이 비었음을 확인한 경우만 추가합니다. 이는 순환 생성의
@@ -102,14 +103,16 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    만들기 때문에 partial temp의 엄격한 recovery 규칙을 약화하지 않습니다. 후보는 최대 64개이며 남은 app 수만으로도 한도를
    넘으면 추가 후보 구성 전에 거부합니다. 첫 identity는 `0001_initial`; 다음 identity는 exact single
    same-app leaf의 four-digit numeric prefix 다음 번호입니다. 단일 operation은 normalized semantic model name 또는
-   `<model>_<field>` slug를 사용합니다. 복합 변경은 `auto_` 뒤에
+   `<model>_<field>` slug를 사용하며 named 제약은 `add_<model>_<constraint>`/`remove_<model>_<constraint>`를 사용합니다. 복합 변경은 `auto_` 뒤에
    `SHA-256("godj/migration-name/v1\x00" || <canonical-semantic-change-json>)`의 앞 6 bytes를 12자리 lowercase hex로
    붙입니다. 완전한 suffix는 `auto_<12-lowercase-hex>`이고 시각과 random 값은 사용하지 않습니다. 이 writer가 Encode에
    전달하는 persisted producer는 exact `{"name":"godj-makemigrations","version":"1"}`입니다.
 6. Candidate dependencies는 그 게시 prefix의 same-app prior leaf와 실제 relation target app의 historical leaf를 canonical key
    order로 포함합니다. 앞서 계획한 candidate가 그 prefix에 반영되므로 dependency는 항상 이미 게시될 파일을 가리킵니다.
    Same-app `CreateModel`은 normalized desired model suffix order를 보존합니다. Self는 같은 Create에서 visible하고 later target
-   FK만 미뤄 모든 Create 뒤에 Add합니다. 명시적 PK와 scalar 위치를 보존하기 위해 AddField의 optional `before_field`가 이미
+   FK만 미뤄 모든 Create 뒤에 Add합니다. 지연된 FK를 사용하는 named constraint도 모든 member를 추가한 뒤 AddConstraint로 생성합니다.
+   Cross-app FK가 다음 파일로 미뤄지면 그 제약도 다음 prefix에서 다시 탐지합니다. 독립된 inline 제약은 해당 Create에 유지합니다.
+   명시적 PK와 scalar 위치를 보존하기 위해 AddField의 optional `before_field`가 이미
    존재하는 다음 field를 anchor로 사용합니다. Canonical digest/resource admission/역방향도 위치를 소유합니다.
    [ADR-0064](0064-historical-relation-graphs-and-sqlite-remakes.md)의 logical/physical order 경계를 따릅니다.
 7. Writer-owned filesystem root는 첫 product에서 configured `MigrationDefinitionRoots`가 정확히 하나이고 그 root가 이미

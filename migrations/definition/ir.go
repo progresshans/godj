@@ -24,6 +24,14 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 		if value != nil {
 			return *value
 		}
+	case *migrations.AddConstraint:
+		if value != nil {
+			return *value
+		}
+	case *migrations.RemoveConstraint:
+		if value != nil {
+			return *value
+		}
 	case *migrations.AlterField:
 		if value != nil {
 			return *value
@@ -39,6 +47,12 @@ func cloneOperation(operation migrations.Operation) migrations.Operation {
 		return value
 	case migrations.AddField:
 		value.Field = value.Field.Clone()
+		return value
+	case migrations.AddConstraint:
+		value.Constraint = value.Constraint.Clone()
+		return value
+	case migrations.RemoveConstraint:
+		value.Constraint = value.Constraint.Clone()
 		return value
 	case migrations.AlterField:
 		value.Before, value.After = value.Before.Clone(), value.After.Clone()

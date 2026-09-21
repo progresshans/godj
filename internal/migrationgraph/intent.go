@@ -15,6 +15,8 @@ const (
 	MigrationAddField
 	MigrationRemoveField
 	MigrationAlterField
+	MigrationAddConstraint
+	MigrationRemoveConstraint
 )
 
 // MigrationIntent carries a complete, ordered migration step. Scalar

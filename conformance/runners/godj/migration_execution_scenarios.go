@@ -1024,3 +1024,19 @@ func (transaction *migrationExecutionTransaction) AlterField(ctx context.Context
 func (migrationExecutionStateTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
 	return nil
 }
+
+func (transaction *migrationExecutionTransaction) AddConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	return transaction.delegate.AddConstraint(ctx, model, constraint)
+}
+
+func (transaction *migrationExecutionTransaction) RemoveConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	return transaction.delegate.RemoveConstraint(ctx, model, constraint)
+}
+
+func (migrationExecutionStateTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}
+
+func (migrationExecutionStateTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return nil
+}

@@ -154,9 +154,13 @@ OpenAPI와 독립 generated client도 같은 응답을 소비한다.
 Member의 순서는 물리 index key의 의미이므로 보존한다. 선언 순서만 달라져도 불필요한 이력·digest 차이가 생기는 것을 방지한다.
 이 이름은 모델 내부의 제약 identity이며 DB의 raw object 이름을 직접 지정하는 API가 아니다.
 
-Schema/descriptor·project wire·CreateModel definition·historical state와 execution intent는 제약과 member slice를 소유한다.
+Schema/descriptor·project wire·CreateModel/AddConstraint/RemoveConstraint definition·historical state와 execution intent는 제약과 member slice를 소유한다.
+RemoveConstraint도 전체 제약을 보존하여 같은 이름의 다른 member나 member 순서를 삭제하지 않는다. 역방향은 같은 정의의 Add이며,
+모든 operation의 이전·이후 모델과 backend 인자는 분리된 snapshot이다. Backend 인자의 변경이 이력이나 다음 operation으로 새지 않는다.
 동등성·digest에서 제약을 생략하지 않고, 필드 변경이 제약까지 변경하는 것을 허용하지 않는다.
-선언·이력의 존재가 native enforcement를 뜻하지 않는다. Native owner·Add/Remove·ORM·Label의 연결 전에는 양 DB가 named constraint 실행을 거부한다.
+Autodetect는 이름·member·member 순서 변경을 remove/add로 만들고, 빠진 field나 지연된 FK를 먼저 추가한다. 순환 관계의 각 게시 prefix에서도
+다음 후보를 다시 계산하므로 중단·재개가 제약을 누락하거나 미완성 조합을 게시하지 않는다. 일반 forward field removal은 아직 지원하지 않는다.
+선언·이력의 존재가 native enforcement를 뜻하지 않는다. Native owner가 완성되기 전에는 양 DB가 named constraint 실행을 거부한다.
 전체 제품 지원과 검증은 활성 work에서 이어가며 실행 결과는 TEST_EVIDENCE에만 기록한다.
 
 이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.

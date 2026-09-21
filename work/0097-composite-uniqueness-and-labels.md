@@ -32,7 +32,7 @@ Helpdesk의 각 Category에 라벨 사전을 두고 같은 Category 안에서만
 
 ## 현재와 다음
 
-아직 새 제약이나 Label의 제품 연결을 구현하지 않았다. 고정 Django의 [독립 runner](../conformance/runners/django/composite_unique_reference.py)와 양 DB 관찰·검사를 연결했다.
+Label의 Form/Admin/API/client 연결은 아직 구현하지 않았다. 고정 Django의 [독립 runner](../conformance/runners/django/composite_unique_reference.py)와 양 DB 관찰·검사를 연결했다.
 서버가 정한 Category를 Form에서 제외하면 Django의 복합 사전 검사가 생략되므로 저장 계층은 전체 candidate 조합을 검사해야 한다.
 같은/다른 앱의 순환 FK를 지연 생성할 때는 그 FK를 참조하는 복합 제약도 모든 member가 생긴 뒤에 추가한다.
 이름·member·member 순서 변경은 remove/add이고 constraint 목록 순서만 바꾸면 Django는 migration을 만들지 않는다.
@@ -42,7 +42,10 @@ CreateModel의 현행 definition·digest·state replay와 intent의 깊은 복�
 제약이 참조하는 field의 제거는 거부하며 wire·typed loader·intent의 resource 한도도 member를 계산한다.
 SQLite/PostgreSQL의 physical ownership은 아직 구현 중이다. 선언만 받아 제약을 빠뜨린 SQL을 생성하거나 실행하지 않도록 현재는 명시적으로 거부한다.
 이 전환용 거부는 native owner가 실제 제약·catalog·rollback을 검증할 수 있게 된 뒤 정상 실행으로 교체한다.
-다음은 Add/Remove operation·autodetect와 양 DB ownership을 연결하는 일이다. 선언 API의 최종 사용성은 Label의 전체 소비자에서 확인한다.
+AddConstraint/RemoveConstraint는 논리 이름과 전체 historical member를 보존하며 wire·digest·typed loader·state·실행 인자와 SQL projection에 연결했다.
+이름·member·member 순서 변경은 remove/add, 목록 순서 변경은 no-op이며 새 field와 순환 FK를 기다리는 제약은 모든 member가 생긴 뒤에 추가한다.
+각 durable prefix를 다시 읽어도 남은 계획의 byte가 같음을 검사했다. 일반 forward field removal은 기존 미지원 범위이며 제약 제거만 부분 게시하지 않는다.
+다음은 양 DB native ownership과 실제 제약 추가·제거·remake·충돌 rollback을 연결하는 일이다. 선언 API의 최종 사용성은 Label의 전체 소비자에서 확인한다.
 현재 metadata 구현·단위 검사를 복합 고유성의 전체 제품 지원으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 기존 내부 형식이나 테스트 모양을 보존하려고 별도의 호환 계층을 만들지 않는다.
 API 표면과 제약의 지원 범위는 실제 소비자·양 DB 실패 의미를 확인하면서 정하며, 사전 검사만으로 고유성을 보장하지 않는다.

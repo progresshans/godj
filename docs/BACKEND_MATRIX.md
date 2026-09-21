@@ -27,7 +27,7 @@ String/int64 choices는 DB 제약을 추가하지 않는다. Choices-only AlterF
 Column uniqueness는 `schema.Unique()`·IR·생성 metadata·historical definition/digest·자동 변경 계획까지 연결했다.
 PK는 이미 고유하므로 별도 Unique flag를 정규화하며, Unique FK는 many-to-one/reverse collection을 유지한다.
 양 DB는 column uniqueness의 `UniqueConstraints` capability를 제공하며 정확히 선언한 native constraint/index만 허용한다.
-GDJ-0097의 named model constraint는 선언·이력에 반영 중이며 아직 양 DB의 native 실행은 명시적으로 거부한다.
+GDJ-0097의 named model constraint는 선언·CreateModel/AddConstraint/RemoveConstraint 이력과 자동 계획에 반영했다. 양 DB의 native 실행은 아직 명시적으로 거부한다.
 이 metadata 지원을 복합 제약의 물리 검증·DDL 지원으로 합치지 않는다.
 SQLite는 별도 unique index의 BINARY ASC 단일 column과 rowid를 검사하며 FK remake에서 유지되는 index를 재생성한다.
 검증 대상인 모든 모델·direct/transitive target의 미선언 index는 거부한다. Legacy direct editor에는 이 capability를 확장하지 않는다.

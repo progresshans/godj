@@ -214,6 +214,12 @@ func cloneMigrationOperation(operation Operation) Operation {
 	case AddField:
 		operation.Field = cloneMigrationField(operation.Field)
 		return operation
+	case AddConstraint:
+		operation.Constraint = operation.Constraint.Clone()
+		return operation
+	case RemoveConstraint:
+		operation.Constraint = operation.Constraint.Clone()
+		return operation
 	case AlterField:
 		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
 		return operation
@@ -233,6 +239,14 @@ func operationValue(operation Operation) Operation {
 			return *value
 		}
 	case *AddField:
+		if value != nil {
+			return *value
+		}
+	case *AddConstraint:
+		if value != nil {
+			return *value
+		}
+	case *RemoveConstraint:
 		if value != nil {
 			return *value
 		}

@@ -474,13 +474,13 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidOperation, sourceID, pointer, app, name, operationIndex, "invalid_operation")}
 	}
-	commonFields := []string{"after", "app_label", "before", "before_field", "field", "kind", "model", "model_name"}
+	commonFields := []string{"after", "app_label", "before", "before_field", "constraint", "field", "kind", "model", "model_name"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_operation"))
 	}
-	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "alter_field" {
+	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "alter_field" && kind.string != "add_constraint" && kind.string != "remove_constraint" {
 		return append(candidates, semanticFailure(CodeUnsupportedOperation, sourceID, pointer+"/kind", app, name, operationIndex, "unsupported_operation"))
 	}
 
@@ -492,6 +492,9 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	}
 	if kind.string == "alter_field" {
 		fields = []string{"after", "app_label", "before", "kind", "model_name"}
+	}
+	if kind.string == "add_constraint" || kind.string == "remove_constraint" {
+		fields = []string{"app_label", "constraint", "kind", "model_name"}
 	}
 	object, _, faults := semanticObjectWithOptionalCandidates(value, fields, optional, sourceID, pointer, app, name, operationIndex, CodeInvalidOperation)
 	candidates = append(candidates, faults...)
@@ -512,6 +515,12 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			if modelName.kind != jsonString || !identifiers.SQL(modelName.string) {
 				candidates = append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/model_name", app, name, operationIndex, "invalid_operation"))
 			}
+		}
+		if kind.string == "add_constraint" || kind.string == "remove_constraint" {
+			if constraint, present := object.member("constraint"); present {
+				candidates = append(candidates, collectUniqueConstraintCandidates(constraint, sourceID, pointer+"/constraint", app, name, operationIndex)...)
+			}
+			return candidates
 		}
 		if kind.string == "alter_field" {
 			for _, member := range []string{"before", "after"} {
@@ -1153,6 +1162,8 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 			return nil, false
 		}
 		return migrations.AddField{AppLabel: appLabel.string, ModelName: modelName.string, Field: cloneField(field), BeforeField: before}, true
+	case "add_constraint", "remove_constraint":
+		return materializeConstraintOperation(value, appLabel.string, kind.string)
 	case "alter_field":
 		return materializeAlterField(value, appLabel.string)
 	default:

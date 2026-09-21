@@ -2148,3 +2148,19 @@ func (transaction *observingTransaction) AlterField(ctx context.Context, model i
 	}
 	return transaction.delegate.AlterField(ctx, model, before, after)
 }
+
+func (transaction *observingTransaction) AddConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	transaction.owner.record("add_constraint", model.DBTable+"."+constraint.Name)
+	if transaction.owner.fault == faultOperation {
+		return errObservedOperation
+	}
+	return transaction.delegate.AddConstraint(ctx, model, constraint)
+}
+
+func (transaction *observingTransaction) RemoveConstraint(ctx context.Context, model ir.Model, constraint ir.UniqueConstraint) error {
+	transaction.owner.record("remove_constraint", model.DBTable+"."+constraint.Name)
+	if transaction.owner.fault == faultOperation {
+		return errObservedOperation
+	}
+	return transaction.delegate.RemoveConstraint(ctx, model, constraint)
+}
