@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v2"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"
 
 var _ orm.RelationObjectDescriptor[reports.Link] = reports.LinkDescriptor{}
 var _ orm.RelationObjectDescriptor[reports.OptionalReport] = reports.OptionalReportDescriptor{}
@@ -260,6 +260,7 @@ func BindReverseRelations() (ReverseRelations, error) {
 }
 
 type TicketsTicketReverseObjectFactory struct {
+	model          orm.BoundModel[tickets.Ticket]
 	links          orm.ReverseObject[tickets.Ticket, reports.Link]
 	optionalReport orm.ReverseOneToOneObject[tickets.Ticket, reports.OptionalReport]
 	report         orm.ReverseOneToOneObject[tickets.Ticket, reports.Report]
@@ -295,6 +296,58 @@ func (_factory TicketsTicketReverseObjectFactory) From(_backend db.Queryer, _val
 	}
 	_result._self = _result
 	return _result, nil
+}
+
+func (_factory TicketsTicketReverseObjectFactory) SelectOptionalReport(_children ...orm.RelatedSelection[reports.OptionalReport]) orm.RelatedSelect[tickets.Ticket, reports.OptionalReport] {
+	return orm.SelectReverseOneToOne(_factory.optionalReport).WithChildren(_children...)
+}
+func (_factory TicketsTicketReverseObjectFactory) SelectReport(_children ...orm.RelatedSelection[reports.Report]) orm.RelatedSelect[tickets.Ticket, reports.Report] {
+	return orm.SelectReverseOneToOne(_factory.report).WithChildren(_children...)
+}
+func (_factory TicketsTicketReverseObjectFactory) SelectReview(_children ...orm.RelatedSelection[reports.Review]) orm.RelatedSelect[tickets.Ticket, reports.Review] {
+	return orm.SelectReverseOneToOne(_factory.review).WithChildren(_children...)
+}
+func (_factory TicketsTicketReverseObjectFactory) FromSelected(_selected *orm.RelatedSelected[tickets.Ticket]) (*TicketsTicketReverseObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("optional_report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_object.optionalReport, _err = _factory.SelectOptionalReport().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _selected.HasSelection("report"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_object.report, _err = _factory.SelectReport().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _selected.HasSelection("review"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_object.review, _err = _factory.SelectReview().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _object, nil
 }
 
 type TicketsTicketReverseObject struct {
@@ -370,6 +423,11 @@ func BindReverseObjects() (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
+	return BindReverseObjectsIn(_binding)
+}
+
+// BindReverseObjectsIn composes typed relation factories in one caller-owned project binding.
+func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "link"},
@@ -428,6 +486,7 @@ func BindReverseObjects() (ReverseObjects, error) {
 	}
 	return ReverseObjects{
 		TicketsTicket: TicketsTicketReverseObjectFactory{
+			model:          _model4,
 			links:          _relation0,
 			optionalReport: _relation1,
 			report:         _relation2,
@@ -436,4 +495,4 @@ func BindReverseObjects() (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22
+var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0

@@ -19,6 +19,8 @@ type ReverseObject[Owner, Source any] struct {
 }
 
 type reverseObjectState[Owner, Source any] struct {
+	owner            BoundModel[Owner]
+	source           BoundModel[Source]
 	ownerDescriptor  PrimaryKeyObjectDescriptor[Owner]
 	sourceDescriptor RelationObjectDescriptor[Source]
 	sourcePlan       query.Plan
@@ -91,6 +93,8 @@ func bindReverseObjectState[Owner, Source any](owner BoundModel[Owner], reverseN
 	}
 
 	state := reverseObjectState[Owner, Source]{
+		owner:            owner,
+		source:           source,
 		ownerDescriptor:  ownerDescriptor,
 		sourceDescriptor: source.objectDescriptor,
 		sourcePlan:       source.objectPlan,

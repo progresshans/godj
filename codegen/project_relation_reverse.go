@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v2"
+const ProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"
 
 type RelationReversePackage struct {
 	Alias      string
@@ -426,6 +426,7 @@ func renderBindReverseRelations(
 func renderProjectRelationReverseObjectTypes(output *bytes.Buffer, owner projectRelationReverseOwner) {
 	ownerType := owner.model.app.alias + "." + owner.model.model.GoName
 	fmt.Fprintf(output, "type %s struct {\n", owner.factoryType)
+	fmt.Fprintf(output, "model orm.BoundModel[%s]\n", ownerType)
 	for _, relation := range owner.relations {
 		objectType := "ReverseObject"
 		if relation.cardinality == ir.RelationOneToOne {
@@ -463,6 +464,31 @@ func renderProjectRelationReverseObjectTypes(output *bytes.Buffer, owner project
 	fmt.Fprintln(output, "\treturn _result, nil")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+
+	hasSingle := false
+	for _, relation := range owner.relations {
+		if relation.cardinality != ir.RelationOneToOne {
+			continue
+		}
+		hasSingle = true
+		child := relation.source.app.alias + "." + relation.source.model.GoName
+		fmt.Fprintf(output, "func (_factory %s) Select%s(_children ...orm.RelatedSelection[%s])orm.RelatedSelect[%s,%s]{return orm.SelectReverseOneToOne(_factory.%s).WithChildren(_children...)}\n", owner.factoryType, relation.selector, child, ownerType, child, lowerFirst(relation.selector))
+	}
+	if hasSingle {
+		fmt.Fprintf(output, `func (_factory %[1]s) FromSelected(_selected *orm.RelatedSelected[%[2]s])(*%[3]s,error){
+   if _err:=_selected.ValidateSourceBinding(_factory.model);_err!=nil{return nil,_err}
+   _value,_err:=_selected.Source();if _err!=nil{return nil,_err}
+   _backend,_err:=_selected.Backend();if _err!=nil{return nil,_err}
+   _object,_err:=_factory.From(_backend,_value);if _err!=nil{return nil,_err}
+  `, owner.factoryType, ownerType, owner.objectType)
+		for _, relation := range owner.relations {
+			if relation.cardinality != ir.RelationOneToOne {
+				continue
+			}
+			fmt.Fprintf(output, "if _has,_err:=_selected.HasSelection(%s);_err!=nil{return nil,_err}else if _has{_object.%s,_err=_factory.Select%s().Related(_selected);if _err!=nil{return nil,_err}}\n", strconv.Quote(relation.name), lowerFirst(relation.selector), relation.selector)
+		}
+		fmt.Fprintln(output, "return _object,nil\n}")
+	}
 
 	fmt.Fprintf(output, "type %s struct {\n", owner.objectType)
 	fmt.Fprintf(output, "\tmodel %s\n", ownerType)
@@ -530,8 +556,8 @@ func renderBindReverseObjects(
 	models []*projectRelationModel,
 	owners []projectRelationReverseOwner,
 ) {
-	fmt.Fprintln(output, "func BindReverseObjects() (ReverseObjects, error) {")
 	if len(owners) == 0 {
+		fmt.Fprintln(output, "func BindReverseObjects() (ReverseObjects, error) {")
 		fmt.Fprintln(output, "\tif _, _err := Bind(); _err != nil {")
 		fmt.Fprintln(output, "\t\treturn ReverseObjects{}, _err")
 		fmt.Fprintln(output, "\t}")
@@ -539,7 +565,11 @@ func renderBindReverseObjects(
 		fmt.Fprintln(output, "}")
 		return
 	}
-	renderProjectModelBindings(output, models, "ReverseObjects", nil)
+	fmt.Fprintln(output, "func BindReverseObjects() (ReverseObjects, error) { _binding,_err:=Bind();if _err!=nil{return ReverseObjects{},_err};return BindReverseObjectsIn(_binding) }")
+	fmt.Fprintln(output, "// BindReverseObjectsIn composes typed relation factories in one caller-owned project binding.")
+	fmt.Fprintln(output, "func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {")
+
+	renderBoundProjectModelBindings(output, models, "ReverseObjects", nil)
 	for _, owner := range owners {
 		for _, relation := range owner.relations {
 			binder := "BindReverseObject"
@@ -563,6 +593,7 @@ func renderBindReverseObjects(
 	fmt.Fprintln(output, "\treturn ReverseObjects{")
 	for _, owner := range owners {
 		fmt.Fprintf(output, "\t\t%s: %s{\n", owner.surface, owner.factoryType)
+		fmt.Fprintf(output, "model:_model%d,\n", owner.model.bind)
 		for _, relation := range owner.relations {
 			fmt.Fprintf(output, "\t\t\t%s: _relation%d,\n", lowerFirst(relation.selector), relation.bind)
 		}

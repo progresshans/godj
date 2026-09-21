@@ -32,10 +32,19 @@ func RelationProjection(plan query.Plan, projection query.RelationProjection, ba
 	}
 	hops := projection.Path().Hops()
 	root := hops[0]
-	if root.SourceTable() != plan.Table() {
+	_, rootTable := root.From()
+	if rootTable != plan.Table() {
 		return RelationKey{}, invalidPlan(backendName + " relation projection source table does not match the query root")
 	}
 	sourceKey := query.NewFieldRef(root.Field(), root.SourceColumn(), query.FieldInteger, root.Nullable())
+	if root.Direction() == query.RelationReverse {
+		for _, field := range plan.SourceFields() {
+			if field.Column() == root.TargetPrimaryKeyColumn() && field.Kind() == query.FieldInteger && !field.Nullable() {
+				return KeyForPath(hops), nil
+			}
+		}
+		return RelationKey{}, invalidPlan("reverse projection owner key is not selected model metadata")
+	}
 	if !ContainsField(plan.SourceFields(), sourceKey) {
 		return RelationKey{}, invalidPlan("relation projection source key is not selected model metadata")
 	}

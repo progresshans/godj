@@ -20,4 +20,4 @@ func (TicketDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage
 	return nil, false
 }
 
-var _ GoDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22
+var _ GoDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0

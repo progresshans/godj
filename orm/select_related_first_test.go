@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func orderedRequiredSelectQuery(t *testing.T, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost] {
+func orderedRequiredSelectQuery(t *testing.T, backend db.Queryer) RelatedSelectQuery[relationObjectTestPost] {
 	t.Helper()
 	selected := requiredSelectQuery(t, backend)
 	id := NewAutoField[relationObjectTestPost](relationObjectTestPostDescriptor{}.Metadata().Fields[0])

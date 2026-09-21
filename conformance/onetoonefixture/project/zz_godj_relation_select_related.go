@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v4"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v5"
 
 var _ orm.ProjectionDescriptor[reports.Link] = reports.LinkDescriptor{}
 var _ orm.ProjectionDescriptor[reports.OptionalReport] = reports.OptionalReportDescriptor{}
@@ -28,33 +28,33 @@ type relationSelectQuery[O any] interface {
 type ReportsLinkSelectRelatedQuery struct {
 	factory          ReportsLinkObjectFactory
 	source           orm.QuerySet[reports.Link]
-	query            orm.ForwardSelectQuery[reports.Link]
-	selections       []orm.ForwardSelection[reports.Link]
+	query            orm.RelatedSelectQuery[reports.Link]
+	selections       []orm.RelatedSelection[reports.Link]
 	configurationErr error
 }
 
 func (_factory ReportsLinkObjectFactory) SelectRelated(_source orm.QuerySet[reports.Link]) ReportsLinkSelectRelatedQuery {
-	return ReportsLinkSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectForward(_source)}
+	return ReportsLinkSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
 }
-func (_query ReportsLinkSelectRelatedQuery) WithSelections(_selections ...orm.ForwardSelection[reports.Link]) ReportsLinkSelectRelatedQuery {
+func (_query ReportsLinkSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[reports.Link]) ReportsLinkSelectRelatedQuery {
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_owned := append([]orm.ForwardSelection[reports.Link](nil), _query.selections...)
+	_owned := append([]orm.RelatedSelection[reports.Link](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
 	return _query.rebuild()
 }
-func (_factory ReportsLinkObjectFactory) SelectTicket(_children ...orm.ForwardSelection[tickets.Ticket]) orm.ForwardSelect[reports.Link, tickets.Ticket] {
+func (_factory ReportsLinkObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.Link, tickets.Ticket] {
 	return orm.SelectRequiredForward(_factory.ticket).WithChildren(_children...)
 }
-func (_query ReportsLinkSelectRelatedQuery) WithTicket(_children ...orm.ForwardSelection[tickets.Ticket]) ReportsLinkSelectRelatedQuery {
+func (_query ReportsLinkSelectRelatedQuery) WithTicket(_children ...orm.RelatedSelection[tickets.Ticket]) ReportsLinkSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectTicket(_children...))
 }
-func (_factory ReportsLinkObjectFactory) selectionInputs(_paths []string) ([]orm.ForwardSelection[reports.Link], error) {
-	if len(_paths) == 0 || len(_paths) > orm.MaximumForwardSelectionNodes {
+func (_factory ReportsLinkObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.Link], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
 		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
 	}
-	_result := make([]orm.ForwardSelection[reports.Link], 0, len(_paths))
+	_result := make([]orm.RelatedSelection[reports.Link], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
@@ -96,7 +96,7 @@ func (_query ReportsLinkSelectRelatedQuery) rebuild() ReportsLinkSelectRelatedQu
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_query.query = orm.SelectForward(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
 	if len(_query.selections) > 0 {
 		_query.configurationErr = _query.query.ConfigurationError()
 	}
@@ -165,10 +165,10 @@ func (_query ReportsLinkSelectRelatedQuery) First(_ctx context.Context) (*Report
 func (_query ReportsLinkSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
-func (_query ReportsLinkSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[reports.Link]) (*ReportsLinkObject, error) {
+func (_query ReportsLinkSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[reports.Link]) (*ReportsLinkObject, error) {
 	return _query.factory.FromSelected(_selected)
 }
-func (_factory ReportsLinkObjectFactory) FromSelected(_selected *orm.ForwardSelected[reports.Link]) (*ReportsLinkObject, error) {
+func (_factory ReportsLinkObjectFactory) FromSelected(_selected *orm.RelatedSelected[reports.Link]) (*ReportsLinkObject, error) {
 	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
 		return nil, _err
 	}
@@ -200,33 +200,33 @@ func (_factory ReportsLinkObjectFactory) FromSelected(_selected *orm.ForwardSele
 type ReportsOptionalReportSelectRelatedQuery struct {
 	factory          ReportsOptionalReportObjectFactory
 	source           orm.QuerySet[reports.OptionalReport]
-	query            orm.ForwardSelectQuery[reports.OptionalReport]
-	selections       []orm.ForwardSelection[reports.OptionalReport]
+	query            orm.RelatedSelectQuery[reports.OptionalReport]
+	selections       []orm.RelatedSelection[reports.OptionalReport]
 	configurationErr error
 }
 
 func (_factory ReportsOptionalReportObjectFactory) SelectRelated(_source orm.QuerySet[reports.OptionalReport]) ReportsOptionalReportSelectRelatedQuery {
-	return ReportsOptionalReportSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectForward(_source)}
+	return ReportsOptionalReportSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
 }
-func (_query ReportsOptionalReportSelectRelatedQuery) WithSelections(_selections ...orm.ForwardSelection[reports.OptionalReport]) ReportsOptionalReportSelectRelatedQuery {
+func (_query ReportsOptionalReportSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[reports.OptionalReport]) ReportsOptionalReportSelectRelatedQuery {
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_owned := append([]orm.ForwardSelection[reports.OptionalReport](nil), _query.selections...)
+	_owned := append([]orm.RelatedSelection[reports.OptionalReport](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
 	return _query.rebuild()
 }
-func (_factory ReportsOptionalReportObjectFactory) SelectTicket(_children ...orm.ForwardSelection[tickets.Ticket]) orm.ForwardSelect[reports.OptionalReport, tickets.Ticket] {
+func (_factory ReportsOptionalReportObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.OptionalReport, tickets.Ticket] {
 	return orm.SelectNullableForward(_factory.ticket).WithChildren(_children...)
 }
-func (_query ReportsOptionalReportSelectRelatedQuery) WithTicket(_children ...orm.ForwardSelection[tickets.Ticket]) ReportsOptionalReportSelectRelatedQuery {
+func (_query ReportsOptionalReportSelectRelatedQuery) WithTicket(_children ...orm.RelatedSelection[tickets.Ticket]) ReportsOptionalReportSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectTicket(_children...))
 }
-func (_factory ReportsOptionalReportObjectFactory) selectionInputs(_paths []string) ([]orm.ForwardSelection[reports.OptionalReport], error) {
-	if len(_paths) == 0 || len(_paths) > orm.MaximumForwardSelectionNodes {
+func (_factory ReportsOptionalReportObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.OptionalReport], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
 		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
 	}
-	_result := make([]orm.ForwardSelection[reports.OptionalReport], 0, len(_paths))
+	_result := make([]orm.RelatedSelection[reports.OptionalReport], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
@@ -268,7 +268,7 @@ func (_query ReportsOptionalReportSelectRelatedQuery) rebuild() ReportsOptionalR
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_query.query = orm.SelectForward(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
 	if len(_query.selections) > 0 {
 		_query.configurationErr = _query.query.ConfigurationError()
 	}
@@ -337,10 +337,10 @@ func (_query ReportsOptionalReportSelectRelatedQuery) First(_ctx context.Context
 func (_query ReportsOptionalReportSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
-func (_query ReportsOptionalReportSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[reports.OptionalReport]) (*ReportsOptionalReportObject, error) {
+func (_query ReportsOptionalReportSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[reports.OptionalReport]) (*ReportsOptionalReportObject, error) {
 	return _query.factory.FromSelected(_selected)
 }
-func (_factory ReportsOptionalReportObjectFactory) FromSelected(_selected *orm.ForwardSelected[reports.OptionalReport]) (*ReportsOptionalReportObject, error) {
+func (_factory ReportsOptionalReportObjectFactory) FromSelected(_selected *orm.RelatedSelected[reports.OptionalReport]) (*ReportsOptionalReportObject, error) {
 	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
 		return nil, _err
 	}
@@ -372,33 +372,33 @@ func (_factory ReportsOptionalReportObjectFactory) FromSelected(_selected *orm.F
 type ReportsReportSelectRelatedQuery struct {
 	factory          ReportsReportObjectFactory
 	source           orm.QuerySet[reports.Report]
-	query            orm.ForwardSelectQuery[reports.Report]
-	selections       []orm.ForwardSelection[reports.Report]
+	query            orm.RelatedSelectQuery[reports.Report]
+	selections       []orm.RelatedSelection[reports.Report]
 	configurationErr error
 }
 
 func (_factory ReportsReportObjectFactory) SelectRelated(_source orm.QuerySet[reports.Report]) ReportsReportSelectRelatedQuery {
-	return ReportsReportSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectForward(_source)}
+	return ReportsReportSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
 }
-func (_query ReportsReportSelectRelatedQuery) WithSelections(_selections ...orm.ForwardSelection[reports.Report]) ReportsReportSelectRelatedQuery {
+func (_query ReportsReportSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[reports.Report]) ReportsReportSelectRelatedQuery {
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_owned := append([]orm.ForwardSelection[reports.Report](nil), _query.selections...)
+	_owned := append([]orm.RelatedSelection[reports.Report](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
 	return _query.rebuild()
 }
-func (_factory ReportsReportObjectFactory) SelectTicket(_children ...orm.ForwardSelection[tickets.Ticket]) orm.ForwardSelect[reports.Report, tickets.Ticket] {
+func (_factory ReportsReportObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.Report, tickets.Ticket] {
 	return orm.SelectRequiredForward(_factory.ticket).WithChildren(_children...)
 }
-func (_query ReportsReportSelectRelatedQuery) WithTicket(_children ...orm.ForwardSelection[tickets.Ticket]) ReportsReportSelectRelatedQuery {
+func (_query ReportsReportSelectRelatedQuery) WithTicket(_children ...orm.RelatedSelection[tickets.Ticket]) ReportsReportSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectTicket(_children...))
 }
-func (_factory ReportsReportObjectFactory) selectionInputs(_paths []string) ([]orm.ForwardSelection[reports.Report], error) {
-	if len(_paths) == 0 || len(_paths) > orm.MaximumForwardSelectionNodes {
+func (_factory ReportsReportObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.Report], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
 		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
 	}
-	_result := make([]orm.ForwardSelection[reports.Report], 0, len(_paths))
+	_result := make([]orm.RelatedSelection[reports.Report], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
@@ -440,7 +440,7 @@ func (_query ReportsReportSelectRelatedQuery) rebuild() ReportsReportSelectRelat
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_query.query = orm.SelectForward(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
 	if len(_query.selections) > 0 {
 		_query.configurationErr = _query.query.ConfigurationError()
 	}
@@ -509,10 +509,10 @@ func (_query ReportsReportSelectRelatedQuery) First(_ctx context.Context) (*Repo
 func (_query ReportsReportSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
-func (_query ReportsReportSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[reports.Report]) (*ReportsReportObject, error) {
+func (_query ReportsReportSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[reports.Report]) (*ReportsReportObject, error) {
 	return _query.factory.FromSelected(_selected)
 }
-func (_factory ReportsReportObjectFactory) FromSelected(_selected *orm.ForwardSelected[reports.Report]) (*ReportsReportObject, error) {
+func (_factory ReportsReportObjectFactory) FromSelected(_selected *orm.RelatedSelected[reports.Report]) (*ReportsReportObject, error) {
 	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
 		return nil, _err
 	}
@@ -544,33 +544,33 @@ func (_factory ReportsReportObjectFactory) FromSelected(_selected *orm.ForwardSe
 type ReportsReviewSelectRelatedQuery struct {
 	factory          ReportsReviewObjectFactory
 	source           orm.QuerySet[reports.Review]
-	query            orm.ForwardSelectQuery[reports.Review]
-	selections       []orm.ForwardSelection[reports.Review]
+	query            orm.RelatedSelectQuery[reports.Review]
+	selections       []orm.RelatedSelection[reports.Review]
 	configurationErr error
 }
 
 func (_factory ReportsReviewObjectFactory) SelectRelated(_source orm.QuerySet[reports.Review]) ReportsReviewSelectRelatedQuery {
-	return ReportsReviewSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectForward(_source)}
+	return ReportsReviewSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
 }
-func (_query ReportsReviewSelectRelatedQuery) WithSelections(_selections ...orm.ForwardSelection[reports.Review]) ReportsReviewSelectRelatedQuery {
+func (_query ReportsReviewSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[reports.Review]) ReportsReviewSelectRelatedQuery {
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_owned := append([]orm.ForwardSelection[reports.Review](nil), _query.selections...)
+	_owned := append([]orm.RelatedSelection[reports.Review](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
 	return _query.rebuild()
 }
-func (_factory ReportsReviewObjectFactory) SelectTicket(_children ...orm.ForwardSelection[tickets.Ticket]) orm.ForwardSelect[reports.Review, tickets.Ticket] {
+func (_factory ReportsReviewObjectFactory) SelectTicket(_children ...orm.RelatedSelection[tickets.Ticket]) orm.RelatedSelect[reports.Review, tickets.Ticket] {
 	return orm.SelectRequiredForward(_factory.ticket).WithChildren(_children...)
 }
-func (_query ReportsReviewSelectRelatedQuery) WithTicket(_children ...orm.ForwardSelection[tickets.Ticket]) ReportsReviewSelectRelatedQuery {
+func (_query ReportsReviewSelectRelatedQuery) WithTicket(_children ...orm.RelatedSelection[tickets.Ticket]) ReportsReviewSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectTicket(_children...))
 }
-func (_factory ReportsReviewObjectFactory) selectionInputs(_paths []string) ([]orm.ForwardSelection[reports.Review], error) {
-	if len(_paths) == 0 || len(_paths) > orm.MaximumForwardSelectionNodes {
+func (_factory ReportsReviewObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[reports.Review], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
 		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
 	}
-	_result := make([]orm.ForwardSelection[reports.Review], 0, len(_paths))
+	_result := make([]orm.RelatedSelection[reports.Review], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
@@ -612,7 +612,7 @@ func (_query ReportsReviewSelectRelatedQuery) rebuild() ReportsReviewSelectRelat
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_query.query = orm.SelectForward(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
 	if len(_query.selections) > 0 {
 		_query.configurationErr = _query.query.ConfigurationError()
 	}
@@ -681,10 +681,10 @@ func (_query ReportsReviewSelectRelatedQuery) First(_ctx context.Context) (*Repo
 func (_query ReportsReviewSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
-func (_query ReportsReviewSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[reports.Review]) (*ReportsReviewObject, error) {
+func (_query ReportsReviewSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[reports.Review]) (*ReportsReviewObject, error) {
 	return _query.factory.FromSelected(_selected)
 }
-func (_factory ReportsReviewObjectFactory) FromSelected(_selected *orm.ForwardSelected[reports.Review]) (*ReportsReviewObject, error) {
+func (_factory ReportsReviewObjectFactory) FromSelected(_selected *orm.RelatedSelected[reports.Review]) (*ReportsReviewObject, error) {
 	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
 		return nil, _err
 	}
@@ -713,4 +713,4 @@ func (_factory ReportsReviewObjectFactory) FromSelected(_selected *orm.ForwardSe
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22
+var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0

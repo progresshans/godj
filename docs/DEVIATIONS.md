@@ -46,7 +46,7 @@
 
 ## DEV-0018 — 일대일 역방향 부재와 Go 객체 소유권
 
-- Status: Accepted; single reverse object and prefetch implemented, locally verified on SQLite/PostgreSQL in normal/race/CGO-disabled modes.
+- Status: Accepted; single reverse object, prefetch and typed eager trees implemented, locally verified on SQLite/PostgreSQL in normal/race/CGO-disabled modes.
 - Date: 2026-09-22
 - Scope: [SQLite raw](../orm/testdata/one-to-one-django61-sqlite.json)와 [PostgreSQL raw](../orm/testdata/one-to-one-django61-postgres.json)의
   `observations` 중 `missing_reverse`, `cached_missing_reverse`, `missing_cache_after_external_insert`, `default_reverse_missing`,
@@ -63,6 +63,11 @@ Django는 reverse에서 읽은 객체의 reciprocal forward descriptor에도 cac
 독립 소유자이므로 다른 handle에 cache를 자동 전달하지 않는다. 동일 PK의 전역 identity나 application model pointer의
 공유를 보장하지 않는다. Selected graph와 같은 명시적 eager 소유권은 기존 규칙을 따른다. 자동 상호 cache를 추가하면
 두 handle의 mutation·취소·동시성 소유권을 새로 정해야 하므로 현재의 명시적 구조를 유지한다.
+
+Raw `eager`의 `reverse_forward_reverse`·`optional_forward_reverse`·`review_forward_reverse`는 Django에서 초기 SELECT 1회 뒤
+값 접근 중 추가 SELECT가 각각 1·1·3회 관찰된다. GoDj는 같은 row/presence와 JOIN 형태를 유지하면서 명시적으로 선택한
+각 occurrence의 subtree를 독립 보존하여 후속 SELECT 0회를 보장한다. 다른 handle이나 reciprocal descriptor의 전역 identity를 공유하지 않는다.
+Reverse eager의 Fresh는 정상 부재도 owner 기준으로 다시 읽고, 이전 child가 이동·교체돼도 그 PK에 고정하지 않는다.
 
 저장 값·schema migration·권한은 달라지지 않는다. 관련 cache 상태에 따라 SELECT 수는 달라질 수 있고, Django의
 해당 query count를 GoDj parity로 계산하지 않는다. Runtime은 부재·동시 cold load·외부 쓰기/Fresh·copy 거부·실패 재시도와

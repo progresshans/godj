@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
 
 type BlogPostReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[blog.Post, authors.Author]
@@ -59,7 +59,7 @@ func (_factory BlogPostObjectFactory) From(_backend db.Queryer, _value blog.Post
 }
 
 type BlogPostObject struct {
-	_selectedGraph *orm.ForwardSelected[blog.Post]
+	_selectedGraph *orm.RelatedSelected[blog.Post]
 	model          blog.Post
 	factory        BlogPostObjectFactory
 	backend        db.Queryer
@@ -127,6 +127,11 @@ func BindObjects() (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
+	return BindObjectsIn(_binding)
+}
+
+// BindObjectsIn composes typed relation factories in one caller-owned project binding.
+func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
@@ -163,4 +168,4 @@ func BindObjects() (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_a1f1a1176f9cc0c519c8b8e98a9bb9ab0c1e59d3fa69af4b42d42ada864582f8
+var _ goDjProjectSnapshot_7f0835a3121892f48e7623805a237bd9d905923f8e12cd9445ef471af4f17838

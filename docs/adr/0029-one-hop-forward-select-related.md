@@ -19,6 +19,10 @@
 
 ## 상태와 범위
 
+2026-09-22 GDJ-0096은 공통 selection을 `RelatedSelect`/`RelatedSelection`/`RelatedSelectQuery`/`RelatedSelected`로 갱신하고
+OneToOne reverse와 forward의 typed tree를 함께 실행한다. 아래 날짜별 기록의 Forward 접두 API는 당시 구현이며 유지할 ABI가 아니다.
+현재 방향·key 검증·Fresh·생성 소비자의 지원 경계는 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
+
 
 2026-09-19 GDJ-0083은 명시적 nested forward selection을 같은 runtime으로 확장한다. 설계와 구현의 검증 상태는
 [작업](../../work/0083-nested-forward-eager-graphs.md)과 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다.

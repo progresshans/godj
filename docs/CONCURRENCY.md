@@ -47,6 +47,10 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 - OneToOne reverse의 JOIN 부재 가능성은 physical FK nullability와 별개다. 각 compilation이 AND/OR/NOT의 존재 조건을
   계산하며, 같은 FK의 forward/reverse가 OneToOne 선언 여부에 대해 충돌하면 거부한다. 다른 compile과 join map을 공유하지 않는다.
 - Prefetch/eager All은 전체 scan·row close·cancel·cardinality 검증이 끝난 뒤 한 번에 결과를 게시한다. 실패 시 partial cache를 남기지 않는다.
+- Forward/OneToOne reverse의 typed eager tree는 같은 scanner·evaluation owner를 쓴다. Reverse는 owner PK와 child FK를 대조하고,
+  같은 occurrence/owner의 서로 다른 child 또는 presence를 거부한다. 동일 owner/child의 반복 행은 독립 반환 cache를 유지한다.
+  Reverse ready cache는 부재에도 owner 기준의 plan을 보존하며 Fresh에서 외부 insert·재할당·교체를 읽는다.
+  BindObjectsIn/BindReverseObjectsIn으로 한 project binding을 공유하며 다른 binding의 descendant는 I/O 전에 거부한다.
 - 다른 filter JOIN으로 eager 결과에 같은 root 행이 중복돼도 각 반환 객체·FK pointer·선택한 관계 cache는 독립 소유한다.
   Warm All/First는 원본 query cache에서 다시 복제하며 한 결과의 수정을 다른 결과로 전파하지 않는다.
 - Eager First는 cold query에서 최대 한 row를 읽고 All cache를 채우지 않는다. Warm All cache의 첫 결과도 독립 복제하며,

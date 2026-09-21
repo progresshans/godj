@@ -101,9 +101,9 @@ func TestProjectionScansDistinguishAbsentPresentAndInvalidShapes(t *testing.T) {
 
 func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing.T) {
 	post, _, required, _ := bindRelationObjectTestFixture(t)
-	path, err := ResolveForwardSelectPath(post, "author")
+	path, err := ResolveRelatedSelectPath(post, "author")
 	if err != nil {
-		t.Fatalf("ResolveForwardSelectPath(author) error = %v", err)
+		t.Fatalf("ResolveRelatedSelectPath(author) error = %v", err)
 	}
 	selection, err := BindRequiredForwardSelect(path, required)
 	if err != nil {
@@ -186,7 +186,7 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 		t.Fatalf("warm All() = (%#v, %v)", second, err)
 	}
 	if first[0] == second[0] {
-		t.Fatal("warm All reused ForwardSelected pointer ownership")
+		t.Fatal("warm All reused RelatedSelected pointer ownership")
 	}
 	secondSource, _ := second[0].Source()
 	secondRelated, _ := selection.Related(second[0])
@@ -203,10 +203,10 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 
 	copied := *first[0]
 	if _, err := copied.Source(); err == nil {
-		t.Fatal("copied ForwardSelected.Source() succeeded")
+		t.Fatal("copied RelatedSelected.Source() succeeded")
 	}
 	if _, err := selection.Related(&copied); err == nil {
-		t.Fatal("copied ForwardSelected.Related() succeeded")
+		t.Fatal("copied RelatedSelected.Related() succeeded")
 	}
 
 	fresh, err := related.Fresh()
@@ -223,9 +223,9 @@ func TestForwardSelectRequiredPreservesPlanWarmsCacheAndClonesResults(t *testing
 
 func TestForwardSelectNullablePublishesAbsentAndPresentReadyObjects(t *testing.T) {
 	post, _, _, nullable := bindRelationObjectTestFixture(t)
-	path, err := ResolveForwardSelectPath(post, "reviewer")
+	path, err := ResolveRelatedSelectPath(post, "reviewer")
 	if err != nil {
-		t.Fatalf("ResolveForwardSelectPath(reviewer) error = %v", err)
+		t.Fatalf("ResolveRelatedSelectPath(reviewer) error = %v", err)
 	}
 	selection, err := BindNullableForwardSelect(path, nullable)
 	if err != nil {
@@ -275,23 +275,23 @@ func TestForwardSelectNullablePublishesAbsentAndPresentReadyObjects(t *testing.T
 func TestResolveForwardSelectPathTaxonomyAndBindersRejectMismatches(t *testing.T) {
 	post, author, required, nullable := bindRelationObjectTestFixture(t)
 	for _, path := range []string{"", " ", "missing", "posts", "Author", "author__name", "author.name"} {
-		resolved, err := ResolveForwardSelectPath(post, path)
+		resolved, err := ResolveRelatedSelectPath(post, path)
 		if err == nil || resolved.state.valid {
-			t.Fatalf("ResolveForwardSelectPath(%q) = (%#v, %v), want zero/error", path, resolved, err)
+			t.Fatalf("ResolveRelatedSelectPath(%q) = (%#v, %v), want zero/error", path, resolved, err)
 		}
 		assertSelectRelatedError(t, err, query.CategoryField, query.CodeInvalidRelatedPath, path)
 	}
-	if _, err := ResolveForwardSelectPath(author, "posts"); err == nil {
+	if _, err := ResolveRelatedSelectPath(author, "posts"); err == nil {
 		t.Fatal("reverse path resolved as forward eager path")
 	} else {
 		assertSelectRelatedError(t, err, query.CategoryField, query.CodeInvalidRelatedPath, "posts")
 	}
 
-	authorPath, err := ResolveForwardSelectPath(post, "author")
+	authorPath, err := ResolveRelatedSelectPath(post, "author")
 	if err != nil {
 		t.Fatalf("author path error = %v", err)
 	}
-	reviewerPath, err := ResolveForwardSelectPath(post, "reviewer")
+	reviewerPath, err := ResolveRelatedSelectPath(post, "reviewer")
 	if err != nil {
 		t.Fatalf("reviewer path error = %v", err)
 	}
@@ -301,7 +301,7 @@ func TestResolveForwardSelectPathTaxonomyAndBindersRejectMismatches(t *testing.T
 	if _, err := BindNullableForwardSelect(authorPath, nullable); err == nil {
 		t.Fatal("nullable binder accepted required path")
 	}
-	if _, err := BindRequiredForwardSelect(ForwardSelectPath[relationObjectTestPost]{}, required); err == nil {
+	if _, err := BindRequiredForwardSelect(RelatedSelectPath[relationObjectTestPost]{}, required); err == nil {
 		t.Fatal("required binder accepted zero path")
 	}
 	if _, err := BindNullableForwardSelect(reviewerPath, NullableForwardObject[relationObjectTestPost, relationObjectTestAuthor]{}); err == nil {
@@ -321,9 +321,9 @@ func TestResolveForwardSelectPathTaxonomyAndBindersRejectMismatches(t *testing.T
 
 func TestForwardSelectTerminalPrecedenceAndConfigurationValidation(t *testing.T) {
 	post, _, required, _ := bindRelationObjectTestFixture(t)
-	path, err := ResolveForwardSelectPath(post, "author")
+	path, err := ResolveRelatedSelectPath(post, "author")
 	if err != nil {
-		t.Fatalf("ResolveForwardSelectPath() error = %v", err)
+		t.Fatalf("ResolveRelatedSelectPath() error = %v", err)
 	}
 	selection, err := BindRequiredForwardSelect(path, required)
 	if err != nil {
@@ -372,15 +372,15 @@ func TestForwardSelectTerminalPrecedenceAndConfigurationValidation(t *testing.T)
 	} else {
 		assertSelectRelatedError(t, err, query.CategoryBackend, query.CodeInvalidPlan, "")
 	}
-	zero := ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{}.
+	zero := RelatedSelect[relationObjectTestPost, relationObjectTestAuthor]{}.
 		Select(NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend))
 	if _, err := zero.All(context.Background()); err == nil {
-		t.Fatal("zero ForwardSelect eager All succeeded")
+		t.Fatal("zero RelatedSelect eager All succeeded")
 	} else {
 		assertSelectRelatedError(t, err, query.CategoryQuery, query.CodeInvalidPlan, "")
 	}
-	if _, err := (ForwardSelectQuery[relationObjectTestPost]{}).All(context.Background()); err == nil {
-		t.Fatal("zero ForwardSelectQuery.All succeeded")
+	if _, err := (RelatedSelectQuery[relationObjectTestPost]{}).All(context.Background()); err == nil {
+		t.Fatal("zero RelatedSelectQuery.All succeeded")
 	} else {
 		assertSelectRelatedError(t, err, query.CategoryBackend, query.CodeInvalidPlan, "")
 	}
@@ -574,7 +574,7 @@ func TestForwardSelectProjectionIntegrityAndShapeFailuresArePrePublication(t *te
 	// A NULL nullable source key paired with a present target is an integrity
 	// failure; a non-NULL key paired with an absent target is the inverse.
 	post, _, _, nullable := bindRelationObjectTestFixture(t)
-	path, _ := ResolveForwardSelectPath(post, "reviewer")
+	path, _ := ResolveRelatedSelectPath(post, "reviewer")
 	selection, _ := BindNullableForwardSelect(path, nullable)
 	for _, value := range []selectRelatedJoinedValue{
 		{source: relationObjectTestPost{ID: 11, Title: "Beta", AuthorID: 1}, target: &relationObjectTestAuthor{ID: 2, Name: "Bob"}},
@@ -670,12 +670,12 @@ func TestForwardSelectEmptyResultIsNonNilAndCached(t *testing.T) {
 	}
 }
 
-func requiredSelectQuery(t testing.TB, backend db.Queryer) ForwardSelectQuery[relationObjectTestPost] {
+func requiredSelectQuery(t testing.TB, backend db.Queryer) RelatedSelectQuery[relationObjectTestPost] {
 	t.Helper()
 	post, _, required, _ := bindRelationObjectTestFixture(t)
-	path, err := ResolveForwardSelectPath(post, "author")
+	path, err := ResolveRelatedSelectPath(post, "author")
 	if err != nil {
-		t.Fatalf("ResolveForwardSelectPath(author) error = %v", err)
+		t.Fatalf("ResolveRelatedSelectPath(author) error = %v", err)
 	}
 	selection, err := BindRequiredForwardSelect(path, required)
 	if err != nil {
@@ -867,8 +867,8 @@ func TestForwardSelectProjectionDescriptorCapabilityIsRequired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BindModel(no projection post) error = %v", err)
 	}
-	if _, err := ResolveForwardSelectPath(post, "author"); err == nil {
-		t.Fatal("ResolveForwardSelectPath accepted descriptor without projection capability")
+	if _, err := ResolveRelatedSelectPath(post, "author"); err == nil {
+		t.Fatal("ResolveRelatedSelectPath accepted descriptor without projection capability")
 	} else {
 		assertSelectRelatedError(t, err, query.CategoryQuery, query.CodeInvalidPlan, "")
 	}
@@ -898,9 +898,9 @@ func TestForwardSelectProductionTypesRemainNonAliasing(t *testing.T) {
 	// Keep reflection limited to this cold ABI test: none of the public value
 	// types exposes mutable slices, maps, or exported state.
 	for _, value := range []any{
-		ForwardSelectPath[relationObjectTestPost]{},
-		ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{},
-		ForwardSelectQuery[relationObjectTestPost]{},
+		RelatedSelectPath[relationObjectTestPost]{},
+		RelatedSelect[relationObjectTestPost, relationObjectTestAuthor]{},
+		RelatedSelectQuery[relationObjectTestPost]{},
 	} {
 		typeOf := reflect.TypeOf(value)
 		for index := 0; index < typeOf.NumField(); index++ {

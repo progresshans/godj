@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v7"
-const GoDjProjectRelationFacadeInputSHA256 = "35c4fca05360e917744dba80791f5ef425b485974f0030e976caf8a5bfbb25c2"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v8"
+const GoDjProjectRelationFacadeInputSHA256 = "82ce6db5638ebb866035a3fc42abd56fe6214bd9a9b4c2bae05e1a449c59ecb5"
 
 type Backend interface {
 	db.Queryer
@@ -69,17 +69,17 @@ func relationFacadePrimaryKeyUpdate(_field string) error {
 
 type relationFacadeSelectionInput[S any] interface {
 	relationFacadeSelectionOwner() *relationFacadeState
-	relationFacadeSelectionValue() orm.ForwardSelection[S]
+	relationFacadeSelectionValue() orm.RelatedSelection[S]
 }
 type relationFacadeSelection[S, T any] struct {
 	state     *relationFacadeState
-	selection orm.ForwardSelect[S, T]
+	selection orm.RelatedSelect[S, T]
 }
 
 func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionOwner() *relationFacadeState {
 	return _selector.state
 }
-func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionValue() orm.ForwardSelection[S] {
+func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionValue() orm.RelatedSelection[S] {
 	return _selector.selection
 }
 func (_selector relationFacadeSelection[S, T]) WithChildren(_children ...relationFacadeSelectionInput[T]) relationFacadeSelection[S, T] {
@@ -87,7 +87,7 @@ func (_selector relationFacadeSelection[S, T]) WithChildren(_children ...relatio
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
 		return _selector
 	}
-	_inputs := make([]orm.ForwardSelection[T], 0, len(_children))
+	_inputs := make([]orm.RelatedSelection[T], 0, len(_children))
 	for _, _child := range _children {
 		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
 			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child selection belongs to another facade origin"))
@@ -823,7 +823,7 @@ func (_query ModelsTicketQuery) SelectRelated(_selectors ...ModelsTicketRelation
 	if _err := _query.validate(); _err != nil {
 		return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	_inputs := make([]orm.ForwardSelection[models.Ticket], 0, len(_selectors))
+	_inputs := make([]orm.RelatedSelection[models.Ticket], 0, len(_selectors))
 	for _, _selector := range _selectors {
 		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
 			return ModelsTicketEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
@@ -850,12 +850,12 @@ func (_query ModelsTicketQuery) SelectRelatedPaths(_paths ...string) (ModelsTick
 type ModelsTicketEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[models.Ticket]
-	selections       []orm.ForwardSelection[models.Ticket]
+	selections       []orm.RelatedSelection[models.Ticket]
 	projection       relationSelectQuery[ModelsTicketObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySet[models.Ticket], _selections []orm.ForwardSelection[models.Ticket]) ModelsTicketEagerQuery {
+func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySet[models.Ticket], _selections []orm.RelatedSelection[models.Ticket]) ModelsTicketEagerQuery {
 	_result := ModelsTicketEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
@@ -865,7 +865,7 @@ func (_state *relationFacadeState) newModelsTicketEagerQuery(_source orm.QuerySe
 		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
 		return _result
 	}
-	_result.selections = append([]orm.ForwardSelection[models.Ticket](nil), _selections...)
+	_result.selections = append([]orm.RelatedSelection[models.Ticket](nil), _selections...)
 	_projection := _state.objects.ModelsTicket.SelectRelated(_source).WithSelections(_result.selections...)
 	_result.projection = _projection
 	_result.configurationErr = _projection.configurationErr
@@ -1014,4 +1014,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_39d9756d75356b5aa8822073b9d3b18873334bd31aeb3c38b5d70609a2496761
+var _ goDjProjectSnapshot_52974095dd18631ed6c2ce21c011e16ad49ad340d5f125e154a2c5f063f723f4

@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v4"
+const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v5"
 
 // GenerateProjectRelationSelectRelated renders the current project-only
 // select-related companion. It attaches a composable builder to the existing
@@ -144,16 +144,16 @@ func renderProjectRelationSelectRelatedSource(output *bytes.Buffer, source proje
 	fmt.Fprintf(output, `type %[1]s struct {
  factory %[2]s
  source orm.QuerySet[%[3]s]
- query orm.ForwardSelectQuery[%[3]s]
- selections []orm.ForwardSelection[%[3]s]
+ query orm.RelatedSelectQuery[%[3]s]
+ selections []orm.RelatedSelection[%[3]s]
  configurationErr error
 }
 func (_factory %[2]s) SelectRelated(_source orm.QuerySet[%[3]s]) %[1]s {
- return %[1]s{factory:_factory,source:_source,query:orm.SelectForward(_source)}
+ return %[1]s{factory:_factory,source:_source,query:orm.SelectRelated(_source)}
 }
-func (_query %[1]s) WithSelections(_selections ...orm.ForwardSelection[%[3]s]) %[1]s {
+func (_query %[1]s) WithSelections(_selections ...orm.RelatedSelection[%[3]s]) %[1]s {
  if _query.configurationErr!=nil{return _query}
- _owned:=append([]orm.ForwardSelection[%[3]s](nil),_query.selections...)
+ _owned:=append([]orm.RelatedSelection[%[3]s](nil),_query.selections...)
  _query.selections=append(_owned,_selections...)
  return _query.rebuild()
 }
@@ -164,18 +164,18 @@ func (_query %[1]s) WithSelections(_selections ...orm.ForwardSelection[%[3]s]) %
 		if relation.field.Nullable {
 			constructor = "orm.SelectNullableForward"
 		}
-		fmt.Fprintf(output, `func (_factory %[1]s) Select%[2]s(_children ...orm.ForwardSelection[%[3]s])orm.ForwardSelect[%[4]s,%[3]s]{
+		fmt.Fprintf(output, `func (_factory %[1]s) Select%[2]s(_children ...orm.RelatedSelection[%[3]s])orm.RelatedSelect[%[4]s,%[3]s]{
  return %[5]s(_factory.%[6]s).WithChildren(_children...)
 }
 `, source.factoryType, relation.selector, targetType, sourceType, constructor, lowerFirst(relation.selector))
-		fmt.Fprintf(output, `func (_query %[1]s) With%[2]s(_children ...orm.ForwardSelection[%[3]s]) %[1]s {
+		fmt.Fprintf(output, `func (_query %[1]s) With%[2]s(_children ...orm.RelatedSelection[%[3]s]) %[1]s {
  return _query.WithSelections(_query.factory.Select%[2]s(_children...))
 }
 `, queryType, relation.selector, targetType)
 	}
-	fmt.Fprintf(output, `func (_factory %[1]s) selectionInputs(_paths []string)([]orm.ForwardSelection[%[2]s],error){
- if len(_paths)==0||len(_paths)>orm.MaximumForwardSelectionNodes{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Detail:"forward selection requires a bounded nonempty path list"}}
- _result:=make([]orm.ForwardSelection[%[2]s],0,len(_paths))
+	fmt.Fprintf(output, `func (_factory %[1]s) selectionInputs(_paths []string)([]orm.RelatedSelection[%[2]s],error){
+ if len(_paths)==0||len(_paths)>orm.MaximumRelatedSelectionNodes{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Detail:"forward selection requires a bounded nonempty path list"}}
+ _result:=make([]orm.RelatedSelection[%[2]s],0,len(_paths))
  for _,_path:=range _paths{
   _parts:=strings.Split(_path,"__")
   if len(_parts)>query.MaximumRelationHops{return nil,&query.Error{Category:query.CategoryField,Code:query.CodeInvalidRelatedPath,Field:_path,Detail:"forward selection exceeds its path bound"}}
@@ -210,7 +210,7 @@ func (_query %[1]s) WithSelections(_selections ...orm.ForwardSelection[%[3]s]) %
 }
 func (_query %[1]s) rebuild() %[1]s{
  if _query.configurationErr!=nil{return _query}
- _query.query=orm.SelectForward(_query.source,_query.selections...).WithSourceBinding(_query.factory.model)
+ _query.query=orm.SelectRelated(_query.source,_query.selections...).WithSourceBinding(_query.factory.model)
  if len(_query.selections)>0{_query.configurationErr=_query.query.ConfigurationError()}
  return _query
 }
@@ -243,8 +243,8 @@ func (_query %[1]s) rebuild() %[1]s{
 }
 func (_query %[1]s) Count(_ctx context.Context)(int64,error){return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)}
 `, queryType, source.objectType)
-	fmt.Fprintf(output, "func (_query %s) wrap(_selected *orm.ForwardSelected[%s])(*%s,error){return _query.factory.FromSelected(_selected)}\n", queryType, sourceType, source.objectType)
-	fmt.Fprintf(output, `func (_factory %[1]s) FromSelected(_selected *orm.ForwardSelected[%[2]s])(*%[3]s,error){
+	fmt.Fprintf(output, "func (_query %s) wrap(_selected *orm.RelatedSelected[%s])(*%s,error){return _query.factory.FromSelected(_selected)}\n", queryType, sourceType, source.objectType)
+	fmt.Fprintf(output, `func (_factory %[1]s) FromSelected(_selected *orm.RelatedSelected[%[2]s])(*%[3]s,error){
  if _err:=_selected.ValidateSourceBinding(_factory.model);_err!=nil{return nil,_err}
  _source,_err:=_selected.Source();if _err!=nil{return nil,_err}
  _backend,_err:=_selected.Backend();if _err!=nil{return nil,_err}

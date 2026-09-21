@@ -271,11 +271,11 @@ func facadeSelectors(t *testing.T, models project.Models, paths []string) []proj
 	}
 	return selections
 }
-func objectSelectors(t *testing.T, objects project.Objects, paths []string) []orm.ForwardSelection[blog.Post] {
+func objectSelectors(t *testing.T, objects project.Objects, paths []string) []orm.RelatedSelection[blog.Post] {
 	t.Helper()
 	p := objects.PeoplePerson
 	team := objects.DirectoryTeam
-	selections := make([]orm.ForwardSelection[blog.Post], len(paths))
+	selections := make([]orm.RelatedSelection[blog.Post], len(paths))
 	for i, path := range paths {
 		switch path {
 		case "author":
@@ -445,7 +445,7 @@ func TestGeneratedNestedEagerInvalidSelections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, selection := range []orm.ForwardSelection[blog.Post]{foreignObjects.BlogPost.SelectAuthor(), objects.BlogPost.SelectAuthor(foreignObjects.PeoplePerson.SelectTeam()), objects.BlogPost.SelectAuthor(nil)} {
+	for _, selection := range []orm.RelatedSelection[blog.Post]{foreignObjects.BlogPost.SelectAuthor(), objects.BlogPost.SelectAuthor(foreignObjects.PeoplePerson.SelectTeam()), objects.BlogPost.SelectAuthor(nil)} {
 		if _, err := objects.BlogPost.SelectRelated(blog.PostObjects.Using(backend)).WithSelections(selection).Count(t.Context()); err == nil {
 			t.Fatal("foreign or nil object selection accepted")
 		}
@@ -476,7 +476,7 @@ func TestGeneratedNestedEagerInvalidSelections(t *testing.T) {
 	if _, err := tooDeep.Count(t.Context()); err == nil {
 		t.Fatal("65-node route accepted")
 	}
-	repeated := make([]orm.ForwardSelection[blog.Post], orm.MaximumForwardSelectionNodes)
+	repeated := make([]orm.RelatedSelection[blog.Post], orm.MaximumRelatedSelectionNodes)
 	for i := range repeated {
 		repeated[i] = objects.BlogPost.SelectAuthor()
 	}

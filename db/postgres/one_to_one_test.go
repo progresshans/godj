@@ -25,6 +25,13 @@ func TestPostgresOneToOneGeneratedProduct(t *testing.T) {
 }
 
 func TestPostgresOneToOneReverseLookupsMatchDjango(t *testing.T) {
+	runPostgresOneToOneComparison(t, false)
+}
+func TestPostgresOneToOneReverseEagerMatchesDjango(t *testing.T) {
+	runPostgresOneToOneComparison(t, true)
+}
+func runPostgresOneToOneComparison(t *testing.T, eager bool) {
+	t.Helper()
 	url := postgresIntegrationURL(t)
 	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
 	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
@@ -51,7 +58,11 @@ func TestPostgresOneToOneReverseLookupsMatchDjango(t *testing.T) {
 			return nil
 		}),
 	)
-	onetoonetest.RunReverseLookups(t, backend, "postgres", func(plan query.Plan) (string, error) {
+	run := onetoonetest.RunReverseLookups
+	if eager {
+		run = onetoonetest.RunReverseEager
+	}
+	run(t, backend, "postgres", func(plan query.Plan) (string, error) {
 		statement, _, err := compilePlan(namespace, plan)
 		return statement, err
 	}, trace.reads.Load)

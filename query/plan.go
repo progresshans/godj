@@ -455,8 +455,12 @@ func (p Plan) WithRelationProjections(projections ...RelationProjection) (Plan, 
 		first := projection.path.hops[0]
 		if index == 0 {
 			root = first
-		} else if first.Source() != root.Source() || first.SourceTable() != root.SourceTable() {
-			return Plan{}, invalidPlanError("selected projections do not share one source model")
+		} else {
+			identity, table := first.From()
+			rootIdentity, rootTable := root.From()
+			if identity != rootIdentity || table != rootTable {
+				return Plan{}, invalidPlanError("selected projections do not share one source model")
+			}
 		}
 		key := projectionRouteKey(projection.path.hops)
 		if previous, exists := byRoute[key]; exists && !previous.Equal(projection) {
@@ -476,7 +480,10 @@ func (p Plan) WithRelationProjections(projections ...RelationProjection) (Plan, 
 				return Plan{}, invalidPlanError("nested projection disagrees with its parent route")
 			}
 			hop := hops[len(hops)-1]
-			if !slices.Contains(parent.targetColumns, NewFieldRef(hop.Field(), hop.SourceColumn(), FieldInteger, hop.Nullable())) {
+			if hop.Direction() == RelationReverse && parent.path.terminal.Column() != hop.TargetPrimaryKeyColumn() {
+				return Plan{}, invalidPlanError("nested reverse projection disagrees with its parent primary key")
+			}
+			if hop.Direction() == RelationForward && !slices.Contains(parent.targetColumns, NewFieldRef(hop.Field(), hop.SourceColumn(), FieldInteger, hop.Nullable())) {
 				return Plan{}, invalidPlanError("nested projection source key is not canonical parent metadata")
 			}
 		}

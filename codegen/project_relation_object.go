@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
+const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
 
 type RelationObjectPackage struct {
 	Alias      string
@@ -269,7 +269,7 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 	fmt.Fprintln(output)
 
 	fmt.Fprintf(output, "type %s struct {\n", source.objectType)
-	fmt.Fprintf(output, "\t_selectedGraph *orm.ForwardSelected[%s]\n", sourceType)
+	fmt.Fprintf(output, "\t_selectedGraph *orm.RelatedSelected[%s]\n", sourceType)
 	fmt.Fprintf(output, "\tmodel %s\n", sourceType)
 	fmt.Fprintf(output, "\tfactory %s\n", source.factoryType)
 	fmt.Fprintln(output, "\tbackend db.Queryer")
@@ -344,8 +344,8 @@ func renderBindObjects(
 	models []*projectRelationModel,
 	sources []projectRelationObjectSource,
 ) {
-	fmt.Fprintln(output, "func BindObjects() (Objects, error) {")
 	if len(models) == 0 {
+		fmt.Fprintln(output, "func BindObjects() (Objects, error) {")
 		fmt.Fprintln(output, "\tif _, _err := Bind(); _err != nil {")
 		fmt.Fprintln(output, "\t\treturn Objects{}, _err")
 		fmt.Fprintln(output, "\t}")
@@ -353,6 +353,10 @@ func renderBindObjects(
 		fmt.Fprintln(output, "}")
 		return
 	}
+	fmt.Fprintln(output, "func BindObjects() (Objects, error) { _binding,_err:=Bind();if _err!=nil{return Objects{},_err};return BindObjectsIn(_binding) }")
+	fmt.Fprintln(output, "// BindObjectsIn composes typed relation factories in one caller-owned project binding.")
+	fmt.Fprintln(output, "func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {")
+
 	usedModels := make(map[int]struct{}, len(models))
 	for _, source := range sources {
 		usedModels[source.model.bind] = struct{}{}
@@ -360,7 +364,7 @@ func renderBindObjects(
 			usedModels[relation.target.bind] = struct{}{}
 		}
 	}
-	renderProjectModelBindings(output, models, "Objects", usedModels)
+	renderBoundProjectModelBindings(output, models, "Objects", usedModels)
 	for _, source := range sources {
 		for _, relation := range source.relations {
 			binder := "orm.BindRequiredForwardObject"

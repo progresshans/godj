@@ -5,54 +5,55 @@ import (
 	"github.com/progresshans/godj/query"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 )
 
-// ForwardSelection is a closed, source-typed eager target. Its implementation
+// RelatedSelection is a closed, source-typed eager target. Its implementation
 // retains the concrete target model type through scanning, cloning and access.
-type ForwardSelection[S any] interface {
-	prepareForwardSelection(int, *int) (preparedForwardSelection[S], error)
+type RelatedSelection[S any] interface {
+	prepareRelatedSelection(int, *int) (preparedRelatedSelection[S], error)
 }
 
-type preparedForwardSelection[S any] interface {
-	path() forwardSelectPathState[S]
+type preparedRelatedSelection[S any] interface {
+	path() relatedSelectPathState[S]
 	validate() error
-	sameBinding(preparedForwardSelection[S]) bool
-	merge(preparedForwardSelection[S]) (preparedForwardSelection[S], error)
+	sameBinding(preparedRelatedSelection[S]) bool
+	merge(preparedRelatedSelection[S]) (preparedRelatedSelection[S], error)
 	projections([]query.RelationHop) ([]query.RelationProjection, error)
 	columnCount() int
-	newScan() forwardTargetScan[S]
+	newScan() relatedTargetScan[S]
 }
-type forwardTargetScan[S any] interface {
+type relatedTargetScan[S any] interface {
 	destinations() []any
-	snapshot() projectedForwardTarget[S]
+	snapshot() projectedRelatedTarget[S]
 }
-type projectedForwardTarget[S any] interface {
-	validate(S) (cachedForwardTarget, error)
+type projectedRelatedTarget[S any] interface {
+	validate(S, selectedCardinality, string) (cachedRelatedTarget, error)
 	validateAbsent() error
 }
-type cachedForwardTarget interface {
+type cachedRelatedTarget interface {
 	projection() query.RelationProjection
 	relatedObject(db.Queryer) any
 }
 
-type preparedForwardTarget[S, T any] struct {
-	state    forwardSelectState[S, T]
+type preparedRelatedTarget[S, T any] struct {
+	state    relatedSelectState[S, T]
 	base     query.Plan
-	children []preparedForwardSelection[T]
+	children []preparedRelatedSelection[T]
 }
 
 // WithChildren attaches source-typed descendants without expanding generated
 // types by depth. Each call owns its input slice and preserves an earlier error.
-func (selection ForwardSelect[S, T]) WithChildren(children ...ForwardSelection[T]) ForwardSelect[S, T] {
-	copy := append([]ForwardSelection[T](nil), selection.children...)
+func (selection RelatedSelect[S, T]) WithChildren(children ...RelatedSelection[T]) RelatedSelect[S, T] {
+	copy := append([]RelatedSelection[T](nil), selection.children...)
 	selection.children = append(copy, children...)
 	return selection
 }
 
 // WithConfigurationError lets a generated typed selector retain ownership or
 // dispatch failures while preserving the first error across child composition.
-func (selection ForwardSelect[S, T]) WithConfigurationError(err error) ForwardSelect[S, T] {
+func (selection RelatedSelect[S, T]) WithConfigurationError(err error) RelatedSelect[S, T] {
 	if selection.configurationErr == nil {
 		selection.configurationErr = err
 	}
@@ -62,40 +63,57 @@ func (selection ForwardSelect[S, T]) WithConfigurationError(err error) ForwardSe
 // SelectRequiredForward and SelectNullableForward derive selections directly
 // from sealed object handles. A failure stays on the selection until query
 // preparation; unrelated object-only use does not require projection support.
-func SelectRequiredForward[S, T any](relation RequiredForwardObject[S, T]) ForwardSelect[S, T] {
+func SelectRequiredForward[S, T any](relation RequiredForwardObject[S, T]) RelatedSelect[S, T] {
 	return selectionFromObject(relation.state, false)
 }
-func SelectNullableForward[S, T any](relation NullableForwardObject[S, T]) ForwardSelect[S, T] {
+func SelectNullableForward[S, T any](relation NullableForwardObject[S, T]) RelatedSelect[S, T] {
 	return selectionFromObject(relation.state, true)
 }
-func selectionFromObject[S, T any](state forwardObjectState[S, T], nullable bool) ForwardSelect[S, T] {
+func selectionFromObject[S, T any](state forwardObjectState[S, T], nullable bool) RelatedSelect[S, T] {
 	if !state.valid || interfaceIsNil(state.storage) {
-		return ForwardSelect[S, T]{configurationErr: relationInvalidPlan("forward object selection is unbound")}
+		return RelatedSelect[S, T]{configurationErr: relationInvalidPlan("forward object selection is unbound")}
 	}
-	path, err := ResolveForwardSelectPath(state.source, state.storage.Field().Name)
+	path, err := ResolveRelatedSelectPath(state.source, state.storage.Field().Name)
 	if err != nil {
-		return ForwardSelect[S, T]{configurationErr: err}
+		return RelatedSelect[S, T]{configurationErr: err}
 	}
 	selection, err := bindForwardSelect(path.state, state, nullable)
 	if err != nil {
-		return ForwardSelect[S, T]{configurationErr: err}
+		return RelatedSelect[S, T]{configurationErr: err}
 	}
 	return selection
 }
 
-// MaximumForwardSelectionNodes bounds preparation work, including repeated inputs.
-const MaximumForwardSelectionNodes = 1024
-
-func prepareSelectionSet[S any](selections []ForwardSelection[S], depth int, remaining *int) ([]preparedForwardSelection[S], error) {
-	if len(selections) > *remaining {
-		return nil, relationInvalidPlan("forward selection exceeds 1024 input nodes")
+// SelectReverseOneToOne derives an optional selection from a sealed reverse
+// handle and composes with the same typed descendants as related selections.
+func SelectReverseOneToOne[S, T any](relation ReverseOneToOneObject[S, T]) RelatedSelect[S, T] {
+	if err := relation.state.validate(); err != nil {
+		return RelatedSelect[S, T]{configurationErr: err}
 	}
-	prepared := make([]preparedForwardSelection[S], len(selections))
+	path, err := ResolveRelatedSelectPath(relation.state.owner, relation.state.sourceForeignKey.Relation.Reverse.Name)
+	if err != nil {
+		return RelatedSelect[S, T]{configurationErr: err}
+	}
+	selection, err := BindReverseOneToOneSelect(path, relation)
+	if err != nil {
+		return RelatedSelect[S, T]{configurationErr: err}
+	}
+	return selection
+}
+
+// MaximumRelatedSelectionNodes bounds preparation work, including repeated inputs.
+const MaximumRelatedSelectionNodes = 1024
+
+func prepareSelectionSet[S any](selections []RelatedSelection[S], depth int, remaining *int) ([]preparedRelatedSelection[S], error) {
+	if len(selections) > *remaining {
+		return nil, relationInvalidPlan("related selection exceeds 1024 input nodes")
+	}
+	prepared := make([]preparedRelatedSelection[S], len(selections))
 	for i, selection := range selections {
 		if interfaceIsNil(selection) {
-			return nil, relationInvalidPlan("forward selection is nil")
+			return nil, relationInvalidPlan("related selection is nil")
 		}
-		target, err := selection.prepareForwardSelection(depth, remaining)
+		target, err := selection.prepareRelatedSelection(depth, remaining)
 		if err != nil {
 			return nil, err
 		}
@@ -103,11 +121,11 @@ func prepareSelectionSet[S any](selections []ForwardSelection[S], depth int, rem
 	}
 	return mergeSelectionSet(prepared)
 }
-func mergeSelectionSet[S any](selections []preparedForwardSelection[S]) ([]preparedForwardSelection[S], error) {
-	unique := make(map[string]preparedForwardSelection[S], len(selections))
+func mergeSelectionSet[S any](selections []preparedRelatedSelection[S]) ([]preparedRelatedSelection[S], error) {
+	unique := make(map[string]preparedRelatedSelection[S], len(selections))
 	for _, target := range selections {
 		if interfaceIsNil(target) {
-			return nil, relationInvalidPlan("prepared forward selection is nil")
+			return nil, relationInvalidPlan("prepared related selection is nil")
 		}
 		name := target.path().path
 		if previous, exists := unique[name]; exists {
@@ -119,24 +137,24 @@ func mergeSelectionSet[S any](selections []preparedForwardSelection[S]) ([]prepa
 		}
 		unique[name] = target
 	}
-	result := make([]preparedForwardSelection[S], 0, len(unique))
+	result := make([]preparedRelatedSelection[S], 0, len(unique))
 	for _, target := range unique {
 		result = append(result, target)
 	}
-	slices.SortFunc(result, func(left, right preparedForwardSelection[S]) int {
+	slices.SortFunc(result, func(left, right preparedRelatedSelection[S]) int {
 		return strings.Compare(left.path().path, right.path().path)
 	})
 	return result, nil
 }
-func (selection ForwardSelect[S, T]) prepareForwardSelection(depth int, remaining *int) (preparedForwardSelection[S], error) {
+func (selection RelatedSelect[S, T]) prepareRelatedSelection(depth int, remaining *int) (preparedRelatedSelection[S], error) {
 	if selection.configurationErr != nil {
 		return nil, selection.configurationErr
 	}
 	if depth > query.MaximumRelationHops || *remaining <= 0 {
-		return nil, relationInvalidPlan("forward selection exceeds its depth or node bound")
+		return nil, relationInvalidPlan("related selection exceeds its depth or node bound")
 	}
 	*remaining--
-	if err := validateForwardSelectState(selection.state); err != nil {
+	if err := validateRelatedSelectState(selection.state); err != nil {
 		return nil, err
 	}
 	children, err := prepareSelectionSet(selection.children, depth+1, remaining)
@@ -145,23 +163,23 @@ func (selection ForwardSelect[S, T]) prepareForwardSelection(depth int, remainin
 	}
 	for _, child := range children {
 		path := child.path()
-		if path.source.snapshot != selection.state.relation.target.snapshot || path.source.identity != selection.state.relation.target.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(selection.state.targetDescriptor) {
+		if path.source.snapshot != selection.state.target.snapshot || path.source.identity != selection.state.target.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(selection.state.targetDescriptor) {
 			return nil, relationInvalidPlan("selected child belongs to a different parent model or project binding")
 		}
 	}
-	target := selection.state.path.relation.targetModel
+	target := selection.state.path.targetModel
 	base, err := query.NewPlan(target.DBTable, modelFieldReferences(target)).WithLimit(2)
 	if err != nil {
 		return nil, err
 	}
-	return preparedForwardTarget[S, T]{state: selection.state, base: base, children: children}, nil
+	return preparedRelatedTarget[S, T]{state: selection.state, base: base, children: children}, nil
 }
-func (target preparedForwardTarget[S, T]) path() forwardSelectPathState[S] { return target.state.path }
-func (target preparedForwardTarget[S, T]) validate() error {
-	if err := validateForwardSelectState(target.state); err != nil {
+func (target preparedRelatedTarget[S, T]) path() relatedSelectPathState[S] { return target.state.path }
+func (target preparedRelatedTarget[S, T]) validate() error {
+	if err := validateRelatedSelectState(target.state); err != nil {
 		return err
 	}
-	expected, err := query.NewPlan(target.state.path.relation.targetModel.DBTable, modelFieldReferences(target.state.path.relation.targetModel)).WithLimit(2)
+	expected, err := query.NewPlan(target.state.path.targetModel.DBTable, modelFieldReferences(target.state.path.targetModel)).WithLimit(2)
 	if err != nil || !expected.Equal(target.base) {
 		return relationInvalidPlan("selected target source plan changed after binding")
 	}
@@ -173,26 +191,27 @@ func (target preparedForwardTarget[S, T]) validate() error {
 			return err
 		}
 		path := child.path()
-		if path.source.snapshot != target.state.relation.target.snapshot || path.source.identity != target.state.relation.target.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(target.state.targetDescriptor) {
+		if path.source.snapshot != target.state.target.snapshot || path.source.identity != target.state.target.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(target.state.targetDescriptor) {
 			return relationInvalidPlan("selected child binding changed")
 		}
 	}
 	return nil
 }
-func (target preparedForwardTarget[S, T]) sameBinding(other preparedForwardSelection[S]) bool {
-	value, ok := other.(preparedForwardTarget[S, T])
+func (target preparedRelatedTarget[S, T]) sameBinding(other preparedRelatedSelection[S]) bool {
+	value, ok := other.(preparedRelatedTarget[S, T])
 	return ok && target.state.path.projection.Equal(value.state.path.projection) &&
 		target.state.path.source.snapshot == value.state.path.source.snapshot &&
 		reflect.TypeOf(target.state.sourceDescriptor) == reflect.TypeOf(value.state.sourceDescriptor) &&
 		reflect.TypeOf(target.state.targetDescriptor) == reflect.TypeOf(value.state.targetDescriptor) &&
-		reflect.TypeOf(target.state.relation.storage) == reflect.TypeOf(value.state.relation.storage)
+		reflect.TypeOf(target.state.sourceStorage) == reflect.TypeOf(value.state.sourceStorage) &&
+		reflect.TypeOf(target.state.targetStorage) == reflect.TypeOf(value.state.targetStorage)
 }
-func (target preparedForwardTarget[S, T]) merge(other preparedForwardSelection[S]) (preparedForwardSelection[S], error) {
+func (target preparedRelatedTarget[S, T]) merge(other preparedRelatedSelection[S]) (preparedRelatedSelection[S], error) {
 	if !target.sameBinding(other) {
 		return nil, relationInvalidPlan("repeated selected target has conflicting binding metadata")
 	}
-	value := other.(preparedForwardTarget[S, T])
-	combined := append([]preparedForwardSelection[T](nil), target.children...)
+	value := other.(preparedRelatedTarget[S, T])
+	combined := append([]preparedRelatedSelection[T](nil), target.children...)
 	combined = append(combined, value.children...)
 	children, err := mergeSelectionSet(combined)
 	if err != nil {
@@ -201,11 +220,11 @@ func (target preparedForwardTarget[S, T]) merge(other preparedForwardSelection[S
 	target.children = children
 	return target, nil
 }
-func (target preparedForwardTarget[S, T]) projections(prefix []query.RelationHop) ([]query.RelationProjection, error) {
+func (target preparedRelatedTarget[S, T]) projections(prefix []query.RelationHop) ([]query.RelationProjection, error) {
 	hops := append([]query.RelationHop(nil), prefix...)
 	hops = append(hops, target.state.path.projection.Path().Hops()...)
 	local := target.state.path.projection
-	projection, err := query.NewForwardChainProjection(hops, local.Path().Terminal(), local.TargetColumns())
+	projection, err := query.NewRelationProjection(hops, local.Path().Terminal(), local.TargetColumns())
 	if err != nil {
 		return nil, err
 	}
@@ -219,35 +238,35 @@ func (target preparedForwardTarget[S, T]) projections(prefix []query.RelationHop
 	}
 	return result, nil
 }
-func (target preparedForwardTarget[S, T]) columnCount() int {
+func (target preparedRelatedTarget[S, T]) columnCount() int {
 	count := len(target.state.path.projection.TargetColumns())
 	for _, child := range target.children {
 		count += child.columnCount()
 	}
 	return count
 }
-func (target preparedForwardTarget[S, T]) newScan() forwardTargetScan[S] {
+func (target preparedRelatedTarget[S, T]) newScan() relatedTargetScan[S] {
 	scan := target.state.targetDescriptor.NewProjectionScan()
 	if interfaceIsNil(scan) {
 		return nil
 	}
-	children := make([]forwardTargetScan[T], len(target.children))
+	children := make([]relatedTargetScan[T], len(target.children))
 	for i, child := range target.children {
 		children[i] = child.newScan()
 		if interfaceIsNil(children[i]) {
 			return nil
 		}
 	}
-	return typedForwardTargetScan[S, T]{target: target, scan: scan, children: children}
+	return typedRelatedTargetScan[S, T]{target: target, scan: scan, children: children}
 }
 
-type typedForwardTargetScan[S, T any] struct {
-	target   preparedForwardTarget[S, T]
+type typedRelatedTargetScan[S, T any] struct {
+	target   preparedRelatedTarget[S, T]
 	scan     ProjectionScan[T]
-	children []forwardTargetScan[T]
+	children []relatedTargetScan[T]
 }
 
-func (scan typedForwardTargetScan[S, T]) destinations() []any {
+func (scan typedRelatedTargetScan[S, T]) destinations() []any {
 	own := scan.scan.Destinations()
 	if !validProjectionDestinations(own, len(scan.target.state.path.projection.TargetColumns())) {
 		return nil
@@ -262,24 +281,24 @@ func (scan typedForwardTargetScan[S, T]) destinations() []any {
 	}
 	return result
 }
-func (scan typedForwardTargetScan[S, T]) snapshot() projectedForwardTarget[S] {
+func (scan typedRelatedTargetScan[S, T]) snapshot() projectedRelatedTarget[S] {
 	value, key, presence := scan.scan.Decode()
-	children := make([]projectedForwardTarget[T], len(scan.children))
+	children := make([]projectedRelatedTarget[T], len(scan.children))
 	for i, child := range scan.children {
 		children[i] = child.snapshot()
 	}
-	return typedProjectedForwardTarget[S, T]{target: scan.target, value: scan.target.state.targetDescriptor.CloneModel(value), key: key, presence: presence, children: children}
+	return typedProjectedRelatedTarget[S, T]{target: scan.target, value: scan.target.state.targetDescriptor.CloneModel(value), key: key, presence: presence, children: children}
 }
 
-type typedProjectedForwardTarget[S, T any] struct {
-	target   preparedForwardTarget[S, T]
+type typedProjectedRelatedTarget[S, T any] struct {
+	target   preparedRelatedTarget[S, T]
 	value    T
 	key      query.Value
 	presence ProjectionPresence
-	children []projectedForwardTarget[T]
+	children []projectedRelatedTarget[T]
 }
 
-func (row typedProjectedForwardTarget[S, T]) validateAbsent() error {
+func (row typedProjectedRelatedTarget[S, T]) validateAbsent() error {
 	if len(row.children) != len(row.target.children) {
 		return relationInvalidPlan("projected descendant roster changed")
 	}
@@ -296,29 +315,37 @@ func (row typedProjectedForwardTarget[S, T]) validateAbsent() error {
 	}
 	return nil
 }
-func (row typedProjectedForwardTarget[S, T]) validate(source S) (cachedForwardTarget, error) {
+
+type selectedCardinality map[string]map[int64]query.Value
+
+func (row typedProjectedRelatedTarget[S, T]) validate(source S, seen selectedCardinality, prefix string) (cachedRelatedTarget, error) {
 	if len(row.children) != len(row.target.children) {
 		return nil, relationInvalidPlan("projected descendant roster changed")
 	}
 	state := row.target.state
-	foreignKey, ok := state.relation.storage.Value(state.sourceDescriptor.CloneModel(source))
-	if !ok {
-		return nil, relationInvalidPlan("relation storage could not read the projected source key")
-	}
 	if row.presence != ProjectionAbsent && row.presence != ProjectionPresent {
 		return nil, relationInvalidPlan("target projection decoded an invalid row shape")
 	}
 	if row.presence == ProjectionAbsent && !row.key.IsNull() {
 		return nil, relationInvalidPlan("absent target projection did not return a NULL key")
 	}
-	result := typedCachedForwardTarget[T]{selected: state.path.projection, descriptor: state.targetDescriptor, binding: state.relation.target}
-	if foreignKey.IsNull() {
-		if !state.relation.nullable {
-			return nil, relatedObjectProjectionError(state.path.sourceKey, "required source key is NULL")
+	result := typedCachedRelatedTarget[T]{selected: state.path.projection, descriptor: state.targetDescriptor, binding: state.target}
+	route := prefix + strconv.Itoa(len(state.path.path)) + ":" + state.path.path
+	if err := row.validateMembership(source, seen, route); err != nil {
+		return nil, err
+	}
+	if state.path.projection.TerminalHop().Direction() == query.RelationReverse {
+		descriptor := state.source.objectDescriptor.(PrimaryKeyObjectDescriptor[S])
+		ownerKey, _ := descriptor.PrimaryKey(state.sourceDescriptor.CloneModel(source))
+		var err error
+		result.plan, err = row.target.base.WithConditions(query.NewCondition(fieldReference(state.path.sourceKey), query.LookupExact, ownerKey))
+		if err != nil {
+			return nil, err
 		}
-		if row.presence != ProjectionAbsent || !row.key.IsNull() {
-			return nil, relatedObjectProjectionError(state.path.sourceKey, "nullable NULL source key has a projected target")
-		}
+		result.plan = result.plan.WithOrderings(query.NewOrdering(fieldReference(state.targetKey), query.Ascending))
+		result.allowMissing = true
+	}
+	if row.presence == ProjectionAbsent {
 		for _, child := range row.children {
 			if interfaceIsNil(child) {
 				return nil, relationInvalidPlan("projected child is nil")
@@ -329,33 +356,25 @@ func (row typedProjectedForwardTarget[S, T]) validate(source S) (cachedForwardTa
 		}
 		return result, nil
 	}
-	identifier, ok := foreignKey.Integer()
-	if !ok {
-		return nil, relationInvalidPlan("relation storage returned a non-integer projected source key")
-	}
-	if row.presence != ProjectionPresent {
-		return nil, relatedObjectProjectionError(state.path.sourceKey, "non-NULL source key has no projected target")
-	}
 	targetID, ok := row.key.Integer()
 	if !ok || row.key.IsNull() {
 		return nil, relatedObjectProjectionError(state.path.sourceKey, "projected target primary key is absent or non-integer")
 	}
-	if targetID != identifier {
-		return nil, relatedObjectProjectionError(state.path.sourceKey, "projected target primary key does not match the source key")
-	}
-	plan, err := row.target.base.WithConditions(query.NewCondition(fieldReference(state.relation.targetKey), query.LookupExact, query.Integer(targetID)))
+	plan, err := row.target.base.WithConditions(query.NewCondition(fieldReference(state.targetKey), query.LookupExact, query.Integer(targetID)))
 	if err != nil {
 		return nil, err
 	}
 	result.value = state.targetDescriptor.CloneModel(row.value)
 	result.present = true
-	result.plan = plan
-	result.children = make([]cachedForwardTarget, len(row.children))
+	if !result.allowMissing {
+		result.plan = plan
+	}
+	result.children = make([]cachedRelatedTarget, len(row.children))
 	for i, child := range row.children {
 		if interfaceIsNil(child) {
 			return nil, relationInvalidPlan("projected child is nil")
 		}
-		cached, err := child.validate(row.value)
+		cached, err := child.validate(row.value, seen, route)
 		if err != nil {
 			return nil, err
 		}
@@ -364,29 +383,99 @@ func (row typedProjectedForwardTarget[S, T]) validate(source S) (cachedForwardTa
 	return result, nil
 }
 
-type typedCachedForwardTarget[T any] struct {
-	selected   query.RelationProjection
-	descriptor ProjectionDescriptor[T]
-	value      T
-	present    bool
-	plan       query.Plan
-	binding    BoundModel[T]
-	children   []cachedForwardTarget
+// Membership is the only direction-specific row check. Scanning, descendant
+// validation, cloning, context and publication remain shared.
+func (row typedProjectedRelatedTarget[S, T]) validateMembership(source S, seen selectedCardinality, route string) error {
+	state := row.target.state
+	failure := func(detail string) error { return relatedObjectProjectionError(state.path.sourceKey, detail) }
+	if state.path.projection.TerminalHop().Direction() == query.RelationReverse {
+		descriptor, ok := state.source.objectDescriptor.(PrimaryKeyObjectDescriptor[S])
+		if !ok {
+			return relationInvalidPlan("reverse selection owner has no primary key descriptor")
+		}
+		ownerKey, present := descriptor.PrimaryKey(state.sourceDescriptor.CloneModel(source))
+		ownerID, integer := ownerKey.Integer()
+		if !present || !integer || ownerKey.IsNull() {
+			return failure("projected reverse owner has no explicit integer primary key")
+		}
+		owners := seen[route]
+		if owners == nil {
+			owners = map[int64]query.Value{}
+			seen[route] = owners
+		}
+		if previous, exists := owners[ownerID]; exists && !previous.Equal(row.key) {
+			return &query.Error{Category: query.CategoryIntegrity, Code: query.CodeRelatedObjectCardinality, Field: state.path.sourceKey.Name, Detail: "one reverse owner has conflicting projected children"}
+		}
+		owners[ownerID] = row.key
+		if row.presence == ProjectionAbsent {
+			return nil
+		}
+		foreignKey, ok := state.targetStorage.Value(state.targetDescriptor.CloneModel(row.value))
+		if !ok {
+			return relationInvalidPlan("reverse selection could not read child FK")
+		}
+		childOwner, integer := foreignKey.Integer()
+		if !integer || foreignKey.IsNull() || childOwner != ownerID {
+			return failure("projected child FK does not match the owner primary key")
+		}
+		return nil
+	}
+	foreignKey, ok := state.sourceStorage.Value(state.sourceDescriptor.CloneModel(source))
+	if !ok {
+		return relationInvalidPlan("relation storage could not read projected source FK")
+	}
+	if foreignKey.IsNull() {
+		if !state.path.sourceKey.Nullable {
+			return failure("required source key is NULL")
+		}
+		if row.presence != ProjectionAbsent {
+			return failure("nullable NULL source key has a projected target")
+		}
+		return nil
+	}
+	identifier, ok := foreignKey.Integer()
+	if !ok {
+		return relationInvalidPlan("relation storage returned a non-integer projected source key")
+	}
+	if row.presence != ProjectionPresent {
+		return failure("non-NULL source key has no projected target")
+	}
+	targetID, ok := row.key.Integer()
+	if !ok || row.key.IsNull() || targetID != identifier {
+		return failure("projected target primary key does not match the source key")
+	}
+	return nil
 }
 
-func (target typedCachedForwardTarget[T]) projection() query.RelationProjection {
+type typedCachedRelatedTarget[T any] struct {
+	selected     query.RelationProjection
+	descriptor   ProjectionDescriptor[T]
+	value        T
+	present      bool
+	allowMissing bool
+	plan         query.Plan
+	binding      BoundModel[T]
+	children     []cachedRelatedTarget
+}
+
+func (target typedCachedRelatedTarget[T]) projection() query.RelationProjection {
 	return target.selected
 }
-func (target typedCachedForwardTarget[T]) relatedObject(backend db.Queryer) any {
-	if !target.present {
+func (target typedCachedRelatedTarget[T]) relatedObject(backend db.Queryer) any {
+	if !target.present && !target.allowMissing {
 		return newAbsentRelatedObject[T]()
 	}
 	evaluation := newEvaluationState[T]()
-	evaluation.values = []T{target.descriptor.CloneModel(target.value)}
+	if target.present {
+		evaluation.values = []T{target.descriptor.CloneModel(target.value)}
+	} else {
+		evaluation.values = []T{}
+	}
 	evaluation.ready = true
 	related := newRelatedObject(QuerySet[T]{backend: backend, descriptor: target.descriptor, plan: target.plan, evaluation: evaluation})
+	related.allowMissing = target.allowMissing
 	if len(target.children) > 0 {
-		related.selected = &relatedSelectedState[T]{binding: target.binding, descriptor: target.descriptor, value: forwardSelectedValue[T]{source: target.descriptor.CloneModel(target.value), targets: append([]cachedForwardTarget(nil), target.children...)}}
+		related.selected = &relatedSelectedState[T]{binding: target.binding, descriptor: target.descriptor, value: relatedSelectedValue[T]{source: target.descriptor.CloneModel(target.value), targets: append([]cachedRelatedTarget(nil), target.children...)}}
 	}
 	return related
 }
@@ -394,14 +483,14 @@ func (target typedCachedForwardTarget[T]) relatedObject(backend db.Queryer) any 
 // Related retrieves this binding's prepared cache from a selected result. The
 // erased storage is private; matching projection, snapshot and concrete T are
 // required before any typed cache is returned.
-func (selection ForwardSelect[S, T]) Related(selected *ForwardSelected[S]) (*RelatedObject[T], error) {
+func (selection RelatedSelect[S, T]) Related(selected *RelatedSelected[S]) (*RelatedObject[T], error) {
 	if selection.configurationErr != nil {
 		return nil, selection.configurationErr
 	}
 	if err := selected.validate(); err != nil {
 		return nil, err
 	}
-	if err := validateForwardSelectState(selection.state); err != nil {
+	if err := validateRelatedSelectState(selection.state); err != nil {
 		return nil, err
 	}
 	if selected.binding.snapshot != selection.state.path.source.snapshot || selected.binding.identity != selection.state.path.source.identity || reflect.TypeOf(selected.sourceDescriptor) != reflect.TypeOf(selection.state.sourceDescriptor) {

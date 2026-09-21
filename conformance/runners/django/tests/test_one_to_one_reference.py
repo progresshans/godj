@@ -141,6 +141,25 @@ class OneToOneReferenceTests(unittest.TestCase):
         for name in ('report_present', 'score_exact', 'same_edge_or', 'double_not', 'optional_present'):
             self.assertEqual((rows[name]['left_joins'], rows[name]['inner_joins']), (0, 1), name)
 
+    def test_single_reverse_eager_preserves_presence_and_warm_graphs(self):
+        rows = {item['name']: item for item in self.fresh[0]['eager']}
+        self.assertEqual(len(rows), 12)
+        for name, item in rows.items():
+            warm = {'reverse_forward_reverse': 1, 'optional_forward_reverse': 1, 'review_forward_reverse': 3}.get(name, 0)
+            self.assertEqual(item['selects'], 1 + warm, name)
+            self.assertEqual(item['load_selects'], 1, name)
+            self.assertEqual(item['warm_statements'], warm, name)
+        self.assertEqual(rows['report']['rows'], [
+            {'root': 1, 'report': 1}, {'root': 2, 'report': None},
+            {'root': 3, 'report': None}, {'root': 4, 'report': None}])
+        self.assertEqual(rows['review']['rows'][1], {'root': 2, 'review': 2, 'review_score': None, 'review_approved': None})
+        self.assertEqual(rows['review']['rows'][3], {'root': 4, 'review': None, 'review_score': None, 'review_approved': None})
+        self.assertEqual(rows['reverse_forward_reverse']['rows'][0],
+                         {'root': 1, 'report': 1, 'report__ticket': 1, 'report__ticket__review': 1,
+                          'report__ticket__review_score': 5, 'report__ticket__review_approved': True})
+        self.assertEqual((rows['present']['left_joins'], rows['present']['inner_joins']), (0, 1))
+        self.assertEqual((rows['absent']['left_joins'], rows['absent']['inner_joins']), (1, 0))
+
 
 if __name__ == '__main__':
     unittest.main()

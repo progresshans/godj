@@ -23,17 +23,11 @@ func SelectedRows(plan query.Plan) ([]query.ResultExpression, error) {
 	}
 	selected := FieldExpressions(plan.SourceFields())
 	for _, projection := range plan.RelationProjections() {
-		for _, field := range projection.TargetColumns() {
-			path, err := query.NewForwardRelationChain(projection.Path().Hops(), field, query.RelationTerminalRelatedField)
-			if err != nil {
-				return nil, err
-			}
-			expression, err := query.RelatedFieldResult(path)
-			if err != nil {
-				return nil, err
-			}
-			selected = append(selected, expression)
+		expressions, err := projection.TargetExpressions()
+		if err != nil {
+			return nil, err
 		}
+		selected = append(selected, expressions...)
 	}
 	return selected, nil
 }

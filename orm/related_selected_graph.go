@@ -8,13 +8,13 @@ import (
 type relatedSelectedState[T any] struct {
 	binding    BoundModel[T]
 	descriptor ProjectionDescriptor[T]
-	value      forwardSelectedValue[T]
+	value      relatedSelectedValue[T]
 }
 
 // SelectedGraph returns an owned clone of an already selected descendant graph.
 // It never evaluates a lazy relation. False means no descendant graph was
 // selected (including an absent relation); Fresh deliberately drops that graph.
-func (related *RelatedObject[T]) SelectedGraph(ctx context.Context) (*ForwardSelected[T], bool, error) {
+func (related *RelatedObject[T]) SelectedGraph(ctx context.Context) (*RelatedSelected[T], bool, error) {
 	if err := related.validate(); err != nil {
 		return nil, false, err
 	}
@@ -41,7 +41,7 @@ func (related *RelatedObject[T]) SelectedGraph(ctx context.Context) (*ForwardSel
 	if interfaceIsNil(state.descriptor) || reflect.TypeOf(descriptor) != reflect.TypeOf(state.descriptor) || len(state.value.targets) == 0 {
 		return nil, false, relationInvalidPlan("selected descendant graph is incomplete")
 	}
-	result := cloneForwardSelection(related.querySet.backend, state.binding, state.descriptor, state.value)
+	result := cloneRelatedSelection(related.querySet.backend, state.binding, state.descriptor, state.value)
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}

@@ -89,9 +89,9 @@ func TestPublicForwardSelectSurfaceCompilesAndWarmsRelatedObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BindRequiredForwardObject() error = %v", err)
 	}
-	path, err := orm.ResolveForwardSelectPath(post, "author")
+	path, err := orm.ResolveRelatedSelectPath(post, "author")
 	if err != nil {
-		t.Fatalf("ResolveForwardSelectPath() error = %v", err)
+		t.Fatalf("ResolveRelatedSelectPath() error = %v", err)
 	}
 	selection, err := orm.BindRequiredForwardSelect(path, relation)
 	if err != nil {

@@ -11,14 +11,14 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func multipleSelectBindings(t *testing.T) (ForwardSelect[relationObjectTestPost, relationObjectTestAuthor], ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]) {
+func multipleSelectBindings(t *testing.T) (RelatedSelect[relationObjectTestPost, relationObjectTestAuthor], RelatedSelect[relationObjectTestPost, relationObjectTestAuthor]) {
 	t.Helper()
 	post, _, required, nullable := bindRelationObjectTestFixture(t)
-	a, err := ResolveForwardSelectPath(post, "author")
+	a, err := ResolveRelatedSelectPath(post, "author")
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := ResolveForwardSelectPath(post, "reviewer")
+	r, err := ResolveRelatedSelectPath(post, "reviewer")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestMultipleForwardSelectPublishesOnlyAfterEveryTargetAndRowsClose(t *testi
 				author, reviewer := multipleSelectBindings(t)
 				source := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend)
 				source = source.OrderBy(NewAutoField[relationObjectTestPost](relationObjectTestPostDescriptor{}.Metadata().Fields[0]).Asc())
-				q := SelectForward(source, reviewer, author)
+				q := SelectRelated(source, reviewer, author)
 				failed.onClose = func() {
 					if _, ready := q.evaluation.cachedValues(); ready {
 						t.Error("published before Close")
@@ -127,13 +127,13 @@ func TestMultipleForwardSelectPublishesOnlyAfterEveryTargetAndRowsClose(t *testi
 				}
 				var err error
 				if terminal == "All" {
-					var rows []*ForwardSelected[relationObjectTestPost]
+					var rows []*RelatedSelected[relationObjectTestPost]
 					rows, err = q.All(ctx)
 					if rows != nil {
 						t.Fatal("partial results escaped")
 					}
 				} else {
-					var row *ForwardSelected[relationObjectTestPost]
+					var row *RelatedSelected[relationObjectTestPost]
 					var found bool
 					row, found, err = q.First(ctx)
 					if row != nil || found {
@@ -152,7 +152,7 @@ func TestMultipleForwardSelectPublishesOnlyAfterEveryTargetAndRowsClose(t *testi
 				}
 				var previous *RelatedObject[relationObjectTestAuthor]
 				for _, row := range rows {
-					for _, binding := range []ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{author, reviewer} {
+					for _, binding := range []RelatedSelect[relationObjectTestPost, relationObjectTestAuthor]{author, reviewer} {
 						related, err := binding.Related(row)
 						if err != nil || related == previous {
 							t.Fatal("shared target cache", err)
@@ -185,7 +185,7 @@ func TestMultipleForwardSelectValidationAndCacheOwnership(t *testing.T) {
 	author, reviewer := multipleSelectBindings(t)
 	source := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend)
 	q := author.Select(source, reviewer, author)
-	if !q.Plan().Equal(SelectForward(source, reviewer, author).Plan()) || len(q.Plan().RelationProjections()) != 2 || len(source.Plan().RelationProjections()) != 0 {
+	if !q.Plan().Equal(SelectRelated(source, reviewer, author).Plan()) || len(q.Plan().RelationProjections()) != 2 || len(source.Plan().RelationProjections()) != 0 {
 		t.Fatal("canonical immutable selection lost")
 	}
 	if count, err := q.Count(t.Context()); count != 2 || err != nil {
@@ -199,9 +199,9 @@ func TestMultipleForwardSelectValidationAndCacheOwnership(t *testing.T) {
 		t.Fatal("warm Count", err)
 	}
 	foreignAuthor, foreignReviewer := multipleSelectBindings(t)
-	var nilSelection *ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]
-	for _, selections := range [][]ForwardSelection[relationObjectTestPost]{nil, {author, nil}, {author, nilSelection}, {author, foreignReviewer}, {author, foreignAuthor}} {
-		invalid := SelectForward(source, selections...)
+	var nilSelection *RelatedSelect[relationObjectTestPost, relationObjectTestAuthor]
+	for _, selections := range [][]RelatedSelection[relationObjectTestPost]{nil, {author, nil}, {author, nilSelection}, {author, foreignReviewer}, {author, foreignAuthor}} {
+		invalid := SelectRelated(source, selections...)
 		if values, err := invalid.All(t.Context()); values != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
 			t.Fatalf("invalid All=%v", err)
 		}
@@ -229,9 +229,9 @@ func TestMultipleForwardSelectConcurrentCallersOwnEveryTarget(t *testing.T) {
 		return newMultipleSelectRows(), nil
 	}}
 	author, reviewer := multipleSelectBindings(t)
-	q := SelectForward(NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend), author, reviewer)
+	q := SelectRelated(NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend), author, reviewer)
 	type outcome struct {
-		rows []*ForwardSelected[relationObjectTestPost]
+		rows []*RelatedSelected[relationObjectTestPost]
 		err  error
 	}
 	const callers = 12
@@ -248,7 +248,7 @@ func TestMultipleForwardSelectConcurrentCallersOwnEveryTarget(t *testing.T) {
 			t.Fatalf("caller=%v", result.err)
 		}
 		for _, row := range result.rows {
-			for _, selection := range []ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{author, reviewer} {
+			for _, selection := range []RelatedSelect[relationObjectTestPost, relationObjectTestAuthor]{author, reviewer} {
 				cache, err := selection.Related(row)
 				if err != nil || caches[cache] {
 					t.Fatal("callers share target cache", err)
@@ -314,7 +314,7 @@ func TestMultipleForwardSelectInvalidSecondScannerNeverScansOrPublishes(t *testi
 		t.Run(fmt.Sprintf("%T", descriptor), func(t *testing.T) {
 			author, reviewer := multipleSelectBindings(t)
 			source := author.state.path.source
-			target, err := BindModel(ProjectBinding{snapshot: source.snapshot}, author.state.path.relation.metadata.Target, descriptor)
+			target, err := BindModel(ProjectBinding{snapshot: source.snapshot}, author.state.path.targetIdentity, descriptor)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -322,7 +322,7 @@ func TestMultipleForwardSelectInvalidSecondScannerNeverScansOrPublishes(t *testi
 			if err != nil {
 				t.Fatal(err)
 			}
-			path, err := ResolveForwardSelectPath(source, "reviewer")
+			path, err := ResolveRelatedSelectPath(source, "reviewer")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -333,7 +333,7 @@ func TestMultipleForwardSelectInvalidSecondScannerNeverScansOrPublishes(t *testi
 			rows := newMultipleSelectRows()
 			backend := &selectRelatedBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) { return rows, nil }}
 			raw := NewManager[relationObjectTestPost](relationObjectTestPostDescriptor{}).Using(backend)
-			q := SelectForward(raw, author, invalid)
+			q := SelectRelated(raw, author, invalid)
 			if result, err := q.All(t.Context()); result != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
 				t.Fatalf("invalid scanner=%v", err)
 			}
@@ -345,7 +345,7 @@ func TestMultipleForwardSelectInvalidSecondScannerNeverScansOrPublishes(t *testi
 			}
 			// Metadata-equal duplicate selectors with distinct scanner bindings must be
 			// rejected before I/O, rather than one silently replacing the other.
-			duplicate := SelectForward(raw, author, reviewer, invalid)
+			duplicate := SelectRelated(raw, author, reviewer, invalid)
 			if _, err := duplicate.All(t.Context()); !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) || backend.callCount() != 1 {
 				t.Fatal("conflicting duplicate reached backend", err)
 			}

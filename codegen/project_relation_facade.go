@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v7"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v8"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -245,17 +245,17 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 	if hasRelationSources {
 		fmt.Fprint(output, `type relationFacadeSelectionInput[S any] interface {
  relationFacadeSelectionOwner() *relationFacadeState
- relationFacadeSelectionValue() orm.ForwardSelection[S]
+ relationFacadeSelectionValue() orm.RelatedSelection[S]
 }
 type relationFacadeSelection[S,T any] struct {
  state *relationFacadeState
- selection orm.ForwardSelect[S,T]
+ selection orm.RelatedSelect[S,T]
 }
 func (_selector relationFacadeSelection[S,T]) relationFacadeSelectionOwner()*relationFacadeState{return _selector.state}
-func (_selector relationFacadeSelection[S,T]) relationFacadeSelectionValue()orm.ForwardSelection[S]{return _selector.selection}
+func (_selector relationFacadeSelection[S,T]) relationFacadeSelectionValue()orm.RelatedSelection[S]{return _selector.selection}
 func (_selector relationFacadeSelection[S,T]) WithChildren(_children ...relationFacadeSelectionInput[T])relationFacadeSelection[S,T]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
- _inputs:=make([]orm.ForwardSelection[T],0,len(_children))
+ _inputs:=make([]orm.RelatedSelection[T],0,len(_children))
  for _,_child:=range _children{
   if relationFacadeNil(_child)||_child.relationFacadeSelectionOwner()!=_selector.state{_selector.selection=_selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child selection belongs to another facade origin"));return _selector}
   _inputs=append(_inputs,_child.relationFacadeSelectionValue())
@@ -1080,7 +1080,7 @@ func renderProjectRelationFacadeSelector(output *bytes.Buffer, model projectRela
 	fmt.Fprintln(output, "}")
 	fmt.Fprintf(output, `func (_query %[1]s) SelectRelated(_selectors ...%[2]sRelationSelector)%[2]sEagerQuery{
  if _err:=_query.validate();_err!=nil{return %[2]sEagerQuery{state:_query.state,source:_query.query,configurationErr:_err}}
- _inputs:=make([]orm.ForwardSelection[%[3]s],0,len(_selectors))
+ _inputs:=make([]orm.RelatedSelection[%[3]s],0,len(_selectors))
  for _,_selector:=range _selectors{
   if relationFacadeNil(_selector)||_selector.relationFacadeSelectionOwner()!=_query.state{return %[2]sEagerQuery{state:_query.state,source:_query.query,configurationErr:relationFacadeQueryInvalid("relation selector does not belong to this query")}}
   _inputs=append(_inputs,_selector.relationFacadeSelectionValue())
@@ -1101,15 +1101,15 @@ func renderProjectRelationFacadeEager(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintf(output, `type %[1]s struct {
  state *relationFacadeState
  source orm.QuerySet[%[2]s]
- selections []orm.ForwardSelection[%[2]s]
+ selections []orm.RelatedSelection[%[2]s]
  projection relationSelectQuery[%[3]s]
  configurationErr error
 }
-func (_state *relationFacadeState) new%[4]sEagerQuery(_source orm.QuerySet[%[2]s],_selections []orm.ForwardSelection[%[2]s])%[1]s{
+func (_state *relationFacadeState) new%[4]sEagerQuery(_source orm.QuerySet[%[2]s],_selections []orm.RelatedSelection[%[2]s])%[1]s{
  _result:=%[1]s{state:_state,source:_source}
  if _err:=_state.validate();_err!=nil{_result.configurationErr=_err;return _result}
  if len(_selections)==0{_result.configurationErr=relationFacadeQueryInvalid("relation selection is empty");return _result}
- _result.selections=append([]orm.ForwardSelection[%[2]s](nil),_selections...)
+ _result.selections=append([]orm.RelatedSelection[%[2]s](nil),_selections...)
  _projection:=_state.objects.%[4]s.SelectRelated(_source).WithSelections(_result.selections...)
  _result.projection=_projection;_result.configurationErr=_projection.configurationErr;return _result
 }

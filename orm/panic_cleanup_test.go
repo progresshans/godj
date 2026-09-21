@@ -196,7 +196,7 @@ func TestRelationDeleteClosesProtectedRowsOnPanicBeforeMutation(t *testing.T) {
 
 func TestForwardSelectPanickingScanClosesRowsAndAllowsSameQueryRetry(t *testing.T) {
 	post, _, required, _ := bindRelationObjectTestFixture(t)
-	path, err := ResolveForwardSelectPath(post, "author")
+	path, err := ResolveRelatedSelectPath(post, "author")
 	if err != nil {
 		t.Fatal(err)
 	}

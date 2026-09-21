@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v7"
-const GoDjProjectRelationFacadeInputSHA256 = "041398e5ced6f20279c627544d63e90feda08d2d98a07309496e75bf272dbb01"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v8"
+const GoDjProjectRelationFacadeInputSHA256 = "39dd71735e4e18016710d9792f21f489d0f890ee5ba866cfeb60dfe99a5fc227"
 
 type Backend interface {
 	db.Queryer
@@ -70,17 +70,17 @@ func relationFacadePrimaryKeyUpdate(_field string) error {
 
 type relationFacadeSelectionInput[S any] interface {
 	relationFacadeSelectionOwner() *relationFacadeState
-	relationFacadeSelectionValue() orm.ForwardSelection[S]
+	relationFacadeSelectionValue() orm.RelatedSelection[S]
 }
 type relationFacadeSelection[S, T any] struct {
 	state     *relationFacadeState
-	selection orm.ForwardSelect[S, T]
+	selection orm.RelatedSelect[S, T]
 }
 
 func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionOwner() *relationFacadeState {
 	return _selector.state
 }
-func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionValue() orm.ForwardSelection[S] {
+func (_selector relationFacadeSelection[S, T]) relationFacadeSelectionValue() orm.RelatedSelection[S] {
 	return _selector.selection
 }
 func (_selector relationFacadeSelection[S, T]) WithChildren(_children ...relationFacadeSelectionInput[T]) relationFacadeSelection[S, T] {
@@ -88,7 +88,7 @@ func (_selector relationFacadeSelection[S, T]) WithChildren(_children ...relatio
 		_selector.selection = _selector.selection.WithConfigurationError(_err)
 		return _selector
 	}
-	_inputs := make([]orm.ForwardSelection[T], 0, len(_children))
+	_inputs := make([]orm.RelatedSelection[T], 0, len(_children))
 	for _, _child := range _children {
 		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
 			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("child selection belongs to another facade origin"))
@@ -606,7 +606,7 @@ func (_query ReportsLinkQuery) SelectRelated(_selectors ...ReportsLinkRelationSe
 	if _err := _query.validate(); _err != nil {
 		return ReportsLinkEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	_inputs := make([]orm.ForwardSelection[reports.Link], 0, len(_selectors))
+	_inputs := make([]orm.RelatedSelection[reports.Link], 0, len(_selectors))
 	for _, _selector := range _selectors {
 		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
 			return ReportsLinkEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
@@ -633,12 +633,12 @@ func (_query ReportsLinkQuery) SelectRelatedPaths(_paths ...string) (ReportsLink
 type ReportsLinkEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.Link]
-	selections       []orm.ForwardSelection[reports.Link]
+	selections       []orm.RelatedSelection[reports.Link]
 	projection       relationSelectQuery[ReportsLinkObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newReportsLinkEagerQuery(_source orm.QuerySet[reports.Link], _selections []orm.ForwardSelection[reports.Link]) ReportsLinkEagerQuery {
+func (_state *relationFacadeState) newReportsLinkEagerQuery(_source orm.QuerySet[reports.Link], _selections []orm.RelatedSelection[reports.Link]) ReportsLinkEagerQuery {
 	_result := ReportsLinkEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
@@ -648,7 +648,7 @@ func (_state *relationFacadeState) newReportsLinkEagerQuery(_source orm.QuerySet
 		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
 		return _result
 	}
-	_result.selections = append([]orm.ForwardSelection[reports.Link](nil), _selections...)
+	_result.selections = append([]orm.RelatedSelection[reports.Link](nil), _selections...)
 	_projection := _state.objects.ReportsLink.SelectRelated(_source).WithSelections(_result.selections...)
 	_result.projection = _projection
 	_result.configurationErr = _projection.configurationErr
@@ -1311,7 +1311,7 @@ func (_query ReportsOptionalReportQuery) SelectRelated(_selectors ...ReportsOpti
 	if _err := _query.validate(); _err != nil {
 		return ReportsOptionalReportEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	_inputs := make([]orm.ForwardSelection[reports.OptionalReport], 0, len(_selectors))
+	_inputs := make([]orm.RelatedSelection[reports.OptionalReport], 0, len(_selectors))
 	for _, _selector := range _selectors {
 		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
 			return ReportsOptionalReportEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
@@ -1338,12 +1338,12 @@ func (_query ReportsOptionalReportQuery) SelectRelatedPaths(_paths ...string) (R
 type ReportsOptionalReportEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.OptionalReport]
-	selections       []orm.ForwardSelection[reports.OptionalReport]
+	selections       []orm.RelatedSelection[reports.OptionalReport]
 	projection       relationSelectQuery[ReportsOptionalReportObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newReportsOptionalReportEagerQuery(_source orm.QuerySet[reports.OptionalReport], _selections []orm.ForwardSelection[reports.OptionalReport]) ReportsOptionalReportEagerQuery {
+func (_state *relationFacadeState) newReportsOptionalReportEagerQuery(_source orm.QuerySet[reports.OptionalReport], _selections []orm.RelatedSelection[reports.OptionalReport]) ReportsOptionalReportEagerQuery {
 	_result := ReportsOptionalReportEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
@@ -1353,7 +1353,7 @@ func (_state *relationFacadeState) newReportsOptionalReportEagerQuery(_source or
 		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
 		return _result
 	}
-	_result.selections = append([]orm.ForwardSelection[reports.OptionalReport](nil), _selections...)
+	_result.selections = append([]orm.RelatedSelection[reports.OptionalReport](nil), _selections...)
 	_projection := _state.objects.ReportsOptionalReport.SelectRelated(_source).WithSelections(_result.selections...)
 	_result.projection = _projection
 	_result.configurationErr = _projection.configurationErr
@@ -1980,7 +1980,7 @@ func (_query ReportsReportQuery) SelectRelated(_selectors ...ReportsReportRelati
 	if _err := _query.validate(); _err != nil {
 		return ReportsReportEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	_inputs := make([]orm.ForwardSelection[reports.Report], 0, len(_selectors))
+	_inputs := make([]orm.RelatedSelection[reports.Report], 0, len(_selectors))
 	for _, _selector := range _selectors {
 		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
 			return ReportsReportEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
@@ -2007,12 +2007,12 @@ func (_query ReportsReportQuery) SelectRelatedPaths(_paths ...string) (ReportsRe
 type ReportsReportEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.Report]
-	selections       []orm.ForwardSelection[reports.Report]
+	selections       []orm.RelatedSelection[reports.Report]
 	projection       relationSelectQuery[ReportsReportObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newReportsReportEagerQuery(_source orm.QuerySet[reports.Report], _selections []orm.ForwardSelection[reports.Report]) ReportsReportEagerQuery {
+func (_state *relationFacadeState) newReportsReportEagerQuery(_source orm.QuerySet[reports.Report], _selections []orm.RelatedSelection[reports.Report]) ReportsReportEagerQuery {
 	_result := ReportsReportEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
@@ -2022,7 +2022,7 @@ func (_state *relationFacadeState) newReportsReportEagerQuery(_source orm.QueryS
 		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
 		return _result
 	}
-	_result.selections = append([]orm.ForwardSelection[reports.Report](nil), _selections...)
+	_result.selections = append([]orm.RelatedSelection[reports.Report](nil), _selections...)
 	_projection := _state.objects.ReportsReport.SelectRelated(_source).WithSelections(_result.selections...)
 	_result.projection = _projection
 	_result.configurationErr = _projection.configurationErr
@@ -2649,7 +2649,7 @@ func (_query ReportsReviewQuery) SelectRelated(_selectors ...ReportsReviewRelati
 	if _err := _query.validate(); _err != nil {
 		return ReportsReviewEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
 	}
-	_inputs := make([]orm.ForwardSelection[reports.Review], 0, len(_selectors))
+	_inputs := make([]orm.RelatedSelection[reports.Review], 0, len(_selectors))
 	for _, _selector := range _selectors {
 		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
 			return ReportsReviewEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
@@ -2676,12 +2676,12 @@ func (_query ReportsReviewQuery) SelectRelatedPaths(_paths ...string) (ReportsRe
 type ReportsReviewEagerQuery struct {
 	state            *relationFacadeState
 	source           orm.QuerySet[reports.Review]
-	selections       []orm.ForwardSelection[reports.Review]
+	selections       []orm.RelatedSelection[reports.Review]
 	projection       relationSelectQuery[ReportsReviewObject]
 	configurationErr error
 }
 
-func (_state *relationFacadeState) newReportsReviewEagerQuery(_source orm.QuerySet[reports.Review], _selections []orm.ForwardSelection[reports.Review]) ReportsReviewEagerQuery {
+func (_state *relationFacadeState) newReportsReviewEagerQuery(_source orm.QuerySet[reports.Review], _selections []orm.RelatedSelection[reports.Review]) ReportsReviewEagerQuery {
 	_result := ReportsReviewEagerQuery{state: _state, source: _source}
 	if _err := _state.validate(); _err != nil {
 		_result.configurationErr = _err
@@ -2691,7 +2691,7 @@ func (_state *relationFacadeState) newReportsReviewEagerQuery(_source orm.QueryS
 		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
 		return _result
 	}
-	_result.selections = append([]orm.ForwardSelection[reports.Review](nil), _selections...)
+	_result.selections = append([]orm.RelatedSelection[reports.Review](nil), _selections...)
 	_projection := _state.objects.ReportsReview.SelectRelated(_source).WithSelections(_result.selections...)
 	_result.projection = _projection
 	_result.configurationErr = _projection.configurationErr
@@ -3064,4 +3064,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22
+var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0

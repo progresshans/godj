@@ -244,7 +244,7 @@ func observeInvalidReverse(path string) error {
 	if err != nil {
 		return fmt.Errorf("bind REL-011 negative source: %w", err)
 	}
-	_, err = orm.ResolveForwardSelectPath(source, path)
+	_, err = orm.ResolveRelatedSelectPath(source, path)
 	return err
 }
 

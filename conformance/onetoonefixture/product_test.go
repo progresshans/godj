@@ -73,3 +73,14 @@ func TestOneToOneReversePresenceMethodRejectsFieldNameCollision(t *testing.T) {
 		t.Fatal("OneToOne field/method collision accepted")
 	}
 }
+
+func TestOneToOneSQLiteReverseEagerMatchesDjango(t *testing.T) {
+	backend, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), "eager.sqlite3"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	onetoonetest.RunReverseEager(t, backend, "sqlite", func(plan query.Plan) (string, error) {
+		statement, _, err := sqlite.Compile(plan)
+		return statement, err
+	}, backend.QueryCount)
+}

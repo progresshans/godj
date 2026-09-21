@@ -16,6 +16,10 @@ func renderProjectModelBindings(
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", resultType)
 	fmt.Fprintln(output, "\t}")
+	renderBoundProjectModelBindings(output, models, resultType, usedModels)
+}
+
+func renderBoundProjectModelBindings(output *bytes.Buffer, models []*projectRelationModel, resultType string, usedModels map[int]struct{}) {
 	for _, model := range models {
 		fmt.Fprintf(output, "\t_model%d, _err := orm.BindModel(\n", model.bind)
 		fmt.Fprintln(output, "\t\t_binding,")

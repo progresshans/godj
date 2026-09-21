@@ -8,7 +8,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
 
 type Objects struct {
 }
@@ -18,6 +18,11 @@ func BindObjects() (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
+	return BindObjectsIn(_binding)
+}
+
+// BindObjectsIn composes typed relation factories in one caller-owned project binding.
+func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "godj_conformance", ModelName: "article"},
@@ -30,4 +35,4 @@ func BindObjects() (Objects, error) {
 	return Objects{}, nil
 }
 
-var _ goDjProjectSnapshot_17b9c439336539c8e4c20a0e7dfc1759f669194946507096e21d77ed401506e8
+var _ goDjProjectSnapshot_90596356429a1698346a0179f7babbfe0fa78fbfb880095312276d199d673d67

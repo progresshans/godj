@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
 
 type ReportsLinkObjectFactory struct {
 	_projectSelections *Objects
@@ -44,7 +44,7 @@ func (_factory ReportsLinkObjectFactory) From(_backend db.Queryer, _value report
 }
 
 type ReportsLinkObject struct {
-	_selectedGraph *orm.ForwardSelected[reports.Link]
+	_selectedGraph *orm.RelatedSelected[reports.Link]
 	model          reports.Link
 	factory        ReportsLinkObjectFactory
 	backend        db.Queryer
@@ -134,7 +134,7 @@ func (_factory ReportsOptionalReportObjectFactory) From(_backend db.Queryer, _va
 }
 
 type ReportsOptionalReportObject struct {
-	_selectedGraph *orm.ForwardSelected[reports.OptionalReport]
+	_selectedGraph *orm.RelatedSelected[reports.OptionalReport]
 	model          reports.OptionalReport
 	factory        ReportsOptionalReportObjectFactory
 	backend        db.Queryer
@@ -204,7 +204,7 @@ func (_factory ReportsReportObjectFactory) From(_backend db.Queryer, _value repo
 }
 
 type ReportsReportObject struct {
-	_selectedGraph *orm.ForwardSelected[reports.Report]
+	_selectedGraph *orm.RelatedSelected[reports.Report]
 	model          reports.Report
 	factory        ReportsReportObjectFactory
 	backend        db.Queryer
@@ -285,7 +285,7 @@ func (_factory ReportsReviewObjectFactory) From(_backend db.Queryer, _value repo
 }
 
 type ReportsReviewObject struct {
-	_selectedGraph *orm.ForwardSelected[reports.Review]
+	_selectedGraph *orm.RelatedSelected[reports.Review]
 	model          reports.Review
 	factory        ReportsReviewObjectFactory
 	backend        db.Queryer
@@ -348,6 +348,11 @@ func BindObjects() (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
+	return BindObjectsIn(_binding)
+}
+
+// BindObjectsIn composes typed relation factories in one caller-owned project binding.
+func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "otoreports", ModelName: "link"},
@@ -430,4 +435,4 @@ func BindObjects() (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_8dac3673528f619424de469638769f072eaa262033ef453aff52483265317c22
+var _ goDjProjectSnapshot_1e0adcfbb25788b5dc7b0d36e3cf9825b62db75777d2bc04a18f6e72febd2ae0

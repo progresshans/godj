@@ -34,48 +34,9 @@ type lookupPair struct{ typed, dynamic orm.Predicate[tickets.Ticket] }
 func RunReverseLookups(t *testing.T, backend ProductBackend, dialect string, compile func(query.Plan) (string, error), queryCount func() uint64) {
 	t.Helper()
 	ctx := t.Context()
-	t.Cleanup(func() {
-		if err := backend.Close(); err != nil {
-			t.Error(err)
-		}
-	})
+	link := seedLookupProduct(t, backend)
 	if compile == nil || queryCount == nil {
 		t.Fatal("reverse lookup comparison requires native compilation and SQL observation")
-	}
-	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, productHistory(t), migrations.LatestLifecycleRequest()); err != nil {
-		t.Fatal(err)
-	}
-	var parents []tickets.Ticket
-	for _, name := range []string{"first", "second", "third", "fourth"} {
-		parent, err := tickets.TicketObjects.Create(ctx, backend, tickets.NewTicketCreate(name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		parents = append(parents, parent)
-	}
-	if _, err := reports.ReportObjects.Create(ctx, backend, reports.NewReportCreate(parents[0].ID, "original")); err != nil {
-		t.Fatal(err)
-	}
-	for _, input := range []reports.ReviewCreate{
-		reports.NewReviewCreate(parents[0].ID).WithScore(5).WithTitle("Alpha 100%_").WithApproved(true),
-		reports.NewReviewCreate(parents[1].ID),
-		reports.NewReviewCreate(parents[2].ID).WithScore(12).WithTitle("Beta").WithApproved(false),
-	} {
-		if _, err := reports.ReviewObjects.Create(ctx, backend, input); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, input := range []reports.OptionalReportCreate{
-		reports.NewOptionalReportCreate("linked").WithTicketID(parents[1].ID),
-		reports.NewOptionalReportCreate("orphan"),
-	} {
-		if _, err := reports.OptionalReportObjects.Create(ctx, backend, input); err != nil {
-			t.Fatal(err)
-		}
-	}
-	link, err := reports.LinkObjects.Create(ctx, backend, reports.NewLinkCreate(parents[0].ID, "linked"))
-	if err != nil {
-		t.Fatal(err)
 	}
 	bindings, err := project.BindReverseRelations()
 	if err != nil {
@@ -242,4 +203,51 @@ func RunReverseLookups(t *testing.T, backend ProductBackend, dialect string, com
 	if reads.calls.Load() != before {
 		t.Fatal("invalid or canceled lookup performed I/O")
 	}
+}
+
+func seedLookupProduct(t *testing.T, backend ProductBackend) reports.Link {
+	t.Helper()
+	ctx := t.Context()
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, productHistory(t), migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
+	}
+	var parents []tickets.Ticket
+	for _, name := range []string{"first", "second", "third", "fourth"} {
+		parent, err := tickets.TicketObjects.Create(ctx, backend, tickets.NewTicketCreate(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		parents = append(parents, parent)
+	}
+	if _, err := reports.ReportObjects.Create(ctx, backend, reports.NewReportCreate(parents[0].ID, "original")); err != nil {
+		t.Fatal(err)
+	}
+	for _, input := range []reports.ReviewCreate{
+		reports.NewReviewCreate(parents[0].ID).WithScore(5).WithTitle("Alpha 100%_").WithApproved(true),
+		reports.NewReviewCreate(parents[1].ID),
+		reports.NewReviewCreate(parents[2].ID).WithScore(12).WithTitle("Beta").WithApproved(false),
+	} {
+		if _, err := reports.ReviewObjects.Create(ctx, backend, input); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, input := range []reports.OptionalReportCreate{
+		reports.NewOptionalReportCreate("linked").WithTicketID(parents[1].ID),
+		reports.NewOptionalReportCreate("orphan"),
+	} {
+		if _, err := reports.OptionalReportObjects.Create(ctx, backend, input); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link, err := reports.LinkObjects.Create(ctx, backend, reports.NewLinkCreate(parents[0].ID, "linked"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return link
 }

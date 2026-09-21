@@ -283,8 +283,8 @@ func TestGeneratedNestedEagerSelectedGraph(t *testing.T) {
 	}
 	// Descriptor preparation preserves the earliest error through depth, and
 	// copies input slices before caller mutation.
-	children := []orm.ForwardSelection[blog.Post]{selection}
-	stable := orm.SelectForward(blog.PostObjects.Using(backend), children...)
+	children := []orm.RelatedSelection[blog.Post]{selection}
+	stable := orm.SelectRelated(blog.PostObjects.Using(backend), children...)
 	children[0] = nil
 	if _, err := stable.All(ctx); err != nil {
 		t.Fatalf("caller selection mutation: %v", err)

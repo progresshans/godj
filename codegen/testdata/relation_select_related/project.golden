@@ -11,7 +11,7 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v4"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v5"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
@@ -25,39 +25,39 @@ type relationSelectQuery[O any] interface {
 type BlogPostSelectRelatedQuery struct {
 	factory          BlogPostObjectFactory
 	source           orm.QuerySet[blog.Post]
-	query            orm.ForwardSelectQuery[blog.Post]
-	selections       []orm.ForwardSelection[blog.Post]
+	query            orm.RelatedSelectQuery[blog.Post]
+	selections       []orm.RelatedSelection[blog.Post]
 	configurationErr error
 }
 
 func (_factory BlogPostObjectFactory) SelectRelated(_source orm.QuerySet[blog.Post]) BlogPostSelectRelatedQuery {
-	return BlogPostSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectForward(_source)}
+	return BlogPostSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
 }
-func (_query BlogPostSelectRelatedQuery) WithSelections(_selections ...orm.ForwardSelection[blog.Post]) BlogPostSelectRelatedQuery {
+func (_query BlogPostSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[blog.Post]) BlogPostSelectRelatedQuery {
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_owned := append([]orm.ForwardSelection[blog.Post](nil), _query.selections...)
+	_owned := append([]orm.RelatedSelection[blog.Post](nil), _query.selections...)
 	_query.selections = append(_owned, _selections...)
 	return _query.rebuild()
 }
-func (_factory BlogPostObjectFactory) SelectAuthor(_children ...orm.ForwardSelection[authors.Author]) orm.ForwardSelect[blog.Post, authors.Author] {
+func (_factory BlogPostObjectFactory) SelectAuthor(_children ...orm.RelatedSelection[authors.Author]) orm.RelatedSelect[blog.Post, authors.Author] {
 	return orm.SelectRequiredForward(_factory.author).WithChildren(_children...)
 }
-func (_query BlogPostSelectRelatedQuery) WithAuthor(_children ...orm.ForwardSelection[authors.Author]) BlogPostSelectRelatedQuery {
+func (_query BlogPostSelectRelatedQuery) WithAuthor(_children ...orm.RelatedSelection[authors.Author]) BlogPostSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectAuthor(_children...))
 }
-func (_factory BlogPostObjectFactory) SelectReviewer(_children ...orm.ForwardSelection[authors.Author]) orm.ForwardSelect[blog.Post, authors.Author] {
+func (_factory BlogPostObjectFactory) SelectReviewer(_children ...orm.RelatedSelection[authors.Author]) orm.RelatedSelect[blog.Post, authors.Author] {
 	return orm.SelectNullableForward(_factory.reviewer).WithChildren(_children...)
 }
-func (_query BlogPostSelectRelatedQuery) WithReviewer(_children ...orm.ForwardSelection[authors.Author]) BlogPostSelectRelatedQuery {
+func (_query BlogPostSelectRelatedQuery) WithReviewer(_children ...orm.RelatedSelection[authors.Author]) BlogPostSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectReviewer(_children...))
 }
-func (_factory BlogPostObjectFactory) selectionInputs(_paths []string) ([]orm.ForwardSelection[blog.Post], error) {
-	if len(_paths) == 0 || len(_paths) > orm.MaximumForwardSelectionNodes {
+func (_factory BlogPostObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[blog.Post], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
 		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "forward selection requires a bounded nonempty path list"}
 	}
-	_result := make([]orm.ForwardSelection[blog.Post], 0, len(_paths))
+	_result := make([]orm.RelatedSelection[blog.Post], 0, len(_paths))
 	for _, _path := range _paths {
 		_parts := strings.Split(_path, "__")
 		if len(_parts) > query.MaximumRelationHops {
@@ -105,7 +105,7 @@ func (_query BlogPostSelectRelatedQuery) rebuild() BlogPostSelectRelatedQuery {
 	if _query.configurationErr != nil {
 		return _query
 	}
-	_query.query = orm.SelectForward(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
 	if len(_query.selections) > 0 {
 		_query.configurationErr = _query.query.ConfigurationError()
 	}
@@ -174,10 +174,10 @@ func (_query BlogPostSelectRelatedQuery) First(_ctx context.Context) (*BlogPostO
 func (_query BlogPostSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
 	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
 }
-func (_query BlogPostSelectRelatedQuery) wrap(_selected *orm.ForwardSelected[blog.Post]) (*BlogPostObject, error) {
+func (_query BlogPostSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[blog.Post]) (*BlogPostObject, error) {
 	return _query.factory.FromSelected(_selected)
 }
-func (_factory BlogPostObjectFactory) FromSelected(_selected *orm.ForwardSelected[blog.Post]) (*BlogPostObject, error) {
+func (_factory BlogPostObjectFactory) FromSelected(_selected *orm.RelatedSelected[blog.Post]) (*BlogPostObject, error) {
 	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
 		return nil, _err
 	}

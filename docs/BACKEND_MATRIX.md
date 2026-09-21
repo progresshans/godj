@@ -9,7 +9,7 @@
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
 | Relation delete | supported FK/OneToOne의 PROTECT/SET_NULL | 같은 transaction의 PROTECT/SET_NULL·AtomicRelation |
-| OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·forward eager | 동일 공통 AST/runtime과 native 제약 |
+| OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |
 | Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | Column uniqueness | named unique index·Create/Add/Alter와 reverse·remake 보존·정확한 catalog·insert/update 충돌 오류 | named UNIQUE·단일 B-tree·Create/Add/Alter와 reverse·정확한 catalog·insert/update 충돌 오류 |
@@ -42,7 +42,8 @@ Unique가 그대로면 metadata-only이며 달라지면 실제 DDL이 필요하�
 Single reverse의 정상 부재·cardinality 오류·cache/prefetch와 양 DB PROTECT/SET_NULL을 연결했다.
 단일 reverse는 관계/field isnull과 nullable/Boolean을 포함한 현재 scalar lookup·IN·AND/OR/NOT를 지원한다.
 자식의 부재는 physical FK nullability와 별개이며, 조건이 존재를 요구하면 INNER, 나머지는 LEFT OUTER로 부모 행을 보존한다.
-일반 Unique FK의 collection reverse는 기존 direct non-null exact 범위를 유지한다. Reverse eager·혼합 traversal·실제 입력 소비자는
+일반 Unique FK의 collection reverse는 기존 direct non-null exact 범위를 유지한다. Typed reverse/mixed eager tree를 구현했으며
+facade reverse selector·문자열 mixed path·assignment와 실제 입력 소비자는
 [GDJ-0096](../work/0096-one-to-one-service-reports.md)의 남은 범위다.
 [일대일 의미](adr/0073-one-to-one-cardinality-and-reverse-objects.md)를 따른다.
 Date는 timezone/clock 없는 Gregorian 연도 1..9999의 `calendar.Date`다. 양 DB에서 DATE와 canonical `YYYY-MM-DD`를 사용한다.
@@ -86,7 +87,8 @@ Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typ
 여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.
-Reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse traversal·reverse eager materialization은 미지원이다.
+Collection reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse 조건은 미지원이다.
+OneToOne typed eager tree의 reverse/mixed materialization은 같은 JOIN/행 검증 경로에서 지원한다. Facade reverse selector와 문자열 mixed path는 남아 있다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
 유한한 self/cyclic forward 조회는 위 범위에 포함한다. 일반 순환 관계의 migration·mutation이나 object identity 공유까지 지원한다는 뜻은 아니다.
 지원하지 않는 표현은 silent fallback이나 client-side full scan으로 바꾸지 않는다.

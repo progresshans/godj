@@ -57,12 +57,12 @@ import (
  "example.com/godj-nested-eager/directory"
  "github.com/progresshans/godj/orm"
 )
-func bad(prefix orm.ForwardSelect[blog.Post,people.Person],suffix orm.ForwardSelect[directory.Team,directory.Organization]){
+func bad(prefix orm.RelatedSelect[blog.Post,people.Person],suffix orm.RelatedSelect[directory.Team,directory.Organization]){
  _ = prefix.WithChildren(suffix)
 }
 `))
 	output, err := generatedGoCommand(t.Context(), root, "build", "-mod=mod", "./wrong").CombinedOutput()
-	if err == nil || !bytes.Contains(output, []byte("WithChildren")) || !bytes.Contains(output, []byte("prepareForwardSelection")) {
+	if err == nil || !bytes.Contains(output, []byte("WithChildren")) || !bytes.Contains(output, []byte("prepareRelatedSelection")) {
 		t.Fatalf("intermediate Go type mismatch was not rejected: %v\n%s", err, output)
 	}
 }

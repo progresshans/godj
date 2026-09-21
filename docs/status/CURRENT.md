@@ -16,12 +16,14 @@ Column uniqueness를 Schema IR·생성 모델·migration·SQLite/PostgreSQL·ORM
 Cross-app 생성 소비자가 단일 reverse 조회/prefetch·forward eager·중복 저장 rollback·PROTECT/SET_NULL을 사용한다.
 단일 reverse의 관계/필드 isnull·nullable/Boolean·비교/IN/검색과 AND/OR/NOT를 typed/dynamic 공통 AST에 연결했다.
 양 DB에서 독립 Django의 결과·실제 SELECT 수·JOIN 형태를 비교하고 일반·race·CGO 비활성 checkpoint를 통과했다.
-생성 reverse ABI를 갱신하고 네 프로젝트의 생성물을 함께 재생성했다. 설계는
+Typed reverse/mixed eager tree도 기존 scanner·evaluation·cache에 연결했다. 생성 selector/FromSelected bridge,
+부재와 자식 교체의 owner 기준 Fresh, 잘못된 FK·중복·부분 행·실패 재시도를 양 DB에서 확인했다.
+관련 생성 ABI와 네 프로젝트의 생성물을 갱신했다. 설계는
 [일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다. 현재 변경의 Hosted 전체 검증은 아직 실행하지 않았다.
 
 ## 다음 행동
 
-단일 reverse eager를 기존 forward selection과 같은 소유권·행 검증 경로에 연결하고 다른 관계와 조합한다.
+Facade의 reverse selector와 문자열 mixed path를 같은 typed selection 경로에 연결한다.
 Assignment의 객체·cache·저장 의미를 검증하고 작업 보고서의 Form/Admin/API/OpenAPI/client·권한·실패 복구까지 이어간다.
 구체적인 완료 조건은 활성 work가 소유하며 일대일 관계 전체를 완료 처리하지 않았다.
 현재 확인된 외부 blocker는 없다.

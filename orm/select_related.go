@@ -33,161 +33,147 @@ type ProjectionScan[M any] interface {
 	Decode() (model M, primaryKey query.Value, presence ProjectionPresence)
 }
 
-// ForwardSelectPath is one immutable, project-resolved direct forward eager
-// path. Its zero value is invalid.
-type ForwardSelectPath[S any] struct {
-	state  forwardSelectPathState[S]
-	marker [0]func(S)
-}
-
-type forwardSelectPathState[S any] struct {
+// RelatedSelectPath is one immutable, project-resolved single-valued eager
+// path. Its zero value is invalid. Source and target follow traversal direction.
+type RelatedSelectPath[S any] struct{ state relatedSelectPathState[S] }
+type relatedSelectPathState[S any] struct {
 	source           BoundModel[S]
 	sourceDescriptor ProjectionDescriptor[S]
-	relation         forwardRelationState
-	sourceKey        ir.Field
+	targetIdentity   ir.ModelIdentity
+	targetModel      ir.Model
+	sourceKey        ir.Field // the physical FK, regardless of traversal direction
 	projection       query.RelationProjection
 	path             string
 	valid            bool
-	marker           [0]func(S)
 }
 
-// ResolveForwardSelectPath resolves exactly one case-sensitive direct
-// many-to-one path. Unknown, blank, multi-hop, and reverse names share the
-// stable invalid_related_path taxonomy before any backend is involved.
-func ResolveForwardSelectPath[S any](source BoundModel[S], path string) (ForwardSelectPath[S], error) {
+// ResolveRelatedSelectPath resolves one case-sensitive forward or reverse
+// OneToOne accessor. Collections and multi-hop names fail before any I/O.
+func ResolveRelatedSelectPath[S any](source BoundModel[S], path string) (RelatedSelectPath[S], error) {
 	if err := validateObjectBoundModel(source); err != nil {
-		return ForwardSelectPath[S]{}, err
+		return RelatedSelectPath[S]{}, err
 	}
 	if path == "" || strings.TrimSpace(path) == "" || strings.Contains(path, "__") {
-		return ForwardSelectPath[S]{}, invalidRelatedPath(path)
+		return RelatedSelectPath[S]{}, invalidRelatedPath(path)
 	}
-	metadata, ok := ProjectBinding{snapshot: source.snapshot}.Relation(source.identity, path)
-	if !ok || !metadata.Cardinality.SingleValued() {
-		return ForwardSelectPath[S]{}, invalidRelatedPath(path)
-	}
-	relation, err := resolveForwardRelationState(source.snapshot, source.identity, source.model, path)
+	descriptor, err := projectionDescriptorFor(source)
 	if err != nil {
-		return ForwardSelectPath[S]{}, err
+		return RelatedSelectPath[S]{}, err
 	}
-	sourceKey, ok := findField(relation.sourceModel.Fields, relation.metadata.Field)
-	if !ok || sourceKey.Kind != ir.FieldForeignKey || sourceKey.Nullable != relation.metadata.Nullable ||
-		sourceKey.Relation == nil || sourceKey.Relation.Target != relation.metadata.Target ||
-		!sourceKey.Relation.Cardinality.SingleValued() {
-		return ForwardSelectPath[S]{}, relationInvalidPlan("forward select source key is not canonical")
+	state := relatedSelectPathState[S]{source: source, sourceDescriptor: descriptor, path: path}
+	var route query.RelationPath
+	var targetKey ir.Field
+	if metadata, ok := (ProjectBinding{snapshot: source.snapshot}).Relation(source.identity, path); ok && metadata.Cardinality.SingleValued() {
+		relation, err := resolveForwardRelationState(source.snapshot, source.identity, source.model, path)
+		if err != nil {
+			return RelatedSelectPath[S]{}, err
+		}
+		state.sourceKey = mustFindField(relation.sourceModel.Fields, path).Clone()
+		state.targetIdentity = relation.metadata.Target
+		state.targetModel = relation.targetModel.Clone()
+		targetKey = relation.targetPrimaryKey
+		route, err = query.NewForwardRelationPath(source.identity, source.model.DBTable, path, state.sourceKey.Column, state.targetIdentity, state.targetModel.DBTable, targetKey.Column, state.sourceKey.Nullable, fieldReference(targetKey), metadata.Cardinality)
+		if err != nil {
+			return RelatedSelectPath[S]{}, err
+		}
+	} else {
+		reverse, ok := findReverseRelation(source.snapshot, source.identity, path)
+		if !ok || reverse.Cardinality != ir.RelationOneToOne {
+			return RelatedSelectPath[S]{}, invalidRelatedPath(path)
+		}
+		relation, err := resolveReverseRelationState(source.snapshot, source.identity, source.model, path)
+		if err != nil {
+			return RelatedSelectPath[S]{}, err
+		}
+		state.sourceKey = mustFindField(relation.forward.sourceModel.Fields, relation.reverse.SourceField).Clone()
+		state.targetIdentity = relation.reverse.Target
+		state.targetModel = relation.forward.sourceModel.Clone()
+		targetKey, ok = relationAutoPrimaryKey(state.targetModel)
+		if !ok {
+			return RelatedSelectPath[S]{}, relationInvalidPlan("selected reverse target has no AutoField primary key")
+		}
+		route, err = query.NewReverseRelationPath(state.targetIdentity, state.targetModel.DBTable, state.sourceKey.Name, state.sourceKey.Column, source.identity, source.model.DBTable, relation.forward.targetPrimaryKey.Column, path, state.sourceKey.Nullable, fieldReference(targetKey), ir.RelationOneToOne)
+		if err != nil {
+			return RelatedSelectPath[S]{}, err
+		}
 	}
-	sourceDescriptor, err := projectionDescriptorFor(source)
+	state.projection, err = query.NewRelationProjection(route.Hops(), fieldReference(targetKey), modelFieldReferences(state.targetModel))
 	if err != nil {
-		return ForwardSelectPath[S]{}, err
+		return RelatedSelectPath[S]{}, err
 	}
-	targetColumns := make([]query.FieldRef, len(relation.targetModel.Fields))
-	for index, field := range relation.targetModel.Fields {
-		targetColumns[index] = fieldReference(field)
-	}
-	projection, err := query.NewForwardRelationProjection(
-		relation.sourceIdentity,
-		relation.sourceModel.DBTable,
-		fieldReference(sourceKey),
-		relation.metadata.Target,
-		relation.targetModel.DBTable,
-		fieldReference(relation.targetPrimaryKey),
-		targetColumns, relation.metadata.Cardinality,
-	)
-	if err != nil {
-		return ForwardSelectPath[S]{}, err
-	}
-	return ForwardSelectPath[S]{state: forwardSelectPathState[S]{
-		source:           source,
-		sourceDescriptor: sourceDescriptor,
-		relation:         relation,
-		sourceKey:        sourceKey.Clone(),
-		projection:       projection,
-		path:             path,
-		valid:            true,
-	}}, nil
+	state.valid = true
+	return RelatedSelectPath[S]{state: state}, nil
 }
 
-// ForwardSelect is a sealed source/target projection bound from an existing
-// forward object handle. It reuses that handle's project snapshot, relation
-// storage, target descriptor, and backend affinity rules.
-type ForwardSelect[S, T any] struct {
-	state            forwardSelectState[S, T]
-	children         []ForwardSelection[T]
+// RelatedSelect retains concrete source/target types for either direction;
+// every selected tree uses the same row scanner and cache publication path.
+type RelatedSelect[S, T any] struct {
+	state            relatedSelectState[S, T]
+	children         []RelatedSelection[T]
 	configurationErr error
-	sourceMarker     [0]func(S)
-	targetMarker     [0]func(T)
 }
-
-type forwardSelectState[S, T any] struct {
-	path             forwardSelectPathState[S]
-	relation         forwardObjectState[S, T]
+type relatedSelectState[S, T any] struct {
+	path             relatedSelectPathState[S]
+	source           BoundModel[S]
+	target           BoundModel[T]
+	sourceStorage    RelationStorage[S]
+	targetStorage    RelationStorage[T]
+	targetKey        ir.Field
 	sourceDescriptor ProjectionDescriptor[S]
 	targetDescriptor ProjectionDescriptor[T]
 	valid            bool
-	sourceMarker     [0]func(S)
-	targetMarker     [0]func(T)
 }
 
-func BindRequiredForwardSelect[S, T any](
-	path ForwardSelectPath[S],
-	relation RequiredForwardObject[S, T],
-) (ForwardSelect[S, T], error) {
+func BindRequiredForwardSelect[S, T any](path RelatedSelectPath[S], relation RequiredForwardObject[S, T]) (RelatedSelect[S, T], error) {
 	return bindForwardSelect(path.state, relation.state, false)
 }
-
-func BindNullableForwardSelect[S, T any](
-	path ForwardSelectPath[S],
-	relation NullableForwardObject[S, T],
-) (ForwardSelect[S, T], error) {
+func BindNullableForwardSelect[S, T any](path RelatedSelectPath[S], relation NullableForwardObject[S, T]) (RelatedSelect[S, T], error) {
 	return bindForwardSelect(path.state, relation.state, true)
 }
+func bindForwardSelect[S, T any](path relatedSelectPathState[S], relation forwardObjectState[S, T], nullable bool) (RelatedSelect[S, T], error) {
+	if !relation.valid || relation.nullable != nullable || path.projection.TerminalHop().Direction() != query.RelationForward {
+		return RelatedSelect[S, T]{}, relationInvalidPlan("forward selection and object handle disagree")
+	}
+	return bindRelatedSelect(path, relation.source, relation.target, relation.storage, nil)
+}
 
-func bindForwardSelect[S, T any](
-	path forwardSelectPathState[S],
-	relation forwardObjectState[S, T],
-	wantNullable bool,
-) (ForwardSelect[S, T], error) {
-	if err := validateForwardSelectPath(path); err != nil {
-		return ForwardSelect[S, T]{}, err
+// BindReverseOneToOneSelect uses the physical child FK to validate membership.
+// The traversal is always optional, including required child ForeignKeys.
+func BindReverseOneToOneSelect[S, T any](path RelatedSelectPath[S], relation ReverseOneToOneObject[S, T]) (RelatedSelect[S, T], error) {
+	if err := relation.state.validate(); err != nil {
+		return RelatedSelect[S, T]{}, err
 	}
-	if !relation.valid || relation.nullable != wantNullable {
-		return ForwardSelect[S, T]{}, relationInvalidPlan("forward select object handle is unbound or has the wrong nullability")
+	if path.state.projection.TerminalHop().Direction() != query.RelationReverse || path.state.path != relation.state.sourceForeignKey.Relation.Reverse.Name {
+		return RelatedSelect[S, T]{}, relationInvalidPlan("reverse selection and object handle disagree")
 	}
-	if err := validateObjectBoundModel(relation.source); err != nil {
-		return ForwardSelect[S, T]{}, err
+	storage, ok := relation.state.source.objectDescriptor.BindRelationStorage(relation.state.sourceForeignKey.Clone())
+	if !ok {
+		return RelatedSelect[S, T]{}, relationInvalidPlan("reverse selection child FK storage is unavailable")
 	}
-	if err := validateObjectBoundModel(relation.target); err != nil {
-		return ForwardSelect[S, T]{}, err
+	return bindRelatedSelect(path.state, relation.state.owner, relation.state.source, nil, storage)
+}
+
+func bindRelatedSelect[S, T any](path relatedSelectPathState[S], source BoundModel[S], target BoundModel[T], sourceStorage RelationStorage[S], targetStorage RelationStorage[T]) (RelatedSelect[S, T], error) {
+	if err := validateRelatedSelectPath(path); err != nil {
+		return RelatedSelect[S, T]{}, err
 	}
-	if interfaceIsNil(relation.storage) || !immutableZeroStateValue(relation.storage) {
-		return ForwardSelect[S, T]{}, relationInvalidPlan("forward select relation storage is unavailable or mutable")
-	}
-	if relation.source.snapshot != relation.target.snapshot || relation.source.snapshot != path.source.snapshot ||
-		relation.source.identity != path.relation.sourceIdentity ||
-		relation.target.identity != path.relation.metadata.Target ||
-		!reflect.DeepEqual(relation.source.model, path.relation.sourceModel) ||
-		!reflect.DeepEqual(relation.target.model, path.relation.targetModel) ||
-		!reflect.DeepEqual(relation.targetKey, path.relation.targetPrimaryKey) ||
-		!reflect.DeepEqual(relation.storage.Field(), path.sourceKey) {
-		return ForwardSelect[S, T]{}, relationInvalidPlan("forward select path and object handle do not share one canonical project relation")
-	}
-	sourceDescriptor, err := projectionDescriptorFor(relation.source)
+	sourceDescriptor, err := projectionDescriptorFor(source)
 	if err != nil {
-		return ForwardSelect[S, T]{}, err
+		return RelatedSelect[S, T]{}, err
 	}
-	targetDescriptor, err := projectionDescriptorFor(relation.target)
+	targetDescriptor, err := projectionDescriptorFor(target)
 	if err != nil {
-		return ForwardSelect[S, T]{}, err
+		return RelatedSelect[S, T]{}, err
 	}
-	if reflect.TypeOf(sourceDescriptor) != reflect.TypeOf(path.sourceDescriptor) {
-		return ForwardSelect[S, T]{}, relationInvalidPlan("forward select source projection descriptor changed")
+	targetKey, ok := relationAutoPrimaryKey(target.model)
+	if !ok {
+		return RelatedSelect[S, T]{}, relationInvalidPlan("selected target has no AutoField primary key")
 	}
-	return ForwardSelect[S, T]{state: forwardSelectState[S, T]{
-		path:             path,
-		relation:         relation,
-		sourceDescriptor: sourceDescriptor,
-		targetDescriptor: targetDescriptor,
-		valid:            true,
-	}}, nil
+	state := relatedSelectState[S, T]{path: path, source: source, target: target, sourceStorage: sourceStorage, targetStorage: targetStorage, targetKey: targetKey, sourceDescriptor: sourceDescriptor, targetDescriptor: targetDescriptor, valid: true}
+	if err := validateRelatedSelectState(state); err != nil {
+		return RelatedSelect[S, T]{}, err
+	}
+	return RelatedSelect[S, T]{state: state}, nil
 }
 
 func projectionDescriptorFor[M any](model BoundModel[M]) (ProjectionDescriptor[M], error) {
@@ -204,73 +190,56 @@ func projectionDescriptorFor[M any](model BoundModel[M]) (ProjectionDescriptor[M
 	return descriptor, nil
 }
 
-func validateForwardSelectPath[S any](state forwardSelectPathState[S]) error {
-	if !state.valid || state.path == "" {
-		return relationInvalidPlan("forward select path is unbound")
+func validateRelatedSelectPath[S any](state relatedSelectPathState[S]) error {
+	if !state.valid {
+		return relationInvalidPlan("related select path is unbound")
 	}
-	if err := validateObjectBoundModel(state.source); err != nil {
-		return err
-	}
-	if err := validateForwardState(state.relation); err != nil {
-		return err
-	}
-	if state.source.snapshot != state.relation.snapshot || state.source.identity != state.relation.sourceIdentity ||
-		!reflect.DeepEqual(state.source.model, state.relation.sourceModel) ||
-		state.path != state.relation.metadata.Field ||
-		!reflect.DeepEqual(state.sourceKey, mustFindField(state.relation.sourceModel.Fields, state.relation.metadata.Field)) {
-		return relationInvalidPlan("forward select path changed after resolution")
-	}
-	projection, err := query.NewForwardRelationProjection(
-		state.relation.sourceIdentity,
-		state.relation.sourceModel.DBTable,
-		fieldReference(state.sourceKey),
-		state.relation.metadata.Target,
-		state.relation.targetModel.DBTable,
-		fieldReference(state.relation.targetPrimaryKey),
-		modelFieldReferences(state.relation.targetModel), state.relation.metadata.Cardinality,
-	)
-	if err != nil || !projection.Equal(state.projection) {
-		return relationInvalidPlan("forward select projection changed after resolution")
-	}
-	descriptor, err := projectionDescriptorFor(state.source)
+	expected, err := ResolveRelatedSelectPath(state.source, state.path)
 	if err != nil {
 		return err
 	}
-	if reflect.TypeOf(descriptor) != reflect.TypeOf(state.sourceDescriptor) {
-		return relationInvalidPlan("forward select path source descriptor changed")
+	if !expected.state.projection.Equal(state.projection) || expected.state.targetIdentity != state.targetIdentity || !reflect.DeepEqual(expected.state.targetModel, state.targetModel) || !reflect.DeepEqual(expected.state.sourceKey, state.sourceKey) || reflect.TypeOf(expected.state.sourceDescriptor) != reflect.TypeOf(state.sourceDescriptor) {
+		return relationInvalidPlan("related select path changed after resolution")
 	}
 	return nil
 }
-
 func mustFindField(fields []ir.Field, name string) ir.Field {
 	field, _ := findField(fields, name)
 	return field
 }
-
-func validateForwardSelectState[S, T any](state forwardSelectState[S, T]) error {
-	if !state.valid || interfaceIsNil(state.sourceDescriptor) || interfaceIsNil(state.targetDescriptor) {
-		return relationInvalidPlan("forward select is unbound")
+func validateRelatedSelectState[S, T any](state relatedSelectState[S, T]) error {
+	if !state.valid {
+		return relationInvalidPlan("related select is unbound")
 	}
-	if err := validateForwardSelectPath(state.path); err != nil {
+	if err := validateRelatedSelectPath(state.path); err != nil {
 		return err
 	}
-	sourceDescriptor, err := projectionDescriptorFor(state.relation.source)
+	sourceDescriptor, err := projectionDescriptorFor(state.source)
 	if err != nil {
 		return err
 	}
-	targetDescriptor, err := projectionDescriptorFor(state.relation.target)
+	targetDescriptor, err := projectionDescriptorFor(state.target)
 	if err != nil {
 		return err
 	}
-	if !state.relation.valid || interfaceIsNil(state.relation.storage) || !immutableZeroStateValue(state.relation.storage) ||
-		state.relation.source.snapshot != state.path.source.snapshot ||
-		!reflect.DeepEqual(state.relation.storage.Field(), state.path.sourceKey) ||
-		reflect.TypeOf(state.sourceDescriptor) != reflect.TypeOf(state.path.sourceDescriptor) ||
-		reflect.TypeOf(state.sourceDescriptor) != reflect.TypeOf(sourceDescriptor) ||
-		reflect.TypeOf(state.targetDescriptor) != reflect.TypeOf(targetDescriptor) ||
-		!reflect.DeepEqual(state.sourceDescriptor.Metadata(), state.path.relation.sourceModel) ||
-		!reflect.DeepEqual(state.targetDescriptor.Metadata(), state.path.relation.targetModel) {
-		return relationInvalidPlan("forward select state changed after binding")
+	if state.source.snapshot != state.path.source.snapshot || state.source.identity != state.path.source.identity || state.source.snapshot != state.target.snapshot || state.target.identity != state.path.targetIdentity || !reflect.DeepEqual(state.source.model, state.path.source.model) || !reflect.DeepEqual(state.target.model, state.path.targetModel) || reflect.TypeOf(sourceDescriptor) != reflect.TypeOf(state.sourceDescriptor) || reflect.TypeOf(sourceDescriptor) != reflect.TypeOf(state.path.sourceDescriptor) || reflect.TypeOf(targetDescriptor) != reflect.TypeOf(state.targetDescriptor) {
+		return relationInvalidPlan("related select models or descriptors changed after binding")
+	}
+	key, ok := relationAutoPrimaryKey(state.target.model)
+	if !ok || !reflect.DeepEqual(key, state.targetKey) {
+		return relationInvalidPlan("selected target primary key changed")
+	}
+	if state.path.projection.TerminalHop().Direction() == query.RelationForward {
+		if !interfaceIsNil(state.targetStorage) || interfaceIsNil(state.sourceStorage) || !immutableZeroStateValue(state.sourceStorage) || !reflect.DeepEqual(state.sourceStorage.Field(), state.path.sourceKey) {
+			return relationInvalidPlan("selected forward storage is unavailable, mutable, or changed")
+		}
+	} else {
+		if !interfaceIsNil(state.sourceStorage) || interfaceIsNil(state.targetStorage) || !immutableZeroStateValue(state.targetStorage) || !reflect.DeepEqual(state.targetStorage.Field(), state.path.sourceKey) {
+			return relationInvalidPlan("selected reverse storage is unavailable, mutable, or changed")
+		}
+		if _, ok := state.source.objectDescriptor.(PrimaryKeyObjectDescriptor[S]); !ok {
+			return relationInvalidPlan("selected reverse owner has no primary key descriptor")
+		}
 	}
 	return nil
 }
@@ -280,7 +249,7 @@ func invalidRelatedPath(path string) *query.Error {
 		Category: query.CategoryField,
 		Code:     query.CodeInvalidRelatedPath,
 		Field:    path,
-		Detail:   "path is not one direct forward many-to-one relation",
+		Detail:   "path is not one direct single-valued relation",
 	}
 }
 

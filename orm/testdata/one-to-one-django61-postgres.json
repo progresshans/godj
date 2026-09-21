@@ -3,6 +3,378 @@
   "database_version": "170005",
   "django": "6.1",
   "django_related_field_source_sha256": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3",
+  "eager": [
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "report",
+      "rows": [
+        {
+          "report": 1,
+          "root": 1
+        },
+        {
+          "report": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "optional",
+      "rows": [
+        {
+          "optional_report": null,
+          "root": 1
+        },
+        {
+          "optional_report": 1,
+          "root": 2
+        },
+        {
+          "optional_report": null,
+          "root": 3
+        },
+        {
+          "optional_report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "review",
+      "rows": [
+        {
+          "review": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "review": 2,
+          "review_approved": null,
+          "review_score": null,
+          "root": 2
+        },
+        {
+          "review": 3,
+          "review_approved": false,
+          "review_score": 12,
+          "root": 3
+        },
+        {
+          "review": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "multiple",
+      "rows": [
+        {
+          "optional_report": null,
+          "report": 1,
+          "review": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "optional_report": 1,
+          "report": null,
+          "review": 2,
+          "review_approved": null,
+          "review_score": null,
+          "root": 2
+        },
+        {
+          "optional_report": null,
+          "report": null,
+          "review": 3,
+          "review_approved": false,
+          "review_score": 12,
+          "root": 3
+        },
+        {
+          "optional_report": null,
+          "report": null,
+          "review": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 1,
+      "left_joins": 0,
+      "load_selects": 1,
+      "name": "present",
+      "rows": [
+        {
+          "report": 1,
+          "root": 1
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "absent",
+      "rows": [
+        {
+          "report": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 2,
+      "load_selects": 1,
+      "name": "or_absent",
+      "rows": [
+        {
+          "report": 1,
+          "review": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "report": null,
+          "review": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 2,
+      "load_selects": 1,
+      "name": "reverse_forward",
+      "rows": [
+        {
+          "report": 1,
+          "report__ticket": 1,
+          "root": 1
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "reverse_forward_reverse",
+      "rows": [
+        {
+          "report": 1,
+          "report__ticket": 1,
+          "report__ticket__review": 1,
+          "report__ticket__review_approved": true,
+          "report__ticket__review_score": 5,
+          "root": 1
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__review": null,
+          "report__ticket__review_approved": null,
+          "report__ticket__review_score": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__review": null,
+          "report__ticket__review_approved": null,
+          "report__ticket__review_score": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__review": null,
+          "report__ticket__review_approved": null,
+          "report__ticket__review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 2,
+      "warm_statements": 1
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "optional_forward_reverse",
+      "rows": [
+        {
+          "optional_report": null,
+          "optional_report__ticket": null,
+          "optional_report__ticket__report": null,
+          "root": 1
+        },
+        {
+          "optional_report": 1,
+          "optional_report__ticket": 2,
+          "optional_report__ticket__report": null,
+          "root": 2
+        },
+        {
+          "optional_report": null,
+          "optional_report__ticket": null,
+          "optional_report__ticket__report": null,
+          "root": 3
+        },
+        {
+          "optional_report": null,
+          "optional_report__ticket": null,
+          "optional_report__ticket__report": null,
+          "root": 4
+        }
+      ],
+      "selects": 2,
+      "warm_statements": 1
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "review_forward_reverse",
+      "rows": [
+        {
+          "review": 1,
+          "review__ticket": 1,
+          "review__ticket__report": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "review": 2,
+          "review__ticket": 2,
+          "review__ticket__report": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 2
+        },
+        {
+          "review": 3,
+          "review__ticket": 3,
+          "review__ticket__report": null,
+          "review_approved": false,
+          "review_score": 12,
+          "root": 3
+        },
+        {
+          "review": null,
+          "review__ticket": null,
+          "review__ticket__report": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 4,
+      "warm_statements": 3
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "repeated_declaration",
+      "rows": [
+        {
+          "report": 1,
+          "report__ticket": 1,
+          "report__ticket__report": 1,
+          "root": 1
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__report": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__report": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    }
+  ],
   "field_shapes": {
     "DefaultDetail": {
       "hidden": false,

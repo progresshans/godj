@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v2"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"
 
 var _ orm.RelationObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}
@@ -105,6 +105,7 @@ func BindReverseRelations() (ReverseRelations, error) {
 }
 
 type AuthorsAuthorReverseObjectFactory struct {
+	model         orm.BoundModel[authors.Author]
 	posts         orm.ReverseObject[authors.Author, blog.Post]
 	reviewedPosts orm.ReverseObject[authors.Author, blog.Post]
 }
@@ -187,6 +188,11 @@ func BindReverseObjects() (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
+	return BindReverseObjectsIn(_binding)
+}
+
+// BindReverseObjectsIn composes typed relation factories in one caller-owned project binding.
+func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
@@ -213,10 +219,11 @@ func BindReverseObjects() (ReverseObjects, error) {
 	}
 	return ReverseObjects{
 		AuthorsAuthor: AuthorsAuthorReverseObjectFactory{
+			model:         _model0,
 			posts:         _relation0,
 			reviewedPosts: _relation1,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a1f1a1176f9cc0c519c8b8e98a9bb9ab0c1e59d3fa69af4b42d42ada864582f8
+var _ goDjProjectSnapshot_7f0835a3121892f48e7623805a237bd9d905923f8e12cd9445ef471af4f17838

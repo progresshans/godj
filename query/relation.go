@@ -61,6 +61,27 @@ func (h RelationHop) Equal(other RelationHop) bool        { return h == other }
 // reverse traversal can have no child even when its forward FK is required.
 func (h RelationHop) Optional() bool { return h.nullable || h.direction == RelationReverse }
 
+// Accessor, From and To describe traversal, while Source and Target retain
+// the physical FK declaration in both directions.
+func (h RelationHop) Accessor() string {
+	if h.direction == RelationReverse {
+		return h.reverseName
+	}
+	return h.field
+}
+func (h RelationHop) From() (ir.ModelIdentity, string) {
+	if h.direction == RelationReverse {
+		return h.target, h.targetTable
+	}
+	return h.source, h.sourceTable
+}
+func (h RelationHop) To() (ir.ModelIdentity, string) {
+	if h.direction == RelationReverse {
+		return h.source, h.sourceTable
+	}
+	return h.target, h.targetTable
+}
+
 // SingleValued reports whether each traversal selects at most one related row.
 // It does not replace Validate or claim that a reverse object must exist.
 func (p RelationPath) SingleValued() bool {
@@ -302,7 +323,49 @@ func (p RelationPath) Validate() error {
 		_, err := NewReverseRelationPath(hop.source, hop.sourceTable, hop.field, hop.sourceColumn, hop.target, hop.targetTable, hop.targetPrimaryKeyColumn, hop.reverseName, hop.nullable, p.terminal, hop.cardinality)
 		return err
 	}
-	return p.validateForward()
+	return p.validateSingleValued()
+}
+
+// validateSingleValued accepts finite, connected single-valued routes. A
+// collection remains confined to the direct reverse path handled by Validate.
+func (p RelationPath) validateSingleValued() error {
+	if len(p.hops) == 0 || len(p.hops) > MaximumRelationHops || !validFieldRef(p.terminal) {
+		return invalidPlanError("single-valued relation path has invalid length or terminal")
+	}
+	if p.scope != RelationTerminalRelatedField && p.scope != RelationTerminalSourceKey {
+		return invalidPlanError("single-valued relation terminal scope is invalid")
+	}
+	for i, hop := range p.hops {
+		if !hop.cardinality.SingleValued() {
+			return invalidPlanError("relation route contains a collection")
+		}
+		switch hop.direction {
+		case RelationForward:
+			if err := (RelationPath{hops: []RelationHop{hop}, terminal: p.terminal, scope: RelationTerminalRelatedField}).validateForward(); err != nil {
+				return err
+			}
+		case RelationReverse:
+			if _, err := NewReverseRelationPath(hop.source, hop.sourceTable, hop.field, hop.sourceColumn, hop.target, hop.targetTable, hop.targetPrimaryKeyColumn, hop.reverseName, hop.nullable, p.terminal, hop.cardinality); err != nil {
+				return err
+			}
+		default:
+			return invalidPlanError("single-valued relation route has an invalid direction")
+		}
+		if i > 0 {
+			identity, table := p.hops[i-1].To()
+			nextIdentity, nextTable := hop.From()
+			if identity != nextIdentity || table != nextTable {
+				return invalidPlanError("single-valued relation route is disconnected")
+			}
+		}
+	}
+	if p.scope == RelationTerminalSourceKey {
+		hop := p.hops[len(p.hops)-1]
+		if hop.direction != RelationForward || !p.terminal.Equal(NewFieldRef(hop.field, hop.sourceColumn, FieldInteger, hop.nullable)) {
+			return invalidPlanError("source-key terminal disagrees with its final forward declaration")
+		}
+	}
+	return nil
 }
 func (p RelationPath) validateForward() error {
 	if len(p.hops) == 0 || len(p.hops) > MaximumRelationHops {

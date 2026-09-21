@@ -51,7 +51,7 @@ func TestForwardSelectCountPreservesSourceAndOnlyReusesCompleteEagerCache(t *tes
 	}); err != nil {
 		t.Fatal(err)
 	}
-	separate := (ForwardSelect[relationObjectTestPost, relationObjectTestAuthor]{state: eager.targets[0].(preparedForwardTarget[relationObjectTestPost, relationObjectTestAuthor]).state}).Select(source)
+	separate := (RelatedSelect[relationObjectTestPost, relationObjectTestAuthor]{state: eager.targets[0].(preparedRelatedTarget[relationObjectTestPost, relationObjectTestAuthor]).state}).Select(source)
 	if got, err := separate.Count(ctx); err != nil || got != 2 || backend.callCount() != 4 {
 		t.Fatalf("eager Count borrowed ordinary source cache: %d, %v", got, err)
 	}
@@ -84,7 +84,7 @@ func TestForwardSelectCountContextConfigurationAndWarmEmpty(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	for _, q := range []ForwardSelectQuery[relationObjectTestPost]{eager, invalid, {}} {
+	for _, q := range []RelatedSelectQuery[relationObjectTestPost]{eager, invalid, {}} {
 		if got, err := q.Count(ctx); got != 0 || !errors.Is(err, context.Canceled) {
 			t.Fatalf("cancellation precedence = %d, %v", got, err)
 		}

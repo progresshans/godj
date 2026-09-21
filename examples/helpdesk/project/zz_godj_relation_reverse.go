@@ -10,7 +10,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v2"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"
 
 var _ orm.RelationObjectDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[models.Category] = models.CategoryDescriptor{}
@@ -82,6 +82,7 @@ func BindReverseRelations() (ReverseRelations, error) {
 }
 
 type ModelsCategoryReverseObjectFactory struct {
+	model   orm.BoundModel[models.Category]
 	tickets orm.ReverseObject[models.Category, models.Ticket]
 }
 
@@ -150,6 +151,11 @@ func BindReverseObjects() (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
+	return BindReverseObjectsIn(_binding)
+}
+
+// BindReverseObjectsIn composes typed relation factories in one caller-owned project binding.
+func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
@@ -172,9 +178,10 @@ func BindReverseObjects() (ReverseObjects, error) {
 	}
 	return ReverseObjects{
 		ModelsCategory: ModelsCategoryReverseObjectFactory{
+			model:   _model0,
 			tickets: _relation0,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_39d9756d75356b5aa8822073b9d3b18873334bd31aeb3c38b5d70609a2496761
+var _ goDjProjectSnapshot_52974095dd18631ed6c2ce21c011e16ad49ad340d5f125e154a2c5f063f723f4

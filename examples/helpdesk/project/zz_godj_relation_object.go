@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v3"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v4"
 
 type ModelsTicketObjectFactory struct {
 	_projectSelections *Objects
@@ -43,7 +43,7 @@ func (_factory ModelsTicketObjectFactory) From(_backend db.Queryer, _value model
 }
 
 type ModelsTicketObject struct {
-	_selectedGraph *orm.ForwardSelected[models.Ticket]
+	_selectedGraph *orm.RelatedSelected[models.Ticket]
 	model          models.Ticket
 	factory        ModelsTicketObjectFactory
 	backend        db.Queryer
@@ -103,6 +103,11 @@ func BindObjects() (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
+	return BindObjectsIn(_binding)
+}
+
+// BindObjectsIn composes typed relation factories in one caller-owned project binding.
+func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
@@ -133,4 +138,4 @@ func BindObjects() (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_39d9756d75356b5aa8822073b9d3b18873334bd31aeb3c38b5d70609a2496761
+var _ goDjProjectSnapshot_52974095dd18631ed6c2ce21c011e16ad49ad340d5f125e154a2c5f063f723f4

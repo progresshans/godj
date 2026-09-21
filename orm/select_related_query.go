@@ -9,37 +9,37 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-// ForwardSelectQuery evaluates the selected forward target tree in one rowset. Its
+// RelatedSelectQuery evaluates the selected single-valued target tree in one rowset. Its
 // cache is independent of the source QuerySet and retains concrete target types.
-type ForwardSelectQuery[S any] struct {
+type RelatedSelectQuery[S any] struct {
 	backend          db.Queryer
 	plan             query.Plan
 	binding          BoundModel[S]
 	sourceDescriptor ProjectionDescriptor[S]
-	targets          []preparedForwardSelection[S]
-	evaluation       *evaluationState[forwardSelectedValue[S]]
+	targets          []preparedRelatedSelection[S]
+	evaluation       *evaluationState[relatedSelectedValue[S]]
 	configurationErr error
 	marker           [0]func(S)
 }
-type forwardSelectedValue[S any] struct {
+type relatedSelectedValue[S any] struct {
 	source  S
-	targets []cachedForwardTarget
+	targets []cachedRelatedTarget
 }
 
-// SelectForward prepares one or more targets without evaluating the source.
+// SelectRelated prepares one or more targets without evaluating the source.
 // Errors stay on the query so terminals can apply context precedence.
-func SelectForward[S any](source QuerySet[S], selections ...ForwardSelection[S]) ForwardSelectQuery[S] {
-	result := ForwardSelectQuery[S]{backend: source.backend, plan: source.plan, evaluation: newEvaluationState[forwardSelectedValue[S]]()}
+func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S]) RelatedSelectQuery[S] {
+	result := RelatedSelectQuery[S]{backend: source.backend, plan: source.plan, evaluation: newEvaluationState[relatedSelectedValue[S]]()}
 	if source.configurationErr != nil {
 		return result.WithConfigurationError(source.configurationErr)
 	}
 	if len(selections) == 0 {
-		return result.WithConfigurationError(relationInvalidPlan("forward selection requires at least one target"))
+		return result.WithConfigurationError(relationInvalidPlan("related selection requires at least one target"))
 	}
 	if len(source.plan.RelationProjections()) != 0 {
 		return result.WithConfigurationError(relationInvalidPlan("source QuerySet already contains eager projections"))
 	}
-	remaining := MaximumForwardSelectionNodes
+	remaining := MaximumRelatedSelectionNodes
 	targets, err := prepareSelectionSet(selections, 1, &remaining)
 	if err != nil {
 		return result.WithConfigurationError(err)
@@ -75,20 +75,20 @@ func SelectForward[S any](source QuerySet[S], selections ...ForwardSelection[S])
 }
 
 // Select starts with this bound target and may include other target types from
-// the same source. All combinations use SelectForward's common runtime.
-func (selection ForwardSelect[S, T]) Select(source QuerySet[S], others ...ForwardSelection[S]) ForwardSelectQuery[S] {
-	targets := make([]ForwardSelection[S], 0, len(others)+1)
+// the same source. All combinations use SelectRelated's common runtime.
+func (selection RelatedSelect[S, T]) Select(source QuerySet[S], others ...RelatedSelection[S]) RelatedSelectQuery[S] {
+	targets := make([]RelatedSelection[S], 0, len(others)+1)
 	targets = append(targets, selection)
 	targets = append(targets, others...)
-	return SelectForward(source, targets...)
+	return SelectRelated(source, targets...)
 }
-func (q ForwardSelectQuery[S]) Plan() query.Plan    { return q.plan }
-func (q ForwardSelectQuery[S]) Backend() db.Queryer { return q.backend }
+func (q RelatedSelectQuery[S]) Plan() query.Plan    { return q.plan }
+func (q RelatedSelectQuery[S]) Backend() db.Queryer { return q.backend }
 
 // WithSourceBinding seals a generated object/facade query to its own project
 // source. A raw QuerySet alone has no project snapshot with which to compare a
 // selector, so the generated boundary supplies that ownership explicitly.
-func (q ForwardSelectQuery[S]) WithSourceBinding(source BoundModel[S]) ForwardSelectQuery[S] {
+func (q RelatedSelectQuery[S]) WithSourceBinding(source BoundModel[S]) RelatedSelectQuery[S] {
 	if q.configurationErr != nil {
 		return q
 	}
@@ -100,38 +100,38 @@ func (q ForwardSelectQuery[S]) WithSourceBinding(source BoundModel[S]) ForwardSe
 	}
 	return q
 }
-func (q ForwardSelectQuery[S]) ConfigurationError() error { return q.configurationErr }
-func (q ForwardSelectQuery[S]) WithConfigurationError(err error) ForwardSelectQuery[S] {
+func (q RelatedSelectQuery[S]) ConfigurationError() error { return q.configurationErr }
+func (q RelatedSelectQuery[S]) WithConfigurationError(err error) RelatedSelectQuery[S] {
 	if err != nil {
 		q.configurationErr = err
 	}
 	return q
 }
 
-type selectedForwardCache struct {
+type selectedRelatedCache struct {
 	projection query.RelationProjection
 	related    any
 }
 
-// ForwardSelected owns a source clone and independent, typed target caches.
+// RelatedSelected owns a source clone and independent, typed target caches.
 // Copying the struct does not transfer its ownership.
-type ForwardSelected[S any] struct {
+type RelatedSelected[S any] struct {
 	source           S
 	backend          db.Queryer
 	binding          BoundModel[S]
 	sourceDescriptor ProjectionDescriptor[S]
-	targets          map[string]selectedForwardCache
-	_self            *ForwardSelected[S]
+	targets          map[string]selectedRelatedCache
+	_self            *RelatedSelected[S]
 	marker           [0]func(S)
 }
 
-func (s *ForwardSelected[S]) validate() error {
+func (s *RelatedSelected[S]) validate() error {
 	if s == nil || s._self != s || interfaceIsNil(s.sourceDescriptor) || interfaceIsNil(s.backend) || len(s.targets) == 0 {
-		return relationInvalidPlan("forward selected result is nil, zero, or copied")
+		return relationInvalidPlan("related selected result is nil, zero, or copied")
 	}
 	for name, target := range s.targets {
-		if name != target.projection.TerminalHop().Field() || interfaceIsNil(target.related) {
-			return relationInvalidPlan("forward selected target cache is invalid")
+		if name != target.projection.TerminalHop().Accessor() || interfaceIsNil(target.related) {
+			return relationInvalidPlan("related selected target cache is invalid")
 		}
 	}
 	return nil
@@ -139,7 +139,7 @@ func (s *ForwardSelected[S]) validate() error {
 
 // ValidateSourceBinding protects generated graph wrappers from a same-shaped
 // model belonging to a different sealed project snapshot.
-func (s *ForwardSelected[S]) ValidateSourceBinding(source BoundModel[S]) error {
+func (s *RelatedSelected[S]) ValidateSourceBinding(source BoundModel[S]) error {
 	if err := s.validate(); err != nil {
 		return err
 	}
@@ -154,13 +154,13 @@ func (s *ForwardSelected[S]) ValidateSourceBinding(source BoundModel[S]) error {
 
 // Backend retains the affinity of the evaluated graph, including lazy edges
 // that a generated wrapper may later access.
-func (s *ForwardSelected[S]) Backend() (db.Queryer, error) {
+func (s *RelatedSelected[S]) Backend() (db.Queryer, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
 	return s.backend, nil
 }
-func (s *ForwardSelected[S]) Source() (S, error) {
+func (s *RelatedSelected[S]) Source() (S, error) {
 	var zero S
 	if err := s.validate(); err != nil {
 		return zero, err
@@ -170,7 +170,7 @@ func (s *ForwardSelected[S]) Source() (S, error) {
 
 // HasSelection lets generated object bridges preserve lazy caches for targets
 // that were not selected. It validates ownership before exposing membership.
-func (s *ForwardSelected[S]) HasSelection(path string) (bool, error) {
+func (s *RelatedSelected[S]) HasSelection(path string) (bool, error) {
 	if err := s.validate(); err != nil {
 		return false, err
 	}
@@ -178,7 +178,7 @@ func (s *ForwardSelected[S]) HasSelection(path string) (bool, error) {
 	return ok, nil
 }
 
-func (q ForwardSelectQuery[S]) validateTerminal(ctx context.Context) error {
+func (q RelatedSelectQuery[S]) validateTerminal(ctx context.Context) error {
 	if interfaceIsNil(ctx) {
 		return relationInvalidPlan("context is nil")
 	}
@@ -192,7 +192,7 @@ func (q ForwardSelectQuery[S]) validateTerminal(ctx context.Context) error {
 		return relationBackendInvalidPlan("backend is nil")
 	}
 	if q.evaluation == nil || len(q.targets) == 0 {
-		return relationInvalidPlan("forward select evaluation is unbound")
+		return relationInvalidPlan("related select evaluation is unbound")
 	}
 	if err := validateObjectBoundModel(q.binding); err != nil {
 		return err
@@ -206,7 +206,7 @@ func (q ForwardSelectQuery[S]) validateTerminal(ctx context.Context) error {
 	}
 	projections := q.plan.RelationProjections()
 	if q.plan.Table() != q.binding.model.DBTable || !reflect.DeepEqual(q.plan.SourceFields(), modelFieldReferences(q.binding.model)) {
-		return relationInvalidPlan("forward select query plan is zero or changed")
+		return relationInvalidPlan("related select query plan is zero or changed")
 	}
 	var expected []query.RelationProjection
 	for _, target := range q.targets {
@@ -239,11 +239,11 @@ func (q ForwardSelectQuery[S]) validateTerminal(ctx context.Context) error {
 	return nil
 }
 
-func (q ForwardSelectQuery[S]) All(ctx context.Context) ([]*ForwardSelected[S], error) {
+func (q RelatedSelectQuery[S]) All(ctx context.Context) ([]*RelatedSelected[S], error) {
 	if err := q.validateTerminal(ctx); err != nil {
 		return nil, err
 	}
-	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]forwardSelectedValue[S], error) {
+	values, err := q.evaluation.evaluate(ctx, func(ctx context.Context) ([]relatedSelectedValue[S], error) {
 		values, err := q.scan(ctx, q.plan, 0)
 		if err == nil {
 			err = ctx.Err()
@@ -253,7 +253,7 @@ func (q ForwardSelectQuery[S]) All(ctx context.Context) ([]*ForwardSelected[S], 
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*ForwardSelected[S], len(values))
+	result := make([]*RelatedSelected[S], len(values))
 	for index, value := range values {
 		result[index] = q.cloneSelection(value)
 	}
@@ -262,7 +262,7 @@ func (q ForwardSelectQuery[S]) All(ctx context.Context) ([]*ForwardSelected[S], 
 	}
 	return result, nil
 }
-func (q ForwardSelectQuery[S]) First(ctx context.Context) (*ForwardSelected[S], bool, error) {
+func (q RelatedSelectQuery[S]) First(ctx context.Context) (*RelatedSelected[S], bool, error) {
 	if err := q.validateTerminal(ctx); err != nil {
 		return nil, false, err
 	}
@@ -286,7 +286,7 @@ func (q ForwardSelectQuery[S]) First(ctx context.Context) (*ForwardSelected[S], 
 	}
 	return result, true, nil
 }
-func (q ForwardSelectQuery[S]) Count(ctx context.Context) (int64, error) {
+func (q RelatedSelectQuery[S]) Count(ctx context.Context) (int64, error) {
 	if err := q.validateTerminal(ctx); err != nil {
 		return 0, err
 	}
@@ -299,21 +299,21 @@ func (q ForwardSelectQuery[S]) Count(ctx context.Context) (int64, error) {
 	return newQuerySet[S](q.backend, q.sourceDescriptor, q.plan.WithoutRelationProjections()).Count(ctx)
 }
 
-type projectedForwardRow[S any] struct {
+type projectedRelatedRow[S any] struct {
 	source   S
 	key      query.Value
 	presence ProjectionPresence
-	targets  []projectedForwardTarget[S]
+	targets  []projectedRelatedTarget[S]
 }
 
-func (q ForwardSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximum int) ([]forwardSelectedValue[S], error) {
+func (q RelatedSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximum int) ([]relatedSelectedValue[S], error) {
 	rows, err := openQueryRows(ctx, q.backend, plan)
 	if err != nil {
 		return nil, err
 	}
 	lifecycle := rowsLifecycle{rows: rows}
 	defer lifecycle.close()
-	projected := make([]projectedForwardRow[S], 0)
+	projected := make([]projectedRelatedRow[S], 0)
 	sourceColumns := len(plan.SourceFields())
 	for (maximum == 0 || len(projected) < maximum) && rows.Next() {
 		if err = ctx.Err(); err != nil {
@@ -330,7 +330,7 @@ func (q ForwardSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 			break
 		}
 		destinations := append([]any(nil), sourceDestinations...)
-		scans := make([]forwardTargetScan[S], len(q.targets))
+		scans := make([]relatedTargetScan[S], len(q.targets))
 		for index, target := range q.targets {
 			scans[index] = target.newScan()
 			if interfaceIsNil(scans[index]) {
@@ -352,7 +352,7 @@ func (q ForwardSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 			break
 		}
 		source, key, presence := sourceScan.Decode()
-		row := projectedForwardRow[S]{source: q.sourceDescriptor.CloneModel(source), key: key, presence: presence, targets: make([]projectedForwardTarget[S], len(scans))}
+		row := projectedRelatedRow[S]{source: q.sourceDescriptor.CloneModel(source), key: key, presence: presence, targets: make([]projectedRelatedTarget[S], len(scans))}
 		for index, scan := range scans {
 			row.targets[index] = scan.snapshot()
 		}
@@ -361,7 +361,8 @@ func (q ForwardSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 	if err = lifecycle.finish(ctx, err); err != nil {
 		return nil, err
 	}
-	values := make([]forwardSelectedValue[S], len(projected))
+	values := make([]relatedSelectedValue[S], len(projected))
+	seen := selectedCardinality{}
 	for index, row := range projected {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -372,12 +373,12 @@ func (q ForwardSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 		if _, ok := row.key.Integer(); !ok {
 			return nil, relationInvalidPlan("source projection returned a non-integer primary key")
 		}
-		value := forwardSelectedValue[S]{source: q.sourceDescriptor.CloneModel(row.source), targets: make([]cachedForwardTarget, len(row.targets))}
+		value := relatedSelectedValue[S]{source: q.sourceDescriptor.CloneModel(row.source), targets: make([]cachedRelatedTarget, len(row.targets))}
 		for index, target := range row.targets {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			ready, err := target.validate(row.source)
+			ready, err := target.validate(row.source, seen, "")
 			if err != nil {
 				return nil, err
 			}
@@ -401,14 +402,14 @@ func validProjectionDestinations(destinations []any, expected int) bool {
 	}
 	return true
 }
-func (q ForwardSelectQuery[S]) cloneSelection(value forwardSelectedValue[S]) *ForwardSelected[S] {
-	return cloneForwardSelection(q.backend, q.binding, q.sourceDescriptor, value)
+func (q RelatedSelectQuery[S]) cloneSelection(value relatedSelectedValue[S]) *RelatedSelected[S] {
+	return cloneRelatedSelection(q.backend, q.binding, q.sourceDescriptor, value)
 }
-func cloneForwardSelection[S any](backend db.Queryer, binding BoundModel[S], descriptor ProjectionDescriptor[S], value forwardSelectedValue[S]) *ForwardSelected[S] {
-	selected := &ForwardSelected[S]{source: descriptor.CloneModel(value.source), backend: backend, binding: binding, sourceDescriptor: descriptor, targets: make(map[string]selectedForwardCache, len(value.targets))}
+func cloneRelatedSelection[S any](backend db.Queryer, binding BoundModel[S], descriptor ProjectionDescriptor[S], value relatedSelectedValue[S]) *RelatedSelected[S] {
+	selected := &RelatedSelected[S]{source: descriptor.CloneModel(value.source), backend: backend, binding: binding, sourceDescriptor: descriptor, targets: make(map[string]selectedRelatedCache, len(value.targets))}
 	for _, target := range value.targets {
 		projection := target.projection()
-		selected.targets[projection.TerminalHop().Field()] = selectedForwardCache{projection: projection, related: target.relatedObject(backend)}
+		selected.targets[projection.TerminalHop().Accessor()] = selectedRelatedCache{projection: projection, related: target.relatedObject(backend)}
 	}
 	selected._self = selected
 	return selected

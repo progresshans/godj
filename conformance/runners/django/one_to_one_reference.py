@@ -262,6 +262,56 @@ def observe():
                 return lookups
 
             lookups = capture_lookups()
+
+            def capture_eager():
+                cases = [
+                    ('report', ['detail'], Q()),
+                    ('optional', ['optional_detail'], Q()),
+                    ('review', ['review'], Q()),
+                    ('multiple', ['detail', 'optional_detail', 'review'], Q()),
+                    ('present', ['detail'], Q(detail__isnull=False)),
+                    ('absent', ['detail'], Q(detail__isnull=True)),
+                    ('or_absent', ['detail', 'review'], Q(detail__note='original') | Q(review__isnull=True)),
+                    ('reverse_forward', ['detail__parent'], Q()),
+                    ('reverse_forward_reverse', ['detail__parent__review'], Q()),
+                    ('optional_forward_reverse', ['optional_detail__parent__detail'], Q()),
+                    ('review_forward_reverse', ['review__parent__detail'], Q()),
+                    ('repeated_declaration', ['detail__parent__detail'], Q()),
+                ]
+                aliases = {'detail': 'report', 'optional_detail': 'optional_report', 'parent': 'ticket'}
+                output = []
+                for name, paths, predicate in cases:
+                    statements = []
+                    def capture(next_execute, sql, params, many, context):
+                        statements.append(sql)
+                        return next_execute(sql, params, many, context)
+                    rows = []
+                    with connection.execute_wrapper(capture):
+                        loaded = list(LookupParent.objects.filter(predicate).select_related(*paths).order_by('id'))
+                        after_load = len(statements)
+                        for item in loaded:
+                            row = {'root': item.pk}
+                            for path in paths:
+                                value = item
+                                parts = []
+                                for part in path.split('__'):
+                                    parts.append(aliases.get(part, part))
+                                    value = getattr(value, part, None) if value is not None else None
+                                    key = '__'.join(parts)
+                                    row[key] = value.pk if value is not None else None
+                                    if part == 'review':
+                                        row[key + '_score'] = value.score if value is not None else None
+                                        row[key + '_approved'] = value.approved if value is not None else None
+                            rows.append(row)
+                    output.append({'name': name, 'rows': rows,
+                                   'selects': sum(sql.lstrip().startswith('SELECT') for sql in statements),
+                                   'load_selects': sum(sql.lstrip().startswith('SELECT') for sql in statements[:after_load]),
+                                   'warm_statements': len(statements) - after_load,
+                                   'left_joins': sum(sql.count(' LEFT OUTER JOIN ') for sql in statements),
+                                   'inner_joins': sum(sql.count(' INNER JOIN ') for sql in statements)})
+                return output
+
+            eager = capture_eager()
             record('required_form_duplicate', lambda: forms(Detail, {'parent': first.pk}))
             record('required_form_self', lambda: forms(Detail, {'parent': first.pk}, detail))
             record('required_form_available', lambda: forms(Detail, {'parent': second.pk}))
@@ -388,7 +438,7 @@ def observe():
                 version = cursor.fetchone()[0]
             output = {'django': django.get_version(), 'python': platform.python_version(),
                       'backend': connection.vendor, 'database_version': version,
-                      'field_shapes': shapes, 'observations': observations, 'lookups': lookups, 'migrations': migrations,
+                      'field_shapes': shapes, 'observations': observations, 'lookups': lookups, 'eager': eager, 'migrations': migrations,
                       'django_related_field_source_sha256': hashlib.sha256(
                           Path(inspect.getsourcefile(models.OneToOneField)).read_bytes()).hexdigest()}
             if database:
