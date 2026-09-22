@@ -60,8 +60,46 @@ type HelpdeskServiceReportUpdateParams struct {
 	ID int64
 }
 
+// HelpdeskTicketDeleteParams is parameters of helpdesk:ticket-delete operation.
+type HelpdeskTicketDeleteParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
 // HelpdeskTicketDetailParams is parameters of helpdesk:ticket-detail operation.
 type HelpdeskTicketDetailParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskTicketLabelDeleteParams is parameters of helpdesk:ticket-label-delete operation.
+type HelpdeskTicketLabelDeleteParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskTicketLabelDetailParams is parameters of helpdesk:ticket-label-detail operation.
+type HelpdeskTicketLabelDetailParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskTicketLabelListParams is parameters of helpdesk:ticket-label-list operation.
+type HelpdeskTicketLabelListParams struct {
+	// Maximum page size; default 20.
+	Limit OptInt64 `json:",omitempty,omitzero"`
+	// Rows to skip; default 0.
+	Offset OptInt64 `json:",omitempty,omitzero"`
+}
+
+// HelpdeskTicketLabelPatchParams is parameters of helpdesk:ticket-label-patch operation.
+type HelpdeskTicketLabelPatchParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskTicketLabelUpdateParams is parameters of helpdesk:ticket-label-update operation.
+type HelpdeskTicketLabelUpdateParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
 	ID int64
 }

@@ -91,7 +91,7 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	}
 	notFound := helpdeskJSONResponse(http.StatusNotFound, "The ticket does not exist in the selected category or its identifier is not positive.", errorSchema)
 	protect := func(operation openapi.Operation, handler api.AuthenticatedHandler) (openapi.Operation, error) {
-		protected, err := authentication.Require(operation.Permission, handler)
+		protected, err := authentication.Require(operation.Permission, handler, operation.AdditionalPermissions...)
 		if err != nil {
 			return openapi.Operation{}, fmt.Errorf("helpdesk API authentication route %q: %w", operation.Route.Name, err)
 		}
@@ -178,9 +178,25 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
+	linkOperations, linkSchemas, err := a.ticketLabelOperations(protect)
+	if err != nil {
+		return nil, err
+	}
+	remove, err := protect(openapi.Operation{
+		Route:   web.Route{Name: "helpdesk:ticket-delete", Method: http.MethodDelete, Path: "/api/tickets/<int64:id>/"},
+		Summary: "Delete a ticket", Permission: DeleteTicket,
+		Description: "Deletes the scoped ticket and its label links in one coordinated transaction, retaining labels. An existing ServiceReport blocks the entire operation before any link is deleted. A confirmed protection returns 400 with __all__/protected; storage failures and uncertain outcomes remain errors. Authentication, CSRF and permission checks precede lookup.",
+		Responses:   []openapi.Response{{Status: http.StatusNoContent, Description: "The ticket and its label links were deleted."}, notFound, helpdeskJSONResponse(http.StatusBadRequest, "A related object protects the ticket.", errorSchema)},
+	}, a.apiTicketDelete)
+	if err != nil {
+		return nil, err
+	}
 	operations := append([]openapi.Operation{list, create, detail, update, patch}, reportOperations...)
 	operations = append(operations, labelOperations...)
+	operations = append(operations, linkOperations...)
+	operations = append(operations, remove)
 	schemas := append(reportSchemas, labelSchemas...)
+	schemas = append(schemas, linkSchemas...)
 	return &API{
 		authentication: authentication,
 		operations:     operations,

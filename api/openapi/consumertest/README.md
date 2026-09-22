@@ -31,6 +31,11 @@ Category별 Label의 생성·상세·PUT/PATCH·삭제와 검색·limit/offset �
 부모는 유지된 라벨의 최종 이름·Category와 외부 라벨 보존을 실제 DB에서 별도로 확인한다. 이 client fixture는 SQLite를 사용한다.
 Helpdesk 자체의 실제 SQLite/PostgreSQL HTTP·migration·실패 검사는 `examples/helpdesk`가 소유한다.
 
+TicketLabel의 독립 client는 두 endpoint의 scope·pair 중복·PUT/PATCH 생략·read-only 권한·CSRF와 연결 CRUD를 호출한다.
+ServiceReport가 있는 Ticket의 삭제가 링크를 보존하는지 확인한 뒤, Ticket/Label 삭제가 링크만 CASCADE로 정리하는지 검증한다.
+부모는 원래 Ticket/Label/Category, 외부 Category의 링크와 선택 범위의 유지 링크를 실제 DB에서 별도로 확인한다.
+추가 view 권한의 개별 거부와 저장 중 scope 변화/실패·unknown outcome은 Helpdesk 양 DB HTTP 테스트가 소유한다.
+
 Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 request enum과 별도 int64 response를 확인하고,
 허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
 생성된 encoder는 `Validate()`를 자동 호출하지 않으므로 서버 검증이 별도로 필요하다.

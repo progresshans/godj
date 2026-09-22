@@ -9,11 +9,14 @@ import (
 // resolved by one explicit API authentication profile.
 type AuthenticatedHandler func(*web.Request, auth.Principal) (web.Response, error)
 
-// Authentication constructs a handler protected by one explicit permission.
+// Authentication constructs a handler protected by every declared permission.
+// Credentials and CSRF are evaluated once; authorization checks the primary
+// and additional permissions in declaration order before the handler runs.
+// Implementations retain a detached, validated permission snapshot.
 // Construction failures are returned before the caller publishes any route;
 // successful construction must return a non-nil handler.
 type Authentication interface {
-	Require(auth.Permission, AuthenticatedHandler) (web.Handler, error)
+	Require(auth.Permission, AuthenticatedHandler, ...auth.Permission) (web.Handler, error)
 }
 
 // AuthenticationKind names the accepted, mutually exclusive API profiles.

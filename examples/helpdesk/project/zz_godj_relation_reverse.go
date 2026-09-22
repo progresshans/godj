@@ -15,9 +15,11 @@ const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-pro
 var _ orm.RelationObjectDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.RelationObjectDescriptor[models.Label] = models.LabelDescriptor{}
+var _ orm.PrimaryKeyObjectDescriptor[models.Label] = models.LabelDescriptor{}
 var _ orm.RelationObjectDescriptor[models.ServiceReport] = models.ServiceReportDescriptor{}
 var _ orm.RelationObjectDescriptor[models.Ticket] = models.TicketDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[models.Ticket] = models.TicketDescriptor{}
+var _ orm.RelationObjectDescriptor[models.TicketLabel] = models.TicketLabelDescriptor{}
 
 type ModelsCategoryLabelsReverseRelation struct {
 	ID   orm.RelatedIntegerField[models.Category]
@@ -42,6 +44,26 @@ func (_relations ModelsCategoryReverseRelations) ParseDynamic(
 	return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)
 }
 
+type ModelsLabelTicketLinksReverseRelation struct {
+	ID orm.RelatedIntegerField[models.Label]
+}
+
+type ModelsLabelReverseRelations struct {
+	TicketLinks ModelsLabelTicketLinksReverseRelation
+	model       orm.BoundModel[models.Label]
+}
+
+func (_relations ModelsLabelReverseRelations) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[models.Label], error) {
+	return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)
+}
+
+type ModelsTicketLabelLinksReverseRelation struct {
+	ID orm.RelatedIntegerField[models.Ticket]
+}
+
 type ModelsTicketServiceReportReverseRelation struct {
 	relation  orm.ReverseRelation[models.Ticket, models.ServiceReport]
 	ID        orm.RelatedIntegerField[models.Ticket]
@@ -54,6 +76,7 @@ func (_relation ModelsTicketServiceReportReverseRelation) IsNull(_value bool) or
 }
 
 type ModelsTicketReverseRelations struct {
+	LabelLinks    ModelsTicketLabelLinksReverseRelation
 	ServiceReport ModelsTicketServiceReportReverseRelation
 	model         orm.BoundModel[models.Ticket]
 }
@@ -67,6 +90,7 @@ func (_relations ModelsTicketReverseRelations) ParseDynamic(
 
 type ReverseRelations struct {
 	ModelsCategory ModelsCategoryReverseRelations
+	ModelsLabel    ModelsLabelReverseRelations
 	ModelsTicket   ModelsTicketReverseRelations
 }
 
@@ -107,6 +131,14 @@ func BindReverseRelations() (ReverseRelations, error) {
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
+		models.TicketLabelDescriptor{},
+	)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
 	_relation0, _err := orm.BindReverse(_model0, "labels", _model1)
 	if _err != nil {
 		return ReverseRelations{}, _err
@@ -131,19 +163,35 @@ func BindReverseRelations() (ReverseRelations, error) {
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_relation2, _err := orm.BindReverse(_model3, "service_report", _model2)
+	_relation2, _err := orm.BindReverse(_model1, "ticket_links", _model4)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal4, _err := _relation2.Integer(models.ServiceReportFields.ID)
+	_terminal4, _err := _relation2.Integer(models.TicketLabelFields.ID)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal5, _err := _relation2.String(models.ServiceReportFields.Summary)
+	_relation3, _err := orm.BindReverse(_model3, "label_links", _model4)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
-	_terminal6, _err := _relation2.Boolean(models.ServiceReportFields.Completed)
+	_terminal5, _err := _relation3.Integer(models.TicketLabelFields.ID)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_relation4, _err := orm.BindReverse(_model3, "service_report", _model2)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal6, _err := _relation4.Integer(models.ServiceReportFields.ID)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal7, _err := _relation4.String(models.ServiceReportFields.Summary)
+	if _err != nil {
+		return ReverseRelations{}, _err
+	}
+	_terminal8, _err := _relation4.Boolean(models.ServiceReportFields.Completed)
 	if _err != nil {
 		return ReverseRelations{}, _err
 	}
@@ -159,12 +207,21 @@ func BindReverseRelations() (ReverseRelations, error) {
 			},
 			model: _model0,
 		},
+		ModelsLabel: ModelsLabelReverseRelations{
+			TicketLinks: ModelsLabelTicketLinksReverseRelation{
+				ID: _terminal4,
+			},
+			model: _model1,
+		},
 		ModelsTicket: ModelsTicketReverseRelations{
+			LabelLinks: ModelsTicketLabelLinksReverseRelation{
+				ID: _terminal5,
+			},
 			ServiceReport: ModelsTicketServiceReportReverseRelation{
-				relation:  _relation2,
-				ID:        _terminal4,
-				Summary:   _terminal5,
-				Completed: _terminal6,
+				relation:  _relation4,
+				ID:        _terminal6,
+				Summary:   _terminal7,
+				Completed: _terminal8,
 			},
 			model: _model3,
 		},
@@ -246,14 +303,80 @@ func (_object *ModelsCategoryReverseObject) Fresh() (*ModelsCategoryReverseObjec
 	return _object.factory.From(_object.backend, _object.model)
 }
 
+type ModelsLabelReverseObjectFactory struct {
+	model       orm.BoundModel[models.Label]
+	ticketLinks orm.ReverseObject[models.Label, models.TicketLabel]
+}
+
+func (_factory ModelsLabelReverseObjectFactory) From(_backend db.Queryer, _value models.Label) (*ModelsLabelReverseObject, error) {
+	_snapshot := (models.LabelDescriptor{}).CloneModel(_value)
+	_related2, _err := _factory.ticketLinks.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsLabelReverseObject{
+		model:       _snapshot,
+		factory:     _factory,
+		backend:     _backend,
+		ticketLinks: _related2,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type ModelsLabelReverseObject struct {
+	model       models.Label
+	factory     ModelsLabelReverseObjectFactory
+	backend     db.Queryer
+	ticketLinks *orm.RelatedSet[models.TicketLabel]
+	_self       *ModelsLabelReverseObject
+}
+
+func (_object *ModelsLabelReverseObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated reverse relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *ModelsLabelReverseObject) Model() (models.Label, error) {
+	if _err := _object._validate(); _err != nil {
+		return models.Label{}, _err
+	}
+	return (models.LabelDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *ModelsLabelReverseObject) TicketLinks() (*orm.RelatedSet[models.TicketLabel], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.ticketLinks, nil
+}
+
+func (_object *ModelsLabelReverseObject) Fresh() (*ModelsLabelReverseObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
 type ModelsTicketReverseObjectFactory struct {
 	model         orm.BoundModel[models.Ticket]
+	labelLinks    orm.ReverseObject[models.Ticket, models.TicketLabel]
 	serviceReport orm.ReverseOneToOneObject[models.Ticket, models.ServiceReport]
 }
 
 func (_factory ModelsTicketReverseObjectFactory) From(_backend db.Queryer, _value models.Ticket) (*ModelsTicketReverseObject, error) {
 	_snapshot := (models.TicketDescriptor{}).CloneModel(_value)
-	_related2, _err := _factory.serviceReport.From(_backend, _snapshot)
+	_related3, _err := _factory.labelLinks.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related4, _err := _factory.serviceReport.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -261,7 +384,8 @@ func (_factory ModelsTicketReverseObjectFactory) From(_backend db.Queryer, _valu
 		model:         _snapshot,
 		factory:       _factory,
 		backend:       _backend,
-		serviceReport: _related2,
+		labelLinks:    _related3,
+		serviceReport: _related4,
 	}
 	_result._self = _result
 	return _result, nil
@@ -301,6 +425,7 @@ type ModelsTicketReverseObject struct {
 	model         models.Ticket
 	factory       ModelsTicketReverseObjectFactory
 	backend       db.Queryer
+	labelLinks    *orm.RelatedSet[models.TicketLabel]
 	serviceReport *orm.RelatedObject[models.ServiceReport]
 	_self         *ModelsTicketReverseObject
 }
@@ -323,6 +448,13 @@ func (_object *ModelsTicketReverseObject) Model() (models.Ticket, error) {
 	return (models.TicketDescriptor{}).CloneModel(_object.model), nil
 }
 
+func (_object *ModelsTicketReverseObject) LabelLinks() (*orm.RelatedSet[models.TicketLabel], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.labelLinks, nil
+}
+
 func (_object *ModelsTicketReverseObject) ServiceReport() (*orm.RelatedObject[models.ServiceReport], error) {
 	if _err := _object._validate(); _err != nil {
 		return nil, _err
@@ -339,6 +471,7 @@ func (_object *ModelsTicketReverseObject) Fresh() (*ModelsTicketReverseObject, e
 
 type ReverseObjects struct {
 	ModelsCategory ModelsCategoryReverseObjectFactory
+	ModelsLabel    ModelsLabelReverseObjectFactory
 	ModelsTicket   ModelsTicketReverseObjectFactory
 }
 
@@ -384,6 +517,14 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
+		models.TicketLabelDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
 	_relation0, _err := orm.BindReverseObject(_model0, "labels", _model1)
 	if _err != nil {
 		return ReverseObjects{}, _err
@@ -392,7 +533,15 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation2, _err := orm.BindReverseOneToOneObject(_model3, "service_report", _model2)
+	_relation2, _err := orm.BindReverseObject(_model1, "ticket_links", _model4)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation3, _err := orm.BindReverseObject(_model3, "label_links", _model4)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation4, _err := orm.BindReverseOneToOneObject(_model3, "service_report", _model2)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
@@ -402,11 +551,16 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 			labels:  _relation0,
 			tickets: _relation1,
 		},
+		ModelsLabel: ModelsLabelReverseObjectFactory{
+			model:       _model1,
+			ticketLinks: _relation2,
+		},
 		ModelsTicket: ModelsTicketReverseObjectFactory{
 			model:         _model3,
-			serviceReport: _relation2,
+			labelLinks:    _relation3,
+			serviceReport: _relation4,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ goDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

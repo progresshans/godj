@@ -152,6 +152,7 @@ type gdj0047PartialAuthentication struct {
 func (authentication *gdj0047PartialAuthentication) Require(
 	_ auth.Permission,
 	handler api.AuthenticatedHandler,
+	_ ...auth.Permission,
 ) (web.Handler, error) {
 	authentication.calls++
 	if authentication.calls == authentication.failAt {

@@ -22,6 +22,24 @@ func NewPermission(value string) (Permission, error) {
 	return Permission(value), nil
 }
 
+// RequiredPermissions validates an ordered, nonempty conjunction of permissions
+// and returns a detached snapshot. Duplicate requirements are configuration
+// errors; no authorization is performed here.
+func RequiredPermissions(first Permission, additional ...Permission) ([]Permission, error) {
+	if len(additional) >= maxPermissions {
+		return nil, &Error{Code: CodeInvalidInput, Field: "permissions", Detail: "permission count exceeds the supported limit"}
+	}
+	permissions := append([]Permission{first}, additional...)
+	seen := make(map[Permission]bool, len(permissions))
+	for _, permission := range permissions {
+		if !validPermission(string(permission)) || seen[permission] {
+			return nil, &Error{Code: CodeInvalidInput, Field: "permissions", Detail: "permissions must be canonical and distinct"}
+		}
+		seen[permission] = true
+	}
+	return permissions, nil
+}
+
 // PrincipalConfig is immutable startup input for one principal snapshot.
 type PrincipalConfig struct {
 	ID          string

@@ -12,10 +12,12 @@ import (
 const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"
 
 var _ orm.WriteDescriptor[models.Category] = models.CategoryDescriptor{}
+var _ orm.WriteDescriptor[models.Label] = models.LabelDescriptor{}
 var _ orm.WriteDescriptor[models.Ticket] = models.TicketDescriptor{}
 
 type RelationDeleters struct {
 	ModelsCategory orm.RelationDeleter[models.Category]
+	ModelsLabel    orm.RelationDeleter[models.Label]
 	ModelsTicket   orm.RelationDeleter[models.Ticket]
 }
 
@@ -28,7 +30,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	for _, _relation := range _binding.ForwardRelations() {
 		_targets[_relation.Target] = struct{}{}
 	}
-	if len(_targets) != 2 {
+	if len(_targets) != 3 {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -36,6 +38,13 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		}
 	}
 	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}]; !_ok {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -60,17 +69,27 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}
 	_deleter1, _err := orm.BindRelationDeleter(
 		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
+		models.LabelDescriptor{},
+		"9443a3490b1c14739f0301cc66268179f40a0efa208007cbaf93ca5cfdfeae21",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter2, _err := orm.BindRelationDeleter(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
-		"8c6beb70414d477d7a37681c985dee03fbc03b4b2acbea3f9d586b6ebaf08514",
+		"cd5b29cd951b1b846611718ee822b5d783479c0c345c555967f9dd252fced7bd",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
 	}
 	return RelationDeleters{
 		ModelsCategory: _deleter0,
-		ModelsTicket:   _deleter1,
+		ModelsLabel:    _deleter1,
+		ModelsTicket:   _deleter2,
 	}, nil
 }
 
-var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ goDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

@@ -14,6 +14,8 @@ type relationQueryBindings struct {
 	edge0 orm.ForwardRelation[models.Label, models.Category]
 	edge1 orm.ForwardRelation[models.ServiceReport, models.Ticket]
 	edge2 orm.ForwardRelation[models.Ticket, models.Category]
+	edge4 orm.ForwardRelation[models.TicketLabel, models.Label]
+	edge3 orm.ForwardRelation[models.TicketLabel, models.Ticket]
 }
 type ModelsCategoryRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
@@ -40,6 +42,40 @@ func newModelsCategoryRelatedFields[S any](_bindings *relationQueryBindings, _ro
 }
 func (_fields ModelsCategoryRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+
+type ModelsLabelRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.ForwardRelation[S, models.Label]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Name             orm.RelatedStringField[S]
+}
+
+func newModelsLabelRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, models.Label]) ModelsLabelRelatedFields[S] {
+	_result := ModelsLabelRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(models.LabelFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(models.LabelFields.Name)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Name = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields ModelsLabelRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields ModelsLabelRelatedFields[S]) Category() ModelsCategoryRelatedFields[S] {
+	var _next orm.ForwardRelation[models.Label, models.Category]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge0
+	}
+	return newModelsCategoryRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
 }
 
 type ModelsTicketRelatedFields[S any] struct {
@@ -181,10 +217,21 @@ func (_relations ModelsTicketRelations) ParseDynamic(_policy orm.LookupPolicy, _
 	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
+type ModelsTicketLabelRelations struct {
+	Label  ModelsLabelRelatedFields[models.TicketLabel]
+	Ticket ModelsTicketRelatedFields[models.TicketLabel]
+	model  orm.BoundModel[models.TicketLabel]
+}
+
+func (_relations ModelsTicketLabelRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[models.TicketLabel], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
 type Relations struct {
 	ModelsLabel         ModelsLabelRelations
 	ModelsServiceReport ModelsServiceReportRelations
 	ModelsTicket        ModelsTicketRelations
+	ModelsTicketLabel   ModelsTicketLabelRelations
 }
 
 func BindRelations() (Relations, error) {
@@ -224,6 +271,14 @@ func BindRelations() (Relations, error) {
 	if _err != nil {
 		return Relations{}, _err
 	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
+		models.TicketLabelDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
 	_routes := &relationQueryBindings{}
 	_relation0, _err := orm.BindForward(_model1, "category", _model0)
 	if _err != nil {
@@ -240,6 +295,16 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes.edge2 = _relation2
+	_relation4, _err := orm.BindForward(_model4, "label", _model1)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge4 = _relation4
+	_relation3, _err := orm.BindForward(_model4, "ticket", _model3)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge3 = _relation3
 	_group0 := newModelsCategoryRelatedFields[models.Label](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
@@ -252,6 +317,14 @@ func BindRelations() (Relations, error) {
 	if _group2.configurationErr != nil {
 		return Relations{}, _group2.configurationErr
 	}
+	_group4 := newModelsLabelRelatedFields[models.TicketLabel](_routes, _routes.edge4)
+	if _group4.configurationErr != nil {
+		return Relations{}, _group4.configurationErr
+	}
+	_group3 := newModelsTicketRelatedFields[models.TicketLabel](_routes, _routes.edge3)
+	if _group3.configurationErr != nil {
+		return Relations{}, _group3.configurationErr
+	}
 	return Relations{
 		ModelsLabel: ModelsLabelRelations{model: _model1,
 			Category: _group0,
@@ -262,7 +335,11 @@ func BindRelations() (Relations, error) {
 		ModelsTicket: ModelsTicketRelations{model: _model3,
 			Category: _group2,
 		},
+		ModelsTicketLabel: ModelsTicketLabelRelations{model: _model4,
+			Label:  _group4,
+			Ticket: _group3,
+		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ goDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

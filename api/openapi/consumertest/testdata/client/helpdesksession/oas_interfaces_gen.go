@@ -53,8 +53,36 @@ type HelpdeskTicketCreateRes interface {
 	helpdeskTicketCreateRes()
 }
 
+type HelpdeskTicketDeleteRes interface {
+	helpdeskTicketDeleteRes()
+}
+
 type HelpdeskTicketDetailRes interface {
 	helpdeskTicketDetailRes()
+}
+
+type HelpdeskTicketLabelCreateRes interface {
+	helpdeskTicketLabelCreateRes()
+}
+
+type HelpdeskTicketLabelDeleteRes interface {
+	helpdeskTicketLabelDeleteRes()
+}
+
+type HelpdeskTicketLabelDetailRes interface {
+	helpdeskTicketLabelDetailRes()
+}
+
+type HelpdeskTicketLabelListRes interface {
+	helpdeskTicketLabelListRes()
+}
+
+type HelpdeskTicketLabelPatchRes interface {
+	helpdeskTicketLabelPatchRes()
+}
+
+type HelpdeskTicketLabelUpdateRes interface {
+	helpdeskTicketLabelUpdateRes()
 }
 
 type HelpdeskTicketListRes interface {

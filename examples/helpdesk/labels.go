@@ -208,7 +208,8 @@ func (a *Application) publishableLabel(ctx context.Context, backend db.Queryer, 
 
 func (a *Application) deleteLabel(ctx context.Context, id int64) (models.Label, error) {
 	var removed models.Label
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
+	target := models.NewLabelWithID(id)
+	scoped := scopedRelationDelete{backend: a.backend, check: func(session db.RelationSession) error {
 		current, found, err := a.label(ctx, session, id)
 		if err != nil {
 			return err
@@ -217,11 +218,10 @@ func (a *Application) deleteLabel(ctx context.Context, id int64) (models.Label, 
 			return admin.ErrObjectNotFound
 		}
 		removed = current
-		_, err = models.LabelObjects.Delete(ctx, session, &current)
-		return err
-	})
-	if err != nil {
-		return models.Label{}, operationError(ctx, err)
+		return nil
+	}}
+	if _, err := a.deleters.ModelsLabel.Delete(ctx, scoped, &target); err != nil {
+		return models.Label{}, err
 	}
 	return removed, nil
 }

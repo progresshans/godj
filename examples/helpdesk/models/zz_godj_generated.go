@@ -18,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
+const GoDjSchemaSHA256 = "33214ea261c78909004d04124bfeb7c8b03dbe18c191160f87ba0b54c0e01379"
 
 type Category struct {
 	ID                    int64
@@ -1950,4 +1950,222 @@ func labelMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0 struct{}
+type TicketLabel struct {
+	ID                    int64
+	TicketID              int64
+	LabelID               int64
+	godjPrimaryKeyPresent bool
+}
+
+type TicketLabelDescriptor struct{}
+
+var _ orm.ModelDescriptor[TicketLabel] = TicketLabelDescriptor{}
+
+var _ orm.WriteDescriptor[TicketLabel] = TicketLabelDescriptor{}
+
+func (TicketLabelDescriptor) Metadata() ir.Model {
+	return ticketLabelMetadata()
+}
+
+func (TicketLabelDescriptor) Scan(row db.Row) (TicketLabel, error) {
+	var value TicketLabel
+	if err := row.Scan(&value.ID, &value.TicketID, &value.LabelID); err != nil {
+		return TicketLabel{}, err
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (TicketLabelDescriptor) PrimaryKey(value TicketLabel) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (TicketLabelDescriptor) SetPrimaryKey(value *TicketLabel, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (TicketLabelDescriptor) ClearPrimaryKey(value *TicketLabel) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (TicketLabelDescriptor) CloneModel(value TicketLabel) TicketLabel {
+	clone := value
+	return clone
+}
+
+func (descriptor TicketLabelDescriptor) CloneWriteModel(value TicketLabel) TicketLabel {
+	return descriptor.CloneModel(value)
+}
+
+func (TicketLabelDescriptor) WriteFieldValue(value TicketLabel, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "ticket":
+		return query.Integer(value.TicketID), true
+	case "label":
+		return query.Integer(value.LabelID), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type TicketLabelFieldSet struct {
+	ID orm.AutoField[TicketLabel]
+}
+
+var TicketLabelFields = func() TicketLabelFieldSet {
+	metadata := ticketLabelMetadata()
+	return TicketLabelFieldSet{
+		ID: orm.NewAutoField[TicketLabel](metadata.Fields[0]),
+	}
+}()
+
+var TicketLabelObjects = orm.NewManager[TicketLabel](TicketLabelDescriptor{})
+
+func NewTicketLabelWithID(key int64) TicketLabel {
+	return TicketLabel{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func TicketLabelUpdateFields(fields ...orm.WritableField[TicketLabel]) orm.SaveOption[TicketLabel] {
+	return orm.UpdateFields(fields...)
+}
+
+func TicketLabelUpdateFieldNames(names ...string) orm.SaveOption[TicketLabel] {
+	return orm.UpdateFieldNames[TicketLabel](names...)
+}
+
+func TicketLabelForceInsert() orm.SaveOption[TicketLabel] {
+	return orm.ForceInsert[TicketLabel]()
+}
+
+func TicketLabelForceUpdate() orm.SaveOption[TicketLabel] {
+	return orm.ForceUpdate[TicketLabel]()
+}
+
+type TicketLabelCreate struct {
+	ticketID orm.Change[int64]
+	labelID  orm.Change[int64]
+}
+
+func NewTicketLabelCreate(ticketID int64, labelID int64) TicketLabelCreate {
+	return TicketLabelCreate{
+		ticketID: orm.Set(ticketID),
+		labelID:  orm.Set(labelID),
+	}
+}
+
+func (input TicketLabelCreate) WithTicketID(value int64) TicketLabelCreate {
+	input.ticketID = orm.Set(value)
+	return input
+}
+
+func (input TicketLabelCreate) WithLabelID(value int64) TicketLabelCreate {
+	input.labelID = orm.Set(value)
+	return input
+}
+
+func (input TicketLabelCreate) BuildCreate() orm.Mutation[TicketLabel] {
+	var value TicketLabel
+	assignments := make([]query.Assignment, 0, 2)
+	changedTicketID, changedTicketIDSet := input.ticketID.Get()
+	if !changedTicketIDSet {
+		return orm.InvalidMutation[TicketLabel](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "ticket",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.TicketID = changedTicketID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ticket", "ticket_id", query.FieldInteger, false), query.Integer(changedTicketID)))
+	changedLabelID, changedLabelIDSet := input.labelID.Get()
+	if !changedLabelIDSet {
+		return orm.InvalidMutation[TicketLabel](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "label",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.LabelID = changedLabelID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("label", "label_id", query.FieldInteger, false), query.Integer(changedLabelID)))
+	return orm.NewCreateMutation(value, "helpdesk_ticket_label", assignments)
+}
+
+type TicketLabelPatch struct {
+	ticketID orm.Change[int64]
+	labelID  orm.Change[int64]
+}
+
+func (input TicketLabelPatch) WithTicketID(value int64) TicketLabelPatch {
+	input.ticketID = orm.Set(value)
+	return input
+}
+
+func (input TicketLabelPatch) WithLabelID(value int64) TicketLabelPatch {
+	input.labelID = orm.Set(value)
+	return input
+}
+
+func (input TicketLabelPatch) BuildPatch(current TicketLabel) orm.Mutation[TicketLabel] {
+	value := current
+	assignments := make([]query.Assignment, 0, 2)
+	if changedTicketID, ok := input.ticketID.Get(); ok {
+		value.TicketID = changedTicketID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("ticket", "ticket_id", query.FieldInteger, false), query.Integer(changedTicketID)))
+	}
+	if changedLabelID, ok := input.labelID.Get(); ok {
+		value.LabelID = changedLabelID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("label", "label_id", query.FieldInteger, false), query.Integer(changedLabelID)))
+	}
+	return orm.NewPatchMutation(value, "helpdesk_ticket_label", assignments)
+}
+
+func ticketLabelMetadata() ir.Model {
+	return ir.Model{
+		Name:    "ticket_label",
+		GoName:  "TicketLabel",
+		DBTable: "helpdesk_ticket_label",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:   "ticket",
+				GoName: "TicketID",
+				Column: "ticket_id",
+				Kind:   ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "label_links"},
+					OnDelete:    ir.DeleteCascade,
+				},
+			},
+			{
+				Name:   "label",
+				GoName: "LabelID",
+				Column: "label_id",
+				Kind:   ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "ticket_links"},
+					OnDelete:    ir.DeleteCascade,
+				},
+			},
+		},
+		UniqueConstraints: []ir.UniqueConstraint{
+			{Name: "ticket_label", Fields: []string{"ticket", "label"}},
+		},
+	}
+}
+
+type GoDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641 struct{}

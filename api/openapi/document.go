@@ -34,15 +34,17 @@ type Config struct {
 }
 
 // Operation associates documentation with the same route used for execution.
-// Permission describes the permission used to wrap Route.Handler.
+// Permission and AdditionalPermissions describe the complete conjunction used
+// to wrap Route.Handler. Additional permissions do not grant alternative access.
 type Operation struct {
-	Route       web.Route `json:"-"`
-	Summary     string
-	Description string
-	Permission  auth.Permission
-	Parameters  []Parameter
-	RequestBody *RequestBody
-	Responses   []Response
+	Route                 web.Route `json:"-"`
+	Summary               string
+	Description           string
+	Permission            auth.Permission
+	AdditionalPermissions []auth.Permission
+	Parameters            []Parameter
+	RequestBody           *RequestBody
+	Responses             []Response
 }
 
 // Parameter describes a query or header parameter. Path parameters are derived
@@ -202,9 +204,9 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	if !validText(operation.Summary, 256, false) || !validText(operation.Description, 8192, false) {
 		return nil, documentError("operation.description", "operation text is invalid or too long")
 	}
-	permission, err := auth.NewPermission(string(operation.Permission))
-	if err != nil || permission != operation.Permission {
-		return nil, documentError("operation.permission", "one explicit permission is required")
+	permissions, err := auth.RequiredPermissions(operation.Permission, operation.AdditionalPermissions...)
+	if err != nil {
+		return nil, documentError("operation.permission", "explicit canonical distinct permissions are required")
 	}
 	if len(operation.Parameters) > 128 || len(operation.Responses) == 0 || len(operation.Responses) > 32 {
 		return nil, documentError("operation", "parameter or response count is outside the supported range")
@@ -326,6 +328,9 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		"operationId": operation.Route.Name, "summary": operation.Summary, "description": operation.Description,
 		"parameters": parameters, "responses": responses, "security": []any{security},
 		"x-godj-permission": string(operation.Permission),
+	}
+	if len(permissions) > 1 {
+		value["x-godj-additional-permissions"] = permissions[1:]
 	}
 	if body := operation.RequestBody; body != nil {
 		if operation.Route.Method != http.MethodPost && operation.Route.Method != http.MethodPut && operation.Route.Method != http.MethodPatch {

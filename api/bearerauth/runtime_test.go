@@ -451,9 +451,10 @@ func protectedApplication(
 	runtime *Runtime,
 	permission auth.Permission,
 	handler api.AuthenticatedHandler,
+	additional ...auth.Permission,
 ) (*web.Application, *bytes.Buffer) {
 	t.Helper()
-	protected, err := runtime.Require(permission, handler)
+	protected, err := runtime.Require(permission, handler, additional...)
 	if err != nil {
 		t.Fatal(err)
 	}

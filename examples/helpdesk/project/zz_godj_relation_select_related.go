@@ -16,6 +16,7 @@ var _ orm.ProjectionDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.ProjectionDescriptor[models.Label] = models.LabelDescriptor{}
 var _ orm.ProjectionDescriptor[models.ServiceReport] = models.ServiceReportDescriptor{}
 var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
+var _ orm.ProjectionDescriptor[models.TicketLabel] = models.TicketLabelDescriptor{}
 
 type relationSelectQuery[O any] interface {
 	All(context.Context) ([]*O, error)
@@ -622,4 +623,259 @@ func (_object *ModelsTicketObject) ServiceReportObject(_ctx context.Context) (*M
 	return _target, true, nil
 }
 
-var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+type ModelsTicketLabelSelectRelatedQuery struct {
+	factory          ModelsTicketLabelObjectFactory
+	source           orm.QuerySet[models.TicketLabel]
+	query            orm.RelatedSelectQuery[models.TicketLabel]
+	selections       []orm.RelatedSelection[models.TicketLabel]
+	configurationErr error
+}
+
+func (_factory ModelsTicketLabelObjectFactory) SelectRelated(_source orm.QuerySet[models.TicketLabel]) ModelsTicketLabelSelectRelatedQuery {
+	return ModelsTicketLabelSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[models.TicketLabel]) ModelsTicketLabelSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[models.TicketLabel](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory ModelsTicketLabelObjectFactory) SelectLabel(_children ...orm.RelatedSelection[models.Label]) orm.RelatedSelect[models.TicketLabel, models.Label] {
+	return orm.SelectRequiredForward(_factory.label).WithChildren(_children...)
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) WithLabel(_children ...orm.RelatedSelection[models.Label]) ModelsTicketLabelSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectLabel(_children...))
+}
+func (_factory ModelsTicketLabelObjectFactory) SelectTicket(_children ...orm.RelatedSelection[models.Ticket]) orm.RelatedSelect[models.TicketLabel, models.Ticket] {
+	return orm.SelectRequiredForward(_factory.ticket).WithChildren(_children...)
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) WithTicket(_children ...orm.RelatedSelection[models.Ticket]) ModelsTicketLabelSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectTicket(_children...))
+}
+func (_factory ModelsTicketLabelObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[models.TicketLabel], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[models.TicketLabel], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "label":
+			_selection := _factory.SelectLabel()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.ModelsLabel.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "ticket":
+			_selection := _factory.SelectTicket()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.ModelsTicket.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) ParseDynamic(_paths ...string) (ModelsTicketLabelSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ModelsTicketLabelSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return ModelsTicketLabelSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return ModelsTicketLabelSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) rebuild() ModelsTicketLabelSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) Filter(_values ...orm.Predicate[models.TicketLabel]) ModelsTicketLabelSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) OrderBy(_values ...orm.Ordering[models.TicketLabel]) ModelsTicketLabelSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) Distinct() ModelsTicketLabelSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) Fresh() ModelsTicketLabelSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) Limit(_value int) (ModelsTicketLabelSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ModelsTicketLabelSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ModelsTicketLabelSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) Offset(_value int) (ModelsTicketLabelSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ModelsTicketLabelSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ModelsTicketLabelSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) All(_ctx context.Context) ([]*ModelsTicketLabelObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsTicketLabelObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) First(_ctx context.Context) (*ModelsTicketLabelObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query ModelsTicketLabelSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[models.TicketLabel]) (*ModelsTicketLabelObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory ModelsTicketLabelObjectFactory) FromSelected(_selected *orm.RelatedSelected[models.TicketLabel]) (*ModelsTicketLabelObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("label"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectLabel().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.label = _related
+	}
+	if _has, _err := _selected.HasSelection("ticket"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectTicket().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.ticket = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+func (_object *ModelsTicketLabelObject) LabelObject(_ctx context.Context) (*ModelsLabelObject, error) {
+	_value, _err := _object.Label(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, _err
+	}
+	_graph, _selected, _err := _object.label.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _target *ModelsLabelObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.ModelsLabel.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.ModelsLabel.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _target, nil
+}
+func (_object *ModelsTicketLabelObject) TicketObject(_ctx context.Context) (*ModelsTicketObject, error) {
+	_value, _err := _object.Ticket(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, _err
+	}
+	_graph, _selected, _err := _object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _target *ModelsTicketObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.ModelsTicket.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.ModelsTicket.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	return _target, nil
+}
+
+var _ goDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

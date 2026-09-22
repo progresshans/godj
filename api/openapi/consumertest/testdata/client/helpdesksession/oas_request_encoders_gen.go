@@ -108,6 +108,48 @@ func encodeHelpdeskTicketCreateRequest(
 	return nil
 }
 
+func encodeHelpdeskTicketLabelCreateRequest(
+	req *TicketLabelCreate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeHelpdeskTicketLabelPatchRequest(
+	req *TicketLabelPatch,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeHelpdeskTicketLabelUpdateRequest(
+	req *TicketLabelUpdate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeHelpdeskTicketPatchRequest(
 	req *TicketPatch,
 	r *http.Request,

@@ -3,6 +3,48 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0098 — TicketLabel 소비자와 복수 권한 경계
+
+2026-09-22, 기준 `86f0571b4d162c8f8523d1e1ba0ce2ce979dd419` 위 제품·생성물·검사·CI **63경로**(Go 58)를 변경했다.
+Markdown을 제외한 전체 source 2,031파일의 정렬된 path→SHA256 map hash는
+`49796be85c21ecab6f1d3638e57570f24e8ec86ba6edd98847ba22a98452b866`이다. 세 mode 모두 시작/종료 source 불변을 확인했다.
+Go 1.26.5/Darwin arm64·modernc SQLite·격리 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+`0019_ticket_label`은 ticket/label CASCADE FK와 named ordered pair unique를 추가한다. Category는 endpoint의 서버 배정 값으로
+양쪽을 검사하며 연결 모델에 중복 저장하지 않는다. 이전 Ticket/Label 행의 forward/reverse/reapply 보존, native FK·unique와 재접속을 확인했다.
+Scoped Form/Admin/API의 CRUD·두 chooser의 escaped label·양쪽 Category·교차 Category ORM 행의 비노출·전체 후보의 중복·PATCH 생략/self
+검사를 연결했다. API는 25개 operation과 TicketLabel의 5개 named schema를 같은 선언에서 생성한다.
+Label 삭제도 project 관계 삭제기를 사용하고 Ticket DELETE API를 추가했다. 실제 양 DB에서 반대 endpoint·다른 링크 보존,
+ServiceReport PROTECT가 링크 삭제보다 먼저 실행되는 동작, 삭제 중 오류의 전체 rollback을 확인했다.
+
+API Authentication.Require는 primary와 추가 권한을 AND로 평가한다. 권한 목록의 한도·정규형·중복·입력 slice 복사와
+Session/Bearer의 한 번 인증·CSRF 경계, 누락 grant·custom authorizer 거부·오류·취소 시 handler 미실행을 검증했다.
+TicketLabel POST/PUT/PATCH에는 링크 mutation 권한과 ViewTicket·ViewLabel이 모두 필요하며 파싱·DB 이전에 검사한다.
+Read/delete는 링크 ID 권한이고 endpoint 이름을 게시하지 않는다. 기존 ServiceReport의 explicit-ID 입력 계약은 그대로다.
+OpenAPI의 `x-godj-additional-permissions`와 실제 binding의 일치를 검사한다. 문자열 필드가 없는 Admin 모델은 SearchFields 없이
+등록하고 검색 UI를 생략하며 미선언 q와 직접 registry Search를 callback 이전에 거부한다.
+
+사전/native 중복·두 번째 endpoint 조회 실패·취소·driver/reload 실패·transaction 직전 endpoint Category 변경은 부분 쓰기를 남기지 않는다.
+조회 실패 뒤 먼저 수집한 일부 validation 결과도 게시하지 않는다. 불확실한 commit은 실제 commit 후 500·한 번 실행이고,
+불확실한 rollback/protection은 정상 404/validation으로 변환하지 않는다. 외부 ORM/SQL의 Category 재할당을 막는 영구 cross-table
+제약이나 행 잠금은 이 소비자의 계약에 포함하지 않는다. 일반 ManyToMany manager도 아직 구현한 것으로 세지 않는다.
+
+`go test -json -count=1 -timeout=12m -skip '^(TestPostgresRevisionFenceHelperProcess|TestPublicationCrashHelper)$'`로
+`./auth ./api ./api/bearerauth ./api/sessionauth ./api/openapi ./api/openapi/consumertest ./admin ./examples/helpdesk ./examples/article/apiapp ./internal/projectgenerate ./internal/migrationautodetect`를 실행했다.
+normal·`-race`·`CGO_ENABLED=0`은 **각 11 package / 652 run=PASS / skip 0**이다. 새 권한·검색 root와 양 DB의 historical_ticket_label/
+ticket_labels 및 기존 Label/ServiceReport, 독립 client를 포함한 필수 18개 항목과 모든 시작/종료 inventory를 확인했다.
+Publication helper는 required parent가 별도 process로 실행하며 직접 helper를 skip한 결과를 성공으로 세지 않았다.
+독립 고정 ogen module은 세 profile의 생성물 drift·lock 불변을 확인한 뒤 실제 HTTP를 실행한다. Link CRUD·권한·CSRF·PROTECT·양쪽
+CASCADE 뒤 유지 링크를 검증하고 부모가 최종 Ticket/Label/Category와 외부/유지 링크를 DB에서 독립 확인한다. Article 문서 두 개는 byte 불변이다.
+
+Helpdesk CLI `generate --check`, 영향 `go vet`, Authentication interface 소비자의 conformance runner compile을 통과했다.
+Conformance protocol **904 run=PASS / skip 0**, CI package/scope Python **13 PASS**도 확인했다.
+최초 normal은 새 Admin 테스트가 기존 302 redirect를 303으로 잘못 기대하여 실패했다. 기대값을 기존 계약과 맞춘 뒤 위 세 mode를 통과했다.
+실패 원본을 포함한 artifact는 `godj-cascade-reference-rusrn8sm/ticket-labels/`의 `latest-normal-path`, `latest-race-path`,
+`latest-cgo0-path`, `latest-supplementary-path`, `latest-openapi-path`가 가리킨다. Source·events/stderr·필수 inventory·hash·receipt를 보존했다.
+전용 PostgreSQL DB는 각 실행 후 다른 연결·table·추가 schema 0을 확인하고 삭제했다.
+이 checkpoint는 소비자의 영향 범위 검증이다. CASCADE 기반과 이 소비자를 합친 새 source의 Hosted full 통합은 다음 milestone이다.
+
 ## GDJ-0098 — 공통 CASCADE collector와 transitive generated binding
 
 2026-09-22, 기준 `9d95061f0066a22ddd7adeaebd98b0bc6ec799c0` 위 제품·생성물·검사·CI **97경로**(Go 86)를 변경했다.

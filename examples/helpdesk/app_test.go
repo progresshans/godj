@@ -194,6 +194,9 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	readGrownTicket(t, ctx, backend, outsideID, "Other category ticket", other.ID)
 	t.Run("historical_service_report", func(t *testing.T) { verifyHistoricalServiceReportLifecycle(t, ctx, backend, open, loaded, seedID) })
 	t.Run("historical_label", func(t *testing.T) { verifyHistoricalLabelLifecycle(t, ctx, backend, open, loaded, seedID, category.ID) })
+	t.Run("historical_ticket_label", func(t *testing.T) {
+		verifyHistoricalTicketLabelLifecycle(t, ctx, backend, open, loaded, seedID, category.ID)
+	})
 	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {
 		t.Fatal(err)
@@ -480,6 +483,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	}
 	t.Run("service_reports", func(t *testing.T) { verifyHelpdeskReports(t, ctx, runtime, open, client, category.ID, outside.ID) })
 	t.Run("category_labels", func(t *testing.T) { verifyHelpdeskLabels(t, ctx, runtime, open, client, category.ID, other.ID, seedID) })
+	t.Run("ticket_labels", func(t *testing.T) { verifyHelpdeskTicketLabels(t, ctx, runtime, open, client, category.ID, other.ID) })
 }
 
 // Seed through the historical column set before the new generated model can be

@@ -77,18 +77,18 @@ func New(runtime *websessionauth.Runtime) (*Runtime, error) {
 }
 
 // Require resolves an authenticated principal, checks unsafe-method CSRF,
-// applies one explicit permission, and only then invokes application parsing
+// applies every explicit permission, and only then invokes application parsing
 // or persistence. Expected denial responses are JSON 403 without redirects or
 // WWW-Authenticate.
-func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler) (web.Handler, error) {
+func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
 	if r == nil || r.runtime == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "API session runtime is nil or uninitialized"}
 	}
 	if r.runtime.CSRFHeader() == "" {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "session-auth runtime has no CSRF header"}
 	}
-	canonical, err := auth.NewPermission(string(permission))
-	if err != nil || canonical != permission {
+	permissions, err := auth.RequiredPermissions(permission, additional...)
+	if err != nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
 	}
 	if handler == nil {
@@ -111,12 +111,14 @@ func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedH
 				return web.Response{}, err
 			}
 		}
-		allowed, err := r.runtime.Authorized(request.Context(), principal, permission)
-		if err != nil {
-			return web.Response{}, err
-		}
-		if !allowed {
-			return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
+		for _, required := range permissions {
+			allowed, err := r.runtime.Authorized(request.Context(), principal, required)
+			if err != nil {
+				return web.Response{}, err
+			}
+			if !allowed {
+				return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
+			}
 		}
 		response, err := handler(request, principal)
 		if err != nil || !safeMethod(request.Method()) {

@@ -36,8 +36,8 @@ type Invoker interface {
 	HelpdeskLabelCreate(ctx context.Context, request *LabelCreate) (HelpdeskLabelCreateRes, error)
 	// HelpdeskLabelDelete invokes helpdesk:label-delete operation.
 	//
-	// Deletes only the scoped label in one transaction. Its category and tickets remain. Authentication,
-	// CSRF and permission precede lookup.
+	// Deletes the scoped label and its ticket links in one coordinated transaction. Its category, tickets
+	// and links to other labels remain. Authentication, CSRF and permission precede lookup.
 	//
 	// DELETE /api/labels/{id}/
 	HelpdeskLabelDelete(ctx context.Context, params HelpdeskLabelDeleteParams) (HelpdeskLabelDeleteRes, error)
@@ -147,6 +147,15 @@ type Invoker interface {
 	//
 	// POST /api/tickets/
 	HelpdeskTicketCreate(ctx context.Context, request *TicketCreate) (HelpdeskTicketCreateRes, error)
+	// HelpdeskTicketDelete invokes helpdesk:ticket-delete operation.
+	//
+	// Deletes the scoped ticket and its label links in one coordinated transaction, retaining labels. An
+	// existing ServiceReport blocks the entire operation before any link is deleted. A confirmed
+	// protection returns 400 with all/protected; storage failures and uncertain outcomes remain errors.
+	// Authentication, CSRF and permission checks precede lookup.
+	//
+	// DELETE /api/tickets/{id}/
+	HelpdeskTicketDelete(ctx context.Context, params HelpdeskTicketDeleteParams) (HelpdeskTicketDeleteRes, error)
 	// HelpdeskTicketDetail invokes helpdesk:ticket-detail operation.
 	//
 	// The identifier must be positive. The selected category is fixed by the application. Viewing a ticket
@@ -155,6 +164,64 @@ type Invoker interface {
 	//
 	// GET /api/tickets/{id}/
 	HelpdeskTicketDetail(ctx context.Context, params HelpdeskTicketDetailParams) (HelpdeskTicketDetailRes, error)
+	// HelpdeskTicketLabelCreate invokes helpdesk:ticket-label-create operation.
+	//
+	// Authentication, CSRF, the link mutation permission and both ticket/label view permissions precede
+	// parsing or data lookup. Ticket and label must be positive IDs whose server-assigned categories match
+	// the application's category. Both complete candidate endpoints and pair uniqueness are checked in the
+	// write transaction, including an omitted PATCH key. PUT requires both keys. PATCH preserves omitted
+	// keys; an empty or self patch checks scope without an UPDATE. Generated id and category cannot be
+	// supplied. Confirmed rejections roll back the entire write; storage errors, cancellation and
+	// uncertain outcomes remain errors.
+	//
+	// POST /api/ticket-labels/
+	HelpdeskTicketLabelCreate(ctx context.Context, request *TicketLabelCreate) (HelpdeskTicketLabelCreateRes, error)
+	// HelpdeskTicketLabelDelete invokes helpdesk:ticket-label-delete operation.
+	//
+	// Deletes only the scoped link in one transaction. Both endpoints and every other link remain.
+	// Authentication, CSRF and link delete permission precede lookup.
+	//
+	// DELETE /api/ticket-labels/{id}/
+	HelpdeskTicketLabelDelete(ctx context.Context, params HelpdeskTicketLabelDeleteParams) (HelpdeskTicketLabelDeleteRes, error)
+	// HelpdeskTicketLabelDetail invokes helpdesk:ticket-label-detail operation.
+	//
+	// Link view permission covers its endpoint IDs; endpoint names are not exposed.
+	//
+	// GET /api/ticket-labels/{id}/
+	HelpdeskTicketLabelDetail(ctx context.Context, params HelpdeskTicketLabelDetailParams) (HelpdeskTicketLabelDetailRes, error)
+	// HelpdeskTicketLabelList invokes helpdesk:ticket-label-list operation.
+	//
+	// Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs
+	// are exposed. Limit defaults to 20 (1..100); offset defaults to 0 (0..2147483647). Count precedes
+	// pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over 2048 bytes return
+	// 400. Count and items are separate reads, so concurrent changes can shift pages.
+	//
+	// GET /api/ticket-labels/
+	HelpdeskTicketLabelList(ctx context.Context, params HelpdeskTicketLabelListParams) (HelpdeskTicketLabelListRes, error)
+	// HelpdeskTicketLabelPatch invokes helpdesk:ticket-label-patch operation.
+	//
+	// Authentication, CSRF, the link mutation permission and both ticket/label view permissions precede
+	// parsing or data lookup. Ticket and label must be positive IDs whose server-assigned categories match
+	// the application's category. Both complete candidate endpoints and pair uniqueness are checked in the
+	// write transaction, including an omitted PATCH key. PUT requires both keys. PATCH preserves omitted
+	// keys; an empty or self patch checks scope without an UPDATE. Generated id and category cannot be
+	// supplied. Confirmed rejections roll back the entire write; storage errors, cancellation and
+	// uncertain outcomes remain errors.
+	//
+	// PATCH /api/ticket-labels/{id}/
+	HelpdeskTicketLabelPatch(ctx context.Context, request *TicketLabelPatch, params HelpdeskTicketLabelPatchParams) (HelpdeskTicketLabelPatchRes, error)
+	// HelpdeskTicketLabelUpdate invokes helpdesk:ticket-label-update operation.
+	//
+	// Authentication, CSRF, the link mutation permission and both ticket/label view permissions precede
+	// parsing or data lookup. Ticket and label must be positive IDs whose server-assigned categories match
+	// the application's category. Both complete candidate endpoints and pair uniqueness are checked in the
+	// write transaction, including an omitted PATCH key. PUT requires both keys. PATCH preserves omitted
+	// keys; an empty or self patch checks scope without an UPDATE. Generated id and category cannot be
+	// supplied. Confirmed rejections roll back the entire write; storage errors, cancellation and
+	// uncertain outcomes remain errors.
+	//
+	// PUT /api/ticket-labels/{id}/
+	HelpdeskTicketLabelUpdate(ctx context.Context, request *TicketLabelUpdate, params HelpdeskTicketLabelUpdateParams) (HelpdeskTicketLabelUpdateRes, error)
 	// HelpdeskTicketList invokes helpdesk:ticket-list operation.
 	//
 	// Returns at most 20 tickets in the application's selected category, ordered by ascending identifier.
@@ -359,8 +426,8 @@ func (c *Client) sendHelpdeskLabelCreate(ctx context.Context, request *LabelCrea
 
 // HelpdeskLabelDelete invokes helpdesk:label-delete operation.
 //
-// Deletes only the scoped label in one transaction. Its category and tickets remain. Authentication,
-// CSRF and permission precede lookup.
+// Deletes the scoped label and its ticket links in one coordinated transaction. Its category, tickets
+// and links to other labels remain. Authentication, CSRF and permission precede lookup.
 //
 // DELETE /api/labels/{id}/
 func (c *Client) HelpdeskLabelDelete(ctx context.Context, params HelpdeskLabelDeleteParams) (HelpdeskLabelDeleteRes, error) {
@@ -1710,6 +1777,126 @@ func (c *Client) sendHelpdeskTicketCreate(ctx context.Context, request *TicketCr
 	return result, nil
 }
 
+// HelpdeskTicketDelete invokes helpdesk:ticket-delete operation.
+//
+// Deletes the scoped ticket and its label links in one coordinated transaction, retaining labels. An
+// existing ServiceReport blocks the entire operation before any link is deleted. A confirmed
+// protection returns 400 with all/protected; storage failures and uncertain outcomes remain errors.
+// Authentication, CSRF and permission checks precede lookup.
+//
+// DELETE /api/tickets/{id}/
+func (c *Client) HelpdeskTicketDelete(ctx context.Context, params HelpdeskTicketDeleteParams) (HelpdeskTicketDeleteRes, error) {
+	res, err := c.sendHelpdeskTicketDelete(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketDelete(ctx context.Context, params HelpdeskTicketDeleteParams) (res HelpdeskTicketDeleteRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/tickets/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketDeleteResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // HelpdeskTicketDetail invokes helpdesk:ticket-detail operation.
 //
 // The identifier must be positive. The selected category is fixed by the application. Viewing a ticket
@@ -1800,6 +1987,694 @@ func (c *Client) sendHelpdeskTicketDetail(ctx context.Context, params HelpdeskTi
 	}()
 
 	result, err := decodeHelpdeskTicketDetailResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketLabelCreate invokes helpdesk:ticket-label-create operation.
+//
+// Authentication, CSRF, the link mutation permission and both ticket/label view permissions precede
+// parsing or data lookup. Ticket and label must be positive IDs whose server-assigned categories match
+// the application's category. Both complete candidate endpoints and pair uniqueness are checked in the
+// write transaction, including an omitted PATCH key. PUT requires both keys. PATCH preserves omitted
+// keys; an empty or self patch checks scope without an UPDATE. Generated id and category cannot be
+// supplied. Confirmed rejections roll back the entire write; storage errors, cancellation and
+// uncertain outcomes remain errors.
+//
+// POST /api/ticket-labels/
+func (c *Client) HelpdeskTicketLabelCreate(ctx context.Context, request *TicketLabelCreate) (HelpdeskTicketLabelCreateRes, error) {
+	res, err := c.sendHelpdeskTicketLabelCreate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketLabelCreate(ctx context.Context, request *TicketLabelCreate) (res HelpdeskTicketLabelCreateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/ticket-labels/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketLabelCreateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketLabelCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketLabelCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketLabelCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketLabelCreateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketLabelDelete invokes helpdesk:ticket-label-delete operation.
+//
+// Deletes only the scoped link in one transaction. Both endpoints and every other link remain.
+// Authentication, CSRF and link delete permission precede lookup.
+//
+// DELETE /api/ticket-labels/{id}/
+func (c *Client) HelpdeskTicketLabelDelete(ctx context.Context, params HelpdeskTicketLabelDeleteParams) (HelpdeskTicketLabelDeleteRes, error) {
+	res, err := c.sendHelpdeskTicketLabelDelete(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketLabelDelete(ctx context.Context, params HelpdeskTicketLabelDeleteParams) (res HelpdeskTicketLabelDeleteRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/ticket-labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketLabelDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketLabelDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketLabelDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketLabelDeleteResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketLabelDetail invokes helpdesk:ticket-label-detail operation.
+//
+// Link view permission covers its endpoint IDs; endpoint names are not exposed.
+//
+// GET /api/ticket-labels/{id}/
+func (c *Client) HelpdeskTicketLabelDetail(ctx context.Context, params HelpdeskTicketLabelDetailParams) (HelpdeskTicketLabelDetailRes, error) {
+	res, err := c.sendHelpdeskTicketLabelDetail(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketLabelDetail(ctx context.Context, params HelpdeskTicketLabelDetailParams) (res HelpdeskTicketLabelDetailRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/ticket-labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketLabelDetailOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketLabelDetailResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketLabelList invokes helpdesk:ticket-label-list operation.
+//
+// Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs
+// are exposed. Limit defaults to 20 (1..100); offset defaults to 0 (0..2147483647). Count precedes
+// pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over 2048 bytes return
+// 400. Count and items are separate reads, so concurrent changes can shift pages.
+//
+// GET /api/ticket-labels/
+func (c *Client) HelpdeskTicketLabelList(ctx context.Context, params HelpdeskTicketLabelListParams) (HelpdeskTicketLabelListRes, error) {
+	res, err := c.sendHelpdeskTicketLabelList(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketLabelList(ctx context.Context, params HelpdeskTicketLabelListParams) (res HelpdeskTicketLabelListRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/ticket-labels/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "offset" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "offset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Offset.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketLabelListOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketLabelListResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketLabelPatch invokes helpdesk:ticket-label-patch operation.
+//
+// Authentication, CSRF, the link mutation permission and both ticket/label view permissions precede
+// parsing or data lookup. Ticket and label must be positive IDs whose server-assigned categories match
+// the application's category. Both complete candidate endpoints and pair uniqueness are checked in the
+// write transaction, including an omitted PATCH key. PUT requires both keys. PATCH preserves omitted
+// keys; an empty or self patch checks scope without an UPDATE. Generated id and category cannot be
+// supplied. Confirmed rejections roll back the entire write; storage errors, cancellation and
+// uncertain outcomes remain errors.
+//
+// PATCH /api/ticket-labels/{id}/
+func (c *Client) HelpdeskTicketLabelPatch(ctx context.Context, request *TicketLabelPatch, params HelpdeskTicketLabelPatchParams) (HelpdeskTicketLabelPatchRes, error) {
+	res, err := c.sendHelpdeskTicketLabelPatch(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketLabelPatch(ctx context.Context, request *TicketLabelPatch, params HelpdeskTicketLabelPatchParams) (res HelpdeskTicketLabelPatchRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/ticket-labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PATCH", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketLabelPatchRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketLabelPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketLabelPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketLabelPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketLabelPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskTicketLabelUpdate invokes helpdesk:ticket-label-update operation.
+//
+// Authentication, CSRF, the link mutation permission and both ticket/label view permissions precede
+// parsing or data lookup. Ticket and label must be positive IDs whose server-assigned categories match
+// the application's category. Both complete candidate endpoints and pair uniqueness are checked in the
+// write transaction, including an omitted PATCH key. PUT requires both keys. PATCH preserves omitted
+// keys; an empty or self patch checks scope without an UPDATE. Generated id and category cannot be
+// supplied. Confirmed rejections roll back the entire write; storage errors, cancellation and
+// uncertain outcomes remain errors.
+//
+// PUT /api/ticket-labels/{id}/
+func (c *Client) HelpdeskTicketLabelUpdate(ctx context.Context, request *TicketLabelUpdate, params HelpdeskTicketLabelUpdateParams) (HelpdeskTicketLabelUpdateRes, error) {
+	res, err := c.sendHelpdeskTicketLabelUpdate(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskTicketLabelUpdate(ctx context.Context, request *TicketLabelUpdate, params HelpdeskTicketLabelUpdateParams) (res HelpdeskTicketLabelUpdateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/ticket-labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskTicketLabelUpdateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskTicketLabelUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskTicketLabelUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskTicketLabelUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskTicketLabelUpdateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

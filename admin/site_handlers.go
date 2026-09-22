@@ -114,7 +114,11 @@ func (site *Site) logoutPost(request *web.Request) (web.Response, error) {
 
 func (site *Site) modelList(model registeredModel) sessionauth.AuthenticatedHandler {
 	return func(request *web.Request, principal auth.Principal) (web.Response, error) {
-		query, err := parseSiteQuery(request, inputRules{"q": 1, "p": 1, "notice": 1, "count": 1, "sig": 1})
+		rules := inputRules{"p": 1, "notice": 1, "count": 1, "sig": 1}
+		if len(model.searchFields) != 0 {
+			rules["q"] = 1
+		}
+		query, err := parseSiteQuery(request, rules)
 		if err != nil {
 			return siteBadRequest()
 		}

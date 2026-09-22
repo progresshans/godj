@@ -181,6 +181,15 @@ func (b *labelFaultBackend) Atomic(ctx context.Context, fn func(db.Session) erro
 	return err
 }
 
+func (b *labelFaultBackend) AtomicRelation(ctx context.Context, fn func(db.RelationSession) error) error {
+	b.transactions++
+	err := b.Backend.AtomicRelation(ctx, fn)
+	if err != nil && b.mode == "notfound_unknown" {
+		return errors.Join(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeTransactionOutcomeUnknown})
+	}
+	return err
+}
+
 type labelFaultSession struct {
 	db.Session
 	owner   *labelFaultBackend

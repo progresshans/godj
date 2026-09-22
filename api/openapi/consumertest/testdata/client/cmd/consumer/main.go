@@ -16,15 +16,16 @@ import (
 const maxInputBytes = 64 << 10
 
 type endpoint struct {
-	URL             string `json:"url"`
-	Token           string `json:"token,omitempty"`
-	ReadOnlyToken   string `json:"read_only_token,omitempty"`
-	Session         string `json:"session,omitempty"`
-	ReadOnlySession string `json:"read_only_session,omitempty"`
-	CategoryID      int64  `json:"category_id,omitempty"`
-	TicketID        int64  `json:"ticket_id,omitempty"`
-	OtherTicketID   int64  `json:"other_ticket_id,omitempty"`
-	OtherLabelID    int64  `json:"other_label_id,omitempty"`
+	URL                string `json:"url"`
+	Token              string `json:"token,omitempty"`
+	ReadOnlyToken      string `json:"read_only_token,omitempty"`
+	Session            string `json:"session,omitempty"`
+	ReadOnlySession    string `json:"read_only_session,omitempty"`
+	CategoryID         int64  `json:"category_id,omitempty"`
+	TicketID           int64  `json:"ticket_id,omitempty"`
+	OtherTicketID      int64  `json:"other_ticket_id,omitempty"`
+	OtherLabelID       int64  `json:"other_label_id,omitempty"`
+	OtherTicketLabelID int64  `json:"other_ticket_label_id,omitempty"`
 }
 
 type input struct {
@@ -44,7 +45,7 @@ var requiredChecks = [...]string{
 	"article_session_invalid_csrf",
 	"helpdesk_session_relations",
 	"helpdesk_session_create_defaults",
-	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels",
+	"helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links",
 	"helpdesk_session_read_only_denied",
 	"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
 	"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_json_wire",
@@ -119,7 +120,7 @@ func readInput(reader io.Reader) (input, error) {
 	if config.ArticleBearer.Token == "" || config.ArticleBearer.ReadOnlyToken == "" || config.ArticleSession.Session == "" || config.HelpdeskSession.Session == "" || config.HelpdeskSession.ReadOnlySession == "" {
 		return config, errors.New("missing credentials")
 	}
-	if config.HelpdeskSession.CategoryID <= 0 || config.HelpdeskSession.TicketID <= 0 || config.HelpdeskSession.OtherTicketID <= 0 || config.HelpdeskSession.OtherLabelID <= 0 || config.HelpdeskSession.TicketID == config.HelpdeskSession.OtherTicketID {
+	if config.HelpdeskSession.CategoryID <= 0 || config.HelpdeskSession.TicketID <= 0 || config.HelpdeskSession.OtherTicketID <= 0 || config.HelpdeskSession.OtherLabelID <= 0 || config.HelpdeskSession.OtherTicketLabelID <= 0 || config.HelpdeskSession.TicketID == config.HelpdeskSession.OtherTicketID {
 		return config, errors.New("missing fixture identities")
 	}
 	return config, nil
@@ -138,7 +139,7 @@ func run(ctx context.Context, config input) ([]string, error) {
 			"article_session_csrf_crud", "article_session_invalid_csrf",
 		}},
 		{func() error { return checkHelpdeskSession(ctx, config.HelpdeskSession) }, []string{
-			"helpdesk_session_relations", "helpdesk_session_create_defaults", "helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_session_read_only_denied",
+			"helpdesk_session_relations", "helpdesk_session_create_defaults", "helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_category_labels", "helpdesk_ticket_label_links", "helpdesk_session_read_only_denied",
 			"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
 		}},
 		{func() error { return checkGeneratedWire(ctx) }, []string{

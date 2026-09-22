@@ -29,7 +29,8 @@
 GDJ-0098의 CASCADE 선언·생성 metadata/project wire·historical 정책 변경·자동 계획과 durable prefix 재개를 구현했다.
 양 DB의 deferred native FK·정책 변경/역방향·catalog drift와 SQLite remake의 행·sequence·다른 제약 보존도 구현했다.
 공통 ORM의 recursive collector·transitive generated fingerprint도 구현했다. 중복 경로·순환은 model+PK로 한 번 처리하며,
-도달한 모든 PROTECT 검사 뒤 SET_NULL·exact-key 삭제를 같은 transaction에서 실행한다. TicketLabel 소비자와 해당 전체 통합은 아직 남았다.
+도달한 모든 PROTECT 검사 뒤 SET_NULL·exact-key 삭제를 같은 transaction에서 실행한다. TicketLabel의 migration·scoped Form/Admin/API/OpenAPI/client와 두 endpoint의 권한·Category·pair uniqueness를 연결했다.
+Label/Ticket 삭제의 링크 CASCADE·ServiceReport PROTECT를 소비자에서 검증했으며, 복수 API 권한·검색 없는 Admin도 지원한다. 새 source의 Hosted 전체 통합은 남았다.
 실행한 환경과 source는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 
 Machine contract/provenance/status는 [conformance/contracts](../../conformance/contracts/)가 소유한다.

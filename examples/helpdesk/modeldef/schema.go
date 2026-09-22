@@ -41,6 +41,10 @@ func Schema() (ir.Schema, error) {
 			schema.CharField("name", "Name", 64),
 			schema.ForeignKey("category", "CategoryID", schema.Target("helpdesk", "category"), schema.RelatedName("labels"), schema.Protect),
 		}, UniqueConstraints: []schema.UniqueConstraint{{Name: "category_name", Fields: []string{"category", "name"}}}},
+		{Name: "ticket_label", GoName: "TicketLabel", Fields: []schema.Field{
+			schema.ForeignKey("ticket", "TicketID", schema.Target("helpdesk", "ticket"), schema.RelatedName("label_links"), schema.Cascade),
+			schema.ForeignKey("label", "LabelID", schema.Target("helpdesk", "label"), schema.RelatedName("ticket_links"), schema.Cascade),
+		}, UniqueConstraints: []schema.UniqueConstraint{{Name: "ticket_label", Fields: []string{"ticket", "label"}}}},
 	}})
 }
 

@@ -67,9 +67,65 @@ func (_prefetches ModelsCategoryReversePrefetches) Tickets(
 	return _results, nil
 }
 
+type ModelsLabelReversePrefetches struct {
+	objects     ModelsLabelReverseObjectFactory
+	ticketLinks orm.ReversePrefetch[models.Label, models.TicketLabel]
+}
+
+func (_prefetches ModelsLabelReversePrefetches) TicketLinks(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []models.Label,
+) ([]*ModelsLabelReverseObject, error) {
+	_snapshots := make([]models.Label, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (models.LabelDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.ticketLinks.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsLabelReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.ticketLinks = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
 type ModelsTicketReversePrefetches struct {
 	objects       ModelsTicketReverseObjectFactory
+	labelLinks    orm.ReversePrefetch[models.Ticket, models.TicketLabel]
 	serviceReport orm.ReverseOneToOnePrefetch[models.Ticket, models.ServiceReport]
+}
+
+func (_prefetches ModelsTicketReversePrefetches) LabelLinks(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []models.Ticket,
+) ([]*ModelsTicketReverseObject, error) {
+	_snapshots := make([]models.Ticket, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (models.TicketDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.labelLinks.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsTicketReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.labelLinks = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
 }
 
 func (_prefetches ModelsTicketReversePrefetches) ServiceReport(
@@ -99,6 +155,7 @@ func (_prefetches ModelsTicketReversePrefetches) ServiceReport(
 
 type ReversePrefetches struct {
 	ModelsCategory ModelsCategoryReversePrefetches
+	ModelsLabel    ModelsLabelReversePrefetches
 	ModelsTicket   ModelsTicketReversePrefetches
 }
 
@@ -115,7 +172,15 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch2, _err := orm.BindReverseOneToOnePrefetch(_objects.ModelsTicket.serviceReport)
+	_prefetch2, _err := orm.BindReversePrefetch(_objects.ModelsLabel.ticketLinks)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch3, _err := orm.BindReversePrefetch(_objects.ModelsTicket.labelLinks)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch4, _err := orm.BindReverseOneToOnePrefetch(_objects.ModelsTicket.serviceReport)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
@@ -125,11 +190,16 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 			labels:  _prefetch0,
 			tickets: _prefetch1,
 		},
+		ModelsLabel: ModelsLabelReversePrefetches{
+			objects:     _objects.ModelsLabel,
+			ticketLinks: _prefetch2,
+		},
 		ModelsTicket: ModelsTicketReversePrefetches{
 			objects:       _objects.ModelsTicket,
-			serviceReport: _prefetch2,
+			labelLinks:    _prefetch3,
+			serviceReport: _prefetch4,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ goDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

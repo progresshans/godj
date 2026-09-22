@@ -73,14 +73,15 @@ func New(config Config) (*Runtime, error) {
 }
 
 // Require constructs one protected handler. Credential parsing, verification,
-// deny-overlay authorization, and the application handler each run at most once
-// per request. Bearer requests never consult cookies, query/form values, or CSRF.
-func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler) (web.Handler, error) {
+// and the application handler each run at most once per request. Every required
+// permission receives a deny-overlay check. Bearer requests never consult
+// cookies, query/form values, or CSRF.
+func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
 	if r == nil || nilInterface(r.verifier) || nilInterface(r.authorizer) {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "Bearer runtime is nil or uninitialized"}
 	}
-	canonical, err := auth.NewPermission(string(permission))
-	if err != nil || canonical != permission {
+	permissions, err := auth.RequiredPermissions(permission, additional...)
+	if err != nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
 	}
 	if handler == nil {
@@ -112,12 +113,14 @@ func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedH
 			return web.Response{}, &Error{Code: CodeInvalidRequest, Field: "authorization", Detail: "Bearer parser returned an invalid state"}
 		}
 
-		allowed, err := r.allowed(ctx, principal, permission)
-		if err != nil {
-			return web.Response{}, err
-		}
-		if !allowed {
-			return denialResponse(http.StatusForbidden, api.CodePermissionDenied, challengeInsufficientScope)
+		for _, required := range permissions {
+			allowed, err := r.allowed(ctx, principal, required)
+			if err != nil {
+				return web.Response{}, err
+			}
+			if !allowed {
+				return denialResponse(http.StatusForbidden, api.CodePermissionDenied, challengeInsufficientScope)
+			}
 		}
 		return handler(request, principal)
 	}, nil

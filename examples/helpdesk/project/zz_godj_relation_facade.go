@@ -12,7 +12,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"
-const GoDjProjectRelationFacadeInputSHA256 = "c77dde66649b079df4babe03977332b3f111499adf934cdb65899ae6fec1876e"
+const GoDjProjectRelationFacadeInputSHA256 = "7b8d746bc4d1c7086352391137123a95a924e19c5ce241a168b5a95aca387ef7"
 
 type Backend interface {
 	db.Queryer
@@ -2520,11 +2520,906 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.C
 	return _wrapped, nil
 }
 
+type ModelsTicketLabelQuery struct {
+	Related ModelsTicketLabelRelationSelectors
+	state   *relationFacadeState
+	query   orm.QuerySet[models.TicketLabel]
+}
+
+func newModelsTicketLabelQuery(_state *relationFacadeState, _query orm.QuerySet[models.TicketLabel]) ModelsTicketLabelQuery {
+	_result := ModelsTicketLabelQuery{state: _state, query: _query}
+	_result.Related = ModelsTicketLabelRelationSelectors{
+		Label:  relationFacadeSelection[models.TicketLabel, models.Label]{state: _state},
+		Ticket: relationFacadeSelection[models.TicketLabel, models.Ticket]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Label.selection = _state.objects.ModelsTicketLabel.SelectLabel()
+		_result.Related.Ticket.selection = _state.objects.ModelsTicketLabel.SelectTicket()
+	}
+	return _result
+}
+
+func (_query ModelsTicketLabelQuery) validate() error {
+	return _query.state.validate()
+}
+
+func (_query ModelsTicketLabelQuery) New(_value models.TicketLabel) (*ModelsTicketLabel, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapModelsTicketLabel(_value, true)
+}
+
+func (_query ModelsTicketLabelQuery) Filter(_predicates ...orm.Predicate[models.TicketLabel]) ModelsTicketLabelQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+
+func (_query ModelsTicketLabelQuery) OrderBy(_orderings ...orm.Ordering[models.TicketLabel]) ModelsTicketLabelQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+
+func (_query ModelsTicketLabelQuery) Distinct() ModelsTicketLabelQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query ModelsTicketLabelQuery) Fresh() ModelsTicketLabelQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+
+func (_query ModelsTicketLabelQuery) Limit(_limit int) (ModelsTicketLabelQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	_limited, _err := _query.query.Limit(_limit)
+	if _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	_query.query = _limited
+	return _query, nil
+}
+
+func (_query ModelsTicketLabelQuery) Offset(_offset int) (ModelsTicketLabelQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return ModelsTicketLabelQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query ModelsTicketLabelQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectModelsTicketLabelInto[R any](_ctx context.Context, _source ModelsTicketLabelQuery, _projection orm.Projection[models.TicketLabel, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateModelsTicketLabelInto[R any](_ctx context.Context, _source ModelsTicketLabelQuery, _aggregate orm.Aggregate[models.TicketLabel, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func (_query ModelsTicketLabelQuery) First(_ctx context.Context) (*ModelsTicketLabel, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _found, _err := _query.query.First(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	_wrapped, _err := _query.state.wrapModelsTicketLabel(_value, false)
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_query ModelsTicketLabelQuery) All(_ctx context.Context) ([]*ModelsTicketLabel, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsTicketLabel, len(_values))
+	for _index := range _values {
+		_wrapped, _err := _query.state.wrapModelsTicketLabel(_values[_index], false)
+		if _err != nil {
+			return nil, _err
+		}
+		_results[_index] = _wrapped
+	}
+	return _results, nil
+}
+
+type modelsTicketLabelModel = models.TicketLabel
+
+type ModelsTicketLabel struct {
+	modelsTicketLabelModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	object                    *ModelsTicketLabelObject
+	labelCache                *orm.RelationCache[ModelsLabel]
+	labelScalarSnapshot       int64
+	labelScalarPresent        bool
+	ticketCache               *orm.RelationCache[ModelsTicket]
+	ticketScalarSnapshot      int64
+	ticketScalarPresent       bool
+	_self                     *ModelsTicketLabel
+}
+
+func (_state *relationFacadeState) wrapModelsTicketLabel(_value models.TicketLabel, _new bool) (*ModelsTicketLabel, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_cloned := (models.TicketLabelDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.ModelsTicketLabel.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsTicketLabel{state: _state, modelsTicketLabelModel: _cloned, object: _object}
+	_result.labelCache = orm.NewRelationCache[ModelsLabel]()
+	_result.labelScalarPresent = !_new || _value.LabelID != 0
+	_result.ticketCache = orm.NewRelationCache[ModelsTicket]()
+	_result.ticketScalarPresent = !_new || _value.TicketID != 0
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapModelsTicketLabelObject(_object *ModelsTicketLabelObject) (*ModelsTicketLabel, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (models.TicketLabelDescriptor{}).CloneWriteModel(_model)
+	_result := &ModelsTicketLabel{state: _state, modelsTicketLabelModel: _cloned, object: _object}
+	_result.labelCache = orm.NewRelationCache[ModelsLabel]()
+	_result.labelScalarPresent = true
+	_result.ticketCache = orm.NewRelationCache[ModelsTicket]()
+	_result.ticketScalarPresent = true
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsTicketLabel) validate() error {
+	if _model == nil || _model._self != _model {
+		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
+	}
+	return _model.state.validate()
+}
+
+func (ModelsTicketLabel) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*ModelsTicketLabel) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *ModelsTicketLabel) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (models.TicketLabelDescriptor{}).PrimaryKey(_model.modelsTicketLabelModel)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ModelsTicketLabel) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ModelsTicketLabel) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	_model.labelScalarSnapshot = _model.modelsTicketLabelModel.LabelID
+	_model.ticketScalarSnapshot = _model.modelsTicketLabelModel.TicketID
+	return nil
+}
+
+func (_model *ModelsTicketLabel) Unwrap() (models.TicketLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return models.TicketLabel{}, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return models.TicketLabel{}, _err
+	}
+	_, _, _labelPending, _labelErr := _model.labelCache.Snapshot()
+	if _labelErr != nil {
+		return models.TicketLabel{}, _labelErr
+	}
+	if _labelPending {
+		return models.TicketLabel{}, relationFacadeUnsavedRelated("label")
+	}
+	_, _, _ticketPending, _ticketErr := _model.ticketCache.Snapshot()
+	if _ticketErr != nil {
+		return models.TicketLabel{}, _ticketErr
+	}
+	if _ticketPending {
+		return models.TicketLabel{}, relationFacadeUnsavedRelated("ticket")
+	}
+	if !_model.labelScalarPresent {
+		return models.TicketLabel{}, relationFacadeRequiredRelated("label")
+	}
+	if !_model.ticketScalarPresent {
+		return models.TicketLabel{}, relationFacadeRequiredRelated("ticket")
+	}
+	return (models.TicketLabelDescriptor{}).CloneModel(_model.modelsTicketLabelModel), nil
+}
+
+func (_model *ModelsTicketLabel) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	if _err := models.TicketLabelObjects.Save(_ctx, _model.state.backend, &_model.modelsTicketLabelModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *ModelsTicketLabel) relationFacadeDerived(_value models.TicketLabel) (*ModelsTicketLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (models.TicketLabelDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.ModelsTicketLabel.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsTicketLabel{state: _model.state, modelsTicketLabelModel: _value, object: _object}
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.labelScalarSnapshot = _model.labelScalarSnapshot
+	_result.labelScalarPresent = _model.labelScalarPresent
+	_result.labelCache, _err = _model.labelCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = _model.ticketScalarSnapshot
+	_result.ticketScalarPresent = _model.ticketScalarPresent
+	_result.ticketCache, _err = _model.ticketCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *ModelsTicketLabel) relationFacadeReconcile() error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.labelCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.ticketCache.Snapshot(); _err != nil {
+		return _err
+	}
+	_labelCurrentKey := _model.modelsTicketLabelModel.LabelID
+	_labelChanged := _labelCurrentKey != _model.labelScalarSnapshot
+	_labelCurrentPresent := _model.labelScalarPresent || _labelChanged
+	_ticketCurrentKey := _model.modelsTicketLabelModel.TicketID
+	_ticketChanged := _ticketCurrentKey != _model.ticketScalarSnapshot
+	_ticketCurrentPresent := _model.ticketScalarPresent || _ticketChanged
+	_rebuild := false || _labelChanged || _ticketChanged
+	if !_rebuild {
+		return nil
+	}
+	_nextModel := (models.TicketLabelDescriptor{}).CloneWriteModel(_model.modelsTicketLabelModel)
+	_nextObject, _err := _model.state.objects.ModelsTicketLabel.From(_model.state.backend, _nextModel)
+	if _err != nil {
+		return _err
+	}
+	_nextLabelCache := _model.labelCache
+	if _labelChanged {
+		_nextLabelCache = orm.NewRelationCache[ModelsLabel]()
+	}
+	_nextTicketCache := _model.ticketCache
+	if _ticketChanged {
+		_nextTicketCache = orm.NewRelationCache[ModelsTicket]()
+	}
+	_model.modelsTicketLabelModel = _nextModel
+	_model.object = _nextObject
+	if _labelChanged {
+		_model.labelCache = _nextLabelCache
+		_model.labelScalarSnapshot = _labelCurrentKey
+		_model.labelScalarPresent = _labelCurrentPresent
+	}
+	if _ticketChanged {
+		_model.ticketCache = _nextTicketCache
+		_model.ticketScalarSnapshot = _ticketCurrentKey
+		_model.ticketScalarPresent = _ticketCurrentPresent
+	}
+	return nil
+}
+
+func (_model *ModelsTicketLabel) relationFacadePrepareSave() error {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_labelState, _labelTarget, _labelPending, _err := _model.labelCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_ticketState, _ticketTarget, _ticketPending, _err := _model.ticketCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _labelKey int64
+	var _labelPresent bool
+	if _labelState == orm.RelationAssignedPresent {
+		if _labelTarget == nil || _labelTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_labelKey, _labelPresent, _err = _labelTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _ticketKey int64
+	var _ticketPresent bool
+	if _ticketState == orm.RelationAssignedPresent {
+		if _ticketTarget == nil || _ticketTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_ticketKey, _ticketPresent, _err = _ticketTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _labelState == orm.RelationAssignedPresent && !_labelPresent {
+		return relationFacadeUnsavedRelated("label")
+	}
+	if _ticketState == orm.RelationAssignedPresent && !_ticketPresent {
+		return relationFacadeUnsavedRelated("ticket")
+	}
+	if _labelState == orm.RelationAssignedAbsent || (_labelState == orm.RelationUnassigned && !_model.labelScalarPresent) {
+		return relationFacadeRequiredRelated("label")
+	}
+	if _labelState == orm.RelationAssignedPresent && !_labelPending && !_model.labelScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	if _ticketState == orm.RelationAssignedAbsent || (_ticketState == orm.RelationUnassigned && !_model.ticketScalarPresent) {
+		return relationFacadeRequiredRelated("ticket")
+	}
+	if _ticketState == orm.RelationAssignedPresent && !_ticketPending && !_model.ticketScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	_labelReconcile := _labelState == orm.RelationAssignedPresent && _labelPending
+	_ticketReconcile := _ticketState == orm.RelationAssignedPresent && _ticketPending
+	_nextModel := (models.TicketLabelDescriptor{}).CloneWriteModel(_model.modelsTicketLabelModel)
+	_rebuild := false
+	if _labelReconcile {
+		_nextModel.LabelID = _labelKey
+		_rebuild = true
+	}
+	if _ticketReconcile {
+		_nextModel.TicketID = _ticketKey
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.ModelsTicketLabel.From(_model.state.backend, _nextModel)
+		if _err != nil {
+			return _err
+		}
+		_nextLabelCache := _model.labelCache
+		if _labelReconcile {
+			_nextLabelCache, _err = _model.labelCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextLabelCache.Store(orm.RelationAssignedPresent, _labelTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_nextTicketCache := _model.ticketCache
+		if _ticketReconcile {
+			_nextTicketCache, _err = _model.ticketCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextTicketCache.Store(orm.RelationAssignedPresent, _ticketTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_model.modelsTicketLabelModel = _nextModel
+		_model.object = _nextObject
+		if _labelReconcile {
+			_model.labelCache = _nextLabelCache
+			_model.labelScalarSnapshot = _labelKey
+			_model.labelScalarPresent = true
+		}
+		if _ticketReconcile {
+			_model.ticketCache = _nextTicketCache
+			_model.ticketScalarSnapshot = _ticketKey
+			_model.ticketScalarPresent = true
+		}
+	}
+	return nil
+}
+
+func (_model *ModelsTicketLabel) WithLabel(_target *ModelsLabel) (*ModelsTicketLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (models.TicketLabelDescriptor{}).CloneWriteModel(_model.modelsTicketLabelModel)
+	if _present {
+		_value.LabelID = _key
+	} else {
+		_value.LabelID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.labelScalarSnapshot = _key
+	_result.labelScalarPresent = _present
+	if _err := _result.labelCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsTicketLabel) WithLabelID(_key int64) (*ModelsTicketLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (models.TicketLabelDescriptor{}).CloneWriteModel(_model.modelsTicketLabelModel)
+	_, _, _pending, _err := _model.labelCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.labelScalarPresent && !_pending && _value.LabelID == _key
+	_value.LabelID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.labelScalarSnapshot = int64(_key)
+	_result.labelScalarPresent = true
+	if !_same {
+		if _err := _result.labelCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *ModelsTicketLabel) WithTicket(_target *ModelsTicket) (*ModelsTicketLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (models.TicketLabelDescriptor{}).CloneWriteModel(_model.modelsTicketLabelModel)
+	if _present {
+		_value.TicketID = _key
+	} else {
+		_value.TicketID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = _key
+	_result.ticketScalarPresent = _present
+	if _err := _result.ticketCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsTicketLabel) WithTicketID(_key int64) (*ModelsTicketLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (models.TicketLabelDescriptor{}).CloneWriteModel(_model.modelsTicketLabelModel)
+	_, _, _pending, _err := _model.ticketCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.ticketScalarPresent && !_pending && _value.TicketID == _key
+	_value.TicketID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.ticketScalarSnapshot = int64(_key)
+	_result.ticketScalarPresent = true
+	if !_same {
+		if _err := _result.ticketCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *ModelsTicketLabel) Label(_ctx context.Context) (*ModelsLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.labelCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == orm.RelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.labelScalarPresent {
+		return nil, relationFacadeRequiredRelated("label")
+	}
+	_value, _err := _model.object.Label(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _wrapped *ModelsLabel
+	_graph, _selected, _err := _model.object.label.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		var _object *ModelsLabelObject
+		_object, _err = _model.state.objects.ModelsLabel.FromSelected(_graph)
+		if _err != nil {
+			return nil, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedModelsLabelObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapModelsLabel(_value, false)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.labelCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
+func (_model *ModelsTicketLabel) Ticket(_ctx context.Context) (*ModelsTicket, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.ticketCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == orm.RelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.ticketScalarPresent {
+		return nil, relationFacadeRequiredRelated("ticket")
+	}
+	_value, _err := _model.object.Ticket(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _wrapped *ModelsTicket
+	_graph, _selected, _err := _model.object.ticket.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		var _object *ModelsTicketObject
+		_object, _err = _model.state.objects.ModelsTicket.FromSelected(_graph)
+		if _err != nil {
+			return nil, _err
+		}
+		_wrapped, _err = _model.state.wrapSelectedModelsTicketObject(_ctx, _object)
+	} else {
+		_wrapped, _err = _model.state.wrapModelsTicket(_value, false)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.ticketCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
+type ModelsTicketLabelRelationSelector = relationFacadeSelectionInput[models.TicketLabel]
+type ModelsTicketLabelRelationSelectors struct {
+	Label  relationFacadeSelection[models.TicketLabel, models.Label]
+	Ticket relationFacadeSelection[models.TicketLabel, models.Ticket]
+}
+
+func (_query ModelsTicketLabelQuery) SelectRelated(_selectors ...ModelsTicketLabelRelationSelector) ModelsTicketLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return ModelsTicketLabelEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[models.TicketLabel], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return ModelsTicketLabelEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newModelsTicketLabelEagerQuery(_query.query, _inputs)
+}
+func (_query ModelsTicketLabelQuery) SelectRelatedPaths(_paths ...string) (ModelsTicketLabelEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsTicketLabelEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ModelsTicketLabel.selectionInputs(_paths)
+	if _err != nil {
+		return ModelsTicketLabelEagerQuery{}, _err
+	}
+	_result := _query.state.newModelsTicketLabelEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return ModelsTicketLabelEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type ModelsTicketLabelEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[models.TicketLabel]
+	selections       []orm.RelatedSelection[models.TicketLabel]
+	projection       relationSelectQuery[ModelsTicketLabelObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newModelsTicketLabelEagerQuery(_source orm.QuerySet[models.TicketLabel], _selections []orm.RelatedSelection[models.TicketLabel]) ModelsTicketLabelEagerQuery {
+	_result := ModelsTicketLabelEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[models.TicketLabel](nil), _selections...)
+	_projection := _state.objects.ModelsTicketLabel.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query ModelsTicketLabelEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query ModelsTicketLabelEagerQuery) Filter(_values ...orm.Predicate[models.TicketLabel]) ModelsTicketLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsTicketLabelEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query ModelsTicketLabelEagerQuery) OrderBy(_values ...orm.Ordering[models.TicketLabel]) ModelsTicketLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsTicketLabelEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query ModelsTicketLabelEagerQuery) Distinct() ModelsTicketLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsTicketLabelEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query ModelsTicketLabelEagerQuery) Fresh() ModelsTicketLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsTicketLabelEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query ModelsTicketLabelEagerQuery) Limit(_value int) (ModelsTicketLabelEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsTicketLabelEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ModelsTicketLabelEagerQuery{}, _err
+	}
+	return _query.state.newModelsTicketLabelEagerQuery(_source, _query.selections), nil
+}
+func (_query ModelsTicketLabelEagerQuery) Offset(_value int) (ModelsTicketLabelEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsTicketLabelEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ModelsTicketLabelEagerQuery{}, _err
+	}
+	return _query.state.newModelsTicketLabelEagerQuery(_source, _query.selections), nil
+}
+func (_query ModelsTicketLabelEagerQuery) All(_ctx context.Context) ([]*ModelsTicketLabel, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsTicketLabel, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedModelsTicketLabelObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query ModelsTicketLabelEagerQuery) First(_ctx context.Context) (*ModelsTicketLabel, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedModelsTicketLabelObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query ModelsTicketLabelEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedModelsTicketLabelObject(_ctx context.Context, _object *ModelsTicketLabelObject) (*ModelsTicketLabel, error) {
+	_wrapped, _err := _state.wrapModelsTicketLabelObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("label"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _err = _wrapped.Label(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("ticket"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _err = _wrapped.Ticket(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
 type Models struct {
 	ModelsCategory      ModelsCategoryQuery
 	ModelsLabel         ModelsLabelQuery
 	ModelsServiceReport ModelsServiceReportQuery
 	ModelsTicket        ModelsTicketQuery
+	ModelsTicketLabel   ModelsTicketLabelQuery
 }
 
 func Using(_backend Backend) (Models, error) {
@@ -2542,7 +3437,8 @@ func Using(_backend Backend) (Models, error) {
 		ModelsLabel:         newModelsLabelQuery(_state, models.LabelObjects.Using(_backend)),
 		ModelsServiceReport: newModelsServiceReportQuery(_state, models.ServiceReportObjects.Using(_backend)),
 		ModelsTicket:        newModelsTicketQuery(_state, models.TicketObjects.Using(_backend)),
+		ModelsTicketLabel:   newModelsTicketLabelQuery(_state, models.TicketLabelObjects.Using(_backend)),
 	}, nil
 }
 
-var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ goDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

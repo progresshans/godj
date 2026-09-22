@@ -421,7 +421,7 @@ type recordingAuthentication struct {
 	nilAt  int
 }
 
-func (a *recordingAuthentication) Require(permission auth.Permission, handler api.AuthenticatedHandler) (web.Handler, error) {
+func (a *recordingAuthentication) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
 	a.calls = append(a.calls, authenticationCall{permission: permission, handler: handler})
 	call := len(a.calls)
 	if call == a.failAt {

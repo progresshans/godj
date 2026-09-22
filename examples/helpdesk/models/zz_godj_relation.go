@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
+const GoDjRelationSchemaSHA256 = "33214ea261c78909004d04124bfeb7c8b03dbe18c191160f87ba0b54c0e01379"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -241,8 +241,49 @@ func GoDjRelationSchema() ir.Schema {
 					{Name: "category_name", Fields: []string{"category", "name"}},
 				},
 			},
+			{
+				Name:    "ticket_label",
+				GoName:  "TicketLabel",
+				DBTable: "helpdesk_ticket_label",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:   "ticket",
+						GoName: "TicketID",
+						Column: "ticket_id",
+						Kind:   ir.FieldForeignKey,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Name: "label_links"},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+					{
+						Name:   "label",
+						GoName: "LabelID",
+						Column: "label_id",
+						Kind:   ir.FieldForeignKey,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Name: "ticket_links"},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+				},
+				UniqueConstraints: []ir.UniqueConstraint{
+					{Name: "ticket_label", Fields: []string{"ticket", "label"}},
+				},
+			},
 		},
 	}
 }
 
-var _ GoDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ GoDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

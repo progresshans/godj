@@ -92,7 +92,7 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-detail", Method: http.MethodGet, Path: "/api/labels/<int64:id>/"}, Summary: "Read a category label", Permission: ViewLabel, Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The label.", labelRef), notFound}}, a.apiLabelDetail},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-update", Method: http.MethodPut, Path: "/api/labels/<int64:id>/"}, Summary: "Update a category label", Permission: ChangeLabel, Description: policy, RequestBody: &openapi.RequestBody{Schema: updateRef, Required: true}, Responses: writes(http.StatusOK)}, a.apiLabelUpdate},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-patch", Method: http.MethodPatch, Path: "/api/labels/<int64:id>/"}, Summary: "Partially update a category label", Permission: ChangeLabel, Description: policy, RequestBody: &openapi.RequestBody{Schema: patchRef, Required: true}, Responses: writes(http.StatusOK)}, a.apiLabelPatch},
-		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-delete", Method: http.MethodDelete, Path: "/api/labels/<int64:id>/"}, Summary: "Delete a category label", Permission: DeleteLabel, Description: "Deletes only the scoped label in one transaction. Its category and tickets remain. Authentication, CSRF and permission precede lookup.", Responses: []openapi.Response{{Status: http.StatusNoContent, Description: "The label was deleted."}, notFound}}, a.apiLabelDelete},
+		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-delete", Method: http.MethodDelete, Path: "/api/labels/<int64:id>/"}, Summary: "Delete a category label", Permission: DeleteLabel, Description: "Deletes the scoped label and its ticket links in one coordinated transaction. Its category, tickets and links to other labels remain. Authentication, CSRF and permission precede lookup.", Responses: []openapi.Response{{Status: http.StatusNoContent, Description: "The label and its ticket links were deleted."}, notFound}}, a.apiLabelDelete},
 	}
 	operations := make([]openapi.Operation, 0, len(definitions))
 	for _, definition := range definitions {
@@ -105,7 +105,7 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 	return operations, []openapi.NamedSchema{{Name: "Label", Schema: output}, {Name: "LabelCreate", Schema: input}, {Name: "LabelUpdate", Schema: input}, {Name: "LabelPatch", Schema: partial}, {Name: "LabelList", Schema: list}}, nil
 }
 
-func labelListRequest(raw string) (admin.ListRequest, bool) {
+func pagedListRequest(raw string, allowSearch bool) (admin.ListRequest, bool) {
 	result := admin.ListRequest{Limit: 20}
 	if len(raw) > 2048 || !utf8.ValidString(raw) || strings.ContainsRune(raw, 0) {
 		return result, false
@@ -119,7 +119,7 @@ func labelListRequest(raw string) (admin.ListRequest, bool) {
 			return result, false
 		}
 		value := values[0]
-		if name == "search" {
+		if name == "search" && allowSearch {
 			if len(value) > 64 {
 				return result, false
 			}
@@ -151,7 +151,7 @@ func labelListRequest(raw string) (admin.ListRequest, bool) {
 }
 
 func (a *Application) apiLabelList(request *web.Request, _ auth.Principal) (web.Response, error) {
-	options, valid := labelListRequest(request.HTTP().URL.RawQuery)
+	options, valid := pagedListRequest(request.HTTP().URL.RawQuery, true)
 	if !valid {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
 	}

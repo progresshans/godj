@@ -1041,6 +1041,8 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresNamedConstraintTransitiveTargetCannotHideLaterKeyDrift"
             "github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance/historical_label"
             "github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance/category_labels"
+            "github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance/historical_ticket_label"
+            "github.com/progresshans/godj/examples/helpdesk|TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance/ticket_labels"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueConcurrentWritersAndAtomicRollback"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueAlterFailurePreservesRevisionRowsAndInboundFK"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueNullableAddAndForeignKeyReverse"

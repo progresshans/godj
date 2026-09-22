@@ -24,7 +24,7 @@ type describedAuthentication struct {
 	requireCalls int
 }
 
-func (a *describedAuthentication) Require(auth.Permission, api.AuthenticatedHandler) (web.Handler, error) {
+func (a *describedAuthentication) Require(auth.Permission, api.AuthenticatedHandler, ...auth.Permission) (web.Handler, error) {
 	a.requireCalls++
 	return nil, errors.New("documentation must not wrap an already protected handler")
 }
@@ -38,7 +38,7 @@ func (a *describedAuthentication) DescribeAuthentication() (api.AuthenticationDe
 
 type undescribedAuthentication struct{}
 
-func (undescribedAuthentication) Require(auth.Permission, api.AuthenticatedHandler) (web.Handler, error) {
+func (undescribedAuthentication) Require(auth.Permission, api.AuthenticatedHandler, ...auth.Permission) (web.Handler, error) {
 	return nil, errors.New("unexpected Require call")
 }
 

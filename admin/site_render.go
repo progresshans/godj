@@ -182,6 +182,7 @@ func (site *Site) listContext(
 		"add_path":     templates.String(site.modelPath(model) + "add/"),
 		"can_add":      templates.Bool(canAdd),
 		"search":       templates.String(safeDisplayText(search)),
+		"has_search":   templates.Bool(len(model.searchFields) != 0),
 		"fields":       templates.List(fields...),
 		"objects":      templates.List(objects...),
 		"actions":      templates.List(actions...),

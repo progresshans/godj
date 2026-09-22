@@ -126,6 +126,38 @@ Admin `/admin/labels/`는 같은 저장 경로와 개별 권한을 사용한다.
 모든 unsafe 요청에는 CSRF가 필요하다. Label view 권한은 선택한 Category의 식별자를 포함하며 별도 Category Admin의 ViewCategory를 대신하지 않는다.
 OpenAPI의 `Label`, `LabelCreate`, `LabelUpdate`, `LabelPatch`, `LabelList`와 고정 ogen의 독립 client가 이 경로·페이지 범위·진단을 소비한다.
 
+TicketLabel은 `0019_ticket_label`이 추가하는 명시적 연결 모델이다. ticket/label FK는 CASCADE이고 `(ticket, label)`은
+이름 있는 고유 제약이다. Category를 복사해 저장하지 않고, 양쪽 endpoint에 서버가 배정한 Category가 모두 선택 범위인지 확인한다.
+직접 ORM으로 만든 잘못된 교차 Category 연결도 Admin/API에서 조회·수정·삭제 대상으로 노출하지 않는다.
+
+| 경로 | 동작 | 권한 |
+| --- | --- | --- |
+| GET `/api/ticket-labels/` | 연결 페이지, 양쪽 endpoint ID만 표시 | ViewTicketLabel |
+| POST `/api/ticket-labels/` | 두 키의 연결 생성, 201 | AddTicketLabel + ViewTicket + ViewLabel |
+| GET `/api/ticket-labels/<id>/` | 연결 상세 | ViewTicketLabel |
+| PUT/PATCH `/api/ticket-labels/<id>/` | 두 키 전체/부분 수정 | ChangeTicketLabel + ViewTicket + ViewLabel |
+| DELETE `/api/ticket-labels/<id>/` | 두 endpoint를 보존하고 연결만 삭제, 204 | DeleteTicketLabel |
+| DELETE `/api/tickets/<id>/` | 티켓과 그 연결 삭제, 라벨 보존, 204 | DeleteTicket |
+
+연결 목록은 Label과 같은 `{items, count, limit, offset}`·numeric 범위를 사용하며 검색 매개변수는 받지 않는다.
+Admin `/admin/ticket-labels/`도 검색 없이 목록을 제공한다. 추가/수정은 두 권한을 모두 확인한 뒤 Category 내 Ticket subject와
+Label name의 선택지를 구성한다. 저장 transaction에서 두 endpoint와 전체 조합을 다시 확인한다. 빈 PATCH와 self update도
+범위를 확인하며 UPDATE는 실행하지 않는다. PUT은 두 키가 필수다. id/category는 입력할 수 없다.
+API 인증·CSRF는 한 번 실행하고 mutation 권한, ViewTicket, ViewLabel을 순서대로 모두 검사한 뒤 body나 DB에 접근한다.
+OpenAPI는 primary `x-godj-permission`과 AND 조건인 `x-godj-additional-permissions`를 같은 선언에서 게시한다.
+조회/연결 해제에는 링크 권한이 관계 ID를 포함하며 endpoint 이름을 공개하지 않는다. 기존 ServiceReport의 ID 입력 권한은 유지한다.
+
+양쪽 ID는 양수여야 한다. 없거나 선택 범위 밖이면 해당 `ticket/invalid_choice`, `label/invalid_choice`를 값 없이 반환한다.
+조합 중복은 `__all__/unique_together`, 사전 검사 이후 native 충돌은 `__all__/unique`다. 취소·조회/저장/재조회 실패·불확실한
+commit/rollback을 성공이나 입력 오류로 바꾸지 않으며 자동 재시도하지 않는다. 일반 쓰기는 같은 transaction에서 검사하지만
+외부의 직접 ORM/SQL Category 재할당에 대한 영구적인 cross-table 제약이나 잠금을 추가하지 않는다.
+
+Ticket/Label 삭제는 공통 관계 삭제기를 사용한다. 연결 행만 CASCADE로 정리하고 반대 endpoint와 다른 연결은 유지한다.
+ServiceReport가 Ticket을 보호하면 연결 삭제 전에 전체 삭제를 거부한다. API의 확정된 보호 결과는 400 `__all__/protected`이며
+rollback 불확실성이나 취소와 함께 온 보호 오류는 500이다. 모든 unsafe 요청에 CSRF가 필요하다.
+`TicketLabel`, `TicketLabelCreate`, `TicketLabelUpdate`, `TicketLabelPatch`, `TicketLabelList`와 독립 ogen client가 CRUD·권한·CSRF·
+양쪽 삭제·PROTECT·endpoint 보존을 소비한다. 일반 ManyToMany 선언/manager/add/remove/set는 후속 기능이다.
+
 ```sh
 go test ./examples/helpdesk -count=1
 go run ./cmd/godj generate --check --project examples/helpdesk/godj.toml

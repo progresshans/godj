@@ -168,6 +168,7 @@ type gdj0047CountingAuthentication struct {
 func (authentication *gdj0047CountingAuthentication) Require(
 	permission auth.Permission,
 	handler api.AuthenticatedHandler,
+	additional ...auth.Permission,
 ) (web.Handler, error) {
 	return authentication.inner.Require(permission, func(request *web.Request, principal auth.Principal) (web.Response, error) {
 		authentication.calls.Add(1)
@@ -175,7 +176,7 @@ func (authentication *gdj0047CountingAuthentication) Require(
 		authentication.principalID = principal.ID()
 		authentication.mu.Unlock()
 		return handler(request, principal)
-	})
+	}, additional...)
 }
 
 func (authentication *gdj0047CountingAuthentication) snapshot() gdj0047InvocationSnapshot {

@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
-const GoDjRelationObjectSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
+const GoDjRelationObjectSchemaSHA256 = "33214ea261c78909004d04124bfeb7c8b03dbe18c191160f87ba0b54c0e01379"
 
 var _ orm.RelationObjectDescriptor[Category] = CategoryDescriptor{}
 
@@ -137,4 +137,67 @@ func (labelCategoryIDRelationStorage) Value(value Label) (query.Value, bool) {
 	return query.Integer(value.CategoryID), true
 }
 
-var _ GoDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ orm.RelationObjectDescriptor[TicketLabel] = TicketLabelDescriptor{}
+
+func (TicketLabelDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[TicketLabel] {
+	return TicketLabelDescriptor{}
+}
+
+func (TicketLabelDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[TicketLabel], bool) {
+	switch {
+	case reflect.DeepEqual(field, (ticketLabelTicketIDRelationStorage{}).Field()):
+		return ticketLabelTicketIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (ticketLabelLabelIDRelationStorage{}).Field()):
+		return ticketLabelLabelIDRelationStorage{}, true
+	default:
+		return nil, false
+	}
+}
+
+type ticketLabelTicketIDRelationStorage struct{}
+
+var _ orm.RelationStorage[TicketLabel] = ticketLabelTicketIDRelationStorage{}
+
+func (ticketLabelTicketIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:   "ticket",
+		GoName: "TicketID",
+		Column: "ticket_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "label_links"},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (ticketLabelTicketIDRelationStorage) Value(value TicketLabel) (query.Value, bool) {
+	return query.Integer(value.TicketID), true
+}
+
+type ticketLabelLabelIDRelationStorage struct{}
+
+var _ orm.RelationStorage[TicketLabel] = ticketLabelLabelIDRelationStorage{}
+
+func (ticketLabelLabelIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:   "label",
+		GoName: "LabelID",
+		Column: "label_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "ticket_links"},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (ticketLabelLabelIDRelationStorage) Value(value TicketLabel) (query.Value, bool) {
+	return query.Integer(value.LabelID), true
+}
+
+var _ GoDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

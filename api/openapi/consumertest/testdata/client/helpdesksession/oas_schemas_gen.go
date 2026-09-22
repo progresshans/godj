@@ -117,6 +117,8 @@ func (*GoDjAPIError) helpdeskLabelListRes()           {}
 func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
 func (*GoDjAPIError) helpdeskTicketDetailRes()        {}
+func (*GoDjAPIError) helpdeskTicketLabelDetailRes()   {}
+func (*GoDjAPIError) helpdeskTicketLabelListRes()     {}
 func (*GoDjAPIError) helpdeskTicketListRes()          {}
 func (*GoDjAPIError) helpdeskTicketServiceReportRes() {}
 
@@ -212,6 +214,8 @@ func (*GoDjAPIErrorHeaders) helpdeskLabelListRes()           {}
 func (*GoDjAPIErrorHeaders) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIErrorHeaders) helpdeskServiceReportListRes()   {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketDetailRes()        {}
+func (*GoDjAPIErrorHeaders) helpdeskTicketLabelDetailRes()   {}
+func (*GoDjAPIErrorHeaders) helpdeskTicketLabelListRes()     {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketListRes()          {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketServiceReportRes() {}
 
@@ -617,6 +621,39 @@ type HelpdeskTicketCreateUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskTicketCreateUnsupportedMediaType) helpdeskTicketCreateRes() {}
 
+type HelpdeskTicketDeleteBadRequest GoDjAPIError
+
+func (*HelpdeskTicketDeleteBadRequest) helpdeskTicketDeleteRes() {}
+
+type HelpdeskTicketDeleteForbidden GoDjAPIError
+
+func (*HelpdeskTicketDeleteForbidden) helpdeskTicketDeleteRes() {}
+
+type HelpdeskTicketDeleteInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketDeleteInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketDeleteInternalServerError) helpdeskTicketDeleteRes() {}
+
+// HelpdeskTicketDeleteNoContent is response for HelpdeskTicketDelete operation.
+type HelpdeskTicketDeleteNoContent struct{}
+
+func (*HelpdeskTicketDeleteNoContent) helpdeskTicketDeleteRes() {}
+
+type HelpdeskTicketDeleteNotFound GoDjAPIError
+
+func (*HelpdeskTicketDeleteNotFound) helpdeskTicketDeleteRes() {}
+
 type HelpdeskTicketDetailInternalServerError struct {
 	Data io.Reader
 }
@@ -632,6 +669,175 @@ func (s HelpdeskTicketDetailInternalServerError) Read(p []byte) (n int, err erro
 }
 
 func (*HelpdeskTicketDetailInternalServerError) helpdeskTicketDetailRes() {}
+
+type HelpdeskTicketLabelCreateBadRequest GoDjAPIError
+
+func (*HelpdeskTicketLabelCreateBadRequest) helpdeskTicketLabelCreateRes() {}
+
+type HelpdeskTicketLabelCreateForbidden GoDjAPIError
+
+func (*HelpdeskTicketLabelCreateForbidden) helpdeskTicketLabelCreateRes() {}
+
+type HelpdeskTicketLabelCreateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketLabelCreateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketLabelCreateInternalServerError) helpdeskTicketLabelCreateRes() {}
+
+type HelpdeskTicketLabelCreateNotFound GoDjAPIError
+
+func (*HelpdeskTicketLabelCreateNotFound) helpdeskTicketLabelCreateRes() {}
+
+type HelpdeskTicketLabelCreateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketLabelCreateRequestEntityTooLarge) helpdeskTicketLabelCreateRes() {}
+
+type HelpdeskTicketLabelCreateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketLabelCreateUnsupportedMediaType) helpdeskTicketLabelCreateRes() {}
+
+type HelpdeskTicketLabelDeleteForbidden GoDjAPIError
+
+func (*HelpdeskTicketLabelDeleteForbidden) helpdeskTicketLabelDeleteRes() {}
+
+type HelpdeskTicketLabelDeleteInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketLabelDeleteInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketLabelDeleteInternalServerError) helpdeskTicketLabelDeleteRes() {}
+
+// HelpdeskTicketLabelDeleteNoContent is response for HelpdeskTicketLabelDelete operation.
+type HelpdeskTicketLabelDeleteNoContent struct{}
+
+func (*HelpdeskTicketLabelDeleteNoContent) helpdeskTicketLabelDeleteRes() {}
+
+type HelpdeskTicketLabelDeleteNotFound GoDjAPIError
+
+func (*HelpdeskTicketLabelDeleteNotFound) helpdeskTicketLabelDeleteRes() {}
+
+type HelpdeskTicketLabelDetailInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketLabelDetailInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketLabelDetailInternalServerError) helpdeskTicketLabelDetailRes() {}
+
+type HelpdeskTicketLabelListInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketLabelListInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketLabelListInternalServerError) helpdeskTicketLabelListRes() {}
+
+type HelpdeskTicketLabelPatchBadRequest GoDjAPIError
+
+func (*HelpdeskTicketLabelPatchBadRequest) helpdeskTicketLabelPatchRes() {}
+
+type HelpdeskTicketLabelPatchForbidden GoDjAPIError
+
+func (*HelpdeskTicketLabelPatchForbidden) helpdeskTicketLabelPatchRes() {}
+
+type HelpdeskTicketLabelPatchInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketLabelPatchInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketLabelPatchInternalServerError) helpdeskTicketLabelPatchRes() {}
+
+type HelpdeskTicketLabelPatchNotFound GoDjAPIError
+
+func (*HelpdeskTicketLabelPatchNotFound) helpdeskTicketLabelPatchRes() {}
+
+type HelpdeskTicketLabelPatchRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketLabelPatchRequestEntityTooLarge) helpdeskTicketLabelPatchRes() {}
+
+type HelpdeskTicketLabelPatchUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketLabelPatchUnsupportedMediaType) helpdeskTicketLabelPatchRes() {}
+
+type HelpdeskTicketLabelUpdateBadRequest GoDjAPIError
+
+func (*HelpdeskTicketLabelUpdateBadRequest) helpdeskTicketLabelUpdateRes() {}
+
+type HelpdeskTicketLabelUpdateForbidden GoDjAPIError
+
+func (*HelpdeskTicketLabelUpdateForbidden) helpdeskTicketLabelUpdateRes() {}
+
+type HelpdeskTicketLabelUpdateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskTicketLabelUpdateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskTicketLabelUpdateInternalServerError) helpdeskTicketLabelUpdateRes() {}
+
+type HelpdeskTicketLabelUpdateNotFound GoDjAPIError
+
+func (*HelpdeskTicketLabelUpdateNotFound) helpdeskTicketLabelUpdateRes() {}
+
+type HelpdeskTicketLabelUpdateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskTicketLabelUpdateRequestEntityTooLarge) helpdeskTicketLabelUpdateRes() {}
+
+type HelpdeskTicketLabelUpdateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskTicketLabelUpdateUnsupportedMediaType) helpdeskTicketLabelUpdateRes() {}
 
 type HelpdeskTicketListInternalServerError struct {
 	Data io.Reader
@@ -2721,6 +2927,229 @@ func (s *TicketDetailHeaders) SetResponse(val TicketDetail) {
 }
 
 func (*TicketDetailHeaders) helpdeskTicketDetailRes() {}
+
+// Ref: #/components/schemas/TicketLabel
+type TicketLabel struct {
+	ID     int64 `json:"id"`
+	Ticket int64 `json:"ticket"`
+	Label  int64 `json:"label"`
+}
+
+// GetID returns the value of ID.
+func (s *TicketLabel) GetID() int64 {
+	return s.ID
+}
+
+// GetTicket returns the value of Ticket.
+func (s *TicketLabel) GetTicket() int64 {
+	return s.Ticket
+}
+
+// GetLabel returns the value of Label.
+func (s *TicketLabel) GetLabel() int64 {
+	return s.Label
+}
+
+// SetID sets the value of ID.
+func (s *TicketLabel) SetID(val int64) {
+	s.ID = val
+}
+
+// SetTicket sets the value of Ticket.
+func (s *TicketLabel) SetTicket(val int64) {
+	s.Ticket = val
+}
+
+// SetLabel sets the value of Label.
+func (s *TicketLabel) SetLabel(val int64) {
+	s.Label = val
+}
+
+func (*TicketLabel) helpdeskTicketLabelCreateRes() {}
+func (*TicketLabel) helpdeskTicketLabelPatchRes()  {}
+func (*TicketLabel) helpdeskTicketLabelUpdateRes() {}
+
+// Ref: #/components/schemas/TicketLabelCreate
+type TicketLabelCreate struct {
+	Ticket int64 `json:"ticket"`
+	Label  int64 `json:"label"`
+}
+
+// GetTicket returns the value of Ticket.
+func (s *TicketLabelCreate) GetTicket() int64 {
+	return s.Ticket
+}
+
+// GetLabel returns the value of Label.
+func (s *TicketLabelCreate) GetLabel() int64 {
+	return s.Label
+}
+
+// SetTicket sets the value of Ticket.
+func (s *TicketLabelCreate) SetTicket(val int64) {
+	s.Ticket = val
+}
+
+// SetLabel sets the value of Label.
+func (s *TicketLabelCreate) SetLabel(val int64) {
+	s.Label = val
+}
+
+// TicketLabelHeaders wraps TicketLabel with response headers.
+type TicketLabelHeaders struct {
+	XGodjCsrftoken OptString
+	Response       TicketLabel
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *TicketLabelHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *TicketLabelHeaders) GetResponse() TicketLabel {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *TicketLabelHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *TicketLabelHeaders) SetResponse(val TicketLabel) {
+	s.Response = val
+}
+
+func (*TicketLabelHeaders) helpdeskTicketLabelDetailRes() {}
+
+// Ref: #/components/schemas/TicketLabelList
+type TicketLabelList struct {
+	Items  []TicketLabel `json:"items"`
+	Count  int64         `json:"count"`
+	Limit  int64         `json:"limit"`
+	Offset int64         `json:"offset"`
+}
+
+// GetItems returns the value of Items.
+func (s *TicketLabelList) GetItems() []TicketLabel {
+	return s.Items
+}
+
+// GetCount returns the value of Count.
+func (s *TicketLabelList) GetCount() int64 {
+	return s.Count
+}
+
+// GetLimit returns the value of Limit.
+func (s *TicketLabelList) GetLimit() int64 {
+	return s.Limit
+}
+
+// GetOffset returns the value of Offset.
+func (s *TicketLabelList) GetOffset() int64 {
+	return s.Offset
+}
+
+// SetItems sets the value of Items.
+func (s *TicketLabelList) SetItems(val []TicketLabel) {
+	s.Items = val
+}
+
+// SetCount sets the value of Count.
+func (s *TicketLabelList) SetCount(val int64) {
+	s.Count = val
+}
+
+// SetLimit sets the value of Limit.
+func (s *TicketLabelList) SetLimit(val int64) {
+	s.Limit = val
+}
+
+// SetOffset sets the value of Offset.
+func (s *TicketLabelList) SetOffset(val int64) {
+	s.Offset = val
+}
+
+// TicketLabelListHeaders wraps TicketLabelList with response headers.
+type TicketLabelListHeaders struct {
+	XGodjCsrftoken OptString
+	Response       TicketLabelList
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *TicketLabelListHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *TicketLabelListHeaders) GetResponse() TicketLabelList {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *TicketLabelListHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *TicketLabelListHeaders) SetResponse(val TicketLabelList) {
+	s.Response = val
+}
+
+func (*TicketLabelListHeaders) helpdeskTicketLabelListRes() {}
+
+// Ref: #/components/schemas/TicketLabelPatch
+type TicketLabelPatch struct {
+	Ticket OptInt64 `json:"ticket"`
+	Label  OptInt64 `json:"label"`
+}
+
+// GetTicket returns the value of Ticket.
+func (s *TicketLabelPatch) GetTicket() OptInt64 {
+	return s.Ticket
+}
+
+// GetLabel returns the value of Label.
+func (s *TicketLabelPatch) GetLabel() OptInt64 {
+	return s.Label
+}
+
+// SetTicket sets the value of Ticket.
+func (s *TicketLabelPatch) SetTicket(val OptInt64) {
+	s.Ticket = val
+}
+
+// SetLabel sets the value of Label.
+func (s *TicketLabelPatch) SetLabel(val OptInt64) {
+	s.Label = val
+}
+
+// Ref: #/components/schemas/TicketLabelUpdate
+type TicketLabelUpdate struct {
+	Ticket int64 `json:"ticket"`
+	Label  int64 `json:"label"`
+}
+
+// GetTicket returns the value of Ticket.
+func (s *TicketLabelUpdate) GetTicket() int64 {
+	return s.Ticket
+}
+
+// GetLabel returns the value of Label.
+func (s *TicketLabelUpdate) GetLabel() int64 {
+	return s.Label
+}
+
+// SetTicket sets the value of Ticket.
+func (s *TicketLabelUpdate) SetTicket(val int64) {
+	s.Ticket = val
+}
+
+// SetLabel sets the value of Label.
+func (s *TicketLabelUpdate) SetLabel(val int64) {
+	s.Label = val
+}
 
 // Ref: #/components/schemas/TicketPatch
 type TicketPatch struct {

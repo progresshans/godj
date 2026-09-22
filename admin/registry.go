@@ -173,8 +173,9 @@ type ModelConfig[M any] struct {
 	// The Site checks these permissions before any choice or object query.
 	RelatedChoices []RelatedChoices
 	// ReadOnly publishes list/history views without mutation routes or callbacks.
-	ReadOnly     bool
-	ListFields   []string
+	ReadOnly   bool
+	ListFields []string
+	// SearchFields may be empty to disable text search for this model.
 	SearchFields []string
 	Permissions  Permissions
 
@@ -473,6 +474,9 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredPage{}, err
 		}
+		if len(searchFields) == 0 && normalizedRequest.Search != "" {
+			return registeredPage{}, &ConfigError{Path: "list.search", Code: "unavailable"}
+		}
 		page, err := config.List(ctx, normalizedRequest)
 		if err != nil {
 			return registeredPage{}, err
@@ -764,7 +768,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 }
 
 func validateFieldSelection(path string, fields []string, known map[string]ir.Field, textSearchOnly bool) ([]string, error) {
-	if len(fields) == 0 {
+	if len(fields) == 0 && !textSearchOnly {
 		return nil, &ConfigError{Path: path, Code: "empty"}
 	}
 	seen := make(map[string]struct{}, len(fields))

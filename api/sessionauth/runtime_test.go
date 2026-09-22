@@ -134,7 +134,7 @@ type apiAuthHarness struct {
 	mutations     atomic.Int64
 }
 
-func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
+func newAPIAuthHarness(t *testing.T, configure ...func(*websessionauth.Config)) *apiAuthHarness {
 	t.Helper()
 	store, err := sessions.NewMemoryStore(16)
 	if err != nil {
@@ -159,7 +159,7 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
 		ID:          "operator",
 		Active:      true,
-		Permissions: []auth.Permission{view},
+		Permissions: []auth.Permission{view, "links.ticket", "links.label"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -168,7 +168,7 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime, err := websessionauth.New(websessionauth.Config{
+	runtimeConfig := websessionauth.Config{
 		Sessions:         manager,
 		Authenticator:    fixedAuthenticator{principal: principal},
 		Authorizer:       auth.PrincipalAuthorizer{},
@@ -178,7 +178,11 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 		AllowedNextPaths: []string{"/api/articles/"},
 		Random:           bytes.NewReader(bytes.Repeat([]byte{2}, 4096)),
 		Clock:            func() time.Time { return fixedTime },
-	})
+	}
+	for _, apply := range configure {
+		apply(&runtimeConfig)
+	}
+	runtime, err := websessionauth.New(runtimeConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,9 +231,17 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 	nilHeaderHandler := mustRequire(t, adapter, view, func(*web.Request, auth.Principal) (web.Response, error) {
 		return web.NewResponse(http.StatusOK, nil, nil)
 	})
+	additional := []auth.Permission{"links.ticket", "links.label"}
+	allHandler := mustRequire(t, adapter, view, func(*web.Request, auth.Principal) (web.Response, error) {
+		harness.calls.Add(1)
+		harness.mutations.Add(1)
+		return api.NoContent()
+	}, additional...)
+	additional[0] = "links.changed_after_binding"
 	harness.application, err = web.NewApplication(web.Config{
 		Settings: configured,
 		Routes: []web.Route{
+			{Name: "test:all", Method: http.MethodPost, Path: "/api/all/", Handler: allHandler},
 			{Name: "test:list", Method: http.MethodGet, Path: "/api/articles/", Handler: allowedHandler},
 			{Name: "test:create", Method: http.MethodPost, Path: "/api/articles/", Handler: mutatingHandler},
 			{Name: "test:delete", Method: http.MethodDelete, Path: "/api/denied/", Handler: deniedHandler},
@@ -242,9 +254,9 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 	return harness
 }
 
-func mustRequire(t *testing.T, adapter *apisessionauth.Runtime, permission auth.Permission, handler api.AuthenticatedHandler) web.Handler {
+func mustRequire(t *testing.T, adapter *apisessionauth.Runtime, permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) web.Handler {
 	t.Helper()
-	protected, err := adapter.Require(permission, handler)
+	protected, err := adapter.Require(permission, handler, additional...)
 	if err != nil {
 		t.Fatal(err)
 	}

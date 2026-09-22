@@ -1985,6 +1985,766 @@ func (s *HelpdeskTicketCreateUnsupportedMediaType) UnmarshalJSON(data []byte) er
 	return s.Decode(d)
 }
 
+// Encode encodes HelpdeskTicketDeleteBadRequest as json.
+func (s *HelpdeskTicketDeleteBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketDeleteBadRequest from json.
+func (s *HelpdeskTicketDeleteBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketDeleteBadRequest to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketDeleteBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketDeleteBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketDeleteBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketDeleteForbidden as json.
+func (s *HelpdeskTicketDeleteForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketDeleteForbidden from json.
+func (s *HelpdeskTicketDeleteForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketDeleteForbidden to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketDeleteForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketDeleteForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketDeleteForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketDeleteNotFound as json.
+func (s *HelpdeskTicketDeleteNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketDeleteNotFound from json.
+func (s *HelpdeskTicketDeleteNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketDeleteNotFound to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketDeleteNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketDeleteNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketDeleteNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelCreateBadRequest as json.
+func (s *HelpdeskTicketLabelCreateBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelCreateBadRequest from json.
+func (s *HelpdeskTicketLabelCreateBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelCreateBadRequest to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelCreateBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelCreateBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelCreateBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelCreateForbidden as json.
+func (s *HelpdeskTicketLabelCreateForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelCreateForbidden from json.
+func (s *HelpdeskTicketLabelCreateForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelCreateForbidden to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelCreateForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelCreateForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelCreateForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelCreateNotFound as json.
+func (s *HelpdeskTicketLabelCreateNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelCreateNotFound from json.
+func (s *HelpdeskTicketLabelCreateNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelCreateNotFound to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelCreateNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelCreateNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelCreateNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelCreateRequestEntityTooLarge as json.
+func (s *HelpdeskTicketLabelCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelCreateRequestEntityTooLarge from json.
+func (s *HelpdeskTicketLabelCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelCreateRequestEntityTooLarge to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelCreateRequestEntityTooLarge(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelCreateUnsupportedMediaType as json.
+func (s *HelpdeskTicketLabelCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelCreateUnsupportedMediaType from json.
+func (s *HelpdeskTicketLabelCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelCreateUnsupportedMediaType to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelCreateUnsupportedMediaType(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelDeleteForbidden as json.
+func (s *HelpdeskTicketLabelDeleteForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelDeleteForbidden from json.
+func (s *HelpdeskTicketLabelDeleteForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelDeleteForbidden to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelDeleteForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelDeleteForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelDeleteForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelDeleteNotFound as json.
+func (s *HelpdeskTicketLabelDeleteNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelDeleteNotFound from json.
+func (s *HelpdeskTicketLabelDeleteNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelDeleteNotFound to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelDeleteNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelDeleteNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelDeleteNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelPatchBadRequest as json.
+func (s *HelpdeskTicketLabelPatchBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelPatchBadRequest from json.
+func (s *HelpdeskTicketLabelPatchBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelPatchBadRequest to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelPatchBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelPatchBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelPatchBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelPatchForbidden as json.
+func (s *HelpdeskTicketLabelPatchForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelPatchForbidden from json.
+func (s *HelpdeskTicketLabelPatchForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelPatchForbidden to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelPatchForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelPatchForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelPatchForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelPatchNotFound as json.
+func (s *HelpdeskTicketLabelPatchNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelPatchNotFound from json.
+func (s *HelpdeskTicketLabelPatchNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelPatchNotFound to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelPatchNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelPatchNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelPatchNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelPatchRequestEntityTooLarge as json.
+func (s *HelpdeskTicketLabelPatchRequestEntityTooLarge) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelPatchRequestEntityTooLarge from json.
+func (s *HelpdeskTicketLabelPatchRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelPatchRequestEntityTooLarge to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelPatchRequestEntityTooLarge(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelPatchRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelPatchRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelPatchUnsupportedMediaType as json.
+func (s *HelpdeskTicketLabelPatchUnsupportedMediaType) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelPatchUnsupportedMediaType from json.
+func (s *HelpdeskTicketLabelPatchUnsupportedMediaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelPatchUnsupportedMediaType to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelPatchUnsupportedMediaType(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelPatchUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelPatchUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelUpdateBadRequest as json.
+func (s *HelpdeskTicketLabelUpdateBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelUpdateBadRequest from json.
+func (s *HelpdeskTicketLabelUpdateBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelUpdateBadRequest to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelUpdateBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelUpdateBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelUpdateBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelUpdateForbidden as json.
+func (s *HelpdeskTicketLabelUpdateForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelUpdateForbidden from json.
+func (s *HelpdeskTicketLabelUpdateForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelUpdateForbidden to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelUpdateForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelUpdateForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelUpdateForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelUpdateNotFound as json.
+func (s *HelpdeskTicketLabelUpdateNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelUpdateNotFound from json.
+func (s *HelpdeskTicketLabelUpdateNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelUpdateNotFound to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelUpdateNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelUpdateNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelUpdateNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelUpdateRequestEntityTooLarge as json.
+func (s *HelpdeskTicketLabelUpdateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelUpdateRequestEntityTooLarge from json.
+func (s *HelpdeskTicketLabelUpdateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelUpdateRequestEntityTooLarge to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelUpdateRequestEntityTooLarge(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelUpdateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelUpdateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HelpdeskTicketLabelUpdateUnsupportedMediaType as json.
+func (s *HelpdeskTicketLabelUpdateUnsupportedMediaType) Encode(e *jx.Encoder) {
+	unwrapped := (*GoDjAPIError)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes HelpdeskTicketLabelUpdateUnsupportedMediaType from json.
+func (s *HelpdeskTicketLabelUpdateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HelpdeskTicketLabelUpdateUnsupportedMediaType to nil")
+	}
+	var unwrapped GoDjAPIError
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = HelpdeskTicketLabelUpdateUnsupportedMediaType(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HelpdeskTicketLabelUpdateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HelpdeskTicketLabelUpdateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes HelpdeskTicketPatchBadRequest as json.
 func (s *HelpdeskTicketPatchBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
@@ -5126,6 +5886,599 @@ func (s *TicketDetail) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *TicketDetail) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *TicketLabel) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *TicketLabel) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("ticket")
+		e.Int64(s.Ticket)
+	}
+	{
+		e.FieldStart("label")
+		e.Int64(s.Label)
+	}
+}
+
+var jsonFieldsNameOfTicketLabel = [3]string{
+	0: "id",
+	1: "ticket",
+	2: "label",
+}
+
+// Decode decodes TicketLabel from json.
+func (s *TicketLabel) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TicketLabel to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "ticket":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Ticket = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ticket\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.Label = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode TicketLabel")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfTicketLabel) {
+					name = jsonFieldsNameOfTicketLabel[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TicketLabel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TicketLabel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *TicketLabelCreate) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *TicketLabelCreate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("ticket")
+		e.Int64(s.Ticket)
+	}
+	{
+		e.FieldStart("label")
+		e.Int64(s.Label)
+	}
+}
+
+var jsonFieldsNameOfTicketLabelCreate = [2]string{
+	0: "ticket",
+	1: "label",
+}
+
+// Decode decodes TicketLabelCreate from json.
+func (s *TicketLabelCreate) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TicketLabelCreate to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "ticket":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.Ticket = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ticket\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Label = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode TicketLabelCreate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfTicketLabelCreate) {
+					name = jsonFieldsNameOfTicketLabelCreate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TicketLabelCreate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TicketLabelCreate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *TicketLabelList) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *TicketLabelList) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("count")
+		e.Int64(s.Count)
+	}
+	{
+		e.FieldStart("limit")
+		e.Int64(s.Limit)
+	}
+	{
+		e.FieldStart("offset")
+		e.Int64(s.Offset)
+	}
+}
+
+var jsonFieldsNameOfTicketLabelList = [4]string{
+	0: "items",
+	1: "count",
+	2: "limit",
+	3: "offset",
+}
+
+// Decode decodes TicketLabelList from json.
+func (s *TicketLabelList) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TicketLabelList to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]TicketLabel, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem TicketLabel
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		case "count":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Count = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "limit":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.Limit = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"limit\"")
+			}
+		case "offset":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int64()
+				s.Offset = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"offset\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode TicketLabelList")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfTicketLabelList) {
+					name = jsonFieldsNameOfTicketLabelList[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TicketLabelList) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TicketLabelList) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *TicketLabelPatch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *TicketLabelPatch) encodeFields(e *jx.Encoder) {
+	{
+		if s.Ticket.Set {
+			e.FieldStart("ticket")
+			s.Ticket.Encode(e)
+		}
+	}
+	{
+		if s.Label.Set {
+			e.FieldStart("label")
+			s.Label.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfTicketLabelPatch = [2]string{
+	0: "ticket",
+	1: "label",
+}
+
+// Decode decodes TicketLabelPatch from json.
+func (s *TicketLabelPatch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TicketLabelPatch to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "ticket":
+			if err := func() error {
+				s.Ticket.Reset()
+				if err := s.Ticket.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ticket\"")
+			}
+		case "label":
+			if err := func() error {
+				s.Label.Reset()
+				if err := s.Label.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode TicketLabelPatch")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TicketLabelPatch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TicketLabelPatch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *TicketLabelUpdate) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *TicketLabelUpdate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("ticket")
+		e.Int64(s.Ticket)
+	}
+	{
+		e.FieldStart("label")
+		e.Int64(s.Label)
+	}
+}
+
+var jsonFieldsNameOfTicketLabelUpdate = [2]string{
+	0: "ticket",
+	1: "label",
+}
+
+// Decode decodes TicketLabelUpdate from json.
+func (s *TicketLabelUpdate) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode TicketLabelUpdate to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "ticket":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.Ticket = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ticket\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Label = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode TicketLabelUpdate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfTicketLabelUpdate) {
+					name = jsonFieldsNameOfTicketLabelUpdate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *TicketLabelUpdate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *TicketLabelUpdate) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

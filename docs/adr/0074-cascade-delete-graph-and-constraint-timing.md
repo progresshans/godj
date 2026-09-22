@@ -44,8 +44,14 @@ DB별 SQL·catalog·transaction 검사 시점은 backend가 소유한다. 동일
 
 ## 실제 소비자와 검증
 
-TicketLabel은 ticket/label CASCADE FK와 named `(ticket, label)` 고유 제약을 가진다. Form/Admin/API는 두 관계의 권한과
-서버가 배정한 Category를 같은 저장 transaction에서 다시 확인한다. Ticket/Label 삭제는 연결만 정리하며 기존 PROTECT를 보존한다.
+TicketLabel은 ticket/label CASCADE FK와 named `(ticket, label)` 고유 제약을 가진다. Category를 중복 저장하지 않고 두 endpoint의
+서버 배정 Category를 모두 scoped 조회·저장 transaction에서 확인한다. 두 관계의 view 권한과 링크 mutation 권한은 입력·I/O 전에
+검사한다. API Session/Bearer는 하나의 인증/CSRF 경계 안에서 모든 권한을 AND로 평가하고 custom authorizer의 deny overlay를 유지한다.
+권한 목록은 생성 시 검증·복사하며 OpenAPI도 같은 primary/additional 요구를 게시한다. Admin 추가/수정은 두 authorized choice를 사용한다.
+조회/연결 해제 권한에는 endpoint ID만 포함되고, 이름을 노출하지 않는다. 기존 ServiceReport의 explicit-ID 권한 의미는 바꾸지 않는다.
+빈/self PATCH와 생략한 endpoint도 같은 범위를 검사한다. 외부 ORM/SQL의 Category 재할당을 막는 영구 제약/행 잠금은 이 소비자의 계약이 아니다.
+Ticket/Label 삭제는 연결만 정리하며 기존 PROTECT를 보존한다. 확정 보호만 정상 거부로 게시하며 취소·cleanup 불확실성과 함께 온 오류는 실패다.
+문자열 검색 필드가 없는 연결 모델의 Admin은 SearchFields 생략으로 검색을 끄고 선언하지 않은 q를 I/O 전에 거부한다.
 일반 ManyToMany 선언·관리자와 add/remove/set·조회는 [카탈로그](../CAPABILITY_CATALOG.md)에 남아 있는 후속 기능이다.
 
 양 DB의 required/nullable 순환, 깊은 후손·중복 경로·숨긴 역관계·OneToOne, PROTECT 우선·NULL observer 보존, native FK와

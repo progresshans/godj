@@ -45,15 +45,16 @@ type consumerInput struct {
 }
 
 type serverInput struct {
-	URL             string `json:"url"`
-	Token           string `json:"token,omitempty"`
-	ReadOnlyToken   string `json:"read_only_token,omitempty"`
-	Session         string `json:"session,omitempty"`
-	ReadOnlySession string `json:"read_only_session,omitempty"`
-	CategoryID      int64  `json:"category_id,omitempty"`
-	TicketID        int64  `json:"ticket_id,omitempty"`
-	OtherTicketID   int64  `json:"other_ticket_id,omitempty"`
-	OtherLabelID    int64  `json:"other_label_id,omitempty"`
+	URL                string `json:"url"`
+	Token              string `json:"token,omitempty"`
+	ReadOnlyToken      string `json:"read_only_token,omitempty"`
+	Session            string `json:"session,omitempty"`
+	ReadOnlySession    string `json:"read_only_session,omitempty"`
+	CategoryID         int64  `json:"category_id,omitempty"`
+	TicketID           int64  `json:"ticket_id,omitempty"`
+	OtherTicketID      int64  `json:"other_ticket_id,omitempty"`
+	OtherLabelID       int64  `json:"other_label_id,omitempty"`
+	OtherTicketLabelID int64  `json:"other_ticket_label_id,omitempty"`
 }
 
 // newConsumerFixtures publishes only the real API routes. The returned document
@@ -108,10 +109,14 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	if err != nil {
 		t.Fatal("seed other-category label:", err)
 	}
+	otherLink, err := helpdeskmodels.TicketLabelObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewTicketLabelCreate(otherTicket.ID, otherLabel.ID))
+	if err != nil {
+		t.Fatal("seed other link", err)
+	}
 	// Ticket viewing includes the category summary. Neither principal receives
 	// ViewCategory, which protects the separate Category Admin surface.
-	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel)
-	helpdeskView := consumerPrincipal(t, "helpdesk-client-view", helpdesk.ViewTicket, helpdesk.ViewServiceReport, helpdesk.ViewLabel)
+	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.DeleteTicket, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel)
+	helpdeskView := consumerPrincipal(t, "helpdesk-client-view", helpdesk.ViewTicket, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.ViewTicketLabel)
 	helpdeskAuth, helpdeskSession, helpdeskViewSession := newConsumerSessionAuthentication(t, helpdeskAll, helpdeskView, "/api/tickets/")
 	helpdeskApplication, err := helpdesk.New(helpdeskBackend, category.ID)
 	if err != nil {
@@ -132,7 +137,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		ArticleSession: serverInput{URL: sessionURL, Session: articleSession, ReadOnlySession: articleViewSession},
 		HelpdeskSession: serverInput{
 			URL: helpdeskURL, Session: helpdeskSession, ReadOnlySession: helpdeskViewSession,
-			CategoryID: category.ID, TicketID: ticket.ID, OtherTicketID: otherTicket.ID, OtherLabelID: otherLabel.ID,
+			CategoryID: category.ID, TicketID: ticket.ID, OtherTicketID: otherTicket.ID, OtherLabelID: otherLabel.ID, OtherTicketLabelID: otherLink.ID,
 		},
 	}
 	documents := map[string][]byte{
@@ -269,6 +274,11 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		if err != nil || len(labels) != 2 || labels[0].ID != otherLabel.ID || labels[0].Name != otherLabel.Name || labels[0].CategoryID != otherCategory.ID || labels[1].ID <= otherLabel.ID || labels[1].Name != "Client retained label" || labels[1].CategoryID != category.ID {
 			t.Errorf("generated Label CRUD/scope final state differs: %v", err)
 		}
+		links, err := helpdeskmodels.TicketLabelObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.TicketLabelFields.ID.Asc()).All(t.Context())
+		if err != nil || len(links) != 2 || links[0] != otherLink || len(labels) != 2 || links[1].TicketID != ticket.ID || links[1].LabelID != labels[1].ID {
+			t.Fatalf("generated link lifecycle/cascade final state differs: %v", err)
+		}
+
 		categories, err := helpdeskmodels.CategoryObjects.Using(helpdeskBackend).OrderBy(helpdeskmodels.CategoryFields.ID.Asc()).All(t.Context())
 		if err != nil || len(categories) != 2 || categories[0].ID != category.ID || categories[0].Name != category.Name || categories[1].ID != otherCategory.ID || categories[1].Name != otherCategory.Name {
 			t.Errorf("generated client changed the original Helpdesk categories: %v", err)

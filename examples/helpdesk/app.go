@@ -45,6 +45,10 @@ const (
 	AddLabel            auth.Permission = "helpdesk.add_label"
 	ChangeLabel         auth.Permission = "helpdesk.change_label"
 	DeleteLabel         auth.Permission = "helpdesk.delete_label"
+	ViewTicketLabel     auth.Permission = "helpdesk.view_ticket_label"
+	AddTicketLabel      auth.Permission = "helpdesk.add_ticket_label"
+	ChangeTicketLabel   auth.Permission = "helpdesk.change_ticket_label"
+	DeleteTicketLabel   auth.Permission = "helpdesk.delete_ticket_label"
 )
 
 type Backend interface {
@@ -71,6 +75,9 @@ type Application struct {
 	labelInput    serializers.Spec
 	labelOutput   serializers.Spec
 	labelEncoder  serializers.ModelEncoder[models.Label]
+	linkInput     serializers.Spec
+	linkOutput    serializers.Spec
+	linkEncoder   serializers.ModelEncoder[models.TicketLabel]
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
@@ -103,6 +110,9 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 		return nil, err
 	}
 	if err = a.initLabels(); err != nil {
+		return nil, err
+	}
+	if err = a.initTicketLabels(); err != nil {
 		return nil, err
 	}
 	if err := a.register(builder); err != nil {
@@ -140,7 +150,7 @@ func InstalledApps() []apps.Config {
 	return []apps.Config{{Name: "github.com/progresshans/godj/examples/helpdesk/models", Label: "helpdesk"}}
 }
 func Permissions() []auth.Permission {
-	return []auth.Permission{ViewCategory, ViewTicket, AddTicket, ChangeTicket, DeleteTicket, ViewServiceReport, AddServiceReport, ChangeServiceReport, DeleteServiceReport, ViewLabel, AddLabel, ChangeLabel, DeleteLabel}
+	return []auth.Permission{ViewCategory, ViewTicket, AddTicket, ChangeTicket, DeleteTicket, ViewServiceReport, AddServiceReport, ChangeServiceReport, DeleteServiceReport, ViewLabel, AddLabel, ChangeLabel, DeleteLabel, ViewTicketLabel, AddTicketLabel, ChangeTicketLabel, DeleteTicketLabel}
 }
 func (a *Application) Registry() admin.Registry { return a.registry }
 
@@ -237,7 +247,10 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err := a.registerReports(builder); err != nil {
 		return err
 	}
-	return a.registerLabels(builder)
+	if err := a.registerLabels(builder); err != nil {
+		return err
+	}
+	return a.registerTicketLabels(builder)
 }
 
 func (a *Application) list(ctx context.Context, request admin.ListRequest) (admin.Page[models.Ticket], error) {
@@ -690,7 +703,7 @@ func externalPayloadErrors(document jsonvalue.Value) validation.Errors {
 func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, error) {
 	var removed models.Ticket
 	target := models.NewTicketWithID(id)
-	scoped := scopedTicketDelete{backend: a.backend, check: func(session db.RelationSession) error {
+	scoped := scopedRelationDelete{backend: a.backend, check: func(session db.RelationSession) error {
 		current, found, err := ticket(ctx, session, id)
 		if err != nil {
 			return err
@@ -707,14 +720,14 @@ func (a *Application) delete(ctx context.Context, id int64) (models.Ticket, erro
 	return removed, nil
 }
 
-// The category check and complete incoming PROTECT policy share the same
+// The category check and complete incoming relation policy share the same
 // transaction. A failed check is an AtomicRelation precondition failure.
-type scopedTicketDelete struct {
+type scopedRelationDelete struct {
 	backend db.RelationAtomic
 	check   func(db.RelationSession) error
 }
 
-func (scoped scopedTicketDelete) AtomicRelation(ctx context.Context, fn func(db.RelationSession) error) error {
+func (scoped scopedRelationDelete) AtomicRelation(ctx context.Context, fn func(db.RelationSession) error) error {
 	return scoped.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 		if err := scoped.check(session); err != nil {
 			return err

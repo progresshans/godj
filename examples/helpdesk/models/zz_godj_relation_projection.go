@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
+const GoDjRelationProjectionSchemaSHA256 = "33214ea261c78909004d04124bfeb7c8b03dbe18c191160f87ba0b54c0e01379"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -277,4 +277,51 @@ func (_scan *labelProjectionScan) Decode() (Label, query.Value, orm.ProjectionPr
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ orm.ProjectionDescriptor[TicketLabel] = TicketLabelDescriptor{}
+
+func (TicketLabelDescriptor) NewProjectionScan() orm.ProjectionScan[TicketLabel] {
+	return &ticketLabelProjectionScan{}
+}
+
+type ticketLabelProjectionScan struct {
+	scanID       sql.NullInt64
+	scanTicketID sql.NullInt64
+	scanLabelID  sql.NullInt64
+}
+
+func (_scan *ticketLabelProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanTicketID,
+		&_scan.scanLabelID,
+	}
+}
+
+func (_scan *ticketLabelProjectionScan) Decode() (TicketLabel, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return TicketLabel{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanTicketID.Valid && !_scan.scanLabelID.Valid {
+		return TicketLabel{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return TicketLabel{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanTicketID.Valid {
+		return TicketLabel{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanLabelID.Valid {
+		return TicketLabel{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := TicketLabel{}
+	_value.ID = _scan.scanID.Int64
+	_value.TicketID = _scan.scanTicketID.Int64
+	_value.LabelID = _scan.scanLabelID.Int64
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
+var _ GoDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641

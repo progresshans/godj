@@ -277,10 +277,117 @@ func (_object *ModelsTicketObject) Fresh() (*ModelsTicketObject, error) {
 	return _object.factory.From(_object.backend, _object.model)
 }
 
+type ModelsTicketLabelObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[models.TicketLabel]
+	label              orm.RequiredForwardObject[models.TicketLabel, models.Label]
+	ticket             orm.RequiredForwardObject[models.TicketLabel, models.Ticket]
+}
+
+func (_factory ModelsTicketLabelObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[models.TicketLabel], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory ModelsTicketLabelObjectFactory) From(_backend db.Queryer, _value models.TicketLabel) (*ModelsTicketLabelObject, error) {
+	_snapshot := (models.TicketLabelDescriptor{}).CloneModel(_value)
+	_related4, _err := _factory.label.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related5, _err := _factory.ticket.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsTicketLabelObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		label:   _related4,
+		ticket:  _related5,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type ModelsTicketLabelObject struct {
+	_selectedGraph *orm.RelatedSelected[models.TicketLabel]
+	model          models.TicketLabel
+	factory        ModelsTicketLabelObjectFactory
+	backend        db.Queryer
+	label          *orm.RelatedObject[models.Label]
+	ticket         *orm.RelatedObject[models.Ticket]
+	_self          *ModelsTicketLabelObject
+}
+
+func (_object *ModelsTicketLabelObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *ModelsTicketLabelObject) Model() (models.TicketLabel, error) {
+	if _err := _object._validate(); _err != nil {
+		return models.TicketLabel{}, _err
+	}
+	return (models.TicketLabelDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *ModelsTicketLabelObject) Label(_ctx context.Context) (models.Label, error) {
+	if _err := _object._validate(); _err != nil {
+		return models.Label{}, _err
+	}
+	_value, _ok, _err := _object.label.Get(_ctx)
+	if _err != nil {
+		return models.Label{}, _err
+	}
+	if !_ok {
+		return models.Label{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "required relation object returned an absent result",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *ModelsTicketLabelObject) Ticket(_ctx context.Context) (models.Ticket, error) {
+	if _err := _object._validate(); _err != nil {
+		return models.Ticket{}, _err
+	}
+	_value, _ok, _err := _object.ticket.Get(_ctx)
+	if _err != nil {
+		return models.Ticket{}, _err
+	}
+	if !_ok {
+		return models.Ticket{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "required relation object returned an absent result",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *ModelsTicketLabelObject) Fresh() (*ModelsTicketLabelObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
 type Objects struct {
 	ModelsLabel         ModelsLabelObjectFactory
 	ModelsServiceReport ModelsServiceReportObjectFactory
 	ModelsTicket        ModelsTicketObjectFactory
+	ModelsTicketLabel   ModelsTicketLabelObjectFactory
 }
 
 func BindObjects() (Objects, error) {
@@ -325,6 +432,14 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
+		models.TicketLabelDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
 	_relation0, _err := orm.BindRequiredForwardObject(_model1, "category", _model0)
 	if _err != nil {
 		return Objects{}, _err
@@ -338,6 +453,14 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 		return Objects{}, _err
 	}
 	_relation3, _err := orm.BindReverseOneToOneObject(_model3, "service_report", _model2)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation4, _err := orm.BindRequiredForwardObject(_model4, "label", _model1)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation5, _err := orm.BindRequiredForwardObject(_model4, "ticket", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
@@ -355,11 +478,17 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 			category:      _relation2,
 			serviceReport: _relation3,
 		},
+		ModelsTicketLabel: ModelsTicketLabelObjectFactory{
+			model:  _model4,
+			label:  _relation4,
+			ticket: _relation5,
+		},
 	}
 	_objects.ModelsLabel._projectSelections = &_objects
 	_objects.ModelsServiceReport._projectSelections = &_objects
 	_objects.ModelsTicket._projectSelections = &_objects
+	_objects.ModelsTicketLabel._projectSelections = &_objects
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0
+var _ goDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641
