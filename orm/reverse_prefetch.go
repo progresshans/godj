@@ -84,7 +84,7 @@ func (p ReversePrefetch[Owner, Source]) Load(ctx context.Context, backend db.Que
 	for i, querySet := range queries {
 		result[i] = newRelatedSet(querySet)
 	}
-	return result, nil
+	return sessionReadResult(ctx, backend, result, nil)
 }
 
 // Load publishes independent ready single-object handles after validating the
@@ -99,7 +99,7 @@ func (p ReverseOneToOnePrefetch[Owner, Source]) Load(ctx context.Context, backen
 		result[i] = newRelatedObject(querySet)
 		result[i].allowMissing = true
 	}
-	return result, nil
+	return sessionReadResult(ctx, backend, result, nil)
 }
 
 func (state reversePrefetchState[Owner, Source]) load(ctx context.Context, backend db.Queryer, owners []Owner) ([]QuerySet[Source], error) {
@@ -115,8 +115,11 @@ func (state reversePrefetchState[Owner, Source]) load(ctx context.Context, backe
 	if err := state.validate(); err != nil {
 		return nil, err
 	}
+	if err := validateQuerySession(ctx, backend); err != nil {
+		return nil, err
+	}
 	if len(owners) == 0 {
-		return make([]QuerySet[Source], 0), nil
+		return sessionReadResult(ctx, backend, make([]QuerySet[Source], 0), nil)
 	}
 
 	ownerSnapshots := make([]Owner, len(owners))
@@ -240,7 +243,7 @@ func (state reversePrefetchState[Owner, Source]) load(ctx context.Context, backe
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return sessionReadResult(ctx, backend, result, nil)
 }
 
 func (state reversePrefetchState[Owner, Source]) validate() error {

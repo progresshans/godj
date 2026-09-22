@@ -183,3 +183,40 @@ func TestBorrowedIterationRejectsExpiredDecodedRow(t *testing.T) {
 		})
 	}
 }
+
+type reversePrefetchSessionBackend struct {
+	db.Queryer
+	lifetime *sessionCacheBackend
+}
+
+func (b reversePrefetchSessionBackend) ValidateSession(ctx context.Context) error {
+	return b.lifetime.ValidateSession(ctx)
+}
+func TestReversePrefetchRejectsEmptyExpiredSession(t *testing.T) {
+	prefetch := bindReversePrefetchTestRelation(t, "posts")
+	closed := errors.New("borrowed session ended")
+	backend := &sessionCacheBackend{allowed: -1, closed: closed}
+	if values, err := prefetch.Load(t.Context(), backend, nil); err != nil || len(values) != 0 {
+		t.Fatal(values, err)
+	}
+	backend.allowed = 0
+	if values, err := prefetch.Load(t.Context(), backend, nil); values != nil || !errors.Is(err, closed) {
+		t.Fatal("expired empty prefetch published", values, err)
+	}
+	if backend.queries != 0 {
+		t.Fatal("empty prefetch queried")
+	}
+}
+func TestReversePrefetchRejectsSessionEndingWhileGrouping(t *testing.T) {
+	prefetch := bindReversePrefetchWithDescriptors(t, relationObjectTestAuthorDescriptor{}, reversePrefetchCancelStoragePostDescriptor{})
+	closed := errors.New("borrowed session ended while grouping")
+	lifetime := &sessionCacheBackend{allowed: -1, closed: closed}
+	backend := reversePrefetchSessionBackend{lifetime: lifetime, Queryer: &reversePostBackend{query: func(_ int, _ context.Context, _ query.Plan) (db.Rows, error) {
+		return &reversePostRows{values: []relationObjectTestPost{{ID: 10, AuthorID: 1}}}, nil
+	}}}
+	reversePrefetchCancelStorageHook = func() { lifetime.allowed = 0 }
+	defer func() { reversePrefetchCancelStorageHook = nil }()
+	if values, err := prefetch.Load(t.Context(), backend, []relationObjectTestAuthor{{ID: 1}}); values != nil || !errors.Is(err, closed) {
+		t.Fatal("expired grouped prefetch published", values, err)
+	}
+}

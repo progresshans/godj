@@ -3,6 +3,24 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 역방향 prefetch의 session publication 보완
+
+2026-09-23, 아래 direct prefetch 묶음 `61aadfc6`을 검증한 뒤 기존 reverse prefetch의 두 경계를 보완했다.
+종료된 session에 빈 owner 입력을 주거나, 조회 후 storage callback이 grouping 중 session을 종료하면 기존 코드는 성공 결과를 반환했다.
+원본 source에 두 regression만 overlay하여 **2 FAIL**로 재현한 후, 공통 load 진입과 empty/cache/handle 반환에서 session을 다시 검사했다.
+원인 오류를 유지하고 partial result는 반환하지 않는다. Reverse FK와 OneToOne prefetch는 같은 공통 load를 사용한다.
+
+최종 non-Markdown source 2,111파일의 map hash는
+`ce4a71d6f1bb33e1eb1a291c2b6ab9d4ec59320156f21e9b509b7812474992fa`다.
+아래 넓은 prefetch checkpoint와의 제품/검증 source 차이는 `orm/reverse_prefetch.go`, `orm/session_test.go` **두 파일뿐**이다.
+`./orm` 전체와 실제 generated prefetch/OneToOne 소비자 두 root의 **2 package / 600 run=PASS / skip 0**를
+normal(8.4초), race(22.2초), CGO=0(6.5초)에서 각각 확인했다. 모두 필수 root 5개와 실행 전후 source 불변을 확인했다.
+이 후속 검사에서 native DB 전체나 전체 generated consumer suite를 다시 실행한 것으로 세지 않는다.
+
+실행·원본 실패·source 차이는 아래 `prefetch/` artifact의 `latest-reverse-session-*-path`,
+`reverse-session-delta.json`, `reverse-session-final-source.json`을 따른다.
+영향 vet·gofmt·문서/diff는 `reverse-session-document-check.json`에 보관한다. Hosted 전체 milestone은 계속 미완료다.
+
 ## GDJ-0099 — 직접 ManyToMany prefetch와 model cache
 
 2026-09-23, `2b9685ea53dc98eb3cc56e2e4e835bd763ac4f0a` 위에서 direct ManyToMany batch prefetch와 generated
