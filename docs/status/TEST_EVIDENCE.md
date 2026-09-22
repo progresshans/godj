@@ -45,6 +45,9 @@ native/catalog 10개와 Label의 historical/HTTP 하위 검사 2개를 추가했
 named 제약·전체 candidate·실행 실패의 필수 항목 17개를 추가했다. 실제 `go test -list` 선택·owner 소속을 확인했고
 기존 CI Python 검사 **38 PASS**와 diff 검사를 통과했다. 제품 Go/JSON은 `474a835e5906c8f0fe3d1b1ef150241ce8dd8369`에서 바뀌지 않았다.
 이 목록 확인은 native 실행 PASS가 아니며 Hosted full에서 실제 실행·종료·no-skip을 확인해야 한다.
+CI 목록을 포함한 source `fdddfae8a58b0d6cbf6d10a40bfeb878acaf7037`의 [Hosted PR feedback](https://github.com/progresshans/godj/actions/runs/35677873702)은
+필수 Fast Go feedback까지 success다. 같은 source에서 `suite=full`로 [Hosted full run 35677919124](https://github.com/progresshans/godj/actions/runs/35677919124)을
+dispatch했고 실제 matrix job들의 실행을 확인했다. 아직 terminal 결과나 full_platform_verified를 확인하지 않았으므로 전체 통합 PASS로 기록하지 않는다.
 
 ## GDJ-0097 — 복합 고유성의 전체 candidate ORM 검증
 
