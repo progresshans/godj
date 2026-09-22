@@ -3,6 +3,58 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 직접 ManyToMany prefetch와 model cache
+
+2026-09-23, `2b9685ea53dc98eb3cc56e2e4e835bd763ac4f0a` 위에서 direct ManyToMany batch prefetch와 generated
+`PrefetchRelated`·typed selector·문자열 경로를 연결했다. 기존 through QuerySet과 target eager projection을 재사용한다.
+Owner multiplicity·nullable/nonunique through·양방향/self와 여러 direct selection을 처리하고 전체 batch 성공 뒤 cache를 반환한다.
+중첩/filtered child prefetch·eager/prefetch tree 통합, Ticket 소비자와 GDJ-0099 Hosted 전체 milestone은 남아 있다.
+
+최종 non-Markdown source **2,111파일**의 정렬 path→SHA256 map hash는
+`b9f434778fc3c5894ce73295a616a4c309391b2241ac59be95392ca828faf0c7`다.
+검증 대상은 ORM·생성기·실제 생성 소비자와 기존 facade/OneToOne 회귀이며 DB compiler·migration 전체나 전체 platform 실행으로 확대하지 않는다.
+
+- Normal: `./orm ./codegen ./codegen/consumertest ./internal/compiletest ./conformance/relationreverseproduct ./conformance/onetoonefixture`의
+  **6 package / 1,255 run=PASS / skip 0**, 필수 root 9개, 실행 전후 source 불변(136.2초).
+- 같은 6 package의 Race: **1,190 run=PASS / skip 0**, 필수 root 10개, source 불변(511.5초).
+  `internal/compiletest/compile_test.go`의 기존 `!race` build tag에 따라 세 facade/project-bundle root를 요구했다.
+- 같은 6 package의 CGO=0: **1,255 run=PASS / skip 0**, 필수 root 9개, source 불변(130.0초).
+  외부 compile/type-misuse 전체는 normal·CGO=0에서 실행했다.
+
+Actual generated module은 양 DB **193 child run=PASS / skip 0**를 각 mode의 parent가 검사했다. 독립 reference의 다섯 prefetch group,
+1001 owner의 두 batch·늦은 실패·다른 owner 행/반복 through PK 거부·scan 도중 취소와 rows close, 다중 selection의 늦은 실패 후
+source부터 재평가, cold Count/First·중복/Distinct·slice·Fresh, origin/type/namespace 거부와 동시 All cache 소유권을 확인했다.
+빌린 ordinary/coordinated session의 실제 capability를 제한한 adapter로 읽기 성공·변경/no-op 거부·중첩 transaction 미실행과
+callback 종료 뒤 warm/empty cache·model/query 거부를 확인했다. 기존 collection 변경·rollback·session 회귀를 유지했다.
+
+독립 Django **6.1** 관찰은 두 DB·hash seed 0/813의 **41개**다. 앞의 36개 관찰과 고정 Django source hash가 그대로이며
+동일 backend의 두 seed와 양 DB 관찰이 일치한다. 새 관찰은 batch/warm/refined/mutation query 수, held/duplicate-owner cache,
+nullable duplicate와 reverse, 대칭/비대칭 self다. CPython **3.14.3**, SQLite **3.50.4**, PostgreSQL **170005**,
+asgiref **3.12.1**, sqlparse **0.5.5**, psycopg **3.3.6**을 고정했다. Runner SHA256은
+`578616a34697750c725e260d41a836ddf74c196158fa7985afbc528e2bc7ab31`이고 reference unittest **9 PASS**다.
+Reference helper에서 held QuerySet에 `.all()`을 추가 호출하던 초안은 새 평가를 만들어 다른 동작을 관찰했다.
+그 helper를 held 값의 직접 iteration으로 고친 뒤 양 DB·두 seed를 다시 capture했다. 이전 receipt를 삭제하지 않았다.
+Django prefetch 호출을 제거한 실제 negative control은 warm 조회가 발생해 실패한다.
+
+별도 SQLite generated module에서 원본 **11 run=PASS** 뒤 ready cache 제거, target 행 소실, batch owner 검증 제거,
+relation capability 검사 제거, canonical handle 공유의 다섯 overlay가 각각 대응 사례에서 실패했다.
+추가로 target PK가 같은 행만 coalesce하는 overlay도 nullable multiplicity 사례에서 실패했다.
+각 overlay는 정상 compile 뒤 실패했으며 workspace 제품 파일은 변경하지 않았다. 독립 reference와 Go-native 소유권 증거를 구분한다.
+
+환경은 Go **1.26.5**, Darwin arm64, modernc SQLite와 PostgreSQL **17.5 Homebrew**다.
+`GODJ_REQUIRE_POSTGRES=1`과 mode별 전용 database를 사용하며 추가 연결·사용자 table·추가 schema **0|0|0**을 확인하고 제거한다.
+중간 consumer 실행은 PostgreSQL ordinary session이 RelationSession도 구현한다는 사실을 무시한 test assertion 때문에 실패했다.
+실제 capability를 제한한 adapter와 중첩 transaction trap으로 수정했으며 최종 normal에서 양 DB를 통과했다.
+다음 실행의 disk-full build 실패도 보존했다. 당시 여유 공간 217MiB에서 실행 중인 Go 작업이 없음을 확인하고 `go clean -cache`만
+수행해 약 95GiB를 확보했다. Source·module cache·증거는 유지했고 같은 source의 consumer를 재실행해 통과했다.
+
+다섯 project의 실제 CLI generated drift, 영향 vet, CI Python **41 PASS**를 확인했다. Facade ABI v12의 generated Go·manifest·golden을
+실제 generator로 갱신했다. 최종 gofmt·문서 링크·diff 결과는 `final-document-check.json`에 보관한다.
+전체 command·source map·event·stderr·inventory·receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch/`의 `latest-*-path`, `final-source.json`을 따른다.
+최신 Hosted 전체는 source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739)이며 이번 prefetch source의 전체 검증으로 전이하지 않는다.
+
 ## GDJ-0099 — 컬렉션 관계 조건과 공통 typed/dynamic 경로
 
 2026-09-23, `031bfbabbb548278fedd5c213ead472986c5954a` 위에서 forward/reverse/ManyToMany의 mixed scalar 조건을

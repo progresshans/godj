@@ -111,6 +111,12 @@ eager/prefetch의 성공 후 일괄 publication과 assignment 뒤 FK/cache recon
 Lazy relation I/O는 context와 error를 갖는 호출로 드러난다. 서로 다른 materialization 사이의 전역 identity map은 없다.
 더 자세한 복사·취소 계약은 [CONCURRENCY](CONCURRENCY.md)에 있다.
 
+ManyToMany의 직접 prefetch는 기존 through QuerySet과 target FK의 eager projection을 재사용한다.
+공통 `PrefetchQuery`가 owner 조회와 선택한 collection batch의 성공 후 publication·cache를 소유하고 generated facade는
+typed selector와 model cache 연결을 제공한다. 반환 model의 변경은 원래 평가 cache나 다른 materialization을 바꾸지 않는다.
+중첩/filtered child prefetch와 eager/prefetch tree의 통합은 아직 남아 있다.
+세부 읽기·session 경계는 [컬렉션 prefetch 결정](adr/0075-many-to-many-storage-and-mutation-ownership.md#직접-컬렉션-prefetch)을 따른다.
+
 ## Migration
 
 ```text

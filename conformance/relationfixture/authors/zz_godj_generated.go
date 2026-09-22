@@ -181,4 +181,4 @@ func authorMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_a691b82718c9cebe7349f77a380daf261bf2b34dceba831806afa27647384fdc struct{}
+type GoDjProjectSnapshot_ab26d6ee9fd1cb715d26e62d7a942b224e659ff93c96d073a7a40ccd97b2af12 struct{}

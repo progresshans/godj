@@ -40,7 +40,7 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
-        self.assertEqual(len(actual['observations']), 36)
+        self.assertEqual(len(actual['observations']), 41)
         postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
         for field in ('observations', 'source_sha256'):
             self.assertEqual(actual[field], postgres[field])
@@ -139,6 +139,17 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(loose['exclude_a'], ['loose-empty', 'loose-null'])
         self.assertEqual(loose['reverse_absent'], ['a', 'c'])
 
+    def test_prefetch_batches_preserve_duplicates_absence_and_cache_ownership(self):
+        cases = self.snapshots[0]['observations']
+        self.assertEqual(cases['prefetch_membership'], [['a', 'b'], [], ['b'], ['a', 'b']])
+        self.assertEqual(cases['prefetch_queries'], {'batch': 1, 'warm': 0, 'empty': 0, 'refined': 1, 'after_mutation': 1})
+        self.assertEqual(cases['prefetch_cache'], {'after_add': ['a', 'b', 'c'], 'duplicate_snapshot': ['a', 'b'],
+                                                 'other_owner': ['b'], 'held_snapshot': ['a', 'b'], 'refined': ['a']})
+        self.assertEqual(cases['prefetch_nullable'], {'forward': [[], ['a', 'a', 'b'], []],
+            'reverse': [['mixed', 'mixed'], ['mixed'], []], 'batch_queries': 2, 'warm_queries': 0})
+        self.assertEqual(cases['prefetch_self'], {'friends': [['x', 'y'], ['x'], []], 'follows': [['y'], [], ['x']],
+            'followers': [['z'], ['x'], []], 'batch_queries': 3, 'warm_queries': 0})
+
     def test_real_semantic_mutations_change_observations(self):
         source = RUNNER.read_text()
         for original, replacement, case, field, value in (
@@ -152,6 +163,7 @@ class ManyToManyReferenceTests(unittest.TestCase):
             ('"positive_first": query_names(Owner.objects.filter(qa & ~qb))',
              '"positive_first": query_names(Owner.objects.filter(~qb & qa))',
              'query_boolean_order', 'positive_first', []),
+            ('prefetch_related_objects(batch, "labels")', 'None', 'prefetch_queries', 'warm', 4),
         ):
             with self.subTest(case=case):
                 self.assertEqual(source.count(original), 1)

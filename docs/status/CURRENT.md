@@ -8,37 +8,18 @@
 
 ## 현재
 
-CASCADE·명시적 TicketLabel 소비자의 Hosted full을 완료했다. 위 source 이후 GDJ-0099를 시작했다.
-고정 Django의 독립 ManyToMany 기준과 실제 의미 변경 negative control을 보관했다.
-[Storage·변경 소유권](../adr/0075-many-to-many-storage-and-mutation-ownership.md)에 따라 명시한 non-null unique tuple의 native 삽입을
-공통 AST·양 DB·transaction session에 연결하고 영향 normal/race/CGO=0을 통과했다.
-Columnless 선언·Schema IR·자동 storage projection·생성 metadata/binding·bounded project wire를 연결했다.
-영향 normal/race/CGO=0과 다섯 기존 project의 generated drift를 통과했다.
-명시적 through의 Add/Remove/Rename·reverse·자동 계획을 연결했다. 양 DB의 기존 행·payload·sequence·catalog를 보존하며
-선택한 두 FK·dependency ancestry와 전체 관련 모델을 검증한다. 최신 영향 normal/race/CGO=0과 다섯 기존 project의 generated drift를 통과했다.
-자동 intermediary의 Create/Add/Remove/Rename·reverse·자동 계획과 raw CreateModel의 columnless 선언도 연결했다.
-Rename은 연결 PK와 시퀀스·물리 테이블 identity를 보존하며, 생성·제거는 소유한 intermediary만 변경한다.
-Transient table·중첩 storage 의존성·SQL projection·실패 rollback을 포함해 영향 normal/race/CGO=0과 generated drift를 통과했다.
-지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
-
-Root collection runtime과 generated `BindCollections()`의 forward/reverse add/remove/clear/set를 연결했다.
-Retained ID·payload, nullable/nonunique through·self symmetry, incoming 정책·오류/취소·cache 소유권을 함께 처리한다.
-독립 Django 관찰은 nullable duplicate와 incoming link 정책을 포함한 36개로 확장했다. 실행 source와 환경은 TEST_EVIDENCE를 따른다.
-
-Generated model의 collection 접근자와 UsingSession/InSession을 연결했다.
-빌린 session에서는 새 transaction을 시작하지 않고, callback 종료 뒤에는 warm/empty/eager cache와 model/view도 동작을 거부한다.
-영향 normal/race/CGO=0과 generated drift를 확인했으며, 마지막 iterator publication 보완은 최종 source에서 따로 검증했다.
-구현과 실행 source·환경의 증거는 TEST_EVIDENCE를 따른다.
-
-일반 forward/reverse/ManyToMany 조건을 같은 typed/dynamic Query AST와 generated BindRelations로 연결했다.
-한 Filter와 연속 Filter의 연결 행 scope, 부정 EXISTS·OR·nullable through의 multiplicity와 manager core filter를 구분한다.
-현재 영향 검증의 source·환경·결과는 TEST_EVIDENCE를 따른다.
+ManyToMany의 Schema IR·자동/명시적 through migration·공통 mutation runtime·generated model/session facade와
+같은 typed/dynamic Query AST의 mixed 관계 조건을 연결했다.
+직접 컬렉션 prefetch를 기존 through query·target eager projection과 generated typed/path selector에 연결했다.
+여러 관계·양방향/self·nullable duplicate와 독립 cache를 처리하며 전체 조회가 성공한 뒤에만 결과를 반환한다.
+지원 범위와 남은 제한은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
+[관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
 
 ## 다음 행동
 
-ManyToMany prefetch와 Ticket 라벨 컬렉션 편집으로 이어간다.
+중첩/filtered child prefetch와 eager/prefetch tree의 통합을 완성하고 Ticket 라벨 컬렉션 편집으로 이어간다.
 Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
-명시적 연결 모델의 CRUD나 root manager만으로 전체 ManyToMany 소비자를 완료한 것으로 세지 않는다.
+이 소비자 통합 뒤 GDJ-0099 Hosted 전체 milestone을 검증한다. 명시적 연결 CRUD나 root manager만으로 전체 소비자를 완료로 세지 않는다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
-설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.
+설계 채택, 제품 구현, 환경별 검증을 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

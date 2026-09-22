@@ -109,6 +109,9 @@ func (c *ManyCollection[T, L]) change(ctx context.Context, operation manyChange,
 	if err := validateQuerySession(ctx, c.backend); err != nil {
 		return err
 	}
+	if _, borrowed := c.backend.(db.SessionValidator); borrowed && c.session == nil {
+		return relationBackendInvalidPlan("collection mutation requires a relation-capable session")
+	}
 	if inputErr != nil {
 		return inputErr
 	}

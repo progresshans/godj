@@ -515,4 +515,4 @@ func (requiredRightLeftIDRelationStorage) Value(value RequiredRight) (query.Valu
 	return query.Integer(value.LeftID), true
 }
 
-var _ GoDjProjectSnapshot_c93050d3caf2731a2e6e835e5a4a4264be776ef863f612d12b72100c3e61cd9d
+var _ GoDjProjectSnapshot_8227f21f258923139aeffd913eab5feb1d87520915754fb57d74147dcc56ca2e

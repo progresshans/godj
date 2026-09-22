@@ -31,8 +31,8 @@ func (_model *%[2]s) %[5]s() (*%[1]s,error) {
  if !_present { return nil,&query.Error{Category:query.CategoryQuery,Code:query.CodeMissingPrimaryKey,Detail:"collection owner has no saved primary key"} }
  _relation,_err := _model._manyCollection%[6]d.Get(func() (*orm.ManyCollection[%[3]s,%[4]s],error) {
   if _model.state.sessionScope != nil {
-   _session,_ok := _model.state.backend.(db.RelationSession)
-   if !_ok { return nil,relationFacadeBackendInvalid("collection mutation requires a relation-capable session") }
+   _session,_ok := _model.state.backend.(db.Session)
+   if !_ok { return nil,relationFacadeBackendInvalid("collection access requires a transaction session") }
    return _model.state.collections.%[7]s.InSession(_session,_model.%[8]s)
   }
   return _model.state.collections.%[7]s.From(_model.state.backend,_model.%[8]s)

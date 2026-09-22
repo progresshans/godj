@@ -24,12 +24,16 @@ type ManyToManyDescriptor[L any] interface {
 
 // ManyToMany is an immutable factory. Each From call owns a separate cache.
 type ManyToMany[O, T, L any] struct {
-	owner   PrimaryKeyObjectDescriptor[O]
-	target  PrimaryKeyObjectDescriptor[T]
-	through ManyToManyDescriptor[L]
-	state   *manyToManyState
-	plan    query.Plan
-	path    query.RelationPath
+	owner          PrimaryKeyObjectDescriptor[O]
+	target         PrimaryKeyObjectDescriptor[T]
+	through        ManyToManyDescriptor[L]
+	state          *manyToManyState
+	plan           query.Plan
+	path           query.RelationPath
+	prefetchSource BoundModel[L]
+	prefetchTarget BoundModel[T]
+	prefetchOwner  BoundModel[O]
+	prefetchName   string
 }
 
 type manyToManyState struct {
@@ -119,7 +123,7 @@ func bindManyToMany[O, T, L any](owner BoundModel[O], name string, target BoundM
 		return zero, err
 	}
 	plan := target.objectPlan
-	return ManyToMany[O, T, L]{owner: ownerDescriptor, target: targetDescriptor, through: throughDescriptor, state: state, plan: plan, path: path}, nil
+	return ManyToMany[O, T, L]{owner: ownerDescriptor, target: targetDescriptor, through: throughDescriptor, state: state, plan: plan, path: path, prefetchSource: through, prefetchTarget: target, prefetchOwner: owner, prefetchName: name}, nil
 }
 
 // ManyCollection owns a lazy target QuerySet. A mutation invalidates this
@@ -146,10 +150,11 @@ func (r ManyToMany[O, T, L]) From(backend db.Queryer, owner O) (*ManyCollection[
 }
 
 // InSession joins the supplied transaction and never begins, commits, rolls
-// back or retries one. Successful mutations remain provisional. Return any
+// back or retries one. Reads accept an ordinary session; mutations require a
+// RelationSession. Successful mutations remain provisional. Return any
 // error from the enclosing transaction callback; this is not a savepoint.
 // The independent handle and its query caches expire with the session.
-func (r ManyToMany[O, T, L]) InSession(session db.RelationSession, owner O) (*ManyCollection[T, L], error) {
+func (r ManyToMany[O, T, L]) InSession(session db.Session, owner O) (*ManyCollection[T, L], error) {
 	if interfaceIsNil(session) {
 		return nil, relationBackendInvalidPlan("collection session is nil")
 	}
@@ -163,7 +168,7 @@ func (r ManyToMany[O, T, L]) InSession(session db.RelationSession, owner O) (*Ma
 	if err != nil {
 		return nil, err
 	}
-	collection.session = session
+	collection.session, _ = session.(db.RelationSession)
 	return collection, nil
 }
 

@@ -68,6 +68,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/queries_test.go", queries)
+	prefetch, err := os.ReadFile(filepath.Join("testdata", "manytomany", "prefetch_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/prefetch_test.go", prefetch)
 	oracle, err := os.ReadFile(filepath.Join("..", "..", "orm", "testdata", "many-to-many-django61-sqlite.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -111,6 +116,9 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 			}
 		}
 
+		for _, name := range []string{"reference", "nullable_and_self", "facade_query", "batch_and_failures", "concurrent_query", "ordinary_session_reads", "session"} {
+			required["TestCollectionPrefetch/"+backend+"/"+name] = false
+		}
 		for _, name := range []string{"facade_cache_and_origin", "borrowed_composition", "query_and_model_lifetime"} {
 			required["TestCollectionFacadeSessions/"+backend+"/"+name] = false
 		}
@@ -155,13 +163,15 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 }
 
 func TestGeneratedCollectionFacadeRejectsNamespaceAndCrossModelInputs(t *testing.T) {
-	for _, kind := range []string{"method", "promoted"} {
+	for _, kind := range []string{"method", "promoted", "prefetch_type"} {
 		t.Run(kind, func(t *testing.T) {
 			spec := manyCollectionSpec()
 			if kind == "method" {
 				spec.Apps[0].Schema.Models[0].ManyToMany[0].GoName = "Save"
-			} else {
+			} else if kind == "promoted" {
 				spec.Apps[0].Schema.Models[0].Fields[0].GoName = "Labels"
+			} else {
+				spec.Apps[0].Schema.Models = append(spec.Apps[0].Schema.Models, ir.Model{Name: "owner_prefetch_query", GoName: "OwnerPrefetchQuery", Fields: []ir.Field{{Name: "name", GoName: "Name", Kind: ir.FieldText}}})
 			}
 			bundle, err := codegen.GenerateProject(spec)
 			if err == nil || len(bundle.Files()) != 0 {
@@ -181,5 +191,13 @@ func wrong(source *project.OwnersOwnerLabelsCollection, owner *project.OwnersOwn
 	output, err := generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
 	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("LabelsLabel")) {
 		t.Fatalf("cross-model collection input was not rejected: %v\n%s", err, output)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/wrong.go", []byte(`package consumer
+import "example.com/godj-project-bundle/project"
+func wrong(api project.Models){_ = api.OwnersOwner.PrefetchRelated(api.LabelsLabel.Prefetch.Owners)}
+`))
+	output, err = generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
+	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("PrefetchSelector")) {
+		t.Fatalf("cross-owner prefetch selector was not rejected: %v\n%s", err, output)
 	}
 }

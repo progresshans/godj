@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v11"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v12"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -303,6 +303,7 @@ func renderProjectRelationFacadeModel(output *bytes.Buffer, model projectRelatio
 	renderProjectRelationFacadeQuery(output, model)
 	renderProjectRelationFacadeWrapper(output, model)
 	renderProjectFacadeCollections(output, model)
+	renderProjectFacadePrefetch(output, model)
 	if model.source != nil {
 		renderProjectRelationFacadeSelector(output, model)
 		renderProjectRelationFacadeEager(output, model)
@@ -316,6 +317,9 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 		fmt.Fprintf(output, "\tRelated %sRelationSelectors\n", model.surface)
 	} else {
 		fmt.Fprintf(output, "type %s struct {\n", model.queryType)
+	}
+	if len(model.collections) > 0 {
+		fmt.Fprintf(output, "Prefetch %sPrefetchSelectors\n", model.surface)
 	}
 	fmt.Fprintln(output, "\tstate *relationFacadeState")
 	fmt.Fprintf(output, "\tquery orm.QuerySet[%s]\n", rawType)
@@ -343,6 +347,13 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 		}
 		fmt.Fprintln(output, "}")
 
+	}
+	if len(model.collections) > 0 {
+		fmt.Fprintln(output, "if _state != nil {")
+		for _, relation := range model.collections {
+			fmt.Fprintf(output, "_result.Prefetch.%s = %sPrefetchSelector{state:_state,selection:_state.collections.%s}\n", relation.selector, model.surface, relation.surface)
+		}
+		fmt.Fprintln(output, "}")
 	}
 	fmt.Fprintln(output, "\treturn _result")
 	fmt.Fprintln(output, "}")

@@ -28,7 +28,7 @@ cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 �
 
 ## 현재와 다음
 
-[독립 Django runner](../conformance/runners/django/many_to_many_reference.py)의 36개 관찰을 양 DB에서 확보했다.
+[독립 Django runner](../conformance/runners/django/many_to_many_reference.py)의 41개 관찰을 양 DB에서 확보했다.
 Columnless 선언·자동 through, 중복 add·실제 두 연결의 동시 add, set의 retained identity·payload·늦은 오류 rollback,
 자기 관계·조회 중복·cache snapshot·실제 historical migration과 signal을 관찰한다. GoDj의 구현 증거로 세지 않는다.
 Native conflict insert를 공통 AST·양 DB·ordinary/relation/coordinated session에 연결하고 영향 normal/race/CGO=0을 통과했다.
@@ -48,7 +48,10 @@ Generated model의 forward/reverse collection 접근자와 명시적 UsingSessio
 Native session의 lifetime 검사를 공통 QuerySet·eager·projection/aggregate와 model/view에 적용하고 outer commit 소유권을 유지한다.
 일반 mixed 관계 조건을 같은 typed/dynamic AST에 연결했다. 한 Filter/연속 Filter의 alias·부정 EXISTS·nullable multiplicity와
 manager core filter를 고정 reference에 비교한다. QueryRelation/ChainRelations/BindRelations로 통합했고 reverse query adapter를 제거했다.
-ManyToMany prefetch와 Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
+직접 ManyToMany prefetch와 generated typed/path selector를 연결했다. 기존 through query·target eager projection으로 묶어서 읽으며
+nullable duplicate·양방향/self·owner multiplicity·전체 성공 후 cache publication과 materialization별 소유권을 유지한다.
+일반 빌린 session에서도 읽을 수 있고 relation capability 없는 변경은 빈 입력도 거부한다.
+중첩/filtered child prefetch·eager와의 tree 통합, Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

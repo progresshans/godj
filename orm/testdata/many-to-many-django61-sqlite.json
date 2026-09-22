@@ -224,6 +224,103 @@
       ],
       "set_retained_all_ids": true
     },
+    "prefetch_cache": {
+      "after_add": [
+        "a",
+        "b",
+        "c"
+      ],
+      "duplicate_snapshot": [
+        "a",
+        "b"
+      ],
+      "held_snapshot": [
+        "a",
+        "b"
+      ],
+      "other_owner": [
+        "b"
+      ],
+      "refined": [
+        "a"
+      ]
+    },
+    "prefetch_membership": [
+      [
+        "a",
+        "b"
+      ],
+      [],
+      [
+        "b"
+      ],
+      [
+        "a",
+        "b"
+      ]
+    ],
+    "prefetch_nullable": {
+      "batch_queries": 2,
+      "forward": [
+        [],
+        [
+          "a",
+          "a",
+          "b"
+        ],
+        []
+      ],
+      "reverse": [
+        [
+          "mixed",
+          "mixed"
+        ],
+        [
+          "mixed"
+        ],
+        []
+      ],
+      "warm_queries": 0
+    },
+    "prefetch_queries": {
+      "after_mutation": 1,
+      "batch": 1,
+      "empty": 0,
+      "refined": 1,
+      "warm": 0
+    },
+    "prefetch_self": {
+      "batch_queries": 3,
+      "followers": [
+        [
+          "z"
+        ],
+        [
+          "x"
+        ],
+        []
+      ],
+      "follows": [
+        [
+          "y"
+        ],
+        [],
+        [
+          "x"
+        ]
+      ],
+      "friends": [
+        [
+          "x",
+          "y"
+        ],
+        [
+          "x"
+        ],
+        []
+      ],
+      "warm_queries": 0
+    },
     "query_boolean_order": {
       "double_not_pair": [],
       "negative_first": [],

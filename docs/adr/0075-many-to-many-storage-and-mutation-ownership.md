@@ -82,13 +82,13 @@ DB가 허용하는 동시 duplicate를 숨은 constraint나 retry로 바꾸지 �
 확인된 commit 뒤 늦은 context 취소로 결과를 실패로 바꾸지 않는다. 외부 transaction과의 명시적 composition은 아래의 session binding을 따른다.
 
 `Query()`는 동일 Query AST의 physical reverse join으로 target을 읽는다. 선택한 nullable FK의 metadata도 유지하며,
-명시적 through의 duplicate는 `Distinct()` 요청 전까지 보존한다. 일반 traversal 조건은 아래의 공통 관계 조회를 따르며 ManyToMany prefetch는 후속 범위다.
+명시적 through의 duplicate는 `Distinct()` 요청 전까지 보존한다. 일반 traversal 조건과 일괄 조회는 아래의 공통 관계 조회·prefetch를 따른다.
 Collection handle의 query cache는 mutex 아래 교체한다. Mutation 시작과 종료 모두 무효화하므로 실패·취소·unknown outcome이나
 이전 in-flight 조회가 현재 handle에 오래된 cache를 남기지 않는다. 이미 반환한 QuerySet, 다른 owner materialization과 Fresh는
 독립 snapshot을 소유하며 pointer handle의 zero/value-copy는 오류다.
 
 독립 Django 관찰은 nullable/nonunique through의 set/remove/clear/reverse clear와 연결 행의 incoming 정책까지 확장했다.
-통합 facade/session composition과 prefetch·Ticket 소비자·signal 완료를 구분한다.
+통합 facade/session composition과 직접 관계 prefetch, 남은 중첩 prefetch·Ticket 소비자·signal 완료를 구분한다.
 
 ## 공통 관계 조회와 필터별 연결 행
 
@@ -130,6 +130,9 @@ Typed target은 같은 origin의 model만 허용하며 다른 model 타입은 Go
 
 Root `Using(backend)`와 `UsingSession(session)`은 transaction 소유권이 다르다. 빌린 session을 root constructor로 넘기거나
 root backend를 session constructor에 넘기면 거부한다. `ManyToMany.InSession(session, owner)`도 같은 명시적 경계를 가진다.
+빌린 manager의 읽기는 `db.Session`과 lifetime capability를 요구한다. 변경은 실제 전달된 객체가 `db.RelationSession`을
+제공할 때만 허용한다. 없는 경우 빈 add/remove도 명시 오류이며 root transaction으로 우회하지 않는다. PostgreSQL의 native
+ordinary session도 relation capability를 제공하므로 callback 이름으로 쓰기 가능 여부를 추측하지 않는다.
 빌린 manager는 전달된 relation session에서 기존 집합 변경 알고리즘을 직접 실행한다. BEGIN/COMMIT/ROLLBACK·재시도나
 새로운 fence 획득을 하지 않는다. 이 경우 nil error는 provisional이다. Caller는 오류를 바깥 callback으로 전파하고,
 확인된 outer commit 이후에만 결과를 게시해야 한다. Savepoint 또는 자체 부분 rollback으로 가장하지 않는다.
@@ -145,6 +148,32 @@ capability가 아니며, 빌린 collection/model binding은 없으면 명시적�
 이는 이미 반환한 raw Go 값의 관찰을 막거나 rollback 때 사용자 메모리를 되돌린다는 뜻이 아니다. 그런 값 역시 provisional이며
 commit 확인과 외부 publication은 outer owner의 책임이다. 독립 root materialization의 cache를 session 변경으로 전역 갱신하지 않는다.
 Root cache를 새로 읽어야 하면 Fresh 또는 명시적 Invalidate를 사용한다.
+
+## 직접 컬렉션 prefetch
+
+2026-09-23, bound `ManyToMany.Prefetch`와 `PrefetchInSession`은 저장된 owner snapshot의 순서와 중복을 유지하며
+각 owner의 독립 collection handle을 반환한다. 정렬한 고유 owner key를 999개씩 묶고 기존 through QuerySet에 owner IN과
+non-null target 조건을 적용한다. 선택한 target FK의 기존 eager projection으로 target을 같은 SQL에서 읽는다.
+새 SQL dialect 경로를 만들지 않으며 원래 through의 서로 다른 행이 같은 target을 가리켜도 duplicate를 보존한다.
+
+전체 owner의 key와 descriptor를 I/O 전에 검증한다. 반환 through 행의 owner는 현재 batch에 속해야 하며 동일 through PK의
+재출현은 오류다. 모든 batch·선택 관계·context·session 검사를 마친 뒤에만 source와 cache를 함께 반환한다.
+늦은 batch 실패나 취소에서 prefix를 반환하지 않는다. 빈 owner 입력은 SQL 없이 같은 binding/lifetime 검사를 수행한다.
+
+공통 `PrefetchRelated`는 owner query와 여러 direct selection의 평가 cache를 소유한다. Generated facade의 typed
+`Prefetch` selector와 `PrefetchRelatedPaths`는 같은 runtime으로 연결하며 다른 origin/model이나 미지원 경로를 거부한다.
+Facade ABI는 v12다. 같은 selection은 한 번만 읽고 owner query의 multiplicity·Distinct·정렬·슬라이스를 보존한다.
+Cold Count는 owner 행만 세고 cold First는 명시적 정렬 아래 owner 한 행으로 제한한다. 성공한 All 뒤에는 같은 평가를 공유한다.
+실패한 평가는 source까지 다시 읽고, 파생 query와 Fresh는 새 평가를 소유한다.
+
+Cache 안의 target 값은 immutable snapshot이며 terminal마다 복제한다. 반환 model/handle을 변경해도 다른 materialization,
+원래 query의 cache, 이미 보유한 QuerySet은 바뀌지 않는다. 변경한 handle만 cache를 무효화하며 다음 조회에서 새 membership을 읽는다.
+빌린 session의 warm/empty cache도 session 종료 뒤에는 사용할 수 없다. 세션 없는 여러 SQL 읽기를 단일 시점 snapshot이라고
+주장하지 않으며 더 강한 읽기 일관성은 caller의 transaction이 소유한다.
+
+직접 ManyToMany의 양방향·nullable/nonunique through·대칭/비대칭 self와 여러 direct selection이 현재 구현 범위다.
+중첩 collection 경로, 필터를 지정한 child prefetch, eager selection과 prefetch를 합친 tree는 다음 구현 범위로 남는다.
+고정 Django의 독립 관찰과 Go-native 소유권·실패 경로의 실행 근거는 TEST_EVIDENCE에 기록한다.
 
 ## Historical 선언 변경
 

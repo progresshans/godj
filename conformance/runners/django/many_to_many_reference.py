@@ -42,7 +42,8 @@ def observe():
                            USE_TZ=True, TIME_ZONE="UTC", LANGUAGE_CODE="en-us")
         django.setup()
         from django.db import DatabaseError, IntegrityError, connection, connections, models, transaction
-        from django.db.models import Q
+        from django.db.models import Q, prefetch_related_objects
+        from django.test.utils import CaptureQueriesContext
         from django.db.models.signals import m2m_changed
         from django.db.models.fields.related_descriptors import create_forward_many_to_many_manager
 
@@ -412,6 +413,62 @@ def observe():
             results["incoming_link_policy"] = {"clear_error": failed, "protected_link_count": protected_count,
                 "cascade_count": Cascade.objects.count(), "optional_null": optional.link_id is None,
                 "remaining": names(ranked.labels), "endpoint_count": Label.objects.count()}
+
+            clear()
+            (a, b, c), (first, second) = seed()
+            empty = Owner.objects.create(name="empty")
+            first.labels.add(a, b)
+            second.labels.add(b)
+            duplicate = Owner.objects.get(pk=first.pk)
+            batch = [first, empty, second, duplicate]
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(batch, "labels")
+            prefetch_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_membership"] = [names(owner.labels) for owner in batch]
+            warm_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects([], "labels")
+            empty_reads = len(captured)
+            held = first.labels.all()
+            with CaptureQueriesContext(connection) as captured:
+                refined = names(first.labels.filter(name="a"))
+            refined_reads = len(captured)
+            first.labels.add(c)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_cache"] = {"after_add": names(first.labels), "duplicate_snapshot": names(duplicate.labels),
+                    "other_owner": names(second.labels), "held_snapshot": sorted(value.name for value in held), "refined": refined}
+            results["prefetch_queries"] = {"batch": prefetch_reads, "warm": warm_reads, "empty": empty_reads,
+                "refined": refined_reads, "after_mutation": len(captured)}
+
+            clear()
+            (a, b, c), _ = seed()
+            loose = [LooseOwner.objects.create(name=name) for name in ("empty", "mixed", "null")]
+            for owner, label, amount in [(loose[1], a, 1), (loose[1], b, 2), (loose[1], a, 3),
+                                         (loose[1], None, 4), (loose[2], None, 5), (None, a, 6)]:
+                LooseLink.objects.create(owner=owner, label=label, amount=amount)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(loose, "labels")
+                prefetch_related_objects([a, b, c], "loose_owners")
+            batch_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                forward = [names(owner.labels) for owner in loose]
+                reverse = [names(label.loose_owners) for label in (a, b, c)]
+            results["prefetch_nullable"] = {"forward": forward, "reverse": reverse, "batch_queries": batch_reads, "warm_queries": len(captured)}
+
+            clear()
+            nodes = [Node.objects.create(name=name) for name in ("x", "y", "z")]
+            nodes[0].friends.add(nodes[0], nodes[1])
+            nodes[0].follows.add(nodes[1])
+            nodes[2].follows.add(nodes[0])
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(nodes, "friends", "follows", "followers")
+            batch_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_self"] = {name: [names(getattr(node, name)) for node in nodes] for name in ("friends", "follows", "followers")}
+            results["prefetch_self"]["batch_queries"] = batch_reads
+            results["prefetch_self"]["warm_queries"] = len(captured)
+            clear()
 
             from django.db import migrations
             from django.db.migrations.state import ProjectState
