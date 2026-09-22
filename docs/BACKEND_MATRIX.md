@@ -38,7 +38,7 @@ Insert/update의 non-PK 충돌은 `integrity_error/unique_constraint`이며 nati
 공통 ORM의 생성·수정 고유성 사전 검증은 같은 typed mutation과 양 DB exact 조회를 사용하며 저장 제약을 대체하지 않는다.
 Form/Admin/API는 확인된 입력 거부를 field/non-field 진단으로 전달한다. Helpdesk 외부 UUID의 실제 migration·양 DB HTTP
 소비자와 SQLite 기반 generated client를 연결했다. 실행 오류·취소·rollback 실패는 입력 오류로 바꾸지 않는다.
-Column uniqueness 통합은 [GDJ-0095](../work/0095-model-uniqueness.md)에서 완료했다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
+Column uniqueness 통합은 [GDJ-0095](../work/0095-model-uniqueness.md), named 제약·Label 소비자 통합은 [GDJ-0097](../work/0097-composite-uniqueness-and-labels.md)에서 완료했다. [제약 소유권](adr/0072-column-uniqueness-and-constraint-ownership.md)을 따른다.
 OneToOne은 Unique FK와 별도 cardinality를 보존하며 default/named/hidden reverse와 required/nullable 선언을 지원한다.
 `AlterFieldRelation` capability는 같은 target/delete policy에서 cardinality·reverse 이름과 관련 Unique 변경을 실행한다.
 Unique가 그대로면 metadata-only이며 달라지면 실제 DDL이 필요하다. 기존 중복에 의한 적용 실패는 행·catalog·recorder/revision을 보존한다.

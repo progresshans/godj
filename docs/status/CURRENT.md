@@ -2,10 +2,8 @@
 
 - 갱신: 2026-09-22
 - 활성 구현: [GDJ-0098 CASCADE와 TicketLabel 연결](../../work/0098-cascade-and-ticket-label-links.md)
-- 통합 중: [GDJ-0097 모델 복합 고유성과 Category 라벨](../../work/0097-composite-uniqueness-and-labels.md)
-- 최근 완료: [GDJ-0096 일대일 관계와 티켓 작업 보고서](../../work/0096-one-to-one-service-reports.md)
-- 최근 전체 검증: [ServiceReport 연결 Hosted full](https://github.com/progresshans/godj/actions/runs/35652494345), source `4f92d68869d5491c4b56e83da40b79a4c7866bb7`
-- 진행 중 통합: [복합 고유성·Label Hosted full](https://github.com/progresshans/godj/actions/runs/35678713385), source `231260c5116bb7cfe157cab54ceb404e05c8ba43`
+- 최근 완료: [GDJ-0097 모델 복합 고유성과 Category 라벨](../../work/0097-composite-uniqueness-and-labels.md)
+- 최근 전체 검증: [복합 고유성·Label Hosted full](https://github.com/progresshans/godj/actions/runs/35678713385), source `231260c5116bb7cfe157cab54ceb404e05c8ba43`
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -21,18 +19,17 @@ ORM의 복합 사전 검증은 부분 수정의 생략 member·기본값을 포�
 Category별 Label의 모델·migration·Admin CRUD·API 검색/페이지/CRUD·OpenAPI·독립 client를 연결했다.
 Form/API가 받지 않는 Category도 transaction에서 확인하고 전체 조합에 포함한다. 양 DB와 독립 client의 영향 범위 로컬 검증을 완료했다.
 첫 Hosted full에서 누락된 외부 migration backend fixture의 새 제약 메서드를 찾아 수정했다.
-외부 소비자의 정상/오용 compile 검증은 로컬에서 다시 통과했다. 수정 source로 전체 통합을 실행 중이며 terminal 결과는 아직 없다.
+외부 소비자의 정상/오용 compile 검증을 다시 통과했고 수정 source의 Hosted full도 최종 전체 판정까지 완료했다.
 
-다음 기반인 CASCADE의 독립 Django 관찰을 저장했다. 보호된 후손·중복 경로·숨긴 역관계·required/nullable 순환과
-늦은 실패 rollback을 양 DB에서 확인했다. GDJ-0098의 제품 구현은 아직 시작 단계이며 지원 기능으로 올리지 않는다.
+CASCADE의 독립 기준은 보호된 후손·중복 경로·숨긴 역관계·required/nullable 순환과 늦은 실패 rollback을 포함한다.
+GDJ-0098의 선언·historical 정책 변경과 양 DB FK 검사 시점을 구현 중이며 전체 삭제 엔진과 TicketLabel 소비자는 아직 남아 있다.
 
 지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
-위 Hosted 결과는 명시한 source의 OneToOne/ServiceReport 검증이며 이후 복합 고유성의 제품 검증으로 옮기지 않는다.
+위 Hosted 결과는 명시한 source의 복합 고유성·Label 검증이며 이후 CASCADE 변경의 검증으로 옮기지 않는다.
 
 ## 다음 행동
 
-진행 중인 GDJ-0097 Hosted full의 같은 run에서 필수 환경·owner·실패 경로와 terminal 결과를 확인한다.
 GDJ-0098은 CASCADE의 native FK 검사 시점·historical 변경과 공통 ORM의 재귀 삭제 그래프를 함께 구현한다.
 두 작업의 source와 검증 범위를 구분하며 현재 확인된 외부 blocker는 없다.
 

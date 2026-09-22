@@ -1,6 +1,6 @@
 # ADR-0072: Model uniqueness and physical constraint ownership
 
-- 상태: Accepted — column uniqueness의 GDJ-0095 통합 검증 완료. Named model constraint의 이력·양 DB native·ORM과 Label 소비자를 구현했으며 GDJ-0097 전체 통합 검증은 진행 중.
+- 상태: Accepted — column uniqueness의 GDJ-0095와 named model constraint·Label 소비자의 GDJ-0097 통합 검증 완료. Source·환경별 범위는 TEST_EVIDENCE가 소유한다.
 - 날짜: 2026-09-22
 - 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md), [GDJ-0097](../../work/0097-composite-uniqueness-and-labels.md)
 
@@ -184,12 +184,12 @@ PostgreSQL은 한 CREATE TABLE 안의 같은 column UNIQUE 선언을 병합할 �
 모든 body가 끝난 뒤에만 cursor를 전진하고, 후반 오류는 table·먼저 생성된 제약·sequence·bootstrap/recorder까지 같은 transaction에서 rollback한다.
 Catalog는 전체 ordered member와 PK·FK·column Unique·다른 named 제약의 독립 소유권을 검증한다.
 일반 미선언 index를 묵시적으로 채택하거나 제거하지 않는다. 독립 Django 기준의 ordinary-index 보존 관찰은 일반 index 선언/ownership의 후속 범위다.
-전체 제품 지원과 검증은 활성 work에서 이어가며 실행 결과는 TEST_EVIDENCE에만 기록한다.
+Named 제약과 Label의 구현·통합 결과는 GDJ-0097과 TEST_EVIDENCE에 기록했다.
 
-이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.
+Column 고유성의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md), named 제약과 Label은 [GDJ-0097](../../work/0097-composite-uniqueness-and-labels.md)에서 완료했다.
 실행 source와 환경별 결과는 TEST_EVIDENCE가 소유하며 이후 변경의 검증으로 옮겨 쓰지 않는다.
 
-Named composite의 전체 통합 검증, conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
+Conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 명시적 OneToOne의 후속 의미와 현재 구현 범위는 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.
 이 ADR의 양 DB 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.

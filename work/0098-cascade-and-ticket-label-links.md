@@ -18,7 +18,7 @@ Admin/API/client에서 두 관계의 권한과 서버가 배정한 Category를 �
 이 흐름은 [카탈로그](../docs/CAPABILITY_CATALOG.md)의 CASCADE와 다대다 관계에 필요한 연결 모델을 사용하는 실제 소비자다.
 GDJ-0097의 named 복합 고유성을 사용하고, 현재 한 단계 PROTECT/SET_NULL 삭제기를 재귀 관계 그래프로 확장한다.
 일반 ManyToMany 선언·generated 관계 관리자·add/remove/set와 조회는 계속 남은 카탈로그 범위로 관리한다.
-이번 명시적 연결 모델을 그 전체 기능의 완료로 세지 않는다. 기존 전체 통합은 고정된 GDJ-0097 source에서 계속 확인한다.
+이번 명시적 연결 모델을 그 전체 기능의 완료로 세지 않는다. 선행 GDJ-0097의 전체 통합은 완료했으며 새 CASCADE 변경은 별도로 검증한다.
 
 ## 구현 조건
 

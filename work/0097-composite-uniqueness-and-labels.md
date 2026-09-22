@@ -1,6 +1,6 @@
 ---
 id: GDJ-0097
-status: active
+status: completed
 updated: 2026-09-22
 baseline_commit: "4f92d68869d5491c4b56e83da40b79a4c7866bb7"
 integration_owner: "root"
@@ -28,7 +28,7 @@ Helpdesk의 각 Category에 라벨 사전을 두고 같은 Category 안에서만
 - [x] SQLite/PostgreSQL native 복합 UNIQUE와 물리 ownership 검증, table remake·named index/constraint·target schema 보존
 - [x] 공통 ORM 사전 검증과 self exclusion, 확인된 중복/실행 오류 구분·native race·취소·rollback/unknown outcome
 - [x] Label 모델·migration·scoped Admin/API/OpenAPI/client와 명시적 permission·CSRF
-- [ ] generated drift·양 DB·관련 race/CGO/process와 필요한 통합 검증, source·환경별 증거와 제한 기록
+- [x] generated drift·양 DB·관련 race/CGO/process와 필요한 통합 검증, source·환경별 증거와 제한 기록
 
 ## 현재와 다음
 
@@ -53,7 +53,9 @@ SQL NULL tuple과 생성 전 Auto PK를 구분한다. 단일 member는 field/uni
 Label은 name·server-owned category와 `(category, name)` 제약을 선언한다. 실제 생성된 0018 migration의 적용·역방향·재적용과
 기존 행 보존, category PROTECT를 검사했다. Admin/API는 name만 받고 category는 transaction에서 다시 확인한다.
 검색·페이지·CRUD·권한/CSRF·진단/실행 오류·unknown outcome을 실제 양 DB HTTP와 독립 client로 확인했다.
-다음은 source를 고정한 Hosted full 통합 milestone이다. 현재 영향 범위 로컬 검증을 전체 플랫폼 검증으로 합치지 않는다.
+Source `231260c5116bb7cfe157cab54ceb404e05c8ba43`의 [Hosted full](https://github.com/progresshans/godj/actions/runs/35678713385)에서
+필수 환경·owner·외부 소비자와 최종 전체 판정을 확인해 통합 milestone을 완료했다.
+다음 구현은 [GDJ-0098 CASCADE와 TicketLabel 연결](0098-cascade-and-ticket-label-links.md)이며 이후 source의 별도 검증을 필요로 한다.
 Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 기존 내부 형식이나 테스트 모양을 보존하려고 별도의 호환 계층을 만들지 않는다.
 API 표면과 제약의 지원 범위는 실제 소비자·양 DB 실패 의미를 확인하면서 정하며, 사전 검사만으로 고유성을 보장하지 않는다.

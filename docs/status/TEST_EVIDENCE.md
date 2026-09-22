@@ -3,6 +3,24 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — 복합 고유성·Label의 Hosted 전체 통합 완료
+
+2026-09-22, source `231260c5116bb7cfe157cab54ceb404e05c8ba43`의
+[Hosted full run 35678713385](https://github.com/progresshans/godj/actions/runs/35678713385)은 **62/62 job success**로 종료했다.
+그 source의 workflow에서 matrix를 전개해 기대 이름 62개를 계산하고 실제 이름의 누락·중복·추가가 없음을 확인했다.
+각 job의 전체 로그에서 실제 checkout SHA를 대조했다. 최종 job `106599463713`의 실행 출력은
+`scope=full`, `full_platform_verified=true`이며 command·conformance·exact Darwin·portable Go·PostgreSQL·project check·Python compatibility·relation의
+필수 owner 8개를 모두 포함한다.
+
+PostgreSQL 17.10 core normal/race/CGO=0은 **각 13 package / 2,292 run=PASS / skip 0**,
+operator-target은 **각 2 package / 12 run=PASS / skip 0**이다. Named constraint 10개와 Label historical/HTTP 하위 검사를 포함한
+현재 source의 필수 선택·inventory 검사를 실행했다. Intel macOS relation race는 **31 package / 5,443 run=PASS / skip 0**이며,
+exact Darwin Python은 **318 tests / skip 0**이다. 나머지 platform·mode, generated/외부 소비자·cold CLI·same-run capture와 최종 gate도 완료했다.
+
+원본은 `godj-composite-uniqueness-9yzkn6xp/labels/hosted-35678713385/`의 job별 전체 log와 `log-audit.json`에
+source·로그 hash·inventory·기대 roster·최종 scope 판정을 보관한다. 첫 run의 compile 실패와 대체 취소는 별도 실패 이력으로 유지한다.
+GDJ-0097을 완료 처리한다. 이후 commit의 CASCADE 독립 reference 및 진행 중인 native/ORM 변경은 이 full 결과에 포함되지 않는다.
+
 ## GDJ-0098 — CASCADE의 독립 기준과 재귀 삭제 설계
 
 2026-09-22, 기준 `911740f8bc68469160dd6c2ebe7ca94104bdf536`에서 직접 작성한
