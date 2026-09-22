@@ -44,7 +44,7 @@ func TestGeneratedNestedForwardConsumer(t *testing.T) {
 	}
 	writeGeneratedTestFile(t, root, "consumer/reference.json", reference)
 	command := generatedGoCommand(t.Context(), root, "test", "-json", "-mod=mod", "./consumer")
-	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), "TestGeneratedNestedForwardReference", "TestGeneratedNestedForwardInvalidRoutes", "TestGeneratedNestedForwardDerivation")
+	assertGeneratedConsumerTests(t, runStrictGeneratedCommand(t, command), "TestGeneratedNestedForwardReference", "TestGeneratedNestedForwardInvalidRoutes", "TestGeneratedNestedForwardDerivation", "TestGeneratedMixedCollectionRoutes")
 	writeGeneratedTestFile(t, root, "wrong/wrong.go", []byte(`package wrong
 import (
  "example.com/godj-nested-forward/blog"
@@ -52,12 +52,12 @@ import (
  "example.com/godj-nested-forward/directory"
  "github.com/progresshans/godj/orm"
 )
-func bad(prefix orm.ForwardRelation[blog.Post,people.Person],suffix orm.ForwardRelation[directory.Team,directory.Organization]){
- _ = orm.ChainForward(prefix,suffix)
+func bad(prefix orm.QueryRelation[blog.Post,people.Person],suffix orm.QueryRelation[directory.Team,directory.Organization]){
+ _ = orm.ChainRelations(prefix,suffix)
 }
 `))
 	output, err := generatedGoCommand(t.Context(), root, "build", "-mod=mod", "./wrong").CombinedOutput()
-	if err == nil || !bytes.Contains(output, []byte("ChainForward")) || !bytes.Contains(output, []byte("does not match")) {
+	if err == nil || !bytes.Contains(output, []byte("ChainRelations")) || !bytes.Contains(output, []byte("does not match")) {
 		t.Fatalf("intermediate Go type mismatch was not rejected: %v\n%s", err, output)
 	}
 }

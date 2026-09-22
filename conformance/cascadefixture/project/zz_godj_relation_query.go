@@ -9,35 +9,38 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
+const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"
 
 type relationQueryBindings struct {
-	edge0  orm.ForwardRelation[details.Child, parents.Root]
-	edge1  orm.ForwardRelation[details.Detail, parents.Root]
-	edge2  orm.ForwardRelation[details.Grandchild, details.Child]
-	edge3  orm.ForwardRelation[details.Hidden, parents.Root]
-	edge4  orm.ForwardRelation[details.Overlap, parents.Root]
-	edge5  orm.ForwardRelation[details.Overlap, parents.Root]
-	edge6  orm.ForwardRelation[details.Protected, details.Grandchild]
-	edge7  orm.ForwardRelation[details.RequiredRight, parents.RequiredLeft]
-	edge8  orm.ForwardRelation[details.Right, parents.Left]
-	edge9  orm.ForwardRelation[details.Twin, parents.Root]
-	edge10 orm.ForwardRelation[details.Twin, parents.Root]
-	edge11 orm.ForwardRelation[details.Watcher, details.Child]
-	edge12 orm.ForwardRelation[parents.Left, details.Right]
-	edge13 orm.ForwardRelation[parents.Node, parents.Node]
-	edge14 orm.ForwardRelation[parents.RequiredLeft, details.RequiredRight]
-	edge16 orm.ForwardRelation[parents.RootLabels, parents.Label]
-	edge15 orm.ForwardRelation[parents.RootLabels, parents.Root]
+	edge0  orm.QueryRelation[details.Child, details.Grandchild]
+	edge1  orm.QueryRelation[details.Child, parents.Root]
+	edge2  orm.QueryRelation[details.Detail, parents.Root]
+	edge3  orm.QueryRelation[details.Grandchild, details.Child]
+	edge4  orm.QueryRelation[details.Hidden, parents.Root]
+	edge5  orm.QueryRelation[details.Overlap, parents.Root]
+	edge6  orm.QueryRelation[details.Overlap, parents.Root]
+	edge7  orm.QueryRelation[details.Protected, details.Grandchild]
+	edge8  orm.QueryRelation[details.RequiredRight, parents.RequiredLeft]
+	edge9  orm.QueryRelation[details.Right, parents.Left]
+	edge10 orm.QueryRelation[details.Twin, parents.Root]
+	edge11 orm.QueryRelation[details.Twin, parents.Root]
+	edge12 orm.QueryRelation[details.Watcher, details.Child]
+	edge13 orm.QueryRelation[parents.Left, details.Right]
+	edge14 orm.QueryRelation[parents.Node, parents.Node]
+	edge15 orm.QueryRelation[parents.RequiredLeft, details.RequiredRight]
+	edge16 orm.QueryRelation[parents.Root, details.Child]
+	edge17 orm.QueryRelation[parents.Root, details.Detail]
+	edge18 orm.QueryRelation[parents.RootLabels, parents.Label]
+	edge19 orm.QueryRelation[parents.RootLabels, parents.Root]
 }
 type DetailsChildRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, details.Child]
+	route            orm.QueryRelation[S, details.Child]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 }
 
-func newDetailsChildRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, details.Child]) DetailsChildRelatedFields[S] {
+func newDetailsChildRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, details.Child]) DetailsChildRelatedFields[S] {
 	_result := DetailsChildRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(details.ChildFields.ID)
 	if _result.configurationErr == nil {
@@ -50,22 +53,57 @@ func newDetailsChildRelatedFields[S any](_bindings *relationQueryBindings, _rout
 func (_fields DetailsChildRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
-func (_fields DetailsChildRelatedFields[S]) Root() ParentsRootRelatedFields[S] {
-	var _next orm.ForwardRelation[details.Child, parents.Root]
+func (_fields DetailsChildRelatedFields[S]) Grandchildren() DetailsGrandchildRelatedFields[S] {
+	var _next orm.QueryRelation[details.Child, details.Grandchild]
 	if _fields.bindings != nil {
 		_next = _fields.bindings.edge0
 	}
-	return newParentsRootRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newDetailsGrandchildRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields DetailsChildRelatedFields[S]) Root() ParentsRootRelatedFields[S] {
+	var _next orm.QueryRelation[details.Child, parents.Root]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newParentsRootRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
-type DetailsGrandchildRelatedFields[S any] struct {
+type DetailsDetailRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, details.Grandchild]
+	route            orm.QueryRelation[S, details.Detail]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 }
 
-func newDetailsGrandchildRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, details.Grandchild]) DetailsGrandchildRelatedFields[S] {
+func newDetailsDetailRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, details.Detail]) DetailsDetailRelatedFields[S] {
+	_result := DetailsDetailRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(details.DetailFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields DetailsDetailRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields DetailsDetailRelatedFields[S]) Root() ParentsRootRelatedFields[S] {
+	var _next orm.QueryRelation[details.Detail, parents.Root]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge2
+	}
+	return newParentsRootRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type DetailsGrandchildRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, details.Grandchild]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+}
+
+func newDetailsGrandchildRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, details.Grandchild]) DetailsGrandchildRelatedFields[S] {
 	_result := DetailsGrandchildRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(details.GrandchildFields.ID)
 	if _result.configurationErr == nil {
@@ -79,21 +117,21 @@ func (_fields DetailsGrandchildRelatedFields[S]) IsNull(_value bool) orm.Predica
 	return _fields.route.IsNull(_value)
 }
 func (_fields DetailsGrandchildRelatedFields[S]) Child() DetailsChildRelatedFields[S] {
-	var _next orm.ForwardRelation[details.Grandchild, details.Child]
+	var _next orm.QueryRelation[details.Grandchild, details.Child]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge2
+		_next = _fields.bindings.edge3
 	}
-	return newDetailsChildRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newDetailsChildRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type DetailsRequiredRightRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, details.RequiredRight]
+	route            orm.QueryRelation[S, details.RequiredRight]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 }
 
-func newDetailsRequiredRightRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, details.RequiredRight]) DetailsRequiredRightRelatedFields[S] {
+func newDetailsRequiredRightRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, details.RequiredRight]) DetailsRequiredRightRelatedFields[S] {
 	_result := DetailsRequiredRightRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(details.RequiredRightFields.ID)
 	if _result.configurationErr == nil {
@@ -107,21 +145,21 @@ func (_fields DetailsRequiredRightRelatedFields[S]) IsNull(_value bool) orm.Pred
 	return _fields.route.IsNull(_value)
 }
 func (_fields DetailsRequiredRightRelatedFields[S]) Left() ParentsRequiredLeftRelatedFields[S] {
-	var _next orm.ForwardRelation[details.RequiredRight, parents.RequiredLeft]
+	var _next orm.QueryRelation[details.RequiredRight, parents.RequiredLeft]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge7
+		_next = _fields.bindings.edge8
 	}
-	return newParentsRequiredLeftRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newParentsRequiredLeftRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type DetailsRightRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, details.Right]
+	route            orm.QueryRelation[S, details.Right]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 }
 
-func newDetailsRightRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, details.Right]) DetailsRightRelatedFields[S] {
+func newDetailsRightRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, details.Right]) DetailsRightRelatedFields[S] {
 	_result := DetailsRightRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(details.RightFields.ID)
 	if _result.configurationErr == nil {
@@ -135,22 +173,22 @@ func (_fields DetailsRightRelatedFields[S]) IsNull(_value bool) orm.Predicate[S]
 	return _fields.route.IsNull(_value)
 }
 func (_fields DetailsRightRelatedFields[S]) Left() ParentsLeftRelatedFields[S] {
-	var _next orm.ForwardRelation[details.Right, parents.Left]
+	var _next orm.QueryRelation[details.Right, parents.Left]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge8
+		_next = _fields.bindings.edge9
 	}
-	return newParentsLeftRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newParentsLeftRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type ParentsLabelRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, parents.Label]
+	route            orm.QueryRelation[S, parents.Label]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 	Name             orm.RelatedStringField[S]
 }
 
-func newParentsLabelRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, parents.Label]) ParentsLabelRelatedFields[S] {
+func newParentsLabelRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, parents.Label]) ParentsLabelRelatedFields[S] {
 	_result := ParentsLabelRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(parents.LabelFields.ID)
 	if _result.configurationErr == nil {
@@ -171,12 +209,12 @@ func (_fields ParentsLabelRelatedFields[S]) IsNull(_value bool) orm.Predicate[S]
 
 type ParentsLeftRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, parents.Left]
+	route            orm.QueryRelation[S, parents.Left]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 }
 
-func newParentsLeftRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, parents.Left]) ParentsLeftRelatedFields[S] {
+func newParentsLeftRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, parents.Left]) ParentsLeftRelatedFields[S] {
 	_result := ParentsLeftRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(parents.LeftFields.ID)
 	if _result.configurationErr == nil {
@@ -190,21 +228,21 @@ func (_fields ParentsLeftRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] 
 	return _fields.route.IsNull(_value)
 }
 func (_fields ParentsLeftRelatedFields[S]) Right() DetailsRightRelatedFields[S] {
-	var _next orm.ForwardRelation[parents.Left, details.Right]
+	var _next orm.QueryRelation[parents.Left, details.Right]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge12
+		_next = _fields.bindings.edge13
 	}
-	return newDetailsRightRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newDetailsRightRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type ParentsNodeRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, parents.Node]
+	route            orm.QueryRelation[S, parents.Node]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 }
 
-func newParentsNodeRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, parents.Node]) ParentsNodeRelatedFields[S] {
+func newParentsNodeRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, parents.Node]) ParentsNodeRelatedFields[S] {
 	_result := ParentsNodeRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(parents.NodeFields.ID)
 	if _result.configurationErr == nil {
@@ -218,21 +256,21 @@ func (_fields ParentsNodeRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] 
 	return _fields.route.IsNull(_value)
 }
 func (_fields ParentsNodeRelatedFields[S]) Parent() ParentsNodeRelatedFields[S] {
-	var _next orm.ForwardRelation[parents.Node, parents.Node]
+	var _next orm.QueryRelation[parents.Node, parents.Node]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge13
+		_next = _fields.bindings.edge14
 	}
-	return newParentsNodeRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newParentsNodeRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type ParentsRequiredLeftRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, parents.RequiredLeft]
+	route            orm.QueryRelation[S, parents.RequiredLeft]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 }
 
-func newParentsRequiredLeftRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, parents.RequiredLeft]) ParentsRequiredLeftRelatedFields[S] {
+func newParentsRequiredLeftRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, parents.RequiredLeft]) ParentsRequiredLeftRelatedFields[S] {
 	_result := ParentsRequiredLeftRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(parents.RequiredLeftFields.ID)
 	if _result.configurationErr == nil {
@@ -246,22 +284,22 @@ func (_fields ParentsRequiredLeftRelatedFields[S]) IsNull(_value bool) orm.Predi
 	return _fields.route.IsNull(_value)
 }
 func (_fields ParentsRequiredLeftRelatedFields[S]) Right() DetailsRequiredRightRelatedFields[S] {
-	var _next orm.ForwardRelation[parents.RequiredLeft, details.RequiredRight]
+	var _next orm.QueryRelation[parents.RequiredLeft, details.RequiredRight]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge14
+		_next = _fields.bindings.edge15
 	}
-	return newDetailsRequiredRightRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newDetailsRequiredRightRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type ParentsRootRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, parents.Root]
+	route            orm.QueryRelation[S, parents.Root]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 	Name             orm.RelatedStringField[S]
 }
 
-func newParentsRootRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, parents.Root]) ParentsRootRelatedFields[S] {
+func newParentsRootRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, parents.Root]) ParentsRootRelatedFields[S] {
 	_result := ParentsRootRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(parents.RootFields.ID)
 	if _result.configurationErr == nil {
@@ -279,10 +317,25 @@ func newParentsRootRelatedFields[S any](_bindings *relationQueryBindings, _route
 func (_fields ParentsRootRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields ParentsRootRelatedFields[S]) Children() DetailsChildRelatedFields[S] {
+	var _next orm.QueryRelation[parents.Root, details.Child]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge16
+	}
+	return newDetailsChildRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields ParentsRootRelatedFields[S]) Detail() DetailsDetailRelatedFields[S] {
+	var _next orm.QueryRelation[parents.Root, details.Detail]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge17
+	}
+	return newDetailsDetailRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
 
 type DetailsChildRelations struct {
-	Root  ParentsRootRelatedFields[details.Child]
-	model orm.BoundModel[details.Child]
+	Grandchildren DetailsGrandchildRelatedFields[details.Child]
+	Root          ParentsRootRelatedFields[details.Child]
+	model         orm.BoundModel[details.Child]
 }
 
 func (_relations DetailsChildRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[details.Child], error) {
@@ -399,6 +452,16 @@ func (_relations ParentsRequiredLeftRelations) ParseDynamic(_policy orm.LookupPo
 	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
+type ParentsRootRelations struct {
+	Children DetailsChildRelatedFields[parents.Root]
+	Detail   DetailsDetailRelatedFields[parents.Root]
+	model    orm.BoundModel[parents.Root]
+}
+
+func (_relations ParentsRootRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[parents.Root], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
 type ParentsRootLabelsRelations struct {
 	Label ParentsLabelRelatedFields[parents.RootLabels]
 	Root  ParentsRootRelatedFields[parents.RootLabels]
@@ -423,6 +486,7 @@ type Relations struct {
 	ParentsLeft          ParentsLeftRelations
 	ParentsNode          ParentsNodeRelations
 	ParentsRequiredLeft  ParentsRequiredLeftRelations
+	ParentsRoot          ParentsRootRelations
 	ParentsRootLabels    ParentsRootLabelsRelations
 }
 
@@ -560,108 +624,123 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindForward(_model0, "root", _model14)
+	_relation0, _err := orm.BindQueryRelation(_model0, "grandchildren", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindForward(_model1, "root", _model14)
+	_relation1, _err := orm.BindQueryRelation(_model0, "root", _model14)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_relation2, _err := orm.BindForward(_model2, "child", _model0)
+	_relation2, _err := orm.BindQueryRelation(_model1, "root", _model14)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge2 = _relation2
-	_relation3, _err := orm.BindForward(_model3, "root", _model14)
+	_relation3, _err := orm.BindQueryRelation(_model2, "child", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge3 = _relation3
-	_relation4, _err := orm.BindForward(_model4, "cascade_root", _model14)
+	_relation4, _err := orm.BindQueryRelation(_model3, "root", _model14)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge4 = _relation4
-	_relation5, _err := orm.BindForward(_model4, "protected_root", _model14)
+	_relation5, _err := orm.BindQueryRelation(_model4, "cascade_root", _model14)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge5 = _relation5
-	_relation6, _err := orm.BindForward(_model5, "grandchild", _model2)
+	_relation6, _err := orm.BindQueryRelation(_model4, "protected_root", _model14)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge6 = _relation6
-	_relation7, _err := orm.BindForward(_model6, "left", _model13)
+	_relation7, _err := orm.BindQueryRelation(_model5, "grandchild", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge7 = _relation7
-	_relation8, _err := orm.BindForward(_model7, "left", _model11)
+	_relation8, _err := orm.BindQueryRelation(_model6, "left", _model13)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge8 = _relation8
-	_relation9, _err := orm.BindForward(_model8, "first", _model14)
+	_relation9, _err := orm.BindQueryRelation(_model7, "left", _model11)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge9 = _relation9
-	_relation10, _err := orm.BindForward(_model8, "second", _model14)
+	_relation10, _err := orm.BindQueryRelation(_model8, "first", _model14)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge10 = _relation10
-	_relation11, _err := orm.BindForward(_model9, "child", _model0)
+	_relation11, _err := orm.BindQueryRelation(_model8, "second", _model14)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge11 = _relation11
-	_relation12, _err := orm.BindForward(_model11, "right", _model7)
+	_relation12, _err := orm.BindQueryRelation(_model9, "child", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge12 = _relation12
-	_relation13, _err := orm.BindForward(_model12, "parent", _model12)
+	_relation13, _err := orm.BindQueryRelation(_model11, "right", _model7)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge13 = _relation13
-	_relation14, _err := orm.BindForward(_model13, "right", _model6)
+	_relation14, _err := orm.BindQueryRelation(_model12, "parent", _model12)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge14 = _relation14
-	_relation16, _err := orm.BindForward(_model15, "label", _model10)
-	if _err != nil {
-		return Relations{}, _err
-	}
-	_routes.edge16 = _relation16
-	_relation15, _err := orm.BindForward(_model15, "root", _model14)
+	_relation15, _err := orm.BindQueryRelation(_model13, "right", _model6)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge15 = _relation15
-	_group0 := newParentsRootRelatedFields[details.Child](_routes, _routes.edge0)
+	_relation16, _err := orm.BindQueryRelation(_model14, "children", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge16 = _relation16
+	_relation17, _err := orm.BindQueryRelation(_model14, "detail", _model1)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge17 = _relation17
+	_relation18, _err := orm.BindQueryRelation(_model15, "label", _model10)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge18 = _relation18
+	_relation19, _err := orm.BindQueryRelation(_model15, "root", _model14)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge19 = _relation19
+	_group0 := newDetailsGrandchildRelatedFields[details.Child](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
-	_group1 := newParentsRootRelatedFields[details.Detail](_routes, _routes.edge1)
+	_group1 := newParentsRootRelatedFields[details.Child](_routes, _routes.edge1)
 	if _group1.configurationErr != nil {
 		return Relations{}, _group1.configurationErr
 	}
-	_group2 := newDetailsChildRelatedFields[details.Grandchild](_routes, _routes.edge2)
+	_group2 := newParentsRootRelatedFields[details.Detail](_routes, _routes.edge2)
 	if _group2.configurationErr != nil {
 		return Relations{}, _group2.configurationErr
 	}
-	_group3 := newParentsRootRelatedFields[details.Hidden](_routes, _routes.edge3)
+	_group3 := newDetailsChildRelatedFields[details.Grandchild](_routes, _routes.edge3)
 	if _group3.configurationErr != nil {
 		return Relations{}, _group3.configurationErr
 	}
-	_group4 := newParentsRootRelatedFields[details.Overlap](_routes, _routes.edge4)
+	_group4 := newParentsRootRelatedFields[details.Hidden](_routes, _routes.edge4)
 	if _group4.configurationErr != nil {
 		return Relations{}, _group4.configurationErr
 	}
@@ -669,19 +748,19 @@ func BindRelations() (Relations, error) {
 	if _group5.configurationErr != nil {
 		return Relations{}, _group5.configurationErr
 	}
-	_group6 := newDetailsGrandchildRelatedFields[details.Protected](_routes, _routes.edge6)
+	_group6 := newParentsRootRelatedFields[details.Overlap](_routes, _routes.edge6)
 	if _group6.configurationErr != nil {
 		return Relations{}, _group6.configurationErr
 	}
-	_group7 := newParentsRequiredLeftRelatedFields[details.RequiredRight](_routes, _routes.edge7)
+	_group7 := newDetailsGrandchildRelatedFields[details.Protected](_routes, _routes.edge7)
 	if _group7.configurationErr != nil {
 		return Relations{}, _group7.configurationErr
 	}
-	_group8 := newParentsLeftRelatedFields[details.Right](_routes, _routes.edge8)
+	_group8 := newParentsRequiredLeftRelatedFields[details.RequiredRight](_routes, _routes.edge8)
 	if _group8.configurationErr != nil {
 		return Relations{}, _group8.configurationErr
 	}
-	_group9 := newParentsRootRelatedFields[details.Twin](_routes, _routes.edge9)
+	_group9 := newParentsLeftRelatedFields[details.Right](_routes, _routes.edge9)
 	if _group9.configurationErr != nil {
 		return Relations{}, _group9.configurationErr
 	}
@@ -689,77 +768,94 @@ func BindRelations() (Relations, error) {
 	if _group10.configurationErr != nil {
 		return Relations{}, _group10.configurationErr
 	}
-	_group11 := newDetailsChildRelatedFields[details.Watcher](_routes, _routes.edge11)
+	_group11 := newParentsRootRelatedFields[details.Twin](_routes, _routes.edge11)
 	if _group11.configurationErr != nil {
 		return Relations{}, _group11.configurationErr
 	}
-	_group12 := newDetailsRightRelatedFields[parents.Left](_routes, _routes.edge12)
+	_group12 := newDetailsChildRelatedFields[details.Watcher](_routes, _routes.edge12)
 	if _group12.configurationErr != nil {
 		return Relations{}, _group12.configurationErr
 	}
-	_group13 := newParentsNodeRelatedFields[parents.Node](_routes, _routes.edge13)
+	_group13 := newDetailsRightRelatedFields[parents.Left](_routes, _routes.edge13)
 	if _group13.configurationErr != nil {
 		return Relations{}, _group13.configurationErr
 	}
-	_group14 := newDetailsRequiredRightRelatedFields[parents.RequiredLeft](_routes, _routes.edge14)
+	_group14 := newParentsNodeRelatedFields[parents.Node](_routes, _routes.edge14)
 	if _group14.configurationErr != nil {
 		return Relations{}, _group14.configurationErr
 	}
-	_group16 := newParentsLabelRelatedFields[parents.RootLabels](_routes, _routes.edge16)
-	if _group16.configurationErr != nil {
-		return Relations{}, _group16.configurationErr
-	}
-	_group15 := newParentsRootRelatedFields[parents.RootLabels](_routes, _routes.edge15)
+	_group15 := newDetailsRequiredRightRelatedFields[parents.RequiredLeft](_routes, _routes.edge15)
 	if _group15.configurationErr != nil {
 		return Relations{}, _group15.configurationErr
 	}
+	_group16 := newDetailsChildRelatedFields[parents.Root](_routes, _routes.edge16)
+	if _group16.configurationErr != nil {
+		return Relations{}, _group16.configurationErr
+	}
+	_group17 := newDetailsDetailRelatedFields[parents.Root](_routes, _routes.edge17)
+	if _group17.configurationErr != nil {
+		return Relations{}, _group17.configurationErr
+	}
+	_group18 := newParentsLabelRelatedFields[parents.RootLabels](_routes, _routes.edge18)
+	if _group18.configurationErr != nil {
+		return Relations{}, _group18.configurationErr
+	}
+	_group19 := newParentsRootRelatedFields[parents.RootLabels](_routes, _routes.edge19)
+	if _group19.configurationErr != nil {
+		return Relations{}, _group19.configurationErr
+	}
 	return Relations{
 		DetailsChild: DetailsChildRelations{model: _model0,
-			Root: _group0,
+			Grandchildren: _group0,
+			Root:          _group1,
 		},
 		DetailsDetail: DetailsDetailRelations{model: _model1,
-			Root: _group1,
+			Root: _group2,
 		},
 		DetailsGrandchild: DetailsGrandchildRelations{model: _model2,
-			Child: _group2,
+			Child: _group3,
 		},
 		DetailsHidden: DetailsHiddenRelations{model: _model3,
-			Root: _group3,
+			Root: _group4,
 		},
 		DetailsOverlap: DetailsOverlapRelations{model: _model4,
-			CascadeRoot:   _group4,
-			ProtectedRoot: _group5,
+			CascadeRoot:   _group5,
+			ProtectedRoot: _group6,
 		},
 		DetailsProtected: DetailsProtectedRelations{model: _model5,
-			Grandchild: _group6,
+			Grandchild: _group7,
 		},
 		DetailsRequiredRight: DetailsRequiredRightRelations{model: _model6,
-			Left: _group7,
-		},
-		DetailsRight: DetailsRightRelations{model: _model7,
 			Left: _group8,
 		},
+		DetailsRight: DetailsRightRelations{model: _model7,
+			Left: _group9,
+		},
 		DetailsTwin: DetailsTwinRelations{model: _model8,
-			First:  _group9,
-			Second: _group10,
+			First:  _group10,
+			Second: _group11,
 		},
 		DetailsWatcher: DetailsWatcherRelations{model: _model9,
-			Child: _group11,
+			Child: _group12,
 		},
 		ParentsLeft: ParentsLeftRelations{model: _model11,
-			Right: _group12,
+			Right: _group13,
 		},
 		ParentsNode: ParentsNodeRelations{model: _model12,
-			Parent: _group13,
+			Parent: _group14,
 		},
 		ParentsRequiredLeft: ParentsRequiredLeftRelations{model: _model13,
-			Right: _group14,
+			Right: _group15,
+		},
+		ParentsRoot: ParentsRootRelations{model: _model14,
+			Children: _group16,
+			Detail:   _group17,
 		},
 		ParentsRootLabels: ParentsRootLabelsRelations{model: _model15,
-			Label: _group16,
-			Root:  _group15,
+			Label: _group18,
+			Root:  _group19,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_b948878f104b9196daec6d72046677e7e599ac381e9033e1fc3ca554be4e29c0
+var _ goDjProjectSnapshot_c93050d3caf2731a2e6e835e5a4a4264be776ef863f612d12b72100c3e61cd9d

@@ -13,7 +13,7 @@ type RelatedDurationField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (relation ForwardRelation[S, T]) Duration(field ReferenceField[T, duration.Duration]) (RelatedDurationField[S], error) {
+func (relation QueryRelation[S, T]) Duration(field ReferenceField[T, duration.Duration]) (RelatedDurationField[S], error) {
 	if err := relation.route.validate(); err != nil {
 		return RelatedDurationField[S]{}, err
 	}
@@ -27,20 +27,7 @@ func (relation ForwardRelation[S, T]) Duration(field ReferenceField[T, duration.
 	}
 	return RelatedDurationField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) Duration(field ReferenceField[Source, duration.Duration]) (RelatedDurationField[Owner], error) {
-	if err := validateReverseRelationState(relation.state); err != nil {
-		return RelatedDurationField[Owner]{}, err
-	}
-	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldDuration)
-	if err != nil {
-		return RelatedDurationField[Owner]{}, err
-	}
-	path, err := relation.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedDurationField[Owner]{}, err
-	}
-	return RelatedDurationField[Owner]{path: path, valid: true}, nil
-}
+
 func (field RelatedDurationField[M]) Exact(value duration.Duration) Predicate[M] {
 	if field.configurationErr != nil {
 		return Predicate[M]{err: field.configurationErr}

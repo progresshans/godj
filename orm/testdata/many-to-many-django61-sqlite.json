@@ -224,6 +224,127 @@
       ],
       "set_retained_all_ids": true
     },
+    "query_boolean_order": {
+      "double_not_pair": [],
+      "negative_first": [],
+      "negative_same_field": [],
+      "or_negative_first": [
+        "empty",
+        "first"
+      ],
+      "positive_first": [
+        "first"
+      ],
+      "successive_negative": [],
+      "successive_positive": []
+    },
+    "query_boolean_presence": {
+      "absent": [
+        "empty"
+      ],
+      "double_not": [
+        "first"
+      ],
+      "empty_membership": [],
+      "empty_or_root": [
+        "empty"
+      ],
+      "exclude_field_null": [],
+      "field_null": [
+        "empty",
+        "first",
+        "second"
+      ],
+      "not_a": [
+        "empty",
+        "second"
+      ],
+      "not_and": [
+        "empty",
+        "second"
+      ],
+      "not_or": [
+        "empty"
+      ],
+      "or_members": [
+        "first",
+        "first",
+        "second"
+      ],
+      "or_negative": [
+        "empty",
+        "first"
+      ],
+      "or_root": [
+        "empty",
+        "first"
+      ],
+      "positive_and_negative": [
+        "first"
+      ],
+      "present": [
+        "first",
+        "first",
+        "second"
+      ]
+    },
+    "query_filter_scopes": {
+      "reused_predicate": [
+        "first"
+      ],
+      "reverse_successive": [
+        "b"
+      ],
+      "same_filter": [],
+      "same_member_fields": [
+        "first"
+      ],
+      "successive_filters": [
+        "first"
+      ],
+      "successive_membership": [
+        "first",
+        "first",
+        "first",
+        "first",
+        "second"
+      ],
+      "three_collections": [
+        "first",
+        "first",
+        "second"
+      ],
+      "two_collections": [
+        "first",
+        "first",
+        "second"
+      ]
+    },
+    "query_manager_scopes": {
+      "direct": [],
+      "distinct_first": [
+        "b"
+      ],
+      "empty_first": [
+        "b"
+      ],
+      "manager_all": [],
+      "or_root": [
+        "a"
+      ],
+      "ordered": [
+        "b"
+      ],
+      "query_clone": [
+        "b"
+      ],
+      "scalar_first": [
+        "b"
+      ],
+      "successive": [
+        "b"
+      ]
+    },
     "query_multiplicity": {
       "count": 3,
       "distinct": [
@@ -239,6 +360,52 @@
         "a",
         "b",
         "b"
+      ]
+    },
+    "query_nullable_links": {
+      "absent": [
+        "loose-empty",
+        "loose-mixed",
+        "loose-null",
+        "loose-null"
+      ],
+      "distinct": [
+        "loose-mixed"
+      ],
+      "exclude_a": [
+        "loose-empty",
+        "loose-null"
+      ],
+      "exclude_null": [],
+      "field_null": [
+        "loose-empty",
+        "loose-mixed",
+        "loose-mixed",
+        "loose-null",
+        "loose-null"
+      ],
+      "field_present": [
+        "loose-mixed",
+        "loose-mixed"
+      ],
+      "members": [
+        "loose-mixed",
+        "loose-mixed",
+        "loose-mixed"
+      ],
+      "present": [
+        "loose-mixed",
+        "loose-mixed",
+        "loose-mixed"
+      ],
+      "reverse_absent": [
+        "a",
+        "c"
+      ],
+      "shared_through_predicate": [],
+      "successive_through_predicate": [
+        "loose-mixed",
+        "loose-mixed"
       ]
     },
     "remove": {

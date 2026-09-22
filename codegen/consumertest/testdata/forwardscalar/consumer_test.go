@@ -233,7 +233,7 @@ func runResults(t *testing.T, backend resultBackend, native bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	routes := []orm.ForwardRelation[models.Entry, models.Datum]{orm.ChainForward(first, innerFirst), orm.ChainForward(second, innerFirst), orm.ChainForward(first, innerSecond), orm.ChainForward(second, innerSecond)}
+	routes := []orm.QueryRelation[models.Entry, models.Datum]{orm.ChainRelations(first, innerFirst), orm.ChainRelations(second, innerFirst), orm.ChainRelations(first, innerSecond), orm.ChainRelations(second, innerSecond)}
 	selectors := map[string]map[string]scalarSelection{}
 	for i, route := range routes {
 		selectors[expected.Routes[i]] = bindSelections(t, route)

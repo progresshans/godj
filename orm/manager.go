@@ -109,6 +109,7 @@ func (qs QuerySet[M]) Filter(predicates ...Predicate[M]) QuerySet[M] {
 		return qs
 	}
 	if len(predicates) == 0 {
+		qs.plan = qs.plan.WithoutCollectionFilterReuse()
 		return qs
 	}
 	expressions := make([]query.Expression, len(predicates))
@@ -192,10 +193,11 @@ func (qs QuerySet[M]) Distinct() QuerySet[M] {
 	return qs
 }
 
-// Fresh returns the same immutable query plan with a new, unpopulated
-// evaluation state. It performs no backend I/O.
+// Fresh derives an unevaluated query. Like other query refinements it consumes
+// a collection manager's one-use membership join scope, without performing I/O.
 func (qs QuerySet[M]) Fresh() QuerySet[M] {
 	qs.evaluation = newEvaluationState[M]()
+	qs.plan = qs.plan.WithoutCollectionFilterReuse()
 	return qs
 }
 

@@ -91,7 +91,7 @@ func RunFacade(t *testing.T, backend ProductBackend, dialect string, compile fun
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

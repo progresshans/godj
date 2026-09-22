@@ -12,7 +12,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestGeneratedProjectRelationReverseExactNineFileUnionCompiles(t *testing.T) {
+func TestGeneratedRelationQueryAndReverseObjectCompanionsCompile(t *testing.T) {
 	authors, blog := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-reverse-project"
 
@@ -31,19 +31,25 @@ func TestGeneratedProjectRelationReverseExactNineFileUnionCompiles(t *testing.T)
 		t.Fatalf("generate project reverse companion: %v", err)
 	}
 
+	queryCompanion, err := codegen.GenerateProjectRelationQuery("project", []codegen.RelationQueryPackage{
+		{Alias: "authors", ImportPath: modulePath + "/authors", Schema: authors},
+		{Alias: "blog", ImportPath: modulePath + "/blog", Schema: blog},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	directory := newGeneratedModule(t, modulePath)
 	generatedFiles := []struct {
 		name string
 		data []byte
 	}{
 		{name: "project/zz_godj_bindings.go", data: projectBinding},
+		{name: "project/zz_godj_relation_query.go", data: queryCompanion},
 		{name: "project/zz_godj_relation_reverse.go", data: projectReverse},
 	}
-	names := writeGeneratedAppFixture(t, directory, "authors", "authors", authors, appFixtureFeatures{object: true})
-	names = append(names, writeGeneratedAppFixture(t, directory, "blog", "blog", blog, appFixtureFeatures{object: true})...)
-	if count := len(names) + len(generatedFiles); count != 8 {
-		t.Fatalf("generated inventory has %d files, want exact eight", count)
-	}
+	writeGeneratedAppFixture(t, directory, "authors", "authors", authors, appFixtureFeatures{object: true})
+	writeGeneratedAppFixture(t, directory, "blog", "blog", blog, appFixtureFeatures{object: true})
+
 	for _, file := range generatedFiles {
 		writeGeneratedTestFile(t, directory, file.name, file.data)
 	}
@@ -52,7 +58,7 @@ func TestGeneratedProjectRelationReverseExactNineFileUnionCompiles(t *testing.T)
 	command := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "./...")
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("exact eight-file generated reverse project did not compile: %v\n%s", err, output)
+		t.Fatalf("query and reverse-object companions did not compile: %v\n%s", err, output)
 	}
 }
 
@@ -111,8 +117,6 @@ func TestGeneratedProjectRelationReverseCurrentAndNoEdgeVariantsCompile(t *testi
 			{name: "blog", schema: blog},
 		})
 		for _, required := range [][]byte{
-			[]byte("type AuthorsAuthorReverseRelations struct"),
-			[]byte("Posts         AuthorsAuthorPostsReverseRelation"),
 			[]byte("AuthorsAuthorReverseObjectFactory"),
 			[]byte("AuthorsAuthorReverseObject struct"),
 			[]byte("type ReverseObjects struct"),
@@ -137,7 +141,7 @@ import (
 )
 
 func TestCurrentReverse(t *testing.T) {
-	relations, err := project.BindReverseRelations()
+	relations, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +182,7 @@ import (
 )
 
 func TestEmptyReverse(t *testing.T) {
-	if _, err := project.BindReverseRelations(); err != nil {
+	if _, err := project.BindRelations(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := project.BindReverseObjects(); err != nil {
@@ -242,10 +246,12 @@ func writeProjectRelationReverseVariant(
 
 	bridgePackages := make([]codegen.BridgePackage, len(schemas))
 	reversePackages := make([]codegen.RelationReversePackage, len(schemas))
+	queryPackages := make([]codegen.RelationQueryPackage, len(schemas))
 	for index, candidate := range schemas {
 		importPath := modulePath + "/" + candidate.name
 		bridgePackages[index] = codegen.BridgePackage{Alias: candidate.name, ImportPath: importPath}
 		reversePackages[index] = codegen.RelationReversePackage{Alias: candidate.name, ImportPath: importPath, Schema: candidate.schema}
+		queryPackages[index] = codegen.RelationQueryPackage{Alias: candidate.name, ImportPath: importPath, Schema: candidate.schema}
 
 		writeGeneratedAppFixture(t, directory, candidate.name, candidate.name, candidate.schema,
 			appFixtureFeatures{object: candidate.name != omitObjectFor})
@@ -258,6 +264,11 @@ func writeProjectRelationReverseVariant(
 	if err != nil {
 		t.Fatalf("generate variant reverse: %v", err)
 	}
+	queryCompanion, err := codegen.GenerateProjectRelationQuery("project", queryPackages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", queryCompanion)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_bindings.go", bridge)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_reverse.go", reverse)
 	if externalTest != "" {
@@ -296,9 +307,9 @@ func assertInvalidPlan(t *testing.T, err error) {
 }
 
 func TestGeneratedReverseSurface(t *testing.T) {
-	relations, err := project.BindReverseRelations()
+	relations, err := project.BindRelations()
 	if err != nil {
-		t.Fatalf("BindReverseRelations() error = %%v", err)
+		t.Fatalf("BindRelations() error = %%v", err)
 	}
 	typed := authors.AuthorObjects.Using(&neverBackend{}).Filter(
 		relations.AuthorsAuthor.Posts.Title.Exact("Alpha"),

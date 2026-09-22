@@ -9,24 +9,131 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
+const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"
 
 type relationQueryBindings struct {
-	edge0 orm.ForwardRelation[reports.Certificate, reports.Report]
-	edge1 orm.ForwardRelation[reports.Link, tickets.Ticket]
-	edge2 orm.ForwardRelation[reports.OptionalReport, tickets.Ticket]
-	edge3 orm.ForwardRelation[reports.Report, tickets.Ticket]
-	edge4 orm.ForwardRelation[reports.Review, tickets.Ticket]
+	edge0 orm.QueryRelation[reports.Certificate, reports.Report]
+	edge1 orm.QueryRelation[reports.Link, tickets.Ticket]
+	edge2 orm.QueryRelation[reports.OptionalReport, tickets.Ticket]
+	edge3 orm.QueryRelation[reports.Report, reports.Certificate]
+	edge4 orm.QueryRelation[reports.Report, tickets.Ticket]
+	edge5 orm.QueryRelation[reports.Review, tickets.Ticket]
+	edge6 orm.QueryRelation[tickets.Ticket, reports.Link]
+	edge7 orm.QueryRelation[tickets.Ticket, reports.OptionalReport]
+	edge8 orm.QueryRelation[tickets.Ticket, reports.Report]
+	edge9 orm.QueryRelation[tickets.Ticket, reports.Review]
 }
-type ReportsReportRelatedFields[S any] struct {
+type ReportsCertificateRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, reports.Report]
+	route            orm.QueryRelation[S, reports.Certificate]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Seal             orm.RelatedStringField[S]
+}
+
+func newReportsCertificateRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, reports.Certificate]) ReportsCertificateRelatedFields[S] {
+	_result := ReportsCertificateRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(reports.CertificateFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(reports.CertificateFields.Seal)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Seal = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields ReportsCertificateRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields ReportsCertificateRelatedFields[S]) Report() ReportsReportRelatedFields[S] {
+	var _next orm.QueryRelation[reports.Certificate, reports.Report]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge0
+	}
+	return newReportsReportRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type ReportsLinkRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, reports.Link]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Label            orm.RelatedStringField[S]
+}
+
+func newReportsLinkRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, reports.Link]) ReportsLinkRelatedFields[S] {
+	_result := ReportsLinkRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(reports.LinkFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(reports.LinkFields.Label)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Label = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields ReportsLinkRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields ReportsLinkRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
+	var _next orm.QueryRelation[reports.Link, tickets.Ticket]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newTicketsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type ReportsOptionalReportRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, reports.OptionalReport]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 	Note             orm.RelatedStringField[S]
 }
 
-func newReportsReportRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, reports.Report]) ReportsReportRelatedFields[S] {
+func newReportsOptionalReportRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, reports.OptionalReport]) ReportsOptionalReportRelatedFields[S] {
+	_result := ReportsOptionalReportRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(reports.OptionalReportFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(reports.OptionalReportFields.Note)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Note = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields ReportsOptionalReportRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields ReportsOptionalReportRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
+	var _next orm.QueryRelation[reports.OptionalReport, tickets.Ticket]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge2
+	}
+	return newTicketsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type ReportsReportRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, reports.Report]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Note             orm.RelatedStringField[S]
+}
+
+func newReportsReportRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, reports.Report]) ReportsReportRelatedFields[S] {
 	_result := ReportsReportRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(reports.ReportFields.ID)
 	if _result.configurationErr == nil {
@@ -44,23 +151,130 @@ func newReportsReportRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields ReportsReportRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
-func (_fields ReportsReportRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
-	var _next orm.ForwardRelation[reports.Report, tickets.Ticket]
+func (_fields ReportsReportRelatedFields[S]) Certificate() ReportsCertificateRelatedFields[S] {
+	var _next orm.QueryRelation[reports.Report, reports.Certificate]
 	if _fields.bindings != nil {
 		_next = _fields.bindings.edge3
 	}
-	return newTicketsTicketRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+	return newReportsCertificateRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields ReportsReportRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
+	var _next orm.QueryRelation[reports.Report, tickets.Ticket]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge4
+	}
+	return newTicketsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type ReportsReviewRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, reports.Review]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Score            orm.RelatedIntegerField[S]
+	Title            orm.RelatedStringField[S]
+	Body             orm.RelatedStringField[S]
+	Approved         orm.RelatedBooleanField[S]
+	Ratio            orm.RelatedFloatField[S]
+	Price            orm.RelatedDecimalField[S]
+	Token            orm.RelatedUUIDField[S]
+	Payload          orm.RelatedJSONField[S]
+	Day              orm.RelatedDateField[S]
+	At               orm.RelatedDateTimeField[S]
+	Clock            orm.RelatedTimeField[S]
+	Elapsed          orm.RelatedDurationField[S]
+}
+
+func newReportsReviewRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, reports.Review]) ReportsReviewRelatedFields[S] {
+	_result := ReportsReviewRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(reports.ReviewFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.Integer(reports.ReviewFields.Score)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field2, _err := _route.String(reports.ReviewFields.Title)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field3, _err := _route.String(reports.ReviewFields.Body)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field4, _err := _route.Boolean(reports.ReviewFields.Approved)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field5, _err := _route.Float(reports.ReviewFields.Ratio)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field6, _err := _route.Decimal(reports.ReviewFields.Price)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field7, _err := _route.UUID(reports.ReviewFields.Token)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field8, _err := _route.JSON(reports.ReviewFields.Payload)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field9, _err := _route.Date(reports.ReviewFields.Day)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field10, _err := _route.DateTime(reports.ReviewFields.At)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field11, _err := _route.Time(reports.ReviewFields.Clock)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field12, _err := _route.Duration(reports.ReviewFields.Elapsed)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Score = _field1.WithConfigurationError(_result.configurationErr)
+	_result.Title = _field2.WithConfigurationError(_result.configurationErr)
+	_result.Body = _field3.WithConfigurationError(_result.configurationErr)
+	_result.Approved = _field4.WithConfigurationError(_result.configurationErr)
+	_result.Ratio = _field5.WithConfigurationError(_result.configurationErr)
+	_result.Price = _field6.WithConfigurationError(_result.configurationErr)
+	_result.Token = _field7.WithConfigurationError(_result.configurationErr)
+	_result.Payload = _field8.WithConfigurationError(_result.configurationErr)
+	_result.Day = _field9.WithConfigurationError(_result.configurationErr)
+	_result.At = _field10.WithConfigurationError(_result.configurationErr)
+	_result.Clock = _field11.WithConfigurationError(_result.configurationErr)
+	_result.Elapsed = _field12.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields ReportsReviewRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields ReportsReviewRelatedFields[S]) Ticket() TicketsTicketRelatedFields[S] {
+	var _next orm.QueryRelation[reports.Review, tickets.Ticket]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge5
+	}
+	return newTicketsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type TicketsTicketRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, tickets.Ticket]
+	route            orm.QueryRelation[S, tickets.Ticket]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 	Subject          orm.RelatedStringField[S]
 }
 
-func newTicketsTicketRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, tickets.Ticket]) TicketsTicketRelatedFields[S] {
+func newTicketsTicketRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, tickets.Ticket]) TicketsTicketRelatedFields[S] {
 	_result := TicketsTicketRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(tickets.TicketFields.ID)
 	if _result.configurationErr == nil {
@@ -77,6 +291,34 @@ func newTicketsTicketRelatedFields[S any](_bindings *relationQueryBindings, _rou
 }
 func (_fields TicketsTicketRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
+}
+func (_fields TicketsTicketRelatedFields[S]) Links() ReportsLinkRelatedFields[S] {
+	var _next orm.QueryRelation[tickets.Ticket, reports.Link]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge6
+	}
+	return newReportsLinkRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields TicketsTicketRelatedFields[S]) OptionalReport() ReportsOptionalReportRelatedFields[S] {
+	var _next orm.QueryRelation[tickets.Ticket, reports.OptionalReport]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge7
+	}
+	return newReportsOptionalReportRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields TicketsTicketRelatedFields[S]) Report() ReportsReportRelatedFields[S] {
+	var _next orm.QueryRelation[tickets.Ticket, reports.Report]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge8
+	}
+	return newReportsReportRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields TicketsTicketRelatedFields[S]) Review() ReportsReviewRelatedFields[S] {
+	var _next orm.QueryRelation[tickets.Ticket, reports.Review]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge9
+	}
+	return newReportsReviewRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type ReportsCertificateRelations struct {
@@ -107,8 +349,9 @@ func (_relations ReportsOptionalReportRelations) ParseDynamic(_policy orm.Lookup
 }
 
 type ReportsReportRelations struct {
-	Ticket TicketsTicketRelatedFields[reports.Report]
-	model  orm.BoundModel[reports.Report]
+	Certificate ReportsCertificateRelatedFields[reports.Report]
+	Ticket      TicketsTicketRelatedFields[reports.Report]
+	model       orm.BoundModel[reports.Report]
 }
 
 func (_relations ReportsReportRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[reports.Report], error) {
@@ -124,12 +367,25 @@ func (_relations ReportsReviewRelations) ParseDynamic(_policy orm.LookupPolicy, 
 	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
+type TicketsTicketRelations struct {
+	Links          ReportsLinkRelatedFields[tickets.Ticket]
+	OptionalReport ReportsOptionalReportRelatedFields[tickets.Ticket]
+	Report         ReportsReportRelatedFields[tickets.Ticket]
+	Review         ReportsReviewRelatedFields[tickets.Ticket]
+	model          orm.BoundModel[tickets.Ticket]
+}
+
+func (_relations TicketsTicketRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[tickets.Ticket], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
 type Relations struct {
 	ReportsCertificate    ReportsCertificateRelations
 	ReportsLink           ReportsLinkRelations
 	ReportsOptionalReport ReportsOptionalReportRelations
 	ReportsReport         ReportsReportRelations
 	ReportsReview         ReportsReviewRelations
+	TicketsTicket         TicketsTicketRelations
 }
 
 func BindRelations() (Relations, error) {
@@ -186,31 +442,56 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindForward(_model0, "report", _model3)
+	_relation0, _err := orm.BindQueryRelation(_model0, "report", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindForward(_model1, "ticket", _model5)
+	_relation1, _err := orm.BindQueryRelation(_model1, "ticket", _model5)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_relation2, _err := orm.BindForward(_model2, "ticket", _model5)
+	_relation2, _err := orm.BindQueryRelation(_model2, "ticket", _model5)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge2 = _relation2
-	_relation3, _err := orm.BindForward(_model3, "ticket", _model5)
+	_relation3, _err := orm.BindQueryRelation(_model3, "certificate", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge3 = _relation3
-	_relation4, _err := orm.BindForward(_model4, "ticket", _model5)
+	_relation4, _err := orm.BindQueryRelation(_model3, "ticket", _model5)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge4 = _relation4
+	_relation5, _err := orm.BindQueryRelation(_model4, "ticket", _model5)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge5 = _relation5
+	_relation6, _err := orm.BindQueryRelation(_model5, "links", _model1)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge6 = _relation6
+	_relation7, _err := orm.BindQueryRelation(_model5, "optional_report", _model2)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge7 = _relation7
+	_relation8, _err := orm.BindQueryRelation(_model5, "report", _model3)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge8 = _relation8
+	_relation9, _err := orm.BindQueryRelation(_model5, "review", _model4)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge9 = _relation9
 	_group0 := newReportsReportRelatedFields[reports.Certificate](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
@@ -223,13 +504,33 @@ func BindRelations() (Relations, error) {
 	if _group2.configurationErr != nil {
 		return Relations{}, _group2.configurationErr
 	}
-	_group3 := newTicketsTicketRelatedFields[reports.Report](_routes, _routes.edge3)
+	_group3 := newReportsCertificateRelatedFields[reports.Report](_routes, _routes.edge3)
 	if _group3.configurationErr != nil {
 		return Relations{}, _group3.configurationErr
 	}
-	_group4 := newTicketsTicketRelatedFields[reports.Review](_routes, _routes.edge4)
+	_group4 := newTicketsTicketRelatedFields[reports.Report](_routes, _routes.edge4)
 	if _group4.configurationErr != nil {
 		return Relations{}, _group4.configurationErr
+	}
+	_group5 := newTicketsTicketRelatedFields[reports.Review](_routes, _routes.edge5)
+	if _group5.configurationErr != nil {
+		return Relations{}, _group5.configurationErr
+	}
+	_group6 := newReportsLinkRelatedFields[tickets.Ticket](_routes, _routes.edge6)
+	if _group6.configurationErr != nil {
+		return Relations{}, _group6.configurationErr
+	}
+	_group7 := newReportsOptionalReportRelatedFields[tickets.Ticket](_routes, _routes.edge7)
+	if _group7.configurationErr != nil {
+		return Relations{}, _group7.configurationErr
+	}
+	_group8 := newReportsReportRelatedFields[tickets.Ticket](_routes, _routes.edge8)
+	if _group8.configurationErr != nil {
+		return Relations{}, _group8.configurationErr
+	}
+	_group9 := newReportsReviewRelatedFields[tickets.Ticket](_routes, _routes.edge9)
+	if _group9.configurationErr != nil {
+		return Relations{}, _group9.configurationErr
 	}
 	return Relations{
 		ReportsCertificate: ReportsCertificateRelations{model: _model0,
@@ -242,12 +543,19 @@ func BindRelations() (Relations, error) {
 			Ticket: _group2,
 		},
 		ReportsReport: ReportsReportRelations{model: _model3,
-			Ticket: _group3,
+			Certificate: _group3,
+			Ticket:      _group4,
 		},
 		ReportsReview: ReportsReviewRelations{model: _model4,
-			Ticket: _group4,
+			Ticket: _group5,
+		},
+		TicketsTicket: TicketsTicketRelations{model: _model5,
+			Links:          _group6,
+			OptionalReport: _group7,
+			Report:         _group8,
+			Review:         _group9,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_ebf78247eab6dcc7425055e4d6f6b250e272ba45975c8a0c0d80e4a7887ed2b3
+var _ goDjProjectSnapshot_7584b1545489565ed9e90c2de4a8f8bd642d4b2a4c6aefe0b90abcd387ff417c

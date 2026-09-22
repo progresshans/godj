@@ -16,13 +16,14 @@ func TestForwardQueryRouteRejectsTamperedSnapshotMetadata(t *testing.T) {
 	for _, variant := range []string{"field", "target key", "source model", "project"} {
 		t.Run(variant, func(t *testing.T) {
 			changed := bound
-			changed.route.steps = append([]forwardRelationState(nil), bound.route.steps...)
+			changed.route.steps = append([]queryRelationStep(nil), bound.route.steps...)
 			step := &changed.route.steps[0]
 			switch variant {
 			case "field":
-				step.metadata.Field = "reviewer"
+				step.accessor = "reviewer"
 			case "target key":
-				step.targetPrimaryKey.Column = "other_id"
+				step.keys = append([]query.FieldRef(nil), step.keys...)
+				step.keys[len(step.keys)-1] = query.NewFieldRef("id", "other_id", query.FieldInteger, false)
 			case "source model":
 				step.sourceModel = step.sourceModel.Clone()
 				step.sourceModel.DBTable = "other_post"

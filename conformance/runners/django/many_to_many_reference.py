@@ -42,11 +42,13 @@ def observe():
                            USE_TZ=True, TIME_ZONE="UTC", LANGUAGE_CODE="en-us")
         django.setup()
         from django.db import DatabaseError, IntegrityError, connection, connections, models, transaction
+        from django.db.models import Q
         from django.db.models.signals import m2m_changed
         from django.db.models.fields.related_descriptors import create_forward_many_to_many_manager
 
         class Label(models.Model):
             name = models.CharField(max_length=64)
+            note = models.CharField(max_length=64, null=True)
             class Meta:
                 app_label = "m2mlabels"
                 db_table = "m2m_label"
@@ -259,6 +261,77 @@ def observe():
             results["query_multiplicity"] = {"names": list(filtered.order_by("name").values_list("name", flat=True)),
                 "count": filtered.count(), "distinct": list(filtered.order_by("name").distinct().values_list("name", flat=True)),
                 "reverse": list(Label.objects.filter(owners__name__in=["first", "second"]).order_by("name").values_list("name", flat=True))}
+
+            empty = Owner.objects.create(name="empty")
+            a.note = "red"
+            a.save(update_fields=["note"])
+            def query_names(queryset):
+                return list(queryset.order_by("name").values_list("name", flat=True))
+            qa, qb = Q(labels__name="a"), Q(labels__name="b")
+            results["query_filter_scopes"] = {
+                "same_filter": query_names(Owner.objects.filter(qa & qb)),
+                "successive_filters": query_names(Owner.objects.filter(qa).filter(qb)),
+                "successive_membership": query_names(Owner.objects.filter(labels__name__in=["a", "b"]).filter(labels__name__in=["a", "b"])),
+                "reused_predicate": query_names(Owner.objects.filter(qa).filter(qa)),
+                "same_member_fields": query_names(Owner.objects.filter(qa, labels__note="red")),
+                "two_collections": query_names(Owner.objects.filter(labels__owners__name="first")),
+                "three_collections": query_names(Owner.objects.filter(labels__owners__labels__name="a")),
+                "reverse_successive": query_names(Label.objects.filter(owners__name="first").filter(owners__name="second")),
+            }
+            results["query_boolean_presence"] = {
+                "or_root": query_names(Owner.objects.filter(qa | Q(name="empty"))),
+                "or_members": query_names(Owner.objects.filter(qa | qb)),
+                "not_a": query_names(Owner.objects.filter(~qa)),
+                "not_and": query_names(Owner.objects.filter(~(qa & qb))),
+                "not_or": query_names(Owner.objects.filter(~(qa | qb))),
+                "double_not": query_names(Owner.objects.filter(~~qa)),
+                "positive_and_negative": query_names(Owner.objects.filter(qa & ~qb)),
+                "or_negative": query_names(Owner.objects.filter(qa | ~qb)),
+                "absent": query_names(Owner.objects.filter(labels__isnull=True)),
+                "present": query_names(Owner.objects.filter(labels__isnull=False)),
+                "field_null": query_names(Owner.objects.filter(labels__note__isnull=True)),
+                "exclude_field_null": query_names(Owner.objects.exclude(labels__note__isnull=True)),
+                "empty_membership": query_names(Owner.objects.filter(labels__name__in=[])),
+                "empty_or_root": query_names(Owner.objects.filter(Q(labels__name__in=[]) | Q(name="empty"))),
+            }
+            results["query_boolean_order"] = {
+                "positive_first": query_names(Owner.objects.filter(qa & ~qb)),
+                "negative_first": query_names(Owner.objects.filter(~qb & qa)),
+                "successive_negative": query_names(Owner.objects.filter(qa).filter(~qb)),
+                "successive_positive": query_names(Owner.objects.filter(~qb).filter(qa)),
+                "negative_same_field": query_names(Owner.objects.filter(qa & ~Q(labels__note="red"))),
+                "or_negative_first": query_names(Owner.objects.filter(~qb | qa)),
+                "double_not_pair": query_names(Owner.objects.filter(~~(qa & qb))),
+            }
+            held_members = first.labels.all()
+            results["query_manager_scopes"] = {
+                "direct": query_names(first.labels.filter(owners__name="second")),
+                "manager_all": query_names(first.labels.all().filter(owners__name="second")),
+                "ordered": query_names(first.labels.order_by("name").filter(owners__name="second")),
+                "successive": query_names(first.labels.filter(owners__name="first").filter(owners__name="second")),
+                "scalar_first": query_names(first.labels.filter(name="b").filter(owners__name="second")),
+                "empty_first": query_names(first.labels.filter().filter(owners__name="second")),
+                "query_clone": query_names(held_members.all().filter(owners__name="second")),
+                "distinct_first": query_names(first.labels.distinct().filter(owners__name="second")),
+                "or_root": query_names(first.labels.filter(Q(owners__name="second") | Q(name="a"))),
+            }
+            loose_empty, loose_mixed, loose_null = [LooseOwner.objects.create(name=name) for name in ("loose-empty", "loose-mixed", "loose-null")]
+            for owner, label, amount in ((loose_mixed, a, 1), (loose_mixed, a, 2), (loose_mixed, b, 3),
+                                         (loose_mixed, None, 4), (loose_null, None, 5), (loose_null, None, 6), (None, a, 7)):
+                LooseLink.objects.create(owner=owner, label=label, amount=amount)
+            results["query_nullable_links"] = {
+                "members": query_names(LooseOwner.objects.filter(labels__name__in=["a", "b"])),
+                "distinct": query_names(LooseOwner.objects.filter(labels__name__in=["a", "b"]).distinct()),
+                "absent": query_names(LooseOwner.objects.filter(labels__isnull=True)),
+                "present": query_names(LooseOwner.objects.filter(labels__isnull=False)),
+                "field_null": query_names(LooseOwner.objects.filter(labels__note__isnull=True)),
+                "field_present": query_names(LooseOwner.objects.filter(labels__note__isnull=False)),
+                "exclude_a": query_names(LooseOwner.objects.exclude(labels__name="a")),
+                "exclude_null": query_names(LooseOwner.objects.exclude(labels__note__isnull=True)),
+                "reverse_absent": query_names(Label.objects.filter(loose_owners__isnull=True)),
+                "shared_through_predicate": query_names(LooseOwner.objects.filter(labels__name="a", looselink__amount=3)),
+                "successive_through_predicate": query_names(LooseOwner.objects.filter(labels__name="a").filter(looselink__amount=3)),
+            }
 
             clear()
             (a, b, c), (first, second) = seed()

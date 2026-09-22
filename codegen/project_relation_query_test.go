@@ -37,23 +37,23 @@ func TestGenerateProjectRelationQueryIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("project relation query bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"`),
+		[]byte(`const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"`),
 		[]byte(`authors "example.com/godj-relation-query-project/authors"`),
 		[]byte(`blog "example.com/godj-relation-query-project/blog"`),
 		[]byte("type AuthorsAuthorRelatedFields[S any] struct"),
 		[]byte("ID               orm.RelatedIntegerField[S]"),
 		[]byte("Name             orm.RelatedStringField[S]"),
+		[]byte("type AuthorsAuthorRelations struct"),
 		[]byte("type BlogPostRelations struct"),
 		[]byte("Author   AuthorsAuthorRelatedFields[blog.Post]"),
 		[]byte("Reviewer AuthorsAuthorRelatedFields[blog.Post]"),
 		[]byte("model    orm.BoundModel[blog.Post]"),
 		[]byte("func (_relations BlogPostRelations) ParseDynamic("),
 		[]byte("type Relations struct"),
-		[]byte("BlogPost BlogPostRelations"),
 		[]byte("func BindRelations() (Relations, error)"),
 		[]byte(`ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}`),
 		[]byte(`ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}`),
-		[]byte(`orm.BindForward(_model1, "author", _model0)`),
+		[]byte(`orm.BindQueryRelation(_model1, "author", _model0)`),
 		[]byte("_route.Integer(authors.AuthorFields.ID)"),
 		[]byte("_route.String(authors.AuthorFields.Name)"),
 	} {
@@ -62,7 +62,6 @@ func TestGenerateProjectRelationQueryIsCanonicalAndByteLocked(t *testing.T) {
 		}
 	}
 	for _, forbidden := range [][]byte{
-		[]byte("AuthorsAuthorRelations"),
 		[]byte("GoDjRelationSchema"),
 		[]byte("ForeignKeyRelation"),
 		[]byte("DBTable"),

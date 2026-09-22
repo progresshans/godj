@@ -15,7 +15,7 @@ func consume(
 	backend db.Queryer,
 	author authors.Author,
 ) ([]blog.Post, []orm.Predicate[authors.Author], error) {
-	relations, err := project.BindReverseRelations()
+	relations, err := project.BindRelations()
 	if err != nil {
 		return nil, nil, err
 	}

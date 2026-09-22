@@ -141,11 +141,11 @@ func NewInCondition(field FieldRef, values []Value) (Condition, error) {
 }
 
 // NewRelatedInCondition owns the same scalar list as NewInCondition while
-// retaining a single-valued relation path. Collection and source-key membership are not
-// supported; nullable source-key isnull remains a separate path scope.
+// retaining a related target-field path. Collection paths carry model row
+// identities; nullable source-key isnull remains a separate path scope.
 func NewRelatedInCondition(path RelationPath, values []Value) (Condition, error) {
-	if !singleValuedMembershipPath(path) {
-		return Condition{}, invalidPlanError("related IN requires a valid single-valued target-field path")
+	if !targetMembershipPath(path) {
+		return Condition{}, invalidPlanError("related IN requires a valid target-field path with collection row identity")
 	}
 	condition, err := NewInCondition(path.Terminal(), values)
 	if err != nil {
@@ -155,8 +155,8 @@ func NewRelatedInCondition(path RelationPath, values []Value) (Condition, error)
 	return condition, nil
 }
 
-func singleValuedMembershipPath(path RelationPath) bool {
-	return path.scope == RelationTerminalRelatedField && path.SingleValued() && path.Validate() == nil
+func targetMembershipPath(path RelationPath) bool {
+	return path.scope == RelationTerminalRelatedField && (path.SingleValued() || len(path.keys) != 0) && path.Validate() == nil
 }
 
 // NewFieldCondition constructs one scalar comparison whose right-hand side is
@@ -215,7 +215,7 @@ func (c Condition) Value() Value {
 }
 func (c Condition) Values() ([]Value, bool) {
 	if c.lookup != LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSList ||
-		(c.relationPath != nil && (!singleValuedMembershipPath(*c.relationPath) || !c.field.Equal(c.relationPath.terminal))) ||
+		(c.relationPath != nil && (!targetMembershipPath(*c.relationPath) || !c.field.Equal(c.relationPath.terminal))) ||
 		!validInValues(c.field, c.rhs.values) {
 		return nil, false
 	}
@@ -354,15 +354,17 @@ func (p Plan) ValidateOrderings() error {
 }
 
 type Plan struct {
-	table               string
-	sourceFields        []FieldRef
-	where               Expression
-	orderings           []Ordering
-	limit               *int
-	offset              *int
-	distinct            bool
-	result              ResultShape
-	relationProjections []RelationProjection
+	table                 string
+	sourceFields          []FieldRef
+	where                 Expression
+	collectionFilters     uint32
+	reuseCollectionFilter bool
+	orderings             []Ordering
+	limit                 *int
+	offset                *int
+	distinct              bool
+	result                ResultShape
+	relationProjections   []RelationProjection
 }
 
 func NewPlan(table string, sourceFields []FieldRef) Plan {
@@ -437,6 +439,7 @@ func (p Plan) WithoutRelationProjections() Plan {
 // WithRelationProjections adds selected targets. Repeated identical declarations
 // coalesce only after validation; conflicting metadata never overwrites a target.
 func (p Plan) WithRelationProjections(projections ...RelationProjection) (Plan, error) {
+	p = p.WithoutCollectionFilterReuse()
 	if len(projections) == 0 {
 		return Plan{}, invalidPlanError("relation selection requires at least one projection")
 	}
@@ -528,6 +531,14 @@ func (p Plan) WithWhere(expression Expression) (Plan, error) {
 	if err := expression.validate(); err != nil {
 		return Plan{}, err
 	}
+	scope := p.collectionFilters
+	if p.reuseCollectionFilter {
+		if scope == 0 {
+			return Plan{}, invalidPlanError("collection filter reuse has no anchor")
+		}
+		scope--
+	}
+	expression, collection := bindCollectionFilter(expression, scope)
 	where := expression
 	if p.where.node != nil {
 		var err error
@@ -541,6 +552,10 @@ func (p Plan) WithWhere(expression Expression) (Plan, error) {
 	}
 	clone := p
 	clone.where = where
+	clone.reuseCollectionFilter = false
+	if collection && !p.reuseCollectionFilter {
+		clone.collectionFilters++
+	}
 	return clone, nil
 }
 
@@ -564,9 +579,12 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 		if err := path.Validate(); err != nil {
 			return err
 		}
+		if len(path.keys) != 0 && !slices.Contains(p.sourceFields, path.keys[0]) {
+			return invalidPlanError("relation root primary key is not part of the plan source metadata")
+		}
 		hop := path.hops[0]
 		if hop.direction == RelationReverse {
-			if !relationAtRootConjunction && !path.SingleValued() {
+			if !relationAtRootConjunction && !path.SingleValued() && len(path.keys) == 0 {
 				return &Error{Category: CategoryQuery, Code: CodeUnsupported, Field: condition.field.name, Lookup: string(condition.lookup), Detail: "reverse relation predicates under OR or NOT are not supported"}
 			}
 			if hop.targetTable != p.table || !containsPlanIntegerColumn(p.sourceFields, hop.targetPrimaryKeyColumn) {
@@ -603,12 +621,13 @@ func containsPlanIntegerColumn(fields []FieldRef, column string) bool {
 }
 
 func (p Plan) WithOrderings(orderings ...Ordering) Plan {
-	clone := p
+	clone := p.WithoutCollectionFilterReuse()
 	clone.orderings = append([]Ordering(nil), orderings...)
 	return clone
 }
 
 func (p Plan) WithLimit(limit int) (Plan, error) {
+	p = p.WithoutCollectionFilterReuse()
 	if limit < 0 {
 		return Plan{}, &Error{Category: CategoryQuery, Code: CodeInvalidLimit, Detail: "limit cannot be negative"}
 	}
@@ -618,6 +637,7 @@ func (p Plan) WithLimit(limit int) (Plan, error) {
 }
 
 func (p Plan) WithOffset(offset int) (Plan, error) {
+	p = p.WithoutCollectionFilterReuse()
 	if offset < 0 || int64(offset) > math.MaxInt32 {
 		return Plan{}, &Error{Category: CategoryQuery, Code: CodeInvalidOffset, Detail: "offset must be between zero and 2147483647"}
 	}
@@ -627,12 +647,14 @@ func (p Plan) WithOffset(offset int) (Plan, error) {
 }
 
 func (p Plan) WithDistinct() Plan {
+	p = p.WithoutCollectionFilterReuse()
 	clone := p
 	clone.distinct = true
 	return clone
 }
 
 func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
+	p = p.WithoutCollectionFilterReuse()
 	if err := result.validate(); err != nil {
 		return Plan{}, err
 	}
@@ -665,7 +687,7 @@ func (p Plan) validateResultSource(expression ResultExpression) error {
 
 func (p Plan) Equal(other Plan) bool {
 	if p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
-		p.distinct != other.distinct || !p.result.Equal(other.result) {
+		p.distinct != other.distinct || !p.result.Equal(other.result) || p.collectionFilters != other.collectionFilters || p.reuseCollectionFilter != other.reuseCollectionFilter {
 		return false
 	}
 	if !p.where.Equal(other.where) {

@@ -37,22 +37,10 @@ func TestGenerateProjectRelationReverseIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("project relation reverse bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v4"`),
+		[]byte(`const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v5"`),
 		[]byte("var _ orm.RelationObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
 		[]byte("var _ orm.PrimaryKeyObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
 		[]byte("var _ orm.RelationObjectDescriptor[blog.Post] = blog.PostDescriptor{}"),
-		[]byte("type AuthorsAuthorPostsReverseRelation struct"),
-		[]byte("Title orm.RelatedStringField[authors.Author]"),
-		[]byte("type AuthorsAuthorReviewedPostsReverseRelation struct"),
-		[]byte("type AuthorsAuthorReverseRelations struct"),
-		[]byte("Posts         AuthorsAuthorPostsReverseRelation"),
-		[]byte("ReviewedPosts AuthorsAuthorReviewedPostsReverseRelation"),
-		[]byte("func (_relations AuthorsAuthorReverseRelations) ParseDynamic("),
-		[]byte("return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)"),
-		[]byte("type ReverseRelations struct"),
-		[]byte("func BindReverseRelations() (ReverseRelations, error)"),
-		[]byte(`orm.BindReverse(_model0, "posts", _model1)`),
-		[]byte(`orm.BindReverse(_model0, "reviewed_posts", _model1)`),
 		[]byte("type AuthorsAuthorReverseObjectFactory struct"),
 		[]byte("func (_factory AuthorsAuthorReverseObjectFactory) From("),
 		[]byte("type AuthorsAuthorReverseObject struct"),
@@ -70,6 +58,8 @@ func TestGenerateProjectRelationReverseIsCanonicalAndByteLocked(t *testing.T) {
 		}
 	}
 	for _, forbidden := range [][]byte{
+		[]byte("type ReverseRelations struct"),
+		[]byte("func BindReverseRelations("),
 		[]byte("type Relations struct"),
 		[]byte("type Objects struct"),
 		[]byte("func BindRelations("),
@@ -217,10 +207,8 @@ func TestGenerateProjectRelationReverseZeroProjectUsesNoUnusedImports(t *testing
 		t.Fatalf("GenerateProjectRelationReverse() error = %v", err)
 	}
 	for _, fragment := range [][]byte{
-		[]byte("type ReverseRelations struct"),
 		[]byte("type ReverseObjects struct"),
 		[]byte("if _, _err := Bind(); _err != nil"),
-		[]byte("return ReverseRelations{}, nil"),
 		[]byte("return ReverseObjects{}, nil"),
 	} {
 		if !bytes.Contains(generated, fragment) {

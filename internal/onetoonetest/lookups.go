@@ -38,7 +38,7 @@ func RunReverseLookups(t *testing.T, backend ProductBackend, dialect string, com
 	if compile == nil || queryCount == nil {
 		t.Fatal("reverse lookup comparison requires native compilation and SQL observation")
 	}
-	bindings, err := project.BindReverseRelations()
+	bindings, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,12 +172,12 @@ func RunReverseLookups(t *testing.T, backend ProductBackend, dialect string, com
 	if len(expected) != 0 {
 		t.Fatal("reference observations not consumed", expected)
 	}
-	// Unsupported collection semantics and invalid dynamic values must fail
+	// Invalid collection operands and dynamic values must fail
 	// even for an empty result, without issuing SQL or returning a partial batch.
 	before := reads.calls.Load()
 	for _, bad := range [][]orm.LookupInput{
 		{{Key: "report__isnull", Value: "true"}}, {{Key: "review__score__gt", Value: true}},
-		{{Key: "links__isnull", Value: true}}, {{Key: "links__id__gt", Value: int64(0)}},
+		{{Key: "links__isnull", Value: "true"}}, {{Key: "links__id__gt", Value: "0"}},
 		{{Key: "report__note", Value: "original"}, {Key: "review__unknown", Value: int64(1)}},
 	} {
 		if predicates, err := r.ParseDynamic(nil, bad); err == nil || predicates != nil {
@@ -187,14 +187,6 @@ func RunReverseLookups(t *testing.T, backend ProductBackend, dialect string, com
 	if predicates, err := r.ParseDynamic(func(ir.Field, query.Lookup) bool { return false }, []orm.LookupInput{{Key: "review__isnull", Value: true}}); err == nil || predicates != nil {
 		t.Fatal("reverse presence bypassed policy", err)
 	}
-	collection, err := tickets.TicketObjects.Using(reads).Limit(0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	collection = collection.Filter(orm.Or(r.Links.ID.Exact(link.ID), r.Report.IsNull(true)))
-	if _, err := collection.All(ctx); err == nil {
-		t.Fatal("collection OR admitted by single-valued widening")
-	}
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
 	if _, err := tickets.TicketObjects.Using(reads).Filter(r.Report.IsNull(true)).All(canceled); !errors.Is(err, context.Canceled) {
@@ -202,6 +194,18 @@ func RunReverseLookups(t *testing.T, backend ProductBackend, dialect string, com
 	}
 	if reads.calls.Load() != before {
 		t.Fatal("invalid or canceled lookup performed I/O")
+	}
+	beforeSQL := queryCount()
+	collection, err := tickets.TicketObjects.Using(reads).Limit(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	collection = collection.Filter(orm.Or(r.Links.ID.Exact(link.ID), r.Report.IsNull(true)))
+	if rows, err := collection.All(ctx); err != nil || rows == nil || len(rows) != 0 {
+		t.Fatal("valid empty collection OR failed", err)
+	}
+	if queryCount() != beforeSQL {
+		t.Fatal("valid empty collection executed SQL")
 	}
 }
 

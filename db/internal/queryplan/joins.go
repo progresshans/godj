@@ -16,8 +16,9 @@ type Join struct {
 }
 
 type Joins struct {
-	Keys  []RelationKey
-	ByKey map[RelationKey]Join
+	Keys   []RelationKey
+	ByKey  map[RelationKey]Join
+	Exists map[int]CollectionExists
 }
 
 // PrepareJoins validates the private occurrence graph and declaration inventory.
@@ -71,7 +72,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		declarations[key] = hop
 		return nil
 	}
-	addPath := func(path query.RelationPath, filter bool) error {
+	addPath := func(path query.RelationPath, filter, materialize bool) error {
 		if err := path.Validate(); err != nil {
 			return err
 		}
@@ -83,6 +84,18 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		if err := anchor(identity); err != nil {
 			return err
 		}
+		if keys := path.PrimaryKeys(); len(keys) != 0 {
+			for index, key := range keys {
+				model := identity
+				if index > 0 {
+					model, _ = hops[index-1].To()
+				}
+				if previous, exists := primaryKeys[model]; exists && previous != key.Column() {
+					return invalidPlan("one relation model has conflicting primary key metadata")
+				}
+				primaryKeys[model] = key.Column()
+			}
+		}
 		materialized := len(hops)
 		if path.TerminalScope() == query.RelationTerminalSourceKey {
 			materialized--
@@ -91,7 +104,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			if err := declare(hop); err != nil {
 				return err
 			}
-			if index >= materialized {
+			if !materialize || index >= materialized {
 				continue
 			}
 			key := KeyForPath(hops[:index+1])
@@ -106,13 +119,35 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 		return nil
 	}
-	for _, condition := range plan.Conditions() {
+	type existenceRequest struct {
+		condition        query.Condition
+		correlationDepth int
+	}
+	existences := make(map[int]existenceRequest)
+	for index, leaf := range conditionLeaves(plan) {
+		condition := leaf.condition
 		if path, related := condition.RelationPath(); related {
 			if err := RelationCondition(plan, condition, path, backendName); err != nil {
 				return Joins{}, err
 			}
-			if err := addPath(path, true); err != nil {
+			exists := leaf.negated && !path.SingleValued()
+			if err := addPath(path, true, !exists); err != nil {
 				return Joins{}, err
+			}
+			if exists {
+				if len(path.PrimaryKeys()) == 0 {
+					return Joins{}, invalidPlan("collection negation requires explicit model row identities")
+				}
+				depth := 0
+				for i, hop := range path.Hops() {
+					if !hop.Cardinality().SingleValued() {
+						if _, reusable := edges[KeyForPath(path.Hops()[:i+1])]; reusable {
+							depth = i + 1
+						}
+						break
+					}
+				}
+				existences[index] = existenceRequest{condition: condition, correlationDepth: depth}
 			}
 		}
 	}
@@ -120,20 +155,20 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		if _, err := RelationProjection(plan, projection, backendName); err != nil {
 			return Joins{}, err
 		}
-		if err := addPath(projection.Path(), false); err != nil {
+		if err := addPath(projection.Path(), false, true); err != nil {
 			return Joins{}, err
 		}
 	}
 	for _, expression := range plan.ResultShape().Expressions() {
 		if path, related := expression.RelationPath(); related {
-			if err := addPath(path, false); err != nil {
+			if err := addPath(path, false, true); err != nil {
 				return Joins{}, err
 			}
 		}
 	}
 	for _, ordering := range plan.Orderings() {
 		if path, related := ordering.Expression().RelationPath(); related {
-			if err := addPath(path, false); err != nil {
+			if err := addPath(path, false, true); err != nil {
 				return Joins{}, err
 			}
 		}
@@ -145,7 +180,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 	slices.SortFunc(keys, CompareRelationKey)
 	required := map[RelationKey]bool(nil)
 	if where, ok := plan.Where(); ok {
-		required = requiredSingleJoins(where, false)
+		required = requiredJoins(where, false)
 	}
 	joins := make(map[RelationKey]Join, len(keys))
 	// Track declared optional ancestry separately from the final join type.
@@ -174,7 +209,7 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 			}
 		}
 		optionalRoutes[key] = optional
-		joined := Join{Table: hop.TargetTable(), FromAlias: fromAlias, FromColumn: hop.SourceColumn(), Column: hop.TargetPrimaryKeyColumn(), Alias: fmt.Sprintf("t%d", index+1), LeftOuter: hop.Cardinality().SingleValued() && (parentOuter || optional && !required[key])}
+		joined := Join{Table: hop.TargetTable(), FromAlias: fromAlias, FromColumn: hop.SourceColumn(), Column: hop.TargetPrimaryKeyColumn(), Alias: fmt.Sprintf("t%d", index+1), LeftOuter: parentOuter || optional && !required[key]}
 		if hop.Direction() == query.RelationReverse {
 			joined.Table = hop.SourceTable()
 			joined.FromColumn = hop.TargetPrimaryKeyColumn()
@@ -182,7 +217,15 @@ func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
 		}
 		joins[key] = joined
 	}
-	return Joins{Keys: keys, ByKey: joins}, nil
+	result := Joins{Keys: keys, ByKey: joins, Exists: make(map[int]CollectionExists, len(existences))}
+	for index, request := range existences {
+		exists, err := prepareCollectionExists(plan, request.condition, request.correlationDepth, result, backendName)
+		if err != nil {
+			return Joins{}, err
+		}
+		result.Exists[index] = exists
+	}
+	return result, nil
 }
 
 // Direction and reverse accessor describe the view of a declaration. A
@@ -196,11 +239,11 @@ func sameForeignKeyDeclaration(left, right query.RelationHop) bool {
 		(left.Cardinality() == ir.RelationOneToOne) == (right.Cardinality() == ir.RelationOneToOne)
 }
 
-// requiredSingleJoins finds edges whose joined row must exist for the
+// requiredJoins finds edges whose joined row must exist for the
 // predicate to be true. It owns only join presence, not SQL rendering. Odd
 // negation swaps AND/OR and nullable negated leaves can match an absent row.
 // Keeping an optional edge outer is conservative when no proof is available.
-func requiredSingleJoins(expression query.Expression, negated bool) map[RelationKey]bool {
+func requiredJoins(expression query.Expression, negated bool) map[RelationKey]bool {
 	switch expression.Kind() {
 	case query.ExpressionLeaf:
 		condition, ok := expression.Condition()
@@ -212,7 +255,7 @@ func requiredSingleJoins(expression query.Expression, negated bool) map[Relation
 			return nil
 		}
 		hops := path.Hops()
-		if !path.SingleValued() {
+		if negated && !path.SingleValued() {
 			return nil
 		}
 		if path.TerminalScope() == query.RelationTerminalSourceKey && condition.Lookup() == query.LookupIsNull {
@@ -248,12 +291,12 @@ func requiredSingleJoins(expression query.Expression, negated bool) map[Relation
 		if len(children) != 1 {
 			return nil
 		}
-		return requiredSingleJoins(children[0], !negated)
+		return requiredJoins(children[0], !negated)
 	case query.ExpressionAnd, query.ExpressionOr:
 		union := (expression.Kind() == query.ExpressionAnd) != negated
 		var required map[RelationKey]bool
 		for index, child := range expression.Children() {
-			current := requiredSingleJoins(child, negated)
+			current := requiredJoins(child, negated)
 			if index == 0 {
 				required = current
 				continue

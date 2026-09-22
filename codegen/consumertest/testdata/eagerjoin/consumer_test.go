@@ -153,7 +153,7 @@ func TestGeneratedEagerJoinReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +330,7 @@ func observeFacade(t *testing.T, row *project.ModelsPost, selected string) *null
 
 func TestGeneratedEagerJoinOwnsDuplicateRows(t *testing.T) {
 	backend, facade := fixture(t)
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

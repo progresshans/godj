@@ -528,7 +528,7 @@ func verifyRelations(t *testing.T, backend jsonBackend, records []models.Record,
 			}
 		}
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -577,5 +577,93 @@ func verifyNativeLimits(t *testing.T, backend jsonBackend, native bool) {
 		if err != nil || after != before {
 			t.Fatal("failed native JSON writes changed rows", err)
 		}
+	}
+}
+
+// Collection traversal retains each scalar lookup's backend policy while NOT
+// tests related-row existence, including an owner with no related rows.
+func checkJSONCollectionLookup(t *testing.T, backend jsonBackend, supported bool, name string, typed orm.Predicate[models.Record], input orm.LookupInput) {
+	t.Helper()
+	ctx := t.Context()
+	var ids []int64
+	for _, suffix := range []string{"match", "other", "json_null", "absent"} {
+		row, err := models.RecordObjects.Create(ctx, backend, models.NewRecordCreate("collection_"+name+"_"+suffix, jsonvalue.Null()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, row.ID)
+	}
+	for _, link := range []struct {
+		index int
+		token string
+	}{
+		{0, `{"hit":null,"a":{"match":true},"v":2}`},
+		{0, `{"hit":null,"a":{"match":true},"v":2}`},
+		{1, `{"miss":null,"a":{"other":true},"v":0}`},
+		{2, `null`},
+	} {
+		_, err := models.LinkObjects.Create(ctx, backend, models.NewLinkCreate("collection_"+name).WithRecordID(ids[link.index]).WithToken(document(t, link.token)))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	relations, err := project.BindRelations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := relations.ModelsRecord.ParseDynamic(nil, []orm.LookupInput{input})
+	if err != nil || len(parsed) != 1 {
+		t.Fatal("collection JSON parse", err)
+	}
+	base := models.RecordObjects.Using(backend).Filter(models.RecordFields.ID.In(ids...)).OrderBy(models.RecordFields.ID.Asc())
+	if !base.Filter(typed).Plan().Equal(base.Filter(parsed[0]).Plan()) {
+		t.Fatal("collection JSON AST differs")
+	}
+	var before uint64
+	if !supported {
+		before = backend.(*sqlite.Backend).QueryCount()
+	}
+	for _, predicate := range []orm.Predicate[models.Record]{typed, parsed[0]} {
+		for _, negate := range []bool{false, true} {
+			condition, want := predicate, []int64{ids[0], ids[0]}
+			if negate {
+				condition, want = orm.Not(predicate), ids[1:]
+			}
+			qs := base.Filter(condition)
+			if !supported {
+				expected := &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}
+				if rows, err := qs.All(ctx); rows != nil || !errors.Is(err, expected) {
+					t.Fatal("collection capability All", err)
+				}
+				if _, err := qs.Count(ctx); !errors.Is(err, expected) {
+					t.Fatal("collection capability Count", err)
+				}
+				zero, err := qs.Limit(0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if rows, err := zero.All(ctx); rows != nil || !errors.Is(err, expected) {
+					t.Fatal("collection capability empty", err)
+				}
+				continue
+			}
+			if count, err := qs.Count(ctx); err != nil || count != int64(len(want)) {
+				t.Fatal("collection JSON cold count", name, negate, count, err)
+			}
+			rows, err := qs.All(ctx)
+			if err != nil {
+				t.Fatal("collection JSON rows", name, negate, err)
+			}
+			got := make([]int64, len(rows))
+			for i, row := range rows {
+				got[i] = row.ID
+			}
+			if !slices.Equal(got, want) {
+				t.Fatal("collection JSON membership", name, negate, got, want)
+			}
+		}
+	}
+	if !supported && backend.(*sqlite.Backend).QueryCount() != before {
+		t.Fatal("unsupported collection JSON performed I/O")
 	}
 }

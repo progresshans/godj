@@ -316,13 +316,10 @@ func verifyJSONContainmentRelations(t *testing.T, backend jsonBackend, native bo
 			}
 		}
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, predicate := range []orm.Predicate[models.Record]{reverse.ModelsRecord.Links.Token.Contains(jsonvalue.Null()), reverse.ModelsRecord.Links.Token.At(query.JSONKey("a")).ContainedBy(jsonvalue.Null())} {
-		if _, err := models.RecordObjects.Using(backend).Filter(predicate).All(ctx); !errors.Is(err, &query.Error{Code: query.CodeUnsupportedLookup}) {
-			t.Fatal("containment silently widened reverse traversal", err)
-		}
-	}
+	checkJSONCollectionLookup(t, backend, native, "contains", reverse.ModelsRecord.Links.Token.Contains(document(t, `{"hit":null}`)), orm.LookupInput{Key: "links__token__contains", Value: document(t, `{"hit":null}`)})
+	checkJSONCollectionLookup(t, backend, native, "contained_by", reverse.ModelsRecord.Links.Token.At(query.JSONKey("a")).ContainedBy(document(t, `{"match":true}`)), orm.LookupInput{Key: "links__token__contained_by", Value: document(t, `{"match":true}`), JSONPath: []query.JSONPathSegment{query.JSONKey("a")}})
 }

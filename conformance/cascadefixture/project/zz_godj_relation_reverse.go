@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v4"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v5"
 
 var _ orm.RelationObjectDescriptor[details.Child] = details.ChildDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[details.Child] = details.ChildDescriptor{}
@@ -19,134 +19,6 @@ var _ orm.RelationObjectDescriptor[details.Detail] = details.DetailDescriptor{}
 var _ orm.RelationObjectDescriptor[details.Grandchild] = details.GrandchildDescriptor{}
 var _ orm.RelationObjectDescriptor[parents.Root] = parents.RootDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[parents.Root] = parents.RootDescriptor{}
-
-type DetailsChildGrandchildrenReverseRelation struct {
-	ID orm.RelatedIntegerField[details.Child]
-}
-
-type DetailsChildReverseRelations struct {
-	Grandchildren DetailsChildGrandchildrenReverseRelation
-	model         orm.BoundModel[details.Child]
-}
-
-func (_relations DetailsChildReverseRelations) ParseDynamic(
-	_policy orm.LookupPolicy,
-	_inputs []orm.LookupInput,
-) ([]orm.Predicate[details.Child], error) {
-	return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)
-}
-
-type ParentsRootChildrenReverseRelation struct {
-	ID orm.RelatedIntegerField[parents.Root]
-}
-
-type ParentsRootDetailReverseRelation struct {
-	relation orm.ReverseRelation[parents.Root, details.Detail]
-	ID       orm.RelatedIntegerField[parents.Root]
-}
-
-func (_relation ParentsRootDetailReverseRelation) IsNull(_value bool) orm.Predicate[parents.Root] {
-	return _relation.relation.IsNull(_value)
-}
-
-type ParentsRootReverseRelations struct {
-	Children ParentsRootChildrenReverseRelation
-	Detail   ParentsRootDetailReverseRelation
-	model    orm.BoundModel[parents.Root]
-}
-
-func (_relations ParentsRootReverseRelations) ParseDynamic(
-	_policy orm.LookupPolicy,
-	_inputs []orm.LookupInput,
-) ([]orm.Predicate[parents.Root], error) {
-	return orm.ParseDynamicReverseRelations(_relations.model, _policy, _inputs)
-}
-
-type ReverseRelations struct {
-	DetailsChild DetailsChildReverseRelations
-	ParentsRoot  ParentsRootReverseRelations
-}
-
-func BindReverseRelations() (ReverseRelations, error) {
-	_binding, _err := Bind()
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_model0, _err := orm.BindModel(
-		_binding,
-		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "child"},
-		details.ChildDescriptor{},
-	)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_model1, _err := orm.BindModel(
-		_binding,
-		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "detail"},
-		details.DetailDescriptor{},
-	)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_model2, _err := orm.BindModel(
-		_binding,
-		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "grandchild"},
-		details.GrandchildDescriptor{},
-	)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_model14, _err := orm.BindModel(
-		_binding,
-		ir.ModelIdentity{AppLabel: "cascadeparents", ModelName: "root"},
-		parents.RootDescriptor{},
-	)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_relation0, _err := orm.BindReverse(_model0, "grandchildren", _model2)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_terminal0, _err := _relation0.Integer(details.GrandchildFields.ID)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_relation1, _err := orm.BindReverse(_model14, "children", _model0)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_terminal1, _err := _relation1.Integer(details.ChildFields.ID)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_relation2, _err := orm.BindReverse(_model14, "detail", _model1)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	_terminal2, _err := _relation2.Integer(details.DetailFields.ID)
-	if _err != nil {
-		return ReverseRelations{}, _err
-	}
-	return ReverseRelations{
-		DetailsChild: DetailsChildReverseRelations{
-			Grandchildren: DetailsChildGrandchildrenReverseRelation{
-				ID: _terminal0,
-			},
-			model: _model0,
-		},
-		ParentsRoot: ParentsRootReverseRelations{
-			Children: ParentsRootChildrenReverseRelation{
-				ID: _terminal1,
-			},
-			Detail: ParentsRootDetailReverseRelation{
-				relation: _relation2,
-				ID:       _terminal2,
-			},
-			model: _model14,
-		},
-	}, nil
-}
 
 type DetailsChildReverseObjectFactory struct {
 	model         orm.BoundModel[details.Child]
@@ -386,4 +258,4 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_b948878f104b9196daec6d72046677e7e599ac381e9033e1fc3ca554be4e29c0
+var _ goDjProjectSnapshot_c93050d3caf2731a2e6e835e5a4a4264be776ef863f612d12b72100c3e61cd9d

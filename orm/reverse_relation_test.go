@@ -82,12 +82,13 @@ func TestReverseRelationTerminalValidationAndStateAreFailClosed(t *testing.T) {
 	}))
 	assertRelationObjectQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
 
-	var zero ReverseRelation[relationObjectTestAuthor, relationObjectTestPost]
+	var zero QueryRelation[relationObjectTestAuthor, relationObjectTestPost]
 	_, err = zero.String(NewStringField[relationObjectTestPost](relationObjectTestPostField("title")))
 	assertRelationObjectQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 
 	poisoned := posts
-	poisoned.state.reverse.Name = "reviewed_posts"
+	poisoned.route.steps = append([]queryRelationStep(nil), posts.route.steps...)
+	poisoned.route.steps[0].accessor = "reviewed_posts"
 	_, err = poisoned.String(NewStringField[relationObjectTestPost](relationObjectTestPostField("title")))
 	assertRelationObjectQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 }

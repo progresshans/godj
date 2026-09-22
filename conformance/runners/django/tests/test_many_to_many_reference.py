@@ -40,7 +40,7 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
-        self.assertEqual(len(actual['observations']), 31)
+        self.assertEqual(len(actual['observations']), 36)
         postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
         for field in ('observations', 'source_sha256'):
             self.assertEqual(actual[field], postgres[field])
@@ -115,6 +115,30 @@ class ManyToManyReferenceTests(unittest.TestCase):
             'optional_null': True, 'remaining': ['b'], 'endpoint_count': 3,
         })
 
+    def test_collection_filters_preserve_scope_order_presence_and_multiplicity(self):
+        cases = self.snapshots[0]['observations']
+        scopes = cases['query_filter_scopes']
+        self.assertEqual(scopes['same_filter'], [])
+        self.assertEqual(scopes['successive_filters'], ['first'])
+        self.assertEqual(scopes['successive_membership'], ['first'] * 4 + ['second'])
+        self.assertEqual(scopes['two_collections'], ['first', 'first', 'second'])
+        self.assertEqual(scopes['three_collections'], ['first', 'first', 'second'])
+        order = cases['query_boolean_order']
+        self.assertEqual(order['positive_first'], ['first'])
+        self.assertEqual(order['negative_first'], [])
+        self.assertEqual(order['successive_negative'], [])
+        self.assertEqual(order['successive_positive'], [])
+        presence = cases['query_boolean_presence']
+        self.assertEqual(presence['not_and'], ['empty', 'second'])
+        self.assertEqual(presence['not_or'], ['empty'])
+        self.assertEqual(presence['or_root'], ['empty', 'first'])
+        self.assertEqual(presence['field_null'], ['empty', 'first', 'second'])
+        loose = cases['query_nullable_links']
+        self.assertEqual(loose['members'], ['loose-mixed'] * 3)
+        self.assertEqual(loose['absent'], ['loose-empty', 'loose-mixed', 'loose-null', 'loose-null'])
+        self.assertEqual(loose['exclude_a'], ['loose-empty', 'loose-null'])
+        self.assertEqual(loose['reverse_absent'], ['a', 'c'])
+
     def test_real_semantic_mutations_change_observations(self):
         source = RUNNER.read_text()
         for original, replacement, case, field, value in (
@@ -123,6 +147,11 @@ class ManyToManyReferenceTests(unittest.TestCase):
             ('friends = models.ManyToManyField("self")',
              'friends = models.ManyToManyField("self", symmetrical=False)',
              'self_symmetric', 'links', 2),
+            ('Owner.objects.filter(qa).filter(qb)', 'Owner.objects.filter(qa & qb)',
+             'query_filter_scopes', 'successive_filters', []),
+            ('"positive_first": query_names(Owner.objects.filter(qa & ~qb))',
+             '"positive_first": query_names(Owner.objects.filter(~qb & qa))',
+             'query_boolean_order', 'positive_first', []),
         ):
             with self.subTest(case=case):
                 self.assertEqual(source.count(original), 1)

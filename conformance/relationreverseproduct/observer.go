@@ -78,7 +78,7 @@ func observeWithBackend(ctx context.Context, backend *sqlite.Backend, config fix
 	if err != nil {
 		return Observation{}, fmt.Errorf("bind generated REL-005 reverse objects: %w", err)
 	}
-	reverseRelations, err := project.BindReverseRelations()
+	reverseRelations, err := project.BindRelations()
 	if err != nil {
 		return Observation{}, fmt.Errorf("bind generated REL-005 reverse relations: %w", err)
 	}

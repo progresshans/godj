@@ -89,6 +89,10 @@ DB 독립 projection·ordering·relation key·scalar 의미 검사는 `db/intern
 관계 projection의 provenance·edge 충돌, 정렬된 alias와 JOIN 방향·nullable outer join도 공통 계획에서 결정한다.
 하나의 selected forward projection과 다른 forward/reverse filter JOIN을 조합하며, scanner는 root와 selected target의 열만 읽는다.
 Reverse filter의 중복 행은 Distinct가 없는 한 유지하고 반환 객체·관계 cache는 각각 독립 복제한다.
+Forward/reverse/ManyToMany 조건은 `QueryRelation`·`ChainRelations`와 하나의 generated `BindRelations`/dynamic parser를 사용한다.
+같은 Filter는 collection 연결 행을 공유하고 연속 Filter는 독립 scope를 갖는다. 부정 collection은 명시한 row identity의
+correlated EXISTS로 준비한다. 물리 hop·부재 행·manager의 한 번만 재사용하는 core filter 의미는
+[컬렉션 조회 결정](adr/0075-many-to-many-storage-and-mutation-ownership.md#공통-관계-조회와-필터별-연결-행)을 따른다.
 
 `NewManager`는 descriptor metadata를 생성 시점에 한 번 deep copy하고 기본 plan을 준비한다. 같은 Manager의 읽기·쓰기는
 이 스냅샷을 사용한다. Metadata 변경을 반영하려면 새 Manager를 만든다. `Using`은 준비된 불변 plan을 공유하되 매번 독립

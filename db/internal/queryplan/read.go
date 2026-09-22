@@ -17,12 +17,14 @@ type RelationKey struct {
 	Direction                                             query.RelationDirection
 	Parent                                                string
 	Depth                                                 int
+	FilterScope                                           uint32
 }
 
 func KeyForRelation(hop query.RelationHop) RelationKey {
 	return RelationKey{
 		SourceApp: hop.Source().AppLabel, SourceModel: hop.Source().ModelName, Field: hop.Field(),
 		TargetApp: hop.Target().AppLabel, TargetModel: hop.Target().ModelName, Direction: hop.Direction(),
+		FilterScope: hop.FilterScope(),
 	}
 }
 
@@ -66,15 +68,21 @@ func RelationCondition(plan query.Plan, condition query.Condition, path query.Re
 	}
 	hops := path.Hops()
 	root := hops[0]
+	keys := path.PrimaryKeys()
+	if len(keys) != 0 && !ContainsField(plan.SourceFields(), keys[0]) {
+		return invalidPlan("relation root primary key is not selected model metadata")
+	}
 	if root.Direction() == query.RelationReverse {
 		if root.TargetTable() != plan.Table() {
 			return invalidPlan("reverse relation root table does not match plan source")
 		}
-		if err := ReverseCondition(condition, root, backendName); err != nil {
-			return err
-		}
-		if !path.SingleValued() && condition.Lookup() != query.LookupExact {
-			return unsupportedRelatedCondition(condition, backendName+" reverse relation compiler supports exact related lookups only")
+		if len(keys) == 0 {
+			if err := ReverseCondition(condition, root, backendName); err != nil {
+				return err
+			}
+			if !path.SingleValued() && condition.Lookup() != query.LookupExact {
+				return unsupportedRelatedCondition(condition, backendName+" reverse relation compiler requires row identities for additional lookups")
+			}
 		}
 		return nil
 	}
@@ -143,6 +151,12 @@ func CompareRelationKey(left, right RelationKey) int {
 		return -1
 	}
 	if left.Depth > right.Depth {
+		return 1
+	}
+	if left.FilterScope < right.FilterScope {
+		return -1
+	}
+	if left.FilterScope > right.FilterScope {
 		return 1
 	}
 	if order := strings.Compare(left.Parent, right.Parent); order != 0 {
@@ -272,6 +286,7 @@ func KeyForPath(hops []query.RelationHop) RelationKey {
 	var prefix strings.Builder
 	for _, hop := range hops[:len(hops)-1] {
 		edge := KeyForRelation(hop)
+		fmt.Fprintf(&prefix, "%d;", edge.FilterScope)
 		for _, part := range []string{edge.SourceApp, edge.SourceModel, edge.Field, edge.TargetApp, edge.TargetModel, string(edge.Direction)} {
 			fmt.Fprintf(&prefix, "%d:%s", len(part), part)
 		}

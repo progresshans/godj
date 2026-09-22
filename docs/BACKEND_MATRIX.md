@@ -118,7 +118,9 @@ Forward 대상의 11종 scalar와 JSON 문서/경로를 root field와 함께 typ
 여러 selected direct·nested forward relation과 다른 forward/reverse filter JOIN의 All/First·중복·Distinct·슬라이스를 지원한다.
 선택한 경로의 모든 prefix를 한 SQL로 읽고 하위 관계 접근에 cache를 넘긴다. 입력 tree는 깊이 64·중복 포함 1024 node로 제한하며
 Count는 구조·binding 검사 뒤 projection을 제외한다. 실행 환경별 근거는 [테스트 증거](status/TEST_EVIDENCE.md)가 소유한다.
-Collection reverse non-exact/OR/NOT, 관계를 넘는 F·다단계 reverse 조건은 미지원이다.
+Forward/reverse/ManyToMany의 mixed scalar 조건·AND/OR/NOT·isnull·IN을 같은 keyed AST로 처리한다.
+한 Filter와 연속 Filter의 collection scope를 구분하고 중복·Distinct·Count와 부정 EXISTS를 유지한다.
+관계를 넘는 F와 collection value projection/ordering·일반 관계 집계, ManyToMany prefetch는 미지원이다.
 OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
 Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.
@@ -132,7 +134,7 @@ Backend가 생성하는 모든 physical connection은 외래키 검사를 ON으�
 제한된 FK suspension은 별도의 admission/terminal 복원·폐기 경로가 계속 소유한다.
 
 경로 최대 길이는 공통 AST의 64 hop이다. SQLite는 [물리 JOIN 제한](https://www.sqlite.org/limits.html#max_join)에 따라
-root를 포함해 64 table까지만 허용한다. 실제 JOIN 수를 compiler가 계산하여 초과를 빈 조회의 생략 전에 거부한다.
+root를 포함해 64 table까지만 허용한다. Outer SELECT와 각 collection EXISTS의 JOIN 수를 compiler가 각각 계산하여 초과를 빈 조회의 생략 전에 거부한다.
 
 FK enforcement는 connection별 설정이다. GoDj가 사용하는 raw relation/migration path는 필요한 FK 상태와 physical schema를
 확인한다. FK-off 또는 out-of-band writer를 포함한 모든 process가 자동 보호된다고 주장하지 않는다.

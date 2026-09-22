@@ -279,7 +279,7 @@ func RunProduct(t *testing.T, backend ProductBackend) {
 	if err != nil || parent != first || reads.calls.Load() != before+1 {
 		t.Fatal("one-to-one eager cache", parent, err)
 	}
-	bindings, err := project.BindReverseRelations()
+	bindings, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

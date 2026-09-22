@@ -289,9 +289,19 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 		sql.WriteString(joinedColumn)
 	}
 
-	for _, leaf := range where.leaves {
+	for index, leaf := range where.leaves {
 		alias := rootAlias
-		if path, related := leaf.condition.RelationPath(); related {
+		if exists, ok := prepared.Exists[index]; ok {
+			if len(exists.Joins) > 63 {
+				return "", nil, unsupportedResult("SQLite supports at most 64 joined tables inside a collection existence query")
+			}
+			prefix, err := queryplan.CollectionExistsPrefix(exists, quoteIdentifier, quoteIdentifier, quoteQualified)
+			if err != nil {
+				return "", nil, err
+			}
+			leaf.existsPrefix = prefix
+			alias = exists.TerminalAlias
+		} else if path, related := leaf.condition.RelationPath(); related {
 			if key, joined := queryplan.ConditionJoinKey(path); joined {
 				relation, found := joins[key]
 				if !found {

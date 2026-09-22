@@ -66,10 +66,10 @@ func BindModel[M any](
 	}, nil
 }
 
-// ForwardRelation retains the root and terminal Go types of a forward route.
+// QueryRelation retains the root and terminal Go types of a relation route.
 // Each declaration belongs to the same immutable project snapshot.
-type ForwardRelation[S, T any] struct {
-	route        forwardQueryRoute
+type QueryRelation[S, T any] struct {
+	route        relationQueryRoute
 	sourceMarker [0]func(S)
 	targetMarker [0]func(T)
 }
@@ -90,24 +90,24 @@ func BindForward[S, T any](
 	source BoundModel[S],
 	field string,
 	target BoundModel[T],
-) (ForwardRelation[S, T], error) {
+) (QueryRelation[S, T], error) {
 	if err := validateBoundModel(source); err != nil {
-		return ForwardRelation[S, T]{}, err
+		return QueryRelation[S, T]{}, err
 	}
 	if err := validateBoundModel(target); err != nil {
-		return ForwardRelation[S, T]{}, err
+		return QueryRelation[S, T]{}, err
 	}
 	if source.snapshot != target.snapshot {
-		return ForwardRelation[S, T]{}, relationInvalidPlan("source and target models belong to different project snapshots")
+		return QueryRelation[S, T]{}, relationInvalidPlan("source and target models belong to different project snapshots")
 	}
 	state, err := resolveForwardRelationState(source.snapshot, source.identity, source.model, field)
 	if err != nil {
-		return ForwardRelation[S, T]{}, err
+		return QueryRelation[S, T]{}, err
 	}
 	if state.metadata.Target != target.identity || !reflect.DeepEqual(state.targetModel, target.model) {
-		return ForwardRelation[S, T]{}, relationInvalidPlan("forward relation target does not match bound target model")
+		return QueryRelation[S, T]{}, relationInvalidPlan("forward relation target does not match bound target model")
 	}
-	return ForwardRelation[S, T]{route: forwardQueryRoute{steps: []forwardRelationState{state}}}, nil
+	return BindQueryRelation(source, field, target)
 }
 
 // RelatedIntegerField and RelatedStringField carry the source model type after
@@ -126,7 +126,7 @@ type RelatedStringField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (r ForwardRelation[S, T]) Integer(field ReferenceField[T, int64]) (RelatedIntegerField[S], error) {
+func (r QueryRelation[S, T]) Integer(field ReferenceField[T, int64]) (RelatedIntegerField[S], error) {
 	if err := r.route.validate(); err != nil {
 		return RelatedIntegerField[S]{}, err
 	}
@@ -162,7 +162,7 @@ func relatedScalarMetadata[M, V any](model ir.Model, field ReferenceField[M, V],
 	return ir.Field{}, unknownRelatedField(reference.Name())
 }
 
-func (r ForwardRelation[S, T]) String(field ReferenceField[T, string]) (RelatedStringField[S], error) {
+func (r QueryRelation[S, T]) String(field ReferenceField[T, string]) (RelatedStringField[S], error) {
 	if err := r.route.validate(); err != nil {
 		return RelatedStringField[S]{}, err
 	}

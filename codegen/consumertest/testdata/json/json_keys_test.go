@@ -425,13 +425,10 @@ func verifyJSONKeyRelations(t *testing.T, backend jsonBackend, native bool, reco
 	if _, err := orm.ParseDynamicRelations(model, func(ir.Field, query.Lookup) bool { return false }, []orm.LookupInput{{Key: "record__payload__has_key", Value: "a"}}); !errors.Is(err, &query.Error{Code: query.CodeDisallowedLookup}) {
 		t.Fatal("forward key policy bypass", err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, predicate := range []orm.Predicate[models.Record]{reverse.ModelsRecord.Links.Token.HasKey("a"), reverse.ModelsRecord.Links.Token.At(query.JSONKey("a")).HasAnyKeys("b")} {
-		if _, err := models.RecordObjects.Using(backend).Filter(predicate).All(t.Context()); !errors.Is(err, &query.Error{Code: query.CodeUnsupportedLookup}) {
-			t.Fatal("reverse key traversal widened", err)
-		}
-	}
+	checkJSONCollectionLookup(t, backend, true, "has_key", reverse.ModelsRecord.Links.Token.HasKey("hit"), orm.LookupInput{Key: "links__token__has_key", Value: "hit"})
+	checkJSONCollectionLookup(t, backend, true, "has_any_keys", reverse.ModelsRecord.Links.Token.At(query.JSONKey("a")).HasAnyKeys("match"), orm.LookupInput{Key: "links__token__has_any_keys", Value: []string{"match"}, JSONPath: []query.JSONPathSegment{query.JSONKey("a")}})
 }

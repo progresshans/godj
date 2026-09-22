@@ -92,7 +92,7 @@ func RunReverseEager(t *testing.T, backend ProductBackend, dialect string, compi
 	if err != nil {
 		t.Fatal(err)
 	}
-	predicates, err := project.BindReverseRelations()
+	predicates, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

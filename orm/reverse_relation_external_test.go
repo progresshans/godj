@@ -89,7 +89,7 @@ func TestPublicReverseRelationBindingFailuresPublishOnlyZeroValues(t *testing.T)
 	_, err = orm.BindReverse(zeroOwner, "posts", fixture.postModel)
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 
-	var zeroRelation orm.ReverseRelation[relationQueryAuthor, relationQueryPost]
+	var zeroRelation orm.QueryRelation[relationQueryAuthor, relationQueryPost]
 	postMetadata, _ = fixture.binding.Model(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"})
 	_, err = zeroRelation.Integer(orm.NewAutoField[relationQueryPost](postMetadata.Fields[0]))
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)

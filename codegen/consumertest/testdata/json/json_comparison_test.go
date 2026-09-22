@@ -385,13 +385,11 @@ func verifyJSONComparisonBoundaries(t *testing.T, backend jsonBackend, native bo
 			t.Fatal("invalid comparison value accepted")
 		}
 	}
-	back, err := project.BindReverseRelations()
+	back, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := models.RecordObjects.Using(backend).Filter(back.ModelsRecord.Links.Token.GreaterThan(jsonvalue.Null())).All(ctx); !errors.Is(err, &query.Error{Code: query.CodeUnsupportedLookup}) {
-		t.Fatal("reverse comparison widened", err)
-	}
+	checkJSONCollectionLookup(t, backend, true, "gt", back.ModelsRecord.Links.Token.At(query.JSONKey("v")).GreaterThan(document(t, "1")), orm.LookupInput{Key: "links__token__gt", Value: document(t, "1"), JSONPath: []query.JSONPathSegment{query.JSONKey("v")}})
 }
 
 func checkJSONOrdering[M any](t *testing.T, tc orderingCase, source orm.QuerySet[M], id orm.ScalarField[M, int64], label orm.ScalarField[M, string], field orderedJSONField[M], name func(M) string) {

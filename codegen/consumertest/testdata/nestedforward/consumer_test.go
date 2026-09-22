@@ -37,7 +37,7 @@ func TestGeneratedNestedForwardInvalidRoutes(t *testing.T) {
 		{Key: "author__team__label__name", Value: "x"},
 		{Key: "author__team__organization__updated", Value: "2000-01-01T00:00:00Z"},
 		{Key: "reviewer__backup__organization__isnull", Value: "true"},
-		{Key: "author__team__members__name", Value: "Ada"},
+		{Key: "author__team__members__name", Value: int64(1)},
 		{Key: "author__manager__manager__points__in", Value: []any{int64(1), "2"}},
 		{Key: "author__" + strings.Repeat("manager__", 64) + "name", Value: "Ada"},
 	} {
@@ -91,12 +91,12 @@ func TestGeneratedNestedForwardInvalidRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = orm.ChainForward(author, manager).String(people.PersonFields.Name)
+	_, err = orm.ChainRelations(author, manager).String(people.PersonFields.Name)
 	if !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
 		t.Fatalf("foreign composition: %v", err)
 	}
 	cause := &query.Error{Category: query.CategoryField, Code: query.CodeDisallowedLookup, Field: "manager"}
-	failed := orm.ChainForward(author.WithConfigurationError(fmt.Errorf("binding: %w", cause)), manager)
+	failed := orm.ChainRelations(author.WithConfigurationError(fmt.Errorf("binding: %w", cause)), manager)
 	_, err = failed.String(people.PersonFields.Name)
 	if !errors.Is(err, cause) {
 		t.Fatalf("binding lost cause: %v", err)
@@ -272,7 +272,7 @@ func TestGeneratedNestedForwardReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -572,4 +572,57 @@ func observeFacade(t *testing.T, row *project.BlogPost, selected []string) *null
 		}
 	}
 	return result
+}
+
+func TestGeneratedMixedCollectionRoutes(t *testing.T) {
+	backend, facade := fixture(t)
+	r, err := project.BindRelations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := people.PersonObjects.Create(t.Context(), backend, people.NewPersonCreate("Another", 1)); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		typed  orm.Predicate[blog.Post]
+		input  orm.LookupInput
+		negate bool
+		want   []int64
+	}{
+		{"author", r.BlogPost.Author.Team().Members().Name.Exact("Ada"), orm.LookupInput{Key: "author__team__members__name", Value: "Ada"}, false, []int64{1, 3, 5}},
+		{"nullable", r.BlogPost.Reviewer.Team().Members().Name.Exact("Ada"), orm.LookupInput{Key: "reviewer__team__members__name", Value: "Ada"}, false, []int64{3, 4}},
+		{"nullable_not", r.BlogPost.Reviewer.Team().Members().Name.Exact("Ada"), orm.LookupInput{Key: "reviewer__team__members__name", Value: "Ada"}, true, []int64{1, 2, 5, 6, 7, 8}},
+		{"multiplicity", r.BlogPost.Author.Team().Members().Name.In("Ada", "Another"), orm.LookupInput{Key: "author__team__members__name__in", Value: []string{"Ada", "Another"}}, false, []int64{1, 1, 3, 3, 5, 5}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed, err := r.BlogPost.ParseDynamic(nil, []orm.LookupInput{tc.input})
+			if err != nil || len(parsed) != 1 {
+				t.Fatal(err)
+			}
+			if !blog.PostObjects.Using(backend).Filter(tc.typed).Plan().Equal(blog.PostObjects.Using(backend).Filter(parsed[0]).Plan()) {
+				t.Fatal("mixed route AST differs")
+			}
+			for _, predicate := range []orm.Predicate[blog.Post]{tc.typed, parsed[0]} {
+				if tc.negate {
+					predicate = orm.Not(predicate)
+				}
+				qs := facade.BlogPost.Filter(predicate).OrderBy(blog.PostFields.ID.Asc())
+				if count, err := qs.Count(t.Context()); err != nil || count != int64(len(tc.want)) {
+					t.Fatal("mixed route cold count", count, err)
+				}
+				rows, err := qs.All(t.Context())
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := make([]int64, len(rows))
+				for i, row := range rows {
+					got[i] = row.ID
+				}
+				if !reflect.DeepEqual(got, tc.want) {
+					t.Fatal("mixed route rows", got, tc.want)
+				}
+			}
+		})
+	}
 }

@@ -297,7 +297,7 @@ func verifyJSONProjectionExecution(t *testing.T, backend jsonBackend, native boo
 	if !native && backend.(*sqlite.Backend).QueryCount() != before {
 		t.Fatal("invalid/empty/canceled projection performed I/O")
 	}
-	relations, err := project.BindReverseRelations()
+	relations, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 컬렉션 관계 조건과 공통 typed/dynamic 경로
+
+2026-09-23, `031bfbabbb548278fedd5c213ead472986c5954a` 위에서 forward/reverse/ManyToMany의 mixed scalar 조건을
+`QueryRelation`·`ChainRelations`·generated `BindRelations`와 같은 Query AST에 연결했다. Filter별 join scope·중복/Distinct/Count,
+부정 EXISTS의 상관 identity와 조건 순서, OR·nullable through·manager core filter를 처리한다.
+ManyToMany prefetch·Ticket 컬렉션 편집과 GDJ-0099 Hosted 통합은 남아 있다.
+
+최종 non-Markdown source **2,107파일**의 정렬 path→SHA256 map hash는
+`cc148bbfe75f4fa0b903e07b792f6a832da67be161e209c64cd2fb1c9094b285`다. 모든 아래 최종 실행은 시작/종료 source가 동일하고 test skip이 없다.
+
+- 최종 normal: `./orm ./query ./codegen ./codegen/consumertest ./db/internal/queryplan ./db/sqlite ./db/postgres`
+  및 `./internal/compiletest ./conformance/relationreverseproduct ./conformance/onetoonefixture`에서
+  **10 package / 7,209 run=PASS / skip 0**, 필수 root 19개를 확인했다(181.7초).
+- 최종 변경 범위의 race: 위 마지막 세 package 전체와 PostgreSQL `TestPostgresOneToOneReverseLookupsMatchDjango`에서
+  **4 package / 168 run=PASS / skip 0**, 필수 root 5개(7.9초).
+  같은 범위 CGO=0은 **233 run=PASS / skip 0**, 필수 root 4개(11.2초).
+  `internal/compiletest/compile_test.go`는 기존 `!race` build tag를 가지므로 외부 compile/type-misuse 전체는 normal·CGO=0 증거다.
+  Race에서는 실제 빌드되는 facade/project-bundle의 세 root를 요구한다. 최초 임시 harness의 잘못된 race inventory 실패도 보존했다.
+- 위 최종 source 이전 `94bead39a90c8a83977c50b48eb82101396237e52ae057ddab7ea1a4af78a1e3`에서 앞의 7개 package를 normal/race/CGO=0으로 실행했다.
+  각 **7,018 run 중 7,017 PASS·1 FAIL·skip 0**이며 모두 source 불변이다. 실패는 공통 OneToOne test helper가 정상 빈 조회의
+  backend 진입을 오류 경로의 호출 횟수에 합친 assertion 한 건이다. 이 넓은 실행 전체를 PASS로 기록하지 않는다.
+  정상 LIMIT 0의 실제 SQL count와 invalid/canceled 입력의 backend 호출을 따로 검증하도록 수정했다.
+  추가로 외부 compile fixture 두 곳의 이전 BindReverseRelations 호출을 새 API로 옮겼다. 이후 차이는 이 **검증 파일 세 개뿐**이며
+  제품·생성기·다른 테스트 입력은 같다(`final-delta.json`). 이 수정은 위 최종 normal과 해당 race/CGO=0 범위에서 확인했다.
+
+별도 actual generated module의 양 DB **172 child run=PASS**를 마지막 넓은 세 mode와 최종 normal에서 부모가 검사했다.
+새 reference의 다섯 query group을 빠짐없이 typed/dynamic AST·조회 결과·cold Count로 비교하고, reverse root·nullable duplicate·
+shared through alias·고정된 manager scope를 함께 검사한다. 기존 mutation·session·cache 소유권 사례도 유지한다.
+JSON collection의 lookup·부정·중복과 mixed 단일/다중 관계를 실제 생성 API로 검증했다. SQLite JSON containment 미지원은
+All/Count/LIMIT 0에서 SQL 없이 명시 오류로 남는다. Row identity 충돌과 EXISTS 내부의 SQLite 64-table 한도도 빈 결과보다 먼저 검증한다.
+
+독립 Django **6.1** 관찰을 양 DB·hash seed 0/813에서 **36개**로 확장했다. 기존 31개와 고정 Django source hash를 보존했고
+동일 backend의 두 seed 및 양 DB의 관찰이 같다. Reference 환경은 CPython **3.14.3**, SQLite **3.50.4**, PostgreSQL **170005**,
+asgiref **3.12.1**, sqlparse **0.5.5**, psycopg **3.3.6**이다. Runner SHA256은
+`56ad9e628bb70a1ba46f3bd53c66c2b363be0efb2b82ce3f886303a4b7b69a0e`이며 전용 reference unittest **8 PASS**다.
+하나의 Filter로 합치기·Q 순서 바꾸기 등 실제 Django 의미 변경은 reference negative control에서 실패한다.
+
+Go runtime은 별도 SQLite generated module에서 원본 **59 run=PASS** 뒤, filter scope 합치기·root로 상관 대상 강제·manager의
+첫 scope 재사용 제거·INNER JOIN 강제라는 네 overlay를 각각 적용했다. 각 대응 query 사례가 실제 실패하고 workspace 제품 파일은
+변하지 않았다. 원본/변경 파일·전체 event·실패 inventory와 hash를 보존했다. Reference 결과와 Go-native 보안/소유권 증거를 구분한다.
+
+공통 로컬 환경은 Go **1.26.5**, Darwin arm64, modernc SQLite와 격리 PostgreSQL **17.5 Homebrew**다.
+DB 테스트는 `GODJ_REQUIRE_POSTGRES=1`이며 mode별 전용 database의 추가 연결·사용자 table·추가 schema가 종료 시 **0|0|0**인 것을
+확인하고 database를 제거했다. 독립 PostgreSQL helper entrypoint는 직접 root 실행에서 제외하고 실제 subprocess 회귀를 유지했다.
+제품 전체 플랫폼/cold-build를 실행한 것으로 세지 않는다.
+
+다섯 기존 project의 실제 CLI generated drift와 영향 vet, 마지막 수정 helper/외부 소비자의 vet, CI Python **41 PASS**를 확인했다.
+Query ABI v3·reverse companion ABI v5와 generated Go/manifest/golden을 실제 generator로 갱신했다.
+초기 golden/기존 미지원 기대값·nullable 객체 AST 불일치와 후속 수정의 실패 로그를 지우지 않았다.
+최종 gofmt·문서 링크·diff 검사 결과는 같은 artifact의 `final-document-check.json`에 보관한다.
+
+전체 command·source map·event·stderr·inventory·receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/collection-query/`의 `latest-*-path`, `final-source.json`, `final-delta.json`을 따른다.
+최신 Hosted 전체는 여전히 source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739)이다. 이후 변경의 Hosted 전체 결과로 전이하지 않는다.
+
 ## GDJ-0099 — model collection facade와 빌린 session composition
 
 2026-09-22, `5e949e470ecfa8f60aa949fcb1c844a30d843640` 위에서 generated model의 forward/reverse collection 접근자와

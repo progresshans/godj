@@ -13,7 +13,7 @@ type RelatedUUIDField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (relation ForwardRelation[S, T]) UUID(field ReferenceField[T, uuid.UUID]) (RelatedUUIDField[S], error) {
+func (relation QueryRelation[S, T]) UUID(field ReferenceField[T, uuid.UUID]) (RelatedUUIDField[S], error) {
 	if err := relation.route.validate(); err != nil {
 		return RelatedUUIDField[S]{}, err
 	}
@@ -27,20 +27,7 @@ func (relation ForwardRelation[S, T]) UUID(field ReferenceField[T, uuid.UUID]) (
 	}
 	return RelatedUUIDField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) UUID(field ReferenceField[Source, uuid.UUID]) (RelatedUUIDField[Owner], error) {
-	if err := validateReverseRelationState(relation.state); err != nil {
-		return RelatedUUIDField[Owner]{}, err
-	}
-	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldUUID)
-	if err != nil {
-		return RelatedUUIDField[Owner]{}, err
-	}
-	path, err := relation.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedUUIDField[Owner]{}, err
-	}
-	return RelatedUUIDField[Owner]{path: path, valid: true}, nil
-}
+
 func (field RelatedUUIDField[M]) Exact(value uuid.UUID) Predicate[M] {
 	if field.configurationErr != nil {
 		return Predicate[M]{err: field.configurationErr}

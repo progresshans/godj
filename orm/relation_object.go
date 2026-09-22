@@ -132,14 +132,11 @@ func bindForwardObject[S, T any](
 		valid:     true,
 	}
 	if wantNullable {
-		state.nullablePath, err = query.NewForwardRelationIsNullPath(
-			relation.sourceIdentity,
-			relation.sourceModel.DBTable,
-			fieldReference(sourceField),
-			relation.metadata.Target,
-			relation.targetModel.DBTable,
-			relation.targetPrimaryKey.Column, relation.metadata.Cardinality,
-		)
+		step, routeErr := resolveQueryRelationStep(source.snapshot, source.identity, source.model, field)
+		if routeErr != nil {
+			return forwardObjectState[S, T]{}, routeErr
+		}
+		state.nullablePath, err = (relationQueryRoute{steps: []queryRelationStep{step}}).path(fieldReference(sourceField), query.RelationTerminalSourceKey)
 		if err != nil {
 			return forwardObjectState[S, T]{}, err
 		}

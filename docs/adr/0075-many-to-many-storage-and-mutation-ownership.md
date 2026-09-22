@@ -82,13 +82,43 @@ DB가 허용하는 동시 duplicate를 숨은 constraint나 retry로 바꾸지 �
 확인된 commit 뒤 늦은 context 취소로 결과를 실패로 바꾸지 않는다. 외부 transaction과의 명시적 composition은 아래의 session binding을 따른다.
 
 `Query()`는 동일 Query AST의 physical reverse join으로 target을 읽는다. 선택한 nullable FK의 metadata도 유지하며,
-명시적 through의 duplicate는 `Distinct()` 요청 전까지 보존한다. 일반 ManyToMany traversal predicate와 prefetch는 후속 범위다.
+명시적 through의 duplicate는 `Distinct()` 요청 전까지 보존한다. 일반 traversal 조건은 아래의 공통 관계 조회를 따르며 ManyToMany prefetch는 후속 범위다.
 Collection handle의 query cache는 mutex 아래 교체한다. Mutation 시작과 종료 모두 무효화하므로 실패·취소·unknown outcome이나
 이전 in-flight 조회가 현재 handle에 오래된 cache를 남기지 않는다. 이미 반환한 QuerySet, 다른 owner materialization과 Fresh는
 독립 snapshot을 소유하며 pointer handle의 zero/value-copy는 오류다.
 
 독립 Django 관찰은 nullable/nonunique through의 set/remove/clear/reverse clear와 연결 행의 incoming 정책까지 확장했다.
 통합 facade/session composition과 prefetch·Ticket 소비자·signal 완료를 구분한다.
+
+## 공통 관계 조회와 필터별 연결 행
+
+2026-09-23, forward/reverse FK·OneToOne·ManyToMany 조건을 `orm.QueryRelation[S,T]`와
+`ChainRelations`로 통합한다. Generated `BindRelations()`의 같은 그룹에서 scalar field와 lazy traversal를 제공하고,
+`ParseDynamicRelations`도 같은 sealed project snapshot과 경로를 사용한다. `BindForward`/`BindReverse`는 방향을 제한하는
+constructor다. 별도 reverse query adapter·parser와 이전 query type의 호환 별칭은 유지하지 않는다. Reverse object와 prefetch의
+객체 소유권은 그대로 해당 runtime이 담당한다. Query companion ABI는 v3, reverse companion ABI는 v5다.
+
+Schema IR의 logical collection은 선택한 through source FK의 reverse hop과 target FK의 forward hop으로 확장한다.
+`query.NewRelationChain`은 root를 포함한 모든 방문 model의 row key를 소유한다. Model/table/key의 일관성·연결성·terminal scope를
+검증하며 backend가 intermediary의 PK 이름을 추측하지 않는다. 경로 한도는 물리 hop 64개이므로 ManyToMany 한 단계는 두 hop을 쓴다.
+
+한 번의 `Filter(a,b)`는 같은 collection 연결 행을 검사한다. 연속 `Filter(a).Filter(b)`는 각 호출의 독립 join을 사용한다.
+단일 관계 prefix는 공유하지만 첫 collection 이후의 join identity에는 filter scope를 포함한다. 원래 predicate나 이전 QuerySet은
+변하지 않는다. 중복 연결 행과 서로 다른 scope의 곱은 명시적 `Distinct` 전까지 유지하며 cold Count도 그 결과를 센다.
+
+Collection 부정은 correlated EXISTS로 준비하고 outer row를 늘리지 않는다. 같은 filter에서 앞서 준비한 positive collection이 있으면
+그 첫 연결 행에, 없으면 root owner에 상관시킨다. 따라서 `And(a,Not(b))`, `And(Not(b),a)`, `Filter(a).Filter(Not(b))`는
+서로 다른 결과가 가능하다. 이 순서는 고정 Django 6.1의 독립 관찰을 따른다. OR와 isnull은 필요한 LEFT JOIN·부재 행을 보존한다.
+여러 단계의 mixed traversal·nullable through도 같은 조건/alias 계획을 사용한다. Scalar lookup의 타입·JSON path·backend capability는
+기존 field 규칙을 유지한다. 관계를 넘는 F, collection value projection/ordering, 일반 관계 MIN/MAX를 이 변경으로 확장하지 않는다.
+
+Collection manager의 core membership은 바로 다음 `Filter` 한 번에만 같은 through 행을 사용한다. 빈 Filter·scalar Filter도 이 기회를
+소비하고, OrderBy/Distinct/Limit/Offset 또는 QuerySet.Fresh 같은 파생은 독립 다음 scope를 만든다. Collection handle의 Fresh는
+새 manager를 만드는 별도 API다. 이 구분도 독립 related-manager 관찰과 비교한다.
+
+`db/internal/queryplan`이 filter scope·join presence·상관 identity를 결정한다. 각 DB compiler는 identifier/schema quoting과
+scalar SQL/parameter를 소유한다. SQLite는 outer SELECT와 각각의 EXISTS 안에서 root 포함 64-table 한도를 따로 확인하며,
+LIMIT 0도 잘못된 provenance나 미지원 capability를 숨기지 않는다. 실행 source·DB별 결과·negative control은 TEST_EVIDENCE가 소유한다.
 
 ## Model facade와 빌린 session
 

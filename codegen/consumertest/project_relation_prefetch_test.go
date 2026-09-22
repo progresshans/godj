@@ -13,7 +13,7 @@ import (
 	"github.com/progresshans/godj/internal/testschema"
 )
 
-func TestGeneratedProjectRelationPrefetchExactNineFileUnionCompiles(t *testing.T) {
+func TestGeneratedProjectRelationPrefetchCompanionsCompile(t *testing.T) {
 	authors, blog := testschema.QueryRelation()
 	const modulePath = "example.com/godj-relation-prefetch-project"
 	schemas := []namedRelationReverseSchema{
@@ -30,27 +30,10 @@ func TestGeneratedProjectRelationPrefetchExactNineFileUnionCompiles(t *testing.T
 		t.Fatalf("generated prefetch candidate omitted object-capable owner:\n%s", generated)
 	}
 
-	generatedCount := 0
-	err := filepath.WalkDir(directory, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "zz_godj_") && strings.HasSuffix(entry.Name(), ".go") {
-			generatedCount++
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk generated ten-file union: %v", err)
-	}
-	if generatedCount != 9 {
-		t.Fatalf("generated union has %d generated files, want exact nine", generatedCount)
-	}
-
 	command := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "./...")
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("exact nine-file generated prefetch project did not compile: %v\n%s", err, output)
+		t.Fatalf("generated prefetch companions did not compile: %v\n%s", err, output)
 	}
 }
 

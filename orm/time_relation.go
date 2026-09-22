@@ -13,7 +13,7 @@ type RelatedTimeField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (relation ForwardRelation[S, T]) Time(field ReferenceField[T, clock.Time]) (RelatedTimeField[S], error) {
+func (relation QueryRelation[S, T]) Time(field ReferenceField[T, clock.Time]) (RelatedTimeField[S], error) {
 	if err := relation.route.validate(); err != nil {
 		return RelatedTimeField[S]{}, err
 	}
@@ -27,20 +27,7 @@ func (relation ForwardRelation[S, T]) Time(field ReferenceField[T, clock.Time]) 
 	}
 	return RelatedTimeField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) Time(field ReferenceField[Source, clock.Time]) (RelatedTimeField[Owner], error) {
-	if err := validateReverseRelationState(relation.state); err != nil {
-		return RelatedTimeField[Owner]{}, err
-	}
-	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldTime)
-	if err != nil {
-		return RelatedTimeField[Owner]{}, err
-	}
-	path, err := relation.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedTimeField[Owner]{}, err
-	}
-	return RelatedTimeField[Owner]{path: path, valid: true}, nil
-}
+
 func (field RelatedTimeField[M]) Exact(value clock.Time) Predicate[M] {
 	if field.configurationErr != nil {
 		return Predicate[M]{err: field.configurationErr}

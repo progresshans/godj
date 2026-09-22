@@ -316,7 +316,7 @@ func TestGeneratedNestedEagerReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

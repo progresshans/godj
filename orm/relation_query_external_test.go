@@ -41,7 +41,7 @@ type relationQueryFixture struct {
 	postDescriptor   *relationQueryDescriptor[relationQueryPost]
 	authorModel      orm.BoundModel[relationQueryAuthor]
 	postModel        orm.BoundModel[relationQueryPost]
-	author           orm.ForwardRelation[relationQueryPost, relationQueryAuthor]
+	author           orm.QueryRelation[relationQueryPost, relationQueryAuthor]
 	authorID         orm.RelatedIntegerField[relationQueryPost]
 	authorName       orm.RelatedStringField[relationQueryPost]
 }
@@ -228,7 +228,7 @@ func TestRelationBindingFailuresAreStructuredAndPublishZeroValues(t *testing.T) 
 		Name: "missing", GoName: "Missing", Column: "missing", Kind: ir.FieldChar, MaxLength: 10,
 	}))
 	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
-	var zeroRelation orm.ForwardRelation[relationQueryPost, relationQueryAuthor]
+	var zeroRelation orm.QueryRelation[relationQueryPost, relationQueryAuthor]
 	_, err = zeroRelation.Integer(orm.NewAutoField[relationQueryAuthor](authorMetadata.Fields[0]))
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 

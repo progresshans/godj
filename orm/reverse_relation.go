@@ -7,14 +7,6 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// ReverseRelation is a query-only, one-hop reverse ForeignKey relation. It
-// deliberately has no owner-instance or primary-key requirement.
-type ReverseRelation[Owner, Source any] struct {
-	state        reverseRelationState
-	ownerMarker  [0]func(Owner)
-	sourceMarker [0]func(Source)
-}
-
 type reverseRelationState struct {
 	snapshot *projectBindingSnapshot
 	owner    ir.ModelIdentity
@@ -29,12 +21,12 @@ func BindReverse[Owner, Source any](
 	owner BoundModel[Owner],
 	reverseName string,
 	source BoundModel[Source],
-) (ReverseRelation[Owner, Source], error) {
-	state, err := bindReverseRelationState(owner, reverseName, source)
+) (QueryRelation[Owner, Source], error) {
+	_, err := bindReverseRelationState(owner, reverseName, source)
 	if err != nil {
-		return ReverseRelation[Owner, Source]{}, err
+		return QueryRelation[Owner, Source]{}, err
 	}
-	return ReverseRelation[Owner, Source]{state: state}, nil
+	return BindQueryRelation(owner, reverseName, source)
 }
 
 func bindReverseRelationState[Owner, Source any](
@@ -163,89 +155,4 @@ func (state reverseRelationState) path(terminal query.FieldRef) (query.RelationP
 		state.forward.metadata.Nullable,
 		terminal, state.reverse.Cardinality,
 	)
-}
-
-func (r ReverseRelation[Owner, Source]) Integer(
-	field ReferenceField[Source, int64],
-) (RelatedIntegerField[Owner], error) {
-	if err := validateReverseRelationState(r.state); err != nil {
-		return RelatedIntegerField[Owner]{}, err
-	}
-	metadata, err := relatedScalarMetadata(r.state.forward.sourceModel, field, r.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldAuto, ir.FieldInteger)
-	if err != nil {
-		return RelatedIntegerField[Owner]{}, err
-	}
-	path, err := r.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedIntegerField[Owner]{}, err
-	}
-	return RelatedIntegerField[Owner]{path: path, valid: true}, nil
-}
-
-func (r ReverseRelation[Owner, Source]) String(
-	field ReferenceField[Source, string],
-) (RelatedStringField[Owner], error) {
-	if err := validateReverseRelationState(r.state); err != nil {
-		return RelatedStringField[Owner]{}, err
-	}
-	metadata, err := relatedScalarMetadata(r.state.forward.sourceModel, field, r.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldChar, ir.FieldText)
-	if err != nil {
-		return RelatedStringField[Owner]{}, err
-	}
-	path, err := r.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedStringField[Owner]{}, err
-	}
-	return RelatedStringField[Owner]{path: path, valid: true}, nil
-}
-
-// IsNull tests whether a OneToOne child exists, independently of its nullable
-// fields. Collection absence has different query semantics and is not admitted.
-func (r ReverseRelation[Owner, Source]) IsNull(value bool) Predicate[Owner] {
-	if err := validateReverseRelationState(r.state); err != nil {
-		return Predicate[Owner]{err: err}
-	}
-	_, path, err := r.state.presencePath()
-	if err != nil {
-		return Predicate[Owner]{err: err}
-	}
-	return predicateFromCondition[Owner](query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(value)), nil)
-}
-
-func (state reverseRelationState) presencePath() (ir.Field, query.RelationPath, error) {
-	if state.reverse.Cardinality != ir.RelationOneToOne {
-		return ir.Field{}, query.RelationPath{}, unsupportedRelationLookup(state.reverse.Name, query.LookupIsNull, "reverse presence requires a one-to-one edge")
-	}
-	key, ok := relationAutoPrimaryKey(state.forward.sourceModel)
-	if !ok {
-		return ir.Field{}, query.RelationPath{}, relationInvalidPlan("reverse presence requires a canonical child primary key")
-	}
-	path, err := state.path(fieldReference(key))
-	return key, path, err
-}
-
-func (r ReverseRelation[Owner, Source]) Boolean(field BooleanLookupField[Source]) (RelatedBooleanField[Owner], error) {
-	if err := validateReverseRelationState(r.state); err != nil {
-		return RelatedBooleanField[Owner]{}, err
-	}
-	if r.state.reverse.Cardinality != ir.RelationOneToOne {
-		return RelatedBooleanField[Owner]{}, unsupportedRelationLookup(r.state.reverse.Name, query.LookupExact, "reverse Boolean fields require a one-to-one edge")
-	}
-	if interfaceIsNil(field) {
-		return RelatedBooleanField[Owner]{}, relationInvalidPlan("related Boolean field is nil")
-	}
-	var source Source
-	reference, err := field.booleanLookupField(source)
-	if err != nil {
-		return RelatedBooleanField[Owner]{}, err
-	}
-	metadata, found := matchingTerminalField(r.state.forward.sourceModel, reference, ir.FieldBoolean)
-	if !found {
-		return RelatedBooleanField[Owner]{}, unknownRelatedField(reference.Name())
-	}
-	path, err := r.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedBooleanField[Owner]{}, err
-	}
-	return RelatedBooleanField[Owner]{path: path, valid: true}, nil
 }

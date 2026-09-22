@@ -192,9 +192,10 @@ const (
 )
 
 type whereLeaf struct {
-	inValues  []query.Value
-	inHasNull bool
-	related   bool
+	inValues                  []query.Value
+	inHasNull                 bool
+	related                   bool
+	existsPrefix, existsField string
 }
 
 type whereAnalysis struct {
@@ -320,7 +321,7 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 	if err := queryplan.RelationCondition(a.plan, condition, path, "PostgreSQL"); err != nil {
 		return whereLeaf{}, err
 	}
-	if !relationAtRootConjunction && !path.SingleValued() {
+	if !relationAtRootConjunction && !path.SingleValued() && len(path.PrimaryKeys()) == 0 {
 		return whereLeaf{}, unsupportedBooleanRelation(condition)
 	}
 	leaf := whereLeaf{related: true}
@@ -478,13 +479,23 @@ func appendWhereExpression(
 		// Advance a local slice header; the prepared values remain read-only.
 		leaf := (*leaves)[0]
 		*leaves = (*leaves)[1:]
-		field, err := resolveField(condition)
-		if err != nil {
-			return err
+		field := leaf.existsField
+		if leaf.existsPrefix != "" {
+			if !negated {
+				return invalidPlan("collection existence was bound outside negation")
+			}
+			statement.WriteString(leaf.existsPrefix)
+		} else {
+			var err error
+			field, err = resolveField(condition)
+			if err != nil {
+				return err
+			}
 		}
 		rightField, hasRightField := condition.RHSField()
 		right := ""
 		if hasRightField {
+			var err error
 			right, err = resolveRHSField(rightField)
 			if err != nil {
 				return err
@@ -517,7 +528,10 @@ func appendWhereExpression(
 			}
 			*arguments = append(*arguments, conditionArguments...)
 		}
-		if negated && nullableNegationGuard(condition.Lookup()) {
+		if leaf.existsPrefix != "" {
+			statement.WriteString(") LIMIT 1)")
+		}
+		if negated && leaf.existsPrefix == "" && nullableNegationGuard(condition.Lookup()) {
 			if condition.OperandNullable() {
 				if condition.Lookup() == query.LookupIn && leaf.inHasNull {
 					statement.WriteString(" OR ")
@@ -653,6 +667,17 @@ func compileRelation(
 	}
 
 	keys, joins := prepared.Keys, prepared.ByKey
+	for index, exists := range prepared.Exists {
+		prefix, err := queryplan.CollectionExistsPrefix(exists, func(table string) (string, error) { return quoteTable(schema, table) }, quoteIdentifier, quoteQualified)
+		if err != nil {
+			return "", nil, err
+		}
+		field, err := quoteQualified(exists.TerminalAlias, plan.Conditions()[index].Field().Column())
+		if err != nil {
+			return "", nil, err
+		}
+		where.leaves[index].existsPrefix, where.leaves[index].existsField = prefix, field
+	}
 
 	const rootAlias = "t0"
 	var statement strings.Builder

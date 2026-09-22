@@ -42,6 +42,7 @@ type RelationHop struct {
 	direction              RelationDirection
 	cardinality            ir.RelationCardinality
 	nullable               bool
+	filterScope            uint32
 }
 
 func (h RelationHop) Source() ir.ModelIdentity            { return h.source }
@@ -55,6 +56,7 @@ func (h RelationHop) ReverseName() string                 { return h.reverseName
 func (h RelationHop) Direction() RelationDirection        { return h.direction }
 func (h RelationHop) Cardinality() ir.RelationCardinality { return h.cardinality }
 func (h RelationHop) Nullable() bool                      { return h.nullable }
+func (h RelationHop) FilterScope() uint32                 { return h.filterScope }
 func (h RelationHop) Equal(other RelationHop) bool        { return h == other }
 
 // Optional describes traversal presence, not physical FK nullability. A
@@ -104,6 +106,7 @@ type RelationPath struct {
 	hops     []RelationHop
 	terminal FieldRef
 	scope    RelationTerminalScope
+	keys     []FieldRef
 }
 
 // NewReverseRelationPath constructs one declaration-centric reverse
@@ -249,8 +252,13 @@ func (p RelationPath) Terminal() FieldRef { return p.terminal }
 func (p RelationPath) TerminalScope() RelationTerminalScope { return p.scope }
 
 func (p RelationPath) Equal(other RelationPath) bool {
-	if p.scope != other.scope || !p.terminal.Equal(other.terminal) || len(p.hops) != len(other.hops) {
+	if p.scope != other.scope || !p.terminal.Equal(other.terminal) || len(p.hops) != len(other.hops) || len(p.keys) != len(other.keys) {
 		return false
+	}
+	for index := range p.keys {
+		if !p.keys[index].Equal(other.keys[index]) {
+			return false
+		}
 	}
 	for index := range p.hops {
 		if !p.hops[index].Equal(other.hops[index]) {
@@ -315,6 +323,9 @@ func NewForwardRelationChain(hops []RelationHop, terminal FieldRef, scope Relati
 
 // Validate checks a complete route independently of a backend or query root.
 func (p RelationPath) Validate() error {
+	if len(p.keys) != 0 {
+		return p.validateKeyedRoute()
+	}
 	if len(p.hops) == 1 && p.hops[0].direction == RelationReverse {
 		hop := p.hops[0]
 		if p.scope != RelationTerminalRelatedField || (hop.cardinality != ir.RelationOneToMany && hop.cardinality != ir.RelationOneToOne) {

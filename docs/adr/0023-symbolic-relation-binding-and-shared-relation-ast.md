@@ -20,6 +20,10 @@
 
 ## 상태와 범위
 
+2026-09-23 GDJ-0099는 조회 binding을 `QueryRelation`/`ChainRelations`로 통합하고 mixed collection 조건을 확장한다.
+아래 과거 forward/reverse API와 subset 제한을 대체하는 현행 결정은
+[ADR-0075](0075-many-to-many-storage-and-mutation-ownership.md#공통-관계-조회와-필터별-연결-행)를 따른다.
+
 2026-09-19 GDJ-0082는 유한한 여러 단계의 forward 조회를 같은 Query AST에 연결한다. 구현 사본의 결정은 다음과 같다.
 검증 상태는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md#gdj-0082--nested-forward-경로의-독립-관찰)를 따른다.
 

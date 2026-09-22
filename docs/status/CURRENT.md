@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-09-22
+- 갱신: 2026-09-23
 - 활성 구현: [GDJ-0099 ManyToMany와 Ticket 라벨 컬렉션](../../work/0099-many-to-many-and-ticket-label-collections.md)
 - 최근 완료: [GDJ-0098 CASCADE와 TicketLabel 연결](../../work/0098-cascade-and-ticket-label-links.md)
 - 최근 전체 검증: [CASCADE·TicketLabel Hosted full](https://github.com/progresshans/godj/actions/runs/35689549739), source `93e77bd9c19d6e7b137de3a068c40a403970e73d`
@@ -23,16 +23,20 @@ Transient table·중첩 storage 의존성·SQL projection·실패 rollback을 �
 
 Root collection runtime과 generated `BindCollections()`의 forward/reverse add/remove/clear/set를 연결했다.
 Retained ID·payload, nullable/nonunique through·self symmetry, incoming 정책·오류/취소·cache 소유권을 함께 처리한다.
-독립 Django 관찰은 nullable duplicate와 incoming link 정책을 포함한 31개로 확장했다. 실행 source와 환경은 TEST_EVIDENCE를 따른다.
+독립 Django 관찰은 nullable duplicate와 incoming link 정책을 포함한 36개로 확장했다. 실행 source와 환경은 TEST_EVIDENCE를 따른다.
 
 Generated model의 collection 접근자와 UsingSession/InSession을 연결했다.
 빌린 session에서는 새 transaction을 시작하지 않고, callback 종료 뒤에는 warm/empty/eager cache와 model/view도 동작을 거부한다.
 영향 normal/race/CGO=0과 generated drift를 확인했으며, 마지막 iterator publication 보완은 최종 source에서 따로 검증했다.
 구현과 실행 source·환경의 증거는 TEST_EVIDENCE를 따른다.
 
+일반 forward/reverse/ManyToMany 조건을 같은 typed/dynamic Query AST와 generated BindRelations로 연결했다.
+한 Filter와 연속 Filter의 연결 행 scope, 부정 EXISTS·OR·nullable through의 multiplicity와 manager core filter를 구분한다.
+현재 영향 검증의 source·환경·결과는 TEST_EVIDENCE를 따른다.
+
 ## 다음 행동
 
-같은 Query AST의 일반 컬렉션 관계 조건·prefetch와 Ticket 라벨 컬렉션 편집으로 이어간다.
+ManyToMany prefetch와 Ticket 라벨 컬렉션 편집으로 이어간다.
 Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
 명시적 연결 모델의 CRUD나 root manager만으로 전체 ManyToMany 소비자를 완료한 것으로 세지 않는다.
 

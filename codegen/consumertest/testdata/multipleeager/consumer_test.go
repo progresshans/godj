@@ -164,7 +164,7 @@ func TestGeneratedMultipleEagerReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -397,7 +397,7 @@ func observeFacade(t *testing.T, row *project.ModelsPost, selected []string) *nu
 func TestGeneratedMultipleEagerOwnershipAndDerivation(t *testing.T) {
 	backend, facade := fixture(t)
 	ctx := t.Context()
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

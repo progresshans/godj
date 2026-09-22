@@ -9,21 +9,23 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
+const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"
 
 type relationQueryBindings struct {
-	edge0 orm.ForwardRelation[blog.Post, authors.Author]
-	edge1 orm.ForwardRelation[blog.Post, authors.Author]
+	edge0 orm.QueryRelation[authors.Author, blog.Post]
+	edge1 orm.QueryRelation[authors.Author, blog.Post]
+	edge2 orm.QueryRelation[blog.Post, authors.Author]
+	edge3 orm.QueryRelation[blog.Post, authors.Author]
 }
 type AuthorsAuthorRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
-	route            orm.ForwardRelation[S, authors.Author]
+	route            orm.QueryRelation[S, authors.Author]
 	configurationErr error
 	ID               orm.RelatedIntegerField[S]
 	Name             orm.RelatedStringField[S]
 }
 
-func newAuthorsAuthorRelatedFields[S any](_bindings *relationQueryBindings, _route orm.ForwardRelation[S, authors.Author]) AuthorsAuthorRelatedFields[S] {
+func newAuthorsAuthorRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, authors.Author]) AuthorsAuthorRelatedFields[S] {
 	_result := AuthorsAuthorRelatedFields[S]{bindings: _bindings, route: _route}
 	_field0, _err := _route.Integer(authors.AuthorFields.ID)
 	if _result.configurationErr == nil {
@@ -41,6 +43,71 @@ func newAuthorsAuthorRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields AuthorsAuthorRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields AuthorsAuthorRelatedFields[S]) Posts() BlogPostRelatedFields[S] {
+	var _next orm.QueryRelation[authors.Author, blog.Post]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge0
+	}
+	return newBlogPostRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields AuthorsAuthorRelatedFields[S]) ReviewedPosts() BlogPostRelatedFields[S] {
+	var _next orm.QueryRelation[authors.Author, blog.Post]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newBlogPostRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type BlogPostRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, blog.Post]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Title            orm.RelatedStringField[S]
+}
+
+func newBlogPostRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, blog.Post]) BlogPostRelatedFields[S] {
+	_result := BlogPostRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(blog.PostFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(blog.PostFields.Title)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Title = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields BlogPostRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields BlogPostRelatedFields[S]) Author() AuthorsAuthorRelatedFields[S] {
+	var _next orm.QueryRelation[blog.Post, authors.Author]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge2
+	}
+	return newAuthorsAuthorRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields BlogPostRelatedFields[S]) Reviewer() AuthorsAuthorRelatedFields[S] {
+	var _next orm.QueryRelation[blog.Post, authors.Author]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge3
+	}
+	return newAuthorsAuthorRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type AuthorsAuthorRelations struct {
+	Posts         BlogPostRelatedFields[authors.Author]
+	ReviewedPosts BlogPostRelatedFields[authors.Author]
+	model         orm.BoundModel[authors.Author]
+}
+
+func (_relations AuthorsAuthorRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[authors.Author], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
 
 type BlogPostRelations struct {
 	Author   AuthorsAuthorRelatedFields[blog.Post]
@@ -53,7 +120,8 @@ func (_relations BlogPostRelations) ParseDynamic(_policy orm.LookupPolicy, _inpu
 }
 
 type Relations struct {
-	BlogPost BlogPostRelations
+	AuthorsAuthor AuthorsAuthorRelations
+	BlogPost      BlogPostRelations
 }
 
 func BindRelations() (Relations, error) {
@@ -78,30 +146,52 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindForward(_model1, "author", _model0)
+	_relation0, _err := orm.BindQueryRelation(_model0, "posts", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindForward(_model1, "reviewer", _model0)
+	_relation1, _err := orm.BindQueryRelation(_model0, "reviewed_posts", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_group0 := newAuthorsAuthorRelatedFields[blog.Post](_routes, _routes.edge0)
+	_relation2, _err := orm.BindQueryRelation(_model1, "author", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge2 = _relation2
+	_relation3, _err := orm.BindQueryRelation(_model1, "reviewer", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge3 = _relation3
+	_group0 := newBlogPostRelatedFields[authors.Author](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
-	_group1 := newAuthorsAuthorRelatedFields[blog.Post](_routes, _routes.edge1)
+	_group1 := newBlogPostRelatedFields[authors.Author](_routes, _routes.edge1)
 	if _group1.configurationErr != nil {
 		return Relations{}, _group1.configurationErr
 	}
+	_group2 := newAuthorsAuthorRelatedFields[blog.Post](_routes, _routes.edge2)
+	if _group2.configurationErr != nil {
+		return Relations{}, _group2.configurationErr
+	}
+	_group3 := newAuthorsAuthorRelatedFields[blog.Post](_routes, _routes.edge3)
+	if _group3.configurationErr != nil {
+		return Relations{}, _group3.configurationErr
+	}
 	return Relations{
+		AuthorsAuthor: AuthorsAuthorRelations{model: _model0,
+			Posts:         _group0,
+			ReviewedPosts: _group1,
+		},
 		BlogPost: BlogPostRelations{model: _model1,
-			Author:   _group0,
-			Reviewer: _group1,
+			Author:   _group2,
+			Reviewer: _group3,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_3912c071e4fd34380073bb0e35afbe9beabc427c8c524b1f833cafb55874786f
+var _ goDjProjectSnapshot_a691b82718c9cebe7349f77a380daf261bf2b34dceba831806afa27647384fdc

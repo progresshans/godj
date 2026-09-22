@@ -120,7 +120,7 @@ func selection[V any](field orderedScalarField[V], normalize func(V) any) scalar
 		},
 	}
 }
-func bindSelections(t *testing.T, route orm.ForwardRelation[models.Entry, models.Datum]) map[string]scalarSelection {
+func bindSelections(t *testing.T, route orm.QueryRelation[models.Entry, models.Datum]) map[string]scalarSelection {
 	t.Helper()
 	result := map[string]scalarSelection{}
 	{
@@ -318,7 +318,7 @@ func bindSelections(t *testing.T, route orm.ForwardRelation[models.Entry, models
 	return result
 }
 
-func verifyResultBoundaries(t *testing.T, backend resultBackend, native bool, source orm.QuerySet[models.Entry], routes []orm.ForwardRelation[models.Entry, models.Datum], data []models.Datum, expected reference, numbers map[int64]int64) {
+func verifyResultBoundaries(t *testing.T, backend resultBackend, native bool, source orm.QuerySet[models.Entry], routes []orm.QueryRelation[models.Entry, models.Datum], data []models.Datum, expected reference, numbers map[int64]int64) {
 	t.Helper()
 	ctx := t.Context()
 	seenJSONNull := false
@@ -479,7 +479,7 @@ func verifyResultBoundaries(t *testing.T, backend resultBackend, native bool, so
 	if err != nil || len(after) != 6 || after[0].Cost == nil || !after[0].Cost.Equal(data[0].VDecimal) {
 		t.Fatal("selected native rollback lost value", err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -90,7 +90,7 @@ func verifyRelatedProjection(t *testing.T, backend jsonBackend, native bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reverse, err := project.BindReverseRelations()
+	reverse, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func verifyRelatedProjection(t *testing.T, backend jsonBackend, native bool) {
 		name, key string
 		value     any
 	}{{"reverse_match", "links__label", "match"}, {"reverse_json", "links__token", document(t, `{"a":1}`)}} {
-		parsed, err := orm.ParseDynamicReverseRelations(boundRecords, nil, []orm.LookupInput{{Key: input.key, Value: input.value}})
+		parsed, err := orm.ParseDynamicRelations(boundRecords, nil, []orm.LookupInput{{Key: input.key, Value: input.value}})
 		if err != nil {
 			t.Fatal(err)
 		}

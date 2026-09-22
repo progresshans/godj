@@ -12,7 +12,7 @@ type RelatedFloatField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (relation ForwardRelation[S, T]) Float(field ReferenceField[T, float64]) (RelatedFloatField[S], error) {
+func (relation QueryRelation[S, T]) Float(field ReferenceField[T, float64]) (RelatedFloatField[S], error) {
 	if err := relation.route.validate(); err != nil {
 		return RelatedFloatField[S]{}, err
 	}
@@ -26,20 +26,7 @@ func (relation ForwardRelation[S, T]) Float(field ReferenceField[T, float64]) (R
 	}
 	return RelatedFloatField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) Float(field ReferenceField[Source, float64]) (RelatedFloatField[Owner], error) {
-	if err := validateReverseRelationState(relation.state); err != nil {
-		return RelatedFloatField[Owner]{}, err
-	}
-	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldFloat)
-	if err != nil {
-		return RelatedFloatField[Owner]{}, err
-	}
-	path, err := relation.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedFloatField[Owner]{}, err
-	}
-	return RelatedFloatField[Owner]{path: path, valid: true}, nil
-}
+
 func (field RelatedFloatField[M]) Exact(value float64) Predicate[M] {
 	if field.configurationErr != nil {
 		return Predicate[M]{err: field.configurationErr}

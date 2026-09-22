@@ -13,7 +13,7 @@ type RelatedJSONField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (relation ForwardRelation[S, T]) JSON(field ReferenceField[T, jsonvalue.Value]) (RelatedJSONField[S], error) {
+func (relation QueryRelation[S, T]) JSON(field ReferenceField[T, jsonvalue.Value]) (RelatedJSONField[S], error) {
 	if err := relation.route.validate(); err != nil {
 		return RelatedJSONField[S]{}, err
 	}
@@ -27,20 +27,7 @@ func (relation ForwardRelation[S, T]) JSON(field ReferenceField[T, jsonvalue.Val
 	}
 	return RelatedJSONField[S]{path: path, valid: true}, nil
 }
-func (relation ReverseRelation[Owner, Source]) JSON(field ReferenceField[Source, jsonvalue.Value]) (RelatedJSONField[Owner], error) {
-	if err := validateReverseRelationState(relation.state); err != nil {
-		return RelatedJSONField[Owner]{}, err
-	}
-	metadata, err := relatedScalarMetadata(relation.state.forward.sourceModel, field, relation.state.reverse.Cardinality == ir.RelationOneToOne, ir.FieldJSON)
-	if err != nil {
-		return RelatedJSONField[Owner]{}, err
-	}
-	path, err := relation.state.path(fieldReference(metadata))
-	if err != nil {
-		return RelatedJSONField[Owner]{}, err
-	}
-	return RelatedJSONField[Owner]{path: path, valid: true}, nil
-}
+
 func (field RelatedJSONField[M]) Exact(value jsonvalue.Value) Predicate[M] {
 	if field.configurationErr != nil {
 		return Predicate[M]{err: field.configurationErr}

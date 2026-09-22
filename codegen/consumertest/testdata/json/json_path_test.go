@@ -272,7 +272,7 @@ func verifyJSONPathRelations(t *testing.T, backend jsonBackend, records []models
 		t.Fatalf("forward missing/null negation %v", labels)
 	}
 	// Direct reverse exact keeps the existing conjunction-only relation domain.
-	reverseFields, err := project.BindReverseRelations()
+	reverseFields, err := project.BindRelations()
 	if err != nil {
 		t.Fatal(err)
 	}

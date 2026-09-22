@@ -114,7 +114,7 @@ func bindManyToMany[O, T, L any](owner BoundModel[O], name string, target BoundM
 	}
 	// This physical join is private to the collection. It does not expose or
 	// invent a public reverse accessor on either selected through ForeignKey.
-	path, err := query.NewReverseRelationPath(through.identity, through.model.DBTable, targetField.Name, targetField.Column, target.identity, target.model.DBTable, targetKey.Column, name, targetField.Nullable, fieldReference(sourceField), ir.RelationOneToMany)
+	path, err := query.NewReverseRelationPath(through.identity, through.model.DBTable, targetField.Name, targetField.Column, target.identity, target.model.DBTable, targetKey.Column, physicalReverseAccessor(targetField), targetField.Nullable, fieldReference(sourceField), ir.RelationOneToMany)
 	if err != nil {
 		return zero, err
 	}
@@ -183,6 +183,10 @@ func (r ManyToMany[O, T, L]) from(backend db.Queryer, owner O) (*ManyCollection[
 	if err != nil {
 		return nil, err
 	}
+	plan, err = plan.ReuseNextCollectionFilter()
+	if err != nil {
+		return nil, err
+	}
 	collection := &ManyCollection[T, L]{querySet: newQuerySet(backend, r.target, plan), target: r.target, through: r.through, state: r.state, backend: backend, ownerKey: key}
 	collection._self = collection
 	return collection, nil
@@ -236,7 +240,8 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 	if err != nil {
 		return nil, err
 	}
-	result := &ManyCollection[T, L]{querySet: set.Fresh(), target: c.target, through: c.through, state: c.state, backend: c.backend, session: c.session, ownerKey: c.ownerKey}
+	set.evaluation = newEvaluationState[T]()
+	result := &ManyCollection[T, L]{querySet: set, target: c.target, through: c.through, state: c.state, backend: c.backend, session: c.session, ownerKey: c.ownerKey}
 	result._self = result
 	return result, nil
 }
@@ -244,7 +249,7 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 func (c *ManyCollection[T, L]) invalidate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.querySet = c.querySet.Fresh()
+	c.querySet.evaluation = newEvaluationState[T]()
 }
 
 // Invalidate discards only this handle's evaluation cache. It performs no I/O;

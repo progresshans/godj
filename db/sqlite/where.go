@@ -23,13 +23,14 @@ type sqliteWhereAnalysis struct {
 }
 
 type sqliteWhereNode struct {
-	kind        query.ExpressionKind
-	condition   query.Condition
-	children    []*sqliteWhereNode
-	fieldSQL    string
-	rhsFieldSQL string
-	inValues    []query.Value
-	inHasNull   bool
+	kind         query.ExpressionKind
+	condition    query.Condition
+	children     []*sqliteWhereNode
+	fieldSQL     string
+	rhsFieldSQL  string
+	inValues     []query.Value
+	inHasNull    bool
+	existsPrefix string
 }
 
 func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
@@ -80,7 +81,7 @@ func analyzeWhereExpression(
 		}
 		path, related := condition.RelationPath()
 		if related && !relationAtRootConjunction {
-			if !path.SingleValued() {
+			if !path.SingleValued() && len(path.PrimaryKeys()) == 0 {
 				return nil, false, unsupportedRelatedCondition(condition, "SQLite reverse relation predicates under OR or NOT are not supported")
 			}
 		}
@@ -198,6 +199,19 @@ func appendWhereNode(
 ) error {
 	switch node.kind {
 	case query.ExpressionLeaf:
+		if node.existsPrefix != "" {
+			if !oddNegation {
+				return invalidPlan("collection existence was bound outside negation")
+			}
+			sql.WriteString(node.existsPrefix)
+			inner := *node
+			inner.existsPrefix = ""
+			if err := appendWhereNode(sql, &inner, false, false, arguments); err != nil {
+				return err
+			}
+			sql.WriteString(") LIMIT 1)")
+			return nil
+		}
 		guards := nullableNegationGuards(node, oddNegation)
 		if len(guards) > 0 && !alreadyGrouped {
 			sql.WriteByte('(')

@@ -14,7 +14,7 @@ type RelatedBooleanField[M any] struct {
 	marker           [0]func(M)
 }
 
-func (r ForwardRelation[S, T]) Boolean(field BooleanLookupField[T]) (RelatedBooleanField[S], error) {
+func (r QueryRelation[S, T]) Boolean(field BooleanLookupField[T]) (RelatedBooleanField[S], error) {
 	if err := r.route.validate(); err != nil {
 		return RelatedBooleanField[S]{}, err
 	}
@@ -42,8 +42,8 @@ func relatedLookupError(path query.RelationPath, valid bool, lookup query.Lookup
 		return relationInvalidPlan("related scalar field is unbound")
 	}
 	if lookup != query.LookupExact {
-		if !path.SingleValued() {
-			return unsupportedRelationLookup(path.Terminal().Name(), lookup, "non-exact scalar lookups require a single-valued relation route")
+		if !path.SingleValued() && len(path.PrimaryKeys()) == 0 {
+			return unsupportedRelationLookup(path.Terminal().Name(), lookup, "collection scalar lookups require model row identities")
 		}
 	}
 	return nil

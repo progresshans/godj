@@ -20,6 +20,7 @@ func manyCollectionSpec() codegen.ProjectSpec {
 	}
 	through := func(name, goName string, unique bool) ir.Model {
 		result := ir.Model{Name: name, GoName: goName, Fields: []ir.Field{fk("owner", "OwnerID", owner, true, ir.DeleteCascade), fk("label", "LabelID", label, true, ir.DeleteCascade), {Name: "amount", GoName: "Amount", Kind: ir.FieldInteger, Unique: unique}}}
+		result.Fields[0].Relation.Reverse = ir.ReverseRelation{Name: name + "_rows"}
 		if unique {
 			result.UniqueConstraints = []ir.UniqueConstraint{{Name: "pair", Fields: []string{"owner", "label"}}}
 		}
@@ -42,7 +43,7 @@ func manyCollectionSpec() codegen.ProjectSpec {
 	}
 	return codegen.ProjectSpec{Project: codegen.PackageSpec{PackageName: "project", ImportPath: "example.com/godj-project-bundle/project", Directory: "project"}, Apps: []codegen.AppSpec{
 		{Alias: "owners", Package: codegen.PackageSpec{PackageName: "owners", ImportPath: "example.com/godj-project-bundle/owners", Directory: "owners"}, Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "owners", Models: models}},
-		{Alias: "labels", Package: codegen.PackageSpec{PackageName: "labels", ImportPath: "example.com/godj-project-bundle/labels", Directory: "labels"}, Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "labels", Models: []ir.Model{{Name: "label", GoName: "Label", Fields: []ir.Field{{Name: "name", GoName: "Name", Kind: ir.FieldText}}}}}},
+		{Alias: "labels", Package: codegen.PackageSpec{PackageName: "labels", ImportPath: "example.com/godj-project-bundle/labels", Directory: "labels"}, Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "labels", Models: []ir.Model{{Name: "label", GoName: "Label", Fields: []ir.Field{{Name: "name", GoName: "Name", Kind: ir.FieldText}, {Name: "note", GoName: "Note", Kind: ir.FieldText, Nullable: true}}}}}},
 	}}
 }
 
@@ -62,6 +63,16 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/sessions_test.go", sessions)
+	queries, err := os.ReadFile(filepath.Join("testdata", "manytomany", "queries_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/queries_test.go", queries)
+	oracle, err := os.ReadFile(filepath.Join("..", "..", "orm", "testdata", "many-to-many-django61-sqlite.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/django-query.json", oracle)
 
 	output, err := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "-json", "./...").CombinedOutput()
 	if err != nil {
@@ -87,6 +98,10 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 			continue
 		}
 		required["TestCollectionFacadeSessions/"+backend] = false
+		required["TestCollectionQueries/"+backend] = false
+		for _, group := range []string{"query_filter_scopes", "query_boolean_presence", "query_boolean_order", "query_manager_scopes", "query_nullable_links", "binding_authority"} {
+			required["TestCollectionQueries/"+backend+"/"+group] = false
+		}
 		for _, commit := range []string{"false", "true"} {
 			for _, coordinated := range []string{"false", "true"} {
 				required["TestCollectionFacadeSessions/"+backend+"/borrowed_composition/coordinated_"+coordinated+"_commit_"+commit] = false

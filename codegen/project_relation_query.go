@@ -13,7 +13,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
+const ProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"
 
 type RelationQueryPackage struct {
 	Alias      string
@@ -22,7 +22,7 @@ type RelationQueryPackage struct {
 }
 
 type projectRelationQueryEdge struct {
-	field    ir.Field
+	accessor string
 	selector string
 	target   *projectRelationModel
 	bind     int
@@ -110,60 +110,99 @@ func exportedRelationQueryPrefix(alias string) string {
 	return string(alias[0]-'a'+'A') + alias[1:]
 }
 
-func buildProjectRelationQuerySurface(
-	plan *relationProjectPlan,
-) ([]*projectRelationModel, []projectRelationQuerySource, error) {
-	models := plan.models
-	byIdentity := plan.byIdentity
-
-	sources := make([]projectRelationQuerySource, 0)
-	nextEdgeBind := 0
-	for _, sourceModel := range models {
-		relations := make([]projectRelationQueryEdge, 0)
-		for _, field := range sourceModel.model.Fields {
+func buildProjectRelationQuerySurface(plan *relationProjectPlan) ([]*projectRelationModel, []projectRelationQuerySource, error) {
+	bySource := make(map[*projectRelationModel][]projectRelationQueryEdge)
+	add := func(source *projectRelationModel, accessor, selector string, target *projectRelationModel) error {
+		if target == nil {
+			return fmt.Errorf("query relation %s.%s has no project target", source.identity.ModelName, accessor)
+		}
+		if selector == "ParseDynamic" {
+			return fmt.Errorf("query relation selector conflicts with ParseDynamic")
+		}
+		bySource[source] = append(bySource[source], projectRelationQueryEdge{accessor: accessor, selector: selector, target: target})
+		return nil
+	}
+	for _, source := range plan.models {
+		for _, field := range source.model.Fields {
 			if field.Relation == nil {
 				continue
 			}
 			selector, err := relationQuerySelector(field)
 			if err != nil {
-				return nil, nil, fmt.Errorf(
-					"derive relation selector for %s.%s: %w",
-					sourceModel.identity.AppLabel,
-					sourceModel.identity.ModelName,
-					err,
-				)
+				return nil, nil, err
 			}
-			target, ok := byIdentity[field.Relation.Target]
-			if !ok {
-				return nil, nil, fmt.Errorf(
-					"resolve relation query target %s.%s for %s.%s",
-					field.Relation.Target.AppLabel,
-					field.Relation.Target.ModelName,
-					sourceModel.identity.AppLabel,
-					field.Name,
-				)
+			target := plan.byIdentity[field.Relation.Target]
+			if err := add(source, field.Name, selector, target); err != nil {
+				return nil, nil, err
 			}
-			relations = append(relations, projectRelationQueryEdge{field: field.Clone(), selector: selector, target: target, bind: nextEdgeBind})
-			nextEdgeBind++
+			if !field.Relation.Reverse.Disabled {
+				selector, err := relationReverseSelector(field.Relation.Reverse.Name)
+				if err != nil {
+					return nil, nil, err
+				}
+				if err := add(target, field.Relation.Reverse.Name, selector, source); err != nil {
+					return nil, nil, err
+				}
+			}
 		}
+	}
+	schemas := make([]ir.Schema, len(plan.apps))
+	for i, app := range plan.apps {
+		schemas[i] = app.schema
+	}
+	collections, err := ir.ResolveManyToMany(schemas...)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, collection := range collections {
+		source, target := plan.byIdentity[collection.Source], plan.byIdentity[collection.Target]
+		if source == nil || target == nil {
+			return nil, nil, fmt.Errorf("collection query endpoints are missing")
+		}
+		selector := ""
+		for _, field := range source.model.ManyToMany {
+			if field.Name == collection.Field {
+				selector = field.GoName
+				break
+			}
+		}
+		if selector == "" {
+			return nil, nil, fmt.Errorf("collection query declaration is missing")
+		}
+		if err := add(source, collection.Field, selector, target); err != nil {
+			return nil, nil, err
+		}
+		if !collection.Reverse.Disabled {
+			selector, err := relationReverseSelector(collection.Reverse.Name)
+			if err != nil {
+				return nil, nil, err
+			}
+			if err := add(target, collection.Reverse.Name, selector, source); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	var sources []projectRelationQuerySource
+	next := 0
+	for _, model := range plan.models {
+		relations := bySource[model]
 		if len(relations) == 0 {
 			continue
 		}
-		sort.Slice(relations, func(left, right int) bool {
-			if relations[left].field.Name != relations[right].field.Name {
-				return relations[left].field.Name < relations[right].field.Name
+		sort.Slice(relations, func(i, j int) bool {
+			if relations[i].accessor != relations[j].accessor {
+				return relations[i].accessor < relations[j].accessor
 			}
-			return relations[left].selector < relations[right].selector
+			return relations[i].selector < relations[j].selector
 		})
-		surface := sourceModel.app.prefix + sourceModel.model.GoName
-		sources = append(sources, projectRelationQuerySource{
-			model:         sourceModel,
-			surface:       surface,
-			relationsType: surface + "Relations",
-			relations:     relations,
-		})
+		for i := range relations {
+			relations[i].bind = next
+			next++
+		}
+		surface := model.app.prefix + model.model.GoName
+		sources = append(sources, projectRelationQuerySource{model: model, surface: surface, relationsType: surface + "Relations", relations: relations})
 	}
-	return models, sources, nil
+	return plan.models, sources, nil
 }
 
 func relationQuerySelector(field ir.Field) (string, error) {
@@ -209,7 +248,7 @@ func renderProjectRelationQueryGroups(output *bytes.Buffer, models []*projectRel
 		bySource[source.model] = source.relations
 		for _, relation := range source.relations {
 			used[relation.target] = true
-			fmt.Fprintf(output, "\tedge%d orm.ForwardRelation[%s,%s]\n", relation.bind, projectRelationRawType(source.model), projectRelationRawType(relation.target))
+			fmt.Fprintf(output, "\tedge%d orm.QueryRelation[%s,%s]\n", relation.bind, projectRelationRawType(source.model), projectRelationRawType(relation.target))
 		}
 	}
 	fmt.Fprintln(output, "}")
@@ -220,7 +259,7 @@ func renderProjectRelationQueryGroups(output *bytes.Buffer, models []*projectRel
 		group := projectRelationQueryGroupName(model)
 		target := projectRelationRawType(model)
 		var terminals []ir.Field
-		fmt.Fprintf(output, "type %s[S any] struct {\n\tbindings *relationQueryBindings\n\troute orm.ForwardRelation[S,%s]\n\tconfigurationErr error\n", group, target)
+		fmt.Fprintf(output, "type %s[S any] struct {\n\tbindings *relationQueryBindings\n\troute orm.QueryRelation[S,%s]\n\tconfigurationErr error\n", group, target)
 		for _, field := range model.model.Fields {
 			if !supportedProjectRelationQueryTerminal(field) {
 				continue
@@ -229,7 +268,7 @@ func renderProjectRelationQueryGroups(output *bytes.Buffer, models []*projectRel
 			fmt.Fprintf(output, "\t%s orm.Related%sField[S]\n", field.GoName, projectRelationQueryScalarKind(field))
 		}
 		fmt.Fprintln(output, "}")
-		fmt.Fprintf(output, "func new%s[S any](_bindings *relationQueryBindings,_route orm.ForwardRelation[S,%s]) %s[S] {\n", group, target, group)
+		fmt.Fprintf(output, "func new%s[S any](_bindings *relationQueryBindings,_route orm.QueryRelation[S,%s]) %s[S] {\n", group, target, group)
 		fmt.Fprintf(output, "\t_result:=%s[S]{bindings:_bindings,route:_route}\n", group)
 		for index, field := range terminals {
 			kind := projectRelationQueryScalarKind(field)
@@ -244,9 +283,9 @@ func renderProjectRelationQueryGroups(output *bytes.Buffer, models []*projectRel
 		for _, relation := range bySource[model] {
 			next := projectRelationQueryGroupName(relation.target)
 			fmt.Fprintf(output, "func (_fields %s[S]) %s() %s[S] {\n", group, relation.selector, next)
-			fmt.Fprintf(output, "\tvar _next orm.ForwardRelation[%s,%s]\n", target, projectRelationRawType(relation.target))
+			fmt.Fprintf(output, "\tvar _next orm.QueryRelation[%s,%s]\n", target, projectRelationRawType(relation.target))
 			fmt.Fprintf(output, "\tif _fields.bindings!=nil{_next=_fields.bindings.edge%d}\n", relation.bind)
-			fmt.Fprintf(output, "\treturn new%s[S](_fields.bindings,orm.ChainForward(_fields.route,_next))\n}\n", next)
+			fmt.Fprintf(output, "\treturn new%s[S](_fields.bindings,orm.ChainRelations(_fields.route,_next))\n}\n", next)
 		}
 	}
 }
@@ -302,7 +341,7 @@ func renderBindRelations(output *bytes.Buffer, models []*projectRelationModel, s
 	fmt.Fprintln(output, "\t_routes:=&relationQueryBindings{}")
 	for _, source := range sources {
 		for _, relation := range source.relations {
-			fmt.Fprintf(output, "\t_relation%d,_err:=orm.BindForward(_model%d,%s,_model%d)\n", relation.bind, source.model.bind, strconv.Quote(relation.field.Name), relation.target.bind)
+			fmt.Fprintf(output, "\t_relation%d,_err:=orm.BindQueryRelation(_model%d,%s,_model%d)\n", relation.bind, source.model.bind, strconv.Quote(relation.accessor), relation.target.bind)
 			fmt.Fprintln(output, "\tif _err!=nil{return Relations{},_err}")
 			fmt.Fprintf(output, "\t_routes.edge%d=_relation%d\n", relation.bind, relation.bind)
 		}

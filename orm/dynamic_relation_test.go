@@ -14,7 +14,7 @@ func TestDynamicRelationsShareTypedASTAndOwnInput(t *testing.T) {
 	fixture := newRelationQueryFixture(t)
 	inputs := []orm.LookupInput{
 		{Key: "author__name", Value: "Ada"},
-		{Key: "author__id", Value: int64(1)},
+		{Key: "author__id__exact", Value: int64(1)},
 	}
 	dynamic, err := orm.ParseDynamicRelations(fixture.postModel, nil, inputs)
 	if err != nil {
@@ -83,13 +83,23 @@ func TestDynamicRelationErrorsFollowFrozenPrecedence(t *testing.T) {
 		})
 	}
 
-	// Reverse namespaces are recognized as unsupported rather than reported as
-	// unknown forward relations.
+	// Forward and reverse namespaces use the same parser and typed route.
 	reversePredicates, err := orm.ParseDynamicRelations(fixture.authorModel, nil, []orm.LookupInput{{Key: "posts__id", Value: int64(1)}})
-	if reversePredicates != nil {
-		t.Fatalf("reverse predicates = %#v, want nil", reversePredicates)
+	if err != nil || len(reversePredicates) != 1 {
+		t.Fatalf("reverse predicates = %#v, error %v", reversePredicates, err)
 	}
-	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnsupportedLookup)
+	reverse, err := orm.BindReverse(fixture.authorModel, "posts", fixture.postModel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := reverse.Integer(orm.NewAutoField[relationQueryPost](fixture.postDescriptor.Metadata().Fields[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := orm.NewManager[relationQueryAuthor](fixture.authorDescriptor).Using(nil)
+	if !base.Filter(reversePredicates...).Plan().Equal(base.Filter(id.Exact(1)).Plan()) {
+		t.Fatal("reverse typed/dynamic AST differs")
+	}
 
 	// Bound-model validation precedes even malformed dynamic path validation.
 	var zero orm.BoundModel[relationQueryPost]
@@ -201,13 +211,13 @@ func TestDynamicReverseRelationsShareTypedASTAndPreserveNullableDeclaration(t *t
 		t.Fatalf("ReverseRelation.Integer(id) error = %v", err)
 	}
 
-	dynamic, err := orm.ParseDynamicReverseRelations(
+	dynamic, err := orm.ParseDynamicRelations(
 		fixture.authorModel,
 		nil,
 		[]orm.LookupInput{{Key: "posts__id", Value: int64(10)}},
 	)
 	if err != nil {
-		t.Fatalf("ParseDynamicReverseRelations() error = %v", err)
+		t.Fatalf("ParseDynamicRelations() error = %v", err)
 	}
 	typedPlan := orm.NewManager[relationQueryAuthor](fixture.authorDescriptor).
 		Using(nil).
@@ -231,13 +241,13 @@ func TestDynamicReverseRelationsShareTypedASTAndPreserveNullableDeclaration(t *t
 		t.Fatalf("posts reverse hop = %#v", hops)
 	}
 
-	reviewed, err := orm.ParseDynamicReverseRelations(
+	reviewed, err := orm.ParseDynamicRelations(
 		fixture.authorModel,
 		nil,
 		[]orm.LookupInput{{Key: "reviewed_posts__id", Value: 10}},
 	)
 	if err != nil {
-		t.Fatalf("nullable ParseDynamicReverseRelations() error = %v", err)
+		t.Fatalf("nullable ParseDynamicRelations() error = %v", err)
 	}
 	reviewedPlan := orm.NewManager[relationQueryAuthor](fixture.authorDescriptor).
 		Using(nil).
@@ -250,7 +260,7 @@ func TestDynamicReverseRelationsShareTypedASTAndPreserveNullableDeclaration(t *t
 	}
 
 	seenPolicy := false
-	_, err = orm.ParseDynamicReverseRelations(
+	_, err = orm.ParseDynamicRelations(
 		fixture.authorModel,
 		func(field ir.Field, lookup query.Lookup) bool {
 			seenPolicy = field.Name == "id" && field.Kind == ir.FieldAuto && lookup == query.LookupExact
@@ -276,7 +286,7 @@ func TestDynamicReverseRelationErrorsAreStructuredAndAtomic(t *testing.T) {
 		code     string
 	}{
 		{name: "one segment", input: orm.LookupInput{Key: "posts", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
-		{name: "explicit suffix", input: orm.LookupInput{Key: "posts__id__exact", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "unknown suffix", input: orm.LookupInput{Key: "posts__id__unknown", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "relation suffix", input: orm.LookupInput{Key: "posts__exact", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
 		{name: "unknown presence namespace", input: orm.LookupInput{Key: "missing__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnknownRelation},
 		{name: "leading empty", input: orm.LookupInput{Key: "__id", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
@@ -290,7 +300,7 @@ func TestDynamicReverseRelationErrorsAreStructuredAndAtomic(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			predicates, err := orm.ParseDynamicReverseRelations(
+			predicates, err := orm.ParseDynamicRelations(
 				fixture.authorModel,
 				test.policy,
 				[]orm.LookupInput{test.input},
@@ -303,13 +313,13 @@ func TestDynamicReverseRelationErrorsAreStructuredAndAtomic(t *testing.T) {
 	}
 
 	var zero orm.BoundModel[relationQueryAuthor]
-	got, err := orm.ParseDynamicReverseRelations(zero, nil, []orm.LookupInput{{Key: "bad", Value: nil}})
+	got, err := orm.ParseDynamicRelations(zero, nil, []orm.LookupInput{{Key: "bad", Value: nil}})
 	if got != nil {
 		t.Fatalf("zero predicates = %#v, want nil", got)
 	}
 	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
 
-	got, err = orm.ParseDynamicReverseRelations(fixture.authorModel, nil, []orm.LookupInput{
+	got, err = orm.ParseDynamicRelations(fixture.authorModel, nil, []orm.LookupInput{
 		{Key: "posts__id", Value: int64(10)},
 		{Key: "posts__missing", Value: int64(10)},
 	})

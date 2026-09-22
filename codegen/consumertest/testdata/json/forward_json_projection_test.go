@@ -129,7 +129,7 @@ func verifyForwardJSONProjection(t *testing.T, backend jsonBackend, native bool)
 	if err != nil {
 		t.Fatal(err)
 	}
-	routes := []orm.ForwardRelation[models.Entry, models.Document]{orm.ChainForward(entryFirst, shelfFirst), orm.ChainForward(entrySecond, shelfFirst), orm.ChainForward(entryFirst, shelfSecond), orm.ChainForward(entrySecond, shelfSecond)}
+	routes := []orm.QueryRelation[models.Entry, models.Document]{orm.ChainRelations(entryFirst, shelfFirst), orm.ChainRelations(entrySecond, shelfFirst), orm.ChainRelations(entryFirst, shelfSecond), orm.ChainRelations(entrySecond, shelfSecond)}
 	paths := map[string]orm.JSONPathField[models.Entry]{}
 	fields := make([]orm.RelatedJSONField[models.Entry], 4)
 	for i, route := range routes {
