@@ -3,6 +3,44 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 독립 ManyToMany 기준과 native conflict insert
+
+2026-09-22, 기준 `3eb403e718f511ac06dc457b41a5e50a41ec8890` 위에서 ManyToMany 준비와 native 삽입을 연결했다.
+[독립 runner](../../conformance/runners/django/many_to_many_reference.py)는 GoDj·fixture를 읽지 않는 public model/ORM/migration 입력이다.
+Django 6.1·Python 3.14.3·SQLite 3.50.4와 psycopg 3.3.6·격리 PostgreSQL 17.5에서 hash seed 0/813의 **29개 관찰**이 동일했다.
+Runner SHA256은 `ea90292bcf269bd0298ddcdc504beb3d701d1301041fd9155788eec381db5aa3`이며 각 Django module source hash를 fixture에 저장했다.
+자동/명시적 through·두 연결의 동시 중복 add·set retained identity/payload·늦은 INSERT/iterable/FK 오류 rollback,
+대칭/비대칭 self·multiplicity·독립 cache/held query·실제 historical Add/Rename/reverse/reapply·signal을 포함한다.
+저장한 두 DB 기준과 실제 SQLite를 비교하는 Python **6 tests PASS / skip 0**이며 set(clear=True)와 자기 관계의 symmetry를 실제로
+변경해 관찰이 달라지는 두 negative control을 실행했다. 이는 GoDj ManyToMany 동등성 PASS가 아닌 독립 기준 확보다.
+
+`ConflictInsertPlan`은 immutable assignment/ordered target과 명시한 non-null unique tuple을 사용한다. Backend와 ordinary/relation/
+coordinated session의 `ConflictInserter`는 그 tuple에만 `ON CONFLICT ... DO NOTHING`을 적용한다. Native 0/1행을 반환하고
+생성 PK나 SQLite의 이전 LastInsertId를 읽지 않는다. Plan의 완전한 assignment·field type·nullability·중복·식별자를 I/O 전에 검사한다.
+양 DB의 실제 두 connection pool에서 같은 pair를 동시에 삽입하면 한 번만 true이고 정확히 한 연결이 남는다. Pair 중복 후 같은
+transaction의 다음 쓰기도 성공하며 retained row ID/payload를 유지한다. 다른 unique·FK·NOT NULL·CHECK와 없는 conflict target은 오류다.
+두 DB에서 trigger가 INSERT를 생략한 0행 결과도 확인했다. False 자체를 membership 증명으로 세지 않으며 일반 Insert의 1행 요구는 그대로다.
+
+네 transaction 경로 각각의 commit·늦은 unique 실패 rollback·취소·deferred FK COMMIT 오류, 만료 session과 재접속 보존을 실행했다.
+Driver/metadata 오류는 성공 결과를 반환하지 않으며 callback/statement를 자동 재시도하지 않는다. Commit unknown과 rollback error는
+원인을 보존한다. SQLite의 discard 확정과 종료 미확정·연결 격리를 분리해 검사했다. Compiler SQL·인자/identifier 검증과 AST 소유권도 포함한다.
+PostgreSQL 실제 owner의 필수 목록에 새 product root를 연결했다. 아직 이 primitive를 통한 일반 ManyToMany 선언/manager·소비자는 구현 전이다.
+
+Artifact는 `godj-many-to-many-reference-4sl0bvdp/`의 `latest-capture-path`와 `conflict-insert/latest-{normal,race,cgo0,supplementary}-path`가
+가리킨다. 양 DB reference의 stdout/stderr·source hash·정리 영수증과 각 Go checkpoint의 전체 inventory·필수 58개 항목·source map을 저장한다.
+제품·검사·workflow **17개 non-Markdown 경로(Go 12)**를 변경했다. 전체 non-Markdown source 2,046파일의 정렬 path→SHA256 map hash는
+`8ff9f65ea3a81ca8069de9445db5f7c9c0c88399548bcad0322a861e7b14c41d`다. 모든 mode의 시작/종료 source 불변을 확인했다.
+Go 1.26.5/Darwin arm64·modernc SQLite·격리 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`에서
+`./query ./db/internal/queryplan ./internal/conflicttest ./db/sqlite ./db/postgres ./orm`을 전체 실행했다.
+normal·race·CGO=0 **각 6 package / 6,412 run=PASS / skip 0**, 필수 58개 항목과 전체 시작/종료 inventory를 확인했다.
+직접 실행용 PostgreSQL revision helper만 제외하며 필수 parent의 실제 process 회귀는 유지했다.
+영향 go vet와 CI Python **13 PASS**도 통과했다. 이번 변경은 generated API를 바꾸지 않아 generated drift를 새로 실행하지 않았다.
+최초 normal은 새 테스트의 PostgreSQL 식별자와 SQLite 연결 discard 기대가 기존 계약과 달라 실패했다. 기존 규칙을 확인해
+잘못된 기대를 고치고, rollback 실패를 discard 확정/미확정으로 나누어 위 세 mode를 완료했다. 최초 실패 원본도 보존한다.
+Compile 중 fault callback의 `[]any` signature 오류도 수정했다. Reference·모든 mode의 전용 DB는 연결·table·추가 schema 0 확인 후 삭제했다.
+이번 범위는 native 삽입 기반의 로컬 checkpoint다. GDJ-0099의 normalized relation·manager·컬렉션 소비자와 Hosted 통합은 남아 있다.
+선행 source `93e77bd9`의 Hosted full을 이번 변경의 결과로 옮기지 않는다.
+
 ## GDJ-0098 — CASCADE·TicketLabel Hosted 전체 통합 완료
 
 2026-09-22, source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의

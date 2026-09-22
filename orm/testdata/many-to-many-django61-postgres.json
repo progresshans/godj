@@ -1,0 +1,445 @@
+{
+  "backend": "postgresql",
+  "database_version": "170005",
+  "django": "6.1",
+  "observations": {
+    "add_and_reverse": {
+      "return": null,
+      "reverse_a": [
+        "first",
+        "second"
+      ],
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "a"
+          ],
+          [
+            "first",
+            "b"
+          ],
+          [
+            "second",
+            "a"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "cache_failed_add": {
+      "after": [
+        "a",
+        "b",
+        "c"
+      ],
+      "before": [
+        "a",
+        "b"
+      ],
+      "error": "ValueError"
+    },
+    "cache_mutation": {
+      "before": [
+        "a"
+      ],
+      "current": [
+        "a",
+        "b"
+      ],
+      "held_query": [
+        "a"
+      ],
+      "held_query_clone": [
+        "a",
+        "b"
+      ],
+      "other_snapshot": [
+        "a"
+      ]
+    },
+    "clear": {
+      "labels": [
+        "a",
+        "b",
+        "c"
+      ],
+      "links": [
+        [
+          "second",
+          "a"
+        ]
+      ],
+      "owners": [
+        "first",
+        "second"
+      ]
+    },
+    "concurrent_duplicate_add": {
+      "errors": [
+        null,
+        null
+      ],
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "a"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "declaration": {
+      "column": null,
+      "concrete": false,
+      "owner_fields": [
+        "id",
+        "name"
+      ],
+      "pair": [
+        [
+          "owner",
+          "label"
+        ]
+      ],
+      "physical_fields": [
+        "id",
+        "owner",
+        "label"
+      ],
+      "policies": [
+        "CASCADE",
+        "CASCADE"
+      ]
+    },
+    "explicit_through_conflicts": {
+      "callable_evaluations": 2,
+      "existing_token": 10,
+      "other_unique_error": "IntegrityError",
+      "rows": [
+        [
+          "a",
+          10
+        ]
+      ]
+    },
+    "explicit_through_set": {
+      "retained_identity": true,
+      "rows": [
+        [
+          "a",
+          10
+        ],
+        [
+          "b",
+          30
+        ]
+      ]
+    },
+    "explicit_zero": {
+      "links": 1,
+      "members": [
+        "zero-label"
+      ],
+      "owner": 0,
+      "target": 0
+    },
+    "migration_add": {
+      "endpoints_preserved": true,
+      "members": [
+        "existing-label"
+      ],
+      "through_table": "m2m_history_owner_labels"
+    },
+    "migration_reapply": {
+      "endpoints_preserved": true,
+      "members": []
+    },
+    "migration_rename": {
+      "endpoints_preserved": true,
+      "link_identity_preserved": true,
+      "members": [
+        "existing-label"
+      ],
+      "new_table": "m2m_history_owner_tags",
+      "old_table_absent": true
+    },
+    "migration_rename_reverse": {
+      "link_identity_preserved": true,
+      "members": [
+        "existing-label"
+      ],
+      "renamed_table_absent": true
+    },
+    "migration_reverse": {
+      "endpoints_preserved": true,
+      "through_absent": true
+    },
+    "missing_target": {
+      "error": "IntegrityError",
+      "rows_preserved": true
+    },
+    "query_multiplicity": {
+      "count": 3,
+      "distinct": [
+        "first",
+        "second"
+      ],
+      "names": [
+        "first",
+        "first",
+        "second"
+      ],
+      "reverse": [
+        "a",
+        "b",
+        "b"
+      ]
+    },
+    "remove": {
+      "reverse_a": [
+        "second"
+      ],
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "b"
+          ],
+          [
+            "second",
+            "a"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "self_directed": {
+      "links": 2,
+      "x": [
+        "x",
+        "y"
+      ],
+      "y": [],
+      "y_followers": [
+        "x"
+      ]
+    },
+    "self_symmetric": {
+      "links": 3,
+      "x": [
+        "x",
+        "y"
+      ],
+      "y": [
+        "x"
+      ]
+    },
+    "self_symmetric_remove": {
+      "links": 1,
+      "x": [
+        "x"
+      ],
+      "y": []
+    },
+    "set_clear": {
+      "retained_identity": false,
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "b"
+          ],
+          [
+            "first",
+            "c"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "set_delta": {
+      "retained_identity": true,
+      "return": null,
+      "state": {
+        "labels": [
+          "a",
+          "b",
+          "c"
+        ],
+        "links": [
+          [
+            "first",
+            "b"
+          ],
+          [
+            "first",
+            "c"
+          ]
+        ],
+        "owners": [
+          "first",
+          "second"
+        ]
+      }
+    },
+    "set_empty": {
+      "labels": [
+        "a",
+        "b",
+        "c"
+      ],
+      "links": [],
+      "owners": [
+        "first",
+        "second"
+      ]
+    },
+    "set_iterable_failure": {
+      "error": "ValueError",
+      "rows_preserved": true
+    },
+    "set_late_failure": {
+      "delete_executed": true,
+      "error": "DatabaseError",
+      "rows_preserved": true
+    },
+    "signals_add_duplicate_reverse": [
+      {
+        "action": "pre_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": [
+          "b"
+        ]
+      },
+      {
+        "action": "post_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": [
+          "b"
+        ]
+      },
+      {
+        "action": "pre_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": []
+      },
+      {
+        "action": "post_add",
+        "owner": "first",
+        "reverse": false,
+        "targets": []
+      },
+      {
+        "action": "pre_add",
+        "owner": "b",
+        "reverse": true,
+        "targets": [
+          "second"
+        ]
+      },
+      {
+        "action": "post_add",
+        "owner": "b",
+        "reverse": true,
+        "targets": [
+          "second"
+        ]
+      }
+    ],
+    "signals_clear": [
+      {
+        "action": "pre_clear",
+        "owner": "first",
+        "reverse": false,
+        "targets": null
+      },
+      {
+        "action": "post_clear",
+        "owner": "first",
+        "reverse": false,
+        "targets": null
+      }
+    ],
+    "signals_rollback": {
+      "error": "DatabaseError",
+      "events": [
+        {
+          "action": "pre_remove",
+          "owner": "first",
+          "reverse": false,
+          "targets": [
+            "a"
+          ]
+        },
+        {
+          "action": "post_remove",
+          "owner": "first",
+          "reverse": false,
+          "targets": [
+            "a"
+          ]
+        },
+        {
+          "action": "pre_add",
+          "owner": "first",
+          "reverse": false,
+          "targets": [
+            "c"
+          ]
+        }
+      ],
+      "rows_preserved": true
+    },
+    "unsaved_inputs": {
+      "add_target": "ValueError",
+      "owner": "ValueError",
+      "remove_target": null,
+      "rows_preserved": true,
+      "wrong_model": "TypeError"
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "ManyRelatedManager": "9b8ff28fb6c66b034b98b39e6242c720584d539851c8203db8363d069bf54d9c",
+    "ManyToManyField": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3",
+    "Model": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f",
+    "QuerySet": "5e86af673328a1d6800342f4bec9d4e2352b7919bebef349d98962d67569eae6"
+  }
+}

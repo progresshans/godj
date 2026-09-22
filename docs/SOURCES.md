@@ -114,3 +114,9 @@ CASCADE는 같은 pinned Django의 [deletion collector](https://github.com/djang
 [독립 runner](../conformance/runners/django/cascade_reference.py)는 직접 작성한 public model·ORM 입력이며 GoDj나 기대 fixture를 읽지 않는다.
 Recursive 보호·SET_NULL·중복 경로·숨긴 관계·required/nullable 순환·실패 rollback과 실제 intermediary 정리를 관찰하고 upstream source SHA256을 남긴다.
 GoDj의 native 검사 시점·graph ownership·지원 상태는 [GDJ-0098](../work/0098-cascade-and-ticket-label-links.md)과 실행 근거에서 구분한다.
+
+ManyToMany는 같은 pinned Django의 [관계 관리자](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_descriptors.py),
+위 관계 선언과 [migration operations](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/operations/fields.py)를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/many_to_many_reference.py)는 직접 작성한 public model·ORM·migration 입력이며 GoDj나 기대 fixture를 읽지 않는다.
+자동/명시적 through·동시 중복·set rollback·cache·self 관계·조회 multiplicity·migration·signal을 관찰하고 upstream module SHA256을 저장한다.
+이 기준 확보와 제품 지원은 [GDJ-0099](../work/0099-many-to-many-and-ticket-label-collections.md)에서 구분한다.

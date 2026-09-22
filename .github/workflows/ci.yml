@@ -1007,6 +1007,7 @@ jobs:
           mode="${{ matrix.mode }}"
           shard="${{ matrix.shard }}"
           core_required_passes=(
+            "github.com/progresshans/godj/db/postgres|TestPostgresConflictInsertProduct"
             "github.com/progresshans/godj/conformance/internal/dbstate|TestPostgresCatalogDetectsPhysicalMutation"
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration"
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLNullableForwardBooleanPredicatesMatchDjango"

@@ -7,6 +7,7 @@
 |---|---|---|
 | Driver | modernc.org/sqlite, database/sql | pgx database/sql adapter |
 | Query/CRUD | current scalar/FK AST와 typed write | current scalar/FK AST와 typed write |
+| Conflict insert | 명시한 non-null unique tuple의 native no-op·0/1행 결과, ordinary/relation/coordinated session | 같은 AST·결과·session 계약, schema-qualified target |
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
 | Relation delete | supported FK/OneToOne의 CASCADE·PROTECT·SET_NULL, recursive collector·exact-key 삭제 | 같은 graph/runtime과 native FK·AtomicRelation |
 | OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |

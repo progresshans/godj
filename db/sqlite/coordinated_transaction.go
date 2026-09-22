@@ -15,9 +15,9 @@ var _ db.CoordinatedAtomic = (*Backend)(nil)
 var _ db.CoordinatedRelationAtomic = (*Backend)(nil)
 var _ db.Session = (*coordinatedSession)(nil)
 
-// coordinatedSession deliberately exposes only db.Session. The wrapped raw
-// transaction session also supports relation mutations, but that wider API is
-// not part of the coordinated-atomic callback contract.
+// coordinatedSession exposes ordinary writes and the conflict-insert
+// capability. The wrapped raw session's bulk relation mutations belong to the
+// separate coordinated-relation callback contract.
 type coordinatedSession struct {
 	session *relationSession
 }

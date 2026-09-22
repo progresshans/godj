@@ -3,6 +3,11 @@
 성능은 실제 workload로 측정한다. Go나 goroutine을 사용한다는 사실만으로 처리량·안전성을 주장하지 않는다.
 모든 I/O는 context와 error를 전달하고, pool·transaction·cache·process의 소유자를 구분한다.
 
+`ConflictInserter`는 명시한 non-null unique tuple의 native 충돌만 no-op으로 처리한다. `inserted`는 실제 0/1행 결과이며
+오류에는 false를 반환한다. False 자체가 membership 증명은 아니고, session에서 true를 받았어도 commit 전 성공을 게시하지 않는다.
+기존 transaction의 취소·만료·unknown outcome·연결 격리와 재시도 부재를 유지한다.
+[ManyToMany 변경 소유권](adr/0075-many-to-many-storage-and-mutation-ownership.md)이 선언/manager와의 연결을 정한다.
+
 ## QuerySet 평가
 
 Query plan은 불변이고 평가 cache는 별도 state다. Direct QuerySet value copy는 같은 평가 state를 공유할 수 있지만

@@ -1,0 +1,123 @@
+import copy
+import json
+import os
+import platform
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[4]
+RUNNER = ROOT / 'conformance/runners/django/many_to_many_reference.py'
+FIXTURES = ROOT / 'orm/testdata'
+
+
+def capture(path, seed):
+    environment = {key: value for key, value in os.environ.items() if key != 'GODJ_M2M_DATABASE'}
+    environment['PYTHONHASHSEED'] = seed
+    result = subprocess.run([sys.executable, '-W', 'error', str(path)], env=environment,
+                            capture_output=True, text=True, timeout=90, check=True)
+    if result.stderr:
+        raise AssertionError('independent runner wrote diagnostics: ' + result.stderr)
+    return json.loads(result.stdout)
+
+
+class ManyToManyReferenceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.snapshots = [capture(RUNNER, seed) for seed in ('0', '813')]
+
+    def test_observations_are_deterministic_and_match_both_captured_backends(self):
+        self.assertEqual(self.snapshots[0], self.snapshots[1])
+        actual = copy.deepcopy(self.snapshots[0])
+        expected = json.loads((FIXTURES / 'many-to-many-django61-sqlite.json').read_text())
+        self.assertEqual(actual.pop('python'), platform.python_version())
+        self.assertEqual(actual.pop('database_version'), sqlite3.sqlite_version)
+        expected.pop('python')
+        expected.pop('database_version')
+        self.assertEqual(actual, expected)
+        self.assertEqual(actual['django'], '6.1')
+        self.assertEqual(actual['backend'], 'sqlite')
+        self.assertEqual(len(actual['observations']), 29)
+        postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
+        for field in ('observations', 'source_sha256'):
+            self.assertEqual(actual[field], postgres[field])
+
+    def test_columnless_declaration_and_concurrent_add_own_only_links(self):
+        cases = self.snapshots[0]['observations']
+        self.assertEqual(cases['declaration'], {
+            'column': None, 'concrete': False, 'owner_fields': ['id', 'name'],
+            'physical_fields': ['id', 'owner', 'label'], 'pair': [['owner', 'label']],
+            'policies': ['CASCADE', 'CASCADE'],
+        })
+        self.assertEqual(cases['concurrent_duplicate_add']['errors'], [None, None])
+        self.assertEqual(cases['concurrent_duplicate_add']['state']['links'], [['first', 'a']])
+        self.assertEqual(cases['clear']['links'], [['second', 'a']])
+        for case in ('clear', 'set_empty'):
+            self.assertEqual(cases[case]['owners'], ['first', 'second'])
+            self.assertEqual(cases[case]['labels'], ['a', 'b', 'c'])
+        self.assertTrue(cases['set_delta']['retained_identity'])
+        self.assertFalse(cases['set_clear']['retained_identity'])
+
+    def test_payload_and_failure_outcomes_preserve_whole_state(self):
+        cases = self.snapshots[0]['observations']
+        self.assertEqual(cases['explicit_through_conflicts'], {
+            'callable_evaluations': 2, 'existing_token': 10,
+            'other_unique_error': 'IntegrityError', 'rows': [['a', 10]],
+        })
+        self.assertEqual(cases['explicit_through_set'], {
+            'retained_identity': True, 'rows': [['a', 10], ['b', 30]],
+        })
+        for case in ('set_late_failure', 'set_iterable_failure', 'missing_target', 'unsaved_inputs'):
+            self.assertTrue(cases[case]['rows_preserved'], case)
+        self.assertTrue(cases['set_late_failure']['delete_executed'])
+        self.assertEqual(cases['explicit_zero'], {
+            'owner': 0, 'target': 0, 'members': ['zero-label'], 'links': 1,
+        })
+
+    def test_cache_snapshots_and_events_are_distinct_from_committed_membership(self):
+        cases = self.snapshots[0]['observations']
+        self.assertEqual(cases['cache_mutation'], {
+            'before': ['a'], 'current': ['a', 'b'], 'other_snapshot': ['a'],
+            'held_query': ['a'], 'held_query_clone': ['a', 'b'],
+        })
+        self.assertEqual(cases['cache_failed_add'], {
+            'before': ['a', 'b'], 'error': 'ValueError', 'after': ['a', 'b', 'c'],
+        })
+        self.assertTrue(cases['signals_rollback']['rows_preserved'])
+        self.assertEqual([event['action'] for event in cases['signals_rollback']['events']],
+                         ['pre_remove', 'post_remove', 'pre_add'])
+        self.assertEqual(cases['query_multiplicity'], {
+            'names': ['first', 'first', 'second'], 'count': 3,
+            'distinct': ['first', 'second'], 'reverse': ['a', 'b', 'b'],
+        })
+
+    def test_real_migrations_preserve_endpoints_and_rename_link_identity(self):
+        cases = self.snapshots[0]['observations']
+        for case in ('migration_add', 'migration_rename', 'migration_reverse', 'migration_reapply'):
+            self.assertTrue(cases[case]['endpoints_preserved'], case)
+        for case in ('migration_rename', 'migration_rename_reverse'):
+            self.assertTrue(cases[case]['link_identity_preserved'], case)
+            self.assertEqual(cases[case]['members'], ['existing-label'])
+        self.assertTrue(cases['migration_reverse']['through_absent'])
+        self.assertEqual(cases['migration_reapply']['members'], [])
+
+    def test_real_semantic_mutations_change_observations(self):
+        source = RUNNER.read_text()
+        for original, replacement, case, field, value in (
+            ('first.labels.set([b, c, b])', 'first.labels.set([b, c, b], clear=True)',
+             'set_delta', 'retained_identity', False),
+            ('friends = models.ManyToManyField("self")',
+             'friends = models.ManyToManyField("self", symmetrical=False)',
+             'self_symmetric', 'links', 2),
+        ):
+            with self.subTest(case=case):
+                self.assertEqual(source.count(original), 1)
+                with tempfile.TemporaryDirectory(prefix='godj-m2m-reference-mutation-') as directory:
+                    path = Path(directory) / 'mutated.py'
+                    path.write_text(source.replace(original, replacement))
+                    result = capture(path, '0')
+                self.assertEqual(result['observations'][case][field], value)
+                self.assertNotEqual(result['observations'][case], self.snapshots[0]['observations'][case])
