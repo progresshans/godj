@@ -12,6 +12,8 @@ ManyToMany의 Schema IR·자동/명시적 through migration·공통 mutation run
 같은 typed/dynamic Query AST의 mixed 관계 조건을 연결했다.
 직접 컬렉션 prefetch를 기존 through query·target eager projection과 generated typed/path selector에 연결했다.
 여러 관계·양방향/self·nullable duplicate와 독립 cache를 처리하며 전체 조회가 성공한 뒤에만 결과를 반환한다.
+Custom target filter의 연결 행 scope와 owner 귀속을 보존하는 Query AST·양 DB compiler 기반을 연결했다.
+중첩 model cache와 typed/path 구성은 이어서 구현한다.
 지원 범위와 남은 제한은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
 

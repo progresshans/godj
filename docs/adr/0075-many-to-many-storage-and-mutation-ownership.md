@@ -175,6 +175,25 @@ Cache 안의 target 값은 immutable snapshot이며 terminal마다 복제한다.
 중첩 collection 경로, 필터를 지정한 child prefetch, eager selection과 prefetch를 합친 tree는 다음 구현 범위로 남는다.
 고정 Django의 독립 관찰과 Go-native 소유권·실패 경로의 실행 근거는 TEST_EVIDENCE에 기록한다.
 
+### 구성 가능한 prefetch의 조회 기반
+
+고정 Django에서 custom target query의 관계 조건은 prefetch membership과 연결 행을 공유한다.
+예를 들어 Label을 `owners.name=first`와 `owners.name=second`로 연속 Filter하면 두 through join이 생긴다.
+Owner batch 조건은 가장 최근의 일치하는 join을 재사용하지만 결과를 owner에 묶는 column은 첫 join에서 읽는다.
+중첩 조회·필터·정렬·캐시 변경·eager 조합과 이 scope 차이를 포함한 독립 관찰은 48개이며, 제품 완료와 구분한다.
+
+`query.Plan.ForPrefetchOwners`는 원래 target query의 WHERE·정렬·DISTINCT를 유지한다.
+새 `ResultPrefetch`는 source model과 eager target들의 기존 scan 순서 뒤에 owner key 한 cell을 추가한다.
+필수 integer key를 갖는 단일 reverse intermediary 경로와 동일 source를 검증하고, positive WHERE의 첫/마지막 일치 occurrence를
+구분한다. NOT EXISTS 내부의 경로는 외부 join 재사용 대상으로 세지 않는다.
+첫 grouping occurrence와 마지막 membership occurrence가 다르면 두 occurrence 모두에 요청 owner IN 조건을 적용한다.
+이는 Django가 grouping에서 버리는 batch 밖 행을 SQL에서 제외하며 반환되는 모든 owner key의 소속을 보장한다.
+Owner projection만 다른 query에 옮겨 필수 membership anchor를 잃으면 거부한다.
+
+이 단계는 같은 Query AST와 양 DB compiler의 조회 기반이다. Generated model에 중첩 cache를 전달하는 공통 materialization,
+typed/path prefetch tree·custom target query 구성과 eager 통합은 아직 구현 중이다. Target query의 slice는 owner별 window 계획이
+필요하며 현재 `ForPrefetchOwners`는 명시 오류로 거부한다. 이를 전체 결과의 일반 LIMIT/OFFSET으로 바꾸지 않는다.
+
 ## Historical 선언 변경
 
 Columnless 변경은 `AddManyToMany`, `RemoveManyToMany`, `RenameManyToMany`라는 별도 typed operation으로 표현한다.

@@ -41,14 +41,14 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 		return `SELECT COUNT(*) FROM (` + inner + `) AS "godj_count_source"`, arguments, nil
 	}
 	resultKind := plan.ResultShape().Kind()
-	if relationProjection && resultKind != query.ResultModel {
+	if relationProjection && resultKind != query.ResultModel && resultKind != query.ResultPrefetch {
 		return "", nil, unsupportedResultShape("PostgreSQL scalar results cannot combine with related-object projection")
 	}
-	if hasRelation && resultKind != query.ResultModel && resultKind != query.ResultProjection {
+	if hasRelation && resultKind != query.ResultModel && resultKind != query.ResultProjection && resultKind != query.ResultPrefetch {
 		return "", nil, unsupportedResultShape("PostgreSQL non-count aggregates cannot combine with relation filters")
 	}
 	switch resultKind {
-	case query.ResultModel, query.ResultProjection:
+	case query.ResultModel, query.ResultProjection, query.ResultPrefetch:
 		if hasRelation {
 			return compileRelation(schema, plan, sourceFields, where)
 		}

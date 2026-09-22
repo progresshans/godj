@@ -42,7 +42,7 @@ def observe():
                            USE_TZ=True, TIME_ZONE="UTC", LANGUAGE_CODE="en-us")
         django.setup()
         from django.db import DatabaseError, IntegrityError, connection, connections, models, transaction
-        from django.db.models import Q, prefetch_related_objects
+        from django.db.models import Prefetch, Q, prefetch_related_objects
         from django.test.utils import CaptureQueriesContext
         from django.db.models.signals import m2m_changed
         from django.db.models.fields.related_descriptors import create_forward_many_to_many_manager
@@ -468,6 +468,105 @@ def observe():
                 results["prefetch_self"] = {name: [names(getattr(node, name)) for node in nodes] for name in ("friends", "follows", "followers")}
             results["prefetch_self"]["batch_queries"] = batch_reads
             results["prefetch_self"]["warm_queries"] = len(captured)
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b)
+            second.labels.add(b, c)
+            duplicate = Owner.objects.get(pk=first.pk)
+            empty = Owner.objects.create(name="empty")
+            nested_batch = [first, second, duplicate, empty]
+            def label_graph(owner):
+                return [[label.name, [[related.name, names(related.labels)] for related in label.owners.all()]]
+                        for label in owner.labels.all()]
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(nested_batch, "labels__owners__labels")
+            nested_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                nested_graph = [label_graph(owner) for owner in nested_batch]
+            nested_warm_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                refined_graph = [[label.name, [[related.name, names(related.labels)] for related in label.owners.all()]]
+                                 for label in first.labels.filter(name="b")]
+            results["prefetch_nested"] = {"members": nested_graph, "batch_queries": nested_reads,
+                "warm_queries": nested_warm_reads, "refined": refined_graph, "refined_queries": len(captured)}
+
+            clear()
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b, c)
+            second.labels.add(b)
+            duplicate = Owner.objects.get(pk=first.pk)
+            empty = Owner.objects.create(name="empty")
+            filtered_batch = [first, second, duplicate, empty]
+            filtered_labels = Label.objects.filter(name__in=["a", "c"]).order_by("-name").prefetch_related("owners")
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(filtered_batch, Prefetch("labels", queryset=filtered_labels))
+            filtered_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                filtered_graph = [[[label.name, names(label.owners)] for label in owner.labels.all()] for owner in filtered_batch]
+            filtered_warm_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                filtered_refined = [[label.name, names(label.owners)] for label in first.labels.filter(name="a")]
+            results["prefetch_filtered"] = {"members": filtered_graph, "batch_queries": filtered_reads,
+                "warm_queries": filtered_warm_reads, "refined": filtered_refined, "refined_queries": len(captured)}
+            held_filtered = first.labels.all()
+            first.labels.add(b)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_filtered_cache"] = {"after_noop_add": [value.name for value in first.labels.all()],
+                    "held": [value.name for value in held_filtered], "duplicate": [value.name for value in duplicate.labels.all()]}
+            results["prefetch_filtered_cache"]["queries"] = len(captured)
+            conflict = None
+            try:
+                list(Owner.objects.prefetch_related("labels__owners", Prefetch("labels", queryset=Label.objects.filter(name="a"))))
+            except ValueError as error:
+                conflict = type(error).__name__
+            with CaptureQueriesContext(connection) as captured:
+                reordered = list(Owner.objects.filter(pk=first.pk).prefetch_related(
+                    Prefetch("labels", queryset=Label.objects.filter(name="a")), "labels__owners"))
+                reordered_graph = [[label.name, names(label.owners)] for label in reordered[0].labels.all()]
+            results["prefetch_order_conflicts"] = {"redefined": conflict, "filtered_first": reordered_graph, "queries": len(captured)}
+
+            clear()
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b)
+            second.labels.add(b, c)
+            def filtered_relation_members(queryset, selected=None):
+                owners = [Owner.objects.get(pk=owner.pk) for owner in (selected if selected is not None else [first, second])]
+                with CaptureQueriesContext(connection) as captured:
+                    prefetch_related_objects(owners, Prefetch("labels", queryset=queryset.order_by("name")))
+                batch_queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    members = [names(owner.labels) for owner in owners]
+                return {"members": members, "batch_queries": batch_queries, "warm_queries": len(captured)}
+            results["prefetch_filtered_relation"] = {
+                "owner_second": filtered_relation_members(Label.objects.filter(owners__name="second")),
+                "owner_either": filtered_relation_members(Label.objects.filter(owners__name__in=["first", "second"])),
+                "successive_owners": filtered_relation_members(Label.objects.filter(owners__name="first").filter(owners__name="second")),
+                "successive_only_first": filtered_relation_members(Label.objects.filter(owners__name="first").filter(owners__name="second"), [first]),
+                "successive_only_second": filtered_relation_members(Label.objects.filter(owners__name="first").filter(owners__name="second"), [second]),
+                "distinct_owners": filtered_relation_members(Label.objects.filter(owners__name__in=["first", "second"]).distinct()),
+                "excluded_owner": filtered_relation_members(Label.objects.exclude(owners__name="second")),
+            }
+
+            clear()
+            a, b, c = [Label.objects.create(name=name) for name in ("a", "b", "c")]
+            first = RankedOwner.objects.create(name="first")
+            second = RankedOwner.objects.create(name="second")
+            for token, owner, label in [(1, first, a), (2, first, b), (3, second, b)]:
+                RankedLink.objects.create(owner=owner, label=label, token=token)
+            with CaptureQueriesContext(connection) as captured:
+                eager_roots = list(RankedLink.objects.order_by("token").select_related("owner").prefetch_related("owner__labels"))
+            eager_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                eager_graph = [[link.token, link.owner.name, names(link.owner.labels)] for link in eager_roots]
+            results["prefetch_eager_owner"] = {"members": eager_graph, "batch_queries": eager_reads, "warm_queries": len(captured)}
+            with CaptureQueriesContext(connection) as captured:
+                child_roots = list(RankedOwner.objects.order_by("name").prefetch_related(Prefetch("rankedlink_set",
+                    queryset=RankedLink.objects.order_by("-token").select_related("label"))))
+            eager_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                child_graph = [[owner.name, [[link.token, link.label.name] for link in owner.rankedlink_set.all()]] for owner in child_roots]
+            results["prefetch_eager_child"] = {"members": child_graph, "batch_queries": eager_reads, "warm_queries": len(captured)}
             clear()
 
             from django.db import migrations

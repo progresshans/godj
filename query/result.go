@@ -13,6 +13,7 @@ type ResultKind string
 
 const (
 	ResultModel      ResultKind = "model"
+	ResultPrefetch   ResultKind = "prefetch"
 	ResultProjection ResultKind = "projection"
 	ResultAggregate  ResultKind = "aggregate"
 )
@@ -183,6 +184,8 @@ func (s ResultShape) Equal(other ResultShape) bool {
 
 func (s ResultShape) validate() error {
 	switch s.kind {
+	case ResultPrefetch:
+		return s.validatePrefetch()
 	case ResultModel:
 		if len(s.expressions) != 0 {
 			return invalidPlanError("model result cannot contain explicit expressions")

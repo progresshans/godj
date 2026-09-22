@@ -3,6 +3,55 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — custom prefetch의 owner projection과 연결 행 scope
+
+2026-09-23, `8cff2ea317af2008072248571206fd461c6ea942` 위에서 custom target query를 위한
+`Plan.ForPrefetchOwners`·`ResultPrefetch`를 같은 Query AST와 SQLite/PostgreSQL compiler에 연결했다.
+기존 target WHERE·정렬·DISTINCT를 보존하고 첫 grouping join과 가장 최근의 일치하는 membership join을 구분한다.
+NOT EXISTS 내부의 경로를 외부 join으로 재사용하지 않으며 owner projection에 요청 batch의 필수 IN anchor를 요구한다.
+이것은 조회 기반이다. Generated nested/filtered prefetch tree·하위 model cache·eager 통합은 아직 구현 중이다.
+Owner별 slice는 window 계획이 필요하므로 일반 LIMIT/OFFSET으로 실행하지 않고 명시 오류로 거부한다.
+
+제품 checkpoint의 non-Markdown source **2,113파일** map hash는
+`1267c19f0d2456989c0edbaedd584a17ab9f959dae7a66684ab1e95f0c232440`다.
+`./query ./db/internal/queryplan ./db/sqlite ./db/postgres ./orm` 전체와 `./codegen/consumertest`의
+`TestGeneratedManyToManyCollections`, `TestGeneratedCollectionFacadeRejectsNamespaceAndCrossModelInputs`를 실행했다.
+각 **6 package / 6,561 run=PASS / skip 0**, 필수 root 13개다. Normal 34.7초, race 89.4초, CGO=0 31.6초이며
+세 mode 모두 실행 전후 source가 같다. Actual generated module의 양 DB **210 child run=PASS**도 각 parent가 검사했다.
+
+최종 source hash는 `d66e5960d18025459e6c9b35e411eeb98aba8635dc50b5d525fddd0aeb69a855`다.
+차이는 부모 harness 한 파일에 새 owner-plan 일곱 subcase를 양 DB 모두 필수 inventory로 추가한 것뿐이다. 제품·fixture·다른 테스트는 같다.
+최종 source에서 해당 actual consumer/compile-negative를 normal/race/CGO=0으로 다시 실행했다. 각 **5 parent / 210 child PASS / skip 0**,
+source 불변이며 이전 넓은 범위를 최종 source의 재실행으로 표시하지 않는다. Source 차이는 `final-delta.json`에 보관했다.
+
+새 native 사례는 custom owner 조건·두 owner 조건·연속 Filter·각각 한 owner만 요청·DISTINCT·제외 조건의 일곱 결과를
+독립 Django 관찰과 비교한다. Grouping owner가 요청 밖으로 빠져나오면 실패하며 query 수는 batch당 1이다.
+기존 mutation·session·direct prefetch·cache 및 mixed query 회귀도 같은 actual generated module에서 유지했다.
+그 외 새 nested/filtered/eager reference group은 아직 reference-only이며 이 일곱 SQL 사례의 성공으로 제품 완료를 주장하지 않는다.
+
+독립 Django **6.1**은 두 DB·hash seed 0/813의 **48개 관찰**이다. 기존 41개 관찰과 고정 Django source hash를 보존했다.
+Nested warm/refined cache, filtered ordering·no-op mutation 후 manager/held/duplicate snapshot, lookup 순서 충돌,
+eager parent와 eager child 조합, 관계 filter의 grouping scope를 추가했다. CPython **3.14.3**, SQLite **3.50.4**,
+PostgreSQL **170005**, asgiref **3.12.1**, sqlparse **0.5.5**, psycopg **3.3.6**을 고정했다.
+최종 runner SHA256은 `b9fac0cefffd230d04dad5584b0f0c1c18fab910e7a7ac2136e7adab147d78c6`이며 unittest **11 PASS**다.
+Nested load 제거·정렬 반전·owner 조건 변경·eager 제거라는 실제 의미 변경 다섯 가지도 차이를 감지했다.
+
+Go runtime/AST의 SQLite generated module 원본 **9 run=PASS** 뒤 grouping을 마지막 alias로 바꾸기, membership에 새 alias를
+강제하기, grouping owner의 필수 anchor를 제거하기의 세 overlay는 대응 사례에서 모두 실패했다. 모두 정상 compile 뒤 실패했고
+workspace 제품 파일은 변하지 않았다. 초기 test 작성 중 `query.FieldText`라는 잘못된 상수 이름의 compile 실패는 `FieldString`으로 수정했다.
+
+환경은 Go **1.26.5**, Darwin arm64, modernc SQLite와 격리 PostgreSQL **17.5 Homebrew**다.
+DB 회귀는 `GODJ_REQUIRE_POSTGRES=1`과 mode별 전용 database를 사용했다. 넓은 세 실행의 추가 연결·사용자 table·추가 schema는 **0|0|0**이었다.
+마지막 CGO=0 consumer의 첫 cleanup 관찰은 **1|0|0**이었으며 그 뒤 force 없는 database 제거가 성공했다.
+최종 별도 catalog 조회에서도 해당 임시 database가 남지 않았음을 확인했다. 이 첫 관찰을 0으로 바꾸어 기록하지 않는다.
+영향 vet와 CI Python **41 PASS**를 확인했다. Generator는 바뀌지 않아 generated drift를 다시 실행하지 않았다.
+최종 gofmt·문서 링크·diff는 `final-document-check.json`을 따른다.
+
+전체 command·source·event·stderr·inventory·reference·negative control은
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-tree/`의
+`latest-*-path`, `product-checkpoint-source.json`, `final-source.json`, `final-delta.json`, `terminal-database-cleanup.json`에 보관했다.
+이 범위는 GDJ-0099 Hosted 전체 milestone이나 전체 프레임워크 완료가 아니다.
+
 ## GDJ-0099 — 역방향 prefetch의 session publication 보완
 
 2026-09-23, 아래 direct prefetch 묶음 `61aadfc6`을 검증한 뒤 기존 reverse prefetch의 두 경계를 보완했다.

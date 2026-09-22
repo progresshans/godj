@@ -443,7 +443,7 @@ func (p Plan) WithRelationProjections(projections ...RelationProjection) (Plan, 
 	if len(projections) == 0 {
 		return Plan{}, invalidPlanError("relation selection requires at least one projection")
 	}
-	if p.result.Kind() != ResultModel {
+	if p.result.Kind() != ResultModel && p.result.Kind() != ResultPrefetch {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
 	all := make([]RelationProjection, 0, len(p.relationProjections)+len(projections))
@@ -658,12 +658,18 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	if err := result.validate(); err != nil {
 		return Plan{}, err
 	}
-	if len(p.relationProjections) != 0 && result.Kind() != ResultModel {
+	if len(p.relationProjections) != 0 && result.Kind() != ResultModel && result.Kind() != ResultPrefetch {
 		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
-	for _, expression := range result.Expressions() {
-		if err := p.validateResultSource(expression); err != nil {
+	if result.Kind() == ResultPrefetch {
+		if err := p.validatePrefetchSource(result); err != nil {
 			return Plan{}, err
+		}
+	} else {
+		for _, expression := range result.Expressions() {
+			if err := p.validateResultSource(expression); err != nil {
+				return Plan{}, err
+			}
 		}
 	}
 	clone := p

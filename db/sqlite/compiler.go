@@ -27,10 +27,10 @@ func Compile(plan query.Plan) (string, []any, error) {
 		return `SELECT COUNT(*) FROM (` + inner + `) AS "godj_count_source"`, arguments, nil
 	}
 	kind := plan.ResultShape().Kind()
-	if selected && kind != query.ResultModel {
+	if selected && kind != query.ResultModel && kind != query.ResultPrefetch {
 		return "", nil, unsupportedResult("SQLite scalar results cannot combine with related-object projection")
 	}
-	if related && kind != query.ResultModel && kind != query.ResultProjection {
+	if related && kind != query.ResultModel && kind != query.ResultProjection && kind != query.ResultPrefetch {
 		return "", nil, unsupportedResult("SQLite non-count aggregates cannot combine with relation filters")
 	}
 	if selected {
@@ -193,7 +193,7 @@ func appendPagination(sql *strings.Builder, arguments []any, plan query.Plan) []
 }
 
 func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, error) {
-	if plan.ResultShape().Kind() != query.ResultModel && plan.ResultShape().Kind() != query.ResultProjection && !plan.ResultShape().IsCountAll() {
+	if plan.ResultShape().Kind() != query.ResultModel && plan.ResultShape().Kind() != query.ResultProjection && plan.ResultShape().Kind() != query.ResultPrefetch && !plan.ResultShape().IsCountAll() {
 		return "", nil, unsupportedResult("SQLite relation compilation requires model rows, a root projection, or COUNT(*)")
 	}
 	if plan.Table() == "" {

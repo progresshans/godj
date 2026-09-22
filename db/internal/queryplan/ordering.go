@@ -29,6 +29,9 @@ func SelectedRows(plan query.Plan) ([]query.ResultExpression, error) {
 		}
 		selected = append(selected, expressions...)
 	}
+	if plan.ResultShape().Kind() == query.ResultPrefetch {
+		selected = append(selected, plan.ResultShape().Expressions()...)
+	}
 	return selected, nil
 }
 

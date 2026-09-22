@@ -245,6 +245,199 @@
         "a"
       ]
     },
+    "prefetch_eager_child": {
+      "batch_queries": 2,
+      "members": [
+        [
+          "first",
+          [
+            [
+              2,
+              "b"
+            ],
+            [
+              1,
+              "a"
+            ]
+          ]
+        ],
+        [
+          "second",
+          [
+            [
+              3,
+              "b"
+            ]
+          ]
+        ]
+      ],
+      "warm_queries": 0
+    },
+    "prefetch_eager_owner": {
+      "batch_queries": 2,
+      "members": [
+        [
+          1,
+          "first",
+          [
+            "a",
+            "b"
+          ]
+        ],
+        [
+          2,
+          "first",
+          [
+            "a",
+            "b"
+          ]
+        ],
+        [
+          3,
+          "second",
+          [
+            "b"
+          ]
+        ]
+      ],
+      "warm_queries": 0
+    },
+    "prefetch_filtered": {
+      "batch_queries": 2,
+      "members": [
+        [
+          [
+            "c",
+            [
+              "first"
+            ]
+          ],
+          [
+            "a",
+            [
+              "first"
+            ]
+          ]
+        ],
+        [],
+        [
+          [
+            "c",
+            [
+              "first"
+            ]
+          ],
+          [
+            "a",
+            [
+              "first"
+            ]
+          ]
+        ],
+        []
+      ],
+      "refined": [
+        [
+          "a",
+          [
+            "first"
+          ]
+        ]
+      ],
+      "refined_queries": 2,
+      "warm_queries": 0
+    },
+    "prefetch_filtered_cache": {
+      "after_noop_add": [
+        "a",
+        "b",
+        "c"
+      ],
+      "duplicate": [
+        "c",
+        "a"
+      ],
+      "held": [
+        "c",
+        "a"
+      ],
+      "queries": 1
+    },
+    "prefetch_filtered_relation": {
+      "distinct_owners": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "b",
+            "c"
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "excluded_owner": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "a"
+          ],
+          []
+        ],
+        "warm_queries": 0
+      },
+      "owner_either": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "b",
+            "c"
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "owner_second": {
+        "batch_queries": 1,
+        "members": [
+          [],
+          [
+            "b",
+            "c"
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "successive_only_first": {
+        "batch_queries": 1,
+        "members": [
+          []
+        ],
+        "warm_queries": 0
+      },
+      "successive_only_second": {
+        "batch_queries": 1,
+        "members": [
+          []
+        ],
+        "warm_queries": 0
+      },
+      "successive_owners": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "b"
+          ],
+          []
+        ],
+        "warm_queries": 0
+      }
+    },
     "prefetch_membership": [
       [
         "a",
@@ -259,6 +452,134 @@
         "b"
       ]
     ],
+    "prefetch_nested": {
+      "batch_queries": 3,
+      "members": [
+        [
+          [
+            "a",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ]
+            ]
+          ],
+          [
+            "b",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ],
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          [
+            "b",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ],
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ],
+          [
+            "c",
+            [
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ]
+        ],
+        [
+          [
+            "a",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ]
+            ]
+          ],
+          [
+            "b",
+            [
+              [
+                "first",
+                [
+                  "a",
+                  "b"
+                ]
+              ],
+              [
+                "second",
+                [
+                  "b",
+                  "c"
+                ]
+              ]
+            ]
+          ]
+        ],
+        []
+      ],
+      "refined": [
+        [
+          "b",
+          [
+            [
+              "first",
+              [
+                "a",
+                "b"
+              ]
+            ],
+            [
+              "second",
+              [
+                "b",
+                "c"
+              ]
+            ]
+          ]
+        ]
+      ],
+      "refined_queries": 4,
+      "warm_queries": 0
+    },
     "prefetch_nullable": {
       "batch_queries": 2,
       "forward": [
@@ -281,6 +602,18 @@
         []
       ],
       "warm_queries": 0
+    },
+    "prefetch_order_conflicts": {
+      "filtered_first": [
+        [
+          "a",
+          [
+            "first"
+          ]
+        ]
+      ],
+      "queries": 3,
+      "redefined": "ValueError"
     },
     "prefetch_queries": {
       "after_mutation": 1,

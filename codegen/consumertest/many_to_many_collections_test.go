@@ -104,6 +104,10 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		}
 		required["TestCollectionFacadeSessions/"+backend] = false
 		required["TestCollectionQueries/"+backend] = false
+		required["TestCollectionPrefetchOwnerPlans/"+backend] = false
+		for _, name := range []string{"owner_second", "owner_either", "successive_owners", "successive_only_first", "successive_only_second", "distinct_owners", "excluded_owner"} {
+			required["TestCollectionPrefetchOwnerPlans/"+backend+"/"+name] = false
+		}
 		for _, group := range []string{"query_filter_scopes", "query_boolean_presence", "query_boolean_order", "query_manager_scopes", "query_nullable_links", "binding_authority"} {
 			required["TestCollectionQueries/"+backend+"/"+group] = false
 		}

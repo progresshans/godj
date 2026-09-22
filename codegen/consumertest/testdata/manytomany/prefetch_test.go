@@ -590,3 +590,125 @@ func runCollectionPrefetch(t *testing.T, b collectionBackend, _ func() (collecti
 		}
 	})
 }
+
+// Custom target filters may already contain multiple joins to the intermediary.
+// Keep their scopes and read the owner identity selected by the grouping query.
+func TestCollectionPrefetchOwnerPlans(t *testing.T) {
+	withCollectionBackends(t, func(t *testing.T, b collectionBackend, _ func() (collectionBackend, error), _ func(string) error, _ bool) {
+		t.Cleanup(func() { check(t, b.Close()) })
+		migrateCollections(t, b)
+		ctx := t.Context()
+		factory, err := project.BindCollections()
+		check(t, err)
+		relations, err := project.BindRelations()
+		check(t, err)
+		var targets []labels.Label
+		for _, name := range []string{"a", "b", "c"} {
+			v, err := labels.LabelObjects.Create(ctx, b, labels.NewLabelCreate(name))
+			check(t, err)
+			targets = append(targets, v)
+		}
+		var sources []owners.Owner
+		for _, name := range []string{"first", "second"} {
+			v, err := owners.OwnerObjects.Create(ctx, b, owners.NewOwnerCreate(name))
+			check(t, err)
+			sources = append(sources, v)
+		}
+		for i, source := range sources {
+			set, err := factory.OwnersOwnerLabels.From(b, source)
+			check(t, err)
+			check(t, set.Add(ctx, targets[i:i+2]))
+		}
+		set, err := factory.OwnersOwnerLabels.From(b, sources[0])
+		check(t, err)
+		manager, err := set.Query()
+		check(t, err)
+		rawPath, ok := manager.Plan().Conditions()[0].RelationPath()
+		if !ok {
+			t.Fatal("missing physical membership path")
+		}
+		targetBase := labels.LabelObjects.Using(b)
+		var targetKey, linkKey query.FieldRef
+		for _, field := range targetBase.Plan().SourceFields() {
+			if field.Name() == "id" {
+				targetKey = field
+			}
+		}
+		for _, field := range (owners.OwnerLabelsLinkDescriptor{}).Metadata().Fields {
+			if field.PrimaryKey {
+				linkKey = query.NewFieldRef(field.Name, field.Column, query.FieldInteger, field.Nullable)
+			}
+		}
+		path, err := query.NewRelationChain(rawPath.Hops(), []query.FieldRef{targetKey, linkKey}, rawPath.Terminal(), query.RelationTerminalRelatedField)
+		check(t, err)
+		bytes, err := os.ReadFile("django-query.json")
+		check(t, err)
+		var oracle struct {
+			Observations map[string]json.RawMessage `json:"observations"`
+		}
+		check(t, json.Unmarshal(bytes, &oracle))
+		var expected map[string]struct {
+			Members      [][]string `json:"members"`
+			BatchQueries int        `json:"batch_queries"`
+		}
+		check(t, json.Unmarshal(oracle.Observations["prefetch_filtered_relation"], &expected))
+		for _, name := range []string{"owner_second", "owner_either", "successive_owners", "successive_only_first", "successive_only_second", "distinct_owners", "excluded_owner"} {
+			t.Run(name, func(t *testing.T) {
+				q := targetBase
+				requested := sources
+				switch name {
+				case "owner_second":
+					q = q.Filter(relations.LabelsLabel.Owners.Name.Exact("second"))
+				case "owner_either", "distinct_owners":
+					q = q.Filter(relations.LabelsLabel.Owners.Name.In("first", "second"))
+					if name == "distinct_owners" {
+						q = q.Distinct()
+					}
+				case "successive_owners", "successive_only_first", "successive_only_second":
+					q = q.Filter(relations.LabelsLabel.Owners.Name.Exact("first")).Filter(relations.LabelsLabel.Owners.Name.Exact("second"))
+					if name == "successive_only_first" {
+						requested = sources[:1]
+					}
+					if name == "successive_only_second" {
+						requested = sources[1:]
+					}
+				case "excluded_owner":
+					q = q.Filter(orm.Not(relations.LabelsLabel.Owners.Name.Exact("second")))
+				}
+				keys := make([]int64, len(requested))
+				members := make([][]string, len(requested))
+				positions := map[int64]int{}
+				for i, source := range requested {
+					keys[i] = source.ID
+					positions[source.ID] = i
+					members[i] = []string{}
+				}
+				plan, err := q.OrderBy(labels.LabelFields.Name.Asc()).Plan().ForPrefetchOwners(path, keys)
+				check(t, err)
+				probe := &prefetchProbe{collectionBackend: b}
+				rows, err := probe.Query(ctx, plan)
+				check(t, err)
+				for rows.Next() {
+					var id, owner int64
+					var label string
+					var note sql.NullString
+					check(t, rows.Scan(&id, &label, &note, &owner))
+					position, present := positions[owner]
+					if !present {
+						t.Fatal("owner projection escaped its requested batch", owner)
+					}
+					members[position] = append(members[position], label)
+				}
+				check(t, rows.Err())
+				check(t, rows.Close())
+				want, present := expected[name]
+				if !present {
+					t.Fatal("missing independent prefetch observation", name)
+				}
+				if !reflect.DeepEqual(members, want.Members) || len(probe.plans) != want.BatchQueries {
+					t.Fatal("custom prefetch membership", members, "want", want.Members, "queries", len(probe.plans))
+				}
+			})
+		}
+	})
+}

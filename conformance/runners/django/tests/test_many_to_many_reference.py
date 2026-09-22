@@ -40,7 +40,7 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
-        self.assertEqual(len(actual['observations']), 41)
+        self.assertEqual(len(actual['observations']), 48)
         postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
         for field in ('observations', 'source_sha256'):
             self.assertEqual(actual[field], postgres[field])
@@ -149,6 +149,60 @@ class ManyToManyReferenceTests(unittest.TestCase):
             'reverse': [['mixed', 'mixed'], ['mixed'], []], 'batch_queries': 2, 'warm_queries': 0})
         self.assertEqual(cases['prefetch_self'], {'friends': [['x', 'y'], ['x'], []], 'follows': [['y'], [], ['x']],
             'followers': [['z'], ['x'], []], 'batch_queries': 3, 'warm_queries': 0})
+
+    def test_nested_filtered_and_eager_prefetch_keep_scope_and_cache_semantics(self):
+        cases = self.snapshots[0]['observations']
+        nested = cases['prefetch_nested']
+        self.assertEqual((nested['batch_queries'], nested['warm_queries'], nested['refined_queries']), (3, 0, 4))
+        self.assertEqual(nested['members'][0], nested['members'][2])
+        self.assertEqual(nested['members'][3], [])
+        self.assertEqual(nested['members'][0][1], ['b', [['first', ['a', 'b']], ['second', ['b', 'c']]]])
+        filtered = cases['prefetch_filtered']
+        selected = [['c', ['first']], ['a', ['first']]]
+        self.assertEqual(filtered['members'], [selected, [], selected, []])
+        self.assertEqual((filtered['batch_queries'], filtered['warm_queries'], filtered['refined_queries']), (2, 0, 2))
+        self.assertEqual(filtered['refined'], [['a', ['first']]])
+        self.assertEqual(cases['prefetch_filtered_cache'], {'after_noop_add': ['a', 'b', 'c'], 'held': ['c', 'a'],
+                                                          'duplicate': ['c', 'a'], 'queries': 1})
+        self.assertEqual(cases['prefetch_order_conflicts'], {'redefined': 'ValueError', 'filtered_first': [['a', ['first']]], 'queries': 3})
+        scopes = cases['prefetch_filtered_relation']
+        for name, members in [('owner_second', [[], ['b', 'c']]), ('owner_either', [['a', 'b'], ['b', 'c']]),
+                              ('successive_owners', [['b'], []])]:
+            self.assertEqual(scopes[name], {'members': members, 'batch_queries': 1, 'warm_queries': 0})
+        self.assertEqual(cases['prefetch_eager_owner'], {'members': [[1, 'first', ['a', 'b']], [2, 'first', ['a', 'b']],
+            [3, 'second', ['b']]], 'batch_queries': 2, 'warm_queries': 0})
+        self.assertEqual(cases['prefetch_eager_child'], {'members': [['first', [[2, 'b'], [1, 'a']]], ['second', [[3, 'b']]]],
+            'batch_queries': 2, 'warm_queries': 0})
+
+    def test_nested_prefetch_semantic_mutations_are_detected(self):
+        source = RUNNER.read_text()
+        for original, replacement, case in (
+            ('prefetch_related_objects(nested_batch, "labels__owners__labels")',
+             'prefetch_related_objects(nested_batch, "labels")', 'prefetch_nested'),
+            ('Label.objects.filter(name__in=["a", "c"]).order_by("-name").prefetch_related("owners")',
+             'Label.objects.filter(name__in=["a", "c"]).order_by("name").prefetch_related("owners")', 'prefetch_filtered'),
+            ('"owner_second": filtered_relation_members(Label.objects.filter(owners__name="second"))',
+             '"owner_second": filtered_relation_members(Label.objects.filter(owners__name="first"))', 'prefetch_filtered_relation'),
+            ('RankedLink.objects.order_by("token").select_related("owner").prefetch_related("owner__labels")',
+             'RankedLink.objects.order_by("token").prefetch_related("owner__labels")', 'prefetch_eager_owner'),
+            ('RankedLink.objects.order_by("-token").select_related("label")',
+             'RankedLink.objects.order_by("-token")', 'prefetch_eager_child'),
+        ):
+            with self.subTest(case=case):
+                self.assertEqual(source.count(original), 1)
+                with tempfile.TemporaryDirectory(prefix='godj-m2m-prefetch-tree-mutation-') as directory:
+                    path = Path(directory) / 'mutated.py'
+                    path.write_text(source.replace(original, replacement))
+                    actual = capture(path, '0')['observations'][case]
+                self.assertNotEqual(actual, self.snapshots[0]['observations'][case])
+                if case in ('prefetch_nested', 'prefetch_eager_child'):
+                    self.assertGreater(actual['warm_queries'], 0)
+                if case == 'prefetch_filtered':
+                    self.assertEqual(actual['members'][0], [['a', ['first']], ['c', ['first']]])
+                if case == 'prefetch_filtered_relation':
+                    self.assertEqual(actual['owner_second']['members'], [['a', 'b'], []])
+                if case == 'prefetch_eager_owner':
+                    self.assertEqual(actual['batch_queries'], 3)
 
     def test_real_semantic_mutations_change_observations(self):
         source = RUNNER.read_text()

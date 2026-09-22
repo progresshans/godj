@@ -40,7 +40,7 @@ func emptyRows(ctx, lifetime context.Context, shape query.ResultShape) (db.Rows,
 		return nil, err
 	}
 	switch shape.Kind() {
-	case query.ResultModel, query.ResultProjection:
+	case query.ResultModel, query.ResultProjection, query.ResultPrefetch:
 		return rows, nil
 	case query.ResultAggregate:
 		for _, expression := range shape.Expressions() {
