@@ -165,6 +165,42 @@ exit "${GODJ_TEST_GIT_EXIT:-9}"
 
 
 class ExecutionOwnerTests(unittest.TestCase):
+    def test_workflow_run_blocks_fit_github_expression_limit(self):
+        import re
+        root = Path(__file__).resolve().parents[2]
+        for workflow in sorted((root / '.github/workflows').glob('*.yml')):
+            lines = workflow.read_text().splitlines()
+            for position, line in enumerate(lines):
+                if not re.fullmatch(r'\s+run: [|>][+-]?', line):
+                    continue
+                indentation = len(line) - len(line.lstrip())
+                body = []
+                for following in lines[position + 1:]:
+                    if following.strip() and len(following) - len(following.lstrip()) <= indentation:
+                        break
+                    body.append(following[indentation + 2:])
+                with self.subTest(workflow=workflow.name, line=position + 1):
+                    self.assertLessEqual(len('\n'.join(body)) + 1, 21000)
+
+    def test_postgres_required_file_reaches_the_shell_inventory_unchanged(self):
+        root = Path(__file__).resolve().parents[2]
+        expected = (root / 'scripts/ci/postgres-core-required.txt').read_text()
+        lines = expected.splitlines()
+        self.assertTrue(lines)
+        self.assertEqual(len(lines), len(set(lines)))
+        for line in lines:
+            package, name = line.split('|')
+            self.assertTrue(package.startswith(MODULE))
+            self.assertTrue(name.startswith('Test'))
+        workflow = (root / '.github/workflows/ci.yml').read_text()
+        start = workflow.index('          core_required_passes=()')
+        end = workflow.index('          operator_target_required_passes=(', start)
+        script = workflow[start:end] + "\nprintf '%s\\n' \"${core_required_passes[@]}\"\n"
+        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=root,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(expected, result.stdout)
+
     def test_required_relation_inventory_has_an_execution_owner(self):
         from packages import relation_owned
         root = Path(__file__).resolve().parents[2]

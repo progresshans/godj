@@ -3,6 +3,20 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — CI 필수 목록의 워크플로 입력 한도
+
+자동 storage 구현 source `e7b465a99154a18990fe07ee3973d05bfe290759`를 push한 뒤 GitHub의
+[워크플로 admission 실패](https://github.com/progresshans/godj/actions/runs/35729576853)를 확인했다.
+CI job은 하나도 시작되지 않았으며, PostgreSQL step의 inline `run` 21,574자가 플랫폼의 expression 21,000자 한도를 넘었다.
+제품 테스트 실패나 Hosted 전체 실행으로 세지 않는다.
+
+PostgreSQL core의 필수 **150개 항목**을 [별도 목록](../../scripts/ci/postgres-core-required.txt)으로 이동하고 shell array로 읽는다.
+기존 전체 항목·순서를 보존하며 실제 shell에 전달된 bytes가 목록과 같은지 검사한다. Inline script 길이 검증도 추가했다.
+새 회귀가 기존 source의 과대 block을 실제로 거부하는 negative control을 실행했고 CI Python **41 PASS**를 확인했다.
+제품 Go source는 아래 e7b465a9 검증 이후 그대로이며 CI-only 변경으로 전체 DB/플랫폼 검증을 중복하지 않는다.
+`automatic-history/ci-followup-python-receipt.json`, `postgres-inventory-extraction.json`, `workflow-length-negative-control.log`에
+GitHub 진단·원본 전체 inventory·negative control·로컬 실행을 보관한다. 이후 Hosted 전체 통합은 여전히 GDJ-0099의 통합 milestone이다.
+
 ## GDJ-0099 — 자동 intermediary의 historical storage
 
 2026-09-22, 기준 `c88c67746139875d025e005181489b86714e7b17` 위 제품·테스트·CI **47 non-Markdown 경로(Go 44)**를 변경했다.
