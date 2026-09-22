@@ -49,6 +49,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
 		ExplicitManyToMany:                true,
+		AutomaticManyToMany:               true,
 	}
 }
 
@@ -745,7 +746,7 @@ func validateSQLiteRelationIntent(
 				return err
 			}
 		}
-		if err := validateSQLiteRelationStaticOperation(operation, before, after); err != nil {
+		if err := validateSQLiteRelationStaticOperation(transition.Migration.App, operation, before, after); err != nil {
 			return err
 		}
 	}
@@ -769,6 +770,7 @@ func validateSQLiteRelationIntent(
 }
 
 func validateSQLiteRelationStaticOperation(
+	app string,
 	operation migrationbackend.MigrationOperation,
 	before,
 	after ir.Model,
@@ -782,13 +784,9 @@ func validateSQLiteRelationStaticOperation(
 		if _, err := compileSQLiteNamedUniqueAlter(before, constraint, operation.Kind == migrationbackend.MigrationAddConstraint); err != nil {
 			return relationIntentUnsupported("named constraint cannot compile safely: %v", err)
 		}
-	case migrationbackend.MigrationCreateModel:
-		if _, err := compileSQLiteCreateModelStatements(after, operation.Targets); err != nil {
-			return relationIntentUnsupported("relation CreateModel operation %d cannot compile safely: %v", operation.OperationIndex, err)
-		}
-	case migrationbackend.MigrationDeleteModel:
-		if _, err := compileMigrationDeleteModel(before); err != nil {
-			return relationIntentUnsupported("relation-step DeleteModel operation %d cannot compile safely: %v", operation.OperationIndex, err)
+	case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany:
+		if _, err := compileSQLiteStorageOperation(app, operation); err != nil {
+			return relationIntentUnsupported("owned storage operation %d cannot compile safely: %v", operation.OperationIndex, err)
 		}
 	case migrationbackend.MigrationAddField:
 		field, err := operation.ChangedField()
@@ -817,7 +815,9 @@ func validateSQLiteRelationStaticOperation(
 			if err != nil {
 				return err
 			}
-			if _, err := compileSQLiteRelationCreateModel(after, retainedTargets); err != nil {
+			physical := after
+			physical.ManyToMany = nil
+			if _, err := compileSQLiteRelationCreateModel(physical, retainedTargets); err != nil {
 				return relationIntentUnsupported("relation RemoveField operation %d cannot compile bounded remake: %v", operation.OperationIndex, err)
 			}
 			break
@@ -930,7 +930,7 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationCreateModel(c
 		if operation.Kind != migrationbackend.MigrationCreateModel || !reflect.DeepEqual(model, operation.After) {
 			return relationIntentIntegrity("relation CreateModel does not match sealed operation at cursor %d", state.cursor)
 		}
-		statements, err := compileSQLiteCreateModelStatements(operation.After, operation.Targets)
+		statements, err := compileSQLiteStorageOperation(transaction.transition.Migration.App, operation)
 		if err != nil {
 			return err
 		}
@@ -956,11 +956,11 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationDeleteModel(c
 		if operation.Kind != migrationbackend.MigrationDeleteModel || !reflect.DeepEqual(model, operation.Before) {
 			return relationIntentIntegrity("relation DeleteModel does not match sealed operation at cursor %d", state.cursor)
 		}
-		statement, err := compileMigrationDeleteModel(operation.Before)
+		statements, err := compileSQLiteStorageOperation(transaction.transition.Migration.App, operation)
 		if err != nil {
 			return err
 		}
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
+		if err := executeSQLiteMigrationStatements(ctx, executor, statements); err != nil {
 			return fmt.Errorf("delete SQLite relation model %q: %w", operation.Before.DBTable, err)
 		}
 		state.cursor++
@@ -1473,6 +1473,15 @@ func validateSQLiteRelationCatalogHazards(catalog sqliteRelationCatalog, seal *s
 		relevant[key] = struct{}{}
 		mutationHazards[key] = struct{}{}
 	}
+	for _, change := range seal.graphPlan.StorageChanges() {
+		for _, model := range []ir.Model{change.Before, change.After} {
+			if model.Name == "" {
+				continue
+			}
+			key := sqliteRelationIdentifierKey(model.DBTable)
+			touched[key], relevant[key], mutationHazards[key] = struct{}{}, struct{}{}, struct{}{}
+		}
+	}
 	for _, snapshot := range append(seal.graphPlan.InitialModels(), seal.graphPlan.FinalModels()...) {
 		relevant[sqliteRelationIdentifierKey(snapshot.Model.DBTable)] = struct{}{}
 	}
@@ -1730,17 +1739,17 @@ func sqliteRelationBoundaryStates(
 		key := sqliteRelationIdentifierKey(snapshot.Model.DBTable)
 		final[key] = sqliteRelationBoundaryModel{model: snapshot.Model, present: true}
 	}
-	for _, operation := range seal.intent.Operations {
-		if operation.Kind == migrationbackend.MigrationCreateModel {
-			key := sqliteRelationIdentifierKey(operation.After.DBTable)
+	for _, change := range seal.graphPlan.StorageChanges() {
+		if change.After.Name != "" && change.Before.DBTable != change.After.DBTable {
+			key := sqliteRelationIdentifierKey(change.After.DBTable)
 			if _, present := initial[key]; !present {
-				initial[key] = sqliteRelationBoundaryModel{model: operation.After.Clone()}
+				initial[key] = sqliteRelationBoundaryModel{model: change.After}
 			}
 		}
-		if operation.Kind == migrationbackend.MigrationDeleteModel {
-			key := sqliteRelationIdentifierKey(operation.Before.DBTable)
+		if change.Before.Name != "" && change.Before.DBTable != change.After.DBTable {
+			key := sqliteRelationIdentifierKey(change.Before.DBTable)
 			if _, present := final[key]; !present {
-				final[key] = sqliteRelationBoundaryModel{model: operation.Before.Clone()}
+				final[key] = sqliteRelationBoundaryModel{model: change.Before}
 			}
 		}
 	}
@@ -1902,32 +1911,44 @@ func validateSQLiteRelationPhysicalGraph(
 		}
 		source := sqliteRelationIdentifierKey(model.DBTable)
 		switch operation.Kind {
-		case migrationbackend.MigrationCreateModel:
-			if inbound := graph.incoming[source]; len(inbound) != 0 {
-				owners := make([]string, 0, len(inbound))
-				for owner := range inbound {
-					owners = append(owners, owner)
+		case migrationbackend.MigrationCreateModel, migrationbackend.MigrationDeleteModel, migrationbackend.MigrationAlterManyToMany:
+			resolved, ok := seal.graphPlan.Operation(index)
+			if !ok {
+				return relationIntentIntegrity("missing owned storage graph")
+			}
+			app := resolved.Root().AppLabel
+			changes, err := operation.StorageChanges(app)
+			if err != nil {
+				return relationIntentIntegrity("invalid owned storage: %v", err)
+			}
+			for _, change := range changes {
+				if change.Before.DBTable == change.After.DBTable {
+					continue
 				}
-				sort.Strings(owners)
-				return relationPhysicalDrift("relation CreateModel table %q has pre-existing inbound foreign key from %q", model.DBTable, owners[0])
-			}
-			graph.removeOutgoing(source)
-			for targetIndex := range operation.Targets {
-				target := sqliteRelationIdentifierKey(operation.Targets[targetIndex].TargetModel.DBTable)
-				graph.add(source, target)
-			}
-		case migrationbackend.MigrationDeleteModel:
-			var owners []string
-			for owner := range graph.incoming[source] {
-				if owner != source {
-					owners = append(owners, owner)
+				if change.Before.Name != "" {
+					old := sqliteRelationIdentifierKey(change.Before.DBTable)
+					for owner := range graph.incoming[old] {
+						if owner != old {
+							return relationPhysicalDrift("owned storage %q has inbound foreign key from %q", change.Before.DBTable, owner)
+						}
+					}
+					graph.remove(old)
+				}
+				if change.After.Name != "" {
+					next := sqliteRelationIdentifierKey(change.After.DBTable)
+					if len(graph.incoming[next]) != 0 {
+						return relationPhysicalDrift("owned storage %q has pre-existing inbound foreign keys", change.After.DBTable)
+					}
+					graph.removeOutgoing(next)
+					targets, err := resolved.Targets(ir.ModelIdentity{AppLabel: app, ModelName: change.After.Name})
+					if err != nil {
+						return relationIntentIntegrity("owned storage targets: %v", err)
+					}
+					for _, target := range targets {
+						graph.add(next, sqliteRelationIdentifierKey(target.TargetModel.DBTable))
+					}
 				}
 			}
-			if len(owners) != 0 {
-				sort.Strings(owners)
-				return relationPhysicalDrift("relation DeleteModel table %q has inbound foreign key from %q", model.DBTable, owners[0])
-			}
-			graph.remove(source)
 		case migrationbackend.MigrationAddField:
 			field, err := operation.ChangedField()
 			if err != nil {

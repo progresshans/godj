@@ -181,6 +181,19 @@ func appendCanonicalModel(output []byte, model ir.Model) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(model.ManyToMany) != 0 {
+		output = append(output, `,"many_to_many":[`...)
+		for index, field := range model.ManyToMany {
+			if index != 0 {
+				output = append(output, ',')
+			}
+			output, err = appendCanonicalManyObject(output, canonicalManyField(field))
+			if err != nil {
+				return nil, err
+			}
+		}
+		output = append(output, ']')
+	}
 	output = append(output, `,"name":`...)
 	output, err = appendCanonicalString(output, model.Name)
 	if err != nil {

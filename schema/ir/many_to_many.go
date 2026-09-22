@@ -184,12 +184,38 @@ func StorageSchema(input Schema) (Schema, error) {
 	return Normalize(schema)
 }
 
+// StorageThrough returns the explicit selection or the deterministic owned
+// intermediary coordinate. It does not resolve model existence or FK targets.
+func (field ManyToManyField) StorageThrough(owner ModelIdentity) ThroughModel {
+	if field.Through != nil {
+		return *field.Through
+	}
+	return ThroughModel{Model: ModelIdentity{AppLabel: owner.AppLabel, ModelName: owner.ModelName + "_" + field.Name}, SourceField: "source", TargetField: "target"}
+}
+
+// AutomaticThroughModel derives one normalized owned model from its declaration.
+// The owner and field must already be normalized; callers admit resource limits
+// and project-wide collisions before publishing a complete storage inventory.
+func AutomaticThroughModel(app string, owner Model, field ManyToManyField) (Model, error) {
+	if field.Through != nil {
+		return Model{}, fmt.Errorf("explicit through does not own storage")
+	}
+	if !slices.ContainsFunc(owner.ManyToMany, func(value ManyToManyField) bool { return value.Equal(field) }) {
+		return Model{}, fmt.Errorf("automatic relation is not owned by the model")
+	}
+	schema, err := Normalize(Schema{FormatVersion: CurrentFormatVersion, AppLabel: app, Models: []Model{automaticThroughModel(app, owner, field)}})
+	if err != nil {
+		return Model{}, err
+	}
+	return schema.Models[0], nil
+}
+
 func automaticThroughModel(app string, owner Model, field ManyToManyField) Model {
 	fk := func(name, goName string, target ModelIdentity) Field {
 		return Field{Name: name, GoName: goName, Column: name + "_id", Kind: FieldForeignKey,
 			Relation: &ForeignKeyRelation{Target: target, Cardinality: RelationManyToOne, Reverse: ReverseRelation{Disabled: true}, OnDelete: DeleteCascade}}
 	}
-	return Model{Name: owner.Name + "_" + field.Name, GoName: owner.GoName + field.GoName + "Link", DBTable: owner.DBTable + "_" + field.Name,
+	return Model{Name: field.StorageThrough(ModelIdentity{AppLabel: app, ModelName: owner.Name}).Model.ModelName, GoName: owner.GoName + field.GoName + "Link", DBTable: owner.DBTable + "_" + field.Name,
 		Fields:            []Field{fk("source", "SourceID", ModelIdentity{AppLabel: app, ModelName: owner.Name}), fk("target", "TargetID", field.Target)},
 		UniqueConstraints: []UniqueConstraint{{Name: "relation_pair", Fields: []string{"source", "target"}}}}
 }
@@ -227,11 +253,7 @@ func ResolveManyToMany(schemas ...Schema) ([]ManyToManyBinding, error) {
 			models[source] = model
 			for _, field := range model.ManyToMany {
 				binding := ManyToManyBinding{Source: source, Field: field.Name, Target: field.Target, Reverse: field.Reverse, Symmetry: field.Symmetry, Automatic: field.Through == nil}
-				if field.Through == nil {
-					binding.Through = ThroughModel{Model: ModelIdentity{AppLabel: schema.AppLabel, ModelName: model.Name + "_" + field.Name}, SourceField: "source", TargetField: "target"}
-				} else {
-					binding.Through = *field.Through
-				}
+				binding.Through = field.StorageThrough(source)
 				bindings = append(bindings, binding)
 			}
 		}

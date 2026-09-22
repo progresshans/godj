@@ -308,15 +308,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 	if !afterExists {
 		return appChange{}, false, nil
 	}
-	for _, schema := range []ir.Schema{before, after} {
-		for _, model := range schema.Models {
-			for _, field := range model.ManyToMany {
-				if field.Through == nil {
-					return appChange{}, false, detectionError(CodeUnsupportedChange, app, model.Name, field.Name, fmt.Errorf("automatic ManyToMany storage migration is not implemented"))
-				}
-			}
-		}
-	}
+
 	if !beforeExists {
 		before = ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: app}
 	}
@@ -429,8 +421,12 @@ func validateAddedRelation(
 	if target.AppLabel != app {
 		return nil
 	}
+	storage, err := ir.StorageSchema(desired)
+	if err != nil {
+		return detectionError(CodeInvalidRelation, app, model, field.Name, err)
+	}
 	targetExists := false
-	for _, candidate := range desired.Models {
+	for _, candidate := range storage.Models {
 		if candidate.Name == target.ModelName {
 			targetExists = true
 			break

@@ -118,10 +118,10 @@ func collectManyOperationReferences(references *[]relationReference, operation m
 
 func manyReferenceReady(reference relationReference, current migrations.ProjectState) bool {
 	if len(reference.targetFields) == 0 {
-		_, exists := current.Model(reference.targetApp, reference.targetModel)
+		_, exists := projectStorageModel(current, reference.targetApp, reference.targetModel)
 		return exists
 	}
-	model, exists := current.Model(reference.targetApp, reference.targetModel)
+	model, exists := projectStorageModel(current, reference.targetApp, reference.targetModel)
 	if !exists {
 		return false
 	}
@@ -140,22 +140,47 @@ func manyCandidateReady(operation migrations.AddManyToMany, app string, current 
 		if _, exists := available[field.Target.ModelName]; !exists {
 			return false
 		}
-	} else if _, exists := current.Model(field.Target.AppLabel, field.Target.ModelName); !exists {
+	} else if _, exists := projectStorageModel(current, field.Target.AppLabel, field.Target.ModelName); !exists {
 		return false
 	}
 	through := field.Through
 	if through == nil {
-		return false
+		return true
 	}
 	var fields map[string]bool
 	if through.Model.AppLabel == app {
 		fields = available[through.Model.ModelName]
 	} else {
-		model, exists := current.Model(through.Model.AppLabel, through.Model.ModelName)
+		model, exists := projectStorageModel(current, through.Model.AppLabel, through.Model.ModelName)
 		if !exists {
 			return false
 		}
 		fields = fieldNameSet(model.Fields)
 	}
 	return fields[through.SourceField] && fields[through.TargetField]
+}
+
+// Storage is a derived read view; detection emits logical operations only.
+func projectStorageSchema(state migrations.ProjectState, app string) (ir.Schema, error) {
+	schema, exists := state.Schema(app)
+	if !exists {
+		return ir.Schema{}, nil
+	}
+	return ir.StorageSchema(schema)
+}
+
+func projectStorageModel(state migrations.ProjectState, app, name string) (ir.Model, bool) {
+	if model, exists := state.Model(app, name); exists {
+		return model, true
+	}
+	storage, err := projectStorageSchema(state, app)
+	if err != nil {
+		return ir.Model{}, false
+	}
+	for _, model := range storage.Models {
+		if model.Name == name {
+			return model, true
+		}
+	}
+	return ir.Model{}, false
 }

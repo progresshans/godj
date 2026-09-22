@@ -33,7 +33,7 @@ automatic model descriptor·공통 삭제 graph·프로젝트 모델 binding은 
 기본 자기 관계는 symmetrical이며 별도 reverse를 만들지 않는다. Directed 자기 관계는 별도 reverse를 갖는다.
 현재 Go 선언은 symmetrical과 named reverse의 동시 지정을 모순으로 거부한다. 이는 Django의 ignored-option warning과 다른
 입력 정책이며 이 선언 subset의 명시적 한계다. Through field 선택의 자동 추론과 broader declaration options도 후속 범위다.
-이 단계의 선언/metadata 지원을 일반 collection manager나 migration의 완료로 합치지 않는다.
+선언/metadata와 migration의 지원을 일반 collection manager의 완료로 합치지 않는다.
 
 자동 through의 pair 추가에는 사전 존재 조회 이후 일반 INSERT만으로는 충분하지 않다. PostgreSQL의 동시 unique 오류는
 이미 transaction을 실패 상태로 만들 수 있으므로 error를 나중에 정상 중복으로 바꿔서 계속 쓰지 않는다.
@@ -68,8 +68,25 @@ Columnless source에 직접 FK가 없어도 through와 두 endpoint의 authority
 
 자동 계획은 explicit-through 선언을 모델·선택한 FK 생성 뒤에 추가한다. Cross-app의 모델이 이미 있어도 필요한 FK가 아직 없는
 중간 prefix라면 선언을 지연한다. Dependency ancestry와 모든 재개 prefix의 남은 bytes를 보존하며, 모호한 rename이나 retained 선언의
-순서 변경·binding retarget을 추측하지 않는다. Raw CreateModel에 포함된 columnless 선언과 자동 intermediary DDL은 현재 미지원이며
-자동 계획이 explicit-through 초기 선언을 분리하는 동작과 구분한다. 자동 storage의 생성·제거·rename은 다음 구현 범위다.
+순서 변경·binding retarget을 추측하지 않는다. 자동 intermediary도 같은 계획에 포함하고, 아직 없는 derived target을 참조하는 FK는
+다음 prefix로 지연한다. Raw CreateModel의 columnless 선언은 필요한 endpoint/through가 준비된 경우에 지원한다.
+
+자동 intermediary의 물리 변경은 하나의 logical operation에서 유도한다. 외부 입력으로 별도의 storage 원본을 받거나 합성 CreateModel을
+공개 이력에 추가하지 않는다. Sealed graph는 정확한 파생 모델과 target·명시적 alias의 authority를 요구하며, 사전 resource budget은
+파생 이름과 전체 fan-out도 제한한다. 생성 전 부재·제거 뒤 부재·이름 변경의 두 경계를 포함해 step 중간에만 존재하는 table도 검증한다.
+같은 CreateModel에 포함된 automatic model끼리의 FK는 의존성 순서로 생성하고 역순으로 제거한다. Owner의 저장 FK가 자신의
+intermediary를 다시 참조하는 생성 순환은 모델 생성 후 AddField로 작성한다. 자동 계획은 이 FK를 준비된 prefix까지 지연한다.
+
+양 DB의 `AutomaticManyToMany` capability는 retained binding에도 필요하다. DDL 전체·최종 catalog·revision/history를 같은 transaction이
+소유하고 cursor는 logical operation당 한 번 진행한다. Rename은 drop/create나 row copy를 사용하지 않는다. SQLite native table rename은
+PK·rootpage·sqlite_sequence 부재/값을 유지하고 pair index는 새 managed 이름으로 교체한다. PostgreSQL은 table·identity sequence와
+PK/FK/unique constraint 이름을 바꾸며 기존 table/sequence OID·last_value/is_called를 유지한다. Go 이름만 바뀌면 DDL은 없다.
+관리 밖의 inbound FK나 view를 rename에 따라 조용히 retarget하지 않는다. Logical alias/FK가 이전 derived identity를 참조하면 변경 전에
+해제해야 한다. 명시적 through 선언은 자동 table을 참조하더라도 해당 table을 소유하지 않는다.
+
+Remove는 소유 link table만 삭제하고 두 endpoint의 행을 보존한다. Reverse Remove나 재적용은 빈 intermediary를 생성하며,
+이미 삭제한 링크를 복구했다고 게시하지 않는다. 실제 migration과 forward SQL projection은 같은 완전한 DDL group을 사용한다.
+늦은 제약 오류·취소·이름 충돌과 catalog drift에서 부분 이력이나 변경 상태를 게시하지 않고 기존 rollback/unknown outcome 계약을 유지한다.
 
 ## 후속 구현 경계
 

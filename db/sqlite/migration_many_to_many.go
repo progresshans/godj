@@ -8,7 +8,7 @@ import (
 )
 
 func (transaction *sqliteRevisionFencedTransaction) AlterManyToMany(ctx context.Context, before, after ir.Model) error {
-	return transaction.execute(ctx, "change explicit ManyToMany", func(executor migrationSQLExecutor) error {
+	return transaction.execute(ctx, "change ManyToMany", func(executor migrationSQLExecutor) error {
 		state := transaction.relation
 		if state == nil || state.cursor >= len(state.seal.intent.Operations) {
 			return relationIntentIntegrity("unexpected ManyToMany change at cursor %d", stateCursor(state))
@@ -23,9 +23,15 @@ func (transaction *sqliteRevisionFencedTransaction) AlterManyToMany(ctx context.
 		if _, _, err := op.ChangedManyToMany(); err != nil {
 			return relationIntentIntegrity("invalid ManyToMany delta: %v", err)
 		}
-		// The sealed graph and physical preflight include both endpoints, the
-		// existing intermediary and its transitive FKs. No row or DDL rewrite is
-		// needed; final catalog/history verification still owns publication.
+		statements, err := compileSQLiteStorageOperation(transaction.transition.Migration.App, op)
+		if err != nil {
+			return err
+		}
+		if err := executeSQLiteMigrationStatements(ctx, executor, statements); err != nil {
+			return err
+		}
+		// Publish only after the complete owned statement group and final catalog
+		// verification. Explicit intermediary changes emit no DDL.
 		state.cursor++
 		return transaction.completeRelationOperationIfLast(ctx, executor)
 	})

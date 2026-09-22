@@ -266,6 +266,7 @@ type modelDocument struct {
 	DBTable           string                `json:"db_table"`
 	Fields            []fieldDocument       `json:"fields"`
 	UniqueConstraints []ir.UniqueConstraint `json:"unique_constraints,omitempty"`
+	ManyToMany        []ir.ManyToManyField  `json:"many_to_many,omitempty"`
 }
 
 type fieldDocument struct {
@@ -367,6 +368,7 @@ func encodeModel(model ir.Model) modelDocument {
 		DBTable:           model.DBTable,
 		Fields:            make([]fieldDocument, len(model.Fields)),
 		UniqueConstraints: model.UniqueConstraints,
+		ManyToMany:        model.ManyToMany,
 	}
 	for index, field := range model.Fields {
 		encoded.Fields[index] = encodeField(field)

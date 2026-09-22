@@ -18,6 +18,8 @@ type MigrationCapabilities struct {
 	// ExplicitManyToMany admits columnless changes using existing through models.
 	// Automatic intermediary creation/removal/rename needs separate storage support.
 	ExplicitManyToMany bool
+	// AutomaticManyToMany covers derived link storage and retained catalog validation.
+	AutomaticManyToMany bool
 }
 
 // The public backend contract shares the pure historical metadata types with
@@ -27,6 +29,7 @@ type MigrationIntent = migrationgraph.MigrationIntent
 type MigrationOperation = migrationgraph.MigrationOperation
 type MigrationTarget = migrationgraph.MigrationTarget
 type MigrationModel = migrationgraph.MigrationModel
+type MigrationModelChange = migrationgraph.ModelChange
 
 const (
 	MigrationAlterManyToMany  = migrationgraph.MigrationAlterManyToMany

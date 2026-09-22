@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestManyToManyStateOwnsMetadataAndUnsupportedHistoryNeverDropsIt(t *testing.T) {
+func TestManyToManyStateAndCreateHistoryOwnMetadata(t *testing.T) {
 	schema, err := ir.Normalize(ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "app", Models: []ir.Model{{Name: "node", GoName: "Node", ManyToMany: []ir.ManyToManyField{{Name: "peers", GoName: "Peers", Target: ir.ModelIdentity{AppLabel: "app", ModelName: "node"}}}}}})
 	if err != nil {
 		t.Fatal(err)
@@ -31,10 +31,20 @@ func TestManyToManyStateOwnsMetadataAndUnsupportedHistoryNeverDropsIt(t *testing
 		t.Fatal("state equality omitted ManyToMany")
 	}
 	migration := migrations.Migration{App: "app", Name: "0001_node", Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "app", Model: schema.Models[0]}}}
-	if document, err := definition.Encode(definition.Producer{Name: "test", Version: "1"}, migration); err == nil || document != nil {
-		t.Fatal("unsupported definition silently dropped relationship", err)
+	document, err := definition.Encode(definition.Producer{Name: "test", Version: "1"}, migration)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := migrations.NewStateReconstructor(migration); err == nil {
-		t.Fatal("unsupported storage migration accepted")
+	loaded, _, err := definition.Load(definition.Source{SourceID: "create", Document: document})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reconstructor, err := loaded.Reconstructor(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := reconstructor.Reconstruct(migrations.LatestStateRequest())
+	if err != nil || !actual.Equal(state) {
+		t.Fatal("CreateModel lost columnless declaration", err)
 	}
 }

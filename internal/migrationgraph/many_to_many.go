@@ -9,7 +9,7 @@ import (
 
 // References includes the models needed to interpret both stored and columnless
 // relations. It does not treat a ManyToMany declaration as a synthetic FK.
-func References(model ir.Model) []ir.ModelIdentity {
+func References(app string, model ir.Model) []ir.ModelIdentity {
 	var result []ir.ModelIdentity
 	for _, field := range model.Fields {
 		if field.Relation != nil {
@@ -18,9 +18,7 @@ func References(model ir.Model) []ir.ModelIdentity {
 	}
 	for _, field := range model.ManyToMany {
 		result = append(result, field.Target)
-		if field.Through != nil {
-			result = append(result, field.Through.Model)
-		}
+		result = append(result, field.StorageThrough(ir.ModelIdentity{AppLabel: app, ModelName: model.Name}).Model)
 	}
 	return result
 }

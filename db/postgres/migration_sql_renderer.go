@@ -86,6 +86,10 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 		var statement string
 		switch operation.Kind {
 		case migrationbackend.MigrationAlterManyToMany:
+			groups[index], err = compilePostgresStorageOperation(renderer.schema, request.App, operation)
+			if err != nil {
+				return nil, err
+			}
 			continue
 		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
 			constraint, deltaErr := operation.ChangedConstraint()
@@ -121,11 +125,7 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 			}
 			continue
 		case migrationbackend.MigrationCreateModel:
-			groups[index], err = compilePostgresMigrationCreateModel(
-				renderer.schema,
-				operation.After,
-				operation.Targets,
-			)
+			groups[index], err = compilePostgresStorageOperation(renderer.schema, request.App, operation)
 			if err != nil {
 				return nil, err
 			}

@@ -400,6 +400,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
 		{loadedRequiresExplicitManyToMany, capabilities.ExplicitManyToMany, "ExplicitManyToMany"},
+		{loadedRequiresAutomaticManyToMany, capabilities.AutomaticManyToMany, "AutomaticManyToMany"},
 	}
 	for _, check := range checks {
 		if requirements&check.bit != 0 && !check.supported {

@@ -142,6 +142,15 @@ func RenderMigrationSQL(
 	for index, operation := range intent.Operations {
 		if operation.Kind == backend.MigrationAlterManyToMany {
 			rules[index] = migrationSQLMetadataOnly
+			changes, err := operation.AutomaticStorageChanges(target.App)
+			if err != nil {
+				return nil, invalidLoadedState(Migration{App: target.App, Name: target.Name}, operation.OperationIndex, "ManyToMany", err)
+			}
+			for _, change := range changes {
+				if change.Before.DBTable != change.After.DBTable {
+					rules[index] = migrationSQLStatementRequired
+				}
+			}
 		}
 		if operation.Kind == backend.MigrationAlterField {
 			before, after, kind, err := backend.ChangedField(operation.Before, operation.After)

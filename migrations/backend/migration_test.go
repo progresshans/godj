@@ -20,6 +20,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"AlterFieldRelation",
 		"UniqueConstraints",
 		"ExplicitManyToMany",
+		"AutomaticManyToMany",
 	}
 	if capabilities.NumField() != len(wantCapabilities) {
 		t.Fatalf("MigrationCapabilities fields = %d, want %d", capabilities.NumField(), len(wantCapabilities))

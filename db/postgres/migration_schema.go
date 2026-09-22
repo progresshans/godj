@@ -169,7 +169,7 @@ func (schema *postgresMigrationSchema) CreateModel(
 	if !reflect.DeepEqual(model, operation.After) {
 		return postgresMigrationIntentIntegrity("CreateModel arguments differ from the sealed migration operation", nil)
 	}
-	statements, err := compilePostgresMigrationCreateModel(schema.namespace, operation.After, operation.Targets)
+	statements, err := compilePostgresStorageOperation(schema.namespace, schema.transition.Migration.App, operation)
 	if err != nil {
 		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL CreateModel", err)
 	}
@@ -194,12 +194,14 @@ func (schema *postgresMigrationSchema) DeleteModel(
 	if !reflect.DeepEqual(model, operation.Before) {
 		return postgresMigrationIntentIntegrity("DeleteModel arguments differ from the sealed migration operation", nil)
 	}
-	statement, err := compilePostgresMigrationDeleteModel(schema.namespace, operation.Before)
+	statements, err := compilePostgresStorageOperation(schema.namespace, schema.transition.Migration.App, operation)
 	if err != nil {
 		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL DeleteModel", err)
 	}
-	if _, err := executor.ExecContext(ctx, statement); err != nil {
-		return classifyPostgresRevisionContention(ctx, "delete PostgreSQL model "+model.DBTable, err)
+	for _, statement := range statements {
+		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			return classifyPostgresRevisionContention(ctx, "delete PostgreSQL owned storage", err)
+		}
 	}
 	schema.cursor++
 	return nil
@@ -306,16 +308,31 @@ func (schema *postgresMigrationSchema) VerifyComplete(
 			return err
 		}
 	}
-	for identity, model := range schema.initial.models {
-		if _, remains := schema.final.models[identity]; remains {
+	removed := make(map[string]ir.Model)
+	for _, model := range schema.initial.models {
+		removed[model.DBTable] = model
+	}
+	for _, operation := range schema.intent.Operations {
+		changes, err := operation.StorageChanges(schema.transition.Migration.App)
+		if err != nil {
+			return err
+		}
+		for _, change := range changes {
+			if change.Before.Name != "" {
+				removed[change.Before.DBTable] = change.Before
+			}
+		}
+	}
+	for _, table := range sortedPostgresMigrationModelNames(removed) {
+		if _, remains := finalByTable[table]; remains {
 			continue
 		}
-		_, present, err := loadPostgresMigrationTableCatalog(ctx, executor, schema.namespace, model.DBTable)
+		_, present, err := loadPostgresMigrationTableCatalog(ctx, executor, schema.namespace, table)
 		if err != nil {
 			return err
 		}
 		if present {
-			return postgresMigrationCatalogDrift(model.DBTable, "still exists after its sealed DeleteModel")
+			return postgresMigrationCatalogDrift(table, "still exists after its sealed removal or rename")
 		}
 	}
 	schema.verified = true
@@ -362,17 +379,22 @@ func (schema *postgresMigrationSchema) postgresMigrationPreflightTables() (
 		}
 	}
 	for _, operation := range schema.intent.Operations {
-		if operation.Kind != migrationbackend.MigrationCreateModel {
-			continue
+		changes, err := operation.StorageChanges(schema.transition.Migration.App)
+		if err != nil {
+			return nil, nil, err
 		}
-		table := operation.After.DBTable
-		if _, exists := existing[table]; exists {
-			return nil, nil, postgresMigrationIntentIntegrity("sealed PostgreSQL table is initially present and created", nil)
+		for _, change := range changes {
+			if change.After.Name == "" || change.Before.DBTable == change.After.DBTable {
+				continue
+			}
+			table := change.After.DBTable
+			if _, present := existing[table]; present {
+				continue
+			}
+			if previous, found := absent[table]; !found || len(previous.Fields) < len(change.After.Fields) {
+				absent[table] = change.After
+			}
 		}
-		if _, exists := absent[table]; exists {
-			return nil, nil, postgresMigrationIntentIntegrity("sealed PostgreSQL table is created twice", nil)
-		}
-		absent[table] = operation.After.Clone()
 	}
 	return existing, absent, nil
 }

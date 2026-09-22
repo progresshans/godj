@@ -238,11 +238,12 @@ func invalidReconstructorOperation(migration Migration, index int, kind string, 
 // constructor snapshots and validates the exact visible full DAG before this
 // value can be published through either boundary.
 type loadedStateReconstructor struct {
-	planner      Planner
-	definitions  map[MigrationKey]Migration
-	creators     map[loadedModelIdentity][]loadedModelCreator
-	declarations []loadedRelationDeclaration
-	ancestors    loadedAncestorIndex
+	planner           Planner
+	definitions       map[MigrationKey]Migration
+	creators          map[loadedModelIdentity][]loadedModelCreator
+	automaticCreators map[loadedModelIdentity][]loadedModelCreator
+	declarations      []loadedRelationDeclaration
+	ancestors         loadedAncestorIndex
 }
 
 type loadedAncestorIndex struct {
@@ -338,6 +339,7 @@ const (
 	loadedRequiresUniqueConstraints
 	loadedRequiresAlterFieldRelation
 	loadedRequiresExplicitManyToMany
+	loadedRequiresAutomaticManyToMany
 )
 
 const (
@@ -567,6 +569,7 @@ func buildLoadedStateReconstructor(ctx context.Context, definitions []Migration,
 	reconstructor := loadedStateReconstructor{planner: planner, definitions: cloned}
 	reconstructor.ancestors = newLoadedAncestorIndex(planner.graph)
 	reconstructor.creators, reconstructor.declarations = collectLoadedStateGraph(planner.graph, cloned)
+	reconstructor.automaticCreators = collectAutomaticCreators(planner.graph, cloned)
 	if err := reconstructor.validateChronology(); err != nil {
 		return loadedStateReconstructor{}, err
 	}
@@ -623,6 +626,15 @@ func collectLoadedStateGraph(
 			case CreateModel:
 				identity := loadedModelIdentity{app: value.AppLabel, model: value.Model.Name}
 				creators[identity] = append(creators[identity], loadedModelCreator{key: key, operationIndex: index, model: value.Model.Clone()})
+				for _, field := range value.Model.ManyToMany {
+					targets := []ir.ModelIdentity{field.Target}
+					if field.Through != nil {
+						targets = append(targets, field.Through.Model)
+					}
+					for _, target := range targets {
+						declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: identity, manyName: field.Name, manyTarget: &target})
+					}
+				}
 				for _, field := range value.Model.Fields {
 					if fieldContainsRelation(field) {
 						declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: identity, field: field.Clone()})
@@ -726,6 +738,19 @@ func (r loadedStateReconstructor) validateChronology() error {
 		}
 		target := loadedModelIdentity{app: targetIR.AppLabel, model: targetIR.ModelName}
 		creators := r.creators[target]
+		if len(creators) == 0 && len(r.automaticCreators[target]) != 0 {
+			visible := false
+			for _, creator := range r.automaticCreators[target] {
+				if r.creatorVisibleBefore(creator, declaration) || sourceOwnedByCreate && creator.key == declaration.key && creator.operationIndex == declaration.operationIndex {
+					visible = true
+					break
+				}
+			}
+			if !visible {
+				return r.declarationError(declaration, fmt.Errorf("automatic target %s.%s has no visible declaration authority", target.app, target.model))
+			}
+			continue
+		}
 		if len(creators) != 1 {
 			return r.declarationError(declaration, fmt.Errorf("target model %s.%s requires exactly one historical creator", target.app, target.model))
 		}
@@ -892,6 +917,7 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	if operation.App() != migration.App {
 		return migrationError(CategoryState, CodeInvalidState, direction, migration, index, operation.Kind(), fmt.Errorf("operation app %q does not match migration app %q", operation.App(), migration.App))
 	}
+	hadMany := builder.manyCount != 0
 	var err error
 	switch value := operation.(type) {
 	case AddManyToMany, RemoveManyToMany, RenameManyToMany:
@@ -917,7 +943,7 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	default:
 		err = fmt.Errorf("operation type %T is not supported by state reconstruction", operation)
 	}
-	if err == nil && builder.manyCount != 0 {
+	if err == nil && (hadMany || builder.manyCount != 0 || isManyOperation(operation)) {
 		err = builder.validateMany()
 	}
 	if err != nil {
@@ -927,9 +953,6 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 }
 
 func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
-	if len(operation.Model.ManyToMany) != 0 {
-		return fmt.Errorf("CreateModel with ManyToMany storage is not implemented; add explicit through relations after their models")
-	}
 	normalized, err := normalizedSingleModel(operation.AppLabel, operation.Model)
 	if err != nil {
 		return fmt.Errorf("normalize model: %w", err)
@@ -958,6 +981,7 @@ func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
 	}
 	model := newLoadedStateModel(normalized, primaryKey)
 	app.models[normalized.Name] = model
+	builder.manyCount += uint64(len(normalized.ManyToMany))
 	app.order = append(app.order, normalized.Name)
 	app.goNames[normalized.GoName] = normalized.Name
 	app.dbTables[normalized.DBTable] = normalized.Name
@@ -1004,6 +1028,7 @@ func (builder *loadedStateBuilder) deleteModel(operation CreateModel) error {
 		return fmt.Errorf("model %s.%s is not the latest model in its app", operation.AppLabel, want.Name)
 	}
 	app.order = app.order[:len(app.order)-1]
+	builder.manyCount -= uint64(len(actual.value.ManyToMany))
 	delete(app.models, want.Name)
 	delete(app.goNames, want.GoName)
 	delete(app.dbTables, want.DBTable)
@@ -1152,16 +1177,17 @@ func (builder *loadedStateBuilder) addRelation(source loadedModelIdentity, field
 		return fmt.Errorf("relation field %s.%s.%s has no relation metadata", source.app, source.model, field.Name)
 	}
 	target := loadedModelIdentity{app: field.Relation.Target.AppLabel, model: field.Relation.Target.ModelName}
-	targetModel, exists := builder.model(target)
+	targetValue, exists := builder.storageModel(target)
 	if !exists {
 		return fmt.Errorf("historical target model %s.%s is not visible", target.app, target.model)
 	}
-	if targetModel.primaryKey.Kind != ir.FieldAuto || !targetModel.primaryKey.PrimaryKey || targetModel.primaryKey.Nullable {
+	targetKey, keyErr := exactAutoPrimaryKeyView(targetValue)
+	if keyErr != nil || targetKey.Kind != ir.FieldAuto || !targetKey.PrimaryKey || targetKey.Nullable {
 		return fmt.Errorf("historical target model %s.%s requires exactly one non-null AutoField primary key", target.app, target.model)
 	}
 	name := field.Relation.Reverse.Name
 	if name != "" {
-		if _, exists := targetModel.fieldNames[name]; exists {
+		if _, exists := loadedModelFieldView(targetValue, name); exists {
 			return fmt.Errorf("reverse relation %s.%s.%s collides with a target field", target.app, target.model, name)
 		}
 		owners := builder.reverse[target]
@@ -1559,9 +1585,6 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				operationIndex, operation.Kind(), err,
 			)
 		}
-		if isManyOperation(operation) {
-			requirements |= loadedRequiresExplicitManyToMany
-		}
 		// Capability bits describe the operation's mutation, not retained
 		// relations that are carried only to seal the complete model boundary.
 		// A scalar Add/Remove on a relation-bearing model therefore transports
@@ -1612,16 +1635,12 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		intent.operations = make([]loadedRelationOperation, len(operationViews))
 		for viewIndex := range operationViews {
 			view := operationViews[viewIndex]
-			if len(view.before.ManyToMany) != 0 || len(view.after.ManyToMany) != 0 {
-				requirements |= loadedRequiresExplicitManyToMany
-			}
+			requirements |= loadedManyRequirements(view.before) | loadedManyRequirements(view.after)
 			if modelHasUniqueConstraints(view.before) || modelHasUniqueConstraints(view.after) {
 				requirements |= loadedRequiresUniqueConstraints
 			}
 			for _, related := range view.relatedModels {
-				if len(related.Model.ManyToMany) != 0 {
-					requirements |= loadedRequiresExplicitManyToMany
-				}
+				requirements |= loadedManyRequirements(related.Model)
 				if modelHasUniqueConstraints(related.Model) {
 					requirements |= loadedRequiresUniqueConstraints
 				}
@@ -1635,9 +1654,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			}
 			backendTargets := make([]loadedRelationBackendTarget, len(view.targets))
 			for targetIndex := range view.targets {
-				if len(view.targets[targetIndex].targetModel.ManyToMany) != 0 {
-					requirements |= loadedRequiresExplicitManyToMany
-				}
+				requirements |= loadedManyRequirements(view.targets[targetIndex].targetModel)
 				if modelHasUniqueConstraints(view.targets[targetIndex].targetModel) {
 					requirements |= loadedRequiresUniqueConstraints
 				}
@@ -1794,14 +1811,38 @@ func loadedBuilderRelationGraph(
 			return fail(err)
 		}
 		model := models[queue[position]]
-		for _, identity := range migrationgraph.References(model) {
+		for _, field := range model.ManyToMany {
+			if field.Through != nil {
+				continue
+			}
+			derived, err := ir.AutomaticThroughModel(queue[position].AppLabel, model, field)
+			if err != nil {
+				return fail(err)
+			}
+			id := field.StorageThrough(queue[position]).Model
+			if previous, exists := models[id]; exists {
+				if !previous.Equal(derived) {
+					return fail(fmt.Errorf("automatic storage model has conflicting historical snapshots"))
+				}
+				continue
+			}
+			if len(models) >= loadedDerivedIntentMaxTargets {
+				return fail(fmt.Errorf("historical relation graph exceeds %d models", loadedDerivedIntentMaxTargets))
+			}
+			if err := scan(id, derived); err != nil {
+				return fail(err)
+			}
+			models[id] = derived
+			queue = append(queue, id)
+		}
+		for _, identity := range migrationgraph.References(queue[position].AppLabel, model) {
 			if _, exists := models[identity]; exists {
 				continue
 			}
 			if len(models) >= loadedDerivedIntentMaxTargets {
 				return fail(fmt.Errorf("historical relation graph exceeds %d models", loadedDerivedIntentMaxTargets))
 			}
-			target, exists := loadedBuilderModelView(builder, loadedModelIdentity{app: identity.AppLabel, model: identity.ModelName})
+			target, exists := builder.storageModel(loadedModelIdentity{app: identity.AppLabel, model: identity.ModelName})
 			if !exists {
 				return fail(fmt.Errorf("historical target model %s.%s is not visible", identity.AppLabel, identity.ModelName))
 			}

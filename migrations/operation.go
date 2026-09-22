@@ -36,9 +36,6 @@ func (op CreateModel) App() string {
 }
 
 func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
-	if len(op.Model.ManyToMany) != 0 {
-		return state, fmt.Errorf("CreateModel with ManyToMany storage is not implemented; add explicit through relations after their models")
-	}
 	model, err := normalizedSingleModel(op.AppLabel, op.Model)
 	if err != nil {
 		return state, fmt.Errorf("normalize model: %w", err)

@@ -205,8 +205,23 @@ func (scanner *encodingSizeScanner) scanAddField(path string, operation migratio
 }
 
 func (scanner *encodingSizeScanner) scanModel(path string, model ir.Model) error {
+	if len(model.Fields) > MaxFieldsPerCreateModel || len(model.ManyToMany) > MaxFieldsPerCreateModel-len(model.Fields) {
+		return encodeFailure(path+".many_to_many", "combined fields exceed the model field limit")
+	}
 	if len(model.ManyToMany) != 0 {
-		return encodeFailure(path+".many_to_many", "ManyToMany migration definitions are not implemented")
+		if err := scanner.addStructural(path, uint64(len(`,"many_to_many":[]`))); err != nil {
+			return err
+		}
+		for index, field := range model.ManyToMany {
+			if index != 0 {
+				if err := scanner.addStructural(path, 1); err != nil {
+					return err
+				}
+			}
+			if err := scanner.scanManyField(path+".many_to_many", field); err != nil {
+				return err
+			}
+		}
 	}
 	if len(model.UniqueConstraints) > MaxConstraintsPerCreateModel {
 		return encodeFailure(path+".unique_constraints", "constraints_per_create_model resource limit exceeded: got %d, maximum %d", len(model.UniqueConstraints), MaxConstraintsPerCreateModel)

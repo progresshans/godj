@@ -290,6 +290,7 @@ func verifySQLiteRelationRemakePlans(
 func compileSQLiteRelationRemakeCreate(plan sqliteRelationRemakePlan) (string, error) {
 	model := plan.after.Clone()
 	model.DBTable = plan.temporary
+	model.ManyToMany = nil // The sealed field delta preserves its owned intermediaries.
 	statement, err := compileSQLiteRelationCreateModel(model, plan.targets)
 	if err != nil {
 		return "", err

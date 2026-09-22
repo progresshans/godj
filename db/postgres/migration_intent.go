@@ -129,7 +129,7 @@ func preparePostgresMigrationIntent(
 	if err := scanPostgresMigrationResources(transition, cloned); err != nil {
 		return preparedPostgresMigrationIntent{}, err
 	}
-	if err := validatePostgresConstraintNames(cloned); err != nil {
+	if err := validatePostgresConstraintNames(transition.Migration.App, cloned); err != nil {
 		return preparedPostgresMigrationIntent{}, err
 	}
 	digest, err := hashPostgresMigrationIntent(transition, cloned)
@@ -436,7 +436,7 @@ func validateExactPostgresMigrationModel(model ir.Model) error {
 	return nil
 }
 
-func validatePostgresConstraintNames(intent migrationbackend.MigrationIntent) error {
+func validatePostgresConstraintNames(app string, intent migrationbackend.MigrationIntent) error {
 	constraintOwners := make(map[string]string)
 	relationOwners := map[string]string{
 		postgresMigrationRecorderTable:      "migration recorder table",
@@ -446,6 +446,13 @@ func validatePostgresConstraintNames(intent migrationbackend.MigrationIntent) er
 	}
 	for _, operation := range intent.Operations {
 		models := []ir.Model{operation.Before, operation.After}
+		changes, err := operation.AutomaticStorageChanges(app)
+		if err != nil {
+			return err
+		}
+		for _, change := range changes {
+			models = append(models, change.Before, change.After)
+		}
 		for _, target := range operation.Targets {
 			models = append(models, target.TargetModel)
 		}

@@ -103,11 +103,6 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 	hasMany := false
 	add := func(snapshot MigrationModel) error {
 		hasMany = hasMany || len(snapshot.Model.ManyToMany) != 0
-		for _, field := range snapshot.Model.ManyToMany {
-			if field.Through == nil {
-				return fmt.Errorf("automatic ManyToMany storage migration is not implemented")
-			}
-		}
 		identity := snapshot.Identity()
 		if _, duplicate := graph.models[identity]; duplicate {
 			return fmt.Errorf("relation graph repeats model %s.%s", identity.AppLabel, identity.ModelName)
@@ -161,6 +156,25 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 		return migrationModelIdentityLess(graph.order[left], graph.order[right])
 	})
 
+	automatic := make(map[ir.ModelIdentity]bool)
+	for _, identity := range graph.order {
+		owner := graph.models[identity]
+		for _, field := range owner.ManyToMany {
+			if field.Through != nil {
+				continue
+			}
+			expected, err := ir.AutomaticThroughModel(identity.AppLabel, owner, field)
+			if err != nil {
+				return RelationGraph{}, err
+			}
+			target := field.StorageThrough(identity).Model
+			actual, exists := graph.models[target]
+			if automatic[target] || !exists || !actual.Equal(expected) {
+				return RelationGraph{}, fmt.Errorf("automatic storage %s.%s is missing, conflicting or not derived from its owner", target.AppLabel, target.ModelName)
+			}
+			automatic[target] = true
+		}
+	}
 	// Iterative traversal bounds work by vertices and fields, including cycles.
 	// Reverse ownership is global to each target model, even when two sources
 	// reach that target through different paths or different apps.
@@ -220,7 +234,7 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 			}
 		}
 		for _, field := range model.ManyToMany {
-			for _, target := range []ir.ModelIdentity{field.Target, field.Through.Model} {
+			for _, target := range []ir.ModelIdentity{field.Target, field.StorageThrough(identity).Model} {
 				if _, exists := graph.models[target]; !exists {
 					return RelationGraph{}, fmt.Errorf("ManyToMany graph has missing model %s.%s", target.AppLabel, target.ModelName)
 				}
@@ -235,6 +249,9 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 		schemas := make([]ir.Schema, 0)
 		byApp := make(map[string]int)
 		for _, identity := range graph.order {
+			if automatic[identity] {
+				continue
+			}
 			index, exists := byApp[identity.AppLabel]
 			if !exists {
 				index = len(schemas)
@@ -262,6 +279,7 @@ type MigrationGraphPlan struct {
 	initial    RelationGraph
 	final      RelationGraph
 	operations []RelationGraph
+	storage    []ModelChange
 }
 
 // ResolveMigrationGraphPlan checks model continuity across the entire step.
@@ -275,24 +293,45 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 	if err := scanMigrationGraphIntent(app, name, intent); err != nil {
 		return MigrationGraphPlan{}, err
 	}
-	initial := make(map[ir.ModelIdentity]ir.Model)
-	current := make(map[ir.ModelIdentity]ir.Model)
+	identity := func(model ir.Model) ir.ModelIdentity { return ir.ModelIdentity{AppLabel: app, ModelName: model.Name} }
+	initial, current := make(map[ir.ModelIdentity]ir.Model), make(map[ir.ModelIdentity]ir.Model)
 	scheduled := make(map[ir.ModelIdentity]bool)
-	for _, operation := range intent.Operations {
-		model := operation.After
-		if model.Name == "" {
-			model = operation.Before
+	changes := make([][]ModelChange, len(intent.Operations))
+	for index, operation := range intent.Operations {
+		for _, model := range []ir.Model{operation.Before, operation.After} {
+			if model.Name == "" && !reflect.DeepEqual(model, ir.Model{}) {
+				return MigrationGraphPlan{}, fmt.Errorf("migration model has an invalid zero sentinel")
+			}
 		}
-		identity := ir.ModelIdentity{AppLabel: app, ModelName: model.Name}
-		if !scheduled[identity] {
-			scheduled[identity] = true
-			if !reflect.DeepEqual(operation.Before, ir.Model{}) {
-				initial[identity] = operation.Before
-				current[identity] = operation.Before
+		owned, err := operation.AutomaticStorageChanges(app)
+		if err != nil {
+			return MigrationGraphPlan{}, err
+		}
+		changes[index] = append([]ModelChange{{Before: operation.Before, After: operation.After}}, owned...)
+		for _, change := range changes[index] {
+			if change.Before.Name != "" {
+				key := identity(change.Before)
+				if !scheduled[key] {
+					initial[key] = change.Before
+					current[key] = change.Before
+				}
+				scheduled[key] = true
+			}
+			if change.After.Name != "" {
+				scheduled[identity(change.After)] = true
 			}
 		}
 	}
 	plan := MigrationGraphPlan{operations: make([]RelationGraph, 0, len(intent.Operations))}
+	for _, operation := range intent.Operations {
+		storage, err := operation.StorageChanges(app)
+		if err != nil {
+			return MigrationGraphPlan{}, err
+		}
+		for _, change := range storage {
+			plan.storage = append(plan.storage, ModelChange{Before: change.Before.Clone(), After: change.After.Clone()})
+		}
+	}
 	for position, operation := range intent.Operations {
 		wantIndex := position
 		if unapply {
@@ -305,34 +344,47 @@ func ResolveMigrationGraphPlan(app, name string, unapply bool, intent MigrationI
 		if err != nil {
 			return MigrationGraphPlan{}, fmt.Errorf("migration graph operation %d: %w", operation.OperationIndex, err)
 		}
-		root := graph.root
-		actual, exists := current[root]
-		if reflect.DeepEqual(operation.Before, ir.Model{}) {
-			if exists {
-				return MigrationGraphPlan{}, fmt.Errorf("migration graph creates existing model %s.%s", root.AppLabel, root.ModelName)
+		touched := make(map[ir.ModelIdentity]bool)
+		for _, change := range changes[position] {
+			before, after := identity(change.Before), identity(change.After)
+			if change.Before.Name != "" {
+				actual, exists := current[before]
+				if !exists || !actual.Equal(change.Before) {
+					return MigrationGraphPlan{}, fmt.Errorf("migration graph model %s.%s has a discontinuous Before snapshot", before.AppLabel, before.ModelName)
+				}
+				touched[before] = true
 			}
-		} else if !exists || !reflect.DeepEqual(actual, operation.Before) {
-			return MigrationGraphPlan{}, fmt.Errorf("migration graph model %s.%s has a discontinuous Before snapshot", root.AppLabel, root.ModelName)
+			if change.After.Name != "" {
+				if change.Before.Name == "" || before != after {
+					if _, exists := current[after]; exists {
+						return MigrationGraphPlan{}, fmt.Errorf("migration graph creates existing model %s.%s", after.AppLabel, after.ModelName)
+					}
+				}
+				touched[after] = true
+			}
 		}
-		for _, identity := range graph.order {
-			if identity == root {
+		for _, key := range graph.order {
+			if touched[key] {
 				continue
 			}
-			model := graph.models[identity]
-			if actual, exists := current[identity]; exists {
-				if !reflect.DeepEqual(actual, model) {
-					return MigrationGraphPlan{}, fmt.Errorf("migration graph target %s.%s differs from its visible historical snapshot", identity.AppLabel, identity.ModelName)
+			model := graph.models[key]
+			if actual, exists := current[key]; exists {
+				if !actual.Equal(model) {
+					return MigrationGraphPlan{}, fmt.Errorf("migration graph target %s.%s differs from its visible historical snapshot", key.AppLabel, key.ModelName)
 				}
-			} else if scheduled[identity] {
-				return MigrationGraphPlan{}, fmt.Errorf("migration graph target %s.%s is not yet visible or was removed", identity.AppLabel, identity.ModelName)
+			} else if scheduled[key] {
+				return MigrationGraphPlan{}, fmt.Errorf("migration graph target %s.%s is not yet visible or was removed", key.AppLabel, key.ModelName)
 			} else {
-				initial[identity], current[identity] = model, model
+				initial[key], current[key] = model, model
 			}
 		}
-		if reflect.DeepEqual(operation.After, ir.Model{}) {
-			delete(current, root)
-		} else {
-			current[root] = operation.After
+		for _, change := range changes[position] {
+			if change.Before.Name != "" {
+				delete(current, identity(change.Before))
+			}
+			if change.After.Name != "" {
+				current[identity(change.After)] = change.After
+			}
 		}
 		plan.operations = append(plan.operations, graph)
 	}
@@ -365,6 +417,18 @@ func scanMigrationGraphIntent(app, name string, intent MigrationIntent) error {
 		}
 		if err := budget.ScanModel(prefix+".after", operation.After); err != nil {
 			return err
+		}
+		changes, err := operation.AutomaticStorageChanges(app)
+		if err != nil {
+			return err
+		}
+		for _, change := range changes {
+			if err := budget.ScanModel(prefix+".automatic.before", change.Before); err != nil {
+				return err
+			}
+			if err := budget.ScanModel(prefix+".automatic.after", change.After); err != nil {
+				return err
+			}
 		}
 		if len(operation.Targets) > migrationGraphMaxFields || len(operation.RelatedModels) >= migrationGraphMaxModels {
 			return fmt.Errorf("%s exceeds graph target/model limits", prefix)

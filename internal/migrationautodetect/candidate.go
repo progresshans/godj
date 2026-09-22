@@ -16,14 +16,20 @@ import (
 func nextCandidate(changes map[string]appChange, current, desired migrations.ProjectState, leaves map[string][]migrations.MigrationKey, history []migrations.Migration) (migrations.Migration, error) {
 	known := make(map[ir.ModelIdentity]bool)
 	for _, app := range current.Apps() {
-		schema, _ := current.Schema(app)
+		schema, err := projectStorageSchema(current, app)
+		if err != nil {
+			return migrations.Migration{}, err
+		}
 		for _, model := range schema.Models {
 			known[ir.ModelIdentity{AppLabel: app, ModelName: model.Name}] = true
 		}
 	}
 	wanted := make(map[ir.ModelIdentity]bool)
 	for _, app := range desired.Apps() {
-		schema, _ := desired.Schema(app)
+		schema, err := projectStorageSchema(desired, app)
+		if err != nil {
+			return migrations.Migration{}, err
+		}
 		for _, model := range schema.Models {
 			wanted[ir.ModelIdentity{AppLabel: app, ModelName: model.Name}] = true
 		}
@@ -142,6 +148,14 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	unresolvedCross := func(field ir.Field) bool {
 		return field.Relation != nil && field.Relation.Target.AppLabel != app && !known[field.Relation.Target]
 	}
+	deferredFields := false
+	unresolvedAutomatic := func(field ir.Field) bool {
+		if field.Relation == nil || field.Relation.Target.AppLabel != app || known[field.Relation.Target] {
+			return false
+		}
+		_, logical := creators[field.Relation.Target.ModelName]
+		return !logical
+	}
 	var creates, sameAppAdds, existing, removals, manyAdds, manyRemovals []migrations.Operation
 	var constraintAdds []migrations.AddConstraint
 	for index, operation := range change.operations {
@@ -150,6 +164,10 @@ func candidateOperations(app string, change appChange, current, desired migratio
 			model := value.Model
 			model.Fields = make([]ir.Field, 0, len(value.Model.Fields))
 			for _, field := range value.Model.Fields {
+				if unresolvedAutomatic(field) {
+					deferredFields = true
+					continue
+				}
 				if breakCycle && unresolvedCross(field) {
 					continue
 				}
@@ -175,6 +193,10 @@ func candidateOperations(app string, change appChange, current, desired migratio
 			}
 			creates = append(creates, migrations.CreateModel{AppLabel: app, Model: model})
 		case migrations.AddField:
+			if unresolvedAutomatic(value.Field) {
+				deferredFields = true
+				continue
+			}
 			if breakCycle && unresolvedCross(value.Field) {
 				continue
 			}
@@ -203,7 +225,10 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	// Anchors refer only to fields already present at this exact operation.
 	// Deferring an earlier FK therefore cannot move a following scalar field.
 	available := make(map[string]map[string]bool)
-	before, _ := current.Schema(app)
+	before, err := projectStorageSchema(current, app)
+	if err != nil {
+		return nil, err
+	}
 	for _, model := range before.Models {
 		available[model.Name] = fieldNameSet(model.Fields)
 	}
@@ -214,6 +239,11 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	}
 	for index, operation := range operations {
 		switch value := operation.(type) {
+		case migrations.RemoveManyToMany:
+			if value.Field.Through == nil {
+				id := value.Field.StorageThrough(ir.ModelIdentity{AppLabel: app, ModelName: value.ModelName}).Model
+				delete(available, id.ModelName)
+			}
 		case migrations.CreateModel:
 			available[value.Model.Name] = fieldNameSet(value.Model.Fields)
 		case migrations.AddField:
@@ -242,7 +272,7 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	for _, operation := range constraintAdds {
 		if constraintMembersPresent(operation.Constraint, available[operation.ModelName]) {
 			operations = append(operations, operation)
-		} else if !breakCycle {
+		} else if !breakCycle && !deferredFields {
 			return nil, detectionError(CodeInvalidGeneratedPlan, app, operation.ModelName, "", fmt.Errorf("constraint members are not yet available"))
 		}
 		// An unresolved cross-app FK and its constraints are rediscovered
@@ -257,6 +287,19 @@ func candidateOperations(app string, change appChange, current, desired migratio
 			}
 		}
 		operations = append(operations, operation)
+		switch value := operation.(type) {
+		case migrations.AddManyToMany:
+			if value.Field.Through == nil {
+				id := value.Field.StorageThrough(ir.ModelIdentity{AppLabel: app, ModelName: value.ModelName}).Model
+				available[id.ModelName] = map[string]bool{"id": true, "source": true, "target": true}
+			}
+		case migrations.RenameManyToMany:
+			if value.Before.Through == nil {
+				owner := ir.ModelIdentity{AppLabel: app, ModelName: value.ModelName}
+				delete(available, value.Before.StorageThrough(owner).Model.ModelName)
+				available[value.After.StorageThrough(owner).Model.ModelName] = map[string]bool{"id": true, "source": true, "target": true}
+			}
+		}
 	}
 	return operations, nil
 }

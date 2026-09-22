@@ -13,6 +13,7 @@
 | OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |
 | Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace/delete policy AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | Explicit ManyToMany migration | 기존 through의 Add/Remove/Rename·reverse, DDL 없는 전체 graph/catalog 검증과 행·sequence 보존 | 동일한 상태·history 계약, endpoint/through 잠금·catalog 검증 |
+| Automatic ManyToMany migration | 소유 table Create/Add/Remove/Rename·reverse, link PK·sqlite_sequence·rootpage 보존, managed pair index 이름 변경 | 같은 logical operation, link PK·table/sequence OID·last_value/is_called 보존, managed PK/FK/unique/sequence 이름 변경 |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | Field/model uniqueness | column·named tuple unique index·Create/Add/Alter와 constraint Add/Remove·reverse·remake 보존·모든 key catalog | column·named tuple UNIQUE·독립 B-tree·Create/Add/Alter와 constraint Add/Remove·reverse·모든 key catalog |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
@@ -98,7 +99,10 @@ Columnless ManyToMany 선언과 자동 storage projection·generated metadata는
 nullable이거나 pair unique가 없어도 기존 제약을 유지한다. `ExplicitManyToMany` capability는 Add/Remove/Rename·reverse와
 retained binding의 전체 historical graph/catalog 검증을 소유하며 데이터·DDL을 재작성하지 않는다. Definition/digest와 자동 계획은
 선언을 보존하고, 최초 생성은 모델과 선택한 FK를 만든 뒤 AddManyToMany를 배치한다.
-자동 intermediary의 storage migration·raw CreateModel 안의 columnless 선언과 일반 collection manager/query는 아직 미지원이다.
+`AutomaticManyToMany` capability는 같은 logical operation 안에서 소유 table의 Create/Add/Remove/Rename·reverse를 수행한다.
+Raw CreateModel의 columnless 선언·자동 계획과 SQL projection도 지원한다. 실제 관리 밖의 참조를 조용히 retarget하지 않으며,
+transient table과 파생 제약 이름까지 초기/최종 검증한다. 소유 table끼리의 의존성은 먼저 생성·역순 제거하고, owner의 저장 FK가
+자신의 intermediary를 다시 참조하는 생성 순환은 모델을 만든 뒤 AddField로 작성한다. 일반 collection manager/query는 아직 미지원이다.
 모든 Django Field, relation-as-PK, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·

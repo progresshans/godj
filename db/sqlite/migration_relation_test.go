@@ -31,6 +31,7 @@ func TestSQLiteMigrationCapabilities(t *testing.T) {
 		AlterFieldRelation:                true,
 		UniqueConstraints:                 true,
 		ExplicitManyToMany:                true,
+		AutomaticManyToMany:               true,
 	}
 	if got != want {
 		t.Fatalf("MigrationCapabilities() = %+v, want %+v", got, want)

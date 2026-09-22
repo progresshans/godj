@@ -251,6 +251,13 @@ func sqliteUniqueIndexOwners(seal *sqliteRelationIntentSeal) (map[string]sqliteU
 			}
 		}
 	}
+	for _, change := range seal.graphPlan.StorageChanges() {
+		for _, model := range []ir.Model{change.Before, change.After} {
+			if err := add(model); err != nil {
+				return nil, err
+			}
+		}
+	}
 	for _, snapshot := range append(seal.graphPlan.InitialModels(), seal.graphPlan.FinalModels()...) {
 		if err := add(snapshot.Model); err != nil {
 			return nil, err

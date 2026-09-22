@@ -68,7 +68,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 		operation := seal.intent.Operations[index]
 		switch operation.Kind {
 		case migrationbackend.MigrationAlterManyToMany:
-			groups[index] = nil
+			groups[index], err = compileSQLiteStorageOperation(request.App, operation)
 		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
 			constraint, deltaErr := operation.ChangedConstraint()
 			if deltaErr != nil {
@@ -90,7 +90,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 				groups[index] = []string{statement}
 			}
 		case migrationbackend.MigrationCreateModel:
-			groups[index], err = compileSQLiteCreateModelStatements(operation.After, operation.Targets)
+			groups[index], err = compileSQLiteStorageOperation(request.App, operation)
 		case migrationbackend.MigrationAddField:
 			field, deltaErr := operation.ChangedField()
 			if deltaErr != nil {

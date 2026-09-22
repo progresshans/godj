@@ -3,6 +3,7 @@ package migrations
 import (
 	"context"
 	"fmt"
+	"github.com/progresshans/godj/internal/irresource"
 	"slices"
 
 	"github.com/progresshans/godj/migrations/backend"
@@ -195,32 +196,51 @@ func isManyOperation(operation Operation) bool {
 
 func (builder *loadedStateBuilder) validateMany() error {
 	schemas := make([]ir.Schema, 0, len(builder.apps))
+	budget := irresource.New(irresource.Limits{Fields: loadedDerivedIntentMaxFields, StringBytes: loadedDerivedIntentMaxStringBytes, Nodes: loadedDerivedIntentMaxNodes, Bytes: loadedDerivedIntentMaxAggregateBytes})
+	physical := make(map[ir.ModelIdentity]ir.Model)
 	for appLabel, app := range builder.apps {
+		count := len(app.models)
+		for _, model := range app.models {
+			for _, field := range model.value.ManyToMany {
+				if field.Through == nil {
+					count++
+				}
+			}
+		}
+		if count > loadedDerivedIntentMaxTargets {
+			return fmt.Errorf("historical app storage exceeds %d models", loadedDerivedIntentMaxTargets)
+		}
 		schema := ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: appLabel}
 		for _, name := range app.order {
 			model := app.models[name].value
-			if len(model.Fields)+len(model.ManyToMany) > loadedDerivedIntentMaxFields {
-				return fmt.Errorf("ManyToMany owner exceeds the historical field limit")
+			if err := budget.ScanModel("model", model); err != nil {
+				return err
 			}
-			for _, field := range model.ManyToMany {
-				if field.Through == nil {
-					return fmt.Errorf("automatic ManyToMany storage migration is not implemented")
-				}
+			id := ir.ModelIdentity{AppLabel: appLabel, ModelName: name}
+			if _, exists := physical[id]; exists {
+				return fmt.Errorf("automatic storage collides with a declared model")
 			}
+			physical[id] = model
 			schema.Models = append(schema.Models, model)
-			for _, field := range model.Fields {
-				if field.Relation == nil || field.Relation.Reverse.Disabled {
+			for _, field := range model.ManyToMany {
+				if field.Through != nil {
 					continue
 				}
-				target, exists := builder.model(loadedModelIdentity{app: field.Relation.Target.AppLabel, model: field.Relation.Target.ModelName})
-				if !exists {
-					return fmt.Errorf("ManyToMany historical graph has a missing FK target")
+				if len(model.Name)+len(field.Name)+1 > loadedDerivedIntentMaxStringBytes || len(model.DBTable)+len(field.Name)+1 > loadedDerivedIntentMaxStringBytes || len(model.GoName)+len(field.GoName)+4 > loadedDerivedIntentMaxStringBytes {
+					return fmt.Errorf("automatic storage identifier exceeds its resource limit")
 				}
-				for _, many := range target.value.ManyToMany {
-					if many.Name == field.Relation.Reverse.Name {
-						return fmt.Errorf("relation reverse name %q collides with a ManyToMany field", many.Name)
-					}
+				derived, err := ir.AutomaticThroughModel(appLabel, model, field)
+				if err != nil {
+					return err
 				}
+				if err := budget.ScanModel("automatic", derived); err != nil {
+					return err
+				}
+				key := field.StorageThrough(id).Model
+				if _, exists := physical[key]; exists {
+					return fmt.Errorf("automatic storage collides with another model")
+				}
+				physical[key] = derived
 			}
 		}
 		schemas = append(schemas, schema)
@@ -234,8 +254,29 @@ func (builder *loadedStateBuilder) validateMany() error {
 		}
 		return 0
 	})
-	_, err := ir.ResolveManyToMany(schemas...)
-	return err
+	if _, err := ir.ResolveManyToMany(schemas...); err != nil {
+		return err
+	}
+	for _, model := range physical {
+		for _, field := range model.Fields {
+			if field.Relation == nil {
+				continue
+			}
+			target, exists := physical[field.Relation.Target]
+			if !exists {
+				return fmt.Errorf("historical graph has a missing FK target %s.%s", field.Relation.Target.AppLabel, field.Relation.Target.ModelName)
+			}
+			if field.Relation.Reverse.Disabled {
+				continue
+			}
+			for _, many := range target.ManyToMany {
+				if many.Name == field.Relation.Reverse.Name {
+					return fmt.Errorf("relation reverse name %q collides with a ManyToMany field", many.Name)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func loadedScanManyOperation(budget *loadedResourceBudget, migration Migration, index int, kind, model, anchor string, fields ...ir.ManyToManyField) {

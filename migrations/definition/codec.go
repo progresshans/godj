@@ -561,7 +561,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 
 func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"db_table", "fields", "go_name", "name"}
-	object, objectOK, candidates := semanticObjectWithOptionalCandidates(value, fields, []string{"unique_constraints"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
+	object, objectOK, candidates := semanticObjectWithOptionalCandidates(value, fields, []string{"unique_constraints", "many_to_many"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	if !objectOK {
 		return candidates
 	}
@@ -593,6 +593,18 @@ func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string
 				candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/fields/"+strconv.Itoa(index), app, name, operationIndex)...)
 			}
 			candidates = append(candidates, collectModelFieldAggregateCandidates(child.array, sourceID, pointer+"/fields", app, name, operationIndex)...)
+		}
+	}
+	if many, exists := object.member("many_to_many"); exists {
+		stored, _ := object.member("fields")
+		if many.kind != jsonArray || len(many.array) == 0 || len(stored.array) > MaxFieldsPerCreateModel || len(many.array) > MaxFieldsPerCreateModel-len(stored.array) {
+			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/many_to_many", app, name, operationIndex, "invalid_ir"))
+		} else {
+			for index, value := range many.array {
+				if _, valid := materializeManyField(value); !valid {
+					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/many_to_many/"+strconv.Itoa(index), app, name, operationIndex, "invalid_ir"))
+				}
+			}
 		}
 	}
 	if constraints, exists := object.member("unique_constraints"); exists {
@@ -1215,6 +1227,19 @@ func materializeModel(value jsonValue) (ir.Model, bool) {
 		decodedFields[index] = field
 	}
 	model := ir.Model{Name: name.string, GoName: goName.string, DBTable: dbTable.string, Fields: decodedFields}
+	if many, exists := value.member("many_to_many"); exists {
+		if many.kind != jsonArray || len(many.array) == 0 || len(fields.array) > MaxFieldsPerCreateModel || len(many.array) > MaxFieldsPerCreateModel-len(fields.array) {
+			return ir.Model{}, false
+		}
+		model.ManyToMany = make([]ir.ManyToManyField, len(many.array))
+		for index, value := range many.array {
+			field, valid := materializeManyField(value)
+			if !valid {
+				return ir.Model{}, false
+			}
+			model.ManyToMany[index] = field
+		}
+	}
 	if constraints, exists := value.member("unique_constraints"); exists {
 		if constraints.kind != jsonArray || len(constraints.array) == 0 || len(constraints.array) > MaxConstraintsPerCreateModel {
 			return ir.Model{}, false

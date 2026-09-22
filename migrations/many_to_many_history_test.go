@@ -32,7 +32,7 @@ func TestManyToManyHistoricalBindingValidationAndDependencyAuthority(t *testing.
 		{"rename retarget", func(h []migrations.Migration) {
 			h[2].Operations[0].(*migrations.RenameManyToMany).After.Through.TargetField = "owner"
 		}},
-		{"automatic unsupported", func(h []migrations.Migration) { h[1].Operations[0].(*migrations.AddManyToMany).Field.Through = nil }},
+		{"rename through ownership mismatch", func(h []migrations.Migration) { h[1].Operations[0].(*migrations.AddManyToMany).Field.Through = nil }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			history, _, _ := manytomanytest.History(t, false, true, false)

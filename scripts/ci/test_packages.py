@@ -165,6 +165,23 @@ exit "${GODJ_TEST_GIT_EXIT:-9}"
 
 
 class ExecutionOwnerTests(unittest.TestCase):
+    def test_required_relation_inventory_has_an_execution_owner(self):
+        from packages import relation_owned
+        root = Path(__file__).resolve().parents[2]
+        # These two packages are invoked by the explicit runner/checker
+        # commands beside the discovered complete relation package suites.
+        supplemental = {'conformance/runners/godj', 'conformance/cmd/godjcheck'}
+        entries = (root / 'scripts/ci/relation-required.txt').read_text().splitlines()
+        self.assertEqual(len(entries), len(set(entries)), 'duplicate required test')
+        for entry in entries:
+            package, name = entry.split('|')
+            with self.subTest(required=entry):
+                self.assertTrue(package.startswith(MODULE))
+                self.assertTrue(name.startswith('Test'))
+                relative = package[len(MODULE):]
+                self.assertTrue(relation_owned(relative) or relative in supplemental,
+                                'required test belongs to another execution owner')
+
     def test_generated_relation_fixtures_have_exactly_one_execution_owner(self):
         from packages import selected
         from scopes import SCOPES, selected as select_owners
@@ -193,6 +210,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         from scopes import SCOPES, selected as select_owners
         relatives = sorted(RELATION_PACKAGES | set(RELATION_PREFIXES) | PORTABLE_PRODUCTS | {
             'codegen', 'schema/ir', 'internal/projectgenerate', 'conformance/cmd/godjcheck',
+            'internal/migrationgraph', 'internal/migrationautodetect',
             'api/openapi', 'api/openapi/consumertest',
             'conformance/relationfixture/blog', 'conformance/systemstate/attestation',
         })

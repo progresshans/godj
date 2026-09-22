@@ -25,23 +25,31 @@ func TestManyToManyCapabilityRequiredForChangedAndRetainedBindingsBeforeBegin(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	add := Migration{App: "scope", Name: "0002_labels", Dependencies: []MigrationKey{initial.Key()}, Operations: []Operation{AddManyToMany{AppLabel: "scope", ModelName: "owner", Field: field}}}
-	for _, source := range []string{"new_relation", "owner", "link"} {
-		t.Run(source, func(t *testing.T) {
-			definitions := []Migration{initial, add}
-			var records []backend.AppliedMigration
-			if source != "new_relation" {
-				records = lifecycleRecords(initial.Key(), add.Key())
-				definitions = append(definitions, Migration{App: "scope", Name: "0003_note", Dependencies: []MigrationKey{add.Key()}, Operations: []Operation{AddField{AppLabel: "scope", ModelName: source, Field: ir.Field{Name: "note", GoName: "Note", Column: "note", Kind: ir.FieldText, Nullable: true}}}})
-			}
-			session := newLifecycleTestSession(records, nil)
-			fake := newLifecycleTestBackend(session)
-			fake.capabilities = backend.MigrationCapabilities{CreateModelForeignKeys: true, AddNullableForeignKey: true, AddRequiredForeignKeyToEmptyTable: true, RemoveForeignKey: true, UniqueConstraints: true}
-			_, err := (Executor{Backend: fake}).Migrate(t.Context(), testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
-			var capability *backend.CapabilityError
-			if !errors.As(err, &capability) || !strings.Contains(capability.Detail, "ExplicitManyToMany") || session.beginCount != 0 {
-				t.Fatal("unsupported changed/retained collection crossed mutation boundary", err, session.beginCount)
-			}
-		})
+	for _, automatic := range []bool{false, true} {
+		field := field.Clone()
+		capabilityName := "ExplicitManyToMany"
+		if automatic {
+			field.Through = nil
+			capabilityName = "AutomaticManyToMany"
+		}
+		add := Migration{App: "scope", Name: "0002_labels", Dependencies: []MigrationKey{initial.Key()}, Operations: []Operation{AddManyToMany{AppLabel: "scope", ModelName: "owner", Field: field}}}
+		for _, source := range []string{"new_relation", "owner", "link"} {
+			t.Run(capabilityName+"/"+source, func(t *testing.T) {
+				definitions := []Migration{initial, add}
+				var records []backend.AppliedMigration
+				if source != "new_relation" {
+					records = lifecycleRecords(initial.Key(), add.Key())
+					definitions = append(definitions, Migration{App: "scope", Name: "0003_note", Dependencies: []MigrationKey{add.Key()}, Operations: []Operation{AddField{AppLabel: "scope", ModelName: source, Field: ir.Field{Name: "note", GoName: "Note", Column: "note", Kind: ir.FieldText, Nullable: true}}}})
+				}
+				session := newLifecycleTestSession(records, nil)
+				fake := newLifecycleTestBackend(session)
+				fake.capabilities = backend.MigrationCapabilities{CreateModelForeignKeys: true, AddNullableForeignKey: true, AddRequiredForeignKeyToEmptyTable: true, RemoveForeignKey: true, UniqueConstraints: true}
+				_, err := (Executor{Backend: fake}).Migrate(t.Context(), testLoadedDefinitionSet(t, definitions), LatestLifecycleRequest())
+				var capability *backend.CapabilityError
+				if !errors.As(err, &capability) || !strings.Contains(capability.Detail, capabilityName) || session.beginCount != 0 {
+					t.Fatal("unsupported changed/retained collection crossed mutation boundary", err, session.beginCount)
+				}
+			})
+		}
 	}
 }

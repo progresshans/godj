@@ -180,36 +180,42 @@ func (scanner *encodingSizeScanner) scanManyOperation(path string, op manyDocume
 		if err := scanner.addStructural(path, uint64(len(item.name)+4)); err != nil {
 			return err
 		}
-		field := *item.field
-		if err := scanner.addStructural(path, uint64(len(`{"name":"","go_name":"","target":{"app_label":"","model_name":""},"reverse":{},"symmetry":""}`))); err != nil {
+		if err := scanner.scanManyField(path+"."+item.name, *item.field); err != nil {
 			return err
 		}
-		for _, value := range []string{field.Name, field.GoName, field.Target.AppLabel, field.Target.ModelName, string(field.Symmetry)} {
-			if err := scanner.addString(path+"."+item.name, value); err != nil {
-				return err
-			}
+	}
+	return nil
+}
+
+func (scanner *encodingSizeScanner) scanManyField(path string, field ir.ManyToManyField) error {
+	if err := scanner.addStructural(path, uint64(len(`{"name":"","go_name":"","target":{"app_label":"","model_name":""},"reverse":{},"symmetry":""}`))); err != nil {
+		return err
+	}
+	for _, value := range []string{field.Name, field.GoName, field.Target.AppLabel, field.Target.ModelName, string(field.Symmetry)} {
+		if err := scanner.addString(path, value); err != nil {
+			return err
 		}
-		if field.Reverse.Name != "" {
-			if err := scanner.addStructural(path, uint64(len(`"name":""`))); err != nil {
-				return err
-			}
-			if err := scanner.addString(path, field.Reverse.Name); err != nil {
-				return err
-			}
+	}
+	if field.Reverse.Name != "" {
+		if err := scanner.addStructural(path, uint64(len(`"name":""`))); err != nil {
+			return err
 		}
-		if field.Reverse.Disabled {
-			if err := scanner.addStructural(path, uint64(len(`"disabled":true`))); err != nil {
-				return err
-			}
+		if err := scanner.addString(path, field.Reverse.Name); err != nil {
+			return err
 		}
-		if through := field.Through; through != nil {
-			if err := scanner.addStructural(path, uint64(len(`,"through":{"model":{"app_label":"","model_name":""},"source_field":"","target_field":""}`))); err != nil {
+	}
+	if field.Reverse.Disabled {
+		if err := scanner.addStructural(path, uint64(len(`"disabled":true`))); err != nil {
+			return err
+		}
+	}
+	if through := field.Through; through != nil {
+		if err := scanner.addStructural(path, uint64(len(`,"through":{"model":{"app_label":"","model_name":""},"source_field":"","target_field":""}`))); err != nil {
+			return err
+		}
+		for _, value := range []string{through.Model.AppLabel, through.Model.ModelName, through.SourceField, through.TargetField} {
+			if err := scanner.addString(path+".through", value); err != nil {
 				return err
-			}
-			for _, value := range []string{through.Model.AppLabel, through.Model.ModelName, through.SourceField, through.TargetField} {
-				if err := scanner.addString(path+".through", value); err != nil {
-					return err
-				}
 			}
 		}
 	}

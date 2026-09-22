@@ -3,6 +3,53 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 자동 intermediary의 historical storage
+
+2026-09-22, 기준 `c88c67746139875d025e005181489b86714e7b17` 위 제품·테스트·CI **47 non-Markdown 경로(Go 44)**를 변경했다.
+검증한 전체 non-Markdown source 2,088파일의 정렬 path→SHA256 map hash는
+`b2dd746f6dd26ebead7eb100fd26c5fb7eb9df1bd04aa74166272a5f99f3c121`이며 세 mode의 시작/종료에 불변을 확인했다.
+최종 source map도 같은 hash이며 제품·테스트·CI의 사후 차이가 없다.
+
+자동 intermediary의 Create/Add/Remove/Rename·reverse·자동 계획·forward SQL projection과 raw CreateModel의 columnless 선언을 연결했다.
+`AutomaticManyToMany` capability는 변경 및 retained binding의 전체 graph/catalog 검증을 소유한다. 하나의 logical operation에서
+정확한 IR storage 변경을 유도하고, DDL 전체와 최종 검증·이력/revision을 같은 transaction에서 완료한다. 파생 모델의 별도 공개 이력은 없다.
+모델 authority·기존/새 이름·fan-out budget과 초기/최종 부재 검사는 한 step 중간에만 존재하는 table에도 적용된다.
+자동 storage를 다른 관계가 참조하면 의존성 순서로 생성·역순 제거하며, owner의 저장 FK가 자신의 intermediary로 돌아오는 생성 순환은
+모델 생성 뒤 AddField로 작성한다. 자동 계획은 준비되지 않은 FK·alias를 prefix 이후로 지연하고 모든 재개 prefix의 문서 bytes를 보존한다.
+
+양 DB 각각 general/self × same/cross-app × pristine/empty-highwater/populated의 **12개 profile**에서 Add→Rename→재접속→역방향을 실행했다.
+PK 0을 포함한 연결 행과 sequence 상태를 보존하며, SQLite는 table rootpage·sqlite_sequence의 부재/값,
+PostgreSQL은 table/identity sequence OID·last_value/is_called도 보존한다. Managed pair index 또는 PK/FK/unique/sequence 이름을
+새 table에 맞춰 변경하며, rename 뒤 native pair uniqueness와 FK 거부를 실제 쓰기로 확인했다.
+Remove·reverse Add는 소유 link table만 제거하고 endpoint 행을 보존한다. Reverse Remove와 재적용은 빈 intermediary를 생성한다.
+
+별도로 inline 자동/명시적 혼합 선언, 서로 참조하는 automatic storage의 역순 선언, Add→Rename→Remove→Add의 transient table,
+Go 이름만 바꾸는 무-DDL rename, owner FK 추가/제거·SQLite remake의 retained link 보존을 확인했다.
+실제 실행한 forward SQL body도 연결 PK를 유지하며 최종 소유 table inventory를 만든다.
+Late native unique·관리 pair 누락/추가 index·대상 table/sequence 충돌·관리 밖의 inbound FK/view·취소의 **8개 실패 profile**을 양 DB에서 실행했다.
+실패 뒤 원본 행·sequence·catalog와 이력/revision을 대조했다. Alias/FK가 옛 storage를 계속 참조하거나 ancestry·정확한 파생 모델이 없으면
+history/graph 단계에서 거부한다. Nullable·nonunique·payload의 명시적 through 기존 회귀도 함께 유지했다.
+
+첫 normal은 owner-remake 테스트 입력의 정규화된 FK column 누락에서 양 DB 각 1건 실패했다. 테스트 입력을 수정하고 기능 미지원
+backend의 changed/retained capability 검증을 추가해 통과했다. 이어서 automatic storage 사이의 의존성 순서를 보강한 최종 Go source를 검증했다.
+최초 실패 원본도 보관한다. 실패 실행의 순간 cleanup 관찰에 남은 연결 1건은 PASS 근거에 포함하지 않는다.
+마지막 소유권 검토에서는 graph plan의 CreateModel storage inventory가 호출자의 metadata를 공유하는 결함을 실제 원본 변경으로 재현했다.
+계획 확정 시 Before/After를 deep clone하도록 고치고, 이 회귀를 포함한 최종 source를 세 mode에서 다시 검증했다.
+수정 전 실패는 `ownership-before-fix.log`에 남기며 앞선 통과를 최종 source의 검증으로 옮기지 않는다.
+
+Go 1.26.5/Darwin arm64·modernc SQLite·격리 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`에서
+`./schema ./schema/ir ./internal/migrationgraph ./migrations ./migrations/backend ./migrations/definition ./internal/projectgenerate ./internal/migrationautodetect ./db/sqlite ./db/postgres`를 실행했다.
+Normal·race·CGO=0 **각 10 package / 6,795 run=PASS / skip 0**이며 필수 30 root·기존/신규 CI 세부 profile을 합한
+**142개 항목**을 세 mode 모두 확인했다. 실행 시간은 109.9/148.9/108.3초다. 직접 process helper만 제외하며 parent의 실제 process 회귀는 유지했다.
+최종 세 전용 PostgreSQL DB는 연결·table·추가 schema 0을 확인한 뒤 삭제했다.
+다섯 기존 project의 실제 CLI `generate --check`, 영향 vet와 gofmt/diff를 통과했다. CI 필수 목록은 relation/PostgreSQL 실행 owner에 배치하고,
+core 소유 unit suite는 기존 portable owner를 유지한다. 필수 목록에 다른 owner의 test를 넣지 못하는 검증을 추가해 CI Python **39 PASS**를 확인했다.
+
+Artifact `godj-many-to-many-reference-4sl0bvdp/automatic-history/`의 `latest-{normal,race,cgo0,supplementary}-path`,
+`required-automatic-inventory.json`, `final-source.json`, `ci-python-receipt.json`에 source map·전체 JSON event·필수 inventory·stderr·hash·receipt를 보관한다.
+이번 결과는 로컬 영향 검증이다. 일반 collection manager/query·Ticket 컬렉션 소비자와 GDJ-0099의 Hosted 전체 통합은 남아 있다.
+최근 Hosted 전체 source는 GDJ-0098의 `93e77bd9`이며 이후 변경에 해당 성공을 전이하지 않는다.
+
 ## GDJ-0099 — 명시적 through의 columnless migration
 
 2026-09-22, 기준 `a9b8e3a2acd83d07d1f2534f40359d0eab5050d9` 위 제품·테스트·CI **44 non-Markdown 경로(Go 42)**를 변경했다.
