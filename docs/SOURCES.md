@@ -108,3 +108,9 @@ Model/ModelForm의 constraint 검증과 [migration autodetector](https://github.
 [독립 runner](../conformance/runners/django/composite_unique_reference.py)는 `derived=false`인 선언 입력으로 양 DB의 오류·NULL·transaction·migration 결과와
 이름·필드 변경 및 순환 관계의 제약 배치를 관찰한다. GoDj나 기대 fixture를 읽지 않으며 설치된 upstream source SHA256을 남긴다.
 기준 관찰과 GoDj 제품 지원은 [GDJ-0097](../work/0097-composite-uniqueness-and-labels.md)에서 구분한다.
+
+CASCADE는 같은 pinned Django의 [deletion collector](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/deletion.py)와
+[관계 선언·자동 intermediary](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related.py)를 참조한다(BSD-3-Clause).
+[독립 runner](../conformance/runners/django/cascade_reference.py)는 직접 작성한 public model·ORM 입력이며 GoDj나 기대 fixture를 읽지 않는다.
+Recursive 보호·SET_NULL·중복 경로·숨긴 관계·required/nullable 순환·실패 rollback과 실제 intermediary 정리를 관찰하고 upstream source SHA256을 남긴다.
+GoDj의 native 검사 시점·graph ownership·지원 상태는 [GDJ-0098](../work/0098-cascade-and-ticket-label-links.md)과 실행 근거에서 구분한다.

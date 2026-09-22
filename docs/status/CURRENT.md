@@ -1,7 +1,8 @@
 # 현재 상태
 
 - 갱신: 2026-09-22
-- 활성 작업: [GDJ-0097 모델 복합 고유성과 Category 라벨](../../work/0097-composite-uniqueness-and-labels.md)
+- 활성 구현: [GDJ-0098 CASCADE와 TicketLabel 연결](../../work/0098-cascade-and-ticket-label-links.md)
+- 통합 중: [GDJ-0097 모델 복합 고유성과 Category 라벨](../../work/0097-composite-uniqueness-and-labels.md)
 - 최근 완료: [GDJ-0096 일대일 관계와 티켓 작업 보고서](../../work/0096-one-to-one-service-reports.md)
 - 최근 전체 검증: [ServiceReport 연결 Hosted full](https://github.com/progresshans/godj/actions/runs/35652494345), source `4f92d68869d5491c4b56e83da40b79a4c7866bb7`
 - 진행 중 통합: [복합 고유성·Label Hosted full](https://github.com/progresshans/godj/actions/runs/35678713385), source `231260c5116bb7cfe157cab54ceb404e05c8ba43`
@@ -22,6 +23,9 @@ Form/API가 받지 않는 Category도 transaction에서 확인하고 전체 조�
 첫 Hosted full에서 누락된 외부 migration backend fixture의 새 제약 메서드를 찾아 수정했다.
 외부 소비자의 정상/오용 compile 검증은 로컬에서 다시 통과했다. 수정 source로 전체 통합을 실행 중이며 terminal 결과는 아직 없다.
 
+다음 기반인 CASCADE의 독립 Django 관찰을 저장했다. 보호된 후손·중복 경로·숨긴 역관계·required/nullable 순환과
+늦은 실패 rollback을 양 DB에서 확인했다. GDJ-0098의 제품 구현은 아직 시작 단계이며 지원 기능으로 올리지 않는다.
+
 지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
 위 Hosted 결과는 명시한 source의 OneToOne/ServiceReport 검증이며 이후 복합 고유성의 제품 검증으로 옮기지 않는다.
@@ -29,7 +33,8 @@ Form/API가 받지 않는 Category도 transaction에서 확인하고 전체 조�
 ## 다음 행동
 
 진행 중인 GDJ-0097 Hosted full의 같은 run에서 필수 환경·owner·실패 경로와 terminal 결과를 확인한다.
-그 결과를 현재 source에 귀속한 뒤 다음 카탈로그 요구를 선택한다. 현재 확인된 외부 blocker는 없다.
+GDJ-0098은 CASCADE의 native FK 검사 시점·historical 변경과 공통 ORM의 재귀 삭제 그래프를 함께 구현한다.
+두 작업의 source와 검증 범위를 구분하며 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

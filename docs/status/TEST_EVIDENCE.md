@@ -3,6 +3,31 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0098 — CASCADE의 독립 기준과 재귀 삭제 설계
+
+2026-09-22, 기준 `911740f8bc68469160dd6c2ebe7ca94104bdf536`에서 직접 작성한
+[독립 runner](../../conformance/runners/django/cascade_reference.py)의 SHA256은
+`45cc9605304fc001d1802e49f9efdb433420f6d722c47d93eb39374fe546c2e6`이다.
+GoDj나 기대 fixture를 읽지 않고 고정 Django 6.1의 public model·ORM과 실제 SQL을 실행했다.
+Python 3.14.3·SQLite 3.50.4 및 별도 PostgreSQL 17.5 DB·psycopg 3.3.6에서 hash seed 0/813을 각각 실행하여
+**13개 관찰**의 양 DB 결과·source fingerprint 일치를 확인했다. FK 물리 metadata는 별도 backend 값으로 보존한다.
+
+Recursive CASCADE·SET_NULL의 observer/다른 root 보존, 보호된 후손의 쓰기 전 거부와 CASCADE/PROTECT overlap,
+중복 경로·숨긴 역관계·OneToOne, 자기 loop·같은 모델/서로 다른 앱의 nullable/required 순환을 포함한다.
+Native FK는 raw root delete를 거부하고, 늦은 실패를 주입하면 이미 실행한 삭제와 SET_NULL도 rollback하며 caller PK가 유지된다.
+ManyToMany의 실제 intermediary pair는 중복되지 않고, endpoint 삭제는 링크를 정리하면서 다른 endpoint·링크를 보존했다.
+
+체크인한 runner·fixture의 Python 3.12.13/3.13.15/3.14.3/3.14.7 집중 검사는 **각 6 PASS / skip 0**이다.
+모든 발견 test의 시작/종료 inventory를 확인했고 버전별 실제 Python/SQLite 값만 구분했다.
+숨긴 FK를 실제 CASCADE에서 SET_NULL로 바꾼 대조는 삭제 결과가 3행에서 2행으로 변함을 확인한다.
+Fixture의 JSON 비교만으로 결과를 생성하지 않았음을 실제 실행으로 대조했다.
+
+Artifact는 `godj-cascade-reference-rusrn8sm/`의 `latest-capture-path`, `latest-profile-path`에 source hash·전체 출력·receipt를 저장했다.
+전용 PostgreSQL DB는 남은 연결·table·추가 schema 0을 확인한 뒤 삭제했다. 초기 준비 probe의 SQL 대소문자 비교 오류와
+수정 전 실패는 보존했으며 최종 13개 관찰의 성공에 합치지 않는다.
+이 단계는 독립 기준과 [삭제 설계](../adr/0074-cascade-delete-graph-and-constraint-timing.md) 채택이다.
+GoDj의 CASCADE enum·물리 FK·collector·TicketLabel 소비자는 아직 구현하지 않았고 GDJ-0097의 Hosted 결과로 이 새 source를 검증하지 않는다.
+
 ## GDJ-0097 — Hosted 통합에서 발견한 외부 backend compile 경계 수정
 
 2026-09-22, source `fdddfae8a58b0d6cbf6d10a40bfeb878acaf7037`의 [첫 Hosted full](https://github.com/progresshans/godj/actions/runs/35677919124)에서
