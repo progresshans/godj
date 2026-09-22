@@ -155,6 +155,12 @@ func (*externalLifecycleTransaction) RemoveField(context.Context, ir.Model, ir.F
 func (*externalLifecycleTransaction) AlterField(context.Context, ir.Model, ir.Field, ir.Field) error {
 	return backend.NewCapabilityError("alter_field", "external fixture does not implement metadata changes", nil)
 }
+func (*externalLifecycleTransaction) AddConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return backend.NewCapabilityError("add_constraint", "external fixture does not implement constraint changes", nil)
+}
+func (*externalLifecycleTransaction) RemoveConstraint(context.Context, ir.Model, ir.UniqueConstraint) error {
+	return backend.NewCapabilityError("remove_constraint", "external fixture does not implement constraint changes", nil)
+}
 func (*externalLifecycleTransaction) RecordApplied(context.Context, string, string) error { return nil }
 func (*externalLifecycleTransaction) RecordUnapplied(context.Context, string, string) error {
 	return nil

@@ -3,6 +3,23 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — Hosted 통합에서 발견한 외부 backend compile 경계 수정
+
+2026-09-22, source `fdddfae8a58b0d6cbf6d10a40bfeb878acaf7037`의 [첫 Hosted full](https://github.com/progresshans/godj/actions/runs/35677919124)에서
+Linux amd64/arm64의 relation normal·CGO=0이 실패했다. 실제 네 job의 로그는 모두 외부 migration consumer의
+`externalLifecycleTransaction`에 새 `AddConstraint`·`RemoveConstraint`가 빠진 같은 compile 오류를 가리켰다.
+이 fixture는 현재 backend interface를 직접 구현하는 외부 module이며, 미지원 제약 변경을 명시적 capability 오류로 반환하도록 갱신했다.
+제품 인터페이스를 축소하거나 compile negative control을 삭제하지 않았다.
+
+기준 `4c788ae70301bacf89d83d32c6dabea331ef8194` 위 변경한 fixture의 SHA256은
+`606ea0955e07db2a2dd33913328fd0b91888352c1217dd3ebe0313627ab80411`이다.
+Go 1.26.5/Darwin arm64에서 `go test -json -count=1 -timeout=10m ./internal/compiletest`와 같은 범위 `CGO_ENABLED=0`은
+**각 1 package / 68 run=PASS / skip 0**이다. 외부 소비자·잘못된 typed API 거부·offline/platform 환경과
+실패했던 migration 하위 검사의 필수 실행, 전체 시작/종료 inventory와 source 불변을 확인했다.
+이 compile suite는 기존 `!race` 경계이며 race 실행으로 주장하지 않는다. 제품 Go/JSON과 CI 선택 목록은 바꾸지 않았다.
+Artifact는 `godj-composite-uniqueness-9yzkn6xp/labels/compile-boundary-fix/`에 source·전체 events·stderr·receipt를 보관한다.
+첫 Hosted 실패 로그도 같은 labels root의 `hosted-job-*.log`에 보존했다. 수정 source의 Hosted full은 다시 확인해야 한다.
+
 ## GDJ-0097 — Category Label의 모델부터 독립 client까지
 
 2026-09-22, 기준 `2aaed04b30e473ea165024716f50eb5c193c778f` 위 제품·검사·생성물 **43경로**(Go 40, JSON 3)의 source map SHA256은

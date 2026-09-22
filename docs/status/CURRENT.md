@@ -4,7 +4,7 @@
 - 활성 작업: [GDJ-0097 모델 복합 고유성과 Category 라벨](../../work/0097-composite-uniqueness-and-labels.md)
 - 최근 완료: [GDJ-0096 일대일 관계와 티켓 작업 보고서](../../work/0096-one-to-one-service-reports.md)
 - 최근 전체 검증: [ServiceReport 연결 Hosted full](https://github.com/progresshans/godj/actions/runs/35652494345), source `4f92d68869d5491c4b56e83da40b79a4c7866bb7`
-- 진행 중 통합: [복합 고유성·Label Hosted full](https://github.com/progresshans/godj/actions/runs/35677919124), source `fdddfae8a58b0d6cbf6d10a40bfeb878acaf7037`
+- 통합 재검증: [첫 복합 고유성·Label Hosted full](https://github.com/progresshans/godj/actions/runs/35677919124)의 외부 backend compile 실패를 수정했다. 수정 source의 전체 결과는 아직 없다.
 - Source·환경·scope와 실행 상세: [TEST_EVIDENCE](TEST_EVIDENCE.md)
 
 ## 현재
@@ -19,7 +19,8 @@ SQLite remake의 남은 제약·행·sequence 보존과 PostgreSQL의 중복 제
 ORM의 복합 사전 검증은 부분 수정의 생략 member·기본값을 포함하고 자기 행·SQL NULL을 구분한다.
 Category별 Label의 모델·migration·Admin CRUD·API 검색/페이지/CRUD·OpenAPI·독립 client를 연결했다.
 Form/API가 받지 않는 Category도 transaction에서 확인하고 전체 조합에 포함한다. 양 DB와 독립 client의 영향 범위 로컬 검증을 완료했다.
-GDJ-0097 Hosted full을 위 source로 실행 중이며 완료 결과는 아직 확인하지 않았다.
+첫 Hosted full에서 누락된 외부 migration backend fixture의 새 제약 메서드를 찾아 수정했다.
+외부 소비자의 정상/오용 compile 검증은 로컬에서 다시 통과했으며 GDJ-0097 전체 통합은 재검증해야 한다.
 
 지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
@@ -27,7 +28,7 @@ GDJ-0097 Hosted full을 위 source로 실행 중이며 완료 결과는 아직 �
 
 ## 다음 행동
 
-진행 중인 GDJ-0097 Hosted full의 동일 run에서 필수 환경·owner·실패 경로와 terminal 결과를 확인한다.
+수정 source의 GDJ-0097 Hosted full에서 필수 환경·owner·실패 경로와 terminal 결과를 확인한다.
 그 결과를 현재 source에 귀속한 뒤 다음 카탈로그 요구를 선택한다. 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
