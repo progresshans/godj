@@ -23,6 +23,8 @@ type preparedModel struct {
 	writeValid  bool
 	byReference map[query.FieldRef]int
 	byName      map[string]int
+	unique      []preparedUniqueConstraint
+	uniqueErr   string
 }
 
 // NewManager snapshots Metadata once for both reads and writes. Later changes
@@ -53,6 +55,7 @@ func NewManager[M any](descriptor ModelDescriptor[M]) Manager[M] {
 					prepared.byName[reference.Name()] = index
 				}
 			}
+			prepared.unique, prepared.uniqueErr = prepareUniqueConstraints(metadata, prepared.byName)
 		}
 	}
 	return manager

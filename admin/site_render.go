@@ -455,7 +455,7 @@ func violationValues(errors validation.Errors) ([]templates.Value, error) {
 	result := make([]templates.Value, len(violations))
 	for index, violation := range violations {
 		message := string(violation.Code())
-		if violation.Code() == validation.CodeUnique {
+		if violation.Code() == validation.CodeUnique || violation.Code() == validation.CodeUniqueTogether {
 			message = "A record with this value already exists."
 			if violation.Field() == validation.NonField {
 				message = "A record with these values already exists. Review the unique fields and try again."

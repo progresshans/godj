@@ -14,8 +14,9 @@ OneToOne과 ServiceReport의 migration·Form/Admin/API/OpenAPI·독립 client �
 GDJ-0097의 복합 고유성은 선언·생성 metadata·project wire와 CreateModel/AddConstraint/RemoveConstraint 이력에 반영했다.
 제약 교체·역방향·순환 FK 의존성과 중단 뒤 동일한 계획 재개를 연결하고 독립 Django의 해당 변경 관찰과 대조했다.
 양 DB의 named constraint native 적용·모든 key의 catalog 검증·독립 이름 소유권과 실패 rollback을 연결했다.
-SQLite remake의 남은 제약·행·sequence 보존과 PostgreSQL의 중복 제약 병합 방지도 검증했다. ORM 사전 검증과 Label 소비자는 미완료다.
-Form이 제외한 Category도 저장 시 전체 조합에 포함해야 한다.
+SQLite remake의 남은 제약·행·sequence 보존과 PostgreSQL의 중복 제약 병합 방지도 검증했다.
+ORM의 복합 사전 검증은 부분 수정의 생략 member·기본값을 포함하고 자기 행·SQL NULL을 구분한다. Label 소비자는 미완료다.
+Form이 제외한 Category도 저장 시 전체 조합에 포함하는 공통 경로를 소비자에 연결해야 한다.
 
 지원 범위와 제약은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [일대일 관계 ADR](../adr/0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
@@ -23,8 +24,8 @@ Form이 제외한 Category도 저장 시 전체 조합에 포함해야 한다.
 
 ## 다음 행동
 
-복합 제약의 ORM 사전 검증을 전체 저장 candidate와 self exclusion에 연결하고,
-Category별 Label의 Form/Admin/API/client로 연결한다. 현재 확인된 외부 blocker는 없다.
+Category별 Label의 모델·migration·Form/Admin/API/client에 복합 제약과 공통 ORM 검증을 연결한다.
+Category 범위·권한·CSRF와 저장 실패 경계를 함께 검증한다. 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

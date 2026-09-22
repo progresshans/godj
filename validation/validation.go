@@ -15,8 +15,12 @@ const NonField Field = "__all__"
 type Code string
 
 // CodeUnique identifies a value already stored by another row under a
-// declared column uniqueness constraint. Diagnostics never contain that value.
+// declared single-field uniqueness constraint. Diagnostics never contain that value.
 const CodeUnique Code = "unique"
+
+// CodeUniqueTogether identifies a tuple already stored by another row under a
+// declared multi-field constraint. It belongs to NonField and contains no values.
+const CodeUniqueTogether Code = "unique_together"
 
 // Param is one ordered, presentation-independent diagnostic parameter.
 // Its fields are private so callers cannot mutate a published violation.

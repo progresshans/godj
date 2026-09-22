@@ -26,7 +26,7 @@ Helpdesk의 각 Category에 라벨 사전을 두고 같은 Category 안에서만
 - [x] Schema IR의 모델 단위 제약과 이름·field 순서·storage column 소유권, 생성 metadata·clone/equality/digest
 - [x] historical definition·autodetect·create/add/remove/reverse, 기존 중복 실패 시 row·catalog·recorder/revision 보존
 - [x] SQLite/PostgreSQL native 복합 UNIQUE와 물리 ownership 검증, table remake·named index/constraint·target schema 보존
-- [ ] 공통 ORM 사전 검증과 self exclusion, 확인된 중복/실행 오류 구분·native race·취소·rollback/unknown outcome
+- [x] 공통 ORM 사전 검증과 self exclusion, 확인된 중복/실행 오류 구분·native race·취소·rollback/unknown outcome
 - [ ] Label 모델·migration·scoped Admin/API/OpenAPI/client와 명시적 permission·CSRF
 - [ ] generated drift·양 DB·관련 race/CGO/process와 필요한 통합 검증, source·환경별 증거와 제한 기록
 
@@ -47,8 +47,11 @@ PostgreSQL은 같은 column의 UNIQUE 선언을 CREATE TABLE에서 합칠 수 �
 AddConstraint/RemoveConstraint는 논리 이름과 전체 historical member를 보존하며 wire·digest·typed loader·state·실행 인자와 SQL projection에 연결했다.
 이름·member·member 순서 변경은 remove/add, 목록 순서 변경은 no-op이며 새 field와 순환 FK를 기다리는 제약은 모든 member가 생긴 뒤에 추가한다.
 각 durable prefix를 다시 읽어도 남은 계획의 byte가 같음을 검사했다. 일반 forward field removal은 기존 미지원 범위이며 제약 제거만 부분 게시하지 않는다.
-다음은 ORM의 전체 candidate 사전 검증·self exclusion과 Label 소비자를 연결하는 일이다. 선언 API의 최종 사용성은 Label의 전체 소비자에서 확인한다.
-현재 선언·이력·native 구현을 복합 고유성의 전체 제품 연결이나 전체 플랫폼 검증으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+ORM의 전체 candidate 사전 검증·self exclusion을 연결했다. 부분 수정의 생략 member는 현재 객체에서 보존하고,
+SQL NULL tuple과 생성 전 Auto PK를 구분한다. 단일 member는 field/unique, 복합 member는 __all__/unique_together로 진단하며
+실행 오류·취소·row cleanup 실패에 앞선 부분 진단을 게시하지 않는다. 실제 양 DB 저장·동시 쓰기와 기존 소비자 실패 검사를 유지한다.
+다음은 Label 소비자를 연결하는 일이다. 선언 API의 최종 사용성은 Label의 전체 소비자에서 확인한다.
+현재 선언·이력·native·ORM 구현을 복합 고유성의 전체 제품 연결이나 전체 플랫폼 검증으로 합치지 않는다. Source·환경·실행 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
 기존 내부 형식이나 테스트 모양을 보존하려고 별도의 호환 계층을 만들지 않는다.
 API 표면과 제약의 지원 범위는 실제 소비자·양 DB 실패 의미를 확인하면서 정하며, 사전 검사만으로 고유성을 보장하지 않는다.
 작업과 필요한 기반의 관계는 [로드맵](../docs/ROADMAP.md), 전체 완성 기준은 [헌장](../docs/CHARTER.md)이 소유한다.

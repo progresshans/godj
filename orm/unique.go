@@ -2,47 +2,97 @@ package orm
 
 import (
 	"context"
+	"slices"
+	"strings"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
 
-// ValidateUniqueCreate checks the declared column uniqueness of a generated
+// ValidateUniqueCreate checks the declared field and model uniqueness of a generated
 // create input, including its resolved defaults. It uses the same mutation
 // validation as Create, but only performs reads. The caller must authorize the
 // operation before calling it. A successful check is advisory: a later write
 // can still fail with query.CodeUniqueConstraint due to a concurrent writer.
 // Database, cancellation and malformed-input errors are returned separately
-// from ordered field violations; no partial violations accompany such errors.
+// from ordered violations; no partial violations accompany such errors.
+// Constraints containing the generated primary key wait for native enforcement.
 func (m Manager[M]) ValidateUniqueCreate(ctx context.Context, backend db.Queryer, input CreateInput[M]) (validation.Errors, error) {
 	write, err := m.prepareCreate(ctx, backend, input)
 	if err != nil {
 		return validation.Errors{}, err
 	}
-	return validateUniqueMutation(ctx, backend, write.model, write.mutation.assignments, nil)
+	return validateUniqueMutation(ctx, backend, write)
 }
 
-// ValidateUniqueUpdate checks only fields explicitly assigned by a generated
-// patch. The current model's presence-aware primary key excludes that row,
-// including an explicitly present zero key. Omitted fields and SQL NULL values
-// do not issue uniqueness queries. The caller must first authorize and load
-// the current object; a client-supplied key is not an authorization decision.
+// ValidateUniqueUpdate checks assigned unique fields and model constraints
+// touched by a generated patch. Each constraint uses the complete candidate,
+// including omitted members retained from current. The presence-aware primary
+// key excludes that row, including an explicitly present zero key. Untouched
+// constraints and tuples containing SQL NULL do not issue queries. The caller
+// must first authorize and load current; a client key is not authorization.
 func (m Manager[M]) ValidateUniqueUpdate(ctx context.Context, backend db.Queryer, current M, input PatchInput[M]) (validation.Errors, error) {
 	write, err := m.prepareUpdate(ctx, backend, current, input)
 	if err != nil {
 		return validation.Errors{}, err
 	}
-	return validateUniqueMutation(ctx, backend, write.model, write.mutation.assignments, &write.key)
+	return validateUniqueMutation(ctx, backend, write)
 }
 
-func validateUniqueMutation(ctx context.Context, backend db.Queryer, model *preparedModel, assignments []query.Assignment, exclude *query.Value) (validation.Errors, error) {
+type preparedUniqueConstraint struct {
+	name      string
+	fields    []ir.Field
+	violation validation.Violation
+}
+
+// Bind the immutable metadata once. Custom descriptors must not turn a missing
+// or repeated member into a shorter, apparently valid uniqueness query.
+func prepareUniqueConstraints(model ir.Model, byName map[string]int) ([]preparedUniqueConstraint, string) {
+	constraints := make([]preparedUniqueConstraint, 0, len(model.UniqueConstraints))
+	names := make(map[string]bool, len(model.UniqueConstraints))
+	for _, constraint := range model.UniqueConstraints {
+		if !identifiers.SQL(constraint.Name) || names[constraint.Name] || len(constraint.Fields) == 0 {
+			return nil, "unique constraint has an invalid or repeated name, or no members"
+		}
+		names[constraint.Name] = true
+		fields := make([]ir.Field, len(constraint.Fields))
+		members := make(map[string]bool, len(fields))
+		for position, name := range constraint.Fields {
+			index, present := byName[name]
+			if !present || members[name] || !identifiers.SQL(name) {
+				return nil, "unique constraint has an invalid, missing or repeated member"
+			}
+			members[name] = true
+			fields[position] = model.Fields[index]
+		}
+		violation := validation.New(validation.NonField, validation.CodeUniqueTogether)
+		if len(fields) == 1 {
+			violation = validation.New(validation.Field(fields[0].Name), validation.CodeUnique)
+		}
+		constraints = append(constraints, preparedUniqueConstraint{name: constraint.Name, fields: fields, violation: violation})
+	}
+	// Normalized IR already has this order. Keep custom descriptors consistent
+	// without modifying their metadata or reordering each constraint's members.
+	slices.SortFunc(constraints, func(a, b preparedUniqueConstraint) int { return strings.Compare(a.name, b.name) })
+	return constraints, ""
+}
+
+func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, write preparedWrite[M]) (validation.Errors, error) {
 	if err := ctx.Err(); err != nil {
 		return validation.Errors{}, err
 	}
+	model, assignments := write.model, write.mutation.assignments
+	if model.uniqueErr != "" {
+		return validation.Errors{}, invalidWritePlan(model.uniqueErr)
+	}
 	values := make(map[string]query.Value, len(assignments))
+	assigned := make(map[string]bool, len(assignments))
 	for _, assignment := range assignments {
 		values[assignment.Field().Name()] = assignment.Value()
+		assigned[assignment.Field().Name()] = true
 	}
 	primary := fieldReference(model.primaryKey)
 	projection, err := query.NewProjectionResult(query.FieldResult(primary))
@@ -57,8 +107,8 @@ func validateUniqueMutation(ctx context.Context, backend db.Queryer, model *prep
 	if err != nil {
 		return validation.Errors{}, err
 	}
-	if exclude != nil {
-		self, err := query.NewExpression(query.NewCondition(primary, query.LookupExact, *exclude))
+	if write.mutation.kind == MutationPatch {
+		self, err := query.NewExpression(query.NewCondition(primary, query.LookupExact, write.key))
 		if err != nil {
 			return validation.Errors{}, err
 		}
@@ -72,8 +122,8 @@ func validateUniqueMutation(ctx context.Context, backend db.Queryer, model *prep
 		}
 	}
 	type check struct {
-		field validation.Field
-		plan  query.Plan
+		violation validation.Violation
+		plan      query.Plan
 	}
 	var checks []check
 	// Construct every AST before any I/O, in declaration order rather than
@@ -87,7 +137,41 @@ func validateUniqueMutation(ctx context.Context, backend db.Queryer, model *prep
 		if err != nil {
 			return validation.Errors{}, err
 		}
-		checks = append(checks, check{field: validation.Field(field.Name), plan: plan})
+		checks = append(checks, check{violation: validation.New(validation.Field(field.Name), validation.CodeUnique), plan: plan})
+	}
+	for _, constraint := range model.unique {
+		touched, generatedKey := false, false
+		for _, field := range constraint.fields {
+			touched = touched || assigned[field.Name]
+			generatedKey = generatedKey || (field.PrimaryKey && write.mutation.kind == MutationCreate)
+		}
+		if !touched || generatedKey {
+			continue
+		}
+		conditions := make([]query.Condition, 0, len(constraint.fields))
+		null := false
+		for _, field := range constraint.fields {
+			value, present := values[field.Name]
+			if field.PrimaryKey {
+				value, present = write.key, true
+			} else if !present {
+				value, present = write.descriptor.WriteFieldValue(write.mutation.value, field.Clone())
+				values[field.Name] = value
+			}
+			if !present || !mutationValueMatches(field, value) {
+				return validation.Errors{}, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue, Field: field.Name, Detail: "constraint member is missing or invalid in the candidate model"}
+			}
+			null = null || value.IsNull()
+			conditions = append(conditions, query.NewCondition(fieldReference(field), query.LookupExact, value))
+		}
+		if null {
+			continue
+		}
+		plan, err := base.WithConditions(conditions...)
+		if err != nil {
+			return validation.Errors{}, err
+		}
+		checks = append(checks, check{violation: constraint.violation, plan: plan})
 	}
 	var violations []validation.Violation
 	for _, check := range checks {
@@ -99,7 +183,7 @@ func validateUniqueMutation(ctx context.Context, backend db.Queryer, model *prep
 			return validation.Errors{}, err
 		}
 		if exists {
-			violations = append(violations, validation.New(check.field, validation.CodeUnique))
+			violations = append(violations, check.violation)
 		}
 	}
 	if err := ctx.Err(); err != nil {

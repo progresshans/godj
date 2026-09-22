@@ -3,6 +3,36 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — 복합 고유성의 전체 candidate ORM 검증
+
+2026-09-22, 기준 `7d769e429d8d4a9171c434877b41868a81b4264a` 위 Go 코드·검사 **10경로**의 source map SHA256은
+`e30b1333a4a39858d3ba474c93145a048e370c37370b310c7d43cbf5e98a1b8e`이다. Go 1.26.5/Darwin arm64, SQLite 3.53.3,
+격리된 PostgreSQL 17.5(Homebrew)와 `GODJ_REQUIRE_POSTGRES=1`로 실행했다.
+
+Manager의 metadata snapshot에 ordered constraint member를 한 번 연결하고, column 선언 순서 뒤 canonical constraint name 순서로 검사한다.
+Create의 resolved default·생성 전 Auto PK, Update의 생략 member·명시적 NULL·presence-aware 0 PK와 self exclusion을 구분한다.
+모든 AST를 I/O 전에 구성하며 잘못된 이름·빈/중복/누락 member·잘못된 omitted candidate는 앞선 조회도 실행하지 않는다.
+단일 member는 field/unique, 복합 member는 __all__/unique_together이며 진단에 값·행·물리 이름을 포함하지 않는다.
+Named 제약도 query·iteration·close·취소 오류에서 부분 진단을 폐기하고, manager 병렬 공유가 결과를 cache하지 않는지 검사했다.
+
+- `go test -json -count=1 -timeout=10m ./orm ./validation ./forms ./admin ./internal/uniquetest ./examples/helpdesk`:
+  **6 package / 1,767 run=PASS / skip 0**, 필수 parent 15개. 기존 Helpdesk의 실제 양 DB 소비자·권한·native 충돌·취소·rollback 불확실성 검사도 포함한다.
+- 양 DB의 `NamedConstraint`, `UniqueReference`, `UniqueConcurrent` 집중 검사:
+  **2 package / 523 run=PASS / skip 0**, 필수 parent 20개. 독립 scalar fixture의 DB별 13 profile에 걸친 96개 입력을 같은 bucket에 저장하고,
+  다른 bucket·NULL 조합·self/partial update와 사전 거부 시 선행 쓰기 rollback을 확인했다. 경쟁하는 두 writer의 사전 조회를 먼저 통과시킨 뒤 native winner가 하나인지 검사했다.
+- `Validate(Named)?Unique`, 양 DB `NamedConstraint`, `PublicHelpdesk`의 `-race`와 `CGO_ENABLED=0`:
+  **각 4 package / 351 run=PASS / skip 0**, 필수 parent 각 31개. 영향 package의 `go vet`도 통과했다.
+
+첫 native 대조는 기존 SQLite의 NaN 거부 두 입력과 JSON object key 정규화 한 입력을 Django 기본 저장과 동일하게 기대하여 실패했다.
+제품 저장 정책을 바꾸지 않고 기존 DEV-0015/DEV-0017 경계를 검사에 반영했다. NaN은 사전 검사와 저장 모두 invalid_value이며,
+JSON은 같은 logical input인 독립 canonical profile과 대조한다. 차이의 개수도 각각 2·1로 고정하여 임의 예외를 허용하지 않는다.
+이후 전체 named native 집중 검사와 위 common/race/CGO=0을 같은 최종 source로 실행했다. 첫 실패 원본은 보존한다.
+
+Artifact root는 `godj-composite-uniqueness-9yzkn6xp/orm/`이다. `latest-common-path`, `latest-native-path`, `latest-race-path`,
+`latest-cgo0-path`에 source·command·전체 JSON events·stderr·필수/package inventory·receipt를 보관했다.
+생성기·schema 선언·생성 ABI는 변경하지 않았고 기존 생성 소비자는 위 compile/runtime 검사에 포함된다.
+이 결과는 명시한 로컬 ORM·native·기존 소비자 회귀 범위다. Label 모델/Form/Admin/API/client 및 GDJ-0097 전체 통합·Hosted full은 미완료다.
+
 ## GDJ-0097 — 양 DB native named constraint와 전체 key ownership
 
 2026-09-22, 기준 `47a1526bba09099f68250a27510b72956a92a656` 위 Go 코드·검사 **25경로**의 source map SHA256은
@@ -38,6 +68,8 @@ Artifact root는 `godj-composite-uniqueness-9yzkn6xp/native/`이며 `latest-norm
 `postgres-duplicate-inline-constraints-probe.sql/.stdout/.stderr`, `generate-check.*`, `vet.*`에 범위와 원본을 보관했다.
 이 검증은 named native 동작과 명시한 로컬 회귀 범위다. ORM 복합 사전 검증·Label 소비자·GDJ-0097 전체 통합 및 Hosted full은 미완료다.
 Django reference의 일반 ordinary index는 현재 GoDj의 미선언 index로서 drift이며, 일반 index ownership을 구현한 결과로 주장하지 않는다.
+저장한 source `7d769e429d8d4a9171c434877b41868a81b4264a`의 [Hosted PR feedback](https://github.com/progresshans/godj/actions/runs/35668606774)은
+필수 Fast Go feedback step까지 success다. 이 빠른 검사를 이후 ORM 변경이나 full platform 검증에 합치지 않는다.
 
 ## GDJ-0097 — 제약 추가·제거 이력과 자동 계획
 

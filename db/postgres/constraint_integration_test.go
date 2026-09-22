@@ -7,11 +7,28 @@ import (
 	"github.com/progresshans/godj/internal/uniquetest"
 	"github.com/progresshans/godj/migrations"
 	mb "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"reflect"
 	"testing"
 )
+
+func TestPostgresNamedConstraintAdvisoryMatchesScalarReference(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	for _, profile := range uniquetest.Profiles(t, "postgres") {
+		t.Run(profile.Name, func(t *testing.T) {
+			namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+			backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+			model, _, _ := uniquetest.CompositeModel(t, profile.Name, true)
+			initial := migrations.Migration{App: "composite", Name: "0001_initial", Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "composite", Model: model}}}
+			if _, err := (migrations.Executor{Backend: backend}).Migrate(t.Context(), postgresUniqueHistory(t, initial), migrations.LatestLifecycleRequest()); err != nil {
+				t.Fatal(err)
+			}
+			uniquetest.CheckCompositeValidation(t, backend, model, profile, "postgres")
+		})
+	}
+}
 
 func TestPostgresNamedConstraintNativeScalarTuples(t *testing.T) {
 	for _, profile := range uniquetest.Profiles(t, "postgres") {
@@ -345,6 +362,14 @@ func TestPostgresNamedConstraintConcurrentWritersHaveOneNativeWinner(t *testing.
 	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
 	plan := func(scope int64) query.InsertPlan {
 		return query.NewInsertPlanReturningKey(model.DBTable, []query.Assignment{query.NewAssignment(bucket, query.Integer(scope)), query.NewAssignment(value, query.String("same"))}, id)
+	}
+	manager := orm.NewManager[uniquetest.Record](uniquetest.Descriptor{Model: model})
+	// Both advisory reads finish before either actual writer starts.
+	for _, writer := range []*Backend{first, second} {
+		diagnostics, err := manager.ValidateUniqueCreate(ctx, writer, uniquetest.CompositeInput{Model: model, Bucket: query.Integer(1), Value: query.String("same")})
+		if err != nil || !diagnostics.Empty() {
+			t.Fatal("fresh tuple preflight", diagnostics.All(), err)
+		}
 	}
 	type result struct {
 		key int64

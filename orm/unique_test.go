@@ -194,10 +194,24 @@ func TestValidateUniqueRejectsMalformedInputsWithoutIOOrCallerMutation(t *testin
 }
 
 func TestValidateUniqueDiscardsPartialViolationsAndPreservesRowFailures(t *testing.T) {
+	for _, shape := range []string{"column", "named"} {
+		t.Run(shape, func(t *testing.T) {
+			manager, _ := uniqueArticleManager()
+			if shape == "named" {
+				_, descriptor := namedArticleManager()
+				descriptor.metadata.UniqueConstraints = descriptor.metadata.UniqueConstraints[:2]
+				manager = orm.NewManager[models.Article](descriptor)
+			}
+			testUniqueFailures(t, manager)
+		})
+	}
+}
+
+func testUniqueFailures(t *testing.T, manager orm.Manager[models.Article]) {
+	t.Helper()
 	queryErr, rowErr, closeErr := errors.New("query failed"), errors.New("iteration failed"), errors.New("close failed")
 	for _, mode := range []string{"query", "query_with_rows", "nil_rows", "typed_nil_rows", "iteration", "close", "cancel_next", "cancel_query"} {
 		t.Run(mode, func(t *testing.T) {
-			manager, _ := uniqueArticleManager()
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			calls := 0
@@ -254,6 +268,17 @@ func TestValidateUniqueDiscardsPartialViolationsAndPreservesRowFailures(t *testi
 
 func TestValidateUniqueSharesImmutableManagerButNeverCachesResults(t *testing.T) {
 	manager, _ := uniqueArticleManager()
+	testConcurrentUnique(t, manager)
+}
+
+func TestValidateNamedUniqueSharesImmutableManagerButNeverCachesResults(t *testing.T) {
+	manager, _ := namedArticleManager()
+	// A NULL summary and an unassigned generated key leave exactly two checks.
+	testConcurrentUnique(t, manager)
+}
+
+func testConcurrentUnique(t *testing.T, manager orm.Manager[models.Article]) {
+	t.Helper()
 	const workers = 8
 	var group sync.WaitGroup
 	for range workers {

@@ -1,7 +1,7 @@
 # ADR-0072: Model uniqueness and physical constraint ownership
 
-- 상태: Accepted — column uniqueness의 GDJ-0095 통합 검증 완료. Named model constraint의 이력·양 DB native 적용은 구현했으며 ORM·Label 소비자는 GDJ-0097에서 진행 중.
-- 날짜: 2026-09-21
+- 상태: Accepted — column uniqueness의 GDJ-0095 통합 검증 완료. Named model constraint의 이력·양 DB native 적용·공통 ORM 사전 검증은 구현했으며 Label 소비자는 GDJ-0097에서 진행 중.
+- 날짜: 2026-09-22
 - 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md), [GDJ-0097](../../work/0097-composite-uniqueness-and-labels.md)
 
 ## 모델 의미
@@ -95,14 +95,20 @@ Context 취소를 우선하며 오류 문구만으로 충돌이나 field를 추�
 생략 필드 보존과 PK 소유권을 검사한다. 검증을 호출해도 저장하지 않으며 Create/Update에 묵시적 조회를 추가하지 않는다.
 기존 생성 descriptor/input을 사용하므로 field 타입별 별도 validator 생성 코드를 만들지 않는다.
 
-Create는 정규화된 기본값을 포함한다. Update는 명시적으로 지정한 필드만 검사하고 current instance의 presence-aware PK를 제외한다.
-명시적으로 존재하는 0 PK도 제외하며 PK가 없는 instance나 PK를 바꾼 patch는 거부한다. SQL NULL은 distinct 정책에 따라 조회하지 않고
+Create는 정규화된 기본값을 포함한다. 아직 DB가 부여하지 않은 Auto PK를 포함하는 제약은 native 저장이 검사한다.
+Update는 명시적으로 지정한 Unique 필드와 그 필드가 속한 named 제약을 검사한다. Named 제약은 생략된 member도 current에서 보존한
+전체 candidate로 비교하며 다른 필드만 수정한 제약은 조회하지 않는다. Current instance의 presence-aware PK를 제외한다.
+명시적으로 존재하는 0 PK도 제외하며 PK가 없는 instance나 PK를 바꾼 patch는 거부한다. Member 중 하나라도 SQL NULL이면 distinct 정책에 따라 조회하지 않고
 빈 문자열·false·zero UUID·JSON null은 실제 값으로 검사한다. Typed 입력 정리 이전의 원문이나 오류 메시지에서 값을 추측하지 않는다.
 
-모든 Query AST를 I/O 전에 만들고 모델 선언 순서대로 조회한다. 각 조회는 현재 backend의 exact/storage equality를 사용하며
-PK projection·LIMIT 1로 존재 여부만 확인한다. Result cache를 공유하지 않는다. 중복은 값/행 식별자를 담지 않는 field별
-`validation.CodeUnique` (`unique`)다. DB 오류·row iteration/close 오류·context 취소는 일반 error로 반환하며 앞선 부분 진단을 게시하지 않는다.
+모든 Query AST를 I/O 전에 만들고 column 제약은 field 선언 순서, named 제약은 IR의 canonical name 순서대로 조회한다.
+각 제약의 ordered member는 하나의 AND에 속한다. 각 조회는 현재 backend의 exact/storage equality를 사용하며
+PK projection·LIMIT 1로 존재 여부만 확인한다. Result cache를 공유하지 않는다. Column/단일 member의 중복은 field별
+`validation.CodeUnique` (`unique`), 여러 member의 중복은 `validation.NonField`의 `CodeUniqueTogether` (`unique_together`)다.
+진단은 값·행 식별자·물리 제약 이름을 담지 않는다. 독립 Django의 named single/tuple 진단 구분을 따른다.
+DB 오류·row iteration/close 오류·context 취소는 일반 error로 반환하며 앞선 부분 진단을 게시하지 않는다.
 새 field가 있는 미래 버전에서 이미 만들어진 manager의 metadata snapshot을 바꾸지 않는다.
+Manager는 field binding과 constraint 순서를 한 번만 준비하며 missing/repeated member를 부분 제약으로 검사하지 않는다.
 
 권한 검사와 current object 조회는 호출자가 먼저 수행한다. 이 검사는 advisory이며 두 검사가 모두 통과한 뒤에도 실제 제약이
 경쟁 쓰기를 거부할 수 있다. 사전 조회와 최종 insert/update 오류를 같은 의미로 사용자에게 전달하되 DB 제약을 생략하거나
@@ -175,7 +181,7 @@ Catalog는 전체 ordered member와 PK·FK·column Unique·다른 named 제약�
 이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.
 실행 source와 환경별 결과는 TEST_EVIDENCE가 소유하며 이후 변경의 검증으로 옮겨 쓰지 않는다.
 
-Named composite의 ORM·소비자 연결, conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
+Named composite의 Label 소비자 연결, conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 명시적 OneToOne의 후속 의미와 현재 구현 범위는 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.
 이 ADR의 양 DB 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.
