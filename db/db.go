@@ -44,6 +44,14 @@ type Session interface {
 	Mutator
 }
 
+// SessionValidator exposes a borrowed session's existing lifetime check
+// without executing SQL. It is implemented by transaction sessions, not root
+// backends. Consumers must check it even when serving a cache or a no-op.
+// A successful check is not a commit receipt and does not extend the lifetime.
+type SessionValidator interface {
+	ValidateSession(context.Context) error
+}
+
 // Atomic executes callback in one transaction-bound Session. A nil callback,
 // callback error, or context cancellation observed before commit does not
 // commit writes when rollback is confirmed. An error returned by the literal

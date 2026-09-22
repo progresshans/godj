@@ -57,6 +57,12 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/collections_test.go", source)
+	sessions, err := os.ReadFile(filepath.Join("testdata", "manytomany", "sessions_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/sessions_test.go", sessions)
+
 	output, err := generatedGoCommand(t.Context(), directory, "test", "-mod=mod", "-json", "./...").CombinedOutput()
 	if err != nil {
 		t.Fatalf("actual generated collection consumer failed: %v\n%s", err, output)
@@ -75,6 +81,24 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 	}
 	for _, mode := range []string{"zero", "twice", "swallow", "late"} {
 		required["TestCollectionBindingAndCallbackOwnership/"+mode] = false
+	}
+	for _, backend := range []string{"sqlite", "postgres"} {
+		if _, enabled := required["TestCollections/"+backend]; !enabled {
+			continue
+		}
+		required["TestCollectionFacadeSessions/"+backend] = false
+		for _, commit := range []string{"false", "true"} {
+			for _, coordinated := range []string{"false", "true"} {
+				required["TestCollectionFacadeSessions/"+backend+"/borrowed_composition/coordinated_"+coordinated+"_commit_"+commit] = false
+			}
+			for _, mode := range []string{"atomic", "coordinated", "relation", "coordinated_relation"} {
+				required["TestCollectionFacadeSessions/"+backend+"/query_and_model_lifetime/"+mode+"_commit_"+commit] = false
+			}
+		}
+
+		for _, name := range []string{"facade_cache_and_origin", "borrowed_composition", "query_and_model_lifetime"} {
+			required["TestCollectionFacadeSessions/"+backend+"/"+name] = false
+		}
 	}
 	runs := map[string]int{}
 	passes := map[string]int{}
@@ -113,4 +137,34 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		}
 	}
 	t.Logf("actual generated consumer: %d run = pass, no test skips", len(runs))
+}
+
+func TestGeneratedCollectionFacadeRejectsNamespaceAndCrossModelInputs(t *testing.T) {
+	for _, kind := range []string{"method", "promoted"} {
+		t.Run(kind, func(t *testing.T) {
+			spec := manyCollectionSpec()
+			if kind == "method" {
+				spec.Apps[0].Schema.Models[0].ManyToMany[0].GoName = "Save"
+			} else {
+				spec.Apps[0].Schema.Models[0].Fields[0].GoName = "Labels"
+			}
+			bundle, err := codegen.GenerateProject(spec)
+			if err == nil || len(bundle.Files()) != 0 {
+				t.Fatal("collection namespace collision published bytes", err)
+			}
+		})
+	}
+	bundle, err := codegen.GenerateProject(manyCollectionSpec())
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := writeProjectBundleModule(t, bundle)
+	writeGeneratedTestFile(t, directory, "consumer/wrong.go", []byte(`package consumer
+import("context";"example.com/godj-project-bundle/project")
+func wrong(source *project.OwnersOwnerLabelsCollection, owner *project.OwnersOwner)error{return source.Add(context.Background(),[]*project.OwnersOwner{owner})}
+`))
+	output, err := generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
+	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("LabelsLabel")) {
+		t.Fatalf("cross-model collection input was not rejected: %v\n%s", err, output)
+	}
 }

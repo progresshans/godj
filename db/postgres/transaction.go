@@ -16,12 +16,17 @@ var _ db.Atomic = (*Backend)(nil)
 var _ db.RelationAtomic = (*Backend)(nil)
 var _ db.Session = (*transactionSession)(nil)
 var _ db.RelationSession = (*transactionSession)(nil)
+var _ db.SessionValidator = (*transactionSession)(nil)
 
 type transactionSession struct {
 	transaction *sql.Tx
 	backend     *Backend
 	lifetime    context.Context
 	active      atomic.Bool
+}
+
+func (session *transactionSession) ValidateSession(ctx context.Context) error {
+	return session.validate(ctx)
 }
 
 // Atomic executes callback once in a transaction-bound Session. Callback

@@ -133,11 +133,41 @@ type ManyCollection[T, L any] struct {
 	through  ManyToManyDescriptor[L]
 	state    *manyToManyState
 	backend  db.Queryer
+	session  db.RelationSession
 	ownerKey int64
 	_self    *ManyCollection[T, L]
 }
 
 func (r ManyToMany[O, T, L]) From(backend db.Queryer, owner O) (*ManyCollection[T, L], error) {
+	if _, borrowed := backend.(db.SessionValidator); borrowed {
+		return nil, relationInvalidPlan("use InSession to bind a borrowed collection session")
+	}
+	return r.from(backend, owner)
+}
+
+// InSession joins the supplied transaction and never begins, commits, rolls
+// back or retries one. Successful mutations remain provisional. Return any
+// error from the enclosing transaction callback; this is not a savepoint.
+// The independent handle and its query caches expire with the session.
+func (r ManyToMany[O, T, L]) InSession(session db.RelationSession, owner O) (*ManyCollection[T, L], error) {
+	if interfaceIsNil(session) {
+		return nil, relationBackendInvalidPlan("collection session is nil")
+	}
+	if _, ok := session.(db.SessionValidator); !ok {
+		return nil, relationBackendInvalidPlan("borrowed collection requires session lifetime validation")
+	}
+	if err := validateQuerySession(context.Background(), session); err != nil {
+		return nil, err
+	}
+	collection, err := r.from(session, owner)
+	if err != nil {
+		return nil, err
+	}
+	collection.session = session
+	return collection, nil
+}
+
+func (r ManyToMany[O, T, L]) from(backend db.Queryer, owner O) (*ManyCollection[T, L], error) {
 	if r.state == nil || interfaceIsNil(backend) {
 		return nil, relationInvalidPlan("collection is unbound or backend is nil")
 	}
@@ -182,6 +212,9 @@ func (c *ManyCollection[T, L]) Query() (QuerySet[T], error) {
 	if err := c.validate(); err != nil {
 		return QuerySet[T]{}, err
 	}
+	if err := validateQuerySession(context.Background(), c.backend); err != nil {
+		return QuerySet[T]{}, err
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.querySet, nil
@@ -203,7 +236,7 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 	if err != nil {
 		return nil, err
 	}
-	result := &ManyCollection[T, L]{querySet: set.Fresh(), target: c.target, through: c.through, state: c.state, backend: c.backend, ownerKey: c.ownerKey}
+	result := &ManyCollection[T, L]{querySet: set.Fresh(), target: c.target, through: c.through, state: c.state, backend: c.backend, session: c.session, ownerKey: c.ownerKey}
 	result._self = result
 	return result, nil
 }
@@ -212,4 +245,41 @@ func (c *ManyCollection[T, L]) invalidate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.querySet = c.querySet.Fresh()
+}
+
+// Invalidate discards only this handle's evaluation cache. It performs no I/O;
+// held QuerySets and independent materializations keep their own snapshots.
+func (c *ManyCollection[T, L]) Invalidate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	c.invalidate()
+	return nil
+}
+
+// ManyCollectionCache belongs to one generated owner materialization. Binding
+// is serialized and does no I/O; failed binding leaves the cell empty.
+type ManyCollectionCache[T, L any] struct {
+	mu    sync.Mutex
+	value *ManyCollection[T, L]
+}
+
+func (c *ManyCollectionCache[T, L]) Get(bind func() (*ManyCollection[T, L], error)) (*ManyCollection[T, L], error) {
+	if c == nil || bind == nil {
+		return nil, relationInvalidPlan("collection cache or binder is nil")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.value != nil {
+		return c.value, nil
+	}
+	value, err := bind()
+	if err != nil {
+		return nil, err
+	}
+	if err := value.validate(); err != nil {
+		return nil, err
+	}
+	c.value = value
+	return value, nil
 }

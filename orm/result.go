@@ -379,7 +379,7 @@ func SelectInto[M, R any](ctx context.Context, source QuerySet[M], projection Pr
 	if err != nil {
 		return nil, err
 	}
-	return values, nil
+	return sessionReadResult(ctx, source.backend, values, nil)
 }
 
 func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate Aggregate[M, R]) (R, error) {
@@ -428,7 +428,7 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	if err != nil {
 		return zero, err
 	}
-	return decoder.decode(), nil
+	return sessionReadResult(ctx, source.backend, decoder.decode(), nil)
 }
 
 func scalarResult[M, V any](field ScalarField[M, V]) (query.ResultExpression, func() scalarCell[V], error) {

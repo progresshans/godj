@@ -14,12 +14,20 @@ import (
 var _ db.CoordinatedAtomic = (*Backend)(nil)
 var _ db.CoordinatedRelationAtomic = (*Backend)(nil)
 var _ db.Session = (*coordinatedSession)(nil)
+var _ db.SessionValidator = (*coordinatedSession)(nil)
 
 // coordinatedSession exposes ordinary writes and the conflict-insert
 // capability. The wrapped raw session's bulk relation mutations belong to the
 // separate coordinated-relation callback contract.
 type coordinatedSession struct {
 	session *relationSession
+}
+
+func (session *coordinatedSession) ValidateSession(ctx context.Context) error {
+	if session == nil || session.session == nil {
+		return inactiveCoordinatedSessionError()
+	}
+	return session.session.ValidateSession(ctx)
 }
 
 func (session *coordinatedSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {

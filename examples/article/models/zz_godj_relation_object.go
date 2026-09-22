@@ -20,4 +20,4 @@ func (ArticleDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorag
 	return nil, false
 }
 
-var _ GoDjProjectSnapshot_a341d83330594486355033c5d67c12cebd2210c2965983488139a4776a3d9fad
+var _ GoDjProjectSnapshot_aee132f0dcc0191b983fdcf1e48e6c3dd902b80682ba832c17461b45941347e3

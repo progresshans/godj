@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"
-const GoDjProjectRelationFacadeInputSHA256 = "7c021a0044b1cf2fb38a739994c01c2effef7dfcc606bcd2e1e9677aa6c6395e"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v11"
+const GoDjProjectRelationFacadeInputSHA256 = "b64bf0ee4d26308d4ef7b76c4755e408a22bf78d4b3e1e5af7d35b22aa3103b9"
 
 type Backend interface {
 	db.Queryer
@@ -21,9 +21,10 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend Backend
-	objects Objects
-	_self   *relationFacadeState
+	backend      Backend
+	objects      Objects
+	sessionScope db.SessionValidator
+	_self        *relationFacadeState
 }
 
 func (_state *relationFacadeState) validate() error {
@@ -32,6 +33,9 @@ func (_state *relationFacadeState) validate() error {
 	}
 	if relationFacadeNil(_state.backend) {
 		return relationFacadeBackendInvalid("backend is nil")
+	}
+	if _state.sessionScope != nil {
+		return _state.sessionScope.ValidateSession(context.Background())
 	}
 	return nil
 }
@@ -11250,7 +11254,11 @@ type Models struct {
 	ParentsRootLabels    ParentsRootLabelsQuery
 }
 
-func Using(_backend Backend) (Models, error) {
+func Using(_backend Backend) (Models, error) { return usingModels(_backend, false) }
+
+// UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
+func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
+func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	_objects, _err := BindObjects()
 	if _err != nil {
 		return Models{}, _err
@@ -11258,7 +11266,16 @@ func Using(_backend Backend) (Models, error) {
 	if relationFacadeNil(_backend) {
 		return Models{}, relationFacadeBackendInvalid("backend is nil")
 	}
-	_state := &relationFacadeState{backend: _backend, objects: _objects}
+	_scope, _scoped := _backend.(db.SessionValidator)
+	if _borrowed != _scoped {
+		return Models{}, relationFacadeBackendInvalid("root and borrowed backend must use their matching constructor and session lifetime capability")
+	}
+	if _scoped {
+		if _err := _scope.ValidateSession(context.Background()); _err != nil {
+			return Models{}, _err
+		}
+	}
+	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
 	_state._self = _state
 	return Models{
 		DetailsChild:         newDetailsChildQuery(_state, details.ChildObjects.Using(_backend)),
@@ -11280,4 +11297,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_40839e7b6ae834205f54171f9ac5b237d0fd0a01cf42bf20937132595a36a701
+var _ goDjProjectSnapshot_b948878f104b9196daec6d72046677e7e599ac381e9033e1fc3ca554be4e29c0

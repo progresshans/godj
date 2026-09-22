@@ -211,7 +211,7 @@ func (qs QuerySet[M]) All(ctx context.Context) ([]M, error) {
 	if err != nil {
 		return nil, err
 	}
-	return qs.cloneModels(values), nil
+	return sessionReadResult(ctx, qs.backend, qs.cloneModels(values), nil)
 }
 
 // Count returns the number of rows represented by the plan. A warm full
@@ -222,7 +222,7 @@ func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	if values, ok := qs.evaluation.cachedValues(); ok {
-		return int64(len(values)), nil
+		return sessionReadResult(ctx, qs.backend, int64(len(values)), nil)
 	}
 	return AggregateInto(
 		ctx,
@@ -238,7 +238,7 @@ func (qs QuerySet[M]) Exists(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	if values, ok := qs.evaluation.cachedValues(); ok {
-		return len(values) != 0, nil
+		return sessionReadResult(ctx, qs.backend, len(values) != 0, nil)
 	}
 	plan := planWithMaximumRows(qs.plan, 1)
 	rows, err := openQueryRows(ctx, qs.backend, plan)
@@ -252,7 +252,7 @@ func (qs QuerySet[M]) Exists(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return exists, nil
+	return sessionReadResult(ctx, qs.backend, exists, nil)
 }
 
 // At returns the model at a zero-based index for an explicitly ordered plan.
@@ -280,9 +280,10 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	}
 	if values, ok := qs.evaluation.cachedValues(); ok {
 		if index >= len(values) {
-			return zero, false, nil
+			return zero, false, validateQuerySession(ctx, qs.backend)
 		}
-		return qs.descriptor.CloneModel(values[index]), true, nil
+		value, err := sessionReadResult(ctx, qs.backend, qs.descriptor.CloneModel(values[index]), nil)
+		return value, err == nil, err
 	}
 
 	plan, scanIndex := planForIndex(qs.plan, index)
@@ -311,7 +312,8 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	if err != nil {
 		return zero, false, err
 	}
-	return value, found, nil
+	value, err = sessionReadResult(ctx, qs.backend, value, nil)
+	return value, found && err == nil, err
 }
 
 func planForIndex(plan query.Plan, index int) (query.Plan, int) {
@@ -356,17 +358,25 @@ func (qs QuerySet[M]) Iterate(ctx context.Context, callback func(M) error) error
 	lifecycle := rowsLifecycle{rows: rows}
 	defer lifecycle.close()
 	for rows.Next() {
+		if err = validateQuerySession(ctx, qs.backend); err != nil {
+			break
+		}
 		value, scanErr := qs.descriptor.Scan(rows)
 		if scanErr != nil {
 			err = fmt.Errorf("scan model row: %w", scanErr)
 			break
 		}
-		if callbackErr := callback(qs.descriptor.CloneModel(value)); callbackErr != nil {
+		value = qs.descriptor.CloneModel(value)
+		if err = validateQuerySession(ctx, qs.backend); err != nil {
+			break
+		}
+		if callbackErr := callback(value); callbackErr != nil {
 			err = callbackErr
 			break
 		}
 	}
-	return lifecycle.finish(ctx, err)
+	_, err = sessionReadResult(ctx, qs.backend, struct{}{}, lifecycle.finish(ctx, err))
+	return err
 }
 
 func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
@@ -388,7 +398,7 @@ func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
 	if qs.evaluation == nil {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "evaluation state is nil"}
 	}
-	return nil
+	return validateQuerySession(ctx, qs.backend)
 }
 
 func (qs QuerySet[M]) scanAll(ctx context.Context) ([]M, error) {

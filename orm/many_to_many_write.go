@@ -106,6 +106,9 @@ func (c *ManyCollection[T, L]) change(ctx context.Context, operation manyChange,
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := validateQuerySession(ctx, c.backend); err != nil {
+		return err
+	}
 	if inputErr != nil {
 		return inputErr
 	}
@@ -124,6 +127,11 @@ func (c *ManyCollection[T, L]) change(ctx context.Context, operation manyChange,
 	keys = slices.Compact(keys)
 	if (operation == manyAdd || operation == manyRemove) && len(keys) == 0 {
 		return nil
+	}
+	if c.session != nil {
+		err := c.executeChange(ctx, c.session, operation, keys, input, clear)
+		_, err = sessionReadResult(ctx, c.session, struct{}{}, err)
+		return err
 	}
 	backend, ok := c.backend.(db.RelationAtomic)
 	if !ok || interfaceIsNil(backend) {

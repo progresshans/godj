@@ -21,7 +21,7 @@ cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 �
 - [x] 자동 intermediary의 historical Create/Add/Remove/Rename·역방향·자동 계획에서 endpoint·retained link ID·sequence·managed constraint ownership을 보존
 - [x] 명시한 unique tuple에 대한 native conflict insert와 명확한 삽입 여부를 제공하고 동시 중복·다른 제약·오류·transaction 경계를 검증
 - [x] 공통 runtime·generated forward/reverse root manager의 add/remove/clear/set, retained payload·self symmetry·취소·unknown outcome·cache 소유권을 연결
-- [ ] 통합 model facade와 빌린/coordinated transaction session의 명시적 collection composition을 연결
+- [x] 통합 model facade와 빌린/coordinated transaction session의 명시적 collection composition을 연결
 - [ ] 같은 Query AST에서 관계 조회의 multiplicity·명시적 distinct·prefetch를 연결
 - [ ] Ticket 컬렉션 Form/Admin/API/OpenAPI·client에서 권한·CSRF·양쪽 Category·전체 후보·동시성·실패·durability를 확인
 - [ ] 영향 compile/gofmt/drift·양 DB/race/CGO/process와 명시한 Hosted 통합 milestone의 source·환경·범위를 기록
@@ -44,7 +44,9 @@ cross-app 모델의 기존 행을 보존하며, 최초 생성은 모델·선택�
 공통 root collection runtime과 generated BindCollections의 forward/reverse add/remove/clear/set를 연결했다.
 Columnless 관계를 같은 AST의 physical join으로 읽고 explicit duplicate·Distinct와 nullable through를 처리한다.
 Generated through Create input, native pair conflict, incoming delete graph의 전체 root 수집과 cache 무효화를 사용한다.
-다음은 통합 model facade·빌린/coordinated transaction composition, 일반 관계 조건·prefetch와 Ticket 컬렉션 소비자다.
+Generated model의 forward/reverse collection 접근자와 명시적 UsingSession/InSession을 연결했다.
+Native session의 lifetime 검사를 공통 QuerySet·eager·projection/aggregate와 model/view에 적용하고 outer commit 소유권을 유지한다.
+다음은 일반 관계 조건·prefetch와 Ticket 컬렉션 소비자다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

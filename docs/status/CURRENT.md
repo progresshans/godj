@@ -25,10 +25,14 @@ Root collection runtime과 generated `BindCollections()`의 forward/reverse add/
 Retained ID·payload, nullable/nonunique through·self symmetry, incoming 정책·오류/취소·cache 소유권을 함께 처리한다.
 독립 Django 관찰은 nullable duplicate와 incoming link 정책을 포함한 31개로 확장했다. 실행 source와 환경은 TEST_EVIDENCE를 따른다.
 
+Generated model의 collection 접근자와 UsingSession/InSession을 연결했다.
+빌린 session에서는 새 transaction을 시작하지 않고, callback 종료 뒤에는 warm/empty/eager cache와 model/view도 동작을 거부한다.
+영향 normal/race/CGO=0과 generated drift를 확인했으며, 마지막 iterator publication 보완은 최종 source에서 따로 검증했다.
+구현과 실행 source·환경의 증거는 TEST_EVIDENCE를 따른다.
+
 ## 다음 행동
 
-통합 model facade와 빌린/coordinated transaction session의 명시적 collection composition을 연결한다.
-그다음 같은 Query AST의 일반 컬렉션 관계 조건·prefetch와 Ticket 라벨 컬렉션 편집으로 이어간다.
+같은 Query AST의 일반 컬렉션 관계 조건·prefetch와 Ticket 라벨 컬렉션 편집으로 이어간다.
 Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
 명시적 연결 모델의 CRUD나 root manager만으로 전체 ManyToMany 소비자를 완료한 것으로 세지 않는다.
 

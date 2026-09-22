@@ -10,9 +10,9 @@ import (
 )
 
 type projectManyToMany struct {
-	owner, target, through     *projectRelationModel
-	name, surface, fingerprint string
-	reverse                    bool
+	owner, target, through               *projectRelationModel
+	name, selector, surface, fingerprint string
+	reverse                              bool
 }
 
 func buildProjectManyToMany(plan *relationProjectPlan) ([]projectManyToMany, int, error) {
@@ -23,6 +23,9 @@ func buildProjectManyToMany(plan *relationProjectPlan) ([]projectManyToMany, int
 	bindings, err := ir.ResolveManyToMany(schemas...)
 	if err != nil {
 		return nil, 0, err
+	}
+	if len(bindings) == 0 {
+		return nil, 0, nil
 	}
 	deletes, err := plan.deleteSurface()
 	if err != nil {
@@ -55,13 +58,13 @@ func buildProjectManyToMany(plan *relationProjectPlan) ([]projectManyToMany, int
 		if selector == "" {
 			return nil, 0, fmt.Errorf("collection declaration is missing from its owner")
 		}
-		result = append(result, projectManyToMany{owner: owner, target: target, through: through, name: binding.Field, surface: owner.app.prefix + owner.model.GoName + selector, fingerprint: fingerprint})
+		result = append(result, projectManyToMany{owner: owner, target: target, through: through, name: binding.Field, selector: selector, surface: owner.app.prefix + owner.model.GoName + selector, fingerprint: fingerprint})
 		if !binding.Reverse.Disabled {
 			selector, err := relationReverseSelector(binding.Reverse.Name)
 			if err != nil {
 				return nil, 0, err
 			}
-			result = append(result, projectManyToMany{owner: target, target: owner, through: through, name: binding.Reverse.Name, surface: target.app.prefix + target.model.GoName + selector, fingerprint: fingerprint, reverse: true})
+			result = append(result, projectManyToMany{owner: target, target: owner, through: through, name: binding.Reverse.Name, selector: selector, surface: target.app.prefix + target.model.GoName + selector, fingerprint: fingerprint, reverse: true})
 		}
 	}
 	return result, len(bindings), nil

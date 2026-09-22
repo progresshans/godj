@@ -79,7 +79,7 @@ DB가 허용하는 동시 duplicate를 숨은 constraint나 retry로 바꾸지 �
 
 빌린 transaction session 안에서 성공한 insert는 provisional이다. 현재 root manager는 callback 횟수·동기 완료·원인 오류 보존을
 확인하고 확인된 outer commit 이후에만 성공을 반환한다. Commit/rollback uncertainty를 그대로 전달하며 자동 재시도하지 않는다.
-확인된 commit 뒤 늦은 context 취소로 결과를 실패로 바꾸지 않는다. 외부 transaction과의 명시적 composition은 후속 구현 범위다.
+확인된 commit 뒤 늦은 context 취소로 결과를 실패로 바꾸지 않는다. 외부 transaction과의 명시적 composition은 아래의 session binding을 따른다.
 
 `Query()`는 동일 Query AST의 physical reverse join으로 target을 읽는다. 선택한 nullable FK의 metadata도 유지하며,
 명시적 through의 duplicate는 `Distinct()` 요청 전까지 보존한다. 일반 ManyToMany traversal predicate와 prefetch는 후속 범위다.
@@ -88,7 +88,33 @@ Collection handle의 query cache는 mutex 아래 교체한다. Mutation 시작�
 독립 snapshot을 소유하며 pointer handle의 zero/value-copy는 오류다.
 
 독립 Django 관찰은 nullable/nonunique through의 set/remove/clear/reverse clear와 연결 행의 incoming 정책까지 확장했다.
-제품의 통합 facade·외부 transaction composition·prefetch·Ticket 소비자·signal 완료를 이 root manager 구현과 합치지 않는다.
+통합 facade/session composition과 prefetch·Ticket 소비자·signal 완료를 구분한다.
+
+## Model facade와 빌린 session
+
+Generated model의 forward/reverse collection 접근자는 typed view를 반환한다. 같은 owner materialization의 접근자는
+공통 `ManyCollectionCache`를 통해 한 raw manager와 평가 cache를 공유한다. Query 결과와 파생 model은 독립 cell을 가지며,
+`Fresh`는 별도 manager를 반환한다. View가 보관한 owner의 PK fence·pointer identity·facade origin도 매번 확인한다.
+Typed target은 같은 origin의 model만 허용하며 다른 model 타입은 Go 컴파일에서 거부한다. 명시적 key 입력 경로는 별도로 유지한다.
+컬렉션을 만들기 전에 owner가 저장돼 있어야 한다. Through payload/defaults는 동일한 generated Create input을 사용한다.
+
+Root `Using(backend)`와 `UsingSession(session)`은 transaction 소유권이 다르다. 빌린 session을 root constructor로 넘기거나
+root backend를 session constructor에 넘기면 거부한다. `ManyToMany.InSession(session, owner)`도 같은 명시적 경계를 가진다.
+빌린 manager는 전달된 relation session에서 기존 집합 변경 알고리즘을 직접 실행한다. BEGIN/COMMIT/ROLLBACK·재시도나
+새로운 fence 획득을 하지 않는다. 이 경우 nil error는 provisional이다. Caller는 오류를 바깥 callback으로 전파하고,
+확인된 outer commit 이후에만 결과를 게시해야 한다. Savepoint 또는 자체 부분 rollback으로 가장하지 않는다.
+`CoordinatedAtomicRelation`의 session을 사용하면 그 기존 fence에 참여하며 일반 transaction으로 대체하지 않는다.
+
+`db.SessionValidator.ValidateSession(ctx)`는 native session이 이미 소유한 active/lifetime/context 검사를 SQL 없이 노출한다.
+SQLite ordinary/relation/coordinated와 PostgreSQL의 모든 transaction session이 이 capability를 구현한다. Root backend의
+capability가 아니며, 빌린 collection/model binding은 없으면 명시적으로 거부한다. 임의 wrapper는 이 capability도 전달해야 한다.
+
+일반 QuerySet과 eager/select query는 terminal 진입과 결과 publication에서 이 수명을 검사한다. Warm All/Count/Exists/At/First,
+빈 결과, 사용자 clone·projection/aggregate decoder도 우회 경로가 되지 않는다. Generated session model/view 역시 유효한
+수명 안에서만 동작한다. 원래 root query의 snapshot/cache 의미는 그대로 유지한다.
+이는 이미 반환한 raw Go 값의 관찰을 막거나 rollback 때 사용자 메모리를 되돌린다는 뜻이 아니다. 그런 값 역시 provisional이며
+commit 확인과 외부 publication은 outer owner의 책임이다. 독립 root materialization의 cache를 session 변경으로 전역 갱신하지 않는다.
+Root cache를 새로 읽어야 하면 Fresh 또는 명시적 Invalidate를 사용한다.
 
 ## Historical 선언 변경
 
@@ -126,7 +152,7 @@ Remove는 소유 link table만 삭제하고 두 endpoint의 행을 보존한다.
 
 ## 후속 구현 경계
 
-Root collection manager와 통합 facade·transaction composition·전체 query/consumer 지원은 다른 단계다.
+Root collection manager·통합 facade·session composition과 전체 query/consumer 지원은 다른 단계다.
 실패 시 collection cache 무효화와 성공 publication은 위의 소유권을 따른다.
 독립 materialization·평가한 QuerySet·Fresh의 소유권을 공유 cache로 합치지 않는다. Signal callback은 이후 rollback되는 변경도
 관찰할 수 있으므로 durable commit 영수증으로 취급하지 않는다. 미구현 signal 범위는 카탈로그에 남긴다.

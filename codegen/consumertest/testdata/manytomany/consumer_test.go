@@ -49,12 +49,14 @@ func check(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
-func TestCollections(t *testing.T) {
+func TestCollections(t *testing.T) { withCollectionBackends(t, runCollections) }
+
+func withCollectionBackends(t *testing.T, run func(*testing.T, collectionBackend, func() (collectionBackend, error), func(string) error, bool)) {
 	t.Run("sqlite", func(t *testing.T) {
 		dsn := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "collections.sqlite3")) + "?mode=rwc&_pragma=busy_timeout(10000)"
 		first, err := sqlite.Open(t.Context(), dsn)
 		check(t, err)
-		runCollections(t, first, func() (collectionBackend, error) { return sqlite.Open(t.Context(), dsn) }, func(s string) error { _, err := first.ExecContext(t.Context(), s); return err }, false)
+		run(t, first, func() (collectionBackend, error) { return sqlite.Open(t.Context(), dsn) }, func(s string) error { _, err := first.ExecContext(t.Context(), s); return err }, false)
 	})
 	url := strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL"))
 	if url == "" {
@@ -88,7 +90,7 @@ func TestCollections(t *testing.T) {
 		}
 		first, err := open()
 		check(t, err)
-		runCollections(t, first, open, func(s string) error { _, err := connection.Exec(t.Context(), s); return err }, true)
+		run(t, first, open, func(s string) error { _, err := connection.Exec(t.Context(), s); return err }, true)
 	})
 }
 

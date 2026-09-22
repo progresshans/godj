@@ -602,7 +602,7 @@ func runAssignmentRollback(t *testing.T, backend ProductBackend, models project.
 	}
 	var attempted *project.ReportsReport
 	err = backend.Atomic(ctx, func(session db.Session) error {
-		bound, e := project.Using(session)
+		bound, e := project.UsingSession(session)
 		if e != nil {
 			return e
 		}

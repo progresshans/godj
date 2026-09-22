@@ -65,7 +65,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v11"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type authorsAuthorModel = authors.Author"),
@@ -140,6 +140,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		"SelectAuthorsAuthorInto",
 		"SelectBlogPostInto",
 		"Using",
+		"UsingSession",
 	}
 	if got := projectRelationFacadeExportedDeclarations(t, first); !slices.Equal(got, wantExported) {
 		t.Fatalf("project relation facade exported declarations = %v, want %v", got, wantExported)

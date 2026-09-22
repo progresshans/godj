@@ -3,6 +3,56 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — model collection facade와 빌린 session composition
+
+2026-09-22, `5e949e470ecfa8f60aa949fcb1c844a30d843640` 위에서 generated model의 forward/reverse collection 접근자와
+`UsingSession`/`InSession`을 연결했다. Root와 빌린 session constructor를 구분하며 후자는 기존 transaction/fence 안에서
+작업한다. 일반 관계 조건/prefetch·Ticket 컬렉션 소비자·GDJ-0099 Hosted 통합은 남아 있다.
+
+최종 non-Markdown source **2,101파일**의 정렬 path→SHA256 map hash는
+`06f9fe134f9b6cd783bafa4287226a5aec2c99a2476137bcb8a0a07a015816f9`다. 실행 source와 범위를 다음처럼 구분한다.
+
+- 넓은 영향 source map `d1403883bceb056bcb041778498a49c9e9c9c964ec4e933692a7213dff77958c`에서
+  `./orm ./query ./codegen ./codegen/consumertest ./db/internal/queryplan ./db/sqlite ./db/postgres`를 실행했다.
+  Normal·race·CGO=0 각각 **7,012 run=PASS, skip 0**, 7개 package 완료와 12개 필수 root를 확인했다.
+  세 mode 모두 실행 전후 source가 동일하다(159.6초/500.9초/160.0초).
+- 그 뒤 iterator가 Scan/Clone 중 끝난 session의 행을 callback에 전달하는 경로를 발견했다.
+  별도 artifact의 test overlay로 실제 callback 1회 호출을 확인한 실패 로그를 보존하고, 복제 후 callback 직전에 수명을 다시 검사했다.
+  최종 source에서 ORM 전체와 `./codegen/consumertest -run '^TestGenerated(ManyToMany|CollectionFacade)'`를 실행했다.
+  Normal·race·CGO=0 각각 **601 run=PASS, skip 0**, 7개 필수 root와 실행 전후 위 최종 hash의 일치를 확인했다(16.3초/38.3초/16.9초).
+  넓은 실행 이후 차이는 `orm/manager.go`, `orm/session_test.go`, CI 필수 목록 한 파일뿐이며 `final-delta.json`에 보관한다.
+
+공통 환경은 Go **1.26.5**, Darwin arm64, modernc SQLite, 격리 PostgreSQL **17.5 Homebrew**다.
+DB 실행은 `GODJ_REQUIRE_POSTGRES=1`이며 각 mode의 전용 database를 사용한다. 모든 실행의 종료 시 connection·사용자 table·
+추가 schema가 0개임을 확인하고 해당 database를 제거했다. 독립 helper 전용 entrypoint 두 개는 parent 목록에서 제외하고
+이를 실제 subprocess로 호출하는 DB/process 회귀는 포함했다. 필수 실행 누락과 test skip을 허용하지 않는다.
+
+별도 generated module의 양 DB **55개 child run=PASS**를 넓은/최종 각 mode에서 부모가 전체 JSON event로 검사한다.
+Native ordinary/coordinated relation session 각각의 commit/rollback에서 scalar 저장과 여러 collection 변경을 조합했다.
+같은 transaction의 provisional 읽기, outer rollback의 전체 복원, outer commit의 durable 저장과 root cache 독립성을 확인한다.
+Nested Atomic을 호출하면 실패하는 session wrapper를 사용하며, 종료된 session의 model/view/Fresh/no-op과
+warm/empty/eager QuerySet의 All/Count/Exists/At/First/Iterate가 새 SQL 없이 거부되는지 검사한다.
+Projection/aggregate decoder·clone·streaming callback 경계의 수명 종료와 원인 오류 보존은 ORM 회귀가 소유한다.
+
+같은 owner 접근자의 cache 공유·동시 getter·다른 materialization/Fresh의 독립 cache, typed target의 origin·PK fence·복사 거부,
+미저장 owner의 저장 후 binding·reverse 변경·실패 입력의 cache 무효화를 실제 generated API로 확인했다.
+Collection 이름과 기존 method/promoted field의 충돌은 생성물 없이 실패하고, 다른 모델의 typed target은 실제 Go compiler가 거부한다.
+
+Artifact 안의 별도 SQLite generated module에서 원본을 통과시킨 뒤 runtime overlay로 session 수명 검사·빌린 직접 실행·cache 공유를
+각각 제거했다. 대응 회귀가 모두 실제 실패하며, workspace 제품 파일은 변경하지 않았다. 이는 Go의 session/cache 소유권에 대한
+negative control이다. 이전 source의 고정 Django 양 DB 31개 관찰은 별도 reference 증거이며 이번 Go-native 검증으로 대체하지 않는다.
+
+처음 넓은 normal 실행은 기존 OneToOne helper가 빌린 session에 `Using`을 호출해 실패했다. 그 실행은 PASS로 세지 않고 보존했다.
+해당 한 곳을 `UsingSession`으로 바꿨으며 기존 제약 실패/rollback assertions를 유지한 뒤 위 넓은 세 mode를 통과했다.
+다섯 project의 실제 CLI generated drift, 영향 vet, 최종 ORM/OneToOne helper vet, CI Python **41 PASS**, gofmt·문서/diff를 확인했다.
+Facade ABI는 v11이며 생성된 Go와 manifest·golden을 실제 generator로 갱신했다.
+
+실행 command·source·전체 event·필수 inventory·stderr·receipt와 원본 실패/negative control은
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/composition/`의
+`latest-*-path`, `final-source.json`, `final-delta.json`, `final-supplementary.json`을 따른다.
+로컬 영향 검증이며 Hosted 전체 결과가 아니다. 최근 Hosted 전체는 여전히 source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739)이다.
+
 ## GDJ-0099 — root collection manager와 transaction/cache 소유권
 
 2026-09-22, `1c20e5d21a103f9ab6809b50ab9432e22f6503fd` 위에서 공통 runtime·generated `BindCollections()`의

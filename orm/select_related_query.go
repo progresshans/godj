@@ -236,7 +236,7 @@ func (q RelatedSelectQuery[S]) validateTerminal(ctx context.Context) error {
 			return relationInvalidPlan("selected projection route changed")
 		}
 	}
-	return nil
+	return validateQuerySession(ctx, q.backend)
 }
 
 func (q RelatedSelectQuery[S]) All(ctx context.Context) ([]*RelatedSelected[S], error) {
@@ -260,7 +260,7 @@ func (q RelatedSelectQuery[S]) All(ctx context.Context) ([]*RelatedSelected[S], 
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return sessionReadResult(ctx, q.backend, result, nil)
 }
 func (q RelatedSelectQuery[S]) First(ctx context.Context) (*RelatedSelected[S], bool, error) {
 	if err := q.validateTerminal(ctx); err != nil {
@@ -278,13 +278,15 @@ func (q RelatedSelectQuery[S]) First(ctx context.Context) (*RelatedSelected[S], 
 		}
 	}
 	if len(values) == 0 {
-		return nil, false, ctx.Err()
+		_, err := sessionReadResult(ctx, q.backend, struct{}{}, ctx.Err())
+		return nil, false, err
 	}
 	result := q.cloneSelection(values[0])
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
-	return result, true, nil
+	result, err := sessionReadResult(ctx, q.backend, result, nil)
+	return result, err == nil, err
 }
 func (q RelatedSelectQuery[S]) Count(ctx context.Context) (int64, error) {
 	if err := q.validateTerminal(ctx); err != nil {
@@ -294,7 +296,7 @@ func (q RelatedSelectQuery[S]) Count(ctx context.Context) (int64, error) {
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
-		return int64(len(values)), nil
+		return sessionReadResult(ctx, q.backend, int64(len(values)), nil)
 	}
 	return newQuerySet[S](q.backend, q.sourceDescriptor, q.plan.WithoutRelationProjections()).Count(ctx)
 }

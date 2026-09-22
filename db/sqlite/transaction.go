@@ -14,12 +14,17 @@ import (
 
 var _ db.Atomic = (*Backend)(nil)
 var _ db.Session = (*transactionSession)(nil)
+var _ db.SessionValidator = (*transactionSession)(nil)
 
 type transactionSession struct {
 	transaction *sql.Tx
 	backend     *Backend
 	lifetime    context.Context
 	active      atomic.Bool
+}
+
+func (session *transactionSession) ValidateSession(ctx context.Context) error {
+	return session.validate(ctx)
 }
 
 // Atomic rolls back on callback errors and context cancellation observed

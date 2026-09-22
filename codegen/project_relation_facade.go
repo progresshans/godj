@@ -11,16 +11,17 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v11"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
 type projectRelationFacadeModel struct {
-	model     *projectRelationModel
-	source    *projectRelationObjectSource
-	surface   string
-	rawAlias  string
-	queryType string
+	model       *projectRelationModel
+	source      *projectRelationObjectSource
+	surface     string
+	rawAlias    string
+	queryType   string
+	collections []projectManyToMany
 }
 
 // GenerateProjectRelationFacade renders the application-facing project facade
@@ -48,7 +49,11 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	if err != nil {
 		return nil, err
 	}
-	facadeModels := buildProjectRelationFacadeSurface(models, sources)
+	collections, _, err := buildProjectManyToMany(plan)
+	if err != nil {
+		return nil, err
+	}
+	facadeModels := buildProjectRelationFacadeSurface(models, sources, collections)
 	if err := validateProjectRelationFacadeFields(facadeModels); err != nil {
 		return nil, err
 	}
@@ -59,9 +64,7 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	fmt.Fprintln(&output)
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, "import (")
-	if len(facadeModels) > 0 {
-		fmt.Fprintln(&output, "\tcontext \"context\"")
-	}
+	fmt.Fprintln(&output, "\tcontext \"context\"")
 	fmt.Fprintln(&output, "\treflect \"reflect\"")
 	for _, app := range canonical {
 		fmt.Fprintf(&output, "\t%s %s\n", app.alias, strconv.Quote(app.importPath))
@@ -80,11 +83,11 @@ func generateProjectRelationFacade(packageName string, plan *relationProjectPlan
 	)
 	fmt.Fprintf(&output, "const GoDjProjectRelationFacadeInputSHA256 = %s\n\n", strconv.Quote(inputHash))
 
-	renderProjectRelationFacadeFoundation(&output, len(facadeModels) > 0, projectRelationFacadeHasRelationSources(facadeModels))
+	renderProjectRelationFacadeFoundation(&output, len(facadeModels) > 0, projectRelationFacadeHasRelationSources(facadeModels), len(collections) > 0)
 	for index := range facadeModels {
 		renderProjectRelationFacadeModel(&output, facadeModels[index])
 	}
-	renderProjectRelationFacadeAggregate(&output, facadeModels)
+	renderProjectRelationFacadeAggregate(&output, facadeModels, len(collections) > 0)
 
 	return output.Bytes(), nil
 }
@@ -108,6 +111,9 @@ func validateProjectRelationFacadeFields(models []projectRelationFacadeModel) er
 					methods["Clear"+relation.selector] = true
 				}
 			}
+		}
+		for _, collection := range model.collections {
+			methods[collection.selector] = true
 		}
 		for _, field := range model.model.model.Fields {
 			if methods[field.GoName] {
@@ -138,6 +144,7 @@ func validateProjectRelationFacadeImports(apps []normalizedRelationPackage) erro
 func buildProjectRelationFacadeSurface(
 	models []*projectRelationModel,
 	sources []projectRelationObjectSource,
+	collections []projectManyToMany,
 ) []projectRelationFacadeModel {
 	sourceByIdentity := make(map[ir.ModelIdentity]*projectRelationObjectSource, len(sources))
 	for index := range sources {
@@ -146,12 +153,19 @@ func buildProjectRelationFacadeSurface(
 	result := make([]projectRelationFacadeModel, len(models))
 	for index, model := range models {
 		surface := model.app.prefix + model.model.GoName
+		var owned []projectManyToMany
+		for _, collection := range collections {
+			if collection.owner == model {
+				owned = append(owned, collection)
+			}
+		}
 		result[index] = projectRelationFacadeModel{
-			model:     model,
-			source:    sourceByIdentity[model.identity],
-			surface:   surface,
-			rawAlias:  lowerFirst(surface) + "Model",
-			queryType: surface + "Query",
+			model:       model,
+			source:      sourceByIdentity[model.identity],
+			surface:     surface,
+			rawAlias:    lowerFirst(surface) + "Model",
+			queryType:   surface + "Query",
+			collections: owned,
 		}
 	}
 	return result
@@ -190,7 +204,7 @@ func projectRelationFacadeHasRelationSources(models []projectRelationFacadeModel
 	return false
 }
 
-func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasRelationSources bool) {
+func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasRelationSources, hasCollections bool) {
 	fmt.Fprintln(output, "type Backend interface {")
 	fmt.Fprintln(output, "\tdb.Queryer")
 	fmt.Fprintln(output, "\tdb.Mutator")
@@ -199,6 +213,10 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 	fmt.Fprintln(output, "type relationFacadeState struct {")
 	fmt.Fprintln(output, "\tbackend Backend")
 	fmt.Fprintln(output, "\tobjects Objects")
+	fmt.Fprintln(output, "\tsessionScope db.SessionValidator")
+	if hasCollections {
+		fmt.Fprintln(output, "\tcollections Collections")
+	}
 	fmt.Fprintln(output, "\t_self   *relationFacadeState")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -209,6 +227,7 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 	fmt.Fprintln(output, "\tif relationFacadeNil(_state.backend) {")
 	fmt.Fprintln(output, "\t\treturn relationFacadeBackendInvalid(\"backend is nil\")")
 	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\tif _state.sessionScope != nil { return _state.sessionScope.ValidateSession(context.Background()) }")
 	fmt.Fprintln(output, "\treturn nil")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -283,6 +302,7 @@ func (_selector relationFacadeSelection[S,T]) WithChildren(_children ...relation
 func renderProjectRelationFacadeModel(output *bytes.Buffer, model projectRelationFacadeModel) {
 	renderProjectRelationFacadeQuery(output, model)
 	renderProjectRelationFacadeWrapper(output, model)
+	renderProjectFacadeCollections(output, model)
 	if model.source != nil {
 		renderProjectRelationFacadeSelector(output, model)
 		renderProjectRelationFacadeEager(output, model)
@@ -459,6 +479,9 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintf(output, "\t%sScalarPresent bool\n", name)
 		}
 	}
+	for index, collection := range model.collections {
+		fmt.Fprintf(output, "\t_manyCollection%d *orm.ManyCollectionCache[%s.%s,%s.%s]\n", index, collection.target.app.alias, collection.target.model.GoName, collection.through.app.alias, collection.through.model.GoName)
+	}
 	fmt.Fprintf(output, "\t_self *%s\n", model.surface)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
@@ -557,6 +580,9 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn _err")
 	fmt.Fprintln(output, "\t}")
+	for index, collection := range model.collections {
+		fmt.Fprintf(output, "if _model._manyCollection%d == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent { _model._manyCollection%d = &orm.ManyCollectionCache[%s.%s,%s.%s]{} }\n", index, index, collection.target.app.alias, collection.target.model.GoName, collection.through.app.alias, collection.through.model.GoName)
+	}
 	fmt.Fprintln(output, "\t_model.primaryKeySnapshot = _key")
 	fmt.Fprintln(output, "\t_model.primaryKeySnapshotPresent = _present")
 	if model.source != nil {
@@ -794,6 +820,9 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 	for _, relation := range model.source.reverse {
 		name := lowerFirst(relation.selector)
 		fmt.Fprintf(output, "_result.%sCache,_err=_model.%sCache.Clone();if _err!=nil{return nil,_err}\n", name, name)
+	}
+	for index, collection := range model.collections {
+		fmt.Fprintf(output, "_result._manyCollection%d = &orm.ManyCollectionCache[%s.%s,%s.%s]{}\n", index, collection.target.app.alias, collection.target.model.GoName, collection.through.app.alias, collection.through.model.GoName)
 	}
 	fmt.Fprintln(output, "\t_result._self = _result")
 	fmt.Fprintln(output, "\treturn _result, nil")
@@ -1259,6 +1288,7 @@ func (_state *relationFacadeState) wrapSelected%[2]sObject(_ctx context.Context,
 func renderProjectRelationFacadeAggregate(
 	output *bytes.Buffer,
 	models []projectRelationFacadeModel,
+	hasCollections bool,
 ) {
 	fmt.Fprintln(output, "type Models struct {")
 	for _, model := range models {
@@ -1266,7 +1296,10 @@ func renderProjectRelationFacadeAggregate(
 	}
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
-	fmt.Fprintln(output, "func Using(_backend Backend) (Models, error) {")
+	fmt.Fprintln(output, "func Using(_backend Backend) (Models, error) { return usingModels(_backend, false) }")
+	fmt.Fprintln(output, "// UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.")
+	fmt.Fprintln(output, "func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }")
+	fmt.Fprintln(output, "func usingModels(_backend Backend, _borrowed bool) (Models, error) {")
 	fmt.Fprintln(output, "\t_objects, _err := BindObjects()")
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn Models{}, _err")
@@ -1274,7 +1307,13 @@ func renderProjectRelationFacadeAggregate(
 	fmt.Fprintln(output, "\tif relationFacadeNil(_backend) {")
 	fmt.Fprintln(output, "\t\treturn Models{}, relationFacadeBackendInvalid(\"backend is nil\")")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "\t_state := &relationFacadeState{backend: _backend, objects: _objects}")
+	fmt.Fprintln(output, "_scope, _scoped := _backend.(db.SessionValidator)")
+	fmt.Fprintln(output, "if _borrowed != _scoped { return Models{}, relationFacadeBackendInvalid(\"root and borrowed backend must use their matching constructor and session lifetime capability\") }")
+	fmt.Fprintln(output, "if _scoped { if _err := _scope.ValidateSession(context.Background()); _err != nil { return Models{}, _err } }")
+	fmt.Fprintln(output, "\t_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}")
+	if hasCollections {
+		fmt.Fprintln(output, "_collections, _err := BindCollections(); if _err != nil { return Models{}, _err }; _state.collections = _collections")
+	}
 	fmt.Fprintln(output, "\t_state._self = _state")
 	fmt.Fprintln(output, "\treturn Models{")
 	for _, model := range models {

@@ -444,6 +444,17 @@ type relationSession struct {
 	mutationPossible bool
 }
 
+var _ db.SessionValidator = (*relationSession)(nil)
+
+func (session *relationSession) ValidateSession(ctx context.Context) error {
+	if session == nil {
+		return inactiveRelationSessionError()
+	}
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	return session.validateLocked(ctx)
+}
+
 func (session *relationSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if session == nil {
 		return nil, inactiveRelationSessionError()
