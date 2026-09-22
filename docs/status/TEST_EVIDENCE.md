@@ -40,6 +40,12 @@ Artifact root는 `godj-composite-uniqueness-9yzkn6xp/labels/`이며 `latest-norm
 `latest-client-path`에 source·전체 events·필수 inventory·receipt·재생성 후보를 보관했다. `generated-drift.json`, `migration-drift.json`, `vet.*`가 추가 검사를 기록한다.
 이 결과는 명시한 영향 범위 로컬 검증이다. GDJ-0097 전체 통합·Hosted full은 아직 실행 결과를 확인해야 한다.
 
+통합 실행 전 CI의 PostgreSQL owner가 명시한 test 이름으로 `-run`을 구성함을 확인했다. 기존 목록에는 새 named 제약이 없으므로
+native/catalog 10개와 Label의 historical/HTTP 하위 검사 2개를 추가했다. 전체 SQLite/ORM package를 실행하는 relation owner에도
+named 제약·전체 candidate·실행 실패의 필수 항목 17개를 추가했다. 실제 `go test -list` 선택·owner 소속을 확인했고
+기존 CI Python 검사 **38 PASS**와 diff 검사를 통과했다. 제품 Go/JSON은 `474a835e5906c8f0fe3d1b1ef150241ce8dd8369`에서 바뀌지 않았다.
+이 목록 확인은 native 실행 PASS가 아니며 Hosted full에서 실제 실행·종료·no-skip을 확인해야 한다.
+
 ## GDJ-0097 — 복합 고유성의 전체 candidate ORM 검증
 
 2026-09-22, 기준 `7d769e429d8d4a9171c434877b41868a81b4264a` 위 Go 코드·검사 **10경로**의 source map SHA256은
