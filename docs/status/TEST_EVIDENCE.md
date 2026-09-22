@@ -3,6 +3,29 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0098 — CASCADE·TicketLabel Hosted 전체 통합 완료
+
+2026-09-22, source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의
+[Hosted full 35689549739](https://github.com/progresshans/godj/actions/runs/35689549739)은 최종 **62/62 success**, `full_platform_verified=true`다.
+고정 source의 workflow에서 기대한 전체 job 좌표를 별도로 계산하고 누락·중복 없이 각 실제 checkout SHA와 최종 full scope 집계를 확인했다.
+Portable Go·relation·project-check·command·conformance·exact Darwin·Python compatibility·PostgreSQL의 필수 owner가 모두 성공했다.
+
+첫 attempt의 Intel Mac normal project-check는 Go 설치 중 `github.com`/`go.dev` DNS 오류로 제품 테스트 전에 실패했다.
+성공한 60개 작업을 유지하고 실패한 작업과 dependent 집계만 같은 source로 한 번 재실행했다. 최신 API가 새 job ID를 부여한 60개 작업은
+실행 시작 시각과 로그 bytes가 이전 attempt와 같음을 대조했다. 재실행된 Intel job은 실제 product step과 clean worktree 검사까지 성공했다.
+최초 실패 로그·attempt metadata와 재실행 영수증을 보존하며 환경 실패를 제품 PASS로 바꾸지 않았다.
+
+PostgreSQL 17.10 core는 normal/race/CGO=0 **각 13 package / 2,322 run=PASS / skip 0**,
+operator-target은 **각 2 package / 12 run=PASS / skip 0**다. Intel Mac relation race는 **36 package / 5,502 run=PASS / skip 0**다.
+Exact Darwin/arm64 Python은 **324 PASS / skip 0**이며, Python 3.12.13·3.13.15·3.14.3·3.14.7 compatibility는 각 324개 발견 중
+exact-profile 전용 4개를 명시적으로 위임해 **320 실행 / 4 delegated skip**이다. 네 항목 모두 exact owner의 실제 `ok`를 확인했다.
+Project-check의 PostgreSQL runserver 1개 skip도 DB URL이 있는 위 PostgreSQL core owner의 필수 no-skip 실행에서 확인했다.
+Cold external CLI build는 선언된 Linux amd64 normal/full owner에서 성공했다. 비대상 좌표의 선택적 step을 추가 실행으로 세지 않는다.
+
+Artifact `godj-cascade-reference-rusrn8sm/ticket-labels/`의 `hosted-full-closeout-audit.json`, `hosted-retry-reuse-audit.json`,
+`hosted-35689549739/log-audit.json`, `hosted-35689549739/attempt-1/`에 전체 inventory·scope·checkout·위임 owner·로그와 실패 원본을 보관했다.
+이 결과로 GDJ-0098의 CASCADE와 명시적 TicketLabel 소비자를 완료한다. 이후 ManyToMany reference 준비나 제품 변경의 검증으로 옮기지 않는다.
+
 ## GDJ-0098 — TicketLabel 소비자와 복수 권한 경계
 
 2026-09-22, 기준 `86f0571b4d162c8f8523d1e1ba0ce2ce979dd419` 위 제품·생성물·검사·CI **63경로**(Go 58)를 변경했다.

@@ -1,6 +1,6 @@
 ---
 id: GDJ-0098
-status: active
+status: completed
 updated: 2026-09-22
 baseline_commit: "911740f8bc68469160dd6c2ebe7ca94104bdf536"
 integration_owner: "root"
@@ -28,7 +28,7 @@ GDJ-0097의 named 복합 고유성을 사용하고, 현재 한 단계 PROTECT/SE
 - [x] 공통 ORM에서 전체 도달 그래프를 고정하고 모든 보호 검사·SET_NULL·중복 없는 삭제를 한 coordinated transaction에서 처리
 - [x] Generated policy fingerprint가 transitive descendant 변경도 I/O 전에 거부하며 cache·caller publication·오류·취소·unknown outcome의 소유권을 유지
 - [x] TicketLabel 모델·migration·scoped Form/Admin/API/OpenAPI/독립 client를 연결하고 권한·CSRF·중복·다른 Category·기존 ServiceReport PROTECT를 검증
-- [ ] 필요한 generated drift·양 DB·관련 race/CGO/process와 소비자 통합을 실행하고 source·환경·미완료 범위를 기록
+- [x] 필요한 generated drift·양 DB·관련 race/CGO/process와 소비자 통합을 실행하고 source·환경·미완료 범위를 기록
 
 ## 현재와 다음
 
@@ -48,5 +48,7 @@ Schema/생성 metadata/project wire·strict history·자동 계획과 저장된 
 
 TicketLabel 모델·migration·scoped Form/Admin/API/OpenAPI/독립 client를 연결했다. 두 endpoint의 Category·view 권한, 조합 중복과 생략,
 CSRF·실패/unknown outcome을 검증했다. Label 삭제도 관계 삭제기를 사용하며 ServiceReport PROTECT는 링크 삭제보다 먼저 적용한다.
-영향 normal/race/CGO=0과 generated drift를 통과했다. 다음은 CASCADE 기반과 소비자를 합친 고정 source의 Hosted full 통합이다.
+영향 normal/race/CGO=0과 generated drift를 통과했다. CASCADE 기반과 소비자를 합친 source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의
+[Hosted full 통합](https://github.com/progresshans/godj/actions/runs/35689549739)이 62/62 success와 `full_platform_verified=true`로 완료됐다.
+현재 work의 CASCADE·명시적 연결 모델 소비자 범위를 완료했다. 다음은 일반 ManyToMany 선언과 관계 관리자를 통한 Ticket 라벨 편집이다.
 실행 상세와 source·환경별 한계는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

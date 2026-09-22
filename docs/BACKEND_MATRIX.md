@@ -21,8 +21,8 @@ CASCADE의 native 기반은 양 DB에서 FK를 `ON DELETE NO ACTION DEFERRABLE I
 SQLite의 retained FK/unique·행·sequence 보존과 required 순환 생성/삭제·deferred COMMIT 실패 후 정리를 영향 범위에서 검증했다.
 PROTECT/SET_NULL은 기존 즉시 검사 표현을 유지한다. 공통 ORM과 generated project deleter는 CASCADE의 전체 도달 그래프를 고정하고,
 모든 보호 검사 뒤 SET_NULL·중복 없는 exact-key 삭제를 실행한다. Transitive fingerprint는 후손의 변경도 I/O 전에 거부한다.
-TicketLabel의 migration·scoped 소비자와 양 DB CASCADE/PROTECT·실패 경로를 연결했다. 새 source의 Hosted 전체 통합 검증은
-[GDJ-0098](../work/0098-cascade-and-ticket-label-links.md)의 남은 범위다.
+TicketLabel의 migration·scoped 소비자와 양 DB CASCADE/PROTECT·실패 경로를 연결했다.
+[GDJ-0098](../work/0098-cascade-and-ticket-label-links.md)은 source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의 Hosted 전체 통합까지 완료했다.
 
 ## 현재 schema와 query 폭
 
