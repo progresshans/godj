@@ -18,7 +18,16 @@ Go 1.26.5/Darwin arm64에서 `go test -json -count=1 -timeout=10m ./internal/com
 실패했던 migration 하위 검사의 필수 실행, 전체 시작/종료 inventory와 source 불변을 확인했다.
 이 compile suite는 기존 `!race` 경계이며 race 실행으로 주장하지 않는다. 제품 Go/JSON과 CI 선택 목록은 바꾸지 않았다.
 Artifact는 `godj-composite-uniqueness-9yzkn6xp/labels/compile-boundary-fix/`에 source·전체 events·stderr·receipt를 보관한다.
-첫 Hosted 실패 로그도 같은 labels root의 `hosted-job-*.log`에 보존했다. 수정 source의 Hosted full은 다시 확인해야 한다.
+첫 Hosted 실패 로그도 같은 labels root의 `hosted-job-*.log`에 보존했다.
+
+수정 source `231260c5116bb7cfe157cab54ceb404e05c8ba43`의 [PR feedback](https://github.com/progresshans/godj/actions/runs/35678691111)은
+필수 Fast Go feedback까지 success다. [새 Hosted full run 35678713385](https://github.com/progresshans/godj/actions/runs/35678713385)을
+같은 source로 실행했다. 첫 run은 확인된 compile 실패를 고친 source의 새 실행으로 대체되어 전체 상태가 cancelled로 끝났다.
+첫 run의 실패·취소를 PASS로 합치지 않는다. 새 run의 PostgreSQL 17.10 core normal/race/CGO=0은 각각
+**13 package / 2,292 run=PASS / skip 0**이며 새 native 제약·Label을 포함한 필수 inventory 검사도 통과했다.
+실패했던 Linux relation normal/CGO=0도 새 source에서 통과했다. 전체 matrix와 마지막 scope gate는 아직 완료되지 않았다.
+완료한 job의 checkout SHA·전체 로그와 hash·실제 inventory를 `labels/hosted-35678713385/log-audit.json`에 모으고,
+해당 source workflow에서 계산한 기대 job 62개와 대조한다. 일부 job의 성공을 full_platform_verified로 기록하지 않는다.
 
 ## GDJ-0097 — Category Label의 모델부터 독립 client까지
 
