@@ -216,7 +216,7 @@ func sealProjectSnapshot(
 	appByDirectory := make(map[string]struct{}, len(input.apps))
 	for _, app := range input.apps {
 		appByDirectory[app.Package.Directory] = struct{}{}
-		for _, model := range app.schema.Models {
+		for _, model := range app.storage.Models {
 			if model.GoName == appMarker {
 				return fmt.Errorf("project snapshot marker %s conflicts with model %s.%s", appMarker, app.schema.AppLabel, model.Name)
 			}

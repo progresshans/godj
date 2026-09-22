@@ -307,6 +307,11 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 	if !afterExists {
 		return appChange{}, false, nil
 	}
+	for _, model := range after.Models {
+		if len(model.ManyToMany) != 0 {
+			return appChange{}, false, detectionError(CodeUnsupportedChange, app, model.Name, model.ManyToMany[0].Name, fmt.Errorf("ManyToMany storage migration is not implemented"))
+		}
+	}
 	if !beforeExists {
 		before = ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: app}
 	}

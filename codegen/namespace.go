@@ -9,6 +9,8 @@ import (
 	"go/token"
 	"path"
 	"strconv"
+
+	"github.com/progresshans/godj/schema/ir"
 )
 
 type appCompanion uint8
@@ -70,6 +72,13 @@ const (
 // prerequisite companions. The whole-project path renders the same raw files
 // directly and finalizes once, after attaching snapshot markers.
 func generateProjectCompanion(packageName string, plan *relationProjectPlan, through relationCompanion) ([]byte, error) {
+	schemas := make([]ir.Schema, len(plan.apps))
+	for index, app := range plan.apps {
+		schemas[index] = app.schema
+	}
+	if err := validateManyToManyProject(schemas); err != nil {
+		return nil, err
+	}
 	appThrough := appMetadata
 	if through >= companionObject {
 		appThrough = appObject

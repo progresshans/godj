@@ -151,6 +151,9 @@ func (s ProjectState) copyApps() ProjectState {
 }
 
 func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
+	if len(model.ManyToMany) != 0 {
+		return ir.Model{}, fmt.Errorf("ManyToMany storage migration is not implemented")
+	}
 	schema, err := ir.Normalize(ir.Schema{
 		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      app,

@@ -1118,6 +1118,9 @@ func compileSQLiteRelationCreateModel(
 	model ir.Model,
 	targets []migrationbackend.MigrationTarget,
 ) (string, error) {
+	if len(model.ManyToMany) != 0 {
+		return "", relationIntentUnsupported("ManyToMany storage migration is not implemented")
+	}
 	table, err := quoteIdentifier(model.DBTable)
 	if err != nil {
 		return "", fmt.Errorf("compile SQLite relation CreateModel table: %w", err)

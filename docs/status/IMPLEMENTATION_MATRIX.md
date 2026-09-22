@@ -32,8 +32,9 @@ GDJ-0098의 CASCADE 선언·생성 metadata/project wire·historical 정책 변�
 도달한 모든 PROTECT 검사 뒤 SET_NULL·exact-key 삭제를 같은 transaction에서 실행한다. TicketLabel의 migration·scoped Form/Admin/API/OpenAPI/client와 두 endpoint의 권한·Category·pair uniqueness를 연결했다.
 Label/Ticket 삭제의 링크 CASCADE·ServiceReport PROTECT를 소비자에서 검증했으며, 복수 API 권한·검색 없는 Admin도 지원한다.
 Source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의 Hosted 전체 통합을 완료했다. 일반 ManyToMany 선언·manager는 남은 범위다.
-GDJ-0099는 독립 ManyToMany 기준과 명시한 non-null tuple의 native conflict insert를 연결한다.
-현재 primitive와 전체 ManyToMany의 선언·생성·migration·조회·manager·컬렉션 소비자는 별도 단계다.
+GDJ-0099는 독립 ManyToMany 기준과 명시한 non-null tuple의 native conflict insert를 연결했다.
+Columnless 선언·normalized IR·자동 storage projection·generated metadata/descriptor·binding과 bounded project wire를 구현했다.
+일반 ManyToMany의 historical migration·조회·manager·컬렉션 소비자는 남았으며 현재 migration 경계는 관계를 누락하는 대신 명시적으로 거부한다.
 실행한 환경과 source는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 
 Machine contract/provenance/status는 [conformance/contracts](../../conformance/contracts/)가 소유한다.

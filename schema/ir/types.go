@@ -27,6 +27,7 @@ type Model struct {
 	DBTable           string             `json:"db_table"`
 	Fields            []Field            `json:"fields"`
 	UniqueConstraints []UniqueConstraint `json:"unique_constraints,omitempty"`
+	ManyToMany        []ManyToManyField  `json:"many_to_many,omitempty"`
 }
 
 type FieldKind string
@@ -177,6 +178,10 @@ func (m Model) Clone() Model {
 	for index := range m.UniqueConstraints {
 		clone.UniqueConstraints[index] = m.UniqueConstraints[index].Clone()
 	}
+	clone.ManyToMany = slices.Clone(m.ManyToMany)
+	for index := range m.ManyToMany {
+		clone.ManyToMany[index] = m.ManyToMany[index].Clone()
+	}
 	return clone
 }
 
@@ -185,7 +190,8 @@ func (m Model) Clone() Model {
 func (m Model) Equal(other Model) bool {
 	return m.Name == other.Name && m.GoName == other.GoName && m.DBTable == other.DBTable &&
 		slices.EqualFunc(m.Fields, other.Fields, Field.Equal) &&
-		slices.EqualFunc(m.UniqueConstraints, other.UniqueConstraints, UniqueConstraint.Equal)
+		slices.EqualFunc(m.UniqueConstraints, other.UniqueConstraints, UniqueConstraint.Equal) &&
+		slices.EqualFunc(m.ManyToMany, other.ManyToMany, ManyToManyField.Equal)
 }
 
 func (f Field) Clone() Field {

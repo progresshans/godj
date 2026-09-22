@@ -101,6 +101,9 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 	graph.tables = tables
 	goNames := make(map[struct{ app, name string }]ir.ModelIdentity, len(related)+1)
 	add := func(snapshot MigrationModel) error {
+		if len(snapshot.Model.ManyToMany) != 0 {
+			return fmt.Errorf("ManyToMany storage migration is not implemented")
+		}
 		identity := snapshot.Identity()
 		if _, duplicate := graph.models[identity]; duplicate {
 			return fmt.Errorf("relation graph repeats model %s.%s", identity.AppLabel, identity.ModelName)

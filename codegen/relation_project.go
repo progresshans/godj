@@ -50,7 +50,7 @@ func (view *relationView[T]) get(build func() (T, error)) (T, error) {
 func newRelationProjectPlan(apps []normalizedRelationPackage) *relationProjectPlan {
 	plan := &relationProjectPlan{apps: apps, byIdentity: make(map[ir.ModelIdentity]*projectRelationModel)}
 	for _, app := range apps {
-		for _, model := range app.schema.Models {
+		for _, model := range app.storage.Models {
 			identity := ir.ModelIdentity{AppLabel: app.schema.AppLabel, ModelName: model.Name}
 			candidate := &projectRelationModel{app: app, identity: identity, model: model}
 			plan.models = append(plan.models, candidate)

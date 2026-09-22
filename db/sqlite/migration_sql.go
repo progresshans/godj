@@ -23,6 +23,9 @@ var _ migrationSQLExecutor = (*sql.Tx)(nil)
 var _ migrationSQLExecutor = (*sql.Conn)(nil)
 
 func compileMigrationCreateModel(model ir.Model) (string, error) {
+	if len(model.ManyToMany) != 0 {
+		return "", relationIntentUnsupported("ManyToMany storage migration is not implemented")
+	}
 	if model.DBTable == "" {
 		return "", fmt.Errorf("compile SQLite CreateModel: table is empty")
 	}

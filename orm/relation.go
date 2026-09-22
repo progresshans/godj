@@ -76,9 +76,10 @@ type ProjectBinding struct {
 }
 
 type projectBindingSnapshot struct {
-	models  map[ir.ModelIdentity]ir.Model
-	forward []RelationMetadata
-	reverse []ReverseRelationMetadata
+	models     map[ir.ModelIdentity]ir.Model
+	forward    []RelationMetadata
+	reverse    []ReverseRelationMetadata
+	manyToMany []ir.ManyToManyBinding
 }
 
 type relationBindingCandidate struct {
@@ -109,13 +110,28 @@ func BindProject(schemas ...ir.Schema) (ProjectBinding, error) {
 
 	normalized := make([]ir.Schema, len(snapshots))
 	models := make(map[ir.ModelIdentity]ir.Model)
+	hasManyToMany := false
 	for index := range snapshots {
 		schema, err := ir.Normalize(snapshots[index])
 		if err != nil {
 			return ProjectBinding{}, err
 		}
-		normalized[index] = schema
+		storage := schema
+		automatic := false
 		for _, model := range schema.Models {
+			for _, field := range model.ManyToMany {
+				hasManyToMany = true
+				automatic = automatic || field.Through == nil
+			}
+		}
+		if automatic {
+			storage, err = ir.StorageSchema(schema)
+			if err != nil {
+				return ProjectBinding{}, err
+			}
+		}
+		normalized[index] = storage
+		for _, model := range storage.Models {
 			identity := ir.ModelIdentity{AppLabel: schema.AppLabel, ModelName: model.Name}
 			models[identity] = model.Clone()
 		}
@@ -182,11 +198,31 @@ func BindProject(schemas ...ir.Schema) (ProjectBinding, error) {
 	sort.Slice(reverse, func(left, right int) bool {
 		return compareReverse(reverse[left], reverse[right]) < 0
 	})
+	var manyToMany []ir.ManyToManyBinding
+	if hasManyToMany {
+		var err error
+		manyToMany, err = ir.ResolveManyToMany(snapshots...)
+		if err != nil {
+			return ProjectBinding{}, err
+		}
+	}
+	for _, relation := range manyToMany {
+		if relation.Reverse.Disabled {
+			continue
+		}
+		namespace := reverseNamespace{owner: relation.Target, name: relation.Reverse.Name}
+		_, collision := reverseNamespaces[namespace]
+		if collision || targetModelHasField(models[relation.Target], relation.Reverse.Name) {
+			return ProjectBinding{}, &RelationBindingError{Code: RelationBindingReverseNameCollision, AppLabel: relation.Source.AppLabel, ModelName: relation.Source.ModelName, FieldName: relation.Field, Target: relation.Target, ReverseName: relation.Reverse.Name}
+		}
+		reverseNamespaces[namespace] = struct{}{}
+	}
 
 	return ProjectBinding{snapshot: &projectBindingSnapshot{
-		models:  models,
-		forward: append([]RelationMetadata(nil), forward...),
-		reverse: append([]ReverseRelationMetadata(nil), reverse...),
+		models:     models,
+		forward:    append([]RelationMetadata(nil), forward...),
+		reverse:    append([]ReverseRelationMetadata(nil), reverse...),
+		manyToMany: append([]ir.ManyToManyBinding(nil), manyToMany...),
 	}}, nil
 }
 
@@ -250,7 +286,22 @@ func targetModelHasField(model ir.Model, name string) bool {
 			return true
 		}
 	}
+	for _, field := range model.ManyToMany {
+		if field.Name == name {
+			return true
+		}
+	}
 	return false
+}
+
+// ManyToManyRelations returns detached resolved coordinates. A relation can
+// be read in reverse by swapping endpoints and Through fields; no second
+// declaration is stored. This metadata alone is not a collection manager.
+func (b ProjectBinding) ManyToManyRelations() []ir.ManyToManyBinding {
+	if b.snapshot == nil {
+		return nil
+	}
+	return append([]ir.ManyToManyBinding(nil), b.snapshot.manyToMany...)
 }
 
 func bindingFailure(code RelationBindingErrorCode, relation RelationMetadata) *RelationBindingError {

@@ -79,6 +79,18 @@ func renderModelLiteralBody(output *bytes.Buffer, model ir.Model, indent string)
 		}
 		fmt.Fprintf(output, "%s},\n", indent)
 	}
+	if len(model.ManyToMany) != 0 {
+		fmt.Fprintf(output, "%sManyToMany: []ir.ManyToManyField{\n", indent)
+		for _, field := range model.ManyToMany {
+			fmt.Fprintf(output, "%s\t{Name:%q, GoName:%q, Target:ir.ModelIdentity{AppLabel:%q, ModelName:%q}, Reverse:ir.ReverseRelation{Name:%q, Disabled:%t}, Symmetry:ir.ManyToManySymmetry(%q),",
+				indent, field.Name, field.GoName, field.Target.AppLabel, field.Target.ModelName, field.Reverse.Name, field.Reverse.Disabled, field.Symmetry)
+			if through := field.Through; through != nil {
+				fmt.Fprintf(output, "Through:&ir.ThroughModel{Model:ir.ModelIdentity{AppLabel:%q, ModelName:%q}, SourceField:%q, TargetField:%q},", through.Model.AppLabel, through.Model.ModelName, through.SourceField, through.TargetField)
+			}
+			fmt.Fprintln(output, "},")
+		}
+		fmt.Fprintf(output, "%s},\n", indent)
+	}
 }
 
 func renderFieldLiteralBody(output *bytes.Buffer, field ir.Field, indent string) {

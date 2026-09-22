@@ -3,6 +3,45 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — Columnless 선언·storage projection·생성 metadata
+
+2026-09-22, 기준 `b4094c25b78b2ef1f2033b2c308a1464d62b48bf` 위 Go **40경로**를 변경했다.
+전체 non-Markdown source 2,062파일의 정렬 path→SHA256 map hash는
+`e30f4e8fe0d1cb7d46e1f006cbe43df221335e9f3c65483f2f395227a1ac00a3`이며 모든 mode의 시작/종료에 불변을 확인했다.
+
+`Model.ManyToMany`는 저장 `Fields`와 분리된 선언이다. Normalization·clone·equality·hash가 target·reverse·symmetry·명시적 through의
+모델과 두 FK 선택을 보존한다. `StorageSchema`는 자동 source/target CASCADE FK와 named pair unique 모델을 결정적으로 유도하며
+모델명·Go명·table 충돌을 거부한다. 명시적 through의 nullable FK·추가 필드·pair unique 부재를 다른 storage로 바꾸지 않는다.
+기본 self symmetry와 directed reverse를 구분하고, 잘못된 target/through FK와 reverse namespace 충돌은 partial binding 없이 거부한다.
+
+생성기의 logical schema companion과 파생 storage descriptor를 나누고 프로젝트 binding은 같은 IR projection을 사용한다.
+별도 실제 Go module에서 cross-app 자동/명시적 through·symmetrical/directed self의 네 선언, owner의 저장 컬럼 불변,
+자동 link descriptor·기존 payload through binding·metadata accessor 분리와 stale descriptor 거부를 실행했다.
+두 번 생성한 전체 bundle의 bytes와 snapshot은 같았으며 실패한 through 선택에는 생성 prefix를 반환하지 않는다.
+부모는 child JSON event에서 필수 실제 test의 run/pass 각각 1회와 네 package의 완료를 검사한다. 테스트 파일이 없는 세 generated
+package의 package-level skip은 컴파일 완료로 확인하고, test-level skip은 거부한다. Child도 부모의 race/CGO mode를 계승한다.
+
+Project wire는 closed shape·중복 key·필수 field·escaped byte 한도와 deep snapshot을 보존한다. Resource admission은 clone/생성 전에
+columnless field와 자동 storage의 model·3개 column·FK/constraint node·파생 이름까지 센다. Migration intent의 문자열/field/node 예산도
+ManyToMany metadata를 포함한다. 기존 scalar-only 입력은 기존 생성물과 hash를 그대로 유지한다.
+
+Historical storage 변경은 아직 미구현이다. Definition encoding, 일반/최적화된 historical 재구성, 자동 계획과 native Create가 이를
+관계 정보 없이 처리하지 않고 명시적으로 거부한다. 첫 normal에서 최적화된 재구성이 일반 Operation.stateForward를 거치지 않는
+경계를 발견해 공통 normalizedSingleModel에 검증을 연결했다. 첫 generated fixture의 잘못된 `post` identity도 실제 `blog_post`로
+수정했다. Child inventory는 테스트 없는 package와 실제 test skip을 구분하도록 정리했다. 최초 실패 원본을 보존하며 위 수정 뒤 검증했다.
+
+Go 1.26.5/Darwin arm64·modernc SQLite·격리 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`에서
+`./schema ./schema/ir ./codegen ./codegen/consumertest ./orm ./internal/irresource ./internal/projectspec ./internal/projectwire ./internal/migrationgraph ./migrations ./migrations/definition ./internal/projectgenerate ./internal/migrationautodetect ./db/sqlite ./db/postgres`를 실행했다.
+normal·race·CGO=0 **각 15 package / 7,695 run=PASS / skip 0**이며 필수 15개 root와 전체 시작/종료 inventory를 확인했다.
+Process helper의 직접 실행만 제외하고 필요한 parent의 실제 process 회귀는 유지했다.
+Helpdesk·Article·relationfixture·onetoonefixture·cascadefixture의 실제 CLI `generate --check`, 영향 vet와 CI Python **13 PASS**도 확인했다.
+Artifact는 `godj-many-to-many-reference-4sl0bvdp/declaration/latest-{normal,race,cgo0,supplementary}-path`에 source·event·stderr·hash·receipt를 보관한다.
+각 전용 PostgreSQL DB는 연결·table·추가 schema 0을 확인하고 삭제했다.
+
+이는 선언·metadata의 로컬 checkpoint이며 실제 ManyToMany migration·조회·manager·Ticket 컬렉션 소비자와 Hosted 통합은 남아 있다.
+선행 native insert source `b4094c25`의 [PR feedback](https://github.com/progresshans/godj/actions/runs/35695590914)은 실제 checkout과
+Fast Go step의 success를 확인했으나 위 새 source나 full-platform 검증으로 옮기지 않는다.
+
 ## GDJ-0099 — 독립 ManyToMany 기준과 native conflict insert
 
 2026-09-22, 기준 `3eb403e718f511ac06dc457b41a5e50a41ec8890` 위에서 ManyToMany 준비와 native 삽입을 연결했다.

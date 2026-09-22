@@ -66,10 +66,29 @@ func parseSchema(decoder *json.Decoder, budget *specBudget) error {
 }
 
 func parseModel(decoder *json.Decoder, budget *specBudget) error {
+	fieldCount := 0
+	consumeField := func() error {
+		fieldCount++
+		if fieldCount > projectspec.MaxFieldsPerModel {
+			return fmt.Errorf("combined model fields exceed %d", projectspec.MaxFieldsPerModel)
+		}
+		return budget.consumeFields(1)
+	}
 	return wirejson.Object(decoder, []string{"name", "go_name", "db_table", "fields"}, map[string]func() error{
 		"name":     func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"go_name":  func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
 		"db_table": func() error { _, err := wirejson.String(decoder, projectspec.MaxSchemaStringBytes); return err },
+		"many_to_many": func() error {
+			return wirejson.Array(decoder, projectspec.MaxFieldsPerModel, func(int) error {
+				if err := consumeField(); err != nil {
+					return err
+				}
+				if err := budget.consumeNodes(3); err != nil {
+					return err
+				}
+				return parseManyToMany(decoder, budget)
+			})
+		},
 		"unique_constraints": func() error {
 			return wirejson.Array(decoder, projectspec.MaxAggregateNodes, func(int) error {
 				if err := budget.consumeNodes(1); err != nil {
@@ -80,7 +99,7 @@ func parseModel(decoder *json.Decoder, budget *specBudget) error {
 		},
 		"fields": func() error {
 			return wirejson.Array(decoder, projectspec.MaxFieldsPerModel, func(int) error {
-				if err := budget.consumeFields(1); err != nil {
+				if err := consumeField(); err != nil {
 					return err
 				}
 				if err := budget.consumeNodes(1); err != nil {

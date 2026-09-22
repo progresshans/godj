@@ -98,6 +98,9 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 	if err := projectspec.ValidateSchemas(schemas); err != nil {
 		return normalizedProjectSpec{}, err
 	}
+	if err := validateManyToManyProject(schemas); err != nil {
+		return normalizedProjectSpec{}, err
+	}
 	project, err := normalizeProjectPackage("project", input.Project)
 	if err != nil {
 		return normalizedProjectSpec{}, err

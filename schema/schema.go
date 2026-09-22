@@ -27,6 +27,7 @@ type Model struct {
 	DBTable           string
 	Fields            []Field
 	UniqueConstraints []UniqueConstraint
+	ManyToMany        []ManyToManyField
 }
 
 // UniqueConstraint names a model-level constraint over logical field names.
@@ -278,6 +279,7 @@ func Build(definition Definition) (ir.Schema, error) {
 			DBTable:           model.DBTable,
 			Fields:            make([]ir.Field, len(model.Fields)),
 			UniqueConstraints: model.UniqueConstraints,
+			ManyToMany:        model.ManyToMany,
 		}
 		for fieldIndex, field := range model.Fields {
 			var defaultValue *ir.Scalar

@@ -16,7 +16,7 @@ cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 �
 ## 구현 조건
 
 - [x] 고정 Django의 독립 양 DB 관찰·결정성·실제 의미 변경 negative control을 보관하고 제품 지원과 구분
-- [ ] Columnless 관계의 Schema IR·선언·target/reverse/through ownership·endpoint field 선택과 deterministic 자동 storage를 연결
+- [x] Columnless 관계의 Schema IR·선언·target/reverse/through ownership·endpoint field 선택과 deterministic 자동 storage를 연결
 - [ ] Generated metadata/project wire와 historical Create/Add/Remove/Rename·역방향·자동 계획에서 endpoint·retained link·기존 명시적 through 데이터를 보존
 - [x] 명시한 unique tuple에 대한 native conflict insert와 명확한 삽입 여부를 제공하고 동시 중복·다른 제약·오류·transaction 경계를 검증
 - [ ] 공통 runtime·generated forward/reverse manager의 add/remove/clear/set, retained payload·self symmetry·취소·unknown outcome·cache 소유권을 연결
@@ -30,7 +30,11 @@ cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 �
 Columnless 선언·자동 through, 중복 add·실제 두 연결의 동시 add, set의 retained identity·payload·늦은 오류 rollback,
 자기 관계·조회 중복·cache snapshot·실제 historical migration과 signal을 관찰한다. GoDj의 구현 증거로 세지 않는다.
 Native conflict insert를 공통 AST·양 DB·ordinary/relation/coordinated session에 연결하고 영향 normal/race/CGO=0을 통과했다.
-다음은 columnless normalized 관계와 생성 metadata·historical migration을 기존 TicketLabel 데이터 보존과 함께 연결하는 작업이다.
+Columnless 선언·정규화 IR과 자동 storage projection, generated descriptor/schema companion·프로젝트 binding을 연결했다.
+Project wire의 closed shape·정확한 escaped bytes·사전 resource budget과 model clone/hash/equality에 관계 의미가 남는다.
+실제 별도 generated module에서 cross-app 자동/명시적 through·symmetrical/directed self·stale descriptor 거부를 확인했다.
+Historical migration은 아직 이 columnless 의미를 처리하지 않으므로 definition·재구성·자동 계획·native Create가 명시적으로 거부한다.
+다음은 이 경계를 실제 Create/Add/Remove/Rename·reverse로 교체하고 기존 TicketLabel의 행을 보존하는 metadata migration을 연결한다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

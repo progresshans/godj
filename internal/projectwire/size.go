@@ -80,6 +80,19 @@ func measureModel(sizer *wirejson.Sizer, model ir.Model) bool {
 			return false
 		}
 	}
+	if len(model.ManyToMany) != 0 {
+		if !sizer.Literal(`,"many_to_many":[`) {
+			return false
+		}
+		for index, field := range model.ManyToMany {
+			if index != 0 && !sizer.Literal(`,`) || !measureManyToMany(sizer, field) {
+				return false
+			}
+		}
+		if !sizer.Literal(`]`) {
+			return false
+		}
+	}
 	return sizer.Literal(`}`)
 }
 

@@ -77,6 +77,9 @@ func Normalize(input Schema) (Schema, error) {
 		if err := normalizeModel(model, modelPath); err != nil {
 			return Schema{}, err
 		}
+		if err := normalizeManyToMany(schema.AppLabel, model, modelPath); err != nil {
+			return Schema{}, err
+		}
 	}
 	return schema, nil
 }

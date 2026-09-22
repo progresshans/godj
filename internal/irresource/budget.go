@@ -35,6 +35,27 @@ func (budget *Budget) ScanModel(path string, model ir.Model) error {
 			return err
 		}
 	}
+	if len(model.ManyToMany) != 0 && (len(model.ManyToMany) > budget.limits.Fields || len(model.Fields) > budget.limits.Fields-len(model.ManyToMany)) {
+		return fmt.Errorf("%s exceeds the combined stored and many-to-many field limit %d", path, budget.limits.Fields)
+	}
+	for index, field := range model.ManyToMany {
+		p := fmt.Sprintf("%s.many_to_many[%d]", path, index)
+		if err := budget.ConsumeNodes(p, 3); err != nil {
+			return err
+		}
+		values := []string{field.Name, field.GoName, field.Target.AppLabel, field.Target.ModelName, field.Reverse.Name, string(field.Symmetry)}
+		if through := field.Through; through != nil {
+			if err := budget.ConsumeNodes(p+".through", 2); err != nil {
+				return err
+			}
+			values = append(values, through.Model.AppLabel, through.Model.ModelName, through.SourceField, through.TargetField)
+		}
+		for _, value := range values {
+			if err := budget.ConsumeString(p, value); err != nil {
+				return err
+			}
+		}
+	}
 	if len(model.Fields) > budget.limits.Fields {
 		return fmt.Errorf("%s has %d fields, maximum %d", path, len(model.Fields), budget.limits.Fields)
 	}

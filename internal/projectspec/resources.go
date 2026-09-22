@@ -64,6 +64,7 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 		if len(schema.Models) > MaxModelsPerApp {
 			return budget, resourceError(appPath+".models", "models_per_app", MaxModelsPerApp, len(schema.Models))
 		}
+		storageModels := len(schema.Models)
 		for modelIndex := range schema.Models {
 			modelPath := fmt.Sprintf("%s.models[%d]", appPath, modelIndex)
 			model := schema.Models[modelIndex]
@@ -84,6 +85,9 @@ func validateSchemas(schemas []ir.Schema, budget resourceBudget) (resourceBudget
 			}
 			if len(model.Fields) > MaxFieldsPerModel {
 				return budget, resourceError(modelPath+".fields", "fields_per_model", MaxFieldsPerModel, len(model.Fields))
+			}
+			if err := validateManyToManyResources(&budget, schema.AppLabel, modelPath, model, &storageModels); err != nil {
+				return budget, err
 			}
 			if err := consumeFields(&budget, modelPath+".fields", uint64(len(model.Fields))); err != nil {
 				return budget, err

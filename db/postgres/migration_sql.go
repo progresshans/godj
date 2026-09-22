@@ -32,6 +32,9 @@ func compilePostgresMigrationCreateModel(
 	model ir.Model,
 	targets []migrationbackend.MigrationTarget,
 ) ([]string, error) {
+	if len(model.ManyToMany) != 0 {
+		return nil, errors.New("ManyToMany storage migration is not implemented")
+	}
 	table, err := quoteTable(namespace, model.DBTable)
 	if err != nil {
 		return nil, err
