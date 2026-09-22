@@ -276,7 +276,7 @@ func validReverseTerminal(field FieldRef, cardinality ir.RelationCardinality) bo
 	if cardinality == ir.RelationOneToOne {
 		return validFieldRef(field) && canonicalIdentifier(field.Name()) && canonicalIdentifier(field.Column())
 	}
-	if !field.ValidType() || !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() {
+	if !field.ValidType() || !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() && field.Kind() != FieldInteger {
 		return false
 	}
 	return field.Kind() == FieldDate || (field.Kind() == FieldTime || field.Kind() == FieldDuration) || field.Kind() == FieldDateTime || field.Kind() == FieldInteger || field.Kind() == FieldFloat || field.Kind() == FieldDecimal || field.Kind() == FieldUUID || field.Kind() == FieldJSON || field.Kind() == FieldString

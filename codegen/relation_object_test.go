@@ -34,7 +34,7 @@ func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 			schema:      authors,
 			golden:      "authors.golden",
 			fragments: [][]byte{
-				[]byte(`const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"`),
+				[]byte(`const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"`),
 				[]byte("const GoDjRelationObjectSchemaSHA256 ="),
 				[]byte("var _ orm.RelationObjectDescriptor[Author] = AuthorDescriptor{}"),
 				[]byte("func (AuthorDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Author]"),
@@ -55,7 +55,7 @@ func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 			schema:      blog,
 			golden:      "blog.golden",
 			fragments: [][]byte{
-				[]byte(`const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"`),
+				[]byte(`const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"`),
 				[]byte("var _ orm.RelationObjectDescriptor[Post] = PostDescriptor{}"),
 				[]byte("type postAuthorIDRelationStorage struct{}"),
 				[]byte("type postReviewerIDRelationStorage struct{}"),

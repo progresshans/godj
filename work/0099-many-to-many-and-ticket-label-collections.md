@@ -20,14 +20,15 @@ cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 �
 - [x] Generated metadata/project wire와 명시적 through의 historical Add/Remove/Rename·역방향·자동 계획에서 기존 행·endpoint·payload·sequence를 보존
 - [x] 자동 intermediary의 historical Create/Add/Remove/Rename·역방향·자동 계획에서 endpoint·retained link ID·sequence·managed constraint ownership을 보존
 - [x] 명시한 unique tuple에 대한 native conflict insert와 명확한 삽입 여부를 제공하고 동시 중복·다른 제약·오류·transaction 경계를 검증
-- [ ] 공통 runtime·generated forward/reverse manager의 add/remove/clear/set, retained payload·self symmetry·취소·unknown outcome·cache 소유권을 연결
+- [x] 공통 runtime·generated forward/reverse root manager의 add/remove/clear/set, retained payload·self symmetry·취소·unknown outcome·cache 소유권을 연결
+- [ ] 통합 model facade와 빌린/coordinated transaction session의 명시적 collection composition을 연결
 - [ ] 같은 Query AST에서 관계 조회의 multiplicity·명시적 distinct·prefetch를 연결
 - [ ] Ticket 컬렉션 Form/Admin/API/OpenAPI·client에서 권한·CSRF·양쪽 Category·전체 후보·동시성·실패·durability를 확인
 - [ ] 영향 compile/gofmt/drift·양 DB/race/CGO/process와 명시한 Hosted 통합 milestone의 source·환경·범위를 기록
 
 ## 현재와 다음
 
-[독립 Django runner](../conformance/runners/django/many_to_many_reference.py)의 29개 관찰을 양 DB에서 확보했다.
+[독립 Django runner](../conformance/runners/django/many_to_many_reference.py)의 31개 관찰을 양 DB에서 확보했다.
 Columnless 선언·자동 through, 중복 add·실제 두 연결의 동시 add, set의 retained identity·payload·늦은 오류 rollback,
 자기 관계·조회 중복·cache snapshot·실제 historical migration과 signal을 관찰한다. GoDj의 구현 증거로 세지 않는다.
 Native conflict insert를 공통 AST·양 DB·ordinary/relation/coordinated session에 연결하고 영향 normal/race/CGO=0을 통과했다.
@@ -40,7 +41,10 @@ cross-app 모델의 기존 행을 보존하며, 최초 생성은 모델·선택�
 자동 intermediary의 historical Create/Add/Remove/Rename·reverse·자동 계획·forward SQL projection과 raw CreateModel의 columnless 선언을 연결했다.
 연결 PK 0·empty/high-water sequence와 물리 identity를 보존하는 rename, 혼합 선언·중간 table·다른 automatic storage 참조의 순서를 검증한다.
 관리 밖의 FK/view·catalog drift·이름 충돌·늦은 unique 실패·취소에서는 이력과 저장을 보존한다. 실행 범위는 TEST_EVIDENCE를 따른다.
-다음은 공통 collection runtime·generated manager의 변경, 조회·prefetch와 Ticket 컬렉션 소비자다.
+공통 root collection runtime과 generated BindCollections의 forward/reverse add/remove/clear/set를 연결했다.
+Columnless 관계를 같은 AST의 physical join으로 읽고 explicit duplicate·Distinct와 nullable through를 처리한다.
+Generated through Create input, native pair conflict, incoming delete graph의 전체 root 수집과 cache 무효화를 사용한다.
+다음은 통합 model facade·빌린/coordinated transaction composition, 일반 관계 조건·prefetch와 Ticket 컬렉션 소비자다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

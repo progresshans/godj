@@ -114,7 +114,7 @@ func ReverseCondition(condition query.Condition, hop query.RelationHop, backendN
 		}
 		return nil
 	}
-	if !field.ValidType() || !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) || field.Nullable() ||
+	if !field.ValidType() || !CanonicalIdentifier(field.Name()) || !CanonicalIdentifier(field.Column()) || field.Nullable() && field.Kind() != query.FieldInteger ||
 		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldFloat && field.Kind() != query.FieldDecimal && field.Kind() != query.FieldUUID && field.Kind() != query.FieldJSON && field.Kind() != query.FieldString && field.Kind() != query.FieldDateTime && field.Kind() != query.FieldDate && (field.Kind() != query.FieldTime && field.Kind() != query.FieldDuration)) {
 		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
 	}

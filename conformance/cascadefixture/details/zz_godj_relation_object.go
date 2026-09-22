@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
+const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
 const GoDjRelationObjectSchemaSHA256 = "c9877bab1bd0fa2f1eeb260816c6660ba29cc178c40bdeb6b0743dbef06dccaf"
 
 var _ orm.RelationObjectDescriptor[Child] = ChildDescriptor{}
@@ -231,6 +231,40 @@ func (twinSecondIDRelationStorage) Value(value Twin) (query.Value, bool) {
 	return query.Integer(value.SecondID), true
 }
 
+func (TwinDescriptor) ManyToManyCreateInput() orm.ManyToManyInput[Twin] { return TwinCreate{} }
+
+var _ orm.ManyToManyDescriptor[Twin] = TwinDescriptor{}
+
+func (input TwinCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[Twin] {
+	invalid := func() orm.Mutation[Twin] {
+		return orm.InvalidMutation[Twin](&query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "collection endpoints must be distinct canonical ForeignKeys omitted from through defaults"})
+	}
+	if source.Name == target.Name {
+		return invalid()
+	}
+	for index, field := range []ir.Field{source, target} {
+		key := sourceKey
+		if index == 1 {
+			key = targetKey
+		}
+		switch {
+		case reflect.DeepEqual(field, (twinFirstIDRelationStorage{}).Field()):
+			if _, set := input.firstID.Get(); set {
+				return invalid()
+			}
+			input = input.WithFirstID(key)
+		case reflect.DeepEqual(field, (twinSecondIDRelationStorage{}).Field()):
+			if _, set := input.secondID.Get(); set {
+				return invalid()
+			}
+			input = input.WithSecondID(key)
+		default:
+			return invalid()
+		}
+	}
+	return input.BuildCreate()
+}
+
 var _ orm.RelationObjectDescriptor[Hidden] = HiddenDescriptor{}
 
 func (HiddenDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Hidden] {
@@ -371,6 +405,40 @@ func (overlapProtectedRootIDRelationStorage) Value(value Overlap) (query.Value, 
 	return query.Integer(value.ProtectedRootID), true
 }
 
+func (OverlapDescriptor) ManyToManyCreateInput() orm.ManyToManyInput[Overlap] { return OverlapCreate{} }
+
+var _ orm.ManyToManyDescriptor[Overlap] = OverlapDescriptor{}
+
+func (input OverlapCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[Overlap] {
+	invalid := func() orm.Mutation[Overlap] {
+		return orm.InvalidMutation[Overlap](&query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "collection endpoints must be distinct canonical ForeignKeys omitted from through defaults"})
+	}
+	if source.Name == target.Name {
+		return invalid()
+	}
+	for index, field := range []ir.Field{source, target} {
+		key := sourceKey
+		if index == 1 {
+			key = targetKey
+		}
+		switch {
+		case reflect.DeepEqual(field, (overlapCascadeRootIDRelationStorage{}).Field()):
+			if _, set := input.cascadeRootID.Get(); set {
+				return invalid()
+			}
+			input = input.WithCascadeRootID(key)
+		case reflect.DeepEqual(field, (overlapProtectedRootIDRelationStorage{}).Field()):
+			if _, set := input.protectedRootID.Get(); set {
+				return invalid()
+			}
+			input = input.WithProtectedRootID(key)
+		default:
+			return invalid()
+		}
+	}
+	return input.BuildCreate()
+}
+
 var _ orm.RelationObjectDescriptor[Right] = RightDescriptor{}
 
 func (RightDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Right] {
@@ -447,4 +515,4 @@ func (requiredRightLeftIDRelationStorage) Value(value RequiredRight) (query.Valu
 	return query.Integer(value.LeftID), true
 }
 
-var _ GoDjProjectSnapshot_49fdbc8862a9c0d90090aec066e2282d2cd21014185c98bb6e08814b7eb6c4b0
+var _ GoDjProjectSnapshot_40839e7b6ae834205f54171f9ac5b237d0fd0a01cf42bf20937132595a36a701

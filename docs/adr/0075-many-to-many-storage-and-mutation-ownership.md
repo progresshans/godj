@@ -51,8 +51,44 @@ trigger가 삽입을 생략했거나 다른 데이터가 개입할 수 있는 ca
 Commit/rollback 불확실성과 SQLite 연결 격리·session 만료·취소의 기존 소유권을 그대로 사용한다.
 
 관계 manager의 add/remove/clear/set는 같은 transaction에서 전체 후보를 검사하고 retained link identity와 payload를 보존한다.
-Clear 요청은 링크만 삭제한다. 명시적 through의 추가 필드 제약은 정상 오류로 남는다. 대칭 자기 관계는 반대 방향 연결도 같은
+Clear는 해당 owner의 연결 행을 삭제 root로 선택한다. 연결에서 endpoint로 나가는 FK를 따라 endpoint를 삭제하지 않는다.
+연결 행을 참조하는 별도 incoming FK의 CASCADE·PROTECT·SET_NULL은 기존 collector가 전체 root 집합에 적용한다.
+명시적 through의 추가 필드 제약은 정상 오류로 남는다. 대칭 자기 관계는 반대 방향 연결도 같은
 변경에 포함하며, 조회 multiplicity는 명시적 Distinct 없이 축약하지 않는다.
+
+## Collection runtime과 generated manager
+
+`BindCollections()`는 project의 forward/reverse `orm.ManyToMany[Owner, Target, Through]` factory를 생성한다.
+`From(backend, owner)`는 PK presence를 확인하고 독립 `ManyCollection`을 만든다. PK 0도 저장된 값으로 구분한다.
+Columnless 선언, 선택한 두 FK, 같은 project snapshot의 양 endpoint/through descriptor와 incoming delete graph fingerprint를
+함께 검증한다. 타입별 생성 코드는 키·payload/defaults의 직접 접근을 소유하고 transaction·집합 변경·cache는 공통 runtime이 소유한다.
+
+`Add(ctx, targets, throughDefaults...)`와 `AddKeys`는 필요한 연결만 추가한다. Generated through Create input은
+선택한 endpoint를 manager가 채우고 나머지 필드의 기존 default/nullable/validation을 적용한다. 신규 link를 만드는 defaults에 endpoint를
+따로 지정하면 거부한다. 이미 있는 연결의 payload나 ID를 바꾸지 않으며 no-op에는 새 create의 required 값을 요구하지 않는다.
+정확한 pair unique가 있으면 nullable column에도 실제 non-NULL assignment와 같은 metadata를 유지한 native conflict insert를 사용한다.
+Pair unique가 없는 explicit through는 기존 duplicate를 보존하고 사전 조회에서 없는 pair만 일반 insert한다.
+DB가 허용하는 동시 duplicate를 숨은 constraint나 retry로 바꾸지 않는다.
+
+`Remove`, `RemoveKeys`, `Clear`, `Set`, `SetKeys`는 하나의 `AtomicRelation`을 소유한다. `Set`은 기본적으로 retained link를
+보존하고 `ManyToManySetOptions{Clear:true}`는 기존 link를 지운 뒤 다시 만든다. 모든 새 create input을 검사한 뒤 삭제·삽입하고,
+여러 삭제 root와 공유 CASCADE row를 model+PK로 합쳐 모든 PROTECT 검사를 먼저 수행한다. Nullable through의 NULL endpoint는
+컬렉션 구성원이 아니므로 delta set과 특정 대상 remove에서 유지한다. Clear는 owner와 일치하는 NULL 연결도 삭제한다.
+대칭 자기 관계의 mirror와 self link는 같은 변경에서 중복 없이 처리한다. 최종 membership을 다시 확인해 trigger의 0행 결과를
+성공으로 오해하지 않는다. Concurrent set 전체를 serializable이라고 주장하지 않으며 더 강한 consumer fence는 별도 composition이 소유한다.
+
+빌린 transaction session 안에서 성공한 insert는 provisional이다. 현재 root manager는 callback 횟수·동기 완료·원인 오류 보존을
+확인하고 확인된 outer commit 이후에만 성공을 반환한다. Commit/rollback uncertainty를 그대로 전달하며 자동 재시도하지 않는다.
+확인된 commit 뒤 늦은 context 취소로 결과를 실패로 바꾸지 않는다. 외부 transaction과의 명시적 composition은 후속 구현 범위다.
+
+`Query()`는 동일 Query AST의 physical reverse join으로 target을 읽는다. 선택한 nullable FK의 metadata도 유지하며,
+명시적 through의 duplicate는 `Distinct()` 요청 전까지 보존한다. 일반 ManyToMany traversal predicate와 prefetch는 후속 범위다.
+Collection handle의 query cache는 mutex 아래 교체한다. Mutation 시작과 종료 모두 무효화하므로 실패·취소·unknown outcome이나
+이전 in-flight 조회가 현재 handle에 오래된 cache를 남기지 않는다. 이미 반환한 QuerySet, 다른 owner materialization과 Fresh는
+독립 snapshot을 소유하며 pointer handle의 zero/value-copy는 오류다.
+
+독립 Django 관찰은 nullable/nonunique through의 set/remove/clear/reverse clear와 연결 행의 incoming 정책까지 확장했다.
+제품의 통합 facade·외부 transaction composition·prefetch·Ticket 소비자·signal 완료를 이 root manager 구현과 합치지 않는다.
 
 ## Historical 선언 변경
 
@@ -90,8 +126,8 @@ Remove는 소유 link table만 삭제하고 두 endpoint의 행을 보존한다.
 
 ## 후속 구현 경계
 
-현재 native conflict-insert primitive의 구현과 전체 ManyToMany declaration/manager는 다른 단계다.
-Relation cache의 실패 시 무효화는 Django 관찰과 Go의 기존 publication 계약을 비교해 manager 구현에서 명시적으로 결정한다.
+Root collection manager와 통합 facade·transaction composition·전체 query/consumer 지원은 다른 단계다.
+실패 시 collection cache 무효화와 성공 publication은 위의 소유권을 따른다.
 독립 materialization·평가한 QuerySet·Fresh의 소유권을 공유 cache로 합치지 않는다. Signal callback은 이후 rollback되는 변경도
 관찰할 수 있으므로 durable commit 영수증으로 취급하지 않는다. 미구현 signal 범위는 카탈로그에 남긴다.
 Ticket의 컬렉션 입력은 권한·CSRF를 body/DB 전에 검사하고 저장 transaction에서 양쪽 Category와 전체 원하는 집합을 다시 확인한다.

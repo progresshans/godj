@@ -40,7 +40,7 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
-        self.assertEqual(len(actual['observations']), 29)
+        self.assertEqual(len(actual['observations']), 31)
         postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
         for field in ('observations', 'source_sha256'):
             self.assertEqual(actual[field], postgres[field])
@@ -103,6 +103,17 @@ class ManyToManyReferenceTests(unittest.TestCase):
             self.assertEqual(cases[case]['members'], ['existing-label'])
         self.assertTrue(cases['migration_reverse']['through_absent'])
         self.assertEqual(cases['migration_reapply']['members'], [])
+
+    def test_nullable_duplicates_and_incoming_delete_policy(self):
+        cases = self.snapshots[0]['observations']
+        self.assertEqual(cases['nullable_duplicates'], {
+            'before': ['a', 'a'], 'distinct': ['a'], 'set_retained_all_ids': True,
+            'after_remove': [6, 7], 'after_clear': [7], 'after_reverse_clear_count': 0,
+        })
+        self.assertEqual(cases['incoming_link_policy'], {
+            'clear_error': 'ProtectedError', 'protected_link_count': 2, 'cascade_count': 0,
+            'optional_null': True, 'remaining': ['b'], 'endpoint_count': 3,
+        })
 
     def test_real_semantic_mutations_change_observations(self):
         source = RUNNER.read_text()

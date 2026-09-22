@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v4"
 
 var _ orm.RelationObjectDescriptor[reports.Certificate] = reports.CertificateDescriptor{}
 var _ orm.RelationObjectDescriptor[reports.Link] = reports.LinkDescriptor{}
@@ -656,4 +656,4 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_485a268a23b9a93273af0500ae0bff7006c2a6e7d3021644c91a83be5af3a40a
+var _ goDjProjectSnapshot_b059cfd7580b4400ac9f250875f3fa95fdaf949f3c6e3c2ad6cad753f4b4a592

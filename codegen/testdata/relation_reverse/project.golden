@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"
+const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v4"
 
 var _ orm.RelationObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}

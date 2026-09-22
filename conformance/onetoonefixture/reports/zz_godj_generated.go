@@ -2138,4 +2138,4 @@ func reviewMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_485a268a23b9a93273af0500ae0bff7006c2a6e7d3021644c91a83be5af3a40a struct{}
+type GoDjProjectSnapshot_b059cfd7580b4400ac9f250875f3fa95fdaf949f3c6e3c2ad6cad753f4b4a592 struct{}

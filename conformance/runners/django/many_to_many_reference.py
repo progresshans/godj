@@ -76,6 +76,39 @@ def observe():
                 db_table = "m2m_ranked_link"
                 constraints = [models.UniqueConstraint(fields=["owner", "label"], name="m2m_ranked_pair")]
 
+        class LooseOwner(models.Model):
+            name = models.CharField(max_length=64)
+            labels = models.ManyToManyField(Label, through="m2mowners.LooseLink", through_fields=("owner", "label"), related_name="loose_owners")
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_loose_owner"
+
+        class LooseLink(models.Model):
+            owner = models.ForeignKey(LooseOwner, null=True, on_delete=models.CASCADE)
+            label = models.ForeignKey(Label, null=True, on_delete=models.CASCADE)
+            amount = models.IntegerField()
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_loose_link"
+
+        class Guard(models.Model):
+            link = models.ForeignKey(RankedLink, on_delete=models.PROTECT)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_guard"
+
+        class Cascade(models.Model):
+            link = models.ForeignKey(RankedLink, on_delete=models.CASCADE)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_cascade"
+
+        class Optional(models.Model):
+            link = models.ForeignKey(RankedLink, null=True, on_delete=models.SET_NULL)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_optional"
+
         class Node(models.Model):
             name = models.CharField(max_length=64)
             friends = models.ManyToManyField("self")
@@ -85,7 +118,7 @@ def observe():
                 db_table = "m2m_node"
                 ordering = ["name"]
 
-        declared = [Label, Owner, RankedOwner, RankedLink, Node]
+        declared = [Label, Owner, RankedOwner, RankedLink, LooseOwner, LooseLink, Guard, Cascade, Optional, Node]
         automatic = [Owner.labels.through, Node.friends.through, Node.follows.through]
         physical = declared + automatic
         results = {}
@@ -266,6 +299,46 @@ def observe():
                 futures = [workers.submit(add_concurrently) for _ in range(2)]
                 outcomes = [future.result(timeout=20) for future in futures]
             results["concurrent_duplicate_add"] = {"errors": outcomes, "state": state()}
+
+            clear()
+            (a, b, c), _ = seed()
+            loose = LooseOwner.objects.create(name="loose")
+            for amount in (4, 5):
+                LooseLink.objects.create(owner=loose, label=a, amount=amount)
+            null_target = LooseLink.objects.create(owner=loose, amount=6)
+            null_source = LooseLink.objects.create(label=a, amount=7)
+            initial_ids = list(LooseLink.objects.order_by("pk").values_list("pk", flat=True))
+            before = names(loose.labels)
+            distinct = names(loose.labels.distinct())
+            loose.labels.add(a)
+            loose.labels.set([a])
+            retained = list(LooseLink.objects.order_by("pk").values_list("pk", flat=True)) == initial_ids
+            loose.labels.remove(a)
+            after_remove = list(LooseLink.objects.order_by("amount").values_list("amount", flat=True))
+            loose.labels.clear()
+            after_clear = list(LooseLink.objects.order_by("amount").values_list("amount", flat=True))
+            a.loose_owners.clear()
+            results["nullable_duplicates"] = {"before": before, "distinct": distinct, "set_retained_all_ids": retained,
+                "after_remove": after_remove, "after_clear": after_clear, "after_reverse_clear_count": LooseLink.objects.count()}
+
+            clear()
+            (a, b, c), _ = seed()
+            ranked = RankedOwner.objects.create(name="ranked")
+            ranked.labels.add(a, through_defaults={"token": 17})
+            ranked.labels.add(b, through_defaults={"token": 22})
+            first = RankedLink.objects.get(owner=ranked, label=a)
+            second = RankedLink.objects.get(owner=ranked, label=b)
+            guard = Guard.objects.create(link=second)
+            child = Cascade.objects.create(link=first)
+            optional = Optional.objects.create(link=first)
+            failed = error(ranked.labels.clear)
+            protected_count = RankedLink.objects.count()
+            guard.delete()
+            ranked.labels.remove(a)
+            optional.refresh_from_db()
+            results["incoming_link_policy"] = {"clear_error": failed, "protected_link_count": protected_count,
+                "cascade_count": Cascade.objects.count(), "optional_null": optional.link_id is None,
+                "remaining": names(ranked.labels), "endpoint_count": Label.objects.count()}
 
             from django.db import migrations
             from django.db.migrations.state import ProjectState

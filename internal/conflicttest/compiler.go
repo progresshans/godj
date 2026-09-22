@@ -15,6 +15,22 @@ func CheckCompiler(t *testing.T, compile func(query.ConflictInsertPlan) (string,
 	if err != nil || statement != want || !reflect.DeepEqual(arguments, []any{int64(7), int64(9), int64(20)}) {
 		t.Fatalf("compile = %q, %v, %v", statement, arguments, err)
 	}
+	// Nullability belongs to metadata; uniqueness here is for assigned values.
+	for _, null := range []bool{false, true} {
+		field := query.NewFieldRef("owner", "owner_id", query.FieldInteger, true)
+		value := query.Integer(7)
+		if null {
+			value = query.Null()
+		}
+		sql, args, err := compile(query.NewConflictInsertPlan("links", []query.Assignment{query.NewAssignment(field, value)}, []query.FieldRef{field}))
+		if null {
+			if sql != "" || args != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+				t.Fatal("NULL target accepted", sql, args, err)
+			}
+		} else if err != nil || sql == "" || !reflect.DeepEqual(args, []any{int64(7)}) {
+			t.Fatal("non-NULL nullable tuple rejected", sql, args, err)
+		}
+	}
 	assignments, target := plan.Assignments(), plan.Target()
 	for _, test := range []struct {
 		name string
@@ -44,7 +60,6 @@ func CheckCompiler(t *testing.T, compile func(query.ConflictInsertPlan) (string,
 		query.NewFieldRef("bad\x00", "owner_id", query.FieldInteger, false),
 		query.NewFieldRef("owner", "bad\x00", query.FieldInteger, false),
 		query.NewFieldRef("owner", "", query.FieldInteger, false),
-		query.NewFieldRef("owner", "owner_id", query.FieldInteger, true),
 		query.NewFieldRef("owner", "owner_id", query.FieldKind("unknown"), false),
 	} {
 		statement, arguments, err := compile(query.NewConflictInsertPlan("links", []query.Assignment{query.NewAssignment(field, query.Integer(7))}, []query.FieldRef{field}))

@@ -7,7 +7,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
+const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
 const GoDjRelationObjectSchemaSHA256 = "3e6ec104d26c21665690e9d4a20f547ae2f7212b2eb35f5e741d38a85274647d"
 
 var _ orm.RelationObjectDescriptor[Article] = ArticleDescriptor{}
@@ -20,4 +20,4 @@ func (ArticleDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorag
 	return nil, false
 }
 
-var _ GoDjProjectSnapshot_a956ff0998e2c57334e260cd0f30dd2656011e6ecc16b85b897193900cb42052
+var _ GoDjProjectSnapshot_a341d83330594486355033c5d67c12cebd2210c2965983488139a4776a3d9fad

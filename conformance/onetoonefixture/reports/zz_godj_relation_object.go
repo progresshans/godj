@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
+const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
 const GoDjRelationObjectSchemaSHA256 = "cccfe41a52e34b8900070facbfbde9207eb92f2fbf5007cd18a21612495c902b"
 
 var _ orm.RelationObjectDescriptor[Report] = ReportDescriptor{}
@@ -211,4 +211,4 @@ func (reviewTicketIDRelationStorage) Value(value Review) (query.Value, bool) {
 	return query.Integer(value.TicketID), true
 }
 
-var _ GoDjProjectSnapshot_485a268a23b9a93273af0500ae0bff7006c2a6e7d3021644c91a83be5af3a40a
+var _ GoDjProjectSnapshot_b059cfd7580b4400ac9f250875f3fa95fdaf949f3c6e3c2ad6cad753f4b4a592

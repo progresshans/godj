@@ -123,39 +123,13 @@ func (d RelationDeleter[M]) Delete(
 	}
 	var deleted int64
 
-	guard := &relationDeleteCallbackGuard{}
-	callback := func(session db.RelationSession) error {
-		return guard.invoke(func() error {
-			count, err := d.state.execute(ctx, session, targetKey)
-			deleted = count
-			return err
-		})
-	}
-
-	atomicErr := backend.AtomicRelation(ctx, callback)
-	guardSnapshot := guard.seal()
-	if guardSnapshot.entries == 0 && guardSnapshot.completed == 0 && atomicErr != nil {
-		return 0, atomicErr
-	}
-	if guardSnapshot.entries != 1 || guardSnapshot.completed != 1 {
-		return 0, errors.Join(
-			relationBackendInvalidPlan("relation atomic backend violated the single synchronous callback contract"),
-			atomicErr,
-			guardSnapshot.result,
-		)
-	}
-	if guardSnapshot.result != nil {
-		if atomicErr == nil || !errors.Is(atomicErr, guardSnapshot.result) {
-			return 0, errors.Join(
-				relationBackendInvalidPlan("relation atomic backend did not preserve its callback error"),
-				atomicErr,
-				guardSnapshot.result,
-			)
-		}
-		return 0, atomicErr
-	}
-	if atomicErr != nil {
-		return 0, atomicErr
+	err = runRelationAtomic(ctx, backend.AtomicRelation, func(session db.RelationSession) error {
+		count, err := d.state.execute(ctx, session, targetKey)
+		deleted = count
+		return err
+	})
+	if err != nil {
+		return 0, err
 	}
 
 	// Successful commit is authoritative. Do not downgrade it for a context
@@ -207,6 +181,24 @@ func (state relationDeleteState[M]) preflight(target M) (int64, error) {
 		}
 	}
 	return targetKey, nil
+}
+
+func runRelationAtomic(ctx context.Context, atomic func(context.Context, func(db.RelationSession) error) error, callback func(db.RelationSession) error) error {
+	guard := &relationDeleteCallbackGuard{}
+	atomicErr := atomic(ctx, func(session db.RelationSession) error {
+		return guard.invoke(func() error { return callback(session) })
+	})
+	snapshot := guard.seal()
+	if snapshot.entries == 0 && snapshot.completed == 0 && atomicErr != nil {
+		return atomicErr
+	}
+	if snapshot.entries != 1 || snapshot.completed != 1 {
+		return errors.Join(relationBackendInvalidPlan("relation atomic backend violated the single synchronous callback contract"), atomicErr, snapshot.result)
+	}
+	if snapshot.result != nil && (atomicErr == nil || !errors.Is(atomicErr, snapshot.result)) {
+		return errors.Join(relationBackendInvalidPlan("relation atomic backend did not preserve its callback error"), atomicErr, snapshot.result)
+	}
+	return atomicErr
 }
 
 type relationDeleteCallbackGuard struct {

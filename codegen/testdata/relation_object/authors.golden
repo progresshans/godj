@@ -7,7 +7,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
+const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
 const GoDjRelationObjectSchemaSHA256 = "0c789dbe1bc5f154fe6a2efe63c0f1caa2940a1a41418002b39979ab0215b798"
 
 var _ orm.RelationObjectDescriptor[Author] = AuthorDescriptor{}

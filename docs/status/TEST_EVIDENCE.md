@@ -3,6 +3,58 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — root collection manager와 transaction/cache 소유권
+
+2026-09-22, `1c20e5d21a103f9ab6809b50ab9432e22f6503fd` 위에서 공통 runtime·generated `BindCollections()`의
+forward/reverse add/remove/clear/set와 같은 AST의 기본 컬렉션 조회/Distinct를 연결했다. 자동/명시적 through·nullable/nonunique
+연결·payload·자기 관계를 실제 별도 generated module에서 실행했다. 통합 model facade·외부 transaction composition·일반 관계
+조건/prefetch·Ticket 컬렉션 소비자와 GDJ-0099 Hosted 전체 검증은 아직 남아 있다.
+
+최종 non-Markdown source **2,097파일**의 정렬 path→SHA256 map hash는
+`2af49c6d42359688e11474644faa5049c6723712c6bd27187752681f260f1a8e`다.
+검증은 아래 두 source/범위로 구분한다. 뒤의 작은 보완을 앞선 전체 실행 결과로 덮지 않는다.
+
+- 넓은 영향 source map `315cda6d0504e1424213c56f9a257dc1044ff8608e8e40e1e145a3ea0ce09e78`:
+  `./orm ./query ./codegen ./codegen/consumertest ./db/internal/queryplan ./db/sqlite ./db/postgres`의
+  normal·CGO=0은 각각 **6,997 run=PASS, skip 0**, 실행 전후 source 불변이다(118.2초/125.3초).
+  Race도 Go exit 0, **6,997 run=PASS, skip 0**다(461.9초). 다만 실행 중 추가한 임시
+  `.scratch/m2m-collections-negative/main.go` 때문에 원래 whole-workspace source audit는 실패했다.
+  원본 실패 receipt를 그대로 보존했다. 유일한 변경이 이 ad-hoc 도구이고 346개 test/dependency package의 입력에 속하지 않으며
+  모든 제품·테스트 입력이 동일함을 `scope-reconciliation.json`에 별도로 확인했다. 임시 도구는 artifact로 이동했다.
+- 이후 실제 오류 주입으로 `Query`가 context를 취소한 뒤 nil rows/nil error를 반환하면 취소 원인이 누락됨을 발견했다.
+  실패하는 regression을 먼저 실행했고, nil rows 규약 오류에 `context.Canceled`도 보존하도록 한 줄을 보완했다.
+  최종 source에서 `./orm` 전체와 `./codegen/consumertest -run '^TestGeneratedManyToMany'`를 normal·race·CGO=0으로 재실행했다.
+  각각 **584 run=PASS, skip 0**이며 세 mode 모두 시작/종료 source map이 위 최종 hash와 일치한다(9.6초/25.8초/7.5초).
+  넓은 source 이후 제품/테스트 차이는 이 ORM 보완·새 regression뿐이다. 추가 CI 필수 목록 두 파일과 임시 helper 제거는
+  `final-delta.json`에 구분했으며 CI Python **41 PASS**로 목록의 실제 실행 owner·shell 전달·workflow 한도를 확인했다.
+
+공통 환경은 Go **1.26.5**, Darwin arm64, modernc SQLite **3.53.3**, 격리 PostgreSQL **17.5 Homebrew**다.
+모든 DB 실행은 `GODJ_REQUIRE_POSTGRES=1`이며 mode별 전용 database를 만들었다. 종료 시 다른 connection과 사용자 table/schema가
+없음을 확인하고 해당 database를 제거했다. Generated module의 양 DB **22개 child run=PASS**와 metadata child를 각각
+전체 JSON event로 검사하며, 모든 필수 하위 사례·완료 package·skip 부재를 부모 테스트가 확인한다. Parent race/CGO mode를 상속한다.
+
+실제 사례는 PK presence/0·동시 중복 add·retained ID/payload·Set(clear=true)·늦은 unique/FK 오류 rollback·nullable NULL 링크·
+비고유 연결의 multiplicity/Distinct·모든 duplicate 제거·대칭 self/mirror와 directed reverse·삭제 root 집합의 PROTECT/CASCADE/SET_NULL·
+재접속을 포함한다. Held QuerySet·독립 materialization·Fresh·실패 시 cache 무효화·동시 조회/변경도 검사한다.
+Trigger가 insert를 생략한 실제 0행, insert 뒤 실제 context 취소, outer commit/unknown 결과 publication·늦은 취소,
+누락/반복/비동기 callback과 nil/malformed/out-of-scope row·scan/iteration/close 오류를 확인했다.
+Unknown 결과 주입은 manager의 publication 경계 검증이며 실제 driver의 commit/rollback uncertainty는 기존 양 DB port 회귀가 소유한다.
+
+별도 generated SQLite module에서 원본을 통과시킨 뒤 runtime overlay로 mirror 생성을 제거하거나 Set이 retained link를 교체하도록
+변경했을 때 대응 회귀가 실제 실패함을 확인했다. 원래 workspace 제품 파일은 변경하지 않았다.
+독립 Django **6.1** reference는 양 DB·hash seed 0/813에서 **31개 관찰**이 동일하고 이전 29개 및 고정 Django source hash가
+보존됐다. Nullable duplicate/NULL의 set/remove/clear/reverse clear와 incoming link 정책을 추가했다.
+Python **3.14.3**, SQLite **3.50.4**, PostgreSQL **17.5**, psycopg **3.3.6**이며 reference unittest **7 PASS**와 실제
+set/symmetry 변경 negative control을 유지한다. Reference 성공을 GoDj 전체 동등성으로 세지 않는다.
+
+다섯 기존 project(Helpdesk·Article·relationfixture·onetoonefixture·cascadefixture)의 실제 CLI generated drift,
+영향 vet·gofmt·문서 링크/diff를 확인했다. 최초 넓은 실행에서 실패한 생성 ABI 기준 파일은 실제 generator로 갱신했으며
+그 실패 로그도 보존했다. 관련 실행의 source·전체 event·필수 inventory·stderr·receipt·negative control은
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/collections/`의
+`latest-*-path`, `final-source.json`, `final-delta.json`, `python-checks.json`, `helpers/`를 따른다.
+이 결과는 로컬 영향 검증이다. 최신 Hosted 전체 결과는 여전히 source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739)이며 이번 source로 전이하지 않는다.
+
 ## GDJ-0099 — CI 필수 목록의 워크플로 입력 한도
 
 자동 storage 구현 source `e7b465a99154a18990fe07ee3973d05bfe290759`를 push한 뒤 GitHub의

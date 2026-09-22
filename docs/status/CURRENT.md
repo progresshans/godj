@@ -21,13 +21,16 @@ Rename은 연결 PK와 시퀀스·물리 테이블 identity를 보존하며, 생
 Transient table·중첩 storage 의존성·SQL projection·실패 rollback을 포함해 영향 normal/race/CGO=0과 generated drift를 통과했다.
 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
+Root collection runtime과 generated `BindCollections()`의 forward/reverse add/remove/clear/set를 연결했다.
+Retained ID·payload, nullable/nonunique through·self symmetry, incoming 정책·오류/취소·cache 소유권을 함께 처리한다.
+독립 Django 관찰은 nullable duplicate와 incoming link 정책을 포함한 31개로 확장했다. 실행 source와 환경은 TEST_EVIDENCE를 따른다.
+
 ## 다음 행동
 
-Generated manager의 add/remove/clear/set를 공통 runtime·native conflict insert·소유 transaction에 연결한다.
-자동/명시적 through와 nullable·중복 허용·payload·자기 관계의 차이를 실제 저장 제약에 맞게 처리한다.
-이후 같은 Query AST의 컬렉션 조회·prefetch와 Ticket 라벨 컬렉션 편집으로 이어간다.
-동시 중복 add, set의 retained link 보존·실패 rollback과 cache 소유권을 같은 구현에서 검증한다.
-명시적 연결 모델의 CRUD가 일반 ManyToMany 구현을 대신한 것으로 세지 않는다.
+통합 model facade와 빌린/coordinated transaction session의 명시적 collection composition을 연결한다.
+그다음 같은 Query AST의 일반 컬렉션 관계 조건·prefetch와 Ticket 라벨 컬렉션 편집으로 이어간다.
+Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
+명시적 연결 모델의 CRUD나 root manager만으로 전체 ManyToMany 소비자를 완료한 것으로 세지 않는다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

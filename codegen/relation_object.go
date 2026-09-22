@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const RelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
+const RelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
 
 // GenerateRelationObject renders the relation-key storage companion for the
 // descriptor published by the current main generator.
@@ -112,6 +112,9 @@ func renderRelationObjectModel(output *bytes.Buffer, model ir.Model) {
 		}
 		fmt.Fprintln(output, "}")
 		fmt.Fprintln(output)
+	}
+	if len(relations) >= 2 {
+		renderManyToManyInput(output, model, relations)
 	}
 }
 

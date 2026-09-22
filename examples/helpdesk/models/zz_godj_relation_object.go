@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
+const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
 const GoDjRelationObjectSchemaSHA256 = "33214ea261c78909004d04124bfeb7c8b03dbe18c191160f87ba0b54c0e01379"
 
 var _ orm.RelationObjectDescriptor[Category] = CategoryDescriptor{}
@@ -200,4 +200,40 @@ func (ticketLabelLabelIDRelationStorage) Value(value TicketLabel) (query.Value, 
 	return query.Integer(value.LabelID), true
 }
 
-var _ GoDjProjectSnapshot_93876bbcda4715df11640c4494797bf14a3a5b5f70a4c9496375fadc3a182641
+func (TicketLabelDescriptor) ManyToManyCreateInput() orm.ManyToManyInput[TicketLabel] {
+	return TicketLabelCreate{}
+}
+
+var _ orm.ManyToManyDescriptor[TicketLabel] = TicketLabelDescriptor{}
+
+func (input TicketLabelCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[TicketLabel] {
+	invalid := func() orm.Mutation[TicketLabel] {
+		return orm.InvalidMutation[TicketLabel](&query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "collection endpoints must be distinct canonical ForeignKeys omitted from through defaults"})
+	}
+	if source.Name == target.Name {
+		return invalid()
+	}
+	for index, field := range []ir.Field{source, target} {
+		key := sourceKey
+		if index == 1 {
+			key = targetKey
+		}
+		switch {
+		case reflect.DeepEqual(field, (ticketLabelTicketIDRelationStorage{}).Field()):
+			if _, set := input.ticketID.Get(); set {
+				return invalid()
+			}
+			input = input.WithTicketID(key)
+		case reflect.DeepEqual(field, (ticketLabelLabelIDRelationStorage{}).Field()):
+			if _, set := input.labelID.Get(); set {
+				return invalid()
+			}
+			input = input.WithLabelID(key)
+		default:
+			return invalid()
+		}
+	}
+	return input.BuildCreate()
+}
+
+var _ GoDjProjectSnapshot_3d485c24054bfd3a273124a671e187c46cc0cabba4771c092130d8584de7648b

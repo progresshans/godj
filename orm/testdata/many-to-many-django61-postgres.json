@@ -161,6 +161,16 @@
       "owner": 0,
       "target": 0
     },
+    "incoming_link_policy": {
+      "cascade_count": 0,
+      "clear_error": "ProtectedError",
+      "endpoint_count": 3,
+      "optional_null": true,
+      "protected_link_count": 2,
+      "remaining": [
+        "b"
+      ]
+    },
     "migration_add": {
       "endpoints_preserved": true,
       "members": [
@@ -195,6 +205,24 @@
     "missing_target": {
       "error": "IntegrityError",
       "rows_preserved": true
+    },
+    "nullable_duplicates": {
+      "after_clear": [
+        7
+      ],
+      "after_remove": [
+        6,
+        7
+      ],
+      "after_reverse_clear_count": 0,
+      "before": [
+        "a",
+        "a"
+      ],
+      "distinct": [
+        "a"
+      ],
+      "set_retained_all_ids": true
     },
     "query_multiplicity": {
       "count": 3,

@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
+const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
 const GoDjRelationObjectSchemaSHA256 = "bdc690c19ffaf2819741211cb2c985a3d347399b767962789fade6f32d07ae42"
 
 var _ orm.RelationObjectDescriptor[Label] = LabelDescriptor{}
@@ -217,4 +217,40 @@ func (rootLabelsLabelIDRelationStorage) Value(value RootLabels) (query.Value, bo
 	return query.Integer(value.LabelID), true
 }
 
-var _ GoDjProjectSnapshot_49fdbc8862a9c0d90090aec066e2282d2cd21014185c98bb6e08814b7eb6c4b0
+func (RootLabelsDescriptor) ManyToManyCreateInput() orm.ManyToManyInput[RootLabels] {
+	return RootLabelsCreate{}
+}
+
+var _ orm.ManyToManyDescriptor[RootLabels] = RootLabelsDescriptor{}
+
+func (input RootLabelsCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[RootLabels] {
+	invalid := func() orm.Mutation[RootLabels] {
+		return orm.InvalidMutation[RootLabels](&query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "collection endpoints must be distinct canonical ForeignKeys omitted from through defaults"})
+	}
+	if source.Name == target.Name {
+		return invalid()
+	}
+	for index, field := range []ir.Field{source, target} {
+		key := sourceKey
+		if index == 1 {
+			key = targetKey
+		}
+		switch {
+		case reflect.DeepEqual(field, (rootLabelsRootIDRelationStorage{}).Field()):
+			if _, set := input.rootID.Get(); set {
+				return invalid()
+			}
+			input = input.WithRootID(key)
+		case reflect.DeepEqual(field, (rootLabelsLabelIDRelationStorage{}).Field()):
+			if _, set := input.labelID.Get(); set {
+				return invalid()
+			}
+			input = input.WithLabelID(key)
+		default:
+			return invalid()
+		}
+	}
+	return input.BuildCreate()
+}
+
+var _ GoDjProjectSnapshot_40839e7b6ae834205f54171f9ac5b237d0fd0a01cf42bf20937132595a36a701

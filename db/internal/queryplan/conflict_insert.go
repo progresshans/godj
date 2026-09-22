@@ -9,7 +9,8 @@ import (
 )
 
 // ConflictInsert validates all values before compiling an explicit conflict
-// target. Every target member must be the exact assigned non-null field.
+// target. Every target member must have the exact metadata and a non-NULL
+// assignment. Nullable columns still enforce uniqueness for non-NULL tuples.
 func ConflictInsert(plan query.ConflictInsertPlan, validateValue func(query.FieldRef, query.Value) error, quoteIdentifier func(string) (string, error), columnKey func(string) string, encodeValue func(query.Value) (any, error)) ([]string, []any, []string, error) {
 	assignments, target := plan.Assignments(), plan.Target()
 	if len(target) == 0 || len(target) > len(assignments) {
@@ -31,7 +32,7 @@ func ConflictInsert(plan query.ConflictInsertPlan, validateValue func(query.Fiel
 	for index, field := range target {
 		key := columnKey(field.Column())
 		assignment, present := assigned[key]
-		if seen[key] || !present || !field.Equal(assignment.Field()) || field.Nullable() || assignment.Value().IsNull() ||
+		if seen[key] || !present || !field.Equal(assignment.Field()) || assignment.Value().IsNull() ||
 			field.Name() == "" || strings.ContainsRune(field.Name(), '\x00') {
 			return nil, nil, nil, invalidPlan("conflict target must contain distinct, named, assigned non-null fields")
 		}

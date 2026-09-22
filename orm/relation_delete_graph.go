@@ -86,12 +86,26 @@ func relationDeletePolicyFingerprint(target ir.ModelIdentity, model ir.Model, ke
 }
 
 func (state relationDeleteState[M]) execute(ctx context.Context, session db.RelationSession, targetKey int64) (int64, error) {
+	return executeRelationDeleteRoots(ctx, session, state.graph, []relationDeleteRow{{model: state.target, key: targetKey}})
+}
+
+// Multiple collection links are one delete operation: collect the union before
+// any write so PROTECT, shared CASCADE rows and cycles retain the same policy.
+func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession, graph map[ir.ModelIdentity]relationDeleteNode, roots []relationDeleteRow) (int64, error) {
 	if interfaceIsNil(session) {
 		return 0, relationBackendInvalidPlan("relation atomic backend supplied a nil session")
 	}
-	root := relationDeleteRow{model: state.target, key: targetKey}
-	queue := []relationDeleteRow{root}
-	seen := map[relationDeleteRow]bool{root: true}
+	queue := make([]relationDeleteRow, 0, len(roots))
+	seen := make(map[relationDeleteRow]bool, len(roots))
+	for _, root := range roots {
+		if _, exists := graph[root.model]; !exists {
+			return 0, relationInvalidPlan("relation delete root is outside its bound graph")
+		}
+		if !seen[root] {
+			seen[root] = true
+			queue = append(queue, root)
+		}
+	}
 	protected := make(map[relationDeleteRow]bool)
 	var setNull []query.RelationSetNullPlan
 	for cursor := 0; cursor < len(queue); cursor++ {
@@ -99,7 +113,7 @@ func (state relationDeleteState[M]) execute(ctx context.Context, session db.Rela
 			return 0, err
 		}
 		row := queue[cursor]
-		for _, edge := range state.graph[row.model].incoming {
+		for _, edge := range graph[row.model].incoming {
 			if edge.metadata.OnDelete == ir.DeleteSetNull {
 				setNull = append(setNull, query.NewRelationSetNullPlan(edge.sourceModel.DBTable, fieldReference(edge.sourceForeignKey), query.Integer(row.key)))
 				continue
@@ -148,7 +162,7 @@ func (state relationDeleteState[M]) execute(ctx context.Context, session db.Rela
 			return 0, err
 		}
 		row := queue[index]
-		node := state.graph[row.model]
+		node := graph[row.model]
 		count, err := session.Delete(ctx, query.NewDeletePlan(node.model.DBTable, fieldReference(node.key), query.Integer(row.key)))
 		if err != nil {
 			return 0, err

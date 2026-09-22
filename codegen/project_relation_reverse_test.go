@@ -37,7 +37,7 @@ func TestGenerateProjectRelationReverseIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("project relation reverse bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v3"`),
+		[]byte(`const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v4"`),
 		[]byte("var _ orm.RelationObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
 		[]byte("var _ orm.PrimaryKeyObjectDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
 		[]byte("var _ orm.RelationObjectDescriptor[blog.Post] = blog.PostDescriptor{}"),
