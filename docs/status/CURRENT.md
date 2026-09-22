@@ -14,12 +14,15 @@ CASCADE·명시적 TicketLabel 소비자의 Hosted full을 완료했다. 위 sou
 공통 AST·양 DB·transaction session에 연결하고 영향 normal/race/CGO=0을 통과했다.
 Columnless 선언·Schema IR·자동 storage projection·생성 metadata/binding·bounded project wire를 연결했다.
 영향 normal/race/CGO=0과 다섯 기존 project의 generated drift를 통과했다.
+명시적 through의 Add/Remove/Rename·reverse·자동 계획을 연결했다. 양 DB의 기존 행·payload·sequence·catalog를 보존하며
+선택한 두 FK·dependency ancestry와 전체 관련 모델을 검증한다. 최신 영향 normal/race/CGO=0과 다섯 기존 project의 generated drift를 통과했다.
 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 
 ## 다음 행동
 
-Historical Create/Add/Remove/Rename·reverse와 자동 계획을 연결한다.
-현재 거부하는 migration 경계를 실제 storage·metadata 변경으로 교체하며 기존 TicketLabel 행을 보존한다.
+자동 intermediary의 historical Create/Add/Remove/Rename·reverse와 자동 계획을 연결한다.
+현재 거부하는 자동 storage 경계를 실제 DDL로 교체하며 retained link ID·sequence·managed constraint 이름을 보존한다.
+명시적 through 선언의 기존 행 보존 경로는 연결했으며, CreateModel에 포함된 선언은 자동 계획이 모델/FK 생성 뒤 AddManyToMany로 나눈다.
 이후 generated manager·조회·Ticket 라벨 컬렉션 편집으로 이어간다.
 동시 중복 add, set의 retained link 보존·실패 rollback과 cache 소유권을 같은 구현에서 검증한다.
 명시적 연결 모델의 CRUD가 일반 ManyToMany 구현을 대신한 것으로 세지 않는다.

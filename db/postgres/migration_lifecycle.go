@@ -83,6 +83,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
+		ExplicitManyToMany:                true,
 	}
 }
 

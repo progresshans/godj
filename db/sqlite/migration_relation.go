@@ -48,6 +48,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		AlterFieldRelation:                true,
 		AlterFieldDecimalPrecision:        true,
 		UniqueConstraints:                 true,
+		ExplicitManyToMany:                true,
 	}
 }
 
@@ -479,6 +480,19 @@ func writeRelationModel(hash sqliteRelationHashWriter, model ir.Model) {
 	for index := range model.Fields {
 		writeRelationField(hash, model.Fields[index])
 	}
+	writeRelationSliceHeader(hash, model.ManyToMany == nil, len(model.ManyToMany))
+	for _, field := range model.ManyToMany {
+		for _, value := range []string{field.Name, field.GoName, field.Target.AppLabel, field.Target.ModelName, field.Reverse.Name, string(field.Symmetry)} {
+			writeRelationString(hash, value)
+		}
+		writeRelationBool(hash, field.Reverse.Disabled)
+		writeRelationBool(hash, field.Through != nil)
+		if through := field.Through; through != nil {
+			for _, value := range []string{through.Model.AppLabel, through.Model.ModelName, through.SourceField, through.TargetField} {
+				writeRelationString(hash, value)
+			}
+		}
+	}
 	writeRelationSliceHeader(hash, model.UniqueConstraints == nil, len(model.UniqueConstraints))
 	for _, constraint := range model.UniqueConstraints {
 		writeRelationString(hash, constraint.Name)
@@ -695,6 +709,16 @@ func validateSQLiteRelationIntent(
 			if _, err := validateSQLiteRelationRemoveDelta(before, after); err != nil {
 				return relationIntentIntegrity("relation RemoveField operation %d: %v", operation.OperationIndex, err)
 			}
+		case migrationbackend.MigrationAlterManyToMany:
+			if _, _, err := operation.ChangedManyToMany(); err != nil {
+				return relationIntentIntegrity("invalid ManyToMany delta: %v", err)
+			}
+			if err := validateExactNormalizedRelationModel(before); err != nil {
+				return err
+			}
+			if err := validateExactNormalizedRelationModel(after); err != nil {
+				return err
+			}
 		case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
 			if err := validateExactNormalizedRelationModel(before); err != nil {
 				return err
@@ -826,6 +850,9 @@ func validateSQLiteRelationRemoveDelta(before, after ir.Model) (ir.Field, error)
 }
 
 func validateExactNormalizedRelationModel(model ir.Model) error {
+	// Logical relation normalization uses the actual app in the sealed graph.
+	// This app-independent helper checks only the concrete storage shape.
+	model.ManyToMany = nil
 	normalized, err := ir.Normalize(ir.Schema{
 		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_relation_intent",
@@ -1118,8 +1145,10 @@ func compileSQLiteRelationCreateModel(
 	model ir.Model,
 	targets []migrationbackend.MigrationTarget,
 ) (string, error) {
-	if len(model.ManyToMany) != 0 {
-		return "", relationIntentUnsupported("ManyToMany storage migration is not implemented")
+	for _, field := range model.ManyToMany {
+		if field.Through == nil {
+			return "", relationIntentUnsupported("automatic ManyToMany storage migration is not implemented")
+		}
 	}
 	table, err := quoteIdentifier(model.DBTable)
 	if err != nil {

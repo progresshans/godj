@@ -51,6 +51,29 @@ func (field ManyToManyField) Equal(other ManyToManyField) bool {
 		(field.Through == nil && other.Through == nil || field.Through != nil && other.Through != nil && *field.Through == *other.Through)
 }
 
+// ManyToManyRename reports an exact name-only change. Renaming never changes
+// relation direction, endpoint selection, target or explicit storage ownership.
+func ManyToManyRename(before, after ManyToManyField) bool {
+	if before.Name == after.Name && before.GoName == after.GoName {
+		return false
+	}
+	before.Name, before.GoName = after.Name, after.GoName
+	return before.Equal(after)
+}
+
+// NormalizeManyToManyField normalizes a declaration independently of an owner
+// field list. Normalize additionally checks the owner's full field namespace.
+func NormalizeManyToManyField(app, owner string, field ManyToManyField) (ManyToManyField, error) {
+	if err := validateManyToManyIdentity(ModelIdentity{AppLabel: app, ModelName: owner}, "owner"); err != nil {
+		return ManyToManyField{}, err
+	}
+	model := Model{Name: owner, ManyToMany: []ManyToManyField{field.Clone()}}
+	if err := normalizeManyToMany(app, &model, "model"); err != nil {
+		return ManyToManyField{}, err
+	}
+	return model.ManyToMany[0], nil
+}
+
 func normalizeManyToMany(app string, model *Model, path string) error {
 	if len(model.ManyToMany) == 0 {
 		model.ManyToMany = nil

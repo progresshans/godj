@@ -54,6 +54,23 @@ Commit/rollback 불확실성과 SQLite 연결 격리·session 만료·취소의 
 Clear 요청은 링크만 삭제한다. 명시적 through의 추가 필드 제약은 정상 오류로 남는다. 대칭 자기 관계는 반대 방향 연결도 같은
 변경에 포함하며, 조회 multiplicity는 명시적 Distinct 없이 축약하지 않는다.
 
+## Historical 선언 변경
+
+Columnless 변경은 `AddManyToMany`, `RemoveManyToMany`, `RenameManyToMany`라는 별도 typed operation으로 표현한다.
+저장 컬럼의 AddField를 가장하지 않는다. Add/Remove는 선언 목록의 삽입 anchor와 완전한 field를 보관하고, Rename은 이름·Go 이름 외
+binding 변경을 허용하지 않는다. 기존 scalar/FK/constraint delta도 retained ManyToMany 의미를 변경할 수 없다.
+Definition의 closed nested shape·사전 resource admission·semantic digest와 일반/최적화 historical state가 같은 의미를 보존한다.
+
+명시적 through는 기존 모델을 소유하지 않는다. 양 DB의 `ExplicitManyToMany` capability와 schema editor는 원본 owner·target·through와
+transitive FK graph의 실제 catalog를 검증하고, DDL이나 행 재작성 없이 같은 revision-fenced transaction에 이력을 반영한다.
+Columnless source에 직접 FK가 없어도 through와 두 endpoint의 authority는 생략하지 않는다. Retained binding을 검증하는 scalar 변경도
+이 capability를 요구한다. 현재 SQL projection은 해당 operation의 빈 statement group만 허용한다.
+
+자동 계획은 explicit-through 선언을 모델·선택한 FK 생성 뒤에 추가한다. Cross-app의 모델이 이미 있어도 필요한 FK가 아직 없는
+중간 prefix라면 선언을 지연한다. Dependency ancestry와 모든 재개 prefix의 남은 bytes를 보존하며, 모호한 rename이나 retained 선언의
+순서 변경·binding retarget을 추측하지 않는다. Raw CreateModel에 포함된 columnless 선언과 자동 intermediary DDL은 현재 미지원이며
+자동 계획이 explicit-through 초기 선언을 분리하는 동작과 구분한다. 자동 storage의 생성·제거·rename은 다음 구현 범위다.
+
 ## 후속 구현 경계
 
 현재 native conflict-insert primitive의 구현과 전체 ManyToMany declaration/manager는 다른 단계다.

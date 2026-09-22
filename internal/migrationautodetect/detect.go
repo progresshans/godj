@@ -114,10 +114,11 @@ type appChange struct {
 }
 
 type relationReference struct {
-	sourceModel string
-	field       string
-	targetApp   string
-	targetModel string
+	sourceModel  string
+	field        string
+	targetApp    string
+	targetModel  string
+	targetFields []string
 }
 
 // Detect computes supported field and named-constraint changes to make every
@@ -307,9 +308,13 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 	if !afterExists {
 		return appChange{}, false, nil
 	}
-	for _, model := range after.Models {
-		if len(model.ManyToMany) != 0 {
-			return appChange{}, false, detectionError(CodeUnsupportedChange, app, model.Name, model.ManyToMany[0].Name, fmt.Errorf("ManyToMany storage migration is not implemented"))
+	for _, schema := range []ir.Schema{before, after} {
+		for _, model := range schema.Models {
+			for _, field := range model.ManyToMany {
+				if field.Through == nil {
+					return appChange{}, false, detectionError(CodeUnsupportedChange, app, model.Name, field.Name, fmt.Errorf("automatic ManyToMany storage migration is not implemented"))
+				}
+			}
 		}
 	}
 	if !beforeExists {
@@ -321,7 +326,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 
 	change := appChange{}
 	addedFields := make([]migrations.Operation, 0)
-	var removedConstraints, addedConstraints []migrations.Operation
+	var removedConstraints, addedConstraints, manyOperations []migrations.Operation
 	for index := range before.Models {
 		oldModel := before.Models[index]
 		newModel := after.Models[index]
@@ -331,6 +336,11 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 		if len(newModel.Fields) < len(oldModel.Fields) {
 			return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, "", fmt.Errorf("field removal is unsupported"))
 		}
+		many, err := manyChanges(app, oldModel, newModel)
+		if err != nil {
+			return appChange{}, false, err
+		}
+		manyOperations = append(manyOperations, many...)
 		removed, added := constraintChanges(app, oldModel, newModel)
 		removedConstraints = append(removedConstraints, removed...)
 		addedConstraints = append(addedConstraints, added...)
@@ -376,11 +386,21 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 			}
 			collectRelationReference(&change.relations, app, model.Name, field)
 		}
+		many, err := manyChanges(app, ir.Model{}, model)
+		if err != nil {
+			return appChange{}, false, err
+		}
+		manyOperations = append(manyOperations, many...)
+		model.ManyToMany = nil
 		change.operations = append(change.operations, migrations.CreateModel{AppLabel: app, Model: model})
 	}
 	change.operations = append(removedConstraints, change.operations...)
 	change.operations = append(change.operations, addedFields...)
 	change.operations = append(change.operations, addedConstraints...)
+	change.operations = append(change.operations, manyOperations...)
+	for _, operation := range manyOperations {
+		collectManyOperationReferences(&change.relations, operation)
+	}
 	return change, len(change.operations) != 0, nil
 }
 
@@ -490,6 +510,12 @@ func operationSlug(operations []migrations.Operation) string {
 			}
 		case migrations.AddField:
 			return operation.ModelName + "_" + operation.Field.Name
+		case migrations.AddManyToMany:
+			return "add_" + operation.ModelName + "_" + operation.Field.Name
+		case migrations.RemoveManyToMany:
+			return "remove_" + operation.ModelName + "_" + operation.Field.Name
+		case migrations.RenameManyToMany:
+			return "rename_" + operation.ModelName + "_" + operation.After.Name
 		case migrations.AddConstraint:
 			return "add_" + operation.ModelName + "_" + operation.Constraint.Name
 		case migrations.RemoveConstraint:
@@ -516,10 +542,21 @@ func operationSlug(operations []migrations.Operation) string {
 		After       *ir.Field            `json:"after,omitempty"`
 		BeforeField string               `json:"before_field,omitempty"`
 		Constraint  *ir.UniqueConstraint `json:"constraint,omitempty"`
+		Many        *ir.ManyToManyField  `json:"many,omitempty"`
+		ManyBefore  *ir.ManyToManyField  `json:"many_before,omitempty"`
 	}
 	values := make([]change, 0, len(operations))
 	for _, operation := range operations {
 		switch value := operation.(type) {
+		case migrations.AddManyToMany:
+			field := value.Field.Clone()
+			values = append(values, change{Kind: "add_many_to_many", App: value.AppLabel, Model: value.ModelName, Many: &field, BeforeField: value.BeforeField})
+		case migrations.RemoveManyToMany:
+			field := value.Field.Clone()
+			values = append(values, change{Kind: "remove_many_to_many", App: value.AppLabel, Model: value.ModelName, Many: &field, BeforeField: value.BeforeField})
+		case migrations.RenameManyToMany:
+			before, after := value.Before.Clone(), value.After.Clone()
+			values = append(values, change{Kind: "rename_many_to_many", App: value.AppLabel, Model: value.ModelName, Many: &after, ManyBefore: &before})
 		case migrations.CreateModel:
 			model := value.Model.Clone()
 			values = append(values, change{Kind: "create_model", App: value.AppLabel, Model: value.Model.Name, Value: &model})
@@ -578,6 +615,36 @@ func cloneOperations(input []migrations.Operation) []migrations.Operation {
 	result := make([]migrations.Operation, len(input))
 	for index, operation := range input {
 		switch value := operation.(type) {
+		case migrations.AddManyToMany:
+			copy := value
+			copy.Field = copy.Field.Clone()
+			result[index] = copy
+		case *migrations.AddManyToMany:
+			if value != nil {
+				copy := *value
+				copy.Field = copy.Field.Clone()
+				result[index] = &copy
+			}
+		case migrations.RemoveManyToMany:
+			copy := value
+			copy.Field = copy.Field.Clone()
+			result[index] = copy
+		case *migrations.RemoveManyToMany:
+			if value != nil {
+				copy := *value
+				copy.Field = copy.Field.Clone()
+				result[index] = &copy
+			}
+		case migrations.RenameManyToMany:
+			copy := value
+			copy.Before, copy.After = copy.Before.Clone(), copy.After.Clone()
+			result[index] = copy
+		case *migrations.RenameManyToMany:
+			if value != nil {
+				copy := *value
+				copy.Before, copy.After = copy.Before.Clone(), copy.After.Clone()
+				result[index] = &copy
+			}
 		case migrations.CreateModel:
 			result[index] = migrations.CreateModel{AppLabel: value.AppLabel, Model: value.Model.Clone()}
 		case *migrations.CreateModel:

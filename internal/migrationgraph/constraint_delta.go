@@ -21,7 +21,7 @@ func (operation MigrationOperation) ChangedConstraint() (ir.UniqueConstraint, er
 		return ir.UniqueConstraint{}, errors.New("constraint delta requires AddConstraint or RemoveConstraint")
 	}
 	if smaller.Name != larger.Name || smaller.GoName != larger.GoName || smaller.DBTable != larger.DBTable ||
-		!slices.EqualFunc(smaller.Fields, larger.Fields, ir.Field.Equal) || len(larger.UniqueConstraints) != len(smaller.UniqueConstraints)+1 {
+		!slices.EqualFunc(smaller.Fields, larger.Fields, ir.Field.Equal) || !slices.EqualFunc(smaller.ManyToMany, larger.ManyToMany, ir.ManyToManyField.Equal) || len(larger.UniqueConstraints) != len(smaller.UniqueConstraints)+1 {
 		return ir.UniqueConstraint{}, errors.New("constraint delta must change exactly one constraint in the same model")
 	}
 	position := 0

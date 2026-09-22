@@ -344,6 +344,17 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 		if changed.PrimaryKey {
 			return before, after, changed, postgresMigrationIntentIntegrity("RemoveField cannot remove a primary key", nil)
 		}
+	case migrationbackend.MigrationAlterManyToMany:
+		before, after = operation.Before, operation.After
+		if _, _, err := operation.ChangedManyToMany(); err != nil {
+			return before, after, changed, postgresMigrationIntentIntegrity("invalid ManyToMany delta", err)
+		}
+		if err := validateExactPostgresMigrationModel(before); err != nil {
+			return before, after, changed, err
+		}
+		if err := validateExactPostgresMigrationModel(after); err != nil {
+			return before, after, changed, err
+		}
 	case migrationbackend.MigrationAddConstraint, migrationbackend.MigrationRemoveConstraint:
 		before, after = operation.Before, operation.After
 		if err := validateExactPostgresMigrationModel(before); err != nil {
@@ -375,6 +386,8 @@ func validatePostgresMigrationOperation(operation migrationbackend.MigrationOper
 }
 
 func validateExactPostgresMigrationModel(model ir.Model) error {
+	// The historical graph owns app-sensitive columnless normalization.
+	model.ManyToMany = nil
 	if reflect.DeepEqual(model, ir.Model{}) {
 		return postgresMigrationIntentIntegrity("migration model is zero", nil)
 	}

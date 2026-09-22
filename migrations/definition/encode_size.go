@@ -95,6 +95,10 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 			}
 		}
 		switch value := operationValue(operation).(type) {
+		case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany:
+			if err := scanner.scanManyOperation(path, manyOperationDocument(value)); err != nil {
+				return err
+			}
 		case migrations.CreateModel:
 			if err := scanner.scanCreateModel(path, index, value); err != nil {
 				return err

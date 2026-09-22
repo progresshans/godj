@@ -3,6 +3,47 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 명시적 through의 columnless migration
+
+2026-09-22, 기준 `a9b8e3a2acd83d07d1f2534f40359d0eab5050d9` 위 제품·테스트·CI **44 non-Markdown 경로(Go 42)**를 변경했다.
+전체 non-Markdown source 2,077파일의 정렬 path→SHA256 map hash는
+`3e0ecf27a52634cf7111f697b2daf38499979e65e8b6f6820cd8e82b9426b614`다. 세 mode의 시작/종료 source 불변을 확인했다.
+
+`AddManyToMany`, `RemoveManyToMany`, `RenameManyToMany`는 columnless 선언·완전한 through binding·삽입 anchor를 역사에 보관한다.
+이름 변경은 이름/Go 이름만 바꿀 수 있으며 target·reverse·symmetry·through FK 선택을 바꾸지 않는다. Definition의 closed shape·
+중복 key·사전 byte/node 한도·semantic digest·deep copy와 최적화된 historical 재구성을 연결했다. 기존 scalar/FK/constraint operation도
+retained ManyToMany 의미를 변경할 수 없다. 잘못된 endpoint 선택·없는 target/through·reverse namespace·dependency ancestry·stale removal을 거부한다.
+
+명시적 through의 선언 변경은 양 DB에서 DDL 없이 실행한다. Owner에 직접 FK가 없어도 연결 모델·두 endpoint·transitive FK를 모두
+sealed graph에 포함해 실제 catalog와 이력/revision을 검증한다. 변경과 retained binding 검증에는 `ExplicitManyToMany` capability가 필요하다.
+SQLite의 seal도 중첩 through 의미를 포함한다. SQL projection은 이 metadata operation의 빈 statement group을 검증하며 임의 DDL을 허용하지 않는다.
+
+자동 계획은 모델과 선택한 FK를 먼저 생성한 뒤 선언을 추가한다. 같은 앱/서로 다른 앱의 순환 의존성, cold 생성·기존 모델 추가·
+이름 변경·제거·중간 anchor를 검사하고 모든 durable prefix에서 남은 문서 bytes가 같음을 확인했다. 모호한 rename·retained 순서 변경·
+binding retarget을 임의의 삭제/추가로 바꾸지 않는다. Raw CreateModel의 columnless 선언과 자동 intermediary DDL은 아직 명시적으로 거부한다.
+
+양 DB에서 nullable/non-null × pair unique 유/무 × 일반/self × same/cross-app의 **16개 실제 저장 profile** 각각에 대해
+Add→Rename→Remove→역방향→재적용과 connection close/reopen 후 역방향을 실행했다. 연결/endpoint 행·중복/null·payload·PK·
+sequence·physical catalog를 보존한다. SQLite schema version/rootpage/FK 설정과 PostgreSQL catalog/sequence 상태도 대조한다.
+늦은 native unique 실패, through/endpoint catalog drift, 취소는 변경 state나 부분 history를 게시하지 않는다.
+첫 normal은 새 capability를 반영하지 않은 기존 구조 inventory(8→9) 하나에서 실패했다. 실제 신규 DB 동작은 통과했으며,
+해당 기대를 갱신하고 cross-app 저장 profile·retained binding capability 검증을 포함해 최종 source를 다시 검증했다. 최초 실패 원본도 보존한다.
+
+Go 1.26.5/Darwin arm64·modernc SQLite·격리 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`에서
+`./schema ./schema/ir ./internal/migrationgraph ./migrations ./migrations/backend ./migrations/definition ./internal/projectgenerate ./internal/migrationautodetect ./db/sqlite ./db/postgres`를 실행했다.
+normal·race·CGO=0 **각 10 package / 6,712 run=PASS / skip 0**이며 필수 15 root와 CI 필수 세부 profile을 합한 **55개 항목**을
+각 mode에서 모두 확인했다. 실행 시간은 각각 48.7/90.6/51.3초다. Process helper의 직접 실행만 제외하고 parent의 실제 process 회귀는 유지했다.
+다섯 기존 project의 실제 CLI `generate --check`와 영향 vet를 통과했다. 이 검사와 동시 실행한 고정 Go source 이후 차이는 CI 필수
+목록 두 경로뿐이며 비교 map을 보관했다. CI Python 전체 **38 PASS**와 Markdown 링크/diff 검사도 통과했다.
+
+Artifact `godj-many-to-many-reference-4sl0bvdp/explicit-history/`의 `latest-{normal,race,cgo0,supplementary}-path`,
+`required-history-inventory.json`, `ci-python-receipt.json`에 source map·전체 event·필수 inventory·stderr·hash·receipt를 보관한다.
+세 전용 PostgreSQL DB는 연결·table·추가 schema 0을 확인한 뒤 삭제했다. 향후 Hosted relation/PostgreSQL owner의 필수 항목에도
+명시적 through의 실제 root/세부 profile을 등록했다. 이 로컬 결과를 Hosted 실행으로 세지 않는다.
+
+자동 through의 Create/Add/Remove/Rename·reverse·retained identity DDL, collection manager/query·Ticket 컬렉션 소비자와
+GDJ-0099의 Hosted 전체 통합은 남아 있다. 전체 플랫폼의 최신 검증 source는 아래 GDJ-0098의 `93e77bd9`이며 이번 변경에 전이하지 않는다.
+
 ## GDJ-0099 — Columnless 선언·storage projection·생성 metadata
 
 2026-09-22, 기준 `b4094c25b78b2ef1f2033b2c308a1464d62b48bf` 위 Go **40경로**를 변경했다.

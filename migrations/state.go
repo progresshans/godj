@@ -151,9 +151,6 @@ func (s ProjectState) copyApps() ProjectState {
 }
 
 func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
-	if len(model.ManyToMany) != 0 {
-		return ir.Model{}, fmt.Errorf("ManyToMany storage migration is not implemented")
-	}
 	schema, err := ir.Normalize(ir.Schema{
 		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      app,
@@ -168,6 +165,9 @@ func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
 func projectStateRequiresRelationLifecycle(value ProjectState) bool {
 	for _, schema := range value.apps {
 		for _, model := range schema.Models {
+			if len(model.ManyToMany) != 0 {
+				return true
+			}
 			for _, field := range model.Fields {
 				if fieldContainsRelation(field) {
 					return true

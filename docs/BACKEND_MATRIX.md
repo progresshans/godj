@@ -12,6 +12,7 @@
 | Relation delete | supported FK/OneToOne의 CASCADE·PROTECT·SET_NULL, recursive collector·exact-key 삭제 | 같은 graph/runtime과 native FK·AtomicRelation |
 | OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |
 | Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace/delete policy AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
+| Explicit ManyToMany migration | 기존 through의 Add/Remove/Rename·reverse, DDL 없는 전체 graph/catalog 검증과 행·sequence 보존 | 동일한 상태·history 계약, endpoint/through 잠금·catalog 검증 |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | Field/model uniqueness | column·named tuple unique index·Create/Add/Alter와 constraint Add/Remove·reverse·remake 보존·모든 key catalog | column·named tuple UNIQUE·독립 B-tree·Create/Add/Alter와 constraint Add/Remove·reverse·모든 key catalog |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
@@ -93,7 +94,12 @@ Form/Admin/API·OpenAPI와 Helpdesk JSON 소비자·독립 client를 연결했�
 이 기능의 현재 검증 완료 여부는 [CURRENT](status/CURRENT.md)와 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
 
-모든 Django Field, relation-as-PK·ManyToMany, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
+Columnless ManyToMany 선언과 자동 storage projection·generated metadata는 지원한다. 명시적 through의 선택한 두 FK는
+nullable이거나 pair unique가 없어도 기존 제약을 유지한다. `ExplicitManyToMany` capability는 Add/Remove/Rename·reverse와
+retained binding의 전체 historical graph/catalog 검증을 소유하며 데이터·DDL을 재작성하지 않는다. Definition/digest와 자동 계획은
+선언을 보존하고, 최초 생성은 모델과 선택한 FK를 만든 뒤 AddManyToMany를 배치한다.
+자동 intermediary의 storage migration·raw CreateModel 안의 columnless 선언과 일반 collection manager/query는 아직 미지원이다.
+모든 Django Field, relation-as-PK, arbitrary `to_field`나 범용 constraint/index migration을 지원하지 않는다.
 Scalar comparison·Boolean composition·same-model field reference와 projection/aggregate는 구현한 AST 범위 안에서만 허용한다.
 Scalar COUNT/MIN/MAX와 현재 관계 filter 위의 단일 COUNT(*)를 지원한다. 관계 COUNT는 원래 JOIN·Distinct·정렬·
 슬라이스의 결과 행 수를 센다. Eager Count는 selected projection을 먼저 제외한다. 일반 관계 집계는 미지원이다.

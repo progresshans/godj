@@ -208,6 +208,15 @@ func cloneMigrationDefinitions(definitions []Migration) []Migration {
 
 func cloneMigrationOperation(operation Operation) Operation {
 	switch operation := operationValue(operation).(type) {
+	case AddManyToMany:
+		operation.Field = operation.Field.Clone()
+		return operation
+	case RemoveManyToMany:
+		operation.Field = operation.Field.Clone()
+		return operation
+	case RenameManyToMany:
+		operation.Before, operation.After = operation.Before.Clone(), operation.After.Clone()
+		return operation
 	case CreateModel:
 		operation.Model = operation.Model.Clone()
 		return operation
@@ -234,6 +243,18 @@ func cloneMigrationOperation(operation Operation) Operation {
 // each caller's error policy rather than invoking methods on a nil receiver.
 func operationValue(operation Operation) Operation {
 	switch value := operation.(type) {
+	case *AddManyToMany:
+		if value != nil {
+			return *value
+		}
+	case *RemoveManyToMany:
+		if value != nil {
+			return *value
+		}
+	case *RenameManyToMany:
+		if value != nil {
+			return *value
+		}
 	case *CreateModel:
 		if value != nil {
 			return *value

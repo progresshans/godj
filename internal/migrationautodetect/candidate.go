@@ -52,7 +52,7 @@ func nextCandidate(changes map[string]appChange, current, desired migrations.Pro
 		unique := make(map[string]bool)
 		for _, relation := range relations {
 			target := ir.ModelIdentity{AppLabel: relation.targetApp, ModelName: relation.targetModel}
-			if known[target] {
+			if known[target] && manyReferenceReady(relation, current) {
 				if len(leaves[target.AppLabel]) > 1 {
 					return migrations.Migration{}, detectionError(CodeAmbiguousHistory, target.AppLabel, target.ModelName, "", fmt.Errorf("relation target app has multiple migration leaves"))
 				}
@@ -113,6 +113,7 @@ func nextCandidate(changes map[string]appChange, current, desired migrations.Pro
 	dependencies := append([]migrations.MigrationKey(nil), leaves[selected]...)
 	var references []relationReference
 	for _, operation := range operations {
+		collectManyOperationReferences(&references, operation)
 		switch value := operation.(type) {
 		case migrations.CreateModel:
 			for _, field := range value.Model.Fields {
@@ -141,7 +142,7 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	unresolvedCross := func(field ir.Field) bool {
 		return field.Relation != nil && field.Relation.Target.AppLabel != app && !known[field.Relation.Target]
 	}
-	var creates, sameAppAdds, existing, removals []migrations.Operation
+	var creates, sameAppAdds, existing, removals, manyAdds, manyRemovals []migrations.Operation
 	var constraintAdds []migrations.AddConstraint
 	for index, operation := range change.operations {
 		switch value := operation.(type) {
@@ -178,6 +179,10 @@ func candidateOperations(app string, change appChange, current, desired migratio
 				continue
 			}
 			existing = append(existing, value)
+		case migrations.AddManyToMany, migrations.RenameManyToMany:
+			manyAdds = append(manyAdds, operation)
+		case migrations.RemoveManyToMany:
+			manyRemovals = append(manyRemovals, operation)
 		case migrations.AddConstraint:
 			constraintAdds = append(constraintAdds, value)
 		case migrations.RemoveConstraint:
@@ -191,7 +196,8 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	if breakCycle && len(creates) == 0 {
 		return nil, detectionError(CodeInvalidGeneratedPlan, app, "", "", fmt.Errorf("cycle has no model creator"))
 	}
-	operations := append(creates, removals...)
+	operations := append(manyRemovals, creates...)
+	operations = append(operations, removals...)
 	operations = append(operations, sameAppAdds...)
 	operations = append(operations, existing...)
 	// Anchors refer only to fields already present at this exact operation.
@@ -241,6 +247,16 @@ func candidateOperations(app string, change appChange, current, desired migratio
 		}
 		// An unresolved cross-app FK and its constraints are rediscovered
 		// from the next durable prefix, retaining deterministic recovery.
+	}
+	deferred := map[string]bool{}
+	for _, operation := range manyAdds {
+		if value, ok := operation.(migrations.AddManyToMany); ok {
+			if !manyCandidateReady(value, app, current, available) || value.BeforeField != "" && deferred[value.ModelName+"."+value.BeforeField] {
+				deferred[value.ModelName+"."+value.Field.Name] = true
+				continue
+			}
+		}
+		operations = append(operations, operation)
 	}
 	return operations, nil
 }

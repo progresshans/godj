@@ -100,6 +100,8 @@ func canonicalDefinitionSet(definitions []migrations.Migration) ([]byte, error) 
 
 func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]byte, error) {
 	switch value := operation.(type) {
+	case migrations.AddManyToMany, migrations.RemoveManyToMany, migrations.RenameManyToMany:
+		return appendCanonicalManyOperation(output, operation)
 	case migrations.CreateModel:
 		return appendCanonicalCreateModel(output, value)
 	case migrations.AddField:

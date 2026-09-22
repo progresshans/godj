@@ -140,6 +140,9 @@ func RenderMigrationSQL(
 	intent := loadedBackendRelationIntent(materialized.intent)
 	rules := make([]migrationSQLGroupRule, len(intent.Operations))
 	for index, operation := range intent.Operations {
+		if operation.Kind == backend.MigrationAlterManyToMany {
+			rules[index] = migrationSQLMetadataOnly
+		}
 		if operation.Kind == backend.MigrationAlterField {
 			before, after, kind, err := backend.ChangedField(operation.Before, operation.After)
 			if err != nil {

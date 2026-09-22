@@ -214,7 +214,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint:
+	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -262,6 +262,8 @@ type loadedModelCreator struct {
 }
 
 type loadedRelationDeclaration struct {
+	manyTarget     *ir.ModelIdentity
+	manyName       string
 	key            MigrationKey
 	operationIndex int
 	operationKind  string
@@ -299,6 +301,7 @@ type loadedOperationView struct {
 type loadedStateBuilder struct {
 	apps          map[string]*loadedStateApp
 	relationCount uint64
+	manyCount     uint64
 	reverse       map[loadedModelIdentity]map[string]loadedReverseOwner
 	incoming      map[loadedModelIdentity]map[loadedReverseOwner]struct{}
 }
@@ -323,7 +326,7 @@ type loadedReverseOwner struct {
 	field  string
 }
 
-type loadedRelationRequirements uint8
+type loadedRelationRequirements uint16
 
 const (
 	loadedRequiresCreateModelForeignKeys loadedRelationRequirements = 1 << iota
@@ -334,6 +337,7 @@ const (
 	loadedRequiresAlterFieldDecimalPrecision
 	loadedRequiresUniqueConstraints
 	loadedRequiresAlterFieldRelation
+	loadedRequiresExplicitManyToMany
 )
 
 const (
@@ -359,6 +363,7 @@ const (
 	loadedRelationAlterField
 	loadedRelationAddConstraint
 	loadedRelationRemoveConstraint
+	loadedRelationAlterManyToMany
 )
 
 type loadedRelationIntent struct {
@@ -433,6 +438,7 @@ func (builder *loadedStateBuilder) clone() *loadedStateBuilder {
 	}
 	cloned := newLoadedStateBuilder()
 	cloned.relationCount = builder.relationCount
+	cloned.manyCount = builder.manyCount
 	for appLabel, app := range builder.apps {
 		clonedApp := &loadedStateApp{
 			models:   make(map[string]*loadedStateModel, len(app.models)),
@@ -510,7 +516,7 @@ func (builder *loadedStateBuilder) projectState() (ProjectState, error) {
 }
 
 func (builder *loadedStateBuilder) empty() bool {
-	return len(builder.apps) == 0 && builder.relationCount == 0 && len(builder.reverse) == 0 && len(builder.incoming) == 0
+	return len(builder.apps) == 0 && builder.relationCount == 0 && builder.manyCount == 0 && len(builder.reverse) == 0 && len(builder.incoming) == 0
 }
 
 func newLoadedStateReconstructor(
@@ -622,6 +628,24 @@ func collectLoadedStateGraph(
 						declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: identity, field: field.Clone()})
 					}
 				}
+			case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+				app, name := operationSourceModel(operation)
+				var field ir.ManyToManyField
+				switch op := operation.(type) {
+				case AddManyToMany:
+					field = op.Field
+				case RemoveManyToMany:
+					field = op.Field
+				case RenameManyToMany:
+					field = op.Before
+				}
+				targets := []ir.ModelIdentity{field.Target}
+				if field.Through != nil {
+					targets = append(targets, field.Through.Model)
+				}
+				for _, target := range targets {
+					declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: operation.Kind(), source: loadedModelIdentity{app: app, model: name}, manyName: field.Name, manyTarget: &target})
+				}
 			case AddField:
 				if fieldContainsRelation(value.Field) {
 					declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: loadedModelIdentity{app: value.AppLabel, model: value.ModelName}, field: value.Field.Clone()})
@@ -645,6 +669,12 @@ func loadedDeclarationLess(left, right loadedRelationDeclaration) bool {
 			return left.source.app < right.source.app
 		}
 		return left.source.model < right.source.model
+	}
+	if left.manyTarget != nil && right.manyTarget != nil {
+		if left.manyName != right.manyName {
+			return left.manyName < right.manyName
+		}
+		return loadedIdentityLess(loadedModelIdentity{app: left.manyTarget.AppLabel, model: left.manyTarget.ModelName}, loadedModelIdentity{app: right.manyTarget.AppLabel, model: right.manyTarget.ModelName})
 	}
 	return left.field.Name < right.field.Name
 }
@@ -672,7 +702,7 @@ func (r loadedStateReconstructor) validateChronology() error {
 		return invalidLoadedState(r.definitions[creator.key], creator.operationIndex, operationKindAt(r.definitions[creator.key], creator.operationIndex), fmt.Errorf("model %s.%s has multiple historical creators", identity.app, identity.model))
 	}
 	for _, declaration := range r.declarations {
-		if declaration.field.Relation == nil {
+		if declaration.field.Relation == nil && declaration.manyTarget == nil {
 			continue
 		}
 		sourceCreators := r.creators[declaration.source]
@@ -688,7 +718,13 @@ func (r loadedStateReconstructor) validateChronology() error {
 			}
 			return r.declarationError(declaration, fmt.Errorf("source creator %s.%s is not dependency ancestry of the relation migration", sourceCreator.key.App, sourceCreator.key.Name))
 		}
-		target := loadedModelIdentity{app: declaration.field.Relation.Target.AppLabel, model: declaration.field.Relation.Target.ModelName}
+		var targetIR ir.ModelIdentity
+		if declaration.manyTarget != nil {
+			targetIR = *declaration.manyTarget
+		} else {
+			targetIR = declaration.field.Relation.Target
+		}
+		target := loadedModelIdentity{app: targetIR.AppLabel, model: targetIR.ModelName}
 		creators := r.creators[target]
 		if len(creators) != 1 {
 			return r.declarationError(declaration, fmt.Errorf("target model %s.%s requires exactly one historical creator", target.app, target.model))
@@ -858,6 +894,8 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	}
 	var err error
 	switch value := operation.(type) {
+	case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+		err = builder.changeMany(operation, direction == DirectionBackward)
 	case CreateModel:
 		if direction == DirectionForward {
 			err = builder.createModel(value)
@@ -879,6 +917,9 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	default:
 		err = fmt.Errorf("operation type %T is not supported by state reconstruction", operation)
 	}
+	if err == nil && builder.manyCount != 0 {
+		err = builder.validateMany()
+	}
 	if err != nil {
 		return migrationError(CategoryState, CodeInvalidState, direction, migration, index, operation.Kind(), err)
 	}
@@ -886,6 +927,9 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 }
 
 func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
+	if len(operation.Model.ManyToMany) != 0 {
+		return fmt.Errorf("CreateModel with ManyToMany storage is not implemented; add explicit through relations after their models")
+	}
 	normalized, err := normalizedSingleModel(operation.AppLabel, operation.Model)
 	if err != nil {
 		return fmt.Errorf("normalize model: %w", err)
@@ -1472,6 +1516,11 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				sourceExists = beforeExists
 			}
 		}
+		if isManyOperation(operation) && len(beforeModel.ManyToMany) > len(afterModel.ManyToMany) {
+			sourceModel, sourceExists = beforeModel, beforeExists
+		} else if isManyOperation(operation) {
+			sourceModel, sourceExists = afterModel, afterExists
+		}
 		targets, relatedModels, err := loadedBuilderRelationGraph(ctx, builder, migration, operationIndex, step.Direction, sourceModel)
 		if err != nil {
 			return loadedMaterializedStep{}, err
@@ -1509,6 +1558,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 				CategoryState, CodeInvalidState, step.Direction, migration,
 				operationIndex, operation.Kind(), err,
 			)
+		}
+		if isManyOperation(operation) {
+			requirements |= loadedRequiresExplicitManyToMany
 		}
 		// Capability bits describe the operation's mutation, not retained
 		// relations that are carried only to seal the complete model boundary.
@@ -1560,10 +1612,16 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		intent.operations = make([]loadedRelationOperation, len(operationViews))
 		for viewIndex := range operationViews {
 			view := operationViews[viewIndex]
+			if len(view.before.ManyToMany) != 0 || len(view.after.ManyToMany) != 0 {
+				requirements |= loadedRequiresExplicitManyToMany
+			}
 			if modelHasUniqueConstraints(view.before) || modelHasUniqueConstraints(view.after) {
 				requirements |= loadedRequiresUniqueConstraints
 			}
 			for _, related := range view.relatedModels {
+				if len(related.Model.ManyToMany) != 0 {
+					requirements |= loadedRequiresExplicitManyToMany
+				}
 				if modelHasUniqueConstraints(related.Model) {
 					requirements |= loadedRequiresUniqueConstraints
 				}
@@ -1577,6 +1635,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			}
 			backendTargets := make([]loadedRelationBackendTarget, len(view.targets))
 			for targetIndex := range view.targets {
+				if len(view.targets[targetIndex].targetModel.ManyToMany) != 0 {
+					requirements |= loadedRequiresExplicitManyToMany
+				}
 				if modelHasUniqueConstraints(view.targets[targetIndex].targetModel) {
 					requirements |= loadedRequiresUniqueConstraints
 				}
@@ -1710,7 +1771,7 @@ func loadedBuilderRelationGraph(
 		fields = append(fields, field)
 		direct[field.Relation.Target] = true
 	}
-	if len(fields) == 0 {
+	if len(fields) == 0 && len(source.ManyToMany) == 0 {
 		return nil, nil, nil
 	}
 	budget := irresource.New(irresource.Limits{
@@ -1733,14 +1794,7 @@ func loadedBuilderRelationGraph(
 			return fail(err)
 		}
 		model := models[queue[position]]
-		for _, field := range model.Fields {
-			if field.Kind != ir.FieldForeignKey {
-				continue
-			}
-			if field.Relation == nil {
-				return fail(fmt.Errorf("relation field %q has no metadata", field.Name))
-			}
-			identity := field.Relation.Target
+		for _, identity := range migrationgraph.References(model) {
 			if _, exists := models[identity]; exists {
 				continue
 			}
@@ -1874,6 +1928,8 @@ func (budget *loadedDerivedIntentBudget) scanOperation(
 
 func loadedBackendOperationKind(operation Operation, direction Direction) (loadedRelationOperationKind, error) {
 	switch operation.(type) {
+	case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+		return loadedRelationAlterManyToMany, nil
 	case CreateModel:
 		if direction == DirectionForward {
 			return loadedRelationCreateModel, nil
@@ -1978,6 +2034,12 @@ func sealLoadedStep(payload loadedStepSealPayload) ([sha256.Size]byte, error) {
 
 func operationSourceModel(operation Operation) (string, string) {
 	switch value := operation.(type) {
+	case AddManyToMany:
+		return value.AppLabel, value.ModelName
+	case RemoveManyToMany:
+		return value.AppLabel, value.ModelName
+	case RenameManyToMany:
+		return value.AppLabel, value.ModelName
 	case CreateModel:
 		return value.AppLabel, value.Model.Name
 	case AddField:
@@ -2153,7 +2215,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint:
+	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany:
 	default:
 		return
 	}
@@ -2162,6 +2224,12 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].kind", index), wireKind, false)
 	loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].app_label", index), operation.App(), false)
 	switch value := operationValue(operation).(type) {
+	case AddManyToMany:
+		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, value.BeforeField, value.Field)
+	case RemoveManyToMany:
+		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, value.BeforeField, value.Field)
+	case RenameManyToMany:
+		loadedScanManyOperation(budget, migration, index, kind, value.ModelName, "", value.Before, value.After)
 	case CreateModel:
 		loadedScanModelResource(budget, migration, index, kind, value.Model)
 	case AddField:
@@ -2189,6 +2257,12 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 
 func loadedOperationWireKind(operation Operation) string {
 	switch operation.(type) {
+	case AddManyToMany, *AddManyToMany:
+		return "add_many_to_many"
+	case RemoveManyToMany, *RemoveManyToMany:
+		return "remove_many_to_many"
+	case RenameManyToMany, *RenameManyToMany:
+		return "rename_many_to_many"
 	case CreateModel, *CreateModel:
 		return "create_model"
 	case AddField, *AddField:
@@ -2228,9 +2302,15 @@ func loadedScanModelResource(budget *loadedResourceBudget, migration Migration, 
 		loadedConsiderViolation(budget, loadedResourceViolation{migration: migration, operation: operationIndex, operationKind: kind, path: prefix + ".unique_constraints", reason: "constraint_count"})
 		return
 	}
-	if len(model.Fields) > maxLoadedFieldsPerCreateModel {
+	if len(model.Fields) > maxLoadedFieldsPerCreateModel || len(model.ManyToMany) > maxLoadedFieldsPerCreateModel-len(model.Fields) {
 		loadedConsiderViolation(budget, loadedResourceViolation{migration: migration, operation: operationIndex, operationKind: kind, path: prefix + ".fields", reason: "field_count"})
 		return
+	}
+	for _, field := range model.ManyToMany {
+		loadedScanManyOperation(budget, migration, operationIndex, kind, "", "", field)
+		if budget.nodeOverflow {
+			return
+		}
 	}
 	loadedConsumeNodes(budget, uint64(len(model.Fields)))
 	if budget.nodeOverflow {

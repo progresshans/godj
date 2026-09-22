@@ -100,9 +100,13 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 	tables := make(map[string]ir.ModelIdentity, len(related)+1)
 	graph.tables = tables
 	goNames := make(map[struct{ app, name string }]ir.ModelIdentity, len(related)+1)
+	hasMany := false
 	add := func(snapshot MigrationModel) error {
-		if len(snapshot.Model.ManyToMany) != 0 {
-			return fmt.Errorf("ManyToMany storage migration is not implemented")
+		hasMany = hasMany || len(snapshot.Model.ManyToMany) != 0
+		for _, field := range snapshot.Model.ManyToMany {
+			if field.Through == nil {
+				return fmt.Errorf("automatic ManyToMany storage migration is not implemented")
+			}
 		}
 		identity := snapshot.Identity()
 		if _, duplicate := graph.models[identity]; duplicate {
@@ -175,6 +179,9 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 		for _, field := range model.Fields {
 			names[field.Name] = struct{}{}
 		}
+		for _, field := range model.ManyToMany {
+			names[field.Name] = struct{}{}
+		}
 		fieldNames[identity] = names
 	}
 	visited := map[ir.ModelIdentity]bool{graph.root: true}
@@ -211,6 +218,33 @@ func newRelationGraph(source MigrationModel, related []MigrationModel, requireRe
 				visited[targetIdentity] = true
 				queue = append(queue, targetIdentity)
 			}
+		}
+		for _, field := range model.ManyToMany {
+			for _, target := range []ir.ModelIdentity{field.Target, field.Through.Model} {
+				if _, exists := graph.models[target]; !exists {
+					return RelationGraph{}, fmt.Errorf("ManyToMany graph has missing model %s.%s", target.AppLabel, target.ModelName)
+				}
+				if !visited[target] {
+					visited[target] = true
+					queue = append(queue, target)
+				}
+			}
+		}
+	}
+	if hasMany {
+		schemas := make([]ir.Schema, 0)
+		byApp := make(map[string]int)
+		for _, identity := range graph.order {
+			index, exists := byApp[identity.AppLabel]
+			if !exists {
+				index = len(schemas)
+				byApp[identity.AppLabel] = index
+				schemas = append(schemas, ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: identity.AppLabel})
+			}
+			schemas[index].Models = append(schemas[index].Models, graph.models[identity])
+		}
+		if _, err := ir.ResolveManyToMany(schemas...); err != nil {
+			return RelationGraph{}, err
 		}
 	}
 	for _, identity := range graph.order {
@@ -438,7 +472,7 @@ func (plan MigrationGraphPlan) Operation(position int) (RelationGraph, bool) {
 // that same exact boundary, not to a second snapshot with stale fields.
 func ResolveMigrationGraph(app string, operation MigrationOperation) (RelationGraph, error) {
 	source := operation.After
-	if operation.Kind == MigrationDeleteModel || operation.Kind == MigrationRemoveField {
+	if operation.Kind == MigrationDeleteModel || operation.Kind == MigrationRemoveField || operation.Kind == MigrationAlterManyToMany && len(operation.Before.ManyToMany) > len(operation.After.ManyToMany) {
 		source = operation.Before
 	}
 	if len(operation.Targets) > migrationGraphMaxFields || len(operation.RelatedModels) >= migrationGraphMaxModels {

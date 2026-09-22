@@ -399,6 +399,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresAlterFieldRelation, capabilities.AlterFieldRelation, "AlterFieldRelation"},
 		{loadedRequiresAlterFieldDecimalPrecision, capabilities.AlterFieldDecimalPrecision, "AlterFieldDecimalPrecision"},
 		{loadedRequiresUniqueConstraints, capabilities.UniqueConstraints, "UniqueConstraints"},
+		{loadedRequiresExplicitManyToMany, capabilities.ExplicitManyToMany, "ExplicitManyToMany"},
 	}
 	for _, check := range checks {
 		if requirements&check.bit != 0 && !check.supported {
@@ -649,6 +650,8 @@ func definitionsContainRelation(definitions []Migration) bool {
 func migrationContainsRelation(migration Migration) bool {
 	for _, operation := range migration.Operations {
 		switch value := operationValue(operation).(type) {
+		case AddManyToMany, RemoveManyToMany, RenameManyToMany:
+			return true
 		case CreateModel:
 			if modelContainsRelation(value.Model) {
 				return true
@@ -663,6 +666,9 @@ func migrationContainsRelation(migration Migration) bool {
 }
 
 func modelContainsRelation(model ir.Model) bool {
+	if len(model.ManyToMany) != 0 {
+		return true
+	}
 	for index := range model.Fields {
 		if fieldContainsRelation(model.Fields[index]) {
 			return true

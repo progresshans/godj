@@ -15,6 +15,9 @@ type MigrationCapabilities struct {
 	// UniqueConstraints covers mutation and physical verification of declared
 	// field and named model uniqueness, including retained target and transitive models.
 	UniqueConstraints bool
+	// ExplicitManyToMany admits columnless changes using existing through models.
+	// Automatic intermediary creation/removal/rename needs separate storage support.
+	ExplicitManyToMany bool
 }
 
 // The public backend contract shares the pure historical metadata types with
@@ -26,6 +29,7 @@ type MigrationTarget = migrationgraph.MigrationTarget
 type MigrationModel = migrationgraph.MigrationModel
 
 const (
+	MigrationAlterManyToMany  = migrationgraph.MigrationAlterManyToMany
 	MigrationCreateModel      = migrationgraph.MigrationCreateModel
 	MigrationDeleteModel      = migrationgraph.MigrationDeleteModel
 	MigrationAddField         = migrationgraph.MigrationAddField
