@@ -16,7 +16,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const relationDeleteTestFingerprint = "eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58"
+const relationDeleteTestFingerprint = "5f6787fe6fd6f8db13a0b96a15211a7c3bfdcab8a6018efa86d6fc44d26a28b7"
 
 var (
 	errRelationDeleteQuery     = errors.New("relation delete query failure")
@@ -284,11 +284,11 @@ func relationDeleteTestActualFingerprint(t *testing.T, binding ProjectBinding) s
 	if !ok {
 		t.Fatal("target primary key invalid")
 	}
-	edges, err := relationDeleteIncomingEdges(binding.snapshot, target)
+	graph, err := relationDeleteGraph(binding.snapshot, target)
 	if err != nil {
-		t.Fatalf("relationDeleteIncomingEdges() error = %v", err)
+		t.Fatalf("relationDeleteGraph() error = %v", err)
 	}
-	return relationDeletePolicyFingerprint(target, model, primaryKey, edges)
+	return relationDeletePolicyFingerprint(target, model, primaryKey, graph)
 }
 
 func relationDeleteTestDeleterWithDescriptor[D WriteDescriptor[relationDeleteTestAuthor]](
@@ -504,14 +504,12 @@ func TestRelationDeletePolicyFingerprintGoldenCanonicalAndLengthDelimited(t *tes
 	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
 	model, _ := binding.Model(target)
 	primaryKey, _ := relationDeleteTargetKey(model)
-	edges, edgeErr := relationDeleteIncomingEdges(binding.snapshot, target)
-	if edgeErr != nil {
-		t.Fatal(edgeErr)
+	graph, graphErr := relationDeleteGraph(binding.snapshot, target)
+	if graphErr != nil {
+		t.Fatal(graphErr)
 	}
-	changed := append([]relationDeleteEdge(nil), edges...)
-	changed[0] = cloneRelationDeleteEdge(changed[0])
-	changed[0].metadata.OnDelete = ir.DeleteSetNull
-	if relationDeletePolicyFingerprint(target, model, primaryKey, changed) == actual {
+	graph[target].incoming[0].metadata.OnDelete = ir.DeleteSetNull
+	if relationDeletePolicyFingerprint(target, model, primaryKey, graph) == actual {
 		t.Fatal("policy change did not change relation delete fingerprint")
 	}
 
@@ -776,7 +774,7 @@ func TestBindRelationDeleterRejectsCorruptStructuralBindingBeforeFingerprint(t *
 		corrupt func(ProjectBinding)
 	}{
 		{name: "unsupported policy", corrupt: func(binding ProjectBinding) {
-			binding.snapshot.forward[0].OnDelete = ir.DeletePolicy("cascade")
+			binding.snapshot.forward[0].OnDelete = ir.DeletePolicy("restrict")
 		}},
 		{name: "set-null without nullable", corrupt: func(binding ProjectBinding) {
 			binding.snapshot.forward[1].Nullable = false

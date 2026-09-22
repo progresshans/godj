@@ -9,7 +9,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"
+const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"
 
 var _ orm.WriteDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.WriteDescriptor[models.Ticket] = models.TicketDescriptor{}
@@ -53,7 +53,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
 		models.CategoryDescriptor{},
-		"73bb399f02f24ec4fac146a9d0dabca89cc43401bbe615cc9c13540d79660bb1",
+		"52a748c6f5e129a8097a8c2827c8275580e000b6b808065ee4637206d545af07",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -62,7 +62,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
-		"6ef758ff516b3a2d38b7547283593c0921cc39d75dea9cf2b69e61e46c866ed2",
+		"8c6beb70414d477d7a37681c985dee03fbc03b4b2acbea3f9d586b6ebaf08514",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -73,4 +73,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e
+var _ goDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0

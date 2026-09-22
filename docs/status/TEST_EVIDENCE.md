@@ -3,6 +3,53 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0098 — 공통 CASCADE collector와 transitive generated binding
+
+2026-09-22, 기준 `9d95061f0066a22ddd7adeaebd98b0bc6ec799c0` 위 제품·생성물·검사·CI **97경로**(Go 86)를 변경했다.
+Markdown을 제외한 전체 source 2,021파일의 정렬된 path→SHA256 map hash는
+`18ea3fb06292ac953c7b603172b37324713fb87f6c919d41671e37f04895acd6`이다. 모든 mode에서 시작/종료 source 불변을 확인했다.
+Go 1.26.5/Darwin arm64·modernc SQLite·격리 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+공통 ORM은 바인딩에서 CASCADE로 도달할 model과 모든 incoming 정책을 고정한다. 호출별 반복 탐색과 model+PK 집합으로 실제 행을
+한 번 수집하고, 도달한 모든 PROTECT 검사와 row/error/close 처리가 끝난 뒤 SET_NULL·각 key 삭제를 한 AtomicRelation에서 실행한다.
+이미 CASCADE로 수집된 행의 PROTECT도 적용한다. 각 DELETE는 정확히 한 행이어야 하며 반환값은 root와 후손의 총수다.
+기존 callback의 단일 동기 실행·오류 보존·확인된 commit 뒤 root PK 게시 계약을 유지한다.
+
+Generated policy v2는 직접 incoming에 더해 CASCADE 후손의 policy·table·PK·FK column·cardinality·nullability를 포함한다.
+Grandchild의 각 의미를 변경하면 root fingerprint도 달라지고 이전 fingerprint의 binding은 I/O 전에 거부된다.
+관계없는 Node의 변경은 root fingerprint에 들어가지 않는다. 고정 두-edge graph의 새 golden은 별도로 작성한 length-framed SHA256과 대조했다.
+기존 네 project를 재생성했고 새 [CASCADE fixture](../../conformance/cascadefixture/)도 실제 typed model·descriptor·project binding으로 생성했다.
+
+양 DB에서 독립 Django의 **13개 관찰**과 실제 삭제 total·model별 감소·잔존 행을 대조했다. 재귀 CASCADE+SET_NULL, 보호된 후손과 overlap,
+중복 경로, 숨긴 역관계와 OneToOne, 자기 loop·nullable/required 순환, 다른 root/observer 보존, 늦은 실패 rollback과 raw delete의 native FK 거부를 포함한다.
+ManyToMany의 연결 정리 관찰은 명시적 RootLabels와 named tuple 제약으로 비교했다. 중복 연결은 실제 native unique 오류로 거부하며,
+일반 ManyToMany 선언·add/remove/set manager의 구현이나 동등성으로 세지 않는다. Required 순환의 101/202 key 입력만 native fixture SQL을 쓴다.
+GoDj의 generated-key 직접 할당은 이 변경의 지원 범위에 추가하지 않는다.
+
+별도 Go-native 검사는 먼저 발견한 보호 행이 있어도 후손 query/scan/iteration/close 실패·nil/wrong-key 행·취소에서 부분 보호 진단과 쓰기를
+게시하지 않음을 확인한다. 늦은 DELETE·잘못된 row count·SET_NULL 실패와 commit/rollback 불확실성은 caller와 원인을 보존하고 자동 재시도하지 않는다.
+실제 양 DB에서도 commit 성공 뒤 uncertainty를 주입하면 DB의 전체 삭제는 남고 caller PK는 유지된다. 실제 rollback 뒤 uncertainty,
+SET_NULL·후손 삭제 이후의 취소는 mutation prefix를 되돌리고 caller를 보존한다. 각 경우 AtomicRelation은 한 번만 실행했다.
+
+`go test -json -count=1 -timeout=12m -skip '^(TestPostgresRevisionFenceHelperProcess|TestPublicationCrashHelper)$'`로
+`./internal/relationpolicy ./orm ./codegen ./codegen/consumertest ./conformance/cascadefixture ./conformance/onetoonefixture ./conformance/relationfixture ./conformance/relationproduct ./examples/article ./examples/helpdesk ./db/sqlite ./db/postgres ./internal/projectgenerate ./internal/migrationautodetect`를 실행했다.
+normal·`-race`·`CGO_ENABLED=0`은 **각 14 package / 6,971 run=PASS / skip 0**이다. 필수 항목 53개에는 양 DB의 13개 비교와
+각 3개 native 실패 경계가 포함되며 모든 시작/종료 inventory를 검사했다. Process helper 자체의 직접 실행만 제외하고 실제 parent 회귀는 유지했다.
+외부 module generated 소비자·공개 typed API 오용 거부·기존 PROTECT/SET_NULL·Article/Helpdesk와 publication/process 회귀도 같은 범위에 포함된다.
+
+다섯 project의 실제 CLI `generate --check`와 영향 `go vet`를 통과했다. CI는 새 fixture의 package별 단일 owner를 유지하고,
+relation 필수 목록 29항목·PostgreSQL 필수 목록 22항목을 추가했다. CI Python 검사는 **38 PASS**이며 PostgreSQL selector의 필수 root 51개가
+실제 `go test -list`에 잡히는지 확인했다. 목록 검사는 Hosted 실행 결과로 세지 않는다.
+첫 준비 source의 normal은 6,965 PASS였고, native 불확실성/취소 검사와 CI 연결을 보완한 위 최종 source로 세 mode를 다시 실행했다.
+편집 중 새 test의 nullable pointer·Update/patch API와 outcome code 사용 오류는 compile 단계에서 수정했다.
+
+Artifact는 `godj-cascade-reference-rusrn8sm/orm/`의 `latest-normal-path`, `latest-race-path`, `latest-cgo0-path`,
+`latest-generate-path`, `latest-ci-check-path`, `latest-supplementary-path`에 source·전체 events/stderr·필수 inventory·log hash·receipt를 보관한다.
+각 전용 PostgreSQL DB는 다른 연결·table·추가 schema 0을 확인한 뒤 삭제했다.
+이는 CASCADE 공통 구현의 영향 범위 로컬 검증이다. TicketLabel의 Form/Admin/API/OpenAPI/client와 해당 Hosted 전체 통합은 남아 있다.
+선행 native source `9d95061f`의 [PR feedback](https://github.com/progresshans/godj/actions/runs/35684055578)은 필수 Fast Go step까지 success였으며,
+그 결과를 위 새 ORM source나 full-platform PASS로 옮기지 않는다.
+
 ## GDJ-0098 — CASCADE 선언·historical 정책 변경과 native FK 기반
 
 2026-09-22, 기준 `8415fcee7f94008a97c6a440a7a5128aadb3c8a2` 위 Go **29경로**를 변경했다.

@@ -6,7 +6,7 @@ import (
 	query "github.com/progresshans/godj/query"
 )
 
-const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"
+const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"
 
 type RelationDeleters struct {
 }
@@ -26,4 +26,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	return RelationDeleters{}, nil
 }
 
-var _ goDjProjectSnapshot_b24227d8b32f0de9707b7bac8999522415724b16f31addb820ec0f728bf3933f
+var _ goDjProjectSnapshot_a956ff0998e2c57334e260cd0f30dd2656011e6ecc16b85b897193900cb42052

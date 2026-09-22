@@ -158,6 +158,7 @@ jobs:
           ./orm
           ./conformance/relationfixture/...
           ./conformance/onetoonefixture/...
+          ./conformance/cascadefixture/...
           ./conformance/relationproduct/...
           ./conformance/relationqueryproduct/...
           ./conformance/relationobjectproduct/...
@@ -1044,6 +1045,28 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueAlterFailurePreservesRevisionRowsAndInboundFK"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniqueNullableAddAndForeignKeyReverse"
             "github.com/progresshans/godj/db/postgres|TestPostgresUniquePhysicalDriftRejectsBeforeRevisionClaim"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadePolicyMigrationPreservesRowsConstraintsAndReopens"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadePolicyLateFailureRestoresCompleteMigrationState"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeDeferredCommitFailureDoesNotReturnPendingWritesToPool"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeRequiredCycleCreateAddDeleteAndReverse"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeCreateModelAndConstraintTimingDrift"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/cross_app_cycle"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/duplicate_paths"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/hidden_and_one_to_one"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/late_failure"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/many_to_many_cleanup"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/nullable_cascade"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/protect_cascade_overlap"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/protected_descendant"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/raw_delete"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/recursive_set_null"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/required_cross_app_cycle"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/same_model_cycle"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/self_loop"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/go_native_commit_unknown"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/go_native_rollback_unknown"
+            "github.com/progresshans/godj/db/postgres|TestPostgresCascadeGeneratedDeletionMatchesDjango/go_native_cancel_after_delete"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneGeneratedProduct"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneReverseLookupsMatchDjango"
             "github.com/progresshans/godj/db/postgres|TestPostgresOneToOneReverseEagerMatchesDjango"

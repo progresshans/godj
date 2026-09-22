@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const externalRelationDeleteFingerprint = "eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58"
+const externalRelationDeleteFingerprint = "5f6787fe6fd6f8db13a0b96a15211a7c3bfdcab8a6018efa86d6fc44d26a28b7"
 
 type externalRelationDeleteAuthor struct {
 	ID      int64

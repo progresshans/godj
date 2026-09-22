@@ -25,8 +25,8 @@ GDJ-0097의 named 복합 고유성을 사용하고, 현재 한 단계 PROTECT/SE
 - [x] 고정 Django 6.1의 독립 관찰: recursive CASCADE·SET_NULL·PROTECT 우선, 중복 경로·숨긴 역관계·OneToOne, nullable·required 순환, endpoint/연결 보존, 실제 실패 rollback
 - [x] Schema IR의 CASCADE 선언·생성 metadata·project wire와 historical Create/Add/Alter/reverse·자동 계획을 연결하고 기존 데이터와 durable prefix를 보존
 - [x] 양 DB의 native FK 검사 시점·catalog ownership·migration/역방향·실패 복구를 구현하고 순환 삭제의 실제 결과로 검증
-- [ ] 공통 ORM에서 전체 도달 그래프를 고정하고 모든 보호 검사·SET_NULL·중복 없는 삭제를 한 coordinated transaction에서 처리
-- [ ] Generated policy fingerprint가 transitive descendant 변경도 I/O 전에 거부하며 cache·caller publication·오류·취소·unknown outcome의 소유권을 유지
+- [x] 공통 ORM에서 전체 도달 그래프를 고정하고 모든 보호 검사·SET_NULL·중복 없는 삭제를 한 coordinated transaction에서 처리
+- [x] Generated policy fingerprint가 transitive descendant 변경도 I/O 전에 거부하며 cache·caller publication·오류·취소·unknown outcome의 소유권을 유지
 - [ ] TicketLabel 모델·migration·scoped Form/Admin/API/OpenAPI/독립 client를 연결하고 권한·CSRF·중복·다른 Category·기존 ServiceReport PROTECT를 검증
 - [ ] 필요한 generated drift·양 DB·관련 race/CGO/process와 소비자 통합을 실행하고 source·환경·미완료 범위를 기록
 
@@ -42,6 +42,10 @@ PROTECT는 CASCADE로 도달한 객체에도 적용되며, 늦은 삭제 오류�
 SQLite는 다른 unique/FK·행·sequence를 보존하고, 양 DB의 required 순환 생성·삭제와 deferred COMMIT 실패 후 연결 재사용도 확인했다.
 Schema/생성 metadata/project wire·strict history·자동 계획과 저장된 prefix 이후 재개를 연결했다.
 
-다음은 공통 ORM의 전체 CASCADE 그래프와 transitive generated fingerprint다. 현재 generated project deleter와 ORM은
-CASCADE를 명시적으로 거부하며, native 기반 검증을 전체 삭제 기능이나 TicketLabel 소비자의 완료로 세지 않는다.
+공통 ORM collector와 v2 transitive generated fingerprint를 연결했다. 실제 생성한 16개 모델의 양 DB 삭제 결과가 독립 Django의
+13개 관찰과 일치하며, 중첩 조회/cleanup 실패·취소와 native commit/rollback 불확실성에서 부분 성공을 게시하지 않는다.
+별도 모듈의 generated 소비자와 기존 예제의 회귀를 함께 검증한다. 일반 ManyToMany manager를 대신 구현한 것으로 보지 않는다.
+
+다음은 TicketLabel의 모델·migration·scoped Form/Admin/API/OpenAPI/client를 연결하고 해당 소비자 통합 milestone을 검증하는 것이다.
+Label 삭제도 관계 삭제기를 사용해야 하며 Ticket의 ServiceReport PROTECT는 링크 삭제보다 먼저 적용한다.
 실행 상세와 source·환경별 한계는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

@@ -211,4 +211,4 @@ func (reviewTicketIDRelationStorage) Value(value Review) (query.Value, bool) {
 	return query.Integer(value.TicketID), true
 }
 
-var _ GoDjProjectSnapshot_1d7373d56dcd7957bd72fbe7cb31983cbaacbb5b02405fc09c848b299d61a01d
+var _ GoDjProjectSnapshot_485a268a23b9a93273af0500ae0bff7006c2a6e7d3021644c91a83be5af3a40a

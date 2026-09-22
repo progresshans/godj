@@ -58,7 +58,7 @@ func TestGenerateProjectRelationDeleteIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"`),
+		[]byte(`const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"`),
 		[]byte(`authors "example.com/godj-relation-delete/target"`),
 		[]byte(`orm "github.com/progresshans/godj/orm"`),
 		[]byte(`ir "github.com/progresshans/godj/schema/ir"`),
@@ -124,7 +124,7 @@ func TestGenerateProjectRelationDeleteLocksExactFingerprintV1AndSemanticDrift(t 
 			testfixture.TargetSourcePackages(modulePath, "authors", "blog", authors, blog),
 		)
 	})
-	const exactDigest = "eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58"
+	const exactDigest = "5f6787fe6fd6f8db13a0b96a15211a7c3bfdcab8a6018efa86d6fc44d26a28b7"
 	if !bytes.Contains(baseline, []byte(`"`+exactDigest+`"`)) {
 		t.Fatalf("relation delete fingerprint does not contain exact v1 digest %s:\n%s", exactDigest, baseline)
 	}
@@ -166,7 +166,7 @@ func TestGenerateProjectRelationDeleteRejectsInvalidInputsBeforeBytes(t *testing
 	authors, blog := testschema.QueryRelation()
 	valid := testfixture.TargetSourcePackages("example.com/godj-relation-delete-invalid", "authors", "blog", authors, blog)
 	unsupportedPolicy := blog.Clone()
-	unsupportedPolicy.Models[0].Fields[2].Relation.OnDelete = ir.DeletePolicy("cascade")
+	unsupportedPolicy.Models[0].Fields[2].Relation.OnDelete = ir.DeletePolicy("restrict")
 	invalidSetNull := blog.Clone()
 	invalidSetNull.Models[0].Fields[3].Nullable = false
 	invalidTargetKey := authors.Clone()

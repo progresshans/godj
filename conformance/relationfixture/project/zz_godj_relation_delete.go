@@ -9,7 +9,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"
+const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"
 
 var _ orm.WriteDescriptor[authors.Author] = authors.AuthorDescriptor{}
 
@@ -44,7 +44,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		authors.AuthorDescriptor{},
-		"eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58",
+		"5f6787fe6fd6f8db13a0b96a15211a7c3bfdcab8a6018efa86d6fc44d26a28b7",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -54,4 +54,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_f314107433bff5154f9adba65e25929cd9ebd6c0f330c084b2a95f7d6be719e9
+var _ goDjProjectSnapshot_41f1c0b7b1b3b6565a6f9e59f6088c36449128368d87347dd5332a2cad0210cf

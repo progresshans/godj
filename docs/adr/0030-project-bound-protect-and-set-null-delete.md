@@ -18,6 +18,11 @@
 
 ## 상태와 범위
 
+2026-09-22 GDJ-0098은 이 한 단계 삭제기를 CASCADE의 재귀 그래프로 확장한다. 도달한 모든 모델의 incoming 정책을
+v2 fingerprint에 포함하고 PROTECT·SET_NULL·중복 없는 exact-key 삭제를 같은 AtomicRelation에서 실행한다.
+삭제 수는 root와 후손의 합이며 확인된 commit 뒤 caller의 root PK만 게시한다. Native FK 검사 시점과 현행 동작은
+[ADR-0074](0074-cascade-delete-graph-and-constraint-timing.md)를 따른다. 아래의 한 행/직접 incoming 범위는 당시 결정이다.
+
 2026-09-22 GDJ-0096은 canonical outgoing FK를 가진 incoming-policy target도 허용한다. Incoming fingerprint·descriptor metadata와
 PK clear의 모든 non-PK 값 보존 검사를 유지하며, PROTECT/SET_NULL·target delete는 같은 AtomicRelation을 사용한다. 참조 부모를
 삭제하거나 relation-as-PK·cascade collector를 추가하지 않는다. 현재 의미와 검증은 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)을 따른다.

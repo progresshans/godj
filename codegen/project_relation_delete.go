@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v1"
+const ProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"
 
 type projectRelationDeleteEdge struct {
 	source     *projectRelationModel
@@ -157,6 +157,7 @@ func buildProjectRelationDeleteSurface(
 		}
 	}
 
+	policyGraph := projectRelationDeletePolicyGraph(incoming)
 	targets := make([]projectRelationDeleteTarget, 0, len(incoming))
 	for _, model := range models {
 		edges := incoming[model]
@@ -183,7 +184,8 @@ func buildProjectRelationDeleteSurface(
 			edges:      append([]projectRelationDeleteEdge(nil), edges...),
 			surface:    model.app.prefix + model.model.GoName,
 		}
-		target.fingerprint = projectRelationDeleteFingerprint(target)
+		target.fingerprint = relationpolicy.Fingerprint(relationpolicy.ModelKey{Identity: model.identity, Table: model.model.DBTable,
+			PrimaryKeyName: primaryKey.Name, PrimaryKeyColumn: primaryKey.Column}, policyGraph)
 		targets = append(targets, target)
 	}
 	return targets, nil
@@ -197,7 +199,7 @@ func validateProjectRelationDeleteEdge(field ir.Field) error {
 		return fmt.Errorf("incoming relation cardinality %q is unsupported", field.Relation.Cardinality)
 	}
 	switch field.Relation.OnDelete {
-	case ir.DeleteProtect:
+	case ir.DeleteProtect, ir.DeleteCascade:
 		return nil
 	case ir.DeleteSetNull:
 		if !field.Nullable {
@@ -225,18 +227,19 @@ func compareProjectRelationDeleteIdentity(left, right ir.ModelIdentity) int {
 	return 0
 }
 
-func projectRelationDeleteFingerprint(target projectRelationDeleteTarget) string {
-	incoming := make([]relationpolicy.Edge, len(target.edges))
-	for index, edge := range target.edges {
-		incoming[index] = relationpolicy.Edge{
-			Source: relationpolicy.ModelKey{Identity: edge.source.identity, Table: edge.source.model.DBTable,
-				PrimaryKeyName: edge.primaryKey.Name, PrimaryKeyColumn: edge.primaryKey.Column},
-			Field: edge.foreignKey.Name, Column: edge.foreignKey.Column,
-			Nullable: edge.foreignKey.Nullable, Cardinality: edge.foreignKey.Relation.Cardinality, OnDelete: edge.foreignKey.Relation.OnDelete,
+func projectRelationDeletePolicyGraph(incoming map[*projectRelationModel][]projectRelationDeleteEdge) map[ir.ModelIdentity][]relationpolicy.Edge {
+	graph := make(map[ir.ModelIdentity][]relationpolicy.Edge, len(incoming))
+	for target, edges := range incoming {
+		for _, edge := range edges {
+			graph[target.identity] = append(graph[target.identity], relationpolicy.Edge{
+				Source: relationpolicy.ModelKey{Identity: edge.source.identity, Table: edge.source.model.DBTable,
+					PrimaryKeyName: edge.primaryKey.Name, PrimaryKeyColumn: edge.primaryKey.Column},
+				Field: edge.foreignKey.Name, Column: edge.foreignKey.Column,
+				Nullable: edge.foreignKey.Nullable, Cardinality: edge.foreignKey.Relation.Cardinality, OnDelete: edge.foreignKey.Relation.OnDelete,
+			})
 		}
 	}
-	return relationpolicy.Fingerprint(relationpolicy.ModelKey{Identity: target.model.identity, Table: target.model.model.DBTable,
-		PrimaryKeyName: target.primaryKey.Name, PrimaryKeyColumn: target.primaryKey.Column}, incoming)
+	return graph
 }
 
 func projectRelationDeleteUsedApps(

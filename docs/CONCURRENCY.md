@@ -77,11 +77,17 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 - 다른 query materialization에서 얻은 동일 PK의 객체가 같은 pointer일 필요는 없다.
 - Transaction에서 만든 query의 사용 가능 범위는 transaction/session 계약을 따른다. Warm cache가 session 이후에도 값을 제공할 수 있다는 사실을
   session I/O가 계속 유효하다는 뜻으로 해석하지 않는다.
+- Project-bound 삭제기는 root와 CASCADE 후손의 incoming 정책을 함께 고정한다. 행은 model identity+PK로 한 번 수집하며,
+  모든 PROTECT 검사와 조회/row cleanup이 끝나야 SET_NULL·exact-key 삭제를 실행한다. 이미 수집된 행에 대한 PROTECT도 생략하지 않는다.
+  Graph·생성 fingerprint는 바인딩이 소유하고, 방문 집합·보호된 행·변경 계획은 호출별로 분리한다.
+  성공한 native commit 뒤에만 root PK를 지우고 root와 실제 삭제된 후손의 총수를 반환한다. 별도로 보유한 후손·observer와 그 cache는
+  전역 수정하지 않는다. 취소·부분 실행 오류·불확실한 commit/rollback은 caller를 성공 상태로 바꾸거나 자동 재시도하지 않는다.
 
 상세 이유: [forward cache](adr/0026-forward-foreign-key-object-cache-and-nullability.md),
 [prefetch](adr/0028-reverse-foreign-key-prefetch.md), [eager](adr/0029-one-hop-forward-select-related.md),
 [assignment](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md),
-[일대일 관계](adr/0073-one-to-one-cardinality-and-reverse-objects.md).
+[일대일 관계](adr/0073-one-to-one-cardinality-and-reverse-objects.md),
+[CASCADE 그래프](adr/0074-cascade-delete-graph-and-constraint-timing.md).
 
 ## Migration의 durable 상태
 

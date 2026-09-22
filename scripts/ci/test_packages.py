@@ -165,29 +165,28 @@ exit "${GODJ_TEST_GIT_EXIT:-9}"
 
 
 class ExecutionOwnerTests(unittest.TestCase):
-    def test_one_to_one_generated_consumers_have_exactly_one_execution_owner(self):
+    def test_generated_relation_fixtures_have_exactly_one_execution_owner(self):
         from packages import selected
         from scopes import SCOPES, selected as select_owners
-        consumers = [MODULE + relative for relative in (
-            'conformance/onetoonefixture',
-            'conformance/onetoonefixture/tickets',
-            'conformance/onetoonefixture/reports',
-            'conformance/onetoonefixture/project',
-            'conformance/onetoonefixture/cmd/projectrunner',
-        )]
-        adjacent = MODULE + 'conformance/onetoonefixturehelper'
-        for scope in SCOPES:
-            _, owners = select_owners(scope)
-            if 'portable-go-matrix' not in owners:
-                continue
-            with self.subTest(scope=scope):
-                relation = selected(consumers + [adjacent], 'relation', owners) if 'relation-product-matrix' in owners else []
-                portable = selected(consumers + [adjacent], 'conformance', owners)
-                for package in consumers:
-                    self.assertEqual(1, (relation + portable).count(package))
-                self.assertEqual(consumers if 'relation-product-matrix' in owners else [], relation)
-                self.assertIn(adjacent, portable)
-        self.assertEqual(consumers, selected(consumers, 'conformance'))
+        for family, apps in [('onetoonefixture', ('tickets', 'reports')), ('cascadefixture', ('parents', 'details'))]:
+            prefix = 'conformance/' + family
+            consumers = [MODULE + relative for relative in (
+                prefix, prefix + '/' + apps[0], prefix + '/' + apps[1],
+                prefix + '/project', prefix + '/cmd/projectrunner',
+            )]
+            adjacent = MODULE + prefix + 'helper'
+            for scope in SCOPES:
+                _, owners = select_owners(scope)
+                if 'portable-go-matrix' not in owners:
+                    continue
+                with self.subTest(family=family, scope=scope):
+                    relation = selected(consumers + [adjacent], 'relation', owners) if 'relation-product-matrix' in owners else []
+                    portable = selected(consumers + [adjacent], 'conformance', owners)
+                    for package in consumers:
+                        self.assertEqual(1, (relation + portable).count(package))
+                    self.assertEqual(consumers if 'relation-product-matrix' in owners else [], relation)
+                    self.assertIn(adjacent, portable)
+            self.assertEqual(consumers, selected(consumers, 'conformance'))
 
     def test_every_scope_preserves_exactly_one_portable_or_relation_owner(self):
         from packages import RELATION_PACKAGES, RELATION_PREFIXES, PORTABLE_PRODUCTS, selected as select_packages

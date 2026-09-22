@@ -5,20 +5,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"sync"
 
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/internal/relationpolicy"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
 // RelationDeleter is one immutable project-bound low-level delete capability.
-// It owns the complete incoming ForeignKey policy for one target model.
+// It owns the complete incoming policy of the target and its CASCADE closure.
 type RelationDeleter[M any] struct {
 	state  relationDeleteState[M]
 	marker [0]func(M)
@@ -29,8 +26,7 @@ type relationDeleteState[M any] struct {
 	target      ir.ModelIdentity
 	targetModel ir.Model
 	targetKey   ir.Field
-	protect     []relationDeleteEdge
-	setNull     []relationDeleteEdge
+	graph       map[ir.ModelIdentity]relationDeleteNode
 	valid       bool
 	marker      [0]func(M)
 }
@@ -48,7 +44,7 @@ func BindRelationDeleter[M any](
 	binding ProjectBinding,
 	identity ir.ModelIdentity,
 	descriptor WriteDescriptor[M],
-	expectedIncomingPolicySHA256 string,
+	expectedPolicySHA256 string,
 ) (RelationDeleter[M], error) {
 	if interfaceIsNil(descriptor) {
 		return RelationDeleter[M]{}, relationInvalidPlan("relation delete descriptor is nil")
@@ -71,19 +67,19 @@ func BindRelationDeleter[M any](
 		return RelationDeleter[M]{}, relationInvalidPlan("relation delete target must contain supported storage fields and exactly one AutoField primary key")
 	}
 
-	edges, err := relationDeleteIncomingEdges(binding.snapshot, identity)
+	graph, err := relationDeleteGraph(binding.snapshot, identity)
 	if err != nil {
 		return RelationDeleter[M]{}, err
 	}
-	if len(edges) == 0 {
+	if len(graph[identity].incoming) == 0 {
 		return RelationDeleter[M]{}, relationInvalidPlan("relation delete target has no supported incoming ForeignKey")
 	}
-	if !validLowerSHA256(expectedIncomingPolicySHA256) {
-		return RelationDeleter[M]{}, relationInvalidPlan("expected incoming relation policy fingerprint must be lowercase SHA-256")
+	if !validLowerSHA256(expectedPolicySHA256) {
+		return RelationDeleter[M]{}, relationInvalidPlan("expected relation policy fingerprint must be lowercase SHA-256")
 	}
-	actualFingerprint := relationDeletePolicyFingerprint(identity, targetModel, targetKey, edges)
-	if actualFingerprint != expectedIncomingPolicySHA256 {
-		return RelationDeleter[M]{}, relationInvalidPlan("incoming relation policy fingerprint does not match project binding")
+	actualFingerprint := relationDeletePolicyFingerprint(identity, targetModel, targetKey, graph)
+	if actualFingerprint != expectedPolicySHA256 {
+		return RelationDeleter[M]{}, relationInvalidPlan("relation policy graph fingerprint does not match project binding")
 	}
 
 	state := relationDeleteState[M]{
@@ -91,22 +87,15 @@ func BindRelationDeleter[M any](
 		target:      identity,
 		targetModel: targetModel.Clone(),
 		targetKey:   targetKey.Clone(),
+		graph:       graph,
 		valid:       true,
 	}
-	for _, edge := range edges {
-		cloned := cloneRelationDeleteEdge(edge)
-		switch edge.metadata.OnDelete {
-		case ir.DeleteProtect:
-			state.protect = append(state.protect, cloned)
-		case ir.DeleteSetNull:
-			state.setNull = append(state.setNull, cloned)
-		}
-	}
+
 	return RelationDeleter[M]{state: state}, nil
 }
 
-// Delete scans every PROTECT edge before mutation, then executes canonical
-// SET_NULL updates followed by one exact-key target delete in AtomicRelation.
+// Delete collects every CASCADE row and checks all reached PROTECT edges before
+// SET_NULL and exact-key deletes in one AtomicRelation transaction.
 func (d RelationDeleter[M]) Delete(
 	ctx context.Context,
 	backend db.RelationAtomic,
@@ -132,14 +121,14 @@ func (d RelationDeleter[M]) Delete(
 	if err != nil {
 		return 0, err
 	}
-	protectPlans, setNullPlans, deletePlan, err := d.state.plans(targetKey)
-	if err != nil {
-		return 0, err
-	}
+	var deleted int64
+
 	guard := &relationDeleteCallbackGuard{}
 	callback := func(session db.RelationSession) error {
 		return guard.invoke(func() error {
-			return d.state.execute(ctx, session, targetKey, protectPlans, setNullPlans, deletePlan)
+			count, err := d.state.execute(ctx, session, targetKey)
+			deleted = count
+			return err
 		})
 	}
 
@@ -172,7 +161,7 @@ func (d RelationDeleter[M]) Delete(
 	// Successful commit is authoritative. Do not downgrade it for a context
 	// transition or connection-return condition observed after AtomicRelation.
 	d.state.descriptor.ClearPrimaryKey(target)
-	return 1, nil
+	return deleted, nil
 }
 
 func (state relationDeleteState[M]) validate() error {
@@ -182,7 +171,8 @@ func (state relationDeleteState[M]) validate() error {
 	if _, ok := relationDeleteTargetKey(state.targetModel); !ok ||
 		!reflect.DeepEqual(state.descriptor.Metadata().Clone(), state.targetModel) ||
 		!reflect.DeepEqual(state.targetKey, mustRelationDeleteTargetKey(state.targetModel)) ||
-		len(state.protect)+len(state.setNull) == 0 {
+		len(state.graph[state.target].incoming) == 0 ||
+		!state.graph[state.target].model.Equal(state.targetModel) || !state.graph[state.target].key.Equal(state.targetKey) {
 		return relationInvalidPlan("relation deleter state is invalid")
 	}
 	return nil
@@ -217,145 +207,6 @@ func (state relationDeleteState[M]) preflight(target M) (int64, error) {
 		}
 	}
 	return targetKey, nil
-}
-
-func (state relationDeleteState[M]) plans(targetKey int64) ([]query.Plan, []query.RelationSetNullPlan, query.DeletePlan, error) {
-	keyValue := query.Integer(targetKey)
-	protect := make([]query.Plan, len(state.protect))
-	for index, edge := range state.protect {
-		foreignKey := fieldReference(edge.sourceForeignKey)
-		expression, err := query.NewExpression(query.NewCondition(foreignKey, query.LookupExact, keyValue))
-		if err != nil {
-			return nil, nil, query.DeletePlan{}, err
-		}
-		plan, err := query.NewPlan(
-			edge.sourceModel.DBTable,
-			[]query.FieldRef{fieldReference(edge.sourcePrimaryKey), foreignKey},
-		).WithWhere(expression)
-		if err != nil {
-			return nil, nil, query.DeletePlan{}, err
-		}
-		protect[index] = plan
-	}
-	setNull := make([]query.RelationSetNullPlan, len(state.setNull))
-	for index, edge := range state.setNull {
-		setNull[index] = query.NewRelationSetNullPlan(
-			edge.sourceModel.DBTable,
-			fieldReference(edge.sourceForeignKey),
-			keyValue,
-		)
-	}
-	return protect, setNull, query.NewDeletePlan(
-		state.targetModel.DBTable,
-		fieldReference(state.targetKey),
-		keyValue,
-	), nil
-}
-
-func (state relationDeleteState[M]) execute(
-	ctx context.Context,
-	session db.RelationSession,
-	targetKey int64,
-	protectPlans []query.Plan,
-	setNullPlans []query.RelationSetNullPlan,
-	deletePlan query.DeletePlan,
-) error {
-	if interfaceIsNil(session) {
-		return relationBackendInvalidPlan("relation atomic backend supplied a nil session")
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	protected := make(map[relationDeleteProtectedSource]struct{})
-	for index, plan := range protectPlans {
-		if err := collectProtectedRelationRows(ctx, session, state.protect[index], plan, targetKey, protected); err != nil {
-			return err
-		}
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if len(protected) != 0 {
-		err, constructorErr := query.NewProtectedForeignKeyError(int64(len(protected)))
-		if constructorErr != nil {
-			return constructorErr
-		}
-		return err
-	}
-
-	for _, plan := range setNullPlans {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		rowsAffected, err := session.RelationSetNull(ctx, plan)
-		if err != nil {
-			return err
-		}
-		if rowsAffected < 0 {
-			return relationBackendInvalidPlan("relation SET_NULL returned a negative affected-row count")
-		}
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	rowsAffected, err := session.Delete(ctx, deletePlan)
-	if err != nil {
-		return err
-	}
-	if rowsAffected != 1 {
-		return unexpectedRows("relation delete target", rowsAffected)
-	}
-	return ctx.Err()
-}
-
-type relationDeleteProtectedSource struct {
-	source     ir.ModelIdentity
-	primaryKey int64
-}
-
-func collectProtectedRelationRows(
-	ctx context.Context,
-	session db.RelationSession,
-	edge relationDeleteEdge,
-	plan query.Plan,
-	targetKey int64,
-	protected map[relationDeleteProtectedSource]struct{},
-) error {
-	rows, err := session.Query(ctx, plan)
-	if err != nil {
-		if !interfaceIsNil(rows) {
-			if closeErr := rows.Close(); closeErr != nil {
-				err = errors.Join(err, fmt.Errorf("close protected relation rows returned with backend error: %w", closeErr))
-			}
-		}
-		return joinContextErr(err, ctx)
-	}
-	if interfaceIsNil(rows) {
-		return joinContextErr(relationBackendInvalidPlan("relation session returned nil protected rows without an error"), ctx)
-	}
-	lifecycle := rowsLifecycle{rows: rows}
-	defer lifecycle.close()
-
-	for rows.Next() {
-		if contextErr := ctx.Err(); contextErr != nil {
-			err = contextErr
-			break
-		}
-		var sourcePrimaryKey any
-		var sourceForeignKey any
-		if scanErr := rows.Scan(&sourcePrimaryKey, &sourceForeignKey); scanErr != nil {
-			err = fmt.Errorf("scan protected relation row: %w", scanErr)
-			break
-		}
-		primaryKey, primaryOK := sourcePrimaryKey.(int64)
-		foreignKey, foreignOK := sourceForeignKey.(int64)
-		if !primaryOK || !foreignOK || foreignKey != targetKey {
-			err = relationBackendInvalidPlan("protected relation row did not contain the exact integer primary and target keys")
-			break
-		}
-		protected[relationDeleteProtectedSource{source: edge.metadata.Source, primaryKey: primaryKey}] = struct{}{}
-	}
-	return lifecycle.finish(ctx, err)
 }
 
 type relationDeleteCallbackGuard struct {
@@ -441,75 +292,6 @@ func relationDeleteTargetKey(model ir.Model) (ir.Field, bool) {
 func mustRelationDeleteTargetKey(model ir.Model) ir.Field {
 	primaryKey, _ := relationDeleteTargetKey(model)
 	return primaryKey
-}
-
-func relationDeleteIncomingEdges(snapshot *projectBindingSnapshot, target ir.ModelIdentity) ([]relationDeleteEdge, error) {
-	edges := make([]relationDeleteEdge, 0)
-	for _, metadata := range snapshot.forward {
-		if metadata.Target != target {
-			continue
-		}
-		if !metadata.Cardinality.SingleValued() ||
-			(metadata.OnDelete != ir.DeleteProtect && metadata.OnDelete != ir.DeleteSetNull) ||
-			(metadata.OnDelete == ir.DeleteSetNull && !metadata.Nullable) {
-			return nil, relationInvalidPlan("incoming relation uses an unsupported cardinality, policy, or nullability")
-		}
-		sourceModel, ok := snapshot.models[metadata.Source]
-		if !ok {
-			return nil, relationInvalidPlan("incoming relation source model is missing from project binding")
-		}
-		sourcePrimaryKey, ok := relationAutoPrimaryKey(sourceModel)
-		if !ok {
-			return nil, relationInvalidPlan("incoming relation source must have exactly one AutoField primary key")
-		}
-		sourceForeignKey, ok := findField(sourceModel.Fields, metadata.Field)
-		if !ok || sourceForeignKey.Kind != ir.FieldForeignKey || sourceForeignKey.PrimaryKey ||
-			sourceForeignKey.Column != metadata.Column || sourceForeignKey.Nullable != metadata.Nullable ||
-			sourceForeignKey.Relation == nil || sourceForeignKey.Relation.Target != metadata.Target ||
-			sourceForeignKey.Relation.Cardinality != metadata.Cardinality ||
-			sourceForeignKey.Relation.Reverse != metadata.Reverse ||
-			sourceForeignKey.Relation.OnDelete != metadata.OnDelete {
-			return nil, relationInvalidPlan("incoming relation metadata disagrees with its source ForeignKey")
-		}
-		edges = append(edges, relationDeleteEdge{
-			metadata:         metadata,
-			sourceModel:      sourceModel.Clone(),
-			sourcePrimaryKey: sourcePrimaryKey.Clone(),
-			sourceForeignKey: sourceForeignKey.Clone(),
-		})
-	}
-	sort.Slice(edges, func(left, right int) bool {
-		return compareForward(edges[left].metadata, edges[right].metadata) < 0
-	})
-	return edges, nil
-}
-
-func cloneRelationDeleteEdge(edge relationDeleteEdge) relationDeleteEdge {
-	return relationDeleteEdge{
-		metadata:         edge.metadata,
-		sourceModel:      edge.sourceModel.Clone(),
-		sourcePrimaryKey: edge.sourcePrimaryKey.Clone(),
-		sourceForeignKey: edge.sourceForeignKey.Clone(),
-	}
-}
-
-func relationDeletePolicyFingerprint(
-	target ir.ModelIdentity,
-	targetModel ir.Model,
-	targetPrimaryKey ir.Field,
-	edges []relationDeleteEdge,
-) string {
-	incoming := make([]relationpolicy.Edge, len(edges))
-	for index, edge := range edges {
-		incoming[index] = relationpolicy.Edge{
-			Source: relationpolicy.ModelKey{Identity: edge.metadata.Source, Table: edge.sourceModel.DBTable,
-				PrimaryKeyName: edge.sourcePrimaryKey.Name, PrimaryKeyColumn: edge.sourcePrimaryKey.Column},
-			Field: edge.sourceForeignKey.Name, Column: edge.sourceForeignKey.Column,
-			Nullable: edge.metadata.Nullable, Cardinality: edge.metadata.Cardinality, OnDelete: edge.metadata.OnDelete,
-		}
-	}
-	return relationpolicy.Fingerprint(relationpolicy.ModelKey{Identity: target, Table: targetModel.DBTable,
-		PrimaryKeyName: targetPrimaryKey.Name, PrimaryKeyColumn: targetPrimaryKey.Column}, incoming)
 }
 
 func validLowerSHA256(value string) bool {

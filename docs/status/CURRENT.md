@@ -13,16 +13,16 @@ CASCADE의 독립 Django 기준과 [재귀 삭제 설계](../adr/0074-cascade-de
 양 DB의 native deferred FK·catalog timing 검증과 정책 변경/역방향을 구현하고 영향 범위의 normal/race/CGO=0을 통과했다.
 SQLite remake의 행·sequence·다른 제약 보존, required 순환과 실패 rollback/연결 정리도 확인했다.
 
-공통 ORM collector·transitive generated fingerprint와 TicketLabel의 Form/Admin/API/client 소비자는 아직 남아 있다.
-현재 generated project deleter와 ORM은 CASCADE를 명시적으로 거부한다. Native 기반 구현을 전체 CASCADE 지원으로 세지 않는다.
+공통 ORM collector와 v2 transitive generated fingerprint를 연결했다. 생성한 모델의 양 DB 삭제 결과가 독립 Django의 13개 관찰과 일치한다.
+중첩 조회/cleanup 실패·취소·native 결과 불확실성의 caller 보존과 기존 generated 소비자의 회귀를 함께 검증한다.
+TicketLabel의 Form/Admin/API/client 소비자와 해당 전체 통합 검증은 아직 남아 있다.
 지원 범위는 [구현 현황](IMPLEMENTATION_MATRIX.md)과 [Backend 범위](../BACKEND_MATRIX.md)가 소유한다.
 위 Hosted full은 복합 고유성·Label의 명시한 source 결과이며 이후 CASCADE 변경의 검증으로 옮기지 않는다.
 
 ## 다음 행동
 
-전체 CASCADE 행을 중복 없이 수집하고 모든 PROTECT 검사 뒤 SET_NULL·삭제를 한 transaction에서 실행하는 공통 ORM을 구현한다.
-같은 변경 묶음에서 descendant 정책 변경을 감지하는 generated fingerprint와 실패·취소·caller/cache 보존을 검증한다.
-그 뒤 TicketLabel 소비자로 연결한다. 현재 확인된 외부 blocker는 없다.
+TicketLabel의 모델·migration·scoped Form/Admin/API/OpenAPI/client를 연결한다. Ticket/Label 삭제 시 연결 행을 정리하고,
+기존 ServiceReport PROTECT·두 관계의 권한·Category 범위·중복·실패 rollback을 함께 검증한다. 현재 확인된 외부 blocker는 없다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다. 출시 일정 없이 필요한 기반과 기능을 이어간다.
 설계 채택, 제품 구현, 환경별 검증은 구분하며 한 기능의 결과를 전체 프레임워크 완료로 합치지 않는다.

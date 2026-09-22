@@ -36,6 +36,7 @@ RELATION_PACKAGES = {
     'conformance/internal/protocol', 'internal/compiletest',
 }
 RELATION_PREFIXES = (
+    'conformance/cascadefixture',
     'conformance/onetoonefixture',
     'conformance/relationfixture', 'conformance/relationproduct',
     'conformance/relationqueryproduct', 'conformance/relationobjectproduct',

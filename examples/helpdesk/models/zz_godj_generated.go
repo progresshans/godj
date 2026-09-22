@@ -1950,4 +1950,4 @@ func labelMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e struct{}
+type GoDjProjectSnapshot_711be948e04bb39ffb7d1723ac96bac850e435bea11d9833f3598392def492d0 struct{}
