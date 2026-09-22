@@ -2,6 +2,40 @@
 
 package helpdesksession
 
+// HelpdeskLabelDeleteParams is parameters of helpdesk:label-delete operation.
+type HelpdeskLabelDeleteParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskLabelDetailParams is parameters of helpdesk:label-detail operation.
+type HelpdeskLabelDetailParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskLabelListParams is parameters of helpdesk:label-list operation.
+type HelpdeskLabelListParams struct {
+	// Maximum page size; default 20.
+	Limit OptInt64 `json:",omitempty,omitzero"`
+	// Rows to skip; default 0.
+	Offset OptInt64 `json:",omitempty,omitzero"`
+	// Literal name substring; at most 64 UTF-8 bytes.
+	Search OptString `json:",omitempty,omitzero"`
+}
+
+// HelpdeskLabelPatchParams is parameters of helpdesk:label-patch operation.
+type HelpdeskLabelPatchParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
+// HelpdeskLabelUpdateParams is parameters of helpdesk:label-update operation.
+type HelpdeskLabelUpdateParams struct {
+	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.
+	ID int64
+}
+
 // HelpdeskServiceReportDeleteParams is parameters of helpdesk:service-report-delete operation.
 type HelpdeskServiceReportDeleteParams struct {
 	// A canonical non-negative int64 decimal path segment. Invalid spellings are not routed.

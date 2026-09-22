@@ -112,6 +112,8 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 	s.Errors = val
 }
 
+func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
+func (*GoDjAPIError) helpdeskLabelListRes()           {}
 func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
 func (*GoDjAPIError) helpdeskTicketDetailRes()        {}
@@ -205,11 +207,182 @@ func (s *GoDjAPIErrorHeaders) SetResponse(val GoDjAPIError) {
 	s.Response = val
 }
 
+func (*GoDjAPIErrorHeaders) helpdeskLabelDetailRes()         {}
+func (*GoDjAPIErrorHeaders) helpdeskLabelListRes()           {}
 func (*GoDjAPIErrorHeaders) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIErrorHeaders) helpdeskServiceReportListRes()   {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketDetailRes()        {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketListRes()          {}
 func (*GoDjAPIErrorHeaders) helpdeskTicketServiceReportRes() {}
+
+type HelpdeskLabelCreateBadRequest GoDjAPIError
+
+func (*HelpdeskLabelCreateBadRequest) helpdeskLabelCreateRes() {}
+
+type HelpdeskLabelCreateForbidden GoDjAPIError
+
+func (*HelpdeskLabelCreateForbidden) helpdeskLabelCreateRes() {}
+
+type HelpdeskLabelCreateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelCreateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelCreateInternalServerError) helpdeskLabelCreateRes() {}
+
+type HelpdeskLabelCreateNotFound GoDjAPIError
+
+func (*HelpdeskLabelCreateNotFound) helpdeskLabelCreateRes() {}
+
+type HelpdeskLabelCreateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskLabelCreateRequestEntityTooLarge) helpdeskLabelCreateRes() {}
+
+type HelpdeskLabelCreateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskLabelCreateUnsupportedMediaType) helpdeskLabelCreateRes() {}
+
+type HelpdeskLabelDeleteForbidden GoDjAPIError
+
+func (*HelpdeskLabelDeleteForbidden) helpdeskLabelDeleteRes() {}
+
+type HelpdeskLabelDeleteInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelDeleteInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelDeleteInternalServerError) helpdeskLabelDeleteRes() {}
+
+// HelpdeskLabelDeleteNoContent is response for HelpdeskLabelDelete operation.
+type HelpdeskLabelDeleteNoContent struct{}
+
+func (*HelpdeskLabelDeleteNoContent) helpdeskLabelDeleteRes() {}
+
+type HelpdeskLabelDeleteNotFound GoDjAPIError
+
+func (*HelpdeskLabelDeleteNotFound) helpdeskLabelDeleteRes() {}
+
+type HelpdeskLabelDetailInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelDetailInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelDetailInternalServerError) helpdeskLabelDetailRes() {}
+
+type HelpdeskLabelListInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelListInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelListInternalServerError) helpdeskLabelListRes() {}
+
+type HelpdeskLabelPatchBadRequest GoDjAPIError
+
+func (*HelpdeskLabelPatchBadRequest) helpdeskLabelPatchRes() {}
+
+type HelpdeskLabelPatchForbidden GoDjAPIError
+
+func (*HelpdeskLabelPatchForbidden) helpdeskLabelPatchRes() {}
+
+type HelpdeskLabelPatchInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelPatchInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelPatchInternalServerError) helpdeskLabelPatchRes() {}
+
+type HelpdeskLabelPatchNotFound GoDjAPIError
+
+func (*HelpdeskLabelPatchNotFound) helpdeskLabelPatchRes() {}
+
+type HelpdeskLabelPatchRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskLabelPatchRequestEntityTooLarge) helpdeskLabelPatchRes() {}
+
+type HelpdeskLabelPatchUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskLabelPatchUnsupportedMediaType) helpdeskLabelPatchRes() {}
+
+type HelpdeskLabelUpdateBadRequest GoDjAPIError
+
+func (*HelpdeskLabelUpdateBadRequest) helpdeskLabelUpdateRes() {}
+
+type HelpdeskLabelUpdateForbidden GoDjAPIError
+
+func (*HelpdeskLabelUpdateForbidden) helpdeskLabelUpdateRes() {}
+
+type HelpdeskLabelUpdateInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s HelpdeskLabelUpdateInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*HelpdeskLabelUpdateInternalServerError) helpdeskLabelUpdateRes() {}
+
+type HelpdeskLabelUpdateNotFound GoDjAPIError
+
+func (*HelpdeskLabelUpdateNotFound) helpdeskLabelUpdateRes() {}
+
+type HelpdeskLabelUpdateRequestEntityTooLarge GoDjAPIError
+
+func (*HelpdeskLabelUpdateRequestEntityTooLarge) helpdeskLabelUpdateRes() {}
+
+type HelpdeskLabelUpdateUnsupportedMediaType GoDjAPIError
+
+func (*HelpdeskLabelUpdateUnsupportedMediaType) helpdeskLabelUpdateRes() {}
 
 type HelpdeskServiceReportCreateBadRequest GoDjAPIError
 
@@ -591,6 +764,196 @@ func (*HelpdeskTicketUpdateRequestEntityTooLarge) helpdeskTicketUpdateRes() {}
 type HelpdeskTicketUpdateUnsupportedMediaType GoDjAPIError
 
 func (*HelpdeskTicketUpdateUnsupportedMediaType) helpdeskTicketUpdateRes() {}
+
+// Ref: #/components/schemas/Label
+type Label struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Category int64  `json:"category"`
+}
+
+// GetID returns the value of ID.
+func (s *Label) GetID() int64 {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *Label) GetName() string {
+	return s.Name
+}
+
+// GetCategory returns the value of Category.
+func (s *Label) GetCategory() int64 {
+	return s.Category
+}
+
+// SetID sets the value of ID.
+func (s *Label) SetID(val int64) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *Label) SetName(val string) {
+	s.Name = val
+}
+
+// SetCategory sets the value of Category.
+func (s *Label) SetCategory(val int64) {
+	s.Category = val
+}
+
+func (*Label) helpdeskLabelCreateRes() {}
+func (*Label) helpdeskLabelPatchRes()  {}
+func (*Label) helpdeskLabelUpdateRes() {}
+
+// Ref: #/components/schemas/LabelCreate
+type LabelCreate struct {
+	Name string `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *LabelCreate) GetName() string {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *LabelCreate) SetName(val string) {
+	s.Name = val
+}
+
+// LabelHeaders wraps Label with response headers.
+type LabelHeaders struct {
+	XGodjCsrftoken OptString
+	Response       Label
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *LabelHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *LabelHeaders) GetResponse() Label {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *LabelHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *LabelHeaders) SetResponse(val Label) {
+	s.Response = val
+}
+
+func (*LabelHeaders) helpdeskLabelDetailRes() {}
+
+// Ref: #/components/schemas/LabelList
+type LabelList struct {
+	Items  []Label `json:"items"`
+	Count  int64   `json:"count"`
+	Limit  int64   `json:"limit"`
+	Offset int64   `json:"offset"`
+}
+
+// GetItems returns the value of Items.
+func (s *LabelList) GetItems() []Label {
+	return s.Items
+}
+
+// GetCount returns the value of Count.
+func (s *LabelList) GetCount() int64 {
+	return s.Count
+}
+
+// GetLimit returns the value of Limit.
+func (s *LabelList) GetLimit() int64 {
+	return s.Limit
+}
+
+// GetOffset returns the value of Offset.
+func (s *LabelList) GetOffset() int64 {
+	return s.Offset
+}
+
+// SetItems sets the value of Items.
+func (s *LabelList) SetItems(val []Label) {
+	s.Items = val
+}
+
+// SetCount sets the value of Count.
+func (s *LabelList) SetCount(val int64) {
+	s.Count = val
+}
+
+// SetLimit sets the value of Limit.
+func (s *LabelList) SetLimit(val int64) {
+	s.Limit = val
+}
+
+// SetOffset sets the value of Offset.
+func (s *LabelList) SetOffset(val int64) {
+	s.Offset = val
+}
+
+// LabelListHeaders wraps LabelList with response headers.
+type LabelListHeaders struct {
+	XGodjCsrftoken OptString
+	Response       LabelList
+}
+
+// GetXGodjCsrftoken returns the value of XGodjCsrftoken.
+func (s *LabelListHeaders) GetXGodjCsrftoken() OptString {
+	return s.XGodjCsrftoken
+}
+
+// GetResponse returns the value of Response.
+func (s *LabelListHeaders) GetResponse() LabelList {
+	return s.Response
+}
+
+// SetXGodjCsrftoken sets the value of XGodjCsrftoken.
+func (s *LabelListHeaders) SetXGodjCsrftoken(val OptString) {
+	s.XGodjCsrftoken = val
+}
+
+// SetResponse sets the value of Response.
+func (s *LabelListHeaders) SetResponse(val LabelList) {
+	s.Response = val
+}
+
+func (*LabelListHeaders) helpdeskLabelListRes() {}
+
+// Ref: #/components/schemas/LabelPatch
+type LabelPatch struct {
+	Name OptString `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *LabelPatch) GetName() OptString {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *LabelPatch) SetName(val OptString) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/LabelUpdate
+type LabelUpdate struct {
+	Name string `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *LabelUpdate) GetName() string {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *LabelUpdate) SetName(val string) {
+	s.Name = val
+}
 
 // NewNilBool returns new NilBool with value set to v.
 func NewNilBool(v bool) NilBool {

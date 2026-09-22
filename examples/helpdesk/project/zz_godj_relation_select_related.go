@@ -13,6 +13,7 @@ import (
 const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
 
 var _ orm.ProjectionDescriptor[models.Category] = models.CategoryDescriptor{}
+var _ orm.ProjectionDescriptor[models.Label] = models.LabelDescriptor{}
 var _ orm.ProjectionDescriptor[models.ServiceReport] = models.ServiceReportDescriptor{}
 var _ orm.ProjectionDescriptor[models.Ticket] = models.TicketDescriptor{}
 
@@ -20,6 +21,178 @@ type relationSelectQuery[O any] interface {
 	All(context.Context) ([]*O, error)
 	Count(context.Context) (int64, error)
 	First(context.Context) (*O, bool, error)
+}
+
+type ModelsLabelSelectRelatedQuery struct {
+	factory          ModelsLabelObjectFactory
+	source           orm.QuerySet[models.Label]
+	query            orm.RelatedSelectQuery[models.Label]
+	selections       []orm.RelatedSelection[models.Label]
+	configurationErr error
+}
+
+func (_factory ModelsLabelObjectFactory) SelectRelated(_source orm.QuerySet[models.Label]) ModelsLabelSelectRelatedQuery {
+	return ModelsLabelSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query ModelsLabelSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[models.Label]) ModelsLabelSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[models.Label](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory ModelsLabelObjectFactory) SelectCategory(_children ...orm.RelatedSelection[models.Category]) orm.RelatedSelect[models.Label, models.Category] {
+	return orm.SelectRequiredForward(_factory.category).WithChildren(_children...)
+}
+func (_query ModelsLabelSelectRelatedQuery) WithCategory(_children ...orm.RelatedSelection[models.Category]) ModelsLabelSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectCategory(_children...))
+}
+func (_factory ModelsLabelObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[models.Label], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[models.Label], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "category":
+			_selection := _factory.SelectCategory()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query ModelsLabelSelectRelatedQuery) ParseDynamic(_paths ...string) (ModelsLabelSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ModelsLabelSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return ModelsLabelSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return ModelsLabelSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query ModelsLabelSelectRelatedQuery) rebuild() ModelsLabelSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query ModelsLabelSelectRelatedQuery) Filter(_values ...orm.Predicate[models.Label]) ModelsLabelSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query ModelsLabelSelectRelatedQuery) OrderBy(_values ...orm.Ordering[models.Label]) ModelsLabelSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query ModelsLabelSelectRelatedQuery) Distinct() ModelsLabelSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query ModelsLabelSelectRelatedQuery) Fresh() ModelsLabelSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query ModelsLabelSelectRelatedQuery) Limit(_value int) (ModelsLabelSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ModelsLabelSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ModelsLabelSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ModelsLabelSelectRelatedQuery) Offset(_value int) (ModelsLabelSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return ModelsLabelSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ModelsLabelSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query ModelsLabelSelectRelatedQuery) All(_ctx context.Context) ([]*ModelsLabelObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsLabelObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query ModelsLabelSelectRelatedQuery) First(_ctx context.Context) (*ModelsLabelObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query ModelsLabelSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query ModelsLabelSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[models.Label]) (*ModelsLabelObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory ModelsLabelObjectFactory) FromSelected(_selected *orm.RelatedSelected[models.Label]) (*ModelsLabelObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("category"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectCategory().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.category = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
 }
 
 type ModelsServiceReportSelectRelatedQuery struct {
@@ -449,4 +622,4 @@ func (_object *ModelsTicketObject) ServiceReportObject(_ctx context.Context) (*M
 	return _target, true, nil
 }
 
-var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ goDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

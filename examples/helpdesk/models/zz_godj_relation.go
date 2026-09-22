@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "9ec43e08fc115a134ba2aba58da8c0077df646f15095fcdc09404df02a97a9d4"
+const GoDjRelationSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -205,8 +205,44 @@ func GoDjRelationSchema() ir.Schema {
 					},
 				},
 			},
+			{
+				Name:    "label",
+				GoName:  "Label",
+				DBTable: "helpdesk_label",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:      "name",
+						GoName:    "Name",
+						Column:    "name",
+						Kind:      ir.FieldChar,
+						MaxLength: 64,
+					},
+					{
+						Name:   "category",
+						GoName: "CategoryID",
+						Column: "category_id",
+						Kind:   ir.FieldForeignKey,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Name: "labels"},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
+				},
+				UniqueConstraints: []ir.UniqueConstraint{
+					{Name: "category_name", Fields: []string{"category", "name"}},
+				},
+			},
 		},
 	}
 }
 
-var _ GoDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ GoDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

@@ -12,7 +12,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v10"
-const GoDjProjectRelationFacadeInputSHA256 = "5064cb27a251b742446bb6f7f0ba1a46dcc76eb9f231dcf1909c676340eb34cc"
+const GoDjProjectRelationFacadeInputSHA256 = "c77dde66649b079df4babe03977332b3f111499adf934cdb65899ae6fec1876e"
 
 type Backend interface {
 	db.Queryer
@@ -322,6 +322,675 @@ func (_model *ModelsCategory) Save(_ctx context.Context) error {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
+}
+
+type ModelsLabelQuery struct {
+	Related ModelsLabelRelationSelectors
+	state   *relationFacadeState
+	query   orm.QuerySet[models.Label]
+}
+
+func newModelsLabelQuery(_state *relationFacadeState, _query orm.QuerySet[models.Label]) ModelsLabelQuery {
+	_result := ModelsLabelQuery{state: _state, query: _query}
+	_result.Related = ModelsLabelRelationSelectors{
+		Category: relationFacadeSelection[models.Label, models.Category]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Category.selection = _state.objects.ModelsLabel.SelectCategory()
+	}
+	return _result
+}
+
+func (_query ModelsLabelQuery) validate() error {
+	return _query.state.validate()
+}
+
+func (_query ModelsLabelQuery) New(_value models.Label) (*ModelsLabel, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapModelsLabel(_value, true)
+}
+
+func (_query ModelsLabelQuery) Filter(_predicates ...orm.Predicate[models.Label]) ModelsLabelQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+
+func (_query ModelsLabelQuery) OrderBy(_orderings ...orm.Ordering[models.Label]) ModelsLabelQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+
+func (_query ModelsLabelQuery) Distinct() ModelsLabelQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query ModelsLabelQuery) Fresh() ModelsLabelQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+
+func (_query ModelsLabelQuery) Limit(_limit int) (ModelsLabelQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	_limited, _err := _query.query.Limit(_limit)
+	if _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	_query.query = _limited
+	return _query, nil
+}
+
+func (_query ModelsLabelQuery) Offset(_offset int) (ModelsLabelQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return ModelsLabelQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query ModelsLabelQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectModelsLabelInto[R any](_ctx context.Context, _source ModelsLabelQuery, _projection orm.Projection[models.Label, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateModelsLabelInto[R any](_ctx context.Context, _source ModelsLabelQuery, _aggregate orm.Aggregate[models.Label, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func (_query ModelsLabelQuery) First(_ctx context.Context) (*ModelsLabel, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _found, _err := _query.query.First(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	_wrapped, _err := _query.state.wrapModelsLabel(_value, false)
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_query ModelsLabelQuery) All(_ctx context.Context) ([]*ModelsLabel, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsLabel, len(_values))
+	for _index := range _values {
+		_wrapped, _err := _query.state.wrapModelsLabel(_values[_index], false)
+		if _err != nil {
+			return nil, _err
+		}
+		_results[_index] = _wrapped
+	}
+	return _results, nil
+}
+
+type modelsLabelModel = models.Label
+
+type ModelsLabel struct {
+	modelsLabelModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	object                    *ModelsLabelObject
+	categoryCache             *orm.RelationCache[ModelsCategory]
+	categoryScalarSnapshot    int64
+	categoryScalarPresent     bool
+	_self                     *ModelsLabel
+}
+
+func (_state *relationFacadeState) wrapModelsLabel(_value models.Label, _new bool) (*ModelsLabel, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_cloned := (models.LabelDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.ModelsLabel.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsLabel{state: _state, modelsLabelModel: _cloned, object: _object}
+	_result.categoryCache = orm.NewRelationCache[ModelsCategory]()
+	_result.categoryScalarPresent = !_new || _value.CategoryID != 0
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapModelsLabelObject(_object *ModelsLabelObject) (*ModelsLabel, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (models.LabelDescriptor{}).CloneWriteModel(_model)
+	_result := &ModelsLabel{state: _state, modelsLabelModel: _cloned, object: _object}
+	_result.categoryCache = orm.NewRelationCache[ModelsCategory]()
+	_result.categoryScalarPresent = true
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsLabel) validate() error {
+	if _model == nil || _model._self != _model {
+		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
+	}
+	return _model.state.validate()
+}
+
+func (ModelsLabel) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*ModelsLabel) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *ModelsLabel) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (models.LabelDescriptor{}).PrimaryKey(_model.modelsLabelModel)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ModelsLabel) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ModelsLabel) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	_model.categoryScalarSnapshot = _model.modelsLabelModel.CategoryID
+	return nil
+}
+
+func (_model *ModelsLabel) Unwrap() (models.Label, error) {
+	if _err := _model.validate(); _err != nil {
+		return models.Label{}, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return models.Label{}, _err
+	}
+	_, _, _categoryPending, _categoryErr := _model.categoryCache.Snapshot()
+	if _categoryErr != nil {
+		return models.Label{}, _categoryErr
+	}
+	if _categoryPending {
+		return models.Label{}, relationFacadeUnsavedRelated("category")
+	}
+	if !_model.categoryScalarPresent {
+		return models.Label{}, relationFacadeRequiredRelated("category")
+	}
+	return (models.LabelDescriptor{}).CloneModel(_model.modelsLabelModel), nil
+}
+
+func (_model *ModelsLabel) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	if _err := models.LabelObjects.Save(_ctx, _model.state.backend, &_model.modelsLabelModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *ModelsLabel) relationFacadeDerived(_value models.Label) (*ModelsLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (models.LabelDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.ModelsLabel.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &ModelsLabel{state: _model.state, modelsLabelModel: _value, object: _object}
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.categoryScalarSnapshot = _model.categoryScalarSnapshot
+	_result.categoryScalarPresent = _model.categoryScalarPresent
+	_result.categoryCache, _err = _model.categoryCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *ModelsLabel) relationFacadeReconcile() error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.categoryCache.Snapshot(); _err != nil {
+		return _err
+	}
+	_categoryCurrentKey := _model.modelsLabelModel.CategoryID
+	_categoryChanged := _categoryCurrentKey != _model.categoryScalarSnapshot
+	_categoryCurrentPresent := _model.categoryScalarPresent || _categoryChanged
+	_rebuild := false || _categoryChanged
+	if !_rebuild {
+		return nil
+	}
+	_nextModel := (models.LabelDescriptor{}).CloneWriteModel(_model.modelsLabelModel)
+	_nextObject, _err := _model.state.objects.ModelsLabel.From(_model.state.backend, _nextModel)
+	if _err != nil {
+		return _err
+	}
+	_nextCategoryCache := _model.categoryCache
+	if _categoryChanged {
+		_nextCategoryCache = orm.NewRelationCache[ModelsCategory]()
+	}
+	_model.modelsLabelModel = _nextModel
+	_model.object = _nextObject
+	if _categoryChanged {
+		_model.categoryCache = _nextCategoryCache
+		_model.categoryScalarSnapshot = _categoryCurrentKey
+		_model.categoryScalarPresent = _categoryCurrentPresent
+	}
+	return nil
+}
+
+func (_model *ModelsLabel) relationFacadePrepareSave() error {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_categoryState, _categoryTarget, _categoryPending, _err := _model.categoryCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _categoryKey int64
+	var _categoryPresent bool
+	if _categoryState == orm.RelationAssignedPresent {
+		if _categoryTarget == nil || _categoryTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_categoryKey, _categoryPresent, _err = _categoryTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _categoryState == orm.RelationAssignedPresent && !_categoryPresent {
+		return relationFacadeUnsavedRelated("category")
+	}
+	if _categoryState == orm.RelationAssignedAbsent || (_categoryState == orm.RelationUnassigned && !_model.categoryScalarPresent) {
+		return relationFacadeRequiredRelated("category")
+	}
+	if _categoryState == orm.RelationAssignedPresent && !_categoryPending && !_model.categoryScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	_categoryReconcile := _categoryState == orm.RelationAssignedPresent && _categoryPending
+	_nextModel := (models.LabelDescriptor{}).CloneWriteModel(_model.modelsLabelModel)
+	_rebuild := false
+	if _categoryReconcile {
+		_nextModel.CategoryID = _categoryKey
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.ModelsLabel.From(_model.state.backend, _nextModel)
+		if _err != nil {
+			return _err
+		}
+		_nextCategoryCache := _model.categoryCache
+		if _categoryReconcile {
+			_nextCategoryCache, _err = _model.categoryCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextCategoryCache.Store(orm.RelationAssignedPresent, _categoryTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_model.modelsLabelModel = _nextModel
+		_model.object = _nextObject
+		if _categoryReconcile {
+			_model.categoryCache = _nextCategoryCache
+			_model.categoryScalarSnapshot = _categoryKey
+			_model.categoryScalarPresent = true
+		}
+	}
+	return nil
+}
+
+func (_model *ModelsLabel) WithCategory(_target *ModelsCategory) (*ModelsLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (models.LabelDescriptor{}).CloneWriteModel(_model.modelsLabelModel)
+	if _present {
+		_value.CategoryID = _key
+	} else {
+		_value.CategoryID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.categoryScalarSnapshot = _key
+	_result.categoryScalarPresent = _present
+	if _err := _result.categoryCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *ModelsLabel) WithCategoryID(_key int64) (*ModelsLabel, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (models.LabelDescriptor{}).CloneWriteModel(_model.modelsLabelModel)
+	_, _, _pending, _err := _model.categoryCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.categoryScalarPresent && !_pending && _value.CategoryID == _key
+	_value.CategoryID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.categoryScalarSnapshot = int64(_key)
+	_result.categoryScalarPresent = true
+	if !_same {
+		if _err := _result.categoryCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *ModelsLabel) Category(_ctx context.Context) (*ModelsCategory, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.categoryCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == orm.RelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.categoryScalarPresent {
+		return nil, relationFacadeRequiredRelated("category")
+	}
+	_value, _err := _model.object.Category(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_wrapped, _err := _model.state.wrapModelsCategory(_value, false)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.categoryCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
+type ModelsLabelRelationSelector = relationFacadeSelectionInput[models.Label]
+type ModelsLabelRelationSelectors struct {
+	Category relationFacadeSelection[models.Label, models.Category]
+}
+
+func (_query ModelsLabelQuery) SelectRelated(_selectors ...ModelsLabelRelationSelector) ModelsLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return ModelsLabelEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[models.Label], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return ModelsLabelEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newModelsLabelEagerQuery(_query.query, _inputs)
+}
+func (_query ModelsLabelQuery) SelectRelatedPaths(_paths ...string) (ModelsLabelEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsLabelEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.ModelsLabel.selectionInputs(_paths)
+	if _err != nil {
+		return ModelsLabelEagerQuery{}, _err
+	}
+	_result := _query.state.newModelsLabelEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return ModelsLabelEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type ModelsLabelEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[models.Label]
+	selections       []orm.RelatedSelection[models.Label]
+	projection       relationSelectQuery[ModelsLabelObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newModelsLabelEagerQuery(_source orm.QuerySet[models.Label], _selections []orm.RelatedSelection[models.Label]) ModelsLabelEagerQuery {
+	_result := ModelsLabelEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[models.Label](nil), _selections...)
+	_projection := _state.objects.ModelsLabel.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query ModelsLabelEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query ModelsLabelEagerQuery) Filter(_values ...orm.Predicate[models.Label]) ModelsLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsLabelEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query ModelsLabelEagerQuery) OrderBy(_values ...orm.Ordering[models.Label]) ModelsLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsLabelEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query ModelsLabelEagerQuery) Distinct() ModelsLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsLabelEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query ModelsLabelEagerQuery) Fresh() ModelsLabelEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newModelsLabelEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query ModelsLabelEagerQuery) Limit(_value int) (ModelsLabelEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsLabelEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return ModelsLabelEagerQuery{}, _err
+	}
+	return _query.state.newModelsLabelEagerQuery(_source, _query.selections), nil
+}
+func (_query ModelsLabelEagerQuery) Offset(_value int) (ModelsLabelEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsLabelEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return ModelsLabelEagerQuery{}, _err
+	}
+	return _query.state.newModelsLabelEagerQuery(_source, _query.selections), nil
+}
+func (_query ModelsLabelEagerQuery) All(_ctx context.Context) ([]*ModelsLabel, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsLabel, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedModelsLabelObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query ModelsLabelEagerQuery) First(_ctx context.Context) (*ModelsLabel, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedModelsLabelObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query ModelsLabelEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedModelsLabelObject(_ctx context.Context, _object *ModelsLabelObject) (*ModelsLabel, error) {
+	_wrapped, _err := _state.wrapModelsLabelObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("category"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _err = _wrapped.Category(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
 }
 
 type ModelsServiceReportQuery struct {
@@ -1853,6 +2522,7 @@ func (_state *relationFacadeState) wrapSelectedModelsTicketObject(_ctx context.C
 
 type Models struct {
 	ModelsCategory      ModelsCategoryQuery
+	ModelsLabel         ModelsLabelQuery
 	ModelsServiceReport ModelsServiceReportQuery
 	ModelsTicket        ModelsTicketQuery
 }
@@ -1869,9 +2539,10 @@ func Using(_backend Backend) (Models, error) {
 	_state._self = _state
 	return Models{
 		ModelsCategory:      newModelsCategoryQuery(_state, models.CategoryObjects.Using(_backend)),
+		ModelsLabel:         newModelsLabelQuery(_state, models.LabelObjects.Using(_backend)),
 		ModelsServiceReport: newModelsServiceReportQuery(_state, models.ServiceReportObjects.Using(_backend)),
 		ModelsTicket:        newModelsTicketQuery(_state, models.TicketObjects.Using(_backend)),
 	}, nil
 }
 
-var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ goDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

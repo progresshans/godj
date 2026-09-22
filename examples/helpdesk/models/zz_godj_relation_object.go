@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
-const GoDjRelationObjectSchemaSHA256 = "9ec43e08fc115a134ba2aba58da8c0077df646f15095fcdc09404df02a97a9d4"
+const GoDjRelationObjectSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
 
 var _ orm.RelationObjectDescriptor[Category] = CategoryDescriptor{}
 
@@ -99,4 +99,42 @@ func (serviceReportTicketIDRelationStorage) Value(value ServiceReport) (query.Va
 	return query.Integer(value.TicketID), true
 }
 
-var _ GoDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ orm.RelationObjectDescriptor[Label] = LabelDescriptor{}
+
+func (LabelDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Label] {
+	return LabelDescriptor{}
+}
+
+func (LabelDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Label], bool) {
+	switch {
+	case reflect.DeepEqual(field, (labelCategoryIDRelationStorage{}).Field()):
+		return labelCategoryIDRelationStorage{}, true
+	default:
+		return nil, false
+	}
+}
+
+type labelCategoryIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Label] = labelCategoryIDRelationStorage{}
+
+func (labelCategoryIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:   "category",
+		GoName: "CategoryID",
+		Column: "category_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "labels"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func (labelCategoryIDRelationStorage) Value(value Label) (query.Value, bool) {
+	return query.Integer(value.CategoryID), true
+}
+
+var _ GoDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

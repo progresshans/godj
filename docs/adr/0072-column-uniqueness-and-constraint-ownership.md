@@ -1,6 +1,6 @@
 # ADR-0072: Model uniqueness and physical constraint ownership
 
-- 상태: Accepted — column uniqueness의 GDJ-0095 통합 검증 완료. Named model constraint의 이력·양 DB native 적용·공통 ORM 사전 검증은 구현했으며 Label 소비자는 GDJ-0097에서 진행 중.
+- 상태: Accepted — column uniqueness의 GDJ-0095 통합 검증 완료. Named model constraint의 이력·양 DB native·ORM과 Label 소비자를 구현했으며 GDJ-0097 전체 통합 검증은 진행 중.
 - 날짜: 2026-09-22
 - 관련 작업: [GDJ-0095](../../work/0095-model-uniqueness.md), [GDJ-0097](../../work/0097-composite-uniqueness-and-labels.md)
 
@@ -150,6 +150,14 @@ OpenAPI와 독립 generated client도 같은 응답을 소비한다.
 실제 생성된 migration `0016_alter_ticket_external_reference`는 기존 UUID column에 고유성을 추가한다.
 기존 중복 데이터는 migration을 실패시키며 값이나 이력을 자동 삭제하지 않는다. 명시적 수정 후 재시도하고 재접속해 확인한다.
 
+Helpdesk Label은 required name(Char 64)·category(FK PROTECT)와 named `(category, name)` 제약을 사용한다.
+`0018_label`은 별도 table을 만들며 기존 Category/Ticket/ServiceReport를 바꾸지 않는다. Name은 Category 안에서만 고유하고
+Form/API는 name만 받는다. 서버가 정한 Category를 저장 transaction에서 확인하고 Create/Update의 전체 candidate로 중복을 검사한다.
+Form의 제외 필드 때문에 저장 사전 검증까지 생략하지 않는다. 사전 중복은 non-field unique_together, native 충돌은
+오류 문구를 해석하지 않는 기존 non-field unique다. 권한·CSRF는 입력 parsing보다 먼저, scope는 DB 조회/transaction 안에서 적용한다.
+실행 오류·reload 오류의 rollback과 unknown outcome의 실행 오류/무재시도 경계를 유지한다.
+실제 consumer는 Admin CRUD·API 검색/페이지/CRUD·OpenAPI·독립 client를 포함한다. 환경별 범위는 TEST_EVIDENCE를 따른다.
+
 ## 검증과 남은 범위
 
 ### 모델 단위 제약의 선언과 이력
@@ -181,7 +189,7 @@ Catalog는 전체 ordered member와 PK·FK·column Unique·다른 named 제약�
 이 수직 연결의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniqueness.md)에서 완료했다.
 실행 source와 환경별 결과는 TEST_EVIDENCE가 소유하며 이후 변경의 검증으로 옮겨 쓰지 않는다.
 
-Named composite의 Label 소비자 연결, conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
+Named composite의 전체 통합 검증, conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 명시적 OneToOne의 후속 의미와 현재 구현 범위는 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
 기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.
 이 ADR의 양 DB 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.

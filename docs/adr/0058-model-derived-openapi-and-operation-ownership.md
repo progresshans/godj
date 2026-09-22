@@ -19,6 +19,10 @@ null·required·default와 full/partial 차이를 투영한다. `ModelResponseSc
 trim·blank·default 규칙은 응답에 붙이지 않는다.
 모델 의미의 원본은 Schema IR이고 이 기능은 기존 `serializers.FromModel` 경계를 소비한다.
 
+`IntegerRange(minimum, maximum)`는 signed int64 안의 inclusive 범위를 표현하고 역전된 범위를 설정 오류로 거부한다.
+Category Label의 limit/offset 페이지는 이 schema를 사용해 실제 parser와 client의 numeric bounds를 함께 명시한다.
+Query string의 반복 parameter·ASCII 숫자 표기 같은 lexical 정책은 endpoint parser가 소유한다.
+
 JSON Schema는 GoDj parser와 완전히 같은 검증기가 아니다. Trim 이후 제약은 `x-godj-normalization`에 기록한다.
 Canonical 정수 표기, duplicate member, NUL·문자열/전체 body byte·depth 제한과 application validation은 runtime이 소유한다.
 OpenAPI를 생성하거나 문서를 검증했다고 해당 안전성 검증을 생략하지 않는다.

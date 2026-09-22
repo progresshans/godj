@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "9ec43e08fc115a134ba2aba58da8c0077df646f15095fcdc09404df02a97a9d4"
+const GoDjRelationProjectionSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
 
 var _ orm.ProjectionDescriptor[Category] = CategoryDescriptor{}
 
@@ -230,4 +230,51 @@ func (_scan *serviceReportProjectionScan) Decode() (ServiceReport, query.Value, 
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-var _ GoDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ orm.ProjectionDescriptor[Label] = LabelDescriptor{}
+
+func (LabelDescriptor) NewProjectionScan() orm.ProjectionScan[Label] {
+	return &labelProjectionScan{}
+}
+
+type labelProjectionScan struct {
+	scanID         sql.NullInt64
+	scanName       sql.NullString
+	scanCategoryID sql.NullInt64
+}
+
+func (_scan *labelProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanName,
+		&_scan.scanCategoryID,
+	}
+}
+
+func (_scan *labelProjectionScan) Decode() (Label, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return Label{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanName.Valid && !_scan.scanCategoryID.Valid {
+		return Label{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return Label{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanName.Valid {
+		return Label{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanCategoryID.Valid {
+		return Label{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := Label{}
+	_value.ID = _scan.scanID.Int64
+	_value.Name = _scan.scanName.String
+	_value.CategoryID = _scan.scanCategoryID.Int64
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
+var _ GoDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

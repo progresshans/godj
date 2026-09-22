@@ -22,6 +22,66 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
+	// HelpdeskLabelCreate invokes helpdesk:label-create operation.
+	//
+	// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
+	// Unicode code points after trim. Category is assigned by the server and cannot be supplied, as cannot
+	// id. Names are unique only within that category using the database's exact equality. Category
+	// membership and the complete (category, name) candidate are checked in the write transaction. A
+	// confirmed conflict rolls back the write; execution failures and uncertain outcomes remain errors.
+	// PUT requires name; PATCH preserves omitted name and an empty object returns the existing scoped
+	// label.
+	//
+	// POST /api/labels/
+	HelpdeskLabelCreate(ctx context.Context, request *LabelCreate) (HelpdeskLabelCreateRes, error)
+	// HelpdeskLabelDelete invokes helpdesk:label-delete operation.
+	//
+	// Deletes only the scoped label in one transaction. Its category and tickets remain. Authentication,
+	// CSRF and permission precede lookup.
+	//
+	// DELETE /api/labels/{id}/
+	HelpdeskLabelDelete(ctx context.Context, params HelpdeskLabelDeleteParams) (HelpdeskLabelDeleteRes, error)
+	// HelpdeskLabelDetail invokes helpdesk:label-detail operation.
+	//
+	// Read a category label.
+	//
+	// GET /api/labels/{id}/
+	HelpdeskLabelDetail(ctx context.Context, params HelpdeskLabelDetailParams) (HelpdeskLabelDetailRes, error)
+	// HelpdeskLabelList invokes helpdesk:label-list operation.
+	//
+	// Returns labels in ID order within the assigned category. Limit defaults to 20 (1..100); offset
+	// defaults to 0 (0..2147483647). Count is the matching total before pagination. Search is a literal
+	// case-insensitive name substring of at most 64 UTF-8 bytes; empty means no filter. Unknown/duplicate
+	// parameters, invalid encoding, NUL and query strings over 2048 bytes return 400. Authentication and
+	// permission precede query parsing. Count and items are separate reads, so concurrent changes can
+	// shift pages.
+	//
+	// GET /api/labels/
+	HelpdeskLabelList(ctx context.Context, params HelpdeskLabelListParams) (HelpdeskLabelListRes, error)
+	// HelpdeskLabelPatch invokes helpdesk:label-patch operation.
+	//
+	// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
+	// Unicode code points after trim. Category is assigned by the server and cannot be supplied, as cannot
+	// id. Names are unique only within that category using the database's exact equality. Category
+	// membership and the complete (category, name) candidate are checked in the write transaction. A
+	// confirmed conflict rolls back the write; execution failures and uncertain outcomes remain errors.
+	// PUT requires name; PATCH preserves omitted name and an empty object returns the existing scoped
+	// label.
+	//
+	// PATCH /api/labels/{id}/
+	HelpdeskLabelPatch(ctx context.Context, request *LabelPatch, params HelpdeskLabelPatchParams) (HelpdeskLabelPatchRes, error)
+	// HelpdeskLabelUpdate invokes helpdesk:label-update operation.
+	//
+	// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
+	// Unicode code points after trim. Category is assigned by the server and cannot be supplied, as cannot
+	// id. Names are unique only within that category using the database's exact equality. Category
+	// membership and the complete (category, name) candidate are checked in the write transaction. A
+	// confirmed conflict rolls back the write; execution failures and uncertain outcomes remain errors.
+	// PUT requires name; PATCH preserves omitted name and an empty object returns the existing scoped
+	// label.
+	//
+	// PUT /api/labels/{id}/
+	HelpdeskLabelUpdate(ctx context.Context, request *LabelUpdate, params HelpdeskLabelUpdateParams) (HelpdeskLabelUpdateRes, error)
 	// HelpdeskServiceReportCreate invokes helpdesk:service-report-create operation.
 	//
 	// Authentication, permission and CSRF precede parsing. Ticket must identify a positive-ID ticket in
@@ -188,6 +248,713 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 		return c.serverURL
 	}
 	return u
+}
+
+// HelpdeskLabelCreate invokes helpdesk:label-create operation.
+//
+// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
+// Unicode code points after trim. Category is assigned by the server and cannot be supplied, as cannot
+// id. Names are unique only within that category using the database's exact equality. Category
+// membership and the complete (category, name) candidate are checked in the write transaction. A
+// confirmed conflict rolls back the write; execution failures and uncertain outcomes remain errors.
+// PUT requires name; PATCH preserves omitted name and an empty object returns the existing scoped
+// label.
+//
+// POST /api/labels/
+func (c *Client) HelpdeskLabelCreate(ctx context.Context, request *LabelCreate) (HelpdeskLabelCreateRes, error) {
+	res, err := c.sendHelpdeskLabelCreate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelCreate(ctx context.Context, request *LabelCreate) (res HelpdeskLabelCreateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/labels/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskLabelCreateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskLabelCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskLabelCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelCreateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskLabelDelete invokes helpdesk:label-delete operation.
+//
+// Deletes only the scoped label in one transaction. Its category and tickets remain. Authentication,
+// CSRF and permission precede lookup.
+//
+// DELETE /api/labels/{id}/
+func (c *Client) HelpdeskLabelDelete(ctx context.Context, params HelpdeskLabelDeleteParams) (HelpdeskLabelDeleteRes, error) {
+	res, err := c.sendHelpdeskLabelDelete(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelDelete(ctx context.Context, params HelpdeskLabelDeleteParams) (res HelpdeskLabelDeleteRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskLabelDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskLabelDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelDeleteResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskLabelDetail invokes helpdesk:label-detail operation.
+//
+// Read a category label.
+//
+// GET /api/labels/{id}/
+func (c *Client) HelpdeskLabelDetail(ctx context.Context, params HelpdeskLabelDetailParams) (HelpdeskLabelDetailRes, error) {
+	res, err := c.sendHelpdeskLabelDetail(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelDetail(ctx context.Context, params HelpdeskLabelDetailParams) (res HelpdeskLabelDetailRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelDetailOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelDetailResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskLabelList invokes helpdesk:label-list operation.
+//
+// Returns labels in ID order within the assigned category. Limit defaults to 20 (1..100); offset
+// defaults to 0 (0..2147483647). Count is the matching total before pagination. Search is a literal
+// case-insensitive name substring of at most 64 UTF-8 bytes; empty means no filter. Unknown/duplicate
+// parameters, invalid encoding, NUL and query strings over 2048 bytes return 400. Authentication and
+// permission precede query parsing. Count and items are separate reads, so concurrent changes can
+// shift pages.
+//
+// GET /api/labels/
+func (c *Client) HelpdeskLabelList(ctx context.Context, params HelpdeskLabelListParams) (HelpdeskLabelListRes, error) {
+	res, err := c.sendHelpdeskLabelList(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelList(ctx context.Context, params HelpdeskLabelListParams) (res HelpdeskLabelListRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/labels/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "offset" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "offset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Offset.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "search" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "search",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Search.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelListOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelListResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskLabelPatch invokes helpdesk:label-patch operation.
+//
+// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
+// Unicode code points after trim. Category is assigned by the server and cannot be supplied, as cannot
+// id. Names are unique only within that category using the database's exact equality. Category
+// membership and the complete (category, name) candidate are checked in the write transaction. A
+// confirmed conflict rolls back the write; execution failures and uncertain outcomes remain errors.
+// PUT requires name; PATCH preserves omitted name and an empty object returns the existing scoped
+// label.
+//
+// PATCH /api/labels/{id}/
+func (c *Client) HelpdeskLabelPatch(ctx context.Context, request *LabelPatch, params HelpdeskLabelPatchParams) (HelpdeskLabelPatchRes, error) {
+	res, err := c.sendHelpdeskLabelPatch(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelPatch(ctx context.Context, request *LabelPatch, params HelpdeskLabelPatchParams) (res HelpdeskLabelPatchRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PATCH", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskLabelPatchRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskLabelPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskLabelPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// HelpdeskLabelUpdate invokes helpdesk:label-update operation.
+//
+// Authentication, permission and CSRF precede parsing. Name is trimmed, required and at most 64
+// Unicode code points after trim. Category is assigned by the server and cannot be supplied, as cannot
+// id. Names are unique only within that category using the database's exact equality. Category
+// membership and the complete (category, name) candidate are checked in the write transaction. A
+// confirmed conflict rolls back the write; execution failures and uncertain outcomes remain errors.
+// PUT requires name; PATCH preserves omitted name and an empty object returns the existing scoped
+// label.
+//
+// PUT /api/labels/{id}/
+func (c *Client) HelpdeskLabelUpdate(ctx context.Context, request *LabelUpdate, params HelpdeskLabelUpdateParams) (HelpdeskLabelUpdateRes, error) {
+	res, err := c.sendHelpdeskLabelUpdate(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendHelpdeskLabelUpdate(ctx context.Context, request *LabelUpdate, params HelpdeskLabelUpdateParams) (res HelpdeskLabelUpdateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/labels/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.Int64ToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeHelpdeskLabelUpdateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityCsrfCookie(ctx, HelpdeskLabelUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfCookie\"")
+			}
+		}
+		{
+
+			switch err := c.securityCsrfHeader(ctx, HelpdeskLabelUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 1
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"CsrfHeader\"")
+			}
+		}
+		{
+
+			switch err := c.securitySessionAuth(ctx, HelpdeskLabelUpdateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 2
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"SessionAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000111},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeHelpdeskLabelUpdateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
 }
 
 // HelpdeskServiceReportCreate invokes helpdesk:service-report-create operation.

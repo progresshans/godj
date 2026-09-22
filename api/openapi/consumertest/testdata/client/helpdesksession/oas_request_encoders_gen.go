@@ -10,6 +10,48 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 )
 
+func encodeHelpdeskLabelCreateRequest(
+	req *LabelCreate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeHelpdeskLabelPatchRequest(
+	req *LabelPatch,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeHelpdeskLabelUpdateRequest(
+	req *LabelUpdate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeHelpdeskServiceReportCreateRequest(
 	req *ServiceReportCreate,
 	r *http.Request,

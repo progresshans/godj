@@ -99,6 +99,33 @@ Admin은 `/admin/service-reports/`에서 같은 CRUD를 제공한다. 티켓 선
 API는 scoped ticket key를 직접 받으며 티켓 subject를 열거하지 않는다. 보고서 view 권한에는 그 관계 key와 부재 조회가 포함된다.
 명시적 component `ServiceReport`, `ServiceReportCreate`, `ServiceReportUpdate`, `ServiceReportPatch`와 독립 ogen client가 같은 계약을 소비한다.
 
+Label은 Category별 이름 사전이다. `0018_label`은 기존 행을 보존하면서 name(Char 64)·category(FK PROTECT)와
+이름 있는 `(category, name)` 고유 제약을 추가한다. 같은 Category 안에서만 이름을 고유하게 저장하고 다른 Category의 같은 이름은 허용한다.
+라벨이 남아 있으면 그 Category의 삭제는 PROTECT로 거부하며, 라벨 삭제는 Category·Ticket을 보존한다.
+
+| 경로 | 동작 | 권한 |
+| --- | --- | --- |
+| GET `/api/labels/` | 선택 Category의 라벨 검색·페이지 조회 | ViewLabel |
+| POST `/api/labels/` | name 생성, 201 | AddLabel |
+| GET `/api/labels/<id>/` | 라벨 상세 | ViewLabel |
+| PUT/PATCH `/api/labels/<id>/` | 전체/부분 이름 수정 | ChangeLabel |
+| DELETE `/api/labels/<id>/` | 라벨 삭제, body 없는 204 | DeleteLabel |
+
+목록은 `{items, count, limit, offset}`이며 ID 순서다. `limit`은 기본 20, 범위 1..100이고 `offset`은 기본 0, 범위 0..2147483647이다.
+두 값은 ASCII 10진 숫자로 받는다. `search`는 64 UTF-8 byte 이내의 literal name substring이며 빈 값은 필터를 적용하지 않는다.
+Count는 검색 결과의 전체 개수다. Count와 items는 별도 조회이므로 동시 변경 시 페이지가 이동할 수 있다.
+Unknown/duplicate parameter·잘못된 encoding·NUL·2048 byte를 넘는 query string은 data 조회 전에 400으로 거부한다.
+
+쓰기 입력에는 name만 있다. 공백 제거 뒤 비어 있으면 거부하고 최대 64 Unicode code point를 허용한다.
+Category와 id는 입력할 수 없다. PUT은 name이 필수이며 PATCH는 생략을 보존하고 빈 객체는 현재 scoped 라벨을 반환한다.
+Category는 서버가 배정하고 저장 transaction에서 존재/범위를 확인한다. Form이 제외한 category도 공통 ORM의 전체 조합 검사에 포함한다.
+사전 중복은 `__all__/unique_together`, 사전 조회 뒤 native 충돌은 `__all__/unique`다. 값이나 기존 행 식별자를 진단에 넣지 않는다.
+Query/driver/취소·reload 오류는 rollback하고, rollback/commit 결과가 불명확하면 입력 오류나 성공으로 바꾸거나 자동 재시도하지 않는다.
+
+Admin `/admin/labels/`는 같은 저장 경로와 개별 권한을 사용한다. Form의 name 외 입력은 거부하며 중복 시 안전하게 escape한 제출 원문을 유지한다.
+모든 unsafe 요청에는 CSRF가 필요하다. Label view 권한은 선택한 Category의 식별자를 포함하며 별도 Category Admin의 ViewCategory를 대신하지 않는다.
+OpenAPI의 `Label`, `LabelCreate`, `LabelUpdate`, `LabelPatch`, `LabelList`와 고정 ogen의 독립 client가 이 경로·페이지 범위·진단을 소비한다.
+
 ```sh
 go test ./examples/helpdesk -count=1
 go run ./cmd/godj generate --check --project examples/helpdesk/godj.toml

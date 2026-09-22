@@ -23,6 +23,10 @@ type SecuritySource interface {
 
 // operationRolesCsrfCookie is a private map storing roles per operation.
 var operationRolesCsrfCookie = map[string][]string{
+	HelpdeskLabelCreateOperation:         []string{},
+	HelpdeskLabelDeleteOperation:         []string{},
+	HelpdeskLabelPatchOperation:          []string{},
+	HelpdeskLabelUpdateOperation:         []string{},
 	HelpdeskServiceReportCreateOperation: []string{},
 	HelpdeskServiceReportDeleteOperation: []string{},
 	HelpdeskServiceReportPatchOperation:  []string{},
@@ -55,6 +59,10 @@ func GetRolesForCsrfCookie(operation string) []string {
 
 // operationRolesCsrfHeader is a private map storing roles per operation.
 var operationRolesCsrfHeader = map[string][]string{
+	HelpdeskLabelCreateOperation:         []string{},
+	HelpdeskLabelDeleteOperation:         []string{},
+	HelpdeskLabelPatchOperation:          []string{},
+	HelpdeskLabelUpdateOperation:         []string{},
 	HelpdeskServiceReportCreateOperation: []string{},
 	HelpdeskServiceReportDeleteOperation: []string{},
 	HelpdeskServiceReportPatchOperation:  []string{},
@@ -87,6 +95,12 @@ func GetRolesForCsrfHeader(operation string) []string {
 
 // operationRolesSessionAuth is a private map storing roles per operation.
 var operationRolesSessionAuth = map[string][]string{
+	HelpdeskLabelCreateOperation:         []string{},
+	HelpdeskLabelDeleteOperation:         []string{},
+	HelpdeskLabelDetailOperation:         []string{},
+	HelpdeskLabelListOperation:           []string{},
+	HelpdeskLabelPatchOperation:          []string{},
+	HelpdeskLabelUpdateOperation:         []string{},
 	HelpdeskServiceReportCreateOperation: []string{},
 	HelpdeskServiceReportDeleteOperation: []string{},
 	HelpdeskServiceReportDetailOperation: []string{},

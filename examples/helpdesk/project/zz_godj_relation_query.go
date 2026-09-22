@@ -11,8 +11,9 @@ import (
 const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v2"
 
 type relationQueryBindings struct {
-	edge0 orm.ForwardRelation[models.ServiceReport, models.Ticket]
-	edge1 orm.ForwardRelation[models.Ticket, models.Category]
+	edge0 orm.ForwardRelation[models.Label, models.Category]
+	edge1 orm.ForwardRelation[models.ServiceReport, models.Ticket]
+	edge2 orm.ForwardRelation[models.Ticket, models.Category]
 }
 type ModelsCategoryRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
@@ -148,9 +149,18 @@ func (_fields ModelsTicketRelatedFields[S]) IsNull(_value bool) orm.Predicate[S]
 func (_fields ModelsTicketRelatedFields[S]) Category() ModelsCategoryRelatedFields[S] {
 	var _next orm.ForwardRelation[models.Ticket, models.Category]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge1
+		_next = _fields.bindings.edge2
 	}
 	return newModelsCategoryRelatedFields[S](_fields.bindings, orm.ChainForward(_fields.route, _next))
+}
+
+type ModelsLabelRelations struct {
+	Category ModelsCategoryRelatedFields[models.Label]
+	model    orm.BoundModel[models.Label]
+}
+
+func (_relations ModelsLabelRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[models.Label], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
 type ModelsServiceReportRelations struct {
@@ -172,6 +182,7 @@ func (_relations ModelsTicketRelations) ParseDynamic(_policy orm.LookupPolicy, _
 }
 
 type Relations struct {
+	ModelsLabel         ModelsLabelRelations
 	ModelsServiceReport ModelsServiceReportRelations
 	ModelsTicket        ModelsTicketRelations
 }
@@ -191,13 +202,21 @@ func BindRelations() (Relations, error) {
 	}
 	_model1, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
+		models.LabelDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
 		models.ServiceReportDescriptor{},
 	)
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model3, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
@@ -206,32 +225,44 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindForward(_model1, "ticket", _model2)
+	_relation0, _err := orm.BindForward(_model1, "category", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindForward(_model2, "category", _model0)
+	_relation1, _err := orm.BindForward(_model2, "ticket", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_group0 := newModelsTicketRelatedFields[models.ServiceReport](_routes, _routes.edge0)
+	_relation2, _err := orm.BindForward(_model3, "category", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge2 = _relation2
+	_group0 := newModelsCategoryRelatedFields[models.Label](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
-	_group1 := newModelsCategoryRelatedFields[models.Ticket](_routes, _routes.edge1)
+	_group1 := newModelsTicketRelatedFields[models.ServiceReport](_routes, _routes.edge1)
 	if _group1.configurationErr != nil {
 		return Relations{}, _group1.configurationErr
 	}
+	_group2 := newModelsCategoryRelatedFields[models.Ticket](_routes, _routes.edge2)
+	if _group2.configurationErr != nil {
+		return Relations{}, _group2.configurationErr
+	}
 	return Relations{
-		ModelsServiceReport: ModelsServiceReportRelations{model: _model1,
-			Ticket: _group0,
+		ModelsLabel: ModelsLabelRelations{model: _model1,
+			Category: _group0,
 		},
-		ModelsTicket: ModelsTicketRelations{model: _model2,
-			Category: _group1,
+		ModelsServiceReport: ModelsServiceReportRelations{model: _model2,
+			Ticket: _group1,
+		},
+		ModelsTicket: ModelsTicketRelations{model: _model3,
+			Category: _group2,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ goDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

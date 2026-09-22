@@ -37,6 +37,10 @@ func Schema() (ir.Schema, error) {
 			schema.TextField("summary", "Summary"),
 			schema.BooleanField("completed", "Completed", schema.Default(false)),
 		}},
+		{Name: "label", GoName: "Label", Fields: []schema.Field{
+			schema.CharField("name", "Name", 64),
+			schema.ForeignKey("category", "CategoryID", schema.Target("helpdesk", "category"), schema.RelatedName("labels"), schema.Protect),
+		}, UniqueConstraints: []schema.UniqueConstraint{{Name: "category_name", Fields: []string{"category", "name"}}}},
 	}})
 }
 

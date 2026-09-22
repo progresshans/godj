@@ -203,6 +203,9 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if err := checkHelpdeskServiceReports(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, seed.ID, created.ID, target.OtherTicketID); err != nil {
 		return err
 	}
+	if err := checkHelpdeskLabels(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, target.OtherLabelID); err != nil {
+		return err
+	}
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)
 }
 

@@ -53,7 +53,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
 		models.CategoryDescriptor{},
-		"76fc68cb9ab7d828154279b7050ba68f9a09e0f9714e44eb0ed3c3b4fdbc367c",
+		"73bb399f02f24ec4fac146a9d0dabca89cc43401bbe615cc9c13540d79660bb1",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -73,4 +73,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ goDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

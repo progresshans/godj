@@ -26,6 +26,16 @@ func TestSchemaPrimitivesComposeWithoutLosingNullEnumOrIntegerRange(t *testing.T
 		schemaTestString(t, schemaTestObject(t, openapi.Boolean()), "type") != "boolean" {
 		t.Fatal("scalar types changed")
 	}
+	for _, bounds := range [][2]int64{{1, 100}, {0, math.MaxInt32}, {0, 0}, {math.MinInt64, -1}} {
+		ranged, err := openapi.IntegerRange(bounds[0], bounds[1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		value := schemaTestObject(t, ranged)
+		if schemaTestInteger(t, value, "minimum") != bounds[0] || schemaTestInteger(t, value, "maximum") != bounds[1] {
+			t.Fatal("integer bounds changed during composition")
+		}
+	}
 	status, err := openapi.EnumStrings("open", "closed")
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +90,7 @@ func TestSchemaConstructionRejectsInvalidValuesBeforePublication(t *testing.T) {
 		name  string
 		build func() (openapi.Schema, error)
 	}{
+		{"inverted integer range", func() (openapi.Schema, error) { return openapi.IntegerRange(1, 0) }},
 		{"nullable zero", func() (openapi.Schema, error) { return openapi.Nullable(openapi.Schema{}) }},
 		{"array zero", func() (openapi.Schema, error) { return openapi.Array(openapi.Schema{}) }},
 		{"property zero", func() (openapi.Schema, error) { return openapi.Object(openapi.Property{Name: "value"}) }},

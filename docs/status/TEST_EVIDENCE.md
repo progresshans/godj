@@ -3,6 +3,43 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0097 — Category Label의 모델부터 독립 client까지
+
+2026-09-22, 기준 `2aaed04b30e473ea165024716f50eb5c193c778f` 위 제품·검사·생성물 **43경로**(Go 40, JSON 3)의 source map SHA256은
+`ba8ba7360d990a5cbf706102f573ebcc83f56270d864faf0bf61f5d650b8930d`이다. Markdown은 제외한다.
+Go 1.26.5/Darwin arm64·SQLite 3.53.3·격리 PostgreSQL 17.5(Homebrew)와 `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+Label의 name(Char 64)·category(FK PROTECT)·named `(category, name)`을 선언에서 생성했다. `generate`는 12개 모델/project 파일을
+생성했고 `makemigrations`는 `0018_label` 한 개를 게시했다. 적용/역방향/재적용·재접속과 기존 Ticket 보존을 검사했다.
+Ticket이 없는 별도 Category에서 Label만으로 PROTECT가 작동하고 Label을 삭제하면 Category 삭제가 가능한지 확인했다.
+Admin과 API의 같은 저장 transaction에서 숨겨진 Category를 포함한 전체 candidate를 검사하며 name만 입력으로 받는다.
+
+`go test -json -count=1 -timeout=10m ./examples/helpdesk ./api/openapi ./api/openapi/consumertest`와 같은 범위의
+`-race`, `CGO_ENABLED=0`은 **각 3 package / 148 run=PASS / skip 0**이다. 필수 검사 11개에는 양 DB의
+historical_label/category_labels 하위 실행과 API 구성·인증 실패/부분 게시 거부·schema range·독립 generated client가 포함된다.
+실행마다 source 불변·package 및 시작/종료 inventory를 검사했다.
+
+실제 HTTP는 같은/다른 Category의 이름 중복·변경/생략/self update, 64/65 Unicode 글자 경계·input allowlist·escaped 원문 보존,
+검색/limit/offset/count와 공표한 최대 offset, malformed/중복 parameter의 I/O 전 거부, 외부 Category 객체의 조회/수정/삭제 거부를 확인했다.
+Admin의 숨겨진 category 입력은 400이며 저장 callback을 실행하지 않는다. Anonymous/개별 권한/CSRF 거부도 제품 데이터 I/O 전에 끝난다.
+저장 직전 Category 이동 대조는 앞선 Admin 조회를 신뢰하지 않고 transaction 안에서 404로 거부하며 이동을 rollback했다.
+사전 조회를 의도적으로 비워 actual native 제약까지 도달한 중복은 non-field unique로 반환한다. Query/cancel/driver/reload 실패와
+rollback 불확실성은 500이며 선행 Ticket 쓰기가 rollback되는지 확인했다. 실제 commit 뒤 unknown outcome을 주입한 대조는
+500을 반환하고 자동 재시도 없이 transaction/write 각 1회였으며 실제 저장된 한 행을 명시적으로 확인했다.
+
+OpenAPI `IntegerRange`로 페이지의 inclusive numeric bounds를 내보내고 inverted range를 설정 오류로 거부한다.
+고정 ogen으로 세 profile을 재생성했으며 Article 두 profile·go.mod/go.sum/ogen.yml은 byte 불변이다. Helpdesk의 18개 operation 중
+Label 6개 경로와 page/진단/권한/CSRF를 별도 module client가 실제 HTTP로 소비했다. 부모는 유지된 Label의 최종 이름·Category와
+외부 Label 보존을 SQLite에서 독립 확인한다. 독립 client는 SQLite fixture이며 PostgreSQL HTTP는 Helpdesk 자체 검사의 별도 범위다.
+네 project generated drift·추가 migration 후보 0과 영향 `go vet`도 통과했다.
+
+첫 normal 실행은 남아 있던 12-operation test 기대와 Admin의 unknown category를 무시할 것이라는 새 test 가정 때문에 실패했다.
+실제 18개 operation을 검사하고 Admin의 기존 400 거부를 negative control로 유지한 뒤 정상 name-only 요청을 별도로 검증했다.
+제품의 입력 거부를 완화하지 않았고 첫 실패 source/events는 보존했다. 편집 중 unused import compile 오류도 수정했다.
+Artifact root는 `godj-composite-uniqueness-9yzkn6xp/labels/`이며 `latest-normal-path`, `latest-race-path`, `latest-cgo0-path`와
+`latest-client-path`에 source·전체 events·필수 inventory·receipt·재생성 후보를 보관했다. `generated-drift.json`, `migration-drift.json`, `vet.*`가 추가 검사를 기록한다.
+이 결과는 명시한 영향 범위 로컬 검증이다. GDJ-0097 전체 통합·Hosted full은 아직 실행 결과를 확인해야 한다.
+
 ## GDJ-0097 — 복합 고유성의 전체 candidate ORM 검증
 
 2026-09-22, 기준 `7d769e429d8d4a9171c434877b41868a81b4264a` 위 Go 코드·검사 **10경로**의 source map SHA256은
@@ -32,6 +69,8 @@ Artifact root는 `godj-composite-uniqueness-9yzkn6xp/orm/`이다. `latest-common
 `latest-cgo0-path`에 source·command·전체 JSON events·stderr·필수/package inventory·receipt를 보관했다.
 생성기·schema 선언·생성 ABI는 변경하지 않았고 기존 생성 소비자는 위 compile/runtime 검사에 포함된다.
 이 결과는 명시한 로컬 ORM·native·기존 소비자 회귀 범위다. Label 모델/Form/Admin/API/client 및 GDJ-0097 전체 통합·Hosted full은 미완료다.
+저장한 source `2aaed04b30e473ea165024716f50eb5c193c778f`의 [Hosted PR feedback](https://github.com/progresshans/godj/actions/runs/35675133141)은
+필수 Fast Go feedback step까지 success다. 이후 Label 변경의 통합 결과로 합치지 않는다.
 
 ## GDJ-0097 — 양 DB native named constraint와 전체 key ownership
 

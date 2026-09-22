@@ -31,7 +31,7 @@ Named model constraint의 CreateModel/AddConstraint/RemoveConstraint·역방향�
 SQLite는 별도 unique index의 모든 BINARY ASC key와 rowid를 검사하며 FK remake에서 유지되는 index를 재생성한다.
 PostgreSQL은 모든 conkey/indkey·방향·collation·operator class를 검사한다. CreateModel의 named 제약은 CREATE TABLE 뒤 별도 ALTER로 추가하여
 같은 field의 여러 선언도 native 이름별로 남긴다. 모든 statement는 같은 migration transaction과 operation에 속한다.
-ORM은 수정한 member가 속한 복합 제약을 전체 candidate로 사전 검증한다. Label 소비자는 아직 구현 중이다.
+ORM은 수정한 member가 속한 복합 제약을 전체 candidate로 사전 검증한다. Category Label의 Form/Admin/API/client도 이 경로를 사용한다.
 검증 대상인 모든 모델·direct/transitive target의 미선언 index는 거부한다. Legacy direct editor에는 이 capability를 확장하지 않는다.
 기존 중복으로 UNIQUE 추가/역방향 적용이 실패하면 행·catalog·revision/recorder를 보존하고 명시적 수정 후 재시도한다.
 Insert/update의 non-PK 충돌은 `integrity_error/unique_constraint`이며 native cause와 context 취소를 유지한다.

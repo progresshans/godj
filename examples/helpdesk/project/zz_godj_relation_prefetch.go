@@ -13,7 +13,33 @@ const GoDjProjectRelationPrefetchGeneratorVersion = "godj-codegen-rel-prefetch-p
 
 type ModelsCategoryReversePrefetches struct {
 	objects ModelsCategoryReverseObjectFactory
+	labels  orm.ReversePrefetch[models.Category, models.Label]
 	tickets orm.ReversePrefetch[models.Category, models.Ticket]
+}
+
+func (_prefetches ModelsCategoryReversePrefetches) Labels(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []models.Category,
+) ([]*ModelsCategoryReverseObject, error) {
+	_snapshots := make([]models.Category, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (models.CategoryDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.labels.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*ModelsCategoryReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.labels = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
 }
 
 func (_prefetches ModelsCategoryReversePrefetches) Tickets(
@@ -81,24 +107,29 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch0, _err := orm.BindReversePrefetch(_objects.ModelsCategory.tickets)
+	_prefetch0, _err := orm.BindReversePrefetch(_objects.ModelsCategory.labels)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch1, _err := orm.BindReverseOneToOnePrefetch(_objects.ModelsTicket.serviceReport)
+	_prefetch1, _err := orm.BindReversePrefetch(_objects.ModelsCategory.tickets)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch2, _err := orm.BindReverseOneToOnePrefetch(_objects.ModelsTicket.serviceReport)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
 	return ReversePrefetches{
 		ModelsCategory: ModelsCategoryReversePrefetches{
 			objects: _objects.ModelsCategory,
-			tickets: _prefetch0,
+			labels:  _prefetch0,
+			tickets: _prefetch1,
 		},
 		ModelsTicket: ModelsTicketReversePrefetches{
 			objects:       _objects.ModelsTicket,
-			serviceReport: _prefetch1,
+			serviceReport: _prefetch2,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28
+var _ goDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e

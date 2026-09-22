@@ -18,7 +18,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v1"
-const GoDjSchemaSHA256 = "9ec43e08fc115a134ba2aba58da8c0077df646f15095fcdc09404df02a97a9d4"
+const GoDjSchemaSHA256 = "a7e451e31b3fbf59d18e33acf57b5f979219500611b4c1e916ae87e99421dafb"
 
 type Category struct {
 	ID                    int64
@@ -1735,4 +1735,219 @@ func serviceReportMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_ffcfb036e6750070276b6f9b1b4ae66650327820e9fb6ccb8cff6f954fd1bf28 struct{}
+type Label struct {
+	ID                    int64
+	Name                  string
+	CategoryID            int64
+	godjPrimaryKeyPresent bool
+}
+
+type LabelDescriptor struct{}
+
+var _ orm.ModelDescriptor[Label] = LabelDescriptor{}
+
+var _ orm.WriteDescriptor[Label] = LabelDescriptor{}
+
+func (LabelDescriptor) Metadata() ir.Model {
+	return labelMetadata()
+}
+
+func (LabelDescriptor) Scan(row db.Row) (Label, error) {
+	var value Label
+	if err := row.Scan(&value.ID, &value.Name, &value.CategoryID); err != nil {
+		return Label{}, err
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (LabelDescriptor) PrimaryKey(value Label) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (LabelDescriptor) SetPrimaryKey(value *Label, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (LabelDescriptor) ClearPrimaryKey(value *Label) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (LabelDescriptor) CloneModel(value Label) Label {
+	clone := value
+	return clone
+}
+
+func (descriptor LabelDescriptor) CloneWriteModel(value Label) Label {
+	return descriptor.CloneModel(value)
+}
+
+func (LabelDescriptor) WriteFieldValue(value Label, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "name":
+		return query.String(value.Name), true
+	case "category":
+		return query.Integer(value.CategoryID), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type LabelFieldSet struct {
+	ID   orm.AutoField[Label]
+	Name orm.StringField[Label]
+}
+
+var LabelFields = func() LabelFieldSet {
+	metadata := labelMetadata()
+	return LabelFieldSet{
+		ID:   orm.NewAutoField[Label](metadata.Fields[0]),
+		Name: orm.NewStringField[Label](metadata.Fields[1]),
+	}
+}()
+
+var LabelObjects = orm.NewManager[Label](LabelDescriptor{})
+
+func NewLabelWithID(key int64) Label {
+	return Label{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func LabelUpdateFields(fields ...orm.WritableField[Label]) orm.SaveOption[Label] {
+	return orm.UpdateFields(fields...)
+}
+
+func LabelUpdateFieldNames(names ...string) orm.SaveOption[Label] {
+	return orm.UpdateFieldNames[Label](names...)
+}
+
+func LabelForceInsert() orm.SaveOption[Label] {
+	return orm.ForceInsert[Label]()
+}
+
+func LabelForceUpdate() orm.SaveOption[Label] {
+	return orm.ForceUpdate[Label]()
+}
+
+type LabelCreate struct {
+	name       orm.Change[string]
+	categoryID orm.Change[int64]
+}
+
+func NewLabelCreate(name string, categoryID int64) LabelCreate {
+	return LabelCreate{
+		name:       orm.Set(name),
+		categoryID: orm.Set(categoryID),
+	}
+}
+
+func (input LabelCreate) WithName(value string) LabelCreate {
+	input.name = orm.Set(value)
+	return input
+}
+
+func (input LabelCreate) WithCategoryID(value int64) LabelCreate {
+	input.categoryID = orm.Set(value)
+	return input
+}
+
+func (input LabelCreate) BuildCreate() orm.Mutation[Label] {
+	var value Label
+	assignments := make([]query.Assignment, 0, 2)
+	changedName, changedNameSet := input.name.Get()
+	if !changedNameSet {
+		return orm.InvalidMutation[Label](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "name",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.Name = changedName
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
+	changedCategoryID, changedCategoryIDSet := input.categoryID.Get()
+	if !changedCategoryIDSet {
+		return orm.InvalidMutation[Label](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "category",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.CategoryID = changedCategoryID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("category", "category_id", query.FieldInteger, false), query.Integer(changedCategoryID)))
+	return orm.NewCreateMutation(value, "helpdesk_label", assignments)
+}
+
+type LabelPatch struct {
+	name       orm.Change[string]
+	categoryID orm.Change[int64]
+}
+
+func (input LabelPatch) WithName(value string) LabelPatch {
+	input.name = orm.Set(value)
+	return input
+}
+
+func (input LabelPatch) WithCategoryID(value int64) LabelPatch {
+	input.categoryID = orm.Set(value)
+	return input
+}
+
+func (input LabelPatch) BuildPatch(current Label) orm.Mutation[Label] {
+	value := current
+	assignments := make([]query.Assignment, 0, 2)
+	if changedName, ok := input.name.Get(); ok {
+		value.Name = changedName
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
+	}
+	if changedCategoryID, ok := input.categoryID.Get(); ok {
+		value.CategoryID = changedCategoryID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("category", "category_id", query.FieldInteger, false), query.Integer(changedCategoryID)))
+	}
+	return orm.NewPatchMutation(value, "helpdesk_label", assignments)
+}
+
+func labelMetadata() ir.Model {
+	return ir.Model{
+		Name:    "label",
+		GoName:  "Label",
+		DBTable: "helpdesk_label",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:      "name",
+				GoName:    "Name",
+				Column:    "name",
+				Kind:      ir.FieldChar,
+				MaxLength: 64,
+			},
+			{
+				Name:   "category",
+				GoName: "CategoryID",
+				Column: "category_id",
+				Kind:   ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "labels"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+		},
+		UniqueConstraints: []ir.UniqueConstraint{
+			{Name: "category_name", Fields: []string{"category", "name"}},
+		},
+	}
+}
+
+type GoDjProjectSnapshot_93446ac5a29f2870138b3a59b04f3254c7af3e5d3b48692e104cbf2026862f9e struct{}

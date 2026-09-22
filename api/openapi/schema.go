@@ -32,14 +32,24 @@ func Boolean() Schema { return schemaPrimitive("boolean") }
 // Integer describes the signed 64-bit integer range used by serializers.Value.
 // JSON Schema cannot restrict the lexical spelling of an integer in JSON text.
 func Integer() Schema {
+	schema, _ := IntegerRange(math.MinInt64, math.MaxInt64)
+	return schema
+}
+
+// IntegerRange describes an inclusive application range within signed int64.
+// Request parsing still owns lexical rules such as rejecting duplicate values.
+func IntegerRange(minimum, maximum int64) (Schema, error) {
+	if minimum > maximum {
+		return Schema{}, schemaConfigError("integer", "minimum exceeds maximum")
+	}
 	// All names and values in this primitive are statically valid.
 	object, _ := serializers.NewObject(
 		serializers.MemberOf("type", serializers.String("integer")),
 		serializers.MemberOf("format", serializers.String("int64")),
-		serializers.MemberOf("minimum", serializers.Integer(math.MinInt64)),
-		serializers.MemberOf("maximum", serializers.Integer(math.MaxInt64)),
+		serializers.MemberOf("minimum", serializers.Integer(minimum)),
+		serializers.MemberOf("maximum", serializers.Integer(maximum)),
 	)
-	return Schema{value: object.Value()}
+	return Schema{value: object.Value()}, nil
 }
 
 // Float describes finite IEEE 754 binary64 numbers, including subnormal values.

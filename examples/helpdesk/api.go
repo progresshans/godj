@@ -174,9 +174,16 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 	if err != nil {
 		return nil, err
 	}
+	labelOperations, labelSchemas, err := a.labelOperations(protect)
+	if err != nil {
+		return nil, err
+	}
+	operations := append([]openapi.Operation{list, create, detail, update, patch}, reportOperations...)
+	operations = append(operations, labelOperations...)
+	schemas := append(reportSchemas, labelSchemas...)
 	return &API{
 		authentication: authentication,
-		operations:     append([]openapi.Operation{list, create, detail, update, patch}, reportOperations...),
+		operations:     operations,
 		schemas: append([]openapi.NamedSchema{
 			{Name: "Ticket", Schema: ticket},
 			{Name: "TicketCreate", Schema: input},
@@ -184,7 +191,7 @@ func (a *Application) API(authentication api.Authentication) (*API, error) {
 			{Name: "TicketPatch", Schema: partial},
 			{Name: "TicketDetail", Schema: detailSchema},
 			{Name: "CategorySummary", Schema: category},
-		}, reportSchemas...),
+		}, schemas...),
 	}, nil
 }
 

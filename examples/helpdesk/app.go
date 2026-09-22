@@ -41,6 +41,10 @@ const (
 	AddServiceReport    auth.Permission = "helpdesk.add_service_report"
 	ChangeServiceReport auth.Permission = "helpdesk.change_service_report"
 	DeleteServiceReport auth.Permission = "helpdesk.delete_service_report"
+	ViewLabel           auth.Permission = "helpdesk.view_label"
+	AddLabel            auth.Permission = "helpdesk.add_label"
+	ChangeLabel         auth.Permission = "helpdesk.change_label"
+	DeleteLabel         auth.Permission = "helpdesk.delete_label"
 )
 
 type Backend interface {
@@ -64,6 +68,9 @@ type Application struct {
 	reportInput   serializers.Spec
 	reportOutput  serializers.Spec
 	reportEncoder serializers.ModelEncoder[models.ServiceReport]
+	labelInput    serializers.Spec
+	labelOutput   serializers.Spec
+	labelEncoder  serializers.ModelEncoder[models.Label]
 }
 
 // New binds the selected category but performs no I/O. The caller chooses the
@@ -93,6 +100,9 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 		return nil, err
 	}
 	if err = a.initReports(); err != nil {
+		return nil, err
+	}
+	if err = a.initLabels(); err != nil {
 		return nil, err
 	}
 	if err := a.register(builder); err != nil {
@@ -130,7 +140,7 @@ func InstalledApps() []apps.Config {
 	return []apps.Config{{Name: "github.com/progresshans/godj/examples/helpdesk/models", Label: "helpdesk"}}
 }
 func Permissions() []auth.Permission {
-	return []auth.Permission{ViewCategory, ViewTicket, AddTicket, ChangeTicket, DeleteTicket, ViewServiceReport, AddServiceReport, ChangeServiceReport, DeleteServiceReport}
+	return []auth.Permission{ViewCategory, ViewTicket, AddTicket, ChangeTicket, DeleteTicket, ViewServiceReport, AddServiceReport, ChangeServiceReport, DeleteServiceReport, ViewLabel, AddLabel, ChangeLabel, DeleteLabel}
 }
 func (a *Application) Registry() admin.Registry { return a.registry }
 
@@ -224,7 +234,10 @@ func (a *Application) register(builder *admin.Builder) error {
 	}); err != nil {
 		return err
 	}
-	return a.registerReports(builder)
+	if err := a.registerReports(builder); err != nil {
+		return err
+	}
+	return a.registerLabels(builder)
 }
 
 func (a *Application) list(ctx context.Context, request admin.ListRequest) (admin.Page[models.Ticket], error) {

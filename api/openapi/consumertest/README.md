@@ -19,11 +19,17 @@ Calendar Date는 `format: date`와 별도의 nullable branch를 사용한다. Cl
 Clock Time은 timezone이 없는 string·pattern·length와 nullable branch다. RFC3339 full-time의 `format: time`과 구분한다.
 Client는 자정·최소 microsecond·마지막 microsecond·생략/null·PUT/PATCH의 HTTP 왕복과 최종 DB를 검사한다.
 Generated response decoder의 schema validation과 명시적 request.Validate를 확인한다. Request encoder가 Validate를 자동 호출한다고
-가정하지 않으며 server의 입력 검증을 유지한다. Parent와 child의 필수 receipt는 35개다.
+가정하지 않으며 server의 입력 검증을 유지한다. Parent와 child는 선언한 필수 receipt 전체를 독립적으로 검사한다.
 
 Helpdesk 목록의 search/source query는 실제 operation에서 생성한 매개변수를 사용한다. JSON 전체·source 경로의
 literal 검색, subject와 source의 AND, 빈 결과와 잘못된 NUL/길이 입력의 400을 실제 HTTP로 확인한다.
 JSON fixture는 public PATCH로 저장하고 원래 값으로 복원해 기존 최종 DB 검증을 유지한다.
+
+Category별 Label의 생성·상세·PUT/PATCH·삭제와 검색·limit/offset 페이지를 generated client로 호출한다.
+다른 Category에 같은 이름을 미리 저장해 두고, 현재 Category에서 생성은 허용하되 그 외부 Label의 조회·수정·삭제는 404인지 확인한다.
+복합 중복의 `__all__/unique_together`, 생략/self update·읽기 전용 역할·CSRF 거부와 페이지 numeric bounds를 검사한다.
+부모는 유지된 라벨의 최종 이름·Category와 외부 라벨 보존을 실제 DB에서 별도로 확인한다. 이 client fixture는 SQLite를 사용한다.
+Helpdesk 자체의 실제 SQLite/PostgreSQL HTTP·migration·실패 검사는 `examples/helpdesk`가 소유한다.
 
 Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 request enum과 별도 int64 response를 확인하고,
 허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
