@@ -24,8 +24,9 @@
 
 공통 환경은 Go **1.26.5**, Darwin arm64, modernc SQLite, 격리 PostgreSQL **17.5 Homebrew**다.
 DB 실행은 `GODJ_REQUIRE_POSTGRES=1`이며 각 mode의 전용 database를 사용한다. 모든 실행의 종료 시 connection·사용자 table·
-추가 schema가 0개임을 확인하고 해당 database를 제거했다. 독립 helper 전용 entrypoint 두 개는 parent 목록에서 제외하고
-이를 실제 subprocess로 호출하는 DB/process 회귀는 포함했다. 필수 실행 누락과 test skip을 허용하지 않는다.
+추가 schema가 0개임을 확인하고 해당 database를 제거했다. 독립 `TestPostgresRevisionFenceHelperProcess` entrypoint는
+root 목록에서 제외하고 이를 실제 subprocess로 호출하는 PostgreSQL 회귀는 포함했다. 제외 패턴의 다른 helper인
+`TestPublicationCrashHelper`는 이번 package 범위 밖이므로 publication crash 검증으로 세지 않는다. 필수 실행 누락과 test skip을 허용하지 않는다.
 
 별도 generated module의 양 DB **55개 child run=PASS**를 넓은/최종 각 mode에서 부모가 전체 JSON event로 검사한다.
 Native ordinary/coordinated relation session 각각의 commit/rollback에서 scalar 저장과 여러 collection 변경을 조합했다.
