@@ -165,6 +165,8 @@ func deletePolicyLiteral(policy ir.DeletePolicy) string {
 		return "ir.DeleteProtect"
 	case ir.DeleteSetNull:
 		return "ir.DeleteSetNull"
+	case ir.DeleteCascade:
+		return "ir.DeleteCascade"
 	default:
 		return strconv.Quote(string(policy))
 	}

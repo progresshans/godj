@@ -13,12 +13,18 @@ func TestGenerateRelationMetadataSupportsCurrentScalarAndRelationSchemas(t *test
 	t.Parallel()
 
 	authors, blog := testschema.Relation()
+	cascade := blog.Clone()
+	cascade.Models[0].Fields[1].Relation.OnDelete = ir.DeleteCascade
 	tests := []struct {
 		name      string
 		input     ir.Schema
 		fragments [][]byte
 		forbidden [][]byte
 	}{
+		{
+			name: "cascade relation policy", input: cascade,
+			fragments: [][]byte{[]byte("OnDelete:    ir.DeleteCascade")},
+		},
 		{
 			name:  "current scalar target app",
 			input: authors,

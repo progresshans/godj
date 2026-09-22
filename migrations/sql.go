@@ -147,6 +147,9 @@ func RenderMigrationSQL(
 			}
 			if kind == ir.ChangeChoices || kind == ir.ChangeRelation && before.Unique == after.Unique {
 				rules[index] = migrationSQLMetadataOnly
+				if kind == ir.ChangeRelation && before.Relation.OnDelete != after.Relation.OnDelete {
+					rules[index] = migrationSQLBackendSpecific
+				}
 			} else if kind == ir.ChangeDecimalPrecision {
 				rules[index] = migrationSQLBackendSpecific
 			}

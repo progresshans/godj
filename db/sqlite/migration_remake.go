@@ -110,17 +110,22 @@ func preflightSQLiteRelationRemakes(
 
 	for position := range seal.intent.Operations {
 		operation := seal.intent.Operations[position]
-		if operation.Kind != migrationbackend.MigrationRemoveField ||
-			!sqliteRelationOperationChangesForeignKey(operation) {
+		if !sqliteRelationOperationNeedsRemake(operation) {
 			continue
 		}
-		field, deltaErr := operation.ChangedField()
+		var field ir.Field
+		var deltaErr error
+		if operation.Kind == migrationbackend.MigrationAlterField {
+			_, field, _, deltaErr = migrationbackend.ChangedField(operation.Before, operation.After)
+		} else {
+			field, deltaErr = operation.ChangedField()
+		}
 		if deltaErr != nil {
-			return nil, [sha256.Size]byte{}, relationIntentIntegrity("invalid RemoveField delta: %v", deltaErr)
+			return nil, [sha256.Size]byte{}, relationIntentIntegrity("invalid remake delta: %v", deltaErr)
 		}
 		if _, err := sqliteRelationTargetForField(field, operation.Targets); err != nil {
 			return nil, [sha256.Size]byte{}, relationIntentIntegrity(
-				"relation RemoveField operation %d lacks exact changed-field target authority",
+				"relation remake operation %d lacks exact changed-field target authority",
 				operation.OperationIndex,
 			)
 		}
@@ -132,7 +137,7 @@ func preflightSQLiteRelationRemakes(
 		primaryKey, err := exactRelationTargetPrimaryKey(operation.After)
 		if err != nil {
 			return nil, [sha256.Size]byte{}, relationIntentUnsupported(
-				"relation RemoveField operation %d source: %v",
+				"relation remake operation %d source: %v",
 				operation.OperationIndex,
 				err,
 			)
@@ -174,7 +179,7 @@ func preflightSQLiteRelationRemakes(
 		}
 		if _, err := compileSQLiteRelationRemakeCreate(plan); err != nil {
 			return nil, [sha256.Size]byte{}, relationIntentUnsupported(
-				"relation RemoveField operation %d cannot compile bounded remake: %v",
+				"relation remake operation %d cannot compile bounded remake: %v",
 				operation.OperationIndex,
 				err,
 			)
@@ -186,6 +191,17 @@ func preflightSQLiteRelationRemakes(
 		return nil, [sha256.Size]byte{}, relationIntentIntegrity("seal relation remake plans: %v", err)
 	}
 	return plans, digest, nil
+}
+
+func sqliteRelationOperationNeedsRemake(operation migrationbackend.MigrationOperation) bool {
+	if operation.Kind == migrationbackend.MigrationRemoveField {
+		return sqliteRelationOperationChangesForeignKey(operation)
+	}
+	if operation.Kind == migrationbackend.MigrationAlterField {
+		before, after, _, err := migrationbackend.ChangedField(operation.Before, operation.After)
+		return err == nil && sqliteForeignKeyDeferred(before) != sqliteForeignKeyDeferred(after)
+	}
+	return false
 }
 
 func sqliteRelationRemakeTemporary(
@@ -304,21 +320,10 @@ func executeSQLiteRelationRemake(
 	if _, err := executor.ExecContext(ctx, createStatement); err != nil {
 		return fmt.Errorf("create relation remake table %q: %w", plan.temporary, err)
 	}
-	columns := make([]string, len(plan.after.Fields))
-	for index := range plan.after.Fields {
-		quoted, err := quoteIdentifier(plan.after.Fields[index].Column)
-		if err != nil {
-			return fmt.Errorf("quote relation remake retained column: %w", err)
-		}
-		columns[index] = quoted
-	}
-	primaryKey, err := quoteIdentifier(plan.primaryKey.Column)
+	copyStatement, err := compileSQLiteRelationRemakeCopy(plan)
 	if err != nil {
-		return fmt.Errorf("quote relation remake primary key: %w", err)
+		return err
 	}
-	copyStatement := `INSERT INTO ` + qualifiedSQLiteRelationMain(plan.temporary) +
-		` (` + strings.Join(columns, ", ") + `) SELECT ` + strings.Join(columns, ", ") +
-		` FROM ` + qualifiedSQLiteRelationMain(plan.before.DBTable) + ` ORDER BY ` + primaryKey
 	copyResult, err := executor.ExecContext(ctx, copyStatement)
 	if err != nil {
 		return fmt.Errorf("copy retained rows during relation remake: %w", err)
@@ -377,6 +382,78 @@ func executeSQLiteRelationRemake(
 		return err
 	}
 	return executeSQLiteMigrationStatements(ctx, executor, indexes)
+}
+
+func compileSQLiteRelationRemakeCopy(plan sqliteRelationRemakePlan) (string, error) {
+	columns := make([]string, len(plan.after.Fields))
+	for index := range plan.after.Fields {
+		quoted, err := quoteIdentifier(plan.after.Fields[index].Column)
+		if err != nil {
+			return "", fmt.Errorf("quote relation remake retained column: %w", err)
+		}
+		columns[index] = quoted
+	}
+	primaryKey, err := quoteIdentifier(plan.primaryKey.Column)
+	if err != nil {
+		return "", fmt.Errorf("quote relation remake primary key: %w", err)
+	}
+	return `INSERT INTO ` + qualifiedSQLiteRelationMain(plan.temporary) +
+		` (` + strings.Join(columns, ", ") + `) SELECT ` + strings.Join(columns, ", ") +
+		` FROM ` + qualifiedSQLiteRelationMain(plan.before.DBTable) + ` ORDER BY ` + primaryKey, nil
+}
+
+// The projection contains operation bodies, just like other sqlmigrate output.
+// FK mode, transaction admission, row/catalog checks and history publication
+// remain owned by the migration lifecycle. Sequence values are copied at run
+// time so rendering never opens a database or invents a high-water value.
+func compileSQLiteRelationTimingRemake(transition migrationbackend.HistoryTransition, operation migrationbackend.MigrationOperation) ([]string, error) {
+	_, field, _, err := migrationbackend.ChangedField(operation.Before, operation.After)
+	if err != nil {
+		return nil, err
+	}
+	targets, err := sqliteRelationTargetsForFields(operation.After, operation.Targets)
+	if err != nil {
+		return nil, err
+	}
+	key, err := exactRelationTargetPrimaryKey(operation.After)
+	if err != nil {
+		return nil, err
+	}
+	plan := sqliteRelationRemakePlan{
+		before: operation.Before.Clone(), after: operation.After.Clone(), targets: targets,
+		temporary: sqliteRelationRemakeTemporary(transition, operation.OperationIndex, operation.Before.DBTable, field.Column), primaryKey: key,
+	}
+	create, err := compileSQLiteRelationRemakeCreate(plan)
+	if err != nil {
+		return nil, err
+	}
+	copyRows, err := compileSQLiteRelationRemakeCopy(plan)
+	if err != nil {
+		return nil, err
+	}
+	finalName, err := quoteIdentifier(plan.after.DBTable)
+	if err != nil {
+		return nil, err
+	}
+	indexes, err := compileSQLiteUniqueIndexes(plan.after)
+	if err != nil {
+		return nil, err
+	}
+	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
+	oldName, temporary := quote(plan.before.DBTable), quote(plan.temporary)
+	sequence := `"main"."sqlite_sequence"`
+	oldExists := `EXISTS (SELECT 1 FROM ` + sequence + ` WHERE "name" = ` + oldName + `)`
+	statements := []string{
+		create, copyRows,
+		`INSERT INTO ` + sequence + ` ("name", "seq") SELECT ` + temporary + `, "seq" FROM ` + sequence +
+			` WHERE "name" = ` + oldName + ` AND NOT EXISTS (SELECT 1 FROM ` + sequence + ` WHERE "name" = ` + temporary + `)`,
+		`UPDATE ` + sequence + ` SET "seq" = (SELECT "seq" FROM ` + sequence + ` WHERE "name" = ` + oldName +
+			`) WHERE "name" = ` + temporary + ` AND ` + oldExists,
+		`DELETE FROM ` + sequence + ` WHERE "name" = ` + temporary + ` AND NOT ` + oldExists,
+		`DROP TABLE ` + qualifiedSQLiteRelationMain(plan.before.DBTable),
+		`ALTER TABLE ` + qualifiedSQLiteRelationMain(plan.temporary) + ` RENAME TO ` + finalName,
+	}
+	return append(statements, indexes...), nil
 }
 
 func qualifiedSQLiteRelationMain(identifier string) string {

@@ -496,6 +496,7 @@ func assertPostgresMigrationModelCatalog(
 		}
 		expectedConstraints[name] = postgresMigrationConstraintCatalog{
 			name: name, kind: "f", validated: true, sourceKeyCount: 1,
+			deferrable: postgresForeignKeyDeferred(target.SourceField), deferred: postgresForeignKeyDeferred(target.SourceField),
 			sourceAttributes: []int{postgresMigrationCatalogAttributeNumber(catalog, target.SourceField.Column)},
 			targetSchema:     namespace, targetTable: target.TargetModel.DBTable, targetKeyCount: 1,
 			targetColumn: target.TargetKey.Column,
@@ -517,7 +518,7 @@ func assertPostgresMigrationModelCatalog(
 		if actual.oid <= 0 {
 			return postgresMigrationCatalogDrift(model.DBTable, "constraint has no physical identity")
 		}
-		if actual.kind != expected.kind || actual.deferrable || actual.deferred || actual.validated != expected.validated ||
+		if actual.kind != expected.kind || actual.deferrable != expected.deferrable || actual.deferred != expected.deferred || actual.validated != expected.validated ||
 			actual.sourceKeyCount != expected.sourceKeyCount || len(actual.sourceAttributes) != actual.sourceKeyCount || !slices.Equal(actual.sourceAttributes, expected.sourceAttributes) {
 			return postgresMigrationCatalogDrift(model.DBTable, fmt.Sprintf("constraint %q has an unsupported source shape", actual.name))
 		}

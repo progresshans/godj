@@ -326,7 +326,7 @@ func validateForeignKeyRelation(relation ForeignKeyRelation, nullable bool, path
 		return validation(path+".reverse.name", "invalid_identifier", relation.Reverse.Name)
 	}
 	switch relation.OnDelete {
-	case DeleteProtect:
+	case DeleteProtect, DeleteCascade:
 	case DeleteSetNull:
 		if !nullable {
 			return validation(path+".on_delete", "invalid_nullability", "set_null requires a nullable ForeignKey")

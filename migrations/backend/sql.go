@@ -10,7 +10,8 @@ import "context"
 // has an empty group, preserving its identity in mixed migration plans.
 // CreateModel/AddField and uniqueness changes require at least one statement;
 // choices-only AlterField requires an empty group. Decimal precision changes
-// use an empty SQLite group or a PostgreSQL ALTER statement.
+// use an empty SQLite group or a PostgreSQL ALTER statement. Relation delete
+// policy changes may require backend-specific constraint edits or a table remake.
 type ForwardMigrationSQLRequest struct {
 	App    string
 	Name   string

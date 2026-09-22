@@ -33,6 +33,8 @@ required 순환의 생성·삭제를 transaction 끝에서 검사할 수 있게 
 CASCADE로 바꾸거나 되돌리는 AlterField는 물리 검사 시점도 변경하는 migration이다. SQLite remake와 PostgreSQL constraint 변경은
 historical before/after, catalog precondition, revision·recorder, 행·다른 제약 보존과 실패 rollback을 함께 소유한다.
 실제 deferrability가 선언과 다르면 drift로 거부한다. SQL projection·적용·역방향은 같은 의미를 사용한다.
+DB-free SQL projection은 operation body만 반환한다. SQLite의 sequence는 실행 시 SQL로 복사하고, FK mode·transaction과
+catalog/recorder 소유권은 실제 migration lifecycle에 남긴다([SQL projection ADR](0055-project-linked-deterministic-migration-sql-projection.md)).
 
 명확한 commit 성공 뒤에만 호출자가 넘긴 root의 PK/cache를 게시한다. 별도로 보유한 후손 객체나 observer 값을 전역에서 수정하지 않는다.
 실패·취소·rollback/commit 결과 불확실성은 기존 원인과 구분을 보존하며 caller의 메모리를 성공 상태로 바꾸거나 자동 재시도하지 않는다.

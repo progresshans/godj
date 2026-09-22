@@ -351,7 +351,7 @@ func compilePostgresMigrationForeignKey(
 	sourceTable string,
 	target migrationbackend.MigrationTarget,
 ) (string, error) {
-	if target.SourceField.Kind != ir.FieldForeignKey || target.SourceField.Relation == nil {
+	if target.SourceField.Kind != ir.FieldForeignKey || target.SourceField.Relation == nil || !target.SourceField.Relation.OnDelete.Valid() {
 		return "", errors.New("PostgreSQL migration foreign key target has no relation source")
 	}
 	constraintName, err := postgresForeignKeyConstraintName(sourceTable, target.SourceField.Column)
@@ -375,7 +375,18 @@ func compilePostgresMigrationForeignKey(
 		return "", err
 	}
 	return "CONSTRAINT " + constraint + " FOREIGN KEY (" + sourceColumn + ") REFERENCES " +
-		targetTable + " (" + targetColumn + ") ON UPDATE NO ACTION ON DELETE NO ACTION NOT DEFERRABLE", nil
+		targetTable + " (" + targetColumn + ") ON UPDATE NO ACTION ON DELETE NO ACTION " + postgresForeignKeyTiming(target.SourceField), nil
+}
+
+func postgresForeignKeyDeferred(field ir.Field) bool {
+	return field.Kind == ir.FieldForeignKey && field.Relation != nil && field.Relation.OnDelete == ir.DeleteCascade
+}
+
+func postgresForeignKeyTiming(field ir.Field) string {
+	if postgresForeignKeyDeferred(field) {
+		return "DEFERRABLE INITIALLY DEFERRED"
+	}
+	return "NOT DEFERRABLE"
 }
 
 // postgresForeignKeyConstraintName uses a domain-separated SHA-256 digest of

@@ -1162,15 +1162,11 @@ func compileSQLiteRelationCreateModel(
 		if err != nil {
 			return "", fmt.Errorf("compile SQLite relation source column: %w", err)
 		}
-		targetTable, err := quoteIdentifier(target.TargetModel.DBTable)
+		constraint, err := compileSQLiteRelationConstraint(target)
 		if err != nil {
-			return "", fmt.Errorf("compile SQLite relation target table: %w", err)
+			return "", fmt.Errorf("compile SQLite relation target: %w", err)
 		}
-		targetColumn, err := quoteIdentifier(target.TargetKey.Column)
-		if err != nil {
-			return "", fmt.Errorf("compile SQLite relation target column: %w", err)
-		}
-		parts = append(parts, "FOREIGN KEY ("+sourceColumn+") REFERENCES "+targetTable+" ("+targetColumn+") ON DELETE NO ACTION")
+		parts = append(parts, "FOREIGN KEY ("+sourceColumn+") REFERENCES "+constraint)
 	}
 	return "CREATE TABLE " + table + " (" + strings.Join(parts, ", ") + ")", nil
 }
@@ -1181,8 +1177,8 @@ func compileSQLiteRelationAddField(
 	targets []migrationbackend.MigrationTarget,
 ) (string, error) {
 	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey || field.Default != nil ||
-		(!field.Nullable && field.Relation.OnDelete != ir.DeleteProtect) {
-		return "", errors.New("relation AddField requires a non-primary-key ForeignKey with no migration default; required fields must use PROTECT")
+		!field.Relation.OnDelete.Valid() || (!field.Nullable && field.Relation.OnDelete == ir.DeleteSetNull) {
+		return "", errors.New("relation AddField requires a non-primary-key ForeignKey with a valid policy and no migration default")
 	}
 	relationFields := relationFieldsInModel(model)
 	if len(targets) != len(relationFields)+1 {
@@ -1205,20 +1201,16 @@ func compileSQLiteRelationAddField(
 	if err != nil {
 		return "", fmt.Errorf("compile SQLite relation AddField column: %w", err)
 	}
-	targetTable, err := quoteIdentifier(changed.TargetModel.DBTable)
+	constraint, err := compileSQLiteRelationConstraint(changed)
 	if err != nil {
-		return "", fmt.Errorf("compile SQLite relation AddField target table: %w", err)
-	}
-	targetColumn, err := quoteIdentifier(changed.TargetKey.Column)
-	if err != nil {
-		return "", fmt.Errorf("compile SQLite relation AddField target column: %w", err)
+		return "", fmt.Errorf("compile SQLite relation AddField target: %w", err)
 	}
 	nullability := " NOT NULL"
 	if field.Nullable {
 		nullability = " NULL"
 	}
 	return "ALTER TABLE \"main\"." + table + " ADD COLUMN " + column + " INTEGER" + nullability + " REFERENCES " +
-		targetTable + " (" + targetColumn + ") ON DELETE NO ACTION", nil
+		constraint, nil
 }
 
 func preflightSQLiteRelationIntent(
@@ -2574,6 +2566,9 @@ func compileSQLiteRelationColumn(field ir.Field) (string, error) {
 
 // compileSQLiteRelationConstraint returns the portion following REFERENCES.
 func compileSQLiteRelationConstraint(target migrationbackend.MigrationTarget) (string, error) {
+	if target.SourceField.Kind != ir.FieldForeignKey || target.SourceField.Relation == nil || !target.SourceField.Relation.OnDelete.Valid() {
+		return "", errors.New("canonical relation constraint has no valid ForeignKey policy")
+	}
 	table, err := quoteIdentifier(target.TargetModel.DBTable)
 	if err != nil {
 		return "", err
@@ -2582,7 +2577,15 @@ func compileSQLiteRelationConstraint(target migrationbackend.MigrationTarget) (s
 	if err != nil {
 		return "", err
 	}
-	return table + " (" + column + ") ON DELETE NO ACTION", nil
+	clause := table + " (" + column + ") ON DELETE NO ACTION"
+	if sqliteForeignKeyDeferred(target.SourceField) {
+		clause += " DEFERRABLE INITIALLY DEFERRED"
+	}
+	return clause, nil
+}
+
+func sqliteForeignKeyDeferred(field ir.Field) bool {
+	return field.Kind == ir.FieldForeignKey && field.Relation != nil && field.Relation.OnDelete == ir.DeleteCascade
 }
 
 func (cache *sqliteRelationPhysicalValidationCache) assertAutoKey(

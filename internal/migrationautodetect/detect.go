@@ -387,7 +387,7 @@ func safeExistingAddField(field ir.Field) bool {
 		// Required relations are executable only after the backend proves the
 		// source table empty. This also resumes an interrupted cyclic Create
 		// prefix; no guessed key, default, or populated-table backfill is used.
-		return field.Nullable || field.Relation.OnDelete == ir.DeleteProtect
+		return field.Relation.OnDelete.Valid() && (field.Nullable || field.Relation.OnDelete != ir.DeleteSetNull)
 	}
 	return field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) || field.Kind == ir.FieldInteger || field.Kind == ir.FieldBoolean)
 }

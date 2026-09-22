@@ -55,6 +55,7 @@ type DeletePolicy = ir.DeletePolicy
 const (
 	Protect = ir.DeleteProtect
 	SetNull = ir.DeleteSetNull
+	Cascade = ir.DeleteCascade
 )
 
 type FieldOption func(*Field)

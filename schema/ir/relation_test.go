@@ -126,7 +126,7 @@ func TestCurrentRelationValidationMatrix(t *testing.T) {
 		{name: "reverse empty", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.Reverse = ir.ReverseRelation{} }, path: "models[0].fields[1].relation.reverse", code: "invalid"},
 		{name: "reverse both", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.Reverse.Disabled = true }, path: "models[0].fields[1].relation.reverse", code: "invalid"},
 		{name: "reverse identifier", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.Reverse.Name = "bad-name" }, path: "models[0].fields[1].relation.reverse.name", code: "invalid_identifier"},
-		{name: "delete policy", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.OnDelete = ir.DeletePolicy("cascade") }, path: "models[0].fields[1].relation.on_delete", code: "unsupported"},
+		{name: "delete policy", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.OnDelete = ir.DeletePolicy("restrict") }, path: "models[0].fields[1].relation.on_delete", code: "unsupported"},
 		{name: "set null required", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation.OnDelete = ir.DeleteSetNull }, path: "models[0].fields[1].relation.on_delete", code: "invalid_nullability"},
 	}
 	for _, test := range tests {

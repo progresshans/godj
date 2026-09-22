@@ -35,6 +35,15 @@ func (schema *postgresMigrationSchema) AlterField(ctx context.Context, executor 
 			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL unique constraint", err)
 		}
 	}
+	if postgresForeignKeyDeferred(wantBefore) != postgresForeignKeyDeferred(wantAfter) {
+		statement, err := compilePostgresForeignKeyTimingAlter(schema.namespace, model, wantAfter)
+		if err != nil {
+			return err
+		}
+		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			return classifyPostgresRevisionContention(ctx, "alter PostgreSQL foreign key timing", err)
+		}
+	}
 	if kind == ir.ChangeDecimalPrecision {
 		if err := schema.validateDecimalValues(ctx, executor, model, wantBefore, wantAfter); err != nil {
 			return err
@@ -51,6 +60,25 @@ func (schema *postgresMigrationSchema) AlterField(ctx context.Context, executor 
 	// complete intent verifies the resulting catalog before history publication.
 	schema.cursor++
 	return nil
+}
+
+func compilePostgresForeignKeyTimingAlter(namespace string, model ir.Model, after ir.Field) (string, error) {
+	if after.Kind != ir.FieldForeignKey || after.Relation == nil || !after.Relation.OnDelete.Valid() {
+		return "", errors.New("invalid ForeignKey policy for PostgreSQL alteration")
+	}
+	table, err := quoteTable(namespace, model.DBTable)
+	if err != nil {
+		return "", err
+	}
+	name, err := postgresForeignKeyConstraintName(model.DBTable, after.Column)
+	if err != nil {
+		return "", err
+	}
+	constraint, err := quoteIdentifier(name)
+	if err != nil {
+		return "", err
+	}
+	return "ALTER TABLE " + table + " ALTER CONSTRAINT " + constraint + " " + postgresForeignKeyTiming(after), nil
 }
 
 func compilePostgresDecimalPrecision(namespace string, model ir.Model, after ir.Field) (string, error) {

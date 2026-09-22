@@ -96,14 +96,28 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 			if deltaErr != nil {
 				return nil, postgresMigrationIntentIntegrity("invalid AlterField delta", deltaErr)
 			}
-			if kind == ir.ChangeChoices || kind == ir.ChangeRelation && before.Unique == field.Unique {
-				continue
-			}
 			if before.Unique != field.Unique {
 				statement, err = compilePostgresUniqueAlter(renderer.schema, operation.After, field)
-			} else {
-				statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)
+				if err != nil {
+					return nil, err
+				}
+				groups[index] = append(groups[index], statement)
 			}
+			if postgresForeignKeyDeferred(before) != postgresForeignKeyDeferred(field) {
+				statement, err = compilePostgresForeignKeyTimingAlter(renderer.schema, operation.After, field)
+				if err != nil {
+					return nil, err
+				}
+				groups[index] = append(groups[index], statement)
+			}
+			if kind == ir.ChangeDecimalPrecision {
+				statement, err = compilePostgresDecimalPrecision(renderer.schema, operation.After, field)
+				if err != nil {
+					return nil, err
+				}
+				groups[index] = append(groups[index], statement)
+			}
+			continue
 		case migrationbackend.MigrationCreateModel:
 			groups[index], err = compilePostgresMigrationCreateModel(
 				renderer.schema,

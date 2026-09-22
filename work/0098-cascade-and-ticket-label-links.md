@@ -23,8 +23,8 @@ GDJ-0097의 named 복합 고유성을 사용하고, 현재 한 단계 PROTECT/SE
 ## 구현 조건
 
 - [x] 고정 Django 6.1의 독립 관찰: recursive CASCADE·SET_NULL·PROTECT 우선, 중복 경로·숨긴 역관계·OneToOne, nullable·required 순환, endpoint/연결 보존, 실제 실패 rollback
-- [ ] Schema IR의 CASCADE 선언·생성 metadata·project wire와 historical Create/Add/Alter/reverse·자동 계획을 연결하고 기존 데이터와 durable prefix를 보존
-- [ ] 양 DB의 native FK 검사 시점·catalog ownership·migration/역방향·실패 복구를 구현하고 순환 삭제의 실제 결과로 검증
+- [x] Schema IR의 CASCADE 선언·생성 metadata·project wire와 historical Create/Add/Alter/reverse·자동 계획을 연결하고 기존 데이터와 durable prefix를 보존
+- [x] 양 DB의 native FK 검사 시점·catalog ownership·migration/역방향·실패 복구를 구현하고 순환 삭제의 실제 결과로 검증
 - [ ] 공통 ORM에서 전체 도달 그래프를 고정하고 모든 보호 검사·SET_NULL·중복 없는 삭제를 한 coordinated transaction에서 처리
 - [ ] Generated policy fingerprint가 transitive descendant 변경도 I/O 전에 거부하며 cache·caller publication·오류·취소·unknown outcome의 소유권을 유지
 - [ ] TicketLabel 모델·migration·scoped Form/Admin/API/OpenAPI/독립 client를 연결하고 권한·CSRF·중복·다른 Category·기존 ServiceReport PROTECT를 검증
@@ -37,7 +37,11 @@ PROTECT는 CASCADE로 도달한 객체에도 적용되며, 늦은 삭제 오류�
 자동 ManyToMany intermediary는 두 CASCADE FK와 ordered pair 고유성을 가진다.
 관계 삭제는 숨겨진 역관계·중복 경로·자기 참조·서로 다른 앱의 required 순환에서도 각 행을 한 번 삭제한다.
 
-다음은 [채택한 설계](../docs/adr/0074-cascade-delete-graph-and-constraint-timing.md)의 물리 FK 검사 시점과 공통 삭제 그래프를 함께 구현하는 것이다.
-현재 PostgreSQL FK는 NOT DEFERRABLE이고 SQLite도 즉시 검사하므로 enum 추가만으로 순환 삭제를 구현할 수 없다.
-새 policy의 native 표현과 정책 변경 migration을 명시하고 catalog·rollback을 함께 검증해야 한다.
-실행 상세와 준비 단계의 한계는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.
+[채택한 설계](../docs/adr/0074-cascade-delete-graph-and-constraint-timing.md)에 따라 CASCADE의 native FK를 양 DB에서 NO ACTION·DEFERRABLE INITIALLY DEFERRED로 생성한다.
+정책 변경은 PostgreSQL constraint timing ALTER와 SQLite의 sealed table remake로 적용하고 역방향·catalog drift·실패 복구를 검증했다.
+SQLite는 다른 unique/FK·행·sequence를 보존하고, 양 DB의 required 순환 생성·삭제와 deferred COMMIT 실패 후 연결 재사용도 확인했다.
+Schema/생성 metadata/project wire·strict history·자동 계획과 저장된 prefix 이후 재개를 연결했다.
+
+다음은 공통 ORM의 전체 CASCADE 그래프와 transitive generated fingerprint다. 현재 generated project deleter와 ORM은
+CASCADE를 명시적으로 거부하며, native 기반 검증을 전체 삭제 기능이나 TicketLabel 소비자의 완료로 세지 않는다.
+실행 상세와 source·환경별 한계는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

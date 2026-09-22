@@ -26,6 +26,11 @@
 
 ## 계약과 증거
 
+GDJ-0098의 CASCADE 선언·생성 metadata/project wire·historical 정책 변경·자동 계획과 durable prefix 재개를 구현했다.
+양 DB의 deferred native FK·정책 변경/역방향·catalog drift와 SQLite remake의 행·sequence·다른 제약 보존도 구현했다.
+이는 삭제 기반의 범위다. 공통 ORM의 recursive collector·transitive generated fingerprint와 TicketLabel 소비자는 아직 남았으며,
+현재 generated project deleter는 CASCADE를 명시적으로 거부한다. 실행한 환경과 source는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
+
 Machine contract/provenance/status는 [conformance/contracts](../../conformance/contracts/)가 소유한다.
 Reference-only MIG-075..086은 미등록 진단 reference이며 제품 passing으로 세지 않는다.
 Django와 다른 결과는 [DEVIATIONS](../DEVIATIONS.md)에 제한된 차이로 기록한다.

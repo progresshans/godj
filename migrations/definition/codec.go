@@ -910,7 +910,7 @@ func collectRelationCandidates(value jsonValue, sourceID, pointer, app, name str
 		candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/cardinality", app, name, operationIndex, "invalid_ir"))
 	}
 	onDelete, hasOnDelete := object.member("on_delete")
-	if !hasOnDelete || onDelete.kind != jsonString || (onDelete.string != string(ir.DeleteProtect) && onDelete.string != string(ir.DeleteSetNull)) {
+	if !hasOnDelete || onDelete.kind != jsonString || !ir.DeletePolicy(onDelete.string).Valid() {
 		candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/on_delete", app, name, operationIndex, "invalid_ir"))
 	} else if onDelete.string == string(ir.DeleteSetNull) {
 		nullable, exists := field.member("nullable")

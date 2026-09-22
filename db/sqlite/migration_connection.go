@@ -11,10 +11,11 @@ import (
 // SQLite's generalized remake must run with FK actions suspended. Deferring
 // checks still leaves DROP/rename counter failures and may execute referential
 // actions. Only remakes and dropping a self-referencing table need this mode;
-// ordinary create/add migrations retain immediate database enforcement.
+// Ordinary create/add migrations keep foreign-key enforcement enabled; each
+// declared policy owns whether its constraints are immediate or deferred.
 func sqliteMigrationSuspendsForeignKeys(intent migrationbackend.MigrationIntent) bool {
 	for _, operation := range intent.Operations {
-		if operation.Kind == migrationbackend.MigrationRemoveField && sqliteRelationOperationChangesForeignKey(operation) {
+		if sqliteRelationOperationNeedsRemake(operation) {
 			return true
 		}
 		if operation.Kind == migrationbackend.MigrationDeleteModel {

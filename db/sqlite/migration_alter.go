@@ -25,7 +25,18 @@ func (transaction *sqliteRevisionFencedTransaction) AlterField(ctx context.Conte
 		if err != nil || !before.Equal(wantBefore) || !after.Equal(wantAfter) {
 			return relationIntentIntegrity("AlterField differs from the sealed field transition at cursor %d", state.cursor)
 		}
-		if wantBefore.Unique != wantAfter.Unique {
+		if sqliteRelationOperationNeedsRemake(operation) {
+			if err := verifySQLiteRelationRemakePlans(state.remakes, state.remakeDigest); err != nil {
+				return relationIntentIntegrity("AlterField has invalid sealed remake plans: %v", err)
+			}
+			plan, exists := state.remakes[operation.OperationIndex]
+			if !exists || !reflect.DeepEqual(plan.before, operation.Before) || !reflect.DeepEqual(plan.after, operation.After) {
+				return relationIntentIntegrity("AlterField lacks its exact sealed physical remake plan")
+			}
+			if err := executeSQLiteRelationRemake(ctx, executor, plan); err != nil {
+				return newSQLiteMigrationDDLExecutionError("alter SQLite foreign key timing by bounded remake", err)
+			}
+		} else if wantBefore.Unique != wantAfter.Unique {
 			statement, err := compileSQLiteUniqueAlter(operation.After, wantAfter)
 			if err != nil {
 				return err
@@ -39,9 +50,8 @@ func (transaction *sqliteRevisionFencedTransaction) AlterField(ctx context.Conte
 				return err
 			}
 		}
-		// All supported changes retain the physical column representation.
 		// Decimal BLOB keys have no field-scale dependency. BEGIN IMMEDIATE is
-		// held through this scan and the catalog/revision/history publication.
+		// held through validation/remake and catalog/revision/history publication.
 		state.cursor++
 		return transaction.completeRelationOperationIfLast(ctx, executor)
 	})

@@ -80,7 +80,9 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 			if deltaErr != nil {
 				return nil, relationIntentIntegrity("invalid AlterField delta: %v", deltaErr)
 			}
-			if before.Unique != field.Unique {
+			if sqliteRelationOperationNeedsRemake(operation) {
+				groups[index], err = compileSQLiteRelationTimingRemake(transition, operation)
+			} else if before.Unique != field.Unique {
 				var statement string
 				statement, err = compileSQLiteUniqueAlter(operation.After, field)
 				groups[index] = []string{statement}

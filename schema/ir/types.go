@@ -72,7 +72,13 @@ type DeletePolicy string
 const (
 	DeleteProtect DeletePolicy = "protect"
 	DeleteSetNull DeletePolicy = "set_null"
+	DeleteCascade DeletePolicy = "cascade"
 )
+
+// Valid reports whether the declaration names a recognized relation policy.
+func (p DeletePolicy) Valid() bool {
+	return p == DeleteProtect || p == DeleteSetNull || p == DeleteCascade
+}
 
 type ReverseRelation struct {
 	Name     string `json:"name,omitempty"`

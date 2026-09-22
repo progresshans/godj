@@ -28,6 +28,13 @@ Named AddConstraint/RemoveConstraint도 비어 있지 않은 물리 group이다.
 named 제약마다 CREATE TABLE 뒤 별도 ALTER TABLE body를 같은 group에 둔다. SQLite도 모든 named index를 같은 Create group에 담는다.
 세부 소유권은 [ADR-0072](0072-column-uniqueness-and-constraint-ownership.md)를 따른다.
 
+CASCADE로 바꾸거나 되돌리는 관계 AlterField는 FK 검사 시점의 변경도 출력한다([ADR-0074](0074-cascade-delete-graph-and-constraint-timing.md)).
+PostgreSQL은 해당 constraint의 timing ALTER, SQLite는 임시 테이블 생성·행 복사·교체·고유 index 복구를 ordered group에 담는다.
+SQLite의 sequence 행 유무와 high-water 값은 실행 시 SQL로 복사하며 projection이 DB를 열어 값을 캡처하지 않는다.
+이 body들에 FK mode·BEGIN/COMMIT·실제 catalog precondition·recorder 변경은 포함하지 않는다. 실제 migration lifecycle이
+private connection의 FK mode와 transaction, 완전한 사전/사후 검사를 소유하며 SQL 출력만으로 적용 성공을 보증하지 않는다.
+PROTECT와 SET_NULL 사이의 변경은 양 DB에서 기존 검사 시점을 유지하므로 물리 group이 비어 있다.
+
 ## 맥락
 
 Completed GDJ-0049..0052는 migration definition 생성, 상태 조회와 latest/exact target 실행·plan을 제공합니다. 그러나

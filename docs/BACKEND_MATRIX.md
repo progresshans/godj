@@ -10,11 +10,17 @@
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
 | Relation delete | supported FK/OneToOne의 PROTECT/SET_NULL | 같은 transaction의 PROTECT/SET_NULL·AtomicRelation |
 | OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |
-| Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
+| Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace/delete policy AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
 | Field/model uniqueness | column·named tuple unique index·Create/Add/Alter와 constraint Add/Remove·reverse·remake 보존·모든 key catalog | column·named tuple UNIQUE·독립 B-tree·Create/Add/Alter와 constraint Add/Remove·reverse·모든 key catalog |
 | System state | file-backed cooperative runtime와 explicit operator | schema-bound cooperative runtime와 explicit operator |
 | CGO | pure Go 경로 | pure Go 경로 |
+
+CASCADE의 native 기반은 양 DB에서 FK를 `ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED`로 생성한다.
+정책 변경·역방향은 SQLite의 sealed remake와 PostgreSQL constraint timing ALTER를 사용하며, 실제 timing drift를 거부한다.
+SQLite의 retained FK/unique·행·sequence 보존과 required 순환 생성/삭제·deferred COMMIT 실패 후 정리를 영향 범위에서 검증했다.
+PROTECT/SET_NULL은 기존 즉시 검사 표현을 유지한다. 현재 공통 ORM과 generated project deleter는 CASCADE를 아직 거부하며,
+재귀 삭제와 TicketLabel 소비자는 [GDJ-0098](../work/0098-cascade-and-ticket-label-links.md)의 남은 범위다.
 
 ## 현재 schema와 query 폭
 

@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0098 — CASCADE 선언·historical 정책 변경과 native FK 기반
+
+2026-09-22, 기준 `8415fcee7f94008a97c6a440a7a5128aadb3c8a2` 위 Go **29경로**를 변경했다.
+Markdown을 제외한 전체 source 1,995파일의 정렬된 path→SHA256 map hash는
+`c98ff8c53c6226625b66a96467861aa94ad1b69c939c6fe54206083e07215031`이며 실행 전후 불변을 확인했다.
+Go 1.26.5/Darwin arm64·modernc SQLite·격리 PostgreSQL 17.5(Homebrew), `GODJ_REQUIRE_POSTGRES=1`을 사용했다.
+
+CASCADE는 required/nullable FK·OneToOne 선언과 schema hash·생성 metadata·project wire·strict Create/Add/Alter history에 남는다.
+정책 변경은 FK target/column/default/nullability 등 다른 facet을 흡수하지 않는다. 잘못된 policy wire는 부분 history도 게시하지 않는다.
+자동 계획의 required CASCADE Add 누락을 수정했고, 실제 cross-app cycle 계획의 모든 durable prefix에서 남은 migration의 정확한 bytes와 최종 상태가 일치한다.
+
+양 DB는 CASCADE FK를 NO ACTION·DEFERRABLE INITIALLY DEFERRED로 생성한다. Create/Add·PROTECT→CASCADE→역방향과
+nullable/required·OneToOne 결합 변경·재접속을 실제 catalog와 삭제 timing으로 대조했다. 기존 PROTECT/SET_NULL은 즉시 검사를 유지한다.
+SQLite의 sealed remake는 retained FK·column/named unique·행·sequence high-water를 보존하며 다른 FK를 제거해도 CASCADE가 남는다.
+DB-free SQL body를 별도 private connection lifecycle에서 실행하여 sequence의 부재·빈 테이블의 값·현재 최대 PK보다 큰 값을 각각 보존함을 확인했다.
+물리 timing만 바꾼 대조는 다음 schema 변경 전에 drift로 거부되고 전체 catalog·행·history가 불변이다.
+늦은 unique 실패 뒤 timing 변경도 rollback되며 명시적 데이터 수정 후 재시도/역방향이 성공한다.
+Required 순환을 실제로 생성·삭제하고 역방향 migration도 실행했다. 일반/관계 transaction에서 orphan insert는 COMMIT 전 성공하지만
+deferred COMMIT은 native FK 원인과 commit-outcome-unknown을 보존한다. 같은 pool에는 pending writes가 남지 않고 새 transaction이 성공한다.
+
+`go test -json -count=1 -timeout=12m -skip '^TestPostgresRevisionFenceHelperProcess$'`로
+`./schema ./schema/ir ./migrations ./migrations/backend ./migrations/definition ./internal/migrationautodetect ./internal/projectwire ./codegen ./db/sqlite ./db/postgres`를 실행했다.
+normal·`-race`·`CGO_ENABLED=0`은 **각 10 package / 6,658 run=PASS / skip 0**이다. 새 필수 root 17개와 모든 시작/종료 inventory를 검사했다.
+직접 실행 대상에서 뺀 process helper는 실제 cross-process parent가 실행하며, 그 parent도 각 mode에서 PASS다.
+같은 source의 CLI로 네 project `generate --check`와 영향 `go vet`도 통과했다.
+
+첫 normal 실행은 새 test의 cross-app 초기 history에 creator dependency를 빠뜨려 실패했다. 정상 초기 계획을 사용하도록 test를 수정했고
+그 실패 원본은 보존했다. 최종 세 mode는 위 동일 source로 다시 실행했다.
+Artifact는 `godj-cascade-reference-rusrn8sm/native/`의 `latest-normal-path`, `latest-race-path`, `latest-cgo0-path`,
+`latest-supplementary-path`에 source·전체 events/stderr·필수 inventory·log hash·receipt를 저장했다.
+전용 PostgreSQL DB는 각 실행 뒤 다른 연결·table·추가 schema 0을 확인하고 삭제했다.
+이 범위는 CASCADE의 native/historical 기반 검증이다. 공통 ORM collector·transitive fingerprint·generated project 삭제·TicketLabel 소비자는 미완료이며,
+새 source의 Hosted/full-platform 결과로 기록하지 않는다.
+
 ## GDJ-0097 — 복합 고유성·Label의 Hosted 전체 통합 완료
 
 2026-09-22, source `231260c5116bb7cfe157cab54ceb404e05c8ba43`의
@@ -44,7 +78,8 @@ Artifact는 `godj-cascade-reference-rusrn8sm/`의 `latest-capture-path`, `latest
 전용 PostgreSQL DB는 남은 연결·table·추가 schema 0을 확인한 뒤 삭제했다. 초기 준비 probe의 SQL 대소문자 비교 오류와
 수정 전 실패는 보존했으며 최종 13개 관찰의 성공에 합치지 않는다.
 이 단계는 독립 기준과 [삭제 설계](../adr/0074-cascade-delete-graph-and-constraint-timing.md) 채택이다.
-GoDj의 CASCADE enum·물리 FK·collector·TicketLabel 소비자는 아직 구현하지 않았고 GDJ-0097의 Hosted 결과로 이 새 source를 검증하지 않는다.
+이 reference checkpoint 당시 GoDj의 CASCADE enum·물리 FK·collector·TicketLabel 소비자는 구현 전이었다. 이후 native 기반 결과는 위 별도 항목이 소유한다.
+GDJ-0097의 Hosted 결과로 CASCADE source를 검증하지 않는다.
 
 ## GDJ-0097 — Hosted 통합에서 발견한 외부 backend compile 경계 수정
 

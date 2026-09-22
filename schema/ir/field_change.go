@@ -12,12 +12,15 @@ const (
 )
 
 // ClassifyFieldChange requires a real change to exactly one supported facet.
-// Relation changes may change cardinality, reverse namespace and the associated
-// uniqueness together, while preserving the physical FK target and delete policy.
+// Relation changes may change cardinality, reverse namespace, delete policy and
+// the associated uniqueness together, while preserving the FK target.
 // Identity, default, nullability and every other facet stay identical.
 // The arguments and their nested metadata remain owned by their callers.
 func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 	for _, field := range []Field{before, after} {
+		if field.Relation != nil && (!field.Relation.OnDelete.Valid() || field.Relation.OnDelete == DeleteSetNull && !field.Nullable) {
+			return 0, validation("field.relation.on_delete", "invalid_relation", "delete policy must be recognized and SET_NULL requires a nullable field")
+		}
 		if field.Relation != nil && field.Relation.Cardinality == RelationOneToOne && !field.Unique {
 			return 0, validation("field.unique", "invalid_relation", "normalized one-to-one fields require column uniqueness")
 		}
@@ -50,6 +53,7 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 		previous.Unique, next.Unique = false, false
 		previous.Relation.Cardinality, next.Relation.Cardinality = RelationManyToOne, RelationManyToOne
 		previous.Relation.Reverse, next.Relation.Reverse = ReverseRelation{}, ReverseRelation{}
+		previous.Relation.OnDelete, next.Relation.OnDelete = DeleteProtect, DeleteProtect
 		if previous.Equal(next) {
 			return ChangeRelation, nil
 		}
@@ -62,5 +66,5 @@ func ClassifyFieldChange(before, after Field) (FieldChangeKind, error) {
 			return ChangeDecimalPrecision, nil
 		}
 	}
-	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace or Decimal precision changes")
+	return 0, validation("field", "unsupported_change", "AlterField supports choices, uniqueness, relation cardinality/reverse namespace/delete policy or Decimal precision changes")
 }
