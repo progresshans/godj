@@ -654,6 +654,377 @@
       ],
       "warm_queries": 0
     },
+    "prefetch_slices": {
+      "beyond": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [],
+          [],
+          [],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "descending": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "c",
+            "b"
+          ],
+          [
+            "d",
+            "c"
+          ],
+          [
+            "c",
+            "b"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "distinct_duplicates": {
+        "batch_queries": 1,
+        "members": [
+          "a",
+          "a"
+        ]
+      },
+      "empty": {
+        "batch_queries": 0,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [],
+          [],
+          [],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 0
+      },
+      "empty_batch": {
+        "batch_queries": 0,
+        "manager_queries": 0,
+        "managers": [],
+        "members": [],
+        "warm_queries": 0,
+        "window_queries": 0
+      },
+      "head": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "a"
+          ],
+          [
+            "b"
+          ],
+          [
+            "a"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "manager_error": {
+        "error": "TypeError",
+        "queries": 1
+      },
+      "middle": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "b",
+            "c"
+          ],
+          [
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "nested": {
+        "batch_queries": 2,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            [
+              "b",
+              [
+                "first",
+                "second"
+              ]
+            ]
+          ],
+          [
+            [
+              "c",
+              [
+                "first",
+                "second"
+              ]
+            ]
+          ],
+          [
+            [
+              "b",
+              [
+                "first",
+                "second"
+              ]
+            ]
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "reverse_eager": {
+        "batch_queries": 1,
+        "members": [
+          [
+            [
+              2,
+              "b"
+            ]
+          ],
+          [
+            [
+              5,
+              "b"
+            ]
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "reverse_manager_error": {
+        "error": "TypeError",
+        "queries": 1
+      },
+      "scope_head": {
+        "batch_queries": 1,
+        "manager_queries": 2,
+        "managers": [
+          [
+            "b"
+          ],
+          [
+            "a",
+            "b"
+          ]
+        ],
+        "members": [
+          [],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "scope_tail": {
+        "batch_queries": 1,
+        "manager_queries": 2,
+        "managers": [
+          [
+            "b"
+          ],
+          [
+            "a",
+            "b"
+          ]
+        ],
+        "members": [
+          [
+            "b"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      },
+      "tail": {
+        "batch_queries": 1,
+        "manager_queries": 4,
+        "managers": [
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          [
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "members": [
+          [
+            "c",
+            "d"
+          ],
+          [
+            "d",
+            "e"
+          ],
+          [
+            "c",
+            "d"
+          ],
+          []
+        ],
+        "warm_queries": 0,
+        "window_queries": 1
+      }
+    },
     "query_boolean_order": {
       "double_not_pair": [],
       "negative_first": [],

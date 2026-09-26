@@ -3,6 +3,48 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — owner별 slice의 독립 기준과 조회 계획
+
+2026-09-26, `33ebc19ea32dde54d36339814e4c00e490e34939` 위에서 owner별 slice의 Query AST와
+SQLite/PostgreSQL window compiler를 연결했다. `ForPrefetchOwners`는 마지막 일치 join의 membership owner별로 순번을
+계산하며 첫 join의 grouping owner가 요청 범위 밖인지 필요한 경우 바깥 query에서 검사한다. `ForPrefetchForeignKey`는
+같은 계획을 역방향 collection target의 integer FK에 적용한다. 기존 model·eager·owner cell의 scan 순서를 유지한다.
+이 checkpoint는 조회 계획·compiler 범위이며 named snapshot의 runtime/generated API 완료를 뜻하지 않는다.
+
+고정 Django **6.1**, Python **3.14.3**, asgiref **3.12.1**, sqlparse **0.5.5**, psycopg **3.3.6**에서 독립 runner를 실행했다.
+SQLite **3.50.4**와 PostgreSQL **170005** 각각 hash seed **0/813** 결과가 같고 양 DB의 observation도 일치한다.
+이전 **48개 관찰과 Django source hash**는 모두 같으며 `prefetch_slices` 14개 세부 사례를 포함한 **49개 관찰**을 확보했다.
+Head·middle·tail·empty·범위 밖·내림차순, 중복 owner·empty batch, 하위 prefetch·reverse eager, 비고유 through와 DISTINCT,
+일반 manager의 sliced query 오류, grouping/membership join이 다른 경우를 포함한다. 별도 snapshot을 읽어도 일반 manager는
+기본 집합을 조회한다. Independent Python 검사 **13 PASS / skip 0**이며 offset·window partition을 바꾸는 실제 의미 변경
+negative control 2개를 기존 control에 추가했다. Reference는 Go 제품 실행 증거로 세지 않는다.
+
+제품 source는 non-Markdown **2,133파일**, map hash
+`795c65bd39ce729019dfaf6c3ef360623a07eb441e82b0993ee4e2247ce418e2`다.
+`./query ./db/internal/queryplan` 전체, SQLite/PostgreSQL의 SELECT·ordering·scalar/Boolean/JSON·관계·eager 관련 root,
+`TestGeneratedManyToManyCollections`와 `TestGeneratedFilteredPrefetchComposition`을 묶어 검사했다.
+일반·race·CGO=0 각각 **5 package / 4,443 run=PASS / skip 0**, **19.6초·89.9초·24.2초**다.
+각 mode의 **243개 필수 root**, package/terminal 이벤트, 실행 전후 동일 source map을 확인했다.
+양 DB query·기존 generated 소비자의 영향 검증이며 DB package 전체나 full-platform 실행으로 세지 않는다.
+
+실제 DB 결과를 독립 slice 관찰과 비교하고 reverse eager의 scan 폭·owner 0·정렬 없는 window·큰 limit/offset·JSON sort key와
+parameter 순서·DISTINCT를 확인했다. Empty slice/membership는 검증 뒤 I/O를 생략하며 잘못된 empty plan과 취소는 connection에
+도달하지 않는다. 원본 SQLite **15 run=PASS** 후 전역 순번으로 변경·offset 제거·owner 필터를 window 앞으로 이동·바깥 DISTINCT
+추가의 **4개 compiler/AST overlay**가 모두 정상 compile 뒤 지정한 의미 검증에서 실패했다. 저장소 원본은 변경하지 않았다.
+
+Go **1.26.5**, Darwin arm64, modernc SQLite, PostgreSQL **17.5 Homebrew** 환경이다.
+각 checkpoint는 `GODJ_REQUIRE_POSTGRES=1`과 별도 전용 DB를 사용했고 cleanup은 **0|0|0**, force 없이 제거했다.
+독립 Django 전용 DB도 남은 connection/table **0|0**을 확인한 뒤 제거했다. 영향 vet·format·문서 링크·diff와
+프로젝트 5개의 generated drift를 확인했다. 생성기·Facade ABI·체크인 generated Go 파일은 이번에 변경하지 않았다.
+로그·source·필수 inventory·receipt·negative overlay는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-slices/`의
+`latest-reference-path`, `latest-oracle-tests-path`, `latest-normal-path`, `latest-race-path`, `latest-cgo0-path`,
+`latest-negative-path`, `latest-checks-path`를 따른다.
+
+Named snapshot의 runtime/generated 접근자와 여러 owner batch의 grouping/membership 통합, custom single target query,
+materialized streaming, Ticket 컬렉션 Form/Admin/API/OpenAPI/client와 권한·CSRF·양쪽 Category·동시성·durability는 남아 있다.
+GDJ-0099 Hosted 전체 milestone은 소비자 통합 뒤 실행한다. 현재 source의 full Hosted PASS로 이전 결과를 옮기지 않는다.
+
 ## GDJ-0099 — reverse collection과 target eager 구성
 
 2026-09-26, `4ec3595d74c9128f091d40b3130ed20936d4ee0b` 위에서 reverse FK collection을 공통 prefetch graph와

@@ -7,14 +7,8 @@ import "slices"
 // join supplies grouping identity; membership reuses the most recent matching
 // join. Separate Filter calls therefore retain their original row scopes.
 func (p Plan) ForPrefetchOwners(path RelationPath, owners []int64) (Plan, error) {
-	if p.result.Kind() != ResultModel {
+	if p.result.Kind() != ResultModel || p.prefetchWindow != nil {
 		return Plan{}, invalidPlanError("prefetch owners require a model result")
-	}
-	if _, limited := p.Limit(); limited {
-		return Plan{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "prefetch slices require per-owner window planning"}
-	}
-	if _, offset := p.Offset(); offset {
-		return Plan{}, &Error{Category: CategoryQuery, Code: CodeUnsupported, Detail: "prefetch slices require per-owner window planning"}
 	}
 	if err := validatePrefetchOwnerPath(path); err != nil {
 		return Plan{}, err
@@ -76,7 +70,7 @@ func (p Plan) ForPrefetchOwners(path RelationPath, owners []int64) (Plan, error)
 	// column may then refer to an owner outside the requested set; it drops
 	// those rows while grouping. Apply that same boundary in SQL so every
 	// published row has validated owner provenance, even for one-owner batches.
-	if first != last {
+	if first != last && !p.hasPrefetchSlice() {
 		result, err = result.withPrefetchMembership(expression, first)
 		if err != nil {
 			return Plan{}, err
@@ -86,6 +80,15 @@ func (p Plan) ForPrefetchOwners(path RelationPath, owners []int64) (Plan, error)
 	ownerCondition, _ := selected.Condition()
 	ownerPath, _ := ownerCondition.RelationPath()
 	shape := ResultShape{kind: ResultPrefetch, expressions: []ResultExpression{{kind: ResultField, field: path.terminal, relation: &ownerPath}}}
+	if p.hasPrefetchSlice() {
+		membership, _ := bindCollectionFilter(expression, last)
+		condition, _ := membership.Condition()
+		partitionPath, _ := condition.RelationPath()
+		result.prefetchWindow = &PrefetchWindow{
+			partition:  ResultExpression{kind: ResultField, field: path.terminal, relation: &partitionPath},
+			membership: condition, owner: shape.expressions[0], lateOwner: first != last,
+		}
+	}
 	return result.WithResultShape(shape)
 }
 
@@ -158,7 +161,7 @@ func (p Plan) validatePrefetchSource(result ResultShape) error {
 		}
 		return false
 	}
-	if !anchored(p.where) {
+	if !anchored(p.where) && !(p.prefetchWindow != nil && p.prefetchWindow.lateOwner && p.prefetchWindow.owner.Equal(result.expressions[0]) && hasPrefetchAnchor(p.where, p.prefetchWindow.membership)) {
 		return invalidPlanError("prefetch owner projection has no required membership anchor")
 	}
 	return nil

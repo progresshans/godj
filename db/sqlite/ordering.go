@@ -59,8 +59,9 @@ func appendResultValue(statement *strings.Builder, expression query.ResultExpres
 	return nil
 }
 
-func appendRowSelection(statement *strings.Builder, selected, hidden []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join) ([]any, error) {
+func appendRowSelection(statement *strings.Builder, plan query.Plan, selected, hidden []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join) ([]any, error) {
 	arguments := make([]any, 0)
+	_, window := plan.PrefetchWindow()
 	for index, expression := range selected {
 		if index > 0 {
 			statement.WriteString(", ")
@@ -68,7 +69,7 @@ func appendRowSelection(statement *strings.Builder, selected, hidden []query.Res
 		if err := appendResultValue(statement, expression, alias, joins, &arguments, false); err != nil {
 			return nil, err
 		}
-		if len(hidden) > 0 {
+		if len(hidden) > 0 || window {
 			statement.WriteString(` AS "c` + strconv.Itoa(index) + `"`)
 		}
 	}
@@ -79,10 +80,19 @@ func appendRowSelection(statement *strings.Builder, selected, hidden []query.Res
 		}
 		statement.WriteString(` AS "o` + strconv.Itoa(index) + `"`)
 	}
+	if err := queryplan.AppendPrefetchWindow(statement, plan, func(expression query.ResultExpression) error {
+		return appendResultValue(statement, expression, alias, joins, &arguments, true)
+	}); err != nil {
+		return nil, err
+	}
 	return arguments, nil
 }
 
 func finishOrderedRows(inner string, plan query.Plan, selected, hidden []query.ResultExpression, alias string, joins map[queryplan.RelationKey]queryplan.Join, arguments []any) (string, []any, error) {
+	if _, window := plan.PrefetchWindow(); window {
+		sql, err := queryplan.FinishPrefetchRows(inner, plan, selected, hidden, quoteIdentifier, func(value int64) string { arguments = append(arguments, value); return "?" })
+		return sql, arguments, err
+	}
 	if len(hidden) > 0 {
 		var err error
 		inner, err = queryplan.WrapHiddenOrderings(inner, selected, quoteIdentifier)

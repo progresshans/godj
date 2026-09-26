@@ -13,6 +13,9 @@ import (
 const postgresIdentifierMaxBytes = 63
 
 func compilePlan(schema string, plan query.Plan) (string, []any, error) {
+	if err := plan.ValidatePrefetch(); err != nil {
+		return "", nil, err
+	}
 	if err := validateOrderings(plan); err != nil {
 		return "", nil, err
 	}
@@ -93,7 +96,7 @@ func compileScalarSelect(
 	if err != nil {
 		return "", nil, err
 	}
-	arguments, err := appendRowSelection(&statement, selected, hidden, "", nil)
+	arguments, err := appendRowSelection(&statement, plan, selected, hidden, "", nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -693,7 +696,7 @@ func compileRelation(
 	if err != nil {
 		return "", nil, err
 	}
-	arguments, err := appendRowSelection(&statement, selected, hidden, rootAlias, joins)
+	arguments, err := appendRowSelection(&statement, plan, selected, hidden, rootAlias, joins)
 	if err != nil {
 		return "", nil, err
 	}

@@ -365,6 +365,7 @@ type Plan struct {
 	distinct              bool
 	result                ResultShape
 	relationProjections   []RelationProjection
+	prefetchWindow        *PrefetchWindow
 }
 
 func NewPlan(table string, sourceFields []FieldRef) Plan {
@@ -633,7 +634,7 @@ func (p Plan) WithLimit(limit int) (Plan, error) {
 	}
 	clone := p
 	clone.limit = &limit
-	return clone, nil
+	return clone, clone.ValidatePrefetch()
 }
 
 func (p Plan) WithOffset(offset int) (Plan, error) {
@@ -643,7 +644,7 @@ func (p Plan) WithOffset(offset int) (Plan, error) {
 	}
 	clone := p
 	clone.offset = &offset
-	return clone, nil
+	return clone, clone.ValidatePrefetch()
 }
 
 func (p Plan) WithDistinct() Plan {
@@ -674,6 +675,9 @@ func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
 	}
 	clone := p
 	clone.result = result
+	if err := clone.ValidatePrefetch(); err != nil {
+		return Plan{}, err
+	}
 	return clone, nil
 }
 
@@ -697,6 +701,9 @@ func (p Plan) Equal(other Plan) bool {
 		return false
 	}
 	if !p.where.Equal(other.where) {
+		return false
+	}
+	if !p.prefetchWindow.equal(other.prefetchWindow) {
 		return false
 	}
 	if !slices.EqualFunc(p.orderings, other.orderings, func(left, right Ordering) bool { return left.Equal(right) }) {

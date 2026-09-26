@@ -1,7 +1,6 @@
 package query_test
 
 import (
-	"errors"
 	"reflect"
 	"testing"
 
@@ -93,17 +92,113 @@ func TestPrefetchOwnerSelectionDoesNotReuseNegatedSubquery(t *testing.T) {
 	}
 }
 
-func TestPrefetchOwnerSelectionRejectsGlobalSliceAndForeignRoot(t *testing.T) {
+func TestPrefetchOwnerSliceUsesLastMembershipAndLateGrouping(t *testing.T) {
 	base, path := prefetchOwnerPlan(t)
-	limited, err := base.WithLimit(1)
+	base, err := base.WithConditions(query.NewRelatedCondition(path, query.LookupExact, query.Integer(1)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = limited.ForPrefetchOwners(path, []int64{1}); !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-		t.Fatal("global LIMIT was mistaken for a per-owner limit", err)
+	base, err = base.WithConditions(query.NewRelatedCondition(path, query.LookupExact, query.Integer(2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	limited, err := base.WithLimit(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	limited, err = limited.WithOffset(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := []int64{1, 2}
+	selected, err := limited.ForPrefetchOwners(path, keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys[0] = 900
+	window, ok := selected.PrefetchWindow()
+	if !ok {
+		t.Fatal("global slice was not partitioned")
+	}
+	partition, _ := window.Partition().RelationPath()
+	grouping, keysCopy, late := window.OwnerFilter()
+	groupPath, _ := grouping.RelationPath()
+	if !late || partition.Hops()[0].FilterScope() != 1 || groupPath.Hops()[0].FilterScope() != 0 || !keysCopy[0].Equal(query.Integer(1)) {
+		t.Fatal("slice lost membership, grouping, or key ownership")
+	}
+	keysCopy[0] = query.Integer(900)
+	_, preserved, _ := window.OwnerFilter()
+	if !preserved[0].Equal(query.Integer(1)) {
+		t.Fatal("window exposes mutable keys")
+	}
+	if len(selected.Conditions()) != 3 {
+		t.Fatal("grouping boundary was pushed before the window")
+	}
+	if !selected.Equal(selected) {
+		t.Fatal("immutable window identity changed")
+	}
+	if _, exists := limited.PrefetchWindow(); exists {
+		t.Fatal("source plan mutated")
+	}
+	projection, err := query.NewProjectionResult(query.FieldResult(base.SourceFields()[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := selected.WithResultShape(projection); err == nil {
+		t.Fatal("window lost model owner projection")
+	}
+	if _, err := base.WithResultShape(selected.ResultShape()); err == nil {
+		t.Fatal("unanchored window shape transplanted")
+	}
+	if _, err := selected.ForPrefetchOwners(path, []int64{2}); err == nil {
+		t.Fatal("prefetch window rebound")
 	}
 	foreign := query.NewPlan("other_labels", base.SourceFields())
 	if _, err = foreign.ForPrefetchOwners(path, []int64{1}); err == nil {
 		t.Fatal("foreign owner projection accepted")
+	}
+	// Full grouping membership remains valid without any slice.
+	plain, err := base.ForPrefetchOwners(path, []int64{1, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := plain.PrefetchWindow(); ok {
+		t.Fatal("unsliced plan gained a window")
+	}
+	if _, err := plain.WithLimit(1); err == nil {
+		t.Fatal("late pagination silently became a global limit")
+	}
+}
+
+func TestPrefetchForeignKeySliceValidatesSourceAndProtectsRows(t *testing.T) {
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	owner := query.NewFieldRef("owner", "owner_id", query.FieldInteger, true)
+	base := query.NewPlan("links", []query.FieldRef{id, owner})
+	base, err := base.WithLimit(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := base.ForPrefetchForeignKey(owner, []int64{0, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	window, ok := plan.PrefetchWindow()
+	if !ok || !window.Partition().Equal(query.FieldResult(owner)) || !plan.EmptyResult() {
+		t.Fatal("reverse owner slice changed shape")
+	}
+	if _, _, late := window.OwnerFilter(); late {
+		t.Fatal("root foreign-key partition gained a late filter")
+	}
+	for _, field := range []query.FieldRef{query.NewFieldRef("owner", "owner_id", query.FieldInteger, false), query.NewFieldRef("foreign", "foreign", query.FieldInteger, true), query.NewFieldRef("owner", "owner_id", query.FieldString, true)} {
+		if _, err := base.ForPrefetchForeignKey(field, nil); err == nil {
+			t.Fatal("foreign or mistyped partition accepted")
+		}
+	}
+	aggregate, err := query.NewAggregateResult(query.CountAllResult())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := plan.WithResultShape(aggregate); err == nil {
+		t.Fatal("partitioned model replaced by a scalar aggregate")
 	}
 }

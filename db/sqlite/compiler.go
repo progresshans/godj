@@ -10,6 +10,9 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
+	if err := plan.ValidatePrefetch(); err != nil {
+		return "", nil, err
+	}
 	if err := validateOrderings(plan); err != nil {
 		return "", nil, err
 	}
@@ -90,7 +93,7 @@ func compileScalarRows(plan query.Plan, selected []query.ResultExpression, sourc
 	if err != nil {
 		return "", nil, err
 	}
-	arguments, err := appendRowSelection(&sql, selected, hidden, "", nil)
+	arguments, err := appendRowSelection(&sql, plan, selected, hidden, "", nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -241,7 +244,7 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 	if err != nil {
 		return "", nil, err
 	}
-	arguments, err := appendRowSelection(&sql, selected, hidden, rootAlias, joins)
+	arguments, err := appendRowSelection(&sql, plan, selected, hidden, rootAlias, joins)
 	if err != nil {
 		return "", nil, err
 	}

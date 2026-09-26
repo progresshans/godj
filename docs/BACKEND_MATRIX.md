@@ -126,7 +126,8 @@ Custom target filter를 위한 `ResultPrefetch`의 owner projection·join 재사
 Nested typed/path API는 기본 collection query와 공통 materialization으로 연결했다.
 Custom target Filter·OrderBy·Distinct와 하위 prefetch 설정을 generated API에 연결했다.
 Held query의 조건·설정과 manager 변경 뒤 기본 조회를 구분한다. 설정된 target query의 eager·추가 prefetch에 하위 설정을 전달한다.
-Owner별 slice window·설정된 prefetch query의 streaming은 미지원이다.
+Owner별 slice의 Query AST·양 DB window compiler를 연결했다. Named snapshot의 runtime/generated API와
+owner batch 통합은 아직 남아 있으며, 설정된 prefetch query의 streaming도 미지원이다.
 단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 같은 graph로 연결하며 root eager와 직접 조합해 이미 읽은 부모를 재사용한다.
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
 Custom single prefetch query, 관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.

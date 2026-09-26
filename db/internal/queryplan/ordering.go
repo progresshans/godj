@@ -40,6 +40,17 @@ func SelectedRows(plan query.Plan) ([]query.ResultExpression, error) {
 // a root value/path or a finite forward route rooted in a selected FK. DTO
 // DISTINCT remains strict: each ordered value must be explicitly selected.
 func HiddenOrderings(plan query.Plan, selected []query.ResultExpression) ([]query.ResultExpression, error) {
+	if _, window := plan.PrefetchWindow(); window {
+		// Window output is ordered through private cells. Keep backend sort
+		// values separate from public scan values (notably JSON and decimal).
+		var hidden []query.ResultExpression
+		for _, ordering := range plan.Orderings() {
+			if ExpressionIndex(hidden, ordering.Expression()) < 0 {
+				hidden = append(hidden, ordering.Expression())
+			}
+		}
+		return hidden, nil
+	}
 	if !plan.Distinct() {
 		return nil, nil
 	}

@@ -569,6 +569,87 @@ def observe():
             results["prefetch_eager_child"] = {"members": child_graph, "batch_queries": eager_reads, "warm_queries": len(captured)}
             clear()
 
+            # A sliced target is a named list snapshot. Django cannot install
+            # it as a normal related-manager cache because the owner filter
+            # would be applied to an already sliced QuerySet.
+            slice_cases = {}
+            slice_labels = [Label.objects.create(name=name) for name in ("a", "b", "c", "d", "e")]
+            slice_first, slice_second, slice_empty = [Owner.objects.create(name=name) for name in ("first", "second", "empty")]
+            slice_first.labels.add(*slice_labels[:4])
+            slice_second.labels.add(*slice_labels[1:])
+
+            def sliced_members(target, owners=None, nested=False):
+                if owners is None:
+                    owners = [Owner.objects.get(pk=value.pk) for value in (slice_first, slice_second, slice_first, slice_empty)]
+                with CaptureQueriesContext(connection) as captured:
+                    prefetch_related_objects(owners, Prefetch("labels", queryset=target, to_attr="label_rows"))
+                batch_queries = len(captured)
+                window_queries = sum("ROW_NUMBER() OVER (PARTITION BY" in item["sql"] for item in captured)
+                with CaptureQueriesContext(connection) as captured:
+                    members = [[([label.name, names(label.owners)] if nested else label.name)
+                                for label in owner.label_rows] for owner in owners]
+                warm_queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    managers = [[label.name for label in owner.labels.all()] for owner in owners]
+                return {"members": members, "batch_queries": batch_queries, "window_queries": window_queries,
+                        "warm_queries": warm_queries, "managers": managers, "manager_queries": len(captured)}
+
+            for case, start, stop, descending in (("head", 0, 1, False), ("middle", 1, 3, False),
+                    ("tail", 2, None, False), ("empty", 0, 0, False), ("beyond", 9, 10, False),
+                    ("descending", 1, 3, True)):
+                target = Label.objects.order_by("-name" if descending else "name")[start:stop]
+                slice_cases[case] = sliced_members(target)
+            slice_cases["nested"] = sliced_members(Label.objects.order_by("name").prefetch_related("owners")[1:2], nested=True)
+            slice_cases["empty_batch"] = sliced_members(Label.objects.order_by("name")[:1], [])
+
+            def sliced_manager_error(relation, target, owners):
+                failure = None
+                with CaptureQueriesContext(connection) as captured:
+                    try:
+                        prefetch_related_objects(owners, Prefetch(relation, queryset=target))
+                    except Exception as exception:
+                        failure = type(exception).__name__
+                return {"error": failure, "queries": len(captured)}
+
+            slice_cases["manager_error"] = sliced_manager_error("labels", Label.objects.order_by("name")[:1],
+                [Owner.objects.get(pk=slice_first.pk)])
+            ranked_owners = [RankedOwner.objects.create(name=name) for name in ("first", "second")]
+            for index, owner in enumerate(ranked_owners):
+                for offset, label in enumerate(slice_labels[:3]):
+                    RankedLink.objects.create(owner=owner, label=label, token=index * 3 + offset + 1)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(ranked_owners, Prefetch("rankedlink_set",
+                    queryset=RankedLink.objects.select_related("label").order_by("-token")[1:2], to_attr="link_rows"))
+            reverse_queries = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                reverse_members = [[[link.token, link.label.name] for link in owner.link_rows] for owner in ranked_owners]
+            slice_cases["reverse_eager"] = {"members": reverse_members, "batch_queries": reverse_queries, "warm_queries": len(captured)}
+            slice_cases["reverse_manager_error"] = sliced_manager_error("rankedlink_set", RankedLink.objects.order_by("token")[:1],
+                [RankedOwner.objects.get(pk=ranked_owners[0].pk)])
+            loose_owner = LooseOwner.objects.create(name="duplicates")
+            for amount, label in enumerate([slice_labels[0], slice_labels[0], slice_labels[1]]):
+                LooseLink.objects.create(owner=loose_owner, label=label, amount=amount)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects([loose_owner], Prefetch("labels",
+                    queryset=Label.objects.filter(name__in=["a", "b"]).order_by("name").distinct()[:2], to_attr="label_rows"))
+            slice_cases["distinct_duplicates"] = {"members": [label.name for label in loose_owner.label_rows], "batch_queries": len(captured)}
+            clear()
+
+            # First join determines output ownership; the latest matching join
+            # determines membership and therefore the window partition. A row
+            # for an unrequested first owner still consumes its window rank.
+            slice_a, slice_b = [Label.objects.create(name=name) for name in ("a", "b")]
+            slice_first, slice_second, slice_outside = [Owner.objects.create(name=name) for name in ("first", "second", "outside")]
+            slice_first.labels.add(slice_b)
+            slice_outside.labels.add(slice_a)
+            slice_second.labels.add(slice_a, slice_b)
+            scoped_slice = Label.objects.filter(owners__name__in=["first", "outside"]).filter(owners__name="second").order_by("name")
+            for case, start, stop in (("scope_head", 0, 1), ("scope_tail", 1, 2)):
+                owners = [Owner.objects.get(pk=value.pk) for value in (slice_first, slice_second)]
+                slice_cases[case] = sliced_members(scoped_slice[start:stop], owners)
+            results["prefetch_slices"] = slice_cases
+            clear()
+
             from django.db import migrations
             from django.db.migrations.state import ProjectState
             history = ProjectState()

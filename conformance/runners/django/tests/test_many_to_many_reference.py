@@ -40,7 +40,7 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
-        self.assertEqual(len(actual['observations']), 48)
+        self.assertEqual(len(actual['observations']), 49)
         postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
         for field in ('observations', 'source_sha256'):
             self.assertEqual(actual[field], postgres[field])
@@ -173,6 +173,51 @@ class ManyToManyReferenceTests(unittest.TestCase):
             [3, 'second', ['b']]], 'batch_queries': 2, 'warm_queries': 0})
         self.assertEqual(cases['prefetch_eager_child'], {'members': [['first', [[2, 'b'], [1, 'a']]], ['second', [[3, 'b']]]],
             'batch_queries': 2, 'warm_queries': 0})
+
+    def test_sliced_prefetch_is_an_owner_partitioned_named_snapshot(self):
+        cases = self.snapshots[0]['observations']['prefetch_slices']
+        for case, first, second in (
+            ('head', ['a'], ['b']), ('middle', ['b', 'c'], ['c', 'd']),
+            ('tail', ['c', 'd'], ['d', 'e']), ('descending', ['c', 'b'], ['d', 'c']),
+            ('empty', [], []), ('beyond', [], []),
+        ):
+            with self.subTest(case=case):
+                actual = cases[case]
+                self.assertEqual(actual['members'], [first, second, first, []])
+                self.assertEqual(actual['managers'], [['a', 'b', 'c', 'd'], ['b', 'c', 'd', 'e'], ['a', 'b', 'c', 'd'], []])
+                self.assertEqual((actual['warm_queries'], actual['manager_queries']), (0, 4))
+                self.assertEqual(actual['batch_queries'], 0 if case == 'empty' else 1)
+                self.assertEqual(actual['window_queries'], actual['batch_queries'])
+        self.assertEqual(cases['empty_batch'], {'members': [], 'managers': [], 'batch_queries': 0,
+                                              'window_queries': 0, 'warm_queries': 0, 'manager_queries': 0})
+        self.assertEqual((cases['nested']['batch_queries'], cases['nested']['warm_queries']), (2, 0))
+        self.assertEqual(cases['nested']['members'], [[['b', ['first', 'second']]], [['c', ['first', 'second']]], [['b', ['first', 'second']]], []])
+        self.assertEqual(cases['reverse_eager'], {'members': [[[2, 'b']], [[5, 'b']]], 'batch_queries': 1, 'warm_queries': 0})
+        for case in ('manager_error', 'reverse_manager_error'):
+            self.assertEqual(cases[case], {'error': 'TypeError', 'queries': 1})
+        self.assertEqual(cases['distinct_duplicates'], {'members': ['a', 'a'], 'batch_queries': 1})
+        self.assertEqual(cases['scope_head']['members'], [[], []])
+        self.assertEqual(cases['scope_tail']['members'], [['b'], []])
+
+    def test_slice_offset_and_window_partition_mutations_are_detected(self):
+        source = RUNNER.read_text()
+        for original, replacement, case in (
+            ('("middle", 1, 3, False)', '("middle", 0, 2, False)', 'middle'),
+            ('            slice_cases = {}', '''            slice_cases = {}
+            from django.db.models.fields import related_descriptors as descriptors
+            original_window = descriptors.Window
+            def unpartitioned_window(*args, **kwargs):
+                kwargs.pop("partition_by", None)
+                return original_window(*args, **kwargs)
+            descriptors.Window = unpartitioned_window''', 'head'),
+        ):
+            with self.subTest(case=case):
+                self.assertEqual(source.count(original), 1)
+                with tempfile.TemporaryDirectory(prefix='godj-m2m-slice-mutation-') as directory:
+                    path = Path(directory) / 'mutated.py'
+                    path.write_text(source.replace(original, replacement))
+                    actual = capture(path, '0')['observations']['prefetch_slices'][case]
+                self.assertNotEqual(actual['members'], self.snapshots[0]['observations']['prefetch_slices'][case]['members'])
 
     def test_nested_prefetch_semantic_mutations_are_detected(self):
         source = RUNNER.read_text()

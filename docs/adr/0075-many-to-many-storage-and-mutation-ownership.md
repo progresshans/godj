@@ -188,13 +188,13 @@ Filter 등 refinement를 적용하면 평가와 하위 graph를 함께 버린다
 고정 Django에서 custom target query의 관계 조건은 prefetch membership과 연결 행을 공유한다.
 예를 들어 Label을 `owners.name=first`와 `owners.name=second`로 연속 Filter하면 두 through join이 생긴다.
 Owner batch 조건은 가장 최근의 일치하는 join을 재사용하지만 결과를 owner에 묶는 column은 첫 join에서 읽는다.
-중첩 조회·필터·정렬·캐시 변경·eager 조합과 이 scope 차이를 포함한 독립 관찰은 48개이며, 제품 완료와 구분한다.
+중첩 조회·필터·정렬·캐시 변경·eager 조합·owner별 slice와 이 scope 차이를 포함한 독립 관찰은 49개이며, 제품 완료와 구분한다.
 
 `query.Plan.ForPrefetchOwners`는 원래 target query의 WHERE·정렬·DISTINCT를 유지한다.
 새 `ResultPrefetch`는 source model과 eager target들의 기존 scan 순서 뒤에 owner key 한 cell을 추가한다.
 필수 integer key를 갖는 단일 reverse intermediary 경로와 동일 source를 검증하고, positive WHERE의 첫/마지막 일치 occurrence를
 구분한다. NOT EXISTS 내부의 경로는 외부 join 재사용 대상으로 세지 않는다.
-첫 grouping occurrence와 마지막 membership occurrence가 다르면 두 occurrence 모두에 요청 owner IN 조건을 적용한다.
+Slice가 없고 첫 grouping occurrence와 마지막 membership occurrence가 다르면 두 occurrence 모두에 요청 owner IN 조건을 적용한다.
 이는 Django가 grouping에서 버리는 batch 밖 행을 SQL에서 제외하며 반환되는 모든 owner key의 소속을 보장한다.
 Owner projection만 다른 query에 옮겨 필수 membership anchor를 잃으면 거부한다.
 
@@ -219,8 +219,7 @@ Raw streaming Iterate는 child query를 실행할 materialized batch 계약 없�
 각 collection handle은 기본 membership plan을 따로 소유한다. Mutation·Invalidate·manager Fresh는 이 plan으로 돌아가며
 기존 held QuerySet의 custom 조건·정렬·설정과 성공한 snapshot은 유지한다. No-op·실패·불명 outcome도 같은 무효화 규칙이다.
 고정 Django의 중첩/filtered cache·lookup 순서·owner filter scope를 실제 generated 소비자와 비교한다.
-Target query의 slice는 owner별 window 계획이 필요하며 현재
-`ForPrefetchOwners`는 명시 오류로 거부한다. 이를 전체 결과의 일반 LIMIT/OFFSET으로 바꾸지 않는다.
+Target query의 slice는 아래의 owner별 window 계획을 따른다. 일반 manager와 별도 snapshot의 연결은 아직 남아 있다.
 
 
 ### 단일 관계 prefetch와 eager 부모 재사용
@@ -263,6 +262,24 @@ projection key/model key 불일치는 전체 행을 공개하기 전에 거부�
 기본 scope·기본 정렬로 돌아간다. 이미 보유한 query·다른 materialization은 변하지 않는다. Query snapshot과 Invalidate의 교체는
 같은 mutex가 소유하며 session 종료 후에는 cache도 읽을 수 없다. 이 collection 연결은 읽기·조회 cache 범위이며 역방향 FK 변경 API의 완성을 뜻하지 않는다.
 Facade ABI는 v16이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
+
+### Owner별 slice 조회 계획
+
+2026-09-26, 고정 Django의 sliced Prefetch는 `to_attr`로 별도 목록에 담는다. 일반 relation manager에 같은 sliced query를
+설치하면 owner filter 적용 중 TypeError가 발생한다. GoDj도 일반 manager의 조회 범위와 별도 snapshot을 구분한다.
+현재 구현은 공통 Query AST와 SQLite/PostgreSQL compiler까지이며 runtime·generated snapshot API 완료로 세지 않는다.
+
+`Plan.ForPrefetchOwners`는 먼저 구성한 target limit/offset을 membership owner별 `ROW_NUMBER` 범위로 해석한다.
+첫 intermediary join은 출력의 grouping owner이고, 마지막 일치 join은 membership과 window partition을 소유한다.
+두 join이 다를 때 요청 범위 밖 grouping 행도 순번 계산에는 참여한다. 이 owner 필터는 window 적용 이후의 바깥 query에서
+검사하며 scanner에 반환되는 모든 owner는 요청 범위에 속한다. Unsliced owner projection을 만든 뒤 일반 limit를 붙이면 거부한다.
+`ForPrefetchForeignKey`는 역방향 collection target의 integer FK를 partition으로 삼고 같은 조회 계획을 사용한다.
+
+Window rank는 DISTINCT의 입력 cell에 포함한다. 비고유 through의 동일 target도 서로 다른 순번이면 남으므로,
+먼저 target을 중복 제거하거나 최종 목록에 임의의 DISTINCT를 적용하지 않는다. Eager target·owner cell은 기존 scan 순서를 유지하고,
+rank와 정렬용 cell은 외부 row에서 제거한다. JSON 정렬 key·decimal 결과 변환·매개변수 위치는 각 backend compiler가 소유한다.
+Empty slice와 empty membership도 전체 plan 검증을 거친 뒤 I/O를 생략하며 overflow 없는 upper bound와 context 취소를 유지한다.
+이 계획을 실제 snapshot materialization과 여러 owner batch에 연결하는 것은 다음 구현 범위다.
 
 ## Historical 선언 변경
 
