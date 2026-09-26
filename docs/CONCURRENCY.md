@@ -236,6 +236,10 @@ Identity runtime은 현재 User/Group/Permission을 native read snapshot에서 �
 Adoption은 source policy 검증·User/권한/receipt·source 비활성 표시를 같은 DB fence 아래 원자적으로 수행한다. Session rotation/logout/revocation 뒤의
 거부와 application permission은 실제 DB·HTTP 흐름에서 검증한다. Process-local lock만으로 여러 runtime을 안전하다고 하지 않는다.
 
+`identity.Manager.SetPassword`는 password work 전 native snapshot을 종료하고 write fence 안에서 현재 인가·revision·이전 credential을
+다시 확인한다. Revision 증가·대상 session만의 폐기·감사 저장은 하나의 transaction이다. 다른 runtime의 동일 revision 요청은
+한 번만 성공하며, 실패나 unknown commit 뒤 자동 재시도하지 않는다. 모든 협력 identity writer가 같은 fence/revision을 따라야 한다.
+
 Identity로 이전하기 전 legacy operator 권한 변경은 `UpdateOperatorPermissions`에 expected current policy를 명시하여 요청한다.
 Cooperative transaction에서 policy 비교·권한 변경·session 폐기를 함께 수행한다. Authenticate/Resolve는 현재 policy를 확인하므로
 변경 전 runtime은 새 인증을 거부하고 새 policy로 다시 열어야 한다. 이미 허용된 in-flight 작업까지 소급 취소하지 않는다.

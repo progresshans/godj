@@ -28,10 +28,15 @@ Article/Helpdesk·createsuperuser/runserver 및 기존 Article 세션을 이전�
 현재 변경의 Hosted 전체 검증은 관리 소비자 통합 milestone이 소유한다.
 실행 상태·실패와 보정 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
 
+이어서 관리자 비밀번호 교체 service를 구현했다. 현재 저장 권한·revision·credential을 재확인하고
+User 변경·대상 세션만의 폐기·감사를 같은 transaction으로 처리한다. 양 DB의 동시 요청·rollback·unknown outcome,
+기존 session/HTTP·runtime 재접속과 영향 normal/race/CGO=0 checkpoint를 검증했다.
+관리 Form/Admin/API와 self-service/reset은 다음 연결 범위다.
+
 ## 다음 행동
 
-전환·로그인·세션·재시작이 연결된 source를 기준으로 사용자/그룹/권한 관리의 revision·transaction·감사·credential 변경 서비스와
-실제 Form/Admin/API·client를 구현한다. 이 전환 경로를 다중 사용자 관리 전체의 완료로 표시하지 않는다.
+전환·로그인·비밀번호 교체 기반 위에 사용자 생성/편집·role/직접 권한/그룹 관계와 Group/Permission 관리의 revision·transaction·감사를
+구현하고 실제 Form/Admin/API·client를 연결한다. 삭제는 호스트의 전체 관계 정책을 사용한다. 다중 사용자 관리 전체는 미완료다.
 그 관리 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.

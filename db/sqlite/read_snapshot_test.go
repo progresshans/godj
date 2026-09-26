@@ -118,29 +118,38 @@ func TestSQLiteIdentityBootstrapReconcilesUnknownOutcome(t *testing.T) {
 }
 
 func TestSQLiteIdentityTransitionFailureConcurrencyAndReadOwnership(t *testing.T) {
-	identitytest.RunTransitionBoundaries(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
-		path := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "transition.sqlite3")) + "?mode=rwc&_pragma=busy_timeout(5000)"
-		first, err := Open(t.Context(), path)
-		if err != nil {
-			t.Fatal(err)
+	identitytest.RunTransitionBoundaries(t, openSQLiteIdentityPair)
+}
+
+func TestSQLiteIdentityPasswordManagement(t *testing.T) {
+	identitytest.RunPasswordManagement(t, openSQLiteIdentityPair)
+}
+
+func openSQLiteIdentityPair(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
+	t.Helper()
+	path := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "transition.sqlite3")) + "?mode=rwc&_pragma=busy_timeout(5000)"
+	first, err := Open(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := first.Close(); err != nil {
+			t.Error(err)
 		}
-		t.Cleanup(func() {
-			if err := first.Close(); err != nil {
-				t.Error(err)
-			}
-		})
-		if _, err := first.database.ExecContext(t.Context(), "PRAGMA journal_mode=WAL"); err != nil {
-			t.Fatal(err)
-		}
-		second, err := Open(t.Context(), path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() {
-			if err := second.Close(); err != nil {
-				t.Error(err)
-			}
-		})
-		return first, second
 	})
+	if _, err := first.database.ExecContext(t.Context(), "PRAGMA journal_mode=WAL"); err != nil {
+		t.Fatal(err)
+	}
+	second, err := Open(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := second.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	first.database.SetMaxOpenConns(1)
+	second.database.SetMaxOpenConns(1)
+	return first, second
 }

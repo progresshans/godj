@@ -11,11 +11,6 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-const (
-	principalSessionKey  = "_godj_principal_id"
-	credentialSessionKey = "_godj_credential_stamp"
-)
-
 type AuthenticatedHandler func(*web.Request, auth.Principal) (web.Response, error)
 
 // Principal resolves one active typed principal. A missing, malformed, stale,
@@ -41,8 +36,8 @@ func (r *Runtime) Principal(request *web.Request) (auth.Principal, error) {
 	if !found {
 		return auth.Anonymous(), nil
 	}
-	principalID, found := record.Value(principalSessionKey)
-	stamp, stamped := record.Value(credentialSessionKey)
+	principalID, found := record.Value(auth.SessionPrincipalIDKey)
+	stamp, stamped := record.Value(auth.SessionCredentialStampKey)
 	if !found && !stamped {
 		// An anonymous server session may hold unrelated application values.
 		// Only incomplete authentication state is invalidated here.
@@ -225,11 +220,11 @@ func (r *Runtime) login(
 				return LoginResult{}, sessionFailure("session load before login failed", loadErr)
 			}
 			if found {
-				loaded, deriveErr := loaded.WithValue(principalSessionKey, principal.ID())
+				loaded, deriveErr := loaded.WithValue(auth.SessionPrincipalIDKey, principal.ID())
 				if deriveErr != nil {
 					return LoginResult{}, sessionFailure("session authentication state is invalid", deriveErr)
 				}
-				loaded, deriveErr = loaded.WithValue(credentialSessionKey, credential.SessionStamp())
+				loaded, deriveErr = loaded.WithValue(auth.SessionCredentialStampKey, credential.SessionStamp())
 				if deriveErr != nil {
 					return LoginResult{}, sessionFailure("session credential state is invalid", deriveErr)
 				}
@@ -242,8 +237,8 @@ func (r *Runtime) login(
 	}
 	if !record.ID().Valid() {
 		record, err = r.sessions.Create(httpRequest.Context(), map[string]string{
-			principalSessionKey:  principal.ID(),
-			credentialSessionKey: credential.SessionStamp(),
+			auth.SessionPrincipalIDKey:     principal.ID(),
+			auth.SessionCredentialStampKey: credential.SessionStamp(),
 		})
 		if err != nil {
 			return LoginResult{}, sessionFailure("session creation failed", err)

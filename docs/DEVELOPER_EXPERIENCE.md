@@ -93,6 +93,12 @@ go run ./examples/article/cmd/adoptoperator --inspect
 
 일반 호스트는 `systemstate.AdoptOperator`와 `InspectIdentityTransition`을 사용한다. 새 DB는 `ProvisionIdentity`를 명시적으로 호출한다.
 전환 후 `OpenIdentity`는 현재 User/Group/Permission을 읽는 인증기와 기존 durable session/audit 저장소를 연결한다.
+
+`identity.NewManager(runtime, hasher, authorizer)`는 이 runtime의 native snapshot·동일 transaction·session/audit 소유권을 사용한다.
+현재 `SetPassword(ctx, actor, userID, expectedRevision, password)`로 관리자 비밀번호 교체를 수행한다. Actor는 호스트가 인증한
+Principal이어야 하며, 서비스가 저장된 현재 `godj_identity.change_user`와 deny overlay를 다시 확인한다. 대상의 revision을 명시하고,
+성공 때 반환하는 Profile에만 새 revision이 있다. Hash 생성은 DB 범위 밖에서 한 번, User 변경·대상 세션 폐기·감사는 같은 transaction이다.
+오류에는 성공 Profile이 없으며 unknown outcome을 자동 재시도하지 않는다. 자기 비밀번호 변경/reset과 관리 UI/API는 아직 연결하지 않았다.
 사용자 생성·편집·비밀번호 변경·권한 관리의 일반 UI/API 및 revision/audit 서비스는 별도 구현 단계이며 이 전환 API가 대신하지 않는다.
 
 ## Form, Admin과 API

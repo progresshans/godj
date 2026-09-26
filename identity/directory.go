@@ -137,38 +137,10 @@ func (directory *Directory) lookup(ctx context.Context, predicate orm.Predicate[
 		if err != nil || !present {
 			return err
 		}
-		if row.Revision <= 0 {
-			return &auth.Error{Code: auth.CodeCredential, Detail: "stored identity revision is invalid"}
-		}
-		relations := directory.state.relations.IdentityPermission
-		permissionQuery, err := models.PermissionObjects.Using(reader).Filter(orm.Or(
-			relations.Users.ID.Exact(row.ID), relations.Groups.Users().ID.Exact(row.ID),
-		)).Distinct().OrderBy(models.PermissionFields.Code.Asc()).Limit(auth.MaximumPermissions + 1)
+		candidate, err = directory.accountFromRow(ctx, reader, row)
 		if err != nil {
 			return err
 		}
-		permissions, err := permissionQuery.All(ctx)
-		if err != nil {
-			return err
-		}
-		codes := make([]auth.Permission, len(permissions))
-		for index, permission := range permissions {
-			codes[index] = auth.Permission(permission.Code)
-		}
-		principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: row.PrincipalID, Active: row.Active, Staff: row.Staff, Superuser: row.Superuser, Permissions: codes})
-		if err != nil {
-			return err
-		}
-		credential, err := auth.NewCredential(row.Username, row.EncodedPassword, principal)
-		if err != nil {
-			return err
-		}
-		candidate = Account{state: &accountState{credential: credential, profile: Profile{
-			ID: row.ID, PrincipalID: row.PrincipalID, Username: row.Username,
-			FirstName: row.FirstName, LastName: row.LastName, Email: row.Email,
-			Active: row.Active, Staff: row.Staff, Superuser: row.Superuser,
-			DateJoined: row.DateJoined, LastLogin: row.LastLogin, Revision: row.Revision,
-		}}}
 		found = true
 		return nil
 	}
@@ -185,6 +157,51 @@ func (directory *Directory) lookup(ctx context.Context, predicate orm.Predicate[
 		return Account{}, false, &auth.Error{Code: auth.CodeCredential, Detail: "identity backend did not execute exactly one snapshot callback"}
 	}
 	return candidate, found, nil
+}
+
+// accountFromRow uses the caller-owned coherent read or coordinated write scope.
+func (directory *Directory) accountFromRow(ctx context.Context, reader db.Queryer, row models.User) (Account, error) {
+	if row.Revision <= 0 {
+		return Account{}, &auth.Error{Code: auth.CodeCredential, Detail: "stored identity revision is invalid"}
+	}
+	relations := directory.state.relations.IdentityPermission
+	permissionQuery, err := models.PermissionObjects.Using(reader).Filter(orm.Or(
+		relations.Users.ID.Exact(row.ID), relations.Groups.Users().ID.Exact(row.ID),
+	)).Distinct().OrderBy(models.PermissionFields.Code.Asc()).Limit(auth.MaximumPermissions + 1)
+	if err != nil {
+		return Account{}, err
+	}
+	permissions, err := permissionQuery.All(ctx)
+	if err != nil {
+		return Account{}, err
+	}
+	codes := make([]auth.Permission, len(permissions))
+	for index, permission := range permissions {
+		codes[index] = auth.Permission(permission.Code)
+	}
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: row.PrincipalID, Active: row.Active, Staff: row.Staff, Superuser: row.Superuser, Permissions: codes})
+	if err != nil {
+		return Account{}, err
+	}
+	credential, err := auth.NewCredential(row.Username, row.EncodedPassword, principal)
+	if err != nil {
+		return Account{}, err
+	}
+	return Account{state: &accountState{credential: credential, profile: profileFromRow(row)}}, nil
+}
+
+func profileFromRow(row models.User) Profile {
+	profile := Profile{
+		ID: row.ID, PrincipalID: row.PrincipalID, Username: row.Username,
+		FirstName: row.FirstName, LastName: row.LastName, Email: row.Email,
+		Active: row.Active, Staff: row.Staff, Superuser: row.Superuser,
+		DateJoined: row.DateJoined, LastLogin: row.LastLogin, Revision: row.Revision,
+	}
+	if row.LastLogin != nil {
+		instant := *row.LastLogin
+		profile.LastLogin = &instant
+	}
+	return profile
 }
 
 func identityReadFailure(cause error) error {

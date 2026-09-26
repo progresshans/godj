@@ -3,6 +3,51 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 관리자 비밀번호 교체와 대상별 세션 폐기
+
+2026-09-27, `9cb5085c` 뒤의 변경이다. Non-Markdown **2,279 파일** source map SHA-256
+`a271708620a21c3f4667151ab414b6981c489fcbb4dadc9167a951f382e607c5`를 고정했다.
+Darwin arm64 / Go 1.26.5, 실제 SQLite와 private PostgreSQL **17.10**에서 **12 packages / 283 required entries**
+(227 roots와 명시한 password-management subcase 56개)의 completion·no-skip을 검사했다.
+Auth·identity·systemstate·Admin·Web/API session·Bearer 전체, native snapshot/identity/adoption roots,
+Article·siteapp·Helpdesk 소비자 전체를 선택했다. Generated schema/ABI 변경은 없으며 이 묶음의 별도 process/Hosted full은 아직 실행하지 않았다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 848 PASS / skip 0 | 28.584초 |
+| race | 848 PASS / skip 0 | 162.081초 |
+| CGO=0 | 848 PASS / skip 0 | 35.037초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`에 mode별 `-race` 또는 `CGO_ENABLED=0`.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`이며 PostgreSQL image는
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+양 native 연결은 각각 max-open=1로 고정했다. Password Hash 안에서 같은 backend의 write transaction을 완료하여
+읽기 scope를 종료했음을 확인했다. 별도 연결의 동시 expected-revision 요청은 하나만 commit했다.
+
+260개 실제 session으로 batch 경계와 target만의 폐기, 다른 사용자/anonymous row의 byte 보존을 확인했다.
+재접속한 runtime의 기존 cookie 거부·다른 사용자 cookie 유지·옛 비밀번호 거부·새 비밀번호 로그인을 실제 HTTP에서 확인했다.
+현재 group grant·deny overlay, hash 중 actor 비활성/그룹 권한 회수·대상 revision/hash 변경, stale/missing 입력의 password work 생략,
+비정상/동일 encoded hash 거부, update/두 번째 session delete/audit 실패, 뒤 batch의 payload 손상 시 전체 rollback을 검사했다.
+각 주입 fault는 지정한 저장 단계에 실제 도달했음을 확인한다. Callback/읽기 종료 실패·누락/중복/nil callback·삼킨 오류도 성공 Profile을 게시하지 않는다.
+Unknown commit과 unknown rollback의 분류·성공 값 미게시·자동 재시도 부재, 확정 commit 뒤 늦은 취소를 검증했다.
+Unknown 시 durable 상태는 직접 검사했지만 특정 command receipt/idempotency API를 구현한 것으로 주장하지 않는다.
+
+Go overlay **5개 변형 × 양 DB = 10/10 실제 assertion 탐지**: 현재 인가 우회, revision 검사 제거,
+대상 session 격리 제거, audit 오류 무시, unknown commit의 성공 게시. Build 실패는 탐지로 세지 않았다.
+Checkpoint와 control 모두 source 전후 동일, PostgreSQL 잔여 table·owned schema·다른 connection `0|0|0`, private container 제거 완료.
+영향 `go vet`, gofmt/diff와 문서 링크, CI Python **41/41**을 통과했다.
+
+초기 source `d316d7c9…`에서는 새 fixture와 service의 First 조회에 정렬이 없어 native 검사가 실패했다.
+명시적 ID 정렬을 추가하고 수정 source에서 위 세 모드를 새로 실행했다. 초기 CI 도구 호출의 디렉터리 오기는 `make ci-tools-test`로 수정했다.
+Source별 실패/성공 stream을 보존하며 초기 실행을 현재 PASS에 합치지 않는다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+- `identity-password-checkpoint-1790456249178561000/receipt.json`: 세 모드의 roster·원본 JSON stream·전후 source map.
+- `identity-password-checkpoint-1790456143158068000/receipt.json`: 초기 unordered-query 실패.
+- `identity-password-controls-1790456345270990000/receipt.json`: 다섯 source overlay와 양 DB assertion 결과.
+
+이 묶음은 관리자 password service·durable session/auth 소비자 연결까지다. 전용 관리 Form/Admin/API·독립 generated client,
+나머지 사용자/그룹/권한 관리와 self-service/reset, GDJ-0100의 전체 통합 milestone은 아직 미완료다.
 
 ## GDJ-0100 — 저장 인증·identity 전환·durable 소비자 통합
 

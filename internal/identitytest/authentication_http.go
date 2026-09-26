@@ -34,6 +34,13 @@ func newIdentityHTTP(t *testing.T, authenticator auth.CredentialAuthenticator) *
 	if err != nil {
 		t.Fatal(err)
 	}
+	result := newIdentityHTTPWithStore(t, authenticator, store)
+	result.store = store
+	return result
+}
+
+func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store) *identityHTTP {
+	t.Helper()
 	manager, err := sessions.NewManager(store, sessions.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +122,7 @@ func newIdentityHTTP(t *testing.T, authenticator auth.CredentialAuthenticator) *
 	}
 	server := httptest.NewServer(application)
 	t.Cleanup(server.Close)
-	result := &identityHTTP{server: server, store: store}
+	result := &identityHTTP{server: server}
 	result.client = result.newClient(t)
 	return result
 }
