@@ -94,6 +94,13 @@ def observe():
                 app_label = "m2mowners"
                 db_table = "m2m_loose_link"
 
+        class RankedBadge(models.Model):
+            owner = models.OneToOneField(RankedOwner, on_delete=models.CASCADE, related_name="badge")
+            name = models.CharField(max_length=64)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_ranked_badge"
+
         class Guard(models.Model):
             link = models.ForeignKey(RankedLink, on_delete=models.PROTECT)
             class Meta:
@@ -121,7 +128,7 @@ def observe():
                 db_table = "m2m_node"
                 ordering = ["name"]
 
-        declared = [Label, Owner, RankedOwner, RankedLink, LooseOwner, LooseLink, Guard, Cascade, Optional, Node]
+        declared = [Label, Owner, RankedOwner, RankedLink, LooseOwner, LooseLink, RankedBadge, Guard, Cascade, Optional, Node]
         automatic = [Owner.labels.through, Node.friends.through, Node.follows.through]
         physical = declared + automatic
         results = {}
@@ -567,6 +574,56 @@ def observe():
             with CaptureQueriesContext(connection) as captured:
                 child_graph = [[owner.name, [[link.token, link.label.name] for link in owner.rankedlink_set.all()]] for owner in child_roots]
             results["prefetch_eager_child"] = {"members": child_graph, "batch_queries": eager_reads, "warm_queries": len(captured)}
+
+            single_cases = {}
+            def probe_relation(value, attr, render):
+                try:
+                    target = getattr(value, attr)
+                    return None if target is None else render(target)
+                except Exception as failure:
+                    return {"error": type(failure).__name__}
+            def probe_single(query, attr, render):
+                with CaptureQueriesContext(connection) as captured:
+                    try:
+                        roots = list(query)
+                    except Exception as failure:
+                        return {"error": type(failure).__name__, "batch_queries": len(captured)}
+                queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    graph = [probe_relation(value, attr, render) for value in roots]
+                return {"members": graph, "batch_queries": queries, "warm_queries": len(captured)}
+            def render_owner(owner):
+                return [owner.name, names(owner.labels)]
+            base_links = RankedLink.objects.order_by("token")
+            custom_owners = RankedOwner.objects.filter(name="first").order_by("-name").prefetch_related("labels")
+            single_cases["required_filtered"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=custom_owners)), "owner", render_owner)
+            single_cases["required_eager_custom_children"] = probe_single(base_links.select_related("owner").prefetch_related(
+                Prefetch("owner", queryset=custom_owners)), "owner", render_owner)
+            single_cases["required_eager_explicit_children"] = probe_single(base_links.select_related("owner").prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.filter(name="first")), "owner__labels"), "owner", render_owner)
+            single_cases["required_join_duplicates"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.filter(labels__name__in=["a", "b"]).order_by("-name"))),
+                "owner", lambda owner: owner.name)
+            single_cases["required_slice"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.order_by("name")[:1])), "owner", lambda owner: owner.name)
+            single_cases["required_named_slice"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.order_by("name")[:1], to_attr="owner_row")), "owner_row", lambda owner: owner.name)
+            loose_first = LooseOwner.objects.create(name="first")
+            loose_second = LooseOwner.objects.create(name="second")
+            for index, owner in enumerate([loose_first, loose_second, None]):
+                LooseLink.objects.create(owner=owner, label=a, amount=index)
+            single_cases["nullable_filtered"] = probe_single(LooseLink.objects.order_by("amount").prefetch_related(
+                Prefetch("owner", queryset=LooseOwner.objects.filter(name="first"))), "owner", lambda owner: owner.name)
+            RankedBadge.objects.create(owner=first, name="hidden")
+            RankedBadge.objects.create(owner=second, name="visible")
+            single_cases["reverse_filtered"] = probe_single(RankedOwner.objects.order_by("name").prefetch_related(
+                Prefetch("badge", queryset=RankedBadge.objects.filter(name="visible"))), "badge", lambda badge: badge.name)
+            for link in [RankedLink.objects.get(token=1), RankedLink.objects.get(token=2), None]:
+                Optional.objects.create(link=link)
+            single_cases["target_eager"] = probe_single(Optional.objects.order_by("pk").prefetch_related(
+                Prefetch("link", queryset=RankedLink.objects.filter(token=1).select_related("owner"))), "link", lambda link: [link.token, link.owner.name])
+            results["prefetch_custom_single"] = single_cases
             clear()
 
             # A sliced target is a named list snapshot. Django cannot install

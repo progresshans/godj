@@ -3,6 +3,58 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — custom single target query와 조회 부재
+
+2026-09-26, `887c8ee27623b03634a3838a52e7c858d934a0f3` 위에서 required/nullable FK·역방향 OneToOne의
+target Filter·OrderBy·Distinct·SelectRelated를 native/generated SinglePrefetch에 연결했다. Custom query의 child와
+별도로 추가한 typed/path child를 구분한다. 이미 eager로 읽은 대상은 custom query와 그 안의 child를 건너뛰며 명시적
+하위 경로는 유지한다. 같은 target의 join 중복은 첫 행으로 처리하고 서로 다른 target·batch 밖 row·clone의 key 변경은 거부한다.
+Parent 조회·target eager·child graph가 모두 성공해야 결과를 공개한다. Facade v18·relation object v6·golden과 5개 프로젝트 생성물을 갱신했다.
+
+필터로 제외된 required target 때문에 부모 목록 전체가 실패하던 generated materialization 경로를 고쳤다.
+부모 목록은 반환하고 required 접근은 `related_object_missing`, nullable/reverse 접근은 기존 bool 부재를 반환한다.
+읽기 결과인 `RelationLoadedAbsent`를 해제 할당과 구분한다. 같은 FK의 파생 모델·Save에도 cache와 저장 FK를 보존하고,
+실제 FK 변경은 cache를 초기화한다. Low-level object의 Fresh는 기본 관계를 다시 읽으며 기존 부재 snapshot을 바꾸지 않는다.
+
+고정 Django **6.1**, Python **3.14.3**, asgiref **3.12.1**, sqlparse **0.5.5**, psycopg **3.3.6**에서 새 관찰을 실행했다.
+SQLite **3.50.4**와 PostgreSQL **170005**, hash seed **0/813**의 결과가 모두 같고 기존 **49개 관찰·Django source hash**는 같다.
+Required/nullable/reverse filter·eager target 재사용·명시적 child·join 중복·target eager·일반/named single slice 오류의
+**9개 사례**를 추가한 **50개 관찰**이다. Runner hash는
+`ad9c524432d7a15a0c9e88126388f3b07bddb8274e4a9174677917d5418c9ed4`이며 양 DB capture와 현재 fixture의 JSON 내용이 같다.
+독립 Python 검사 **15 PASS / skip 0**이고 filter 제거·eager 제거의 의미 변경 control도 실제 실행했다. 이를 Go 제품 PASS로 세지 않는다.
+
+최종 제품 source는 non-Markdown **2,139파일**, map hash
+`5dfb77b9fcdd771bd2c9fe95a2c903540349f152c6328bf042f8919f637139cb`다.
+범위는 `./orm ./codegen ./codegen/consumertest ./conformance/onetoonefixture` 전체와
+PostgreSQL의 `TestPostgresOneToOneFacadeReverseEager`다. 일반·race·CGO=0 각각
+**5 package / 1,247 run=PASS / skip 0**, **178.4초·622.8초·168.8초**다.
+각 mode의 compile된 **373개 필수 root**·package terminal·실행 전후 동일 source map을 확인했다.
+PostgreSQL package 전체나 full-platform 결과로 표현하지 않는다.
+
+새 generated 소비자는 각 DB에서 **15개 필수 사례**의 실행 완료를 요구한다. 독립 결과·query 수와 함께 invalid predicate·
+foreign origin·eager node budget·lookup 재정의·Count/First/파생 query·중복 owner의 독립 cache·실패/취소 재시도·
+foreign row와 서로 다른 단일 target·동시 warm 조회·session 종료·실제 저장 FK 보존·low-level missing/Fresh를 확인했다.
+첫 일반 checkpoint(source `d10ebf46…`)에서 required 부재를 목록 전체 오류로 처리하는 결함이 실제 소비자에서 발견되었다.
+부모 harness의 진단은 일반적인 build 실패로 축약되어, 같은 generated module을 별도로 실행해 실제 runtime 오류를 확인했다.
+첫 실패·진단 로그를 보존했고 제품의 부재 처리와 cache 의미를 수정한 뒤 위 최종 source로 전체 영향 범위를 다시 실행했다.
+
+최종 source의 원본 SQLite 소비자 **17 run=PASS / skip 0** 뒤 target filter 제거·eager 부모에 custom child 실행·
+서로 다른 단일 target 허용·target eager 제거·child 실패 무시·읽기 부재를 해제 할당으로 교체하는 **6개 overlay**를 실행했다.
+모두 정상 compile 후 지정한 의미 검증에서 실패했으며 원본 source는 바뀌지 않았다.
+영향 vet·format·문서 링크/diff·5개 프로젝트 generated drift도 통과했다.
+
+환경은 Go **1.26.5**, Darwin arm64, modernc SQLite, PostgreSQL **17.5 Homebrew**다.
+모든 완료 checkpoint는 `GODJ_REQUIRE_POSTGRES=1`·mode별 전용 database를 사용했고 cleanup **0|0|0** 뒤 force 없이 제거했다.
+독립 reference 전용 DB도 connection/table **0|0** 뒤 제거했다.
+로그·source map·inventory·receipt·negative overlay는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-custom-single/`의
+`latest-probe-path`, `latest-oracle-tests-path`, `latest-normal-path`, `latest-race-path`, `latest-cgo0-path`,
+`latest-diagnostic-path`, `latest-negative-path`, `latest-checks-path`가 가리키는 artifact를 따른다.
+
+Prefetch materialized streaming과 Ticket 컬렉션 Form/Admin/API/OpenAPI/client의 권한·CSRF·Category·동시성·durability,
+GDJ-0099 Hosted 전체 milestone은 남아 있다. 기록된 최근 전체 검증은
+[CASCADE·TicketLabel full](https://github.com/progresshans/godj/actions/runs/35689549739), source `93e77bd9c19d6e7b137de3a068c40a403970e73d`다.
+
 ## GDJ-0099 — named collection snapshot과 전체 owner 집합
 
 2026-09-26, `6e31229a2a6289dae285f8f985d9aca18754d332` 위에서 ManyToMany·reverse FK collection의

@@ -36,7 +36,7 @@ func TestGenerateProjectRelationObjectIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("project relation object bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"`),
+		[]byte(`const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"`),
 		[]byte(`context "context"`),
 		[]byte(`db "github.com/progresshans/godj/db"`),
 		[]byte(`orm "github.com/progresshans/godj/orm"`),

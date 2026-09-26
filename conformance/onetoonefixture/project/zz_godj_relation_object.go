@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"
 
 type ReportsCertificateObjectFactory struct {
 	_projectSelections *Objects
@@ -80,9 +80,9 @@ func (_object *ReportsCertificateObject) Report(_ctx context.Context) (reports.R
 	}
 	if !_ok {
 		return reports.Report{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -161,9 +161,9 @@ func (_object *ReportsLinkObject) Ticket(_ctx context.Context) (tickets.Ticket, 
 	}
 	if !_ok {
 		return tickets.Ticket{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -342,9 +342,9 @@ func (_object *ReportsReportObject) Ticket(_ctx context.Context) (tickets.Ticket
 	}
 	if !_ok {
 		return tickets.Ticket{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -423,9 +423,9 @@ func (_object *ReportsReviewObject) Ticket(_ctx context.Context) (tickets.Ticket
 	}
 	if !_ok {
 		return tickets.Ticket{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -697,4 +697,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_d2776f916b89945764b9d20eb106af46947071a9fe57f2c80016ef439f0e6937
+var _ goDjProjectSnapshot_10fd9b866a75d2cfd0dd549665844915f6d95b9ee29026adb8eec01341e6065c

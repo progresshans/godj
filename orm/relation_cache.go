@@ -10,6 +10,9 @@ const (
 	RelationUnassigned RelationCacheState = iota
 	RelationAssignedPresent
 	RelationAssignedAbsent
+	// RelationLoadedAbsent records a read result without changing the stored
+	// foreign key or requesting that a required relation be cleared on Save.
+	RelationLoadedAbsent
 )
 
 // RelationCache is the common state cell used by generated project models.
@@ -27,7 +30,7 @@ func NewRelationCache[T any]() *RelationCache[T] { return &RelationCache[T]{} }
 
 func validRelationCache[T any](state RelationCacheState, target *T, pending bool) bool {
 	switch state {
-	case RelationUnassigned, RelationAssignedAbsent:
+	case RelationUnassigned, RelationAssignedAbsent, RelationLoadedAbsent:
 		return target == nil && !pending
 	case RelationAssignedPresent:
 		return target != nil

@@ -14,6 +14,9 @@ import (
 type SinglePrefetch[S, T any] struct {
 	selection        RelatedSelect[S, T]
 	children         []PrefetchSelection[T]
+	eager            []RelatedSelection[T]
+	plan             query.Plan
+	custom           bool
 	configurationErr error
 }
 
@@ -37,10 +40,48 @@ func (p SinglePrefetch[S, T]) WithConfigurationError(err error) SinglePrefetch[S
 	return p
 }
 
+func (p SinglePrefetch[S, T]) targetQuery() QuerySet[T] {
+	q := newQuerySet[T](nil, p.selection.state.targetDescriptor, p.selection.state.target.objectPlan)
+	q.configurationErr = p.selection.configurationErr
+	q = q.OrderBy(NewAutoField[T](p.selection.state.targetKey).Asc())
+	if p.custom {
+		q.plan = p.plan
+	}
+	if p.configurationErr != nil {
+		q.configurationErr = p.configurationErr
+	}
+	return q
+}
+func (p SinglePrefetch[S, T]) withTarget(q QuerySet[T]) SinglePrefetch[S, T] {
+	p.custom, p.plan = true, q.plan
+	return p.WithConfigurationError(q.configurationErr)
+}
+func (p SinglePrefetch[S, T]) Filter(values ...Predicate[T]) SinglePrefetch[S, T] {
+	return p.withTarget(p.targetQuery().Filter(values...))
+}
+func (p SinglePrefetch[S, T]) OrderBy(values ...Ordering[T]) SinglePrefetch[S, T] {
+	return p.withTarget(p.targetQuery().OrderBy(values...))
+}
+func (p SinglePrefetch[S, T]) Distinct() SinglePrefetch[S, T] {
+	return p.withTarget(p.targetQuery().Distinct())
+}
+func (p SinglePrefetch[S, T]) SelectRelated(values ...RelatedSelection[T]) SinglePrefetch[S, T] {
+	if len(values) == 0 {
+		return p.WithConfigurationError(relationInvalidPlan("target eager selection is empty"))
+	}
+	p.eager = append(append([]RelatedSelection[T](nil), p.eager...), values...)
+	return p.withTarget(p.targetQuery())
+}
+
 type preparedSinglePrefetch[S, T any] struct {
-	state    relatedSelectState[S, T]
-	children []preparedPrefetch[T]
-	nodes    int
+	state          relatedSelectState[S, T]
+	children       []preparedPrefetch[T]
+	cachedChildren []preparedPrefetch[T]
+	targets        []preparedRelatedSelection[T]
+	eagerNodes     int
+	plan           query.Plan
+	custom         bool
+	nodes          int
 }
 
 func (p SinglePrefetch[S, T]) preparePrefetch(depth int, remaining *int) (preparedPrefetch[S], error) {
@@ -59,7 +100,18 @@ func (p SinglePrefetch[S, T]) preparePrefetch(depth int, remaining *int) (prepar
 	if err != nil {
 		return nil, err
 	}
-	prepared := preparedSinglePrefetch[S, T]{state: p.selection.state, children: children, nodes: before - *remaining}
+	targets, eagerNodes, err := preparePrefetchEager(p.eager, p.selection.state.target, depth+1, remaining)
+	if err != nil {
+		return nil, err
+	}
+	q := p.targetQuery()
+	if q.configurationErr != nil {
+		return nil, q.configurationErr
+	}
+	prepared := preparedSinglePrefetch[S, T]{state: p.selection.state, children: children, targets: targets, eagerNodes: eagerNodes, plan: q.plan, custom: p.custom, nodes: before - *remaining}
+	if !p.custom {
+		prepared.cachedChildren = children
+	}
 	if err := prepared.validate(); err != nil {
 		return nil, err
 	}
@@ -74,6 +126,18 @@ func (p preparedSinglePrefetch[S, T]) validate() error {
 	}
 	if _, ok := p.state.target.objectDescriptor.(PrimaryKeyObjectDescriptor[T]); !ok {
 		return relationInvalidPlan("single prefetch target has no primary-key descriptor")
+	}
+	if err := p.plan.ValidateOrderings(); err != nil {
+		return err
+	}
+	if _, limited := p.plan.Limit(); limited {
+		return relationInvalidPlan("single prefetch target cannot be sliced")
+	}
+	if offset, _ := p.plan.Offset(); offset != 0 {
+		return relationInvalidPlan("single prefetch target cannot be sliced")
+	}
+	if err := validatePrefetchEager(p.targets, p.state.target); err != nil {
+		return err
 	}
 	for _, child := range p.children {
 		if err := child.validate(); err != nil {
@@ -92,11 +156,18 @@ func (p preparedSinglePrefetch[S, T]) merge(other preparedPrefetch[S]) (prepared
 		p.state.target.identity != value.state.target.identity || reflect.TypeOf(p.state.targetDescriptor) != reflect.TypeOf(value.state.targetDescriptor) {
 		return nil, relationInvalidPlan("repeated single prefetch has conflicting binding metadata")
 	}
+	if value.custom {
+		return nil, relationInvalidPlan("prefetch target query redefines an already selected lookup")
+	}
 	children, err := mergePrefetchSet(append(append([]preparedPrefetch[T](nil), p.children...), value.children...))
 	if err != nil {
 		return nil, err
 	}
-	p.children, p.nodes = children, p.nodes+value.nodes
+	cachedChildren, err := mergePrefetchSet(append(append([]preparedPrefetch[T](nil), p.cachedChildren...), value.cachedChildren...))
+	if err != nil {
+		return nil, err
+	}
+	p.children, p.cachedChildren, p.nodes = children, cachedChildren, p.nodes+value.nodes
 	return p, nil
 }
 
@@ -138,6 +209,7 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 	positions := make([]int, len(values))
 	cached := make([]typedCachedRelatedTarget[T], len(values))
 	requested := make(map[int64]struct{})
+	needsFetch := false
 	for i, value := range values {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -175,9 +247,12 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 			positions[i], cached[i] = index, typed
 			break
 		}
-		if positions[i] < 0 && !key.IsNull() {
-			id, _ := key.Integer()
-			requested[id] = struct{}{}
+		if positions[i] < 0 {
+			needsFetch = true
+			if !key.IsNull() {
+				id, _ := key.Integer()
+				requested[id] = struct{}{}
+			}
 		}
 	}
 	ordered := make([]int64, 0, len(requested))
@@ -185,12 +260,12 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 		ordered = append(ordered, key)
 	}
 	slices.Sort(ordered)
-	groups := make(map[int64]T, len(ordered))
+	groups := make(map[int64]relatedSelectedValue[T], len(ordered))
 	field := fieldReference(p.state.targetKey)
 	if p.reverse() {
 		field = fieldReference(p.state.path.sourceKey)
 	}
-	base := newQuerySet(backend, p.state.targetDescriptor, p.state.target.objectPlan)
+	base := newQuerySet(backend, p.state.targetDescriptor, p.plan)
 	for start := 0; start < len(ordered); start += manyPrefetchBatchSize {
 		batch := ordered[start:min(start+manyPrefetchBatchSize, len(ordered))]
 		arguments := make([]query.Value, len(batch))
@@ -201,31 +276,50 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 		if err != nil {
 			return err
 		}
-		rows, err := base.Filter(predicateFromCondition[T](condition, nil)).OrderBy(NewAutoField[T](p.state.targetKey).Asc()).All(ctx)
+		q := base.Filter(predicateFromCondition[T](condition, nil))
+		q.materialization = &queryMaterialization[T]{binding: p.state.target, targets: p.targets, eagerNodes: p.eagerNodes}
+		if err := q.validateTerminal(ctx); err != nil {
+			return err
+		}
+		raw, attachment, err := q.evaluateModels(ctx)
+		if err != nil {
+			return err
+		}
+		rows, err := materializationValues(p.state.target, raw, attachment)
 		if err != nil {
 			return err
 		}
 		for _, row := range rows {
-			id, err := manyObjectKey(descriptor, row)
+			id, err := manyObjectKey(descriptor, row.source)
 			if err != nil {
 				return err
 			}
 			membership := query.Integer(id)
 			if p.reverse() {
 				var present bool
-				membership, present = p.state.targetStorage.Value(row)
-				if !present {
-					return relationInvalidPlan("single reverse target FK is absent")
+				membership, present = p.state.targetStorage.Value(row.source)
+				cloned, clonePresent := p.state.targetStorage.Value(descriptor.CloneModel(row.source))
+				if !present || !clonePresent || !membership.Equal(cloned) {
+					return relationInvalidPlan("single reverse target FK is absent or changed by cloning")
 				}
 			}
 			owner, integer := membership.Integer()
 			if _, present := slices.BinarySearch(batch, owner); !integer || membership.IsNull() || !present {
 				return relatedObjectProjectionError(p.state.path.sourceKey, "single prefetch row is outside its requested batch")
 			}
-			if _, duplicate := groups[owner]; duplicate {
-				return &query.Error{Category: query.CategoryIntegrity, Code: query.CodeRelatedObjectCardinality, Field: p.state.path.sourceKey.Name, Detail: "single prefetch returned more than one target for a source key"}
+			if prior, duplicate := groups[owner]; duplicate {
+				priorID, err := manyObjectKey(descriptor, prior.source)
+				if err != nil {
+					return err
+				}
+				// Custom joins may repeat the same target. Keep the first row,
+				// but never hide two different targets of a single relation.
+				if !p.custom || priorID != id {
+					return &query.Error{Category: query.CategoryIntegrity, Code: query.CodeRelatedObjectCardinality, Field: p.state.path.sourceKey.Name, Detail: "single prefetch returned more than one target for a source key"}
+				}
+				continue
 			}
-			groups[owner] = p.state.targetDescriptor.CloneModel(row)
+			groups[owner] = row
 		}
 	}
 	children := make([]relatedSelectedValue[T], 0, len(values))
@@ -237,8 +331,9 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 			if !keys[i].IsNull() {
 				key, _ := keys[i].Integer()
 				target, present := groups[key]
-				cache.value = p.state.targetDescriptor.CloneModel(target)
+				cache.value = p.state.targetDescriptor.CloneModel(target.source)
 				cache.present = present
+				cache.children, cache.collections = target.targets, target.collections
 				plan, err := p.state.target.objectPlan.WithConditions(query.NewCondition(field, query.LookupExact, keys[i]))
 				if err != nil {
 					return err
@@ -253,7 +348,7 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 			}
 			cached[i] = cache
 		}
-		if cached[i].present {
+		if cached[i].present && (!needsFetch || positions[i] < 0) {
 			childPositions[i] = len(children)
 			// Descendant loading may replace entries. Keep an eager graph's
 			// immutable maps and slices private to this new evaluation.
@@ -264,7 +359,13 @@ func (p preparedSinglePrefetch[S, T]) apply(ctx context.Context, backend db.Quer
 			children = append(children, relatedSelectedValue[T]{source: p.state.targetDescriptor.CloneModel(cached[i].value), targets: append([]cachedRelatedTarget(nil), cached[i].children...), collections: collections})
 		}
 	}
-	if err := loadPrefetchValues(ctx, backend, children, p.children); err != nil {
+	selections := p.children
+	if !needsFetch {
+		// An already loaded parent bypasses the custom target query,
+		// including that query's children. Explicit descendant paths remain.
+		selections = p.cachedChildren
+	}
+	if err := loadPrefetchValues(ctx, backend, children, selections); err != nil {
 		return err
 	}
 	for i := range values {

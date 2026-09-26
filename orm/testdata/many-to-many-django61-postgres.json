@@ -245,6 +245,131 @@
         "a"
       ]
     },
+    "prefetch_custom_single": {
+      "nullable_filtered": {
+        "batch_queries": 2,
+        "members": [
+          "first",
+          null,
+          null
+        ],
+        "warm_queries": 0
+      },
+      "required_eager_custom_children": {
+        "batch_queries": 1,
+        "members": [
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "second",
+            [
+              "b"
+            ]
+          ]
+        ],
+        "warm_queries": 3
+      },
+      "required_eager_explicit_children": {
+        "batch_queries": 2,
+        "members": [
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "second",
+            [
+              "b"
+            ]
+          ]
+        ],
+        "warm_queries": 0
+      },
+      "required_filtered": {
+        "batch_queries": 3,
+        "members": [
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "first",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          {
+            "error": "RelatedObjectDoesNotExist"
+          }
+        ],
+        "warm_queries": 0
+      },
+      "required_join_duplicates": {
+        "batch_queries": 2,
+        "members": [
+          "first",
+          "first",
+          "second"
+        ],
+        "warm_queries": 0
+      },
+      "required_named_slice": {
+        "batch_queries": 1,
+        "error": "TypeError"
+      },
+      "required_slice": {
+        "batch_queries": 1,
+        "error": "TypeError"
+      },
+      "reverse_filtered": {
+        "batch_queries": 2,
+        "members": [
+          {
+            "error": "RelatedObjectDoesNotExist"
+          },
+          "visible"
+        ],
+        "warm_queries": 0
+      },
+      "target_eager": {
+        "batch_queries": 2,
+        "members": [
+          [
+            1,
+            "first"
+          ],
+          null,
+          null
+        ],
+        "warm_queries": 0
+      }
+    },
     "prefetch_eager_child": {
       "batch_queries": 2,
       "members": [

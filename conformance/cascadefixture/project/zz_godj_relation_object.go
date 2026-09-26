@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"
 
 type DetailsChildObjectFactory struct {
 	_projectSelections *Objects
@@ -80,9 +80,9 @@ func (_object *DetailsChildObject) Root(_ctx context.Context) (parents.Root, err
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -161,9 +161,9 @@ func (_object *DetailsDetailObject) Root(_ctx context.Context) (parents.Root, er
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -242,9 +242,9 @@ func (_object *DetailsGrandchildObject) Child(_ctx context.Context) (details.Chi
 	}
 	if !_ok {
 		return details.Child{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -323,9 +323,9 @@ func (_object *DetailsHiddenObject) Root(_ctx context.Context) (parents.Root, er
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -411,9 +411,9 @@ func (_object *DetailsOverlapObject) CascadeRoot(_ctx context.Context) (parents.
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -429,9 +429,9 @@ func (_object *DetailsOverlapObject) ProtectedRoot(_ctx context.Context) (parent
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -510,9 +510,9 @@ func (_object *DetailsProtectedObject) Grandchild(_ctx context.Context) (details
 	}
 	if !_ok {
 		return details.Grandchild{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -591,9 +591,9 @@ func (_object *DetailsRequiredRightObject) Left(_ctx context.Context) (parents.R
 	}
 	if !_ok {
 		return parents.RequiredLeft{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -672,9 +672,9 @@ func (_object *DetailsRightObject) Left(_ctx context.Context) (parents.Left, err
 	}
 	if !_ok {
 		return parents.Left{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -760,9 +760,9 @@ func (_object *DetailsTwinObject) First(_ctx context.Context) (parents.Root, err
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -778,9 +778,9 @@ func (_object *DetailsTwinObject) Second(_ctx context.Context) (parents.Root, er
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -1096,9 +1096,9 @@ func (_object *ParentsRequiredLeftObject) Right(_ctx context.Context) (details.R
 	}
 	if !_ok {
 		return details.RequiredRight{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -1261,9 +1261,9 @@ func (_object *ParentsRootLabelsObject) Label(_ctx context.Context) (parents.Lab
 	}
 	if !_ok {
 		return parents.Label{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -1279,9 +1279,9 @@ func (_object *ParentsRootLabelsObject) Root(_ctx context.Context) (parents.Root
 	}
 	if !_ok {
 		return parents.Root{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -1608,4 +1608,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_ea0973ed3504351be5d891ff30d8d4deb4e49cc243d0e436c644ce3fb29b7359
+var _ goDjProjectSnapshot_4a1c0bac93733f906e4af7c3105631e94212d2ff4546a87766d9a300d35f5b27

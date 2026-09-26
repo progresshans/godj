@@ -86,6 +86,9 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 - Reverse object의 모델·관계·descriptor 형태·PK metadata 일치는 바인딩 시 검증한다. 게시한 private field snapshot은
   prefetch도 공유하며 매 호출의 깊은 비교나 같은 metadata의 별도 보관본을 만들지 않는다. Zero/nil handle과 backend,
   owner PK·storage callback의 현재 반환값 검사는 매 사용 시 유지한다. Zero-size descriptor가 callback의 순수성을 보장하지 않는다.
+- 단일 prefetch의 custom target query는 이미 선택한 부모와 그 하위 graph를 다시 읽지 않는다. Custom query 안의 child와
+  별도로 추가한 경로를 구분한다. `RelationLoadedAbsent`는 읽기 결과이며 FK 해제 할당이 아니다. 이 상태는 cache 복사와
+  같은 key의 모델 파생·저장에 유지되고, 실제 FK가 바뀌면 다시 조회한다. Required 접근은 missing 오류, nullable/reverse는 정상 부재를 반환한다.
 - 다른 query materialization에서 얻은 동일 PK의 객체가 같은 pointer일 필요는 없다.
 - Transaction에서 만든 query의 사용 가능 범위는 transaction/session 계약을 따른다. Warm cache가 session 이후에도 값을 제공할 수 있다는 사실을
   session I/O가 계속 유효하다는 뜻으로 해석하지 않는다.

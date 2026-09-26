@@ -366,4 +366,4 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_d2776f916b89945764b9d20eb106af46947071a9fe57f2c80016ef439f0e6937
+var _ goDjProjectSnapshot_10fd9b866a75d2cfd0dd549665844915f6d95b9ee29026adb8eec01341e6065c

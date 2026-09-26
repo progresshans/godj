@@ -21,6 +21,8 @@ func TestRelationCacheRejectsInvalidTuplesWithoutChangingState(t *testing.T) {
 		{"unassigned target", RelationUnassigned, &target, false},
 		{"absent target", RelationAssignedAbsent, &target, false},
 		{"absent pending", RelationAssignedAbsent, nil, true},
+		{"loaded absent target", RelationLoadedAbsent, &target, false},
+		{"loaded absent pending", RelationLoadedAbsent, nil, true},
 		{"present nil", RelationAssignedPresent, nil, false},
 		{"unknown state", RelationCacheState(255), nil, false},
 	}

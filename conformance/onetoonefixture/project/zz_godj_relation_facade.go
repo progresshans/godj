@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v17"
-const GoDjProjectRelationFacadeInputSHA256 = "02bc4a8f42c91720ab013b2a717413c01dad2f410e9bc26ad2497a6b96b4cf33"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v18"
+const GoDjProjectRelationFacadeInputSHA256 = "b4cfb9f3bf77210e596f395bc623365499da891136822bfc57536d926e890f9c"
 
 type Backend interface {
 	db.Queryer
@@ -316,6 +316,34 @@ func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchOwner(
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
 	return _selector.selection
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeSinglePrefetch[S, T] {
 	if _err := _selector.state.validate(); _err != nil {
@@ -741,7 +769,7 @@ func (_model *ReportsCertificate) relationFacadePrepareSave() error {
 	if _reportState == orm.RelationAssignedPresent && !_reportPresent {
 		return relationFacadeUnsavedRelated("report")
 	}
-	if _reportState == orm.RelationAssignedAbsent || (_reportState == orm.RelationUnassigned && !_model.reportScalarPresent) {
+	if _reportState == orm.RelationAssignedAbsent || (_reportState != orm.RelationAssignedPresent && !_model.reportScalarPresent) {
 		return relationFacadeRequiredRelated("report")
 	}
 	if _reportState == orm.RelationAssignedPresent && !_reportPending && !_model.reportScalarPresent {
@@ -889,6 +917,9 @@ func (_model *ReportsCertificate) Report(_ctx context.Context) (*ReportsReport, 
 	}
 	if !_model.reportScalarPresent {
 		return nil, relationFacadeRequiredRelated("report")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "report", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Report(_ctx)
 	if _err != nil {
@@ -1301,7 +1332,15 @@ func (_state *relationFacadeState) wrapSelectedReportsCertificateObject(_ctx con
 	if _has, _err := _object._selectedGraph.HasSelection("report"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Report(_ctx)
+		var _present bool
+		_, _present, _err = _object.report.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Report(_ctx)
+			} else {
+				_err = _wrapped.reportCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -1702,7 +1741,7 @@ func (_model *ReportsLink) relationFacadePrepareSave() error {
 	if _ticketState == orm.RelationAssignedPresent && !_ticketPresent {
 		return relationFacadeUnsavedRelated("ticket")
 	}
-	if _ticketState == orm.RelationAssignedAbsent || (_ticketState == orm.RelationUnassigned && !_model.ticketScalarPresent) {
+	if _ticketState == orm.RelationAssignedAbsent || (_ticketState != orm.RelationAssignedPresent && !_model.ticketScalarPresent) {
 		return relationFacadeRequiredRelated("ticket")
 	}
 	if _ticketState == orm.RelationAssignedPresent && !_ticketPending && !_model.ticketScalarPresent {
@@ -1829,6 +1868,9 @@ func (_model *ReportsLink) Ticket(_ctx context.Context) (*TicketsTicket, error) 
 	}
 	if !_model.ticketScalarPresent {
 		return nil, relationFacadeRequiredRelated("ticket")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "ticket", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Ticket(_ctx)
 	if _err != nil {
@@ -2241,7 +2283,15 @@ func (_state *relationFacadeState) wrapSelectedReportsLinkObject(_ctx context.Co
 	if _has, _err := _object._selectedGraph.HasSelection("ticket"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Ticket(_ctx)
+		var _present bool
+		_, _present, _err = _object.ticket.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Ticket(_ctx)
+			} else {
+				_err = _wrapped.ticketCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -2800,13 +2850,13 @@ func (_model *ReportsOptionalReport) Ticket(_ctx context.Context) (*TicketsTicke
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Ticket(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.ticketCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.ticketCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -3642,7 +3692,7 @@ func (_model *ReportsReport) relationFacadePrepareSave() error {
 	if _ticketState == orm.RelationAssignedPresent && !_ticketPresent {
 		return relationFacadeUnsavedRelated("ticket")
 	}
-	if _ticketState == orm.RelationAssignedAbsent || (_ticketState == orm.RelationUnassigned && !_model.ticketScalarPresent) {
+	if _ticketState == orm.RelationAssignedAbsent || (_ticketState != orm.RelationAssignedPresent && !_model.ticketScalarPresent) {
 		return relationFacadeRequiredRelated("ticket")
 	}
 	if _ticketState == orm.RelationAssignedPresent && !_ticketPending && !_model.ticketScalarPresent {
@@ -3853,13 +3903,13 @@ func (_model *ReportsReport) Certificate(_ctx context.Context) (*ReportsCertific
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Certificate(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.certificateCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.certificateCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -3907,6 +3957,9 @@ func (_model *ReportsReport) Ticket(_ctx context.Context) (*TicketsTicket, error
 	}
 	if !_model.ticketScalarPresent {
 		return nil, relationFacadeRequiredRelated("ticket")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "ticket", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Ticket(_ctx)
 	if _err != nil {
@@ -4329,7 +4382,15 @@ func (_state *relationFacadeState) wrapSelectedReportsReportObject(_ctx context.
 	if _has, _err := _object._selectedGraph.HasSelection("ticket"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Ticket(_ctx)
+		var _present bool
+		_, _present, _err = _object.ticket.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Ticket(_ctx)
+			} else {
+				_err = _wrapped.ticketCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -4740,7 +4801,7 @@ func (_model *ReportsReview) relationFacadePrepareSave() error {
 	if _ticketState == orm.RelationAssignedPresent && !_ticketPresent {
 		return relationFacadeUnsavedRelated("ticket")
 	}
-	if _ticketState == orm.RelationAssignedAbsent || (_ticketState == orm.RelationUnassigned && !_model.ticketScalarPresent) {
+	if _ticketState == orm.RelationAssignedAbsent || (_ticketState != orm.RelationAssignedPresent && !_model.ticketScalarPresent) {
 		return relationFacadeRequiredRelated("ticket")
 	}
 	if _ticketState == orm.RelationAssignedPresent && !_ticketPending && !_model.ticketScalarPresent {
@@ -4888,6 +4949,9 @@ func (_model *ReportsReview) Ticket(_ctx context.Context) (*TicketsTicket, error
 	}
 	if !_model.ticketScalarPresent {
 		return nil, relationFacadeRequiredRelated("ticket")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "ticket", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Ticket(_ctx)
 	if _err != nil {
@@ -5300,7 +5364,15 @@ func (_state *relationFacadeState) wrapSelectedReportsReviewObject(_ctx context.
 	if _has, _err := _object._selectedGraph.HasSelection("ticket"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Ticket(_ctx)
+		var _present bool
+		_, _present, _err = _object.ticket.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Ticket(_ctx)
+			} else {
+				_err = _wrapped.ticketCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -5902,13 +5974,13 @@ func (_model *TicketsTicket) OptionalReport(_ctx context.Context) (*ReportsOptio
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.OptionalReport(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.optionalReportCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.optionalReportCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -5954,13 +6026,13 @@ func (_model *TicketsTicket) Report(_ctx context.Context) (*ReportsReport, bool,
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Report(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.reportCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.reportCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -6006,13 +6078,13 @@ func (_model *TicketsTicket) Review(_ctx context.Context) (*ReportsReview, bool,
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Review(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.reviewCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.reviewCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -6699,4 +6771,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_d2776f916b89945764b9d20eb106af46947071a9fe57f2c80016ef439f0e6937
+var _ goDjProjectSnapshot_10fd9b866a75d2cfd0dd549665844915f6d95b9ee29026adb8eec01341e6065c

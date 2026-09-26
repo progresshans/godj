@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v17"
-const GoDjProjectRelationFacadeInputSHA256 = "0c9a3f8f8f189d79e7c977ac3b6670d3866a7f07181710005ee3c4bfeb6990e4"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v18"
+const GoDjProjectRelationFacadeInputSHA256 = "91d4f42c0b3b884dcc63e3149bc8cb89e32182c61dfe9148c0f49d8542b1eb8e"
 
 type Backend interface {
 	db.Queryer
@@ -312,6 +312,34 @@ func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchOwner(
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
 	return _selector.selection
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeSinglePrefetch[S, T] {
 	if _err := _selector.state.validate(); _err != nil {
@@ -1416,7 +1444,7 @@ func (_model *BlogPost) relationFacadePrepareSave() error {
 	if _reviewerState == orm.RelationAssignedPresent && !_reviewerPresent {
 		return relationFacadeUnsavedRelated("reviewer")
 	}
-	if _authorState == orm.RelationAssignedAbsent || (_authorState == orm.RelationUnassigned && !_model.authorScalarPresent) {
+	if _authorState == orm.RelationAssignedAbsent || (_authorState != orm.RelationAssignedPresent && !_model.authorScalarPresent) {
 		return relationFacadeRequiredRelated("author")
 	}
 	if _authorState == orm.RelationAssignedPresent && !_authorPending && !_model.authorScalarPresent {
@@ -1651,6 +1679,9 @@ func (_model *BlogPost) Author(_ctx context.Context) (*AuthorsAuthor, error) {
 	if !_model.authorScalarPresent {
 		return nil, relationFacadeRequiredRelated("author")
 	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "author", Detail: "related object does not exist"}
+	}
 	_value, _err := _model.object.Author(_ctx)
 	if _err != nil {
 		return nil, _err
@@ -1697,13 +1728,13 @@ func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, er
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Reviewer(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.reviewerCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.reviewerCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -2116,7 +2147,15 @@ func (_state *relationFacadeState) wrapSelectedBlogPostObject(_ctx context.Conte
 	if _has, _err := _object._selectedGraph.HasSelection("author"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Author(_ctx)
+		var _present bool
+		_, _present, _err = _object.author.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Author(_ctx)
+			} else {
+				_err = _wrapped.authorCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -2233,4 +2272,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_d7d7eda9a3cc4cb15294c1a33c588069449e9aa33bf0906b7124a1ade01d9077
+var _ goDjProjectSnapshot_6e5d1c3f227bb779117691e191e975f75de6f88a11fe47085864fd44da25766f

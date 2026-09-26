@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v17"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v18"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -783,13 +783,13 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			fmt.Fprintln(output, "\t\t\treturn nil, false, _err")
 			fmt.Fprintln(output, "\t\t}")
 			fmt.Fprintln(output, "\t\treturn _target, true, nil")
-			fmt.Fprintln(output, "\tcase orm.RelationAssignedAbsent:")
+			fmt.Fprintln(output, "\tcase orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:")
 			fmt.Fprintln(output, "\t\treturn nil, false, nil")
 			fmt.Fprintln(output, "\t}")
 			fmt.Fprintf(output, "\t_value, _present, _err := _model.object.%s(_ctx)\n", relation.selector)
 			fmt.Fprintln(output, "\tif _err != nil || !_present {")
 			fmt.Fprintln(output, "\t\tif _err == nil {")
-			fmt.Fprintf(output, "\t\t\t_err = _model.%sCache.Store(orm.RelationAssignedAbsent, nil, false)\n", name)
+			fmt.Fprintf(output, "\t\t\t_err = _model.%sCache.Store(orm.RelationLoadedAbsent, nil, false)\n", name)
 			fmt.Fprintln(output, "\t\t}")
 			fmt.Fprintln(output, "\t\treturn nil, _present, _err")
 			fmt.Fprintln(output, "\t}")
@@ -831,6 +831,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintf(output, "\tif !_model.%sScalarPresent {\n", name)
 		fmt.Fprintf(output, "\t\treturn nil, relationFacadeRequiredRelated(%s)\n", strconv.Quote(relation.field.Name))
 		fmt.Fprintln(output, "\t}")
+		fmt.Fprintf(output, "if _state==orm.RelationLoadedAbsent{return nil,&query.Error{Category:query.CategoryModelState,Code:query.CodeRelatedObjectMissing,Field:%s,Detail:\"related object does not exist\"}}\n", strconv.Quote(relation.field.Name))
 		fmt.Fprintf(output, "\t_value, _err := _model.object.%s(_ctx)\n", relation.selector)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
@@ -1040,7 +1041,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 			continue
 		}
 		name := lowerFirst(relation.selector)
-		fmt.Fprintf(output, "\tif _%sState == orm.RelationAssignedAbsent || (_%sState == orm.RelationUnassigned && !_model.%sScalarPresent) {\n", name, name, name)
+		fmt.Fprintf(output, "\tif _%sState == orm.RelationAssignedAbsent || (_%sState != orm.RelationAssignedPresent && !_model.%sScalarPresent) {\n", name, name, name)
 		fmt.Fprintf(output, "\t\treturn relationFacadeRequiredRelated(%s)\n", strconv.Quote(relation.field.Name))
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintf(output, "\tif _%sState == orm.RelationAssignedPresent && !_%sPending && !_model.%sScalarPresent {\n", name, name, name)
@@ -1363,7 +1364,7 @@ func (_state *relationFacadeState) wrapSelected%[2]sObject(_ctx context.Context,
 		if relation.field.Nullable || relation.reverse {
 			fmt.Fprintf(output, "_,_,_err=_wrapped.%s(_ctx)\n", relation.selector)
 		} else {
-			fmt.Fprintf(output, "_,_err=_wrapped.%s(_ctx)\n", relation.selector)
+			fmt.Fprintf(output, "var _present bool\n_,_present,_err=_object.%s.Get(_ctx)\nif _err==nil{if _present{_,_err=_wrapped.%s(_ctx)}else{_err=_wrapped.%sCache.Store(orm.RelationLoadedAbsent,nil,false)}}\n", lowerFirst(relation.selector), relation.selector, lowerFirst(relation.selector))
 		}
 		fmt.Fprintln(output, "if _err!=nil{return nil,_err}\n}")
 	}

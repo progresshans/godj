@@ -9,7 +9,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
+const ProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"
 
 type RelationObjectPackage struct {
 	Alias      string
@@ -376,9 +376,9 @@ func renderProjectRelationObjectTypes(output *bytes.Buffer, source projectRelati
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintln(output, "\tif !_ok {")
 		fmt.Fprintf(output, "\t\treturn %s{}, &query.Error{\n", targetType)
-		fmt.Fprintln(output, "\t\t\tCategory: query.CategoryQuery,")
-		fmt.Fprintln(output, "\t\t\tCode:     query.CodeInvalidPlan,")
-		fmt.Fprintln(output, "\t\t\tDetail:   \"required relation object returned an absent result\",")
+		fmt.Fprintln(output, "\t\t\tCategory: query.CategoryModelState,")
+		fmt.Fprintln(output, "\t\t\tCode:     query.CodeRelatedObjectMissing,")
+		fmt.Fprintln(output, "\t\t\tDetail:   \"related object does not exist\",")
 		fmt.Fprintln(output, "\t\t}")
 		fmt.Fprintln(output, "\t}")
 		fmt.Fprintln(output, "\treturn _value, nil")

@@ -71,6 +71,18 @@ type relationFacadeSinglePrefetch[S,T any] struct {
 }
 func (_selector relationFacadeSinglePrefetch[S,T]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
 func (_selector relationFacadeSinglePrefetch[S,T]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
+func (_selector relationFacadeSinglePrefetch[S,T]) Filter(_values ...orm.Predicate[T])relationFacadeSinglePrefetch[S,T]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
+func (_selector relationFacadeSinglePrefetch[S,T]) OrderBy(_values ...orm.Ordering[T])relationFacadeSinglePrefetch[S,T]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
+func (_selector relationFacadeSinglePrefetch[S,T]) Distinct()relationFacadeSinglePrefetch[S,T]{_selector.selection=_selector.selection.Distinct();return _selector}
+func (_selector relationFacadeSinglePrefetch[S,T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T])relationFacadeSinglePrefetch[S,T]{
+ if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
+ _inputs:=make([]orm.RelatedSelection[T],len(_selectors))
+ for _index,_child:=range _selectors{
+  if relationFacadeNil(_child)||_child.relationFacadeSelectionOwner()!=_selector.state{_selector.selection=_selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"));return _selector}
+  _inputs[_index]=_child.relationFacadeSelectionValue()
+ }
+ _selector.selection=_selector.selection.SelectRelated(_inputs...);return _selector
+}
 func (_selector relationFacadeSinglePrefetch[S,T]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeSinglePrefetch[S,T]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))

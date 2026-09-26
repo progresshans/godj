@@ -28,7 +28,7 @@ cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 �
 
 ## 현재와 다음
 
-[독립 Django runner](../conformance/runners/django/many_to_many_reference.py)의 49개 관찰을 양 DB에서 확보했다.
+[독립 Django runner](../conformance/runners/django/many_to_many_reference.py)의 50개 관찰을 양 DB에서 확보했다.
 Columnless 선언·자동 through, 중복 add·실제 두 연결의 동시 add, set의 retained identity·payload·늦은 오류 rollback,
 자기 관계·조회 중복·cache snapshot·실제 historical migration과 signal을 관찰한다. GoDj의 구현 증거로 세지 않는다.
 Native conflict insert를 공통 AST·양 DB·ordinary/relation/coordinated session에 연결하고 영향 normal/race/CGO=0을 통과했다.
@@ -69,7 +69,10 @@ Query AST의 owner별 window를 양 DB compiler에 연결했다. 첫 join의 gro
 generated facade에 연결했다. 일반 manager·서로 다른 snapshot·중복 owner의 cache는 독립이며 nested/eager graph와
 실패 시 전체 publication·세션 수명을 유지한다. Custom ManyToMany는 grouping/membership owner의 전체 집합을 한 query에서
 유지하고, 큰 integer IN은 양 DB의 compact parameter로 조회한다. Facade ABI v17과 생성물을 갱신했다.
-Custom single target query와 소비자 통합은 이어서 연결한다.
+SinglePrefetch의 Filter·OrderBy·Distinct·target eager와 custom/명시적 child 구분을 연결했다.
+이미 eager로 읽은 부모를 재사용하고, 필터로 사라진 required target은 전체 목록을 실패시키지 않고 관계 접근에서 missing 오류를 반환한다.
+조회 부재를 해제 할당과 나눈 cache 상태는 파생·Save에서 FK와 cache를 보존한다. Facade v18·relation object v6과 생성물을 갱신했다.
+남은 materialization 계약과 소비자 통합은 이어서 연결한다.
 Prefetch 설정 query의 streaming에는 materialized batch 계약이 필요하므로 현재 명시 오류로 거부한다.
 나머지 target query 구성·Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.

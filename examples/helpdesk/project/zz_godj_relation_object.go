@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"
 
 type ModelsLabelObjectFactory struct {
 	_projectSelections *Objects
@@ -79,9 +79,9 @@ func (_object *ModelsLabelObject) Category(_ctx context.Context) (models.Categor
 	}
 	if !_ok {
 		return models.Category{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -160,9 +160,9 @@ func (_object *ModelsServiceReportObject) Ticket(_ctx context.Context) (models.T
 	}
 	if !_ok {
 		return models.Ticket{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -252,9 +252,9 @@ func (_object *ModelsTicketObject) Category(_ctx context.Context) (models.Catego
 	}
 	if !_ok {
 		return models.Category{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -350,9 +350,9 @@ func (_object *ModelsTicketLabelObject) Label(_ctx context.Context) (models.Labe
 	}
 	if !_ok {
 		return models.Label{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -368,9 +368,9 @@ func (_object *ModelsTicketLabelObject) Ticket(_ctx context.Context) (models.Tic
 	}
 	if !_ok {
 		return models.Ticket{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -491,4 +491,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_0881598bc5fbcfbae840112f3b8bc7a8d5514e5bd88cade0be9f4d7388f6e053
+var _ goDjProjectSnapshot_3eda37fc00e8b5ebdfcd9bb8c9aea0b84386985fcee1ccfc640b70e762009c6f

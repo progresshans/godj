@@ -133,7 +133,9 @@ PostgreSQL bigint array parameter로 조회해 owner 집합을 나누거나 정�
 설정된 prefetch query의 streaming은 아직 미지원이다.
 단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 같은 graph로 연결하며 root eager와 직접 조합해 이미 읽은 부모를 재사용한다.
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
-Custom single prefetch query, 관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.
+단일 관계 target의 Filter·OrderBy·Distinct·eager 구성을 지원한다. 이미 읽은 부모는 custom query를 건너뛰며 명시적 하위 경로는 유지한다.
+필터로 제외된 required target은 해당 관계 접근에서 missing 오류를 반환하며 부모 목록 조회는 성공한다. Nullable/reverse 부재는 bool로 구분한다.
+관계를 넘는 F와 collection value projection/ordering·일반 관계 집계는 미지원이다.
 OneToOne reverse/mixed materialization과 facade selector·문자열 경로는 같은 JOIN/행 검증 경로에서 지원한다.
 Incoming 정책을 가진 target의 outgoing FK는 보존하며 PROTECT·SET_NULL·삭제는 기존 AtomicRelation과 native FK 제약을 따른다.
 [관계 lookup 의미](adr/0040-composable-typed-boolean-predicates-and-article-search.md#직접-forward-대상의-scalar-lookup)를 따른다.

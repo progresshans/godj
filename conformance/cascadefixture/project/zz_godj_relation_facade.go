@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v17"
-const GoDjProjectRelationFacadeInputSHA256 = "5e9883ada74140460ce98344206cfa4803bdfc6fcb8a6a715f48251d11d6f8f6"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v18"
+const GoDjProjectRelationFacadeInputSHA256 = "dcbf9a4aa6b1e4b729be594625a6ae00d1453397525d298306eb492f0a8bf26b"
 
 type Backend interface {
 	db.Queryer
@@ -326,6 +326,34 @@ func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchOwner(
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) relationFacadePrefetchValue() orm.PrefetchSelection[S] {
 	return _selector.selection
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) Filter(_values ...orm.Predicate[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.Filter(_values...)
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) OrderBy(_values ...orm.Ordering[T]) relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.OrderBy(_values...)
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) Distinct() relationFacadeSinglePrefetch[S, T] {
+	_selector.selection = _selector.selection.Distinct()
+	return _selector
+}
+func (_selector relationFacadeSinglePrefetch[S, T]) SelectRelated(_selectors ...relationFacadeSelectionInput[T]) relationFacadeSinglePrefetch[S, T] {
+	if _err := _selector.state.validate(); _err != nil {
+		_selector.selection = _selector.selection.WithConfigurationError(_err)
+		return _selector
+	}
+	_inputs := make([]orm.RelatedSelection[T], len(_selectors))
+	for _index, _child := range _selectors {
+		if relationFacadeNil(_child) || _child.relationFacadeSelectionOwner() != _selector.state {
+			_selector.selection = _selector.selection.WithConfigurationError(relationFacadeQueryInvalid("target eager selection belongs to another facade origin"))
+			return _selector
+		}
+		_inputs[_index] = _child.relationFacadeSelectionValue()
+	}
+	_selector.selection = _selector.selection.SelectRelated(_inputs...)
+	return _selector
 }
 func (_selector relationFacadeSinglePrefetch[S, T]) WithChildren(_children ...relationFacadePrefetchInput[T]) relationFacadeSinglePrefetch[S, T] {
 	if _err := _selector.state.validate(); _err != nil {
@@ -757,7 +785,7 @@ func (_model *DetailsChild) relationFacadePrepareSave() error {
 	if _rootState == orm.RelationAssignedPresent && !_rootPresent {
 		return relationFacadeUnsavedRelated("root")
 	}
-	if _rootState == orm.RelationAssignedAbsent || (_rootState == orm.RelationUnassigned && !_model.rootScalarPresent) {
+	if _rootState == orm.RelationAssignedAbsent || (_rootState != orm.RelationAssignedPresent && !_model.rootScalarPresent) {
 		return relationFacadeRequiredRelated("root")
 	}
 	if _rootState == orm.RelationAssignedPresent && !_rootPending && !_model.rootScalarPresent {
@@ -884,6 +912,9 @@ func (_model *DetailsChild) Root(_ctx context.Context) (*ParentsRoot, error) {
 	}
 	if !_model.rootScalarPresent {
 		return nil, relationFacadeRequiredRelated("root")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "root", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Root(_ctx)
 	if _err != nil {
@@ -1379,7 +1410,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsChildObject(_ctx context.C
 	if _has, _err := _object._selectedGraph.HasSelection("root"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Root(_ctx)
+		var _present bool
+		_, _present, _err = _object.root.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Root(_ctx)
+			} else {
+				_err = _wrapped.rootCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -1790,7 +1829,7 @@ func (_model *DetailsDetail) relationFacadePrepareSave() error {
 	if _rootState == orm.RelationAssignedPresent && !_rootPresent {
 		return relationFacadeUnsavedRelated("root")
 	}
-	if _rootState == orm.RelationAssignedAbsent || (_rootState == orm.RelationUnassigned && !_model.rootScalarPresent) {
+	if _rootState == orm.RelationAssignedAbsent || (_rootState != orm.RelationAssignedPresent && !_model.rootScalarPresent) {
 		return relationFacadeRequiredRelated("root")
 	}
 	if _rootState == orm.RelationAssignedPresent && !_rootPending && !_model.rootScalarPresent {
@@ -1938,6 +1977,9 @@ func (_model *DetailsDetail) Root(_ctx context.Context) (*ParentsRoot, error) {
 	}
 	if !_model.rootScalarPresent {
 		return nil, relationFacadeRequiredRelated("root")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "root", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Root(_ctx)
 	if _err != nil {
@@ -2350,7 +2392,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsDetailObject(_ctx context.
 	if _has, _err := _object._selectedGraph.HasSelection("root"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Root(_ctx)
+		var _present bool
+		_, _present, _err = _object.root.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Root(_ctx)
+			} else {
+				_err = _wrapped.rootCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -2751,7 +2801,7 @@ func (_model *DetailsGrandchild) relationFacadePrepareSave() error {
 	if _childState == orm.RelationAssignedPresent && !_childPresent {
 		return relationFacadeUnsavedRelated("child")
 	}
-	if _childState == orm.RelationAssignedAbsent || (_childState == orm.RelationUnassigned && !_model.childScalarPresent) {
+	if _childState == orm.RelationAssignedAbsent || (_childState != orm.RelationAssignedPresent && !_model.childScalarPresent) {
 		return relationFacadeRequiredRelated("child")
 	}
 	if _childState == orm.RelationAssignedPresent && !_childPending && !_model.childScalarPresent {
@@ -2878,6 +2928,9 @@ func (_model *DetailsGrandchild) Child(_ctx context.Context) (*DetailsChild, err
 	}
 	if !_model.childScalarPresent {
 		return nil, relationFacadeRequiredRelated("child")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "child", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Child(_ctx)
 	if _err != nil {
@@ -3290,7 +3343,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsGrandchildObject(_ctx cont
 	if _has, _err := _object._selectedGraph.HasSelection("child"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Child(_ctx)
+		var _present bool
+		_, _present, _err = _object.child.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Child(_ctx)
+			} else {
+				_err = _wrapped.childCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -3691,7 +3752,7 @@ func (_model *DetailsHidden) relationFacadePrepareSave() error {
 	if _rootState == orm.RelationAssignedPresent && !_rootPresent {
 		return relationFacadeUnsavedRelated("root")
 	}
-	if _rootState == orm.RelationAssignedAbsent || (_rootState == orm.RelationUnassigned && !_model.rootScalarPresent) {
+	if _rootState == orm.RelationAssignedAbsent || (_rootState != orm.RelationAssignedPresent && !_model.rootScalarPresent) {
 		return relationFacadeRequiredRelated("root")
 	}
 	if _rootState == orm.RelationAssignedPresent && !_rootPending && !_model.rootScalarPresent {
@@ -3818,6 +3879,9 @@ func (_model *DetailsHidden) Root(_ctx context.Context) (*ParentsRoot, error) {
 	}
 	if !_model.rootScalarPresent {
 		return nil, relationFacadeRequiredRelated("root")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "root", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Root(_ctx)
 	if _err != nil {
@@ -4230,7 +4294,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsHiddenObject(_ctx context.
 	if _has, _err := _object._selectedGraph.HasSelection("root"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Root(_ctx)
+		var _present bool
+		_, _present, _err = _object.root.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Root(_ctx)
+			} else {
+				_err = _wrapped.rootCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -4691,13 +4763,13 @@ func (_model *DetailsOverlap) relationFacadePrepareSave() error {
 	if _protectedRootState == orm.RelationAssignedPresent && !_protectedRootPresent {
 		return relationFacadeUnsavedRelated("protected_root")
 	}
-	if _cascadeRootState == orm.RelationAssignedAbsent || (_cascadeRootState == orm.RelationUnassigned && !_model.cascadeRootScalarPresent) {
+	if _cascadeRootState == orm.RelationAssignedAbsent || (_cascadeRootState != orm.RelationAssignedPresent && !_model.cascadeRootScalarPresent) {
 		return relationFacadeRequiredRelated("cascade_root")
 	}
 	if _cascadeRootState == orm.RelationAssignedPresent && !_cascadeRootPending && !_model.cascadeRootScalarPresent {
 		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
 	}
-	if _protectedRootState == orm.RelationAssignedAbsent || (_protectedRootState == orm.RelationUnassigned && !_model.protectedRootScalarPresent) {
+	if _protectedRootState == orm.RelationAssignedAbsent || (_protectedRootState != orm.RelationAssignedPresent && !_model.protectedRootScalarPresent) {
 		return relationFacadeRequiredRelated("protected_root")
 	}
 	if _protectedRootState == orm.RelationAssignedPresent && !_protectedRootPending && !_model.protectedRootScalarPresent {
@@ -4908,6 +4980,9 @@ func (_model *DetailsOverlap) CascadeRoot(_ctx context.Context) (*ParentsRoot, e
 	if !_model.cascadeRootScalarPresent {
 		return nil, relationFacadeRequiredRelated("cascade_root")
 	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "cascade_root", Detail: "related object does not exist"}
+	}
 	_value, _err := _model.object.CascadeRoot(_ctx)
 	if _err != nil {
 		return nil, _err
@@ -4956,6 +5031,9 @@ func (_model *DetailsOverlap) ProtectedRoot(_ctx context.Context) (*ParentsRoot,
 	}
 	if !_model.protectedRootScalarPresent {
 		return nil, relationFacadeRequiredRelated("protected_root")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "protected_root", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.ProtectedRoot(_ctx)
 	if _err != nil {
@@ -5370,7 +5448,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsOverlapObject(_ctx context
 	if _has, _err := _object._selectedGraph.HasSelection("cascade_root"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.CascadeRoot(_ctx)
+		var _present bool
+		_, _present, _err = _object.cascadeRoot.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.CascadeRoot(_ctx)
+			} else {
+				_err = _wrapped.cascadeRootCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -5378,7 +5464,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsOverlapObject(_ctx context
 	if _has, _err := _object._selectedGraph.HasSelection("protected_root"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.ProtectedRoot(_ctx)
+		var _present bool
+		_, _present, _err = _object.protectedRoot.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.ProtectedRoot(_ctx)
+			} else {
+				_err = _wrapped.protectedRootCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -5789,7 +5883,7 @@ func (_model *DetailsProtected) relationFacadePrepareSave() error {
 	if _grandchildState == orm.RelationAssignedPresent && !_grandchildPresent {
 		return relationFacadeUnsavedRelated("grandchild")
 	}
-	if _grandchildState == orm.RelationAssignedAbsent || (_grandchildState == orm.RelationUnassigned && !_model.grandchildScalarPresent) {
+	if _grandchildState == orm.RelationAssignedAbsent || (_grandchildState != orm.RelationAssignedPresent && !_model.grandchildScalarPresent) {
 		return relationFacadeRequiredRelated("grandchild")
 	}
 	if _grandchildState == orm.RelationAssignedPresent && !_grandchildPending && !_model.grandchildScalarPresent {
@@ -5916,6 +6010,9 @@ func (_model *DetailsProtected) Grandchild(_ctx context.Context) (*DetailsGrandc
 	}
 	if !_model.grandchildScalarPresent {
 		return nil, relationFacadeRequiredRelated("grandchild")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "grandchild", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Grandchild(_ctx)
 	if _err != nil {
@@ -6328,7 +6425,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsProtectedObject(_ctx conte
 	if _has, _err := _object._selectedGraph.HasSelection("grandchild"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Grandchild(_ctx)
+		var _present bool
+		_, _present, _err = _object.grandchild.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Grandchild(_ctx)
+			} else {
+				_err = _wrapped.grandchildCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -6729,7 +6834,7 @@ func (_model *DetailsRequiredRight) relationFacadePrepareSave() error {
 	if _leftState == orm.RelationAssignedPresent && !_leftPresent {
 		return relationFacadeUnsavedRelated("left")
 	}
-	if _leftState == orm.RelationAssignedAbsent || (_leftState == orm.RelationUnassigned && !_model.leftScalarPresent) {
+	if _leftState == orm.RelationAssignedAbsent || (_leftState != orm.RelationAssignedPresent && !_model.leftScalarPresent) {
 		return relationFacadeRequiredRelated("left")
 	}
 	if _leftState == orm.RelationAssignedPresent && !_leftPending && !_model.leftScalarPresent {
@@ -6856,6 +6961,9 @@ func (_model *DetailsRequiredRight) Left(_ctx context.Context) (*ParentsRequired
 	}
 	if !_model.leftScalarPresent {
 		return nil, relationFacadeRequiredRelated("left")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "left", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Left(_ctx)
 	if _err != nil {
@@ -7268,7 +7376,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsRequiredRightObject(_ctx c
 	if _has, _err := _object._selectedGraph.HasSelection("left"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Left(_ctx)
+		var _present bool
+		_, _present, _err = _object.left.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Left(_ctx)
+			} else {
+				_err = _wrapped.leftCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -7669,7 +7785,7 @@ func (_model *DetailsRight) relationFacadePrepareSave() error {
 	if _leftState == orm.RelationAssignedPresent && !_leftPresent {
 		return relationFacadeUnsavedRelated("left")
 	}
-	if _leftState == orm.RelationAssignedAbsent || (_leftState == orm.RelationUnassigned && !_model.leftScalarPresent) {
+	if _leftState == orm.RelationAssignedAbsent || (_leftState != orm.RelationAssignedPresent && !_model.leftScalarPresent) {
 		return relationFacadeRequiredRelated("left")
 	}
 	if _leftState == orm.RelationAssignedPresent && !_leftPending && !_model.leftScalarPresent {
@@ -7796,6 +7912,9 @@ func (_model *DetailsRight) Left(_ctx context.Context) (*ParentsLeft, error) {
 	}
 	if !_model.leftScalarPresent {
 		return nil, relationFacadeRequiredRelated("left")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "left", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Left(_ctx)
 	if _err != nil {
@@ -8208,7 +8327,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsRightObject(_ctx context.C
 	if _has, _err := _object._selectedGraph.HasSelection("left"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Left(_ctx)
+		var _present bool
+		_, _present, _err = _object.left.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Left(_ctx)
+			} else {
+				_err = _wrapped.leftCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -8669,13 +8796,13 @@ func (_model *DetailsTwin) relationFacadePrepareSave() error {
 	if _secondState == orm.RelationAssignedPresent && !_secondPresent {
 		return relationFacadeUnsavedRelated("second")
 	}
-	if _firstState == orm.RelationAssignedAbsent || (_firstState == orm.RelationUnassigned && !_model.firstScalarPresent) {
+	if _firstState == orm.RelationAssignedAbsent || (_firstState != orm.RelationAssignedPresent && !_model.firstScalarPresent) {
 		return relationFacadeRequiredRelated("first")
 	}
 	if _firstState == orm.RelationAssignedPresent && !_firstPending && !_model.firstScalarPresent {
 		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
 	}
-	if _secondState == orm.RelationAssignedAbsent || (_secondState == orm.RelationUnassigned && !_model.secondScalarPresent) {
+	if _secondState == orm.RelationAssignedAbsent || (_secondState != orm.RelationAssignedPresent && !_model.secondScalarPresent) {
 		return relationFacadeRequiredRelated("second")
 	}
 	if _secondState == orm.RelationAssignedPresent && !_secondPending && !_model.secondScalarPresent {
@@ -8886,6 +9013,9 @@ func (_model *DetailsTwin) First(_ctx context.Context) (*ParentsRoot, error) {
 	if !_model.firstScalarPresent {
 		return nil, relationFacadeRequiredRelated("first")
 	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "first", Detail: "related object does not exist"}
+	}
 	_value, _err := _model.object.First(_ctx)
 	if _err != nil {
 		return nil, _err
@@ -8934,6 +9064,9 @@ func (_model *DetailsTwin) Second(_ctx context.Context) (*ParentsRoot, error) {
 	}
 	if !_model.secondScalarPresent {
 		return nil, relationFacadeRequiredRelated("second")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "second", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Second(_ctx)
 	if _err != nil {
@@ -9348,7 +9481,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsTwinObject(_ctx context.Co
 	if _has, _err := _object._selectedGraph.HasSelection("first"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.First(_ctx)
+		var _present bool
+		_, _present, _err = _object.first.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.First(_ctx)
+			} else {
+				_err = _wrapped.firstCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -9356,7 +9497,15 @@ func (_state *relationFacadeState) wrapSelectedDetailsTwinObject(_ctx context.Co
 	if _has, _err := _object._selectedGraph.HasSelection("second"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Second(_ctx)
+		var _present bool
+		_, _present, _err = _object.second.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Second(_ctx)
+			} else {
+				_err = _wrapped.secondCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -9925,13 +10074,13 @@ func (_model *DetailsWatcher) Child(_ctx context.Context) (*DetailsChild, bool, 
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Child(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.childCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.childCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -11155,13 +11304,13 @@ func (_model *ParentsLeft) Right(_ctx context.Context) (*DetailsRight, bool, err
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Right(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.rightCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.rightCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -12131,13 +12280,13 @@ func (_model *ParentsNode) Parent(_ctx context.Context) (*ParentsNode, bool, err
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Parent(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.parentCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.parentCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -12949,7 +13098,7 @@ func (_model *ParentsRequiredLeft) relationFacadePrepareSave() error {
 	if _rightState == orm.RelationAssignedPresent && !_rightPresent {
 		return relationFacadeUnsavedRelated("right")
 	}
-	if _rightState == orm.RelationAssignedAbsent || (_rightState == orm.RelationUnassigned && !_model.rightScalarPresent) {
+	if _rightState == orm.RelationAssignedAbsent || (_rightState != orm.RelationAssignedPresent && !_model.rightScalarPresent) {
 		return relationFacadeRequiredRelated("right")
 	}
 	if _rightState == orm.RelationAssignedPresent && !_rightPending && !_model.rightScalarPresent {
@@ -13076,6 +13225,9 @@ func (_model *ParentsRequiredLeft) Right(_ctx context.Context) (*DetailsRequired
 	}
 	if !_model.rightScalarPresent {
 		return nil, relationFacadeRequiredRelated("right")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "right", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Right(_ctx)
 	if _err != nil {
@@ -13488,7 +13640,15 @@ func (_state *relationFacadeState) wrapSelectedParentsRequiredLeftObject(_ctx co
 	if _has, _err := _object._selectedGraph.HasSelection("right"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Right(_ctx)
+		var _present bool
+		_, _present, _err = _object.right.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Right(_ctx)
+			} else {
+				_err = _wrapped.rightCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -13930,13 +14090,13 @@ func (_model *ParentsRoot) Detail(_ctx context.Context) (*DetailsDetail, bool, e
 			return nil, false, _err
 		}
 		return _target, true, nil
-	case orm.RelationAssignedAbsent:
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
 		return nil, false, nil
 	}
 	_value, _present, _err := _model.object.Detail(_ctx)
 	if _err != nil || !_present {
 		if _err == nil {
-			_err = _model.detailCache.Store(orm.RelationAssignedAbsent, nil, false)
+			_err = _model.detailCache.Store(orm.RelationLoadedAbsent, nil, false)
 		}
 		return nil, _present, _err
 	}
@@ -14901,13 +15061,13 @@ func (_model *ParentsRootLabels) relationFacadePrepareSave() error {
 	if _rootState == orm.RelationAssignedPresent && !_rootPresent {
 		return relationFacadeUnsavedRelated("root")
 	}
-	if _labelState == orm.RelationAssignedAbsent || (_labelState == orm.RelationUnassigned && !_model.labelScalarPresent) {
+	if _labelState == orm.RelationAssignedAbsent || (_labelState != orm.RelationAssignedPresent && !_model.labelScalarPresent) {
 		return relationFacadeRequiredRelated("label")
 	}
 	if _labelState == orm.RelationAssignedPresent && !_labelPending && !_model.labelScalarPresent {
 		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
 	}
-	if _rootState == orm.RelationAssignedAbsent || (_rootState == orm.RelationUnassigned && !_model.rootScalarPresent) {
+	if _rootState == orm.RelationAssignedAbsent || (_rootState != orm.RelationAssignedPresent && !_model.rootScalarPresent) {
 		return relationFacadeRequiredRelated("root")
 	}
 	if _rootState == orm.RelationAssignedPresent && !_rootPending && !_model.rootScalarPresent {
@@ -15118,6 +15278,9 @@ func (_model *ParentsRootLabels) Label(_ctx context.Context) (*ParentsLabel, err
 	if !_model.labelScalarPresent {
 		return nil, relationFacadeRequiredRelated("label")
 	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "label", Detail: "related object does not exist"}
+	}
 	_value, _err := _model.object.Label(_ctx)
 	if _err != nil {
 		return nil, _err
@@ -15166,6 +15329,9 @@ func (_model *ParentsRootLabels) Root(_ctx context.Context) (*ParentsRoot, error
 	}
 	if !_model.rootScalarPresent {
 		return nil, relationFacadeRequiredRelated("root")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "root", Detail: "related object does not exist"}
 	}
 	_value, _err := _model.object.Root(_ctx)
 	if _err != nil {
@@ -15580,7 +15746,15 @@ func (_state *relationFacadeState) wrapSelectedParentsRootLabelsObject(_ctx cont
 	if _has, _err := _object._selectedGraph.HasSelection("label"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Label(_ctx)
+		var _present bool
+		_, _present, _err = _object.label.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Label(_ctx)
+			} else {
+				_err = _wrapped.labelCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -15588,7 +15762,15 @@ func (_state *relationFacadeState) wrapSelectedParentsRootLabelsObject(_ctx cont
 	if _has, _err := _object._selectedGraph.HasSelection("root"); _err != nil {
 		return nil, _err
 	} else if _has {
-		_, _err = _wrapped.Root(_ctx)
+		var _present bool
+		_, _present, _err = _object.root.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Root(_ctx)
+			} else {
+				_err = _wrapped.rootCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
 		if _err != nil {
 			return nil, _err
 		}
@@ -15851,4 +16033,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_ea0973ed3504351be5d891ff30d8d4deb4e49cc243d0e436c644ce3fb29b7359
+var _ goDjProjectSnapshot_4a1c0bac93733f906e4af7c3105631e94212d2ff4546a87766d9a300d35f5b27

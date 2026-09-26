@@ -40,10 +40,55 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
-        self.assertEqual(len(actual['observations']), 49)
+        self.assertEqual(len(actual['observations']), 50)
         postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
         for field in ('observations', 'source_sha256'):
             self.assertEqual(actual[field], postgres[field])
+
+    def test_custom_single_prefetch_keeps_absence_and_eager_reuse(self):
+        cases = self.snapshots[0]['observations']['prefetch_custom_single']
+        missing = {'error': 'RelatedObjectDoesNotExist'}
+        self.assertEqual(cases['required_filtered'], {
+            'members': [['first', ['a', 'b']], ['first', ['a', 'b']], missing],
+            'batch_queries': 3, 'warm_queries': 0,
+        })
+        self.assertEqual(cases['nullable_filtered'], {
+            'members': ['first', None, None], 'batch_queries': 2, 'warm_queries': 0,
+        })
+        self.assertEqual(cases['reverse_filtered'], {
+            'members': [missing, 'visible'], 'batch_queries': 2, 'warm_queries': 0,
+        })
+        for name, batch, warm in [('required_eager_custom_children', 1, 3),
+                                  ('required_eager_explicit_children', 2, 0)]:
+            self.assertEqual(cases[name], {
+                'members': [['first', ['a', 'b']], ['first', ['a', 'b']], ['second', ['b']]],
+                'batch_queries': batch, 'warm_queries': warm,
+            })
+        self.assertEqual(cases['required_join_duplicates'], {
+            'members': ['first', 'first', 'second'], 'batch_queries': 2, 'warm_queries': 0,
+        })
+        self.assertEqual(cases['target_eager'], {
+            'members': [[1, 'first'], None, None], 'batch_queries': 2, 'warm_queries': 0,
+        })
+        for name in ['required_slice', 'required_named_slice']:
+            self.assertEqual(cases[name], {'error': 'TypeError', 'batch_queries': 1})
+
+    def test_single_filter_and_eager_semantic_mutations_are_detected(self):
+        source = RUNNER.read_text()
+        for name, before, after in [
+            ('required_filtered', 'custom_owners = RankedOwner.objects.filter(name="first")',
+             'custom_owners = RankedOwner.objects.all()'),
+            ('required_eager_custom_children',
+             'single_cases["required_eager_custom_children"] = probe_single(base_links.select_related("owner").prefetch_related(',
+             'single_cases["required_eager_custom_children"] = probe_single(base_links.prefetch_related('),
+        ]:
+            with self.subTest(name=name):
+                self.assertEqual(source.count(before), 1)
+                with tempfile.TemporaryDirectory(prefix='godj-single-prefetch-mutation-') as directory:
+                    path = Path(directory) / 'reference.py'
+                    path.write_text(source.replace(before, after, 1))
+                    actual = capture(path, '0')['observations']['prefetch_custom_single'][name]
+                self.assertNotEqual(actual, self.snapshots[0]['observations']['prefetch_custom_single'][name])
 
     def test_columnless_declaration_and_concurrent_add_own_only_links(self):
         cases = self.snapshots[0]['observations']

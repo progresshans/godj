@@ -188,7 +188,7 @@ Filter 등 refinement를 적용하면 평가와 하위 graph를 함께 버린다
 고정 Django에서 custom target query의 관계 조건은 prefetch membership과 연결 행을 공유한다.
 예를 들어 Label을 `owners.name=first`와 `owners.name=second`로 연속 Filter하면 두 through join이 생긴다.
 Owner batch 조건은 가장 최근의 일치하는 join을 재사용하지만 결과를 owner에 묶는 column은 첫 join에서 읽는다.
-중첩 조회·필터·정렬·캐시 변경·eager 조합·owner별 slice와 이 scope 차이를 포함한 독립 관찰은 49개이며, 제품 완료와 구분한다.
+중첩 조회·필터·정렬·캐시 변경·eager 조합·owner별 slice와 이 scope 차이를 포함한 독립 관찰은 custom single 사례를 포함한 50개이며, 제품 완료와 구분한다.
 
 `query.Plan.ForPrefetchOwners`는 원래 target query의 WHERE·정렬·DISTINCT를 유지한다.
 새 `ResultPrefetch`는 source model과 eager target들의 기존 scan 순서 뒤에 owner key 한 cell을 추가한다.
@@ -237,7 +237,24 @@ NULL relation의 lazy/eager/prefetch handle도 backend의 session 수명을 유�
 
 Cold First는 source를 하나만 decode한 뒤 그 graph를 구성하며 full evaluation cache를 채우지 않는다. Count는 child I/O를 하지 않는다.
 Filter·정렬·Distinct·source slice·Fresh는 같은 준비된 관계 tree를 새 source 평가에 적용한다. 실패와 취소는 부분 graph를 공개하지 않는다.
-`SinglePrefetch`의 custom target query와 materialized streaming은 별도 남은 범위다.
+`SinglePrefetch`는 target의 `Filter`·`OrderBy`·`Distinct`·`SelectRelated`를 같은 Query AST로 구성한다.
+Custom filter join이 같은 target PK를 반복하면 첫 행을 사용한다. 같은 owner에 서로 다른 target PK가 나온 경우에는
+단일 관계 cardinality 오류를 유지한다. Custom query가 없는 조회에서 중복 행을 허용하는 것으로 넓히지 않는다.
+Target eager와 child graph는 모든 rowset을 닫고 검증한 뒤 함께 publish한다. Default target과 reverse owner key의 각 partition은
+독립이므로 고유 key의 999개 batch를 유지한다. Slice는 단일 target query에서 지원하지 않는다.
+
+Custom selector에 포함한 WithChildren은 target query의 설정이다. 이미 eager로 읽은 부모는 해당 target query 전체를
+건너뛰므로 filter·target eager·그 안의 child를 재실행하지 않는다. Custom selector 뒤에 별도로 추가한 typed/path descendant는
+이미 읽은 부모에도 적용한다. 앞서 선택한 lookup에 custom query를 다시 지정하면 I/O 전에 거부한다.
+
+필터로 대상이 제외되어도 source model은 반환한다. Required accessor는 `related_object_missing` 오류를 반환하고 nullable와
+reverse accessor는 기존 bool 부재 계약을 따른다. Generated facade의 eager cache 채움 단계는 required 부재를 목록 전체의
+오류로 승격하지 않는다. `RelationLoadedAbsent`는 조회 결과이며 `RelationAssignedAbsent`의 해제 할당과 다르다.
+읽기 cache를 복사하거나 같은 FK로 파생·Save해도 저장할 FK를 비우지 않으며, required source key 자체가 없으면 저장을 거부한다.
+실제로 FK를 바꾸면 해당 cache를 버리고 기본 관계를 다시 읽는다. Low-level object의 Fresh는 custom filter/graph를 버리고
+원래 관계를 읽으며 기존 객체의 부재 cache는 유지한다. Session 종료 뒤에는 부재 cache도 사용할 수 없다.
+
+Prefetch 설정 query의 materialized streaming은 별도 남은 범위다.
 
 
 ### 역방향 컬렉션과 target eager 구성
@@ -261,7 +278,7 @@ projection key/model key 불일치는 전체 행을 공개하기 전에 거부�
 역방향 `RelatedSet`은 기본 owner scope와 현재 query/cache를 구분한다. Query는 held snapshot을 반환하고 manager Fresh/Invalidate는
 기본 scope·기본 정렬로 돌아간다. 이미 보유한 query·다른 materialization은 변하지 않는다. Query snapshot과 Invalidate의 교체는
 같은 mutex가 소유하며 session 종료 후에는 cache도 읽을 수 없다. 이 collection 연결은 읽기·조회 cache 범위이며 역방향 FK 변경 API의 완성을 뜻하지 않는다.
-Facade ABI는 v17이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
+Facade ABI는 v18, relation object ABI는 v6이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
 
 ### Owner별 slice 조회 계획
 

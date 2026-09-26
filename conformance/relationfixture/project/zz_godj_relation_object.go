@@ -12,7 +12,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v5"
+const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"
 
 type BlogPostReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[blog.Post, authors.Author]
@@ -96,9 +96,9 @@ func (_object *BlogPostObject) Author(_ctx context.Context) (authors.Author, err
 	}
 	if !_ok {
 		return authors.Author{}, &query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeInvalidPlan,
-			Detail:   "required relation object returned an absent result",
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
 		}
 	}
 	return _value, nil
@@ -168,4 +168,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_d7d7eda9a3cc4cb15294c1a33c588069449e9aa33bf0906b7124a1ade01d9077
+var _ goDjProjectSnapshot_6e5d1c3f227bb779117691e191e975f75de6f88a11fe47085864fd44da25766f
