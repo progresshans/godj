@@ -16,7 +16,11 @@ Non-Markdown **2,272 파일** source map SHA-256
 `relation-required.txt`·`postgres-core-required.txt`에 추가한 중복 빈 줄이 원인이었다. 실제 필수 test 항목은 빠지거나 중복되지 않았다.
 빈 줄만 제거한 source map은 `85889e77b8981b6bf1128d9881468970c4bf60a833af6458f53b060f8bc0f3ab`이다.
 전후 map에서 이 두 roster 외 모든 non-Markdown bytes가 같음을 확인했다. 로컬 CI Python **41/41**을 통과했다.
-위 source의 Go 구현·생성물·test는 아래 checkpoint와 같으며, source binding이 달라진 Linux capture는 별도로 다시 생성한다.
+위 source의 Go 구현·생성물·test는 아래 checkpoint와 같다. 수정 commit `610ebe18e94ed8566fc6a57a8a26ace1cfac18ba`의
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36270067564)는 실제 **Fast Go feedback** step까지 성공했다.
+Documentation-only skip이나 Hosted full 성공으로 해석하지 않는다.
+Source binding이 달라진 Linux producer 2 roots를 새로 실행해 **2 PASS / skip 0**, 43.688초를 기록했다.
+새 capture/checksum을 읽은 실제 godjcheck의 **30 contracts**도 통과했다. 전후 source 동일, PG `0|0|0`, container/network 제거 완료.
 
 
 Darwin arm64 / Go 1.26.5에서 **28 packages, 460 required roots**를 선언하고 전체 test/package completion과 no-skip을 검사했다.
@@ -78,6 +82,8 @@ Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-m
 - `identity-integration-1790453155978286000/`: 같은 source의 재사용한 normal 결과 및 첫 process 환경 실패.
 - `identity-linux-producers-1790453651919127000/receipt.json`: 실제 Linux producers, 원본 capture와 owner별 checksum,
   `consumer-final-receipt.json`·`system-state-actual.json` 및 consumer stream.
+- `identity-linux-producers-1790454895131988000/receipt.json`: roster 빈 줄 수정 뒤 source `85889e77…`의 새 producers와 capture,
+  owner별 checksum·`consumer-final-receipt.json`·`system-state-actual.json` 및 consumer stream.
 - `identity-transition-controls-1790453913764348000/receipt.json`: 8개 control; 같은 source의 선행 3개 결과 경로 포함.
 
 아래 저장 인증 중간 checkpoint는 그 당시의 상태다. 그때 남아 있던 Article/Helpdesk·CLI·재시작 연결은 위 통합에서 검증했다.

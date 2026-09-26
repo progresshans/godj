@@ -19,11 +19,12 @@ Account의 비밀 표현·복사 소유권, 권한 초과·잘못된 저장값·
 [구현 현황](IMPLEMENTATION_MATRIX.md)이 현재 지원 범위를 설명한다.
 새 identity/생성 변경에 이전 Hosted 전체 성공을 전이하지 않는다.
 
-작업 트리에서 저장 인증·active/staff/superuser와 명시적 identity 전환을 연결했다.
+저장 인증·active/staff/superuser와 명시적 identity 전환을 연결해 Draft PR #1에 게시했다.
 새 system migration, operator adoption/첫 계정 생성, 원자적 소유권 기록과 옛 credential 비활성 표시를 구현했다.
 Article/Helpdesk·createsuperuser/runserver 및 기존 Article 세션을 이전하는 명령을 연결했다.
 잘못된 fmt 형식의 credential 진단 노출도 발견해 불투명한 내부 상태로 수정했다.
 영향 normal·race·CGO=0, 양 DB와 Linux의 별도 프로세스/capture·system-state 소비자 검증을 완료했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36270067564)는 `610ebe18`의 실제 Go 검사를 통과했다.
 현재 변경의 Hosted 전체 검증은 관리 소비자 통합 milestone이 소유한다.
 실행 상태·실패와 보정 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
 
