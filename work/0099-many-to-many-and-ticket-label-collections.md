@@ -8,7 +8,7 @@ integration_owner: "root"
 
 # ManyToMany 선언과 Ticket 라벨 컬렉션
 
-Ticket에 선언한 labels 관계로 라벨 집합을 읽고 편집한다. 기존 TicketLabel의 행과 endpoint를 보존하면서
+Ticket에 labels 관계를 선언해 라벨 집합을 읽고 편집한다. 기존 TicketLabel의 행과 endpoint를 보존하면서
 Form/Admin/API/OpenAPI·독립 client까지 연결한다. 자동 intermediary, payload가 있는 명시적 intermediary,
 cross-app과 대칭/비대칭 자기 관계는 별도 generated fixture에서 같은 공개 API로 확인한다.
 이는 [카탈로그](../docs/CAPABILITY_CATALOG.md)의 일반 ManyToMany 범위이며 명시적 연결 CRUD의 별칭을 추가하는 작업이 아니다.
@@ -77,9 +77,10 @@ Streaming의 배치 크기·중단·warm cache 우회·owner scope에 대한 독
 PostgreSQL FETCH rowset을 닫은 뒤 같은 세션에서 하위 조회·쓰기를 실행한다. SQLite raw transaction의 Goexit 정리 누락도 보완했다.
 일반 backend의 배치 조회와 pinned 실행 범위를 추가했다. 반환 executor는 종료 뒤 원래 backend로 복귀하며 borrowed session 수명과 구분한다.
 고정 연결의 raw transaction은 종료 SQL을 직접 소유하고, SQLite retention과 PostgreSQL cursor/불명 outcome 정리를 유지한다.
-이는 실행 기반이며 model graph·facade origin과 실행 backend 분리·generated streaming과 소비자 통합은 이어서 연결한다.
-Prefetch 설정 query의 streaming에는 materialized batch 계약이 필요하므로 현재 명시 오류로 거부한다.
-나머지 target query 구성·Ticket 컬렉션 소비자는 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
+공통 model 배치 materialization과 generated plain/eager/prefetch Iterate를 연결했다. Callback context가 같은 backend의 ORM I/O를
+해당 실행 연결로 전달하며 model origin·identity·기존 cache는 유지한다. 양 DB 영향 checkpoint와 nil 행 방어의 후속 검증을 마쳤다.
+기존 raw Iterate는 graph 없는 callback으로 설정을 버리지 않도록 계속 명시 오류로 거부한다. Generated Iterate는 명시한 양수 배치 크기를 요구한다.
+Ticket 컬렉션 소비자와 환경별 통합은 아직 남아 있으므로 해당 통합 조건은 완료로 표시하지 않는다.
 [Storage·변경 소유권](../docs/adr/0075-many-to-many-storage-and-mutation-ownership.md)을 채택했다.
 동시 add를 사전 존재 조회와 일반 INSERT로 구현하지 않으며, 삽입하지 않은 결과에 생성 PK를 합성하지 않는다.
 각 신규 기능의 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)가 소유한다.

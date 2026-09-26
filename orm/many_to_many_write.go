@@ -109,8 +109,18 @@ func (c *ManyCollection[T, L]) change(ctx context.Context, operation manyChange,
 	if err := validateQuerySession(ctx, c.backend); err != nil {
 		return err
 	}
-	if _, borrowed := c.backend.(db.SessionValidator); borrowed && c.session == nil {
+	effective, err := executionBackend(ctx, c.backend)
+	if err != nil {
+		return err
+	}
+	session, _ := effective.(db.RelationSession)
+	_, borrowed := effective.(db.SessionValidator)
+	if borrowed && interfaceIsNil(session) {
 		return relationBackendInvalidPlan("collection mutation requires a relation-capable session")
+	}
+	atomic, atomicOK := effective.(db.RelationAtomic)
+	if !borrowed && (!atomicOK || interfaceIsNil(atomic)) {
+		return relationBackendInvalidPlan("collection mutation requires a relation atomic backend")
 	}
 	if inputErr != nil {
 		return inputErr
@@ -131,16 +141,12 @@ func (c *ManyCollection[T, L]) change(ctx context.Context, operation manyChange,
 	if (operation == manyAdd || operation == manyRemove) && len(keys) == 0 {
 		return nil
 	}
-	if c.session != nil {
-		err := c.executeChange(ctx, c.session, operation, keys, input, clear)
-		_, err = sessionReadResult(ctx, c.session, struct{}{}, err)
+	if borrowed {
+		err := c.executeChange(ctx, session, operation, keys, input, clear)
+		_, err = sessionReadResult(ctx, session, struct{}{}, err)
 		return err
 	}
-	backend, ok := c.backend.(db.RelationAtomic)
-	if !ok || interfaceIsNil(backend) {
-		return relationBackendInvalidPlan("collection mutation requires a relation atomic backend")
-	}
-	return runRelationAtomic(ctx, backend.AtomicRelation, func(session db.RelationSession) error {
+	return runRelationAtomic(ctx, atomic.AtomicRelation, func(session db.RelationSession) error {
 		return c.executeChange(ctx, session, operation, keys, input, clear)
 	})
 }

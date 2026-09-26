@@ -244,7 +244,7 @@ Commit·rollback·재시도는 배치 executor가 수행하지 않는다. Postgr
 Root backend에도 배치 executor를 연결했다. Callback에 전달한 executor는 활성 stream의 연결을 사용하고 종료 뒤 원래 backend로 복귀한다.
 Root 범위에는 SessionValidator를 붙이지 않으며 borrowed transaction은 기존 만료 규칙을 유지한다. Callback은 전달된 executor의
 capability로 후속 작업을 실행하고 직접 rowset은 다음 I/O 전에 닫는다. Callback 종료 시 남은 직접 rows를 닫고 nested/source rows는 각 iterator가 정리한다.
-이는 모델 facade의 origin을 바꾸는 기능이 아니다. Model graph·generated iterator에서는 origin과 I/O affinity를 구분해 연결해야 한다.
+이는 모델 facade의 origin을 바꾸는 기능이 아니다. Model graph·generated iterator는 아래의 context scope로 origin과 I/O affinity를 구분한다.
 
 SQLite는 root stream에서 raw admission을 먼저 얻은 다음 연결을 pin한다. 반대 순서는 단일 연결을 기다리는 외부 writer와
 callback의 admission 대기를 순환시킬 수 있다. 범위 안의 원래 root executor로 별도 작업을 시작하지 않고 제공된 affinity를 쓴다.
@@ -293,7 +293,7 @@ reverse accessor는 기존 bool 부재 계약을 따른다. Generated facade의 
 실제로 FK를 바꾸면 해당 cache를 버리고 기본 관계를 다시 읽는다. Low-level object의 Fresh는 custom filter/graph를 버리고
 원래 관계를 읽으며 기존 객체의 부재 cache는 유지한다. Session 종료 뒤에는 부재 cache도 사용할 수 없다.
 
-Prefetch 설정 query의 materialized streaming은 별도 남은 범위다.
+Prefetch 설정 query의 materialized streaming은 공통 배치 materialization 계약을 따른다.
 
 
 ### 역방향 컬렉션과 target eager 구성
@@ -317,7 +317,7 @@ projection key/model key 불일치는 전체 행을 공개하기 전에 거부�
 역방향 `RelatedSet`은 기본 owner scope와 현재 query/cache를 구분한다. Query는 held snapshot을 반환하고 manager Fresh/Invalidate는
 기본 scope·기본 정렬로 돌아간다. 이미 보유한 query·다른 materialization은 변하지 않는다. Query snapshot과 Invalidate의 교체는
 같은 mutex가 소유하며 session 종료 후에는 cache도 읽을 수 없다. 이 collection 연결은 읽기·조회 cache 범위이며 역방향 FK 변경 API의 완성을 뜻하지 않는다.
-Facade ABI는 v18, relation object ABI는 v6이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
+Facade ABI는 v19, relation object ABI는 v6이다. 실제 facade 소비자는 reverse companion까지 포함하며 compiler 원인·stale binding·alias·COW 검증을 유지한다.
 
 ### Owner별 slice 조회 계획
 
@@ -398,3 +398,24 @@ Root collection manager·통합 facade·session composition과 전체 query/cons
 Ticket의 컬렉션 입력은 권한·CSRF를 body/DB 전에 검사하고 저장 transaction에서 양쪽 Category와 전체 원하는 집합을 다시 확인한다.
 실행 source와 환경, 아직 구현하지 않은 선언·생성·migration·query·소비자는 [CURRENT](../status/CURRENT.md)와
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 구분한다.
+
+
+### 배치 모델 공개와 실행 context
+
+2026-09-26, `orm.MaterializeBatches`와 eager/prefetch `IterateBatches`, generated
+`Iterate(ctx, size, func(context.Context, *Model) (bool, error))`를 채택했다. 배치 크기는 명시한 양수이고
+source의 순서·중복·slice를 한 실행에서 보존한다. 각 owner universe는 해당 배치이며 custom target의 owner별 window도
+같은 집합에서 계산한다. Source decode·eager 검증·하위 prefetch·graph clone·generated wrapper 준비를 마친 배치만 공개한다.
+오류가 난 배치를 부분 공개하지 않고 이전 callback의 효과는 보존한다. Full evaluation cache는 우회하고 보존한다.
+
+Facade state를 바꿔 실행 연결을 전달하면 기존에 할당한 model pointer나 reciprocal cache가 원래 연결에 남는다.
+따라서 origin/state는 그대로 두고 callback context의 불변 scope를 ORM I/O 경계에서 해석한다. 같은 original backend의
+query·scalar mutation·relation atomic만 전달된 executor에서 실행하며 중첩 context는 해당 backend의 이전 scope를 가린다.
+배치 밖에서 얻은 model의 identity·cache도 유지하고 다른 Using origin은 계속 거부한다. Executor의 capability를 확인하며
+부족한 capability를 원래 root에서 실행하지 않는다. Root/borrowed lifetime 종류를 바꾸지 않고 양쪽 session 검사를 유지한다.
+Comparable backend identity가 필요하며 non-comparable backend 값은 명시 오류다. 일반적인 상태 보유 backend는 pointer로 전달한다.
+
+한 배치의 decoded graph만 유지한다. Reverse OneToOne eager에서 같은 owner의 서로 다른 child를 배치 경계로 숨기지 않도록
+route/owner/child 키 ledger는 stream 전체에 유지한다. 키 저장량은 고유 owner 수에 비례하며 모델 전체 buffering이나 full cache는
+아니다. Query/Save에 사용하는 callback context와 활성 연결의 직렬 실행 의무는 CONCURRENCY 계약을 따른다.
+Facade v19 생성물을 같이 갱신하며 실행 근거·환경·남은 소비자 범위는 TEST_EVIDENCE와 CURRENT가 소유한다.

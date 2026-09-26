@@ -174,8 +174,9 @@ func (s *RelatedSelected[S]) ValidateSourceBinding(source BoundModel[S]) error {
 	return nil
 }
 
-// Backend retains the affinity of the evaluated graph, including lazy edges
-// that a generated wrapper may later access.
+// Backend retains the graph's original backend identity, including lazy edges.
+// During a batch callback its context selects execution affinity at ORM I/O
+// boundaries; retaining a graph never changes its root or session lifetime.
 func (s *RelatedSelected[S]) Backend() (db.Queryer, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
@@ -356,6 +357,91 @@ func (q RelatedSelectQuery[S]) scanWindow(ctx context.Context, plan query.Plan, 
 	return values, err
 }
 
+// decodeProjectedRow copies all driver-owned storage before the transport moves.
+func (q RelatedSelectQuery[S]) decodeProjectedRow(ctx context.Context, row db.Row, sourceColumns int, ownerKeys []int64, ownerField string) (projectedRelatedRow[S], int64, error) {
+	var zero projectedRelatedRow[S]
+	if err := ctx.Err(); err != nil {
+		return zero, 0, err
+	}
+	sourceScan := q.sourceDescriptor.NewProjectionScan()
+	if interfaceIsNil(sourceScan) {
+		return zero, 0, relationInvalidPlan("projection descriptor returned a nil scan")
+	}
+	sourceDestinations := sourceScan.Destinations()
+	if !validProjectionDestinations(sourceDestinations, sourceColumns) {
+		return zero, 0, relationInvalidPlan("source projection scan destinations do not match selected columns")
+	}
+	destinations := append([]any(nil), sourceDestinations...)
+	scans := make([]relatedTargetScan[S], len(q.targets))
+	for index, target := range q.targets {
+		scans[index] = target.newScan()
+		if interfaceIsNil(scans[index]) {
+			return zero, 0, relationInvalidPlan("projection descriptor returned a nil scan")
+		}
+		cells := scans[index].destinations()
+		if !validProjectionDestinations(cells, target.columnCount()) {
+			return zero, 0, relationInvalidPlan("target projection scan destinations do not match selected columns")
+		}
+		destinations = append(destinations, cells...)
+	}
+	var owner sql.NullInt64
+	if ownerField != "" {
+		destinations = append(destinations, &owner)
+	}
+	if err := row.Scan(destinations...); err != nil {
+		return zero, 0, fmt.Errorf("scan relation projection row: %w", err)
+	}
+	if ownerField != "" {
+		if _, present := slices.BinarySearch(ownerKeys, owner.Int64); !owner.Valid || !present {
+			return zero, 0, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Field: ownerField, Detail: "prefetch target row is outside its requested owner batch"}
+		}
+	}
+	source, key, presence := sourceScan.Decode()
+	if ownerField != "" {
+		if err := validatePrefetchModelProjection(q.sourceDescriptor, source, key, presence); err != nil {
+			return zero, 0, err
+		}
+	}
+	result := projectedRelatedRow[S]{source: q.sourceDescriptor.CloneModel(source), key: key, presence: presence, targets: make([]projectedRelatedTarget[S], len(scans))}
+	for index, scan := range scans {
+		result.targets[index] = scan.snapshot()
+	}
+	return result, owner.Int64, nil
+}
+
+func (q RelatedSelectQuery[S]) prepareProjectedRows(ctx context.Context, projected []projectedRelatedRow[S], seen selectedCardinality) ([]relatedSelectedValue[S], error) {
+	values := make([]relatedSelectedValue[S], len(projected))
+	for index, row := range projected {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if row.presence != ProjectionPresent || row.key.IsNull() {
+			return nil, relationInvalidPlan("source projection did not decode one present model")
+		}
+		if _, ok := row.key.Integer(); !ok {
+			return nil, relationInvalidPlan("source projection returned a non-integer primary key")
+		}
+		value := relatedSelectedValue[S]{source: q.sourceDescriptor.CloneModel(row.source), targets: make([]cachedRelatedTarget, len(row.targets))}
+		for index, target := range row.targets {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			ready, err := target.validate(row.source, seen, "")
+			if err != nil {
+				return nil, err
+			}
+			value.targets[index] = ready
+		}
+		values[index] = value
+	}
+	if q.materialization != nil {
+		if err := loadPrefetchValues(ctx, q.backend, values, q.materialization.selections); err != nil {
+			return nil, err
+		}
+	}
+	return sessionReadResult(ctx, q.backend, values, ctx.Err())
+}
+
 func (q RelatedSelectQuery[S]) scanProjected(ctx context.Context, plan query.Plan, skip, maximum int, ownerKeys []int64, ownerField string) ([]relatedSelectedValue[S], []int64, error) {
 	rows, err := openQueryRows(ctx, q.backend, plan)
 	if err != nil {
@@ -374,100 +460,27 @@ func (q RelatedSelectQuery[S]) scanProjected(ctx context.Context, plan query.Pla
 			skip--
 			continue
 		}
-		sourceScan := q.sourceDescriptor.NewProjectionScan()
-		if interfaceIsNil(sourceScan) {
-			err = relationInvalidPlan("projection descriptor returned a nil scan")
-			break
-		}
-		sourceDestinations := sourceScan.Destinations()
-		if !validProjectionDestinations(sourceDestinations, sourceColumns) {
-			err = relationInvalidPlan("source projection scan destinations do not match selected columns")
-			break
-		}
-		destinations := append([]any(nil), sourceDestinations...)
-		scans := make([]relatedTargetScan[S], len(q.targets))
-		for index, target := range q.targets {
-			scans[index] = target.newScan()
-			if interfaceIsNil(scans[index]) {
-				err = relationInvalidPlan("projection descriptor returned a nil scan")
-				break
-			}
-			cells := scans[index].destinations()
-			if !validProjectionDestinations(cells, target.columnCount()) {
-				err = relationInvalidPlan("target projection scan destinations do not match selected columns")
-				break
-			}
-			destinations = append(destinations, cells...)
-		}
+		var row projectedRelatedRow[S]
+		var owner int64
+		row, owner, err = q.decodeProjectedRow(ctx, rows, sourceColumns, ownerKeys, ownerField)
 		if err != nil {
 			break
 		}
-		var owner sql.NullInt64
-		if ownerField != "" {
-			destinations = append(destinations, &owner)
-		}
-		if scanErr := rows.Scan(destinations...); scanErr != nil {
-			err = fmt.Errorf("scan relation projection row: %w", scanErr)
-			break
-		}
-		if ownerField != "" {
-			if _, present := slices.BinarySearch(ownerKeys, owner.Int64); !owner.Valid || !present {
-				err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Field: ownerField, Detail: "prefetch target row is outside its requested owner batch"}
-				break
-			}
-			owners = append(owners, owner.Int64)
-		}
-		source, key, presence := sourceScan.Decode()
-		if ownerField != "" {
-			err = validatePrefetchModelProjection(q.sourceDescriptor, source, key, presence)
-			if err != nil {
-				break
-			}
-		}
-		row := projectedRelatedRow[S]{source: q.sourceDescriptor.CloneModel(source), key: key, presence: presence, targets: make([]projectedRelatedTarget[S], len(scans))}
-		for index, scan := range scans {
-			row.targets[index] = scan.snapshot()
-		}
 		projected = append(projected, row)
+		if ownerField != "" {
+			owners = append(owners, owner)
+		}
 	}
 	if err = lifecycle.finish(ctx, err); err != nil {
 		return nil, nil, err
 	}
-	values := make([]relatedSelectedValue[S], len(projected))
-	seen := selectedCardinality{}
-	for index, row := range projected {
-		if err := ctx.Err(); err != nil {
-			return nil, nil, err
-		}
-		if row.presence != ProjectionPresent || row.key.IsNull() {
-			return nil, nil, relationInvalidPlan("source projection did not decode one present model")
-		}
-		if _, ok := row.key.Integer(); !ok {
-			return nil, nil, relationInvalidPlan("source projection returned a non-integer primary key")
-		}
-		value := relatedSelectedValue[S]{source: q.sourceDescriptor.CloneModel(row.source), targets: make([]cachedRelatedTarget, len(row.targets))}
-		for index, target := range row.targets {
-			if err := ctx.Err(); err != nil {
-				return nil, nil, err
-			}
-			ready, err := target.validate(row.source, seen, "")
-			if err != nil {
-				return nil, nil, err
-			}
-			value.targets[index] = ready
-		}
-		values[index] = value
-	}
-	if q.materialization != nil {
-		if err := loadPrefetchValues(ctx, q.backend, values, q.materialization.selections); err != nil {
-			return nil, nil, err
-		}
-	}
-	if err := ctx.Err(); err != nil {
+	values, err := q.prepareProjectedRows(ctx, projected, selectedCardinality{})
+	if err != nil {
 		return nil, nil, err
 	}
 	return values, owners, nil
 }
+
 func validProjectionDestinations(destinations []any, expected int) bool {
 	if len(destinations) != expected {
 		return false

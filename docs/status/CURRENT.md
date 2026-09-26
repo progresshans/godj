@@ -27,13 +27,14 @@ Custom ManyToMany 조회는 전체 owner 집합을 유지하며 큰 integer memb
 조회로 생긴 부재는 명시적 관계 해제와 구분하며 모델 파생·저장에서도 기존 FK를 보존한다.
 빌린 transaction의 배치 조회 기반을 연결했다. PostgreSQL의 배치 rowset은 하위 조회 전에 닫고 SQLite는 같은 연결을 사용한다.
 일반 backend의 배치 조회도 같은 연결에서 중첩 조회·쓰기를 실행하고, 반환 executor는 종료 뒤 원래 backend로 돌아간다.
-Materialized streaming의 model graph·generated API 연결은 진행 중이다.
+배치별 model graph와 generated Iterate를 연결했다. Callback context가 실행 연결을 선택하고 기존 model의 origin·identity·cache를 보존한다.
+ORM·generator·실제 소비자의 양 DB 영향 검증과 마지막 backend 행 검증 보완을 마쳤다.
 지원 범위와 남은 제한은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
 
 ## 다음 행동
 
-배치 model materialization·origin과 실행 backend 분리·generated streaming을 연결하고 Ticket 라벨 컬렉션 편집으로 이어간다.
+Ticket.labels를 기존 TicketLabel through와 연결하는 선언·historical migration부터 실제 소비자에 반영한다.
 Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
 이 소비자 통합 뒤 GDJ-0099 Hosted 전체 milestone을 검증한다. 명시적 연결 CRUD나 root manager만으로 전체 소비자를 완료로 세지 않는다.
 

@@ -208,6 +208,8 @@ func (_query %[1]sPrefetchQuery) Count(_ctx context.Context)(int64,error){
  if _err:=_query.validate(_ctx);_err!=nil{return 0,_err};return _query.prefetch.Count(_ctx)
 }
 `, surface)
+	renderProjectFacadeStream(output, model, surface+"PrefetchQuery", "_query.prefetch.IterateBatches(_ctx, _size, _yield)", "_query.validate(_ctx)")
+
 	if model.source != nil {
 		renderProjectFacadePrefetchEager(output, model)
 	}

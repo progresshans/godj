@@ -132,8 +132,13 @@ Owner별 slice를 Query AST·양 DB window compiler와 runtime/generated named s
 Snapshot·Limit/Offset·Read는 일반 manager와 별도 결과를 유지하며 nested/eager graph와 session lifetime을 보존한다.
 Custom ManyToMany는 grouping/membership에 같은 전체 owner 집합을 사용한다. 큰 integer IN은 SQLite JSON array parameter와
 PostgreSQL bigint array parameter로 조회해 owner 집합을 나누거나 정수 정밀도를 낮추지 않는다.
-설정된 prefetch query의 streaming은 아직 미지원이다. Native `BatchQueryer`는 ordinary/relation/coordinated session의
-실행 기반이다. Root backend의 pinned executor·종료 후 원래 backend 복귀도 지원하며 ORM·generated materialization은 아직 연결 중이다.
+Native `BatchQueryer`는 ordinary/relation/coordinated session과 root backend의 pinned executor를 지원한다.
+공통 `MaterializeBatches`·`IterateBatches`와 generated plain/eager/prefetch `Iterate(ctx, size, callback)`를 연결했다.
+양수 배치 크기와 comparable backend identity(일반적으로 pointer)가 필요하다. Callback context로 ORM 읽기·쓰기를 실행하며
+root 모델은 종료 뒤에도 사용할 수 있고 borrowed 모델은 session과 함께 만료된다. 원본 full cache는 읽거나 채우지 않는다.
+한 배치의 graph·generated wrapper가 완성된 뒤에만 해당 배치를 공개한다. Reverse OneToOne eager는 배치 사이의 cardinality
+검사를 위해 고유 owner별 관계 키를 유지한다. Decoded 모델 buffer는 현재 배치 범위이며 key ledger는 고유 owner 수에 비례한다.
+Raw QuerySet.Iterate의 graph 없는 callback은 configured prefetch를 계속 명시 오류로 거부한다.
 단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 같은 graph로 연결하며 root eager와 직접 조합해 이미 읽은 부모를 재사용한다.
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
 단일 관계 target의 Filter·OrderBy·Distinct·eager 구성을 지원한다. 이미 읽은 부모는 custom query를 건너뛰며 명시적 하위 경로는 유지한다.

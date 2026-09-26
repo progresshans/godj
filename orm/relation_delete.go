@@ -121,6 +121,10 @@ func (d RelationDeleter[M]) Delete(
 	if err != nil {
 		return 0, err
 	}
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return 0, err
+	}
 	var deleted int64
 
 	err = runRelationAtomic(ctx, backend.AtomicRelation, func(session db.RelationSession) error {

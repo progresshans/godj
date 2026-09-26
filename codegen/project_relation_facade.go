@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v18"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -521,6 +521,8 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\treturn _results, nil")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+	renderProjectFacadeStream(output, model, model.queryType, "orm.MaterializeBatches(_ctx, _query.query, _query.state.models."+model.surface+", _size, _yield)", "_query.validate()")
+
 }
 
 func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelationFacadeModel) {
@@ -1341,6 +1343,8 @@ func (_query %[1]s) validate()error{
 }
 `, eagerType, method, model.surface)
 	}
+	renderProjectFacadeStream(output, model, eagerType, "orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models."+model.surface+").IterateBatches(_ctx, _size, _yield)", "_query.validate()")
+
 	fmt.Fprintf(output, `func (_query %[1]s) All(_ctx context.Context)([]*%[2]s,error){
  if _err:=_query.validate();_err!=nil{return nil,_err}
  _objects,_err:=_query.projection.All(_ctx);if _err!=nil{return nil,_err}

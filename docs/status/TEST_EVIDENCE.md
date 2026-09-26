@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — 배치 model graph와 generated streaming
+
+2026-09-26, `8820ffd6c9b1fb14c6f5ed46a231d754e0dd3d91` 위에서 공통 `MaterializeBatches`·eager/prefetch
+`IterateBatches`와 generated plain/eager/prefetch `Iterate(ctx, size, callback)`를 연결했다. 한 배치의 source decode·
+eager 검증·하위 prefetch·graph clone·generated wrapper를 완료한 뒤 모델을 전달한다. Source query의 순서·중복·slice를
+보존하고 full evaluation cache를 우회한다. Callback의 불변 context가 같은 backend의 ORM query·CRUD·Save·relation atomic을
+pinned executor로 전달하며 기존 model의 origin·pointer identity·assignment/cache와 root/borrowed 수명은 바꾸지 않는다.
+실행 capability가 없으면 원래 root로 우회하지 않는다. 현재 executor가 소유하는 capability를 사용하므로 collection에 별도로
+저장하던 session capability 사본도 제거했다. Facade ABI v19·golden·5개 managed generated tree를 함께 갱신했다.
+
+기존 고정 Django 6.1 runner/51개 관찰은 변경하지 않았다. `prefetch_stream`의 배치 1/2/3/8·0/음수 거부·조기 중단·
+callback 오류·nested filter·owner universe 1/2·transaction·warm cache의 **13개 실행 사례**를 양 DB의 실제 generated
+소비자에서 결과와 논리 query 수까지 비교했다. Reference의 size 생략은 Go API에서 필수 인자이며 별도 runtime 사례로 세지 않았다.
+Reverse OneToOne eager는 서로 다른 batch의 같은 owner에서 상충하는 child를 거부한다. Decoded graph는 현재 배치만
+보관하지만 이 검사에 필요한 route/owner/child key ledger는 고유 owner 수에 비례한다. 상수 메모리라는 주장을 하지 않는다.
+
+새 소비자의 SQLite/PostgreSQL **63개 run=PASS / skip 0** 상세 이벤트를 별도 generated module에 보존했다.
+기존 model pointer를 관계에 할당하고 callback context로 lazy/collection 조회·Save·Create/Update/Delete·relation delete·Set을
+실행했다. Foreign Using origin의 할당 거부, retained root 사용, source slice, typed/path·nested/eager·중복 model/cache 분리,
+각 session의 capability·만료·outer rollback, source/child의 늦은 실패·취소·panic·재시도 시 full cache 상태, 중첩 stream과
+동시 context를 확인했다. SQLite는 기본 단일 연결을 사용한다. PostgreSQL native transaction은 기존 RelationSession capability를
+유지하고, 명시적으로 가린 ordinary wrapper/SQLite coordinated ordinary session은 빈 관계 변경도 거부한다.
+
+통합 checkpoint의 non-Markdown source **2,161파일**, map hash
+`a98ff593cd5fb2c3a5f358637efb44ff0db781e92eb9d551d6fba057433f808a`에서 `./orm ./codegen ./codegen/consumertest`
+전체·`./conformance/onetoonefixture`와 PostgreSQL OneToOne eager 영향 회귀를 실행했다. 필수 root **378개**,
+일반·race·CGO=0 각각 **5 package / 1,258 run=PASS / skip 0**, **212.7초·705.8초·191.9초**다.
+
+마지막 검토에서 확장 backend의 nil/typed-nil row도 panic 대신 명시 오류로 거부하도록 보완했다. 이 변경은
+`orm/materialize_stream.go`와 해당 테스트 두 파일뿐이다. 최종 non-Markdown source는 같은 **2,161파일**, map hash
+`cf69da3c265000f34efc19c68fbfdb90f76bb5f0ef230b0ea9d95421e9970741`이다. 최종 source의 ORM 전체와 새 generated
+streaming 소비자를 일반·race·CGO=0으로 실행해 각각 **2 package / 629 run=PASS / skip 0 / 필수 root 218개**,
+**14.3초·41.4초·14.0초**를 확인했다. 앞선 5 package 실행을 이 최종 source 전체의 재실행으로 표현하지 않는다.
+최종 감사에서 두 파일 이외의 모든 non-Markdown 파일이 통합 checkpoint와 같음을 대조했다.
+
+모두 Go **1.26.5**, macOS arm64, PostgreSQL **17.5**에서 실행했고 각 실행 전후 source가 같았다.
+소유 DB의 연결·table·schema 정리는 모두 **0|0|0**이며 force 없이 제거했다. 전체 ORM 지원 범위나 full-platform PASS로 확대하지 않는다.
+
+초기 normal source `2f9f52e46643ad58bb510e943ee5c98b7a0d15d335e8cd96794b2d79f90e267e`의 실패도 보존했다.
+취소 회귀 테스트는 세 번째 Err 호출에 의존해 대기 전에 취소되었고, 새 소비자는 heterogeneous reference 관찰 전체를 같은
+map shape로 읽으려 했다. 취소 검사는 owner flight 종료 사건으로 연결하고 reference에서는 해당 관찰만 decode했다.
+추가 session 검사 source `3c7a9c848a8fdafd88d1a4b05e4c856818a27939613357c60d2e5d11a7bac561`는 PostgreSQL의
+기존 relation capability까지 금지하던 테스트 기대 때문에 실패했다. 원래 session이 광고한 capability의 보존을 검사하도록
+수정했으며 backend의 권한을 바꾸거나 실패 테스트를 제거하지 않았다. 실패 실행의 source·원본 로그·정리 receipt를 유지한다.
+
+최종 source의 의미 변경 overlay **6개**(배치 크기 축소, full cache 사용, 배치 간 cardinality 삭제, 실행 연결 scope 무시,
+부족한 writer capability를 root로 우회, 다른 facade origin 허용)가 모두 지정한 assertion 실패로 탐지됐다.
+Build 오류·skip·timeout은 negative control 성공으로 세지 않았다. gofmt·affected vet·문서 링크·diff·5개 tree generated drift를
+확인했다. 이번 source의 Hosted 전체는 미실행이며 GDJ-0099 전체 milestone은 Ticket 소비자 통합 뒤에 수행한다.
+
+원본 source map·초기 실패·세 환경 checkpoint·실제 generated child 이벤트·negative·정리·검사·게시 receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-materialized-stream/`의
+`latest-normal-path`, `latest-race-path`, `latest-cgo0-path`, `latest-consumer-normal-path`, `latest-negative-path`,
+`latest-checks-path`, 최종 보완의 `latest-delta-normal-path`·`latest-delta-race-path`·`latest-delta-cgo0-path`와
+최종 audit/publication을 따른다. 다른 source의 Hosted 전체 결과를 전이하지 않는다.
+
 ## GDJ-0099 — root 배치 조회의 연결과 transaction 종료 소유권
 
 2026-09-26, `8a1f722a7514bd821c6bf23676f92b8c3f39dbd0` 위에서 root `BatchQueryer`와 callback의 pinned executor를

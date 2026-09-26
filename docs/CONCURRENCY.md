@@ -115,8 +115,9 @@ SQLite는 같은 pinned/transaction connection의 source rowset을 유지한다.
 각 `FETCH`를 decode하고 rowset close 오류까지 확인한 다음 yield한다. 원본을 OFFSET으로 재실행하지 않는다.
 취소·callback 오류·panic·Goexit에서도 소유 rows/cursor를 정리한다. Panic과 Goexit는 그대로 전파하고 cleanup 실패를 성공으로 바꾸지 않는다.
 Raw SQLite transaction의 Goexit도 기존 rollback/discard/retention 경로를 사용하며 불확실한 연결을 pool에 돌려주지 않는다.
-배치의 read affinity는 같은 session pointer이며 coordinated ordinary session에 relation mutation capability를 추가하지 않는다.
-Session 종료 뒤에는 빈 결과도 새 배치 조회를 허용하지 않는다. Model graph·generated iterator 연결은 남아 있다.
+배치의 read affinity는 같은 session pointer이며 실행기가 기존에 광고하지 않은 relation mutation capability를 추가하지 않는다.
+SQLite의 coordinated ordinary session은 관계 변경을 거부하고 PostgreSQL의 native transaction session은 기존 RelationSession capability를 유지한다.
+Session 종료 뒤에는 빈 결과도 새 배치 조회를 허용하지 않는다.
 
 Root `BatchQueryer`의 callback은 제공된 executor로 interleaved I/O를 수행한다. Root executor는 SessionValidator를
 광고하지 않으며 스트리밍 종료 뒤 원래 backend로 돌아간다. 활성 범위는 한 연결을 사용하므로 caller가 작업을 직렬화하고,
@@ -133,6 +134,25 @@ PostgreSQL root stream은 WITH HOLD cursor를 소유한다. 범위 안의 transa
 종료 SQL을 동기 실행한다. database/sql의 취소 rollback이 진행 중인 연결을 재사용하지 않는다. 취소된 작업의 rollback/커서 정리는
 분리한 bounded context를 사용한다. Literal COMMIT 오류는 outcome unknown을 유지하며 connection discard로 source를 중단한다.
 개별 root write는 iterator 전체 transaction으로 묶이지 않는다. 명시적으로 호출한 atomic 작업만 자체 commit/rollback을 소유한다.
+
+
+`MaterializeBatches`와 generated `Iterate(ctx, size, callback)`는 한 배치의 source·eager·하위 graph·wrapper를 모두 준비한 뒤
+사용자 callback을 호출한다. 양수 size를 명시해야 하며 full evaluation cache를 읽거나 채우지 않는다. 실패한 배치의 일부를
+공개하지 않고 이미 관찰한 이전 배치는 되돌리지 않는다. 조기 중단은 bool=false, callback 오류는 재시도 없이 전파한다.
+기존 raw Iterate는 materialization 설정을 버리지 않도록 명시 오류를 유지한다.
+
+Callback에 전달한 context로 interleaved ORM 작업을 수행한다. Context는 같은 original backend의 I/O만 pinned executor로
+전달하며 model의 project origin·pointer identity·assignment/held cache를 바꾸지 않는다. 새 model과 이미 보유한 model의 Save·
+CRUD·관계 atomic·lazy/collection query에도 적용한다. Direct backend 호출은 native BatchQueryer가 제공한 executor를 사용한다.
+Context scope는 불변이며 nested stream은 해당 backend의 scope만 가린다. 서로 다른 goroutine의 context는 실행 연결을 공유하지
+않지만 한 활성 callback context 안에서는 caller가 I/O를 직렬화해야 한다. 별도 Using origin의 assignment/selector 거부는 유지한다.
+Original과 effective executor의 session lifetime을 함께 확인하고 부족한 쓰기 capability를 원래 root backend로 우회하지 않는다.
+Backend identity는 비교 가능한 값이어야 한다. 상태를 가진 backend는 pointer로 제공하며 non-comparable 값은 source I/O 전에 거부한다.
+Root graph는 원래 backend를 보관해 종료 뒤에도 사용할 수 있다. Borrowed graph는 context와 무관하게 원래 session 수명을 따른다.
+
+현재 배치의 decoded model과 graph만 보관하지만 reverse OneToOne eager의 무결성 검사는 전체 stream의 route/owner/child 키를
+유지한다. 이 ledger는 고유 owner 수에 비례하며 전체 모델 결과 cache와 다르다. 다른 배치에 나온 같은 owner의 상충 child도
+오류로 처리한다. 사용자 callback이 별도로 보유한 모델과 custom target의 결과 크기는 사용자가 선택한 query 범위를 따른다.
 
 ## Migration의 durable 상태
 

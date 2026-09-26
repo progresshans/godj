@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v18"
-const GoDjProjectRelationFacadeInputSHA256 = "b4cfb9f3bf77210e596f395bc623365499da891136822bfc57536d926e890f9c"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
+const GoDjProjectRelationFacadeInputSHA256 = "0344f026b9d0d43ef6b194da097bcef16843f32e1858131214c83afc2f489d71"
 
 type Backend interface {
 	db.Queryer
@@ -536,6 +536,44 @@ func (_query ReportsCertificateQuery) All(_ctx context.Context) ([]*ReportsCerti
 		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsCertificateQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsCertificate) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Certificate]) (bool, error) {
+		_models := make([]*ReportsCertificate, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsCertificate(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsCertificate, _size, _yield)
 }
 
 type reportsCertificateModel = reports.Certificate
@@ -1093,6 +1131,44 @@ func (_query ReportsCertificatePrefetchQuery) Count(_ctx context.Context) (int64
 	}
 	return _query.prefetch.Count(_ctx)
 }
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsCertificatePrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsCertificate) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Certificate]) (bool, error) {
+		_models := make([]*ReportsCertificate, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsCertificate(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
 func (_query ReportsCertificatePrefetchQuery) SelectRelated(_selectors ...ReportsCertificateRelationSelector) ReportsCertificatePrefetchQuery {
 	if _err := _query.state.validate(); _err != nil {
 		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
@@ -1279,6 +1355,44 @@ func (_query ReportsCertificateEagerQuery) Offset(_value int) (ReportsCertificat
 		return ReportsCertificateEagerQuery{}, _err
 	}
 	return _query.state.newReportsCertificateEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsCertificateEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsCertificate) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Certificate]) (bool, error) {
+		_models := make([]*ReportsCertificate, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsCertificate(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsCertificate).IterateBatches(_ctx, _size, _yield)
 }
 func (_query ReportsCertificateEagerQuery) All(_ctx context.Context) ([]*ReportsCertificate, error) {
 	if _err := _query.validate(); _err != nil {
@@ -1508,6 +1622,44 @@ func (_query ReportsLinkQuery) All(_ctx context.Context) ([]*ReportsLink, error)
 		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsLinkQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsLink) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Link]) (bool, error) {
+		_models := make([]*ReportsLink, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsLink(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsLink, _size, _yield)
 }
 
 type reportsLinkModel = reports.Link
@@ -2044,6 +2196,44 @@ func (_query ReportsLinkPrefetchQuery) Count(_ctx context.Context) (int64, error
 	}
 	return _query.prefetch.Count(_ctx)
 }
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsLinkPrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsLink) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Link]) (bool, error) {
+		_models := make([]*ReportsLink, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsLink(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
 func (_query ReportsLinkPrefetchQuery) SelectRelated(_selectors ...ReportsLinkRelationSelector) ReportsLinkPrefetchQuery {
 	if _err := _query.state.validate(); _err != nil {
 		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
@@ -2230,6 +2420,44 @@ func (_query ReportsLinkEagerQuery) Offset(_value int) (ReportsLinkEagerQuery, e
 		return ReportsLinkEagerQuery{}, _err
 	}
 	return _query.state.newReportsLinkEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsLinkEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsLink) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Link]) (bool, error) {
+		_models := make([]*ReportsLink, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsLink(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsLink).IterateBatches(_ctx, _size, _yield)
 }
 func (_query ReportsLinkEagerQuery) All(_ctx context.Context) ([]*ReportsLink, error) {
 	if _err := _query.validate(); _err != nil {
@@ -2459,6 +2687,44 @@ func (_query ReportsOptionalReportQuery) All(_ctx context.Context) ([]*ReportsOp
 		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsOptionalReportQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsOptionalReport) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.OptionalReport]) (bool, error) {
+		_models := make([]*ReportsOptionalReport, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsOptionalReport, _size, _yield)
 }
 
 type reportsOptionalReportModel = reports.OptionalReport
@@ -3028,6 +3294,44 @@ func (_query ReportsOptionalReportPrefetchQuery) Count(_ctx context.Context) (in
 	}
 	return _query.prefetch.Count(_ctx)
 }
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsOptionalReportPrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsOptionalReport) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.OptionalReport]) (bool, error) {
+		_models := make([]*ReportsOptionalReport, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
 func (_query ReportsOptionalReportPrefetchQuery) SelectRelated(_selectors ...ReportsOptionalReportRelationSelector) ReportsOptionalReportPrefetchQuery {
 	if _err := _query.state.validate(); _err != nil {
 		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
@@ -3214,6 +3518,44 @@ func (_query ReportsOptionalReportEagerQuery) Offset(_value int) (ReportsOptiona
 		return ReportsOptionalReportEagerQuery{}, _err
 	}
 	return _query.state.newReportsOptionalReportEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsOptionalReportEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsOptionalReport) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.OptionalReport]) (bool, error) {
+		_models := make([]*ReportsOptionalReport, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsOptionalReport(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsOptionalReport).IterateBatches(_ctx, _size, _yield)
 }
 func (_query ReportsOptionalReportEagerQuery) All(_ctx context.Context) ([]*ReportsOptionalReport, error) {
 	if _err := _query.validate(); _err != nil {
@@ -3438,6 +3780,44 @@ func (_query ReportsReportQuery) All(_ctx context.Context) ([]*ReportsReport, er
 		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsReportQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsReport) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Report]) (bool, error) {
+		_models := make([]*ReportsReport, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsReport(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsReport, _size, _yield)
 }
 
 type reportsReportModel = reports.Report
@@ -4134,6 +4514,44 @@ func (_query ReportsReportPrefetchQuery) Count(_ctx context.Context) (int64, err
 	}
 	return _query.prefetch.Count(_ctx)
 }
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsReportPrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsReport) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Report]) (bool, error) {
+		_models := make([]*ReportsReport, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsReport(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
 func (_query ReportsReportPrefetchQuery) SelectRelated(_selectors ...ReportsReportRelationSelector) ReportsReportPrefetchQuery {
 	if _err := _query.state.validate(); _err != nil {
 		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
@@ -4321,6 +4739,44 @@ func (_query ReportsReportEagerQuery) Offset(_value int) (ReportsReportEagerQuer
 		return ReportsReportEagerQuery{}, _err
 	}
 	return _query.state.newReportsReportEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsReportEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsReport) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Report]) (bool, error) {
+		_models := make([]*ReportsReport, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsReport(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsReport).IterateBatches(_ctx, _size, _yield)
 }
 func (_query ReportsReportEagerQuery) All(_ctx context.Context) ([]*ReportsReport, error) {
 	if _err := _query.validate(); _err != nil {
@@ -4568,6 +5024,44 @@ func (_query ReportsReviewQuery) All(_ctx context.Context) ([]*ReportsReview, er
 		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsReviewQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsReview) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Review]) (bool, error) {
+		_models := make([]*ReportsReview, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsReview(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ReportsReview, _size, _yield)
 }
 
 type reportsReviewModel = reports.Review
@@ -5125,6 +5619,44 @@ func (_query ReportsReviewPrefetchQuery) Count(_ctx context.Context) (int64, err
 	}
 	return _query.prefetch.Count(_ctx)
 }
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsReviewPrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsReview) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Review]) (bool, error) {
+		_models := make([]*ReportsReview, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsReview(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
 func (_query ReportsReviewPrefetchQuery) SelectRelated(_selectors ...ReportsReviewRelationSelector) ReportsReviewPrefetchQuery {
 	if _err := _query.state.validate(); _err != nil {
 		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
@@ -5311,6 +5843,44 @@ func (_query ReportsReviewEagerQuery) Offset(_value int) (ReportsReviewEagerQuer
 		return ReportsReviewEagerQuery{}, _err
 	}
 	return _query.state.newReportsReviewEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ReportsReviewEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ReportsReview) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[reports.Review]) (bool, error) {
+		_models := make([]*ReportsReview, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeReportsReview(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.ReportsReview).IterateBatches(_ctx, _size, _yield)
 }
 func (_query ReportsReviewEagerQuery) All(_ctx context.Context) ([]*ReportsReview, error) {
 	if _err := _query.validate(); _err != nil {
@@ -5547,6 +6117,44 @@ func (_query TicketsTicketQuery) All(_ctx context.Context) ([]*TicketsTicket, er
 		_results[_index] = _wrapped
 	}
 	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query TicketsTicketQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *TicketsTicket) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[tickets.Ticket]) (bool, error) {
+		_models := make([]*TicketsTicket, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeTicketsTicket(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.TicketsTicket, _size, _yield)
 }
 
 type ticketsTicketModel = tickets.Ticket
@@ -6333,6 +6941,44 @@ func (_query TicketsTicketPrefetchQuery) Count(_ctx context.Context) (int64, err
 	}
 	return _query.prefetch.Count(_ctx)
 }
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query TicketsTicketPrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *TicketsTicket) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[tickets.Ticket]) (bool, error) {
+		_models := make([]*TicketsTicket, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeTicketsTicket(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
 func (_query TicketsTicketPrefetchQuery) SelectRelated(_selectors ...TicketsTicketRelationSelector) TicketsTicketPrefetchQuery {
 	if _err := _query.state.validate(); _err != nil {
 		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
@@ -6521,6 +7167,44 @@ func (_query TicketsTicketEagerQuery) Offset(_value int) (TicketsTicketEagerQuer
 		return TicketsTicketEagerQuery{}, _err
 	}
 	return _query.state.newTicketsTicketEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query TicketsTicketEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *TicketsTicket) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[tickets.Ticket]) (bool, error) {
+		_models := make([]*TicketsTicket, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeTicketsTicket(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.TicketsTicket).IterateBatches(_ctx, _size, _yield)
 }
 func (_query TicketsTicketEagerQuery) All(_ctx context.Context) ([]*TicketsTicket, error) {
 	if _err := _query.validate(); _err != nil {
@@ -6771,4 +7455,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_10fd9b866a75d2cfd0dd549665844915f6d95b9ee29026adb8eec01341e6065c
+var _ goDjProjectSnapshot_7a1e9311f39028aa3c3df8bb067e295b9ca332c384dce1bb3162112c207bd0b6

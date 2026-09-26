@@ -404,7 +404,7 @@ func TestQuerySetAllFailureAndCancellationStateTransitions(t *testing.T) {
 		querySet := newCacheTestManager().Using(backend)
 		flight := &evaluationFlight{done: make(chan struct{}), err: context.Canceled}
 		querySet.evaluation.flight = flight
-		ctx, entered := newThirdErrCancellationContext()
+		ctx, entered := newFlightRetryCancellationContext(flight.done)
 		result := make(chan error, 1)
 		go func() {
 			_, err := querySet.All(ctx)
@@ -960,29 +960,33 @@ func (ctx *enteredContext) Done() <-chan struct{} {
 	return ctx.Context.Done()
 }
 
-type thirdErrCancellationContext struct {
-	calls       atomic.Uint64
+type flightRetryCancellationContext struct {
+	trigger     <-chan struct{}
 	done        chan struct{}
 	entered     chan struct{}
 	doneOnce    sync.Once
 	enteredOnce sync.Once
 }
 
-func newThirdErrCancellationContext() (*thirdErrCancellationContext, <-chan struct{}) {
-	ctx := &thirdErrCancellationContext{done: make(chan struct{}), entered: make(chan struct{})}
+func newFlightRetryCancellationContext(trigger <-chan struct{}) (*flightRetryCancellationContext, <-chan struct{}) {
+	ctx := &flightRetryCancellationContext{trigger: trigger, done: make(chan struct{}), entered: make(chan struct{})}
 	return ctx, ctx.entered
 }
 
-func (ctx *thirdErrCancellationContext) Deadline() (time.Time, bool) { return time.Time{}, false }
-func (ctx *thirdErrCancellationContext) Done() <-chan struct{} {
+func (ctx *flightRetryCancellationContext) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (ctx *flightRetryCancellationContext) Done() <-chan struct{} {
 	ctx.enteredOnce.Do(func() { close(ctx.entered) })
 	return ctx.done
 }
-func (ctx *thirdErrCancellationContext) Value(any) any { return nil }
-func (ctx *thirdErrCancellationContext) Err() error {
-	if ctx.calls.Add(1) < 3 {
+func (ctx *flightRetryCancellationContext) Value(any) any { return nil }
+func (ctx *flightRetryCancellationContext) Err() error {
+	// Trigger cancellation only after the owner flight ends. This tests the
+	// retry boundary without depending on how many earlier Err checks exist.
+	select {
+	case <-ctx.trigger:
+		ctx.doneOnce.Do(func() { close(ctx.done) })
+		return context.Canceled
+	default:
 		return nil
 	}
-	ctx.doneOnce.Do(func() { close(ctx.done) })
-	return context.Canceled
 }

@@ -274,6 +274,11 @@ func executeSavePlan[M any](
 	value *M,
 	plan saveExecutionPlan,
 ) error {
+	var err error
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return err
+	}
 	if plan.noOp {
 		return nil
 	}

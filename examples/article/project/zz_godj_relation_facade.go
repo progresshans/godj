@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v18"
-const GoDjProjectRelationFacadeInputSHA256 = "4118166cd3ca8b29223521fb9c2ecd5343346f99e577a1fe30d58349fba5bdca"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
+const GoDjProjectRelationFacadeInputSHA256 = "3a575e8d24b194498b248a41466dcd54a8f810de2f8ce976e3b645f654747c0e"
 
 type Backend interface {
 	db.Queryer
@@ -197,6 +197,44 @@ func (_query ModelsArticleQuery) All(_ctx context.Context) ([]*ModelsArticle, er
 	return _results, nil
 }
 
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query ModelsArticleQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *ModelsArticle) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[models.Article]) (bool, error) {
+		_models := make([]*ModelsArticle, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeModelsArticle(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.ModelsArticle, _size, _yield)
+}
+
 type modelsArticleModel = models.Article
 
 type ModelsArticle struct {
@@ -368,4 +406,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_33b2b49338622115964022981e95193f6debea2ede5d4edae1fa63e535562c71
+var _ goDjProjectSnapshot_cce5e7d679b57716fb9756b0ac99499479f468403847f457c3cafa4a8d39670b

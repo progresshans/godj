@@ -310,7 +310,7 @@ func (c cachedManyPrefetch[T, L]) clone() (cachedPrefetch, error) {
 		return nil, err
 	}
 	original := c.collection
-	copy := &ManyCollection[T, L]{querySet: set, basePlan: original.basePlan, target: original.target, through: original.through, state: original.state, backend: original.backend, session: original.session, ownerKey: original.ownerKey}
+	copy := &ManyCollection[T, L]{querySet: set, basePlan: original.basePlan, target: original.target, through: original.through, state: original.state, backend: original.backend, ownerKey: original.ownerKey}
 	copy._self = copy
 	// Evaluation values are immutable and terminals clone them. Mutation swaps
 	// only this handle's evaluation pointer, preserving the held snapshot.

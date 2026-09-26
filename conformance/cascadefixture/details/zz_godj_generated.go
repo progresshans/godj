@@ -1864,4 +1864,4 @@ func requiredRightMetadata() ir.Model {
 	}
 }
 
-type GoDjProjectSnapshot_4a1c0bac93733f906e4af7c3105631e94212d2ff4546a87766d9a300d35f5b27 struct{}
+type GoDjProjectSnapshot_257e23cfce2ac0b7dc1993ffb91e0799b533ae33a29f42e4ce5d3be05a19a5b9 struct{}

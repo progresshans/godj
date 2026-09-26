@@ -138,7 +138,6 @@ type ManyCollection[T, L any] struct {
 	through  ManyToManyDescriptor[L]
 	state    *manyToManyState
 	backend  db.Queryer
-	session  db.RelationSession
 	ownerKey int64
 	_self    *ManyCollection[T, L]
 }
@@ -165,12 +164,7 @@ func (r ManyToMany[O, T, L]) InSession(session db.Session, owner O) (*ManyCollec
 	if err := validateQuerySession(context.Background(), session); err != nil {
 		return nil, err
 	}
-	collection, err := r.from(session, owner)
-	if err != nil {
-		return nil, err
-	}
-	collection.session, _ = session.(db.RelationSession)
-	return collection, nil
+	return r.from(session, owner)
 }
 
 func (r ManyToMany[O, T, L]) from(backend db.Queryer, owner O) (*ManyCollection[T, L], error) {
@@ -247,7 +241,7 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 		return nil, err
 	}
 	set = newQuerySet[T](c.backend, c.target, c.basePlan)
-	result := &ManyCollection[T, L]{querySet: set, basePlan: c.basePlan, target: c.target, through: c.through, state: c.state, backend: c.backend, session: c.session, ownerKey: c.ownerKey}
+	result := &ManyCollection[T, L]{querySet: set, basePlan: c.basePlan, target: c.target, through: c.through, state: c.state, backend: c.backend, ownerKey: c.ownerKey}
 	result._self = result
 	return result, nil
 }

@@ -122,16 +122,9 @@ func (r ManyToMany[O, T, L]) preparePrefetchOwners(ctx context.Context, backend 
 	if r.state == nil || interfaceIsNil(backend) {
 		return nil, nil, relationInvalidPlan("collection is unbound or backend is nil")
 	}
-	var session db.RelationSession
 	_, scoped := backend.(db.SessionValidator)
 	if scoped != borrowed {
 		return nil, nil, relationInvalidPlan("collection prefetch requires the matching root or session API")
-	}
-	if borrowed {
-		// Reading a batch needs only the advertised session lifetime. Keep a
-		// relation capability only when it actually exists; a read handle
-		// must never fall back to starting a transaction for a later write.
-		session, _ = backend.(db.RelationSession)
 	}
 	if err := validateQuerySession(ctx, backend); err != nil {
 		return nil, nil, err
@@ -162,7 +155,6 @@ func (r ManyToMany[O, T, L]) preparePrefetchOwners(ctx context.Context, backend 
 		if err != nil {
 			return nil, nil, err
 		}
-		collection.session = session
 		result[i] = collection
 		requested[key] = struct{}{}
 	}

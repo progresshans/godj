@@ -17,6 +17,10 @@ func (m Manager[M]) Create(ctx context.Context, backend db.Mutator, input Create
 	if err != nil {
 		return zero, err
 	}
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return zero, err
+	}
 	lastInsertID, err := backend.Insert(ctx, query.NewInsertPlanReturningKey(
 		write.model.metadata.DBTable,
 		write.mutation.assignments,
@@ -45,6 +49,10 @@ func (m Manager[M]) Update(ctx context.Context, backend db.Mutator, current M, i
 		fieldReference(write.model.primaryKey),
 		write.key,
 	)
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return zero, err
+	}
 	rowsAffected, err := backend.Update(ctx, plan)
 	if err != nil {
 		return zero, err
@@ -79,6 +87,10 @@ func (m Manager[M]) Delete(ctx context.Context, backend db.Mutator, value *M) (i
 	if !mutationValueMatches(primaryKey, keyValue) || keyValue.IsNull() {
 		return 0, invalidWritePlan("descriptor returned an invalid primary key value")
 	}
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return 0, err
+	}
 	rowsAffected, err := backend.Delete(ctx, query.NewDeletePlan(metadata.DBTable, fieldReference(primaryKey), keyValue))
 	if err != nil {
 		return 0, err
@@ -104,6 +116,9 @@ func (m Manager[M]) writeConfiguration(ctx context.Context, backend any) (WriteD
 			Code:     query.CodeInvalidPlan,
 			Detail:   "backend is nil",
 		}
+	}
+	if _, err := executionBackend(ctx, backend); err != nil {
+		return zeroDescriptor, nil, err
 	}
 	if m.prepared == nil {
 		return zeroDescriptor, nil, invalidWritePlan("descriptor is nil")

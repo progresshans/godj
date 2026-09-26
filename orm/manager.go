@@ -459,6 +459,11 @@ func (qs QuerySet[M]) cloneModels(values []M) []M {
 }
 
 func openQueryRows(ctx context.Context, backend db.Queryer, plan query.Plan) (db.Rows, error) {
+	var err error
+	backend, err = executionBackend(ctx, backend)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := backend.Query(ctx, plan)
 	if err != nil {
 		if !interfaceIsNil(rows) {
