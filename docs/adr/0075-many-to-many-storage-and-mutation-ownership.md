@@ -241,8 +241,25 @@ Native scalar adapter를 FETCH에도 적용하며 cursor 이름은 호출마다 
 Commit·rollback·재시도는 배치 executor가 수행하지 않는다. PostgreSQL의 cursor lifetime은
 [DECLARE](https://www.postgresql.org/docs/17/sql-declare.html)와 [FETCH](https://www.postgresql.org/docs/17/sql-fetch.html)를 따른다.
 
-Root backend의 connection 소유권·종료 후 model 수명·model graph·generated iterator 연결은 남아 있다.
-그 연결 전에는 기존 configured raw Iterate의 명시 오류를 유지한다. 전체 source를 client에 먼저 저장하거나 OFFSET 재조회로 대체하지 않는다.
+Root backend에도 배치 executor를 연결했다. Callback에 전달한 executor는 활성 stream의 연결을 사용하고 종료 뒤 원래 backend로 복귀한다.
+Root 범위에는 SessionValidator를 붙이지 않으며 borrowed transaction은 기존 만료 규칙을 유지한다. Callback은 전달된 executor의
+capability로 후속 작업을 실행하고 직접 rowset은 다음 I/O 전에 닫는다. Callback 종료 시 남은 직접 rows를 닫고 nested/source rows는 각 iterator가 정리한다.
+이는 모델 facade의 origin을 바꾸는 기능이 아니다. Model graph·generated iterator에서는 origin과 I/O affinity를 구분해 연결해야 한다.
+
+SQLite는 root stream에서 raw admission을 먼저 얻은 다음 연결을 pin한다. 반대 순서는 단일 연결을 기다리는 외부 writer와
+callback의 admission 대기를 순환시킬 수 있다. 범위 안의 원래 root executor로 별도 작업을 시작하지 않고 제공된 affinity를 쓴다.
+Ordinary atomic의 BEGIN과 coordinated/관계 atomic의 BEGIN IMMEDIATE를 구분하고 기존 FK 검사·unknown outcome·retention 규칙을 유지한다.
+하나의 물리 연결에 stream lease와 작업 lease를 나눈다. Raw 정리가 미확정이면 작업 lease는 backend quarantine에 남으며 stream 종료로
+pool에 반환하지 않는다. Confirmed discard 전에 열린 rowset을 닫고, backend Close는 pool 봉인 뒤 retained lease를 해제한다.
+
+PostgreSQL root source는 WITH HOLD cursor이며 autocommit에서 선언한 뒤 각 FETCH를 닫고 callback을 실행한다.
+그 범위의 transaction은 BEGIN/COMMIT/ROLLBACK을 직접 소유하며 기존 transactionSession의 query·write·lifetime·오류 분류를 사용한다.
+이는 sql.Tx의 cancellation rollback이 끝나기 전에 pinned 연결을 다시 사용하는 경합을 피한다. Begin/커서 정리 실패와
+미확정 transaction 종료는 물리 연결을 discard하며 원본을 새 연결에서 재조회하지 않는다. Literal COMMIT 실패의 unknown 분류는 유지한다.
+Source 중단이 이미 완료된 별도 root write를 rollback하지 않는다. 더 큰 write 원자성은 명시적 atomic callback이 소유한다.
+
+Model graph·generated iterator 연결 전에는 기존 configured raw Iterate의 명시 오류를 유지한다.
+전체 source를 client에 먼저 저장하거나 OFFSET 재조회로 대체하지 않는다.
 
 ### 단일 관계 prefetch와 eager 부모 재사용
 

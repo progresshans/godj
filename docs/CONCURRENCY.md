@@ -104,7 +104,7 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 [일대일 관계](adr/0073-one-to-one-cardinality-and-reverse-objects.md),
 [CASCADE 그래프](adr/0074-cascade-delete-graph-and-constraint-timing.md).
 
-## 빌린 session의 배치 실행
+## 배치 실행의 연결과 session 수명
 
 `db.BatchQueryer`는 한 source query를 명시한 양수 크기로 읽는다. `scan`은 한 row를 caller 소유 buffer로 복사하고,
 완성한 batch마다 `yield`에서 같은 borrowed session으로 하위 조회·광고한 capability의 쓰기를 할 수 있다.
@@ -116,7 +116,23 @@ SQLite는 같은 pinned/transaction connection의 source rowset을 유지한다.
 취소·callback 오류·panic·Goexit에서도 소유 rows/cursor를 정리한다. Panic과 Goexit는 그대로 전파하고 cleanup 실패를 성공으로 바꾸지 않는다.
 Raw SQLite transaction의 Goexit도 기존 rollback/discard/retention 경로를 사용하며 불확실한 연결을 pool에 돌려주지 않는다.
 배치의 read affinity는 같은 session pointer이며 coordinated ordinary session에 relation mutation capability를 추가하지 않는다.
-Session 종료 뒤에는 빈 결과도 새 배치 조회를 허용하지 않는다. Root backend·model graph·generated iterator 연결은 남아 있다.
+Session 종료 뒤에는 빈 결과도 새 배치 조회를 허용하지 않는다. Model graph·generated iterator 연결은 남아 있다.
+
+Root `BatchQueryer`의 callback은 제공된 executor로 interleaved I/O를 수행한다. Root executor는 SessionValidator를
+광고하지 않으며 스트리밍 종료 뒤 원래 backend로 돌아간다. 활성 범위는 한 연결을 사용하므로 caller가 작업을 직렬화하고,
+직접 얻은 rowset은 다음 작업 전에 소비·close한다. Callback에 남은 직접 rowset은 다음 batch나 cursor cleanup 전에 닫는다.
+원본과 중첩 iterator의 source rowset은 각 iterator가 소유하고, 전체 결과를 client에 보관하거나 source를 재조회하지 않는다.
+
+SQLite root stream은 connection을 pin하기 전에 raw-transaction admission을 얻는다. 다른 writer가 admission을 잡고
+같은 단일 연결을 기다리는 상태에서 callback이 admission을 다시 기다리는 순환을 방지한다. 범위 안의 ordinary write transaction은
+`BEGIN`, coordinated/관계 transaction은 기존 `BEGIN IMMEDIATE`와 FK 검사를 사용한다. 같은 backend의 다른 raw writer는
+stream 종료까지 admission을 기다린다. Unconfirmed cleanup의 retained lease는 stream의 lease와 별도로 남으며 pool을 봉인한
+Backend.Close가 drain할 때만 물리 연결을 반환한다. Confirmed discard 전에 source/child rows를 닫아 database/sql close 대기를 해제한다.
+
+PostgreSQL root stream은 WITH HOLD cursor를 소유한다. 범위 안의 transaction은 원래 caller context로 세션을 검증하고
+종료 SQL을 동기 실행한다. database/sql의 취소 rollback이 진행 중인 연결을 재사용하지 않는다. 취소된 작업의 rollback/커서 정리는
+분리한 bounded context를 사용한다. Literal COMMIT 오류는 outcome unknown을 유지하며 connection discard로 source를 중단한다.
+개별 root write는 iterator 전체 transaction으로 묶이지 않는다. 명시적으로 호출한 atomic 작업만 자체 commit/rollback을 소유한다.
 
 ## Migration의 durable 상태
 

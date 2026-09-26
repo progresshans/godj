@@ -478,6 +478,11 @@ func (session *relationSession) Query(ctx context.Context, plan query.Plan) (db.
 	if rows == nil {
 		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite relation query returned nil rows without an error"}
 	}
+	if owner, ok := session.connection.(interface {
+		WrapRows(db.Rows, *sql.Rows) db.Rows
+	}); ok {
+		return owner.WrapRows(rows, rows), nil
+	}
 	return rows, nil
 }
 

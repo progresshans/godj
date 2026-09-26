@@ -19,7 +19,7 @@ var _ db.RelationSession = (*transactionSession)(nil)
 var _ db.SessionValidator = (*transactionSession)(nil)
 
 type transactionSession struct {
-	transaction *sql.Tx
+	transaction transactionHandle
 	backend     *Backend
 	lifetime    context.Context
 	active      atomic.Bool
@@ -35,33 +35,48 @@ func (session *transactionSession) ValidateSession(ctx context.Context) error {
 // classified as outcome-unknown and requires reconciliation rather than an
 // automatic retry.
 func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) error {
-	if callback == nil {
-		return b.atomic(ctx, nil)
+	if err := b.validateContext(ctx); err != nil {
+		return err
 	}
-	return b.atomic(ctx, func(session *transactionSession) error { return callback(session) })
+	if callback == nil {
+		return b.atomic(ctx, nil, nil)
+	}
+	return b.atomic(ctx, nil, func(session *transactionSession) error { return callback(session) })
 }
 
 // AtomicRelation shares the same transaction owner, session lifetime and
 // uncertain-outcome handling as ordinary writes. It adds bulk SET_NULL to the
 // transaction-bound callback without introducing a second transaction.
 func (b *Backend) AtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
-	if callback == nil {
-		return b.atomic(ctx, nil)
+	if err := b.validateContext(ctx); err != nil {
+		return err
 	}
-	return b.atomic(ctx, func(session *transactionSession) error { return callback(session) })
+	if callback == nil {
+		return b.atomic(ctx, nil, nil)
+	}
+	return b.atomic(ctx, nil, func(session *transactionSession) error { return callback(session) })
 }
 
-func (b *Backend) atomic(ctx context.Context, callback func(*transactionSession) error) error {
+type transactionHandle interface {
+	cursorExecutor
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	Commit() error
+	Rollback() error
+}
+
+func (b *Backend) atomic(ctx context.Context, begin func(context.Context) (transactionHandle, error), callback func(*transactionSession) error) error {
 	if err := b.validateContext(ctx); err != nil {
 		return err
 	}
 	if callback == nil {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "atomic callback is nil"}
 	}
-	transaction, err := b.database.BeginTx(ctx, &sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  false,
-	})
+	if begin == nil {
+		begin = func(ctx context.Context) (transactionHandle, error) {
+			return b.database.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+		}
+	}
+	transaction, err := begin(ctx)
 	if err != nil {
 		return classifyDatabaseError(ctx, "begin transaction", b.schema, "", err)
 	}
@@ -132,7 +147,16 @@ func (session *transactionSession) Query(ctx context.Context, plan query.Plan) (
 	if err != nil {
 		return nil, classifyDatabaseError(ctx, "transaction query", session.backend.schema, plan.Table(), err)
 	}
-	return adaptScalarRows(rows, plan)
+	adapted, err := adaptScalarRows(rows, plan)
+	if err != nil {
+		return nil, err
+	}
+	if owner, ok := session.transaction.(interface {
+		WrapRows(db.Rows, *sql.Rows) db.Rows
+	}); ok {
+		return owner.WrapRows(adapted, rows), nil
+	}
+	return adapted, nil
 }
 
 func (session *transactionSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {

@@ -45,7 +45,7 @@ Outer transaction 소유권과 callback 종료 후 cache/model/view 사용 거�
 일반 mixed 관계 조건의 filter scope·부정 EXISTS·manager core filter를 연결했다.
 ManyToMany direct/nested/filtered prefetch와 단일 관계 prefetch·root eager의 직접 조합을 구현했다.
 Owner별 slice의 named snapshot과 runtime/generated API·전체 owner 집합 조회를 연결했다.
-Custom single target query와 빌린 session의 native batch 실행 기반을 연결했다. Root 연결 소유권·prefetch materialized streaming,
+Custom single target query와 빌린 session/root backend의 native batch 실행 기반을 연결했다. Prefetch materialized streaming,
 Ticket 소비자와 GDJ-0099 Hosted 전체 통합은 남아 있다.
 실행한 환경과 source는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 

@@ -13,7 +13,7 @@ var (
 	_ db.ConflictInserter = (*Backend)(nil)
 	_ db.ConflictInserter = (*transactionSession)(nil)
 	_ db.ConflictInserter = (*relationSession)(nil)
-	_ db.ConflictInserter = (*coordinatedSession)(nil)
+	_ db.ConflictInserter = (*writeSession)(nil)
 )
 
 // CompileConflictInsert suppresses only the explicit unique tuple. SQLite's
@@ -82,9 +82,9 @@ func (session *relationSession) InsertOnConflict(ctx context.Context, plan query
 	return executeConflictInsert(ctx, session.connection, statement, arguments)
 }
 
-func (session *coordinatedSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (session *writeSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
 	if session == nil || session.session == nil {
-		return false, inactiveCoordinatedSessionError()
+		return false, inactiveWriteSessionError()
 	}
 	return session.session.InsertOnConflict(ctx, plan)
 }

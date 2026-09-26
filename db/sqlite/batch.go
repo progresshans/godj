@@ -10,7 +10,7 @@ import (
 
 var _ db.BatchQueryer = (*transactionSession)(nil)
 var _ db.BatchQueryer = (*relationSession)(nil)
-var _ db.BatchQueryer = (*coordinatedSession)(nil)
+var _ db.BatchQueryer = (*writeSession)(nil)
 
 func (session *transactionSession) QueryBatches(ctx context.Context, plan query.Plan, size int, scan func(db.Row) error, yield func(db.Queryer) (bool, error)) error {
 	return querySessionBatches(ctx, session, plan, size, scan, yield)
@@ -20,7 +20,7 @@ func (session *relationSession) QueryBatches(ctx context.Context, plan query.Pla
 	return querySessionBatches(ctx, session, plan, size, scan, yield)
 }
 
-func (session *coordinatedSession) QueryBatches(ctx context.Context, plan query.Plan, size int, scan func(db.Row) error, yield func(db.Queryer) (bool, error)) error {
+func (session *writeSession) QueryBatches(ctx context.Context, plan query.Plan, size int, scan func(db.Row) error, yield func(db.Queryer) (bool, error)) error {
 	return querySessionBatches(ctx, session, plan, size, scan, yield)
 }
 

@@ -3,6 +3,54 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — root 배치 조회의 연결과 transaction 종료 소유권
+
+2026-09-26, `8a1f722a7514bd821c6bf23676f92b8c3f39dbd0` 위에서 root `BatchQueryer`와 callback의 pinned executor를
+양 DB에 연결했다. 제공된 executor로 중첩 query/stream·CRUD/conflict insert·ordinary/relation/coordinated atomic을 실행한다.
+Root executor는 SessionValidator를 광고하지 않고 stream 종료 뒤 원래 backend로 복귀한다. Borrowed session의 만료와 구분한다.
+이것은 native 실행 기반이다. Model graph·facade origin과 실행 backend 분리·generated iterator는 아직 미연결이며
+configured raw Iterate의 명시 오류를 유지한다. 기존 51개 Django 관찰은 그대로이고 이 묶음에서는 reference runner나 생성물을 바꾸지 않았다.
+
+SQLite는 raw admission을 얻은 뒤 연결을 고정한다. 같은 backend의 다른 raw writer가 기다리는 중에도 callback의
+scoped 작업이 같은 admission/connection으로 완료되고, stream 정리 뒤 기다리던 writer가 한 번 실행되는 것을 확인했다.
+Shared lease는 callback의 직접 rows를 다음 batch 전에 닫고 iterator의 source rows는 보존한다. Raw discard 전에 열린 rows를
+정리하여 database/sql의 pinned Conn close 대기를 해제한다. Unconfirmed rollback·discard 주입에서는 stream이 끝나도
+retained 연결은 pool에 돌아가지 않고 quarantine에 남는다. Backend.Close의 pool 봉인·close 1회 뒤 file DB를 재개방해
+미완료 write가 남지 않음을 확인했다. 이 경로를 confirmed rollback으로 오분류하지 않는다.
+
+PostgreSQL root source는 WITH HOLD cursor다. Source/FETCH/child rows의 소유권을 나누고 원본 query를 반복 실행하지 않는다.
+처음에는 pinned Conn의 sql.Tx를 재사용했지만 parent 취소 뒤의 조회가 중간에 `conn closed`로 실패했다.
+초기 normal source `8e1c56b16da75f3bc506fc3d851fac46535157a712865c28de47621a6dea78a8`와 실패 로그를 보존했다.
+현재 Go의 sql.Tx 취소 rollback 경로를 대조해, pinned 범위에서는 BEGIN/COMMIT/ROLLBACK을 동기 소유하도록 정리했다.
+기존 transactionSession의 lifetime·query/write·오류 분류는 공유하고 root pool의 기존 sql.Tx 동작은 유지한다.
+분리된 read context에서도 parent 취소를 관찰하며 rollback 뒤 root source와 연결을 다시 사용할 수 있다.
+실제 deferred FK 때문에 literal COMMIT이 실패하면 commit outcome unknown을 유지한다. Callback이 오류를 잡아도
+폐기한 source를 성공 처리하거나 새 연결에서 재시도하지 않는다. 새 backend PID와 저장 상태를 직접 확인했다.
+
+최종 non-Markdown source **2,155파일**, map hash
+`3df1eeee02f80d27e6dedf51a8ddf7297e7f259056d3b1a649f8480afc7b9262`에서
+`./db/internal/streamconn ./db/internal/batchread`와 SQLite/PostgreSQL의 batch·transaction·conflict insert·coordinated relation
+영향 회귀 **63개 필수 root**를 실행했다. 일반·race·CGO=0 각각 **4 package / 530 run=PASS / skip 0**,
+**2.4초·22.2초·2.6초**다. Go **1.26.5**, macOS arm64, PostgreSQL **17.5**에서 전후 source가 같고
+각 실행의 연결·table·schema 정리는 **0|0|0**, 소유 DB는 force 없이 제거했다. 전체 DB package/full-platform PASS를 뜻하지 않는다.
+
+양 backend의 root fixture는 pool을 연결 하나로 제한했다. 네 종류의 atomic에서 기존 batch 경계·nested query/stream·slice·
+빈/aggregate 결과·callback 오류/panic/Goexit·취소·만료·commit/rollback을 반복 검증했다. Root 자체의 scan/yield 오류·panic·Goexit·
+취소와 callback이 남긴 rows 정리, retained executor의 read/write/새 stream, iterator 실패 뒤 이미 완료한 root write 보존도 확인했다.
+Lease 동시 종료와 물리 discard·보존의 경계를 검증하고 실제 PostgreSQL root/child **87개**를 Hosted 필수 inventory에 추가했다.
+
+같은 최종 source의 의미 변경 overlay **6개**(root를 만료 session으로 취급, WITH HOLD 제거, unknown commit 정리 제거,
+retained lease 조기 반환, callback rows 경계 제거, root에 borrowed session capability 부여)는 지정한 assertion 실패로 모두 탐지했다.
+Build 실패·skip·timeout을 성공적인 negative control로 세지 않았다. Negative DB의 정리도 **0|0|0**이고 원본 source는 같다.
+gofmt·affected vet·문서 링크·diff·CI package/inventory 검사를 수행했다. Generator·generated ABI와 reference 내용은 변경하지 않아
+이 단계에서 drift/전체 consumer/reference suite를 반복 실행하지 않았다.
+
+원본 실행·source map·초기 실패·mutation·cleanup receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-root-stream/`의
+`latest-normal-path`, `latest-race-path`, `latest-cgo0-path`, `latest-negative-path`, `latest-checks-path`를 따른다.
+최종 source 대조·게시·fast CI receipt도 같은 디렉터리에 둔다. 이 source의 Hosted 전체는 아직 실행하지 않았다.
+GDJ-0099 전체 milestone은 model materialization과 Ticket 소비자 통합 뒤에 수행하며 기존 `93e77bd9…`의 전체 결과를 전이하지 않는다.
+
 ## GDJ-0099 — transaction session의 배치 실행 기반
 
 2026-09-26, `8a658682fb632df4a5e581bb4b61119c231a3298` 위에서 `db.BatchQueryer`를 ordinary/relation/coordinated

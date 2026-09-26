@@ -13,56 +13,56 @@ import (
 
 var _ db.CoordinatedAtomic = (*Backend)(nil)
 var _ db.CoordinatedRelationAtomic = (*Backend)(nil)
-var _ db.Session = (*coordinatedSession)(nil)
-var _ db.SessionValidator = (*coordinatedSession)(nil)
+var _ db.Session = (*writeSession)(nil)
+var _ db.SessionValidator = (*writeSession)(nil)
 
-// coordinatedSession exposes ordinary writes and the conflict-insert
+// writeSession exposes ordinary writes and the conflict-insert
 // capability. The wrapped raw session's bulk relation mutations belong to the
 // separate coordinated-relation callback contract.
-type coordinatedSession struct {
+type writeSession struct {
 	session *relationSession
 }
 
-func (session *coordinatedSession) ValidateSession(ctx context.Context) error {
+func (session *writeSession) ValidateSession(ctx context.Context) error {
 	if session == nil || session.session == nil {
-		return inactiveCoordinatedSessionError()
+		return inactiveWriteSessionError()
 	}
 	return session.session.ValidateSession(ctx)
 }
 
-func (session *coordinatedSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+func (session *writeSession) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if session == nil || session.session == nil {
-		return nil, inactiveCoordinatedSessionError()
+		return nil, inactiveWriteSessionError()
 	}
 	return session.session.Query(ctx, plan)
 }
 
-func (session *coordinatedSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+func (session *writeSession) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	if session == nil || session.session == nil {
-		return 0, inactiveCoordinatedSessionError()
+		return 0, inactiveWriteSessionError()
 	}
 	return session.session.Insert(ctx, plan)
 }
 
-func (session *coordinatedSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
+func (session *writeSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
 	if session == nil || session.session == nil {
-		return 0, inactiveCoordinatedSessionError()
+		return 0, inactiveWriteSessionError()
 	}
 	return session.session.Update(ctx, plan)
 }
 
-func (session *coordinatedSession) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
+func (session *writeSession) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
 	if session == nil || session.session == nil {
-		return 0, inactiveCoordinatedSessionError()
+		return 0, inactiveWriteSessionError()
 	}
 	return session.session.Delete(ctx, plan)
 }
 
-func inactiveCoordinatedSessionError() error {
+func inactiveWriteSessionError() error {
 	return &query.Error{
 		Category: query.CategoryBackend,
 		Code:     query.CodeInvalidPlan,
-		Detail:   "SQLite coordinated transaction session is nil or no longer active",
+		Detail:   "SQLite write transaction session is nil or no longer active",
 	}
 }
 
@@ -82,9 +82,9 @@ func (b *Backend) CoordinatedAtomicRelation(ctx context.Context, callback func(d
 		return b.coordinatedAtomic(ctx, nil, true)
 	}
 	return b.coordinatedAtomic(ctx, func(session db.Session) error {
-		coordinated, ok := session.(*coordinatedSession)
+		coordinated, ok := session.(*writeSession)
 		if !ok || coordinated == nil || coordinated.session == nil {
-			return inactiveCoordinatedSessionError()
+			return inactiveWriteSessionError()
 		}
 		return callback(coordinated.session)
 	}, true)
@@ -115,7 +115,7 @@ func (b *Backend) coordinatedAtomic(ctx context.Context, callback func(db.Sessio
 			return errors.Join(err, closeUnusedRelationConnection(connection))
 		}
 	}
-	return executeAdmittedCoordinatedAtomic(ctx, callback, connection, admission, &b.queryCount)
+	return executeAdmittedWriteAtomic(ctx, callback, connection, admission, &b.queryCount, true)
 }
 
 func executeCoordinatedAtomic(
@@ -130,24 +130,29 @@ func executeCoordinatedAtomic(
 		return err
 	}
 	defer admission.release()
-	return executeAdmittedCoordinatedAtomic(ctx, callback, connection, admission, queryCount)
+	return executeAdmittedWriteAtomic(ctx, callback, connection, admission, queryCount, true)
 }
 
-func executeAdmittedCoordinatedAtomic(
+func executeAdmittedWriteAtomic(
 	ctx context.Context,
 	callback func(db.Session) error,
 	connection relationPinnedConnection,
 	admission *relationTransactionAdmission,
 	queryCount *atomic.Uint64,
+	coordinated bool,
 ) error {
 	if connection == nil {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite coordinated connection is nil"}
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite write connection is nil"}
 	}
 	if callback == nil {
-		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "coordinated atomic callback is nil"}
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "atomic callback is nil"}
 	}
-	if _, err := connection.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
-		primary := fmt.Errorf("acquire SQLite coordinated transaction fence: %w", err)
+	begin := "BEGIN"
+	if coordinated {
+		begin = "BEGIN IMMEDIATE"
+	}
+	if _, err := connection.ExecContext(ctx, begin); err != nil {
+		primary := fmt.Errorf("begin SQLite write transaction: %w", err)
 		confirmed, discardErr := forceDiscardRelationConnection(connection)
 		if !confirmed {
 			discardErr = errors.Join(discardErr, admission.retain(connection))
@@ -163,7 +168,7 @@ func executeAdmittedCoordinatedAtomic(
 		lifetime:   lifetime,
 		active:     true,
 	}
-	session := &coordinatedSession{session: inner}
+	session := &writeSession{session: inner}
 	deferredCleanup := true
 	defer func() {
 		// Both panic and runtime.Goexit run defers. Neither may leave the
@@ -178,11 +183,11 @@ func executeAdmittedCoordinatedAtomic(
 	inner.deactivate()
 	if callbackErr != nil {
 		deferredCleanup = false
-		return finishCoordinatedPreCommitFailure(ctx, connection, admission, callbackErr)
+		return finishWritePreCommitFailure(ctx, connection, admission, callbackErr)
 	}
 	if contextErr := ctx.Err(); contextErr != nil {
 		deferredCleanup = false
-		return finishCoordinatedPreCommitFailure(ctx, connection, admission, contextErr)
+		return finishWritePreCommitFailure(ctx, connection, admission, contextErr)
 	}
 	if _, err := connection.ExecContext(ctx, "COMMIT"); err != nil {
 		deferredCleanup = false
@@ -190,9 +195,9 @@ func executeAdmittedCoordinatedAtomic(
 		return &query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeCommitOutcomeUnknown,
-			Detail:   "SQLite coordinated COMMIT returned an error; durable outcome requires reconciliation",
+			Detail:   "SQLite write COMMIT returned an error; durable outcome requires reconciliation",
 			Cause: errors.Join(
-				fmt.Errorf("commit SQLite coordinated transaction: %w", err),
+				fmt.Errorf("commit SQLite write transaction: %w", err),
 				cleanupErr,
 			),
 		}
@@ -205,7 +210,7 @@ func executeAdmittedCoordinatedAtomic(
 	return nil
 }
 
-func finishCoordinatedPreCommitFailure(
+func finishWritePreCommitFailure(
 	ctx context.Context,
 	connection relationPinnedConnection,
 	admission *relationTransactionAdmission,
@@ -221,7 +226,7 @@ func finishCoordinatedPreCommitFailure(
 		return &query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeTransactionOutcomeUnknown,
-			Detail:   "SQLite coordinated transaction termination could not be confirmed",
+			Detail:   "SQLite write transaction termination could not be confirmed",
 			Cause:    cause,
 		}
 	}
