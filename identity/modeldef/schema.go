@@ -19,6 +19,7 @@ func Schema() (ir.Schema, error) {
 		{Name: "permission", GoName: "Permission", Fields: []schema.Field{
 			schema.CharField("code", "Code", 128, schema.Unique()),
 			schema.CharField("name", "Name", 255),
+			schema.IntegerField("revision", "Revision", schema.Default(int64(1))),
 		}},
 		{Name: "group", GoName: "Group", Fields: []schema.Field{
 			schema.CharField("name", "Name", 150, schema.Unique()),

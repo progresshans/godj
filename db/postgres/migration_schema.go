@@ -228,12 +228,14 @@ func (schema *postgresMigrationSchema) AddField(
 	if err != nil {
 		return err
 	}
-	statement, err := compilePostgresMigrationAddField(schema.namespace, operation.Before, field, target)
+	statements, err := compilePostgresMigrationAddFieldStatements(schema.namespace, operation.Before, field, target)
 	if err != nil {
 		return postgresMigrationIntentIntegrity("compile sealed PostgreSQL AddField", err)
 	}
-	if _, err := executor.ExecContext(ctx, statement); err != nil {
-		return classifyPostgresRevisionContention(ctx, "add PostgreSQL field "+model.DBTable+"."+field.Column, err)
+	for _, statement := range statements {
+		if _, err := executor.ExecContext(ctx, statement); err != nil {
+			return classifyPostgresRevisionContention(ctx, "add PostgreSQL field "+model.DBTable+"."+field.Column, err)
+		}
 	}
 	schema.cursor++
 	return nil
@@ -422,6 +424,11 @@ func (schema *postgresMigrationSchema) preflightPostgresRequiredAdds(
 			return postgresMigrationIntentIntegrity("invalid sealed AddField delta", deltaErr)
 		}
 		if !postgresMigrationAddRequiresEmptyTable(field) {
+			if field.Default != nil {
+				if _, err := compilePostgresMigrationDefault(field); err != nil {
+					return postgresMigrationCapability("migration default cannot be represented", err)
+				}
+			}
 			continue
 		}
 		if createPosition, createdInIntent := createdAt[operation.Before.DBTable]; createdInIntent {
@@ -449,7 +456,7 @@ func (schema *postgresMigrationSchema) preflightPostgresRequiredAdds(
 }
 
 func postgresMigrationAddRequiresEmptyTable(field ir.Field) bool {
-	return field.Default != nil || !field.Nullable
+	return field.Default == nil && !field.Nullable
 }
 
 func sortedPostgresMigrationModelNames(models map[string]ir.Model) []string {

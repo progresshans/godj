@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "126e7d51b4c454a6c2588a81afeb339c2c91db380210f4568888109ec540ee2f"
+const GoDjRelationSchemaSHA256 = "6e5bb7e0853c7f7be7a91a39b3969bfd80144164c24d2bd319a226365bfb1570"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -38,6 +38,13 @@ func GoDjRelationSchema() ir.Schema {
 						Column:    "name",
 						Kind:      ir.FieldChar,
 						MaxLength: 255,
+					},
+					{
+						Name:    "revision",
+						GoName:  "Revision",
+						Column:  "revision",
+						Kind:    ir.FieldInteger,
+						Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: 1},
 					},
 				},
 			},
@@ -183,6 +190,6 @@ func GoDjRelationSchema() ir.Schema {
 	}
 }
 
-type GoDjAppPart1_424237e0058f82d9b98a63053fb4c85decba65a9c710ccc1ddd3b55607c8756f struct{}
+type GoDjAppPart1_9d2d8dec0c68482a94c1e24ec49a4b47c56f40b94fcb25deca2e434a41044d87 struct{}
 
-var _ GoDjProjectSnapshot_534419e07363a654777ce0725945d1d69e34c3a49ec0285793f7cc3ccf464e0a
+var _ GoDjProjectSnapshot_1e7428254a080a06738d17bd5f21f0a70588742ea6301aa063a40729a1df7916

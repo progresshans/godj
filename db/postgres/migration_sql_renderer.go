@@ -139,12 +139,16 @@ func (renderer migrationSQLRenderer) RenderForwardMigrationSQL(
 			if targetErr != nil {
 				return nil, targetErr
 			}
-			statement, err = compilePostgresMigrationAddField(
+			groups[index], err = compilePostgresMigrationAddFieldStatements(
 				renderer.schema,
 				operation.Before,
 				field,
 				target,
 			)
+			if err != nil {
+				return nil, err
+			}
+			continue
 		default:
 			return nil, migrationbackend.NewCapabilityError(
 				"postgres_migration_sql",

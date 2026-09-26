@@ -14,7 +14,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
-const GoDjProjectRelationFacadeInputSHA256 = "0debe4f14abb4d0b77c443b861075a1838434eef73de06f10c4bddb850cb70f9"
+const GoDjProjectRelationFacadeInputSHA256 = "0ad89a7728c5bfc9095bcd372d30c75c80e549398033addd0cf058a0dce30535"
 
 type Backend interface {
 	db.Queryer
@@ -6872,4 +6872,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_534419e07363a654777ce0725945d1d69e34c3a49ec0285793f7cc3ccf464e0a
+var _ goDjProjectSnapshot_1e7428254a080a06738d17bd5f21f0a70588742ea6301aa063a40729a1df7916

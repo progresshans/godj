@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "126e7d51b4c454a6c2588a81afeb339c2c91db380210f4568888109ec540ee2f"
+const GoDjRelationProjectionSchemaSHA256 = "6e5bb7e0853c7f7be7a91a39b3969bfd80144164c24d2bd319a226365bfb1570"
 
 var _ orm.ProjectionDescriptor[Permission] = PermissionDescriptor{}
 
@@ -18,9 +18,10 @@ func (PermissionDescriptor) NewProjectionScan() orm.ProjectionScan[Permission] {
 }
 
 type permissionProjectionScan struct {
-	scanID   sql.NullInt64
-	scanCode sql.NullString
-	scanName sql.NullString
+	scanID       sql.NullInt64
+	scanCode     sql.NullString
+	scanName     sql.NullString
+	scanRevision sql.NullInt64
 }
 
 func (_scan *permissionProjectionScan) Destinations() []any {
@@ -31,6 +32,7 @@ func (_scan *permissionProjectionScan) Destinations() []any {
 		&_scan.scanID,
 		&_scan.scanCode,
 		&_scan.scanName,
+		&_scan.scanRevision,
 	}
 }
 
@@ -38,7 +40,7 @@ func (_scan *permissionProjectionScan) Decode() (Permission, query.Value, orm.Pr
 	if _scan == nil {
 		return Permission{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanCode.Valid && !_scan.scanName.Valid {
+	if !_scan.scanID.Valid && !_scan.scanCode.Valid && !_scan.scanName.Valid && !_scan.scanRevision.Valid {
 		return Permission{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -50,10 +52,14 @@ func (_scan *permissionProjectionScan) Decode() (Permission, query.Value, orm.Pr
 	if !_scan.scanName.Valid {
 		return Permission{}, query.Value{}, orm.ProjectionInvalid
 	}
+	if !_scan.scanRevision.Valid {
+		return Permission{}, query.Value{}, orm.ProjectionInvalid
+	}
 	_value := Permission{}
 	_value.ID = _scan.scanID.Int64
 	_value.Code = _scan.scanCode.String
 	_value.Name = _scan.scanName.String
+	_value.Revision = _scan.scanRevision.Int64
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
@@ -353,6 +359,6 @@ func (_scan *userPermissionsLinkProjectionScan) Decode() (UserPermissionsLink, q
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_424237e0058f82d9b98a63053fb4c85decba65a9c710ccc1ddd3b55607c8756f struct{}
+type GoDjAppPart3_9d2d8dec0c68482a94c1e24ec49a4b47c56f40b94fcb25deca2e434a41044d87 struct{}
 
-var _ GoDjProjectSnapshot_534419e07363a654777ce0725945d1d69e34c3a49ec0285793f7cc3ccf464e0a
+var _ GoDjProjectSnapshot_1e7428254a080a06738d17bd5f21f0a70588742ea6301aa063a40729a1df7916

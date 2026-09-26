@@ -73,7 +73,7 @@ func managedGrants(t *testing.T, runtime *systemstate.Runtime, principalID strin
 	return result
 }
 
-func managementHost(t *testing.T, backend TransitionBackend) hostproject.RelationDeleters {
+func managementHostSources(t *testing.T) []definition.Source {
 	t.Helper()
 	schema, err := hostdef.Schema()
 	if err != nil {
@@ -87,7 +87,12 @@ func managementHost(t *testing.T, backend TransitionBackend) hostproject.Relatio
 	if err != nil {
 		t.Fatal(err)
 	}
-	applyIdentitySources(t, backend, append(systemstate.IdentityMigrationSources(), definition.Source{SourceID: "management-host/0001_initial", Document: document})...)
+	return append(systemstate.IdentityMigrationSources(), definition.Source{SourceID: "management-host/0001_initial", Document: document})
+}
+
+func managementHost(t *testing.T, backend TransitionBackend) hostproject.RelationDeleters {
+	t.Helper()
+	applyIdentitySources(t, backend, managementHostSources(t)...)
 	policy, err := hostproject.BindRelationDeleters()
 	if err != nil {
 		t.Fatal(err)

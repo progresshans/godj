@@ -54,7 +54,7 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 			t.Fatalf("project migrate invocation %d response=%+v failure=%+v", invocation+1, response, failure)
 		}
 		if response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Plan != nil ||
-			response.Result.Execute.SourceCount != 4 || response.Result.Execute.DefinitionCount != 4 {
+			response.Result.Execute.SourceCount != 5 || response.Result.Execute.DefinitionCount != 5 {
 			t.Fatalf("project migrate invocation %d result=%+v", invocation+1, response.Result)
 		}
 		if invocation == 0 {
@@ -97,11 +97,12 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 	if !reflect.DeepEqual(historyAfterPlan, historyBeforePlan) {
 		t.Fatalf("project migration plan changed history: before=%+v after=%+v", historyBeforePlan, historyAfterPlan)
 	}
-	if len(historyAfterPlan) != 4 ||
+	if len(historyAfterPlan) != 5 ||
 		historyAfterPlan[0].App != "godj_conformance" || historyAfterPlan[0].Name != "0001_initial" ||
 		historyAfterPlan[1].App != "godj_identity" || historyAfterPlan[1].Name != "0001_initial" ||
-		historyAfterPlan[2].App != "godj_system" || historyAfterPlan[2].Name != "0001_initial" ||
-		historyAfterPlan[3].App != "godj_system" || historyAfterPlan[3].Name != "0002_identity_transition" {
+		historyAfterPlan[2].App != "godj_identity" || historyAfterPlan[2].Name != "0002_permission_revision" ||
+		historyAfterPlan[3].App != "godj_system" || historyAfterPlan[3].Name != "0001_initial" ||
+		historyAfterPlan[4].App != "godj_system" || historyAfterPlan[4].Name != "0002_identity_transition" {
 		t.Fatalf("second invocation history=%+v", historyAfterPlan)
 	}
 }

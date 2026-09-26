@@ -11,12 +11,13 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v2"
-const GoDjSchemaSHA256 = "126e7d51b4c454a6c2588a81afeb339c2c91db380210f4568888109ec540ee2f"
+const GoDjSchemaSHA256 = "6e5bb7e0853c7f7be7a91a39b3969bfd80144164c24d2bd319a226365bfb1570"
 
 type Permission struct {
 	ID                    int64
 	Code                  string
 	Name                  string
+	Revision              int64
 	godjPrimaryKeyPresent bool
 }
 
@@ -32,7 +33,7 @@ func (PermissionDescriptor) Metadata() ir.Model {
 
 func (PermissionDescriptor) Scan(row db.Row) (Permission, error) {
 	var value Permission
-	if err := row.Scan(&value.ID, &value.Code, &value.Name); err != nil {
+	if err := row.Scan(&value.ID, &value.Code, &value.Name, &value.Revision); err != nil {
 		return Permission{}, err
 	}
 	value.godjPrimaryKeyPresent = true
@@ -70,23 +71,27 @@ func (PermissionDescriptor) WriteFieldValue(value Permission, field ir.Field) (q
 		return query.String(value.Code), true
 	case "name":
 		return query.String(value.Name), true
+	case "revision":
+		return query.Integer(value.Revision), true
 	default:
 		return query.Value{}, false
 	}
 }
 
 type PermissionFieldSet struct {
-	ID   orm.AutoField[Permission]
-	Code orm.StringField[Permission]
-	Name orm.StringField[Permission]
+	ID       orm.AutoField[Permission]
+	Code     orm.StringField[Permission]
+	Name     orm.StringField[Permission]
+	Revision orm.IntegerField[Permission]
 }
 
 var PermissionFields = func() PermissionFieldSet {
 	metadata := permissionMetadata()
 	return PermissionFieldSet{
-		ID:   orm.NewAutoField[Permission](metadata.Fields[0]),
-		Code: orm.NewStringField[Permission](metadata.Fields[1]),
-		Name: orm.NewStringField[Permission](metadata.Fields[2]),
+		ID:       orm.NewAutoField[Permission](metadata.Fields[0]),
+		Code:     orm.NewStringField[Permission](metadata.Fields[1]),
+		Name:     orm.NewStringField[Permission](metadata.Fields[2]),
+		Revision: orm.NewIntegerField[Permission](metadata.Fields[3]),
 	}
 }()
 
@@ -113,8 +118,9 @@ func PermissionForceUpdate() orm.SaveOption[Permission] {
 }
 
 type PermissionCreate struct {
-	code orm.Change[string]
-	name orm.Change[string]
+	code     orm.Change[string]
+	name     orm.Change[string]
+	revision orm.Change[int64]
 }
 
 func NewPermissionCreate(code string, name string) PermissionCreate {
@@ -134,9 +140,14 @@ func (input PermissionCreate) WithName(value string) PermissionCreate {
 	return input
 }
 
+func (input PermissionCreate) WithRevision(value int64) PermissionCreate {
+	input.revision = orm.Set(value)
+	return input
+}
+
 func (input PermissionCreate) BuildCreate() orm.Mutation[Permission] {
 	var value Permission
-	assignments := make([]query.Assignment, 0, 2)
+	assignments := make([]query.Assignment, 0, 3)
 	changedCode, changedCodeSet := input.code.Get()
 	if !changedCodeSet {
 		return orm.InvalidMutation[Permission](&query.Error{
@@ -159,12 +170,19 @@ func (input PermissionCreate) BuildCreate() orm.Mutation[Permission] {
 	}
 	value.Name = changedName
 	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
+	changedRevision, changedRevisionSet := input.revision.Get()
+	if !changedRevisionSet {
+		changedRevision = int64(1)
+	}
+	value.Revision = changedRevision
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("revision", "revision", query.FieldInteger, false), query.Integer(changedRevision)))
 	return orm.NewCreateMutation(value, "godj_identity_permission", assignments)
 }
 
 type PermissionPatch struct {
-	code orm.Change[string]
-	name orm.Change[string]
+	code     orm.Change[string]
+	name     orm.Change[string]
+	revision orm.Change[int64]
 }
 
 func (input PermissionPatch) WithCode(value string) PermissionPatch {
@@ -177,9 +195,14 @@ func (input PermissionPatch) WithName(value string) PermissionPatch {
 	return input
 }
 
+func (input PermissionPatch) WithRevision(value int64) PermissionPatch {
+	input.revision = orm.Set(value)
+	return input
+}
+
 func (input PermissionPatch) BuildPatch(current Permission) orm.Mutation[Permission] {
 	value := current
-	assignments := make([]query.Assignment, 0, 2)
+	assignments := make([]query.Assignment, 0, 3)
 	if changedCode, ok := input.code.Get(); ok {
 		value.Code = changedCode
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("code", "code", query.FieldString, false), query.String(changedCode)))
@@ -187,6 +210,10 @@ func (input PermissionPatch) BuildPatch(current Permission) orm.Mutation[Permiss
 	if changedName, ok := input.name.Get(); ok {
 		value.Name = changedName
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("name", "name", query.FieldString, false), query.String(changedName)))
+	}
+	if changedRevision, ok := input.revision.Get(); ok {
+		value.Revision = changedRevision
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("revision", "revision", query.FieldInteger, false), query.Integer(changedRevision)))
 	}
 	return orm.NewPatchMutation(value, "godj_identity_permission", assignments)
 }
@@ -218,6 +245,13 @@ func permissionMetadata() ir.Model {
 				Column:    "name",
 				Kind:      ir.FieldChar,
 				MaxLength: 255,
+			},
+			{
+				Name:    "revision",
+				GoName:  "Revision",
+				Column:  "revision",
+				Kind:    ir.FieldInteger,
+				Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: 1},
 			},
 		},
 	}
@@ -1725,6 +1759,6 @@ func userPermissionsLinkMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_424237e0058f82d9b98a63053fb4c85decba65a9c710ccc1ddd3b55607c8756f struct{}
+type GoDjAppPart0_9d2d8dec0c68482a94c1e24ec49a4b47c56f40b94fcb25deca2e434a41044d87 struct{}
 
-type GoDjProjectSnapshot_534419e07363a654777ce0725945d1d69e34c3a49ec0285793f7cc3ccf464e0a struct{}
+type GoDjProjectSnapshot_1e7428254a080a06738d17bd5f21f0a70588742ea6301aa063a40729a1df7916 struct{}

@@ -12,6 +12,118 @@ import (
 
 const GoDjProjectRelationPrefetchGeneratorVersion = "godj-codegen-rel-prefetch-project-v1"
 
+type AccountsGroupReversePrefetches struct {
+	objects AccountsGroupReverseObjectFactory
+	guards  orm.ReversePrefetch[accounts.Group, work.AccessGuard]
+	notes   orm.ReversePrefetch[accounts.Group, work.AccessNote]
+}
+
+func (_prefetches AccountsGroupReversePrefetches) Guards(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []accounts.Group,
+) ([]*AccountsGroupReverseObject, error) {
+	_snapshots := make([]accounts.Group, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (accounts.GroupDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.guards.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*AccountsGroupReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.guards = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
+func (_prefetches AccountsGroupReversePrefetches) Notes(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []accounts.Group,
+) ([]*AccountsGroupReverseObject, error) {
+	_snapshots := make([]accounts.Group, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (accounts.GroupDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.notes.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*AccountsGroupReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.notes = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
+type AccountsPermissionReversePrefetches struct {
+	objects AccountsPermissionReverseObjectFactory
+	guards  orm.ReversePrefetch[accounts.Permission, work.AccessGuard]
+	notes   orm.ReversePrefetch[accounts.Permission, work.AccessNote]
+}
+
+func (_prefetches AccountsPermissionReversePrefetches) Guards(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []accounts.Permission,
+) ([]*AccountsPermissionReverseObject, error) {
+	_snapshots := make([]accounts.Permission, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (accounts.PermissionDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.guards.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*AccountsPermissionReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.guards = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
+func (_prefetches AccountsPermissionReversePrefetches) Notes(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []accounts.Permission,
+) ([]*AccountsPermissionReverseObject, error) {
+	_snapshots := make([]accounts.Permission, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (accounts.PermissionDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.notes.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*AccountsPermissionReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.notes = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
+}
+
 type AccountsUserReversePrefetches struct {
 	objects AccountsUserReverseObjectFactory
 	guards  orm.ReversePrefetch[accounts.User, work.Guard]
@@ -69,7 +181,9 @@ func (_prefetches AccountsUserReversePrefetches) Notes(
 }
 
 type ReversePrefetches struct {
-	AccountsUser AccountsUserReversePrefetches
+	AccountsGroup      AccountsGroupReversePrefetches
+	AccountsPermission AccountsPermissionReversePrefetches
+	AccountsUser       AccountsUserReversePrefetches
 }
 
 func BindReversePrefetches() (ReversePrefetches, error) {
@@ -77,21 +191,47 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch0, _err := orm.BindReversePrefetch(_objects.AccountsUser.guards)
+	_prefetch0, _err := orm.BindReversePrefetch(_objects.AccountsGroup.guards)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch1, _err := orm.BindReversePrefetch(_objects.AccountsUser.notes)
+	_prefetch1, _err := orm.BindReversePrefetch(_objects.AccountsGroup.notes)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch2, _err := orm.BindReversePrefetch(_objects.AccountsPermission.guards)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch3, _err := orm.BindReversePrefetch(_objects.AccountsPermission.notes)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch4, _err := orm.BindReversePrefetch(_objects.AccountsUser.guards)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch5, _err := orm.BindReversePrefetch(_objects.AccountsUser.notes)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
 	return ReversePrefetches{
-		AccountsUser: AccountsUserReversePrefetches{
-			objects: _objects.AccountsUser,
+		AccountsGroup: AccountsGroupReversePrefetches{
+			objects: _objects.AccountsGroup,
 			guards:  _prefetch0,
 			notes:   _prefetch1,
+		},
+		AccountsPermission: AccountsPermissionReversePrefetches{
+			objects: _objects.AccountsPermission,
+			guards:  _prefetch2,
+			notes:   _prefetch3,
+		},
+		AccountsUser: AccountsUserReversePrefetches{
+			objects: _objects.AccountsUser,
+			guards:  _prefetch4,
+			notes:   _prefetch5,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ goDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

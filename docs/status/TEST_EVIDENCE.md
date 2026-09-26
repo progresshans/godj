@@ -3,6 +3,85 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 기존 행의 기본값 backfill과 Permission revision migration
+
+2026-09-27, `b6edcb8f` 뒤의 변경이다. Permission revision의 historical migration을 위해 scalar-default AddField를
+양 DB의 revision-fenced lifecycle·자동 계획·SQL projection에 연결했다. `0001_initial` bytes는 유지하고 별도
+`godj_identity.0002_permission_revision`이 기존 Permission에 revision 1을 채운다. Group/Permission 관리 service와
+전용 Form/Admin/API/client의 완료를 뜻하지 않는다. 전체 platform/cold-build/Hosted milestone은 관리 소비자 통합 뒤에 둔다.
+
+최종 Go checkpoint의 non-Markdown **2,303 파일** source map은
+`8de9e3c1d47f2ee4bd7ac22d7b96e963482305c45ce045d47fe0004ee04731f7`이다.
+Darwin arm64 / Go 1.26.5, SQLite·private PostgreSQL **17.10**, **13 packages / 985 required entries**
+(780 roots·205 subcases)의 completion·no-skip을 검사했다. Migration·autodetect·project check·identity·systemstate·protocol,
+양 native backend의 migration/identity 회귀와 실제 SYS-028 handler가 scope다. PostgreSQL의 직접 helper는 부모 process test가 실행한다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 2,662 PASS / skip 0 | 30.776초 |
+| race | 2,662 PASS / skip 0 | 104.567초 |
+| CGO=0 | 2,662 PASS / skip 0 | 27.736초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`와 mode별 `-race`/`CGO_ENABLED=0`을 사용했다.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`, private image는
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+SQLite/PostgreSQL의 실제 별도 process migration fence도 포함한다. 전체 identity management의 process/Hosted 증거로 확대하지 않는다.
+
+16개 scalar 사례에서 ordinary typed INSERT로 만든 별도 expected column과 실제 backfill을 비교했다.
+Add·reverse·reapply, incoming CASCADE FK·삭제된 ID 상한·최종 DB default 부재·누락 INSERT 동작을 확인했다.
+false·빈 text·int64 최솟값·nullable 값·Float/Decimal/UUID/JSON/Date/Time/Duration/DateTime을 포함한다.
+JSON null과 세미콜론·탭·제어 문자·따옴표·역슬래시 문자열은 별도 Go invariant다. SQL body 제한을 완화하지 않고 값을 보존한다.
+Unique constant 충돌은 행·column·관계·history·revision을 rollback했다. Permission upgrade는 기존 PK/code/name,
+User/hash/revision·직접/그룹 grant·호스트 CASCADE/SET_NULL/PROTECT 참조·session/audit bytes·로그인을 보존했다.
+누락 migration의 startup 거부와 손상된 Permission revision의 부분 계정 미게시도 확인했다.
+
+직전 source `daea1ec96297718fb494f4cc2aebba67894bc42ad1400fa812c172675197ced9`에서는 생성된 identity fixture와
+Article/projectrunner/siteapp/Helpdesk를 더한 **18 packages / 941 entries**, 세 모드 각각 **2,834 PASS / skip 0**을 확인했다.
+이후 SQL 문자열 escape·corrupt Permission revision 회귀·필수 roster를 보완하고 위 직접 영향 범위를 재실행했다.
+소비자 실행을 최종 source에서 다시 수행한 것으로 표현하지 않는다.
+
+Go overlay **9개 변형 / 12개 실제 assertion 탐지**: typed default를 0으로 교체(양 DB), PostgreSQL의 DROP DEFAULT 제거,
+SQLite sequence 훼손·복사 행 누락·ROLLBACK 대신 COMMIT, identity migration admission 제거(양 DB),
+양 dialect의 SQL literal escape 제거, Permission revision 검증 제거(양 DB).
+DB final catalog·row/sequence guard가 잡은 실패와 테스트의 직접 rollback/인가 assertion을 구분해 원본 stream에 보존했다.
+Compile 실패·timeout·race는 탐지로 세지 않았다. 마지막 control의 첫 실행은 필요한 선행 subcase를 제외해 잘못된 단계에서 실패했다.
+이를 탐지로 인정하지 않고 같은 source에서 해당 전체 root를 실행해 정확한 invalid_permission_revision assertion 2개를 확인했다.
+모든 checkpoint/control의 source 전후 동일, PostgreSQL table·owned schema·다른 connection `0|0|0`, container 제거를 확인했다.
+
+독립 `migration_default_reference.py`는 고정 Django 6.1 / Python **3.14.3**의 실제 migration state·schema editor로
+14개 default 사례를 SQLite **3.50.4**와 PostgreSQL **17.10**에서 각각 `PYTHONHASHSEED=0/813`으로 실행했다.
+Backend별 capture는 두 seed에서 byte 동일하다. SQLite의 next_id 3과 PostgreSQL의 4 차이를 raw에 보존하며,
+GoDj의 상한 보존은 [DEV-0013](../DEVIATIONS.md#dev-0013--sqlite-migration-remake에서-삭제된-id의-sequence-상한을-보존)의 정확한 14개 셀에만 적용한다.
+최종 runner SHA-256은 `34e39331e236183883cee02d1ab60117191e4370067575c8a8651d7fb91aad8d`다.
+Frozen DRF reference 환경의 Python **2/2**도 통과했고 effective_default를 0으로 바꾸면 실제 matched rows가 2→0으로 변했다.
+독립 PG table 0·DB 삭제·container 제거를 확인했다. Group/Permission catalog의 별도 독립 capture도 준비했지만 Go 관리 구현의 PASS는 아니다.
+
+Checkpoint 뒤 SQLite-only replay의 PostgreSQL schema import가 선택적 psycopg에 의존하는 문제를 수정했다.
+Pinned package의 같은 source 파일을 import 없이 hash하도록 바꾼 게시 source map은
+`1843ffc89a3d9add9e86c5acc830a3e456c471ae28a4d4e773606002a95663de`다.
+전후 map에서 이 Python runner 한 파일만 달라졌고 Go·생성물·test/reference bytes는 동일함을 확인했다.
+수정 runner로 양 DB·두 seed를 다시 실행해 기존 capture와 byte 동일함을 확인했다. Go checkpoint를 재실행했다고 주장하지 않는다.
+이 source에서 네 프로젝트(identity·identityfixture·Helpdesk·Article)의 `generate --check`, 영향 `go vet`,
+CI Python **41/41**·format·문서 링크 검사를 통과했다.
+
+초기 checkpoint `cfafc5a6b05d18327bcd6cf13f6d3c24c43ef50c8b03b8a3786245d80d706983`는 defaulted AddField의 옛 기대값,
+이전 adoption commit의 SYS-028 기준 파일 잠금 누락, expanded package와 roster 연결 오류 때문에 실패했다.
+SYS-028만 ADR-0076 결정으로 변경됐고 독립 결정 함수와 일치함을 확인한 뒤 checksum·정확한 provenance/결과 기대를 갱신했다.
+Django 소유 관찰은 변경하지 않았고 실제 Article startup handler를 세 모드에서 실행했다. 초기 실패를 최종 PASS에 합치지 않는다.
+초기 생성의 별도 실패는 compiler overlay로 디스크 부족을 확인했다. GoDj 소유임을 재확인한 오래된 재생성 가능 cache 12.0 GiB를
+정리한 뒤 실제 생성을 완료했다. source·사용자 문서·증거는 삭제하지 않았다. Cold download 진행이 실제 compiler 진단을 가리던
+bounded summary도 수정하고 비밀 값 redaction을 포함한 회귀를 검증했다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+- `default-backfill-checkpoint-1790464343329461000/receipt.json`: 최종 Go 세 모드·roster·원본 stream·source map.
+- `default-backfill-checkpoint-1790463879276562000/receipt.json`: 직전 source의 생성 소비자 포함 세 모드.
+- `default-backfill-controls-1790464360317291000/receipt.json`: 첫 8개 유효 변형과 마지막 잘못 선택한 control의 실패.
+- `default-backfill-controls-1790464452909273000/receipt.json`: 같은 source의 마지막 control, 정확한 assertion 2개.
+- `migration-default-reference-1790464560924426000/receipt.json`: 수정 runner의 양 DB·두 seed·원본 capture·cleanup.
+- `default-backfill-supplemental-1790464600945647000/receipt.json`: Python-only source 변경 확인·네 generate-check·vet·CI 도구/format/docs.
+- `default-backfill-checkpoint-1790463278498631000/receipt.json`: 초기 실패·정리 근거.
+- `catalog-management-reference-1790461161494175000/receipt.json`: 다음 Group/Permission 관리에 사용할 독립 capture만의 근거.
+
 ## GDJ-0100 — 사용자 관리와 호스트 관계 삭제
 
 2026-09-27, `69b74b232e4debfb531fb2b3f10d95f0e7d84b81` 뒤의 변경이다. 최종 non-Markdown **2,288 파일** source map SHA-256은

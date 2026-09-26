@@ -115,8 +115,7 @@ func TestPostgresUniqueSQLProjectionRequiresPhysicalChanges(t *testing.T) {
 	for _, compile := range []func() ([]string, error){
 		func() ([]string, error) { return compilePostgresMigrationCreateModel("public", unique, nil) },
 		func() ([]string, error) {
-			statement, err := compilePostgresMigrationAddField("public", plain, field, nil)
-			return []string{statement}, err
+			return compilePostgresMigrationAddFieldStatements("public", plain, field, nil)
 		},
 	} {
 		statement, err := compile()

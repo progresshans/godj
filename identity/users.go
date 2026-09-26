@@ -417,6 +417,9 @@ func (manager *Manager) validateEffectiveGrants(ctx context.Context, reader db.Q
 		return userInputError("permissions", "max_items")
 	}
 	for _, row := range rows {
+		if row.Revision <= 0 {
+			return managementError(CodePersistence, "user", nil)
+		}
 		if _, err := auth.NewPermission(row.Code); err != nil {
 			return managementError(CodePersistence, "user", err)
 		}

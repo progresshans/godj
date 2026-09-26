@@ -123,11 +123,13 @@ func preflightSQLiteRelationRemakes(
 		if deltaErr != nil {
 			return nil, [sha256.Size]byte{}, relationIntentIntegrity("invalid remake delta: %v", deltaErr)
 		}
-		if _, err := sqliteRelationTargetForField(field, operation.Targets); err != nil {
-			return nil, [sha256.Size]byte{}, relationIntentIntegrity(
-				"relation remake operation %d lacks exact changed-field target authority",
-				operation.OperationIndex,
-			)
+		if field.Kind == ir.FieldForeignKey {
+			if _, err := sqliteRelationTargetForField(field, operation.Targets); err != nil {
+				return nil, [sha256.Size]byte{}, relationIntentIntegrity(
+					"relation remake operation %d lacks exact changed-field target authority",
+					operation.OperationIndex,
+				)
+			}
 		}
 		retainedTargets, err := sqliteRelationTargetsForFields(operation.After, operation.Targets)
 		if err != nil {
@@ -184,6 +186,9 @@ func preflightSQLiteRelationRemakes(
 				err,
 			)
 		}
+		if _, err := compileSQLiteRelationRemakeCopy(plan); err != nil {
+			return nil, [sha256.Size]byte{}, relationIntentUnsupported("remake copy cannot compile: %v", err)
+		}
 		plans[operation.OperationIndex] = plan
 	}
 	digest, err := hashSQLiteRelationRemakePlans(plans)
@@ -194,6 +199,10 @@ func preflightSQLiteRelationRemakes(
 }
 
 func sqliteRelationOperationNeedsRemake(operation migrationbackend.MigrationOperation) bool {
+	if operation.Kind == migrationbackend.MigrationAddField {
+		field, err := operation.ChangedField()
+		return err == nil && field.Default != nil && field.Relation == nil && !field.PrimaryKey
+	}
 	if operation.Kind == migrationbackend.MigrationRemoveField {
 		return sqliteRelationOperationChangesForeignKey(operation)
 	}
@@ -387,19 +396,32 @@ func executeSQLiteRelationRemake(
 
 func compileSQLiteRelationRemakeCopy(plan sqliteRelationRemakePlan) (string, error) {
 	columns := make([]string, len(plan.after.Fields))
+	expressions := make([]string, len(columns))
+	retained := make(map[string]bool, len(plan.before.Fields))
+	for _, field := range plan.before.Fields {
+		retained[field.Column] = true
+	}
 	for index := range plan.after.Fields {
-		quoted, err := quoteIdentifier(plan.after.Fields[index].Column)
+		field := plan.after.Fields[index]
+		quoted, err := quoteIdentifier(field.Column)
 		if err != nil {
 			return "", fmt.Errorf("quote relation remake retained column: %w", err)
 		}
 		columns[index] = quoted
+		expressions[index] = quoted
+		if !retained[field.Column] {
+			expressions[index], err = compileSQLiteMigrationDefault(field)
+			if err != nil {
+				return "", fmt.Errorf("compile new-column backfill: %w", err)
+			}
+		}
 	}
 	primaryKey, err := quoteIdentifier(plan.primaryKey.Column)
 	if err != nil {
 		return "", fmt.Errorf("quote relation remake primary key: %w", err)
 	}
 	return `INSERT INTO ` + qualifiedSQLiteRelationMain(plan.temporary) +
-		` (` + strings.Join(columns, ", ") + `) SELECT ` + strings.Join(columns, ", ") +
+		` (` + strings.Join(columns, ", ") + `) SELECT ` + strings.Join(expressions, ", ") +
 		` FROM ` + qualifiedSQLiteRelationMain(plan.before.DBTable) + ` ORDER BY ` + primaryKey, nil
 }
 
@@ -407,8 +429,14 @@ func compileSQLiteRelationRemakeCopy(plan sqliteRelationRemakePlan) (string, err
 // FK mode, transaction admission, row/catalog checks and history publication
 // remain owned by the migration lifecycle. Sequence values are copied at run
 // time so rendering never opens a database or invents a high-water value.
-func compileSQLiteRelationTimingRemake(transition migrationbackend.HistoryTransition, operation migrationbackend.MigrationOperation) ([]string, error) {
-	_, field, _, err := migrationbackend.ChangedField(operation.Before, operation.After)
+func compileSQLiteRelationRemakeSQL(transition migrationbackend.HistoryTransition, operation migrationbackend.MigrationOperation) ([]string, error) {
+	var field ir.Field
+	var err error
+	if operation.Kind == migrationbackend.MigrationAlterField {
+		_, field, _, err = migrationbackend.ChangedField(operation.Before, operation.After)
+	} else {
+		field, err = operation.ChangedField()
+	}
 	if err != nil {
 		return nil, err
 	}

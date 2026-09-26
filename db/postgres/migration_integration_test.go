@@ -611,7 +611,7 @@ func TestPostgresMigrationCreateThenAddInOneDefinitionIntegration(t *testing.T) 
 	assertPostgresMigrationIntegrationTableMissing(t, ctx, backend, schema, model.DBTable)
 }
 
-func TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration(t *testing.T) {
+func TestPostgresMigrationBackfillsNullableDefaultOnPopulatedTableIntegration(t *testing.T) {
 	databaseURL := postgresIntegrationURL(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -668,27 +668,24 @@ func TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration(t
 		t.Fatalf("insert populated nullable-default source row: %v", err)
 	}
 
-	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); !migrationbackend.IsCapabilityError(err) {
-		t.Fatalf("nullable-default AddField on populated PostgreSQL table error = %T %v, want capability", err, err)
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal("backfill existing rows", err)
 	}
-	assertPostgresMigrationIntegrationHistory(t, ctx, backend, []migrationbackend.AppliedMigration{{App: initialKey.App, Name: initialKey.Name}})
+	assertPostgresMigrationIntegrationHistory(t, ctx, backend, []migrationbackend.AppliedMigration{{App: initialKey.App, Name: initialKey.Name}, {App: defaultKey.App, Name: defaultKey.Name}})
 	catalog, present, err := loadPostgresMigrationTableCatalog(ctx, backend.database, schema, "defaults_entry")
-	if err != nil || !present {
-		t.Fatalf("load rolled-back nullable-default PostgreSQL catalog = present:%t error:%v", present, err)
+	if err != nil || !present || len(catalog.columns) != 3 || catalog.columns[2].hasDefault {
+		t.Fatal("default persisted or final shape differs", catalog, err)
 	}
-	if len(catalog.columns) != 2 || catalog.columns[0].name != "id" || catalog.columns[1].name != "title" {
-		t.Fatalf("nullable-default PostgreSQL rejection left catalog = %+v", catalog.columns)
+	var title, summary string
+	if err := backend.database.QueryRowContext(ctx, `SELECT "title", "summary" FROM `+qualified+` WHERE "id"=1`).Scan(&title, &summary); err != nil || title != "preserved" || summary != "backfilled" {
+		t.Fatal("backfill changed old data or lost default", title, summary, err)
 	}
-	var rowCount int
-	var title string
-	if err := backend.database.QueryRowContext(
-		ctx,
-		`SELECT COUNT(*)::integer, MIN("title") FROM `+qualified,
-	).Scan(&rowCount, &title); err != nil {
-		t.Fatalf("read populated nullable-default source after rejection: %v", err)
+	if _, err := backend.database.ExecContext(ctx, `INSERT INTO `+qualified+` ("title") VALUES ('later')`); err != nil {
+		t.Fatal(err)
 	}
-	if rowCount != 1 || title != "preserved" {
-		t.Fatalf("nullable-default PostgreSQL rejection rows = count:%d title:%q", rowCount, title)
+	var absent bool
+	if err := backend.database.QueryRowContext(ctx, `SELECT "summary" IS NULL FROM `+qualified+` WHERE "title"='later'`).Scan(&absent); err != nil || !absent {
+		t.Fatal("one-time default leaked into a later raw INSERT", err)
 	}
 }
 

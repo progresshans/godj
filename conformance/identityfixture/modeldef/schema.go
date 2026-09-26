@@ -19,6 +19,15 @@ func Schema() (ir.Schema, error) {
 		{Name: "guard", GoName: "Guard", Fields: []schema.Field{
 			schema.ForeignKey("owner", "OwnerID", schema.Target(identitydef.AppLabel, "user"), schema.RelatedName("guards"), schema.Protect),
 		}},
+		{Name: "access_note", GoName: "AccessNote", Fields: []schema.Field{
+			schema.CharField("text", "Text", 100),
+			schema.ForeignKey("group", "GroupID", schema.Target(identitydef.AppLabel, "group"), schema.RelatedName("notes"), schema.SetNull, schema.Nullable()),
+			schema.ForeignKey("permission", "PermissionID", schema.Target(identitydef.AppLabel, "permission"), schema.RelatedName("notes"), schema.Cascade),
+		}},
+		{Name: "access_guard", GoName: "AccessGuard", Fields: []schema.Field{
+			schema.ForeignKey("group", "GroupID", schema.Target(identitydef.AppLabel, "group"), schema.RelatedName("guards"), schema.Protect, schema.Nullable()),
+			schema.ForeignKey("permission", "PermissionID", schema.Target(identitydef.AppLabel, "permission"), schema.RelatedName("guards"), schema.Protect, schema.Nullable()),
+		}},
 	}})
 }
 

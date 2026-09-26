@@ -14,12 +14,17 @@ Article/Helpdesk·CLI와 durable session 소비자를 연결했고 관리자 비
 [외부 app·호스트 관계 소유권](../adr/0077-reusable-app-models-and-host-relation-ownership.md),
 [구현 현황](IMPLEMENTATION_MATRIX.md)이 지원 범위를 설명한다.
 
-사용자 생성·조회·편집·삭제 service를 추가했다. 현재 인가와 revision을 확인하고 profile·role·그룹/직접 권한·감사를
-원자적으로 변경한다. 비활성/삭제는 대상 session을 폐기하며 삭제에는 호스트의 전체 관계 정책을 사용한다.
-양 DB·영향 normal/race/CGO=0, 독립 Django 비교와 실패·동시성·negative control을 통과했다.
-`48aefdb1`으로 게시했고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36275314844)의 실제 Go 검사도 성공했다.
-현재 source·scope와 실패 보정 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 고정했다.
-이 변경의 전용 관리 Form/Admin/API/client와 별도 process·Hosted 전체 검증은 아직 수행하지 않았다.
+사용자 생성·조회·편집·삭제 service와 호스트 관계 삭제를 `48aefdb1`까지 게시하고 영향 검증했다.
+Group/Permission 관리에 필요한 Permission revision을 추가하면서, 기존 행이 있는 테이블의 scalar-default AddField를
+양 DB lifecycle·자동 계획·SQL 출력에 연결했다. 기존 identity migration은 보존하고 새 migration으로 revision 1을 채운다.
+새 runtime은 이 migration 누락을 시작 시 거부하며 관계·credential·session·audit는 보존한다.
+
+이 변경의 영향 normal/race/CGO=0·양 DB·migration process·독립 Django 비교와 변형 검사를 통과했다.
+기본값 보존·DB default 제거·실패 rollback·sequence 상한과 잘못된 Permission revision 거부를 확인했다.
+[Remake와 backfill 결정](../adr/0064-historical-relation-graphs-and-sqlite-remakes.md),
+[독립 관찰의 sequence 차이](../DEVIATIONS.md#dev-0013--sqlite-migration-remake에서-삭제된-id의-sequence-상한을-보존),
+현재 source·scope와 실행 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
+Group/Permission service·전용 관리 Form/Admin/API/client와 GDJ-0100 전체 검증은 미완료다.
 
 ## 다음 행동
 

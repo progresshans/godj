@@ -13,10 +13,166 @@ import (
 
 const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v6"
 
+var _ orm.RelationObjectDescriptor[accounts.Group] = accounts.GroupDescriptor{}
+var _ orm.PrimaryKeyObjectDescriptor[accounts.Group] = accounts.GroupDescriptor{}
+var _ orm.RelationObjectDescriptor[accounts.Permission] = accounts.PermissionDescriptor{}
+var _ orm.PrimaryKeyObjectDescriptor[accounts.Permission] = accounts.PermissionDescriptor{}
 var _ orm.RelationObjectDescriptor[accounts.User] = accounts.UserDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[accounts.User] = accounts.UserDescriptor{}
+var _ orm.RelationObjectDescriptor[work.AccessGuard] = work.AccessGuardDescriptor{}
+var _ orm.RelationObjectDescriptor[work.AccessNote] = work.AccessNoteDescriptor{}
 var _ orm.RelationObjectDescriptor[work.Guard] = work.GuardDescriptor{}
 var _ orm.RelationObjectDescriptor[work.Note] = work.NoteDescriptor{}
+
+type AccountsGroupReverseObjectFactory struct {
+	model  orm.BoundModel[accounts.Group]
+	guards orm.ReverseObject[accounts.Group, work.AccessGuard]
+	notes  orm.ReverseObject[accounts.Group, work.AccessNote]
+}
+
+func (_factory AccountsGroupReverseObjectFactory) From(_backend db.Queryer, _value accounts.Group) (*AccountsGroupReverseObject, error) {
+	_snapshot := (accounts.GroupDescriptor{}).CloneModel(_value)
+	_related0, _err := _factory.guards.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related1, _err := _factory.notes.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &AccountsGroupReverseObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		guards:  _related0,
+		notes:   _related1,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type AccountsGroupReverseObject struct {
+	model   accounts.Group
+	factory AccountsGroupReverseObjectFactory
+	backend db.Queryer
+	guards  *orm.RelatedSet[work.AccessGuard]
+	notes   *orm.RelatedSet[work.AccessNote]
+	_self   *AccountsGroupReverseObject
+}
+
+func (_object *AccountsGroupReverseObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated reverse relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *AccountsGroupReverseObject) Model() (accounts.Group, error) {
+	if _err := _object._validate(); _err != nil {
+		return accounts.Group{}, _err
+	}
+	return (accounts.GroupDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *AccountsGroupReverseObject) Guards() (*orm.RelatedSet[work.AccessGuard], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.guards, nil
+}
+
+func (_object *AccountsGroupReverseObject) Notes() (*orm.RelatedSet[work.AccessNote], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.notes, nil
+}
+
+func (_object *AccountsGroupReverseObject) Fresh() (*AccountsGroupReverseObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
+type AccountsPermissionReverseObjectFactory struct {
+	model  orm.BoundModel[accounts.Permission]
+	guards orm.ReverseObject[accounts.Permission, work.AccessGuard]
+	notes  orm.ReverseObject[accounts.Permission, work.AccessNote]
+}
+
+func (_factory AccountsPermissionReverseObjectFactory) From(_backend db.Queryer, _value accounts.Permission) (*AccountsPermissionReverseObject, error) {
+	_snapshot := (accounts.PermissionDescriptor{}).CloneModel(_value)
+	_related2, _err := _factory.guards.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related3, _err := _factory.notes.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &AccountsPermissionReverseObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		guards:  _related2,
+		notes:   _related3,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type AccountsPermissionReverseObject struct {
+	model   accounts.Permission
+	factory AccountsPermissionReverseObjectFactory
+	backend db.Queryer
+	guards  *orm.RelatedSet[work.AccessGuard]
+	notes   *orm.RelatedSet[work.AccessNote]
+	_self   *AccountsPermissionReverseObject
+}
+
+func (_object *AccountsPermissionReverseObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated reverse relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *AccountsPermissionReverseObject) Model() (accounts.Permission, error) {
+	if _err := _object._validate(); _err != nil {
+		return accounts.Permission{}, _err
+	}
+	return (accounts.PermissionDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *AccountsPermissionReverseObject) Guards() (*orm.RelatedSet[work.AccessGuard], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.guards, nil
+}
+
+func (_object *AccountsPermissionReverseObject) Notes() (*orm.RelatedSet[work.AccessNote], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.notes, nil
+}
+
+func (_object *AccountsPermissionReverseObject) Fresh() (*AccountsPermissionReverseObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
 
 type AccountsUserReverseObjectFactory struct {
 	model  orm.BoundModel[accounts.User]
@@ -26,11 +182,11 @@ type AccountsUserReverseObjectFactory struct {
 
 func (_factory AccountsUserReverseObjectFactory) From(_backend db.Queryer, _value accounts.User) (*AccountsUserReverseObject, error) {
 	_snapshot := (accounts.UserDescriptor{}).CloneModel(_value)
-	_related0, _err := _factory.guards.From(_backend, _snapshot)
+	_related4, _err := _factory.guards.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related1, _err := _factory.notes.From(_backend, _snapshot)
+	_related5, _err := _factory.notes.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -38,8 +194,8 @@ func (_factory AccountsUserReverseObjectFactory) From(_backend db.Queryer, _valu
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		guards:  _related0,
-		notes:   _related1,
+		guards:  _related4,
+		notes:   _related5,
 	}
 	_result._self = _result
 	return _result, nil
@@ -94,7 +250,9 @@ func (_object *AccountsUserReverseObject) Fresh() (*AccountsUserReverseObject, e
 }
 
 type ReverseObjects struct {
-	AccountsUser AccountsUserReverseObjectFactory
+	AccountsGroup      AccountsGroupReverseObjectFactory
+	AccountsPermission AccountsPermissionReverseObjectFactory
+	AccountsUser       AccountsUserReverseObjectFactory
 }
 
 func BindReverseObjects() (ReverseObjects, error) {
@@ -107,6 +265,22 @@ func BindReverseObjects() (ReverseObjects, error) {
 
 // BindReverseObjectsIn composes typed relation factories in one caller-owned project binding.
 func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
+	_model0, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+		accounts.GroupDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+		accounts.PermissionDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
 	_model3, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
@@ -117,13 +291,29 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	}
 	_model6, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_guard"},
+		work.AccessGuardDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_model7, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_note"},
+		work.AccessNoteDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_model8, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "guard"},
 		work.GuardDescriptor{},
 	)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model7, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "note"},
 		work.NoteDescriptor{},
@@ -131,19 +321,45 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation0, _err := orm.BindReverseObject(_model3, "guards", _model6)
+	_relation0, _err := orm.BindReverseObject(_model0, "guards", _model6)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation1, _err := orm.BindReverseObject(_model3, "notes", _model7)
+	_relation1, _err := orm.BindReverseObject(_model0, "notes", _model7)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation2, _err := orm.BindReverseObject(_model2, "guards", _model6)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation3, _err := orm.BindReverseObject(_model2, "notes", _model7)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation4, _err := orm.BindReverseObject(_model3, "guards", _model8)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation5, _err := orm.BindReverseObject(_model3, "notes", _model9)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
 	return ReverseObjects{
-		AccountsUser: AccountsUserReverseObjectFactory{
-			model:  _model3,
+		AccountsGroup: AccountsGroupReverseObjectFactory{
+			model:  _model0,
 			guards: _relation0,
 			notes:  _relation1,
+		},
+		AccountsPermission: AccountsPermissionReverseObjectFactory{
+			model:  _model2,
+			guards: _relation2,
+			notes:  _relation3,
+		},
+		AccountsUser: AccountsUserReverseObjectFactory{
+			model:  _model3,
+			guards: _relation4,
+			notes:  _relation5,
 		},
 	}, nil
 }
@@ -215,13 +431,29 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	}
 	_model6, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_guard"},
+		work.AccessGuardDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model7, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_note"},
+		work.AccessNoteDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model8, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "guard"},
 		work.GuardDescriptor{},
 	)
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_model7, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "note"},
 		work.NoteDescriptor{},
@@ -258,6 +490,8 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	}
 	_ = _model6
 	_ = _model7
+	_ = _model8
+	_ = _model9
 	return Collections{
 		AccountsGroupPermissions: _relation0,
 		AccountsPermissionGroups: _relation1,
@@ -268,4 +502,4 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ goDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

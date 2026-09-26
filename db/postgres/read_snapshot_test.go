@@ -96,6 +96,14 @@ func TestPostgresIdentityPasswordManagement(t *testing.T) {
 	})
 }
 
+func TestPostgresIdentityPermissionRevisionMigration(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	backend.database.SetMaxOpenConns(1)
+	identitytest.RunPermissionRevisionMigration(t, backend)
+}
+
 func TestPostgresIdentityUserManagement(t *testing.T) {
 	url := postgresIntegrationURL(t)
 	identitytest.RunUserManagement(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {

@@ -357,7 +357,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 				continue
 			}
 			if !safeExistingAddField(field) {
-				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing-table AddField requires a supported nullable field or an empty-table ForeignKey, with no default"))
+				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing-table AddField requires a supported nullable/defaulted scalar or an empty-table ForeignKey"))
 			}
 			if err := validateAddedRelation(app, newModel.Name, field, after); err != nil {
 				return appChange{}, false, err
@@ -397,16 +397,16 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 }
 
 func safeExistingAddField(field ir.Field) bool {
-	if field.Default != nil || field.PrimaryKey {
+	if field.PrimaryKey {
 		return false
 	}
 	if field.Kind == ir.FieldForeignKey && field.Relation != nil {
 		// Required relations are executable only after the backend proves the
 		// source table empty. This also resumes an interrupted cyclic Create
 		// prefix; no guessed key, default, or populated-table backfill is used.
-		return field.Relation.OnDelete.Valid() && (field.Nullable || field.Relation.OnDelete != ir.DeleteSetNull)
+		return field.Default == nil && field.Relation.OnDelete.Valid() && (field.Nullable || field.Relation.OnDelete != ir.DeleteSetNull)
 	}
-	return field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) || field.Kind == ir.FieldInteger || field.Kind == ir.FieldBoolean)
+	return (field.Nullable || field.Default != nil) && (field.Kind == ir.FieldChar || field.Kind == ir.FieldText || field.Kind == ir.FieldDateTime || field.Kind == ir.FieldDate || (field.Kind == ir.FieldTime || field.Kind == ir.FieldDuration || field.Kind == ir.FieldFloat || field.Kind == ir.FieldDecimal || field.Kind == ir.FieldUUID || field.Kind == ir.FieldJSON) || field.Kind == ir.FieldInteger || field.Kind == ir.FieldBoolean)
 }
 
 func validateAddedRelation(

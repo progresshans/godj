@@ -78,6 +78,7 @@ type IdentityPermissionRelatedFields[S any] struct {
 	ID               orm.RelatedIntegerField[S]
 	Code             orm.RelatedStringField[S]
 	Name             orm.RelatedStringField[S]
+	Revision         orm.RelatedIntegerField[S]
 }
 
 func newIdentityPermissionRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, identity.Permission]) IdentityPermissionRelatedFields[S] {
@@ -94,9 +95,14 @@ func newIdentityPermissionRelatedFields[S any](_bindings *relationQueryBindings,
 	if _result.configurationErr == nil {
 		_result.configurationErr = _err
 	}
+	_field3, _err := _route.Integer(identity.PermissionFields.Revision)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
 	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
 	_result.Code = _field1.WithConfigurationError(_result.configurationErr)
 	_result.Name = _field2.WithConfigurationError(_result.configurationErr)
+	_result.Revision = _field3.WithConfigurationError(_result.configurationErr)
 	_result.route = _route.WithConfigurationError(_result.configurationErr)
 	return _result
 }
@@ -484,4 +490,4 @@ func BindRelations() (Relations, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_534419e07363a654777ce0725945d1d69e34c3a49ec0285793f7cc3ccf464e0a
+var _ goDjProjectSnapshot_1e7428254a080a06738d17bd5f21f0a70588742ea6301aa063a40729a1df7916

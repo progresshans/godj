@@ -116,6 +116,20 @@ func TestSummaryAndCaptureStayBounded(t *testing.T) {
 	}
 }
 
+func TestSummaryKeepsCompilerFailureAfterColdDownloadProgress(t *testing.T) {
+	var output strings.Builder
+	for index := range 30 {
+		fmt.Fprintf(&output, "go: downloading example.com/dependency%d v1.0.0\n", index)
+	}
+	output.WriteString("project/generated.go:24:16: undefined: MissingSchemaBinding\n")
+	output.WriteString("compile: writing output: write $WORK/b262/_pkg_.a: no space left on device\n")
+	output.WriteString("go: module download https://name:password@private.example: 403 Forbidden\n")
+	got := Summary(nil, []byte(output.String()), nil)
+	if !strings.Contains(got, "undefined: MissingSchemaBinding") || !strings.Contains(got, "no space left on device") || !strings.Contains(got, "403 Forbidden") || strings.Contains(got, "downloading") || strings.Contains(got, "password") {
+		t.Fatalf("cold progress hid or exposed build diagnostics: %q", got)
+	}
+}
+
 func TestBuildErrorPreservesClassificationWithoutPublishingRawCause(t *testing.T) {
 	cause := errors.New("private raw cause")
 	err := fmt.Errorf("candidate verification: %w", &Error{Cause: cause, Diagnostic: "main.go:1:1: undefined: Missing"})

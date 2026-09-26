@@ -15,7 +15,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v19"
-const GoDjProjectRelationFacadeInputSHA256 = "4faf3385aba608f97d1f86eb808a794845e6c9b4efb549377f1bfe891a26e70e"
+const GoDjProjectRelationFacadeInputSHA256 = "2e52e76a815355e90e300707d1d1ffe73ec5589a4b3bf3e07ec0bf03344f59d5"
 
 type Backend interface {
 	db.Queryer
@@ -123,6 +123,8 @@ type relationFacadeBindings struct {
 	AccountsUser                 orm.BoundModel[accounts.User]
 	AccountsUserGroupsLink       orm.BoundModel[accounts.UserGroupsLink]
 	AccountsUserPermissionsLink  orm.BoundModel[accounts.UserPermissionsLink]
+	WorkAccessGuard              orm.BoundModel[work.AccessGuard]
+	WorkAccessNote               orm.BoundModel[work.AccessNote]
 	WorkGuard                    orm.BoundModel[work.Guard]
 	WorkNote                     orm.BoundModel[work.Note]
 }
@@ -418,6 +420,8 @@ type AccountsGroupQuery struct {
 func newAccountsGroupQuery(_state *relationFacadeState, _query orm.QuerySet[accounts.Group]) AccountsGroupQuery {
 	_result := AccountsGroupQuery{state: _state, query: _query}
 	if _state != nil {
+		_result.Prefetch.Guards = relationFacadeReversePrefetch[accounts.Group, work.AccessGuard, WorkAccessGuard]{state: _state, selection: _state.reverseCollections.AccountsGroup.guards.WithChildren(), materialize: _state.materializeWorkAccessGuard}
+		_result.Prefetch.Notes = relationFacadeReversePrefetch[accounts.Group, work.AccessNote, WorkAccessNote]{state: _state, selection: _state.reverseCollections.AccountsGroup.notes.WithChildren(), materialize: _state.materializeWorkAccessNote}
 		_result.Prefetch.Permissions = relationFacadeManyPrefetch[accounts.Group, accounts.Permission, accounts.GroupPermissionsLink, AccountsPermission]{state: _state, selection: _state.collections.AccountsGroupPermissions.WithChildren(), materialize: _state.materializeAccountsPermission}
 		_result.Prefetch.Users = relationFacadeManyPrefetch[accounts.Group, accounts.User, accounts.UserGroupsLink, AccountsUser]{state: _state, selection: _state.collections.AccountsGroupUsers.WithChildren(), materialize: _state.materializeAccountsUser}
 	}
@@ -583,6 +587,8 @@ type AccountsGroup struct {
 	_prefetched               *orm.RelatedSelected[accounts.Group]
 	_manyCollection0          *orm.ManyCollectionCache[accounts.Permission, accounts.GroupPermissionsLink]
 	_manyCollection1          *orm.ManyCollectionCache[accounts.User, accounts.UserGroupsLink]
+	_reverseCollection0       *orm.RelatedSetCache[work.AccessGuard]
+	_reverseCollection1       *orm.RelatedSetCache[work.AccessNote]
 	_self                     *AccountsGroup
 }
 
@@ -656,6 +662,12 @@ func (_model *AccountsGroup) relationFacadeRefreshSnapshots() error {
 	}
 	if _model._manyCollection1 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
 		_model._manyCollection1 = &orm.ManyCollectionCache[accounts.User, accounts.UserGroupsLink]{}
+	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[work.AccessGuard]{}
+	}
+	if _model._reverseCollection1 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection1 = &orm.RelatedSetCache[work.AccessNote]{}
 	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
@@ -980,8 +992,158 @@ func (_view *AccountsGroupUsersCollection) Clear(_ctx context.Context) error {
 	return _view.relation.Clear(_ctx)
 }
 
+type AccountsGroupGuardsCollection struct {
+	owner    *AccountsGroup
+	relation *orm.RelatedSet[work.AccessGuard]
+	_self    *AccountsGroupGuardsCollection
+}
+
+func newAccountsGroupGuardsCollection(_owner *AccountsGroup, _relation *orm.RelatedSet[work.AccessGuard]) *AccountsGroupGuardsCollection {
+	_view := &AccountsGroupGuardsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *AccountsGroupGuardsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (AccountsGroupGuardsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*AccountsGroupGuardsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *AccountsGroup) Guards() (*AccountsGroupGuardsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[work.AccessGuard], error) {
+		return _model.state.reverseCollections.AccountsGroup.guards.From(_model.state.backend, _model.accountsGroupModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsGroupGuardsCollection(_model, _relation), nil
+}
+func (_view *AccountsGroupGuardsCollection) Query() (WorkAccessGuardQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	return newWorkAccessGuardQuery(_view.owner.state, _query), nil
+}
+func (_view *AccountsGroupGuardsCollection) All(_ctx context.Context) ([]*WorkAccessGuard, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *AccountsGroupGuardsCollection) Fresh() (*AccountsGroupGuardsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsGroupGuardsCollection(_view.owner, _related), nil
+}
+func (_view *AccountsGroupGuardsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
+type AccountsGroupNotesCollection struct {
+	owner    *AccountsGroup
+	relation *orm.RelatedSet[work.AccessNote]
+	_self    *AccountsGroupNotesCollection
+}
+
+func newAccountsGroupNotesCollection(_owner *AccountsGroup, _relation *orm.RelatedSet[work.AccessNote]) *AccountsGroupNotesCollection {
+	_view := &AccountsGroupNotesCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *AccountsGroupNotesCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (AccountsGroupNotesCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*AccountsGroupNotesCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *AccountsGroup) Notes() (*AccountsGroupNotesCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection1.Get(func() (*orm.RelatedSet[work.AccessNote], error) {
+		return _model.state.reverseCollections.AccountsGroup.notes.From(_model.state.backend, _model.accountsGroupModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsGroupNotesCollection(_model, _relation), nil
+}
+func (_view *AccountsGroupNotesCollection) Query() (WorkAccessNoteQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	return newWorkAccessNoteQuery(_view.owner.state, _query), nil
+}
+func (_view *AccountsGroupNotesCollection) All(_ctx context.Context) ([]*WorkAccessNote, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *AccountsGroupNotesCollection) Fresh() (*AccountsGroupNotesCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsGroupNotesCollection(_view.owner, _related), nil
+}
+func (_view *AccountsGroupNotesCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
 type AccountsGroupPrefetchSelector = relationFacadePrefetchInput[accounts.Group]
 type AccountsGroupPrefetchSelectors struct {
+	Guards      relationFacadeReversePrefetch[accounts.Group, work.AccessGuard, WorkAccessGuard]
+	Notes       relationFacadeReversePrefetch[accounts.Group, work.AccessNote, WorkAccessNote]
 	Permissions relationFacadeManyPrefetch[accounts.Group, accounts.Permission, accounts.GroupPermissionsLink, AccountsPermission]
 	Users       relationFacadeManyPrefetch[accounts.Group, accounts.User, accounts.UserGroupsLink, AccountsUser]
 }
@@ -1181,6 +1343,22 @@ func (_state *relationFacadeState) materializeAccountsGroup(_ctx context.Context
 		return nil, _err
 	}
 	_wrapped._prefetched = _value
+	if _collection, _present, _err := _state.reverseCollections.AccountsGroup.guards.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[work.AccessGuard], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _collection, _present, _err := _state.reverseCollections.AccountsGroup.notes.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection1.Get(func() (*orm.RelatedSet[work.AccessNote], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _collection, _present, _err := _state.collections.AccountsGroupPermissions.FromPrefetched(_value); _err != nil {
 		return nil, _err
 	} else if _present {
@@ -1211,6 +1389,26 @@ func (_state *relationFacadeState) prefetchAccountsGroupPath(_path string, _dept
 	*_remaining--
 	_head, _tail, _nested := strings.Cut(_path, "__")
 	switch _head {
+	case "guards":
+		_selection := _state.reverseCollections.AccountsGroup.guards.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchWorkAccessGuardPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "notes":
+		_selection := _state.reverseCollections.AccountsGroup.notes.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchWorkAccessNotePath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
 	case "permissions":
 		_selection := _state.collections.AccountsGroupPermissions.WithChildren()
 		if _nested {
@@ -2538,6 +2736,8 @@ type AccountsPermissionQuery struct {
 func newAccountsPermissionQuery(_state *relationFacadeState, _query orm.QuerySet[accounts.Permission]) AccountsPermissionQuery {
 	_result := AccountsPermissionQuery{state: _state, query: _query}
 	if _state != nil {
+		_result.Prefetch.Guards = relationFacadeReversePrefetch[accounts.Permission, work.AccessGuard, WorkAccessGuard]{state: _state, selection: _state.reverseCollections.AccountsPermission.guards.WithChildren(), materialize: _state.materializeWorkAccessGuard}
+		_result.Prefetch.Notes = relationFacadeReversePrefetch[accounts.Permission, work.AccessNote, WorkAccessNote]{state: _state, selection: _state.reverseCollections.AccountsPermission.notes.WithChildren(), materialize: _state.materializeWorkAccessNote}
 		_result.Prefetch.Groups = relationFacadeManyPrefetch[accounts.Permission, accounts.Group, accounts.GroupPermissionsLink, AccountsGroup]{state: _state, selection: _state.collections.AccountsPermissionGroups.WithChildren(), materialize: _state.materializeAccountsGroup}
 		_result.Prefetch.Users = relationFacadeManyPrefetch[accounts.Permission, accounts.User, accounts.UserPermissionsLink, AccountsUser]{state: _state, selection: _state.collections.AccountsPermissionUsers.WithChildren(), materialize: _state.materializeAccountsUser}
 	}
@@ -2703,6 +2903,8 @@ type AccountsPermission struct {
 	_prefetched               *orm.RelatedSelected[accounts.Permission]
 	_manyCollection0          *orm.ManyCollectionCache[accounts.Group, accounts.GroupPermissionsLink]
 	_manyCollection1          *orm.ManyCollectionCache[accounts.User, accounts.UserPermissionsLink]
+	_reverseCollection0       *orm.RelatedSetCache[work.AccessGuard]
+	_reverseCollection1       *orm.RelatedSetCache[work.AccessNote]
 	_self                     *AccountsPermission
 }
 
@@ -2776,6 +2978,12 @@ func (_model *AccountsPermission) relationFacadeRefreshSnapshots() error {
 	}
 	if _model._manyCollection1 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
 		_model._manyCollection1 = &orm.ManyCollectionCache[accounts.User, accounts.UserPermissionsLink]{}
+	}
+	if _model._reverseCollection0 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection0 = &orm.RelatedSetCache[work.AccessGuard]{}
+	}
+	if _model._reverseCollection1 == nil || _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_model._reverseCollection1 = &orm.RelatedSetCache[work.AccessNote]{}
 	}
 	_model.primaryKeySnapshot = _key
 	_model.primaryKeySnapshotPresent = _present
@@ -3100,8 +3308,158 @@ func (_view *AccountsPermissionUsersCollection) Clear(_ctx context.Context) erro
 	return _view.relation.Clear(_ctx)
 }
 
+type AccountsPermissionGuardsCollection struct {
+	owner    *AccountsPermission
+	relation *orm.RelatedSet[work.AccessGuard]
+	_self    *AccountsPermissionGuardsCollection
+}
+
+func newAccountsPermissionGuardsCollection(_owner *AccountsPermission, _relation *orm.RelatedSet[work.AccessGuard]) *AccountsPermissionGuardsCollection {
+	_view := &AccountsPermissionGuardsCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *AccountsPermissionGuardsCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (AccountsPermissionGuardsCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*AccountsPermissionGuardsCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *AccountsPermission) Guards() (*AccountsPermissionGuardsCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection0.Get(func() (*orm.RelatedSet[work.AccessGuard], error) {
+		return _model.state.reverseCollections.AccountsPermission.guards.From(_model.state.backend, _model.accountsPermissionModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsPermissionGuardsCollection(_model, _relation), nil
+}
+func (_view *AccountsPermissionGuardsCollection) Query() (WorkAccessGuardQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	return newWorkAccessGuardQuery(_view.owner.state, _query), nil
+}
+func (_view *AccountsPermissionGuardsCollection) All(_ctx context.Context) ([]*WorkAccessGuard, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *AccountsPermissionGuardsCollection) Fresh() (*AccountsPermissionGuardsCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsPermissionGuardsCollection(_view.owner, _related), nil
+}
+func (_view *AccountsPermissionGuardsCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
+type AccountsPermissionNotesCollection struct {
+	owner    *AccountsPermission
+	relation *orm.RelatedSet[work.AccessNote]
+	_self    *AccountsPermissionNotesCollection
+}
+
+func newAccountsPermissionNotesCollection(_owner *AccountsPermission, _relation *orm.RelatedSet[work.AccessNote]) *AccountsPermissionNotesCollection {
+	_view := &AccountsPermissionNotesCollection{owner: _owner, relation: _relation}
+	_view._self = _view
+	return _view
+}
+func (_view *AccountsPermissionNotesCollection) validate() error {
+	if _view == nil || _view._self != _view || _view.relation == nil {
+		return relationFacadeQueryInvalid("reverse collection view is nil, zero, or copied")
+	}
+	_, _, _err := _view.owner.relationFacadePrimaryKey()
+	return _err
+}
+func (AccountsPermissionNotesCollection) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (*AccountsPermissionNotesCollection) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct collection view JSON is unsupported")
+}
+func (_model *AccountsPermission) Notes() (*AccountsPermissionNotesCollection, error) {
+	_, _present, _err := _model.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	if !_present {
+		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "reverse collection owner has no saved primary key"}
+	}
+	_relation, _err := _model._reverseCollection1.Get(func() (*orm.RelatedSet[work.AccessNote], error) {
+		return _model.state.reverseCollections.AccountsPermission.notes.From(_model.state.backend, _model.accountsPermissionModel)
+	})
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsPermissionNotesCollection(_model, _relation), nil
+}
+func (_view *AccountsPermissionNotesCollection) Query() (WorkAccessNoteQuery, error) {
+	if _err := _view.validate(); _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_query, _err := _view.relation.Query()
+	if _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	return newWorkAccessNoteQuery(_view.owner.state, _query), nil
+}
+func (_view *AccountsPermissionNotesCollection) All(_ctx context.Context) ([]*WorkAccessNote, error) {
+	_query, _err := _view.Query()
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.All(_ctx)
+}
+func (_view *AccountsPermissionNotesCollection) Fresh() (*AccountsPermissionNotesCollection, error) {
+	if _err := _view.validate(); _err != nil {
+		return nil, _err
+	}
+	_related, _err := _view.relation.Fresh()
+	if _err != nil {
+		return nil, _err
+	}
+	return newAccountsPermissionNotesCollection(_view.owner, _related), nil
+}
+func (_view *AccountsPermissionNotesCollection) Invalidate() error {
+	if _err := _view.validate(); _err != nil {
+		return _err
+	}
+	return _view.relation.Invalidate()
+}
+
 type AccountsPermissionPrefetchSelector = relationFacadePrefetchInput[accounts.Permission]
 type AccountsPermissionPrefetchSelectors struct {
+	Guards relationFacadeReversePrefetch[accounts.Permission, work.AccessGuard, WorkAccessGuard]
+	Notes  relationFacadeReversePrefetch[accounts.Permission, work.AccessNote, WorkAccessNote]
 	Groups relationFacadeManyPrefetch[accounts.Permission, accounts.Group, accounts.GroupPermissionsLink, AccountsGroup]
 	Users  relationFacadeManyPrefetch[accounts.Permission, accounts.User, accounts.UserPermissionsLink, AccountsUser]
 }
@@ -3301,6 +3659,22 @@ func (_state *relationFacadeState) materializeAccountsPermission(_ctx context.Co
 		return nil, _err
 	}
 	_wrapped._prefetched = _value
+	if _collection, _present, _err := _state.reverseCollections.AccountsPermission.guards.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection0.Get(func() (*orm.RelatedSet[work.AccessGuard], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _collection, _present, _err := _state.reverseCollections.AccountsPermission.notes.FromPrefetched(_value); _err != nil {
+		return nil, _err
+	} else if _present {
+		_, _err = _wrapped._reverseCollection1.Get(func() (*orm.RelatedSet[work.AccessNote], error) { return _collection, nil })
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _collection, _present, _err := _state.collections.AccountsPermissionGroups.FromPrefetched(_value); _err != nil {
 		return nil, _err
 	} else if _present {
@@ -3333,6 +3707,26 @@ func (_state *relationFacadeState) prefetchAccountsPermissionPath(_path string, 
 	*_remaining--
 	_head, _tail, _nested := strings.Cut(_path, "__")
 	switch _head {
+	case "guards":
+		_selection := _state.reverseCollections.AccountsPermission.guards.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchWorkAccessGuardPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "notes":
+		_selection := _state.reverseCollections.AccountsPermission.notes.WithChildren()
+		if _nested {
+			_child, _err := _state.prefetchWorkAccessNotePath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
 	case "groups":
 		_selection := _state.collections.AccountsPermissionGroups.WithChildren()
 		if _nested {
@@ -6967,6 +7361,2669 @@ func (_state *relationFacadeState) prefetchAccountsUserPermissionsLinkPath(_path
 	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
 }
 
+type WorkAccessGuardQuery struct {
+	Related  WorkAccessGuardRelationSelectors
+	Prefetch WorkAccessGuardPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[work.AccessGuard]
+}
+
+func newWorkAccessGuardQuery(_state *relationFacadeState, _query orm.QuerySet[work.AccessGuard]) WorkAccessGuardQuery {
+	_result := WorkAccessGuardQuery{state: _state, query: _query}
+	_result.Related = WorkAccessGuardRelationSelectors{
+		Group:      relationFacadeSelection[work.AccessGuard, accounts.Group]{state: _state},
+		Permission: relationFacadeSelection[work.AccessGuard, accounts.Permission]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Group.selection = _state.objects.WorkAccessGuard.SelectGroup()
+		_result.Related.Permission.selection = _state.objects.WorkAccessGuard.SelectPermission()
+	}
+	if _state != nil {
+		_result.Prefetch.Group = relationFacadeSinglePrefetch[work.AccessGuard, accounts.Group]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.WorkAccessGuard.group)}
+		_result.Prefetch.Permission = relationFacadeSinglePrefetch[work.AccessGuard, accounts.Permission]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.WorkAccessGuard.permission)}
+	}
+	return _result
+}
+
+func (_query WorkAccessGuardQuery) validate() error {
+	return _query.state.validate()
+}
+
+func (_query WorkAccessGuardQuery) New(_value work.AccessGuard) (*WorkAccessGuard, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapWorkAccessGuard(_value, true)
+}
+
+func (_query WorkAccessGuardQuery) Filter(_predicates ...orm.Predicate[work.AccessGuard]) WorkAccessGuardQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+
+func (_query WorkAccessGuardQuery) OrderBy(_orderings ...orm.Ordering[work.AccessGuard]) WorkAccessGuardQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+
+func (_query WorkAccessGuardQuery) Distinct() WorkAccessGuardQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query WorkAccessGuardQuery) Fresh() WorkAccessGuardQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+
+func (_query WorkAccessGuardQuery) Limit(_limit int) (WorkAccessGuardQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_limited, _err := _query.query.Limit(_limit)
+	if _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_query.query = _limited
+	return _query, nil
+}
+
+func (_query WorkAccessGuardQuery) Offset(_offset int) (WorkAccessGuardQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return WorkAccessGuardQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query WorkAccessGuardQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectWorkAccessGuardInto[R any](_ctx context.Context, _source WorkAccessGuardQuery, _projection orm.Projection[work.AccessGuard, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateWorkAccessGuardInto[R any](_ctx context.Context, _source WorkAccessGuardQuery, _aggregate orm.Aggregate[work.AccessGuard, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func (_query WorkAccessGuardQuery) First(_ctx context.Context) (*WorkAccessGuard, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.WorkAccessGuard)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	_wrapped, _err := _query.state.materializeWorkAccessGuard(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_query WorkAccessGuardQuery) All(_ctx context.Context) ([]*WorkAccessGuard, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.WorkAccessGuard)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*WorkAccessGuard, len(_values))
+	for _index := range _values {
+		_wrapped, _err := _query.state.materializeWorkAccessGuard(_ctx, _values[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_results[_index] = _wrapped
+	}
+	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query WorkAccessGuardQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *WorkAccessGuard) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[work.AccessGuard]) (bool, error) {
+		_models := make([]*WorkAccessGuard, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeWorkAccessGuard(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.WorkAccessGuard, _size, _yield)
+}
+
+type workAccessGuardModel = work.AccessGuard
+
+type WorkAccessGuard struct {
+	workAccessGuardModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	_prefetched               *orm.RelatedSelected[work.AccessGuard]
+	object                    *WorkAccessGuardObject
+	groupCache                *orm.RelationCache[AccountsGroup]
+	groupScalarSnapshot       int64
+	groupScalarPresent        bool
+	permissionCache           *orm.RelationCache[AccountsPermission]
+	permissionScalarSnapshot  int64
+	permissionScalarPresent   bool
+	_self                     *WorkAccessGuard
+}
+
+func (_state *relationFacadeState) wrapWorkAccessGuard(_value work.AccessGuard, _new bool) (*WorkAccessGuard, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_cloned := (work.AccessGuardDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.WorkAccessGuard.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &WorkAccessGuard{state: _state, workAccessGuardModel: _cloned, object: _object}
+	_result.groupCache = orm.NewRelationCache[AccountsGroup]()
+	_result.groupScalarPresent = _value.GroupID != nil
+	if _value.GroupID == nil {
+		_ = _result.groupCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.permissionCache = orm.NewRelationCache[AccountsPermission]()
+	_result.permissionScalarPresent = _value.PermissionID != nil
+	if _value.PermissionID == nil {
+		_ = _result.permissionCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapWorkAccessGuardObject(_object *WorkAccessGuardObject) (*WorkAccessGuard, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (work.AccessGuardDescriptor{}).CloneWriteModel(_model)
+	_result := &WorkAccessGuard{state: _state, workAccessGuardModel: _cloned, object: _object}
+	_result.groupCache = orm.NewRelationCache[AccountsGroup]()
+	_result.groupScalarPresent = _model.GroupID != nil
+	if _model.GroupID == nil {
+		_ = _result.groupCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.permissionCache = orm.NewRelationCache[AccountsPermission]()
+	_result.permissionScalarPresent = _model.PermissionID != nil
+	if _model.PermissionID == nil {
+		_ = _result.permissionCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) validate() error {
+	if _model == nil || _model._self != _model {
+		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
+	}
+	return _model.state.validate()
+}
+
+func (WorkAccessGuard) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*WorkAccessGuard) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *WorkAccessGuard) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (work.AccessGuardDescriptor{}).PrimaryKey(_model.workAccessGuardModel)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
+func (_model *WorkAccessGuard) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *WorkAccessGuard) relationFacadeSnapshotSource() (*relationFacadeState, *orm.RelatedSelected[work.AccessGuard], error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, nil, _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return nil, nil, _err
+	}
+	return _model.state, _model._prefetched, nil
+}
+func (_model *WorkAccessGuard) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	_model.groupScalarPresent = _model.workAccessGuardModel.GroupID != nil
+	_model.groupScalarSnapshot = 0
+	if _model.groupScalarPresent {
+		_model.groupScalarSnapshot = *_model.workAccessGuardModel.GroupID
+	}
+	_model.permissionScalarPresent = _model.workAccessGuardModel.PermissionID != nil
+	_model.permissionScalarSnapshot = 0
+	if _model.permissionScalarPresent {
+		_model.permissionScalarSnapshot = *_model.workAccessGuardModel.PermissionID
+	}
+	return nil
+}
+
+func (_model *WorkAccessGuard) Unwrap() (work.AccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return work.AccessGuard{}, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return work.AccessGuard{}, _err
+	}
+	_, _, _groupPending, _groupErr := _model.groupCache.Snapshot()
+	if _groupErr != nil {
+		return work.AccessGuard{}, _groupErr
+	}
+	if _groupPending {
+		return work.AccessGuard{}, relationFacadeUnsavedRelated("group")
+	}
+	_, _, _permissionPending, _permissionErr := _model.permissionCache.Snapshot()
+	if _permissionErr != nil {
+		return work.AccessGuard{}, _permissionErr
+	}
+	if _permissionPending {
+		return work.AccessGuard{}, relationFacadeUnsavedRelated("permission")
+	}
+	return (work.AccessGuardDescriptor{}).CloneModel(_model.workAccessGuardModel), nil
+}
+
+func (_model *WorkAccessGuard) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	if _err := work.AccessGuardObjects.Save(_ctx, _model.state.backend, &_model.workAccessGuardModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *WorkAccessGuard) relationFacadeDerived(_value work.AccessGuard) (*WorkAccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (work.AccessGuardDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.WorkAccessGuard.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &WorkAccessGuard{state: _model.state, workAccessGuardModel: _value, object: _object}
+	_result._prefetched = _model._prefetched
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.groupScalarSnapshot = _model.groupScalarSnapshot
+	_result.groupScalarPresent = _model.groupScalarPresent
+	_result.groupCache, _err = _model.groupCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.permissionScalarSnapshot = _model.permissionScalarSnapshot
+	_result.permissionScalarPresent = _model.permissionScalarPresent
+	_result.permissionCache, _err = _model.permissionCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) relationFacadeReconcile() error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.groupCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.permissionCache.Snapshot(); _err != nil {
+		return _err
+	}
+	_groupCurrentPresent := _model.workAccessGuardModel.GroupID != nil
+	var _groupCurrentKey int64
+	if _groupCurrentPresent {
+		_groupCurrentKey = *_model.workAccessGuardModel.GroupID
+	}
+	_groupChanged := _groupCurrentPresent != _model.groupScalarPresent || (_groupCurrentPresent && _groupCurrentKey != _model.groupScalarSnapshot)
+	_permissionCurrentPresent := _model.workAccessGuardModel.PermissionID != nil
+	var _permissionCurrentKey int64
+	if _permissionCurrentPresent {
+		_permissionCurrentKey = *_model.workAccessGuardModel.PermissionID
+	}
+	_permissionChanged := _permissionCurrentPresent != _model.permissionScalarPresent || (_permissionCurrentPresent && _permissionCurrentKey != _model.permissionScalarSnapshot)
+	_rebuild := false || _groupChanged || _permissionChanged
+	if !_rebuild {
+		return nil
+	}
+	_nextModel := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	_nextObject, _err := _model.state.objects.WorkAccessGuard.From(_model.state.backend, _nextModel)
+	if _err != nil {
+		return _err
+	}
+	_nextGroupCache := _model.groupCache
+	if _groupChanged {
+		_nextGroupCache = orm.NewRelationCache[AccountsGroup]()
+		if !_groupCurrentPresent {
+			if _err := _nextGroupCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextPermissionCache := _model.permissionCache
+	if _permissionChanged {
+		_nextPermissionCache = orm.NewRelationCache[AccountsPermission]()
+		if !_permissionCurrentPresent {
+			if _err := _nextPermissionCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_model.workAccessGuardModel = _nextModel
+	_model.object = _nextObject
+	if _groupChanged {
+		_model.groupCache = _nextGroupCache
+		_model.groupScalarSnapshot = _groupCurrentKey
+		_model.groupScalarPresent = _groupCurrentPresent
+	}
+	if _permissionChanged {
+		_model.permissionCache = _nextPermissionCache
+		_model.permissionScalarSnapshot = _permissionCurrentKey
+		_model.permissionScalarPresent = _permissionCurrentPresent
+	}
+	return nil
+}
+
+func (_model *WorkAccessGuard) relationFacadePrepareSave() error {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_groupState, _groupTarget, _groupPending, _err := _model.groupCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_permissionState, _permissionTarget, _permissionPending, _err := _model.permissionCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _groupKey int64
+	var _groupPresent bool
+	if _groupState == orm.RelationAssignedPresent {
+		if _groupTarget == nil || _groupTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_groupKey, _groupPresent, _err = _groupTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _permissionKey int64
+	var _permissionPresent bool
+	if _permissionState == orm.RelationAssignedPresent {
+		if _permissionTarget == nil || _permissionTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_permissionKey, _permissionPresent, _err = _permissionTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _groupState == orm.RelationAssignedPresent && !_groupPresent {
+		return relationFacadeUnsavedRelated("group")
+	}
+	if _permissionState == orm.RelationAssignedPresent && !_permissionPresent {
+		return relationFacadeUnsavedRelated("permission")
+	}
+	_groupReconcile := _groupState == orm.RelationAssignedPresent && _groupPending
+	_permissionReconcile := _permissionState == orm.RelationAssignedPresent && _permissionPending
+	_nextModel := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	_rebuild := false
+	if _groupReconcile {
+		_relationKeyValue := _groupKey
+		_nextModel.GroupID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _permissionReconcile {
+		_relationKeyValue := _permissionKey
+		_nextModel.PermissionID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.WorkAccessGuard.From(_model.state.backend, _nextModel)
+		if _err != nil {
+			return _err
+		}
+		_nextGroupCache := _model.groupCache
+		if _groupReconcile {
+			_nextGroupCache, _err = _model.groupCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextGroupCache.Store(orm.RelationAssignedPresent, _groupTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_nextPermissionCache := _model.permissionCache
+		if _permissionReconcile {
+			_nextPermissionCache, _err = _model.permissionCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextPermissionCache.Store(orm.RelationAssignedPresent, _permissionTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_model.workAccessGuardModel = _nextModel
+		_model.object = _nextObject
+		if _groupReconcile {
+			_model.groupCache = _nextGroupCache
+			_model.groupScalarSnapshot = _groupKey
+			_model.groupScalarPresent = true
+		}
+		if _permissionReconcile {
+			_model.permissionCache = _nextPermissionCache
+			_model.permissionScalarSnapshot = _permissionKey
+			_model.permissionScalarPresent = true
+		}
+	}
+	return nil
+}
+
+func (_model *WorkAccessGuard) WithGroup(_target *AccountsGroup) (*WorkAccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.GroupID = &_relationKeyValue
+	} else {
+		_value.GroupID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.groupScalarSnapshot = _key
+	_result.groupScalarPresent = _present
+	if _err := _result.groupCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) WithGroupID(_key int64) (*WorkAccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	_, _, _pending, _err := _model.groupCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.GroupID != nil && *_value.GroupID == _key
+	_relationKeyValue := _key
+	_value.GroupID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.groupScalarSnapshot = int64(_key)
+	_result.groupScalarPresent = true
+	if !_same {
+		if _err := _result.groupCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) ClearGroup() (*WorkAccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	_value.GroupID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.groupScalarSnapshot = 0
+	_result.groupScalarPresent = false
+	if _err := _result.groupCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) WithPermission(_target *AccountsPermission) (*WorkAccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.PermissionID = &_relationKeyValue
+	} else {
+		_value.PermissionID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.permissionScalarSnapshot = _key
+	_result.permissionScalarPresent = _present
+	if _err := _result.permissionCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) WithPermissionID(_key int64) (*WorkAccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	_, _, _pending, _err := _model.permissionCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.PermissionID != nil && *_value.PermissionID == _key
+	_relationKeyValue := _key
+	_value.PermissionID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.permissionScalarSnapshot = int64(_key)
+	_result.permissionScalarPresent = true
+	if !_same {
+		if _err := _result.permissionCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) ClearPermission() (*WorkAccessGuard, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessGuardDescriptor{}).CloneWriteModel(_model.workAccessGuardModel)
+	_value.PermissionID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.permissionScalarSnapshot = 0
+	_result.permissionScalarPresent = false
+	if _err := _result.permissionCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessGuard) Group(_ctx context.Context) (*AccountsGroup, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.groupCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Group(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.groupCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *AccountsGroup
+	_graph, _selected, _err := _model.object.group.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAccountsGroup(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAccountsGroup(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.groupCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *WorkAccessGuard) Permission(_ctx context.Context) (*AccountsPermission, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.permissionCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Permission(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.permissionCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *AccountsPermission
+	_graph, _selected, _err := _model.object.permission.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAccountsPermission(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAccountsPermission(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.permissionCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+type WorkAccessGuardPrefetchSelector = relationFacadePrefetchInput[work.AccessGuard]
+type WorkAccessGuardPrefetchSelectors struct {
+	Group      relationFacadeSinglePrefetch[work.AccessGuard, accounts.Group]
+	Permission relationFacadeSinglePrefetch[work.AccessGuard, accounts.Permission]
+}
+type WorkAccessGuardPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[work.AccessGuard]
+}
+
+func (_query WorkAccessGuardQuery) PrefetchRelated(_selectors ...WorkAccessGuardPrefetchSelector) WorkAccessGuardPrefetchQuery {
+	_result := WorkAccessGuardPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[work.AccessGuard], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query WorkAccessGuardQuery) PrefetchRelatedPaths(_paths ...string) (WorkAccessGuardPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return WorkAccessGuardPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[work.AccessGuard], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchWorkAccessGuardPath(_path, 1, &_remaining)
+		if _err != nil {
+			return WorkAccessGuardPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := WorkAccessGuardPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query WorkAccessGuardQuery) PrefetchPath(_path string) (WorkAccessGuardPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchWorkAccessGuardPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[work.AccessGuard]{state: _query.state, selection: _selection}, nil
+}
+func (_query WorkAccessGuardPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query WorkAccessGuardPrefetchQuery) Filter(_values ...orm.Predicate[work.AccessGuard]) WorkAccessGuardPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query WorkAccessGuardPrefetchQuery) OrderBy(_values ...orm.Ordering[work.AccessGuard]) WorkAccessGuardPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query WorkAccessGuardPrefetchQuery) Distinct() WorkAccessGuardPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query WorkAccessGuardPrefetchQuery) Fresh() WorkAccessGuardPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query WorkAccessGuardPrefetchQuery) Limit(_value int) (WorkAccessGuardPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query WorkAccessGuardPrefetchQuery) Offset(_value int) (WorkAccessGuardPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query WorkAccessGuardPrefetchQuery) All(_ctx context.Context) ([]*WorkAccessGuard, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*WorkAccessGuard, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeWorkAccessGuard(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query WorkAccessGuardPrefetchQuery) First(_ctx context.Context) (*WorkAccessGuard, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeWorkAccessGuard(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query WorkAccessGuardPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query WorkAccessGuardPrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *WorkAccessGuard) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[work.AccessGuard]) (bool, error) {
+		_models := make([]*WorkAccessGuard, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeWorkAccessGuard(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
+func (_query WorkAccessGuardPrefetchQuery) SelectRelated(_selectors ...WorkAccessGuardRelationSelector) WorkAccessGuardPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[work.AccessGuard], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query WorkAccessGuardPrefetchQuery) SelectRelatedPaths(_paths ...string) (WorkAccessGuardPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.WorkAccessGuard.selectionInputs(_paths)
+	if _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query WorkAccessGuardEagerQuery) PrefetchRelated(_selectors ...WorkAccessGuardPrefetchSelector) WorkAccessGuardPrefetchQuery {
+	_result := WorkAccessGuardPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[work.AccessGuard], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.WorkAccessGuard).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query WorkAccessGuardEagerQuery) PrefetchRelatedPaths(_paths ...string) (WorkAccessGuardPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return WorkAccessGuardPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]WorkAccessGuardPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchWorkAccessGuardPath(_path, 1, &_remaining)
+		if _err != nil {
+			return WorkAccessGuardPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[work.AccessGuard]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessGuardPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+
+type WorkAccessGuardRelationSelector = relationFacadeSelectionInput[work.AccessGuard]
+type WorkAccessGuardRelationSelectors struct {
+	Group      relationFacadeSelection[work.AccessGuard, accounts.Group]
+	Permission relationFacadeSelection[work.AccessGuard, accounts.Permission]
+}
+
+func (_query WorkAccessGuardQuery) SelectRelated(_selectors ...WorkAccessGuardRelationSelector) WorkAccessGuardEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[work.AccessGuard], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return WorkAccessGuardEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_query.query, _inputs)
+}
+func (_query WorkAccessGuardQuery) SelectRelatedPaths(_paths ...string) (WorkAccessGuardEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.WorkAccessGuard.selectionInputs(_paths)
+	if _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	_result := _query.state.newWorkAccessGuardEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return WorkAccessGuardEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type WorkAccessGuardEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[work.AccessGuard]
+	selections       []orm.RelatedSelection[work.AccessGuard]
+	projection       relationSelectQuery[WorkAccessGuardObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newWorkAccessGuardEagerQuery(_source orm.QuerySet[work.AccessGuard], _selections []orm.RelatedSelection[work.AccessGuard]) WorkAccessGuardEagerQuery {
+	_result := WorkAccessGuardEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[work.AccessGuard](nil), _selections...)
+	_projection := _state.objects.WorkAccessGuard.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query WorkAccessGuardEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query WorkAccessGuardEagerQuery) Filter(_values ...orm.Predicate[work.AccessGuard]) WorkAccessGuardEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query WorkAccessGuardEagerQuery) OrderBy(_values ...orm.Ordering[work.AccessGuard]) WorkAccessGuardEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query WorkAccessGuardEagerQuery) Distinct() WorkAccessGuardEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query WorkAccessGuardEagerQuery) Fresh() WorkAccessGuardEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query WorkAccessGuardEagerQuery) Limit(_value int) (WorkAccessGuardEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_source, _query.selections), nil
+}
+func (_query WorkAccessGuardEagerQuery) Offset(_value int) (WorkAccessGuardEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return WorkAccessGuardEagerQuery{}, _err
+	}
+	return _query.state.newWorkAccessGuardEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query WorkAccessGuardEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *WorkAccessGuard) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[work.AccessGuard]) (bool, error) {
+		_models := make([]*WorkAccessGuard, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeWorkAccessGuard(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.WorkAccessGuard).IterateBatches(_ctx, _size, _yield)
+}
+func (_query WorkAccessGuardEagerQuery) All(_ctx context.Context) ([]*WorkAccessGuard, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*WorkAccessGuard, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedWorkAccessGuardObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query WorkAccessGuardEagerQuery) First(_ctx context.Context) (*WorkAccessGuard, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedWorkAccessGuardObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query WorkAccessGuardEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedWorkAccessGuardObject(_ctx context.Context, _object *WorkAccessGuardObject) (*WorkAccessGuard, error) {
+	_wrapped, _err := _state.wrapWorkAccessGuardObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	_wrapped._prefetched = _object._selectedGraph
+	if _has, _err := _object._selectedGraph.HasSelection("group"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Group(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("permission"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Permission(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+func (_state *relationFacadeState) materializeWorkAccessGuard(_ctx context.Context, _value *orm.RelatedSelected[work.AccessGuard]) (*WorkAccessGuard, error) {
+	_object, _err := _state.objects.WorkAccessGuard.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedWorkAccessGuardObject(_ctx, _object)
+}
+func (_state *relationFacadeState) prefetchWorkAccessGuardPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[work.AccessGuard], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "group":
+		_selection := orm.PrefetchNullableForward(_state.objects.WorkAccessGuard.group)
+		if _nested {
+			_child, _err := _state.prefetchAccountsGroupPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "permission":
+		_selection := orm.PrefetchNullableForward(_state.objects.WorkAccessGuard.permission)
+		if _nested {
+			_child, _err := _state.prefetchAccountsPermissionPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
+
+type WorkAccessNoteQuery struct {
+	Related  WorkAccessNoteRelationSelectors
+	Prefetch WorkAccessNotePrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[work.AccessNote]
+}
+
+func newWorkAccessNoteQuery(_state *relationFacadeState, _query orm.QuerySet[work.AccessNote]) WorkAccessNoteQuery {
+	_result := WorkAccessNoteQuery{state: _state, query: _query}
+	_result.Related = WorkAccessNoteRelationSelectors{
+		Group:      relationFacadeSelection[work.AccessNote, accounts.Group]{state: _state},
+		Permission: relationFacadeSelection[work.AccessNote, accounts.Permission]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Group.selection = _state.objects.WorkAccessNote.SelectGroup()
+		_result.Related.Permission.selection = _state.objects.WorkAccessNote.SelectPermission()
+	}
+	if _state != nil {
+		_result.Prefetch.Group = relationFacadeSinglePrefetch[work.AccessNote, accounts.Group]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.WorkAccessNote.group)}
+		_result.Prefetch.Permission = relationFacadeSinglePrefetch[work.AccessNote, accounts.Permission]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.WorkAccessNote.permission)}
+	}
+	return _result
+}
+
+func (_query WorkAccessNoteQuery) validate() error {
+	return _query.state.validate()
+}
+
+func (_query WorkAccessNoteQuery) New(_value work.AccessNote) (*WorkAccessNote, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapWorkAccessNote(_value, true)
+}
+
+func (_query WorkAccessNoteQuery) Filter(_predicates ...orm.Predicate[work.AccessNote]) WorkAccessNoteQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+
+func (_query WorkAccessNoteQuery) OrderBy(_orderings ...orm.Ordering[work.AccessNote]) WorkAccessNoteQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+
+func (_query WorkAccessNoteQuery) Distinct() WorkAccessNoteQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query WorkAccessNoteQuery) Fresh() WorkAccessNoteQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+
+func (_query WorkAccessNoteQuery) Limit(_limit int) (WorkAccessNoteQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_limited, _err := _query.query.Limit(_limit)
+	if _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_query.query = _limited
+	return _query, nil
+}
+
+func (_query WorkAccessNoteQuery) Offset(_offset int) (WorkAccessNoteQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return WorkAccessNoteQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query WorkAccessNoteQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectWorkAccessNoteInto[R any](_ctx context.Context, _source WorkAccessNoteQuery, _projection orm.Projection[work.AccessNote, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateWorkAccessNoteInto[R any](_ctx context.Context, _source WorkAccessNoteQuery, _aggregate orm.Aggregate[work.AccessNote, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func (_query WorkAccessNoteQuery) First(_ctx context.Context) (*WorkAccessNote, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.WorkAccessNote)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	_wrapped, _err := _query.state.materializeWorkAccessNote(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_query WorkAccessNoteQuery) All(_ctx context.Context) ([]*WorkAccessNote, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.WorkAccessNote)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*WorkAccessNote, len(_values))
+	for _index := range _values {
+		_wrapped, _err := _query.state.materializeWorkAccessNote(_ctx, _values[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_results[_index] = _wrapped
+	}
+	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query WorkAccessNoteQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *WorkAccessNote) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[work.AccessNote]) (bool, error) {
+		_models := make([]*WorkAccessNote, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeWorkAccessNote(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.WorkAccessNote, _size, _yield)
+}
+
+type workAccessNoteModel = work.AccessNote
+
+type WorkAccessNote struct {
+	workAccessNoteModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	_prefetched               *orm.RelatedSelected[work.AccessNote]
+	object                    *WorkAccessNoteObject
+	groupCache                *orm.RelationCache[AccountsGroup]
+	groupScalarSnapshot       int64
+	groupScalarPresent        bool
+	permissionCache           *orm.RelationCache[AccountsPermission]
+	permissionScalarSnapshot  int64
+	permissionScalarPresent   bool
+	_self                     *WorkAccessNote
+}
+
+func (_state *relationFacadeState) wrapWorkAccessNote(_value work.AccessNote, _new bool) (*WorkAccessNote, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_cloned := (work.AccessNoteDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.WorkAccessNote.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &WorkAccessNote{state: _state, workAccessNoteModel: _cloned, object: _object}
+	_result.groupCache = orm.NewRelationCache[AccountsGroup]()
+	_result.groupScalarPresent = _value.GroupID != nil
+	if _value.GroupID == nil {
+		_ = _result.groupCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.permissionCache = orm.NewRelationCache[AccountsPermission]()
+	_result.permissionScalarPresent = !_new || _value.PermissionID != 0
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapWorkAccessNoteObject(_object *WorkAccessNoteObject) (*WorkAccessNote, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (work.AccessNoteDescriptor{}).CloneWriteModel(_model)
+	_result := &WorkAccessNote{state: _state, workAccessNoteModel: _cloned, object: _object}
+	_result.groupCache = orm.NewRelationCache[AccountsGroup]()
+	_result.groupScalarPresent = _model.GroupID != nil
+	if _model.GroupID == nil {
+		_ = _result.groupCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.permissionCache = orm.NewRelationCache[AccountsPermission]()
+	_result.permissionScalarPresent = true
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessNote) validate() error {
+	if _model == nil || _model._self != _model {
+		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
+	}
+	return _model.state.validate()
+}
+
+func (WorkAccessNote) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*WorkAccessNote) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *WorkAccessNote) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (work.AccessNoteDescriptor{}).PrimaryKey(_model.workAccessNoteModel)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
+func (_model *WorkAccessNote) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *WorkAccessNote) relationFacadeSnapshotSource() (*relationFacadeState, *orm.RelatedSelected[work.AccessNote], error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, nil, _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return nil, nil, _err
+	}
+	return _model.state, _model._prefetched, nil
+}
+func (_model *WorkAccessNote) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	_model.groupScalarPresent = _model.workAccessNoteModel.GroupID != nil
+	_model.groupScalarSnapshot = 0
+	if _model.groupScalarPresent {
+		_model.groupScalarSnapshot = *_model.workAccessNoteModel.GroupID
+	}
+	_model.permissionScalarSnapshot = _model.workAccessNoteModel.PermissionID
+	return nil
+}
+
+func (_model *WorkAccessNote) Unwrap() (work.AccessNote, error) {
+	if _err := _model.validate(); _err != nil {
+		return work.AccessNote{}, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return work.AccessNote{}, _err
+	}
+	_, _, _groupPending, _groupErr := _model.groupCache.Snapshot()
+	if _groupErr != nil {
+		return work.AccessNote{}, _groupErr
+	}
+	if _groupPending {
+		return work.AccessNote{}, relationFacadeUnsavedRelated("group")
+	}
+	_, _, _permissionPending, _permissionErr := _model.permissionCache.Snapshot()
+	if _permissionErr != nil {
+		return work.AccessNote{}, _permissionErr
+	}
+	if _permissionPending {
+		return work.AccessNote{}, relationFacadeUnsavedRelated("permission")
+	}
+	if !_model.permissionScalarPresent {
+		return work.AccessNote{}, relationFacadeRequiredRelated("permission")
+	}
+	return (work.AccessNoteDescriptor{}).CloneModel(_model.workAccessNoteModel), nil
+}
+
+func (_model *WorkAccessNote) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	if _err := work.AccessNoteObjects.Save(_ctx, _model.state.backend, &_model.workAccessNoteModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *WorkAccessNote) relationFacadeDerived(_value work.AccessNote) (*WorkAccessNote, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (work.AccessNoteDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.WorkAccessNote.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &WorkAccessNote{state: _model.state, workAccessNoteModel: _value, object: _object}
+	_result._prefetched = _model._prefetched
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.groupScalarSnapshot = _model.groupScalarSnapshot
+	_result.groupScalarPresent = _model.groupScalarPresent
+	_result.groupCache, _err = _model.groupCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.permissionScalarSnapshot = _model.permissionScalarSnapshot
+	_result.permissionScalarPresent = _model.permissionScalarPresent
+	_result.permissionCache, _err = _model.permissionCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *WorkAccessNote) relationFacadeReconcile() error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.groupCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.permissionCache.Snapshot(); _err != nil {
+		return _err
+	}
+	_groupCurrentPresent := _model.workAccessNoteModel.GroupID != nil
+	var _groupCurrentKey int64
+	if _groupCurrentPresent {
+		_groupCurrentKey = *_model.workAccessNoteModel.GroupID
+	}
+	_groupChanged := _groupCurrentPresent != _model.groupScalarPresent || (_groupCurrentPresent && _groupCurrentKey != _model.groupScalarSnapshot)
+	_permissionCurrentKey := _model.workAccessNoteModel.PermissionID
+	_permissionChanged := _permissionCurrentKey != _model.permissionScalarSnapshot
+	_permissionCurrentPresent := _model.permissionScalarPresent || _permissionChanged
+	_rebuild := false || _groupChanged || _permissionChanged
+	if !_rebuild {
+		return nil
+	}
+	_nextModel := (work.AccessNoteDescriptor{}).CloneWriteModel(_model.workAccessNoteModel)
+	_nextObject, _err := _model.state.objects.WorkAccessNote.From(_model.state.backend, _nextModel)
+	if _err != nil {
+		return _err
+	}
+	_nextGroupCache := _model.groupCache
+	if _groupChanged {
+		_nextGroupCache = orm.NewRelationCache[AccountsGroup]()
+		if !_groupCurrentPresent {
+			if _err := _nextGroupCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextPermissionCache := _model.permissionCache
+	if _permissionChanged {
+		_nextPermissionCache = orm.NewRelationCache[AccountsPermission]()
+	}
+	_model.workAccessNoteModel = _nextModel
+	_model.object = _nextObject
+	if _groupChanged {
+		_model.groupCache = _nextGroupCache
+		_model.groupScalarSnapshot = _groupCurrentKey
+		_model.groupScalarPresent = _groupCurrentPresent
+	}
+	if _permissionChanged {
+		_model.permissionCache = _nextPermissionCache
+		_model.permissionScalarSnapshot = _permissionCurrentKey
+		_model.permissionScalarPresent = _permissionCurrentPresent
+	}
+	return nil
+}
+
+func (_model *WorkAccessNote) relationFacadePrepareSave() error {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_groupState, _groupTarget, _groupPending, _err := _model.groupCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_permissionState, _permissionTarget, _permissionPending, _err := _model.permissionCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _groupKey int64
+	var _groupPresent bool
+	if _groupState == orm.RelationAssignedPresent {
+		if _groupTarget == nil || _groupTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_groupKey, _groupPresent, _err = _groupTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _permissionKey int64
+	var _permissionPresent bool
+	if _permissionState == orm.RelationAssignedPresent {
+		if _permissionTarget == nil || _permissionTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_permissionKey, _permissionPresent, _err = _permissionTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _groupState == orm.RelationAssignedPresent && !_groupPresent {
+		return relationFacadeUnsavedRelated("group")
+	}
+	if _permissionState == orm.RelationAssignedPresent && !_permissionPresent {
+		return relationFacadeUnsavedRelated("permission")
+	}
+	if _permissionState == orm.RelationAssignedAbsent || (_permissionState != orm.RelationAssignedPresent && !_model.permissionScalarPresent) {
+		return relationFacadeRequiredRelated("permission")
+	}
+	if _permissionState == orm.RelationAssignedPresent && !_permissionPending && !_model.permissionScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	_groupReconcile := _groupState == orm.RelationAssignedPresent && _groupPending
+	_permissionReconcile := _permissionState == orm.RelationAssignedPresent && _permissionPending
+	_nextModel := (work.AccessNoteDescriptor{}).CloneWriteModel(_model.workAccessNoteModel)
+	_rebuild := false
+	if _groupReconcile {
+		_relationKeyValue := _groupKey
+		_nextModel.GroupID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _permissionReconcile {
+		_nextModel.PermissionID = _permissionKey
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.WorkAccessNote.From(_model.state.backend, _nextModel)
+		if _err != nil {
+			return _err
+		}
+		_nextGroupCache := _model.groupCache
+		if _groupReconcile {
+			_nextGroupCache, _err = _model.groupCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextGroupCache.Store(orm.RelationAssignedPresent, _groupTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_nextPermissionCache := _model.permissionCache
+		if _permissionReconcile {
+			_nextPermissionCache, _err = _model.permissionCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextPermissionCache.Store(orm.RelationAssignedPresent, _permissionTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_model.workAccessNoteModel = _nextModel
+		_model.object = _nextObject
+		if _groupReconcile {
+			_model.groupCache = _nextGroupCache
+			_model.groupScalarSnapshot = _groupKey
+			_model.groupScalarPresent = true
+		}
+		if _permissionReconcile {
+			_model.permissionCache = _nextPermissionCache
+			_model.permissionScalarSnapshot = _permissionKey
+			_model.permissionScalarPresent = true
+		}
+	}
+	return nil
+}
+
+func (_model *WorkAccessNote) WithGroup(_target *AccountsGroup) (*WorkAccessNote, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessNoteDescriptor{}).CloneWriteModel(_model.workAccessNoteModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.GroupID = &_relationKeyValue
+	} else {
+		_value.GroupID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.groupScalarSnapshot = _key
+	_result.groupScalarPresent = _present
+	if _err := _result.groupCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessNote) WithGroupID(_key int64) (*WorkAccessNote, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessNoteDescriptor{}).CloneWriteModel(_model.workAccessNoteModel)
+	_, _, _pending, _err := _model.groupCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.GroupID != nil && *_value.GroupID == _key
+	_relationKeyValue := _key
+	_value.GroupID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.groupScalarSnapshot = int64(_key)
+	_result.groupScalarPresent = true
+	if !_same {
+		if _err := _result.groupCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessNote) ClearGroup() (*WorkAccessNote, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessNoteDescriptor{}).CloneWriteModel(_model.workAccessNoteModel)
+	_value.GroupID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.groupScalarSnapshot = 0
+	_result.groupScalarPresent = false
+	if _err := _result.groupCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessNote) WithPermission(_target *AccountsPermission) (*WorkAccessNote, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessNoteDescriptor{}).CloneWriteModel(_model.workAccessNoteModel)
+	if _present {
+		_value.PermissionID = _key
+	} else {
+		_value.PermissionID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.permissionScalarSnapshot = _key
+	_result.permissionScalarPresent = _present
+	if _err := _result.permissionCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessNote) WithPermissionID(_key int64) (*WorkAccessNote, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (work.AccessNoteDescriptor{}).CloneWriteModel(_model.workAccessNoteModel)
+	_, _, _pending, _err := _model.permissionCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.permissionScalarPresent && !_pending && _value.PermissionID == _key
+	_value.PermissionID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.permissionScalarSnapshot = int64(_key)
+	_result.permissionScalarPresent = true
+	if !_same {
+		if _err := _result.permissionCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *WorkAccessNote) Group(_ctx context.Context) (*AccountsGroup, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.groupCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Group(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.groupCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *AccountsGroup
+	_graph, _selected, _err := _model.object.group.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAccountsGroup(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAccountsGroup(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.groupCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *WorkAccessNote) Permission(_ctx context.Context) (*AccountsPermission, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.permissionCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == orm.RelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.permissionScalarPresent {
+		return nil, relationFacadeRequiredRelated("permission")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "permission", Detail: "related object does not exist"}
+	}
+	_value, _err := _model.object.Permission(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _wrapped *AccountsPermission
+	_graph, _selected, _err := _model.object.permission.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAccountsPermission(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAccountsPermission(_value, false)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.permissionCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
+type WorkAccessNotePrefetchSelector = relationFacadePrefetchInput[work.AccessNote]
+type WorkAccessNotePrefetchSelectors struct {
+	Group      relationFacadeSinglePrefetch[work.AccessNote, accounts.Group]
+	Permission relationFacadeSinglePrefetch[work.AccessNote, accounts.Permission]
+}
+type WorkAccessNotePrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[work.AccessNote]
+}
+
+func (_query WorkAccessNoteQuery) PrefetchRelated(_selectors ...WorkAccessNotePrefetchSelector) WorkAccessNotePrefetchQuery {
+	_result := WorkAccessNotePrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[work.AccessNote], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query WorkAccessNoteQuery) PrefetchRelatedPaths(_paths ...string) (WorkAccessNotePrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return WorkAccessNotePrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[work.AccessNote], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchWorkAccessNotePath(_path, 1, &_remaining)
+		if _err != nil {
+			return WorkAccessNotePrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := WorkAccessNotePrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query WorkAccessNoteQuery) PrefetchPath(_path string) (WorkAccessNotePrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchWorkAccessNotePath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[work.AccessNote]{state: _query.state, selection: _selection}, nil
+}
+func (_query WorkAccessNotePrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query WorkAccessNotePrefetchQuery) Filter(_values ...orm.Predicate[work.AccessNote]) WorkAccessNotePrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query WorkAccessNotePrefetchQuery) OrderBy(_values ...orm.Ordering[work.AccessNote]) WorkAccessNotePrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query WorkAccessNotePrefetchQuery) Distinct() WorkAccessNotePrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query WorkAccessNotePrefetchQuery) Fresh() WorkAccessNotePrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query WorkAccessNotePrefetchQuery) Limit(_value int) (WorkAccessNotePrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query WorkAccessNotePrefetchQuery) Offset(_value int) (WorkAccessNotePrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query WorkAccessNotePrefetchQuery) All(_ctx context.Context) ([]*WorkAccessNote, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*WorkAccessNote, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeWorkAccessNote(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query WorkAccessNotePrefetchQuery) First(_ctx context.Context) (*WorkAccessNote, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeWorkAccessNote(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query WorkAccessNotePrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query WorkAccessNotePrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *WorkAccessNote) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[work.AccessNote]) (bool, error) {
+		_models := make([]*WorkAccessNote, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeWorkAccessNote(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
+func (_query WorkAccessNotePrefetchQuery) SelectRelated(_selectors ...WorkAccessNoteRelationSelector) WorkAccessNotePrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[work.AccessNote], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query WorkAccessNotePrefetchQuery) SelectRelatedPaths(_paths ...string) (WorkAccessNotePrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.WorkAccessNote.selectionInputs(_paths)
+	if _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query WorkAccessNoteEagerQuery) PrefetchRelated(_selectors ...WorkAccessNotePrefetchSelector) WorkAccessNotePrefetchQuery {
+	_result := WorkAccessNotePrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[work.AccessNote], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.WorkAccessNote).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query WorkAccessNoteEagerQuery) PrefetchRelatedPaths(_paths ...string) (WorkAccessNotePrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return WorkAccessNotePrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]WorkAccessNotePrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchWorkAccessNotePath(_path, 1, &_remaining)
+		if _err != nil {
+			return WorkAccessNotePrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[work.AccessNote]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return WorkAccessNotePrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+
+type WorkAccessNoteRelationSelector = relationFacadeSelectionInput[work.AccessNote]
+type WorkAccessNoteRelationSelectors struct {
+	Group      relationFacadeSelection[work.AccessNote, accounts.Group]
+	Permission relationFacadeSelection[work.AccessNote, accounts.Permission]
+}
+
+func (_query WorkAccessNoteQuery) SelectRelated(_selectors ...WorkAccessNoteRelationSelector) WorkAccessNoteEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[work.AccessNote], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return WorkAccessNoteEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_query.query, _inputs)
+}
+func (_query WorkAccessNoteQuery) SelectRelatedPaths(_paths ...string) (WorkAccessNoteEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.WorkAccessNote.selectionInputs(_paths)
+	if _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	_result := _query.state.newWorkAccessNoteEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return WorkAccessNoteEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type WorkAccessNoteEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[work.AccessNote]
+	selections       []orm.RelatedSelection[work.AccessNote]
+	projection       relationSelectQuery[WorkAccessNoteObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newWorkAccessNoteEagerQuery(_source orm.QuerySet[work.AccessNote], _selections []orm.RelatedSelection[work.AccessNote]) WorkAccessNoteEagerQuery {
+	_result := WorkAccessNoteEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[work.AccessNote](nil), _selections...)
+	_projection := _state.objects.WorkAccessNote.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query WorkAccessNoteEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query WorkAccessNoteEagerQuery) Filter(_values ...orm.Predicate[work.AccessNote]) WorkAccessNoteEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query WorkAccessNoteEagerQuery) OrderBy(_values ...orm.Ordering[work.AccessNote]) WorkAccessNoteEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query WorkAccessNoteEagerQuery) Distinct() WorkAccessNoteEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query WorkAccessNoteEagerQuery) Fresh() WorkAccessNoteEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query WorkAccessNoteEagerQuery) Limit(_value int) (WorkAccessNoteEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_source, _query.selections), nil
+}
+func (_query WorkAccessNoteEagerQuery) Offset(_value int) (WorkAccessNoteEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return WorkAccessNoteEagerQuery{}, _err
+	}
+	return _query.state.newWorkAccessNoteEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query WorkAccessNoteEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *WorkAccessNote) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[work.AccessNote]) (bool, error) {
+		_models := make([]*WorkAccessNote, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeWorkAccessNote(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.WorkAccessNote).IterateBatches(_ctx, _size, _yield)
+}
+func (_query WorkAccessNoteEagerQuery) All(_ctx context.Context) ([]*WorkAccessNote, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*WorkAccessNote, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedWorkAccessNoteObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query WorkAccessNoteEagerQuery) First(_ctx context.Context) (*WorkAccessNote, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedWorkAccessNoteObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query WorkAccessNoteEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedWorkAccessNoteObject(_ctx context.Context, _object *WorkAccessNoteObject) (*WorkAccessNote, error) {
+	_wrapped, _err := _state.wrapWorkAccessNoteObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	_wrapped._prefetched = _object._selectedGraph
+	if _has, _err := _object._selectedGraph.HasSelection("group"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Group(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("permission"); _err != nil {
+		return nil, _err
+	} else if _has {
+		var _present bool
+		_, _present, _err = _object.permission.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Permission(_ctx)
+			} else {
+				_err = _wrapped.permissionCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+func (_state *relationFacadeState) materializeWorkAccessNote(_ctx context.Context, _value *orm.RelatedSelected[work.AccessNote]) (*WorkAccessNote, error) {
+	_object, _err := _state.objects.WorkAccessNote.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedWorkAccessNoteObject(_ctx, _object)
+}
+func (_state *relationFacadeState) prefetchWorkAccessNotePath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[work.AccessNote], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "group":
+		_selection := orm.PrefetchNullableForward(_state.objects.WorkAccessNote.group)
+		if _nested {
+			_child, _err := _state.prefetchAccountsGroupPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "permission":
+		_selection := orm.PrefetchRequiredForward(_state.objects.WorkAccessNote.permission)
+		if _nested {
+			_child, _err := _state.prefetchAccountsPermissionPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
+
 type WorkGuardQuery struct {
 	Related  WorkGuardRelationSelectors
 	Prefetch WorkGuardPrefetchSelectors
@@ -9104,6 +12161,8 @@ type Models struct {
 	AccountsUser                 AccountsUserQuery
 	AccountsUserGroupsLink       AccountsUserGroupsLinkQuery
 	AccountsUserPermissionsLink  AccountsUserPermissionsLinkQuery
+	WorkAccessGuard              WorkAccessGuardQuery
+	WorkAccessNote               WorkAccessNoteQuery
 	WorkGuard                    WorkGuardQuery
 	WorkNote                     WorkNoteQuery
 }
@@ -9184,13 +12243,29 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}
 	_model6, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_guard"},
+		work.AccessGuardDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model7, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_note"},
+		work.AccessNoteDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model8, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "guard"},
 		work.GuardDescriptor{},
 	)
 	if _err != nil {
 		return Models{}, _err
 	}
-	_model7, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "note"},
 		work.NoteDescriptor{},
@@ -9204,8 +12279,10 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	_state.models.AccountsUser = _model3
 	_state.models.AccountsUserGroupsLink = _model4
 	_state.models.AccountsUserPermissionsLink = _model5
-	_state.models.WorkGuard = _model6
-	_state.models.WorkNote = _model7
+	_state.models.WorkAccessGuard = _model6
+	_state.models.WorkAccessNote = _model7
+	_state.models.WorkGuard = _model8
+	_state.models.WorkNote = _model9
 	_collections, _err := BindCollectionsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
@@ -9224,9 +12301,11 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 		AccountsUser:                 newAccountsUserQuery(_state, accounts.UserObjects.Using(_backend)),
 		AccountsUserGroupsLink:       newAccountsUserGroupsLinkQuery(_state, accounts.UserGroupsLinkObjects.Using(_backend)),
 		AccountsUserPermissionsLink:  newAccountsUserPermissionsLinkQuery(_state, accounts.UserPermissionsLinkObjects.Using(_backend)),
+		WorkAccessGuard:              newWorkAccessGuardQuery(_state, work.AccessGuardObjects.Using(_backend)),
+		WorkAccessNote:               newWorkAccessNoteQuery(_state, work.AccessNoteObjects.Using(_backend)),
 		WorkGuard:                    newWorkGuardQuery(_state, work.GuardObjects.Using(_backend)),
 		WorkNote:                     newWorkNoteQuery(_state, work.NoteObjects.Using(_backend)),
 	}, nil
 }
 
-var _ goDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ goDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

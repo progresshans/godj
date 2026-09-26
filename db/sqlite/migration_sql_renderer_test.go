@@ -209,13 +209,17 @@ func TestSQLiteMigrationSQLRendererProjectsLivePreflightFieldsDeterministically(
 	if err != nil {
 		t.Fatal(err)
 	}
-	defaultSQL, err := compileMigrationAddField(withRequired, featured)
+	defaultSQL, err := compileSQLiteRelationRemakeSQL(migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: request.App, Name: request.Name},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, request.Intent.Operations[1])
 	if err != nil {
 		t.Fatal(err)
 	}
-	compilerSQL := [][]string{{requiredSQL}, {defaultSQL}}
+	compilerSQL := [][]string{{requiredSQL}, defaultSQL}
 	if !reflect.DeepEqual(want, compilerSQL) || !strings.Contains(want[0][0], "NOT NULL") ||
-		strings.Contains(strings.Join([]string{want[0][0], want[1][0]}, "\n"), "DEFAULT") {
+		strings.Contains(strings.Join(want[1], "\n"), "DEFAULT") ||
+		!strings.Contains(want[1][1], `SELECT "id", "slug", 0 FROM "main"."blog_article"`) {
 		t.Fatalf("live-preflight projection SQL = %#v, want compiler SQL %#v without DDL DEFAULT", want, compilerSQL)
 	}
 

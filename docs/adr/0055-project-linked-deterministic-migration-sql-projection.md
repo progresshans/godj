@@ -35,6 +35,12 @@ SQLite의 sequence 행 유무와 high-water 값은 실행 시 SQL로 복사하�
 private connection의 FK mode와 transaction, 완전한 사전/사후 검사를 소유하며 SQL 출력만으로 적용 성공을 보증하지 않는다.
 PROTECT와 SET_NULL 사이의 변경은 양 DB에서 기존 검사 시점을 유지하므로 물리 group이 비어 있다.
 
+명시적 scalar 기본값 AddField는 [ADR-0064](0064-historical-relation-graphs-and-sqlite-remakes.md)의 실제 compiler를 공유한다.
+SQLite는 새 column의 상수 backfill을 포함한 전체 remake body, PostgreSQL은 ADD COLUMN DEFAULT와 DROP DEFAULT를
+같은 ordered group에 출력한다. 최종 DB default를 남기지 않으며 false·빈 값도 생략하지 않는다.
+문자열의 세미콜론·제어 문자는 SQLite byte literal cast와 PostgreSQL escape string으로 표현해 값과 기존 SQL body 제한을 모두 유지한다.
+SQLite sequence는 현재 DB의 값을 실행 시 복사한다. 출력 자체는 실제 데이터의 unique 충돌이나 migration의 성공을 보증하지 않는다.
+
 ## 맥락
 
 Completed GDJ-0049..0052는 migration definition 생성, 상태 조회와 latest/exact target 실행·plan을 제공합니다. 그러나

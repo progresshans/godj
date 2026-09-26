@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "4fa123e921aa78201a337e5945f6f956cefe19130d6b23f86933bb47f7252480"
+const GoDjRelationSchemaSHA256 = "4586501d40de0ee78b7baca7b389a255b40c94847d5b63799f3320f502171875"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -71,10 +71,96 @@ func GoDjRelationSchema() ir.Schema {
 					},
 				},
 			},
+			{
+				Name:    "access_note",
+				GoName:  "AccessNote",
+				DBTable: "identityfixture_access_note",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:      "text",
+						GoName:    "Text",
+						Column:    "text",
+						Kind:      ir.FieldChar,
+						MaxLength: 100,
+					},
+					{
+						Name:     "group",
+						GoName:   "GroupID",
+						Column:   "group_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Name: "notes"},
+							OnDelete:    ir.DeleteSetNull,
+						},
+					},
+					{
+						Name:   "permission",
+						GoName: "PermissionID",
+						Column: "permission_id",
+						Kind:   ir.FieldForeignKey,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Name: "notes"},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+				},
+			},
+			{
+				Name:    "access_guard",
+				GoName:  "AccessGuard",
+				DBTable: "identityfixture_access_guard",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:     "group",
+						GoName:   "GroupID",
+						Column:   "group_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Name: "guards"},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
+					{
+						Name:     "permission",
+						GoName:   "PermissionID",
+						Column:   "permission_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Name: "guards"},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
+				},
+			},
 		},
 	}
 }
 
-type GoDjAppPart1_53765baf7a9d8cc5ba2a3ae23005087d275bf5f67f3f0ef93bae11ebaaf800c1 struct{}
+type GoDjAppPart1_09c241e0159bd3d214980a40009239978320b2b1b56a91166fc23b71a93e94a8 struct{}
 
-var _ GoDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ GoDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

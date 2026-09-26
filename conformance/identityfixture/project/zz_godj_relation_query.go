@@ -12,22 +12,30 @@ import (
 const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"
 
 type relationQueryBindings struct {
-	edge0  orm.QueryRelation[accounts.Group, accounts.Permission]
-	edge1  orm.QueryRelation[accounts.Group, accounts.User]
-	edge2  orm.QueryRelation[accounts.GroupPermissionsLink, accounts.Group]
-	edge3  orm.QueryRelation[accounts.GroupPermissionsLink, accounts.Permission]
-	edge4  orm.QueryRelation[accounts.Permission, accounts.Group]
-	edge5  orm.QueryRelation[accounts.Permission, accounts.User]
-	edge6  orm.QueryRelation[accounts.User, accounts.Group]
-	edge7  orm.QueryRelation[accounts.User, work.Guard]
-	edge8  orm.QueryRelation[accounts.User, work.Note]
-	edge9  orm.QueryRelation[accounts.User, accounts.Permission]
-	edge10 orm.QueryRelation[accounts.UserGroupsLink, accounts.User]
-	edge11 orm.QueryRelation[accounts.UserGroupsLink, accounts.Group]
-	edge12 orm.QueryRelation[accounts.UserPermissionsLink, accounts.User]
-	edge13 orm.QueryRelation[accounts.UserPermissionsLink, accounts.Permission]
-	edge14 orm.QueryRelation[work.Guard, accounts.User]
-	edge15 orm.QueryRelation[work.Note, accounts.User]
+	edge0  orm.QueryRelation[accounts.Group, work.AccessGuard]
+	edge1  orm.QueryRelation[accounts.Group, work.AccessNote]
+	edge2  orm.QueryRelation[accounts.Group, accounts.Permission]
+	edge3  orm.QueryRelation[accounts.Group, accounts.User]
+	edge4  orm.QueryRelation[accounts.GroupPermissionsLink, accounts.Group]
+	edge5  orm.QueryRelation[accounts.GroupPermissionsLink, accounts.Permission]
+	edge6  orm.QueryRelation[accounts.Permission, accounts.Group]
+	edge7  orm.QueryRelation[accounts.Permission, work.AccessGuard]
+	edge8  orm.QueryRelation[accounts.Permission, work.AccessNote]
+	edge9  orm.QueryRelation[accounts.Permission, accounts.User]
+	edge10 orm.QueryRelation[accounts.User, accounts.Group]
+	edge11 orm.QueryRelation[accounts.User, work.Guard]
+	edge12 orm.QueryRelation[accounts.User, work.Note]
+	edge13 orm.QueryRelation[accounts.User, accounts.Permission]
+	edge14 orm.QueryRelation[accounts.UserGroupsLink, accounts.User]
+	edge15 orm.QueryRelation[accounts.UserGroupsLink, accounts.Group]
+	edge16 orm.QueryRelation[accounts.UserPermissionsLink, accounts.User]
+	edge17 orm.QueryRelation[accounts.UserPermissionsLink, accounts.Permission]
+	edge18 orm.QueryRelation[work.AccessGuard, accounts.Group]
+	edge19 orm.QueryRelation[work.AccessGuard, accounts.Permission]
+	edge20 orm.QueryRelation[work.AccessNote, accounts.Group]
+	edge21 orm.QueryRelation[work.AccessNote, accounts.Permission]
+	edge22 orm.QueryRelation[work.Guard, accounts.User]
+	edge23 orm.QueryRelation[work.Note, accounts.User]
 }
 type AccountsGroupRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
@@ -61,17 +69,31 @@ func newAccountsGroupRelatedFields[S any](_bindings *relationQueryBindings, _rou
 func (_fields AccountsGroupRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 	return _fields.route.IsNull(_value)
 }
+func (_fields AccountsGroupRelatedFields[S]) Guards() WorkAccessGuardRelatedFields[S] {
+	var _next orm.QueryRelation[accounts.Group, work.AccessGuard]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge0
+	}
+	return newWorkAccessGuardRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields AccountsGroupRelatedFields[S]) Notes() WorkAccessNoteRelatedFields[S] {
+	var _next orm.QueryRelation[accounts.Group, work.AccessNote]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newWorkAccessNoteRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
 func (_fields AccountsGroupRelatedFields[S]) Permissions() AccountsPermissionRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.Group, accounts.Permission]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge0
+		_next = _fields.bindings.edge2
 	}
 	return newAccountsPermissionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccountsGroupRelatedFields[S]) Users() AccountsUserRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.Group, accounts.User]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge1
+		_next = _fields.bindings.edge3
 	}
 	return newAccountsUserRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -83,6 +105,7 @@ type AccountsPermissionRelatedFields[S any] struct {
 	ID               orm.RelatedIntegerField[S]
 	Code             orm.RelatedStringField[S]
 	Name             orm.RelatedStringField[S]
+	Revision         orm.RelatedIntegerField[S]
 }
 
 func newAccountsPermissionRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, accounts.Permission]) AccountsPermissionRelatedFields[S] {
@@ -99,9 +122,14 @@ func newAccountsPermissionRelatedFields[S any](_bindings *relationQueryBindings,
 	if _result.configurationErr == nil {
 		_result.configurationErr = _err
 	}
+	_field3, _err := _route.Integer(accounts.PermissionFields.Revision)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
 	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
 	_result.Code = _field1.WithConfigurationError(_result.configurationErr)
 	_result.Name = _field2.WithConfigurationError(_result.configurationErr)
+	_result.Revision = _field3.WithConfigurationError(_result.configurationErr)
 	_result.route = _route.WithConfigurationError(_result.configurationErr)
 	return _result
 }
@@ -111,14 +139,28 @@ func (_fields AccountsPermissionRelatedFields[S]) IsNull(_value bool) orm.Predic
 func (_fields AccountsPermissionRelatedFields[S]) Groups() AccountsGroupRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.Permission, accounts.Group]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge4
+		_next = _fields.bindings.edge6
 	}
 	return newAccountsGroupRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields AccountsPermissionRelatedFields[S]) Guards() WorkAccessGuardRelatedFields[S] {
+	var _next orm.QueryRelation[accounts.Permission, work.AccessGuard]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge7
+	}
+	return newWorkAccessGuardRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields AccountsPermissionRelatedFields[S]) Notes() WorkAccessNoteRelatedFields[S] {
+	var _next orm.QueryRelation[accounts.Permission, work.AccessNote]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge8
+	}
+	return newWorkAccessNoteRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccountsPermissionRelatedFields[S]) Users() AccountsUserRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.Permission, accounts.User]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge5
+		_next = _fields.bindings.edge9
 	}
 	return newAccountsUserRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -218,28 +260,104 @@ func (_fields AccountsUserRelatedFields[S]) IsNull(_value bool) orm.Predicate[S]
 func (_fields AccountsUserRelatedFields[S]) Groups() AccountsGroupRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.User, accounts.Group]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge6
+		_next = _fields.bindings.edge10
 	}
 	return newAccountsGroupRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccountsUserRelatedFields[S]) Guards() WorkGuardRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.User, work.Guard]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge7
+		_next = _fields.bindings.edge11
 	}
 	return newWorkGuardRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccountsUserRelatedFields[S]) Notes() WorkNoteRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.User, work.Note]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge8
+		_next = _fields.bindings.edge12
 	}
 	return newWorkNoteRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccountsUserRelatedFields[S]) Permissions() AccountsPermissionRelatedFields[S] {
 	var _next orm.QueryRelation[accounts.User, accounts.Permission]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge9
+		_next = _fields.bindings.edge13
+	}
+	return newAccountsPermissionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type WorkAccessGuardRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, work.AccessGuard]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+}
+
+func newWorkAccessGuardRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, work.AccessGuard]) WorkAccessGuardRelatedFields[S] {
+	_result := WorkAccessGuardRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(work.AccessGuardFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields WorkAccessGuardRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields WorkAccessGuardRelatedFields[S]) Group() AccountsGroupRelatedFields[S] {
+	var _next orm.QueryRelation[work.AccessGuard, accounts.Group]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge18
+	}
+	return newAccountsGroupRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields WorkAccessGuardRelatedFields[S]) Permission() AccountsPermissionRelatedFields[S] {
+	var _next orm.QueryRelation[work.AccessGuard, accounts.Permission]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge19
+	}
+	return newAccountsPermissionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type WorkAccessNoteRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, work.AccessNote]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Text             orm.RelatedStringField[S]
+}
+
+func newWorkAccessNoteRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, work.AccessNote]) WorkAccessNoteRelatedFields[S] {
+	_result := WorkAccessNoteRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(work.AccessNoteFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(work.AccessNoteFields.Text)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Text = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields WorkAccessNoteRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields WorkAccessNoteRelatedFields[S]) Group() AccountsGroupRelatedFields[S] {
+	var _next orm.QueryRelation[work.AccessNote, accounts.Group]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge20
+	}
+	return newAccountsGroupRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields WorkAccessNoteRelatedFields[S]) Permission() AccountsPermissionRelatedFields[S] {
+	var _next orm.QueryRelation[work.AccessNote, accounts.Permission]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge21
 	}
 	return newAccountsPermissionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -267,7 +385,7 @@ func (_fields WorkGuardRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 func (_fields WorkGuardRelatedFields[S]) Owner() AccountsUserRelatedFields[S] {
 	var _next orm.QueryRelation[work.Guard, accounts.User]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge14
+		_next = _fields.bindings.edge22
 	}
 	return newAccountsUserRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -301,12 +419,14 @@ func (_fields WorkNoteRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
 func (_fields WorkNoteRelatedFields[S]) Owner() AccountsUserRelatedFields[S] {
 	var _next orm.QueryRelation[work.Note, accounts.User]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge15
+		_next = _fields.bindings.edge23
 	}
 	return newAccountsUserRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type AccountsGroupRelations struct {
+	Guards      WorkAccessGuardRelatedFields[accounts.Group]
+	Notes       WorkAccessNoteRelatedFields[accounts.Group]
 	Permissions AccountsPermissionRelatedFields[accounts.Group]
 	Users       AccountsUserRelatedFields[accounts.Group]
 	model       orm.BoundModel[accounts.Group]
@@ -328,6 +448,8 @@ func (_relations AccountsGroupPermissionsLinkRelations) ParseDynamic(_policy orm
 
 type AccountsPermissionRelations struct {
 	Groups AccountsGroupRelatedFields[accounts.Permission]
+	Guards WorkAccessGuardRelatedFields[accounts.Permission]
+	Notes  WorkAccessNoteRelatedFields[accounts.Permission]
 	Users  AccountsUserRelatedFields[accounts.Permission]
 	model  orm.BoundModel[accounts.Permission]
 }
@@ -368,6 +490,26 @@ func (_relations AccountsUserPermissionsLinkRelations) ParseDynamic(_policy orm.
 	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
+type WorkAccessGuardRelations struct {
+	Group      AccountsGroupRelatedFields[work.AccessGuard]
+	Permission AccountsPermissionRelatedFields[work.AccessGuard]
+	model      orm.BoundModel[work.AccessGuard]
+}
+
+func (_relations WorkAccessGuardRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[work.AccessGuard], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
+type WorkAccessNoteRelations struct {
+	Group      AccountsGroupRelatedFields[work.AccessNote]
+	Permission AccountsPermissionRelatedFields[work.AccessNote]
+	model      orm.BoundModel[work.AccessNote]
+}
+
+func (_relations WorkAccessNoteRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[work.AccessNote], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
 type WorkGuardRelations struct {
 	Owner AccountsUserRelatedFields[work.Guard]
 	model orm.BoundModel[work.Guard]
@@ -393,6 +535,8 @@ type Relations struct {
 	AccountsUser                 AccountsUserRelations
 	AccountsUserGroupsLink       AccountsUserGroupsLinkRelations
 	AccountsUserPermissionsLink  AccountsUserPermissionsLinkRelations
+	WorkAccessGuard              WorkAccessGuardRelations
+	WorkAccessNote               WorkAccessNoteRelations
 	WorkGuard                    WorkGuardRelations
 	WorkNote                     WorkNoteRelations
 }
@@ -452,13 +596,29 @@ func BindRelations() (Relations, error) {
 	}
 	_model6, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_guard"},
+		work.AccessGuardDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model7, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_note"},
+		work.AccessNoteDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model8, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "guard"},
 		work.GuardDescriptor{},
 	)
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_model7, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "note"},
 		work.NoteDescriptor{},
@@ -467,184 +627,268 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindQueryRelation(_model0, "permissions", _model2)
+	_relation0, _err := orm.BindQueryRelation(_model0, "guards", _model6)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindQueryRelation(_model0, "users", _model3)
+	_relation1, _err := orm.BindQueryRelation(_model0, "notes", _model7)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_relation2, _err := orm.BindQueryRelation(_model1, "source", _model0)
+	_relation2, _err := orm.BindQueryRelation(_model0, "permissions", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge2 = _relation2
-	_relation3, _err := orm.BindQueryRelation(_model1, "target", _model2)
+	_relation3, _err := orm.BindQueryRelation(_model0, "users", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge3 = _relation3
-	_relation4, _err := orm.BindQueryRelation(_model2, "groups", _model0)
+	_relation4, _err := orm.BindQueryRelation(_model1, "source", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge4 = _relation4
-	_relation5, _err := orm.BindQueryRelation(_model2, "users", _model3)
+	_relation5, _err := orm.BindQueryRelation(_model1, "target", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge5 = _relation5
-	_relation6, _err := orm.BindQueryRelation(_model3, "groups", _model0)
+	_relation6, _err := orm.BindQueryRelation(_model2, "groups", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge6 = _relation6
-	_relation7, _err := orm.BindQueryRelation(_model3, "guards", _model6)
+	_relation7, _err := orm.BindQueryRelation(_model2, "guards", _model6)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge7 = _relation7
-	_relation8, _err := orm.BindQueryRelation(_model3, "notes", _model7)
+	_relation8, _err := orm.BindQueryRelation(_model2, "notes", _model7)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge8 = _relation8
-	_relation9, _err := orm.BindQueryRelation(_model3, "permissions", _model2)
+	_relation9, _err := orm.BindQueryRelation(_model2, "users", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge9 = _relation9
-	_relation10, _err := orm.BindQueryRelation(_model4, "source", _model3)
+	_relation10, _err := orm.BindQueryRelation(_model3, "groups", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge10 = _relation10
-	_relation11, _err := orm.BindQueryRelation(_model4, "target", _model0)
+	_relation11, _err := orm.BindQueryRelation(_model3, "guards", _model8)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge11 = _relation11
-	_relation12, _err := orm.BindQueryRelation(_model5, "source", _model3)
+	_relation12, _err := orm.BindQueryRelation(_model3, "notes", _model9)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge12 = _relation12
-	_relation13, _err := orm.BindQueryRelation(_model5, "target", _model2)
+	_relation13, _err := orm.BindQueryRelation(_model3, "permissions", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge13 = _relation13
-	_relation14, _err := orm.BindQueryRelation(_model6, "owner", _model3)
+	_relation14, _err := orm.BindQueryRelation(_model4, "source", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge14 = _relation14
-	_relation15, _err := orm.BindQueryRelation(_model7, "owner", _model3)
+	_relation15, _err := orm.BindQueryRelation(_model4, "target", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge15 = _relation15
-	_group0 := newAccountsPermissionRelatedFields[accounts.Group](_routes, _routes.edge0)
+	_relation16, _err := orm.BindQueryRelation(_model5, "source", _model3)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge16 = _relation16
+	_relation17, _err := orm.BindQueryRelation(_model5, "target", _model2)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge17 = _relation17
+	_relation18, _err := orm.BindQueryRelation(_model6, "group", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge18 = _relation18
+	_relation19, _err := orm.BindQueryRelation(_model6, "permission", _model2)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge19 = _relation19
+	_relation20, _err := orm.BindQueryRelation(_model7, "group", _model0)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge20 = _relation20
+	_relation21, _err := orm.BindQueryRelation(_model7, "permission", _model2)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge21 = _relation21
+	_relation22, _err := orm.BindQueryRelation(_model8, "owner", _model3)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge22 = _relation22
+	_relation23, _err := orm.BindQueryRelation(_model9, "owner", _model3)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge23 = _relation23
+	_group0 := newWorkAccessGuardRelatedFields[accounts.Group](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
-	_group1 := newAccountsUserRelatedFields[accounts.Group](_routes, _routes.edge1)
+	_group1 := newWorkAccessNoteRelatedFields[accounts.Group](_routes, _routes.edge1)
 	if _group1.configurationErr != nil {
 		return Relations{}, _group1.configurationErr
 	}
-	_group2 := newAccountsGroupRelatedFields[accounts.GroupPermissionsLink](_routes, _routes.edge2)
+	_group2 := newAccountsPermissionRelatedFields[accounts.Group](_routes, _routes.edge2)
 	if _group2.configurationErr != nil {
 		return Relations{}, _group2.configurationErr
 	}
-	_group3 := newAccountsPermissionRelatedFields[accounts.GroupPermissionsLink](_routes, _routes.edge3)
+	_group3 := newAccountsUserRelatedFields[accounts.Group](_routes, _routes.edge3)
 	if _group3.configurationErr != nil {
 		return Relations{}, _group3.configurationErr
 	}
-	_group4 := newAccountsGroupRelatedFields[accounts.Permission](_routes, _routes.edge4)
+	_group4 := newAccountsGroupRelatedFields[accounts.GroupPermissionsLink](_routes, _routes.edge4)
 	if _group4.configurationErr != nil {
 		return Relations{}, _group4.configurationErr
 	}
-	_group5 := newAccountsUserRelatedFields[accounts.Permission](_routes, _routes.edge5)
+	_group5 := newAccountsPermissionRelatedFields[accounts.GroupPermissionsLink](_routes, _routes.edge5)
 	if _group5.configurationErr != nil {
 		return Relations{}, _group5.configurationErr
 	}
-	_group6 := newAccountsGroupRelatedFields[accounts.User](_routes, _routes.edge6)
+	_group6 := newAccountsGroupRelatedFields[accounts.Permission](_routes, _routes.edge6)
 	if _group6.configurationErr != nil {
 		return Relations{}, _group6.configurationErr
 	}
-	_group7 := newWorkGuardRelatedFields[accounts.User](_routes, _routes.edge7)
+	_group7 := newWorkAccessGuardRelatedFields[accounts.Permission](_routes, _routes.edge7)
 	if _group7.configurationErr != nil {
 		return Relations{}, _group7.configurationErr
 	}
-	_group8 := newWorkNoteRelatedFields[accounts.User](_routes, _routes.edge8)
+	_group8 := newWorkAccessNoteRelatedFields[accounts.Permission](_routes, _routes.edge8)
 	if _group8.configurationErr != nil {
 		return Relations{}, _group8.configurationErr
 	}
-	_group9 := newAccountsPermissionRelatedFields[accounts.User](_routes, _routes.edge9)
+	_group9 := newAccountsUserRelatedFields[accounts.Permission](_routes, _routes.edge9)
 	if _group9.configurationErr != nil {
 		return Relations{}, _group9.configurationErr
 	}
-	_group10 := newAccountsUserRelatedFields[accounts.UserGroupsLink](_routes, _routes.edge10)
+	_group10 := newAccountsGroupRelatedFields[accounts.User](_routes, _routes.edge10)
 	if _group10.configurationErr != nil {
 		return Relations{}, _group10.configurationErr
 	}
-	_group11 := newAccountsGroupRelatedFields[accounts.UserGroupsLink](_routes, _routes.edge11)
+	_group11 := newWorkGuardRelatedFields[accounts.User](_routes, _routes.edge11)
 	if _group11.configurationErr != nil {
 		return Relations{}, _group11.configurationErr
 	}
-	_group12 := newAccountsUserRelatedFields[accounts.UserPermissionsLink](_routes, _routes.edge12)
+	_group12 := newWorkNoteRelatedFields[accounts.User](_routes, _routes.edge12)
 	if _group12.configurationErr != nil {
 		return Relations{}, _group12.configurationErr
 	}
-	_group13 := newAccountsPermissionRelatedFields[accounts.UserPermissionsLink](_routes, _routes.edge13)
+	_group13 := newAccountsPermissionRelatedFields[accounts.User](_routes, _routes.edge13)
 	if _group13.configurationErr != nil {
 		return Relations{}, _group13.configurationErr
 	}
-	_group14 := newAccountsUserRelatedFields[work.Guard](_routes, _routes.edge14)
+	_group14 := newAccountsUserRelatedFields[accounts.UserGroupsLink](_routes, _routes.edge14)
 	if _group14.configurationErr != nil {
 		return Relations{}, _group14.configurationErr
 	}
-	_group15 := newAccountsUserRelatedFields[work.Note](_routes, _routes.edge15)
+	_group15 := newAccountsGroupRelatedFields[accounts.UserGroupsLink](_routes, _routes.edge15)
 	if _group15.configurationErr != nil {
 		return Relations{}, _group15.configurationErr
 	}
+	_group16 := newAccountsUserRelatedFields[accounts.UserPermissionsLink](_routes, _routes.edge16)
+	if _group16.configurationErr != nil {
+		return Relations{}, _group16.configurationErr
+	}
+	_group17 := newAccountsPermissionRelatedFields[accounts.UserPermissionsLink](_routes, _routes.edge17)
+	if _group17.configurationErr != nil {
+		return Relations{}, _group17.configurationErr
+	}
+	_group18 := newAccountsGroupRelatedFields[work.AccessGuard](_routes, _routes.edge18)
+	if _group18.configurationErr != nil {
+		return Relations{}, _group18.configurationErr
+	}
+	_group19 := newAccountsPermissionRelatedFields[work.AccessGuard](_routes, _routes.edge19)
+	if _group19.configurationErr != nil {
+		return Relations{}, _group19.configurationErr
+	}
+	_group20 := newAccountsGroupRelatedFields[work.AccessNote](_routes, _routes.edge20)
+	if _group20.configurationErr != nil {
+		return Relations{}, _group20.configurationErr
+	}
+	_group21 := newAccountsPermissionRelatedFields[work.AccessNote](_routes, _routes.edge21)
+	if _group21.configurationErr != nil {
+		return Relations{}, _group21.configurationErr
+	}
+	_group22 := newAccountsUserRelatedFields[work.Guard](_routes, _routes.edge22)
+	if _group22.configurationErr != nil {
+		return Relations{}, _group22.configurationErr
+	}
+	_group23 := newAccountsUserRelatedFields[work.Note](_routes, _routes.edge23)
+	if _group23.configurationErr != nil {
+		return Relations{}, _group23.configurationErr
+	}
 	return Relations{
 		AccountsGroup: AccountsGroupRelations{model: _model0,
-			Permissions: _group0,
-			Users:       _group1,
+			Guards:      _group0,
+			Notes:       _group1,
+			Permissions: _group2,
+			Users:       _group3,
 		},
 		AccountsGroupPermissionsLink: AccountsGroupPermissionsLinkRelations{model: _model1,
-			Source: _group2,
-			Target: _group3,
+			Source: _group4,
+			Target: _group5,
 		},
 		AccountsPermission: AccountsPermissionRelations{model: _model2,
-			Groups: _group4,
-			Users:  _group5,
+			Groups: _group6,
+			Guards: _group7,
+			Notes:  _group8,
+			Users:  _group9,
 		},
 		AccountsUser: AccountsUserRelations{model: _model3,
-			Groups:      _group6,
-			Guards:      _group7,
-			Notes:       _group8,
-			Permissions: _group9,
+			Groups:      _group10,
+			Guards:      _group11,
+			Notes:       _group12,
+			Permissions: _group13,
 		},
 		AccountsUserGroupsLink: AccountsUserGroupsLinkRelations{model: _model4,
-			Source: _group10,
-			Target: _group11,
+			Source: _group14,
+			Target: _group15,
 		},
 		AccountsUserPermissionsLink: AccountsUserPermissionsLinkRelations{model: _model5,
-			Source: _group12,
-			Target: _group13,
+			Source: _group16,
+			Target: _group17,
 		},
-		WorkGuard: WorkGuardRelations{model: _model6,
-			Owner: _group14,
+		WorkAccessGuard: WorkAccessGuardRelations{model: _model6,
+			Group:      _group18,
+			Permission: _group19,
 		},
-		WorkNote: WorkNoteRelations{model: _model7,
-			Owner: _group15,
+		WorkAccessNote: WorkAccessNoteRelations{model: _model7,
+			Group:      _group20,
+			Permission: _group21,
+		},
+		WorkGuard: WorkGuardRelations{model: _model8,
+			Owner: _group22,
+		},
+		WorkNote: WorkNoteRelations{model: _model9,
+			Owner: _group23,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ goDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

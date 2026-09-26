@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "4fa123e921aa78201a337e5945f6f956cefe19130d6b23f86933bb47f7252480"
+const GoDjRelationProjectionSchemaSHA256 = "4586501d40de0ee78b7baca7b389a255b40c94847d5b63799f3320f502171875"
 
 var _ orm.ProjectionDescriptor[Note] = NoteDescriptor{}
 
@@ -99,6 +99,106 @@ func (_scan *guardProjectionScan) Decode() (Guard, query.Value, orm.ProjectionPr
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_53765baf7a9d8cc5ba2a3ae23005087d275bf5f67f3f0ef93bae11ebaaf800c1 struct{}
+var _ orm.ProjectionDescriptor[AccessNote] = AccessNoteDescriptor{}
 
-var _ GoDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+func (AccessNoteDescriptor) NewProjectionScan() orm.ProjectionScan[AccessNote] {
+	return &accessNoteProjectionScan{}
+}
+
+type accessNoteProjectionScan struct {
+	scanID           sql.NullInt64
+	scanText         sql.NullString
+	scanGroupID      sql.NullInt64
+	scanPermissionID sql.NullInt64
+}
+
+func (_scan *accessNoteProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanText,
+		&_scan.scanGroupID,
+		&_scan.scanPermissionID,
+	}
+}
+
+func (_scan *accessNoteProjectionScan) Decode() (AccessNote, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return AccessNote{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanText.Valid && !_scan.scanGroupID.Valid && !_scan.scanPermissionID.Valid {
+		return AccessNote{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return AccessNote{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanText.Valid {
+		return AccessNote{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanPermissionID.Valid {
+		return AccessNote{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := AccessNote{}
+	_value.ID = _scan.scanID.Int64
+	_value.Text = _scan.scanText.String
+	if _scan.scanGroupID.Valid {
+		_scanned := _scan.scanGroupID.Int64
+		_value.GroupID = &_scanned
+	}
+	_value.PermissionID = _scan.scanPermissionID.Int64
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
+var _ orm.ProjectionDescriptor[AccessGuard] = AccessGuardDescriptor{}
+
+func (AccessGuardDescriptor) NewProjectionScan() orm.ProjectionScan[AccessGuard] {
+	return &accessGuardProjectionScan{}
+}
+
+type accessGuardProjectionScan struct {
+	scanID           sql.NullInt64
+	scanGroupID      sql.NullInt64
+	scanPermissionID sql.NullInt64
+}
+
+func (_scan *accessGuardProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanGroupID,
+		&_scan.scanPermissionID,
+	}
+}
+
+func (_scan *accessGuardProjectionScan) Decode() (AccessGuard, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return AccessGuard{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanGroupID.Valid && !_scan.scanPermissionID.Valid {
+		return AccessGuard{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return AccessGuard{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := AccessGuard{}
+	_value.ID = _scan.scanID.Int64
+	if _scan.scanGroupID.Valid {
+		_scanned := _scan.scanGroupID.Int64
+		_value.GroupID = &_scanned
+	}
+	if _scan.scanPermissionID.Valid {
+		_scanned := _scan.scanPermissionID.Int64
+		_value.PermissionID = &_scanned
+	}
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
+type GoDjAppPart3_09c241e0159bd3d214980a40009239978320b2b1b56a91166fc23b71a93e94a8 struct{}
+
+var _ GoDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

@@ -39,6 +39,11 @@ Directory·저장 인증·staff admission·명시적 operator 전환을 Article/
 독립 Django manager/UserAdmin 관찰과 Unicode 정규화, 실제 HTTP/session·runtime 재접속, 두 연결의 경쟁과 실패 경계를 포함한다.
 전체 UserCreationForm validator와 전용 management endpoint가 구현됐다고 주장하지 않는다.
 
+Permission의 expected revision을 위해 기존 행에 revision 1을 채우는 명시적 migration을 추가했다.
+이를 수행하는 scalar-default AddField를 양 DB의 fenced lifecycle·자동 계획·SQL projection에 연결했다.
+초기 identity migration은 유지하며 새 runtime은 current migration 누락을 startup에서 거부한다.
+관계·credential·session·audit 보존과 backend별 상수 표현을 영향 normal/race/CGO=0·양 DB와 독립 기준으로 검증했다.
+
 다음은 Group/Permission 자체의 관리 service와 실제 사용자·비밀번호·그룹·권한 Form/Admin/API·독립 client다.
 Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
 전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.

@@ -365,7 +365,7 @@ func TestWorkflowRequiredProductSentinelsRemainInventoried(t *testing.T) {
 		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration",
-		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationBackfillsNullableDefaultOnPopulatedTableIntegration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration",

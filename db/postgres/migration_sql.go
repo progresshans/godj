@@ -113,42 +113,57 @@ func compilePostgresMigrationDeleteModel(namespace string, model ir.Model) (stri
 	return "DROP TABLE " + table + " RESTRICT", nil
 }
 
-func compilePostgresMigrationAddField(
+func compilePostgresMigrationAddFieldStatements(
 	namespace string,
 	model ir.Model,
 	field ir.Field,
 	target *migrationbackend.MigrationTarget,
-) (string, error) {
+) ([]string, error) {
 	table, err := quoteTable(namespace, model.DBTable)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	column, err := compilePostgresMigrationColumnForTable(namespace, model.DBTable, field)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	statement := "ALTER TABLE " + table + " ADD COLUMN " + column
+	if field.Default != nil {
+		literal, err := compilePostgresMigrationDefault(field)
+		if err != nil {
+			return nil, err
+		}
+		statement += " DEFAULT " + literal
+	}
 	if field.Unique {
 		constraint, err := compilePostgresUniqueConstraint(model.DBTable, field)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		statement += ", ADD " + constraint
 	}
 	if field.Kind != ir.FieldForeignKey {
 		if target != nil {
-			return "", errors.New("scalar PostgreSQL AddField carries relation target metadata")
+			return nil, errors.New("scalar PostgreSQL AddField carries relation target metadata")
 		}
-		return statement, nil
+		statements := []string{statement}
+		if field.Default != nil {
+			name, err := quoteIdentifier(field.Column)
+			if err != nil {
+				return nil, err
+			}
+			statements = append(statements, "ALTER TABLE "+table+" ALTER COLUMN "+name+" DROP DEFAULT")
+		}
+		return statements, nil
 	}
 	if target == nil || !migrationFieldsEqual(target.SourceField, field) {
-		return "", errors.New("PostgreSQL ForeignKey AddField lacks its exact target metadata")
+		return nil, errors.New("PostgreSQL ForeignKey AddField lacks its exact target metadata")
 	}
 	constraint, err := compilePostgresMigrationForeignKey(namespace, model.DBTable, *target)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return statement + ", ADD " + constraint, nil
+	return []string{statement + ", ADD " + constraint}, nil
 }
 
 func postgresMigrationAddFieldTarget(

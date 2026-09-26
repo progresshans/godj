@@ -330,8 +330,8 @@ func TestPostgresMigrationAddRequiresEmptyTable(t *testing.T) {
 	}{
 		{name: "nullable without default", field: ir.Field{Nullable: true}, want: false},
 		{name: "required without default", field: ir.Field{}, want: true},
-		{name: "nullable with logical default", field: ir.Field{Nullable: true, Default: logicalDefault}, want: true},
-		{name: "required with logical default", field: ir.Field{Default: logicalDefault}, want: true},
+		{name: "nullable with logical default", field: ir.Field{Nullable: true, Default: logicalDefault}, want: false},
+		{name: "required with logical default", field: ir.Field{Default: logicalDefault}, want: false},
 	}
 	for _, test := range tests {
 		test := test

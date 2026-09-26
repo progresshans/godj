@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "4fa123e921aa78201a337e5945f6f956cefe19130d6b23f86933bb47f7252480"
+const GoDjRelationObjectSchemaSHA256 = "4586501d40de0ee78b7baca7b389a255b40c94847d5b63799f3320f502171875"
 
 var _ orm.RelationObjectDescriptor[Note] = NoteDescriptor{}
 
@@ -88,6 +88,216 @@ func (guardOwnerIDRelationStorage) Value(value Guard) (query.Value, bool) {
 	return query.Integer(value.OwnerID), true
 }
 
-type GoDjAppPart2_53765baf7a9d8cc5ba2a3ae23005087d275bf5f67f3f0ef93bae11ebaaf800c1 struct{}
+var _ orm.RelationObjectDescriptor[AccessNote] = AccessNoteDescriptor{}
 
-var _ GoDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+func (AccessNoteDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[AccessNote] {
+	return AccessNoteDescriptor{}
+}
+
+func (AccessNoteDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[AccessNote], bool) {
+	switch {
+	case reflect.DeepEqual(field, (accessNoteGroupIDRelationStorage{}).Field()):
+		return accessNoteGroupIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (accessNotePermissionIDRelationStorage{}).Field()):
+		return accessNotePermissionIDRelationStorage{}, true
+	default:
+		return nil, false
+	}
+}
+
+type accessNoteGroupIDRelationStorage struct{}
+
+var _ orm.RelationStorage[AccessNote] = accessNoteGroupIDRelationStorage{}
+
+func (accessNoteGroupIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "group",
+		GoName:   "GroupID",
+		Column:   "group_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "notes"},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	}
+}
+
+func (accessNoteGroupIDRelationStorage) Value(value AccessNote) (query.Value, bool) {
+	if value.GroupID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.GroupID), true
+}
+
+type accessNotePermissionIDRelationStorage struct{}
+
+var _ orm.RelationStorage[AccessNote] = accessNotePermissionIDRelationStorage{}
+
+func (accessNotePermissionIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:   "permission",
+		GoName: "PermissionID",
+		Column: "permission_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "notes"},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (accessNotePermissionIDRelationStorage) Value(value AccessNote) (query.Value, bool) {
+	return query.Integer(value.PermissionID), true
+}
+
+func (AccessNoteDescriptor) ManyToManyCreateInput() orm.ManyToManyInput[AccessNote] {
+	return AccessNoteCreate{}
+}
+
+var _ orm.ManyToManyDescriptor[AccessNote] = AccessNoteDescriptor{}
+
+func (input AccessNoteCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[AccessNote] {
+	invalid := func() orm.Mutation[AccessNote] {
+		return orm.InvalidMutation[AccessNote](&query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "collection endpoints must be distinct canonical ForeignKeys omitted from through defaults"})
+	}
+	if source.Name == target.Name {
+		return invalid()
+	}
+	for index, field := range []ir.Field{source, target} {
+		key := sourceKey
+		if index == 1 {
+			key = targetKey
+		}
+		switch {
+		case reflect.DeepEqual(field, (accessNoteGroupIDRelationStorage{}).Field()):
+			if _, state := input.groupID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithGroupID(key)
+		case reflect.DeepEqual(field, (accessNotePermissionIDRelationStorage{}).Field()):
+			if _, set := input.permissionID.Get(); set {
+				return invalid()
+			}
+			input = input.WithPermissionID(key)
+		default:
+			return invalid()
+		}
+	}
+	return input.BuildCreate()
+}
+
+var _ orm.RelationObjectDescriptor[AccessGuard] = AccessGuardDescriptor{}
+
+func (AccessGuardDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[AccessGuard] {
+	return AccessGuardDescriptor{}
+}
+
+func (AccessGuardDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[AccessGuard], bool) {
+	switch {
+	case reflect.DeepEqual(field, (accessGuardGroupIDRelationStorage{}).Field()):
+		return accessGuardGroupIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (accessGuardPermissionIDRelationStorage{}).Field()):
+		return accessGuardPermissionIDRelationStorage{}, true
+	default:
+		return nil, false
+	}
+}
+
+type accessGuardGroupIDRelationStorage struct{}
+
+var _ orm.RelationStorage[AccessGuard] = accessGuardGroupIDRelationStorage{}
+
+func (accessGuardGroupIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "group",
+		GoName:   "GroupID",
+		Column:   "group_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "guards"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func (accessGuardGroupIDRelationStorage) Value(value AccessGuard) (query.Value, bool) {
+	if value.GroupID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.GroupID), true
+}
+
+type accessGuardPermissionIDRelationStorage struct{}
+
+var _ orm.RelationStorage[AccessGuard] = accessGuardPermissionIDRelationStorage{}
+
+func (accessGuardPermissionIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "permission",
+		GoName:   "PermissionID",
+		Column:   "permission_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "guards"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func (accessGuardPermissionIDRelationStorage) Value(value AccessGuard) (query.Value, bool) {
+	if value.PermissionID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.PermissionID), true
+}
+
+func (AccessGuardDescriptor) ManyToManyCreateInput() orm.ManyToManyInput[AccessGuard] {
+	return AccessGuardCreate{}
+}
+
+var _ orm.ManyToManyDescriptor[AccessGuard] = AccessGuardDescriptor{}
+
+func (input AccessGuardCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[AccessGuard] {
+	invalid := func() orm.Mutation[AccessGuard] {
+		return orm.InvalidMutation[AccessGuard](&query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "collection endpoints must be distinct canonical ForeignKeys omitted from through defaults"})
+	}
+	if source.Name == target.Name {
+		return invalid()
+	}
+	for index, field := range []ir.Field{source, target} {
+		key := sourceKey
+		if index == 1 {
+			key = targetKey
+		}
+		switch {
+		case reflect.DeepEqual(field, (accessGuardGroupIDRelationStorage{}).Field()):
+			if _, state := input.groupID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithGroupID(key)
+		case reflect.DeepEqual(field, (accessGuardPermissionIDRelationStorage{}).Field()):
+			if _, state := input.permissionID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithPermissionID(key)
+		default:
+			return invalid()
+		}
+	}
+	return input.BuildCreate()
+}
+
+type GoDjAppPart2_09c241e0159bd3d214980a40009239978320b2b1b56a91166fc23b71a93e94a8 struct{}
+
+var _ GoDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

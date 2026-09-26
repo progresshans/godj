@@ -36,11 +36,11 @@ func TestPostgresMigrationSQLRendererMatchesExecutionCompilers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	add, err := compilePostgresMigrationAddField("product_schema", before, after.Fields[len(after.Fields)-1], nil)
+	add, err := compilePostgresMigrationAddFieldStatements("product_schema", before, after.Fields[len(after.Fields)-1], nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := [][]string{create, {add}}
+	want := [][]string{create, add}
 	if !reflect.DeepEqual(statements, want) {
 		t.Fatalf("rendered SQL = %#v, want compiler SQL %#v", statements, want)
 	}
@@ -73,7 +73,7 @@ func TestPostgresMigrationSQLRendererPublicConfigurationIsSchemaOnly(t *testing.
 	}
 }
 
-func TestPostgresMigrationSQLRendererProjectsLogicalDefaultWithoutDDLDefault(t *testing.T) {
+func TestPostgresMigrationSQLRendererProjectsBackfillAndDefaultRemoval(t *testing.T) {
 	t.Parallel()
 
 	before := postgresMigrationTestPostModel(false)
@@ -95,12 +95,12 @@ func TestPostgresMigrationSQLRendererProjectsLogicalDefaultWithoutDDLDefault(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := compilePostgresMigrationAddField("product_schema", before, after.Fields[len(after.Fields)-1], nil)
+	want, err := compilePostgresMigrationAddFieldStatements("product_schema", before, after.Fields[len(after.Fields)-1], nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(statements, [][]string{{want}}) || strings.Contains(strings.ToUpper(statements[0][0]), " DEFAULT ") {
-		t.Fatalf("logical-default AddField SQL = %#v, want compiler projection without DDL DEFAULT", statements)
+	if !reflect.DeepEqual(statements, [][]string{want}) || len(statements[0]) != 2 || !strings.HasSuffix(statements[0][1], " DROP DEFAULT") {
+		t.Fatalf("logical-default AddField SQL = %#v, want compiler backfill followed by default removal", statements)
 	}
 }
 
@@ -208,11 +208,11 @@ func TestPostgresMigrationSQLRendererForeignKeyAddIsOneDeterministicStatement(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	compilerSQL, err := compilePostgresMigrationAddField("product_schema", before, field, &target)
+	compilerSQL, err := compilePostgresMigrationAddFieldStatements("product_schema", before, field, &target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(want, [][]string{{compilerSQL}}) ||
+	if !reflect.DeepEqual(want, [][]string{compilerSQL}) ||
 		!strings.Contains(want[0][0], "ADD COLUMN") || !strings.Contains(want[0][0], ", ADD CONSTRAINT") {
 		t.Fatalf("ForeignKey Add SQL = %#v, want one compiler statement %q", want, compilerSQL)
 	}

@@ -291,7 +291,7 @@ normal/race Form 비교와 Helpdesk 양 DB의 실제 Admin 편집·재조회, CG
 
 - Status: Verified
 - Date: 2026-09-20
-- Scope: GDJ-0084 독립 graph 관찰의 `reverse_links.rows.a[2][0]` 하나. 기존 등록 MIG 계약의 상태·집계는 변경하지 않는다.
+- Scope: GDJ-0084 독립 graph 관찰의 `reverse_links.rows.a[2][0]`와 아래 GDJ-0100 scalar-default 관찰의 명시한 next_id 셀. 기존 등록 MIG 계약의 상태·집계는 변경하지 않는다.
 - Reference: 고정 Django 6.1 / Python 3.14.7 SQLite, [raw 관찰](../internal/migrationgraphtest/testdata/django61.json)
 - Related: [ADR-0064](adr/0064-historical-relation-graphs-and-sqlite-remakes.md), [GDJ-0084](../work/0084-relation-migration-graphs.md)
 
@@ -303,9 +303,17 @@ SQLite의 table 교체로 과거 ID가 재사용되는 것을 막으며, Postgre
 바뀌지 않고 API/definition 형식의 변환도 필요하지 않다. 양 DB의 실제 lifecycle에서 101을 별도로 확인한다. Django PostgreSQL의
 독립 실행 증거라고 주장하지 않는다. Connection/FK/transaction 보안 조건은 완화하지 않는다.
 
-비교기는 raw Django 값이 정확히 3인 지정된 한 셀만 GoDj expected 101로 대조하며 나머지 모든 값은 그대로 비교한다.
+Graph 비교기는 raw Django 값이 정확히 3인 지정된 한 셀만 GoDj expected 101로 대조하며 나머지 모든 값은 그대로 비교한다.
 Reference selector가 달라지면 실패하고 재검토한다. Raw oracle은 3을 보존하며 fresh-process 재생에서도 이를 확인한다.
 양 DB의 normal/race/CGO0에서 이 차이와 나머지 관찰을 확인했다. 실제 source별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록한다. 향후 ID 재사용 정책을 바꿀 때 이 결정을 supersede한다.
+
+2026-09-27의 GDJ-0100 기본값 AddField에도 같은 상한 보존을 적용한다. [독립 SQLite capture](../internal/migrationdefaulttest/testdata/defaults-django61-sqlite.json)의
+`observations.<case>.next_id`에서 case는 `integer`, `integer_min`, `boolean_false`, `empty_text`, `quoted_text`,
+`nullable_default`, `float`, `decimal`, `uuid`, `json`, `date`, `time`, `duration`, `datetime`의 14개로 한정한다.
+ID 1..3 생성 뒤 3을 지운 데이터에서 Add·reverse·reapply 후 Django SQLite는 3, GoDj는 4다.
+각 raw 값이 정확히 3일 때만 expected 4로 대조한다. 행의 기본값·incoming 관계·최종 DB default 부재·누락 INSERT 결과는
+그대로 비교한다. [PostgreSQL capture](../internal/migrationdefaulttest/testdata/defaults-django61-postgres.json)는 raw 4이며 보정하지 않는다.
+양 DB 관찰은 고정 Django 6.1 / Python 3.14.3에서 직접 실행했다. Typed JSON null의 별도 Go invariant에는 이 Django 비교를 적용하지 않는다.
 
 ## DEV-0001 — 역방향 migration의 schema와 recorder를 같은 transaction으로 처리
 

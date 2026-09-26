@@ -332,6 +332,212 @@ func (_object *AccountsUserPermissionsLinkObject) Fresh() (*AccountsUserPermissi
 	return _object.factory.From(_object.backend, _object.model)
 }
 
+type WorkAccessGuardGroupObjectRelation struct {
+	relation orm.NullableForwardObject[work.AccessGuard, accounts.Group]
+}
+
+func (_relation WorkAccessGuardGroupObjectRelation) IsNull(_value bool) orm.Predicate[work.AccessGuard] {
+	return _relation.relation.IsNull(_value)
+}
+
+type WorkAccessGuardPermissionObjectRelation struct {
+	relation orm.NullableForwardObject[work.AccessGuard, accounts.Permission]
+}
+
+func (_relation WorkAccessGuardPermissionObjectRelation) IsNull(_value bool) orm.Predicate[work.AccessGuard] {
+	return _relation.relation.IsNull(_value)
+}
+
+type WorkAccessGuardObjectFactory struct {
+	_projectSelections *Objects
+	Group              WorkAccessGuardGroupObjectRelation
+	Permission         WorkAccessGuardPermissionObjectRelation
+	model              orm.BoundModel[work.AccessGuard]
+	group              orm.NullableForwardObject[work.AccessGuard, accounts.Group]
+	permission         orm.NullableForwardObject[work.AccessGuard, accounts.Permission]
+}
+
+func (_factory WorkAccessGuardObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[work.AccessGuard], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory WorkAccessGuardObjectFactory) From(_backend db.Queryer, _value work.AccessGuard) (*WorkAccessGuardObject, error) {
+	_snapshot := (work.AccessGuardDescriptor{}).CloneModel(_value)
+	_related6, _err := _factory.group.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related7, _err := _factory.permission.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &WorkAccessGuardObject{
+		model:      _snapshot,
+		factory:    _factory,
+		backend:    _backend,
+		group:      _related6,
+		permission: _related7,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type WorkAccessGuardObject struct {
+	_selectedGraph *orm.RelatedSelected[work.AccessGuard]
+	model          work.AccessGuard
+	factory        WorkAccessGuardObjectFactory
+	backend        db.Queryer
+	group          *orm.RelatedObject[accounts.Group]
+	permission     *orm.RelatedObject[accounts.Permission]
+	_self          *WorkAccessGuardObject
+}
+
+func (_object *WorkAccessGuardObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *WorkAccessGuardObject) Model() (work.AccessGuard, error) {
+	if _err := _object._validate(); _err != nil {
+		return work.AccessGuard{}, _err
+	}
+	return (work.AccessGuardDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *WorkAccessGuardObject) Group(_ctx context.Context) (accounts.Group, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return accounts.Group{}, false, _err
+	}
+	return _object.group.Get(_ctx)
+}
+
+func (_object *WorkAccessGuardObject) Permission(_ctx context.Context) (accounts.Permission, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return accounts.Permission{}, false, _err
+	}
+	return _object.permission.Get(_ctx)
+}
+
+func (_object *WorkAccessGuardObject) Fresh() (*WorkAccessGuardObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
+type WorkAccessNoteGroupObjectRelation struct {
+	relation orm.NullableForwardObject[work.AccessNote, accounts.Group]
+}
+
+func (_relation WorkAccessNoteGroupObjectRelation) IsNull(_value bool) orm.Predicate[work.AccessNote] {
+	return _relation.relation.IsNull(_value)
+}
+
+type WorkAccessNoteObjectFactory struct {
+	_projectSelections *Objects
+	Group              WorkAccessNoteGroupObjectRelation
+	model              orm.BoundModel[work.AccessNote]
+	group              orm.NullableForwardObject[work.AccessNote, accounts.Group]
+	permission         orm.RequiredForwardObject[work.AccessNote, accounts.Permission]
+}
+
+func (_factory WorkAccessNoteObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[work.AccessNote], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory WorkAccessNoteObjectFactory) From(_backend db.Queryer, _value work.AccessNote) (*WorkAccessNoteObject, error) {
+	_snapshot := (work.AccessNoteDescriptor{}).CloneModel(_value)
+	_related8, _err := _factory.group.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related9, _err := _factory.permission.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &WorkAccessNoteObject{
+		model:      _snapshot,
+		factory:    _factory,
+		backend:    _backend,
+		group:      _related8,
+		permission: _related9,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type WorkAccessNoteObject struct {
+	_selectedGraph *orm.RelatedSelected[work.AccessNote]
+	model          work.AccessNote
+	factory        WorkAccessNoteObjectFactory
+	backend        db.Queryer
+	group          *orm.RelatedObject[accounts.Group]
+	permission     *orm.RelatedObject[accounts.Permission]
+	_self          *WorkAccessNoteObject
+}
+
+func (_object *WorkAccessNoteObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *WorkAccessNoteObject) Model() (work.AccessNote, error) {
+	if _err := _object._validate(); _err != nil {
+		return work.AccessNote{}, _err
+	}
+	return (work.AccessNoteDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *WorkAccessNoteObject) Group(_ctx context.Context) (accounts.Group, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return accounts.Group{}, false, _err
+	}
+	return _object.group.Get(_ctx)
+}
+
+func (_object *WorkAccessNoteObject) Permission(_ctx context.Context) (accounts.Permission, error) {
+	if _err := _object._validate(); _err != nil {
+		return accounts.Permission{}, _err
+	}
+	_value, _ok, _err := _object.permission.Get(_ctx)
+	if _err != nil {
+		return accounts.Permission{}, _err
+	}
+	if !_ok {
+		return accounts.Permission{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *WorkAccessNoteObject) Fresh() (*WorkAccessNoteObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
 type WorkGuardObjectFactory struct {
 	_projectSelections *Objects
 	model              orm.BoundModel[work.Guard]
@@ -347,7 +553,7 @@ func (_factory WorkGuardObjectFactory) ParseDynamic(
 
 func (_factory WorkGuardObjectFactory) From(_backend db.Queryer, _value work.Guard) (*WorkGuardObject, error) {
 	_snapshot := (work.GuardDescriptor{}).CloneModel(_value)
-	_related6, _err := _factory.owner.From(_backend, _snapshot)
+	_related10, _err := _factory.owner.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -355,7 +561,7 @@ func (_factory WorkGuardObjectFactory) From(_backend db.Queryer, _value work.Gua
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		owner:   _related6,
+		owner:   _related10,
 	}
 	_result._self = _result
 	return _result, nil
@@ -428,7 +634,7 @@ func (_factory WorkNoteObjectFactory) ParseDynamic(
 
 func (_factory WorkNoteObjectFactory) From(_backend db.Queryer, _value work.Note) (*WorkNoteObject, error) {
 	_snapshot := (work.NoteDescriptor{}).CloneModel(_value)
-	_related7, _err := _factory.owner.From(_backend, _snapshot)
+	_related11, _err := _factory.owner.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -436,7 +642,7 @@ func (_factory WorkNoteObjectFactory) From(_backend db.Queryer, _value work.Note
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		owner:   _related7,
+		owner:   _related11,
 	}
 	_result._self = _result
 	return _result, nil
@@ -498,6 +704,8 @@ type Objects struct {
 	AccountsGroupPermissionsLink AccountsGroupPermissionsLinkObjectFactory
 	AccountsUserGroupsLink       AccountsUserGroupsLinkObjectFactory
 	AccountsUserPermissionsLink  AccountsUserPermissionsLinkObjectFactory
+	WorkAccessGuard              WorkAccessGuardObjectFactory
+	WorkAccessNote               WorkAccessNoteObjectFactory
 	WorkGuard                    WorkGuardObjectFactory
 	WorkNote                     WorkNoteObjectFactory
 }
@@ -562,13 +770,29 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	}
 	_model6, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_guard"},
+		work.AccessGuardDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model7, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "access_note"},
+		work.AccessNoteDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model8, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "guard"},
 		work.GuardDescriptor{},
 	)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model7, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "identityfixture", ModelName: "note"},
 		work.NoteDescriptor{},
@@ -600,11 +824,27 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation6, _err := orm.BindRequiredForwardObject(_model6, "owner", _model3)
+	_relation6, _err := orm.BindNullableForwardObject(_model6, "group", _model0)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation7, _err := orm.BindRequiredForwardObject(_model7, "owner", _model3)
+	_relation7, _err := orm.BindNullableForwardObject(_model6, "permission", _model2)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation8, _err := orm.BindNullableForwardObject(_model7, "group", _model0)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation9, _err := orm.BindRequiredForwardObject(_model7, "permission", _model2)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation10, _err := orm.BindRequiredForwardObject(_model8, "owner", _model3)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation11, _err := orm.BindRequiredForwardObject(_model9, "owner", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
@@ -624,21 +864,36 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 			source: _relation4,
 			target: _relation5,
 		},
+		WorkAccessGuard: WorkAccessGuardObjectFactory{
+			Group:      WorkAccessGuardGroupObjectRelation{relation: _relation6},
+			Permission: WorkAccessGuardPermissionObjectRelation{relation: _relation7},
+			model:      _model6,
+			group:      _relation6,
+			permission: _relation7,
+		},
+		WorkAccessNote: WorkAccessNoteObjectFactory{
+			Group:      WorkAccessNoteGroupObjectRelation{relation: _relation8},
+			model:      _model7,
+			group:      _relation8,
+			permission: _relation9,
+		},
 		WorkGuard: WorkGuardObjectFactory{
-			model: _model6,
-			owner: _relation6,
+			model: _model8,
+			owner: _relation10,
 		},
 		WorkNote: WorkNoteObjectFactory{
-			model: _model7,
-			owner: _relation7,
+			model: _model9,
+			owner: _relation11,
 		},
 	}
 	_objects.AccountsGroupPermissionsLink._projectSelections = &_objects
 	_objects.AccountsUserGroupsLink._projectSelections = &_objects
 	_objects.AccountsUserPermissionsLink._projectSelections = &_objects
+	_objects.WorkAccessGuard._projectSelections = &_objects
+	_objects.WorkAccessNote._projectSelections = &_objects
 	_objects.WorkGuard._projectSelections = &_objects
 	_objects.WorkNote._projectSelections = &_objects
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ goDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

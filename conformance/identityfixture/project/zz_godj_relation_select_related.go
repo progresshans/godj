@@ -19,6 +19,8 @@ var _ orm.ProjectionDescriptor[accounts.Permission] = accounts.PermissionDescrip
 var _ orm.ProjectionDescriptor[accounts.User] = accounts.UserDescriptor{}
 var _ orm.ProjectionDescriptor[accounts.UserGroupsLink] = accounts.UserGroupsLinkDescriptor{}
 var _ orm.ProjectionDescriptor[accounts.UserPermissionsLink] = accounts.UserPermissionsLinkDescriptor{}
+var _ orm.ProjectionDescriptor[work.AccessGuard] = work.AccessGuardDescriptor{}
+var _ orm.ProjectionDescriptor[work.AccessNote] = work.AccessNoteDescriptor{}
 var _ orm.ProjectionDescriptor[work.Guard] = work.GuardDescriptor{}
 var _ orm.ProjectionDescriptor[work.Note] = work.NoteDescriptor{}
 
@@ -607,6 +609,392 @@ func (_factory AccountsUserPermissionsLinkObjectFactory) FromSelected(_selected 
 	return _object, nil
 }
 
+type WorkAccessGuardSelectRelatedQuery struct {
+	factory          WorkAccessGuardObjectFactory
+	source           orm.QuerySet[work.AccessGuard]
+	query            orm.RelatedSelectQuery[work.AccessGuard]
+	selections       []orm.RelatedSelection[work.AccessGuard]
+	configurationErr error
+}
+
+func (_factory WorkAccessGuardObjectFactory) SelectRelated(_source orm.QuerySet[work.AccessGuard]) WorkAccessGuardSelectRelatedQuery {
+	return WorkAccessGuardSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query WorkAccessGuardSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[work.AccessGuard]) WorkAccessGuardSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[work.AccessGuard](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory WorkAccessGuardObjectFactory) SelectGroup(_children ...orm.RelatedSelection[accounts.Group]) orm.RelatedSelect[work.AccessGuard, accounts.Group] {
+	return orm.SelectNullableForward(_factory.group).WithChildren(_children...)
+}
+func (_query WorkAccessGuardSelectRelatedQuery) WithGroup(_children ...orm.RelatedSelection[accounts.Group]) WorkAccessGuardSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectGroup(_children...))
+}
+func (_factory WorkAccessGuardObjectFactory) SelectPermission(_children ...orm.RelatedSelection[accounts.Permission]) orm.RelatedSelect[work.AccessGuard, accounts.Permission] {
+	return orm.SelectNullableForward(_factory.permission).WithChildren(_children...)
+}
+func (_query WorkAccessGuardSelectRelatedQuery) WithPermission(_children ...orm.RelatedSelection[accounts.Permission]) WorkAccessGuardSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectPermission(_children...))
+}
+func (_factory WorkAccessGuardObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[work.AccessGuard], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[work.AccessGuard], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "group":
+			_selection := _factory.SelectGroup()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		case "permission":
+			_selection := _factory.SelectPermission()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query WorkAccessGuardSelectRelatedQuery) ParseDynamic(_paths ...string) (WorkAccessGuardSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return WorkAccessGuardSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return WorkAccessGuardSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return WorkAccessGuardSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query WorkAccessGuardSelectRelatedQuery) rebuild() WorkAccessGuardSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query WorkAccessGuardSelectRelatedQuery) Filter(_values ...orm.Predicate[work.AccessGuard]) WorkAccessGuardSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query WorkAccessGuardSelectRelatedQuery) OrderBy(_values ...orm.Ordering[work.AccessGuard]) WorkAccessGuardSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query WorkAccessGuardSelectRelatedQuery) Distinct() WorkAccessGuardSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query WorkAccessGuardSelectRelatedQuery) Fresh() WorkAccessGuardSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query WorkAccessGuardSelectRelatedQuery) Limit(_value int) (WorkAccessGuardSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return WorkAccessGuardSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return WorkAccessGuardSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query WorkAccessGuardSelectRelatedQuery) Offset(_value int) (WorkAccessGuardSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return WorkAccessGuardSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return WorkAccessGuardSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query WorkAccessGuardSelectRelatedQuery) All(_ctx context.Context) ([]*WorkAccessGuardObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*WorkAccessGuardObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query WorkAccessGuardSelectRelatedQuery) First(_ctx context.Context) (*WorkAccessGuardObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query WorkAccessGuardSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query WorkAccessGuardSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[work.AccessGuard]) (*WorkAccessGuardObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory WorkAccessGuardObjectFactory) FromSelected(_selected *orm.RelatedSelected[work.AccessGuard]) (*WorkAccessGuardObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("group"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectGroup().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.group = _related
+	}
+	if _has, _err := _selected.HasSelection("permission"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectPermission().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.permission = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+
+type WorkAccessNoteSelectRelatedQuery struct {
+	factory          WorkAccessNoteObjectFactory
+	source           orm.QuerySet[work.AccessNote]
+	query            orm.RelatedSelectQuery[work.AccessNote]
+	selections       []orm.RelatedSelection[work.AccessNote]
+	configurationErr error
+}
+
+func (_factory WorkAccessNoteObjectFactory) SelectRelated(_source orm.QuerySet[work.AccessNote]) WorkAccessNoteSelectRelatedQuery {
+	return WorkAccessNoteSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query WorkAccessNoteSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[work.AccessNote]) WorkAccessNoteSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[work.AccessNote](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory WorkAccessNoteObjectFactory) SelectGroup(_children ...orm.RelatedSelection[accounts.Group]) orm.RelatedSelect[work.AccessNote, accounts.Group] {
+	return orm.SelectNullableForward(_factory.group).WithChildren(_children...)
+}
+func (_query WorkAccessNoteSelectRelatedQuery) WithGroup(_children ...orm.RelatedSelection[accounts.Group]) WorkAccessNoteSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectGroup(_children...))
+}
+func (_factory WorkAccessNoteObjectFactory) SelectPermission(_children ...orm.RelatedSelection[accounts.Permission]) orm.RelatedSelect[work.AccessNote, accounts.Permission] {
+	return orm.SelectRequiredForward(_factory.permission).WithChildren(_children...)
+}
+func (_query WorkAccessNoteSelectRelatedQuery) WithPermission(_children ...orm.RelatedSelection[accounts.Permission]) WorkAccessNoteSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectPermission(_children...))
+}
+func (_factory WorkAccessNoteObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[work.AccessNote], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[work.AccessNote], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "group":
+			_selection := _factory.SelectGroup()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		case "permission":
+			_selection := _factory.SelectPermission()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query WorkAccessNoteSelectRelatedQuery) ParseDynamic(_paths ...string) (WorkAccessNoteSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return WorkAccessNoteSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return WorkAccessNoteSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return WorkAccessNoteSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query WorkAccessNoteSelectRelatedQuery) rebuild() WorkAccessNoteSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query WorkAccessNoteSelectRelatedQuery) Filter(_values ...orm.Predicate[work.AccessNote]) WorkAccessNoteSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query WorkAccessNoteSelectRelatedQuery) OrderBy(_values ...orm.Ordering[work.AccessNote]) WorkAccessNoteSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query WorkAccessNoteSelectRelatedQuery) Distinct() WorkAccessNoteSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query WorkAccessNoteSelectRelatedQuery) Fresh() WorkAccessNoteSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query WorkAccessNoteSelectRelatedQuery) Limit(_value int) (WorkAccessNoteSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return WorkAccessNoteSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return WorkAccessNoteSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query WorkAccessNoteSelectRelatedQuery) Offset(_value int) (WorkAccessNoteSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return WorkAccessNoteSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return WorkAccessNoteSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query WorkAccessNoteSelectRelatedQuery) All(_ctx context.Context) ([]*WorkAccessNoteObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*WorkAccessNoteObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query WorkAccessNoteSelectRelatedQuery) First(_ctx context.Context) (*WorkAccessNoteObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query WorkAccessNoteSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query WorkAccessNoteSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[work.AccessNote]) (*WorkAccessNoteObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory WorkAccessNoteObjectFactory) FromSelected(_selected *orm.RelatedSelected[work.AccessNote]) (*WorkAccessNoteObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("group"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectGroup().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.group = _related
+	}
+	if _has, _err := _selected.HasSelection("permission"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectPermission().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.permission = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+
 type WorkGuardSelectRelatedQuery struct {
 	factory          WorkGuardObjectFactory
 	source           orm.QuerySet[work.Guard]
@@ -951,4 +1339,4 @@ func (_factory WorkNoteObjectFactory) FromSelected(_selected *orm.RelatedSelecte
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ goDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

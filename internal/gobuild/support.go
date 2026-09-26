@@ -150,7 +150,12 @@ func Summary(stdout, stderr []byte, environment []string) string {
 		scanner.Buffer(make([]byte, 4096), 128<<10)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
-			if !strings.HasPrefix(line, "go: ") && !compilerLine.MatchString(line) &&
+			// Cold candidate builds may download many modules before reporting
+			// the actual compiler error. Progress must not consume its budget.
+			if strings.HasPrefix(line, "go: downloading ") {
+				continue
+			}
+			if !strings.HasPrefix(line, "go: ") && !strings.HasPrefix(line, "compile: ") && !strings.HasPrefix(line, "link: ") && !compilerLine.MatchString(line) &&
 				!strings.Contains(line, "fatal error:") && !strings.Contains(line, "executable file not found") {
 				continue
 			}

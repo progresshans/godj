@@ -62,7 +62,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
 		accounts.GroupDescriptor{},
-		"299ac4bd4d1836a2d7d5446ee204f9a118a310dc1abb20e4c0b01b1eaff8b26d",
+		"3b8886aacb5499f805656bd16eec0be39d0942be9d5591751fada5ee5f8c0bee",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -71,7 +71,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
 		accounts.PermissionDescriptor{},
-		"6bb8f193e2e529f5904d0535dc87871622c49ee6d9565a44e58cf567e3524c2e",
+		"6c54e926b0414c6c942c17a4cf431ff6d3348015b362e784ae41e47261df85f1",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -92,4 +92,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03
+var _ goDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48

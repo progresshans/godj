@@ -47,14 +47,14 @@ func TestCompilePostgresMigrationSQLUsesExplicitSchemaAndConstraints(t *testing.
 		t.Fatalf("CreateModel SQL contains an implicit or permissive clause: %q", create)
 	}
 
-	add, err := compilePostgresMigrationAddField("product_schema", postgresMigrationTestPostModel(false), target.SourceField, &target)
+	add, err := compilePostgresMigrationAddFieldStatements("product_schema", postgresMigrationTestPostModel(false), target.SourceField, &target)
 	if err != nil {
 		t.Fatalf("compile ForeignKey AddField: %v", err)
 	}
 	wantAdd := `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "author_id" BIGINT NOT NULL, ` +
 		`ADD CONSTRAINT "` + foreignKeyName + `" FOREIGN KEY ("author_id") REFERENCES ` +
 		`"product_schema"."authors_author" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION NOT DEFERRABLE`
-	if add != wantAdd {
+	if len(add) != 1 || add[0] != wantAdd {
 		t.Fatalf("AddField SQL = %q, want %q", add, wantAdd)
 	}
 
@@ -77,7 +77,7 @@ func TestCompilePostgresMigrationSQLUsesExplicitSchemaAndConstraints(t *testing.
 	}
 }
 
-func TestCompilePostgresMigrationDefaultIsLogicalOnly(t *testing.T) {
+func TestCompilePostgresMigrationDefaultIsRemovedAfterBackfill(t *testing.T) {
 	t.Parallel()
 
 	logicalDefault := &ir.Scalar{Kind: ir.ScalarBoolean}
@@ -85,7 +85,7 @@ func TestCompilePostgresMigrationDefaultIsLogicalOnly(t *testing.T) {
 		Name: "featured", GoName: "Featured", Column: "featured",
 		Kind: ir.FieldBoolean, Default: logicalDefault,
 	}
-	statement, err := compilePostgresMigrationAddField(
+	statement, err := compilePostgresMigrationAddFieldStatements(
 		"product_schema",
 		postgresMigrationTestPostModel(false),
 		field,
@@ -94,27 +94,24 @@ func TestCompilePostgresMigrationDefaultIsLogicalOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(strings.ToUpper(statement), "DEFAULT") {
-		t.Fatalf("logical migration default leaked into persistent PostgreSQL DDL: %q", statement)
-	}
-	if want := `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "featured" BOOLEAN NOT NULL`; statement != want {
-		t.Fatalf("AddField SQL = %q, want %q", statement, want)
+	if len(statement) != 2 || statement[0] != `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "featured" BOOLEAN NOT NULL DEFAULT false` || statement[1] != `ALTER TABLE "product_schema"."blog_post" ALTER COLUMN "featured" DROP DEFAULT` {
+		t.Fatalf("backfill must precede default removal: %q", statement)
 	}
 }
 
 func TestIntegerMigrationColumnUsesBigintWithoutIdentityOrPersistentDefault(t *testing.T) {
 	for _, nullable := range []bool{false, true} {
 		field := ir.Field{Name: "amount", GoName: "Amount", Column: "amount", Kind: ir.FieldInteger, Nullable: nullable, Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: -9223372036854775808}}
-		statement, err := compilePostgresMigrationAddField("product_schema", postgresMigrationTestPostModel(false), field, nil)
+		statement, err := compilePostgresMigrationAddFieldStatements("product_schema", postgresMigrationTestPostModel(false), field, nil)
 		want := `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "amount" BIGINT NOT NULL`
 		if nullable {
 			want = `ALTER TABLE "product_schema"."blog_post" ADD COLUMN "amount" BIGINT NULL`
 		}
-		if err != nil || statement != want {
+		if err != nil || len(statement) != 2 || statement[0] != want+" DEFAULT -9223372036854775808" || statement[1] != `ALTER TABLE "product_schema"."blog_post" ALTER COLUMN "amount" DROP DEFAULT` {
 			t.Fatalf("integer column = %q, %v; want %q", statement, err, want)
 		}
 		field.PrimaryKey = true
-		if _, err := compilePostgresMigrationAddField("product_schema", postgresMigrationTestPostModel(false), field, nil); err == nil {
+		if _, err := compilePostgresMigrationAddFieldStatements("product_schema", postgresMigrationTestPostModel(false), field, nil); err == nil {
 			t.Fatal("ordinary integer became an automatic primary key")
 		}
 	}

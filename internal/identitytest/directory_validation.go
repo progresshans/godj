@@ -89,7 +89,7 @@ func RunDirectoryValidation(t *testing.T, backend DirectoryBackend) {
 	if account, found, err := directory.ByPrincipalID(ctx, "missing"); err != nil || found || account.Profile().ID != 0 {
 		t.Fatal("missing identity published an account", found, err)
 	}
-	for _, mode := range []string{"revision", "credential", "username", "principal", "permission"} {
+	for _, mode := range []string{"revision", "credential", "username", "principal", "permission", "permission_revision"} {
 		t.Run("invalid_"+mode, func(t *testing.T) {
 			user := createUser("invalid_"+mode, func(input models.UserCreate) models.UserCreate {
 				switch mode {
@@ -104,8 +104,12 @@ func RunDirectoryValidation(t *testing.T, backend DirectoryBackend) {
 				}
 				return input
 			})
-			if mode == "permission" {
-				bad, err := models.PermissionObjects.Create(ctx, backend, models.NewPermissionCreate("Malformed", "Invalid"))
+			if mode == "permission" || mode == "permission_revision" {
+				input := models.NewPermissionCreate("Malformed", "Invalid")
+				if mode == "permission_revision" {
+					input = models.NewPermissionCreate("helpdesk.invalid_revision", "Invalid revision").WithRevision(0)
+				}
+				bad, err := models.PermissionObjects.Create(ctx, backend, input)
 				if err != nil {
 					t.Fatal(err)
 				}

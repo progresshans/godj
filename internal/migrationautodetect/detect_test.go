@@ -372,7 +372,7 @@ func TestPlanMigrationsAreDeepCopyIsolated(t *testing.T) {
 	}
 }
 
-func TestDetectRejectsUnsafeExistingTableAddField(t *testing.T) {
+func TestDetectDistinguishesDefaultBackfillFromMissingRequiredValue(t *testing.T) {
 	t.Parallel()
 
 	initial := mustProjectState(t, testSchema("content", testModel("article", testChar("title", false, nil))))
@@ -397,7 +397,15 @@ func TestDetectRejectsUnsafeExistingTableAddField(t *testing.T) {
 				testChar("title", false, nil),
 				test.field,
 			)))
-			err := detectError(t, Request{Definitions: loaded, Desired: desired, ManagedApps: []string{"content"}}, CodeUnsupportedChange)
+			request := Request{Definitions: loaded, Desired: desired, ManagedApps: []string{"content"}}
+			if test.field.Default != nil {
+				plan, err := Detect(request)
+				if err != nil || plan.Empty() {
+					t.Fatalf("explicit default cannot be planned: %v", err)
+				}
+				return
+			}
+			err := detectError(t, request, CodeUnsupportedChange)
 			if err.App != "content" || err.Model != "article" || err.Field != test.field.Name {
 				t.Fatalf("error location = %+v", err)
 			}

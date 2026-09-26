@@ -17,6 +17,7 @@
 | Relation delete | supported FK/OneToOne의 CASCADE·PROTECT·SET_NULL, recursive collector·exact-key 삭제 | 같은 graph/runtime과 native FK·AtomicRelation |
 | OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |
 | Migration | revision session, current Create/Delete/Add/Remove와 choices·Decimal precision·Unique·관계 cardinality/reverse namespace/delete policy AlterField의 검증된 형태 | current schema-bound lifecycle와 해당 capability |
+| Populated scalar AddField | 명시적 상수 default의 sealed remake·1회 backfill, incoming FK·행·index·sequence 보존 | ADD COLUMN의 임시 DEFAULT 뒤 같은 transaction의 DROP DEFAULT, 관계·행·sequence 보존 |
 | Explicit ManyToMany migration | 기존 through의 Add/Remove/Rename·reverse, DDL 없는 전체 graph/catalog 검증과 행·sequence 보존 | 동일한 상태·history 계약, endpoint/through 잠금·catalog 검증 |
 | Automatic ManyToMany migration | 소유 table Create/Add/Remove/Rename·reverse, link PK·sqlite_sequence·rootpage 보존, managed pair index 이름 변경 | 같은 logical operation, link PK·table/sequence OID·last_value/is_called 보존, managed PK/FK/unique/sequence 이름 변경 |
 | SQL projection | immutable DB-free renderer | schema-bound immutable DB-free renderer |
@@ -33,6 +34,11 @@ TicketLabel의 migration·scoped 소비자와 양 DB CASCADE/PROTECT·실패 경
 [GDJ-0098](../work/0098-cascade-and-ticket-label-links.md)은 source `93e77bd9c19d6e7b137de3a068c40a403970e73d`의 Hosted 전체 통합까지 완료했다.
 
 ## 현재 schema와 query 폭
+
+기본값 AddField는 revision-fenced lifecycle과 자동 계획·SQL projection에 연결했다. Nullable 필드도 선언한 값을 기존 행에
+채우며 최종 DB default는 남기지 않는다. Scalar 저장 한도·unique 제약은 유지하고 실패 시 catalog·history·revision도 rollback한다.
+Default 없는 required 추가는 빈 테이블을 요구한다. Legacy SQLite DirectExecutor는 기존 empty-table 제한을 유지한다.
+PK·FK 기본값, callable default와 임의 data migration은 별도 범위다. [소유권](adr/0064-historical-relation-graphs-and-sqlite-remakes.md)을 따른다.
 
 Schema는 Auto primary key, signed int64 Integer(nullable/default 포함), Char, Text, Date, DateTime, Time, Duration, Float, Decimal, UUID, JSON, Boolean과 AutoField-target ForeignKey/OneToOne을 지원한다.
 일반 Integer는 양 DB에서 BIGINT이며 자동 ID·identity와 구분한다. [정수 의미](adr/0059-signed-integer-field-and-model-growth.md)를 따른다.

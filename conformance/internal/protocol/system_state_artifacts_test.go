@@ -212,10 +212,10 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 		"startup_failure",
 		"startup_failure",
 		"corrupt_state",
-		"credential_policy_mismatch",
+		"identity_transition_required",
 	}
 	if publicOnlyCases.Type != ValueList || len(publicOnlyCases.Items) != len(wantPublicOnlyOutcomes) {
-		t.Fatalf("SYS-028 cases = %#v, want exact clean/schema/table/dependent/corrupt/policy decision", publicOnlyCases)
+		t.Fatalf("SYS-028 cases = %#v, want exact clean/schema/table/dependent/corrupt/adoption decision", publicOnlyCases)
 	}
 	for index, wantOutcome := range wantPublicOnlyOutcomes {
 		if got := objectField(t, &publicOnlyCases.Items[index], "outcome"); !reflect.DeepEqual(*got, String(wantOutcome)) {
@@ -599,6 +599,7 @@ func loadSystemStateArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite
 func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthority bool) {
 	t.Helper()
 	adrCount, multiRuntimeADRCount, operatorADRCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0, 0, 0
+	identityADRCount := 0
 	for _, provenance := range contract.Provenance {
 		if provenance.Derived == nil || *provenance.Derived {
 			t.Fatalf("contract %s provenance is not independent: %#v", contract.ID, provenance)
@@ -611,6 +612,9 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		}
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0056" && provenance.License == "" {
 			operatorADRCount++
+		}
+		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0076" && provenance.License == "" {
+			identityADRCount++
 		}
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0046" && provenance.License == "" {
 			apiBoundaryCount++
@@ -640,6 +644,9 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 	legacy := contract.ID <= "SYS-012"
 	multiRuntime := contract.ID >= "SYS-013" && contract.ID <= "SYS-020"
 	operator := contract.ID >= "SYS-021" && contract.ID <= "SYS-030"
+	if contract.ID != "SYS-028" && identityADRCount != 0 {
+		t.Fatalf("contract %s unexpectedly carries ADR-0076", contract.ID)
+	}
 	if legacy && (adrCount != 1 || multiRuntimeADRCount != 0 || operatorADRCount != 0) {
 		t.Fatalf("legacy contract %s authority = %d ADR-0047 + %d ADR-0048, want 1 + 0", contract.ID, adrCount, multiRuntimeADRCount)
 	}
@@ -649,12 +656,16 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 	if operator {
 		wantProvenance := 1
 		wantDjango := 0
+		wantOperatorADR, wantIdentityADR := 1, 0
+		if contract.ID == "SYS-028" {
+			wantOperatorADR, wantIdentityADR = 0, 1
+		}
 		if contract.ID == "SYS-029" {
 			wantProvenance = 5
 			wantDjango = 4
 		}
-		if len(contract.Provenance) != wantProvenance || adrCount != 0 || multiRuntimeADRCount != 0 || operatorADRCount != 1 || djangoCount != wantDjango {
-			t.Fatalf("operator contract %s authority = %#v, want ADR-0056 documentation with %d pinned Django login references", contract.ID, contract.Provenance, wantDjango)
+		if len(contract.Provenance) != wantProvenance || adrCount != 0 || multiRuntimeADRCount != 0 || operatorADRCount != wantOperatorADR || identityADRCount != wantIdentityADR || djangoCount != wantDjango {
+			t.Fatalf("operator contract %s authority = %#v, want %d ADR-0056, %d ADR-0076 and %d pinned Django login references", contract.ID, contract.Provenance, wantOperatorADR, wantIdentityADR, wantDjango)
 		}
 	}
 	if contract.ID == "SYS-008" && apiBoundaryCount != 1 {

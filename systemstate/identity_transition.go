@@ -309,7 +309,7 @@ func requireIdentityMigrations(ctx context.Context, backend Backend) error {
 	if err != nil {
 		return schemaRowsFailure("migration_history")(err)
 	}
-	system, identityCount, initial, transition := 0, 0, 0, 0
+	system, identityCount, initial, transition, permissionRevision := 0, 0, 0, 0, 0
 	for _, row := range rows {
 		if row.App == initialMigrationApp {
 			system++
@@ -322,12 +322,14 @@ func requireIdentityMigrations(ctx context.Context, backend Backend) error {
 		}
 		if row.App == identity.InitialMigrationKey().App {
 			identityCount++
-			if row.Name != identity.InitialMigrationKey().Name {
+			if row.Name == identity.CurrentMigrationKey().Name {
+				permissionRevision++
+			} else if row.Name != identity.InitialMigrationKey().Name {
 				return schemaRowsFailure("migration_history")(nil)
 			}
 		}
 	}
-	if system != 2 || initial != 1 || transition != 1 || identityCount != 1 {
+	if system != 2 || initial != 1 || transition != 1 || identityCount != 2 || permissionRevision != 1 {
 		return &Error{Code: CodeSchemaUnavailable, Field: "migration_history", Detail: "exact identity/system migration graph is not applied"}
 	}
 	return nil

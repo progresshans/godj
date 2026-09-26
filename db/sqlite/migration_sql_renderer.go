@@ -83,7 +83,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 				return nil, relationIntentIntegrity("invalid AlterField delta: %v", deltaErr)
 			}
 			if sqliteRelationOperationNeedsRemake(operation) {
-				groups[index], err = compileSQLiteRelationTimingRemake(transition, operation)
+				groups[index], err = compileSQLiteRelationRemakeSQL(transition, operation)
 			} else if before.Unique != field.Unique {
 				var statement string
 				statement, err = compileSQLiteUniqueAlter(operation.After, field)
@@ -96,7 +96,11 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 			if deltaErr != nil {
 				return nil, relationIntentIntegrity("invalid AddField delta: %v", deltaErr)
 			}
-			groups[index], err = compileSQLiteAddFieldStatements(operation.Before, field, operation.Targets)
+			if sqliteRelationOperationNeedsRemake(operation) {
+				groups[index], err = compileSQLiteRelationRemakeSQL(transition, operation)
+			} else {
+				groups[index], err = compileSQLiteAddFieldStatements(operation.Before, field, operation.Targets)
+			}
 		default:
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",

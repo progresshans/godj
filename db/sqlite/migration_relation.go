@@ -992,6 +992,23 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 		if field.PrimaryKey {
 			return relationIntentUnsupported("SQLite relation-step AddField must be non-primary-key")
 		}
+		if sqliteRelationOperationNeedsRemake(operation) {
+			if err := verifySQLiteRelationRemakePlans(state.remakes, state.remakeDigest); err != nil {
+				return relationIntentIntegrity("AddField has invalid sealed remake plans: %v", err)
+			}
+			plan, exists := state.remakes[operation.OperationIndex]
+			if !exists || !reflect.DeepEqual(plan.before, operation.Before) || !reflect.DeepEqual(plan.after, operation.After) {
+				return relationIntentIntegrity("AddField lacks its exact sealed physical remake plan")
+			}
+			err := func() error {
+				if err := executeSQLiteRelationRemake(ctx, executor, plan); err != nil {
+					return err
+				}
+				state.cursor++
+				return transaction.completeRelationOperationIfLast(ctx, executor)
+			}()
+			return newSQLiteMigrationDDLExecutionError("add SQLite field with one-time default backfill", err)
+		}
 		statements, err := compileSQLiteAddFieldStatements(operation.Before, wantField, operation.Targets)
 		if err != nil {
 			return err
@@ -1608,7 +1625,7 @@ func preflightSQLiteRelationModels(
 			if err != nil {
 				return relationIntentIntegrity("invalid sealed AddField delta: %v", err)
 			}
-			if field.Default == nil && field.Nullable {
+			if sqliteRelationOperationNeedsRemake(operation) || field.Default == nil && field.Nullable {
 				continue
 			}
 			tableKey := sqliteRelationIdentifierKey(operation.Before.DBTable)

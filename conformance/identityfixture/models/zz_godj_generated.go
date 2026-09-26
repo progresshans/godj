@@ -3,6 +3,7 @@
 package models
 
 import (
+	"database/sql"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
@@ -10,7 +11,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v2"
-const GoDjSchemaSHA256 = "4fa123e921aa78201a337e5945f6f956cefe19130d6b23f86933bb47f7252480"
+const GoDjSchemaSHA256 = "4586501d40de0ee78b7baca7b389a255b40c94847d5b63799f3320f502171875"
 
 type Note struct {
 	ID                    int64
@@ -396,6 +397,610 @@ func guardMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_53765baf7a9d8cc5ba2a3ae23005087d275bf5f67f3f0ef93bae11ebaaf800c1 struct{}
+type AccessNote struct {
+	ID                    int64
+	Text                  string
+	GroupID               *int64
+	PermissionID          int64
+	godjPrimaryKeyPresent bool
+}
 
-type GoDjProjectSnapshot_27398e24a4392aa9d885b989748a3722732a8294e69376cfeedc4edacb120f03 struct{}
+type AccessNoteDescriptor struct{}
+
+var _ orm.ModelDescriptor[AccessNote] = AccessNoteDescriptor{}
+
+var _ orm.WriteDescriptor[AccessNote] = AccessNoteDescriptor{}
+
+func (AccessNoteDescriptor) Metadata() ir.Model {
+	return accessNoteMetadata()
+}
+
+func (AccessNoteDescriptor) Scan(row db.Row) (AccessNote, error) {
+	var value AccessNote
+	var scanGroupID sql.NullInt64
+	if err := row.Scan(&value.ID, &value.Text, &scanGroupID, &value.PermissionID); err != nil {
+		return AccessNote{}, err
+	}
+	if scanGroupID.Valid {
+		scanned := scanGroupID.Int64
+		value.GroupID = &scanned
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (AccessNoteDescriptor) PrimaryKey(value AccessNote) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (AccessNoteDescriptor) SetPrimaryKey(value *AccessNote, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (AccessNoteDescriptor) ClearPrimaryKey(value *AccessNote) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (AccessNoteDescriptor) CloneModel(value AccessNote) AccessNote {
+	clone := value
+	if value.GroupID != nil {
+		clonedGroupID := *value.GroupID
+		clone.GroupID = &clonedGroupID
+	}
+	return clone
+}
+
+func (descriptor AccessNoteDescriptor) CloneWriteModel(value AccessNote) AccessNote {
+	return descriptor.CloneModel(value)
+}
+
+func (AccessNoteDescriptor) WriteFieldValue(value AccessNote, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "text":
+		return query.String(value.Text), true
+	case "group":
+		if value.GroupID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.GroupID), true
+	case "permission":
+		return query.Integer(value.PermissionID), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type AccessNoteFieldSet struct {
+	ID   orm.AutoField[AccessNote]
+	Text orm.StringField[AccessNote]
+}
+
+var AccessNoteFields = func() AccessNoteFieldSet {
+	metadata := accessNoteMetadata()
+	return AccessNoteFieldSet{
+		ID:   orm.NewAutoField[AccessNote](metadata.Fields[0]),
+		Text: orm.NewStringField[AccessNote](metadata.Fields[1]),
+	}
+}()
+
+var AccessNoteObjects = orm.NewManager[AccessNote](AccessNoteDescriptor{})
+
+func NewAccessNoteWithID(key int64) AccessNote {
+	return AccessNote{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func AccessNoteUpdateFields(fields ...orm.WritableField[AccessNote]) orm.SaveOption[AccessNote] {
+	return orm.UpdateFields(fields...)
+}
+
+func AccessNoteUpdateFieldNames(names ...string) orm.SaveOption[AccessNote] {
+	return orm.UpdateFieldNames[AccessNote](names...)
+}
+
+func AccessNoteForceInsert() orm.SaveOption[AccessNote] {
+	return orm.ForceInsert[AccessNote]()
+}
+
+func AccessNoteForceUpdate() orm.SaveOption[AccessNote] {
+	return orm.ForceUpdate[AccessNote]()
+}
+
+type AccessNoteCreate struct {
+	text         orm.Change[string]
+	groupID      orm.NullableChange[int64]
+	permissionID orm.Change[int64]
+}
+
+func NewAccessNoteCreate(text string, permissionID int64) AccessNoteCreate {
+	return AccessNoteCreate{
+		text:         orm.Set(text),
+		permissionID: orm.Set(permissionID),
+	}
+}
+
+func (input AccessNoteCreate) WithText(value string) AccessNoteCreate {
+	input.text = orm.Set(value)
+	return input
+}
+
+func (input AccessNoteCreate) WithGroupID(value int64) AccessNoteCreate {
+	input.groupID = orm.SetNullable(value)
+	return input
+}
+
+func (input AccessNoteCreate) WithGroupIDNull() AccessNoteCreate {
+	input.groupID = orm.SetNull[int64]()
+	return input
+}
+
+func (input AccessNoteCreate) WithPermissionID(value int64) AccessNoteCreate {
+	input.permissionID = orm.Set(value)
+	return input
+}
+
+func (input AccessNoteCreate) BuildCreate() orm.Mutation[AccessNote] {
+	var value AccessNote
+	assignments := make([]query.Assignment, 0, 3)
+	changedText, changedTextSet := input.text.Get()
+	if !changedTextSet {
+		return orm.InvalidMutation[AccessNote](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "text",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.Text = changedText
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("text", "text", query.FieldString, false), query.String(changedText)))
+	changedGroupID, changedGroupIDState := input.groupID.Get()
+	switch changedGroupIDState {
+	case orm.NullableChangeUnset:
+		value.GroupID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedGroupID := changedGroupID
+		value.GroupID = &storedGroupID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Integer(changedGroupID)))
+	case orm.NullableChangeNull:
+		value.GroupID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[AccessNote](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "group",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedPermissionID, changedPermissionIDSet := input.permissionID.Get()
+	if !changedPermissionIDSet {
+		return orm.InvalidMutation[AccessNote](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "permission",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.PermissionID = changedPermissionID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("permission", "permission_id", query.FieldInteger, false), query.Integer(changedPermissionID)))
+	return orm.NewCreateMutation(value, "identityfixture_access_note", assignments)
+}
+
+type AccessNotePatch struct {
+	text         orm.Change[string]
+	groupID      orm.NullableChange[int64]
+	permissionID orm.Change[int64]
+}
+
+func (input AccessNotePatch) WithText(value string) AccessNotePatch {
+	input.text = orm.Set(value)
+	return input
+}
+
+func (input AccessNotePatch) WithGroupID(value int64) AccessNotePatch {
+	input.groupID = orm.SetNullable(value)
+	return input
+}
+
+func (input AccessNotePatch) WithGroupIDNull() AccessNotePatch {
+	input.groupID = orm.SetNull[int64]()
+	return input
+}
+
+func (input AccessNotePatch) WithPermissionID(value int64) AccessNotePatch {
+	input.permissionID = orm.Set(value)
+	return input
+}
+
+func (input AccessNotePatch) BuildPatch(current AccessNote) orm.Mutation[AccessNote] {
+	value := current
+	assignments := make([]query.Assignment, 0, 3)
+	if changedText, ok := input.text.Get(); ok {
+		value.Text = changedText
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("text", "text", query.FieldString, false), query.String(changedText)))
+	}
+	changedGroupID, changedGroupIDState := input.groupID.Get()
+	switch changedGroupIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedGroupID := changedGroupID
+		value.GroupID = &storedGroupID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Integer(changedGroupID)))
+	case orm.NullableChangeNull:
+		value.GroupID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[AccessNote](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "group",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	if changedPermissionID, ok := input.permissionID.Get(); ok {
+		value.PermissionID = changedPermissionID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("permission", "permission_id", query.FieldInteger, false), query.Integer(changedPermissionID)))
+	}
+	return orm.NewPatchMutation(value, "identityfixture_access_note", assignments)
+}
+
+func accessNoteMetadata() ir.Model {
+	return ir.Model{
+		Name:    "access_note",
+		GoName:  "AccessNote",
+		DBTable: "identityfixture_access_note",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:      "text",
+				GoName:    "Text",
+				Column:    "text",
+				Kind:      ir.FieldChar,
+				MaxLength: 100,
+			},
+			{
+				Name:     "group",
+				GoName:   "GroupID",
+				Column:   "group_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "notes"},
+					OnDelete:    ir.DeleteSetNull,
+				},
+			},
+			{
+				Name:   "permission",
+				GoName: "PermissionID",
+				Column: "permission_id",
+				Kind:   ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "notes"},
+					OnDelete:    ir.DeleteCascade,
+				},
+			},
+		},
+	}
+}
+
+type AccessGuard struct {
+	ID                    int64
+	GroupID               *int64
+	PermissionID          *int64
+	godjPrimaryKeyPresent bool
+}
+
+type AccessGuardDescriptor struct{}
+
+var _ orm.ModelDescriptor[AccessGuard] = AccessGuardDescriptor{}
+
+var _ orm.WriteDescriptor[AccessGuard] = AccessGuardDescriptor{}
+
+func (AccessGuardDescriptor) Metadata() ir.Model {
+	return accessGuardMetadata()
+}
+
+func (AccessGuardDescriptor) Scan(row db.Row) (AccessGuard, error) {
+	var value AccessGuard
+	var scanGroupID sql.NullInt64
+	var scanPermissionID sql.NullInt64
+	if err := row.Scan(&value.ID, &scanGroupID, &scanPermissionID); err != nil {
+		return AccessGuard{}, err
+	}
+	if scanGroupID.Valid {
+		scanned := scanGroupID.Int64
+		value.GroupID = &scanned
+	}
+	if scanPermissionID.Valid {
+		scanned := scanPermissionID.Int64
+		value.PermissionID = &scanned
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (AccessGuardDescriptor) PrimaryKey(value AccessGuard) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (AccessGuardDescriptor) SetPrimaryKey(value *AccessGuard, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (AccessGuardDescriptor) ClearPrimaryKey(value *AccessGuard) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (AccessGuardDescriptor) CloneModel(value AccessGuard) AccessGuard {
+	clone := value
+	if value.GroupID != nil {
+		clonedGroupID := *value.GroupID
+		clone.GroupID = &clonedGroupID
+	}
+	if value.PermissionID != nil {
+		clonedPermissionID := *value.PermissionID
+		clone.PermissionID = &clonedPermissionID
+	}
+	return clone
+}
+
+func (descriptor AccessGuardDescriptor) CloneWriteModel(value AccessGuard) AccessGuard {
+	return descriptor.CloneModel(value)
+}
+
+func (AccessGuardDescriptor) WriteFieldValue(value AccessGuard, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "group":
+		if value.GroupID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.GroupID), true
+	case "permission":
+		if value.PermissionID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.PermissionID), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type AccessGuardFieldSet struct {
+	ID orm.AutoField[AccessGuard]
+}
+
+var AccessGuardFields = func() AccessGuardFieldSet {
+	metadata := accessGuardMetadata()
+	return AccessGuardFieldSet{
+		ID: orm.NewAutoField[AccessGuard](metadata.Fields[0]),
+	}
+}()
+
+var AccessGuardObjects = orm.NewManager[AccessGuard](AccessGuardDescriptor{})
+
+func NewAccessGuardWithID(key int64) AccessGuard {
+	return AccessGuard{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func AccessGuardUpdateFields(fields ...orm.WritableField[AccessGuard]) orm.SaveOption[AccessGuard] {
+	return orm.UpdateFields(fields...)
+}
+
+func AccessGuardUpdateFieldNames(names ...string) orm.SaveOption[AccessGuard] {
+	return orm.UpdateFieldNames[AccessGuard](names...)
+}
+
+func AccessGuardForceInsert() orm.SaveOption[AccessGuard] {
+	return orm.ForceInsert[AccessGuard]()
+}
+
+func AccessGuardForceUpdate() orm.SaveOption[AccessGuard] {
+	return orm.ForceUpdate[AccessGuard]()
+}
+
+type AccessGuardCreate struct {
+	groupID      orm.NullableChange[int64]
+	permissionID orm.NullableChange[int64]
+}
+
+func NewAccessGuardCreate() AccessGuardCreate {
+	return AccessGuardCreate{}
+}
+
+func (input AccessGuardCreate) WithGroupID(value int64) AccessGuardCreate {
+	input.groupID = orm.SetNullable(value)
+	return input
+}
+
+func (input AccessGuardCreate) WithGroupIDNull() AccessGuardCreate {
+	input.groupID = orm.SetNull[int64]()
+	return input
+}
+
+func (input AccessGuardCreate) WithPermissionID(value int64) AccessGuardCreate {
+	input.permissionID = orm.SetNullable(value)
+	return input
+}
+
+func (input AccessGuardCreate) WithPermissionIDNull() AccessGuardCreate {
+	input.permissionID = orm.SetNull[int64]()
+	return input
+}
+
+func (input AccessGuardCreate) BuildCreate() orm.Mutation[AccessGuard] {
+	var value AccessGuard
+	assignments := make([]query.Assignment, 0, 2)
+	changedGroupID, changedGroupIDState := input.groupID.Get()
+	switch changedGroupIDState {
+	case orm.NullableChangeUnset:
+		value.GroupID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedGroupID := changedGroupID
+		value.GroupID = &storedGroupID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Integer(changedGroupID)))
+	case orm.NullableChangeNull:
+		value.GroupID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[AccessGuard](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "group",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedPermissionID, changedPermissionIDState := input.permissionID.Get()
+	switch changedPermissionIDState {
+	case orm.NullableChangeUnset:
+		value.PermissionID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("permission", "permission_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedPermissionID := changedPermissionID
+		value.PermissionID = &storedPermissionID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("permission", "permission_id", query.FieldInteger, true), query.Integer(changedPermissionID)))
+	case orm.NullableChangeNull:
+		value.PermissionID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("permission", "permission_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[AccessGuard](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "permission",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewCreateMutation(value, "identityfixture_access_guard", assignments)
+}
+
+type AccessGuardPatch struct {
+	groupID      orm.NullableChange[int64]
+	permissionID orm.NullableChange[int64]
+}
+
+func (input AccessGuardPatch) WithGroupID(value int64) AccessGuardPatch {
+	input.groupID = orm.SetNullable(value)
+	return input
+}
+
+func (input AccessGuardPatch) WithGroupIDNull() AccessGuardPatch {
+	input.groupID = orm.SetNull[int64]()
+	return input
+}
+
+func (input AccessGuardPatch) WithPermissionID(value int64) AccessGuardPatch {
+	input.permissionID = orm.SetNullable(value)
+	return input
+}
+
+func (input AccessGuardPatch) WithPermissionIDNull() AccessGuardPatch {
+	input.permissionID = orm.SetNull[int64]()
+	return input
+}
+
+func (input AccessGuardPatch) BuildPatch(current AccessGuard) orm.Mutation[AccessGuard] {
+	value := current
+	assignments := make([]query.Assignment, 0, 2)
+	changedGroupID, changedGroupIDState := input.groupID.Get()
+	switch changedGroupIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedGroupID := changedGroupID
+		value.GroupID = &storedGroupID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Integer(changedGroupID)))
+	case orm.NullableChangeNull:
+		value.GroupID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("group", "group_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[AccessGuard](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "group",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedPermissionID, changedPermissionIDState := input.permissionID.Get()
+	switch changedPermissionIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedPermissionID := changedPermissionID
+		value.PermissionID = &storedPermissionID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("permission", "permission_id", query.FieldInteger, true), query.Integer(changedPermissionID)))
+	case orm.NullableChangeNull:
+		value.PermissionID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("permission", "permission_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[AccessGuard](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "permission",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewPatchMutation(value, "identityfixture_access_guard", assignments)
+}
+
+func accessGuardMetadata() ir.Model {
+	return ir.Model{
+		Name:    "access_guard",
+		GoName:  "AccessGuard",
+		DBTable: "identityfixture_access_guard",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:     "group",
+				GoName:   "GroupID",
+				Column:   "group_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "guards"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+			{
+				Name:     "permission",
+				GoName:   "PermissionID",
+				Column:   "permission_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "guards"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+		},
+	}
+}
+
+type GoDjAppPart0_09c241e0159bd3d214980a40009239978320b2b1b56a91166fc23b71a93e94a8 struct{}
+
+type GoDjProjectSnapshot_e0e575f66184139b48eb3a543f7bd078b7eca7bf8f402278f946d557c033cf48 struct{}

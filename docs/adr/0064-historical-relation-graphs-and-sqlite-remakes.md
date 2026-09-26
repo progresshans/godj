@@ -37,10 +37,23 @@ Schema IR의 field order는 논리적 선언 순서다. Native ADD로 물리 col
 대조한다. SQL의 임의 정규화나 column/constraint 검사 생략은 하지 않는다. Remake의 retained FK와 변경 field는 마지막 원소가
 아니라 exact delta와 source identity로 선택한다. 자동 candidate 분할·publication 재개는 GDJ-0085가 별도로 소유한다.
 
-SQLite는 FK Remove의 remake와 self table Delete에서만 private pinned connection의 FK enforcement를 BEGIN 전에 끈다.
+SQLite는 FK Remove·관계 검사 시점 변경·기본값 AddField의 remake와 self table Delete에서 private pinned connection의 FK enforcement를 BEGIN 전에 끈다.
 기존 context-aware raw admission을 먼저 얻고 ON 확인 → OFF 확인 → BEGIN IMMEDIATE → physical graph/fence 검사 → DDL →
 전체 foreign_key_check → recorder/revision → COMMIT/ROLLBACK 순서로 실행한다. 이미 존재하는 inbound/self 관계 값과
 row/null/default/PK/sequence를 보존한다. Index/trigger 등 검증하지 않은 물리 구조를 임의로 재작성하지 않는다.
+
+GDJ-0100의 Permission revision 추가부터, 명시적 scalar 기본값을 가진 AddField는 기존 행에도 값을 한 번 채운다.
+Schema IR의 기본값을 일반 write와 같은 typed value·backend storage로 변환한다. SQLite는 기존 column을 그대로 복사하고
+새 column에만 해당 표현식을 넣는 sealed remake를 사용한다. Scalar 변경에는 존재하지 않는 FK target을 요구하지 않으며,
+유지하는 관계의 전체 metadata·incoming FK·catalog·index·row count·sequence 검사는 그대로 적용한다.
+PostgreSQL은 같은 transaction에서 ADD COLUMN의 임시 DEFAULT로 값을 채운 뒤 DROP DEFAULT를 실행한다.
+최종 물리 schema에는 DB default를 남기지 않는다. 이 기본값은 이후 일반 INSERT의 서버 기본값이 아니다.
+
+Nullable 여부와 관계없이 선언된 상수 기본값을 사용한다. false·0·빈 문자열과 typed JSON null도 값이며 누락으로 취급하지 않는다.
+현재 scalar 타입과 ordinary write의 backend별 범위·storage 제한을 따른다. PK·관계 default, callable/data migration과
+일반적인 기존 column의 default/nullability/type 변경은 이 결정에 포함하지 않는다. 기본값 없는 required AddField는 계속
+빈 테이블을 요구한다. 자동 계획도 지원하는 상수 기본값 추가를 허용하지만 실제 데이터의 unique 충돌은 native transaction에서
+실패하고 행·catalog·history·revision을 복원한다. Legacy SQLite DirectExecutor의 empty-table 제한은 변경하지 않는다.
 
 GDJ-0085의 실제 reopen/생성 모델 검사에서 기존 Open은 새 physical connection에 FK enforcement를 보장하지 않는 것이 확인됐다.
 SQLite Backend는 등록된 driver의 `NewConnector`를 감싸 모든 새 연결에서 context를 전달해 ON과 readback 1을 확인한다.

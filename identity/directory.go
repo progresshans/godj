@@ -177,6 +177,9 @@ func (directory *Directory) accountFromRow(ctx context.Context, reader db.Querye
 	}
 	codes := make([]auth.Permission, len(permissions))
 	for index, permission := range permissions {
+		if permission.Revision <= 0 {
+			return Account{}, &auth.Error{Code: auth.CodeCredential, Detail: "stored permission revision is invalid"}
+		}
 		codes[index] = auth.Permission(permission.Code)
 	}
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: row.PrincipalID, Active: row.Active, Staff: row.Staff, Superuser: row.Superuser, Permissions: codes})
