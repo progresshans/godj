@@ -100,6 +100,7 @@ type QuerySet[M any] struct {
 	descriptor       ModelDescriptor[M]
 	plan             query.Plan
 	evaluation       *evaluationState[M]
+	materialization  *queryMaterialization[M]
 	configurationErr error
 }
 
@@ -209,7 +210,7 @@ func (qs QuerySet[M]) All(ctx context.Context) ([]M, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return nil, err
 	}
-	values, err := qs.evaluation.evaluate(ctx, qs.scanAll)
+	values, _, err := qs.evaluateModels(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +315,11 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 	if err != nil {
 		return zero, false, err
 	}
+	if found && qs.materialization != nil {
+		if _, err := qs.materialization.prepare(ctx, qs.backend, []M{value}); err != nil {
+			return zero, false, err
+		}
+	}
 	value, err = sessionReadResult(ctx, qs.backend, value, nil)
 	return value, found && err == nil, err
 }
@@ -351,6 +357,9 @@ func (qs QuerySet[M]) Iterate(ctx context.Context, callback func(M) error) error
 			Code:     query.CodeInvalidValue,
 			Detail:   "iterate callback is nil",
 		}
+	}
+	if qs.materialization != nil {
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "streaming a configured prefetch query requires materialized batches"}
 	}
 
 	rows, err := openQueryRows(ctx, qs.backend, qs.plan)
@@ -399,6 +408,11 @@ func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
 	}
 	if qs.evaluation == nil {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "evaluation state is nil"}
+	}
+	if qs.materialization != nil {
+		if err := validateMaterializationSource(qs, qs.materialization.binding); err != nil {
+			return err
+		}
 	}
 	return validateQuerySession(ctx, qs.backend)
 }

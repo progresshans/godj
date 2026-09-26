@@ -80,7 +80,11 @@ func (p *prefetchProbe) Query(ctx context.Context, plan query.Plan) (db.Rows, er
 	if p.cancelAt != 0 && p.cancelAt != len(p.plans) {
 		cancel = nil
 	}
-	return &prefetchRows{Rows: rows, mode: p.corrupt, index: index, cancel: cancel, closed: &p.closes}, nil
+	mode := p.corrupt
+	if mode == "foreign_owner" && plan.ResultShape().Kind() == query.ResultPrefetch {
+		mode, index = "foreign", len(plan.SourceFields())
+	}
+	return &prefetchRows{Rows: rows, mode: mode, index: index, cancel: cancel, closed: &p.closes}, nil
 }
 
 type prefetchRows struct {
@@ -661,17 +665,27 @@ func TestCollectionPrefetchOwnerPlans(t *testing.T) {
 		for _, name := range []string{"owner_second", "owner_either", "successive_owners", "successive_only_first", "successive_only_second", "distinct_owners", "excluded_owner"} {
 			t.Run(name, func(t *testing.T) {
 				q := targetBase
+				actualProbe := &prefetchProbe{collectionBackend: b}
+				api, err := project.Using(actualProbe)
+				check(t, err)
+				selector := api.OwnersOwner.Prefetch.Labels
+				apply := func(predicates ...orm.Predicate[labels.Label]) {
+					q = q.Filter(predicates...)
+					selector = selector.Filter(predicates...)
+				}
 				requested := sources
 				switch name {
 				case "owner_second":
-					q = q.Filter(relations.LabelsLabel.Owners.Name.Exact("second"))
+					apply(relations.LabelsLabel.Owners.Name.Exact("second"))
 				case "owner_either", "distinct_owners":
-					q = q.Filter(relations.LabelsLabel.Owners.Name.In("first", "second"))
+					apply(relations.LabelsLabel.Owners.Name.In("first", "second"))
 					if name == "distinct_owners" {
 						q = q.Distinct()
+						selector = selector.Distinct()
 					}
 				case "successive_owners", "successive_only_first", "successive_only_second":
-					q = q.Filter(relations.LabelsLabel.Owners.Name.Exact("first")).Filter(relations.LabelsLabel.Owners.Name.Exact("second"))
+					apply(relations.LabelsLabel.Owners.Name.Exact("first"))
+					apply(relations.LabelsLabel.Owners.Name.Exact("second"))
 					if name == "successive_only_first" {
 						requested = sources[:1]
 					}
@@ -679,7 +693,7 @@ func TestCollectionPrefetchOwnerPlans(t *testing.T) {
 						requested = sources[1:]
 					}
 				case "excluded_owner":
-					q = q.Filter(orm.Not(relations.LabelsLabel.Owners.Name.Exact("second")))
+					apply(orm.Not(relations.LabelsLabel.Owners.Name.Exact("second")))
 				}
 				keys := make([]int64, len(requested))
 				members := make([][]string, len(requested))
@@ -713,6 +727,23 @@ func TestCollectionPrefetchOwnerPlans(t *testing.T) {
 				}
 				if !reflect.DeepEqual(members, want.Members) || len(probe.plans) != want.BatchQueries {
 					t.Fatal("custom prefetch membership", members, "want", want.Members, "queries", len(probe.plans))
+				}
+
+				actual, err := api.OwnersOwner.Filter(owners.OwnerFields.ID.In(keys...)).OrderBy(owners.OwnerFields.ID.Asc()).PrefetchRelated(selector.OrderBy(labels.LabelFields.Name.Asc())).All(ctx)
+				check(t, err)
+				actualMembers := make([][]string, len(actual))
+				for i, owner := range actual {
+					view, err := owner.Labels()
+					check(t, err)
+					values, err := view.All(ctx)
+					check(t, err)
+					actualMembers[i] = make([]string, len(values))
+					for j, v := range values {
+						actualMembers[i][j] = v.Name
+					}
+				}
+				if !reflect.DeepEqual(actualMembers, want.Members) || len(actualProbe.plans) != 1+want.BatchQueries {
+					t.Fatal("generated custom prefetch changed oracle membership", actualMembers, want.Members, len(actualProbe.plans))
 				}
 			})
 		}

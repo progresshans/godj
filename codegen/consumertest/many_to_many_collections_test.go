@@ -78,6 +78,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/prefetch_tree_test.go", tree)
+	filtered, err := os.ReadFile(filepath.Join("testdata", "manytomany", "prefetch_filtered_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/prefetch_filtered_test.go", filtered)
 	oracle, err := os.ReadFile(filepath.Join("..", "..", "orm", "testdata", "many-to-many-django61-sqlite.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -111,6 +116,10 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		required["TestCollectionQueries/"+backend] = false
 		required["TestCollectionPrefetchOwnerPlans/"+backend] = false
 		required["TestCollectionPrefetchTree/"+backend] = false
+		required["TestCollectionPrefetchFiltered/"+backend] = false
+		for _, name := range []string{"reference_and_cache", "lookup_order", "refinement_first_and_fresh", "failure_membership_and_retry", "nullable_duplicates_and_distinct", "session_lifetime", "native_terminals"} {
+			required["TestCollectionPrefetchFiltered/"+backend+"/"+name] = false
+		}
 		for _, name := range []string{"reference_typed", "reference_path", "reference_merged", "validation", "failure_retry", "independent_snapshots", "concurrent_warm", "multiplicity_and_copy", "session_lifetime"} {
 			required["TestCollectionPrefetchTree/"+backend+"/"+name] = false
 		}
@@ -220,5 +229,13 @@ func wrong(api project.Models){_ = api.OwnersOwner.Prefetch.Labels.WithChildren(
 	output, err = generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
 	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("WithChildren")) {
 		t.Fatalf("wrong-target child prefetch was not rejected: %v\n%s", err, output)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/wrong.go", []byte(`package consumer
+import("example.com/godj-project-bundle/project";"example.com/godj-project-bundle/owners")
+func wrong(api project.Models){_ = api.OwnersOwner.Prefetch.Labels.Filter(owners.OwnerFields.Name.Exact("wrong"))}
+`))
+	output, err = generatedGoCommand(t.Context(), directory, "test", "-run", "^$", "./...").CombinedOutput()
+	if err == nil || !bytes.Contains(output, []byte("cannot use")) || !bytes.Contains(output, []byte("Filter")) {
+		t.Fatalf("wrong-model target predicate was not rejected: %v\n%s", err, output)
 	}
 }

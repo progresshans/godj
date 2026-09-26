@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
 )
 
@@ -12,6 +13,46 @@ import (
 type materializedRows[M any] struct {
 	binding BoundModel[M]
 	values  []relatedSelectedValue[M]
+}
+
+// Explicit target-query configuration survives query refinements. Implicit
+// lookup-path graphs live only on the original evaluation attachment instead.
+type queryMaterialization[M any] struct {
+	binding    BoundModel[M]
+	selections []preparedPrefetch[M]
+}
+
+func (m *queryMaterialization[M]) nodeBudget() int {
+	nodes := 0
+	for _, selection := range m.selections {
+		nodes += selection.nodeBudget()
+	}
+	return nodes
+}
+
+func (m *queryMaterialization[M]) prepare(ctx context.Context, backend db.Queryer, raw []M) ([]relatedSelectedValue[M], error) {
+	values := make([]relatedSelectedValue[M], len(raw))
+	for i, value := range raw {
+		values[i].source = value
+	}
+	if err := loadPrefetchValues(ctx, backend, values, m.selections); err != nil {
+		return nil, err
+	}
+	return sessionReadResult(ctx, backend, values, nil)
+}
+
+func (source QuerySet[M]) evaluateModels(ctx context.Context) ([]M, any, error) {
+	return source.evaluation.evaluateAttached(ctx, func(ctx context.Context) ([]M, any, error) {
+		raw, err := source.scanAll(ctx)
+		if err != nil || source.materialization == nil {
+			return raw, nil, err
+		}
+		values, err := source.materialization.prepare(ctx, source.backend, raw)
+		if err != nil {
+			return nil, nil, err
+		}
+		return raw, &materializedRows[M]{binding: source.materialization.binding, values: values}, nil
+	})
 }
 
 func validateMaterializationSource[M any](source QuerySet[M], binding BoundModel[M]) error {
@@ -26,9 +67,8 @@ func validateMaterializationSource[M any](source QuerySet[M], binding BoundModel
 	return nil
 }
 
-func materializationValues[M any](source QuerySet[M], binding BoundModel[M], raw []M) ([]relatedSelectedValue[M], error) {
-	_, attachment, ready := source.evaluation.cachedResult()
-	if !ready || attachment == nil {
+func materializationValues[M any](binding BoundModel[M], raw []M, attachment any) ([]relatedSelectedValue[M], error) {
+	if attachment == nil {
 		values := make([]relatedSelectedValue[M], len(raw))
 		for i, value := range raw {
 			values[i].source = value
@@ -52,11 +92,11 @@ func Materialize[M any](ctx context.Context, source QuerySet[M], binding BoundMo
 	if err := validateMaterializationSource(source, binding); err != nil {
 		return nil, err
 	}
-	raw, err := source.All(ctx)
+	raw, attachment, err := source.evaluateModels(ctx)
 	if err != nil {
 		return nil, err
 	}
-	values, err := materializationValues(source, binding, raw)
+	values, err := materializationValues(binding, raw, attachment)
 	if err != nil {
 		return nil, err
 	}
@@ -87,18 +127,26 @@ func MaterializeFirst[M any](ctx context.Context, source QuerySet[M], binding Bo
 		// source row with a graph read by another SQL statement.
 		source.evaluation = newEvaluationState[M]()
 	}
-	value, present, err := source.First(ctx)
+	readSource := source
+	readSource.materialization = nil
+	value, present, err := readSource.First(ctx)
 	if err != nil || !present {
 		return nil, false, err
 	}
 	graphValue := relatedSelectedValue[M]{source: value}
-	if raw, _, ready := source.evaluation.cachedResult(); ready {
-		values, err := materializationValues(source, binding, raw)
+	if raw, attachment, ready := source.evaluation.cachedResult(); ready {
+		values, err := materializationValues(binding, raw, attachment)
 		if err != nil {
 			return nil, false, err
 		}
 		if len(values) == 0 {
 			return nil, false, relationInvalidPlan("materialized first row is absent from its cache")
+		}
+		graphValue = values[0]
+	} else if source.materialization != nil {
+		values, err := source.materialization.prepare(ctx, source.backend, []M{value})
+		if err != nil {
+			return nil, false, err
 		}
 		graphValue = values[0]
 	}

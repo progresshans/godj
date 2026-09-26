@@ -14,13 +14,15 @@ ManyToMany의 Schema IR·자동/명시적 through migration·공통 mutation run
 여러 관계·양방향/self·nullable duplicate와 독립 cache를 처리하며 전체 조회가 성공한 뒤에만 결과를 반환한다.
 Custom target filter의 연결 행 scope와 owner 귀속을 보존하는 Query AST·양 DB compiler 기반을 연결했다.
 ManyToMany 중첩 typed/path 선택과 하위 collection cache를 공통 model materialization에 연결했다.
-Filtered child·eager 조합·owner별 slice는 이어서 구현한다.
+Target Filter·OrderBy·Distinct와 명시한 하위 prefetch 설정을 generated typed/path 구성에 연결했다.
+Manager 변경 뒤 기본 조회 복귀와 held query의 조건·cache 보존을 구분한다.
+설정된 target query의 eager·추가 prefetch에도 기존 하위 설정을 전달한다. Eager parent 재사용·직접 조합과 owner별 slice는 이어서 구현한다.
 지원 범위와 남은 제한은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
 
 ## 다음 행동
 
-Filtered child prefetch와 eager/prefetch tree의 통합·owner별 slice를 완성하고 Ticket 라벨 컬렉션 편집으로 이어간다.
+Eager/prefetch tree의 통합·owner별 slice를 완성하고 Ticket 라벨 컬렉션 편집으로 이어간다.
 Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
 이 소비자 통합 뒤 GDJ-0099 Hosted 전체 milestone을 검증한다. 명시적 연결 CRUD나 root manager만으로 전체 소비자를 완료로 세지 않는다.
 

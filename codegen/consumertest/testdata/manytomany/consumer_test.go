@@ -97,7 +97,11 @@ func withCollectionBackends(t *testing.T, run func(*testing.T, collectionBackend
 func migrateCollections(t *testing.T, b collectionBackend) {
 	target := labels.GoDjRelationSchema()
 	source := owners.GoDjRelationSchema()
-	migrationsList := []migrations.Migration{{App: "labels", Name: "0001_initial", Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "labels", Model: target.Models[0]}}}}
+	targetMigration := migrations.Migration{App: "labels", Name: "0001_initial"}
+	for _, model := range target.Models {
+		targetMigration.Operations = append(targetMigration.Operations, migrations.CreateModel{AppLabel: "labels", Model: model})
+	}
+	migrationsList := []migrations.Migration{targetMigration}
 	migration := migrations.Migration{App: "owners", Name: "0001_initial", Dependencies: []migrations.MigrationKey{{App: "labels", Name: "0001_initial"}}}
 	var many []ir.ManyToManyField
 	for _, model := range source.Models {

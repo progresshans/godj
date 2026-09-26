@@ -117,7 +117,9 @@ typed selector와 model cache 연결을 제공한다. 반환 model의 변경은 
 Custom target query의 조회 기반은 `ResultPrefetch`의 추가 owner cell과 필터별 join scope를 같은 Query AST에 보관한다.
 각 compiler가 SQL을 만들며 runtime이 target 조건을 through source 조건으로 다시 해석하지 않는다.
 중첩 ManyToMany prefetch는 typed/path tree와 공통 model materialization으로 하위 cache를 전달한다.
-Filtered child prefetch와 eager/prefetch tree의 조합·owner별 slice는 아직 남아 있다.
+Filtered child의 조건·정렬·DISTINCT와 명시한 하위 prefetch 설정은 query refinement에도 남는다.
+Collection 변경과 manager Fresh는 기본 관계 조회로 돌아간다. 설정된 target query의 eager·추가 prefetch는 하위 설정을 보존한다.
+Eager parent 재사용·직접 tree 조합과 owner별 slice는 아직 남아 있다.
 세부 읽기·session 경계는 [컬렉션 prefetch 결정](adr/0075-many-to-many-storage-and-mutation-ownership.md#직접-컬렉션-prefetch)을 따른다.
 
 ## Migration

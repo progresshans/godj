@@ -13,8 +13,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
-const GoDjProjectRelationFacadeInputSHA256 = "a58ae61c83f3edeaba0211dbf1d25bca7850bed6d4d4ac1294c5364ccba0ffbf"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v14"
+const GoDjProjectRelationFacadeInputSHA256 = "b40ef3559b5591e8834da3ed265e83a842bb56d041d4185ca1134a5ff1d89df2"
 
 type Backend interface {
 	db.Queryer

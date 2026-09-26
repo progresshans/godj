@@ -3,6 +3,77 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — filtered child query와 manager cache 소유권
+
+2026-09-26, `3d2c751ab5cbf6083b308613e0ae43eb41deff33` 위에서 ManyToMany target의
+Filter·OrderBy·Distinct와 명시한 하위 prefetch 설정을 native/generated API에 연결했다.
+`PrefetchPath`는 같은 origin의 path selector를 만들며 custom typed selector와 조합할 수 있다.
+이미 선택한 경로의 query 재정의는 I/O 전에 거부하고, custom query 뒤에 하위 path를 더하는 것은 허용한다.
+
+Custom target은 `ForPrefetchOwners`의 같은 Query AST를 사용한다. Target model projection과 owner key를
+같은 행에서 해석하고 batch 밖·NULL owner, 잘못된 presence/PK와 clone의 PK 변경을 거부한다.
+명시한 query의 하위 설정은 파생 Filter/OrderBy/Distinct/Fresh·cold First/At에 남으며 model과 graph를 함께 publish한다.
+각 manager는 기본 membership plan을 따로 보관한다. Mutation·Invalidate·manager Fresh는 기본 조회로 돌아가고
+held query의 조건·설정·snapshot과 다른 materialization은 유지한다. Facade ABI v14·golden과 프로젝트 5개의 생성물을 갱신했다.
+
+검증 source는 non-Markdown **2,118파일**, map hash
+`6557f0ad23c640d22fe32d4bbf616990f8948dc17b348d6f8d40c885137141bd`다.
+`./orm ./codegen ./codegen/consumertest` 전체에서 일반·CGO=0 각각 **3 package / 1,068 run=PASS / skip 0**,
+133.7초·149.0초다. Race도 **3 package / 1,068 run=PASS / skip 0**, 528.7초다.
+필수 root는 20개이며 모든 완료 실행 전후 source map이 같다. Actual generated ManyToMany module은
+각 완료 mode에서 SQLite/PostgreSQL **248 child run=PASS / skip 0**다.
+
+최종 조합 점검에서 설정된 target query의 eager·추가 prefetch가 기존 하위 설정을 버리는 경로를 보완했다.
+Eager rowset을 닫고 검증한 뒤 기존 child batch를 읽고 한 평가로 공개한다. 추가 prefetch는 기존 선택 뒤에 병합하며
+두 경로 모두 원래 project binding과 node budget을 유지한다.
+최종 source는 **2,120파일**, map hash
+`925a03d5ecab54bf80b995930e33b730aa44d788709e620c6af54abecfcf3230`다.
+앞의 넓은 checkpoint와 차이는 ORM 3파일·소비자 테스트 4파일이며 생성기·생성물은 같다. 최종 source에서
+`./orm` 전체와 ManyToMany 소비자·compile-negative·새 composed eager 소비자를 다시 검증했다.
+일반 **2 package / 606 run=PASS / skip 0**, 20.7초다. Race·CGO=0도 각각 **606 run=PASS / skip 0**, 60.6초·22.8초이며 세 mode 모두 같은 최종 source다.
+기존 ManyToMany **248 child**와 새 조합 소비자 **9 child**의 필수 양 DB 실행을 각 부모 harness가 확인한다.
+앞 source의 넓은 범위를 최종 source의 전체 재실행으로 표시하지 않는다. File map 차이는 `composition-delta.json`에 보관한다.
+
+새 조합 소비자는 nullable FK를 갖는 target에서 기존 child 설정과 eager cache가 함께 남는지 검사한다.
+Cold First·full All은 각각 source+child **2 query**, warm All/First는 **0**, cold Count는 **1**이다.
+추가 prefetch는 기존·추가 관계를 **3 query**로 읽고 foreign binding·원래 설정을 포함한 node 한도를 I/O 전에 거부한다.
+실패 재시도와 session 종료도 확인했다. Fixture 준비 중 cross-app 순환 의존과 단일 target 모델만 만드는 기존 helper의
+한계가 각각 migration validation에 걸렸다. 같은 앱의 별도 FK target과 모든 declared target 모델의 순서 있는 생성으로
+fixture를 수정했으며 제품 migration 검사를 완화하지 않았다. 두 실패 실행도 보존했다.
+추가 SQLite 조합 원본 **5 run=PASS** 이후 eager에서 기존 child 제거·추가 prefetch에서 기존 선택 제거의 두 overlay를
+정상 compile 후 모두 탐지했다. 이전 네 overlay도 최종 source에서 재실행했다.
+
+
+고정 Django의 기존 `prefetch_filtered`, `prefetch_filtered_cache`, `prefetch_order_conflicts`를 실제 생성 API와 비교한다.
+초기 target/child **2 query**, warm **0**, refined target/child **2**, no-op add 뒤 기본 manager **1 query**와
+내림차순·held/duplicate snapshot·lookup 순서별 허용/거부를 확인했다. 기존 owner-filter 일곱 사례도
+compiler plan 직접 실행뿐 아니라 generated selector의 Filter/Distinct와 model collection 접근자로 비교한다.
+Nullable/nonunique intermediary의 중복과 명시 DISTINCT, 기본 child와 명시 child 설정의 차이,
+cold/warm First·First 뒤 full All, Count, 실패·취소 후 source부터 재시도, session 종료와 typed predicate 거부를 포함한다.
+Raw Iterate가 설정을 조용히 버리지 않고 명시 오류를 반환하는 것도 확인했다. Materialized batch streaming은 남은 범위다.
+
+SQLite 생성 모듈 원본 **6 run=PASS** 뒤 아래 네 runtime overlay를 정상 compile 후 모두 탐지했다.
+명시한 하위 설정 제거, mutation 후 custom filter 잔존, lookup query 재정의 허용, batch 밖 owner 허용이다.
+하위 설정 제거는 한 target만 남는 reference에서 query 수가 우연히 같으므로, 여러 target의 파생 조회와
+Fresh/First 뒤 All을 검사하는 회귀가 실패한다. 첫 negative harness는 필수 실패 이름을 단일 target reference로 지정해
+중단했으며, 실제로 실패한 multi-target 회귀를 필수 이름으로 정정하고 네 변이를 모두 재실행했다.
+그 사이 제품과 테스트 source는 바뀌지 않았고 최초 중단의 로그도 보존했다.
+
+고정 Django runner·48개 관찰 fixture는 변경/재실행하지 않았다. Pinned Django 6.1의 `_apply_rel_filters`,
+`_chain`, `get_prefetch_querysets`, `prefetch_one_level`에서 custom 조건 뒤에 core membership을 붙이는 소유권도 확인했다.
+Eager parent/child 조합은 아직 reference-only이며 이번 filtered 기능의 PASS로 합치지 않는다.
+환경은 Go **1.26.5**, Darwin arm64, modernc SQLite, PostgreSQL **17.5 Homebrew**다.
+`GODJ_REQUIRE_POSTGRES=1`과 mode별 전용 database를 사용했다. 완료 실행의 cleanup은 **0|0|0**이며 force 없이 제거했다.
+영향 vet·gofmt·5개 generated drift·문서 링크·diff와 checked-in relation product의 deterministic candidate 검사를 통과했다.
+Source·command·event·inventory·DB cleanup·overlay·supplemental receipt는 아래에 보관한다.
+
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-filtered`
+
+`latest-final-{normal,race,cgo0}-path`는 넓은 checkpoint, `latest-composition-{normal,race,cgo0}-path`는 최종 조합 검증이다.
+`latest-negative-path`, `latest-composition-negative-path`, `supplemental-checks.json`에 추가 검증을 보관한다.
+Eager/prefetch 구성·owner별 slice·설정된 query의 streaming, Ticket 컬렉션 Form/Admin/API/OpenAPI·client와
+권한/CSRF/양쪽 Category/전체 후보/동시성/durability 및 해당 Hosted 전체 milestone은 아직 남아 있다.
+
 ## GDJ-0099 — 중첩 ManyToMany와 공통 model materialization
 
 2026-09-26, `265afaf18d55bc0b118ea4d38448e4a1e1be545b` 위에서 중첩 collection graph를

@@ -17,6 +17,9 @@ type relationFacadeManyPrefetch[S,T,L any] struct {
 }
 func (_selector relationFacadeManyPrefetch[S,T,L]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
 func (_selector relationFacadeManyPrefetch[S,T,L]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
+func (_selector relationFacadeManyPrefetch[S,T,L]) Filter(_values ...orm.Predicate[T])relationFacadeManyPrefetch[S,T,L]{_selector.selection=_selector.selection.Filter(_values...);return _selector}
+func (_selector relationFacadeManyPrefetch[S,T,L]) OrderBy(_values ...orm.Ordering[T])relationFacadeManyPrefetch[S,T,L]{_selector.selection=_selector.selection.OrderBy(_values...);return _selector}
+func (_selector relationFacadeManyPrefetch[S,T,L]) Distinct()relationFacadeManyPrefetch[S,T,L]{_selector.selection=_selector.selection.Distinct();return _selector}
 func (_selector relationFacadeManyPrefetch[S,T,L]) WithChildren(_children ...relationFacadePrefetchInput[T])relationFacadeManyPrefetch[S,T,L]{
  if _err:=_selector.state.validate();_err!=nil{_selector.selection=_selector.selection.WithConfigurationError(_err);return _selector}
  _inputs:=make([]orm.PrefetchSelection[T],0,len(_children))
@@ -26,6 +29,12 @@ func (_selector relationFacadeManyPrefetch[S,T,L]) WithChildren(_children ...rel
  }
  _selector.selection=_selector.selection.WithChildren(_inputs...);return _selector
 }
+type relationFacadePrefetchPath[S any] struct {
+ state *relationFacadeState
+ selection orm.PrefetchSelection[S]
+}
+func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchOwner()*relationFacadeState{return _selector.state}
+func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchValue()orm.PrefetchSelection[S]{return _selector.selection}
 `)
 }
 
@@ -67,6 +76,12 @@ func (_query %[1]sQuery) PrefetchRelatedPaths(_paths ...string)(%[1]sPrefetchQue
  }
  _result:=%[1]sPrefetchQuery{state:_query.state,prefetch:orm.PrefetchRelated(_query.query,_inputs...)}
  if _err:=_result.prefetch.ConfigurationError();_err!=nil{return %[1]sPrefetchQuery{},_err};return _result,nil
+}
+func (_query %[1]sQuery) PrefetchPath(_path string)(%[1]sPrefetchSelector,error){
+ if _err:=_query.validate();_err!=nil{return nil,_err}
+ _remaining:=orm.MaximumRelatedSelectionNodes
+ _selection,_err:=_query.state.prefetch%[1]sPath(_path,1,&_remaining);if _err!=nil{return nil,_err}
+ return relationFacadePrefetchPath[%[2]s]{state:_query.state,selection:_selection},nil
 }
 func (_query %[1]sPrefetchQuery) validate(_ctx context.Context) error {
  if _err:=relationFacadeContext(_ctx);_err!=nil{return _err}

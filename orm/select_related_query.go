@@ -18,6 +18,7 @@ type RelatedSelectQuery[S any] struct {
 	sourceDescriptor ProjectionDescriptor[S]
 	targets          []preparedRelatedSelection[S]
 	evaluation       *evaluationState[relatedSelectedValue[S]]
+	materialization  *queryMaterialization[S]
 	configurationErr error
 	marker           [0]func(S)
 }
@@ -30,7 +31,7 @@ type relatedSelectedValue[S any] struct {
 // SelectRelated prepares one or more targets without evaluating the source.
 // Errors stay on the query so terminals can apply context precedence.
 func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S]) RelatedSelectQuery[S] {
-	result := RelatedSelectQuery[S]{backend: source.backend, plan: source.plan, evaluation: newEvaluationState[relatedSelectedValue[S]]()}
+	result := RelatedSelectQuery[S]{backend: source.backend, plan: source.plan, evaluation: newEvaluationState[relatedSelectedValue[S]](), materialization: source.materialization}
 	if source.configurationErr != nil {
 		return result.WithConfigurationError(source.configurationErr)
 	}
@@ -41,6 +42,9 @@ func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S])
 		return result.WithConfigurationError(relationInvalidPlan("source QuerySet already contains eager projections"))
 	}
 	remaining := MaximumRelatedSelectionNodes
+	if source.materialization != nil {
+		remaining -= source.materialization.nodeBudget()
+	}
 	targets, err := prepareSelectionSet(selections, 1, &remaining)
 	if err != nil {
 		return result.WithConfigurationError(err)
@@ -55,6 +59,9 @@ func SelectRelated[S any](source QuerySet[S], selections ...RelatedSelection[S])
 		if path.source.snapshot != result.binding.snapshot || path.source.identity != result.binding.identity || reflect.TypeOf(path.sourceDescriptor) != reflect.TypeOf(result.sourceDescriptor) {
 			return result.WithConfigurationError(relationInvalidPlan("selected targets do not share one source binding"))
 		}
+	}
+	if source.materialization != nil && (source.materialization.binding.snapshot != result.binding.snapshot || source.materialization.binding.identity != result.binding.identity) {
+		return result.WithConfigurationError(relationInvalidPlan("eager query prefetch configuration belongs to another source binding"))
 	}
 	if source.evaluation == nil || descriptorIsNil(source.descriptor) || reflect.TypeOf(source.descriptor) != reflect.TypeOf(result.sourceDescriptor) || !reflect.DeepEqual(source.descriptor.Metadata(), result.binding.model) || source.plan.Table() != result.binding.model.DBTable || !reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(result.binding.model)) {
 		return result.WithConfigurationError(relationInvalidPlan("source QuerySet does not match the selected source binding"))
@@ -199,6 +206,16 @@ func (q RelatedSelectQuery[S]) validateTerminal(ctx context.Context) error {
 	}
 	if err := validateObjectBoundModel(q.binding); err != nil {
 		return err
+	}
+	if q.materialization != nil {
+		if q.materialization.binding.snapshot != q.binding.snapshot || q.materialization.binding.identity != q.binding.identity {
+			return relationInvalidPlan("eager prefetch binding changed")
+		}
+		for _, selection := range q.materialization.selections {
+			if err := selection.validate(); err != nil {
+				return err
+			}
+		}
 	}
 	descriptor, err := projectionDescriptorFor(q.binding)
 	if err != nil {
@@ -396,6 +413,11 @@ func (q RelatedSelectQuery[S]) scan(ctx context.Context, plan query.Plan, maximu
 			value.targets[index] = ready
 		}
 		values[index] = value
+	}
+	if q.materialization != nil {
+		if err := loadPrefetchValues(ctx, q.backend, values, q.materialization.selections); err != nil {
+			return nil, err
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

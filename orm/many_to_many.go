@@ -133,6 +133,7 @@ func bindManyToMany[O, T, L any](owner BoundModel[O], name string, target BoundM
 type ManyCollection[T, L any] struct {
 	mu       sync.Mutex
 	querySet QuerySet[T]
+	basePlan query.Plan
 	target   PrimaryKeyObjectDescriptor[T]
 	through  ManyToManyDescriptor[L]
 	state    *manyToManyState
@@ -192,7 +193,7 @@ func (r ManyToMany[O, T, L]) from(backend db.Queryer, owner O) (*ManyCollection[
 	if err != nil {
 		return nil, err
 	}
-	collection := &ManyCollection[T, L]{querySet: newQuerySet(backend, r.target, plan), target: r.target, through: r.through, state: r.state, backend: backend, ownerKey: key}
+	collection := &ManyCollection[T, L]{querySet: newQuerySet(backend, r.target, plan), basePlan: plan, target: r.target, through: r.through, state: r.state, backend: backend, ownerKey: key}
 	collection._self = collection
 	return collection, nil
 }
@@ -245,8 +246,8 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 	if err != nil {
 		return nil, err
 	}
-	set.evaluation = newEvaluationState[T]()
-	result := &ManyCollection[T, L]{querySet: set, target: c.target, through: c.through, state: c.state, backend: c.backend, session: c.session, ownerKey: c.ownerKey}
+	set = newQuerySet[T](c.backend, c.target, c.basePlan)
+	result := &ManyCollection[T, L]{querySet: set, basePlan: c.basePlan, target: c.target, through: c.through, state: c.state, backend: c.backend, session: c.session, ownerKey: c.ownerKey}
 	result._self = result
 	return result, nil
 }
@@ -254,7 +255,7 @@ func (c *ManyCollection[T, L]) Fresh() (*ManyCollection[T, L], error) {
 func (c *ManyCollection[T, L]) invalidate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.querySet.evaluation = newEvaluationState[T]()
+	c.querySet = newQuerySet[T](c.backend, c.target, c.basePlan)
 }
 
 // Invalidate discards only this handle's evaluation cache. It performs no I/O;

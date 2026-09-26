@@ -26,27 +26,8 @@ func (r ManyToMany[O, T, L]) PrefetchInSession(ctx context.Context, session db.S
 }
 
 func (r ManyToMany[O, T, L]) prefetch(ctx context.Context, backend db.Queryer, owners []O, borrowed bool) ([]*ManyCollection[T, L], error) {
-	if interfaceIsNil(ctx) {
-		return nil, relationInvalidPlan("context is nil")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	if r.state == nil || interfaceIsNil(backend) {
-		return nil, relationInvalidPlan("collection is unbound or backend is nil")
-	}
-	var session db.RelationSession
-	_, scoped := backend.(db.SessionValidator)
-	if scoped != borrowed {
-		return nil, relationInvalidPlan("collection prefetch requires the matching root or session API")
-	}
-	if borrowed {
-		// Reading a batch needs only the advertised session lifetime. Keep a
-		// relation capability only when it actually exists; a read handle
-		// must never fall back to starting a transaction for a later write.
-		session, _ = backend.(db.RelationSession)
-	}
-	if err := validateQuerySession(ctx, backend); err != nil {
+	result, keys, err := r.preparePrefetchOwners(ctx, backend, owners, borrowed)
+	if err != nil {
 		return nil, err
 	}
 	selection, storage, err := r.prefetchBinding()
@@ -54,36 +35,6 @@ func (r ManyToMany[O, T, L]) prefetch(ctx context.Context, backend db.Queryer, o
 		return nil, err
 	}
 
-	// Validate all owners before the first query. Publication preserves caller
-	// order, while sorted unique keys make batch boundaries deterministic.
-	result := make([]*ManyCollection[T, L], len(owners))
-	requested := make(map[int64]struct{}, len(owners))
-	for i, owner := range owners {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		snapshot := r.owner.CloneModel(owner)
-		key, err := manyObjectKey(r.owner, owner)
-		if err != nil {
-			return nil, err
-		}
-		copyKey, err := manyObjectKey(r.owner, snapshot)
-		if err != nil || copyKey != key {
-			return nil, relationInvalidPlan("prefetch owner clone changed its primary key")
-		}
-		collection, err := r.from(backend, snapshot)
-		if err != nil {
-			return nil, err
-		}
-		collection.session = session
-		result[i] = collection
-		requested[key] = struct{}{}
-	}
-	keys := make([]int64, 0, len(requested))
-	for key := range requested {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
 	groups := make(map[int64][]T, len(keys))
 	seenLinks := make(map[int64]struct{})
 	base := newQuerySet(backend, r.through, r.prefetchSource.objectPlan)
@@ -159,6 +110,68 @@ func (r ManyToMany[O, T, L]) prefetch(ctx context.Context, backend db.Queryer, o
 		return nil, err
 	}
 	return sessionReadResult(ctx, backend, result, nil)
+}
+
+func (r ManyToMany[O, T, L]) preparePrefetchOwners(ctx context.Context, backend db.Queryer, owners []O, borrowed bool) ([]*ManyCollection[T, L], []int64, error) {
+	if interfaceIsNil(ctx) {
+		return nil, nil, relationInvalidPlan("context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	if r.state == nil || interfaceIsNil(backend) {
+		return nil, nil, relationInvalidPlan("collection is unbound or backend is nil")
+	}
+	var session db.RelationSession
+	_, scoped := backend.(db.SessionValidator)
+	if scoped != borrowed {
+		return nil, nil, relationInvalidPlan("collection prefetch requires the matching root or session API")
+	}
+	if borrowed {
+		// Reading a batch needs only the advertised session lifetime. Keep a
+		// relation capability only when it actually exists; a read handle
+		// must never fall back to starting a transaction for a later write.
+		session, _ = backend.(db.RelationSession)
+	}
+	if err := validateQuerySession(ctx, backend); err != nil {
+		return nil, nil, err
+	}
+	_, _, err := r.prefetchBinding()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Validate all owners before the first query. Publication preserves caller
+	// order, while sorted unique keys make batch boundaries deterministic.
+	result := make([]*ManyCollection[T, L], len(owners))
+	requested := make(map[int64]struct{}, len(owners))
+	for i, owner := range owners {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
+		snapshot := r.owner.CloneModel(owner)
+		key, err := manyObjectKey(r.owner, owner)
+		if err != nil {
+			return nil, nil, err
+		}
+		copyKey, err := manyObjectKey(r.owner, snapshot)
+		if err != nil || copyKey != key {
+			return nil, nil, relationInvalidPlan("prefetch owner clone changed its primary key")
+		}
+		collection, err := r.from(backend, snapshot)
+		if err != nil {
+			return nil, nil, err
+		}
+		collection.session = session
+		result[i] = collection
+		requested[key] = struct{}{}
+	}
+	keys := make([]int64, 0, len(requested))
+	for key := range requested {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return result, keys, nil
 }
 
 func (r ManyToMany[O, T, L]) prefetchBinding() (RelatedSelect[L, T], RelationStorage[L], error) {

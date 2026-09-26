@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v13"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v14"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
