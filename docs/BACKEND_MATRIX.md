@@ -10,6 +10,7 @@
 | Conflict insert | nullable column의 non-NULL 값을 포함한 명시적 unique tuple의 native no-op·0/1행 결과, ordinary/relation/coordinated session | 같은 AST·결과·session 계약, schema-qualified target |
 | ManyToMany root manager | 같은 AST의 collection 조회/Distinct, add/remove/clear/set·nullable/nonunique through·retained ID/payload·self symmetry·AtomicRelation·cache 소유권 | 같은 runtime/AST·native conflict·incoming 정책, root transaction ownership |
 | Borrowed session / model facade | UsingSession/InSession·기존 fence 참여, ordinary/relation/coordinated session lifetime과 warm/empty/eager query 검사 | 같은 공통 facade/runtime·native session 검사, outer transaction 소유권 |
+| Borrowed session batch execution | 같은 pinned/transaction 연결의 source rowset·명시적 배치 크기·scan/yield 분리 | WITHOUT HOLD cursor·bounded FETCH·rowset close 뒤 같은 session의 yield; outer commit 소유권 유지 |
 | Relation query | current forward/reverse, eager/prefetch | current-profile relation 경로 |
 | Relation delete | supported FK/OneToOne의 CASCADE·PROTECT·SET_NULL, recursive collector·exact-key 삭제 | 같은 graph/runtime과 native FK·AtomicRelation |
 | OneToOne | 명시적 cardinality·FK+UNIQUE·single reverse/prefetch·직접 조건/isnull/Boolean 조합·typed forward/reverse eager tree | 동일 공통 AST/runtime과 native 제약 |
@@ -130,7 +131,8 @@ Owner별 slice를 Query AST·양 DB window compiler와 runtime/generated named s
 Snapshot·Limit/Offset·Read는 일반 manager와 별도 결과를 유지하며 nested/eager graph와 session lifetime을 보존한다.
 Custom ManyToMany는 grouping/membership에 같은 전체 owner 집합을 사용한다. 큰 integer IN은 SQLite JSON array parameter와
 PostgreSQL bigint array parameter로 조회해 owner 집합을 나누거나 정수 정밀도를 낮추지 않는다.
-설정된 prefetch query의 streaming은 아직 미지원이다.
+설정된 prefetch query의 streaming은 아직 미지원이다. Native `BatchQueryer`는 ordinary/relation/coordinated session의
+실행 기반이며 root backend의 연결 소유권과 ORM·generated materialization은 아직 연결 중이다.
 단일 FK/역방향 OneToOne prefetch와 하위 컬렉션을 같은 graph로 연결하며 root eager와 직접 조합해 이미 읽은 부모를 재사용한다.
 Reverse FK collection과 ManyToMany의 target eager·하위 prefetch를 같은 graph에 연결하고 파생 query의 설정을 유지한다.
 단일 관계 target의 Filter·OrderBy·Distinct·eager 구성을 지원한다. 이미 읽은 부모는 custom query를 건너뛰며 명시적 하위 경로는 유지한다.

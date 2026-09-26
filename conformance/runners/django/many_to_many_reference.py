@@ -707,6 +707,62 @@ def observe():
             results["prefetch_slices"] = slice_cases
             clear()
 
+            stream_cases = {}
+            stream_labels = [Label.objects.create(name=name) for name in ("a", "b", "c")]
+            stream_owners = [Owner.objects.create(name="owner-" + str(index)) for index in range(4)]
+            for owner, selected in zip(stream_owners, ([0, 1], [1], [], [2])):
+                owner.labels.add(*(stream_labels[index] for index in selected))
+            def stream_graph(owner, alias=None, nested=False):
+                targets = getattr(owner, alias) if alias else owner.labels.all()
+                return [owner.name, [[target.name, names(target.owners)] if nested else target.name for target in targets]]
+            def stream_observation(queryset, size, stop=None, nested=False, alias=None, raise_at=None):
+                members = []
+                failure = None
+                iterator = None
+                with CaptureQueriesContext(connection) as captured:
+                    try:
+                        iterator = queryset.iterator(chunk_size=size)
+                        for owner in iterator:
+                            members.append(stream_graph(owner, alias, nested))
+                            if raise_at is not None and len(members) == raise_at:
+                                raise RuntimeError("authored callback failure")
+                            if stop is not None and len(members) == stop:
+                                break
+                    except Exception as error_value:
+                        failure = type(error_value).__name__
+                    finally:
+                        if iterator is not None:
+                            iterator.close()
+                queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    full = [stream_graph(owner, alias, nested) for owner in queryset]
+                return {"members": members, "queries": queries, "error": failure,
+                        "full_after": full, "full_after_queries": len(captured)}
+            def stream_source():
+                return Owner.objects.order_by("pk").prefetch_related("labels")
+            for size in [1, 2, 3, 8]:
+                stream_cases["chunk_" + str(size)] = stream_observation(stream_source(), size)
+            for size, name in [(None, "missing"), (0, "zero"), (-1, "negative")]:
+                stream_cases["invalid_" + name] = stream_observation(stream_source(), size)
+            stream_cases["early_stop"] = stream_observation(stream_source(), 2, stop=1)
+            stream_cases["callback_error"] = stream_observation(stream_source(), 2, raise_at=1)
+            stream_cases["nested_filtered"] = stream_observation(Owner.objects.order_by("pk").prefetch_related(
+                Prefetch("labels", queryset=Label.objects.filter(name__in=["a", "b"]).order_by("-name").prefetch_related("owners"))), 2, nested=True)
+            scoped_stream = Label.objects.filter(owners__name="owner-0").filter(owners__name="owner-1").order_by("name")
+            for size in [1, 2]:
+                stream_cases["owner_scope_" + str(size)] = stream_observation(Owner.objects.order_by("pk").prefetch_related(
+                    Prefetch("labels", queryset=scoped_stream[:1], to_attr="label_rows")), size, alias="label_rows")
+            with transaction.atomic():
+                stream_cases["transaction"] = stream_observation(stream_source(), 2)
+                stream_cases["transaction"]["count_after_close"] = Owner.objects.count()
+            warmed = stream_source()
+            held = list(warmed)
+            Label.objects.filter(pk=stream_labels[0].pk).update(name="a-new")
+            stream_cases["warm_cache"] = stream_observation(warmed, 2)
+            stream_cases["warm_cache"]["held"] = [stream_graph(owner) for owner in held]
+            results["prefetch_stream"] = stream_cases
+            clear()
+
             from django.db import migrations
             from django.db.migrations.state import ProjectState
             history = ProjectState()

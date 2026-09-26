@@ -104,6 +104,20 @@ project edge binding을 공유하고 lazy traversal 때 새 group을 만든다. 
 [일대일 관계](adr/0073-one-to-one-cardinality-and-reverse-objects.md),
 [CASCADE 그래프](adr/0074-cascade-delete-graph-and-constraint-timing.md).
 
+## 빌린 session의 배치 실행
+
+`db.BatchQueryer`는 한 source query를 명시한 양수 크기로 읽는다. `scan`은 한 row를 caller 소유 buffer로 복사하고,
+완성한 batch마다 `yield`에서 같은 borrowed session으로 하위 조회·광고한 capability의 쓰기를 할 수 있다.
+두 callback은 동기 실행하며 decode 중 다른 I/O나 driver row/buffer 보유는 허용하지 않는다. 반환 bool=false는 정상 중단이다.
+실패한 batch는 yield하지 않지만 이전 yield의 관찰을 되돌리지 않는다. Outer transaction의 commit·rollback과 full query cache를 소유하지 않는다.
+
+SQLite는 같은 pinned/transaction connection의 source rowset을 유지한다. PostgreSQL은 `WITHOUT HOLD` cursor의
+각 `FETCH`를 decode하고 rowset close 오류까지 확인한 다음 yield한다. 원본을 OFFSET으로 재실행하지 않는다.
+취소·callback 오류·panic·Goexit에서도 소유 rows/cursor를 정리한다. Panic과 Goexit는 그대로 전파하고 cleanup 실패를 성공으로 바꾸지 않는다.
+Raw SQLite transaction의 Goexit도 기존 rollback/discard/retention 경로를 사용하며 불확실한 연결을 pool에 돌려주지 않는다.
+배치의 read affinity는 같은 session pointer이며 coordinated ordinary session에 relation mutation capability를 추가하지 않는다.
+Session 종료 뒤에는 빈 결과도 새 배치 조회를 허용하지 않는다. Root backend·model graph·generated iterator 연결은 남아 있다.
+
 ## Migration의 durable 상태
 
 Recorder identities와 opaque revision은 같은 DB snapshot에서 읽는다. Each-step transaction은 첫 DDL/recorder mutation 전에

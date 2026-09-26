@@ -311,15 +311,12 @@ func executeAdmittedAtomicRelation(
 	}
 	deferredCleanup := true
 	defer func() {
-		panicValue := recover()
-		if panicValue == nil {
-			return
-		}
+		// Both panic and runtime.Goexit run defers. Neither may leave the
+		// raw transaction or its pinned connection behind.
 		if deferredCleanup {
 			session.deactivate()
 			_, _ = rollbackRelationConnection(ctx, connection, admission)
 		}
-		panic(panicValue)
 	}()
 
 	callbackErr := callback(session)

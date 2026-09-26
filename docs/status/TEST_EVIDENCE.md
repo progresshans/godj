@@ -3,6 +3,59 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0099 — transaction session의 배치 실행 기반
+
+2026-09-26, `8a658682fb632df4a5e581bb4b61119c231a3298` 위에서 `db.BatchQueryer`를 ordinary/relation/coordinated
+transaction session에 연결했다. 한 source query를 유지하고 row decode와 완성 batch의 yield를 구분한다.
+SQLite는 같은 연결을, PostgreSQL은 `NO SCROLL CURSOR WITHOUT HOLD`와 bounded FETCH를 사용한다.
+FETCH의 scan·row error·close가 끝난 뒤 같은 session에서 하위 조회와 광고한 write capability를 사용할 수 있다.
+Root backend의 연결 소유권·model graph·generated iterator는 아직 미연결이며 configured raw Iterate의 명시 오류를 유지한다.
+
+사전 실제 연결 probe에서 root SQLite의 열린 rowset 중 두 번째 조회는 약 302ms 뒤 context deadline으로 실패했다.
+SQLite transaction 안에서는 같은 조회가 성공했다. PostgreSQL root pool은 다른 연결로 성공했지만 borrowed transaction은
+`conn busy`, 후속 연결 오류와 commit outcome unknown을 반환했다. 이 probe는 transaction 안에서 쓰기를 하지 않았고
+별도 DB의 연결 0을 확인해 제거했다. 이 관찰을 root streaming 구현 완료나 프레임워크 전체 결함으로 확대하지 않는다.
+
+고정 Django **6.1**, Python **3.14.3**, asgiref **3.12.1**, sqlparse **0.5.5**, psycopg **3.3.6**의
+SQLite **3.50.4**·PostgreSQL **170005**, seed **0/813**의 네 실행이 같다. 기존 **50개 관찰·Django source hash**를
+보존하고 chunk 1/2/3/8·invalid size·조기 중단·callback 오류·nested/filtered·owner universe·transaction·warm cache의
+**14개 streaming 사례**를 추가해 총 **51개 관찰**이다. Runner hash는
+`5d1f7c11b4b939774f24d70c11f6f8236958d847a7d6245e7ad059ca043e2277`이다.
+독립 Python 검사 **17 PASS / skip 0**이며 chunk 크기 변경·iterator를 전체 cache 평가로 대체하는 의미 변경도 탐지했다.
+배치 경계에 따른 owner scope와 full cache 보존은 reference 증거이며 아직 Go materialized graph의 PASS로 세지 않는다.
+
+최종 non-Markdown source **2,148파일**, map hash
+`0e42527573a4cbe43610b01aa4c14dfdfcc294ff41a10a49c2f7d2e2e9168614`에서
+`./db/internal/batchread`와 SQLite/PostgreSQL의 새 배치·기존 ordinary/relation/coordinated transaction 회귀 **47개 필수 root**를 실행했다.
+일반·race·CGO=0 각각 **3 package / 253 run=PASS / skip 0**, **3.1초·8.0초·2.3초**다.
+Go **1.26.5**, macOS arm64, PostgreSQL **17.5**에서 전후 source가 같고 각 실행의 연결·table·schema 정리는 **0|0|0**이며
+소유 DB를 force 없이 제거했다. 전체 DB package나 전체 platform 검증으로 확대하지 않는다.
+
+양 DB의 네 session 종류에서 실제 nested query/stream·순서·중복·slice·빈 결과와 empty aggregate·callback 중단/오류/panic·
+session 만료·분리한 read context에서도 parent 취소·outer commit/rollback·Goexit rollback을 확인했다.
+PostgreSQL은 source 변경 뒤에도 원래 cursor membership을 유지하고 NUMERIC·INTERVAL·UUID·JSONB·SQL NULL과 query parameter를 보존한다.
+Native DECLARE/FETCH/row/row-close/cursor-close 오류·callback+cleanup 오류·commit unknown의 보존과 재시도 부재도 확인했다.
+현재 실제 PostgreSQL root/child **75개**를 Hosted 필수 실행 inventory에 추가했으며 새 source의 Hosted 전체 실행은 아직 하지 않았다.
+
+초기 normal 실패(source `818a40e8d01990c52112c1b6d5caa7f6cc4f3b5683a003dbe1c4ad7c4cba301b`)에서
+coordinated ordinary wrapper의 capability 연결 누락을 보완했다. 새 테스트의 explicit generated-key 삽입·Duration의 `any` 반환 기대도
+기존 지원 계약에 맞췄다. 이때 callback Goexit가 raw SQLite transaction과 pinned connection을 남기는 기존 정리 누락을 재현했다.
+Panic만 recover하던 defer를 모든 비정상 종료에 적용하고 원래 panic/Goexit를 그대로 전파한다. 실제 rollback·session 만료·재사용과
+rollback/discard 모두 미확정인 경우의 retention/quarantine·최종 close 1회를 검증했다. 기존 uncertain-outcome 규칙은 유지한다.
+
+최종 source의 의미 변경 overlay **7개**(다음 batch 선행 읽기, yield 오류 유실, scalar adapter 제거, cursor 정리 제거,
+FETCH close 오류 유실, coordinated affinity 변경, Goexit 정리 제거)는 모두 지정한 제품 assertion 실패로 탐지했다.
+Build 실패·skip·timeout을 성공적인 negative control로 세지 않았고 원본 source는 바뀌지 않았다.
+gofmt·affected go vet·diff·문서 링크 **144개 문서**·CI package/inventory Python 검사 **12개**를 통과했다.
+Generator·generated ABI를 바꾸지 않아 이 묶음에서는 generated drift와 전체 consumer suite를 다시 실행하지 않았다.
+
+원본 실행·source map·실패·mutation·cleanup receipt는
+`/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/prefetch-stream/`의
+`latest-probe-path`, `latest-connection-probe-path`, `latest-oracle-tests-path`, `latest-normal-path`,
+`latest-race-path`, `latest-cgo0-path`, `latest-negative-path`, `latest-checks-path`를 따른다.
+최종 source 대조와 PR/fast CI 게시 영수증은 같은 디렉터리에 둔다.
+GDJ-0099의 Hosted 전체 milestone은 Ticket 소비자 통합 뒤 실행한다. 기존 `93e77bd9…`의 전체 PASS를 이번 source로 전이하지 않는다.
+
 ## GDJ-0099 — custom single target query와 조회 부재
 
 2026-09-26, `887c8ee27623b03634a3838a52e7c858d934a0f3` 위에서 required/nullable FK·역방향 OneToOne의

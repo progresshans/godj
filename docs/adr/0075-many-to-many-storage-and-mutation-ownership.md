@@ -188,7 +188,7 @@ Filter 등 refinement를 적용하면 평가와 하위 graph를 함께 버린다
 고정 Django에서 custom target query의 관계 조건은 prefetch membership과 연결 행을 공유한다.
 예를 들어 Label을 `owners.name=first`와 `owners.name=second`로 연속 Filter하면 두 through join이 생긴다.
 Owner batch 조건은 가장 최근의 일치하는 join을 재사용하지만 결과를 owner에 묶는 column은 첫 join에서 읽는다.
-중첩 조회·필터·정렬·캐시 변경·eager 조합·owner별 slice와 이 scope 차이를 포함한 독립 관찰은 custom single 사례를 포함한 50개이며, 제품 완료와 구분한다.
+중첩 조회·필터·정렬·캐시 변경·eager 조합·owner별 slice와 이 scope 차이를 포함한 독립 관찰은 custom single·streaming 사례를 포함한 51개이며, 제품 완료와 구분한다.
 
 `query.Plan.ForPrefetchOwners`는 원래 target query의 WHERE·정렬·DISTINCT를 유지한다.
 새 `ResultPrefetch`는 source model과 eager target들의 기존 scan 순서 뒤에 owner key 한 cell을 추가한다.
@@ -221,6 +221,28 @@ Raw streaming Iterate는 child query를 실행할 materialized batch 계약 없�
 고정 Django의 중첩/filtered cache·lookup 순서·owner filter scope를 실제 generated 소비자와 비교한다.
 Target query의 slice는 아래의 owner별 window 계획을 따른다. 일반 manager와 분리된 named snapshot으로 읽는다.
 
+
+### Streaming의 배치와 실행 소유권
+
+고정 Django의 iterator는 prefetch가 있으면 양수 chunk size를 요구한다. 각 chunk의 전체 owner 집합으로 하위 graph를
+읽은 뒤 값을 돌려주며, 전체 QuerySet cache를 사용하거나 바꾸지 않는다. 중간 중단·실패 뒤 기존 전체 cache는 유지한다.
+연속 관계 filter·owner별 slice에서 chunk 경계는 membership owner의 조회 범위에 영향을 준다. 이를 임의의 숨은 크기로 다시 나누지 않는다.
+
+GoDj의 `db.BatchQueryer`는 row decode와 완성 batch의 yield를 구분하는 선택적 DB 실행 경계다.
+Source plan의 순서·중복·slice를 한 번의 원본 조회에서 유지한다. Scan callback은 caller 소유 비공개 buffer만 구성하고,
+yield는 반환된 executor의 기존 query/write capability를 사용한다. 양수 크기·callback·전체 plan을 SQL 전에 검증한다.
+이전 batch의 관찰은 이후 실패로 회수하지 않으며 실패한 batch는 yield하지 않는다. bool=false로 정상 중단한다.
+
+현재 ordinary/relation/coordinated transaction session에 구현했다. SQLite는 source rows와 하위 작업에 같은 연결을 사용한다.
+PostgreSQL은 `NO SCROLL CURSOR WITHOUT HOLD`를 선언하고 각 bounded FETCH의 rows를 닫은 뒤 yield한다.
+원본 rowset이 열린 채 다른 statement를 실행하면 pgx는 `conn busy`로 실패하므로 이 close 경계가 필요하다.
+Native scalar adapter를 FETCH에도 적용하며 cursor 이름은 호출마다 독립이다. Cursor cleanup은 취소된 read context와
+분리된 bounded context를 사용하고 기존 transaction 종료가 cursor를 정리한 경우만 종료된 세션 오류를 정규화한다.
+Commit·rollback·재시도는 배치 executor가 수행하지 않는다. PostgreSQL의 cursor lifetime은
+[DECLARE](https://www.postgresql.org/docs/17/sql-declare.html)와 [FETCH](https://www.postgresql.org/docs/17/sql-fetch.html)를 따른다.
+
+Root backend의 connection 소유권·종료 후 model 수명·model graph·generated iterator 연결은 남아 있다.
+그 연결 전에는 기존 configured raw Iterate의 명시 오류를 유지한다. 전체 source를 client에 먼저 저장하거나 OFFSET 재조회로 대체하지 않는다.
 
 ### 단일 관계 prefetch와 eager 부모 재사용
 

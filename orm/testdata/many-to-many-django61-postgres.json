@@ -1150,6 +1150,708 @@
         "window_queries": 1
       }
     },
+    "prefetch_stream": {
+      "callback_error": {
+        "error": "RuntimeError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ]
+        ],
+        "queries": 2
+      },
+      "chunk_1": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 5
+      },
+      "chunk_2": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      },
+      "chunk_3": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      },
+      "chunk_8": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 2
+      },
+      "early_stop": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ]
+        ],
+        "queries": 2
+      },
+      "invalid_missing": {
+        "error": "ValueError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [],
+        "queries": 0
+      },
+      "invalid_negative": {
+        "error": "ValueError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [],
+        "queries": 0
+      },
+      "invalid_zero": {
+        "error": "ValueError",
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [],
+        "queries": 0
+      },
+      "nested_filtered": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ],
+              [
+                "a",
+                [
+                  "owner-0"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "full_after_queries": 3,
+        "members": [
+          [
+            "owner-0",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ],
+              [
+                "a",
+                [
+                  "owner-0"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              [
+                "b",
+                [
+                  "owner-0",
+                  "owner-1"
+                ]
+              ]
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "queries": 4
+      },
+      "owner_scope_1": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            []
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "queries": 5
+      },
+      "owner_scope_2": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            []
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            []
+          ]
+        ],
+        "queries": 3
+      },
+      "transaction": {
+        "count_after_close": 4,
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 2,
+        "members": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      },
+      "warm_cache": {
+        "error": null,
+        "full_after": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "full_after_queries": 0,
+        "held": [
+          [
+            "owner-0",
+            [
+              "a",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "members": [
+          [
+            "owner-0",
+            [
+              "a-new",
+              "b"
+            ]
+          ],
+          [
+            "owner-1",
+            [
+              "b"
+            ]
+          ],
+          [
+            "owner-2",
+            []
+          ],
+          [
+            "owner-3",
+            [
+              "c"
+            ]
+          ]
+        ],
+        "queries": 3
+      }
+    },
     "query_boolean_order": {
       "double_not_pair": [],
       "negative_first": [],

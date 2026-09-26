@@ -166,15 +166,12 @@ func executeAdmittedCoordinatedAtomic(
 	session := &coordinatedSession{session: inner}
 	deferredCleanup := true
 	defer func() {
-		panicValue := recover()
-		if panicValue == nil {
-			return
-		}
+		// Both panic and runtime.Goexit run defers. Neither may leave the
+		// raw transaction or its pinned connection behind.
 		if deferredCleanup {
 			inner.deactivate()
 			_, _ = rollbackRelationConnection(ctx, connection, admission)
 		}
-		panic(panicValue)
 	}()
 
 	callbackErr := callback(session)

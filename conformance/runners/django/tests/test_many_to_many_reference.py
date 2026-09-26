@@ -40,10 +40,65 @@ class ManyToManyReferenceTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(actual['django'], '6.1')
         self.assertEqual(actual['backend'], 'sqlite')
-        self.assertEqual(len(actual['observations']), 50)
+        self.assertEqual(len(actual['observations']), 51)
         postgres = json.loads((FIXTURES / 'many-to-many-django61-postgres.json').read_text())
         for field in ('observations', 'source_sha256'):
             self.assertEqual(actual[field], postgres[field])
+
+    def test_stream_batches_bypass_cache_and_preserve_explicit_owner_universe(self):
+        cases = self.snapshots[0]['observations']['prefetch_stream']
+        self.assertEqual(len(cases), 14)
+        full = [['owner-0', ['a', 'b']], ['owner-1', ['b']], ['owner-2', []], ['owner-3', ['c']]]
+        for size, queries in [(1, 5), (2, 3), (3, 3), (8, 2)]:
+            self.assertEqual(cases['chunk_' + str(size)], {
+                'members': full, 'queries': queries, 'error': None,
+                'full_after': full, 'full_after_queries': 2,
+            })
+        for name in ['missing', 'zero', 'negative']:
+            self.assertEqual(cases['invalid_' + name], {
+                'members': [], 'queries': 0, 'error': 'ValueError',
+                'full_after': full, 'full_after_queries': 2,
+            })
+        for name, error in [('early_stop', None), ('callback_error', 'RuntimeError')]:
+            self.assertEqual(cases[name], {
+                'members': full[:1], 'queries': 2, 'error': error,
+                'full_after': full, 'full_after_queries': 2,
+            })
+        nested = [['owner-0', [['b', ['owner-0', 'owner-1']], ['a', ['owner-0']]]],
+                  ['owner-1', [['b', ['owner-0', 'owner-1']]]], ['owner-2', []], ['owner-3', []]]
+        self.assertEqual(cases['nested_filtered'], {
+            'members': nested, 'queries': 4, 'error': None,
+            'full_after': nested, 'full_after_queries': 3,
+        })
+        scoped = [['owner-0', ['b']], ['owner-1', []], ['owner-2', []], ['owner-3', []]]
+        for size, members, queries in [(1, [[name, []] for name, _ in full], 5), (2, scoped, 3)]:
+            self.assertEqual(cases['owner_scope_' + str(size)], {
+                'members': members, 'queries': queries, 'error': None,
+                'full_after': scoped, 'full_after_queries': 2,
+            })
+        self.assertEqual(cases['transaction'], dict(cases['chunk_2'], count_after_close=4))
+        fresh = copy.deepcopy(full)
+        fresh[0][1][0] = 'a-new'
+        self.assertEqual(cases['warm_cache'], {
+            'members': fresh, 'queries': 3, 'error': None,
+            'full_after': full, 'full_after_queries': 0, 'held': full,
+        })
+
+    def test_stream_chunk_and_cache_semantic_mutations_are_detected(self):
+        source = RUNNER.read_text()
+        for name, before, after in [
+            ('chunk_2', 'iterator = queryset.iterator(chunk_size=size)',
+             'iterator = queryset.iterator(chunk_size=1)'),
+            ('warm_cache', 'iterator = queryset.iterator(chunk_size=size)',
+             'iterator = (value for value in queryset)'),
+        ]:
+            with self.subTest(name=name):
+                self.assertEqual(source.count(before), 1)
+                with tempfile.TemporaryDirectory(prefix='godj-stream-prefetch-mutation-') as directory:
+                    path = Path(directory) / 'reference.py'
+                    path.write_text(source.replace(before, after, 1))
+                    actual = capture(path, '0')['observations']['prefetch_stream'][name]
+                self.assertNotEqual(actual, self.snapshots[0]['observations']['prefetch_stream'][name])
 
     def test_custom_single_prefetch_keeps_absence_and_eager_reuse(self):
         cases = self.snapshots[0]['observations']['prefetch_custom_single']

@@ -25,12 +25,14 @@ Named snapshot은 일반 manager와 분리되고 하위 관계·eager graph·세
 Custom ManyToMany 조회는 전체 owner 집합을 유지하며 큰 integer membership은 양 DB에서 compact parameter로 읽는다.
 단일 관계 target의 Filter·OrderBy·Distinct·eager와 하위 설정을 연결했다.
 조회로 생긴 부재는 명시적 관계 해제와 구분하며 모델 파생·저장에서도 기존 FK를 보존한다.
+빌린 transaction의 배치 조회 기반을 연결했다. PostgreSQL의 배치 rowset은 하위 조회 전에 닫고 SQLite는 같은 연결을 사용한다.
+Materialized streaming의 root 연결 소유권·model graph·generated API 연결은 진행 중이다.
 지원 범위와 남은 제한은 [구현 현황](IMPLEMENTATION_MATRIX.md), [Backend 범위](../BACKEND_MATRIX.md),
 [관계 소유권 결정](../adr/0075-many-to-many-storage-and-mutation-ownership.md)을 따른다.
 
 ## 다음 행동
 
-남은 prefetch materialization 계약을 완성하고 Ticket 라벨 컬렉션 편집으로 이어간다.
+Root 연결 소유권과 배치 model materialization·generated streaming을 연결하고 Ticket 라벨 컬렉션 편집으로 이어간다.
 Ticket 저장 transaction에서 권한·양쪽 Category·전체 원하는 집합을 다시 검증하고 Form/Admin/API/OpenAPI·독립 client까지 완성한다.
 이 소비자 통합 뒤 GDJ-0099 Hosted 전체 milestone을 검증한다. 명시적 연결 CRUD나 root manager만으로 전체 소비자를 완료로 세지 않는다.
 
