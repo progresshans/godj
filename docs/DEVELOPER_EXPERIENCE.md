@@ -95,11 +95,19 @@ go run ./examples/article/cmd/adoptoperator --inspect
 전환 후 `OpenIdentity`는 현재 User/Group/Permission을 읽는 인증기와 기존 durable session/audit 저장소를 연결한다.
 
 `identity.NewManager(runtime, hasher, authorizer)`는 이 runtime의 native snapshot·동일 transaction·session/audit 소유권을 사용한다.
-현재 `SetPassword(ctx, actor, userID, expectedRevision, password)`로 관리자 비밀번호 교체를 수행한다. Actor는 호스트가 인증한
+`SetPassword(ctx, actor, userID, expectedRevision, password)`로 관리자 비밀번호 교체를 수행한다. Actor는 호스트가 인증한
 Principal이어야 하며, 서비스가 저장된 현재 `godj_identity.change_user`와 deny overlay를 다시 확인한다. 대상의 revision을 명시하고,
 성공 때 반환하는 Profile에만 새 revision이 있다. Hash 생성은 DB 범위 밖에서 한 번, User 변경·대상 세션 폐기·감사는 같은 transaction이다.
 오류에는 성공 Profile이 없으며 unknown outcome을 자동 재시도하지 않는다. 자기 비밀번호 변경/reset과 관리 UI/API는 아직 연결하지 않았다.
-사용자 생성·편집·비밀번호 변경·권한 관리의 일반 UI/API 및 revision/audit 서비스는 별도 구현 단계이며 이 전환 API가 대신하지 않는다.
+
+`CreateUser`에는 호스트가 선택한 불변 principal ID로 만든 `NewUserCreate`와 password를 별도로 전달한다.
+`User`/`Users`는 현재 조회 또는 변경 권한을 확인하고 공개 profile을 반환한다. 단일 조회에는 그룹·직접 권한 ID도 포함된다.
+`UpdateUser`는 expected revision과 명시적 `UserPatch`를 받는다. 관계 입력을 생략하면 유지하고 빈 collection을 주면 해제한다.
+Profile·role·관계·감사는 하나의 transaction이며 비활성화는 대상의 현재 session도 폐기한다. Password/hash·principal ID는 patch에 없다.
+`DeleteUser`에는 호스트가 생성한 전체 User relation deleter를 전달한다. 외부 모델의 CASCADE/PROTECT와 session·감사를 함께 처리하며
+성공 결과는 ID·revision·삭제 건수다. 실패/unknown에는 성공 값을 반환하지 않는다.
+생성은 현재 `add_user`와 `change_user`를 모두 요구하고 모든 작업은 현재 grant와 deny overlay를 다시 확인한다.
+Group/Permission 자체의 관리 service, 전용 Form/Admin/API/client와 self-service/reset은 아직 미완료다.
 
 ## Form, Admin과 API
 

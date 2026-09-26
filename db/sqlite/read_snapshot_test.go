@@ -125,6 +125,10 @@ func TestSQLiteIdentityPasswordManagement(t *testing.T) {
 	identitytest.RunPasswordManagement(t, openSQLiteIdentityPair)
 }
 
+func TestSQLiteIdentityUserManagement(t *testing.T) {
+	identitytest.RunUserManagement(t, openSQLiteIdentityPair)
+}
+
 func openSQLiteIdentityPair(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
 	t.Helper()
 	path := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "transition.sqlite3")) + "?mode=rwc&_pragma=busy_timeout(5000)"

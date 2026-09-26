@@ -10,9 +10,15 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/identity/project"
 )
 
-const ChangeUser auth.Permission = "godj_identity.change_user"
+const (
+	ViewUser   auth.Permission = "godj_identity.view_user"
+	AddUser    auth.Permission = "godj_identity.add_user"
+	ChangeUser auth.Permission = "godj_identity.change_user"
+	DeleteUser auth.Permission = "godj_identity.delete_user"
+)
 
 // ManagementBackend owns one database coordination domain for user mutations,
 // session revocation and audit. The two effects must use the borrowed Session;
@@ -31,10 +37,11 @@ type ManagementBackend interface {
 type Manager struct{ state *managerState }
 
 type managerState struct {
-	backend    ManagementBackend
-	directory  *Directory
-	hasher     auth.PasswordHasher
-	authorizer auth.Authorizer
+	backend     ManagementBackend
+	directory   *Directory
+	hasher      auth.PasswordHasher
+	authorizer  auth.Authorizer
+	collections project.Collections
 }
 
 func (Manager) Format(state fmt.State, _ rune) {
@@ -49,7 +56,11 @@ func NewManager(backend ManagementBackend, hasher auth.PasswordHasher, authorize
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, "manager", err)
 	}
-	return &Manager{state: &managerState{backend: backend, directory: directory, hasher: hasher, authorizer: authorizer}}, nil
+	collections, err := project.BindCollections()
+	if err != nil {
+		return nil, managementError(CodeInvalidConfig, "manager", err)
+	}
+	return &Manager{state: &managerState{backend: backend, directory: directory, hasher: hasher, authorizer: authorizer, collections: collections}}, nil
 }
 
 // SetPassword is an administrative replacement, not self-service password
@@ -87,7 +98,7 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 			callbackErr = managementError(CodePersistence, "snapshot_contract", nil)
 			return callbackErr
 		}
-		_, before, callbackErr = manager.passwordTarget(ctx, reader, actor.ID(), userID, expectedRevision)
+		_, before, callbackErr = manager.managedUserForChange(ctx, reader, actor.ID(), userID, expectedRevision)
 		return callbackErr
 	})
 	if err = errors.Join(err, callbackErr, ctx.Err()); err != nil {
@@ -120,7 +131,7 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 			return callbackErr
 		}
 		callbackErr = func() error {
-			row, current, err := manager.passwordTarget(ctx, session, actor.ID(), userID, expectedRevision)
+			row, current, err := manager.managedUserForChange(ctx, session, actor.ID(), userID, expectedRevision)
 			if err != nil {
 				return err
 			}
@@ -157,30 +168,9 @@ func (manager *Manager) SetPassword(ctx context.Context, actor auth.Principal, u
 	return result, nil
 }
 
-func (manager *Manager) passwordTarget(ctx context.Context, reader db.Queryer, actorID string, userID, revision int64) (models.User, Account, error) {
-	actor, present, err := models.UserObjects.Using(reader).Filter(models.UserFields.PrincipalID.Exact(actorID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
-	if err != nil {
+func (manager *Manager) managedUserForChange(ctx context.Context, reader db.Queryer, actorID string, userID, revision int64) (models.User, Account, error) {
+	if err := manager.requireActor(ctx, reader, actorID, ChangeUser); err != nil {
 		return models.User{}, Account{}, err
-	}
-	if !present {
-		return models.User{}, Account{}, managementError(CodePermission, "actor", nil)
-	}
-	account, err := manager.state.directory.accountFromRow(ctx, reader, actor)
-	if err != nil {
-		return models.User{}, Account{}, err
-	}
-	principal := account.value().credential.Principal()
-	if !principal.Has(ChangeUser) {
-		return models.User{}, Account{}, managementError(CodePermission, "actor", nil)
-	}
-	// Authorizers are a deny overlay over the current stored grants. They must
-	// not recursively acquire this manager's database coordination domain.
-	allowed, err := manager.state.authorizer.Allowed(ctx, principal, ChangeUser)
-	if err != nil {
-		return models.User{}, Account{}, err
-	}
-	if !allowed {
-		return models.User{}, Account{}, managementError(CodePermission, "actor", nil)
 	}
 	row, found, err := models.UserObjects.Using(reader).Filter(models.UserFields.ID.Exact(userID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
 	if err != nil {
@@ -192,6 +182,36 @@ func (manager *Manager) passwordTarget(ctx context.Context, reader db.Queryer, a
 	if row.Revision != revision {
 		return models.User{}, Account{}, managementError(CodeConflict, "user", nil)
 	}
-	account, err = manager.state.directory.accountFromRow(ctx, reader, row)
+	account, err := manager.state.directory.accountFromRow(ctx, reader, row)
 	return row, account, err
+}
+
+func (manager *Manager) requireActor(ctx context.Context, reader db.Queryer, actorID string, permission auth.Permission, additional ...auth.Permission) error {
+	actor, present, err := models.UserObjects.Using(reader).Filter(models.UserFields.PrincipalID.Exact(actorID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
+	if err != nil {
+		return err
+	}
+	if !present {
+		return managementError(CodePermission, "actor", nil)
+	}
+	account, err := manager.state.directory.accountFromRow(ctx, reader, actor)
+	if err != nil {
+		return err
+	}
+	principal := account.value().credential.Principal()
+	for _, required := range append([]auth.Permission{permission}, additional...) {
+		if !principal.Has(required) {
+			return managementError(CodePermission, "actor", nil)
+		}
+		// Authorizers remain a deny overlay over every current stored grant.
+		// They must not recursively acquire this database coordination domain.
+		allowed, err := manager.state.authorizer.Allowed(ctx, principal, required)
+		if err != nil {
+			return managementError(CodePersistence, "actor", err)
+		}
+		if !allowed {
+			return managementError(CodePermission, "actor", nil)
+		}
+	}
+	return nil
 }

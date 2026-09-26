@@ -163,6 +163,63 @@ func TestExternalConsumerBindsAndExecutesRelationDeleter(t *testing.T) {
 	}
 }
 
+type borrowedExternalDeleteSession struct {
+	*externalRelationDeleteSession
+	closed bool
+}
+
+func (session *borrowedExternalDeleteSession) ValidateSession(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if session.closed {
+		return errors.New("expired test session")
+	}
+	return nil
+}
+
+func TestExternalBorrowedRelationDeletePreservesModelAndRejectsExpiredOrRootHandles(t *testing.T) {
+	authors, blog := externalRelationDeleteSchemas()
+	binding, err := orm.BindProject(blog, authors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleter, err := orm.BindRelationDeleter(binding, ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, externalRelationDeleteAuthorDescriptor{}, externalRelationDeleteFingerprint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := &externalRelationDeleteSession{rows: &externalRelationDeleteRows{}}
+	target := externalRelationDeleteAuthor{ID: 2, Name: "Bob", present: true}
+	if count, err := deleter.DeleteInSession(t.Context(), root, target); err == nil || count != 0 || len(root.queryPlans) != 0 {
+		t.Fatal("root handle was treated as a borrowed transaction")
+	}
+	session := &borrowedExternalDeleteSession{externalRelationDeleteSession: root}
+	if count, err := deleter.DeleteInSession(t.Context(), session, target); err != nil || count != 1 || target.ID != 2 || !target.present {
+		t.Fatal("provisional delete changed caller model", count, err)
+	}
+	session.closed = true
+	reads, writes := len(root.queryPlans), len(root.deletes)
+	if count, err := deleter.DeleteInSession(t.Context(), session, target); err == nil || count != 0 || len(root.queryPlans) != reads || len(root.deletes) != writes {
+		t.Fatal("expired session performed delete I/O")
+	}
+	session.closed = false
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := deleter.DeleteInSession(ctx, session, target); !errors.Is(err, context.Canceled) {
+		t.Fatal("cancellation lost", err)
+	}
+	if _, err := deleter.DeleteInSession(nil, session, target); err == nil {
+		t.Fatal("nil context accepted")
+	}
+	if _, err := deleter.DeleteInSession(t.Context(), nil, target); err == nil {
+		t.Fatal("nil session accepted")
+	}
+	var unbound orm.RelationDeleter[externalRelationDeleteAuthor]
+	if _, err := unbound.DeleteInSession(t.Context(), session, target); err == nil {
+		t.Fatal("unbound policy accepted")
+	}
+}
+
 func externalRelationDeleteAuthorModel() ir.Model {
 	return ir.Model{
 		Name:    "author",

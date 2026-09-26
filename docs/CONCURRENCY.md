@@ -240,6 +240,12 @@ Adoption은 source policy 검증·User/권한/receipt·source 비활성 표시�
 다시 확인한다. Revision 증가·대상 session만의 폐기·감사 저장은 하나의 transaction이다. 다른 runtime의 동일 revision 요청은
 한 번만 성공하며, 실패나 unknown commit 뒤 자동 재시도하지 않는다. 모든 협력 identity writer가 같은 fence/revision을 따라야 한다.
 
+사용자 생성·편집도 같은 coordinated relation transaction을 사용한다. 생성 전 preflight와 hash 뒤 쓰기 재검사 사이에
+인가·중복·관계가 바뀌면 현재 상태로 거부한다. Scalar·관계 집합·revision·대상 session 폐기·감사는 함께 commit한다.
+호스트의 `RelationDeleter.DeleteInSession`은 borrowed session 수명을 검증하며 별도 transaction이나 caller PK 변경을 소유하지 않는다.
+관계 삭제 건수는 바깥 transaction의 commit 전에는 잠정 결과다. 뒤의 audit/session 실패도 외부 모델 변경까지 rollback한다.
+읽기에서 예상 입력 거부를 발견했어도 종료 실패가 있으면 실행 오류다. 확정되지 않은 종료를 입력 오류나 성공으로 숨기지 않는다.
+
 Identity로 이전하기 전 legacy operator 권한 변경은 `UpdateOperatorPermissions`에 expected current policy를 명시하여 요청한다.
 Cooperative transaction에서 policy 비교·권한 변경·session 폐기를 함께 수행한다. Authenticate/Resolve는 현재 policy를 확인하므로
 변경 전 runtime은 새 인증을 거부하고 새 policy로 다시 열어야 한다. 이미 허용된 in-flight 작업까지 소급 취소하지 않는다.

@@ -3,6 +3,70 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0100 — 사용자 관리와 호스트 관계 삭제
+
+2026-09-27, `69b74b232e4debfb531fb2b3f10d95f0e7d84b81` 뒤의 변경이다. 최종 non-Markdown **2,288 파일** source map SHA-256은
+`5568b8b9459dfabe3ec077e652de29f5c3f92df0cf22914e4fead9b4518228e6`이다.
+Darwin arm64 / Go 1.26.5, 실제 SQLite와 private PostgreSQL **17.10**, **10 packages / 537 required entries**
+(427 roots와 명시한 password/user-management subcase 110개)의 completion·no-skip을 검사했다.
+Auth·identity·ORM·systemstate·Admin·Web/API session·Bearer 전체와 native snapshot/identity/adoption roots가 최종 scope다.
+Generated schema/ABI 변경은 없다. 새 관리 Form/Admin/API/client, 별도 process restart와 Hosted full은 이 checkpoint의 대상이 아니다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,369 PASS / skip 0 | 15.065초 |
+| race | 1,369 PASS / skip 0 | 95.875초 |
+| CGO=0 | 1,369 PASS / skip 0 | 24.507초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`에 mode별 `-race` 또는 `CGO_ENABLED=0`.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`; PostgreSQL image는
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+양 native 연결은 각각 max-open=1이며, 실제 서로 다른 연결의 create 경쟁은 한 번만 생성되고 나머지는 renderable unique rejection이었다.
+Update 경쟁은 한 번만 revision을 증가시켰다. Hash 안에서 같은 backend의 인가 변경이 완료되어 preflight 읽기 종료를 확인했다.
+
+생성·profile/role·그룹/직접 권한 편집, 생략/명시적 빈 집합, no-op·반환 slice 소유권, bounded page를 검사했다.
+편집의 credential/stamp 보존과 다음 Resolve의 현재 grant, 비활성화의 session 폐기, runtime 재접속과 실제 HTTP cookie/login을 확인했다.
+호스트 generated policy의 외부 Note CASCADE·Guard PROTECT, 관계 membership 정리와 Group/Permission 보존을 실제 행으로 검사했다.
+삭제 응답은 ID·revision·건수 3개 field만 공개하며 borrowed delete는 caller model key를 바꾸지 않는다.
+현재 actor 권한·deny overlay, 중복/없는 관계의 hash·write 생략, 유효 grant 256/257 경계,
+update/membership/audit 실패·취소·unknown commit·늦은 취소와 읽기 종료/누락/nil/중복/삼킨 오류를 포함한다.
+실패 시 profile·관계·외부 모델·session·audit의 rollback을 검사하고 지정한 fault 단계의 실제 실행을 확인했다.
+Unknown outcome은 성공 DTO를 게시하거나 재시도하지 않는다. 별도 command receipt/idempotency API의 증거는 아니다.
+
+고정 Django 6.1 / Python 3.14.3에서 독립 `identity_management_reference.py`를 실행했다.
+실제 UserManager·UserAdmin add view·transaction으로 생성/편집/rollback/삭제/인가/Unicode email 정규화 6개 observation 그룹을 수집했다.
+SQLite **3.50.4**와 PostgreSQL **17.10**, `PYTHONHASHSEED=0/813`의 backend별 capture가 각각 byte 동일했고 관찰과 upstream source hash도 일치했다.
+Runner SHA-256은 `4a6895b2bf635b3659657ccefdd0207b5354e7fc47205e9a05066266eec8cec8`이다.
+Python reference **2/2**는 username/email 정규화·view/change fallback 제거 3개 semantic mutation도 구분한다.
+이 관찰은 전체 UserCreationForm의 validation·대소문자 무시 중복까지 검증했다는 뜻은 아니다.
+
+Go overlay **9개 변형 / 17개 실제 assertion 탐지**: create의 change 권한 누락, revision 검사 제거,
+원문 password 저장, group membership 누락, 비활성화 session 폐기 누락, audit 오류 무시, unknown 성공 게시,
+full Unicode lowercase를 단순 lowercase로 교체(각 양 DB), borrowed delete의 session lifetime admission 제거(ORM).
+Compile 실패·timeout·race는 탐지로 세지 않았다. Source 전후 동일, PostgreSQL table·owned schema·다른 connection `0|0|0`,
+private container 제거를 확인했다. 독립 reference도 table 0·DB 삭제·container 제거를 확인했다.
+영향 `go vet`, gofmt/diff·문서 링크, CI Python **41/41**을 통과했다.
+
+직전 source `a8ac6f04d2ae22e121466fb9f0abaef14f49aa078263bd682117071145c04c71`에서는 Article·siteapp·Helpdesk를 더한
+**13 packages, 세 모드 각각 1,533 PASS / skip 0**을 확인했다. 이후 Unicode 정규화·삭제 응답 제한과 해당 test/reference/roster를 보완했다.
+최종 source에서는 직접 영향받는 core/native를 재실행했다. 위 소비자 결과를 최종 source의 새 실행으로 표현하지 않는다.
+
+초기 source `9247ade76d9d6b43cab4bc9a07f927853c4f4bbb6f5155ce1234baae77ed3c2f`에서는 native read 종료가 callback error를
+`errors.Join`으로 감싼 뒤 예상 입력 거부가 실행 오류로 분류되어 양 DB의 duplicate/missing-target·grant-limit 검사가 실패했다.
+예상 거부를 읽기 데이터로 보관하고 정상 종료 뒤에만 공개하도록 고쳤으며 cleanup 실패가 겹치는 별도 회귀를 추가했다.
+Python unittest 초기 URLconf import 실패는 `runpy.run_module(..., alter_sys=True)`로 actual module 등록을 바로잡았다.
+각 실패 stream은 보존하고 수정 source의 PASS에 합치지 않는다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+- `user-management-checkpoint-1790459768792806000/receipt.json`: 최종 세 모드의 roster·원본 stream·전후 source map.
+- `user-management-controls-1790459824690637000/receipt.json`: 9개 overlay와 17개 assertion 탐지.
+- `user-management-reference-1790459613858405000/receipt.json`: 양 DB·두 seed 독립 capture와 cleanup.
+- `user-management-checkpoint-1790459202555099000/receipt.json`: 직전 source의 13-package 소비자 포함 실행.
+- `user-management-checkpoint-1790458963865035000/receipt.json`: 초기 native preflight 분류 실패.
+
+사용자/password service까지 구현했다. Group/Permission 자체의 관리, 전용 Form/Admin/API·독립 client,
+self-service/reset·나머지 credential lifecycle와 GDJ-0100의 전체 통합 milestone은 아직 미완료다.
+
 ## GDJ-0100 — 관리자 비밀번호 교체와 대상별 세션 폐기
 
 2026-09-27, `9cb5085c` 뒤의 변경이다. Non-Markdown **2,279 파일** source map SHA-256

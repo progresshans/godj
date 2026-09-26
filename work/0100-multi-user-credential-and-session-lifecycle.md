@@ -25,34 +25,22 @@ GDJ-0099와 credential/session 기반의 Hosted 통합은 완료했다. 이후 �
 
 ## 현재와 다음
 
-[Credential snapshot 결정](../docs/adr/0076-credential-snapshots-and-session-binding.md)을 구현하고 영향 checkpoint를 통과했다.
-Authenticate/Resolve의 현재 credential과 권한 snapshot을 한 번에 반환하고, ID와 credential stamp를 서버 세션에 함께 저장한다.
-비밀번호 교체·재해싱과 권한·username 변경의 서로 다른 세션 결과를 독립 Django 기준과 실제 HTTP에서 검증한다.
-이는 다중 사용자 저장이나 password maintenance endpoint의 구현 완료가 아니다.
-재사용 가능한 사용자 앱에 필요한 [외부 app 소유권](../docs/adr/0077-reusable-app-models-and-host-relation-ownership.md)을 구현하고 영향 checkpoint를 통과했다.
-User·Group·Permission 선언과 초기 migration, 별도 호스트의 generated relation 소비자를 연결했다.
-호스트가 라이브러리 파일을 수정하지 않고 전체 FK·CASCADE·PROTECT를 소유하는 경계를 양 DB·normal/race/CGO=0과 실제 generated 소비자에서 검증했다.
-Directory가 사용자와 직접·그룹 권한을 한 native read snapshot에서 읽고 불변 Account를 반환한다.
-Profile/권한 반환의 복사 소유권과 진단/JSON 경계, 잘못된 저장값·권한 한도·실패한 종료의 부분 게시 거부를 양 DB에서 검증했다.
-고정 Django의 grant union·객체별 snapshot·그룹 삭제를 비교하고 role 조합을 독립 관찰했다.
-저장 인증과 role admission을 소비자에 통합했다. `identity.NewAuthenticator`는 비밀번호 작업 전 snapshot을
-종료하고 성공 뒤 ID·username·credential stamp가 같은지 다시 읽는다. 최신 permission/role을 반환하며 재검증·재시도하지 않는다.
-Inactive는 인증/권한을 거부하고 superuser는 canonical permission을 허용한다. Admin은 active staff를 요구하며
-기존 site-access permission만으로 진입하지 않는다. 추가 AccessPermission과 Authorizer의 deny overlay는 별도로 적용한다.
-기존 operator 저장 형식에 없는 role을 startup 설정으로 임의 부여하지 않도록 거부한다.
+[Credential snapshot·관리 결정](../docs/adr/0076-credential-snapshots-and-session-binding.md)과
+[외부 app·호스트 관계 소유권](../docs/adr/0077-reusable-app-models-and-host-relation-ownership.md)을 구현했다.
+현재 credential·role·grant snapshot과 session stamp, User/Group/Permission 모델·migration,
+Directory·저장 인증·staff admission·명시적 operator 전환을 Article/Helpdesk·CLI·durable 소비자에 연결했다.
+관리자 비밀번호 교체는 현재 인가·revision·credential을 재확인하고 User·대상 session 폐기·감사를 원자적으로 쓴다.
+이 기반은 게시와 영향 검증을 완료했다. 이전 Hosted 전체 결과는 이후 관리 변경의 전체 검증으로 전이하지 않는다.
 
-저장 인증·staff admission에 이어 system schema의 명시적 identity 전환과 operator adoption을 구현해 게시했다.
-PrincipalID·encoded password·기존 grant·session binding·audit 행을 보존하고 User/권한/기록/legacy 비활성 표시를 원자적으로 쓴다.
-Unknown commit은 성공 receipt를 게시하지 않고 명시적 조회로 조정한다. 새 bootstrap도 옛 provisioning을 재활성화하지 않는다.
-Article/Helpdesk·createsuperuser/runserver·별도 프로세스 소비자는 OpenIdentity로 연결했으며,
-Article의 명시적 adoptoperator/inspect 명령은 기존 세션의 실제 Admin 진입을 검증한다.
-Credential/Account/인증기/Directory/receipt의 잘못된 fmt verb 노출을 불투명한 내부 상태와 Formatter로 막았다.
-영향 normal/race/CGO=0, 양 DB와 플랫폼별 process/capture·30개 system-state 소비자 관찰을 완료했다.
-전체 플랫폼 milestone은 아래 사용자 관리 소비자 통합 뒤 실행한다.
+사용자 생성·조회·편집·삭제 service를 구현하고 영향 checkpoint를 통과했다.
+생성은 현재 add/change 권한을 모두 확인하고 hash 전 읽기를 종료한 뒤 transaction에서 재검사한다.
+편집은 expected revision, scalar와 그룹/직접 grant의 전체 집합을 처리하며 no-op은 revision/audit를 늘리지 않는다.
+비활성/삭제의 대상 session 폐기, 호스트 관계 정책과 감사 rollback, unknown 결과 미게시를 양 DB에서 검증했다.
+독립 Django manager/UserAdmin 관찰과 Unicode 정규화, 실제 HTTP/session·runtime 재접속, 두 연결의 경쟁과 실패 경계를 포함한다.
+전체 UserCreationForm validator와 전용 management endpoint가 구현됐다고 주장하지 않는다.
 
-관리자 비밀번호 교체 service를 구현해 게시했다. 현재 권한·revision·credential을 재확인하고 한 번의 hash 작업 뒤
-User 갱신·대상 세션만의 폐기·값 없는 audit를 같은 transaction으로 처리한다. 양 DB의 실제 session/HTTP·재접속과 경쟁·실패 경계,
-영향 normal/race/CGO=0·negative control을 검증했다.
-다음은 사용자·그룹·권한의 나머지 관리 service와 실제 Form/Admin/API·독립 client다. Self-service password/reset도 별도 미완료 범위다.
+다음은 Group/Permission 자체의 관리 service와 실제 사용자·비밀번호·그룹·권한 Form/Admin/API·독립 client다.
+Self-service password/reset·사용 불가능한 password lifecycle·last_login 갱신도 별도 미완료 범위다.
+전체 플랫폼/process milestone은 관리 소비자 통합 뒤 새 source에서 실행한다.
 기존 operator에 staff를 자동 추론하는 호환 분기나 in-memory role 부여는 사용하지 않는다.
 실행 상세는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md) 한 곳에 기록한다.

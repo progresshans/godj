@@ -142,6 +142,40 @@ func (d RelationDeleter[M]) Delete(
 	return deleted, nil
 }
 
+// DeleteInSession applies the sealed host relation policy inside the caller's
+// transaction. It never opens, commits, retries or rolls back a transaction and
+// never clears the caller's model key: the count is provisional until the outer
+// owner confirms commit. Any returned error must leave the outer callback.
+func (d RelationDeleter[M]) DeleteInSession(ctx context.Context, session db.RelationSession, target M) (int64, error) {
+	if interfaceIsNil(ctx) {
+		return 0, relationInvalidPlan("context is nil")
+	}
+	if interfaceIsNil(session) {
+		return 0, relationBackendInvalidPlan("borrowed delete session is nil")
+	}
+	if _, ok := session.(db.SessionValidator); !ok {
+		return 0, relationBackendInvalidPlan("borrowed delete requires session lifetime validation")
+	}
+	if err := validateQuerySession(ctx, session); err != nil {
+		return 0, err
+	}
+	if err := d.state.validate(); err != nil {
+		return 0, err
+	}
+	key, err := d.state.preflight(target)
+	if err != nil {
+		return 0, err
+	}
+	count, err := d.state.execute(ctx, session, key)
+	if err != nil {
+		return 0, err
+	}
+	if err := validateQuerySession(ctx, session); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (state relationDeleteState[M]) validate() error {
 	if !state.valid || interfaceIsNil(state.descriptor) || !immutableZeroStateValue(state.descriptor) {
 		return relationInvalidPlan("relation deleter is unbound")

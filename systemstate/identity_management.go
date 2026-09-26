@@ -30,6 +30,12 @@ func (runtime *Runtime) CoordinatedAtomic(ctx context.Context, callback func(db.
 	return runtime.withAtomic(ctx, callback)
 }
 
+// CoordinatedAtomicRelation exposes that same domain with the borrowed
+// capabilities needed by identity collections and host relation deletion.
+func (runtime *Runtime) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	return runtime.AtomicRelation(ctx, callback)
+}
+
 // RevokePrincipalSessions deletes only the target's authenticated session rows
 // through an already coordinated transaction. It never opens a transaction or
 // publishes a commit result itself. Anonymous and other users' rows are kept.
