@@ -4,7 +4,6 @@
 package operatorconfig
 
 import (
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/internal/articlepermissions"
 	"github.com/progresshans/godj/sessions"
@@ -17,15 +16,15 @@ const (
 	maximumAuditItems = 1024
 )
 
-// CredentialPolicy returns the one secret-free operator policy shared by the
-// project-linked provisioning runner and every Article site process. The
+// CredentialPolicy returns the secret-free legacy operator policy for the
+// historical operator source used for explicit adoption. The
 // returned hasher uses GoDj's current default encoded-password profile.
 func CredentialPolicy() (systemstate.CredentialPolicy, error) {
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
 		ID:     PrincipalID,
 		Active: true,
 		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
+			"godj.admin.access",
 			articlepermissions.ArticleViewPermission,
 			articlepermissions.ArticleAddPermission,
 			articlepermissions.ArticleChangePermission,
@@ -45,8 +44,8 @@ func CredentialPolicy() (systemstate.CredentialPolicy, error) {
 	}, nil
 }
 
-// RuntimeConfig returns the raw-password-free runtime policy used after the
-// sole durable operator has been explicitly provisioned.
+// RuntimeConfig describes the historical operator source and inspection bounds
+// for explicit adoption. New site processes use IdentityRuntimeConfig.
 func RuntimeConfig() (systemstate.RuntimeConfig, error) {
 	policy, err := CredentialPolicy()
 	if err != nil {
@@ -58,4 +57,23 @@ func RuntimeConfig() (systemstate.RuntimeConfig, error) {
 		MaxSessions:      maximumSessions,
 		AuditCapacity:    maximumAuditItems,
 	}, nil
+}
+
+// InitialSuperuser is written once by explicit fresh-domain provisioning.
+// Runtime authorization always resolves stored users, never this declaration.
+func InitialSuperuser() (auth.Principal, error) {
+	legacy, err := CredentialPolicy()
+	if err != nil {
+		return auth.Principal{}, err
+	}
+	return auth.NewPrincipal(auth.PrincipalConfig{ID: PrincipalID, Active: true, Staff: true, Superuser: true, Permissions: legacy.Principal.Permissions()})
+}
+
+// IdentityRuntimeConfig contains only the hash profile and resource bounds.
+func IdentityRuntimeConfig() (systemstate.IdentityRuntimeConfig, error) {
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		return systemstate.IdentityRuntimeConfig{}, err
+	}
+	return systemstate.IdentityRuntimeConfig{PasswordHasher: hasher, SessionLimits: sessions.DefaultLimits(), MaxSessions: maximumSessions, AuditCapacity: maximumAuditItems}, nil
 }

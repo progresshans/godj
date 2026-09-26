@@ -362,7 +362,7 @@ func newArticleAPIAdminSessionFixture(t *testing.T, backend articleapp.Backend) 
 
 func articleAPIPrincipal(t *testing.T, id string, full bool) auth.Principal {
 	t.Helper()
-	permissions := []auth.Permission{admin.DefaultAccessPermission, articleapp.ArticleViewPermission}
+	permissions := []auth.Permission{"godj.admin.access", articleapp.ArticleViewPermission}
 	if full {
 		permissions = append(permissions,
 			articleapp.ArticleAddPermission,
@@ -370,7 +370,7 @@ func articleAPIPrincipal(t *testing.T, id string, full bool) auth.Principal {
 			articleapp.ArticleDeletePermission,
 		)
 	}
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: id, Active: true, Permissions: permissions})
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: id, Active: true, Staff: true, Permissions: permissions})
 	if err != nil {
 		t.Fatal(err)
 	}

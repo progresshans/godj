@@ -36,7 +36,10 @@ func initialize(
 	if err != nil {
 		return response, SecretBundle{}, err
 	}
-	site, err := composeWorkerSite(ctx, backend, request.Username, request.Password)
+	if err := provisionWorkerIdentity(ctx, backend, request.Username, request.Password); err != nil {
+		return response, SecretBundle{}, err
+	}
+	site, err := composeWorkerSite(ctx, backend)
 	if err != nil {
 		return response, SecretBundle{}, err
 	}

@@ -12,7 +12,7 @@ import (
 // activation, password profile, or storage. Persist it explicitly with
 // UpdateOperatorPermissions using the old policy as the expected value.
 func (policy CredentialPolicy) WithPermissions(permissions ...auth.Permission) (CredentialPolicy, error) {
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: policy.Principal.ID(), Active: policy.Principal.Active(), Permissions: permissions})
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: policy.Principal.ID(), Active: policy.Principal.Active(), Staff: policy.Principal.Staff(), Superuser: policy.Principal.Superuser(), Permissions: permissions})
 	if err != nil {
 		return CredentialPolicy{}, err
 	}

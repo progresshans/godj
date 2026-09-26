@@ -77,7 +77,7 @@ func FuzzEncodeDecodeRequest(f *testing.F) {
 func FuzzParseResponse(f *testing.F) {
 	for _, document := range [][]byte{
 		[]byte(`{"protocol_version":1,"status":"ok","result":{"created":true}}`),
-		[]byte(`{"protocol_version":1,"status":"error","error":{"category":"system_state_error","code":"credential_already_exists"}}`),
+		[]byte(`{"protocol_version":1,"status":"error","error":{"category":"system_state_error","code":"identity_already_initialized"}}`),
 		[]byte(`{"protocol_version":1,"status":"error","error":{"category":"system_state_backend_error","code":"backend_close_failed","known_created":true}}`),
 		[]byte(`{"protocol_version":1,"status":"ok","status":"ok","result":{"created":true}}`),
 		[]byte(`{"protocol_version":2,"status":"ok","result":{"created":true}}`),

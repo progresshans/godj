@@ -179,7 +179,7 @@ func assertArticleRunnerBuildAndSpec(t *testing.T, repository string, replacemen
 		t.Fatalf("declaration runner stderr = %q", stderr.String())
 	}
 	response, failure, failed := projectgenerateprotocol.ParseResponse(stdout.Bytes(), true)
-	if failed || failure != (projectgenerateprotocol.Failure{}) || !response.OK || len(response.ProjectSpec.Apps) != 1 || response.ProjectSpec.Apps[0].Alias != "models" {
+	if failed || failure != (projectgenerateprotocol.Failure{}) || !response.OK || len(response.ProjectSpec.Apps) != 2 || response.ProjectSpec.Apps[0].Alias != "models" || !response.ProjectSpec.Apps[1].External {
 		t.Fatalf("declaration response = %+v, failure=%+v, failed=%v", response, failure, failed)
 	}
 }

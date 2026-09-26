@@ -5,6 +5,7 @@ package project
 import (
 	db "github.com/progresshans/godj/db"
 	models "github.com/progresshans/godj/examples/helpdesk/models"
+	identity "github.com/progresshans/godj/identity/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
 	ir "github.com/progresshans/godj/schema/ir"
@@ -278,7 +279,7 @@ func BindReverseObjects() (ReverseObjects, error) {
 
 // BindReverseObjectsIn composes typed relation factories in one caller-owned project binding.
 func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
-	_model0, _err := orm.BindModel(
+	_model6, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
 		models.CategoryDescriptor{},
@@ -286,7 +287,7 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model1, _err := orm.BindModel(
+	_model7, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
 		models.LabelDescriptor{},
@@ -294,7 +295,7 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model8, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
 		models.ServiceReportDescriptor{},
@@ -302,7 +303,7 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model3, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
@@ -310,7 +311,7 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_model4, _err := orm.BindModel(
+	_model10, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
 		models.TicketLabelDescriptor{},
@@ -318,38 +319,38 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation0, _err := orm.BindReverseObject(_model0, "labels", _model1)
+	_relation0, _err := orm.BindReverseObject(_model6, "labels", _model7)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation1, _err := orm.BindReverseObject(_model0, "tickets", _model3)
+	_relation1, _err := orm.BindReverseObject(_model6, "tickets", _model9)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation2, _err := orm.BindReverseObject(_model1, "ticket_links", _model4)
+	_relation2, _err := orm.BindReverseObject(_model7, "ticket_links", _model10)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation3, _err := orm.BindReverseObject(_model3, "label_links", _model4)
+	_relation3, _err := orm.BindReverseObject(_model9, "label_links", _model10)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation4, _err := orm.BindReverseOneToOneObject(_model3, "service_report", _model2)
+	_relation4, _err := orm.BindReverseOneToOneObject(_model9, "service_report", _model8)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
 	return ReverseObjects{
 		ModelsCategory: ModelsCategoryReverseObjectFactory{
-			model:   _model0,
+			model:   _model6,
 			labels:  _relation0,
 			tickets: _relation1,
 		},
 		ModelsLabel: ModelsLabelReverseObjectFactory{
-			model:       _model1,
+			model:       _model7,
 			ticketLinks: _relation2,
 		},
 		ModelsTicket: ModelsTicketReverseObjectFactory{
-			model:         _model3,
+			model:         _model9,
 			labelLinks:    _relation3,
 			serviceReport: _relation4,
 		},
@@ -357,8 +358,14 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 }
 
 type Collections struct {
-	ModelsTicketLabels orm.ManyToMany[models.Ticket, models.Label, models.TicketLabel]
-	ModelsLabelTickets orm.ManyToMany[models.Label, models.Ticket, models.TicketLabel]
+	IdentityGroupPermissions orm.ManyToMany[identity.Group, identity.Permission, identity.GroupPermissionsLink]
+	IdentityPermissionGroups orm.ManyToMany[identity.Permission, identity.Group, identity.GroupPermissionsLink]
+	IdentityUserGroups       orm.ManyToMany[identity.User, identity.Group, identity.UserGroupsLink]
+	IdentityGroupUsers       orm.ManyToMany[identity.Group, identity.User, identity.UserGroupsLink]
+	IdentityUserPermissions  orm.ManyToMany[identity.User, identity.Permission, identity.UserPermissionsLink]
+	IdentityPermissionUsers  orm.ManyToMany[identity.Permission, identity.User, identity.UserPermissionsLink]
+	ModelsTicketLabels       orm.ManyToMany[models.Ticket, models.Label, models.TicketLabel]
+	ModelsLabelTickets       orm.ManyToMany[models.Label, models.Ticket, models.TicketLabel]
 }
 
 func BindCollections() (Collections, error) {
@@ -371,13 +378,61 @@ func BindCollections() (Collections, error) {
 func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+		identity.GroupDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group_permissions"},
+		identity.GroupPermissionsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+		identity.PermissionDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model3, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
+		identity.UserDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user_groups"},
+		identity.UserGroupsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model5, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user_permissions"},
+		identity.UserPermissionsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_model6, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
 		models.CategoryDescriptor{},
 	)
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_model1, _err := orm.BindModel(
+	_model7, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
 		models.LabelDescriptor{},
@@ -385,7 +440,7 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model8, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
 		models.ServiceReportDescriptor{},
@@ -393,7 +448,7 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_model3, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
@@ -401,7 +456,7 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_model4, _err := orm.BindModel(
+	_model10, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
 		models.TicketLabelDescriptor{},
@@ -409,23 +464,53 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	if _err != nil {
 		return Collections{}, _err
 	}
-	if len(_binding.ManyToManyRelations()) != 1 {
+	if len(_binding.ManyToManyRelations()) != 4 {
 		return Collections{}, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "generated collection set does not match project binding"}
 	}
-	_relation0, _err := orm.BindManyToMany(_model3, "labels", _model1, _model4, "c5b72560eb211784a46abe8f4b57d568ef7f8b0a3636a1dadb513a7b4b88964a")
+	_relation0, _err := orm.BindManyToMany(_model0, "permissions", _model2, _model1, "181782af7e28928a9e4f0e9cedda72c84b845041f07848e37a49f2637b661d69")
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_relation1, _err := orm.BindReverseManyToMany(_model1, "tickets", _model3, _model4, "c5b72560eb211784a46abe8f4b57d568ef7f8b0a3636a1dadb513a7b4b88964a")
+	_relation1, _err := orm.BindReverseManyToMany(_model2, "groups", _model0, _model1, "181782af7e28928a9e4f0e9cedda72c84b845041f07848e37a49f2637b661d69")
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_ = _model0
-	_ = _model2
+	_relation2, _err := orm.BindManyToMany(_model3, "groups", _model0, _model4, "17d0175006c529d642b72d73f47da6ad3c3851b78a93932ef264edd3129a6d53")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_relation3, _err := orm.BindReverseManyToMany(_model0, "users", _model3, _model4, "17d0175006c529d642b72d73f47da6ad3c3851b78a93932ef264edd3129a6d53")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_relation4, _err := orm.BindManyToMany(_model3, "permissions", _model2, _model5, "072a0737da13f030c4f76c4727c487dc0b20f70fbf7356b25a5fd54131be92e0")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_relation5, _err := orm.BindReverseManyToMany(_model2, "users", _model3, _model5, "072a0737da13f030c4f76c4727c487dc0b20f70fbf7356b25a5fd54131be92e0")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_relation6, _err := orm.BindManyToMany(_model9, "labels", _model7, _model10, "c5b72560eb211784a46abe8f4b57d568ef7f8b0a3636a1dadb513a7b4b88964a")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_relation7, _err := orm.BindReverseManyToMany(_model7, "tickets", _model9, _model10, "c5b72560eb211784a46abe8f4b57d568ef7f8b0a3636a1dadb513a7b4b88964a")
+	if _err != nil {
+		return Collections{}, _err
+	}
+	_ = _model6
+	_ = _model8
 	return Collections{
-		ModelsTicketLabels: _relation0,
-		ModelsLabelTickets: _relation1,
+		IdentityGroupPermissions: _relation0,
+		IdentityPermissionGroups: _relation1,
+		IdentityUserGroups:       _relation2,
+		IdentityGroupUsers:       _relation3,
+		IdentityUserPermissions:  _relation4,
+		IdentityPermissionUsers:  _relation5,
+		ModelsTicketLabels:       _relation6,
+		ModelsLabelTickets:       _relation7,
 	}, nil
 }
 
-var _ goDjProjectSnapshot_01efd02b97c148b997a6bac28221395d42f9498242cb45508c950a2d50926966
+var _ goDjProjectSnapshot_4bf15ae7229c01473833ad2e439bf179d916a252ca4cfc98d0e5c6770aec5807

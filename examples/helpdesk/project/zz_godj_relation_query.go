@@ -4,6 +4,7 @@ package project
 
 import (
 	models "github.com/progresshans/godj/examples/helpdesk/models"
+	identity "github.com/progresshans/godj/identity/models"
 	orm "github.com/progresshans/godj/orm"
 	ir "github.com/progresshans/godj/schema/ir"
 )
@@ -11,19 +12,232 @@ import (
 const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"
 
 type relationQueryBindings struct {
-	edge0  orm.QueryRelation[models.Category, models.Label]
-	edge1  orm.QueryRelation[models.Category, models.Ticket]
-	edge2  orm.QueryRelation[models.Label, models.Category]
-	edge3  orm.QueryRelation[models.Label, models.TicketLabel]
-	edge4  orm.QueryRelation[models.Label, models.Ticket]
-	edge5  orm.QueryRelation[models.ServiceReport, models.Ticket]
-	edge6  orm.QueryRelation[models.Ticket, models.Category]
-	edge7  orm.QueryRelation[models.Ticket, models.TicketLabel]
-	edge8  orm.QueryRelation[models.Ticket, models.Label]
-	edge9  orm.QueryRelation[models.Ticket, models.ServiceReport]
-	edge10 orm.QueryRelation[models.TicketLabel, models.Label]
-	edge11 orm.QueryRelation[models.TicketLabel, models.Ticket]
+	edge0  orm.QueryRelation[identity.Group, identity.Permission]
+	edge1  orm.QueryRelation[identity.Group, identity.User]
+	edge2  orm.QueryRelation[identity.GroupPermissionsLink, identity.Group]
+	edge3  orm.QueryRelation[identity.GroupPermissionsLink, identity.Permission]
+	edge4  orm.QueryRelation[identity.Permission, identity.Group]
+	edge5  orm.QueryRelation[identity.Permission, identity.User]
+	edge6  orm.QueryRelation[identity.User, identity.Group]
+	edge7  orm.QueryRelation[identity.User, identity.Permission]
+	edge8  orm.QueryRelation[identity.UserGroupsLink, identity.User]
+	edge9  orm.QueryRelation[identity.UserGroupsLink, identity.Group]
+	edge10 orm.QueryRelation[identity.UserPermissionsLink, identity.User]
+	edge11 orm.QueryRelation[identity.UserPermissionsLink, identity.Permission]
+	edge12 orm.QueryRelation[models.Category, models.Label]
+	edge13 orm.QueryRelation[models.Category, models.Ticket]
+	edge14 orm.QueryRelation[models.Label, models.Category]
+	edge15 orm.QueryRelation[models.Label, models.TicketLabel]
+	edge16 orm.QueryRelation[models.Label, models.Ticket]
+	edge17 orm.QueryRelation[models.ServiceReport, models.Ticket]
+	edge18 orm.QueryRelation[models.Ticket, models.Category]
+	edge19 orm.QueryRelation[models.Ticket, models.TicketLabel]
+	edge20 orm.QueryRelation[models.Ticket, models.Label]
+	edge21 orm.QueryRelation[models.Ticket, models.ServiceReport]
+	edge22 orm.QueryRelation[models.TicketLabel, models.Label]
+	edge23 orm.QueryRelation[models.TicketLabel, models.Ticket]
 }
+type IdentityGroupRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, identity.Group]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Name             orm.RelatedStringField[S]
+	Revision         orm.RelatedIntegerField[S]
+}
+
+func newIdentityGroupRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, identity.Group]) IdentityGroupRelatedFields[S] {
+	_result := IdentityGroupRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(identity.GroupFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(identity.GroupFields.Name)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field2, _err := _route.Integer(identity.GroupFields.Revision)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Name = _field1.WithConfigurationError(_result.configurationErr)
+	_result.Revision = _field2.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields IdentityGroupRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields IdentityGroupRelatedFields[S]) Permissions() IdentityPermissionRelatedFields[S] {
+	var _next orm.QueryRelation[identity.Group, identity.Permission]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge0
+	}
+	return newIdentityPermissionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields IdentityGroupRelatedFields[S]) Users() IdentityUserRelatedFields[S] {
+	var _next orm.QueryRelation[identity.Group, identity.User]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newIdentityUserRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type IdentityPermissionRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, identity.Permission]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Code             orm.RelatedStringField[S]
+	Name             orm.RelatedStringField[S]
+}
+
+func newIdentityPermissionRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, identity.Permission]) IdentityPermissionRelatedFields[S] {
+	_result := IdentityPermissionRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(identity.PermissionFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(identity.PermissionFields.Code)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field2, _err := _route.String(identity.PermissionFields.Name)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Code = _field1.WithConfigurationError(_result.configurationErr)
+	_result.Name = _field2.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields IdentityPermissionRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields IdentityPermissionRelatedFields[S]) Groups() IdentityGroupRelatedFields[S] {
+	var _next orm.QueryRelation[identity.Permission, identity.Group]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge4
+	}
+	return newIdentityGroupRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields IdentityPermissionRelatedFields[S]) Users() IdentityUserRelatedFields[S] {
+	var _next orm.QueryRelation[identity.Permission, identity.User]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge5
+	}
+	return newIdentityUserRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type IdentityUserRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, identity.User]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	PrincipalID      orm.RelatedStringField[S]
+	Username         orm.RelatedStringField[S]
+	EncodedPassword  orm.RelatedStringField[S]
+	FirstName        orm.RelatedStringField[S]
+	LastName         orm.RelatedStringField[S]
+	Email            orm.RelatedStringField[S]
+	Active           orm.RelatedBooleanField[S]
+	Staff            orm.RelatedBooleanField[S]
+	Superuser        orm.RelatedBooleanField[S]
+	DateJoined       orm.RelatedDateTimeField[S]
+	LastLogin        orm.RelatedDateTimeField[S]
+	Revision         orm.RelatedIntegerField[S]
+}
+
+func newIdentityUserRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, identity.User]) IdentityUserRelatedFields[S] {
+	_result := IdentityUserRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(identity.UserFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(identity.UserFields.PrincipalID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field2, _err := _route.String(identity.UserFields.Username)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field3, _err := _route.String(identity.UserFields.EncodedPassword)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field4, _err := _route.String(identity.UserFields.FirstName)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field5, _err := _route.String(identity.UserFields.LastName)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field6, _err := _route.String(identity.UserFields.Email)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field7, _err := _route.Boolean(identity.UserFields.Active)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field8, _err := _route.Boolean(identity.UserFields.Staff)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field9, _err := _route.Boolean(identity.UserFields.Superuser)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field10, _err := _route.DateTime(identity.UserFields.DateJoined)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field11, _err := _route.DateTime(identity.UserFields.LastLogin)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field12, _err := _route.Integer(identity.UserFields.Revision)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.PrincipalID = _field1.WithConfigurationError(_result.configurationErr)
+	_result.Username = _field2.WithConfigurationError(_result.configurationErr)
+	_result.EncodedPassword = _field3.WithConfigurationError(_result.configurationErr)
+	_result.FirstName = _field4.WithConfigurationError(_result.configurationErr)
+	_result.LastName = _field5.WithConfigurationError(_result.configurationErr)
+	_result.Email = _field6.WithConfigurationError(_result.configurationErr)
+	_result.Active = _field7.WithConfigurationError(_result.configurationErr)
+	_result.Staff = _field8.WithConfigurationError(_result.configurationErr)
+	_result.Superuser = _field9.WithConfigurationError(_result.configurationErr)
+	_result.DateJoined = _field10.WithConfigurationError(_result.configurationErr)
+	_result.LastLogin = _field11.WithConfigurationError(_result.configurationErr)
+	_result.Revision = _field12.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields IdentityUserRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields IdentityUserRelatedFields[S]) Groups() IdentityGroupRelatedFields[S] {
+	var _next orm.QueryRelation[identity.User, identity.Group]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge6
+	}
+	return newIdentityGroupRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields IdentityUserRelatedFields[S]) Permissions() IdentityPermissionRelatedFields[S] {
+	var _next orm.QueryRelation[identity.User, identity.Permission]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge7
+	}
+	return newIdentityPermissionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
 type ModelsCategoryRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
 	route            orm.QueryRelation[S, models.Category]
@@ -53,14 +267,14 @@ func (_fields ModelsCategoryRelatedFields[S]) IsNull(_value bool) orm.Predicate[
 func (_fields ModelsCategoryRelatedFields[S]) Labels() ModelsLabelRelatedFields[S] {
 	var _next orm.QueryRelation[models.Category, models.Label]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge0
+		_next = _fields.bindings.edge12
 	}
 	return newModelsLabelRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields ModelsCategoryRelatedFields[S]) Tickets() ModelsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[models.Category, models.Ticket]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge1
+		_next = _fields.bindings.edge13
 	}
 	return newModelsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -94,21 +308,21 @@ func (_fields ModelsLabelRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] 
 func (_fields ModelsLabelRelatedFields[S]) Category() ModelsCategoryRelatedFields[S] {
 	var _next orm.QueryRelation[models.Label, models.Category]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge2
+		_next = _fields.bindings.edge14
 	}
 	return newModelsCategoryRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields ModelsLabelRelatedFields[S]) TicketLinks() ModelsTicketLabelRelatedFields[S] {
 	var _next orm.QueryRelation[models.Label, models.TicketLabel]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge3
+		_next = _fields.bindings.edge15
 	}
 	return newModelsTicketLabelRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields ModelsLabelRelatedFields[S]) Tickets() ModelsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[models.Label, models.Ticket]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge4
+		_next = _fields.bindings.edge16
 	}
 	return newModelsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -148,7 +362,7 @@ func (_fields ModelsServiceReportRelatedFields[S]) IsNull(_value bool) orm.Predi
 func (_fields ModelsServiceReportRelatedFields[S]) Ticket() ModelsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[models.ServiceReport, models.Ticket]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge5
+		_next = _fields.bindings.edge17
 	}
 	return newModelsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -260,28 +474,28 @@ func (_fields ModelsTicketRelatedFields[S]) IsNull(_value bool) orm.Predicate[S]
 func (_fields ModelsTicketRelatedFields[S]) Category() ModelsCategoryRelatedFields[S] {
 	var _next orm.QueryRelation[models.Ticket, models.Category]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge6
+		_next = _fields.bindings.edge18
 	}
 	return newModelsCategoryRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields ModelsTicketRelatedFields[S]) LabelLinks() ModelsTicketLabelRelatedFields[S] {
 	var _next orm.QueryRelation[models.Ticket, models.TicketLabel]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge7
+		_next = _fields.bindings.edge19
 	}
 	return newModelsTicketLabelRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields ModelsTicketRelatedFields[S]) Labels() ModelsLabelRelatedFields[S] {
 	var _next orm.QueryRelation[models.Ticket, models.Label]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge8
+		_next = _fields.bindings.edge20
 	}
 	return newModelsLabelRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields ModelsTicketRelatedFields[S]) ServiceReport() ModelsServiceReportRelatedFields[S] {
 	var _next orm.QueryRelation[models.Ticket, models.ServiceReport]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge9
+		_next = _fields.bindings.edge21
 	}
 	return newModelsServiceReportRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -309,16 +523,76 @@ func (_fields ModelsTicketLabelRelatedFields[S]) IsNull(_value bool) orm.Predica
 func (_fields ModelsTicketLabelRelatedFields[S]) Label() ModelsLabelRelatedFields[S] {
 	var _next orm.QueryRelation[models.TicketLabel, models.Label]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge10
+		_next = _fields.bindings.edge22
 	}
 	return newModelsLabelRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields ModelsTicketLabelRelatedFields[S]) Ticket() ModelsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[models.TicketLabel, models.Ticket]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge11
+		_next = _fields.bindings.edge23
 	}
 	return newModelsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
+type IdentityGroupRelations struct {
+	Permissions IdentityPermissionRelatedFields[identity.Group]
+	Users       IdentityUserRelatedFields[identity.Group]
+	model       orm.BoundModel[identity.Group]
+}
+
+func (_relations IdentityGroupRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[identity.Group], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
+type IdentityGroupPermissionsLinkRelations struct {
+	Source IdentityGroupRelatedFields[identity.GroupPermissionsLink]
+	Target IdentityPermissionRelatedFields[identity.GroupPermissionsLink]
+	model  orm.BoundModel[identity.GroupPermissionsLink]
+}
+
+func (_relations IdentityGroupPermissionsLinkRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[identity.GroupPermissionsLink], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
+type IdentityPermissionRelations struct {
+	Groups IdentityGroupRelatedFields[identity.Permission]
+	Users  IdentityUserRelatedFields[identity.Permission]
+	model  orm.BoundModel[identity.Permission]
+}
+
+func (_relations IdentityPermissionRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[identity.Permission], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
+type IdentityUserRelations struct {
+	Groups      IdentityGroupRelatedFields[identity.User]
+	Permissions IdentityPermissionRelatedFields[identity.User]
+	model       orm.BoundModel[identity.User]
+}
+
+func (_relations IdentityUserRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[identity.User], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
+type IdentityUserGroupsLinkRelations struct {
+	Source IdentityUserRelatedFields[identity.UserGroupsLink]
+	Target IdentityGroupRelatedFields[identity.UserGroupsLink]
+	model  orm.BoundModel[identity.UserGroupsLink]
+}
+
+func (_relations IdentityUserGroupsLinkRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[identity.UserGroupsLink], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
+type IdentityUserPermissionsLinkRelations struct {
+	Source IdentityUserRelatedFields[identity.UserPermissionsLink]
+	Target IdentityPermissionRelatedFields[identity.UserPermissionsLink]
+	model  orm.BoundModel[identity.UserPermissionsLink]
+}
+
+func (_relations IdentityUserPermissionsLinkRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[identity.UserPermissionsLink], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
 }
 
 type ModelsCategoryRelations struct {
@@ -374,11 +648,17 @@ func (_relations ModelsTicketLabelRelations) ParseDynamic(_policy orm.LookupPoli
 }
 
 type Relations struct {
-	ModelsCategory      ModelsCategoryRelations
-	ModelsLabel         ModelsLabelRelations
-	ModelsServiceReport ModelsServiceReportRelations
-	ModelsTicket        ModelsTicketRelations
-	ModelsTicketLabel   ModelsTicketLabelRelations
+	IdentityGroup                IdentityGroupRelations
+	IdentityGroupPermissionsLink IdentityGroupPermissionsLinkRelations
+	IdentityPermission           IdentityPermissionRelations
+	IdentityUser                 IdentityUserRelations
+	IdentityUserGroupsLink       IdentityUserGroupsLinkRelations
+	IdentityUserPermissionsLink  IdentityUserPermissionsLinkRelations
+	ModelsCategory               ModelsCategoryRelations
+	ModelsLabel                  ModelsLabelRelations
+	ModelsServiceReport          ModelsServiceReportRelations
+	ModelsTicket                 ModelsTicketRelations
+	ModelsTicketLabel            ModelsTicketLabelRelations
 }
 
 func BindRelations() (Relations, error) {
@@ -388,13 +668,61 @@ func BindRelations() (Relations, error) {
 	}
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+		identity.GroupDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group_permissions"},
+		identity.GroupPermissionsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+		identity.PermissionDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model3, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
+		identity.UserDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user_groups"},
+		identity.UserGroupsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model5, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user_permissions"},
+		identity.UserPermissionsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model6, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
 		models.CategoryDescriptor{},
 	)
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_model1, _err := orm.BindModel(
+	_model7, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
 		models.LabelDescriptor{},
@@ -402,7 +730,7 @@ func BindRelations() (Relations, error) {
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model8, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
 		models.ServiceReportDescriptor{},
@@ -410,7 +738,7 @@ func BindRelations() (Relations, error) {
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_model3, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
@@ -418,7 +746,7 @@ func BindRelations() (Relations, error) {
 	if _err != nil {
 		return Relations{}, _err
 	}
-	_model4, _err := orm.BindModel(
+	_model10, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
 		models.TicketLabelDescriptor{},
@@ -427,138 +755,270 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindQueryRelation(_model0, "labels", _model1)
+	_relation0, _err := orm.BindQueryRelation(_model0, "permissions", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindQueryRelation(_model0, "tickets", _model3)
+	_relation1, _err := orm.BindQueryRelation(_model0, "users", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_relation2, _err := orm.BindQueryRelation(_model1, "category", _model0)
+	_relation2, _err := orm.BindQueryRelation(_model1, "source", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge2 = _relation2
-	_relation3, _err := orm.BindQueryRelation(_model1, "ticket_links", _model4)
+	_relation3, _err := orm.BindQueryRelation(_model1, "target", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge3 = _relation3
-	_relation4, _err := orm.BindQueryRelation(_model1, "tickets", _model3)
+	_relation4, _err := orm.BindQueryRelation(_model2, "groups", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge4 = _relation4
-	_relation5, _err := orm.BindQueryRelation(_model2, "ticket", _model3)
+	_relation5, _err := orm.BindQueryRelation(_model2, "users", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge5 = _relation5
-	_relation6, _err := orm.BindQueryRelation(_model3, "category", _model0)
+	_relation6, _err := orm.BindQueryRelation(_model3, "groups", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge6 = _relation6
-	_relation7, _err := orm.BindQueryRelation(_model3, "label_links", _model4)
+	_relation7, _err := orm.BindQueryRelation(_model3, "permissions", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge7 = _relation7
-	_relation8, _err := orm.BindQueryRelation(_model3, "labels", _model1)
+	_relation8, _err := orm.BindQueryRelation(_model4, "source", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge8 = _relation8
-	_relation9, _err := orm.BindQueryRelation(_model3, "service_report", _model2)
+	_relation9, _err := orm.BindQueryRelation(_model4, "target", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge9 = _relation9
-	_relation10, _err := orm.BindQueryRelation(_model4, "label", _model1)
+	_relation10, _err := orm.BindQueryRelation(_model5, "source", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge10 = _relation10
-	_relation11, _err := orm.BindQueryRelation(_model4, "ticket", _model3)
+	_relation11, _err := orm.BindQueryRelation(_model5, "target", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge11 = _relation11
-	_group0 := newModelsLabelRelatedFields[models.Category](_routes, _routes.edge0)
+	_relation12, _err := orm.BindQueryRelation(_model6, "labels", _model7)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge12 = _relation12
+	_relation13, _err := orm.BindQueryRelation(_model6, "tickets", _model9)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge13 = _relation13
+	_relation14, _err := orm.BindQueryRelation(_model7, "category", _model6)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge14 = _relation14
+	_relation15, _err := orm.BindQueryRelation(_model7, "ticket_links", _model10)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge15 = _relation15
+	_relation16, _err := orm.BindQueryRelation(_model7, "tickets", _model9)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge16 = _relation16
+	_relation17, _err := orm.BindQueryRelation(_model8, "ticket", _model9)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge17 = _relation17
+	_relation18, _err := orm.BindQueryRelation(_model9, "category", _model6)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge18 = _relation18
+	_relation19, _err := orm.BindQueryRelation(_model9, "label_links", _model10)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge19 = _relation19
+	_relation20, _err := orm.BindQueryRelation(_model9, "labels", _model7)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge20 = _relation20
+	_relation21, _err := orm.BindQueryRelation(_model9, "service_report", _model8)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge21 = _relation21
+	_relation22, _err := orm.BindQueryRelation(_model10, "label", _model7)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge22 = _relation22
+	_relation23, _err := orm.BindQueryRelation(_model10, "ticket", _model9)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge23 = _relation23
+	_group0 := newIdentityPermissionRelatedFields[identity.Group](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
-	_group1 := newModelsTicketRelatedFields[models.Category](_routes, _routes.edge1)
+	_group1 := newIdentityUserRelatedFields[identity.Group](_routes, _routes.edge1)
 	if _group1.configurationErr != nil {
 		return Relations{}, _group1.configurationErr
 	}
-	_group2 := newModelsCategoryRelatedFields[models.Label](_routes, _routes.edge2)
+	_group2 := newIdentityGroupRelatedFields[identity.GroupPermissionsLink](_routes, _routes.edge2)
 	if _group2.configurationErr != nil {
 		return Relations{}, _group2.configurationErr
 	}
-	_group3 := newModelsTicketLabelRelatedFields[models.Label](_routes, _routes.edge3)
+	_group3 := newIdentityPermissionRelatedFields[identity.GroupPermissionsLink](_routes, _routes.edge3)
 	if _group3.configurationErr != nil {
 		return Relations{}, _group3.configurationErr
 	}
-	_group4 := newModelsTicketRelatedFields[models.Label](_routes, _routes.edge4)
+	_group4 := newIdentityGroupRelatedFields[identity.Permission](_routes, _routes.edge4)
 	if _group4.configurationErr != nil {
 		return Relations{}, _group4.configurationErr
 	}
-	_group5 := newModelsTicketRelatedFields[models.ServiceReport](_routes, _routes.edge5)
+	_group5 := newIdentityUserRelatedFields[identity.Permission](_routes, _routes.edge5)
 	if _group5.configurationErr != nil {
 		return Relations{}, _group5.configurationErr
 	}
-	_group6 := newModelsCategoryRelatedFields[models.Ticket](_routes, _routes.edge6)
+	_group6 := newIdentityGroupRelatedFields[identity.User](_routes, _routes.edge6)
 	if _group6.configurationErr != nil {
 		return Relations{}, _group6.configurationErr
 	}
-	_group7 := newModelsTicketLabelRelatedFields[models.Ticket](_routes, _routes.edge7)
+	_group7 := newIdentityPermissionRelatedFields[identity.User](_routes, _routes.edge7)
 	if _group7.configurationErr != nil {
 		return Relations{}, _group7.configurationErr
 	}
-	_group8 := newModelsLabelRelatedFields[models.Ticket](_routes, _routes.edge8)
+	_group8 := newIdentityUserRelatedFields[identity.UserGroupsLink](_routes, _routes.edge8)
 	if _group8.configurationErr != nil {
 		return Relations{}, _group8.configurationErr
 	}
-	_group9 := newModelsServiceReportRelatedFields[models.Ticket](_routes, _routes.edge9)
+	_group9 := newIdentityGroupRelatedFields[identity.UserGroupsLink](_routes, _routes.edge9)
 	if _group9.configurationErr != nil {
 		return Relations{}, _group9.configurationErr
 	}
-	_group10 := newModelsLabelRelatedFields[models.TicketLabel](_routes, _routes.edge10)
+	_group10 := newIdentityUserRelatedFields[identity.UserPermissionsLink](_routes, _routes.edge10)
 	if _group10.configurationErr != nil {
 		return Relations{}, _group10.configurationErr
 	}
-	_group11 := newModelsTicketRelatedFields[models.TicketLabel](_routes, _routes.edge11)
+	_group11 := newIdentityPermissionRelatedFields[identity.UserPermissionsLink](_routes, _routes.edge11)
 	if _group11.configurationErr != nil {
 		return Relations{}, _group11.configurationErr
 	}
+	_group12 := newModelsLabelRelatedFields[models.Category](_routes, _routes.edge12)
+	if _group12.configurationErr != nil {
+		return Relations{}, _group12.configurationErr
+	}
+	_group13 := newModelsTicketRelatedFields[models.Category](_routes, _routes.edge13)
+	if _group13.configurationErr != nil {
+		return Relations{}, _group13.configurationErr
+	}
+	_group14 := newModelsCategoryRelatedFields[models.Label](_routes, _routes.edge14)
+	if _group14.configurationErr != nil {
+		return Relations{}, _group14.configurationErr
+	}
+	_group15 := newModelsTicketLabelRelatedFields[models.Label](_routes, _routes.edge15)
+	if _group15.configurationErr != nil {
+		return Relations{}, _group15.configurationErr
+	}
+	_group16 := newModelsTicketRelatedFields[models.Label](_routes, _routes.edge16)
+	if _group16.configurationErr != nil {
+		return Relations{}, _group16.configurationErr
+	}
+	_group17 := newModelsTicketRelatedFields[models.ServiceReport](_routes, _routes.edge17)
+	if _group17.configurationErr != nil {
+		return Relations{}, _group17.configurationErr
+	}
+	_group18 := newModelsCategoryRelatedFields[models.Ticket](_routes, _routes.edge18)
+	if _group18.configurationErr != nil {
+		return Relations{}, _group18.configurationErr
+	}
+	_group19 := newModelsTicketLabelRelatedFields[models.Ticket](_routes, _routes.edge19)
+	if _group19.configurationErr != nil {
+		return Relations{}, _group19.configurationErr
+	}
+	_group20 := newModelsLabelRelatedFields[models.Ticket](_routes, _routes.edge20)
+	if _group20.configurationErr != nil {
+		return Relations{}, _group20.configurationErr
+	}
+	_group21 := newModelsServiceReportRelatedFields[models.Ticket](_routes, _routes.edge21)
+	if _group21.configurationErr != nil {
+		return Relations{}, _group21.configurationErr
+	}
+	_group22 := newModelsLabelRelatedFields[models.TicketLabel](_routes, _routes.edge22)
+	if _group22.configurationErr != nil {
+		return Relations{}, _group22.configurationErr
+	}
+	_group23 := newModelsTicketRelatedFields[models.TicketLabel](_routes, _routes.edge23)
+	if _group23.configurationErr != nil {
+		return Relations{}, _group23.configurationErr
+	}
 	return Relations{
-		ModelsCategory: ModelsCategoryRelations{model: _model0,
-			Labels:  _group0,
-			Tickets: _group1,
+		IdentityGroup: IdentityGroupRelations{model: _model0,
+			Permissions: _group0,
+			Users:       _group1,
 		},
-		ModelsLabel: ModelsLabelRelations{model: _model1,
-			Category:    _group2,
-			TicketLinks: _group3,
-			Tickets:     _group4,
+		IdentityGroupPermissionsLink: IdentityGroupPermissionsLinkRelations{model: _model1,
+			Source: _group2,
+			Target: _group3,
 		},
-		ModelsServiceReport: ModelsServiceReportRelations{model: _model2,
-			Ticket: _group5,
+		IdentityPermission: IdentityPermissionRelations{model: _model2,
+			Groups: _group4,
+			Users:  _group5,
 		},
-		ModelsTicket: ModelsTicketRelations{model: _model3,
-			Category:      _group6,
-			LabelLinks:    _group7,
-			Labels:        _group8,
-			ServiceReport: _group9,
+		IdentityUser: IdentityUserRelations{model: _model3,
+			Groups:      _group6,
+			Permissions: _group7,
 		},
-		ModelsTicketLabel: ModelsTicketLabelRelations{model: _model4,
-			Label:  _group10,
-			Ticket: _group11,
+		IdentityUserGroupsLink: IdentityUserGroupsLinkRelations{model: _model4,
+			Source: _group8,
+			Target: _group9,
+		},
+		IdentityUserPermissionsLink: IdentityUserPermissionsLinkRelations{model: _model5,
+			Source: _group10,
+			Target: _group11,
+		},
+		ModelsCategory: ModelsCategoryRelations{model: _model6,
+			Labels:  _group12,
+			Tickets: _group13,
+		},
+		ModelsLabel: ModelsLabelRelations{model: _model7,
+			Category:    _group14,
+			TicketLinks: _group15,
+			Tickets:     _group16,
+		},
+		ModelsServiceReport: ModelsServiceReportRelations{model: _model8,
+			Ticket: _group17,
+		},
+		ModelsTicket: ModelsTicketRelations{model: _model9,
+			Category:      _group18,
+			LabelLinks:    _group19,
+			Labels:        _group20,
+			ServiceReport: _group21,
+		},
+		ModelsTicketLabel: ModelsTicketLabelRelations{model: _model10,
+			Label:  _group22,
+			Ticket: _group23,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_01efd02b97c148b997a6bac28221395d42f9498242cb45508c950a2d50926966
+var _ goDjProjectSnapshot_4bf15ae7229c01473833ad2e439bf179d916a252ca4cfc98d0e5c6770aec5807

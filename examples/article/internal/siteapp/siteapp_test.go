@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
@@ -136,14 +135,19 @@ func TestNewSelectsPublicOnlyOnlyForExactMigratedCredentialAbsent(t *testing.T) 
 	if response.Code != http.StatusNotFound || response.Body.String() != "Not Found\n" {
 		t.Fatal("public-only application exposed an API document")
 	}
-	publicPolicy, err := operatorconfig.CredentialPolicy()
+	publicPrincipal, err := operatorconfig.InitialSuperuser()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := systemstate.ProvisionOperator(ctx, absent, systemstate.ProvisionOperatorConfig{
-		Username:         "later-admin",
-		Password:         "later-provision-secret",
-		CredentialPolicy: publicPolicy,
+	publicConfig, err := operatorconfig.IdentityRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := systemstate.ProvisionIdentity(ctx, absent, systemstate.ProvisionIdentityConfig{
+		Username:       "later-admin",
+		Password:       "later-provision-secret",
+		Principal:      publicPrincipal,
+		PasswordHasher: publicConfig.PasswordHasher,
 	}); err != nil {
 		t.Fatalf("ProvisionOperator(after public-only startup): %v", err)
 	}
@@ -179,8 +183,8 @@ VALUES ('article-development-admin', 'admin', 'malformed', 1, 'malformed', 'malf
 		t.Fatalf("insert corrupt credential: %v", err)
 	}
 	if got, err := New(ctx, NewConfig(corrupt).WithLoopbackAuthentication()); got != nil ||
-		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeCorruptState}) {
-		t.Fatalf("New(corrupt credential) = (%v, %v)", got, err)
+		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeIdentityTransitionRequired}) {
+		t.Fatalf("New(unadopted credential) = (%v, %v)", got, err)
 	}
 
 	cardinality := openSiteAppStateBackend(t, "siteapp-cardinality")
@@ -205,37 +209,28 @@ VALUES ('operator', 'godj_conformance.article', '1', 'add', 'v1.AAA', 'Article')
 		t.Fatalf("insert dependent audit row: %v", err)
 	}
 	if got, err := New(ctx, NewConfig(dependent)); got != nil ||
-		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeCorruptState, Field: "credential"}) {
+		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeCorruptState, Field: "identity_transition"}) {
 		t.Fatalf("New(dependent row without credential) = (%v, %v)", got, err)
 	}
 
-	mismatch := openSiteAppStateBackend(t, "siteapp-policy-mismatch")
-	migrateSiteAppState(t, ctx, mismatch)
+	legacy := openSiteAppStateBackend(t, "siteapp-legacy-adoption-required")
+	initial, _, err := migrationdefinition.Load(systemstate.InitialDefinitionSource())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (migrations.Executor{Backend: legacy}).Migrate(ctx, initial, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
+	}
 	canonical, err := operatorconfig.CredentialPolicy()
 	if err != nil {
 		t.Fatal(err)
 	}
-	otherPrincipal, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID:          "article-other-operator",
-		Active:      true,
-		Permissions: canonical.Principal.Permissions(),
-	})
-	if err != nil {
+	if err := systemstate.ProvisionOperator(ctx, legacy, systemstate.ProvisionOperatorConfig{Username: "admin", Password: "legacy-adoption-secret", CredentialPolicy: canonical}); err != nil {
 		t.Fatal(err)
 	}
-	if err := systemstate.ProvisionOperator(ctx, mismatch, systemstate.ProvisionOperatorConfig{
-		Username: "admin",
-		Password: "policy-mismatch-secret",
-		CredentialPolicy: systemstate.CredentialPolicy{
-			Principal:      otherPrincipal,
-			PasswordHasher: canonical.PasswordHasher,
-		},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := New(ctx, NewConfig(mismatch).WithLoopbackAuthentication()); got != nil ||
-		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeCredentialPolicyMismatch}) {
-		t.Fatalf("New(policy mismatch) = (%v, %v)", got, err)
+	migrateSiteAppState(t, ctx, legacy)
+	if got, err := New(ctx, NewConfig(legacy).WithLoopbackAuthentication()); got != nil || !errors.Is(err, &systemstate.Error{Code: systemstate.CodeIdentityTransitionRequired}) {
+		t.Fatalf("New(unadopted operator) = (%v, %v)", got, err)
 	}
 }
 
@@ -255,7 +250,7 @@ func openSiteAppStateBackend(t *testing.T, name string) *sqlite.Backend {
 
 func migrateSiteAppState(t *testing.T, ctx context.Context, backend *sqlite.Backend) {
 	t.Helper()
-	loaded, _, err := migrationdefinition.Load(systemstate.InitialDefinitionSource())
+	loaded, _, err := migrationdefinition.Load(systemstate.IdentityMigrationSources()...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,6 +289,6 @@ func secretMarkerEncodings(value string) []string {
 }
 
 type configMarkerBackend struct {
-	systemstate.Backend
+	systemstate.IdentityBackend
 	URL string
 }

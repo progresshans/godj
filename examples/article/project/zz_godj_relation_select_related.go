@@ -2,6 +2,606 @@
 
 package project
 
+import (
+	context "context"
+	identity "github.com/progresshans/godj/identity/models"
+	orm "github.com/progresshans/godj/orm"
+	query "github.com/progresshans/godj/query"
+	strings "strings"
+)
+
 const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v6"
 
-var _ goDjProjectSnapshot_51a330a205b021cb7e5c495383e0149e725e0d3b6826ece7dc6bb766c6d1f584
+var _ orm.ProjectionDescriptor[identity.Group] = identity.GroupDescriptor{}
+var _ orm.ProjectionDescriptor[identity.GroupPermissionsLink] = identity.GroupPermissionsLinkDescriptor{}
+var _ orm.ProjectionDescriptor[identity.Permission] = identity.PermissionDescriptor{}
+var _ orm.ProjectionDescriptor[identity.User] = identity.UserDescriptor{}
+var _ orm.ProjectionDescriptor[identity.UserGroupsLink] = identity.UserGroupsLinkDescriptor{}
+var _ orm.ProjectionDescriptor[identity.UserPermissionsLink] = identity.UserPermissionsLinkDescriptor{}
+
+type relationSelectQuery[O any] interface {
+	All(context.Context) ([]*O, error)
+	Count(context.Context) (int64, error)
+	First(context.Context) (*O, bool, error)
+}
+
+type IdentityGroupPermissionsLinkSelectRelatedQuery struct {
+	factory          IdentityGroupPermissionsLinkObjectFactory
+	source           orm.QuerySet[identity.GroupPermissionsLink]
+	query            orm.RelatedSelectQuery[identity.GroupPermissionsLink]
+	selections       []orm.RelatedSelection[identity.GroupPermissionsLink]
+	configurationErr error
+}
+
+func (_factory IdentityGroupPermissionsLinkObjectFactory) SelectRelated(_source orm.QuerySet[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkSelectRelatedQuery {
+	return IdentityGroupPermissionsLinkSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[identity.GroupPermissionsLink](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory IdentityGroupPermissionsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[identity.Group]) orm.RelatedSelect[identity.GroupPermissionsLink, identity.Group] {
+	return orm.SelectRequiredForward(_factory.source).WithChildren(_children...)
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) WithSource(_children ...orm.RelatedSelection[identity.Group]) IdentityGroupPermissionsLinkSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectSource(_children...))
+}
+func (_factory IdentityGroupPermissionsLinkObjectFactory) SelectTarget(_children ...orm.RelatedSelection[identity.Permission]) orm.RelatedSelect[identity.GroupPermissionsLink, identity.Permission] {
+	return orm.SelectRequiredForward(_factory.target).WithChildren(_children...)
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) WithTarget(_children ...orm.RelatedSelection[identity.Permission]) IdentityGroupPermissionsLinkSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectTarget(_children...))
+}
+func (_factory IdentityGroupPermissionsLinkObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[identity.GroupPermissionsLink], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[identity.GroupPermissionsLink], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "source":
+			_selection := _factory.SelectSource()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		case "target":
+			_selection := _factory.SelectTarget()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) ParseDynamic(_paths ...string) (IdentityGroupPermissionsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityGroupPermissionsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return IdentityGroupPermissionsLinkSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return IdentityGroupPermissionsLinkSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) rebuild() IdentityGroupPermissionsLinkSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Filter(_values ...orm.Predicate[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) OrderBy(_values ...orm.Ordering[identity.GroupPermissionsLink]) IdentityGroupPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Distinct() IdentityGroupPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Fresh() IdentityGroupPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Limit(_value int) (IdentityGroupPermissionsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityGroupPermissionsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return IdentityGroupPermissionsLinkSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Offset(_value int) (IdentityGroupPermissionsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityGroupPermissionsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return IdentityGroupPermissionsLinkSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) All(_ctx context.Context) ([]*IdentityGroupPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*IdentityGroupPermissionsLinkObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityGroupPermissionsLinkObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query IdentityGroupPermissionsLinkSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLinkObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory IdentityGroupPermissionsLinkObjectFactory) FromSelected(_selected *orm.RelatedSelected[identity.GroupPermissionsLink]) (*IdentityGroupPermissionsLinkObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("source"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectSource().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.source = _related
+	}
+	if _has, _err := _selected.HasSelection("target"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectTarget().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.target = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+
+type IdentityUserGroupsLinkSelectRelatedQuery struct {
+	factory          IdentityUserGroupsLinkObjectFactory
+	source           orm.QuerySet[identity.UserGroupsLink]
+	query            orm.RelatedSelectQuery[identity.UserGroupsLink]
+	selections       []orm.RelatedSelection[identity.UserGroupsLink]
+	configurationErr error
+}
+
+func (_factory IdentityUserGroupsLinkObjectFactory) SelectRelated(_source orm.QuerySet[identity.UserGroupsLink]) IdentityUserGroupsLinkSelectRelatedQuery {
+	return IdentityUserGroupsLinkSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[identity.UserGroupsLink]) IdentityUserGroupsLinkSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[identity.UserGroupsLink](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory IdentityUserGroupsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[identity.User]) orm.RelatedSelect[identity.UserGroupsLink, identity.User] {
+	return orm.SelectRequiredForward(_factory.source).WithChildren(_children...)
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) WithSource(_children ...orm.RelatedSelection[identity.User]) IdentityUserGroupsLinkSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectSource(_children...))
+}
+func (_factory IdentityUserGroupsLinkObjectFactory) SelectTarget(_children ...orm.RelatedSelection[identity.Group]) orm.RelatedSelect[identity.UserGroupsLink, identity.Group] {
+	return orm.SelectRequiredForward(_factory.target).WithChildren(_children...)
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) WithTarget(_children ...orm.RelatedSelection[identity.Group]) IdentityUserGroupsLinkSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectTarget(_children...))
+}
+func (_factory IdentityUserGroupsLinkObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[identity.UserGroupsLink], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[identity.UserGroupsLink], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "source":
+			_selection := _factory.SelectSource()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		case "target":
+			_selection := _factory.SelectTarget()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) ParseDynamic(_paths ...string) (IdentityUserGroupsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityUserGroupsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return IdentityUserGroupsLinkSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return IdentityUserGroupsLinkSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) rebuild() IdentityUserGroupsLinkSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Filter(_values ...orm.Predicate[identity.UserGroupsLink]) IdentityUserGroupsLinkSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) OrderBy(_values ...orm.Ordering[identity.UserGroupsLink]) IdentityUserGroupsLinkSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Distinct() IdentityUserGroupsLinkSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Fresh() IdentityUserGroupsLinkSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Limit(_value int) (IdentityUserGroupsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityUserGroupsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return IdentityUserGroupsLinkSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Offset(_value int) (IdentityUserGroupsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityUserGroupsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return IdentityUserGroupsLinkSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) All(_ctx context.Context) ([]*IdentityUserGroupsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*IdentityUserGroupsLinkObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserGroupsLinkObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query IdentityUserGroupsLinkSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[identity.UserGroupsLink]) (*IdentityUserGroupsLinkObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory IdentityUserGroupsLinkObjectFactory) FromSelected(_selected *orm.RelatedSelected[identity.UserGroupsLink]) (*IdentityUserGroupsLinkObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("source"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectSource().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.source = _related
+	}
+	if _has, _err := _selected.HasSelection("target"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectTarget().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.target = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+
+type IdentityUserPermissionsLinkSelectRelatedQuery struct {
+	factory          IdentityUserPermissionsLinkObjectFactory
+	source           orm.QuerySet[identity.UserPermissionsLink]
+	query            orm.RelatedSelectQuery[identity.UserPermissionsLink]
+	selections       []orm.RelatedSelection[identity.UserPermissionsLink]
+	configurationErr error
+}
+
+func (_factory IdentityUserPermissionsLinkObjectFactory) SelectRelated(_source orm.QuerySet[identity.UserPermissionsLink]) IdentityUserPermissionsLinkSelectRelatedQuery {
+	return IdentityUserPermissionsLinkSelectRelatedQuery{factory: _factory, source: _source, query: orm.SelectRelated(_source)}
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) WithSelections(_selections ...orm.RelatedSelection[identity.UserPermissionsLink]) IdentityUserPermissionsLinkSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_owned := append([]orm.RelatedSelection[identity.UserPermissionsLink](nil), _query.selections...)
+	_query.selections = append(_owned, _selections...)
+	return _query.rebuild()
+}
+func (_factory IdentityUserPermissionsLinkObjectFactory) SelectSource(_children ...orm.RelatedSelection[identity.User]) orm.RelatedSelect[identity.UserPermissionsLink, identity.User] {
+	return orm.SelectRequiredForward(_factory.source).WithChildren(_children...)
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) WithSource(_children ...orm.RelatedSelection[identity.User]) IdentityUserPermissionsLinkSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectSource(_children...))
+}
+func (_factory IdentityUserPermissionsLinkObjectFactory) SelectTarget(_children ...orm.RelatedSelection[identity.Permission]) orm.RelatedSelect[identity.UserPermissionsLink, identity.Permission] {
+	return orm.SelectRequiredForward(_factory.target).WithChildren(_children...)
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) WithTarget(_children ...orm.RelatedSelection[identity.Permission]) IdentityUserPermissionsLinkSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectTarget(_children...))
+}
+func (_factory IdentityUserPermissionsLinkObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[identity.UserPermissionsLink], error) {
+	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Detail: "related selection requires a bounded nonempty path list"}
+	}
+	_result := make([]orm.RelatedSelection[identity.UserPermissionsLink], 0, len(_paths))
+	for _, _path := range _paths {
+		_parts := strings.Split(_path, "__")
+		if len(_parts) > query.MaximumRelationHops {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection exceeds its path bound"}
+		}
+		for _, _part := range _parts {
+			if _part == "" {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "related selection contains an empty path segment"}
+			}
+		}
+		switch _parts[0] {
+		case "source":
+			_selection := _factory.SelectSource()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		case "target":
+			_selection := _factory.SelectTarget()
+			if len(_parts) > 1 {
+				return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "selected target has no further single-valued relation"}
+			}
+			_result = append(_result, _selection)
+		default:
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidRelatedPath, Field: _path, Detail: "unknown related selection path"}
+		}
+	}
+	return _result, nil
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) ParseDynamic(_paths ...string) (IdentityUserPermissionsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityUserPermissionsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_selections, _err := _query.factory.selectionInputs(_paths)
+	if _err != nil {
+		return IdentityUserPermissionsLinkSelectRelatedQuery{}, _err
+	}
+	_result := _query.WithSelections(_selections...)
+	if _result.configurationErr != nil {
+		return IdentityUserPermissionsLinkSelectRelatedQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) rebuild() IdentityUserPermissionsLinkSelectRelatedQuery {
+	if _query.configurationErr != nil {
+		return _query
+	}
+	_query.query = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.factory.model)
+	if len(_query.selections) > 0 {
+		_query.configurationErr = _query.query.ConfigurationError()
+	}
+	return _query
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Filter(_values ...orm.Predicate[identity.UserPermissionsLink]) IdentityUserPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.Filter(_values...)
+	return _query.rebuild()
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) OrderBy(_values ...orm.Ordering[identity.UserPermissionsLink]) IdentityUserPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.OrderBy(_values...)
+	return _query.rebuild()
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Distinct() IdentityUserPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.Distinct()
+	return _query.rebuild()
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Fresh() IdentityUserPermissionsLinkSelectRelatedQuery {
+	_query.source = _query.source.Fresh()
+	return _query.rebuild()
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Limit(_value int) (IdentityUserPermissionsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityUserPermissionsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return IdentityUserPermissionsLinkSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Offset(_value int) (IdentityUserPermissionsLinkSelectRelatedQuery, error) {
+	if _query.configurationErr != nil {
+		return IdentityUserPermissionsLinkSelectRelatedQuery{}, _query.configurationErr
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return IdentityUserPermissionsLinkSelectRelatedQuery{}, _err
+	}
+	_query.source = _source
+	return _query.rebuild(), nil
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) All(_ctx context.Context) ([]*IdentityUserPermissionsLinkObject, error) {
+	_selected, _err := _query.query.WithConfigurationError(_query.configurationErr).All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*IdentityUserPermissionsLinkObject, len(_selected))
+	for _index := range _selected {
+		_results[_index], _err = _query.wrap(_selected[_index])
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _results, nil
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) First(_ctx context.Context) (*IdentityUserPermissionsLinkObject, bool, error) {
+	_selected, _found, _err := _query.query.WithConfigurationError(_query.configurationErr).First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_object, _err := _query.wrap(_selected)
+	return _object, _err == nil, _err
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) Count(_ctx context.Context) (int64, error) {
+	return _query.query.WithConfigurationError(_query.configurationErr).Count(_ctx)
+}
+func (_query IdentityUserPermissionsLinkSelectRelatedQuery) wrap(_selected *orm.RelatedSelected[identity.UserPermissionsLink]) (*IdentityUserPermissionsLinkObject, error) {
+	return _query.factory.FromSelected(_selected)
+}
+func (_factory IdentityUserPermissionsLinkObjectFactory) FromSelected(_selected *orm.RelatedSelected[identity.UserPermissionsLink]) (*IdentityUserPermissionsLinkObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_source, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _source)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("source"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectSource().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.source = _related
+	}
+	if _has, _err := _selected.HasSelection("target"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectTarget().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.target = _related
+	}
+	_object._selectedGraph = _selected
+	return _object, nil
+}
+
+var _ goDjProjectSnapshot_5393435b672904b4b5af84c9dd0b103b21d81891793403980d9cd47ba6769644

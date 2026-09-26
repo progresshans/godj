@@ -231,9 +231,11 @@ Web request의 context를 background job의 영구 상태로 보관하지 않는
 in-flight request를 drain한다. Streaming이나 장시간 작업을 추가할 때는 backpressure와 취소 소유권을 별도로 정한다.
 
 System-state coordination은 credential/session/audit와 application mutation의 원자성이 필요한 경계를 묶는다.
-같은 schema를 사용하는 협력 runtime은 같은 credential·CSRF policy를 사용해야 한다. Session rotation/logout/revocation 뒤의
+같은 schema를 사용하는 협력 runtime은 같은 hash profile·session 한도·CSRF policy를 사용해야 한다.
+Identity runtime은 현재 User/Group/Permission을 native read snapshot에서 관찰하고 password work 전 읽기 범위를 종료한다.
+Adoption은 source policy 검증·User/권한/receipt·source 비활성 표시를 같은 DB fence 아래 원자적으로 수행한다. Session rotation/logout/revocation 뒤의
 거부와 application permission은 실제 DB·HTTP 흐름에서 검증한다. Process-local lock만으로 여러 runtime을 안전하다고 하지 않는다.
 
-Operator 권한 변경은 `UpdateOperatorPermissions`에 expected current policy를 명시하여 요청한다.
+Identity로 이전하기 전 legacy operator 권한 변경은 `UpdateOperatorPermissions`에 expected current policy를 명시하여 요청한다.
 Cooperative transaction에서 policy 비교·권한 변경·session 폐기를 함께 수행한다. Authenticate/Resolve는 현재 policy를 확인하므로
 변경 전 runtime은 새 인증을 거부하고 새 policy로 다시 열어야 한다. 이미 허용된 in-flight 작업까지 소급 취소하지 않는다.

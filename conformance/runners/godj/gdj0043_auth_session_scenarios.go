@@ -727,8 +727,9 @@ func newAuthSessionSiteFixture(ctx context.Context, contractID string) (*article
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
 		ID:     "staff",
 		Active: true,
+		Staff:  true,
 		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
+			"godj.admin.access",
 			adminapp.ArticleViewPermission,
 			adminapp.ArticleAddPermission,
 			adminapp.ArticleChangePermission,

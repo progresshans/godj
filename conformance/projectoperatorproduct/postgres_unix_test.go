@@ -276,6 +276,8 @@ func operatorAssertPostgresCounts(t *testing.T, databaseURL, schema string, cred
 		want  int
 	}{
 		{name: "credential", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_system_credential"`, want: credentials},
+		{name: "user", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_identity_user"`, want: credentials},
+		{name: "transition", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_system_identity_transition"`, want: credentials},
 		{name: "session", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_system_session"`, want: sessions},
 		{name: "Article", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_conformance_article"`, want: articles},
 	}
@@ -300,15 +302,15 @@ func operatorAssertPostgresCredential(t *testing.T, databaseURL, schema, usernam
 	}
 	defer connection.Close(ctx)
 	prefix := pgx.Identifier{schema}.Sanitize() + "."
-	var principal, storedUsername, encoded, permissions, digest string
-	var active bool
-	err = connection.QueryRow(ctx, `SELECT "principal_id", "username", "encoded_password", "active", "permissions", "definition_digest" FROM `+prefix+`"godj_system_credential"`).Scan(
-		&principal, &storedUsername, &encoded, &active, &permissions, &digest,
+	var principal, storedUsername, encoded string
+	var active, staff, superuser bool
+	err = connection.QueryRow(ctx, `SELECT "principal_id", "username", "encoded_password", "active", "staff", "superuser" FROM `+prefix+`"godj_identity_user"`).Scan(
+		&principal, &storedUsername, &encoded, &active, &staff, &superuser,
 	)
 	if err != nil {
 		t.Fatal("read external operator PostgreSQL credential")
 	}
-	if principal != "external-article-operator" || storedUsername != username || encoded == "" || !active || permissions == "" || !strings.HasPrefix(digest, "sha256:") {
+	if principal != "external-article-operator" || storedUsername != username || encoded == "" || !active || !staff || !superuser {
 		t.Fatal("external operator PostgreSQL credential semantic shape differs")
 	}
 	if bytes.Equal([]byte(encoded), password) || bytes.Contains([]byte(encoded), password) {

@@ -8,7 +8,6 @@ import (
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/modeldef"
-	"github.com/progresshans/godj/migrations/definition"
 	godjproject "github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/systemstate"
 )
@@ -32,10 +31,11 @@ func main() {
 
 func articleProjectConfig(lookup databaseconfig.LookupEnvFunc) godjproject.Config {
 	selected, selectionErr := databaseconfig.FromEnvironment(lookup)
-	operatorPolicy, operatorPolicyErr := operatorconfig.CredentialPolicy()
+	initialSuperuser, principalErr := operatorconfig.InitialSuperuser()
+	identityConfig, identityConfigErr := operatorconfig.IdentityRuntimeConfig()
 	return godjproject.Config{
 		MigrationDefinitionRoots:   []string{"migrations"},
-		MigrationDefinitionSources: []definition.Source{systemstate.InitialDefinitionSource()},
+		MigrationDefinitionSources: systemstate.IdentityMigrationSources(),
 		LoadProjectSpec:            modeldef.ProjectSpec,
 		OpenMigrationBackend: func(ctx context.Context) (godjproject.MigrationBackend, error) {
 			if selectionErr != nil {
@@ -45,14 +45,18 @@ func articleProjectConfig(lookup databaseconfig.LookupEnvFunc) godjproject.Confi
 		},
 		MigrationSQLRenderer: selected.MigrationSQLRenderer(),
 		OpenSystemStateBackend: func(ctx context.Context) (godjproject.SystemStateBackend, error) {
-			if operatorPolicyErr != nil {
-				return nil, operatorPolicyErr
+			if principalErr != nil {
+				return nil, principalErr
+			}
+			if identityConfigErr != nil {
+				return nil, identityConfigErr
 			}
 			if selectionErr != nil {
 				return nil, selectionErr
 			}
 			return databaseconfig.Open(ctx, selected)
 		},
-		SystemOperatorPolicy: operatorPolicy,
+		InitialSuperuser: initialSuperuser,
+		PasswordHasher:   identityConfig.PasswordHasher,
 	}
 }

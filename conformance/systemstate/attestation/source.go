@@ -38,7 +38,9 @@ var exactSourcePaths = map[string]struct{}{
 	"examples/article/webapp/templates/article_list.html":       {},
 	"go.mod": {},
 	"go.sum": {},
-	"systemstate/testdata/0001_initial.godj.json": {},
+	"systemstate/testdata/0001_initial.godj.json":             {},
+	"systemstate/testdata/0002_identity_transition.godj.json": {},
+	"identity/migrations/0001_initial.godj.json":              {},
 }
 
 var productSourcePrefixes = []string{
@@ -73,6 +75,7 @@ var productSourcePrefixes = []string{
 	"sessions/",
 	"settings/",
 	"systemstate/",
+	"identity/",
 	"templates/",
 	"validation/",
 	"web/",

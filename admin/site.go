@@ -27,8 +27,6 @@ const (
 	MaximumBasePathBytes = 128
 )
 
-const DefaultAccessPermission auth.Permission = "godj.admin.access"
-
 //go:embed site_templates/*.html
 var siteTemplateFiles embed.FS
 
@@ -42,9 +40,8 @@ type SiteConfig struct {
 	Registry  Registry
 	Auth      *sessionauth.Runtime
 	PageSize  int
-	// AccessPermission distinguishes an authenticated non-admin principal
-	// (redirect to login) from an admin principal lacking a model permission
-	// (403). Zero selects DefaultAccessPermission.
+	// AccessPermission optionally adds a permission gate to active staff
+	// admission. Zero requires only active staff; model permissions still apply.
 	AccessPermission auth.Permission
 	Random           io.Reader
 }
@@ -83,11 +80,8 @@ func NewSite(config SiteConfig) (*Site, error) {
 		return nil, &ConfigError{Path: "site.page_size", Code: "invalid"}
 	}
 	access := config.AccessPermission
-	if access == "" {
-		access = DefaultAccessPermission
-	}
 	validatedAccess, err := auth.NewPermission(string(access))
-	if err != nil || validatedAccess != access {
+	if access != "" && (err != nil || validatedAccess != access) {
 		return nil, &ConfigError{Path: "site.access_permission", Code: "invalid", Cause: err}
 	}
 	random := config.Random

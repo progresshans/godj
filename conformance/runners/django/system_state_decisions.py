@@ -638,8 +638,8 @@ def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
                     "public_only": False,
                 },
                 {
-                    "case": "policy_mismatch",
-                    "outcome": "credential_policy_mismatch",
+                    "case": "explicit_transition_required",
+                    "outcome": "identity_transition_required",
                     "public_only": False,
                 },
             ],
@@ -649,7 +649,7 @@ def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
         db_state={
             "downgraded_failure_cases": 0,
             "public_only_mutations": 0,
-            "required_empty_stores": ["credential", "session", "audit"],
+            "required_empty_stores": ["credential", "identity_user", "identity_transition", "session", "audit"],
         },
         metrics={
             "credential_absent_branches": 1,

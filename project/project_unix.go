@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
@@ -38,7 +39,7 @@ type MigrationBackend interface {
 // MigrationBackend: the global command must not infer that both lifecycles use
 // the same database handle or opener.
 type SystemStateBackend interface {
-	systemstate.Backend
+	systemstate.IdentityBackend
 	Close() error
 }
 
@@ -55,9 +56,11 @@ type SystemStateBackend interface {
 // MigrationSQLRenderer is called only by the private database-free SQL
 // projection command after complete definition loading and exact materialization;
 // it must be immutable and must not retain credentials or a database handle.
-// OpenSystemStateBackend and SystemOperatorPolicy are consumed only by the
+// OpenSystemStateBackend, InitialSuperuser and PasswordHasher are consumed only by the
 // private createsuperuser command. The opener owns one closeable invocation
-// resource; the policy contains no raw username or password.
+// resource. InitialSuperuser must be active, staff and superuser. These inputs
+// initialize a fresh identity domain only; existing operators require explicit
+// adoption. No startup policy replaces stored user roles or permissions.
 type Config struct {
 	MigrationDefinitionRoots   []string
 	MigrationDefinitionSources []definition.Source
@@ -65,7 +68,8 @@ type Config struct {
 	OpenMigrationBackend       func(context.Context) (MigrationBackend, error)
 	MigrationSQLRenderer       backend.MigrationSQLRenderer
 	OpenSystemStateBackend     func(context.Context) (SystemStateBackend, error)
-	SystemOperatorPolicy       systemstate.CredentialPolicy
+	InitialSuperuser           auth.Principal
+	PasswordHasher             auth.PasswordHasher
 }
 
 // projectRunnerError is a closed, cause-free process outcome used only by the
@@ -125,7 +129,8 @@ func run(
 	openMigrationBackend := config.OpenMigrationBackend
 	migrationSQLRenderer := config.MigrationSQLRenderer
 	openSystemStateBackend := config.OpenSystemStateBackend
-	operatorPolicy := config.SystemOperatorPolicy
+	initialSuperuser := config.InitialSuperuser
+	passwordHasher := config.PasswordHasher
 	if len(arguments) == 1 && arguments[0] == projectmigrationprotocol.PrivateArgument {
 		makemigrationsConfig := linked.SnapshotMakemigrationsConfig(linked.MakemigrationsConfig{
 			MigrationDefinitionRoots:   config.MigrationDefinitionRoots,
@@ -184,7 +189,8 @@ func run(
 			operatorContext,
 			linked.CreatesuperuserConfig{
 				OpenSystemStateBackend: opener,
-				CredentialPolicy:       operatorPolicy,
+				InitialSuperuser:       initialSuperuser,
+				PasswordHasher:         passwordHasher,
 			},
 			arguments,
 			stdin,

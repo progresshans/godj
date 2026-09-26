@@ -54,7 +54,7 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 			t.Fatalf("project migrate invocation %d response=%+v failure=%+v", invocation+1, response, failure)
 		}
 		if response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Plan != nil ||
-			response.Result.Execute.SourceCount != 2 || response.Result.Execute.DefinitionCount != 2 {
+			response.Result.Execute.SourceCount != 4 || response.Result.Execute.DefinitionCount != 4 {
 			t.Fatalf("project migrate invocation %d result=%+v", invocation+1, response.Result)
 		}
 		if invocation == 0 {
@@ -97,9 +97,11 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 	if !reflect.DeepEqual(historyAfterPlan, historyBeforePlan) {
 		t.Fatalf("project migration plan changed history: before=%+v after=%+v", historyBeforePlan, historyAfterPlan)
 	}
-	if len(historyAfterPlan) != 2 ||
+	if len(historyAfterPlan) != 4 ||
 		historyAfterPlan[0].App != "godj_conformance" || historyAfterPlan[0].Name != "0001_initial" ||
-		historyAfterPlan[1].App != "godj_system" || historyAfterPlan[1].Name != "0001_initial" {
+		historyAfterPlan[1].App != "godj_identity" || historyAfterPlan[1].Name != "0001_initial" ||
+		historyAfterPlan[2].App != "godj_system" || historyAfterPlan[2].Name != "0001_initial" ||
+		historyAfterPlan[3].App != "godj_system" || historyAfterPlan[3].Name != "0002_identity_transition" {
 		t.Fatalf("second invocation history=%+v", historyAfterPlan)
 	}
 }
@@ -120,7 +122,7 @@ func TestArticleProjectRunnerExplicitlyProvisionsAndOpensWithOneSharedPolicy(t *
 		databaseconfig.SQLiteDatabaseEnv: databasePath,
 	}))
 	if config.OpenMigrationBackend == nil || config.OpenSystemStateBackend == nil ||
-		config.SystemOperatorPolicy.Principal.ID() != operatorconfig.PrincipalID {
+		config.InitialSuperuser.ID() != operatorconfig.PrincipalID {
 		t.Fatalf("Article project config does not expose independent migration/system-state ownership: %+v", config)
 	}
 
@@ -174,13 +176,13 @@ func TestArticleProjectRunnerExplicitlyProvisionsAndOpensWithOneSharedPolicy(t *
 			t.Errorf("close reopened system-state backend: %v", err)
 		}
 	}()
-	runtimeConfig, err := operatorconfig.RuntimeConfig()
+	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime, err := systemstate.OpenExisting(context.Background(), backend, runtimeConfig)
+	runtime, err := systemstate.OpenIdentity(context.Background(), backend, runtimeConfig)
 	if err != nil {
-		t.Fatalf("OpenExisting(): %v", err)
+		t.Fatalf("OpenIdentity(): %v", err)
 	}
 	principalCredential, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
 	principal := principalCredential.Principal()
@@ -265,13 +267,13 @@ func TestArticleProjectRunnerMainPreservesKnownCreatedExitOnBrokenPrivateStdout(
 			t.Errorf("close reconciled Article system-state backend: %v", err)
 		}
 	}()
-	runtimeConfig, err := operatorconfig.RuntimeConfig()
+	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime, err := systemstate.OpenExisting(context.Background(), backend, runtimeConfig)
+	runtime, err := systemstate.OpenIdentity(context.Background(), backend, runtimeConfig)
 	if err != nil {
-		t.Fatalf("OpenExisting after private stdout loss: %v", err)
+		t.Fatalf("OpenIdentity after private stdout loss: %v", err)
 	}
 	principalCredential, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
 	principal := principalCredential.Principal()

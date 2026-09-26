@@ -18,9 +18,11 @@ export GODJ_ARTICLE_SQLITE_DATABASE="$godj_demo_dir/article.sqlite3"
 "$godj_demo_dir/godj" runserver --project examples/article/godj.toml
 ```
 
-`createsuperuser`는 실제 터미널에서 username/password를 입력받는다. 비밀번호를 명령 인자에 넣지 않는다.
+`createsuperuser`는 실제 터미널에서 username/password를 입력받아 빈 identity 저장소의 첫 active/staff/superuser를 만든다.
+비밀번호를 명령 인자에 넣지 않는다. 추가 사용자·비밀번호 관리 UI/API는 구현 중이다.
 [Article](http://127.0.0.1:8000/)과 [Admin](http://127.0.0.1:8000/admin/)을 열고, 종료는 Ctrl-C를 사용한다.
-같은 DB로 다시 실행할 때는 `runserver`만 실행한다. Provisioning은 한 번만 수행하며 startup은 저장된 credential을 연다.
+같은 DB로 다시 실행할 때는 `runserver`만 실행한다. Startup은 저장된 User와 현재 권한을 읽으며 계정을 자동 생성하거나 이전하지 않는다.
+이전 형식의 operator가 있는 DB는 [명시적 계정 이전](docs/DEVELOPER_EXPERIENCE.md#기존-operator-이전)을 먼저 수행한다.
 
 Admin에 로그인한 같은 브라우저에서 [Article OpenAPI](http://127.0.0.1:8000/api/openapi.json)를 조회할 수 있다.
 기존 API의 모델 기반 요청·응답, route와 Session/CSRF 조건을 제공한다. [코드에서 사용하는 방법](docs/DEVELOPER_EXPERIENCE.md#openapi와-client)은 개발 흐름을 따른다.

@@ -48,6 +48,7 @@ func TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFi
 
 type helpdeskBackend interface {
 	systemstate.Backend
+	db.SnapshotReader
 	db.Atomic
 	db.RelationAtomic
 	migrationbackend.RevisionFencedBackend
@@ -203,7 +204,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err != nil {
 		t.Fatal(err)
 	}
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "helpdesk-operator", Active: true, Permissions: []auth.Permission{admin.DefaultAccessPermission}})
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "helpdesk-operator", Active: true, Permissions: []auth.Permission{"godj.admin.access"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +212,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{Username: "operator", Password: "helpdesk-example-password", CredentialPolicy: before}); err != nil {
 		t.Fatal(err)
 	}
-	permissions := append([]auth.Permission{admin.DefaultAccessPermission}, helpdesk.Permissions()...)
+	permissions := append([]auth.Permission{"godj.admin.access"}, helpdesk.Permissions()...)
 	after, err := before.WithPermissions(permissions...)
 	if err != nil {
 		t.Fatal(err)
@@ -220,6 +221,21 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 		t.Fatal("new permissions were silently adopted")
 	}
 	verifyConcurrentPermissionMaintenance(t, ctx, open, backend, before, permissions)
+	transitionSources := append(systemstate.IdentityMigrationSources(), helpdesk.MigrationSources()...)
+	transitionGraph, _, err := definition.Load(transitionSources...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, transitionGraph, migrations.LatestLifecycleRequest()); err != nil {
+		t.Fatal(err)
+	}
+	adopted, err := systemstate.AdoptOperator(ctx, backend, systemstate.AdoptOperatorConfig{
+		Expected: systemstate.RuntimeConfig{CredentialPolicy: after}, Staff: true,
+	})
+	if err != nil || adopted.PrincipalID() != after.Principal.ID() || adopted.UserID() <= 0 {
+		t.Fatal("explicit Helpdesk operator adoption", err)
+	}
+
 	if err := backend.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +243,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime, err := systemstate.OpenExisting(ctx, backend, systemstate.RuntimeConfig{CredentialPolicy: after})
+	runtime, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{PasswordHasher: after.PasswordHasher})
 	if err != nil {
 		t.Fatal(err)
 	}

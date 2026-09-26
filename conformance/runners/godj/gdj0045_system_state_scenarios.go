@@ -1451,7 +1451,7 @@ func systemStateNamedCookie(jar http.CookieJar, rawURL, name string) (string, bo
 
 func systemStateConfigureArticleAdmin(config *systemStateConfig) {
 	config.Permissions = []auth.Permission{
-		admin.DefaultAccessPermission,
+		"godj.admin.access",
 		adminapp.ArticleViewPermission,
 		adminapp.ArticleAddPermission,
 		adminapp.ArticleChangePermission,

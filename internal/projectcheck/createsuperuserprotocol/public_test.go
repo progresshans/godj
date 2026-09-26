@@ -52,8 +52,8 @@ func TestPublicFailureTaxonomyAndExitCodesAreClosed(t *testing.T) {
 		{Failure{Category: CategoryState, Code: CodeInvalidCardinality}, 1},
 		{Failure{Category: CategoryState, Code: CodeCorruptState}, 1},
 		{Failure{Category: CategoryState, Code: CodePersistenceFailure}, 3},
-		{Failure{Category: CategoryState, Code: CodeCredentialAlreadyExists}, 1},
-		{Failure{Category: CategoryState, Code: CodeCredentialPolicyMismatch}, 1},
+		{Failure{Category: CategoryState, Code: CodeIdentityAlreadyInitialized}, 1},
+		{Failure{Category: CategoryState, Code: CodeIdentityTransitionRequired}, 1},
 		{Failure{Category: CategoryBackend, Code: CodeBackendOpenFailed}, 3},
 		{Failure{Category: CategoryBackend, Code: CodeInvalidBackend}, 3},
 		{Failure{Category: CategoryBackend, Code: CodeBackendCloseFailed}, 3},
@@ -86,8 +86,8 @@ func TestPublicFailureFromLinkedPreservesRefusalAndNamesKnownCreatedCleanup(t *t
 		want  Failure
 	}{
 		{
-			input: Failure{Category: CategoryState, Code: CodeCredentialAlreadyExists},
-			want:  Failure{Category: CategoryState, Code: CodeCredentialAlreadyExists},
+			input: Failure{Category: CategoryState, Code: CodeIdentityAlreadyInitialized},
+			want:  Failure{Category: CategoryState, Code: CodeIdentityAlreadyInitialized},
 		},
 		{
 			input: Failure{Category: CategoryBackend, Code: CodeBackendCloseFailed, KnownCreated: true},

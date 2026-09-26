@@ -62,15 +62,44 @@ README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사
 - `showmigrations`는 현재 DB history의 한 snapshot이다.
 - `migrate --plan`은 preview이며 그 출력으로 나중 실행을 승인하지 않는다. 실제 `migrate`는 fresh history에서 다시 계획한다.
 - `sqlmigrate`는 명명된 migration의 forward SQL을 DB 없이 render한다. 데이터 실행 결과나 runtime history를 보여 주는 명령이 아니다.
-- `createsuperuser`는 migrated clean system state에 operator를 한 번 만든다. 재시작은 raw password 없이 OpenExisting 경로를 사용한다.
+- `createsuperuser`는 명시적으로 migration한 빈 identity 저장소에 첫 active/staff/superuser를 만든다. 재시작은 raw password 없이 `OpenIdentity`를 사용한다.
+  Project config의 `InitialSuperuser`와 `PasswordHasher`는 최초 생성 입력이며, 실행 중인 사용자의 role/권한을 덧씌우지 않는다.
 
 `godj.toml`은 [예제 파일](../examples/article/godj.toml)처럼 project runner와 runserver package를 지정한다.
 명령은 그 프로젝트의 schema/catalog/backend/policy를 사용한다. 임의 Python settings나 generated model package를 schema 입력으로 읽지 않는다.
+
+## 기존 operator 이전
+
+Article/Helpdesk의 선언은 재사용 `identity` 앱을 포함한다. `systemstate.IdentityMigrationSources()`는 기존 system `0001`,
+identity `0001`, system `0002_identity_transition`의 역사적 정의를 반환한다. Migration과 데이터 이전은 별도 명시적 작업이다.
+기존 `godj_system_credential`의 operator를 사용하는 Article DB에서는 같은 DB 환경을 선택한 뒤 다음을 실행한다.
+
+```sh
+"$godj_demo_dir/godj" migrate --project examples/article/godj.toml
+go run ./examples/article/cmd/adoptoperator --staff=true --superuser=false
+"$godj_demo_dir/godj" runserver --project examples/article/godj.toml
+```
+
+위 예시는 기존 model 권한을 가진 staff로 이전한다. 두 role을 모두 명시해야 하며 superuser가 필요한 경우 그 값도 명시한다.
+`AdoptOperator`는 기존 principal ID·username·비밀번호 해시·active·권한을 보존한다. 기존 세션 binding과 감사 행도 유지한다.
+Staff/superuser는 과거 저장 형식에 없으므로 기존 permission 이름에서 추론하지 않는다. 기존 정책이 예상과 다르면 이전을 거부한다.
+새 User·직접 권한·전환 기록과 옛 credential의 비활성 표시는 한 transaction으로 저장하며 옛 provisioning을 다시 활성화하지 않는다.
+
+명령의 응답을 잃었거나 `uncertain`을 받았을 때는 같은 작업을 반복하기 전에 저장된 전환 기록을 조회한다.
+
+```sh
+go run ./examples/article/cmd/adoptoperator --inspect
+```
+
+일반 호스트는 `systemstate.AdoptOperator`와 `InspectIdentityTransition`을 사용한다. 새 DB는 `ProvisionIdentity`를 명시적으로 호출한다.
+전환 후 `OpenIdentity`는 현재 User/Group/Permission을 읽는 인증기와 기존 durable session/audit 저장소를 연결한다.
+사용자 생성·편집·비밀번호 변경·권한 관리의 일반 UI/API 및 revision/audit 서비스는 별도 구현 단계이며 이 전환 API가 대신하지 않는다.
 
 ## Form, Admin과 API
 
 [Admin 등록](../examples/article/adminapp/registration.go)은 model metadata, 허용 field, 권한과 persistence callback을 연결한다.
 [API 구성](../examples/article/apiapp/)은 serialization·validation·authentication과 HTTP CRUD를 연결한다.
+Admin 진입에는 active staff가 필요하다. Model permission, 선택적인 추가 site permission 및 Authorizer의 거부도 적용한다.
 HTML과 JSON의 표현 차이는 유지하고 model 의미를 반복 선언하는 곳은 공통 metadata 경계로 모은다.
 
 모든 field를 자동 공개하는 것이 기본 정책은 아니다. Read-only PK, 허용한 입력 field와 relationship input을 명시한다.
@@ -89,12 +118,12 @@ Admin/API projector는 시작 시 선택 metadata를 검증·복사하고 목록
 `ReadOnly`, `Optional`, `AllowEmpty` 같은 API 표현 선택은 여전히 명시한다. Auto PK는 read-only다.
 Field 의미의 반복 정의를 없애면서도 model의 모든 field가 자동으로 API 입력이 되는 일을 막는다.
 
-Operator 권한을 바꿀 때는 `systemstate.UpdateOperatorPermissions(ctx, backend, expectedPolicy, permissions)`를 명시적으로 호출한다.
+Identity로 이전하기 전의 legacy operator 권한을 바꿀 때는 `systemstate.UpdateOperatorPermissions(ctx, backend, expectedPolicy, permissions)`를 명시적으로 호출한다.
 이 API는 같은 cooperative transaction에서 기존 정책을 비교하고 권한을 갱신하며 session을 폐기한다.
 Username/password hash/ID/active는 바꾸지 않는다. 기존 runtime은 정책 불일치로 인증을 거부하므로 새 정책으로 다시 연다.
 Startup이 새 권한을 자동 승인하거나 이미 admitted된 작업을 소급 취소하지 않는다.
 
-[Helpdesk 소비자](../examples/helpdesk/app_test.go)는 Category–Ticket 관계, 선택형 Admin, API와 기존 DB의 operator 권한 변경을 같은 공개 API로 검증한다.
+[Helpdesk 소비자](../examples/helpdesk/app_test.go)는 Category–Ticket 관계, 선택형 Admin, API와 기존 operator의 권한 변경·명시적 identity 이전·재시작을 같은 공개 API로 연결한다.
 
 두 번째 모델이나 cross-app flow를 추가할 때는 새 모델이 실제로 같은 공개 경계를 사용하도록 구성하고 core 수정 없이 안 되는 지점을 확인한다.
 

@@ -160,14 +160,19 @@ func newSiteAppCSRFFixture(t *testing.T, ring websessionauth.CSRFKeyRing) siteAp
 		username = "csrf-composition-admin"
 		password = "csrf-composition-password-marker"
 	)
-	policy, err := operatorconfig.CredentialPolicy()
+	principal, err := operatorconfig.InitialSuperuser()
 	if err != nil {
 		t.Fatalf("Article operator policy: %v", err)
 	}
-	if err := systemstate.ProvisionOperator(ctx, firstBackend, systemstate.ProvisionOperatorConfig{
-		Username:         username,
-		Password:         password,
-		CredentialPolicy: policy,
+	config, err := operatorconfig.IdentityRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := systemstate.ProvisionIdentity(ctx, firstBackend, systemstate.ProvisionIdentityConfig{
+		Username:       username,
+		Password:       password,
+		Principal:      principal,
+		PasswordHasher: config.PasswordHasher,
 	}); err != nil {
 		t.Fatalf("ProvisionOperator(): %v", err)
 	}
@@ -345,13 +350,13 @@ func migrateSiteAppCSRFSchema(t *testing.T, ctx context.Context, backend *sqlite
 	if err != nil {
 		t.Fatalf("read Article definition: %v", err)
 	}
-	loaded, _, err := migrationdefinition.Load(
+	sources := append(systemstate.IdentityMigrationSources(),
 		migrationdefinition.Source{
 			SourceID: "examples/article/migrations/0001_initial.godj.json",
 			Document: document,
 		},
-		systemstate.InitialDefinitionSource(),
 	)
+	loaded, _, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load Article and system-state definitions: %v", err)
 	}

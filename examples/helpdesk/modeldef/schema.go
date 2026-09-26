@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/progresshans/godj/codegen"
+	identitydef "github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -61,9 +62,13 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	if err != nil {
 		return codegen.ProjectSpec{}, err
 	}
+	identityApp, err := identitydef.AppSpec()
+	if err != nil {
+		return codegen.ProjectSpec{}, err
+	}
 	const root = "github.com/progresshans/godj/examples/helpdesk/"
 	return codegen.ProjectSpec{
 		Project: codegen.PackageSpec{PackageName: "project", ImportPath: root + "project", Directory: "project"},
-		Apps:    []codegen.AppSpec{{Alias: "models", Package: codegen.PackageSpec{PackageName: "models", ImportPath: root + "models", Directory: "models"}, Schema: definition}},
+		Apps:    []codegen.AppSpec{{Alias: "models", Package: codegen.PackageSpec{PackageName: "models", ImportPath: root + "models", Directory: "models"}, Schema: definition}, identityApp},
 	}, nil
 }

@@ -4,6 +4,7 @@ package project
 
 import (
 	models "github.com/progresshans/godj/examples/article/models"
+	identity "github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
 )
 
@@ -11,11 +12,16 @@ const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v1"
 
 func Bind() (orm.ProjectBinding, error) {
 	return orm.BindProject(
+		identity.GoDjRelationSchema(),
 		models.GoDjRelationSchema(),
 	)
 }
 
-type goDjProjectSnapshot_51a330a205b021cb7e5c495383e0149e725e0d3b6826ece7dc6bb766c6d1f584 struct{}
+type goDjProjectSnapshot_5393435b672904b4b5af84c9dd0b103b21d81891793403980d9cd47ba6769644 struct{}
 
-var _ goDjProjectSnapshot_51a330a205b021cb7e5c495383e0149e725e0d3b6826ece7dc6bb766c6d1f584
-var _ models.GoDjProjectSnapshot_51a330a205b021cb7e5c495383e0149e725e0d3b6826ece7dc6bb766c6d1f584
+var _ goDjProjectSnapshot_5393435b672904b4b5af84c9dd0b103b21d81891793403980d9cd47ba6769644
+var _ models.GoDjProjectSnapshot_5393435b672904b4b5af84c9dd0b103b21d81891793403980d9cd47ba6769644
+var _ identity.GoDjAppPart0_424237e0058f82d9b98a63053fb4c85decba65a9c710ccc1ddd3b55607c8756f
+var _ identity.GoDjAppPart1_424237e0058f82d9b98a63053fb4c85decba65a9c710ccc1ddd3b55607c8756f
+var _ identity.GoDjAppPart2_424237e0058f82d9b98a63053fb4c85decba65a9c710ccc1ddd3b55607c8756f
+var _ identity.GoDjAppPart3_424237e0058f82d9b98a63053fb4c85decba65a9c710ccc1ddd3b55607c8756f

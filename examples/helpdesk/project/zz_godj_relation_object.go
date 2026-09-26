@@ -6,12 +6,331 @@ import (
 	context "context"
 	db "github.com/progresshans/godj/db"
 	models "github.com/progresshans/godj/examples/helpdesk/models"
+	identity "github.com/progresshans/godj/identity/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
 const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"
+
+type IdentityGroupPermissionsLinkObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[identity.GroupPermissionsLink]
+	source             orm.RequiredForwardObject[identity.GroupPermissionsLink, identity.Group]
+	target             orm.RequiredForwardObject[identity.GroupPermissionsLink, identity.Permission]
+}
+
+func (_factory IdentityGroupPermissionsLinkObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[identity.GroupPermissionsLink], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory IdentityGroupPermissionsLinkObjectFactory) From(_backend db.Queryer, _value identity.GroupPermissionsLink) (*IdentityGroupPermissionsLinkObject, error) {
+	_snapshot := (identity.GroupPermissionsLinkDescriptor{}).CloneModel(_value)
+	_related0, _err := _factory.source.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related1, _err := _factory.target.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &IdentityGroupPermissionsLinkObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		source:  _related0,
+		target:  _related1,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type IdentityGroupPermissionsLinkObject struct {
+	_selectedGraph *orm.RelatedSelected[identity.GroupPermissionsLink]
+	model          identity.GroupPermissionsLink
+	factory        IdentityGroupPermissionsLinkObjectFactory
+	backend        db.Queryer
+	source         *orm.RelatedObject[identity.Group]
+	target         *orm.RelatedObject[identity.Permission]
+	_self          *IdentityGroupPermissionsLinkObject
+}
+
+func (_object *IdentityGroupPermissionsLinkObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *IdentityGroupPermissionsLinkObject) Model() (identity.GroupPermissionsLink, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.GroupPermissionsLink{}, _err
+	}
+	return (identity.GroupPermissionsLinkDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *IdentityGroupPermissionsLinkObject) Source(_ctx context.Context) (identity.Group, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.Group{}, _err
+	}
+	_value, _ok, _err := _object.source.Get(_ctx)
+	if _err != nil {
+		return identity.Group{}, _err
+	}
+	if !_ok {
+		return identity.Group{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *IdentityGroupPermissionsLinkObject) Target(_ctx context.Context) (identity.Permission, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.Permission{}, _err
+	}
+	_value, _ok, _err := _object.target.Get(_ctx)
+	if _err != nil {
+		return identity.Permission{}, _err
+	}
+	if !_ok {
+		return identity.Permission{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *IdentityGroupPermissionsLinkObject) Fresh() (*IdentityGroupPermissionsLinkObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
+type IdentityUserGroupsLinkObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[identity.UserGroupsLink]
+	source             orm.RequiredForwardObject[identity.UserGroupsLink, identity.User]
+	target             orm.RequiredForwardObject[identity.UserGroupsLink, identity.Group]
+}
+
+func (_factory IdentityUserGroupsLinkObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[identity.UserGroupsLink], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory IdentityUserGroupsLinkObjectFactory) From(_backend db.Queryer, _value identity.UserGroupsLink) (*IdentityUserGroupsLinkObject, error) {
+	_snapshot := (identity.UserGroupsLinkDescriptor{}).CloneModel(_value)
+	_related2, _err := _factory.source.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related3, _err := _factory.target.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &IdentityUserGroupsLinkObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		source:  _related2,
+		target:  _related3,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type IdentityUserGroupsLinkObject struct {
+	_selectedGraph *orm.RelatedSelected[identity.UserGroupsLink]
+	model          identity.UserGroupsLink
+	factory        IdentityUserGroupsLinkObjectFactory
+	backend        db.Queryer
+	source         *orm.RelatedObject[identity.User]
+	target         *orm.RelatedObject[identity.Group]
+	_self          *IdentityUserGroupsLinkObject
+}
+
+func (_object *IdentityUserGroupsLinkObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *IdentityUserGroupsLinkObject) Model() (identity.UserGroupsLink, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.UserGroupsLink{}, _err
+	}
+	return (identity.UserGroupsLinkDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *IdentityUserGroupsLinkObject) Source(_ctx context.Context) (identity.User, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.User{}, _err
+	}
+	_value, _ok, _err := _object.source.Get(_ctx)
+	if _err != nil {
+		return identity.User{}, _err
+	}
+	if !_ok {
+		return identity.User{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *IdentityUserGroupsLinkObject) Target(_ctx context.Context) (identity.Group, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.Group{}, _err
+	}
+	_value, _ok, _err := _object.target.Get(_ctx)
+	if _err != nil {
+		return identity.Group{}, _err
+	}
+	if !_ok {
+		return identity.Group{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *IdentityUserGroupsLinkObject) Fresh() (*IdentityUserGroupsLinkObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
+type IdentityUserPermissionsLinkObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[identity.UserPermissionsLink]
+	source             orm.RequiredForwardObject[identity.UserPermissionsLink, identity.User]
+	target             orm.RequiredForwardObject[identity.UserPermissionsLink, identity.Permission]
+}
+
+func (_factory IdentityUserPermissionsLinkObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[identity.UserPermissionsLink], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory IdentityUserPermissionsLinkObjectFactory) From(_backend db.Queryer, _value identity.UserPermissionsLink) (*IdentityUserPermissionsLinkObject, error) {
+	_snapshot := (identity.UserPermissionsLinkDescriptor{}).CloneModel(_value)
+	_related4, _err := _factory.source.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related5, _err := _factory.target.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &IdentityUserPermissionsLinkObject{
+		model:   _snapshot,
+		factory: _factory,
+		backend: _backend,
+		source:  _related4,
+		target:  _related5,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type IdentityUserPermissionsLinkObject struct {
+	_selectedGraph *orm.RelatedSelected[identity.UserPermissionsLink]
+	model          identity.UserPermissionsLink
+	factory        IdentityUserPermissionsLinkObjectFactory
+	backend        db.Queryer
+	source         *orm.RelatedObject[identity.User]
+	target         *orm.RelatedObject[identity.Permission]
+	_self          *IdentityUserPermissionsLinkObject
+}
+
+func (_object *IdentityUserPermissionsLinkObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *IdentityUserPermissionsLinkObject) Model() (identity.UserPermissionsLink, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.UserPermissionsLink{}, _err
+	}
+	return (identity.UserPermissionsLinkDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *IdentityUserPermissionsLinkObject) Source(_ctx context.Context) (identity.User, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.User{}, _err
+	}
+	_value, _ok, _err := _object.source.Get(_ctx)
+	if _err != nil {
+		return identity.User{}, _err
+	}
+	if !_ok {
+		return identity.User{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *IdentityUserPermissionsLinkObject) Target(_ctx context.Context) (identity.Permission, error) {
+	if _err := _object._validate(); _err != nil {
+		return identity.Permission{}, _err
+	}
+	_value, _ok, _err := _object.target.Get(_ctx)
+	if _err != nil {
+		return identity.Permission{}, _err
+	}
+	if !_ok {
+		return identity.Permission{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *IdentityUserPermissionsLinkObject) Fresh() (*IdentityUserPermissionsLinkObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
 
 type ModelsLabelObjectFactory struct {
 	_projectSelections *Objects
@@ -28,7 +347,7 @@ func (_factory ModelsLabelObjectFactory) ParseDynamic(
 
 func (_factory ModelsLabelObjectFactory) From(_backend db.Queryer, _value models.Label) (*ModelsLabelObject, error) {
 	_snapshot := (models.LabelDescriptor{}).CloneModel(_value)
-	_related0, _err := _factory.category.From(_backend, _snapshot)
+	_related6, _err := _factory.category.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -36,7 +355,7 @@ func (_factory ModelsLabelObjectFactory) From(_backend db.Queryer, _value models
 		model:    _snapshot,
 		factory:  _factory,
 		backend:  _backend,
-		category: _related0,
+		category: _related6,
 	}
 	_result._self = _result
 	return _result, nil
@@ -109,7 +428,7 @@ func (_factory ModelsServiceReportObjectFactory) ParseDynamic(
 
 func (_factory ModelsServiceReportObjectFactory) From(_backend db.Queryer, _value models.ServiceReport) (*ModelsServiceReportObject, error) {
 	_snapshot := (models.ServiceReportDescriptor{}).CloneModel(_value)
-	_related1, _err := _factory.ticket.From(_backend, _snapshot)
+	_related7, _err := _factory.ticket.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -117,7 +436,7 @@ func (_factory ModelsServiceReportObjectFactory) From(_backend db.Queryer, _valu
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		ticket:  _related1,
+		ticket:  _related7,
 	}
 	_result._self = _result
 	return _result, nil
@@ -192,11 +511,11 @@ func (_factory ModelsTicketObjectFactory) ParseDynamic(
 func (_factory ModelsTicketObjectFactory) From(_backend db.Queryer, _value models.Ticket) (*ModelsTicketObject, error) {
 	_snapshot := (models.TicketDescriptor{}).CloneModel(_value)
 	_, _ownerPresent := (models.TicketDescriptor{}).PrimaryKey(_snapshot)
-	_related2, _err := _factory.category.From(_backend, _snapshot)
+	_related8, _err := _factory.category.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related3, _err := _factory.serviceReport.From(_backend, _snapshot)
+	_related9, _err := _factory.serviceReport.From(_backend, _snapshot)
 	if _err != nil {
 		_cause, _ok := _err.(*query.Error)
 		if _ownerPresent || !_ok || _cause.Category != query.CategoryQuery || _cause.Code != query.CodeMissingPrimaryKey {
@@ -207,8 +526,8 @@ func (_factory ModelsTicketObjectFactory) From(_backend db.Queryer, _value model
 		model:         _snapshot,
 		factory:       _factory,
 		backend:       _backend,
-		category:      _related2,
-		serviceReport: _related3,
+		category:      _related8,
+		serviceReport: _related9,
 	}
 	_result._self = _result
 	return _result, nil
@@ -293,11 +612,11 @@ func (_factory ModelsTicketLabelObjectFactory) ParseDynamic(
 
 func (_factory ModelsTicketLabelObjectFactory) From(_backend db.Queryer, _value models.TicketLabel) (*ModelsTicketLabelObject, error) {
 	_snapshot := (models.TicketLabelDescriptor{}).CloneModel(_value)
-	_related4, _err := _factory.label.From(_backend, _snapshot)
+	_related10, _err := _factory.label.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related5, _err := _factory.ticket.From(_backend, _snapshot)
+	_related11, _err := _factory.ticket.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -305,8 +624,8 @@ func (_factory ModelsTicketLabelObjectFactory) From(_backend db.Queryer, _value 
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		label:   _related4,
-		ticket:  _related5,
+		label:   _related10,
+		ticket:  _related11,
 	}
 	_result._self = _result
 	return _result, nil
@@ -384,10 +703,13 @@ func (_object *ModelsTicketLabelObject) Fresh() (*ModelsTicketLabelObject, error
 }
 
 type Objects struct {
-	ModelsLabel         ModelsLabelObjectFactory
-	ModelsServiceReport ModelsServiceReportObjectFactory
-	ModelsTicket        ModelsTicketObjectFactory
-	ModelsTicketLabel   ModelsTicketLabelObjectFactory
+	IdentityGroupPermissionsLink IdentityGroupPermissionsLinkObjectFactory
+	IdentityUserGroupsLink       IdentityUserGroupsLinkObjectFactory
+	IdentityUserPermissionsLink  IdentityUserPermissionsLinkObjectFactory
+	ModelsLabel                  ModelsLabelObjectFactory
+	ModelsServiceReport          ModelsServiceReportObjectFactory
+	ModelsTicket                 ModelsTicketObjectFactory
+	ModelsTicketLabel            ModelsTicketLabelObjectFactory
 }
 
 func BindObjects() (Objects, error) {
@@ -402,13 +724,61 @@ func BindObjects() (Objects, error) {
 func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+		identity.GroupDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group_permissions"},
+		identity.GroupPermissionsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model2, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+		identity.PermissionDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model3, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
+		identity.UserDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model4, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user_groups"},
+		identity.UserGroupsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model5, _err := orm.BindModel(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user_permissions"},
+		identity.UserPermissionsLinkDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model6, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
 		models.CategoryDescriptor{},
 	)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model1, _err := orm.BindModel(
+	_model7, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
 		models.LabelDescriptor{},
@@ -416,7 +786,7 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model2, _err := orm.BindModel(
+	_model8, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"},
 		models.ServiceReportDescriptor{},
@@ -424,7 +794,7 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model3, _err := orm.BindModel(
+	_model9, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
@@ -432,7 +802,7 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_model4, _err := orm.BindModel(
+	_model10, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket_label"},
 		models.TicketLabelDescriptor{},
@@ -440,50 +810,92 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation0, _err := orm.BindRequiredForwardObject(_model1, "category", _model0)
+	_relation0, _err := orm.BindRequiredForwardObject(_model1, "source", _model0)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation1, _err := orm.BindRequiredForwardObject(_model2, "ticket", _model3)
+	_relation1, _err := orm.BindRequiredForwardObject(_model1, "target", _model2)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation2, _err := orm.BindRequiredForwardObject(_model3, "category", _model0)
+	_relation2, _err := orm.BindRequiredForwardObject(_model4, "source", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation3, _err := orm.BindReverseOneToOneObject(_model3, "service_report", _model2)
+	_relation3, _err := orm.BindRequiredForwardObject(_model4, "target", _model0)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation4, _err := orm.BindRequiredForwardObject(_model4, "label", _model1)
+	_relation4, _err := orm.BindRequiredForwardObject(_model5, "source", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation5, _err := orm.BindRequiredForwardObject(_model4, "ticket", _model3)
+	_relation5, _err := orm.BindRequiredForwardObject(_model5, "target", _model2)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation6, _err := orm.BindRequiredForwardObject(_model7, "category", _model6)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation7, _err := orm.BindRequiredForwardObject(_model8, "ticket", _model9)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation8, _err := orm.BindRequiredForwardObject(_model9, "category", _model6)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation9, _err := orm.BindReverseOneToOneObject(_model9, "service_report", _model8)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation10, _err := orm.BindRequiredForwardObject(_model10, "label", _model7)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation11, _err := orm.BindRequiredForwardObject(_model10, "ticket", _model9)
 	if _err != nil {
 		return Objects{}, _err
 	}
 	_objects := Objects{
+		IdentityGroupPermissionsLink: IdentityGroupPermissionsLinkObjectFactory{
+			model:  _model1,
+			source: _relation0,
+			target: _relation1,
+		},
+		IdentityUserGroupsLink: IdentityUserGroupsLinkObjectFactory{
+			model:  _model4,
+			source: _relation2,
+			target: _relation3,
+		},
+		IdentityUserPermissionsLink: IdentityUserPermissionsLinkObjectFactory{
+			model:  _model5,
+			source: _relation4,
+			target: _relation5,
+		},
 		ModelsLabel: ModelsLabelObjectFactory{
-			model:    _model1,
-			category: _relation0,
+			model:    _model7,
+			category: _relation6,
 		},
 		ModelsServiceReport: ModelsServiceReportObjectFactory{
-			model:  _model2,
-			ticket: _relation1,
+			model:  _model8,
+			ticket: _relation7,
 		},
 		ModelsTicket: ModelsTicketObjectFactory{
-			model:         _model3,
-			category:      _relation2,
-			serviceReport: _relation3,
+			model:         _model9,
+			category:      _relation8,
+			serviceReport: _relation9,
 		},
 		ModelsTicketLabel: ModelsTicketLabelObjectFactory{
-			model:  _model4,
-			label:  _relation4,
-			ticket: _relation5,
+			model:  _model10,
+			label:  _relation10,
+			ticket: _relation11,
 		},
 	}
+	_objects.IdentityGroupPermissionsLink._projectSelections = &_objects
+	_objects.IdentityUserGroupsLink._projectSelections = &_objects
+	_objects.IdentityUserPermissionsLink._projectSelections = &_objects
 	_objects.ModelsLabel._projectSelections = &_objects
 	_objects.ModelsServiceReport._projectSelections = &_objects
 	_objects.ModelsTicket._projectSelections = &_objects
@@ -491,4 +903,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_01efd02b97c148b997a6bac28221395d42f9498242cb45508c950a2d50926966
+var _ goDjProjectSnapshot_4bf15ae7229c01473833ad2e439bf179d916a252ca4cfc98d0e5c6770aec5807

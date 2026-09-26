@@ -146,7 +146,7 @@ func openWorkerSite(ctx context.Context, request Request) (*workerSite, error) {
 	if err != nil {
 		return nil, err
 	}
-	site, err := composeWorkerSite(ctx, backend, request.Username, request.Password)
+	site, err := composeWorkerSite(ctx, backend)
 	if err != nil {
 		_ = backend.Close()
 		return nil, err
@@ -185,7 +185,6 @@ func sqliteDataSource(database string) (string, error) {
 func composeWorkerSite(
 	ctx context.Context,
 	backend *observedBackend,
-	username, password string,
 ) (*workerSite, error) {
 	projectSettings, err := settings.New(settings.Definition{
 		ProjectName: "article_example",
@@ -201,28 +200,10 @@ func composeWorkerSite(
 	if err != nil {
 		return nil, fail(errorApplication)
 	}
-	policy, err := workerCredentialPolicy(hasher, []auth.Permission{
-		admin.DefaultAccessPermission,
-		articleapp.ArticleViewPermission,
-		articleapp.ArticleAddPermission,
-		articleapp.ArticleChangePermission,
-		articleapp.ArticleDeletePermission,
-	})
-	if err != nil {
-		return nil, fail(errorApplication)
-	}
-	provisionErr := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
-		Username:         username,
-		Password:         password,
-		CredentialPolicy: policy,
-	})
-	if provisionErr != nil && !errors.Is(provisionErr, &systemstate.Error{Code: systemstate.CodeCredentialAlreadyExists}) {
-		return nil, fail(errorApplication)
-	}
-	runtime, err := systemstate.OpenExisting(ctx, backend, systemstate.RuntimeConfig{
-		CredentialPolicy: policy,
-		MaxSessions:      workerMaximumSessions,
-		AuditCapacity:    workerAuditCapacity,
+	runtime, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{
+		PasswordHasher: hasher,
+		MaxSessions:    workerMaximumSessions,
+		AuditCapacity:  workerAuditCapacity,
 	})
 	if err != nil {
 		return nil, fail(errorApplication)
@@ -352,16 +333,9 @@ func migrateArticleAndSystem(ctx context.Context, request Request, backend *obse
 	if err != nil {
 		return false, fail(errorMigration)
 	}
-	loaded, report, err := migrationdefinition.Load(
-		migrationdefinition.Source{
-			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
-			Document: document,
-		},
-		systemstate.InitialDefinitionSource(),
-	)
-	if err != nil || report.DocumentsReceived != 2 || report.HeadersValidated != 2 ||
-		report.OperationsDecoded != 4 || report.PlannerConstruction != 1 ||
-		report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	sources := append(systemstate.IdentityMigrationSources(), migrationdefinition.Source{SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document})
+	loaded, report, err := migrationdefinition.Load(sources...)
+	if err != nil || report.DocumentsReceived != len(sources) || report.HeadersValidated != len(sources) || report.PlannerConstruction != 1 || report.DefinitionsPublished != len(sources) || report.DefinitionSetsPublished != 1 {
 		return false, fail(errorMigration)
 	}
 	state, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
@@ -370,7 +344,8 @@ func migrateArticleAndSystem(ctx context.Context, request Request, backend *obse
 	}
 	_, articleApplied := state.Schema(apiapp.Namespace)
 	_, systemApplied := state.Schema(systemstate.InitialMigrationKey().App)
-	return articleApplied && systemApplied, nil
+	_, identityApplied := state.Schema("godj_identity")
+	return articleApplied && systemApplied && identityApplied, nil
 }
 
 func migrateSystemOnly(ctx context.Context, backend *observedBackend) error {
@@ -556,4 +531,19 @@ func ioReadAllBounded(reader interface{ Read([]byte) (int, error) }, maximum int
 		return nil, fail(errorHTTP)
 	}
 	return payload, nil
+}
+
+func provisionWorkerIdentity(ctx context.Context, backend systemstate.IdentityBackend, username, password string) error {
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		return fail(errorApplication)
+	}
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: workerPrincipalID, Active: true, Staff: true, Permissions: []auth.Permission{articleapp.ArticleViewPermission, articleapp.ArticleAddPermission, articleapp.ArticleChangePermission, articleapp.ArticleDeletePermission}})
+	if err != nil {
+		return fail(errorApplication)
+	}
+	if _, err := systemstate.ProvisionIdentity(ctx, backend, systemstate.ProvisionIdentityConfig{Principal: principal, Username: username, Password: password, PasswordHasher: hasher}); err != nil {
+		return fail(errorApplication)
+	}
+	return nil
 }

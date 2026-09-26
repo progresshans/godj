@@ -77,3 +77,70 @@ func TestSQLiteIdentityDirectoryRejectsPartialOrInvalidState(t *testing.T) {
 	})
 	identitytest.RunDirectoryValidation(t, backend)
 }
+
+func TestSQLiteStoredIdentityAuthenticationAndHTTP(t *testing.T) {
+	backend, err := OpenMemory(t.Context(), t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend.database.SetMaxOpenConns(1)
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	identitytest.RunAuthentication(t, backend)
+}
+
+func TestSQLiteOperatorAdoptionPreservesSessionAuditAndOwnership(t *testing.T) {
+	backend, err := OpenMemory(t.Context(), t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	identitytest.RunOperatorTransition(t, backend)
+}
+func TestSQLiteIdentityBootstrapReconcilesUnknownOutcome(t *testing.T) {
+	backend, err := OpenMemory(t.Context(), t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	identitytest.RunIdentityBootstrap(t, backend)
+}
+
+func TestSQLiteIdentityTransitionFailureConcurrencyAndReadOwnership(t *testing.T) {
+	identitytest.RunTransitionBoundaries(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
+		path := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "transition.sqlite3")) + "?mode=rwc&_pragma=busy_timeout(5000)"
+		first, err := Open(t.Context(), path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := first.Close(); err != nil {
+				t.Error(err)
+			}
+		})
+		if _, err := first.database.ExecContext(t.Context(), "PRAGMA journal_mode=WAL"); err != nil {
+			t.Fatal(err)
+		}
+		second, err := Open(t.Context(), path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := second.Close(); err != nil {
+				t.Error(err)
+			}
+		})
+		return first, second
+	})
+}

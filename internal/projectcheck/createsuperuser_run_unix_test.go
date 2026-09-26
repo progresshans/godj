@@ -816,7 +816,7 @@ func TestCreatesuperuserCancellationInterruptAndCleanupPrecedence(t *testing.T) 
 	}
 	logical := CreatesuperuserFailure{
 		Category: createsuperuserprotocol.CategoryState,
-		Code:     createsuperuserprotocol.CodeCredentialAlreadyExists,
+		Code:     createsuperuserprotocol.CodeIdentityAlreadyInitialized,
 	}
 	if got := combineCreatesuperuserCleanup(&logical, true); got != &logical {
 		t.Fatalf("cleanup replaced closed logical outcome: %+v", got)

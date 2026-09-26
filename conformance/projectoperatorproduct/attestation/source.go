@@ -68,6 +68,7 @@ var productSourcePrefixes = []string{
 	"sessions/",
 	"settings/",
 	"systemstate/",
+	"identity/",
 	"templates/",
 	"validation/",
 	"web/",
@@ -102,6 +103,7 @@ var migrationDataPrefixes = []string{
 	"examples/article/migrations/",
 	"examples/article/testdata/postgres/",
 	"systemstate/testdata/",
+	"identity/migrations/",
 }
 
 const harnessSourcePrefix = "conformance/projectoperatorproduct/"

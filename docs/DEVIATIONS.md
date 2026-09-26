@@ -1151,3 +1151,19 @@ GoDj stamp는 서버 내부의 ID·salted encoded-password digest이며 Django�
 Django key fallback, password hash upgrade 정책·unusable password·현재 로그인 세션 보존과 password-reset flow를
 이 단면의 지원으로 추론하지 않는다. ID-only 기존 세션은 재로그인이 필요하며 자동 승격하지 않는다.
 기존 operator policy CAS의 전역 revocation은 여전히 유지한다. 모델 기반 multi-user policy와 권한 갱신은 별도 구현 조건이다.
+
+## DEV-0014 — Superuser와 canonical permission 경계
+
+- 상태: accepted design; 핵심 구현 중, 소비자 전환·환경별 검증은 [GDJ-0100](../work/0100-multi-user-credential-and-session-lifecycle.md)과 [Evidence](status/TEST_EVIDENCE.md) 참조
+- 기준: 고정 Django 6.1 User/ModelBackend, [독립 runner](../conformance/runners/django/identity_reference.py)
+- 범위: [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)의 Principal.Has와 명시적 permission API
+
+Active superuser는 등록되지 않은 canonical permission도 허용하고, staff는 model permission을 자동 부여하지 않는다.
+Inactive는 어떤 permission도 허용하지 않는다. 이 결과와 active staff의 Admin 진입은 Django 관찰을 따른다.
+단, Django의 active superuser는 `has_perm("not-a-permission")`도 true다. GoDj는 기존 lowercase dotted permission 문법을
+superuser에게도 적용한다. `Principal.Has`는 false, permission 선언/검증 API는 invalid input을 반환한다.
+차이를 허용하는 관찰은 `observations.roles.101.malformed_permission`과 `observations.roles.111.malformed_permission`뿐이다.
+전체 role·권한·inactive·Admin gate의 차이를 이 항목으로 면제하지 않는다. 실제 Django capture의 true 값도 그대로 보존한다.
+
+`Principal.Permissions()`는 명시적 grant snapshot이며 Django superuser의 전체 등록 permission 열거 API와 같은 기능이 아니다.
+Catalog enumeration·관리 API의 후속 구현을 이 반환값으로 대체하지 않는다.

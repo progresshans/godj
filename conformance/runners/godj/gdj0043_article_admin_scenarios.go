@@ -133,14 +133,16 @@ func newArticleAdminFixture(ctx context.Context, contractID string) (*articleAdm
 	credentials := make([]auth.Credential, 0, 3)
 	principalDefinitions := []struct {
 		username    string
+		staff       bool
 		id          string
 		permissions []auth.Permission
 	}{
 		{
 			username: articleAdminStaffUsername,
+			staff:    true,
 			id:       "staff",
 			permissions: []auth.Permission{
-				admin.DefaultAccessPermission,
+				"godj.admin.access",
 				adminapp.ArticleViewPermission,
 				adminapp.ArticleAddPermission,
 				adminapp.ArticleChangePermission,
@@ -150,9 +152,10 @@ func newArticleAdminFixture(ctx context.Context, contractID string) (*articleAdm
 		{username: articleAdminNonstaffUsername, id: "nonstaff"},
 		{
 			username: articleAdminDeniedUsername,
+			staff:    true,
 			id:       "denied",
 			permissions: []auth.Permission{
-				admin.DefaultAccessPermission,
+				"godj.admin.access",
 				adminapp.ArticleViewPermission,
 			},
 		},
@@ -161,6 +164,7 @@ func newArticleAdminFixture(ctx context.Context, contractID string) (*articleAdm
 		principal, principalErr := auth.NewPrincipal(auth.PrincipalConfig{
 			ID:          definition.id,
 			Active:      true,
+			Staff:       definition.staff,
 			Permissions: definition.permissions,
 		})
 		if principalErr != nil {

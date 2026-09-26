@@ -4,6 +4,136 @@
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
 
+## GDJ-0100 — 저장 인증·identity 전환·durable 소비자 통합
+
+2026-09-27, 게시 기준 `f7371ac664114d06c366a3b5a6b49db1a8c6bbea`의 후속 변경이다.
+Non-Markdown **2,272 파일** source map SHA-256
+`df5724eb5acb6e090cce6442a4bb3c8c32ac091b5518ede2b5af3ea06074ec81`을 고정했다.
+아래 각 checkpoint/negative control의 실행 전후 source가 같고, 새 source의 전체 platform/Hosted full은 실행하지 않았다.
+
+Darwin arm64 / Go 1.26.5에서 **28 packages, 460 required roots**를 선언하고 전체 test/package completion과 no-skip을 검사했다.
+Auth·identity·systemstate·Admin·Session/Bearer adapter·project/linked/protocol 전체, createsuperuser 관련 CLI roots,
+양 DB의 snapshot/identity roots, Article·Helpdesk 전체 소비자, system-state worker/product/restart와 두 attestation owner,
+외부 module operator product, GDJ-0055와 AUTH/Admin 관찰을 포함한다. 원본 roster와 실행 명령이 scope의 기준이다.
+
+| 모드 | 완료 inventory | 그룹 실행 시간 합계 |
+|---|---|---|
+| normal | 1,422 PASS / skip 0 | 117.489초 |
+| race | 1,422 PASS / skip 0 | 339.089초 |
+| CGO=0 | 1,422 PASS / skip 0 | 125.332초 |
+
+`go test -json -count=1 -p=3 -timeout=20m -run <고정 roots>`와 mode별 `-race`/`CGO_ENABLED=0`.
+`GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`; 실제 SQLite와 private PostgreSQL **17.10**을 사용했다.
+PG image는 `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+Normal에서 이미 같은 source/roster로 성공한 core·CLI·native·consumer·conformance 결과는 다시 실행하지 않고 원본 기록을 참조했다.
+실패했던 process 그룹만 환경을 바로잡아 다시 실행했다. Receipt에 `reused_from`과 원본 경로가 있으며 다른 source의 PASS를 전이하지 않았다.
+각 모드의 race는 해당 test binary의 검사다. 고정 옵션으로 따로 빌드하는 child까지 모두 race instrumented라고 주장하지 않는다.
+종료 뒤 public table·owned schema·다른 connection `0|0|0`, private container 제거를 확인했다.
+
+Identity 이전은 실제 옛 `0001` operator·session·audit에서 시작한다. 새 User의 물리 PK가 달라도 opaque principal ID·encoded password·
+stamp·직접 grant와 기존 Permission 표시 이름을 보존한다. Session/audit 원본 행은 byte 단위로 같다.
+새 User/Permission/link/receipt 생성과 source 비활성 표시 중 실패, target ID/username 충돌, 두 native 연결의 동시 이전/첫 생성,
+알려진 rollback·취소 중 불확실한 rollback·commit 응답 손실·확정 commit 뒤 늦은 취소를 검증했다.
+확정 rollback에서는 새 User/권한/receipt 행이 남지 않는다. Unknown 결과에는 성공 receipt를 게시하지 않고, 저장된 전환은 재시도 없이 durable receipt로 확인한다. 옛 인증/provisioning은 다시 활성화되지 않는다.
+Read scope 종료 실패·누락/중복 callback·nil reader·callback 오류를 삼킨 backend도 Runtime/receipt의 부분 결과를 게시하지 않는다.
+
+Helpdesk는 기존 operator 권한 CAS 뒤 명시적으로 이전하고 재접속한 Admin/API와 collection 동시 수정 runtime을 실행했다.
+Article의 실제 `adoptoperator --staff=true --superuser=false` 명령 경계는 기존 비밀번호·세션으로 재개한 Admin 진입과 `--inspect`,
+재실행 거부를 확인한다. 새 `createsuperuser`는 첫 active/staff/superuser를 저장하고 siteapp/runserver는 OpenIdentity를 사용한다.
+External module의 실제 TTY/global CLI·별도 server 프로세스·재시작·잘린/없는 응답·backend close/output 실패를 검사했다.
+Secret scan은 legacy row 외에 User와 전환 fingerprint 저장소도 포함한다. Artifact source binding도 새 identity 코드/생성물/migration을 포함한다.
+
+고정 Linux amd64 / Go 1.26.5 producer **2 roots / 2 PASS / skip 0**를 별도로 실행했다. 총 246.645초(준비·빌드 포함),
+SDK image `golang@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`, 동일 PG 17.10 image,
+명시적인 Docker `--platform linux/amd64`, read-only source/module mount와 private network를 사용했다.
+실제 PostgreSQL two-process coordination 및 PostgreSQL+SQLite external operator producer가 현재 source에 묶인 canonical captures를 만들었다.
+Capture bytes는 변경하지 않고 owner별 canonical filename·SHA256SUMS를 준비하여 실제 godjcheck가 읽도록 했다.
+**System-state 30 contracts**가 검토된 DEV-0008 기대와 일치했다. Go consumer가 profile·checksum·현재 source를 다시 검증했다.
+이는 로컬 Linux 실행이며 GitHub run/producer provenance를 만들거나 Hosted 성공으로 표시하지 않았다. PG `0|0|0`, container와 network 제거 완료.
+
+Credential을 `%d`/`%f`/잘못된 `%p`/`%w`로 출력할 때 encoded hash가 노출되는 결함을 marker로 재현했다.
+Credential·Account·Memory/StoredAuthenticator·Directory·receipt를 opaque pointer state와 Formatter로 고친 뒤 회귀를 통과했다.
+Go overlay **8/8 실제 assertion 탐지**: credential reflection 노출, source framing 제거, 채택한 hash 변경, grant 누락,
+legacy source active 유지, unknown adoption의 성공 게시, 기존 operator의 public-only downgrade, read 실패의 Runtime 게시.
+첫 grant-omission overlay의 변수 재선언 compile 오류는 탐지로 세지 않았고 수정한 overlay의 실제 실패를 따로 기록했다.
+
+고정 uv **0.10.12**와 frozen Django profile로 system-state oracle을 재생성했다. 환경/profile은 그대로이며 **SYS-028 한 관찰만** 바뀌었다.
+이는 independent GoDj decision의 startup 계약 변경이며 새로운 Django 외부 동작 측정으로 주장하지 않는다.
+Default uv 0.12.3의 profile mismatch, 초기 Article memory role/단일-app 기대값, SQLite 테스트 연결의 busy timeout 누락,
+PG 요청 취소를 항상 확정 rollback으로 보던 테스트 기대값을 보정했다. 성공한 결과만 위 inventory에 포함했다.
+Darwin에서 Linux 전용 producer를 선택한 초기 실행은 exec/profile 단계에서 실패했다. 실행 scope를 나누어 실제 Linux에서 모두 실행했다.
+Consumer capture 준비 중 빠진 deviation 인자·canonical name/path·checksum은 수정 전 성공으로 세지 않았다.
+영향 `go vet`, Article/Helpdesk generated drift, gofmt/diff, 현행 문서 링크 검사를 통과했다.
+
+Evidence 상위 경로: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp`.
+- `identity-integration-1790453485253847000/receipt.json`: 최종 세 모드와 전후 source map, required roster, JSON stream.
+- `identity-integration-1790453155978286000/`: 같은 source의 재사용한 normal 결과 및 첫 process 환경 실패.
+- `identity-linux-producers-1790453651919127000/receipt.json`: 실제 Linux producers, 원본 capture와 owner별 checksum,
+  `consumer-final-receipt.json`·`system-state-actual.json` 및 consumer stream.
+- `identity-transition-controls-1790453913764348000/receipt.json`: 8개 control; 같은 source의 선행 3개 결과 경로 포함.
+
+아래 저장 인증 중간 checkpoint는 그 당시의 상태다. 그때 남아 있던 Article/Helpdesk·CLI·재시작 연결은 위 통합에서 검증했다.
+사용자/그룹 관리 UI/API·revision/audit 기반 credential maintenance·password reset 등 GDJ-0100의 나머지 범위는 아직 완료하지 않았다.
+
+## GDJ-0100 — 저장 인증·staff admission 중간 checkpoint (소비자 전환 진행 중)
+
+2026-09-27, 게시 기준 `f7371ac664114d06c366a3b5a6b49db1a8c6bbea` 뒤 작업 트리의 변경이다.
+이 묶음은 **미게시**이며 아래 핵심 검증을 기존 operator 소비자 전체의 성공으로 해석하지 않는다.
+Source map 2,259개 non-Markdown 파일 SHA-256
+`a51982effa9f3306dd1e0267c1493fa9f68ec1afebad579088335e5e2f4bc336`에서 전후 동일성을 확인했다.
+Go 1.26.5 / Darwin arm64; `auth`, `identity`, `systemstate`, `admin`, `web/sessionauth`,
+`api/sessionauth`, `api/bearerauth` 전체 suite와 두 backend의 read_snapshot_test.go roots를 선택했다.
+Discovery 뒤 **190 required roots**를 고정하고 package completion·전체 test completion·no-skip을 검사했다.
+
+| 모드 | 완료 inventory | 시간 |
+|---|---|---|
+| normal | 9 packages / 567 PASS / skip 0 | 3.176초 |
+| race | 9 packages / 567 PASS / skip 0 | 23.760초 |
+| cgo0 | 9 packages / 567 PASS / skip 0 | 6.062초 |
+
+`go test -json -count=1 -p=3 -timeout=25m -run <고정 roots>`, `GODJ_REQUIRE_POSTGRES=1`, `TZ=Pacific/Chatham`.
+SQLite와 private PostgreSQL 17.10을 실제 사용했다. Image는 선행 checkpoint와 같은 digest
+`sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`다.
+각 private DB의 public table·owned schema·다른 connection은 `0|0|0`, non-force drop과 container 제거를 확인했다.
+
+단일 DB 연결로 password Verify 중 일반 ORM 변경을 실행해 snapshot/admission이 이미 종료되었음을 확인했다.
+비밀번호·동일 비밀번호 재해싱·username·inactive·삭제는 과거 credential의 로그인을 거부하고, role 변경은 최신 관찰로 반환했다.
+양 DB에서 실제 PBKDF2와 저장 User/Group/Permission을 사용했다. Role 8조합의 인증·등록/미등록 canonical permission을
+선행 고정 Django의 두 backend capture와 비교했다. 비정규 문자열은 DEV-0014의 명시한 차이를 유지한다.
+
+실제 HTTP/Web session/JSON API는 두 사용자 격리, 그룹 grant 제거와 직접 grant 추가, superuser 승격/해제,
+Authorizer deny overlay, username 변경의 세션 유지, 비밀번호 변경·inactive의 기존 세션 폐기를 확인했다.
+이 HTTP fixture의 credential은 DB에 저장하지만 session store는 메모리다. 새 다중 사용자 durable session runtime·재시작 증거가 아니다.
+Admin Site의 8개 role 조합은 별도의 실제 route 호출로 active staff만 세션을 만들고 진입하도록 확인했다.
+기존 site permission과 superuser는 staff를 대체하지 않는다. Legacy operator policy가 저장하지 않는 role을 거부하는 검사도 포함한다.
+
+Go overlay **5/5 실제 assertion 탐지**: 이전 비밀번호 허용, 이전 권한 반환, inactive grant 허용,
+staff 검사 없이 session 게시, superuser의 비정규 permission 허용. Compile 실패는 탐지로 세지 않았다.
+Hasher의 취소/비밀 cause 결합은 errors.Is를 보존하면서 진단/JSON에서 숨기는 실제 실패 검사를 추가했다. 영향 vet도 통과했다.
+초기 개발 HTTP helper는 nil Header로 cookiejar의 AddCookie를 호출해 panic했고, 기본 Header를 보존하도록 고친 뒤 위 checkpoint를 실행했다.
+
+Checkpoint 뒤 제거된 Admin 상수의 import 잔여를 두 소비자 파일에서 정리했다:
+`conformance/projectoperatorproduct/runner_source_unix_test.go`의 embedded Go source와
+`conformance/systemstate/restart/restart_unix_test.go`의 실제 import. 다른 non-Markdown 파일은 checkpoint와 같았다.
+그 중간 source map은 `257c117f0c1f53ed4483049259113d260b7631f915842589e538c61dda16d1b7`다.
+처음 변경 package compile은 restart의 unused import로 실패했으며 수정 후 두 package compile을 통과했다.
+Embedded 외부 module의 실제 실행은 operator 전환 통합이 소유한다.
+
+이 중간 source에서 Article·Helpdesk 소비자를 실행했고 둘 다 기존 staff 없는 principal의 Admin login이 거부되어 실패했다.
+이를 완료/skip/정상 회귀 결과로 세지 않는다. 이어서 Article의 메모리 fixture와 두 conformance fixture에 staff를 명시했다.
+그 source map은 `1bb71a709647aacfdac31adb24856862cf50b443dad77f8c4d9be94a748717cc`이며 앞의 import 보정 두 파일과
+이 세 fixture 외의 non-Markdown 파일은 핵심 checkpoint와 같다. Article Admin 실제 SQLite 소비자와 AUTH/Admin conformance의
+10 required roots를 고정해 두 package를 실행했다. normal/race/CGO=0 각각 **28 PASS / skip 0**,
+1.570/11.857/1.931초이며 실행 전후 source가 같다. 기존 rendered 관찰·고정 reference·session/CSRF 경계도 포함한다.
+이것은 memory credential fixture의 역할 선언 수정 검증이다. 실제 durable operator를 사용하는 Helpdesk·Article siteapp·CLI/재시작에는
+명시적 데이터 전환이 남아 있고 위 Helpdesk 로그인 실패도 아직 해결하지 않았다.
+Startup role을 기존 operator에 덧씌우거나 staff gate를 약화해 이 실패를 우회하지 않는다.
+이 작업 트리에는 아직 새 Hosted 검증을 요청하지 않았고, 전체 milestone도 미실행이다.
+
+Evidence root: `/var/folders/4v/9w5s7mln3jbfcv13w9q38rzc0000gn/T/godj-many-to-many-reference-4sl0bvdp/stored-auth-integration-1790448397986320000`.
+`checkpoint-1790448398086001000/receipt.json`, 필수 roster·JSON stream·전후 source map, `negative-controls/receipt.json`,
+`changed-package-compile.log`, `compile-followup.log`, `legacy-consumers.log`, `memory-consumers/receipt.json`에 성공과 남은 실패를 함께 보존했다.
+
 ## GDJ-0100 — 일관된 계정·권한 조회와 읽기 snapshot
 
 2026-09-27, 기준 `c2d446b22dc96ce878bfc7696ae06d4b69039c14`의 후속 변경이다.

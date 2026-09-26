@@ -31,7 +31,7 @@ func (site *Site) loginGet(request *web.Request, principal auth.Principal) (web.
 	}
 	next := site.auth.SafeNext(query.Get("next"))
 	if principal.Authenticated() {
-		allowed, err := site.permissionGranted(request, principal, site.access)
+		allowed, err := site.admitted(request, principal)
 		if err != nil {
 			return web.Response{}, err
 		}
@@ -72,7 +72,7 @@ func (site *Site) loginPost(request *web.Request) (web.Response, error) {
 		}
 		return site.render(request, "login.html", context)
 	}
-	result, err := site.auth.LoginAuthorized(request, username, password, site.access)
+	result, err := site.auth.LoginStaff(request, username, password, site.access)
 	if errors.Is(err, auth.ErrInvalidCredentials) {
 		context, contextErr := site.loginContext(username, next, true)
 		if contextErr != nil {
@@ -507,7 +507,7 @@ func (site *Site) authorizePrincipal(
 	if !principal.Authenticated() {
 		return site.loginRedirect(request)
 	}
-	access, err := site.permissionGranted(request, principal, site.access)
+	access, err := site.admitted(request, principal)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -528,6 +528,16 @@ func (site *Site) authorizePrincipal(
 
 func (site *Site) permissionGranted(request *web.Request, principal auth.Principal, permission auth.Permission) (bool, error) {
 	return site.auth.Authorized(request.Context(), principal, permission)
+}
+
+func (site *Site) admitted(request *web.Request, principal auth.Principal) (bool, error) {
+	if !principal.Authenticated() || !principal.Staff() {
+		return false, nil
+	}
+	if site.access == "" {
+		return true, nil
+	}
+	return site.permissionGranted(request, principal, site.access)
 }
 
 func (site *Site) loginRedirect(request *web.Request) (web.Response, error) {

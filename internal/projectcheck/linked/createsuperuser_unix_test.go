@@ -101,13 +101,14 @@ func TestRunCreatesuperuserOneOpenProvisionCloseAndSuccess(t *testing.T) {
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
 		ID:          "operator-principal",
 		Active:      true,
+		Staff:       true,
+		Superuser:   true,
 		Permissions: []auth.Permission{permission},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	hasher := new(auth.PBKDF2)
-	policy := systemstate.CredentialPolicy{Principal: principal, PasswordHasher: hasher}
 	var gotUsername, gotPassword string
 	provisionCalls := 0
 	output := new(bytes.Buffer)
@@ -115,23 +116,24 @@ func TestRunCreatesuperuserOneOpenProvisionCloseAndSuccess(t *testing.T) {
 		OpenSystemStateBackend: func(context.Context) (SystemStateBackend, error) {
 			return backend, nil
 		},
-		CredentialPolicy: policy,
+		InitialSuperuser: principal,
+		PasswordHasher:   hasher,
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 		mustCreatesuperuserRequest(t, "operator-marker", "  password-marker  "),
 	), output, createsuperuserDependencies{
-		provisionOperator: func(_ context.Context, gotBackend systemstate.Backend, config systemstate.ProvisionOperatorConfig) error {
+		provisionIdentity: func(_ context.Context, gotBackend systemstate.IdentityBackend, config systemstate.ProvisionIdentityConfig) error {
 			provisionCalls++
 			if gotBackend != backend {
 				t.Fatal("provision received a different backend")
 			}
 			gotUsername = config.Username
 			gotPassword = config.Password
-			permissions := config.CredentialPolicy.Principal.Permissions()
-			if config.CredentialPolicy.Principal.ID() != principal.ID() ||
-				config.CredentialPolicy.Principal.Active() != principal.Active() ||
+			permissions := config.Principal.Permissions()
+			if config.Principal.ID() != principal.ID() ||
+				config.Principal.Active() != principal.Active() ||
 				len(permissions) != 1 || permissions[0] != permission ||
-				config.CredentialPolicy.PasswordHasher != hasher {
-				t.Fatalf("provision policy did not preserve project meaning: %+v", config.CredentialPolicy)
+				config.PasswordHasher != hasher {
+				t.Fatalf("provision policy did not preserve project meaning: %+v", config)
 			}
 			return nil
 		},
@@ -180,7 +182,7 @@ func TestRunCreatesuperuserConfirmedSuccessWinsOuterCancellation(t *testing.T) {
 			}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 				mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
 			), output, createsuperuserDependencies{
-				provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error {
+				provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
 					cancel()
 					return nil
 				},
@@ -209,8 +211,8 @@ func TestRunCreatesuperuserMapsOnlyAllowedSystemStateFailures(t *testing.T) {
 		{name: "cardinality", code: systemstate.CodeCardinality, wantCode: createsuperuserprotocol.CodeInvalidCardinality},
 		{name: "corrupt", code: systemstate.CodeCorruptState, wantCode: createsuperuserprotocol.CodeCorruptState},
 		{name: "persistence", code: systemstate.CodePersistence, wantCode: createsuperuserprotocol.CodePersistenceFailure},
-		{name: "already", code: systemstate.CodeCredentialAlreadyExists, wantCode: createsuperuserprotocol.CodeCredentialAlreadyExists},
-		{name: "policy", code: systemstate.CodeCredentialPolicyMismatch, wantCode: createsuperuserprotocol.CodeCredentialPolicyMismatch},
+		{name: "already", code: systemstate.CodeIdentityAlreadyInitialized, wantCode: createsuperuserprotocol.CodeIdentityAlreadyInitialized},
+		{name: "policy", code: systemstate.CodeIdentityTransitionRequired, wantCode: createsuperuserprotocol.CodeIdentityTransitionRequired},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -222,7 +224,7 @@ func TestRunCreatesuperuserMapsOnlyAllowedSystemStateFailures(t *testing.T) {
 			}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 				mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
 			), output, createsuperuserDependencies{
-				provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error {
+				provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
 					calls++
 					return &systemstate.Error{Code: test.code, Detail: "password-marker", Cause: errors.New("backend-secret")}
 				},
@@ -258,7 +260,9 @@ func TestRunCreatesuperuserRejectsImpossibleAndUnknownStateFailuresAsClosedInter
 		}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 			mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
 		), output, createsuperuserDependencies{
-			provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error { return failure },
+			provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
+				return failure
+			},
 		})
 		response := parseCreatesuperuserResponse(t, output.Bytes())
 		want := createsuperuserprotocol.Failure{Category: createsuperuserprotocol.CategoryInternal, Code: createsuperuserprotocol.CodeProjectInternalError}
@@ -306,7 +310,7 @@ func TestRunCreatesuperuserOpenerAndCloseOwnership(t *testing.T) {
 				OpenSystemStateBackend: test.opener,
 			}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 				mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
-			), output, createsuperuserDependencies{provisionOperator: systemstate.ProvisionOperator})
+			), output, createsuperuserDependencies{provisionIdentity: provisionInitialSuperuser})
 			response := parseCreatesuperuserResponse(t, output.Bytes())
 			want := createsuperuserprotocol.Failure{Category: createsuperuserprotocol.CategoryBackend, Code: test.wantCode}
 			if err != nil || response.Failure != want || report.BackendOpenCalls != test.wantOpenCalls ||
@@ -332,7 +336,7 @@ func TestRunCreatesuperuserKnownCreatedCloseFailureAndNoRetry(t *testing.T) {
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 		mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
 	), output, createsuperuserDependencies{
-		provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error {
+		provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
 			provisionCalls++
 			return nil
 		},
@@ -359,7 +363,7 @@ func TestRunCreatesuperuserKnownCreatedCloseFailureAndNoRetry(t *testing.T) {
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 		mustCreatesuperuserRequest(t, "operator", "password"),
 	), output, createsuperuserDependencies{
-		provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error {
+		provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
 			persistenceCalls++
 			return &systemstate.Error{Code: systemstate.CodePersistence}
 		},
@@ -381,7 +385,7 @@ func TestRunCreatesuperuserCancellationAfterAcquisitionClosesAndReturnsContextEr
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 		mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
 	), io.Discard, createsuperuserDependencies{
-		provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error {
+		provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
 			cancel()
 			return context.Canceled
 		},
@@ -443,7 +447,7 @@ func TestRunCreatesuperuserOutcomeUnknownBeatsCancellationButConfirmedRollbackCa
 			}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 				mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
 			), output, createsuperuserDependencies{
-				provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error {
+				provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
 					cancel()
 					return test.provisionErr
 				},
@@ -480,7 +484,9 @@ func TestRunCreatesuperuserResponseWriteFailureIsOneAttemptAndPreservesLocalOutc
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(
 		mustCreatesuperuserRequest(t, "operator-marker", "password-marker"),
 	), writer, createsuperuserDependencies{
-		provisionOperator: func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error { return nil },
+		provisionIdentity: func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error {
+			return nil
+		},
 	})
 	if err == nil || writer.calls != 1 || backend.closeCalls != 1 || report.RunnerResponseWrites != 1 ||
 		report.ProvisionCalls != 1 || !report.KnownCreated {
@@ -492,7 +498,7 @@ func TestRunCreatesuperuserResponseWriteFailureIsOneAttemptAndPreservesLocalOutc
 }
 
 type createsuperuserTestBackend struct {
-	systemstate.Backend
+	systemstate.IdentityBackend
 	closeCalls int
 	closeErr   error
 }

@@ -726,7 +726,7 @@ func createArticleSiteArticleTable(t *testing.T, backend *sqlite.Backend) {
 func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backend) {
 	t.Helper()
 	ctx := context.Background()
-	loaded, _, err := migrationdefinition.Load(systemstate.InitialDefinitionSource())
+	loaded, _, err := migrationdefinition.Load(systemstate.IdentityMigrationSources()...)
 	if err != nil {
 		t.Fatalf("load Article site system definition: %v", err)
 	}
@@ -739,7 +739,7 @@ func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backe
 	}
 	history, err := backend.ReadAppliedMigrations(ctx)
 	want := systemstate.InitialMigrationKey()
-	if err != nil || len(history) != 1 || history[0].App != want.App || history[0].Name != want.Name {
+	if err != nil || len(history) != 3 {
 		t.Fatalf("Article site system migration history = (%+v,%v), want %s.%s", history, err, want.App, want.Name)
 	}
 }
@@ -747,18 +747,23 @@ func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backe
 func provisionArticleSiteOperator(
 	t *testing.T,
 	ctx context.Context,
-	backend systemstate.Backend,
+	backend systemstate.IdentityBackend,
 	username, password string,
 ) {
 	t.Helper()
-	policy, err := operatorconfig.CredentialPolicy()
+	principal, err := operatorconfig.InitialSuperuser()
 	if err != nil {
 		t.Fatalf("Article operator policy: %v", err)
 	}
-	if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
-		Username:         username,
-		Password:         password,
-		CredentialPolicy: policy,
+	config, err := operatorconfig.IdentityRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := systemstate.ProvisionIdentity(ctx, backend, systemstate.ProvisionIdentityConfig{
+		Username:       username,
+		Password:       password,
+		Principal:      principal,
+		PasswordHasher: config.PasswordHasher,
 	}); err != nil {
 		t.Fatalf("ProvisionOperator(): %v", err)
 	}

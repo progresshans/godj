@@ -351,8 +351,9 @@ func newArticleAdminSiteFixtureWithBackend(t *testing.T, backend articleapp.Back
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
 		ID:     "staff-1",
 		Active: true,
+		Staff:  true,
 		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
+			"godj.admin.access",
 			adminapp.ArticleViewPermission,
 			adminapp.ArticleAddPermission,
 			adminapp.ArticleChangePermission,

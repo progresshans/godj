@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"errors"
 	"io"
 	"strconv"
 	"strings"
@@ -225,7 +224,9 @@ func (h *PBKDF2) validCall(ctx context.Context, password string) error {
 }
 
 func passwordFailure(cause error) error {
-	if errors.Is(cause, context.Canceled) || errors.Is(cause, context.DeadlineExceeded) {
+	// Only the exact context sentinel is safe to render directly. A hasher
+	// may wrap or join it with password material; preserve that cause privately.
+	if cause == context.Canceled || cause == context.DeadlineExceeded {
 		return cause
 	}
 	return &Error{Code: CodeCredential, Detail: "credential verification failed", Cause: cause}

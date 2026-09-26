@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -34,16 +35,29 @@ type Profile struct {
 // Account is one immutable, coherent observation of stored identity and direct
 // plus group permissions. It is data, not an admission decision. Inactive and
 // superuser flags remain explicit for the authentication/authorization owner.
-type Account struct {
+type Account struct{ state *accountState }
+
+type accountState struct {
 	profile    Profile
 	credential auth.Credential
+}
+
+func (a Account) value() accountState {
+	if a.state == nil {
+		return accountState{}
+	}
+	return *a.state
+}
+
+func (Account) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte("identity.Account{redacted}"))
 }
 
 func (Account) String() string   { return "identity.Account{redacted}" }
 func (Account) GoString() string { return "identity.Account{redacted}" }
 
 func (value Account) Profile() Profile {
-	profile := value.profile
+	profile := value.value().profile
 	if profile.LastLogin != nil {
 		instant := *profile.LastLogin
 		profile.LastLogin = &instant
@@ -52,7 +66,7 @@ func (value Account) Profile() Profile {
 }
 
 func (value Account) Permissions() []auth.Permission {
-	return value.credential.Principal().Permissions()
+	return value.value().credential.Principal().Permissions()
 }
 
 // MarshalJSON makes accidental encoding safe while keeping the public profile
@@ -62,9 +76,15 @@ func (value Account) MarshalJSON() ([]byte, error) { return json.Marshal(value.P
 // Directory reads current account state without retaining per-user or group
 // caches. Its backend must supply a stable read snapshot, not an ordinary
 // READ COMMITTED transaction around separate SELECTs.
-type Directory struct {
+type Directory struct{ state *directoryState }
+
+type directoryState struct {
 	backend   db.SnapshotReader
 	relations project.Relations
+}
+
+func (Directory) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte("identity.Directory{redacted}"))
 }
 
 func (*Directory) String() string   { return "identity.Directory{redacted}" }
@@ -78,7 +98,7 @@ func NewDirectory(backend db.SnapshotReader) (*Directory, error) {
 	if err != nil {
 		return nil, identityReadFailure(err)
 	}
-	return &Directory{backend: backend, relations: relations}, nil
+	return &Directory{state: &directoryState{backend: backend, relations: relations}}, nil
 }
 
 func (directory *Directory) ByPrincipalID(ctx context.Context, principalID string) (Account, bool, error) {
@@ -102,7 +122,7 @@ func (directory *Directory) lookup(ctx context.Context, predicate orm.Predicate[
 	if err := ctx.Err(); err != nil {
 		return Account{}, false, err
 	}
-	if directory == nil || directory.backend == nil {
+	if directory == nil || directory.state == nil || directory.state.backend == nil {
 		return Account{}, false, &auth.Error{Code: auth.CodeInvalidConfig, Field: "identity_backend", Detail: "identity directory is uninitialized"}
 	}
 	var candidate Account
@@ -120,7 +140,7 @@ func (directory *Directory) lookup(ctx context.Context, predicate orm.Predicate[
 		if row.Revision <= 0 {
 			return &auth.Error{Code: auth.CodeCredential, Detail: "stored identity revision is invalid"}
 		}
-		relations := directory.relations.IdentityPermission
+		relations := directory.state.relations.IdentityPermission
 		permissionQuery, err := models.PermissionObjects.Using(reader).Filter(orm.Or(
 			relations.Users.ID.Exact(row.ID), relations.Groups.Users().ID.Exact(row.ID),
 		)).Distinct().OrderBy(models.PermissionFields.Code.Asc()).Limit(auth.MaximumPermissions + 1)
@@ -135,7 +155,7 @@ func (directory *Directory) lookup(ctx context.Context, predicate orm.Predicate[
 		for index, permission := range permissions {
 			codes[index] = auth.Permission(permission.Code)
 		}
-		principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: row.PrincipalID, Active: row.Active, Permissions: codes})
+		principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: row.PrincipalID, Active: row.Active, Staff: row.Staff, Superuser: row.Superuser, Permissions: codes})
 		if err != nil {
 			return err
 		}
@@ -143,17 +163,17 @@ func (directory *Directory) lookup(ctx context.Context, predicate orm.Predicate[
 		if err != nil {
 			return err
 		}
-		candidate = Account{credential: credential, profile: Profile{
+		candidate = Account{state: &accountState{credential: credential, profile: Profile{
 			ID: row.ID, PrincipalID: row.PrincipalID, Username: row.Username,
 			FirstName: row.FirstName, LastName: row.LastName, Email: row.Email,
 			Active: row.Active, Staff: row.Staff, Superuser: row.Superuser,
 			DateJoined: row.DateJoined, LastLogin: row.LastLogin, Revision: row.Revision,
-		}}
+		}}}
 		found = true
 		return nil
 	}
 	var callbackErr error
-	err := directory.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+	err := directory.state.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
 		callbackErr = read(reader)
 		return callbackErr
 	})

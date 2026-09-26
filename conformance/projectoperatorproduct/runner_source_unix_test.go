@@ -21,6 +21,7 @@ import (
 	"errors"
 
 	"github.com/progresshans/godj/codegen"
+	identitydef "github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/schema"
 )
 
@@ -48,6 +49,8 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	if err != nil {
 		return codegen.ProjectSpec{}, err
 	}
+	identityApp, err := identitydef.AppSpec()
+	if err != nil { return codegen.ProjectSpec{}, err }
 	const root = "example.com/godj-operator-product/"
 	return codegen.ProjectSpec{
 		Project: codegen.PackageSpec{
@@ -63,7 +66,7 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 				Directory: "models",
 			},
 			Schema: appSchema,
-		}},
+		}, identityApp},
 	}, nil
 }
 `
@@ -71,7 +74,6 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 const operatorPolicySource = `package operatorpolicy
 
 import (
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	"github.com/progresshans/godj/sessions"
@@ -80,40 +82,18 @@ import (
 
 const PrincipalID = "external-article-operator"
 
-func CredentialPolicy() (systemstate.CredentialPolicy, error) {
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID: PrincipalID,
-		Active: true,
-		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
-			articleapp.ArticleViewPermission,
-			articleapp.ArticleAddPermission,
-			articleapp.ArticleChangePermission,
-			articleapp.ArticleDeletePermission,
-		},
-	})
-	if err != nil {
-		return systemstate.CredentialPolicy{}, err
-	}
-	hasher, err := auth.NewDefaultPBKDF2()
-	if err != nil {
-		return systemstate.CredentialPolicy{}, err
-	}
-	return systemstate.CredentialPolicy{Principal: principal, PasswordHasher: hasher}, nil
+func InitialSuperuser() (auth.Principal, error) {
+	return auth.NewPrincipal(auth.PrincipalConfig{ID: PrincipalID, Active: true, Staff: true, Superuser: true, Permissions: []auth.Permission{
+		articleapp.ArticleViewPermission, articleapp.ArticleAddPermission, articleapp.ArticleChangePermission, articleapp.ArticleDeletePermission,
+	}})
 }
 
-func RuntimeConfig() (systemstate.RuntimeConfig, error) {
-	policy, err := CredentialPolicy()
-	if err != nil {
-		return systemstate.RuntimeConfig{}, err
-	}
-	return systemstate.RuntimeConfig{
-		CredentialPolicy: policy,
-		SessionLimits: sessions.DefaultLimits(),
-		MaxSessions: 64,
-		AuditCapacity: 256,
-	}, nil
+func RuntimeConfig() (systemstate.IdentityRuntimeConfig, error) {
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil { return systemstate.IdentityRuntimeConfig{}, err }
+	return systemstate.IdentityRuntimeConfig{PasswordHasher: hasher, SessionLimits: sessions.DefaultLimits(), MaxSessions: 64, AuditCapacity: 256}, nil
 }
+
 `
 
 const operatorProjectRunnerSource = `package main
@@ -131,7 +111,6 @@ import (
 	"example.com/godj-operator-product/modeldef"
 	"example.com/godj-operator-product/operatorpolicy"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
-	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/systemstate"
 	"golang.org/x/sys/unix"
@@ -192,7 +171,8 @@ func main() {
 		time.Sleep(time.Duration(milliseconds) * time.Millisecond)
 	}
 	selected, selectionErr := databaseconfig.FromEnvironment(os.LookupEnv)
-	policy, policyErr := operatorpolicy.CredentialPolicy()
+	principal, policyErr := operatorpolicy.InitialSuperuser()
+	runtimeConfig, runtimeConfigErr := operatorpolicy.RuntimeConfig()
 	writer := io.Writer(os.Stdout)
 	mode := os.Getenv(responseModeEnvironment)
 	closeFailure := false
@@ -214,7 +194,7 @@ func main() {
 	}
 	err := project.Run(context.Background(), project.Config{
 		MigrationDefinitionRoots: []string{"migrations"},
-		MigrationDefinitionSources: []definition.Source{systemstate.InitialDefinitionSource()},
+		MigrationDefinitionSources: systemstate.IdentityMigrationSources(),
 		LoadProjectSpec: modeldef.ProjectSpec,
 		OpenMigrationBackend: func(ctx context.Context) (project.MigrationBackend, error) {
 			if selectionErr != nil {
@@ -227,9 +207,8 @@ func main() {
 			if selectionErr != nil {
 				return nil, selectionErr
 			}
-			if policyErr != nil {
-				return nil, policyErr
-			}
+			if policyErr != nil { return nil, policyErr }
+			if runtimeConfigErr != nil { return nil, runtimeConfigErr }
 			opened, err := databaseconfig.Open(ctx, selected)
 			if err != nil {
 				return nil, err
@@ -239,7 +218,8 @@ func main() {
 			}
 			return opened, nil
 		},
-		SystemOperatorPolicy: policy,
+		InitialSuperuser: principal,
+		PasswordHasher: runtimeConfig.PasswordHasher,
 	}, os.Args[1:], os.Stdin, writer)
 	if err != nil {
 		exitCode := project.RunnerExitCode(err)
@@ -307,7 +287,7 @@ import (
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
-func New(ctx context.Context, backend systemstate.Backend) (*web.Application, error) {
+func New(ctx context.Context, backend systemstate.IdentityBackend) (*web.Application, error) {
 	if ctx == nil {
 		return nil, errors.New("external operator application: nil context")
 	}
@@ -315,7 +295,7 @@ func New(ctx context.Context, backend systemstate.Backend) (*web.Application, er
 	if err != nil {
 		return nil, err
 	}
-	runtime, err := systemstate.OpenExisting(ctx, backend, runtimeConfig)
+	runtime, err := systemstate.OpenIdentity(ctx, backend, runtimeConfig)
 	if err != nil {
 		return nil, err
 	}

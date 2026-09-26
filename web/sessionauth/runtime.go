@@ -157,7 +157,7 @@ func (LoginResult) GoString() string { return "sessionauth.LoginResult{redacted}
 // creates or rotates the server session and always rotates the independent CSRF
 // cookie secret. Callers verify the login POST's pre-login CSRF token first.
 func (r *Runtime) Login(request *web.Request, username, password string) (LoginResult, error) {
-	return r.login(request, username, password, "", false)
+	return r.login(request, username, password, "", false, false)
 }
 
 // LoginAuthorized performs the same fixation-safe login but publishes no
@@ -169,14 +169,21 @@ func (r *Runtime) LoginAuthorized(
 	username, password string,
 	required auth.Permission,
 ) (LoginResult, error) {
-	return r.login(request, username, password, required, true)
+	return r.login(request, username, password, required, true, false)
+}
+
+// LoginStaff requires an active staff principal before creating or rotating
+// any session/cookie state. An optional permission adds the configured deny
+// overlay. Superuser privileges do not replace staff admission.
+func (r *Runtime) LoginStaff(request *web.Request, username, password string, additional auth.Permission) (LoginResult, error) {
+	return r.login(request, username, password, additional, additional != "", true)
 }
 
 func (r *Runtime) login(
 	request *web.Request,
 	username, password string,
 	required auth.Permission,
-	requirePermission bool,
+	requirePermission, requireStaff bool,
 ) (LoginResult, error) {
 	httpRequest, err := r.request(request)
 	if err != nil {
@@ -190,7 +197,7 @@ func (r *Runtime) login(
 		return LoginResult{}, authenticationFailure("credential verification failed", err)
 	}
 	principal := credential.Principal()
-	if !principal.Authenticated() || credential.SessionStamp() == "" {
+	if !principal.Authenticated() || credential.SessionStamp() == "" || requireStaff && !principal.Staff() {
 		return LoginResult{}, auth.ErrInvalidCredentials
 	}
 	if requirePermission {

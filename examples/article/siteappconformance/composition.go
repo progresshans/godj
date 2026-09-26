@@ -72,7 +72,7 @@ func (observation CompositionObservation) PublicOnly() bool {
 // system-state classification rather than inferring it from a synthetic flag.
 func ObserveComposition(
 	ctx context.Context,
-	backend systemstate.Backend,
+	backend systemstate.IdentityBackend,
 ) (CompositionObservation, error) {
 	application, err := siteapp.New(ctx, siteapp.NewConfig(backend))
 	observation := CompositionObservation{ApplicationCreated: application != nil}

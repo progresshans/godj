@@ -21,6 +21,8 @@ import (
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
 )
@@ -43,7 +45,7 @@ func (log *gdj0055EventLog) snapshot() []string {
 }
 
 type gdj0055LinkedBackend struct {
-	systemstate.Backend
+	systemstate.IdentityBackend
 	events       *gdj0055EventLog
 	closeCalls   atomic.Int64
 	closeFailure error
@@ -56,7 +58,7 @@ func (backend *gdj0055LinkedBackend) CoordinatedAtomic(
 	if backend.events != nil {
 		backend.events.append("provision")
 	}
-	return backend.Backend.CoordinatedAtomic(ctx, callback)
+	return backend.IdentityBackend.CoordinatedAtomic(ctx, callback)
 }
 
 func (backend *gdj0055LinkedBackend) Close() error {
@@ -99,12 +101,12 @@ func gdj0055ProjectProvisionOwnership(
 	}
 	defer fixture.cleanup()
 
-	policy, err := fixture.config.credentialPolicy()
+	initial, err := gdj0055InitialIdentity(ctx, fixture)
 	if err != nil {
 		return protocol.Observation{}, err
 	}
 	events := &gdj0055EventLog{}
-	backend := &gdj0055LinkedBackend{Backend: fixture.observed, events: events}
+	backend := &gdj0055LinkedBackend{IdentityBackend: fixture.observed, events: events}
 	var openCalls atomic.Int64
 	var linkedReport linked.CreatesuperuserReport
 	globalReport, err := productcheck.RunCreatesuperuserOwnershipConformance(
@@ -130,7 +132,8 @@ func gdj0055ProjectProvisionOwnership(
 						events.append("backend_open")
 						return backend, nil
 					},
-					CredentialPolicy: policy,
+					InitialSuperuser: initial.Principal,
+					PasswordHasher:   initial.PasswordHasher,
 				}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(request), writer)
 				if runErr != nil {
 					return nil, runErr
@@ -162,7 +165,8 @@ func gdj0055ProjectProvisionOwnership(
 			rejectedOpens.Add(1)
 			return nil, errors.New("must not open")
 		},
-		CredentialPolicy: policy,
+		InitialSuperuser: initial.Principal,
+		PasswordHasher:   initial.PasswordHasher,
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader([]byte("invalid")), &rejectedOutput)
 	if rejectedErr != nil || rejectedOpens.Load() != 0 || rejected.BackendOpenCalls != 0 || rejected.ProvisionCalls != 0 {
 		return protocol.Observation{}, fmt.Errorf("invalid request crossed backend boundary: report=%+v error=%v opens=%d", rejected, rejectedErr, rejectedOpens.Load())
@@ -174,7 +178,7 @@ func gdj0055ProjectProvisionOwnership(
 	}
 	defer missingDirectory.cleanup()
 	missingDirectory.observed.resetDML()
-	missingErr := systemStateProvisionOperator(ctx, missingDirectory.observed, fixture.config)
+	_, missingErr := systemstate.ProvisionIdentity(ctx, missingDirectory.observed, initial)
 	if !errors.Is(missingErr, &systemstate.Error{Code: systemstate.CodeSchemaUnavailable}) || missingDirectory.writes() != 0 || missingDirectory.observed.atomicCalls.Load() != 0 {
 		return protocol.Observation{}, fmt.Errorf("missing migration gate: error=%v writes=%d atomics=%d", missingErr, missingDirectory.writes(), missingDirectory.observed.atomicCalls.Load())
 	}
@@ -184,11 +188,15 @@ func gdj0055ProjectProvisionOwnership(
 		return protocol.Observation{}, err
 	}
 	defer readiness.cleanup()
+	readinessInitial, err := gdj0055InitialIdentity(ctx, readiness)
+	if err != nil {
+		return protocol.Observation{}, err
+	}
 	if _, err := readiness.raw.ExecContext(ctx, `DROP TABLE "godj_system_audit"`); err != nil {
 		return protocol.Observation{}, err
 	}
 	readiness.resetDML()
-	readinessErr := systemStateProvisionOperator(ctx, readiness.observed, readiness.config)
+	_, readinessErr := systemstate.ProvisionIdentity(ctx, readiness.observed, readinessInitial)
 	if !errors.Is(readinessErr, &systemstate.Error{Code: systemstate.CodeSchemaUnavailable}) || readiness.writes() != 0 {
 		return protocol.Observation{}, fmt.Errorf("readiness gate: error=%v writes=%d", readinessErr, readiness.writes())
 	}
@@ -490,7 +498,7 @@ func gdj0055ProvisionOutcomeOwnership(
 		return protocol.Observation{}, err
 	}
 	defer closeFixture.cleanup()
-	closePolicy, err := closeFixture.config.credentialPolicy()
+	closeInitial, err := gdj0055InitialIdentity(ctx, closeFixture)
 	if err != nil {
 		return protocol.Observation{}, err
 	}
@@ -499,11 +507,12 @@ func gdj0055ProvisionOutcomeOwnership(
 		return protocol.Observation{}, err
 	}
 	defer clear(closeRequest)
-	closeBackend := &gdj0055LinkedBackend{Backend: closeFixture.observed, closeFailure: errors.New("GDJ-0055 close failure")}
+	closeBackend := &gdj0055LinkedBackend{IdentityBackend: closeFixture.observed, closeFailure: errors.New("GDJ-0055 close failure")}
 	var closeResponse bytes.Buffer
 	closeReport, closeRunErr := linked.RunCreatesuperuser(ctx, linked.CreatesuperuserConfig{
 		OpenSystemStateBackend: func(context.Context) (linked.SystemStateBackend, error) { return closeBackend, nil },
-		CredentialPolicy:       closePolicy,
+		InitialSuperuser:       closeInitial.Principal,
+		PasswordHasher:         closeInitial.PasswordHasher,
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(closeRequest), &closeResponse)
 	parsedClose, closeFailure, closeFailed := createsuperuserprotocol.ParseResponse(closeResponse.Bytes(), closeRunErr == nil)
 	closeRows, closeRowErr := systemStateCountRows(ctx, closeFixture.raw, systemStateCredentialTable)
@@ -522,7 +531,7 @@ func gdj0055ProvisionOutcomeOwnership(
 		return protocol.Observation{}, err
 	}
 	defer outputFixture.cleanup()
-	outputPolicy, err := outputFixture.config.credentialPolicy()
+	outputInitial, err := gdj0055InitialIdentity(ctx, outputFixture)
 	if err != nil {
 		return protocol.Observation{}, err
 	}
@@ -531,11 +540,12 @@ func gdj0055ProvisionOutcomeOwnership(
 		return protocol.Observation{}, err
 	}
 	defer clear(outputRequest)
-	outputBackend := &gdj0055LinkedBackend{Backend: outputFixture.observed}
+	outputBackend := &gdj0055LinkedBackend{IdentityBackend: outputFixture.observed}
 	outputWriter := &gdj0055EventWriter{short: true}
 	outputReport, outputErr := linked.RunCreatesuperuser(ctx, linked.CreatesuperuserConfig{
 		OpenSystemStateBackend: func(context.Context) (linked.SystemStateBackend, error) { return outputBackend, nil },
-		CredentialPolicy:       outputPolicy,
+		InitialSuperuser:       outputInitial.Principal,
+		PasswordHasher:         outputInitial.PasswordHasher,
 	}, []string{createsuperuserprotocol.PrivateArgument}, bytes.NewReader(outputRequest), outputWriter)
 	outputRows, outputRowErr := systemStateCountRows(ctx, outputFixture.raw, systemStateCredentialTable)
 	if outputErr == nil || outputRowErr != nil || !outputReport.KnownCreated || outputRows != 1 {
@@ -757,6 +767,9 @@ func gdj0055CredentialAbsentPublicOnly(
 		return protocol.Observation{}, err
 	}
 	defer empty.cleanup()
+	if err := gdj0055MigrateIdentity(ctx, empty); err != nil {
+		return protocol.Observation{}, err
+	}
 	empty.resetDML()
 	emptyComposition, startupErr := siteappconformance.ObserveComposition(ctx, empty.observed)
 	if startupErr != nil || !emptyComposition.PublicOnly() || empty.writes() != 0 {
@@ -780,6 +793,9 @@ func gdj0055CredentialAbsentPublicOnly(
 		return protocol.Observation{}, err
 	}
 	defer wrongHistory.cleanup()
+	if err := gdj0055MigrateIdentity(ctx, wrongHistory); err != nil {
+		return protocol.Observation{}, err
+	}
 	if _, err := wrongHistory.raw.ExecContext(ctx, `INSERT INTO "godj_migrations" ("app", "name") VALUES ('godj_system', '9999_wrong')`); err != nil {
 		return protocol.Observation{}, err
 	}
@@ -800,6 +816,9 @@ func gdj0055CredentialAbsentPublicOnly(
 		return protocol.Observation{}, err
 	}
 	defer unavailable.cleanup()
+	if err := gdj0055MigrateIdentity(ctx, unavailable); err != nil {
+		return protocol.Observation{}, err
+	}
 	if _, err := unavailable.raw.ExecContext(ctx, `DROP TABLE "godj_system_session"`); err != nil {
 		return protocol.Observation{}, err
 	}
@@ -815,6 +834,9 @@ func gdj0055CredentialAbsentPublicOnly(
 		return protocol.Observation{}, err
 	}
 	defer dependent.cleanup()
+	if err := gdj0055MigrateIdentity(ctx, dependent); err != nil {
+		return protocol.Observation{}, err
+	}
 	if _, err := dependent.raw.ExecContext(ctx, `INSERT INTO "godj_system_session" ("id", "digest", "payload") VALUES (1, 'dependent', 'dependent')`); err != nil {
 		return protocol.Observation{}, err
 	}
@@ -829,6 +851,9 @@ func gdj0055CredentialAbsentPublicOnly(
 		return protocol.Observation{}, err
 	}
 	defer dependentAudit.cleanup()
+	if err := gdj0055MigrateIdentity(ctx, dependentAudit); err != nil {
+		return protocol.Observation{}, err
+	}
 	if _, err := dependentAudit.raw.ExecContext(ctx, `INSERT INTO "godj_system_audit" (`+
 		`"actor_id", "model", "object_id", "action", "changed_fields", "display_label"`+
 		`) VALUES ('operator', 'article.article', '1', 'add', 'v1.AAA', 'dependent')`); err != nil {
@@ -854,6 +879,16 @@ func gdj0055CredentialAbsentPublicOnly(
 	if err := systemStateProvisionOperator(ctx, corrupt.observed, corrupt.config); err != nil {
 		return protocol.Observation{}, err
 	}
+	if err := gdj0055MigrateIdentity(ctx, corrupt); err != nil {
+		return protocol.Observation{}, err
+	}
+	corruptPolicy, err := corrupt.config.credentialPolicy()
+	if err != nil {
+		return protocol.Observation{}, err
+	}
+	if _, err := systemstate.AdoptOperator(ctx, corrupt.observed, systemstate.AdoptOperatorConfig{Expected: systemstate.RuntimeConfig{CredentialPolicy: corruptPolicy}, Staff: true}); err != nil {
+		return protocol.Observation{}, err
+	}
 	if _, err := corrupt.raw.ExecContext(ctx, `UPDATE "godj_system_credential" SET "encoded_password" = 'v9.invalid' WHERE "id" = 1`); err != nil {
 		return protocol.Observation{}, err
 	}
@@ -877,12 +912,15 @@ func gdj0055CredentialAbsentPublicOnly(
 	); err != nil {
 		return protocol.Observation{}, err
 	}
+	if err := gdj0055MigrateIdentity(ctx, mismatch); err != nil {
+		return protocol.Observation{}, err
+	}
 	mismatch.resetDML()
 	mismatchComposition, startupErr := siteappconformance.ObserveComposition(ctx, mismatch.observed)
-	if mismatchComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeCredentialPolicyMismatch}) || mismatch.writes() != 0 {
+	if mismatchComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeIdentityTransitionRequired}) || mismatch.writes() != 0 {
 		return protocol.Observation{}, fmt.Errorf("mismatch Article composition=%+v error=%v writes=%d", mismatchComposition, startupErr, mismatch.writes())
 	}
-	cases = append(cases, observedCase{"policy_mismatch", string(systemstate.CodeCredentialPolicyMismatch), mismatchComposition.PublicOnly(), mismatch.writes()})
+	cases = append(cases, observedCase{"explicit_transition_required", string(systemstate.CodeIdentityTransitionRequired), mismatchComposition.PublicOnly(), mismatch.writes()})
 
 	values := make([]protocol.Value, len(cases))
 	var writes int64
@@ -912,6 +950,8 @@ func gdj0055CredentialAbsentPublicOnly(
 			"public_only_mutations":    systemStateInt64(empty.writes()),
 			"required_empty_stores": protocol.List(
 				protocol.String("credential"),
+				protocol.String("identity_user"),
+				protocol.String("identity_transition"),
 				protocol.String("session"),
 				protocol.String("audit"),
 			),
@@ -925,3 +965,29 @@ func gdj0055CredentialAbsentPublicOnly(
 }
 
 var _ io.Writer = (*gdj0055EventWriter)(nil)
+
+// These are fixture inputs for the current identity-backed command, not a
+// runtime compatibility adapter. Legacy direct API probes keep their 0001 data.
+func gdj0055MigrateIdentity(ctx context.Context, fixture *gdj0055StateFixture) error {
+	loaded, _, err := definition.Load(systemstate.IdentityMigrationSources()...)
+	if err != nil {
+		return err
+	}
+	_, err = (migrations.Executor{Backend: fixture.raw}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
+	return err
+}
+
+func gdj0055InitialIdentity(ctx context.Context, fixture *gdj0055StateFixture) (systemstate.ProvisionIdentityConfig, error) {
+	if err := gdj0055MigrateIdentity(ctx, fixture); err != nil {
+		return systemstate.ProvisionIdentityConfig{}, err
+	}
+	policy, err := fixture.config.credentialPolicy()
+	if err != nil {
+		return systemstate.ProvisionIdentityConfig{}, err
+	}
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: policy.Principal.ID(), Active: true, Staff: true, Superuser: true, Permissions: policy.Principal.Permissions()})
+	if err != nil {
+		return systemstate.ProvisionIdentityConfig{}, err
+	}
+	return systemstate.ProvisionIdentityConfig{Principal: principal, Username: fixture.config.Username, Password: fixture.config.Password, PasswordHasher: policy.PasswordHasher}, nil
+}

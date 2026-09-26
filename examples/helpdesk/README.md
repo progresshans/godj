@@ -201,3 +201,8 @@ Offset·Limit·All을 적용한다. Cold Count는 category 객체를 읽지 않�
 `relations.ModelsTicket.Category.Name.In("Hardware & repairs", "Other")`를 `Filter`에 전달할 수 있다.
 Dynamic 경로는 `category__name__icontains`, `category__name__in`이며 입력을 받는 경계에서는 필요한 lookup policy를 제공한다.
 선택한 category의 materialization과 Count는 같은 필터를 유지한다.
+
+
+Identity 전환 소비자는 기존 system `0001` operator의 권한 CAS를 먼저 실행한 뒤 새 migration graph와 `AdoptOperator`를 명시적으로
+적용한다. 재접속한 Admin/API 및 collection 동시 수정 runtime은 `OpenIdentity`를 사용한다. Staff는 이전 입력에 명시하며 기존
+permission에서 추론하지 않는다. 호스트 선언은 재사용 identity 앱의 전체 관계·삭제 graph를 포함하고 외부 앱 파일은 생성하지 않는다.

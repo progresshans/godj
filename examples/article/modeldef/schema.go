@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/progresshans/godj/codegen"
+	identitydef "github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -42,6 +43,10 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	if err != nil {
 		return codegen.ProjectSpec{}, err
 	}
+	identityApp, err := identitydef.AppSpec()
+	if err != nil {
+		return codegen.ProjectSpec{}, err
+	}
 	const rootImport = "github.com/progresshans/godj/examples/article/"
 	return codegen.ProjectSpec{
 		Project: codegen.PackageSpec{
@@ -57,6 +62,6 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 				Directory:   "models",
 			},
 			Schema: appSchema,
-		}},
+		}, identityApp},
 	}, nil
 }

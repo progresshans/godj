@@ -52,3 +52,34 @@ func TestPostgresIdentityDirectoryRejectsPartialOrInvalidState(t *testing.T) {
 	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
 	identitytest.RunDirectoryValidation(t, backend)
 }
+
+func TestPostgresStoredIdentityAuthenticationAndHTTP(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	backend.database.SetMaxOpenConns(1)
+	identitytest.RunAuthentication(t, backend)
+}
+
+func TestPostgresOperatorAdoptionPreservesSessionAuditAndOwnership(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	identitytest.RunOperatorTransition(t, backend)
+}
+func TestPostgresIdentityBootstrapReconcilesUnknownOutcome(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+	identitytest.RunIdentityBootstrap(t, backend)
+}
+
+func TestPostgresIdentityTransitionFailureConcurrencyAndReadOwnership(t *testing.T) {
+	url := postgresIntegrationURL(t)
+	identitytest.RunTransitionBoundaries(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
+		namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
+		first := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+		second := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
+		return first, second
+	})
+}

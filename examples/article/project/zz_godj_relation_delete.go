@@ -3,12 +3,22 @@
 package project
 
 import (
+	identity "github.com/progresshans/godj/identity/models"
+	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	ir "github.com/progresshans/godj/schema/ir"
 )
 
 const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"
 
+var _ orm.WriteDescriptor[identity.Group] = identity.GroupDescriptor{}
+var _ orm.WriteDescriptor[identity.Permission] = identity.PermissionDescriptor{}
+var _ orm.WriteDescriptor[identity.User] = identity.UserDescriptor{}
+
 type RelationDeleters struct {
+	IdentityGroup      orm.RelationDeleter[identity.Group]
+	IdentityPermission orm.RelationDeleter[identity.Permission]
+	IdentityUser       orm.RelationDeleter[identity.User]
 }
 
 func BindRelationDeleters() (RelationDeleters, error) {
@@ -16,14 +26,70 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	if _err != nil {
 		return RelationDeleters{}, _err
 	}
-	if len(_binding.ForwardRelations()) != 0 {
+	_targets := make(map[ir.ModelIdentity]struct{})
+	for _, _relation := range _binding.ForwardRelations() {
+		_targets[_relation.Target] = struct{}{}
+	}
+	if len(_targets) != 3 {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
 			Detail:   "generated relation deleter target set does not match project binding",
 		}
 	}
-	return RelationDeleters{}, nil
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	_deleter0, _err := orm.BindRelationDeleter(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+		identity.GroupDescriptor{},
+		"299ac4bd4d1836a2d7d5446ee204f9a118a310dc1abb20e4c0b01b1eaff8b26d",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter1, _err := orm.BindRelationDeleter(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+		identity.PermissionDescriptor{},
+		"6bb8f193e2e529f5904d0535dc87871622c49ee6d9565a44e58cf567e3524c2e",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter2, _err := orm.BindRelationDeleter(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
+		identity.UserDescriptor{},
+		"7736d4be0e0edbf7d000d1c4b61916a4df5813e18f6cddf8738cccb6fe6ecdc8",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	return RelationDeleters{
+		IdentityGroup:      _deleter0,
+		IdentityPermission: _deleter1,
+		IdentityUser:       _deleter2,
+	}, nil
 }
 
-var _ goDjProjectSnapshot_51a330a205b021cb7e5c495383e0149e725e0d3b6826ece7dc6bb766c6d1f584
+var _ goDjProjectSnapshot_5393435b672904b4b5af84c9dd0b103b21d81891793403980d9cd47ba6769644

@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
@@ -56,7 +55,7 @@ var (
 )
 
 type restartDatabaseBackend interface {
-	systemstate.Backend
+	systemstate.IdentityBackend
 	migrationbackend.RevisionFencedBackend
 	Close() error
 }
@@ -837,20 +836,15 @@ func explicitlyMigrateRestartDatabase(t *testing.T, ctx context.Context, reposit
 	if err != nil {
 		t.Fatalf("read Article migration definition: %v", err)
 	}
-	loaded, report, err := migrationdefinition.Load(
-		migrationdefinition.Source{
-			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
-			Document: document,
-		},
-		systemstate.InitialDefinitionSource(),
-	)
+	sources := append(systemstate.IdentityMigrationSources(), migrationdefinition.Source{SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document})
+	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
-		t.Fatalf("load Article and system migration definitions: %v", err)
+		t.Fatal(err)
 	}
-	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 4 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != len(sources) || report.HeadersValidated != len(sources) || report.PlannerConstruction != 1 || report.DefinitionsPublished != len(sources) || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("combined restart definition report = %+v", report)
 	}
+
 	backend, err := openBackend(ctx)
 	if err != nil {
 		t.Fatalf("open restart migration database: %v", err)
@@ -865,7 +859,7 @@ func explicitlyMigrateRestartDatabase(t *testing.T, ctx context.Context, reposit
 	if err != nil {
 		t.Fatalf("explicitly migrate Article and system definitions: %v", err)
 	}
-	for _, app := range []string{"godj_conformance", systemstate.InitialMigrationKey().App} {
+	for _, app := range []string{"godj_conformance", "godj_identity", systemstate.InitialMigrationKey().App} {
 		if _, found := state.Schema(app); !found {
 			t.Fatalf("migrated restart state omitted app %q", app)
 		}
@@ -885,10 +879,12 @@ func explicitlyProvisionRestartOperator(
 ) {
 	t.Helper()
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID:     "article-development-admin",
-		Active: true,
+		ID:        "article-development-admin",
+		Active:    true,
+		Staff:     true,
+		Superuser: true,
 		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
+			"godj.admin.access",
 			articleapp.ArticleViewPermission,
 			articleapp.ArticleAddPermission,
 			articleapp.ArticleChangePermission,
@@ -912,13 +908,11 @@ func explicitlyProvisionRestartOperator(
 			_ = backend.Close()
 		}
 	}()
-	if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
-		CredentialPolicy: systemstate.CredentialPolicy{
-			Principal:      principal,
-			PasswordHasher: hasher,
-		},
-		Username: username,
-		Password: password,
+	if _, err := systemstate.ProvisionIdentity(ctx, backend, systemstate.ProvisionIdentityConfig{
+		Principal:      principal,
+		PasswordHasher: hasher,
+		Username:       username,
+		Password:       password,
 	}); err != nil {
 		t.Fatalf("explicitly provision Article operator: %v", err)
 	}
@@ -1103,11 +1097,13 @@ func assertRestartMigrationHistory(t *testing.T, ctx context.Context, backend mi
 		t.Fatalf("read restart migration history: %v", err)
 	}
 	want := map[migrations.MigrationKey]bool{
-		{App: "godj_conformance", Name: "0001_initial"}: true,
-		systemstate.InitialMigrationKey():               true,
+		{App: "godj_conformance", Name: "0001_initial"}:        true,
+		systemstate.InitialMigrationKey():                      true,
+		{App: "godj_identity", Name: "0001_initial"}:           true,
+		{App: "godj_system", Name: "0002_identity_transition"}: true,
 	}
 	if len(history) != len(want) {
-		t.Fatalf("restart migration history has %d entries, want exactly two", len(history))
+		t.Fatalf("restart migration history has %d entries, want exactly four", len(history))
 	}
 	for _, applied := range history {
 		key := migrations.MigrationKey{App: applied.App, Name: applied.Name}
@@ -1221,6 +1217,8 @@ func assertPostgresArtifactsExcludeSensitive(
 		}
 	}()
 	columns := map[string][]string{
+		"godj_identity_user":              {"principal_id", "username", "encoded_password"},
+		"godj_system_identity_transition": {"principal_id", "source_fingerprint"},
 		"godj_system_credential": {
 			"principal_id",
 			"username",

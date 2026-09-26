@@ -111,7 +111,7 @@ func TestReadOnlyRelationModelRequiresNoMutationOrFormAdapter(t *testing.T) {
 		t.Fatal(err)
 	}
 	model := registry.models[0]
-	principal := mustPrincipalWithPermissions(t, DefaultAccessPermission, config.Permissions.View)
+	principal := sitePrincipal(t, "selection-reader", true, config.Permissions.View)
 	page, err := model.list(context.Background(), principal, ListRequest{})
 	if err != nil || len(page.objects) != 1 {
 		t.Fatalf("relation list: %v %v", page, err)

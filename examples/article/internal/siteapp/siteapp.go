@@ -40,7 +40,7 @@ type Config struct {
 }
 
 type configState struct {
-	backend                     systemstate.Backend
+	backend                     systemstate.IdentityBackend
 	csrfKeyRing                 websessionauth.CSRFKeyRing
 	allowLoopbackAuthentication bool
 }
@@ -49,7 +49,7 @@ type configState struct {
 // state. Without WithCSRFKeyRing, web/sessionauth retains its process-local key
 // behavior. Authenticated publication remains disabled until the caller has
 // proven that its listener is loopback-only.
-func NewConfig(backend systemstate.Backend) Config {
+func NewConfig(backend systemstate.IdentityBackend) Config {
 	return Config{state: &configState{backend: backend}}
 }
 
@@ -107,11 +107,11 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if config.state != nil {
 		configured = *config.state
 	}
-	runtimeConfig, err := operatorconfig.RuntimeConfig()
+	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
 	if err != nil {
 		return nil, fmt.Errorf("article site application: operator policy: %w", err)
 	}
-	runtime, err := systemstate.OpenExisting(ctx, configured.backend, runtimeConfig)
+	runtime, err := systemstate.OpenIdentity(ctx, configured.backend, runtimeConfig)
 	if err != nil {
 		if exactCredentialAbsent(err) {
 			application, publicErr := webapp.NewApplication(configured.backend)

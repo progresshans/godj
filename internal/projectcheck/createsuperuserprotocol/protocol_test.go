@@ -316,9 +316,9 @@ func TestResponseCanonicalRoundTripAndKnownCreatedShape(t *testing.T) {
 		t.Fatalf("ParseResponse = %+v, %+v, %v", parsed, failure, failed)
 	}
 
-	logical := Failure{Category: CategoryState, Code: CodeCredentialAlreadyExists}
+	logical := Failure{Category: CategoryState, Code: CodeIdentityAlreadyInitialized}
 	document, err = EncodeResponse(Response{Failure: logical})
-	want = `{"protocol_version":1,"status":"error","error":{"category":"system_state_error","code":"credential_already_exists"}}`
+	want = `{"protocol_version":1,"status":"error","error":{"category":"system_state_error","code":"identity_already_initialized"}}`
 	if err != nil || string(document) != want {
 		t.Fatalf("logical response = %s, %v, want %s", document, err, want)
 	}

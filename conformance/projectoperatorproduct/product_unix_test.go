@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
 	operatorattestation "github.com/progresshans/godj/conformance/projectoperatorproduct/attestation"
@@ -1135,6 +1134,8 @@ func operatorAssertSQLiteCounts(t *testing.T, path string, credentials, sessions
 		want  int
 	}{
 		{name: "credential", query: `SELECT COUNT(*) FROM "godj_system_credential"`, want: credentials},
+		{name: "user", query: `SELECT COUNT(*) FROM "godj_identity_user"`, want: credentials},
+		{name: "transition", query: `SELECT COUNT(*) FROM "godj_system_identity_transition"`, want: credentials},
 		{name: "session", query: `SELECT COUNT(*) FROM "godj_system_session"`, want: sessions},
 		{name: "Article", query: `SELECT COUNT(*) FROM "godj_conformance_article"`, want: articles},
 	}
@@ -1160,15 +1161,15 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 		defer database.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		var principal, storedUsername, encoded, permissions, digest string
-		var active bool
-		err = database.QueryRowContext(ctx, `SELECT "principal_id", "username", "encoded_password", "active", "permissions", "definition_digest" FROM "godj_system_credential"`).Scan(
-			&principal, &storedUsername, &encoded, &active, &permissions, &digest,
+		var principal, storedUsername, encoded string
+		var active, staff, superuser bool
+		err = database.QueryRowContext(ctx, `SELECT "principal_id", "username", "encoded_password", "active", "staff", "superuser" FROM "godj_identity_user"`).Scan(
+			&principal, &storedUsername, &encoded, &active, &staff, &superuser,
 		)
 		if err != nil {
 			t.Fatal("read external operator SQLite credential")
 		}
-		if principal != "external-article-operator" || storedUsername != username || encoded == "" || !active || permissions == "" || !strings.HasPrefix(digest, "sha256:") {
+		if principal != "external-article-operator" || storedUsername != username || encoded == "" || !active || !staff || !superuser {
 			t.Fatal("external operator SQLite credential semantic shape differs")
 		}
 		if bytes.Equal([]byte(encoded), password) || bytes.Contains([]byte(encoded), password) {
@@ -1195,7 +1196,7 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 
 	// Reconcile through the product API on a separately opened backend instead
 	// of treating row shape as proof. This is the no-retry path used after a
-	// lost private response: OpenExisting must accept the exact stored policy and
+	// lost private response: OpenIdentity must accept the durable ownership receipt and
 	// the supplied password must authenticate against the durable hash.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -1210,11 +1211,11 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 		}
 	}()
 	policy := operatorCredentialPolicy(t)
-	runtime, err := systemstate.OpenExisting(ctx, backend, systemstate.RuntimeConfig{
-		CredentialPolicy: policy,
-		SessionLimits:    sessions.DefaultLimits(),
-		MaxSessions:      64,
-		AuditCapacity:    256,
+	runtime, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{
+		PasswordHasher: policy.PasswordHasher,
+		SessionLimits:  sessions.DefaultLimits(),
+		MaxSessions:    64,
+		AuditCapacity:  256,
 	})
 	if err != nil {
 		t.Fatal("open existing external operator runtime")
@@ -1223,7 +1224,7 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 	principalCredential, err := runtime.Authenticator().Authenticate(ctx, username, passwordText)
 	principal := principalCredential.Principal()
 	passwordText = ""
-	if err != nil || principal.ID() != "external-article-operator" || !principal.Active() {
+	if err != nil || principal.ID() != "external-article-operator" || !principal.Active() || !principal.Staff() || !principal.Superuser() {
 		t.Fatal("authenticate fresh external operator runtime")
 	}
 	if err := backend.Close(); err != nil {
@@ -1238,7 +1239,7 @@ func operatorCredentialPolicy(t *testing.T) systemstate.CredentialPolicy {
 		ID:     "external-article-operator",
 		Active: true,
 		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
+			"godj.admin.access",
 			articleapp.ArticleViewPermission,
 			articleapp.ArticleAddPermission,
 			articleapp.ArticleChangePermission,

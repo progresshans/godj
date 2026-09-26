@@ -19,11 +19,19 @@ Account의 비밀 표현·복사 소유권, 권한 초과·잘못된 저장값·
 [구현 현황](IMPLEMENTATION_MATRIX.md)이 현재 지원 범위를 설명한다.
 새 identity/생성 변경에 이전 Hosted 전체 성공을 전이하지 않는다.
 
+작업 트리에서 저장 인증·active/staff/superuser와 명시적 identity 전환을 연결했다.
+새 system migration, operator adoption/첫 계정 생성, 원자적 소유권 기록과 옛 credential 비활성 표시를 구현했다.
+Article/Helpdesk·createsuperuser/runserver 및 기존 Article 세션을 이전하는 명령을 연결했다.
+잘못된 fmt 형식의 credential 진단 노출도 발견해 불투명한 내부 상태로 수정했다.
+영향 normal·race·CGO=0, 양 DB와 Linux의 별도 프로세스/capture·system-state 소비자 검증을 완료했다.
+현재 변경의 Hosted 전체 검증은 관리 소비자 통합 milestone이 소유한다.
+실행 상태·실패와 보정 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)에 기록한다.
+
 ## 다음 행동
 
-Directory의 계정 데이터를 실제 credential 검증과 active/staff/superuser admission에 연결한다.
-기존 operator 데이터의 명시적 migration·credential 변경·감사·동시성을 보존하고 실제 관리 Form/Admin/API·client로 이어간다.
-그 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
+전환·로그인·세션·재시작이 연결된 source를 기준으로 사용자/그룹/권한 관리의 revision·transaction·감사·credential 변경 서비스와
+실제 Form/Admin/API·client를 구현한다. 이 전환 경로를 다중 사용자 관리 전체의 완료로 표시하지 않는다.
+그 관리 소비자 통합 뒤 GDJ-0100의 새 source로 전체 milestone을 실행한다.
 
 장기 목표는 [헌장](../CHARTER.md)과 [기능 카탈로그](../CAPABILITY_CATALOG.md)의 완성이다.
 출시 일정 없이 필요한 기반과 기능을 이어가며 한 작업의 완료를 전체 프레임워크 완료로 합치지 않는다.

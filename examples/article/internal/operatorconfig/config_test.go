@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/internal/articlepermissions"
 )
@@ -20,7 +19,7 @@ func TestCredentialPolicyIsTheCanonicalSecretFreeArticleOperatorProfile(t *testi
 		t.Fatal(err)
 	}
 	wantPermissions := []auth.Permission{
-		admin.DefaultAccessPermission,
+		"godj.admin.access",
 		articlepermissions.ArticleViewPermission,
 		articlepermissions.ArticleAddPermission,
 		articlepermissions.ArticleChangePermission,

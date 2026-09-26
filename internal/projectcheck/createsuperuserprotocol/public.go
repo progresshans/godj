@@ -114,8 +114,8 @@ func ExitCode(failure Failure) (int, bool) {
 		case CodeSchemaUnavailable,
 			CodeInvalidCardinality,
 			CodeCorruptState,
-			CodeCredentialAlreadyExists,
-			CodeCredentialPolicyMismatch:
+			CodeIdentityAlreadyInitialized,
+			CodeIdentityTransitionRequired:
 			return 1, true
 		case CodeInvalidConfig, CodePersistenceFailure:
 			return 3, true

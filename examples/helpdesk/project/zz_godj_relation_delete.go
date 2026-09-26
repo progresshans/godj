@@ -4,6 +4,7 @@ package project
 
 import (
 	models "github.com/progresshans/godj/examples/helpdesk/models"
+	identity "github.com/progresshans/godj/identity/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
 	ir "github.com/progresshans/godj/schema/ir"
@@ -11,14 +12,20 @@ import (
 
 const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v2"
 
+var _ orm.WriteDescriptor[identity.Group] = identity.GroupDescriptor{}
+var _ orm.WriteDescriptor[identity.Permission] = identity.PermissionDescriptor{}
+var _ orm.WriteDescriptor[identity.User] = identity.UserDescriptor{}
 var _ orm.WriteDescriptor[models.Category] = models.CategoryDescriptor{}
 var _ orm.WriteDescriptor[models.Label] = models.LabelDescriptor{}
 var _ orm.WriteDescriptor[models.Ticket] = models.TicketDescriptor{}
 
 type RelationDeleters struct {
-	ModelsCategory orm.RelationDeleter[models.Category]
-	ModelsLabel    orm.RelationDeleter[models.Label]
-	ModelsTicket   orm.RelationDeleter[models.Ticket]
+	IdentityGroup      orm.RelationDeleter[identity.Group]
+	IdentityPermission orm.RelationDeleter[identity.Permission]
+	IdentityUser       orm.RelationDeleter[identity.User]
+	ModelsCategory     orm.RelationDeleter[models.Category]
+	ModelsLabel        orm.RelationDeleter[models.Label]
+	ModelsTicket       orm.RelationDeleter[models.Ticket]
 }
 
 func BindRelationDeleters() (RelationDeleters, error) {
@@ -30,7 +37,28 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	for _, _relation := range _binding.ForwardRelations() {
 		_targets[_relation.Target] = struct{}{}
 	}
-	if len(_targets) != 3 {
+	if len(_targets) != 6 {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"}]; !_ok {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -60,6 +88,33 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}
 	_deleter0, _err := orm.BindRelationDeleter(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
+		identity.GroupDescriptor{},
+		"299ac4bd4d1836a2d7d5446ee204f9a118a310dc1abb20e4c0b01b1eaff8b26d",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter1, _err := orm.BindRelationDeleter(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"},
+		identity.PermissionDescriptor{},
+		"6bb8f193e2e529f5904d0535dc87871622c49ee6d9565a44e58cf567e3524c2e",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter2, _err := orm.BindRelationDeleter(
+		_binding,
+		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
+		identity.UserDescriptor{},
+		"7736d4be0e0edbf7d000d1c4b61916a4df5813e18f6cddf8738cccb6fe6ecdc8",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter3, _err := orm.BindRelationDeleter(
+		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"},
 		models.CategoryDescriptor{},
 		"52a748c6f5e129a8097a8c2827c8275580e000b6b808065ee4637206d545af07",
@@ -67,7 +122,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	if _err != nil {
 		return RelationDeleters{}, _err
 	}
-	_deleter1, _err := orm.BindRelationDeleter(
+	_deleter4, _err := orm.BindRelationDeleter(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"},
 		models.LabelDescriptor{},
@@ -76,7 +131,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	if _err != nil {
 		return RelationDeleters{}, _err
 	}
-	_deleter2, _err := orm.BindRelationDeleter(
+	_deleter5, _err := orm.BindRelationDeleter(
 		_binding,
 		ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
 		models.TicketDescriptor{},
@@ -86,10 +141,13 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		return RelationDeleters{}, _err
 	}
 	return RelationDeleters{
-		ModelsCategory: _deleter0,
-		ModelsLabel:    _deleter1,
-		ModelsTicket:   _deleter2,
+		IdentityGroup:      _deleter0,
+		IdentityPermission: _deleter1,
+		IdentityUser:       _deleter2,
+		ModelsCategory:     _deleter3,
+		ModelsLabel:        _deleter4,
+		ModelsTicket:       _deleter5,
 	}, nil
 }
 
-var _ goDjProjectSnapshot_01efd02b97c148b997a6bac28221395d42f9498242cb45508c950a2d50926966
+var _ goDjProjectSnapshot_4bf15ae7229c01473833ad2e439bf179d916a252ca4cfc98d0e5c6770aec5807

@@ -316,12 +316,12 @@
     },
     {
       "id": "SYS-028",
-      "title": "Only migrated clean credential-absent state selects public-only mode and no schema corruption or policy failure downgrades",
+      "title": "Only migrated clean identity-absent state selects public-only mode; corruption and required operator adoption never downgrade",
       "scenario": "godj.system_state.credential_absent_public_only",
       "phase": "environment",
       "status": "passing",
       "provenance": [
-        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+        {"kind": "documentation", "reference": "ADR-0076", "derived": false}
       ],
       "comparison": ["result", "db_state", "metrics"]
     },

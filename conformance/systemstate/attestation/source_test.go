@@ -111,6 +111,10 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"query/plan.go",
 		"schema/ir/types.go",
 		"systemstate/testdata/0001_initial.godj.json",
+		"systemstate/testdata/0002_identity_transition.godj.json",
+		"identity/migrations/0001_initial.godj.json",
+		"identity/directory.go",
+		"identity/models/zz_godj_generated.go",
 	}
 	for _, relative := range paths {
 		t.Run(relative, func(t *testing.T) {

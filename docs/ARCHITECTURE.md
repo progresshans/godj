@@ -250,7 +250,15 @@ Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사
 않으며 권한 거부·인증 실패·CSRF 실패를 구분한다. Raw token/password와 verifier cause는 logs·errors·audit에 남기지 않는다.
 Principal은 생성 시 복사·검증한 private 권한을 공유하고 Permissions는 별도 slice를 반환한다. Session ID는 외부 입력을
 ParseID에서 엄격히 검증한다. Record의 값 map은 입력·변경·mutable snapshot에서 복사하며 touch·load·rotation의 불변 전달은 공유한다.
-Durable credential은 explicit provisioning 후 `OpenExisting`으로 열며 startup이 비밀번호를 다시 받거나 권한을 몰래 바꾸지 않는다.
+User/Group/Permission은 재사용 identity 앱의 Schema IR·generated model·migration에서 정의한다. Directory는 한 native read
+snapshot에서 현재 User와 직접·그룹 grant 합집합을 반환한다. 비밀번호 검증은 snapshot 밖에서 하고 성공 뒤 ID·username·stamp를
+다시 읽어 현재 권한/role을 반환한다. Admin은 active staff를 요구하며 superuser는 canonical permission만 암묵적으로 허용한다.
+
+Identity는 명시적인 `ProvisionIdentity` 또는 기존 operator의 `AdoptOperator` 뒤 `OpenIdentity`로 연다. Startup은 비밀번호를 다시
+받거나 데이터를 이전하지 않는다. 전환은 opaque principal ID·encoded password·session binding·audit 행을 보존한다.
+새 User·권한·receipt와 옛 credential의 비활성 표시를 같은 transaction으로 쓴다. Unknown outcome은 receipt를 조회해 조정한다.
+이전하지 않은 옛 도메인의 `OpenExisting`/policy CAS도 legacy 저장 의미를 검증한다. 자세한 결정은
+[ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)을 따른다.
 Session Store의 `Access`는 현재 record를 한 번 읽고 `AccessPolicy`의 record 검증·clock 확인·idle/absolute 만료 판정·
 갱신 또는 만료 삭제를 한 원자적 연산에서 수행하며 active/expired/missing을 구분한다. Manager.Load는 이 연산을 사용하고,
 Store.Load는 갱신 없는 원시 조회다. 정책 검증·취소가 실패하면 저장 내용을 바꾸지 않는다.

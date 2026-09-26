@@ -129,6 +129,9 @@ type credentialRow struct {
 }
 
 func validateCredentialPolicy(policy CredentialPolicy) (credentialPolicyMaterial, error) {
+	if policy.Principal.Staff() || policy.Principal.Superuser() {
+		return credentialPolicyMaterial{}, &Error{Code: CodeInvalidConfig, Field: "principal", Detail: "operator storage has no role fields; roles require explicit identity adoption"}
+	}
 	if isNilInterface(policy.PasswordHasher) {
 		return credentialPolicyMaterial{}, &Error{
 			Code:   CodeInvalidConfig,
@@ -296,6 +299,9 @@ func insertCredential(ctx context.Context, session db.Session, row credentialRow
 }
 
 func validateStoredCredential(row credentialRow, policy credentialPolicyMaterial) (auth.Credential, error) {
+	if row.definitionDigest == transferredCredentialDigest {
+		return auth.Credential{}, identityInitializedError()
+	}
 	if row.id <= 0 || len(row.principalID) > credentialPrincipalIDMaxLength ||
 		len(row.username) > credentialUsernameMaxLength ||
 		len(row.encodedPassword) > credentialEncodedPasswordMaxLength ||

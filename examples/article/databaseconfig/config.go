@@ -78,7 +78,7 @@ type LookupEnvFunc func(string) (string, bool)
 
 // Backend is the shared Article site/migration backend lifetime.
 type Backend interface {
-	systemstate.Backend
+	systemstate.IdentityBackend
 	migrationbackend.RevisionFencedBackend
 	Close() error
 }

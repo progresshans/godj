@@ -42,10 +42,12 @@ func RequiredPermissions(first Permission, additional ...Permission) ([]Permissi
 	return permissions, nil
 }
 
-// PrincipalConfig is immutable startup input for one principal snapshot.
+// PrincipalConfig is immutable input for one observed principal snapshot.
 type PrincipalConfig struct {
 	ID          string
 	Active      bool
+	Staff       bool
+	Superuser   bool
 	Permissions []Permission
 }
 
@@ -54,6 +56,8 @@ type PrincipalConfig struct {
 type Principal struct {
 	id          string
 	active      bool
+	staff       bool
+	superuser   bool
 	permissions []Permission
 	permission  map[Permission]struct{}
 }
@@ -77,25 +81,31 @@ func NewPrincipal(config PrincipalConfig) (Principal, error) {
 		permissions[offset] = permission
 		index[permission] = struct{}{}
 	}
-	return Principal{id: config.ID, active: config.Active, permissions: permissions, permission: index}, nil
+	return Principal{id: config.ID, active: config.Active, staff: config.Staff, superuser: config.Superuser, permissions: permissions, permission: index}, nil
 }
 
 func Anonymous() Principal { return Principal{} }
 
 func (p Principal) ID() string          { return p.id }
 func (p Principal) Active() bool        { return p.active && p.id != "" }
+func (p Principal) Staff() bool         { return p.staff && p.id != "" }
+func (p Principal) Superuser() bool     { return p.superuser && p.id != "" }
 func (p Principal) Authenticated() bool { return p.Active() }
 func (p Principal) String() string      { return "auth.Principal{redacted}" }
 func (p Principal) GoString() string    { return "auth.Principal{redacted}" }
 
-// Permissions returns a detached declaration-order snapshot.
+// Permissions returns a detached declaration-order snapshot of explicit
+// grants. A superuser's implicit grants are not a materialized catalog.
 func (p Principal) Permissions() []Permission {
 	return append([]Permission(nil), p.permissions...)
 }
 
 func (p Principal) Has(permission Permission) bool {
-	if !p.Authenticated() {
+	if !p.Authenticated() || !validPermission(string(permission)) {
 		return false
+	}
+	if p.superuser {
+		return true
 	}
 	// Only NewPrincipal can populate this private, immutable index, and it
 	// accepts canonical permissions only. Every other string is absent.

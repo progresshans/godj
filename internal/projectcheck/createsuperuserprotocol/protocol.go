@@ -58,15 +58,15 @@ const (
 	CodeInvalidBackend     = "invalid_backend"
 	CodeBackendCloseFailed = "backend_close_failed"
 
-	CodeInvalidConfig            = "invalid_config"
-	CodeInvalidInput             = "invalid_input"
-	CodeSchemaUnavailable        = "schema_unavailable"
-	CodeInvalidCardinality       = "invalid_cardinality"
-	CodeCorruptState             = "corrupt_state"
-	CodePersistenceFailure       = "persistence_failure"
-	CodeCredentialAlreadyExists  = "credential_already_exists"
-	CodeCredentialPolicyMismatch = "credential_policy_mismatch"
-	CodeProjectInternalError     = "project_internal_error"
+	CodeInvalidConfig              = "invalid_config"
+	CodeInvalidInput               = "invalid_input"
+	CodeSchemaUnavailable          = "schema_unavailable"
+	CodeInvalidCardinality         = "invalid_cardinality"
+	CodeCorruptState               = "corrupt_state"
+	CodePersistenceFailure         = "persistence_failure"
+	CodeIdentityAlreadyInitialized = "identity_already_initialized"
+	CodeIdentityTransitionRequired = "identity_transition_required"
+	CodeProjectInternalError       = "project_internal_error"
 )
 
 var (
@@ -342,8 +342,8 @@ func IsLinkedFailure(failure Failure) bool {
 			CodeInvalidCardinality,
 			CodeCorruptState,
 			CodePersistenceFailure,
-			CodeCredentialAlreadyExists,
-			CodeCredentialPolicyMismatch:
+			CodeIdentityAlreadyInitialized,
+			CodeIdentityTransitionRequired:
 			return true
 		}
 	case CategoryBackend:

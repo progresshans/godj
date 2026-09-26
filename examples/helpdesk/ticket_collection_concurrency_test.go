@@ -31,7 +31,7 @@ func verifyCollectionConcurrency(t *testing.T, ctx context.Context, runtime *sys
 	defer second.Close()
 	runtimes := make([]*systemstate.Runtime, 2)
 	for index, backend := range []helpdeskBackend{first, second} {
-		runtimes[index], err = systemstate.OpenExisting(bounded, backend, systemstate.RuntimeConfig{CredentialPolicy: policy})
+		runtimes[index], err = systemstate.OpenIdentity(bounded, backend, systemstate.IdentityRuntimeConfig{PasswordHasher: policy.PasswordHasher})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -30,6 +30,8 @@ func operatorSQLiteRawSecretOccurrences(t *testing.T, path string, secret []byte
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	queries := []string{
+		`SELECT "principal_id", "username", "encoded_password" FROM "godj_identity_user"`,
+		`SELECT "principal_id", "source_fingerprint" FROM "godj_system_identity_transition"`,
 		`SELECT "principal_id", "username", "encoded_password", "permissions", "definition_digest" FROM "godj_system_credential"`,
 		`SELECT "digest", "payload" FROM "godj_system_session"`,
 		`SELECT "actor_id", "model", "object_id", "action", "changed_fields", "display_label" FROM "godj_system_audit"`,
@@ -105,6 +107,11 @@ func operatorPostgresRawSecretOccurrences(t *testing.T, databaseURL, schema stri
 			UNION ALL SELECT "encoded_password"::text FROM %[1]s"godj_system_credential"
 			UNION ALL SELECT "permissions"::text FROM %[1]s"godj_system_credential"
 			UNION ALL SELECT "definition_digest"::text FROM %[1]s"godj_system_credential"
+			UNION ALL SELECT "principal_id"::text FROM %[1]s"godj_identity_user"
+			UNION ALL SELECT "username"::text FROM %[1]s"godj_identity_user"
+			UNION ALL SELECT "encoded_password"::text FROM %[1]s"godj_identity_user"
+			UNION ALL SELECT "principal_id"::text FROM %[1]s"godj_system_identity_transition"
+			UNION ALL SELECT "source_fingerprint"::text FROM %[1]s"godj_system_identity_transition"
 			UNION ALL SELECT "digest"::text FROM %[1]s"godj_system_session"
 			UNION ALL SELECT "payload"::text FROM %[1]s"godj_system_session"
 			UNION ALL SELECT "actor_id"::text FROM %[1]s"godj_system_audit"

@@ -370,3 +370,20 @@ func rawPermissionPayload(t *testing.T, values []string) string {
 	}
 	return permissionPayloadPrefix + base64.RawURLEncoding.EncodeToString(buffer.Bytes())
 }
+
+func TestLegacyOperatorPolicyRejectsUnstoredRolesAndDerivationPreservesThem(t *testing.T) {
+	for _, roles := range []struct{ staff, superuser bool }{{true, false}, {false, true}, {true, true}} {
+		principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "operator", Active: true, Staff: roles.staff, Superuser: roles.superuser})
+		if err != nil {
+			t.Fatal(err)
+		}
+		policy := CredentialPolicy{Principal: principal}
+		changed, err := policy.WithPermissions("helpdesk.ticket.view")
+		if err != nil || changed.Principal.Staff() != roles.staff || changed.Principal.Superuser() != roles.superuser {
+			t.Fatal("policy derivation silently erased role flags", err)
+		}
+		if _, err := validateCredentialPolicy(changed); !errors.Is(err, &Error{Code: CodeInvalidConfig, Field: "principal"}) {
+			t.Fatal("legacy credential policy accepted roles absent from its storage", err)
+		}
+	}
+}

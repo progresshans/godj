@@ -461,6 +461,10 @@ func newSiteApplicationHarness(t *testing.T, pageSize int) siteApplicationHarnes
 }
 
 func newSiteApplicationHarnessWithAuthorizer(t *testing.T, pageSize int, authorizer auth.Authorizer, configure ...func(*ModelConfig[registryArticle])) siteApplicationHarness {
+	return newSiteApplicationHarnessIdentities(t, pageSize, authorizer, siteTestIdentities(t), configure...)
+}
+
+func newSiteApplicationHarnessIdentities(t *testing.T, pageSize int, authorizer auth.Authorizer, identities []siteIdentity, configure ...func(*ModelConfig[registryArticle])) siteApplicationHarness {
 	t.Helper()
 	state := newSiteModelState()
 	registry := siteTestRegistry(t, state, configure...)
@@ -469,7 +473,7 @@ func newSiteApplicationHarnessWithAuthorizer(t *testing.T, pageSize int, authori
 	if err != nil {
 		t.Fatalf("SiteAllowedNextPaths() error = %v", err)
 	}
-	runtime, store := siteTestRuntimeConfigured(t, allowed, "/admin/login/", "/admin/", siteTestIdentities(t), "/", "/", authorizer)
+	runtime, store := siteTestRuntimeConfigured(t, allowed, "/admin/login/", "/admin/", identities, "/", "/", authorizer)
 	site, err := NewSite(SiteConfig{
 		Apps: installed, Namespace: "godj_conformance", Registry: registry, Auth: runtime, PageSize: pageSize,
 	})
@@ -497,22 +501,21 @@ type siteIdentity struct {
 
 func siteTestIdentities(t *testing.T) []siteIdentity {
 	t.Helper()
-	access := mustPermission(t, string(DefaultAccessPermission))
 	view := mustPermission(t, "articles.view")
 	add := mustPermission(t, "articles.add")
 	change := mustPermission(t, "articles.change")
 	deletePermission := mustPermission(t, "articles.delete")
 	return []siteIdentity{
-		{username: "admin", principal: sitePrincipal(t, "admin-principal", access, view, add, change, deletePermission)},
-		{username: "nonadmin", principal: sitePrincipal(t, "nonadmin-principal", view)},
-		{username: "modeldenied", principal: sitePrincipal(t, "model-denied-principal", access)},
-		{username: "viewer", principal: sitePrincipal(t, "viewer-principal", access, view)},
+		{username: "admin", principal: sitePrincipal(t, "admin-principal", true, view, add, change, deletePermission)},
+		{username: "nonadmin", principal: sitePrincipal(t, "nonadmin-principal", false, view)},
+		{username: "modeldenied", principal: sitePrincipal(t, "model-denied-principal", true)},
+		{username: "viewer", principal: sitePrincipal(t, "viewer-principal", true, view)},
 	}
 }
 
-func sitePrincipal(t *testing.T, id string, permissions ...auth.Permission) auth.Principal {
+func sitePrincipal(t *testing.T, id string, staff bool, permissions ...auth.Permission) auth.Principal {
 	t.Helper()
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: id, Active: true, Permissions: permissions})
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: id, Active: true, Staff: staff, Permissions: permissions})
 	if err != nil {
 		t.Fatalf("auth.NewPrincipal() error = %v", err)
 	}

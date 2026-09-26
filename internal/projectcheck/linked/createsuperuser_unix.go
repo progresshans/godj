@@ -8,6 +8,7 @@ import (
 	"io"
 	"reflect"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
@@ -17,7 +18,7 @@ import (
 // explicit operator-provisioning invocation. Its outer Close remains separate
 // from the database-coordinated transaction owned by systemstate.
 type SystemStateBackend interface {
-	systemstate.Backend
+	systemstate.IdentityBackend
 	Close() error
 }
 
@@ -25,7 +26,8 @@ type SystemStateBackend interface {
 // and immutable credential policy. It contains no username or raw password.
 type CreatesuperuserConfig struct {
 	OpenSystemStateBackend func(context.Context) (SystemStateBackend, error)
-	CredentialPolicy       systemstate.CredentialPolicy
+	InitialSuperuser       auth.Principal
+	PasswordHasher         auth.PasswordHasher
 }
 
 // CreatesuperuserReport records only observations made by this invocation.
@@ -42,7 +44,7 @@ type CreatesuperuserReport struct {
 }
 
 type createsuperuserDependencies struct {
-	provisionOperator   func(context.Context, systemstate.Backend, systemstate.ProvisionOperatorConfig) error
+	provisionIdentity   func(context.Context, systemstate.IdentityBackend, systemstate.ProvisionIdentityConfig) error
 	beforeResponseWrite func()
 }
 
@@ -59,12 +61,23 @@ func RunCreatesuperuser(
 ) (CreatesuperuserReport, error) {
 	owned := CreatesuperuserConfig{
 		OpenSystemStateBackend: config.OpenSystemStateBackend,
-		CredentialPolicy:       config.CredentialPolicy,
+		InitialSuperuser:       config.InitialSuperuser,
+		PasswordHasher:         config.PasswordHasher,
 	}
 	arguments := append([]string(nil), argv...)
 	return runCreatesuperuser(ctx, owned, arguments, stdin, stdout, createsuperuserDependencies{
-		provisionOperator: systemstate.ProvisionOperator,
+		provisionIdentity: provisionInitialSuperuser,
 	})
+}
+
+// The command's role meaning is fixed. Project configuration chooses the opaque
+// initial identity and hash profile, never whether "superuser" is a staff user.
+func provisionInitialSuperuser(ctx context.Context, backend systemstate.IdentityBackend, config systemstate.ProvisionIdentityConfig) error {
+	if !config.Principal.Active() || !config.Principal.Staff() || !config.Principal.Superuser() {
+		return &systemstate.Error{Code: systemstate.CodeInvalidConfig, Field: "principal", Detail: "initial superuser must be active, staff and superuser"}
+	}
+	_, err := systemstate.ProvisionIdentity(ctx, backend, config)
+	return err
 }
 
 func runCreatesuperuser(
@@ -146,7 +159,7 @@ func runCreatesuperuser(
 		}}, false)
 	}
 
-	if dependencies.provisionOperator == nil {
+	if dependencies.provisionIdentity == nil {
 		closeSystemStateBackend(opened, &report)
 		request.Clear()
 		return report, errors.New("project linked createsuperuser: nil provision dependency")
@@ -159,13 +172,14 @@ func runCreatesuperuser(
 	username := string(request.Username)
 	password := string(request.Password)
 	request.Clear()
-	provisionConfig := systemstate.ProvisionOperatorConfig{
-		Username:         username,
-		Password:         password,
-		CredentialPolicy: config.CredentialPolicy,
+	provisionConfig := systemstate.ProvisionIdentityConfig{
+		Username:       username,
+		Password:       password,
+		Principal:      config.InitialSuperuser,
+		PasswordHasher: config.PasswordHasher,
 	}
 	report.ProvisionCalls++
-	provisionErr := dependencies.provisionOperator(ctx, opened, provisionConfig)
+	provisionErr := dependencies.provisionIdentity(ctx, opened, provisionConfig)
 	provisionConfig.Username = ""
 	provisionConfig.Password = ""
 	username = ""
@@ -265,12 +279,12 @@ func classifyCreatesuperuserStateFailure(err error) createsuperuserprotocol.Fail
 		failure.Code = createsuperuserprotocol.CodeCorruptState
 	case systemstate.CodePersistence:
 		failure.Code = createsuperuserprotocol.CodePersistenceFailure
-	case systemstate.CodeCredentialAlreadyExists:
-		failure.Code = createsuperuserprotocol.CodeCredentialAlreadyExists
-	case systemstate.CodeCredentialPolicyMismatch:
-		failure.Code = createsuperuserprotocol.CodeCredentialPolicyMismatch
+	case systemstate.CodeIdentityAlreadyInitialized:
+		failure.Code = createsuperuserprotocol.CodeIdentityAlreadyInitialized
+	case systemstate.CodeIdentityTransitionRequired:
+		failure.Code = createsuperuserprotocol.CodeIdentityTransitionRequired
 	default:
-		// credential_absent is impossible for ProvisionOperator and is not a
+		// credential_absent is impossible for ProvisionIdentity and is not a
 		// linked product refusal. Unknown future codes fail closed as internal.
 		return createsuperuserInternalFailure()
 	}
