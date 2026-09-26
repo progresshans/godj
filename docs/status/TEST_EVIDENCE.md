@@ -12,6 +12,10 @@ Darwin arm64 / Go 1.26.5, 실제 SQLite와 private PostgreSQL **17.10**에서 **
 Auth·identity·systemstate·Admin·Web/API session·Bearer 전체, native snapshot/identity/adoption roots,
 Article·siteapp·Helpdesk 소비자 전체를 선택했다. Generated schema/ABI 변경은 없으며 이 묶음의 별도 process/Hosted full은 아직 실행하지 않았다.
 
+구현 commit `03b6be938fefcec985966458455461c277ccaa01`을 Draft PR #1에 게시했다.
+[Hosted Fast](https://github.com/progresshans/godj/actions/runs/36271619201)는 해당 commit의 실제 **Fast Go feedback**까지 성공했다.
+게시 뒤 작업 트리의 non-Markdown bytes가 위 checkpoint source와 같음을 다시 확인했다. 이 결과는 Hosted full을 대체하지 않는다.
+
 | 모드 | 완료 inventory | 그룹 실행 시간 합계 |
 |---|---|---|
 | normal | 848 PASS / skip 0 | 28.584초 |

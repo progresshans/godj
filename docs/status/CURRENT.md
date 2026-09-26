@@ -31,6 +31,7 @@ Article/Helpdesk·createsuperuser/runserver 및 기존 Article 세션을 이전�
 이어서 관리자 비밀번호 교체 service를 구현했다. 현재 저장 권한·revision·credential을 재확인하고
 User 변경·대상 세션만의 폐기·감사를 같은 transaction으로 처리한다. 양 DB의 동시 요청·rollback·unknown outcome,
 기존 session/HTTP·runtime 재접속과 영향 normal/race/CGO=0 checkpoint를 검증했다.
+`03b6be93`으로 게시했고 [Hosted Fast](https://github.com/progresshans/godj/actions/runs/36271619201)의 실제 Go 검사도 성공했다.
 관리 Form/Admin/API와 self-service/reset은 다음 연결 범위다.
 
 ## 다음 행동

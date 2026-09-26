@@ -50,7 +50,7 @@ Credential/Account/인증기/Directory/receipt의 잘못된 fmt verb 노출을 �
 영향 normal/race/CGO=0, 양 DB와 플랫폼별 process/capture·30개 system-state 소비자 관찰을 완료했다.
 전체 플랫폼 milestone은 아래 사용자 관리 소비자 통합 뒤 실행한다.
 
-관리자 비밀번호 교체 service를 작업 트리에 구현했다. 현재 권한·revision·credential을 재확인하고 한 번의 hash 작업 뒤
+관리자 비밀번호 교체 service를 구현해 게시했다. 현재 권한·revision·credential을 재확인하고 한 번의 hash 작업 뒤
 User 갱신·대상 세션만의 폐기·값 없는 audit를 같은 transaction으로 처리한다. 양 DB의 실제 session/HTTP·재접속과 경쟁·실패 경계,
 영향 normal/race/CGO=0·negative control을 검증했다.
 다음은 사용자·그룹·권한의 나머지 관리 service와 실제 Form/Admin/API·독립 client다. Self-service password/reset도 별도 미완료 범위다.
